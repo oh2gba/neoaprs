@@ -10,7 +10,7 @@ from pathlib import Path
 from . import wiring
 from .app import Frontend, Services
 from .clock import Clock, days, utcnow
-from .config import Config
+from .config import LOG_KEEP_DAYS, Config
 from .db import Db
 from .dbfile import DEFAULT_BUSY_MS
 from .dbopen import open_connection
@@ -60,7 +60,7 @@ class Controller(Services):
         self.stationbook.seed(await self.packetlog.stations())
         self.stationbook.seed_deliveries(await self.packetlog.deliveries())
         self._place_me()
-        self.stationbook.seed_tracks(await self.packetlog.positions(self.config.log_keep_days))      # (after our own station is in the book: it gets no track)
+        self.stationbook.seed_tracks(await self.packetlog.positions(LOG_KEEP_DAYS))      # (after our own station is in the book: it gets no track)
         await self._seed_weather()
         self.stationbook.seed_details(await self.packetlog.recent(DETAILS_SEEN))
         self.running = True
@@ -98,7 +98,7 @@ class Controller(Services):
     async def _seed_weather(self) -> None:
         """The weather log made from the packets kept when it is empty (once), then the newest observation of each station into the book."""
         if await self.weatherlog.count() == 0:
-            made = await self.weatherlog.backfill(self.config.log_keep_days)
+            made = await self.weatherlog.backfill(LOG_KEEP_DAYS)
             if made:
                 log.info("the weather log was empty: %d observations were read from the packets already kept", made)
         self.stationbook.seed_weather(await self.weatherlog.latest_all())
@@ -166,9 +166,9 @@ class Controller(Services):
 
     # ---- the care of the database
     async def prune(self) -> tuple[int, list[str]]:
-        """Removes the packets and the stations not heard for log/keep_days days (and the weather observations that old); how many packets, and which stations. The messages and the bulletins stay: the operator deletes those. A station the operator gave a timeout of 0 (never) is kept in
+        """Removes the packets and the stations not heard for 7 days (and the weather observations that old); how many packets, and which stations. The messages and the bulletins stay: the operator deletes those. A station the operator gave a timeout of 0 (never) is kept in
         the station book however long ago it was heard; its packets are pruned like the others."""
-        keep = self.config.log_keep_days
+        keep = LOG_KEEP_DAYS
         packets = await self.packetlog.prune(keep)
         self.messaging.forget_heard(keep)
         await self.weatherlog.prune(keep)

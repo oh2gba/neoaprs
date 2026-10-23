@@ -60,11 +60,11 @@ class Status(_Message):
     cpu_percent: float = Field(description="the daemon's CPU time (user and system) as a share of one core, in percent to a tenth, since the previous status that was at least a second before; the first counts from the start")
     rss_mb: float | None = Field(description="the daemon's resident memory in megabytes, to a tenth; null where the system does not say")
     uptime_sec: int = Field(description="seconds since the daemon started, by its clock")
-    update: UpdateInfo | None = Field(description="the latest version while it is newer than this one, from the daily update check (`update/check`); null when there is none, the check is off or has not been answered")
+    update: UpdateInfo | None = Field(description="the latest version while it is newer than this one, from the daily update check; null when there is none or the check has not been answered")
 
 
 class CheckUpdate(_Command):
-    """Asks the version page now, the question of the daily update check (`update/check`), whether that is switched on or not; the daily schedule is left as it was. Answered with `update_result` and then a `status` (with the newer version, if there is one) to the page that asked."""
+    """Asks the version page now, the question of the daily update check; the daily schedule is left as it was. Answered with `update_result` and then a `status` (with the newer version, if there is one) to the page that asked."""
     cmd: Literal["update_check"]
 
 

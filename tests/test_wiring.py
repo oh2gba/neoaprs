@@ -116,16 +116,27 @@ async def test_prune_removes_the_old_packets_and_stations_and_keeps_the_new_and_
     e = Env(tmp_path)
     await e.start()
     await e.play()
-    e.now.advance(20 * 86400)                                      # type: ignore[attr-defined]
+    e.now.advance(5 * 86400)                                      # type: ignore[attr-defined]
     e.feed(frame_bytes("OH2NEW"))
     await until(lambda: e.tnc.stats.packets == 5)
-    e.now.advance(15 * 86400)                                      # type: ignore[attr-defined]
-    assert e.ctl.config.log_keep_days == 30
+    e.now.advance(4 * 86400)                                       # type: ignore[attr-defined]
     count, stations = await e.ctl.prune()
     assert count == 4 and sorted(stations) == sorted(FIXED_ORDER)
     assert [p.source for p in await e.packets()] == ["OH2NEW"]
     assert sorted(s.call for s in await e.stations()) == ["OH2GBA", "OH2NEW"] and e.ctl.stationbook.get("OH2RDG") is None and e.ctl.stationbook.get("OH2GBA") is not None
     assert await e.ctl.prune() == (0, [])
+    await e.stop()
+
+
+async def test_prune_keeps_seven_days_whatever_an_earlier_version_stored(tmp_path: Path) -> None:
+    e = Env(tmp_path, settings={"log/keep_days": "400"})
+    await e.start()
+    await e.play()
+    e.now.advance(6 * 86400)                                       # type: ignore[attr-defined]
+    assert await e.ctl.prune() == (0, [])
+    e.now.advance(2 * 86400)                                       # type: ignore[attr-defined]
+    count, stations = await e.ctl.prune()
+    assert count == 4 and sorted(stations) == sorted(FIXED_ORDER)
     await e.stop()
 
 
@@ -136,10 +147,10 @@ async def test_prune_keeps_a_station_whose_own_timeout_is_never_in_the_book_and_
     await e.ctl.prefbook.set_timeout("OH2RDG", 0)                    # never hidden: never forgotten
     await e.ctl.prefbook.set_timeout("OH2RDK-7", 60)                 # a timeout is not that
     await e.ctl.prefbook.set_path("OH2RDS", "WIDE2-1")
-    e.now.advance(20 * 86400)                                      # type: ignore[attr-defined]
+    e.now.advance(5 * 86400)                                       # type: ignore[attr-defined]
     e.feed(frame_bytes("OH2NEW"))
     await until(lambda: e.tnc.stats.packets == 5)
-    e.now.advance(15 * 86400)                                      # type: ignore[attr-defined]
+    e.now.advance(4 * 86400)                                       # type: ignore[attr-defined]
     count, stations = await e.ctl.prune()
     assert count == 4 and sorted(stations) == sorted(["OH2RDK-7", "OH2RDS", "OH2PU-9"])
     assert [p.source for p in await e.packets()] == ["OH2NEW"], "the packets of OH2RDG are pruned as the others are"
@@ -174,7 +185,7 @@ async def test_a_change_of_the_serial_port_in_the_settings_restarts_the_tnc(tmp_
     await until(lambda: e.tnc.state is Source.State.CONNECTED and e.tnc.path == first)
     assert (await e.ctl.store.settings())["serial/port"] == first and e.tnc.port == first
     opens = e.tnc.stats.opens
-    assert await e.ctl.save_config(replace(e.ctl.config, station_comment="a changed comment", log_keep_days=10))
+    assert await e.ctl.save_config(replace(e.ctl.config, station_comment="a changed comment"))
     await asyncio.sleep(0.2)
     assert e.tnc.stats.opens == opens and e.tnc.state is Source.State.CONNECTED, "a setting the Tnc does not use leaves it alone"
     assert await e.ctl.save_config(replace(e.ctl.config, serial_port=second))
@@ -186,7 +197,7 @@ async def test_a_change_of_the_serial_port_in_the_settings_restarts_the_tnc(tmp_
     await e.stop()
     again = Env(tmp_path, radio=False)
     await again.start(connected=False)
-    assert again.ctl.config.serial_port == second and again.ctl.config.serial_baud == 4800 and again.ctl.config.log_keep_days == 10 and again.ctl.config.station_comment == "a changed comment"
+    assert again.ctl.config.serial_port == second and again.ctl.config.serial_baud == 4800 and again.ctl.config.station_comment == "a changed comment"
     await again.stop()
 
 

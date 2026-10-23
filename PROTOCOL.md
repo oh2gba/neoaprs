@@ -107,7 +107,7 @@ Answered with `status` at once (the daemon also sends one every 10 s).
 
 ### `update_check`
 
-Asks the version page now, the question of the daily update check (`update/check`), whether that is switched on or not; the daily schedule is left as it was. Answered with `update_result` and then a `status` (with the newer version, if there is one) to the page that asked.
+Asks the version page now, the question of the daily update check; the daily schedule is left as it was. Answered with `update_result` and then a `status` (with the newer version, if there is one) to the page that asked.
 
 ### `subscribe`
 
@@ -391,7 +391,7 @@ What the daemon is, for the status bar: sent after `hello`, every 10 s, when ask
 | `cpu_percent` | number |  | the daemon's CPU time (user and system) as a share of one core, in percent to a tenth, since the previous status that was at least a second before; the first counts from the start |
 | `rss_mb` | number \| null |  | the daemon's resident memory in megabytes, to a tenth; null where the system does not say |
 | `uptime_sec` | integer |  | seconds since the daemon started, by its clock |
-| `update` | UpdateInfo \| null |  | the latest version while it is newer than this one, from the daily update check (`update/check`); null when there is none, the check is off or has not been answered |
+| `update` | UpdateInfo \| null |  | the latest version while it is newer than this one, from the daily update check; null when there is none or the check has not been answered |
 
 ### `pong`
 
