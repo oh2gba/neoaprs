@@ -1,0 +1,187 @@
+/* the email tab: the button and the (i) on top, the mail list, the box to write in at the bottom */
+.mailpane {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.mail-bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.mail-bar .btn {
+  flex: none;
+  padding-right: 10px;
+  padding-left: 10px;
+  white-space: nowrap;
+}
+.mail-bar .info-text {
+  right: 0;
+  left: auto;
+}
+.mailfields {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 10px;
+  align-items: center;
+}
+.mailfields > label {
+  font-weight: 600;
+}
+.mail-address {
+  position: relative;
+  display: flex;
+  min-width: 0;
+}
+.mail-address .input {
+  flex: 1;
+}
+.suggestions {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  z-index: 6;
+  max-height: 40vh;
+  margin: 2px 0 0;
+  padding: 2px 4px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  list-style: none;
+}
+.suggestion {
+  display: flex;
+  align-items: center;
+}
+.suggestion-pick {
+  flex: 1;
+  min-width: 0;
+  min-height: 32px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-size: 13px;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.suggestion-pick:hover,
+.suggestion-pick:focus-visible {
+  color: var(--accent);
+}
+.maillist-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.maillist {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.mail {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.mail.fresh {
+  background: var(--row-selected);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.mail.fresh .mail-title,
+.mail.fresh .mail-text {
+  font-weight: 700;
+}
+.mail-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+.mail-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.mail-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.mail-text {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mail.open .mail-text {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.mail-delete {
+  margin: -5px -6px -5px 0;
+}
+.mail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  margin: 0;
+  font-size: 12px;
+}
+.mail-state.tone-ok {
+  color: var(--ok);
+}
+.mail-state.tone-bad {
+  color: var(--bad);
+}
+.mail-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+  font-size: 12px;
+}
+.msg-from {
+  font-size: 12px;
+  font-weight: 600;
+}
+.msg-state.state-unconfirmed {
+  color: var(--muted);
+}
+
+.statepill {
+  padding: 2px 10px;
+  border-radius: 10px;
+  background: var(--muted);
+  color: var(--panel);
+  font-weight: 600;
+}
+.statepill.tnc-connected {
+  background: var(--ok);
+}
+.statepill.tnc-connecting,
+.statepill.tnc-waiting,
+.statepill.tnc-silent {
+  background: var(--warn);
+}
+.problem {
+  margin: 0 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--warn);
+  border-radius: 4px;
+  color: var(--warn);
+}

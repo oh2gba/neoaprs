@@ -1,0 +1,124 @@
+/* the settings */
+.settings {
+  padding: 4px 10px 16px;
+}
+.settings fieldset {
+  margin: 8px 0;
+  padding: 4px 10px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.settings legend {
+  padding: 0 6px;
+  font-weight: 600;
+}
+.settings .subgroup {
+  margin: 10px 0 2px;
+  font-size: 0.9em;
+  font-weight: 600;
+  color: var(--muted);
+}
+.field {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(7em, 36%) 1fr;
+  align-items: center;
+  gap: 2px 8px;
+  margin: 6px 0;
+}
+.field label {
+  font-weight: 600;
+}
+.info-toggle:hover,
+.info-toggle[aria-expanded="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.info-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.field-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.field-control .input {
+  flex: 1;
+}
+.symbolfield {
+  flex-wrap: wrap;
+}
+.symbolfield-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.field .symbolfield-over {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 400;
+}
+.field-control .symbolfield-over .input {
+  flex: none;
+  width: 3em;
+  text-align: center;
+}
+.field-control .urls {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.field-control .infotip {
+  flex: none;
+}
+.settings-setup {
+  margin: 4px 0;
+  text-align: right;
+}
+.linkbutton {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.field-control .port-found {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.field-control .unit {
+  flex: none;
+  min-width: 2.5em;
+}
+.field.changed .input {
+  border-color: var(--accent);
+}
+.field.invalid .input {
+  border-color: var(--bad);
+}
+.field-error {
+  grid-column: 2;
+  margin: 0;
+  color: var(--bad);
+  font-weight: 600;
+}
+.field-result.ok {
+  color: var(--ok);
+}
+.confirm-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  font-weight: 600;
+}

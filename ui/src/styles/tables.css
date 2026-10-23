@@ -1,0 +1,219 @@
+/* the tables */
+.tablepane {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  /* a row that is scrolled to (a focused one, one picked from the map) stops under the sticky head, not behind it */
+  scroll-padding-top: 36px;
+}
+.foot {
+  padding: 4px 10px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+}
+.grid {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.grid th {
+  position: sticky;
+  top: 0;
+  padding: 4px 8px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+  z-index: 1;
+}
+.grid th.num {
+  text-align: right;
+}
+.headbtn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.grid td {
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.grid .num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.grid .call {
+  min-width: 10ch;
+  white-space: nowrap;
+}
+.grid .wrap {
+  word-break: break-all;
+}
+.grid .route-cell {
+  min-width: 7em;
+}
+.grid.stations td {
+  height: 30px;
+  padding-top: 0;
+  padding-bottom: 0;
+  white-space: nowrap;
+}
+.grid.stations td.direct {
+  padding-left: 0;
+  padding-right: 0;
+}
+.direct-mark {
+  color: var(--ok);
+  font-weight: 700;
+}
+.grid.stations td.bearing {
+  width: 1%;
+  padding-left: 0;
+  padding-right: 4px;
+  text-align: center;
+}
+.grid.stations td:not(:last-child) {
+  width: 1%;
+}
+.grid.stations .arrow {
+  display: inline-block;
+  vertical-align: middle;
+}
+.grid.stations td.symbol {
+  padding-right: 0;
+}
+.packet-detail {
+  padding: 2px 2px 6px;
+}
+.packet-detail .card-fields {
+  padding: 4px 6px;
+}
+.packet-detail .more {
+  padding: 0 6px;
+}
+.grid .path {
+  min-width: 9em;
+  overflow-wrap: anywhere;
+}
+.nowrap {
+  white-space: nowrap;
+}
+.grid tbody tr {
+  cursor: pointer;
+}
+.grid tbody tr:hover {
+  background: var(--row-hover);
+}
+.grid tbody tr.selected {
+  background: var(--row-selected);
+}
+.grid tr.me td {
+  font-weight: 700;
+}
+.grid tr.own td {
+  font-weight: 600;
+}
+.grid tr.detail,
+.grid tr.detail:hover {
+  cursor: default;
+  background: var(--bg);
+}
+.grid .in {
+  color: var(--ok);
+}
+.grid .out {
+  color: var(--warn);
+  font-weight: 600;
+}
+.sendrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin: 6px 0;
+}
+.sendrow .card-fields {
+  flex: 1 1 14em;
+  min-width: 0;
+}
+.sendrow .btn {
+  flex: none;
+  min-width: 11em;
+}
+.beacon-preview {
+  margin: 8px 0;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.beacon-preview summary {
+  cursor: pointer;
+  padding: 3px 0;
+}
+.beacon-preview-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 6px;
+}
+.beacon-preview code {
+  font-size: 12px;
+  word-break: break-all;
+  user-select: all;
+}
+.beacon-preview .problem {
+  margin: 0;
+  color: var(--warn);
+}
+.location {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin: 4px 0;
+}
+.location-line {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .location-pick {
+    flex: 1 1 100%;
+  }
+}
+@media (prefers-color-scheme: dark) {
+  .symicon:not(.stn-plain) {
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.88);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.88);
+  }
+}
+.json,
+.tnclines {
+  margin: 0;
+  font: 12px/1.35 var(--mono);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.tnclines {
+  max-height: 16em;
+  padding: 8px;
+  overflow: auto;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+}

@@ -1,0 +1,118 @@
+/* the box to write in on the tabs Bulletins, Email and Objects (ComposeBar.vue): fixed at the bottom of the tab, the list above it scrolling; the fields, and under them the counter and the buttons at the right, the
+   secondary one (Cancel) left of the primary one. The tab (.pane) leaves the notch alone on a phone, and the page is 100dvh high, so the keyboard does not cover it. */
+.composebar {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+}
+.composebar-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+.composebar.scrolls {
+  max-height: 70vh;
+  max-height: 70dvh;
+}
+.composebar.scrolls .composebar-fields {
+  overflow-y: auto;
+}
+.composebar .field {
+  margin: 0;
+}
+.composebar-foot {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px 8px;
+}
+.composebar-aside {
+  display: flex;
+  flex: 1;
+  gap: 8px;
+}
+.composebar-foot .compose-left {
+  margin-left: 0;
+}
+/* the suggestions of an address and the note of an (i) open upward: the box is at the bottom of the tab */
+.composebar .info-text {
+  top: auto;
+  bottom: 100%;
+  margin: 0 0 4px;
+}
+.composebar .suggestions {
+  top: auto;
+  bottom: 100%;
+  margin: 0 0 2px;
+}
+.compose-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.compose-left {
+  margin-left: auto;
+  color: var(--muted);
+}
+.compose-left.over {
+  color: var(--bad);
+  font-weight: 600;
+}
+.recipients {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.infotip {
+  position: relative;
+  display: inline-flex;
+}
+.info-toggle {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--panel);
+  color: var(--text);
+  font: italic 700 12px/1 serif;
+  cursor: pointer;
+}
+.info-line {
+  display: block;
+}
+.info-line + .info-line {
+  margin-top: 4px;
+}
+.field-control .info-text {
+  right: 0;
+  left: auto;
+}
+.field-control .check {
+  margin: 0;
+}
+.info-text {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 5;
+  width: min(280px, calc(100vw - 16px));
+  margin-top: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.4;
+}

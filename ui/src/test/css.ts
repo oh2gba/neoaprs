@@ -1,9 +1,9 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-// (the comments are taken out: a comment above a rule is not part of its selector.) The page's two style sheets, as one: style.css, then responsive.css
-const SHEET = ["../style.css", "../responsive.css"]
-  .map((file) => readFileSync(resolve(__dirname, file), "utf8"))
+// (the comments are taken out: a comment above a rule is not part of its selector.) The page's style sheets, as one, in the order main.ts imports them
+const SHEETS = [...readFileSync(resolve(__dirname, "../main.ts"), "utf8").matchAll(/^import "\.\/(styles\/[^"]+\.css)";$/gm)].map((match) => match[1] ?? "");
+const SHEET = SHEETS.map((file) => readFileSync(resolve(__dirname, "..", file), "utf8"))
   .join("\n")
   .replace(/\/\*[\s\S]*?\*\//g, "");
 
