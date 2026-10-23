@@ -925,6 +925,8 @@ export interface TncStats {
   watchdog_probes: number;
   /** times the port was closed and opened again (every 5th probe of a silent radio) */
   port_reopens: number;
+  /** frames the digipeater (`digi/enabled`) sent again for other stations */
+  digipeated: number;
 }
 
 /** The value of each topic a page follows (neoaprs/web/topics.py): what `state` carries as `value`, and what `patch` replaces. */

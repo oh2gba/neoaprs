@@ -46,6 +46,8 @@ watch(
       <dd>{{ tnc.stats.frames_in }} received, {{ tnc.stats.rejected }} rejected</dd>
       <dt>Packets</dt>
       <dd>{{ tnc.stats.packets }}, the latest {{ tnc.stats.last_packet === null ? "none yet" : `${ageText(tnc.stats.last_packet, now)} ago` }}</dd>
+      <dt>Digipeated</dt>
+      <dd>{{ tnc.stats.digipeated }}</dd>
       <dt>Keep-alive</dt>
       <dd>{{ tnc.stats.keepalive_checks }} checks, {{ tnc.stats.watchdog_probes }} probes, {{ tnc.stats.port_reopens }} reopens</dd>
     </dl>

@@ -218,6 +218,7 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("map_maxzoom", "map/maxzoom", int_in(*MAP_MAXZOOM)),            # and goes down to this zoom (10 towns, 12 streets, 14 houses)
     Setting("map_source", "map/source", _map_source),                       # where the map is cut from; empty: the latest daily build of build.protomaps.com
     Setting("update_url", "update/url", web_address),                         # that page: it is sent this program's version and platform and nothing else
+    Setting("digi_enabled", "digi/enabled", boolean),                         # true: a packet that asks for WIDE1-1, or for our call, is sent again by our radio (services/digipeater.py)
 )
 BY_KEY = {s.key: s for s in SETTINGS}
 KEYS = tuple(s.key for s in SETTINGS)
@@ -268,6 +269,7 @@ class Config:
     map_maxzoom: int = 12
     map_source: str = ""
     update_url: str = UPDATE_URL
+    digi_enabled: bool = False
 
     @property
     def station_position(self) -> tuple[float, float] | None:

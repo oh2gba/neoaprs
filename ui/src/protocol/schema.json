@@ -3657,6 +3657,11 @@
           "description": "times the port was closed and opened again (every 5th probe of a silent radio)",
           "minimum": 0,
           "type": "integer"
+        },
+        "digipeated": {
+          "description": "frames the digipeater (`digi/enabled`) sent again for other stations",
+          "minimum": 0,
+          "type": "integer"
         }
       },
       "required": [
@@ -3669,7 +3674,8 @@
         "last_packet",
         "keepalive_checks",
         "watchdog_probes",
-        "port_reopens"
+        "port_reopens",
+        "digipeated"
       ],
       "title": "TncStats",
       "type": "object"

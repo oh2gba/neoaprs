@@ -145,6 +145,15 @@ export const FIELDS: Record<string, FieldInfo> = {
       "Fill it in only to use a map of your own: the web address or the file path of a PMTiles file.",
     ],
   },
+  "digi/enabled": {
+    label: "Digipeater",
+    kind: "bool",
+    tipLabel: "What the digipeater does",
+    tip: [
+      "Helps nearby stations that cannot reach a digipeater: packets asking for WIDE1-1, or sent through your call, are repeated once by your radio.",
+      "Leave it off unless you are in a spot with poor coverage.",
+    ],
+  },
   "messages/alert": { label: "Alert", kind: "bool" },
   "messages/alert_command": { label: "Command" },
   "status/rigctld": { label: "Rigctld", empty: "off", title: "host:port" },
@@ -189,6 +198,7 @@ const GROUPS: { id: string; title: string; prefixes: string[]; also?: string[]; 
   { id: "web", title: "Web page", prefixes: ["web/"] },
   { id: "notifications", title: "Notifications", prefixes: [], also: ALERT },
   { id: "map", title: "Map", prefixes: ["map/"] },
+  { id: "digi", title: "Digipeater", prefixes: ["digi/"] },
   { id: "beacon", title: "Beacon", prefixes: ["beacon/"], except: ANTENNA },
   { id: "status", title: "Status", prefixes: ["status/"] },
 ];
@@ -197,7 +207,7 @@ const GROUPS: { id: string; title: string; prefixes: string[]; also?: string[]; 
 export type Scope = "settings" | "beacon";
 const SCOPE_GROUPS: Record<Scope, readonly string[]> = {
   beacon: ["station", "beacon", "status"],
-  settings: ["serial", "web", "notifications", "map"],
+  settings: ["serial", "digi", "web", "notifications", "map"],
 };
 
 /** The order of the TNC group on the page: the port and its speed, the keep-alive, then the search (which the port falls back to). */

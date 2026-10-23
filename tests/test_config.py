@@ -15,7 +15,7 @@ def test_the_defaults_are_the_ones_of_the_brief() -> None:
         "beacon/path": "WIDE1-1,WIDE2-1", "beacon/destination": "APZNEO", "beacon/compressed": "false", "beacon/dao": "false",
         "messages/alert": "true", "messages/alert_command": DEFAULT_ALERT_COMMAND, "status/rigctld": "", "status/interval_min": "30", "status/template": "QRV {freq} {mode}",
         "map/hide_after_min": "180", "map/radius_km": "150", "map/maxzoom": "12", "map/source": "",
-        "update/url": "https://oh2gba.eu/neoaprs/version.php"}
+        "update/url": "https://oh2gba.eu/neoaprs/version.php", "digi/enabled": "false"}
     assert Config() == DEFAULTS
 
 
@@ -286,6 +286,12 @@ def test_the_log_time_and_the_update_check_are_fixed_and_what_an_earlier_version
         with pytest.raises(ValueError, match=f"{key}: no such setting"):
             Config.parse(key, "false")
     assert Config.from_data({"log/keep_days": "400", "update/check": "false"}) == DEFAULTS
+
+
+def test_the_digipeater_is_off_unless_the_setting_says_it_is_on() -> None:
+    assert DEFAULTS.digi_enabled is False and Config.from_data({"station/call": "OH2GBA"}).digi_enabled is False, "a database from before the setting has none"
+    assert Config.from_data({"digi/enabled": "yes"}).digi_enabled is True and Config.check("digi/enabled", "On") == "true"
+    assert Config.from_data({"digi/enabled": "perhaps"}).digi_enabled is False
 
 
 def test_the_attempts_setting_of_an_older_version_is_not_a_setting_and_is_left_alone() -> None:
