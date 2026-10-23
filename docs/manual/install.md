@@ -22,7 +22,7 @@ The installer is not signed. Windows SmartScreen may say "Windows protected your
 - The task **Desktop shortcut** is off by default.
 - The task **Start NeoAPRS when I sign in** is on by default. It starts the app in the tray when you sign in.
 - The last page offers **Open NeoAPRS now**.
-- Installing over an older version ends the running app and daemon first, then starts the new one.
+- Installing over an older version ends the running app and daemon first. **Open NeoAPRS now** on the last page starts the app again; a silent update leaves that to the next sign-in.
 - The uninstaller ends the app and the daemon, removes the program, the start at sign-in and the service entry, and leaves the data folder `%LOCALAPPDATA%\NeoAPRS`.
 
 A silent install: `NeoAPRS-Setup-<version>.exe /VERYSILENT /SUPPRESSMSGBOXES /CURRENTUSER`. Add `/TASKS=""` for no start at sign-in and no desktop shortcut, `/DIR=` for another folder, `/LOG=FILE` for an install log.
@@ -109,7 +109,7 @@ NeoAPRS asks once a day whether a newer version is out ([the update check](#the-
 
 | installed as | how to update |
 |---|---|
-| Windows installer | download `NeoAPRS-Setup-<version>.exe` from the [release](https://github.com/oh2gba/neoaprs/releases/latest) and run it; it ends the running app and daemon, replaces the program and starts it again |
+| Windows installer | download `NeoAPRS-Setup-<version>.exe` from the [release](https://github.com/oh2gba/neoaprs/releases/latest) and run it; it ends the running app and daemon and replaces the program; **Open NeoAPRS now** on its last page starts the app again |
 | AppImage | download `NeoAPRS-<version>-x86_64.AppImage`, make it executable, quit NeoAPRS and start the new file. If a service starts the AppImage (the unit names the old file), run `./NeoAPRS-<version>-x86_64.AppImage service install` once from where you keep the new file; then delete the old file |
 | .deb (Raspberry Pi, Debian, Ubuntu) | download `neoaprs_<version>_arm64.deb` (`_amd64.deb` on a PC) and run `sudo apt install ./neoaprs_<version>_arm64.deb`; it replaces `/opt/neoaprs` and restarts a running service. If the service still runs the old version, `systemctl --user restart neoaprs` |
 | install line | run the line again; it updates NeoAPRS and restarts the service |
