@@ -336,15 +336,14 @@ describe("SettingsForm", () => {
       expect(found(wrapper).text()).toBe("found: /dev/ttyACM0");
     });
 
-    it("asks the daemon for the ports when the Settings tab opens, and again with Refresh, and not in the Beacon tab", async () => {
+    it("does not ask the daemon for the ports by itself (the page does, once connected), only with Refresh", async () => {
       const { wrapper, send } = withPorts();
-      expect(send).toHaveBeenCalledWith({ cmd: "list_ports" });
+      expect(send).not.toHaveBeenCalled();
       await wrapper
         .findAll("button")
         .find((b) => b.text() === "Refresh")
         ?.trigger("click");
-      expect(send.mock.calls.filter(([c]) => c.cmd === "list_ports")).toHaveLength(2);
-      expect(make({}, "beacon").send).not.toHaveBeenCalled();
+      expect(send.mock.calls.filter(([c]) => c.cmd === "list_ports")).toHaveLength(1);
     });
 
     it("puts the units and the hover titles on the speed, the keep-alive and the port", () => {

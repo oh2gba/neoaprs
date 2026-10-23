@@ -44,6 +44,31 @@ def available_ports() -> list[PortInfo]:
     return [PortInfo(p.device, p.description or "", p.hwid or "", p.vid, p.pid) for p in found]
 
 
+LINK_DIRS = ("/dev/serial/by-id", "/dev")         # where the other names of a port are: the stable names udev makes, and links of the user's own rules (such as /dev/brainbox_3)
+
+
+def with_links(ports: list[PortInfo], dirs: Collection[str] = LINK_DIRS) -> list[PortInfo]:
+    """`ports` with, after each, the other names it has: the links in `dirs` that lead to its device, each as a port of its own whose description says which device it is.
+    Nothing is opened; a folder that is not there, or a link that leads nowhere, is passed over."""
+    names: dict[str, list[str]] = {}
+    for folder in dirs:
+        try:
+            entries = sorted(os.scandir(folder), key=lambda e: e.name)
+        except OSError:
+            continue
+        for entry in entries:
+            if entry.is_symlink():
+                names.setdefault(os.path.realpath(entry.path), []).append(entry.path)
+    out: list[PortInfo] = []
+    for port in ports:
+        out.append(port)
+        for link in names.get(os.path.realpath(port.device), []):
+            if link != port.device:
+                said = f"{port.device}, {port.description}" if port.description and port.description != "n/a" else port.device
+                out.append(PortInfo(link, f"= {said}", port.hwid, port.vid, port.pid))
+    return out
+
+
 def can_search() -> bool:
     """Whether the radio may be looked for among the ports (see the top of this module)."""
     return sys.platform.startswith("linux")

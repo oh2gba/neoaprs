@@ -60,6 +60,10 @@ const {
   ports,
   send,
 } = useDaemon();
+// the ports the system lists, for the Settings tab and the setup guide: asked each time the daemon is connected (not before: a command then is refused with a toast)
+watch(connection, (state) => {
+  if (state === "open") send({ cmd: "list_ports" });
+});
 const stations = computed(() => withOwnSymbol(heard, config.value?.values));
 const {
   paths: stationPaths,

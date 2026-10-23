@@ -11,7 +11,7 @@ import { KEY_KEY, useNewKey } from "@/composables/useNewKey";
 import { useSettingsForm } from "@/composables/useSettingsForm";
 import { FIELDS, SUBGROUPS, portForProfile, shownFor, speedFallback, type Scope } from "@/lib/settings";
 import type { AlertResultMessage, Command, ConfigValues, MapState, PortsMessage } from "@/protocol/protocol";
-import { computed, onMounted, toRef } from "vue";
+import { computed, toRef } from "vue";
 
 const props = withDefaults(
   defineProps<{
@@ -51,10 +51,7 @@ const profile = computed(() => draft["tnc/profile"]);
 /** Whether the daemon looks for the radio among the ports (Linux); true until it has said. */
 const search = computed(() => props.ports?.search ?? true);
 const shown = (keys: string[]) => keys.filter((key) => shownFor(key, profile.value, network.value, search.value));
-const refreshPorts = () => props.send({ cmd: "list_ports" });
-onMounted(() => {
-  if (props.scope === "settings") refreshPorts();
-});
+const refreshPorts = () => props.send({ cmd: "list_ports" }); // (the page asks for the list itself each time the daemon is connected: App.vue)
 const fallback = (key: string) => (key === "serial/baud" ? speedFallback(profile.value, defaults.value[key] ?? "") : (defaults.value[key] ?? ""));
 /** A serial device does not go with a TCP profile: choosing one clears it, so that Save is not refused for it. */
 function onEdit(key: string, text: string): void {

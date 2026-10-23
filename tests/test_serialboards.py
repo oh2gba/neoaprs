@@ -118,3 +118,20 @@ def test_the_doctor_marks_a_board_in_its_list(monkeypatch: pytest.MonkeyPatch) -
     text = doctor.check_ports().text
     acm, usb = (line for line in text.splitlines() if line.startswith("    /dev/"))
     assert "an ESP32 development board" in acm and "name the port" in acm and "development board" not in usb
+
+
+@posix_only                       # links in /dev are a Linux thing
+def test_the_list_of_ports_has_the_other_names_of_each_after_it(tmp_path: Path) -> None:
+    devices, by_id, dev = tmp_path / "nodes", tmp_path / "by-id", tmp_path / "dev"
+    for folder in (devices, by_id, dev):
+        folder.mkdir()
+    (devices / "ttyUSB3").write_text("")
+    (devices / "ttyUSB4").write_text("")
+    (by_id / "usb-Brainboxes_USB2Serial-if03-port0").symlink_to(devices / "ttyUSB3")
+    (dev / "brainbox_3").symlink_to(devices / "ttyUSB3")
+    (dev / "stdin").symlink_to(tmp_path / "nowhere")
+    ports = [PortInfo(str(devices / "ttyUSB3"), "USB2Serial 4xRS232", "USB VID:PID=05D1:2072", 0x05D1, 0x2072), PortInfo(str(devices / "ttyUSB4"), "n/a", "n/a", None, None)]
+    listed = serialprobe.with_links(ports, (str(by_id), str(dev)))
+    assert [p.device for p in listed] == [str(devices / "ttyUSB3"), str(by_id / "usb-Brainboxes_USB2Serial-if03-port0"), str(dev / "brainbox_3"), str(devices / "ttyUSB4")]
+    assert listed[2].description == f"= {devices / 'ttyUSB3'}, USB2Serial 4xRS232" and listed[2].vid == 0x05D1
+    assert serialprobe.with_links(ports, (str(tmp_path / "missing"),)) == ports

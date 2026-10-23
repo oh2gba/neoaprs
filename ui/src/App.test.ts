@@ -56,6 +56,19 @@ afterEach(() => {
 });
 
 describe("App", () => {
+  it("opened on the Settings tab, shows no 'not connected' toast and asks for the ports once the daemon is connected", async () => {
+    localStorage.setItem("NeoAPRS.tab", "settings");
+    const wrapper = mount(App, { attachTo: document.body });
+    await flushPromises();
+    const socket = FakeSocket.last();
+    expect(socket.sent.filter((c) => (c as { cmd: string }).cmd === "list_ports")).toHaveLength(0);
+    socket.say({ type: "hello", protocol: PROTOCOL, version: "0.1.0", topics: [] });
+    socket.say({ type: "state", topic: "config", rev: 0, value: configValues() });
+    await flushPromises();
+    expect(socket.sent.filter((c) => (c as { cmd: string }).cmd === "list_ports")).toHaveLength(1);
+    expect(wrapper.text()).not.toContain("Not connected to the daemon");
+  });
+
   it("says connecting, then radio ok with our call in the header", async () => {
     const wrapper = mount(App, { attachTo: document.body });
     await flushPromises();
@@ -203,7 +216,7 @@ describe("App", () => {
     await wrapper.findAll(".setup-symbol")[1]?.trigger("click"); // the car
     await next();
     expect(wrapper.find(".setup-step-name").text()).toBe("Radio");
-    expect(socket.sent.filter((c) => (c as { cmd: string }).cmd === "list_ports")).toHaveLength(1);
+    expect(socket.sent.filter((c) => (c as { cmd: string }).cmd === "list_ports")).toHaveLength(2); // when the socket opened, and when the guide came to its radio
     socket.say({ type: "ports", search: true, ports: [{ device: "/dev/ttyUSB0", description: "FT232R USB UART", hwid: "n/a", vid: null, pid: null }] });
     await flushPromises();
     await wrapper.find("#setup-port").setValue("/dev/ttyUSB0");
