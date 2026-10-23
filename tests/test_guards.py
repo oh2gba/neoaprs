@@ -278,8 +278,10 @@ def test_the_bluetooth_guard_refuses_and_remembers_even_when_the_error_is_swallo
         if hasattr(socket, "AF_BLUETOOTH"):
             with pytest.raises(guards.BluetoothTouched):
                 socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
-            with pytest.raises(guards.BluetoothTouched):
-                socket.socket(socket.AF_BLUETOOTH, socket.SOCK_SEQPACKET, socket.BTPROTO_L2CAP)
-            assert len(bluetooth.refused) == 2
+            l2cap = getattr(socket, "BTPROTO_L2CAP", None)           # (Windows has AF_BLUETOOTH but no L2CAP)
+            if l2cap is not None:
+                with pytest.raises(guards.BluetoothTouched):
+                    socket.socket(socket.AF_BLUETOOTH, socket.SOCK_SEQPACKET, l2cap)
+            assert len(bluetooth.refused) == (2 if l2cap is not None else 1)
         else:
             assert bluetooth.refused == []

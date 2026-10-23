@@ -21,6 +21,8 @@ from neoaprs.tncprofile import KISS
 from tests.support.env import until
 from tests.support.fakebluetooth import ADDRESS, FakeBluetooth, answer, element, record, sequence, uuid16
 
+linux_only = pytest.mark.skipif(not sys.platform.startswith("linux"), reason="bt:// ports are opened on Linux only")
+
 URL = f"bt://{ADDRESS}"
 REAL_RUN = btpaired._run                    # (the guard of the tests puts a stand-in in its place for each test)
 
@@ -141,6 +143,7 @@ async def test_without_a_channel_the_device_says_which(device: FakeBluetooth) ->
         port.close()
 
 
+@linux_only
 async def test_a_device_that_lists_no_serial_port_is_tried_on_the_usual_channels_and_the_log_says_which_connected(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level("INFO", logger="neoaprs.btserial")
     device = FakeBluetooth(monkeypatch, channel=3)
@@ -155,6 +158,7 @@ async def test_a_device_that_lists_no_serial_port_is_tried_on_the_usual_channels
         device.close()
 
 
+@linux_only
 async def test_a_listed_channel_that_is_not_served_is_followed_by_the_usual_ones(monkeypatch: pytest.MonkeyPatch) -> None:
     device = FakeBluetooth(monkeypatch, channel=1)
     device.listed = [5, 4]
@@ -167,6 +171,7 @@ async def test_a_listed_channel_that_is_not_served_is_followed_by_the_usual_ones
         device.close()
 
 
+@linux_only
 async def test_a_device_that_serves_nothing_anywhere_says_connection_refused_after_the_last_channel(monkeypatch: pytest.MonkeyPatch) -> None:
     device = FakeBluetooth(monkeypatch, channel=9)
     device.garbage = True

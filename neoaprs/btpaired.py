@@ -72,9 +72,14 @@ def from_bluetoothctl(output: str) -> list[PairedDevice]:
 
 def paired_devices(run: Callable[[list[str]], str] | None = None) -> list[PairedDevice]:
     """The paired devices that may have a serial port, by name. Empty on a system without BlueZ, without D-Bus, or when the question is not answered."""
-    if not sys.platform.startswith("linux"):
+    if not _on_linux():
         return []
     ask = run or _run
     answer = ask(BUSCTL)
     devices = from_busctl(answer) if answer else from_bluetoothctl(ask(BLUETOOTHCTL))
     return sorted(devices, key=lambda d: (d.name.lower(), d.address))
+
+
+def _on_linux() -> bool:
+    """(A function, so that mypy checks the rest for every platform instead of calling it unreachable on one.)"""
+    return sys.platform.startswith("linux")

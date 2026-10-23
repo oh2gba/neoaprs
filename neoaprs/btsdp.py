@@ -121,7 +121,10 @@ def ask(sock: socket.socket) -> bytes:
 
 
 def new_l2cap_socket() -> socket.socket:
-    return socket.socket(socket.AF_BLUETOOTH, socket.SOCK_SEQPACKET, socket.BTPROTO_L2CAP)
+    proto: int | None = getattr(socket, "BTPROTO_L2CAP", None)          # (Linux only: Windows has AF_BLUETOOTH but no L2CAP, and mypy checks for both)
+    if proto is None:
+        raise OSError("the service directory of a Bluetooth device is read on Linux only")
+    return socket.socket(socket.AF_BLUETOOTH, socket.SOCK_SEQPACKET, proto)
 
 
 def serial_channels(address: str, new_socket: Callable[[], socket.socket] | None = None) -> list[int]:

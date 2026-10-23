@@ -63,7 +63,7 @@ stage_lock() {
     uv lock --check
 }
 stage_ruff()  { "$python" -m ruff check .; }
-stage_mypy()  { "$python" -m mypy; }
+stage_mypy()  { "$python" -m mypy && "$python" -m mypy --platform win32; }        # (both systems, as CI does)
 # The architecture stage is the layers, the wiring rule and the size limits (docs/ARCHITECTURE.md): quick, so it runs before the long suite, which then leaves these two files out.
 ARCHITECTURE_TESTS=(tests/test_architecture.py tests/test_size_ratchet.py)
 stage_architecture() { "$python" -m pytest -q "${ARCHITECTURE_TESTS[@]}"; }
