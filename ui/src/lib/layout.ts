@@ -1,7 +1,7 @@
 // The page's layout numbers: the tabs of the panel, how wide the panel may be, and the three sizes of the page (phone, tablet, desktop) with how many station cards fit on the map at each. The sizes are decided here, once, from the window
 // (composables/useViewport.ts), and the page marks its root with the one it is (`size-phone`, ...): style.css uses that class and not media queries of its own, so that the script and the style never disagree.
 
-export const TAB_IDS = ["stations", "packets", "messages", "email", "bulletins", "objects", "beacon", "settings"] as const;
+export const TAB_IDS = ["messages", "stations", "email", "bulletins", "objects", "beacon", "packets", "settings"] as const; // by importance: what a person comes for first, the raw packets and the settings last
 export type TabId = (typeof TAB_IDS)[number];
 
 export const TAB_TITLES: Record<TabId, string> = {

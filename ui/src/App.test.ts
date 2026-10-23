@@ -142,7 +142,7 @@ describe("App", () => {
     expect(wrapper.find(".setup").exists()).toBe(false);
     await button.trigger("click");
     expect(wrapper.find(".setup").exists()).toBe(true);
-    expect(tabButton(wrapper, "Stations")?.attributes("aria-selected")).toBe("true"); // the tab is where it was
+    expect(tabButton(wrapper, "Messages")?.attributes("aria-selected")).toBe("true"); // the tab is where it was
   });
 
   it("opens the guide once: not again when the settings are told again, nor when the call is set", async () => {
@@ -703,13 +703,13 @@ describe("App", () => {
     it("comes after Email and shows the board, with a badge of what is new until it has been on show", async () => {
       const { wrapper, socket } = await open();
       expect(wrapper.findAll("[role='tab']").map((t) => t.text().replace(/\s*\d+$/, ""))).toEqual([
-        "Stations",
-        "Packets",
         "Messages",
+        "Stations",
         "Email",
         "Bulletins",
         "Objects",
         "Beacon",
+        "Packets",
         "Settings",
       ]);
       await sayBoard(socket);

@@ -5,7 +5,7 @@ import { usePersisted, usePersistedFlag, usePersistedNumber } from "@/composable
 import { PANEL_MIN, PANEL_STORED_MAX, TAB_IDS, defaultPanelWidth, type TabId } from "@/lib/layout";
 
 export function usePanel() {
-  const tab = usePersisted("tab", "stations", TAB_IDS);
+  const tab = usePersisted("tab", TAB_IDS[0], TAB_IDS);
   const collapsed = usePersistedFlag("panel", ["collapsed", "open"], false);
   const width = usePersistedNumber("panelwidth", defaultPanelWidth(window.innerWidth), PANEL_MIN, PANEL_STORED_MAX);
 
