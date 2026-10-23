@@ -1163,20 +1163,32 @@ tbody tr:focus-visible {
 .address-forget:focus-visible {
   color: var(--bad);
 }
+.mailpane .compose .toolbar {
+  padding: 0;
+}
 .mail-tools {
   display: flex;
   flex: none;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 8px;
+  flex-direction: column;
+  gap: 6px;
   padding: 6px 8px;
   border-bottom: 1px solid var(--border);
 }
-.mail-shortcut {
+.mail-row {
   display: flex;
-  flex-basis: 100%;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 6px 8px;
+}
+.mail-shortcut .input {
+  width: 10em;
+}
+.msg-from {
+  font-size: 12px;
+  font-weight: 600;
+}
+.msg-state.state-unconfirmed {
+  color: var(--muted);
 }
 
 .statepill {

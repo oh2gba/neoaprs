@@ -8,15 +8,23 @@ function box(extra: Record<string, unknown> = {}) {
 const send = (wrapper: ReturnType<typeof box>) => wrapper.find<HTMLButtonElement>("button[type='submit']");
 
 describe("EmailCompose", () => {
-  it("counts the bytes left of 67 over the addressee, the space and the text", async () => {
+  it("is the box Send an email, with To and Text", () => {
     const wrapper = box();
-    expect(wrapper.find(".compose-left").text()).toBe("66");
+    expect(wrapper.find("strong").text()).toBe("Send an email");
+    expect(wrapper.find("#mail-to").attributes("placeholder")).toBe("To: email address or shortcut");
+    expect(wrapper.find("#mail-text").attributes("placeholder")).toBe("Text");
+    expect(wrapper.findAll("p")).toHaveLength(0);
+  });
+
+  it("counts the characters left of 67 over the address, the space and the text", async () => {
+    const wrapper = box();
+    expect(wrapper.find(".compose-left").text()).toBe("66 left");
     await wrapper.find("#mail-to").setValue("me");
     await wrapper.find("#mail-text").setValue("Hello");
-    expect(wrapper.find(".compose-left").text()).toBe("59");
-    expect(wrapper.find(".compose-left").attributes("title")).toBe("59 of 67 bytes left");
+    expect(wrapper.find(".compose-left").text()).toBe("59 left");
+    expect(wrapper.find(".compose-left").attributes("title")).toBe("59 of 67 characters left; the address and the space count too");
     await wrapper.find("#mail-text").setValue("å".repeat(32) + "x");
-    expect(wrapper.find(".compose-left").text()).toBe("-1");
+    expect(wrapper.find(".compose-left").text()).toBe("-1 left");
     expect(wrapper.find(".compose-left").classes()).toContain("over");
   });
 

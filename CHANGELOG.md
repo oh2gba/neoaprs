@@ -2,7 +2,12 @@
 
 ## Unreleased
 
-Nothing yet.
+An Email tab that explains itself.
+
+- The Email tab has plain actions instead of the gateway's commands: "Send an email" (the address or a shortcut, the text, and the characters left of the 67 with the address counting), a Mailbox part ("Fetch held mail") and a Shortcuts part ("Your shortcut", "Its address", "Register", "Email the list", "Remove"). The command each one sends is its hover title. "Email the list" and "Remove" work only for a shortcut that was registered with the gateway before, and stay off until a shortcut is named; "Register" makes one.
+- A mail whose ack never came back is "sent twice, not confirmed" with a hollow check, not failed: the gateway's acks reach a station only when an iGate puts them on the air, so a mail that went through often looks failed. What the gateway itself sends is marked "EMAIL-2 answers" in the thread.
+- The gateway's commands and a new shortcut give `EMAIL-2` its count of 2 attempts the first time, as mail does, so a first "Email the list" is not sent six times.
+- The manual's Email section says what the gateway is, that an iGate must be in reach, what a shortcut is and how it is made (by a message, not on a web page), and what each action sends.
 
 ## 0.3.0
 
