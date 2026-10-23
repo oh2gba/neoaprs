@@ -395,12 +395,12 @@ describe("App", () => {
     expect(wrapper.find("[aria-selected='true']").text()).toContain("Settings");
   });
 
-  it("sends a beacon from the Beacon tab after two clicks, and shows the times the status tells", async () => {
+  it("sends a beacon from the Beacon tab after two clicks, and shows when the last one went out", async () => {
     const { wrapper, socket } = await open();
     socket.say(status({ beacon_interval_min: 15, beacon_last_sent: ago(60), beacon_next_due: new Date(Date.now() + 840_000).toISOString() }));
     await flushPromises();
     await tabButton(wrapper, "Beacon")?.trigger("click");
-    expect(wrapper.find("#pane-beacon .beaconbox").text()).toContain("every 15 min");
+    expect(wrapper.find("#pane-beacon .beaconbox").text()).toContain("Last beacon1 min ago");
     await wrapper.find("#pane-beacon .beaconbox button").trigger("click");
     expect(socket.sent).not.toContainEqual({ cmd: "beacon_now" });
     await wrapper.find("#pane-beacon .beaconbox button").trigger("click");
