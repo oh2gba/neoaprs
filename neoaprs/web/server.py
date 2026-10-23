@@ -1,7 +1,9 @@
 """The web server: the page's files and one WebSocket per browser tab. Tornado on the same asyncio loop as everything else. It listens on the loopback, where no key is asked for, and, while `web/network` is on, on every
 interface, where a device logs in with the access key first (neoaprs/web/access.py); the switch is followed without a restart.
 
-Routes: `/ws` (the socket), `/access` and `/access/new` (the key screen's login and a new key), `/basemap.pmtiles` and `/basemap-world.pmtiles` (the files of the data folder, with byte ranges), and everything else from the page's
+While `web/https` is on too, the page is also served over TLS on the port after the plain one (neoaprs/web/secureside.py), and the plain port sends a device other than this computer there (neoaprs/web/securehandlers.py).
+
+Routes: `/ws` (the socket), `/access` and `/access/new` (the key screen's login and a new key), `/neoaprs-ca.crt` (the certificate authority's certificate, on both ports), `/basemap.pmtiles` and `/basemap-world.pmtiles` (the files of the data folder, with byte ranges), and everything else from the page's
 folder (`neoaprs/page/`, made by scripts/build-page; the folder `neoaprs/web/placeholder/` with a line that says so while there is none). Every answer carries the security headers (neoaprs/web/headers.py) and none is given for a
 Host name that is not ours (neoaprs/web/pagefiles.py); the socket and the map are refused to a device that has not logged in.
 """
@@ -9,12 +11,15 @@ import asyncio
 import errno
 import ipaddress
 import logging
+import re
 import socket
+import ssl
 from dataclasses import replace
 from pathlib import Path
 from typing import Any, Sequence
 
 import tornado.httpserver
+import tornado.httputil
 import tornado.web
 import tornado.websocket
 from tornado.iostream import IOStream, StreamBufferFullError
@@ -28,7 +33,10 @@ from .api import Api
 from .connections import LimitedHTTPServer
 from .headers import host_name, origin_is_host
 from .outbound import MAX_WRITE_BUFFER
-from .pagefiles import Basemap, Page, SecurityHeaders, refuse_foreign_host, refuse_unless_logged_in
+from .pagefiles import Basemap, Page, SecurityHeaders, refuse_foreign_host, refuse_plain, refuse_unless_logged_in
+from .securehandlers import CA_PATH, CaCertificate, secure_target
+from .secureside import SecureSide
+from .tls import FOLDER
 
 log = logging.getLogger("neoaprs.web")
 
@@ -55,7 +63,7 @@ class _Socket(SecurityHeaders, tornado.websocket.WebSocketHandler):
         self.server = server
 
     def prepare(self) -> None:
-        if not refuse_foreign_host(self, self.server):
+        if not refuse_foreign_host(self, self.server) and not refuse_plain(self, self.server):
             refuse_unless_logged_in(self, self.server)
 
     def get_compression_options(self) -> dict[str, Any]:
@@ -135,7 +143,7 @@ class WebServer:
         self.controller = controller
         self.config = config
         self.page_dir = page_dir or default_page_dir()
-        self.api = Api(controller, reach=self.reach)
+        self.api = Api(controller, reach=self.reach, secure=lambda: self.secure.state.wire())
         self.access = Access(lambda: controller.config, controller.clock)
         self.address = LOOPBACK                           # what it listens on: "" is every interface
         self.port = 0
@@ -143,6 +151,8 @@ class WebServer:
         self._switch = asyncio.Lock()                     # one change of what is listened on, or of the key, at a time
         self._own_names: set[str] = set()                 # lower case, no port: what the Host header may say besides an IP address
         self._foreign_seen: set[str] = set()              # the names refused so far, so that the log has each once
+        self.secure = SecureSide(controller.data_dir / FOLDER, controller.clock, self._allowed_names)          # the https side: the certificates and the second port
+        self._app: tornado.web.Application | None = None
 
     def host_allowed(self, header: str) -> bool:
         """Is this Host header one of ours? Browsers send the name they were given, and a name is the one thing an attacker's page controls: after it has moved its name to this address the page
@@ -161,8 +171,25 @@ class WebServer:
 
     def page_proved(self, stream: IOStream) -> None:
         """A socket that was let in as a page: the connection cap does not close it to make room for another."""
-        if isinstance(self._server, LimitedHTTPServer):
-            self._server.proved(stream)
+        for server in (self._server, self.secure.server):
+            if server is not None:
+                server.proved(stream)
+
+    @property
+    def secure_port(self) -> int:
+        """The port the secure page is served on; 0 while it is not."""
+        return self.secure.port
+
+    @property
+    def secure_ca(self) -> bytes | None:
+        return self.secure.ca_der
+
+    def secure_target(self, request: tornado.httputil.HTTPServerRequest) -> str | None:
+        """Where a request that came over plain http from another device goes instead (neoaprs/web/securehandlers.py); None when it stays."""
+        return secure_target(request, self.secure.port)
+
+    def _allowed_names(self) -> list[str]:
+        return [host_name(n) for n in self.controller.config.web_allowed_hosts.replace(",", " ").split()]
 
     def note_foreign_host(self, shown: str) -> None:
         if shown not in self._foreign_seen and len(self._foreign_seen) < 20:
@@ -182,7 +209,8 @@ class WebServer:
         if self.address != "" or self._server is None:
             return []
         hosts = [*lan_addresses(), f"{socket.gethostname().lower()}.local"]
-        return [f"http://{host}:{self.bound_port()}/" for host in hosts]
+        scheme, port = ("https", self.secure.port) if self.secure.port else ("http", self.bound_port())
+        return [f"{scheme}://{host}:{port}/" for host in hosts]
 
     async def start(self) -> bool:
         c = self.config
@@ -193,12 +221,14 @@ class WebServer:
             (r"/ws", _Socket, {"server": self}),
             (r"/access", Login),
             (r"/access/new", NewKey),
+            (re.escape(CA_PATH), CaCertificate, {"server": self}),
             (r"/(basemap\.pmtiles|basemap-world\.pmtiles)", Basemap, {"path": str(self.controller.data_dir)}),
             (r"/()", Page, {"path": str(self.page_dir), "default_filename": "index.html"}),
             (r"/(.*)", Page, {"path": str(self.page_dir)}),
         ], websocket_ping_interval=30, websocket_ping_timeout=20, websocket_max_message_size=MAX_COMMAND, compress_response=True, log_function=self._log_request, neoaprs_server=self)
+        self._app = app
         await self.api.start()                      # (before the first page can come: the packets the database holds are in the window, the signals are connected)
-        server = LimitedHTTPServer(app, xheaders=False, max_body_size=MAX_REQUEST_BODY, idle_connection_timeout=HEADER_TIMEOUT_SEC, body_timeout=BODY_TIMEOUT_SEC)
+        server = self._limited(None)
         failure = self._listen(server)
         if failure is not None:
             log.error("the web server cannot listen on %s:%d: %s; NeoAPRS goes on without the page", self.address or "every interface", c.web_port, failure)
@@ -208,8 +238,14 @@ class WebServer:
         self._server = server
         self.port = self.bound_port()
         log.info("web page at %s", self.url())
+        await self._follow_secure(quiet=True)
+        self.api.tasks.spawn(self._watch_secure(), "web-https")
         self._say_reach()
         return True
+
+    def _limited(self, context: ssl.SSLContext | None) -> LimitedHTTPServer:
+        assert self._app is not None
+        return LimitedHTTPServer(self._app, xheaders=False, max_body_size=MAX_REQUEST_BODY, idle_connection_timeout=HEADER_TIMEOUT_SEC, body_timeout=BODY_TIMEOUT_SEC, ssl_options=context)
 
     def _say_reach(self) -> None:
         if urls := self.reach():
@@ -244,12 +280,33 @@ class WebServer:
             await self._ensure_key()
             before = self.address
             self._relisten("" if self.controller.config.web_network else LOOPBACK)
+            await self._follow_secure()
             for client in list(self.api.clients):                  # a device that is not let in any more (the key is new, or the network is off) is cut off
                 if isinstance(client, _Socket) and not self.access.allowed(client.request):
                     client.close(1008, "logged out")
             if self.address != before:
                 self.api.hub.changed("config")                     # (where the page can be opened from)
                 self._say_reach()
+
+    async def _follow_secure(self, quiet: bool = False) -> None:
+        """The secure side is made to match `web/https` (and the network, without which it is meaningless), its certificate looked at; the page is told when it changed, and a page on the secure port that is not served any more is cut off."""
+        c = self.controller.config
+        changed = await self.secure.follow(c.web_https and c.web_network and self.address == "", self.address, self.bound_port(), self._limited)
+        if not self.secure.state.on:
+            for client in list(self.api.clients):
+                if isinstance(client, _Socket) and client.request.protocol == "https":
+                    client.close(1001, "the secure connection was turned off")
+        if changed:
+            self.api.hub.changed("config")
+            if not quiet:
+                self._say_reach()
+
+    async def _watch_secure(self) -> None:
+        """Now and then: a new address of this computer, or a certificate close to its end, is followed by a new certificate."""
+        while True:
+            await asyncio.sleep(self.secure.retry_sec)
+            async with self._switch:
+                await self._follow_secure()
 
     async def _ensure_key(self) -> None:
         """The network is on and there is no key (turned on, or on in a database made without one): a key is made."""
@@ -302,6 +359,7 @@ class WebServer:
         for client in list(self.api.clients):
             if isinstance(client, _Socket):
                 client.close(1001, "NeoAPRS is stopping")
+        await self.secure.close()
         if self._server:
             self._server.stop()
             try:

@@ -275,7 +275,7 @@ function onPick(at: Home): void {
             @setup="guide.show()"
             @update="updateOpen = true"
           >
-            <template #notifications><BrowserAlerts :alerts="alerts" /></template>
+            <template #notifications><BrowserAlerts :alerts="alerts" :https="config?.https" /></template>
           </SettingsForm>
         </template>
       </SidePanel>

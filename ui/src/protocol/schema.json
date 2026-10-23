@@ -349,17 +349,22 @@
           "type": "object"
         },
         "urls": {
-          "description": "where another device opens the page while `web/network` is on (this computer's address on the network and its name there, with the port); empty while it is off",
+          "description": "where another device opens the page while `web/network` is on (this computer's address on the network and its name there, with the port); empty while it is off (with `https` on, the https addresses)",
           "items": {
             "type": "string"
           },
           "type": "array"
+        },
+        "https": {
+          "$ref": "#/$defs/HttpsState",
+          "description": "the secure connection: whether it is served, its port, the fingerprint of the authority's certificate (which `GET /neoaprs-ca.crt` downloads), and why not when it could not start"
         }
       },
       "required": [
         "values",
         "defaults",
-        "urls"
+        "urls",
+        "https"
       ],
       "title": "ConfigValues",
       "type": "object"
@@ -1248,6 +1253,36 @@
         "by_internet"
       ],
       "title": "HopRow",
+      "type": "object"
+    },
+    "HttpsState": {
+      "additionalProperties": false,
+      "description": "The secure connection (`web/https`) as the daemon has it.",
+      "properties": {
+        "on": {
+          "description": "the page is served over https right now (`web/https` and `web/network` are on, and it started)",
+          "type": "boolean"
+        },
+        "port": {
+          "description": "the https port; 0 while it is not served",
+          "type": "integer"
+        },
+        "fingerprint": {
+          "description": "SHA-256 fingerprint of NeoAPRS's certificate authority, `AB:CD:...`, for a person to compare with what the device shows when the certificate is installed; empty while it is not served",
+          "type": "string"
+        },
+        "problem": {
+          "description": "why the secure connection could not start or go on, when it was asked for; empty otherwise",
+          "type": "string"
+        }
+      },
+      "required": [
+        "on",
+        "port",
+        "fingerprint",
+        "problem"
+      ],
+      "title": "HttpsState",
       "type": "object"
     },
     "InstallInfo": {
@@ -2679,7 +2714,7 @@
     },
     "SetConfig": {
       "additionalProperties": false,
-      "description": "Changes settings. Every key and value is checked before anything is stored: the first that is wrong is answered with an `error` that names the key, and nothing changes. A key that is\nleft out keeps its value. The answer is the `config` topic told again. `web/port` and `web/allowed_hosts` are read at the daemon's start, `web/network` (and with it the access key `web/key`) counts at once, `serial/*`, `tcp/*` and `tnc/profile` restart the\nTNC, `station/*` move our own station on the map. `tnc/check_sec` and `map/hide_after_min` count at once, with no restart.",
+      "description": "Changes settings. Every key and value is checked before anything is stored: the first that is wrong is answered with an `error` that names the key, and nothing changes. A key that is\nleft out keeps its value. The answer is the `config` topic told again. `web/port` and `web/allowed_hosts` are read at the daemon's start, `web/network` (and with it the access key `web/key`) and `web/https` count at once, `serial/*`, `tcp/*` and `tnc/profile` restart the\nTNC, `station/*` move our own station on the map. `tnc/check_sec` and `map/hide_after_min` count at once, with no restart.",
       "properties": {
         "cmd": {
           "const": "set_config",

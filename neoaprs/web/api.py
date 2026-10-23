@@ -34,12 +34,12 @@ def _no_constant(name: str) -> Any:
 
 
 class Api:
-    def __init__(self, controller: Controller, validate_out: bool | None = None, reach: Callable[[], list[str]] = list) -> None:
+    def __init__(self, controller: Controller, validate_out: bool | None = None, reach: Callable[[], list[str]] = list, secure: Callable[[], dict[str, Any]] | None = None) -> None:
         self.ctl = controller
         self.out = Publisher(validate_out)
         self.clients = self.out.connections             # the open pages, by their sockets
         self.hub = StateHub()
-        self.topics = Topics(controller, self.hub, self._packet_sent, reach)
+        self.topics = Topics(controller, self.hub, self._packet_sent, reach, secure)
         self.dispatcher = Dispatcher(controller, self.hub, self.status)
         self.started_at = controller.clock()
         self.meter = ProcessMeter()

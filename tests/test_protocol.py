@@ -121,7 +121,7 @@ PACKET: dict[str, Any] = {"id": 7, "heard_at": NOW, "direction": "in", "source":
 TNC: dict[str, Any] = {"state": "connected", "problem": "", "last_error": "", "path": "/dev/brainbox_3", "baud": 9600, "describe": "/dev/brainbox_3 at 9600, KISS, 4 packets", "silent_since": None,
                        "stats": {"opens": 1, "bytes_in": 400, "bytes_out": 18, "frames_in": 4, "packets": 4, "rejected": 0, "last_packet": NOW, "keepalive_checks": 2, "watchdog_probes": 0, "port_reopens": 1},
                        "last_watchdog_action": "check", "last_watchdog_at": NOW, "lines": ["12:00:00  NeoAPRS: opened /dev/brainbox_3"]}
-CONFIG: dict[str, Any] = {"values": {"station/call": "OH2GBA"}, "defaults": {"station/call": "OH2GBA"}, "urls": []}
+CONFIG: dict[str, Any] = {"values": {"station/call": "OH2GBA"}, "defaults": {"station/call": "OH2GBA"}, "urls": [], "https": {"on": False, "port": 0, "fingerprint": "", "problem": ""}}
 
 MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
     "hello": [{"type": "hello", "protocol": PROTOCOL, "version": "0.1.0", "install": {"kind": "uv-tool", "appimage": "", "service": True, "arch": ""}, "topics": list(TOPIC_NAMES)},

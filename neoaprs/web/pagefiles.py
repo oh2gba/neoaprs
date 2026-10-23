@@ -23,6 +23,7 @@ class HostGate(Protocol):
 
     def host_allowed(self, header: str) -> bool: ...
     def note_foreign_host(self, shown: str) -> None: ...
+    def secure_target(self, request: tornado.httputil.HTTPServerRequest) -> str | None: ...
 
 
 def refuse_foreign_host(handler: tornado.web.RequestHandler, server: HostGate) -> bool:
@@ -37,6 +38,23 @@ def refuse_foreign_host(handler: tornado.web.RequestHandler, server: HostGate) -
     handler.set_header("X-Content-Type-Options", "nosniff")
     handler.finish(f"NeoAPRS does not answer to the name {shown!r}.\n"
                    "If it is a name of this computer, allow it: neoaprs db set web/allowed_hosts \"" + (host_name(shown) or "name") + "\" (several names: separate them by commas), then restart NeoAPRS.\n")
+    return True
+
+
+def refuse_plain(handler: tornado.web.RequestHandler, server: HostGate) -> bool:
+    """Answers and returns True when the request came over plain http from another device while the secure page is served (neoaprs/web/securehandlers.py): a GET or HEAD of a page is sent on to the same address on the
+    secure port (307: the secure page can be switched off again), the rest (the socket, a login, the map) is refused with a line that says where the page is."""
+    request = handler.request
+    target = server.secure_target(request)
+    if target is None:
+        return False
+    if request.method in ("GET", "HEAD") and request.headers.get("Upgrade", "").lower() != "websocket":
+        handler.redirect(f"{target}{request.uri or '/'}", status=307)
+        return True
+    handler.set_status(403)
+    handler.set_header("Content-Type", "text/plain; charset=utf-8")
+    handler.set_header("X-Content-Type-Options", "nosniff")
+    handler.finish(f"The page is on a secure connection now: open {target}/\n")
     return True
 
 
@@ -90,7 +108,9 @@ class Secured(SecurityHeaders):
 
     def prepare(self) -> None:
         # the server is in the application's settings, not an argument of initialize(): the files handler keeps its signature
-        refuse_foreign_host(self, self.application.settings["neoaprs_server"])
+        server = self.application.settings["neoaprs_server"]
+        if not refuse_foreign_host(self, server):
+            refuse_plain(self, server)
 
 
 class Page(Secured, tornado.web.StaticFileHandler):
@@ -118,8 +138,9 @@ class Basemap(Page):
     compress, so a range is a range of the file. It is behind the login: the page's files are free, the map is data."""
 
     def prepare(self) -> None:
-        if not refuse_foreign_host(self, self.application.settings["neoaprs_server"]):
-            refuse_unless_logged_in(self, self.application.settings["neoaprs_server"])
+        server = self.application.settings["neoaprs_server"]
+        if not refuse_foreign_host(self, server) and not refuse_plain(self, server):
+            refuse_unless_logged_in(self, server)
 
     def set_extra_headers(self, path: str) -> None:
         self.set_header("Cache-Control", "no-cache")

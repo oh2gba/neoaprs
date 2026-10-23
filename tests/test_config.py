@@ -11,7 +11,7 @@ def test_the_defaults_are_the_ones_of_the_brief() -> None:
     assert DEFAULTS.to_data() == {
         "tnc/profile": "kiss", "serial/port": "", "serial/baud": "", "tcp/host": "127.0.0.1", "tcp/port": "8001", "serial/last_port": "", "serial/pattern": "/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*", "serial/skip": "", "tnc/check_sec": "60", "station/call": "", "station/lat": "", "station/lon": "",
         "station/symbol_table": "/", "station/symbol_code": "-", "station/comment": "NeoAPRS", "station/status": "", "beacon/power_w": "", "beacon/antenna_height_m": "0", "beacon/antenna_gain_db": "0",
-        "beacon/antenna_direction": "omni", "log/keep_days": "30", "web/network": "false", "web/key": "", "web/port": "7303", "web/allowed_hosts": "", "beacon/interval_min": "0",
+        "beacon/antenna_direction": "omni", "log/keep_days": "30", "web/network": "false", "web/key": "", "web/https": "false", "web/port": "7303", "web/allowed_hosts": "", "beacon/interval_min": "0",
         "beacon/path": "WIDE1-1,WIDE2-1", "beacon/destination": "APZNEO", "beacon/compressed": "false", "beacon/dao": "false",
         "messages/alert": "true", "messages/alert_command": DEFAULT_ALERT_COMMAND, "status/rigctld": "", "status/interval_min": "30", "status/template": "QRV {freq} {mode}",
         "map/hide_after_min": "180", "map/radius_km": "150", "map/maxzoom": "12", "map/source": "",
@@ -27,7 +27,7 @@ def test_every_field_has_a_key_and_every_key_a_field() -> None:
 def test_nothing_in_the_database_is_the_defaults_and_what_is_written_is_read_back() -> None:
     assert Config.from_data({}) == DEFAULTS
     c = Config(serial_port="/dev/brainbox_3", serial_baud=19200, serial_last_port="/dev/brainbox_3", serial_pattern="/dev/brainbox_* /dev/ttyUSB*", serial_skip="/dev/brainbox_2, /dev/ttyUSB1", tnc_profile="kenwood-d710", tcp_host="::1", tcp_port=8100, tnc_check_sec=0, station_call="OH2GBA-9", station_lat=-33.5, station_lon=151.25,
-               station_symbol_table="\\", station_symbol_code=">", station_comment="mobile", station_status="On the road, QRV 145.500", beacon_power_w=5, beacon_antenna_height_m=12, beacon_antenna_gain_db=3, beacon_antenna_direction="NW", log_keep_days=7, web_network=True, web_key="k7m2-x9pq-4hrt", web_port=8080, web_allowed_hosts="aprs.example, pi", beacon_interval_min=30,
+               station_symbol_table="\\", station_symbol_code=">", station_comment="mobile", station_status="On the road, QRV 145.500", beacon_power_w=5, beacon_antenna_height_m=12, beacon_antenna_gain_db=3, beacon_antenna_direction="NW", log_keep_days=7, web_network=True, web_key="k7m2-x9pq-4hrt", web_https=True, web_port=8080, web_allowed_hosts="aprs.example, pi", beacon_interval_min=30,
                beacon_path="WIDE2-2", beacon_destination="APRS", beacon_compressed=True, beacon_dao=True, messages_alert=False, messages_alert_command="echo $NEOAPRS_FROM", status_rigctld="localhost:4532", status_interval_min=1440, status_template="{mode} {freq}", map_hide_after_min=10080)
     assert Config.from_data(c.to_data()) == c
 

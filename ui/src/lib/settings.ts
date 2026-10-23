@@ -50,6 +50,7 @@ export const FIELDS: Record<string, FieldInfo> = {
   "tnc/check_sec": { label: "Keep-alive", unit: "s", zero: "off", title: "Silence before the radio is asked if it is there" },
   "web/network": { label: "Allow access from the network", kind: "bool" },
   "web/key": { label: "Access key", kind: "readonly" },
+  "web/https": { label: "Secure connection (https)", kind: "bool" },
   "web/port": { label: "Port", zero: "any", title: AT_START },
   "web/allowed_hosts": { label: "Allowed hosts", empty: "none", title: AT_START },
   "log/keep_days": { label: "Keep", unit: "days" },
@@ -169,7 +170,7 @@ function profileOf(key: string | undefined) {
  * where it cannot: Windows, macOS), the keep-alive for one that can be asked if it is there; the access key while the daemon lets the network in (`network`) and has made one. The port the search found last is no field:
  * the port's own control says it. */
 export function shownFor(key: string, profileKey: string | undefined, network = true, search = true): boolean {
-  if (key === "web/key") return network;
+  if (key === "web/key" || key === "web/https") return network;
   if (key === "serial/last_port") return false;
   const profile = profileOf(profileKey);
   if (!profile) return true;

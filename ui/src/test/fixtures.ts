@@ -275,6 +275,7 @@ export function configValues(extra: Record<string, string> = {}): ConfigValues {
     "log/keep_days": "30",
     "web/network": "false",
     "web/key": "",
+    "web/https": "false",
     "web/port": "7303",
     "web/allowed_hosts": "",
     "beacon/interval_min": "0",
@@ -296,7 +297,7 @@ export function configValues(extra: Record<string, string> = {}): ConfigValues {
     "update/url": "https://oh2gba.eu/neoaprs/version.php",
     ...extra,
   };
-  return { values, defaults: { ...values }, urls: [] };
+  return { values, defaults: { ...values }, urls: [], https: { on: false, port: 0, fingerprint: "", problem: "" } };
 }
 
 /** A map file of the daemon: the detailed map round Helsinki by default. */

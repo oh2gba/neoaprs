@@ -145,7 +145,7 @@ Asks for the serial ports of the machine the daemon runs on, and the Bluetooth d
 ### `set_config`
 
 Changes settings. Every key and value is checked before anything is stored: the first that is wrong is answered with an `error` that names the key, and nothing changes. A key that is
-left out keeps its value. The answer is the `config` topic told again. `web/port` and `web/allowed_hosts` are read at the daemon's start, `web/network` (and with it the access key `web/key`) counts at once, `serial/*`, `tcp/*` and `tnc/profile` restart the
+left out keeps its value. The answer is the `config` topic told again. `web/port` and `web/allowed_hosts` are read at the daemon's start, `web/network` (and with it the access key `web/key`) and `web/https` count at once, `serial/*`, `tcp/*` and `tnc/profile` restart the
 TNC, `station/*` move our own station on the map. `tnc/check_sec` and `map/hide_after_min` count at once, with no restart.
 
 | field | type | | description |
@@ -770,7 +770,8 @@ The settings: each key of the settings table (`station/call`, `serial/baud`, ...
 |---|---|---|---|
 | `values` | { [key: string]: string } |  | the settings in force, key to text; every key is there |
 | `defaults` | { [key: string]: string } |  | the same keys with their defaults, for a form's reset |
-| `urls` | string[] |  | where another device opens the page while `web/network` is on (this computer's address on the network and its name there, with the port); empty while it is off |
+| `urls` | string[] |  | where another device opens the page while `web/network` is on (this computer's address on the network and its name there, with the port); empty while it is off (with `https` on, the https addresses) |
+| `https` | HttpsState |  | the secure connection: whether it is served, its port, the fingerprint of the authority's certificate (which `GET /neoaprs-ca.crt` downloads), and why not when it could not start |
 
 ### SetOp
 
@@ -884,6 +885,17 @@ One digipeater of the path an attempt went by, and whether a copy of our own mes
 | `heard` | boolean |  | a copy was heard by radio with this hop's has-been-repeated bit set (or a later hop's: a hop works the first unused address) |
 | `heard_at` | time \| null |  | when the first copy that showed the hop was heard (by radio if there was one, else over the internet); null when it was not heard |
 | `by_internet` | boolean |  | a copy gated back by an iGate as a third-party packet showed the hop used; with `heard` false the hop is known only that way |
+
+### HttpsState
+
+The secure connection (`web/https`) as the daemon has it.
+
+| field | type | | description |
+|---|---|---|---|
+| `on` | boolean |  | the page is served over https right now (`web/https` and `web/network` are on, and it started) |
+| `port` | integer |  | the https port; 0 while it is not served |
+| `fingerprint` | string |  | SHA-256 fingerprint of NeoAPRS's certificate authority, `AB:CD:...`, for a person to compare with what the device shows when the certificate is installed; empty while it is not served |
+| `problem` | string |  | why the secure connection could not start or go on, when it was asked for; empty otherwise |
 
 ### InstallInfo
 
