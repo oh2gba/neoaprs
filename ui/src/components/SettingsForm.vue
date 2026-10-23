@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // The settings of the daemon, one field for every key it lists in the scope of the form (the Settings tab, or the Beacon tab with the keys the beacon sends), in groups. Save sends the keys that were changed (the daemon checks them all before it stores any; a wrong one is shown under
 // its field); the alert command has a Test button, which runs the saved command and shows how it went under the field; a field left empty shows the default as a placeholder. The Map group ends with the buttons that make
-// the map (MapFetchPanel), which work on the saved settings. On the Settings tab a link at the top opens the first-run guide again; the default slot is for more groups (the page's own, which are not settings of the daemon), and the slot `notifications` for the fields of the page's own alert, which end the Notifications group. The Update check group (the daily check itself is always on) has a Check now button, which asks the version page at once and shows the answer beside it for a few seconds. While the network is let in, the Web group shows the access key with a New key button and the addresses to open the page at.
+// the map (MapFetchPanel), which work on the saved settings. On the Settings tab a link at the top opens the first-run guide again; the default slot is for more groups (the page's own, which are not settings of the daemon), the slot `radio` for the state of the radio link, which opens the TNC group, and the slot `notifications` for the fields of the page's own alert, which end the Notifications group. The Update check group (the daily check itself is always on) has a Check now button, which asks the version page at once and shows the answer beside it for a few seconds. While the network is let in, the Web group shows the access key with a New key button and the addresses to open the page at.
 import MapFetchPanel from "@/components/MapFetchPanel.vue";
 import InfoTip from "@/components/InfoTip.vue";
 import SettingsField from "@/components/SettingsField.vue";
@@ -100,6 +100,7 @@ const mapUnsaved = computed(() => Object.keys(changed.value).some((key) => key.s
     </p>
     <fieldset v-for="group in groups" :key="group.id">
       <legend>{{ group.title }}</legend>
+      <slot v-if="group.id === 'serial'" name="radio"></slot>
       <template v-for="key in shown(group.keys)" :key="key">
         <h3 v-if="SUBGROUPS[key]" class="subgroup" :title="SUBGROUPS[key]?.title">
           {{ SUBGROUPS[key]?.text }}

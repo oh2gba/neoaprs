@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The panel at the right of the map (under it on a narrow page): the tabs Stations, Packets, Messages, Email, Bulletins, Beacon, TNC and Settings (a tab can carry a badge with a count, which the folded panel shows on its handle), a button that folds it away, and a handle
+// The panel at the right of the map (under it on a narrow page): the tabs Stations, Packets, Messages, Email, Bulletins, Beacon and Settings (a tab can carry a badge with a count, which the folded panel shows on its handle), a button that folds it away, and a handle
 // to drag its width (up to 80 % of the window, the map keeping 360 px). The tab and the width are the page's to remember; a remembered width that is too much for the window is shown clamped, and is whole again when the window is wide again. The contents of every tab stay mounted, so that a filter or a scroll position is there when the tab is back.
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { TAB_IDS, TAB_TITLES, clampWidth, type TabId } from "@/lib/layout";

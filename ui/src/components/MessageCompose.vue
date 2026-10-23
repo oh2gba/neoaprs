@@ -1,10 +1,11 @@
 <script setup lang="ts">
 // The box to write a message in, under the thread: "To" is filled in when a conversation is opened (or from the station card) and emptied when none is (red when it is no call); the box shows how many of
-// the 67 bytes a message may have are left, and Send is off while the TNC is not connected (its title says so) or the message is empty, too long or for no call; the email gateway EMAIL-2 is no call to write to here (its title says "Use the Email tab"). The text is cleared once it is sent.
+// the 67 bytes a message may have are left ("67 left"), and Send is off while the TNC is not connected (its title says so) or the message is empty, too long or for no call; the email gateway EMAIL-2 is no call to write to here (its title says "Use the Email tab"). The text is cleared once it is sent.
 // "Stations" opens the list of the stations heard lately (lib/recipients.ts) with a filter and a tickbox for each: the ones ticked are shown as chips that a click removes, and a call typed in To followed by a
 // space or a comma becomes a chip too, as does "Add OH2XYZ" in the list for a call that is not in it. With one recipient Send is what it always was; with several it sends one ordinary message to each (`sendMany`).
 import { computed, ref, watch } from "vue";
 import { normalizeCall, validCall } from "@/lib/calls";
+import { leftText } from "@/lib/format";
 import { bytesLeft, isGateway, replyTo } from "@/lib/messages";
 import { addable, canSendAll, matching, recipientsOf, type Candidate } from "@/lib/recipients";
 
@@ -90,14 +91,14 @@ function submit(): void {
         class="input mono compose-to"
         :class="{ invalid: badCall }"
         type="text"
-        placeholder="To"
+        placeholder="Call"
         maxlength="9"
         autocomplete="off"
         spellcheck="false"
         @keydown="onToKey"
       />
       <button type="button" class="btn" :aria-expanded="picking" title="Write to several stations" @click="picking = !picking">Stations</button>
-      <span class="compose-left mono" :class="{ over: left < 0 }" :title="`${left} of 67 bytes left`">{{ left }}</span>
+      <span class="compose-left mono" :class="{ over: left < 0 }" :title="`${left} of 67 bytes left`">{{ leftText(left) }}</span>
       <button type="submit" class="btn primary" :disabled="!ready" :title="sendTitle">Send</button>
     </div>
     <div v-if="picking" class="picker">

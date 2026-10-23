@@ -20,7 +20,8 @@ describe("EmailPane", () => {
   it("has Send an email, the mailbox and the shortcuts, and the thread under them, in that order", () => {
     const wrapper = pane();
     const html = wrapper.html();
-    expect(wrapper.findAll("strong").map((s) => s.text())).toEqual(["Send an email", "Mailbox", "Shortcut"]);
+    expect(wrapper.findAll("strong").map((s) => s.text())).toEqual(["Send an email", "Mailbox"]);
+    expect(wrapper.find(".mail-tools .disclosure summary").text()).toBe("Shortcuts");
     expect([html.indexOf("mail-to"), html.indexOf("mail-tools"), html.indexOf('role="log"')].every((i) => i >= 0)).toBe(true);
     expect(html.indexOf("mail-to")).toBeLessThan(html.indexOf("mail-tools"));
     expect(html.indexOf("mail-tools")).toBeLessThan(html.indexOf('role="log"'));
@@ -54,7 +55,20 @@ describe("EmailPane", () => {
   it("marks what the gateway sent as its answer, and nothing of ours", () => {
     const messages = pane().findAll(".msg");
     expect(messages[1]?.find(".msg-from").text()).toBe("EMAIL-2 answers");
-    expect(pane().findAll(".msg-from")).toHaveLength(1);
+    expect(
+      pane()
+        .findAll(".msg-from")
+        .filter((p) => p.text().endsWith("answers")),
+    ).toHaveLength(1);
+  });
+
+  it("shows a mail of ours as to whom it is, and the gateway's commands in words, with the line as sent in the title", () => {
+    const messages = pane().findAll(".msg");
+    expect(messages[0]?.find(".msg-from").text()).toBe("to me");
+    expect(messages[0]?.find(".msg-text").text()).toBe("hello");
+    expect(messages[0]?.find(".msg-text").attributes("title")).toBe("me hello");
+    expect(messages[2]?.find(".msg-text").text()).toBe("Fetch held mail");
+    expect(messages[1]?.find(".msg-text").attributes("title")).toBeUndefined();
   });
 
   it("offers Retry and Cancel as the Messages tab does", async () => {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // The last error the daemon (or the page) told, for a few seconds; a new one replaces it.
 import { onBeforeUnmount, ref, watch } from "vue";
+import IconButton from "@/components/IconButton.vue";
 import type { Toast } from "@/composables/useDaemon";
 
 const props = defineProps<{ toast: Toast | null; seconds?: number }>();
@@ -22,6 +23,6 @@ onBeforeUnmount(() => clearTimeout(timer));
 <template>
   <div v-if="shown" class="toast" role="alert">
     <span>{{ shown.text }}</span>
-    <button class="iconbtn" type="button" aria-label="Dismiss" @click="shown = null">x</button>
+    <IconButton kind="close" label="Dismiss" title="Dismiss" @click="shown = null" />
   </div>
 </template>

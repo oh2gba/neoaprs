@@ -187,7 +187,7 @@ Then `sudo udevadm control --reload` and plug the device in again.
 
 ## Not working?
 
-1. **TNC tab:** the state. *connecting* or *waiting*: the port cannot be opened (wrong port, permissions, another program holds it). *connected* with no packets: normal for a KISS TNC until it hears something. *silent*: the line is open but the radio says nothing; check the cable, the baud and that the radio is on.
+1. **Settings tab, TNC group:** the state at the top. *connecting* or *waiting*: the port cannot be opened (wrong port, permissions, another program holds it). *connected* with no packets: normal for a KISS TNC until it hears something. *silent*: the line is open but the radio says nothing; check the cable, the baud and that the radio is on.
 2. **Log:** `neoaprs.log` in the data folder; start with `--debug` for more. It names the port, the entry sequence sent and what came back.
 3. **Wrong baud or port:** garbage or nothing. The TH-D75 and Mobilinkd ignore the baud on USB and Bluetooth; the NinoTNC needs 57600; Kenwood serial 9600.
 4. **TH-D74/D75, Mobilinkd, NinoTNC:** NeoAPRS cannot check that they are there. KISS must be on at the radio, and a radio that was switched off must have KISS switched on again.

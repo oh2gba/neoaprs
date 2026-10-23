@@ -8,11 +8,12 @@ import {
   emailLine,
   forgetAddress,
   isNotConfirmed,
+  listShortcuts,
+  mailLine,
   mailMarkOf,
   mailStateText,
   parseAddresses,
   rememberAddress,
-  listShortcuts,
   removeShortcut,
   validAddress,
   validShortcut,
@@ -145,5 +146,24 @@ describe("a mail that got no ack", () => {
     expect(mailMarkOf(to("rejected", 1))?.kind).toBe("cross");
     expect(mailMarkOf(to("acked", 1))?.kind).toBe("check");
     expect(mailMarkOf(message(2, { direction: "in", state: "received" }))).toBeNull();
+  });
+});
+
+describe("mailLine", () => {
+  it("shows a mail as who it is to over what it says", () => {
+    expect(mailLine("jane@example.com Hello there")).toEqual({ head: "to jane@example.com", body: "Hello there" });
+    expect(mailLine("me Back at the shack")).toEqual({ head: "to me", body: "Back at the shack" });
+  });
+
+  it("says in words what the gateway's own commands do", () => {
+    expect(mailLine("get")).toEqual({ head: null, body: "Fetch held mail" });
+    expect(mailLine("me jane@example.com")).toEqual({ head: null, body: "Shortcut me: jane@example.com" });
+    expect(mailLine("me L")).toEqual({ head: null, body: "Email the list of shortcuts to me" });
+    expect(mailLine("me R")).toEqual({ head: null, body: "Remove the shortcut me" });
+  });
+
+  it("leaves a line that is none of these as it was sent", () => {
+    expect(mailLine("hello")).toEqual({ head: null, body: "hello" });
+    expect(mailLine("jane@example.com L")).toEqual({ head: "to jane@example.com", body: "L" });
   });
 });

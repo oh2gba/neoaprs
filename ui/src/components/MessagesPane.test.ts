@@ -71,6 +71,45 @@ describe("MessagesPane", () => {
     expect(wrapper.emitted("select")?.[2]).toEqual(["OH2RDG"]);
   });
 
+  describe("the route of a conversation", () => {
+    const routeOf = (wrapper: ReturnType<typeof pane>) => wrapper.find<HTMLDetailsElement>(".thread-head details").element;
+
+    it("is behind a closed Route while the default route is used", () => {
+      const wrapper = pane();
+      expect(wrapper.find(".thread-head summary").text()).toBe("Route");
+      expect(routeOf(wrapper).open).toBe(false);
+      expect(wrapper.find(".thread-head .pathbox").exists()).toBe(true);
+    });
+
+    it("is shown open when the station has a path of its own, or is RF only", () => {
+      expect(routeOf(pane({ paths: new Map([["OH2RDG", "OH2RCH-2"]]) })).open).toBe(true);
+      expect(routeOf(pane({ rfOnly: new Set(["OH2RDG"]) })).open).toBe(true);
+      expect(routeOf(pane({ paths: new Map([["OH2XYZ", "OH2RCH-2"]]) })).open).toBe(false);
+    });
+
+    it("opens for the next conversation as that one's route says, not as the last was left", async () => {
+      const wrapper = pane({ paths: new Map([["OH2XYZ", "OH2RCH-2"]]) });
+      routeOf(wrapper).open = true;
+      await wrapper.find(".thread-head details").trigger("toggle");
+      await wrapper.setProps({ selected: "OH2XYZ" });
+      expect(routeOf(wrapper).open).toBe(true);
+      await wrapper.setProps({ selected: "OH2RDG" });
+      expect(routeOf(wrapper).open).toBe(false);
+    });
+  });
+
+  it("explains what overheard means in an (i), and marks the open conversation for a narrow page", () => {
+    const wrapper = pane();
+    expect(wrapper.find(".toolbar .info-toggle").attributes("aria-label")).toBe("What overheard means");
+    expect(wrapper.findAll(".conv-item").map((i) => i.classes().includes("open"))).toEqual([false, true]);
+    expect(wrapper.find(".msgpane").classes()).toContain("has-thread");
+    expect(wrapper.find(".convs").classes()).toContain("short");
+  });
+
+  it("has a Call placeholder in To", () => {
+    expect(pane().find("#msg-to").attributes("placeholder")).toBe("Call");
+  });
+
   describe("deleting a conversation", () => {
     beforeEach(() => vi.useFakeTimers());
     afterEach(() => vi.useRealTimers());
@@ -79,7 +118,7 @@ describe("MessagesPane", () => {
 
     it("has a small x at the right end of every row, outside the button that opens the row", () => {
       const wrapper = pane();
-      expect(wrapper.findAll(".conv-delete").map((b) => b.text())).toEqual(["x", "x"]);
+      expect(wrapper.findAll(".conv-delete").map((b) => b.text())).toEqual(["", ""]);
       expect(x(wrapper, 1)?.attributes("aria-label")).toBe("Delete the conversation with OH2RDG");
       expect(wrapper.find(".conv .conv-delete").exists()).toBe(false);
     });
@@ -88,11 +127,11 @@ describe("MessagesPane", () => {
       const wrapper = pane();
       await x(wrapper, 1)?.trigger("click");
       expect(x(wrapper, 1)?.text()).toBe("sure?");
-      expect(x(wrapper, 0)?.text()).toBe("x");
+      expect(x(wrapper, 0)?.text()).toBe("");
       expect(wrapper.emitted("deleteConversation")).toBeUndefined();
       await x(wrapper, 1)?.trigger("click");
       expect(wrapper.emitted("deleteConversation")).toEqual([["OH2RDG"]]);
-      expect(x(wrapper, 1)?.text()).toBe("x");
+      expect(x(wrapper, 1)?.text()).toBe("");
       expect(wrapper.emitted("select")).toBeUndefined();
     });
 
@@ -100,10 +139,10 @@ describe("MessagesPane", () => {
       const wrapper = pane();
       await x(wrapper, 0)?.trigger("click");
       await vi.advanceTimersByTimeAsync(5100);
-      expect(x(wrapper, 0)?.text()).toBe("x");
+      expect(x(wrapper, 0)?.text()).toBe("");
       await x(wrapper, 0)?.trigger("click");
       await x(wrapper, 1)?.trigger("click");
-      expect(wrapper.findAll(".conv-delete").map((b) => b.text())).toEqual(["x", "sure?"]);
+      expect(wrapper.findAll(".conv-delete").map((b) => b.text())).toEqual(["", "sure?"]);
       expect(wrapper.emitted("deleteConversation")).toBeUndefined();
     });
 
@@ -128,20 +167,20 @@ describe("MessagesPane", () => {
         const wrapper = wide();
         await at(wrapper, "OH2AAA > OH2BBB")?.trigger("click");
         expect(at(wrapper, "OH2AAA > OH2BBB")?.text()).toBe("sure?");
-        expect(at(wrapper, "OH2RDG")?.text()).toBe("x");
+        expect(at(wrapper, "OH2RDG")?.text()).toBe("");
         expect(wrapper.emitted("deleteOverheard")).toBeUndefined();
         await at(wrapper, "OH2AAA > OH2BBB")?.trigger("click");
         expect(wrapper.emitted("deleteOverheard")).toEqual([["OH2AAA", "OH2BBB"]]);
         expect(wrapper.emitted("deleteConversation")).toBeUndefined();
         expect(wrapper.emitted("select")).toBeUndefined();
-        expect(at(wrapper, "OH2AAA > OH2BBB")?.text()).toBe("x");
+        expect(at(wrapper, "OH2AAA > OH2BBB")?.text()).toBe("");
       });
 
       it("forgets the first click after 5 seconds, and a conversation still sends deleteConversation", async () => {
         const wrapper = wide();
         await at(wrapper, "OH2AAA > OH2BBB")?.trigger("click");
         await vi.advanceTimersByTimeAsync(5100);
-        expect(at(wrapper, "OH2AAA > OH2BBB")?.text()).toBe("x");
+        expect(at(wrapper, "OH2AAA > OH2BBB")?.text()).toBe("");
         await at(wrapper, "OH2RDG")?.trigger("click");
         await at(wrapper, "OH2RDG")?.trigger("click");
         expect(wrapper.emitted("deleteConversation")).toEqual([["OH2RDG"]]);
@@ -287,11 +326,11 @@ describe("MessagesPane", () => {
 
   it("shows the bytes left of 67 as the text grows, and in red when there are too many", async () => {
     const wrapper = pane();
-    expect(wrapper.find(".compose-left").text()).toBe("67");
+    expect(wrapper.find(".compose-left").text()).toBe("67 left");
     await wrapper.find("#msg-text").setValue("hello");
-    expect(wrapper.find(".compose-left").text()).toBe("62");
+    expect(wrapper.find(".compose-left").text()).toBe("62 left");
     await wrapper.find("#msg-text").setValue("å".repeat(34));
-    expect(wrapper.find(".compose-left").text()).toBe("-1");
+    expect(wrapper.find(".compose-left").text()).toBe("1 over");
     expect(wrapper.find(".compose-left").classes()).toContain("over");
     expect(wrapper.find(".compose button[type='submit']").attributes("disabled")).toBeDefined();
   });
@@ -328,7 +367,7 @@ describe("MessagesPane", () => {
         { call: "OH2BBB", direct: false, heardAt: "2026-10-21T11:00:00Z" },
       ],
     });
-    await wrapper.find("button[aria-expanded]").trigger("click");
+    await wrapper.find(".compose button[aria-expanded]").trigger("click");
     for (const box of wrapper.findAll(".picker-list input")) await box.setValue(true);
     await wrapper.find("#msg-text").setValue("Net at 20:00");
     await wrapper.find("form").trigger("submit");

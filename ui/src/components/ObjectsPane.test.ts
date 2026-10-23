@@ -54,6 +54,13 @@ describe("ObjectsPane", () => {
     expect(wrapper.find<HTMLInputElement>("input[maxlength='9']").element.value).toBe("");
   });
 
+  it("has an Edit as big as the other buttons and a delete that says it kills the object on the air", () => {
+    const { wrapper } = pane(rows);
+    expect(wrapper.find(".object-edit").classes()).not.toContain("small");
+    expect(wrapper.find(".bulletin-delete").attributes("title")).toBe("Delete (kill on the air)");
+    expect(wrapper.find(".bulletin-delete").classes()).toContain("xbtn");
+  });
+
   it("opens the form with the object when Edit is pressed", async () => {
     const { wrapper, form } = pane(rows);
     await wrapper.find(".ownobject .object-edit").trigger("click");
@@ -64,15 +71,15 @@ describe("ObjectsPane", () => {
   it("has an x on each that asks twice and then kills the object", async () => {
     const { wrapper, sent } = pane(rows);
     const x = () => wrapper.findAll(".ownobject")[1]?.find(".bulletin-delete");
-    expect(x()?.text()).toBe("x");
-    expect(x()?.attributes("aria-label")).toBe("Kill the item AID");
+    expect(x()?.text()).toBe("");
+    expect(x()?.attributes("aria-label")).toBe("Delete the item AID");
     await x()?.trigger("click");
     expect(x()?.text()).toBe("sure?");
-    expect(wrapper.findAll(".bulletin-delete")[0]?.text()).toBe("x");
+    expect(wrapper.findAll(".bulletin-delete")[0]?.text()).toBe("");
     expect(sent).toEqual([]);
     await x()?.trigger("click");
     expect(sent).toEqual([{ cmd: "object_kill", name: "AID" }]);
-    expect(x()?.text()).toBe("x");
+    expect(x()?.text()).toBe("");
   });
 
   it("shows an object that is being killed as such, with neither Edit nor x", () => {

@@ -104,6 +104,7 @@ describe("UpdatePanel", () => {
 
   it("closes with the cross and with Escape", async () => {
     const wrapper = mount(UpdatePanel, { props: { version: "0.4.0", install: install("pip") }, attachTo: document.body });
+    expect(wrapper.find("button[aria-label=Close]").classes()).toContain("xbtn");
     await wrapper.find("button[aria-label=Close]").trigger("click");
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     expect(wrapper.emitted("close")).toHaveLength(2);

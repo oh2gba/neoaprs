@@ -54,27 +54,27 @@ describe("BulletinsPane", () => {
 
     it("is a small x at the corner of every row", () => {
       const wrapper = pane(...rows);
-      expect(wrapper.findAll(".bulletin-delete").map((b) => b.text())).toEqual(["x", "x", "x", "x"]);
+      expect(wrapper.findAll(".bulletin-delete").map((b) => b.text())).toEqual(["", "", "", ""]);
       expect(x(wrapper, 1)?.attributes("aria-label")).toBe("Delete the bulletin BLN1 from OH2XYZ");
-      expect(x(wrapper, 0)?.classes()).toContain("conv-delete");
+      expect(x(wrapper, 0)?.classes()).toContain("xbtn");
     });
 
     it("asks twice: the first press says sure?, the second emits the sender and the slot", async () => {
       const wrapper = pane(...rows);
       await x(wrapper, 1)?.trigger("click");
       expect(x(wrapper, 1)?.text()).toBe("sure?");
-      expect(x(wrapper, 0)?.text()).toBe("x");
+      expect(x(wrapper, 0)?.text()).toBe("");
       expect(wrapper.emitted("delete")).toBeUndefined();
       await x(wrapper, 1)?.trigger("click");
       expect(wrapper.emitted("delete")).toEqual([["OH2XYZ", "BLN1"]]);
-      expect(x(wrapper, 1)?.text()).toBe("x");
+      expect(x(wrapper, 1)?.text()).toBe("");
     });
 
     it("arms one row at a time", async () => {
       const wrapper = pane(...rows);
       await x(wrapper, 0)?.trigger("click");
       await x(wrapper, 1)?.trigger("click");
-      expect(wrapper.findAll(".bulletin-delete").map((b) => b.text())).toEqual(["x", "sure?", "x", "x"]);
+      expect(wrapper.findAll(".bulletin-delete").map((b) => b.text())).toEqual(["", "sure?", "", ""]);
       expect(wrapper.emitted("delete")).toBeUndefined();
     });
   });

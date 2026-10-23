@@ -1,5 +1,5 @@
 import { mount } from "@vue/test-utils";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import InfoTip from "@/components/InfoTip.vue";
 import { openTip } from "@/lib/infotip";
 
@@ -17,7 +17,18 @@ function tip(props: { label?: string } = {}) {
   return wrapper;
 }
 
+/** A page `width` wide in which the open note is `box` wide with its left edge at `left`. */
+function layout(width: number, left: number, box: number): void {
+  Object.defineProperty(document.documentElement, "clientWidth", { value: width, configurable: true });
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+    const at = this.classList.contains("info-text") ? left : 0;
+    const w = this.classList.contains("info-text") ? box : 20;
+    return { left: at, right: at + w, top: 0, bottom: 20, width: w, height: 20, x: at, y: 0, toJSON: () => ({}) };
+  });
+}
+
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const wrapper of mounted.splice(0)) wrapper.unmount();
   document.body.innerHTML = "";
   openTip.value = null;
@@ -102,5 +113,29 @@ describe("InfoTip", () => {
     mounted.length = 0;
     expect(openTip.value).toBeNull();
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+  });
+
+  it("opens downward from the (i) and is kept inside the page: moved left where it runs off the right edge", async () => {
+    layout(390, 150, 280);
+    const wrapper = tip();
+    await wrapper.find("button").trigger("click");
+    await wrapper.vm.$nextTick();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find<HTMLElement>(".info-text").element.style.transform).toBe("translateX(-48px)"); // its right edge at 382 = 390 - 8
+  });
+
+  it("stays where it is when it fits, and never goes past the left margin", async () => {
+    layout(1000, 100, 280);
+    const roomy = tip();
+    await roomy.find("button").trigger("click");
+    await roomy.vm.$nextTick();
+    await roomy.vm.$nextTick();
+    expect(roomy.find<HTMLElement>(".info-text").element.style.transform).toBe("");
+    await roomy.find("button").trigger("click");
+    layout(200, -30, 280);
+    await roomy.find("button").trigger("click");
+    await roomy.vm.$nextTick();
+    await roomy.vm.$nextTick();
+    expect(roomy.find<HTMLElement>(".info-text").element.style.transform).toBe("translateX(38px)"); // its left edge at 8
   });
 });

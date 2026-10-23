@@ -2,7 +2,7 @@
 // The one line at the top: the title, our call (amber "no call set", a button that opens the first-run guide, while none is set: nothing is transmitted then; with the number of messages not seen, a button that opens them), one dot and the words for whether the radio works (green "radio ok": the page's socket is open and
 // the TNC is connected; amber "radio: searching", "radio: waiting", "radio: entering KISS" or "radio: stopped": the socket is up and the TNC is not, its problem the title; amber "radio: silent": the line is
 // open and the radio does not answer, the title says since when; red "daemon offline": the socket is down)
-// and, small and muted beside them, what the daemon costs the machine (the full figures with the uptime are the title). The port, the speed and the packet count are on the TNC tab. When the update check has found a newer
+// and, small and muted beside them, what the daemon costs the machine (the full figures with the uptime are the title). The port and what the TNC last heard are at the top of the TNC group of the Settings tab. When the update check has found a newer
 // version it is shown after the version number, a button that opens the panel with the steps to it (UpdatePanel), the project's note as the title.
 import { computed } from "vue";
 import type { Connection } from "@/lib/hub";
