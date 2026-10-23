@@ -7,6 +7,8 @@ A modern, easy-to-use APRS client: a map of the stations you hear, messages with
 | The map: stations, trails, the Stations table | A weather station with its 24 h graphs |
 | ![Messages](docs/screenshots/messages.png) | ![Beacon](docs/screenshots/beacon.png) |
 | A conversation: acks, retries, the route of each message | The Beacon tab: last and next beacon, station settings |
+| ![Objects](docs/screenshots/objects.png) | ![The message board](docs/screenshots/bulletins.png) |
+| Objects and items of your own, on the map and on the air | The message board, with a box to post to it |
 
 ## Download and run
 

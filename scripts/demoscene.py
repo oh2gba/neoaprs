@@ -2,12 +2,13 @@
 
 `DemoRadio` is a KISS TNC on a TCP port of the loopback (like `neoaprs replay`, which plays the bundled TH-D7 capture, and which this scene starts with); nothing here opens a serial port or sends anything but to that port.
 `history(...)` runs a daemon (the Controller) in this process on a clock that is moved back in time: stations moving along their roads, two weather stations reporting for 24 hours, messages that are acked, retried
-or fail, a bulletin board, email through the gateway, our own beacon. The daemon is stopped afterwards and the data folder holds the day; `scripts/screenshots.py` then starts a daemon of its own on it.
+or fail, a bulletin board, email through the gateway, our own beacon, and our own objects, items and bulletins (made with the daemon's own services, on the air by their own schedule as the clock moves). The daemon is stopped afterwards and the data folder holds the day; `scripts/screenshots.py` then starts a daemon of its own on it.
 
 Every call except the sample capture's is made up (`OH2Zxx`, a range nobody holds); the places are real, the movements are not.
 """
 import asyncio
 import math
+import os
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -237,6 +238,27 @@ class Scene:
         await _until(lambda: current().state == "acked")
 
 
+    def own_due(self) -> bool:
+        """Is an object or a bulletin of ours due, or being sent (by the clock of the day)?"""
+        now = self.clock()
+        due = [self.ctl.ownobjects.next_at(o.name) for o in self.ctl.ownobjects.records()] + [self.ctl.ownbulletins.next_at(b.slot) for b in self.ctl.ownbulletins.records()]
+        return any(when is not None and when <= now for when in due)
+
+    async def own_object(self, name: str, kind: str, lat: float, lon: float, symbol: str, comment: str, path: str | None = None) -> None:
+        """We make an object or an item (the Objects tab's `object_set`); it is on the air once this returns."""
+        self.ctl.ownobjects.set(name, kind, lat, lon, symbol[0], symbol[1], comment, path=path)
+        await _until(lambda: (held := self.ctl.ownobjects.get(name)) is not None and held.sent >= 1)
+
+    async def own_bulletin(self, slot: str, text: str) -> None:
+        """We post a bulletin or an announcement (the Bulletins tab's `bulletin_post`); it is on the air once this returns."""
+        self.ctl.ownbulletins.post(slot, text)
+        await _until(lambda: (held := self.ctl.ownbulletins.get(slot)) is not None and held.sent >= 1)
+
+    async def keep_schedule(self) -> None:
+        """Lets what is due of ours go out before the clock moves on, so that each has been sent as often as its schedule says (the decay of an object, the early copies of a bulletin)."""
+        await _until(lambda: not self.own_due(), 20)
+
+
 async def _until(condition: Callable[[], object], timeout_sec: float = 8.0) -> None:
     deadline = asyncio.get_running_loop().time() + timeout_sec
     while not condition():
@@ -349,6 +371,12 @@ def events(local_hour_now: float) -> list[Event]:
     day.append(_board("OH2ZMA-9", 33, "BLN3HAMS", "Hamfest in Espoo on Saturday 10:00, talk-in 145.500"))
     # Our own beacon and status
     day.append(Event(40, lambda s: _send_beacon(s)))
+    # Objects, items and bulletins of our own: a net-control point, a meeting place for Saturday and an item for the hamfest, and two on the board
+    day.append(Event(171, lambda s: s.own_bulletin("BLN2", "2 m net tonight 20:00 on 144.800 MHz, net control OH2GBA")))
+    day.append(Event(92, lambda s: s.own_object("NETCTRL", "object", 60.2208, 24.8085, "/-", "2 m net Tue 20:00, 144.800 MHz")))
+    day.append(Event(68, lambda s: s.own_object("HAMFEST", "item", 60.2052, 24.6720, "/K", "Hamfest Sat 10:00, talk-in 145.500")))
+    day.append(Event(53, lambda s: s.own_bulletin("BLNL", "Field day at the lake on Saturday 10:00, see item MEETSPOT")))
+    day.append(Event(27, lambda s: s.own_object("MEETSPOT", "item", 60.1585, 24.7110, "/;", "Meeting place, car park by the shore")))
     return sorted(day, key=lambda e: -e.ago)
 
 
@@ -366,12 +394,15 @@ async def _send_beacon(s: Scene) -> None:
 
 async def history(data_dir: Path, radio: DemoRadio) -> int:
     """Plays the day through a daemon on `data_dir` (its settings are in the database already) and stops it; how many events were played."""
+    os.environ["NEOAPRS_UPDATE_CHECK"] = "0"                    # (a made-up day: the daemon does not ask the version page)
     local = datetime.now(timezone(timedelta(hours=3)))          # (Finland in the summer time of October)
     local_hour_now = local.hour + local.minute / 60
     clock = Clock()
     clock.ago(1450)
     ctl = Controller(data_dir, clock=clock, port=radio.url)
     ctl.messaging.tick_sec = 0.03
+    ctl.ownobjects.tick_sec = ctl.ownbulletins.tick_sec = 0.03   # (our own objects and bulletins go out as soon as the moved clock says so, a few frames of the day in a second)
+    ctl.sender.spacing_sec = 0.2
     await ctl.start()
     await _until(lambda: ctl.tnc.state is Source.State.CONNECTED and radio.connected, 30)
     await asyncio.sleep(3.5)                                    # (the TNC settles after the open)
@@ -380,6 +411,7 @@ async def history(data_dir: Path, radio: DemoRadio) -> int:
     for event in events(local_hour_now):
         clock.ago(event.ago)
         await event.action(scene)
+        await scene.keep_schedule()
         played += 1
     await asyncio.sleep(0.5)
     assert ctl.db is not None

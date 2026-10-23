@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>NeoAPRS: an APRS client for Windows, Linux and the Raspberry Pi</title>
-<meta name="description" content="A modern, easy-to-use APRS client: a map of the stations you hear, messages with acks and retries, the beacon, weather graphs, bulletins and email. A standalone app, or a service you open from anywhere on your network.">
+<meta name="description" content="A modern, easy-to-use APRS client: a map of the stations you hear, messages with acks and retries, the beacon, weather graphs, objects and bulletins of your own, and email. A standalone app, or a service you open from anywhere on your network.">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
@@ -194,8 +194,8 @@
       <h2>Email through the APRS gateway, and the message board</h2>
       <ul class="ticks">
         <li>Email with shortcuts, and the gateway's own commands, in a tab of its own.</li>
-        <li>Announcements, bulletins and group messages on a board: who sent each, to which slot, how often it was heard, and a box to post your own.</li>
-        <li>Objects and items of your own: click or drag them into place on the map, and they go out on the specification's schedules.</li>
+        <li>Announcements, bulletins and group messages on a board: who sent each, to which slot, how often it was heard.</li>
+        <li>Post your own to the board from a box at its top: a bulletin, an announcement or a group bulletin. It goes out a few times early and then at long intervals, and sits on the board marked ours.</li>
       </ul>
     </div>
   </div>
@@ -204,7 +204,38 @@
       <a class="zoom frame crop pane short" href="shots/email.png"><picture><source srcset="shots/email-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/email.png" width="1440" height="900" loading="lazy" alt="The Email tab: the address and the text, the buttons for the gateway's commands, and the thread of mails with their acks"></picture></a>
     </figure>
     <figure class="shot">
-      <a class="zoom frame crop pane short" href="shots/bulletins.png"><picture><source srcset="shots/bulletins-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/bulletins.png" width="1440" height="900" loading="lazy" alt="The Bulletins tab: announcements, bulletins and group messages, each with its sender, text and how long ago it was heard"></picture></a>
+      <a class="zoom frame crop pane short" href="shots/bulletins.png"><picture><source srcset="shots/bulletins-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/bulletins.png" width="1440" height="900" loading="lazy" alt="The Bulletins tab: the box to post a bulletin with the characters left, and the board with two entries of ours, marked ours, among the ones heard"></picture></a>
+    </figure>
+  </div>
+</section>
+
+<section id="own">
+  <div class="wrap feature">
+    <div class="blurb">
+      <p class="eyebrow">Objects and items</p>
+      <h2>Your own objects, on the map and on the air</h2>
+      <ul class="ticks">
+        <li>A net control point, a meeting place, an event: an object or an item with a name, a symbol and a comment.</li>
+        <li>Click the map to place it, drag its marker to move it. Yours carry a dashed ring.</li>
+        <li>Sent on the specification's schedule: at once, then after 1, 2, 4 minutes and so on, up to the net cycle time of its path.</li>
+        <li>Nothing is transmitted until a call is set.</li>
+      </ul>
+    </div>
+    <figure class="shot">
+      <a class="zoom frame crop left" href="shots/objects.png"><picture><source srcset="shots/objects-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/objects.png" width="1440" height="900" loading="lazy" alt="The map with three objects and items of ours, a net control point, a hamfest and a meeting place, each with a dashed ring"></picture></a>
+    </figure>
+  </div>
+  <div class="wrap feature flip">
+    <div class="blurb">
+      <h2>Make one, change it, kill it</h2>
+      <ul class="ticks">
+        <li>The Objects tab lists them with how often each was sent and when it goes out next.</li>
+        <li>Edit opens the form: symbol, position, comment, course and speed, and a path of its own.</li>
+        <li>A kill is sent three times and the object is gone from the map and from the air.</li>
+      </ul>
+    </div>
+    <figure class="shot">
+      <a class="zoom frame crop pane" href="shots/objects-form.png"><picture><source srcset="shots/objects-form-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/objects-form.png" width="1440" height="900" loading="lazy" alt="The Objects tab with the form of an object open: name, symbol, position, comment, course, speed and path, and the list of our objects below it"></picture></a>
     </figure>
   </div>
 </section>
@@ -367,7 +398,9 @@
       <li class="tall"><a class="zoom" href="shots/chain.png" data-dark="shots/chain-dark.png"><picture><source srcset="shots/thumbs/chain-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/chain.png" width="640" height="744" loading="lazy" alt=""></picture><span>The delivery chain, close up</span></a></li>
       <li><a class="zoom" href="shots/chain-failed.png" data-dark="shots/chain-failed-dark.png"><picture><source srcset="shots/thumbs/chain-failed-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/chain-failed.png" width="640" height="257" loading="lazy" alt=""></picture><span>A message that failed: six attempts</span></a></li>
       <li><a class="zoom" href="shots/email.png" data-dark="shots/email-dark.png"><picture><source srcset="shots/thumbs/email-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/email.png" width="640" height="400" loading="lazy" alt=""></picture><span>Email through the gateway</span></a></li>
-      <li><a class="zoom" href="shots/bulletins.png" data-dark="shots/bulletins-dark.png"><picture><source srcset="shots/thumbs/bulletins-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/bulletins.png" width="640" height="400" loading="lazy" alt=""></picture><span>The message board</span></a></li>
+      <li><a class="zoom" href="shots/bulletins.png" data-dark="shots/bulletins-dark.png"><picture><source srcset="shots/thumbs/bulletins-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/bulletins.png" width="640" height="400" loading="lazy" alt=""></picture><span>The message board and its post box</span></a></li>
+      <li><a class="zoom" href="shots/objects.png" data-dark="shots/objects-dark.png"><picture><source srcset="shots/thumbs/objects-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/objects.png" width="640" height="400" loading="lazy" alt=""></picture><span>Objects of your own on the map</span></a></li>
+      <li><a class="zoom" href="shots/objects-form.png" data-dark="shots/objects-form-dark.png"><picture><source srcset="shots/thumbs/objects-form-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/objects-form.png" width="640" height="400" loading="lazy" alt=""></picture><span>The object form</span></a></li>
       <li><a class="zoom" href="shots/beacon.png" data-dark="shots/beacon-dark.png"><picture><source srcset="shots/thumbs/beacon-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/beacon.png" width="640" height="400" loading="lazy" alt=""></picture><span>The beacon and the status</span></a></li>
       <li><a class="zoom" href="shots/settings.png" data-dark="shots/settings-dark.png"><picture><source srcset="shots/thumbs/settings-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/settings.png" width="640" height="400" loading="lazy" alt=""></picture><span>The settings</span></a></li>
       <li><a class="zoom" href="shots/settings-web.png" data-dark="shots/settings-web-dark.png"><picture><source srcset="shots/thumbs/settings-web-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/settings-web.png" width="640" height="400" loading="lazy" alt=""></picture><span>Network access: the key and the addresses</span></a></li>
