@@ -6,18 +6,18 @@ import {
   canSendEmail,
   emailBytesLeft,
   emailLine,
-  fetchingHeld,
+  checkingMail,
   forgetAddress,
   isNotConfirmed,
-  listShortcuts,
-  mailLine,
+  listContacts,
+  gatewayLine,
   mailMarkOf,
   mailStateText,
   parseAddresses,
   rememberAddress,
-  removeShortcut,
+  removeContact,
   validAddress,
-  validShortcut,
+  validContact,
 } from "@/lib/email";
 
 describe("the line to the gateway", () => {
@@ -59,15 +59,15 @@ describe("canSendEmail", () => {
 
 describe("the gateway's commands", () => {
   it("are name L, name R and get", () => {
-    expect(listShortcuts("me")).toBe("me L");
-    expect(listShortcuts(" me ")).toBe("me L");
-    expect(removeShortcut("jane")).toBe("jane R");
-    expect(removeShortcut(" jane ")).toBe("jane R");
+    expect(listContacts("me")).toBe("me L");
+    expect(listContacts(" me ")).toBe("me L");
+    expect(removeContact("jane")).toBe("jane R");
+    expect(removeContact(" jane ")).toBe("jane R");
     expect(GET_HELD).toBe("get");
   });
 
-  it("take a shortcut that is letters and digits", () => {
-    expect([validShortcut("jane"), validShortcut("Me2"), validShortcut(" me "), validShortcut(""), validShortcut("a b"), validShortcut("a@b.c")]).toEqual([
+  it("take a contact name that is letters and digits", () => {
+    expect([validContact("jane"), validContact("Me2"), validContact(" me "), validContact(""), validContact("a b"), validContact("a@b.c")]).toEqual([
       true,
       true,
       true,
@@ -78,14 +78,14 @@ describe("the gateway's commands", () => {
   });
 });
 
-describe("fetchingHeld", () => {
+describe("checkingMail", () => {
   const get = (state: "sending" | "unconfirmed" | "acked", extra = {}) => message(1, { to_call: "EMAIL-2", text: GET_HELD, state, ...extra });
   it("is true only while a get of ours is still being sent", () => {
-    expect(fetchingHeld([get("sending")])).toBe(true);
-    expect(fetchingHeld([get("unconfirmed"), get("acked")])).toBe(false);
-    expect(fetchingHeld([get("sending", { direction: "in", state: "received" })])).toBe(false);
-    expect(fetchingHeld([message(2, { to_call: "EMAIL-2", text: "jane@example.com hi" })])).toBe(false);
-    expect(fetchingHeld([])).toBe(false);
+    expect(checkingMail([get("sending")])).toBe(true);
+    expect(checkingMail([get("unconfirmed"), get("acked")])).toBe(false);
+    expect(checkingMail([get("sending", { direction: "in", state: "received" })])).toBe(false);
+    expect(checkingMail([message(2, { to_call: "EMAIL-2", text: "jane@example.com hi" })])).toBe(false);
+    expect(checkingMail([])).toBe(false);
   });
 });
 
@@ -161,21 +161,25 @@ describe("a mail that got no ack", () => {
   });
 });
 
-describe("mailLine", () => {
-  it("shows a mail as who it is to over what it says", () => {
-    expect(mailLine("jane@example.com Hello there")).toEqual({ head: "to jane@example.com", body: "Hello there" });
-    expect(mailLine("me Back at the shack")).toEqual({ head: "to me", body: "Back at the shack" });
+describe("gatewayLine", () => {
+  it("reads a mail as who it is to and what it says", () => {
+    expect(gatewayLine("jane@example.com Hello there")).toEqual({ kind: "mail", to: "jane@example.com", text: "Hello there" });
+    expect(gatewayLine("me Back at the shack")).toEqual({ kind: "mail", to: "me", text: "Back at the shack" });
   });
 
-  it("says in words what the gateway's own commands do", () => {
-    expect(mailLine("get")).toEqual({ head: null, body: "Fetch held mail" });
-    expect(mailLine("me jane@example.com")).toEqual({ head: null, body: "Shortcut me: jane@example.com" });
-    expect(mailLine("me L")).toEqual({ head: null, body: "Email the list of shortcuts to me" });
-    expect(mailLine("me R")).toEqual({ head: null, body: "Remove the shortcut me" });
+  it("reads the gateway's own commands", () => {
+    expect(gatewayLine("get")).toEqual({ kind: "get" });
+    expect(gatewayLine(" GET ")).toEqual({ kind: "get" });
+    expect(gatewayLine("me jane@example.com")).toEqual({ kind: "add", name: "me", address: "jane@example.com" });
+    expect(gatewayLine("me L")).toEqual({ kind: "list", name: "me" });
+    expect(gatewayLine("me R")).toEqual({ kind: "remove", name: "me" });
   });
 
-  it("leaves a line that is none of these as it was sent", () => {
-    expect(mailLine("hello")).toEqual({ head: null, body: "hello" });
-    expect(mailLine("jane@example.com L")).toEqual({ head: "to jane@example.com", body: "L" });
+  it("leaves a line that is none of these a mail", () => {
+    expect(gatewayLine("hello")).toEqual({ kind: "mail", to: "hello", text: "" });
+    expect(gatewayLine("jane@example.com L")).toEqual({ kind: "mail", to: "jane@example.com", text: "L" });
+    expect(gatewayLine("jane@example.com bob@example.com")).toEqual({ kind: "mail", to: "jane@example.com", text: "bob@example.com" });
+    expect(gatewayLine("me l")).toEqual({ kind: "mail", to: "me", text: "l" });
+    expect(gatewayLine("not-a-name x@y.z")).toEqual({ kind: "mail", to: "not-a-name", text: "x@y.z" });
   });
 });
