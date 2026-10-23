@@ -27,7 +27,6 @@ MAX_COMMENT = 43                     # what the comment of a position packet may
 MAX_COMMENT_PHG = 36                 # with the 7-byte PHG data extension (spec 1546)
 MIN_INTERVAL_MIN = 10                # the shortest time between two status reports: the net cycle time of a station one hop from a digipeater (spec 646-662)
 MIN_BEACON_INTERVAL_MIN = 15         # the shortest time between two beacons: the page offers off, 15, 30 and 60; a stored lower value is raised to this, with a line in the log
-DEFAULT_BEACON_INTERVAL_MIN = 30     # a new station beacons every half hour (once it has a call and a position); an installation that stored its own value keeps it
 MAX_ALERT_COMMAND = 1000             # the longest line of messages/alert_command
 MAX_MAP_SOURCE = 500                 # the longest map/source
 MAP_RADIUS_KM = (10, 1000)           # map/radius_km: the area of the detailed map round the station
@@ -202,7 +201,7 @@ class Config:
     web_key: str = ""
     web_port: int = 7303
     web_allowed_hosts: str = ""
-    beacon_interval_min: int = DEFAULT_BEACON_INTERVAL_MIN
+    beacon_interval_min: int = 0
     beacon_path: str = "WIDE1-1,WIDE2-1"
     messages_alert: bool = True
     messages_alert_command: str = DEFAULT_ALERT_COMMAND

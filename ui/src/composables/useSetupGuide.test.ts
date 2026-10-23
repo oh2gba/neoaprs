@@ -260,6 +260,7 @@ describe("useSetupGuide: Finish", () => {
       "serial/port": "/dev/ttyUSB0",
       "serial/baud": "4800",
       "map/radius_km": "200",
+      "beacon/interval_min": "30",
     });
     guide.next();
     expect(setConfigs(sent)).toEqual([{ cmd: "set_config", values: guide.changes }]);
@@ -279,7 +280,9 @@ describe("useSetupGuide: Finish", () => {
     fill();
     guide.go(4);
     guide.next();
-    expect(setConfigs(sent)).toEqual([{ cmd: "set_config", values: { "station/call": "OH2ABC", "station/lat": "60.17", "station/lon": "24.94" } }]);
+    expect(setConfigs(sent)).toEqual([
+      { cmd: "set_config", values: { "station/call": "OH2ABC", "station/lat": "60.17", "station/lon": "24.94", "beacon/interval_min": "30" } },
+    ]);
   });
 
   it("sends nothing when nothing changed, and closes", () => {
@@ -312,6 +315,7 @@ describe("useSetupGuide: Finish", () => {
         "tcp/host": "192.168.1.5",
         "tcp/port": "8002",
         "serial/port": "",
+        "beacon/interval_min": "30",
       },
     });
   });

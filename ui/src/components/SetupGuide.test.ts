@@ -60,12 +60,12 @@ describe("SetupGuide: the frame", () => {
     expect(wrapper.find(".setup-foot button").text()).toBe("Next"); // no Back on the first step
   });
 
-  it("is nothing while closed, and says nothing about the beacon at any step", async () => {
+  it("is nothing while closed, and says nothing about the beacon before the last step", async () => {
     const { wrapper, guide, stand } = make();
     const texts: string[] = [];
     await stand(1);
     texts.push(wrapper.text());
-    for (let i = 2; i <= 5; i++) {
+    for (let i = 2; i <= 4; i++) {
       guide.go(i - 1);
       await nextTick();
       texts.push(wrapper.text());
@@ -74,6 +74,26 @@ describe("SetupGuide: the frame", () => {
     guide.close();
     await nextTick();
     expect(wrapper.find(".setup").exists()).toBe(false);
+  });
+
+  it("tells a new station on the last step that it will beacon every 30 min, with an (i) that says where to change it", async () => {
+    const { wrapper, guide, stand } = make();
+    await stand(4);
+    expect(wrapper.find(".setup-beacon").text()).toContain("Beacon every 30 min");
+    expect(wrapper.find(".setup-beacon .info-toggle").exists()).toBe(true);
+    expect(guide.changes["beacon/interval_min"]).toBe("30");
+  });
+
+  it("says nothing of the beacon, and leaves it as it is, when the guide is run again on a station that has a call", async () => {
+    const { wrapper, guide } = make({ config: configValues({ "beacon/interval_min": "0" }) });
+    guide.go(4);
+    await nextTick();
+    expect(wrapper.find(".setup-beacon").exists()).toBe(false);
+    expect(guide.changes["beacon/interval_min"]).toBeUndefined();
+    const sixty = make({ config: configValues({ "beacon/interval_min": "60" }) });
+    sixty.guide.go(4);
+    await nextTick();
+    expect(sixty.wrapper.find(".setup-beacon").text()).toContain("Beacon every 60 min");
   });
 
   it("closes with the cross and with Escape, and its answers are there when it is opened again", async () => {
@@ -328,7 +348,7 @@ describe("SetupGuide: the map and Finish", () => {
     await stand(4);
     await next();
     expect(sent.filter((c) => c.cmd !== "list_ports")).toEqual([
-      { cmd: "set_config", values: { "station/call": "OH2ABC", "station/lat": "60.17", "station/lon": "24.94" } },
+      { cmd: "set_config", values: { "station/call": "OH2ABC", "station/lat": "60.17", "station/lon": "24.94", "beacon/interval_min": "30" } },
     ]);
     expect(wrapper.find("button[type=submit]").text()).toBe("Saving...");
     expect(wrapper.find("button[type=submit]").attributes("disabled")).toBeDefined();

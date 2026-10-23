@@ -2,7 +2,7 @@
 // The first-run guide: a compact panel over the map with five steps (Call, Position, Symbol, Radio, Map), a step indicator that goes back to any step and forward to the next one that can be reached, Back, and Next (Finish on the last).
 // It opens by itself when the daemon has no call, and again from the Setup button of the Settings tab and from "no call set" in the header; Escape and the cross close it, and what was typed is still there when it is opened again.
 // The state is `useSetupGuide`'s; this is the frame, and a step is a component of its own. On a narrow page "On the map" folds the panel to its head so that the map can be clicked.
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import IconButton from "@/components/IconButton.vue";
 import SetupCall from "@/components/SetupCall.vue";
 import SetupMap from "@/components/SetupMap.vue";
@@ -16,6 +16,8 @@ import type { ConfigValues, MapState } from "@/protocol/protocol";
 const props = defineProps<{ guide: SetupGuide; config: ConfigValues | null; map: MapState | null }>();
 const root = ref<HTMLElement | null>(null);
 const defaults = (): Record<string, string> => props.config?.defaults ?? {};
+/** The beacon the station will have (or has after the save): the minutes, "" for none. */
+const beacon = computed(() => props.guide.changes["beacon/interval_min"] ?? props.config?.values["beacon/interval_min"] ?? "");
 
 function onKey(event: KeyboardEvent): void {
   if (event.key === "Escape" && props.guide.open && !event.defaultPrevented) props.guide.close();
@@ -65,7 +67,7 @@ watch(
         <SetupPosition v-else-if="guide.step === 1" :guide="guide" />
         <SetupSymbol v-else-if="guide.step === 2" :guide="guide" />
         <SetupRadio v-else-if="guide.step === 3" :guide="guide" :defaults="defaults()" />
-        <SetupMap v-else :guide="guide" :defaults="defaults()" :map="map" />
+        <SetupMap v-else :guide="guide" :defaults="defaults()" :map="map" :beacon="beacon" />
       </div>
       <footer class="setup-foot">
         <button v-if="guide.step > 0" type="button" class="btn" @click="guide.back()">Back</button>

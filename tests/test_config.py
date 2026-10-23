@@ -12,7 +12,7 @@ def test_the_defaults_are_the_ones_of_the_brief() -> None:
     assert DEFAULTS.to_data() == {
         "tnc/profile": "kiss", "serial/port": "", "serial/baud": "", "tcp/host": "127.0.0.1", "tcp/port": "8001", "serial/last_port": "", "serial/pattern": "/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*", "serial/skip": "", "tnc/check_sec": "60", "station/call": "", "station/lat": "", "station/lon": "",
         "station/symbol_table": "/", "station/symbol_code": "-", "station/comment": "NeoAPRS", "station/status": "", "beacon/power_w": "", "beacon/antenna_height_m": "0", "beacon/antenna_gain_db": "0",
-        "beacon/antenna_direction": "omni", "web/network": "false", "web/key": "", "web/port": "7303", "web/allowed_hosts": "", "beacon/interval_min": "30",
+        "beacon/antenna_direction": "omni", "web/network": "false", "web/key": "", "web/port": "7303", "web/allowed_hosts": "", "beacon/interval_min": "0",
         "beacon/path": "WIDE1-1,WIDE2-1",
         "messages/alert": "true", "messages/alert_command": DEFAULT_ALERT_COMMAND, "status/source": "", "status/rigctld": "", "status/interval_min": "30", "status/template": "QRV {freq} {mode}",
         "map/radius_km": "150", "map/maxzoom": "12", "map/source": "",
@@ -174,9 +174,9 @@ def test_the_beacon_is_off_or_every_15_minutes_or_more_and_the_status_every_10_o
     assert sum("10 is used" in r.getMessage() for r in caplog.records) == 1
     assert Config.from_data({"beacon/interval_min": "0"}).beacon_interval_min == 0, "an installation that turned the beacon off keeps it off"
     assert Config.from_data({"beacon/interval_min": "20"}).beacon_interval_min == 20 and Config.from_data({"beacon/interval_min": "120"}).beacon_interval_min == 120, "a stored value that is none of the page's choices stays"
-    assert Config.from_data({}).beacon_interval_min == 30, "a new station beacons every 30 minutes"
+    assert Config.from_data({}).beacon_interval_min == 0, "the beacon is off unless the station says otherwise: an upgrade never starts transmitting (the setup guide sets 30 for a new station)"
     assert Config.from_data({"status/interval_min": "0"}).status_interval_min == 30, "a status interval of nothing is no number: the default"
-    assert Config.from_data({"beacon/interval_min": "x"}).beacon_interval_min == 30
+    assert Config.from_data({"beacon/interval_min": "x"}).beacon_interval_min == 0
 
 
 def test_the_power_of_the_phg_is_a_number_or_nothing() -> None:

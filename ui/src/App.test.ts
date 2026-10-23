@@ -253,6 +253,7 @@ describe("App", () => {
           "station/symbol_code": ">",
           "serial/port": "/dev/ttyUSB0",
           "map/radius_km": "200",
+          "beacon/interval_min": "30",
         },
       },
     ]);

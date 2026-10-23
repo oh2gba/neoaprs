@@ -20,7 +20,7 @@ SET_FIRST = "set your call first"
 
 def test_the_defaults_are_a_station_with_no_call_and_no_position() -> None:
     assert (DEFAULTS.station_call, DEFAULTS.station_lat, DEFAULTS.station_lon, DEFAULTS.station_position) == ("", None, None, None)
-    assert (DEFAULTS.beacon_interval_min, DEFAULTS.station_status, DEFAULTS.station_comment) == (30, "", "NeoAPRS")
+    assert (DEFAULTS.beacon_interval_min, DEFAULTS.station_status, DEFAULTS.station_comment) == (0, "", "NeoAPRS")
     assert can_transmit(Config()) == SET_FIRST
 
 

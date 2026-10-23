@@ -189,8 +189,17 @@ export function fieldsFrom(values: Readonly<Record<string, string>>): SetupField
   };
 }
 
+/** How often a new station beacons, in minutes: the guide sets it with the first call, so that the daemon's default can stay Off (an upgrade never starts to transmit). */
+export const NEW_STATION_BEACON_MIN = "30";
+
+/** The daemon has no call and no beacon: the first run. */
+function isNewStation(values: Readonly<Record<string, string>>): boolean {
+  return (values["station/call"] ?? "") === "" && ["", "0"].includes((values["beacon/interval_min"] ?? "").trim());
+}
+
 /** The settings to save: the keys whose answer is not what the daemon has, with the text to write. Only the keys of the chosen kind of TNC (a serial TNC's port and speed, a TCP one's host and port), and a serial device
- * the daemon holds is cleared when the TNC is a TCP one, which it would refuse otherwise. */
+ * the daemon holds is cleared when the TNC is a TCP one, which it would refuse otherwise. A station that has no call yet (the first run) and no beacon interval gets the beacon every NEW_STATION_BEACON_MIN minutes in the same save;
+ * the guide run again on a station that has a call leaves the beacon as it is. */
 export function setupChanges(f: SetupFields, values: Readonly<Record<string, string>>): Record<string, string> {
   const wanted: Record<string, string> = {
     "station/call": normalizeCall(f.call),
@@ -201,6 +210,7 @@ export function setupChanges(f: SetupFields, values: Readonly<Record<string, str
     "tnc/profile": f.profile,
     "map/radius_km": f.radius.trim(),
   };
+  if (isNewStation(values)) wanted["beacon/interval_min"] = NEW_STATION_BEACON_MIN;
   if (profileOf(f.profile)?.transport === "tcp") {
     wanted["tcp/host"] = f.host.trim();
     wanted["tcp/port"] = f.tcpPort.trim();
