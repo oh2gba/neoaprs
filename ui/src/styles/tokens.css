@@ -1,0 +1,51 @@
+/* The page's colours and layout. The colour scheme follows the system (prefers-color-scheme); everything is drawn from the variables below. The markers of the map are made in code
+   (lib/markerdom.ts) and styled here as well. */
+:root {
+  color-scheme: light dark;
+  --bg: #f4f5f3;
+  --panel: #ffffff;
+  --text: #1d2125;
+  --muted: #5d6670;
+  --border: #d3d7da;
+  --accent: #1565c0;
+  --accent-text: #ffffff;
+  --ok: #2e7d32;
+  --warn: #b26a00;
+  --bad: #c62828;
+  --row-hover: #eef3f9;
+  --row-selected: #d9e7f8;
+  --input-bg: #ffffff;
+  --map-label: #1d2125;
+  --map-halo: rgba(255, 255, 255, 0.9);
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  --wx-temp: #d84315;
+  --wx-pressure: #7b1fa2;
+  --wx-wind: #00838f;
+  --wx-rain: #1565c0;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14171a;
+    --panel: #1c2024;
+    --text: #e3e6e8;
+    --muted: #98a2ab;
+    --border: #343a40;
+    --accent: #6aa9ee;
+    --accent-text: #0b1a2b;
+    --ok: #66bb6a;
+    --warn: #ffb74d;
+    --bad: #ef5350;
+    --row-hover: #252b31;
+    --row-selected: #24395a;
+    --input-bg: #14171a;
+    --map-label: #e3e6e8;
+    --map-halo: rgba(20, 23, 26, 0.9);
+    --shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+    --wx-temp: #ff8a65;
+    --wx-pressure: #ce93d8;
+    --wx-wind: #4dd0e1;
+    --wx-rain: #64b5f6;
+  }
+}

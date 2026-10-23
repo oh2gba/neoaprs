@@ -1,0 +1,85 @@
+/* the message board */
+.boardpane {
+  flex: 1;
+  min-height: 0;
+  padding: 4px 10px 10px;
+  overflow-y: auto;
+}
+.board-title {
+  margin: 12px 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.board {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bulletin {
+  position: relative;
+  min-height: 38px;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.bulletin p {
+  margin: 0;
+}
+.bulletin-actions {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.bulletin-head {
+  padding-right: 40px;
+}
+.ownobject .bulletin-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 100px;
+}
+.bulletin-target {
+  color: var(--accent);
+  font-weight: 600;
+}
+.bulletin-text {
+  overflow-wrap: anywhere;
+}
+.bulletin-meta {
+  font-size: 12px;
+}
+.compose-group {
+  width: 6em;
+  text-transform: uppercase;
+}
+.own-mark {
+  margin-left: 6px;
+  padding: 0 6px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  color: var(--accent);
+  font-size: 11px;
+}
+.bulletin.mine {
+  border-color: var(--accent);
+}
+.ownobject.killing {
+  opacity: 0.6;
+}
+.objectspane .toolbar {
+  flex: none;
+  padding: 8px 10px;
+}
+.objectlist {
+  flex: 1;
+  min-height: 0;
+  padding: 0 10px 10px;
+  overflow-y: auto;
+}

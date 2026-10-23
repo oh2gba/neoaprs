@@ -1,0 +1,211 @@
+/* the settings */
+.settings {
+  padding: 4px 10px 16px;
+}
+.settings fieldset {
+  margin: 8px 0;
+  padding: 4px 10px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.settings legend {
+  padding: 0 6px;
+  font-weight: 600;
+}
+.settings .subgroup {
+  margin: 10px 0 2px;
+  font-size: 0.9em;
+  font-weight: 600;
+  color: var(--muted);
+}
+.field {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(7em, 36%) 1fr;
+  align-items: center;
+  gap: 2px 8px;
+  margin: 6px 0;
+}
+.field label {
+  font-weight: 600;
+}
+.field-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.field-control .input {
+  flex: 1;
+}
+.field-control .info-text {
+  right: 0;
+  left: auto;
+}
+.field-control .check {
+  margin: 0;
+}
+.symbolfield {
+  flex-wrap: wrap;
+}
+.symbolfield-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.field .symbolfield-over {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 400;
+}
+.field-control .symbolfield-over .input {
+  flex: none;
+  width: 3em;
+  text-align: center;
+}
+.field-control .urls {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.field-control .infotip {
+  flex: none;
+}
+.settings-setup {
+  margin: 4px 0;
+  text-align: right;
+}
+.linkbutton {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.field-control .port-found {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.field-control .unit {
+  flex: none;
+  min-width: 2.5em;
+}
+.field.changed .input {
+  border-color: var(--accent);
+}
+.field.invalid .input {
+  border-color: var(--bad);
+}
+.field-error {
+  grid-column: 2;
+  margin: 0;
+  color: var(--bad);
+  font-weight: 600;
+}
+.field-result.ok {
+  color: var(--ok);
+}
+.confirm-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  font-weight: 600;
+}
+/* the preview of the beacon, and the place of the station (the Beacon tab, the setup guide) */
+.beacon-preview {
+  margin: 8px 0;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.beacon-preview summary {
+  cursor: pointer;
+  padding: 3px 0;
+}
+.beacon-preview-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 6px;
+}
+.beacon-preview code {
+  font-size: 12px;
+  word-break: break-all;
+  user-select: all;
+}
+.beacon-preview .problem {
+  margin: 0;
+  color: var(--warn);
+}
+.location {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin: 4px 0;
+}
+.location-line {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .location-pick {
+    flex: 1 1 100%;
+  }
+}
+/* the state of the radio (Settings, Radio) */
+.statepill {
+  padding: 2px 10px;
+  border-radius: 10px;
+  background: var(--muted);
+  color: var(--panel);
+  font-weight: 600;
+}
+.statepill.tnc-connected {
+  background: var(--ok);
+}
+.statepill.tnc-connecting,
+.statepill.tnc-waiting,
+.statepill.tnc-silent {
+  background: var(--warn);
+}
+/* a heading that opens what is under it (DisclosureBox), and the radio status of the Settings tab */
+.disclosure > summary {
+  padding: 6px 0;
+  color: var(--muted);
+  cursor: pointer;
+}
+.disclosure-body {
+  padding-bottom: 6px;
+}
+.radiostatus-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 4px 0 6px;
+}
+.tncstatus {
+  margin: 0 0 4px;
+  overflow-wrap: anywhere;
+}
+.radiostatus .problem {
+  margin: 6px 0;
+}
+.tncports {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}

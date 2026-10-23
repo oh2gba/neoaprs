@@ -1,0 +1,39 @@
+/* the toast */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(560px, calc(100% - 24px));
+  padding: 8px 8px 8px 14px;
+  transform: translateX(-50%);
+  border-radius: 6px;
+  background: var(--bad);
+  color: #fff;
+  box-shadow: var(--shadow);
+}
+.toast.undo {
+  background: var(--text);
+  color: var(--panel);
+}
+.toast.undo .linkbutton {
+  color: inherit;
+  font-weight: 600;
+}
+.toast.undo .xbtn,
+.toast.undo .xbtn:hover,
+.toast.undo .xbtn:focus-visible {
+  color: var(--panel);
+  background: none;
+}
+.toast .xbtn {
+  color: #fff;
+}
+.toast .xbtn:hover,
+.toast .xbtn:focus-visible {
+  color: #fff;
+  background: rgb(255 255 255 / 20%);
+}
