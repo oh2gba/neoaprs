@@ -312,6 +312,11 @@ def _out(ago: float, to: str, text: str, **options: object) -> Event:
     return Event(ago, lambda s: s.send(to, text, **options))     # type: ignore[arg-type]
 
 
+def _gateway(ago: float, text: str, msg_id: str, igate: str = "OH2ZIG-10") -> Event:
+    """A message from the email gateway EMAIL-2 to us, put on the air by an iGate as a third-party frame."""
+    return Event(ago, lambda s: s.hear(igate, b"}EMAIL-2>APRS,TCPIP," + igate.encode() + b"*:" + b":" + format_message(ME, text, msg_id), ""))
+
+
 def _board(source: str, ago: float, slot: str, text: str, path: str = "OH2RCH-2*") -> Event:
     return Event(ago, lambda s: s.hear(source, b":" + format_message(slot, text), path))
 
@@ -360,10 +365,15 @@ def events(local_hour_now: float) -> list[Event]:
     day.append(_text("OH3ZHK-7", 20, "Lookout reached, 144.800 loud and clear here", "18", "WIDE1-1"))
     day.append(_out(12, "OH2ZPK", "Did you get the new antenna up?", ack_after_sec=10, heard=[("OH2RCH-2*,OH2RDG*",)]))
     day.append(_text("OH2ZPK", 6, "Yes! 5 dB more on 2 m, will tell you tonight", "44", "OH2RCH-2*,OH2RDK-7*"))
-    # Email through the gateway (its acks come as third-party frames from an iGate)
-    day.append(_out(120, "EMAIL-2", "me jane@example.com", ack_after_sec=12, wrap="OH2ZIG-10", ack_path=""))
-    day.append(_out(55, "EMAIL-2", "me Back at the shack by 18, QRV on 2 m", ack_after_sec=14, wrap="OH2ZIG-10", ack_path=""))
-    day.append(_out(14, "EMAIL-2", "me New antenna is up: 5 dB more on 2 m!", ack_after_sec=11, wrap="OH2ZIG-10", ack_path=""))
+    # Email through the gateway: its acks and replies come as third-party frames from an iGate. One mail never gets its ack (it shows "Not confirmed"), and the gateway forwards a mail to us
+    day.append(_out(300, "EMAIL-2", "me jane@example.com", ack_after_sec=12, wrap="OH2ZIG-10", ack_path=""))
+    day.append(_gateway(298, "Shortcut me set to jane@example.com", "g1"))
+    day.append(_out(250, "EMAIL-2", "me New antenna is up: 5 dB more on 2 m!", ack_after_sec=None))
+    day.append(_out(150, "EMAIL-2", "me Back at the shack by 18, QRV on 2 m", ack_after_sec=14, wrap="OH2ZIG-10", ack_path=""))
+    day.append(_out(100, "EMAIL-2", "get", ack_after_sec=9, wrap="OH2ZIG-10", ack_path=""))
+    day.append(_gateway(97, "jane@example.com Great, see you at the net tonight! 73 Jane", "g2"))
+    day.append(_out(14, "EMAIL-2", "bob@example.org Hamfest in Espoo on Saturday 10:00, see you there", ack_after_sec=11, wrap="OH2ZIG-10", ack_path=""))
+    day.append(_gateway(8, "Msg sent to bob@example.org", "g3"))
     # The message board
     day.append(_board("OH2ZIG-10", 250, "BLN1", "2 m net every Tuesday 20:00 on 144.800 MHz FM, all welcome"))
     day.append(_board("OH2ZPK", 130, "BLNA", "Strong winds on the coast tonight, check your antennas"))

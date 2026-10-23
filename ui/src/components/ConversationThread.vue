@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // The messages with one station as bubbles, the oldest first: ours at the right, theirs at the left. In a bubble the text, and under it, small, the time, for ours the mark and the state with Retry or Cancel where they apply, the delivery chain
 // of the digipeaters its packet went by (MessageChain) under ours, and under one that came in the route it came by ("via OH2RCH-2"). It is scrolled to the newest when it is shown and whenever a message is added. `peer` is the station the thread is with
-// (null: a new message is being written, and nothing is said). The Email tab has its own thread (MessageThread).
+// (null: a new message is being written, and nothing is said). The Email tab has its own list (EmailList).
 import { nextTick, onMounted, ref, watch } from "vue";
 import MessageChain from "@/components/MessageChain.vue";
 import MessageMark from "@/components/MessageMark.vue";

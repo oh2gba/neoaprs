@@ -1032,30 +1032,48 @@ describe("App", () => {
     };
     const badge = (wrapper: VueWrapper) => tabButton(wrapper, "Email")?.find(".badge");
 
-    it("sends mail as a message to EMAIL-2 and a new shortcut and the three commands as their texts, and keeps the addressee in the list", async () => {
+    it("sends mail as a message to EMAIL-2 and a new shortcut and the commands as their texts, and keeps the addressee in the list", async () => {
       const { wrapper, socket } = await open();
       await tabButton(wrapper, "Email")?.trigger("click");
+      const pane = () => wrapper.find("#pane-email");
+      const button = (label: string) =>
+        pane()
+          .findAll("button")
+          .find((b) => b.text() === label);
+      await button("New email")?.trigger("click");
       await wrapper.find("#mail-to").setValue("jane@example.com");
       await wrapper.find("#mail-text").setValue("Hello");
-      await wrapper.find("#pane-email form.compose").trigger("submit");
+      await wrapper.find("#pane-email form.mailform").trigger("submit");
       expect(socket.sent).toContainEqual({ cmd: "send_message", to: "EMAIL-2", text: "jane@example.com Hello" });
       expect(JSON.stringify(socket.sent)).not.toContain("_attempts");
-      expect(wrapper.findAll("#pane-email .address-pick").map((b) => b.text())).toEqual(["jane@example.com"]);
+      expect(pane().find("form.mailform").exists()).toBe(false);
       expect(JSON.parse(localStorage.getItem("NeoAPRS.emailto") ?? "[]")).toEqual(["jane@example.com"]);
-      const tool = (label: string) => wrapper.findAll("#pane-email .mail-tools button").find((b) => b.text() === label);
+      await button("Mailbox")?.trigger("click");
+      await pane().findAll("[role='menuitem']")[1]?.trigger("click");
       await wrapper.find("#mail-shortcut").setValue("me");
       await wrapper.find("#mail-address").setValue("jane@example.com");
-      await wrapper.find("#pane-email .mail-shortcut").trigger("submit");
-      await tool("Email the list")?.trigger("click");
-      await tool("Fetch held mail")?.trigger("click");
-      await tool("Remove")?.trigger("click");
-      await tool("sure?")?.trigger("click");
+      await wrapper.find("#pane-email form.mailform").trigger("submit");
+      await button("Email the list")?.trigger("click");
+      await button("Remove")?.trigger("click");
+      await button("sure?")?.trigger("click");
+      await button("Mailbox")?.trigger("click");
+      await pane().findAll("[role='menuitem']")[0]?.trigger("click");
       expect(socket.sent.slice(-4)).toEqual([
         { cmd: "send_message", to: "EMAIL-2", text: "me jane@example.com" },
         { cmd: "send_message", to: "EMAIL-2", text: "me L" },
-        { cmd: "send_message", to: "EMAIL-2", text: "get" },
         { cmd: "send_message", to: "EMAIL-2", text: "me R" },
+        { cmd: "send_message", to: "EMAIL-2", text: "get" },
       ]);
+    });
+
+    it("deletes a row of the list on the daemon after a second press", async () => {
+      const { wrapper, socket } = await open();
+      await say(socket, 1, message(10, { to_call: "EMAIL-2", text: "me hello" }));
+      await tabButton(wrapper, "Email")?.trigger("click");
+      await wrapper.find("#pane-email .mail-delete").trigger("click");
+      expect(JSON.stringify(socket.sent)).not.toContain("message_delete");
+      await wrapper.find("#pane-email .mail-delete").trigger("click");
+      expect(socket.sent).toContainEqual({ cmd: "message_delete", id: 10 });
     });
 
     it("has no attempts field in the Email tab or in the Messages header: the daemon decides", async () => {
@@ -1069,10 +1087,22 @@ describe("App", () => {
     it("shows the thread with the gateway there and leaves it out of the Messages tab and its count", async () => {
       const { wrapper, socket } = await open();
       await say(socket, 1, message(10, { to_call: "EMAIL-2", text: "me hello" }), gateway(11));
-      expect(wrapper.findAll("#pane-email .msg").map((m) => m.find(".msg-text").text())).toEqual(["hello", "Msg sent to jane@example.com"]);
+      expect(wrapper.findAll("#pane-email .mail").map((m) => m.find(".mail-title").text())).toEqual(["From EMAIL-2", "To me"]);
       expect(wrapper.findAll("#pane-messages .conv-call").map((c) => c.text())).toEqual(["OH2PU-9", "OH2RDG"]);
       expect(tabButton(wrapper, "Messages")?.find(".badge").text()).toBe("2");
       expect(wrapper.find(".headmail").text()).toContain("3"); // the messages not seen, the gateway's one included: the count of the title and of the folded panel's handle too
+    });
+
+    it("shows what came in while the tab was away in bold until the tab is left again", async () => {
+      const { wrapper, socket } = await open();
+      await say(socket, 1, gateway(11));
+      await tabButton(wrapper, "Email")?.trigger("click");
+      expect(wrapper.find("#pane-email .mail").classes()).toContain("fresh");
+      await say(socket, 2, gateway(12));
+      expect(wrapper.findAll("#pane-email .mail.fresh")).toHaveLength(2);
+      await tabButton(wrapper, "Stations")?.trigger("click");
+      await tabButton(wrapper, "Email")?.trigger("click");
+      expect(wrapper.findAll("#pane-email .mail.fresh")).toHaveLength(0);
     });
 
     it("counts the gateway's messages on the Email tab, in the title and on the folded handle, until the tab is on show", async () => {
