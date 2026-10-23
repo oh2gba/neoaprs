@@ -1,10 +1,10 @@
 <script setup lang="ts">
-// The box to post to the message board, at the top of the Bulletins tab: the kind (a bulletin, an announcement, a bulletin to a group) with an (i) that says what they are, the number it has (a capital letter for an announcement), the group
+// The box to post to the message board, at the bottom of the Bulletins tab (ComposeBar, as everywhere): the kind (a bulletin, an announcement, a bulletin to a group) with an (i) that says what they are, the number it has (a capital letter for an announcement), the group
 // of a group bulletin, and the text, with the characters of the 67 it has left. Post is on when the text can be sent (printable ASCII without | ~ {) and, for a group, the group is one to five letters and digits. The text is
 // cleared when the daemon has the bulletin (the topic `own_bulletins` tells it); one it refused stays for the user to correct. A slot that already holds a text of ours gets the new one in its place.
 import { computed, reactive, ref, watch } from "vue";
+import ComposeBar from "@/components/ComposeBar.vue";
 import InfoTip from "@/components/InfoTip.vue";
-import { leftText } from "@/lib/format";
 import type { OwnBulletinRow } from "@/protocol/protocol";
 import { GROUP_MAX, POST_KINDS, canPost, charsLeft, groupOf, groupOk, idsOf, postCommand, type PostDraft } from "@/lib/bulletins";
 
@@ -45,7 +45,7 @@ function submit(): void {
 </script>
 
 <template>
-  <form class="compose bulletin-compose" @submit.prevent="submit">
+  <ComposeBar class="bulletin-compose" label="Post a bulletin" :left="left" :left-title="`${left} of 67 characters left`" @submit="submit">
     <div class="compose-row labelled">
       <div class="stack">
         <label for="post-kind">Kind</label>
@@ -77,10 +77,11 @@ function submit(): void {
           spellcheck="false"
         />
       </div>
-      <span class="compose-left mono" :class="{ over: left < 0 }" :title="`${left} of 67 characters left`">{{ leftText(left) }}</span>
-      <button type="submit" class="btn primary" :disabled="!ready">Post</button>
     </div>
     <label class="sr-only" for="post-text">Text</label>
     <input id="post-text" v-model="draft.text" class="input compose-text" type="text" placeholder="Text" autocomplete="off" />
-  </form>
+    <template #buttons>
+      <button type="submit" class="btn primary" :disabled="!ready">Post</button>
+    </template>
+  </ComposeBar>
 </template>

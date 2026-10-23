@@ -595,10 +595,6 @@ tbody tr:focus-visible {
   margin: 0;
   color: var(--warn);
 }
-.pick-row {
-  display: flex;
-  margin: 2px 0 6px;
-}
 .location {
   display: flex;
   flex-wrap: wrap;
@@ -913,10 +909,6 @@ tbody tr:focus-visible {
 .bulletin-meta {
   font-size: 12px;
 }
-.bulletin-compose {
-  border-top: 0;
-  border-bottom: 1px solid var(--border);
-}
 .compose-group {
   width: 6em;
   text-transform: uppercase;
@@ -941,28 +933,20 @@ tbody tr:focus-visible {
   gap: 6px;
 }
 .objectspane {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.objectspane .toolbar {
+  flex: none;
+  padding: 8px 10px;
+}
+.objectlist {
   flex: 1;
   min-height: 0;
   padding: 0 10px 10px;
   overflow-y: auto;
-}
-.objectspane .toolbar {
-  padding: 8px 0;
-}
-.objform {
-  margin-bottom: 10px;
-  padding: 4px 8px 8px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-.objform-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
-}
-.objform .over {
-  color: var(--bad);
-  font-weight: 600;
 }
 
 /* the messages */
@@ -1403,6 +1387,60 @@ tbody tr:focus-visible {
   padding: 8px;
   border-top: 1px solid var(--border);
 }
+/* the box to write in on the tabs Bulletins, Email and Objects (ComposeBar.vue): fixed at the bottom of the tab, the list above it scrolling; the fields, and under them the counter and the buttons at the right, the
+   secondary one (Cancel) left of the primary one. The tab (.pane) leaves the notch alone on a phone, and the page is 100dvh high, so the keyboard does not cover it. */
+.composebar {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+}
+.composebar-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+.composebar.scrolls {
+  max-height: 70vh;
+  max-height: 70dvh;
+}
+.composebar.scrolls .composebar-fields {
+  overflow-y: auto;
+}
+.composebar .field {
+  margin: 0;
+}
+.composebar-foot {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px 8px;
+}
+.composebar-aside {
+  display: flex;
+  flex: 1;
+  gap: 8px;
+}
+.composebar-foot .compose-left {
+  margin-left: 0;
+}
+/* the suggestions of an address and the note of an (i) open upward: the box is at the bottom of the tab */
+.composebar .info-text {
+  top: auto;
+  bottom: 100%;
+  margin: 0 0 4px;
+}
+.composebar .suggestions {
+  top: auto;
+  bottom: 100%;
+  margin: 0 0 2px;
+}
 .compose-row {
   display: flex;
   align-items: center;
@@ -1569,15 +1607,9 @@ tbody tr:focus-visible {
 .contact-actions .btn:last-child {
   min-width: 4.8em;
 }
-.contact-add {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 6px 10px;
-  align-items: center;
-  padding: 8px 10px;
-}
-.contact-add > label {
-  font-weight: 600;
+.contacts .contact-add {
+  border-top: 0;
+  background: none;
 }
 .contacts > .empty {
   padding: 8px 10px 0;
@@ -1587,29 +1619,14 @@ tbody tr:focus-visible {
   margin-left: 8px;
   font-size: 12px;
 }
-.mailform {
+.mailfields {
   display: grid;
-  flex: none;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 6px 10px;
   align-items: center;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border);
-  background: var(--row-hover);
 }
-.mailform > label {
+.mailfields > label {
   font-weight: 600;
-}
-.mailform-actions {
-  display: flex;
-  grid-column: 1 / -1;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-}
-.mailform-actions .compose-left {
-  margin-right: auto;
 }
 .mail-address {
   position: relative;

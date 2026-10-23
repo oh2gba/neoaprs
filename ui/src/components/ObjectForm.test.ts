@@ -79,15 +79,18 @@ describe("ObjectForm", () => {
     expect(field("Name")?.attributes("title")).toBe("An item has 3 to 9 characters");
   });
 
-  it("counts the characters the comment has left, fewer behind a course or a speed", async () => {
-    const { input, field } = form();
-    expect(field("Comment")?.find(".muted").text()).toBe("43");
+  it("counts the characters the comment has left beside the buttons, fewer behind a course or a speed", async () => {
+    const { wrapper, input, field } = form();
+    const counter = () => wrapper.find(".composebar-foot .compose-left");
+    expect(counter().text()).toBe("43 left");
+    expect(field("Comment")?.find(".compose-left").exists()).toBe(false);
     await input("Comment")?.setValue("Rescue 1");
-    expect(field("Comment")?.find(".muted").text()).toBe("35");
+    expect(counter().text()).toBe("35 left");
     await input("Speed")?.setValue("40");
-    expect(field("Comment")?.find(".muted").text()).toBe("28");
+    expect(counter().text()).toBe("28 left");
     await input("Comment")?.setValue("x".repeat(40));
-    expect(field("Comment")?.find(".muted").classes()).toContain("over");
+    expect(counter().text()).toBe("4 over");
+    expect(counter().classes()).toContain("over");
     expect(field("Comment")?.classes()).toContain("invalid");
   });
 
@@ -103,7 +106,7 @@ describe("ObjectForm", () => {
     expect(wrapper.find(".sympick").exists()).toBe(false);
   });
 
-  it("has Pick on the map, on a row of its own under the latitude and the longitude, which asks for a click on the map and is pressed while it waits", async () => {
+  it("has Pick on the map, at the left of the line with the buttons, which asks for a click on the map and is pressed while it waits", async () => {
     const { wrapper, view } = form();
     const place = wrapper.findAll("button").find((b) => b.text() === "Pick on the map");
     expect(place?.attributes("aria-pressed")).toBe("false");

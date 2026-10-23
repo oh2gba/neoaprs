@@ -3,6 +3,7 @@
 // Mail (opens New email addressed to the name), Email me the list (`name L`: the gateway emails the list of the contacts to this contact's address) and Remove (`name R`, after "sure?", forgotten after 5 s); under the list
 // is the form that adds one (`name address`). Everything that sends is off while the TNC is not connected (the title says so); the command each one sends is its hover title.
 import { computed, ref } from "vue";
+import ComposeBar from "@/components/ComposeBar.vue";
 import { useSure } from "@/composables/useSure";
 import type { Contact } from "@/lib/contacts";
 import { canSendEmail, listContacts, removeContact, validAddress, validContact } from "@/lib/email";
@@ -61,12 +62,14 @@ function add(): void {
       </li>
     </ul>
     <p v-else class="empty">No contacts yet.</p>
-    <form class="contact-add" aria-label="Add contact" @submit.prevent="add">
-      <label for="contact-name">Name</label>
-      <input id="contact-name" v-model="name" class="input mono" type="text" placeholder="john" autocomplete="off" spellcheck="false" />
-      <label for="contact-address">Address</label>
-      <input id="contact-address" v-model="address" class="input mono" type="text" placeholder="name@example.com" autocomplete="off" spellcheck="false" />
-      <div class="mailform-actions">
+    <ComposeBar class="contact-add" label="Add contact" @submit="add">
+      <div class="mailfields">
+        <label for="contact-name">Name</label>
+        <input id="contact-name" v-model="name" class="input mono" type="text" placeholder="john" autocomplete="off" spellcheck="false" />
+        <label for="contact-address">Address</label>
+        <input id="contact-address" v-model="address" class="input mono" type="text" placeholder="name@example.com" autocomplete="off" spellcheck="false" />
+      </div>
+      <template #buttons>
         <button type="button" class="btn" @click="emit('close')">Close</button>
         <button
           type="submit"
@@ -76,7 +79,7 @@ function add(): void {
         >
           Add contact
         </button>
-      </div>
-    </form>
+      </template>
+    </ComposeBar>
   </section>
 </template>

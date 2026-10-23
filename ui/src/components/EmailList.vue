@@ -1,8 +1,10 @@
 <script setup lang="ts">
-// The Email tab's list: every message to and from the gateway EMAIL-2 as a row (EmailRow), the newest first. Rows that came in after `freshAfter` (a message id) are the new ones.
-import { computed } from "vue";
+// The Email tab's list: every message to and from the gateway EMAIL-2 as a row (EmailRow), the oldest first and scrolled to the newest at the bottom, as the Messages tab is, so that the newest mail is next to the form that opens under it. It fills the
+// height the tab leaves it and scrolls. Rows that came in after `freshAfter` (a message id) are the new ones. `toNewest()` scrolls to the end again (the tab calls it when a form opens or closes and the list changes height).
+import { computed, ref } from "vue";
 import EmailRow from "@/components/EmailRow.vue";
 import { useNow } from "@/composables/useNow";
+import { useToNewest } from "@/composables/useToNewest";
 import { mailItems } from "@/lib/mailitems";
 import type { MessageRow } from "@/protocol/protocol";
 
@@ -13,21 +15,26 @@ const props = withDefaults(defineProps<{ thread: readonly MessageRow[]; freshAft
 const emit = defineEmits<{ retry: [id: number]; cancel: [id: number]; delete: [id: number] }>();
 const now = useNow(30000);
 const items = computed(() => mailItems(props.thread));
+const log = ref<HTMLElement | null>(null);
+const toNewest = useToNewest(log, () => props.thread.length);
+defineExpose({ toNewest });
 </script>
 
 <template>
-  <p v-if="items.length === 0" class="empty">No mail yet.</p>
-  <ul v-else class="maillist" aria-label="Mail">
-    <EmailRow
-      v-for="item in items"
-      :key="item.row.id"
-      :item="item"
-      :fresh="item.row.state === 'received' && item.row.id > freshAfter"
-      :now="now"
-      :heard-direct="heardDirect"
-      @retry="emit('retry', $event)"
-      @cancel="emit('cancel', $event)"
-      @delete="emit('delete', $event)"
-    />
-  </ul>
+  <div ref="log" class="maillist-wrap">
+    <p v-if="items.length === 0" class="empty">No mail yet.</p>
+    <ul v-else class="maillist" aria-label="Mail">
+      <EmailRow
+        v-for="item in items"
+        :key="item.row.id"
+        :item="item"
+        :fresh="item.row.state === 'received' && item.row.id > freshAfter"
+        :now="now"
+        :heard-direct="heardDirect"
+        @retry="emit('retry', $event)"
+        @cancel="emit('cancel', $event)"
+        @delete="emit('delete', $event)"
+      />
+    </ul>
+  </div>
 </template>
