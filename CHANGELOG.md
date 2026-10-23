@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-Nothing yet.
+- Alerts in the page: a message to us now alerts in the browser the page is open in, which is what a NeoAPRS on a Raspberry Pi needs (the alert command runs on the Pi). A notification where the browser allows one (click it to open the conversation), else a short chime and an alert in the browser tab (the title alternates with "✉ CALL" and the icon gets a dot while the page is in the background). Once for each new message, none for a bulletin, an overheard or an own message, or when the page reconnects. The group "This browser" in the Settings tab has the switches Web alert (on in a page opened from another device, off on the computer itself, where the alert command already notifies), Sound and Notifications, kept in the browser, and a Test button. The manual tells how to let the browser show notifications for an address on the network, and how to push the alert to a phone with ntfy when no page is open.
 
 ## 0.2.0
 

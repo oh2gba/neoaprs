@@ -30,7 +30,7 @@ async def test_the_command_runs_with_the_made_up_message_in_its_environment_and_
     other = await e.ws()
     await page.send({"cmd": "alert_test"})
     assert await page.expect("alert_result") == {"type": "alert_result", "ok": True, "text": "ran"}
-    assert out.read_text(encoding="utf-8").splitlines() == ["OH2GBA-7", "This is a test of the NeoAPRS alert", iso(e.now()), "", "gone"], "the same environment as a real alert, with no id and nothing of the daemon's"
+    assert out.read_text(encoding="utf-8").splitlines() == ["NEOAPRS", "This is a test of the NeoAPRS alert", iso(e.now()), "", "gone"], "the same environment as a real alert, with no id and nothing of the daemon's"
     await other.quiet(0.2)
     assert other.of("alert_result") == [] and page.of("error") == []
     assert page.topics["messages"] == {} and page.topics["packets"] == {}, "a test is no message and sends nothing"

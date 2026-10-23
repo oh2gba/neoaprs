@@ -1,6 +1,6 @@
 // The daemon as the page sees it: the ten topics as reactive state (the stations' own paths and timeouts are `stationPrefs`), the status, the latest answer to `weather_series`, to `alert_test` and to `list_ports`, the state of the connection, and `send`. Opens the socket when the component that calls it is mounted and
 // closes it when it is unmounted. The conversation itself is lib/hub.ts.
-import { onBeforeUnmount, onMounted, ref, shallowReactive, shallowRef } from "vue";
+import { onBeforeUnmount, onMounted, ref, shallowReactive, shallowRef, type Ref } from "vue";
 import type {
   AlertResultMessage,
   BulletinRow,
@@ -33,10 +33,18 @@ export interface Toast {
   n: number;
 }
 
+/** Replaces what a keyed topic holds with the rows the daemon told; `done` is set once it has. */
+function fill<T>(into: Map<string, T>, rows: Record<string, T>, done?: Ref<boolean>): void {
+  into.clear();
+  for (const [key, row] of Object.entries(rows)) into.set(key, row);
+  if (done) done.value = true;
+}
+
 export function useDaemon(url: () => string = socketUrl) {
   const stations = shallowReactive(new Map<string, StationRow>());
   const packets = shallowReactive(new Map<string, PacketRow>());
   const messages = shallowReactive(new Map<string, MessageRow>());
+  const messagesLoaded = ref(false); // the daemon has told the messages once: `messages` is then what was there, not a part of it
   const bulletins = shallowReactive(new Map<string, BulletinRow>());
   const stationPrefs = shallowReactive(new Map<string, StationPref>());
   const own = useOwnTables();
@@ -52,11 +60,6 @@ export function useDaemon(url: () => string = socketUrl) {
   const version = ref("");
   let toasts = 0;
 
-  function fill<T>(into: Map<string, T>, rows: Record<string, T>): void {
-    into.clear();
-    for (const [key, row] of Object.entries(rows)) into.set(key, row);
-  }
-
   const store: Store = {
     connection: (state) => (connection.value = state),
     hello: (message) => (version.value = message.version),
@@ -67,7 +70,7 @@ export function useDaemon(url: () => string = socketUrl) {
     error: (text) => (lastError.value = { text, n: ++toasts }),
     replaceStations: (rows) => fill(stations, rows),
     replacePackets: (rows) => fill(packets, rows),
-    replaceMessages: (rows) => fill(messages, rows),
+    replaceMessages: (rows) => fill(messages, rows, messagesLoaded),
     replaceBulletins: (rows) => fill(bulletins, rows),
     replaceStationPrefs: (rows) => fill(stationPrefs, rows),
     ...own.handlers,
@@ -103,6 +106,7 @@ export function useDaemon(url: () => string = socketUrl) {
     stations,
     packets,
     messages,
+    messagesLoaded,
     bulletins,
     stationPrefs,
     ownObjects: own.ownObjects,
