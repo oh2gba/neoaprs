@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-Nothing yet.
+- The route on the map: a station whose latest packet came back from the internet through an iGate is drawn by its route over the radio, not from the iGate.
 
 ## 0.4.0
 
