@@ -317,6 +317,8 @@ export function mapState(extra: Partial<MapState> = {}): MapState {
     state: "none",
     step: "",
     percent: null,
+    downloaded: null,
+    note: "",
     blocked: "",
     problem: "",
     estimate: null,

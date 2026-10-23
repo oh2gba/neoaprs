@@ -39,6 +39,8 @@ class MapStatus:
     state: State
     step: Step                                  # what the job is doing now; empty while none is
     percent: int | None                         # of the step; None when it cannot say
+    downloaded: int | None                      # what the file being made holds so far, in bytes; None before it exists and when no file is being made
+    note: str                                   # what the job is doing about a download that does not move (trying again); empty otherwise
     blocked: str                                # why no job can be started now, empty if one can
     problem: str                                # why the last job failed, empty if it did not
     estimate: Estimate | None

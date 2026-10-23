@@ -85,6 +85,10 @@ async def run(args: argparse.Namespace) -> int:
             await asyncio.wait([work], timeout=0.5)
             status = job.status()
             line = f"{status.step or 'working'}: {status.percent}%" if status.percent is not None else status.step
+            if status.downloaded:
+                line += f" · {status.downloaded / 1e6:.0f} MB"
+            if status.note:
+                line += f" · {status.note}"
             if line and line != last:
                 last = line
                 print(line, flush=True)

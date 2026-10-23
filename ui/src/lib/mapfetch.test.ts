@@ -76,6 +76,15 @@ describe("the job", () => {
     expect(progressText(mapState({ state: "estimating", step: "build", percent: null }))).toBe("Finding the latest build");
     expect(progressText(mapState({ state: "estimating", step: "", percent: null }))).toBe("Estimating");
   });
+
+  it("shows the size downloaded so far next to the percent, and says when it is trying again", () => {
+    expect(progressText(mapState({ state: "downloading", step: "area", percent: 49, downloaded: 340_000_000 }))).toBe("Map of the area 49% · 340 MB");
+    expect(progressText(mapState({ state: "downloading", step: "area", percent: 0, downloaded: 0 }))).toBe("Map of the area 0%");
+    expect(progressText(mapState({ state: "downloading", step: "world", percent: null, downloaded: 12_300_000 }))).toBe("World map · 12 MB");
+    expect(progressText(mapState({ state: "downloading", step: "area", percent: null, note: "no progress: trying again (2 of 3)" }))).toBe(
+      "Map of the area · no progress: trying again (2 of 3)",
+    );
+  });
 });
 
 describe("filesKey", () => {

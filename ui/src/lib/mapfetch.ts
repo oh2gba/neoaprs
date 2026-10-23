@@ -72,10 +72,14 @@ export function isRunning(map: MapState): boolean {
   return map.state === "estimating" || map.state === "downloading";
 }
 
-/** What the job is doing, with its percent when it has one: `World map 42%`. */
+/** What the job is doing, with its percent and the size so far when it has them, and a note about a stall: `Map of the area 49% · 340 MB`. */
 export function progressText(map: MapState): string {
   const step = STEP_TEXT[map.step] || (map.state === "estimating" ? "Estimating" : "Working");
-  return map.percent === null ? step : `${step} ${map.percent}%`;
+  return [
+    map.percent === null ? step : `${step} ${map.percent}%`,
+    ...(map.downloaded ? [formatBytes(map.downloaded)] : []),
+    ...(map.note ? [map.note] : []),
+  ].join(" · ");
 }
 
 /** A change in this means the files on the daemon are other ones (made again, removed, or the first time): the map reads them again. Null until the daemon has told. */

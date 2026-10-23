@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-Nothing yet.
+- The map download no longer hangs. A download of which neither the percent nor the size of the half-made file has moved for 2 minutes is ended and begun again from the start, three tries in all, and the Settings tab says so ("no progress: trying again (2 of 3)"); after the last try the job ends with "the map server is too slow now; try again later" and the map that was there stays. The progress line shows the size downloaded so far next to the percent ("Map of the area 49% · 340 MB"), so that a slow download is seen to move, and so does `neoaprs map`. The pmtiles program is run with eight download threads instead of four.
 
 ## 0.3.0
 

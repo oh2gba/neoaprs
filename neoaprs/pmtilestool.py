@@ -34,6 +34,7 @@ MAX_DOWNLOAD = 100_000_000                  # the biggest archive taken (the rea
 MAX_TOOL = 300_000_000                      # the biggest program taken out of one (they are 55 to 60 MB)
 HEADER_LENGTH = 127                         # the header of a PMTiles archive, version 3
 REPLACE_TRIES = 8
+DOWNLOAD_THREADS = 8                        # parallel requests of `extract` (the tool's own default is 4)
 
 
 class ToolError(Exception):
@@ -240,10 +241,11 @@ def _clean(raw: bytes) -> str:
     return _PREFIX.sub("", _ANSI.sub("", raw.decode("utf-8", "replace"))).strip()
 
 
-def command_line(program: Path, source: str, target: Path, bbox: tuple[float, float, float, float] | None, maxzoom: int, dry_run: bool) -> list[str]:
+def command_line(program: Path, source: str, target: Path, bbox: tuple[float, float, float, float] | None, maxzoom: int, dry_run: bool, threads: int = DOWNLOAD_THREADS) -> list[str]:
     line = [str(program), "extract", source, str(target), f"--maxzoom={maxzoom}"]
     if bbox is not None:
         line.append("--bbox=" + ",".join(f"{v:.5f}" for v in bbox))
+    line.append(f"--download-threads={threads}")
     if dry_run:
         line.append("--dry-run")
     return line
