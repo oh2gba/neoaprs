@@ -14,4 +14,17 @@ import { time } from "@/i18n/en/time";
 import { weather } from "@/i18n/en/weather";
 import type { Message } from "@/i18n/message";
 
-export const en = { ...shell, ...time, ...errors, ...messages, ...email, ...bulletins, ...objects, ...stations, ...map, ...packets, ...weather, ...symbols } as const satisfies Record<string, Message>;
+export const en = {
+  ...shell,
+  ...time,
+  ...errors,
+  ...messages,
+  ...email,
+  ...bulletins,
+  ...objects,
+  ...stations,
+  ...map,
+  ...packets,
+  ...weather,
+  ...symbols,
+} as const satisfies Record<string, Message>;

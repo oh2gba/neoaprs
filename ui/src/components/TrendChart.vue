@@ -110,13 +110,13 @@ function move(event: PointerEvent): void {
       @pointerleave="hover = null"
     >
       <g class="trend-grid">
-        <g v-for="t in yTicks" :key="`y${t.v}`">
-          <line :x1="LEFT" :x2="RIGHT" :y1="t.y" :y2="t.y" />
-          <text :x="LEFT - 4" :y="t.y + 3" text-anchor="end">{{ t.label }}</text>
+        <g v-for="tick in yTicks" :key="`y${tick.v}`">
+          <line :x1="LEFT" :x2="RIGHT" :y1="tick.y" :y2="tick.y" />
+          <text :x="LEFT - 4" :y="tick.y + 3" text-anchor="end">{{ tick.label }}</text>
         </g>
-        <g v-for="t in xTicks" :key="`x${t.at}`">
-          <line class="tick" :x1="t.x" :x2="t.x" :y1="BOTTOM" :y2="BOTTOM + 3" />
-          <text :x="t.x" :y="H - 4" text-anchor="middle">{{ t.label }}</text>
+        <g v-for="tick in xTicks" :key="`x${tick.at}`">
+          <line class="tick" :x1="tick.x" :x2="tick.x" :y1="BOTTOM" :y2="BOTTOM + 3" />
+          <text :x="tick.x" :y="H - 4" text-anchor="middle">{{ tick.label }}</text>
         </g>
       </g>
       <path v-if="area" class="trend-band" :d="area" />
