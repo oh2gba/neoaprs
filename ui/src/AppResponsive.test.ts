@@ -342,7 +342,7 @@ describe("what a phone shows", () => {
     expect(panelOn(wrapper)).toEqual(["pane-stations"]);
   });
 
-  it("brings the panel when the page asks for a tab: the Message button of a card, the unread mail, the radio state of the header", async () => {
+  it("brings the panel when the page asks for a tab: the Message button of a card, the unread mail of the header", async () => {
     const { wrapper } = await open(390, 844);
     marker("OH2ZWA")?.element.click();
     await nextTick();
@@ -352,9 +352,6 @@ describe("what a phone shows", () => {
       ?.trigger("click");
     expect(root(wrapper)).toContain("view-panel");
     expect(panelOn(wrapper)).toEqual(["pane-messages"]);
-    await wrapper.find(".tab-map").trigger("click");
-    await wrapper.find("button.status").trigger("click");
-    expect(panelOn(wrapper)).toEqual(["pane-settings"]);
   });
 
   it("goes to the map to pick a place, and comes back to the tab with the place filled in", async () => {
@@ -421,6 +418,72 @@ describe("what a phone shows", () => {
     await nextTick();
     expect(root(wrapper)).toContain("size-phone");
     expect(wrapper.find("[aria-selected='true']").text()).toBe("Packets");
+  });
+});
+
+describe("the footer under the panel", () => {
+  const foot = (wrapper: VueWrapper) => wrapper.find(".panelfoot");
+  const panelOn = (wrapper: VueWrapper) =>
+    wrapper
+      .findAll("[role='tabpanel']")
+      .filter((p) => (p.element as HTMLElement).style.display !== "none")
+      .map((p) => p.attributes("id"));
+
+  it("is under the open tab on a phone, and not on the map's turn", async () => {
+    const { wrapper } = await open(390, 844);
+    await wrapper.find("#tab-stations").trigger("click");
+    expect(root(wrapper)).toContain("view-panel");
+    expect(foot(wrapper).exists()).toBe(true);
+    expect(foot(wrapper).text()).toContain("NeoAPRS");
+    expect(wrapper.find(".panel-body").element.lastElementChild).toBe(foot(wrapper).element);
+    await wrapper.find(".tab-map").trigger("click");
+    expect(root(wrapper)).toContain("view-map");
+    expect(foot(wrapper).exists()).toBe(false);
+    expect(wrapper.find(".mapwrap .panelfoot").exists()).toBe(false);
+    await wrapper.find("#tab-stations").trigger("click");
+    expect(foot(wrapper).exists()).toBe(true);
+  });
+
+  it("is under the panel and not under the map on a tablet and a desktop", async () => {
+    for (const [width, height] of [
+      [768, 1024],
+      [1440, 900],
+    ] as const) {
+      const { wrapper } = await open(width, height);
+      expect(wrapper.find(".panel .panelfoot").exists()).toBe(true);
+      expect(wrapper.findAll(".panelfoot")).toHaveLength(1);
+      expect(wrapper.find(".mapwrap .panelfoot").exists()).toBe(false);
+      wrapper.unmount();
+      FakeSocket.all = [];
+    }
+  });
+
+  it("goes with a folded panel (nothing but its handle is left) and is back with it", async () => {
+    const { wrapper } = await open(1440, 900);
+    await wrapper.find(".panel-fold").trigger("click");
+    expect(foot(wrapper).exists()).toBe(false);
+    await wrapper.find(".panel-fold").trigger("click");
+    expect(foot(wrapper).exists()).toBe(true);
+  });
+
+  it("has the whole Update to 0.6.1 on a phone, which opens the steps of the update", async () => {
+    const { wrapper, socket } = await open(390, 844);
+    await wrapper.find("#tab-stations").trigger("click");
+    socket.say(status({ update: { version: "0.6.1", url: "", message: "" } }));
+    await flushPromises();
+    expect(foot(wrapper).find("button.update").text()).toBe("Update to 0.6.1");
+    await foot(wrapper).find("button.update").trigger("click");
+    expect(wrapper.find(".updatepanel h2").text()).toBe("Update to 0.6.1");
+  });
+
+  it("has the radio message on a phone that opens the Settings tab", async () => {
+    const { wrapper, socket } = await open(390, 844);
+    await wrapper.find("#tab-stations").trigger("click");
+    socket.say({ type: "state", topic: "tnc", rev: 1, value: tncState({ state: "silent", problem: "", describe: "silent", silent_since: ago(600) }) });
+    await flushPromises();
+    expect(foot(wrapper).find("button.status").text()).toBe("Radio: silent");
+    await foot(wrapper).find("button.status").trigger("click");
+    expect(panelOn(wrapper)).toEqual(["pane-settings"]);
   });
 });
 

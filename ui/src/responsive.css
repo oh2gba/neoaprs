@@ -148,13 +148,6 @@ button,
   padding-right: 10px;
   padding-left: 10px;
 }
-.size-phone .version,
-.size-phone .update-to {
-  display: none;
-}
-.size-phone .update {
-  margin-left: auto;
-}
 .size-phone .main {
   flex-direction: column;
 }
@@ -185,7 +178,9 @@ button,
   border-right: 1px solid var(--border);
   font-weight: 600;
 }
-.size-phone .pane {
+/* (the footer is the bottom of the tab: it keeps clear of the home bar, and has the same height on every screen) */
+.size-phone .panelfoot {
+  height: calc(28px + env(safe-area-inset-bottom));
   padding-bottom: env(safe-area-inset-bottom);
 }
 .size-phone .toolbar .input.grow,
@@ -337,6 +332,7 @@ button,
 @media (pointer: coarse) {
   .btn,
   .tab,
+  .tabmenu-item,
   .input,
   select,
   .check,
@@ -352,12 +348,18 @@ button,
     min-height: 40px;
   }
   .appheader {
-    align-items: center;
     min-height: 44px;
+  }
+  .panelfoot {
+    height: 36px;
+  }
+  .size-phone .panelfoot {
+    height: calc(36px + env(safe-area-inset-bottom));
   }
   .headmail,
   button.status,
   .nocall,
+  .brand,
   .update {
     /* the small things of the header are as high as the header, which is the height of a finger and a bit */
     position: relative;
@@ -366,6 +368,7 @@ button,
   .headmail::after,
   button.status::after,
   .nocall::after,
+  .brand::after,
   .update::after,
   .qrz::after,
   .sheet-grip::before {
