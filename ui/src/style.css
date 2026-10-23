@@ -2217,3 +2217,25 @@ button.linkbtn {
   align-items: center;
   gap: 4px 12px;
 }
+
+/* the guide to install NeoAPRS's certificate (Settings, Web page; the pop-up guide) */
+.httpsguide {
+  margin: 4px 0 10px;
+  padding: 6px 12px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+.httpsguide-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.httpsguide-print {
+  margin-top: 8px;
+}
+a.btn {
+  display: inline-block;
+  text-decoration: none;
+}

@@ -32,6 +32,7 @@ describe("SettingsForm", () => {
           !k.startsWith("status/") &&
           !k.startsWith("tcp/") &&
           k !== "web/key" &&
+          k !== "web/https" &&
           k !== "serial/last_port" &&
           k !== "update/url" &&
           k !== "serial/pattern" &&

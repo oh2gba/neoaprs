@@ -121,7 +121,7 @@ class Access:
             self._wrong = {ip: times for ip, times in self._wrong.items() if times}
 
     def give_session(self, handler: tornado.web.RequestHandler) -> None:
-        handler.set_cookie(COOKIE, self.session(), expires_days=SESSION_DAYS, path="/", httponly=True, samesite="Strict")
+        handler.set_cookie(COOKIE, self.session(), expires_days=SESSION_DAYS, path="/", httponly=True, samesite="Strict", secure=handler.request.protocol == "https")
 
 
 class _Answer(Secured):

@@ -10,11 +10,12 @@ license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
 authors = [{ name = "OH2GBA", email = "john@oh2gba.eu" }]
 requires-python = ">=3.13"
-# What the daemon imports at run time (neoaprs/, the page's server neoaprs/web/ included): the standard library, pyserial for the radio's serial port (neoaprs/serialport.py), Tornado for the page, and pydantic for the messages of the page (neoaprs/web/protocol.py).
+# What the daemon imports at run time (neoaprs/, the page's server neoaprs/web/ included): the standard library, pyserial for the radio's serial port (neoaprs/serialport.py), Tornado for the page, pydantic for the messages of the page (neoaprs/web/protocol.py), and cryptography for the certificates of the secure connection (neoaprs/web/tls.py).
 dependencies = [
     "tornado==6.5.10",
     "pydantic==2.14.0",
     "pyserial==3.5",
+    "cryptography==50.0.2",
 ]
 
 # The desktop app (`neoaprs app`, `neoaprs-app`; neoaprs/desktop/) is an extra, so that `uv tool install neoaprs` for the daemon stays lean. Windows: the page in the system's WebView2 (pywebview) and the tray icon

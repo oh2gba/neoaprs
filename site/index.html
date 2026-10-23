@@ -97,7 +97,7 @@
       </ul>
     </div>
     <figure class="shot">
-      <a class="zoom frame crop left" href="shots/station.png"><picture><source srcset="shots/station-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/station.png" width="1440" height="900" loading="lazy" alt="The card of a moving station, a car, open on the map: position, course, speed, route and the path its messages go by"></picture></a>
+      <a class="zoom frame crop left" href="shots/station.png"><picture><source srcset="shots/station-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/station.png" width="1440" height="900" loading="lazy" alt="The card of a moving station, a car, open on the map: when it was last heard, position, speed, how its packets reach us, and its route drawn on the map"></picture></a>
     </figure>
   </div>
   <div class="wrap feature flip">
@@ -105,11 +105,11 @@
       <h2>The Stations table</h2>
       <ul class="ticks">
         <li>Sort, filter, hide the timed out, keep the stations heard direct.</li>
-        <li>Distance and bearing from you, how much of what a station sends comes direct, the temperature of weather stations.</li>
+        <li>Distance and bearing from you (a small arrow), when each station was last heard, and a check mark for the ones heard direct.</li>
       </ul>
     </div>
     <figure class="shot">
-      <a class="zoom frame crop table" href="shots/stations.png"><picture><source srcset="shots/stations-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/stations.png" width="1440" height="900" loading="lazy" alt="The Stations table, wide: distance, bearing, when each station was heard, how much came direct, the temperature of weather stations and the path"></picture></a>
+      <a class="zoom frame crop table" href="shots/stations.png"><picture><source srcset="shots/stations-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/stations.png" width="1440" height="900" loading="lazy" alt="The Stations table, wide: the symbol and call of each station, the distance, the bearing as a small arrow, a check mark for a station heard direct, and when it was last heard"></picture></a>
     </figure>
   </div>
   <div class="wrap feature">
@@ -134,12 +134,12 @@
       <ul class="ticks">
         <li>Acks, reply-acks and retries are done for you.</li>
         <li>The delivery chain of every message: each digipeater you hear repeat it turns green, one you do not hear stays grey with a ?, a copy that came back from the internet is blue.</li>
-        <li>A path and a timeout for each station.</li>
-        <li>Alerts on the desktop, bulletins and group messages, and the APRS queries.</li>
+        <li>One text to several stations at once: tick them in the list of those heard.</li>
+        <li>A path for each station. Alerts on the desktop and in the browser, bulletins and group messages, and the APRS queries.</li>
       </ul>
     </div>
     <figure class="shot">
-      <a class="zoom frame chain" href="shots/chain.png"><picture><source srcset="shots/chain-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/chain.png" width="1112" height="1292" loading="lazy" alt="The thread of a conversation: each message of ours with its chain, you to OH2RCH-2 with a check, OH2RDG with a question mark or a check, and the station with a check when its ack came; a message sent twice has its two attempts unfolded"></picture></a>
+      <a class="zoom frame chain" href="shots/chain.png"><picture><source srcset="shots/chain-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/chain.png" width="1112" height="1184" loading="lazy" alt="The thread of a conversation: each message of ours with its chain, you to OH2RCH-2 with a check, OH2RDG with a question mark or a check, and the station with a check when its ack came; a message sent twice shows the chain of its latest attempt"></picture></a>
     </figure>
   </div>
   <div class="wrap pair">
@@ -147,7 +147,7 @@
       <a class="zoom frame crop panel" href="shots/messages.png"><picture><source srcset="shots/messages-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/messages.png" width="1440" height="900" loading="lazy" alt="The Messages tab: the conversations, the path of the station, and the thread with its chains"></picture></a>
     </figure>
     <figure class="shot">
-      <a class="zoom frame chain" href="shots/chain-failed.png"><picture><source srcset="shots/chain-failed-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/chain-failed.png" width="1112" height="446" loading="lazy" alt="A message that failed after six attempts: every attempt with its chain, the first one also heard again from the internet"></picture></a>
+      <a class="zoom frame chain" href="shots/chain-failed.png"><picture><source srcset="shots/chain-failed-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/chain-failed.png" width="1112" height="182" loading="lazy" alt="A message that failed after its four attempts: no answer, a Retry button, and the chain it went by"></picture></a>
     </figure>
   </div>
 </section>
@@ -176,13 +176,14 @@
       <h2>Your position, on your terms</h2>
       <ul class="ticks">
         <li>Last and next beacon at a glance, with Beacon now and Send status now.</li>
-        <li>Plain position with or without PHG, and a preview of the packet it makes.</li>
-        <li>A status report from your radio through Hamlib rigctld, or a text of your own.</li>
+        <li>Your symbol picked from pictures, a plain position with or without PHG, and a preview of the packet it makes.</li>
+        <li>A status report from your radio through Hamlib rigctld, or a text of your own: one choice, and only the fields it needs.</li>
+        <li>A fill-in digipeater for WIDE1-1, one tickbox, off until you switch it on.</li>
         <li>Nothing is transmitted until a call is set.</li>
       </ul>
     </div>
     <figure class="shot">
-      <a class="zoom frame crop panel" href="shots/beacon.png"><picture><source srcset="shots/beacon-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/beacon.png" width="1440" height="900" loading="lazy" alt="The Beacon tab: the last beacon and the next one, the status last sent, and the station and beacon settings"></picture></a>
+      <a class="zoom frame crop panel" href="shots/beacon.png"><picture><source srcset="shots/beacon-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/beacon.png" width="1440" height="900" loading="lazy" alt="The Beacon tab: the last beacon and the next one with Beacon now and Send status now, the station with its symbol picked from pictures, and the beacon and status settings"></picture></a>
     </figure>
   </div>
 </section>
@@ -294,12 +295,12 @@
       <h3>Open it from another device</h3>
       <ul class="ticks">
         <li>Switch on <b>Allow access from the network</b> in Settings. The page shows an access key and the addresses to open.</li>
-        <li>Type the key once on each laptop or phone.</li>
+        <li>Type the key once on each laptop or phone. An optional secure connection (https), with a certificate NeoAPRS makes itself, is one tickbox away.</li>
         <li>A message to you alerts in that browser too: a sound, and a pop-up where the browser allows one (Settings, Notifications).</li>
       </ul>
     </div>
     <figure class="shot">
-      <a class="zoom frame crop pane short" href="shots/settings-web.png"><picture><source srcset="shots/settings-web-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/settings-web.png" width="1440" height="900" loading="lazy" alt="Settings, Web page: Allow access from the network set to yes, the access key and the addresses to open the page at"></picture></a>
+      <a class="zoom frame crop pane short" href="shots/settings-web.png"><picture><source srcset="shots/settings-web-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/settings-web.png" width="1440" height="900" loading="lazy" alt="Settings, Web page: Allow access from the network ticked, the access key and the addresses to open the page at, and the secure connection switch"></picture></a>
     </figure>
   </div>
   <div class="wrap pair phones">
@@ -324,8 +325,9 @@
         <li>Call, position, symbol, radio, map.</li>
         <li>Until a call is set NeoAPRS only listens.</li>
         <li>The map of your area is made once, in a few minutes of internet.</li>
-        <li>Once a day it asks whether a newer version is out, sending its version and system and nothing else; you can switch that off.</li>
+        <li>Once a day it asks whether a newer version is out, sending its version and system and nothing else.</li>
         <li>A new version shows in the header with the steps to update your copy; open pages load it by themselves.</li>
+        <li>On a computer or an Android phone the page can be installed as an app of its own, from localhost or an https address.</li>
       </ul>
     </div>
     <figure class="shot">
@@ -345,12 +347,14 @@
         <tr><th scope="row">Kenwood TM-D710, TH-D72</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#kenwood-tm-d710-and-th-d72">serial or USB</a></td></tr>
         <tr><th scope="row">Kenwood TH-D74, TH-D75</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#kenwood-th-d74-and-th-d75">USB or Bluetooth</a></td></tr>
         <tr><th scope="row">Mobilinkd TNC3, TNC4</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#mobilinkd-tnc3-and-tnc4">USB or Bluetooth</a></td></tr>
+        <tr><th scope="row">BTech UV-PRO, Vero VR-N76, Radioddity GA-5WB (untested)</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#btech-uv-pro-vero-vr-n76-radioddity-ga-5wb">Bluetooth</a></td></tr>
+        <tr><th scope="row">PicoAPRS V4 (untested)</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#picoaprs-v4">Bluetooth, USB-C or TCP</a></td></tr>
         <tr><th scope="row">NinoTNC, TNC-Pi, TNC-X, any TNC already in KISS</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#ninotnc">USB or serial</a></td></tr>
         <tr><th scope="row">Kantronics KPC-3+</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#kantronics-kpc-3">RS-232</a></td></tr>
         <tr><th scope="row">Any radio with a sound-card interface (Digirig, SignaLink, USB dongle), through Direwolf or a soundmodem</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#direwolf-sound-card">KISS over TCP</a></td></tr>
       </tbody>
     </table>
-    <p class="note">Yaesu and Icom radios have no KISS TNC for a computer: use a sound-card interface and Direwolf. <a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#which-radio-or-tnc-do-you-have">The radio guide</a> marks which entries are tried on the air and which follow the radios' manuals and users' reports.</p>
+    <p class="note">On Linux a Bluetooth radio paired with the computer is picked from the Port list by its name, with no extra steps. Yaesu and Icom radios have no KISS TNC for a computer: use a sound-card interface and Direwolf. <a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#which-radio-or-tnc-do-you-have">The radio guide</a> marks which entries are tried on the air and which follow the radios' manuals and users' reports.</p>
   </div>
 </section>
 
@@ -406,14 +410,14 @@
       <li><a class="zoom" href="shots/station.png" data-dark="shots/station-dark.png"><picture><source srcset="shots/thumbs/station-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/station.png" width="640" height="400" loading="lazy" alt=""></picture><span>A station card</span></a></li>
       <li><a class="zoom" href="shots/weather.png" data-dark="shots/weather-dark.png"><picture><source srcset="shots/thumbs/weather-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/weather.png" width="640" height="400" loading="lazy" alt=""></picture><span>A weather station and its graphs</span></a></li>
       <li><a class="zoom" href="shots/messages.png" data-dark="shots/messages-dark.png"><picture><source srcset="shots/thumbs/messages-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/messages.png" width="640" height="400" loading="lazy" alt=""></picture><span>A conversation with the delivery chain</span></a></li>
-      <li class="tall"><a class="zoom" href="shots/chain.png" data-dark="shots/chain-dark.png"><picture><source srcset="shots/thumbs/chain-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/chain.png" width="640" height="744" loading="lazy" alt=""></picture><span>The delivery chain, close up</span></a></li>
-      <li><a class="zoom" href="shots/chain-failed.png" data-dark="shots/chain-failed-dark.png"><picture><source srcset="shots/thumbs/chain-failed-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/chain-failed.png" width="640" height="257" loading="lazy" alt=""></picture><span>A message that failed: six attempts</span></a></li>
+      <li class="tall"><a class="zoom" href="shots/chain.png" data-dark="shots/chain-dark.png"><picture><source srcset="shots/thumbs/chain-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/chain.png" width="640" height="681" loading="lazy" alt=""></picture><span>The delivery chain, close up</span></a></li>
+      <li><a class="zoom" href="shots/chain-failed.png" data-dark="shots/chain-failed-dark.png"><picture><source srcset="shots/thumbs/chain-failed-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/chain-failed.png" width="640" height="105" loading="lazy" alt=""></picture><span>A message that failed: four attempts</span></a></li>
       <li><a class="zoom" href="shots/email.png" data-dark="shots/email-dark.png"><picture><source srcset="shots/thumbs/email-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/email.png" width="640" height="400" loading="lazy" alt=""></picture><span>Email through the gateway</span></a></li>
       <li><a class="zoom" href="shots/bulletins.png" data-dark="shots/bulletins-dark.png"><picture><source srcset="shots/thumbs/bulletins-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/bulletins.png" width="640" height="400" loading="lazy" alt=""></picture><span>The message board and its post box</span></a></li>
       <li><a class="zoom" href="shots/objects.png" data-dark="shots/objects-dark.png"><picture><source srcset="shots/thumbs/objects-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/objects.png" width="640" height="400" loading="lazy" alt=""></picture><span>Objects of your own on the map</span></a></li>
       <li><a class="zoom" href="shots/objects-form.png" data-dark="shots/objects-form-dark.png"><picture><source srcset="shots/thumbs/objects-form-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/objects-form.png" width="640" height="400" loading="lazy" alt=""></picture><span>The object form</span></a></li>
       <li><a class="zoom" href="shots/beacon.png" data-dark="shots/beacon-dark.png"><picture><source srcset="shots/thumbs/beacon-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/beacon.png" width="640" height="400" loading="lazy" alt=""></picture><span>The beacon and the status</span></a></li>
-      <li><a class="zoom" href="shots/settings.png" data-dark="shots/settings-dark.png"><picture><source srcset="shots/thumbs/settings-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/settings.png" width="640" height="400" loading="lazy" alt=""></picture><span>The settings</span></a></li>
+      <li><a class="zoom" href="shots/settings.png" data-dark="shots/settings-dark.png"><picture><source srcset="shots/thumbs/settings-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/settings.png" width="640" height="400" loading="lazy" alt=""></picture><span>The settings: the radio status</span></a></li>
       <li><a class="zoom" href="shots/settings-web.png" data-dark="shots/settings-web-dark.png"><picture><source srcset="shots/thumbs/settings-web-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/settings-web.png" width="640" height="400" loading="lazy" alt=""></picture><span>Network access: the key and the addresses</span></a></li>
       <li><a class="zoom" href="shots/setup.png" data-dark="shots/setup-dark.png"><picture><source srcset="shots/thumbs/setup-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/setup.png" width="640" height="400" loading="lazy" alt=""></picture><span>The setup guide</span></a></li>
       <li><a class="zoom" href="shots/packets.png" data-dark="shots/packets-dark.png"><picture><source srcset="shots/thumbs/packets-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/packets.png" width="640" height="400" loading="lazy" alt=""></picture><span>The packet log</span></a></li>

@@ -24,7 +24,7 @@ function setUp(initial: ConfigValues | null = fresh()) {
   /** The daemon tells the settings again, as it does after a save. */
   const told = async (extra: Record<string, string> = {}) => {
     const now = config.value ?? fresh();
-    config.value = { values: { ...now.values, ...extra }, defaults: now.defaults, urls: now.urls };
+    config.value = { values: { ...now.values, ...extra }, defaults: now.defaults, urls: now.urls, https: now.https };
     await nextTick();
   };
   const fail = async (text: string) => {
