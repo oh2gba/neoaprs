@@ -6,6 +6,7 @@ import { computed, useId } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
 import SymbolField from "@/components/SymbolField.vue";
 import type { OwnObjectsView } from "@/composables/useOwnObjects";
+import { leftTitle } from "@/lib/compose";
 import { commentLimit, draftProblems, draftReady, NAME_MAX } from "@/lib/ownobjects";
 
 const props = defineProps<{ form: OwnObjectsView; fallbackPath: string }>();
@@ -21,7 +22,7 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
     class="objform"
     :label="form.editing === null ? 'New object' : `Edit ${form.editing}`"
     :left="left"
-    :left-title="`${left} characters left in the comment`"
+    :left-title="leftTitle(left, 'characters', undefined, ' in the comment')"
     scrolls
     @submit="form.save()"
   >

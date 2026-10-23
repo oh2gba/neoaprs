@@ -14,7 +14,7 @@ describe("GroupCompose", () => {
     expect(wrapper.find(".compose button[type='submit']").text()).toBe("Send to 3");
     expect(wrapper.find("#msg-to").exists()).toBe(false);
     expect(wrapper.find(".compose").text()).not.toContain("Stations");
-    expect(Array.from((wrapper.element as HTMLElement).children).map((c) => c.className.split(" ")[0])).toEqual(["convo-head", "group-room", "compose"]);
+    expect(Array.from((wrapper.element as HTMLElement).children).map((c) => c.className.split(" ")[0])).toEqual(["convo-head", "group-room", "composebar"]);
     wrapper.unmount();
   });
 

@@ -7,6 +7,7 @@ import EmailCompose from "@/components/EmailCompose.vue";
 import EmailList from "@/components/EmailList.vue";
 import InfoTip from "@/components/InfoTip.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
+import { TNC_NOT_CONNECTED } from "@/lib/compose";
 import { checkingMail } from "@/lib/email";
 import type { MessageRow } from "@/protocol/protocol";
 
@@ -24,7 +25,7 @@ const emit = defineEmits<{
 }>();
 
 const checking = computed(() => checkingMail(props.thread));
-const away = computed(() => (!connected.value ? "The TNC is not connected" : checking.value ? "Already checking" : undefined));
+const away = computed(() => (!connected.value ? TNC_NOT_CONNECTED : checking.value ? "Already checking" : undefined));
 </script>
 
 <template>

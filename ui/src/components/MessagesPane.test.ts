@@ -334,7 +334,7 @@ describe("MessagesPane, the box to write in", () => {
   it("is the last thing of the conversation, under the thread", async () => {
     const wrapper = await pane();
     const parts = [...wrapper.find(".convo").element.children].map((c) => c.className.split(" ")[0]);
-    expect(parts).toEqual(["convo-head", "bubbles", "compose"]);
+    expect(parts).toEqual(["convo-head", "bubbles", "composebar"]);
   });
 
   it("shows the bytes left of 67 as the text grows, and in red when there are too many", async () => {

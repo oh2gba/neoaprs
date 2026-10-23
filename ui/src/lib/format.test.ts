@@ -9,7 +9,6 @@ import {
   compassPoint,
   dateTimeText,
   distanceText,
-  leftText,
   pathText,
   positionText,
   processText,
@@ -126,13 +125,5 @@ describe("processText", () => {
   });
   it("does not count a negative time up", () => {
     expect(processText(0, 9, -5)).toBe("0.0 % · 9 MB · up 0 s");
-  });
-});
-
-describe("leftText", () => {
-  it("says what is left of a limit, and by how much it is over", () => {
-    expect(leftText(67)).toBe("67 left");
-    expect(leftText(0)).toBe("0 left");
-    expect(leftText(-3)).toBe("3 over");
   });
 });

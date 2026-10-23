@@ -18,7 +18,8 @@ describe("MessageCompose", () => {
     expect(wrapper.find(".compose-left").text()).toBe("67 left");
     expect(wrapper.find("p").exists()).toBe(false);
     expect(send.text()).toBe("Send");
-    expect([...wrapper.find("form").element.children].map((c) => c.tagName)).toEqual(["LABEL", "INPUT", "SPAN", "BUTTON"]);
+    expect([...wrapper.find(".composebar-fields").element.children].map((c) => c.tagName)).toEqual(["LABEL", "INPUT"]);
+    expect([...wrapper.find(".composebar-foot").element.children].map((c) => c.tagName)).toEqual(["DIV", "SPAN", "BUTTON"]);
   });
 
   it("sends the text to the one station as an ordinary message and empties the box", async () => {

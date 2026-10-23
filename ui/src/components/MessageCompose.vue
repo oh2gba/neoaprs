@@ -1,9 +1,10 @@
 <script setup lang="ts">
-// The box to write a message in, fixed at the bottom of a conversation: the text, how many of the bytes a message may have are left ("12 left") and Send, in one line. There is no To: the conversation is the station (`to` is its call), or for a group (GroupCompose) the
+// The box to write a message in, fixed at the bottom of a conversation: the text, how many of the bytes a message may have are left ("12 left") and Send, in one line (ComposeBar of one field, as on every tab). There is no To: the conversation is the station (`to` is its call), or for a group (GroupCompose) the
 // calls that were picked, and then Send says "Send to 3". Send is off while the TNC is not connected (its title says so) or the text is empty or too long (lib/recipients.ts `canSendAll`). With one recipient it says `send`; with several it says `sendMany`, which the
 // page turns into one ordinary message to each. The text is cleared once it is sent.
 import { computed, ref } from "vue";
-import { leftText } from "@/lib/format";
+import ComposeBar from "@/components/ComposeBar.vue";
+import { leftTitle, sendBlockedReason } from "@/lib/compose";
 import { bytesLeft } from "@/lib/messages";
 import { canSendAll } from "@/lib/recipients";
 import { LIMITS } from "@/protocol/lists";
@@ -18,7 +19,6 @@ const input = ref<HTMLInputElement | null>(null);
 const left = computed(() => bytesLeft(text.value));
 const ready = computed(() => canSendAll(props.connected, props.to, "", text.value));
 const sendLabel = computed(() => (props.to.length > 1 ? `Send to ${props.to.length}` : "Send"));
-const sendTitle = computed(() => (props.connected ? undefined : "The TNC is not connected"));
 
 defineExpose({ focusText: (): void => input.value?.focus() });
 
@@ -32,10 +32,11 @@ function submit(): void {
 </script>
 
 <template>
-  <form class="compose" @submit.prevent="submit">
+  <ComposeBar class="compose" label="Message" inline :left="left" :left-title="leftTitle(left, 'bytes', LIMITS.message.textMax)" @submit="submit">
     <label class="sr-only" for="msg-text">Message</label>
-    <input id="msg-text" ref="input" v-model="text" class="input compose-text grow" type="text" placeholder="Message" autocomplete="off" />
-    <span class="compose-left mono" :class="{ over: left < 0 }" :title="`${left} of ${LIMITS.message.textMax} bytes left`">{{ leftText(left) }}</span>
-    <button type="submit" class="btn primary" :disabled="!ready" :title="sendTitle">{{ sendLabel }}</button>
-  </form>
+    <input id="msg-text" ref="input" v-model="text" class="input compose-text" type="text" placeholder="Message" autocomplete="off" />
+    <template #buttons>
+      <button type="submit" class="btn primary" :disabled="!ready" :title="sendBlockedReason(connected)">{{ sendLabel }}</button>
+    </template>
+  </ComposeBar>
 </template>
