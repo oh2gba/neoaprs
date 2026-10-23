@@ -46,7 +46,7 @@
 <div class="hero" id="top">
   <div class="wrap">
     <h1>Neo<span>APRS</span></h1>
-    <p class="lead">A modern, easy-to-use APRS client: the stations you hear on a map, messages that get acked, weather, the beacon. One app, or a service you open from anywhere at home.</p>
+    <p class="lead">A modern, easy-to-use APRS client: the stations you hear on a map, messages that get acked, weather, the beacon. One app, or a service you open from anywhere at home, on a laptop, a tablet or a phone.</p>
     <div class="actions">
       <a class="btn primary" href="https://github.com/oh2gba/neoaprs/releases/latest">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 20h16"/></svg>
@@ -80,6 +80,7 @@
     <li>Windows, Linux and Raspberry Pi</li>
     <li>RF only: your radio, no iGate</li>
     <li>Free software, GPL-3.0-or-later</li>
+    <li>Phone, tablet and desktop</li>
     <li>Light and dark, as your system is</li>
   </ul>
 </div>
@@ -114,6 +115,18 @@
   </div>
   <div class="wrap feature">
     <div class="blurb">
+      <h2>Several stations at once</h2>
+      <ul class="ticks">
+        <li>Ctrl+click (Cmd+click on a Mac) on a marker or a row of the table adds a station's card beside the others: each one is the whole card, up to four on a desktop.</li>
+        <li><b>Close all</b>, or <b>Message these 2</b> to send one text to each of them.</li>
+      </ul>
+    </div>
+    <figure class="shot">
+      <a class="zoom frame crop left" href="shots/cards.png"><picture><source srcset="shots/cards-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/cards.png" width="1440" height="900" loading="lazy" alt="The cards of a car and of a house side by side over the map, each with when it was last heard, its position and how it reaches us, and the Close all and Message these 2 buttons at the map's top left"></picture></a>
+    </figure>
+  </div>
+  <div class="wrap feature flip">
+    <div class="blurb">
       <h2>The packet log</h2>
       <ul class="ticks">
         <li>Every packet as it was heard, and the route it came by.</li>
@@ -134,7 +147,7 @@
       <ul class="ticks">
         <li>Acks, reply-acks and retries are done for you.</li>
         <li>The delivery chain of every message: each digipeater you hear repeat it turns green, one you do not hear stays grey with a ?, a copy that came back from the internet is blue.</li>
-        <li>One text to several stations at once: tick them in the list of those heard.</li>
+        <li>The conversations in a list beside the open one, as in a chat app; one text to several stations at once from their cards.</li>
         <li>A path for each station. Alerts on the desktop and in the browser, bulletins and group messages, and the APRS queries.</li>
       </ul>
     </div>
@@ -144,7 +157,7 @@
   </div>
   <div class="wrap pair">
     <figure class="shot">
-      <a class="zoom frame crop panel" href="shots/messages.png"><picture><source srcset="shots/messages-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/messages.png" width="1440" height="900" loading="lazy" alt="The Messages tab: the conversations, the path of the station, and the thread with its chains"></picture></a>
+      <a class="zoom frame crop panel" href="shots/messages.png"><picture><source srcset="shots/messages-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/messages.png" width="1440" height="900" loading="lazy" alt="The Messages tab: the list of conversations at the left, the open conversation at the right with its route button, the thread with its chains, and the box to write in at the bottom"></picture></a>
     </figure>
     <figure class="shot">
       <a class="zoom frame chain" href="shots/chain-failed.png"><picture><source srcset="shots/chain-failed-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/chain-failed.png" width="1112" height="182" loading="lazy" alt="A message that failed after its four attempts: no answer, a Retry button, and the chain it went by"></picture></a>
@@ -160,11 +173,11 @@
       <ul class="ticks">
         <li>Temperature, wind and gusts, humidity, pressure and rain, as the station reports them.</li>
         <li>24 hour and 7 day graphs of temperature, pressure, wind and rain, drawn in the page's own colours.</li>
-        <li>The temperature of every weather station sits in the Stations table.</li>
+        <li>Open several weather stations side by side: their graphs share the same scales, so the curves can be read against each other.</li>
       </ul>
     </div>
     <figure class="shot">
-      <a class="zoom frame crop left" href="shots/weather.png"><picture><source srcset="shots/weather-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/weather.png" width="1440" height="900" loading="lazy" alt="The card of a weather station: 7 degrees, wind, humidity and pressure, and the 24 hour graphs of temperature, pressure, wind and rain"></picture></a>
+      <a class="zoom frame crop left" href="shots/weather.png"><picture><source srcset="shots/weather-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/weather.png" width="1440" height="900" loading="lazy" alt="The cards of two weather stations side by side: the temperature, wind, humidity and pressure of each, and the 24 hour graphs of temperature, pressure, wind and rain on the same scales"></picture></a>
     </figure>
   </div>
 </section>
@@ -175,15 +188,16 @@
       <p class="eyebrow">Beacon and status</p>
       <h2>Your position, on your terms</h2>
       <ul class="ticks">
-        <li>Last and next beacon at a glance, with Beacon now and Send status now.</li>
-        <li>Your symbol picked from pictures, a plain position with or without PHG, and a preview of the packet it makes.</li>
+        <li>When the last beacon went out, with Beacon now and Send status now, and the beacon every 15, 30 or 60 minutes.</li>
+        <li>Your place picked on the map, your symbol picked from pictures, and a preview of the packet it makes.</li>
         <li>A status report from your radio through Hamlib rigctld, or a text of your own: one choice, and only the fields it needs.</li>
         <li>A fill-in digipeater for WIDE1-1, one tickbox, off until you switch it on.</li>
+        <li>Settings apply as you change them: no Save button, and an Undo for the last change.</li>
         <li>Nothing is transmitted until a call is set.</li>
       </ul>
     </div>
     <figure class="shot">
-      <a class="zoom frame crop panel" href="shots/beacon.png"><picture><source srcset="shots/beacon-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/beacon.png" width="1440" height="900" loading="lazy" alt="The Beacon tab: the last beacon and the next one with Beacon now and Send status now, the station with its symbol picked from pictures, and the beacon and status settings"></picture></a>
+      <a class="zoom frame crop panel" href="shots/beacon.png"><picture><source srcset="shots/beacon-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/beacon.png" width="1440" height="900" loading="lazy" alt="The Beacon tab in groups: the station with its place and symbol, the beacon with Beacon now, and the status with Send status now"></picture></a>
     </figure>
   </div>
 </section>
@@ -196,13 +210,13 @@
       <ul class="ticks">
         <li>Email in a tab of its own: send a mail from a box at the bottom, with Check email for the mail the gateway kept for you.</li>
         <li>Announcements, bulletins and group messages on a board: who sent each, to which slot, how often it was heard.</li>
-        <li>Post your own to the board from a box at its top: a bulletin, an announcement or a group bulletin. It goes out a few times early and then at long intervals, and sits on the board marked ours.</li>
+        <li>Post your own to the board from a box under it: a bulletin, an announcement or a group bulletin. It goes out a few times early and then at long intervals, and sits on the board marked ours.</li>
       </ul>
     </div>
   </div>
   <div class="wrap pair">
     <figure class="shot">
-      <a class="zoom frame crop pane short" href="shots/email.png"><picture><source srcset="shots/email-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/email.png" width="1440" height="900" loading="lazy" alt="The Email tab: the address and the text, the buttons for the gateway's commands, and the thread of mails with their acks"></picture></a>
+      <a class="zoom frame crop pane short" href="shots/email.png"><picture><source srcset="shots/email-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/email.png" width="1440" height="900" loading="lazy" alt="The Email tab: Check email at the top, the list of mails with their states in words, and the box to write a mail at the bottom with the address, the text and the characters left"></picture></a>
     </figure>
     <figure class="shot">
       <a class="zoom frame crop pane short" href="shots/bulletins.png"><picture><source srcset="shots/bulletins-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/bulletins.png" width="1440" height="900" loading="lazy" alt="The Bulletins tab: the box to post a bulletin with the characters left, and the board with two entries of ours, marked ours, among the ones heard"></picture></a>
@@ -296,6 +310,7 @@
       <ul class="ticks">
         <li>Switch on <b>Allow access from the network</b> in Settings. The page shows an access key and the addresses to open.</li>
         <li>Type the key once on each laptop or phone. An optional secure connection (https), with a certificate NeoAPRS makes itself, is one tickbox away.</li>
+        <li>The page fits a phone and a tablet as well as a desktop: on a phone one view at a time, the map or the open tab, a station's card as a sheet from the bottom.</li>
         <li>A message to you alerts in that browser too: a sound, and a pop-up where the browser allows one (Settings, Notifications).</li>
       </ul>
     </div>
@@ -308,10 +323,10 @@
       <a class="zoom phone" href="shots/phone-key.png"><picture><source srcset="shots/phone-key-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/phone-key.png" width="390" height="844" loading="lazy" alt="On a phone: the key screen, one field for the access key"></picture></a>
     </figure>
     <figure class="shot">
-      <a class="zoom phone" href="shots/phone-map.png"><picture><source srcset="shots/phone-map-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/phone-map.png" width="390" height="844" loading="lazy" alt="On a phone: the map above, the Stations table below"></picture></a>
+      <a class="zoom phone" href="shots/phone-messages.png"><picture><source srcset="shots/phone-messages-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/phone-messages.png" width="390" height="844" loading="lazy" alt="On a phone: a conversation with its back arrow, the bubbles and the box to write in at the bottom"></picture></a>
     </figure>
     <figure class="shot">
-      <a class="zoom phone" href="shots/phone-weather.png"><picture><source srcset="shots/phone-weather-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/phone-weather.png" width="390" height="844" loading="lazy" alt="On a phone: the card of a weather station with its readings and graphs"></picture></a>
+      <a class="zoom phone" href="shots/phone-weather.png"><picture><source srcset="shots/phone-weather-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/phone-weather.png" width="390" height="844" loading="lazy" alt="On a phone: the card of a weather station as a sheet over the map, opened up to its readings and graphs"></picture></a>
     </figure>
   </div>
 </section>
@@ -331,7 +346,7 @@
       </ul>
     </div>
     <figure class="shot">
-      <a class="zoom frame crop guide" href="shots/setup.png"><picture><source srcset="shots/setup-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/setup.png" width="1440" height="900" loading="lazy" alt="The setup guide, at its symbol step, over the map of Espoo"></picture></a>
+      <a class="zoom frame crop guide" href="shots/setup.png"><picture><source srcset="shots/setup-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/setup.png" width="1440" height="900" loading="lazy" alt="The setup guide, at its Position step, over the map of Espoo: a large Pick on the map button, the place in one line and the coordinates"></picture></a>
     </figure>
   </div>
 </section>
@@ -408,8 +423,9 @@
       <li><a class="zoom" href="shots/map.png" data-dark="shots/map-dark.png"><picture><source srcset="shots/thumbs/map-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/map.png" width="640" height="400" loading="lazy" alt=""></picture><span>The map: stations and trails</span></a></li>
       <li><a class="zoom" href="shots/stations.png" data-dark="shots/stations-dark.png"><picture><source srcset="shots/thumbs/stations-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/stations.png" width="640" height="400" loading="lazy" alt=""></picture><span>The Stations table</span></a></li>
       <li><a class="zoom" href="shots/station.png" data-dark="shots/station-dark.png"><picture><source srcset="shots/thumbs/station-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/station.png" width="640" height="400" loading="lazy" alt=""></picture><span>A station card</span></a></li>
-      <li><a class="zoom" href="shots/weather.png" data-dark="shots/weather-dark.png"><picture><source srcset="shots/thumbs/weather-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/weather.png" width="640" height="400" loading="lazy" alt=""></picture><span>A weather station and its graphs</span></a></li>
-      <li><a class="zoom" href="shots/messages.png" data-dark="shots/messages-dark.png"><picture><source srcset="shots/thumbs/messages-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/messages.png" width="640" height="400" loading="lazy" alt=""></picture><span>A conversation with the delivery chain</span></a></li>
+      <li><a class="zoom" href="shots/cards.png" data-dark="shots/cards-dark.png"><picture><source srcset="shots/thumbs/cards-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/cards.png" width="640" height="400" loading="lazy" alt=""></picture><span>Several station cards side by side</span></a></li>
+      <li><a class="zoom" href="shots/weather.png" data-dark="shots/weather-dark.png"><picture><source srcset="shots/thumbs/weather-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/weather.png" width="640" height="400" loading="lazy" alt=""></picture><span>Weather stations and their graphs</span></a></li>
+      <li><a class="zoom" href="shots/messages.png" data-dark="shots/messages-dark.png"><picture><source srcset="shots/thumbs/messages-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/messages.png" width="640" height="400" loading="lazy" alt=""></picture><span>Messages: the list, a conversation and its delivery chain</span></a></li>
       <li class="tall"><a class="zoom" href="shots/chain.png" data-dark="shots/chain-dark.png"><picture><source srcset="shots/thumbs/chain-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/chain.png" width="640" height="681" loading="lazy" alt=""></picture><span>The delivery chain, close up</span></a></li>
       <li><a class="zoom" href="shots/chain-failed.png" data-dark="shots/chain-failed-dark.png"><picture><source srcset="shots/thumbs/chain-failed-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/chain-failed.png" width="640" height="105" loading="lazy" alt=""></picture><span>A message that failed: four attempts</span></a></li>
       <li><a class="zoom" href="shots/email.png" data-dark="shots/email-dark.png"><picture><source srcset="shots/thumbs/email-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/email.png" width="640" height="400" loading="lazy" alt=""></picture><span>Email through the gateway</span></a></li>
@@ -421,8 +437,10 @@
       <li><a class="zoom" href="shots/settings-web.png" data-dark="shots/settings-web-dark.png"><picture><source srcset="shots/thumbs/settings-web-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/settings-web.png" width="640" height="400" loading="lazy" alt=""></picture><span>Network access: the key and the addresses</span></a></li>
       <li><a class="zoom" href="shots/setup.png" data-dark="shots/setup-dark.png"><picture><source srcset="shots/thumbs/setup-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/setup.png" width="640" height="400" loading="lazy" alt=""></picture><span>The setup guide</span></a></li>
       <li><a class="zoom" href="shots/packets.png" data-dark="shots/packets-dark.png"><picture><source srcset="shots/thumbs/packets-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/packets.png" width="640" height="400" loading="lazy" alt=""></picture><span>The packet log</span></a></li>
+      <li><a class="zoom" href="shots/tablet.png" data-dark="shots/tablet-dark.png"><picture><source srcset="shots/thumbs/tablet-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/tablet.png" width="640" height="480" loading="lazy" alt=""></picture><span>On a tablet: the map and a conversation</span></a></li>
       <li class="tall"><a class="zoom" href="shots/phone-key.png" data-dark="shots/phone-key-dark.png"><picture><source srcset="shots/thumbs/phone-key-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/phone-key.png" width="270" height="584" loading="lazy" alt=""></picture><span>On a phone: the key screen</span></a></li>
       <li class="tall"><a class="zoom" href="shots/phone-map.png" data-dark="shots/phone-map-dark.png"><picture><source srcset="shots/thumbs/phone-map-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/phone-map.png" width="270" height="584" loading="lazy" alt=""></picture><span>On a phone: the map</span></a></li>
+      <li class="tall"><a class="zoom" href="shots/phone-messages.png" data-dark="shots/phone-messages-dark.png"><picture><source srcset="shots/thumbs/phone-messages-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/phone-messages.png" width="270" height="584" loading="lazy" alt=""></picture><span>On a phone: a conversation</span></a></li>
       <li class="tall"><a class="zoom" href="shots/phone-weather.png" data-dark="shots/phone-weather-dark.png"><picture><source srcset="shots/thumbs/phone-weather-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/phone-weather.png" width="270" height="584" loading="lazy" alt=""></picture><span>On a phone: weather</span></a></li>
       <li class="tall"><a class="zoom" href="shots/phone-bulletins.png" data-dark="shots/phone-bulletins-dark.png"><picture><source srcset="shots/thumbs/phone-bulletins-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/phone-bulletins.png" width="270" height="584" loading="lazy" alt=""></picture><span>On a phone: bulletins</span></a></li>
     </ul>

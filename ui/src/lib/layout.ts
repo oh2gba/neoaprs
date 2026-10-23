@@ -19,7 +19,7 @@ export const PANEL_MIN = 280;
 export const PANEL_DEFAULT = 480;
 /** From this window width on, a panel the user has not dragged is `PANEL_DEFAULT_WIDE` wide: wide enough for the two columns of the Messages tab and for the eight tabs with their badges (the tab bar turns into a menu when they do not fit). */
 const WIDE_WINDOW = 1280;
-export const PANEL_DEFAULT_WIDE = 680;
+export const PANEL_DEFAULT_WIDE = 760;
 
 /** The width of the panel of a user who has not dragged it, for a window this wide. */
 export function defaultPanelWidth(pageWidth: number): number {

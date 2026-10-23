@@ -1,12 +1,12 @@
 # NeoAPRS
 
-A modern, easy-to-use APRS client: a map of the stations you hear, messages with acks and retries, the beacon, weather graphs, objects and bulletins of your own, email through the APRS gateway, and a fill-in digipeater if you want one. It is a standalone app on Windows and Linux (a window with the map and the messages, and a tray icon), or a service you reach over your local network: the radio and NeoAPRS on a Raspberry Pi in the shack, and the page open on your laptop or phone at home. RF only: it talks to your radio or TNC and has no iGate.
+A modern, easy-to-use APRS client: a map of the stations you hear, messages with acks and retries, the beacon, weather graphs, objects and bulletins of your own, email through the APRS gateway, and a fill-in digipeater if you want one. It is a standalone app on Windows and Linux (a window with the map and the messages, and a tray icon), or a service you reach over your local network: the radio and NeoAPRS on a Raspberry Pi in the shack, and the page open on your laptop or phone at home. The page fits a phone, a tablet and a desktop, and a setting applies as you change it. RF only: it talks to your radio or TNC and has no iGate.
 
 | ![The map](docs/screenshots/map.png) | ![Weather](docs/screenshots/weather.png) |
 |---|---|
-| The map: stations, trails, the Stations table | A weather station with its 24 h graphs |
+| The map: stations, trails, the Stations table | Weather stations, several cards side by side, each with its 24 h graphs |
 | ![Messages](docs/screenshots/messages.png) | ![Beacon](docs/screenshots/beacon.png) |
-| A conversation: acks, retries, the route of each message; one text can go to several stations | The Beacon tab: last and next beacon, your symbol, the status |
+| Messages: the conversations and the open one, acks, retries, the route of each message; one text can go to several stations | The Beacon tab: last beacon, your symbol, the status; a setting applies as you change it |
 | ![Objects](docs/screenshots/objects.png) | ![The message board](docs/screenshots/bulletins.png) |
 | Objects and items of your own, on the map and on the air | The message board, with a box to post to it |
 
@@ -31,7 +31,7 @@ When a newer version is out, its number appears in the footer under the panel; a
 
 ## First start
 
-The page opens a setup guide in five steps: **call**, **position** (**Pick on the map** and click where you are, or drag the pin; or type latitude and longitude in decimal degrees: north and east positive, south and west negative, as Sydney is -33.87, 151.21), **symbol**, **radio**, **map**. Nothing is transmitted until a call is set: until then NeoAPRS only listens. Once, a few minutes of internet are needed to make the map of your area. Once a day NeoAPRS also asks whether a newer version is out; it sends its version number and the kind of system (Windows, Linux, Raspberry Pi...) and nothing else, ([Update check](docs/MANUAL.md#update-check)).
+The page opens a setup guide in five steps: **call**, **position** (**Pick on the map** and click where you are, or drag the pin; or open **Enter coordinates or locator** and type latitude and longitude in decimal degrees: north and east positive, south and west negative, as Sydney is -33.87, 151.21), **symbol**, **radio**, **map**. Nothing is transmitted until a call is set: until then NeoAPRS only listens. Once, a few minutes of internet are needed to make the map of your area. Once a day NeoAPRS also asks whether a newer version is out; it sends its version number and the kind of system (Windows, Linux, Raspberry Pi...) and nothing else ([Update check](docs/MANUAL.md#update-check)).
 
 ![The setup guide](docs/screenshots/setup.png)
 

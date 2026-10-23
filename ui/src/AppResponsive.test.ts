@@ -461,9 +461,9 @@ describe("the footer under the panel", () => {
 });
 
 describe("the default width of the panel", () => {
-  it("is 680 px on a window of 1280 px and more, 480 px on a smaller one, and the user's own width when it was dragged", async () => {
+  it("is 760 px on a window of 1280 px and more, 480 px on a smaller one, and the user's own width when it was dragged", async () => {
     const wide = await open(1440, 900);
-    expect(wide.wrapper.find(".panel").attributes("style")).toContain("--panel-width: 680px");
+    expect(wide.wrapper.find(".panel").attributes("style")).toContain("--panel-width: 760px");
     wide.wrapper.unmount();
     FakeSocket.all = [];
     const small = await open(1200, 800);

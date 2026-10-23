@@ -63,8 +63,8 @@ describe("cardCapacity", () => {
 });
 
 describe("defaultPanelWidth", () => {
-  it("is 680 px on a window of 1280 px and more, so that the Messages tab has its two columns and the tabs their badges, and 480 px on a smaller one", () => {
+  it("is 760 px on a window of 1280 px and more, so that the Messages tab has its two columns and the tabs their badges, and 480 px on a smaller one", () => {
     expect([defaultPanelWidth(1279), defaultPanelWidth(1280), defaultPanelWidth(1920)]).toEqual([PANEL_DEFAULT, PANEL_DEFAULT_WIDE, PANEL_DEFAULT_WIDE]);
-    expect(PANEL_DEFAULT_WIDE).toBe(680);
+    expect(PANEL_DEFAULT_WIDE).toBe(760);
   });
 });

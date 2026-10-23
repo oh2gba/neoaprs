@@ -34,6 +34,7 @@ from neoaprs.controller import Controller                         # noqa: E402
 
 DESKTOP = {"width": 1440, "height": 900}
 PHONE = {"width": 390, "height": 844}
+TABLET = {"width": 1024, "height": 768}
 LIMIT_KB = 480                                                    # a PNG is made smaller than this (colours are reduced when it must be)
 README_SHOTS = ("map", "weather", "messages", "beacon", "objects", "bulletins", "setup")
 SETTINGS = {
@@ -136,7 +137,8 @@ class Shots:
             await asyncio.sleep(left)
 
     async def page(self, size: dict[str, int], scheme: str | None = None, tab: str = "stations", view: tuple[float, float, float] | None = None, panel: int | None = None,
-                   wx_hours: str | None = None, url: str | None = None, wait_ms: int = 5000, scale: int = 1, headers: dict[str, str] | None = None) -> Any:
+                   wx_hours: str | None = None, url: str | None = None, wait_ms: int = 5000, scale: int = 1, headers: dict[str, str] | None = None,
+                   phone_view: str | None = None) -> Any:
         context = await self.browser.new_context(viewport=size, color_scheme=scheme or self.scheme, device_scale_factor=scale, locale="en-GB", timezone_id="Europe/Helsinki",
                                                  extra_http_headers=headers)
         keys = {"tab": tab, "panel": "open"}
@@ -146,6 +148,8 @@ class Shots:
             keys["panelwidth"] = str(panel)
         if wx_hours:
             keys["wxhours"] = wx_hours
+        if phone_view:
+            keys["view"] = phone_view                              # (a phone shows the map or the panel, one at a time)
         script = "".join(f"try{{localStorage.setItem('NeoAPRS.{k}',{v!r})}}catch(e){{}};" for k, v in keys.items())
         await context.add_init_script(script)
         page = await context.new_page()
@@ -181,9 +185,17 @@ async def settle(page: Any, ms: int = 1500) -> None:
     await page.wait_for_timeout(ms)
 
 
-async def pick_station(page: Any, call: str, wait: int = 4500) -> None:
-    await page.locator("#tab-stations").click()
-    await page.locator("#pane-stations tbody tr", has_text=call).first.click()
+async def open_stations_tab(page: Any) -> None:
+    """The Stations tab is the one a page opens on; on a narrow tab bar it is a button of the menu, which a phone's page has under its map button."""
+    tab = page.locator("#tab-stations")
+    if await tab.is_visible():
+        await tab.click()
+
+
+async def pick_station(page: Any, call: str, wait: int = 4500, add: bool = False) -> None:
+    """The row of `call` in the Stations table clicked: its card opens; with `add` (Ctrl+click) beside the cards that are open."""
+    await open_stations_tab(page)
+    await page.locator("#pane-stations tbody tr", has_text=call).first.click(modifiers=["Control"] if add else [])
     await page.wait_for_timeout(wait)
 
 
@@ -195,7 +207,7 @@ Shot = Callable[[Shots, str], Awaitable[None]]
 
 
 async def shot_map(s: Shots, _: str) -> None:
-    page = await s.page(DESKTOP, view=OVERVIEW)
+    page = await s.page(DESKTOP, view=(60.19, 24.76, 9.3), panel=WIDE_PANEL)
     await s.save(page, "map")
 
 
@@ -211,9 +223,19 @@ async def shot_station(s: Shots, _: str) -> None:
 
 
 async def shot_weather(s: Shots, _: str) -> None:
-    page = await s.page(DESKTOP, view=(60.19, 24.78, 11))
-    await pick_station(page, "OH2ZWA")
+    """Two weather stations, their cards side by side over the map: the same graphs, each on the same value axis in both."""
+    page = await s.page(DESKTOP, view=(60.08, 24.62, 9.6))
+    await pick_station(page, "OH2ZWB", wait=1500)
+    await pick_station(page, "OH2ZWA", add=True)
     await s.save(page, "weather")
+
+
+async def shot_cards(s: Shots, _: str) -> None:
+    """Two stations that can be messaged, their cards side by side, with Close all and Message these 2 over the map's top left."""
+    page = await s.page(DESKTOP, view=(60.20, 24.95, 9.6), panel=560)
+    await pick_station(page, "OH2ZMA-9", wait=1500)
+    await pick_station(page, "OH2ZPK", add=True)
+    await s.save(page, "cards")
 
 
 async def open_thread(s: Shots, call: str, scale: int = 1, size: dict[str, int] = DESKTOP) -> Any:
@@ -256,7 +278,11 @@ async def shot_chain_failed(s: Shots, _: str) -> None:
 
 
 async def shot_email(s: Shots, _: str) -> None:
+    """The mail list with Check email over it, and a mail being written at the bottom: the address, the text and the characters left."""
     page = await s.page(DESKTOP, tab="email", view=CITY, panel=560)
+    await page.fill("#mail-to", "jane@example.com")
+    await page.fill("#mail-text", "Antenna is up, see you at the net")
+    await settle(page, 400)
     await s.save(page, "email")
 
 
@@ -292,11 +318,13 @@ async def shot_beacon(s: Shots, _: str) -> None:
 
 
 async def made_up_web(page: Any) -> None:
-    """Puts the made-up access key and addresses in place of the daemon's own on a page that shows the Settings tab: the machine's own address and name never appear in a shot."""
+    """Puts the made-up access key and addresses (and the usual KISS port) in place of the daemon's own on a page that shows the Settings tab: the machine's own address and name never appear in a shot."""
     await page.evaluate("""([key, urls]) => {
         const put = () => {
             const field = document.getElementById("set-web-key");
             if (field) field.value = key;
+            const port = document.getElementById("set-tcp-port");
+            if (port) port.value = "8001";                        // (Direwolf's usual KISS port; the demo's own TNC listens where there was room)
             const inputs = [...document.querySelectorAll('[id^="set-web-url-"]')];
             while (inputs.length && inputs.length < urls.length) { const copy = inputs[0].cloneNode(true); inputs[0].parentElement.append(copy); inputs.push(copy); }
             inputs.forEach((input, i) => { if (i < urls.length) input.value = urls[i]; else input.remove(); });
@@ -308,7 +336,7 @@ async def made_up_web(page: Any) -> None:
 
 async def shot_settings_web(s: Shots, _: str) -> None:
     """Settings, the Web page group: the switch on, the access key and where to open the page (the daemon's own key and addresses are replaced by made-up ones on the screen)."""
-    page = await s.page(DESKTOP, tab="settings", view=CITY, panel=WIDE_PANEL)
+    page = await s.page(DESKTOP, tab="settings", view=CITY, panel=560)                  # (the width the project page crops it to)
     await page.locator("legend", has_text="Web page").scroll_into_view_if_needed()
     await made_up_web(page)
     await page.evaluate("document.querySelector('#pane-settings fieldset:has(#set-web-key)')?.scrollIntoView({block: 'start'})")
@@ -341,25 +369,44 @@ async def shot_phone_map(s: Shots, _: str) -> None:
 
 
 async def shot_phone_bulletins(s: Shots, _: str) -> None:
-    page = await s.page(PHONE, tab="bulletins", view=(60.19, 24.80, 9.4))
+    page = await s.page(PHONE, tab="bulletins", view=(60.19, 24.80, 9.4), phone_view="panel")
     await s.save(page, "phone-bulletins")
 
 
+async def shot_phone_messages(s: Shots, _: str) -> None:
+    """A phone shows one thing at a time: here the conversation, with its back arrow, the bubbles and the box to write in at the bottom."""
+    page = await s.page(PHONE, tab="messages", view=CITY, phone_view="panel")
+    await page.locator("#pane-messages").get_by_text("OH2ZPK").first.click()
+    await settle(page)
+    await s.save(page, "phone-messages")
+
+
 async def shot_phone_weather(s: Shots, _: str) -> None:
-    page = await s.page(PHONE, view=(60.19, 24.78, 11))
-    await pick_station(page, "OH2ZWA")
+    """A tap on a row of the Stations table shows the map and the card of the station as a sheet at the bottom, opened up with a tap on its grip."""
+    page = await s.page(PHONE, tab="stations", view=(60.15, 24.80, 11), phone_view="panel")
+    await pick_station(page, "OH2ZWA", wait=3000)
+    await page.locator(".sheet-grip").click()                      # (a tap on the grip opens the sheet up: the graphs)
+    await settle(page, 2500)
     await s.save(page, "phone-weather")
 
 
+async def shot_tablet(s: Shots, _: str) -> None:
+    """A tablet: the map and a panel of 380 to 420 px side by side, here the Messages tab with a conversation open."""
+    page = await s.page(TABLET, tab="messages", view=CITY)
+    await page.locator("#pane-messages").get_by_text("OH2ZPK").first.click()
+    await settle(page)
+    await s.save(page, "tablet")
+
+
 async def shot_setup(s: Shots, fresh_url: str) -> None:
-    """The guide of a folder with no call, at its symbol step, the call and the position typed in."""
+    """The guide of a folder with no call, at its Position step: the call typed in, the place one line under the big Pick on the map button, the coordinates unfolded."""
     page = await s.page(DESKTOP, url=fresh_url, wait_ms=3500)
     await page.locator(".setup input").first.fill("OH2GBA")
     await page.get_by_role("button", name="Next").click()
+    await page.wait_for_timeout(600)
+    await page.get_by_text("Enter coordinates or locator").click()
     await page.fill("#setup-lat", str(demoscene.HOME[0]))
     await page.fill("#setup-lon", str(demoscene.HOME[1]))
-    await page.wait_for_timeout(1500)
-    await page.get_by_role("button", name="Next").click()
     await page.wait_for_timeout(2500)
     await s.save(page, "setup")
 
@@ -417,9 +464,9 @@ EXTRAS = ("thumbs", "og")                                          # what is mad
 SHOTS: dict[str, Shot] = {
     "map": shot_map, "stations": shot_stations, "station": shot_station, "weather": shot_weather, "messages": shot_messages, "email": shot_email, "bulletins": shot_bulletins,
     "objects": shot_objects, "objects-form": shot_objects_form, "beacon": shot_beacon, "settings": shot_settings, "packets": shot_packets, "phone-map": shot_phone_map, "phone-bulletins": shot_phone_bulletins, "phone-weather": shot_phone_weather,
-    "setup": shot_setup, "chain": shot_chain, "chain-failed": shot_chain_failed, "settings-web": shot_settings_web, "phone-key": shot_phone_key,
+    "cards": shot_cards, "phone-messages": shot_phone_messages, "tablet": shot_tablet, "setup": shot_setup, "chain": shot_chain, "chain-failed": shot_chain_failed, "settings-web": shot_settings_web, "phone-key": shot_phone_key,
 }
-DARK_TOO = ("map", "stations", "station", "weather", "messages", "email", "bulletins", "objects", "objects-form", "beacon", "settings", "packets", "phone-map", "phone-bulletins", "phone-weather", "setup", "chain", "chain-failed", "settings-web", "phone-key")
+DARK_TOO = ("map", "stations", "station", "weather", "messages", "email", "bulletins", "objects", "objects-form", "beacon", "settings", "packets", "phone-map", "phone-bulletins", "phone-weather", "cards", "phone-messages", "tablet", "setup", "chain", "chain-failed", "settings-web", "phone-key")
 
 
 def in_the_dark(shot: Shot) -> Shot:
@@ -447,7 +494,7 @@ async def main(argv: list[str]) -> int:
     args = parser.parse_args(argv)
     os.environ["NEOAPRS_UPDATE_CHECK"] = "0"                          # (no daemon of the shots asks the version page: the header shows no newer-version link)
     logging.getLogger("neoaprs").setLevel(logging.ERROR)              # (the day has a message that fails, on purpose: the log's warning about it is not news)
-    chosen = args.only or list(SHOTS)
+    chosen = sorted(args.only or SHOTS, key=lambda name: not name.startswith("setup"))      # (the guide's shots first: its daemon hears the air of the day, our own bulletins repeated among it, and the guide's table is to be empty)
     if unknown := [n for n in chosen if n not in SHOTS and n not in EXTRAS]:
         parser.error(f"no such shot: {', '.join(unknown)}")
     taking = [n for n in chosen if n in SHOTS]
@@ -472,6 +519,7 @@ async def take(args: argparse.Namespace, chosen: list[str]) -> None:
         main_daemon = Daemon(data)
         daemons.append(main_daemon)
         url = await main_daemon.start()
+        radio.feed(demoscene.on_air("OH2ZMA-9", demoscene.position(60.164, 24.88, "/>", "Pekka on the road", course=96, knots=46), path="OH2RCH-2*"))    # (a packet heard just now: the radio status says when the last one came)
         (work / "fresh").mkdir()
         if (data / "basemap.pmtiles").exists():
             put_map(data / "basemap.pmtiles", work / "fresh" / "basemap.pmtiles")
