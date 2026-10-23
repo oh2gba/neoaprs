@@ -21,7 +21,7 @@ from neoaprs.store import DB_NAME
 from tests.support.rig import ServiceRig
 from tests.support.stubtnc import StubTnc
 from tests.support.clock import FixedClock
-from tests.support.env import remember_stop, until
+from tests.support.env import idle_for, remember_stop, until
 from tests.support.storedb import keep_old_attempts, store_at
 
 TICK = 0.01
@@ -54,12 +54,12 @@ class Rig(ServiceRig):
     async def radio(self, state: Source.State) -> None:
         """The Tnc changes state and the ticker, which looks at it every few milliseconds, has seen it."""
         self.tnc.state = state
-        await asyncio.sleep(TICK * 6)
+        await idle_for(TICK * 6)
 
     async def pass_time(self, seconds: float) -> None:
         """The clock moves and the ticker, which looks at it every few milliseconds, has looked."""
         self.clock.advance(seconds)
-        await asyncio.sleep(TICK * 6)
+        await idle_for(TICK * 6)
 
     def heard(self, source: str, addressee: str, text: str = "", msg_id: str | None = None, ack: str | None = None, rej: str | None = None, direction: str = "in",
               reply: str | None = None) -> Packet:
@@ -700,7 +700,7 @@ async def test_a_tnc_that_will_not_take_the_frame_is_not_an_attempt_and_is_tried
     rig.tnc.takes = False
     record = await rig.m.send("OH2RDG", "Hello")
     assert record.attempts == 0
-    await asyncio.sleep(TICK * 5)
+    await idle_for(TICK * 5)
     assert rig.state().attempts == 0
     rig.tnc.takes = True
     await until(lambda: rig.state().attempts == 1)
