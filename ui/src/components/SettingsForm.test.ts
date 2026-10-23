@@ -3,21 +3,37 @@ import { describe, expect, it, vi } from "vitest";
 import SettingsForm from "@/components/SettingsForm.vue";
 import type { Scope } from "@/lib/settings";
 import { CONFIG_KEYS } from "@/protocol/lists";
+import type { Command, PortsMessage } from "@/protocol/protocol";
 import { configValues, mapState } from "@/test/fixtures";
 
 function make(extra: Record<string, string> = {}, scope: Scope = "settings") {
-  const send = vi.fn(() => true);
+  const send = vi.fn((_command: Command) => true);
   const wrapper = mount(SettingsForm, { props: { config: configValues(extra), lastError: null, send, scope } });
   return { wrapper, send };
 }
+
+const row = (device: string, description: string) => ({ device, description, hwid: "n/a", vid: null, pid: null });
+const portList = (extra: Partial<PortsMessage> = {}): PortsMessage => ({
+  type: "ports",
+  search: true,
+  ports: [row("/dev/ttyUSB0", "FT232R USB UART"), row("/dev/ttyS0", "n/a")],
+  ...extra,
+});
 
 describe("SettingsForm", () => {
   it("has a field for every key of the Settings tab, in groups, and none of the beacon's", () => {
     const { wrapper } = make();
     expect(wrapper.findAll("fieldset legend").map((l) => l.text())).toEqual(["TNC", "Web page", "Log", "Messaging", "Notifications", "Map", "Update check"]);
     expect(wrapper.findAll(".field")).toHaveLength(
-      CONFIG_KEYS.filter((k) => !k.startsWith("beacon/") && !k.startsWith("station/") && !k.startsWith("status/") && !k.startsWith("tcp/") && k !== "web/key")
-        .length,
+      CONFIG_KEYS.filter(
+        (k) =>
+          !k.startsWith("beacon/") &&
+          !k.startsWith("station/") &&
+          !k.startsWith("status/") &&
+          !k.startsWith("tcp/") &&
+          k !== "web/key" &&
+          k !== "serial/last_port",
+      ).length,
     );
     expect(wrapper.find("#set-station-lat").exists()).toBe(false);
   });
@@ -83,10 +99,9 @@ describe("SettingsForm", () => {
 
   it("shows what an empty value means as the placeholder, else the default", () => {
     const { wrapper } = make();
-    expect(wrapper.find("#set-serial-port").attributes("placeholder")).toBe("auto");
     expect(wrapper.find("#set-serial-skip").attributes("placeholder")).toBe("none");
     expect(wrapper.find("#set-serial-baud").attributes("placeholder")).toBe("9600");
-    expect(wrapper.find("label[for=set-serial-pattern]").text()).toBe("Search ports");
+    expect(wrapper.find("label[for=set-serial-pattern]").text()).toBe("Ports to search");
     expect(wrapper.find("#set-serial-pattern").attributes("placeholder")).toBe("/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*");
     const beacon = make({}, "beacon").wrapper;
     expect(beacon.find("#set-beacon-path").attributes("placeholder")).toBe("direct");
@@ -114,10 +129,10 @@ describe("SettingsForm", () => {
     ).toBe(true);
   });
 
-  it("offers a choice for the TNC and leaves the port the daemon found alone", () => {
+  it("offers a choice for the TNC, and the port the daemon found is no field", () => {
     const { wrapper } = make();
     expect(wrapper.find("#set-tnc-profile").element.tagName).toBe("SELECT");
-    expect(wrapper.find("#set-serial-last_port").attributes("readonly")).toBeDefined();
+    expect(wrapper.find("#set-serial-last_port").exists()).toBe(false);
   });
 
   describe("the TNC profile", () => {
@@ -142,30 +157,22 @@ describe("SettingsForm", () => {
       expect(select.element.value).toBe("kenwood-tnc2");
     });
 
-    it("shows the port, the speed, the search and the keep-alive of a TNC that has a command mode", () => {
+    it("shows the port, the speed, the keep-alive and the search of a TNC that has a command mode", () => {
       const { wrapper } = make();
       expect(fieldIds(wrapper)).toEqual([
         "set-tnc-profile",
         "set-serial-port",
         "set-serial-baud",
-        "set-serial-last_port",
+        "set-tnc-check_sec",
         "set-serial-pattern",
         "set-serial-skip",
-        "set-tnc-check_sec",
       ]);
     });
 
     it("leaves the keep-alive out for a KISS TNC, which cannot be asked if it is there", async () => {
       const { wrapper } = make();
       await wrapper.find("#set-tnc-profile").setValue("kiss");
-      expect(fieldIds(wrapper)).toEqual([
-        "set-tnc-profile",
-        "set-serial-port",
-        "set-serial-baud",
-        "set-serial-last_port",
-        "set-serial-pattern",
-        "set-serial-skip",
-      ]);
+      expect(fieldIds(wrapper)).toEqual(["set-tnc-profile", "set-serial-port", "set-serial-baud", "set-serial-pattern", "set-serial-skip"]);
     });
 
     it("shows the host and the port of the TCP server for KISS over TCP, and no serial port", async () => {
@@ -201,6 +208,152 @@ describe("SettingsForm", () => {
         lastError: { text: "set_config: tnc/profile: KISS over TCP connects over TCP (tcp/host and tcp/port), not to the serial port COM3", n: 1 },
       });
       expect(wrapper.find("#set-tnc-profile").element.closest(".field")?.querySelector(".field-error")?.textContent).toContain("not to the serial port COM3");
+    });
+  });
+
+  describe("the TNC port", () => {
+    const OWNER = { "serial/port": "/dev/brainbox_3", "serial/pattern": "/dev/brainbox_*", "serial/last_port": "/dev/brainbox_3", "serial/baud": "9600" };
+    const withPorts = (extra: Record<string, string> = {}, ports: PortsMessage | null = portList()) => {
+      const send = vi.fn((_command: Command) => true);
+      const wrapper = mount(SettingsForm, { props: { config: configValues(extra), lastError: null, send, ports } });
+      return { wrapper, send };
+    };
+    type Wrapper = ReturnType<typeof make>["wrapper"];
+    const select = (wrapper: Wrapper) => wrapper.find<HTMLSelectElement>("#set-serial-port");
+    const options = (wrapper: Wrapper) =>
+      select(wrapper)
+        .findAll("option")
+        .map((o) => o.text());
+    const headings = (wrapper: Wrapper) =>
+      wrapper
+        .findAll("fieldset")
+        .find((f) => f.find("legend").text() === "TNC")
+        ?.findAll(".subgroup");
+    const found = (wrapper: Wrapper) => wrapper.find(".port-found");
+    const labels = (wrapper: Wrapper) =>
+      wrapper
+        .findAll("fieldset")
+        .find((f) => f.find("legend").text() === "TNC")
+        ?.findAll("label")
+        .map((l) => l.text());
+
+    it("is one choice: find automatically, the ports the system lists, and Other", () => {
+      const { wrapper } = withPorts();
+      expect(wrapper.find("label[for=set-serial-port]").text()).toBe("Port");
+      expect(select(wrapper).element.tagName).toBe("SELECT");
+      expect(options(wrapper)).toEqual(["find automatically", "/dev/ttyUSB0 - FT232R USB UART", "/dev/ttyS0", "/dev/brainbox_3", "Other..."]);
+      expect(select(wrapper).element.value).toBe("");
+    });
+
+    it("tells the port found last beside an automatic port, as a note and not a field", () => {
+      const { wrapper } = withPorts({ "serial/port": "", "serial/last_port": "/dev/brainbox_3" });
+      expect(found(wrapper).text()).toBe("found: /dev/brainbox_3");
+      expect(wrapper.find("#set-serial-last_port").exists()).toBe(false);
+      expect(wrapper.findAll("input[readonly]")).toHaveLength(0);
+      expect(labels(wrapper)).not.toContain("Last port found");
+    });
+
+    it("says nothing of it before the radio was found, or while a port is named", () => {
+      expect(found(withPorts({ "serial/port": "", "serial/last_port": "" }).wrapper).exists()).toBe(false);
+      expect(found(withPorts(OWNER).wrapper).exists()).toBe(false);
+    });
+
+    it("shows a named port that the system does not list as chosen, once", () => {
+      const { wrapper } = withPorts(OWNER);
+      expect(select(wrapper).element.value).toBe("/dev/brainbox_3");
+      expect(options(wrapper).filter((o) => o === "/dev/brainbox_3")).toHaveLength(1);
+    });
+
+    it("shows the port of the owner's station once, with the search under its own heading", () => {
+      const { wrapper } = withPorts(OWNER);
+      expect(labels(wrapper)).toEqual(["TNC", "Port", "Speed", "Keep-alive", "Ports to search", "Ports to skip"]);
+      expect(wrapper.find<HTMLInputElement>("#set-serial-pattern").element.value).toBe("/dev/brainbox_*");
+      expect(headings(wrapper)?.map((h) => h.text())).toEqual(["Search"]);
+      expect(headings(wrapper)?.[0]?.element.nextElementSibling?.querySelector("#set-serial-pattern")).not.toBeNull();
+    });
+
+    it("keeps the search for an automatic port too, and hides it where the daemon does not search", () => {
+      expect(labels(withPorts().wrapper)).toContain("Ports to search");
+      const { wrapper } = withPorts({}, portList({ search: false }));
+      expect(labels(wrapper)).toEqual(["TNC", "Port", "Speed", "Keep-alive"]);
+      expect(headings(wrapper)).toHaveLength(0);
+      expect(options(wrapper)[0]).toBe("none chosen");
+    });
+
+    it("shows no search and no port for KISS over TCP", async () => {
+      const { wrapper } = withPorts(OWNER);
+      await wrapper.find("#set-tnc-profile").setValue("kiss-tcp");
+      expect(labels(wrapper)).toEqual(["TNC", "Host", "Port"]);
+      expect(wrapper.find("#set-serial-port").exists()).toBe(false);
+      expect(headings(wrapper)).toHaveLength(0);
+      expect(wrapper.find(".port-found").exists()).toBe(false);
+    });
+
+    it("saves only the port when find automatically is chosen: the port is cleared and nothing else", async () => {
+      const { wrapper, send } = withPorts(OWNER);
+      await select(wrapper).setValue("");
+      expect(wrapper.text()).toContain("1 changed");
+      await wrapper.find("form").trigger("submit");
+      expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "serial/port": "" } });
+    });
+
+    it("saves only the port that was picked from the list", async () => {
+      const { wrapper, send } = withPorts({ "serial/port": "" });
+      await select(wrapper).setValue("/dev/ttyUSB0");
+      await wrapper.find("form").trigger("submit");
+      expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "serial/port": "/dev/ttyUSB0" } });
+    });
+
+    it("types a path or an address after Other, and saves it", async () => {
+      const { wrapper, send } = withPorts({ "serial/port": "" });
+      expect(wrapper.find("#set-serial-port-typed").exists()).toBe(false);
+      await select(wrapper).setValue("\u0000other");
+      expect(wrapper.find("#set-serial-port-typed").attributes("placeholder")).toBe("/dev/ttyUSB0");
+      expect(wrapper.text()).not.toContain("changed");
+      await wrapper.find("#set-serial-port-typed").setValue("socket://10.0.0.5:8100");
+      await wrapper.find("form").trigger("submit");
+      expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "serial/port": "socket://10.0.0.5:8100" } });
+    });
+
+    it("leaves a stored installation as it is: opening the page and saving unchanged sends nothing", async () => {
+      const { wrapper, send } = withPorts(OWNER);
+      expect(wrapper.find("button[type='submit']").attributes("disabled")).toBeDefined();
+      await wrapper.find("form").trigger("submit");
+      expect(send.mock.calls.filter(([c]) => c.cmd === "set_config")).toHaveLength(0);
+    });
+
+    it("never sends the port found, whatever else is changed", async () => {
+      const { wrapper, send } = withPorts({ "serial/port": "" });
+      await wrapper.find("#set-serial-baud").setValue("19200");
+      await wrapper.find("#set-serial-pattern").setValue("/dev/ttyUSB*");
+      await wrapper.find("form").trigger("submit");
+      expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "serial/baud": "19200", "serial/pattern": "/dev/ttyUSB*" } });
+    });
+
+    it("follows the daemon when it finds the radio on another port", async () => {
+      const { wrapper } = withPorts({ "serial/port": "", "serial/last_port": "/dev/ttyUSB0" });
+      await wrapper.setProps({ config: configValues({ "serial/port": "", "serial/last_port": "/dev/ttyACM0" }) });
+      expect(found(wrapper).text()).toBe("found: /dev/ttyACM0");
+    });
+
+    it("asks the daemon for the ports when the Settings tab opens, and again with Refresh, and not in the Beacon tab", async () => {
+      const { wrapper, send } = withPorts();
+      expect(send).toHaveBeenCalledWith({ cmd: "list_ports" });
+      await wrapper
+        .findAll("button")
+        .find((b) => b.text() === "Refresh")
+        ?.trigger("click");
+      expect(send.mock.calls.filter(([c]) => c.cmd === "list_ports")).toHaveLength(2);
+      expect(make({}, "beacon").send).not.toHaveBeenCalled();
+    });
+
+    it("puts the units and the hover titles on the speed, the keep-alive and the port", () => {
+      const { wrapper } = withPorts();
+      const field = (id: string) => wrapper.find(`#${id}`).element.closest(".field");
+      expect(field("set-serial-baud")?.querySelector(".unit")?.textContent).toBe("baud");
+      expect(field("set-tnc-check_sec")?.querySelector(".unit")?.textContent).toBe("s");
+      expect(field("set-tnc-check_sec")?.getAttribute("title")).toContain("asked if it is there");
+      expect(field("set-serial-port")?.getAttribute("title")).toContain("Automatic");
     });
   });
 
@@ -265,17 +418,17 @@ describe("SettingsForm", () => {
     it("is right of the alert command, and of no other field, and not in the Beacon tab", () => {
       const { wrapper } = make();
       expect(button(wrapper)?.textContent?.trim()).toBe("Test");
-      expect(wrapper.findAll(".field button")).toHaveLength(1);
+      expect(wrapper.findAll(".field button").map((b) => b.text())).toEqual(["Refresh", "Test"]);
       expect(make({}, "beacon").wrapper.findAll(".field button")).toHaveLength(0);
     });
 
     it("sends alert_test, waits while it runs, and shows ran in green under the field", async () => {
       const { wrapper, send } = make();
-      await wrapper.find(".field button").trigger("click");
+      await wrapper.find("#set-messages-alert_command + button").trigger("click");
       expect(send).toHaveBeenCalledWith({ cmd: "alert_test" });
       expect(button(wrapper)?.hasAttribute("disabled")).toBe(true);
-      await wrapper.find(".field button").trigger("click");
-      expect(send).toHaveBeenCalledTimes(1);
+      await wrapper.find("#set-messages-alert_command + button").trigger("click");
+      expect(send.mock.calls.filter(([c]) => c.cmd === "alert_test")).toHaveLength(1);
       await wrapper.setProps({ alertResult: { type: "alert_result", ok: true, text: "ran" } });
       expect(button(wrapper)?.hasAttribute("disabled")).toBe(false);
       expect(result(wrapper)?.textContent).toBe("ran");
@@ -284,7 +437,7 @@ describe("SettingsForm", () => {
 
     it("shows a failure in red, and the result goes with the next edit", async () => {
       const { wrapper } = make();
-      await wrapper.find(".field button").trigger("click");
+      await wrapper.find("#set-messages-alert_command + button").trigger("click");
       await wrapper.setProps({ alertResult: { type: "alert_result", ok: false, text: "exit code 3: no display" } });
       expect(result(wrapper)?.textContent).toBe("exit code 3: no display");
       expect(result(wrapper)?.classList.contains("ok")).toBe(false);
@@ -294,7 +447,7 @@ describe("SettingsForm", () => {
 
     it("shows the error of an empty command as the result", async () => {
       const { wrapper } = make();
-      await wrapper.find(".field button").trigger("click");
+      await wrapper.find("#set-messages-alert_command + button").trigger("click");
       await wrapper.setProps({ lastError: { text: "alert_test: no alert command", n: 1 } });
       expect(result(wrapper)?.textContent).toBe("no alert command");
       expect(button(wrapper)?.hasAttribute("disabled")).toBe(false);
@@ -306,8 +459,8 @@ describe("SettingsForm", () => {
       await wrapper.find("#set-messages-alert_command").setValue("notify-send changed");
       expect(button(wrapper)?.hasAttribute("disabled")).toBe(true);
       expect(button(wrapper)?.getAttribute("title")).toBe("Save first");
-      await wrapper.find(".field button").trigger("click");
-      expect(send).not.toHaveBeenCalled();
+      await wrapper.find("#set-messages-alert_command + button").trigger("click");
+      expect(send).not.toHaveBeenCalledWith({ cmd: "alert_test" });
     });
   });
 

@@ -272,7 +272,7 @@ function onPick(at: Home): void {
           <TncPanel :tnc="tnc" :now="now" @reconnect="send({ cmd: 'tnc_reconnect' })" />
         </template>
         <template #settings>
-          <SettingsForm :config="config" :last-error="lastError" :alert-result="alertResult" :map="map" :send="send" @setup="guide.show()">
+          <SettingsForm :config="config" :last-error="lastError" :alert-result="alertResult" :map="map" :ports="ports" :send="send" @setup="guide.show()">
             <template #notifications><BrowserAlerts :alerts="alerts" /></template>
           </SettingsForm>
         </template>

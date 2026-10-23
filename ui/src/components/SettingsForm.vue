@@ -4,13 +4,14 @@
 // the map (MapFetchPanel), which work on the saved settings. On the Settings tab the Setup button opens the first-run guide again; the default slot is for more groups (the page's own, which are not settings of the daemon), and the slot `notifications` for the fields of the page's own alert, which end the Notifications group. While the network is let in, the Web group shows the access key with a New key button and the addresses to open the page at.
 import MapFetchPanel from "@/components/MapFetchPanel.vue";
 import SettingsField from "@/components/SettingsField.vue";
+import SettingsPort from "@/components/SettingsPort.vue";
 import type { Toast } from "@/composables/useDaemon";
 import { ALERT_KEY, useAlertTest } from "@/composables/useAlertTest";
 import { KEY_KEY, useNewKey } from "@/composables/useNewKey";
 import { useSettingsForm } from "@/composables/useSettingsForm";
 import { FIELDS, SUBGROUPS, portForProfile, shownFor, speedFallback, type Scope } from "@/lib/settings";
-import type { AlertResultMessage, Command, ConfigValues, MapState } from "@/protocol/protocol";
-import { computed, toRef } from "vue";
+import type { AlertResultMessage, Command, ConfigValues, MapState, PortsMessage } from "@/protocol/protocol";
+import { computed, onMounted, toRef } from "vue";
 
 const props = withDefaults(
   defineProps<{
@@ -20,8 +21,9 @@ const props = withDefaults(
     scope?: Scope;
     alertResult?: AlertResultMessage | null;
     map?: MapState | null;
+    ports?: PortsMessage | null;
   }>(),
-  { scope: "settings", alertResult: null, map: null },
+  { scope: "settings", alertResult: null, map: null, ports: null },
 );
 const emit = defineEmits<{ setup: [] }>();
 
@@ -46,7 +48,13 @@ const urls = computed(() => props.config?.urls ?? []);
 const resultOf = (key: string) => (key === ALERT_KEY ? alertTest.result.value : key === KEY_KEY ? newKey.result.value : null);
 /** The TNC profile as it is being edited: which fields are shown follows it. */
 const profile = computed(() => draft["tnc/profile"]);
-const shown = (keys: string[]) => keys.filter((key) => shownFor(key, profile.value, network.value));
+/** Whether the daemon looks for the radio among the ports (Linux); true until it has said. */
+const search = computed(() => props.ports?.search ?? true);
+const shown = (keys: string[]) => keys.filter((key) => shownFor(key, profile.value, network.value, search.value));
+const refreshPorts = () => props.send({ cmd: "list_ports" });
+onMounted(() => {
+  if (props.scope === "settings") refreshPorts();
+});
 const fallback = (key: string) => (key === "serial/baud" ? speedFallback(profile.value, defaults.value[key] ?? "") : (defaults.value[key] ?? ""));
 /** A serial device does not go with a TCP profile: choosing one clears it, so that Save is not refused for it. */
 function onEdit(key: string, text: string): void {
@@ -63,7 +71,20 @@ const mapUnsaved = computed(() => Object.keys(changed.value).some((key) => key.s
       <legend>{{ group.title }}</legend>
       <template v-for="key in shown(group.keys)" :key="key">
         <h3 v-if="SUBGROUPS[key]" class="subgroup" :title="SUBGROUPS[key]?.title">{{ SUBGROUPS[key]?.text }}</h3>
+        <SettingsPort
+          v-if="key === 'serial/port'"
+          :id="`set-${key.replace('/', '-')}`"
+          :info="info(key)"
+          :model-value="draft[key] ?? ''"
+          :found="config.values['serial/last_port'] ?? ''"
+          :ports="ports"
+          :error="errors[key] ?? ''"
+          :changed="key in changed"
+          @update:model-value="onEdit(key, $event)"
+          @refresh="refreshPorts"
+        />
         <SettingsField
+          v-else
           :id="`set-${key.replace('/', '-')}`"
           :info="info(key)"
           :model-value="draft[key] ?? ''"

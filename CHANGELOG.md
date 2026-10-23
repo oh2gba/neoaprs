@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-Nothing yet.
+- The TNC group of the Settings tab names the port once. **Port** is one choice: find automatically, a port the system lists (with Refresh), or Other... for a path or a `socket://` address typed; beside an automatic port the page says `found: PORT` for the port the daemon found last, which is no longer a field of its own. The search for the radio is under a heading, Search, as "Ports to search" and "Ports to skip" (left out where the daemon does not search and for KISS over TCP), after the Speed and the Keep-alive. No setting changed its name, meaning or stored value.
 
 ## 0.3.0
 
