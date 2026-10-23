@@ -1,6 +1,6 @@
 // The Email tab as the page runs it: the thread with the gateway EMAIL-2, how many of its messages are not seen (only while the Email tab is on show, the panel open and the page visible, lib/unread.ts),
-// the addressees used before, and the messages the tab sends: mail, and the gateway's own commands. The gateway sends no ack that reaches this station, so the first time the tab sends mail and the
-// gateway has no count of attempts of its own, the page gives it 2 (once: the browser remembers it, so that a count cleared on purpose stays cleared); the mail waits for the daemon to say it has the count, because the
+// the addressees used before, and the messages the tab sends: mail, a new shortcut, and the gateway's own commands. The gateway's acks reach this station only through an iGate, so the first time the tab sends anything and the
+// gateway has no count of attempts of its own, the page gives it 2 (once: the browser remembers it, so that a count cleared on purpose stays cleared); the message waits for the daemon to say it has the count, because the
 // daemon runs the two commands side by side and a message takes the count it finds when it is sent.
 import { computed, onScopeDispose, watch, type Ref } from "vue";
 import { useAddressBook } from "@/composables/useAddressBook";
@@ -41,12 +41,12 @@ export function useEmail(
 
   const toGateway = (text: string): boolean => send({ cmd: "send_message", to: EMAIL_GATEWAY, text });
 
-  const held: { to: string; line: string }[] = []; // (mail waiting for the gateway's count of attempts)
+  const held: { to: string | null; line: string }[] = []; // (messages waiting for the gateway's count of attempts; `to` is the addressee to remember, null for a command)
   let waiting: ReturnType<typeof setTimeout> | undefined;
   let applied = readStored(APPLIED_KEY) === "yes";
 
-  function deliver(to: string, line: string): void {
-    if (toGateway(line)) book.remember(to);
+  function deliver(to: string | null, line: string): void {
+    if (toGateway(line) && to !== null) book.remember(to);
   }
 
   function release(): void {
@@ -67,9 +67,8 @@ export function useEmail(
     writeStored(APPLIED_KEY, "yes");
   }
 
-  /** Sends mail: the line "to text" to the gateway, and the addressee is remembered once it is sent. The first time, with no count of attempts of the gateway's own, the page gives it one and sends the mail when the daemon has it. */
-  function sendMail(to: string, text: string): void {
-    const line = emailLine(to, text);
+  /** Sends the line to the gateway, and remembers `to` once it is sent. The first time, with no count of attempts of the gateway's own, the page gives it one and sends the line when the daemon has it. */
+  function viaGateway(to: string | null, line: string): void {
     if (held.length > 0) {
       held.push({ to, line });
       return;
@@ -84,10 +83,16 @@ export function useEmail(
     held.push({ to, line });
   }
 
+  /** Sends mail: the line "to text" to the gateway. */
+  const sendMail = (to: string, text: string): void => viaGateway(to, emailLine(to, text));
+
+  /** Makes a shortcut: the line "name address" (the name is remembered as an addressee, like the ones mail went to). */
+  const registerShortcut = (name: string, address: string): void => viaGateway(name.trim(), emailLine(name, address));
+
   /** The gateway's three commands. */
-  const listShortcutsOf = (name: string): boolean => toGateway(listShortcuts(name));
-  const removeShortcutNamed = (name: string): boolean => toGateway(removeShortcut(name));
-  const getHeld = (): boolean => toGateway(GET_HELD);
+  const listShortcutsOf = (name: string): void => viaGateway(null, listShortcuts(name));
+  const removeShortcutNamed = (name: string): void => viaGateway(null, removeShortcut(name));
+  const getHeld = (): void => viaGateway(null, GET_HELD);
 
   return {
     thread,
@@ -95,6 +100,7 @@ export function useEmail(
     addresses: book.addresses,
     forget: book.forget,
     sendMail,
+    registerShortcut,
     listShortcuts: listShortcutsOf,
     removeShortcut: removeShortcutNamed,
     getHeld,

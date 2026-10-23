@@ -53,6 +53,13 @@ describe("useEmail: what it sends", () => {
     expect(mail.addresses.value).toEqual([]);
   });
 
+  it("makes a shortcut by sending the name, a space and the address, and remembers the name as an addressee", () => {
+    const { send, mail } = setUp();
+    mail.registerShortcut(" john ", "jane@example.com");
+    expect(send).toHaveBeenLastCalledWith({ cmd: "send_message", to: "EMAIL-2", text: "john jane@example.com" });
+    expect(mail.addresses.value).toEqual(["john"]);
+  });
+
   it("sends the three commands as the texts name L, name R and get", () => {
     const { send, mail } = setUp();
     mail.listShortcuts("me");
@@ -137,12 +144,18 @@ describe("useEmail: the gateway's attempts", () => {
     expect(texts(send)).toHaveLength(2);
   });
 
-  it("does not use the commands for it: List, Remove and Get go at once", () => {
-    const { send, mail } = withAttempts(none());
+  it("does it for a command or a new shortcut as for mail, and remembers none of them as an addressee", async () => {
+    vi.useFakeTimers();
+    const attempts = none();
+    const { send, mail } = withAttempts(attempts);
     mail.getHeld();
     mail.listShortcuts("me");
-    expect(sets(send)).toEqual([]);
-    expect(texts(send)).toHaveLength(2);
+    mail.registerShortcut("jane", "jane@example.com");
+    expect(sent(send)).toEqual([{ cmd: "set_station_attempts", call: "EMAIL-2", attempts: 2 }]);
+    attempts.value = new Map([["EMAIL-2", 2]]);
+    await nextTick();
+    expect(said(send)).toEqual(["get", "me L", "jane jane@example.com"]);
+    expect(mail.addresses.value).toEqual(["jane"]);
   });
 
   it("sends the mail anyway when the set cannot be sent (the socket is down)", () => {

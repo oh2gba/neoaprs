@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { message } from "@/test/fixtures";
 import {
   ADDRESSES_KEPT,
   GET_HELD,
@@ -6,10 +7,14 @@ import {
   emailBytesLeft,
   emailLine,
   forgetAddress,
+  isNotConfirmed,
+  mailMarkOf,
+  mailStateText,
   parseAddresses,
   rememberAddress,
   listShortcuts,
   removeShortcut,
+  validAddress,
   validShortcut,
 } from "@/lib/email";
 
@@ -98,5 +103,47 @@ describe("the addressees used before", () => {
     expect(parseAddresses("not json")).toEqual([]);
     expect(parseAddresses('{"a":1}')).toEqual([]);
     expect(parseAddresses('["a", 3, "", null, "b"]')).toEqual(["a", "b"]);
+  });
+});
+
+describe("validAddress", () => {
+  it("is one word with an @ between two parts", () => {
+    expect([
+      validAddress("jane@example.com"),
+      validAddress(" jane@example.com "),
+      validAddress("jane"),
+      validAddress("@x.y"),
+      validAddress("a@"),
+      validAddress("a b@c.d"),
+    ]).toEqual([true, true, false, false, false, false]);
+  });
+});
+
+describe("a mail that got no ack", () => {
+  const to = (state: "failed" | "unconfirmed" | "acked" | "rejected" | "sending" | "cancelled", attempts: number) =>
+    message(1, { to_call: "EMAIL-2", state, attempts, attempts_max: Math.max(attempts, 1) });
+
+  it("is sent, not confirmed, whether it was given few attempts (unconfirmed) or many (failed)", () => {
+    expect(isNotConfirmed(to("unconfirmed", 2))).toBe(true);
+    expect(isNotConfirmed(to("failed", 6))).toBe(true);
+    expect([to("acked", 1), to("rejected", 1), to("sending", 1), to("cancelled", 1)].map(isNotConfirmed)).toEqual([false, false, false, false]);
+    expect(mailStateText(to("unconfirmed", 2))).toBe("sent twice, not confirmed");
+    expect(mailStateText(to("unconfirmed", 1))).toBe("sent once, not confirmed");
+    expect(mailStateText(to("failed", 6))).toBe("sent 6 times, not confirmed");
+  });
+
+  it("has the hollow check, not the cross, and says why", () => {
+    for (const row of [to("unconfirmed", 2), to("failed", 6)]) {
+      expect(mailMarkOf(row)?.kind).toBe("hollow");
+      expect(mailMarkOf(row)?.title).toContain("iGate");
+    }
+  });
+
+  it("is told as the Messages tab tells the other states", () => {
+    expect(mailStateText(to("acked", 1))).toBe("acked, sent once");
+    expect(mailStateText(to("rejected", 1))).toBe("rejected");
+    expect(mailMarkOf(to("rejected", 1))?.kind).toBe("cross");
+    expect(mailMarkOf(to("acked", 1))?.kind).toBe("check");
+    expect(mailMarkOf(message(2, { direction: "in", state: "received" }))).toBeNull();
   });
 });

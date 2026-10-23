@@ -247,6 +247,7 @@ function onPick(at: Home): void {
             :heard-direct="heardDirect"
             @send="mail.sendMail"
             @forget="mail.forget"
+            @register="mail.registerShortcut"
             @list="mail.listShortcuts"
             @remove="mail.removeShortcut"
             @get="mail.getHeld"

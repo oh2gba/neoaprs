@@ -977,7 +977,7 @@ describe("App", () => {
     };
     const badge = (wrapper: VueWrapper) => tabButton(wrapper, "Email")?.find(".badge");
 
-    it("sends mail as a message to EMAIL-2 and the three commands as their texts, and keeps the addressee in the list", async () => {
+    it("sends mail as a message to EMAIL-2 and a new shortcut and the three commands as their texts, and keeps the addressee in the list", async () => {
       const { wrapper, socket } = await open();
       await tabButton(wrapper, "Email")?.trigger("click");
       await wrapper.find("#mail-to").setValue("jane@example.com");
@@ -996,22 +996,23 @@ describe("App", () => {
       expect(wrapper.find<HTMLInputElement>("#pane-email .attempts-input").element.value).toBe("2");
       expect(wrapper.findAll("#pane-email .address-pick").map((b) => b.text())).toEqual(["jane@example.com"]);
       expect(JSON.parse(localStorage.getItem("NeoAPRS.emailto") ?? "[]")).toEqual(["jane@example.com"]);
-      const tools = wrapper.findAll("#pane-email .mail-tools > button");
-      await tools[0]?.trigger("click");
+      const tool = (label: string) => wrapper.findAll("#pane-email .mail-tools button").find((b) => b.text() === label);
       await wrapper.find("#mail-shortcut").setValue("me");
+      await wrapper.find("#mail-address").setValue("jane@example.com");
       await wrapper.find("#pane-email .mail-shortcut").trigger("submit");
-      await tools[2]?.trigger("click");
-      await wrapper.find("#mail-to").setValue("jane");
-      await tools[1]?.trigger("click");
-      await tools[1]?.trigger("click");
-      expect(socket.sent.slice(-3)).toEqual([
+      await tool("Email the list")?.trigger("click");
+      await tool("Fetch held mail")?.trigger("click");
+      await tool("Remove")?.trigger("click");
+      await tool("sure?")?.trigger("click");
+      expect(socket.sent.slice(-4)).toEqual([
+        { cmd: "send_message", to: "EMAIL-2", text: "me jane@example.com" },
         { cmd: "send_message", to: "EMAIL-2", text: "me L" },
         { cmd: "send_message", to: "EMAIL-2", text: "get" },
-        { cmd: "send_message", to: "EMAIL-2", text: "jane R" },
+        { cmd: "send_message", to: "EMAIL-2", text: "me R" },
       ]);
     });
 
-    it("shows the gateway's attempts beside the buttons and sends the change", async () => {
+    it("shows the gateway's attempts in the Mailbox row and sends the change", async () => {
       const { wrapper, socket } = await open();
       await tabButton(wrapper, "Email")?.trigger("click");
       const input = wrapper.find<HTMLInputElement>("#pane-email .attempts-input");
