@@ -61,8 +61,12 @@ say "--version"
 say "scripts/smoke.py against the file"
 "$python" "$ROOT/scripts/smoke.py" --command "$run"
 
+# The daemons with no radio search no port: on a machine with serial devices they would listen to them all (other programs' ports, boards that reset when opened).
+NO_PORTS=/dev/neoaprs-smoke-no-such-port
+
 say "the daemon with no radio: the page answers, it ends cleanly"
 data="$work/headless"
+"$run" db --data "$data" set serial/pattern "$NO_PORTS" > /dev/null
 "$run" --data "$data" --web-port 0 > "$work/headless.out" 2>&1 &
 pids+=($!)
 wait_for "$data/neoaprs.log" "web page at http" 60 || { cat "$work/headless.out"; fail "the daemon did not log its page"; }
@@ -83,8 +87,9 @@ grep -qxF "ExecStart=$file --data $work/service-data" "$XDG_CONFIG_HOME/systemd/
 say "the desktop app (no arguments, offscreen) starts its daemon and the window, and ends at --quit"
 app_data="$work/app-data"
 "$run" db --data "$app_data" set web/port 0 > /dev/null
+"$run" db --data "$app_data" set serial/pattern "$NO_PORTS" > /dev/null
 export NEOAPRS_DATA_DIR="$app_data"
-QT_QPA_PLATFORM=offscreen "$run" > "$work/app.out" 2>&1 &
+QT_QPA_PLATFORM=offscreen QTWEBENGINE_CHROMIUM_FLAGS=--disable-gpu "$run" > "$work/app.out" 2>&1 &
 app=$!
 pids=("$app")
 wait_for "$app_data/neoaprs-app.log" "the Qt shell runs" 90 || { cat "$work/app.out"; tail -n 20 "$app_data/neoaprs-app.log" >&2 || true; fail "the app did not start its window"; }
