@@ -119,7 +119,7 @@ MESSAGE_ROW: dict[str, Any] = {"id": 3, "at": NOW, "direction": "out", "from_cal
 PACKET: dict[str, Any] = {"id": 7, "heard_at": NOW, "direction": "in", "source": "OH2RDK-7", "destination": "APRX29", "path": ["OH2RCH-2*"], "route": "via OH2RCH-2", "via": "", "kind": "position", "summary": "position 60.1650 24.9467 T&",
                           "tnc2": "OH2RDK-7>APRX29,OH2RCH-2*:!6009.90NT02456.80E&432.500 MHz", "decoded": {"type": "position", **POSITION}}
 TNC: dict[str, Any] = {"state": "connected", "problem": "", "last_error": "", "path": "/dev/brainbox_3", "baud": 9600, "describe": "/dev/brainbox_3 at 9600, KISS, 4 packets", "silent_since": None,
-                       "stats": {"opens": 1, "bytes_in": 400, "bytes_out": 18, "frames_in": 4, "packets": 4, "rejected": 0, "last_packet": NOW, "keepalive_checks": 2, "watchdog_probes": 0, "port_reopens": 1},
+                       "stats": {"opens": 1, "bytes_in": 400, "bytes_out": 18, "frames_in": 4, "packets": 4, "rejected": 0, "last_packet": NOW, "keepalive_checks": 2, "watchdog_probes": 0, "port_reopens": 1, "digipeated": 0},
                        "last_watchdog_action": "check", "last_watchdog_at": NOW, "lines": ["12:00:00  NeoAPRS: opened /dev/brainbox_3"]}
 CONFIG: dict[str, Any] = {"values": {"station/call": "OH2GBA"}, "defaults": {"station/call": "OH2GBA"}, "urls": []}
 

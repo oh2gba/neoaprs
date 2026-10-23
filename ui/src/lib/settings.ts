@@ -58,6 +58,7 @@ export const FIELDS: Record<string, FieldInfo> = {
   "map/maxzoom": { label: "Detail", kind: "choice", choices: DETAIL_CHOICES },
   "map/source": { label: "Source", empty: "latest build" },
   "update/check": { label: "Check once a day", kind: "bool", title: "Sends this version and the platform" },
+  "digi/enabled": { label: "Digipeater", kind: "bool" },
   "messages/alert": { label: "Alert", kind: "bool" },
   "messages/alert_command": { label: "Command" },
   "status/rigctld": { label: "Rigctld", empty: "off", title: "host:port" },
@@ -95,6 +96,7 @@ const GROUPS: { id: string; title: string; prefixes: string[]; also?: string[]; 
   { id: "notifications", title: "Notifications", prefixes: [], also: ALERT },
   { id: "map", title: "Map", prefixes: ["map/"] },
   { id: "update", title: "Update check", prefixes: ["update/"] },
+  { id: "digi", title: "Digipeater", prefixes: ["digi/"] },
   { id: "beacon", title: "Beacon", prefixes: ["beacon/"], except: ANTENNA },
   { id: "status", title: "Status", prefixes: ["status/"] },
 ];
@@ -103,7 +105,7 @@ const GROUPS: { id: string; title: string; prefixes: string[]; also?: string[]; 
 export type Scope = "settings" | "beacon";
 const SCOPE_GROUPS: Record<Scope, readonly string[]> = {
   beacon: ["station", "beacon", "status"],
-  settings: ["serial", "web", "log", "notifications", "map", "update"],
+  settings: ["serial", "digi", "web", "log", "notifications", "map", "update"],
 };
 
 /** The order of the TNC group on the page: the port and its speed, the keep-alive, then the search (which the port falls back to). */

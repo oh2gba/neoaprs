@@ -31,6 +31,7 @@ class TncStats(Stats):
     keepalive_checks: int = 0
     watchdog_probes: int = 0
     port_reopens: int = 0
+    digipeated: int = 0        # frames the fill-in digipeater (services/digipeater.py) sent again
 
 
 class Watched(Protocol):

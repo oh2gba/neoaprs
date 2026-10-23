@@ -21,6 +21,7 @@ describe("TncPanel", () => {
     expect(text).toContain("12 received, 1 rejected");
     expect(text).toContain("30 s ago");
     expect(text).toContain("0 checks, 0 probes, 0 reopens");
+    expect(text).toContain("Digipeated0");
     expect(text).toContain("NeoAPRS: opened /dev/brainbox_3");
   });
 

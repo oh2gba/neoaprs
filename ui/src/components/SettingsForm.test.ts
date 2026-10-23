@@ -23,7 +23,7 @@ const portList = (extra: Partial<PortsMessage> = {}): PortsMessage => ({
 describe("SettingsForm", () => {
   it("has a field for every key of the Settings tab, in groups, and none of the beacon's", () => {
     const { wrapper } = make();
-    expect(wrapper.findAll("fieldset legend").map((l) => l.text())).toEqual(["TNC", "Web page", "Log", "Notifications", "Map", "Update check"]);
+    expect(wrapper.findAll("fieldset legend").map((l) => l.text())).toEqual(["TNC", "Digipeater", "Web page", "Log", "Notifications", "Map", "Update check"]);
     expect(wrapper.findAll(".field")).toHaveLength(
       CONFIG_KEYS.filter(
         (k) =>
@@ -400,6 +400,28 @@ describe("SettingsForm", () => {
     });
   });
 
+  describe("the Digipeater group", () => {
+    const group = (wrapper: ReturnType<typeof make>["wrapper"]) => wrapper.findAll("fieldset").find((f) => f.find("legend").text() === "Digipeater");
+
+    it("is one yes/no field, no by default, with an (i) that says what it does", async () => {
+      const { wrapper } = make();
+      expect(group(wrapper)?.findAll(".field")).toHaveLength(1);
+      const select = group(wrapper)?.find("select");
+      expect(group(wrapper)?.find("label").text()).toBe("Digipeater");
+      expect((select?.element as HTMLSelectElement).value).toBe("false");
+      expect(group(wrapper)?.find(".info-text").exists()).toBe(false);
+      await group(wrapper)?.find(".info-toggle").trigger("click");
+      expect(group(wrapper)?.find(".info-text").text()).toContain("WIDE1-1");
+    });
+
+    it("saves digi/enabled when it is switched on", async () => {
+      const { wrapper, send } = make();
+      await group(wrapper)?.find("select").setValue("true");
+      await wrapper.find("form").trigger("submit");
+      expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "digi/enabled": "true" } });
+    });
+  });
+
   describe("the Check now button of the update check", () => {
     const check = (wrapper: ReturnType<typeof make>["wrapper"]) => wrapper.findAll(".field button").find((b) => b.text() === "Check now");
     const answer = (extra: object) => ({ type: "update_result" as const, outcome: "current" as const, version: "0.3.0", text: "", ...extra });
@@ -449,10 +471,10 @@ describe("SettingsForm", () => {
     const result = (wrapper: ReturnType<typeof make>["wrapper"]) =>
       wrapper.find("#set-messages-alert_command").element.closest(".field")?.querySelector(".field-result");
 
-    it("is right of the alert command, and of no other field but the update check's, and not in the Beacon tab", () => {
+    it("is right of the alert command, and of no other field but the update check's and the (i) of the digipeater, and not in the Beacon tab", () => {
       const { wrapper } = make();
       expect(button(wrapper)?.textContent?.trim()).toBe("Test");
-      expect(wrapper.findAll(".field button").map((b) => b.text())).toEqual(["Refresh", "Test", "Check now"]);
+      expect(wrapper.findAll(".field button").map((b) => b.text())).toEqual(["Refresh", "i", "Test", "Check now"]); // (the i is the Digipeater's)
       expect(
         make({}, "beacon")
           .wrapper.findAll(".field button")

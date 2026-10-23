@@ -15,7 +15,7 @@ def test_the_defaults_are_the_ones_of_the_brief() -> None:
         "beacon/path": "WIDE1-1,WIDE2-1", "beacon/destination": "APZNEO", "beacon/compressed": "false", "beacon/dao": "false",
         "messages/alert": "true", "messages/alert_command": DEFAULT_ALERT_COMMAND, "status/rigctld": "", "status/interval_min": "30", "status/template": "QRV {freq} {mode}",
         "map/hide_after_min": "180", "map/radius_km": "150", "map/maxzoom": "12", "map/source": "",
-        "update/check": "true", "update/url": "https://oh2gba.eu/neoaprs/version.php"}
+        "update/check": "true", "update/url": "https://oh2gba.eu/neoaprs/version.php", "digi/enabled": "false"}
     assert Config() == DEFAULTS
 
 
@@ -277,6 +277,12 @@ def test_the_update_check_is_on_and_asks_the_page_of_the_project_unless_the_sett
     c = Config.from_data({"update/check": "off", "update/url": " http://127.0.0.1:8000/version.php "})
     assert (c.update_check, c.update_url) == (False, "http://127.0.0.1:8000/version.php")
     assert Config.check("update/check", "No") == "false" and Config.check("update/url", "https://example.org/v.php?a=1") == "https://example.org/v.php?a=1"
+
+
+def test_the_digipeater_is_off_unless_the_setting_says_it_is_on() -> None:
+    assert DEFAULTS.digi_enabled is False and Config.from_data({"station/call": "OH2GBA"}).digi_enabled is False, "a database from before the setting has none"
+    assert Config.from_data({"digi/enabled": "yes"}).digi_enabled is True and Config.check("digi/enabled", "On") == "true"
+    assert Config.from_data({"digi/enabled": "perhaps"}).digi_enabled is False
 
 
 def test_the_attempts_setting_of_an_older_version_is_not_a_setting_and_is_left_alone() -> None:

@@ -760,6 +760,7 @@ What the TNC has counted since the daemon started.
 | `keepalive_checks` | integer |  | times the keep-alive checked that the radio is there (after `tnc/check_sec` of nothing heard) (>= 0) |
 | `watchdog_probes` | integer |  | times the watchdog probed a silent radio (the same sequence as a check, every 30 seconds) (>= 0) |
 | `port_reopens` | integer |  | times the port was closed and opened again (every 5th probe of a silent radio) (>= 0) |
+| `digipeated` | integer |  | frames the digipeater (`digi/enabled`) sent again for other stations (>= 0) |
 
 ### ConfigValues
 
