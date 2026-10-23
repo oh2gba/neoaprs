@@ -1,0 +1,32 @@
+# The project page (https://oh2gba.github.io/neoaprs/): the folder site/ as it is, plain files with nothing to build. A push to master that touches site/ (or this file) publishes it; run by hand it publishes the
+# current master. Pages is switched on in the repository's settings (Pages, Source: GitHub Actions), which this workflow does not do. The page and its screenshots: docs/MANUAL.md, "The project page".
+name: pages
+
+on:
+  push:
+    branches: [master]
+    paths: ["site/**", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4

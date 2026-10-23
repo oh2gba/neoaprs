@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Draws the icon of the desktop app: neoaprs/desktop/icon.png (64x64, the tray) and icon.ico (16 to 256 px, the Windows executable, the shortcuts and the tray there). A map pin (the station) with two arcs of
-radio waves on each side, on a dark rounded square. The two files are committed; this script is how they were made and how to change them. It needs Pillow, which the app's extra has on Windows only:
-    uv run --with Pillow scripts/make-icon.py [--out DIR]
+radio waves on each side, on a dark rounded square. The two files are committed; this script is how they were made and how to change them. `--site` writes the icons of the project page (site/favicon.ico and
+site/apple-touch-icon.png) as well; its site/favicon.svg is the same drawing by hand. It needs Pillow, which the app's extra has on Windows only:
+    uv run --with Pillow scripts/make-icon.py [--out DIR] [--site]
 """
 import argparse
 from pathlib import Path
@@ -34,12 +35,19 @@ def draw(size: int):                         # -> PIL.Image.Image (Pillow is imp
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--out", default=str(Path(__file__).resolve().parent.parent / "neoaprs" / "desktop"), help="the folder to write icon.png and icon.ico into; default %(default)s")
+    parser.add_argument("--site", action="store_true", help="also write site/favicon.ico and site/apple-touch-icon.png (180 px)")
     args = parser.parse_args()
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     draw(64).save(out / "icon.png")
     draw(256).save(out / "icon.ico", sizes=[(s, s) for s in SIZES])
     print(f"wrote {out / 'icon.png'} and {out / 'icon.ico'}")
+    if args.site:
+        site = Path(__file__).resolve().parent.parent / "site"
+        site.mkdir(exist_ok=True)
+        draw(256).save(site / "favicon.ico", sizes=[(s, s) for s in (16, 32, 48)])
+        draw(180).save(site / "apple-touch-icon.png")
+        print(f"wrote {site / 'favicon.ico'} and {site / 'apple-touch-icon.png'}")
     return 0
 
 
