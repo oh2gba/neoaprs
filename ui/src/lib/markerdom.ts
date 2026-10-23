@@ -1,5 +1,5 @@
 // The marker of a station on the map as DOM nodes (the call is text, never markup): the APRS symbol as sprite layers, the call under it, classes for our own station and our own objects, the selected one and
-// how dim it is and a ring for a station heard direct within the hour. The map (components/StationMap.vue) puts the element at the station's position; styles are in style.css.
+// how dim it is and a ring for a station heard direct within the hour. The map (components/StationMap.vue) puts the element at the station's position; styles are in ui/src/styles/map.css.
 import type { StationRow } from "@/protocol/protocol";
 import { MARKER_STEPS } from "@/lib/aging";
 import { layerStyle, symbolLayers } from "@/lib/symbols";

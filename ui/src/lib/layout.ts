@@ -1,5 +1,5 @@
 // The page's layout numbers: the tabs of the panel, how wide the panel may be, and the three sizes of the page (phone, tablet, desktop) with how many station cards fit on the map at each. The sizes are decided here, once, from the window
-// (composables/useViewport.ts), and the page marks its root with the one it is (`size-phone`, ...): style.css uses that class and not media queries of its own, so that the script and the style never disagree.
+// (composables/useViewport.ts), and the page marks its root with the one it is (`size-phone`, ...): the style sheets of ui/src/styles/ use that class and not media queries of their own, so that the script and the style never disagree.
 
 export const TAB_IDS = ["messages", "stations", "email", "bulletins", "objects", "beacon", "packets", "settings"] as const; // by importance: what a person comes for first, the raw packets and the settings last
 export type TabId = (typeof TAB_IDS)[number];
@@ -34,7 +34,7 @@ export const PANEL_STORED_MAX = 20000;
 
 /**
  * How wide the Messages tab must be (the tab itself, not the window: the panel beside the map can be narrow on a wide screen) to show the list of conversations beside the open conversation.
- * 600 px is a list of 240 px, the divider and a conversation of 359 px, which holds the compose row (call, Stations, "12 left") and bubbles that can still be read; narrower, one of the two at a time.
+ * 600 px is a list of 240 px, the divider and a conversation of 359 px, which holds the compose row (the text, "67 left" and Send) and bubbles that can still be read; narrower, one of the two at a time.
  */
 export const MESSAGES_WIDE = 600;
 
@@ -68,6 +68,6 @@ export function cardCapacity(size: SizeClass): number {
   return size === "phone" ? 1 : size === "tablet" ? 2 : 4;
 }
 
-/** What the row of cards leaves free of the map's width (`.cardstack` in responsive.css: 10 px at each side), and the gap between two cards. */
+/** What the row of cards leaves free of the map's width (`.cardstack` in ui/src/styles/responsive.css: 10 px at each side), and the gap between two cards. */
 export const CARDS_FREE_SIDE = 20;
 export const CARD_GAP = 8;

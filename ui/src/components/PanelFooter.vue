@@ -2,7 +2,7 @@
 // The one small line under the panel (not under the map; on a phone under the open tab, not on the map's turn): at the left the version of NeoAPRS and, when the update check has found a newer one, "Update to 0.6.1", a button that opens the panel with the steps to it
 // (UpdatePanel), the project's note as its title; at the right the state of the radio, only when it is NOT ok, in the warning colour (red for "Daemon offline"), a button that opens the Settings tab, where the radio is: "Radio: searching…", "Radio: entering KISS…",
 // "Radio: not connected" (the TNC waits between two tries, or is stopped, its problem the title), "Radio: silent" (the line is open and the radio does not answer, the title says since when), "Connecting…" (the page's socket is being opened), "Daemon offline" (it is down).
-// When the radio is fine the line says nothing of it. The line has the same height all the time (style.css), so nothing moves when the message comes or goes. What the daemon costs the machine (the CPU share, the memory, the uptime) is the title of the version.
+// When the radio is fine the line says nothing of it. The line has the same height all the time (ui/src/styles/base.css), so nothing moves when the message comes or goes. What the daemon costs the machine (the CPU share, the memory, the uptime) is the title of the version.
 import { computed } from "vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { processText, silentText } from "@/lib/format";
