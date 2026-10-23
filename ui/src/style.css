@@ -1184,7 +1184,30 @@ tbody tr:focus-visible {
   justify-content: flex-end;
 }
 .convo .compose {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
   background: var(--panel);
+}
+.convo .compose .compose-left {
+  margin-left: 0;
+}
+.group-head {
+  align-items: flex-start;
+  min-height: 48px;
+}
+.group-head .recipients {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 0;
+}
+.group-head .convo-back {
+  align-self: center;
+}
+.group-room {
+  flex: 1;
+  min-height: 0;
+  background: var(--bg);
 }
 .convo-empty {
   display: flex;
@@ -1393,13 +1416,6 @@ tbody tr:focus-visible {
   align-items: center;
   gap: 8px;
 }
-.compose-to {
-  width: 9em;
-  text-transform: uppercase;
-}
-.compose-to::placeholder {
-  text-transform: none;
-}
 .compose-left {
   margin-left: auto;
   color: var(--muted);
@@ -1415,25 +1431,6 @@ tbody tr:focus-visible {
   margin: 0;
   padding: 0;
   list-style: none;
-}
-.picker {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.picker-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(8.5em, 1fr));
-  gap: 2px 8px;
-  max-height: 9em;
-  margin: 0;
-  padding: 0;
-  overflow-y: auto;
-  list-style: none;
-}
-.picker-list .empty {
-  grid-column: 1 / -1;
-  padding: 4px;
 }
 .infotip {
   position: relative;

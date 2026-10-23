@@ -40,6 +40,10 @@ async function page(size: number, ...rows: MessageRow[]) {
             showOverheard: false,
             paths: new Map(),
             fallbackPath: "WIDE1-1",
+            group: view.group.value,
+            "onUpdate:group": (calls: string[] | null) => (view.group.value = calls),
+            onSend: view.sendMessage,
+            onSendMany: view.sendMessages,
             onSelect: (call: string | null) => (view.selected.value = call),
             onDeleteConversation: view.deleteConversation,
           });
@@ -98,7 +102,7 @@ describe.each([
     await flushPromises();
     expect(panel.tab.value).toBe("messages");
     expect(wrapper.find(".convo-title").text()).toBe("OH2XYZ");
-    expect(wrapper.find<HTMLInputElement>("#msg-to").element.value).toBe("OH2XYZ");
+    expect(wrapper.find("#msg-to").exists()).toBe(false);
     expect(view.unread.value).toBe(1);
   });
 
@@ -166,6 +170,18 @@ describe("the messages not seen, narrow only", () => {
 });
 
 describe("the messages not seen, wide only", () => {
+  it("deselects the conversation on Esc, and then counts a message that comes in as not seen", async () => {
+    const { wrapper, view, messages } = await page(MESSAGES_WIDE + 120, ...rows);
+    await wrapper.find(".conv[data-call='OH2RDG']").trigger("click");
+    await wrapper.find(".convo").trigger("keydown", { key: "Escape" });
+    await flushPromises();
+    expect(view.selected.value).toBeNull();
+    expect(wrapper.find(".convo-empty").exists()).toBe(true);
+    messages.set("4", incoming(4, "OH2RDG"));
+    await flushPromises();
+    expect(view.unread.value).toBe(3);
+  });
+
   it("shows the empty state again when the open conversation is deleted", async () => {
     const { wrapper, view } = await page(MESSAGES_WIDE + 120, ...rows);
     await wrapper.find(".conv[data-call='OH2XYZ']").trigger("click");
@@ -185,5 +201,53 @@ describe("the messages not seen, wide only", () => {
     messages.set("5", incoming(5, "OH2RDG"));
     await flushPromises();
     expect(view.unread.value).toBe(2);
+  });
+});
+
+describe.each([
+  ["wide", MESSAGES_WIDE + 120],
+  ["narrow", MESSAGES_WIDE - 120],
+])("the group compose, %s", (_name, size) => {
+  it("is opened by the page for a list of calls, counts nothing as seen while it is open, and closes with Esc", async () => {
+    const { wrapper, view, panel } = await page(size, ...rows);
+    panel.tab.value = "stations";
+    view.openGroup(["OH2AAA", "OH2BBB", "OH2CCC"]);
+    await flushPromises();
+    expect(panel.tab.value).toBe("messages");
+    expect(wrapper.find(".group .compose button[type='submit']").text()).toBe("Send to 3");
+    expect(view.unread.value).toBe(3);
+    await wrapper.find(".group").trigger("keydown", { key: "Escape" });
+    await flushPromises();
+    expect(view.group.value).toBeNull();
+    expect(wrapper.find(".group").exists()).toBe(false);
+  });
+
+  it("sends a message to each recipient, closes, and opens no conversation", async () => {
+    const { wrapper, view, send } = await page(size, ...rows);
+    view.openGroup(["OH2AAA", "OH2BBB", "OH2CCC"]);
+    await flushPromises();
+    await wrapper.findAll(".group .chip")[2]?.trigger("click");
+    await wrapper.find("#msg-text").setValue("Net at 20:00");
+    await wrapper.find(".group form").trigger("submit");
+    await flushPromises();
+    expect(send.mock.calls.map(([c]) => c)).toEqual([
+      { cmd: "send_message", to: "OH2AAA", text: "Net at 20:00" },
+      { cmd: "send_message", to: "OH2BBB", text: "Net at 20:00" },
+    ]);
+    expect(view.group.value).toBeNull();
+    expect(view.selected.value).toBeNull();
+    expect(wrapper.find(".group").exists()).toBe(false);
+    expect(wrapper.find(".convo").exists()).toBe(false);
+  });
+
+  it("is closed by a conversation picked from the list (wide), and its text stays out of the conversation's box", async () => {
+    const { wrapper, view } = await page(size, ...rows);
+    view.openGroup(["OH2AAA", "OH2BBB"]);
+    await flushPromises();
+    await wrapper.find("#msg-text").setValue("for the group");
+    view.writeTo("OH2XYZ");
+    await flushPromises();
+    expect(view.group.value).toBeNull();
+    expect(wrapper.find<HTMLInputElement>("#msg-text").element.value).toBe("");
   });
 });

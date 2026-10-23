@@ -79,6 +79,64 @@ describe("useMessagesView", () => {
     expect(view.selected.value).toBe("OH2XYZ");
   });
 
+  describe("the group compose", () => {
+    it("opens the Messages tab, unfolded, on the group of calls, and leaves the open conversation", () => {
+      const { panel, view } = setUp();
+      panel.collapsed.value = true;
+      panel.tab.value = "stations";
+      view.selected.value = "OH2XYZ";
+      view.openGroup(["OH2AAA", "OH2BBB", "OH2CCC"]);
+      expect(view.group.value).toEqual(["OH2AAA", "OH2BBB", "OH2CCC"]);
+      expect([view.selected.value, panel.tab.value, panel.collapsed.value]).toEqual([null, "messages", false]);
+    });
+
+    it("writes the calls in capitals and leaves out what is no call, the email gateway and a call that is there already", () => {
+      const { view } = setUp();
+      view.openGroup(["oh2aaa", "not a call", "EMAIL-2", "OH2AAA", " oh2bbb-9 "]);
+      expect(view.group.value).toEqual(["OH2AAA", "OH2BBB-9"]);
+    });
+
+    it("opens nothing for a list with no call to write to, and the tab stays as it was", () => {
+      const { panel, view } = setUp();
+      panel.tab.value = "stations";
+      view.openGroup([]);
+      view.openGroup(["EMAIL-2", "not a call"]);
+      expect(view.group.value).toBeNull();
+      expect(panel.tab.value).toBe("stations");
+    });
+
+    it("takes the place of an open group, and gives way to a conversation that is opened", async () => {
+      const { view } = setUp();
+      view.openGroup(["OH2AAA", "OH2BBB"]);
+      view.openGroup(["OH2CCC"]);
+      expect(view.group.value).toEqual(["OH2CCC"]);
+      view.writeTo("OH2RDG");
+      await nextTick();
+      expect(view.selected.value).toBe("OH2RDG");
+      expect(view.group.value).toBeNull();
+    });
+
+    it("gives way to the conversation the mail in the header opens", async () => {
+      const { view } = setUp(incoming(1, "OH2RDG"));
+      view.openGroup(["OH2AAA", "OH2BBB"]);
+      view.openMessages();
+      await nextTick();
+      expect(view.selected.value).toBe("OH2RDG");
+      expect(view.group.value).toBeNull();
+    });
+
+    it("sends a message to each recipient, exactly as one by one, and opens no conversation", () => {
+      const { send, view } = setUp();
+      view.openGroup(["OH2AAA", "OH2BBB"]);
+      view.sendMessages(["OH2AAA", "OH2BBB"], "Net at 20:00");
+      expect(send.mock.calls.map(([c]) => c)).toEqual([
+        { cmd: "send_message", to: "OH2AAA", text: "Net at 20:00" },
+        { cmd: "send_message", to: "OH2BBB", text: "Net at 20:00" },
+      ]);
+      expect(view.selected.value).toBeNull();
+    });
+  });
+
   it("deletes an overheard pair with its two calls, and closes its thread if it was open", () => {
     const { send, view } = setUp();
     view.selected.value = "OH2AAA>OH2BBB";

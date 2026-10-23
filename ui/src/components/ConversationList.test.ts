@@ -29,11 +29,11 @@ describe("ConversationList", () => {
     expect(items[1]?.find(".badge").exists()).toBe(true);
   });
 
-  it("has New message at the top, before the rows, and says so", async () => {
+  it("has no New message button: a chat starts from a station, and the (i) of Show overheard is the only thing at the top", () => {
     const wrapper = list();
-    expect(wrapper.find(".convlist-head .new-message").text()).toBe("New message");
-    await wrapper.find(".new-message").trigger("click");
-    expect(wrapper.emitted("newMessage")).toHaveLength(1);
+    expect(wrapper.text()).not.toContain("New message");
+    expect(wrapper.findAll(".convlist-head button").map((b) => b.classes())).toEqual([["info-toggle"]]);
+    expect(wrapper.find(".convlist-head .info-toggle").exists()).toBe(true);
   });
 
   it("marks the selected row, and only that one", () => {
