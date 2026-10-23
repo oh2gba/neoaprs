@@ -122,7 +122,7 @@ def test_every_document_a_document_names_is_there() -> None:
     assert not gone, f"documents name files that are not there: {gone}"
 
 
-# ---- the scripts and the units: one line for each, in the manual and the README of the systemd folder ----
+# ---- the scripts and the units: one line for each, in the development guide and the README of the systemd folder ----
 
 def table_rows(text: str, heading: str) -> list[str]:
     """The table rows (`| ... |`) between a heading line that starts with `heading` and the next heading."""
@@ -130,13 +130,13 @@ def table_rows(text: str, heading: str) -> list[str]:
     return [line for line in section.splitlines() if line.startswith("| `")]
 
 
-def test_every_script_has_a_line_in_the_table_of_scripts_in_the_manual_and_the_table_names_no_script_that_is_gone() -> None:
-    rows = table_rows((ROOT / "docs" / "MANUAL.md").read_text(encoding="utf-8"), "### Scripts")
+def test_every_script_has_a_line_in_the_table_of_scripts_in_the_development_guide_and_the_table_names_no_script_that_is_gone() -> None:
+    rows = table_rows((ROOT / "docs" / "development.md").read_text(encoding="utf-8"), "## Scripts")
     assert len(rows) >= 3
     named = {n: row for row in rows for n in re.findall(r"`scripts/([\w.-]+)`", row.split("|")[1])}
     files = {p.name for p in script_files()}
-    assert not files - set(named), f"scripts without a line in docs/MANUAL.md, 'Scripts': {sorted(files - set(named))}"
-    assert not set(named) - files, f"docs/MANUAL.md, 'Scripts' names scripts that are gone: {sorted(set(named) - files)}"
+    assert not files - set(named), f"scripts without a line in docs/development.md, 'Scripts': {sorted(files - set(named))}"
+    assert not set(named) - files, f"docs/development.md, 'Scripts' names scripts that are gone: {sorted(set(named) - files)}"
     thin = [n for n, row in named.items() if len(row.split("|")[2].strip()) < 25]
     assert not thin, f"a line that does not say what the script is for: {thin}"
 
