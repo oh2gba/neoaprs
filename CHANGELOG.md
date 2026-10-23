@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.3.0
+
+Alerts in the browser, for a NeoAPRS that runs on another computer, and a Notifications group in the settings.
+
 - `neoaprs doctor` warns when Firefox is a Flatpak on KDE and its web pop-ups can go missing (the desktop portal accepts them and shows none), and prints the two `flatpak override` commands that cure it. It reads the overrides and changes nothing.
 - Alerts in the page: a message to us now alerts in the browser the page is open in, which is what a NeoAPRS on a Raspberry Pi needs (the alert command runs on the Pi). A notification where the browser allows one (click it to open the conversation), else a short chime and an alert in the browser tab (the title alternates with "✉ CALL" and the icon gets a dot while the page is in the background). Once for each new message, none for a bulletin, an overheard or an own message, or when the page reconnects. The Settings tab has a group Notifications for everything about being alerted: the daemon's own alert (Alert and Command, with its Test button) under "On the NeoAPRS computer", and under "In this browser" one choice, "Alert for a new message" (off, sound, sound and pop-up, pop-up only; sound and pop-up in a page opened from another device where the browser allows pop-ups, off on the computer itself, where the alert command already notifies), kept in the browser, with Test sound and Test pop-up that each say what happened (played, pop-up sent, pop-up blocked, sound locked: click the page once). A pop-up option is disabled, with the reason, where the browser cannot show one, and the permission is asked only when one is chosen. The manual says what to do when pop-ups do not appear. The manual tells how to let the browser show notifications for an address on the network, and how to push the alert to a phone with ntfy when no page is open.
 
