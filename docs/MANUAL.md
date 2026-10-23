@@ -395,7 +395,7 @@ uv run --with playwright --with pillow python scripts/screenshots.py --chromium 
 | `dup` | jscpd over `ui/src`: duplicated code over the threshold of `ui/.jscpd.json` fails |
 | `dup-py` | `scripts/dup-check`: the duplication ratchet of the Python half, jscpd over `neoaprs/` and `tests/support/` against `scripts/dup-baseline.json` (`docs/ARCHITECTURE.md`) |
 
-The stages from `ui-types` on need node (on the `PATH`, else the newest in `~/.nvm`) and `ui/node_modules` (`npm ci` makes it when it is missing).
+The stages from `ui-types` on need node 22.12 or newer (on the `PATH`, else the newest in `~/.nvm`) and `ui/node_modules` (`npm ci` makes it when it is missing).
 
 ### Scripts
 

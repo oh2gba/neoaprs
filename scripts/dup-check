@@ -5,7 +5,7 @@
 #   scripts/dup-check              check
 #   scripts/dup-check --update     write the baseline from today's clones (refuses to make it larger; only to tighten it after you removed a clone)
 #
-# jscpd is the one pinned in ui/package.json (3.5.10): the baseline is what THIS version finds. NEOAPRS_JSCPD overrides the command (the tests use it). Node is the one on the PATH, else
+# jscpd is the one pinned in ui/package.json (5.4.2): the baseline is what THIS version finds. NEOAPRS_JSCPD overrides the command (the tests use it). Node (22.12 or newer) is the one on the PATH, else
 # the newest in ~/.nvm, as scripts/check finds it. Python: NEOAPRS_PYTHON, else the uv venv (.venv), like scripts/check.
 set -euo pipefail
 
@@ -29,11 +29,11 @@ fi
 # the jscpd of ui/node_modules (pinned in ui/package-lock.json, installed by `npm ci`, no network) is the one the baseline is made with; without it npx fetches the same pinned version
 if [ -n "${NEOAPRS_JSCPD:-}" ]; then jscpd="$NEOAPRS_JSCPD"
 else
-    if ! command -v node >/dev/null; then
+    if ! { command -v node >/dev/null && node -e 'const [a, b] = process.versions.node.split(".").map(Number); process.exit(a > 22 || (a === 22 && b >= 12) ? 0 : 1)'; }; then
         newest="$(ls -d "$HOME"/.nvm/versions/node/v*/bin 2>/dev/null | sort -V | tail -n 1 || true)"
         [ -n "$newest" ] && PATH="$newest:$PATH"
     fi
-    if [ -x ui/node_modules/.bin/jscpd ]; then jscpd="$root/ui/node_modules/.bin/jscpd"; else jscpd="npx --yes jscpd@3.5.10"; fi
+    if [ -x ui/node_modules/.bin/jscpd ]; then jscpd="$root/ui/node_modules/.bin/jscpd"; else jscpd="npx --yes jscpd@5.4.2"; fi
 fi
 paths=(neoaprs tests/support)
 
@@ -41,7 +41,7 @@ out="$(mktemp -d)"
 trap 'rm -rf "$out"' EXIT
 
 # shellcheck disable=SC2086   # $jscpd is a command with arguments on purpose
-if ! $jscpd "${paths[@]}" --min-lines 10 --min-tokens 100 --ignore "**/__pycache__/**,**/page/**" --reporters json --output "$out" --silent >"$out/log" 2>&1 \
+if ! $jscpd "${paths[@]}" --min-lines 10 --min-tokens 100 --ignore "**/__pycache__/**,**/page/**" --absolute --reporters json --output "$out" --silent >"$out/log" 2>&1 \
     || [ ! -f "$out/jscpd-report.json" ]; then
     cat "$out/log"
     echo "dup-check: jscpd did not produce a report (is node installed, and is ui/node_modules there or the npm registry reachable?)" >&2
