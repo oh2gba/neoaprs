@@ -17,7 +17,7 @@ The graphs are drawn by the page in its own colours. The page asks for them when
 
 While two or more weather cards are open, every graph is on the same value axis and time span, so the stations can be compared ([page.md](page.md#several-cards)).
 
-The **Stations table** has a `wx` column with the temperature of a weather station (sortable; the title says how long ago). The marker of a weather station keeps its symbol and has the temperature in its tooltip.
+On the map, a weather station keeps its symbol, and the small card that appears when the pointer rests on its marker shows its temperature.
 
 ## What is kept
 

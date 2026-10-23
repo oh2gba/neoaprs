@@ -94,6 +94,15 @@ Resize the panel and the layout follows, with the same conversation open.
 - **Esc** deselects the open conversation, on a wide tab as on a narrow one. The Route box, if it is open, takes the first Esc. A text box with text in it keeps the text and the conversation; with it empty, Esc goes through.
 - The **trash can** on a row deletes the whole conversation after two clicks ("sure?" for 5 seconds). On an overheard pair it deletes every overheard message of the pair. A single message has no delete button.
 
+### The chain of a message
+
+Under a message of yours the thread shows the digipeaters its latest attempt went by, as a chain: `you → OH2RCH-2 → OH2RDG → OH2CUB-7`. The line above it already says which attempt it is ("attempt 3 of 4"), so only the latest attempt's chain is shown.
+
+- A copy of your message that the radio hears again (also one an iGate gated back) is linked to the attempt it belongs to, and each hop of the path that a copy was heard with is marked as used. A hop that is used implies the hops before it, so `OH2RCH-2,OH2RDG*` shows both.
+- A hop heard is green with a check. A hop not heard is grey with a `?`; its title says "beyond what this station can hear" when that digipeater was never heard direct. A hop seen only in a copy gated back from the internet is blue with `internet`.
+- The recipient at the end is green on the ack, red on failure and grey while the message waits.
+- Acks and copies of other messages are not linked. The chain goes with the message when it or its conversation is deleted, and a retry starts a new chain.
+
 ### One text to several stations
 
 Press Ctrl+click (Cmd+click on a Mac) on several stations, then **Message these 3** on the map. The Messages tab opens a **group compose** in place of a conversation. A call that is not a call, `EMAIL-2` or a repeat is left out.
@@ -135,7 +144,7 @@ For each station NeoAPRS counts how many of its packets came direct and how many
 - When the best route has an anonymous hop there is no call to name, and the suggestion is the general `WIDE1-1,WIDE2-1`; the card says "unknown repeater".
 - No route is known for an object or an item, for your own station and for a station none of whose packets are left.
 
-**Heard direct.** NeoAPRS also keeps when each station last came direct: the time of its latest packet with no repeated address in its path (not a third-party packet). A station heard direct in the last hour has a green ring on the map and a green check mark after its call in the Stations table and on its card. The share of a station's packets that came direct is counted over the packets counted for the station (direct, by a digipeater, from the internet).
+**Heard direct.** NeoAPRS also keeps when each station last came direct: the time of its latest packet with no repeated address in its path (not a third-party packet). A station heard direct in the last hour has a green ring on the map. A station heard direct has a green check mark after its call in the Stations table and on its card. The share of a station's packets that came direct is counted over the packets counted for the station (direct, by a digipeater, from the internet).
 
 ### Packets from the internet
 

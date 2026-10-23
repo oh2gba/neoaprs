@@ -8,7 +8,7 @@ The page has a **map** of the area round your station and, at its right, a **pan
 
 - The tabs are in one row when they fit the width the panel has. This is measured, not a breakpoint, because the panel beside the map can be narrow on a wide screen. The tab on show is not bold or wider, so none moves when you switch.
 - When they do not fit, the bar is one button, **☰ Messages** (the name of the open tab, with the number of everything that has a badge: messages and mail not seen, and new bulletins). It opens a menu of all the tabs in their order, each with its badge and the open one marked. A pick closes the menu, and so do Esc and a click outside. The arrow keys, Home and End move in it. The bar is as high in both forms, and on a phone the **Map** button stays beside it.
-- The panel can be folded away and dragged to another width (from 280 px up to 80 % of the window, the map keeping at least 360 px, so on a narrow window the most is less). A remembered width that is too much for the window is shown clamped. Under 800 px of page the panel goes under the map.
+- The panel can be folded away and dragged to another width (from 280 px up to 80 % of the window, the map keeping at least 360 px, so on a narrow window the most is less). A remembered width that is too much for the window is shown clamped.
 
 | tab | what it is |
 |---|---|
@@ -27,7 +27,6 @@ The table has the symbol, the call, the distance from you, the bearing as a smal
 
 - The columns Call, km and Last heard sort on a click. Your own station is on top.
 - A green check mark after a call means the station was heard direct ("Heard direct", also on its card).
-- A `wx` column has the temperature of a weather station.
 - The filter box has three tickboxes that wrap onto a second line when they do not fit: "with position only", "hide timed out" and "direct only" (stations heard direct at some time). The last two are remembered.
 - A click on a row flies the map to the station and shows its card, with the marker above the card and not under it.
 - A station past its timeout is dim, listed last, with "timed out" after the time it was heard.

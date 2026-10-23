@@ -267,16 +267,21 @@ def test_the_contents_of_the_manual_list_every_file_of_it() -> None:
     assert listed == set(operator_docs()) - {"README.md"}
 
 
-def test_the_links_between_the_files_of_the_manual_go_to_headings_that_are_there() -> None:
-    def anchors(text: str) -> set[str]:
-        return {re.sub(r"[^\w -]", "", h.lower()).replace(" ", "-") for h in re.findall(r"^#+ (.+)$", text, re.M)}
-    docs = operator_docs()
+def heading_anchors(text: str) -> set[str]:
+    """The anchors GitHub makes of the headings of a Markdown text (outside code blocks): lower case, punctuation gone, blanks to hyphens."""
+    outside_code = re.sub(r"```.*?```", "", text, flags=re.S)
+    return {re.sub(r"[^\w -]", "", h.replace("`", "").lower()).replace(" ", "-") for h in re.findall(r"^#+ (.+)$", outside_code, re.M)}
+
+
+def test_a_link_to_a_heading_of_a_document_goes_to_a_heading_that_is_there() -> None:
     broken = []
-    for name, text in docs.items():
-        for target, anchor in re.findall(r"\]\(([\w-]+\.md)?#([\w-]+)\)", text):
-            where = target or name
-            if where not in docs or anchor not in anchors(docs[where]):
-                broken.append(f"{name}: {target}#{anchor}")
+    for rel in current_docs():
+        base = (ROOT / rel).parent
+        text = (ROOT / rel).read_text(encoding="utf-8")
+        for target, anchor in re.findall(r"\]\(([^)\s#]+\.md)?#([\w-]+)\)", text):
+            where = (base / target).resolve() if target else ROOT / rel
+            if not where.is_file() or anchor not in heading_anchors(where.read_text(encoding="utf-8")):
+                broken.append(f"{rel}: {target}#{anchor}")
     assert not broken, broken
 
 

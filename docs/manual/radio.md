@@ -9,7 +9,7 @@ The radio's port is the setting `serial/port`. In the Settings tab, in the TNC g
 | port | what it is |
 |---|---|
 | a serial port | `/dev/ttyUSB0`, `/dev/brainbox_3`, `COM3` or a macOS `/dev/cu.*` port |
-| `socket://host:port` | KISS over TCP (`tcp://host:port` is accepted too). Direwolf serves KISS on `socket://127.0.0.1:8001`, the sound-card modems of UZ7HO and QtSoundModem on 8100. It works with every TNC type |
+| `socket://host:port` | KISS over TCP (`tcp://host:port` is accepted too), such as a bridge made with `ser2net`. Direwolf serves KISS on `socket://127.0.0.1:8001`, the sound-card modems of UZ7HO and QtSoundModem on 8100. It works with every TNC type |
 | `bt://AA:BB:CC:DD:EE:FF` | Linux only: a Bluetooth radio or TNC paired with the computer. `bt://AA:BB:CC:DD:EE:FF/2` names the RFCOMM channel. No `rfcomm bind` and no root |
 
 The Port choice offers *find automatically* (empty), the ports the system lists, on Linux the paired Bluetooth devices that have a serial port (by name), and *Other...* for a path or a `socket://` address typed. **Refresh** asks again. Beside an automatic port it says `found: PORT` when NeoAPRS has found the radio before. On Windows and macOS pick the port from the list.

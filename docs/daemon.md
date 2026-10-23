@@ -53,6 +53,10 @@ or a serial device that goes away, is a line that dropped and is opened again af
 be asked a carriage return is sent after 10 s of silence; a port another program holds (`neoaprs/serialholders.py`) is skipped, and so is a development board
 known by its USB ids (`neoaprs/serialboards.py`).
 
+## Stopping
+
+`neoaprs stop` writes the file `neoaprs.stop` into the data folder. The daemon looks for it once a second (`neoaprs/stopfile.py`), deletes it and ends cleanly (`NeoAPRS ended` in the log), and the command waits until the instance lock is free. Exit 0 when it ended or none was running, 1 after `--timeout` (30 s). It needs no port and no key; whoever can write to the data folder (private to the user) could end the process as well. SIGTERM, SIGINT and SIGHUP (on Windows Ctrl+C, SIGBREAK and SIGTERM) end the daemon the same way. A detached daemon of `neoaprs open` is started as `neoaprsw.exe run` on Windows and as a child in a session of its own elsewhere, its output going to `neoaprs.log`; `open` waits for the log line `web page at` and for the page to answer.
+
 ## The beacon and the status
 
 `neoaprs/services/beacon.py` makes the position frame; `neoaprs/services/rigstatus.py` the status. The frame is made when it is sent, from the settings then.
@@ -118,8 +122,7 @@ script run from a thread as an encoded script, so nothing of it is quoted and th
 empty command is an `error`.
 
 **The message board** (`neoaprs/services/bulletins.py`; the inbox hands over what it takes). The wire is the topic `bulletins`, `{sender/slot: BulletinRow}`. A
-`set` is for a bulletin that is new or heard again and a `del` for one that is deleted. A row has `sender`, `slot`, `group`, `kind` (`announcement`, `bulletin`
-or `group`; a group bulletin and the messages to `ALL`, `CQ` and `QST` are `group`), `text`, `first_heard`, `last_heard` and `times_heard`. The table `bulletin`
+`set` is for a bulletin that is new or heard again and a `del` for one that is deleted. A row has `sender`, `slot`, `group`, `kind` (`announcement`, `bulletin`, `group` for a group bulletin and the messages to `ALL`, `CQ` and `QST`, or `nws` for the weather service), `text`, `first_heard`, `last_heard` and `times_heard`. The table `bulletin`
 (migration 7) has one row for a sender and slot, strict, with named CHECKs. `bulletin_delete{sender, slot}` removes the row; an entry that is not there is an
 `error`.
 
@@ -136,8 +139,7 @@ only keeps and tells the timeout, except that the daily prune keeps a station wi
 
 **The station book** (`neoaprs/stationbook.py`) counts, for each station, how many packets came direct and by each route, from the packets since the start and
 the latest 2000 that the database kept. The row of the topic `stations` has `last_route`, `heard_direct`, `heard_via` (`[station heard, packets]`, the most
-first, `?` for an anonymous last hop), `heard_gated`, `best_route`, `suggested_path`, `last_direct_at` (null for a station never heard direct, for us and for
-objects) and `telemetry`. The route is worked out when the packet is heard (`neoaprs/route.py`) and is `route` on every packet of the topic `packets` (empty for
+first, `?` for an anonymous last hop), `heard_gated`, `best_route`, `suggested_path`, `last_direct_at` (null for a station never heard direct, for us and for objects; it is the time of the station's latest packet with no repeated address in its path, not a third-party one), `can_message` and `telemetry`. `can_message` is false for an object or an item and for a station whose positions use the identifiers `!` or `/`, unless it has sent a message or an ack that we heard (overheard ones too) or a Mic-E position. It is found again at the start from the packet log, and a bulletin or a telemetry definition does not count. The route is worked out when the packet is heard (`neoaprs/route.py`) and is `route` on every packet of the topic `packets` (empty for
 the ones we sent) and on every message that came in or was overheard (the column `route` of the table `message`; of two copies by different routes the first is
 the one kept).
 

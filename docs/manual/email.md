@@ -48,7 +48,7 @@ A mail of yours is "To jane@example.com" over its text, in one line. A click on 
 
 The tab's badge counts the messages from `EMAIL-2` not seen, under the same rules as the Messages tab's: the Email tab on show, the panel open, the page visible. The title of the browser tab counts both tabs.
 
-`EMAIL-2` is not among the conversations of the Messages tab and its messages are not in that tab's count. Its compose box refuses `EMAIL-2` as the addressee ("Use the Email tab"), and the Message button on the gateway's station card opens the Email tab.
+`EMAIL-2` is not among the conversations of the Messages tab and its messages are not in that tab's count. The Message button on the gateway's station card opens the Email tab.
 
 ## Shortcuts at the gateway
 
