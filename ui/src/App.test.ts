@@ -1230,7 +1230,7 @@ describe("the alert of this browser", () => {
   it("opens the steps of the update for the way this copy was installed from the new version in the header, and closes them when it is gone", async () => {
     const { wrapper, socket } = await open();
     expect(wrapper.find(".updatepanel").exists()).toBe(false);
-    socket.say(hello({ install: { kind: "uv-tool", appimage: "", service: true } }));
+    socket.say(hello({ install: { kind: "uv-tool", appimage: "", service: true, arch: "" } }));
     socket.say(status({ update: { version: "0.4.0", url: "", message: "" } }));
     await flushPromises();
     await wrapper.find("button.update").trigger("click");

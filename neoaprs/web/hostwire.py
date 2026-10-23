@@ -20,9 +20,10 @@ class AskStatus(_Command):
 
 class InstallInfo(_Model):
     """How this copy of the daemon was installed, which is what the steps of an update depend on (neoaprs/versions.py, neoaprs/cli/installkind.py)."""
-    kind: InstallKind = Field(description="`windows-installer` (the frozen program of the installer), `appimage`, `uv-tool` (the install script, or `uv tool install`), `pip` (a plain environment) or `source` (a clone of the repository)")
+    kind: InstallKind = Field(description="`windows-installer` (the frozen program of the installer), `appimage`, `deb` (the Debian package, in /opt/neoaprs), `uv-tool` (the install script, or `uv tool install`), `pip` (a plain environment) or `source` (a clone of the repository)")
     appimage: str = Field(description="the AppImage file this runs from; empty for the other kinds")
     service: bool = Field(description="whether a service starts it: the systemd unit, the launchd agent or the Windows Run key")
+    arch: str = Field(description="the architecture of the package it was installed from, `amd64` or `arm64`; empty for the other kinds, and for a machine that has no package")
 
 
 class Hello(_Message):

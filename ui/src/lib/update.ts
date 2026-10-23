@@ -22,6 +22,8 @@ export const releaseNotes = (version: string): string => `${RELEASES}/tag/v${ver
 export const installerUrl = (version: string): string => `${RELEASES}/download/v${version}/NeoAPRS-Setup-${version}.exe`;
 const appImageName = (version: string): string => `NeoAPRS-${version}-x86_64.AppImage`;
 export const appImageUrl = (version: string): string => `${RELEASES}/download/v${version}/${appImageName(version)}`;
+export const debName = (version: string, arch: string): string => `neoaprs_${version}_${arch}.deb`;
+export const debUrl = (version: string, arch: string): string => `${RELEASES}/download/v${version}/${debName(version, arch)}`;
 
 /** The last part of a path of either kind. */
 function fileName(path: string): string {
@@ -55,6 +57,20 @@ export function updateHelp(install: InstallInfo | null, version: string): Update
         steps.push({ text: "A service runs the old file: from where you keep the new one, run this once", command: `${file} service install` });
       if (install.appimage) steps.push({ text: `Delete the old file, ${fileName(install.appimage)}` });
       return { how: "AppImage", steps };
+    }
+    case "deb": {
+      // the machine's architecture is known for amd64 and arm64; for any other the release page lists the files, and the command takes whichever one was downloaded
+      const file = install.arch ? debName(version, install.arch) : `neoaprs_${version}_*.deb`;
+      return {
+        how: "Debian package",
+        steps: [
+          install.arch
+            ? { text: "Download the new package", link: { href: debUrl(version, install.arch), label: file } }
+            : { text: "Download the package for your machine from the release page", link: { href: releaseNotes(version), label: `NeoAPRS ${version}` } },
+          { text: "Install it over the old one", command: `sudo apt install ./${file}` },
+          restart(install.service, "systemctl --user restart neoaprs"),
+        ],
+      };
     }
     case "uv-tool":
       return { how: "install line", steps: [{ text: "Run the install line again: it updates NeoAPRS and restarts its service", command: INSTALL_LINE }] };

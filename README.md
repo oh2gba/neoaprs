@@ -18,6 +18,7 @@ Every file is on the [Releases page](https://github.com/oh2gba/neoaprs/releases/
 |---|---|
 | Windows | `NeoAPRS-Setup-<version>.exe`: run it, no administrator rights are needed. SmartScreen may warn about an unsigned installer: **More info**, **Run anyway** |
 | Linux | `NeoAPRS-<version>-x86_64.AppImage`: make it executable and run it |
+| Raspberry Pi, Debian, Ubuntu | `neoaprs_<version>_arm64.deb` / `_amd64.deb`: `sudo apt install ./neoaprs_<version>_arm64.deb`, then `neoaprs service install --linger` ([the .deb](docs/MANUAL.md#the-deb)) |
 | Linux, macOS, Raspberry Pi | the install line below: it installs [uv](https://docs.astral.sh/uv/) and NeoAPRS and starts NeoAPRS as a service of your user (systemd on Linux, launchd on macOS) |
 
 ```bash
@@ -26,7 +27,7 @@ curl -LsSf https://github.com/oh2gba/neoaprs/releases/latest/download/install.sh
 
 Then run `neoaprs open`, or open <http://127.0.0.1:7303/>. If the port says *permission denied* on Linux: `sudo usermod -aG dialout $USER`, then log out and in. `neoaprs doctor` says what keeps the radio from working.
 
-When a newer version is out, its number appears in the page's header; a click shows the steps for the way you installed it. To update, run the newer installer or the install line again; your data (settings, messages, packets, the map) is not touched, and open pages load the new version by themselves ([Updating](docs/MANUAL.md#updating)). To remove: *Settings*, *Apps*, NeoAPRS on Windows; `neoaprs service remove` and `uv tool uninstall neoaprs` elsewhere.
+When a newer version is out, its number appears in the page's header; a click shows the steps for the way you installed it. To update, run the newer installer or the install line again (`sudo apt install` the newer .deb); your data (settings, messages, packets, the map) is not touched, and open pages load the new version by themselves ([Updating](docs/MANUAL.md#updating)). To remove: *Settings*, *Apps*, NeoAPRS on Windows; `neoaprs service remove` and `uv tool uninstall neoaprs` elsewhere (`sudo apt remove neoaprs` for the .deb).
 
 ## First start
 

@@ -1,0 +1,4 @@
+#!/bin/sh
+# The `neoaprs` command of the package (/usr/bin/neoaprs is a link to this file): the bundled Python of /opt/neoaprs, isolated (-I) from the PYTHONPATH and the user site of whoever runs it.
+here="$(dirname "$(readlink -f "$0")")"
+exec "$here/python3" -I -m neoaprs "$@"

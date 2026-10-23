@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-Nothing yet.
+A Debian package for the Raspberry Pi.
+
+- `neoaprs_VERSION_arm64.deb` and `neoaprs_VERSION_amd64.deb` on every release: NeoAPRS with its own Python 3.13 in `/opt/neoaprs` and the command `neoaprs`, for Raspberry Pi OS, Debian 12 and Ubuntu, which have no Python 3.13 of their own; `sudo apt install ./neoaprs_VERSION_arm64.deb`, then, as your own user, `neoaprs service install --linger`. It needs nothing from the system but libc, installs nothing in anyone's home and leaves your data alone; an upgrade replaces the files and restarts a running service. The update panel knows the kind (`deb` in `hello.install`, with the package's `arch`) and gives its download and `apt` steps. Built by `scripts/build-deb`, byte for byte the same each time, and installed and tried with apt on a runner of each architecture by the release workflow.
 
 ## 0.4.0
 

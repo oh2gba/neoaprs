@@ -124,8 +124,9 @@ TNC: dict[str, Any] = {"state": "connected", "problem": "", "last_error": "", "p
 CONFIG: dict[str, Any] = {"values": {"station/call": "OH2GBA"}, "defaults": {"station/call": "OH2GBA"}, "urls": []}
 
 MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
-    "hello": [{"type": "hello", "protocol": PROTOCOL, "version": "0.1.0", "install": {"kind": "uv-tool", "appimage": "", "service": True}, "topics": list(TOPIC_NAMES)},
-              {"type": "hello", "protocol": PROTOCOL, "version": "0.1.0", "install": {"kind": "appimage", "appimage": "/home/u/NeoAPRS-0.1.0-x86_64.AppImage", "service": False}, "topics": []}],
+    "hello": [{"type": "hello", "protocol": PROTOCOL, "version": "0.1.0", "install": {"kind": "uv-tool", "appimage": "", "service": True, "arch": ""}, "topics": list(TOPIC_NAMES)},
+              {"type": "hello", "protocol": PROTOCOL, "version": "0.1.0", "install": {"kind": "appimage", "appimage": "/home/u/NeoAPRS-0.1.0-x86_64.AppImage", "service": False, "arch": ""}, "topics": []},
+              {"type": "hello", "protocol": PROTOCOL, "version": "0.1.0", "install": {"kind": "deb", "appimage": "", "service": True, "arch": "arm64"}, "topics": []}],
     "status": [{"type": "status", "version": "0.1.0", "started_at": NOW, "packets": 12, "stations": 5, "call": "OH2GBA", "lat": 60.17, "lon": 24.94,
                 "beacon_interval_min": 30, "beacon_last_sent": NOW, "beacon_next_due": "2026-10-21T12:30:00Z",
                 "station_status": "QRV 14.074 MHz USB", "rig_state": "on",
