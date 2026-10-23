@@ -45,8 +45,7 @@ function reload(): void {
       <DisclosureBox title="Remove the browser's warning"><HttpsGuide :https="https" :link="false" /></DisclosureBox>
     </template>
 
-    <component :is="secure ? 'details' : 'div'" class="popuphelp-http" :class="{ disclosure: secure }">
-      <summary v-if="secure">Or keep http</summary>
+    <component :is="secure ? DisclosureBox : 'div'" class="popuphelp-http" v-bind="secure ? { title: 'Or keep http' } : {}">
       <ol v-if="kind === 'firefox'" class="popuphelp-steps">
         <li>Open a new tab, type <code class="mono">about:config</code> and press Enter, then click "Accept the Risk and Continue".</li>
         <li>Search for <code class="mono">dom.securecontext.allowlist</code>.</li>
@@ -78,11 +77,10 @@ function reload(): void {
         This browser has no way to allow pop-ups for this address. The sound and the tab alert work here. Firefox, Chrome and Edge on a computer can allow them.
       </p>
 
-      <details v-if="kind === 'firefox' && onLinuxDesktop(userAgent)" class="popuphelp-more">
-        <summary>If the pop-up still doesn't show</summary>
+      <DisclosureBox v-if="kind === 'firefox' && onLinuxDesktop(userAgent)" plain class="popuphelp-more" title="If the pop-up still doesn't show">
         <p class="popuphelp-plain">Firefox installed as a Flatpak (KDE) needs these two commands in a terminal, then a restart of Firefox:</p>
         <CopyField v-for="command in FLATPAK_COMMANDS" :key="command" :text="command" />
-      </details>
+      </DisclosureBox>
     </component>
   </section>
 </template>

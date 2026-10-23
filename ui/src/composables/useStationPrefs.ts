@@ -35,3 +35,5 @@ export function useStationPrefs(prefs: ReadonlyMap<string, StationPref>, send: (
     clearTimeoutMin: (call: string): boolean => send({ cmd: "clear_station_timeout", call }),
   };
 }
+
+export type StationPrefs = ReturnType<typeof useStationPrefs>;

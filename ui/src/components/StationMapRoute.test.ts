@@ -1,8 +1,8 @@
 import "@/test/mockmap";
-import { flushPromises, mount } from "@vue/test-utils";
+import { flushPromises } from "@vue/test-utils";
 import { beforeEach, describe, expect, it } from "vitest";
-import StationMap from "@/components/StationMap.vue";
 import { FakeMap, resetFakes } from "@/test/fakemap";
+import { mountStationMap } from "@/test/stationmap";
 import { NOW, station, table } from "@/test/fixtures";
 
 type Feature = { geometry: { type: string; coordinates: unknown }; properties: { call: string; best: number } };
@@ -29,7 +29,7 @@ const drawn = (): Feature[] => (FakeMap.last().getSource("route")?.setData.mock.
 const lines = () => drawn().filter((f) => f.geometry.type === "LineString");
 
 async function mounted(extra = {}) {
-  const wrapper = mount(StationMap, { props: props(extra), attachTo: document.body });
+  const { wrapper } = mountStationMap(props(extra));
   await flushPromises();
   FakeMap.last().fire("style.load");
   return wrapper;

@@ -3,14 +3,15 @@
 // The longer explanation of each way is in the manual (Updating).
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import IconButton from "@/components/IconButton.vue";
+import { useDaemonContext } from "@/composables/useDaemonContext";
 import { copyText } from "@/lib/clipboard";
 import { releaseNotes, updateHelp } from "@/lib/update";
-import type { InstallInfo } from "@/protocol/protocol";
 
-const props = defineProps<{ version: string; install: InstallInfo | null }>();
+const props = defineProps<{ version: string }>();
+const { install } = useDaemonContext();
 const emit = defineEmits<{ close: [] }>();
 
-const help = computed(() => updateHelp(props.install, props.version));
+const help = computed(() => updateHelp(install.value, props.version));
 /** The command whose button was pressed last, and how it went. */
 const copied = ref<{ command: string; ok: boolean } | null>(null);
 let timer: ReturnType<typeof setTimeout> | undefined;

@@ -2,7 +2,7 @@
 // The symbol picker: every symbol of the APRS set as a picture with its name, the usual ones first, searchable by words ("house", "car", "digi", "wx"). A click on a symbol chooses it and closes the picker;
 // Esc, the Close button or a click outside closes it without a choice. The symbol now in use is marked. It says nothing of tables and codes: the choice is the table and the code, written as the settings write them.
 import { computed, onMounted, ref } from "vue";
-import SymbolIcon from "@/components/SymbolIcon.vue";
+import SymbolButton from "@/components/SymbolButton.vue";
 import { ALL_SYMBOLS, filterSymbols, symbolName, type PickSymbol } from "@/lib/symbolpicker";
 import { SYMBOL_CHOICES } from "@/lib/setup";
 
@@ -40,34 +40,30 @@ onMounted(() => search.value?.focus());
         <template v-if="!searching">
           <h3>Usual</h3>
           <div class="sympick-grid" role="group" aria-label="Usual symbols">
-            <button
+            <SymbolButton
               v-for="s in usual"
               :key="s.table + s.code"
-              type="button"
               class="sympick-symbol"
-              :class="{ active: current(s) }"
-              :aria-pressed="current(s)"
-              @click="emit('pick', s.table, s.code)"
-            >
-              <SymbolIcon :table="s.table" :code="s.code" :size="32" />
-              <span>{{ s.name }}</span>
-            </button>
+              :table="s.table"
+              :code="s.code"
+              :name="s.name"
+              :active="current(s)"
+              @pick="emit('pick', s.table, s.code)"
+            />
           </div>
           <h3>All</h3>
         </template>
         <div class="sympick-grid" role="group" aria-label="All symbols">
-          <button
+          <SymbolButton
             v-for="s in found"
             :key="s.table + s.code"
-            type="button"
             class="sympick-symbol"
-            :class="{ active: current(s) }"
-            :aria-pressed="current(s)"
-            @click="emit('pick', s.table, s.code)"
-          >
-            <SymbolIcon :table="s.table" :code="s.code" :size="32" />
-            <span>{{ s.name }}</span>
-          </button>
+            :table="s.table"
+            :code="s.code"
+            :name="s.name"
+            :active="current(s)"
+            @pick="emit('pick', s.table, s.code)"
+          />
         </div>
         <p v-if="found.length === 0" class="empty">No symbol like that.</p>
       </div>

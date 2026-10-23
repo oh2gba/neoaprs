@@ -4,6 +4,7 @@
 // work for the radius and the detail it has in force; a setting that is still being saved (`stale`) disables the button for the moment, unless the form saves it before it sends the command (`early`, the first-run guide), in which case the
 // daemon having no position yet does not disable it either. A change of the radius takes the question back.
 import { computed, ref, watch } from "vue";
+import { useSure } from "@/composables/useSure";
 import { currentEstimate, downloadedLine, formatBytes, isRunning, progressText } from "@/lib/mapfetch";
 import type { Command, MapState } from "@/protocol/protocol";
 
@@ -15,18 +16,19 @@ const idle = computed(() => !running.value && !props.stale && (props.early || pr
 const why = computed(() => (props.stale ? (props.early ? undefined : "Saving…") : running.value || props.early ? undefined : props.map.blocked || undefined));
 /** The first press has been made and the size is not known yet. */
 const checking = ref(false);
-/** The size is known and the button asks "Download 493 MB?": the second press sends the download. */
-const sure = ref(false);
+/** The size is known and the button asks "Download 493 MB?": the second press sends the download (it asks until it is answered or the question is taken back, no time limit). */
+const sure = useSure<"download">(null);
+const asking = computed(() => sure.armed.value !== null);
 const reset = (): void => {
   checking.value = false;
-  sure.value = false;
+  sure.disarm();
 };
 watch([() => props.map.radius_km, () => props.map.maxzoom], reset);
 // a setting that starts to be saved takes the question back (not the wait for the size: the first-run guide saves its answers as the first press is made)
 watch(
   () => props.stale,
   (now) => {
-    if (now && sure.value) reset();
+    if (now && asking.value) reset();
   },
 );
 watch(
@@ -40,18 +42,18 @@ watch(
 watch(estimate, (now) => {
   if (now && checking.value && !running.value) {
     checking.value = false;
-    sure.value = true;
+    sure.arm("download");
   }
 });
 watch(running, (now) => {
   if (!now && checking.value && estimate.value) {
     checking.value = false;
-    sure.value = true;
+    sure.arm("download");
   }
 });
 
 function press(): void {
-  if (sure.value && estimate.value) {
+  if (asking.value && estimate.value) {
     reset();
     props.send({ cmd: "map_fetch" });
   } else {
@@ -61,7 +63,7 @@ function press(): void {
 const label = computed(() =>
   checking.value || props.map.state === "estimating"
     ? "Checking size…"
-    : sure.value && estimate.value
+    : asking.value && estimate.value
       ? `Download ${formatBytes(estimate.value.bytes)}?`
       : props.map.state === "downloading"
         ? "Downloading…"
@@ -76,7 +78,7 @@ const done = computed(() => downloadedLine(props.map));
 <template>
   <div class="mapfetch">
     <div class="mapfetch-actions">
-      <button class="btn primary" :class="{ danger: sure }" type="button" :disabled="!idle || checking" :title="why" @click="press">{{ label }}</button>
+      <button class="btn primary" :class="{ danger: asking }" type="button" :disabled="!idle || checking" :title="why" @click="press">{{ label }}</button>
       <button v-if="running" class="btn" type="button" @click="send({ cmd: 'map_cancel' })">Cancel</button>
     </div>
     <div v-if="running" class="mapfetch-progress">

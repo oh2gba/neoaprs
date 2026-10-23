@@ -1,9 +1,10 @@
 <script setup lang="ts">
 // The tabs of the panel as one button, for a panel too narrow for the row of tabs (SidePanel measures that): "☰ Messages", the name of the open tab, with the count of everything that has a badge (the messages and the mail not seen, the new bulletins) when there is any.
 // It opens a menu with all the tabs in their order, each with its badge, the open one marked (aria-current); a click on one picks it and closes the menu, Esc and a click outside close it, Up and Down, Home and End move in it (Down or Up on the button opens it on the open tab or the last).
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, nextTick, ref } from "vue";
+import TabBadge from "@/components/TabBadge.vue";
+import { usePopup } from "@/composables/usePopup";
 import { TAB_IDS, TAB_TITLES, type TabId } from "@/lib/layout";
-import { badgeText } from "@/lib/unread";
 
 const props = defineProps<{ tab: TabId; badges: Partial<Record<TabId, number>>; on: boolean }>();
 const emit = defineEmits<{ pick: [tab: TabId] }>();
@@ -40,6 +41,7 @@ function buttonKey(event: KeyboardEvent): void {
   event.preventDefault();
   void show(event.key === "ArrowDown" ? TAB_IDS.indexOf(props.tab) : TAB_IDS.length - 1);
 }
+const popup = usePopup({ open, root, trigger: button, close: () => close(false), focusAway: false, stopEscape: true });
 function menuKey(event: KeyboardEvent): void {
   const at = items.value.findIndex((item) => item === document.activeElement);
   const step: Record<string, () => void> = {
@@ -50,8 +52,7 @@ function menuKey(event: KeyboardEvent): void {
   };
   if (event.key === "Escape") {
     event.preventDefault();
-    event.stopPropagation();
-    close(true);
+    popup.onEscape(event);
   } else if (event.key === "Tab") {
     close(false);
   } else if (step[event.key]) {
@@ -59,11 +60,6 @@ function menuKey(event: KeyboardEvent): void {
     step[event.key]?.();
   }
 }
-function outside(event: Event): void {
-  if (open.value && event.target instanceof Node && !root.value?.contains(event.target)) close(false);
-}
-onMounted(() => document.addEventListener("pointerdown", outside));
-onBeforeUnmount(() => document.removeEventListener("pointerdown", outside));
 </script>
 
 <template>
@@ -96,7 +92,7 @@ onBeforeUnmount(() => document.removeEventListener("pointerdown", outside));
           @click="pick(id)"
         >
           {{ TAB_TITLES[id] }}
-          <span v-if="badges[id]" class="badge" :title="badgeText(id, badges[id] ?? 0)">{{ badges[id] }}</span>
+          <TabBadge :tab="id" :count="badges[id]" />
         </button>
       </li>
     </ul>

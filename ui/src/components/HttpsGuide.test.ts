@@ -6,6 +6,7 @@ import PopupHelp from "@/components/PopupHelp.vue";
 import SettingsForm from "@/components/SettingsForm.vue";
 import type { HttpsState } from "@/protocol/protocol";
 import { openedAt, resetSeen } from "@/test/fakealert";
+import { fakeDaemon, withDaemon } from "@/test/context";
 import { configValues } from "@/test/fixtures";
 
 const FINGERPRINT = "AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89";
@@ -95,7 +96,7 @@ describe("the Web page group", () => {
   function settings(https: HttpsState, values: Record<string, string> = NETWORK) {
     const config = configValues(values);
     config.https = https;
-    return mount(SettingsForm, { props: { config, lastError: null, send: vi.fn(() => true) } });
+    return mount(SettingsForm, { global: withDaemon(fakeDaemon({ config })) });
   }
 
   it("has one switch, Secure connection (https), with the (i), where the network is on and not before", async () => {
@@ -112,9 +113,10 @@ describe("the Web page group", () => {
   });
 
   it("applies the switch at once, like any setting", async () => {
-    const send = vi.fn(() => true);
     const config = configValues(NETWORK);
-    const wrapper = mount(SettingsForm, { props: { config, lastError: null, send } });
+    const daemon = fakeDaemon({ config });
+    const send = daemon.send;
+    const wrapper = mount(SettingsForm, { global: withDaemon(daemon) });
     await wrapper.find("#set-web-https").setValue(true);
     expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "web/https": "true" } });
   });

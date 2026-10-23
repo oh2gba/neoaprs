@@ -5,6 +5,7 @@
 import { computed, reactive, ref, watch } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
 import InfoTip from "@/components/InfoTip.vue";
+import { leftTitle } from "@/lib/compose";
 import { LIMITS } from "@/protocol/lists";
 import type { OwnBulletinRow } from "@/protocol/protocol";
 import { GROUP_MAX, POST_KINDS, canPost, charsLeft, groupOf, groupOk, idsOf, postCommand, type PostDraft } from "@/lib/bulletins";
@@ -50,7 +51,7 @@ function submit(): void {
     class="bulletin-compose"
     label="Post a bulletin"
     :left="left"
-    :left-title="`${left} of ${LIMITS.message.textMax} characters left`"
+    :left-title="leftTitle(left, 'characters', LIMITS.message.textMax)"
     @submit="submit"
   >
     <div class="compose-row labelled">

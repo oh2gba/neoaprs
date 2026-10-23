@@ -20,6 +20,21 @@ describe("DisclosureBox", () => {
     expect(opened(wrapper)).toBe(true);
   });
 
+  it("has the look of the page's heading that opens, unless it is plain: then the class of the caller is the look, and what is under the heading is not wrapped", () => {
+    const styled = mount(DisclosureBox, { props: { title: "Details" }, slots: { default: "<p>inside</p>" } });
+    expect(styled.find("details").classes()).toEqual(["disclosure"]);
+    expect(styled.find(".disclosure-body p").exists()).toBe(true);
+    const plain = mount(DisclosureBox, {
+      props: { title: "Raw", plain: true, summaryClass: { problem: true } },
+      attrs: { class: "more" },
+      slots: { default: "<pre>inside</pre>" },
+    });
+    expect(plain.find("details").classes()).toEqual(["more"]);
+    expect(plain.find("summary").classes()).toEqual(["problem"]);
+    expect(plain.find(".disclosure-body").exists()).toBe(false);
+    expect(plain.find("details > pre").exists()).toBe(true);
+  });
+
   it("keeps what the person did with it", async () => {
     const wrapper = mount(DisclosureBox, { props: { title: "Route", open: true } });
     wrapper.find<HTMLDetailsElement>("details").element.open = false;

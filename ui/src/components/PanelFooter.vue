@@ -4,35 +4,29 @@
 // "Radio: not connected" (the TNC waits between two tries, or is stopped, its problem the title), "Radio: silent" (the line is open and the radio does not answer, the title says since when), "Connecting…" (the page's socket is being opened), "Daemon offline" (it is down).
 // When the radio is fine the line says nothing of it. The line has the same height all the time (style.css), so nothing moves when the message comes or goes. What the daemon costs the machine (the CPU share, the memory, the uptime) is the title of the version.
 import { computed } from "vue";
-import type { Connection } from "@/lib/hub";
+import { useDaemonContext } from "@/composables/useDaemonContext";
 import { processText, silentText } from "@/lib/format";
-import type { StatusMessage, TncState } from "@/protocol/protocol";
 
-const props = defineProps<{
-  connection: Connection;
-  tnc: TncState | null;
-  version: string;
-  now: number;
-  status?: StatusMessage | null;
-}>();
+const { connection: link, tnc, version, now, status } = useDaemonContext();
 const emit = defineEmits<{ update: []; radio: [] }>();
 
 type Trouble = { level: "warn" | "bad"; text: string; title?: string };
 /** What is wrong with the radio link, or null when nothing is: the radio is connected. */
 const trouble = computed<Trouble | null>(() => {
-  const { connection, tnc } = props;
+  const connection = link.value;
+  const radio = tnc.value;
   if (connection === "closed") return { level: "bad", text: "Daemon offline" };
   if (connection === "connecting") return { level: "warn", text: "Connecting…" };
-  if (tnc === null) return { level: "warn", text: "Radio: waiting…", title: "no word from the TNC yet" };
-  if (tnc.state === "connected") return null;
-  if (tnc.state === "silent") return { level: "warn", text: "Radio: silent", title: silentText(tnc.silent_since, props.now) };
-  const why = tnc.problem || tnc.describe || tnc.state;
-  if (tnc.state === "connecting")
-    return { level: "warn", text: tnc.describe.includes("entering KISS") ? "Radio: entering KISS…" : "Radio: searching…", title: why };
+  if (radio === null) return { level: "warn", text: "Radio: waiting…", title: "no word from the TNC yet" };
+  if (radio.state === "connected") return null;
+  if (radio.state === "silent") return { level: "warn", text: "Radio: silent", title: silentText(radio.silent_since, now.value) };
+  const why = radio.problem || radio.describe || radio.state;
+  if (radio.state === "connecting")
+    return { level: "warn", text: radio.describe.includes("entering KISS") ? "Radio: entering KISS…" : "Radio: searching…", title: why };
   return { level: "warn", text: "Radio: not connected", title: why };
 });
 /** What the daemon costs the machine, for the title of the version: "0.3 % · 42 MB · up 3 h". */
-const cost = computed(() => (props.status ? processText(props.status.cpu_percent, props.status.rss_mb, props.status.uptime_sec) : null));
+const cost = computed(() => (status.value ? processText(status.value.cpu_percent, status.value.rss_mb, status.value.uptime_sec) : null));
 </script>
 
 <template>

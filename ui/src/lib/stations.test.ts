@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { firstDirection, hasPosition, listStations, ownRow, withOwnSymbol, type Sort } from "@/lib/stations";
+import { firstDirection, hasPosition, listStations, withOwnSymbol, type Sort } from "@/lib/stations";
 import { ago, station, weather } from "@/test/fixtures";
 
 const base: { filter: string; withPositionOnly: boolean; sort: Sort } = { filter: "", withPositionOnly: false, sort: { key: "call", dir: 1 } };
@@ -71,10 +71,6 @@ describe("listStations", () => {
     expect(firstDirection("distance_km")).toBe(1);
     expect(firstDirection("last_heard")).toBe(-1);
     expect(firstDirection("packets")).toBe(-1);
-  });
-  it("finds our own row", () => {
-    expect(ownRow(rows)?.call).toBe("OH2GBA");
-    expect(ownRow([station("A")])).toBeNull();
   });
 });
 

@@ -6,21 +6,19 @@
 // swipe down on the folded sheet closes it; its cross is there too.
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 import StationCard from "@/components/StationCard.vue";
+import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useResized } from "@/composables/useResized";
 import { provideWxSpan } from "@/composables/useWxSpan";
-import type { Aging } from "@/lib/aging";
 import { CARDS_FREE_SIDE, CARD_GAP, type SizeClass } from "@/lib/layout";
 import { SWIPE_MIN, sheetMove, type SheetMove } from "@/lib/sheet";
 import { isWeatherStation, sharedRanges } from "@/lib/weather";
-import type { StationRow, WeatherSeriesMessage } from "@/protocol/protocol";
+import type { StationRow } from "@/protocol/protocol";
 
 const props = defineProps<{
   rows: readonly StationRow[];
   size: SizeClass;
-  now: number;
-  aging: Aging;
-  weatherSeries: ReadonlyMap<string, WeatherSeriesMessage>;
 }>();
+const { now, aging, weatherSeries } = useDaemonContext();
 // (Forget, Message, Edit, ... are the card's own events: they go on)
 const emit = defineEmits<{
   close: [call: string];
@@ -46,7 +44,7 @@ const ranges = computed(() => {
   return weather.length < 2
     ? undefined
     : sharedRanges(
-        weather.map((row) => props.weatherSeries.get(row.call) ?? null),
+        weather.map((row) => weatherSeries.value.get(row.call) ?? null),
         Number(span.value),
       );
 });

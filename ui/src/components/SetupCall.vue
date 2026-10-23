@@ -1,9 +1,9 @@
 <script setup lang="ts">
 // Step 1 of the first-run guide: the call, checked as it is typed (the rules of lib/calls.ts; N0CALL is refused).
 import SettingsField from "@/components/SettingsField.vue";
-import type { SetupGuide } from "@/composables/useSetupGuide";
+import { useDaemonContext } from "@/composables/useDaemonContext";
 
-const props = defineProps<{ guide: SetupGuide }>();
+const { guide } = useDaemonContext();
 const info = { label: "Your call", empty: "OH2ABC-9" };
 </script>
 
@@ -11,10 +11,10 @@ const info = { label: "Your call", empty: "OH2ABC-9" };
   <SettingsField
     id="setup-call"
     :info="info"
-    :model-value="props.guide.fields.call"
+    :model-value="guide.fields.call"
     fallback=""
-    :error="props.guide.problems.call ?? ''"
+    :error="guide.problems.call ?? ''"
     :changed="false"
-    @update:model-value="props.guide.edit('call', $event)"
+    @update:model-value="guide.edit('call', $event)"
   />
 </template>

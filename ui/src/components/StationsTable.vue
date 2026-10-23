@@ -5,8 +5,9 @@
 import { computed, ref } from "vue";
 import DirectMark from "@/components/DirectMark.vue";
 import SymbolIcon from "@/components/SymbolIcon.vue";
+import { useDaemonContext } from "@/composables/useDaemonContext";
 import { usePersistedFlag } from "@/composables/usePersisted";
-import { timedOut, type Aging } from "@/lib/aging";
+import { timedOut } from "@/lib/aging";
 import { normalizeCall, validCall } from "@/lib/calls";
 import { ageText, bearingTitle, dateTimeText, distanceText } from "@/lib/format";
 import { isGateway } from "@/lib/messages";
@@ -16,18 +17,12 @@ import type { StationRow } from "@/protocol/protocol";
 
 const props = withDefaults(
   defineProps<{
-    stations: ReadonlyMap<string, StationRow>;
     selected: string | null;
     others?: readonly string[];
-    now: number;
-    aging: Aging;
-    ownCall?: string | null;
   }>(),
-  {
-    others: () => [],
-    ownCall: null,
-  },
+  { others: () => [] },
 );
+const { stations, now, aging, call: ownCall } = useDaemonContext();
 const emit = defineEmits<{ select: [call: string, multi?: boolean]; message: [call: string] }>();
 const isOpen = (call: string): boolean => call === props.selected || props.others.includes(call);
 /** Ctrl (Cmd on a Mac) held: the station's card is added to the open ones, or closed when it is open. */
@@ -48,9 +43,9 @@ const sort = ref<Sort>({ key: "last_heard", dir: -1 });
 const hideTimedOut = usePersistedFlag("hidetimedout", ["on", "off"], false);
 const directOnly = usePersistedFlag("directonly", ["on", "off"], false);
 
-const isTimedOut = (row: StationRow): boolean => timedOut(props.aging, row, props.now);
+const isTimedOut = (row: StationRow): boolean => timedOut(aging.value, row, now.value);
 const rows = computed(() =>
-  listStations(props.stations.values(), {
+  listStations(stations.value.values(), {
     filter: filter.value,
     withPositionOnly: withPositionOnly.value,
     directOnly: directOnly.value,
@@ -63,7 +58,7 @@ const rows = computed(() =>
 /** The filter text is a call that no station has been heard under (our own row is always listed, so it does not count; and the text is not ours, nor the email gateway's: that has its own tab): a button writes to it all the same, to a station that has not been heard yet. */
 const strangerCall = computed(() => {
   const typed = normalizeCall(filter.value);
-  const ours = props.ownCall ? normalizeCall(props.ownCall) : "";
+  const ours = ownCall.value ? normalizeCall(ownCall.value) : "";
   return rows.value.every((row) => row.is_me) && validCall(typed) && !isGateway(typed) && typed !== ours ? typed : null;
 });
 

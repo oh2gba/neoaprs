@@ -1,8 +1,9 @@
 // The (i) beside the Settings tab's fields that a non-developer may not understand: closed until clicked, then a few plain sentences.
 import { DOMWrapper, mount } from "@vue/test-utils";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import SettingsForm from "@/components/SettingsForm.vue";
 import { FIELDS } from "@/lib/settings";
+import { fakeDaemon, withDaemon } from "@/test/context";
 import { configValues, mapState } from "@/test/fixtures";
 
 const NETWORK = { "web/network": "true", "web/key": "k7m2-x9pq-4hrt" };
@@ -10,7 +11,7 @@ const NETWORK = { "web/network": "true", "web/key": "k7m2-x9pq-4hrt" };
 function make(extra: Record<string, string> = {}, urls: string[] = []) {
   const config = configValues(extra);
   config.urls = urls;
-  return mount(SettingsForm, { props: { config, lastError: null, send: vi.fn(() => true), map: mapState() } });
+  return mount(SettingsForm, { global: withDaemon(fakeDaemon({ config, map: mapState() })) });
 }
 
 /** The (i) of the row that holds the control with this id. */
@@ -72,8 +73,9 @@ describe("the (i) of the Settings tab", () => {
 
   it("shows a plain on/off setting as a checkbox that sends true or false", async () => {
     const config = configValues();
-    const send = vi.fn(() => true);
-    const wrapper = mount(SettingsForm, { props: { config, lastError: null, send } });
+    const daemon = fakeDaemon({ config });
+    const send = daemon.send;
+    const wrapper = mount(SettingsForm, { global: withDaemon(daemon) });
     const box = wrapper.find<HTMLInputElement>("#set-messages-alert");
     expect(box.attributes("type")).toBe("checkbox");
     expect(box.element.checked).toBe(true);

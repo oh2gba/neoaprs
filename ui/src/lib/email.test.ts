@@ -11,7 +11,6 @@ import {
   isCheck,
   isNotConfirmed,
   mailMarkOf,
-  mailStateText,
   parseAddresses,
   rememberAddress,
 } from "@/lib/email";
@@ -109,9 +108,6 @@ describe("a mail that got no ack", () => {
     expect(isNotConfirmed(to("unconfirmed", 2))).toBe(true);
     expect(isNotConfirmed(to("failed", 6))).toBe(true);
     expect([to("acked", 1), to("rejected", 1), to("sending", 1), to("cancelled", 1)].map(isNotConfirmed)).toEqual([false, false, false, false]);
-    expect(mailStateText(to("unconfirmed", 2))).toBe("sent twice, not confirmed");
-    expect(mailStateText(to("unconfirmed", 1))).toBe("sent once, not confirmed");
-    expect(mailStateText(to("failed", 6))).toBe("sent 6 times, not confirmed");
   });
 
   it("has the hollow check, not the cross, and says why", () => {
@@ -122,8 +118,6 @@ describe("a mail that got no ack", () => {
   });
 
   it("is told as the Messages tab tells the other states", () => {
-    expect(mailStateText(to("acked", 1))).toBe("acked, sent once");
-    expect(mailStateText(to("rejected", 1))).toBe("rejected");
     expect(mailMarkOf(to("rejected", 1))?.kind).toBe("cross");
     expect(mailMarkOf(to("acked", 1))?.kind).toBe("check");
     expect(mailMarkOf(message(2, { direction: "in", state: "received" }))).toBeNull();

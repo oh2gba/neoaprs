@@ -5,13 +5,14 @@ import ObjectsPane from "@/components/ObjectsPane.vue";
 import { useOwnObjects } from "@/composables/useOwnObjects";
 import type { Panel } from "@/composables/usePanel";
 import type { Command, OwnObjectRow } from "@/protocol/protocol";
-import { NOW, ago, ownObject } from "@/test/fixtures";
+import { fakeDaemon, withDaemon } from "@/test/context";
+import { ago, ownObject } from "@/test/fixtures";
 
 function pane(rows: OwnObjectRow[] = []) {
   const table = new Map(rows.map((r) => [r.name, r]));
   const sent: Command[] = [];
   const form = useOwnObjects(table, ref({ lat: 60.17, lon: 24.94 }), (command) => (sent.push(command), true), { show: vi.fn() } as unknown as Panel);
-  const wrapper = mount(ObjectsPane, { props: { objects: table, form, fallbackPath: "WIDE1-1,WIDE2-1", now: NOW } });
+  const wrapper = mount(ObjectsPane, { props: { objects: table, form }, global: withDaemon(fakeDaemon({ fallbackPath: "WIDE1-1,WIDE2-1" })) });
   return { wrapper, form, sent, table };
 }
 

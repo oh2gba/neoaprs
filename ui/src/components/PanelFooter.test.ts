@@ -2,12 +2,14 @@ import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import PanelFooter from "@/components/PanelFooter.vue";
 import type { Connection } from "@/lib/hub";
+import { fakeDaemon, withDaemon, type Given } from "@/test/context";
 import { cssRule, mediaRule } from "@/test/css";
 import { ago, NOW, status, tncState } from "@/test/fixtures";
 
 const base = { connection: "open" as Connection, tnc: tncState(), version: "0.6.0", now: NOW };
-const footer = (props: Partial<InstanceType<typeof PanelFooter>["$props"]> = {}) => mount(PanelFooter, { props: { ...base, ...props } });
-const radio = (props: Partial<InstanceType<typeof PanelFooter>["$props"]> = {}) => footer(props).find("button.status");
+type Parts = Pick<Given, "connection" | "tnc" | "version" | "now" | "status">;
+const footer = (parts: Parts = {}) => mount(PanelFooter, { global: withDaemon(fakeDaemon({ ...base, ...parts })) });
+const radio = (parts: Parts = {}) => footer(parts).find("button.status");
 const connecting = (describe: string) => radio({ tnc: tncState({ state: "connecting", problem: "", describe }) });
 
 describe("PanelFooter", () => {

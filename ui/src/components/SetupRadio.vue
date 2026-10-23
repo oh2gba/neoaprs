@@ -3,16 +3,17 @@
 // (the profile's own is the placeholder), or for KISS over TCP the host and the port.
 import { computed } from "vue";
 import SettingsField from "@/components/SettingsField.vue";
-import type { SetupGuide } from "@/composables/useSetupGuide";
+import { useDaemonContext } from "@/composables/useDaemonContext";
 import { FIELDS, speedFallback, type FieldInfo } from "@/lib/settings";
 import { portChoices } from "@/lib/setup";
 
-const props = defineProps<{ guide: SetupGuide; defaults: Record<string, string> }>();
-const fields = computed(() => props.guide.fields);
-const portInfo = computed(() => ({ label: "Port", kind: "choice" as const, choices: portChoices(props.guide.ports) }));
-const fallback = (key: string): string => props.defaults[key] ?? "";
+const { guide, config } = useDaemonContext();
+const defaults = computed<Record<string, string>>(() => config.value?.defaults ?? {});
+const fields = computed(() => guide.fields);
+const portInfo = computed(() => ({ label: "Port", kind: "choice" as const, choices: portChoices(guide.ports) }));
+const fallback = (key: string): string => defaults.value[key] ?? "";
 const info = (key: string): FieldInfo => FIELDS[key] ?? { label: key };
-const err = (field: keyof typeof fields.value): string => props.guide.problems[field] ?? "";
+const err = (field: keyof typeof fields.value): string => guide.problems[field] ?? "";
 </script>
 
 <template>
@@ -23,9 +24,9 @@ const err = (field: keyof typeof fields.value): string => props.guide.problems[f
     fallback=""
     :error="err('profile')"
     :changed="false"
-    @update:model-value="props.guide.edit('profile', $event)"
+    @update:model-value="guide.edit('profile', $event)"
   />
-  <template v-if="props.guide.tcp">
+  <template v-if="guide.tcp">
     <SettingsField
       id="setup-host"
       :info="info('tcp/host')"
@@ -33,7 +34,7 @@ const err = (field: keyof typeof fields.value): string => props.guide.problems[f
       :fallback="fallback('tcp/host')"
       :error="err('host')"
       :changed="false"
-      @update:model-value="props.guide.edit('host', $event)"
+      @update:model-value="guide.edit('host', $event)"
     />
     <SettingsField
       id="setup-tcpport"
@@ -42,7 +43,7 @@ const err = (field: keyof typeof fields.value): string => props.guide.problems[f
       :fallback="fallback('tcp/port')"
       :error="err('tcpPort')"
       :changed="false"
-      @update:model-value="props.guide.edit('tcpPort', $event)"
+      @update:model-value="guide.edit('tcpPort', $event)"
     />
   </template>
   <template v-else>
@@ -53,10 +54,10 @@ const err = (field: keyof typeof fields.value): string => props.guide.problems[f
       fallback=""
       :error="err('port')"
       :changed="false"
-      @update:model-value="props.guide.edit('port', $event)"
+      @update:model-value="guide.edit('port', $event)"
     >
       <template #after>
-        <button type="button" class="btn" @click="props.guide.refreshPorts()">Refresh</button>
+        <button type="button" class="btn" @click="guide.refreshPorts()">Refresh</button>
       </template>
     </SettingsField>
     <SettingsField
@@ -66,7 +67,7 @@ const err = (field: keyof typeof fields.value): string => props.guide.problems[f
       :fallback="speedFallback(fields.profile, fallback('serial/baud'))"
       :error="err('baud')"
       :changed="false"
-      @update:model-value="props.guide.edit('baud', $event)"
+      @update:model-value="guide.edit('baud', $event)"
     />
   </template>
 </template>

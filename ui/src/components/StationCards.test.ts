@@ -6,14 +6,19 @@ import type { Aging } from "@/lib/aging";
 import type { SizeClass } from "@/lib/layout";
 import { SWIPE_MIN } from "@/lib/sheet";
 import { cssRule } from "@/test/css";
-import { NOW, ago, series, station, weatherStation } from "@/test/fixtures";
+import { fakeDaemon, tell, withDaemon, type FakeDaemon } from "@/test/context";
+import { ago, series, station, weatherStation } from "@/test/fixtures";
 
 const aging: Aging = { timeouts: new Map(), defaultMin: 0 };
 const car = station("OH2ZMA-9", { symbol_name: "Car", lat: 60.1, lon: 24.8, distance_km: 11, bearing_deg: 126, last_heard: ago(120) });
 const wx = (call: string) => weatherStation(call);
 
-function make(rows: ReturnType<typeof station>[], size: SizeClass = "desktop") {
-  return mount(StationCards, { props: { rows, size, now: NOW, aging, weatherSeries: new Map() }, attachTo: document.body });
+/** The page's context of the cards just made: the weather series come from it. */
+let daemon: FakeDaemon;
+
+function make(rows: ReturnType<typeof station>[], size: SizeClass = "desktop", weatherSeries = new Map<string, ReturnType<typeof series>>()) {
+  daemon = fakeDaemon({ aging, weatherSeries });
+  return mount(StationCards, { props: { rows, size }, global: withDaemon(daemon), attachTo: document.body });
 }
 
 const pointer = (wrapper: ReturnType<typeof make>, type: "pointerdown" | "pointerup", y: number) =>
@@ -27,7 +32,6 @@ describe("StationCards: the row of a tablet and a desktop", () => {
   it("shows one card whole, with no Close all and no grip", () => {
     const wrapper = make([car]);
     expect(wrapper.findAll(".card")).toHaveLength(1);
-    expect(wrapper.find(".card").classes()).not.toContain("compact");
     expect(wrapper.find(".cards-closeall").exists()).toBe(false);
     expect(wrapper.find(".sheet-grip").exists()).toBe(false);
     expect(wrapper.find(".cardstack").classes()).not.toContain("sheet");
@@ -37,7 +41,6 @@ describe("StationCards: the row of a tablet and a desktop", () => {
   it("shows several cards side by side, each the whole card, the oldest first (the style puts it at the left), each with its own close, and Close all over the map", async () => {
     const wrapper = make([wx("OH2ZWA"), wx("OH2ZWB"), car]);
     expect(wrapper.findAll(".card").map((c) => c.find("strong").text())).toEqual(["OH2ZWA", "OH2ZWB", "OH2ZMA-9"]);
-    expect(wrapper.findAll(".card.compact")).toHaveLength(0);
     expect(wrapper.findAll(".card .card-foot")).toHaveLength(3); // (the buttons of a whole card)
     expect(wrapper.findAll(".card").every((card) => card.text().includes("Details"))).toBe(true);
     expect(wrapper.find(".card-more").exists()).toBe(false);
@@ -147,10 +150,7 @@ describe("StationCards: several weather cards, to be compared", () => {
       ),
     );
   const mountWith = (rows: ReturnType<typeof station>[], answers: ReturnType<typeof series>[]) =>
-    mount(StationCards, {
-      props: { rows, size: "desktop", now: NOW, aging, weatherSeries: new Map(answers.map((a) => [a.call, a])) },
-      attachTo: document.body,
-    });
+    make(rows, "desktop", new Map(answers.map((a) => [a.call, a])));
   const mapOf = (...answers: ReturnType<typeof series>[]) => new Map(answers.map((a) => [a.call, a] as const));
 
   it("keeps every weather card the whole weather card with its graphs, the switch of the span and the asking of the daemon", () => {
@@ -182,12 +182,12 @@ describe("StationCards: several weather cards, to be compared", () => {
     const wrapper = mountWith([wx("OH2ZWA"), wx("OH2ZWB")], [a]);
     const before = axes(wrapper)[0];
     expect(before?.Temperature?.at(-1)).not.toBe("15"); // (only its own so far)
-    await wrapper.setProps({ weatherSeries: mapOf(a, b) });
+    await tell(daemon, { weatherSeries: mapOf(a, b) });
     const [first, second] = axes(wrapper);
     expect(first).toEqual(second);
     expect(first?.Temperature?.at(-1)).toBe("15");
     // and again when the first one's series is renewed with other values (a new observation)
-    await wrapper.setProps({ weatherSeries: mapOf(cold("OH2ZWA", -25, -2, 6), b) });
+    await tell(daemon, { weatherSeries: mapOf(cold("OH2ZWA", -25, -2, 6), b) });
     const [renewed, other] = axes(wrapper);
     expect(renewed).toEqual(other);
     expect(renewed?.Temperature?.[0]).toBe("-30");

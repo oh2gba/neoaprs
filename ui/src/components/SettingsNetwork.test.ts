@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import SettingsForm from "@/components/SettingsForm.vue";
 import { openedAt, resetSeen } from "@/test/fakealert";
 import { FakeFetch } from "@/test/fakefetch";
+import { fakeDaemon, withDaemon } from "@/test/context";
 import { configValues } from "@/test/fixtures";
 
 const ON = { "web/network": "true", "web/key": "k7m2-x9pq-4hrt" };
@@ -11,8 +12,8 @@ const ON = { "web/network": "true", "web/key": "k7m2-x9pq-4hrt" };
 function make(extra: Record<string, string> = {}, urls: string[] = []) {
   const config = configValues(extra);
   config.urls = urls;
-  const send = vi.fn(() => true);
-  return { wrapper: mount(SettingsForm, { props: { config, lastError: null, send } }), send };
+  const daemon = fakeDaemon({ config });
+  return { wrapper: mount(SettingsForm, { global: withDaemon(daemon) }), send: daemon.send };
 }
 
 afterEach(() => {

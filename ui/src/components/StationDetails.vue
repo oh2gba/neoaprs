@@ -3,6 +3,7 @@
 // when it was first heard, the number of packets, and what the daemon decodes beyond the position, a line each: the data extensions (PHG, range, DF, area), the Maidenhead locator of its status, and the telemetry channels with the names and units it defined.
 // A row with nothing to say is left out. It is for the few who want to know; the card says the main facts (components/StationCard.vue), and puts the station's own timeout in the slot, last.
 import { computed } from "vue";
+import DisclosureBox from "@/components/DisclosureBox.vue";
 import { extensionRows, locatorText, telemetryBitsText, telemetryText } from "@/lib/details";
 import { dateTimeText, pathText } from "@/lib/format";
 import { bestText, heardText } from "@/lib/routes";
@@ -16,8 +17,7 @@ const best = computed(() => bestText(props.row));
 </script>
 
 <template>
-  <details class="more card-details">
-    <summary>Details</summary>
+  <DisclosureBox plain class="more card-details" title="Details">
     <dl class="card-fields">
       <template v-for="ext in extensions" :key="ext.label">
         <dt>{{ ext.label }}</dt>
@@ -51,5 +51,5 @@ const best = computed(() => bestText(props.row));
       <dd>{{ row.packets }}</dd>
     </dl>
     <slot></slot>
-  </details>
+  </DisclosureBox>
 </template>

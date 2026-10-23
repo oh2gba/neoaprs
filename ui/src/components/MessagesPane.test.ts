@@ -1,9 +1,13 @@
 import { flushPromises, mount } from "@vue/test-utils";
+import { shallowReactive } from "vue";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import MessagesPane from "@/components/MessagesPane.vue";
+import { useStationPrefs } from "@/composables/useStationPrefs";
 import { MESSAGES_WIDE } from "@/lib/layout";
 import { conversations } from "@/lib/messages";
-import { NOW, incoming, message } from "@/test/fixtures";
+import type { StationPref } from "@/protocol/protocol";
+import { fakeDaemon, tell, withDaemon, type FakeDaemon } from "@/test/context";
+import { incoming, message } from "@/test/fixtures";
 import { stubWidth } from "@/test/width";
 
 const rows = [
@@ -24,20 +28,34 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
-/** The tab, as wide as the test says, with the conversation with OH2RDG open. */
-async function pane(extra: Record<string, unknown> = {}) {
+/** The page's context of the pane just made: what it sent, and what the page tells it later. */
+let daemon: FakeDaemon;
+const sent = (cmd: string) => daemon.send.mock.calls.map(([command]) => command).filter((command) => command.cmd === cmd);
+
+/** The tab, as wide as the test says, with the conversation with OH2RDG open. The page's part of it is given as `paths`, `rfOnly`, `suggestions`, `heardDirect` and `connected`. */
+async function pane({
+  paths = new Map<string, string>(),
+  rfOnly = new Set<string>(),
+  suggestions,
+  heardDirect,
+  connected = true,
+  ...extra
+}: Record<string, unknown> = {}) {
   const props = {
     conversations: conversations(rows, () => 0),
     selected: "OH2RDG",
     thread: rows.filter((r) => r.to_call === "OH2RDG" || r.from_call === "OH2RDG"),
-    connected: true,
-    now: NOW,
     showOverheard: false,
-    paths: new Map<string, string>(),
-    fallbackPath: "WIDE1-1,WIDE2-1",
     ...extra,
   };
-  const wrapper = mount(MessagesPane, { props, attachTo: document.body });
+  const book = new Map<string, StationPref>();
+  for (const [call, path] of paths as Map<string, string>) book.set(call, { path, hide_after_min: null, rf_only: false });
+  for (const call of rfOnly as Set<string>) book.set(call, { path: book.get(call)?.path ?? null, hide_after_min: null, rf_only: true });
+  daemon = fakeDaemon({ connected: connected as boolean, fallbackPath: "WIDE1-1,WIDE2-1" });
+  daemon.prefs = useStationPrefs(shallowReactive(book), daemon.send);
+  if (suggestions !== undefined) daemon.suggestions.value = suggestions as Map<string, string | null>;
+  if (heardDirect !== undefined) daemon.heardDirect.value = heardDirect as Set<string>;
+  const wrapper = mount(MessagesPane, { props, global: withDaemon(daemon), attachTo: document.body });
   await flushPromises();
   return wrapper;
 }
@@ -169,9 +187,9 @@ describe("MessagesPane, the route in the header", () => {
     const input = () => wrapper.find<HTMLInputElement>(".route-box .pathbox input[placeholder='direct']");
     expect(input().element.value).toBe("OH2RCH-2");
     await input().setValue("WIDE2-1");
-    expect(wrapper.emitted("path")).toEqual([["OH2RDG", "WIDE2-1"]]);
+    expect(sent("set_station_path")).toEqual([{ cmd: "set_station_path", call: "OH2RDG", path: "WIDE2-1" }]);
     await wrapper.find(".route-box .use-default").trigger("click");
-    expect(wrapper.emitted("clearPath")).toEqual([["OH2RDG"]]);
+    expect(sent("clear_station_path")).toEqual([{ cmd: "clear_station_path", call: "OH2RDG" }]);
     expect(wrapper.findAll(".route-box label").map((l) => l.text())).toEqual(["Path", "RF only"]);
     const plain = await pane();
     await plain.find(".route-button").trigger("click");
@@ -193,14 +211,14 @@ describe("MessagesPane, the route in the header", () => {
     const box = wrapper.find<HTMLInputElement>(".route-box .pathbox .rfonly input");
     expect(box.element.checked).toBe(true);
     await box.setValue(false);
-    expect(wrapper.emitted("setRfOnly")).toEqual([["OH2RDG", false]]);
+    expect(sent("set_station_rf_only")).toEqual([{ cmd: "set_station_rf_only", call: "OH2RDG", on: false }]);
   });
 
   it("puts the suggestion of the open conversation's station on the chip beside the path", async () => {
     const wrapper = await pane({ suggestions: new Map([["OH2RDG", "OH2RCH-3,OH2RCH-1"]]) });
     await wrapper.find(".route-button").trigger("click");
     await wrapper.find(".route-box .use-suggested").trigger("click");
-    expect(wrapper.emitted("path")).toEqual([["OH2RDG", "OH2RCH-3,OH2RCH-1"]]);
+    expect(sent("set_station_path")).toEqual([{ cmd: "set_station_path", call: "OH2RDG", path: "OH2RCH-3,OH2RCH-1" }]);
     const none = await pane({ suggestions: new Map([["OH2XYZ", "OH2RCH-2"]]) });
     await none.find(".route-button").trigger("click");
     expect(none.find(".route-box .use-suggested").exists()).toBe(false);
@@ -316,7 +334,7 @@ describe("MessagesPane, the box to write in", () => {
   it("is the last thing of the conversation, under the thread", async () => {
     const wrapper = await pane();
     const parts = [...wrapper.find(".convo").element.children].map((c) => c.className.split(" ")[0]);
-    expect(parts).toEqual(["convo-head", "bubbles", "compose"]);
+    expect(parts).toEqual(["convo-head", "bubbles", "composebar"]);
   });
 
   it("shows the bytes left of 67 as the text grows, and in red when there are too many", async () => {
@@ -360,7 +378,7 @@ describe("MessagesPane, the box to write in", () => {
     await wrapper.find("#msg-text").setValue("hello");
     expect(send().attributes("disabled")).toBeUndefined();
     expect(send().attributes("title")).toBeUndefined();
-    await wrapper.setProps({ connected: false });
+    await tell(daemon, { connected: false });
     expect(send().attributes("disabled")).toBeDefined();
     expect(send().attributes("title")).toBe("The TNC is not connected");
     expect(wrapper.find(".compose p").exists()).toBe(false);

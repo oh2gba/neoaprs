@@ -1,15 +1,20 @@
 import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import BulletinsPane from "@/components/BulletinsPane.vue";
 import type { BulletinRow, OwnBulletinRow } from "@/protocol/protocol";
-import { NOW, ago, bulletin, ownBulletin } from "@/test/fixtures";
+import { fakeDaemon, withDaemon, type FakeDaemon } from "@/test/context";
+import { ago, bulletin, ownBulletin } from "@/test/fixtures";
 
 const board = (...rows: BulletinRow[]) => new Map(rows.map((r) => [`${r.sender}/${r.slot}`, r]));
 
 const posted = (...rows: OwnBulletinRow[]) => new Map(rows.map((r) => [r.slot, r]));
 
+let daemon: FakeDaemon;
+beforeEach(() => (daemon = fakeDaemon()));
+const sent = (cmd: string) => daemon.send.mock.calls.map(([command]) => command).filter((command) => command.cmd === cmd);
+
 function pane(...rows: BulletinRow[]) {
-  return mount(BulletinsPane, { props: { bulletins: board(...rows), ownBulletins: new Map<string, OwnBulletinRow>(), call: "OH2GBA", now: NOW } });
+  return mount(BulletinsPane, { props: { bulletins: board(...rows), ownBulletins: new Map<string, OwnBulletinRow>() }, global: withDaemon(daemon) });
 }
 
 const rows = [
@@ -64,9 +69,9 @@ describe("BulletinsPane", () => {
       await x(wrapper, 1)?.trigger("click");
       expect(x(wrapper, 1)?.text()).toBe("sure?");
       expect(x(wrapper, 0)?.text()).toBe("");
-      expect(wrapper.emitted("delete")).toBeUndefined();
+      expect(sent("bulletin_delete")).toEqual([]);
       await x(wrapper, 1)?.trigger("click");
-      expect(wrapper.emitted("delete")).toEqual([["OH2XYZ", "BLN1"]]);
+      expect(sent("bulletin_delete")).toEqual([{ cmd: "bulletin_delete", sender: "OH2XYZ", slot: "BLN1" }]);
       expect(x(wrapper, 1)?.text()).toBe("");
     });
 
@@ -75,7 +80,7 @@ describe("BulletinsPane", () => {
       await x(wrapper, 0)?.trigger("click");
       await x(wrapper, 1)?.trigger("click");
       expect(wrapper.findAll(".bulletin-delete").map((b) => b.text())).toEqual(["", "sure?", "", ""]);
-      expect(wrapper.emitted("delete")).toBeUndefined();
+      expect(sent("bulletin_delete")).toEqual([]);
     });
   });
 
@@ -103,12 +108,12 @@ describe("BulletinsPane", () => {
     expect(wrapper.find(".bulletin-compose").exists()).toBe(true);
     await wrapper.find("#post-text").setValue("Hello board");
     await wrapper.find(".bulletin-compose").trigger("submit");
-    expect(wrapper.emitted("post")).toEqual([["BLN1", "Hello board"]]);
+    expect(sent("bulletin_post")).toEqual([{ cmd: "bulletin_post", slot: "BLN1", text: "Hello board" }]);
   });
 
   describe("our own bulletins", () => {
     const withOurs = (...own: OwnBulletinRow[]) =>
-      mount(BulletinsPane, { props: { bulletins: board(...rows), ownBulletins: posted(...own), call: "OH2GBA", now: NOW } });
+      mount(BulletinsPane, { props: { bulletins: board(...rows), ownBulletins: posted(...own) }, global: withDaemon(daemon) });
     const ours = ownBulletin("BLN2", { text: "Gale warning from us", last_sent_at: ago(30), sent: 3 });
 
     it("are on the board in their section with our call, marked ours, with how often they were sent and when they go out next", () => {
@@ -149,10 +154,10 @@ describe("BulletinsPane", () => {
       expect(x().attributes("aria-label")).toBe("Delete our bulletin BLN2");
       await x().trigger("click");
       expect(x().text()).toBe("sure?");
-      expect(wrapper.emitted("unpost")).toBeUndefined();
+      expect(sent("bulletin_unpost")).toEqual([]);
       await x().trigger("click");
-      expect(wrapper.emitted("unpost")).toEqual([["BLN2"]]);
-      expect(wrapper.emitted("delete")).toBeUndefined();
+      expect(sent("bulletin_unpost")).toEqual([{ cmd: "bulletin_unpost", slot: "BLN2" }]);
+      expect(sent("bulletin_delete")).toEqual([]);
     });
 
     it("follow the topic: one that is sent again, one that is gone", async () => {
@@ -164,7 +169,7 @@ describe("BulletinsPane", () => {
     });
 
     it("are under a word for our call until the daemon says it", () => {
-      const wrapper = mount(BulletinsPane, { props: { bulletins: board(), ownBulletins: posted(ours), call: null, now: NOW } });
+      const wrapper = mount(BulletinsPane, { props: { bulletins: board(), ownBulletins: posted(ours) }, global: withDaemon(fakeDaemon({ call: null })) });
       expect(wrapper.find(".mine .bulletin-head strong").text()).toBe("us");
     });
   });

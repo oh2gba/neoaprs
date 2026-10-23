@@ -2,14 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   ageSeconds,
   ageText,
-  agoText,
   bearingText,
   bytesText,
   clockText,
   compassPoint,
   dateTimeText,
   distanceText,
-  leftText,
   pathText,
   positionText,
   processText,
@@ -103,11 +101,6 @@ describe("times", () => {
     expect(dateTimeText(null)).toBe("-");
     expect(clockText("nope")).toBe("-");
   });
-
-  it("says how long ago and when, or a dash for none", () => {
-    expect(agoText(ago(125), NOW)).toBe(`2 min ago (${dateTimeText(ago(125))})`);
-    expect(agoText(null, NOW)).toBe("-");
-  });
 });
 
 describe("processTextShort", () => {
@@ -126,13 +119,5 @@ describe("processText", () => {
   });
   it("does not count a negative time up", () => {
     expect(processText(0, 9, -5)).toBe("0.0 % · 9 MB · up 0 s");
-  });
-});
-
-describe("leftText", () => {
-  it("says what is left of a limit, and by how much it is over", () => {
-    expect(leftText(67)).toBe("67 left");
-    expect(leftText(0)).toBe("0 left");
-    expect(leftText(-3)).toBe("3 over");
   });
 });

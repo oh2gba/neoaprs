@@ -4,33 +4,27 @@
 import InfoTip from "@/components/InfoTip.vue";
 import MapFetchPanel from "@/components/MapFetchPanel.vue";
 import SettingsField from "@/components/SettingsField.vue";
-import type { SetupGuide } from "@/composables/useSetupGuide";
+import { useDaemonContext } from "@/composables/useDaemonContext";
 import { FIELDS, type FieldInfo } from "@/lib/settings";
-import type { MapState } from "@/protocol/protocol";
 import { computed } from "vue";
 
 const info = (key: string): FieldInfo => FIELDS[key] ?? { label: key };
-const props = defineProps<{ guide: SetupGuide; defaults: Record<string, string>; map: MapState | null; beacon: string }>();
-const minutes = computed(() => Number(props.beacon));
+const { guide, config, map } = useDaemonContext();
+/** The beacon the station will have (or has after the save): the minutes, "" for none. */
+const minutes = computed(() => Number(guide.changes["beacon/interval_min"] ?? config.value?.values["beacon/interval_min"] ?? ""));
 </script>
 
 <template>
   <SettingsField
     id="setup-radius"
     :info="info('map/radius_km')"
-    :model-value="props.guide.fields.radius"
-    :fallback="props.defaults['map/radius_km'] ?? ''"
-    :error="props.guide.problems.radius ?? ''"
+    :model-value="guide.fields.radius"
+    :fallback="(config?.defaults ?? {})['map/radius_km'] ?? ''"
+    :error="guide.problems.radius ?? ''"
     :changed="false"
-    @update:model-value="props.guide.edit('radius', $event)"
+    @update:model-value="guide.edit('radius', $event)"
   />
-  <MapFetchPanel
-    v-if="props.map"
-    :map="props.map"
-    :stale="props.guide.saving || !props.guide.valid[3] || !props.guide.valid[4]"
-    early
-    :send="props.guide.sendMap"
-  />
+  <MapFetchPanel v-if="map" :map="map" :stale="guide.saving || !guide.valid[3] || !guide.valid[4]" early :send="guide.sendMap" />
   <p v-if="minutes > 0" class="setup-beacon muted">
     Beacon every {{ minutes }} min
     <InfoTip label="About the beacon">

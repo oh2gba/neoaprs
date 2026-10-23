@@ -5,6 +5,7 @@
 import { computed, ref } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
 import IconButton from "@/components/IconButton.vue";
+import { leftTitle, sendBlockedReason } from "@/lib/compose";
 import { canSendEmail, emailBytesLeft } from "@/lib/email";
 import { LIMITS } from "@/protocol/lists";
 
@@ -49,7 +50,7 @@ function submit(): void {
     class="mailform"
     label="Email"
     :left="left"
-    :left-title="`${left} of ${LIMITS.message.textMax} characters left; the address and the space count too`"
+    :left-title="leftTitle(left, 'characters', LIMITS.message.textMax, '; the address and the space count too')"
     @submit="submit"
     @keydown.esc.stop="listed = false"
   >
@@ -78,7 +79,7 @@ function submit(): void {
       <input id="mail-text" ref="textBox" v-model="text" class="input" type="text" placeholder="Text" autocomplete="off" />
     </div>
     <template #buttons>
-      <button type="submit" class="btn primary" :disabled="!ready" :title="connected ? undefined : 'The TNC is not connected'">Send</button>
+      <button type="submit" class="btn primary" :disabled="!ready" :title="sendBlockedReason(connected)">Send</button>
     </template>
   </ComposeBar>
 </template>

@@ -74,11 +74,6 @@ export function dateTimeText(iso: string | null): string {
   return Number.isNaN(d.getTime()) ? NONE : `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${clockText(iso)}`;
 }
 
-/** How long ago, and when: "2 min ago (2026-10-21 14:03:12)"; a dash for none. */
-export function agoText(iso: string | null, nowMs: number): string {
-  return iso === null ? NONE : `${ageText(iso, nowMs)} ago (${dateTimeText(iso)})`;
-}
-
 /** How long ago, in words: "2 min ago"; a dash for none. The full time goes in a hover title (`dateTimeText`). */
 export function agoWords(iso: string | null, nowMs: number): string {
   return iso === null ? NONE : `${ageText(iso, nowMs)} ago`;
@@ -135,9 +130,4 @@ export function bytesText(n: number): string {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} kB`;
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-/** What is left of a limit, for the counter of a box: "12 left", or "3 over" when the text is too long. */
-export function leftText(left: number): string {
-  return left < 0 ? `${-left} over` : `${left} left`;
 }

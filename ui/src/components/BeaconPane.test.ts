@@ -1,25 +1,19 @@
 import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import BeaconPane from "@/components/BeaconPane.vue";
-import type { Command } from "@/protocol/protocol";
-import { NOW, ago, configValues, status } from "@/test/fixtures";
+import { fakeDaemon, withDaemon } from "@/test/context";
+import { ago, configValues, status } from "@/test/fixtures";
 
 type Opts = { connected?: boolean; picking?: boolean; status?: ReturnType<typeof status> | null };
 
 function pane(extra: Record<string, string> = {}, opts: Opts = {}) {
-  const send = vi.fn((_command: Command) => true);
-  const wrapper = mount(BeaconPane, {
-    props: {
-      status: opts.status === undefined ? status({ beacon_last_sent: ago(125) }) : opts.status,
-      connected: opts.connected ?? true,
-      now: NOW,
-      config: configValues(extra),
-      lastError: null,
-      send,
-      picking: opts.picking ?? false,
-    },
+  const daemon = fakeDaemon({
+    status: opts.status === undefined ? status({ beacon_last_sent: ago(125) }) : opts.status,
+    connected: opts.connected ?? true,
+    config: configValues(extra),
   });
-  return { wrapper, send };
+  const wrapper = mount(BeaconPane, { props: { picking: opts.picking ?? false }, global: withDaemon(daemon) });
+  return { wrapper, send: daemon.send, daemon };
 }
 
 type Wrapper = ReturnType<typeof pane>["wrapper"];
@@ -109,38 +103,41 @@ describe("BeaconPane", () => {
     });
 
     it("asks twice, then passes the click on", async () => {
-      const { wrapper } = pane();
+      const { wrapper, send } = pane();
       const button = wrapper.find(".sendrow button");
       await button.trigger("click");
-      expect(wrapper.emitted("beacon")).toBeUndefined();
+      expect(send).not.toHaveBeenCalledWith({ cmd: "beacon_now" });
       expect(button.text()).toBe("Really send?");
       expect(button.classes()).toContain("danger");
       await button.trigger("click");
-      expect(wrapper.emitted("beacon")).toHaveLength(1);
+      expect(send).toHaveBeenCalledTimes(1);
+      expect(send).toHaveBeenCalledWith({ cmd: "beacon_now" });
       expect(button.text()).toBe("Beacon now");
     });
 
     it("forgets the first click after a few seconds", async () => {
-      const { wrapper } = pane();
+      const { wrapper, send } = pane();
       const button = wrapper.find(".sendrow button");
       await button.trigger("click");
       vi.advanceTimersByTime(5001);
       await wrapper.vm.$nextTick();
       expect(button.text()).toBe("Beacon now");
       await button.trigger("click");
-      expect(wrapper.emitted("beacon")).toBeUndefined();
+      expect(send).not.toHaveBeenCalledWith({ cmd: "beacon_now" });
     });
 
     it("is off while the TNC is not connected, and the first click is forgotten when it drops", async () => {
-      const { wrapper } = pane();
+      const { wrapper, send, daemon } = pane();
       await wrapper.find(".sendrow button").trigger("click");
-      await wrapper.setProps({ connected: false });
+      daemon.connected.value = false;
+      await wrapper.vm.$nextTick();
       const button = wrapper.find(".sendrow button");
       expect(button.attributes("disabled")).toBeDefined();
       expect(button.text()).toBe("Beacon now");
-      await wrapper.setProps({ connected: true });
+      daemon.connected.value = true;
+      await wrapper.vm.$nextTick();
       await wrapper.find(".sendrow button").trigger("click");
-      expect(wrapper.emitted("beacon")).toBeUndefined();
+      expect(send).not.toHaveBeenCalledWith({ cmd: "beacon_now" });
       expect(buttons(pane({}, { connected: false }).wrapper)[0]?.attributes("disabled")).toBeDefined();
     });
   });
@@ -170,16 +167,16 @@ describe("BeaconPane", () => {
         string,
         string
       >[]) {
-        const { wrapper } = pane(extra);
+        const { wrapper, send } = pane(extra);
         expect(buttons(wrapper).map((b) => b.text())).toEqual(["Beacon now", "Send status now"]);
         const status = buttons(wrapper)[1];
         await status?.trigger("click");
-        expect(wrapper.emitted("status")).toBeUndefined();
+        expect(send).not.toHaveBeenCalledWith({ cmd: "status_now" });
         expect(status?.text()).toBe("Really send?");
         expect(status?.classes()).toContain("danger");
         await status?.trigger("click");
-        expect(wrapper.emitted("status")).toHaveLength(1);
-        expect(wrapper.emitted("beacon")).toBeUndefined();
+        expect(send).toHaveBeenCalledWith({ cmd: "status_now" });
+        expect(send).not.toHaveBeenCalledWith({ cmd: "beacon_now" });
         expect(status?.text()).toBe("Send status now");
       }
     });
@@ -193,7 +190,7 @@ describe("BeaconPane", () => {
     });
 
     it("waits for a save: it acts on what is in force, so both buttons are off, saying Saving, while a change is on its way, and not before", async () => {
-      const { wrapper, send } = pane({ "status/source": "text" });
+      const { wrapper, send, daemon } = pane({ "status/source": "text" });
       const disabled = () => buttons(wrapper).map((b) => b.attributes("disabled") !== undefined);
       expect(disabled()).toEqual([false, false]);
       await wrapper.find("#set-station-status").setValue("At the cottage");
@@ -202,7 +199,8 @@ describe("BeaconPane", () => {
       expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "station/status": "At the cottage" } });
       expect(disabled()).toEqual([true, true]);
       expect(buttons(wrapper).map((b) => b.attributes("title"))).toEqual(["Saving…", "Saving…"]);
-      await wrapper.setProps({ config: configValues({ "status/source": "text", "station/status": "At the cottage" }) });
+      daemon.config.value = configValues({ "status/source": "text", "station/status": "At the cottage" });
+      await wrapper.vm.$nextTick();
       expect(disabled()).toEqual([false, false]);
     });
 
@@ -215,21 +213,21 @@ describe("BeaconPane", () => {
 
   describe("picking a place on the map", () => {
     it("forgets a send that waits for its second press when the pick starts", async () => {
-      const { wrapper } = pane();
+      const { wrapper, send } = pane();
       await buttons(wrapper)[0]?.trigger("click");
       expect(buttons(wrapper)[0]?.text()).toBe("Really send?");
       await wrapper.setProps({ picking: true });
       expect(buttons(wrapper)[0]?.text()).toBe("Beacon now");
-      expect(wrapper.emitted("beacon")).toBeUndefined();
+      expect(send).not.toHaveBeenCalledWith({ cmd: "beacon_now" });
     });
 
     it("asks the page to end the pick when a send is armed, once, and not when it is sent or nothing is picked", async () => {
-      const { wrapper } = pane({ "status/source": "text" }, { picking: true });
+      const { wrapper, send } = pane({ "status/source": "text" }, { picking: true });
       await buttons(wrapper)[1]?.trigger("click");
       expect(wrapper.emitted("pickPosition")).toHaveLength(1);
       await buttons(wrapper)[1]?.trigger("click");
       expect(wrapper.emitted("pickPosition")).toHaveLength(1);
-      expect(wrapper.emitted("status")).toHaveLength(1);
+      expect(send).toHaveBeenCalledWith({ cmd: "status_now" });
       const idle = pane();
       await buttons(idle.wrapper)[0]?.trigger("click");
       expect(idle.wrapper.emitted("pickPosition")).toBeUndefined();

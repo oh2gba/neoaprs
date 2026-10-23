@@ -2,6 +2,7 @@
 // The small (i) that explains what a control is for: closed until it is pressed, then a note that opens downward from it (upward in the box at the bottom of a tab, ComposeBar), kept inside the page (moved sideways where it would run off an edge, as on a phone): the slot (the sentences of the note, one `info-line` each). One note is open at a time; Esc, a click or tap outside
 // it, or the focus moving away closes it. The note is text, not a tooltip: it works with a finger and with the keyboard. `label` is the name of the button for a screen reader ("About Path").
 import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
+import { usePopup } from "@/composables/usePopup";
 import { newTipId, openTip } from "@/lib/infotip";
 
 defineProps<{ label: string }>();
@@ -29,38 +30,19 @@ function close(): void {
   if (openTip.value === id) openTip.value = null;
 }
 
-function away(event: Event): void {
-  if (!(event.target instanceof Node) || !root.value?.contains(event.target)) close();
-}
-
-function onKey(event: KeyboardEvent): void {
-  if (event.key !== "Escape") return;
-  close();
-  button.value?.focus();
-}
-
-function listen(on: boolean): void {
-  const act = (type: string, handler: EventListener): void => (on ? document.addEventListener(type, handler) : document.removeEventListener(type, handler));
-  act("pointerdown", away);
-  act("focusin", away);
-  act("keydown", onKey as EventListener);
-}
+const popup = usePopup({ open, root, trigger: button, close, escapeAnywhere: true });
 
 watch(open, async (now) => {
-  listen(now);
   if (!now) return;
   shift.value = 0;
   await nextTick();
   place();
 });
-onBeforeUnmount(() => {
-  listen(false);
-  close();
-});
+onBeforeUnmount(close);
 </script>
 
 <template>
-  <span ref="root" class="infotip" @keydown.esc="close">
+  <span ref="root" class="infotip" @keydown="popup.onEscape">
     <button
       ref="button"
       type="button"
