@@ -1,6 +1,5 @@
 """The wiring (neoaprs/wiring.py) with the whole daemon around it, the radio a fake one on the loopback: the capture of the TH-D7 fills the database and the station book, a restart finds the stations
 again, the cable pulled and put back, pruning and a change of the port in the settings. The port the search found being remembered is in tests/test_wiring_pty.py."""
-import asyncio
 import logging
 from dataclasses import replace
 from datetime import timedelta
@@ -14,7 +13,7 @@ from neoaprs.packet import Position
 from neoaprs.source import Source
 from neoaprs.tncprofile import KENWOOD_TNC2, KISS, KISS_TCP
 from neoaprs.wiring import tnc_settings
-from tests.support.env import Env, until
+from tests.support.env import Env, idle_for, until
 
 FIXED_ORDER = ["OH2RDG", "OH2RDK-7", "OH2RDS", "OH2PU-9"]         # the calls of the capture, in the order it came
 
@@ -76,7 +75,7 @@ async def test_what_we_send_is_in_the_packet_log_and_not_in_the_book(tmp_path: P
     e = Env(tmp_path)
     await e.start()
     await e.until_connected()
-    await asyncio.sleep(0.2)                                       # (the settle time of entering KISS is not in play: nothing was said in command mode)
+    await e.until_usable()                                       # (the settle time of entering KISS is not in play: nothing was said in command mode)
     frame = ax25.Frame(ax25.Address("APRS"), ax25.Address.parse("OH2GBA"), (), info=b"!6010.00N/02456.00E-NeoAPRS")
     assert e.tnc.send_frame(frame)
     [sent] = await e.packets()
@@ -186,7 +185,7 @@ async def test_a_change_of_the_serial_port_in_the_settings_restarts_the_tnc(tmp_
     assert (await e.ctl.store.settings())["serial/port"] == first and e.tnc.port == first
     opens = e.tnc.stats.opens
     assert await e.ctl.save_config(replace(e.ctl.config, station_comment="a changed comment"))
-    await asyncio.sleep(0.2)
+    await idle_for(0.2)
     assert e.tnc.stats.opens == opens and e.tnc.state is Source.State.CONNECTED, "a setting the Tnc does not use leaves it alone"
     assert await e.ctl.save_config(replace(e.ctl.config, serial_port=second))
     await until(lambda: e.tnc.state is Source.State.CONNECTED and e.tnc.path == second)
@@ -221,7 +220,7 @@ async def test_a_port_given_for_this_run_is_used_alone_and_never_stored(tmp_path
     e = Env(tmp_path, operator=False)                              # the Env's radio is given as the controller's port, like --port
     await e.start()
     assert e.tnc.path == e.link and e.tnc.port == e.link and not e.tnc.fallback_probe
-    await asyncio.sleep(0.1)
+    await idle_for(0.1)
     assert await e.ctl.store.settings() == {} and e.ctl.config.serial_last_port == ""
     await e.stop()
 

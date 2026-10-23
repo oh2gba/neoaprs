@@ -1,7 +1,6 @@
 """Our own objects and bulletins inside the whole daemon, the radio a fake TNC on the loopback: an object goes out as a KISS frame and is on the map as ours, a copy of it that is heard back makes no second one,
 another station that reports it takes it over, a kill is sent three times, a bulletin goes out and is not heard as a bulletin of somebody else, nothing is sent without a call, a restart finds both, and the commands
 and topics of the page."""
-import asyncio
 from pathlib import Path
 
 import pytest
@@ -10,7 +9,7 @@ from neoaprs.stationbook import Station
 from neoaprs.web.ownwire import OwnBulletinRow, OwnObjectRow
 from neoaprs.web.protocol import TOPIC_NAMES
 from tests.support.air import on_air, said
-from tests.support.env import Env, until
+from tests.support.env import Env, idle_for, until
 
 OBJECT_INFO = b";LEADER   *211200z6010.20N/02456.40E>Rescue 1"
 
@@ -20,7 +19,7 @@ async def started(tmp_path: Path, **kwargs: object) -> Env:
     e.ctl.ownobjects.tick_sec = e.ctl.ownbulletins.tick_sec = 0.02
     e.ctl.sender.spacing_sec = 0.0
     await e.start()
-    await asyncio.sleep(0.2)                                                # (the TNC has settled: nothing was said in command mode)
+    await e.until_usable()                                                # (the TNC has settled: nothing was said in command mode)
     return e
 
 
@@ -85,7 +84,7 @@ async def test_another_station_that_reports_our_object_takes_it_over_and_we_stop
     station = own(e)
     assert (station.own, station.reported_by, station.lat) == (False, "OH2XYZ", 60.5), "the map shows theirs"
     e.now.advance(3600)                                                     # type: ignore[attr-defined]
-    await asyncio.sleep(0.15)
+    await idle_for(0.15)
     assert await said(e, 1, 0.2) == []
     await e.settled()
     assert await e.ctl.ownlog.objects() == []
@@ -163,7 +162,7 @@ async def test_a_restart_finds_both_puts_the_objects_on_the_map_and_goes_on_with
     second.ctl.ownobjects.tick_sec = second.ctl.ownbulletins.tick_sec = 0.02
     second.ctl.sender.spacing_sec = 0.0
     await second.start()
-    await asyncio.sleep(0.2)
+    await second.until_usable()
     station = own(second)
     assert station.own and station.symbol_code == ">" and station.last_comment == "Rescue 1" and station.packets == 1
     assert [(o.name, o.sent) for o in second.ctl.ownobjects.records()] == [("LEADER", 1)] and [(b.slot, b.sent) for b in second.ctl.ownbulletins.records()] == [("BLN1", 1)]
@@ -182,7 +181,7 @@ async def test_the_page_makes_changes_and_kills_an_object_and_posts_and_deletes_
     e.ctl.ownobjects.tick_sec = e.ctl.ownbulletins.tick_sec = 0.02
     e.ctl.sender.spacing_sec = 0.0
     await e.start()
-    await asyncio.sleep(0.2)
+    await e.until_usable()
     page = await e.ws()
     await page.expect("hello")
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))

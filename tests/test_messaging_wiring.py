@@ -12,7 +12,7 @@ from neoaprs.message import MessageRecord, MessagingError
 from neoaprs.packet import Message
 from neoaprs.source import Source
 from tests.support.air import ack_info, message_info, on_air, reject_info, said
-from tests.support.env import Env, until
+from tests.support.env import Env, idle_for, until
 
 WORKED = "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :Hello Pekka{01}"
 
@@ -22,7 +22,7 @@ async def started(tmp_path: Path) -> Env:
     e.ctl.messaging.tick_sec = 0.02
     e.ctl.messaging.pace.spacing_sec = 0.0
     await e.start()
-    await asyncio.sleep(0.2)                                                # (the TNC has settled: nothing was said in command mode)
+    await e.until_usable()                                                # (the TNC has settled: nothing was said in command mode)
     return e
 
 
@@ -53,7 +53,7 @@ async def test_an_ack_through_the_line_settles_the_message_and_the_database_has_
     [row] = await kept(e)
     assert (row.state, row.attempts, row.acked_at) == ("acked", 1, e.now())
     e.now.advance(3600)                                                     # type: ignore[attr-defined]
-    await asyncio.sleep(0.15)
+    await idle_for(0.15)
     assert await said(e, 1, 0.2) == [], "an acked message is not sent again"
     await e.stop()
 
@@ -121,7 +121,7 @@ async def test_a_restart_finds_the_messages_and_goes_on_with_the_one_being_sent(
     second.ctl.messaging.tick_sec = 0.02
     await second.start()
     assert [(m.direction, m.text, m.state) for m in second.ctl.messaging.records()] == [("out", "Hello Pekka", "sending"), ("in", "Moi!", "received")]
-    await asyncio.sleep(0.2)
+    await second.until_usable()
     second.now.advance(31)                                                  # type: ignore[attr-defined]
     await until(lambda: second.ctl.messaging.records()[0].attempts == 2)
     assert [f.tnc2() for f in await said(second)] == [WORKED]
@@ -136,12 +136,11 @@ async def test_with_the_cable_pulled_the_message_waits_and_goes_out_when_the_rad
     record = await e.ctl.messaging.send("OH2RDG", "Hello Pekka")
     assert (record.state, record.attempts) == ("sending", 0)
     e.now.advance(300)                                                      # type: ignore[attr-defined]
-    await asyncio.sleep(0.15)
+    await idle_for(0.15)
     assert e.ctl.messaging.records()[0].attempts == 0
     await e.plug()
     await e.until_connected()
     await until(lambda: e.ctl.messaging.records()[0].attempts == 1)
-    await asyncio.sleep(0.2)
     assert [f.tnc2() for f in await said(e)] == [WORKED]
     await e.stop()
 
@@ -208,7 +207,7 @@ async def test_our_own_message_gated_back_to_us_is_ignored_like_an_echo(tmp_path
     e = await started(tmp_path)
     e.feed(on_air("OH7JHF-1", b"}OH2GBA>APZNEO,TCPIP,OH7JHF-1*::OH2DPN   :Hello Pekka{1", path="OH2RCH-3*"))
     await until(lambda: e.tnc.stats.packets == 1)
-    await asyncio.sleep(0.1)
+    await idle_for(0.1)
     assert await said(e, 1, 0.2) == [] and e.ctl.messaging.records() == []
     assert e.ctl.stationbook.get("OH7JHF-1") is None, "the iGate is no station: the packet was our own"
     await e.stop()
@@ -281,7 +280,7 @@ async def test_with_eight_digipeaters_already_a_message_to_an_rf_only_station_is
     assert [r.text for r in e.ctl.messaging.records()] == ["waits"], "a refused message is not kept"
     e.now.advance(60)                                                              # type: ignore[attr-defined]  (the second attempt of the first message is due)
     with caplog.at_level(logging.WARNING, "neoaprs.messaging"):
-        await asyncio.sleep(0.3)
+        await idle_for(0.3)
     assert await said(e, 1, 0.2) == [] and e.ctl.messaging.records()[0].attempts == 1 and e.ctl.messaging.records()[0].state == "sending"
     assert len([r for r in caplog.records if "path too long for RF only" in r.getMessage()]) == 1, "told once, not at every tick"
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "Moi!", "12")))

@@ -1,6 +1,5 @@
 """The beacon (neoaprs/services/beacon.py) inside the whole daemon, the radio a pseudo-terminal: the timer and a request put a KISS frame on the line, the packet log has it as a packet we sent, the
 station book does not take it as a station we heard, a frame that comes back (the TNC's echo, a digipeater's copy) only moves the time we were last heard, and the controller starts and stops it."""
-import asyncio
 from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
@@ -8,7 +7,7 @@ from pathlib import Path
 from neoaprs import TOCALL, ax25, kiss
 from neoaprs.packet import Position
 from neoaprs.source import Source
-from tests.support.env import Env, until
+from tests.support.env import Env, idle_for, until
 
 INFO = b"=6010.20N/02456.40E-mobile"
 
@@ -18,7 +17,7 @@ async def started(tmp_path: Path, **changes: object) -> Env:
     e = Env(tmp_path)
     e.ctl.beacon.tick_sec, e.ctl.beacon.retry_sec = 0.02, 0.05
     await e.start()
-    await asyncio.sleep(0.2)                                                # (the TNC has settled: nothing was said in command mode)
+    await e.until_usable()                                                # (the TNC has settled: nothing was said in command mode)
     assert await e.ctl.save_config(replace(e.ctl.config, station_comment="mobile", **changes))      # type: ignore[arg-type]
     return e
 
@@ -34,7 +33,7 @@ async def test_the_timer_sends_the_beacon_when_the_clock_says_so_and_it_is_a_kis
     first = e.ctl.beacon.next_due
     assert first == e.now() + timedelta(seconds=30)
     e.now.advance(29)                                                       # type: ignore[attr-defined]
-    await asyncio.sleep(0.1)
+    await idle_for(0.1)
     assert e.ctl.beacon.last_sent is None
     e.now.advance(1)                                                        # type: ignore[attr-defined]
     await until(lambda: e.ctl.beacon.last_sent is not None)
@@ -90,7 +89,7 @@ async def test_a_beacon_that_falls_due_with_the_cable_pulled_waits_and_is_sent_w
     await until(lambda: e.tnc.state is Source.State.WAITING)
     started_at = e.now()
     e.now.advance(30)                                                       # type: ignore[attr-defined]
-    await asyncio.sleep(0.2)
+    await idle_for(0.2)
     assert e.ctl.beacon.next_due == started_at + timedelta(seconds=30), "left where it was"
     assert e.ctl.beacon.last_sent is None and not e.ctl.beacon.send_now() and "not connected" in e.ctl.beacon.problem
     await e.plug()
@@ -105,7 +104,7 @@ async def test_saving_the_settings_puts_a_new_interval_in_force_and_zero_stops_i
     assert await e.ctl.save_config(replace(e.ctl.config, beacon_interval_min=0))
     assert e.ctl.beacon.next_due is None
     e.now.advance(7200)                                                     # type: ignore[attr-defined]
-    await asyncio.sleep(0.15)
+    await idle_for(0.15)
     assert e.ctl.beacon.last_sent is None and await e.packets() == []
     assert await e.ctl.save_config(replace(e.ctl.config, beacon_interval_min=5))
     await until(lambda: e.ctl.beacon.last_sent is not None)                 # (the first beacon was due long ago)
@@ -128,5 +127,5 @@ async def test_the_controller_stops_the_timer(tmp_path: Path) -> None:
     await e.stop()
     assert e.ctl.beacon.next_due is None
     e.now.advance(7200)                                                     # type: ignore[attr-defined]
-    await asyncio.sleep(0.1)
+    await idle_for(0.1)
     assert e.ctl.beacon.last_sent is None

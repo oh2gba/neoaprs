@@ -94,6 +94,12 @@ async def until(condition: Callable[[], object], timeout_sec: float = 5.0) -> No
         await asyncio.sleep(0.01)
 
 
+async def idle_for(seconds: float) -> None:
+    """A wait that is the point: the time in which a timer has had its chance to do something that a test then asserts it did not (or in which the loop runs the tasks the test just started). It never waits for something
+    that should happen: that is `until`."""
+    await asyncio.sleep(seconds)
+
+
 class Env:
     def __init__(self, tmp_path: Path, clock: Clock | None = None, radio: bool | str = True, ports: Path | None = None, web: bool = False, operator: bool = True, settings: dict[str, str] | None = None, **tnc_options: Any) -> None:
         self.dir = tmp_path
@@ -198,6 +204,10 @@ class Env:
 
     async def stop(self) -> None:
         await self.ctl.stop()
+
+    async def until_usable(self) -> None:
+        """The Tnc is connected and settled: past the wait after KISS ON, so that what the daemon sends from here on is not thrown away."""
+        await until(lambda: self.tnc.usable)
 
     async def until_connected(self) -> None:
         await until(lambda: self.tnc.state is Source.State.CONNECTED)
