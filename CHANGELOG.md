@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-Nothing yet.
+- A lighter station card: it keeps what is known of the station, its "Off map after" timeout and the Message and Forget buttons. The path (with its suggested chip), RF only and Attempts are set in the header of the station's conversation in the Messages tab, which the Message button opens. A row with nothing to say is left out: no Course, Speed or Altitude for a house, no Status or Comment when there is none, and no row whose value would be a dash.
 
 ## 0.3.0
 

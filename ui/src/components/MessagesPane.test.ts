@@ -21,7 +21,6 @@ function pane(extra: Record<string, unknown> = {}) {
     now: NOW,
     showOverheard: false,
     paths: new Map<string, string>(),
-    aging: { timeouts: new Map<string, number>(), defaultMin: 1440 },
     attempts: { own: new Map<string, number>(), defaultCount: 6 },
     fallbackPath: "WIDE1-1,WIDE2-1",
     ...extra,
@@ -170,6 +169,17 @@ describe("MessagesPane", () => {
     const direct = [...rows.slice(0, 1), incoming(2, "OH2RDG", { text: "Moi!", route: "direct" }), incoming(6, "OH2RDG", { route: "" })];
     const wrapper = pane({ thread: direct });
     expect(wrapper.findAll(".msg-route").map((r) => r.text())).toEqual(["direct"]);
+  });
+
+  it("has the path above the thread: shown, saved when changed, cleared by the x, and the default said when it has none", async () => {
+    const wrapper = pane({ paths: new Map([["OH2RDG", "OH2RCH-2"]]) });
+    expect(wrapper.find<HTMLInputElement>(".thread-head .pathbox input[placeholder='direct']").element.value).toBe("OH2RCH-2");
+    await wrapper.find(".thread-head .pathbox input[placeholder='direct']").setValue("WIDE2-1");
+    expect(wrapper.emitted("path")).toEqual([["OH2RDG", "WIDE2-1"]]);
+    await wrapper.find(".thread-head .use-default").trigger("click");
+    expect(wrapper.emitted("clearPath")).toEqual([["OH2RDG"]]);
+    expect(pane().find(".thread-head .pathbox").text()).toContain("(default)");
+    expect(wrapper.findAll(".thread-head label").map((l) => l.text())).toEqual(["Path", "RF only", "Attempts"]);
   });
 
   it("has the attempts field beside the path above the thread, and no map timeout there", async () => {
