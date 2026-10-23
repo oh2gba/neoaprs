@@ -485,7 +485,7 @@ uv run --with playwright --with pillow python scripts/screenshots.py --chromium 
 | `architecture` | the layers and the size limits (`tests/test_architecture.py`, `tests/test_size_ratchet.py`) |
 | `pytest` | the rest of the suite, side by side on the cores of the machine |
 | `ui-types` | `vue-tsc --noEmit` over `ui/`: TypeScript strict, the types of the protocol from `ui/src/protocol/` only |
-| `ui-lint` | eslint with no warnings, prettier `--check`, knip (nothing unused) over `ui/` |
+| `ui-lint` | eslint with no warnings, prettier `--check`, knip (nothing unused) over `ui/`, and `scripts/css-unused.py` (no rule in `ui/src/styles/` of a class that no source file writes) |
 | `ui-tests` | vitest: the logic of `ui/src/lib`, the composables, the components |
 | `ui-build` | `vite build` into `ui/dist` (the build works) |
 | `page` | `neoaprs/page/`, what the daemon serves, is what `ui/` builds, and lives under the daemon's Content-Security-Policy (`tests/test_page_build.py`) |
@@ -503,6 +503,7 @@ The stages from `ui-types` on need node 22.12 or newer (on the `PATH`, else the 
 | `scripts/doc-arch` | prints, writes (`--write`) or checks (`--check`) the tables of `docs/ARCHITECTURE.md` that are the data of the architecture test |
 | `scripts/dup-check` | the duplication ratchet of the Python half: jscpd (from `ui/node_modules`) over `neoaprs/` and `tests/support/` against `scripts/dup-baseline.json`; `--update` tightens the baseline and never makes it larger |
 | `scripts/dup-compare.py` | the decision of `dup-check`: compares a jscpd report with the baseline, clone by the pair of files it joins |
+| `scripts/css-unused.py` | the unused-class check of the page's style sheets (`ui/src/styles/*.css`), run by the stage `ui-lint`: lists the classes that a rule names and no `.vue`, `.ts` or `.html` file of `ui/` writes; the classes the page builds at run time (`hop-${kind}`, ...) are in its `PREFIXES`, with the file that builds each |
 | `scripts/neoaprs-db` | a clone's wrapper of `neoaprs db` with `--data` set to the clone's `./data` (a `--data` of your own wins) |
 | `scripts/make-icon.py` | draws the desktop app's icon, `neoaprs/desktop/icon.png` and `icon.ico` (they are committed; this is how they were made), and with `--site` the icons of the project page; needs Pillow: `uv run --with Pillow scripts/make-icon.py` |
 | `scripts/screenshots.py` | takes the screenshots of the README and of the project page with Playwright, on a daemon of its own and a made-up day on the air; "The project page" |

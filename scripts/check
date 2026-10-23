@@ -83,7 +83,7 @@ ui_run() {
     (cd ui && "$@")
 }
 stage_ui_types() { ui_run npx vue-tsc --noEmit; }
-stage_ui_lint() { ui_run npm run --silent lint && ui_run npm run --silent format:check && ui_run npm run --silent knip; }
+stage_ui_lint() { ui_run npm run --silent lint && ui_run npm run --silent format:check && ui_run npm run --silent knip && ui_run "$python" ../scripts/css-unused.py; }       # (the last: no rule of a class that no source file writes)
 stage_ui_tests() { ui_run npx vitest run; }
 stage_ui_build() { ui_run npx vite build; }
 stage_page() { "$python" -m pytest -q tests/test_page_build.py; }      # page/ (what the daemon serves) is a fresh build of ui/
