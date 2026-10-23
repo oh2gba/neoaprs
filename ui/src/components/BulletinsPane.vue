@@ -9,8 +9,9 @@ import BulletinCompose from "@/components/BulletinCompose.vue";
 import IconButton from "@/components/IconButton.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useSure } from "@/composables/useSure";
-import { ageText, dateTimeText } from "@/lib/format";
-import { ownEntries, ownMeta, sections, targetOf, timesText, type BoardEntry } from "@/lib/bulletins";
+import { t } from "@/i18n";
+import { dateTimeText } from "@/lib/format";
+import { heardText, ownEntries, ownMeta, sections, targetOf, type BoardEntry } from "@/lib/bulletins";
 import type { BulletinRow, OwnBulletinRow } from "@/protocol/protocol";
 
 const props = defineProps<{ bulletins: ReadonlyMap<string, BulletinRow>; ownBulletins: ReadonlyMap<string, OwnBulletinRow> }>();
@@ -25,7 +26,7 @@ const remove = (b: BoardEntry): void =>
 <template>
   <div class="boardwrap">
     <div class="boardpane">
-      <p v-if="shown.length === 0" class="empty">Nothing on the board.</p>
+      <p v-if="shown.length === 0" class="empty">{{ t("bulletins.empty") }}</p>
       <section v-for="section in shown" :key="section.kind" class="board-section" :aria-label="section.title">
         <h3 class="board-title">
           {{ section.title }} <span class="muted">{{ section.rows.length }}</span>
@@ -36,22 +37,22 @@ const remove = (b: BoardEntry): void =>
               <IconButton
                 kind="delete"
                 class="bulletin-delete"
-                :title="b.own ? 'Delete (stop sending)' : undefined"
+                :title="b.own ? t('bulletins.delete_title') : undefined"
                 :armed="sure.armed.value === keyOf(b)"
-                :label="b.own ? `Delete our bulletin ${b.slot}` : `Delete the bulletin ${b.slot} from ${b.sender}`"
+                :label="b.own ? t('bulletins.delete_own', { slot: b.slot }) : t('bulletins.delete', { slot: b.slot, sender: b.sender })"
                 @click="sure.press(keyOf(b), () => remove(b))"
               />
             </div>
             <p class="bulletin-head">
               <strong class="mono">{{ b.sender }}</strong>
-              <span class="muted"> to </span>
+              <span class="muted">{{ ` ${t("bulletins.to")} ` }}</span>
               <span class="mono bulletin-target" :title="b.slot">{{ targetOf(b) }}</span>
-              <span v-if="b.own" class="own-mark">ours</span>
+              <span v-if="b.own" class="own-mark">{{ t("bulletins.ours") }}</span>
             </p>
             <p class="bulletin-text">{{ b.text }}</p>
-            <p v-if="b.own" class="bulletin-meta muted" :title="`posted ${dateTimeText(b.first_heard)}`">{{ ownMeta(b.own, now) }}</p>
-            <p v-else class="bulletin-meta muted" :title="`first heard ${dateTimeText(b.first_heard)}, last heard ${dateTimeText(b.last_heard)}`">
-              {{ timesText(b.times_heard) }}, {{ ageText(b.last_heard, now) }} ago
+            <p v-if="b.own" class="bulletin-meta muted" :title="t('bulletins.posted', { time: dateTimeText(b.first_heard) })">{{ ownMeta(b.own, now) }}</p>
+            <p v-else class="bulletin-meta muted" :title="t('bulletins.heard_title', { first: dateTimeText(b.first_heard), last: dateTimeText(b.last_heard) })">
+              {{ heardText(b.times_heard, b.last_heard, now) }}
             </p>
           </li>
         </ul>

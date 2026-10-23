@@ -1,5 +1,6 @@
 // Our objects and items as the page handles them: the draft of the form (every field as it is typed), what is wrong with it, the command it makes, and how a row of the list is worded. The daemon checks
 // all of it again (neoaprs/ownobject.py); the page only keeps the user from sending what it would refuse, and says what is wrong in the title of the field.
+import { t } from "@/i18n";
 import { parsePath } from "@/lib/calls";
 import { untilText } from "@/lib/format";
 import { parseNumber, symbolProblem } from "@/lib/fieldcheck";
@@ -69,10 +70,9 @@ export function draftOf(row: OwnObjectRow): ObjectDraft {
 /** What is wrong with a name, "" when it is fine or empty: 1 to 9 characters (an item 3 to 9) of printable ASCII, none of `! _ | ~`, no blank at either end. */
 export function nameProblem(name: string, kind: Kind): string {
   if (name === "") return "";
-  if (name !== name.trim() || !/^[\x20-\x7e]*$/.test(name) || [...NAME_FORBIDDEN].some((c) => name.includes(c)))
-    return "No blank at either end, none of ! _ | ~";
-  if (name.length > NAME_MAX) return `At most ${NAME_MAX} characters`;
-  return kind === "item" && name.length < ITEM_NAME_MIN ? `An item has ${ITEM_NAME_MIN} to ${NAME_MAX} characters` : "";
+  if (name !== name.trim() || !/^[\x20-\x7e]*$/.test(name) || [...NAME_FORBIDDEN].some((c) => name.includes(c))) return t("objects.problem.name_chars");
+  if (name.length > NAME_MAX) return t("objects.problem.at_most", { max: NAME_MAX });
+  return kind === "item" && name.length < ITEM_NAME_MIN ? t("objects.problem.item_name", { min: ITEM_NAME_MIN, max: NAME_MAX }) : "";
 }
 
 const wholeIn = (text: string, min: number, max: number): boolean => /^\d+$/.test(text.trim()) && Number(text) >= min && Number(text) <= max;
@@ -95,21 +95,30 @@ export function draftProblems(draft: ObjectDraft): DraftProblems {
     ["lon", LIMITS.range["station/lon"].max],
   ] as const) {
     const value = parseNumber(draft[field]);
-    set(field, draft[field].trim() === "" ? "" : value === null ? "Not a number" : Math.abs(value) <= limit ? "" : `Between -${limit} and ${limit}`);
+    set(
+      field,
+      draft[field].trim() === ""
+        ? ""
+        : value === null
+          ? t("objects.problem.not_number")
+          : Math.abs(value) <= limit
+            ? ""
+            : t("objects.problem.between", { max: limit }),
+    );
   }
   const comment = draft.comment.trim();
   set(
     "comment",
     !/^[\x20-\x7e]*$/.test(comment) || /[|~]/.test(comment)
-      ? "Printable ASCII, no | or ~"
+      ? t("objects.problem.comment_chars")
       : comment.length > commentLimit(draft)
-        ? `At most ${commentLimit(draft)} characters`
+        ? t("objects.problem.at_most", { max: commentLimit(draft) })
         : "",
   );
-  set("course", draft.course.trim() === "" || wholeIn(draft.course, 0, COURSE_MAX) ? "" : `0 to ${COURSE_MAX} degrees`);
+  set("course", draft.course.trim() === "" || wholeIn(draft.course, 0, COURSE_MAX) ? "" : t("objects.problem.course", { max: COURSE_MAX }));
   const speed = parseNumber(draft.speed);
-  set("speed", draft.speed.trim() === "" || (speed !== null && speed >= 0 && speed <= SPEED_MAX_KMH) ? "" : `0 to ${SPEED_MAX_KMH} km/h`);
-  set("path", parsePath(draft.path) === null ? `Calls separated by commas, at most ${LIMITS.path.maxCalls}` : "");
+  set("speed", draft.speed.trim() === "" || (speed !== null && speed >= 0 && speed <= SPEED_MAX_KMH) ? "" : t("objects.problem.speed", { max: SPEED_MAX_KMH }));
+  set("path", parsePath(draft.path) === null ? t("route.calls_hint", { max: LIMITS.path.maxCalls }) : "");
   return found;
 }
 
@@ -185,15 +194,15 @@ export function wrapLongitude(lon: number): number {
   return Math.round((((((lon + 180) % 360) + 360) % 360) - 180) * 1e5) / 1e5;
 }
 
-/** "sent twice", "sent 5 times", "not sent yet". */
+/** "sent once", "sent 5 times", "not sent yet". */
 export function sentText(sent: number): string {
-  return sent === 0 ? "not sent yet" : sent === 1 ? "sent once" : `sent ${sent} times`;
+  return t("schedule.sent", { n: sent });
 }
 
 /** What the list says of an object of ours: how often it was sent and when it is sent next, "waiting" when that time has passed (the call is not set or the radio is away), "killing" for one whose kill is going out. */
 export function stateText(row: OwnObjectRow, nowMs: number): string {
-  if (row.state === "killing") return `killing, ${sentText(row.sent)}`;
+  if (row.state === "killing") return t("schedule.killing", { n: row.sent });
   const due = row.next_at === null ? NaN : Date.parse(row.next_at);
-  const next = Number.isNaN(due) ? "" : nowMs - due > OVERDUE_MS ? ", waiting" : `, next ${untilText(row.next_at, nowMs)}`;
-  return `${sentText(row.sent)}${next}`;
+  if (Number.isNaN(due)) return sentText(row.sent);
+  return nowMs - due > OVERDUE_MS ? t("schedule.waiting", { n: row.sent }) : t("schedule.next", { n: row.sent, when: untilText(row.next_at, nowMs) });
 }

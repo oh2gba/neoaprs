@@ -1,0 +1,32 @@
+// The Bulletins tab: the message board in its sections, and the box to post to it.
+export const bulletins = {
+  "bulletins.section.announcement": "Announcements",
+  "bulletins.section.bulletin": "Bulletins",
+  "bulletins.section.group": "Group messages",
+  "bulletins.section.nws": "Weather service",
+
+  "bulletins.empty": "Nothing on the board.",
+  "bulletins.delete_title": "Delete (stop sending)",
+  "bulletins.delete_own": "Delete our bulletin {slot}",
+  "bulletins.delete": "Delete the bulletin {slot} from {sender}",
+  "bulletins.to": "to",
+  "bulletins.ours": "ours",
+  "bulletins.posted": "posted {time}",
+  "bulletins.heard_title": "first heard {first}, last heard {last}",
+  "bulletins.heard": { "=1": "heard once, {span} ago", other: "heard {n} times, {span} ago" },
+
+  "bulletins.post_label": "Post a bulletin",
+  "bulletins.kind": "Kind",
+  "bulletins.kind.bulletin": "Bulletin",
+  "bulletins.kind.announcement": "Announcement",
+  "bulletins.kind.group": "Bulletin to a group",
+  "bulletins.kinds_help_label": "What the kinds are",
+  "bulletins.kinds_help":
+    "A bulletin is for everyone and nobody acknowledges it. A bulletin to a group is for the stations that follow that group name. To reach particular stations, with an acknowledgement from each, send them a message: Messages tab, Stations.",
+  "bulletins.letter": "Letter",
+  "bulletins.number": "Number",
+  "bulletins.group": "Group",
+  "bulletins.group_placeholder": "Name",
+  "bulletins.text": "Text",
+  "bulletins.post": "Post",
+} as const;

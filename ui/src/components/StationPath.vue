@@ -4,9 +4,10 @@
 // and the x takes it away again. What is put in the slot (the RF only tickbox) sits beside it. The chip "suggested: ..." fills the field with the path the daemon worked out from how the station's packets reach us (the best route turned round) and saves it; it
 // is not there when there is no suggestion or the station has it already.
 import { computed, ref, useId, watch } from "vue";
+import { t } from "@/i18n";
 import { parsePath } from "@/lib/calls";
 import { effectivePath } from "@/lib/messages";
-import { pathWords } from "@/lib/routes";
+import { LIMITS } from "@/protocol/lists";
 
 const props = withDefaults(defineProps<{ call: string; paths: ReadonlyMap<string, string>; fallback: string; suggested?: string | null }>(), {
   suggested: null,
@@ -38,24 +39,26 @@ function useSuggested(): void {
 
 <template>
   <div class="pathbox">
-    <label :for="id" class="path-label">Path</label>
+    <label :for="id" class="path-label">{{ t("route.path") }}</label>
     <input
       :id="id"
       v-model="draft"
       class="input mono grow"
       :class="{ invalid: calls === null }"
       type="text"
-      placeholder="direct"
-      :title="calls === null ? 'Calls separated by commas, at most 8' : undefined"
+      :placeholder="t('route.direct')"
+      :title="calls === null ? t('route.calls_hint', { max: LIMITS.path.maxCalls }) : undefined"
       autocomplete="off"
       spellcheck="false"
       @change="save"
     />
-    <span v-if="!effective.own" class="muted">(default)</span>
-    <button v-else type="button" class="iconbtn use-default" aria-label="Use the default path" title="Use the default path" @click="emit('clear', call)">
+    <span v-if="!effective.own" class="muted">{{ t("route.default") }}</span>
+    <button v-else type="button" class="iconbtn use-default" :aria-label="t('route.use_default')" :title="t('route.use_default')" @click="emit('clear', call)">
       ×
     </button>
-    <button v-if="suggested !== null && !applied" type="button" class="chip use-suggested" @click="useSuggested">suggested: {{ pathWords(suggested) }}</button>
+    <button v-if="suggested !== null && !applied" type="button" class="chip use-suggested" @click="useSuggested">
+      {{ t("route.suggested", { path: suggested === "" ? t("route.direct") : suggested }) }}
+    </button>
     <slot />
   </div>
 </template>

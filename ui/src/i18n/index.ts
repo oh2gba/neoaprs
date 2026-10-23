@@ -86,4 +86,9 @@ export function weekdayShort(date: Date): string {
   return new Intl.DateTimeFormat(tag(), { weekday: "short" }).format(date);
 }
 
+/** The short name of the month of a date, in the viewer's time: "Oct". */
+export function monthShort(date: Date): string {
+  return new Intl.DateTimeFormat(tag(), { month: "short" }).format(date);
+}
+
 startLocale();

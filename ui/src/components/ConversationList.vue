@@ -3,6 +3,7 @@
 // (or the overheard pair) after "sure?": the one way to delete, a single message has no button.
 import IconButton from "@/components/IconButton.vue";
 import InfoTip from "@/components/InfoTip.vue";
+import { t } from "@/i18n";
 import { useSure } from "@/composables/useSure";
 import { ageText } from "@/lib/format";
 import { conversationName, isHighlighted, overheardPair, type Conversation } from "@/lib/messages";
@@ -28,14 +29,14 @@ function remove(call: string): void {
 </script>
 
 <template>
-  <section class="convlist" aria-label="Conversations">
+  <section class="convlist" :aria-label="t('messages.conversations')">
     <div class="convlist-head">
       <div class="convlist-overheard">
         <label class="check"
-          ><input type="checkbox" :checked="showOverheard" @change="emit('update:showOverheard', ($event.target as HTMLInputElement).checked)" /> Show
-          overheard</label
+          ><input type="checkbox" :checked="showOverheard" @change="emit('update:showOverheard', ($event.target as HTMLInputElement).checked)" />
+          {{ t("messages.show_overheard") }}</label
         >
-        <InfoTip label="What overheard means">Messages that other stations sent to each other and that we heard on the radio.</InfoTip>
+        <InfoTip :label="t('messages.overheard_help_label')">{{ t("messages.overheard_help") }}</InfoTip>
       </div>
     </div>
     <ul class="convs">
@@ -50,18 +51,18 @@ function remove(call: string): void {
         >
           <span class="conv-call">{{ conversationName(c.call) }}</span>
           <span class="conv-age muted">{{ ageText(c.last.at, now) }}</span>
-          <span class="conv-text muted">{{ c.last.direction === "out" ? "You: " : "" }}{{ c.last.text }}</span>
+          <span class="conv-text muted">{{ c.last.direction === "out" ? t("messages.last_out", { text: c.last.text }) : c.last.text }}</span>
           <span v-if="c.unread > 0" class="badge" :title="unreadText(c.unread)">{{ c.unread }}</span>
         </button>
         <IconButton
           kind="delete"
           class="conv-delete"
           :armed="sure.armed.value === c.call"
-          :label="c.overheard ? `Delete the overheard messages ${conversationName(c.call)}` : `Delete the conversation with ${c.call}`"
+          :label="c.overheard ? t('messages.delete_overheard', { name: conversationName(c.call) }) : t('messages.delete_conversation', { call: c.call })"
           @click="sure.press(c.call, () => remove(c.call))"
         />
       </li>
-      <li v-if="conversations.length === 0" class="empty">No message yet.</li>
+      <li v-if="conversations.length === 0" class="empty">{{ t("messages.none_yet") }}</li>
     </ul>
   </section>
 </template>

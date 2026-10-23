@@ -1,6 +1,7 @@
 // The messages of the topic `messages`: grouped into conversations (one for each other station), the thread of one, how many are unread, and the rules the compose box shows (the call, the bytes
 // a message may still have). Messages we only overheard (sent to another station) are no conversation of ours: with `showOverheard` each pair of stations is listed as one, read-only in spirit.
 // The daemon checks all of this again; the page only keeps the user from sending what it would refuse. What a call is, and a path, is lib/calls.ts.
+import { t } from "@/i18n";
 import { normalizeCall } from "@/lib/calls";
 import { dateTimeText } from "@/lib/format";
 import { LIMITS } from "@/protocol/lists";
@@ -115,28 +116,29 @@ export function newestIncomingId(rows: readonly MessageRow[]): number {
 
 /** Which attempt a message that is being sent is at, of how many it was given when it was sent: "attempt 3 of 6". */
 export function attemptText(row: MessageRow): string {
-  return `attempt ${row.attempts} of ${row.attempts_max}`;
+  return t("messages.attempt", { attempt: row.attempts, max: row.attempts_max });
 }
 
 /** The state of a message in words, with its attempts. Nothing for a message that came in. */
 export function stateText(row: MessageRow): string {
+  const n = row.attempts;
   switch (row.state) {
     case "received":
       return "";
     case "overheard":
-      return `for ${row.to_call}`;
+      return t("messages.state.overheard", { call: row.to_call });
     case "sending":
-      return row.attempts === 0 ? "waiting for the radio" : `sending, ${attemptText(row)}`;
+      return n === 0 ? t("messages.state.waiting") : t("messages.state.sending", { attempt: n, max: row.attempts_max });
     case "acked":
-      return `acked, sent ${row.attempts === 1 ? "once" : `${row.attempts} times`}`;
+      return t("messages.state.acked", { n });
     case "rejected":
-      return "rejected";
+      return t("messages.state.rejected");
     case "failed":
-      return `no answer after ${row.attempts} attempts`;
+      return t("messages.state.failed", { n });
     case "unconfirmed":
-      return `sent ${row.attempts === 1 ? "once" : row.attempts === 2 ? "twice" : `${row.attempts} times`}, no ack`;
+      return t("messages.state.unconfirmed", { n });
     case "cancelled":
-      return `cancelled after ${row.attempts} ${row.attempts === 1 ? "attempt" : "attempts"}`;
+      return t("messages.state.cancelled", { n });
   }
 }
 
@@ -170,16 +172,16 @@ export function markOf(row: MessageRow): Mark | null {
   if (row.direction !== "out") return null;
   switch (row.state) {
     case "sending":
-      return { kind: "clock", title: row.attempts === 0 ? "waiting for the radio" : attemptText(row) };
+      return { kind: "clock", title: row.attempts === 0 ? t("messages.state.waiting") : attemptText(row) };
     case "acked":
-      return { kind: "check", title: row.acked_at === null ? "acked" : `acked ${dateTimeText(row.acked_at)}` };
+      return { kind: "check", title: row.acked_at === null ? t("messages.mark.acked") : t("messages.mark.acked_at", { time: dateTimeText(row.acked_at) }) };
     case "rejected":
     case "failed":
-      return { kind: "cross", title: row.state };
+      return { kind: "cross", title: row.state === "failed" ? t("messages.mark.failed") : t("messages.state.rejected") };
     case "unconfirmed":
-      return { kind: "hollow", title: "sent, no ack expected" };
+      return { kind: "hollow", title: t("messages.mark.no_ack_expected") };
     case "cancelled":
-      return { kind: "dash", title: "cancelled" };
+      return { kind: "dash", title: t("messages.mark.cancelled") };
     default:
       return null;
   }

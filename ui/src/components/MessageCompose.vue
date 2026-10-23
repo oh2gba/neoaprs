@@ -4,6 +4,7 @@
 // page turns into one ordinary message to each. The text is cleared once it is sent.
 import { computed, ref } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
+import { t } from "@/i18n";
 import { leftTitle, sendBlockedReason } from "@/lib/compose";
 import { bytesLeft } from "@/lib/messages";
 import { canSendAll } from "@/lib/recipients";
@@ -18,7 +19,7 @@ const input = ref<HTMLInputElement | null>(null);
 
 const left = computed(() => bytesLeft(text.value));
 const ready = computed(() => canSendAll(props.connected, props.to, "", text.value));
-const sendLabel = computed(() => (props.to.length > 1 ? `Send to ${props.to.length}` : "Send"));
+const sendLabel = computed(() => (props.to.length > 1 ? t("messages.send_to", { n: props.to.length }) : t("messages.send")));
 
 defineExpose({ focusText: (): void => input.value?.focus() });
 
@@ -32,9 +33,16 @@ function submit(): void {
 </script>
 
 <template>
-  <ComposeBar class="compose" label="Message" inline :left="left" :left-title="leftTitle(left, 'bytes', LIMITS.message.textMax)" @submit="submit">
-    <label class="sr-only" for="msg-text">Message</label>
-    <input id="msg-text" ref="input" v-model="text" class="input compose-text" type="text" placeholder="Message" autocomplete="off" />
+  <ComposeBar
+    class="compose"
+    :label="t('messages.compose')"
+    inline
+    :left="left"
+    :left-title="leftTitle(left, 'bytes', LIMITS.message.textMax)"
+    @submit="submit"
+  >
+    <label class="sr-only" for="msg-text">{{ t("messages.compose") }}</label>
+    <input id="msg-text" ref="input" v-model="text" class="input compose-text" type="text" :placeholder="t('messages.compose')" autocomplete="off" />
     <template #buttons>
       <button type="submit" class="btn primary" :disabled="!ready" :title="sendBlockedReason(connected)">{{ sendLabel }}</button>
     </template>

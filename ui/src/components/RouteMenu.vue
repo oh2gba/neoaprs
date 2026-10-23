@@ -3,6 +3,7 @@
 // tap outside it, or the focus moving away. A dot on the button says the route is not the default one (a path of its own, or RF only), which the old closed heading said by being open.
 import { computed, ref, watch } from "vue";
 import StationPrefs from "@/components/StationPrefs.vue";
+import { t } from "@/i18n";
 import { usePopup } from "@/composables/usePopup";
 import { effectivePath } from "@/lib/messages";
 
@@ -33,10 +34,10 @@ watch(
       class="btn small route-button"
       :class="{ changed }"
       :aria-expanded="open"
-      :title="changed ? 'Route: not the default' : 'Route'"
+      :title="changed ? t('route.changed') : t('route.button')"
       @click="open = !open"
     >
-      Route<span v-if="changed" class="route-dot" aria-hidden="true"></span>
+      {{ t("route.button") }}<span v-if="changed" class="route-dot" aria-hidden="true"></span>
     </button>
     <div v-if="open" class="route-box">
       <StationPrefs

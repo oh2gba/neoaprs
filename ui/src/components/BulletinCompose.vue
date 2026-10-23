@@ -5,10 +5,11 @@
 import { computed, reactive, ref, watch } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
 import InfoTip from "@/components/InfoTip.vue";
+import { t } from "@/i18n";
 import { leftTitle } from "@/lib/compose";
 import { LIMITS } from "@/protocol/lists";
 import type { OwnBulletinRow } from "@/protocol/protocol";
-import { GROUP_MAX, POST_KINDS, canPost, charsLeft, groupOf, groupOk, idsOf, postCommand, type PostDraft } from "@/lib/bulletins";
+import { GROUP_MAX, POST_KINDS, canPost, charsLeft, groupOf, groupOk, idsOf, kindTitle, postCommand, type PostDraft } from "@/lib/bulletins";
 
 const props = defineProps<{ ownBulletins: ReadonlyMap<string, OwnBulletinRow> }>();
 const emit = defineEmits<{ post: [slot: string, text: string] }>();
@@ -49,47 +50,44 @@ function submit(): void {
 <template>
   <ComposeBar
     class="bulletin-compose"
-    label="Post a bulletin"
+    :label="t('bulletins.post_label')"
     :left="left"
     :left-title="leftTitle(left, 'characters', LIMITS.message.textMax)"
     @submit="submit"
   >
     <div class="compose-row labelled">
       <div class="stack">
-        <label for="post-kind">Kind</label>
+        <label for="post-kind">{{ t("bulletins.kind") }}</label>
         <select id="post-kind" v-model="draft.kind" class="input">
-          <option v-for="k in POST_KINDS" :key="k.kind" :value="k.kind">{{ k.title }}</option>
+          <option v-for="k in POST_KINDS" :key="k.kind" :value="k.kind">{{ kindTitle(k.kind) }}</option>
         </select>
       </div>
-      <InfoTip label="What the kinds are">
-        A bulletin is for everyone and nobody acknowledges it. A bulletin to a group is for the stations that follow that group name. To reach particular
-        stations, with an acknowledgement from each, send them a message: Messages tab, Stations.
-      </InfoTip>
+      <InfoTip :label="t('bulletins.kinds_help_label')">{{ t("bulletins.kinds_help") }}</InfoTip>
       <div class="stack">
-        <label for="post-id">{{ draft.kind === "announcement" ? "Letter" : "Number" }}</label>
+        <label for="post-id">{{ t(draft.kind === "announcement" ? "bulletins.letter" : "bulletins.number") }}</label>
         <select id="post-id" v-model="draft.id" class="input mono">
           <option v-for="c in idsOf(draft.kind)" :key="c" :value="c">{{ c }}</option>
         </select>
       </div>
       <div v-if="draft.kind === 'group'" class="stack">
-        <label for="post-group">Group</label>
+        <label for="post-group">{{ t("bulletins.group") }}</label>
         <input
           id="post-group"
           v-model="draft.group"
           class="input mono compose-group"
           :class="{ invalid: badGroup }"
           type="text"
-          placeholder="Name"
+          :placeholder="t('bulletins.group_placeholder')"
           :maxlength="GROUP_MAX"
           autocomplete="off"
           spellcheck="false"
         />
       </div>
     </div>
-    <label class="sr-only" for="post-text">Text</label>
-    <input id="post-text" v-model="draft.text" class="input compose-text" type="text" placeholder="Text" autocomplete="off" />
+    <label class="sr-only" for="post-text">{{ t("bulletins.text") }}</label>
+    <input id="post-text" v-model="draft.text" class="input compose-text" type="text" :placeholder="t('bulletins.text')" autocomplete="off" />
     <template #buttons>
-      <button type="submit" class="btn primary" :disabled="!ready">Post</button>
+      <button type="submit" class="btn primary" :disabled="!ready">{{ t("bulletins.post") }}</button>
     </template>
   </ComposeBar>
 </template>

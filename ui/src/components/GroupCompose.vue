@@ -5,6 +5,7 @@
 import { onMounted, ref } from "vue";
 import IconButton from "@/components/IconButton.vue";
 import MessageCompose from "@/components/MessageCompose.vue";
+import { t } from "@/i18n";
 
 const props = defineProps<{ calls: readonly string[]; narrow: boolean; connected: boolean }>();
 const text = defineModel<string>("text", { default: "" });
@@ -31,17 +32,19 @@ function take(call: string): void {
 </script>
 
 <template>
-  <section class="convo group" aria-label="Message several stations">
+  <section class="convo group" :aria-label="t('messages.group')">
     <header class="convo-head group-head">
-      <button v-if="narrow" type="button" class="convo-back" aria-label="Back to the conversations" title="Back" @click="emit('close')">
+      <button v-if="narrow" type="button" class="convo-back" :aria-label="t('messages.back_label')" :title="t('messages.back')" @click="emit('close')">
         <span aria-hidden="true">‹</span>
       </button>
-      <ul class="recipients" aria-label="Recipients">
+      <ul class="recipients" :aria-label="t('messages.recipients')">
         <li v-for="call in calls" :key="call">
-          <button type="button" class="chip" :aria-label="`Remove ${call}`" title="Remove" @click="take(call)">{{ call }} &times;</button>
+          <button type="button" class="chip" :aria-label="t('messages.remove_label', { call })" :title="t('messages.remove')" @click="take(call)">
+            {{ call }} &times;
+          </button>
         </li>
       </ul>
-      <IconButton v-if="!narrow" kind="close" label="Close" @click="emit('close')" />
+      <IconButton v-if="!narrow" kind="close" :label="t('messages.close')" @click="emit('close')" />
     </header>
     <div class="group-room"></div>
     <MessageCompose

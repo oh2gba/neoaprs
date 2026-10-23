@@ -6,8 +6,9 @@ import { computed } from "vue";
 import EmailCompose from "@/components/EmailCompose.vue";
 import EmailList from "@/components/EmailList.vue";
 import InfoTip from "@/components/InfoTip.vue";
+import { t } from "@/i18n";
 import { useDaemonContext } from "@/composables/useDaemonContext";
-import { TNC_NOT_CONNECTED } from "@/lib/compose";
+import { tncNotConnected } from "@/lib/compose";
 import { checkingMail } from "@/lib/email";
 import type { MessageRow } from "@/protocol/protocol";
 
@@ -25,17 +26,17 @@ const emit = defineEmits<{
 }>();
 
 const checking = computed(() => checkingMail(props.thread));
-const away = computed(() => (!connected.value ? TNC_NOT_CONNECTED : checking.value ? "Already checking" : undefined));
+const away = computed(() => (!connected.value ? tncNotConnected() : checking.value ? t("email.checking") : undefined));
 </script>
 
 <template>
   <div class="mailpane">
     <div class="mail-bar">
-      <button type="button" class="btn" :disabled="away !== undefined" :title="away" @click="emit('get')">Check email</button>
+      <button type="button" class="btn" :disabled="away !== undefined" :title="away" @click="emit('get')">{{ t("email.check") }}</button>
       <span class="grow" />
-      <InfoTip label="About email">
-        <span class="info-line">Mail goes through the internet gateway EMAIL-2 via an iGate, so a mail can show Not confirmed although it arrived.</span>
-        <span class="info-line">Check email asks the gateway for mail it kept for you (it keeps mail for 24 hours).</span>
+      <InfoTip :label="t('email.about')">
+        <span class="info-line">{{ t("email.about_gateway", { unconfirmed: t("email.state.unconfirmed") }) }}</span>
+        <span class="info-line">{{ t("email.about_check", { check: t("email.check") }) }}</span>
       </InfoTip>
     </div>
     <EmailList

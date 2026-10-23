@@ -6,6 +6,7 @@ import { computed, nextTick, ref, watch } from "vue";
 import IconButton from "@/components/IconButton.vue";
 import ObjectForm from "@/components/ObjectForm.vue";
 import SymbolIcon from "@/components/SymbolIcon.vue";
+import { t } from "@/i18n";
 import type { OwnObjectsView } from "@/composables/useOwnObjects";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useSure } from "@/composables/useSure";
@@ -31,27 +32,29 @@ watch(
 <template>
   <div class="objectspane">
     <div class="toolbar">
-      <button class="btn primary" type="button" @click="form.start()">New</button>
+      <button class="btn primary" type="button" @click="form.start()">{{ t("objects.new") }}</button>
     </div>
     <div ref="log" class="objectlist">
-      <p v-if="rows.length === 0 && !form.open" class="empty">No objects.</p>
+      <p v-if="rows.length === 0 && !form.open" class="empty">{{ t("objects.none") }}</p>
       <ul class="board ownobjects">
         <li v-for="row in rows" :key="row.name" class="bulletin ownobject" :class="{ killing: row.state === 'killing' }">
           <div v-if="row.state === 'live'" class="bulletin-actions">
-            <button type="button" class="btn object-edit" :aria-label="`Edit ${row.name}`" @click="form.edit(row.name)">Edit</button>
+            <button type="button" class="btn object-edit" :aria-label="t('objects.edit_label', { name: row.name })" @click="form.edit(row.name)">
+              {{ t("objects.edit") }}
+            </button>
             <IconButton
               kind="delete"
               class="bulletin-delete"
-              title="Delete (kill on the air)"
+              :title="t('objects.delete_title')"
               :armed="sure.armed.value === row.name"
-              :label="`Delete the ${row.kind} ${row.name}`"
+              :label="t('objects.delete_label', { kind: row.kind, name: row.name })"
               @click="sure.press(row.name, () => form.kill(row.name))"
             />
           </div>
           <p class="bulletin-head">
             <SymbolIcon :table="row.symbol_table" :code="row.symbol_code" :size="22" />
             <strong class="mono">{{ row.name }}</strong>
-            <span class="muted"> {{ row.kind }}</span>
+            <span class="muted"> {{ t("objects.kind_word", { kind: row.kind }) }}</span>
           </p>
           <p v-if="row.comment" class="bulletin-text">{{ row.comment }}</p>
           <p class="bulletin-meta muted">{{ stateText(row, now) }}</p>

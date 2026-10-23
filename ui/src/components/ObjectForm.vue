@@ -5,6 +5,7 @@
 import { computed, useId } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
 import SymbolField from "@/components/SymbolField.vue";
+import { t } from "@/i18n";
 import type { OwnObjectsView } from "@/composables/useOwnObjects";
 import { leftTitle } from "@/lib/compose";
 import { commentLimit, draftProblems, draftReady, NAME_MAX } from "@/lib/ownobjects";
@@ -20,14 +21,14 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
 <template>
   <ComposeBar
     class="objform"
-    :label="form.editing === null ? 'New object' : `Edit ${form.editing}`"
+    :label="form.editing === null ? t('objects.form.new') : t('objects.edit_label', { name: form.editing })"
     :left="left"
-    :left-title="leftTitle(left, 'characters', undefined, ' in the comment')"
+    :left-title="leftTitle(left, 'comment')"
     scrolls
     @submit="form.save()"
   >
     <div class="field" :class="{ invalid: problems.name }" :title="problems.name">
-      <label :for="`${id}-name`">Name</label>
+      <label :for="`${id}-name`">{{ t("objects.field.name") }}</label>
       <div class="field-control">
         <input
           :id="`${id}-name`"
@@ -39,65 +40,67 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
           autocomplete="off"
           spellcheck="false"
         />
-        <select v-model="draft.kind" class="input" aria-label="Kind">
-          <option value="object">Object</option>
-          <option value="item">Item</option>
+        <select v-model="draft.kind" class="input" :aria-label="t('objects.field.kind')">
+          <option value="object">{{ t("objects.field.object") }}</option>
+          <option value="item">{{ t("objects.field.item") }}</option>
         </select>
       </div>
     </div>
     <SymbolField :id="`${id}-symbol`" v-model:symbol="draft.symbol" />
     <div class="field" :class="{ invalid: problems.lat }" :title="problems.lat">
-      <label :for="`${id}-lat`">Latitude</label>
+      <label :for="`${id}-lat`">{{ t("objects.field.lat") }}</label>
       <div class="field-control">
         <input :id="`${id}-lat`" v-model="draft.lat" class="input mono" type="text" inputmode="decimal" autocomplete="off" />
       </div>
     </div>
     <div class="field" :class="{ invalid: problems.lon }" :title="problems.lon">
-      <label :for="`${id}-lon`">Longitude</label>
+      <label :for="`${id}-lon`">{{ t("objects.field.lon") }}</label>
       <div class="field-control">
         <input :id="`${id}-lon`" v-model="draft.lon" class="input mono" type="text" inputmode="decimal" autocomplete="off" />
       </div>
     </div>
     <div class="field" :class="{ invalid: problems.comment }" :title="problems.comment">
-      <label :for="`${id}-comment`">Comment</label>
+      <label :for="`${id}-comment`">{{ t("objects.field.comment") }}</label>
       <div class="field-control">
         <input :id="`${id}-comment`" v-model="draft.comment" class="input" type="text" autocomplete="off" />
       </div>
     </div>
     <div class="field" :class="{ invalid: problems.course }" :title="problems.course">
-      <label :for="`${id}-course`">Course</label>
+      <label :for="`${id}-course`">{{ t("objects.field.course") }}</label>
       <div class="field-control">
         <input :id="`${id}-course`" v-model="draft.course" class="input mono" type="text" inputmode="numeric" autocomplete="off" />
-        <span class="unit muted">deg</span>
+        <span class="unit muted">{{ t("objects.unit.deg") }}</span>
       </div>
     </div>
     <div class="field" :class="{ invalid: problems.speed }" :title="problems.speed">
-      <label :for="`${id}-speed`">Speed</label>
+      <label :for="`${id}-speed`">{{ t("objects.field.speed") }}</label>
       <div class="field-control">
         <input :id="`${id}-speed`" v-model="draft.speed" class="input mono" type="text" inputmode="decimal" autocomplete="off" />
         <span class="unit muted">km/h</span>
       </div>
     </div>
     <div class="field" :class="{ invalid: problems.path }" :title="problems.path">
-      <label :for="`${id}-path`">Path</label>
+      <label :for="`${id}-path`">{{ t("objects.field.path") }}</label>
       <div class="field-control">
         <input
           :id="`${id}-path`"
           v-model="draft.path"
           class="input mono"
           type="text"
-          :placeholder="fallbackPath || '(default)'"
+          :placeholder="fallbackPath || t('route.default')"
           autocomplete="off"
           spellcheck="false"
         />
       </div>
     </div>
     <template #aside>
-      <button type="button" class="btn" :class="{ primary: form.placing }" :aria-pressed="form.placing" @click="form.togglePlacing()">Pick on the map</button>
+      <button type="button" class="btn" :class="{ primary: form.placing }" :aria-pressed="form.placing" @click="form.togglePlacing()">
+        {{ t("objects.form.pick") }}
+      </button>
     </template>
     <template #buttons>
-      <button type="button" class="btn" @click="form.cancel()">Cancel</button>
-      <button type="submit" class="btn primary" :disabled="!ready">Save</button>
+      <button type="button" class="btn" @click="form.cancel()">{{ t("objects.form.cancel") }}</button>
+      <button type="submit" class="btn primary" :disabled="!ready">{{ t("objects.form.save") }}</button>
     </template>
   </ComposeBar>
 </template>
