@@ -11,6 +11,7 @@ import pytest
 
 from neoaprs.db import Db, DbClosed, DbError, NestedUse, StoreError
 from neoaprs.dbthread import Tuning
+from tests.support.env import until
 from tests.support.dbactor import QUICK, THREAD_PREFIX, committed, eager, fast_connection, started
 
 
@@ -118,8 +119,7 @@ async def test_an_await_cancelled_before_the_thread_began_it_withdraws_a_read(tm
         release.wait(5)
 
     blocker = asyncio.ensure_future(db.write(hold))
-    while not inside.is_set():
-        await asyncio.sleep(0.002)
+    await until(inside.is_set)
     withdrawn = asyncio.ensure_future(db.read(lambda conn: ran.append(1)))
     await asyncio.sleep(0.01)
     withdrawn.cancel()
@@ -143,8 +143,7 @@ async def test_a_write_whose_await_is_cancelled_before_the_thread_began_it_is_st
         release.wait(5)
 
     blocker = asyncio.ensure_future(db.write(hold))
-    while not inside.is_set():
-        await asyncio.sleep(0.002)
+    await until(inside.is_set)
     cut = asyncio.ensure_future(db.write(lambda conn: conn.execute("INSERT INTO t VALUES (1, 'kept')")))
     await asyncio.sleep(0.01)
     cut.cancel()
@@ -163,8 +162,7 @@ async def test_a_cut_off_write_that_fails_says_so_in_the_log(tmp_path: Path, cap
     db = await started(tmp_path / "x.sqlite")
     inside, release = threading.Event(), threading.Event()
     blocker = asyncio.ensure_future(db.write(lambda conn: (inside.set(), release.wait(5))))
-    while not inside.is_set():
-        await asyncio.sleep(0.002)
+    await until(inside.is_set)
     cut = asyncio.ensure_future(db.write(lambda conn: conn.execute("INSERT INTO no_such_table VALUES (1)")))
     await asyncio.sleep(0.01)
     cut.cancel()
@@ -188,8 +186,7 @@ async def test_an_await_cancelled_after_the_thread_began_it_does_not_undo_it(tmp
         conn.execute("INSERT INTO t VALUES (1, 'kept')")
 
     task = asyncio.ensure_future(db.write(slow_insert))
-    while not inside.is_set():
-        await asyncio.sleep(0.002)
+    await until(inside.is_set)
     task.cancel()
     release.set()
     await db.barrier()
