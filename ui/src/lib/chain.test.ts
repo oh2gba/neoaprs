@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { attemptsText, chainOf, isAlias, isMarker } from "@/lib/chain";
+import { chainOf, isAlias, isMarker } from "@/lib/chain";
 import type { AttemptRow, HopRow } from "@/protocol/protocol";
 import { message } from "@/test/fixtures";
 
@@ -96,14 +96,10 @@ describe("isMarker", () => {
   });
 });
 
-describe("isAlias and attemptsText", () => {
+describe("isAlias", () => {
   it("knows the aliases of a path from calls", () => {
     expect(["WIDE1-1", "WIDE2-2", "TRACE3-3", "RELAY", "WIDE2"].map(isAlias)).toEqual([true, true, true, true, true]);
     expect(["OH2RCH-2", "OH2RDG", "WIDEX-1"].map(isAlias)).toEqual([false, false, false]);
-  });
-
-  it("counts attempts", () => {
-    expect([attemptsText(1), attemptsText(3)]).toEqual(["1 attempt", "3 attempts"]);
   });
 });
 

@@ -1103,18 +1103,6 @@ tbody tr:focus-visible {
 .hop-failed {
   color: var(--bad);
 }
-.chain-earlier summary {
-  display: inline-block;
-  color: var(--muted);
-  cursor: pointer;
-}
-.chain-attempt {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 2px 6px;
-  margin-top: 2px;
-}
 .btn.small {
   padding: 0 8px;
   font-size: 12px;

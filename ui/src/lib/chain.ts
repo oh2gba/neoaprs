@@ -28,11 +28,6 @@ export function isMarker(call: string): boolean {
   return MARKER.test(call);
 }
 
-/** "1 attempt", "3 attempts". */
-export function attemptsText(count: number): string {
-  return `${count} ${count === 1 ? "attempt" : "attempts"}`;
-}
-
 function hopChip(hop: HopRow, heardDirect: ReadonlySet<string>): Chip {
   if (hop.heard) {
     const at = hop.heard_at === null ? "" : ` ${dateTimeText(hop.heard_at)}`;

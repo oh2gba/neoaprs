@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Messages tab: under a message of ours only the delivery chain of its latest attempt is shown; the "3 attempts" line under it, which repeated the "attempt 3 of 4" above, is gone.
+
 - The TNC tab is gone: the TNC group of the Settings tab opens with the state of the radio link, one plain line ("Connected to /dev/ttyUSB0, last packet 2 min ago", "Searching for the radio…" with the ports behind **Ports**, "Not connected: the reason") and **Reconnect**, and a closed **Terminal** with the lines of what the TNC saw and did, now in your own time and not in UTC. The counters (opened, bytes, frames, keep-alive checks) are no longer on the page; the packet and byte counts are the line's hover title, and the line says "digipeated N" while the digipeater is on and has repeated something.
 - One small delete button everywhere: a trash can, at least 32 by 32 pixels, titled **Delete** ("Delete (kill on the air)" for an object, "Delete (stop sending)" for a bulletin of ours), on the conversations, the bulletins, the objects and the addresses of the Email tab; one cross to close the update panel, the setup guide and the error message. The Objects **Edit** is as big as the other buttons.
 - The (i) help opens downward and stays inside the page: on a phone it no longer runs off the right edge, and a click anywhere else closes it.
