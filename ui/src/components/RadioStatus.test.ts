@@ -10,7 +10,7 @@ describe("RadioStatus", () => {
   it("has the state, one plain line, Reconnect and a closed Terminal, and none of the counters", () => {
     const wrapper = radio(tncState());
     expect(wrapper.find(".statepill").text()).toBe("connected");
-    expect(wrapper.find(".tncstatus").text()).toBe("Connected to /dev/brainbox_3, last packet 30 s ago");
+    expect(wrapper.find(".tncstatus").text()).toBe("Last packet 30 s ago");
     expect(wrapper.find(".tncstatus").attributes("title")).toBe("11 packets heard, 2.0 kB in, 0 B out, 0 digipeated");
     expect(wrapper.find("button").text()).toBe("Reconnect");
     expect(wrapper.find<HTMLDetailsElement>("details").element.open).toBe(false);
@@ -27,7 +27,7 @@ describe("RadioStatus", () => {
 
   it("has the problem of a line that is open as a line of its own", () => {
     const wrapper = radio(tncState({ problem: "no KISS frames on /dev/brainbox_3" }));
-    expect(wrapper.find(".tncstatus").text()).toContain("Connected to");
+    expect(wrapper.find(".tncstatus").text()).toContain("Last packet");
     expect(wrapper.find(".problem").text()).toBe("no KISS frames on /dev/brainbox_3");
   });
 

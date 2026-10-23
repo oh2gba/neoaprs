@@ -14,18 +14,18 @@ const searching = () =>
 describe("tncStatus", () => {
   it("says what it is connected to and when the last packet came", () => {
     const tnc = tncState({ path: "/dev/ttyUSB0", stats: { ...tncState().stats, packets: 412, last_packet: ago(120) } });
-    expect(tncStatus(tnc, NOW)).toBe("Connected to /dev/ttyUSB0, last packet 2 min ago");
+    expect(tncStatus(tnc, NOW)).toBe("Last packet 2 min ago");
   });
 
   it("adds how many packets the digipeater repeated, only while it is on and only when there were some", () => {
     const tnc = tncState({ stats: { ...tncState().stats, digipeated: 3 } });
-    expect(tncStatus(tnc, NOW, true)).toBe("Connected to /dev/brainbox_3, last packet 30 s ago, digipeated 3");
+    expect(tncStatus(tnc, NOW, true)).toBe("Last packet 30 s ago, digipeated 3");
     expect(tncStatus(tnc, NOW, false)).not.toContain("digipeated");
     expect(tncStatus(tncState(), NOW, true)).not.toContain("digipeated");
   });
 
   it("says so when no packet has been heard", () => {
-    expect(tncStatus(tncState({ stats: { ...tncState().stats, packets: 0, last_packet: null } }), NOW)).toBe("Connected to /dev/brainbox_3, no packet yet");
+    expect(tncStatus(tncState({ stats: { ...tncState().stats, packets: 0, last_packet: null } }), NOW)).toBe("No packet yet");
   });
 
   it("says it is searching for the radio instead of listing the ports", () => {

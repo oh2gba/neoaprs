@@ -15,16 +15,16 @@ export function searchedPorts(tnc: TncState): string[] | null {
 }
 
 function lastPacketText(tnc: TncState, nowMs: number): string {
-  return tnc.stats.last_packet === null ? "no packet yet" : `last packet ${ageText(tnc.stats.last_packet, nowMs)} ago`;
+  return tnc.stats.last_packet === null ? "No packet yet" : `Last packet ${ageText(tnc.stats.last_packet, nowMs)} ago`;
 }
 
-/** The one line (with how many packets the digipeater repeated, while it is on): "Connected to /dev/ttyUSB0, last packet 2 min ago", "Searching for the radio…", "Not connected: no KISS frames on the port", "nothing heard since 02:43 (5 h)". */
+/** The one line (with how many packets the digipeater repeated, while it is on): "Last packet 2 min ago" when connected (the pill says connected and the Port field below names the port), "Searching for the radio…", "Not connected: no KISS frames on the port", "nothing heard since 02:43 (5 h)". */
 export function tncStatus(tnc: TncState, nowMs: number, digipeater = false): string {
   if (tnc.state === "silent") return silentText(tnc.silent_since, nowMs);
   if (searchedPorts(tnc) !== null) return "Searching for the radio…";
   if (tnc.state === "connected") {
     const digipeated = digipeater && tnc.stats.digipeated > 0 ? `, digipeated ${tnc.stats.digipeated}` : "";
-    return `Connected to ${tnc.path}, ${lastPacketText(tnc, nowMs)}${digipeated}`;
+    return `${lastPacketText(tnc, nowMs)}${digipeated}`;
   }
   if (tnc.state === "connecting") return tnc.path === "" ? "Connecting…" : `Connecting to ${tnc.path}…`;
   const why = tnc.problem || tnc.last_error;

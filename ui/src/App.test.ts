@@ -385,7 +385,7 @@ describe("App", () => {
     await tabButton(wrapper, "Settings")?.trigger("click");
     const group = wrapper.find("#pane-settings fieldset");
     expect(group.find("legend").text()).toBe("TNC");
-    expect(group.find(".radiostatus .tncstatus").text()).toMatch(/^Connected to \/dev\/brainbox_3, last packet /);
+    expect(group.find(".radiostatus .tncstatus").text()).toMatch(/^Last packet /);
     await group.find(".radiostatus button").trigger("click");
     expect(socket.sent).toContainEqual({ cmd: "tnc_reconnect" });
   });

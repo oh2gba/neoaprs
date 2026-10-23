@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Settings, radio status: the line under the pill says only when the last packet came ("Last packet 2 min ago"); the port is not named twice.
 - A station that cannot do messages has no **Message** button on its card: the data type of its latest position says (`!` and `/` cannot, `=` and `@` can), a Mic-E position can, an object or an item never; a station that has sent a message or an ack that we heard (overheard ones too) always can, and a station we know nothing about yet is not hidden. The station row has the new field `can_message`, found again from the packet log at the start.
 - The tabs by importance: Messages, Stations, Email, Bulletins, Objects, Beacon, Packets, Settings; a new page opens on Messages (a tab chosen before is remembered as before).
 - Nothing changes size or moves when a setting applies: the **Saving…** and **Saved ✓** beside the fields are gone (an error still shows under a refused field, the Undo toast floats over the page, and a screen reader is still told "Saved").
