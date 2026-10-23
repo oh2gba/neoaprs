@@ -312,16 +312,7 @@ function rank(order: readonly string[], key: string): number {
 /** Settings that stay in the daemon (`neoaprs db set`) and are not on the page: the address the update check asks, which ports the search for the radio looks at and leaves alone, and the port and the host names of the page itself
  * (the defaults suit nearly everyone, and the daemon moves to a free port and says which in the log), and the map's detail (12, streets), source (the latest daily build) and the time stations stay on the map (180 min; a station can have
  * its own in its details). The map download uses the stored values, so a custom source or detail still works. */
-const NOT_ON_THE_PAGE: readonly string[] = [
-  "update/url",
-  "serial/pattern",
-  "serial/skip",
-  "web/port",
-  "web/allowed_hosts",
-  "map/hide_after_min",
-  "map/maxzoom",
-  "map/source",
-];
+const NOT_ON_THE_PAGE: readonly string[] = ["update/url", "serial/pattern", "serial/skip", "web/port", "web/allowed_hosts", "map/maxzoom", "map/source"];
 
 /** The keys in the order of the daemon's list (a key it did not list last; the TNC and Status groups in their own order), in the groups of the form `scope` shows. */
 export function groupKeys(keys: readonly string[], scope: Scope = "settings"): Group[] {

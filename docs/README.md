@@ -5,6 +5,7 @@ Every Markdown file of the repository. `tests/test_hygiene.py` fails when a docu
 | document | what it is |
 |---|---|
 | `README.md` | the front page: what NeoAPRS is, how to download, run and try it |
+| `docs/MANUAL.md` | a pointer to docs/manual, for links to the manual's old place |
 | `docs/manual/README.md` | the manual for the person who runs NeoAPRS: what it is, the contents, a few words |
 | `docs/manual/install.md` | installing on Windows, Linux and the Raspberry Pi, starting at login, updating, the update check |
 | `docs/manual/start.md` | the first start, the setup guide, the data folder, how settings apply, trying it without a radio, stopping |
