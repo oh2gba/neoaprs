@@ -67,14 +67,6 @@ class PrefBook:
             raise MessagingError(f"path too long for RF only: {len(path)} digipeaters and RFONLY make more than the {MAX_PATH} a path may have")
         return added
 
-    def timeout_for(self, call: str) -> int | None:
-        """The station's own timeout in minutes (0 is never), None when it has none: the fixed 180 minutes count then."""
-        try:
-            own = self._own.get(_key(call))
-        except MessagingError:
-            return None
-        return None if own is None else own.hide_after_min
-
     def never_hidden(self) -> frozenset[str]:
         """The stations whose own timeout is 0, which the daily prune keeps in the station book."""
         return frozenset(call for call, pref in self._own.items() if pref.hide_after_min == 0)
