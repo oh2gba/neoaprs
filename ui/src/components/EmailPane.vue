@@ -1,15 +1,16 @@
 <script setup lang="ts">
 // The Email tab: a mail list, not a conversation. At the top the button "New email" (it opens EmailCompose, which closes with Send or Cancel), the menu "Mailbox" (Fetch held mail, Shortcuts…, which opens EmailShortcuts) and an (i) that
 // says once why a mail may be "Not confirmed". Under them the list (EmailList): the mail we sent with its state, and what the gateway EMAIL-2 sent us, newest first. The page sends it all as messages to EMAIL-2 (composables/useEmail.ts).
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import EmailCompose from "@/components/EmailCompose.vue";
 import EmailList from "@/components/EmailList.vue";
 import EmailMailbox from "@/components/EmailMailbox.vue";
 import EmailShortcuts from "@/components/EmailShortcuts.vue";
 import InfoTip from "@/components/InfoTip.vue";
+import { fetchingHeld } from "@/lib/email";
 import type { MessageRow } from "@/protocol/protocol";
 
-withDefaults(
+const props = withDefaults(
   defineProps<{ thread: readonly MessageRow[]; connected: boolean; addresses: readonly string[]; freshAfter?: number; heardDirect?: ReadonlySet<string> }>(),
   {
     freshAfter: Number.MAX_SAFE_INTEGER,
@@ -28,6 +29,8 @@ const emit = defineEmits<{
   delete: [id: number];
 }>();
 
+const fetching = computed(() => fetchingHeld(props.thread));
+
 /** The form that is open under the buttons: one at a time. */
 const form = ref<"new" | "shortcuts" | null>(null);
 
@@ -41,7 +44,7 @@ function send(to: string, text: string): void {
   <div class="mailpane">
     <div class="mail-bar">
       <button type="button" class="btn primary" :aria-expanded="form === 'new'" @click="form = form === 'new' ? null : 'new'">New email</button>
-      <EmailMailbox :connected="connected" @get="emit('get')" @shortcuts="form = 'shortcuts'" />
+      <EmailMailbox :connected="connected" :fetching="fetching" @get="emit('get')" @shortcuts="form = 'shortcuts'" />
       <span class="grow" />
       <InfoTip label="About email">
         <span class="info-line">Mail goes to the email gateway EMAIL-2 on the internet, through an iGate that hears your radio.</span>

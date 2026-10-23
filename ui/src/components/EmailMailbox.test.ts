@@ -2,8 +2,8 @@ import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import EmailMailbox from "@/components/EmailMailbox.vue";
 
-function box(connected = true) {
-  return mount(EmailMailbox, { props: { connected }, attachTo: document.body });
+function box(connected = true, fetching = false) {
+  return mount(EmailMailbox, { props: { connected, fetching }, attachTo: document.body });
 }
 const items = (wrapper: ReturnType<typeof box>) => wrapper.findAll("[role='menuitem']");
 
@@ -49,6 +49,15 @@ describe("EmailMailbox", () => {
     await wrapper.find("button").trigger("click");
     expect(items(wrapper)[0]?.attributes("disabled")).toBeDefined();
     expect(items(wrapper)[0]?.attributes("title")).toBe("The TNC is not connected");
+    expect(items(wrapper)[1]?.attributes("disabled")).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it("has Fetch held mail off while a fetch is still being sent, and says why", async () => {
+    const wrapper = box(true, true);
+    await wrapper.find("button").trigger("click");
+    expect(items(wrapper)[0]?.attributes("disabled")).toBeDefined();
+    expect(items(wrapper)[0]?.attributes("title")).toBe("Already fetching held mail");
     expect(items(wrapper)[1]?.attributes("disabled")).toBeUndefined();
     wrapper.unmount();
   });

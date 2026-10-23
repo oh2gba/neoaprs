@@ -6,6 +6,7 @@ import {
   canSendEmail,
   emailBytesLeft,
   emailLine,
+  fetchingHeld,
   forgetAddress,
   isNotConfirmed,
   listShortcuts,
@@ -74,6 +75,17 @@ describe("the gateway's commands", () => {
       false,
       false,
     ]);
+  });
+});
+
+describe("fetchingHeld", () => {
+  const get = (state: "sending" | "unconfirmed" | "acked", extra = {}) => message(1, { to_call: "EMAIL-2", text: GET_HELD, state, ...extra });
+  it("is true only while a get of ours is still being sent", () => {
+    expect(fetchingHeld([get("sending")])).toBe(true);
+    expect(fetchingHeld([get("unconfirmed"), get("acked")])).toBe(false);
+    expect(fetchingHeld([get("sending", { direction: "in", state: "received" })])).toBe(false);
+    expect(fetchingHeld([message(2, { to_call: "EMAIL-2", text: "jane@example.com hi" })])).toBe(false);
+    expect(fetchingHeld([])).toBe(false);
   });
 });
 

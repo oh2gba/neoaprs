@@ -11,6 +11,11 @@ export const GET_HELD = "get";
 /** How many addressees are kept. */
 export const ADDRESSES_KEPT = 12;
 
+/** Whether a `get` of ours is still being sent: Fetch held mail waits for it to settle, so the gateway is not asked twice. */
+export function fetchingHeld(thread: readonly MessageRow[]): boolean {
+  return thread.some((row) => row.direction === "out" && row.state === "sending" && row.text.trim().toLowerCase() === GET_HELD);
+}
+
 /** The text of the message to the gateway: the addressee, a space, the text. */
 export function emailLine(to: string, text: string): string {
   return `${to.trim()} ${text}`;

@@ -1,15 +1,15 @@
 <script setup lang="ts">
-// The "Mailbox" button of the Email tab and the menu it opens: "Fetch held mail" (`get`: the gateway sends again the mail it holds for this station; off while the TNC is not connected, the title says so) and "Shortcuts…" (the tab opens
+// The "Mailbox" button of the Email tab and the menu it opens: "Fetch held mail" (`get`: the gateway sends again the mail it holds for this station; off while the TNC is not connected or a `get` is still being sent, the title says why) and "Shortcuts…" (the tab opens
 // the form for them). The menu closes with a choice, Esc, or a click or tap outside it.
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { GET_HELD } from "@/lib/email";
 
-const props = defineProps<{ connected: boolean }>();
+const props = withDefaults(defineProps<{ connected: boolean; fetching?: boolean }>(), { fetching: false });
 const emit = defineEmits<{ get: []; shortcuts: [] }>();
 
 const open = ref(false);
 const root = ref<HTMLElement | null>(null);
-const away = computed(() => (props.connected ? undefined : "The TNC is not connected"));
+const away = computed(() => (!props.connected ? "The TNC is not connected" : props.fetching ? "Already fetching held mail" : undefined));
 
 function outside(event: Event): void {
   if (!(event.target instanceof Node) || !root.value?.contains(event.target)) open.value = false;
@@ -56,7 +56,7 @@ onBeforeUnmount(() => {
           type="button"
           class="menu-item"
           role="menuitem"
-          :disabled="!connected"
+          :disabled="away !== undefined"
           :title="away ?? `Sends '${GET_HELD}': the gateway sends again the mail it holds for you`"
           @click="choose('get')"
         >
