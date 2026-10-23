@@ -2,9 +2,8 @@
 import random
 from datetime import UTC, date, datetime, time, timedelta, timezone
 
-import pytest
 
-from neoaprs.clock import at, days, from_unix, from_unix_clamped, from_unix_or_none, hhmm, iso, secs_between, span_text, to_unix, utc, utcnow
+from neoaprs.clock import at, days, from_unix, iso, to_unix, utc, utcnow
 from tests.support.clock import FixedClock
 
 
@@ -17,7 +16,7 @@ def reference(t: datetime | None) -> str | None:
 
 def test_utcnow_is_aware_and_utc() -> None:
     now = utcnow()
-    assert now.tzinfo is UTC and abs(secs_between(now, datetime.now(tz=UTC))) < 5
+    assert now.tzinfo is UTC and abs((datetime.now(tz=UTC) - now).total_seconds()) < 5
 
 
 def test_iso_writes_what_the_conversion_and_strftime_write() -> None:
@@ -44,22 +43,8 @@ def test_unix_seconds_round_trip() -> None:
     assert to_unix(t) == 1792585815 and from_unix(to_unix(t)) == t
 
 
-def test_a_number_from_outside_that_is_no_time_is_none_or_clamped() -> None:
-    assert from_unix_or_none(float("nan")) is None and from_unix_or_none(float("inf")) is None and from_unix_or_none(1e18) is None
-    assert from_unix_or_none(0) == utc(1970, 1, 1)
-    assert from_unix_clamped(9 * 10**18).year == 9999 and from_unix_clamped(-9 * 10**18).year == 1
-    assert from_unix_clamped(86400) == utc(1970, 1, 2)
-
-
-@pytest.mark.parametrize("seconds, words", [(-5, "0 min"), (0, "0 min"), (90, "1 min"), (3600, "1 h"), (4800, "1 h 20 min"), (86400, "1 d"), (90000, "1 d 1 h"), (2 * 86400 + 3 * 3600, "2 d 3 h")])
-def test_a_duration_in_words(seconds: float, words: str) -> None:
-    assert span_text(seconds) == words
-
-
 def test_the_small_helpers() -> None:
     assert at(date(2026, 10, 21), time(18, 5)) == utc(2026, 10, 21, 18, 5)
-    assert secs_between(utc(2026, 10, 21, 12), utc(2026, 10, 21, 12, 1)) == 60.0 and secs_between(utc(2026, 10, 21, 12, 1), utc(2026, 10, 21, 12)) == -60.0
-    assert hhmm(datetime(2026, 10, 21, 20, 5, tzinfo=timezone(timedelta(hours=2)))) == "18:05"
     assert days(2) == timedelta(days=2)
 
 
@@ -68,6 +53,6 @@ def test_the_fixed_clock_stands_still_until_it_is_moved() -> None:
     first = clock()
     assert clock() == first
     clock.advance(90)
-    assert secs_between(first, clock()) == 90.0
+    assert (clock() - first).total_seconds() == 90.0
     clock.set(utc(2030, 1, 1))
     assert clock() == utc(2030, 1, 1)
