@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { setLocale } from "@/i18n";
+import type { Catalogue } from "@/i18n/catalogue";
+import { LOCALES, type LocaleInfo } from "@/i18n/locales";
 import {
+  agoWords,
   ageSeconds,
   ageText,
   bearingText,
@@ -119,5 +123,22 @@ describe("processText", () => {
   });
   it("does not count a negative time up", () => {
     expect(processText(0, 9, -5)).toBe("0.0 % · 9 MB · up 0 s");
+  });
+});
+
+describe("the numbers and words of another language", () => {
+  it("write the decimal point of the language and the words of its catalogue", () => {
+    const list = LOCALES as LocaleInfo[];
+    list.push({ code: "de", name: "Deutsch", messages: { "time.ago": "vor {span}", "time.span.min": "{n} Min." } as unknown as Catalogue });
+    try {
+      setLocale("de");
+      expect(positionText(60.17, -24.94)).toBe("60,17000 N 24,94000 W");
+      expect(distanceText(1.25)).toBe("1,3");
+      expect(bytesText(1536)).toBe("1,5 kB");
+      expect(agoWords(ago(120), NOW)).toBe("vor 2 Min.");
+      expect(ageText(ago(7200), NOW)).toBe("2 h");
+    } finally {
+      list.pop();
+    }
   });
 });

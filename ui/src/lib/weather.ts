@@ -1,4 +1,5 @@
 // The weather as the page writes it and draws it: the readings as text, the wind arrow's angle, and the series of the daemon's `weather_series` message cut into the points of one graph.
+import { formatNumber } from "@/i18n";
 import { NONE } from "@/lib/format";
 import { extent, type Point } from "@/lib/chart";
 import type { StationRow, WeatherSeriesMessage } from "@/protocol/protocol";
@@ -48,11 +49,11 @@ export function isWeatherStation(row: StationRow): boolean {
 }
 
 export function tempText(c: number | null | undefined): string {
-  return c === null || c === undefined ? NONE : `${c.toFixed(1)} °C`;
+  return c === null || c === undefined ? NONE : `${formatNumber(c, 1)} °C`;
 }
 
 export function pressureText(hpa: number | null): string {
-  return hpa === null ? NONE : `${hpa.toFixed(1)} hPa`;
+  return hpa === null ? NONE : `${formatNumber(hpa, 1)} hPa`;
 }
 
 export function humidityText(percent: number | null): string {
@@ -64,7 +65,7 @@ export function windSpeedText(kmh: number | null): string {
 }
 
 export function rainText(mm: number | null): string {
-  return mm === null ? NONE : `${mm.toFixed(1)} mm`;
+  return mm === null ? NONE : `${formatNumber(mm, 1)} mm`;
 }
 
 /** The angle to turn an arrow that points up so that it points where the wind goes: the direction is where it comes from. Null when there is no direction. */

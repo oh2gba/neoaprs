@@ -10,6 +10,7 @@ import BrowserAlerts from "@/components/BrowserAlerts.vue";
 import ConfirmRow from "@/components/ConfirmRow.vue";
 import MapFetchPanel from "@/components/MapFetchPanel.vue";
 import InfoTip from "@/components/InfoTip.vue";
+import LanguageField from "@/components/LanguageField.vue";
 import RadioStatus from "@/components/RadioStatus.vue";
 import SettingsField from "@/components/SettingsField.vue";
 import SettingsFold from "@/components/SettingsFold.vue";
@@ -96,6 +97,7 @@ function typed(key: string, text: string): void {
 
 <template>
   <form v-if="config" class="settings" novalidate @submit.prevent>
+    <LanguageField v-if="scope === 'settings'" />
     <p v-if="scope === 'settings'" class="settings-setup">
       <button class="linkbutton setup-open" type="button" @click="emit('setup')">Run the setup guide again</button>
     </p>

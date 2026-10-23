@@ -100,6 +100,7 @@ The page and the daemon talk by JSON over one WebSocket: commands from the page,
 | `ui/src/protocol/schema.json` | the JSON Schema of the `Command` and `Message` unions and of the value of each topic |
 | `ui/src/protocol/protocol.ts` | the TypeScript types made from it (no node, no json-schema-to-typescript) |
 | `ui/src/protocol/lists.ts` | the lists the daemon owns and the page shows (the settings' keys, the TNC profiles, the symbol names) and `LIMITS` |
+| `ui/src/protocol/errors.json` | the refusals of the daemon that carry a code: for each code the values it passes and the English sentence it writes, found in the source by `scripts/errorcodes.py`; the page's catalogue is held to it by `ui/src/i18n/errors.test.ts` |
 | `ui/src/protocol/vectors.json` | conformance vectors for the rules that are code |
 
 Run `.venv/bin/python scripts/gen-protocol.py` after a change to a wire model, a limit or a list; `--check` writes nothing and exits 1 when a file is out of
@@ -161,6 +162,38 @@ test holds the page to the Content-Security-Policy of `neoaprs/web/headers.py`: 
 `src/lib/symbols.ts` is the one file that knows their layout. The glyph files for the map labels are in `ui/public/fonts/` with `OFL.txt`. The credits shown in
 the map's (i) are in [the manual](manual/page.md#credits).
 
+## Translations
+
+The words of the page are in a catalogue, so that a language is a file and not a hunt through the components. Only the page is translated: the manual, the README, the log, the command line, the desktop app's menus, `ui/index.html` (its
+`lang` stays `en`; the page sets `<html lang>` at run time) and the page the daemon serves when none is built stay English.
+
+- **The layer** is `ui/src/i18n/`, a small one of our own on `Intl` (no dependency: the needs are plurals, values, numbers and a language that can be switched). `index.ts` has `t(id, values)`, the reactive `locale`, `setLocale`,
+  `formatNumber(n, decimals)` and `weekdayShort(date)`; `en/` is the English catalogue by area, `en.ts` joins them (the type of every id comes from it), `locales.ts` lists the languages, `message.ts` reads a message,
+  `pseudo.ts` is the pseudo-locale and `errortext.ts` says the daemon's refusals. `t` reads `locale`, so whatever shows its result is drawn again when the language changes; a text kept in a module constant stays in the
+  language it was made in, so a function makes the text when it is asked for.
+- **An id** is `area.thing.detail` in lower case (`footer.radio.silent`, `error.setting.range`); the area is the part of the page, not the file. A message is a string with `{value}`s; a plural `{ one: "{n} message", other:
+  "{n} messages" }`, chosen by the value `n` and the plural rules of the language (a language with more forms has them, `"=0"` is an exact number); or a choice by the text of a value `{ select: "kind", object: "...",
+  other: "..." }`. `{{` and `}}` are a literal brace. A number is given as a number and is written with the language's decimal point and no thousands separator; one with a fixed number of decimals goes through
+  `formatNumber` first. A message is a whole sentence with its values: never two messages put together (word order and agreement differ), never `n === 1` in the code, never a unit or a word taken from the middle of a sentence.
+  The units of measure (km, MB, hPa) and the compass letters are written in the code.
+- **A new text**: write the English in the file of its area in `ui/src/i18n/en/` (a new area is a file and a line in `en.ts`) and use `t("id")` in the template (`{{ t("header.no_call") }}`, `:title="t('...')"`). A function of
+  `lib/` that makes a sentence calls `t` itself, so the component stays a view. `ids.test.ts` fails for an id that is asked for and is not there, and for one that nobody asks for.
+- **The daemon's refusals** carry `cmd`, `key`, `code` and `params` besides the English `text`. `errortext.ts` says a refusal from the catalogue (`error.<code>`, the values from `params`) when it has the code, and with the
+  daemon's English `text` when it has not (a code without a sentence, `other`); the page never decides by the words of `text`. The codes and their sentences are found in the daemon's source by `scripts/errorcodes.py` and written
+  to `ui/src/protocol/errors.json` by `scripts/gen-protocol.py`; `ui/src/i18n/errors.test.ts` fails for a code that has no sentence on the page and for a sentence that does not read as the daemon's. A sentence that lists
+  something (the settings, the TNC profiles, the characters a message may not have) takes the list from `lists.ts`.
+- **A language**: a file `ui/src/i18n/xx.ts` with `export const xx: Catalogue = { ... }` (the type is made from `en.ts`, so a missing or an unknown id does not compile; copy the English and translate), and in `locales.ts` its
+  import and one line `{ code: "xx", name: "Its own name", messages: xx }`. `catalogues.test.ts` holds it to the same ids, the same `{values}` in each message and the plural forms of its language; at run time a message it lacks
+  falls back to English. The language is chosen in the Settings tab ("Language", kept in this browser like the other choices of the page); until then it is the first of the browser's languages (`navigator.languages`: `de-AT`
+  is `de`, `pt` is `pt-BR`) that the page has, else English.
+- **The guard rails.** The tests read English: `src/test/setup.ts` pins it. `literals.test.ts` fails for a word written into a template (a text node, `title`, `placeholder`, `aria-label`, `label`, `alt`, and a string of an
+  interpolation or a bound attribute that reads as text); the brand and the units are allowed (`src/test/literals.ts`). A component that is not converted yet is in `ui/src/i18n/unconverted.json` with the number of literals it
+  has, a ratchet that only goes down: whoever converts a component takes it out (`I18N_UPDATE=1 npx vitest run src/i18n/literals.test.ts` writes the file from what is found, `I18N_REPORT=1` lists every literal with its line).
+  `App.pseudo.test.ts` draws every tab in the pseudo-locale `en-XA` (every message accented, a third longer and in `[!! ... !!]`; it is offered in the Settings tab in development and is not in the built page) and fails for a
+  text that is the English of a message of the catalogue; the words of a component that is not converted yet and are the same as a message that is are in its `STILL_ENGLISH` until then.
+- **Known limit: the map's labels.** The glyph files of the map (`ui/public/fonts/NotoSans-*`) cover three ranges of Noto Sans (0-255, 256-511, 1024-1279): Latin and Cyrillic. A station name in Japanese, Greek or Arabic is
+  not drawn on the map, whatever the language of the page. Fonts for more ranges are a separate decision.
+
 ## Scripts
 
 | script | what it is for |
@@ -183,7 +216,7 @@ the map's (i) are in [the manual](manual/page.md#credits).
 | `scripts/smoke-appimage` | the smoke test of such a file: `--version`, `smoke.py`, the daemon with no radio, the unit `service install` writes, the app on the offscreen platform; without FUSE it extracts the file and runs its `AppRun` |
 | `scripts/release-notes.py` | prints the section of `CHANGELOG.md` for a version (the newest section without one): the notes of the GitHub release, which the release workflow gives to `gh release create`; exit 1 when there is none |
 | `scripts/replay` | a clone's wrapper of `neoaprs replay`: plays a capture as a KISS TNC on a TCP port (`--pty`: a pseudo-terminal), so that the daemon runs without the radio |
-| `scripts/gen-protocol.py` | writes `PROTOCOL.md` and the files of `ui/src/protocol/` (`schema.json`, `protocol.ts`, `lists.ts`, `vectors.json`) from `neoaprs/web/protocol.py` and the program's constants; run it after a change to a wire model or a limit (`tests/test_protocol.py` fails when they are stale) |
+| `scripts/gen-protocol.py` | writes `PROTOCOL.md` and the files of `ui/src/protocol/` (`schema.json`, `protocol.ts`, `lists.ts`, `errors.json`, `vectors.json`) from `neoaprs/web/protocol.py` and the program's constants; run it after a change to a wire model or a limit (`tests/test_protocol.py` fails when they are stale) |
 | `scripts/build-page` | builds the page from `ui/` (type check, Vite) into a temporary folder and swaps it in as `neoaprs/page/` with a rename: what the daemon serves and the wheel carries; run it after a change to `ui/` and commit `neoaprs/page/`. `--clean` forces `npm ci` |
 | `scripts/node-modules-current.mjs` | the question `build-page` and `worktree-setup` ask: is `ui/node_modules` what `ui/package-lock.json` says (exit 0), or not (exit 1) |
 | `scripts/fetch-basemap` | a clone's wrapper of `neoaprs map` with `--data` set to `./data` unless given: makes the base map as the page's Download button does |

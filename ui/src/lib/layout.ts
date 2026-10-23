@@ -1,19 +1,15 @@
 // The page's layout numbers: the tabs of the panel, how wide the panel may be, and the three sizes of the page (phone, tablet, desktop) with how many station cards fit on the map at each. The sizes are decided here, once, from the window
 // (composables/useViewport.ts), and the page marks its root with the one it is (`size-phone`, ...): the style sheets of ui/src/styles/ use that class and not media queries of their own, so that the script and the style never disagree.
 
+import { t } from "@/i18n";
+
 export const TAB_IDS = ["messages", "stations", "email", "bulletins", "objects", "beacon", "packets", "settings"] as const; // by importance: what a person comes for first, the raw packets and the settings last
 export type TabId = (typeof TAB_IDS)[number];
 
-export const TAB_TITLES: Record<TabId, string> = {
-  stations: "Stations",
-  packets: "Packets",
-  messages: "Messages",
-  email: "Email",
-  bulletins: "Bulletins",
-  objects: "Objects",
-  beacon: "Beacon",
-  settings: "Settings",
-};
+/** The name of a tab, in the language of the page. */
+export function tabTitle(id: TabId): string {
+  return t(`tab.${id}`);
+}
 
 export const PANEL_MIN = 280;
 export const PANEL_DEFAULT = 480;

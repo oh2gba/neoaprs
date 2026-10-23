@@ -45,7 +45,8 @@ describe("SettingsForm", () => {
           k !== "map/source",
       ).length +
         1 + // (the New version row of the Update check group, which is no setting)
-        3, // (the browser's own: Alert for a new message, Sound, Pop-up)
+        3 + // (the browser's own: Alert for a new message, Sound, Pop-up)
+        1, // (Language)
     );
     expect(wrapper.find("#set-station-lat").exists()).toBe(false);
   });
