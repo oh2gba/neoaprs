@@ -101,6 +101,11 @@ describe("the style for a finger", () => {
     expect(mediaRule("(pointer: coarse)", ".input")).toMatch(/font-size:\s*16px/);
   });
 
+  it("shows a toast (an error, the Undo of a setting) at the top on a phone, so that it does not cover the sheet of a card", () => {
+    expect(cssRule(".size-phone .toast")).toMatch(/top:\s*calc\(env\(safe-area-inset-top\) \+ 96px\)/);
+    expect(cssRule(".size-phone .toast")).toMatch(/bottom:\s*auto/);
+  });
+
   it("keeps the notch and the home bar clear, and the page the height of the window that moves with the toolbars of a phone", () => {
     expect(cssRule(".app")).toMatch(/height:\s*100dvh/);
     expect(cssRule(".app")).toMatch(/padding-left:\s*env\(safe-area-inset-left\)/);

@@ -278,7 +278,9 @@ button,
   max-height: calc(100dvh - 50px);
 }
 .size-phone .toast {
-  bottom: max(16px, env(safe-area-inset-bottom));
+  /* at the top, under the tab bar: the bottom is the sheet of a card and its buttons */
+  top: calc(env(safe-area-inset-top) + 96px);
+  bottom: auto;
 }
 
 /* a phone held sideways: the sheet is a column at the left, and short */
@@ -311,7 +313,9 @@ button,
   .xbtn,
   .panel-fold,
   .setup-dot,
+  .convo-back,
   summary,
+  .mail-body,
   .linkbutton {
     min-height: 40px;
   }
@@ -374,6 +378,7 @@ button,
     height: 40px;
   }
   .headbtn,
+  .convo-back,
   .xbtn,
   .iconbtn,
   .panel-fold,
