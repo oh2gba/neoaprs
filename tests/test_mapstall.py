@@ -5,28 +5,18 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs.mapstate import MapStatus
 from neoaprs.services.mapfetch import DETAIL, SLOW, WORLD, MapFetch, Patience
 from tests.support.clock import FixedClock
 from tests.support.env import ON_AIR, remember_stop, until
+from tests.support.maprig import MapRig
 from tests.support.fakepmtiles import FakePmtiles, alive, install_fake
 
 FAST = Patience(stall_sec=0.4, tries=3, pause_sec=0.05, poll_sec=0.05)
 
 
-class Rig:
+class Rig(MapRig):
     def __init__(self, data: Path, fake: FakePmtiles, patience: Patience = FAST) -> None:
-        self.data, self.fake = data, fake
-        self.service = MapFetch(data, lambda: replace(ON_AIR, map_source="https://build.example/20261020.pmtiles"), FixedClock(), patience=patience)
-        self.seen: list[MapStatus] = []
-        self.service.changed.connect(lambda: self.seen.append(self.service.status()))
-        remember_stop(self.service.stop)
-
-    def status(self) -> MapStatus:
-        return self.service.status()
-
-    async def idle(self) -> None:
-        await until(lambda: self.status().state not in ("estimating", "downloading"), 10)
+        super().__init__(data, fake, lambda: replace(ON_AIR, map_source="https://build.example/20261020.pmtiles"), patience, idle_sec=10)
 
     def old_map(self) -> None:
         self.data.mkdir(exist_ok=True)
