@@ -26,6 +26,16 @@ describe("BulletinCompose", () => {
     expect(wrapper.find("p").exists()).toBe(false);
   });
 
+  it("labels the kind and the number (a letter for an announcement)", async () => {
+    const { wrapper, kind } = compose();
+    expect(wrapper.find("label[for='post-kind']").text()).toBe("Kind");
+    expect(wrapper.find("label[for='post-id']").text()).toBe("Number");
+    await kind.setValue("announcement");
+    expect(wrapper.find("label[for='post-id']").text()).toBe("Letter");
+    await kind.setValue("group");
+    expect(wrapper.find("label[for='post-group']").text()).toBe("Group");
+  });
+
   it("has an (i) that says in a few sentences what a bulletin, a bulletin to a group and a message are, closed until it is pressed", async () => {
     const { wrapper } = compose();
     const info = wrapper.find<HTMLButtonElement>(".info-toggle");
@@ -43,10 +53,10 @@ describe("BulletinCompose", () => {
   it("has Post off until there is a text that can be sent, and counts the 67 characters", async () => {
     const { wrapper, text, post } = compose();
     expect(post.element.disabled).toBe(true);
-    expect(wrapper.find(".compose-left").text()).toBe("67");
+    expect(wrapper.find(".compose-left").text()).toBe("67 left");
     await text.setValue("Road closed");
     expect(post.element.disabled).toBe(false);
-    expect(wrapper.find(".compose-left").text()).toBe("56");
+    expect(wrapper.find(".compose-left").text()).toBe("56 left");
     await text.setValue("x".repeat(68));
     expect(post.element.disabled).toBe(true);
     expect(wrapper.find(".compose-left").classes()).toContain("over");
@@ -118,7 +128,7 @@ describe("BulletinCompose", () => {
     await kind.setValue("group");
     const group = wrapper.find<HTMLInputElement>("#post-group");
     expect(group.exists()).toBe(true);
-    expect(group.attributes("placeholder")).toBe("Group name");
+    expect(group.attributes("placeholder")).toBe("Name");
     await text.setValue("Net tonight 20:00");
     expect(post.element.disabled).toBe(true);
     await group.setValue("a b");

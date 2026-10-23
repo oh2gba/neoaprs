@@ -4,6 +4,7 @@
 // A weather station (the weather symbol, or one that has sent weather) has its weather panel at the top (components/WeatherPanel.vue). "Message" opens the Messages tab with the station as the addressee, where the path its messages go by and RF only are set; the timeout field is how long it stays on the map.
 // "Forget" takes it out of the station book (it is back when it is heard again); it asks twice, and forgets the first click after 5 s like the other buttons that ask twice (`useSure`). An object or an item of ours has "Edit" (the Objects tab opens with it) and "Kill" (it asks twice, too) in place of "Message" and "Forget", and none of the fields of a station that is heard.
 import { computed, watch } from "vue";
+import IconButton from "@/components/IconButton.vue";
 import DirectMark from "@/components/DirectMark.vue";
 import RouteText from "@/components/RouteText.vue";
 import StationDetails from "@/components/StationDetails.vue";
@@ -72,7 +73,7 @@ const reached = computed(() => (props.row.kind === "station" && !props.row.is_me
         </span>
         <span class="muted">{{ row.symbol_name }}{{ row.is_me ? " (our station)" : row.own ? " (ours)" : "" }}</span>
       </div>
-      <button class="iconbtn card-close" type="button" aria-label="Close" title="Close" @click="emit('close')">&times;</button>
+      <IconButton kind="close" class="card-close" label="Close" @click="emit('close')" />
     </header>
     <WeatherPanel v-if="isWeatherStation(row)" :row="row" :series="weatherSeries" :now="now" @ask="(c, h) => emit('weather', c, h)" />
     <dl class="card-fields">

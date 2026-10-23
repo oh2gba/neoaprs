@@ -1,9 +1,10 @@
 <script setup lang="ts">
-// The box to post to the message board, at the top of the Bulletins tab: the kind (a bulletin, an announcement, a bulletin to a group) with an (i) that says what they are, the identifier it has (a number, a capital letter for an announcement), the group
+// The box to post to the message board, at the top of the Bulletins tab: the kind (a bulletin, an announcement, a bulletin to a group) with an (i) that says what they are, the number it has (a capital letter for an announcement), the group
 // of a group bulletin, and the text, with the characters of the 67 it has left. Post is on when the text can be sent (printable ASCII without | ~ {) and, for a group, the group is one to five letters and digits. The text is
 // cleared when the daemon has the bulletin (the topic `own_bulletins` tells it); one it refused stays for the user to correct. A slot that already holds a text of ours gets the new one in its place.
 import { computed, reactive, ref, watch } from "vue";
 import InfoTip from "@/components/InfoTip.vue";
+import { leftText } from "@/lib/format";
 import type { OwnBulletinRow } from "@/protocol/protocol";
 import { GROUP_MAX, POST_KINDS, canPost, charsLeft, groupOf, groupOk, idsOf, postCommand, type PostDraft } from "@/lib/bulletins";
 
@@ -45,34 +46,38 @@ function submit(): void {
 
 <template>
   <form class="compose bulletin-compose" @submit.prevent="submit">
-    <div class="compose-row">
-      <label class="sr-only" for="post-kind">Kind</label>
-      <select id="post-kind" v-model="draft.kind" class="input">
-        <option v-for="k in POST_KINDS" :key="k.kind" :value="k.kind">{{ k.title }}</option>
-      </select>
+    <div class="compose-row labelled">
+      <div class="stack">
+        <label for="post-kind">Kind</label>
+        <select id="post-kind" v-model="draft.kind" class="input">
+          <option v-for="k in POST_KINDS" :key="k.kind" :value="k.kind">{{ k.title }}</option>
+        </select>
+      </div>
       <InfoTip label="What the kinds are">
         A bulletin is for everyone and nobody acknowledges it. A bulletin to a group is for the stations that follow that group name. To reach particular
         stations, with an acknowledgement from each, send them a message: Messages tab, Stations.
       </InfoTip>
-      <label class="sr-only" for="post-id">Identifier</label>
-      <select id="post-id" v-model="draft.id" class="input mono">
-        <option v-for="c in idsOf(draft.kind)" :key="c" :value="c">{{ c }}</option>
-      </select>
-      <template v-if="draft.kind === 'group'">
-        <label class="sr-only" for="post-group">Group name</label>
+      <div class="stack">
+        <label for="post-id">{{ draft.kind === "announcement" ? "Letter" : "Number" }}</label>
+        <select id="post-id" v-model="draft.id" class="input mono">
+          <option v-for="c in idsOf(draft.kind)" :key="c" :value="c">{{ c }}</option>
+        </select>
+      </div>
+      <div v-if="draft.kind === 'group'" class="stack">
+        <label for="post-group">Group</label>
         <input
           id="post-group"
           v-model="draft.group"
           class="input mono compose-group"
           :class="{ invalid: badGroup }"
           type="text"
-          placeholder="Group name"
+          placeholder="Name"
           :maxlength="GROUP_MAX"
           autocomplete="off"
           spellcheck="false"
         />
-      </template>
-      <span class="compose-left mono" :class="{ over: left < 0 }" :title="`${left} of 67 characters left`">{{ left }}</span>
+      </div>
+      <span class="compose-left mono" :class="{ over: left < 0 }" :title="`${left} of 67 characters left`">{{ leftText(left) }}</span>
       <button type="submit" class="btn primary" :disabled="!ready">Post</button>
     </div>
     <label class="sr-only" for="post-text">Text</label>

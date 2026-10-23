@@ -361,8 +361,8 @@ describe("StationCard", () => {
   it("has a close button that is at least 32 px square, and a Details disclosure that has the way of the other disclosures", () => {
     const wrapper = mount(StationCard, { props: { row, now: NOW } });
     expect(wrapper.find("button[aria-label='Close']").classes()).toContain("card-close");
-    expect(cssRule(".card-close")).toMatch(/width:\s*32px/);
-    expect(cssRule(".card-close")).toMatch(/height:\s*32px/);
+    expect(cssRule(".xbtn")).toMatch(/min-width:\s*32px/);
+    expect(cssRule(".xbtn")).toMatch(/min-height:\s*32px/);
     expect(wrapper.find("details").classes()).toContain("more");
   });
 

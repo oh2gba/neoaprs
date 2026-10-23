@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The page: a header with the connection and the radio link, the map filling the page, and at its right a panel with the stations, the packets, the messages, the email, the bulletins, our objects, the beacon, the TNC and the settings.
+// The page: a header with the connection and the radio link, the map filling the page, and at its right a panel with the stations, the packets, the messages, the email, the bulletins, our objects, the beacon and the settings (which open with the state of the radio link).
 // The shell only: what the daemon tells is `useDaemon`, the panel `usePanel`, the station picked `useSelection`, the Messages tab `useMessagesView`, the Email tab `useEmail`, the Bulletins tab `useBulletins`, the Objects tab `useOwnObjects`, the paths, timeouts and RF only of the stations
 // `useStationPrefs`, the first-run guide (it opens by itself while the daemon has no call) `useSetupGuide`, the alert of this browser for a message to us `useBrowserAlerts` and `usePageAlerts`; the components take props and emit events, and the commands go out through `send`.
 import { usePositionPick } from "@/composables/usePositionPick";
@@ -18,7 +18,7 @@ import SidePanel from "@/components/SidePanel.vue";
 import StationCard from "@/components/StationCard.vue";
 import StationMap from "@/components/StationMap.vue";
 import StationsTable from "@/components/StationsTable.vue";
-import TncPanel from "@/components/TncPanel.vue";
+import RadioStatus from "@/components/RadioStatus.vue";
 import ToastBar from "@/components/ToastBar.vue";
 import UpdatePanel from "@/components/UpdatePanel.vue";
 import { useBrowserAlerts } from "@/composables/useBrowserAlerts";
@@ -144,6 +144,7 @@ function onPick(at: Home): void {
       @messages="openUnread"
       @setup="guide.show()"
       @update="updateOpen = true"
+      @radio="panel.show('settings')"
     />
     <UpdatePanel v-if="updateOpen && newer" :version="newer" :install="install" @close="updateOpen = false" />
     <main class="main">
@@ -265,9 +266,6 @@ function onPick(at: Home): void {
             @pick-position="stationPick.toggle()"
           />
         </template>
-        <template #tnc>
-          <TncPanel :tnc="tnc" :now="now" @reconnect="send({ cmd: 'tnc_reconnect' })" />
-        </template>
         <template #settings>
           <SettingsForm
             :config="config"
@@ -280,6 +278,9 @@ function onPick(at: Home): void {
             @setup="guide.show()"
             @update="updateOpen = true"
           >
+            <template #radio
+              ><RadioStatus :tnc="tnc" :now="now" :digipeater="config?.values['digi/enabled'] === 'true'" @reconnect="send({ cmd: 'tnc_reconnect' })"
+            /></template>
             <template #notifications><BrowserAlerts :alerts="alerts" /></template>
           </SettingsForm>
         </template>

@@ -11,7 +11,7 @@ describe("EmailCompose", () => {
   it("is the box Send an email, with To and Text", () => {
     const wrapper = box();
     expect(wrapper.find("strong").text()).toBe("Send an email");
-    expect(wrapper.find("#mail-to").attributes("placeholder")).toBe("To: email address or shortcut");
+    expect(wrapper.find("#mail-to").attributes("placeholder")).toBe("Address or shortcut");
     expect(wrapper.find("#mail-text").attributes("placeholder")).toBe("Text");
     expect(wrapper.findAll("p")).toHaveLength(0);
   });
@@ -24,7 +24,7 @@ describe("EmailCompose", () => {
     expect(wrapper.find(".compose-left").text()).toBe("59 left");
     expect(wrapper.find(".compose-left").attributes("title")).toBe("59 of 67 characters left; the address and the space count too");
     await wrapper.find("#mail-text").setValue("å".repeat(32) + "x");
-    expect(wrapper.find(".compose-left").text()).toBe("-1 left");
+    expect(wrapper.find(".compose-left").text()).toBe("1 over");
     expect(wrapper.find(".compose-left").classes()).toContain("over");
   });
 
@@ -67,7 +67,7 @@ describe("EmailCompose", () => {
   it("forgets an addressee with its x, without putting it in To", async () => {
     const wrapper = box({ addresses: ["me", "jane@example.com"] });
     const x = wrapper.findAll(".address-forget");
-    expect(x.map((b) => b.text())).toEqual(["x", "x"]);
+    expect(x.map((b) => b.text())).toEqual(["", ""]);
     expect(x[0]?.attributes("title")).toBe("Forget me");
     await x[0]?.trigger("click");
     expect(wrapper.emitted("forget")).toEqual([["me"]]);

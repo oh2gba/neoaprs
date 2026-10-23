@@ -58,6 +58,13 @@ describe("AppHeader", () => {
     expect(header().find(".headmail").exists()).toBe(false);
   });
 
+  it("has the radio state as a button that asks for the Settings tab, where the radio is", async () => {
+    const wrapper = header();
+    expect(wrapper.find("[role='status'] button.status").text()).toBe("radio ok");
+    await wrapper.find("button.status").trigger("click");
+    expect(wrapper.emitted("radio")).toHaveLength(1);
+  });
+
   it("is one dot and its words: green radio ok while the socket is open and the TNC is connected", () => {
     const wrapper = header();
     expect(wrapper.findAll(".dot")).toHaveLength(1);

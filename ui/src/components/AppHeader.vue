@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// The one line at the top: the title, our call (amber "no call set", a button that opens the first-run guide, while none is set: nothing is transmitted then; with the number of messages not seen, a button that opens them), one dot and the words for whether the radio works (green "radio ok": the page's socket is open and
+// The one line at the top: the title, our call (amber "no call set", a button that opens the first-run guide, while none is set: nothing is transmitted then; with the number of messages not seen, a button that opens them), one dot and the words for whether the radio works, a button that opens the Settings tab, where the radio is (green "radio ok": the page's socket is open and
 // the TNC is connected; amber "radio: searching", "radio: waiting", "radio: entering KISS" or "radio: stopped": the socket is up and the TNC is not, its problem the title; amber "radio: silent": the line is
-// open and the radio does not answer, the title says since when; red "daemon offline": the socket is down). What the daemon costs the machine (the CPU share, the memory, the uptime) is not shown, only in the title of the radio state. The port, the speed and the packet count are on the TNC tab. When the update check has found a newer
+// open and the radio does not answer, the title says since when; red "daemon offline": the socket is down). What the daemon costs the machine (the CPU share, the memory, the uptime) is not shown, only in the title of the radio state. The port and what the TNC last heard are at the top of the TNC group of the Settings tab. When the update check has found a newer
 // version it is shown after the version number, a button that opens the panel with the steps to it (UpdatePanel), the project's note as the title; on a phone, where the version number is left out, the button stays ("Update") so that the update is not missed.
 import { computed } from "vue";
 import type { Connection } from "@/lib/hub";
@@ -19,7 +19,7 @@ const props = defineProps<{
   now: number;
   status?: StatusMessage | null;
 }>();
-const emit = defineEmits<{ messages: []; setup: []; update: [] }>();
+const emit = defineEmits<{ messages: []; setup: []; update: []; radio: [] }>();
 
 type Link = { level: "ok" | "warn" | "bad"; text: string; title?: string };
 /** The TNC's state in a word: it is searching for the port until the line is open, then entering KISS. */
@@ -54,9 +54,11 @@ const hover = computed(() => [link.value.title, cost.value === null ? null : `Ne
     <button v-if="unread > 0" type="button" class="badge headmail" :title="`${unreadText(unread)}: open the messages`" @click="emit('messages')">
       <span aria-hidden="true">&#9993;</span> {{ unread }}<span class="sr-only"> {{ unreadText(unread) }}</span>
     </button>
-    <span class="status" :class="`link-${link.level}`" role="status" :title="hover">
-      <span class="dot" aria-hidden="true"></span>
-      {{ link.text }}
+    <span class="statuswrap" role="status">
+      <button type="button" class="status" :class="`link-${link.level}`" :title="hover" @click="emit('radio')">
+        <span class="dot" aria-hidden="true"></span>
+        {{ link.text }}
+      </button>
     </span>
     <span v-if="version" class="muted version">v{{ version }}</span>
     <button v-if="status?.update" type="button" class="update" :title="status.update.message || `Update to ${status.update.version}`" @click="emit('update')">
