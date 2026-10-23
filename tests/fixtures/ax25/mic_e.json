@@ -1,0 +1,13 @@
+{
+  "note": "A Mic-E frame: the destination field carries the latitude; the information field has bytes above 0x7F and below 0x20.",
+  "destination": "T7SYRS",
+  "source": "OH2GBA-9",
+  "path": [
+    "WIDE1-1*"
+  ],
+  "control": 3,
+  "pid": 240,
+  "info": "`c5\u007f\u001c\u009f>/]\"4}Mic-E status",
+  "is_ui": true,
+  "canonical": true
+}

@@ -1,0 +1,9 @@
+# Text is stored and checked out with LF on every system (a Windows checkout with CRLF would break the tests that compare bytes and the page build);
+# what is binary is never converted.
+* text=auto eol=lf
+*.png binary
+*.bin binary
+*.pbf binary
+*.pmtiles binary
+*.sqlite binary
+*.kiss binary

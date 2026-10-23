@@ -1,0 +1,11 @@
+{
+  "path": ["src"],
+  "pattern": "**/*.{ts,vue}",
+  "ignore": ["**/protocol/*.ts", "**/*.test.ts", "**/test/**"],
+  "minLines": 5,
+  "minTokens": 50,
+  "format": ["typescript", "markup"],
+  "reporters": ["console"],
+  "threshold": 3,
+  "gitignore": true
+}

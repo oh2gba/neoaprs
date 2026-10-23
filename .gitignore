@@ -1,0 +1,58 @@
+# The live install's data folder (the database holds the position and the messages) and anything else that holds a secret.
+/data/
+*.sqlite
+*.sqlite-*
+*.pem
+*.key
+.env
+.env.*
+
+# Environments: uv's .venv, the folders a deploy sets aside (.venv-<stamp>), the page's node_modules.
+.venv/
+.venv-*
+ui/node_modules/
+
+# Builds: ui/dist is made by the checks; page/ is committed.
+ui/dist/
+ui/dist.prev-*
+
+# What the packaging makes (packaging/windows, the release workflow): the frozen app, the installer, the build environment.
+/dist/
+/dist-installer/
+/dist-wheel/
+/build/
+/build-venv/
+/build-requirements.txt
+
+# The base map: scripts/fetch-basemap puts it in data/ (a copy anywhere else is not committed either), several hundred MB of OpenStreetMap data.
+*.pmtiles
+*.pmtiles.part
+
+# Caches and reports of the tools.
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+ui/coverage/
+test-results/
+
+# Worktrees (git worktree add .worktrees/NAME).
+.worktrees/
+
+# Shell and editor files the desktop tooling drops in the checkout.
+/.bashrc
+/.bash_profile
+/.profile
+/.zshrc
+/.zprofile
+/.gitconfig
+/.ripgreprc
+/.gitmodules
+/.idea/
+/.vscode/

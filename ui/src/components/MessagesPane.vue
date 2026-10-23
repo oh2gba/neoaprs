@@ -1,0 +1,125 @@
+<script setup lang="ts">
+// The Messages tab: the conversations (one for each other station, the newest first, with the number of messages not seen yet; a click on the row of the one that is open closes its thread, a click on another opens that one, and the small "x" at the right
+// end of a row deletes the whole conversation, or the whole overheard pair, after "sure?": the one way to delete, a single message has no button), the thread of the open one (MessageThread) and the box to write in (MessageCompose). A conversation with messages
+// not seen that is not the open one is highlighted. Above the thread are the path the station's messages go by (with "Use suggested") and how long the station stays on the map and how many attempts its messages are given; beside the path is the tickbox RF only. A message that came in has the route it came by under its time ("via OH2RCH-2"). "Show overheard" lists the messages sent to other stations, a pair of stations at a time, which are otherwise left out.
+import MessageCompose from "@/components/MessageCompose.vue";
+import MessageThread from "@/components/MessageThread.vue";
+import StationPrefs from "@/components/StationPrefs.vue";
+import { useSure } from "@/composables/useSure";
+import type { Aging } from "@/lib/aging";
+import type { Attempts } from "@/lib/attempts";
+import { ageText } from "@/lib/format";
+import { conversationName, isHighlighted, isOverheard, overheardPair, type Conversation } from "@/lib/messages";
+import { unreadText } from "@/lib/unread";
+import type { MessageRow } from "@/protocol/protocol";
+
+withDefaults(
+  defineProps<{
+    conversations: readonly Conversation[];
+    selected: string | null;
+    thread: readonly MessageRow[];
+    connected: boolean;
+    now: number;
+    showOverheard: boolean;
+    paths: ReadonlyMap<string, string>;
+    aging: Aging;
+    attempts: Attempts;
+    /** the path to send by that the daemon suggests for each station that has one (see the station card) */
+    suggestions?: ReadonlyMap<string, string | null>;
+    /** the path of the setting beacon/path, which a station without one of its own has */
+    fallbackPath: string;
+    /** the stations that are RF only */
+    rfOnly?: ReadonlySet<string>;
+    /** the stations heard direct, which the chain under a message judges a digipeater that was not heard by */
+    heardDirect?: ReadonlySet<string>;
+  }>(),
+  { rfOnly: () => new Set<string>(), suggestions: () => new Map<string, string | null>(), heardDirect: () => new Set<string>() },
+);
+const emit = defineEmits<{
+  /** a conversation was picked; null when the one that is open was picked again, which closes it */
+  select: [call: string | null];
+  send: [to: string, text: string];
+  retry: [id: number];
+  cancel: [id: number];
+  deleteConversation: [call: string];
+  /** every overheard message of the pair: who sent it, who it was for */
+  deleteOverheard: [from: string, to: string];
+  "update:showOverheard": [show: boolean];
+  path: [call: string, path: string];
+  clearPath: [call: string];
+  timeout: [call: string, minutes: number];
+  clearTimeout: [call: string];
+  setAttempts: [call: string, attempts: number];
+  clearAttempts: [call: string];
+  setRfOnly: [call: string, on: boolean];
+}>();
+
+const sure = useSure<string>(); // (the call of a conversation, the pair of an overheard one)
+
+/** The x of a row: the conversation goes, or the overheard pair. */
+function remove(call: string): void {
+  const pair = overheardPair(call);
+  if (pair === null) emit("deleteConversation", call);
+  else emit("deleteOverheard", pair[0], pair[1]);
+}
+</script>
+
+<template>
+  <div class="msgpane">
+    <div class="toolbar">
+      <label class="check"
+        ><input type="checkbox" :checked="showOverheard" @change="emit('update:showOverheard', ($event.target as HTMLInputElement).checked)" /> Show
+        overheard</label
+      >
+    </div>
+    <ul class="convs" aria-label="Conversations">
+      <li v-for="c in conversations" :key="c.call" class="conv-item">
+        <button
+          type="button"
+          class="conv"
+          :class="{ active: c.call === selected, unread: c.unread > 0, fresh: isHighlighted(c.unread, c.call, selected) }"
+          :aria-current="c.call === selected"
+          @click="emit('select', c.call === selected ? null : c.call)"
+        >
+          <span class="conv-call">{{ conversationName(c.call) }}</span>
+          <span v-if="c.unread > 0" class="badge" :title="unreadText(c.unread)">{{ c.unread }}</span>
+          <span class="conv-age muted">{{ ageText(c.last.at, now) }}</span>
+          <span class="conv-text muted">{{ c.last.direction === "out" ? "You: " : "" }}{{ c.last.text }}</span>
+        </button>
+        <button
+          type="button"
+          class="conv-delete"
+          :class="{ danger: sure.armed.value === c.call }"
+          :aria-label="c.overheard ? `Delete the overheard messages ${conversationName(c.call)}` : `Delete the conversation with ${c.call}`"
+          @click="sure.press(c.call, () => remove(c.call))"
+        >
+          {{ sure.armed.value === c.call ? "sure?" : "x" }}
+        </button>
+      </li>
+      <li v-if="conversations.length === 0" class="empty">No message yet.</li>
+    </ul>
+    <div v-if="selected !== null" class="thread-head">
+      <p v-if="isOverheard(selected)" class="muted">Overheard: {{ conversationName(selected) }}</p>
+      <StationPrefs
+        v-else
+        :call="selected"
+        :aging="aging"
+        :with-timeout="false"
+        :attempts="attempts"
+        :paths="paths"
+        :fallback-path="fallbackPath"
+        :rf-only="rfOnly"
+        :suggested="suggestions.get(selected) ?? null"
+        @path="(c, p) => emit('path', c, p)"
+        @clear-path="emit('clearPath', $event)"
+        @timeout="(c, m) => emit('timeout', c, m)"
+        @clear-timeout="emit('clearTimeout', $event)"
+        @set-attempts="(c, n) => emit('setAttempts', c, n)"
+        @clear-attempts="emit('clearAttempts', $event)"
+        @set-rf-only="(c, on) => emit('setRfOnly', c, on)"
+      />
+    </div>
+    <MessageThread :thread="thread" :peer="selected" :heard-direct="heardDirect" @retry="emit('retry', $event)" @cancel="emit('cancel', $event)" />
+    <MessageCompose :selected="selected" :connected="connected" @send="(to, text) => emit('send', to, text)" />
+  </div>
+</template>

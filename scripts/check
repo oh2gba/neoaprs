@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+# The one entry point for "is this tree good": what a pre-push hook and CI run.
+#
+#   scripts/check                 every stage, in order, stopping at the first failure
+#   scripts/check --fast          without the stages that drive a real browser (what a push runs)
+#   scripts/check --stage NAME    one stage only (see STAGES below)
+#   scripts/check --list          the stage names
+#
+# One line per stage with its time; the output of a failing stage is printed under its line. Runs from any directory.
+# Python: NEOAPRS_PYTHON, else the uv venv (.venv). Needs `uv sync --frozen` once.
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$root"
+
+# The stages: the Python ones, then the page's (ui-types ... dup, which need node: on the PATH, else the newest in ~/.nvm), then the duplication check of the Python tree (jscpd, from ui/node_modules).
+STAGES=(lock ruff mypy architecture pytest ui-types ui-lint ui-tests ui-build page dup dup-py)
+ALL_STAGES=("${STAGES[@]}")
+
+fast=0
+only=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --fast) fast=1 ;;
+        --stage) shift; only="${1:-}"; [ -n "$only" ] || { echo "check: --stage needs a name (${ALL_STAGES[*]})" >&2; exit 2; } ;;
+        --list) printf '%s\n' "${ALL_STAGES[@]}"; exit 0 ;;
+        -h|--help) sed -n '2,10p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        *) echo "check: unknown argument $1" >&2; exit 2 ;;
+    esac
+    shift
+done
+if [ -n "$only" ]; then
+    case " ${ALL_STAGES[*]} " in *" $only "*) ;; *) echo "check: no stage called $only (${ALL_STAGES[*]})" >&2; exit 2 ;; esac
+fi
+
+python="${NEOAPRS_PYTHON:-}"
+if [ -z "$python" ]; then
+    python="$root/.venv/bin/python"
+fi
+[ -x "$python" ] || { echo "check: no Python environment: run 'uv sync --frozen' in $root" >&2; exit 2; }
+
+log="$(mktemp)"
+trap 'rm -f "$log"' EXIT
+
+# --- the stages: each is a function that exits non-zero on failure -------------------------------------------------------------------------------------------
+
+# Careful: a stage runs inside `if`, where bash ignores `set -e`, so every command of a stage that has several ends in `|| return 1`.
+stage_lock() {
+    # uv.lock must be current with pyproject.toml.
+    command -v uv >/dev/null || { echo "uv is not installed"; return 1; }
+    # a sandbox that cannot write ~/.cache/uv gets a cache of its own, so the stage says something about the lock and not about the cache
+    local cache="${UV_CACHE_DIR:-$HOME/.cache/uv}"
+    if ! { mkdir -p "$cache" && [ -w "$cache" ]; } 2>/dev/null; then
+        export UV_CACHE_DIR="${TMPDIR:-/tmp}/uv-cache"
+    fi
+    uv lock --check
+}
+stage_ruff()  { "$python" -m ruff check .; }
+stage_mypy()  { "$python" -m mypy; }
+# The architecture stage is the layers, the wiring rule and the size limits (docs/ARCHITECTURE.md): quick, so it runs before the long suite, which then leaves these two files out.
+ARCHITECTURE_TESTS=(tests/test_architecture.py tests/test_size_ratchet.py)
+stage_architecture() { "$python" -m pytest -q "${ARCHITECTURE_TESTS[@]}"; }
+# The tests run side by side (pytest-xdist): as many workers as the machine has cores, at most NEOAPRS_TEST_WORKERS_MAX (12); NEOAPRS_TEST_WORKERS=N sets the number, 0 runs them
+# one after the other (what to do to read the output of one failing test in order).
+stage_pytest() {
+    local workers="${NEOAPRS_TEST_WORKERS:-auto}" cap=() common=(--ignore-glob='tests/e2e*' "${ARCHITECTURE_TESTS[@]/#/--ignore=}")
+    if [ "$workers" = 0 ]; then "$python" -m pytest -q "${common[@]}"; return; fi
+    if [ "$workers" = auto ]; then cap=(--maxprocesses="${NEOAPRS_TEST_WORKERS_MAX:-12}"); fi
+    "$python" -m pytest -q -n "$workers" --dist worksteal ${cap[@]+"${cap[@]}"} "${common[@]}"
+}
+
+# The UI stages are skipped (and say so) in a tree without ui/. node_modules is installed from the lock file when it is missing. Node is the one on the PATH, else the newest of ~/.nvm.
+ui_run() {
+    [ -d ui ] || { echo "no ui/ in this tree: nothing to do"; return 0; }
+    if ! command -v node >/dev/null; then
+        local newest
+        newest="$(ls -d "$HOME"/.nvm/versions/node/v*/bin 2>/dev/null | sort -V | tail -n 1 || true)"
+        [ -n "$newest" ] && PATH="$newest:$PATH"
+    fi
+    command -v node >/dev/null || { echo "node is not installed (node 18 or newer, on the PATH or in ~/.nvm)"; return 1; }
+    export npm_config_update_notifier=false npm_config_fund=false npm_config_audit=false           # npm asks the registry about nothing but the install itself
+    if [ ! -d ui/node_modules ]; then (cd ui && npm ci) || return 1; fi
+    (cd ui && "$@")
+}
+stage_ui_types() { ui_run npx vue-tsc --noEmit; }
+stage_ui_lint() { ui_run npm run --silent lint && ui_run npm run --silent format:check && ui_run npm run --silent knip; }
+stage_ui_tests() { ui_run npx vitest run; }
+stage_ui_build() { ui_run npx vite build; }
+stage_page() { "$python" -m pytest -q tests/test_page_build.py; }      # page/ (what the daemon serves) is a fresh build of ui/
+stage_dup() { ui_run npm run --silent dup; }                              # jscpd over ui/src: duplicated code over the threshold of ui/.jscpd.json fails
+stage_dup_py() { ui_run ../scripts/dup-check; }                           # jscpd over neoaprs/ (the page's server and the commands are in it; the built page is not) and tests/support/ against scripts/dup-baseline.json
+
+# --- the runner ----------------------------------------------------------------------------------------------------------------------------------------------
+
+run_stage() {
+    local name="$1" fn="stage_${1//-/_}" start end
+    start=$EPOCHREALTIME
+    if "$fn" >"$log" 2>&1; then
+        end=$EPOCHREALTIME
+        printf 'ok    %-12s %6.1fs\n' "$name" "$(awk -v a="$start" -v b="$end" 'BEGIN { print b - a }')"
+    else
+        end=$EPOCHREALTIME
+        printf 'FAIL  %-12s %6.1fs\n' "$name" "$(awk -v a="$start" -v b="$end" 'BEGIN { print b - a }')"
+        sed 's/^/      | /' "$log"
+        exit 1
+    fi
+}
+
+total_start=$(date +%s)
+for name in "${ALL_STAGES[@]}"; do
+    if [ -n "$only" ] && [ "$name" != "$only" ]; then continue; fi
+    if [ -z "$only" ] && [ "$fast" = 1 ] && [ "$name" = browser ]; then continue; fi
+    run_stage "$name"
+done
+printf 'all green in %ss\n' "$(( $(date +%s) - total_start ))"

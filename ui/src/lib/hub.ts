@@ -1,0 +1,264 @@
+// The page's end of the conversation with the daemon (PROTOCOL.md): one WebSocket to /ws on the page's own host, `hello`, then the `state` of every topic and `patch` after it. Plain code with
+// no Vue: what the messages say is handed to a `Store`, which the composable (composables/useDaemon.ts) makes reactive; the socket and the timers can be replaced, so the tests drive it.
+// The socket is opened again by itself when it closes (1, 2, 4 ... 30 seconds), and a topic whose revision skips is asked for again with `subscribe`.
+import type {
+  AlertResultMessage,
+  BulletinRow,
+  Command,
+  HelloMessage,
+  Message,
+  MessageRow,
+  PacketRow,
+  PortsMessage,
+  StationPref,
+  StationRow,
+  StatusMessage,
+  TopicValues,
+  WeatherSeriesMessage,
+} from "@/protocol/protocol";
+import { MESSAGE_TYPES, PROTOCOL, TOPIC_NAMES } from "@/protocol/lists";
+
+export const FIRST_DELAY_MS = 1000;
+export const MAX_DELAY_MS = 30000;
+
+type TopicName = keyof TopicValues;
+export type Connection = "connecting" | "open" | "closed";
+
+/** Where what the daemon says goes. A keyed topic (stations, packets, messages, bulletins, station_prefs) is told item by item, the others (tnc, config, map) as a whole. */
+export interface Store {
+  connection(state: Connection): void;
+  hello(message: HelloMessage): void;
+  status(message: StatusMessage): void;
+  error(text: string): void;
+  weatherSeries(message: WeatherSeriesMessage): void;
+  alertResult(message: AlertResultMessage): void;
+  ports(message: PortsMessage): void;
+  replaceStations(rows: Record<string, StationRow>): void;
+  replacePackets(rows: Record<string, PacketRow>): void;
+  replaceMessages(rows: Record<string, MessageRow>): void;
+  replaceBulletins(rows: Record<string, BulletinRow>): void;
+  replaceStationPrefs(rows: Record<string, StationPref>): void;
+  replaceTnc(value: TopicValues["tnc"]): void;
+  replaceConfig(value: TopicValues["config"]): void;
+  replaceMap(value: TopicValues["map"]): void;
+  setStation(key: string, row: StationRow): void;
+  setPacket(key: string, row: PacketRow): void;
+  setMessage(key: string, row: MessageRow): void;
+  setBulletin(key: string, row: BulletinRow): void;
+  setStationPref(call: string, pref: StationPref): void;
+  delStation(key: string): void;
+  delPacket(key: string): void;
+  delMessage(key: string): void;
+  delBulletin(key: string): void;
+  delStationPref(call: string): void;
+}
+
+/** What the hub needs of a WebSocket: the browser's has more. */
+export interface SocketLike {
+  onopen: ((event: Event) => void) | null;
+  onmessage: ((event: MessageEvent) => void) | null;
+  onclose: ((event: CloseEvent) => void) | null;
+  onerror: ((event: Event) => void) | null;
+  send(data: string): void;
+  close(): void;
+}
+
+interface HubOptions {
+  url: () => string;
+  /** makes the socket; the browser's WebSocket by default */
+  socket?: (url: string) => SocketLike;
+  /** the page is out of date: it loads itself again (once; the caller guards the loop) */
+  outOfDate?: () => void;
+}
+
+export function nextDelay(delay: number): number {
+  return Math.min(delay * 2, MAX_DELAY_MS);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isTopic(name: string): name is TopicName {
+  return (TOPIC_NAMES as readonly string[]).includes(name);
+}
+
+function isMessage(value: unknown): value is Message {
+  return isRecord(value) && typeof value.type === "string" && (MESSAGE_TYPES as readonly string[]).includes(value.type);
+}
+
+/** The text of a frame as a message of the daemon, null when it is none (the daemon's output is checked against the same models in its tests; this only looks at the tag). */
+export function parseMessage(text: string): Message | null {
+  try {
+    const data: unknown = JSON.parse(text);
+    return isMessage(data) ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+export class Hub {
+  private socket: SocketLike | null = null;
+  private delay = FIRST_DELAY_MS;
+  private timer: ReturnType<typeof setTimeout> | undefined;
+  private wanted = false;
+  private live = false;
+  private readonly revs = new Map<TopicName, number>();
+
+  constructor(
+    private readonly store: Store,
+    private readonly options: HubOptions,
+  ) {}
+
+  /** Opens the socket and keeps it open: a closed one is opened again after a wait that doubles. */
+  open(): void {
+    this.wanted = true;
+    this.connect();
+  }
+
+  close(): void {
+    this.wanted = false;
+    clearTimeout(this.timer);
+    const socket = this.socket;
+    this.socket = null;
+    socket?.close();
+    this.store.connection("closed");
+  }
+
+  /** Sends a command; false when the socket is not open (the caller says so). */
+  send(command: Command): boolean {
+    if (this.socket === null || !this.live) return false;
+    this.socket.send(JSON.stringify(command));
+    return true;
+  }
+
+  private connect(): void {
+    clearTimeout(this.timer);
+    this.store.connection("connecting");
+    let socket: SocketLike;
+    try {
+      socket = this.options.socket ? this.options.socket(this.options.url()) : new WebSocket(this.options.url());
+    } catch {
+      this.retry();
+      return;
+    }
+    this.socket = socket;
+    this.live = false;
+    socket.onmessage = (event: MessageEvent) => {
+      if (this.socket !== socket || typeof event.data !== "string") return;
+      if (!this.live) this.up();
+      this.handle(event.data);
+    };
+    socket.onclose = () => {
+      if (this.socket !== socket) return; // an older socket that closes late
+      this.socket = null;
+      this.live = false;
+      this.store.connection("closed");
+      this.retry();
+    };
+    socket.onerror = () => undefined; // the close that follows says it
+  }
+
+  /** The daemon has spoken: the connection is up and the wait starts over. */
+  private up(): void {
+    this.live = true;
+    this.delay = FIRST_DELAY_MS;
+    this.revs.clear();
+    this.store.connection("open");
+  }
+
+  private retry(): void {
+    if (!this.wanted) return;
+    this.timer = setTimeout(() => this.connect(), this.delay);
+    this.delay = nextDelay(this.delay);
+  }
+
+  /** One frame of the daemon. */
+  handle(text: string): void {
+    const message = parseMessage(text);
+    if (message === null) return;
+    switch (message.type) {
+      case "hello":
+        if (message.protocol !== PROTOCOL) this.options.outOfDate?.();
+        this.store.hello(message);
+        break;
+      case "status":
+        this.store.status(message);
+        break;
+      case "error":
+        this.store.error(message.text);
+        break;
+      case "state":
+        this.onState(message.topic, message.rev, message.value);
+        break;
+      case "patch":
+        this.onPatch(message.topic, message.rev, message.ops);
+        break;
+      case "weather_series":
+        this.store.weatherSeries(message);
+        break;
+      case "alert_result":
+        this.store.alertResult(message);
+        break;
+      case "ports":
+        this.store.ports(message);
+        break;
+      case "pong":
+        break;
+    }
+  }
+
+  private onState(topic: string, rev: number, value: unknown): void {
+    if (!isTopic(topic) || !isRecord(value)) return;
+    this.revs.set(topic, rev);
+    this.replace(topic, value);
+  }
+
+  private onPatch(topic: string, rev: number, ops: Extract<Message, { type: "patch" }>["ops"]): void {
+    if (!isTopic(topic)) return;
+    const before = this.revs.get(topic);
+    if (before !== undefined && rev <= before) return; // what the page has already
+    if (before === undefined || rev !== before + 1) {
+      this.send({ cmd: "subscribe", topics: [topic] }); // a patch was missed: the topic is sent whole
+      return;
+    }
+    this.revs.set(topic, rev);
+    for (const op of ops) {
+      if (op.op === "replace") {
+        if (isRecord(op.value)) this.replace(topic, op.value);
+      } else if (op.op === "del") {
+        this.del(topic, op.key);
+      } else if (isRecord(op.value)) {
+        this.set(topic, op.key, op.value);
+      }
+    }
+  }
+
+  // The values arrive as `unknown`; the daemon checks every one against its models before it sends (web/outbound.py), so an object of the right topic is taken as the topic's type.
+  private replace(topic: TopicName, value: unknown): void {
+    if (topic === "stations") this.store.replaceStations(value as TopicValues["stations"]);
+    else if (topic === "packets") this.store.replacePackets(value as TopicValues["packets"]);
+    else if (topic === "messages") this.store.replaceMessages(value as TopicValues["messages"]);
+    else if (topic === "bulletins") this.store.replaceBulletins(value as TopicValues["bulletins"]);
+    else if (topic === "station_prefs") this.store.replaceStationPrefs(value as TopicValues["station_prefs"]);
+    else if (topic === "tnc") this.store.replaceTnc(value as TopicValues["tnc"]);
+    else if (topic === "map") this.store.replaceMap(value as TopicValues["map"]);
+    else this.store.replaceConfig(value as TopicValues["config"]);
+  }
+
+  private set(topic: TopicName, key: string, value: unknown): void {
+    if (topic === "stations") this.store.setStation(key, value as StationRow);
+    else if (topic === "packets") this.store.setPacket(key, value as PacketRow);
+    else if (topic === "messages") this.store.setMessage(key, value as MessageRow);
+    else if (topic === "bulletins") this.store.setBulletin(key, value as BulletinRow);
+    else if (topic === "station_prefs") this.store.setStationPref(key, value as StationPref);
+  }
+
+  private del(topic: TopicName, key: string): void {
+    if (topic === "stations") this.store.delStation(key);
+    else if (topic === "packets") this.store.delPacket(key);
+    else if (topic === "messages") this.store.delMessage(key);
+    else if (topic === "bulletins") this.store.delBulletin(key);
+    else if (topic === "station_prefs") this.store.delStationPref(key);
+  }
+}

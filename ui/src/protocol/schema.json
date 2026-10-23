@@ -1,0 +1,3811 @@
+{
+  "$defs": {
+    "AlertResultMsg": {
+      "additionalProperties": false,
+      "description": "The answer to `alert_test`, when the command has ended or run out of its 20 s.",
+      "properties": {
+        "type": {
+          "const": "alert_result",
+          "type": "string"
+        },
+        "ok": {
+          "description": "the command ended with exit code 0",
+          "type": "boolean"
+        },
+        "text": {
+          "description": "`ran` when it worked; else why not: the exit code and the first line of stderr (`exit code 3: no display`), or that it could not start or was killed after 20 s",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "ok",
+        "text"
+      ],
+      "title": "AlertResultMessage",
+      "type": "object"
+    },
+    "AlertTest": {
+      "additionalProperties": false,
+      "description": "Runs the alert command as it is saved in the settings (`messages/alert_command`), exactly as for a message to us (the same shell, the same environment, the 20 s limit) with a made-up message: `NEOAPRS_FROM`\nis `OH2GBA-7`, `NEOAPRS_TEXT` is `This is a test of the NeoAPRS alert`, `NEOAPRS_AT` is now and `NEOAPRS_MSG_ID` is empty. `messages/alert` is not asked: a test is explicit. Waits for the command and answers the page\nthat asked with `alert_result`, or with an `error` when the command is empty (`no alert command`).",
+      "properties": {
+        "cmd": {
+          "const": "alert_test",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd"
+      ],
+      "title": "AlertTestCommand",
+      "type": "object"
+    },
+    "AreaValues": {
+      "additionalProperties": false,
+      "description": "An area object (the symbol `\\l`): its shape and colour, and how far down and to the right of the object's position it reaches.",
+      "properties": {
+        "shape": {
+          "description": "open circle, line, open ellipse, open triangle, open box, filled circle, coloured line, filled ellipse, filled triangle or filled box",
+          "type": "string"
+        },
+        "colour": {
+          "type": "string"
+        },
+        "lat_offset_deg": {
+          "type": "number"
+        },
+        "lon_offset_deg": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "shape",
+        "colour",
+        "lat_offset_deg",
+        "lon_offset_deg"
+      ],
+      "title": "AreaValues",
+      "type": "object"
+    },
+    "AskStatus": {
+      "additionalProperties": false,
+      "description": "Answered with `status` at once (the daemon also sends one every 10 s).",
+      "properties": {
+        "cmd": {
+          "const": "status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd"
+      ],
+      "title": "AskStatusCommand",
+      "type": "object"
+    },
+    "AttemptRow": {
+      "additionalProperties": false,
+      "description": "One transmission of a message of ours and what came back of it.",
+      "properties": {
+        "sent_at": {
+          "description": "UTC, ISO 8601 with a Z",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "hops": {
+          "description": "the digipeaters of the path the attempt went by, in order; empty for a direct path",
+          "items": {
+            "$ref": "#/$defs/HopRow"
+          },
+          "type": "array"
+        },
+        "internet": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the call of the iGate that put a copy of the message back on the air as a third-party packet, when one was heard for this attempt; null otherwise"
+        },
+        "acked": {
+          "description": "the acknowledgement was heard after this attempt and before the next one: the attempt the ack answers",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "sent_at",
+        "hops",
+        "internet",
+        "acked"
+      ],
+      "title": "AttemptRow",
+      "type": "object"
+    },
+    "BeaconNow": {
+      "additionalProperties": false,
+      "description": "Sends our position packet now, with the settings as they are (the same packet as the timer's), and the next one is an interval later. It goes out through the TNC, so it is not answered:\nit arrives as the new `packets` row with direction `out`, and `status` follows with the time of the beacon. Answered with an `error` when it could not be sent: the TNC is not connected, or\nthe settings make no frame.",
+      "properties": {
+        "cmd": {
+          "const": "beacon_now",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd"
+      ],
+      "title": "BeaconNowCommand",
+      "type": "object"
+    },
+    "BulletinDelete": {
+      "additionalProperties": false,
+      "description": "Removes an entry from the message board, from the database and from every page: its row is a `del` of the topic `bulletins`. The same bulletin heard again afterwards is a new entry (heard once). Answered by\nthe `del`, or by an `error` (no such entry).",
+      "properties": {
+        "cmd": {
+          "const": "bulletin_delete",
+          "type": "string"
+        },
+        "sender": {
+          "description": "the call that sent it, as the row has it",
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "slot": {
+          "description": "the addressee as the row has it: `BLN1`, `BLNA`, `BLN3HAMS`, `QST`",
+          "maxLength": 16,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "sender",
+        "slot"
+      ],
+      "title": "BulletinDeleteCommand",
+      "type": "object"
+    },
+    "BulletinRow": {
+      "additionalProperties": false,
+      "description": "One bulletin, announcement, group bulletin or group message on the board: what a station sent to `BLN0`..`BLN9`, `BLNA`..`BLNZ`, `BLN3HAMS` (a number or letter and a group of up to five characters) or `ALL`, `CQ`\nor `QST`. None of them is a conversation and none is acked. The rows are the values of the topic `bulletins`, keyed by `sender/slot` (`OH2XYZ/BLN1`): the board holds one row for each sender and slot, a sender\nsending the slot again replaces the text. A bulletin that is new or heard again is a `set` of its row, one that is deleted (`bulletin_delete`) a `del`. Nothing ages out: an\nentry stays on the board until it is deleted.",
+      "properties": {
+        "sender": {
+          "description": "the call that sent it (for a third-party packet the call inside it)",
+          "type": "string"
+        },
+        "slot": {
+          "description": "the addressee in capitals: `BLN1`, `BLNA`, `BLN3HAMS`, `QST`",
+          "type": "string"
+        },
+        "group": {
+          "description": "the group of a group bulletin (`HAMS` of `BLN3HAMS`); empty for any other",
+          "type": "string"
+        },
+        "kind": {
+          "description": "`announcement` is `BLNA`..`BLNZ`, `bulletin` is `BLN0`..`BLN9`, `group` is a group bulletin or a message to `ALL`, `CQ` or `QST`, `nws` is a weather service bulletin (`NWS-xxxxx`, `SKY...`, `CWA...`)",
+          "enum": [
+            "announcement",
+            "bulletin",
+            "group",
+            "nws"
+          ],
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "first_heard": {
+          "description": "when this text was first heard; a sender that changes the text starts again",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "last_heard": {
+          "description": "when it was last heard",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "times_heard": {
+          "description": "how often this text was heard (the copies of one transmission that came by different digipeaters within 10 seconds are one)",
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "sender",
+        "slot",
+        "group",
+        "kind",
+        "text",
+        "first_heard",
+        "last_heard",
+        "times_heard"
+      ],
+      "title": "BulletinRow",
+      "type": "object"
+    },
+    "ClearStationAttempts": {
+      "additionalProperties": false,
+      "description": "Takes a station's own attempts away, so that the setting `messages/attempts` counts again (a station without them is no error). Answered by the `set` of its entry in `station_prefs` with a null `attempts`\n(or the `del` of the entry when it had no path and no timeout either), or by an `error`.",
+      "properties": {
+        "cmd": {
+          "const": "clear_station_attempts",
+          "type": "string"
+        },
+        "call": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "call"
+      ],
+      "title": "ClearStationAttemptsCommand",
+      "type": "object"
+    },
+    "ClearStationPath": {
+      "additionalProperties": false,
+      "description": "Takes a station's own path away, so that it has the path of the setting `beacon/path` again (a station without one is no error). Answered by the `set` of its entry in `station_prefs` with a null `path`\n(or the `del` of the entry when it had no timeout either), or by an `error`.",
+      "properties": {
+        "cmd": {
+          "const": "clear_station_path",
+          "type": "string"
+        },
+        "call": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "call"
+      ],
+      "title": "ClearStationPathCommand",
+      "type": "object"
+    },
+    "ClearStationTimeout": {
+      "additionalProperties": false,
+      "description": "Takes a station's own timeout away, so that it has the setting `map/hide_after_min` again (a station without one is no error). Answered by the `set` of its entry in `station_prefs` with a null\n`hide_after_min` (or the `del` of the entry when it had no path either), or by an `error`.",
+      "properties": {
+        "cmd": {
+          "const": "clear_station_timeout",
+          "type": "string"
+        },
+        "call": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "call"
+      ],
+      "title": "ClearStationTimeoutCommand",
+      "type": "object"
+    },
+    "ConfigValues": {
+      "additionalProperties": false,
+      "description": "The settings: each key of the settings table (`station/call`, `serial/baud`, ...) with its value as text, the way the daemon writes it, and the defaults beside them. The value of the topic\n`config`, told again after every save, though nothing differs.",
+      "properties": {
+        "values": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "the settings in force, key to text; every key is there",
+          "type": "object"
+        },
+        "defaults": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "the same keys with their defaults, for a form's reset",
+          "type": "object"
+        }
+      },
+      "required": [
+        "values",
+        "defaults"
+      ],
+      "title": "ConfigValues",
+      "type": "object"
+    },
+    "ConversationDelete": {
+      "additionalProperties": false,
+      "description": "Removes the whole conversation with a station: every message we sent to it and every one it sent to us (not the messages it was only overheard sending to others), from the database in one write, from\nthe daemon and from every page: each message's row is a `del` of the topic `messages`. A message that is still being sent is cancelled first. The path, the timeout and the attempts of the station stay. Answered by the\n`del`s, or by an `error` (the call is none, or there is no message with that station).",
+      "properties": {
+        "cmd": {
+          "const": "conversation_delete",
+          "type": "string"
+        },
+        "call": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "call"
+      ],
+      "title": "ConversationDeleteCommand",
+      "type": "object"
+    },
+    "DecodedItem": {
+      "additionalProperties": false,
+      "description": "An item report: like an object, without a time.",
+      "properties": {
+        "type": {
+          "const": "item",
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "alive": {
+          "type": "boolean"
+        },
+        "position": {
+          "$ref": "#/$defs/PositionFields"
+        }
+      },
+      "required": [
+        "type",
+        "name",
+        "alive",
+        "position"
+      ],
+      "title": "DecodedItem",
+      "type": "object"
+    },
+    "DecodedMessage": {
+      "additionalProperties": false,
+      "description": "A text message; an ack has `ack_id` and no text, a reject `rej_id`.",
+      "properties": {
+        "type": {
+          "const": "message",
+          "type": "string"
+        },
+        "addressee": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "msg_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ack_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rej_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "addressee",
+        "text",
+        "msg_id",
+        "ack_id",
+        "rej_id"
+      ],
+      "title": "DecodedMessage",
+      "type": "object"
+    },
+    "DecodedObject": {
+      "additionalProperties": false,
+      "description": "An object report: a thing (a storm, an event) that a station puts on the map.",
+      "properties": {
+        "type": {
+          "const": "object",
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "alive": {
+          "description": "false when the report kills the object",
+          "type": "boolean"
+        },
+        "position": {
+          "$ref": "#/$defs/PositionFields"
+        },
+        "timestamp": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z, with fractions of a second",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "name",
+        "alive",
+        "position",
+        "timestamp"
+      ],
+      "title": "DecodedObject",
+      "type": "object"
+    },
+    "DecodedOther": {
+      "additionalProperties": false,
+      "description": "A data type that is recognised but not (fully) decoded: a positionless weather report is decoded (`weather`, `timestamp`), the station capabilities and an Agrelo DF report are read into `items`.",
+      "properties": {
+        "type": {
+          "const": "other",
+          "type": "string"
+        },
+        "kind": {
+          "description": "a short word: weather, nmea, query, test, capabilities, agrelo-df, shelter, space-weather, third-party, user-defined, telemetry (one that is not a report), ...",
+          "type": "string"
+        },
+        "text": {
+          "description": "the whole information field",
+          "type": "string"
+        },
+        "weather": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DecodedWeather"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the observation of a positionless weather report (`_`); null for anything else"
+        },
+        "items": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "`capabilities`: the items of the list by token (`IGATE`, `MSG_CNT`...), the value empty for a token alone; `agrelo-df`: `bearing` and `quality`; null for anything else"
+        },
+        "timestamp": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z, with fractions of a second",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the time of a positionless weather report (its MMDDhhmm, resolved to the latest such time that is not in the future)"
+        }
+      },
+      "required": [
+        "type",
+        "kind",
+        "text",
+        "weather",
+        "items",
+        "timestamp"
+      ],
+      "title": "DecodedOther",
+      "type": "object"
+    },
+    "DecodedPosition": {
+      "additionalProperties": false,
+      "description": "A position report.",
+      "properties": {
+        "lat": {
+          "type": "number"
+        },
+        "lon": {
+          "type": "number"
+        },
+        "symbol_table": {
+          "type": "string"
+        },
+        "symbol_code": {
+          "type": "string"
+        },
+        "comment": {
+          "type": "string"
+        },
+        "course_deg": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "speed_kmh": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "altitude_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "timestamp": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z, with fractions of a second",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the time the packet itself carries, when it has one"
+        },
+        "messaging": {
+          "description": "the station can receive messages",
+          "type": "boolean"
+        },
+        "compressed": {
+          "type": "boolean"
+        },
+        "ambiguity": {
+          "description": "how many digits of the position were blanked out, 0 to 4",
+          "type": "integer"
+        },
+        "weather": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DecodedWeather"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the weather a station with the weather symbol (`_`) sent after its position; the rest of the text is the `comment`"
+        },
+        "extensions": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExtensionValues"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the PHG, RNG, DFS, DF bearing or area data after the symbol of an uncompressed position; null when there was none"
+        },
+        "timestamp_local": {
+          "description": "the `timestamp` was sent in the sender's local time (`/`): it is the time as it was sent, not UTC",
+          "type": "boolean"
+        },
+        "locator": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LocatorValues"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the Maidenhead locator in the status text of a Mic-E packet; null for any other position"
+        },
+        "type": {
+          "const": "position",
+          "type": "string"
+        }
+      },
+      "required": [
+        "lat",
+        "lon",
+        "symbol_table",
+        "symbol_code",
+        "comment",
+        "course_deg",
+        "speed_kmh",
+        "altitude_m",
+        "timestamp",
+        "messaging",
+        "compressed",
+        "ambiguity",
+        "weather",
+        "extensions",
+        "timestamp_local",
+        "locator",
+        "type"
+      ],
+      "title": "DecodedPosition",
+      "type": "object"
+    },
+    "DecodedStatus": {
+      "additionalProperties": false,
+      "description": "A status report.",
+      "properties": {
+        "type": {
+          "const": "status",
+          "type": "string"
+        },
+        "text": {
+          "description": "the status text; after the locator when there is one",
+          "type": "string"
+        },
+        "timestamp": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z, with fractions of a second",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "locator": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LocatorValues"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "a Maidenhead locator with a symbol at the start of the report (a report that has one has no timestamp)"
+        }
+      },
+      "required": [
+        "type",
+        "text",
+        "timestamp",
+        "locator"
+      ],
+      "title": "DecodedStatus",
+      "type": "object"
+    },
+    "DecodedTelemetry": {
+      "additionalProperties": false,
+      "description": "A telemetry report (`T#005,199,000,255,073,123,01101001`). The definitions of the channels are messages of the station, applied by the daemon: see `telemetry` of the station.",
+      "properties": {
+        "type": {
+          "const": "telemetry",
+          "type": "string"
+        },
+        "sequence": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the sequence number; null for the `MIC` of a Mic-E unit"
+        },
+        "analog": {
+          "description": "the five analog values as sent (0 to 255)",
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "bits": {
+          "description": "the eight digital values as a text of 0 and 1",
+          "type": "string"
+        },
+        "comment": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "sequence",
+        "analog",
+        "bits",
+        "comment"
+      ],
+      "title": "DecodedTelemetry",
+      "type": "object"
+    },
+    "DecodedUndecoded": {
+      "additionalProperties": false,
+      "description": "A field that should have decoded and did not.",
+      "properties": {
+        "type": {
+          "const": "undecoded",
+          "type": "string"
+        },
+        "error": {
+          "description": "why it did not",
+          "type": "string"
+        },
+        "text": {
+          "description": "the information field as latin-1",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "error",
+        "text"
+      ],
+      "title": "DecodedUndecoded",
+      "type": "object"
+    },
+    "DecodedWeather": {
+      "additionalProperties": false,
+      "description": "The weather fields of a weather station's position or of a positionless weather report, in metric units; null where the report did not have the field.",
+      "properties": {
+        "wind_dir": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "degrees the wind blows from"
+        },
+        "wind_kmh": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gust_kmh": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "temp_c": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "humidity": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "per cent, 1 to 100"
+        },
+        "pressure_hpa": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rain_1h_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rain_24h_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rain_today_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "since midnight"
+        },
+        "luminosity": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "W/m2"
+        },
+        "snow_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "in the last 24 hours"
+        },
+        "rain_counter": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the raw rain counter, as the station counts it"
+        },
+        "raw": {
+          "description": "the weather fields as they were sent",
+          "type": "string"
+        }
+      },
+      "required": [
+        "wind_dir",
+        "wind_kmh",
+        "gust_kmh",
+        "temp_c",
+        "humidity",
+        "pressure_hpa",
+        "rain_1h_mm",
+        "rain_24h_mm",
+        "rain_today_mm",
+        "luminosity",
+        "snow_mm",
+        "rain_counter",
+        "raw"
+      ],
+      "title": "DecodedWeather",
+      "type": "object"
+    },
+    "DelOp": {
+      "additionalProperties": false,
+      "description": "The item at `key` is gone.",
+      "properties": {
+        "op": {
+          "const": "del",
+          "type": "string"
+        },
+        "key": {
+          "description": "the key of an item of a keyed topic: a station's call, a packet's id as text",
+          "maxLength": 256,
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "key"
+      ],
+      "title": "DelOp",
+      "type": "object"
+    },
+    "DfBearingValues": {
+      "additionalProperties": false,
+      "description": "The bearing and quality of a DF report (`/270/729` after the course and speed).",
+      "properties": {
+        "bearing_deg": {
+          "type": "integer"
+        },
+        "hits": {
+          "description": "0 nothing, 1 to 8 the share of the possible samples that hit, 9 a manual report",
+          "type": "integer"
+        },
+        "range_km": {
+          "description": "the length the line is drawn to",
+          "type": "number"
+        },
+        "quality": {
+          "maximum": 9,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "bearing_deg",
+        "hits",
+        "range_km",
+        "quality"
+      ],
+      "title": "DfBearingValues",
+      "type": "object"
+    },
+    "DfsValues": {
+      "additionalProperties": false,
+      "description": "The strength of a signal heard by a direction finder (`DFS2360`) with the height, gain and directivity of its antenna.",
+      "properties": {
+        "strength": {
+          "description": "0 to 9; 0 is where the signal is not heard",
+          "maximum": 9,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "height_m": {
+          "type": "number"
+        },
+        "gain_db": {
+          "type": "integer"
+        },
+        "direction_deg": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "strength",
+        "height_m",
+        "gain_db",
+        "direction_deg"
+      ],
+      "title": "DfsValues",
+      "type": "object"
+    },
+    "Error": {
+      "additionalProperties": false,
+      "description": "A command that could not be done. A frame the daemon could not understand is answered the same way, naming the command, the field and the problem; nothing was changed.",
+      "properties": {
+        "type": {
+          "const": "error",
+          "type": "string"
+        },
+        "text": {
+          "description": "what could not be done and why, in a sentence; for a setting it begins with the key",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "text"
+      ],
+      "title": "ErrorMessage",
+      "type": "object"
+    },
+    "ExtensionValues": {
+      "additionalProperties": false,
+      "description": "The data extensions after the symbol of an uncompressed position (taken off the comment); null for what the position did not have.",
+      "properties": {
+        "phg": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PhgValues"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "range_km": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "a pre-calculated radio range (`RNG0050`)"
+        },
+        "dfs": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DfsValues"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "df_bearing": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DfBearingValues"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "area": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AreaValues"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "phg",
+        "range_km",
+        "dfs",
+        "df_bearing",
+        "area"
+      ],
+      "title": "ExtensionValues",
+      "type": "object"
+    },
+    "ForgetStation": {
+      "additionalProperties": false,
+      "description": "Removes a station from the station book (and its cache in the database) until it is heard again. Not our own station. Answered by the `del` of the row, or by an `error`.",
+      "properties": {
+        "cmd": {
+          "const": "forget_station",
+          "type": "string"
+        },
+        "call": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "call"
+      ],
+      "title": "ForgetStationCommand",
+      "type": "object"
+    },
+    "Hello": {
+      "additionalProperties": false,
+      "description": "The first message of a connection; `status` and the `state` of every topic follow it at once, so a page need not ask for them.",
+      "properties": {
+        "type": {
+          "const": "hello",
+          "type": "string"
+        },
+        "protocol": {
+          "description": "the version of these messages: a page built for another one says so and loads itself again",
+          "type": "integer"
+        },
+        "version": {
+          "description": "the version of the daemon",
+          "type": "string"
+        },
+        "topics": {
+          "description": "the topics the page is following from the start: all of them (a page may `unsubscribe` from one)",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "protocol",
+        "version",
+        "topics"
+      ],
+      "title": "HelloMessage",
+      "type": "object"
+    },
+    "HopRow": {
+      "additionalProperties": false,
+      "description": "One digipeater of the path an attempt went by, and whether a copy of our own message was heard back with that hop used.",
+      "properties": {
+        "call": {
+          "description": "the digipeater as the path named it (`OH2RCH-2`, or an alias such as `WIDE1-1`); once heard, the call that did it, which replaces an alias",
+          "type": "string"
+        },
+        "heard": {
+          "description": "a copy was heard by radio with this hop's has-been-repeated bit set (or a later hop's: a hop works the first unused address)",
+          "type": "boolean"
+        },
+        "heard_at": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when the first copy that showed the hop was heard (by radio if there was one, else over the internet); null when it was not heard"
+        },
+        "by_internet": {
+          "description": "a copy gated back by an iGate as a third-party packet showed the hop used; with `heard` false the hop is known only that way",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "call",
+        "heard",
+        "heard_at",
+        "by_internet"
+      ],
+      "title": "HopRow",
+      "type": "object"
+    },
+    "ListPorts": {
+      "additionalProperties": false,
+      "description": "Asks for the serial ports of the machine the daemon runs on. Answered with `ports` to the page that asked. A KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a port of the machine: it is typed.",
+      "properties": {
+        "cmd": {
+          "const": "list_ports",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd"
+      ],
+      "title": "ListPortsCommand",
+      "type": "object"
+    },
+    "LocatorValues": {
+      "additionalProperties": false,
+      "description": "A Maidenhead locator (grid square) with the symbol that came with it, in a status report or in the status text of a Mic-E packet; the position is the centre of the square.",
+      "properties": {
+        "grid": {
+          "description": "4 or 6 characters, `IO91sx`",
+          "type": "string"
+        },
+        "lat": {
+          "type": "number"
+        },
+        "lon": {
+          "type": "number"
+        },
+        "symbol_table": {
+          "type": "string"
+        },
+        "symbol_code": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "grid",
+        "lat",
+        "lon",
+        "symbol_table",
+        "symbol_code"
+      ],
+      "title": "LocatorValues",
+      "type": "object"
+    },
+    "MapCancel": {
+      "additionalProperties": false,
+      "description": "Ends the running job; the files it was making are removed and the maps stay as they were. An `error` when no job is running.",
+      "properties": {
+        "cmd": {
+          "const": "map_cancel",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd"
+      ],
+      "title": "MapCancelCommand",
+      "type": "object"
+    },
+    "MapEstimate": {
+      "additionalProperties": false,
+      "description": "Starts a dry run: how big the detailed map for `map/radius_km` and `map/maxzoom` round our position will be. Answered by the topic `map` (state `estimating`, then `estimate` filled in), or by an `error` when no job can start\n(no position, or a job is running). The pmtiles program is fetched first when it is not there.",
+      "properties": {
+        "cmd": {
+          "const": "map_estimate",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd"
+      ],
+      "title": "MapEstimateCommand",
+      "type": "object"
+    },
+    "MapFetch": {
+      "additionalProperties": false,
+      "description": "Starts making the maps: the world map first when it is not there, then the detailed map for `map/radius_km` and `map/maxzoom` round our position, from `map/source` or the latest daily build. The progress is the topic\n`map`. An `error` when no job can start (no position, or a job is running).",
+      "properties": {
+        "cmd": {
+          "const": "map_fetch",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd"
+      ],
+      "title": "MapFetchCommand",
+      "type": "object"
+    },
+    "MapFileInfo": {
+      "additionalProperties": false,
+      "description": "A map file in the data folder.",
+      "properties": {
+        "name": {
+          "description": "`basemap.pmtiles` (the detailed map) or `basemap-world.pmtiles` (the world to zoom 5)",
+          "type": "string"
+        },
+        "bytes": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "modified": {
+          "description": "when the file was made",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "bbox": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "maxItems": 4,
+              "minItems": 4,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the area it covers, [west, south, east, north] in degrees, as its header says; null for a file whose header cannot be read"
+        },
+        "min_zoom": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "max_zoom": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the deepest zoom it has tiles for; the page draws a deeper one from these"
+        },
+        "build": {
+          "description": "the day (`20261022`) of the Protomaps build it was cut from; empty if not known (a file made by hand)",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "bytes",
+        "modified",
+        "bbox",
+        "min_zoom",
+        "max_zoom",
+        "build"
+      ],
+      "title": "MapFileInfo",
+      "type": "object"
+    },
+    "MapSizeEstimate": {
+      "additionalProperties": false,
+      "description": "What a dry run said: how big the detailed map will be for the area and the zoom it was made for.",
+      "properties": {
+        "bytes": {
+          "description": "the tiles it will hold",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "tiles": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "radius_km": {
+          "description": "the radius it was estimated for; it is stale when `map/radius_km` is another number now",
+          "type": "integer"
+        },
+        "maxzoom": {
+          "description": "the zoom it was estimated for",
+          "type": "integer"
+        },
+        "box": {
+          "description": "the area, [west, south, east, north]",
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 4,
+          "minItems": 4,
+          "type": "array"
+        },
+        "build": {
+          "description": "the day of the build it was estimated from; empty for a source that is not a daily build",
+          "type": "string"
+        }
+      },
+      "required": [
+        "bytes",
+        "tiles",
+        "radius_km",
+        "maxzoom",
+        "box",
+        "build"
+      ],
+      "title": "MapSizeEstimate",
+      "type": "object"
+    },
+    "MapState": {
+      "additionalProperties": false,
+      "description": "The base map: the files, the area and detail the settings ask for, the size estimated, and the job that is running. The value of the topic `map`, told whole at most four times a second.",
+      "properties": {
+        "state": {
+          "description": "`none`: there is no detailed map. `ready`: there is one. `estimating` and `downloading`: a job is running (`step` and `percent` say how far). `error`: the last job failed and `problem` says why; the map files are as they were",
+          "enum": [
+            "none",
+            "estimating",
+            "downloading",
+            "ready",
+            "error"
+          ],
+          "type": "string"
+        },
+        "step": {
+          "description": "what the running job is doing: fetching the pmtiles program (`tool`), looking for the latest build (`build`), making the world map (`world`) or the detailed map (`area`); empty while no job runs",
+          "enum": [
+            "",
+            "tool",
+            "build",
+            "world",
+            "area"
+          ],
+          "type": "string"
+        },
+        "percent": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "how far the step is; null when it cannot say (the program and the build have no bar)"
+        },
+        "blocked": {
+          "description": "why no job can be started now (no position, or a job is running); empty when one can",
+          "type": "string"
+        },
+        "problem": {
+          "description": "why the last job failed; empty if it did not, and while a job runs",
+          "type": "string"
+        },
+        "estimate": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MapSizeEstimate"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the latest dry run (`map_estimate`); null before one, and after a download"
+        },
+        "radius_km": {
+          "description": "`map/radius_km`",
+          "type": "integer"
+        },
+        "maxzoom": {
+          "description": "`map/maxzoom`",
+          "type": "integer"
+        },
+        "box": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "maxItems": 4,
+              "minItems": 4,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the area those settings make round our position, [west, south, east, north]; null without a position"
+        },
+        "detail": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MapFileInfo"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "`basemap.pmtiles`; null if it is not there"
+        },
+        "world": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MapFileInfo"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "`basemap-world.pmtiles`; null if it is not there"
+        }
+      },
+      "required": [
+        "state",
+        "step",
+        "percent",
+        "blocked",
+        "problem",
+        "estimate",
+        "radius_km",
+        "maxzoom",
+        "box",
+        "detail",
+        "world"
+      ],
+      "title": "MapState",
+      "type": "object"
+    },
+    "MessageCancel": {
+      "additionalProperties": false,
+      "description": "Stops sending a message of ours that is still being sent; its row becomes `cancelled`. Answered by the new state of its row, or by an `error`.",
+      "properties": {
+        "cmd": {
+          "const": "message_cancel",
+          "type": "string"
+        },
+        "id": {
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "cmd",
+        "id"
+      ],
+      "title": "MessageCancelCommand",
+      "type": "object"
+    },
+    "MessageDelete": {
+      "additionalProperties": false,
+      "description": "Removes a message of any kind (one of ours, one sent to us, one we only overheard) from the database, from the daemon and from every page: its row is a `del` of the topic `messages`. A message that is\nstill being sent is cancelled first, so that no attempt is made while it goes. Answered by the `del`, or by an `error` (no such message).",
+      "properties": {
+        "cmd": {
+          "const": "message_delete",
+          "type": "string"
+        },
+        "id": {
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "cmd",
+        "id"
+      ],
+      "title": "MessageDeleteCommand",
+      "type": "object"
+    },
+    "MessageRetry": {
+      "additionalProperties": false,
+      "description": "Sends a message of ours that failed, is unconfirmed, was rejected or was cancelled again, from the first attempt of the schedule. Answered by the new state of its row, or by an `error` (no such message, or it is\nnot in a state that can be sent again).",
+      "properties": {
+        "cmd": {
+          "const": "message_retry",
+          "type": "string"
+        },
+        "id": {
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "cmd",
+        "id"
+      ],
+      "title": "MessageRetryCommand",
+      "type": "object"
+    },
+    "MessageRow": {
+      "additionalProperties": false,
+      "description": "One message: one we sent or one that was sent to us. The rows are the values of the topic `messages`, keyed by `id` as text: the daemon holds every message (none leaves on its\nown; a database with more than 10000 gives the latest 10000 at a start). A message that is new or changes (its state, its attempts) is a `set` of its row, one that is deleted (`message_delete`, `conversation_delete`) a `del`. The conversation a message belongs to is the other station: `from_call`\nof a message that came in, `to_call` of one we sent.",
+      "properties": {
+        "id": {
+          "description": "the number the database gave the message; it counts up and is kept across runs of the daemon",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "at": {
+          "description": "when the message was made (sent messages) or heard (received messages)",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "direction": {
+          "description": "`in` was heard (sent to us, or overheard), `out` is one of ours",
+          "enum": [
+            "in",
+            "out"
+          ],
+          "type": "string"
+        },
+        "from_call": {
+          "description": "the sender: the packet's source for a message that came in, our call for one of ours",
+          "type": "string"
+        },
+        "to_call": {
+          "description": "the addressee: our call for a message sent to us, the other station for one of ours, whoever it is for when overheard",
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "msg_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the message id the acknowledgement quotes (1 to 5 letters or digits); null for a message that came in without one"
+        },
+        "state": {
+          "description": "`sending`: attempts are being made; `acked`: the addressee acknowledged it; `rejected`: the addressee refused it; `failed`: no answer after the last attempt; `unconfirmed`: no answer after the last attempt of a message that was given 1 or 2 attempts (the station is not expected to ack; a late ack still settles it); `cancelled`: stopped by the page; `received`: it was sent to us; `overheard`: it was sent to another station and we heard it (`from_call` sent it, `to_call` is who it is for)",
+          "enum": [
+            "sending",
+            "acked",
+            "rejected",
+            "failed",
+            "unconfirmed",
+            "cancelled",
+            "received",
+            "overheard"
+          ],
+          "type": "string"
+        },
+        "attempts": {
+          "description": "how many times it has been transmitted (at most `attempts_max`: 0, 30, 60, 120, 240, 480, 960 ... seconds after the first, no wait longer than 960)",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "attempts_max": {
+          "description": "how many attempts the message was given: the setting `messages/attempts` when it was sent (6 for a message from before the setting); a later change of the setting does not touch it",
+          "maximum": 10,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "last_attempt_at": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when it was transmitted last; null until the first attempt (the TNC may be away)"
+        },
+        "acked_at": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when the acknowledgement was heard"
+        },
+        "attempts_detail": {
+          "description": "for a message of ours, each attempt made (`attempts` of them, the oldest first; fewer for a message sent before the delivery chain was kept, none until the first attempt) with the hops of its path that a copy of our own message was heard back with; a hop heard is a `set` of the message's row. Empty for a message that came in",
+          "items": {
+            "$ref": "#/$defs/AttemptRow"
+          },
+          "type": "array"
+        },
+        "route": {
+          "description": "how a message that was heard reached us (from the path of the first copy heard): `direct`, `via OH2RCH-2`, `via OH2RCH-1 \u2192 OH2RCH-3`, `via OH7JHF-1 (internet)` for a third-party packet an iGate put on the air; empty for one of ours and for one heard before this was kept",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "at",
+        "direction",
+        "from_call",
+        "to_call",
+        "text",
+        "msg_id",
+        "state",
+        "attempts",
+        "attempts_max",
+        "last_attempt_at",
+        "acked_at",
+        "attempts_detail",
+        "route"
+      ],
+      "title": "MessageRow",
+      "type": "object"
+    },
+    "OverheardDelete": {
+      "additionalProperties": false,
+      "description": "Removes every message we only overheard `from_call` sending to `to_call` (the state `overheard`, that sender, that addressee: one pair of the Messages list's overheard rows) from the database in one write,\nfrom the daemon and from every page: each message's row is a `del` of the topic `messages`. The conversations are not touched: a message we sent or one sent to us is never removed by this. Answered by the\n`del`s, or by an `error` (no overheard message of that pair).",
+      "properties": {
+        "cmd": {
+          "const": "overheard_delete",
+          "type": "string"
+        },
+        "from_call": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "to_call": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "from_call",
+        "to_call"
+      ],
+      "title": "OverheardDeleteCommand",
+      "type": "object"
+    },
+    "PacketRow": {
+      "additionalProperties": false,
+      "description": "One packet heard or sent. The rows are the values of the topic `packets`, keyed by `id` as text: the daemon holds the latest 200, a packet that comes is a `set` and the one that falls out of the\n200 a `del`. The page shows them newest first (the highest id).",
+      "properties": {
+        "id": {
+          "description": "counts up in the order the packets came in this run of the daemon; not kept in the database",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "heard_at": {
+          "description": "UTC, ISO 8601 with a Z",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "direction": {
+          "description": "heard on the air, or sent by us",
+          "enum": [
+            "in",
+            "out"
+          ],
+          "type": "string"
+        },
+        "source": {
+          "description": "who sent the frame we heard; for a third-party packet the iGate (see `via`)",
+          "type": "string"
+        },
+        "destination": {
+          "type": "string"
+        },
+        "path": {
+          "description": "the digipeaters, the one that repeated it marked with `*`",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "description": "a telemetry report is `other`; its `decoded.type` is `telemetry`",
+          "enum": [
+            "position",
+            "message",
+            "object",
+            "item",
+            "status",
+            "other",
+            "undecoded"
+          ],
+          "type": "string"
+        },
+        "route": {
+          "description": "how a packet that was heard reached us: `direct`, `via OH2RCH-2`, `via ? \u2192 OH2RCH-2`, `via OH7JHF-1 (internet)` for a third-party packet; empty for a packet of ours",
+          "type": "string"
+        },
+        "via": {
+          "description": "the iGate, for a third-party packet: `source` and `path` are those of the frame we heard (the iGate's), `decoded` is the packet inside it; empty for any other packet",
+          "type": "string"
+        },
+        "summary": {
+          "description": "one line, as the log has it",
+          "type": "string"
+        },
+        "tnc2": {
+          "description": "the packet as a line of TNC2 monitor text",
+          "type": "string"
+        },
+        "decoded": {
+          "discriminator": {
+            "mapping": {
+              "item": "#/$defs/DecodedItem",
+              "message": "#/$defs/DecodedMessage",
+              "object": "#/$defs/DecodedObject",
+              "other": "#/$defs/DecodedOther",
+              "position": "#/$defs/DecodedPosition",
+              "status": "#/$defs/DecodedStatus",
+              "telemetry": "#/$defs/DecodedTelemetry",
+              "undecoded": "#/$defs/DecodedUndecoded"
+            },
+            "propertyName": "type"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/DecodedPosition"
+            },
+            {
+              "$ref": "#/$defs/DecodedMessage"
+            },
+            {
+              "$ref": "#/$defs/DecodedObject"
+            },
+            {
+              "$ref": "#/$defs/DecodedItem"
+            },
+            {
+              "$ref": "#/$defs/DecodedStatus"
+            },
+            {
+              "$ref": "#/$defs/DecodedTelemetry"
+            },
+            {
+              "$ref": "#/$defs/DecodedOther"
+            },
+            {
+              "$ref": "#/$defs/DecodedUndecoded"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "heard_at",
+        "direction",
+        "source",
+        "destination",
+        "path",
+        "kind",
+        "route",
+        "via",
+        "summary",
+        "tnc2",
+        "decoded"
+      ],
+      "title": "PacketRow",
+      "type": "object"
+    },
+    "PatchMsg": {
+      "additionalProperties": false,
+      "description": "What changed in a topic: apply the ops in order; the copy is then at `rev`. An op says what the item is, not what to add, so an op that is applied twice ends where it should. Changes are told\non a tick of 100 ms (the topic `tnc` at most four times a second): what changed between two ticks is one patch for a topic, with at most one op for each key.",
+      "properties": {
+        "type": {
+          "const": "patch",
+          "type": "string"
+        },
+        "topic": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "rev": {
+          "description": "how many changes the topic has had since the daemon started",
+          "maximum": 9007199254740992,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "ops": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "del": "#/$defs/DelOp",
+                "replace": "#/$defs/ReplaceOp",
+                "set": "#/$defs/SetOp"
+              },
+              "propertyName": "op"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/SetOp"
+              },
+              {
+                "$ref": "#/$defs/DelOp"
+              },
+              {
+                "$ref": "#/$defs/ReplaceOp"
+              }
+            ]
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "topic",
+        "rev",
+        "ops"
+      ],
+      "title": "PatchMessage",
+      "type": "object"
+    },
+    "PhgValues": {
+      "additionalProperties": false,
+      "description": "A station's power, antenna height above average terrain, antenna gain and directivity (`PHG5132`), and the radio range that the formula of the APRS specification gives them.",
+      "properties": {
+        "power_w": {
+          "type": "integer"
+        },
+        "height_m": {
+          "type": "number"
+        },
+        "gain_db": {
+          "type": "integer"
+        },
+        "direction_deg": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the direction of the best gain, degrees from north; null for an omni antenna"
+        },
+        "range_km": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "power_w",
+        "height_m",
+        "gain_db",
+        "direction_deg",
+        "range_km"
+      ],
+      "title": "PhgValues",
+      "type": "object"
+    },
+    "Ping": {
+      "additionalProperties": false,
+      "description": "Answered with `pong`.",
+      "properties": {
+        "cmd": {
+          "const": "ping",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd"
+      ],
+      "title": "PingCommand",
+      "type": "object"
+    },
+    "Pong": {
+      "additionalProperties": false,
+      "description": "The answer to `ping`.",
+      "properties": {
+        "type": {
+          "const": "pong",
+          "type": "string"
+        },
+        "now": {
+          "description": "the daemon's clock",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "now"
+      ],
+      "title": "PongMessage",
+      "type": "object"
+    },
+    "PortRow": {
+      "additionalProperties": false,
+      "description": "A serial port the system lists. Nothing was opened to find it.",
+      "properties": {
+        "device": {
+          "description": "the name to give as `serial/port`: `COM3`, `/dev/ttyUSB0`",
+          "type": "string"
+        },
+        "description": {
+          "description": "what the system calls it, such as `USB Serial Port (COM3)`; `n/a` where it does not say",
+          "type": "string"
+        },
+        "hwid": {
+          "description": "the hardware id the system gives, such as `USB VID:PID=0403:6001 SER=A1`; `n/a` where it does not say",
+          "type": "string"
+        },
+        "vid": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the USB vendor id of an adapter; null for a port that is not USB"
+        },
+        "pid": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the USB product id of an adapter; null for a port that is not USB"
+        }
+      },
+      "required": [
+        "device",
+        "description",
+        "hwid",
+        "vid",
+        "pid"
+      ],
+      "title": "PortRow",
+      "type": "object"
+    },
+    "PortsMsg": {
+      "additionalProperties": false,
+      "description": "The answer to `list_ports`.",
+      "properties": {
+        "type": {
+          "const": "ports",
+          "type": "string"
+        },
+        "ports": {
+          "description": "the ports, in natural order (`COM2` before `COM10`)",
+          "items": {
+            "$ref": "#/$defs/PortRow"
+          },
+          "type": "array"
+        },
+        "search": {
+          "description": "whether the daemon looks for the radio among the ports by itself (Linux, the ports that match `serial/pattern`); where it is false (Windows, macOS) the radio is the port in `serial/port`, so the operator picks it from this list",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "type",
+        "ports",
+        "search"
+      ],
+      "title": "PortsMessage",
+      "type": "object"
+    },
+    "PositionFields": {
+      "additionalProperties": false,
+      "description": "A position as the parser made it: decimal degrees, south and west negative, speed in km/h, altitude in metres.",
+      "properties": {
+        "lat": {
+          "type": "number"
+        },
+        "lon": {
+          "type": "number"
+        },
+        "symbol_table": {
+          "type": "string"
+        },
+        "symbol_code": {
+          "type": "string"
+        },
+        "comment": {
+          "type": "string"
+        },
+        "course_deg": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "speed_kmh": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "altitude_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "timestamp": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z, with fractions of a second",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the time the packet itself carries, when it has one"
+        },
+        "messaging": {
+          "description": "the station can receive messages",
+          "type": "boolean"
+        },
+        "compressed": {
+          "type": "boolean"
+        },
+        "ambiguity": {
+          "description": "how many digits of the position were blanked out, 0 to 4",
+          "type": "integer"
+        },
+        "weather": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DecodedWeather"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the weather a station with the weather symbol (`_`) sent after its position; the rest of the text is the `comment`"
+        },
+        "extensions": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExtensionValues"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the PHG, RNG, DFS, DF bearing or area data after the symbol of an uncompressed position; null when there was none"
+        },
+        "timestamp_local": {
+          "description": "the `timestamp` was sent in the sender's local time (`/`): it is the time as it was sent, not UTC",
+          "type": "boolean"
+        },
+        "locator": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LocatorValues"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the Maidenhead locator in the status text of a Mic-E packet; null for any other position"
+        }
+      },
+      "required": [
+        "lat",
+        "lon",
+        "symbol_table",
+        "symbol_code",
+        "comment",
+        "course_deg",
+        "speed_kmh",
+        "altitude_m",
+        "timestamp",
+        "messaging",
+        "compressed",
+        "ambiguity",
+        "weather",
+        "extensions",
+        "timestamp_local",
+        "locator"
+      ],
+      "title": "PositionFields",
+      "type": "object"
+    },
+    "ReplaceOp": {
+      "additionalProperties": false,
+      "description": "The whole value of the topic is `value`.",
+      "properties": {
+        "op": {
+          "const": "replace",
+          "type": "string"
+        },
+        "value": {}
+      },
+      "required": [
+        "op",
+        "value"
+      ],
+      "title": "ReplaceOp",
+      "type": "object"
+    },
+    "SendMessage": {
+      "additionalProperties": false,
+      "description": "Sends a message to a station: the addressee is a call with an optional SSID, the text at most 67 bytes of UTF-8 without `|`, `~`, `{` or a control character. The message is kept and transmitted at\nonce with the next message id; it arrives as a new row of the topic `messages` (state `sending`) and as the `out` packet, and its row changes when the acknowledgement comes or the attempts run out. The attempts it is given are the station's own (`station_prefs`) else the setting `messages/attempts`.\nWhen the TNC is not connected the message is kept and its first attempt waits for the radio. Answered with an `error` that names the reason when the addressee or the text is refused.",
+      "properties": {
+        "cmd": {
+          "const": "send_message",
+          "type": "string"
+        },
+        "to": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 512,
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "to",
+        "text"
+      ],
+      "title": "SendMessageCommand",
+      "type": "object"
+    },
+    "SetConfig": {
+      "additionalProperties": false,
+      "description": "Changes settings. Every key and value is checked before anything is stored: the first that is wrong is answered with an `error` that names the key, and nothing changes. A key that is\nleft out keeps its value. The answer is the `config` topic told again. `web/bind`, `web/port` and `web/allowed_hosts` are read at the daemon's start, `serial/*`, `tcp/*` and `tnc/profile` restart the\nTNC, `station/*` move our own station on the map. `tnc/check_sec` and `map/hide_after_min` count at once, with no restart.",
+      "properties": {
+        "cmd": {
+          "const": "set_config",
+          "type": "string"
+        },
+        "values": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "key to the new text of the value; the text is checked and written the way the daemon writes it (`oh2gba` becomes `OH2GBA`)",
+          "maxProperties": 64,
+          "type": "object"
+        }
+      },
+      "required": [
+        "cmd",
+        "values"
+      ],
+      "title": "SetConfigCommand",
+      "type": "object"
+    },
+    "SetOp": {
+      "additionalProperties": false,
+      "description": "The item at `key` is `value` (the whole item, new or changed).",
+      "properties": {
+        "op": {
+          "const": "set",
+          "type": "string"
+        },
+        "key": {
+          "description": "the key of an item of a keyed topic: a station's call, a packet's id as text",
+          "maxLength": 256,
+          "type": "string"
+        },
+        "value": {}
+      },
+      "required": [
+        "op",
+        "key",
+        "value"
+      ],
+      "title": "SetOp",
+      "type": "object"
+    },
+    "SetStationAttempts": {
+      "additionalProperties": false,
+      "description": "Gives a station a count of attempts of its own, 1 to 10: the number of times a message sent to it from now on is transmitted before it has failed (a message already being sent keeps its own). With 1 or 2 a\nmessage that gets no ack is `unconfirmed`, not `failed`. Answered by the `set` of the station's entry in the topic `station_prefs` (its `path` and `hide_after_min` are whatever they were), or by an `error` that names the reason.",
+      "properties": {
+        "cmd": {
+          "const": "set_station_attempts",
+          "type": "string"
+        },
+        "call": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "attempts": {
+          "maximum": 10,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "cmd",
+        "call",
+        "attempts"
+      ],
+      "title": "SetStationAttemptsCommand",
+      "type": "object"
+    },
+    "SetStationPath": {
+      "additionalProperties": false,
+      "description": "Gives a station a path of its own: the digipeaters that a message to it, and the ack of a message from it, go by way of. `path` is up to 8 digipeater calls separated by commas, checked as the setting\n`beacon/path` is; an empty `path` is a valid path of its own, direct with no digipeaters at all, which is not the same as none set. Answered by the `set` of the station's entry in the topic `station_prefs`\n(its `hide_after_min` is whatever it was), or by an `error` that names the reason.",
+      "properties": {
+        "cmd": {
+          "const": "set_station_path",
+          "type": "string"
+        },
+        "call": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "path": {
+          "maxLength": 256,
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "call",
+        "path"
+      ],
+      "title": "SetStationPathCommand",
+      "type": "object"
+    },
+    "SetStationRfOnly": {
+      "additionalProperties": false,
+      "description": "Makes everything we send to a station RF only, or not: `RFONLY` is added as the last element of the path of each message and attempt, each ack and each answer to a query (a path that holds `RFONLY` or `NOGATE`\nalready gets no second one). A path that would be more than 8 elements with it is refused when a message is sent (\"path too long for RF only\"). The email gateway `EMAIL-2` is on the internet and is refused. Answered by the `set`\nof the station's entry in the topic `station_prefs` (its other parts are whatever they were), or by the `del` of the entry when `on` is false and nothing else is set, or by an `error` that names the reason.",
+      "properties": {
+        "cmd": {
+          "const": "set_station_rf_only",
+          "type": "string"
+        },
+        "call": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "on": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "cmd",
+        "call",
+        "on"
+      ],
+      "title": "SetStationRfOnlyCommand",
+      "type": "object"
+    },
+    "SetStationTimeout": {
+      "additionalProperties": false,
+      "description": "Gives a station a timeout of its own: how long after its last position it stays on the map, in minutes; 0 is never. The page hides a station whose last position is older than that (a station\nwithout one of its own uses the setting `map/hide_after_min`), and the daily prune does not remove a station with a timeout of 0 from the station book. `call` is a station's call as it is in the\ntopic `stations` (the name of an object or an item too). Answered by the `set` of the station's entry in the topic `station_prefs` (its `path` is whatever it was), or by an `error` that names the reason.",
+      "properties": {
+        "cmd": {
+          "const": "set_station_timeout",
+          "type": "string"
+        },
+        "call": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "minutes": {
+          "maximum": 10080,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "cmd",
+        "call",
+        "minutes"
+      ],
+      "title": "SetStationTimeoutCommand",
+      "type": "object"
+    },
+    "StateMsg": {
+      "additionalProperties": false,
+      "description": "A topic as it is now: its revision and its whole `value`, which replaces what the page had. Patches for the changes made meanwhile follow.",
+      "properties": {
+        "type": {
+          "const": "state",
+          "type": "string"
+        },
+        "topic": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "rev": {
+          "description": "how many changes the topic has had since the daemon started",
+          "maximum": 9007199254740992,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "value": {}
+      },
+      "required": [
+        "type",
+        "topic",
+        "rev",
+        "value"
+      ],
+      "title": "StateMessage",
+      "type": "object"
+    },
+    "StationPref": {
+      "additionalProperties": false,
+      "description": "What the operator has set for one station, apart from what its packets say. The entries are the values of the topic `station_prefs`, keyed by call: a station with no path, no timeout and no attempts of its\nown, and not RF only, has no entry. A command that sets or changes one part is a `set` of the whole entry, one that clears the last part a `del`.",
+      "properties": {
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the digipeaters that a message to the station, and the ack of a message from it, go by way of: calls separated by commas, empty for direct (no digipeaters at all); null if none is set, and the setting `beacon/path` counts"
+        },
+        "hide_after_min": {
+          "anyOf": [
+            {
+              "maximum": 10080,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the minutes after the station's last position that it leaves the map (the page does the hiding); 0 is never; null if none is set, and the setting `map/hide_after_min` counts"
+        },
+        "attempts": {
+          "anyOf": [
+            {
+              "maximum": 10,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "how many times a message to the station is transmitted before it has failed (taken when the message is sent); 1 or 2 attempts without an ack leave the message `unconfirmed`, not `failed`; null if none is set, and the setting `messages/attempts` counts"
+        },
+        "rf_only": {
+          "description": "true if everything sent to the station (a message and each attempt of it, an ack, the answer to a query) has `RFONLY` as the last element of its path, which iGates that honour it do not put on the internet",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "path",
+        "hide_after_min",
+        "attempts",
+        "rf_only"
+      ],
+      "title": "StationPref",
+      "type": "object"
+    },
+    "StationRow": {
+      "additionalProperties": false,
+      "description": "One station of the station book: who it is, where it was heard and how often. An object or an item is a row of its own, named by the object. The rows are the values of the topic `stations`\n(keyed by `call`): a station heard again is a `set` of its row, a station that is forgotten or pruned (or an object that was killed) a `del`. When our own position changes in the settings every\nrow has a new distance and bearing, and the topic is told whole again.",
+      "properties": {
+        "call": {
+          "description": "the call with its SSID, or the name of the object or item",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "station",
+            "object",
+            "item"
+          ],
+          "type": "string"
+        },
+        "reported_by": {
+          "description": "who sent the report, for an object or an item; empty for a station",
+          "type": "string"
+        },
+        "symbol_table": {
+          "description": "`/` (primary), `\\` (alternate) or an overlay character 0-9, A-Z; empty until a position is heard",
+          "type": "string"
+        },
+        "symbol_code": {
+          "description": "the character of the symbol in its table; empty until a position is heard",
+          "type": "string"
+        },
+        "symbol_name": {
+          "description": "the name of the symbol (\"Car\", \"Digipeater\"), `unknown` for none",
+          "type": "string"
+        },
+        "lat": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "decimal degrees, south negative; null until a position is heard"
+        },
+        "lon": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "decimal degrees, west negative; null until a position is heard"
+        },
+        "altitude_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "course_deg": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "speed_kmh": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "first_heard": {
+          "description": "UTC, ISO 8601 with a Z",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "last_heard": {
+          "description": "UTC, ISO 8601 with a Z",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "last_position_at": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "last_status": {
+          "description": "the text of the latest status report",
+          "type": "string"
+        },
+        "last_comment": {
+          "description": "the comment of the latest position",
+          "type": "string"
+        },
+        "packets": {
+          "description": "how many packets of this station were heard",
+          "type": "integer"
+        },
+        "last_path": {
+          "description": "the digipeaters of the latest packet, the one that repeated it marked with `*`",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "last_route": {
+          "description": "how the latest packet reached us: `direct`, `via OH2RCH-2`, `via OH2RCH-1 \u2192 OH2RCH-3` (the digipeaters that repeated it, in order, `?` for one that did not put its call in)",
+          "type": "string"
+        },
+        "heard_direct": {
+          "description": "how many packets came straight from the station (counted from the packets heard in this run and the latest 2000 the database kept)",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "last_direct_at": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when a packet of the station was last heard direct (no digipeater repeated it, it was not a third-party packet), from the packets counted in `heard_direct`; null for a station never heard direct"
+        },
+        "heard_gated": {
+          "description": "how many packets came as third-party packets: an iGate put what it heard on the internet on the air; counted, but never a route to send by",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "heard_via": {
+          "description": "[the station we heard, packets] for each digipeater that repeated its packets, the most first; `?` stands for a hop that was an alias (WIDE1) and gave no call; the 8 most frequent routes are counted",
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "best_route": {
+          "description": "the route most of its packets came by, as `last_route` writes it, direct included; empty until a packet was counted",
+          "type": "string"
+        },
+        "suggested_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the path to send by to reach it, the best route turned round: empty for direct, `OH2RCH-2` for one hop, `OH2RCH-3,OH2RCH-1` for `via OH2RCH-1 \u2192 OH2RCH-3`, `WIDE1-1,WIDE2-1` when the best route has a hop with no call; null when no route is known (an object or item, or a station not heard since the packets were pruned)"
+        },
+        "weather": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WeatherValues"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the latest weather the station sent (a position with the weather symbol, or a positionless weather report); null for a station that sent none since the weather log began (or was made from the packets kept)"
+        },
+        "weather_at": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when `weather` was heard; null as it is"
+        },
+        "telemetry": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TelemetryValues"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the latest telemetry report of the station, scaled and named by the definitions it sent (read again from the latest packets at the start); null for a station that sent none"
+        },
+        "telemetry_at": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when `telemetry` was heard; null as it is"
+        },
+        "locator": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LocatorValues"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the Maidenhead locator of the station's latest status report (or Mic-E status text): where it says it is, to the square; null when it sent none"
+        },
+        "extensions": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExtensionValues"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the PHG, RNG, DF or area data of the station's latest position; null when it had none"
+        },
+        "distance_km": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "from our position, null for us and for a station without a position"
+        },
+        "bearing_deg": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the direction from our position, degrees from north; null as the distance is"
+        },
+        "is_me": {
+          "description": "our own station: the row of the call in the settings, at the position in the settings",
+          "type": "boolean"
+        },
+        "track": {
+          "description": "the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed",
+          "items": {
+            "maxItems": 3,
+            "minItems": 3,
+            "prefixItems": [
+              {
+                "description": "UTC, ISO 8601 with a Z",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "maxItems": 50,
+          "type": "array"
+        }
+      },
+      "required": [
+        "call",
+        "kind",
+        "reported_by",
+        "symbol_table",
+        "symbol_code",
+        "symbol_name",
+        "lat",
+        "lon",
+        "altitude_m",
+        "course_deg",
+        "speed_kmh",
+        "first_heard",
+        "last_heard",
+        "last_position_at",
+        "last_status",
+        "last_comment",
+        "packets",
+        "last_path",
+        "last_route",
+        "heard_direct",
+        "last_direct_at",
+        "heard_gated",
+        "heard_via",
+        "best_route",
+        "suggested_path",
+        "weather",
+        "weather_at",
+        "telemetry",
+        "telemetry_at",
+        "locator",
+        "extensions",
+        "distance_km",
+        "bearing_deg",
+        "is_me",
+        "track"
+      ],
+      "title": "StationRow",
+      "type": "object"
+    },
+    "Status": {
+      "additionalProperties": false,
+      "description": "What the daemon is, for the status bar: sent after `hello`, every 10 s, when asked (`status`), and when a packet of ours has gone out (the count of packets and the beacon's times have changed). It also says what the daemon costs the machine: the CPU share, the resident memory and the uptime.",
+      "properties": {
+        "type": {
+          "const": "status",
+          "type": "string"
+        },
+        "version": {
+          "description": "the version of the daemon",
+          "type": "string"
+        },
+        "started_at": {
+          "description": "when the daemon started",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "packets": {
+          "description": "how many packets the database holds",
+          "type": "integer"
+        },
+        "stations": {
+          "description": "how many stations the station book holds",
+          "type": "integer"
+        },
+        "call": {
+          "description": "our own call, from the settings; empty while none is set (nothing is transmitted then)",
+          "type": "string"
+        },
+        "lat": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "our own latitude, from the settings; null while none is set"
+        },
+        "lon": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "our own longitude, from the settings; null while none is set"
+        },
+        "beacon_interval_min": {
+          "description": "minutes between our position packets, from the settings; 0 is off",
+          "type": "integer"
+        },
+        "beacon_last_sent": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when the latest beacon was sent, by the timer or on request; null for none since the daemon started"
+        },
+        "beacon_next_due": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when the timer sends the next one; null while the interval is 0"
+        },
+        "station_status": {
+          "description": "the text of the status report last sent in this run (services/rigstatus.py); empty until one has gone",
+          "type": "string"
+        },
+        "rig_state": {
+          "description": "whether the radio the status is made from answers: `on`, `off` (rigctld is away or the radio is off, nothing is sent), or `unused` while `status/rigctld` is empty and the status is the static text",
+          "enum": [
+            "off",
+            "on",
+            "unused"
+          ],
+          "type": "string"
+        },
+        "cpu_percent": {
+          "description": "the daemon's CPU time (user and system) as a share of one core, in percent to a tenth, since the previous status that was at least a second before; the first counts from the start",
+          "type": "number"
+        },
+        "rss_mb": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the daemon's resident memory in megabytes, to a tenth; null where the system does not say"
+        },
+        "uptime_sec": {
+          "description": "seconds since the daemon started, by its clock",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type",
+        "version",
+        "started_at",
+        "packets",
+        "stations",
+        "call",
+        "lat",
+        "lon",
+        "beacon_interval_min",
+        "beacon_last_sent",
+        "beacon_next_due",
+        "station_status",
+        "rig_state",
+        "cpu_percent",
+        "rss_mb",
+        "uptime_sec"
+      ],
+      "title": "StatusMessage",
+      "type": "object"
+    },
+    "Subscribe": {
+      "additionalProperties": false,
+      "description": "Follow these topics (all are followed from the start): each is answered with `state`, then with `patch` as it changes. A topic that is followed already is sent whole again. A topic that is\nnot there is refused with an `error` that names it; the others in the command are not affected.",
+      "properties": {
+        "cmd": {
+          "const": "subscribe",
+          "type": "string"
+        },
+        "topics": {
+          "items": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 16,
+          "type": "array"
+        }
+      },
+      "required": [
+        "cmd",
+        "topics"
+      ],
+      "title": "SubscribeCommand",
+      "type": "object"
+    },
+    "TelemetryBit": {
+      "additionalProperties": false,
+      "description": "One digital channel of a station's latest telemetry report.",
+      "properties": {
+        "name": {
+          "description": "from the station's `PARM.` message, else `B1` to `B8`",
+          "type": "string"
+        },
+        "on": {
+          "description": "the bit has the sense that its `BITS.` message gives (1 when there is none)",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "on"
+      ],
+      "title": "TelemetryBit",
+      "type": "object"
+    },
+    "TelemetryChannel": {
+      "additionalProperties": false,
+      "description": "One analog channel of a station's latest telemetry report.",
+      "properties": {
+        "name": {
+          "description": "from the station's `PARM.` message, else `A1` to `A5`",
+          "type": "string"
+        },
+        "unit": {
+          "description": "from its `UNIT.` message; empty when it sent none",
+          "type": "string"
+        },
+        "raw": {
+          "description": "the value as it was sent (0 to 255)",
+          "type": "number"
+        },
+        "value": {
+          "description": "`a*raw^2 + b*raw + c` with the coefficients of its `EQNS.` message; the raw value when it sent none",
+          "type": "number"
+        }
+      },
+      "required": [
+        "name",
+        "unit",
+        "raw",
+        "value"
+      ],
+      "title": "TelemetryChannel",
+      "type": "object"
+    },
+    "TelemetryValues": {
+      "additionalProperties": false,
+      "description": "A station's latest telemetry report with the definitions the station sent as messages (`PARM.`, `UNIT.`, `EQNS.`, `BITS.`) applied.",
+      "properties": {
+        "sequence": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the sequence number; null for the `MIC` of a Mic-E unit"
+        },
+        "channels": {
+          "description": "the five analog channels",
+          "items": {
+            "$ref": "#/$defs/TelemetryChannel"
+          },
+          "type": "array"
+        },
+        "bits": {
+          "description": "the eight digital channels",
+          "items": {
+            "$ref": "#/$defs/TelemetryBit"
+          },
+          "type": "array"
+        },
+        "project": {
+          "description": "the project title of the `BITS.` message; empty when there is none",
+          "type": "string"
+        },
+        "comment": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "sequence",
+        "channels",
+        "bits",
+        "project",
+        "comment"
+      ],
+      "title": "TelemetryValues",
+      "type": "object"
+    },
+    "TncReconnect": {
+      "additionalProperties": false,
+      "description": "Opens the radio's line again with the settings as they are now (the port, the speed, entering KISS): the TNC is stopped and started in the background. The new state is told in `tnc`.",
+      "properties": {
+        "cmd": {
+          "const": "tnc_reconnect",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd"
+      ],
+      "title": "TncReconnectCommand",
+      "type": "object"
+    },
+    "TncState": {
+      "additionalProperties": false,
+      "description": "The TNC, the one feed of packets: its state and why it is not connected, the port, and the latest lines of what it saw and did. The value of the topic `tnc`.",
+      "properties": {
+        "state": {
+          "description": "`waiting` is between two attempts to open the line; `problem` says why. `silent`: the line is open and the radio does not answer (a check of the keep-alive got no byte at all in answer); nothing is sent until it does",
+          "enum": [
+            "stopped",
+            "connecting",
+            "connected",
+            "waiting",
+            "silent"
+          ],
+          "type": "string"
+        },
+        "problem": {
+          "description": "why it is not (yet) connected or not sending KISS; empty when all is well",
+          "type": "string"
+        },
+        "last_error": {
+          "description": "the latest reason for waiting",
+          "type": "string"
+        },
+        "path": {
+          "description": "the serial port in use; empty while none is open",
+          "type": "string"
+        },
+        "baud": {
+          "type": "integer"
+        },
+        "describe": {
+          "description": "one line for the status bar: the port, the speed and what the TNC does; while `silent` it says since when, in UTC",
+          "type": "string"
+        },
+        "silent_since": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "while `state` is `silent`, when the latest byte came; null otherwise"
+        },
+        "stats": {
+          "$ref": "#/$defs/TncStats"
+        },
+        "last_watchdog_action": {
+          "description": "what the watchdog did last: `check` (the radio asked whether it is there, after a quiet period), `probe` (the same, while the radio is silent) or `reopen` (the port closed and opened again); empty if it has done nothing since the daemon started",
+          "enum": [
+            "",
+            "check",
+            "probe",
+            "reopen"
+          ],
+          "type": "string"
+        },
+        "last_watchdog_at": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when the watchdog did that; null if it has done nothing since the daemon started"
+        },
+        "lines": {
+          "description": "the latest 100 lines of what the TNC saw (TNC2 text and what it understood of it) and did (`NeoAPRS: ...`), oldest first, each begins with the time HH:MM:SS",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 100,
+          "type": "array"
+        }
+      },
+      "required": [
+        "state",
+        "problem",
+        "last_error",
+        "path",
+        "baud",
+        "describe",
+        "silent_since",
+        "stats",
+        "last_watchdog_action",
+        "last_watchdog_at",
+        "lines"
+      ],
+      "title": "TncState",
+      "type": "object"
+    },
+    "TncStats": {
+      "additionalProperties": false,
+      "description": "What the TNC has counted since the daemon started.",
+      "properties": {
+        "opens": {
+          "description": "times the line was opened",
+          "type": "integer"
+        },
+        "bytes_in": {
+          "type": "integer"
+        },
+        "bytes_out": {
+          "type": "integer"
+        },
+        "frames_in": {
+          "description": "frames received, including the ones that could not be read as a packet",
+          "type": "integer"
+        },
+        "packets": {
+          "description": "packets handed on",
+          "type": "integer"
+        },
+        "rejected": {
+          "description": "frames that could not be read as a packet",
+          "type": "integer"
+        },
+        "last_packet": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when the latest packet was heard; null for none yet"
+        },
+        "keepalive_checks": {
+          "description": "times the keep-alive checked that the radio is there (after `tnc/check_sec` of nothing heard)",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "watchdog_probes": {
+          "description": "times the watchdog probed a silent radio (the same sequence as a check, every 30 seconds)",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "port_reopens": {
+          "description": "times the port was closed and opened again (every 5th probe of a silent radio)",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "opens",
+        "bytes_in",
+        "bytes_out",
+        "frames_in",
+        "packets",
+        "rejected",
+        "last_packet",
+        "keepalive_checks",
+        "watchdog_probes",
+        "port_reopens"
+      ],
+      "title": "TncStats",
+      "type": "object"
+    },
+    "TopicValues": {
+      "additionalProperties": false,
+      "description": "The value of each topic a page follows (neoaprs/web/topics.py): what `state` carries as `value`, and what `patch` replaces.",
+      "properties": {
+        "stations": {
+          "additionalProperties": {
+            "$ref": "#/$defs/StationRow"
+          },
+          "description": "the station book by call: a station heard again is a `set` of its row, one that is forgotten or pruned a `del`",
+          "type": "object"
+        },
+        "packets": {
+          "additionalProperties": {
+            "$ref": "#/$defs/PacketRow"
+          },
+          "description": "the latest 200 packets by id (as text): a packet is a `set`, and the one that falls out of the 200 a `del`; the highest id is the newest",
+          "type": "object"
+        },
+        "tnc": {
+          "$ref": "#/$defs/TncState",
+          "description": "the radio; told whole as it changes, at most four times a second"
+        },
+        "config": {
+          "$ref": "#/$defs/ConfigValues",
+          "description": "the settings; told again after every save, though nothing differs: the settings form waits for it"
+        },
+        "station_prefs": {
+          "additionalProperties": {
+            "$ref": "#/$defs/StationPref"
+          },
+          "description": "what the operator set for each station that has anything set, by call: its own path, its own timeout and its own attempts, each null where none is set, and whether it is RF only. `set_station_path`, `clear_station_path`, `set_station_timeout`, `clear_station_timeout`, `set_station_attempts`, `clear_station_attempts` and `set_station_rf_only` each give a `set` of the entry, or a `del` when nothing is left in it",
+          "type": "object"
+        },
+        "messages": {
+          "additionalProperties": {
+            "$ref": "#/$defs/MessageRow"
+          },
+          "description": "every message by id (as text), all of them sent with the first `state`: a message that is new or changes is a `set` of its row, one that is deleted a `del`; none leaves on its own",
+          "type": "object"
+        },
+        "bulletins": {
+          "additionalProperties": {
+            "$ref": "#/$defs/BulletinRow"
+          },
+          "description": "the message board by `sender/slot` (`OH2XYZ/BLN1`): the bulletins, announcements, group bulletins and group messages heard and not deleted; one that is new or heard again is a `set` of its row, one that is deleted (`bulletin_delete`) a `del`",
+          "type": "object"
+        },
+        "map": {
+          "$ref": "#/$defs/MapState",
+          "description": "the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps; told whole as it changes, at most four times a second"
+        }
+      },
+      "required": [
+        "stations",
+        "packets",
+        "tnc",
+        "config",
+        "station_prefs",
+        "messages",
+        "bulletins",
+        "map"
+      ],
+      "title": "TopicValues",
+      "type": "object"
+    },
+    "Unsubscribe": {
+      "additionalProperties": false,
+      "description": "Stop following these topics. A topic that was not followed is ignored.",
+      "properties": {
+        "cmd": {
+          "const": "unsubscribe",
+          "type": "string"
+        },
+        "topics": {
+          "items": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 16,
+          "type": "array"
+        }
+      },
+      "required": [
+        "cmd",
+        "topics"
+      ],
+      "title": "UnsubscribeCommand",
+      "type": "object"
+    },
+    "WeatherSeries": {
+      "additionalProperties": false,
+      "description": "Asks for the observations a weather station made in the last `hours` hours. Answered with a `weather_series` message to the page that asked, or an `error` for a call that is empty or hours out of range; a call with no\nobservations is answered with no points.",
+      "properties": {
+        "cmd": {
+          "const": "weather_series",
+          "type": "string"
+        },
+        "call": {
+          "description": "the station, as the `stations` topic has it (an object's name for a weather object)",
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "hours": {
+          "description": "how far back to go: 24 for a day, 168 for a week",
+          "maximum": 168,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "cmd",
+        "call",
+        "hours"
+      ],
+      "title": "WeatherSeriesCommand",
+      "type": "object"
+    },
+    "WeatherSeriesMsg": {
+      "additionalProperties": false,
+      "description": "The observations of one weather station, the answer to `weather_series`: one point for each weather packet heard, the oldest first (a packet that came by two digipeaters is two points).",
+      "properties": {
+        "type": {
+          "const": "weather_series",
+          "type": "string"
+        },
+        "call": {
+          "description": "the station asked about",
+          "type": "string"
+        },
+        "hours": {
+          "description": "the hours asked for: a page that asked twice (a day, then a week) tells the answers apart by it",
+          "maximum": 168,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "points": {
+          "description": "[time, temp_c, pressure_hpa, wind_kmh, gust_kmh, rain_1h_mm, humidity] for each observation; a value the report did not have is null",
+          "items": {
+            "maxItems": 7,
+            "minItems": 7,
+            "prefixItems": [
+              {
+                "description": "UTC, ISO 8601 with a Z",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+                "type": "string"
+              },
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            ],
+            "type": "array"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "call",
+        "hours",
+        "points"
+      ],
+      "title": "WeatherSeriesMessage",
+      "type": "object"
+    },
+    "WeatherValues": {
+      "additionalProperties": false,
+      "description": "One weather observation in metric units; each field is null where the report did not have it.",
+      "properties": {
+        "wind_dir": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the direction the wind blows from, degrees from north (0 to 360)"
+        },
+        "wind_kmh": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the sustained wind, km/h"
+        },
+        "gust_kmh": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the gust, km/h"
+        },
+        "temp_c": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "degrees Celsius"
+        },
+        "humidity": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "per cent (1 to 100)"
+        },
+        "pressure_hpa": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "barometric pressure, hPa"
+        },
+        "rain_1h_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "rain in the last hour, mm"
+        },
+        "rain_24h_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "rain in the last 24 hours, mm"
+        },
+        "rain_today_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "rain since midnight, mm"
+        },
+        "luminosity": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "W/m2"
+        },
+        "snow_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "snow in the last 24 hours, mm"
+        }
+      },
+      "required": [
+        "wind_dir",
+        "wind_kmh",
+        "gust_kmh",
+        "temp_c",
+        "humidity",
+        "pressure_hpa",
+        "rain_1h_mm",
+        "rain_24h_mm",
+        "rain_today_mm",
+        "luminosity",
+        "snow_mm"
+      ],
+      "title": "WeatherValues",
+      "type": "object"
+    }
+  },
+  "description": "The WebSocket protocol of NeoAPRS: `command` is what the page sends (tagged by cmd), `message` what the daemon sends (tagged by type), `topics` the value of each topic the page follows.",
+  "properties": {
+    "command": {
+      "discriminator": {
+        "mapping": {
+          "alert_test": "#/$defs/AlertTest",
+          "beacon_now": "#/$defs/BeaconNow",
+          "bulletin_delete": "#/$defs/BulletinDelete",
+          "clear_station_attempts": "#/$defs/ClearStationAttempts",
+          "clear_station_path": "#/$defs/ClearStationPath",
+          "clear_station_timeout": "#/$defs/ClearStationTimeout",
+          "conversation_delete": "#/$defs/ConversationDelete",
+          "forget_station": "#/$defs/ForgetStation",
+          "list_ports": "#/$defs/ListPorts",
+          "map_cancel": "#/$defs/MapCancel",
+          "map_estimate": "#/$defs/MapEstimate",
+          "map_fetch": "#/$defs/MapFetch",
+          "message_cancel": "#/$defs/MessageCancel",
+          "message_delete": "#/$defs/MessageDelete",
+          "message_retry": "#/$defs/MessageRetry",
+          "overheard_delete": "#/$defs/OverheardDelete",
+          "ping": "#/$defs/Ping",
+          "send_message": "#/$defs/SendMessage",
+          "set_config": "#/$defs/SetConfig",
+          "set_station_attempts": "#/$defs/SetStationAttempts",
+          "set_station_path": "#/$defs/SetStationPath",
+          "set_station_rf_only": "#/$defs/SetStationRfOnly",
+          "set_station_timeout": "#/$defs/SetStationTimeout",
+          "status": "#/$defs/AskStatus",
+          "subscribe": "#/$defs/Subscribe",
+          "tnc_reconnect": "#/$defs/TncReconnect",
+          "unsubscribe": "#/$defs/Unsubscribe",
+          "weather_series": "#/$defs/WeatherSeries"
+        },
+        "propertyName": "cmd"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Ping"
+        },
+        {
+          "$ref": "#/$defs/AskStatus"
+        },
+        {
+          "$ref": "#/$defs/Subscribe"
+        },
+        {
+          "$ref": "#/$defs/Unsubscribe"
+        },
+        {
+          "$ref": "#/$defs/ForgetStation"
+        },
+        {
+          "$ref": "#/$defs/TncReconnect"
+        },
+        {
+          "$ref": "#/$defs/ListPorts"
+        },
+        {
+          "$ref": "#/$defs/SetConfig"
+        },
+        {
+          "$ref": "#/$defs/BeaconNow"
+        },
+        {
+          "$ref": "#/$defs/SendMessage"
+        },
+        {
+          "$ref": "#/$defs/MessageRetry"
+        },
+        {
+          "$ref": "#/$defs/MessageCancel"
+        },
+        {
+          "$ref": "#/$defs/MessageDelete"
+        },
+        {
+          "$ref": "#/$defs/ConversationDelete"
+        },
+        {
+          "$ref": "#/$defs/OverheardDelete"
+        },
+        {
+          "$ref": "#/$defs/SetStationPath"
+        },
+        {
+          "$ref": "#/$defs/ClearStationPath"
+        },
+        {
+          "$ref": "#/$defs/SetStationTimeout"
+        },
+        {
+          "$ref": "#/$defs/ClearStationTimeout"
+        },
+        {
+          "$ref": "#/$defs/SetStationAttempts"
+        },
+        {
+          "$ref": "#/$defs/ClearStationAttempts"
+        },
+        {
+          "$ref": "#/$defs/SetStationRfOnly"
+        },
+        {
+          "$ref": "#/$defs/WeatherSeries"
+        },
+        {
+          "$ref": "#/$defs/AlertTest"
+        },
+        {
+          "$ref": "#/$defs/BulletinDelete"
+        },
+        {
+          "$ref": "#/$defs/MapEstimate"
+        },
+        {
+          "$ref": "#/$defs/MapFetch"
+        },
+        {
+          "$ref": "#/$defs/MapCancel"
+        }
+      ],
+      "title": "Command"
+    },
+    "message": {
+      "discriminator": {
+        "mapping": {
+          "alert_result": "#/$defs/AlertResultMsg",
+          "error": "#/$defs/Error",
+          "hello": "#/$defs/Hello",
+          "patch": "#/$defs/PatchMsg",
+          "pong": "#/$defs/Pong",
+          "ports": "#/$defs/PortsMsg",
+          "state": "#/$defs/StateMsg",
+          "status": "#/$defs/Status",
+          "weather_series": "#/$defs/WeatherSeriesMsg"
+        },
+        "propertyName": "type"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Hello"
+        },
+        {
+          "$ref": "#/$defs/Status"
+        },
+        {
+          "$ref": "#/$defs/Pong"
+        },
+        {
+          "$ref": "#/$defs/Error"
+        },
+        {
+          "$ref": "#/$defs/PortsMsg"
+        },
+        {
+          "$ref": "#/$defs/StateMsg"
+        },
+        {
+          "$ref": "#/$defs/PatchMsg"
+        },
+        {
+          "$ref": "#/$defs/WeatherSeriesMsg"
+        },
+        {
+          "$ref": "#/$defs/AlertResultMsg"
+        }
+      ],
+      "title": "Message"
+    },
+    "topics": {
+      "$ref": "#/$defs/TopicValues"
+    }
+  },
+  "required": [
+    "command",
+    "message",
+    "topics"
+  ],
+  "title": "Protocol",
+  "type": "object"
+}

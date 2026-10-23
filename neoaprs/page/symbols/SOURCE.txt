@@ -1,0 +1,6 @@
+The APRS symbols: the aprs.fi high-resolution symbol set by Heikki Hannikainen, OH7LZB, https://github.com/hessu/aprs-symbols/
+
+primary.png, alternate.png and overlay.png are aprs-symbols-24-0@2x.png, aprs-symbols-24-1@2x.png and aprs-symbols-24-2@2x.png of that repository, unchanged (48 x 48 pixels a symbol,
+16 symbols a row, the codes "!" to "~" in order). The author released the set "to the APRS community, which can be used by any APRS applications, for free" and asks that a user gives a
+pointer to the source; the repository has no licence file, and COPYRIGHT.txt (a copy of its COPYRIGHT.md) says where each symbol comes from and under what terms (many are public domain
+or CC BY-SA, the originals of the old APRS set have no licence information, a few are logos of Apple, Microsoft and Kenwood).

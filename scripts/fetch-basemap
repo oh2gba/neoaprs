@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Fetches the base map of the page into the data folder: the detailed map of the area round the station (the station's position and the settings map/radius_km and map/maxzoom in the database, or --radius, --maxzoom, --lat and --lon here)
+# and, when it is not there, the small map of the world under it. A thin wrapper for a clone that calls `neoaprs map` of its venv, the same code as the Download button of the page's Settings tab (neoaprs/services/mapfetch.py): it finds the pmtiles tool or fetches it, takes the latest daily build of
+# build.protomaps.com and cuts the map out of it. The files are made beside the final ones and moved into place when whole.
+#   scripts/fetch-basemap [--data DIR] [--radius KM] [--maxzoom Z] [--source SRC] [--lat DEG --lon DEG] [--dry-run]    DIR is the data folder (default ./data); --dry-run says how big the map would be and changes nothing
+# Data: © OpenStreetMap contributors (ODbL), Protomaps.
+case "${1:-}" in -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;; esac
+set -euo pipefail
+cd "$(dirname "$0")/.."
+PYTHON="${NEOAPRS_PYTHON:-}"
+[ -n "$PYTHON" ] || { PYTHON=.venv/bin/python; [ -x "$PYTHON" ] || PYTHON=python3; }
+case " $* " in *" --data "*) exec "$PYTHON" -m neoaprs map "$@" ;; *) exec "$PYTHON" -m neoaprs map --data data "$@" ;; esac

@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# The duplication ratchet of the Python half: jscpd over neoaprs/ (the page's server and the commands are in it; the built page is not) and tests/support/ (clones of at least 10 lines and 100 tokens), compared with scripts/dup-baseline.json.
+# Fails on a clone that is not in the baseline, on a clone that grew, and on more duplicated lines in total. The page's own check is the stage dup (ui/.jscpd.json). Needs node.
+#
+#   scripts/dup-check              check
+#   scripts/dup-check --update     write the baseline from today's clones (refuses to make it larger; only to tighten it after you removed a clone)
+#
+# jscpd is the one pinned in ui/package.json (3.5.10): the baseline is what THIS version finds. NEOAPRS_JSCPD overrides the command (the tests use it). Node is the one on the PATH, else
+# the newest in ~/.nvm, as scripts/check finds it. Python: NEOAPRS_PYTHON, else the uv venv (.venv), like scripts/check.
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$root"
+
+update=()
+case "${1:-}" in
+    "") ;;
+    --update) update=(--update) ;;
+    -h|--help) sed -n '2,9p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) echo "dup-check: unknown argument $1" >&2; exit 2 ;;
+esac
+
+python="${NEOAPRS_PYTHON:-}"
+if [ -z "$python" ]; then
+    python="$root/.venv/bin/python"
+fi
+[ -x "$python" ] || { echo "dup-check: no Python environment: run 'uv sync --frozen' in $root" >&2; exit 2; }
+
+# the jscpd of ui/node_modules (pinned in ui/package-lock.json, installed by `npm ci`, no network) is the one the baseline is made with; without it npx fetches the same pinned version
+if [ -n "${NEOAPRS_JSCPD:-}" ]; then jscpd="$NEOAPRS_JSCPD"
+else
+    if ! command -v node >/dev/null; then
+        newest="$(ls -d "$HOME"/.nvm/versions/node/v*/bin 2>/dev/null | sort -V | tail -n 1 || true)"
+        [ -n "$newest" ] && PATH="$newest:$PATH"
+    fi
+    if [ -x ui/node_modules/.bin/jscpd ]; then jscpd="$root/ui/node_modules/.bin/jscpd"; else jscpd="npx --yes jscpd@3.5.10"; fi
+fi
+paths=(neoaprs tests/support)
+
+out="$(mktemp -d)"
+trap 'rm -rf "$out"' EXIT
+
+# shellcheck disable=SC2086   # $jscpd is a command with arguments on purpose
+if ! $jscpd "${paths[@]}" --min-lines 10 --min-tokens 100 --ignore "**/__pycache__/**,**/page/**" --reporters json --output "$out" --silent >"$out/log" 2>&1 \
+    || [ ! -f "$out/jscpd-report.json" ]; then
+    cat "$out/log"
+    echo "dup-check: jscpd did not produce a report (is node installed, and is ui/node_modules there or the npm registry reachable?)" >&2
+    exit 1
+fi
+"$python" scripts/dup-compare.py "$out/jscpd-report.json" scripts/dup-baseline.json "${update[@]}"

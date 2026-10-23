@@ -1,0 +1,11 @@
+{
+  "note": "Direct, no digipeaters; the C bits of the destination and source are both clear (an older station): they are ignored, so a re-encode differs.",
+  "destination": "APRS",
+  "source": "OH2GBA",
+  "path": [],
+  "control": 3,
+  "pid": 240,
+  "info": "=6010.50N/02456.25E-no path, short",
+  "is_ui": true,
+  "canonical": false
+}

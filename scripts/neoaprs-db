@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Looks at and changes the database of a clone's data folder (./data, where the service keeps it): a thin wrapper that calls `neoaprs db` of this clone's venv (NEOAPRS_PYTHON, else .venv/bin/python, else python3)
+# with --data set to this clone's data folder; a --data of your own before the command wins. `scripts/neoaprs-db --help` lists the commands (list, get KEY, set KEY VALUE, stations, packets -n N).
+set -euo pipefail
+here="$(cd "$(dirname "$0")/.." && pwd)"
+PYTHON="${NEOAPRS_PYTHON:-}"
+[ -n "$PYTHON" ] || { PYTHON="$here/.venv/bin/python"; [ -x "$PYTHON" ] || PYTHON=python3; }
+export PYTHONPATH="$here${PYTHONPATH:+:$PYTHONPATH}"
+exec "$PYTHON" -m neoaprs db --data "$here/data" "$@"

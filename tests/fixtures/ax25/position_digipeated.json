@@ -1,0 +1,14 @@
+{
+  "note": "The same frame after two digipeats: both has-been-repeated bits set.",
+  "destination": "APRS",
+  "source": "OH2GBA-7",
+  "path": [
+    "WIDE1-1*",
+    "WIDE2-1*"
+  ],
+  "control": 3,
+  "pid": 240,
+  "info": "!6010.50N/02456.25E>NeoAPRS test",
+  "is_ui": true,
+  "canonical": true
+}

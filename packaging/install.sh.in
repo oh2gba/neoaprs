@@ -1,0 +1,86 @@
+#!/bin/sh
+# NeoAPRS for Linux and macOS: installs uv (when there is none), NeoAPRS @VERSION@ from the wheel of its release, and starts NeoAPRS as a service of your user (systemd on Linux, launchd on macOS).
+#
+#   curl -LsSf https://github.com/oh2gba/neoaprs/releases/latest/download/install.sh | sh
+#
+# Nothing here needs root. Run it again to update NeoAPRS; your data (settings, messages, packets, the map) is not touched. This file is rendered from packaging/install.sh.in by the release workflow; its SHA-256
+# is in SHA256SUMS on the release page. NEOAPRS_WHEEL_URL (a wheel's address) replaces the wheel of the release, which is how the workflow tests this script before the release exists.
+set -eu
+
+VERSION="@VERSION@"
+WHEEL_URL="${NEOAPRS_WHEEL_URL:-@WHEEL_URL@}"
+UV_INSTALLER="https://astral.sh/uv/install.sh"
+
+say() { printf '%s\n' "$*"; }
+fail() { printf 'install.sh: %s\n' "$*" >&2; exit 1; }
+
+case "$(uname -s)" in
+    Linux) OS=linux ;;
+    Darwin) OS=macos ;;
+    *) fail "this script is for Linux and macOS; on Windows run NeoAPRS-Setup-$VERSION.exe from https://github.com/oh2gba/neoaprs/releases/latest" ;;
+esac
+command -v curl >/dev/null 2>&1 || fail "curl is needed (on Debian and Ubuntu: sudo apt install curl)"
+
+# uv: the one on the PATH, else one that an earlier run or Astral's installer put in the usual folders, else install it.
+UV=""
+find_uv() {
+    if command -v uv >/dev/null 2>&1; then
+        UV="$(command -v uv)"
+        return
+    fi
+    for dir in "${XDG_BIN_HOME:-$HOME/.local/bin}" "$HOME/.local/bin" "$HOME/.cargo/bin"; do
+        if [ -z "$UV" ] && [ -x "$dir/uv" ]; then UV="$dir/uv"; fi
+    done
+}
+find_uv
+if [ -z "$UV" ]; then
+    say "Installing uv, which runs NeoAPRS (https://docs.astral.sh/uv/) ..."
+    curl -LsSf "$UV_INSTALLER" | sh
+    find_uv
+    [ -n "$UV" ] || fail "uv was installed but is not where it is expected; open a new terminal and run this again"
+fi
+
+UPDATING=no
+if "$UV" tool list 2>/dev/null | grep -q '^neoaprs '; then UPDATING=yes; fi
+
+say "Installing NeoAPRS $VERSION (uv fetches Python 3.13 if the computer has none) ..."
+"$UV" tool install --force --python 3.13 "$WHEEL_URL"
+BIN="$("$UV" tool dir --bin)"
+NEOAPRS="$BIN/neoaprs"
+[ -x "$NEOAPRS" ] || fail "uv did not make $NEOAPRS"
+
+NEW_TERMINAL=no
+case ":$PATH:" in
+    *":$BIN:"*) ;;
+    *) "$UV" tool update-shell >/dev/null 2>&1 || true; NEW_TERMINAL=yes ;;
+esac
+
+SERVICE=yes
+if ! "$NEOAPRS" service install; then
+    SERVICE=no
+    say "The service could not be set up here (the lines above say why); NeoAPRS runs when you start it with: neoaprs"
+elif [ "$UPDATING" = yes ]; then
+    # a running NeoAPRS keeps the old code until it starts again
+    if [ "$OS" = linux ]; then
+        systemctl --user try-restart neoaprs.service >/dev/null 2>&1 || true
+    else
+        launchctl kickstart -k "gui/$(id -u)/eu.oh2gba.neoaprs" >/dev/null 2>&1 || true
+    fi
+fi
+
+if [ "$OS" = linux ]; then
+    GROUP=dialout
+    getent group dialout >/dev/null 2>&1 || GROUP="uucp"        # Arch and its relatives
+    if getent group "$GROUP" >/dev/null 2>&1 && ! id -nG | tr ' ' '\n' | grep -qx "$GROUP"; then
+        say ""
+        say "To use a serial port (a TNC or a radio on USB) you must be in the group $GROUP. Run this once, then log out and in again:"
+        say "  sudo usermod -aG $GROUP ${USER:-$(id -un)}"
+    fi
+fi
+
+say ""
+say "NeoAPRS $VERSION is installed."
+if [ "$SERVICE" = yes ]; then say "It is running; open its page at http://127.0.0.1:7303/ (or run: neoaprs open)"; fi
+if [ "$NEW_TERMINAL" = yes ]; then say "Open a new terminal before you use the neoaprs command: $BIN was added to your PATH."; fi
+say ""
+"$NEOAPRS" doctor || true

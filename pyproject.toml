@@ -1,0 +1,103 @@
+[build-system]
+requires = ["hatchling==1.32.4"]
+build-backend = "hatchling.build"
+
+[project]
+name = "neoaprs"
+dynamic = ["version"]                      # the one version is VERSION in neoaprs/__init__.py (below)
+description = "NeoAPRS: a modern, easy-to-use APRS client with a map, messages and a web page, as a desktop app or a service"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+authors = [{ name = "OH2GBA", email = "john@oh2gba.eu" }]
+requires-python = ">=3.13"
+# What the daemon imports at run time (neoaprs/, the page's server neoaprs/web/ included): the standard library, pyserial for the radio's serial port (neoaprs/serialport.py), Tornado for the page, and pydantic for the messages of the page (neoaprs/web/protocol.py).
+dependencies = [
+    "tornado==6.5.10",
+    "pydantic==2.14.0",
+    "pyserial==3.5",
+]
+
+# The desktop app (`neoaprs app`, `neoaprs-app`; neoaprs/desktop/) is an extra, so that `uv tool install neoaprs` for the daemon stays lean. Windows: the page in the system's WebView2 (pywebview) and the tray icon
+# (pystray, which draws it from a Pillow image). Elsewhere: Qt, whose QtWebEngine (PySide6-WebEngine, which needs the Essentials and the Addons) is the window and whose QSystemTrayIcon is the tray, so one event loop does both.
+[project.optional-dependencies]
+app = [
+    "pywebview==6.2.1; sys_platform == 'win32'",
+    "pystray==0.19.5; sys_platform == 'win32'",
+    "Pillow==13.0.0; sys_platform == 'win32'",
+    "PySide6-Essentials==6.12.0; sys_platform != 'win32'",
+    "PySide6-Addons==6.12.0; sys_platform != 'win32'",
+    "PySide6-WebEngine==6.12.0.140; sys_platform != 'win32'",
+]
+
+[project.urls]
+Homepage = "https://oh2gba.github.io/neoaprs/"
+Repository = "https://github.com/oh2gba/neoaprs"
+Issues = "https://github.com/oh2gba/neoaprs/issues"
+Releases = "https://github.com/oh2gba/neoaprs/releases"
+
+# `neoaprs` is the command (run, service, map, db, replay, capture, doctor, open, stop, app); `neoaprsw` is the same without a console window, which is how Windows starts it at login. `neoaprs-app` is the desktop
+# app (the same as `neoaprs app`); `neoaprs-app --tray` is how Windows and the desktops of Linux start it at sign-in.
+[project.scripts]
+neoaprs = "neoaprs.cli:main"
+
+[project.gui-scripts]
+neoaprsw = "neoaprs.cli:gui_main"
+neoaprs-app = "neoaprs.desktop.cmd:gui_main"
+
+[dependency-groups]
+dev = [
+    "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
+    "mypy==2.4.0",
+    "ruff==0.17.0",
+    "hypothesis==6.168.5",
+    "coverage==7.16.2",
+    "pytest-xdist==3.8.0",
+]
+
+# The wheel is the package neoaprs/ with everything in it that is not Python: the built page (neoaprs/page/, committed, so building needs no node), the placeholder page, the unit template. The sdist is the
+# package, the licence and the build's own files.
+[tool.hatch.version]
+path = "neoaprs/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["neoaprs"]
+
+[tool.hatch.build.targets.sdist]
+include = ["/neoaprs", "/LICENSE"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+# The folder of a test that passed is taken down when it ends (only a failed test keeps its folder to look at).
+tmp_path_retention_policy = "failed"
+# The markers are given by tests/support/markers.py (every test is exactly one of unit / integration / e2e); a test sets expects_errors itself. See tests/README.md.
+markers = [
+    "unit: pure code in one process: no event loop, no daemon, no socket",
+    "integration: the daemon (Controller), the web server or a fake service on the loopback",
+    "e2e: a real browser against a daemon (needs Chromium and the built page; skipped without)",
+    "safety: guards the data: storage, migrations, the database actor and everything under tests/safety (run alone with -m safety)",
+    "expects_errors: the test makes the code log an ERROR on purpose (any other test that does fails, see tests/support/guards.py)",
+]
+filterwarnings = ["error::DeprecationWarning:neoaprs.*"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_unreachable = true
+files = ["neoaprs", "tests/support"]   # the test support layer is typed like the code; the test files themselves are not
+
+[tool.ruff]
+target-version = "py313"
+extend-exclude = ["ui", "neoaprs/page"]
+
+[tool.ruff.lint]
+# Lint only (no formatter: the code base keeps its own long-line style). pycodestyle errors and warnings and pyflakes, plus flake8-bugbear for real bugs.
+select = ["E", "F", "W", "B"]
+ignore = [
+    "E501",   # line length: the house style allows long lines
+    "E741",   # `l` for a line in a comprehension or a lambda is how the tests and the parsers read
+    "B905",   # zip() without strict=: a zip pairs a column list with a row of the same table, and strict= would turn an old database with an extra column into a crash
+]

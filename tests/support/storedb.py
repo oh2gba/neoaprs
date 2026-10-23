@@ -1,0 +1,33 @@
+"""The Store for tests, on the database thread the way the daemon has it (one Db, one connection):
+
+    store = await store_at(path, clock, busy_ms)        # a file, migrated by the thread if it is new; ":memory:" is a database of its own
+
+Every Db opened here is remembered by tests/support/env.py: `env.stop_all` (called when a test is over) closes it, and the guard for leaked database threads fails the test that does not.
+A test that wants its own order closes the Db itself (`await store.db.close()`)."""
+import sqlite3
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
+
+from neoaprs.clock import Clock, utcnow
+from neoaprs.db import Db
+from neoaprs.dbfile import DEFAULT_BUSY_MS
+from neoaprs.dbopen import open_connection
+from neoaprs.store import Store
+from tests.support import env
+
+
+async def store_at(path: str | Path = ":memory:", clock: Clock = utcnow, busy_ms: int = DEFAULT_BUSY_MS, opener: Callable[[], sqlite3.Connection] | None = None) -> Store:
+    """`opener`: another way to make the connection (one that fails on demand, tests/support/safety.py); it is run in the database thread."""
+    db = Db(opener or (lambda: open_connection(path, busy_ms, clock)))
+    await db.start()
+    env.remember(db)
+    store = Store(clock)
+    store.use(db, path)
+    return store
+
+
+async def sql(store: Store, statement: str, *args: object) -> list[tuple[Any, ...]]:
+    """A statement of the test itself, on the connection of the database thread, as another version of the program or a tool would have run it; the rows it gives."""
+    assert store.db is not None
+    return await store.db.write(lambda conn: [tuple(r) for r in conn.execute(statement, args)])

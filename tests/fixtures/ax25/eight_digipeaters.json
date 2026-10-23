@@ -1,0 +1,20 @@
+{
+  "note": "The longest path AX.25 allows.",
+  "destination": "APRS",
+  "source": "OH2GBA-9",
+  "path": [
+    "OH2RDU*",
+    "OH2RDG*",
+    "OH3RDX-1*",
+    "WIDE1-1",
+    "WIDE2-2",
+    "TCPIP",
+    "N0CALL-15",
+    "OH1A"
+  ],
+  "control": 3,
+  "pid": 240,
+  "info": ">on the road",
+  "is_ui": true,
+  "canonical": true
+}

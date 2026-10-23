@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+"""Prints the layer table and the lists of what the architecture test still allows (SQL outside its homes, wiring outside the root, imports against the layers), made from the data of
+tests/test_architecture.py, and keeps the blocks of docs/ARCHITECTURE.md that hold them up to date.
+
+    .venv/bin/python scripts/doc-arch            print every block
+    .venv/bin/python scripts/doc-arch --write    make the blocks of docs/ARCHITECTURE.md again (run it after a change to the lists of the test)
+    .venv/bin/python scripts/doc-arch --check    write nothing; exit 1 and name the blocks that are out of date (tests/test_docs.py does the same inside pytest)
+"""
+import argparse
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+DOCUMENT = ROOT / "docs" / "ARCHITECTURE.md"
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="the tables of docs/ARCHITECTURE.md, made from tests/test_architecture.py")
+    parser.add_argument("--write", action="store_true", help="make the blocks of docs/ARCHITECTURE.md again")
+    parser.add_argument("--check", action="store_true", help="exit 1 when a block of docs/ARCHITECTURE.md is out of date")
+    args = parser.parse_args()
+    from tests.support import archdoc      # it imports the test, which needs pytest: the venv's python; --help does not
+    text = DOCUMENT.read_text()
+    if args.write:
+        DOCUMENT.write_text(archdoc.refreshed(text))
+        return 0
+    if args.check:
+        stale = archdoc.stale_blocks(text)
+        if stale:
+            print(f"docs/ARCHITECTURE.md: out of date: {', '.join(stale)} (scripts/doc-arch --write)", file=sys.stderr)
+        return 1 if stale else 0
+    for name, make in archdoc.MAKERS.items():
+        print(f"<!-- doc-arch:{name} -->\n{make()}<!-- /doc-arch -->\n")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

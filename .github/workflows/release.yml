@@ -1,0 +1,299 @@
+# What a release is made of, built by GitHub: the wheel and the sdist, the Windows installer (PyInstaller and Inno Setup), the Linux and macOS install script, and SHA256SUMS. Pushing a tag `v*` builds all of
+# it, checks it (the wheel, the installed Windows app and the install script are each run against a fake TNC or a fresh home) and creates the release. Run by hand (workflow_dispatch) it is a dry run: the
+# same builds and checks, the files kept as the artifacts of the run, and no release. How to make a release: docs/MANUAL.md, "Releases".
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  UV_FROZEN: "1"
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # The tag names the version that is in the code, and the changelog has the notes for it.
+  verify:
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: The tag, VERSION and CHANGELOG.md agree
+        run: |
+          version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)"
+          [ -n "$version" ] || { echo "::error::no VERSION in neoaprs/__init__.py"; exit 1; }
+          [ "${GITHUB_REF_NAME#v}" = "$version" ] || { echo "::error::the tag $GITHUB_REF_NAME is not v$version (VERSION in neoaprs/__init__.py)"; exit 1; }
+          python3 scripts/release-notes.py "$version" > /dev/null || { echo "::error::CHANGELOG.md has no section for $version"; exit 1; }
+
+  wheel:
+    needs: verify
+    if: ${{ !failure() && !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.13"
+      - name: Build the wheel and the sdist (the wheel is built from the sdist)
+        run: |
+          uv build --out-dir dist
+          ls -l dist
+          version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)"
+          [ -f "dist/neoaprs-$version-py3-none-any.whl" ] && [ -f "dist/neoaprs-$version.tar.gz" ] && [ "$(ls dist | wc -l)" = 2 ]
+      - name: Smoke test of the wheel in a fresh environment
+        run: |
+          uv venv "$RUNNER_TEMP/smoke-venv"
+          uv pip install --python "$RUNNER_TEMP/smoke-venv/bin/python" dist/*.whl
+          "$RUNNER_TEMP/smoke-venv/bin/python" scripts/smoke.py --command "$RUNNER_TEMP/smoke-venv/bin/neoaprs"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/*
+          if-no-files-found: error
+
+  # The app as a folder with three programs (the console one, the daemon, the desktop app), then the installer around it; both are smoke tested, the second one installed and uninstalled for real.
+  windows:
+    needs: verify
+    if: ${{ !failure() && !cancelled() }}
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.13"
+      - name: The version
+        id: version
+        run: echo "version=$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)" >> "$GITHUB_OUTPUT"
+      - name: Build environment, from the wheel and the locked dependencies with the extra app (pywebview, pystray, Pillow; PyInstaller is installed here and nowhere else)
+        run: |
+          uv build --wheel --out-dir dist-wheel
+          uv export --frozen --no-dev --no-emit-project --no-hashes --extra app -o build-requirements.txt
+          uv venv build-venv
+          uv pip install --python build-venv/Scripts/python.exe -r build-requirements.txt
+          uv pip install --python build-venv/Scripts/python.exe --no-deps dist-wheel/*.whl
+          uv pip install --python build-venv/Scripts/python.exe pyinstaller==6.22.3 pyinstaller-hooks-contrib==2026.8
+      - name: PyInstaller, run where there is no neoaprs/ folder, so that the installed wheel is what is frozen
+        working-directory: packaging/windows
+        run: ../../build-venv/Scripts/pyinstaller.exe --noconfirm --distpath ../../dist --workpath ../../build neoaprs.spec
+      - name: The pinned pmtiles.exe, checked against its SHA-256, into bin/
+        run: build-venv/Scripts/python.exe packaging/windows/bundle_pmtiles.py dist/NeoAPRS
+      - name: Smoke test of the app folder
+        run: |
+          dist/NeoAPRS/neoaprs.exe --version
+          build-venv/Scripts/python.exe scripts/smoke.py --command "$(pwd -W)/dist/NeoAPRS/neoaprs.exe"
+      - name: The bundled pmtiles.exe is the one the app uses (a dry run of the map needs the tool and downloads none)
+        continue-on-error: true
+        run: |
+          dist/NeoAPRS/neoaprs.exe map --data "$RUNNER_TEMP/mapdata" --lat 60.17 --lon 24.94 --radius 10 --maxzoom 8 --dry-run
+          [ ! -e "$RUNNER_TEMP/mapdata/bin/pmtiles.exe" ]
+      - name: Inno Setup
+        shell: pwsh
+        run: |
+          # the runner image has Inno Setup; if it does not, chocolatey installs 6.7.1
+          $find = { Get-ChildItem "${env:ProgramFiles(x86)}\Inno Setup*\ISCC.exe", "$env:ProgramFiles\Inno Setup*\ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 }
+          $iscc = & $find
+          if (-not $iscc) { choco install innosetup --version=6.7.1 -y --no-progress; $iscc = & $find }
+          if (-not $iscc) { throw "ISCC.exe was not found after the install" }
+          $iscc.FullName
+          & $iscc.FullName /Qp "/DAppVersion=${{ steps.version.outputs.version }}" packaging\windows\neoaprs.iss
+          if ($LASTEXITCODE -ne 0) { throw "iscc failed: $LASTEXITCODE" }
+          Get-ChildItem dist-installer | Format-Table Name, Length
+      - name: Install silently, as a user without administrator rights
+        shell: pwsh
+        run: |
+          $setup = (Get-ChildItem dist-installer\NeoAPRS-Setup-*.exe).FullName
+          # (-Wait would wait for the daemon too, which the task started from the setup and which is meant to go on)
+          $p = Start-Process $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/CURRENTUSER', '/NORESTART', "/LOG=$PWD\install.log" -PassThru
+          $p.WaitForExit()
+          if ($p.ExitCode -ne 0) { Get-Content install.log -Tail 40; throw "setup ended with $($p.ExitCode)" }
+          $app = "$env:LOCALAPPDATA\Programs\NeoAPRS"
+          foreach ($f in 'neoaprs.exe', 'neoaprsw.exe', 'neoaprs-app.exe', 'bin\pmtiles.exe', 'LICENSE.txt', 'unins000.exe') { if (-not (Test-Path "$app\$f")) { throw "$f is not in $app" } }
+          foreach ($l in 'NeoAPRS', 'Stop NeoAPRS') { if (-not (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\NeoAPRS\$l.lnk")) { throw "no Start menu entry $l" } }
+          # the task: start at sign-in is the app in the tray (the app starts the daemon), not the daemon
+          $run = (Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run').NeoAPRS
+          if (-not $run -or $run -notlike '*neoaprs-app.exe*--tray*') { throw "the Run key is not set to the app in the tray: $run" }
+          "Run key: $run"
+          if ((Get-Item "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\NeoAPRS\NeoAPRS.lnk").Length -eq 0) { throw "empty Start menu entry" }
+      - name: Smoke test of the installed app
+        run: build-venv/Scripts/python.exe scripts/smoke.py --command "$LOCALAPPDATA\\Programs\\NeoAPRS\\neoaprs.exe"
+      - name: open and stop on a data folder of their own (what the Start menu entries run)
+        shell: pwsh
+        run: |
+          $app = "$env:LOCALAPPDATA\Programs\NeoAPRS"
+          $data = "$env:RUNNER_TEMP\opendata"
+          $url = & "$app\neoaprs.exe" open --no-browser --data $data
+          if ($LASTEXITCODE -ne 0) { Get-Content "$data\neoaprs.log" -Tail 30; throw "open failed" }
+          "page: $url"
+          if ((Invoke-WebRequest $url -UseBasicParsing).StatusCode -ne 200) { throw "the page does not answer" }
+          & "$app\neoaprs.exe" stop --data $data
+          if ($LASTEXITCODE -ne 0) { throw "stop failed" }
+          if ((Get-Content "$data\neoaprs.log" -Tail 1) -notlike '*NeoAPRS ended') { Get-Content "$data\neoaprs.log" -Tail 10; throw "the daemon did not end cleanly" }
+      - name: The app in the tray (neoaprs-app.exe --tray) starts its own daemon, and neoaprs stop ends both
+        shell: pwsh
+        run: |
+          $app = "$env:LOCALAPPDATA\Programs\NeoAPRS"
+          $data = "$env:RUNNER_TEMP\appdata"
+          New-Item -ItemType Directory $data -Force | Out-Null
+          # (the app has no console: Start-Process returns at once)
+          $p = Start-Process "$app\neoaprs-app.exe" -ArgumentList '--tray', '--data', $data -PassThru
+          $url = $null
+          foreach ($i in 1..60) {
+            $m = Select-String -Path "$data\neoaprs.log" -Pattern 'web page at (http://\S+/)' -ErrorAction SilentlyContinue | Select-Object -Last 1
+            if ($m) { $url = $m.Matches[0].Groups[1].Value; break }
+            if ($p.HasExited) { break }
+            Start-Sleep 1
+          }
+          if (-not $url) { Get-Content "$data\neoaprs-app.log", "$data\neoaprs.log" -Tail 30 -ErrorAction SilentlyContinue; throw "no page: the app did not start its daemon" }
+          "page: $url"
+          if ((Invoke-WebRequest $url -UseBasicParsing).StatusCode -ne 200) { throw "the page does not answer" }
+          if ($p.HasExited) { Get-Content "$data\neoaprs-app.log" -Tail 30; throw "the app ended by itself with $($p.ExitCode)" }
+          Get-Content "$data\neoaprs-app.log" -Tail 5
+          # a second app on the same folder ends at once (and would raise the first one's window; --tray does not)
+          $q = Start-Process "$app\neoaprs-app.exe" -ArgumentList '--tray', '--data', $data -PassThru -Wait
+          if ($q.ExitCode -ne 0) { throw "a second app ended with $($q.ExitCode)" }
+          if ($p.HasExited) { throw "the second app ended the first" }
+          # the daemon is the app's own: neoaprs stop ends it, and the app ends with it
+          & "$app\neoaprs.exe" stop --data $data
+          if ($LASTEXITCODE -ne 0) { throw "stop failed" }
+          if (-not $p.WaitForExit(30000)) { Get-Content "$data\neoaprs-app.log" -Tail 30; throw "the app did not end after neoaprs stop" }
+          if ((Get-Content "$data\neoaprs.log" -Tail 1) -notlike '*NeoAPRS ended') { Get-Content "$data\neoaprs.log" -Tail 10; throw "the daemon did not end cleanly" }
+          # a daemon that was running before the app is only attached to, and survives it
+          $data2 = "$env:RUNNER_TEMP\appdata2"
+          $null = & "$app\neoaprs.exe" open --no-browser --data $data2
+          if ($LASTEXITCODE -ne 0) { throw "open failed" }
+          $p2 = Start-Process "$app\neoaprs-app.exe" -ArgumentList '--tray', '--data', $data2 -PassThru
+          foreach ($i in 1..30) { if (Test-Path "$data2\neoaprs-app.port") { break }; Start-Sleep 1 }
+          Start-Sleep 3
+          & "$app\neoaprs-app.exe" --quit --data $data2
+          if ($LASTEXITCODE -ne 0) { throw "quit failed" }
+          if (-not $p2.WaitForExit(30000)) { throw "the attached app did not end after --quit" }
+          if ((Get-Content "$data2\neoaprs.log" -Tail 1) -like '*NeoAPRS ended') { throw "the app stopped a daemon it did not start" }
+          & "$app\neoaprs.exe" stop --data $data2
+          if ($LASTEXITCODE -ne 0 -or (Get-Content "$data2\neoaprs.log" -Tail 1) -notlike '*NeoAPRS ended') { throw "the daemon that was there before the app did not survive it" }
+      - name: Uninstall silently; the start at sign-in goes, the app and the daemon end, the data stays
+        shell: pwsh
+        run: |
+          $app = "$env:LOCALAPPDATA\Programs\NeoAPRS"
+          # the app is running, with its daemon, when the uninstaller starts: it ends both
+          $running = Start-Process "$app\neoaprs-app.exe" -ArgumentList '--tray' -PassThru
+          foreach ($i in 1..60) { if ((Select-String -Path "$env:LOCALAPPDATA\NeoAPRS\neoaprs.log" -Pattern 'NeoAPRS is running' -Quiet -ErrorAction SilentlyContinue)) { break }; Start-Sleep 1 }
+          if ($running.HasExited) { throw "the app did not stay up" }
+          $u = Start-Process "$app\unins000.exe" -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=$PWD\uninstall.log" -PassThru
+          $u.WaitForExit()
+          # the uninstaller hands over to a copy of itself and returns at once: wait for the folder
+          foreach ($i in 1..60) { if (-not (Test-Path "$app\neoaprs.exe")) { break }; Start-Sleep 1 }
+          if (Test-Path "$app\neoaprs.exe") { Get-Content uninstall.log -Tail 40; throw "neoaprs.exe is still in $app" }
+          if ((Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -ErrorAction SilentlyContinue).NeoAPRS) { throw "the Run key is still set" }
+          if (Get-Process -Name neoaprs, neoaprsw, neoaprs-app -ErrorAction SilentlyContinue) { throw "a NeoAPRS process is still running" }
+          if (-not (Test-Path "$env:LOCALAPPDATA\NeoAPRS\neoaprs.sqlite")) { throw "the data folder was touched" }
+          if (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\NeoAPRS\NeoAPRS.lnk") { throw "the Start menu entry is still there" }
+          "uninstalled; the data folder is still there"
+      - name: The logs of setup and uninstall
+        if: failure()
+        shell: pwsh
+        run: |
+          foreach ($f in 'install.log', 'uninstall.log') { if (Test-Path $f) { "--- $f"; Get-Content $f -Tail 60 } }
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows-installer
+          path: dist-installer/NeoAPRS-Setup-*.exe
+          if-no-files-found: error
+
+  # install.sh, rendered for this version and tried against the wheel that was just built: a fresh home, no uv, a systemctl that only writes down its calls.
+  install-script:
+    needs: [verify, wheel]
+    if: ${{ !failure() && !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
+      - name: Render install.sh
+        run: |
+          version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)"
+          url="https://github.com/oh2gba/neoaprs/releases/download/v$version/neoaprs-$version-py3-none-any.whl"
+          mkdir -p out
+          sed -e "s|@VERSION@|$version|g" -e "s|@WHEEL_URL@|$url|g" packaging/install.sh.in > out/install.sh
+          chmod +x out/install.sh
+          ! grep -n '@[A-Z_]*@' out/install.sh
+          grep -n '^WHEEL_URL=' out/install.sh
+      - name: shellcheck and sh -n
+        run: |
+          sh -n out/install.sh
+          shellcheck -s sh out/install.sh
+          shellcheck packaging/test-install.sh
+      - name: Run it twice in a fresh home (the second run is an update)
+        run: packaging/test-install.sh out/install.sh dist/neoaprs-*.whl
+      - uses: actions/upload-artifact@v7
+        with:
+          name: install-script
+          path: out/install.sh
+          if-no-files-found: error
+
+  # Everything a release carries in one place, with the checksums and the notes: made on a dry run too, so that this half is tried before a tag.
+  assemble:
+    needs: [wheel, windows, install-script]
+    if: ${{ !failure() && !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          path: release-files
+          merge-multiple: true
+      - name: SHA256SUMS and the notes
+        run: |
+          version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)"
+          cd release-files
+          for f in "neoaprs-$version-py3-none-any.whl" "neoaprs-$version.tar.gz" "NeoAPRS-Setup-$version.exe" install.sh; do [ -f "$f" ] || { echo "::error::$f is missing"; exit 1; }; done
+          [ "$(ls | wc -l)" = 4 ] || { echo "::error::unexpected files"; ls -l; exit 1; }
+          sha256sum -- * > SHA256SUMS
+          cat SHA256SUMS
+          cd ..
+          if [ "${GITHUB_REF_TYPE}" = tag ]; then notes_for="$version"; else notes_for=""; fi
+          python3 scripts/release-notes.py $notes_for > notes.md
+          printf '\nThe files are checked by SHA256SUMS and carry build provenance (`gh attestation verify FILE --repo oh2gba/neoaprs`). Windows: run NeoAPRS-Setup-%s.exe (SmartScreen may warn about an unsigned installer: More info, Run anyway). Linux and macOS: `curl -LsSf https://github.com/oh2gba/neoaprs/releases/latest/download/install.sh | sh`.\n' "$version" >> notes.md
+          head -c 600 notes.md
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-files
+          path: |
+            release-files/*
+            notes.md
+          if-no-files-found: error
+
+  # Only a pushed tag publishes anything.
+  release:
+    needs: assemble
+    if: ${{ startsWith(github.ref, 'refs/tags/v') && !failure() && !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-files
+          path: files
+      - uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: files/release-files/*
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag --title "NeoAPRS $version" --notes-file files/notes.md files/release-files/*

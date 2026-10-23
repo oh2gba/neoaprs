@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Plays a capture of the radio's serial port (tests/fixtures/kiss/*.bin, or one made by scripts/capture) as a KISS TNC on a TCP port of the loopback, so that the daemon can be run without the radio: a thin
+# wrapper that calls `neoaprs replay` of this clone's venv (NEOAPRS_PYTHON, else .venv/bin/python, else python3). It prints socket://127.0.0.1:PORT; give that to the daemon with --port. --pty plays on a pseudo-terminal instead; --help says the rest.
+set -euo pipefail
+here="$(cd "$(dirname "$0")/.." && pwd)"
+PYTHON="${NEOAPRS_PYTHON:-}"
+[ -n "$PYTHON" ] || { PYTHON="$here/.venv/bin/python"; [ -x "$PYTHON" ] || PYTHON=python3; }
+export PYTHONPATH="$here${PYTHONPATH:+:$PYTHONPATH}"
+exec "$PYTHON" -m neoaprs replay "$@"

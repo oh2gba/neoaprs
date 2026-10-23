@@ -1,0 +1,247 @@
+<script setup lang="ts">
+// The page: a header with the connection and the radio link, the map filling the page, and at its right a panel with the stations, the packets, the messages, the email, the bulletins, the beacon, the TNC and the settings.
+// The shell only: what the daemon tells is `useDaemon`, the panel `usePanel`, the station picked `useSelection`, the Messages tab `useMessagesView`, the Email tab `useEmail`, the Bulletins tab `useBulletins`, the paths, timeouts and attempts of the stations
+// `useStationPrefs`, the first-run guide (it opens by itself while the daemon has no call) `useSetupGuide`; the components take props and emit events, and the commands go out through `send`.
+import { computed, watch } from "vue";
+import AppHeader from "@/components/AppHeader.vue";
+import BeaconPane from "@/components/BeaconPane.vue";
+import BulletinsPane from "@/components/BulletinsPane.vue";
+import EmailPane from "@/components/EmailPane.vue";
+import MessagesPane from "@/components/MessagesPane.vue";
+import PacketsLog from "@/components/PacketsLog.vue";
+import SetupGuide from "@/components/SetupGuide.vue";
+import SettingsForm from "@/components/SettingsForm.vue";
+import SidePanel from "@/components/SidePanel.vue";
+import StationCard from "@/components/StationCard.vue";
+import StationMap from "@/components/StationMap.vue";
+import StationsTable from "@/components/StationsTable.vue";
+import TncPanel from "@/components/TncPanel.vue";
+import ToastBar from "@/components/ToastBar.vue";
+import { useBulletins } from "@/composables/useBulletins";
+import { useDaemon } from "@/composables/useDaemon";
+import { useDark } from "@/composables/useDark";
+import { useEmail } from "@/composables/useEmail";
+import { useMessagesView } from "@/composables/useMessagesView";
+import { useNow } from "@/composables/useNow";
+import { usePanel } from "@/composables/usePanel";
+import { useSelection } from "@/composables/useSelection";
+import { useSetupGuide } from "@/composables/useSetupGuide";
+import { useStationPrefs } from "@/composables/useStationPrefs";
+import { useTitle } from "@/composables/useTitle";
+import { defaultTimeoutMin, type Aging } from "@/lib/aging";
+import { defaultAttempts, type Attempts } from "@/lib/attempts";
+import { filesKey } from "@/lib/mapfetch";
+import { withOwnSymbol } from "@/lib/stations";
+import type { Home } from "@/lib/mapview";
+
+const {
+  stations: heard,
+  packets,
+  messages,
+  bulletins,
+  stationPrefs,
+  tnc,
+  config,
+  map,
+  status,
+  connection,
+  lastError,
+  version,
+  weatherSeries,
+  alertResult,
+  ports,
+  send,
+} = useDaemon();
+const stations = computed(() => withOwnSymbol(heard, config.value?.values));
+const {
+  paths: stationPaths,
+  timeouts,
+  attempts: ownAttempts,
+  rfOnly,
+  setRfOnly,
+  setPath,
+  clearPath,
+  setTimeoutMin,
+  clearTimeoutMin,
+  setAttempts,
+  clearAttempts,
+} = useStationPrefs(stationPrefs, send);
+const aging = computed<Aging>(() => ({ timeouts: timeouts.value, defaultMin: defaultTimeoutMin(config.value?.values) }));
+const attempts = computed<Attempts>(() => ({ own: ownAttempts.value, defaultCount: defaultAttempts(config.value?.values) }));
+const now = useNow();
+const dark = useDark();
+const guide = useSetupGuide(config, lastError, ports, send);
+let guideShown = false;
+// the guide opens once, when the daemon says it has no call (the page's first word of a fresh install)
+watch(
+  () => config.value?.values["station/call"] === "",
+  (empty) => {
+    if (empty && !guideShown) {
+      guideShown = true;
+      guide.show();
+    }
+  },
+  { immediate: true },
+);
+
+const panel = usePanel();
+const { tab, collapsed, width } = panel;
+const { selected, focus, row: selectedRow, pickFromTable, forget } = useSelection(stations, send);
+const talk = useMessagesView(messages, panel, send);
+const mail = useEmail(messages, panel, send, ownAttempts);
+const board = useBulletins(bulletins, panel);
+useTitle(computed(() => talk.unread.value + mail.unread.value));
+const suggestions = computed(() => new Map([...stations.value].map(([call, row]) => [call, row.suggested_path] as const)));
+const heardDirect = computed(() => new Set([...stations.value].filter(([, row]) => row.heard_direct > 0).map(([call]) => call)));
+const fallbackPath = computed(() => config.value?.values["beacon/path"] ?? "");
+const connected = computed(() => tnc.value?.state === "connected");
+
+const call = computed<string | null>(() => config.value?.values["station/call"] ?? status.value?.call ?? null);
+const home = computed<Home | null>(() => {
+  const place = (text: string | number | null | undefined): number => (text === undefined || text === null || text === "" ? NaN : Number(text));
+  const lat = place(config.value?.values["station/lat"] ?? status.value?.lat);
+  const lon = place(config.value?.values["station/lon"] ?? status.value?.lon);
+  return Number.isFinite(lat) && Number.isFinite(lon) ? { lat, lon } : null;
+});
+</script>
+
+<template>
+  <div class="app">
+    <AppHeader
+      :call="call"
+      :connection="connection"
+      :tnc="tnc"
+      :version="version"
+      :unread="talk.unread.value"
+      :now="now"
+      :status="status"
+      @messages="talk.openMessages"
+      @setup="guide.show()"
+    />
+    <main class="main">
+      <div class="mapwrap">
+        <StationMap
+          :stations="stations"
+          :selected="selected"
+          :focus="focus"
+          :home="home"
+          :now="now"
+          :dark="dark"
+          :aging="aging"
+          :files-key="filesKey(map)"
+          :picking="guide.picking"
+          :pin="guide.open ? guide.pin : null"
+          @select="selected = $event"
+          @pick="guide.place($event.lat, $event.lon)"
+          @download="panel.show('settings')"
+        />
+        <SetupGuide :guide="guide" :config="config" :map="map" />
+        <StationCard
+          v-if="selectedRow"
+          :row="selectedRow"
+          :now="now"
+          :aging="aging"
+          :attempts="attempts"
+          :paths="stationPaths"
+          :fallback-path="fallbackPath"
+          :rf-only="rfOnly"
+          :weather-series="weatherSeries"
+          @close="selected = null"
+          @weather="(call, hours) => send({ cmd: 'weather_series', call, hours })"
+          @forget="forget"
+          @message="talk.writeTo"
+          @path="setPath"
+          @clear-path="clearPath"
+          @timeout="setTimeoutMin"
+          @clear-timeout="clearTimeoutMin"
+          @set-attempts="setAttempts"
+          @clear-attempts="clearAttempts"
+          @set-rf-only="setRfOnly"
+        />
+      </div>
+      <SidePanel
+        v-model:tab="tab"
+        v-model:collapsed="collapsed"
+        v-model:width="width"
+        :badges="{ messages: talk.unread.value, email: mail.unread.value, bulletins: board.fresh.value }"
+      >
+        <template #stations>
+          <StationsTable :stations="stations" :selected="selected" :now="now" :aging="aging" @select="pickFromTable" />
+        </template>
+        <template #packets>
+          <PacketsLog :packets="packets" />
+        </template>
+        <template #messages>
+          <MessagesPane
+            :conversations="talk.list.value"
+            :selected="talk.selected.value"
+            :thread="talk.thread.value"
+            :connected="connected"
+            :now="now"
+            :show-overheard="talk.showOverheard.value"
+            :aging="aging"
+            :attempts="attempts"
+            :paths="stationPaths"
+            :suggestions="suggestions"
+            :fallback-path="fallbackPath"
+            :rf-only="rfOnly"
+            :heard-direct="heardDirect"
+            @update:show-overheard="talk.showOverheard.value = $event"
+            @path="setPath"
+            @clear-path="clearPath"
+            @timeout="setTimeoutMin"
+            @clear-timeout="clearTimeoutMin"
+            @set-attempts="setAttempts"
+            @clear-attempts="clearAttempts"
+            @set-rf-only="setRfOnly"
+            @select="talk.selected.value = $event"
+            @delete-conversation="talk.deleteConversation"
+            @delete-overheard="talk.deleteOverheard"
+            @send="talk.sendMessage"
+            @retry="send({ cmd: 'message_retry', id: $event })"
+            @cancel="send({ cmd: 'message_cancel', id: $event })"
+          />
+        </template>
+        <template #email>
+          <EmailPane
+            :thread="mail.thread.value"
+            :connected="connected"
+            :addresses="mail.addresses.value"
+            :attempts="attempts"
+            :heard-direct="heardDirect"
+            @send="mail.sendMail"
+            @forget="mail.forget"
+            @list="mail.listShortcuts"
+            @remove="mail.removeShortcut"
+            @get="mail.getHeld"
+            @set-attempts="setAttempts"
+            @clear-attempts="clearAttempts"
+            @retry="send({ cmd: 'message_retry', id: $event })"
+            @cancel="send({ cmd: 'message_cancel', id: $event })"
+          />
+        </template>
+        <template #bulletins>
+          <BulletinsPane :bulletins="bulletins" :now="now" @delete="(sender, slot) => send({ cmd: 'bulletin_delete', sender, slot })" />
+        </template>
+        <template #beacon>
+          <BeaconPane
+            :status="status"
+            :connected="connected"
+            :now="now"
+            :config="config"
+            :last-error="lastError"
+            :send="send"
+            @beacon="send({ cmd: 'beacon_now' })"
+          />
+        </template>
+        <template #tnc>
+          <TncPanel :tnc="tnc" :now="now" @reconnect="send({ cmd: 'tnc_reconnect' })" />
+        </template>
+        <template #settings>
+          <SettingsForm :config="config" :last-error="lastError" :alert-result="alertResult" :map="map" :send="send" @setup="guide.show()" />
+        </template>
+      </SidePanel>
+    </main>
+    <ToastBar :toast="lastError" />
+  </div>
+</template>

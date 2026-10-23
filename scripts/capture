@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Records what the radio sends on its serial port into a file, byte for byte, to make a fixture of the tests or to find which port the radio is on: a thin wrapper that calls `neoaprs capture` of this clone's venv
+# (NEOAPRS_PYTHON, else .venv/bin/python, else python3). `scripts/capture --port /dev/ttyUSB0 --seconds 300 OUT`; the daemon must not be running. Relative paths are relative to the folder you ran it from; --help says the rest.
+set -euo pipefail
+here="$(cd "$(dirname "$0")/.." && pwd)"
+PYTHON="${NEOAPRS_PYTHON:-}"
+[ -n "$PYTHON" ] || { PYTHON="$here/.venv/bin/python"; [ -x "$PYTHON" ] || PYTHON=python3; }
+export PYTHONPATH="$here${PYTHONPATH:+:$PYTHONPATH}"
+exec "$PYTHON" -m neoaprs capture "$@"

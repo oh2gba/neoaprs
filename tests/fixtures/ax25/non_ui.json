@@ -1,0 +1,13 @@
+{
+  "note": "An I frame (connected mode): not a UI frame, so the bytes after the control byte are kept as they are, PID included.",
+  "destination": "OH2XYZ",
+  "source": "OH2GBA-7",
+  "path": [
+    "OH2RDU"
+  ],
+  "control": 0,
+  "pid": 240,
+  "info": "\u00f0hello",
+  "is_ui": false,
+  "canonical": true
+}

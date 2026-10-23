@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Builds the page from its source in ui/ (Vue 3 + TypeScript + Vite) into neoaprs/page/, which is what the daemon serves as it is and what the wheel carries as package data.
+# neoaprs/page/ is kept in git, so the machine that runs NeoAPRS, and the one that builds the wheel, needs no node: this is for the one that changes the page.
+#
+#   scripts/build-page
+#
+# Clean install from the lockfile, type check, build into neoaprs/page/ (everything in it is made again: nothing of the old files stays; the files in
+# ui/public/ - the symbol sheets, the glyph files of the map's labels - are copied, the others get the hash of their content in the name). base is "./", so the page
+# works from any path. tests/test_page_build.py fails when neoaprs/page/ is not what ui/ builds. Needs node 18 or newer (on the PATH, else the newest in ~/.nvm).
+case "${1:-}" in -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;; esac
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+if ! command -v node >/dev/null; then
+    newest="$(ls -d "$HOME"/.nvm/versions/node/v*/bin 2>/dev/null | sort -V | tail -n 1 || true)"
+    [ -n "$newest" ] && export PATH="$newest:$PATH"
+fi
+command -v node >/dev/null || { echo "build-page: node is not installed (node 18 or newer)"; exit 1; }
+
+cd "$ROOT/ui"
+npm ci --no-audit --no-fund
+npx vue-tsc --noEmit
+rm -rf "$ROOT/neoaprs/page"
+NEOAPRS_OUT="$ROOT/neoaprs/page" npx vite build
+echo "build-page: neoaprs/page/ is made from ui/ ($(find "$ROOT/neoaprs/page" -type f | wc -l) files)"

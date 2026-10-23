@@ -1,0 +1,61 @@
+import { describe, expect, it } from "vitest";
+import { buildMarkerDom, paintMarker } from "@/lib/markerdom";
+import { station, weatherStation } from "@/test/fixtures";
+
+describe("the marker of a station", () => {
+  it("shows the call as text and the symbol as sprite layers", () => {
+    const dom = buildMarkerDom();
+    paintMarker(dom, station("<b>OH2PU-9</b>"), { fade: 0, selected: false, direct: false });
+    expect(dom.label.textContent).toBe("<b>OH2PU-9</b>");
+    expect(dom.label.children).toHaveLength(0);
+    expect(dom.icon.querySelectorAll(".stn-layer")).toHaveLength(1);
+  });
+  it("stacks the overlay character over the alternate symbol", () => {
+    const dom = buildMarkerDom();
+    paintMarker(dom, station("OH2RDG", { symbol_table: "N", symbol_code: "#" }), { fade: 0, selected: false, direct: false });
+    expect(dom.icon.querySelectorAll(".stn-layer")).toHaveLength(2);
+  });
+  it("is a plain dot without a symbol", () => {
+    const dom = buildMarkerDom();
+    paintMarker(dom, station("X", { symbol_table: "", symbol_code: "" }), { fade: 0, selected: false, direct: false });
+    expect(dom.icon.classList.contains("stn-plain")).toBe(true);
+  });
+  it("tells our own station, the selected one and how faded it is by classes", () => {
+    const dom = buildMarkerDom();
+    paintMarker(dom, station("ME", { is_me: true }), { fade: 0, selected: true, direct: false });
+    expect([...dom.root.classList]).toEqual(expect.arrayContaining(["stn--me", "stn--selected"]));
+    expect([...dom.root.classList].some((c) => c.startsWith("stn--fade"))).toBe(false);
+    paintMarker(dom, station("A"), { fade: 1, selected: false, direct: false });
+    expect(dom.root.classList.contains("stn--fade-1")).toBe(true);
+    expect(dom.root.classList.contains("stn--me")).toBe(false);
+    paintMarker(dom, station("A"), { fade: 3, selected: false, direct: false });
+    expect(dom.root.classList.contains("stn--fade-3")).toBe(true);
+    expect(dom.root.classList.contains("stn--fade-1")).toBe(false);
+    paintMarker(dom, station("A"), { fade: 0, selected: false, direct: false });
+    expect([...dom.root.classList].some((c) => c.startsWith("stn--fade"))).toBe(false);
+  });
+  it("puts a ring on a station heard direct and says so in the title", () => {
+    const dom = buildMarkerDom();
+    paintMarker(dom, station("OH2PU-9"), { fade: 0, selected: false, direct: true });
+    expect(dom.root.classList.contains("stn--direct")).toBe(true);
+    expect(dom.root.title).toBe("OH2PU-9: Car, heard direct");
+    paintMarker(dom, station("OH2PU-9"), { fade: 0, selected: false, direct: false });
+    expect(dom.root.classList.contains("stn--direct")).toBe(false);
+    expect(dom.root.title).toBe("OH2PU-9: Car");
+  });
+  it("keeps the weather symbol of a weather station and puts its temperature in the title", () => {
+    const dom = buildMarkerDom();
+    paintMarker(dom, weatherStation("OH2MUI"), { fade: 0, selected: false, direct: false });
+    expect(dom.icon.querySelectorAll(".stn-layer")).toHaveLength(1);
+    expect(dom.root.title).toBe("OH2MUI: Weather station, 10.0 °C");
+  });
+  it("makes the layers again only when the symbol changes", () => {
+    const dom = buildMarkerDom();
+    paintMarker(dom, station("A"), { fade: 0, selected: false, direct: false });
+    const first = dom.icon.firstElementChild;
+    paintMarker(dom, station("A", { lat: 61 }), { fade: 0, selected: false, direct: false });
+    expect(dom.icon.firstElementChild).toBe(first);
+    paintMarker(dom, station("A", { symbol_code: "-" }), { fade: 0, selected: false, direct: false });
+    expect(dom.icon.firstElementChild).not.toBe(first);
+  });
+});

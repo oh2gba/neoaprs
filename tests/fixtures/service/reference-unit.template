@@ -1,0 +1,28 @@
+# The unit of a clone, written by hand: @ROOT@ stands for the clone's absolute path. tests/test_service.py holds the unit that `neoaprs service install` writes to the effect of this one.
+[Unit]
+Description=NeoAPRS: an APRS client with a map of the stations it hears (web page on port 7303)
+Documentation=file://@ROOT@/README.md
+# the radio is on a USB serial port (/dev/ttyUSB0 and the like): the user of this unit must be in the group that owns them (dialout), otherwise the port stays closed and the TNC page says so
+After=network.target
+# Restart=always (below) brings a daemon that dies back after 5 s, so a crash loop looks like a daemon that is up at every look. Five starts within ten minutes
+# and the unit stays 'failed' (systemctl --user status neoaprs says "start request repeated too quickly"). `systemctl --user reset-failed neoaprs` clears it.
+StartLimitIntervalSec=10min
+StartLimitBurst=5
+
+[Service]
+Type=simple
+WorkingDirectory=@ROOT@
+ExecStart=@ROOT@/.venv/bin/python -m neoaprs --data @ROOT@/data
+Environment=PYTHONUNBUFFERED=1
+# the message alert runs a command of the operator's (messages/alert_command, notify-send by default), and a user service does not inherit the desktop session's environment: notify-send finds the desktop's message bus here
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=%t/bus
+Restart=always
+RestartSec=5
+# exit 2: the database cannot be used (a newer NeoAPRS made it, or it is broken); a restart would only repeat it
+RestartPreventExitStatus=2
+# SIGTERM: the port and the sockets are closed, the database thread finishes what was asked of it, then the process ends
+KillSignal=SIGTERM
+TimeoutStopSec=10
+
+[Install]
+WantedBy=default.target

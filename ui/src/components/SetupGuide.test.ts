@@ -1,0 +1,379 @@
+import { flushPromises, mount } from "@vue/test-utils";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { nextTick, ref } from "vue";
+import SetupGuide from "@/components/SetupGuide.vue";
+import type { Toast } from "@/composables/useDaemon";
+import { useSetupGuide } from "@/composables/useSetupGuide";
+import { SYMBOL_CHOICES } from "@/lib/setup";
+import { TNC_PROFILES } from "@/protocol/lists";
+import type { Command, ConfigValues, MapState, PortsMessage } from "@/protocol/protocol";
+import { configValues, mapState } from "@/test/fixtures";
+
+const fresh = (extra: Record<string, string> = {}) =>
+  configValues({ "station/call": "", "station/lat": "", "station/lon": "", "serial/baud": "", "serial/port": "", ...extra });
+const row = (device: string, description: string) => ({ device, description, hwid: "n/a", vid: null, pid: null });
+const ports = (extra: Partial<PortsMessage> = {}): PortsMessage => ({
+  type: "ports",
+  search: true,
+  ports: [row("/dev/ttyUSB0", "FT232R USB UART"), row("/dev/ttyACM0", "n/a")],
+  ...extra,
+});
+
+function make(opts: { config?: ConfigValues; map?: MapState | null } = {}) {
+  const config = ref<ConfigValues | null>(opts.config ?? fresh());
+  const lastError = ref<Toast | null>(null);
+  const portList = ref<PortsMessage | null>(null);
+  const sent: Command[] = [];
+  const guide = useSetupGuide(config, lastError, portList, (command) => (sent.push(command), true));
+  guide.show();
+  const wrapper = mount(SetupGuide, { props: { guide, config: config.value, map: opts.map === undefined ? mapState() : opts.map }, attachTo: document.body });
+  const type = (id: string, text: string) => wrapper.find<HTMLInputElement>(`#${id}`).setValue(text);
+  const next = () => wrapper.find("form").trigger("submit");
+  const button = (label: string) => wrapper.findAll("button").find((b) => b.text() === label);
+  /** Fills the call and the position and stands on the step with this index (1 is the position, 4 the map). */
+  const stand = async (step: number) => {
+    await type("setup-call", "oh2abc");
+    await next();
+    await type("setup-lat", "60.17");
+    await type("setup-lon", "24.94");
+    for (let i = 1; i < step; i++) await next();
+  };
+  return { wrapper, guide, config, lastError, portList, sent, type, next, button, stand };
+}
+
+afterEach(() => {
+  document.body.replaceChildren();
+  vi.unstubAllGlobals();
+});
+
+describe("SetupGuide: the frame", () => {
+  it("is a panel with a heading per step and no explanation: five steps in the indicator, the step's title, Next", () => {
+    const { wrapper } = make();
+    expect(wrapper.find("[role='dialog']").attributes("aria-label")).toBe("Setup");
+    expect(wrapper.findAll(".setup-dot").map((b) => b.attributes("title"))).toEqual(["Call", "Position", "Symbol", "Radio", "Map"]);
+    expect(wrapper.find(".setup-dot.active").text()).toBe("1");
+    expect(wrapper.findAll(".setup-dot.done")).toHaveLength(0); // the steps ahead have answers already, but are not done
+    expect(wrapper.find("h3").text()).toBe("Call");
+    expect(wrapper.findAll("h3")).toHaveLength(1);
+    expect(wrapper.find("button[type=submit]").text()).toBe("Next");
+    expect(wrapper.find("p").exists()).toBe(false);
+    expect(wrapper.find(".setup-foot button").text()).toBe("Next"); // no Back on the first step
+  });
+
+  it("is nothing while closed, and says nothing about the beacon at any step", async () => {
+    const { wrapper, guide, stand } = make();
+    const texts: string[] = [];
+    await stand(1);
+    texts.push(wrapper.text());
+    for (let i = 2; i <= 5; i++) {
+      guide.go(i - 1);
+      await nextTick();
+      texts.push(wrapper.text());
+    }
+    expect(texts.join(" ").toLowerCase()).not.toContain("beacon");
+    guide.close();
+    await nextTick();
+    expect(wrapper.find(".setup").exists()).toBe(false);
+  });
+
+  it("closes with the cross and with Escape, and its answers are there when it is opened again", async () => {
+    const { wrapper, guide, type } = make();
+    await type("setup-call", "oh2abc");
+    await wrapper.find(".setup-close").trigger("click");
+    expect(guide.open).toBe(false);
+    guide.show();
+    await nextTick();
+    expect(wrapper.find<HTMLInputElement>("#setup-call").element.value).toBe("oh2abc");
+    document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    await nextTick();
+    expect(guide.open).toBe(false);
+    expect(wrapper.find(".setup").exists()).toBe(false);
+  });
+
+  it("ignores Escape while it is closed", () => {
+    const { guide } = make();
+    guide.close();
+    document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(guide.open).toBe(false);
+  });
+
+  it("puts the cursor in the first field when it opens and when the step changes", async () => {
+    const { wrapper, guide, stand } = make();
+    await flushPromises();
+    expect(document.activeElement).toBe(wrapper.find("#setup-call").element);
+    await stand(1);
+    await flushPromises();
+    expect(guide.step).toBe(1);
+    expect(document.activeElement).toBe(wrapper.find("#setup-lat").element);
+  });
+
+  it("goes back with Back and the indicator, and forward over a step with its answers only", async () => {
+    const { wrapper, guide, stand, button } = make();
+    await wrapper.findAll(".setup-dot")[3]?.trigger("click");
+    expect(guide.step).toBe(0);
+    await stand(2);
+    expect(guide.step).toBe(2);
+    await button("Back")?.trigger("click");
+    expect(guide.step).toBe(1);
+    await wrapper.findAll(".setup-dot")[0]?.trigger("click");
+    expect(wrapper.find("h3").text()).toBe("Call");
+    expect(wrapper.findAll(".setup-dot")[1]?.classes()).toContain("done");
+    await wrapper.findAll(".setup-dot")[3]?.trigger("click");
+    expect(wrapper.find("h3").text()).toBe("Radio");
+    expect(wrapper.find(".setup-dot.active").attributes("aria-current")).toBe("step");
+  });
+});
+
+describe("SetupGuide: the call", () => {
+  it("is checked as it is typed, the daemon's rules, and Next waits", async () => {
+    const { wrapper, type, next, guide } = make();
+    const nextButton = () => wrapper.find("button[type=submit]");
+    expect(nextButton().attributes("disabled")).toBeDefined();
+    await type("setup-call", "n0call");
+    expect(wrapper.find(".field-error").text()).toBe("N0CALL is not a call");
+    expect(wrapper.find("#setup-call").attributes("aria-invalid")).toBe("true");
+    expect(nextButton().attributes("disabled")).toBeDefined();
+    await next();
+    expect(guide.step).toBe(0);
+    await type("setup-call", "oh2abc-16");
+    expect(wrapper.find(".field-error").text()).toBe("Not a call");
+    await type("setup-call", "oh2abc-9");
+    expect(wrapper.find(".field-error").exists()).toBe(false);
+    expect(nextButton().attributes("disabled")).toBeUndefined();
+    await next(); // Enter in the field submits the form
+    expect(wrapper.find("h3").text()).toBe("Position");
+  });
+});
+
+describe("SetupGuide: the position", () => {
+  it("has latitude, longitude and the locator, and the 6 characters of a locator fill the others with the square's centre", async () => {
+    const { wrapper, stand, type } = make();
+    await stand(1);
+    expect(wrapper.findAll(".field label").map((l) => l.text())).toEqual(["Latitude", "Longitude", "Locator"]);
+    await type("setup-locator", "KP20ie");
+    expect(wrapper.find<HTMLInputElement>("#setup-lat").element.value).toBe("60.1875");
+    expect(wrapper.find<HTMLInputElement>("#setup-lon").element.value).toBe("24.7083");
+    await type("setup-lat", "60.17");
+    await type("setup-lon", "24.94");
+    expect(wrapper.find<HTMLInputElement>("#setup-locator").element.value).toBe("KP20le");
+    await type("setup-lat", "95");
+    expect(wrapper.find(".field-error").text()).toBe("Between -90 and 90");
+    expect(wrapper.find("button[type=submit]").attributes("disabled")).toBeDefined();
+  });
+
+  it("takes the place from the browser, and passes over a refusal without a word", async () => {
+    const calls: ((p: unknown) => void)[] = [];
+    const errors: (() => void)[] = [];
+    vi.stubGlobal("navigator", {
+      geolocation: { getCurrentPosition: (ok: (p: unknown) => void, no: () => void) => (calls.push(ok), errors.push(no)) },
+    });
+    const { wrapper, stand, button } = make();
+    await stand(1);
+    const locate = button("Use this computer's location");
+    expect(locate).toBeDefined();
+    await locate?.trigger("click");
+    expect(locate?.attributes("disabled")).toBeDefined();
+    errors[0]?.();
+    await nextTick();
+    expect(locate?.attributes("disabled")).toBeUndefined();
+    expect(wrapper.find(".field-error").exists()).toBe(false);
+    expect(wrapper.find<HTMLInputElement>("#setup-lat").element.value).toBe("60.17"); // as it was
+    await locate?.trigger("click");
+    calls[1]?.({ coords: { latitude: 51.5007292, longitude: -0.1246254 } });
+    await nextTick();
+    expect(wrapper.find<HTMLInputElement>("#setup-lat").element.value).toBe("51.50073");
+    expect(wrapper.find<HTMLInputElement>("#setup-lon").element.value).toBe("-0.12463");
+    expect(wrapper.find<HTMLInputElement>("#setup-locator").element.value).toBe("IO91wm");
+  });
+
+  it("has no location button in a browser without one", async () => {
+    vi.stubGlobal("navigator", {});
+    const { wrapper, stand, button } = make();
+    await stand(1);
+    expect(button("Use this computer's location")).toBeUndefined();
+    expect(wrapper.find(".setup-onmap").exists()).toBe(true);
+  });
+
+  it("folds to its head for 'On the map' and comes back with Done, or with the click that sets the place", async () => {
+    const { wrapper, guide, stand, button } = make();
+    await stand(1);
+    await button("On the map")?.trigger("click");
+    expect(wrapper.find(".setup").classes()).toContain("peeking");
+    expect(button("Done")).toBeDefined();
+    await button("Done")?.trigger("click");
+    expect(wrapper.find(".setup").classes()).not.toContain("peeking");
+    await button("On the map")?.trigger("click");
+    guide.place(60.2, 24.9);
+    await nextTick();
+    expect(wrapper.find(".setup").classes()).not.toContain("peeking");
+  });
+});
+
+describe("SetupGuide: the symbol", () => {
+  it("draws the 12 symbols from the sprite and the house is the one in force", async () => {
+    const { wrapper, stand } = make();
+    await stand(2);
+    const buttons = wrapper.findAll(".setup-symbol");
+    expect(buttons.map((b) => b.text())).toEqual(SYMBOL_CHOICES.map((s) => s.name));
+    expect(buttons.every((b) => b.find(".symicon .stn-layer").exists())).toBe(true);
+    expect(buttons[0]?.find(".stn-layer").attributes("style")).toContain("symbols/primary.png");
+    expect(buttons[0]?.attributes("aria-pressed")).toBe("true");
+    expect(wrapper.find<HTMLInputElement>("#setup-symbol").element.value).toBe("/-");
+  });
+
+  it("sets the table and code from a symbol, and a symbol from any table and code typed", async () => {
+    const { wrapper, guide, stand, type } = make();
+    await stand(2);
+    await wrapper.findAll(".setup-symbol")[1]?.trigger("click");
+    expect(guide.fields.symbol).toBe("/>");
+    expect(wrapper.find<HTMLInputElement>("#setup-symbol").element.value).toBe("/>");
+    expect(wrapper.findAll(".setup-symbol")[1]?.attributes("aria-pressed")).toBe("true");
+    expect(wrapper.findAll(".setup-symbol")[0]?.attributes("aria-pressed")).toBe("false");
+    await type("setup-symbol", "\\k");
+    expect(guide.fields.symbol).toBe("\\k");
+    expect(wrapper.findAll(".setup-symbol").every((b) => b.attributes("aria-pressed") === "false")).toBe(true);
+    await type("setup-symbol", "a-");
+    expect(wrapper.find(".field-error").text()).toBe("Table: / \\ 0-9 A-Z");
+    expect(wrapper.find("button[type=submit]").attributes("disabled")).toBeDefined();
+  });
+});
+
+describe("SetupGuide: the radio", () => {
+  it("asks the daemon for the ports and offers Automatic and the ports with what the system calls them", async () => {
+    const { wrapper, sent, portList, stand } = make();
+    await stand(3);
+    await flushPromises();
+    expect(sent).toEqual([{ cmd: "list_ports" }]);
+    expect(wrapper.findAll("#setup-profile option").map((o) => o.text())).toEqual(TNC_PROFILES.map((p) => p.name));
+    expect(wrapper.find<HTMLSelectElement>("#setup-profile").element.value).toBe("kenwood-tnc2");
+    portList.value = ports();
+    await nextTick();
+    expect(wrapper.findAll("#setup-port option").map((o) => [o.attributes("value"), o.text()])).toEqual([
+      ["", "Automatic"],
+      ["/dev/ttyUSB0", "/dev/ttyUSB0 - FT232R USB UART"],
+      ["/dev/ttyACM0", "/dev/ttyACM0"],
+    ]);
+    expect(wrapper.find<HTMLInputElement>("#setup-baud").attributes("placeholder")).toBe("9600");
+    expect(wrapper.find("#setup-host").exists()).toBe(false);
+  });
+
+  it("asks again with Refresh, and the port picked is the answer", async () => {
+    const { wrapper, guide, sent, portList, stand, button } = make();
+    await stand(3);
+    portList.value = ports();
+    await button("Refresh")?.trigger("click");
+    expect(sent.filter((c) => c.cmd === "list_ports")).toHaveLength(2);
+    await wrapper.find("#setup-port").setValue("/dev/ttyUSB0");
+    expect(guide.fields.port).toBe("/dev/ttyUSB0");
+  });
+
+  it("has no Automatic where the daemon does not search the ports, and Next waits for a pick", async () => {
+    const { wrapper, portList, stand } = make();
+    await stand(3);
+    portList.value = ports({ search: false });
+    await nextTick();
+    expect(wrapper.findAll("#setup-port option")[0]?.text()).toBe("-");
+    expect(wrapper.find("button[type=submit]").attributes("disabled")).toBeDefined();
+    await wrapper.find("#setup-port").setValue("/dev/ttyUSB0");
+    expect(wrapper.find("button[type=submit]").attributes("disabled")).toBeUndefined();
+  });
+
+  it("has the host and the port instead of the serial fields for KISS over TCP, and asks for no ports", async () => {
+    const { wrapper, sent, stand, type } = make();
+    await stand(3);
+    await flushPromises();
+    await wrapper.find("#setup-profile").setValue("kiss-tcp");
+    expect(wrapper.find("#setup-port").exists()).toBe(false);
+    expect(wrapper.find("#setup-baud").exists()).toBe(false);
+    expect(wrapper.find<HTMLInputElement>("#setup-host").element.value).toBe("127.0.0.1");
+    expect(wrapper.find<HTMLInputElement>("#setup-tcpport").element.value).toBe("8001");
+    await type("setup-tcpport", "70000");
+    expect(wrapper.find(".field-error").text()).toBe("1 to 65535");
+    await type("setup-host", "");
+    expect(wrapper.find("#setup-host").attributes("placeholder")).toBe("127.0.0.1");
+    expect(wrapper.find("button[type=submit]").attributes("disabled")).toBeDefined();
+    expect(sent.filter((c) => c.cmd === "list_ports")).toHaveLength(1); // only the first, for the serial TNC
+  });
+
+  it("checks the speed", async () => {
+    const { wrapper, stand, type } = make();
+    await stand(3);
+    await type("setup-baud", "12");
+    expect(wrapper.find(".field-error").text()).toBe("300 to 921600");
+    await type("setup-baud", "57600");
+    expect(wrapper.find(".field-error").exists()).toBe(false);
+  });
+});
+
+describe("SetupGuide: the map and Finish", () => {
+  it("has the radius, the detail and MapFetchPanel's Estimate and Download, and Finish in place of Next", async () => {
+    const { wrapper, stand } = make();
+    await stand(4);
+    expect(wrapper.find("h3").text()).toBe("Map");
+    expect(wrapper.findAll(".field label").map((l) => l.text())).toEqual(["Radius", "Detail"]);
+    expect(wrapper.find<HTMLInputElement>("#setup-radius").attributes("placeholder")).toBe("150");
+    expect(wrapper.findAll("#setup-maxzoom option").map((o) => o.text())).toEqual(["10 town", "12 streets", "14 houses"]);
+    expect(wrapper.findAll(".mapfetch button").map((b) => b.text())).toEqual(["Estimate", "Download"]);
+    expect(wrapper.find("button[type=submit]").text()).toBe("Finish");
+  });
+
+  it("has Estimate and Download on while the daemon has no position yet (the guide saves it first), and off for a wrong radius", async () => {
+    const { wrapper, stand, type } = make({ map: mapState({ blocked: "no position", box: null }) });
+    await stand(4);
+    const mapButtons = () => wrapper.findAll(".mapfetch button");
+    expect(mapButtons().every((b) => b.attributes("disabled") === undefined)).toBe(true);
+    await type("setup-radius", "5");
+    expect(mapButtons().every((b) => b.attributes("disabled") !== undefined)).toBe(true);
+    expect(wrapper.find("button[type=submit]").attributes("disabled")).toBeDefined();
+  });
+
+  it("saves first and then estimates, with one set_config in all, and Finish after it sends nothing more", async () => {
+    const { wrapper, guide, config, sent, stand, next } = make({ map: mapState({ blocked: "no position", box: null }) });
+    await stand(4);
+    await wrapper.findAll(".mapfetch button")[0]?.trigger("click");
+    expect(sent.filter((c) => c.cmd === "set_config")).toHaveLength(1);
+    expect(sent.some((c) => c.cmd === "map_estimate")).toBe(false);
+    expect(wrapper.findAll(".mapfetch button").every((b) => b.attributes("disabled") !== undefined)).toBe(true);
+    const now = config.value;
+    config.value = now && { ...now, values: { ...now.values, "station/call": "OH2ABC", "station/lat": "60.17", "station/lon": "24.94" } };
+    await flushPromises();
+    expect(sent.at(-1)).toEqual({ cmd: "map_estimate" });
+    await next();
+    expect(sent.filter((c) => c.cmd === "set_config")).toHaveLength(1);
+    expect(guide.open).toBe(false);
+  });
+
+  it("sends the one set_config with the changed keys on Finish and shows 'Saving...' until the daemon answers", async () => {
+    const { wrapper, guide, config, sent, stand, next } = make();
+    await stand(4);
+    await next();
+    expect(sent.filter((c) => c.cmd !== "list_ports")).toEqual([
+      { cmd: "set_config", values: { "station/call": "OH2ABC", "station/lat": "60.17", "station/lon": "24.94" } },
+    ]);
+    expect(wrapper.find("button[type=submit]").text()).toBe("Saving...");
+    expect(wrapper.find("button[type=submit]").attributes("disabled")).toBeDefined();
+    const now = config.value;
+    config.value = now && { ...now, values: { ...now.values, "station/call": "OH2ABC", "station/lat": "60.17", "station/lon": "24.94" } };
+    await flushPromises();
+    expect(guide.open).toBe(false);
+    expect(wrapper.find(".setup").exists()).toBe(false);
+  });
+
+  it("shows the daemon's refusal under the field it names, on the step that has it", async () => {
+    const { wrapper, lastError, stand, next } = make();
+    await stand(4);
+    await next();
+    lastError.value = { text: "set_config: station/call: 'OH2ABC-99' is not a call", n: 1 };
+    await flushPromises();
+    expect(wrapper.find("h3").text()).toBe("Call");
+    expect(wrapper.find(".field-error").text()).toBe("'OH2ABC-99' is not a call");
+    expect(wrapper.find(".setup").exists()).toBe(true);
+  });
+
+  it("has no map panel while the daemon has not told its map", async () => {
+    const { wrapper, stand } = make({ map: null });
+    await stand(4);
+    expect(wrapper.find(".mapfetch").exists()).toBe(false);
+    expect(wrapper.find("button[type=submit]").text()).toBe("Finish");
+  });
+});
