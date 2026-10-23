@@ -1,6 +1,6 @@
 """Takes the screenshots of the README and the project page (site/): a daemon of its own on a temporary data folder, a made-up day on the air (scripts/demoscene.py), Chromium through Playwright.
 
-    uv run --with playwright --with pillow python scripts/screenshots.py                  # all of them into site/shots/, five of them also into docs/screenshots/
+    uv run --with playwright --with pillow python scripts/screenshots.py                  # all of them into site/shots/, seven of them also into docs/screenshots/
     uv run --with playwright --with pillow python scripts/screenshots.py --only map weather
     python scripts/screenshots.py --chromium /path/to/chrome --no-sandbox                  # a browser Playwright did not install, or one that cannot make its sandbox
 
@@ -35,7 +35,7 @@ from neoaprs.controller import Controller                         # noqa: E402
 DESKTOP = {"width": 1440, "height": 900}
 PHONE = {"width": 390, "height": 844}
 LIMIT_KB = 480                                                    # a PNG is made smaller than this (colours are reduced when it must be)
-README_SHOTS = ("map", "weather", "messages", "beacon", "setup")
+README_SHOTS = ("map", "weather", "messages", "beacon", "objects", "bulletins", "setup")
 SETTINGS = {
     "station/call": "OH2GBA", "station/lat": f"{demoscene.HOME[0]}", "station/lon": f"{demoscene.HOME[1]}", "station/symbol_table": "/", "station/symbol_code": "-",
     "station/comment": "NeoAPRS in Espoo", "beacon/power_w": "5", "beacon/antenna_height_m": "10", "beacon/antenna_gain_db": "3", "messages/alert": "false", "tnc/profile": "kiss-tcp",
@@ -262,8 +262,28 @@ async def shot_email(s: Shots, _: str) -> None:
 
 
 async def shot_bulletins(s: Shots, _: str) -> None:
+    """The message board: the box to post to it (a draft in it, with the characters left), our two entries marked ours among the heard ones."""
     page = await s.page(DESKTOP, tab="bulletins", view=CITY, panel=560)
+    await page.fill("#post-text", "Road works on the ring road, expect delays")
+    await settle(page, 400)
     await s.save(page, "bulletins")
+
+
+OBJECTS = (60.19, 24.749, 11.3)                                         # the view with all of our objects on it
+
+
+async def shot_objects(s: Shots, _: str) -> None:
+    """The Objects tab: our objects and items, how often each was sent and when it goes out next; they are on the map with the dashed ring of the ones that are ours."""
+    page = await s.page(DESKTOP, tab="objects", view=OBJECTS, panel=560)
+    await s.save(page, "objects")
+
+
+async def shot_objects_form(s: Shots, _: str) -> None:
+    """The form of an object being changed."""
+    page = await s.page(DESKTOP, tab="objects", view=OBJECTS, panel=560)
+    await page.get_by_role("button", name="Edit NETCTRL").click()
+    await settle(page, 600)
+    await s.save(page, "objects-form")
 
 
 async def shot_beacon(s: Shots, _: str) -> None:
@@ -386,10 +406,10 @@ def make_og(out: Path) -> None:
 EXTRAS = ("thumbs", "og")                                          # what is made from the shots, with no browser
 SHOTS: dict[str, Shot] = {
     "map": shot_map, "stations": shot_stations, "station": shot_station, "weather": shot_weather, "messages": shot_messages, "email": shot_email, "bulletins": shot_bulletins,
-    "beacon": shot_beacon, "settings": shot_settings, "packets": shot_packets, "phone-map": shot_phone_map, "phone-bulletins": shot_phone_bulletins, "phone-weather": shot_phone_weather,
+    "objects": shot_objects, "objects-form": shot_objects_form, "beacon": shot_beacon, "settings": shot_settings, "packets": shot_packets, "phone-map": shot_phone_map, "phone-bulletins": shot_phone_bulletins, "phone-weather": shot_phone_weather,
     "setup": shot_setup, "chain": shot_chain, "chain-failed": shot_chain_failed, "settings-web": shot_settings_web, "phone-key": shot_phone_key,
 }
-DARK_TOO = ("map", "stations", "station", "weather", "messages", "email", "bulletins", "beacon", "settings", "packets", "phone-map", "phone-bulletins", "phone-weather", "setup", "chain", "chain-failed", "settings-web", "phone-key")
+DARK_TOO = ("map", "stations", "station", "weather", "messages", "email", "bulletins", "objects", "objects-form", "beacon", "settings", "packets", "phone-map", "phone-bulletins", "phone-weather", "setup", "chain", "chain-failed", "settings-web", "phone-key")
 
 
 def in_the_dark(shot: Shot) -> Shot:
@@ -415,6 +435,7 @@ async def main(argv: list[str]) -> int:
     parser.add_argument("--no-sandbox", action="store_true", help="start the browser without its sandbox (a container, a user namespace that is refused)")
     parser.add_argument("--keep", action="store_true", help="keep the temporary data folders and say where they are")
     args = parser.parse_args(argv)
+    os.environ["NEOAPRS_UPDATE_CHECK"] = "0"                          # (no daemon of the shots asks the version page: the header shows no newer-version link)
     logging.getLogger("neoaprs").setLevel(logging.ERROR)              # (the day has a message that fails, on purpose: the log's warning about it is not news)
     chosen = args.only or list(SHOTS)
     if unknown := [n for n in chosen if n not in SHOTS and n not in EXTRAS]:
