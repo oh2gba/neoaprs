@@ -405,6 +405,7 @@ What the daemon is, for the status bar: sent after `hello`, every 10 s, when ask
 | `cpu_percent` | number |  | the daemon's CPU time (user and system) as a share of one core, in percent to a tenth, since the previous status that was at least a second before; the first counts from the start |
 | `rss_mb` | number \| null |  | the daemon's resident memory in megabytes, to a tenth; null where the system does not say |
 | `uptime_sec` | integer |  | seconds since the daemon started, by its clock |
+| `update` | UpdateInfo \| null |  | the latest version while it is newer than this one, from the daily update check (`update/check`); null when there is none, the check is off or has not been answered |
 
 ### `pong`
 
@@ -1053,6 +1054,16 @@ A station's latest telemetry report with the definitions the station sent as mes
 | `bits` | TelemetryBit[] |  | the eight digital channels |
 | `project` | string |  | the project title of the `BITS.` message; empty when there is none |
 | `comment` | string |  |  |
+
+### UpdateInfo
+
+A newer version than the daemon's, as the version page named it (services/updatecheck.py).
+
+| field | type | | description |
+|---|---|---|---|
+| `version` | string |  | the latest version |
+| `url` | string |  | where to get it: an https address, or empty |
+| `message` | string |  | a short note from the project, at most 200 characters; empty for none |
 
 ### WeatherValues
 

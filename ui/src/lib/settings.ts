@@ -57,6 +57,8 @@ export const FIELDS: Record<string, FieldInfo> = {
   "map/radius_km": { label: "Radius", unit: "km" },
   "map/maxzoom": { label: "Detail", kind: "choice", choices: DETAIL_CHOICES },
   "map/source": { label: "Source", empty: "latest build" },
+  "update/check": { label: "Check once a day", kind: "bool", title: "Sends this version and the platform" },
+  "update/url": { label: "Address" },
   "messages/attempts": { label: "Attempts" },
   "messages/alert": { label: "Alert", kind: "bool" },
   "messages/alert_command": { label: "Alert command" },
@@ -86,13 +88,17 @@ const GROUPS: { id: string; title: string; prefixes: string[]; also?: string[]; 
   { id: "log", title: "Log", prefixes: ["log/"] },
   { id: "messages", title: "Messaging", prefixes: ["messages/"] },
   { id: "map", title: "Map", prefixes: ["map/"] },
+  { id: "update", title: "Update check", prefixes: ["update/"] },
   { id: "beacon", title: "Beacon", prefixes: ["beacon/"], except: ANTENNA },
   { id: "status", title: "Status", prefixes: ["status/"] },
 ];
 
 /** Which settings a form shows: the Beacon tab has what the beacon says and sends, the Settings tab the rest (and any key this file does not know), so that no key is in two places. */
 export type Scope = "settings" | "beacon";
-const SCOPE_GROUPS: Record<Scope, readonly string[]> = { beacon: ["station", "beacon", "status"], settings: ["serial", "web", "log", "messages", "map"] };
+const SCOPE_GROUPS: Record<Scope, readonly string[]> = {
+  beacon: ["station", "beacon", "status"],
+  settings: ["serial", "web", "log", "messages", "map", "update"],
+};
 
 /** The keys in the order of the daemon's list (a key it did not list last), in the groups of the form `scope` shows. */
 export function groupKeys(keys: readonly string[], scope: Scope = "settings"): Group[] {

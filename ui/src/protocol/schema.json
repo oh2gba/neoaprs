@@ -3320,6 +3320,17 @@
         "uptime_sec": {
           "description": "seconds since the daemon started, by its clock",
           "type": "integer"
+        },
+        "update": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UpdateInfo"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the latest version while it is newer than this one, from the daily update check (`update/check`); null when there is none, the check is off or has not been answered"
         }
       },
       "required": [
@@ -3338,7 +3349,8 @@
         "rig_state",
         "cpu_percent",
         "rss_mb",
-        "uptime_sec"
+        "uptime_sec",
+        "update"
       ],
       "title": "StatusMessage",
       "type": "object"
@@ -3752,6 +3764,31 @@
         "topics"
       ],
       "title": "UnsubscribeCommand",
+      "type": "object"
+    },
+    "UpdateInfo": {
+      "additionalProperties": false,
+      "description": "A newer version than the daemon's, as the version page named it (services/updatecheck.py).",
+      "properties": {
+        "version": {
+          "description": "the latest version",
+          "type": "string"
+        },
+        "url": {
+          "description": "where to get it: an https address, or empty",
+          "type": "string"
+        },
+        "message": {
+          "description": "a short note from the project, at most 200 characters; empty for none",
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "url",
+        "message"
+      ],
+      "title": "UpdateInfo",
       "type": "object"
     },
     "WeatherSeries": {

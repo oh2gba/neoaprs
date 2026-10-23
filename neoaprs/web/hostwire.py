@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from .wirebase import Iso, _Command, _Message
+from .wirebase import Iso, _Command, _Message, _Model
 
 
 class Ping(_Command):
@@ -24,6 +24,13 @@ class Hello(_Message):
     topics: list[str] = Field(description="the topics the page is following from the start: all of them (a page may `unsubscribe` from one)")
 
 
+class UpdateInfo(_Model):
+    """A newer version than the daemon's, as the version page named it (services/updatecheck.py)."""
+    version: str = Field(description="the latest version")
+    url: str = Field(description="where to get it: an https address, or empty")
+    message: str = Field(description="a short note from the project, at most 200 characters; empty for none")
+
+
 class Status(_Message):
     """What the daemon is, for the status bar: sent after `hello`, every 10 s, when asked (`status`), and when a packet of ours has gone out (the count of packets and the beacon's times have changed). It also says what the daemon costs the machine: the CPU share, the resident memory and the uptime."""
     type: Literal["status"]
@@ -42,6 +49,7 @@ class Status(_Message):
     cpu_percent: float = Field(description="the daemon's CPU time (user and system) as a share of one core, in percent to a tenth, since the previous status that was at least a second before; the first counts from the start")
     rss_mb: float | None = Field(description="the daemon's resident memory in megabytes, to a tenth; null where the system does not say")
     uptime_sec: int = Field(description="seconds since the daemon started, by its clock")
+    update: UpdateInfo | None = Field(description="the latest version while it is newer than this one, from the daily update check (`update/check`); null when there is none, the check is off or has not been answered")
 
 
 class Pong(_Message):

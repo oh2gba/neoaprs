@@ -19,6 +19,11 @@ os.environ.setdefault("NEOAPRS_VALIDATE_RAISE", "1")
 os.environ["NEOAPRS_SERIAL_PATTERN"] = "/dev/neoaprs-test-no-such-port*"
 
 
+# No test may ask the version page on the internet (the daily update check of the daemon, services/updatecheck.py): the check of every daemon, in this process and in the processes the tests start, is off. A test of the check
+# gives its own address on the loopback and its own environment.
+os.environ["NEOAPRS_UPDATE_CHECK"] = "0"
+
+
 # Hypothesis is in the dev group. 'ci' is the default so that a run is reproducible (derandomize: the same examples every time, no example database);
 # HYPOTHESIS_PROFILE=dev explores far more, with a random seed, and keeps what it finds in .hypothesis/ to replay.
 try:

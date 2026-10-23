@@ -25,6 +25,7 @@ from .controller import Controller
 from .dberror import SqlError, StoreError
 from .instancelock import AlreadyRunning, InstanceLock
 from .paths import default_data_dir
+from .cli.servicecmd import appimage_file
 from .web.server import WebServer
 
 DATABASE_UNUSABLE = 2
@@ -142,7 +143,7 @@ async def _run_locked(args: argparse.Namespace, data_dir: Path) -> int:
     def page(ctl: Controller, config: Config) -> WebServer:
         return WebServer(ctl, config if args.web_port is None else replace(config, web_port=args.web_port))
 
-    controller = Controller(data_dir, busy_ms=3000, port=args.port, web=page)         # the daemon must not stand still behind another writer: a few seconds
+    controller = Controller(data_dir, busy_ms=3000, port=args.port, web=page, appimage=appimage_file() is not None)         # the daemon must not stand still behind another writer: a few seconds
     controller.debug = args.debug
     stop = _stop_on_signals(asyncio.get_running_loop())
     stopfile.clear(data_dir)                                 # (a request left by a stop that found nobody running is not for this run)

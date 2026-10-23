@@ -57,3 +57,6 @@ test-results/
 /.gitmodules
 /.idea/
 /.vscode/
+
+# The start logs usage-report.sh fetches from the version page.
+/server/logs/

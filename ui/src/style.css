@@ -139,6 +139,10 @@ body {
 .version {
   margin-left: auto;
 }
+.update {
+  font-size: 11px;
+  margin-left: -8px;
+}
 .dot {
   flex: none;
   width: 9px;
@@ -1439,7 +1443,8 @@ tbody tr:focus-visible {
   .panel-handle {
     display: none;
   }
-  .version {
+  .version,
+  .update {
     display: none;
   }
   .card {

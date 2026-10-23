@@ -28,7 +28,7 @@ To update, run the newer installer or the install line again; your data (setting
 
 ## First start
 
-The page opens a setup guide in five steps: **call**, **position**, **symbol**, **radio**, **map**. Nothing is transmitted until a call is set: until then NeoAPRS only listens. Once, a few minutes of internet are needed to make the map of your area.
+The page opens a setup guide in five steps: **call**, **position**, **symbol**, **radio**, **map**. Nothing is transmitted until a call is set: until then NeoAPRS only listens. Once, a few minutes of internet are needed to make the map of your area. Once a day NeoAPRS also asks whether a newer version is out; it sends its version number and the kind of system (Windows, Linux, Raspberry Pi...) and nothing else, and you can switch that off in the Settings ([Update check](docs/MANUAL.md#update-check)).
 
 ![The setup guide](docs/screenshots/setup.png)
 

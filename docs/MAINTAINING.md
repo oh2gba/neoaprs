@@ -15,6 +15,7 @@ NeoAPRS is described in several places, and they drift apart unless each change 
 | the page | `neoaprs/page/` | built: `scripts/build-page` |
 | the screenshots | `docs/screenshots/`, `site/shots/` | `scripts/screenshots.py` (a made-up day from `scripts/demoscene.py`; nothing reaches a real radio); the page's header shows the version, so a new version makes every shot old |
 | the project page | `site/` | <https://oh2gba.github.io/neoaprs/>, deployed by `.github/workflows/pages.yml` on a push to master; the features, the shots, the download names |
+| the version page | `server/` | <https://oh2gba.eu/neoaprs/version.php>: the update check of every installed copy asks it and it names the latest GitHub release by itself, so a release needs nothing done there; a change to `server/version.php` is uploaded with `server/deploy.sh`, and `server/usage-report.sh` counts the starts. A note for every user: a line in `message.txt` beside `version.php` on the server, removed again to clear it |
 | the announcement | the NeoAPRS post on <https://oh2gba.eu/> | everything it says must stay true; a large release gets a post of its own |
 
 ## The download names
@@ -28,6 +29,7 @@ The README, the project page, the announcement and `packaging/install.sh.in` nam
 3. The screenshots and the project page brought up to date (above).
 4. A tag `v<version>` pushed: `.github/workflows/release.yml` builds, smoke-tests and publishes the release.
 5. Every download link of the README, the project page and the announcement tried once.
+6. The version page names the new release: `curl 'https://oh2gba.eu/neoaprs/version.php?v=0.0.1&os=linux'` says the new version (GitHub is asked once an hour, so it may take that long), and a copy of the new version does not offer itself.
 
 ## Tests and real devices
 

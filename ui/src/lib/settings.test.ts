@@ -5,7 +5,7 @@ import { FIELDS, changedValues, errorKey, errorReason, groupKeys } from "@/lib/s
 describe("groupKeys", () => {
   it("gives the Settings tab the serial and TNC, web, log, messaging and map keys, in the daemon's order", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "settings");
-    expect(groups.map((g) => g.id)).toEqual(["serial", "web", "log", "messages", "map"]);
+    expect(groups.map((g) => g.id)).toEqual(["serial", "web", "log", "messages", "map", "update"]);
     expect(groups[0]?.keys).toEqual([
       "tnc/profile",
       "serial/port",
@@ -19,6 +19,7 @@ describe("groupKeys", () => {
     ]);
     expect(groups[3]?.keys).toEqual(["messages/attempts", "messages/alert", "messages/alert_command"]);
     expect(groups[4]?.keys).toEqual(["map/hide_after_min", "map/radius_km", "map/maxzoom", "map/source"]);
+    expect(groups[5]?.keys).toEqual(["update/check", "update/url"]);
   });
   it("gives the Beacon tab the station keys first (the call is its first field), then the beacon keys and the status keys", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "beacon");
