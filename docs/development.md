@@ -101,6 +101,7 @@ The page and the daemon talk by JSON over one WebSocket: commands from the page,
 | `ui/src/protocol/protocol.ts` | the TypeScript types made from it (no node, no json-schema-to-typescript) |
 | `ui/src/protocol/lists.ts` | the lists the daemon owns and the page shows (the settings' keys, the TNC profiles, the symbol names) and `LIMITS` |
 | `ui/src/protocol/errors.json` | the refusals of the daemon that carry a code: for each code the values it passes and the English sentence it writes, found in the source by `scripts/errorcodes.py`; the page's catalogue is held to it by `ui/src/i18n/errors.test.ts` |
+| `ui/src/i18n/en/symbols.ts` | the names of the APRS symbols as messages of the English catalogue (`symbol.primary.3e`: the table and the code in hex), written from `SYMBOL_NAMES` of the daemon; `lib/symbols.ts` `symbolText` says one |
 | `ui/src/protocol/vectors.json` | conformance vectors for the rules that are code |
 
 Run `.venv/bin/python scripts/gen-protocol.py` after a change to a wire model, a limit or a list; `--check` writes nothing and exits 1 when a file is out of
@@ -175,7 +176,7 @@ The words of the page are in a catalogue, so that a language is a file and not a
   "{n} messages" }`, chosen by the value `n` and the plural rules of the language (a language with more forms has them, `"=0"` is an exact number); or a choice by the text of a value `{ select: "kind", object: "...",
   other: "..." }`. `{{` and `}}` are a literal brace. A number is given as a number and is written with the language's decimal point and no thousands separator; one with a fixed number of decimals goes through
   `formatNumber` first. A message is a whole sentence with its values: never two messages put together (word order and agreement differ), never `n === 1` in the code, never a unit or a word taken from the middle of a sentence.
-  The units of measure (km, MB, hPa) and the compass letters are written in the code.
+  The units of measure (km, MB, hPa) and the compass letters are written in the code. What the daemon words itself and the page cannot take apart (the summary of a packet, the reason a packet could not be read, the colour and shape of an area) is shown as it comes; a route (`direct`, `via A → B`) is taken apart and worded by `routeWords` in `lib/routes.ts`.
 - **A new text**: write the English in the file of its area in `ui/src/i18n/en/` (a new area is a file and a line in `en.ts`) and use `t("id")` in the template (`{{ t("header.no_call") }}`, `:title="t('...')"`). A function of
   `lib/` that makes a sentence calls `t` itself, so the component stays a view. `ids.test.ts` fails for an id that is asked for and is not there, and for one that nobody asks for.
 - **The daemon's refusals** carry `cmd`, `key`, `code` and `params` besides the English `text`. `errortext.ts` says a refusal from the catalogue (`error.<code>`, the values from `params`) when it has the code, and with the
@@ -217,7 +218,7 @@ The words of the page are in a catalogue, so that a language is a file and not a
 | `scripts/smoke-appimage` | the smoke test of such a file: `--version`, `smoke.py`, the daemon with no radio, the unit `service install` writes, the app on the offscreen platform; without FUSE it extracts the file and runs its `AppRun` |
 | `scripts/release-notes.py` | prints the section of `CHANGELOG.md` for a version (the newest section without one): the notes of the GitHub release, which the release workflow gives to `gh release create`; exit 1 when there is none |
 | `scripts/replay` | a clone's wrapper of `neoaprs replay`: plays a capture as a KISS TNC on a TCP port (`--pty`: a pseudo-terminal), so that the daemon runs without the radio |
-| `scripts/gen-protocol.py` | writes `PROTOCOL.md` and the files of `ui/src/protocol/` (`schema.json`, `protocol.ts`, `lists.ts`, `errors.json`, `vectors.json`) from `neoaprs/web/protocol.py` and the program's constants; run it after a change to a wire model or a limit (`tests/test_protocol.py` fails when they are stale) |
+| `scripts/gen-protocol.py` | writes `PROTOCOL.md` and the files of `ui/src/protocol/` (`schema.json`, `protocol.ts`, `lists.ts`, `errors.json`, `vectors.json`, and `ui/src/i18n/en/symbols.ts`) from `neoaprs/web/protocol.py` and the program's constants; run it after a change to a wire model or a limit (`tests/test_protocol.py` fails when they are stale) |
 | `scripts/build-page` | builds the page from `ui/` (type check, Vite) into a temporary folder and swaps it in as `neoaprs/page/` with a rename: what the daemon serves and the wheel carries; run it after a change to `ui/` and commit `neoaprs/page/`. `--clean` forces `npm ci` |
 | `scripts/node-modules-current.mjs` | the question `build-page` and `worktree-setup` ask: is `ui/node_modules` what `ui/package-lock.json` says (exit 0), or not (exit 1) |
 | `scripts/fetch-basemap` | a clone's wrapper of `neoaprs map` with `--data` set to `./data` unless given: makes the base map as the page's Download button does |

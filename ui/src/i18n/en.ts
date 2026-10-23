@@ -3,10 +3,15 @@
 import { bulletins } from "@/i18n/en/bulletins";
 import { email } from "@/i18n/en/email";
 import { errors } from "@/i18n/en/errors";
+import { map } from "@/i18n/en/map";
 import { messages } from "@/i18n/en/messages";
 import { objects } from "@/i18n/en/objects";
+import { packets } from "@/i18n/en/packets";
 import { shell } from "@/i18n/en/shell";
+import { stations } from "@/i18n/en/stations";
+import { symbols } from "@/i18n/en/symbols";
 import { time } from "@/i18n/en/time";
+import { weather } from "@/i18n/en/weather";
 import type { Message } from "@/i18n/message";
 
-export const en = { ...shell, ...time, ...errors, ...messages, ...email, ...bulletins, ...objects } as const satisfies Record<string, Message>;
+export const en = { ...shell, ...time, ...errors, ...messages, ...email, ...bulletins, ...objects, ...stations, ...map, ...packets, ...weather, ...symbols } as const satisfies Record<string, Message>;

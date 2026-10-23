@@ -11,14 +11,8 @@ export const WORLD_FILE = "basemap-world.pmtiles";
 export const MAX_ZOOM = 18;
 /** The map opens at this zoom, centred on our own station: the neighbourhood of southern Finland. */
 export const OPEN_ZOOM = 9;
-/** The ODbL asks for this on every map made from OpenStreetMap data. */
+/** The ODbL asks for this on every map made from OpenStreetMap data: the licence's own wording, the same in every language (the credit of the symbol set is a message of the catalogue). */
 export const ATTRIBUTION = "© OpenStreetMap contributors, Protomaps";
-export const SYMBOLS_ATTRIBUTION = "APRS symbols: aprs.fi set by Heikki Hannikainen, OH7LZB (github.com/hessu/aprs-symbols)";
-export const NO_BASEMAP_TEXT = "No base map";
-/** Only the world is there: the stations are on a coarse map until the detailed one is made. */
-export const NO_DETAIL_TEXT = "No detailed map";
-/** The file is there but the map's code could not be loaded (the page lost the daemon for a moment, or the browser has no WebGL). */
-export const NO_ENGINE_TEXT = "The map could not be loaded";
 
 export const FONT_REGULAR = "NotoSans-Regular";
 export const FONT_MEDIUM = "NotoSans-Medium";

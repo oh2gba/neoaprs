@@ -73,7 +73,7 @@ export function arrowAngle(windDir: number | null): number | null {
   return windDir === null ? null : (windDir + 180) % 360;
 }
 
-/** What a marker's tooltip adds for a weather station: ", 10.0 °C"; nothing for any other. */
+/** What a marker's tooltip adds for a weather station: "10.0 °C"; nothing for any other. */
 export function markerWeather(row: StationRow): string {
-  return row.weather === null || row.weather.temp_c === null ? "" : `, ${tempText(row.weather.temp_c)}`;
+  return row.weather === null || row.weather.temp_c === null ? "" : tempText(row.weather.temp_c);
 }

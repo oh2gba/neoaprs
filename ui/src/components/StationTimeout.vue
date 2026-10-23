@@ -2,14 +2,15 @@
 // How long after its last position a station stays on the map ("Hide from map after"): minutes, empty for the usual 3 hours (the placeholder says which), "never" (or 0) for never. It is saved when the
 // field is changed and left, or Enter is pressed; an empty field takes the station's own timeout away, and so does the x.
 import { computed, ref, useId, watch } from "vue";
-import { NEVER, parseTimeoutText, timeoutText, type Aging } from "@/lib/aging";
+import { t } from "@/i18n";
+import { neverWord, parseTimeoutText, timeoutText, type Aging } from "@/lib/aging";
 
 const props = defineProps<{ call: string; aging: Aging }>();
 const emit = defineEmits<{ set: [call: string, minutes: number]; clear: [call: string] }>();
 
 const id = useId();
 const own = computed(() => props.aging.timeouts.get(props.call) ?? null);
-const text = computed(() => (own.value === null ? "" : own.value === 0 ? NEVER : String(own.value)));
+const text = computed(() => (own.value === null ? "" : own.value === 0 ? neverWord() : String(own.value)));
 const draft = ref(text.value);
 const parsed = computed(() => parseTimeoutText(draft.value));
 const minutes = computed(() => parsed.value !== null && parsed.value.minutes !== null && parsed.value.minutes > 0);
@@ -23,7 +24,7 @@ function save(): void {
     draft.value = "";
     if (own.value !== null) emit("clear", props.call);
   } else if (result.minutes !== own.value) {
-    draft.value = result.minutes === 0 ? NEVER : String(result.minutes);
+    draft.value = result.minutes === 0 ? neverWord() : String(result.minutes);
     emit("set", props.call, result.minutes);
   } else {
     draft.value = text.value;
@@ -33,7 +34,7 @@ function save(): void {
 
 <template>
   <div class="pathbox timeoutbox">
-    <label :for="id" class="path-label">Hide from map after</label>
+    <label :for="id" class="path-label">{{ t("station.timeout.label") }}</label>
     <input
       :id="id"
       v-model="draft"
@@ -41,8 +42,8 @@ function save(): void {
       :class="{ invalid: parsed === null }"
       type="text"
       inputmode="numeric"
-      :placeholder="`${timeoutText(aging.defaultMin)} (usual)`"
-      :title="parsed === null ? 'Whole minutes, or never' : 'Minutes, or never; empty for the usual time'"
+      :placeholder="t('station.timeout.usual', { timeout: timeoutText(aging.defaultMin) })"
+      :title="parsed === null ? t('station.timeout.bad') : t('station.timeout.hint')"
       autocomplete="off"
       spellcheck="false"
       @change="save"
@@ -52,8 +53,8 @@ function save(): void {
       v-if="own !== null"
       type="button"
       class="iconbtn use-default"
-      aria-label="Use the default timeout"
-      title="Use the default timeout"
+      :aria-label="t('station.timeout.use_default')"
+      :title="t('station.timeout.use_default')"
       @click="emit('clear', call)"
     >
       ×

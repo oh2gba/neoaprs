@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // What a click on a packet of the log opens: the packet in a few plain facts (who sent it, what kind it is, what it says, how it reached us or which path we sent it by, when; lib/packetview.ts), and under "Raw", closed, the packet as the parser decoded it, as JSON.
 import { computed } from "vue";
+import { t } from "@/i18n";
 import DisclosureBox from "@/components/DisclosureBox.vue";
 import RouteText from "@/components/RouteText.vue";
 import { decodedJson } from "@/lib/packets";
@@ -21,7 +22,7 @@ const facts = computed(() => packetFacts(props.row));
         </dd>
       </template>
     </dl>
-    <DisclosureBox plain class="more" title="Raw">
+    <DisclosureBox plain class="more" :title="t('packets.raw')">
       <pre class="json">{{ decodedJson(row) }}</pre>
     </DisclosureBox>
   </div>

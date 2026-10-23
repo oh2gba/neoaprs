@@ -7,19 +7,11 @@
 // holds (`pin`) has a marker, which the map flies to when it was typed and not clicked. An object or an item of ours (`own`) has a marker that can be dragged: where it is dropped is its new place (`move`).
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { GeoJSONSource, Map as MapLibreMap, Marker } from "maplibre-gl";
+import { t } from "@/i18n";
+import type { MessageId } from "@/i18n/catalogue";
 import MapAttribution from "@/components/MapAttribution.vue";
 import { archiveUrl, archivesPresent, glyphsUrl, loadMapEngine } from "@/lib/basemap";
-import {
-  BASEMAP_FILE,
-  WORLD_FILE,
-  basemapStyle,
-  MAX_ZOOM,
-  NO_BASEMAP_TEXT,
-  NO_DETAIL_TEXT,
-  NO_ENGINE_TEXT,
-  OPEN_ZOOM,
-  type Archives,
-} from "@/lib/basemapstyle";
+import { BASEMAP_FILE, WORLD_FILE, basemapStyle, MAX_ZOOM, OPEN_ZOOM, type Archives } from "@/lib/basemapstyle";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useClearOfCard } from "@/composables/useClearOfCard";
 import { useMapFollow } from "@/composables/useMapFollow";
@@ -70,7 +62,7 @@ const root = ref<HTMLElement | null>(null);
 const host = ref<HTMLElement | null>(null);
 const card = useClearOfCard(root, host);
 useResized(host, () => map?.resize());
-const note = ref(""); // what stands over the map when there is no base map (or no map engine)
+const note = ref<MessageId | "">(""); // what stands over the map when there is no base map (or no map engine): the id of its message
 const offerDownload = ref(false); // ... and whether it has the button that goes to where the map is made
 const placed = new Map<string, Placed>();
 let map: MapLibreMap | null = null;
@@ -95,7 +87,7 @@ const archives = (): Archives => ({
 const styleFor = (dark: boolean) => basemapStyle(archives(), dark, glyphsUrl());
 
 function noteBasemap(): void {
-  note.value = hasFiles.detail ? "" : hasFiles.world ? NO_DETAIL_TEXT : NO_BASEMAP_TEXT;
+  note.value = hasFiles.detail ? "" : hasFiles.world ? "map.note.no_detail" : "map.note.no_basemap";
   offerDownload.value = !hasFiles.detail;
 }
 
@@ -208,7 +200,7 @@ async function create(): Promise<void> {
   noteBasemap();
   engine = await loadMapEngine().catch(() => null);
   if (!engine) {
-    note.value = NO_ENGINE_TEXT;
+    note.value = "map.note.no_engine";
     offerDownload.value = false;
     return;
   }
@@ -230,7 +222,7 @@ async function create(): Promise<void> {
       attributionControl: false, // the page draws its own: a small (i), closed until clicked
     });
   } catch {
-    note.value = NO_ENGINE_TEXT; // a browser without WebGL
+    note.value = "map.note.no_engine"; // a browser without WebGL
     offerDownload.value = false;
     return;
   }
@@ -318,11 +310,11 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="root" class="stationmap">
-    <div ref="host" class="mapbox" :class="{ 'map-picking': props.picking }" role="application" aria-label="Map of the stations"></div>
+    <div ref="host" class="mapbox" :class="{ 'map-picking': props.picking }" role="application" :aria-label="t('map.label')"></div>
     <div v-if="note" class="mapnote" role="status">
       <div class="mapnote-box">
-        <span>{{ note }}</span>
-        <button v-if="offerDownload" class="btn small" type="button" @click="emit('download')">Download</button>
+        <span>{{ t(note) }}</span>
+        <button v-if="offerDownload" class="btn small" type="button" @click="emit('download')">{{ t("map.download") }}</button>
       </div>
     </div>
     <MapAttribution />

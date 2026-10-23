@@ -3,7 +3,7 @@
 // time of the nearest observation in the heading. The scaling and the paths are lib/chart.ts. A series with no value draws nothing but the frame. `range` is the value axis that several weather cards share (components/StationCards.vue), so that the curves of several
 // stations can be compared: it is rounded to round numbers as the graph's own range would be.
 import { computed, ref } from "vue";
-import { formatNumber } from "@/i18n";
+import { formatNumber, t } from "@/i18n";
 import {
   bandPath,
   bars,
@@ -104,7 +104,7 @@ function move(event: PointerEvent): void {
       class="trend-svg"
       :viewBox="`0 0 ${W} ${H}`"
       role="img"
-      :aria-label="`${title}, ${unit}`"
+      :aria-label="t('weather.chart.label', { title, unit })"
       @pointermove="move"
       @pointerdown="move"
       @pointerleave="hover = null"

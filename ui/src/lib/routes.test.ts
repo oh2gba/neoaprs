@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { bestText, heardDirect, heardDirectRecently, heardText, pathWords, reachedText, viaName } from "@/lib/routes";
+import { setLocale } from "@/i18n";
+import { bestText, heardDirect, heardDirectRecently, heardText, pathWords, reachedText, routeWords, viaName } from "@/lib/routes";
 import { NOW, ago, station } from "@/test/fixtures";
 
 describe("heardText", () => {
@@ -42,6 +43,25 @@ describe("pathWords and viaName", () => {
   it("writes an empty path as direct and ? as an unnamed repeater", () => {
     expect([pathWords(""), pathWords("OH2RCH-2")]).toEqual(["direct", "OH2RCH-2"]);
     expect([viaName("?"), viaName("OH2RCH-2")]).toEqual(["an unnamed repeater", "OH2RCH-2"]);
+  });
+});
+
+describe("routeWords", () => {
+  it("writes a route of the daemon in the words of the page", () => {
+    expect(routeWords("direct")).toBe("direct");
+    expect(routeWords("via OH2RCH-2")).toBe("via OH2RCH-2");
+    expect(routeWords("via OH7JHF-1 (internet) → OH2RCH-3")).toBe("via OH7JHF-1 (internet) → OH2RCH-3");
+  });
+  it("keeps a repeater with no call as ? unless it is told how to write one, and text that is no route as it is", () => {
+    expect(routeWords("via ? → OH2RCH-2")).toBe("via ? → OH2RCH-2");
+    expect(routeWords("via ? → OH2RCH-2", "a repeater")).toBe("via a repeater → OH2RCH-2");
+    expect(routeWords("")).toBe("");
+  });
+  it("is in the language of the page", () => {
+    setLocale("en-XA");
+    expect(routeWords("direct")).toMatch(/^\[!! /);
+    expect(routeWords("via OH2RCH-2")).toMatch(/OH2RCH-2/);
+    expect(routeWords("via OH2RCH-2")).not.toBe("via OH2RCH-2");
   });
 });
 

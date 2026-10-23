@@ -1,0 +1,15 @@
+// The map: its notes, its credits, the bar that asks for a place on it.
+export const map = {
+  "map.label": "Map of the stations",
+  "map.download": "Download",
+  "map.note.no_basemap": "No base map",
+  "map.note.no_detail": "No detailed map",
+  "map.note.no_engine": "The map could not be loaded",
+
+  "map.credits.hide": "Hide the credits",
+  "map.credits.show": "Map and symbol credits",
+  "map.credits.symbols": "APRS symbols: aprs.fi set by Heikki Hannikainen, OH7LZB (github.com/hessu/aprs-symbols)",
+
+  "map.pick.tap": "Tap the place on the map",
+  "map.pick.cancel": "Cancel",
+} as const;

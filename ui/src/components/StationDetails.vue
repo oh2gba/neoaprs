@@ -4,6 +4,7 @@
 // A row with nothing to say is left out. It is for the few who want to know; the card says the main facts (components/StationCard.vue), and puts the station's own timeout in the slot, last.
 import { computed } from "vue";
 import DisclosureBox from "@/components/DisclosureBox.vue";
+import { t } from "@/i18n";
 import { extensionRows, locatorText, telemetryBitsText, telemetryText } from "@/lib/details";
 import { dateTimeText, pathText } from "@/lib/format";
 import { bestText, heardText } from "@/lib/routes";
@@ -17,37 +18,37 @@ const best = computed(() => bestText(props.row));
 </script>
 
 <template>
-  <DisclosureBox plain class="more card-details" title="Details">
+  <DisclosureBox plain class="more card-details" :title="t('station.card.details')">
     <dl class="card-fields">
       <template v-for="ext in extensions" :key="ext.label">
         <dt>{{ ext.label }}</dt>
         <dd>{{ ext.text }}</dd>
       </template>
       <template v-if="row.locator !== null">
-        <dt>Locator</dt>
+        <dt>{{ t("station.field.locator") }}</dt>
         <dd>{{ locatorText(row.locator) }}</dd>
       </template>
       <template v-if="row.telemetry !== null">
-        <dt>Telemetry</dt>
+        <dt>{{ t("station.field.telemetry") }}</dt>
         <dd :title="dateTimeText(row.telemetry_at)">{{ telemetryText(row.telemetry) }}</dd>
-        <dt>Bits</dt>
+        <dt>{{ t("station.field.bits") }}</dt>
         <dd>{{ telemetryBitsText(row.telemetry) }}</dd>
       </template>
-      <dt>First heard</dt>
+      <dt>{{ t("station.field.first_heard") }}</dt>
       <dd>{{ dateTimeText(row.first_heard) }}</dd>
       <template v-if="row.last_path.length > 0">
-        <dt>Path</dt>
+        <dt>{{ t("station.field.path") }}</dt>
         <dd class="mono">{{ pathText(row.last_path) }}</dd>
       </template>
       <template v-if="heard !== '-'">
-        <dt>Heard</dt>
+        <dt>{{ t("station.field.heard") }}</dt>
         <dd>{{ heard }}</dd>
       </template>
       <template v-if="best !== '-'">
-        <dt>Best route</dt>
+        <dt>{{ t("station.field.best_route") }}</dt>
         <dd>{{ best }}</dd>
       </template>
-      <dt>Packets</dt>
+      <dt>{{ t("station.field.packets") }}</dt>
       <dd>{{ row.packets }}</dd>
     </dl>
     <slot></slot>

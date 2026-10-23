@@ -1,7 +1,10 @@
 // The card that follows the pointer to a station's marker on the map: after a short delay it shows what matters at a glance (who, how long ago, status, comment, how far and in which direction, the
 // temperature of a weather station, how the packets reach us) and goes when the pointer leaves. One element serves every marker. A touch screen has no pointer to rest on a marker, so only a mouse
 // shows it, and a tap opens the full card as ever.
-import { ageText, bearingText, distanceText } from "@/lib/format";
+import { t } from "@/i18n";
+import { agoWords, bearingText, distanceText } from "@/lib/format";
+import { routeWords } from "@/lib/routes";
+import { symbolLabel } from "@/lib/stations";
 import { tempText } from "@/lib/weather";
 import type { StationRow } from "@/protocol/protocol";
 
@@ -17,12 +20,18 @@ export interface HoverRow {
 
 /** The rows the card has for a station: only those that have something to say. */
 export function hoverRows(row: StationRow, nowMs: number): HoverRow[] {
-  const rows: HoverRow[] = [{ label: "Heard", text: `${ageText(row.last_heard, nowMs)} ago` }];
-  if (row.last_status !== "") rows.push({ label: "Status", text: row.last_status });
-  if (row.last_comment !== "") rows.push({ label: "Comment", text: row.last_comment });
-  if (row.distance_km !== null) rows.push({ label: "From us", text: `${distanceText(row.distance_km)} km, ${bearingText(row.bearing_deg)}` });
-  if (row.weather !== null && row.weather.temp_c !== null) rows.push({ label: "Temperature", text: tempText(row.weather.temp_c) });
-  if (!row.is_me && row.last_route !== "") rows.push({ label: "Route", text: row.last_route === "direct" ? "heard direct" : row.last_route });
+  const rows: HoverRow[] = [{ label: t("station.hover.heard"), text: agoWords(row.last_heard, nowMs) }];
+  if (row.last_status !== "") rows.push({ label: t("station.field.status"), text: row.last_status });
+  if (row.last_comment !== "") rows.push({ label: t("station.field.comment"), text: row.last_comment });
+  if (row.distance_km !== null) {
+    rows.push({
+      label: t("station.field.from_us"),
+      text: t("station.from_us_value", { distance: distanceText(row.distance_km), bearing: bearingText(row.bearing_deg) }),
+    });
+  }
+  if (row.weather !== null && row.weather.temp_c !== null) rows.push({ label: t("weather.temperature"), text: tempText(row.weather.temp_c) });
+  if (!row.is_me && row.last_route !== "")
+    rows.push({ label: t("station.hover.route"), text: row.last_route === "direct" ? t("station.heard_direct") : routeWords(row.last_route) });
   return rows;
 }
 
@@ -79,7 +88,7 @@ export class HoverCard {
       return;
     }
     const head = element("div", "hc-head");
-    head.append(element("b", "hc-call", row.call), element("span", "hc-symbol", `${row.symbol_name}${row.own ? " (ours)" : ""}`));
+    head.append(element("b", "hc-call", row.call), element("span", "hc-symbol", symbolLabel(row)));
     const rows = hoverRows(row, this.now()).map(({ label, text }) => {
       const line = element("div", "hc-row");
       line.append(element("span", "hc-key", label), element("span", "hc-val", text));

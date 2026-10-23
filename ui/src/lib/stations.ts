@@ -1,4 +1,6 @@
 // The station rows as the page lists and draws them: which have a position, the filter and the order of the table. Plain functions of rows and the time.
+import { t } from "@/i18n";
+import { symbolText } from "@/lib/symbols";
 import type { StationRow } from "@/protocol/protocol";
 
 type Positioned = StationRow & { lat: number; lon: number };
@@ -58,9 +60,20 @@ interface ListOptions {
   sort: Sort;
 }
 
+/** The name of the station's symbol in the page's language ("Car"); "unknown" for a station with none. */
+export function symbolName(row: Pick<StationRow, "symbol_table" | "symbol_code">): string {
+  return symbolText(row.symbol_table, row.symbol_code);
+}
+
+/** The name of the symbol with who owns the station: "Car (ours)" for an object or an item of ours, and with `me` "Car (our station)" for our own station. */
+export function symbolLabel(row: Pick<StationRow, "symbol_table" | "symbol_code" | "own" | "is_me">, me = false): string {
+  const name = symbolName(row);
+  return me && row.is_me ? t("station.symbol.me", { name }) : row.own ? t("station.symbol.own", { name }) : name;
+}
+
 function matches(row: StationRow, needle: string): boolean {
   if (needle === "") return true;
-  const text = `${row.call} ${row.symbol_name} ${row.last_comment} ${row.last_status} ${row.last_path.join(",")} ${row.reported_by}`.toLowerCase();
+  const text = `${row.call} ${symbolName(row)} ${row.last_comment} ${row.last_status} ${row.last_path.join(",")} ${row.reported_by}`.toLowerCase();
   return text.includes(needle);
 }
 

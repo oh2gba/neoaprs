@@ -65,7 +65,6 @@ export const messages = {
   "route.button": "Route",
   "route.changed": "Route: not the default",
   "route.path": "Path",
-  "route.direct": "direct",
   "route.calls_hint": "Calls separated by commas, at most {max}",
   "route.default": "(default)",
   "route.use_default": "Use the default path",

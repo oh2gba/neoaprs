@@ -1,5 +1,6 @@
 // How stations age on the map: the timeout of a station (its own, else the default of 180 minutes; 0 is never), whether a station has passed it, and how faded the marker and
 // the trail of a station are on the way there. Plain functions of rows and the time.
+import { t } from "@/i18n";
 import { ageSeconds } from "@/lib/format";
 import { LIMITS } from "@/protocol/lists";
 import type { StationRow } from "@/protocol/protocol";
@@ -58,14 +59,14 @@ export function markerStep(aging: Aging, row: StationRow, nowMs: number): number
 }
 
 const TIMEOUT_MAX_MIN = 1_000_000;
-/** How a timeout of 0 is written. */
-export const NEVER = "never";
+/** How a timeout of 0 is written: "never" in the page's language. */
+export const neverWord = (): string => t("station.timeout.never");
 
-/** What was typed in a timeout field: `{ minutes: null }` for an empty field (the default), the whole minutes otherwise (0 or "never" is never), null for text that is no timeout. */
+/** What was typed in a timeout field: `{ minutes: null }` for an empty field (the default), the whole minutes otherwise (0, "never" or the word for it in the page's language is never), null for text that is no timeout. */
 export function parseTimeoutText(text: string): { minutes: number | null } | null {
   const trimmed = text.trim().toLowerCase();
   if (trimmed === "") return { minutes: null };
-  if (trimmed === NEVER) return { minutes: 0 };
+  if (trimmed === "never" || trimmed === neverWord().toLowerCase()) return { minutes: 0 };
   if (!/^\d+$/.test(trimmed)) return null;
   const minutes = Number(trimmed);
   return minutes <= TIMEOUT_MAX_MIN ? { minutes } : null;
@@ -73,8 +74,8 @@ export function parseTimeoutText(text: string): { minutes: number | null } | nul
 
 /** A timeout for people: "never", "45 min", "3 h", "2 d". */
 export function timeoutText(minutes: number): string {
-  if (minutes <= 0) return NEVER;
-  if (minutes % 1440 === 0) return `${minutes / 1440} d`;
-  if (minutes % 60 === 0) return `${minutes / 60} h`;
-  return `${minutes} min`;
+  if (minutes <= 0) return neverWord();
+  if (minutes % 1440 === 0) return t("time.span.d", { n: minutes / 1440 });
+  if (minutes % 60 === 0) return t("time.span.h", { n: minutes / 60 });
+  return t("time.span.min", { n: minutes });
 }

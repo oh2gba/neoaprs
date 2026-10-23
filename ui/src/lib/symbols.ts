@@ -2,6 +2,8 @@
 // 16 symbols wide and 6 high, SPRITE_PX pixels a symbol, the codes "!" (0x21) to "~" (0x7E) in order from the top left. The overlay sheet has the characters 0-9 and A-Z at the places
 // of the codes of the same characters, white with a shadow: an overlay table draws the alternate symbol of the code and the overlay character of the table over it.
 
+import { hasMessage, t } from "@/i18n";
+
 export const SPRITE_PX = 48;
 export const SPRITE_COLUMNS = 16;
 const SPRITE_ROWS = 6;
@@ -51,4 +53,13 @@ export function layerStyle(layer: SpriteLayer, size: number): Record<string, str
     backgroundSize: `${SPRITE_COLUMNS * size}px ${SPRITE_ROWS * size}px`,
     backgroundPosition: `${-layer.column * size}px ${-layer.row * size}px`,
   };
+}
+
+const COMPRESSED_OVERLAY = /^[a-j]$/;
+
+/** The name of the symbol of a table and a code in the page's language ("Car", "Digipeater"), "unknown" for none: the catalogue has a message for each of the codes `!` to `~` of the two tables (`symbol.primary.3e`, written from the daemon's own list); an overlay table is the alternate one. */
+export function symbolText(table: string, code: string): string {
+  const known = table === "/" || table === "\\" || OVERLAYS.test(table) || COMPRESSED_OVERLAY.test(table);
+  const id = `symbol.${table === "/" ? "primary" : "alternate"}.${code.length === 1 ? code.charCodeAt(0).toString(16) : ""}`;
+  return known && hasMessage(id) ? t(id) : t("symbol.unknown");
 }
