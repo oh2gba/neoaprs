@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Makes a fresh git worktree (or clone) ready for scripts/check: the Python environment and ui/node_modules, both real folders of this tree (no symlink to another checkout).
+#
+#   scripts/worktree-setup
+#
+# `uv sync --frozen --all-extras` (from uv's cache when it has everything, else from the net), and `npm ci` in ui/ (from npm's cache when it has everything, else from the net).
+# An existing ui/node_modules that matches ui/package-lock.json is left alone; a symlink in its place is removed (only the link) and replaced by a real install.
+case "${1:-}" in -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;; esac
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+command -v uv >/dev/null || { echo "worktree-setup: uv is not installed"; exit 1; }
+uv sync --frozen --all-extras --offline 2>/dev/null || uv sync --frozen --all-extras
+
+node_ok() { command -v node >/dev/null && node -e 'const [a, b] = process.versions.node.split(".").map(Number); process.exit(a > 22 || (a === 22 && b >= 12) ? 0 : 1)'; }
+if ! node_ok; then
+    newest="$(ls -d "$HOME"/.nvm/versions/node/v*/bin 2>/dev/null | sort -V | tail -n 1 || true)"
+    [ -n "$newest" ] && export PATH="$newest:$PATH"
+fi
+node_ok || { echo "worktree-setup: node 22.12 or newer is needed (on the PATH or in ~/.nvm)"; exit 1; }
+
+cd ui
+if [ -L node_modules ]; then rm node_modules; fi        # only the link goes; what it pointed at is not touched
+if node ../scripts/node-modules-current.mjs; then
+    echo "worktree-setup: ui/node_modules is current"
+else
+    export npm_config_update_notifier=false npm_config_fund=false npm_config_audit=false
+    npm ci --offline || npm ci
+fi
+echo "worktree-setup: ready: scripts/check"

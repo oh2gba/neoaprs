@@ -16,7 +16,7 @@
     "coverage": "vitest run --coverage",
     "dup": "jscpd",
     "knip": "knip",
-    "protocol": "../.venv/bin/python ../scripts/gen-protocol.py"
+    "protocol": "uv run --frozen python ../scripts/gen-protocol.py"
   },
   "dependencies": {
     "maplibre-gl": "6.14.0",

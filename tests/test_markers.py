@@ -1,4 +1,4 @@
-"""The markers (tests/support/markers.py) give every test its kind, so that `pytest -m unit`, `-m "not e2e"` and `-m safety` mean something."""
+"""The markers (tests/support/markers.py) give every test its kind, so that `pytest -m unit` and `-m safety` mean something."""
 import tomllib
 
 import pytest
@@ -17,16 +17,10 @@ def names_of(item: pytest.Item) -> set[str]:
     return {m.name for m in item.iter_markers()}
 
 
-def test_every_test_is_exactly_one_of_unit_integration_e2e(request: pytest.FixtureRequest) -> None:
+def test_every_test_is_exactly_one_of_unit_integration(request: pytest.FixtureRequest) -> None:
     for item in collected(request):
         kinds = names_of(item) & set(markers.KINDS)
         assert len(kinds) == 1, f"{item.nodeid} is {sorted(kinds) or 'nothing'}"
-
-
-def test_the_browser_tests_and_only_they_are_e2e(request: pytest.FixtureRequest) -> None:
-    for item in collected(request):
-        in_browser_dir = any(part in markers.E2E_DIRS for part in item.path.parts)
-        assert ("e2e" in names_of(item)) == in_browser_dir, item.nodeid
 
 
 def test_a_test_with_a_loop_or_the_daemon_is_integration_and_the_rest_is_unit(request: pytest.FixtureRequest) -> None:

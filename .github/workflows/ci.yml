@@ -1,5 +1,5 @@
 # What a push or a pull request must pass: the Python half (lock, ruff, mypy, the tests) on Linux and on Windows, the smoke test of the built wheel on both, and the page's half (type check, lint, tests,
-# and neoaprs/page/ is what ui/ builds). The same commands as scripts/check; no secrets, nothing is published.
+# and neoaprs/page/ is what ui/ builds, and the two duplication ratchets). The same commands as scripts/check; no secrets, nothing is published.
 name: ci
 
 on:
@@ -95,6 +95,15 @@ jobs:
           npm run format:check
           npm run knip
           npm test
+      # The duplication ratchets: jscpd over ui/src, and over neoaprs/ and tests/support/ against scripts/dup-baseline.json (scripts/check runs them with the Python of the venv).
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.13"
+          enable-cache: true
+      - run: uv sync --frozen
+      - run: scripts/check --stage dup
+      - run: scripts/check --stage dup-py
+      # build-page installs nothing here: ui/node_modules is what the lockfile says since the first step.
       - name: The committed page is what ui/ builds
         run: |
           scripts/build-page

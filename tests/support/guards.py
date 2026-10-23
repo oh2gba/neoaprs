@@ -12,7 +12,7 @@
 * no leaked logging: the levels, handlers and switches of the loggers are what they were when the test started (neoaprs.daemon.setup_logging sets the level of the
   root logger and adds handlers; a test that ran it would leave the level at INFO for every test after it, which `caplog` of those would then see).
 
-The fixtures are wired in by tests/conftest.py. They do not apply to tests/e2e (a browser, a page, their own rule for console errors).
+The fixtures are wired in by tests/conftest.py.
 Each guard is a small function here, so that tests/test_guards.py can show that it fails when it should."""
 import asyncio
 import errno
@@ -39,16 +39,10 @@ import serial.tools.list_ports  # type: ignore[import-untyped]
 from neoaprs import btpaired
 from neoaprs.dbthread import DbThread
 from tests.support import env as env_module
-from tests.support.markers import E2E_DIRS
 
 # Not errors of the code under test: "asyncio" reports a task that was never awaited from the garbage collector, in whatever test runs then (the task guard says it,
 # with the right name); "tornado.access" is the access log of the fake services, which logs every 500 the fake was told to answer.
 IGNORED_LOGGERS = ("asyncio", "tornado.access")
-
-
-def guarded(item: pytest.Item) -> bool:
-    """Not the browser tests (tests/e2e, tests/e2e_pw): their own harness, their own rule for console errors."""
-    return not any(part in E2E_DIRS for part in item.path.parts)
 
 
 # ---- no real machine: the environment
@@ -314,7 +308,7 @@ def add_leak_guard(items: list[pytest.Item]) -> None:
     """The task guard is an async fixture, and an async fixture makes an event loop: so it is asked for by the async tests only. (A usefixtures marker added
     now would be too late: the fixtures of an item are worked out when it is made. The name goes onto the list that is set up, last, and so torn down first.)"""
     for item in items:
-        if guarded(item) and inspect.iscoroutinefunction(getattr(item, "obj", None)) and isinstance(item, pytest.Function):
+        if inspect.iscoroutinefunction(getattr(item, "obj", None)) and isinstance(item, pytest.Function):
             item.fixturenames.append("no_leaked_tasks")
 
 
@@ -356,19 +350,15 @@ def restore_logging(state: tuple[int, dict[logging.Logger, LoggerState]]) -> lis
 # ---- the fixtures (wired in by tests/conftest.py)
 
 @pytest.fixture(autouse=True)
-def logging_restored(request: pytest.FixtureRequest) -> Iterator[None]:
+def logging_restored() -> Iterator[None]:
     """Whatever a test does to the loggers is undone when it ends (and the next test starts from the same logging as the first one did)."""
     state = logging_state()
     yield
-    if guarded(request.node):
-        restore_logging(state)
+    restore_logging(state)
 
 
 @pytest.fixture(autouse=True)
-def isolated_machine(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    if not guarded(request.node):
-        yield
-        return
+def isolated_machine(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     with tempfile.TemporaryDirectory(prefix="neoaprs-test-home-") as root:
         empty_home(Path(root), monkeypatch.setenv)
         network = NetworkGuard()
@@ -388,9 +378,6 @@ def isolated_machine(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyP
 
 @pytest.fixture(autouse=True)
 def no_unexpected_errors(request: pytest.FixtureRequest, logging_restored: None) -> Iterator[None]:   # logging_restored: set up first, torn down last
-    if not guarded(request.node):
-        yield
-        return
     recorder = ErrorRecorder()
     root = logging.getLogger()
     root.addHandler(recorder)
@@ -403,11 +390,9 @@ def no_unexpected_errors(request: pytest.FixtureRequest, logging_restored: None)
 
 
 @pytest.fixture(autouse=True)
-def no_leaked_db_threads(request: pytest.FixtureRequest) -> Iterator[None]:
+def no_leaked_db_threads() -> Iterator[None]:
     """Torn down after no_leaked_tasks (which stops the daemons of Env, and with them their Db): a Db that is still running now was not closed. Its thread is told to end, so that one leak does not fail the tests after it."""
     yield
-    if not guarded(request.node):
-        return
     leaked = leaked_db_threads()
     for thread in leaked:
         thread.finish()
@@ -416,7 +401,7 @@ def no_leaked_db_threads(request: pytest.FixtureRequest) -> Iterator[None]:
 
 @pytest_asyncio.fixture
 async def no_leaked_tasks() -> AsyncIterator[None]:
-    """Added by tests/conftest.py to every async test that is guarded (a fixture that is async would otherwise make a loop for the sync tests too)."""
+    """Added by tests/conftest.py to every async test (a fixture that is async would otherwise make a loop for the sync tests too)."""
     yield
     await env_module.stop_all()
     leaked = await leaked_tasks()

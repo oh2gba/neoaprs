@@ -31,6 +31,11 @@ The README, the project page, the announcement and `packaging/install.sh.in` nam
 5. Every download link of the README, the project page and the announcement tried once.
 6. The version page names the new release: `curl 'https://oh2gba.eu/neoaprs/version.php?v=0.0.1&os=linux'` says the new version (GitHub is asked once an hour, so it may take that long), and a copy of the new version does not offer itself.
 
+## A fresh worktree
+
+`scripts/worktree-setup` makes a new `git worktree` ready for `scripts/check`: `uv sync --frozen --all-extras` and a real `ui/node_modules` from `npm ci` (from the caches when they have everything), never a symlink to another checkout.
+`scripts/build-page` runs `npm ci` only when `ui/node_modules` is not what the lockfile says (`--clean` forces it) and swaps the new page in with a rename.
+
 ## Tests and real devices
 
 The tests never open a serial device: `tests/conftest.py` points the search at a path that matches nothing (`NEOAPRS_SERIAL_PATTERN`), and the guards of `tests/support/guards.py` refuse any device of a serial driver. A daemon started by hand for a test, outside the suite, gets `--port socket://...` (a fake TNC, `neoaprs replay`) or a `serial/pattern` that matches nothing: a fresh data folder otherwise searches every serial port of the machine, and some boards reset when their port is opened.

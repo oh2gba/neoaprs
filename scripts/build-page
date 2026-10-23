@@ -2,12 +2,18 @@
 # Builds the page from its source in ui/ (Vue 3 + TypeScript + Vite) into neoaprs/page/, which is what the daemon serves as it is and what the wheel carries as package data.
 # neoaprs/page/ is kept in git, so the machine that runs NeoAPRS, and the one that builds the wheel, needs no node: this is for the one that changes the page.
 #
-#   scripts/build-page
+#   scripts/build-page            type check, build, swap the new page in
+#   scripts/build-page --clean    the same after a clean install (npm ci) of ui/node_modules, whether it is current or not
 #
-# Clean install from the lockfile, type check, build into neoaprs/page/ (everything in it is made again: nothing of the old files stays; the files in
-# ui/public/ - the symbol sheets, the glyph files of the map's labels, the manifest and the icons - are copied; sw.js, the service worker, is written from ui/sw/sw.js with the version in it; the others get the hash of their content in the name). base is "./", so the page
-# works from any path. tests/test_page_build.py fails when neoaprs/page/ is not what ui/ builds. Needs node 22.12 or newer (on the PATH, else the newest in ~/.nvm).
-case "${1:-}" in -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;; esac
+# The page is built into a temporary folder beside neoaprs/page/ and swapped in with two renames (everything in it is made again: nothing of the old files stays), so that a test or a daemon that reads
+# neoaprs/page/ meanwhile sees the old page or the new one, never half of one. The files in ui/public/ - the symbol sheets, the glyph files of the map's labels, the manifest and the icons - are copied;
+# sw.js, the service worker, is written from ui/sw/sw.js with the version in it; the others get the hash of their content in the name. base is "./", so the page works from any path.
+# tests/test_page_build.py fails when neoaprs/page/ is not what ui/ builds. Needs node 22.12 or newer (on the PATH, else the newest in ~/.nvm).
+#
+# ui/node_modules is installed from the lockfile (npm ci, which deletes it first) only when it is missing or is not what ui/package-lock.json says. When it is a symlink (to another checkout's) it is only
+# checked, and the script says so; it stops if it is not current (scripts/worktree-setup makes a real one).
+clean=0
+case "${1:-}" in -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;; --clean) clean=1 ;; "") ;; *) echo "build-page: unknown argument $1" >&2; exit 2 ;; esac
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
@@ -19,8 +25,21 @@ fi
 node_ok || { echo "build-page: node 22.12 or newer is needed (on the PATH or in ~/.nvm)"; exit 1; }
 
 cd "$ROOT/ui"
-npm ci --no-audit --no-fund
+export npm_config_update_notifier=false npm_config_fund=false npm_config_audit=false
+if [ -L node_modules ]; then
+    node ../scripts/node-modules-current.mjs || { echo "build-page: ui/node_modules is a symlink and is not what package-lock.json says; it is left alone: run scripts/worktree-setup"; exit 1; }
+    echo "build-page: ui/node_modules is a symlink: checked, not installed"
+elif [ "$clean" = 1 ] || ! node ../scripts/node-modules-current.mjs; then
+    npm ci
+fi
 npx vue-tsc --noEmit
-rm -rf "$ROOT/neoaprs/page"
-NEOAPRS_OUT="$ROOT/neoaprs/page" npx vite build
+
+# A folder beside neoaprs/page/ (the same file system, so that the swap is a rename); the old page is removed when the new one is in place.
+new="$ROOT/neoaprs/.page-new.$$"
+old="$ROOT/neoaprs/.page-old.$$"
+trap 'rm -rf "$new" "$old"' EXIT
+NEOAPRS_OUT="$new" npx vite build
+[ -f "$new/index.html" ] || { echo "build-page: the build made no index.html: neoaprs/page/ is left as it was"; exit 1; }
+if [ -e "$ROOT/neoaprs/page" ]; then mv "$ROOT/neoaprs/page" "$old"; fi
+mv "$new" "$ROOT/neoaprs/page"
 echo "build-page: neoaprs/page/ is made from ui/ ($(find "$ROOT/neoaprs/page" -type f | wc -l) files)"

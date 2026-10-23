@@ -2,5 +2,6 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "entry": ["src/**/*.test.ts"],
   "project": ["src/**/*.{ts,vue}"],
-  "ignore": ["src/protocol/protocol.ts", "src/protocol/lists.ts"]
+  "ignore": ["src/protocol/protocol.ts", "src/protocol/lists.ts"],
+  "ignoreBinaries": ["uv"]
 }
