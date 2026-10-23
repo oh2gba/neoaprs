@@ -95,12 +95,13 @@ async def test_the_start_reads_the_settings_and_puts_us_in_the_station_book(tmp_
     first = Env(tmp_path, radio=False, operator=False)
     await first.start(connected=False)
     assert first.ctl.config == DEFAULTS
-    await first.ctl.store.put_settings({"station/call": "oh2gba-7", "station/lat": "61.5", "station/lon": "25.5", "log/keep_days": "bad", "web/port": "8080"})
+    await first.ctl.store.put_settings({"station/call": "oh2gba-7", "station/lat": "61.5", "station/lon": "25.5", "map/radius_km": "bad", "web/port": "8080", "web/allowed_hosts": "pi", "log/keep_days": "400", "update/check": "false"})
     await first.stop()
     second = Env(tmp_path, radio=False, operator=False)
     await second.start(connected=False)
     c = second.ctl.config
-    assert (c.station_call, c.station_lat, c.station_lon, c.web_port, c.log_keep_days) == ("OH2GBA-7", 61.5, 25.5, 8080, 30), "a value that is wrong is the default"
+    assert (c.station_call, c.station_lat, c.station_lon, c.web_port, c.map_radius_km) == ("OH2GBA-7", 61.5, 25.5, 8080, 150), "a value that is wrong is the default"
+    assert c.web_allowed_hosts == "pi", "the port and the hosts of the page are not on the page, and are settings all the same"
     me = second.ctl.stationbook.me
     assert me is not None and (me.call, me.lat, me.lon, me.is_me) == ("OH2GBA-7", 61.5, 25.5, True)
     await second.stop()

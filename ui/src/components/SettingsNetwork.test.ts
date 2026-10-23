@@ -19,11 +19,11 @@ afterEach(() => vi.unstubAllGlobals());
 describe("the network access", () => {
   it("has a switch labelled Allow access from the network, off by default, and sends it like any setting", async () => {
     const { wrapper, send } = make();
-    const switch_ = wrapper.find<HTMLSelectElement>("#set-web-network");
+    const switch_ = wrapper.find<HTMLInputElement>("#set-web-network");
     expect(wrapper.find("label[for='set-web-network']").text()).toBe("Allow access from the network");
-    expect(switch_.element.value).toBe("false");
-    expect(switch_.findAll("option").map((o) => o.text())).toEqual(["yes", "no"]);
-    await switch_.setValue("true");
+    expect(switch_.attributes("type")).toBe("checkbox");
+    expect(switch_.element.checked).toBe(false);
+    await switch_.setValue(true);
     await wrapper.find("form").trigger("submit");
     expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "web/network": "true" } });
   });
@@ -37,7 +37,7 @@ describe("the network access", () => {
 
   it("does not show the key of a switch that is only turned on in the form, until it is saved", async () => {
     const { wrapper } = make({ "web/key": "k7m2-x9pq-4hrt" });
-    await wrapper.find("#set-web-network").setValue("true");
+    await wrapper.find("#set-web-network").setValue(true);
     expect(wrapper.find("#set-web-key").exists()).toBe(false);
   });
 

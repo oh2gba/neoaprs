@@ -91,7 +91,7 @@ export interface BulletinUnpostCommand {
   slot: string;
 }
 
-/** Asks the version page now, the question of the daily update check (`update/check`), whether that is switched on or not; the daily schedule is left as it was. Answered with `update_result` and then a `status` (with the newer version, if there is one) to the page that asked. */
+/** Asks the version page now, the question of the daily update check; the daily schedule is left as it was. Answered with `update_result` and then a `status` (with the newer version, if there is one) to the page that asked. */
 export interface CheckUpdateCommand {
   cmd: "update_check";
 }
@@ -833,7 +833,7 @@ export interface StatusMessage {
   rss_mb: number | null;
   /** seconds since the daemon started, by its clock */
   uptime_sec: number;
-  /** the latest version while it is newer than this one, from the daily update check (`update/check`); null when there is none, the check is off or has not been answered */
+  /** the latest version while it is newer than this one, from the daily update check; null when there is none or the check has not been answered */
   update: UpdateInfo | null;
 }
 

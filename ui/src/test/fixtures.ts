@@ -272,7 +272,6 @@ export function configValues(extra: Record<string, string> = {}): ConfigValues {
     "beacon/antenna_height_m": "0",
     "beacon/antenna_gain_db": "0",
     "beacon/antenna_direction": "omni",
-    "log/keep_days": "30",
     "web/network": "false",
     "web/key": "",
     "web/port": "7303",
@@ -292,7 +291,6 @@ export function configValues(extra: Record<string, string> = {}): ConfigValues {
     "map/radius_km": "150",
     "map/maxzoom": "12",
     "map/source": "",
-    "update/check": "true",
     "update/url": "https://oh2gba.eu/neoaprs/version.php",
     ...extra,
   };

@@ -57,10 +57,16 @@ export function describeFile(file: MapFileInfo, withArea: boolean): string {
   return parts.join(", ");
 }
 
-/** The lines about the files on disk: the detailed map first, then the world's. */
+/** The lines about the files on disk, each saying what it is: the detailed map first, then the world's. */
 export function fileLines(map: MapState): string[] {
-  return [...(map.detail ? [describeFile(map.detail, true)] : []), ...(map.world ? [`World: ${describeFile(map.world, false)}`] : [])];
+  return [
+    ...(map.detail ? [`Detailed map here: ${describeFile(map.detail, true)}`] : []),
+    ...(map.world ? [`World map here: ${describeFile(map.world, false)}`] : []),
+  ];
 }
+
+/** A download over this many bytes is asked about first (Download 513 MB?): a mobile connection or a small card would feel it. */
+export const BIG_DOWNLOAD_BYTES = 200_000_000;
 
 /** The estimate, if it is for the area and the zoom the settings ask for now; an older one is not shown. */
 export function currentEstimate(map: MapState): MapSizeEstimate | null {

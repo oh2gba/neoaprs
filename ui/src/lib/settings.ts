@@ -15,6 +15,10 @@ export interface FieldInfo {
   empty?: string;
   /** On hover: the one thing a word cannot say. */
   title?: string;
+  /** The text of the (i) beside the field, one paragraph for each entry: what the setting is for, what to pick, an example. Only for a field a non-developer may not understand. */
+  tip?: readonly string[];
+  /** What the (i) is called for a screen reader and on hover; else "About" and the label. */
+  tipLabel?: string;
   kind?: FieldKind;
   /** The values a `choice` offers: the text of the setting, or the text with the words it is shown as. */
   choices?: readonly (string | Choice)[];
@@ -24,8 +28,6 @@ export interface Choice {
   value: string;
   label: string;
 }
-
-const AT_START = "Read at the daemon's start";
 
 export const FIELDS: Record<string, FieldInfo> = {
   "station/call": { label: "Call" },
@@ -39,25 +41,110 @@ export const FIELDS: Record<string, FieldInfo> = {
   "beacon/antenna_height_m": { label: "Antenna height", unit: "m" },
   "beacon/antenna_gain_db": { label: "Antenna gain", unit: "dB" },
   "beacon/antenna_direction": { label: "Antenna direction", kind: "choice", choices: ["omni", "N", "NE", "E", "SE", "S", "SW", "W", "NW"] },
-  "tnc/profile": { label: "TNC", kind: "choice", choices: TNC_PROFILES.map((p) => ({ value: p.key, label: p.name })) },
-  "serial/port": { label: "Port", empty: "/dev/ttyUSB0", title: "Automatic: NeoAPRS listens for the radio" },
-  "serial/baud": { label: "Speed", unit: "baud" },
-  "tcp/host": { label: "Host" },
-  "tcp/port": { label: "Port", title: "Direwolf 8001, soundmodem 8100" },
+  "tnc/profile": {
+    label: "Radio type",
+    kind: "choice",
+    choices: TNC_PROFILES.map((p) => ({ value: p.key, label: p.name })),
+    tipLabel: "Which radio type to pick",
+    tip: [
+      "This tells NeoAPRS how to talk to your radio or modem (its TNC, the part that turns sound into packets). Pick the line that matches yours.",
+      "KISS TNC: Mobilinkd, NinoTNC, TNC-Pi, and the Kenwood TH-D74 and TH-D75 with KISS switched on at the radio. The usual choice.",
+      "KISS over TCP: Direwolf or a sound-card modem running on this or another computer. A Digirig or SignaLink goes this way too.",
+      "Kenwood TH-D7, TM-D700, TS-2000: NeoAPRS puts the radio into KISS itself. So it does for the TM-D710 and TH-D72, and for the Kantronics KPC-3+.",
+      "Not sure? See the radio guide, docs/RADIOS.md.",
+    ],
+  },
+  "serial/port": {
+    label: "Port",
+    empty: "/dev/ttyUSB0",
+    tipLabel: "About the port",
+    tip: [
+      "The connection to the radio. On Linux, automatic means NeoAPRS listens to the USB ports until it finds the radio, and remembers it. Choose a port yourself if you have several devices, or if the search picks the wrong one.",
+      "A USB radio is /dev/ttyUSB0 on Linux and COM3 on Windows. A Bluetooth radio appears in this list after you have paired it with the computer.",
+      "Refresh reads the list again, for example after you plug the cable in.",
+    ],
+  },
+  "serial/baud": {
+    label: "Speed",
+    unit: "baud",
+    tipLabel: "About the speed",
+    tip: [
+      "The speed of the cable between the computer and the TNC. Leave it empty: NeoAPRS then uses the speed of the TNC you chose, 9600 for most.",
+      "Set it only if the manual of your TNC says so, for example 57600 for a NinoTNC. Bluetooth and TCP connections have no speed.",
+    ],
+  },
+  "tcp/host": { label: "TCP host" },
+  "tcp/port": { label: "TCP port", title: "Direwolf 8001, soundmodem 8100" },
   "serial/last_port": { label: "Last port found", kind: "readonly", empty: "-" },
   "serial/pattern": { label: "Ports to search", title: "Device globs, separated by spaces" },
   "serial/skip": { label: "Ports to skip", empty: "none", title: "Device paths, separated by commas" },
-  "tnc/check_sec": { label: "Keep-alive", unit: "s", zero: "off", title: "Silence before the radio is asked if it is there" },
-  "web/network": { label: "Allow access from the network", kind: "bool" },
-  "web/key": { label: "Access key", kind: "readonly" },
-  "web/port": { label: "Port", zero: "any", title: AT_START },
-  "web/allowed_hosts": { label: "Allowed hosts", empty: "none", title: AT_START },
-  "log/keep_days": { label: "Keep", unit: "days" },
-  "map/hide_after_min": { label: "Off map after", unit: "min", zero: "never" },
-  "map/radius_km": { label: "Radius", unit: "km" },
-  "map/maxzoom": { label: "Detail", kind: "choice", choices: DETAIL_CHOICES },
-  "map/source": { label: "Source", empty: "latest build" },
-  "update/check": { label: "Check once a day", kind: "bool", title: "Sends this version and the platform" },
+  "tnc/check_sec": {
+    label: "Keep-alive",
+    unit: "s",
+    zero: "off",
+    tipLabel: "About the keep-alive",
+    tip: [
+      "When nothing at all has come from the radio for this many seconds, NeoAPRS asks it whether it is still there. That way a radio that was switched off and on again is noticed and put back into KISS.",
+      "60 suits most. 0 turns it off. It applies to the Kenwood and Kantronics TNCs, which can be asked; a KISS TNC is not asked.",
+    ],
+  },
+  "web/network": {
+    label: "Allow access from the network",
+    kind: "bool",
+    tipLabel: "About network access",
+    tip: [
+      "For NeoAPRS on a Raspberry Pi in the shack with the page opened on a laptop or a phone at home. Without this, only the computer NeoAPRS runs on can open the page.",
+      "Set it to yes and Save: an access key appears with the addresses to open. Type the key once on each device.",
+      "The connection is plain http on your home network: fine at home, not for the internet. Do not open a port to NeoAPRS in your router.",
+    ],
+  },
+  "web/key": {
+    label: "Access key",
+    kind: "readonly",
+    tipLabel: "About the access key",
+    tip: [
+      "The password for the other devices. Open one of the addresses below on the laptop or phone and type this key once; the device stays logged in.",
+      "New key makes another one and logs every other device out. Type the new key again on each.",
+    ],
+  },
+  "map/hide_after_min": {
+    label: "Hide stations after",
+    unit: "min",
+    zero: "never",
+    tipLabel: "About leaving the map",
+    tip: [
+      "A station that has not sent its position for this long is taken off the map. It stays in the Stations table. 180 minutes is three hours; 0 keeps stations on the map for ever.",
+      "A single station can have its own time in its details.",
+    ],
+  },
+  "map/radius_km": {
+    label: "Radius",
+    unit: "km",
+    tipLabel: "About the radius",
+    tip: [
+      "How far from your station, in every direction, the detailed map reaches. The world map is always there; this is the area with streets and names.",
+      "A bigger radius means a bigger download: 150 km is a region, 500 km a large part of a country. The size is shown before you start.",
+    ],
+  },
+  "map/maxzoom": {
+    label: "Detail",
+    kind: "choice",
+    choices: DETAIL_CHOICES,
+    tipLabel: "About the detail",
+    tip: [
+      "How closely you can zoom in on the detailed map: towns, streets or houses.",
+      "Each step up makes the map several times bigger and the download longer. Streets are enough for most; choose houses only for a small radius.",
+    ],
+  },
+  "map/source": {
+    label: "Map data",
+    empty: "daily build",
+    tipLabel: "About the map data",
+    tip: [
+      "Where the detailed map is cut from. Empty uses the newest daily build of the free Protomaps map of the world, which is made from OpenStreetMap.",
+      "Fill it in only to use a map of your own: the web address or the file path of a PMTiles file.",
+    ],
+  },
   "messages/alert": { label: "Alert", kind: "bool" },
   "messages/alert_command": { label: "Command" },
   "status/rigctld": { label: "Rigctld", empty: "off", title: "host:port" },
@@ -74,8 +161,17 @@ export const FIELDS: Record<string, FieldInfo> = {
 const ALERT = ["messages/alert", "messages/alert_command"];
 
 /** The heading that goes above a key inside its group: the daemon's own alert, which runs on the computer NeoAPRS runs on, whichever device shows the page. */
-export const SUBGROUPS: Record<string, { text: string; title: string }> = {
-  "messages/alert": { text: "On the NeoAPRS computer", title: "NeoAPRS's own alert: the command the daemon runs on the computer it runs on" },
+export const SUBGROUPS: Record<string, { text: string; title: string; tipLabel: string; tip: readonly string[] }> = {
+  "messages/alert": {
+    text: "On the NeoAPRS computer",
+    title: "NeoAPRS's own alert: the command the daemon runs on the computer it runs on",
+    tipLabel: "About the alerts",
+    tip: [
+      "A new message can alert you in two places. This group is the NeoAPRS computer itself: with Alert on, it runs the Command when a message arrives, by default a notification and a sound. On a Raspberry Pi in the shack that is the speaker of the Pi.",
+      "The next group is this browser, on whatever device has the page open: no alert, a sound, a sound and a pop-up, or a pop-up only. Each device chooses for itself, and Test sound and Test pop-up try it.",
+      "If you read NeoAPRS on the computer it runs on, one of the two is enough; use both only if you want to be told twice.",
+    ],
+  },
 };
 
 /** The antenna's keys belong to the station, though they are the beacon's to send. */
@@ -91,10 +187,8 @@ const GROUPS: { id: string; title: string; prefixes: string[]; also?: string[]; 
   { id: "station", title: "Station", prefixes: ["station/"], also: ANTENNA },
   { id: "serial", title: "TNC", prefixes: ["tnc/", "serial/", "tcp/"] },
   { id: "web", title: "Web page", prefixes: ["web/"] },
-  { id: "log", title: "Log", prefixes: ["log/"] },
   { id: "notifications", title: "Notifications", prefixes: [], also: ALERT },
   { id: "map", title: "Map", prefixes: ["map/"] },
-  { id: "update", title: "Update check", prefixes: ["update/"] },
   { id: "beacon", title: "Beacon", prefixes: ["beacon/"], except: ANTENNA },
   { id: "status", title: "Status", prefixes: ["status/"] },
 ];
@@ -103,7 +197,7 @@ const GROUPS: { id: string; title: string; prefixes: string[]; also?: string[]; 
 export type Scope = "settings" | "beacon";
 const SCOPE_GROUPS: Record<Scope, readonly string[]> = {
   beacon: ["station", "beacon", "status"],
-  settings: ["serial", "web", "log", "notifications", "map", "update"],
+  settings: ["serial", "web", "notifications", "map"],
 };
 
 /** The order of the TNC group on the page: the port and its speed, the keep-alive, then the search (which the port falls back to). */
@@ -114,8 +208,9 @@ function rank(key: string): number {
   return at < 0 ? TNC_ORDER.length : at;
 }
 
-/** Settings that stay in the daemon (`neoaprs db set`) and are not on the page: the address the update check asks, and which ports the search for the radio looks at and leaves alone (the defaults suit nearly everyone). */
-const NOT_ON_THE_PAGE: readonly string[] = ["update/url", "serial/pattern", "serial/skip"];
+/** Settings that stay in the daemon (`neoaprs db set`) and are not on the page: the address the update check asks, which ports the search for the radio looks at and leaves alone, and the port and the host names of the page itself
+ * (the defaults suit nearly everyone, and the daemon moves to a free port and says which in the log). */
+const NOT_ON_THE_PAGE: readonly string[] = ["update/url", "serial/pattern", "serial/skip", "web/port", "web/allowed_hosts"];
 
 /** The keys in the order of the daemon's list (a key it did not list last; the TNC group in its own order), in the groups of the form `scope` shows. */
 export function groupKeys(keys: readonly string[], scope: Scope = "settings"): Group[] {
