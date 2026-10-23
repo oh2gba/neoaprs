@@ -353,35 +353,6 @@
   padding: 8px 10px;
   overflow-y: auto;
 }
-.msg {
-  max-width: 88%;
-  padding: 5px 9px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-.msg.in {
-  align-self: flex-start;
-}
-.msg.out {
-  align-self: flex-end;
-  background: var(--row-selected);
-}
-.msg p {
-  margin: 0;
-}
-.msg-text {
-  overflow-wrap: anywhere;
-}
-.msg-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 8px;
-  font-size: 12px;
-}
-.msg-route {
-  font-size: 11px;
-}
 .msg-state.state-acked {
   color: var(--ok);
 }

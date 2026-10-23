@@ -189,10 +189,6 @@
   align-items: center;
   gap: 8px;
 }
-.mapfetch-size {
-  min-width: 4.5em;
-  font-weight: 600;
-}
 .mapfetch-progress {
   margin: 8px 0 2px;
 }
