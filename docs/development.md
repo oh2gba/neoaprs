@@ -204,6 +204,7 @@ The words of the page are in a catalogue, so that a language is a file and not a
 | `scripts/doc-arch` | prints, writes (`--write`) or checks (`--check`) the tables of `docs/ARCHITECTURE.md` that are the data of the architecture test |
 | `scripts/doc-settings` | prints, writes (`--write`) or checks (`--check`) the table of settings and the list of fixed values in `docs/manual/settings.md`, made from `neoaprs/config.py` and the constants of the program |
 | `scripts/dup-check` | the duplication ratchet of the Python half: jscpd (from `ui/node_modules`) over `neoaprs/` and `tests/support/` against `scripts/dup-baseline.json`; `--update` tightens the baseline and never makes it larger |
+| `scripts/errorcodes.py` | the part of `gen-protocol.py` that finds the daemon's refusals with a code in its source, each with the values it passes and the English sentence it writes (`ui/src/protocol/errors.json`) |
 | `scripts/dup-compare.py` | the decision of `dup-check`: compares a jscpd report with the baseline, clone by the pair of files it joins |
 | `scripts/css-unused.py` | the unused-class check of the page's style sheets (`ui/src/styles/*.css`), run by the stage `ui-lint`: lists the classes that a rule names and no `.vue`, `.ts` or `.html` file of `ui/` writes; the classes the page builds at run time (`hop-${kind}`, ...) are in its `PREFIXES`, with the file that builds each |
 | `scripts/neoaprs-db` | a clone's wrapper of `neoaprs db` with `--data` set to the clone's `./data` (a `--data` of your own wins) |
