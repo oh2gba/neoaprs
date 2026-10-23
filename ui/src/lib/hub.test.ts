@@ -294,6 +294,19 @@ describe("Hub", () => {
     expect(FakeSocket.all).toHaveLength(1);
   });
 
+  it("says so when a socket closes before the daemon has said anything (it may have been refused), and not when one that was open closes", () => {
+    const m = memory();
+    const refused = vi.fn();
+    const hub = new Hub(m.store, { url: () => "ws://host/ws", socket: (url) => new FakeSocket(url), refused });
+    hub.open();
+    FakeSocket.last().hangUp();
+    expect(refused).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(FIRST_DELAY_MS);
+    FakeSocket.last().say({ type: "hello", protocol: PROTOCOL, version: "0.1", topics: [] });
+    FakeSocket.last().hangUp();
+    expect(refused).toHaveBeenCalledTimes(1);
+  });
+
   it("waits no longer than 30 seconds", () => {
     let delay = FIRST_DELAY_MS;
     for (let i = 0; i < 10; i++) delay = nextDelay(delay);

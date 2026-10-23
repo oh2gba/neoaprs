@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defineComponent } from "vue";
 import { socketUrl, useDaemon } from "@/composables/useDaemon";
 import { PROTOCOL } from "@/protocol/lists";
+import { FakeFetch } from "@/test/fakefetch";
 import { FakeSocket } from "@/test/fakesocket";
 import { bulletin, configValues, message, packet, station, tncState } from "@/test/fixtures";
 
@@ -115,6 +116,26 @@ describe("useDaemon", () => {
     socket.say({ type: "hello", protocol: PROTOCOL, version: "0.1.0", topics: [] });
     socket.hangUp();
     expect(daemon.connection.value).toBe("closed");
+  });
+
+  it("loads the page again, to show the key screen, when a socket that never spoke was refused for want of a login", async () => {
+    const reload = vi.spyOn(location, "reload").mockImplementation(() => undefined);
+    const daemon = new FakeFetch(401);
+    vi.stubGlobal("fetch", daemon.fetch);
+    const { socket } = setUp();
+    socket.hangUp();
+    await vi.waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
+    expect(daemon.calls.map((c) => c.url)).toEqual(["http://127.0.0.1:7303/access"]);
+    reload.mockRestore();
+  });
+
+  it("does not load the page again when the daemon is only not there", async () => {
+    const reload = vi.spyOn(location, "reload").mockImplementation(() => undefined);
+    const { socket } = setUp();
+    socket.hangUp();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(reload).not.toHaveBeenCalled();
+    reload.mockRestore();
   });
 
   it("finds the socket beside the page", () => {

@@ -102,6 +102,8 @@ export interface ConfigValues {
   values: { [key: string]: string };
   /** the same keys with their defaults, for a form's reset */
   defaults: { [key: string]: string };
+  /** where another device opens the page while `web/network` is on (this computer's address on the network and its name there, with the port); empty while it is off */
+  urls: string[];
 }
 
 /** Removes the whole conversation with a station: every message we sent to it and every one it sent to us (not the messages it was only overheard sending to others), from the database in one write, from the daemon and from every page: each message's row is a `del` of the topic `messages`. A message that is still being sent is cancelled first. The path, the timeout and the attempts of the station stay. Answered by the `del`s, or by an `error` (the call is none, or there is no message with that station). */
@@ -571,7 +573,7 @@ export interface SendMessageCommand {
   text: string;
 }
 
-/** Changes settings. Every key and value is checked before anything is stored: the first that is wrong is answered with an `error` that names the key, and nothing changes. A key that is left out keeps its value. The answer is the `config` topic told again. `web/bind`, `web/port` and `web/allowed_hosts` are read at the daemon's start, `serial/*`, `tcp/*` and `tnc/profile` restart the TNC, `station/*` move our own station on the map. `tnc/check_sec` and `map/hide_after_min` count at once, with no restart. */
+/** Changes settings. Every key and value is checked before anything is stored: the first that is wrong is answered with an `error` that names the key, and nothing changes. A key that is left out keeps its value. The answer is the `config` topic told again. `web/port` and `web/allowed_hosts` are read at the daemon's start, `web/network` (and with it the access key `web/key`) counts at once, `serial/*`, `tcp/*` and `tnc/profile` restart the TNC, `station/*` move our own station on the map. `tnc/check_sec` and `map/hide_after_min` count at once, with no restart. */
 export interface SetConfigCommand {
   cmd: "set_config";
   /** key to the new text of the value; the text is checked and written the way the daemon writes it (`oh2gba` becomes `OH2GBA`) */

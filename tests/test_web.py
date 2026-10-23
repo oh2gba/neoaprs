@@ -57,7 +57,7 @@ async def test_a_page_that_opens_is_sent_hello_the_status_and_every_topic_whole(
     assert list(stations) == ["OH2GBA"] and stations["OH2GBA"]["is_me"] is True and stations["OH2GBA"]["distance_km"] is None
     assert states["packets"]["value"] == {}
     assert states["tnc"]["value"]["state"] == "connected" and states["tnc"]["value"]["path"] == e.link
-    assert states["config"]["value"] == {"values": {**DEFAULTS.to_data(), **OPERATOR}, "defaults": DEFAULTS.to_data()}
+    assert states["config"]["value"] == {"values": {**DEFAULTS.to_data(), **OPERATOR}, "defaults": DEFAULTS.to_data(), "urls": []}
     assert states["messages"]["value"] == {} and states["station_prefs"]["value"] == {}
     for name, message in states.items():
         TOPIC_VALUES[name].validate_json(json.dumps(message["value"]))                       # the value is of the type TopicValues says

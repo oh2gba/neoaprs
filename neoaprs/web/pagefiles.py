@@ -5,6 +5,7 @@ import os
 from pathlib import Path, PurePath
 from typing import Any, Protocol
 
+import tornado.httputil
 import tornado.web
 
 from .headers import host_name, security_headers
@@ -12,7 +13,14 @@ from .headers import host_name, security_headers
 log = logging.getLogger("neoaprs.web")
 
 
+class Gate(Protocol):
+    def allowed(self, request: tornado.httputil.HTTPServerRequest) -> bool: ...
+
+
 class HostGate(Protocol):
+    @property
+    def access(self) -> Gate: ...
+
     def host_allowed(self, header: str) -> bool: ...
     def note_foreign_host(self, shown: str) -> None: ...
 
@@ -29,6 +37,17 @@ def refuse_foreign_host(handler: tornado.web.RequestHandler, server: HostGate) -
     handler.set_header("X-Content-Type-Options", "nosniff")
     handler.finish(f"NeoAPRS does not answer to the name {shown!r}.\n"
                    "If it is a name of this computer, allow it: neoaprs db set web/allowed_hosts \"" + (host_name(shown) or "name") + "\" (several names: separate them by commas), then restart NeoAPRS.\n")
+    return True
+
+
+def refuse_unless_logged_in(handler: tornado.web.RequestHandler, server: HostGate) -> bool:
+    """Answers 401 and returns True when the request comes from a device that has not logged in (neoaprs/web/access.py): what carries data is behind it."""
+    if server.access.allowed(handler.request):
+        return False
+    handler.set_status(401)
+    handler.set_header("Content-Type", "text/plain; charset=utf-8")
+    handler.set_header("X-Content-Type-Options", "nosniff")
+    handler.finish("Log in first: open the page and enter the access key.\n")
     return True
 
 
@@ -96,7 +115,11 @@ class Page(Secured, tornado.web.StaticFileHandler):
 class Basemap(Page):
     """data/basemap.pmtiles (the detailed map) and data/basemap-world.pmtiles (the world under it), OpenStreetMap extracts made by the daemon (neoaprs/services/mapfetch.py): the route names the two files, so
     nothing else of the data folder is reachable. A file that is not there is a 404 with a line that says what to do. A PMTiles reader asks for pieces of the file, which is what the handler's byte ranges are for; it is an octet stream, which Tornado does not
-    compress, so a range is a range of the file."""
+    compress, so a range is a range of the file. It is behind the login: the page's files are free, the map is data."""
+
+    def prepare(self) -> None:
+        if not refuse_foreign_host(self, self.application.settings["neoaprs_server"]):
+            refuse_unless_logged_in(self, self.application.settings["neoaprs_server"])
 
     def set_extra_headers(self, path: str) -> None:
         self.set_header("Cache-Control", "no-cache")

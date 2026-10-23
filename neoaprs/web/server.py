@@ -1,13 +1,16 @@
-"""The web server: the page's files and one WebSocket per browser tab. Tornado on the same asyncio loop as everything else. Bound to the loopback by default, where no token is asked for.
+"""The web server: the page's files and one WebSocket per browser tab. Tornado on the same asyncio loop as everything else. It listens on the loopback, where no key is asked for, and, while `web/network` is on, on every
+interface, where a device logs in with the access key first (neoaprs/web/access.py); the switch is followed without a restart.
 
-Routes: `/ws` (the socket), `/basemap.pmtiles` and `/basemap-world.pmtiles` (the files of the data folder, with byte ranges), and everything else from the page's folder (`neoaprs/page/`, made by scripts/build-page; the folder
-`neoaprs/web/placeholder/` with a line that says so while there is none). Every answer carries the security headers (neoaprs/web/headers.py) and none is given for a Host name that is not ours (neoaprs/web/pagefiles.py).
+Routes: `/ws` (the socket), `/access` and `/access/new` (the key screen's login and a new key), `/basemap.pmtiles` and `/basemap-world.pmtiles` (the files of the data folder, with byte ranges), and everything else from the page's
+folder (`neoaprs/page/`, made by scripts/build-page; the folder `neoaprs/web/placeholder/` with a line that says so while there is none). Every answer carries the security headers (neoaprs/web/headers.py) and none is given for a
+Host name that is not ours (neoaprs/web/pagefiles.py); the socket and the map are refused to a device that has not logged in.
 """
 import asyncio
 import errno
 import ipaddress
 import logging
 import socket
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -19,11 +22,13 @@ from tornado.iostream import IOStream, StreamBufferFullError
 from neoaprs.config import Config
 from neoaprs.controller import Controller
 
+from .access import Access, Login, NewKey, new_key
+from .addresses import lan_addresses
 from .api import Api
 from .connections import LimitedHTTPServer
-from .headers import host_name
+from .headers import host_name, origin_is_host
 from .outbound import MAX_WRITE_BUFFER
-from .pagefiles import Basemap, Page, SecurityHeaders, refuse_foreign_host
+from .pagefiles import Basemap, Page, SecurityHeaders, refuse_foreign_host, refuse_unless_logged_in
 
 log = logging.getLogger("neoaprs.web")
 
@@ -33,7 +38,7 @@ MAX_COMMAND = 64 * 1024                   # what the page may send in one messag
 MAX_REQUEST_BODY = 64 * 1024              # the page takes no upload over HTTP at all
 HEADER_TIMEOUT_SEC = 60.0                 # a connection that has sent no request line, or is idle between two requests
 BODY_TIMEOUT_SEC = 30.0
-LOOPBACK = ("127.0.0.1", "localhost", "::1")
+LOOPBACK = "127.0.0.1"
 
 # The socket is compressed when the browser offers permessage-deflate (RFC 7692; every browser does): the table of the stations is large JSON with much repetition. Tornado keeps one deflate state
 # for each direction of each socket, a few hundred kilobytes, and the connections are capped (neoaprs/web/connections.py).
@@ -50,7 +55,8 @@ class _Socket(SecurityHeaders, tornado.websocket.WebSocketHandler):
         self.server = server
 
     def prepare(self) -> None:
-        refuse_foreign_host(self, self.server)
+        if not refuse_foreign_host(self, self.server):
+            refuse_unless_logged_in(self, self.server)
 
     def get_compression_options(self) -> dict[str, Any]:
         return COMPRESSION
@@ -58,8 +64,7 @@ class _Socket(SecurityHeaders, tornado.websocket.WebSocketHandler):
     def check_origin(self, origin: str) -> bool:
         # the page is served from here, so a socket from anywhere else is another site's script. That the Host is one of ours is checked in prepare():
         # an Origin that agrees with the Host proves nothing when both are the attacker's (DNS rebinding)
-        host = self.request.headers.get("Host", "")
-        return origin.split("://", 1)[-1].lower() == host.lower() if host else False
+        return origin_is_host(origin, self.request.headers.get("Host", ""))
 
     def open(self, *args: Any, **kwargs: Any) -> None:
         self.set_nodelay(True)
@@ -123,16 +128,19 @@ PORT_TAKEN = {errno.EADDRINUSE, errno.EACCES, getattr(errno, "WSAEADDRINUSE", er
 
 
 class WebServer:
-    """`WebServer(controller, config)`; `start()` listens on `web/bind` and `web/port` of the config (port 0: a free one) and says whether it could; `stop()`."""
+    """`WebServer(controller, config)`; `start()` listens on `web/port` of the config (port 0: a free one), on the loopback or, while `web/network` is on, on every interface, and says whether it could; `settings_changed()` follows a
+    new switch or key; `stop()`."""
 
     def __init__(self, controller: Controller, config: Config, page_dir: Path | None = None) -> None:
         self.controller = controller
         self.config = config
         self.page_dir = page_dir or default_page_dir()
-        self.api = Api(controller)
-        self.address = "127.0.0.1"
+        self.api = Api(controller, reach=self.reach)
+        self.access = Access(lambda: controller.config, controller.clock)
+        self.address = LOOPBACK                           # what it listens on: "" is every interface
         self.port = 0
-        self._server: tornado.httpserver.HTTPServer | None = None
+        self._server: LimitedHTTPServer | None = None
+        self._switch = asyncio.Lock()                     # one change of what is listened on, or of the key, at a time
         self._own_names: set[str] = set()                 # lower case, no port: what the Host header may say besides an IP address
         self._foreign_seen: set[str] = set()              # the names refused so far, so that the log has each once
 
@@ -163,21 +171,28 @@ class WebServer:
 
     def _names(self, allowed: Sequence[str]) -> set[str]:
         host = socket.gethostname().lower()
-        return {"localhost", "ip6-localhost", "ip6-loopback", host, f"{host}.local", host_name(self.address), *(host_name(n) for n in allowed)} - {""}
+        return {"localhost", "ip6-localhost", "ip6-loopback", host, f"{host}.local", *(host_name(n) for n in allowed)} - {""}
 
     def url(self) -> str:
-        """Where the page is: the address it listens on (the name of this computer when it listens on every interface) and the port."""
-        host = self.address or socket.gethostname()
-        return f"http://{'[' + host + ']' if ':' in host else host}:{self.bound_port()}/"
+        """Where the page is on this computer."""
+        return f"http://{LOOPBACK}:{self.bound_port()}/"
+
+    def reach(self) -> list[str]:
+        """Where another device opens the page: this computer's address on the network and its name there; none while it listens on the loopback only."""
+        if self.address != "" or self._server is None:
+            return []
+        hosts = [*lan_addresses(), f"{socket.gethostname().lower()}.local"]
+        return [f"http://{host}:{self.bound_port()}/" for host in hosts]
 
     async def start(self) -> bool:
         c = self.config
-        self.address = "" if c.web_bind in ("*", "0.0.0.0", "::") else c.web_bind
-        self._own_names = self._names([n for n in c.web_allowed_hosts.replace(",", " ").split()])
-        if self.address not in LOOPBACK:
-            log.warning("web/bind is %s: the page is open to everyone who can reach this computer on the network, and anyone who can open it can change the settings (there is no token)", c.web_bind)
+        self._own_names = self._names(c.web_allowed_hosts.replace(",", " ").split())
+        await self._ensure_key()
+        self.address = "" if self.controller.config.web_network else LOOPBACK
         app = tornado.web.Application([
             (r"/ws", _Socket, {"server": self}),
+            (r"/access", Login),
+            (r"/access/new", NewKey),
             (r"/(basemap\.pmtiles|basemap-world\.pmtiles)", Basemap, {"path": str(self.controller.data_dir)}),
             (r"/()", Page, {"path": str(self.page_dir), "default_filename": "index.html"}),
             (r"/(.*)", Page, {"path": str(self.page_dir)}),
@@ -186,16 +201,21 @@ class WebServer:
         server = LimitedHTTPServer(app, xheaders=False, max_body_size=MAX_REQUEST_BODY, idle_connection_timeout=HEADER_TIMEOUT_SEC, body_timeout=BODY_TIMEOUT_SEC)
         failure = self._listen(server)
         if failure is not None:
-            log.error("the web server cannot listen on %s:%d: %s; NeoAPRS goes on without the page", c.web_bind, c.web_port, failure)
+            log.error("the web server cannot listen on %s:%d: %s; NeoAPRS goes on without the page", self.address or "every interface", c.web_port, failure)
             self._server = None
             await self.api.stop()
             return False
         self._server = server
         self.port = self.bound_port()
         log.info("web page at %s", self.url())
+        self._say_reach()
         return True
 
-    def _listen(self, server: tornado.httpserver.HTTPServer) -> OSError | None:
+    def _say_reach(self) -> None:
+        if urls := self.reach():
+            log.info("network access is on: other devices open the page at %s and log in with the access key of Settings, Web (on this computer: neoaprs db get web/key)", ", ".join(urls))
+
+    def _listen(self, server: LimitedHTTPServer) -> OSError | None:
         """Listens on `web/port`, or, when it is taken (or forbidden: Windows keeps ranges of ports for itself), on the first of the next `PORT_TRIES` that is free; port 0 is a free one at once.
         None when it listens, else the error of the first try (or the first error that no other port would cure)."""
         first: OSError | None = None
@@ -213,10 +233,59 @@ class WebServer:
             return None
         return first
 
+    # ---- the switch and the key
+    def settings_changed(self, config: Config) -> None:
+        """The settings were saved: the switch and the key are followed, in a task."""
+        if self._server is not None:
+            self.api.tasks.spawn(self._follow_settings(), "web-network")
+
+    async def _follow_settings(self) -> None:
+        async with self._switch:
+            await self._ensure_key()
+            before = self.address
+            self._relisten("" if self.controller.config.web_network else LOOPBACK)
+            for client in list(self.api.clients):                  # a device that is not let in any more (the key is new, or the network is off) is cut off
+                if isinstance(client, _Socket) and not self.access.allowed(client.request):
+                    client.close(1008, "logged out")
+            if self.address != before:
+                self.api.hub.changed("config")                     # (where the page can be opened from)
+                self._say_reach()
+
+    async def _ensure_key(self) -> None:
+        """The network is on and there is no key (turned on, or on in a database made without one): a key is made."""
+        c = self.controller.config
+        if c.web_network and not c.web_key and not await self.controller.save_config(replace(c, web_key=new_key())):
+            log.error("the access key could not be stored; devices on the network cannot log in")
+
+    async def renew_key(self) -> bool:
+        """A new access key: every session of the old one ends. False when the settings could not be stored."""
+        async with self._switch:
+            return await self.controller.save_config(replace(self.controller.config, web_key=new_key()))
+
+    def _relisten(self, address: str) -> None:
+        """Listens on the address instead of the one before, on the port the page is on. If it cannot, the old one is listened on again."""
+        server, before = self._server, self.address
+        if server is None or address == before:
+            return
+        server.stop_listening()
+        self.address = address
+        failure = self._bind(server, self.port)
+        if failure is not None:
+            log.error("the page cannot listen on %s:%d: %s; it stays on %s", address or "every interface", self.port, failure, before or "every interface")
+            self.address = before
+            self._bind(server, self.port)
+
+    def _bind(self, server: LimitedHTTPServer, port: int) -> OSError | None:
+        try:
+            server.listen(port, self.address)
+        except OSError as e:
+            return e
+        return None
+
     @staticmethod
     def _log_request(handler: tornado.web.RequestHandler) -> None:
-        if handler.get_status() >= 400:
-            r = handler.request
+        r = handler.request
+        if handler.get_status() >= 400 and not (handler.get_status() == 401 and r.path == "/access"):      # (a device asking whether it is let in is told no, which is not news)
             log.warning("%d %s %s (%s) %.2fms", handler.get_status(), r.method, r.path, r.remote_ip, 1000.0 * r.request_time())
 
     def bound_port(self) -> int:

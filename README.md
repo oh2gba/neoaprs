@@ -54,7 +54,7 @@ Put the radio on the Pi, run the install line above on the Pi, and set it up as 
 neoaprs service install --linger
 ```
 
-By default the page answers on the Pi itself only. To reach it from another device: *Settings*, *Web*, *Allow access from the network*. The page then shows an access key; open `http://<pi-address>:7303` on the other device and enter the key.
+By default the page answers on the Pi itself only. To reach it from another device: *Settings*, *Web page*, *Allow access from the network*. The page then shows an access key and the addresses to open; open `http://<pi-address>:7303` on the other device and enter the key ([Network access](docs/MANUAL.md#network-access)).
 
 ## Trying it without a radio
 

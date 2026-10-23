@@ -210,15 +210,15 @@ class Env:
         assert self.server is not None and self.ctl.web is not None, "the web server is not running: Env(tmp_path, web=True)"
         return self.server.bound_port()
 
-    async def ws(self, host: str | None = None, origin: str | None = None) -> WsClient:
-        """A tab: connected to /ws, closed when the test is over. `host` and `origin` are the headers it says (the defaults: the address, none)."""
-        page = await connect(self.port, host, origin)
+    async def ws(self, host: str | None = None, origin: str | None = None, cookie: str | None = None) -> WsClient:
+        """A tab: connected to /ws, closed when the test is over. `host`, `origin` and `cookie` are the headers it says (the defaults: the address, none, none)."""
+        page = await connect(self.port, host, origin, cookie)
         self.pages.append(page)
         return page
 
-    async def fetch(self, path: str, headers: dict[str, str] | None = None, method: str = "GET") -> HTTPResponse:
+    async def fetch(self, path: str, headers: dict[str, str] | None = None, method: str = "GET", body: str | None = None) -> HTTPResponse:
         """An HTTP request to the page's server; an answer of 400 or more is returned, not raised."""
-        request = HTTPRequest(f"http://127.0.0.1:{self.port}{path}", method=method, headers=headers, follow_redirects=False)
+        request = HTTPRequest(f"http://127.0.0.1:{self.port}{path}", method=method, headers=headers, body=body if body is not None else (b"" if method == "POST" else None), follow_redirects=False)
         try:
             return await AsyncHTTPClient().fetch(request)
         except HTTPClientError as e:

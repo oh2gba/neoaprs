@@ -20,6 +20,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/ws": { target: "ws://127.0.0.1:7303", ws: true },
+      "/access": { target: "http://127.0.0.1:7303" },
       "/basemap.pmtiles": { target: "http://127.0.0.1:7303" },
       "/basemap-world.pmtiles": { target: "http://127.0.0.1:7303" },
     },
@@ -28,6 +29,7 @@ export default defineConfig({
     environment: "happy-dom",
     environmentOptions: { happyDOM: { url: "http://127.0.0.1:7303/" } },
     include: ["src/**/*.test.ts"],
+    setupFiles: ["src/test/setup.ts"],
     coverage: {
       provider: "v8",
       include: ["src/lib/**/*.ts", "src/composables/**/*.ts", "src/components/**/*.vue"],
