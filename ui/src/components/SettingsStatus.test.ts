@@ -140,7 +140,7 @@ describe("the (i) of a field", () => {
     const { wrapper } = make({ "status/source": "rig", "beacon/power_w": "5" });
     const withTip = wrapper
       .findAll(".field")
-      .filter((f) => f.find(".infotip").exists())
+      .filter((f) => f.find(".info-toggle").exists())
       .map((f) => f.find("label").text());
     expect(withTip).toEqual([
       "Comment",

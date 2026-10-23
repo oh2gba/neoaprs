@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// One setting: its label, the input (a choice for a yes/no setting or a short list, read-only for one the daemon writes), the default as the placeholder, a unit after it, the daemon's complaint under it (or the result of a test, in the same place), and a slot after it for a button.
-// A field whose meaning a word cannot say has an (i) after its label (InfoTip) with a few sentences and an example; one thing a word cannot say is the `title` of the field.
+// One setting: its label, the input (a checkbox for a yes/no setting, a choice for a short list, read-only for one the daemon writes), the default as the placeholder, a unit after it, the daemon's complaint under it (or the result of a test, in the same place), and a slot after it for a button.
+// A field whose meaning a non-developer may not know has a small (i) after it (`info.tip`); nothing else explains it, and the one thing a word cannot say is the `title` of the field.
 import { computed } from "vue";
 import InfoTip from "@/components/InfoTip.vue";
 import type { Choice, FieldInfo } from "@/lib/settings";
@@ -32,21 +32,24 @@ const options = computed<Choice[]>(() => {
 
 function onInput(event: Event): void {
   const target = event.target;
-  if (target instanceof HTMLInputElement || target instanceof HTMLSelectElement) emit("update:modelValue", target.value);
+  if (target instanceof HTMLInputElement && target.type === "checkbox") emit("update:modelValue", target.checked ? "true" : "false");
+  else if (target instanceof HTMLInputElement || target instanceof HTMLSelectElement) emit("update:modelValue", target.value);
 }
 </script>
 
 <template>
   <div class="field" :class="{ changed, invalid: error !== '' }" :title="info.title">
-    <div class="field-name">
-      <label :for="id">{{ info.label }}</label>
-      <InfoTip v-if="info.help" :label="`About ${info.label}`" :text="info.help" :example="info.example" />
-    </div>
+    <label :for="id">{{ info.label }}</label>
     <div class="field-control">
-      <select v-if="info.kind === 'bool'" :id="id" class="input" :value="modelValue" :aria-describedby="describedBy" @change="onInput">
-        <option value="true">yes</option>
-        <option value="false">no</option>
-      </select>
+      <input
+        v-if="info.kind === 'bool'"
+        :id="id"
+        class="check"
+        type="checkbox"
+        :checked="modelValue === 'true'"
+        :aria-describedby="describedBy"
+        @change="onInput"
+      />
       <select v-else-if="info.kind === 'choice'" :id="id" class="input" :value="modelValue" :aria-describedby="describedBy" @change="onInput">
         <option v-for="choice in options" :key="choice.value" :value="choice.value">{{ choice.label }}</option>
       </select>
@@ -66,6 +69,9 @@ function onInput(event: Event): void {
       />
       <span v-if="unit" class="unit muted">{{ unit }}</span>
       <slot name="after"></slot>
+      <InfoTip v-if="info.tip" :label="info.tipLabel ?? `About ${info.label}`">
+        <span v-for="line in info.tip" :key="line" class="info-line">{{ line }}</span>
+      </InfoTip>
     </div>
     <p v-if="error" :id="errorId" class="field-error" role="alert">{{ error }}</p>
     <p v-else-if="result" class="field-error field-result" :class="{ ok: result.ok }" role="status">{{ result.text }}</p>

@@ -4,7 +4,7 @@ from dataclasses import fields, replace
 
 import pytest
 
-from neoaprs.config import BY_KEY, DEFAULT_ALERT_COMMAND, DEFAULTS, KEYS, MAX_COMMENT, MAX_COMMENT_PHG, SETTINGS, Config
+from neoaprs.config import BY_KEY, DEFAULT_ALERT_COMMAND, DEFAULTS, KEYS, LOG_KEEP_DAYS, MAX_COMMENT, MAX_COMMENT_PHG, SETTINGS, Config
 from neoaprs.configstatus import MAX_STATUS, fill_template
 
 
@@ -12,11 +12,11 @@ def test_the_defaults_are_the_ones_of_the_brief() -> None:
     assert DEFAULTS.to_data() == {
         "tnc/profile": "kiss", "serial/port": "", "serial/baud": "", "tcp/host": "127.0.0.1", "tcp/port": "8001", "serial/last_port": "", "serial/pattern": "/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*", "serial/skip": "", "tnc/check_sec": "60", "station/call": "", "station/lat": "", "station/lon": "",
         "station/symbol_table": "/", "station/symbol_code": "-", "station/comment": "NeoAPRS", "station/status": "", "beacon/power_w": "", "beacon/antenna_height_m": "0", "beacon/antenna_gain_db": "0",
-        "beacon/antenna_direction": "omni", "log/keep_days": "30", "web/network": "false", "web/key": "", "web/port": "7303", "web/allowed_hosts": "", "beacon/interval_min": "0",
+        "beacon/antenna_direction": "omni", "web/network": "false", "web/key": "", "web/port": "7303", "web/allowed_hosts": "", "beacon/interval_min": "0",
         "beacon/path": "WIDE1-1,WIDE2-1",
         "messages/alert": "true", "messages/alert_command": DEFAULT_ALERT_COMMAND, "status/source": "", "status/rigctld": "", "status/interval_min": "30", "status/template": "QRV {freq} {mode}",
         "map/hide_after_min": "180", "map/radius_km": "150", "map/maxzoom": "12", "map/source": "",
-        "update/check": "true", "update/url": "https://oh2gba.eu/neoaprs/version.php"}
+        "update/url": "https://oh2gba.eu/neoaprs/version.php"}
     assert Config() == DEFAULTS
 
 
@@ -28,7 +28,7 @@ def test_every_field_has_a_key_and_every_key_a_field() -> None:
 def test_nothing_in_the_database_is_the_defaults_and_what_is_written_is_read_back() -> None:
     assert Config.from_data({}) == DEFAULTS
     c = Config(serial_port="/dev/brainbox_3", serial_baud=19200, serial_last_port="/dev/brainbox_3", serial_pattern="/dev/brainbox_* /dev/ttyUSB*", serial_skip="/dev/brainbox_2, /dev/ttyUSB1", tnc_profile="kenwood-d710", tcp_host="::1", tcp_port=8100, tnc_check_sec=0, station_call="OH2GBA-9", station_lat=-33.5, station_lon=151.25,
-               station_symbol_table="\\", station_symbol_code=">", station_comment="mobile", station_status="On the road, QRV 145.500", beacon_power_w=5, beacon_antenna_height_m=12, beacon_antenna_gain_db=3, beacon_antenna_direction="NW", log_keep_days=7, web_network=True, web_key="k7m2-x9pq-4hrt", web_port=8080, web_allowed_hosts="aprs.example, pi", beacon_interval_min=30,
+               station_symbol_table="\\", station_symbol_code=">", station_comment="mobile", station_status="On the road, QRV 145.500", beacon_power_w=5, beacon_antenna_height_m=12, beacon_antenna_gain_db=3, beacon_antenna_direction="NW", web_network=True, web_key="k7m2-x9pq-4hrt", web_port=8080, web_allowed_hosts="aprs.example, pi", beacon_interval_min=30,
                beacon_path="WIDE2-2", messages_alert=False, messages_alert_command="echo $NEOAPRS_FROM", status_source="rig", status_rigctld="localhost:4532", status_interval_min=1440, status_template="{mode} {freq}", map_hide_after_min=10080)
     assert Config.from_data(c.to_data()) == c
 
@@ -60,11 +60,11 @@ def test_a_call_is_checked_and_written_in_capitals() -> None:
 @pytest.mark.parametrize("key, text", [
     ("serial/baud", "fast"), ("serial/baud", "50"), ("tnc/profile", "tnc2"), ("tnc/profile", ""), ("tcp/port", "0"), ("tcp/port", "70000"), ("tcp/host", "two words"), ("station/call", "OH2GBA-16"), ("station/call", "TOOLONGCALL"), ("station/lat", "91"), ("station/lat", "nan"),
     ("station/lon", "-181"), ("station/symbol_table", "//"), ("station/symbol_table", "!"), ("station/symbol_code", ""), ("station/comment", "x" * 44), ("station/comment", "tab\there"),
-    ("station/comment", "åäö"), ("station/status", "x" * 63), ("station/status", "å" * 32), ("station/status", "two\nlines"), ("log/keep_days", "0"), ("web/key", "two words"), ("web/key", "abcd-efgh-jklm0"), ("web/network", "maybe"), ("web/port", "-1"), ("web/port", "70000"), ("web/allowed_hosts", "x" * 501), ("beacon/interval_min", "-1"),
+    ("station/comment", "åäö"), ("station/status", "x" * 63), ("station/status", "å" * 32), ("station/status", "two\nlines"), ("web/key", "two words"), ("web/key", "abcd-efgh-jklm0"), ("web/network", "maybe"), ("web/port", "-1"), ("web/port", "70000"), ("web/allowed_hosts", "x" * 501), ("beacon/interval_min", "-1"),
     ("beacon/interval_min", "1441"), ("beacon/path", "WIDE1-1,TOOLONGCALL"), ("beacon/path", "A,B,C,D,E,F,G,H,I"), ("beacon/path", "WIDE1-16"),
     ("beacon/power_w", "-1"), ("beacon/power_w", "10000"), ("beacon/power_w", "lots"), ("beacon/antenna_height_m", "-1"), ("beacon/antenna_height_m", "10000"), ("beacon/antenna_height_m", "tall"), ("beacon/antenna_gain_db", "10"),
     ("beacon/antenna_gain_db", "-1"), ("beacon/antenna_gain_db", "3.5"), ("beacon/antenna_direction", "up"), ("beacon/antenna_direction", "NNE"), ("beacon/antenna_direction", ""),
-    ("tnc/check_sec", "-1"), ("tnc/check_sec", "5"), ("tnc/check_sec", "9"), ("tnc/check_sec", "3601"), ("tnc/check_sec", "soon"), ("update/check", "sometimes"), ("update/url", ""), ("update/url", "ftp://example.org/v.php"), ("update/url", "https://"), ("update/url", "two words"), ("update/url", "https://example.org/" + "x" * 500), ("map/hide_after_min", "-1"), ("map/hide_after_min", "10081"), ("map/hide_after_min", "never"),
+    ("tnc/check_sec", "-1"), ("tnc/check_sec", "5"), ("tnc/check_sec", "9"), ("tnc/check_sec", "3601"), ("tnc/check_sec", "soon"), ("update/url", ""), ("update/url", "ftp://example.org/v.php"), ("update/url", "https://"), ("update/url", "two words"), ("update/url", "https://example.org/" + "x" * 500), ("map/hide_after_min", "-1"), ("map/hide_after_min", "10081"), ("map/hide_after_min", "never"),
     ("messages/alert", "loud"), ("messages/alert_command", "x" * 1001), ("messages/alert_command", "two\nlines"), ("status/rigctld", "localhost"), ("status/rigctld", "localhost:0"), ("status/rigctld", "localhost:70000"),
     ("status/rigctld", ":4532"), ("status/rigctld", "two words:4532"), ("status/interval_min", "0"), ("status/interval_min", "1441"), ("status/interval_min", "often"), ("status/template", "QRV {frequency}"),
     ("status/template", "x" * 63), ("status/template", "{freq} {mode} " + "x" * 50), ("status/template", "two\nlines")])
@@ -72,10 +72,10 @@ def test_a_wrong_value_names_its_key_in_the_error_and_falls_back_to_the_default_
     with pytest.raises(ValueError, match=key):
         Config.check(key, text)
     caplog.set_level(logging.WARNING, "neoaprs.config")
-    c = Config.from_data({key: text, "log/keep_days" if key != "log/keep_days" else "web/port": "7"})
+    c = Config.from_data({key: text, "map/radius_km" if key != "map/radius_km" else "web/port": "77"})
     assert c.to_data()[key] == DEFAULTS.to_data()[key]
     assert any(key in r.getMessage() and "default" in r.getMessage() for r in caplog.records)
-    assert 7 in (c.log_keep_days, c.web_port), "the other values are kept"
+    assert 77 in (c.map_radius_km, c.web_port), "the other values are kept"
 
 
 def test_a_key_that_is_not_a_setting_is_refused_by_check_and_ignored_by_from_data() -> None:
@@ -267,11 +267,20 @@ def test_a_tcp_profile_is_refused_with_a_serial_port_and_accepted_with_a_tcp_add
     assert Config.checked(DEFAULTS, {"serial/port": "/dev/ttyUSB0"}).serial_port == "/dev/ttyUSB0"
 
 
-def test_the_update_check_is_on_and_asks_the_page_of_the_project_unless_the_settings_say_otherwise() -> None:
-    assert DEFAULTS.update_check is True and DEFAULTS.update_url == "https://oh2gba.eu/neoaprs/version.php"
-    c = Config.from_data({"update/check": "off", "update/url": " http://127.0.0.1:8000/version.php "})
-    assert (c.update_check, c.update_url) == (False, "http://127.0.0.1:8000/version.php")
-    assert Config.check("update/check", "No") == "false" and Config.check("update/url", "https://example.org/v.php?a=1") == "https://example.org/v.php?a=1"
+def test_the_update_check_asks_the_page_of_the_project_unless_the_settings_say_otherwise() -> None:
+    assert DEFAULTS.update_url == "https://oh2gba.eu/neoaprs/version.php"
+    c = Config.from_data({"update/url": " http://127.0.0.1:8000/version.php "})
+    assert c.update_url == "http://127.0.0.1:8000/version.php"
+    assert Config.check("update/url", "https://example.org/v.php?a=1") == "https://example.org/v.php?a=1"
+
+
+def test_the_log_time_and_the_update_check_are_fixed_and_what_an_earlier_version_stored_is_ignored() -> None:
+    assert LOG_KEEP_DAYS == 7
+    for key in ("log/keep_days", "update/check"):
+        assert key not in KEYS
+        with pytest.raises(ValueError, match=f"{key}: no such setting"):
+            Config.parse(key, "false")
+    assert Config.from_data({"log/keep_days": "400", "update/check": "false"}) == DEFAULTS
 
 
 def test_the_attempts_setting_of_an_older_version_is_not_a_setting_and_is_left_alone() -> None:

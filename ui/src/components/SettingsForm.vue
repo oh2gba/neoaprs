@@ -1,8 +1,9 @@
 <script setup lang="ts">
 // The settings of the daemon, one field for every key it lists in the scope of the form (the Settings tab, or the Beacon tab with the keys the beacon sends), in groups. Save sends the keys that were changed (the daemon checks them all before it stores any; a wrong one is shown under
 // its field); the alert command has a Test button, which runs the saved command and shows how it went under the field; a field left empty shows the default as a placeholder. The Map group ends with the buttons that make
-// the map (MapFetchPanel), which work on the saved settings. On the Settings tab the Setup button opens the first-run guide again; the default slot is for more groups (the page's own, which are not settings of the daemon), and the slot `notifications` for the fields of the page's own alert, which end the Notifications group. The Update check group has a Check now button, which asks the version page at once and shows the answer beside it for a few seconds. While the network is let in, the Web group shows the access key with a New key button and the addresses to open the page at.
+// the map (MapFetchPanel), which work on the saved settings. On the Settings tab a link at the top opens the first-run guide again; the default slot is for more groups (the page's own, which are not settings of the daemon), and the slot `notifications` for the fields of the page's own alert, which end the Notifications group. The Update check group (the daily check itself is always on) has a Check now button, which asks the version page at once and shows the answer beside it for a few seconds. While the network is let in, the Web group shows the access key with a New key button and the addresses to open the page at.
 import MapFetchPanel from "@/components/MapFetchPanel.vue";
+import InfoTip from "@/components/InfoTip.vue";
 import SettingsField from "@/components/SettingsField.vue";
 import SymbolField from "@/components/SymbolField.vue";
 import SettingsPort from "@/components/SettingsPort.vue";
@@ -94,10 +95,18 @@ const mapUnsaved = computed(() => Object.keys(changed.value).some((key) => key.s
 
 <template>
   <form v-if="config" class="settings" novalidate @submit.prevent="save">
+    <p v-if="scope === 'settings'" class="settings-setup">
+      <button class="linkbutton setup-open" type="button" @click="emit('setup')">Run the setup guide again</button>
+    </p>
     <fieldset v-for="group in groups" :key="group.id">
       <legend>{{ group.title }}</legend>
       <template v-for="key in shown(group.keys)" :key="key">
-        <h3 v-if="SUBGROUPS[key]" class="subgroup" :title="SUBGROUPS[key]?.title">{{ SUBGROUPS[key]?.text }}</h3>
+        <h3 v-if="SUBGROUPS[key]" class="subgroup" :title="SUBGROUPS[key]?.title">
+          {{ SUBGROUPS[key]?.text }}
+          <InfoTip :label="SUBGROUPS[key]?.tipLabel ?? ''">
+            <span v-for="line in SUBGROUPS[key]?.tip" :key="line" class="info-line">{{ line }}</span>
+          </InfoTip>
+        </h3>
         <SymbolField
           v-if="key === SYMBOL_TABLE"
           id="set-station-symbol"
@@ -139,15 +148,6 @@ const mapUnsaved = computed(() => Object.keys(changed.value).some((key) => key.s
               Test
             </button>
           </template>
-          <template v-else-if="key === 'update/check'" #after>
-            <button class="btn" type="button" :disabled="updateCheck.running.value" @click="updateCheck.check">Check now</button>
-            <template v-if="updateCheck.outcome.value">
-              <button v-if="updateCheck.outcome.value.newer" class="updatecheck-result" type="button" role="status" @click="emit('update')">
-                {{ updateCheck.outcome.value.text }}
-              </button>
-              <span v-else class="updatecheck-result muted" role="status">{{ updateCheck.outcome.value.text }}</span>
-            </template>
-          </template>
           <template v-else-if="key === KEY_KEY" #after>
             <button class="btn" :class="{ danger: newKey.armed.value }" type="button" :disabled="newKey.running.value" @click="newKey.press">
               {{ newKey.armed.value ? "sure?" : "New key" }}
@@ -159,20 +159,49 @@ const mapUnsaved = computed(() => Object.keys(changed.value).some((key) => key.s
         </div>
         <div v-if="key === KEY_KEY && urls.length" class="field">
           <label for="set-web-url-0">Open at</label>
-          <div class="field-control urls">
-            <input v-for="(url, i) in urls" :id="`set-web-url-${i}`" :key="url" class="input" type="text" readonly :value="url" />
+          <div class="field-control">
+            <div class="urls">
+              <input v-for="(url, i) in urls" :id="`set-web-url-${i}`" :key="url" class="input" type="text" readonly :value="url" />
+            </div>
+            <InfoTip label="About the addresses">
+              <span class="info-line">Type one of these in the browser of the laptop or phone, which must be on the same network as NeoAPRS.</span>
+              <span class="info-line"
+                >The one with numbers works everywhere on the network. The one ending in .local is easier to remember and works on most phones and
+                laptops.</span
+              >
+            </InfoTip>
           </div>
         </div>
       </template>
       <slot v-if="group.id === 'notifications'" name="notifications"></slot>
       <MapFetchPanel v-if="group.id === 'map' && map" :map="map" :stale="mapUnsaved" :send="props.send" />
     </fieldset>
+    <fieldset v-if="scope === 'settings'" class="update-check">
+      <legend>Update check</legend>
+      <div class="field">
+        <label for="set-update-now">New version</label>
+        <div class="field-control">
+          <button id="set-update-now" class="btn" type="button" :disabled="updateCheck.running.value" @click="updateCheck.check">Check now</button>
+          <template v-if="updateCheck.outcome.value">
+            <button v-if="updateCheck.outcome.value.newer" class="updatecheck-result" type="button" role="status" @click="emit('update')">
+              {{ updateCheck.outcome.value.text }}
+            </button>
+            <span v-else class="updatecheck-result muted" role="status">{{ updateCheck.outcome.value.text }}</span>
+          </template>
+          <InfoTip label="About the update check">
+            <span class="info-line"
+              >Once a day NeoAPRS asks the project's version page whether a newer version is out, and tells you in the header when there is one.</span
+            >
+            <span class="info-line">It sends the version number and the kind of system (for example linux-arm) and nothing else. Check now asks at once.</span>
+          </InfoTip>
+        </div>
+      </div>
+    </fieldset>
     <slot></slot>
     <slot name="preview" :draft="draft"></slot>
     <div class="settings-actions">
       <button class="btn primary" type="submit" :disabled="!dirty || saving">{{ saving ? "Saving..." : "Save" }}</button>
       <button class="btn" type="button" :disabled="!dirty" @click="revert">Revert</button>
-      <button v-if="scope === 'settings'" class="btn setup-open" type="button" @click="emit('setup')">Setup</button>
       <span v-if="saved && !dirty" class="muted" role="status">Saved.</span>
       <span v-else-if="dirty" class="muted">{{ Object.keys(changed).length }} changed</span>
     </div>

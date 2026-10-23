@@ -1188,6 +1188,19 @@ tbody tr:focus-visible {
   font: italic 700 12px/1 serif;
   cursor: pointer;
 }
+.info-line {
+  display: block;
+}
+.info-line + .info-line {
+  margin-top: 4px;
+}
+.field-control .info-text {
+  right: 0;
+  left: auto;
+}
+.field-control .check {
+  margin: 0;
+}
 .info-text {
   position: absolute;
   top: 100%;
@@ -1200,7 +1213,9 @@ tbody tr:focus-visible {
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--panel);
+  color: var(--text);
   font-size: 12px;
+  font-weight: 400;
   line-height: 1.4;
 }
 
@@ -1327,37 +1342,6 @@ tbody tr:focus-visible {
 .field label {
   font-weight: 600;
 }
-.field-name {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-.field .infotip {
-  position: static;
-}
-.field .info-text {
-  top: calc(100% - 2px);
-  width: min(26em, 100%);
-  max-width: none;
-  margin-top: 0;
-  padding: 8px 10px;
-  border-radius: 6px;
-  box-shadow: var(--shadow);
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 400;
-}
-.info-example {
-  display: block;
-  margin-top: 4px;
-  color: var(--muted);
-}
-.info-example code {
-  color: var(--text);
-  font-family: var(--mono);
-  font-size: 12px;
-}
 .info-toggle:hover,
 .info-toggle[aria-expanded="true"] {
   border-color: var(--accent);
@@ -1395,9 +1379,28 @@ tbody tr:focus-visible {
   width: 3em;
   text-align: center;
 }
-.field-control.urls {
+.field-control .urls {
+  display: flex;
+  flex: 1;
   flex-direction: column;
-  align-items: stretch;
+  gap: 6px;
+  min-width: 0;
+}
+.field-control .infotip {
+  flex: none;
+}
+.settings-setup {
+  margin: 4px 0;
+  text-align: right;
+}
+.linkbutton {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
 }
 .field-control .port-found {
   min-width: 0;

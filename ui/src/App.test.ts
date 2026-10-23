@@ -160,12 +160,12 @@ describe("App", () => {
     expect(wrapper.find(".setup").exists()).toBe(false);
   });
 
-  it("opens the guide again from the Setup button of the Settings tab, with the answers the daemon has", async () => {
+  it("opens the guide again from the link at the top of the Settings tab, with the answers the daemon has", async () => {
     const { wrapper } = await open();
     expect(wrapper.find(".setup").exists()).toBe(false);
     await tabButton(wrapper, "Settings")?.trigger("click");
-    const setup = wrapper.findAll("#pane-settings button").find((b) => b.text() === "Setup");
-    await setup?.trigger("click");
+    const setup = wrapper.find("#pane-settings button.setup-open");
+    await setup.trigger("click");
     expect(wrapper.find(".setup").exists()).toBe(true);
     expect(wrapper.find<HTMLInputElement>("#setup-call").element.value).toBe("OH2GBA");
   });
@@ -1180,9 +1180,9 @@ describe("the alert of this browser", () => {
     await tabButton(wrapper, "Settings")?.trigger("click");
     const groups = wrapper.findAll("#pane-settings fieldset").filter((g) => g.find("legend").text() === "Notifications");
     expect(groups).toHaveLength(1);
-    expect(groups[0]?.findAll("h3").map((h) => h.text())).toEqual(["On the NeoAPRS computer", "In this browser"]);
+    expect(groups[0]?.findAll("h3").map((h) => h.text().replace(/ i$/, ""))).toEqual(["On the NeoAPRS computer", "In this browser"]);
     expect(groups[0]?.findAll("label").map((l) => l.text())).toEqual(["Alert", "Command", "Alert for a new message", "Sound", "Pop-up"]);
-    expect(groups[0]?.findAll("button").map((b) => b.text())).toEqual(["Test", "Test sound", "Test pop-up"]);
+    expect(groups[0]?.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(["Test", "Test sound", "Test pop-up"]);
   });
 
   it("is off on the loopback: a message to us makes no sound there", async () => {

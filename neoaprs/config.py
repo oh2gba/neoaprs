@@ -20,6 +20,7 @@ from .versions import UPDATE_URL
 
 log = logging.getLogger("neoaprs.config")
 
+LOG_KEEP_DAYS = 7                    # packets, weather observations and stations are kept this long (the weather graphs reach back 7 days); not a setting, a stored `log/keep_days` is not read
 MAX_HIDE_AFTER_MIN = 10080           # a week: the longest a station may stay on the map after its last position
 MAX_COMMENT = 43                     # what the comment of a position packet may be, with no data extension (spec 1517)
 MAX_COMMENT_PHG = 36                 # with the 7-byte PHG data extension (spec 1546)
@@ -146,7 +147,6 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("beacon_antenna_height_m", "beacon/antenna_height_m", int_in(0, 9999)),   # the antenna above average terrain, for the PHG extension
     Setting("beacon_antenna_gain_db", "beacon/antenna_gain_db", int_in(0, 9)),        # its gain over a dipole's isotropic figure, for the PHG extension
     Setting("beacon_antenna_direction", "beacon/antenna_direction", _direction),    # "omni" or the point of the compass it favours, for the PHG extension
-    Setting("log_keep_days", "log/keep_days", int_in(1, 3650)),
     Setting("web_network", "web/network", boolean),                           # true: the page listens on every interface and a device other than this one logs in with web/key
     Setting("web_key", "web/key", access_key),                                # what a device on the network types to log in; made when web/network is first on, empty until then
     Setting("web_port", "web/port", int_in(0, 65535)),                        # 0: the system picks a free port (the log says which)
@@ -163,7 +163,6 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("map_radius_km", "map/radius_km", int_in(*MAP_RADIUS_KM)),      # the detailed base map covers a square this far from our position in every direction
     Setting("map_maxzoom", "map/maxzoom", int_in(*MAP_MAXZOOM)),            # and goes down to this zoom (10 towns, 12 streets, 14 houses)
     Setting("map_source", "map/source", _map_source),                       # where the map is cut from; empty: the latest daily build of build.protomaps.com
-    Setting("update_check", "update/check", boolean),                         # true: once a day the daemon asks the version page for the latest version (services/updatecheck.py)
     Setting("update_url", "update/url", web_address),                         # that page: it is sent this program's version and platform and nothing else
 )
 BY_KEY = {s.key: s for s in SETTINGS}
@@ -196,7 +195,6 @@ class Config:
     beacon_antenna_height_m: int = 0
     beacon_antenna_gain_db: int = 0
     beacon_antenna_direction: str = "omni"
-    log_keep_days: int = 30
     web_network: bool = False
     web_key: str = ""
     web_port: int = 7303
@@ -213,7 +211,6 @@ class Config:
     map_radius_km: int = 150
     map_maxzoom: int = 12
     map_source: str = ""
-    update_check: bool = True
     update_url: str = UPDATE_URL
 
     @property

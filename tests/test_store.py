@@ -31,7 +31,7 @@ async def test_a_setting_is_kept_replaced_and_deleted(tmp_path: Path) -> None:
 
 async def test_the_settings_round_trip_exactly(tmp_path: Path) -> None:
     store = await store_at(tmp_path / DB_NAME)
-    data = {"station/call": "OH2GBA-9", "station/lat": "60.1699", "station/comment": "ä ö \U0001F4E1 | \" ' ; --", "web/allowed_hosts": "", "log/keep_days": "30", "multi/line": "a\nb\r\n"}
+    data = {"station/call": "OH2GBA-9", "station/lat": "60.1699", "station/comment": "ä ö \U0001F4E1 | \" ' ; --", "web/allowed_hosts": "", "multi/line": "a\nb\r\n"}
     assert await store.put_settings(data)
     assert await store.settings() == data
     assert await store.put_settings({"station/call": "OH2GBA", "web/port": "7303"})            # the other keys stay

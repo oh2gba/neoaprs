@@ -5,10 +5,14 @@ import { openTip } from "@/lib/infotip";
 
 const mounted: ReturnType<typeof mount>[] = [];
 
-function tip(props: { label?: string; text?: string; example?: string } = {}) {
+function tip(props: { label?: string } = {}) {
   const host = document.createElement("div");
   document.body.appendChild(host);
-  const wrapper = mount(InfoTip, { props: { label: "About DAO", text: "One more digit of the position.", example: "!W41!", ...props }, attachTo: host });
+  const wrapper = mount(InfoTip, {
+    props: { label: "About DAO", ...props },
+    slots: { default: '<span class="info-line">One more digit of the position.</span><span class="info-line">Example: !W41!</span>' },
+    attachTo: host,
+  });
   mounted.push(wrapper);
   return wrapper;
 }
@@ -30,18 +34,18 @@ describe("InfoTip", () => {
     expect(wrapper.find(".info-text").exists()).toBe(false);
   });
 
-  it("opens the note on a click or a tap, with the example, and closes it on the next", async () => {
+  it("opens the note on a click or a tap, with its lines, and closes it on the next", async () => {
     const wrapper = tip();
     await wrapper.find("button").trigger("click");
     expect(wrapper.find("button").attributes("aria-expanded")).toBe("true");
     const note = wrapper.find(".info-text");
-    expect(note.text().replace(/\s+/g, " ")).toBe("One more digit of the position. Example: !W41!");
+    expect(note.findAll(".info-line").map((l) => l.text())).toEqual(["One more digit of the position.", "Example: !W41!"]);
     expect(wrapper.find("button").attributes("aria-controls")).toBe(note.attributes("id"));
     await wrapper.find("button").trigger("click");
     expect(wrapper.find(".info-text").exists()).toBe(false);
   });
 
-  it("shows what is put in its slot instead of the text, so that a few sentences of markup can be explained too", async () => {
+  it("shows any markup put in its slot, so that master's bulletin note and the settings' notes are one thing", async () => {
     const host = document.createElement("div");
     document.body.appendChild(host);
     const wrapper = mount(InfoTip, { props: { label: "What the kinds are" }, slots: { default: "A bulletin is <b>for everyone</b>." }, attachTo: host });
@@ -49,12 +53,6 @@ describe("InfoTip", () => {
     await wrapper.find("button").trigger("click");
     expect(wrapper.find(".info-text").text()).toBe("A bulletin is for everyone.");
     expect(wrapper.find("b").exists()).toBe(true);
-  });
-
-  it("has no example line when there is none", async () => {
-    const wrapper = tip({ example: undefined });
-    await wrapper.find("button").trigger("click");
-    expect(wrapper.find(".info-example").exists()).toBe(false);
   });
 
   it("closes on Esc and gives the focus back to the button", async () => {
@@ -89,7 +87,7 @@ describe("InfoTip", () => {
   });
 
   it("is the only note open: opening another closes the first", async () => {
-    const first = tip({ label: "Path", text: "The digipeaters." });
+    const first = tip({ label: "About Path" });
     const second = tip({ label: "DAO" });
     await first.find("button").trigger("click");
     await second.find("button").trigger("click");

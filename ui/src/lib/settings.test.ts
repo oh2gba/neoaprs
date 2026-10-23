@@ -4,14 +4,13 @@ import { FIELDS, SUBGROUPS, changedValues, errorKey, errorReason, groupKeys, sho
 import { PORT_OTHER, portOptions } from "@/lib/portchoice";
 
 describe("groupKeys", () => {
-  it("gives the Settings tab the serial and TNC, web, log, notifications, map and update keys, in the daemon's order", () => {
+  it("gives the Settings tab the serial and TNC, web, notifications and map keys, in the daemon's order", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "settings");
-    expect(groups.map((g) => g.id)).toEqual(["serial", "web", "log", "notifications", "map", "update"]);
+    expect(groups.map((g) => g.id)).toEqual(["serial", "web", "notifications", "map"]);
     expect(groups[0]?.keys).toEqual(["tnc/profile", "serial/port", "serial/baud", "tcp/host", "tcp/port", "tnc/check_sec", "serial/last_port"]);
-    expect(groups[3]?.title).toBe("Notifications");
-    expect(groups[3]?.keys).toEqual(["messages/alert", "messages/alert_command"]);
-    expect(groups[4]?.keys).toEqual(["map/hide_after_min", "map/radius_km", "map/maxzoom", "map/source"]);
-    expect(groups[5]?.keys).toEqual(["update/check"]);
+    expect(groups[2]?.title).toBe("Notifications");
+    expect(groups[2]?.keys).toEqual(["messages/alert", "messages/alert_command"]);
+    expect(groups[3]?.keys).toEqual(["map/hide_after_min", "map/radius_km", "map/maxzoom", "map/source"]);
   });
   it("gives the Beacon tab the station keys first (the call is its first field), then the beacon keys and the status keys", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "beacon");
@@ -33,15 +32,17 @@ describe("groupKeys", () => {
   });
   it("has every key in one place only", () => {
     const shown = [...groupKeys(CONFIG_KEYS, "settings"), ...groupKeys(CONFIG_KEYS, "beacon")].flatMap((g) => g.keys);
-    expect(shown.sort()).toEqual(CONFIG_KEYS.filter((key) => !["update/url", "serial/pattern", "serial/skip"].includes(key)).sort());
+    expect(shown.sort()).toEqual(
+      CONFIG_KEYS.filter((key) => !["update/url", "serial/pattern", "serial/skip", "web/port", "web/allowed_hosts"].includes(key)).sort(),
+    );
   });
   it("leaves the address of the update check off the page: it is set with neoaprs db set", () => {
     expect(groupKeys(CONFIG_KEYS, "settings").flatMap((g) => g.keys)).not.toContain("update/url");
     expect(FIELDS["update/url"]).toBeUndefined();
   });
   it("shows a key it does not know under Other", () => {
-    expect(groupKeys(["web/port", "mystery/key"], "settings").map((g) => [g.id, g.keys])).toEqual([
-      ["web", ["web/port"]],
+    expect(groupKeys(["web/network", "mystery/key"], "settings").map((g) => [g.id, g.keys])).toEqual([
+      ["web", ["web/network"]],
       ["other", ["mystery/key"]],
     ]);
   });
@@ -51,10 +52,12 @@ describe("groupKeys", () => {
     expect([FIELDS["messages/alert"]?.label, FIELDS["messages/alert_command"]?.label]).toEqual(["Alert", "Command"]);
   });
   it("keeps the timeout of the map in a group of its own", () => {
-    expect(groupKeys(["web/port", "map/hide_after_min"]).map((g) => g.id)).toEqual(["web", "map"]);
+    expect(groupKeys(["web/network", "map/hide_after_min"]).map((g) => g.id)).toEqual(["web", "map"]);
   });
   it("knows every key of the daemon: a short label for each, and no hint text anywhere", () => {
-    for (const key of CONFIG_KEYS.filter((k) => k !== "update/url")) {
+    for (const key of groupKeys(CONFIG_KEYS, "settings")
+      .concat(groupKeys(CONFIG_KEYS, "beacon"))
+      .flatMap((g) => g.keys)) {
       const info = FIELDS[key];
       expect(info?.label, key).toBeTruthy();
       expect(info?.label.length, key).toBeLessThanOrEqual(30);
@@ -86,16 +89,16 @@ describe("groupKeys", () => {
       "beacon/antenna_direction",
     ];
     for (const key of keys) {
-      const help = FIELDS[key]?.help ?? "";
-      expect(help, key).not.toBe("");
-      expect(help.split(/[.:;] /).length, key).toBeLessThanOrEqual(6);
+      const tip = FIELDS[key]?.tip ?? [];
+      expect(tip.length, key).toBeGreaterThan(0);
+      expect(tip.join(" ").split(/[.:;] /).length, key).toBeLessThanOrEqual(8);
       expect(FIELDS[key]?.title, key).toBeUndefined();
     }
-    expect(FIELDS["station/comment"]?.help).toContain("43");
-    expect(FIELDS["station/status"]?.help).toContain("55");
-    expect(FIELDS["beacon/interval_min"]?.help).toContain("10");
-    expect(FIELDS["status/template"]?.help).toMatch(/\{freq\}.*\{mode\}/);
-    expect(FIELDS["status/template"]?.example).toContain("14.074 MHz USB");
+    expect(FIELDS["station/comment"]?.tip?.join(" ")).toContain("43");
+    expect(FIELDS["station/status"]?.tip?.join(" ")).toContain("55");
+    expect(FIELDS["beacon/interval_min"]?.tip?.join(" ")).toContain("10");
+    expect(FIELDS["status/template"]?.tip?.join(" ")).toMatch(/\{freq\}.*\{mode\}/);
+    expect(FIELDS["status/template"]?.tip?.at(-1)).toContain("14.074 MHz USB");
   });
   it("shows the status fields its source needs and the antenna's figures once there is a power", () => {
     const shown = (values: Record<string, string>) =>
@@ -155,7 +158,7 @@ describe("the map's fields", () => {
       { value: "12", label: "12 streets" },
       { value: "14", label: "14 houses" },
     ]);
-    expect(FIELDS["map/source"]).toMatchObject({ label: "Source", empty: "latest build" });
+    expect(FIELDS["map/source"]).toMatchObject({ label: "Map data", empty: "daily build" });
   });
 });
 
