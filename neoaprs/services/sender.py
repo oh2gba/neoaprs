@@ -82,5 +82,4 @@ class Sender:
             self.problem = "the TNC did not take the frame (it is restarting into KISS mode, or the write failed)"
             return False
         self._last = self.clock()
-        log.info("sent: %s", frame.tnc2())
         return True

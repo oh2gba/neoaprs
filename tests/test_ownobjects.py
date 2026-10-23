@@ -109,6 +109,14 @@ async def test_an_object_goes_by_its_own_path_else_by_the_beacons(tmp_path: Path
     assert [f.path_text for f in rig.tnc.sent] == ["WIDE2-2", "OH2RCH-2"]
 
 
+async def test_a_path_with_rfonly_or_nogate_is_taken_and_they_count_no_digipeater_for_the_net_cycle_time(rig: Rig) -> None:
+    rig.make("ONE", path="WIDE2-1,RFONLY")
+    rig.make("TWO", path="OH2RCH-2,NOGATE")
+    rig.run(1000)
+    assert [f.path_text for f in rig.tnc.sent[:2]] == ["WIDE2-1,RFONLY", "OH2RCH-2,NOGATE"]
+    assert [t for t, info in rig.sent if info[1:4] == b"ONE"] == [0, 60, 180, 420, 900], "one digipeater: a net cycle of 10 minutes, whatever follows it"
+
+
 async def test_an_item_is_sent_as_an_item_without_a_time_stamp(rig: Rig) -> None:
     rig.make("AID", "item", symbol_table="\\", symbol_code="+", comment="First aid")
     rig.run(0)
