@@ -88,7 +88,7 @@ const GROUPS: { id: string; title: string; prefixes: string[]; also?: string[]; 
   { id: "log", title: "Log", prefixes: ["log/"] },
   { id: "messages", title: "Messaging", prefixes: ["messages/"] },
   { id: "map", title: "Map", prefixes: ["map/"] },
-  { id: "update", title: "Updates", prefixes: ["update/"] },
+  { id: "update", title: "Update check", prefixes: ["update/"] },
   { id: "beacon", title: "Beacon", prefixes: ["beacon/"], except: ANTENNA },
   { id: "status", title: "Status", prefixes: ["status/"] },
 ];
