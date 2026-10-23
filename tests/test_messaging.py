@@ -17,8 +17,9 @@ from neoaprs.packet import Message, Packet, ThirdParty
 from neoaprs.services import messaging as messaging_module
 from neoaprs.services.messaging import Messaging
 from neoaprs.services.prefbook import PrefBook
-from neoaprs.source import Source, unusable_because
+from neoaprs.source import Source
 from neoaprs.store import DB_NAME
+from tests.support.stubtnc import StubTnc
 from tests.support.clock import FixedClock
 from tests.support.env import ON_AIR, remember_stop, until
 from tests.support.storedb import keep_old_attempts, store_at
@@ -26,30 +27,6 @@ from tests.support.storedb import keep_old_attempts, store_at
 TICK = 0.01
 RUN_OUT = (30, 30, 60, 240)                        # the waits after each attempt, the last of them the wait for the answer to the fourth: after these the message has failed
 WORKED = "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :Hello Pekka{01}"
-
-
-class StubTnc:
-    """The part of the Tnc messaging uses: a state, and the frames it was given."""
-
-    def __init__(self) -> None:
-        self.state = Source.State.CONNECTED
-        self.sent: list[ax25.Frame] = []
-        self.takes = True
-
-    @property
-    def usable(self) -> bool:
-        return self.state is Source.State.CONNECTED
-
-    def why_unusable(self) -> str:
-        return unusable_because(self.state)
-
-    def send_frame(self, frame: ax25.Frame) -> bool:
-        if self.takes:
-            self.sent.append(frame)
-        return self.takes
-
-    def lines(self) -> list[str]:
-        return [f.tnc2() for f in self.sent]
 
 
 class Rig:

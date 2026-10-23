@@ -13,32 +13,10 @@ from neoaprs.aprsposition import parse_position
 from neoaprs.config import Config
 from neoaprs.packet import Status
 from neoaprs.services.beacon import Beacon, BeaconError, phg_text, uncompressed_position
-from neoaprs.source import Source, unusable_because
+from neoaprs.source import Source
+from tests.support.stubtnc import StubTnc
 from tests.support.clock import FixedClock
 from tests.support.env import ON_AIR, until
-
-
-class StubTnc:
-    """The part of the Tnc the beacon uses: a state, and the frames it was given."""
-
-    def __init__(self, state: Source.State = Source.State.CONNECTED) -> None:
-        self.state = state
-        self.sent: list[ax25.Frame] = []
-        self.takes = True
-        self.asked = 0
-
-    @property
-    def usable(self) -> bool:
-        return self.state is Source.State.CONNECTED
-
-    def why_unusable(self) -> str:
-        return unusable_because(self.state)
-
-    def send_frame(self, frame: ax25.Frame) -> bool:
-        self.asked += 1
-        if self.takes:
-            self.sent.append(frame)
-        return self.takes
 
 
 class Rig:

@@ -13,32 +13,11 @@ from neoaprs.config import Config
 from neoaprs.packet import Message, Other, Packet, Status
 from neoaprs.services.beacon import Beacon
 from neoaprs.services.queries import GENERAL_DELAY_MAX_SEC, GENERAL_EVERY_SEC, Queries, directs_messages, path_text
-from neoaprs.source import Source, unusable_because
+from neoaprs.source import Source
 from neoaprs.stationbook import StationBook
+from tests.support.stubtnc import StubTnc
 from tests.support.clock import FixedClock
 from tests.support.env import ON_AIR, remember_stop, until
-
-
-class StubTnc:
-    def __init__(self) -> None:
-        self.state = Source.State.CONNECTED
-        self.sent: list[ax25.Frame] = []
-        self.takes = True
-
-    @property
-    def usable(self) -> bool:
-        return self.state is Source.State.CONNECTED
-
-    def why_unusable(self) -> str:
-        return unusable_because(self.state)
-
-    def send_frame(self, frame: ax25.Frame) -> bool:
-        if self.takes:
-            self.sent.append(frame)
-        return self.takes
-
-    def lines(self) -> list[str]:
-        return [f.tnc2() for f in self.sent]
 
 
 class Rig:

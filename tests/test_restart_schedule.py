@@ -5,37 +5,19 @@ from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
 
-from neoaprs import ax25
 from neoaprs.clock import iso
 from neoaprs.config import DEFAULTS, STATE_KEYS, Config
 from neoaprs.rigctld import read_rig
 from neoaprs.services.beacon import Beacon
 from neoaprs.services.rigstatus import RigStatus
-from neoaprs.source import Source, unusable_because
 from neoaprs.store import Store
+from tests.support.stubtnc import StubTnc
 from tests.support.clock import FixedClock
 from tests.support.env import Env, ON_AIR, remember_stop, until
 from tests.support.fakes import FakeRigctld, rigctld
 from tests.support.storedb import store_at
 
 BEACON_ROW, STATUS_ROW, TEXT_ROW = STATE_KEYS
-
-
-class StubTnc:
-    def __init__(self) -> None:
-        self.state = Source.State.CONNECTED
-        self.sent: list[ax25.Frame] = []
-
-    @property
-    def usable(self) -> bool:
-        return self.state is Source.State.CONNECTED
-
-    def why_unusable(self) -> str:
-        return unusable_because(self.state)
-
-    def send_frame(self, frame: ax25.Frame) -> bool:
-        self.sent.append(frame)
-        return True
 
 
 class Daemon:
