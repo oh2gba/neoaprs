@@ -40,14 +40,14 @@ export const FIELDS: Record<string, FieldInfo> = {
   "beacon/antenna_gain_db": { label: "Antenna gain", unit: "dB" },
   "beacon/antenna_direction": { label: "Antenna direction", kind: "choice", choices: ["omni", "N", "NE", "E", "SE", "S", "SW", "W", "NW"] },
   "tnc/profile": { label: "TNC", kind: "choice", choices: TNC_PROFILES.map((p) => ({ value: p.key, label: p.name })) },
-  "serial/port": { label: "Port", empty: "auto" },
+  "serial/port": { label: "Port", empty: "/dev/ttyUSB0", title: "Automatic listens to the ports under Search" },
   "serial/baud": { label: "Speed", unit: "baud" },
   "tcp/host": { label: "Host" },
   "tcp/port": { label: "Port", title: "Direwolf 8001, soundmodem 8100" },
   "serial/last_port": { label: "Last port found", kind: "readonly", empty: "-" },
-  "serial/pattern": { label: "Search ports", title: "Device globs, separated by spaces" },
-  "serial/skip": { label: "Ports to skip", empty: "none" },
-  "tnc/check_sec": { label: "Keep-alive", unit: "s", zero: "off", title: "Check the radio after this much silence" },
+  "serial/pattern": { label: "Ports to search", title: "Device globs, separated by spaces" },
+  "serial/skip": { label: "Ports to skip", empty: "none", title: "Device paths, separated by commas" },
+  "tnc/check_sec": { label: "Keep-alive", unit: "s", zero: "off", title: "Silence before the radio is asked if it is there" },
   "web/network": { label: "Allow access from the network", kind: "bool" },
   "web/key": { label: "Access key", kind: "readonly" },
   "web/port": { label: "Port", zero: "any", title: AT_START },
@@ -78,6 +78,7 @@ const ALERT = ["messages/alert", "messages/alert_command"];
 /** The heading that goes above a key inside its group: the daemon's own alert, which runs on the computer NeoAPRS runs on, whichever device shows the page. */
 export const SUBGROUPS: Record<string, { text: string; title: string }> = {
   "messages/alert": { text: "On the NeoAPRS computer", title: "NeoAPRS's own alert: the command the daemon runs on the computer it runs on" },
+  "serial/pattern": { text: "Search", title: "Used when no port is chosen, and when the chosen port cannot be opened" },
 };
 
 /** The antenna's keys belong to the station, though they are the beacon's to send. */
@@ -109,7 +110,15 @@ const SCOPE_GROUPS: Record<Scope, readonly string[]> = {
   settings: ["serial", "web", "log", "messages", "notifications", "map", "update"],
 };
 
-/** The keys in the order of the daemon's list (a key it did not list last), in the groups of the form `scope` shows. */
+/** The order of the TNC group on the page: the port and its speed, the keep-alive, then the search (which the port falls back to). */
+const TNC_ORDER = ["tnc/profile", "serial/port", "serial/baud", "tcp/host", "tcp/port", "tnc/check_sec", "serial/pattern", "serial/skip", "serial/last_port"];
+
+function rank(key: string): number {
+  const at = TNC_ORDER.indexOf(key);
+  return at < 0 ? TNC_ORDER.length : at;
+}
+
+/** The keys in the order of the daemon's list (a key it did not list last; the TNC group in its own order), in the groups of the form `scope` shows. */
 export function groupKeys(keys: readonly string[], scope: Scope = "settings"): Group[] {
   const order = (key: string): number => {
     const at = (CONFIG_KEYS as readonly string[]).indexOf(key);
@@ -121,6 +130,8 @@ export function groupKeys(keys: readonly string[], scope: Scope = "settings"): G
     title: g.title,
     keys: sorted.filter((k) => (g.also?.includes(k) ?? false) || (g.prefixes.some((p) => k.startsWith(p)) && !g.except?.includes(k))),
   }));
+  const tnc = groups.find((g) => g.id === "serial");
+  if (tnc) tnc.keys.sort((a, b) => rank(a) - rank(b));
   const known = new Set(groups.flatMap((g) => g.keys));
   groups.push({ id: "other", title: "Other", keys: sorted.filter((k) => !known.has(k)) });
   const shown = scope === "beacon" ? SCOPE_GROUPS.beacon : [...SCOPE_GROUPS.settings, "other"];
@@ -146,21 +157,26 @@ export function errorReason(text: string, key: string): string {
   return at < 0 ? text : text.slice(at + key.length).replace(/^:\s*/, "");
 }
 
-const SERIAL_ONLY = ["serial/port", "serial/baud", "serial/last_port", "serial/pattern", "serial/skip"];
+const SERIAL_ONLY = ["serial/port", "serial/baud"];
+/** The search for the radio, which a serial TNC falls back to where the daemon can search at all. */
+const SEARCH = ["serial/pattern", "serial/skip"];
 
 /** The profile a form shows (its draft or the daemon's value), or undefined for a key this page does not know. */
 function profileOf(key: string | undefined) {
   return TNC_PROFILES.find((p) => p.key === key);
 }
 
-/** Whether a setting is shown for the chosen TNC profile: the host and port for one that is reached over TCP, the port and speed for a serial one, the keep-alive for one that can be asked if it is there; the access
- * key while the daemon lets the network in (`network`) and has made one. */
-export function shownFor(key: string, profileKey: string | undefined, network = true): boolean {
+/** Whether a setting is shown for the chosen TNC profile: the host and port for one that is reached over TCP, the port and speed for a serial one, with the search for the radio where the daemon can search (`search`, false
+ * where it cannot: Windows, macOS), the keep-alive for one that can be asked if it is there; the access key while the daemon lets the network in (`network`) and has made one. The port the search found last is no field:
+ * the port's own control says it. */
+export function shownFor(key: string, profileKey: string | undefined, network = true, search = true): boolean {
   if (key === "web/key") return network;
+  if (key === "serial/last_port") return false;
   const profile = profileOf(profileKey);
   if (!profile) return true;
   if (key.startsWith("tcp/")) return profile.transport === "tcp";
   if (SERIAL_ONLY.includes(key)) return profile.transport === "serial";
+  if (SEARCH.includes(key)) return profile.transport === "serial" && search;
   if (key === "tnc/check_sec") return profile.probe;
   return true;
 }

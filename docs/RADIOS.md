@@ -158,7 +158,7 @@ Then `sudo udevadm control --reload` and plug the device in again.
 2. **Log:** `neoaprs.log` in the data folder; start with `--debug` for more. It names the port, the entry sequence sent and what came back.
 3. **Wrong baud or port:** garbage or nothing. The TH-D75 and Mobilinkd ignore the baud on USB and Bluetooth; the NinoTNC needs 57600; Kenwood serial 9600.
 4. **TH-D74/D75, Mobilinkd, NinoTNC:** NeoAPRS cannot check that they are there. KISS must be on at the radio, and a radio that was switched off must have KISS switched on again.
-5. **Port search finds the wrong device:** name the port, or list it in *Ports to skip*.
+5. **Port search finds the wrong device:** name the port, or list it in *Ports to skip* (Settings, TNC, Search).
 6. **A port is not searched:** the search leaves out development boards, because opening their USB console resets the chip (an ESP32 on a USB Serial/JTAG port restarts at every open): Espressif (303a), Arduino (2341, 2a03), Raspberry Pi Pico (2e8a), Adafruit (239a), Teensy (16c0:0483), SEGGER J-Link (1366) and ST-Link (0483:3744, 3748, 374b, 374d, 374e, 374f, 3752, 3753). The log says `skipping /dev/ttyACM0: an ESP32 development board (USB 303a:1001)`, and `neoaprs doctor` marks the port. USB-serial cables and the TNCs' own ports (FTDI, Silicon Labs, WCH, Prolific, the Mobilinkd's ST 0483:5740, Kenwood radios) are searched. A TNC built on one of these boards works when you choose its port by name (*Port* in the Settings, or `--port`): a named port is never left out.
 7. **Nothing transmitted:** the call must be set (not `N0CALL`); see the manual.
 

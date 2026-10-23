@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CONFIG_KEYS } from "@/protocol/lists";
-import { FIELDS, SUBGROUPS, changedValues, errorKey, errorReason, groupKeys } from "@/lib/settings";
+import { FIELDS, SUBGROUPS, changedValues, errorKey, errorReason, groupKeys, shownFor } from "@/lib/settings";
+import { PORT_OTHER, portOptions } from "@/lib/portchoice";
 
 describe("groupKeys", () => {
   it("gives the Settings tab the serial and TNC, web, log, messaging, notifications and map keys, in the daemon's order", () => {
@@ -12,10 +13,10 @@ describe("groupKeys", () => {
       "serial/baud",
       "tcp/host",
       "tcp/port",
-      "serial/last_port",
+      "tnc/check_sec",
       "serial/pattern",
       "serial/skip",
-      "tnc/check_sec",
+      "serial/last_port",
     ]);
     expect(groups[3]?.keys).toEqual(["messages/attempts"]);
     expect(groups[4]?.title).toBe("Notifications");
@@ -54,7 +55,8 @@ describe("groupKeys", () => {
   });
   it("heads the daemon's own alert in the Notifications group with a line that says where it runs", () => {
     expect(SUBGROUPS["messages/alert"]?.text).toBe("On the NeoAPRS computer");
-    expect(Object.keys(SUBGROUPS)).toEqual(["messages/alert"]);
+    expect(Object.keys(SUBGROUPS)).toEqual(["messages/alert", "serial/pattern"]);
+    expect(SUBGROUPS["serial/pattern"]?.text).toBe("Search");
     expect([FIELDS["messages/alert"]?.label, FIELDS["messages/alert_command"]?.label]).toEqual(["Alert", "Command"]);
   });
   it("keeps the timeout of the map in a group of its own", () => {
@@ -119,5 +121,42 @@ describe("the map's fields", () => {
       { value: "14", label: "14 houses" },
     ]);
     expect(FIELDS["map/source"]).toMatchObject({ label: "Source", empty: "latest build" });
+  });
+});
+
+describe("shownFor in the TNC group", () => {
+  const keys = ["serial/port", "serial/baud", "serial/pattern", "serial/skip", "serial/last_port", "tcp/host", "tcp/port", "tnc/check_sec"];
+  const shown = (profile: string, search = true) => keys.filter((k) => shownFor(k, profile, true, search));
+  it("shows the port, the speed and the search for a serial TNC, the keep-alive only for one that can be asked, and never the port found", () => {
+    expect(shown("kenwood-tnc2")).toEqual(["serial/port", "serial/baud", "serial/pattern", "serial/skip", "tnc/check_sec"]);
+    expect(shown("kiss")).toEqual(["serial/port", "serial/baud", "serial/pattern", "serial/skip"]);
+  });
+  it("leaves the search out where the daemon does not search", () => {
+    expect(shown("kiss", false)).toEqual(["serial/port", "serial/baud"]);
+  });
+  it("shows only the host and the port for KISS over TCP", () => {
+    expect(shown("kiss-tcp")).toEqual(["tcp/host", "tcp/port"]);
+  });
+});
+
+describe("portOptions", () => {
+  const row = (device: string, description: string) => ({ device, description, hwid: "n/a", vid: null, pid: null });
+  const ports = (search = true) => ({ type: "ports" as const, search, ports: [row("/dev/ttyUSB0", "FT232R"), row("/dev/ttyACM0", "n/a")] });
+  it("offers automatic first, the listed ports, the port in force and the port found when unlisted, and Other last", () => {
+    expect(portOptions(ports(), "/dev/brainbox_3", "/dev/by-id/x").map((c) => c.value)).toEqual([
+      "",
+      "/dev/ttyUSB0",
+      "/dev/ttyACM0",
+      "/dev/brainbox_3",
+      "/dev/by-id/x",
+      PORT_OTHER,
+    ]);
+  });
+  it("lists a port once whichever way it is known", () => {
+    expect(portOptions(ports(), "/dev/ttyUSB0", "/dev/ttyUSB0").map((c) => c.value)).toEqual(["", "/dev/ttyUSB0", "/dev/ttyACM0", PORT_OTHER]);
+    expect(portOptions(null, "", "").map((c) => c.label)).toEqual(["find automatically", "Other..."]);
+  });
+  it("calls the empty port none chosen where the daemon does not search", () => {
+    expect(portOptions(ports(false), "", "")[0]).toEqual({ value: "", label: "none chosen" });
   });
 });

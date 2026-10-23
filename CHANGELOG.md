@@ -3,6 +3,7 @@
 ## Unreleased
 
 - The setup guide: the step's name is in its title and no longer twice on the page ("Your call", the symbol's "Code"); the position is picked on the map with **Pick on the map** on every screen, a crosshair while the map waits for the click, and a pin that can be dragged; the browser is no longer asked for its place (on a desktop it is mostly a guess).
+- The TNC group of the Settings tab names the port once. **Port** is one choice: find automatically, a port the system lists (with Refresh), or Other... for a path or a `socket://` address typed; beside an automatic port the page says `found: PORT` for the port the daemon found last, which is no longer a field of its own. The search for the radio is under a heading, Search, as "Ports to search" and "Ports to skip" (left out where the daemon does not search and for KISS over TCP), after the Speed and the Keep-alive. No setting changed its name, meaning or stored value.
 
 ## 0.3.0
 

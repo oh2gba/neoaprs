@@ -1245,6 +1245,12 @@ tbody tr:focus-visible {
   flex-direction: column;
   align-items: stretch;
 }
+.field-control .port-found {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .field-control .unit {
   flex: none;
   min-width: 2.5em;
