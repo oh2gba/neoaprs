@@ -6,7 +6,7 @@ import type { SetupGuide } from "@/composables/useSetupGuide";
 import { SYMBOL_CHOICES } from "@/lib/setup";
 
 const props = defineProps<{ guide: SetupGuide }>();
-const info = { label: "Symbol", empty: "/-", title: "Table and code: / primary, \\ alternate, 0-9 and A-Z overlay" };
+const info = { label: "Code", empty: "/-", title: "Table and code: / primary, \\ alternate, 0-9 and A-Z overlay" };
 </script>
 
 <template>

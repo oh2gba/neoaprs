@@ -311,6 +311,21 @@ describe("StationMap", () => {
     expect(FakeMap.last().styles).toHaveLength(1);
   });
 
+  it("shows a crosshair while it waits for the click of a place", async () => {
+    const wrapper = await mounted();
+    expect(wrapper.find(".mapbox").classes()).not.toContain("map-picking");
+    await wrapper.setProps({ picking: true });
+    expect(wrapper.find(".mapbox").classes()).toContain("map-picking");
+  });
+
+  it("lets the pin of the guide be dragged, and gives where it was dropped as the place", async () => {
+    const wrapper = await mounted({ pin: { lat: 60.1, lon: 24.9 }, picking: true });
+    const pin = FakeMarker.live().find((m) => m.element.classList.contains("setuppin"));
+    expect(pin?.draggable).toBe(true);
+    pin?.dragTo(60.4295, 24.1452);
+    expect(wrapper.emitted("pick")?.at(-1)).toEqual([{ lat: 60.4295, lon: 24.1452 }]);
+  });
+
   it("gives a click on the map as a place only while the first-run guide is picking, and still lets go of the selection", async () => {
     const wrapper = await mounted();
     FakeMap.last().fire("click", { lngLat: { lat: 60.1, lng: 24.9 } });

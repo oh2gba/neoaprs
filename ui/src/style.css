@@ -1535,6 +1535,11 @@ tbody tr:focus-visible {
   margin: 0;
   font-size: 15px;
 }
+
+.setup-step-name::before {
+  content: ": ";
+}
+
 .setup-steps {
   display: flex;
   gap: 6px;
@@ -1593,9 +1598,6 @@ tbody tr:focus-visible {
   gap: 8px;
   margin: 8px 0 2px;
 }
-.setup-onmap {
-  display: none;
-}
 .setup-symbols {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -1649,9 +1651,6 @@ tbody tr:focus-visible {
     border-width: 0 0 1px;
     border-radius: 0;
   }
-  .setup-onmap {
-    display: inline-block;
-  }
 }
 
 /* the key screen of a device on the network */
@@ -1671,4 +1670,10 @@ tbody tr:focus-visible {
 .keyscreen .field-error {
   flex-basis: 100%;
   text-align: center;
+}
+
+/* The map waits for a click that sets a place (the setup guide's position, an object's Place): a crosshair instead of the hand. */
+.map-picking .maplibregl-canvas-container.maplibregl-interactive,
+.map-picking .maplibregl-canvas-container.maplibregl-interactive:active {
+  cursor: crosshair;
 }

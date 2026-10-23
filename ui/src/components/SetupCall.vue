@@ -4,7 +4,7 @@ import SettingsField from "@/components/SettingsField.vue";
 import type { SetupGuide } from "@/composables/useSetupGuide";
 
 const props = defineProps<{ guide: SetupGuide }>();
-const info = { label: "Call", empty: "OH2ABC-9" };
+const info = { label: "Your call", empty: "OH2ABC-9" };
 </script>
 
 <template>

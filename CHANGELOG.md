@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-Nothing yet.
+- The setup guide: the step's name is in its title and no longer twice on the page ("Your call", the symbol's "Code"); the position is picked on the map with **Pick on the map** on every screen, a crosshair while the map waits for the click, and a pin that can be dragged; the browser is no longer asked for its place (on a desktop it is mostly a guess).
 
 ## 0.3.0
 

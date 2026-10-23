@@ -182,7 +182,15 @@ function syncPin(): void {
     const element = document.createElement("div");
     element.className = "setuppin";
     element.setAttribute("aria-hidden", "true");
-    pinMarker = new engine.Marker({ element, anchor: "center" }).setLngLat([at.lon, at.lat]).addTo(map);
+    pinMarker = new engine.Marker({ element, anchor: "center" }).setLngLat([at.lon, at.lat]).setDraggable(true).addTo(map);
+    const dragged = pinMarker;
+    dragged.on("dragend", () => {
+      // the pin dropped somewhere else is the place, as a click there would be
+      const to = dragged.getLngLat();
+      clicked = true;
+      emit("pick", { lat: to.lat, lon: to.lng });
+      void nextTick(() => (clicked = false));
+    });
   }
   pinMarker.setLngLat([at.lon, at.lat]);
 }
@@ -313,7 +321,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="stationmap">
-    <div ref="host" class="mapbox" role="application" aria-label="Map of the stations"></div>
+    <div ref="host" class="mapbox" :class="{ 'map-picking': props.picking }" role="application" aria-label="Map of the stations"></div>
     <div v-if="note" class="mapnote" role="status">
       <div class="mapnote-box">
         <span>{{ note }}</span>

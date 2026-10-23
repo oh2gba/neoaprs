@@ -38,7 +38,9 @@ watch(
   <section v-if="guide.open" ref="root" class="setup" :class="{ peeking: guide.peeking }" role="dialog" aria-label="Setup">
     <form novalidate @submit.prevent="guide.next()">
       <header class="setup-head">
-        <h2>Setup</h2>
+        <h2>
+          Setup<span class="setup-step-name">{{ STEP_TITLES[guide.step] }}</span>
+        </h2>
         <ol class="setup-steps">
           <li v-for="(title, i) in STEP_TITLES" :key="title">
             <button
@@ -58,7 +60,6 @@ watch(
         <button type="button" class="btn small setup-close" aria-label="Close" title="Close" @click="guide.close()">&times;</button>
       </header>
       <div class="setup-body">
-        <h3>{{ STEP_TITLES[guide.step] }}</h3>
         <SetupCall v-if="guide.step === 0" :guide="guide" />
         <SetupPosition v-else-if="guide.step === 1" :guide="guide" />
         <SetupSymbol v-else-if="guide.step === 2" :guide="guide" />

@@ -53,8 +53,8 @@ describe("SetupGuide: the frame", () => {
     expect(wrapper.findAll(".setup-dot").map((b) => b.attributes("title"))).toEqual(["Call", "Position", "Symbol", "Radio", "Map"]);
     expect(wrapper.find(".setup-dot.active").text()).toBe("1");
     expect(wrapper.findAll(".setup-dot.done")).toHaveLength(0); // the steps ahead have answers already, but are not done
-    expect(wrapper.find("h3").text()).toBe("Call");
-    expect(wrapper.findAll("h3")).toHaveLength(1);
+    expect(wrapper.find(".setup-step-name").text()).toBe("Call");
+    expect(wrapper.findAll(".setup-step-name")).toHaveLength(1);
     expect(wrapper.find("button[type=submit]").text()).toBe("Next");
     expect(wrapper.find("p").exists()).toBe(false);
     expect(wrapper.find(".setup-foot button").text()).toBe("Next"); // no Back on the first step
@@ -116,10 +116,10 @@ describe("SetupGuide: the frame", () => {
     await button("Back")?.trigger("click");
     expect(guide.step).toBe(1);
     await wrapper.findAll(".setup-dot")[0]?.trigger("click");
-    expect(wrapper.find("h3").text()).toBe("Call");
+    expect(wrapper.find(".setup-step-name").text()).toBe("Call");
     expect(wrapper.findAll(".setup-dot")[1]?.classes()).toContain("done");
     await wrapper.findAll(".setup-dot")[3]?.trigger("click");
-    expect(wrapper.find("h3").text()).toBe("Radio");
+    expect(wrapper.find(".setup-step-name").text()).toBe("Radio");
     expect(wrapper.find(".setup-dot.active").attributes("aria-current")).toBe("step");
   });
 });
@@ -141,7 +141,7 @@ describe("SetupGuide: the call", () => {
     expect(wrapper.find(".field-error").exists()).toBe(false);
     expect(nextButton().attributes("disabled")).toBeUndefined();
     await next(); // Enter in the field submits the form
-    expect(wrapper.find("h3").text()).toBe("Position");
+    expect(wrapper.find(".setup-step-name").text()).toBe("Position");
   });
 });
 
@@ -161,48 +161,22 @@ describe("SetupGuide: the position", () => {
     expect(wrapper.find("button[type=submit]").attributes("disabled")).toBeDefined();
   });
 
-  it("takes the place from the browser, and passes over a refusal without a word", async () => {
-    const calls: ((p: unknown) => void)[] = [];
-    const errors: (() => void)[] = [];
-    vi.stubGlobal("navigator", {
-      geolocation: { getCurrentPosition: (ok: (p: unknown) => void, no: () => void) => (calls.push(ok), errors.push(no)) },
-    });
-    const { wrapper, stand, button } = make();
-    await stand(1);
-    const locate = button("Use this computer's location");
-    expect(locate).toBeDefined();
-    await locate?.trigger("click");
-    expect(locate?.attributes("disabled")).toBeDefined();
-    errors[0]?.();
-    await nextTick();
-    expect(locate?.attributes("disabled")).toBeUndefined();
-    expect(wrapper.find(".field-error").exists()).toBe(false);
-    expect(wrapper.find<HTMLInputElement>("#setup-lat").element.value).toBe("60.17"); // as it was
-    await locate?.trigger("click");
-    calls[1]?.({ coords: { latitude: 51.5007292, longitude: -0.1246254 } });
-    await nextTick();
-    expect(wrapper.find<HTMLInputElement>("#setup-lat").element.value).toBe("51.50073");
-    expect(wrapper.find<HTMLInputElement>("#setup-lon").element.value).toBe("-0.12463");
-    expect(wrapper.find<HTMLInputElement>("#setup-locator").element.value).toBe("IO91wm");
-  });
-
-  it("has no location button in a browser without one", async () => {
-    vi.stubGlobal("navigator", {});
+  it("asks no browser for its place: the map or the fields give it", async () => {
     const { wrapper, stand, button } = make();
     await stand(1);
     expect(button("Use this computer's location")).toBeUndefined();
-    expect(wrapper.find(".setup-onmap").exists()).toBe(true);
+    expect(wrapper.find(".setup-onmap").text()).toBe("Pick on the map");
   });
 
-  it("folds to its head for 'On the map' and comes back with Done, or with the click that sets the place", async () => {
+  it("folds to its head for 'Pick on the map' and comes back with Done, or with the click that sets the place", async () => {
     const { wrapper, guide, stand, button } = make();
     await stand(1);
-    await button("On the map")?.trigger("click");
+    await button("Pick on the map")?.trigger("click");
     expect(wrapper.find(".setup").classes()).toContain("peeking");
     expect(button("Done")).toBeDefined();
     await button("Done")?.trigger("click");
     expect(wrapper.find(".setup").classes()).not.toContain("peeking");
-    await button("On the map")?.trigger("click");
+    await button("Pick on the map")?.trigger("click");
     guide.place(60.2, 24.9);
     await nextTick();
     expect(wrapper.find(".setup").classes()).not.toContain("peeking");
@@ -309,7 +283,7 @@ describe("SetupGuide: the map and Finish", () => {
   it("has the radius, the detail and MapFetchPanel's Estimate and Download, and Finish in place of Next", async () => {
     const { wrapper, stand } = make();
     await stand(4);
-    expect(wrapper.find("h3").text()).toBe("Map");
+    expect(wrapper.find(".setup-step-name").text()).toBe("Map");
     expect(wrapper.findAll(".field label").map((l) => l.text())).toEqual(["Radius", "Detail"]);
     expect(wrapper.find<HTMLInputElement>("#setup-radius").attributes("placeholder")).toBe("150");
     expect(wrapper.findAll("#setup-maxzoom option").map((o) => o.text())).toEqual(["10 town", "12 streets", "14 houses"]);
@@ -365,7 +339,7 @@ describe("SetupGuide: the map and Finish", () => {
     await next();
     lastError.value = { text: "set_config: station/call: 'OH2ABC-99' is not a call", n: 1 };
     await flushPromises();
-    expect(wrapper.find("h3").text()).toBe("Call");
+    expect(wrapper.find(".setup-step-name").text()).toBe("Call");
     expect(wrapper.find(".field-error").text()).toBe("'OH2ABC-99' is not a call");
     expect(wrapper.find(".setup").exists()).toBe(true);
   });

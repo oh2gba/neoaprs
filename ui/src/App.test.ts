@@ -162,7 +162,7 @@ describe("App", () => {
     const { wrapper } = await fresh();
     await wrapper.find("#setup-call").setValue("oh2abc");
     await wrapper.find("form").trigger("submit");
-    expect(wrapper.find("h3").text()).toBe("Position");
+    expect(wrapper.find(".setup-step-name").text()).toBe("Position");
     const pins = () => FakeMarker.live().filter((m) => m.element.classList.contains("setuppin"));
     expect(pins()).toHaveLength(0);
     FakeMap.last().fire("click", { lngLat: { lat: 60.1699, lng: 24.9402 } });
@@ -202,13 +202,13 @@ describe("App", () => {
     await next();
     await wrapper.findAll(".setup-symbol")[1]?.trigger("click"); // the car
     await next();
-    expect(wrapper.find("h3").text()).toBe("Radio");
+    expect(wrapper.find(".setup-step-name").text()).toBe("Radio");
     expect(socket.sent.filter((c) => (c as { cmd: string }).cmd === "list_ports")).toHaveLength(1);
     socket.say({ type: "ports", search: true, ports: [{ device: "/dev/ttyUSB0", description: "FT232R USB UART", hwid: "n/a", vid: null, pid: null }] });
     await flushPromises();
     await wrapper.find("#setup-port").setValue("/dev/ttyUSB0");
     await next();
-    expect(wrapper.find("h3").text()).toBe("Map");
+    expect(wrapper.find(".setup-step-name").text()).toBe("Map");
     await wrapper.find("#setup-radius").setValue("200");
     expect(configs()).toEqual([]);
     await next();
@@ -255,7 +255,7 @@ describe("App", () => {
     for (let i = 0; i < 4; i++) await wrapper.find("form").trigger("submit");
     socket.say({ type: "error", text: "set_config: station/call: 'OH2ABC' is already in use" });
     await flushPromises();
-    expect(wrapper.find("h3").text()).toBe("Call");
+    expect(wrapper.find(".setup-step-name").text()).toBe("Call");
     expect(wrapper.find(".setup .field-error").text()).toBe("'OH2ABC' is already in use");
   });
 
