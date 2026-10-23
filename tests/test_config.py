@@ -4,7 +4,8 @@ from dataclasses import fields, replace
 
 import pytest
 
-from neoaprs.config import BY_KEY, DEFAULT_ALERT_COMMAND, DEFAULTS, HIDE_AFTER_MIN, KEYS, LOG_KEEP_DAYS, MAX_COMMENT, MAX_COMMENT_PHG, SETTINGS, TNC_CHECK_SEC, Config
+from neoaprs.config import BY_KEY, DEFAULT_ALERT_COMMAND, DEFAULTS, KEYS, MAX_COMMENT, MAX_COMMENT_PHG, SETTINGS, Config
+from neoaprs.policy import HIDE_AFTER_MIN, LOG_KEEP_DAYS, TNC_CHECK_SEC
 from neoaprs.configstatus import MAX_STATUS, fill_template
 
 

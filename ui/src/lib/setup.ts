@@ -1,9 +1,10 @@
 // The first-run guide's rules (components/SetupGuide.vue): the steps, the symbols it offers, what is wrong with each field as it is typed, and which settings its answers change. The daemon checks
 // everything again when the guide saves; this keeps the user from sending what it would refuse, and the page from sending a key whose value is the one the daemon has.
-import { normalizeCall, validCall } from "@/lib/calls";
+import { normalizeCall } from "@/lib/calls";
+import { callOk, parseNumber, problemOf, symbolProblem } from "@/lib/fieldcheck";
 import { locatorToPosition, positionToLocator } from "@/lib/locator";
 import { portForProfile, speedFallback, type Choice } from "@/lib/settings";
-import { SYMBOL_TABLES, TNC_PROFILES } from "@/protocol/lists";
+import { TNC_PROFILES } from "@/protocol/lists";
 import type { PortsMessage } from "@/protocol/protocol";
 
 export const STEP_TITLES = ["Call", "Position", "Symbol", "Radio", "Map"] as const;
@@ -24,10 +25,6 @@ export const SYMBOL_CHOICES = [
   { table: "/", code: ";", name: "Portable" },
   { table: "/", code: "r", name: "Antenna" },
 ] as const;
-
-/** The limits of the daemon's settings (MAP_RADIUS_KM, MAP_MAXZOOM and the speeds of neoaprs/config.py). */
-const RADIUS = { min: 10, max: 1000 };
-const BAUD = { min: 300, max: 921600 };
 
 /** What the guide asks, as text the way it is typed. */
 export interface SetupFields {
@@ -80,57 +77,18 @@ export const KEY_OF: Record<string, FieldName> = {
 
 export const profileOf = (key: string) => TNC_PROFILES.find((p) => p.key === key);
 
-/** A number as typed: a comma is a decimal point; null for text that is no number. */
-export function parseNumber(text: string): number | null {
-  const clean = text.trim().replace(",", ".");
-  return /^[-+]?(\d+\.?\d*|\.\d+)$/.test(clean) ? Number(clean) : null;
-}
-
-function wholeIn(text: string, min: number, max: number): boolean {
-  const value = text.trim();
-  return /^\d+$/.test(value) && Number(value) >= min && Number(value) <= max;
-}
-
-/** What is wrong with a call as it stands, or "" when it is fine (or still empty: Next waits for it, but nothing is said yet). N0CALL is the placeholder the programs ship with, never a call. */
-export function callProblem(text: string): string {
-  if (text.trim() === "") return "";
-  if (normalizeCall(text).split("-")[0] === "N0CALL") return "N0CALL is not a call";
-  return validCall(text) ? "" : "Not a call";
-}
-
-export function callOk(text: string): boolean {
-  return text.trim() !== "" && callProblem(text) === "";
-}
-
-/** What is wrong with a latitude or a longitude (`limit` 90 or 180), "" when it is fine or empty. */
-export function degreesProblem(text: string, limit: number): string {
-  if (text.trim() === "") return "";
-  const value = parseNumber(text);
-  if (value === null) return "Not a number";
-  return Math.abs(value) <= limit ? "" : `Between -${limit} and ${limit}`;
-}
-
-export function symbolProblem(text: string): string {
-  if (text === "") return "";
-  const table = text[0] ?? "";
-  const code = text[1] ?? "";
-  if (text.length !== 2) return "Table and code";
-  if (!SYMBOL_TABLES.includes(table)) return "Table: / \\ 0-9 A-Z";
-  return code >= "!" && code <= "~" ? "" : "Code: one printable character";
-}
-
-const whole = (text: string, min: number, max: number): string => (text.trim() === "" || wholeIn(text, min, max) ? "" : `${min} to ${max}`);
-
 const isTcp = (f: SetupFields): boolean => profileOf(f.profile)?.transport === "tcp";
 
-/** The problems of the fields of each step, by field. A field that is empty and needed has none here: `stepOk` says Next waits for it. */
+/** The problems of the fields of each step, by field (lib/fieldcheck.ts: an empty field says nothing here). A field that is empty and needed has none: `stepOk` says Next waits for it. */
 const CHECKS: ((f: SetupFields) => Problems)[] = [
-  (f) => ({ call: callProblem(f.call) }),
-  (f) => ({ lat: degreesProblem(f.lat, 90), lon: degreesProblem(f.lon, 180) }),
+  (f) => ({ call: problemOf("station/call", f.call, true) }),
+  (f) => ({ lat: problemOf("station/lat", f.lat, true), lon: problemOf("station/lon", f.lon, true) }),
   (f) => ({ symbol: symbolProblem(f.symbol) }),
   (f) =>
-    isTcp(f) ? { host: /\s/.test(f.host.trim()) ? "Not an address" : "", tcpPort: whole(f.tcpPort, 1, 65535) } : { baud: whole(f.baud, BAUD.min, BAUD.max) },
-  (f) => ({ radius: whole(f.radius, RADIUS.min, RADIUS.max) }),
+    isTcp(f)
+      ? { host: problemOf("tcp/host", f.host, true), tcpPort: problemOf("tcp/port", f.tcpPort, true) }
+      : { baud: problemOf("serial/baud", f.baud, true) },
+  (f) => ({ radius: problemOf("map/radius_km", f.radius, true) }),
 ];
 
 export function stepProblems(step: number, f: SetupFields): Problems {

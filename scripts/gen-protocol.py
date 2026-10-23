@@ -3,7 +3,10 @@
 
   ui/src/protocol/schema.json   JSON Schema of the Command and the Message union, and of the value of each topic
   ui/src/protocol/protocol.ts   TypeScript types made from it (by this script: no node, no json-schema-to-typescript)
-  ui/src/protocol/lists.ts      the lists the daemon owns and the page shows (the settings' keys, the kinds of packet, the states of the TNC, ...), written from the daemon's own constants
+  ui/src/protocol/lists.ts      the lists the daemon owns and the page shows (the settings' keys, the TNC profiles, the symbol names, ...) and `LIMITS`, every number the page checks a value against (the
+                                ranges of the settings, the length of a comment, a message, a status, the minimum interval ...), written from the daemon's own constants
+  ui/src/protocol/vectors.json  the rules that are code and not numbers (is this a call? what is the PHG text of this antenna? what beacon does this make?): inputs with the results that Python gives; tests/test_vectors.py
+                                and ui/src/protocol/vectors.test.ts hold the daemon and the page to them
   PROTOCOL.md                   the reference: the prose below, then the commands and the messages from the models' docstrings and field descriptions
 
 Run it with the venv's python from the repository root:  .venv/bin/python scripts/gen-protocol.py
@@ -12,8 +15,9 @@ Run it with the venv's python from the repository root:  .venv/bin/python script
 import json
 import re
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, get_args
+from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -21,25 +25,26 @@ sys.path.insert(0, str(ROOT))
 from pydantic import BaseModel  # noqa: E402
 
 import neoaprs.web.protocol as protocol  # noqa: E402
-from neoaprs.aprsmessage import MAX_TEXT  # noqa: E402
 from neoaprs import TOCALL  # noqa: E402
-from neoaprs.bulletin import KINDS as BULLETIN_KINDS  # noqa: E402
-from neoaprs.config import KEYS, MAX_COMMENT, SYMBOL_TABLES  # noqa: E402
+from neoaprs.aprsmessage import FORBIDDEN, MAX_TEXT  # noqa: E402
+from neoaprs.ax25 import MAX_PATH  # noqa: E402
+from neoaprs.callsign import AMATEUR_BASE_MIN, BASE_MAX, MAX_SSID, PLACEHOLDER_CALLS, call_problem, parse_call  # noqa: E402
+from neoaprs.config import ANTENNA_DIRECTIONS, DEFAULTS, KEYS, LATITUDE, LONGITUDE, MAX_COMMENT, MAX_COMMENT_PHG, MIN_INTERVAL_MIN, RANGES, SYMBOL_TABLES, Config  # noqa: E402
 from neoaprs.configstatus import MAX_STATUS  # noqa: E402
-from neoaprs.message import STATES  # noqa: E402
-from neoaprs.packetcodec import KINDS  # noqa: E402
-from neoaprs.source import Source  # noqa: E402
-from neoaprs.stationbook import TRACK_MAX  # noqa: E402
+from neoaprs.message import EMAIL_GATEWAY, check_text, normal_path  # noqa: E402
+from neoaprs.ownbulletin import GROUP_MAX, PostError, make_bulletin, slot_of  # noqa: E402
+from neoaprs.ownobject import COMMENT_MAX, COMMENT_MAX_MOTION, COURSE_MAX, ITEM_NAME, NAME_FORBIDDEN, OBJECT_NAME, SPEED_MAX_KMH, OwnError, make_object  # noqa: E402
+from neoaprs.policy import HIDE_AFTER_MIN, MAX_HIDE_AFTER_MIN  # noqa: E402
+from neoaprs.aprsposition import uncompressed_position  # noqa: E402
+from neoaprs.services.beacon import Beacon, BeaconError, phg_text  # noqa: E402
 from neoaprs.symbols import SYMBOL_NAMES  # noqa: E402
 from neoaprs.tncprofile import PROFILES  # noqa: E402
 from neoaprs.web.hubwire import PROTOCOL  # noqa: E402
-from neoaprs.web.stationwire import StationRow  # noqa: E402
-from neoaprs.web.topics import PACKETS_KEPT, TNC_EVERY_SEC  # noqa: E402
-from neoaprs.web.views import LINES_MAX  # noqa: E402
 
 SCHEMA = ROOT / "ui" / "src" / "protocol" / "schema.json"
 TYPES = ROOT / "ui" / "src" / "protocol" / "protocol.ts"
 LISTS = ROOT / "ui" / "src" / "protocol" / "lists.ts"
+VECTORS = ROOT / "ui" / "src" / "protocol" / "vectors.json"
 DOC = ROOT / "PROTOCOL.md"
 # The order of the first objects of the Objects section of PROTOCOL.md; every other model of the schema follows them, sorted by name.
 OBJECT_ORDER = "StationRow PacketRow MessageRow DecodedPosition DecodedMessage DecodedObject DecodedItem DecodedStatus DecodedTelemetry DecodedOther DecodedUndecoded DecodedWeather PositionFields TncState TncStats ConfigValues SetOp DelOp ReplaceOp".split()
@@ -187,29 +192,53 @@ def _symbol_names() -> str:
             f"export const SYMBOL_NAMES = {_literal({k: list(v) for k, v in SYMBOL_NAMES.items()})} as const;\n")
 
 
+def limits() -> dict[str, Any]:
+    """Every number the page checks a value against, by area: the daemon's own constants, so that the page types none of them again."""
+    ranges = {**{key: {"min": low, "max": high} for key, (low, high) in RANGES.items()}, "station/lat": {"min": LATITUDE[0], "max": LATITUDE[1]}, "station/lon": {"min": LONGITUDE[0], "max": LONGITUDE[1]}}
+    return {
+        "range": ranges,
+        "comment": {"max": MAX_COMMENT, "maxWithPhg": MAX_COMMENT_PHG},
+        "status": {"max": MAX_STATUS},
+        "interval": {"minMin": MIN_INTERVAL_MIN},
+        "message": {"textMax": MAX_TEXT, "forbidden": FORBIDDEN, "gateway": EMAIL_GATEWAY},
+        "call": {"baseMax": BASE_MAX, "amateurBaseMin": AMATEUR_BASE_MIN, "maxSsid": MAX_SSID, "placeholders": sorted(PLACEHOLDER_CALLS)},
+        "path": {"maxCalls": MAX_PATH},
+        "object": {"nameMax": OBJECT_NAME[1], "itemNameMin": ITEM_NAME[0], "nameForbidden": NAME_FORBIDDEN, "commentMax": COMMENT_MAX, "commentMaxMotion": COMMENT_MAX_MOTION,
+                   "courseMax": COURSE_MAX, "speedMaxKmh": round(SPEED_MAX_KMH)},
+        "bulletin": {"groupMax": GROUP_MAX},
+        "station": {"hideAfterMin": HIDE_AFTER_MIN, "maxHideAfterMin": MAX_HIDE_AFTER_MIN},
+    }
+
+
+_IDENTIFIER = re.compile(r"[A-Za-z_]\w*")
+
+
+def _object(value: Any, indent: int = 0) -> str:
+    """A nested object as TypeScript, one key to a line (a list of words on one line)."""
+    if not isinstance(value, dict):
+        return json.dumps(value)
+    pad = "  " * (indent + 1)
+    rows = (f"{pad}{key if _IDENTIFIER.fullmatch(key) else json.dumps(key)}: {_object(item, indent + 1)},\n" for key, item in value.items())
+    return "{\n" + "".join(rows) + "  " * indent + "}"
+
+
+def _limits_block() -> str:
+    return ("/** Every number the page checks a value against, by area, from the daemon's own constants (the ranges of the settings by key: RANGES of neoaprs/config.py; the comment, status and message "
+            "lengths, the least interval, the calls, the objects and bulletins, the time a station stays on the map). */\n"
+            f"export const LIMITS = {_object(limits())} as const;\n")
+
+
 def lists_text() -> str:
     """The daemon's lists as TypeScript constants: the page reads them instead of keeping a second copy."""
     blocks = [
         _number("PROTOCOL", PROTOCOL, "The version of the messages (PROTOCOL of neoaprs/web/hubwire.py): a `hello` of another number means the page is out of date."),
         _array("TOPIC_NAMES", protocol.TOPIC_NAMES, "The topics of the hub, in the order the daemon tells them (TopicValues of neoaprs/web/protocol.py)."),
-        _array("COMMAND_NAMES", sorted(protocol.COMMAND_NAMES), "Every command the page may send (the `cmd` of the Command union)."),
         _array("MESSAGE_TYPES", sorted(protocol.MESSAGE_NAMES), "Every message the daemon sends (the `type` of the Message union)."),
         _array("CONFIG_KEYS", KEYS, "The keys of the settings, in the order of the settings form (SETTINGS of neoaprs/config.py)."),
         _profiles(),
         _symbol_names(),
         f"/** The destination call of every frame we send; the beacon's preview shows it (TOCALL of neoaprs/__init__.py). */\nexport const TOCALL = {json.dumps(TOCALL)};\n",
-        _array("PACKET_KINDS", KINDS, "What the parser makes of a packet (KINDS of neoaprs/packetcodec.py)."),
-        _array("STATION_KINDS", list(get_args(StationRow.model_fields["kind"].annotation)), "A station, or an object or an item that a station reports (neoaprs/web/stationwire.py)."),
-        _array("TNC_STATES", [s.value for s in Source.State], "The states of the TNC (Source.State of neoaprs/source.py)."),
-        _array("MESSAGE_STATES", STATES, "The states of a message (State of neoaprs/message.py)."),
-        _number("MESSAGE_TEXT_MAX", MAX_TEXT, "How many bytes of UTF-8 the text of a message may have (MAX_TEXT of neoaprs/aprsmessage.py)."),
-        _number("TRACK_MAX", TRACK_MAX, "How many positions of a station's track the daemon keeps (TRACK_MAX of neoaprs/stationbook.py)."),
-        _number("PACKETS_KEPT", PACKETS_KEPT, "How many packets the topic `packets` holds (PACKETS_KEPT of neoaprs/web/topics.py)."),
-        _number("TNC_LINES_MAX", LINES_MAX, "How many lines of the TNC the topic `tnc` holds (LINES_MAX of neoaprs/web/views.py)."),
-        _number("TNC_EVERY_SEC", TNC_EVERY_SEC, "The least time between two patches of the topic `tnc` (TNC_EVERY_SEC of neoaprs/web/topics.py)."),
-        _array("BULLETIN_KINDS", BULLETIN_KINDS, "The kinds of a row of the message board (Kind of neoaprs/bulletin.py)."),
-        _number("STATUS_MAX", MAX_STATUS, "How many bytes of UTF-8 the setting station/status may have (MAX_STATUS of neoaprs/config.py)."),
-        _number("COMMENT_MAX", MAX_COMMENT, "How long the comment of a position packet may be (MAX_COMMENT of neoaprs/config.py)."),
+        _limits_block(),
         f"/** The characters a symbol table can be: the primary, the alternate and the overlays (SYMBOL_TABLES of neoaprs/config.py). */\nexport const SYMBOL_TABLES = {json.dumps(SYMBOL_TABLES)};\n",
     ]
     return LISTS_HEAD + "\n" + "\n".join(blocks)
@@ -293,10 +322,15 @@ daemon starts with are the latest the database holds. The messages of a topic `m
 ## Validation
 
 Every frame the page sends is checked against the `Command` union before anything is done. The models are strict: a number is a number (not `"5"`), a flag is `true` or `false` (not `1`), a
-field the model does not know is an error, text has a maximum length, `NaN` and `Infinity` are not JSON. A frame that does not fit is answered with `{"type": "error", "text": "<command>: <field>:
-<what is wrong>"}`, for example `forget_station: call: is missing`, and nothing at all is executed. A frame that is not JSON, or not an object, or names no known command is answered the same
-way. The values of `set_config` are checked by the settings (`neoaprs/config.py`), all before any is stored: the first that is wrong is the answer, `set_config: station/lat: 95 is not between -90
-and 90`.
+field the model does not know is an error, text has a maximum length, `NaN` and `Infinity` are not JSON. A frame that does not fit is answered with an `error` whose `cmd` is the command, whose `code` is `invalid` and whose `text` is
+"<command>: <field>: <what is wrong>", for example `forget_station: call: is missing`, and nothing at all is executed. A frame that is not JSON, or not an object, or names no known command is answered the same
+way (`cmd` is empty; `code` is `not_json`, `not_object`, `no_command` or `unknown_command`). The values of `set_config` are checked by the settings (`neoaprs/config.py`), all before any is stored: the first that
+is wrong is the answer, with `cmd` `set_config`, `key` the setting (`station/lat`), `code` what is wrong (`setting.range`), `params` its figures (`value`, `min`, `max`) and `text` `set_config: station/lat: 95 is
+not between -90 and 90`.
+
+A page goes by `cmd`, `key` and `code` and never reads `text`; `text` is the English sentence for a log and for a code the page has no sentence for. The codes are stable words: `setting.*` for the values
+of the settings (and `call.*`, `path.*` inside them), `message.*`, `object.*` and `bulletin.*` for what is posted or sent, `station.*`, `beacon.*`, `status.*`, `map.*` and `topic.*` for the rest of the commands,
+and `other` for a refusal that has no code yet (only `text` says what it is).
 
 With `NEOAPRS_VALIDATE_OUT=1` in the daemon's environment every message it sends is checked against the `Message` union too (`state` and `patch` also against the type of the topic's value, and
 each `set` against the type of the item), and a message that does not fit is logged once for each type (the test suite runs with this on, and fails on any mismatch).
@@ -412,9 +446,144 @@ def doc_text() -> str:
     return "\n".join(out).rstrip("\n") + "\n"
 
 
+# ---- vectors.json: the rules that are code, with the results Python gives
+
+CALLS = ["OH2GBA", "oh2gba", " oh2gba ", "OH2GBA-7", "OH2GBA-15", "OH2GBA-16", "OH2GBA-0", "OH2GBA-00", "OH2GBA-07", "OH2GBA-007", "OH2GBA-", "-7", "", "  ", "N0CALL", "n0call-5", "NOCALL", "MYCALL",
+         "AB", "A1", "A1B", "ABC", "123", "1234", "OH2GBAA", "OH2G BA", "OH2GBA/P", "OH2GB\u00c4", "\u00df1A", "W1AW", "K1", "KB1ABC-9", "EMAIL-2", "WIDE1-1", "APZNEO", "TCPIP", "a-b", "OH 2GBA"]
+PATHS = ["", " ", "WIDE1-1,WIDE2-1", "wide1-1, wide2-1", "WIDE2-2", ",", "WIDE1-1,", ",WIDE1-1", "WIDE1-1,,WIDE2-1", "OH2RCH-0", "A,B,C,D,E,F,G,H", "A,B,C,D,E,F,G,H,I", "TOOLONGCALL", "OH2RCH-16", "WIDE1-1,N0CALL"]
+MESSAGE_TEXTS = ["Hello", " Hello ", "", "   ", "x" * 67, "x" * 68, " " + "x" * 66 + " "]
+BULLETIN_TEXTS = ["Snow expected", "", "   ", " padded ", "x" * 67, "x" * 68, "with | bar", "with ~ tilde", "with { brace", "tab\there", "\u00e5\u00e4\u00f6", "emoji \U0001f600", "a:b"]
+BULLETIN_SLOTS = [("bulletin", i, "") for i in "0189AZ"] + [("announcement", i, "") for i in "09AZ"] + [("group", i, g) for i in "09A" for g in ("", "HAMS", "HAMS1", "HAMS12", "HA-MS", "ha ms", "ham", "H")]
+OBJECT_NAMES = [("object", n) for n in ("A", "OH2GBA", "NINECHARS", "TENCHARS12", "", " X", "X ", "A B", "has!bang", "has_under", "has|bar", "has~tilde", "caf\u00e9", "lower", "UPPER 1")] + \
+    [("item", n) for n in ("AB", "ABC", "NINECHARS", "TENCHARS12", "", "A_B", "A!")]
+OBJECT_COMMENTS = [("", False), ("x" * 43, False), ("x" * 44, False), ("x" * 36, True), ("x" * 37, True), ("x" * 43, True), ("with | bar", False), ("with ~ tilde", False), ("caf\u00e9", False), ("tab\there", False), (" padded ", False)]
+SETTING_VALUES = [(key, text) for key in ("station/lat", "station/lon") for text in ("0", "60.17", "-90", "90", "-180", "180", "90.0001", "-90.1", "180.5", "", " 45 ", "abc")] + \
+    [(key, text) for key in ("serial/baud", "tcp/port", "beacon/power_w", "beacon/antenna_height_m", "beacon/antenna_gain_db", "map/radius_km")
+     for text in ("", "0", "1", "9", "10", "299", "300", "1000", "1001", "9999", "10000", "65535", "65536", "921600", "921601", "-1", "1.5", "abc", " 5 ")]
+PHG_CASES = [(p, h, 3, "NE") for p in (0, 1, 2, 5, 25, 81, 100, 9999) for h in (0, 1, 3, 3.048, 4, 10, 20, 100, 9999)] + [(5, 10, g, d) for g in (0, 3, 9, 10, -1) for d in ANTENNA_DIRECTIONS]
+POSITIONS = [(60.17, 24.94), (0.0, 0.0), (-33.8688, 151.2093), (90.0, 180.0), (-90.0, -180.0), (59.999999, 24.999999), (0.03125, 0.09375), (60.169999, -24.940001), (-0.00001, -0.00001), (0.0083333, 100.0)]
+BEACON_BASE = {"station/call": "OH2GBA", "station/lat": "60.17", "station/lon": "24.94", "station/symbol_table": "/", "station/symbol_code": "-", "station/comment": "NeoAPRS",
+               "beacon/power_w": "", "beacon/antenna_height_m": "0", "beacon/antenna_gain_db": "0", "beacon/antenna_direction": "omni", "beacon/path": "WIDE1-1,WIDE2-1"}
+BEACONS = [{}, {"beacon/power_w": "5", "beacon/antenna_height_m": "10", "beacon/antenna_gain_db": "3", "beacon/antenna_direction": "NE", "station/comment": "Home"}, {"station/comment": ""}, {"station/call": "oh2gba-7"},
+           {"station/call": ""}, {"station/lat": ""}, {"station/lat": "91"}, {"station/lon": "181"},
+           {"station/symbol_table": "Z", "station/symbol_code": "~"}, {"station/symbol_table": "a"}, {"station/symbol_code": " "}, {"beacon/path": ""}, {"beacon/path": "WIDE2-2"}, {"beacon/path": "BAD CALL"},
+           {"station/lat": "0.03125", "station/lon": "0.09375"}, {"station/lat": "-0.00001", "station/lon": "-0.00001"}, {"beacon/power_w": "100", "beacon/antenna_height_m": "9999", "beacon/antenna_gain_db": "9",
+            "beacon/antenna_direction": "N", "station/comment": "x" * 36}]
+
+
+def _call_vector(text: str) -> dict[str, Any]:
+    """Whether the text typed in station/call may be transmitted under (the settings' call, then the interlock's), and the call as it is kept."""
+    try:
+        call = Config.check("station/call", text)
+    except ValueError:
+        return {"input": text, "ok": False, "call": ""}
+    ok = call != "" and call_problem(call) == ""
+    return {"input": text, "ok": ok, "call": call if ok else ""}
+
+
+def _parse_vector(text: str) -> dict[str, Any]:
+    try:
+        parse_call(text.strip())
+    except ValueError:
+        return {"input": text, "ok": False}
+    return {"input": text, "ok": True}
+
+
+def _path_vector(text: str) -> dict[str, Any]:
+    try:
+        normal_path(text)
+    except ValueError:
+        return {"input": text, "ok": False}
+    return {"input": text, "ok": True}
+
+
+def _message_vector(text: str) -> dict[str, Any]:
+    """Whether the text, as far as its length and its being there go, fits in a message."""
+    try:
+        check_text(text)
+    except ValueError:
+        return {"input": text, "ok": False}
+    return {"input": text, "ok": True}
+
+
+def _bulletin_text_vector(text: str) -> dict[str, Any]:
+    try:
+        make_bulletin(datetime(2026, 10, 21, tzinfo=UTC), "BLN1", text)
+    except PostError:
+        return {"input": text, "ok": False}
+    return {"input": text, "ok": True}
+
+
+def _bulletin_slot_vector(kind: str, ident: str, group: str) -> dict[str, Any]:
+    """The slot a bulletin of this kind, identifier and group is posted to, null when the kind does not take it."""
+    try:
+        slot, _, found = slot_of(f"BLN{ident}{group}")
+    except PostError:
+        return {"kind": kind, "id": ident, "group": group, "slot": None}
+    return {"kind": kind, "id": ident, "group": group, "slot": slot if found == kind else None}
+
+
+def _object_vector(kind: str, name: str) -> dict[str, Any]:
+    try:
+        make_object(datetime(2026, 10, 21, tzinfo=UTC), name, kind, 60.0, 24.0, "/", ">")
+    except OwnError as e:
+        return {"name": name, "kind": kind, "ok": False, "code": e.code}
+    return {"name": name, "kind": kind, "ok": True, "code": ""}
+
+
+def _comment_vector(comment: str, moving: bool) -> dict[str, Any]:
+    try:
+        make_object(datetime(2026, 10, 21, tzinfo=UTC), "OBJ", "object", 60.0, 24.0, "/", ">", comment, 90 if moving else None, None)
+    except OwnError as e:
+        return {"comment": comment, "moving": moving, "ok": False, "code": e.code}
+    return {"comment": comment, "moving": moving, "ok": True, "code": ""}
+
+
+def _setting_vector(key: str, text: str) -> dict[str, Any]:
+    try:
+        Config.check(key, text)
+    except ValueError:
+        return {"key": key, "input": text, "ok": False}
+    return {"key": key, "input": text, "ok": True}
+
+
+def _beacon_vector(changes: dict[str, str]) -> dict[str, Any]:
+    """The TNC2 text of the beacon these settings make, null when they make none (a setting refused, a call that may not transmit, a position missing)."""
+    values = {**BEACON_BASE, **changes}
+    try:
+        config = Config.checked(DEFAULTS, values)
+        text: str | None = Beacon(object(), lambda: config).frame().tnc2()                 # type: ignore[arg-type]  (the frame needs no radio)
+    except (ValueError, BeaconError):
+        text = None
+    return {"values": values, "text": text}
+
+
+def vectors() -> dict[str, list[dict[str, Any]]]:
+    return {
+        "calls": [_call_vector(t) for t in CALLS],
+        "parse_calls": [_parse_vector(t) for t in CALLS],
+        "paths": [_path_vector(t) for t in PATHS],
+        "message_texts": [_message_vector(t) for t in MESSAGE_TEXTS],
+        "bulletin_texts": [_bulletin_text_vector(t) for t in BULLETIN_TEXTS],
+        "bulletin_slots": [_bulletin_slot_vector(*row) for row in BULLETIN_SLOTS],
+        "object_names": [_object_vector(*row) for row in OBJECT_NAMES],
+        "object_comments": [_comment_vector(*row) for row in OBJECT_COMMENTS],
+        "settings": [_setting_vector(*row) for row in SETTING_VALUES],
+        "phg": [{"power": p, "height": h, "gain": g, "direction": d, "text": phg_text(p, h, g, d)} for p, h, g, d in PHG_CASES],
+        "positions": [{"lat": lat, "lon": lon, "table": "/", "code": "-", "text": uncompressed_position(lat, lon, "/", "-").decode("ascii")} for lat, lon in POSITIONS],
+        "beacons": [_beacon_vector(changes) for changes in BEACONS],
+    }
+
+
+def vectors_text() -> str:
+    """One case to a line, so that two additions meet in two lines and not in one."""
+    blocks = [f' "{name}": [\n' + ",\n".join(f"  {json.dumps(case, ensure_ascii=True)}" for case in cases) + "\n ]" for name, cases in vectors().items()]
+    return "{\n" + ",\n".join(blocks) + "\n}\n"
+
+
 def render() -> dict[Path, str]:
     schema = build_schema()
-    return {SCHEMA: json.dumps(schema, indent=2) + "\n", TYPES: types_text(schema), LISTS: lists_text(), DOC: doc_text()}
+    return {SCHEMA: json.dumps(schema, indent=2) + "\n", TYPES: types_text(schema), LISTS: lists_text(), VECTORS: vectors_text(), DOC: doc_text()}
 
 
 def main(argv: list[str]) -> int:

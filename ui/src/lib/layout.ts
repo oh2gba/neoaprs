@@ -34,7 +34,7 @@ export const PANEL_STORED_MAX = 20000;
 
 /**
  * How wide the Messages tab must be (the tab itself, not the window: the panel beside the map can be narrow on a wide screen) to show the list of conversations beside the open conversation.
- * 600 px is a list of 240 px, the divider and a conversation of 359 px, which holds the compose row (call, Stations, "67 left") and bubbles that can still be read; narrower, one of the two at a time.
+ * 600 px is a list of 240 px, the divider and a conversation of 359 px, which holds the compose row (call, Stations, "12 left") and bubbles that can still be read; narrower, one of the two at a time.
  */
 export const MESSAGES_WIDE = 600;
 

@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from neoaprs.config import HIDE_AFTER_MIN, MAX_HIDE_AFTER_MIN
+from neoaprs.policy import HIDE_AFTER_MIN, MAX_HIDE_AFTER_MIN
 
 from .wirebase import _Command, _Model
 

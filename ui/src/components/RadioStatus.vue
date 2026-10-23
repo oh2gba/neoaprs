@@ -3,7 +3,7 @@
 // the counters are its hover title), the problem when the line does not already say it, and Reconnect. "Terminal" is closed until it is wanted: the latest lines of what the TNC saw and did, newest last, in the viewer's time, following the end unless it was scrolled up.
 import { computed, nextTick, ref, watch } from "vue";
 import DisclosureBox from "@/components/DisclosureBox.vue";
-import { localLine, searchedPorts, tncCounts, tncStatus } from "@/lib/tncstatus";
+import { lineText, searchedPorts, tncCounts, tncStatus } from "@/lib/tncstatus";
 import type { TncState } from "@/protocol/protocol";
 
 const props = withDefaults(defineProps<{ tnc: TncState | null; now: number; digipeater?: boolean }>(), { digipeater: false });
@@ -14,7 +14,7 @@ const FOLLOW_SLACK_PX = 24;
 const status = computed(() => (props.tnc === null ? "" : tncStatus(props.tnc, props.now, props.digipeater)));
 const ports = computed(() => (props.tnc === null ? null : searchedPorts(props.tnc)));
 const problem = computed(() => (props.tnc !== null && props.tnc.problem !== "" && !status.value.includes(props.tnc.problem) ? props.tnc.problem : ""));
-const lines = computed(() => (props.tnc?.lines ?? []).map((l) => localLine(l, props.now)));
+const lines = computed(() => (props.tnc?.lines ?? []).map(lineText));
 
 watch(
   () => props.tnc?.lines,

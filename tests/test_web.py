@@ -97,7 +97,7 @@ async def test_the_state_of_the_tnc_follows_the_radio_and_comes_at_most_four_tim
     await page.until(lambda: page.topics["tnc"]["stats"]["packets"] == 4)
     tnc = page.topics["tnc"]
     assert tnc["state"] == "connected" and tnc["stats"]["frames_in"] == 4 and tnc["stats"]["last_packet"] and len(tnc["lines"]) <= 100
-    assert any("OH2RDK-7" in line for line in tnc["lines"])
+    assert any("OH2RDK-7" in line["text"] for line in tnc["lines"])
     assert len(page.of("patch", "tnc")) <= 4, "the lines and the counters of one burst are told together, not one by one"
 
 
@@ -325,7 +325,7 @@ async def test_tnc_reconnect_opens_the_line_again(tmp_path: Path) -> None:
     await page.send({"cmd": "tnc_reconnect"})
     await until(lambda: e.tnc.stats.opens == 2 and e.tnc.state is Source.State.CONNECTED)
     await page.until(lambda: page.topics["tnc"]["stats"]["opens"] == 2 and page.topics["tnc"]["state"] == "connected")
-    assert any("opened" in line for line in page.topics["tnc"]["lines"])
+    assert any("opened" in line["text"] for line in page.topics["tnc"]["lines"])
     frames = await e.play()
     assert frames == 4, "the line works after it"
 

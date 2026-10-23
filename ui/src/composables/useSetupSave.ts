@@ -3,11 +3,9 @@
 import { computed, ref, watch, type Ref } from "vue";
 import type { useSetupAnswers } from "@/composables/useSetupAnswers";
 import type { Toast } from "@/composables/useDaemon";
-import { errorKey, errorReason } from "@/lib/settings";
+import { reasonOf } from "@/lib/settings";
 import { KEY_OF, STEP_OF } from "@/lib/setup";
 import type { Command, ConfigValues } from "@/protocol/protocol";
-
-const KEYS = Object.keys(KEY_OF);
 
 export function useSetupSave(
   answers: ReturnType<typeof useSetupAnswers>,
@@ -72,10 +70,9 @@ export function useSetupSave(
     saving.value = false;
     finishing = false;
     pending = null;
-    const key = errorKey(toast.text, KEYS);
-    const field = key ? KEY_OF[key] : undefined;
-    if (!key || !field) return;
-    answers.errors[field] = errorReason(toast.text, key);
+    const field = toast.cmd === "set_config" && toast.key !== null ? KEY_OF[toast.key] : undefined;
+    if (!field) return;
+    answers.errors[field] = reasonOf(toast);
     step.value = STEP_OF[field];
   });
 

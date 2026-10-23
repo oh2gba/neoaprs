@@ -5,7 +5,7 @@ import { socketUrl, useDaemon } from "@/composables/useDaemon";
 import { FakeFetch } from "@/test/fakefetch";
 import { FakeSocket } from "@/test/fakesocket";
 import { PAGE_VERSION } from "@/lib/build";
-import { bulletin, configValues, hello, message, ownBulletin, ownObject, packet, station, tncState } from "@/test/fixtures";
+import { bulletin, configValues, errorOf, hello, message, ownBulletin, ownObject, packet, station, tncState } from "@/test/fixtures";
 
 function setUp() {
   let daemon: ReturnType<typeof useDaemon> | undefined;
@@ -121,15 +121,17 @@ describe("useDaemon", () => {
     const { daemon, socket } = setUp();
     socket.say({ type: "status", version: "0.1.0", started_at: "2026-10-21T00:00:00Z", packets: 5, stations: 2, call: "OH2GBA", lat: 60, lon: 24 });
     expect(daemon.status.value?.packets).toBe(5);
-    socket.say({ type: "error", text: "nope" });
-    socket.say({ type: "error", text: "nope" });
-    expect(daemon.lastError.value).toEqual({ text: "nope", n: 2 });
+    socket.say(errorOf("nope"));
+    socket.say(errorOf("nope"));
+    expect(daemon.lastError.value).toEqual({ cmd: "", key: null, code: "other", params: {}, text: "nope", n: 2 });
+    socket.say(errorOf("set_config: station/lat: 95 is out", "setting.range", { value: 95 }));
+    expect(daemon.lastError.value).toMatchObject({ cmd: "set_config", key: "station/lat", code: "setting.range", params: { value: 95 }, n: 3 });
   });
 
   it("sends a command, and says so in the toast when it cannot", () => {
     const { daemon, socket } = setUp();
     expect(daemon.send({ cmd: "ping" })).toBe(false);
-    expect(daemon.lastError.value?.text).toBe("Not connected to the daemon.");
+    expect(daemon.lastError.value).toMatchObject({ cmd: "", key: null, code: "not_connected", text: "Not connected to the daemon." });
     socket.say(hello());
     expect(daemon.send({ cmd: "tnc_reconnect" })).toBe(true);
     expect(socket.sent).toEqual([{ cmd: "tnc_reconnect" }]);

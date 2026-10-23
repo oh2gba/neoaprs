@@ -5,7 +5,7 @@ import { ANSWER_MS } from "@/composables/useSettingsQueue";
 import { useSettings } from "@/composables/useSettings";
 import type { Toast } from "@/composables/useDaemon";
 import type { Command, ConfigValues } from "@/protocol/protocol";
-import { configValues } from "@/test/fixtures";
+import { configValues, toastOf } from "@/test/fixtures";
 
 function setUp(extra: Record<string, string> = {}) {
   const config = ref<ConfigValues | null>(configValues(extra));
@@ -19,8 +19,8 @@ function setUp(extra: Record<string, string> = {}) {
     await nextTick();
   };
   /** The daemon refuses the request in flight. */
-  const refuse = async (text: string) => {
-    lastError.value = { text, n: ++errors };
+  const refuse = async (text: string, code = "other", params: Record<string, string | number> = {}) => {
+    lastError.value = toastOf(text, code, params, ++errors);
     await nextTick();
   };
   const sets = () => send.mock.calls.map(([command]) => (command as { values: Record<string, string> }).values);
@@ -265,7 +265,11 @@ describe("useSettings: linked rules", () => {
     const { settings, refuse } = setUp({ "station/comment": "x".repeat(40) });
     settings.edit("beacon/power_w", "5");
     settings.commit(["beacon/power_w"]);
-    await refuse("set_config: station/comment: 40 characters is more than the 36 allowed with the PHG extension (clear beacon/power_w to send none)");
+    await refuse(
+      "set_config: station/comment: 40 characters is more than the 36 allowed with the PHG extension (clear beacon/power_w to send none)",
+      "setting.comment_too_long",
+      { length: 40, limit: 36 },
+    );
     expect(settings.errors["beacon/power_w"]).toBe("Shorten the comment to 36 first");
     expect(settings.errors["station/comment"]).toBeUndefined();
     expect(settings.draft["beacon/power_w"]).toBe("5");
@@ -275,7 +279,11 @@ describe("useSettings: linked rules", () => {
     const { settings, refuse } = setUp({ "beacon/power_w": "5" });
     settings.edit("station/comment", "x".repeat(40));
     settings.commit(["station/comment"]);
-    await refuse("set_config: station/comment: 40 characters is more than the 36 allowed with the PHG extension (clear beacon/power_w to send none)");
+    await refuse(
+      "set_config: station/comment: 40 characters is more than the 36 allowed with the PHG extension (clear beacon/power_w to send none)",
+      "setting.comment_too_long",
+      { length: 40, limit: 36 },
+    );
     expect(settings.errors["station/comment"]).toContain("more than the 36 allowed");
   });
 

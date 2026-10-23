@@ -10,7 +10,7 @@ from typing import Any
 from pydantic import TypeAdapter, ValidationError
 
 from .protocol import MESSAGES, TOPIC_ITEMS, TOPIC_VALUES
-from .session import Client, Connection
+from .session import Client, Connection, error_message
 
 log = logging.getLogger("neoaprs.web")
 
@@ -101,7 +101,7 @@ class Publisher:
         if len(text) > MAX_MESSAGE:                               # the page is told, instead of being cut off by a write that cannot be made
             kind = _type_of(text)
             log.warning("a %s message of %.0f MB was not sent to %s: more than %d MB", kind, len(text) / MEGABYTE, conn.ip, MAX_MESSAGE // MEGABYTE)
-            text = encode({"type": "error", "text": f"The {kind} answer is {len(text) / MEGABYTE:.0f} MB, too big to send ({MAX_MESSAGE // MEGABYTE} MB at most)"})
+            text = encode(error_message(f"The {kind} answer is {len(text) / MEGABYTE:.0f} MB, too big to send ({MAX_MESSAGE // MEGABYTE} MB at most)", code="too_big", params={"kind": kind, "megabytes": len(text) // MEGABYTE, "max": MAX_MESSAGE // MEGABYTE}))
         self._check(text)
         conn.client.send_json(text)
 

@@ -7,7 +7,7 @@ import type { Toast } from "@/composables/useDaemon";
 import { useSettingsAnswers } from "@/composables/useSettingsAnswers";
 import { useSettingsFeedback } from "@/composables/useSettingsFeedback";
 import { useSettingsQueue, type Request } from "@/composables/useSettingsQueue";
-import { pairProblems, problemOf, sameValue } from "@/lib/settingcheck";
+import { pairProblems, problemOf, sameValue } from "@/lib/fieldcheck";
 import { changeName, linkedValues } from "@/lib/settinglinks";
 import type { Command, ConfigValues } from "@/protocol/protocol";
 

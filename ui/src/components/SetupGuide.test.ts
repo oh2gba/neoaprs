@@ -7,7 +7,7 @@ import { useSetupGuide } from "@/composables/useSetupGuide";
 import { SYMBOL_CHOICES } from "@/lib/setup";
 import { TNC_PROFILES } from "@/protocol/lists";
 import type { Command, ConfigValues, MapState, PortsMessage } from "@/protocol/protocol";
-import { configValues, mapState } from "@/test/fixtures";
+import { configValues, mapState, toastOf } from "@/test/fixtures";
 
 const fresh = (extra: Record<string, string> = {}) =>
   configValues({ "station/call": "", "station/lat": "", "station/lon": "", "serial/baud": "", "serial/port": "", ...extra });
@@ -412,7 +412,7 @@ describe("SetupGuide: the map and Finish", () => {
     const { wrapper, lastError, stand, next } = make();
     await stand(4);
     await next();
-    lastError.value = { text: "set_config: station/call: 'OH2ABC-99' is not a call", n: 1 };
+    lastError.value = toastOf("set_config: station/call: 'OH2ABC-99' is not a call");
     await flushPromises();
     expect(wrapper.find(".setup-step-name").text()).toBe("Call");
     expect(wrapper.find(".field-error").text()).toBe("'OH2ABC-99' is not a call");

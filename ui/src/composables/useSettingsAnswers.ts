@@ -5,7 +5,6 @@ import type { Toast } from "@/composables/useDaemon";
 import type { useSettingsFeedback } from "@/composables/useSettingsFeedback";
 import type { Request, useSettingsQueue } from "@/composables/useSettingsQueue";
 import { refusalFor } from "@/lib/settinglinks";
-import { errorKey, errorReason } from "@/lib/settings";
 import type { ConfigValues } from "@/protocol/protocol";
 
 export function useSettingsAnswers(
@@ -34,9 +33,8 @@ export function useSettingsAnswers(
 
   watch(lastError, (toast) => {
     const request = queue.inflight.value;
-    if (!toast || !request || !toast.text.startsWith("set_config:")) return;
-    const named = errorKey(toast.text, Object.keys(config.value?.values ?? {}));
-    const where = refusalFor(named, named ? errorReason(toast.text, named) : toast.text.replace(/^set_config:\s*/, ""), request.keys);
+    if (!toast || !request || toast.cmd !== "set_config") return;
+    const where = refusalFor(toast, request.keys);
     queue.release();
     refuse(request, where.reason, where.key);
     queue.pump();

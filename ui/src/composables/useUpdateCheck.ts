@@ -2,6 +2,7 @@
 // question is out; the daemon answers whether the daily check is on or not.
 import { onScopeDispose, ref, shallowRef, watch, type Ref } from "vue";
 import type { Toast } from "@/composables/useDaemon";
+import { reasonOf } from "@/lib/settings";
 import type { Command, UpdateResultMessage } from "@/protocol/protocol";
 
 export const SHOWN_MS = 8000;
@@ -35,7 +36,7 @@ export function useUpdateCheck(updateResult: Ref<UpdateResultMessage | null>, la
     if (message && running.value) show(outcomeOf(message));
   });
   watch(lastError, (toast) => {
-    if (toast && running.value) show({ text: toast.text.replace(/^update_check:\s*/, ""), newer: false });
+    if (toast && running.value && toast.cmd === "update_check") show({ text: reasonOf(toast), newer: false });
   });
 
   function check(): void {

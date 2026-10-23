@@ -50,8 +50,10 @@ def prune_weather_before(db: sqlite3.Connection, stamp: str) -> int:
 
 
 def weather_packets(db: sqlite3.Connection, stamp: str) -> list[Row]:
-    """(source, destination, raw, heard_at) of the packets heard at or after `stamp` that may carry weather, the oldest first: a position, object or item whose symbol code is `_` (the summary has the symbol
-    after the position: "... 24.4300 /_ ..."), or a packet of the kind weather. A few more than there are weather reports: the parser decides."""
+    """(source, destination, raw, heard_at) of the packets heard at or after `stamp` that may carry weather, the oldest first: a position whose symbol code is `_`, an object or item whose position's is, or
+    a packet of the kind other that the parser read as weather (or called weather). The decoded JSON says it, not the summary. A few more than there are weather reports: the parser decides."""
     return [tuple(r) for r in db.execute(
-        "SELECT source, destination, raw, heard_at FROM packet WHERE direction = 'in' AND heard_at >= ? AND "
-        "((kind IN ('position', 'object', 'item') AND (summary GLOB '*[0-9] ?_' OR summary GLOB '*[0-9] ?_ *')) OR (kind = 'other' AND summary GLOB 'weather: *')) ORDER BY id", (stamp,))]
+        "SELECT source, destination, raw, heard_at FROM packet WHERE direction = 'in' AND heard_at >= ? AND ("
+        "(kind = 'position' AND json_extract(decoded, '$.symbol_code') = '_') OR "
+        "(kind IN ('object', 'item') AND json_extract(decoded, '$.position.symbol_code') = '_') OR "
+        "(kind = 'other' AND (json_extract(decoded, '$.weather') IS NOT NULL OR json_extract(decoded, '$.kind') = 'weather'))) ORDER BY id", (stamp,))]

@@ -74,10 +74,15 @@ daemon starts with are the latest the database holds. The messages of a topic `m
 ## Validation
 
 Every frame the page sends is checked against the `Command` union before anything is done. The models are strict: a number is a number (not `"5"`), a flag is `true` or `false` (not `1`), a
-field the model does not know is an error, text has a maximum length, `NaN` and `Infinity` are not JSON. A frame that does not fit is answered with `{"type": "error", "text": "<command>: <field>:
-<what is wrong>"}`, for example `forget_station: call: is missing`, and nothing at all is executed. A frame that is not JSON, or not an object, or names no known command is answered the same
-way. The values of `set_config` are checked by the settings (`neoaprs/config.py`), all before any is stored: the first that is wrong is the answer, `set_config: station/lat: 95 is not between -90
-and 90`.
+field the model does not know is an error, text has a maximum length, `NaN` and `Infinity` are not JSON. A frame that does not fit is answered with an `error` whose `cmd` is the command, whose `code` is `invalid` and whose `text` is
+"<command>: <field>: <what is wrong>", for example `forget_station: call: is missing`, and nothing at all is executed. A frame that is not JSON, or not an object, or names no known command is answered the same
+way (`cmd` is empty; `code` is `not_json`, `not_object`, `no_command` or `unknown_command`). The values of `set_config` are checked by the settings (`neoaprs/config.py`), all before any is stored: the first that
+is wrong is the answer, with `cmd` `set_config`, `key` the setting (`station/lat`), `code` what is wrong (`setting.range`), `params` its figures (`value`, `min`, `max`) and `text` `set_config: station/lat: 95 is
+not between -90 and 90`.
+
+A page goes by `cmd`, `key` and `code` and never reads `text`; `text` is the English sentence for a log and for a code the page has no sentence for. The codes are stable words: `setting.*` for the values
+of the settings (and `call.*`, `path.*` inside them), `message.*`, `object.*` and `bulletin.*` for what is posted or sent, `station.*`, `beacon.*`, `status.*`, `map.*` and `topic.*` for the rest of the commands,
+and `other` for a refusal that has no code yet (only `text` says what it is).
 
 With `NEOAPRS_VALIDATE_OUT=1` in the daemon's environment every message it sends is checked against the `Message` union too (`state` and `patch` also against the type of the topic's value, and
 each `set` against the type of the item), and a message that does not fit is logged once for each type (the test suite runs with this on, and fails on any mismatch).
@@ -409,11 +414,16 @@ The answer to `ping`.
 
 ### `error`
 
-A command that could not be done. A frame the daemon could not understand is answered the same way, naming the command, the field and the problem; nothing was changed.
+A command that could not be done. A frame the daemon could not understand is answered the same way, naming the command, the field and the problem; nothing was changed. A page goes by `cmd`, `key`
+and `code`; `text` is the English sentence for a log and for a code the page has no sentence for.
 
 | field | type | | description |
 |---|---|---|---|
-| `text` | string |  | what could not be done and why, in a sentence; for a setting it begins with the key |
+| `cmd` | string |  | the command it answers; empty for a frame that was no command (not JSON, not an object, no `cmd`, an unknown one) |
+| `key` | string \| null |  | the setting it is about (`set_config`), a key of `CONFIG_KEYS`; null for any other error |
+| `code` | string |  | a stable word for what is wrong, such as `setting.range`, `call.ssid` or `message.too_long`; `other` for an error that has no code yet |
+| `params` | { [key: string]: string \| integer \| number } |  | the values the sentence is made of, by name, such as `value`, `min` and `max` of `setting.range`; empty when there are none |
+| `text` | string |  | what could not be done and why, in a sentence in English: the command, then the setting if there is one, then the reason (`set_config: station/lat: 95 is not between -90 and 90`) |
 
 ### `ports`
 
@@ -744,12 +754,13 @@ The TNC, the one feed of packets: its state and why it is not connected, the por
 | `last_error` | string |  | the latest reason for waiting |
 | `path` | string |  | the serial port in use; empty while none is open |
 | `baud` | integer |  |  |
-| `describe` | string |  | one line for the status bar: the port, the speed and what the TNC does; while `silent` it says since when, in UTC |
+| `describe` | string |  | one line for the log and `neoaprs doctor`: the port, the speed and what the TNC does; while `silent` it says since when, in UTC |
+| `searching` | string[] |  | the ports the daemon is listening to while it looks for the radio; empty when it is not searching |
 | `silent_since` | time \| null |  | while `state` is `silent`, when the latest byte came; null otherwise |
 | `stats` | TncStats |  |  |
 | `last_watchdog_action` | "" \| "check" \| "probe" \| "reopen" |  | what the watchdog did last: `check` (the radio asked whether it is there, after a quiet period), `probe` (the same, while the radio is silent) or `reopen` (the port closed and opened again); empty if it has done nothing since the daemon started |
 | `last_watchdog_at` | time \| null |  | when the watchdog did that; null if it has done nothing since the daemon started |
-| `lines` | string[] |  | the latest 100 lines of what the TNC saw (TNC2 text and what it understood of it) and did (`NeoAPRS: ...`), oldest first, each begins with the time HH:MM:SS (max 100 items) |
+| `lines` | TncLine[] |  | the latest 100 lines of what the TNC saw and did, oldest first (max 100 items) |
 
 ### TncStats
 
@@ -1082,6 +1093,15 @@ A station's latest telemetry report with the definitions the station sent as mes
 | `bits` | TelemetryBit[] |  | the eight digital channels |
 | `project` | string |  | the project title of the `BITS.` message; empty when there is none |
 | `comment` | string |  |  |
+
+### TncLine
+
+One line of the TNC's log.
+
+| field | type | | description |
+|---|---|---|---|
+| `at` | time |  | when the line was written |
+| `text` | string |  | what the TNC saw (TNC2 text and what it understood of it) or did (`NeoAPRS: ...`), without the time |
 
 ### UpdateInfo
 

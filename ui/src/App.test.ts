@@ -10,6 +10,7 @@ import {
   ago,
   bulletin,
   configValues,
+  errorOf,
   hello,
   incoming,
   NOW,
@@ -308,7 +309,7 @@ describe("App", () => {
     await wrapper.find("#setup-lat").setValue("60.17");
     await wrapper.find("#setup-lon").setValue("24.94");
     for (let i = 0; i < 4; i++) await wrapper.find("form").trigger("submit");
-    socket.say({ type: "error", text: "set_config: station/call: 'OH2ABC' is already in use" });
+    socket.say(errorOf("set_config: station/call: 'OH2ABC' is already in use"));
     await flushPromises();
     expect(wrapper.find(".setup-step-name").text()).toBe("Call");
     expect(wrapper.find(".setup .field-error").text()).toBe("'OH2ABC' is already in use");
@@ -408,7 +409,12 @@ describe("App", () => {
 
   it("opens the Settings tab, where the radio is, from the radio state under the panel", async () => {
     const { wrapper, socket } = await open();
-    socket.say({ type: "state", topic: "tnc", rev: 1, value: tncState({ state: "connecting", problem: "", describe: "listening on /dev/brainbox_1" }) });
+    socket.say({
+      type: "state",
+      topic: "tnc",
+      rev: 1,
+      value: tncState({ state: "connecting", problem: "", describe: "listening on /dev/brainbox_1", searching: ["/dev/brainbox_1"] }),
+    });
     await flushPromises();
     await tabButton(wrapper, "Stations")?.trigger("click");
     await wrapper.find(".panelfoot button.status").trigger("click");
@@ -565,7 +571,7 @@ describe("App", () => {
     await wrapper.find("#set-messages-alert_command").setValue("x".repeat(1001));
     await wrapper.find("#set-messages-alert_command").trigger("blur");
     expect(socket.sent).toContainEqual({ cmd: "set_config", values: { "messages/alert_command": "x".repeat(1001) } });
-    socket.say({ type: "error", text: "set_config: messages/alert_command: 1001 characters is more than the 1000 allowed" });
+    socket.say(errorOf("set_config: messages/alert_command: 1001 characters is more than the 1000 allowed", "setting.too_long", { length: 1001, max: 1000 }));
     await flushPromises();
     expect(wrapper.find("#set-messages-alert_command").element.closest(".field")?.textContent).toContain("more than the 1000 allowed");
     expect(wrapper.find<HTMLInputElement>("#set-messages-alert_command").element.value).toBe("x".repeat(1001));
@@ -797,7 +803,7 @@ describe("App", () => {
       await wrapper.find("#pane-bulletins .bulletin-compose").trigger("submit");
       expect(socket.sent.filter((c) => (c as { cmd?: string }).cmd === "bulletin_post")).toEqual([{ cmd: "bulletin_post", slot: "BLN1", text: "Road closed" }]);
       expect(wrapper.find<HTMLInputElement>("#post-text").element.value).toBe("Road closed");
-      socket.say({ type: "error", text: "bulletin_post: set your call first" });
+      socket.say(errorOf("bulletin_post: set your call first"));
       await flushPromises();
       expect(wrapper.find<HTMLInputElement>("#post-text").element.value).toBe("Road closed");
       socket.say({ type: "state", topic: "own_bulletins", rev: 0, value: { BLN1: ownBulletin("BLN1", { text: "Road closed" }) } });
@@ -902,7 +908,7 @@ describe("App", () => {
       await field(wrapper, "Name")?.setValue("MARK");
       await field(wrapper, "Comment")?.setValue("kept");
       await wrapper.find("#pane-objects form").trigger("submit");
-      socket.say({ type: "error", text: "object_set: set your call first" });
+      socket.say(errorOf("object_set: set your call first"));
       await flushPromises();
       expect(wrapper.find("#pane-objects .objform").exists()).toBe(true);
       expect(field(wrapper, "Comment")?.element.value).toBe("kept");

@@ -1,11 +1,12 @@
 <script setup lang="ts">
-// The box to write a message in, fixed at the bottom of a conversation: the text, how many of the 67 bytes a message may have are left ("67 left") and Send, in one line. There is no To: the conversation is the station (`to` is its call), or for a group (GroupCompose) the
+// The box to write a message in, fixed at the bottom of a conversation: the text, how many of the bytes a message may have are left ("12 left") and Send, in one line. There is no To: the conversation is the station (`to` is its call), or for a group (GroupCompose) the
 // calls that were picked, and then Send says "Send to 3". Send is off while the TNC is not connected (its title says so) or the text is empty or too long (lib/recipients.ts `canSendAll`). With one recipient it says `send`; with several it says `sendMany`, which the
 // page turns into one ordinary message to each. The text is cleared once it is sent.
 import { computed, ref } from "vue";
 import { leftText } from "@/lib/format";
 import { bytesLeft } from "@/lib/messages";
 import { canSendAll } from "@/lib/recipients";
+import { LIMITS } from "@/protocol/lists";
 
 const props = defineProps<{ to: readonly string[]; connected: boolean }>();
 const emit = defineEmits<{ send: [to: string, text: string]; sendMany: [to: string[], text: string] }>();
@@ -34,7 +35,7 @@ function submit(): void {
   <form class="compose" @submit.prevent="submit">
     <label class="sr-only" for="msg-text">Message</label>
     <input id="msg-text" ref="input" v-model="text" class="input compose-text grow" type="text" placeholder="Message" autocomplete="off" />
-    <span class="compose-left mono" :class="{ over: left < 0 }" :title="`${left} of 67 bytes left`">{{ leftText(left) }}</span>
+    <span class="compose-left mono" :class="{ over: left < 0 }" :title="`${left} of ${LIMITS.message.textMax} bytes left`">{{ leftText(left) }}</span>
     <button type="submit" class="btn primary" :disabled="!ready" :title="sendTitle">{{ sendLabel }}</button>
   </form>
 </template>

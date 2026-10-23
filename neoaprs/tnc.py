@@ -25,11 +25,13 @@ from . import ax25, kiss, serialprobe
 from .clock import Clock, utcnow
 from .interlock import Interlock
 from .packet import Packet
+from .policy import TNC_CHECK_SEC
 from .serialholders import held_by
 from .serialport import SerialError, SerialPort, is_socket
 from .signal import Signal
 from .source import CHECKING, Backoff, Source, minutes_between, unusable_because
 from .tncentry import KissEntry
+from .tnclines import TimedSource
 from .tncmode import Mode, ModeDetector, looks_valid, packet_of, read_frame
 from .tncsearch import PortSearch
 from .tncprofile import KENWOOD_TNC2, KISS_EXIT as KISS_EXIT, Profile
@@ -71,12 +73,12 @@ def _printable(text: str) -> str:
     return "".join(c if c.isprintable() else "?" for c in text)
 
 
-class Tnc(Source):
+class Tnc(TimedSource):
     stats: TncStats
 
     def __init__(self, port: str = "", baud: int = 9600, profile: Profile = KENWOOD_TNC2, pattern: str = "", clock: Clock = utcnow, probe_seconds: float = 0.0,
                  backoff: Backoff | None = None, settle_sec: float | None = None, pace: float = 1.0, fallback_probe: bool = True, probe_nudge_sec: float = 10.0,
-                 skip: tuple[str, ...] = (), check_sec: float = 60.0, check_pause_sec: float = CHECK_PAUSE_SEC, reply_sec: float = REPLY_SEC, answer_sec: float = ANSWER_SEC, probe_sec: float = PROBE_SEC) -> None:
+                 skip: tuple[str, ...] = (), check_sec: float = TNC_CHECK_SEC, check_pause_sec: float = CHECK_PAUSE_SEC, reply_sec: float = REPLY_SEC, answer_sec: float = ANSWER_SEC, probe_sec: float = PROBE_SEC) -> None:
         super().__init__("tnc", clock)
         self.stats = TncStats()
         self.port, self.baud, self.profile, self.pattern = port, baud, profile, pattern or serialprobe.search_pattern()
@@ -356,11 +358,16 @@ class Tnc(Source):
         self.packet.emit(packet)
         return True
 
+    @property
+    def searching(self) -> list[str]:
+        """The ports the search for the radio is listening to; none while a port is open or no search is under way."""
+        return list(self._search.listening) if self._port is None else []
+
     def describe(self) -> str:
         if self.state is Source.State.SILENT and self.last_byte_at is not None:
             return f"silent since {self.last_byte_at:%H:%M} ({minutes_between(self.last_byte_at, self.now())})"
-        if self._search.listening and self._port is None:
-            return f"listening on {', '.join(self._search.listening)} for the radio"
+        if self.searching:
+            return f"listening on {', '.join(self.searching)} for the radio"
         if self._port is None:
             return f"{self.path or self.port or 'no port'}{_speed(self.path or self.port, self.baud)}, {self.state.value}"
         mode = "KISS" if self._kiss_seen else ("entering KISS" if self._entered else "listening")

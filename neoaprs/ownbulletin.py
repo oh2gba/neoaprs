@@ -12,6 +12,7 @@ from typing import Literal
 
 from neoaprs.aprsmessage import MessageError, format_message
 from neoaprs.bulletin import board_slot
+from neoaprs.coded import CodedError
 from neoaprs.decay import ANNOUNCEMENT, BULLETIN, Plan
 from neoaprs.message import check_text
 
@@ -20,7 +21,7 @@ GROUP_MAX = 5
 MAX_POSTED = 36                                  # how many of ours may be on the board at once
 
 
-class PostError(ValueError):
+class PostError(CodedError):
     """What cannot be posted; the text says why."""
 
 
@@ -46,9 +47,9 @@ def slot_of(slot: str) -> tuple[str, str, Kind]:
     name = slot.strip().upper()
     found = board_slot(name)
     if found is None or found.kind not in ("bulletin", "announcement", "group") or not name.startswith("BLN") or len(name) > 9:
-        raise PostError(f"{slot!r} is not BLN0 to BLN9, BLNA to BLNZ or BLN, a digit and a group of at most {GROUP_MAX} characters")
+        raise PostError(f"{slot!r} is not BLN0 to BLN9, BLNA to BLNZ or BLN, a digit and a group of at most {GROUP_MAX} characters", "bulletin.slot", value=slot, group_max=GROUP_MAX)
     if found.kind == "group" and (not name[3].isdigit() or not found.group.isalnum()):
-        raise PostError(f"{slot!r}: a group bulletin is BLN, a digit and the group")
+        raise PostError(f"{slot!r}: a group bulletin is BLN, a digit and the group", "bulletin.group", value=slot)
     return found.slot, found.group, "group" if found.group else "announcement" if found.kind == "announcement" else "bulletin"
 
 
@@ -61,7 +62,7 @@ def make_bulletin(now: datetime, slot: str, text: str, before: OwnBulletin | Non
         check_text(text)
         format_message(name, text)
     except MessageError as e:
-        raise PostError(str(e)) from None
+        raise PostError(str(e), e.code, **e.params) from None
     made = OwnBulletin(name, group, kind, text, now)
     return made if before is None else replace(made, last_sent_at=before.last_sent_at)
 

@@ -2,7 +2,7 @@
 // are new since the tab was last on show. The daemon decides what a bulletin is and that nothing on it ages out (neoaprs/bulletin.py); these only arrange and word it.
 import { untilText } from "@/lib/format";
 import { sentText } from "@/lib/ownobjects";
-import { MESSAGE_TEXT_MAX } from "@/protocol/lists";
+import { LIMITS } from "@/protocol/lists";
 import type { BulletinRow, Command, OwnBulletinRow } from "@/protocol/protocol";
 
 type Kind = BulletinRow["kind"];
@@ -87,7 +87,7 @@ export const POST_KINDS: { kind: PostKind; title: string; ids: string }[] = [
   { kind: "announcement", title: "Announcement", ids: "ABCDEFGHIJKLMNOPQRSTUVWXYZ" },
   { kind: "group", title: "Bulletin to a group", ids: "0123456789" },
 ];
-export const GROUP_MAX = 5;
+export const GROUP_MAX = LIMITS.bulletin.groupMax;
 
 /** What the compose box holds: the kind, the identifier, the group of a group bulletin and the text. */
 export interface PostDraft {
@@ -117,14 +117,14 @@ export function groupOk(text: string): boolean {
   return /^[A-Z0-9]{1,5}$/.test(groupOf(text));
 }
 
-/** Whether the text can be sent as it is: printable ASCII without `| ~ {`, at most 67 characters. */
+/** Whether the text can be sent as it is: printable ASCII without `| ~ {`, at most as many characters as a message has. */
 export function textOk(text: string): boolean {
-  return /^[\x20-\x7e]+$/.test(text.trim()) && !/[|~{]/.test(text) && text.trim().length <= MESSAGE_TEXT_MAX;
+  return /^[\x20-\x7e]+$/.test(text.trim()) && !/[|~{]/.test(text) && text.trim().length <= LIMITS.message.textMax;
 }
 
 /** How many characters more the text may have; negative when it is too long. */
 export function charsLeft(text: string): number {
-  return MESSAGE_TEXT_MAX - text.trim().length;
+  return LIMITS.message.textMax - text.trim().length;
 }
 
 /** Whether Post is on: a text that fits and, for a group bulletin, a group. */

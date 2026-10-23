@@ -1,7 +1,7 @@
 """What the operator says about a station, apart from what its packets say: a path, a timeout of its own and whether it is RF only. Each is optional and independent, and a station with none has no entry.
 
 The path: the digipeaters a message (and its ack) to the station goes by way of; empty is direct, which is not the same as none set (then it has `beacon/path`). The timeout: the minutes after its last
-position that the station leaves the map; 0 is never, none set means the fixed 180 minutes (`HIDE_AFTER_MIN` of config.py) (the page does the hiding, the daemon only keeps and tells the number; the daily prune never removes a
+position that the station leaves the map; 0 is never, none set means the fixed 180 minutes (`HIDE_AFTER_MIN` of policy.py) (the page does the hiding, the daemon only keeps and tells the number; the daily prune never removes a
 station with a timeout of 0). RF only: everything we send to the station (a message and each attempt of it, its acks, the answers to its queries) goes by its path with RFONLY
 added at the end, which iGates that honour it do not put on the internet; the email gateway EMAIL-2 is on the internet and can never be RF only. They are operator data, kept in the table `station_pref` of the message log's database, read once at the start and written through; `changed` tells (call, pref) when a station's
 entry is set or changes and (call, None) when its last part is cleared and the entry is gone."""
@@ -11,7 +11,8 @@ from dataclasses import replace
 
 from neoaprs.ax25 import MAX_PATH
 from neoaprs.callsign import CallsignError
-from neoaprs.config import MAX_HIDE_AFTER_MIN, Config
+from neoaprs.config import Config
+from neoaprs.policy import MAX_HIDE_AFTER_MIN
 from neoaprs.message import EMAIL_GATEWAY, MessagingError, normal_call, normal_path
 from neoaprs.messagelog import MessageLog
 from neoaprs.pref import Pref

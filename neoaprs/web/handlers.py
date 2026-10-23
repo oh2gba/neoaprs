@@ -8,7 +8,8 @@ from contextlib import contextmanager
 from datetime import timedelta
 
 from neoaprs.clock import iso
-from neoaprs.config import Config
+from neoaprs.coded import CodedError
+from neoaprs.config import Config, SettingError
 from neoaprs.mapstate import Job, MapError
 from neoaprs.message import MessagingError
 from neoaprs.ownbulletin import PostError
@@ -34,11 +35,13 @@ from .weatherwire import WeatherSeries
 
 @contextmanager
 def refused(name: str) -> Iterator[None]:
-    """A part that refuses with a MessagingError (messaging, the station preferences): the reason is the page's error, after the name of the command."""
+    """A part that refuses with a MessagingError (messaging, the station preferences): the reason is the page's error, after the name of the command. A refusal that only passes on the text of another
+    (`MessagingError(str(e))`) has the code of that other."""
     try:
         yield
     except (MessagingError, OwnError, PostError) as e:
-        raise UserError(f"{name}: {e}") from None
+        cause = e.__context__ if e.code == "other" and isinstance(e.__context__, CodedError) else e
+        raise UserError(f"{name}: {e}", cause.code, None, cause.params) from None
 
 
 @command(Ping)
@@ -55,7 +58,8 @@ async def status(ctx: Ctx, cmd: AskStatus) -> None:
 async def subscribe(ctx: Ctx, cmd: Subscribe) -> None:
     unknown = ctx.hub.subscribe(ctx.conn, cmd.topics)
     if unknown:
-        raise UserError("subscribe: no topic " + ", ".join(repr(n[:40]) for n in unknown[:3]) + (f" (and {len(unknown) - 3} more)" if len(unknown) > 3 else "") + f" (the topics are {', '.join(ctx.hub.topics)})")
+        raise UserError("subscribe: no topic " + ", ".join(repr(n[:40]) for n in unknown[:3]) + (f" (and {len(unknown) - 3} more)" if len(unknown) > 3 else "") + f" (the topics are {', '.join(ctx.hub.topics)})", "topic.unknown",
+                        params={"names": ", ".join(n[:40] for n in unknown[:3])})
 
 
 @command(Unsubscribe)
@@ -68,11 +72,11 @@ async def forget_station(ctx: Ctx, cmd: ForgetStation) -> None:
     book = ctx.ctl.stationbook
     station = book.get(cmd.call)
     if station is None:
-        raise UserError(f"forget_station: there is no station {cmd.call!r}")
+        raise UserError(f"forget_station: there is no station {cmd.call!r}", "station.unknown", params={"call": cmd.call})
     if station.own:
-        raise UserError(f"forget_station: {cmd.call} is an object of ours: kill it (object_kill)")
+        raise UserError(f"forget_station: {cmd.call} is an object of ours: kill it (object_kill)", "station.is_object", params={"call": cmd.call})
     if not book.forget(cmd.call):
-        raise UserError(f"forget_station: {cmd.call} is our own station, which stays")
+        raise UserError(f"forget_station: {cmd.call} is our own station, which stays", "station.is_own", params={"call": cmd.call})
 
 
 @command(TncReconnect)
@@ -90,13 +94,13 @@ async def list_ports(ctx: Ctx, cmd: ListPorts) -> None:
 async def beacon_now(ctx: Ctx, cmd: BeaconNow) -> None:
     beacon = ctx.ctl.beacon
     if not beacon.send_now("request"):
-        raise UserError(f"beacon_now: nothing was sent: {beacon.problem}")
+        raise UserError(f"beacon_now: nothing was sent: {beacon.problem}", "beacon.not_sent", params={"reason": beacon.problem})
 
 
 @command(StatusNow)
 async def status_now(ctx: Ctx, cmd: StatusNow) -> None:
     if problem := await ctx.ctl.rigstatus.send_now():
-        raise UserError(f"status_now: nothing was sent: {problem}")
+        raise UserError(f"status_now: nothing was sent: {problem}", "status.not_sent", params={"reason": problem})
 
 
 @command(SendMessage)
@@ -170,10 +174,12 @@ async def set_config(ctx: Ctx, cmd: SetConfig) -> None:
     """Every value is checked before anything is stored (the first wrong one is the answer, with its key), and the settings in force are the base: a key that is left out keeps its value."""
     try:
         config = Config.checked(ctx.ctl.config, cmd.values)
+    except SettingError as e:
+        raise UserError(f"set_config: {e}", e.code, e.key, e.params) from None
     except ValueError as e:
         raise UserError(f"set_config: {e}") from None
     if not await ctx.ctl.save_config(config):
-        raise UserError("set_config: the settings could not be stored (the database would not take them); nothing changed")
+        raise UserError("set_config: the settings could not be stored (the database would not take them); nothing changed", "setting.not_stored")
 
 
 @command(CheckUpdate)
@@ -201,7 +207,7 @@ async def alert_test(ctx: Ctx, cmd: AlertTest) -> None:
 @command(BulletinDelete)
 async def bulletin_delete(ctx: Ctx, cmd: BulletinDelete) -> None:
     if not ctx.ctl.bulletins.delete(cmd.sender, cmd.slot):
-        raise UserError(f"bulletin_delete: there is no entry {cmd.sender}/{cmd.slot} on the board")
+        raise UserError(f"bulletin_delete: there is no entry {cmd.sender}/{cmd.slot} on the board", "bulletin.not_on_board", params={"sender": cmd.sender, "slot": cmd.slot})
 
 
 def start_map_job(ctx: Ctx, job: Job, name: str) -> None:
@@ -232,7 +238,7 @@ async def bulletin_post(ctx: Ctx, cmd: BulletinPost) -> None:
 @command(BulletinUnpost)
 async def bulletin_unpost(ctx: Ctx, cmd: BulletinUnpost) -> None:
     if not ctx.ctl.ownbulletins.delete(cmd.slot):
-        raise UserError(f"bulletin_unpost: there is no bulletin {cmd.slot} of ours")
+        raise UserError(f"bulletin_unpost: there is no bulletin {cmd.slot} of ours", "bulletin.not_posted", params={"slot": cmd.slot})
 
 
 @command(MapEstimate)
@@ -248,4 +254,4 @@ async def map_fetch(ctx: Ctx, cmd: MapFetch) -> None:
 @command(MapCancel)
 async def map_cancel(ctx: Ctx, cmd: MapCancel) -> None:
     if not ctx.ctl.mapfetch.cancel():
-        raise UserError(f"{cmd.cmd}: no map job is running")
+        raise UserError(f"{cmd.cmd}: no map job is running", "map.no_job")

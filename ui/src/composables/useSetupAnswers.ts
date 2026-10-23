@@ -6,7 +6,6 @@ import {
   fieldsFrom,
   locatorOf,
   locatorProblem,
-  parseNumber,
   profileOf,
   setupChanges,
   stepOk,
@@ -16,6 +15,7 @@ import {
   type Problems,
   type SetupFields,
 } from "@/lib/setup";
+import { onEarth, parseNumber } from "@/lib/fieldcheck";
 import { locatorToPosition } from "@/lib/locator";
 
 export function useSetupAnswers(values: Ref<Record<string, string>>, search: Ref<boolean | null>) {
@@ -35,7 +35,7 @@ export function useSetupAnswers(values: Ref<Record<string, string>>, search: Ref
   const pin = computed(() => {
     const lat = parseNumber(fields.lat);
     const lon = parseNumber(fields.lon);
-    return lat !== null && lon !== null && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? { lat, lon } : null;
+    return lat !== null && lon !== null && onEarth(lat, lon) ? { lat, lon } : null;
   });
 
   function clearErrors(): void {

@@ -2,20 +2,16 @@ import { describe, expect, it } from "vitest";
 import {
   SYMBOL_CHOICES,
   baudShown,
-  callOk,
-  callProblem,
-  degreesProblem,
   degreesText,
   fieldsFrom,
-  parseNumber,
   portChoices,
   NEW_STATION_BEACON_MIN,
   setupChanges,
   stepOk,
   stepProblems,
-  symbolProblem,
   type SetupFields,
 } from "@/lib/setup";
+import { callOk, callProblem, degreesProblem, parseNumber, symbolProblem } from "@/lib/fieldcheck";
 import { symbolLayers } from "@/lib/symbols";
 import { SYMBOL_TABLES } from "@/protocol/lists";
 import { configValues } from "@/test/fixtures";
@@ -32,6 +28,15 @@ describe("the call step", () => {
       expect(callOk(bad), bad).toBe(false);
       expect(callProblem(bad), bad).toBe("Not a call");
     }
+  });
+
+  it("refuses what the daemon would not transmit under: NOCALL and MYCALL, and a call that has no digit or no letter or is 1 or 2 characters", () => {
+    for (const bad of ["NOCALL", "mycall-3"]) expect(callProblem(bad), bad).toBe(`${bad.split("-")[0]?.toUpperCase()} is not a call`);
+    for (const bad of ["AB", "A1", "ABC", "123", "1234"]) {
+      expect(callOk(bad), bad).toBe(false);
+      expect(callProblem(bad), bad).toBe("Not a call");
+    }
+    for (const ok of ["A1B", "W1AW", "OH2ABC-07", "OH2ABC-00"]) expect(callOk(ok), ok).toBe(true);
   });
 
   it("refuses N0CALL with or without an SSID, and says nothing about an empty call, which only waits", () => {

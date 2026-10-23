@@ -10,7 +10,8 @@ from pathlib import Path
 from . import wiring
 from .app import Frontend, Services
 from .clock import Clock, days, utcnow
-from .config import LOG_KEEP_DAYS, TNC_CHECK_SEC, Config
+from .config import Config
+from .policy import LOG_KEEP_DAYS, TNC_CHECK_SEC
 from .db import Db
 from .dbfile import DEFAULT_BUSY_MS
 from .dbopen import open_connection

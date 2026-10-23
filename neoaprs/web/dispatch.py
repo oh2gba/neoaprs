@@ -5,12 +5,13 @@ hub). The page's answer to a failure is an exception: `raise UserError("text")` 
 command of the protocol has exactly one handler (tests/test_protocol.py compares the registry with the protocol's COMMAND_NAMES).
 """
 import logging
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, get_args
 
 from pydantic import BaseModel, ValidationError
 
+from neoaprs.coded import Param
 from neoaprs.controller import Controller
 
 from .hub import StateHub
@@ -22,7 +23,13 @@ log = logging.getLogger("neoaprs.web")
 
 
 class UserError(Exception):
-    """The command cannot be done and the page is told why: the text is the page's `error`."""
+    """The command cannot be done and the page is told why: the text is the page's `error`, with the `code` and the `params` that say it in words of the page's own, and the `key` of the setting it is about."""
+
+    def __init__(self, text: str, code: str = "other", key: str | None = None, params: Mapping[str, Param] | None = None) -> None:
+        super().__init__(text)
+        self.code = code
+        self.key = key
+        self.params: Mapping[str, Param] = params or {}
 
 
 @dataclass(frozen=True)
@@ -77,20 +84,20 @@ class Dispatcher:
         name = raw.get("cmd")
         name = name if isinstance(name, str) else ""
         if name not in COMMAND_NAMES:
-            conn.error(f"unknown command {name[:40]!r}" if name else "a command has a \"cmd\"")
+            conn.error(f"unknown command {name[:40]!r}" if name else "a command has a \"cmd\"", code="unknown_command" if name else "no_command", params={"name": name[:40]})
             return
         try:
             cmd = COMMANDS.validate_python(raw)
         except ValidationError as e:
-            conn.error(describe_errors(name, e.errors(include_url=False, include_input=False)))
+            conn.error(describe_errors(name, e.errors(include_url=False, include_input=False)), name, "invalid")
             return
         try:
             await self._call(conn, name, cmd)
         except UserError as e:
-            conn.error(str(e))
+            conn.error(str(e), name, e.code, e.key, e.params)
         except Exception as e:
             log.exception("command %s failed", name)
-            conn.error(f"{name}: {e}")
+            conn.error(f"{name}: {e}", name, "failed")
 
     async def _call(self, conn: Connection, name: str, cmd: AnyCommand) -> None:
         await self.registry[name].fn(Ctx(self.ctl, conn, self.hub, self.status), cmd)

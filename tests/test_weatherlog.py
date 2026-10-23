@@ -8,6 +8,7 @@ import pytest
 from neoaprs.aprsweather import Weather
 from neoaprs.packetlog import PacketLog
 from neoaprs.store import DB_NAME
+from neoaprs.weathersql import weather_packets
 from neoaprs.weatherlog import WeatherLog, report_of, weather_of, weather_row
 from tests.support.clock import FixedClock
 from tests.support.storedb import sql, store_at
@@ -99,6 +100,24 @@ async def test_the_log_made_from_the_packets_kept_reads_each_weather_packet_agai
     assert [w.raw for _, w in await log.series("OH2NJR", T0 - timedelta(days=100))] == ["c220s004t077"]
     assert [(at, w.pressure_hpa) for at, w in await log.series("OH2HCY-3", T0 - timedelta(days=100))] == [(T0 + timedelta(minutes=2), 1028.5)], "the sender inside a third-party packet, not the iGate"
     assert await log.series("OH7JHF-1", T0 - timedelta(days=100)) == []
+
+
+async def test_the_packets_that_may_carry_weather_are_found_by_what_the_parser_decoded_and_not_by_the_words_of_the_summary(tmp_path: Path) -> None:
+    clock = FixedClock()
+    store = await store_at(tmp_path / DB_NAME, clock)
+    assert store.db is not None
+    log, packets = WeatherLog(store.db, clock), PacketLog(store.db, clock)
+    wx_object = heard(b";WXOBJ    *210945z6024.43N/02352.73E_107/001g001t050h85b10284", "OH2OBJ", T0 + timedelta(minutes=3))
+    wx_item = heard(b")WXITEM!6024.43N/02352.73E_107/001g001t050", "OH2ITM", T0 + timedelta(minutes=4))
+    assert wx_object.kind == "object" and wx_item.kind == "item"
+    for p in (report(at=T0), heard(b"_10090556c220s004t077", "OH2NJR", T0 + timedelta(minutes=1)), wx_object, wx_item, heard(b"!6024.43N/02352.73E>car", "OH2CAR", T0), heard(b">a status", "OH2ST", T0),
+              heard(b"!6024.43N/02352.73E_Hello", "OH2HI", T0)):
+        packets.append(p)
+    await store.db.barrier()
+    await sql(store, "UPDATE packet SET summary = 'Zusammenfassung'")
+    found = await store.db.read(lambda conn: weather_packets(conn, "2026-01-01T00:00:00.000000Z"))
+    assert [row[0] for row in found] == ["OH2MUI", "OH2NJR", "OH2OBJ", "OH2ITM", "OH2HI"], "a position, an object and an item with the weather symbol, and a weather report with no position; the parser decides the rest"
+    assert await log.backfill(30) == 4 and await log.count() == 4
 
 
 async def test_nothing_to_make_the_log_from_is_nothing(tmp_path: Path) -> None:

@@ -1,12 +1,12 @@
 <script setup lang="ts">
 // The box to write an email in, always at the bottom of the Email tab (ComposeBar, as everywhere): To (an email address; while the box has the focus the addresses used before that match what is typed are listed under it, upward over the mail:
-// a click picks one, the trash can beside it forgets it), the text, and how many of the 67 characters the line "address text" may still have, the address and the space counting. Send, at the lower right, is off while the TNC is not connected
+// a click picks one, the trash can beside it forgets it), the text, and how many of the characters of a message the line "address text" may still have, the address and the space counting. Send, at the lower right, is off while the TNC is not connected
 // (its title says so) or the address or the text is empty or the line is too long. After Send the text is empty again and the address stays, for the next mail to the same person; the focus is in the text.
 import { computed, ref } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
 import IconButton from "@/components/IconButton.vue";
 import { canSendEmail, emailBytesLeft } from "@/lib/email";
-import { MESSAGE_TEXT_MAX } from "@/protocol/lists";
+import { LIMITS } from "@/protocol/lists";
 
 const props = defineProps<{ connected: boolean; addresses: readonly string[] }>();
 const emit = defineEmits<{ send: [to: string, text: string]; forget: [name: string] }>();
@@ -49,7 +49,7 @@ function submit(): void {
     class="mailform"
     label="Email"
     :left="left"
-    :left-title="`${left} of ${MESSAGE_TEXT_MAX} characters left; the address and the space count too`"
+    :left-title="`${left} of ${LIMITS.message.textMax} characters left; the address and the space count too`"
     @submit="submit"
     @keydown.esc.stop="listed = false"
   >

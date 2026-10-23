@@ -278,10 +278,18 @@ export interface DfsValues {
   direction_deg: number | null;
 }
 
-/** A command that could not be done. A frame the daemon could not understand is answered the same way, naming the command, the field and the problem; nothing was changed. */
+/** A command that could not be done. A frame the daemon could not understand is answered the same way, naming the command, the field and the problem; nothing was changed. A page goes by `cmd`, `key` and `code`; `text` is the English sentence for a log and for a code the page has no sentence for. */
 export interface ErrorMessage {
   type: "error";
-  /** what could not be done and why, in a sentence; for a setting it begins with the key */
+  /** the command it answers; empty for a frame that was no command (not JSON, not an object, no `cmd`, an unknown one) */
+  cmd: string;
+  /** the setting it is about (`set_config`), a key of `CONFIG_KEYS`; null for any other error */
+  key: string | null;
+  /** a stable word for what is wrong, such as `setting.range`, `call.ssid` or `message.too_long`; `other` for an error that has no code yet */
+  code: string;
+  /** the values the sentence is made of, by name, such as `value`, `min` and `max` of `setting.range`; empty when there are none */
+  params: { [key: string]: string | number };
+  /** what could not be done and why, in a sentence in English: the command, then the setting if there is one, then the reason (`set_config: station/lat: 95 is not between -90 and 90`) */
   text: string;
 }
 
@@ -897,6 +905,14 @@ export interface TelemetryValues {
   comment: string;
 }
 
+/** One line of the TNC's log. */
+export interface TncLine {
+  /** when the line was written */
+  at: string;
+  /** what the TNC saw (TNC2 text and what it understood of it) or did (`NeoAPRS: ...`), without the time */
+  text: string;
+}
+
 /** Opens the radio's line again with the settings as they are now (the port, the speed, entering KISS): the TNC is stopped and started in the background. The new state is told in `tnc`. */
 export interface TncReconnectCommand {
   cmd: "tnc_reconnect";
@@ -913,8 +929,10 @@ export interface TncState {
   /** the serial port in use; empty while none is open */
   path: string;
   baud: number;
-  /** one line for the status bar: the port, the speed and what the TNC does; while `silent` it says since when, in UTC */
+  /** one line for the log and `neoaprs doctor`: the port, the speed and what the TNC does; while `silent` it says since when, in UTC */
   describe: string;
+  /** the ports the daemon is listening to while it looks for the radio; empty when it is not searching */
+  searching: string[];
   /** while `state` is `silent`, when the latest byte came; null otherwise */
   silent_since: string | null;
   stats: TncStats;
@@ -922,8 +940,8 @@ export interface TncState {
   last_watchdog_action: "" | "check" | "probe" | "reopen";
   /** when the watchdog did that; null if it has done nothing since the daemon started */
   last_watchdog_at: string | null;
-  /** the latest 100 lines of what the TNC saw (TNC2 text and what it understood of it) and did (`NeoAPRS: ...`), oldest first, each begins with the time HH:MM:SS */
-  lines: string[];
+  /** the latest 100 lines of what the TNC saw and did, oldest first */
+  lines: TncLine[];
 }
 
 /** What the TNC has counted since the daemon started. */

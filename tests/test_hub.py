@@ -11,7 +11,7 @@ from neoaprs.packet import Packet, Position
 from neoaprs.web import outbound
 from neoaprs.web.hub import BEHIND, StateHub, Topic
 from neoaprs.web.outbound import MAX_MESSAGE, ProtocolViolation, Publisher
-from neoaprs.web.session import Connection
+from neoaprs.web.session import Connection, error_message
 from neoaprs.web.topics import PacketWindow
 
 
@@ -299,8 +299,8 @@ def test_a_closed_connection_is_written_nothing_and_a_broadcast_reaches_the_rest
     a, b = Socket(), Socket()
     conn_a, _ = out.open(a, "127.0.0.1"), out.open(b, "127.0.0.2")
     out.close(a)
-    conn_a.send({"type": "error", "text": "late"})
-    out.broadcast({"type": "error", "text": "to all"})
+    conn_a.send(error_message("late"))
+    out.broadcast(error_message("to all"))
     assert a.frames == [] and len(b.frames) == 1 and conn_a.closed
     out.close(a)                                                                                   # again: harmless
 

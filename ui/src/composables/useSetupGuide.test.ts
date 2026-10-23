@@ -3,7 +3,7 @@ import { nextTick, ref } from "vue";
 import type { Toast } from "@/composables/useDaemon";
 import { useSetupGuide } from "@/composables/useSetupGuide";
 import type { Command, ConfigValues, PortsMessage } from "@/protocol/protocol";
-import { configValues } from "@/test/fixtures";
+import { configValues, toastOf } from "@/test/fixtures";
 
 const fresh = (extra: Record<string, string> = {}) =>
   configValues({ "station/call": "", "station/lat": "", "station/lon": "", "serial/baud": "", "serial/port": "", ...extra });
@@ -28,7 +28,7 @@ function setUp(initial: ConfigValues | null = fresh()) {
     await nextTick();
   };
   const fail = async (text: string) => {
-    lastError.value = { text, n: (lastError.value?.n ?? 0) + 1 };
+    lastError.value = toastOf(text, "other", {}, (lastError.value?.n ?? 0) + 1);
     await nextTick();
   };
   /** The first four steps answered. */
