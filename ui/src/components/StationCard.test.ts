@@ -270,6 +270,15 @@ describe("StationCard", () => {
     expect(wrapper.emitted("message")).toEqual([["OH2DPN"]]);
   });
 
+  it("has no Message button for a station that cannot do messages, and no gap where it was", async () => {
+    const wrapper = mount(StationCard, { props: { row: station("OH2TRK", { can_message: false }), now: NOW } });
+    expect(wrapper.findAll(".card-foot button").map((b) => b.text())).toEqual(["Forget"]);
+    expect(wrapper.find(".card-foot .btn.primary").exists()).toBe(false);
+    expect(wrapper.find(".card-foot .btn.forget").exists()).toBe(true);
+    await wrapper.setProps({ row: station("OH2TRK", { can_message: true }) });
+    expect(wrapper.findAll(".card-foot button").map((b) => b.text())).toEqual(["Message", "Forget"]);
+  });
+
   it("offers to write to a station, and not to our own station or to an object", async () => {
     const wrapper = mount(StationCard, { props: { row, now: NOW } });
     await wrapper.find(".card-foot .btn.primary").trigger("click");

@@ -54,6 +54,7 @@ export function station(call: string, extra: Partial<StationRow> = {}): StationR
     distance_km: 10,
     bearing_deg: 45,
     is_me: false,
+    can_message: true,
     own: false,
     weather: null,
     weather_at: null,

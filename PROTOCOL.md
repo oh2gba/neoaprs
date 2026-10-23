@@ -538,6 +538,7 @@ row has a new distance and bearing, and the topic is told whole again.
 | `bearing_deg` | number \| null |  | the direction from our position, degrees from north; null as the distance is |
 | `is_me` | boolean |  | our own station: the row of the call in the settings, at the position in the settings |
 | `own` | boolean |  | an object or an item of ours, which we send (the topic `own_objects` has its values and its schedule): the map marks it as ours and the card has Edit and Kill in place of Forget; false for any other row |
+| `can_message` | boolean |  | a message to the station makes sense, and the card has a Message button: false for an object or an item and for our own station; for a station true when it has sent a message or an ack (heard, overheard too) or its latest position was a Mic-E one or began with `=` or `@`, false when that began with `!` or `/`; true for a station of which nothing of that is known |
 | `track` | [time, number, number][] |  | the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed (max 50 items) |
 
 ### PacketRow

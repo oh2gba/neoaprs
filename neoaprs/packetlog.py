@@ -12,7 +12,7 @@ from .db import Db
 from .dblog import DbLog
 from .packet import ItemReport, ObjectReport, Packet, Position
 from .packetcodec import PacketRow, packet_of, packet_row, parse_stamp, stamp
-from .packetsql import (Row, all_stations, count_packets, delete_station, heard_routes, insert_packet, packets_since, position_packets, prune_packets_before, recent_packets, upsert_station)
+from .packetsql import (Row, all_stations, count_packets, delete_station, heard_routes, insert_packet, message_packets, packets_since, position_packets, prune_packets_before, recent_packets, upsert_station)
 from .stationbook import Station
 
 log = logging.getLogger("neoaprs.packetlog")
@@ -101,6 +101,13 @@ class PacketLog(DbLog):
             elif isinstance(d, (ObjectReport, ItemReport)) and d.alive:
                 found.append((d.name, packet.heard_at, d.position.lat, d.position.lon))
         return found
+
+    async def messaging_evidence(self, keep_days: int, count: int = TRACKS_SEEN) -> list[Packet]:
+        """The packets that say who does messages, for the station book to start with: the latest `count` messages heard, then the latest `count` positions heard within `keep_days` days (each part oldest first)."""
+        since = stamp(self.clock() - days(keep_days))
+        messages: list[Row] = await self._read(lambda conn: message_packets(conn, count), [])
+        positions: list[Row] = await self._read(lambda conn: position_packets(conn, since, count), [])
+        return [*self._packets(messages), *self._packets(positions)]
 
     async def count(self) -> int:
         return await self._read(count_packets, 0)

@@ -64,6 +64,7 @@ class Controller(Services):
         self.stationbook.seed_tracks(await self.packetlog.positions(LOG_KEEP_DAYS))      # (after our own station is in the book: it gets no track)
         await self._seed_weather()
         self.stationbook.seed_details(await self.packetlog.recent(DETAILS_SEEN))
+        self.stationbook.seed_messaging(await self.packetlog.messaging_evidence(LOG_KEEP_DAYS))
         self.running = True
         await self.bulletins.start()
         self.start_tnc()
