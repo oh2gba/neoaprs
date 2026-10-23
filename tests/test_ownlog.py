@@ -11,9 +11,9 @@ from neoaprs.clock import utc
 from neoaprs.ownbulletin import OwnBulletin
 from neoaprs.ownlog import OwnLog, bulletin_of, bulletin_row, object_of, object_row
 from neoaprs.ownobject import OwnObject
-from neoaprs.store import DB_NAME, Store
+from neoaprs.store import Store
 from tests.support.clock import FixedClock
-from tests.support.storedb import sql, store_at
+from tests.support.storedb import log_at, sql
 
 T0 = utc(2026, 10, 21, 12, 0, 0)
 
@@ -29,10 +29,8 @@ def post(slot: str = "BLN3HAMS", **more: object) -> OwnBulletin:
 
 
 async def opened_with_store(tmp_path: Path) -> tuple[OwnLog, Store]:
-    clock = FixedClock()
-    store = await store_at(tmp_path / DB_NAME, clock)
-    assert store.db is not None
-    return OwnLog(store.db, clock), store
+    log, store, _ = await log_at(tmp_path, OwnLog)
+    return log, store
 
 
 def test_an_object_gives_its_row_and_the_row_gives_the_object_back() -> None:

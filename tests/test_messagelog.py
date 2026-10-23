@@ -11,7 +11,7 @@ from neoaprs.message import MessageRecord
 from neoaprs.messagelog import MessageLog, message_of, message_row
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
-from tests.support.storedb import sql, store_at
+from tests.support.storedb import log_at, sql, store_at
 
 T0 = utc(2026, 10, 21, 12, 0, 0)
 
@@ -25,10 +25,8 @@ def came(text: str = "hi", frm: str = "OH2RDG", msg_id: str | None = "5", at: ob
 
 
 async def opened(tmp_path: Path, clock: FixedClock | None = None) -> tuple[MessageLog, FixedClock]:
-    clock = clock or FixedClock()
-    store = await store_at(tmp_path / DB_NAME, clock)
-    assert store.db is not None
-    return MessageLog(store.db, clock), clock
+    log, _, clock = await log_at(tmp_path, MessageLog, clock)
+    return log, clock
 
 
 async def settled(log: MessageLog) -> None:

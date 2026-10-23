@@ -9,9 +9,9 @@ import pytest
 from neoaprs.bulletin import BulletinRecord
 from neoaprs.bulletinlog import BulletinLog, bulletin_of, bulletin_row
 from neoaprs.clock import utc
-from neoaprs.store import DB_NAME, Store
+from neoaprs.store import Store
 from tests.support.clock import FixedClock
-from tests.support.storedb import sql, store_at
+from tests.support.storedb import log_at, sql
 
 T0 = utc(2026, 10, 21, 12, 0, 0)
 
@@ -26,10 +26,8 @@ async def opened(tmp_path: Path) -> BulletinLog:
 
 
 async def opened_with_store(tmp_path: Path) -> tuple[BulletinLog, Store]:
-    clock = FixedClock()
-    store = await store_at(tmp_path / DB_NAME, clock)
-    assert store.db is not None
-    return BulletinLog(store.db, clock), store
+    log, store, _ = await log_at(tmp_path, BulletinLog)
+    return log, store
 
 
 def test_a_record_gives_its_row_and_the_row_gives_the_record_back() -> None:
