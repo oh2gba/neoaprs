@@ -46,7 +46,7 @@ describe("useSetupGuide: the steps", () => {
     const { guide } = setUp();
     expect(guide.open).toBe(false);
     expect(guide.step).toBe(0);
-    expect(guide.fields).toMatchObject({ call: "", lat: "", lon: "", symbol: "/-", profile: "kenwood-tnc2", radius: "150", maxzoom: "12" });
+    expect(guide.fields).toMatchObject({ call: "", lat: "", lon: "", symbol: "/-", profile: "kenwood-tnc2", radius: "150" });
     expect(guide.valid).toEqual([false, false, true, true, true]);
   });
 
@@ -251,7 +251,6 @@ describe("useSetupGuide: Finish", () => {
     guide.edit("baud", "4800");
     guide.go(4);
     guide.edit("radius", "200");
-    guide.edit("maxzoom", "14");
     expect(guide.changes).toEqual({
       "station/call": "OH2ABC",
       "station/lat": "60.17",
@@ -261,7 +260,7 @@ describe("useSetupGuide: Finish", () => {
       "serial/port": "/dev/ttyUSB0",
       "serial/baud": "4800",
       "map/radius_km": "200",
-      "map/maxzoom": "14",
+      "beacon/interval_min": "30",
     });
     guide.next();
     expect(setConfigs(sent)).toEqual([{ cmd: "set_config", values: guide.changes }]);
@@ -281,7 +280,9 @@ describe("useSetupGuide: Finish", () => {
     fill();
     guide.go(4);
     guide.next();
-    expect(setConfigs(sent)).toEqual([{ cmd: "set_config", values: { "station/call": "OH2ABC", "station/lat": "60.17", "station/lon": "24.94" } }]);
+    expect(setConfigs(sent)).toEqual([
+      { cmd: "set_config", values: { "station/call": "OH2ABC", "station/lat": "60.17", "station/lon": "24.94", "beacon/interval_min": "30" } },
+    ]);
   });
 
   it("sends nothing when nothing changed, and closes", () => {
@@ -314,6 +315,7 @@ describe("useSetupGuide: Finish", () => {
         "tcp/host": "192.168.1.5",
         "tcp/port": "8002",
         "serial/port": "",
+        "beacon/interval_min": "30",
       },
     });
   });

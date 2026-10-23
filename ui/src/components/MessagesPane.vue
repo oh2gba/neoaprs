@@ -1,17 +1,14 @@
 <script setup lang="ts">
-// The Messages tab: the conversations (one for each other station, the newest first, with the number of messages not seen yet; a click on the row of the one that is open closes its thread, a click on another opens that one, and the delete button at the right
-// end of a row deletes the whole conversation, or the whole overheard pair, after "sure?": the one way to delete, a single message has no button), the thread of the open one (MessageThread) and the box to write in (MessageCompose, which can also write one text to several stations). A conversation with messages
-// not seen that is not the open one is highlighted. Under the list is "Route", closed unless the route of the open conversation was changed: the path the station's messages go by (with the suggested one) and the tickbox RF only. A message that came in has the route it came by under its time ("via OH2RCH-2"). "Show overheard" lists the messages sent to other stations, a pair of stations at a time, which are otherwise left out.
-import DisclosureBox from "@/components/DisclosureBox.vue";
-import IconButton from "@/components/IconButton.vue";
-import InfoTip from "@/components/InfoTip.vue";
-import MessageCompose from "@/components/MessageCompose.vue";
-import MessageThread from "@/components/MessageThread.vue";
-import StationPrefs from "@/components/StationPrefs.vue";
-import { useSure } from "@/composables/useSure";
-import { ageText } from "@/lib/format";
-import { conversationName, effectivePath, isHighlighted, isOverheard, overheardPair, type Conversation } from "@/lib/messages";
-import { unreadText } from "@/lib/unread";
+// The Messages tab, laid out like Signal by the width of the tab itself (not of the window: the panel beside the map can be narrow on a wide screen; MESSAGES_WIDE, lib/layout.ts). Wide: the list of conversations (ConversationList) at the left, a divider, and the open
+// conversation (ConversationView) at the right, or "Choose a conversation" while none is open. Narrow: one of the two fills the tab, the list until a conversation is picked, then the conversation with a back arrow (and Esc) to the list. A conversation counts as open
+// (and its messages as seen, composables/useConversations.ts) while `selected` is a call, so on a narrow page the list showing means no conversation is open: going back says `select` null. "New message" opens an empty conversation with the cursor in To, which
+// is no conversation until a message is sent. The text being written is kept here, so that it is there when the user goes back to the list and in again. Everything the tab can do is an event; App.vue passes the daemon's state in and sends the commands.
+import { computed, nextTick, ref, watch } from "vue";
+import ConversationList from "@/components/ConversationList.vue";
+import ConversationView from "@/components/ConversationView.vue";
+import { useElementWidth } from "@/composables/useElementWidth";
+import { MESSAGES_WIDE } from "@/lib/layout";
+import type { Conversation } from "@/lib/messages";
 import type { Candidate } from "@/lib/recipients";
 import type { MessageRow } from "@/protocol/protocol";
 
@@ -38,7 +35,7 @@ const props = withDefaults(
   { rfOnly: () => new Set<string>(), suggestions: () => new Map<string, string | null>(), heardDirect: () => new Set<string>(), candidates: () => [] },
 );
 const emit = defineEmits<{
-  /** a conversation was picked; null when the one that is open was picked again, which closes it */
+  /** a conversation was picked; null: the open one was left (the way back on a narrow page) */
   select: [call: string | null];
   send: [to: string, text: string];
   /** one text to several stations: a message of its own for each */
@@ -54,76 +51,98 @@ const emit = defineEmits<{
   setRfOnly: [call: string, on: boolean];
 }>();
 
-const sure = useSure<string>(); // (the call of a conversation, the pair of an overheard one)
+const root = ref<HTMLElement | null>(null);
+const width = useElementWidth(root);
+const wide = computed(() => width.value >= MESSAGES_WIDE);
+/** A new message is being written (no conversation open), and how many were begun: a new one starts empty. */
+const composing = ref(false);
+const begun = ref(0);
+const draft = ref("");
 
-/** Whether the route of the open conversation is not the default one (a path of its own, or RF only): the Route is then shown open. */
-function routeChanged(call: string): boolean {
-  return effectivePath(props.paths, props.fallbackPath, call).own || props.rfOnly.has(call);
+/** Whether a conversation, or a new message, is shown (on a narrow page: instead of the list). */
+const isOpen = computed(() => props.selected !== null || composing.value);
+
+watch(
+  () => props.selected,
+  (call) => {
+    if (call !== null) composing.value = false;
+  },
+);
+
+function newMessage(): void {
+  composing.value = true;
+  begun.value++;
+  if (props.selected !== null) emit("select", null);
 }
 
-/** The delete of a row: the conversation goes, or the overheard pair. */
-function remove(call: string): void {
-  const pair = overheardPair(call);
-  if (pair === null) emit("deleteConversation", call);
-  else emit("deleteOverheard", pair[0], pair[1]);
+function pick(call: string): void {
+  composing.value = false;
+  emit("select", call);
+}
+
+/** Back to the list (narrow): leaves the conversation, and puts the focus on its row again. */
+async function back(): Promise<void> {
+  const was = props.selected;
+  composing.value = false;
+  if (was === null) return;
+  emit("select", null);
+  await nextTick();
+  [...(root.value?.querySelectorAll<HTMLElement>(".conv") ?? [])].find((row) => row.dataset.call === was)?.focus({ preventScroll: true });
+}
+
+function onEsc(event: KeyboardEvent): void {
+  if (!wide.value && isOpen.value && !event.defaultPrevented) void back();
+}
+
+function sendMany(to: string[], text: string): void {
+  if (props.selected === null) composing.value = false;
+  emit("sendMany", to, text);
 }
 </script>
 
 <template>
-  <div class="msgpane" :class="{ 'has-thread': selected !== null }">
-    <div class="toolbar">
-      <label class="check"
-        ><input type="checkbox" :checked="showOverheard" @change="emit('update:showOverheard', ($event.target as HTMLInputElement).checked)" /> Show
-        overheard</label
-      >
-      <InfoTip label="What overheard means">Messages that other stations sent to each other and that we heard on the radio.</InfoTip>
-    </div>
-    <ul class="convs" :class="{ short: selected !== null }" aria-label="Conversations">
-      <li v-for="c in conversations" :key="c.call" class="conv-item" :class="{ open: c.call === selected }">
-        <button
-          type="button"
-          class="conv"
-          :class="{ active: c.call === selected, unread: c.unread > 0, fresh: isHighlighted(c.unread, c.call, selected) }"
-          :aria-current="c.call === selected"
-          @click="emit('select', c.call === selected ? null : c.call)"
-        >
-          <span class="conv-call">{{ conversationName(c.call) }}</span>
-          <span v-if="c.unread > 0" class="badge" :title="unreadText(c.unread)">{{ c.unread }}</span>
-          <span class="conv-age muted">{{ ageText(c.last.at, now) }}</span>
-          <span class="conv-text muted">{{ c.last.direction === "out" ? "You: " : "" }}{{ c.last.text }}</span>
-        </button>
-        <IconButton
-          kind="delete"
-          class="conv-delete"
-          :armed="sure.armed.value === c.call"
-          :label="c.overheard ? `Delete the overheard messages ${conversationName(c.call)}` : `Delete the conversation with ${c.call}`"
-          @click="sure.press(c.call, () => remove(c.call))"
-        />
-      </li>
-      <li v-if="conversations.length === 0" class="empty">No message yet.</li>
-    </ul>
-    <div v-if="selected !== null" class="thread-head">
-      <p v-if="isOverheard(selected)" class="muted">Overheard: {{ conversationName(selected) }}</p>
-      <DisclosureBox v-else :key="selected" title="Route" :open="routeChanged(selected)">
-        <StationPrefs
-          :call="selected"
-          :paths="paths"
-          :fallback-path="fallbackPath"
-          :rf-only="rfOnly"
-          :suggested="suggestions.get(selected) ?? null"
-          @path="(c, p) => emit('path', c, p)"
-          @clear-path="emit('clearPath', $event)"
-          @set-rf-only="(c, on) => emit('setRfOnly', c, on)"
-        />
-      </DisclosureBox>
-    </div>
-    <MessageThread :thread="thread" :peer="selected" :heard-direct="heardDirect" @retry="emit('retry', $event)" @cancel="emit('cancel', $event)" />
-    <MessageCompose
+  <div ref="root" class="msgpane" :class="wide ? 'wide' : 'narrow'" @keydown.esc="onEsc">
+    <ConversationList
+      v-if="wide || !isOpen"
+      :conversations="conversations"
       :selected="selected"
-      :connected="connected"
-      :candidates="candidates"
-      @send="(to, text) => emit('send', to, text)"
-      @send-many="(to, text) => emit('sendMany', to, text)"
+      :now="now"
+      :show-overheard="showOverheard"
+      @select="pick"
+      @new-message="newMessage"
+      @update:show-overheard="emit('update:showOverheard', $event)"
+      @delete-conversation="emit('deleteConversation', $event)"
+      @delete-overheard="(from, to) => emit('deleteOverheard', from, to)"
     />
+    <ConversationView
+      v-if="isOpen"
+      :key="selected ?? `new${begun}`"
+      v-model:text="draft"
+      :selected="selected"
+      :narrow="!wide"
+      :thread="thread"
+      :connected="connected"
+      :paths="paths"
+      :suggestions="suggestions"
+      :fallback-path="fallbackPath"
+      :rf-only="rfOnly"
+      :heard-direct="heardDirect"
+      :candidates="candidates"
+      @back="back"
+      @send="(to, text) => emit('send', to, text)"
+      @send-many="sendMany"
+      @retry="emit('retry', $event)"
+      @cancel="emit('cancel', $event)"
+      @path="(c, p) => emit('path', c, p)"
+      @clear-path="emit('clearPath', $event)"
+      @set-rf-only="(c, on) => emit('setRfOnly', c, on)"
+    />
+    <div v-else-if="wide" class="convo-empty">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 5.5h16v10H10l-4.5 3.5V15.5H4z" />
+      </svg>
+      <p>Choose a conversation</p>
+      <button type="button" class="btn primary" @click="newMessage">New message</button>
+    </div>
   </div>
 </template>

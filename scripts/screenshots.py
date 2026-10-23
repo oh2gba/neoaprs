@@ -217,10 +217,11 @@ async def shot_weather(s: Shots, _: str) -> None:
 
 
 async def open_thread(s: Shots, call: str, scale: int = 1, size: dict[str, int] = DESKTOP) -> Any:
-    """The Messages tab with the conversation of `call` open."""
-    page = await s.page(size, tab="messages", view=CITY, panel=560, scale=scale)
+    """The Messages tab, wide enough for the list beside the conversation (lib/layout.ts MESSAGES_WIDE), with the conversation of `call` open."""
+    page = await s.page(size, tab="messages", view=CITY, panel=760, scale=scale)
     await page.locator("#pane-messages").get_by_text(call).first.click()
-    await settle(page, 1500)
+    await settle(page)
+    await settle(page, 600)
     return page
 
 
@@ -231,9 +232,9 @@ async def shot_messages(s: Shots, _: str) -> None:
 
 async def thread_clip(page: Any, most: int) -> dict[str, int]:
     """The thread of the open conversation from its top to the bottom of its last message (at most `most` pixels): the close-up of the chains."""
-    await page.evaluate("document.querySelector('#pane-messages .thread').scrollTop = 0")
-    box = await page.locator("#pane-messages .thread").bounding_box()
-    last = await page.locator("#pane-messages .thread .msg").last.bounding_box()
+    await page.evaluate("document.querySelector('#pane-messages .bubbles').scrollTop = 0")
+    box = await page.locator("#pane-messages .bubbles").bounding_box()
+    last = await page.locator("#pane-messages .bubbles .bubble").last.bounding_box()
     height = min(round(last["y"] + last["height"] - box["y"]) + 12, round(box["height"]), most)
     return {"x": round(box["x"]), "y": round(box["y"]), "width": round(box["width"]), "height": height}
 

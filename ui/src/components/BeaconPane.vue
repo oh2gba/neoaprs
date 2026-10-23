@@ -1,28 +1,34 @@
 <script setup lang="ts">
 // The Beacon tab: the box on top with what the beacon and the status are doing and the buttons that send them now (BeaconBox), and under it the settings they are made from (our station, the beacon, the
-// status), saved as the Settings tab saves, with a preview, closed until asked for, of the packet those values would make and, for a status that is a text of our own, of the status report.
+// status), which apply as they are changed like the Settings tab's, with a preview, closed until asked for, of the packet those values would make and, for a status that is a text of our own, of the status report.
 import BeaconBox from "@/components/BeaconBox.vue";
 import type { Picked } from "@/composables/usePositionPick";
 import SettingsForm from "@/components/SettingsForm.vue";
 import type { Toast } from "@/composables/useDaemon";
 import { beaconText, statusText } from "@/lib/beacon";
 import { statusSource } from "@/lib/status";
+import { useSettings, type Settings } from "@/composables/useSettings";
 import type { Command, ConfigValues, StatusMessage } from "@/protocol/protocol";
-import { computed, ref } from "vue";
+import { computed, toRef } from "vue";
 
-const props = defineProps<{
-  status: StatusMessage | null;
-  connected: boolean;
-  now: number;
-  config: ConfigValues | null;
-  lastError: Toast | null;
-  send: (command: Command) => boolean;
-  picking?: boolean;
-  picked?: Picked | null;
-}>();
+const props = withDefaults(
+  defineProps<{
+    status: StatusMessage | null;
+    connected: boolean;
+    now: number;
+    config: ConfigValues | null;
+    lastError: Toast | null;
+    send: (command: Command) => boolean;
+    /** the settings that apply as they are changed, shared with the Settings tab; the pane makes its own if the page gives none */
+    settings?: Settings | null;
+    picking?: boolean;
+    picked?: Picked | null;
+  }>(),
+  { settings: null, picking: false, picked: null },
+);
 const emit = defineEmits<{ beacon: []; status: []; pickPosition: [] }>();
 
-const unsaved = ref(false);
+const settings = props.settings ?? useSettings(toRef(props, "config"), toRef(props, "lastError"), (command) => props.send(command));
 /** Whether there is a status to send: what is saved says so, not what is being typed. */
 const statusOn = computed(() => props.config !== null && statusSource(props.config.values) !== "off");
 </script>
@@ -34,7 +40,7 @@ const statusOn = computed(() => props.config !== null && statusSource(props.conf
       :connected="connected"
       :now="now"
       :status-on="statusOn"
-      :unsaved="unsaved"
+      :saving="settings.saving.value"
       :picking="picking"
       @arm="emit('pickPosition')"
       @send="emit('beacon')"
@@ -45,10 +51,10 @@ const statusOn = computed(() => props.config !== null && statusSource(props.conf
       :last-error="lastError"
       :send="send"
       scope="beacon"
+      :settings="settings"
       :picking="picking"
       :picked="picked"
       @pick-position="emit('pickPosition')"
-      @dirty="unsaved = $event"
     >
       <template #preview="{ draft }">
         <details class="beacon-preview">

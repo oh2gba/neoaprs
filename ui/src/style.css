@@ -599,6 +599,22 @@ tbody tr:focus-visible {
   display: flex;
   margin: 2px 0 6px;
 }
+.location {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin: 4px 0;
+}
+.location-line {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .location-pick {
+    flex: 1 1 100%;
+  }
+}
 @media (prefers-color-scheme: dark) {
   .symicon:not(.stn-plain) {
     border-radius: 6px;
@@ -950,19 +966,49 @@ tbody tr:focus-visible {
 }
 
 /* the messages */
+/* the list of conversations and the open conversation: side by side when the tab is wide (the class wide, MessagesPane), one at a time when it is narrow */
 .msgpane {
   display: flex;
   flex: 1;
-  flex-direction: column;
+  min-width: 0;
   min-height: 0;
 }
-.convs {
+.msgpane > * {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.msgpane.wide > .convlist {
   flex: none;
-  max-height: 34%;
+  width: clamp(240px, 36%, 340px);
+  border-right: 1px solid var(--border);
+}
+.convlist {
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+}
+.convlist-head {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.convlist-overheard {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.convs {
+  flex: 1;
+  min-height: 0;
   margin: 0;
   padding: 0;
   overflow-y: auto;
-  border-bottom: 1px solid var(--border);
   list-style: none;
 }
 .conv-item {
@@ -970,20 +1016,203 @@ tbody tr:focus-visible {
   align-items: stretch;
   border-bottom: 1px solid var(--border);
 }
+.conv-item.open {
+  background: var(--row-selected);
+}
 .conv {
   display: grid;
   flex: 1;
   min-width: 0;
-  grid-template-columns: auto auto 1fr;
-  align-items: baseline;
-  gap: 0 8px;
-  padding: 6px 10px;
+  min-height: 56px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-content: center;
+  align-items: center;
+  gap: 2px 8px;
+  padding: 8px 4px 8px 12px;
   border: 0;
   background: none;
   color: var(--text);
   font: inherit;
   text-align: left;
   cursor: pointer;
+}
+.conv:hover {
+  background: var(--row-hover);
+}
+.conv.active:hover {
+  background: none;
+}
+.conv:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.conv-call {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.conv.heard .conv-call {
+  font-weight: 400;
+  font-style: italic;
+}
+.conv-age {
+  grid-column: 2;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.conv-text {
+  grid-column: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.conv .badge {
+  grid-column: 2;
+  grid-row: 2;
+  margin: 0;
+  justify-self: end;
+}
+.conv.fresh {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.conv.fresh .conv-text {
+  color: var(--text);
+  font-weight: 600;
+}
+.convo {
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  outline: none;
+}
+.convo-head {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  min-height: 48px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.convo-back {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0 0 5px;
+  margin-left: -6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 30px;
+  line-height: 1;
+  cursor: pointer;
+}
+.convo-back:hover,
+.convo-back:focus-visible {
+  background: var(--row-hover);
+}
+.convo-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.routemenu {
+  flex: none;
+}
+.route-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.route-box {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  z-index: 4;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+.bubbles {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+  padding: 10px 12px;
+  overflow-y: auto;
+  background: var(--bg);
+}
+.bubble {
+  max-width: 82%;
+  padding: 6px 10px 4px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--panel);
+}
+.bubble.in {
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+}
+.bubble.out {
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+  border-color: transparent;
+  background: var(--row-selected);
+}
+.bubble p {
+  margin: 0;
+}
+.bubble-text {
+  overflow-wrap: anywhere;
+}
+.bubble-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px 6px;
+  font-size: 11px;
+}
+.bubble-route {
+  font-size: 11px;
+  text-align: right;
+}
+.bubble .chain .chips {
+  justify-content: flex-end;
+}
+.convo .compose {
+  background: var(--panel);
+}
+.convo-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--muted);
+  background: var(--bg);
+}
+.convo-empty p {
+  margin: 0;
+  font-size: 15px;
 }
 .xbtn {
   display: inline-flex;
@@ -1011,53 +1240,6 @@ tbody tr:focus-visible {
 }
 .conv-item .xbtn {
   align-self: center;
-}
-.conv:hover {
-  background: var(--row-hover);
-}
-.conv.active {
-  background: var(--row-selected);
-}
-.conv:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-}
-.conv-call {
-  font-weight: 600;
-}
-.conv.unread .conv-call {
-  color: var(--accent);
-}
-.conv.fresh {
-  background: var(--row-selected);
-  box-shadow: inset 3px 0 0 var(--accent);
-}
-.conv.fresh .conv-text {
-  color: var(--text);
-  font-weight: 600;
-}
-.conv .badge {
-  margin-left: 0;
-  justify-self: start;
-}
-.conv-age {
-  grid-column: 3;
-  justify-self: end;
-  grid-row: 1;
-}
-.conv-text {
-  grid-column: 1 / -1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.thread-head {
-  flex: none;
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--border);
-}
-.thread-head p {
-  margin: 0;
 }
 .pathbox {
   display: flex;
@@ -1105,10 +1287,6 @@ tbody tr:focus-visible {
 .timedword {
   color: var(--warn);
   font-weight: 600;
-}
-.conv.heard .conv-call {
-  font-weight: 400;
-  font-style: italic;
 }
 .thread {
   display: flex;
@@ -1316,52 +1494,215 @@ tbody tr:focus-visible {
   line-height: 1.4;
 }
 
-/* the email tab */
+/* the email tab: the buttons on top, a form under them while one is open, the mail list */
 .mailpane {
   display: flex;
   flex: 1;
   flex-direction: column;
   min-height: 0;
 }
-.mailpane .compose {
-  border-top: 0;
+.mail-bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
   border-bottom: 1px solid var(--border);
 }
-.mail-to {
-  flex: 1;
+.mail-bar .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.mail-bar .info-text {
+  right: 0;
+  left: auto;
+}
+.mail-menu {
+  position: relative;
+}
+.menu-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 6;
+  min-width: 100%;
+  margin: 4px 0 0;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  list-style: none;
+  white-space: nowrap;
+}
+.menu-item {
+  display: block;
+  width: 100%;
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.menu-item:hover,
+.menu-item:focus-visible {
+  background: var(--row-hover);
+}
+.menu-item:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.mailform {
+  display: grid;
+  flex: none;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--row-hover);
+}
+.mailform > label {
+  font-weight: 600;
+}
+.mailform-actions {
+  display: flex;
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.mailform-actions .compose-left {
+  margin-right: auto;
+}
+.mail-address {
+  position: relative;
+  display: flex;
   min-width: 0;
 }
-.addresses {
+.mail-address .input {
+  flex: 1;
+}
+.suggestions {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  z-index: 6;
+  max-height: 40vh;
+  margin: 2px 0 0;
+  padding: 2px 4px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  list-style: none;
+}
+.suggestion {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px 8px;
+  align-items: center;
+}
+.suggestion-pick {
+  flex: 1;
+  min-width: 0;
+  min-height: 32px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-size: 13px;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.suggestion-pick:hover,
+.suggestion-pick:focus-visible {
+  color: var(--accent);
+}
+.maillist-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.maillist {
   margin: 0;
   padding: 0;
   list-style: none;
 }
-.address {
-  display: inline-flex;
-  align-items: center;
-}
-.mailpane .compose .toolbar {
-  padding: 0;
-}
-.mail-tools {
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  gap: 6px;
-  padding: 6px 8px;
+.mail {
+  padding: 6px 10px;
   border-bottom: 1px solid var(--border);
 }
-.mail-row {
+.mail.fresh {
+  background: var(--row-selected);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.mail.fresh .mail-title,
+.mail.fresh .mail-text {
+  font-weight: 700;
+}
+.mail-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+.mail-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.mail-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.mail-text {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mail.open .mail-text {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.mail-delete {
+  margin: -5px -6px -5px 0;
+}
+.mail-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 8px;
+  gap: 2px 8px;
+  margin: 0;
+  font-size: 12px;
 }
-.mail-shortcut .input {
-  width: 10em;
+.mail-state.tone-ok {
+  color: var(--ok);
+}
+.mail-state.tone-bad {
+  color: var(--bad);
+}
+.mail-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+  font-size: 12px;
 }
 .msg-from {
   font-size: 12px;
@@ -1510,14 +1851,22 @@ tbody tr:focus-visible {
 .field-result.ok {
   color: var(--ok);
 }
-.settings-actions {
+.field-state {
+  flex: none;
+  font-size: 0.85em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.field-state.saved {
+  color: var(--ok);
+}
+.confirm-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  position: sticky;
-  bottom: 0;
-  padding: 8px 0;
-  background: var(--panel);
+  gap: 8px;
+  margin: 6px 0;
+  font-weight: 600;
 }
 
 /* the toast */
@@ -1536,6 +1885,20 @@ tbody tr:focus-visible {
   background: var(--bad);
   color: #fff;
   box-shadow: var(--shadow);
+}
+.toast.undo {
+  background: var(--text);
+  color: var(--panel);
+}
+.toast.undo .linkbutton {
+  color: inherit;
+  font-weight: 600;
+}
+.toast.undo .xbtn,
+.toast.undo .xbtn:hover,
+.toast.undo .xbtn:focus-visible {
+  color: var(--panel);
+  background: none;
 }
 .toast .xbtn {
   color: #fff;
@@ -2115,24 +2478,6 @@ button.linkbtn {
   font-size: 12px;
 }
 
-/* the Email tab's shortcut: the name and the address one under the other, the three actions on a line of their own */
-.mail-shortcut {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 6px 10px;
-  align-items: center;
-  margin-top: 6px;
-}
-.mail-shortcut-head,
-.mail-shortcut-buttons {
-  grid-column: 1 / -1;
-}
-.mail-shortcut-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
 /* a heading that opens what is under it (DisclosureBox), and the radio status of the Settings tab */
 .disclosure > summary {
   padding: 6px 0;
@@ -2178,21 +2523,8 @@ button.linkbtn {
   font-size: 12px;
 }
 
-/* a narrow page: the open conversation is the only row left of the list, so that the thread has the room; the compose box is tighter */
+/* the path of a conversation is a row of fields in the box under its header */
 @media (max-width: 800px) {
-  .msgpane.has-thread > .toolbar {
-    display: none;
-  }
-  .convs.short {
-    max-height: none;
-  }
-  .convs.short .conv-item:not(.open) {
-    display: none;
-  }
-  .msgpane .compose {
-    gap: 4px;
-    padding: 6px 8px;
-  }
   .prefs .pathbox .input {
     flex: 1 1 8em;
   }

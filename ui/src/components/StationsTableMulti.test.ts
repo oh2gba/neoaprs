@@ -47,8 +47,8 @@ describe("StationsTable with several cards", () => {
     const aging = { timeouts: new Map(), defaultMin: 180 };
     const wrapper = mount(StationsTable, { props: { stations: old, selected: null, others: [], now: NOW, aging } });
     expect(wrapper.findAll("tbody td.call").map((td) => td.text())).toEqual(["OH2NEW", "OH2OLD"]);
-    expect(row(wrapper as unknown as ReturnType<typeof make>, "OH2OLD")?.text()).toContain("timed out");
-    await row(wrapper as unknown as ReturnType<typeof make>, "OH2OLD")?.trigger("click", { ctrlKey: true });
+    expect(row(wrapper, "OH2OLD")?.text()).toContain("timed out");
+    await row(wrapper, "OH2OLD")?.trigger("click", { ctrlKey: true });
     expect(wrapper.emitted("select")).toEqual([["OH2OLD", true]]);
   });
 

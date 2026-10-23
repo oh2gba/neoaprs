@@ -5,7 +5,7 @@ import { nextTick } from "vue";
 import App from "@/App.vue";
 import { FakeMap, FakeMarker, resetFakes } from "@/test/fakemap";
 import { FakeSocket } from "@/test/fakesocket";
-import { ago, configValues, hello, station, status, tncState } from "@/test/fixtures";
+import { NOW, ago, configValues, hello, station, status, tncState } from "@/test/fixtures";
 
 const CALLS = ["OH2ZWA", "OH2ZWB", "OH2ZWC", "OH2ZWD", "OH2ZWE", "OH2ZWF"];
 const stations = {
@@ -34,7 +34,7 @@ async function open(width: number, height: number, call = "OH2GBA") {
   socket.say(hello());
   socket.say({ type: "state", topic: "stations", rev: 0, value: stations });
   socket.say({ type: "state", topic: "tnc", rev: 0, value: tncState() });
-  socket.say({ type: "state", topic: "config", rev: 0, value: configValues({ "station/call": call, "map/hide_after_min": "0" }) });
+  socket.say({ type: "state", topic: "config", rev: 0, value: configValues({ "station/call": call }) });
   socket.say(status());
   await flushPromises();
   return { wrapper, socket };
@@ -57,9 +57,12 @@ beforeEach(() => {
   resetFakes();
   localStorage.clear();
   vi.stubGlobal("WebSocket", FakeSocket);
+  vi.useFakeTimers({ toFake: ["Date"] }); // (the clock stands at the fixtures' time, so that nothing has timed out)
+  vi.setSystemTime(NOW);
 });
 afterEach(() => {
   for (const wrapper of opened.splice(0)) wrapper.unmount();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   document.body.replaceChildren();
   resize(1024, 768);

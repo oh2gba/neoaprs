@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CONFIG_KEYS } from "@/protocol/lists";
-import { FIELDS, SUBGROUPS, changedValues, errorKey, errorReason, groupKeys, shownByValues, shownFor } from "@/lib/settings";
+import { BEACON_FOLDS, FIELDS, SUBGROUPS, errorKey, errorReason, groupKeys, shownByValues, shownFor } from "@/lib/settings";
 import { PORT_OTHER, portOptions } from "@/lib/portchoice";
 
 describe("groupKeys", () => {
@@ -12,30 +12,33 @@ describe("groupKeys", () => {
     expect(groups[1]?.keys).toEqual(["digi/enabled"]);
     expect(groups[3]?.title).toBe("Notifications");
     expect(groups[3]?.keys).toEqual(["messages/alert", "messages/alert_command"]);
-    expect(groups[4]?.keys).toEqual(["map/hide_after_min", "map/radius_km", "map/maxzoom", "map/source"]);
+    expect(groups[4]?.keys).toEqual(["map/radius_km"]);
   });
-  it("gives the Beacon tab the station keys first (the call is its first field), then the beacon keys and the status keys", () => {
+  it("gives the Beacon tab the station keys first (the call, the place, the symbol), then how often and what the beacon says, the antenna and the path, and the status keys", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "beacon");
     expect(groups.map((g) => g.id)).toEqual(["station", "beacon", "status"]);
-    expect(groups[1]?.keys).toEqual(["beacon/interval_min", "beacon/path"]);
-    expect(groups[0]?.keys).toEqual([
-      "station/call",
-      "station/lat",
-      "station/lon",
-      "station/symbol_table",
-      "station/symbol_code",
+    expect(groups[0]?.keys).toEqual(["station/call", "station/lat", "station/lon", "station/symbol_table", "station/symbol_code"]);
+    expect(groups[1]?.keys).toEqual([
+      "beacon/interval_min",
       "station/comment",
       "beacon/power_w",
       "beacon/antenna_height_m",
       "beacon/antenna_gain_db",
       "beacon/antenna_direction",
+      "beacon/path",
+    ]);
+    expect(BEACON_FOLDS.map((f) => [f.title, f.keys.length])).toEqual([
+      ["Antenna", 4],
+      ["Advanced", 1],
     ]);
     expect(groups[2]?.keys).toEqual(["status/source", "station/status", "status/rigctld", "status/template", "status/interval_min"]);
   });
   it("has every key in one place only", () => {
     const shown = [...groupKeys(CONFIG_KEYS, "settings"), ...groupKeys(CONFIG_KEYS, "beacon")].flatMap((g) => g.keys);
     expect(shown.sort()).toEqual(
-      CONFIG_KEYS.filter((key) => !["update/url", "serial/pattern", "serial/skip", "web/port", "web/allowed_hosts"].includes(key)).sort(),
+      CONFIG_KEYS.filter(
+        (key) => !["update/url", "serial/pattern", "serial/skip", "web/port", "web/allowed_hosts", "map/maxzoom", "map/source"].includes(key),
+      ).sort(),
     );
   });
   it("leaves the address of the update check off the page: it is set with neoaprs db set", () => {
@@ -53,8 +56,18 @@ describe("groupKeys", () => {
     expect(Object.keys(SUBGROUPS)).toEqual(["messages/alert"]);
     expect([FIELDS["messages/alert"]?.label, FIELDS["messages/alert_command"]?.label]).toEqual(["Alert", "Command"]);
   });
-  it("keeps the timeout of the map in a group of its own", () => {
-    expect(groupKeys(["web/network", "map/hide_after_min"]).map((g) => g.id)).toEqual(["web", "map"]);
+  it("keeps the radius of the map in a group of its own, and leaves off the page the detail and the source, which stay settings for neoaprs db set", () => {
+    expect(groupKeys(["web/network", "map/radius_km"]).map((g) => g.id)).toEqual(["web", "map"]);
+    const keys = groupKeys(CONFIG_KEYS, "settings").flatMap((g) => g.keys);
+    for (const key of ["map/maxzoom", "map/source"]) {
+      expect(keys).not.toContain(key);
+      expect(CONFIG_KEYS).toContain(key);
+      expect(FIELDS[key]).toBeUndefined();
+    }
+  });
+  it("has no setting for the time stations stay on the map: it is fixed at 3 hours (a station has its own in its details)", () => {
+    expect(CONFIG_KEYS).not.toContain("map/hide_after_min");
+    expect(FIELDS["map/hide_after_min"]).toBeUndefined();
   });
   it("knows every key of the daemon: a short label for each, and no hint text anywhere", () => {
     for (const key of groupKeys(CONFIG_KEYS, "settings")
@@ -96,11 +109,15 @@ describe("groupKeys", () => {
       expect(tip.join(" ").split(/[.:;] /).length, key).toBeLessThanOrEqual(8);
       expect(FIELDS[key]?.title, key).toBeUndefined();
     }
-    expect(FIELDS["station/comment"]?.tip?.join(" ")).toContain("43");
-    expect(FIELDS["station/status"]?.tip?.join(" ")).toContain("55");
-    expect(FIELDS["beacon/interval_min"]?.tip?.join(" ")).toContain("10");
-    expect(FIELDS["status/template"]?.tip?.join(" ")).toMatch(/\{freq\}.*\{mode\}/);
-    expect(FIELDS["status/template"]?.tip?.at(-1)).toContain("14.074 MHz USB");
+  });
+  it("gives the numbers and the examples in the (i) of the fields that have them", () => {
+    const tip = (key: string) => (FIELDS[key]?.tip ?? []).join(" ");
+    expect(tip("station/comment")).toContain("43");
+    expect(tip("station/status")).toContain("55");
+    expect(tip("beacon/interval_min")).toContain("15");
+    expect(tip("beacon/path")).toContain("WIDE2-2");
+    expect(tip("status/template")).toMatch(/\{freq\}.*\{mode\}/);
+    expect(tip("status/template")).toContain("14.074 MHz USB");
   });
   it("shows the status fields its source needs and the antenna's figures once there is a power", () => {
     const shown = (values: Record<string, string>) =>
@@ -119,19 +136,20 @@ describe("groupKeys", () => {
     expect(antenna("5")).toHaveLength(4);
   });
   it("gives a unit to the keys that are counted in one, and a word for 0 where 0 is a state", () => {
-    expect(["tnc/check_sec", "map/hide_after_min", "beacon/interval_min"].map((k) => FIELDS[k]?.unit)).toEqual(["s", "min", "min"]);
+    expect(["tnc/check_sec", "map/radius_km"].map((k) => FIELDS[k]?.unit)).toEqual(["s", "km"]);
     expect(["beacon/power_w", "beacon/antenna_height_m", "beacon/antenna_gain_db"].map((k) => FIELDS[k]?.unit)).toEqual(["W", "m", "dB"]);
-    expect(["map/hide_after_min", "tnc/check_sec", "beacon/interval_min"].map((k) => FIELDS[k]?.zero)).toEqual(["never", "off", "off"]);
+    expect(["tnc/check_sec"].map((k) => FIELDS[k]?.zero)).toEqual(["off"]);
   });
-});
-
-describe("changedValues", () => {
-  it("is the keys whose draft differs", () => {
-    expect(changedValues({ a: "1", b: "3", c: "x" }, { a: "1", b: "2", c: "x" })).toEqual({ b: "3" });
-    expect(changedValues({ a: "1" }, { a: "1" })).toEqual({});
-  });
-  it("leaves out a key the daemon does not have", () => {
-    expect(changedValues({ a: "1", z: "9" }, { a: "1" })).toEqual({});
+  it("offers the beacon as off, every 15, 30 or 60 minutes, and a stored interval that is none of them in words", () => {
+    const info = FIELDS["beacon/interval_min"];
+    expect(info?.kind).toBe("choice");
+    expect(info?.choices).toEqual([
+      { value: "0", label: "Off" },
+      { value: "15", label: "Every 15 min" },
+      { value: "30", label: "Every 30 min" },
+      { value: "60", label: "Every 60 min" },
+    ]);
+    expect(info?.other?.("20")).toBe("Every 20 min");
   });
 });
 
@@ -152,15 +170,8 @@ describe("errorKey", () => {
 });
 
 describe("the map's fields", () => {
-  it("name the radius in km, the detail as a choice with a word for each zoom, and the source with its default as the placeholder", () => {
+  it("name the radius in km", () => {
     expect(FIELDS["map/radius_km"]).toMatchObject({ label: "Radius", unit: "km" });
-    expect(FIELDS["map/maxzoom"]).toMatchObject({ label: "Detail", kind: "choice" });
-    expect(FIELDS["map/maxzoom"]?.choices).toEqual([
-      { value: "10", label: "10 town" },
-      { value: "12", label: "12 streets" },
-      { value: "14", label: "14 houses" },
-    ]);
-    expect(FIELDS["map/source"]).toMatchObject({ label: "Map data", empty: "daily build" });
   });
 });
 

@@ -287,7 +287,6 @@ export function configValues(extra: Record<string, string> = {}): ConfigValues {
     "status/rigctld": "",
     "status/interval_min": "30",
     "status/template": "QRV {freq} {mode}",
-    "map/hide_after_min": "1440",
     "map/radius_km": "150",
     "map/maxzoom": "12",
     "map/source": "",

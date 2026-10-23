@@ -1,113 +1,257 @@
 import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import EmailPane from "@/components/EmailPane.vue";
 import { incoming, message } from "@/test/fixtures";
 
 const thread = [
-  message(1, { to_call: "EMAIL-2", text: "me hello", state: "acked", attempts: 1 }),
+  message(1, { to_call: "EMAIL-2", text: "jane@example.com Hello Pekka", state: "acked", attempts: 1 }),
   incoming(2, "EMAIL-2", { text: "Msg sent to jane@example.com", route: "via OH2RCH-2" }),
   message(3, { to_call: "EMAIL-2", text: "get", state: "failed", attempts: 6 }),
-  message(4, { to_call: "EMAIL-2", text: "L", state: "sending", attempts: 2 }),
-  message(5, { to_call: "EMAIL-2", text: "me hi", state: "unconfirmed", attempts: 2, attempts_max: 2 }),
-  message(6, { to_call: "EMAIL-2", text: "me no", state: "rejected", attempts: 1 }),
+  message(4, { to_call: "EMAIL-2", text: "jane@example.com On my way", state: "sending", attempts: 2, attempts_max: 2 }),
+  message(5, { to_call: "EMAIL-2", text: "me jane@example.com", state: "unconfirmed", attempts: 2, attempts_max: 2 }),
+  message(6, { to_call: "EMAIL-2", text: "me R", state: "rejected", attempts: 1 }),
+  incoming(7, "EMAIL-2", { text: "bob@example.org Hi from Bob" }),
+  message(8, { to_call: "EMAIL-2", text: "me L", state: "acked", attempts: 2 }),
 ];
 
 function pane(extra: Record<string, unknown> = {}) {
-  return mount(EmailPane, { props: { thread, connected: true, addresses: [], ...extra } });
+  return mount(EmailPane, { props: { thread, connected: true, addresses: [], ...extra }, attachTo: document.body });
 }
+type Pane = ReturnType<typeof pane>;
+const rows = (wrapper: Pane) => wrapper.findAll(".mail");
+const bar = (wrapper: Pane, label: string) => wrapper.findAll(".mail-bar button").find((b) => b.text() === label);
 
-describe("EmailPane", () => {
-  it("has Send an email, the mailbox and the shortcuts, and the thread under them, in that order", () => {
+beforeEach(() => vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] }));
+afterEach(() => vi.useRealTimers());
+
+describe("EmailPane: the top", () => {
+  it("has the buttons New email and Mailbox and an (i), and no form open", () => {
     const wrapper = pane();
-    const html = wrapper.html();
-    expect(wrapper.findAll("strong").map((s) => s.text())).toEqual(["Send an email", "Mailbox"]);
-    expect(wrapper.find(".mail-tools .disclosure summary").text()).toBe("Shortcuts");
-    expect([html.indexOf("mail-to"), html.indexOf("mail-tools"), html.indexOf('role="log"')].every((i) => i >= 0)).toBe(true);
-    expect(html.indexOf("mail-to")).toBeLessThan(html.indexOf("mail-tools"));
-    expect(html.indexOf("mail-tools")).toBeLessThan(html.indexOf('role="log"'));
+    expect(wrapper.findAll(".mail-bar > button, .mail-bar .mail-menu > button").map((b) => b.text())).toEqual(["New email", "Mailbox"]);
+    expect(wrapper.find(".info-toggle").attributes("aria-label")).toBe("About email");
+    expect(wrapper.find("form").exists()).toBe(false);
+    wrapper.unmount();
   });
 
-  it("shows every message to and from EMAIL-2 with the marks, the states and the routes", () => {
-    const messages = pane().findAll(".msg");
-    expect(messages.map((m) => m.classes().includes("in"))).toEqual([false, true, false, false, false, false]);
-    expect(messages[0]?.text()).toContain("acked, sent once");
-    expect(messages[1]?.find(".msg-route").text()).toBe("via OH2RCH-2");
-    expect(messages.map((m) => (m.find(".mark").exists() ? m.find(".mark").attributes("data-mark") : null))).toEqual([
-      "check",
-      null,
-      "hollow",
-      "clock",
-      "hollow",
-      "cross",
-    ]);
-  });
-
-  it("says sent, not confirmed, and never failed, for a mail whose ack did not come back", () => {
-    const messages = pane().findAll(".msg");
-    expect(messages[2]?.find(".msg-state").text()).toBe("sent 6 times, not confirmed");
-    expect(messages[4]?.find(".msg-state").text()).toBe("sent twice, not confirmed");
-    expect(messages[2]?.find(".msg-state").classes()).not.toContain("state-failed");
-    expect(messages[2]?.find(".mark").attributes("title")).toContain("iGate");
-    expect(messages[5]?.find(".msg-state").text()).toBe("rejected");
-    expect(pane().text()).not.toContain("failed");
-  });
-
-  it("marks what the gateway sent as its answer, and nothing of ours", () => {
-    const messages = pane().findAll(".msg");
-    expect(messages[1]?.find(".msg-from").text()).toBe("EMAIL-2 answers");
-    expect(
-      pane()
-        .findAll(".msg-from")
-        .filter((p) => p.text().endsWith("answers")),
-    ).toHaveLength(1);
-  });
-
-  it("shows a mail of ours as to whom it is, and the gateway's commands in words, with the line as sent in the title", () => {
-    const messages = pane().findAll(".msg");
-    expect(messages[0]?.find(".msg-from").text()).toBe("to me");
-    expect(messages[0]?.find(".msg-text").text()).toBe("hello");
-    expect(messages[0]?.find(".msg-text").attributes("title")).toBe("me hello");
-    expect(messages[2]?.find(".msg-text").text()).toBe("Fetch held mail");
-    expect(messages[1]?.find(".msg-text").attributes("title")).toBeUndefined();
-  });
-
-  it("offers Retry and Cancel as the Messages tab does", async () => {
+  it("explains once, in the (i), why a mail may be Not confirmed", async () => {
     const wrapper = pane();
-    const messages = wrapper.findAll(".msg");
-    await messages[2]?.find("button").trigger("click");
-    await messages[3]?.find("button").trigger("click");
-    expect(wrapper.emitted("retry")).toEqual([[3]]);
-    expect(wrapper.emitted("cancel")).toEqual([[4]]);
+    expect(wrapper.find(".info-text").exists()).toBe(false);
+    await wrapper.find(".info-toggle").trigger("click");
+    expect(wrapper.find(".info-text").text()).toContain("iGate");
+    expect(wrapper.find(".info-text").text()).toContain("Not confirmed");
+    expect(wrapper.findAll("p.mail-meta")[0]?.text()).not.toContain("iGate");
+    wrapper.unmount();
   });
 
-  it("says there is no message with the gateway yet", () => {
-    expect(pane({ thread: [] }).find(".thread").text()).toBe("No message with EMAIL-2 yet.");
-  });
-
-  it("passes up what the compose box and the buttons say", async () => {
+  it("opens the New email form, and Send passes the mail up and closes it", async () => {
     const wrapper = pane({ addresses: ["me"] });
+    await bar(wrapper, "New email")?.trigger("click");
+    expect(wrapper.find("form[aria-label='New email']").exists()).toBe(true);
     await wrapper.find("#mail-to").setValue("me");
     await wrapper.find("#mail-text").setValue("Hello");
-    await wrapper.find("form.compose").trigger("submit");
-    await wrapper.find(".address-forget").trigger("click");
+    await wrapper.find("form").trigger("submit");
+    expect(wrapper.emitted("send")).toEqual([["me", "Hello"]]);
+    expect(wrapper.find("form").exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("closes the form with Cancel and with the New email button again, and passes up a forgotten addressee", async () => {
+    const wrapper = pane({ addresses: ["me"] });
+    await bar(wrapper, "New email")?.trigger("click");
+    await wrapper.find("#mail-to").trigger("focus");
+    await wrapper.find(".suggestion .xbtn").trigger("click");
+    expect(wrapper.emitted("forget")).toEqual([["me"]]);
+    await wrapper
+      .findAll("form button")
+      .find((b) => b.text() === "Cancel")
+      ?.trigger("click");
+    expect(wrapper.find("form").exists()).toBe(false);
+    expect(wrapper.emitted("send")).toBeUndefined();
+    await bar(wrapper, "New email")?.trigger("click");
+    await bar(wrapper, "New email")?.trigger("click");
+    expect(wrapper.find("form").exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("passes up Fetch held mail from the Mailbox menu", async () => {
+    const wrapper = pane();
+    await bar(wrapper, "Mailbox")?.trigger("click");
+    await wrapper.findAll("[role='menuitem']")[0]?.trigger("click");
+    expect(wrapper.emitted("get")).toEqual([[]]);
+    expect(wrapper.find("form").exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("opens the shortcut form from the Mailbox menu in place of New email, and passes up Register, Email the list and Remove", async () => {
+    const wrapper = pane();
+    await bar(wrapper, "New email")?.trigger("click");
+    await bar(wrapper, "Mailbox")?.trigger("click");
+    await wrapper.findAll("[role='menuitem']")[1]?.trigger("click");
+    expect(wrapper.findAll("form")).toHaveLength(1);
+    expect(wrapper.find("form").attributes("aria-label")).toBe("Shortcuts");
     await wrapper.find("#mail-shortcut").setValue("jane");
     await wrapper.find("#mail-address").setValue("jane@example.com");
-    await wrapper.find("form.mail-shortcut").trigger("submit");
-    const buttons = wrapper.findAll(".mail-tools button");
-    await buttons.find((b) => b.text() === "Fetch held mail")?.trigger("click");
-    await buttons.find((b) => b.text() === "Email the list")?.trigger("click");
-    await buttons.find((b) => b.text() === "Remove")?.trigger("click");
-    await wrapper
-      .findAll(".mail-tools button")
-      .find((b) => b.text() === "sure?")
-      ?.trigger("click");
-    expect([
-      wrapper.emitted("send"),
-      wrapper.emitted("forget"),
-      wrapper.emitted("register"),
-      wrapper.emitted("get"),
-      wrapper.emitted("list"),
-      wrapper.emitted("remove"),
-    ]).toEqual([[["me", "Hello"]], [["me"]], [["jane", "jane@example.com"]], [[]], [["jane"]], [["jane"]]]);
+    await wrapper.find("form").trigger("submit");
+    const button = (label: string) => wrapper.findAll("form button").find((b) => b.text() === label);
+    await button("Email the list")?.trigger("click");
+    await button("Remove")?.trigger("click");
+    await button("sure?")?.trigger("click");
+    expect([wrapper.emitted("register"), wrapper.emitted("list"), wrapper.emitted("remove")]).toEqual([[["jane", "jane@example.com"]], [["jane"]], [["jane"]]]);
+    await button("Close")?.trigger("click");
+    expect(wrapper.find("form").exists()).toBe(false);
+    wrapper.unmount();
+  });
+});
+
+describe("EmailPane: the list", () => {
+  it("has one row for each message to and from the gateway, the newest first, and no bubbles", () => {
+    const wrapper = pane();
+    expect(rows(wrapper)).toHaveLength(8);
+    expect(rows(wrapper).map((r) => r.find(".mail-title").text())).toEqual([
+      "Asked for the shortcut list (me)",
+      "From bob@example.org",
+      "Remove shortcut 'me'",
+      "Shortcut 'me' → jane@example.com",
+      "To jane@example.com",
+      "Fetch held mail",
+      "From EMAIL-2",
+      "To jane@example.com",
+    ]);
+    expect(wrapper.find(".msg").exists()).toBe(false);
+    expect(wrapper.find(".thread").exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("says each state of ours in words, with its mark: Sending, Delivered, Not confirmed, Rejected", () => {
+    const wrapper = pane();
+    const states = rows(wrapper).map((r) => [
+      r.find(".mail-state").exists() ? r.find(".mail-state").text() : null,
+      r.find(".mark").exists() ? r.find(".mark").attributes("data-mark") : null,
+    ]);
+    expect(states).toEqual([
+      ["Delivered", "check"],
+      [null, null],
+      ["Rejected", "cross"],
+      ["Not confirmed", "hollow"],
+      ["Sending (2 of 2)", "clock"],
+      ["Not confirmed", "hollow"],
+      [null, null],
+      ["Delivered", "check"],
+    ]);
+    expect(wrapper.text()).not.toContain("failed");
+    wrapper.unmount();
+  });
+
+  it("colours Delivered and Rejected and leaves Not confirmed plain, and explains Not confirmed in the title of its mark only", () => {
+    const wrapper = pane();
+    const states = wrapper.findAll(".mail-state");
+    expect(states.map((s) => s.classes().filter((c) => c.startsWith("tone-")))).toEqual([
+      ["tone-ok"],
+      ["tone-bad"],
+      ["tone-plain"],
+      ["tone-plain"],
+      ["tone-plain"],
+      ["tone-ok"],
+    ]);
+    expect(wrapper.findAll(".mark-hollow")[0]?.attributes("title")).toContain("iGate");
+    wrapper.unmount();
+  });
+
+  it("shows the gateway's replies as From EMAIL-2 and the mail it forwards as From the address", () => {
+    const wrapper = pane();
+    const reply = rows(wrapper)[6];
+    expect(reply?.find(".mail-title").text()).toBe("From EMAIL-2");
+    expect(reply?.find(".mail-text").text()).toBe("Msg sent to jane@example.com");
+    expect(reply?.find(".mail-state").exists()).toBe(false);
+    const forwarded = rows(wrapper)[1];
+    expect(forwarded?.find(".mail-title").text()).toBe("From bob@example.org");
+    expect(forwarded?.find(".mail-text").text()).toBe("Hi from Bob");
+    wrapper.unmount();
+  });
+
+  it("shows the commands in words with no text line, and the line as sent in the title", () => {
+    const wrapper = pane();
+    const get = rows(wrapper)[5];
+    expect(get?.find(".mail-title").text()).toBe("Fetch held mail");
+    expect(get?.find(".mail-text").exists()).toBe(false);
+    expect(get?.find(".mail-body").attributes("title")).toBe("get");
+    expect(rows(wrapper)[7]?.find(".mail-text").text()).toBe("Hello Pekka");
+    expect(rows(wrapper)[7]?.find(".mail-body").attributes("title")).toBe("jane@example.com Hello Pekka");
+    wrapper.unmount();
+  });
+
+  it("has no row for the gateway's acks: a mail they settle is one row with its state", () => {
+    const wrapper = pane({ thread: [message(1, { to_call: "EMAIL-2", text: "me Hi", state: "acked", attempts: 2 })] });
+    expect(rows(wrapper)).toHaveLength(1);
+    expect(rows(wrapper)[0]?.find(".mail-state").text()).toBe("Delivered");
+    wrapper.unmount();
+  });
+
+  it("says there is no mail yet", () => {
+    const wrapper = pane({ thread: [] });
+    expect(wrapper.find(".empty").text()).toBe("No mail yet.");
+    expect(wrapper.find("ul.maillist").exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("opens a row on a click to show the whole text, the time and the route, and closes it again", async () => {
+    const wrapper = pane();
+    const reply = rows(wrapper)[6];
+    expect(reply?.find(".mail-detail").exists()).toBe(false);
+    await reply?.find(".mail-body").trigger("click");
+    expect(reply?.classes()).toContain("open");
+    expect(reply?.find(".mail-body").attributes("aria-expanded")).toBe("true");
+    expect(reply?.find(".mail-detail").text()).toContain("via OH2RCH-2");
+    await reply?.find(".mail-body").trigger("click");
+    expect(reply?.find(".mail-detail").exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("shows the time in each row, short with the whole date and time in its title", () => {
+    const wrapper = pane();
+    const time = rows(wrapper)[0]?.find(".mail-meta span[title]:not(.mark)");
+    expect(time?.text()).toMatch(/^(\d\d:\d\d|\d{1,2} \w{3} \d\d:\d\d)$/);
+    expect(time?.attributes("title")).toMatch(/^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$/);
+    wrapper.unmount();
+  });
+});
+
+describe("EmailPane: unread rows and the actions on a row", () => {
+  it("makes the rows that came in after the seen mark bold, and none of ours", () => {
+    const wrapper = pane({ freshAfter: 2 });
+    expect(rows(wrapper).map((r) => r.classes().includes("fresh"))).toEqual([false, true, false, false, false, false, false, false]);
+    wrapper.unmount();
+  });
+
+  it("makes none bold when it is not told what was seen", () => {
+    const wrapper = pane();
+    expect(wrapper.find(".mail.fresh").exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("offers Retry on a mail that is not confirmed, rejected or cancelled and Cancel on one being sent", async () => {
+    const wrapper = pane();
+    const buttons = (r: ReturnType<Pane["findAll"]>[number]) => r.findAll(".mail-meta .btn").map((b) => b.text());
+    expect(rows(wrapper).map(buttons)).toEqual([[], [], ["Retry"], ["Retry"], ["Cancel"], ["Retry"], [], []]);
+    await rows(wrapper)[5]?.find(".mail-meta .btn").trigger("click");
+    await rows(wrapper)[4]?.find(".mail-meta .btn").trigger("click");
+    expect([wrapper.emitted("retry"), wrapper.emitted("cancel")]).toEqual([[[3]], [[4]]]);
+    wrapper.unmount();
+  });
+
+  it("deletes a row with its trash can after a second press, and forgets the first press after 5 seconds", async () => {
+    const wrapper = pane();
+    const can = () => rows(wrapper)[7]?.find(".mail-delete");
+    expect(can()?.attributes("aria-label")).toBe("Delete: To jane@example.com");
+    await can()?.trigger("click");
+    expect(can()?.text()).toBe("sure?");
+    expect(wrapper.emitted("delete")).toBeUndefined();
+    vi.advanceTimersByTime(5000);
+    await wrapper.vm.$nextTick();
+    expect(can()?.text()).toBe("");
+    await can()?.trigger("click");
+    await can()?.trigger("click");
+    expect(wrapper.emitted("delete")).toEqual([[1]]);
+    wrapper.unmount();
   });
 });

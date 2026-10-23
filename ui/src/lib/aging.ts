@@ -1,4 +1,4 @@
-// How stations age on the map: the timeout of a station (its own, else the default of the setting `map/hide_after_min`; 0 is never), whether a station has passed it, and how faded the marker and
+// How stations age on the map: the timeout of a station (its own, else the default of 180 minutes; 0 is never), whether a station has passed it, and how faded the marker and
 // the trail of a station are on the way there. Plain functions of rows and the time.
 import { ageSeconds } from "@/lib/format";
 import type { StationRow } from "@/protocol/protocol";
@@ -16,11 +16,8 @@ export const TRAIL_STEPS = 8;
 export const TRAIL_OLDEST = 0.15;
 export const MARKER_STEPS = 4;
 
-/** The default timeout of the settings (`map/hide_after_min`) in minutes; 0 (never) while the daemon has not said or says something that is no number. */
-export function defaultTimeoutMin(settings: Readonly<Record<string, string>> | undefined): number {
-  const minutes = Number(settings?.["map/hide_after_min"]);
-  return Number.isFinite(minutes) && minutes > 0 ? Math.round(minutes) : 0;
-}
+/** The timeout of a station that has none of its own, in minutes: three hours (fixed, like HIDE_AFTER_MIN of the daemon's config.py; it is no setting). */
+export const DEFAULT_TIMEOUT_MIN = 180;
 
 /** The timeout of a station in minutes, 0 for never: its own, else the default; our own station and our own objects never time out. */
 export function timeoutMin(aging: Aging, row: StationRow): number {

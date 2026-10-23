@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "@/App.vue";
 import { FakeMap, FakeMarker, fakeState, resetFakes } from "@/test/fakemap";
 import { FakeSocket } from "@/test/fakesocket";
+import { stubWidth } from "@/test/width";
 import { FakeAudioContext, FakeNotification, openedAt, setSeen, stubBrowser } from "@/test/fakealert";
 import {
   ago,
@@ -11,6 +12,7 @@ import {
   configValues,
   hello,
   incoming,
+  NOW,
   mapFile,
   mapState,
   message,
@@ -43,7 +45,7 @@ async function open() {
   socket.say({ type: "state", topic: "stations", rev: 0, value: stations });
   socket.say({ type: "state", topic: "packets", rev: 0, value: { "1": packet(1), "2": packet(2, { summary: "second" }) } });
   socket.say({ type: "state", topic: "tnc", rev: 0, value: tncState() });
-  socket.say({ type: "state", topic: "config", rev: 0, value: configValues({ "map/hide_after_min": "0" }) }); // the fixtures' times are fixed, so nothing times out
+  socket.say({ type: "state", topic: "config", rev: 0, value: configValues() }); // (the clock stands at the fixtures' time, so nothing times out)
   socket.say({ type: "state", topic: "messages", rev: 0, value: messages });
   socket.say({ type: "state", topic: "station_prefs", rev: 0, value: { OH2RDG: { path: "OH2RCH-2", hide_after_min: null, rf_only: false } } });
   socket.say(status());
@@ -53,7 +55,10 @@ async function open() {
 
 const tabButton = (wrapper: VueWrapper, title: string) => wrapper.findAll("[role='tab']").find((t) => t.text().startsWith(title));
 
+// the panel is 720 px wide, so that the Messages tab has the list beside the conversation; the narrow layout is tried where a test says so
+let panelWidth: ReturnType<typeof stubWidth>;
 beforeEach(() => {
+  panelWidth = stubWidth(720);
   window.innerWidth = 1400; // a desktop (the tests of the other sizes set their own)
   window.innerHeight = 900;
   FakeSocket.all = [];
@@ -61,8 +66,12 @@ beforeEach(() => {
   localStorage.clear();
   sessionStorage.clear();
   vi.stubGlobal("WebSocket", FakeSocket);
+  vi.useFakeTimers({ toFake: ["Date"] }); // (the clock stands at the fixtures' time: a station times out after 3 hours)
+  vi.setSystemTime(NOW);
 });
 afterEach(() => {
+  panelWidth.restore();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   openedAt("127.0.0.1");
@@ -120,7 +129,7 @@ describe("App", () => {
       type: "state",
       topic: "config",
       rev: 1,
-      value: configValues({ "station/call": "", "station/lat": "", "station/lon": "", "map/hide_after_min": "0" }),
+      value: configValues({ "station/call": "", "station/lat": "", "station/lon": "" }),
     });
     socket.say(status({ call: "", lat: null, lon: null }));
     await flushPromises();
@@ -179,7 +188,7 @@ describe("App", () => {
       type: "state",
       topic: "config",
       rev: 1,
-      value: configValues({ "station/call": "", "station/lat": "", "station/lon": "", "serial/baud": "", "map/hide_after_min": "0" }),
+      value: configValues({ "station/call": "", "station/lat": "", "station/lon": "", "serial/baud": "" }),
     });
     socket.say(status({ call: "", lat: null, lon: null }));
     socket.say({ type: "state", topic: "map", rev: 0, value: mapState({ blocked: "no position", box: null }) });
@@ -251,6 +260,7 @@ describe("App", () => {
           "station/symbol_code": ">",
           "serial/port": "/dev/ttyUSB0",
           "map/radius_km": "200",
+          "beacon/interval_min": "30",
         },
       },
     ]);
@@ -296,19 +306,25 @@ describe("App", () => {
     await wrapper.find("#setup-lon").setValue("24.94");
     for (let i = 0; i < 3; i++) await wrapper.find("form").trigger("submit");
     const commands = () => socket.sent.map((c) => (c as { cmd: string }).cmd);
-    await wrapper
-      .findAll(".setup .mapfetch button")
-      .find((b) => b.text() === "Download")
-      ?.trigger("click");
+    await wrapper.find(".setup .mapfetch button").trigger("click");
     expect(commands().filter((c) => c === "set_config")).toHaveLength(1);
-    expect(commands()).not.toContain("map_fetch");
+    expect(commands()).not.toContain("map_estimate");
     socket.say({
       type: "state",
       topic: "config",
       rev: 2,
-      value: configValues({ "station/call": "OH2ABC", "station/lat": "60.17", "station/lon": "24.94", "map/hide_after_min": "0" }),
+      value: configValues({ "station/call": "OH2ABC", "station/lat": "60.17", "station/lon": "24.94" }),
     });
     await flushPromises();
+    expect(commands().at(-1)).toBe("map_estimate");
+    socket.say({
+      type: "state",
+      topic: "map",
+      rev: 0,
+      value: mapState({ estimate: { bytes: 493_000_000, tiles: 41233, radius_km: 150, maxzoom: 12, box: [22.1, 58.8, 27.8, 61.5], build: "20261022" } }),
+    });
+    await flushPromises();
+    await wrapper.find(".setup .mapfetch button").trigger("click");
     expect(commands().at(-1)).toBe("map_fetch");
   });
 
@@ -322,14 +338,13 @@ describe("App", () => {
 
   it("keeps a timed out station off the map but in the table, and shows it while it is selected", async () => {
     const { wrapper, socket } = await open();
-    socket.say({ type: "state", topic: "config", rev: 1, value: configValues({ "map/hide_after_min": "60" }) });
     const before = (seconds: number) => new Date(Date.now() - seconds * 1000).toISOString();
     socket.say({
       type: "patch",
       topic: "stations",
       rev: 1,
       ops: [
-        { op: "set", key: "OH2RDG", value: { ...stations.OH2RDG, last_position_at: before(3 * 3600) } },
+        { op: "set", key: "OH2RDG", value: { ...stations.OH2RDG, last_position_at: before(4 * 3600) } },
         { op: "set", key: "OH2PU-9", value: { ...stations["OH2PU-9"], last_position_at: before(60) } },
       ],
     });
@@ -402,7 +417,7 @@ describe("App", () => {
       type: "state",
       topic: "config",
       rev: 1,
-      value: configValues({ "map/hide_after_min": "0", "status/source": "text", "station/status": "QRV 145.500" }),
+      value: configValues({ "status/source": "text", "station/status": "QRV 145.500" }),
     });
     await flushPromises();
     expect(wrapper.findAll("#pane-beacon .beaconbox button").map((b) => b.text())).toEqual(["Beacon now", "Send status now"]);
@@ -413,15 +428,16 @@ describe("App", () => {
     expect(socket.sent).not.toContainEqual({ cmd: "beacon_now" });
   });
 
-  it("previews the beacon packet and saves the beacon's settings from the Beacon tab", async () => {
+  it("previews the beacon packet as it is typed and applies the beacon's settings from the Beacon tab when each field is left", async () => {
     const { wrapper, socket } = await open();
     await tabButton(wrapper, "Beacon")?.trigger("click");
     expect(wrapper.find("#pane-beacon .beacon-preview code").text()).toBe("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=6010.20N/02456.40E-NeoAPRS");
     await wrapper.find("#pane-beacon #set-station-comment").setValue("hello");
     await wrapper.find("#pane-beacon #set-beacon-path").setValue("");
     expect(wrapper.find("#pane-beacon .beacon-preview code").text()).toBe("OH2GBA>APZNEO:=6010.20N/02456.40E-hello");
-    await wrapper.find("#pane-beacon form").trigger("submit");
-    expect(socket.sent).toContainEqual({ cmd: "set_config", values: { "station/comment": "hello", "beacon/path": "" } });
+    expect(socket.sent.filter((c) => (c as { cmd: string }).cmd === "set_config")).toEqual([]);
+    await wrapper.find("#pane-beacon #set-station-comment").trigger("blur");
+    expect(socket.sent).toContainEqual({ cmd: "set_config", values: { "station/comment": "hello" } });
     expect(wrapper.find("#pane-settings #set-station-comment").exists()).toBe(false);
   });
 
@@ -497,8 +513,9 @@ describe("App", () => {
       .findAll(".card .btn")
       .find((b) => b.text() === "Message")
       ?.trigger("click");
-    const header = wrapper.find<HTMLInputElement>("#pane-messages .thread-head .rfonly input");
-    expect(wrapper.findAll("#pane-messages .thread-head label").map((l) => l.text())).toEqual(["Path", "RF only"]);
+    await wrapper.find("#pane-messages .convo-head .route-button").trigger("click");
+    const header = wrapper.find<HTMLInputElement>("#pane-messages .route-box .rfonly input");
+    expect(wrapper.findAll("#pane-messages .route-box label").map((l) => l.text())).toEqual(["Path", "RF only"]);
     await header.setValue(true);
     expect(socket.sent).toContainEqual({ cmd: "set_station_rf_only", call: "OH2PU-9", on: true });
     socket.say({
@@ -508,31 +525,95 @@ describe("App", () => {
       ops: [{ op: "set", key: "OH2PU-9", value: { path: null, hide_after_min: null, rf_only: true } }],
     });
     await flushPromises();
-    expect(wrapper.find<HTMLInputElement>("#pane-messages .thread-head .rfonly input").element.checked).toBe(true);
-    await wrapper.find<HTMLInputElement>("#pane-messages .thread-head .rfonly input").setValue(false);
+    expect(wrapper.find<HTMLInputElement>("#pane-messages .route-box .rfonly input").element.checked).toBe(true);
+    await wrapper.find<HTMLInputElement>("#pane-messages .route-box .rfonly input").setValue(false);
     expect(socket.sent).toContainEqual({ cmd: "set_station_rf_only", call: "OH2PU-9", on: false });
   });
 
-  it("has the map's default timeout on the Settings tab and the station and beacon keys on the Beacon tab, none twice", async () => {
+  it("has the map's radius on the Settings tab and the station and beacon keys on the Beacon tab, none twice", async () => {
     const { wrapper, socket } = await open();
-    socket.say({ type: "state", topic: "config", rev: 1, value: configValues({ "map/hide_after_min": "1440" }) });
+    socket.say({ type: "state", topic: "config", rev: 1, value: configValues() });
     await flushPromises();
-    expect(wrapper.find("#pane-settings #set-map-hide_after_min").exists()).toBe(true);
+    expect(wrapper.find("#pane-settings #set-map-radius_km").exists()).toBe(true);
+    expect(wrapper.find("#pane-settings #set-map-hide_after_min").exists()).toBe(false);
     expect(wrapper.find("#pane-settings #set-station-call").exists()).toBe(false);
     expect(wrapper.find("#pane-beacon #set-station-call").exists()).toBe(true);
-    expect(wrapper.find("#pane-beacon #set-map-hide_after_min").exists()).toBe(false);
+    expect(wrapper.find("#pane-beacon #set-map-radius_km").exists()).toBe(false);
   });
 
-  it("changes the settings and shows an error under the field", async () => {
+  it("changes the settings as they are made and shows the daemon's refusal under the field", async () => {
     const { wrapper, socket } = await open();
     await tabButton(wrapper, "Settings")?.trigger("click");
-    await wrapper.find("#set-serial-baud").setValue("5");
-    await wrapper.find("#pane-settings form").trigger("submit");
-    expect(socket.sent).toContainEqual({ cmd: "set_config", values: { "serial/baud": "5" } });
-    socket.say({ type: "error", text: "set_config: serial/baud: 5 is not between 300 and 921600" });
+    await wrapper.find("#set-messages-alert_command").setValue("x".repeat(1001));
+    await wrapper.find("#set-messages-alert_command").trigger("blur");
+    expect(socket.sent).toContainEqual({ cmd: "set_config", values: { "messages/alert_command": "x".repeat(1001) } });
+    socket.say({ type: "error", text: "set_config: messages/alert_command: 1001 characters is more than the 1000 allowed" });
     await flushPromises();
-    expect(wrapper.find("#set-serial-baud").element.closest(".field")?.textContent).toContain("5 is not between 300 and 921600");
-    expect(wrapper.find(".toast").text()).toContain("serial/baud");
+    expect(wrapper.find("#set-messages-alert_command").element.closest(".field")?.textContent).toContain("more than the 1000 allowed");
+    expect(wrapper.find<HTMLInputElement>("#set-messages-alert_command").element.value).toBe("x".repeat(1001));
+    expect(wrapper.find(".toast").text()).toContain("messages/alert_command");
+  });
+
+  describe("settings that apply as they are changed", () => {
+    const sets = (socket: FakeSocket) => socket.sent.filter((c) => (c as { cmd: string }).cmd === "set_config");
+    const toast = (wrapper: VueWrapper) => wrapper.find(".toast.undo");
+    const told = (socket: FakeSocket, changes: Record<string, string>) =>
+      socket.say({ type: "state", topic: "config", rev: 1, value: configValues({ ...changes }) });
+
+    it("has one queue for the Settings tab and the Beacon tab: the second change waits for the answer to the first", async () => {
+      const { wrapper, socket } = await open();
+      await wrapper.find("#pane-settings #set-digi-enabled").setValue(true);
+      await wrapper.find("#pane-beacon #set-beacon-path").setValue("WIDE2-2");
+      await wrapper.find("#pane-beacon #set-beacon-path").trigger("blur");
+      expect(sets(socket)).toEqual([{ cmd: "set_config", values: { "digi/enabled": "true" } }]);
+      told(socket, { "digi/enabled": "true" });
+      await flushPromises();
+      expect(sets(socket)).toHaveLength(2);
+      expect(sets(socket)[1]).toEqual({ cmd: "set_config", values: { "beacon/path": "WIDE2-2" } });
+    });
+
+    it("offers Undo for the change that was made, and Undo sends the old values in one set_config", async () => {
+      const { wrapper, socket } = await open();
+      await wrapper.find("#pane-settings #set-digi-enabled").setValue(true);
+      expect(toast(wrapper).exists()).toBe(false);
+      told(socket, { "digi/enabled": "true" });
+      await flushPromises();
+      expect(toast(wrapper).text()).toContain("Digipeater changed");
+      await toast(wrapper).find(".undo-button").trigger("click");
+      expect(sets(socket)[1]).toEqual({ cmd: "set_config", values: { "digi/enabled": "false" } });
+      expect(toast(wrapper).exists()).toBe(false);
+      told(socket, {});
+      await flushPromises();
+      expect(toast(wrapper).exists()).toBe(false);
+    });
+
+    it("lets the toast go after ten seconds, and covers the latest of several quick changes", async () => {
+      const { wrapper, socket } = await open();
+      vi.useFakeTimers();
+      await wrapper.find("#pane-settings #set-digi-enabled").setValue(true);
+      told(socket, { "digi/enabled": "true" });
+      await flushPromises();
+      await wrapper.find("#pane-settings #set-map-radius_km").setValue("200");
+      await wrapper.find("#pane-settings #set-map-radius_km").trigger("blur");
+      expect(toast(wrapper).exists()).toBe(false);
+      told(socket, { "digi/enabled": "true", "map/radius_km": "200" });
+      await flushPromises();
+      expect(toast(wrapper).text()).toContain("Map radius changed");
+      vi.advanceTimersByTime(10001);
+      await flushPromises();
+      expect(toast(wrapper).exists()).toBe(false);
+      vi.useRealTimers();
+    });
+
+    it("asks before the network is turned off on a page opened from another device", async () => {
+      const { wrapper, socket } = await open();
+      told(socket, { "web/network": "true", "web/key": "k7m2-x9pq-4hrt" });
+      await flushPromises();
+      openedAt("192.168.1.20");
+      await wrapper.find("#pane-settings #set-web-network").setValue(false);
+      expect(wrapper.find("#pane-settings .confirm-row").text()).toContain("This device will lose the page. Turn off?");
+      expect(sets(socket)).toEqual([]);
+    });
   });
 
   describe("messages not seen", () => {
@@ -602,8 +683,8 @@ describe("App", () => {
       const { wrapper, socket } = await open();
       await tabButton(wrapper, "Messages")?.trigger("click");
       await wrapper.find("#pane-messages .conv").trigger("click");
-      expect(wrapper.findAll("#pane-messages .msg").length).toBeGreaterThan(0);
-      expect(wrapper.find("#pane-messages .msg-delete").exists()).toBe(false);
+      expect(wrapper.findAll("#pane-messages .bubble").length).toBeGreaterThan(0);
+      expect(wrapper.find("#pane-messages .bubble-delete").exists()).toBe(false);
       expect(JSON.stringify(socket.sent)).not.toContain("message_delete");
     });
   });
@@ -915,25 +996,23 @@ describe("App", () => {
         .find((c) => c.find(".conv-call").text() === call)
         ?.find(".conv-delete");
 
-    it("is a toggle: a click on the open one closes its thread, a click on another opens that one", async () => {
+    it("is opened by a click on its row, and another row opens that one; the open one is the highlighted row, and a click on it keeps it open", async () => {
       const { wrapper } = await open();
       await tabButton(wrapper, "Messages")?.trigger("click");
       expect(wrapper.find("#pane-messages .conv.active").exists()).toBe(false);
+      expect(wrapper.find("#pane-messages .convo-empty").text()).toContain("Choose a conversation");
       await conv(wrapper, "OH2RDG")?.trigger("click");
-      expect(wrapper.findAll("#pane-messages .msg")).toHaveLength(2);
+      expect(wrapper.findAll("#pane-messages .bubble")).toHaveLength(2);
       expect(wrapper.find<HTMLInputElement>("#msg-to").element.value).toBe("OH2RDG");
       await conv(wrapper, "OH2PU-9")?.trigger("click");
       expect(wrapper.find("#pane-messages .conv.active .conv-call").text()).toBe("OH2PU-9");
       expect(wrapper.find<HTMLInputElement>("#msg-to").element.value).toBe("OH2PU-9");
       await conv(wrapper, "OH2PU-9")?.trigger("click");
-      expect(wrapper.find("#pane-messages .conv.active").exists()).toBe(false);
-      expect(wrapper.findAll("#pane-messages .msg")).toHaveLength(0);
-      expect(wrapper.find("#pane-messages .thread").text()).toBe("");
-      expect(wrapper.find<HTMLInputElement>("#msg-to").element.value).toBe("");
+      expect(wrapper.find("#pane-messages .conv.active .conv-call").text()).toBe("OH2PU-9");
       expect(wrapper.findAll("#pane-messages .conv")).toHaveLength(2);
     });
 
-    it("is opened by the Message button of the station's card, which opens it again rather than toggling it", async () => {
+    it("is opened by the Message button of the station's card, again and again, and a new message leaves the open one", async () => {
       const { wrapper } = await open();
       await wrapper
         .findAll("#pane-stations tbody tr")
@@ -945,10 +1024,30 @@ describe("App", () => {
       expect(wrapper.find("#pane-messages .conv.active .conv-call").text()).toBe("OH2PU-9");
       await message()?.trigger("click");
       expect(wrapper.find("#pane-messages .conv.active .conv-call").text()).toBe("OH2PU-9");
-      await conv(wrapper, "OH2PU-9")?.trigger("click");
+      await wrapper.find("#pane-messages .new-message").trigger("click");
       expect(wrapper.find("#pane-messages .conv.active").exists()).toBe(false);
+      expect(wrapper.find("#pane-messages .convo-title").text()).toBe("New message");
       await message()?.trigger("click");
       expect(wrapper.find("#pane-messages .conv.active .conv-call").text()).toBe("OH2PU-9");
+    });
+
+    it("is opened straight, without the list, by the Message button of the station's card on a narrow panel, and Esc is back to the list", async () => {
+      panelWidth.set(400);
+      const { wrapper } = await open();
+      await wrapper
+        .findAll("#pane-stations tbody tr")
+        .find((r) => r.text().includes("OH2PU-9"))
+        ?.trigger("click");
+      await wrapper
+        .findAll(".card .btn")
+        .find((b) => b.text() === "Message")
+        ?.trigger("click");
+      expect(wrapper.find("#pane-messages .convlist").exists()).toBe(false);
+      expect(wrapper.find("#pane-messages .convo-title").text()).toBe("OH2PU-9");
+      expect(wrapper.find<HTMLInputElement>("#msg-to").element.value).toBe("OH2PU-9");
+      await wrapper.find("#pane-messages .convo").trigger("keydown", { key: "Escape" });
+      expect(wrapper.find("#pane-messages .convo").exists()).toBe(false);
+      expect(wrapper.findAll("#pane-messages .conv")).toHaveLength(2);
     });
 
     it("is deleted after two clicks on its x, with one command, and its thread closes if it was the open one", async () => {
@@ -961,7 +1060,7 @@ describe("App", () => {
       await x(wrapper, "OH2RDG")?.trigger("click");
       expect(socket.sent).toContainEqual({ cmd: "conversation_delete", call: "OH2RDG" });
       expect(wrapper.find("#pane-messages .conv.active").exists()).toBe(false);
-      expect(wrapper.find<HTMLInputElement>("#msg-to").element.value).toBe("");
+      expect(wrapper.find("#pane-messages .convo").exists()).toBe(false);
       socket.say({
         type: "patch",
         topic: "messages",
@@ -992,7 +1091,7 @@ describe("App", () => {
       await flushPromises();
       await tabButton(wrapper, "Messages")?.trigger("click");
       expect(x(wrapper, "OH2AAA > OH2BBB")).toBeUndefined();
-      await wrapper.find<HTMLInputElement>("#pane-messages .toolbar input").setValue(true);
+      await wrapper.find<HTMLInputElement>("#pane-messages .convlist-overheard input").setValue(true);
       await x(wrapper, "OH2AAA > OH2BBB")?.trigger("click");
       expect(x(wrapper, "OH2AAA > OH2BBB")?.text()).toBe("sure?");
       expect(JSON.stringify(socket.sent)).not.toContain("overheard_delete");
@@ -1010,30 +1109,48 @@ describe("App", () => {
     };
     const badge = (wrapper: VueWrapper) => tabButton(wrapper, "Email")?.find(".badge");
 
-    it("sends mail as a message to EMAIL-2 and a new shortcut and the three commands as their texts, and keeps the addressee in the list", async () => {
+    it("sends mail as a message to EMAIL-2 and a new shortcut and the commands as their texts, and keeps the addressee in the list", async () => {
       const { wrapper, socket } = await open();
       await tabButton(wrapper, "Email")?.trigger("click");
+      const pane = () => wrapper.find("#pane-email");
+      const button = (label: string) =>
+        pane()
+          .findAll("button")
+          .find((b) => b.text() === label);
+      await button("New email")?.trigger("click");
       await wrapper.find("#mail-to").setValue("jane@example.com");
       await wrapper.find("#mail-text").setValue("Hello");
-      await wrapper.find("#pane-email form.compose").trigger("submit");
+      await wrapper.find("#pane-email form.mailform").trigger("submit");
       expect(socket.sent).toContainEqual({ cmd: "send_message", to: "EMAIL-2", text: "jane@example.com Hello" });
       expect(JSON.stringify(socket.sent)).not.toContain("_attempts");
-      expect(wrapper.findAll("#pane-email .address-pick").map((b) => b.text())).toEqual(["jane@example.com"]);
+      expect(pane().find("form.mailform").exists()).toBe(false);
       expect(JSON.parse(localStorage.getItem("NeoAPRS.emailto") ?? "[]")).toEqual(["jane@example.com"]);
-      const tool = (label: string) => wrapper.findAll("#pane-email .mail-tools button").find((b) => b.text() === label);
+      await button("Mailbox")?.trigger("click");
+      await pane().findAll("[role='menuitem']")[1]?.trigger("click");
       await wrapper.find("#mail-shortcut").setValue("me");
       await wrapper.find("#mail-address").setValue("jane@example.com");
-      await wrapper.find("#pane-email .mail-shortcut").trigger("submit");
-      await tool("Email the list")?.trigger("click");
-      await tool("Fetch held mail")?.trigger("click");
-      await tool("Remove")?.trigger("click");
-      await tool("sure?")?.trigger("click");
+      await wrapper.find("#pane-email form.mailform").trigger("submit");
+      await button("Email the list")?.trigger("click");
+      await button("Remove")?.trigger("click");
+      await button("sure?")?.trigger("click");
+      await button("Mailbox")?.trigger("click");
+      await pane().findAll("[role='menuitem']")[0]?.trigger("click");
       expect(socket.sent.slice(-4)).toEqual([
         { cmd: "send_message", to: "EMAIL-2", text: "me jane@example.com" },
         { cmd: "send_message", to: "EMAIL-2", text: "me L" },
-        { cmd: "send_message", to: "EMAIL-2", text: "get" },
         { cmd: "send_message", to: "EMAIL-2", text: "me R" },
+        { cmd: "send_message", to: "EMAIL-2", text: "get" },
       ]);
+    });
+
+    it("deletes a row of the list on the daemon after a second press", async () => {
+      const { wrapper, socket } = await open();
+      await say(socket, 1, message(10, { to_call: "EMAIL-2", text: "me hello" }));
+      await tabButton(wrapper, "Email")?.trigger("click");
+      await wrapper.find("#pane-email .mail-delete").trigger("click");
+      expect(JSON.stringify(socket.sent)).not.toContain("message_delete");
+      await wrapper.find("#pane-email .mail-delete").trigger("click");
+      expect(socket.sent).toContainEqual({ cmd: "message_delete", id: 10 });
     });
 
     it("has no attempts field in the Email tab or in the Messages header: the daemon decides", async () => {
@@ -1047,10 +1164,22 @@ describe("App", () => {
     it("shows the thread with the gateway there and leaves it out of the Messages tab and its count", async () => {
       const { wrapper, socket } = await open();
       await say(socket, 1, message(10, { to_call: "EMAIL-2", text: "me hello" }), gateway(11));
-      expect(wrapper.findAll("#pane-email .msg").map((m) => m.find(".msg-text").text())).toEqual(["hello", "Msg sent to jane@example.com"]);
+      expect(wrapper.findAll("#pane-email .mail").map((m) => m.find(".mail-title").text())).toEqual(["From EMAIL-2", "To me"]);
       expect(wrapper.findAll("#pane-messages .conv-call").map((c) => c.text())).toEqual(["OH2PU-9", "OH2RDG"]);
       expect(tabButton(wrapper, "Messages")?.find(".badge").text()).toBe("2");
       expect(wrapper.find(".headmail").text()).toContain("3"); // the messages not seen, the gateway's one included: the count of the title and of the folded panel's handle too
+    });
+
+    it("shows what came in while the tab was away in bold until the tab is left again", async () => {
+      const { wrapper, socket } = await open();
+      await say(socket, 1, gateway(11));
+      await tabButton(wrapper, "Email")?.trigger("click");
+      expect(wrapper.find("#pane-email .mail").classes()).toContain("fresh");
+      await say(socket, 2, gateway(12));
+      expect(wrapper.findAll("#pane-email .mail.fresh")).toHaveLength(2);
+      await tabButton(wrapper, "Stations")?.trigger("click");
+      await tabButton(wrapper, "Email")?.trigger("click");
+      expect(wrapper.findAll("#pane-email .mail.fresh")).toHaveLength(0);
     });
 
     it("counts the gateway's messages on the Email tab, in the title and on the folded handle, until the tab is on show", async () => {
@@ -1167,13 +1296,30 @@ describe("App", () => {
     socket.say({ type: "state", topic: "map", rev: 0, value: mapState() });
     await flushPromises();
     await tabButton(wrapper, "Settings")?.trigger("click");
-    const download = wrapper.findAll("#pane-settings .mapfetch button").find((b) => b.text() === "Download");
-    await download?.trigger("click");
-    expect(socket.sent).toContainEqual({ cmd: "map_fetch" });
+    const button = () => wrapper.find("#pane-settings .mapfetch-actions button.primary");
+    await button().trigger("click");
+    expect(socket.sent).toContainEqual({ cmd: "map_estimate" });
+    expect(socket.sent).not.toContainEqual({ cmd: "map_fetch" });
+    expect(button().text()).toBe("Checking size…");
     socket.say({
       type: "patch",
       topic: "map",
       rev: 1,
+      ops: [
+        {
+          op: "replace",
+          value: mapState({ estimate: { bytes: 493_000_000, tiles: 41233, radius_km: 150, maxzoom: 12, box: [22.1, 58.8, 27.8, 61.5], build: "20261022" } }),
+        },
+      ],
+    });
+    await flushPromises();
+    expect(button().text()).toBe("Download 493 MB?");
+    await button().trigger("click");
+    expect(socket.sent).toContainEqual({ cmd: "map_fetch" });
+    socket.say({
+      type: "patch",
+      topic: "map",
+      rev: 2,
       ops: [{ op: "replace", value: mapState({ state: "downloading", step: "world", percent: 42, blocked: "a map job is running" }) }],
     });
     await flushPromises();

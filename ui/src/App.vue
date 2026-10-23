@@ -1,8 +1,8 @@
 <script setup lang="ts">
 // The page: a header with the connection and the radio link, the map filling the page, and at its right a panel with the stations, the packets, the messages, the email, the bulletins, our objects, the beacon and the settings (which open with the state of the radio link).
 // The shell only: what the daemon tells is `useDaemon`, the panel `usePanel`, the station cards (one, or several with Ctrl+click) `useStationCards`, the size of the page and what a phone shows `useLayout`, the Messages tab `useMessagesView`, the Email tab `useEmail`, the Bulletins tab `useBulletins`, the Objects tab `useOwnObjects`, the paths, timeouts and RF only of the stations
-// `useStationPrefs`, the first-run guide (it opens by itself while the daemon has no call) `useSetupGuide`, the alert of this browser for a message to us `useBrowserAlerts` and `usePageAlerts`; the components take props and emit events, and the commands go out through `send`.
-import { usePositionPick } from "@/composables/usePositionPick";
+// `useStationPrefs`, the settings of the Beacon tab and the Settings tab, which apply as they are changed (one queue for both, and the toast that undoes the latest change) `useSettings`, the first-run guide (it opens by itself while the daemon has no call) `useSetupGuide`, the alert of this browser for a message to us `useBrowserAlerts` and `usePageAlerts`; the components take props and emit events, and the commands go out through `send`.
+import { useMapPicks } from "@/composables/useMapPicks";
 import { computed, ref, watch } from "vue";
 import AppHeader from "@/components/AppHeader.vue";
 import BeaconPane from "@/components/BeaconPane.vue";
@@ -21,6 +21,7 @@ import StationMap from "@/components/StationMap.vue";
 import StationsTable from "@/components/StationsTable.vue";
 import RadioStatus from "@/components/RadioStatus.vue";
 import ToastBar from "@/components/ToastBar.vue";
+import UndoToast from "@/components/UndoToast.vue";
 import UpdatePanel from "@/components/UpdatePanel.vue";
 import { useBrowserAlerts } from "@/composables/useBrowserAlerts";
 import { useLayout } from "@/composables/useLayout";
@@ -34,10 +35,11 @@ import { usePageAlerts } from "@/composables/usePageAlerts";
 import { useOwnObjects } from "@/composables/useOwnObjects";
 import { usePanel } from "@/composables/usePanel";
 import { useStationCards } from "@/composables/useStationCards";
+import { useSettings } from "@/composables/useSettings";
 import { useSetupGuide } from "@/composables/useSetupGuide";
 import { useStationPrefs } from "@/composables/useStationPrefs";
 import { useTitle } from "@/composables/useTitle";
-import { defaultTimeoutMin, type Aging } from "@/lib/aging";
+import { DEFAULT_TIMEOUT_MIN, type Aging } from "@/lib/aging";
 import { filesKey } from "@/lib/mapfetch";
 import { candidates as messageCandidates } from "@/lib/recipients";
 import { withOwnSymbol } from "@/lib/stations";
@@ -70,9 +72,10 @@ const {
 watch(connection, (state) => {
   if (state === "open") send({ cmd: "list_ports" });
 });
+const settings = useSettings(config, lastError, send);
 const stations = computed(() => withOwnSymbol(heard, config.value?.values));
 const { paths: stationPaths, timeouts, rfOnly, setRfOnly, setPath, clearPath, setTimeoutMin, clearTimeoutMin } = useStationPrefs(stationPrefs, send);
-const aging = computed<Aging>(() => ({ timeouts: timeouts.value, defaultMin: defaultTimeoutMin(config.value?.values) }));
+const aging = computed<Aging>(() => ({ timeouts: timeouts.value, defaultMin: DEFAULT_TIMEOUT_MIN }));
 // the panel with the steps of an update is open on purpose, and goes when the newer version does
 const updateOpen = ref(false);
 const newer = computed(() => status.value?.update?.version ?? null);
@@ -123,18 +126,8 @@ const home = computed<Home | null>(() => {
 });
 const objects = useOwnObjects(ownObjects, home, send, panel);
 
-/** A click on the map is a place for the first-run guide while it asks for one, else for the form of an object. */
-const stationPick = usePositionPick(); // the Beacon tab's Pick on the map
-function onPick(at: Home): void {
-  if (guide.picking) guide.place(at.lat, at.lon);
-  else if (stationPick.picking.value) stationPick.place(at.lat, at.lon);
-  else objects.place(at.lat, at.lon);
-}
-const pickingTab = computed(() => stationPick.picking.value || objects.picking); // (a place that a tab asked for; the guide's own is its business)
-function cancelPick(): void {
-  stationPick.picking.value = false;
-  objects.placing = false;
-}
+const picks = useMapPicks(guide, objects);
+const { stationPick, pickingTab } = picks;
 
 // the size of the page, what a phone shows (the map or the tab), and the station cards: one, or several with Ctrl+click on a desktop and a tablet
 const layout = useLayout(
@@ -177,12 +170,12 @@ const { selected, focus } = cards;
           :picking="guide.picking || objects.picking || stationPick.picking.value"
           :pin="guide.open ? guide.pin : objects.pin"
           @select="cards.onMarker"
-          @pick="onPick"
+          @pick="picks.onPick"
           @move="objects.move"
           @download="panel.show('settings')"
         />
         <SetupGuide :guide="guide" :config="config" :map="map" />
-        <MapPickBar v-if="layout.phone.value && pickingTab" @cancel="cancelPick" />
+        <MapPickBar v-if="layout.phone.value && pickingTab" @cancel="picks.cancel" />
         <StationCards
           :rows="cards.rows.value"
           :size="layout.size.value"
@@ -248,6 +241,7 @@ const { selected, focus } = cards;
             :thread="mail.thread.value"
             :connected="connected"
             :addresses="mail.addresses.value"
+            :fresh-after="mail.freshAfter.value"
             :heard-direct="heardDirect"
             @send="mail.sendMail"
             @forget="mail.forget"
@@ -255,6 +249,7 @@ const { selected, focus } = cards;
             @list="mail.listShortcuts"
             @remove="mail.removeShortcut"
             @get="mail.getHeld"
+            @delete="mail.remove"
             @retry="send({ cmd: 'message_retry', id: $event })"
             @cancel="send({ cmd: 'message_cancel', id: $event })"
           />
@@ -281,6 +276,7 @@ const { selected, focus } = cards;
             :config="config"
             :last-error="lastError"
             :send="send"
+            :settings="settings"
             :picking="stationPick.picking.value"
             :picked="stationPick.picked.value"
             @beacon="send({ cmd: 'beacon_now' })"
@@ -297,6 +293,7 @@ const { selected, focus } = cards;
             :map="map"
             :ports="ports"
             :send="send"
+            :settings="settings"
             @setup="guide.show()"
             @update="updateOpen = true"
           >
@@ -308,6 +305,7 @@ const { selected, focus } = cards;
         </template>
       </SidePanel>
     </main>
+    <UndoToast :undo="settings.undo.value" @undo="settings.undoLast()" @dismiss="settings.dismissUndo()" />
     <ToastBar :toast="lastError" />
   </div>
 </template>

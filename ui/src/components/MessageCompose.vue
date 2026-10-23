@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The box to write a message in, under the thread: "To" is filled in when a conversation is opened (or from the station card) and emptied when none is (red when it is no call); the box shows how many of
+// The box to write a message in, fixed at the bottom of the conversation, the call and the counter on a line and the text with Send on the one under it: "To" is filled in when a conversation is opened (or from the station card) and emptied when none is (red when it is no call); the box shows how many of
 // the 67 bytes a message may have are left ("67 left"), and Send is off while the TNC is not connected (its title says so) or the message is empty, too long or for no call; the email gateway EMAIL-2 is no call to write to here (its title says "Use the Email tab"). The text is cleared once it is sent.
 // "Stations" opens the list of the stations heard lately (lib/recipients.ts) with a filter and a tickbox for each: the ones ticked are shown as chips that a click removes, and a call typed in To followed by a
 // space or a comma becomes a chip too, as does "Add OH2XYZ" in the list for a call that is not in it. With one recipient Send is what it always was; with several it sends one ordinary message to each (`sendMany`).
@@ -13,7 +13,9 @@ const props = withDefaults(defineProps<{ selected: string | null; connected: boo
 const emit = defineEmits<{ send: [to: string, text: string]; sendMany: [to: string[], text: string] }>();
 
 const to = ref(props.selected === null ? "" : replyTo(props.selected));
-const text = ref("");
+/** The text being written: the page's to keep, so that a draft stays when the user goes back to the list and in again. */
+const text = defineModel<string>("text", { default: "" });
+const toInput = ref<HTMLInputElement | null>(null);
 const chosen = ref<string[]>([]);
 const picking = ref(false);
 const filter = ref("");
@@ -61,6 +63,15 @@ function onToKey(event: KeyboardEvent): void {
   to.value = "";
 }
 
+/** Esc closes the list of stations (and is not passed on: on a narrow page it would also leave the conversation). */
+function onEsc(event: KeyboardEvent): void {
+  if (!picking.value) return;
+  event.stopPropagation();
+  picking.value = false;
+}
+
+defineExpose({ focusTo: (): void => toInput.value?.focus() });
+
 function submit(): void {
   if (!ready.value) return;
   const calls = recipientsOf(chosen.value, to.value);
@@ -77,7 +88,7 @@ function submit(): void {
 </script>
 
 <template>
-  <form class="compose" @submit.prevent="submit">
+  <form class="compose" @submit.prevent="submit" @keydown.esc="onEsc">
     <ul v-if="chosen.length > 0" class="recipients" aria-label="Recipients">
       <li v-for="call in chosen" :key="call">
         <button type="button" class="chip" :aria-label="`Remove ${call}`" title="Remove" @click="toggle(call)">{{ call }} &times;</button>
@@ -87,6 +98,7 @@ function submit(): void {
       <label class="sr-only" for="msg-to">To</label>
       <input
         id="msg-to"
+        ref="toInput"
         v-model="to"
         class="input mono compose-to"
         :class="{ invalid: badCall }"
@@ -99,7 +111,6 @@ function submit(): void {
       />
       <button type="button" class="btn" :aria-expanded="picking" title="Write to several stations" @click="picking = !picking">Stations</button>
       <span class="compose-left mono" :class="{ over: left < 0 }" :title="`${left} of 67 bytes left`">{{ leftText(left) }}</span>
-      <button type="submit" class="btn primary" :disabled="!ready" :title="sendTitle">Send</button>
     </div>
     <div v-if="picking" class="picker">
       <label class="sr-only" for="msg-filter">Filter</label>
@@ -126,7 +137,10 @@ function submit(): void {
         <li v-if="listed.length === 0 && !typedNew" class="empty">No station.</li>
       </ul>
     </div>
-    <label class="sr-only" for="msg-text">Message</label>
-    <input id="msg-text" v-model="text" class="input compose-text" type="text" placeholder="Message" autocomplete="off" />
+    <div class="compose-row">
+      <label class="sr-only" for="msg-text">Message</label>
+      <input id="msg-text" v-model="text" class="input compose-text grow" type="text" placeholder="Message" autocomplete="off" />
+      <button type="submit" class="btn primary" :disabled="!ready" :title="sendTitle">Send</button>
+    </div>
   </form>
 </template>

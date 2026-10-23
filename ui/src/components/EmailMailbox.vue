@@ -1,93 +1,71 @@
 <script setup lang="ts">
-// The gateway's other actions, under the compose box, named for what they do; the command each one sends is its hover title. "Mailbox": "Fetch held mail" (`get`: the gateway sends again the mail it holds
-// for this station). "Shortcuts" (a disclosure, closed): a shortcut is a name the gateway keeps for an address, made by sending `name address` ("Register") and
-// used as the addressee; "Email the list" (`name L`: the gateway emails the list of the shortcuts to this shortcut's address) and "Remove" (`name R`, after "sure?", forgotten after 5 s) work only for a name
-// that was registered, so they stay off until "Your shortcut" holds a name. All are off while the TNC is not connected (the title says so). The page sends them as messages to the gateway; what it answers is in the thread.
-import { computed, ref } from "vue";
-import DisclosureBox from "@/components/DisclosureBox.vue";
-import { useSure } from "@/composables/useSure";
-import { GET_HELD, listShortcuts, removeShortcut, validAddress, validShortcut } from "@/lib/email";
+// The "Mailbox" button of the Email tab and the menu it opens: "Fetch held mail" (`get`: the gateway sends again the mail it holds for this station; off while the TNC is not connected, the title says so) and "Shortcuts…" (the tab opens
+// the form for them). The menu closes with a choice, Esc, or a click or tap outside it.
+import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { GET_HELD } from "@/lib/email";
 
 const props = defineProps<{ connected: boolean }>();
-const emit = defineEmits<{
-  register: [name: string, address: string];
-  list: [name: string];
-  remove: [name: string];
-  get: [];
-}>();
-const sure = useSure<string>(); // (the shortcut that is to be removed)
+const emit = defineEmits<{ get: []; shortcuts: [] }>();
 
-const name = ref("");
-const address = ref("");
+const open = ref(false);
+const root = ref<HTMLElement | null>(null);
 const away = computed(() => (props.connected ? undefined : "The TNC is not connected"));
-const known = computed(() => props.connected && validShortcut(name.value));
-const canRegister = computed(() => known.value && validAddress(address.value));
-const armed = computed(() => sure.armed.value === name.value.trim());
 
-const needName = "Fill in the shortcut's Name: a name registered with the gateway";
-const titleFor = (sent: string): string => away.value ?? (validShortcut(name.value) ? sent : needName);
-
-function register(): void {
-  if (!canRegister.value) return;
-  emit("register", name.value.trim(), address.value.trim());
-  address.value = "";
+function outside(event: Event): void {
+  if (!(event.target instanceof Node) || !root.value?.contains(event.target)) open.value = false;
 }
 
-function remove(): void {
-  if (known.value) sure.press(name.value.trim(), () => emit("remove", name.value.trim()));
+function choose(act: "get" | "shortcuts"): void {
+  open.value = false;
+  if (act === "get") emit("get");
+  else emit("shortcuts");
 }
+
+watch(open, (now) => {
+  const act = now ? document.addEventListener.bind(document) : document.removeEventListener.bind(document);
+  act("pointerdown", outside);
+  act("focusin", outside);
+});
+onBeforeUnmount(() => {
+  document.removeEventListener("pointerdown", outside);
+  document.removeEventListener("focusin", outside);
+});
 </script>
 
 <template>
-  <div class="mail-tools">
-    <div class="mail-row">
-      <strong>Mailbox</strong>
-      <button
-        type="button"
-        class="btn"
-        :disabled="!connected"
-        :title="away ?? `Sends '${GET_HELD}': the gateway sends again the mail it holds for you`"
-        @click="emit('get')"
+  <div ref="root" class="mail-menu" @keydown.esc="open = false">
+    <button type="button" class="btn" aria-haspopup="menu" :aria-expanded="open" @click="open = !open">
+      Mailbox
+      <svg
+        width="10"
+        height="10"
+        viewBox="0 0 10 10"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.6"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
       >
-        Fetch held mail
-      </button>
-    </div>
-    <DisclosureBox title="Shortcuts">
-      <form class="mail-shortcut" @submit.prevent="register">
-        <label class="path-label" for="mail-shortcut">Name</label>
-        <input id="mail-shortcut" v-model="name" class="input mono" type="text" placeholder="john" autocomplete="off" spellcheck="false" />
-        <label class="path-label" for="mail-address">Address</label>
-        <input id="mail-address" v-model="address" class="input mono" type="text" placeholder="name@example.com" autocomplete="off" spellcheck="false" />
-        <div class="mail-shortcut-buttons">
-          <button
-            type="submit"
-            class="btn"
-            :disabled="!canRegister"
-            :title="away ?? `Sends '${name.trim() || 'name'} ${address.trim() || 'address'}': the gateway keeps the address under the name`"
-          >
-            Register
-          </button>
-          <button
-            type="button"
-            class="btn"
-            :disabled="!known"
-            :title="titleFor(`Sends '${listShortcuts(name)}': the gateway emails the list of your shortcuts to this shortcut's address`)"
-            @click="emit('list', name.trim())"
-          >
-            Email the list
-          </button>
-          <button
-            type="button"
-            class="btn"
-            :class="{ danger: armed }"
-            :disabled="!known"
-            :title="titleFor(`Sends '${removeShortcut(name)}': the gateway removes this shortcut`)"
-            @click="remove"
-          >
-            {{ armed ? "sure?" : "Remove" }}
-          </button>
-        </div>
-      </form>
-    </DisclosureBox>
+        <path d="M2 3.5l3 3 3-3" />
+      </svg>
+    </button>
+    <ul v-if="open" class="menu-list" role="menu" aria-label="Mailbox">
+      <li role="none">
+        <button
+          type="button"
+          class="menu-item"
+          role="menuitem"
+          :disabled="!connected"
+          :title="away ?? `Sends '${GET_HELD}': the gateway sends again the mail it holds for you`"
+          @click="choose('get')"
+        >
+          Fetch held mail
+        </button>
+      </li>
+      <li role="none">
+        <button type="button" class="menu-item" role="menuitem" @click="choose('shortcuts')">Shortcuts…</button>
+      </li>
+    </ul>
   </div>
 </template>

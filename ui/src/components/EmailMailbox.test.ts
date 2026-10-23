@@ -1,124 +1,67 @@
 import { mount } from "@vue/test-utils";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import EmailMailbox from "@/components/EmailMailbox.vue";
 
 function box(connected = true) {
-  return mount(EmailMailbox, { props: { connected } });
+  return mount(EmailMailbox, { props: { connected }, attachTo: document.body });
 }
-type Box = ReturnType<typeof box>;
-const button = (wrapper: Box, label: string) => {
-  const found = wrapper.findAll("button").find((b) => b.text() === label || (label === "Remove" && b.text() === "sure?"));
-  if (found === undefined) throw new Error(`no button ${label}`);
-  return found;
-};
-const name = (wrapper: Box, value: string) => wrapper.find("#mail-shortcut").setValue(value);
-const address = (wrapper: Box, value: string) => wrapper.find("#mail-address").setValue(value);
+const items = (wrapper: ReturnType<typeof box>) => wrapper.findAll("[role='menuitem']");
 
 describe("EmailMailbox", () => {
-  beforeEach(() => vi.useFakeTimers());
-  afterEach(() => vi.useRealTimers());
-
-  it("has the actions named for what they do, with the command each one sends as its title", async () => {
+  it("is one button, Mailbox, with the menu closed", () => {
     const wrapper = box();
-    expect(wrapper.findAll("button").map((b) => b.text())).toEqual(["Fetch held mail", "Register", "Email the list", "Remove"]);
-    expect(wrapper.findAll("strong").map((s) => s.text())).toEqual(["Mailbox"]);
-    expect(wrapper.find(".disclosure summary").text()).toBe("Shortcuts");
-    expect(wrapper.find<HTMLDetailsElement>("details.disclosure").element.open).toBe(false);
-    expect(button(wrapper, "Fetch held mail").attributes("title")).toBe("Sends 'get': the gateway sends again the mail it holds for you");
-    await name(wrapper, " john ");
-    await address(wrapper, "jane@example.com");
-    expect(button(wrapper, "Register").attributes("title")).toBe("Sends 'john jane@example.com': the gateway keeps the address under the name");
-    expect(button(wrapper, "Email the list").attributes("title")).toBe(
-      "Sends 'john L': the gateway emails the list of your shortcuts to this shortcut's address",
-    );
-    expect(button(wrapper, "Remove").attributes("title")).toBe("Sends 'john R': the gateway removes this shortcut");
+    expect(wrapper.findAll("button").map((b) => b.text())).toEqual(["Mailbox"]);
+    expect(wrapper.find("button").attributes("aria-expanded")).toBe("false");
+    expect(items(wrapper)).toHaveLength(0);
+    wrapper.unmount();
   });
 
-  it("asks for the shortcut where it is chosen: a label and a placeholder, and the actions that need it are off until it is filled in", async () => {
+  it("opens with Fetch held mail and Shortcuts…, the command as the title", async () => {
     const wrapper = box();
-    expect(wrapper.find("label[for='mail-shortcut']").text()).toBe("Name");
-    expect(wrapper.find("#mail-shortcut").attributes("placeholder")).toBe("john");
-    expect(wrapper.find("label[for='mail-address']").text()).toBe("Address");
-    for (const label of ["Register", "Email the list", "Remove"]) expect(button(wrapper, label).attributes("disabled")).toBeDefined();
-    expect(button(wrapper, "Email the list").attributes("title")).toContain("Fill in the shortcut's Name");
-    expect(button(wrapper, "Fetch held mail").attributes("disabled")).toBeUndefined();
-    await name(wrapper, "not a name");
-    expect(button(wrapper, "Email the list").attributes("disabled")).toBeDefined();
-    await name(wrapper, "john");
-    expect(button(wrapper, "Email the list").attributes("disabled")).toBeUndefined();
-    expect(button(wrapper, "Remove").attributes("disabled")).toBeUndefined();
-    expect(button(wrapper, "Register").attributes("disabled")).toBeDefined();
-    await address(wrapper, "jane");
-    expect(button(wrapper, "Register").attributes("disabled")).toBeDefined();
-    await address(wrapper, "jane@example.com");
-    expect(button(wrapper, "Register").attributes("disabled")).toBeUndefined();
+    await wrapper.find("button").trigger("click");
+    expect(wrapper.find("button").attributes("aria-expanded")).toBe("true");
+    expect(items(wrapper).map((b) => b.text())).toEqual(["Fetch held mail", "Shortcuts…"]);
+    expect(items(wrapper)[0]?.attributes("title")).toBe("Sends 'get': the gateway sends again the mail it holds for you");
+    wrapper.unmount();
   });
 
-  it("fetches the held mail, emails the list of a shortcut, and registers one with its address", async () => {
+  it("fetches the held mail and closes", async () => {
     const wrapper = box();
-    await button(wrapper, "Fetch held mail").trigger("click");
-    await name(wrapper, "john");
-    await button(wrapper, "Email the list").trigger("click");
-    await address(wrapper, " jane@example.com ");
-    await wrapper.find("form").trigger("submit");
-    expect(wrapper.emitted("get")).toHaveLength(1);
-    expect(wrapper.emitted("list")).toEqual([["john"]]);
-    expect(wrapper.emitted("register")).toEqual([["john", "jane@example.com"]]);
-    expect(wrapper.find<HTMLInputElement>("#mail-address").element.value).toBe("");
-    expect(wrapper.find<HTMLInputElement>("#mail-shortcut").element.value).toBe("john");
+    await wrapper.find("button").trigger("click");
+    await items(wrapper)[0]?.trigger("click");
+    expect(wrapper.emitted("get")).toEqual([[]]);
+    expect(items(wrapper)).toHaveLength(0);
+    wrapper.unmount();
   });
 
-  it("registers nothing without an address, from the Enter key too", async () => {
+  it("asks the tab for the shortcuts and closes", async () => {
     const wrapper = box();
-    await name(wrapper, "john");
-    await wrapper.find("form").trigger("submit");
-    expect(wrapper.emitted("register")).toBeUndefined();
+    await wrapper.find("button").trigger("click");
+    await items(wrapper)[1]?.trigger("click");
+    expect(wrapper.emitted("shortcuts")).toEqual([[]]);
+    expect(wrapper.emitted("get")).toBeUndefined();
+    expect(items(wrapper)).toHaveLength(0);
+    wrapper.unmount();
   });
 
-  it("asks twice before removing: the button says sure?, the first press is forgotten after 5 seconds, and nothing else asks", async () => {
-    const wrapper = box();
-    await name(wrapper, "john");
-    await button(wrapper, "Remove").trigger("click");
-    expect(wrapper.emitted("remove")).toBeUndefined();
-    expect(button(wrapper, "Remove").text()).toBe("sure?");
-    expect(button(wrapper, "Remove").classes()).toContain("danger");
-    expect(wrapper.findAll("button").map((b) => b.text())).toEqual(["Fetch held mail", "Register", "Email the list", "sure?"]);
-    await vi.advanceTimersByTimeAsync(5100);
-    expect(button(wrapper, "Remove").text()).toBe("Remove");
-    await button(wrapper, "Remove").trigger("click");
-    await name(wrapper, "jane");
-    expect(button(wrapper, "Remove").text()).toBe("Remove");
-    await button(wrapper, "Remove").trigger("click");
-    await button(wrapper, "Remove").trigger("click");
-    expect(wrapper.emitted("remove")).toEqual([["jane"]]);
-    expect(button(wrapper, "Remove").text()).toBe("Remove");
-  });
-
-  it("has no attempts field in the Mailbox row, and its button is a plain button like the others of the tab", () => {
-    const wrapper = box();
-    expect(wrapper.find(".mail-row .attempts-input").exists()).toBe(false);
-    expect(wrapper.find(".mail-row").text()).not.toContain("Attempts");
-    expect(wrapper.findAll(".mail-row button")).toHaveLength(1);
-  });
-
-  it("gives every button of the tab the same classes: btn, and no small variant", () => {
-    const wrapper = box();
-    for (const b of wrapper.findAll("button")) {
-      expect(b.classes()).toContain("btn");
-      expect(b.classes()).not.toContain("small");
-    }
-    expect(button(wrapper, "Fetch held mail").classes()).toEqual(button(wrapper, "Email the list").classes());
-  });
-
-  it("is off, with the title, while the TNC is not connected", async () => {
+  it("has Fetch held mail off while the TNC is not connected, and says why", async () => {
     const wrapper = box(false);
-    await name(wrapper, "john");
-    await address(wrapper, "jane@example.com");
-    for (const b of wrapper.findAll("button")) {
-      expect(b.attributes("disabled")).toBeDefined();
-      expect(b.attributes("title")).toBe("The TNC is not connected");
-    }
-    await wrapper.find("form").trigger("submit");
-    expect(wrapper.emitted("register")).toBeUndefined();
+    await wrapper.find("button").trigger("click");
+    expect(items(wrapper)[0]?.attributes("disabled")).toBeDefined();
+    expect(items(wrapper)[0]?.attributes("title")).toBe("The TNC is not connected");
+    expect(items(wrapper)[1]?.attributes("disabled")).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it("closes with Esc and with a click outside", async () => {
+    const wrapper = box();
+    await wrapper.find("button").trigger("click");
+    await wrapper.find(".mail-menu").trigger("keydown", { key: "Escape" });
+    expect(items(wrapper)).toHaveLength(0);
+    await wrapper.find("button").trigger("click");
+    document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    await wrapper.vm.$nextTick();
+    expect(items(wrapper)).toHaveLength(0);
+    wrapper.unmount();
   });
 });
