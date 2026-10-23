@@ -107,8 +107,11 @@ STATION: dict[str, Any] = {
     "call": "OH2RDK-7", "kind": "station", "reported_by": "", "symbol_table": "T", "symbol_code": "&", "symbol_name": "unknown", "lat": 60.165, "lon": 24.9467, "altitude_m": None, "course_deg": None,
     "speed_kmh": None, "first_heard": NOW, "last_heard": NOW, "last_position_at": NOW, "last_status": "", "last_comment": "432.500 MHz", "packets": 1, "last_path": ["OH2RCH-2*", "TRACE2-1"],
     "last_route": "via OH2RCH-2", "heard_direct": 2, "last_direct_at": NOW, "heard_gated": 1, "heard_via": [["OH2RCH-2", 30], ["OH2RCH-3", 4]], "best_route": "via OH2RCH-2", "suggested_path": "OH2RCH-2",
-    "distance_km": 1.5, "bearing_deg": 90.0, "is_me": False, "weather": WEATHER_FIELDS, "weather_at": NOW, "telemetry": TELEMETRY, "telemetry_at": NOW, "locator": LOCATOR, "extensions": EXTENSIONS, "track": [[NOW, 60.165, 24.9467]]}
+    "distance_km": 1.5, "bearing_deg": 90.0, "is_me": False, "own": False, "weather": WEATHER_FIELDS, "weather_at": NOW, "telemetry": TELEMETRY, "telemetry_at": NOW, "locator": LOCATOR, "extensions": EXTENSIONS, "track": [[NOW, 60.165, 24.9467]]}
 BULLETIN_ROW: dict[str, Any] = {"sender": "OH2XYZ", "slot": "BLN3HAMS", "group": "HAMS", "kind": "group", "text": "Net tonight at 20:00", "first_heard": NOW, "last_heard": "2026-10-21T13:00:00Z", "times_heard": 3}
+OWN_OBJECT_ROW: dict[str, Any] = {"name": "LEADER", "kind": "object", "lat": 60.165, "lon": 24.9467, "symbol_table": "/", "symbol_code": ">", "comment": "Rescue 1", "course_deg": 88, "speed_kmh": 66.7,
+                                  "path": None, "state": "live", "created_at": NOW, "updated_at": NOW, "sent": 2, "last_sent_at": NOW, "next_at": "2026-10-21T12:03:00Z"}
+OWN_BULLETIN_ROW: dict[str, Any] = {"slot": "BLN3HAMS", "group": "HAMS", "kind": "group", "text": "Net tonight at 20:00", "posted_at": NOW, "sent": 1, "last_sent_at": NOW, "next_at": "2026-10-21T12:02:00Z"}
 MESSAGE_ROW: dict[str, Any] = {"id": 3, "at": NOW, "direction": "out", "from_call": "OH2GBA", "to_call": "OH2RDG", "text": "hello", "msg_id": "12", "state": "sending", "attempts": 1,
                                "attempts_max": 6, "last_attempt_at": NOW, "acked_at": None, "route": "",
                                "attempts_detail": [{"sent_at": NOW, "hops": [{"call": "OH2RCH-2", "heard": True, "heard_at": NOW, "by_internet": False}, {"call": "OH2RDG", "heard": False, "heard_at": None, "by_internet": False}],
@@ -141,6 +144,7 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
     "state": [{"type": "state", "topic": "stations", "rev": 0, "value": {"OH2RDK-7": STATION}}, {"type": "state", "topic": "packets", "rev": 3, "value": {"7": PACKET}},
               {"type": "state", "topic": "tnc", "rev": 1, "value": TNC}, {"type": "state", "topic": "config", "rev": 0, "value": CONFIG},
               {"type": "state", "topic": "messages", "rev": 2, "value": {"3": MESSAGE_ROW}}, {"type": "state", "topic": "bulletins", "rev": 1, "value": {"OH2XYZ/BLN3HAMS": BULLETIN_ROW}},
+              {"type": "state", "topic": "own_objects", "rev": 1, "value": {"LEADER": OWN_OBJECT_ROW}}, {"type": "state", "topic": "own_bulletins", "rev": 1, "value": {"BLN3HAMS": OWN_BULLETIN_ROW}},
               {"type": "state", "topic": "station_prefs", "rev": 1,
                "value": {"OH2RDG": {"path": "WIDE2-1", "hide_after_min": None, "attempts": None, "rf_only": False}, "OH2XYZ": {"path": "", "hide_after_min": 0, "attempts": None, "rf_only": True},
                          "OH2ABC": {"path": None, "hide_after_min": 90, "attempts": None, "rf_only": False}, "EMAIL-2": {"path": None, "hide_after_min": None, "attempts": 2, "rf_only": False}}}],
@@ -149,6 +153,8 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
               {"type": "patch", "topic": "tnc", "rev": 2, "ops": [{"op": "replace", "value": TNC}]}, {"type": "patch", "topic": "config", "rev": 1, "ops": [{"op": "replace", "value": CONFIG}]},
               {"type": "patch", "topic": "messages", "rev": 3, "ops": [{"op": "set", "key": "3", "value": {**MESSAGE_ROW, "state": "acked", "acked_at": NOW}}, {"op": "del", "key": "1"}]},
               {"type": "patch", "topic": "bulletins", "rev": 2, "ops": [{"op": "set", "key": "OH2XYZ/BLN3HAMS", "value": {**BULLETIN_ROW, "times_heard": 4}}, {"op": "del", "key": "OH2ABC/BLN1"}]},
+              {"type": "patch", "topic": "own_objects", "rev": 2, "ops": [{"op": "set", "key": "LEADER", "value": {**OWN_OBJECT_ROW, "state": "killing", "sent": 0}}, {"op": "del", "key": "MARK"}]},
+              {"type": "patch", "topic": "own_bulletins", "rev": 2, "ops": [{"op": "set", "key": "BLN3HAMS", "value": {**OWN_BULLETIN_ROW, "sent": 2, "next_at": None}}, {"op": "del", "key": "BLN1"}]},
               {"type": "patch", "topic": "station_prefs", "rev": 2, "ops": [{"op": "set", "key": "OH2RDG", "value": {"path": "OH2RCH-2,WIDE2-1", "hide_after_min": 10080, "attempts": 10, "rf_only": False}},
                                                                         {"op": "set", "key": "OH2XYZ", "value": {"path": "", "hide_after_min": None, "attempts": None, "rf_only": True}}, {"op": "del", "key": "OH2ABC"}]}],
 }
@@ -180,6 +186,9 @@ COMMAND_EXAMPLES: dict[str, dict[str, Any]] = {
     "clear_station_attempts": {"cmd": "clear_station_attempts", "call": "EMAIL-2"}, "set_station_rf_only": {"cmd": "set_station_rf_only", "call": "OH2RDG", "on": True},
     "weather_series": {"cmd": "weather_series", "call": "OH2MUI", "hours": 24}, "alert_test": {"cmd": "alert_test"},
     "bulletin_delete": {"cmd": "bulletin_delete", "sender": "OH2XYZ", "slot": "BLN3HAMS"},
+    "object_set": {"cmd": "object_set", "name": "LEADER", "kind": "object", "lat": 60, "lon": 25, "symbol_table": "/", "symbol_code": ">", "comment": "Rescue 1", "course_deg": 88, "speed_kmh": 67, "path": "WIDE1-1"},
+    "object_kill": {"cmd": "object_kill", "name": "LEADER"},
+    "bulletin_post": {"cmd": "bulletin_post", "slot": "BLN3HAMS", "text": "Net tonight at 20:00"}, "bulletin_unpost": {"cmd": "bulletin_unpost", "slot": "BLN3HAMS"},
     "map_estimate": {"cmd": "map_estimate"}, "map_fetch": {"cmd": "map_fetch"}, "map_cancel": {"cmd": "map_cancel"},
 }
 
@@ -202,7 +211,7 @@ def test_the_values_of_the_examples_are_of_the_type_of_their_topic() -> None:
                 TOPIC_VALUES[message["topic"]].validate_json(json.dumps(op["value"]))
             elif op["op"] == "set":
                 TOPIC_ITEMS[message["topic"]].validate_json(json.dumps(op["value"]))
-    assert set(TOPIC_VALUES) == set(TOPIC_NAMES) and set(TOPIC_ITEMS) == {"stations", "packets", "messages", "bulletins", "station_prefs"}
+    assert set(TOPIC_VALUES) == set(TOPIC_NAMES) and set(TOPIC_ITEMS) == {"stations", "packets", "messages", "bulletins", "station_prefs", "own_objects", "own_bulletins"}
 
 
 def test_every_kind_of_decoded_packet_has_a_model_and_the_kinds_are_the_parsers() -> None:

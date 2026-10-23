@@ -1,6 +1,6 @@
 """The program without a window: the database, the settings, the radio and the station book. The Controller is the composition root's object (docs/ARCHITECTURE.md): the parts are made in
 neoaprs/app.py (`Services`) and connected in neoaprs/wiring.py, and this class brings them up and takes them down. The page and the tests call a part as `ctl.<part>.<method>`; the Controller has
-the order of the start (the message board before the Tnc, the beacon, the status and messaging after it, before the page; the stop the other way round), the Tnc's restart when its settings change, and the daily care of the database.
+the order of the start (the message board before the Tnc, the beacon, our objects and bulletins, the status and messaging after it, before the page; the stop the other way round), the Tnc's restart when its settings change, and the daily care of the database.
 """
 import asyncio
 import logging
@@ -48,6 +48,7 @@ class Controller(Services):
         self.packetlog.use(db)
         self.messagelog.use(db)
         self.bulletinlog.use(db)
+        self.ownlog.use(db)
         self.weatherlog.use(db)
         log.debug("the database %s is open (busy time %d ms)", path, self.busy_ms)
 
@@ -65,6 +66,8 @@ class Controller(Services):
         await self.bulletins.start()
         self.start_tnc()
         await self.beacon.start()
+        await self.ownobjects.start()
+        await self.ownbulletins.start()
         await self.rigstatus.start()
         await self.prefbook.load()
         await self.messaging.start()
@@ -80,6 +83,8 @@ class Controller(Services):
             await self.messaging.stop()
             await self.alerts.stop()
             await self.rigstatus.stop()
+            await self.ownbulletins.stop()
+            await self.ownobjects.stop()
             await self.beacon.stop()
             await self._stop_tnc()
             await self.tasks.cancel_all()

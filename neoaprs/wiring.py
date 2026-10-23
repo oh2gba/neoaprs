@@ -1,5 +1,5 @@
-"""The signals of the program connected, in the one place that does it (`Signal.connect` is for the composition root only): what the radio hears goes to the packet log, the station book, messaging (which hands bulletins to the board) and the queries, what
-the book changes goes to the database, and the port the search found is remembered.
+"""The signals of the program connected, in the one place that does it (`Signal.connect` is for the composition root only): what the radio hears goes to the packet log, the station book, messaging (which hands bulletins to the board), the queries and our objects (one that another station
+reports is theirs and is dropped), our objects go to the station book, what the book changes goes to the database, and the port the search found is remembered.
 
 Also how the settings become the Tnc's: `tnc_settings`."""
 import logging
@@ -54,6 +54,9 @@ def wire(parts: Services) -> None:
     tnc.packet.connect(parts.weatherlog.take)
     tnc.packet.connect(parts.messaging.on_packet)
     tnc.packet.connect(parts.queries.on_packet)
+    tnc.packet.connect(parts.ownobjects.on_packet)
+    parts.ownobjects.changed.connect(book.own_object)
+    parts.ownobjects.removed.connect(book.forget_own)
     book.changed.connect(packetlog.save_station)
     book.removed.connect(packetlog.delete_station)
     tnc.state_changed.connect(lambda state: _remember_port(parts, state))

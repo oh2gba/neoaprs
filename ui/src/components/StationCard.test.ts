@@ -345,6 +345,47 @@ describe("StationCard", () => {
     expect(wrapper.emitted("weather")?.at(-1)).toEqual(["OH2MUI", 168]);
   });
 
+  describe("an object or an item of ours", () => {
+    const mine = station("LEADER", { kind: "object", reported_by: "OH2GBA", own: true, symbol_name: "Car" });
+    const card = () => mount(StationCard, { props: { row: mine, now: NOW } });
+
+    it("says it is ours, and by whom it is reported", () => {
+      const text = card().text();
+      expect(text).toContain("Car (ours)");
+      expect(text).toContain("object, reported by OH2GBA");
+    });
+
+    it("has Edit and Kill in place of Message and Forget, and none of the fields of a station that is heard", () => {
+      const wrapper = card();
+      expect(wrapper.findAll(".card-foot button").map((b) => b.text())).toEqual(["Edit", "Kill"]);
+      expect(wrapper.find(".card-path").exists()).toBe(false);
+      expect(wrapper.find(".forget").classes()).not.toContain("danger");
+    });
+
+    it("emits Edit with the name", async () => {
+      const wrapper = card();
+      await wrapper.find(".card-foot .primary").trigger("click");
+      expect(wrapper.emitted("edit")).toEqual([["LEADER"]]);
+    });
+
+    it("kills on the second click, not the first, and forgets the first after 5 s", async () => {
+      vi.useFakeTimers();
+      const wrapper = card();
+      const button = wrapper.find(".card-foot .forget");
+      await button.trigger("click");
+      expect(button.text()).toBe("Really kill?");
+      expect(button.classes()).toContain("danger");
+      expect(wrapper.emitted("kill")).toBeUndefined();
+      vi.advanceTimersByTime(5001);
+      await wrapper.vm.$nextTick();
+      expect(button.text()).toBe("Kill");
+      await button.trigger("click");
+      await button.trigger("click");
+      expect(wrapper.emitted("kill")).toEqual([["LEADER"]]);
+      expect(wrapper.emitted("forget")).toBeUndefined();
+    });
+  });
+
   it("says who reported an object", () => {
     const text = mount(StationCard, { props: { row: station("STORM", { kind: "object", reported_by: "OH2XYZ" }), now: NOW } }).text();
     expect(text).toContain("object, reported by OH2XYZ");

@@ -454,6 +454,9 @@ tbody tr:focus-visible {
 .grid tr.me td {
   font-weight: 700;
 }
+.grid tr.own td {
+  font-weight: 600;
+}
 .grid tr.detail,
 .grid tr.detail:hover {
   cursor: default;
@@ -693,6 +696,12 @@ tbody tr:focus-visible {
 }
 
 /* the message board */
+.boardwrap {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
 .boardpane {
   flex: 1;
   min-height: 0;
@@ -737,6 +746,75 @@ tbody tr:focus-visible {
 }
 .bulletin-meta {
   font-size: 12px;
+}
+.bulletin-compose {
+  border-top: 0;
+  border-bottom: 1px solid var(--border);
+}
+.compose-group {
+  width: 6em;
+  text-transform: uppercase;
+}
+.own-mark {
+  margin-left: 6px;
+  padding: 0 6px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  color: var(--accent);
+  font-size: 11px;
+}
+.bulletin.mine {
+  border-color: var(--accent);
+}
+.object-edit {
+  position: absolute;
+  top: 3px;
+  right: 40px;
+}
+.ownobject.killing {
+  opacity: 0.6;
+}
+.ownobject .bulletin-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.objectspane {
+  flex: 1;
+  min-height: 0;
+  padding: 0 10px 10px;
+  overflow-y: auto;
+}
+.objectspane .toolbar {
+  padding: 8px 0;
+}
+.objform {
+  margin-bottom: 10px;
+  padding: 4px 8px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.objform-symbols {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin: 2px 0 6px;
+}
+.objform-symbols .iconbtn {
+  width: 30px;
+  height: 30px;
+}
+.objform-symbols .iconbtn.active {
+  outline: 2px solid var(--accent);
+}
+.objform-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.objform .over {
+  color: var(--bad);
+  font-weight: 600;
 }
 
 /* the messages */
@@ -1259,6 +1337,18 @@ tbody tr:focus-visible {
   background: var(--map-halo);
 }
 .stn--me .stn-label {
+  color: var(--accent);
+  font-weight: 800;
+}
+.stn--own {
+  cursor: grab;
+}
+.stn--own .stn-icon {
+  border-radius: 50%;
+  outline: 2px dashed var(--accent);
+  background: var(--map-halo);
+}
+.stn--own .stn-label {
   color: var(--accent);
   font-weight: 800;
 }

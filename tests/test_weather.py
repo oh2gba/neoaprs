@@ -79,7 +79,7 @@ async def test_the_series_is_asked_for_by_call_and_hours_and_answered_to_the_pag
     e = Env(tmp_path, web=True)
     await e.start()
     page, other = await e.ws(), await e.ws()
-    await page.until(lambda: len(page.of("state")) == 8)
+    await page.until(lambda: len(page.of("state")) == 10)
     for minutes, fields in ((-300, "g010t050r001h85b10284"), (-30, "c090s010g015t-05h00b10132"), (-5, "t050")):
         e.ctl.weatherlog.take(report(fields, at=e.now() + timedelta(minutes=minutes)))
     await e.settled()

@@ -5,7 +5,7 @@ import { socketUrl, useDaemon } from "@/composables/useDaemon";
 import { PROTOCOL } from "@/protocol/lists";
 import { FakeFetch } from "@/test/fakefetch";
 import { FakeSocket } from "@/test/fakesocket";
-import { bulletin, configValues, message, packet, station, tncState } from "@/test/fixtures";
+import { bulletin, configValues, message, ownBulletin, ownObject, packet, station, tncState } from "@/test/fixtures";
 
 function setUp() {
   let daemon: ReturnType<typeof useDaemon> | undefined;
@@ -66,6 +66,29 @@ describe("useDaemon", () => {
       ],
     });
     expect([...daemon.stations.keys()]).toEqual(["B"]);
+  });
+
+  it("holds our own objects by name and our own bulletins by slot, whole and by patch", () => {
+    const { daemon, socket } = setUp();
+    socket.say({ type: "hello", protocol: PROTOCOL, version: "0.1.0", topics: [] });
+    socket.say({ type: "state", topic: "own_objects", rev: 0, value: { LEADER: ownObject("LEADER"), AID: ownObject("AID", { kind: "item" }) } });
+    socket.say({ type: "state", topic: "own_bulletins", rev: 0, value: { BLN1: ownBulletin("BLN1") } });
+    expect([...daemon.ownObjects.keys()]).toEqual(["LEADER", "AID"]);
+    expect(daemon.ownBulletins.get("BLN1")?.text).toBe("ours in BLN1");
+    socket.say({
+      type: "patch",
+      topic: "own_objects",
+      rev: 1,
+      ops: [
+        { op: "set", key: "LEADER", value: ownObject("LEADER", { sent: 5 }) },
+        { op: "del", key: "AID" },
+      ],
+    });
+    socket.say({ type: "patch", topic: "own_bulletins", rev: 1, ops: [{ op: "del", key: "BLN1" }] });
+    expect([...daemon.ownObjects.keys()]).toEqual(["LEADER"]);
+    expect(daemon.ownObjects.get("LEADER")?.sent).toBe(5);
+    expect(daemon.ownBulletins.size).toBe(0);
+    expect(daemon.config.value).toBeNull();
   });
 
   it("keeps the latest answer to weather_series", () => {

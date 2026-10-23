@@ -5,6 +5,8 @@ import type {
   AlertResultMessage,
   BulletinRow,
   MessageRow,
+  OwnBulletinRow,
+  OwnObjectRow,
   PacketRow,
   PortsMessage,
   StationPref,
@@ -13,7 +15,7 @@ import type {
   WeatherSeriesMessage,
 } from "@/protocol/protocol";
 import { FakeSocket } from "@/test/fakesocket";
-import { bulletin, configValues, mapFile, mapState, message, packet, station, tncState } from "@/test/fixtures";
+import { bulletin, configValues, mapFile, mapState, message, ownBulletin, ownObject, packet, station, tncState } from "@/test/fixtures";
 
 function memory() {
   const seen = {
@@ -27,6 +29,8 @@ function memory() {
     messages: new Map<string, MessageRow>(),
     bulletins: new Map<string, BulletinRow>(),
     prefs: new Map<string, StationPref>(),
+    ownObjects: new Map<string, OwnObjectRow>(),
+    ownBulletins: new Map<string, OwnBulletinRow>(),
     tnc: null as TncState | null,
     config: null as unknown,
     map: null as unknown,
@@ -47,6 +51,8 @@ function memory() {
     replaceMessages: (rows) => (seen.messages = new Map(Object.entries(rows))),
     replaceBulletins: (rows) => (seen.bulletins = new Map(Object.entries(rows))),
     replaceStationPrefs: (rows) => (seen.prefs = new Map(Object.entries(rows))),
+    replaceOwnObjects: (rows) => (seen.ownObjects = new Map(Object.entries(rows))),
+    replaceOwnBulletins: (rows) => (seen.ownBulletins = new Map(Object.entries(rows))),
     replaceTnc: (v) => (seen.tnc = v),
     replaceConfig: (v) => (seen.config = v),
     replaceMap: (v) => (seen.map = v),
@@ -55,11 +61,15 @@ function memory() {
     setMessage: (k, r) => void seen.messages.set(k, r),
     setBulletin: (k, r) => void seen.bulletins.set(k, r),
     setStationPref: (k, p) => void seen.prefs.set(k, p),
+    setOwnObject: (k, r) => void seen.ownObjects.set(k, r),
+    setOwnBulletin: (k, r) => void seen.ownBulletins.set(k, r),
     delStation: (k) => void seen.stations.delete(k),
     delPacket: (k) => void seen.packets.delete(k),
     delMessage: (k) => void seen.messages.delete(k),
     delBulletin: (k) => void seen.bulletins.delete(k),
     delStationPref: (k) => void seen.prefs.delete(k),
+    delOwnObject: (k) => void seen.ownObjects.delete(k),
+    delOwnBulletin: (k) => void seen.ownBulletins.delete(k),
   };
   return { seen, store };
 }
@@ -186,6 +196,37 @@ describe("Hub", () => {
     expect(seen.bulletins.get("OH2XYZ/BLN1")?.times_heard).toBe(2);
     socket.say(patch("bulletins", 2, [{ op: "replace", value: { "OH2DEF/QST": bulletin("QST", { sender: "OH2DEF", kind: "group" }) } }]));
     expect([...seen.bulletins.keys()]).toEqual(["OH2DEF/QST"]);
+  });
+
+  it("follows our own objects by name: one made or sent is set, one that is gone is deleted, and a whole table replaces the rest", () => {
+    const { seen, socket } = opened();
+    socket.say(state("own_objects", 0, { LEADER: ownObject("LEADER"), AID: ownObject("AID", { kind: "item" }) }));
+    socket.say(
+      patch("own_objects", 1, [
+        { op: "set", key: "LEADER", value: ownObject("LEADER", { sent: 3, state: "killing" }) },
+        { op: "del", key: "AID" },
+      ]),
+    );
+    expect([...seen.ownObjects.keys()]).toEqual(["LEADER"]);
+    expect(seen.ownObjects.get("LEADER")).toMatchObject({ sent: 3, state: "killing" });
+    socket.say(patch("own_objects", 2, [{ op: "replace", value: { MARK: ownObject("MARK") } }]));
+    expect([...seen.ownObjects.keys()]).toEqual(["MARK"]);
+    expect(seen.tnc).toBeNull();
+    expect(seen.config).toBeNull();
+  });
+
+  it("follows our own bulletins by slot: one posted or sent is set, one that is deleted is gone", () => {
+    const { seen, socket } = opened();
+    socket.say(state("own_bulletins", 0, { BLN1: ownBulletin("BLN1"), BLNA: ownBulletin("BLNA", { kind: "announcement" }) }));
+    socket.say(
+      patch("own_bulletins", 1, [
+        { op: "set", key: "BLN1", value: ownBulletin("BLN1", { sent: 3, next_at: null }) },
+        { op: "del", key: "BLNA" },
+      ]),
+    );
+    expect([...seen.ownBulletins.keys()]).toEqual(["BLN1"]);
+    expect(seen.ownBulletins.get("BLN1")).toMatchObject({ sent: 3, next_at: null });
+    expect(seen.config).toBeNull();
   });
 
   it("follows what is set for the stations: a path (an empty one is direct) and a timeout, each null where none is set", () => {

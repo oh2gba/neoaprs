@@ -13,6 +13,7 @@ from .aprstelemetry import Telemetry, TelemetryDefinition, apply_definition
 from .aprsweather import Weather
 from .clock import Clock, utcnow
 from .geo import bearing_deg, distance_km
+from .ownobject import OwnObject
 from .packet import ItemReport, Message, ObjectReport, Other, Packet, Position, Status
 from .route import Deliveries, Route, route_of
 from .signal import Signal
@@ -55,6 +56,7 @@ class Station:
     extensions: Extensions | None = None        # PHG, RNG, DF and area data of its latest position
     track: Track = field(default_factory=list)  # (time, lat, lon), the latest TRACK_MAX positions, oldest first
     is_me: bool = False
+    own: bool = False                           # an object or an item of ours, which we send (services/ownobjects.py): the settings' station is `is_me`, this is `own`; not kept in the cache, the objects of ours have a table of their own
     deliveries: Deliveries = field(default_factory=Deliveries)     # how the packets we heard from it reached us (neoaprs/route.py)
 
     @property
@@ -118,7 +120,7 @@ class StationBook:
         started: set[str] = set()
         for call, when, lat, lon in positions:
             station = self._stations.get(call)
-            if station is None or station.is_me:
+            if station is None or station.is_me or station.own:
                 continue
             if call not in started:
                 started.add(call)
@@ -150,17 +152,17 @@ class StationBook:
         return self._definitions.get(call)
 
     def forget(self, call: str) -> bool:
-        """Removes a station (not our own); whether there was one."""
+        """Removes a station (not our own, and not an object of ours: it is killed); whether there was one."""
         station = self._stations.get(call)
-        if station is None or station.is_me:
+        if station is None or station.is_me or station.own:
             return False
         del self._stations[call]
         self.removed.emit(call)
         return True
 
     def prune(self, older_than: datetime, keep: Collection[str] = ()) -> list[str]:
-        """Removes the stations not heard since `older_than` (ours stays, and so do those named in `keep`); their calls."""
-        gone = [s.call for s in self._stations.values() if s.last_heard < older_than and not s.is_me and s.call not in keep]
+        """Removes the stations not heard since `older_than` (ours stays, our objects too, and so do those named in `keep`); their calls."""
+        gone = [s.call for s in self._stations.values() if s.last_heard < older_than and not s.is_me and not s.own and s.call not in keep]
         for call in gone:
             del self._stations[call]
             self.removed.emit(call)
@@ -173,6 +175,9 @@ class StationBook:
         if self._me != call:
             self.clear_me()
         self._me, self._me_position = call, (lat, lon)
+        for mine in self._stations.values():
+            if mine.own:
+                mine.reported_by = call
         now = self.clock()
         station = self._stations.get(call)
         if station is None:
@@ -194,6 +199,32 @@ class StationBook:
             previous.is_me = False
             self.changed.emit(previous)
         self._me, self._me_position = "", None
+
+    def own_object(self, obj: OwnObject) -> Station | None:
+        """Our object or item as a station of its own, marked `own`, reported by us, at the place and with the symbol, comment, course and speed we send; what was heard under its name before is replaced. A
+        killed one is out of the book. Not signalled to the cache: it is not kept there."""
+        if not obj.alive:
+            self._forget_own(obj.name)
+            return None
+        station = self._stations.get(obj.name)
+        if station is None or not station.own:
+            station = self._stations[obj.name] = Station(obj.name, first_heard=obj.created_at, last_heard=obj.updated_at, kind=obj.kind, own=True)
+        station.reported_by, station.packets = self._me, obj.sent
+        station.last_heard, station.last_position_at = obj.last_sent_at or obj.updated_at, obj.updated_at
+        station.symbol_table, station.symbol_code, station.lat, station.lon = obj.symbol_table, obj.symbol_code, obj.lat, obj.lon
+        station.course_deg, station.speed_kmh, station.last_comment, station.last_path = obj.course_deg, obj.speed_kmh, obj.comment, obj.path_calls or ()
+        self.changed.emit(station)
+        return station
+
+    def forget_own(self, obj: OwnObject) -> None:
+        """Our object is gone (killed and sent as that, or taken over): it leaves the book, unless another station has taken its name."""
+        self._forget_own(obj.name)
+
+    def _forget_own(self, name: str) -> None:
+        station = self._stations.get(name)
+        if station is not None and station.own:
+            del self._stations[name]
+            self.removed.emit(name)
 
     @property
     def me(self) -> Station | None:
@@ -299,14 +330,14 @@ class StationBook:
 
     def _named(self, packet: Packet, report: ObjectReport | ItemReport) -> Station | None:
         """The station an object or item report is about."""
+        station = self._stations.get(report.name)
         if not report.alive:
-            if report.name in self._stations:
+            if station is not None and not station.own:         # (another station's kill does not end an object of ours)
                 del self._stations[report.name]
                 self.removed.emit(report.name)
             return None
-        station = self._stations.get(report.name)
         kind = "object" if isinstance(report, ObjectReport) else "item"
-        if station is None or station.kind != kind:
+        if station is None or station.kind != kind or station.own:                   # (an object of ours that another station reports is theirs now)
             station = self._stations[report.name] = Station(report.name, first_heard=packet.heard_at, last_heard=packet.heard_at, kind=kind)
         station.reported_by = packet.sender
         station.packets += 1

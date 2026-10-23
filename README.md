@@ -1,6 +1,6 @@
 # NeoAPRS
 
-A modern, easy-to-use APRS client: a map of the stations you hear, messages with acks and retries, the beacon, weather graphs, email through the APRS gateway. It is a standalone app on Windows and Linux (a window with the map and the messages, and a tray icon), or a service you reach over your local network: the radio and NeoAPRS on a Raspberry Pi in the shack, and the page open on your laptop or phone at home. RF only: it talks to your radio or TNC and has no iGate.
+A modern, easy-to-use APRS client: a map of the stations you hear, messages with acks and retries, the beacon, weather graphs, objects and bulletins of your own, email through the APRS gateway. It is a standalone app on Windows and Linux (a window with the map and the messages, and a tray icon), or a service you reach over your local network: the radio and NeoAPRS on a Raspberry Pi in the shack, and the page open on your laptop or phone at home. RF only: it talks to your radio or TNC and has no iGate.
 
 | ![The map](docs/screenshots/map.png) | ![Weather](docs/screenshots/weather.png) |
 |---|---|

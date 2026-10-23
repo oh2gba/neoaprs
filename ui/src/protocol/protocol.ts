@@ -1,7 +1,7 @@
 // The types of the wire protocol between the daemon and the page, written from the models of neoaprs/web/protocol.py by scripts/gen-protocol.py: never edited by hand.
 // `Command` is what the page sends (tagged by `cmd`), `Message` what the daemon sends (tagged by `type`), `TopicValues` the value of each topic the page follows.
 
-export type Command = PingCommand | AskStatusCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | TncReconnectCommand | ListPortsCommand | SetConfigCommand | BeaconNowCommand | SendMessageCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationTimeoutCommand | ClearStationTimeoutCommand | SetStationAttemptsCommand | ClearStationAttemptsCommand | SetStationRfOnlyCommand | WeatherSeriesCommand | AlertTestCommand | BulletinDeleteCommand | MapEstimateCommand | MapFetchCommand | MapCancelCommand;
+export type Command = PingCommand | AskStatusCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | TncReconnectCommand | ListPortsCommand | SetConfigCommand | BeaconNowCommand | SendMessageCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationTimeoutCommand | ClearStationTimeoutCommand | SetStationAttemptsCommand | ClearStationAttemptsCommand | SetStationRfOnlyCommand | WeatherSeriesCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapCancelCommand;
 
 export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | AlertResultMessage;
 
@@ -59,6 +59,13 @@ export interface BulletinDeleteCommand {
   slot: string;
 }
 
+/** Posts a bulletin, an announcement or a group bulletin of ours: `slot` is `BLN0`..`BLN9`, `BLNA`..`BLNZ` or `BLN`, a number and a group of up to five characters (`BLN3HAMS`), `text` at most 67 characters of printable ASCII without `|`, `~` and `{`. It is sent at once and then on the schedule of the specification (a bulletin a few times early and every 20 minutes for 4 hours, an announcement every hour for 72 hours); a text for a slot that holds one replaces it. Nothing is sent while the call is not set. Answered by the `set` of its row in `own_bulletins`, or by an `error` that names the reason. */
+export interface BulletinPostCommand {
+  cmd: "bulletin_post";
+  slot: string;
+  text: string;
+}
+
 /** One bulletin, announcement, group bulletin or group message on the board: what a station sent to `BLN0`..`BLN9`, `BLNA`..`BLNZ`, `BLN3HAMS` (a number or letter and a group of up to five characters) or `ALL`, `CQ` or `QST`. None of them is a conversation and none is acked. The rows are the values of the topic `bulletins`, keyed by `sender/slot` (`OH2XYZ/BLN1`): the board holds one row for each sender and slot, a sender sending the slot again replaces the text. A bulletin that is new or heard again is a `set` of its row, one that is deleted (`bulletin_delete`) a `del`. Nothing ages out: an entry stays on the board until it is deleted. */
 export interface BulletinRow {
   /** the call that sent it (for a third-party packet the call inside it) */
@@ -76,6 +83,12 @@ export interface BulletinRow {
   last_heard: string;
   /** how often this text was heard (the copies of one transmission that came by different digipeaters within 10 seconds are one) */
   times_heard: number;
+}
+
+/** Deletes a bulletin of ours: it is not sent again and leaves the board. Answered by the `del` of its row in `own_bulletins`, or by an `error` (no such bulletin of ours). */
+export interface BulletinUnpostCommand {
+  cmd: "bulletin_unpost";
+  slot: string;
 }
 
 /** Takes a station's own attempts away, so that the setting `messages/attempts` counts again (a station without them is no error). Answered by the `set` of its entry in `station_prefs` with a null `attempts` (or the `del` of the entry when it had no path and no timeout either), or by an `error`. */
@@ -446,11 +459,82 @@ export interface MessageRow {
   route: string;
 }
 
+/** Kills an object or an item of ours: the killed form is sent three times (at once, after a minute and after three) and then it is forgotten, and it leaves the map now. One that was never sent is removed at once. Answered by the `del` of its row in `stations` (and in `own_objects` once the kill is sent, or at once), or by an `error` (no such object of ours). */
+export interface ObjectKillCommand {
+  cmd: "object_kill";
+  name: string;
+}
+
+/** Makes an object or an item of ours, or changes the one of that name (a changed object starts its schedule again, and is sent at once, never sooner than a minute after its last packet). `name` is 1 to 9 characters for an object and 3 to 9 for an item, printable ASCII without `!`, `_`, `|` and `~` and without a blank at either end, and not our own call or the call of a station; `lat` and `lon` the position in decimal degrees; the symbol is a table character and a code character; `comment` at most 43 characters (36 with a course or speed); `course_deg` and `speed_kmh` the course and speed, each or both or none; `path` the digipeaters, calls separated by commas (null: `beacon/path`). Nothing is sent while the call is not set. Answered by the `set` of its row in `own_objects` and `stations`, or by an `error` that names the reason. */
+export interface ObjectSetCommand {
+  cmd: "object_set";
+  name: string;
+  kind: "object" | "item";
+  lat: number;
+  lon: number;
+  symbol_table: string;
+  symbol_code: string;
+  comment: string;
+  course_deg: number | null;
+  speed_kmh: number | null;
+  path: string | null;
+}
+
 /** Removes every message we only overheard `from_call` sending to `to_call` (the state `overheard`, that sender, that addressee: one pair of the Messages list's overheard rows) from the database in one write, from the daemon and from every page: each message's row is a `del` of the topic `messages`. The conversations are not touched: a message we sent or one sent to us is never removed by this. Answered by the `del`s, or by an `error` (no overheard message of that pair). */
 export interface OverheardDeleteCommand {
   cmd: "overheard_delete";
   from_call: string;
   to_call: string;
+}
+
+/** One bulletin, announcement or group bulletin of ours: its text and where its schedule stands. The rows are the values of the topic `own_bulletins`, keyed by `slot` (`BLN1`): a bulletin that is posted, and each time it is sent, is a `set` of its row, one that is deleted (`bulletin_unpost`) a `del`. One whose schedule is over stays, with a null `next_at`, until it is deleted or posted again. */
+export interface OwnBulletinRow {
+  /** the addressee: `BLN1`, `BLNA`, `BLN3HAMS` */
+  slot: string;
+  /** the group of a group bulletin (`HAMS`); empty for any other */
+  group: string;
+  kind: "bulletin" | "announcement" | "group";
+  text: string;
+  /** when the text was posted */
+  posted_at: string;
+  /** how often it was sent */
+  sent: number;
+  /** when it was last sent; null while it has not been sent */
+  last_sent_at: string | null;
+  /** when it is sent next; null when its schedule is over (a bulletin: now, after 2 and 6 minutes, then every 20 minutes until 4 hours after the first; an announcement: the same early, then every hour until 72 hours after the first) */
+  next_at: string | null;
+}
+
+/** One object or item of ours: what we send and where its schedule stands. The rows are the values of the topic `own_objects`, keyed by `name`: an object that is made or changed, and each time it is sent, is a `set` of its row, one that is gone (the kill was sent three times, or another station took the name over) a `del`. A live object is also a row of the topic `stations` with `own` true, which is what the map shows; a killed one leaves that topic at once and stays here, as `killing`, until its kill has been sent. */
+export interface OwnObjectRow {
+  /** the name of the object (1 to 9 characters) or of the item (3 to 9), as it is sent: case-sensitive */
+  name: string;
+  kind: "object" | "item";
+  lat: number;
+  lon: number;
+  /** `/` (primary), `\` (alternate) or an overlay character 0-9, A-Z */
+  symbol_table: string;
+  symbol_code: string;
+  /** at most 43 characters, 36 when it follows a course and speed */
+  comment: string;
+  /** the course in degrees from north (0 to 359); null for none */
+  course_deg: number | null;
+  /** the speed in km/h; null for none */
+  speed_kmh: number | null;
+  /** the digipeaters it goes by, calls separated by commas; null: the path of the setting `beacon/path` is used */
+  path: string | null;
+  /** `live`: it is being sent on the decay schedule; `killing`: it was killed and its killed form is being sent (three times), then it is forgotten */
+  state: "live" | "killing";
+  /** when it was first made */
+  created_at: string;
+  /** when it was last changed or killed */
+  updated_at: string;
+  /** how often it was sent since it was last changed or killed */
+  sent: number;
+  /** when it was last sent; null while it has not been sent (the call is not set, or the radio is away) */
+  last_sent_at: string | null;
+  /** when it is sent next: 1, 2, 4 ... minutes after the last packet, never more than the net cycle time of its path apart; a time that has passed means it waits for the radio or for the call */
+  next_at: string | null;
 }
 
 /** One packet heard or sent. The rows are the values of the topic `packets`, keyed by `id` as text: the daemon holds the latest 200, a packet that comes is a `set` and the one that falls out of the 200 a `del`. The page shows them newest first (the highest id). */
@@ -702,6 +786,8 @@ export interface StationRow {
   bearing_deg: number | null;
   /** our own station: the row of the call in the settings, at the position in the settings */
   is_me: boolean;
+  /** an object or an item of ours, which we send (the topic `own_objects` has its values and its schedule): the map marks it as ours and the card has Edit and Kill in place of Forget; false for any other row */
+  own: boolean;
   /** the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed */
   track: [string, number, number][];
 }
@@ -847,6 +933,10 @@ export interface TopicValues {
   messages: { [key: string]: MessageRow };
   /** the message board by `sender/slot` (`OH2XYZ/BLN1`): the bulletins, announcements, group bulletins and group messages heard and not deleted; one that is new or heard again is a `set` of its row, one that is deleted (`bulletin_delete`) a `del` */
   bulletins: { [key: string]: BulletinRow };
+  /** the objects and items of ours by name: `object_set` makes or changes one (a `set` of its row, each time it is sent too), `object_kill` ends one (its row changes to `killing`, and is a `del` once the kill has been sent); a live one is also a row of `stations` */
+  own_objects: { [key: string]: OwnObjectRow };
+  /** the bulletins, announcements and group bulletins of ours by slot (`BLN1`): `bulletin_post` posts one (a `set` of its row, each time it is sent too), `bulletin_unpost` deletes one (a `del`) */
+  own_bulletins: { [key: string]: OwnBulletinRow };
   /** the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps; told whole as it changes, at most four times a second */
   map: MapState;
 }

@@ -2,6 +2,7 @@
 the wire modules say what these are; the tests and NEOAPRS_VALIDATE_OUT hold them to it."""
 import json
 from dataclasses import asdict
+from datetime import datetime
 from typing import Any
 
 from neoaprs.aprstelemetry import describe
@@ -11,6 +12,8 @@ from neoaprs.chain import INTERNET, Attempt
 from neoaprs.clock import iso
 from neoaprs.config import DEFAULTS, Config
 from neoaprs.message import MessageRecord
+from neoaprs.ownbulletin import OwnBulletin
+from neoaprs.ownobject import OwnObject
 from neoaprs.packet import Packet
 from neoaprs.packetcodec import encode_decoded, tnc2
 from neoaprs.pref import Pref
@@ -60,7 +63,7 @@ def station_row(book: StationBook, station: Station) -> dict[str, Any]:
         "altitude_m": station.altitude_m, "course_deg": station.course_deg, "speed_kmh": station.speed_kmh, "first_heard": iso(station.first_heard), "last_heard": iso(station.last_heard),
         "last_position_at": iso(station.last_position_at), "last_status": station.last_status, "last_comment": station.last_comment, "packets": station.packets,
         "last_path": list(station.last_path), "distance_km": None if distance is None else round(distance, 2), "bearing_deg": None if bearing is None else round(bearing, 1),
-        "is_me": station.is_me, "weather": weather_values(station.weather), "weather_at": iso(station.weather_at), "telemetry": telemetry_values(book, station),
+        "is_me": station.is_me, "own": station.own, "weather": weather_values(station.weather), "weather_at": iso(station.weather_at), "telemetry": telemetry_values(book, station),
         "telemetry_at": iso(station.telemetry_at), "locator": None if station.locator is None else asdict(station.locator),
         "extensions": None if station.extensions is None else asdict(station.extensions), "last_direct_at": iso(station.last_direct_at), **_routes(station), "track": [[iso(when), lat, lon] for when, lat, lon in station.track],
     }
@@ -99,6 +102,21 @@ def bulletin_row(record: BulletinRecord) -> dict[str, Any]:
     return {
         "sender": record.sender, "slot": record.slot, "group": record.group, "kind": record.kind, "text": record.text, "first_heard": iso(record.first_heard),
         "last_heard": iso(record.last_heard), "times_heard": record.times_heard,
+    }
+
+
+def own_object_row(obj: OwnObject, next_at: datetime | None) -> dict[str, Any]:
+    return {
+        "name": obj.name, "kind": obj.kind, "lat": obj.lat, "lon": obj.lon, "symbol_table": obj.symbol_table, "symbol_code": obj.symbol_code, "comment": obj.comment, "course_deg": obj.course_deg,
+        "speed_kmh": obj.speed_kmh, "path": obj.path, "state": "live" if obj.alive else "killing", "created_at": iso(obj.created_at), "updated_at": iso(obj.updated_at), "sent": obj.sent,
+        "last_sent_at": iso(obj.last_sent_at), "next_at": iso(next_at),
+    }
+
+
+def own_bulletin_row(bulletin: OwnBulletin, next_at: datetime | None) -> dict[str, Any]:
+    return {
+        "slot": bulletin.slot, "group": bulletin.group, "kind": bulletin.kind, "text": bulletin.text, "posted_at": iso(bulletin.created_at), "sent": bulletin.sent,
+        "last_sent_at": iso(bulletin.last_sent_at), "next_at": iso(next_at),
     }
 
 

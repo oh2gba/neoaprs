@@ -34,6 +34,15 @@ describe("the marker of a station", () => {
     paintMarker(dom, station("A"), { fade: 0, selected: false, direct: false });
     expect([...dom.root.classList].some((c) => c.startsWith("stn--fade"))).toBe(false);
   });
+  it("marks an object of ours by a class and says so in the title", () => {
+    const dom = buildMarkerDom();
+    paintMarker(dom, station("LEADER", { kind: "object", own: true }), { fade: 0, selected: false, direct: false });
+    expect(dom.root.classList.contains("stn--own")).toBe(true);
+    expect(dom.root.classList.contains("stn--me")).toBe(false);
+    expect(dom.root.title).toBe("LEADER: Car (ours)");
+    paintMarker(dom, station("LEADER", { kind: "object", own: false }), { fade: 0, selected: false, direct: false });
+    expect(dom.root.classList.contains("stn--own")).toBe(false);
+  });
   it("puts a ring on a station heard direct and says so in the title", () => {
     const dom = buildMarkerDom();
     paintMarker(dom, station("OH2PU-9"), { fade: 0, selected: false, direct: true });

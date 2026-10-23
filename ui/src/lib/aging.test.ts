@@ -38,6 +38,7 @@ describe("timeoutMin", () => {
     expect(timeoutMin(rules, station("OH2RDG"))).toBe(0);
     expect(timeoutMin(rules, station("OH2XYZ"))).toBe(60);
     expect(timeoutMin(aging(60, [["ME", 5]]), station("ME", { is_me: true }))).toBe(0);
+    expect(timeoutMin(aging(60, [["MINE", 5]]), station("MINE", { kind: "object", own: true }))).toBe(0);
   });
 });
 
@@ -55,6 +56,7 @@ describe("timedOut", () => {
     expect(timedOut(aging(60, [["A", 0]]), old, NOW)).toBe(false);
     expect(timedOut(aging(60), station("A", { lat: null, lon: null, last_position_at: null, last_heard: ago(86400) }), NOW)).toBe(false);
     expect(timedOut(aging(60), station("ME", { is_me: true, last_position_at: ago(86400) }), NOW)).toBe(false);
+    expect(timedOut(aging(60), station("MINE", { kind: "object", own: true, last_position_at: ago(86400) }), NOW)).toBe(false);
   });
   it("takes the last packet for a position that has no time", () => {
     expect(timedOut(aging(60), station("A", { last_position_at: null, last_heard: ago(3 * 3600) }), NOW)).toBe(true);
@@ -107,6 +109,7 @@ describe("markerStep", () => {
   });
   it("never fades our own station, and follows a station's own timeout", () => {
     expect(markerStep(rules, station("ME", { is_me: true, last_position_at: ago(86400) }), NOW)).toBe(0);
+    expect(markerStep(rules, station("MINE", { kind: "object", own: true, last_position_at: ago(86400) }), NOW)).toBe(0);
     expect(markerStep(aging(100, [["A", 10]]), station("A", { last_position_at: ago(60 * 9) }), NOW)).toBe(MARKER_STEPS - 1);
   });
 });

@@ -49,7 +49,9 @@ class PacketLog(DbLog):
         return self._append(lambda conn: insert_packet(conn, row))
 
     def save_station(self, station: Station) -> bool:
-        """Keeps the station as it is now (the row is made at once: the station goes on changing)."""
+        """Keeps the station as it is now (the row is made at once: the station goes on changing). An object of ours is not a station of the cache (ownlog.py keeps it); False for that."""
+        if station.own:
+            return False
         row = station_row(station)
         return self._append(lambda conn: upsert_station(conn, row))
 

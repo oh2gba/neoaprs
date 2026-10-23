@@ -1,6 +1,6 @@
 // The page's layout numbers: the tabs of the panel and how wide the panel may be. (Under 800 px of page the panel goes under the map: that is the media query of style.css.)
 
-export const TAB_IDS = ["stations", "packets", "messages", "email", "bulletins", "beacon", "tnc", "settings"] as const;
+export const TAB_IDS = ["stations", "packets", "messages", "email", "bulletins", "objects", "beacon", "tnc", "settings"] as const;
 export type TabId = (typeof TAB_IDS)[number];
 
 export const TAB_TITLES: Record<TabId, string> = {
@@ -9,6 +9,7 @@ export const TAB_TITLES: Record<TabId, string> = {
   messages: "Messages",
   email: "Email",
   bulletins: "Bulletins",
+  objects: "Objects",
   beacon: "Beacon",
   tnc: "TNC",
   settings: "Settings",

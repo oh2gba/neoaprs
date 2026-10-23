@@ -3,7 +3,7 @@
 // every station that has more than one. A marker dims and a track fades on the way to the station's timeout, and a station heard direct within the hour has a ring round its marker; a station past it is not drawn (unless it is the selected one, whose marker shows). Without the base map files the background is blank and a line says so, with a button that takes the user to where the map is made, and the stations are drawn all the same;
 // when the daemon makes the files again (`filesKey` changes) the style is set again. One map for the life of the page,
 // opened where we are (zoom 9; on the world while we have no position) or where it was left; the colour scheme follows the system. While the first-run guide asks for the position (`picking`) a click on the map is a place (`pick`), and the place the guide
-// holds (`pin`) has a marker, which the map flies to when it was typed and not clicked.
+// holds (`pin`) has a marker, which the map flies to when it was typed and not clicked. An object or an item of ours (`own`) has a marker that can be dragged: where it is dropped is its new place (`move`).
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { GeoJSONSource, Map as MapLibreMap, Marker } from "maplibre-gl";
 import MapAttribution from "@/components/MapAttribution.vue";
@@ -51,7 +51,7 @@ const props = withDefaults(
   }>(),
   { filesKey: null, picking: false, pin: null },
 );
-const emit = defineEmits<{ select: [call: string | null]; download: []; pick: [at: Home] }>();
+const emit = defineEmits<{ select: [call: string | null]; download: []; pick: [at: Home]; move: [call: string, lat: number, lon: number] }>();
 
 interface Placed {
   marker: Marker;
@@ -134,6 +134,10 @@ function makePlaced(call: string): Placed | null {
     emit("select", call);
   });
   const marker = new engine.Marker({ element: dom.root, anchor: "center" }).setLngLat([0, 0]).addTo(map);
+  marker.on("dragend", () => {
+    const at = marker.getLngLat();
+    emit("move", call, at.lat, at.lng);
+  });
   return { marker, dom, lat: NaN, lon: NaN };
 }
 
@@ -151,6 +155,7 @@ function syncMarkers(): void {
       one.lat = row.lat;
       one.lon = row.lon;
     }
+    one.marker.setDraggable(row.own);
     paintMarker(one.dom, row, {
       fade: markerStep(props.aging, row, props.now),
       selected: row.call === props.selected,
