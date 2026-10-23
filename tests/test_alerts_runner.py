@@ -20,6 +20,7 @@ from neoaprs.services.alerts import (
     _Running,
 )
 from tests.support.clock import FixedClock
+from tests.support.ptyline import posix_only
 from tests.support.env import ON_AIR
 
 
@@ -211,6 +212,7 @@ def test_a_process_that_ends_while_it_is_killed_is_no_error(
     running.kill()
 
 
+@posix_only                                                  # (the POSIX shell runner; Windows runs PowerShell, tested above)
 def test_the_process_of_the_shell_is_killed_by_itself_where_its_session_is_gone(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -233,6 +235,7 @@ def test_on_windows_the_process_is_killed_by_itself(
     assert proc.killed == 1
 
 
+@posix_only                                                  # (the POSIX shell runner; Windows runs PowerShell, tested above)
 async def test_a_shell_that_cannot_be_started_is_a_failure_not_a_crash(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

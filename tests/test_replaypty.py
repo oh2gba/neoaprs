@@ -1,13 +1,17 @@
 """The pseudo-terminal of `neoaprs replay --pty` (neoaprs/cli/replaypty.py) in the test's own process: what the other end writes is shown while the replay waits, a frame is dropped where nobody reads, and the replay
 ends with Ctrl-C. A whole replay on a pseudo-terminal, read by a port, is in tests/test_replay.py and tests/test_scripts.py."""
 import os
+import sys
 from collections.abc import Iterator
 
 import pytest
 
-from neoaprs.cli import replaypty
-from neoaprs.cli.replaypty import Line, play_on_pty
-from tests.support.ptyline import Ptys, posix_only
+if sys.platform == "win32":                                          # (the module itself needs pty and termios)
+    pytest.skip("a pseudo-terminal is POSIX only", allow_module_level=True)
+
+from neoaprs.cli import replaypty  # noqa: E402
+from neoaprs.cli.replaypty import Line, play_on_pty  # noqa: E402
+from tests.support.ptyline import Ptys, posix_only  # noqa: E402
 
 pytestmark = posix_only
 

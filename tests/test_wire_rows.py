@@ -28,12 +28,23 @@ MODELS = {
 }
 
 
+PLATFORM_DEFAULTS = ("messages/alert_command",)          # (the default command is the system's own: PowerShell on Windows, a shell line elsewhere)
+
+
 def as_json() -> Any:
-    return json.loads(json.dumps(wireworld.rows(views)))
+    return without_platform(json.loads(json.dumps(wireworld.rows(views))))
+
+
+def without_platform(rows: Any) -> Any:
+    for config in rows.get("config", []):
+        for part in ("values", "defaults"):
+            for key in PLATFORM_DEFAULTS:
+                config.get(part, {}).pop(key, None)
+    return rows
 
 
 def test_the_rows_are_the_rows_of_the_golden_file() -> None:
-    made, golden = as_json(), json.loads(GOLDEN.read_text(encoding="utf-8"))
+    made, golden = as_json(), without_platform(json.loads(GOLDEN.read_text(encoding="utf-8")))
     assert set(made) == set(golden)
     for topic in golden:
         assert made[topic] == golden[topic], topic
