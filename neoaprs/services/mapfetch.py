@@ -21,10 +21,10 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from neoaprs.clock import Clock, utcnow
-from neoaprs.config import Config
 from neoaprs.geo import box_around
 from neoaprs.mapstate import Box, Estimate, Job, MapError, MapFile, MapStatus, State, Step
 from neoaprs.pmtilestool import ToolError, ensure, extract, find, read_header, replace_file, url_exists
+from neoaprs.services.common import ConfigSource
 from neoaprs.signal import Signal
 from neoaprs.tasks import TaskSet
 
@@ -80,7 +80,7 @@ async def latest_build(now: datetime, probe: Callable[[str], bool] = url_exists)
 
 
 class MapFetch:
-    def __init__(self, data_dir: Path, config: Callable[[], Config], clock: Clock = utcnow, installer: Callable[[Path], Awaitable[Path]] = ensure,
+    def __init__(self, data_dir: Path, config: ConfigSource, clock: Clock = utcnow, installer: Callable[[Path], Awaitable[Path]] = ensure,
                  probe: Callable[[str], bool] = url_exists, patience: Patience = PATIENCE) -> None:
         self.data_dir = data_dir
         self.config = config

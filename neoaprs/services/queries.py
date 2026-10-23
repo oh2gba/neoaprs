@@ -24,16 +24,15 @@ from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from typing import Protocol
 
-from neoaprs import TOCALL, ax25
+from neoaprs import ax25
 from neoaprs.aprsmessage import MAX_TEXT, MessageError, format_message
 from neoaprs.callsign import CallsignError
-from neoaprs.config import Config
 from neoaprs.interlock import Interlock
 from neoaprs.clock import Clock, utcnow
 from neoaprs.message import MessagingError, addressed_to, same_call
 from neoaprs.packet import Message, Other, Packet
 from neoaprs.services.beacon import BeaconError
-from neoaprs.source import Source
+from neoaprs.services.common import ConfigSource, Radio, our_frame
 from neoaprs.stationbook import Station
 from neoaprs.tasks import TaskSet
 
@@ -49,16 +48,6 @@ EARTH_MILES = 3958.8
 _NUMBER = r"V?\s*([-+]?\d+(?:\.\d+)?)"                                     # (the V is the specification's mark of a positive value)
 _FOOTPRINT = re.compile(rf"\?APRS\?(?:\s*{_NUMBER}\s*[,\s]\s*{_NUMBER}\s*[,\s]\s*(\d{{1,4}}))?", re.IGNORECASE)
 _DIRECTED = {"?APRSP": "position", "?APRSS": "status", "?APRSD": "directs", "?APRST": "path", "?PING?": "path"}
-
-
-class Radio(Protocol):
-    """What the queries need of the Tnc."""
-    @property
-    def state(self) -> Source.State: ...
-    @property
-    def usable(self) -> bool: ...
-    def why_unusable(self) -> str: ...
-    def send_frame(self, frame: ax25.Frame) -> bool: ...
 
 
 class Frames(Protocol):
@@ -129,7 +118,7 @@ def footprint_of(text: str) -> Footprint | None:
 
 
 class Queries:
-    def __init__(self, tnc: Radio, config: Callable[[], Config], beacon: Frames, status: Callable[[], ax25.Frame | None], book: Stations, paths: Callable[[str], tuple[str, ...]],
+    def __init__(self, tnc: Radio, config: ConfigSource, beacon: Frames, status: Callable[[], ax25.Frame | None], book: Stations, paths: Callable[[str], tuple[str, ...]],
                  clock: Clock = utcnow, delay: Callable[[], float] = lambda: random.uniform(0.0, GENERAL_DELAY_MAX_SEC)) -> None:
         self._tnc = tnc
         self._config = config
@@ -142,15 +131,11 @@ class Queries:
         self._delay = delay                                     # how long the answer to the general query waits
         self._answered: dict[tuple[str, str], datetime] = {}    # when each (station, query) was last answered
         self._general_until: datetime | None = None             # no general query is taken before this
-        self._tasks = TaskSet(self._task_failed)
+        self._tasks = TaskSet(log, "queries")
 
     async def stop(self) -> None:
         """An answer that is waiting is not sent."""
         await self._tasks.cancel_all()
-
-    @staticmethod
-    def _task_failed(task: "asyncio.Task[None]") -> None:
-        log.error("queries task %s failed: %r", task.get_name(), task.exception())
 
     # ---- what is asked
     def on_packet(self, packet: Packet) -> None:
@@ -237,7 +222,7 @@ class Queries:
     def _message(self, asker: str, text: str) -> ax25.Frame:
         """Our frame carrying a message to the asker, without an id (nothing is waited for)."""
         c = self._config()
-        return ax25.Frame(ax25.Address.parse(TOCALL), ax25.Address.parse(c.station_call), (), info=b":" + format_message(asker, text))
+        return our_frame(c, (), b":" + format_message(asker, text))
 
     def _send(self, asker: str, frame: ax25.Frame) -> bool:
         """Sends the frame by the asker's path; whether it went, and a word in the log when it did not."""

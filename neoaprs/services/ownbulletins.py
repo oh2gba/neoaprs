@@ -9,15 +9,15 @@ ended, until it is deleted or posted again. The time of each packet and how ofte
 
 A bulletin of ours that comes back from a digipeater is not heard: the inbox takes a packet from our own call for a copy of what we sent, so the board of what was heard (services/bulletins.py) never holds ours.
 `changed` is told with every bulletin that is new or different (and each time one is sent), `removed` with every one that is deleted."""
-from collections.abc import Callable
 from dataclasses import replace
 from datetime import datetime, timedelta
 
 from neoaprs.clock import Clock, utcnow
-from neoaprs.config import Config, can_transmit
+from neoaprs.config import can_transmit
 from neoaprs.decay import MIN_GAP_SEC, bulletin_wait_sec
 from neoaprs.ownbulletin import MAX_POSTED, OwnBulletin, PostError, info_of, make_bulletin, slot_of
 from neoaprs.ownlog import OwnLog
+from neoaprs.services.common import ConfigSource
 from neoaprs.services.repeater import TICK_SEC, Repeater
 from neoaprs.services.sender import Sender
 from neoaprs.signal import Signal
@@ -26,7 +26,7 @@ from neoaprs.signal import Signal
 class OwnBulletins(Repeater[str]):
     kind = "bulletin"
 
-    def __init__(self, sender: Sender, config: Callable[[], Config], ownlog: OwnLog, clock: Clock = utcnow, tick_sec: float = TICK_SEC) -> None:
+    def __init__(self, sender: Sender, config: ConfigSource, ownlog: OwnLog, clock: Clock = utcnow, tick_sec: float = TICK_SEC) -> None:
         super().__init__(sender, clock, tick_sec)
         self._config = config
         self._log = ownlog

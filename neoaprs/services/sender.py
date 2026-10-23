@@ -6,15 +6,12 @@ confirmed or settling after KISS ON. What is due then is not skipped and not mad
 frames go out one at a time: after one, `spacing_sec` pass before the next, so that a restart with many objects due at once, or a radio that comes back, never sends a burst. The frame is from `station/call` to
 `beacon/destination` by the path given, else `beacon/path`; one that cannot be made (a path of more than 8 digipeaters, an information field that is too long) is a SendError."""
 import logging
-from collections.abc import Callable
 from datetime import datetime
-from typing import Protocol
 
-from neoaprs import TOCALL, ax25
-from neoaprs.callsign import CallsignError
+from neoaprs import ax25
 from neoaprs.clock import Clock, utcnow
-from neoaprs.config import Config
 from neoaprs.interlock import Interlock
+from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, our_frame
 from neoaprs.source import Source
 
 log = logging.getLogger("neoaprs.sender")
@@ -22,22 +19,12 @@ log = logging.getLogger("neoaprs.sender")
 SPACING_SEC = 10.0
 
 
-class Radio(Protocol):
-    """What is needed of the Tnc."""
-    @property
-    def state(self) -> Source.State: ...
-    @property
-    def usable(self) -> bool: ...
-    def why_unusable(self) -> str: ...
-    def send_frame(self, frame: ax25.Frame) -> bool: ...
-
-
 class SendError(ValueError):
     """The settings and the values make no frame."""
 
 
 class Sender:
-    def __init__(self, tnc: Radio, config: Callable[[], Config], clock: Clock = utcnow, spacing_sec: float = SPACING_SEC) -> None:
+    def __init__(self, tnc: Radio, config: ConfigSource, clock: Clock = utcnow, spacing_sec: float = SPACING_SEC) -> None:
         self._tnc = tnc
         self._config = config
         self._interlock = Interlock(config)
@@ -71,8 +58,8 @@ class Sender:
         if len(info) > ax25.MAX_INFO:
             raise SendError(f"the information field is {len(info)} bytes, more than the {ax25.MAX_INFO} AX.25 allows")
         try:
-            return ax25.Frame(ax25.Address.parse(TOCALL), ax25.Address.parse(c.station_call), tuple(ax25.Address.parse(call) for call in calls), info=info)
-        except (ax25.Ax25Error, CallsignError, ValueError) as e:
+            return our_frame(c, calls, info)
+        except FRAME_ERRORS as e:
             raise SendError(str(e)) from None
 
     def send(self, info: bytes, path: tuple[str, ...] | None) -> bool:

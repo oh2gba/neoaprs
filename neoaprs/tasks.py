@@ -2,6 +2,7 @@
 import asyncio
 import logging
 from collections.abc import Callable, Coroutine, Iterable, Iterator
+from functools import partial
 from typing import Any
 
 log = logging.getLogger("neoaprs.tasks")
@@ -23,12 +24,17 @@ async def cancel_all(tasks: Iterable[asyncio.Task[Any]]) -> None:
             log.debug("task %s ended with %r while it was cancelled", t.get_name(), e)
 
 
+def _log_failure(logger: logging.Logger, words: str, task: asyncio.Task[Any]) -> None:
+    logger.error("%s %s failed: %r", words, task.get_name(), task.exception())
+
+
 class TaskSet:
     """The tasks one owner starts: each is kept (the loop holds its tasks only weakly, a task nobody holds can vanish half way), forgotten when it ends, and an exception in it is
-    handed to `failed` instead of lying in the task until the shutdown. cancel_all() ends them in the order they were made."""
+    handed to `failed` instead of lying in the task until the shutdown. `failed` is a function of the task, or a logger: then the exception is logged as an error, "<what> task <name> failed: <exception>"
+    with `what` ("beacon") in front of the word task, or "task <name> failed" without it. cancel_all() ends them in the order they were made."""
 
-    def __init__(self, failed: Callable[[asyncio.Task[Any]], None]) -> None:
-        self._failed = failed
+    def __init__(self, failed: Callable[[asyncio.Task[Any]], None] | logging.Logger, what: str = "") -> None:
+        self._failed: Callable[[asyncio.Task[Any]], None] = failed if callable(failed) else partial(_log_failure, failed, f"{what} task" if what else "task")
         self._tasks: dict[asyncio.Task[Any], None] = {}
 
     def spawn(self, coro: Coroutine[Any, Any, None], name: str | None = None) -> asyncio.Task[None]:

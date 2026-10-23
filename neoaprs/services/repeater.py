@@ -23,7 +23,7 @@ class Repeater[K](ABC):
         self._sender = sender
         self.clock = clock
         self.tick_sec = tick_sec
-        self._tasks = TaskSet(self._task_failed)
+        self._tasks = TaskSet(log)
         self._refused: dict[K, str] = {}                    # the things whose frame cannot be made, with why: told once, not at every tick
 
     @abstractmethod
@@ -67,7 +67,3 @@ class Repeater[K](ABC):
                     self._refused[key] = str(e)
                     log.warning("the %s %s cannot be sent: %s (it waits)", self.kind, key, e)
         return False
-
-    @staticmethod
-    def _task_failed(task: "asyncio.Task[None]") -> None:
-        log.error("task %s failed: %r", task.get_name(), task.exception())

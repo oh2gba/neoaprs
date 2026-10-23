@@ -25,8 +25,8 @@ from neoaprs.configtypes import over_the_air_problem
 from neoaprs.interlock import Interlock
 from neoaprs.rigctld import Reading, RigError, read_rig
 from neoaprs.services.beacon import BeaconError
+from neoaprs.services.common import ConfigSource, Radio
 from neoaprs.services.memory import Memory, Remembered, stamp
-from neoaprs.source import Source
 from neoaprs.tasks import TaskSet
 
 log = logging.getLogger("neoaprs.status")
@@ -35,16 +35,6 @@ POLL_SEC = 30.0
 RigState = Literal["off", "on", "unused"]
 Key = tuple[str, str] | tuple[str, int, str]                   # what a status says: ("text", the text) or ("rig", kHz, mode)
 Reader = Callable[[str, int], Awaitable[Reading]]
-
-
-class Radio(Protocol):
-    """What the status needs of the Tnc."""
-    @property
-    def state(self) -> Source.State: ...
-    @property
-    def usable(self) -> bool: ...
-    def why_unusable(self) -> str: ...
-    def send_frame(self, frame: ax25.Frame) -> bool: ...
 
 
 class Frames(Protocol):
@@ -64,7 +54,7 @@ def clipped(text: str, max_length: int = MAX_STATUS) -> str:
 
 
 class RigStatus:
-    def __init__(self, tnc: Radio, config: Callable[[], Config], beacon: Frames, clock: Clock = utcnow, poll_sec: float = POLL_SEC, read: Reader = read_rig,
+    def __init__(self, tnc: Radio, config: ConfigSource, beacon: Frames, clock: Clock = utcnow, poll_sec: float = POLL_SEC, read: Reader = read_rig,
                  memory: Memory | None = None) -> None:
         self._tnc = tnc
         self._config = config
@@ -80,7 +70,7 @@ class RigStatus:
         self._told = ""                                         # the reason a report was not sent, as last told
         self._rig_problem = ""                                  # why the radio gave no reading the last time
         self._remembered = Remembered(memory)
-        self._tasks = TaskSet(self._task_failed)
+        self._tasks = TaskSet(log, "status")
 
     # ---- the life
     async def start(self) -> None:
@@ -94,10 +84,6 @@ class RigStatus:
     async def stop(self) -> None:
         await self._tasks.cancel_all()
         await self._remembered.flush()
-
-    @staticmethod
-    def _task_failed(task: "asyncio.Task[None]") -> None:
-        log.error("status task %s failed: %r", task.get_name(), task.exception())
 
     async def _run(self) -> None:
         while True:

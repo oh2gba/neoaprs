@@ -74,3 +74,16 @@ async def test_a_task_that_fails_is_handed_to_the_owner_and_a_cancelled_one_is_n
     assert failed == [bad] and isinstance(bad.exception(), ValueError)
     await tasks.cancel_all()
     assert failed == [bad] and len(tasks) == 0
+
+
+@pytest.mark.expects_errors
+@pytest.mark.parametrize(("what", "words"), [("", "task bad failed"), ("beacon", "beacon task bad failed")])
+async def test_a_task_set_given_a_logger_logs_the_failure_of_a_task_as_an_error(caplog: pytest.LogCaptureFixture, what: str, words: str) -> None:
+    tasks = TaskSet(logging.getLogger("neoaprs.test"), what)
+
+    async def fails() -> None:
+        raise ValueError("boom")
+
+    tasks.spawn(fails(), "bad")
+    await asyncio.sleep(0.01)
+    assert [(r.name, r.levelno, r.getMessage()) for r in caplog.records] == [("neoaprs.test", logging.ERROR, f"{words}: ValueError('boom')")]

@@ -28,37 +28,28 @@ import logging
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import datetime, timedelta
-from typing import Protocol
 
-from neoaprs import TOCALL, ax25
+from neoaprs import ax25
 from neoaprs.bulletin import board_slot
 from neoaprs.aprsmessage import MessageError, format_ack, format_message
 from neoaprs.callsign import CallsignError
 from neoaprs.clock import Clock, days, utcnow
-from neoaprs.config import Config, can_transmit
+from neoaprs.config import can_transmit
 from neoaprs.message import MESSAGES_HELD_MAX, MSG_IDS, UNCONFIRMED_MAX, MessageRecord, MessagingError, State, addressed_to, attempts_for, check_text, due_at, next_msg_id, normal_call
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet
+from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, our_frame
 from neoaprs.services.delivery import Delivery
 from neoaprs.services.inbox import Inbox
 from neoaprs.services.pace import SPACING_SEC, Pace
 from neoaprs.signal import Signal
 from neoaprs.source import Source
+from neoaprs.tasks import TaskSet
 
 log = logging.getLogger("neoaprs.messaging")
 
 TICK_SEC = 1.0
 _RETRYABLE = ("failed", "unconfirmed", "rejected", "cancelled")
-
-
-class Radio(Protocol):
-    """What messaging needs of the Tnc."""
-    @property
-    def state(self) -> Source.State: ...
-    @property
-    def usable(self) -> bool: ...
-    def why_unusable(self) -> str: ...
-    def send_frame(self, frame: ax25.Frame) -> bool: ...
 
 
 def _info(to: str, text: str, ident: str | None, reply: str | None) -> bytes:
@@ -78,7 +69,7 @@ def _named(name: str) -> str:
 
 
 class Messaging:
-    def __init__(self, tnc: Radio, config: Callable[[], Config], messagelog: MessageLog, paths: Callable[[str], tuple[str, ...]], clock: Clock = utcnow, tick_sec: float = TICK_SEC,
+    def __init__(self, tnc: Radio, config: ConfigSource, messagelog: MessageLog, paths: Callable[[str], tuple[str, ...]], clock: Clock = utcnow, tick_sec: float = TICK_SEC,
                  board: Callable[[Packet, Message], None] | None = None, alert: Callable[[MessageRecord], None] | None = None,
                  spacing_sec: float = SPACING_SEC) -> None:
         self._tnc = tnc
@@ -97,7 +88,7 @@ class Messaging:
         self._refused: dict[int, str] = {}                      # the messages whose attempt cannot be made, with why: told once, not at every tick
         self._ticker: asyncio.Task[None] | None = None
         self.delivery = Delivery(messagelog)                    # the attempts of every message and the hops heard back (services/delivery.py)
-        self.inbox = Inbox(self, config, messagelog, self._task_failed, board, alert)       # what the Tnc hears (services/inbox.py); `board` takes the messages to bulletins and groups, `alert` the first copy of each message to us
+        self.inbox = Inbox(self, config, messagelog, TaskSet(log, "messaging"), board, alert)       # what the Tnc hears (services/inbox.py); `board` takes the messages to bulletins and groups, `alert` the first copy of each message to us
 
     def records(self) -> list[MessageRecord]:
         """The messages held, the oldest first."""
@@ -131,10 +122,6 @@ class Messaging:
             ticker.cancel()
             await asyncio.gather(ticker, return_exceptions=True)
         await self.inbox.stop()
-
-    @staticmethod
-    def _task_failed(task: "asyncio.Task[None]") -> None:
-        log.error("messaging task %s failed: %r", task.get_name(), task.exception())
 
     # ---- sending
     async def send(self, to_call: str, text: str) -> MessageRecord:
@@ -260,10 +247,10 @@ class Messaging:
         """Our frame to the station for this information field: from `station/call` to the tocall by way of the station's path."""
         c = self._config()
         try:
-            return ax25.Frame(ax25.Address.parse(TOCALL), ax25.Address.parse(c.station_call), tuple(ax25.Address.parse(call) for call in self._paths(to)), info=info)
+            return our_frame(c, self._paths(to), info)
         except MessagingError:
             raise                                                   # (the path of a station that is RF only is too long: the reason is the path's)
-        except (ax25.Ax25Error, CallsignError, ValueError) as e:
+        except FRAME_ERRORS as e:
             raise MessagingError(f"the settings make no frame: {e}") from None
 
     def _radio_up(self) -> bool:

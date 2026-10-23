@@ -29,11 +29,11 @@ from neoaprs.aprsmessage import line_of, reply_ack_of
 from neoaprs.aprsthirdparty import header_of
 from neoaprs.bulletin import board_slot
 from neoaprs.callsign import CallsignError
-from neoaprs.config import Config
 from neoaprs.message import MessageRecord, addressed_to, is_query, is_telemetry_definition, normal_call, same_call
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet
 from neoaprs.route import received_text
+from neoaprs.services.common import ConfigSource
 from neoaprs.services.heard import ACK_AGAIN_SEC, Heard
 from neoaprs.tasks import TaskSet
 
@@ -71,7 +71,7 @@ class Host(Protocol):
 
 
 class Inbox:
-    def __init__(self, host: Host, config: Callable[[], Config], messagelog: MessageLog, failed: Callable[["asyncio.Task[None]"], None], board: Callable[[Packet, Message], None] | None = None,
+    def __init__(self, host: Host, config: ConfigSource, messagelog: MessageLog, tasks: TaskSet, board: Callable[[Packet, Message], None] | None = None,
                  alert: Callable[[MessageRecord], None] | None = None) -> None:
         self._host = host
         self._alert = alert                                     # told of a message to us the first time it is heard (services/alerts.py)
@@ -79,7 +79,7 @@ class Inbox:
         self._config = config
         self._log = messagelog
         self.heard = Heard()                                    # the messages kept and when: the repeats of a retry are not kept again
-        self.tasks = TaskSet(failed)                            # the keeping of the messages that came in
+        self.tasks = tasks                                          # the keeping of the messages that came in
 
     def on_packet(self, packet: Packet) -> None:
         """The Tnc heard (or sent) a packet: a message to us is kept and acked, an ack or a rej to us settles the message it quotes."""
