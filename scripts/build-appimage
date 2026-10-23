@@ -6,7 +6,7 @@
 # Without --wheel the wheel is built from this tree (uv build). The file is made in DIR (default dist-appimage/). The tools are fetched once into $NEOAPRS_BUILD_CACHE (default ~/.cache/neoaprs-build), each
 # pinned by version and SHA-256 below (the digest GitHub shows for each file of the release; the pin is the trust, not the server): the relocatable CPython of python-build-standalone, appimagetool and the
 # AppImage runtime it puts in front of the image. The runtime is static: the computer that runs the file needs FUSE (fusermount and /dev/fuse), not libfuse2. Needs uv, curl and a Linux x86_64 machine;
-# the work folder is build/appimage/. How it behaves and what it holds: docs/MANUAL.md, "The AppImage". scripts/smoke-appimage tries the file.
+# the work folder is build/appimage/. How it behaves and what it holds: docs/manual/install.md, "Linux AppImage", and docs/development.md, "The AppImage". scripts/smoke-appimage tries the file.
 case "${1:-}" in -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;; esac
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

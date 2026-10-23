@@ -8,7 +8,7 @@
 # architecture can be made on either kind of machine: the relocatable CPython of python-build-standalone is unpacked (fetched once into $NEOAPRS_BUILD_CACHE, default ~/.cache/neoaprs-build, pinned by version
 # and SHA-256 below; the pin is the trust, not the server) and the wheels for the target are installed by uv into its site-packages. The work folder is build/deb-ARCH/. Needs uv (with a Python 3.13, which
 # compiles the bytecode), curl, tar, gzip, dpkg-deb and a Linux machine. The file is reproducible: the same inputs and the same SOURCE_DATE_EPOCH (default: the time of the last commit) give the same bytes.
-# How it behaves and what it holds: docs/MANUAL.md, "The .deb".
+# How it behaves and what it holds: docs/manual/install.md, "Raspberry Pi, Debian, Ubuntu (.deb)", and docs/development.md, "The .deb".
 case "${1:-}" in -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;; esac
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -96,13 +96,14 @@ ln -s "$PREFIX/bin/neoaprs" "$pkg/usr/bin/neoaprs"
 "$host_python" -I "$ROOT/packaging/appimage/prune.py" --python-only "$app"
 "$host_python" -I -m compileall -q -j 1 --invalidation-mode checked-hash -s "$pkg" "$app/lib/python3.13" >/dev/null
 
-# The documents: the copyright file with the licence, the manual, the front page and the changelog
+# The documents: the copyright file with the licence, the manual (docs/manual/ and the radio guide), the front page and the changelog
 doc="$pkg/usr/share/doc/neoaprs"
 mkdir -p "$doc"
 install -m 644 "$ROOT/packaging/deb/copyright" "$doc/copyright"
 gzip -9n -c "$ROOT/CHANGELOG.md" > "$doc/changelog.gz"
 gzip -9n -c "$ROOT/README.md" > "$doc/README.md.gz"
-gzip -9n -c "$ROOT/docs/MANUAL.md" > "$doc/MANUAL.md.gz"
+mkdir -p "$doc/manual"
+for page in "$ROOT"/docs/manual/*.md "$ROOT/docs/RADIOS.md"; do gzip -9n -c "$page" > "$doc/manual/$(basename "$page").gz"; done
 
 # The lowest glibc the package needs: the highest version any program or library of it asks for
 glibc="$(find "$app" -type f \( -name '*.so*' -o -name 'python3.13' \) -exec objdump -T {} + 2>/dev/null | grep -o 'GLIBC_[0-9.]*' | sed 's/GLIBC_//' | sort -V | tail -n 1)"

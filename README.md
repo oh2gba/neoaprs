@@ -18,7 +18,7 @@ Every file is on the [Releases page](https://github.com/oh2gba/neoaprs/releases/
 |---|---|
 | Windows | `NeoAPRS-Setup-<version>.exe`: run it, no administrator rights are needed. SmartScreen may warn about an unsigned installer: **More info**, **Run anyway** |
 | Linux | `NeoAPRS-<version>-x86_64.AppImage`: make it executable and run it |
-| Raspberry Pi, Debian, Ubuntu | `neoaprs_<version>_arm64.deb` / `_amd64.deb`: `sudo apt install ./neoaprs_<version>_arm64.deb`, then `neoaprs service install --linger` ([the .deb](docs/MANUAL.md#the-deb)) |
+| Raspberry Pi, Debian, Ubuntu | `neoaprs_<version>_arm64.deb` / `_amd64.deb`: `sudo apt install ./neoaprs_<version>_arm64.deb`, then `neoaprs service install --linger` ([the .deb](docs/manual/install.md#raspberry-pi-debian-ubuntu-deb)) |
 | Linux, macOS, Raspberry Pi | the install line below: it installs [uv](https://docs.astral.sh/uv/) and NeoAPRS and starts NeoAPRS as a service of your user (systemd on Linux, launchd on macOS) |
 
 ```bash
@@ -27,11 +27,11 @@ curl -LsSf https://github.com/oh2gba/neoaprs/releases/latest/download/install.sh
 
 Then run `neoaprs open`, or open <http://127.0.0.1:7303/>. If the port says *permission denied* on Linux: `sudo usermod -aG dialout $USER`, then log out and in. `neoaprs doctor` says what keeps the radio from working.
 
-When a newer version is out, its number appears in the footer under the panel; a click shows the steps for the way you installed it. To update, run the newer installer or the install line again (`sudo apt install` the newer .deb); your data (settings, messages, packets, the map) is not touched, and open pages load the new version by themselves ([Updating](docs/MANUAL.md#updating)). To remove: *Settings*, *Apps*, NeoAPRS on Windows; `neoaprs service remove` and `uv tool uninstall neoaprs` elsewhere (`sudo apt remove neoaprs` for the .deb).
+When a newer version is out, its number appears in the footer under the panel; a click shows the steps for the way you installed it. To update, run the newer installer or the install line again (`sudo apt install` the newer .deb); your data (settings, messages, packets, the map) is not touched, and open pages load the new version by themselves ([Updating](docs/manual/install.md#updating)). To remove: *Settings*, *Apps*, NeoAPRS on Windows; `neoaprs service remove` and `uv tool uninstall neoaprs` elsewhere (`sudo apt remove neoaprs` for the .deb).
 
 ## First start
 
-The page opens a setup guide in five steps: **call**, **position** (**Pick on the map** and click where you are, or drag the pin; or open **Enter coordinates or locator** and type latitude and longitude in decimal degrees: north and east positive, south and west negative, as Sydney is -33.87, 151.21), **symbol**, **radio**, **map**. Nothing is transmitted until a call is set: until then NeoAPRS only listens. Once, a few minutes of internet are needed to make the map of your area. Once a day NeoAPRS also asks whether a newer version is out; it sends its version number and the kind of system (Windows, Linux, Raspberry Pi...) and nothing else ([Update check](docs/MANUAL.md#update-check)).
+The page opens a setup guide in five steps: **call**, **position** (**Pick on the map** and click where you are, or drag the pin; or open **Enter coordinates or locator** and type latitude and longitude in decimal degrees: north and east positive, south and west negative, as Sydney is -33.87, 151.21), **symbol**, **radio**, **map**. Nothing is transmitted until a call is set: until then NeoAPRS only listens. Once, a few minutes of internet are needed to make the map of your area. Once a day NeoAPRS also asks whether a newer version is out; it sends its version number and the kind of system (Windows, Linux, Raspberry Pi...) and nothing else ([Update check](docs/manual/install.md#the-update-check)).
 
 ![The setup guide](docs/screenshots/setup.png)
 
@@ -59,7 +59,7 @@ Put the radio on the Pi, run the install line above on the Pi, and set it up as 
 neoaprs service install --linger
 ```
 
-By default the page answers on the Pi itself only. To reach it from another device: *Settings*, *Web page*, *Allow access from the network*. The page then shows an access key and the addresses to open; open `http://<pi-address>:7303` on the other device and enter the key ([Network access](docs/MANUAL.md#network-access)). The page alerts you to a new message by itself (a notification or a chime, a switch for each browser in the Settings tab): [Alerts in the page](docs/MANUAL.md#messaging). An optional secure connection (*Secure connection (https)*, with a certificate NeoAPRS makes itself) lets the page be installed as an app on a laptop or a phone ([Install as an app](docs/MANUAL.md#install-as-an-app)).
+By default the page answers on the Pi itself only. To reach it from another device: *Settings*, *Web page*, *Allow access from the network*. The page then shows an access key and the addresses to open; open `http://<pi-address>:7303` on the other device and enter the key ([Network access](docs/manual/network.md)). The page alerts you to a new message by itself (a notification or a chime, a switch for each browser in the Settings tab): [Alerts in the page](docs/manual/notifications.md#in-this-browser). An optional secure connection (*Secure connection (https)*, with a certificate NeoAPRS makes itself) lets the page be installed as an app on a laptop or a phone ([Install as an app](docs/manual/network.md#install-the-page-as-an-app)).
 
 ## Trying it without a radio
 
@@ -73,7 +73,8 @@ neoaprs --data demo --port socket://127.0.0.1:PORT --web-port 0    # in another 
 ## More
 
 - [Radios and TNCs](docs/RADIOS.md): the setup of each, Bluetooth, permissions, troubleshooting
-- [Manual](docs/MANUAL.md): the settings, the beacon, messaging, weather, development
+- [Manual](docs/manual/README.md): installing, the first start, the page, the radio, the beacon, messages, email, bulletins, objects, weather, notifications, network access, the settings, the command line
+- [Development](docs/development.md): building, the checks, the wire, packaging and releases; [how the daemon behaves](docs/daemon.md)
 - [Architecture](docs/ARCHITECTURE.md), [wire protocol](PROTOCOL.md), [changelog](CHANGELOG.md), [roadmap](ROADMAP.md)
 - [Issues](https://github.com/oh2gba/neoaprs/issues) and the [project page](https://oh2gba.github.io/neoaprs/)
 

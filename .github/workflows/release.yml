@@ -1,7 +1,7 @@
 # What a release is made of, built by GitHub: the wheel and the sdist, the Windows installer (PyInstaller and Inno Setup), the Linux AppImage, the Debian packages for amd64 and arm64 (the Raspberry Pi), the Linux and macOS
 # install script, and SHA256SUMS. Pushing a tag `v*` builds all of it, checks it (the wheel, the installed Windows app, the AppImage, the packages installed with apt and the install script are each run against a fake TNC
 # or a fresh home) and creates the release. Run by hand (workflow_dispatch) it is a dry run: the
-# same builds and checks, the files kept as the artifacts of the run, and no release. How to make a release: docs/MANUAL.md, "Releases".
+# same builds and checks, the files kept as the artifacts of the run, and no release. How to make a release: docs/MAINTAINING.md, "A release"; what the jobs do: docs/development.md.
 name: release
 
 on:

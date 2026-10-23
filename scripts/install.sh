@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Installs neoaprs from this git clone as a user service that starts at boot and survives logout: a thin wrapper that calls `neoaprs service install` of this clone's venv with this clone's data
-# folder (the command writes the systemd unit, ~/.config/systemd/user/neoaprs.service, enables and starts it, and enables lingering; docs/MANUAL.md and systemd/README.md say how).
+# folder (the command writes the systemd unit, ~/.config/systemd/user/neoaprs.service, enables and starts it, and enables lingering; docs/manual/install.md and systemd/README.md say how).
 #   scripts/install.sh            write the unit, reload systemd, enable the service and start it (run it again after a git pull)
 #   scripts/install.sh --remove   stop and disable the service and delete the unit it wrote
 # A user who installed NeoAPRS with `uv tool install` runs `neoaprs service install` himself: this script is for a clone.
