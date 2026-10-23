@@ -7,9 +7,10 @@ from dataclasses import replace
 from typing import NamedTuple
 
 from .app import Services
-from .config import LOG_KEEP_DAYS, Config
+from .config import Config
 from .packet import Packet
 from .packetcodec import tnc2
+from .policy import LOG_KEEP_DAYS
 from .serialprobe import search_pattern
 from .source import Source
 from .stationbook import DETAILS_SEEN
