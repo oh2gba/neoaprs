@@ -2,6 +2,7 @@
 // kept, the newest first. (The gateway's shortcuts, `name address`, `name L`, `name R`, are not used by the page.) The daemon sends it all as an ordinary
 // message: the page only keeps the user from sending what the gateway would refuse, and says honestly what became of a mail (its acks reach this station only through an iGate). Where the list is kept (the browser)
 // is composables/useAddressBook.ts.
+import { t } from "@/i18n";
 import { markOf, textBytes } from "@/lib/messages";
 import { LIMITS } from "@/protocol/lists";
 import type { MessageRow } from "@/protocol/protocol";
@@ -37,8 +38,6 @@ export function canSendEmail(connected: boolean, to: string, text: string): bool
   return connected && addressee !== "" && !/\s/.test(addressee) && text.trim() !== "" && emailBytesLeft(to, text) >= 0;
 }
 
-const NOT_CONFIRMED = "sent, not confirmed: the gateway's ack reaches you only through an iGate, so the mail may well have gone through";
-
 /** Whether a message of ours to the gateway used its attempts without an ack: it is not known to have failed, since the gateway's acks need an iGate in reach of our radio. */
 export function isNotConfirmed(row: MessageRow): boolean {
   return row.direction === "out" && (row.state === "failed" || row.state === "unconfirmed");
@@ -46,7 +45,7 @@ export function isNotConfirmed(row: MessageRow): boolean {
 
 /** The mark of a message to the gateway: the hollow check, never the cross, for one that was sent and not confirmed. */
 export function mailMarkOf(row: MessageRow): ReturnType<typeof markOf> {
-  return isNotConfirmed(row) ? { kind: "hollow", title: NOT_CONFIRMED } : markOf(row);
+  return isNotConfirmed(row) ? { kind: "hollow", title: t("email.not_confirmed") } : markOf(row);
 }
 
 /** The addressees with `to` first (the same one typed in other letters is not listed twice); at most ADDRESSES_KEPT. Nothing for an empty one. */

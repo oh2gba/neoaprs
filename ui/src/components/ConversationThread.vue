@@ -5,6 +5,7 @@
 import { ref } from "vue";
 import MessageChain from "@/components/MessageChain.vue";
 import MessageMark from "@/components/MessageMark.vue";
+import { t } from "@/i18n";
 import { useToNewest } from "@/composables/useToNewest";
 import { clockText, dateTimeText } from "@/lib/format";
 import { canCancel, canRetry, stateText } from "@/lib/messages";
@@ -21,19 +22,19 @@ useToNewest(log, () => [props.peer, props.thread.length]);
 </script>
 
 <template>
-  <div ref="log" class="bubbles" role="log" :aria-label="peer === null ? 'Messages' : `Messages with ${peer}`">
-    <p v-if="peer !== null && thread.length === 0" class="empty">No message with {{ peer }} yet.</p>
+  <div ref="log" class="bubbles" role="log" :aria-label="peer === null ? t('messages.thread') : t('messages.thread_with', { peer })">
+    <p v-if="peer !== null && thread.length === 0" class="empty">{{ t("messages.thread_empty", { peer }) }}</p>
     <div v-for="m in thread" :key="m.id" class="bubble" :class="m.direction === 'in' ? 'in' : 'out'" :data-direction="m.direction">
       <p class="bubble-text">{{ m.text }}</p>
       <p class="bubble-meta muted">
         <span :title="dateTimeText(m.at)">{{ clockText(m.at) }}</span>
         <MessageMark :row="m" />
         <span v-if="m.direction === 'out'" class="msg-state" :class="`state-${m.state}`">{{ stateText(m) }}</span>
-        <button v-if="canRetry(m)" type="button" class="btn small" @click="emit('retry', m.id)">Retry</button>
-        <button v-if="canCancel(m)" type="button" class="btn small" @click="emit('cancel', m.id)">Cancel</button>
+        <button v-if="canRetry(m)" type="button" class="btn small" @click="emit('retry', m.id)">{{ t("messages.retry") }}</button>
+        <button v-if="canCancel(m)" type="button" class="btn small" @click="emit('cancel', m.id)">{{ t("messages.cancel") }}</button>
       </p>
       <MessageChain v-if="m.direction === 'out'" :row="m" :heard-direct="heardDirect" />
-      <p v-if="m.route" class="bubble-route muted" title="How the packet reached us">{{ m.route }}</p>
+      <p v-if="m.route" class="bubble-route muted" :title="t('messages.route_title')">{{ m.route }}</p>
     </div>
   </div>
 </template>

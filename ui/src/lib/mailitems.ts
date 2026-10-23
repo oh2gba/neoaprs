@@ -1,6 +1,7 @@
 // The Email tab's list: every message to and from the gateway EMAIL-2 as one row of a mail list (not a conversation). A message of ours is a mail ("To jane@example.com" and its text) or the `get` of Check email ("Checked email"),
 // with its state in words: Sending (1 of 2), Delivered, Not confirmed, Rejected. What the gateway sent is "From EMAIL-2" (its replies) or, when its text starts with an email address, the mail it forwards, "From jane@example.com".
 // The gateway's acks are no rows: the daemon uses them to settle the mail they belong to.
+import { monthShort, t } from "@/i18n";
 import { isCheck } from "@/lib/email";
 import { dateTimeText } from "@/lib/format";
 import type { MessageRow } from "@/protocol/protocol";
@@ -28,12 +29,12 @@ export interface MailState {
 /** A message of ours, read: the `get` of Check email in words, anything else a mail to the first word (an old shortcut command, `me jane@example.com`, is one too: the page no longer has shortcuts). */
 function outgoing(row: MessageRow): MailItem {
   const line = row.text.trim();
-  if (isCheck(line)) return { row, kind: "get", title: "Checked email", text: "", line };
+  if (isCheck(line)) return { row, kind: "get", title: t("email.checked"), text: "", line };
   const split = /^(\S+)\s+(.+)$/.exec(line);
   const to = split?.[1];
   const text = split?.[2]?.trim();
-  if (to === undefined || text === undefined) return { row, kind: "mail", title: `To ${line}`, text: "", line };
-  return { row, kind: "mail", title: `To ${to}`, text, line };
+  if (to === undefined || text === undefined) return { row, kind: "mail", title: t("email.to", { address: line }), text: "", line };
+  return { row, kind: "mail", title: t("email.to", { address: to }), text, line };
 }
 
 /** What came in from the gateway: its text starting with an email address and a blank (`<jane@example.com>` or `jane@example.com:` too) is mail it forwards, from that address; else it is the gateway's own reply. */
@@ -42,8 +43,8 @@ function incoming(row: MessageRow): MailItem {
   const forwarded = /^<?([^\s@<>]+@[^\s@<>:]+?)>?:?\s+(.+)$/.exec(line);
   const from = forwarded?.[1];
   const text = forwarded?.[2];
-  if (from !== undefined && text !== undefined) return { row, kind: "forwarded", title: `From ${from}`, text, line };
-  return { row, kind: "reply", title: `From ${row.from_call}`, text: line, line };
+  if (from !== undefined && text !== undefined) return { row, kind: "forwarded", title: t("email.from", { address: from }), text, line };
+  return { row, kind: "reply", title: t("email.from", { address: row.from_call }), text: line, line };
 }
 
 /** The row of the list for a message to or from the gateway. */
@@ -61,22 +62,24 @@ export function mailState(row: MessageRow): MailState | null {
   if (row.direction !== "out") return null;
   switch (row.state) {
     case "sending":
-      return { word: row.attempts === 0 ? "Waiting for the radio" : `Sending (${row.attempts} of ${row.attempts_max})`, tone: "plain" };
+      return {
+        word: row.attempts === 0 ? t("email.state.waiting") : t("email.state.sending", { attempt: row.attempts, max: row.attempts_max }),
+        tone: "plain",
+      };
     case "acked":
-      return { word: "Delivered", tone: "ok" };
+      return { word: t("email.state.delivered"), tone: "ok" };
     case "rejected":
-      return { word: "Rejected", tone: "bad" };
+      return { word: t("email.state.rejected"), tone: "bad" };
     case "cancelled":
-      return { word: "Cancelled", tone: "plain" };
+      return { word: t("email.state.cancelled"), tone: "plain" };
     case "failed":
     case "unconfirmed":
-      return { word: "Not confirmed", tone: "plain" };
+      return { word: t("email.state.unconfirmed"), tone: "plain" };
     default:
       return null;
   }
 }
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const pad = (n: number): string => String(n).padStart(2, "0");
 
 /** When a row is from, short: "12:41" today, "21 Oct 12:41" before; the full date and time is the title of it. */
@@ -84,5 +87,5 @@ export function mailTime(iso: string, nowMs: number): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return dateTimeText(iso);
   const clock = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  return d.toDateString() === new Date(nowMs).toDateString() ? clock : `${d.getDate()} ${MONTHS[d.getMonth()]} ${clock}`;
+  return d.toDateString() === new Date(nowMs).toDateString() ? clock : t("email.date_time", { day: d.getDate(), month: monthShort(d), time: clock });
 }

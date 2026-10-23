@@ -5,6 +5,7 @@ import { computed, ref } from "vue";
 import EmailRow from "@/components/EmailRow.vue";
 import { useNow } from "@/composables/useNow";
 import { useToNewest } from "@/composables/useToNewest";
+import { t } from "@/i18n";
 import { mailItems } from "@/lib/mailitems";
 import type { MessageRow } from "@/protocol/protocol";
 
@@ -21,8 +22,8 @@ useToNewest(log, () => props.thread.length);
 
 <template>
   <div ref="log" class="maillist-wrap">
-    <p v-if="items.length === 0" class="empty">No mail yet.</p>
-    <ul v-else class="maillist" aria-label="Mail">
+    <p v-if="items.length === 0" class="empty">{{ t("email.none") }}</p>
+    <ul v-else class="maillist" :aria-label="t('email.list')">
       <EmailRow
         v-for="item in items"
         :key="item.row.id"

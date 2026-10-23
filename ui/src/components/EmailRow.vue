@@ -6,6 +6,7 @@ import { computed, ref } from "vue";
 import IconButton from "@/components/IconButton.vue";
 import MessageChain from "@/components/MessageChain.vue";
 import MessageMark from "@/components/MessageMark.vue";
+import { t } from "@/i18n";
 import { useSure } from "@/composables/useSure";
 import { dateTimeText } from "@/lib/format";
 import { mailState, mailTime, type MailItem } from "@/lib/mailitems";
@@ -31,7 +32,7 @@ const state = computed(() => mailState(row.value));
         kind="delete"
         class="mail-delete"
         :armed="sure.armed.value === row.id"
-        :label="`Delete: ${item.title}`"
+        :label="t('email.delete', { title: item.title })"
         @click="sure.press(row.id, () => emit('delete', row.id))"
       />
     </div>
@@ -42,12 +43,12 @@ const state = computed(() => mailState(row.value));
         <span aria-hidden="true">·</span>
       </template>
       <span :title="dateTimeText(row.at)">{{ mailTime(row.at, now) }}</span>
-      <button v-if="canRetry(row)" type="button" class="btn small" @click="emit('retry', row.id)">Retry</button>
-      <button v-if="canCancel(row)" type="button" class="btn small" @click="emit('cancel', row.id)">Cancel</button>
+      <button v-if="canRetry(row)" type="button" class="btn small" @click="emit('retry', row.id)">{{ t("messages.retry") }}</button>
+      <button v-if="canCancel(row)" type="button" class="btn small" @click="emit('cancel', row.id)">{{ t("messages.cancel") }}</button>
     </p>
     <div v-if="open" class="mail-detail muted">
       <span>{{ dateTimeText(row.at) }}</span>
-      <span v-if="row.route" title="How the packet reached us">{{ row.route }}</span>
+      <span v-if="row.route" :title="t('messages.route_title')">{{ row.route }}</span>
       <MessageChain v-if="row.direction === 'out'" :row="row" :heard-direct="heardDirect" mail />
     </div>
   </li>

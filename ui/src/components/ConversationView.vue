@@ -6,6 +6,7 @@ import { computed, onMounted, ref } from "vue";
 import ConversationThread from "@/components/ConversationThread.vue";
 import MessageCompose from "@/components/MessageCompose.vue";
 import RouteMenu from "@/components/RouteMenu.vue";
+import { t } from "@/i18n";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { conversationName, isOverheard, replyTo } from "@/lib/messages";
 import type { MessageRow } from "@/protocol/protocol";
@@ -35,13 +36,13 @@ onMounted(() => {
 </script>
 
 <template>
-  <section ref="root" class="convo" tabindex="-1" :aria-label="`Conversation with ${conversationName(selected)}`">
+  <section ref="root" class="convo" tabindex="-1" :aria-label="t('messages.conversation_with', { name: conversationName(selected) })">
     <header class="convo-head">
-      <button v-if="narrow" type="button" class="convo-back" aria-label="Back to the conversations" title="Back" @click="emit('back')">
+      <button v-if="narrow" type="button" class="convo-back" :aria-label="t('messages.back_label')" :title="t('messages.back')" @click="emit('back')">
         <span aria-hidden="true">‹</span>
       </button>
       <h3 class="convo-title">
-        <template v-if="heard">Overheard: {{ conversationName(selected) }}</template>
+        <template v-if="heard">{{ t("messages.overheard_title", { name: conversationName(selected) }) }}</template>
         <template v-else>{{ selected }}</template>
       </h3>
       <RouteMenu

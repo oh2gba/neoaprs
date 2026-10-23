@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { availableLocales, detectLocale, formatNumber, hasMessage, locale, setLocale, startLocale, t, weekdayShort } from "@/i18n";
+import { availableLocales, detectLocale, formatNumber, hasMessage, locale, setLocale, startLocale, monthShort, t, weekdayShort } from "@/i18n";
 import type { Catalogue } from "@/i18n/catalogue";
 import { LOCALES, type LocaleInfo } from "@/i18n/locales";
 
@@ -121,5 +121,9 @@ describe("numbers and weekdays", () => {
     expect(weekdayShort(new Date(2026, 9, 19))).toBe("Mo");
     setLocale("en");
     expect(weekdayShort(new Date(2026, 9, 19))).toBe("Mon");
+    expect(monthShort(new Date(2026, 9, 19))).toBe("Oct");
+    setLocale("de");
+    expect(monthShort(new Date(2026, 9, 19))).toBe("Okt");
+    setLocale("en");
   });
 });

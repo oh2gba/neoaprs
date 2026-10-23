@@ -5,6 +5,7 @@
 import { computed, ref } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
 import IconButton from "@/components/IconButton.vue";
+import { t } from "@/i18n";
 import { leftTitle, sendBlockedReason } from "@/lib/compose";
 import { canSendEmail, emailBytesLeft } from "@/lib/email";
 import { LIMITS } from "@/protocol/lists";
@@ -48,38 +49,38 @@ function submit(): void {
 <template>
   <ComposeBar
     class="mailform"
-    label="Email"
+    :label="t('email.compose')"
     :left="left"
-    :left-title="leftTitle(left, 'characters', LIMITS.message.textMax, '; the address and the space count too')"
+    :left-title="leftTitle(left, 'address', LIMITS.message.textMax)"
     @submit="submit"
     @keydown.esc.stop="listed = false"
   >
     <div class="mailfields">
-      <label for="mail-to">To</label>
+      <label for="mail-to">{{ t("email.field.to") }}</label>
       <div class="mail-address" @focusout="leave">
         <input
           id="mail-to"
           v-model="to"
           class="input mono"
           type="text"
-          placeholder="Email address"
+          :placeholder="t('email.field.address')"
           autocomplete="off"
           spellcheck="false"
           @focus="listed = true"
           @input="listed = true"
         />
-        <ul v-if="shown" class="suggestions" aria-label="Used before" @mousedown.prevent>
+        <ul v-if="shown" class="suggestions" :aria-label="t('email.used_before')" @mousedown.prevent>
           <li v-for="a in suggestions" :key="a" class="suggestion">
             <button type="button" class="suggestion-pick mono" @click="pick(a)">{{ a }}</button>
-            <IconButton kind="delete" :label="`Forget ${a}`" :title="`Forget ${a}`" @click="emit('forget', a)" />
+            <IconButton kind="delete" :label="t('email.forget', { address: a })" :title="t('email.forget', { address: a })" @click="emit('forget', a)" />
           </li>
         </ul>
       </div>
-      <label for="mail-text">Text</label>
-      <input id="mail-text" ref="textBox" v-model="text" class="input" type="text" placeholder="Text" autocomplete="off" />
+      <label for="mail-text">{{ t("email.field.text") }}</label>
+      <input id="mail-text" ref="textBox" v-model="text" class="input" type="text" :placeholder="t('email.field.text')" autocomplete="off" />
     </div>
     <template #buttons>
-      <button type="submit" class="btn primary" :disabled="!ready" :title="sendBlockedReason(connected)">Send</button>
+      <button type="submit" class="btn primary" :disabled="!ready" :title="sendBlockedReason(connected)">{{ t("email.send") }}</button>
     </template>
   </ComposeBar>
 </template>

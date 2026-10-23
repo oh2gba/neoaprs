@@ -15,7 +15,7 @@ import {
   slotOf,
   targetOf,
   textOk,
-  timesText,
+  heardText,
   type PostDraft,
 } from "@/lib/bulletins";
 import { NOW, ago, bulletin, ownBulletin } from "@/test/fixtures";
@@ -56,14 +56,16 @@ describe("sections", () => {
   });
 });
 
-describe("targetOf and timesText", () => {
+describe("targetOf and heardText", () => {
   it("calls a row by its group when it has one, else by its slot", () => {
     expect(targetOf(bulletin("BLN3HAMS", { group: "HAMS", kind: "group" }))).toBe("HAMS");
     expect(targetOf(bulletin("BLN1"))).toBe("BLN1");
     expect(targetOf(bulletin("QST", { kind: "group" }))).toBe("QST");
   });
-  it("counts the hearings in words", () => {
-    expect([timesText(1), timesText(2), timesText(12)]).toEqual(["heard once", "heard 2 times", "heard 12 times"]);
+  it("counts the hearings in words, with how long ago the last was", () => {
+    const now = Date.parse("2026-10-24T12:00:00Z");
+    const last = "2026-10-24T11:57:00Z";
+    expect([1, 2, 12].map((n) => heardText(n, last, now))).toEqual(["heard once, 3 min ago", "heard 2 times, 3 min ago", "heard 12 times, 3 min ago"]);
   });
 });
 

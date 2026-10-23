@@ -8,6 +8,7 @@ import { computed, nextTick, ref } from "vue";
 import ConversationList from "@/components/ConversationList.vue";
 import ConversationView from "@/components/ConversationView.vue";
 import GroupCompose from "@/components/GroupCompose.vue";
+import { t } from "@/i18n";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useElementWidth } from "@/composables/useElementWidth";
 import { MESSAGES_WIDE } from "@/lib/layout";
@@ -119,7 +120,7 @@ function sent(send: () => void): void {
       <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true">
         <path d="M4 5.5h16v10H10l-4.5 3.5V15.5H4z" />
       </svg>
-      <p>Choose a conversation, or a station's Message button</p>
+      <p>{{ t("messages.choose") }}</p>
     </div>
   </div>
 </template>
