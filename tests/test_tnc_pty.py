@@ -10,6 +10,7 @@ from neoaprs.source import Backoff, Source
 from neoaprs.tnc import ENTER_KISS, Tnc
 from tests.support.env import Env, until
 from tests.support.ptyline import Ptys, close_pty, feed, held_by_a_program, heard, posix_only
+from tests.support.storedb import sql
 from tests.test_silent import QUICK
 from tests.test_tnc import MONITOR_LINE, SETTLE, kiss_of, nothing_runs, tiny_backoff, ui_frame
 from tests.test_wiring import frame_bytes
@@ -331,7 +332,7 @@ async def test_the_port_the_search_found_is_stored_and_tried_first_next_time(tmp
         await again.start(connected=False)
         await until(lambda: again.tnc.state is Source.State.CONNECTED)
         assert again.tnc.port == link, "the remembered port is the one the Tnc is started with"
-        assert again.tnc.path == link and await again.ctl.store.setting_rev("serial/last_port") == 1, "found at the remembered path: nothing to store again"
+        assert again.tnc.path == link and await sql(again.ctl.store, "SELECT rev FROM settings WHERE key = ?", "serial/last_port") == [(1,)], "found at the remembered path: nothing to store again"
         await again.stop()
     finally:
         feeder.cancel()

@@ -3,7 +3,7 @@
 import json
 import re
 from dataclasses import dataclass
-from typing import Any, Literal, get_args
+from typing import Any, Literal
 
 UPDATE_URL = "https://oh2gba.eu/neoaprs/version.php"          # the default of the setting update/url
 MAX_MESSAGE = 200                    # the longest note of the answer that is kept
@@ -71,7 +71,6 @@ def deb_architecture(machine: str) -> str:
 
 
 InstallKind = Literal["windows-installer", "appimage", "deb", "uv-tool", "pip", "source"]
-INSTALL_KINDS: tuple[str, ...] = get_args(InstallKind)
 
 
 @dataclass(frozen=True)

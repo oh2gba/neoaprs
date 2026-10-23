@@ -29,7 +29,6 @@ WRITE_TIMEOUT_SEC = 2.0             # a write that the line does not take in thi
 JOIN_SEC = 0.5                      # how long close() waits for a thread to end
 MAX_CHUNK_BYTES = 4096              # the most one delivery to the loop holds
 MAX_QUEUED_WRITES = 256             # writes waiting for a line that does not take them: more than this and write() refuses
-NETWORK_SCHEMES = ("socket://", "rfc2217://")
 
 
 class SerialError(Exception):

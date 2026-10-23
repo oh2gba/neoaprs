@@ -12,7 +12,7 @@ from typing import TypeVar
 from .clock import Clock, utcnow
 from .db import Db
 from .dberror import Connection, DbClosed, SettingsConflict as SettingsConflict, SqlError, StoreError as StoreError           # (kept here: the names the rest of the program imports them by)
-from .storesql import Settings, delete_setting, read_setting, read_setting_rev, read_settings, write_setting, write_settings
+from .storesql import Settings, delete_setting, read_setting, read_settings, write_setting, write_settings
 from .walcare import WalWatch
 
 log = logging.getLogger("neoaprs.store")
@@ -84,10 +84,6 @@ class Store:
 
     async def setting(self, key: str) -> str | None:
         return await self._read(lambda db: read_setting(db, key), None)
-
-    async def setting_rev(self, key: str) -> int:
-        """How many times the setting has been written, 0 when it is not there: what to compare to see that it changed."""
-        return await self._read(lambda db: read_setting_rev(db, key), 0)
 
     async def put_setting(self, key: str, value: str, expect_rev: int | None = None) -> bool:
         """One setting, replaced in one statement. With `expect_rev`, only if nobody has written it since that revision; otherwise SettingsConflict, and nothing is changed."""

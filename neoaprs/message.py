@@ -17,7 +17,6 @@ STATES: tuple[str, ...] = get_args(State)
 
 STATION_ATTEMPTS = 4                            # how many times a message to a station is transmitted before it has failed; fixed, the operator does not choose it
 EMAIL_ATTEMPTS = 2                              # the email gateway's acks rarely reach us (they come back through an iGate), so a mail is sent twice and then left `unconfirmed`
-MAX_ATTEMPTS = 10                               # the most a message of the database has (messages sent before the count was fixed have up to 10)
 UNCONFIRMED_MAX = 2                             # a message given this many attempts or fewer is not failed when they are used up with no ack: it is `unconfirmed` (the station is not expected to ack)
 FIRST_WAIT_SEC = 30                             # the wait after the first attempt; each wait after that is double the one before, up to MAX_WAIT_SEC
 MAX_WAIT_SEC = 960

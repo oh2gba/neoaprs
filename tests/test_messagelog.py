@@ -85,20 +85,10 @@ async def test_only_the_messages_being_sent_are_listed_as_sending_oldest_first(t
     assert [m.text for m in await log.sending()] == ["b"]
 
 
-async def test_the_highest_message_id_is_of_the_messages_we_sent_as_a_number(tmp_path: Path) -> None:
-    log, _ = await opened(tmp_path)
-    assert await log.highest_msg_id() == 0
-    for ident in ("9", "10", "00011", None):
-        await log.insert(out("x", ident))
-    await log.insert(came("theirs", msg_id="99999"))
-    await log.insert(came("theirs too", msg_id="abc"))
-    assert await log.highest_msg_id() == 11, "ten is above nine, and the ids of the messages that came in are theirs"
-
-
 async def test_a_log_without_a_database_says_no_instead_of_raising() -> None:
     log = MessageLog()
     assert not log.is_open() and await log.insert(out()) is None and not log.update_state(replace(out(), id=1)) and log.dropped == 1
-    assert await log.recent() == [] and await log.sending() == [] and await log.highest_msg_id() == 0 and await log.held(10) == []
+    assert await log.recent() == [] and await log.sending() == [] and await log.held(10) == []
 
 
 async def test_a_row_this_program_did_not_write_is_left_out_of_a_read(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
@@ -134,7 +124,7 @@ async def test_overheard_messages_are_kept_apart_from_the_conversations(tmp_path
     await log.insert(came("to us", "OH2RDG"))
     assert [m.text for m in await log.recent()] == ["to us", "ours"]
     assert [m.text for m in await log.recent(overheard=True)] == ["not ours"]
-    assert await log.highest_msg_id() == 1 and await log.sending() != []
+    assert await log.sending() != []
 
 
 async def test_a_conversation_is_removed_in_one_write_with_the_overheard_messages_and_the_other_stations_left(tmp_path: Path) -> None:

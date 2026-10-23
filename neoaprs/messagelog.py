@@ -10,7 +10,7 @@ from .clock import Clock, utcnow
 from .db import Db
 from .dblog import DbLog
 from .message import MessageRecord
-from .messagesql import (Row, all_attempts, all_hops, all_prefs, clear_chain, delete_conversation, delete_message, delete_overheard, delete_pref, held_messages, highest_sent_msg_id, insert_attempt, insert_hop, insert_message, recent_messages, save_pref, sending_messages,
+from .messagesql import (Row, all_attempts, all_hops, all_prefs, clear_chain, delete_conversation, delete_message, delete_overheard, delete_pref, held_messages, insert_attempt, insert_hop, insert_message, recent_messages, save_pref, sending_messages,
                          update_message)
 from .packetcodec import parse_stamp, stamp
 
@@ -104,10 +104,6 @@ class MessageLog(DbLog):
         """The messages that are still being sent, the oldest first."""
         rows: list[Row] = await self._read(sending_messages, [])
         return self._records(rows)
-
-    async def highest_msg_id(self) -> int:
-        """The highest message id, as a number, among the messages we sent; 0 when there is none."""
-        return await self._read(highest_sent_msg_id, 0)
 
     # ---- what the operator said about each station (the table station_pref)
     async def prefs(self) -> dict[str, tuple[str | None, int | None, bool]]:

@@ -176,11 +176,6 @@ class WebServer:
                 server.proved(stream)
 
     @property
-    def secure_port(self) -> int:
-        """The port the secure page is served on; 0 while it is not."""
-        return self.secure.port
-
-    @property
     def secure_ca(self) -> bytes | None:
         return self.secure.ca_der
 
