@@ -152,6 +152,8 @@ class Controller(Services):
         if wiring.tnc_settings(config, self.port_override, self.pattern_override) != before:
             self.start_tnc()
         self.config_changed.emit(config)
+        if self.web is not None:
+            self.web.settings_changed(config)
         return True
 
     # ---- the care of the database

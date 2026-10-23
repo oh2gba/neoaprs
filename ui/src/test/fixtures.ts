@@ -229,7 +229,8 @@ export function configValues(extra: Record<string, string> = {}): ConfigValues {
     "beacon/antenna_gain_db": "0",
     "beacon/antenna_direction": "omni",
     "log/keep_days": "30",
-    "web/bind": "127.0.0.1",
+    "web/network": "false",
+    "web/key": "",
     "web/port": "7303",
     "web/allowed_hosts": "",
     "beacon/interval_min": "0",
@@ -250,7 +251,7 @@ export function configValues(extra: Record<string, string> = {}): ConfigValues {
     "map/source": "",
     ...extra,
   };
-  return { values, defaults: { ...values } };
+  return { values, defaults: { ...values }, urls: [] };
 }
 
 /** A map file of the daemon: the detailed map round Helsinki by default. */

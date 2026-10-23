@@ -95,3 +95,17 @@ def optional_float(low: float, high: float) -> Callable[[str], float | None]:
     def parse(text: str) -> float | None:
         return None if text.strip() == "" else number(text)
     return parse
+
+
+KEY_ALPHABET = "23456789abcdefghjkmnpqrstuvwxyz"       # digits and lower case letters without 0, 1, i, l and o, which look alike
+KEY_GROUPS, KEY_GROUP_SIZE = 3, 4
+
+
+def access_key(text: str) -> str:
+    """The access key a device on the network types (`web/key`) the way it is kept, three groups of four with dashes: capitals, blanks and dashes in what was typed do not matter. Empty for none."""
+    letters = "".join(c for c in text.lower() if c not in " -")
+    if letters == "":
+        return ""
+    if len(letters) != KEY_GROUPS * KEY_GROUP_SIZE or any(c not in KEY_ALPHABET for c in letters):
+        raise ValueError("it is not an access key (three groups of four digits and letters, such as k7m2-x9pq-4hrt)")
+    return "-".join(letters[i:i + KEY_GROUP_SIZE] for i in range(0, len(letters), KEY_GROUP_SIZE))

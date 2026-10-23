@@ -12,7 +12,8 @@ from urllib.parse import urlsplit
 
 from .alertcommand import DEFAULT_ALERT_COMMAND
 from .callsign import call_problem
-from .configtypes import boolean, call_or_empty, int_in, int_or_off, optional_float, optional_int, over_the_air_problem, text_of
+from .configlegacy import with_legacy
+from .configtypes import access_key, boolean, call_or_empty, int_in, int_or_off, optional_float, optional_int, over_the_air_problem, text_of
 from .message import DEFAULT_ATTEMPTS, MAX_ATTEMPTS, normal_call, normal_path
 from .tncprofile import DEFAULT as DEFAULT_PROFILE, Profile, names_tcp, profile_of
 
@@ -35,7 +36,6 @@ STATUS_FIELDS = ("freq", "mode")     # what status/template may name in braces
 _LONGEST_FREQ, _LONGEST_MODE = "1296.000 MHz", "PKTUSB"       # the widest a frequency and a mode come out, to check that a template can fit MAX_STATUS
 COMMENT_KEYS = frozenset({"station/comment", "beacon/power_w", "beacon/compressed"})   # the settings that decide how long the comment may be
 PORT_KEYS = frozenset({"tnc/profile", "serial/port"})                   # the settings that decide whether the profile and the port go together
-LEGACY_ENTER_KISS = "tnc/enter_kiss"                                    # the setting that says the radio is put in KISS with KISS ON and RESTART: a row of it that says true selects the Kenwood TNC-2 profile
 _BRACES = re.compile(r"\{([^{}]*)\}")
 SYMBOL_TABLES = "/\\" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 ANTENNA_DIRECTIONS = ("omni", "NE", "E", "SE", "S", "SW", "W", "NW", "N")      # in the order of the specification's directivity digit: 0 omni, 1 NE ... 7 NW, 8 N
@@ -159,16 +159,6 @@ def _show(value: Any) -> str:
     return str(value)
 
 
-def _with_profile(rows: Mapping[str, str]) -> Mapping[str, str]:
-    """The rows with the profile that `tnc/enter_kiss` implies: no `tnc/profile` row and a `tnc/enter_kiss` row that says true mean entering KISS with KISS ON and RESTART (the Kenwood TNC-2
-    profile); false, or no row at all, is the default profile, which sends nothing."""
-    try:
-        entered = "tnc/profile" not in rows and boolean(rows.get(LEGACY_ENTER_KISS, "false"))
-    except ValueError:
-        entered = False
-    return {**rows, "tnc/profile": "kenwood-tnc2"} if entered else rows
-
-
 @dataclass(frozen=True)
 class Setting:
     attr: str                        # the field of Config
@@ -208,7 +198,8 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("beacon_antenna_gain_db", "beacon/antenna_gain_db", int_in(0, 9)),        # its gain over a dipole's isotropic figure, for the PHG extension
     Setting("beacon_antenna_direction", "beacon/antenna_direction", _direction),    # "omni" or the point of the compass it favours, for the PHG extension
     Setting("log_keep_days", "log/keep_days", int_in(1, 3650)),
-    Setting("web_bind", "web/bind", _host),
+    Setting("web_network", "web/network", boolean),                           # true: the page listens on every interface and a device other than this one logs in with web/key
+    Setting("web_key", "web/key", access_key),                                # what a device on the network types to log in; made when web/network is first on, empty until then
     Setting("web_port", "web/port", int_in(0, 65535)),                        # 0: the system picks a free port (the log says which)
     Setting("web_allowed_hosts", "web/allowed_hosts", text_of(500)),         # names besides localhost, 127.0.0.1 and this machine's that a Host header may carry, separated by commas
     Setting("beacon_interval_min", "beacon/interval_min", int_or_off(MIN_INTERVAL_MIN, 1440), MIN_INTERVAL_MIN),   # 0: no beacon
@@ -258,7 +249,8 @@ class Config:
     beacon_antenna_gain_db: int = 0
     beacon_antenna_direction: str = "omni"
     log_keep_days: int = 30
-    web_bind: str = "127.0.0.1"
+    web_network: bool = False
+    web_key: str = ""
     web_port: int = 7303
     web_allowed_hosts: str = ""
     beacon_interval_min: int = 0
@@ -352,7 +344,7 @@ class Config:
     def from_data(cls, rows: Mapping[str, str]) -> "Config":
         """The settings as the database keeps them (key to the raw text of the value). A key that is missing, and one whose value is wrong (logged, with the key), has its default;
         a key that is not a setting is left alone."""
-        rows = _with_profile(rows)
+        rows = with_legacy(rows)
         values: dict[str, Any] = {}
         for setting in SETTINGS:
             if setting.key in rows:

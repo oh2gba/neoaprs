@@ -11,7 +11,7 @@ def test_the_defaults_are_the_ones_of_the_brief() -> None:
     assert DEFAULTS.to_data() == {
         "tnc/profile": "kiss", "serial/port": "", "serial/baud": "", "tcp/host": "127.0.0.1", "tcp/port": "8001", "serial/last_port": "", "serial/pattern": "/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*", "serial/skip": "", "tnc/check_sec": "60", "station/call": "", "station/lat": "", "station/lon": "",
         "station/symbol_table": "/", "station/symbol_code": "-", "station/comment": "NeoAPRS", "station/status": "", "beacon/power_w": "", "beacon/antenna_height_m": "0", "beacon/antenna_gain_db": "0",
-        "beacon/antenna_direction": "omni", "log/keep_days": "30", "web/bind": "127.0.0.1", "web/port": "7303", "web/allowed_hosts": "", "beacon/interval_min": "0",
+        "beacon/antenna_direction": "omni", "log/keep_days": "30", "web/network": "false", "web/key": "", "web/port": "7303", "web/allowed_hosts": "", "beacon/interval_min": "0",
         "beacon/path": "WIDE1-1,WIDE2-1", "beacon/destination": "APZNEO", "beacon/compressed": "false", "beacon/dao": "false", "messages/attempts": "6",
         "messages/alert": "true", "messages/alert_command": DEFAULT_ALERT_COMMAND, "status/rigctld": "", "status/interval_min": "30", "status/template": "QRV {freq} {mode}",
         "map/hide_after_min": "180", "map/radius_km": "150", "map/maxzoom": "12", "map/source": ""}
@@ -26,7 +26,7 @@ def test_every_field_has_a_key_and_every_key_a_field() -> None:
 def test_nothing_in_the_database_is_the_defaults_and_what_is_written_is_read_back() -> None:
     assert Config.from_data({}) == DEFAULTS
     c = Config(serial_port="/dev/brainbox_3", serial_baud=19200, serial_last_port="/dev/brainbox_3", serial_pattern="/dev/brainbox_* /dev/ttyUSB*", serial_skip="/dev/brainbox_2, /dev/ttyUSB1", tnc_profile="kenwood-d710", tcp_host="::1", tcp_port=8100, tnc_check_sec=0, station_call="OH2GBA-9", station_lat=-33.5, station_lon=151.25,
-               station_symbol_table="\\", station_symbol_code=">", station_comment="mobile", station_status="On the road, QRV 145.500", beacon_power_w=5, beacon_antenna_height_m=12, beacon_antenna_gain_db=3, beacon_antenna_direction="NW", log_keep_days=7, web_bind="0.0.0.0", web_port=8080, web_allowed_hosts="aprs.example, pi", beacon_interval_min=30,
+               station_symbol_table="\\", station_symbol_code=">", station_comment="mobile", station_status="On the road, QRV 145.500", beacon_power_w=5, beacon_antenna_height_m=12, beacon_antenna_gain_db=3, beacon_antenna_direction="NW", log_keep_days=7, web_network=True, web_key="k7m2-x9pq-4hrt", web_port=8080, web_allowed_hosts="aprs.example, pi", beacon_interval_min=30,
                beacon_path="WIDE2-2", beacon_destination="APRS", beacon_compressed=True, beacon_dao=True, messages_attempts=10, messages_alert=False, messages_alert_command="echo $NEOAPRS_FROM", status_rigctld="localhost:4532", status_interval_min=1440, status_template="{mode} {freq}", map_hide_after_min=10080)
     assert Config.from_data(c.to_data()) == c
 
@@ -58,7 +58,7 @@ def test_a_call_is_checked_and_written_in_capitals() -> None:
 @pytest.mark.parametrize("key, text", [
     ("serial/baud", "fast"), ("serial/baud", "50"), ("tnc/profile", "tnc2"), ("tnc/profile", ""), ("tcp/port", "0"), ("tcp/port", "70000"), ("tcp/host", "two words"), ("station/call", "OH2GBA-16"), ("station/call", "TOOLONGCALL"), ("station/lat", "91"), ("station/lat", "nan"),
     ("station/lon", "-181"), ("station/symbol_table", "//"), ("station/symbol_table", "!"), ("station/symbol_code", ""), ("station/comment", "x" * 44), ("station/comment", "tab\there"),
-    ("station/comment", "åäö"), ("station/status", "x" * 63), ("station/status", "å" * 32), ("station/status", "two\nlines"), ("log/keep_days", "0"), ("web/bind", "two words"), ("web/port", "-1"), ("web/port", "70000"), ("web/allowed_hosts", "x" * 501), ("beacon/interval_min", "-1"),
+    ("station/comment", "åäö"), ("station/status", "x" * 63), ("station/status", "å" * 32), ("station/status", "two\nlines"), ("log/keep_days", "0"), ("web/key", "two words"), ("web/key", "abcd-efgh-jklm0"), ("web/network", "maybe"), ("web/port", "-1"), ("web/port", "70000"), ("web/allowed_hosts", "x" * 501), ("beacon/interval_min", "-1"),
     ("beacon/interval_min", "1441"), ("beacon/path", "WIDE1-1,TOOLONGCALL"), ("beacon/path", "A,B,C,D,E,F,G,H,I"), ("beacon/path", "WIDE1-16"), ("beacon/destination", "APZNEO-1"),
     ("beacon/destination", "TOOLONGCALL"), ("beacon/destination", ""), ("beacon/compressed", "sometimes"),
     ("beacon/power_w", "-1"), ("beacon/power_w", "10000"), ("beacon/power_w", "lots"), ("beacon/antenna_height_m", "-1"), ("beacon/antenna_height_m", "10000"), ("beacon/antenna_height_m", "tall"), ("beacon/antenna_gain_db", "10"),
@@ -219,6 +219,25 @@ def test_the_template_names_only_freq_and_mode_and_must_fit_with_the_widest_valu
         Config.check("status/template", "{freq} {mode} " + "x" * 36)
     assert Config.check("status/template", "{freq} {mode} " + "x" * 35).endswith("x" * 35), "12 + 1 + 6 + 1 + 35 = 55 with the widest frequency and mode"
     assert fill_template("QRV {freq} {mode} {x} {{", "14.074 MHz", "USB") == "QRV 14.074 MHz USB {x} {{"
+
+
+# ---- the network switch and the access key
+
+def test_network_access_is_off_by_default_and_a_web_bind_row_that_is_not_the_loopback_turns_it_on_until_the_switch_has_a_row() -> None:
+    assert DEFAULTS.web_network is False and DEFAULTS.web_key == "" and "web/bind" not in DEFAULTS.to_data()
+    for bind in ("*", "0.0.0.0", "::", "192.168.1.5", "pi"):
+        assert Config.from_data({"web/bind": bind}).web_network is True, bind
+    for bind in ("", "127.0.0.1", "localhost", "::1", " LOCALHOST "):
+        assert Config.from_data({"web/bind": bind}).web_network is False, bind
+    assert Config.from_data({"web/bind": "*", "web/network": "false"}).web_network is False, "the switch, once it has a row, wins"
+    assert "web/bind" not in Config.from_data({"web/bind": "*"}).to_data()
+
+
+def test_the_access_key_is_three_groups_of_four_that_are_written_the_same_however_they_were_typed() -> None:
+    assert Config.check("web/key", "K7M2 x9pq-4HRT") == "k7m2-x9pq-4hrt" and Config.check("web/key", "k7m2x9pq4hrt") == "k7m2-x9pq-4hrt" and Config.check("web/key", "") == ""
+    for bad in ("k7m2-x9pq", "k7m2-x9pq-4hrt-2222", "k7m2-x9pq-4hr0", "k7m2-x9pq-4hrl", "k7m2-x9pq-4hr!"):
+        with pytest.raises(ValueError, match="web/key"):
+            Config.check("web/key", bad)
 
 
 # ---- the TNC profile

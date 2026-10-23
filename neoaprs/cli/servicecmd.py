@@ -21,19 +21,31 @@ REPO = "https://github.com/oh2gba/neoaprs"
 @dataclass(frozen=True)
 class Plan:
     """What the service is to run: this interpreter, on this data folder. `clone` is the folder of a git clone that the program runs from (the unit then runs in it); `gui_exe` and `pythonw` are
-    the two ways Windows has to run it without a console window (the script `neoaprsw.exe` an install makes, else `pythonw.exe` of the same Python)."""
+    the two ways Windows has to run it without a console window (the script `neoaprsw.exe` an install makes, else `pythonw.exe` of the same Python). `appimage` is the AppImage file this runs from, which
+    is what is to be started instead of the interpreter (see `appimage_file`)."""
     python: str
     data: Path
     clone: Path | None = None
     linger: bool = False
     gui_exe: str | None = None
     pythonw: str | None = None
+    appimage: str | None = None
 
 
 def source_tree() -> Path | None:
     """The folder of the clone this package is imported from (an editable install, `python -m neoaprs` in a clone), or None for a wheel in site-packages."""
     parent = PACKAGE_DIR.parent
     return parent if (parent / "pyproject.toml").is_file() and (parent / "neoaprs" / "__init__.py").is_file() else None
+
+
+def appimage_file() -> str | None:
+    """The AppImage file this program runs from, None outside one. The runtime sets `$APPIMAGE` to the file and `$APPDIR` to where it is mounted for as long as it runs, so the interpreter is in a folder that is
+    gone after: whatever starts NeoAPRS later (a service, a start at sign-in) has to start the file. A leftover `$APPIMAGE` of a parent that is an AppImage does not count: this interpreter must be inside `$APPDIR`."""
+    file, mount = os.environ.get("APPIMAGE"), os.environ.get("APPDIR")
+    if not file or not mount or not os.path.isfile(file):
+        return None
+    inside = os.path.realpath(sys.executable).startswith(os.path.realpath(mount) + os.sep)
+    return os.path.abspath(file) if inside else None
 
 
 def windowless_programs() -> tuple[str | None, str | None]:
@@ -57,7 +69,7 @@ def parser() -> argparse.ArgumentParser:
 def make_plan(args: argparse.Namespace) -> Plan:
     gui, pythonw = windowless_programs()
     clone = Path(args.clone).expanduser().resolve() if args.clone else source_tree()
-    return Plan(os.path.abspath(sys.executable), Path(args.data).expanduser().resolve(), clone, args.linger, gui, pythonw)
+    return Plan(os.path.abspath(sys.executable), Path(args.data).expanduser().resolve(), clone, args.linger, gui, pythonw, appimage_file())
 
 
 def logs(plan: Plan, lines: int, hint: str) -> int:

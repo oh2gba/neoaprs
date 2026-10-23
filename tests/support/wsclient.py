@@ -132,9 +132,9 @@ class WsClient:
             await asyncio.gather(self.task, return_exceptions=True)
 
 
-async def connect(port: int, host: str | None = None, origin: str | None = None) -> WsClient:
-    """The socket of the daemon at 127.0.0.1:port; `host` is the Host header it says (the default is the address), `origin` the Origin header (a browser sends one, a script does not)."""
+async def connect(port: int, host: str | None = None, origin: str | None = None, cookie: str | None = None) -> WsClient:
+    """The socket of the daemon at 127.0.0.1:port; `host` is the Host header it says (the default is the address), `origin` the Origin header (a browser sends one, a script does not), `cookie` the Cookie header."""
     from tornado.httpclient import HTTPRequest
-    headers = {**({} if host is None else {"Host": host}), **({} if origin is None else {"Origin": origin})}
+    headers = {**({} if host is None else {"Host": host}), **({} if origin is None else {"Origin": origin}), **({} if cookie is None else {"Cookie": cookie})}
     request = HTTPRequest(f"ws://127.0.0.1:{port}/ws", headers=headers or None, connect_timeout=5)
     return WsClient(await websocket_connect(request))

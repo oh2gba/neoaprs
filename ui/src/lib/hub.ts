@@ -69,6 +69,8 @@ interface HubOptions {
   socket?: (url: string) => SocketLike;
   /** the page is out of date: it loads itself again (once; the caller guards the loop) */
   outOfDate?: () => void;
+  /** a socket closed before the daemon said anything: it may have been refused */
+  refused?: () => void;
 }
 
 export function nextDelay(delay: number): number {
@@ -152,8 +154,10 @@ export class Hub {
     socket.onclose = () => {
       if (this.socket !== socket) return; // an older socket that closes late
       this.socket = null;
+      const spoke = this.live;
       this.live = false;
       this.store.connection("closed");
+      if (!spoke) this.options.refused?.();
       this.retry();
     };
     socket.onerror = () => undefined; // the close that follows says it

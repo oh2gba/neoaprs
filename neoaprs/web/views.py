@@ -117,7 +117,7 @@ def tnc_state(tnc: Tnc) -> dict[str, Any]:
     }
 
 
-def config_values(config: Config) -> dict[str, Any]:
-    return {"values": config.to_data(), "defaults": DEFAULTS.to_data()}
+def config_values(config: Config, urls: list[str]) -> dict[str, Any]:
+    return {"values": config.to_data(), "defaults": DEFAULTS.to_data(), "urls": urls}
 
 

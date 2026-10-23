@@ -3,7 +3,7 @@
 One process, one asyncio loop. Everything NeoAPRS keeps is in one database, data/neoaprs.sqlite; the log is data/neoaprs.log, rotated and bounded; only what matters for `systemctl status`
 goes to stderr. SIGTERM, SIGINT and SIGHUP (on Windows SIGINT, SIGTERM and SIGBREAK) end the program the same way, and so does the file `neoaprs.stop` in the data folder (`neoaprs stop`, neoaprs/stopfile.py). Exit code 2: the database cannot be used, or another NeoAPRS has the data folder; a
 restart would not cure either (the unit does not restart on it).
-The page is served by neoaprs/web/server.py on web/bind and web/port of the settings (default http://127.0.0.1:7303/), or on the next free port of the ten after it; the log says where ("web page at ..."), and
+The page is served by neoaprs/web/server.py on web/port of the settings (default http://127.0.0.1:7303/; web/network opens it to the network), or on the next free port of the ten after it; the log says where ("web page at ..."), and
 when none of them is free the daemon runs without the page.
 """
 import argparse
