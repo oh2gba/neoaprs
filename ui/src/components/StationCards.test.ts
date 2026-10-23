@@ -254,3 +254,51 @@ describe("StationCards: the column that does not fit", () => {
     expect(phone.emitted("overflow")).toBeUndefined();
   });
 });
+
+describe("StationCards: Message these N", () => {
+  const button = (wrapper: ReturnType<typeof make>) => wrapper.find(".cards-message");
+
+  it("is beside Close all, says how many of the cards are for stations that can be messaged, and sends their calls", async () => {
+    const wrapper = make([car, station("OH2RDG"), station("OH2RDH")]);
+    expect(wrapper.find(".cards-actions .cards-closeall").exists()).toBe(true);
+    expect(button(wrapper).text()).toBe("Message these 3");
+    await button(wrapper).trigger("click");
+    expect(wrapper.emitted("messageAll")).toEqual([[["OH2ZMA-9", "OH2RDG", "OH2RDH"]]]);
+  });
+
+  it("is not there with fewer than two cards, and not with a single card that can be messaged among several", () => {
+    expect(button(make([car])).exists()).toBe(false);
+    expect(make([car]).find(".cards-actions").exists()).toBe(false);
+    const one = make([car, station("OH2OBJ", { can_message: false })]);
+    expect(one.find(".cards-closeall").exists()).toBe(true);
+    expect(button(one).exists()).toBe(false);
+  });
+
+  it("leaves out what cannot be messaged: ourselves, our objects, objects and items of others, and a station the daemon says cannot be", () => {
+    const wrapper = make([
+      car,
+      station("OH2GBA", { is_me: true }),
+      station("NETCTRL", { own: true, kind: "object" }),
+      station("HAMFEST", { kind: "item" }),
+      station("OH2NOT", { can_message: false }),
+      station("OH2RDG"),
+    ]);
+    expect(button(wrapper).text()).toBe("Message these 2");
+  });
+
+  it("counts again when a card is closed, and goes when one is left that can be messaged", async () => {
+    const wrapper = make([car, station("OH2RDG"), station("OH2RDH")]);
+    await wrapper.setProps({ rows: [car, station("OH2RDG")] });
+    expect(button(wrapper).text()).toBe("Message these 2");
+    await wrapper.setProps({ rows: [car, station("OH2ZWX", { can_message: false })] });
+    expect(button(wrapper).exists()).toBe(false);
+  });
+
+  it("is not on a phone, which has one card", () => {
+    expect(
+      make([car, station("OH2RDG")], "phone")
+        .find(".cards-actions")
+        .exists(),
+    ).toBe(false);
+  });
+});

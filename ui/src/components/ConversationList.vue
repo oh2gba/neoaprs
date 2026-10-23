@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The list of conversations of the Messages tab, the one with the newest message first: the call (or the pair of an overheard one), the age, the last text on one line ("You: " before one of ours) and the number of messages not seen. "New message" is at its top, with "Show overheard" under it; the open conversation is the filled row, one with something not seen that is not the open one has its call in bold and a bar at its left. A row is a button that opens the conversation; the trash at the right end of it deletes the whole conversation
+// The list of conversations of the Messages tab, the one with the newest message first: the call (or the pair of an overheard one), the age, the last text on one line ("You: " before one of ours) and the number of messages not seen. "Show overheard" (with an (i)) is at its top; the open conversation is the filled row, one with something not seen that is not the open one has its call in bold and a bar at its left. A row is a button that opens the conversation; the trash at the right end of it deletes the whole conversation
 // (or the overheard pair) after "sure?": the one way to delete, a single message has no button.
 import IconButton from "@/components/IconButton.vue";
 import InfoTip from "@/components/InfoTip.vue";
@@ -11,7 +11,6 @@ import { unreadText } from "@/lib/unread";
 defineProps<{ conversations: readonly Conversation[]; selected: string | null; now: number; showOverheard: boolean }>();
 const emit = defineEmits<{
   select: [call: string];
-  newMessage: [];
   "update:showOverheard": [show: boolean];
   deleteConversation: [call: string];
   /** every overheard message of the pair: who sent it, who it was for */
@@ -31,7 +30,6 @@ function remove(call: string): void {
 <template>
   <section class="convlist" aria-label="Conversations">
     <div class="convlist-head">
-      <button type="button" class="btn primary new-message" @click="emit('newMessage')">New message</button>
       <div class="convlist-overheard">
         <label class="check"
           ><input type="checkbox" :checked="showOverheard" @change="emit('update:showOverheard', ($event.target as HTMLInputElement).checked)" /> Show

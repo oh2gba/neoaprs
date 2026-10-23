@@ -13,7 +13,7 @@ describe("EmailCompose", () => {
     const wrapper = box();
     expect(wrapper.attributes("aria-label")).toBe("New email");
     expect(wrapper.find("label[for='mail-to']").text()).toBe("To");
-    expect(wrapper.find("#mail-to").attributes("placeholder")).toBe("Address or shortcut");
+    expect(wrapper.find("#mail-to").attributes("placeholder")).toBe("Name or address");
     expect(wrapper.find("#mail-text").attributes("placeholder")).toBe("Text");
     expect(wrapper.findAll("button").map((b) => b.text())).toEqual(["Cancel", "Send"]);
     expect(wrapper.findAll("p")).toHaveLength(0);
@@ -122,6 +122,62 @@ describe("EmailCompose: the addressees used before", () => {
     expect(wrapper.find(".suggestions").exists()).toBe(false);
     await wrapper.setProps({ addresses: [] });
     await wrapper.find("#mail-to").trigger("focus");
+    expect(wrapper.find(".suggestions").exists()).toBe(false);
+    wrapper.unmount();
+  });
+});
+
+describe("EmailCompose: the contacts", () => {
+  const contacts = [
+    { name: "me", address: "jane@example.com", state: "confirmed" as const },
+    { name: "Bob", address: "bob@example.org", state: "unconfirmed" as const },
+  ];
+  const used = ["bob", "carl@example.net", "jane@example.com"];
+
+  it("lists the contacts first, each with its address, then the addressees used before without the names of contacts", async () => {
+    const wrapper = box({ contacts, addresses: used });
+    await wrapper.find("#mail-to").trigger("focus");
+    expect(wrapper.findAll(".contact-pick").map((li) => [li.find(".mono").text(), li.find(".suggestion-hint").text()])).toEqual([
+      ["me", "jane@example.com"],
+      ["Bob", "bob@example.org"],
+    ]);
+    expect(wrapper.findAll(".suggestion").map((li) => li.classes().includes("contact-pick"))).toEqual([true, true, false, false]);
+    expect(wrapper.findAll(".suggestion:not(.contact-pick) .suggestion-pick").map((b) => b.text())).toEqual(["carl@example.net", "jane@example.com"]);
+    wrapper.unmount();
+  });
+
+  it("has no trash can on a contact (Remove in Contacts does that), and one on an address used before", async () => {
+    const wrapper = box({ contacts, addresses: used });
+    await wrapper.find("#mail-to").trigger("focus");
+    expect(wrapper.findAll(".contact-pick .xbtn")).toHaveLength(0);
+    expect(wrapper.findAll(".suggestion:not(.contact-pick) .xbtn")).toHaveLength(2);
+    wrapper.unmount();
+  });
+
+  it("lists the contacts that match what is typed, by name or by address, and not the one whose name is typed whole", async () => {
+    const wrapper = box({ contacts, addresses: used });
+    await wrapper.find("#mail-to").setValue("bob@");
+    expect(wrapper.findAll(".contact-pick .mono:first-child").map((b) => b.text())).toEqual(["Bob"]);
+    await wrapper.find("#mail-to").setValue("JANE");
+    expect(wrapper.findAll(".contact-pick .mono:first-child").map((b) => b.text())).toEqual(["me"]);
+    await wrapper.find("#mail-to").setValue("ME");
+    expect(wrapper.find(".contact-pick").exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("puts the name of the contact in To when it is picked, and moves on to the text", async () => {
+    const wrapper = box({ contacts, addresses: used });
+    await wrapper.find("#mail-to").trigger("focus");
+    await wrapper.find(".contact-pick .suggestion-pick").trigger("click");
+    expect(wrapper.find<HTMLInputElement>("#mail-to").element.value).toBe("me");
+    expect(document.activeElement).toBe(wrapper.find("#mail-text").element);
+    wrapper.unmount();
+  });
+
+  it("opens with the name given by a contact's Mail button in To, and the focus in the text", () => {
+    const wrapper = box({ contacts, addresses: used, to: "me" });
+    expect(wrapper.find<HTMLInputElement>("#mail-to").element.value).toBe("me");
+    expect(document.activeElement).toBe(wrapper.find("#mail-text").element);
     expect(wrapper.find(".suggestions").exists()).toBe(false);
     wrapper.unmount();
   });

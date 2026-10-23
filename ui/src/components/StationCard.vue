@@ -137,7 +137,7 @@ const reached = computed(() => (props.row.kind === "station" && !props.row.is_me
       <button class="btn forget" :class="{ danger: armed }" type="button" @click="kill">{{ armed ? "Really kill?" : "Kill" }}</button>
     </footer>
     <footer v-else-if="!row.is_me && !compact" class="card-foot">
-      <button v-if="row.kind === 'station'" class="btn primary" type="button" @click="emit('message', row.call)">Message</button>
+      <button v-if="row.kind === 'station' && row.can_message" class="btn primary" type="button" @click="emit('message', row.call)">Message</button>
       <button class="btn forget" :class="{ danger: armed }" type="button" @click="forget">{{ armed ? "Really forget?" : "Forget" }}</button>
     </footer>
   </section>

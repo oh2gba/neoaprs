@@ -49,8 +49,10 @@ describe("the Status group", () => {
     expect(wrapper.find("#set-status-rigctld").attributes("placeholder")).toBe("127.0.0.1:4532");
     expect(wrapper.find("#set-status-template").attributes("placeholder")).toBe("QRV {freq} {mode}");
     expect(wrapper.find("#set-station-status").exists()).toBe(false);
-    expect(wrapper.find("#set-status-interval_min").attributes("placeholder")).toBe("30");
-    expect(wrapper.find("#set-status-interval_min").element.closest(".field")?.querySelector(".unit")?.textContent).toBe("min");
+    const every = wrapper.find<HTMLSelectElement>("#set-status-interval_min");
+    expect(every.element.tagName).toBe("SELECT");
+    expect(every.findAll("option").map((o) => o.text())).toEqual(["Every 30 min", "Every 60 min", "Every 2 hours"]);
+    expect(every.element.value).toBe("30");
   });
 
   it("has the old settings as the right choice, so that an installation keeps doing what it did", () => {

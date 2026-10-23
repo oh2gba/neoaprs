@@ -237,7 +237,7 @@ async def test_kiss_over_tcp_connects_to_the_host_and_port_of_the_settings(tmp_p
 async def test_a_database_from_before_the_profiles_that_entered_kiss_is_a_tnc2(tmp_path: Path) -> None:
     radio = FakeRadio()
     await radio.start()
-    e = await seeded(tmp_path, {"tnc/enter_kiss": "true", "tnc/check_sec": "0", "serial/port": radio.url}, radio)
+    e = await seeded(tmp_path, {"tnc/enter_kiss": "true", "serial/port": radio.url}, radio)
     try:
         await until(lambda: e.tnc.state is Source.State.CONNECTED)
         await radio.connected()

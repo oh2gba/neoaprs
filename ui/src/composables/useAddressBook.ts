@@ -1,4 +1,4 @@
-// The addressees of the Email tab used before (addresses and the names of shortcuts), the newest first, remembered in the browser (lib/storage.ts).
+// The addressees of the Email tab used before (addresses and the names of contacts), the newest first, remembered in the browser (lib/storage.ts).
 import { shallowRef } from "vue";
 import { forgetAddress, parseAddresses, rememberAddress } from "@/lib/email";
 import { readStored, writeStored } from "@/lib/storage";

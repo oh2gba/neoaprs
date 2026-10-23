@@ -146,7 +146,7 @@ Asks for the serial ports of the machine the daemon runs on, and the Bluetooth d
 
 Changes settings. Every key and value is checked before anything is stored: the first that is wrong is answered with an `error` that names the key, and nothing changes. A key that is
 left out keeps its value. The answer is the `config` topic told again. `web/port` and `web/allowed_hosts` are read at the daemon's start, `web/network` (and with it the access key `web/key`) and `web/https` count at once, `serial/*`, `tcp/*` and `tnc/profile` restart the
-TNC, `station/*` move our own station on the map. `tnc/check_sec` counts at once, with no restart.
+TNC, `station/*` move our own station on the map.
 
 | field | type | | description |
 |---|---|---|---|
@@ -538,6 +538,7 @@ row has a new distance and bearing, and the topic is told whole again.
 | `bearing_deg` | number \| null |  | the direction from our position, degrees from north; null as the distance is |
 | `is_me` | boolean |  | our own station: the row of the call in the settings, at the position in the settings |
 | `own` | boolean |  | an object or an item of ours, which we send (the topic `own_objects` has its values and its schedule): the map marks it as ours and the card has Edit and Kill in place of Forget; false for any other row |
+| `can_message` | boolean |  | a message to the station makes sense, and the card has a Message button: false for an object or an item and for our own station; for a station true when it has sent a message or an ack (heard, overheard too) or its latest position was a Mic-E one or began with `=` or `@`, false when that began with `!` or `/`; true for a station of which nothing of that is known |
 | `track` | [time, number, number][] |  | the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed (max 50 items) |
 
 ### PacketRow
@@ -763,7 +764,7 @@ What the TNC has counted since the daemon started.
 | `packets` | integer |  | packets handed on |
 | `rejected` | integer |  | frames that could not be read as a packet |
 | `last_packet` | time \| null |  | when the latest packet was heard; null for none yet |
-| `keepalive_checks` | integer |  | times the keep-alive checked that the radio is there (after `tnc/check_sec` of nothing heard) (>= 0) |
+| `keepalive_checks` | integer |  | times the keep-alive checked that the radio is there (after 60 seconds of nothing heard) (>= 0) |
 | `watchdog_probes` | integer |  | times the watchdog probed a silent radio (the same sequence as a check, every 30 seconds) (>= 0) |
 | `port_reopens` | integer |  | times the port was closed and opened again (every 5th probe of a silent radio) (>= 0) |
 | `digipeated` | integer |  | frames the digipeater (`digi/enabled`) sent again for other stations (>= 0) |

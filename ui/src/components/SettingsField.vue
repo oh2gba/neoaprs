@@ -1,6 +1,5 @@
 <script setup lang="ts">
-// One setting: its label, the input (a checkbox for a yes/no setting, a choice for a short list, read-only for one the daemon writes), the default as the placeholder, a unit after it, "Saving..." or "Saved" after it while a change is on its way
-// or has just been saved, the daemon's complaint under it (or the result of a test, in the same place), and a slot after it for a button. What it says of itself: `update:modelValue` with the text as it is typed (and for a choice), `choose`
+// One setting: its label, the input (a checkbox for a yes/no setting, a choice for a short list, read-only for one the daemon writes), the default as the placeholder, a unit after it, the daemon's complaint under it (or the result of a test, in the same place), and a slot after it for a button. What it says of itself: `update:modelValue` with the text as it is typed (and for a choice), `choose`
 // when a choice is made (a list, a switch), `commit` when a typed field is finished with Enter or left (with the element focus went to), `cancel` for Esc in a field that holds a change or a complaint.
 // A field whose meaning a non-developer may not know has a small (i) after it (`info.tip`); nothing else explains it, and the one thing a word cannot say is the `title` of the field.
 import { computed } from "vue";
@@ -15,8 +14,6 @@ const props = defineProps<{
   error: string;
   changed: boolean;
   result?: { ok: boolean; text: string } | null;
-  /** a change of this setting is on its way to the daemon, or was just saved */
-  state?: "saving" | "saved" | "";
   /** the field applies as it is changed (the settings form): Enter and leaving it say `commit`, Esc says `cancel`; else it is a field of a form with a button (the setup guide), where Enter submits */
   apply?: boolean;
 }>();
@@ -25,8 +22,6 @@ const emit = defineEmits<{ "update:modelValue": [value: string]; choose: [value:
 const errorId = computed(() => `${props.id}-error`);
 const describedBy = computed(() => (props.error ? errorId.value : undefined));
 const placeholder = computed(() => props.info.empty ?? (props.fallback !== "" ? props.fallback : "(default)"));
-// the unit, or the word for a value of 0 in its place ("never", "off")
-const unit = computed(() => (props.info.zero !== undefined && props.modelValue.trim() === "0" ? props.info.zero : props.info.unit));
 
 /** The options of a choice: the words for each value, and the value in force when it is none of them (a setting changed from the shell). */
 const options = computed<Choice[]>(() => {
@@ -98,9 +93,8 @@ function onEscape(event: KeyboardEvent): void {
         @keydown.enter="onEnter"
         @keydown.esc="onEscape"
       />
-      <span v-if="unit" class="unit muted">{{ unit }}</span>
+      <span v-if="info.unit" class="unit muted">{{ info.unit }}</span>
       <slot name="after"></slot>
-      <span v-if="state" class="field-state" :class="state" aria-hidden="true">{{ state === "saved" ? "Saved ✓" : "Saving…" }}</span>
       <InfoTip v-if="info.tip" :label="info.tipLabel ?? `About ${info.label}`">
         <span v-for="line in info.tip" :key="line" class="info-line">{{ line }}</span>
       </InfoTip>

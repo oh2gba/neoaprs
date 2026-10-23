@@ -1,18 +1,18 @@
-// The Email tab's rules (the APRS email gateway, aprs-is.net/Email.aspx): a message to EMAIL-2 has the addressee (an address, or the name of a shortcut), a space and the text, 67 bytes of UTF-8 in all; a shortcut
-// is made by sending `name address`; the gateway's own commands (`name L`, `name R`, `get`) are messages to it too; and the addressees used before are kept, the newest first. The daemon sends it all as an ordinary
+// The Email tab's rules (the APRS email gateway, aprs-is.net/Email.aspx): a message to EMAIL-2 has the addressee (an address, or the name of a contact), a space and the text, 67 bytes of UTF-8 in all; a contact
+// (the gateway's "shortcut") is made by sending `name address`; the gateway's own commands (`name L`, `name R`, `get`) are messages to it too; and the addressees used before are kept, the newest first. The daemon sends it all as an ordinary
 // message: the page only keeps the user from sending what the gateway would refuse, and says honestly what became of a mail (its acks reach this station only through an iGate). Where the list is kept (the browser)
 // is composables/useAddressBook.ts.
 import { markOf, stateText, textBytes } from "@/lib/messages";
 import { MESSAGE_TEXT_MAX } from "@/protocol/lists";
 import type { MessageRow } from "@/protocol/protocol";
 
-/** What the gateway is sent to hand over the mail it holds for the station. */
+/** What the gateway is sent to hand over the mail it holds for the station (Check for mail). */
 export const GET_HELD = "get";
 /** How many addressees are kept. */
 export const ADDRESSES_KEPT = 12;
 
-/** Whether a `get` of ours is still being sent: Fetch held mail waits for it to settle, so the gateway is not asked twice. */
-export function fetchingHeld(thread: readonly MessageRow[]): boolean {
+/** Whether a `get` of ours is still being sent: Check for mail waits for it to settle, so the gateway is not asked twice. */
+export function checkingMail(thread: readonly MessageRow[]): boolean {
   return thread.some((row) => row.direction === "out" && row.state === "sending" && row.text.trim().toLowerCase() === GET_HELD);
 }
 
@@ -32,8 +32,8 @@ export function canSendEmail(connected: boolean, to: string, text: string): bool
   return connected && addressee !== "" && !/\s/.test(addressee) && text.trim() !== "" && emailBytesLeft(to, text) >= 0;
 }
 
-/** A shortcut is a name of letters and digits. */
-export function validShortcut(name: string): boolean {
+/** A contact's name is letters and digits. */
+export function validContact(name: string): boolean {
   return /^[A-Za-z0-9]+$/.test(name.trim());
 }
 
@@ -42,13 +42,13 @@ export function validAddress(address: string): boolean {
   return /^[^\s@]+@[^\s@]+$/.test(address.trim());
 }
 
-/** What the gateway is sent to have it email the list of the station's shortcuts to this shortcut's address. */
-export function listShortcuts(name: string): string {
+/** What the gateway is sent to have it email the list of the station's contacts to this contact's address. */
+export function listContacts(name: string): string {
   return `${name.trim()} L`;
 }
 
-/** What the gateway is sent to remove a shortcut. */
-export function removeShortcut(name: string): string {
+/** What the gateway is sent to remove a contact. */
+export function removeContact(name: string): string {
   return `${name.trim()} R`;
 }
 
@@ -70,25 +70,28 @@ export function mailMarkOf(row: MessageRow): ReturnType<typeof markOf> {
   return isNotConfirmed(row) ? { kind: "hollow", title: NOT_CONFIRMED } : markOf(row);
 }
 
-/** A message of ours to the gateway as it is read: who a mail is to (`head`, null for the others) and what it says (`body`). */
-export interface MailLine {
-  head: string | null;
-  body: string;
-}
+/** A message of ours to the gateway as it is read: its own commands, or else a mail. */
+export type GatewayLine =
+  | { kind: "get" }
+  | { kind: "add"; name: string; address: string }
+  | { kind: "list"; name: string }
+  | { kind: "remove"; name: string }
+  | { kind: "mail"; to: string; text: string };
 
-/** What the thread shows for a line sent to the gateway: "to jane@example.com" over the text of a mail, and in words what the gateway's own commands (get, name address, name L, name R) do. A line that is none of these is shown as it was sent. */
-export function mailLine(text: string): MailLine {
+/** Reads the text of a message to the gateway: `get`, `name address` (a new contact), `name L`, `name R`, anything else a mail to the first word (`text` is empty for a line of one word). */
+export function gatewayLine(text: string): GatewayLine {
   const line = text.trim();
-  if (line.toLowerCase() === GET_HELD) return { head: null, body: "Fetch held mail" };
+  if (line.toLowerCase() === GET_HELD) return { kind: "get" };
   const split = /^(\S+)\s+(.+)$/.exec(line);
   const first = split?.[1];
-  const rest = split?.[2];
-  if (first === undefined || rest === undefined) return { head: null, body: line };
-  const named = !first.includes("@");
-  if (named && (rest === "L" || rest === "R"))
-    return { head: null, body: rest === "L" ? `Email the list of shortcuts to ${first}` : `Remove the shortcut ${first}` };
-  if (named && validAddress(rest)) return { head: null, body: `Shortcut ${first}: ${rest}` };
-  return { head: `to ${first}`, body: rest };
+  const rest = split?.[2]?.trim();
+  if (first === undefined || rest === undefined) return { kind: "mail", to: line, text: "" };
+  if (validContact(first)) {
+    if (rest === "L") return { kind: "list", name: first };
+    if (rest === "R") return { kind: "remove", name: first };
+    if (validAddress(rest)) return { kind: "add", name: first, address: rest };
+  }
+  return { kind: "mail", to: first, text: rest };
 }
 
 /** The addressees with `to` first (the same one typed in other letters is not listed twice); at most ADDRESSES_KEPT. Nothing for an empty one. */

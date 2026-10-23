@@ -17,7 +17,6 @@ const props = defineProps<{
   ports: PortsMessage | null;
   error: string;
   changed: boolean;
-  state?: "saving" | "saved" | "";
 }>();
 const emit = defineEmits<{ "update:modelValue": [value: string]; choose: [value: string]; commit: [next: EventTarget | null]; cancel: []; refresh: [] }>();
 
@@ -62,7 +61,6 @@ watch(
     fallback=""
     :error="error"
     :changed="changed"
-    :state="state"
     @update:model-value="pick"
   >
     <template #after>

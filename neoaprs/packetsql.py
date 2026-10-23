@@ -41,6 +41,11 @@ def position_packets(db: sqlite3.Connection, stamp: str, count: int) -> list[Row
                                           "ORDER BY id DESC LIMIT ?) ORDER BY id", (stamp, max(0, count)))]
 
 
+def message_packets(db: sqlite3.Connection, count: int) -> list[Row]:
+    """The latest `count` packets that were heard and are messages (or acks), the oldest first."""
+    return [tuple(r) for r in db.execute(f"SELECT {_PACKET_LIST} FROM (SELECT id, {_PACKET_LIST} FROM packet WHERE direction = 'in' AND kind = 'message' ORDER BY id DESC LIMIT ?) ORDER BY id", (max(0, count),))]
+
+
 def count_packets(db: sqlite3.Connection) -> int:
     return int(db.execute("SELECT COUNT(*) FROM packet").fetchone()[0])
 

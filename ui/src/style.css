@@ -545,30 +545,21 @@ tbody tr:focus-visible {
   color: var(--warn);
   font-weight: 600;
 }
-.beaconbox {
-  border-bottom: 1px solid var(--border);
-}
-.beaconact {
+.sendrow {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 4px 12px;
-  padding: 2px 10px;
+  margin: 6px 0;
 }
-.beaconact .card-fields {
+.sendrow .card-fields {
   flex: 1 1 14em;
-  padding: 6px 0;
+  min-width: 0;
 }
-.beaconact .btn {
+.sendrow .btn {
   flex: none;
   min-width: 11em;
-}
-@media (max-width: 480px) {
-  .beaconact .btn {
-    width: 100%;
-    margin-bottom: 6px;
-  }
 }
 .beacon-preview {
   margin: 8px 0;
@@ -1204,7 +1195,30 @@ tbody tr:focus-visible {
   justify-content: flex-end;
 }
 .convo .compose {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
   background: var(--panel);
+}
+.convo .compose .compose-left {
+  margin-left: 0;
+}
+.group-head {
+  align-items: flex-start;
+  min-height: 48px;
+}
+.group-head .recipients {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 0;
+}
+.group-head .convo-back {
+  align-self: center;
+}
+.group-room {
+  flex: 1;
+  min-height: 0;
+  background: var(--bg);
 }
 .convo-empty {
   display: flex;
@@ -1413,13 +1427,6 @@ tbody tr:focus-visible {
   align-items: center;
   gap: 8px;
 }
-.compose-to {
-  width: 9em;
-  text-transform: uppercase;
-}
-.compose-to::placeholder {
-  text-transform: none;
-}
 .compose-left {
   margin-left: auto;
   color: var(--muted);
@@ -1435,25 +1442,6 @@ tbody tr:focus-visible {
   margin: 0;
   padding: 0;
   list-style: none;
-}
-.picker {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.picker-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(8.5em, 1fr));
-  gap: 2px 8px;
-  max-height: 9em;
-  margin: 0;
-  padding: 0;
-  overflow-y: auto;
-  list-style: none;
-}
-.picker-list .empty {
-  grid-column: 1 / -1;
-  padding: 4px;
 }
 .infotip {
   position: relative;
@@ -1515,52 +1503,82 @@ tbody tr:focus-visible {
   border-bottom: 1px solid var(--border);
 }
 .mail-bar .btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  flex: none;
+  padding-right: 10px;
+  padding-left: 10px;
+  white-space: nowrap;
 }
 .mail-bar .info-text {
   right: 0;
   left: auto;
 }
-.mail-menu {
-  position: relative;
-}
-.menu-list {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  z-index: 6;
-  min-width: 100%;
-  margin: 4px 0 0;
-  padding: 4px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--panel);
-  box-shadow: var(--shadow);
-  list-style: none;
-  white-space: nowrap;
-}
-.menu-item {
-  display: block;
-  width: 100%;
-  min-height: 32px;
-  padding: 4px 12px;
-  border: 0;
-  border-radius: 4px;
-  background: none;
-  color: var(--text);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-.menu-item:hover,
-.menu-item:focus-visible {
+.contacts {
+  flex: none;
+  max-height: 60vh;
+  overflow-y: auto;
+  border-bottom: 1px solid var(--border);
   background: var(--row-hover);
 }
-.menu-item:disabled {
-  opacity: 0.5;
-  cursor: default;
+.contact-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.contact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 10px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.contact-who {
+  display: flex;
+  flex: 1 1 12em;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 8px;
+  min-width: 0;
+}
+.contact-name {
+  font-weight: 600;
+}
+.contact-address {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.contact-state {
+  font-size: 12px;
+}
+.contact-actions {
+  display: flex;
+  flex: none;
+  gap: 6px;
+}
+.contact-actions .btn {
+  min-height: 28px;
+}
+.contact-actions .btn:last-child {
+  min-width: 4.8em;
+}
+.contact-add {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 10px;
+  align-items: center;
+  padding: 8px 10px;
+}
+.contact-add > label {
+  font-weight: 600;
+}
+.contacts > .empty {
+  padding: 8px 10px 0;
+  text-align: left;
+}
+.suggestion-pick .suggestion-hint {
+  margin-left: 8px;
+  font-size: 12px;
 }
 .mailform {
   display: grid;
@@ -1854,15 +1872,6 @@ tbody tr:focus-visible {
   font-weight: 600;
 }
 .field-result.ok {
-  color: var(--ok);
-}
-.field-state {
-  flex: none;
-  font-size: 0.85em;
-  color: var(--muted);
-  white-space: nowrap;
-}
-.field-state.saved {
   color: var(--ok);
 }
 .confirm-row {

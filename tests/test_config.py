@@ -4,13 +4,13 @@ from dataclasses import fields, replace
 
 import pytest
 
-from neoaprs.config import BY_KEY, DEFAULT_ALERT_COMMAND, DEFAULTS, HIDE_AFTER_MIN, KEYS, LOG_KEEP_DAYS, MAX_COMMENT, MAX_COMMENT_PHG, SETTINGS, Config
+from neoaprs.config import BY_KEY, DEFAULT_ALERT_COMMAND, DEFAULTS, HIDE_AFTER_MIN, KEYS, LOG_KEEP_DAYS, MAX_COMMENT, MAX_COMMENT_PHG, SETTINGS, TNC_CHECK_SEC, Config
 from neoaprs.configstatus import MAX_STATUS, fill_template
 
 
 def test_the_defaults_are_the_ones_of_the_brief() -> None:
     assert DEFAULTS.to_data() == {
-        "tnc/profile": "kiss", "serial/port": "", "serial/baud": "", "tcp/host": "127.0.0.1", "tcp/port": "8001", "serial/last_port": "", "serial/pattern": "/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*", "serial/skip": "", "tnc/check_sec": "60", "station/call": "", "station/lat": "", "station/lon": "",
+        "tnc/profile": "kiss", "serial/port": "", "serial/baud": "", "tcp/host": "127.0.0.1", "tcp/port": "8001", "serial/last_port": "", "serial/pattern": "/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*", "serial/skip": "", "station/call": "", "station/lat": "", "station/lon": "",
         "station/symbol_table": "/", "station/symbol_code": "-", "station/comment": "NeoAPRS", "station/status": "", "beacon/power_w": "", "beacon/antenna_height_m": "0", "beacon/antenna_gain_db": "0",
         "beacon/antenna_direction": "omni", "web/network": "false", "web/key": "", "web/https": "false", "web/port": "7303", "web/allowed_hosts": "", "beacon/interval_min": "0",
         "beacon/path": "WIDE1-1,WIDE2-1",
@@ -27,7 +27,7 @@ def test_every_field_has_a_key_and_every_key_a_field() -> None:
 
 def test_nothing_in_the_database_is_the_defaults_and_what_is_written_is_read_back() -> None:
     assert Config.from_data({}) == DEFAULTS
-    c = Config(serial_port="/dev/brainbox_3", serial_baud=19200, serial_last_port="/dev/brainbox_3", serial_pattern="/dev/brainbox_* /dev/ttyUSB*", serial_skip="/dev/brainbox_2, /dev/ttyUSB1", tnc_profile="kenwood-d710", tcp_host="::1", tcp_port=8100, tnc_check_sec=0, station_call="OH2GBA-9", station_lat=-33.5, station_lon=151.25,
+    c = Config(serial_port="/dev/brainbox_3", serial_baud=19200, serial_last_port="/dev/brainbox_3", serial_pattern="/dev/brainbox_* /dev/ttyUSB*", serial_skip="/dev/brainbox_2, /dev/ttyUSB1", tnc_profile="kenwood-d710", tcp_host="::1", tcp_port=8100, station_call="OH2GBA-9", station_lat=-33.5, station_lon=151.25,
                station_symbol_table="\\", station_symbol_code=">", station_comment="mobile", station_status="On the road, QRV 145.500", beacon_power_w=5, beacon_antenna_height_m=12, beacon_antenna_gain_db=3, beacon_antenna_direction="NW", web_network=True, web_key="k7m2-x9pq-4hrt", web_https=True, web_port=8080, web_allowed_hosts="aprs.example, pi", beacon_interval_min=30,
                beacon_path="WIDE2-2", messages_alert=False, messages_alert_command="echo $NEOAPRS_FROM", status_source="rig", status_rigctld="localhost:4532", status_interval_min=1440, status_template="{mode} {freq}")
     assert Config.from_data(c.to_data()) == c
@@ -64,7 +64,7 @@ def test_a_call_is_checked_and_written_in_capitals() -> None:
     ("beacon/interval_min", "1441"), ("beacon/path", "WIDE1-1,TOOLONGCALL"), ("beacon/path", "A,B,C,D,E,F,G,H,I"), ("beacon/path", "WIDE1-16"),
     ("beacon/power_w", "-1"), ("beacon/power_w", "10000"), ("beacon/power_w", "lots"), ("beacon/antenna_height_m", "-1"), ("beacon/antenna_height_m", "10000"), ("beacon/antenna_height_m", "tall"), ("beacon/antenna_gain_db", "10"),
     ("beacon/antenna_gain_db", "-1"), ("beacon/antenna_gain_db", "3.5"), ("beacon/antenna_direction", "up"), ("beacon/antenna_direction", "NNE"), ("beacon/antenna_direction", ""),
-    ("tnc/check_sec", "-1"), ("tnc/check_sec", "5"), ("tnc/check_sec", "9"), ("tnc/check_sec", "3601"), ("tnc/check_sec", "soon"), ("update/url", ""), ("update/url", "ftp://example.org/v.php"), ("update/url", "https://"), ("update/url", "two words"), ("update/url", "https://example.org/" + "x" * 500),
+    ("update/url", ""), ("update/url", "ftp://example.org/v.php"), ("update/url", "https://"), ("update/url", "two words"), ("update/url", "https://example.org/" + "x" * 500),
     ("messages/alert", "loud"), ("messages/alert_command", "x" * 1001), ("messages/alert_command", "two\nlines"), ("status/rigctld", "localhost"), ("status/rigctld", "localhost:0"), ("status/rigctld", "localhost:70000"),
     ("status/rigctld", ":4532"), ("status/rigctld", "two words:4532"), ("status/interval_min", "0"), ("status/interval_min", "1441"), ("status/interval_min", "often"), ("status/template", "QRV {frequency}"),
     ("status/template", "x" * 63), ("status/template", "{freq} {mode} " + "x" * 50), ("status/template", "two\nlines")])
@@ -102,11 +102,13 @@ def test_the_path_of_the_beacon_is_a_list_of_calls_written_in_capitals_without_b
     assert Config.check("beacon/path", ",".join(["WIDE1-1"] * 8)).count(",") == 7
 
 
-def test_the_keep_alive_takes_its_whole_range() -> None:
-    assert DEFAULTS.tnc_check_sec == 60
-    assert Config.from_data({"tnc/check_sec": "0"}).tnc_check_sec == 0, "0 is off"
-    assert Config.from_data({"tnc/check_sec": " 3600 "}).tnc_check_sec == 3600
-    assert Config.check("tnc/check_sec", " 10 ") == "10"
+def test_the_keep_alive_is_fixed_at_60_seconds_and_what_an_earlier_version_stored_is_ignored() -> None:
+    assert TNC_CHECK_SEC == 60 and "tnc/check_sec" not in KEYS
+    with pytest.raises(ValueError, match="tnc/check_sec: no such setting"):
+        Config.parse("tnc/check_sec", "90")
+    with pytest.raises(ValueError, match="tnc/check_sec: no such setting"):
+        Config.checked(DEFAULTS, {"tnc/check_sec": "0"})
+    assert Config.from_data({"tnc/check_sec": "0", "web/port": "9"}) == Config.from_data({"web/port": "9"}), "a stored 0 is ignored: the keep-alive runs"
 
 
 def test_the_time_a_station_stays_on_the_map_is_fixed_and_what_an_earlier_version_stored_is_ignored() -> None:
@@ -115,12 +117,12 @@ def test_the_time_a_station_stays_on_the_map_is_fixed_and_what_an_earlier_versio
         Config.parse("map/hide_after_min", "30")
     with pytest.raises(ValueError, match="map/hide_after_min: no such setting"):
         Config.checked(DEFAULTS, {"map/hide_after_min": "30"})
-    stored = Config.from_data({"map/hide_after_min": "30", "tnc/check_sec": "0"})
-    assert not hasattr(stored, "map_hide_after_min") and stored == Config.from_data({"tnc/check_sec": "0"}), "a stored 30 is ignored: the 180 applies"
+    stored = Config.from_data({"map/hide_after_min": "30"})
+    assert not hasattr(stored, "map_hide_after_min") and stored == DEFAULTS, "a stored 30 is ignored: the 180 applies"
 
 
 def test_a_stored_watchdog_row_from_before_is_ignored() -> None:
-    assert Config.from_data({"tnc/watchdog_min": "15", "tnc/check_sec": "90"}).tnc_check_sec == 90
+    assert Config.from_data({"tnc/watchdog_min": "15", "tnc/check_sec": "90"}) == DEFAULTS
     assert Config.from_data({"tnc/watchdog_min": "15"}) == DEFAULTS
 
 
@@ -160,18 +162,18 @@ def test_a_save_checks_the_comment_against_the_settings_it_is_saved_with() -> No
         Config.checked(base, {"station/status": "x" * 56})
 
 
-def test_the_beacon_is_off_or_every_15_minutes_or_more_and_the_status_every_10_or_more_and_a_stored_lower_one_is_raised(caplog: pytest.LogCaptureFixture) -> None:
-    assert Config.check("beacon/interval_min", "0") == "0" and Config.check("beacon/interval_min", "15") == "15" and Config.check("status/interval_min", "10") == "10"
+def test_the_beacon_is_off_or_every_15_minutes_or_more_and_the_status_too_and_a_stored_lower_one_is_raised(caplog: pytest.LogCaptureFixture) -> None:
+    assert Config.check("beacon/interval_min", "0") == "0" and Config.check("beacon/interval_min", "15") == "15" and Config.check("status/interval_min", "15") == "15"
     with pytest.raises(ValueError, match=r"beacon/interval_min: 14 is not 0 \(off\) or between 15 and 1440"):
         Config.check("beacon/interval_min", "14")
-    with pytest.raises(ValueError, match=r"status/interval_min: 9 is not between 10 and 1440"):
-        Config.check("status/interval_min", "9")
+    with pytest.raises(ValueError, match=r"status/interval_min: 14 is not between 15 and 1440"):
+        Config.check("status/interval_min", "14")
     with caplog.at_level(logging.WARNING, logger="neoaprs.config"):
         c = Config.from_data({"beacon/interval_min": "1", "status/interval_min": "5", "web/port": "9"})
-        assert (c.beacon_interval_min, c.status_interval_min, c.web_port) == (15, 10, 9)
+        assert (c.beacon_interval_min, c.status_interval_min, c.web_port) == (15, 15, 9)
         assert Config.from_data({"beacon/interval_min": "10"}).beacon_interval_min == 15, "a beacon every 10 minutes, which 0.5.0 allowed, is every 15"
-    assert sum("15 is used" in r.getMessage() for r in caplog.records) == 2 and any("beacon/interval_min" in r.getMessage() for r in caplog.records)
-    assert sum("10 is used" in r.getMessage() for r in caplog.records) == 1
+    assert sum("15 is used" in r.getMessage() for r in caplog.records) == 3 and any("beacon/interval_min" in r.getMessage() for r in caplog.records)
+    assert sum("10 is used" in r.getMessage() for r in caplog.records) == 0
     assert Config.from_data({"beacon/interval_min": "0"}).beacon_interval_min == 0, "an installation that turned the beacon off keeps it off"
     assert Config.from_data({"beacon/interval_min": "20"}).beacon_interval_min == 20 and Config.from_data({"beacon/interval_min": "120"}).beacon_interval_min == 120, "a stored value that is none of the page's choices stays"
     assert Config.from_data({}).beacon_interval_min == 0, "the beacon is off unless the station says otherwise: an upgrade never starts transmitting (the setup guide sets 30 for a new station)"
@@ -208,7 +210,7 @@ def test_the_alert_and_status_settings_have_their_defaults_and_are_read_back() -
     assert DEFAULTS.messages_alert is True and DEFAULTS.messages_alert_command == DEFAULT_ALERT_COMMAND and "NEOAPRS_FROM" in DEFAULTS.messages_alert_command
     assert (DEFAULTS.status_rigctld, DEFAULTS.status_interval_min, DEFAULTS.status_template) == ("", 30, "QRV {freq} {mode}")
     assert Config.check("messages/alert_command", "  ") == "" and Config.check("messages/alert_command", " echo hi ") == "echo hi"
-    assert Config.check("status/interval_min", " 10 ") == "10" and Config.check("status/interval_min", "1440") == "1440"
+    assert Config.check("status/interval_min", " 15 ") == "15" and Config.check("status/interval_min", "1440") == "1440"
 
 
 def test_the_rigctld_is_a_host_and_a_port_or_nothing() -> None:

@@ -1,18 +1,17 @@
 <script setup lang="ts">
-// One conversation of the Messages tab, filling its column: a header bar (on a narrow page the back arrow "‹" to the list; the call; "Route" for the path and RF only), the bubbles (ConversationThread) filling the height and the box to write in (MessageCompose) fixed at
-// the bottom. `selected` null is a new message: the title says so, the thread is empty and the cursor is in To. An overheard pair has no Route (the messages are not ours); the box writes to the sender of it. It is the page's to put a new one in place of this when another
-// conversation is picked (a `key`), and on a narrow page it takes the focus when it appears, so that Esc goes back.
-import { onMounted, ref } from "vue";
+// One conversation of the Messages tab, filling its column: a header bar (on a narrow page the back arrow "‹" to the list; the call; "Route" for the path and RF only), the bubbles (ConversationThread) filling the height and the box to write in (MessageCompose: the text,
+// "67 left" and Send, no To: the conversation is the station) fixed at the bottom. An overheard pair has no Route and no box to write in (the messages are not ours: only the bubbles, and the delete in the list). It is the page's to put a new one in place of this when
+// another conversation is picked (a `key`), and on a narrow page it takes the focus when it appears, so that Esc goes back.
+import { computed, onMounted, ref } from "vue";
 import ConversationThread from "@/components/ConversationThread.vue";
 import MessageCompose from "@/components/MessageCompose.vue";
 import RouteMenu from "@/components/RouteMenu.vue";
-import { conversationName, isOverheard } from "@/lib/messages";
-import type { Candidate } from "@/lib/recipients";
+import { conversationName, isOverheard, replyTo } from "@/lib/messages";
 import type { MessageRow } from "@/protocol/protocol";
 
 const props = withDefaults(
   defineProps<{
-    selected: string | null;
+    selected: string;
     /** one column at a time: the header has the way back to the list */
     narrow: boolean;
     thread: readonly MessageRow[];
@@ -22,15 +21,13 @@ const props = withDefaults(
     fallbackPath: string;
     rfOnly?: ReadonlySet<string>;
     heardDirect?: ReadonlySet<string>;
-    candidates?: readonly Candidate[];
   }>(),
-  { suggestions: () => new Map<string, string | null>(), rfOnly: () => new Set<string>(), heardDirect: () => new Set<string>(), candidates: () => [] },
+  { suggestions: () => new Map<string, string | null>(), rfOnly: () => new Set<string>(), heardDirect: () => new Set<string>() },
 );
 const text = defineModel<string>("text", { default: "" });
 const emit = defineEmits<{
   back: [];
   send: [to: string, text: string];
-  sendMany: [to: string[], text: string];
   retry: [id: number];
   cancel: [id: number];
   path: [call: string, path: string];
@@ -39,27 +36,25 @@ const emit = defineEmits<{
 }>();
 
 const root = ref<HTMLElement | null>(null);
-const compose = ref<InstanceType<typeof MessageCompose> | null>(null);
+const heard = computed(() => isOverheard(props.selected));
 
 onMounted(() => {
-  if (props.selected === null) compose.value?.focusTo();
-  else if (props.narrow) root.value?.focus({ preventScroll: true });
+  if (props.narrow) root.value?.focus({ preventScroll: true });
 });
 </script>
 
 <template>
-  <section ref="root" class="convo" tabindex="-1" :aria-label="selected === null ? 'New message' : `Conversation with ${conversationName(selected)}`">
+  <section ref="root" class="convo" tabindex="-1" :aria-label="`Conversation with ${conversationName(selected)}`">
     <header class="convo-head">
       <button v-if="narrow" type="button" class="convo-back" aria-label="Back to the conversations" title="Back" @click="emit('back')">
         <span aria-hidden="true">‹</span>
       </button>
       <h3 class="convo-title">
-        <template v-if="selected === null">New message</template>
-        <template v-else-if="isOverheard(selected)">Overheard: {{ conversationName(selected) }}</template>
+        <template v-if="heard">Overheard: {{ conversationName(selected) }}</template>
         <template v-else>{{ selected }}</template>
       </h3>
       <RouteMenu
-        v-if="selected !== null && !isOverheard(selected)"
+        v-if="!heard"
         :key="selected"
         :call="selected"
         :paths="paths"
@@ -72,14 +67,6 @@ onMounted(() => {
       />
     </header>
     <ConversationThread :thread="thread" :peer="selected" :heard-direct="heardDirect" @retry="emit('retry', $event)" @cancel="emit('cancel', $event)" />
-    <MessageCompose
-      ref="compose"
-      v-model:text="text"
-      :selected="selected"
-      :connected="connected"
-      :candidates="candidates"
-      @send="(to, body) => emit('send', to, body)"
-      @send-many="(to, body) => emit('sendMany', to, body)"
-    />
+    <MessageCompose v-if="!heard" v-model:text="text" :to="[replyTo(selected)]" :connected="connected" @send="(to, body) => emit('send', to, body)" />
   </section>
 </template>

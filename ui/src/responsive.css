@@ -60,9 +60,13 @@ button,
 .cardstack .card.compact {
   flex: none;
 }
-.cards-closeall {
+.cards-actions {
+  display: flex;
   order: 1;
   align-self: flex-start;
+  gap: 8px;
+}
+.cards-actions .btn {
   box-shadow: var(--shadow);
 }
 .card-more {
@@ -438,5 +442,10 @@ button,
 
 /* the first-run guide's Pick on the map is as wide as the guide, as the Location of the Beacon tab's is on a narrow window */
 .setup .location-pick {
+  flex: 1 1 100%;
+}
+
+/* a phone: the button of a line that sends something now is under the line, as wide as the page */
+.size-phone .sendrow .btn {
   flex: 1 1 100%;
 }

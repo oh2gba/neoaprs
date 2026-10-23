@@ -24,21 +24,31 @@ const bar = (wrapper: Pane, label: string) => wrapper.findAll(".mail-bar button"
 beforeEach(() => vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] }));
 afterEach(() => vi.useRealTimers());
 
+const panelButton = (wrapper: Pane, label: string) => wrapper.findAll("section[aria-label='Contacts'] button").find((b) => b.text() === label);
+
 describe("EmailPane: the top", () => {
-  it("has the buttons New email and Mailbox and an (i), and no form open", () => {
+  it("has the buttons New email, Contacts and Check for mail and an (i), all of one kind, and no form open", () => {
     const wrapper = pane();
-    expect(wrapper.findAll(".mail-bar > button, .mail-bar .mail-menu > button").map((b) => b.text())).toEqual(["New email", "Mailbox"]);
+    expect(wrapper.findAll(".mail-bar > button").map((b) => b.text())).toEqual(["New email", "Contacts", "Check for mail"]);
+    expect(wrapper.findAll(".mail-bar > button").map((b) => b.classes().filter((c) => c !== "primary"))).toEqual([["btn"], ["btn"], ["btn"]]);
+    expect(bar(wrapper, "New email")?.classes()).toContain("primary");
+    expect(wrapper.findAll(".mail-bar .info-toggle")).toHaveLength(1);
     expect(wrapper.find(".info-toggle").attributes("aria-label")).toBe("About email");
     expect(wrapper.find("form").exists()).toBe(false);
+    expect(wrapper.find("[role='menu']").exists()).toBe(false);
     wrapper.unmount();
   });
 
-  it("explains once, in the (i), why a mail may be Not confirmed", async () => {
+  it("explains in the (i), in three short sentences, how mail goes, who can email you and what Check for mail does", async () => {
     const wrapper = pane();
     expect(wrapper.find(".info-text").exists()).toBe(false);
     await wrapper.find(".info-toggle").trigger("click");
-    expect(wrapper.find(".info-text").text()).toContain("iGate");
-    expect(wrapper.find(".info-text").text()).toContain("Not confirmed");
+    const lines = wrapper.findAll(".info-text .info-line").map((l) => l.text());
+    expect(lines).toEqual([
+      "Mail goes through the internet gateway EMAIL-2 via an iGate, so a mail can say Not confirmed although it arrived.",
+      "Only your contacts can email you; their mail arrives here.",
+      "If your radio missed one, Check for mail asks the gateway to send again what it kept (it keeps mail for 24 hours).",
+    ]);
     expect(wrapper.findAll("p.mail-meta")[0]?.text()).not.toContain("iGate");
     wrapper.unmount();
   });
@@ -56,11 +66,11 @@ describe("EmailPane: the top", () => {
   });
 
   it("closes the form with Cancel and with the New email button again, and passes up a forgotten addressee", async () => {
-    const wrapper = pane({ addresses: ["me"] });
+    const wrapper = pane({ addresses: ["carl@example.net"] });
     await bar(wrapper, "New email")?.trigger("click");
     await wrapper.find("#mail-to").trigger("focus");
-    await wrapper.find(".suggestion .xbtn").trigger("click");
-    expect(wrapper.emitted("forget")).toEqual([["me"]]);
+    await wrapper.find(".suggestion:not(.contact-pick) .xbtn").trigger("click");
+    expect(wrapper.emitted("forget")).toEqual([["carl@example.net"]]);
     await wrapper
       .findAll("form button")
       .find((b) => b.text() === "Cancel")
@@ -73,32 +83,109 @@ describe("EmailPane: the top", () => {
     wrapper.unmount();
   });
 
-  it("passes up Fetch held mail from the Mailbox menu", async () => {
+  it("suggests the contacts of the thread first in New email, with their address, then the addressees used before", async () => {
+    const wrapper = pane({ addresses: ["me", "carl@example.net"] });
+    await bar(wrapper, "New email")?.trigger("click");
+    await wrapper.find("#mail-to").trigger("focus");
+    expect(wrapper.findAll(".suggestion").map((li) => li.text())).toEqual(["mejane@example.com", "carl@example.net"]);
+    wrapper.unmount();
+  });
+});
+
+describe("EmailPane: Contacts", () => {
+  it("opens the panel in place of New email, and the button closes it again", async () => {
     const wrapper = pane();
-    await bar(wrapper, "Mailbox")?.trigger("click");
-    await wrapper.findAll("[role='menuitem']")[0]?.trigger("click");
+    await bar(wrapper, "New email")?.trigger("click");
+    await bar(wrapper, "Contacts")?.trigger("click");
+    expect(wrapper.find("form[aria-label='New email']").exists()).toBe(false);
+    expect(wrapper.find("section[aria-label='Contacts']").exists()).toBe(true);
+    expect(bar(wrapper, "Contacts")?.attributes("aria-expanded")).toBe("true");
+    await bar(wrapper, "Contacts")?.trigger("click");
+    expect(wrapper.find("section[aria-label='Contacts']").exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("lists the contacts that the thread makes: me is there although its removal was rejected, and says it is not confirmed", async () => {
+    const wrapper = pane();
+    await bar(wrapper, "Contacts")?.trigger("click");
+    expect(
+      wrapper.findAll(".contact").map((c) => [c.find(".contact-name").text(), c.find(".contact-address").text(), c.find(".contact-state").text()]),
+    ).toEqual([["me", "jane@example.com", "Not confirmed"]]);
+    wrapper.unmount();
+  });
+
+  it("passes up Add contact, Email me the list and Remove (after sure?) from the panel", async () => {
+    const wrapper = pane();
+    await bar(wrapper, "Contacts")?.trigger("click");
+    await wrapper.find("#contact-name").setValue("bob");
+    await wrapper.find("#contact-address").setValue("bob@example.org");
+    await wrapper.find("form[aria-label='Add contact']").trigger("submit");
+    await panelButton(wrapper, "Email me the list")?.trigger("click");
+    await panelButton(wrapper, "Remove")?.trigger("click");
+    await panelButton(wrapper, "sure?")?.trigger("click");
+    expect([wrapper.emitted("add"), wrapper.emitted("list"), wrapper.emitted("remove")]).toEqual([[["bob", "bob@example.org"]], [["me"]], [["me"]]]);
+    await panelButton(wrapper, "Close")?.trigger("click");
+    expect(wrapper.find("section[aria-label='Contacts']").exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("opens New email to the contact when Mail is pressed, with the name in To and the focus in the text", async () => {
+    const wrapper = pane();
+    await bar(wrapper, "Contacts")?.trigger("click");
+    await panelButton(wrapper, "Mail")?.trigger("click");
+    expect(wrapper.find("section[aria-label='Contacts']").exists()).toBe(false);
+    expect(wrapper.find<HTMLInputElement>("#mail-to").element.value).toBe("me");
+    expect(document.activeElement).toBe(wrapper.find("#mail-text").element);
+    await wrapper.find("#mail-text").setValue("Hi");
+    await wrapper.find("form").trigger("submit");
+    expect(wrapper.emitted("send")).toEqual([["me", "Hi"]]);
+    wrapper.unmount();
+  });
+
+  it("opens New email empty with its own button after a Mail", async () => {
+    const wrapper = pane();
+    await bar(wrapper, "Contacts")?.trigger("click");
+    await panelButton(wrapper, "Mail")?.trigger("click");
+    await bar(wrapper, "New email")?.trigger("click");
+    await bar(wrapper, "New email")?.trigger("click");
+    expect(wrapper.find<HTMLInputElement>("#mail-to").element.value).toBe("");
+    wrapper.unmount();
+  });
+});
+
+describe("EmailPane: Check for mail", () => {
+  it("sends get up, and opens no form", async () => {
+    const wrapper = pane();
+    await bar(wrapper, "Check for mail")?.trigger("click");
     expect(wrapper.emitted("get")).toEqual([[]]);
     expect(wrapper.find("form").exists()).toBe(false);
     wrapper.unmount();
   });
 
-  it("opens the shortcut form from the Mailbox menu in place of New email, and passes up Register, Email the list and Remove", async () => {
-    const wrapper = pane();
-    await bar(wrapper, "New email")?.trigger("click");
-    await bar(wrapper, "Mailbox")?.trigger("click");
-    await wrapper.findAll("[role='menuitem']")[1]?.trigger("click");
-    expect(wrapper.findAll("form")).toHaveLength(1);
-    expect(wrapper.find("form").attributes("aria-label")).toBe("Shortcuts");
-    await wrapper.find("#mail-shortcut").setValue("jane");
-    await wrapper.find("#mail-address").setValue("jane@example.com");
-    await wrapper.find("form").trigger("submit");
-    const button = (label: string) => wrapper.findAll("form button").find((b) => b.text() === label);
-    await button("Email the list")?.trigger("click");
-    await button("Remove")?.trigger("click");
-    await button("sure?")?.trigger("click");
-    expect([wrapper.emitted("register"), wrapper.emitted("list"), wrapper.emitted("remove")]).toEqual([[["jane", "jane@example.com"]], [["jane"]], [["jane"]]]);
-    await button("Close")?.trigger("click");
-    expect(wrapper.find("form").exists()).toBe(false);
+  it("is off while a get of ours is still being sent, and says why", async () => {
+    const wrapper = pane({ thread: [message(1, { to_call: "EMAIL-2", text: "get", state: "sending", attempts: 1 })] });
+    const button = bar(wrapper, "Check for mail");
+    expect(button?.attributes("disabled")).toBeDefined();
+    expect(button?.attributes("title")).toBe("Already checking");
+    await button?.trigger("click");
+    expect(wrapper.emitted("get")).toBeUndefined();
+    await wrapper.setProps({ thread: [message(1, { to_call: "EMAIL-2", text: "get", state: "unconfirmed", attempts: 2 })] });
+    expect(bar(wrapper, "Check for mail")?.attributes("disabled")).toBeUndefined();
+    expect(bar(wrapper, "Check for mail")?.attributes("title")).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it("is off while the TNC is not connected, and says why", () => {
+    const wrapper = pane({ connected: false });
+    expect(bar(wrapper, "Check for mail")?.attributes("disabled")).toBeDefined();
+    expect(bar(wrapper, "Check for mail")?.attributes("title")).toBe("The TNC is not connected");
+    wrapper.unmount();
+  });
+
+  it("leaves the New email and Contacts buttons on while the TNC is not connected", () => {
+    const wrapper = pane({ connected: false, thread: [] });
+    expect(bar(wrapper, "New email")?.attributes("disabled")).toBeUndefined();
+    expect(bar(wrapper, "Contacts")?.attributes("disabled")).toBeUndefined();
     wrapper.unmount();
   });
 });
@@ -108,12 +195,12 @@ describe("EmailPane: the list", () => {
     const wrapper = pane();
     expect(rows(wrapper)).toHaveLength(8);
     expect(rows(wrapper).map((r) => r.find(".mail-title").text())).toEqual([
-      "Asked for the shortcut list (me)",
+      "Asked for the contact list (me)",
       "From bob@example.org",
-      "Remove shortcut 'me'",
-      "Shortcut 'me' → jane@example.com",
+      "Removed contact me",
+      "Added contact me (jane@example.com)",
       "To jane@example.com",
-      "Fetch held mail",
+      "Checked for mail",
       "From EMAIL-2",
       "To jane@example.com",
     ]);
@@ -172,7 +259,7 @@ describe("EmailPane: the list", () => {
   it("shows the commands in words with no text line, and the line as sent in the title", () => {
     const wrapper = pane();
     const get = rows(wrapper)[5];
-    expect(get?.find(".mail-title").text()).toBe("Fetch held mail");
+    expect(get?.find(".mail-title").text()).toBe("Checked for mail");
     expect(get?.find(".mail-text").exists()).toBe(false);
     expect(get?.find(".mail-body").attributes("title")).toBe("get");
     expect(rows(wrapper)[7]?.find(".mail-text").text()).toBe("Hello Pekka");

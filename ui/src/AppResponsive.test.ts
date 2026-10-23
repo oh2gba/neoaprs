@@ -157,6 +157,33 @@ describe("several station cards on a desktop (1400 by 900)", () => {
     }
   });
 
+  it("has Message these N beside Close all, which opens the group compose of the Messages tab for the stations of the cards", async () => {
+    const { wrapper } = await open(1400, 900);
+    await row(wrapper, "OH2ZWA")?.trigger("click");
+    expect(wrapper.find(".cards-message").exists()).toBe(false);
+    await row(wrapper, "OH2ZWB")?.trigger("click", { ctrlKey: true });
+    await row(wrapper, "OH2ZWC")?.trigger("click", { ctrlKey: true });
+    expect(wrapper.find(".cards-message").text()).toBe("Message these 3");
+    await wrapper.find(".cards-message").trigger("click");
+    await flushPromises();
+    expect(wrapper.find("[aria-selected='true']").text()).toContain("Messages");
+    expect(wrapper.find("#pane-messages").text()).toContain("OH2ZWA");
+    expect(wrapper.find("#pane-messages").text()).toContain("OH2ZWC");
+  });
+
+  it("opens the conversation with a call that is not in the Stations table, from the Message button under the empty result", async () => {
+    const { wrapper } = await open(1400, 900);
+    await wrapper.find("#tab-stations").trigger("click");
+    await wrapper.find("#pane-stations input[type='search']").setValue("oh9new");
+    await wrapper.find("#pane-stations tr.stranger button").trigger("click");
+    await flushPromises();
+    expect(wrapper.find("[aria-selected='true']").text()).toContain("Messages");
+    expect(wrapper.find("#pane-messages").text()).toContain("OH9NEW");
+    await wrapper.find("#tab-stations").trigger("click");
+    await wrapper.find("#pane-stations input[type='search']").setValue("OH2GBA"); // (our own call: no button)
+    expect(wrapper.find("#pane-stations tr.stranger").exists()).toBe(false);
+  });
+
   it("has Close all when there is more than one card, which closes them all, and each card its own cross", async () => {
     const { wrapper } = await open(1400, 900);
     await row(wrapper, "OH2ZWA")?.trigger("click");

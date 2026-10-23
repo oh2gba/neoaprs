@@ -90,38 +90,14 @@ describe("MessagesPane, wide", () => {
     expect(wrapper.emitted("select")).toEqual([["OH2XYZ"], ["OH2RDG"]]);
   });
 
-  it("shows a quiet empty state with New message while no conversation is open", async () => {
+  it("shows a quiet empty state that points to a station's Message button while no conversation is open, and has no New message anywhere", async () => {
     const wrapper = await pane({ selected: null, thread: [] });
     expect(wrapper.find(".convo").exists()).toBe(false);
-    expect(wrapper.find(".convo-empty").text()).toContain("Choose a conversation");
-    expect(wrapper.find(".convo-empty button").text()).toBe("New message");
+    expect(wrapper.find(".convo-empty").text()).toBe("Choose a conversation, or a station's Message button");
+    expect(wrapper.find(".convo-empty button").exists()).toBe(false);
+    expect(wrapper.find(".new-message").exists()).toBe(false);
+    expect(wrapper.text()).not.toContain("New message");
     expect(wrapper.findAll(".conv")).toHaveLength(2);
-    await wrapper.find(".convo-empty button").trigger("click");
-    expect(wrapper.find(".convo-empty").exists()).toBe(false);
-    expect(wrapper.find(".convo-title").text()).toBe("New message");
-  });
-
-  it("opens an empty conversation to write a new message with New message at the top of the list, the cursor in To, and says select null when one was open", async () => {
-    const wrapper = await pane();
-    await wrapper.find(".new-message").trigger("click");
-    expect(wrapper.emitted("select")).toEqual([[null]]);
-    await wrapper.setProps({ selected: null, thread: [] });
-    expect(wrapper.find(".convo-title").text()).toBe("New message");
-    expect(wrapper.find(".bubbles").text()).toBe("");
-    expect(wrapper.find<HTMLInputElement>("#msg-to").element.value).toBe("");
-    expect(document.activeElement).toBe(wrapper.find("#msg-to").element);
-  });
-
-  it("goes back to the empty state when a message to several stations was sent from a new message", async () => {
-    const wrapper = await pane({ selected: null, thread: [], candidates: [{ call: "OH2AAA", direct: true, heardAt: "2026-10-21T11:59:00Z" }] });
-    await wrapper.find(".new-message").trigger("click");
-    await wrapper.find(".compose button[aria-expanded]").trigger("click");
-    for (const box of wrapper.findAll(".picker-list input")) await box.setValue(true);
-    await wrapper.find("#msg-to").setValue("OH2BBB");
-    await wrapper.find("#msg-text").setValue("Net at 20:00");
-    await wrapper.find("form").trigger("submit");
-    expect(wrapper.emitted("sendMany")).toEqual([[["OH2AAA", "OH2BBB"], "Net at 20:00"]]);
-    expect(wrapper.find(".convo-empty").exists()).toBe(true);
   });
 
   it("explains what overheard means in an (i)", async () => {
@@ -129,11 +105,7 @@ describe("MessagesPane, wide", () => {
     expect(wrapper.find(".convlist-overheard .info-toggle").attributes("aria-label")).toBe("What overheard means");
   });
 
-  it("has a Call placeholder in To", async () => {
-    expect((await pane()).find("#msg-to").attributes("placeholder")).toBe("Call");
-  });
-
-  it("lists the overheard pairs only when asked, and writes to the sender of one", async () => {
+  it("lists the overheard pairs only when asked, and has nothing to reply with: the bubbles and the header only", async () => {
     const heard = [...rows, message(6, { direction: "in", state: "overheard", from_call: "OH2AAA", to_call: "OH2BBB", text: "chatter", attempts: 0 })];
     const wrapper = await pane({ conversations: conversations(heard, () => 0, true), showOverheard: true });
     expect(wrapper.findAll(".conv").map((c) => c.find(".conv-call").text())).toContain("OH2AAA > OH2BBB");
@@ -143,14 +115,21 @@ describe("MessagesPane, wide", () => {
     await wrapper.setProps({ selected: "OH2AAA>OH2BBB", thread: [heard[5]] });
     expect(wrapper.find(".convo-head").text()).toBe("Overheard: OH2AAA > OH2BBB");
     expect(wrapper.find(".route-button").exists()).toBe(false);
-    expect(wrapper.find<HTMLInputElement>("#msg-to").element.value).toBe("OH2AAA");
+    expect(wrapper.find(".bubble").text()).toContain("chatter");
+    expect(wrapper.find(".compose").exists()).toBe(false);
+    expect(wrapper.find("form").exists()).toBe(false);
+    expect(wrapper.find("#msg-text").exists()).toBe(false);
+    expect(wrapper.find("#msg-to").exists()).toBe(false);
+    expect(wrapper.find(".convo .btn.primary").exists()).toBe(false);
+    expect([...wrapper.find(".convo").element.children].map((c) => c.className.split(" ")[0])).toEqual(["convo-head", "bubbles"]);
   });
 
-  it("fills in the call of the conversation that is open, and when another is picked", async () => {
+  it("has no To and no Stations in the box of a conversation: the conversation is the station", async () => {
     const wrapper = await pane();
-    expect(wrapper.find<HTMLInputElement>("#msg-to").element.value).toBe("OH2RDG");
-    await wrapper.setProps({ selected: "OH2XYZ" });
-    expect(wrapper.find<HTMLInputElement>("#msg-to").element.value).toBe("OH2XYZ");
+    expect(wrapper.find("#msg-to").exists()).toBe(false);
+    expect(wrapper.find(".compose").text()).not.toContain("Stations");
+    expect(wrapper.find(".picker").exists()).toBe(false);
+    expect(wrapper.find(".compose input").attributes("placeholder")).toBe("Message");
   });
 
   it("keeps the text being written when another conversation is picked", async () => {
@@ -351,44 +330,19 @@ describe("MessagesPane, the box to write in", () => {
     expect(wrapper.find(".compose button[type='submit']").attributes("disabled")).toBeDefined();
   });
 
-  it("sends the call in capitals and the text, and empties the box", async () => {
+  it("sends the text to the station of the conversation, and empties the box", async () => {
     const wrapper = await pane();
-    await wrapper.find("#msg-to").setValue(" oh2abc-9 ");
     await wrapper.find("#msg-text").setValue("Moi Pekka");
     await wrapper.find("form").trigger("submit");
-    expect(wrapper.emitted("send")).toEqual([["OH2ABC-9", "Moi Pekka"]]);
+    expect(wrapper.emitted("send")).toEqual([["OH2RDG", "Moi Pekka"]]);
     expect(wrapper.find<HTMLInputElement>("#msg-text").element.value).toBe("");
-    expect(wrapper.find<HTMLInputElement>("#msg-to").element.value).toBe("OH2ABC-9");
   });
 
-  it("refuses EMAIL-2 as the addressee, in red, with a title that sends the user to the Email tab", async () => {
-    const wrapper = await pane();
-    await wrapper.find("#msg-text").setValue("hello");
-    await wrapper.find("#msg-to").setValue("email-2");
-    const send = wrapper.find(".compose button[type='submit']");
-    expect(send.attributes("disabled")).toBeDefined();
-    expect(send.attributes("title")).toBe("Use the Email tab");
-    expect(wrapper.find("#msg-to").classes()).toContain("invalid");
+  it("sends to the station of the conversation that is open when another is picked, and for an overheard pair's sender nothing is possible", async () => {
+    const wrapper = await pane({ selected: "OH2XYZ", thread: [] });
+    await wrapper.find("#msg-text").setValue("Hi");
     await wrapper.find("form").trigger("submit");
-    expect(wrapper.emitted("send")).toBeUndefined();
-    await wrapper.find("#msg-to").setValue("EMAIL-3");
-    expect(send.attributes("disabled")).toBeUndefined();
-    expect(send.attributes("title")).toBeUndefined();
-  });
-
-  it("sends one text to the stations picked from the list, as a command for the page to send to each", async () => {
-    const wrapper = await pane({
-      candidates: [
-        { call: "OH2AAA", direct: true, heardAt: "2026-10-21T11:59:00Z" },
-        { call: "OH2BBB", direct: false, heardAt: "2026-10-21T11:00:00Z" },
-      ],
-    });
-    await wrapper.find(".compose button[aria-expanded]").trigger("click");
-    for (const box of wrapper.findAll(".picker-list input")) await box.setValue(true);
-    await wrapper.find("#msg-text").setValue("Net at 20:00");
-    await wrapper.find("form").trigger("submit");
-    expect(wrapper.emitted("sendMany")).toEqual([[["OH2AAA", "OH2BBB", "OH2RDG"], "Net at 20:00"]]);
-    expect(wrapper.emitted("send")).toBeUndefined();
+    expect(wrapper.emitted("send")).toEqual([["OH2XYZ", "Hi"]]);
   });
 
   it("sends on Enter in the text box", async () => {
@@ -399,18 +353,12 @@ describe("MessagesPane, the box to write in", () => {
     expect(wrapper.emitted("send")).toHaveLength(1);
   });
 
-  it("has Send off while the text is empty, the call is not a call, or the TNC is not connected, and explains nothing in words", async () => {
+  it("has Send off while the text is empty or the TNC is not connected, and explains nothing in words", async () => {
     const wrapper = await pane();
     const send = () => wrapper.find(".compose button[type='submit']");
     expect(send().attributes("disabled")).toBeDefined();
     await wrapper.find("#msg-text").setValue("hello");
     expect(send().attributes("disabled")).toBeUndefined();
-    await wrapper.find("#msg-to").setValue("not a call");
-    expect(send().attributes("disabled")).toBeDefined();
-    expect(wrapper.find("#msg-to").classes()).toContain("invalid");
-    await wrapper.find("#msg-to").setValue("OH2RDG");
-    expect(send().attributes("disabled")).toBeUndefined();
-    expect(wrapper.find("#msg-to").classes()).not.toContain("invalid");
     expect(send().attributes("title")).toBeUndefined();
     await wrapper.setProps({ connected: false });
     expect(send().attributes("disabled")).toBeDefined();
@@ -418,16 +366,6 @@ describe("MessagesPane, the box to write in", () => {
     expect(wrapper.find(".compose p").exists()).toBe(false);
     await wrapper.find("form").trigger("submit");
     expect(wrapper.emitted("send")).toBeUndefined();
-  });
-
-  it("closes the list of stations on Esc and keeps the conversation open", async () => {
-    width.set(NARROW);
-    const wrapper = await pane({ candidates: [{ call: "OH2AAA", direct: true, heardAt: "2026-10-21T11:59:00Z" }] });
-    await wrapper.find(".compose button[aria-expanded]").trigger("click");
-    expect(wrapper.find(".picker").exists()).toBe(true);
-    await wrapper.find("#msg-filter").trigger("keydown", { key: "Escape" });
-    expect(wrapper.find(".picker").exists()).toBe(false);
-    expect(wrapper.emitted("select")).toBeUndefined();
   });
 });
 
@@ -440,7 +378,7 @@ describe("MessagesPane, narrow", () => {
     expect(wrapper.find(".convlist").exists()).toBe(true);
     expect(wrapper.find(".convo").exists()).toBe(false);
     expect(wrapper.find(".convo-empty").exists()).toBe(false);
-    expect(wrapper.find(".new-message").text()).toBe("New message");
+    expect(wrapper.find(".new-message").exists()).toBe(false);
   });
 
   it("shows the conversation alone, with a back arrow in its header, once one is open", async () => {
@@ -482,32 +420,12 @@ describe("MessagesPane, narrow", () => {
     expect(wrapper.emitted("select")).toEqual([[null]]);
   });
 
-  it("does not go back on Esc on a wide tab: both are there", async () => {
-    width.set(WIDE);
-    const wrapper = await pane();
-    await wrapper.find(".convo").trigger("keydown", { key: "Escape" });
-    expect(wrapper.emitted("select")).toBeUndefined();
-  });
-
-  it("opens a new message with New message from the list, with the cursor in To and a back arrow to the list", async () => {
-    const wrapper = await pane({ selected: null, thread: [] });
-    await wrapper.find(".new-message").trigger("click");
-    expect(wrapper.emitted("select")).toBeUndefined();
-    expect(wrapper.find(".convlist").exists()).toBe(false);
-    expect(wrapper.find(".convo-title").text()).toBe("New message");
-    expect(document.activeElement).toBe(wrapper.find("#msg-to").element);
-    await wrapper.find(".convo-back").trigger("click");
-    expect(wrapper.find(".convlist").exists()).toBe(true);
-    expect(wrapper.find(".convo").exists()).toBe(false);
-  });
-
   it("goes to the conversation straight when the page selects one (the Message button of a station card)", async () => {
     const wrapper = await pane({ selected: null, thread: [] });
-    await wrapper.find(".new-message").trigger("click");
     await wrapper.setProps({ selected: "OH2XYZ", thread: [] });
     expect(wrapper.find(".convlist").exists()).toBe(false);
     expect(wrapper.find(".convo-title").text()).toBe("OH2XYZ");
-    expect(wrapper.find<HTMLInputElement>("#msg-to").element.value).toBe("OH2XYZ");
+    expect(wrapper.find("#msg-to").exists()).toBe(false);
   });
 
   it("turns into two columns when the tab becomes wide, with the same conversation open", async () => {
@@ -528,5 +446,132 @@ describe("MessagesPane, narrow", () => {
     expect(trash()?.text()).toBe("sure?");
     await trash()?.trigger("click");
     expect(wrapper.emitted("deleteConversation")).toEqual([["OH2RDG"]]);
+  });
+});
+
+describe("MessagesPane, the group compose", () => {
+  const calls = ["OH2AAA", "OH2BBB", "OH2CCC"];
+  const open = (extra: Record<string, unknown> = {}) => pane({ selected: null, thread: [], group: calls, ...extra });
+
+  it("takes the place of the conversation on a wide tab, beside the list, with the recipients as chips and Send to 3", async () => {
+    const wrapper = await open();
+    expect(wrapper.find(".convlist").exists()).toBe(true);
+    expect(wrapper.find(".convo-empty").exists()).toBe(false);
+    expect(
+      wrapper
+        .find(".group .recipients")
+        .findAll(".chip")
+        .map((c) => c.text()),
+    ).toEqual(["OH2AAA ×", "OH2BBB ×", "OH2CCC ×"]);
+    expect(wrapper.find(".group .compose button[type='submit']").text()).toBe("Send to 3");
+    expect(wrapper.find(".group .compose-left").text()).toBe("67 left");
+    expect(wrapper.find("#msg-to").exists()).toBe(false);
+    expect(wrapper.find(".route-button").exists()).toBe(false);
+  });
+
+  it("takes the whole tab on a narrow one, with a back arrow, instead of the list", async () => {
+    width.set(NARROW);
+    const wrapper = await open();
+    expect(wrapper.find(".convlist").exists()).toBe(false);
+    expect(wrapper.find(".group .convo-back").exists()).toBe(true);
+    await wrapper.find(".group .convo-back").trigger("click");
+    expect(wrapper.emitted("update:group")).toEqual([[null]]);
+  });
+
+  it("says which recipients are left when one is taken out, and closes with the last one", async () => {
+    const wrapper = await open();
+    await wrapper.findAll(".group .chip")[0]?.trigger("click");
+    expect(wrapper.emitted("update:group")).toEqual([[["OH2BBB", "OH2CCC"]]]);
+    const one = await open({ group: ["OH2AAA"] });
+    await one.find(".group .chip").trigger("click");
+    expect(one.emitted("update:group")).toEqual([[null]]);
+  });
+
+  it("sends one text to all of them as sendMany, empties its box and closes, opening nothing", async () => {
+    const wrapper = await open();
+    await wrapper.find("#msg-text").setValue("Net at 20:00");
+    await wrapper.find("form").trigger("submit");
+    expect(wrapper.emitted("sendMany")).toEqual([[calls, "Net at 20:00"]]);
+    expect(wrapper.emitted("send")).toBeUndefined();
+    expect(wrapper.emitted("update:group")).toEqual([[null]]);
+    expect(wrapper.emitted("select")).toBeUndefined();
+  });
+
+  it("closes on Esc on a wide tab as on a narrow one, and has no draft of the conversations in it", async () => {
+    const wide = await open();
+    await wide.find("#msg-text").trigger("keydown", { key: "Escape" });
+    expect(wide.emitted("update:group")).toEqual([[null]]);
+    width.set(NARROW);
+    const narrow = await open();
+    await narrow.find(".group").trigger("keydown", { key: "Escape" });
+    expect(narrow.emitted("update:group")).toEqual([[null]]);
+    expect(narrow.emitted("select")).toBeUndefined();
+    const talk = await pane({ group: null });
+    await talk.find("#msg-text").setValue("to one only");
+    await talk.setProps({ selected: null, thread: [], group: calls });
+    expect(talk.find<HTMLInputElement>("#msg-text").element.value).toBe("");
+  });
+
+  it("gives way to a conversation that is open", async () => {
+    const wrapper = await pane({ group: calls });
+    expect(wrapper.find(".group").exists()).toBe(false);
+    expect(wrapper.find(".convo-title").text()).toBe("OH2RDG");
+  });
+});
+
+describe.each([
+  ["wide", WIDE],
+  ["narrow", NARROW],
+])("MessagesPane, Esc, %s", (_name, size) => {
+  beforeEach(() => width.set(size));
+
+  it("deselects the open conversation, and the page shows the empty state or the list as it is", async () => {
+    const wrapper = await pane();
+    await wrapper.find(".convo").trigger("keydown", { key: "Escape" });
+    expect(wrapper.emitted("select")).toEqual([[null]]);
+    await wrapper.setProps({ selected: null, thread: [] });
+    expect(wrapper.find(".convo").exists()).toBe(false);
+    expect(wrapper.find(".convo-empty").exists()).toBe(size === WIDE);
+    expect(wrapper.find(".convlist").exists()).toBe(true);
+    expect(wrapper.findAll(".conv.active")).toHaveLength(0);
+  });
+
+  it("deselects with Esc in an empty text box, and does nothing to the selection while the box has text in it", async () => {
+    const wrapper = await pane();
+    await wrapper.find("#msg-text").setValue("half a message");
+    await wrapper.find("#msg-text").trigger("keydown", { key: "Escape" });
+    expect(wrapper.emitted("select")).toBeUndefined();
+    expect(wrapper.find<HTMLInputElement>("#msg-text").element.value).toBe("half a message");
+    await wrapper.find("#msg-text").setValue("");
+    await wrapper.find("#msg-text").trigger("keydown", { key: "Escape" });
+    expect(wrapper.emitted("select")).toEqual([[null]]);
+  });
+
+  it("closes the Route box first, and only the next Esc deselects", async () => {
+    const wrapper = await pane();
+    await wrapper.find(".route-button").trigger("click");
+    await wrapper.find(".route-box input").trigger("keydown", { key: "Escape" });
+    expect(wrapper.find(".route-box").exists()).toBe(false);
+    expect(wrapper.emitted("select")).toBeUndefined();
+    await wrapper.find("#msg-text").trigger("keydown", { key: "Escape" });
+    expect(wrapper.emitted("select")).toEqual([[null]]);
+  });
+
+  it("does nothing to a list with no conversation open", async () => {
+    const wrapper = await pane({ selected: null, thread: [] });
+    await wrapper.find(".convlist").trigger("keydown", { key: "Escape" });
+    expect(wrapper.emitted("select")).toBeUndefined();
+    expect(wrapper.emitted("update:group")).toBeUndefined();
+  });
+
+  it("closes the group compose with Esc, and keeps it while its text box has text", async () => {
+    const wrapper = await pane({ selected: null, thread: [], group: ["OH2AAA", "OH2BBB"] });
+    await wrapper.find("#msg-text").setValue("Net at 20:00");
+    await wrapper.find("#msg-text").trigger("keydown", { key: "Escape" });
+    expect(wrapper.emitted("update:group")).toBeUndefined();
+    await wrapper.find("#msg-text").setValue("");
+    await wrapper.find("#msg-text").trigger("keydown", { key: "Escape" });
+    expect(wrapper.emitted("update:group")).toEqual([[null]]);
+    expect(wrapper.emitted("select")).toBeUndefined();
   });
 });

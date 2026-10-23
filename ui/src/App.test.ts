@@ -402,17 +402,17 @@ describe("App", () => {
     socket.say(status({ beacon_interval_min: 15, beacon_last_sent: ago(60), beacon_next_due: new Date(Date.now() + 840_000).toISOString() }));
     await flushPromises();
     await tabButton(wrapper, "Beacon")?.trigger("click");
-    expect(wrapper.find("#pane-beacon .beaconbox").text()).toContain("Last beacon1 min ago");
-    await wrapper.find("#pane-beacon .beaconbox button").trigger("click");
+    expect(wrapper.find("#pane-beacon .sendrow").text()).toContain("Last beacon1 min ago");
+    await wrapper.find("#pane-beacon .sendrow button").trigger("click");
     expect(socket.sent).not.toContainEqual({ cmd: "beacon_now" });
-    await wrapper.find("#pane-beacon .beaconbox button").trigger("click");
+    await wrapper.find("#pane-beacon .sendrow button").trigger("click");
     expect(socket.sent).toContainEqual({ cmd: "beacon_now" });
   });
 
   it("sends the status from the Beacon tab after two clicks once there is a status, and not before", async () => {
     const { wrapper, socket } = await open();
     await tabButton(wrapper, "Beacon")?.trigger("click");
-    expect(wrapper.findAll("#pane-beacon .beaconbox button").map((b) => b.text())).toEqual(["Beacon now"]);
+    expect(wrapper.findAll("#pane-beacon .sendrow button").map((b) => b.text())).toEqual(["Beacon now"]);
     socket.say({
       type: "state",
       topic: "config",
@@ -420,10 +420,10 @@ describe("App", () => {
       value: configValues({ "status/source": "text", "station/status": "QRV 145.500" }),
     });
     await flushPromises();
-    expect(wrapper.findAll("#pane-beacon .beaconbox button").map((b) => b.text())).toEqual(["Beacon now", "Send status now"]);
-    await wrapper.findAll("#pane-beacon .beaconbox button")[1]?.trigger("click");
+    expect(wrapper.findAll("#pane-beacon .sendrow button").map((b) => b.text())).toEqual(["Beacon now", "Send status now"]);
+    await wrapper.findAll("#pane-beacon .sendrow button")[1]?.trigger("click");
     expect(socket.sent).not.toContainEqual({ cmd: "status_now" });
-    await wrapper.findAll("#pane-beacon .beaconbox button")[1]?.trigger("click");
+    await wrapper.findAll("#pane-beacon .sendrow button")[1]?.trigger("click");
     expect(socket.sent).toContainEqual({ cmd: "status_now" });
     expect(socket.sent).not.toContainEqual({ cmd: "beacon_now" });
   });
@@ -1003,17 +1003,17 @@ describe("App", () => {
       expect(wrapper.find("#pane-messages .convo-empty").text()).toContain("Choose a conversation");
       await conv(wrapper, "OH2RDG")?.trigger("click");
       expect(wrapper.findAll("#pane-messages .bubble")).toHaveLength(2);
-      expect(wrapper.find<HTMLInputElement>("#msg-to").element.value).toBe("OH2RDG");
+      expect(wrapper.find("#pane-messages .convo-title").text()).toBe("OH2RDG");
       await conv(wrapper, "OH2PU-9")?.trigger("click");
       expect(wrapper.find("#pane-messages .conv.active .conv-call").text()).toBe("OH2PU-9");
-      expect(wrapper.find<HTMLInputElement>("#msg-to").element.value).toBe("OH2PU-9");
+      expect(wrapper.find("#pane-messages .convo-title").text()).toBe("OH2PU-9");
       await conv(wrapper, "OH2PU-9")?.trigger("click");
       expect(wrapper.find("#pane-messages .conv.active .conv-call").text()).toBe("OH2PU-9");
       expect(wrapper.findAll("#pane-messages .conv")).toHaveLength(2);
     });
 
-    it("is opened by the Message button of the station's card, again and again, and a new message leaves the open one", async () => {
-      const { wrapper } = await open();
+    it("is opened by the Message button of the station's card, again and again, also for a station with no conversation yet, which it creates", async () => {
+      const { wrapper, socket } = await open();
       await wrapper
         .findAll("#pane-stations tbody tr")
         .find((r) => r.text().includes("OH2PU-9"))
@@ -1024,11 +1024,18 @@ describe("App", () => {
       expect(wrapper.find("#pane-messages .conv.active .conv-call").text()).toBe("OH2PU-9");
       await message()?.trigger("click");
       expect(wrapper.find("#pane-messages .conv.active .conv-call").text()).toBe("OH2PU-9");
-      await wrapper.find("#pane-messages .new-message").trigger("click");
-      expect(wrapper.find("#pane-messages .conv.active").exists()).toBe(false);
-      expect(wrapper.find("#pane-messages .convo-title").text()).toBe("New message");
+      expect(wrapper.find("#pane-messages .new-message").exists()).toBe(false);
+      expect(wrapper.find("#msg-to").exists()).toBe(false);
+      await wrapper
+        .findAll("#pane-stations tbody tr")
+        .find((r) => r.text().includes("OH2NOPOS"))
+        ?.trigger("click");
       await message()?.trigger("click");
-      expect(wrapper.find("#pane-messages .conv.active .conv-call").text()).toBe("OH2PU-9");
+      expect(wrapper.find("#pane-messages .convo-title").text()).toBe("OH2NOPOS");
+      expect(wrapper.find("#pane-messages .bubbles").text()).toContain("No message with OH2NOPOS yet");
+      await wrapper.find("#msg-text").setValue("Moi");
+      await wrapper.find("#pane-messages form").trigger("submit");
+      expect(socket.sent).toContainEqual({ cmd: "send_message", to: "OH2NOPOS", text: "Moi" });
     });
 
     it("is opened straight, without the list, by the Message button of the station's card on a narrow panel, and Esc is back to the list", async () => {
@@ -1044,7 +1051,7 @@ describe("App", () => {
         ?.trigger("click");
       expect(wrapper.find("#pane-messages .convlist").exists()).toBe(false);
       expect(wrapper.find("#pane-messages .convo-title").text()).toBe("OH2PU-9");
-      expect(wrapper.find<HTMLInputElement>("#msg-to").element.value).toBe("OH2PU-9");
+      expect(wrapper.find("#msg-to").exists()).toBe(false);
       await wrapper.find("#pane-messages .convo").trigger("keydown", { key: "Escape" });
       expect(wrapper.find("#pane-messages .convo").exists()).toBe(false);
       expect(wrapper.findAll("#pane-messages .conv")).toHaveLength(2);
@@ -1109,7 +1116,7 @@ describe("App", () => {
     };
     const badge = (wrapper: VueWrapper) => tabButton(wrapper, "Email")?.find(".badge");
 
-    it("sends mail as a message to EMAIL-2 and a new shortcut and the commands as their texts, and keeps the addressee in the list", async () => {
+    it("sends mail as a message to EMAIL-2 and a new contact and the commands as their texts, and keeps the addressee in the list", async () => {
       const { wrapper, socket } = await open();
       await tabButton(wrapper, "Email")?.trigger("click");
       const pane = () => wrapper.find("#pane-email");
@@ -1125,16 +1132,16 @@ describe("App", () => {
       expect(JSON.stringify(socket.sent)).not.toContain("_attempts");
       expect(pane().find("form.mailform").exists()).toBe(false);
       expect(JSON.parse(localStorage.getItem("NeoAPRS.emailto") ?? "[]")).toEqual(["jane@example.com"]);
-      await button("Mailbox")?.trigger("click");
-      await pane().findAll("[role='menuitem']")[1]?.trigger("click");
-      await wrapper.find("#mail-shortcut").setValue("me");
-      await wrapper.find("#mail-address").setValue("jane@example.com");
-      await wrapper.find("#pane-email form.mailform").trigger("submit");
-      await button("Email the list")?.trigger("click");
+      await button("Contacts")?.trigger("click");
+      await wrapper.find("#contact-name").setValue("me");
+      await wrapper.find("#contact-address").setValue("jane@example.com");
+      await wrapper.find("#pane-email form[aria-label='Add contact']").trigger("submit");
+      // the gateway's messages come back as rows of the topic: the contact is listed from the one we sent
+      await say(socket, 1, message(10, { to_call: "EMAIL-2", text: "me jane@example.com", state: "acked" }));
+      await button("Email me the list")?.trigger("click");
       await button("Remove")?.trigger("click");
       await button("sure?")?.trigger("click");
-      await button("Mailbox")?.trigger("click");
-      await pane().findAll("[role='menuitem']")[0]?.trigger("click");
+      await button("Check for mail")?.trigger("click");
       expect(socket.sent.slice(-4)).toEqual([
         { cmd: "send_message", to: "EMAIL-2", text: "me jane@example.com" },
         { cmd: "send_message", to: "EMAIL-2", text: "me L" },

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 // The settings of the daemon, one field for every key it lists in the scope of the form (the Settings tab, or the Beacon tab with the keys the beacon sends), in groups. There is no Save button: a choice (a list, a switch, a symbol, a place
 // picked on the map) applies at once, a typed field on Enter or when it is left (never while it is typed), after the page's own check of it; the daemon checks it again, and a wrong one is shown under its field with what was typed kept. What
-// the person sees of it (Saving..., Saved, the Undo toast) is useSettings, shared with the other tab so that there is one queue. The alert command has a Test button, which runs the saved command and shows how it went under the field; a field
+// the person sees of it (the Undo toast, a line for a screen reader) is useSettings, shared with the other tab so that there is one queue. The alert command has a Test button, which runs the saved command and shows how it went under the field; a field
 // left empty shows the default as a placeholder. The Map group ends with the buttons that make the map (MapFetchPanel), which work on the saved settings. On the Settings tab a link at the top opens the first-run guide again; the default slot is
-// for more groups (the page's own, which are not settings of the daemon), the slot `radio` for the state of the radio link, which opens the TNC group, and the slot `notifications` for the fields of the page's own alert, which end the
+// for more groups (the page's own, which are not settings of the daemon), the slot `radio` for the state of the radio link, which opens the TNC group, the slots `beacon` and `status` for the line with the button that sends it now, which open the Beacon and Status groups, and the slot `notifications` for the fields of the page's own alert, which end the
 // Notifications group. The Update check group (the daily check itself is always on) has a Check now button, which asks the version page at once and shows the answer beside it for a few seconds. While the network is let in, the Web group shows
 // the access key with a New key button and the addresses to open the page at.
 import ConfirmRow from "@/components/ConfirmRow.vue";
@@ -48,7 +48,7 @@ const props = withDefaults(
 const emit = defineEmits<{ setup: []; update: []; pickPosition: [] }>();
 
 const settings = props.settings ?? useSettings(toRef(props, "config"), toRef(props, "lastError"), (command) => props.send(command));
-const { draft, errors, marks } = settings;
+const { draft, errors } = settings;
 const form = useSettingsForm(toRef(props, "config"), settings, props.scope);
 const { groups, question, defaults } = form;
 const alertTest = useAlertTest(
@@ -84,7 +84,6 @@ const shown = (keys: readonly string[], inGroup = true) =>
   );
 /** The symbol is one field, which sets the table and the code. */
 const symbol = computed(() => `${draft[SYMBOL_TABLE] ?? ""}${draft[SYMBOL_CODE] ?? ""}`);
-const symbolMark = computed(() => marks[SYMBOL_TABLE] ?? marks[SYMBOL_CODE] ?? "");
 function editSymbol(text: string): void {
   settings.edit(SYMBOL_TABLE, text.slice(0, 1));
   settings.edit(SYMBOL_CODE, text.slice(1, 2));
@@ -107,7 +106,6 @@ function typed(key: string, text: string): void {
   const kind = info(key).kind;
   if (kind !== "bool" && kind !== "choice") settings.edit(key, text);
 }
-const mark = (key: string) => marks[key] ?? "";
 </script>
 
 <template>
@@ -121,6 +119,8 @@ const mark = (key: string) => marks[key] ?? "";
     <fieldset v-for="group in groups" :key="group.id">
       <legend>{{ group.title }}</legend>
       <slot v-if="group.id === 'serial'" name="radio"></slot>
+      <slot v-if="group.id === 'beacon'" name="beacon"></slot>
+      <slot v-if="group.id === 'status'" name="status"></slot>
       <template v-for="key in shown(group.keys)" :key="key">
         <h3 v-if="SUBGROUPS[key]" class="subgroup" :title="SUBGROUPS[key]?.title">
           {{ SUBGROUPS[key]?.text }}
@@ -133,7 +133,6 @@ const mark = (key: string) => marks[key] ?? "";
           :draft="draft"
           :current="{ lat: config.values['station/lat'] ?? '', lon: config.values['station/lon'] ?? '' }"
           :errors="errors"
-          :marks="marks"
           :changed="form.changed"
           :picking="picking"
           @type="settings.edit"
@@ -146,7 +145,6 @@ const mark = (key: string) => marks[key] ?? "";
           id="set-station-symbol"
           :symbol="symbol"
           :changed="form.changed(SYMBOL_TABLE) || form.changed(SYMBOL_CODE)"
-          :state="symbolMark"
           @update:symbol="editSymbol"
           @commit="settings.commit([SYMBOL_TABLE, SYMBOL_CODE], true)"
         />
@@ -159,7 +157,6 @@ const mark = (key: string) => marks[key] ?? "";
           :ports="ports"
           :error="errors[key] ?? ''"
           :changed="form.changed(key)"
-          :state="mark(key)"
           @update:model-value="settings.edit(key, $event)"
           @choose="form.choose({ [key]: $event })"
           @commit="form.finish(key, $event)"
@@ -175,7 +172,6 @@ const mark = (key: string) => marks[key] ?? "";
           :error="errors[key] ?? ''"
           :changed="form.changed(key)"
           :result="resultOf(key)"
-          :state="mark(key)"
           :apply="true"
           @update:model-value="typed(key, $event)"
           @choose="form.choose({ [key]: $event })"

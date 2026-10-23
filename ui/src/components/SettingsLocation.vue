@@ -17,13 +17,11 @@ const props = defineProps<{
   /** the place in force, as text */
   current: { lat: string; lon: string };
   errors: Record<string, string>;
-  marks: Record<string, string>;
   changed: (key: string) => boolean;
   picking: boolean;
 }>();
 const emit = defineEmits<{ type: [key: string, text: string]; commit: [key: string, next: EventTarget | null]; cancel: [key: string]; pick: [] }>();
 
-const mark = computed(() => (props.marks[LAT] ?? props.marks[LON] ?? "") as "saving" | "saved" | "");
 const number = (value: string) => parseNumber(value);
 /** The place in force in words: degrees with N or S, E or W, and the locator; "Not set" while there is none. */
 const line = computed(() => {
@@ -44,7 +42,6 @@ const id = (key: string) => `set-${key.replace("/", "-")}`;
       {{ picking ? "Cancel" : "Pick on the map" }}
     </button>
     <span class="location-line" :class="{ muted: line === 'Not set' }">{{ line }}</span>
-    <span v-if="mark" class="field-state" :class="mark" aria-hidden="true">{{ mark === "saved" ? "Saved ✓" : "Saving…" }}</span>
   </div>
   <DisclosureBox title="Enter coordinates" :open="open">
     <SettingsField

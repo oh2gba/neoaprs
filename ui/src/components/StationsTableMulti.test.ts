@@ -92,4 +92,60 @@ describe("StationsTable with several cards", () => {
     expect(cssRule(".scroll")).toMatch(/scroll-padding-top:\s*36px/);
     expect(cssRule(".grid th")).toMatch(/position:\s*sticky/);
   });
+
+  describe("Message OH2XYZ under an empty result", () => {
+    const withFilter = async (text: string, ownCall: string | null = "OH2GBA") => {
+      const wrapper = mount(StationsTable, {
+        props: { stations: rows, selected: null, others: [], now: NOW, aging: { timeouts: new Map(), defaultMin: 0 }, ownCall },
+      });
+      await wrapper.find("input[type='search']").setValue(text);
+      return wrapper;
+    };
+    const button = (wrapper: Awaited<ReturnType<typeof withFilter>>) => wrapper.find("tr.stranger button");
+
+    it("is a button for a call that no station has been heard under, which asks to write to it", async () => {
+      const wrapper = await withFilter("oh2xyz");
+      expect(wrapper.find("td.empty").text()).toContain("No station matches");
+      expect(button(wrapper).text()).toBe("Message OH2XYZ");
+      expect(button(wrapper).classes()).toContain("primary");
+      await button(wrapper).trigger("click");
+      expect(wrapper.emitted("message")).toEqual([["OH2XYZ"]]);
+    });
+
+    it("is there although our own row is always listed, and not when only the filter makes the list empty of a station that matches", async () => {
+      const withUs = table(station("OH2GBA", { is_me: true }), station("OH2ZWA"));
+      const make = (text: string) => {
+        const wrapper = mount(StationsTable, {
+          props: { stations: withUs, selected: null, now: NOW, aging: { timeouts: new Map(), defaultMin: 0 }, ownCall: "OH2GBA" },
+        });
+        return wrapper
+          .find("input[type='search']")
+          .setValue(text)
+          .then(() => wrapper);
+      };
+      expect((await make("OH9NEW")).find("tr.stranger button").text()).toBe("Message OH9NEW");
+      expect((await make("OH2ZWA")).find("tr.stranger").exists()).toBe(false);
+      expect((await make("OH2GBA")).find("tr.stranger").exists()).toBe(false);
+    });
+
+    it("takes a call with an SSID, and spaces round it", async () => {
+      expect(button(await withFilter(" oh2xyz-9 ")).text()).toBe("Message OH2XYZ-9");
+    });
+
+    it("is not there for text that is no call: too long, a bad SSID, a word, an empty filter", async () => {
+      for (const text of ["OH2XYZABC", "OH2XYZ-16", "hello there", "OH2 XYZ", ""]) expect(button(await withFilter(text)).exists(), text).toBe(false);
+    });
+
+    it("is not there when a station matches the filter, even when the text is a whole call", async () => {
+      expect(button(await withFilter("OH2ZWA")).exists()).toBe(false);
+      expect(button(await withFilter("ZW")).exists()).toBe(false);
+    });
+
+    it("is not for the email gateway, whose messages are the Email tab's, and not for our own call", async () => {
+      expect(button(await withFilter("EMAIL-2")).exists()).toBe(false);
+      expect(button(await withFilter("email-2")).exists()).toBe(false);
+      expect(button(await withFilter("oh2gba")).exists()).toBe(false);
+      expect(button(await withFilter("OH2GBA", null)).exists()).toBe(true); // (while we do not know our call, nothing is ours)
+    });
+  });
 });
