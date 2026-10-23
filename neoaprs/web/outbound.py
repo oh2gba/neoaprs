@@ -15,7 +15,7 @@ from .session import Client, Connection
 log = logging.getLogger("neoaprs.web")
 
 MEGABYTE = 1024 * 1024
-MAX_WRITE_BUFFER = 32 * MEGABYTE   # what a socket holds for a page that does not read, and is then cut off (neoaprs/web/server.py); the whole station book is a few megabytes, so a page that reads is far below it.
+MAX_WRITE_BUFFER = 32 * MEGABYTE   # what a socket holds for a page that does not read, and is then cut off (neoaprs/web/pagesocket.py); the whole station book is a few megabytes, so a page that reads is far below it.
                                    # The state hub (neoaprs/web/hub.py) calls a page behind when its socket holds a share of it.
 MAX_MESSAGE = 16 * MEGABYTE        # the largest message sent to one page, whole: the `state` of the stations after years of listening. The write buffer of a socket is bigger, and holds what a page has not yet read.
 
