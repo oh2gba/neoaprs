@@ -1,5 +1,5 @@
 # The project page (https://oh2gba.github.io/neoaprs/): the folder site/ as it is, plain files with nothing to build. A push to master that touches site/ (or this file) publishes it; run by hand it publishes the
-# current master. Pages is switched on in the repository's settings (Pages, Source: GitHub Actions), which this workflow does not do. The page and its screenshots: docs/MANUAL.md, "The project page".
+# current master. Pages is switched on in the repository's settings (Pages, Source: GitHub Actions), which this workflow does not do. The page and its screenshots: docs/development.md, "The project page".
 name: pages
 
 on:

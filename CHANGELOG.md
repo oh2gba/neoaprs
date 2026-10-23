@@ -2,7 +2,55 @@
 
 ## Unreleased
 
-Nothing yet.
+No new features: the wire between the daemon and the page is structured, the rules are written once, the code, the tests and the stylesheet are tidier, and the documents are readable.
+
+The wire contract.
+
+- An error carries the command it answers, the setting it is about, a stable code and the values its sentence is made of (`cmd`, `key`, `code`, `params`). The page goes by those and no longer reads the daemon's English; the English text stays for the log.
+- The radio's state tells the ports it is searching and its latest lines as data (`searching`, `lines` as `{at, text}`). The page parses no sentence of it.
+- Weather packets are found by what the parser decoded, not by a pattern in the English summary.
+- The rows of every topic are built from the domain objects through their wire models, so a new field is added in one place. A golden-file test holds the JSON of every row kind.
+
+One source of rules.
+
+- The page takes every limit it checks against from the daemon (`LIMITS` in the generated `lists.ts`) and the rules that are code from conformance vectors (`vectors.json`) that the daemon's tests and the page's tests both assert. The settings form and the setup guide share one field check.
+- The numbers the program decides (how long things are kept, the station timeout, the keep-alive time) are in `neoaprs/policy.py`, apart from the settings.
+
+Python tidy.
+
+- One `Radio` protocol, one way to build our frame (`our_frame`), one handler for a failed task (`TaskSet` takes a logger), all in `services/common.py` and `tasks.py`. The seeding of the station book moved from the controller to `wiring`.
+- The page's server is split: the tab's socket in `web/pagesocket.py`, the choice of the port in `web/listen.py`.
+- The write-ahead log is bounded by SQLite's automatic checkpoint and `journal_size_limit`; the minute's checkpoint that was never scheduled is gone.
+- Dead code out: `compress_position`, `PrefBook.timeout_for`, `Store.setting_rev`, `MessageLog.highest_msg_id`, `Source.reconnect`, five `clock` helpers and others; stale docstrings corrected.
+
+Tests and flakes.
+
+- One stub TNC and shared rigs for the service tests (`tests/support/stubtnc.py`, `rig.py`). A wait is a condition (`until`), a window in which nothing may happen is named (`idle_for`), and fixed sleeps are gone from the serial, TNC, wiring and safety tests.
+- Two flakes explained and fixed (the stop test of the daemon, the reopen test of the serial line). Coverage rose from 96 to 97 % (the alert runner, the db and capture commands, replay on a pseudo-terminal, durable writes, the Qt shell).
+
+CSS.
+
+- `style.css` and `responsive.css` are split by area into `ui/src/styles/` (the built CSS was byte for byte the same at the split). Dead rules are out, rules with the same selector or declarations are merged, and `scripts/css-unused.py` in the stage `ui-lint` fails for a rule of a class that no source file writes.
+
+Page shell.
+
+- `App.vue` went from 312 to 134 lines: it provides one typed daemon context that the panes inject, and the shell's logic lives in `useAppShell` and `useHeardIndex`. Its test is split by tab.
+- One compose bar for messages, mail, bulletins and objects; one popup behaviour for the (i), the Route box and the tab menu; one disclosure box; shared symbol button and tab badge. Dead exports out.
+
+Documents.
+
+- The manual was split: `docs/manual/` is for the person who runs NeoAPRS (short paragraphs, plain words, one file for each subject, the secure connection and the other things it lacked included), `docs/development.md` for building and releasing, and `docs/daemon.md` for how the daemon behaves.
+- The table of settings is made from the program (`scripts/doc-settings`) and a test fails when it is stale. Other tests hold the manual to short paragraphs, no code names and no version numbers. `CONVENTIONS.md` has the glossary, and the size limits and the layers are each stated once.
+
+Dev loop.
+
+- `scripts/gen-protocol.py` also writes `LIMITS` and the vectors; `scripts/css-unused.py` runs in `ui-lint`; `scripts/doc-settings` keeps the table of settings current.
+
+Small fixes.
+
+- The page's check of a call refuses what the daemon refuses: `NOCALL`, `MYCALL` and calls of an odd shape, not only `N0CALL`.
+- The beacon preview rounds a position that is exactly on a half hundredth of a minute the way the daemon does.
+- The Messages box scrolls into view on a phone when the keyboard comes up.
 
 ## 0.6.0
 

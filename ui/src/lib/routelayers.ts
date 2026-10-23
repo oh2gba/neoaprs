@@ -1,5 +1,5 @@
 // The layers of the route of the selected station (lib/routeline.ts): a pale casing under the line so that it shows on any ground, the latest route solid, the best one dashed and fainter, a dot on
-// each digipeater with its call beside it. The colours are the page's own (style.css), read when the layers are made, which is again whenever the style is set (the colour scheme changed).
+// each digipeater with its call beside it. The colours are the page's own (ui/src/styles/tokens.css), read when the layers are made, which is again whenever the style is set (the colour scheme changed).
 import type { ExpressionSpecification, Map as MapLibreMap } from "maplibre-gl";
 import { FONT_REGULAR } from "@/lib/basemapstyle";
 import type { RouteCollection } from "@/lib/routeline";

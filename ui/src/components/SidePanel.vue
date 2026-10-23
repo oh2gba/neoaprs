@@ -23,7 +23,7 @@ const emit = defineEmits<{
 }>();
 
 const KEY_STEP = 24;
-/** The left margin of the Map button (style.css), which the row of tabs does not have. */
+/** The left margin of the Map button (ui/src/styles/responsive.css), which the row of tabs does not have. */
 const MAP_MARGIN = 6;
 const pageWidth = ref(window.innerWidth);
 const shown = computed(() => clampWidth(props.width, pageWidth.value));
@@ -34,7 +34,7 @@ onMounted(() => window.addEventListener("resize", onResize));
 onBeforeUnmount(() => window.removeEventListener("resize", onResize));
 
 const phone = computed(() => props.size === "phone");
-/** A phone has no folded panel (the map has its turn); a tablet's panel has the width of its size (style.css), a desktop's the user's. */
+/** A phone has no folded panel (the map has its turn); a tablet's panel has the width of its size (ui/src/styles/responsive.css), a desktop's the user's. */
 const folded = computed(() => props.collapsed && !phone.value);
 /** The open tab shows; on a phone only in its turn. */
 const paneOn = computed(() => !phone.value || props.view === "panel");

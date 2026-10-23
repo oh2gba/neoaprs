@@ -39,7 +39,7 @@ export function useLayout(panel: Panel, guideOpen: Readonly<Ref<boolean>>, picki
   // a window that changes between phone and the others forgets the tab it was to return to
   watch(phone, () => (returnToTab = false));
 
-  /** The classes of the page's root, which style.css and responsive.css go by. */
+  /** The classes of the page's root, which the style sheets of ui/src/styles/ go by. */
   const rootClass = computed(() => [`size-${size.value}`, phone.value ? `view-${showing.value}` : "", guideOpen.value ? "guide-open" : ""]);
 
   return { size, phone, view, showing, capacity, rootClass, showMap: () => (view.value = "map") };
