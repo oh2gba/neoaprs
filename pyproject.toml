@@ -74,11 +74,10 @@ testpaths = ["tests"]
 addopts = "-q --strict-markers"
 # The folder of a test that passed is taken down when it ends (only a failed test keeps its folder to look at).
 tmp_path_retention_policy = "failed"
-# The markers are given by tests/support/markers.py (every test is exactly one of unit / integration / e2e); a test sets expects_errors itself. See tests/README.md.
+# The markers are given by tests/support/markers.py (every test is exactly one of unit / integration); a test sets expects_errors itself. See tests/README.md.
 markers = [
     "unit: pure code in one process: no event loop, no daemon, no socket",
     "integration: the daemon (Controller), the web server or a fake service on the loopback",
-    "e2e: a real browser against a daemon (needs Chromium and the built page; skipped without)",
     "safety: guards the data: storage, migrations, the database actor and everything under tests/safety (run alone with -m safety)",
     "expects_errors: the test makes the code log an ERROR on purpose (any other test that does fails, see tests/support/guards.py)",
 ]

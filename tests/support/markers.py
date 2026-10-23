@@ -2,10 +2,9 @@
 
     unit         pure code in one process: no loop, no daemon, no socket
     integration  the daemon (Controller), the web server or a fake service on the loopback
-    e2e          a real browser against a daemon (tests/e2e, when there are browser tests)
     safety       tests that guard the data: storage, migrations, the database actor (everything under tests/safety, and the modules named below)
 
-Every test is exactly one of unit / integration / e2e; safety is added to whichever it is. `pytest -m "not e2e"` is the run without a browser, `-m unit` the pure code (no daemon, no sockets),
+Every test is exactly one of unit / integration; safety is added to whichever it is. `-m unit` is the pure code (no daemon, no sockets),
 `-m safety` what to run before touching the data layer. A test that is wrongly a unit test only costs speed: the rule leans towards integration."""
 import inspect
 import subprocess
@@ -14,9 +13,8 @@ from types import ModuleType
 
 import pytest
 
-KINDS = ("unit", "integration", "e2e")
+KINDS = ("unit", "integration")
 EXTRA = ("safety",)                          # plus "expects_errors", which a test sets itself (tests/support/guards.py)
-E2E_DIRS = ("e2e",)
 # Where integration starts: what a test module imports from here, or names in a test function, is the daemon or a fake service.
 INTEGRATION_ORIGINS = ("tests.support.env", "neoaprs.controller", "neoaprs.web.server")
 INTEGRATION_NAMES = frozenset({"Env", "Controller", "WebServer"})
@@ -36,8 +34,6 @@ def names_in(function: object) -> frozenset[str]:
 
 
 def kind_of(item: pytest.Item) -> str:
-    if any(part in E2E_DIRS for part in item.path.parts):
-        return "e2e"
     function = getattr(item, "obj", None)
     names = names_in(function)
     module = getattr(item, "module", None)

@@ -150,8 +150,25 @@ LISTS_HEAD = """// The lists the daemon owns and the page shows, written from th
 """
 
 
+LISTS_WIDTH = 160                      # the printWidth of ui/.prettierrc.json: a list that fits stays on one line, a longer one has one item to a line
+
+
+def _literal(value: Any, indent: int = 0, used: int = 40) -> str:
+    """A value as TypeScript, laid out the way prettier does: a list of strings or numbers on one line when it fits, else one item to a line; a list of objects one object to a line; an object with a list in it
+    one key to a line. So that two edits of two items do not meet in one long line, and git merges them."""
+    pad = "  " * (indent + 1)
+    if isinstance(value, list):
+        flat = json.dumps(value)
+        if not any(isinstance(x, (dict, list)) for x in value) and indent * 2 + len(flat) + used <= LISTS_WIDTH:        # (used: what else is on the line)
+            return flat
+        return "[\n" + "".join(f"{pad}{_literal(x, indent + 1)},\n" for x in value) + "  " * indent + "]"
+    if isinstance(value, dict) and any(isinstance(x, list) for x in value.values()):
+        return "{\n" + "".join(f"{pad}{json.dumps(k)}: {_literal(x, indent + 1)},\n" for k, x in value.items()) + "  " * indent + "}"
+    return json.dumps(value)
+
+
 def _array(name: str, words: tuple[str, ...] | list[str], daemon: str) -> str:
-    return f"/** {daemon} */\nexport const {name} = {json.dumps(list(words))} as const;\n"
+    return f"/** {daemon} */\nexport const {name} = {_literal(list(words), used=len(f'export const {name} = ') + len(' as const;'))} as const;\n"
 
 
 def _number(name: str, value: float, daemon: str) -> str:
@@ -162,12 +179,12 @@ def _profiles() -> str:
     """The TNC profiles the settings form offers, with what the form needs of each: how it is reached, its speed, and whether it can be asked if it is there."""
     rows = [{"key": p.key, "name": p.name, "transport": p.transport, "baud": p.baud, "probe": p.can_probe} for p in PROFILES]
     return ("/** The TNC profiles, in the order the settings form offers them (PROFILES of neoaprs/tncprofile.py): how each is reached (`serial` or `tcp`), its speed and whether the daemon can ask it if it is there. */\n"
-            f"export const TNC_PROFILES = {json.dumps(rows)} as const;\n")
+            f"export const TNC_PROFILES = {_literal(rows)} as const;\n")
 
 
 def _symbol_names() -> str:
     return ("/** The names of the APRS symbols, the codes `!` to `~` in order, of the primary and of the alternate table (SYMBOL_NAMES of neoaprs/symbols.py): the symbol picker lists them. */\n"
-            f"export const SYMBOL_NAMES = {json.dumps({k: list(v) for k, v in SYMBOL_NAMES.items()})} as const;\n")
+            f"export const SYMBOL_NAMES = {_literal({k: list(v) for k, v in SYMBOL_NAMES.items()})} as const;\n")
 
 
 def lists_text() -> str:

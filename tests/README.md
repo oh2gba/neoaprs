@@ -1,6 +1,6 @@
 # The tests
 
-`scripts/check --fast` runs everything; `.venv/bin/pytest -q tests/test_x.py` runs one file; `-m unit`, `-m integration`, `-m safety` pick a kind. `asyncio_mode = auto`: an `async def test_*` just works.
+`scripts/check` runs everything; `.venv/bin/pytest -q tests/test_x.py` runs one file; `-m unit`, `-m integration`, `-m safety` pick a kind. `asyncio_mode = auto`: an `async def test_*` just works.
 
 ## What is here
 
@@ -80,7 +80,7 @@ The suite runs on Windows in CI (`.github/workflows/ci.yml`; the Windows install
 
 ## Markers
 
-Every test is exactly one of `unit` (pure code, no loop, no daemon, no socket), `integration` (a loop, the Controller, a fake service, a child process) and `e2e` (a browser, when there are browser tests), given by `support/markers.py` from what the test uses, not by decorators.
+Every test is exactly one of `unit` (pure code, no loop, no daemon, no socket) and `integration` (a loop, the Controller, a fake service, a child process), given by `support/markers.py` from what the test uses, not by decorators.
 `safety` is added to the tests of the data layer. `expects_errors` is set by a test that makes the code log an ERROR on purpose.
 
 ## The four guards
