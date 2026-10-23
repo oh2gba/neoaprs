@@ -91,6 +91,7 @@ describe("SetupGuide: the frame", () => {
     const { wrapper, guide } = make({ config: configValues({ "beacon/interval_min": "0" }) });
     guide.go(4);
     await nextTick();
+    expect(wrapper.find(".setup-beacon").exists()).toBe(false);
     expect(guide.changes["beacon/interval_min"]).toBeUndefined();
     const sixty = make({ config: configValues({ "beacon/interval_min": "60" }) });
     sixty.guide.go(4);
