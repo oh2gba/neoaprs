@@ -1389,6 +1389,51 @@ tbody tr:focus-visible {
 .labels-off .stn--selected .stn-label {
   display: block;
 }
+.hovercard {
+  position: absolute;
+  z-index: 10;
+  max-width: min(280px, calc(100% - 12px));
+  padding: 6px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  font-size: 12px;
+  line-height: 1.35;
+  pointer-events: none;
+}
+.hovercard[hidden] {
+  display: none;
+}
+.hc-head {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  margin-bottom: 3px;
+}
+.hc-call {
+  font-size: 13px;
+}
+.hc-symbol,
+.hc-key {
+  color: var(--muted);
+}
+.hc-row {
+  display: flex;
+  gap: 8px;
+}
+.hc-key {
+  flex: none;
+  min-width: 5.5em;
+}
+.hc-val {
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
 .symicon {
   position: relative;
   display: inline-block;

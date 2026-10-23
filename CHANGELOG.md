@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-Nothing yet.
+- Map: a mouse resting on a station's marker shows a small card after a quarter of a second with the main facts (call and symbol, when it was last heard, status, comment, distance and bearing from us, the temperature of a weather station, "heard direct" or the route it came by). A tap on a touch screen opens the station as before.
+- Map: the station you pick has the route its packets come by drawn to our own station, through each digipeater that has a position (with a dot and its call), and, when the route most of its packets came by is another one, that route dashed and fainter. Nothing is drawn for a station heard direct.
 
 ## 0.3.0
 
