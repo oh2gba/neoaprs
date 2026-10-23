@@ -1276,10 +1276,11 @@
       "description": "How this copy of the daemon was installed, which is what the steps of an update depend on (neoaprs/versions.py, neoaprs/cli/installkind.py).",
       "properties": {
         "kind": {
-          "description": "`windows-installer` (the frozen program of the installer), `appimage`, `uv-tool` (the install script, or `uv tool install`), `pip` (a plain environment) or `source` (a clone of the repository)",
+          "description": "`windows-installer` (the frozen program of the installer), `appimage`, `deb` (the Debian package, in /opt/neoaprs), `uv-tool` (the install script, or `uv tool install`), `pip` (a plain environment) or `source` (a clone of the repository)",
           "enum": [
             "windows-installer",
             "appimage",
+            "deb",
             "uv-tool",
             "pip",
             "source"
@@ -1293,12 +1294,17 @@
         "service": {
           "description": "whether a service starts it: the systemd unit, the launchd agent or the Windows Run key",
           "type": "boolean"
+        },
+        "arch": {
+          "description": "the architecture of the package it was installed from, `amd64` or `arm64`; empty for the other kinds, and for a machine that has no package",
+          "type": "string"
         }
       },
       "required": [
         "kind",
         "appimage",
-        "service"
+        "service",
+        "arch"
       ],
       "title": "InstallInfo",
       "type": "object"

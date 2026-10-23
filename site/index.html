@@ -370,6 +370,15 @@
         <a class="btn primary" href="https://github.com/oh2gba/neoaprs/releases/latest">Linux AppImage</a>
       </div>
       <div class="card">
+        <h3>Raspberry Pi, Debian, Ubuntu</h3>
+        <p>The .deb for your machine (arm64 for a Pi, amd64 for a PC) brings its own Python.</p>
+        <a class="btn primary" href="https://github.com/oh2gba/neoaprs/releases/latest">Raspberry Pi .deb</a>
+        <div class="cmd">
+          <code id="deb-line"><span class="prompt">$ </span>sudo apt install ./neoaprs_*.deb &amp;&amp; neoaprs service install --linger</code>
+          <button class="copy" type="button" data-target="deb-line" data-text="sudo apt install ./neoaprs_*.deb &amp;&amp; neoaprs service install --linger" hidden>Copy</button>
+        </div>
+      </div>
+      <div class="card">
         <h3>Linux, macOS, Raspberry Pi</h3>
         <p>Installs uv and NeoAPRS and starts it as a service of your user.</p>
         <div class="cmd">

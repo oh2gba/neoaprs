@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+# Builds neoaprs_<version>_<arch>.deb, the download for the Raspberry Pi and for Debian and Ubuntu: NeoAPRS with its own CPython 3.13 and the locked dependencies (without the desktop app's extra: a Pi is
+# headless) in /opt/neoaprs, and /usr/bin/neoaprs linked to it. The system's Python is not used, so Raspberry Pi OS and Debian 12, which have no 3.13, are served.
+#
+#   scripts/build-deb [--arch amd64|arm64] [--wheel FILE] [--out DIR]
+#
+# Without --arch the package is for this machine's architecture; without --wheel the wheel is built from this tree (uv build). The file is made in DIR (default dist-deb/). Nothing is compiled, so either
+# architecture can be made on either kind of machine: the relocatable CPython of python-build-standalone is unpacked (fetched once into $NEOAPRS_BUILD_CACHE, default ~/.cache/neoaprs-build, pinned by version
+# and SHA-256 below; the pin is the trust, not the server) and the wheels for the target are installed by uv into its site-packages. The work folder is build/deb-ARCH/. Needs uv (with a Python 3.13, which
+# compiles the bytecode), curl, tar, gzip, dpkg-deb and a Linux machine. The file is reproducible: the same inputs and the same SOURCE_DATE_EPOCH (default: the time of the last commit) give the same bytes.
+# How it behaves and what it holds: docs/MANUAL.md, "The .deb".
+case "${1:-}" in -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;; esac
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+PYTHON_RELEASE="https://github.com/astral-sh/python-build-standalone/releases/download/20261021"
+PYTHON_amd64="cpython-3.13.17%2B20261021-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz f829adc9d888e76c8801b4799ed444188d35239fcae3a9808a99ec5cb0d8d92c x86_64-unknown-linux-gnu"
+PYTHON_arm64="cpython-3.13.17%2B20261021-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz c6857c65b996701a5da104cbb49b35249c0c026dc0664239b04f7156aa88326a aarch64-unknown-linux-gnu"
+PREFIX=/opt/neoaprs
+
+arch=""
+wheel=""
+out="$ROOT/dist-deb"
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --arch) shift; arch="${1:-}" ;;
+        --wheel) shift; wheel="${1:-}"; [ -f "$wheel" ] || { echo "build-deb: --wheel needs a wheel file" >&2; exit 2; } ;;
+        --out) shift; out="${1:-}"; [ -n "$out" ] || { echo "build-deb: --out needs a folder" >&2; exit 2; } ;;
+        *) echo "build-deb: unknown argument $1" >&2; exit 2 ;;
+    esac
+    shift
+done
+if [ -z "$arch" ]; then
+    case "$(uname -m)" in x86_64) arch=amd64 ;; aarch64) arch=arm64 ;; *) echo "build-deb: this machine is neither x86_64 nor aarch64: give --arch" >&2; exit 1 ;; esac
+fi
+case "$arch" in amd64) pin="$PYTHON_amd64" ;; arm64) pin="$PYTHON_arm64" ;; *) echo "build-deb: --arch is amd64 or arm64" >&2; exit 2 ;; esac
+read -r python_file python_sha256 platform <<<"$pin"
+[ "$(uname -s)" = Linux ] || { echo "build-deb: this builds on Linux only" >&2; exit 1; }
+for tool in uv curl tar gzip dpkg-deb; do command -v "$tool" >/dev/null || { echo "build-deb: $tool is not installed" >&2; exit 1; }; done
+
+cache="${NEOAPRS_BUILD_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/neoaprs-build}"
+mkdir -p "$cache"
+
+# fetch URL SHA256: the file in the cache, downloaded when it is not there or not the pinned one; its path on stdout
+fetch() {
+    local file="$cache/$(basename "${1//%2B/+}")"
+    if [ ! -f "$file" ] || [ "$(sha256sum "$file" | cut -d' ' -f1)" != "$2" ]; then
+        curl -fsSL --retry 3 -o "$file.part" "$1"
+        [ "$(sha256sum "$file.part" | cut -d' ' -f1)" = "$2" ] || { rm -f "$file.part"; echo "build-deb: $1 is not the file with SHA-256 $2" >&2; exit 1; }
+        mv "$file.part" "$file"
+    fi
+    echo "$file"
+}
+
+if [ -z "$wheel" ]; then
+    rm -rf "$ROOT/dist-wheel"
+    uv build --wheel --out-dir "$ROOT/dist-wheel"
+    wheel="$(ls "$ROOT"/dist-wheel/neoaprs-*.whl)"
+fi
+version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' "$ROOT/neoaprs/__init__.py")"
+case "$(basename "$wheel")" in neoaprs-"$version"-*.whl) ;; *) echo "build-deb: $wheel is not the wheel of $version" >&2; exit 1 ;; esac
+deb_version="${version//-/\~}"                     # 1.0.0-rc1 is 1.0.0~rc1 for dpkg: it sorts before 1.0.0
+python_tar="$(fetch "$PYTHON_RELEASE/$python_file" "$python_sha256")"
+host_python="$(uv python find 3.13 2>/dev/null || { uv python install 3.13 >&2 && uv python find 3.13; })"
+export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-$(git -C "$ROOT" log -1 --format=%ct 2>/dev/null || stat -c %Y "$ROOT/neoaprs/__init__.py")}"
+
+work="$ROOT/build/deb-$arch"
+pkg="$work/pkg"
+app="$pkg$PREFIX"
+site="$app/lib/python3.13/site-packages"
+rm -rf "$work"
+mkdir -p "$pkg" "$out"
+
+# CPython: the archive holds one folder, python/, laid out as a prefix (bin, lib)
+tar -xzf "$python_tar" -C "$work"
+mkdir -p "$(dirname "$app")"
+mv "$work/python" "$app"
+# (the interpreter has libpython built in; the shared copy of it is only for programs that embed Python)
+rm -f "$app"/bin/python3-config "$app"/bin/python3.13-config "$app"/lib/libpython3*
+
+# The locked dependencies without the extra `app`, then the wheel on top, as wheels for the target platform (the Python of the machine only runs uv)
+(cd "$ROOT" && uv export -q --frozen --no-dev --no-emit-project --no-hashes -o "$work/requirements.txt")
+install_args=(--no-config --python "$host_python" --break-system-packages --python-platform "$platform" --python-version 3.13 --target "$site" --no-deps --link-mode copy --no-cache)
+uv pip install "${install_args[@]}" --only-binary :all: -r "$work/requirements.txt"
+uv pip install "${install_args[@]}" "$wheel"
+# the files an install makes that depend on this machine: where the wheel was (direct_url.json, and its line of the RECORD), the programs with this machine's path in them
+rm -f "$site"/neoaprs-*.dist-info/direct_url.json
+sed -i '/direct_url\.json,/d' "$site"/neoaprs-*.dist-info/RECORD
+find "$app/bin" -type f ! -name 'python3*' -delete
+find "$app/bin" -xtype l -delete
+install -m 755 "$ROOT/packaging/deb/neoaprs" "$app/bin/neoaprs"
+mkdir -p "$pkg/usr/bin"
+ln -s "$PREFIX/bin/neoaprs" "$pkg/usr/bin/neoaprs"
+
+# Size: what NeoAPRS does not run is taken out (tests, Tk, documentation, pip), then the bytecode of everything is made now, because /opt is read-only for the users and a module without it is compiled at every start
+"$host_python" -I "$ROOT/packaging/appimage/prune.py" --python-only "$app"
+"$host_python" -I -m compileall -q -j 1 --invalidation-mode checked-hash -s "$pkg" "$app/lib/python3.13" >/dev/null
+
+# The documents: the copyright file with the licence, the manual, the front page and the changelog
+doc="$pkg/usr/share/doc/neoaprs"
+mkdir -p "$doc"
+install -m 644 "$ROOT/packaging/deb/copyright" "$doc/copyright"
+gzip -9n -c "$ROOT/CHANGELOG.md" > "$doc/changelog.gz"
+gzip -9n -c "$ROOT/README.md" > "$doc/README.md.gz"
+gzip -9n -c "$ROOT/docs/MANUAL.md" > "$doc/MANUAL.md.gz"
+
+# The lowest glibc the package needs: the highest version any program or library of it asks for
+glibc="$(find "$app" -type f \( -name '*.so*' -o -name 'python3.13' \) -exec objdump -T {} + 2>/dev/null | grep -o 'GLIBC_[0-9.]*' | sed 's/GLIBC_//' | sort -V | tail -n 1)"
+[ -n "$glibc" ] || { echo "build-deb: no GLIBC version found in the package" >&2; exit 1; }
+
+# The permissions do not depend on the umask of the machine, and the files are root's
+find "$pkg" -type d -exec chmod 755 {} +
+find "$pkg" -type f ! -perm /111 -exec chmod 644 {} +
+find "$pkg" -type f -perm /111 -exec chmod 755 {} +
+
+mkdir -p "$pkg/DEBIAN"
+size="$(find "$pkg" -type f -printf '%s\n' | awk '{ total += $1 } END { printf "%d", (total + 1023) / 1024 }')"
+sed -e "s|@DEB_VERSION@|$deb_version|" -e "s|@ARCH@|$arch|" -e "s|@SIZE@|$size|" -e "s|@GLIBC@|$glibc|" "$ROOT/packaging/deb/control.in" > "$pkg/DEBIAN/control"
+install -m 755 "$ROOT/packaging/deb/postinst" "$ROOT/packaging/deb/postrm" "$pkg/DEBIAN/"
+(cd "$pkg" && find . -type f ! -path './DEBIAN/*' -print0 | LC_ALL=C sort -z | xargs -0 md5sum | sed 's|  \./|  |' > DEBIAN/md5sums)
+chmod 644 "$pkg/DEBIAN/control" "$pkg/DEBIAN/md5sums"
+
+target="$out/neoaprs_${deb_version}_$arch.deb"
+rm -f "$target"
+dpkg-deb --root-owner-group -Zxz --build "$pkg" "$target" >/dev/null
+echo "build-deb: $target ($(du -h "$target" | cut -f1); $(( size / 1024 )) MB installed)"

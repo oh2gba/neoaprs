@@ -332,12 +332,14 @@ export interface HopRow {
 
 /** How this copy of the daemon was installed, which is what the steps of an update depend on (neoaprs/versions.py, neoaprs/cli/installkind.py). */
 export interface InstallInfo {
-  /** `windows-installer` (the frozen program of the installer), `appimage`, `uv-tool` (the install script, or `uv tool install`), `pip` (a plain environment) or `source` (a clone of the repository) */
-  kind: "windows-installer" | "appimage" | "uv-tool" | "pip" | "source";
+  /** `windows-installer` (the frozen program of the installer), `appimage`, `deb` (the Debian package, in /opt/neoaprs), `uv-tool` (the install script, or `uv tool install`), `pip` (a plain environment) or `source` (a clone of the repository) */
+  kind: "windows-installer" | "appimage" | "deb" | "uv-tool" | "pip" | "source";
   /** the AppImage file this runs from; empty for the other kinds */
   appimage: string;
   /** whether a service starts it: the systemd unit, the launchd agent or the Windows Run key */
   service: boolean;
+  /** the architecture of the package it was installed from, `amd64` or `arm64`; empty for the other kinds, and for a machine that has no package */
+  arch: string;
 }
 
 /** Asks for the serial ports of the machine the daemon runs on, and the Bluetooth devices paired with it. Answered with `ports` to the page that asked. A KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a port of the machine: it is typed. */

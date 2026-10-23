@@ -336,7 +336,7 @@ export function mapState(extra: Partial<MapState> = {}): MapState {
 
 /** The daemon's `hello` for a page of this build: the same version and protocol, so that the page does not load itself again. */
 export function hello(extra: Partial<HelloMessage> = {}): HelloMessage {
-  return { type: "hello", protocol: PROTOCOL, version: PAGE_VERSION, install: { kind: "pip", appimage: "", service: false }, topics: [], ...extra };
+  return { type: "hello", protocol: PROTOCOL, version: PAGE_VERSION, install: { kind: "pip", appimage: "", service: false, arch: "" }, topics: [], ...extra };
 }
 
 export function status(extra: Partial<StatusMessage> = {}): StatusMessage {

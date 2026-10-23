@@ -1,0 +1,50 @@
+#!/bin/sh
+# A fresh install says what comes next; an upgrade restarts the NeoAPRS service of every user who has one running (their units live in their homes, and nothing here writes there), else says how.
+set -e
+
+# Is this the root of a machine with systemd, run by root (not dpkg on another root, not a test as an ordinary user)?
+can_ask_systemd() {
+    [ "$(id -u)" = 0 ] && [ -z "${DPKG_ROOT:-}" ] && [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1
+}
+
+# Restarts the running service of each user with a systemd user manager; fails when there is none to ask, none was running or a restart did not work
+restart_services() {
+    can_ask_systemd || return 1
+    failed=0
+    restarted=0
+    for dir in /run/user/*; do
+        uid="${dir##*/}"
+        case "$uid" in ''|*[!0-9]*) continue ;; esac
+        if systemctl --user --machine="$uid@.host" is-active --quiet neoaprs.service 2>/dev/null; then
+            if systemctl --user --machine="$uid@.host" restart neoaprs.service 2>/dev/null; then
+                restarted=1
+                echo "neoaprs: the service of $(id -nu "$uid" 2>/dev/null || echo "user $uid") runs the new version"
+            else
+                failed=1
+            fi
+        fi
+    done
+    [ "$restarted" = 1 ] && return "$failed"
+    return 1
+}
+
+case "$1" in
+    configure)
+        if [ -z "$2" ]; then
+            cat <<'TEXT'
+
+NeoAPRS is installed. As your own user (not root), start it at login and at boot with
+
+    neoaprs service install --linger
+
+The radio's serial port needs your user in the group dialout: sudo usermod -aG dialout $USER, then log out and in
+(`neoaprs doctor` checks it). The page is at http://127.0.0.1:7303/ . Your data stays in ~/.local/share/neoaprs.
+
+TEXT
+        elif ! restart_services; then
+            echo "neoaprs: a NeoAPRS that is running keeps the old version until it is restarted: systemctl --user restart neoaprs"
+        fi
+        ;;
+esac
+
+exit 0

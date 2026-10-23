@@ -1,0 +1,18 @@
+Package: neoaprs
+Version: @DEB_VERSION@
+Architecture: @ARCH@
+Maintainer: OH2GBA <john@oh2gba.eu>
+Installed-Size: @SIZE@
+Depends: libc6 (>= @GLIBC@), libgcc-s1
+Section: hamradio
+Priority: optional
+Homepage: https://oh2gba.github.io/neoaprs/
+Description: APRS client with a map, messages and a web page
+ NeoAPRS talks to a KISS TNC (or a radio with one built in) and shows what
+ it hears on a map, in a message list and on a web page, from the same
+ machine or from any browser on the network. It sends the position beacon,
+ messages, bulletins and objects, and runs as a service of the user.
+ .
+ The package holds its own CPython and libraries in /opt/neoaprs and uses
+ nothing of the system's Python. After the install, run as your own user:
+ neoaprs service install --linger

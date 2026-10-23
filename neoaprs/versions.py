@@ -10,6 +10,7 @@ MAX_MESSAGE = 200                    # the longest note of the answer that is ke
 _VERSION = re.compile(r"^\d+(\.\d+){0,3}([-+][0-9A-Za-z.]+)?$")
 _PART_SEPARATORS = re.compile(r"[.\-+]")
 _ARM_MACHINES = ("aarch64", "arm64", "armv7l", "armv6l", "armv8l")        # a Raspberry Pi
+_DEB_ARCHITECTURES = {"x86_64": "amd64", "amd64": "amd64", "aarch64": "arm64", "arm64": "arm64"}          # `platform.machine()` to the name of the .deb that runs on it
 
 
 @dataclass(frozen=True)
@@ -64,25 +65,33 @@ def platform_name(system: str, machine: str, appimage: bool) -> str:
     return "linux-arm" if machine.lower() in _ARM_MACHINES else "linux"
 
 
-InstallKind = Literal["windows-installer", "appimage", "uv-tool", "pip", "source"]
+def deb_architecture(machine: str) -> str:
+    """The architecture in the name of the .deb for this machine (`platform.machine()`): `amd64` or `arm64`, empty for a machine that has none."""
+    return _DEB_ARCHITECTURES.get(machine.lower(), "")
+
+
+InstallKind = Literal["windows-installer", "appimage", "deb", "uv-tool", "pip", "source"]
 INSTALL_KINDS: tuple[str, ...] = get_args(InstallKind)
 
 
 @dataclass(frozen=True)
 class InstallInfo:
-    """How this copy was installed. `appimage` is the file it runs from (kind `appimage` only, else empty); `service` says whether a service (the systemd unit, the launchd agent, the Windows Run key) starts it."""
+    """How this copy was installed. `appimage` is the file it runs from (kind `appimage` only, else empty); `arch` is the architecture of the package (kind `deb` only: `amd64` or `arm64`, else empty); `service` says whether a service (the systemd unit, the launchd agent, the Windows Run key) starts it."""
     kind: InstallKind
     appimage: str = ""
     service: bool = False
+    arch: str = ""
 
 
-def install_kind(frozen: bool, appimage: str | None, checkout: bool, uv_tool: bool) -> InstallKind:
-    """The way this copy got here, from what the process can see: a frozen program is the Windows installer's, a run from an AppImage file is the AppImage, a package imported from a clone of the repository is a checkout, a package in the environment
-    `uv tool` made is the install script's, anything else a plain pip (or `uv pip`) environment."""
+def install_kind(frozen: bool, appimage: str | None, deb: bool, checkout: bool, uv_tool: bool) -> InstallKind:
+    """The way this copy got here, from what the process can see: a frozen program is the Windows installer's, a run from an AppImage file is the AppImage, the Python of /opt/neoaprs is the .deb's, a package imported from a clone of
+    the repository is a checkout, a package in the environment `uv tool` made is the install script's, anything else a plain pip (or `uv pip`) environment."""
     if frozen:
         return "windows-installer"
     if appimage:
         return "appimage"
+    if deb:
+        return "deb"
     if checkout:
         return "source"
     return "uv-tool" if uv_tool else "pip"
