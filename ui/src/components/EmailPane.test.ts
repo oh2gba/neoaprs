@@ -13,7 +13,7 @@ const thread = [
 ];
 
 function pane(extra: Record<string, unknown> = {}) {
-  return mount(EmailPane, { props: { thread, connected: true, addresses: [], attempts: { own: new Map<string, number>(), defaultCount: 6 }, ...extra } });
+  return mount(EmailPane, { props: { thread, connected: true, addresses: [], ...extra } });
 }
 
 describe("EmailPane", () => {
@@ -87,7 +87,6 @@ describe("EmailPane", () => {
       .findAll(".mail-tools button")
       .find((b) => b.text() === "sure?")
       ?.trigger("click");
-    await wrapper.find(".mail-tools .attempts-input").setValue("3");
     expect([
       wrapper.emitted("send"),
       wrapper.emitted("forget"),
@@ -96,6 +95,5 @@ describe("EmailPane", () => {
       wrapper.emitted("list"),
       wrapper.emitted("remove"),
     ]).toEqual([[["me", "Hello"]], [["me"]], [["jane", "jane@example.com"]], [[]], [["jane"]], [["jane"]]]);
-    expect(wrapper.emitted("setAttempts")).toEqual([["EMAIL-2", 3]]);
   });
 });

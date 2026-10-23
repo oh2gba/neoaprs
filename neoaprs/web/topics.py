@@ -8,7 +8,7 @@
     bulletins  the message board by sender/slot    changed by Bulletins.changed (a new or heard again) and .removed (one that is deleted)
     own_objects  the objects and items of ours by name     changed by OwnObjects.changed (made, changed, sent) and .removed (forgotten)
     own_bulletins  the bulletins of ours by slot           changed by OwnBulletins.changed (posted, sent) and .removed (deleted)
-    station_prefs  the path, timeout, attempts and RF only of each station by call   changed by PrefBook.changed (one of them set or cleared)
+    station_prefs  the path, timeout and RF only of each station by call   changed by PrefBook.changed (one of them set or cleared)
     map        the base map: files, estimate, the job   changed by MapFetch.changed, and by every save of the settings (the area follows our position); at most four times a second
 
 Each row's values are built in neoaprs/web/views.py and typed in `TopicValues` of neoaprs/web/protocol.py. Nothing is built for a topic nobody follows, and a patch holds the items that changed, as they are when it is made.

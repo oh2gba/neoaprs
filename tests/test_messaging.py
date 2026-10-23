@@ -21,10 +21,10 @@ from neoaprs.source import Source, unusable_because
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
 from tests.support.env import ON_AIR, remember_stop, until
-from tests.support.storedb import store_at
+from tests.support.storedb import keep_old_attempts, store_at
 
 TICK = 0.01
-RUN_OUT = (30, 30, 60, 120, 240, 240)             # the waits after each attempt, the last of them the wait for the answer to the sixth: after these the message has failed
+RUN_OUT = (30, 30, 60, 240)                        # the waits after each attempt, the last of them the wait for the answer to the fourth: after these the message has failed
 WORKED = "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :Hello Pekka{01}"
 
 
@@ -60,8 +60,7 @@ class Rig:
         self.log = log
         self.prefs = PrefBook(log, lambda: self.config)
         self.board: list[tuple[Packet, Message]] = []                   # what messaging handed to the message board
-        self.m = Messaging(self.tnc, lambda: self.config, log, self.prefs.path_for, clock, tick_sec=TICK, board=lambda packet, message: self.board.append((packet, message)),
-                        attempts=self.prefs.attempts_for)
+        self.m = Messaging(self.tnc, lambda: self.config, log, self.prefs.path_for, clock, tick_sec=TICK, board=lambda packet, message: self.board.append((packet, message)))
         remember_stop(self.m.stop)
         self.changed: list[MessageRecord] = []
         self.removed: list[MessageRecord] = []
@@ -111,6 +110,14 @@ async def rig(tmp_path: Path) -> Rig:
     r = Rig(MessageLog(store.db, clock), clock)
     await r.start()
     return r
+
+
+@pytest.fixture
+def give(monkeypatch: pytest.MonkeyPatch) -> Callable[[int], None]:
+    """Gives the messages sent from now on `count` attempts: the count of a message an earlier version sent is any of 1 to 10, and the code decides only 4 and 2."""
+    def make(count: int) -> None:
+        monkeypatch.setattr(messaging_module, "attempts_for", lambda to: count)
+    return make
 
 
 @pytest.fixture
@@ -223,22 +230,23 @@ async def test_the_text_may_be_up_to_67_characters_of_printable_ascii_and_nothin
 
 # ---- the schedule ---------------------------------------------------------------------------------------------------------------------------------
 
-async def test_the_attempts_are_made_0_30_60_120_240_and_480_seconds_after_the_first_and_then_the_message_has_failed(rig: Rig) -> None:
-    await rig.m.send("OH2RDG", "Hello")
+async def test_the_attempts_are_made_0_30_60_and_120_seconds_after_the_first_and_then_the_message_has_failed(rig: Rig) -> None:
+    record = await rig.m.send("OH2RDG", "Hello")
+    assert record.attempts_max == 4
     seen = []
-    for step in (29, 1, 29, 1, 59, 1, 119, 1, 239, 1):
+    for step in (29, 1, 29, 1, 59, 1):
         await rig.pass_time(step)
         seen.append(len(rig.tnc.sent))
-    assert seen == [1, 2, 2, 3, 3, 4, 4, 5, 5, 6], "attempts 2 to 6 at 30, 60, 120, 240 and 480 seconds"
-    assert rig.state().state == "sending" and rig.state().attempts == 6
+    assert seen == [1, 2, 2, 3, 3, 4], "attempts 2 to 4 at 30, 60 and 120 seconds"
+    assert rig.state().state == "sending" and rig.state().attempts == 4
     await rig.pass_time(239)
     assert rig.state().state == "sending"
     await rig.pass_time(1)
-    assert rig.state().state == "failed" and rig.state().attempts == 6
+    assert rig.state().state == "failed" and rig.state().attempts == 4
     await rig.pass_time(3600)
-    assert len(rig.tnc.sent) == 6, "a failed message is not sent again"
+    assert len(rig.tnc.sent) == 4, "a failed message is not sent again"
     await rig.settled()
-    assert [(m.state, m.attempts) for m in await rig.log.recent()] == [("failed", 6)]
+    assert [(m.state, m.attempts) for m in await rig.log.recent()] == [("failed", 4)]
     assert len({f.tnc2() for f in rig.tnc.sent}) == 1, "every attempt is the same frame"
 
 
@@ -258,8 +266,8 @@ async def attempts_at(rig: Rig, offsets: tuple[int, ...], wait: int = 240, end: 
 
 
 @pytest.mark.parametrize("count, offsets", [(3, (0, 30, 60)), (10, (0, 30, 60, 120, 240, 480, 960, 1920, 2880, 3840))])
-async def test_the_number_of_attempts_is_the_setting_and_the_waits_double_up_to_960_seconds(rig: Rig, count: int, offsets: tuple[int, ...]) -> None:
-    rig.config = replace(rig.config, messages_attempts=count)
+async def test_a_message_with_more_attempts_than_a_new_one_has_waits_that_double_up_to_960_seconds(rig: Rig, give: Callable[[int], None], count: int, offsets: tuple[int, ...]) -> None:
+    give(count)
     record = await rig.m.send("OH2RDG", "Hello")
     assert record.attempts_max == count and len(rig.tnc.sent) == 1
     await attempts_at(rig, offsets)
@@ -268,8 +276,8 @@ async def test_the_number_of_attempts_is_the_setting_and_the_waits_double_up_to_
 
 
 @pytest.mark.parametrize("count, offsets", [(1, (0,)), (2, (0, 30))])
-async def test_a_message_that_was_given_one_or_two_attempts_and_got_no_ack_is_unconfirmed_not_failed(rig: Rig, count: int, offsets: tuple[int, ...]) -> None:
-    rig.config = replace(rig.config, messages_attempts=count)
+async def test_a_message_that_was_given_one_or_two_attempts_and_got_no_ack_is_unconfirmed_not_failed(rig: Rig, give: Callable[[int], None], count: int, offsets: tuple[int, ...]) -> None:
+    give(count)
     record = await rig.m.send("OH2RDG", "Hello")
     assert record.attempts_max == count
     await attempts_at(rig, offsets, end="unconfirmed")
@@ -279,59 +287,54 @@ async def test_a_message_that_was_given_one_or_two_attempts_and_got_no_ack_is_un
     assert [(m.state, m.attempts, m.attempts_max) for m in await rig.log.recent()] == [("unconfirmed", count, count)]
 
 
-async def test_a_message_that_was_given_three_attempts_has_failed_when_they_are_used_up(rig: Rig) -> None:
-    rig.config = replace(rig.config, messages_attempts=3)
+async def test_a_message_that_was_given_three_attempts_has_failed_when_they_are_used_up(rig: Rig, give: Callable[[int], None]) -> None:
+    give(3)
     await rig.m.send("OH2RDG", "Hello")
     await attempts_at(rig, (0, 30, 60))
 
 
-async def test_send_takes_the_attempts_of_the_station_else_the_setting_and_keeps_them_across_a_change(rig: Rig, another: Callable[..., Rig]) -> None:
-    await rig.prefs.set_attempts("EMAIL-2", 2)
-    mail = await rig.m.send("EMAIL-2", "me@example.org Hello")
-    friend = await rig.m.send("OH2RDG", "Hello")
-    assert (mail.attempts_max, friend.attempts_max) == (2, 6) and len(rig.tnc.sent) == 2
-    await rig.prefs.set_attempts("EMAIL-2", 5)
-    await rig.prefs.set_attempts("OH2RDG", 1)
-    assert (rig.state(1).attempts_max, rig.state(2).attempts_max) == (2, 6), "a message in the air keeps its own count"
-    rig.config = replace(rig.config, messages_attempts=4)
-    third = await rig.m.send("OH2XYZ", "Hello")
-    fourth = await rig.m.send("OH2RDG", "Hello")
-    assert (third.attempts_max, fourth.attempts_max) == (4, 1)
-    await rig.settled()
-    await rig.m.stop()
+async def test_a_message_is_sent_4_times_and_one_to_the_email_gateway_twice_whatever_the_stations_and_settings_hold(rig: Rig, another: Callable[..., Rig]) -> None:
+    assert rig.log.db is not None
+    await keep_old_attempts(rig.log.db, "OH2RDG", 1, "WIDE2-1")
+    await keep_old_attempts(rig.log.db, "EMAIL-2", 9)
     again = another()
     await again.start()
-    assert [m.attempts_max for m in again.m.records()] == [2, 6, 4, 1]
+    mail = await again.m.send("EMAIL-2", "me@example.org Hello")
+    friend = await again.m.send("OH2RDG", "Hello")
+    other = await again.m.send("OH2XYZ", "Hello")
+    lower = await again.m.send("email-2", "me@example.org Again")
+    assert [m.attempts_max for m in (mail, friend, other, lower)] == [2, 4, 4, 2]
+    await again.settled()
     await again.m.stop()
+    restarted = another()
+    await restarted.start()
+    assert [m.attempts_max for m in restarted.m.records()] == [2, 4, 4, 2]
+    await restarted.m.stop()
 
 
-async def test_messaging_without_a_pref_book_takes_the_setting(rig: Rig) -> None:
-    alone = Messaging(rig.tnc, lambda: rig.config, rig.log, rig.prefs.path_for, rig.clock, tick_sec=TICK)
-    rig.config = replace(rig.config, messages_attempts=3)
-    assert (await alone.send("OH2RDG", "x")).attempts_max == 3
-    await alone.stop()
+async def test_a_bulletin_is_sent_once(rig: Rig) -> None:
+    assert (await rig.m.send("BLN1", "Road closed")).attempts_max == 1
 
 
-async def test_the_station_with_one_attempt_gets_the_message_once_and_with_two_gets_it_twice_the_same(rig: Rig) -> None:
-    await rig.prefs.set_attempts("EMAIL-2", 2)
+async def test_the_email_gateway_gets_the_message_twice_the_same_and_it_is_then_unconfirmed(rig: Rig) -> None:
     await rig.m.send("EMAIL-2", "me@example.org Hello")
     await rig.pass_time(30)
     assert len(rig.tnc.sent) == 2 and len({f.tnc2() for f in rig.tnc.sent}) == 1, "the gateway takes the repeat as the same message by its id"
     await rig.pass_time(240)
-    assert rig.state().state == "unconfirmed"
+    assert rig.state().state == "unconfirmed" and len(rig.tnc.sent) == 2
 
 
-async def test_a_message_keeps_the_number_of_attempts_it_was_sent_with_when_the_setting_changes_and_after_a_restart(rig: Rig, another: Callable[..., Rig]) -> None:
-    rig.config = replace(rig.config, messages_attempts=3)
+async def test_a_message_keeps_the_number_of_attempts_it_was_sent_with_after_a_restart(rig: Rig, another: Callable[..., Rig], give: Callable[[int], None]) -> None:
+    give(3)
     await rig.m.send("OH2RDG", "first")
-    rig.config = replace(rig.config, messages_attempts=5)
+    give(5)
     second = await rig.m.send("OH2RDG", "second")
     assert (rig.state(1).attempts_max, second.attempts_max) == (3, 5)
     await rig.settled()
     assert [m.attempts_max for m in await rig.log.recent()] == [5, 3], "the number is in the database"
-    again = another(messages_attempts=9)
+    again = another()
     await again.start()
-    assert [(m.id, m.attempts_max) for m in again.m.records()] == [(1, 3), (2, 5)], "and is what the message has after a restart, whatever the setting is then"
+    assert [(m.id, m.attempts_max) for m in again.m.records()] == [(1, 3), (2, 5)], "and is what the message has after a restart, whatever the rule is then"
     await rig.m.stop()
     again.tnc.sent.clear()
     for step, expected in ((30, [(1, 2), (2, 2)]), (30, [(1, 3), (2, 3)]), (60, [(1, 3), (2, 4)]), (120, [(1, 3), (2, 5)])):
@@ -397,8 +400,8 @@ async def test_an_ack_that_comes_late_still_settles_a_message_that_has_failed_or
 
 
 @pytest.mark.parametrize("count", [1, 2])
-async def test_an_ack_that_comes_after_the_message_is_unconfirmed_still_settles_it_and_so_does_a_rej(rig: Rig, count: int) -> None:
-    rig.config = replace(rig.config, messages_attempts=count)
+async def test_an_ack_that_comes_after_the_message_is_unconfirmed_still_settles_it_and_so_does_a_rej(rig: Rig, give: Callable[[int], None], count: int) -> None:
+    give(count)
     await rig.m.send("OH2RDG", "a")
     await rig.m.send("OH2RDG", "b")
     for step in RUN_OUT:
@@ -457,13 +460,13 @@ async def test_retry_sends_a_message_that_did_not_get_through_again_with_the_sch
     assert len(rig.tnc.sent) == before + 2 and rig.state().attempts == 2
 
 
-async def test_retry_sends_an_unconfirmed_message_again_with_the_count_it_has_and_it_is_unconfirmed_again(rig: Rig) -> None:
-    rig.config = replace(rig.config, messages_attempts=2)
+async def test_retry_sends_an_unconfirmed_message_again_with_the_count_it_has_and_it_is_unconfirmed_again(rig: Rig, give: Callable[[int], None]) -> None:
+    give(2)
     await rig.m.send("OH2RDG", "Hello")
     for step in RUN_OUT:
         await rig.pass_time(step)
     assert rig.state().state == "unconfirmed"
-    rig.config = replace(rig.config, messages_attempts=6)
+    give(6)
     before = len(rig.tnc.sent)
     again = rig.m.retry(1)
     assert (again.state, again.attempts, again.attempts_max, again.acked_at) == ("sending", 1, 2, None) and len(rig.tnc.sent) == before + 1
@@ -687,7 +690,7 @@ async def test_the_last_wait_does_not_run_out_while_the_radio_is_away(rig: Rig) 
     await rig.m.send("OH2RDG", "Hello")
     for step in RUN_OUT[:-1]:
         await rig.pass_time(step)
-    assert rig.state().attempts == 6
+    assert rig.state().attempts == 4
     await rig.radio(Source.State.WAITING)
     await rig.pass_time(3600)
     assert rig.state().state == "sending"

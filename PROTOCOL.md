@@ -95,7 +95,7 @@ TypeScript types for both unions are in `ui/src/protocol/protocol.ts`, the JSON 
 
 ## Client to server
 
-33 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
+31 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
 
 ### `ping`
 
@@ -161,7 +161,7 @@ the settings make no frame.
 ### `send_message`
 
 Sends a message to a station: the addressee is a call with an optional SSID, the text at most 67 bytes of UTF-8 without `|`, `~`, `{` or a control character. The message is kept and transmitted at
-once with the next message id; it arrives as a new row of the topic `messages` (state `sending`) and as the `out` packet, and its row changes when the acknowledgement comes or the attempts run out. The attempts it is given are the station's own (`station_prefs`) else the setting `messages/attempts`.
+once with the next message id; it arrives as a new row of the topic `messages` (state `sending`) and as the `out` packet, and its row changes when the acknowledgement comes or the attempts run out. It is transmitted at most 4 times, 2 for `EMAIL-2`.
 When the TNC is not connected the message is kept and its first attempt waits for the radio. Answered with an `error` that names the reason when the addressee or the text is refused.
 
 | field | type | | description |
@@ -198,7 +198,7 @@ still being sent is cancelled first, so that no attempt is made while it goes. A
 ### `conversation_delete`
 
 Removes the whole conversation with a station: every message we sent to it and every one it sent to us (not the messages it was only overheard sending to others), from the database in one write, from
-the daemon and from every page: each message's row is a `del` of the topic `messages`. A message that is still being sent is cancelled first. The path, the timeout and the attempts of the station stay. Answered by the
+the daemon and from every page: each message's row is a `del` of the topic `messages`. A message that is still being sent is cancelled first. The path and the timeout of the station stay. Answered by the
 `del`s, or by an `error` (the call is none, or there is no message with that station).
 
 | field | type | | description |
@@ -251,25 +251,6 @@ topic `stations` (the name of an object or an item too). Answered by the `set` o
 
 Takes a station's own timeout away, so that it has the setting `map/hide_after_min` again (a station without one is no error). Answered by the `set` of its entry in `station_prefs` with a null
 `hide_after_min` (or the `del` of the entry when it had no path either), or by an `error`.
-
-| field | type | | description |
-|---|---|---|---|
-| `call` | string |  | (max 64 chars, min 1 chars) |
-
-### `set_station_attempts`
-
-Gives a station a count of attempts of its own, 1 to 10: the number of times a message sent to it from now on is transmitted before it has failed (a message already being sent keeps its own). With 1 or 2 a
-message that gets no ack is `unconfirmed`, not `failed`. Answered by the `set` of the station's entry in the topic `station_prefs` (its `path` and `hide_after_min` are whatever they were), or by an `error` that names the reason.
-
-| field | type | | description |
-|---|---|---|---|
-| `call` | string |  | (max 64 chars, min 1 chars) |
-| `attempts` | integer |  | (>= 1, <= 10) |
-
-### `clear_station_attempts`
-
-Takes a station's own attempts away, so that the setting `messages/attempts` counts again (a station without them is no error). Answered by the `set` of its entry in `station_prefs` with a null `attempts`
-(or the `del` of the entry when it had no path and no timeout either), or by an `error`.
 
 | field | type | | description |
 |---|---|---|---|
@@ -497,7 +478,7 @@ The value of each topic (`state` carries it, a `replace` op brings a new one).
 | `packets` | { [key: string]: PacketRow } | the latest 200 packets by id (as text): a packet is a `set`, and the one that falls out of the 200 a `del`; the highest id is the newest |
 | `tnc` | TncState | the radio; told whole as it changes, at most four times a second |
 | `config` | ConfigValues | the settings; told again after every save, though nothing differs: the settings form waits for it |
-| `station_prefs` | { [key: string]: StationPref } | what the operator set for each station that has anything set, by call: its own path, its own timeout and its own attempts, each null where none is set, and whether it is RF only. `set_station_path`, `clear_station_path`, `set_station_timeout`, `clear_station_timeout`, `set_station_attempts`, `clear_station_attempts` and `set_station_rf_only` each give a `set` of the entry, or a `del` when nothing is left in it |
+| `station_prefs` | { [key: string]: StationPref } | what the operator set for each station that has anything set, by call: its own path and its own timeout, each null where none is set, and whether it is RF only. `set_station_path`, `clear_station_path`, `set_station_timeout`, `clear_station_timeout` and `set_station_rf_only` each give a `set` of the entry, or a `del` when nothing is left in it |
 | `messages` | { [key: string]: MessageRow } | every message by id (as text), all of them sent with the first `state`: a message that is new or changes is a `set` of its row, one that is deleted a `del`; none leaves on its own |
 | `bulletins` | { [key: string]: BulletinRow } | the message board by `sender/slot` (`OH2XYZ/BLN1`): the bulletins, announcements, group bulletins and group messages heard and not deleted; one that is new or heard again is a `set` of its row, one that is deleted (`bulletin_delete`) a `del` |
 | `own_objects` | { [key: string]: OwnObjectRow } | the objects and items of ours by name: `object_set` makes or changes one (a `set` of its row, each time it is sent too), `object_kill` ends one (its row changes to `killing`, and is a `del` once the kill has been sent); a live one is also a row of `stations` |
@@ -590,7 +571,7 @@ of a message that came in, `to_call` of one we sent.
 | `msg_id` | string \| null |  | the message id the acknowledgement quotes (1 to 5 letters or digits); null for a message that came in without one |
 | `state` | "sending" \| "acked" \| "rejected" \| "failed" \| "unconfirmed" \| "cancelled" \| "received" \| "overheard" |  | `sending`: attempts are being made; `acked`: the addressee acknowledged it; `rejected`: the addressee refused it; `failed`: no answer after the last attempt; `unconfirmed`: no answer after the last attempt of a message that was given 1 or 2 attempts (the station is not expected to ack; a late ack still settles it); `cancelled`: stopped by the page; `received`: it was sent to us; `overheard`: it was sent to another station and we heard it (`from_call` sent it, `to_call` is who it is for) |
 | `attempts` | integer |  | how many times it has been transmitted (at most `attempts_max`: 0, 30, 60, 120, 240, 480, 960 ... seconds after the first, no wait longer than 960) (>= 0) |
-| `attempts_max` | integer |  | how many attempts the message was given: the setting `messages/attempts` when it was sent (6 for a message from before the setting); a later change of the setting does not touch it (>= 1, <= 10) |
+| `attempts_max` | integer |  | how many attempts the message was given when it was sent: 4, 2 for the email gateway `EMAIL-2`, 1 for a bulletin (messages from before the count was fixed have their own, up to 10) (>= 1, <= 10) |
 | `last_attempt_at` | time \| null |  | when it was transmitted last; null until the first attempt (the TNC may be away) |
 | `acked_at` | time \| null |  | when the acknowledgement was heard |
 | `attempts_detail` | AttemptRow[] |  | for a message of ours, each attempt made (`attempts` of them, the oldest first; fewer for a message sent before the delivery chain was kept, none until the first attempt) with the hops of its path that a copy of our own message was heard back with; a hop heard is a `set` of the message's row. Empty for a message that came in |
@@ -1041,14 +1022,13 @@ A serial port the system lists, or a Bluetooth device paired with it (Linux). No
 
 ### StationPref
 
-What the operator has set for one station, apart from what its packets say. The entries are the values of the topic `station_prefs`, keyed by call: a station with no path, no timeout and no attempts of its
+What the operator has set for one station, apart from what its packets say. The entries are the values of the topic `station_prefs`, keyed by call: a station with no path and no timeout of its
 own, and not RF only, has no entry. A command that sets or changes one part is a `set` of the whole entry, one that clears the last part a `del`.
 
 | field | type | | description |
 |---|---|---|---|
 | `path` | string \| null |  | the digipeaters that a message to the station, and the ack of a message from it, go by way of: calls separated by commas, empty for direct (no digipeaters at all); null if none is set, and the setting `beacon/path` counts |
 | `hide_after_min` | integer \| null |  | the minutes after the station's last position that it leaves the map (the page does the hiding); 0 is never; null if none is set, and the setting `map/hide_after_min` counts (>= 0, <= 10080) |
-| `attempts` | integer \| null |  | how many times a message to the station is transmitted before it has failed (taken when the message is sent); 1 or 2 attempts without an ack leave the message `unconfirmed`, not `failed`; null if none is set, and the setting `messages/attempts` counts (>= 1, <= 10) |
 | `rf_only` | boolean |  | true if everything sent to the station (a message and each attempt of it, an ack, the answer to a query) has `RFONLY` as the last element of its path, which iGates that honour it do not put on the internet |
 
 ### TelemetryBit

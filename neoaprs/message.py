@@ -15,8 +15,9 @@ from neoaprs.callsign import format_call, parse_call
 State = Literal["sending", "acked", "rejected", "failed", "unconfirmed", "cancelled", "received", "overheard"]
 STATES: tuple[str, ...] = get_args(State)
 
-DEFAULT_ATTEMPTS = 6                            # how many times a message is transmitted before it has failed (the setting messages/attempts)
-MAX_ATTEMPTS = 10
+STATION_ATTEMPTS = 4                            # how many times a message to a station is transmitted before it has failed; fixed, the operator does not choose it
+EMAIL_ATTEMPTS = 2                              # the email gateway's acks rarely reach us (they come back through an iGate), so a mail is sent twice and then left `unconfirmed`
+MAX_ATTEMPTS = 10                               # the most a message of the database has (messages sent before the count was fixed have up to 10)
 UNCONFIRMED_MAX = 2                             # a message given this many attempts or fewer is not failed when they are used up with no ack: it is `unconfirmed` (the station is not expected to ack)
 FIRST_WAIT_SEC = 30                             # the wait after the first attempt; each wait after that is double the one before, up to MAX_WAIT_SEC
 MAX_WAIT_SEC = 960
@@ -51,7 +52,7 @@ class MessageRecord:
     attempts: int = 0
     last_attempt_at: datetime | None = None
     acked_at: datetime | None = None
-    attempts_max: int = DEFAULT_ATTEMPTS                  # how many attempts the message was given when it was sent (the setting then); a change of the setting does not touch it
+    attempts_max: int = STATION_ATTEMPTS                  # how many attempts the message was given when it was sent (`attempts_for`); an older message keeps the count it was given then
     route: str = ""                                       # how the packet reached us, "direct" or "via OH2RCH-2" (neoaprs/route.py), for a message that was heard; empty for one of ours
 
     @property
@@ -125,7 +126,12 @@ def check_text(text: str) -> None:
         raise MessageError("the text has a control character")
 
 
-def wait_after(attempts: int, attempts_max: int = DEFAULT_ATTEMPTS) -> timedelta:
+def attempts_for(to_call: str) -> int:
+    """How many times a message to the station is transmitted: EMAIL_ATTEMPTS for the email gateway, STATION_ATTEMPTS for any other."""
+    return EMAIL_ATTEMPTS if to_call == EMAIL_GATEWAY else STATION_ATTEMPTS
+
+
+def wait_after(attempts: int, attempts_max: int = STATION_ATTEMPTS) -> timedelta:
     """How long after attempt number `attempts` (1 to `attempts_max`) the next one is due; after the last one, how long the answer is waited for. The waits double from 30 seconds (30, 30, 60, 120, ...) and none is
     longer than MAX_WAIT_SEC."""
     if attempts >= attempts_max:

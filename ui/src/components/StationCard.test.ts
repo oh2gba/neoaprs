@@ -167,12 +167,11 @@ describe("StationCard", () => {
     expect(rows).toEqual(expect.arrayContaining(["Course", "Speed", "Altitude"]));
   });
 
-  it("has no message settings: no path, suggested chip, RF only or attempts on the card, whatever the station", () => {
+  it("has no message settings: no path, suggested chip, or RF only on the card, whatever the station", () => {
     for (const r of [row, house, station("STORM", { kind: "object" })]) {
       const wrapper = mount(StationCard, { props: { row: r, now: NOW } });
       expect(wrapper.find(".use-suggested").exists()).toBe(false);
       expect(wrapper.find(".rfonly").exists()).toBe(false);
-      expect(wrapper.find(".attempts-input").exists()).toBe(false);
       expect(wrapper.find(".pathbox:not(.timeoutbox)").exists()).toBe(false);
       expect(wrapper.findAll(".card-path label").map((l) => l.text())).toEqual(["Off map after"]);
     }

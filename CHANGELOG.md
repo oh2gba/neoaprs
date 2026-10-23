@@ -12,6 +12,10 @@ Classic Bluetooth without `rfcomm bind`.
 A Debian package for the Raspberry Pi.
 
 - `neoaprs_VERSION_arm64.deb` and `neoaprs_VERSION_amd64.deb` on every release: NeoAPRS with its own Python 3.13 in `/opt/neoaprs` and the command `neoaprs`, for Raspberry Pi OS, Debian 12 and Ubuntu, which have no Python 3.13 of their own; `sudo apt install ./neoaprs_VERSION_arm64.deb`, then, as your own user, `neoaprs service install --linger`. It needs nothing from the system but libc, installs nothing in anyone's home and leaves your data alone; an upgrade replaces the files and restarts a running service. The update panel knows the kind (`deb` in `hello.install`, with the package's `arch`) and gives its download and `apt` steps. Built by `scripts/build-deb`, byte for byte the same each time, and installed and tried with apt on a runner of each architecture by the release workflow.
+Simpler messaging: what the program can decide, it decides.
+
+- The number of attempts is no longer chosen. A message to a station is sent at most 4 times, a message to the email gateway `EMAIL-2` at most 2 times (its acks rarely reach you: "sent, not confirmed" after that). The Attempts field is gone from the header of a conversation in the Messages tab and from the Email tab, `messages/attempts` is gone from the Settings tab (and with it the Messaging group), the page no longer gives `EMAIL-2` a count of its own, and the commands `set_station_attempts` and `clear_station_attempts` are removed from the protocol. A count or a setting that an earlier version stored is ignored; messages that were already sent keep the number of attempts they were given, and Retry keeps it.
+- The Email tab: "Fetch held mail" and the other buttons are all the same plain button, as Send is, with no small variant.
 
 ## 0.4.0
 

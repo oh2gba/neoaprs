@@ -121,7 +121,7 @@ def own_bulletin_row(bulletin: OwnBulletin, next_at: datetime | None) -> dict[st
 
 
 def pref_row(pref: Pref) -> dict[str, Any]:
-    return {"path": None if pref.path is None else ",".join(pref.path), "hide_after_min": pref.hide_after_min, "attempts": pref.attempts, "rf_only": pref.rf_only}
+    return {"path": None if pref.path is None else ",".join(pref.path), "hide_after_min": pref.hide_after_min, "rf_only": pref.rf_only}
 
 
 def tnc_state(tnc: Tnc) -> dict[str, Any]:

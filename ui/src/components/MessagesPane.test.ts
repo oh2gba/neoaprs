@@ -21,7 +21,6 @@ function pane(extra: Record<string, unknown> = {}) {
     now: NOW,
     showOverheard: false,
     paths: new Map<string, string>(),
-    attempts: { own: new Map<string, number>(), defaultCount: 6 },
     fallbackPath: "WIDE1-1,WIDE2-1",
     ...extra,
   };
@@ -179,18 +178,14 @@ describe("MessagesPane", () => {
     await wrapper.find(".thread-head .use-default").trigger("click");
     expect(wrapper.emitted("clearPath")).toEqual([["OH2RDG"]]);
     expect(pane().find(".thread-head .pathbox").text()).toContain("(default)");
-    expect(wrapper.findAll(".thread-head label").map((l) => l.text())).toEqual(["Path", "RF only", "Attempts"]);
+    expect(wrapper.findAll(".thread-head label").map((l) => l.text())).toEqual(["Path", "RF only"]);
   });
 
-  it("has the attempts field beside the path above the thread, and no map timeout there", async () => {
-    const wrapper = pane({ attempts: { own: new Map([["OH2RDG", 2]]), defaultCount: 6 } });
+  it("has no attempts field and no map timeout above the thread: the daemon decides the attempts", () => {
+    const wrapper = pane();
     expect(wrapper.find(".thread-head .timeout-input").exists()).toBe(false);
-    expect(wrapper.find<HTMLInputElement>(".thread-head .attempts-input").element.value).toBe("2");
-    await wrapper.find(".thread-head .attempts-input").setValue("1");
-    expect(wrapper.emitted("setAttempts")).toEqual([["OH2RDG", 1]]);
-    await wrapper.find(".thread-head .attemptsbox .use-default").trigger("click");
-    expect(wrapper.emitted("clearAttempts")).toEqual([["OH2RDG"]]);
-    expect(pane().find(".thread-head .attempts-input").attributes("placeholder")).toBe("(default: 6)");
+    expect(wrapper.find(".thread-head .attempts-input").exists()).toBe(false);
+    expect(wrapper.find(".thread-head").text()).not.toContain("Attempts");
   });
 
   it("has the RF only tickbox beside the path above the thread, ticked for a station that is RF only, and saves it", async () => {
