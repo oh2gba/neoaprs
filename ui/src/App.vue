@@ -41,7 +41,6 @@ import { useStationPrefs } from "@/composables/useStationPrefs";
 import { useTitle } from "@/composables/useTitle";
 import { DEFAULT_TIMEOUT_MIN, type Aging } from "@/lib/aging";
 import { filesKey } from "@/lib/mapfetch";
-import { candidates as messageCandidates } from "@/lib/recipients";
 import { withOwnSymbol } from "@/lib/stations";
 import type { Home } from "@/lib/mapview";
 
@@ -117,7 +116,6 @@ const fallbackPath = computed(() => config.value?.values["beacon/path"] ?? "");
 const connected = computed(() => tnc.value?.state === "connected");
 
 const call = computed<string | null>(() => config.value?.values["station/call"] ?? status.value?.call ?? null);
-const candidates = computed(() => messageCandidates(stations.value, call.value, now.value));
 const home = computed<Home | null>(() => {
   const place = (text: string | number | null | undefined): number => (text === undefined || text === null || text === "" ? NaN : Number(text));
   const lat = place(config.value?.values["station/lat"] ?? status.value?.lat);
@@ -222,8 +220,9 @@ const { selected, focus } = cards;
             :fallback-path="fallbackPath"
             :rf-only="rfOnly"
             :heard-direct="heardDirect"
-            :candidates="candidates"
+            :group="talk.group.value"
             @update:show-overheard="talk.showOverheard.value = $event"
+            @update:group="talk.group.value = $event"
             @path="setPath"
             @clear-path="clearPath"
             @set-rf-only="setRfOnly"

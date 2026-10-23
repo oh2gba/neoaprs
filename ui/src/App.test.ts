@@ -1003,17 +1003,17 @@ describe("App", () => {
       expect(wrapper.find("#pane-messages .convo-empty").text()).toContain("Choose a conversation");
       await conv(wrapper, "OH2RDG")?.trigger("click");
       expect(wrapper.findAll("#pane-messages .bubble")).toHaveLength(2);
-      expect(wrapper.find<HTMLInputElement>("#msg-to").element.value).toBe("OH2RDG");
+      expect(wrapper.find("#pane-messages .convo-title").text()).toBe("OH2RDG");
       await conv(wrapper, "OH2PU-9")?.trigger("click");
       expect(wrapper.find("#pane-messages .conv.active .conv-call").text()).toBe("OH2PU-9");
-      expect(wrapper.find<HTMLInputElement>("#msg-to").element.value).toBe("OH2PU-9");
+      expect(wrapper.find("#pane-messages .convo-title").text()).toBe("OH2PU-9");
       await conv(wrapper, "OH2PU-9")?.trigger("click");
       expect(wrapper.find("#pane-messages .conv.active .conv-call").text()).toBe("OH2PU-9");
       expect(wrapper.findAll("#pane-messages .conv")).toHaveLength(2);
     });
 
-    it("is opened by the Message button of the station's card, again and again, and a new message leaves the open one", async () => {
-      const { wrapper } = await open();
+    it("is opened by the Message button of the station's card, again and again, also for a station with no conversation yet, which it creates", async () => {
+      const { wrapper, socket } = await open();
       await wrapper
         .findAll("#pane-stations tbody tr")
         .find((r) => r.text().includes("OH2PU-9"))
@@ -1024,11 +1024,18 @@ describe("App", () => {
       expect(wrapper.find("#pane-messages .conv.active .conv-call").text()).toBe("OH2PU-9");
       await message()?.trigger("click");
       expect(wrapper.find("#pane-messages .conv.active .conv-call").text()).toBe("OH2PU-9");
-      await wrapper.find("#pane-messages .new-message").trigger("click");
-      expect(wrapper.find("#pane-messages .conv.active").exists()).toBe(false);
-      expect(wrapper.find("#pane-messages .convo-title").text()).toBe("New message");
+      expect(wrapper.find("#pane-messages .new-message").exists()).toBe(false);
+      expect(wrapper.find("#msg-to").exists()).toBe(false);
+      await wrapper
+        .findAll("#pane-stations tbody tr")
+        .find((r) => r.text().includes("OH2NOPOS"))
+        ?.trigger("click");
       await message()?.trigger("click");
-      expect(wrapper.find("#pane-messages .conv.active .conv-call").text()).toBe("OH2PU-9");
+      expect(wrapper.find("#pane-messages .convo-title").text()).toBe("OH2NOPOS");
+      expect(wrapper.find("#pane-messages .bubbles").text()).toContain("No message with OH2NOPOS yet");
+      await wrapper.find("#msg-text").setValue("Moi");
+      await wrapper.find("#pane-messages form").trigger("submit");
+      expect(socket.sent).toContainEqual({ cmd: "send_message", to: "OH2NOPOS", text: "Moi" });
     });
 
     it("is opened straight, without the list, by the Message button of the station's card on a narrow panel, and Esc is back to the list", async () => {
@@ -1044,7 +1051,7 @@ describe("App", () => {
         ?.trigger("click");
       expect(wrapper.find("#pane-messages .convlist").exists()).toBe(false);
       expect(wrapper.find("#pane-messages .convo-title").text()).toBe("OH2PU-9");
-      expect(wrapper.find<HTMLInputElement>("#msg-to").element.value).toBe("OH2PU-9");
+      expect(wrapper.find("#msg-to").exists()).toBe(false);
       await wrapper.find("#pane-messages .convo").trigger("keydown", { key: "Escape" });
       expect(wrapper.find("#pane-messages .convo").exists()).toBe(false);
       expect(wrapper.findAll("#pane-messages .conv")).toHaveLength(2);
