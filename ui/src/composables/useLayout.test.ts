@@ -52,7 +52,7 @@ describe("useLayout: the size", () => {
     expect([layout.size.value, layout.capacity.value]).toEqual(["desktop", 4]);
     window_(1920, 1080);
     await nextTick();
-    expect(layout.capacity.value).toBe(6);
+    expect(layout.capacity.value).toBe(4);
   });
 
   it("puts the size, the view of a phone and the guide on the root of the page", async () => {

@@ -58,26 +58,22 @@ export function useSelection(stations: Readonly<Ref<ReadonlyMap<string, StationR
     open.value = open.value.filter((one) => one !== call);
   }
 
-  /** The column of cards is taller than the map has room for (weather cards with graphs are tall): the oldest card closes, but never the only one. */
+  /** The row of cards is wider than the map has room for: the oldest card closes, but never the only one. */
   function closeOldest(): void {
     if (open.value.length > 1) open.value = open.value.slice(1);
   }
 
-  /** Esc: the newest card goes; whether there was one. */
-  function closeNewest(): boolean {
-    if (open.value.length === 0) return false;
-    open.value = open.value.slice(0, -1);
-    return true;
-  }
-
-  const closeAll = (): void => {
+  /** Esc, and Close all: every card goes, and with them the marking of the markers and the rows; whether there was one. */
+  function closeAll(): boolean {
+    const some = open.value.length > 0;
     open.value = [];
-  };
+    return some;
+  }
 
   /** The Forget of a station's card: the daemon forgets it, and its card is closed. */
   function forget(call: string): void {
     if (send({ cmd: "forget_station", call })) close(call);
   }
 
-  return { selected, others, open, rows, focus, row, pick, pickFromTable, close, closeNewest, closeOldest, closeAll, forget };
+  return { selected, others, open, rows, focus, row, pick, pickFromTable, close, closeOldest, closeAll, forget };
 }

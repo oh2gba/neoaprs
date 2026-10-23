@@ -62,17 +62,25 @@ describe("useSelection with several cards", () => {
     expect(picked.open.value).toEqual(["OH2ZWD"]);
   });
 
-  it("closes one card, the newest (Esc), or all of them", () => {
+  it("closes one card, or all of them at once (Esc), clearing the selection, and says whether there was one", () => {
     const { picked } = setUp();
     for (const call of CALLS.slice(0, 3)) picked.pick(call, true);
     picked.close("OH2ZWB");
     expect(picked.open.value).toEqual(["OH2ZWA", "OH2ZWC"]);
-    expect(picked.closeNewest()).toBe(true);
-    expect(picked.open.value).toEqual(["OH2ZWA"]);
     picked.pick("OH2ZWB", true);
-    picked.closeAll();
-    expect(picked.open.value).toEqual([]);
-    expect(picked.closeNewest()).toBe(false);
+    expect(picked.closeAll()).toBe(true);
+    expect([picked.open.value, picked.selected.value, picked.others.value]).toEqual([[], null, []]);
+    expect(picked.closeAll()).toBe(false);
+  });
+
+  it("closes the oldest card when the row does not fit, but never the only one", () => {
+    const { picked } = setUp();
+    for (const call of CALLS.slice(0, 3)) picked.pick(call, true);
+    picked.closeOldest();
+    expect(picked.open.value).toEqual(["OH2ZWB", "OH2ZWC"]);
+    picked.closeOldest();
+    picked.closeOldest();
+    expect(picked.open.value).toEqual(["OH2ZWC"]);
   });
 
   it("flies the map to a station picked in the table, and not to one that is added to the others or closed", () => {
@@ -105,7 +113,7 @@ describe("useSelection with several cards", () => {
     expect(picked.open.value).toEqual(["OH2ZWB"]);
   });
 
-  it("is made the only card by assigning its call, and cleared by assigning null (the More of a compact card)", () => {
+  it("is made the only card by assigning its call, and cleared by assigning null", () => {
     const { picked } = setUp();
     for (const call of CALLS.slice(0, 3)) picked.pick(call, true);
     picked.selected.value = "OH2ZWB";

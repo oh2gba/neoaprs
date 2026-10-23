@@ -33,17 +33,19 @@ button,
   touch-action: manipulation;
 }
 
-/* the station cards: a column at the left of the map, the newest on top (the first card does not move when another is added over it), "Close all" over them all */
+/* the station cards: a row over the map, from its left, side by side, the oldest at the left; every card is the whole card, as it is alone (its body scrolls if the map is too low for it), and none is made narrower: when the row does not fit
+   the map the page closes the oldest card. "Close all" and "Message these 3" are at the top left of the map, beside the zoom buttons. */
 .cardstack {
   position: absolute;
-  left: 10px;
+  /* the top 84 px of the map stay free for its zoom buttons */
+  top: 84px;
+  right: 10px;
   bottom: 30px;
+  left: 10px;
   z-index: 3;
   display: flex;
-  flex-direction: column-reverse;
+  align-items: flex-end;
   gap: 8px;
-  width: min(340px, calc(100% - 20px));
-  max-height: calc(100% - 114px);
   pointer-events: none;
 }
 .cardstack > * {
@@ -51,87 +53,21 @@ button,
 }
 .cardstack .card {
   position: static;
-  flex: 0 1 auto;
-  width: auto;
-  max-height: none;
+  flex: none;
+  width: min(340px, 100%);
+  max-height: 100%;
   min-height: 0;
 }
-/* a card has two forms: the whole one, alone (its body scrolls if the map is too low for it), and the compact one, which has one size however many cards there are: it is never squeezed, the page closes the oldest card when the column does not fit */
-.cardstack .card.compact {
-  flex: none;
-}
 .cards-actions {
+  position: absolute;
+  top: 10px;
+  left: 52px;
+  z-index: 3;
   display: flex;
-  order: 1;
-  align-self: flex-start;
   gap: 8px;
 }
 .cards-actions .btn {
   box-shadow: var(--shadow);
-}
-.card-more {
-  flex: none;
-}
-.card.compact .card-head {
-  padding: 4px 4px 0 8px;
-  gap: 8px;
-}
-.card.compact .card-title > .muted {
-  display: none;
-}
-.card.compact .card-fields {
-  padding: 2px 8px 6px;
-  gap: 0 10px;
-  font-size: 12px;
-}
-/* the compact weather card: the readings in one line, then a small graph for each quantity */
-.card.compact .wx {
-  padding: 0 8px 4px;
-  border-bottom: 0;
-}
-.wx-line {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0 10px;
-  font-size: 12px;
-}
-.wx-line .wx-temp {
-  font-size: 18px;
-}
-.wx-line .wx-wind {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-}
-.wx-line .wx-arrow {
-  width: 14px;
-  height: 14px;
-}
-.wx-line .wx-when {
-  font-size: 11px;
-}
-.wx-graphs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0 6px;
-}
-.trend.compact {
-  position: relative;
-  margin: 2px 0 0;
-}
-.trend.compact .trend-head {
-  position: absolute;
-  top: 0;
-  right: 2px;
-  left: 28px;
-  z-index: 1;
-  font-size: 10px;
-  line-height: 12px;
-  pointer-events: none;
-}
-.trend.compact .trend-grid text {
-  font-size: 8px;
 }
 
 /* tablet: the panel has the width of its size, a fixed one (there is no mouse to drag the handle with) */
@@ -190,12 +126,13 @@ button,
 
 /* phone: the station card is a bottom sheet, part of the screen: folded to its head and the first facts, a tap or a swipe up on its grip opens it, a swipe down folds it (and closes the folded one) */
 .size-phone .cardstack {
+  top: auto;
   right: 0;
   bottom: 0;
   left: 0;
   flex-direction: column;
+  align-items: stretch;
   gap: 0;
-  width: auto;
   max-height: 88%;
   padding-bottom: env(safe-area-inset-bottom);
   border-top: 1px solid var(--border);
@@ -205,6 +142,9 @@ button,
   pointer-events: auto;
 }
 .size-phone .cardstack .card {
+  flex: 0 1 auto;
+  width: auto;
+  max-height: none;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -437,9 +377,6 @@ button,
   textarea {
     /* a smaller text makes a phone zoom the page in when a field is focused */
     font-size: 16px;
-  }
-  .card-more {
-    min-width: 56px;
   }
 }
 

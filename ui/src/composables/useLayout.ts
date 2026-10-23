@@ -14,12 +14,12 @@ export type PhoneView = "map" | "panel";
 const VIEWS = ["map", "panel"] as const;
 
 export function useLayout(panel: Panel, guideOpen: Readonly<Ref<boolean>>, picking: Readonly<Ref<boolean>>) {
-  const { size, height } = useViewport();
+  const { size } = useViewport();
   const view = usePersisted<PhoneView>("view", "map", VIEWS);
   const phone = computed(() => size.value === "phone");
   /** What a phone shows now: the map while the guide is open, else the view the user is in. */
   const showing = computed<PhoneView>(() => (guideOpen.value ? "map" : view.value));
-  const capacity = computed(() => cardCapacity(size.value, height.value));
+  const capacity = computed(() => cardCapacity(size.value));
 
   let returnToTab = false;
   watch(picking, (on) => {

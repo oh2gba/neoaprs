@@ -88,7 +88,7 @@ describe("several station cards on a desktop (1400 by 900)", () => {
     ctrl("OH2ZWC");
     await nextTick();
     expect(cards(wrapper)).toEqual(["OH2ZWA", "OH2ZWB", "OH2ZWC"]);
-    expect(wrapper.findAll(".card.compact")).toHaveLength(3);
+    expect(wrapper.findAll(".card.compact")).toHaveLength(0); // (every card is the whole card)
     expect(marked().sort()).toEqual(["OH2ZWA", "OH2ZWB", "OH2ZWC"]);
     expect(wrapper.findAll("#pane-stations tr.selected")).toHaveLength(3);
     await row(wrapper, "OH2ZWB")?.trigger("click", { ctrlKey: true });
@@ -121,39 +121,25 @@ describe("several station cards on a desktop (1400 by 900)", () => {
     expect(FakeMap.last().flights).toHaveLength(flights);
   });
 
-  it("closes the oldest card when there is no room for another: four cards in a window 900 px high", async () => {
+  it("closes the oldest card when there are more than four, the most a desktop has", async () => {
     const { wrapper } = await open(1400, 900);
     for (const call of CALLS) await row(wrapper, call)?.trigger("click", { ctrlKey: true });
     expect(cards(wrapper)).toEqual(["OH2ZWC", "OH2ZWD", "OH2ZWE", "OH2ZWF"]);
   });
 
-  it("has room for more in a taller window (six at 1080 px), for fewer in a lower one (three at 700 px), and closes the oldest when the window is made lower", async () => {
-    const { wrapper } = await open(1920, 1080);
-    for (const call of CALLS) await row(wrapper, call)?.trigger("click", { ctrlKey: true });
-    expect(cards(wrapper)).toHaveLength(6);
-    resize(1920, 700);
-    await nextTick();
-    expect(cards(wrapper)).toEqual(["OH2ZWD", "OH2ZWE", "OH2ZWF"]);
-  });
-
-  it("closes the oldest card when the column of cards is taller than the map has room for, as tall weather cards are, and never squeezes one", async () => {
-    Object.defineProperty(HTMLElement.prototype, "clientHeight", { configurable: true, get: () => 600 }); // (the map: 486 px for cards)
-    Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
-      configurable: true,
-      get(this: HTMLElement) {
-        return this.classList.contains("card") ? 140 : 30;
-      },
-    });
+  it("closes the oldest card when the row of cards is wider than the map has room for, and never makes a card narrower", async () => {
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get: () => 1000 }); // (the row: 980 px between the margins)
+    Object.defineProperty(HTMLElement.prototype, "offsetWidth", { configurable: true, get: () => 300 });
     try {
       const { wrapper } = await open(1920, 1080);
       for (const call of CALLS.slice(0, 3)) await row(wrapper, call)?.trigger("click", { ctrlKey: true });
       await flushPromises();
-      expect(cards(wrapper)).toEqual(["OH2ZWA", "OH2ZWB", "OH2ZWC"]);
+      expect(cards(wrapper)).toEqual(["OH2ZWA", "OH2ZWB", "OH2ZWC"]); // 3 x 300 + 2 x 8 = 916
       await row(wrapper, "OH2ZWD")?.trigger("click", { ctrlKey: true });
       await flushPromises();
-      expect(cards(wrapper)).toEqual(["OH2ZWB", "OH2ZWC", "OH2ZWD"]);
+      expect(cards(wrapper)).toEqual(["OH2ZWB", "OH2ZWC", "OH2ZWD"]); // 4 x 300 + 24 = 1224
     } finally {
-      for (const name of ["clientHeight", "offsetHeight"]) Reflect.deleteProperty(HTMLElement.prototype, name);
+      for (const name of ["clientWidth", "offsetWidth"]) Reflect.deleteProperty(HTMLElement.prototype, name);
     }
   });
 
@@ -197,24 +183,23 @@ describe("several station cards on a desktop (1400 by 900)", () => {
     expect(marked()).toEqual([]);
   });
 
-  it("closes the newest card with Esc, one at a time, and not while a field has text in it", async () => {
+  it("closes all the cards at once with Esc, and not while a field has text in it", async () => {
     const { wrapper } = await open(1400, 900);
     for (const call of ["OH2ZWA", "OH2ZWB", "OH2ZWC"]) await row(wrapper, call)?.trigger("click", { ctrlKey: true });
-    esc();
-    await nextTick();
-    expect(cards(wrapper)).toEqual(["OH2ZWA", "OH2ZWB"]);
     await wrapper.find("input[type='search']").setValue("ZW");
     const filter = wrapper.find("input[type='search']").element;
     filter.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
     await nextTick();
-    expect(cards(wrapper)).toEqual(["OH2ZWA", "OH2ZWB"]);
-    esc();
+    expect((filter as HTMLInputElement).value).toBe(""); // (the first Esc is for the text of the box)
+    expect(cards(wrapper)).toEqual(["OH2ZWA", "OH2ZWB", "OH2ZWC"]);
     esc();
     await nextTick();
     expect(wrapper.find(".cardstack").exists()).toBe(false);
+    expect(marked()).toEqual([]);
+    expect(wrapper.findAll("#pane-stations tr.selected")).toHaveLength(0);
   });
 
-  it("deselects with Esc on the Stations tab, with the focus on a row of the table: the newest card closes and its row is not marked", async () => {
+  it("deselects with Esc on the Stations tab, with the focus on a row of the table: the cards close and the rows and the markers are not marked", async () => {
     const { wrapper } = await open(1400, 900);
     await row(wrapper, "OH2ZWA")?.trigger("click");
     await row(wrapper, "OH2ZWB")?.trigger("click", { ctrlKey: true });
@@ -222,13 +207,9 @@ describe("several station cards on a desktop (1400 by 900)", () => {
     focused.focus();
     focused.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
     await nextTick();
-    expect(cards(wrapper)).toEqual(["OH2ZWA"]);
-    expect(wrapper.findAll("#pane-stations tr.selected").map((r) => r.find("td.call").text())).toEqual(["OH2ZWA"]);
-    expect(marked()).toEqual(["OH2ZWA"]);
-    focused.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
-    await nextTick();
     expect(wrapper.find(".cardstack").exists()).toBe(false);
     expect(wrapper.findAll("#pane-stations tr.selected")).toHaveLength(0);
+    expect(marked()).toEqual([]);
   });
 
   it("clears the text of the filter box with the first Esc, and deselects with the next", async () => {
@@ -244,14 +225,6 @@ describe("several station cards on a desktop (1400 by 900)", () => {
     press();
     await nextTick();
     expect(wrapper.find(".cardstack").exists()).toBe(false);
-  });
-
-  it("makes a compact card the only one, whole, with its More", async () => {
-    const { wrapper } = await open(1400, 900);
-    for (const call of ["OH2ZWA", "OH2ZWB"]) await row(wrapper, call)?.trigger("click", { ctrlKey: true });
-    await wrapper.findAll(".card")[0]?.find(".card-more").trigger("click");
-    expect(cards(wrapper)).toEqual(["OH2ZWA"]);
-    expect(wrapper.find(".card").classes()).not.toContain("compact");
   });
 
   it("leaves the first-run guide the Esc key", async () => {
@@ -488,9 +461,9 @@ describe("the footer under the panel", () => {
 });
 
 describe("the default width of the panel", () => {
-  it("is 640 px on a window of 1280 px and more, 480 px on a smaller one, and the user's own width when it was dragged", async () => {
+  it("is 680 px on a window of 1280 px and more, 480 px on a smaller one, and the user's own width when it was dragged", async () => {
     const wide = await open(1440, 900);
-    expect(wide.wrapper.find(".panel").attributes("style")).toContain("--panel-width: 640px");
+    expect(wide.wrapper.find(".panel").attributes("style")).toContain("--panel-width: 680px");
     wide.wrapper.unmount();
     FakeSocket.all = [];
     const small = await open(1200, 800);

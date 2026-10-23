@@ -167,7 +167,6 @@ const { selected, focus } = cards;
           @close-all="cards.closeAll"
           @message-all="talk.openGroup"
           @overflow="cards.closeOldest"
-          @only="selected = $event"
           @weather="(call, hours) => send({ cmd: 'weather_series', call, hours })"
           @forget="cards.forget"
           @edit="objects.edit"

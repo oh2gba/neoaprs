@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // One trend graph as inline SVG in the page's colours: a line (the sustained wind with a lighter band up to its gusts, or bars for the rain), labelled ticks on both axes, and a line under the pointer with the value and the
-// time of the nearest observation in the heading. The scaling and the paths are lib/chart.ts. A series with no value draws nothing but the frame. `compact` is the small graph of a card that is one of several (half a card wide and 44 px high, with the heading over its top edge, the hours under
-// it only when `timeLabels`); `range` is the value axis the cards share (components/StationCards.vue), so that the curves of several stations can be compared: it is rounded to round numbers as the graph's own would be.
+// time of the nearest observation in the heading. The scaling and the paths are lib/chart.ts. A series with no value draws nothing but the frame. `range` is the value axis that several weather cards share (components/StationCards.vue), so that the curves of several
+// stations can be compared: it is rounded to round numbers as the graph's own range would be.
 import { computed, ref } from "vue";
 import {
   bandPath,
@@ -35,41 +35,32 @@ const props = withDefaults(
     asBars?: boolean;
     /** the value axis includes 0 (wind, rain) */
     zero?: boolean;
-    tone: "temp" | "pressure" | "wind" | "rain" | "humidity";
-    /** the small graph of a compact card */
-    compact?: boolean;
-    /** the hours are written under a compact graph */
-    timeLabels?: boolean;
-    /** the lowest and highest value of the axis, from the cards that share it */
+    tone: "temp" | "pressure" | "wind" | "rain";
+    /** the lowest and the highest value of the axis, from the cards that share it */
     range?: readonly [number, number];
   }>(),
-  { band: () => [], asBars: false, zero: false, compact: false, timeLabels: false, range: undefined },
+  { band: () => [], asBars: false, zero: false, range: undefined },
 );
 
-const W = computed(() => (props.compact ? 160 : 320)); // (a compact graph is half a card wide: two side by side)
-const LEFT = computed(() => (props.compact ? 26 : 36));
-const RIGHT = computed(() => W.value - (props.compact ? 4 : 6));
-const H = computed(() => (props.compact ? (props.timeLabels ? 56 : 44) : 100));
-const TOP = computed(() => (props.compact ? 11 : 6));
-const BOTTOM = computed(() => H.value - (props.compact ? (props.timeLabels ? 12 : 3) : 18));
+const W = 320;
+const H = 100;
+const LEFT = 36;
+const RIGHT = W - 6;
+const TOP = 6;
+const BOTTOM = H - 18;
 
 const hover = ref<number | null>(null);
 
 const values = computed(() => [...props.main, ...props.band].flatMap((p) => (p.v === null ? [] : [p.v])));
 const axis = computed(() => {
   const [lo, hi] = props.range ?? extent(values.value, props.zero);
-  return niceTicks(lo, hi, props.compact ? 3 : 4);
+  return niceTicks(lo, hi, 4);
 });
-const x = computed(() => linearScale([props.from, props.to], [LEFT.value, RIGHT.value]));
-const y = computed(() => linearScale([axis.value.min, axis.value.max], [BOTTOM.value, TOP.value]));
+const x = computed(() => linearScale([props.from, props.to], [LEFT, RIGHT]));
+const y = computed(() => linearScale([axis.value.min, axis.value.max], [BOTTOM, TOP]));
 const gap = computed(() => gapLimit(props.main));
 const decimals = computed(() => tickDecimals(axis.value.step));
-// (a compact graph has the room for every other hour only)
-const xTicks = computed(() =>
-  timeTicks(props.from, props.to)
-    .filter((_, i) => !props.compact || i % 2 === 0)
-    .map((t) => ({ ...t, x: x.value(t.at) })),
-);
+const xTicks = computed(() => timeTicks(props.from, props.to).map((t) => ({ ...t, x: x.value(t.at) })));
 const yTicks = computed(() => axis.value.ticks.map((v) => ({ v, y: y.value(v), label: v.toFixed(decimals.value) })));
 
 const line = computed(() => (props.asBars ? "" : linePath(props.main, x.value, y.value, gap.value)));
@@ -77,7 +68,7 @@ const upper = computed(() => linePath(props.band, x.value, y.value, gap.value));
 const area = computed(() => bandPath(props.main, props.band, x.value, y.value, gap.value));
 const barWidth = computed(() => {
   const span = Math.max(1, props.to - props.from);
-  return Math.min(8, Math.max(1.5, (usualGap(props.main) * 0.8 * (RIGHT.value - LEFT.value)) / span));
+  return Math.min(8, Math.max(1.5, (usualGap(props.main) * 0.8 * (RIGHT - LEFT)) / span));
 });
 const columns = computed(() => (props.asBars ? bars(props.main, x.value, y.value, 0, barWidth.value) : []));
 
@@ -95,15 +86,15 @@ const readout = computed(() =>
 function move(event: PointerEvent): void {
   const svg = event.currentTarget as SVGSVGElement;
   const box = svg.getBoundingClientRect();
-  const place = box.width > 0 ? ((event.clientX - box.left) / box.width) * W.value : W.value;
-  const t = props.from + ((place - LEFT.value) / (RIGHT.value - LEFT.value)) * (props.to - props.from);
+  const place = box.width > 0 ? ((event.clientX - box.left) / box.width) * W : W;
+  const t = props.from + ((place - LEFT) / (RIGHT - LEFT)) * (props.to - props.from);
   const i = nearestIndex(props.main, t);
   hover.value = i < 0 ? null : i;
 }
 </script>
 
 <template>
-  <figure class="trend" :class="[`tone-${tone}`, { compact }]">
+  <figure class="trend" :class="`tone-${tone}`">
     <figcaption class="trend-head">
       <span>{{ title }}</span>
       <span class="trend-read mono">{{ readout }}</span>
@@ -124,7 +115,7 @@ function move(event: PointerEvent): void {
         </g>
         <g v-for="t in xTicks" :key="`x${t.at}`">
           <line class="tick" :x1="t.x" :x2="t.x" :y1="BOTTOM" :y2="BOTTOM + 3" />
-          <text v-if="!compact || timeLabels" :x="t.x" :y="H - 4" text-anchor="middle">{{ t.label }}</text>
+          <text :x="t.x" :y="H - 4" text-anchor="middle">{{ t.label }}</text>
         </g>
       </g>
       <path v-if="area" class="trend-band" :d="area" />

@@ -17,9 +17,9 @@ export const TAB_TITLES: Record<TabId, string> = {
 
 export const PANEL_MIN = 280;
 export const PANEL_DEFAULT = 480;
-/** From this window width on, a panel the user has not dragged is `PANEL_DEFAULT_WIDE` wide: wide enough for the two columns of the Messages tab. */
+/** From this window width on, a panel the user has not dragged is `PANEL_DEFAULT_WIDE` wide: wide enough for the two columns of the Messages tab and for the eight tabs with their badges (the tab bar turns into a menu when they do not fit). */
 const WIDE_WINDOW = 1280;
-export const PANEL_DEFAULT_WIDE = 640;
+export const PANEL_DEFAULT_WIDE = 680;
 
 /** The width of the panel of a user who has not dragged it, for a window this wide. */
 export function defaultPanelWidth(pageWidth: number): number {
@@ -63,18 +63,11 @@ export function sizeOf(width: number, height: number): SizeClass {
   return width < TABLET_MAX ? "tablet" : "desktop";
 }
 
-/** The room a compact card takes in the column on the map (its height and the gap), and what the column leaves: the header, the map's zoom buttons above it, the map's corner under it. */
-const CARD_SLOT = 150;
-const CARD_RESERVED = 154;
-/** What the column of cards leaves free of the map's height: the top 84 px for the zoom buttons, the bottom 30 px (`.cardstack` in responsive.css). */
-export const CARDS_FREE = 114;
-/** The gap between two cards of the column (`.cardstack` in responsive.css). */
-export const CARD_GAP = 8;
-const MOST_CARDS = 6;
-
-/** How many station cards may be open at once: one on a phone (a tap replaces it), two on a tablet, and on a desktop as many compact cards as the height of the window has room for, at least 1 and at most 6. */
-export function cardCapacity(size: SizeClass, height: number): number {
-  if (size === "phone") return 1;
-  if (size === "tablet") return 2;
-  return Math.max(1, Math.min(MOST_CARDS, Math.floor((height - CARD_RESERVED) / CARD_SLOT)));
+/** The most cards that may be open side by side at each size: one on a phone (a tap replaces it), two on a tablet, four on a desktop; the row that is wider than the map has room for closes its oldest card (components/StationCards.vue), so a narrow map has fewer. */
+export function cardCapacity(size: SizeClass): number {
+  return size === "phone" ? 1 : size === "tablet" ? 2 : 4;
 }
+
+/** What the row of cards leaves free of the map's width (`.cardstack` in responsive.css: 10 px at each side), and the gap between two cards. */
+export const CARDS_FREE_SIDE = 20;
+export const CARD_GAP = 8;

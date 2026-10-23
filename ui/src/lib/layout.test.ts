@@ -57,23 +57,14 @@ describe("sizeOf", () => {
 });
 
 describe("cardCapacity", () => {
-  it("is one on a phone and two on a tablet, whatever the height", () => {
-    expect([cardCapacity("phone", 2000), cardCapacity("tablet", 300), cardCapacity("tablet", 2000)]).toEqual([1, 2, 2]);
-  });
-  it("is as many compact cards as the height has room for on a desktop, at least 1 and at most 6", () => {
-    expect(cardCapacity("desktop", 300)).toBe(1);
-    expect(cardCapacity("desktop", 600)).toBe(2);
-    expect(cardCapacity("desktop", 800)).toBe(4);
-    expect(cardCapacity("desktop", 1080)).toBe(6);
-    expect(cardCapacity("desktop", 900)).toBe(4);
-    expect(cardCapacity("desktop", 700)).toBe(3);
-    expect(cardCapacity("desktop", 4000)).toBe(6);
+  it("is one on a phone, two on a tablet and four on a desktop (the row that does not fit the map closes its oldest card by itself)", () => {
+    expect([cardCapacity("phone"), cardCapacity("tablet"), cardCapacity("desktop")]).toEqual([1, 2, 4]);
   });
 });
 
 describe("defaultPanelWidth", () => {
-  it("is 640 px on a window of 1280 px and more, so that the Messages tab has its two columns, and 480 px on a smaller one", () => {
+  it("is 680 px on a window of 1280 px and more, so that the Messages tab has its two columns and the tabs their badges, and 480 px on a smaller one", () => {
     expect([defaultPanelWidth(1279), defaultPanelWidth(1280), defaultPanelWidth(1920)]).toEqual([PANEL_DEFAULT, PANEL_DEFAULT_WIDE, PANEL_DEFAULT_WIDE]);
-    expect(PANEL_DEFAULT_WIDE).toBe(640);
+    expect(PANEL_DEFAULT_WIDE).toBe(680);
   });
 });

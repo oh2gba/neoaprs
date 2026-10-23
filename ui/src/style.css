@@ -22,7 +22,6 @@
   --wx-pressure: #7b1fa2;
   --wx-wind: #00838f;
   --wx-rain: #1565c0;
-  --wx-humidity: #2e7d32;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 }
 
@@ -48,7 +47,6 @@
     --wx-pressure: #ce93d8;
     --wx-wind: #4dd0e1;
     --wx-rain: #64b5f6;
-    --wx-humidity: #81c784;
   }
 }
 
@@ -915,9 +913,6 @@ tbody tr:focus-visible {
 }
 .tone-rain {
   --tone: var(--wx-rain);
-}
-.tone-humidity {
-  --tone: var(--wx-humidity);
 }
 
 /* the message board */
