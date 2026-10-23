@@ -7,17 +7,14 @@ from pathlib import Path
 from neoaprs import TOCALL, ax25, kiss
 from neoaprs.packet import Position
 from neoaprs.source import Source
-from tests.support.env import Env, idle_for, until
+from tests.support.env import Env, idle_for, quick_start, until
 
 INFO = b"=6010.20N/02456.40E-mobile"
 
 
 async def started(tmp_path: Path, **changes: object) -> Env:
     """A daemon whose radio is connected and settled, with the settings changed as asked and the beacon's timer ticking quickly."""
-    e = Env(tmp_path)
-    e.ctl.beacon.tick_sec, e.ctl.beacon.retry_sec = 0.02, 0.05
-    await e.start()
-    await e.until_usable()                                                # (the TNC has settled: nothing was said in command mode)
+    e = await quick_start(tmp_path, beacon=True)
     assert await e.ctl.save_config(replace(e.ctl.config, station_comment="mobile", **changes))      # type: ignore[arg-type]
     return e
 

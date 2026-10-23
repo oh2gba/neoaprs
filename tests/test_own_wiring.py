@@ -9,18 +9,13 @@ from neoaprs.stationbook import Station
 from neoaprs.web.ownwire import OwnBulletinRow, OwnObjectRow
 from neoaprs.web.protocol import TOPIC_NAMES
 from tests.support.air import on_air, said
-from tests.support.env import Env, idle_for, until
+from tests.support.env import Env, idle_for, quick_start, until
 
 OBJECT_INFO = b";LEADER   *211200z6010.20N/02456.40E>Rescue 1"
 
 
 async def started(tmp_path: Path, **kwargs: object) -> Env:
-    e = Env(tmp_path, **kwargs)                                             # type: ignore[arg-type]
-    e.ctl.ownobjects.tick_sec = e.ctl.ownbulletins.tick_sec = 0.02
-    e.ctl.sender.spacing_sec = 0.0
-    await e.start()
-    await e.until_usable()                                                # (the TNC has settled: nothing was said in command mode)
-    return e
+    return await quick_start(tmp_path, own=True, unpaced=True, **kwargs)
 
 
 def make(e: Env, name: str = "LEADER", **values: object) -> None:

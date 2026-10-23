@@ -108,6 +108,27 @@ async def idle_for(seconds: float) -> None:
     await asyncio.sleep(seconds)
 
 
+async def quick_start(tmp_path: Path, *, beacon: bool = False, messaging: bool = False, rigstatus: bool = False, own: bool = False, unpaced: bool = False, **options: Any) -> "Env":
+    """A started Env whose Tnc is connected and settled and whose named services tick every 20 ms (the beacon, messaging, the status poll, the own objects and bulletins); `unpaced`: and send one frame after the other with no
+    pause (the messaging pace, the own sender). The other options are the Env's."""
+    e = Env(tmp_path, **options)
+    if beacon:
+        e.ctl.beacon.tick_sec, e.ctl.beacon.retry_sec = 0.02, 0.05
+    if messaging:
+        e.ctl.messaging.tick_sec = 0.02
+        if unpaced:
+            e.ctl.messaging.pace.spacing_sec = 0.0
+    if rigstatus:
+        e.ctl.rigstatus.poll_sec = 0.02
+    if own:
+        e.ctl.ownobjects.tick_sec = e.ctl.ownbulletins.tick_sec = 0.02
+        if unpaced:
+            e.ctl.sender.spacing_sec = 0.0
+    await e.start()
+    await e.until_usable()
+    return e
+
+
 class Env:
     def __init__(self, tmp_path: Path, clock: Clock | None = None, radio: bool | str = True, ports: Path | None = None, web: bool = False, operator: bool = True, settings: dict[str, str] | None = None, **tnc_options: Any) -> None:
         self.dir = tmp_path

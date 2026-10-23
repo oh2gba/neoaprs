@@ -10,7 +10,7 @@ from neoaprs import ax25
 from neoaprs.config import DEFAULTS, Config, can_transmit
 from neoaprs.message import MessagingError
 from tests.support.air import message_info, on_air, said
-from tests.support.env import Env, idle_for, until
+from tests.support.env import Env, idle_for, quick_start, until
 
 SET_FIRST = "set your call first"
 
@@ -54,12 +54,7 @@ def test_the_settings_take_an_empty_call_and_an_empty_position_and_write_them_em
 # ---- the whole daemon -----------------------------------------------------------------------------------------------------------------------
 
 async def started(tmp_path: Path, **changes: object) -> Env:
-    e = Env(tmp_path, operator=False)
-    e.ctl.beacon.tick_sec, e.ctl.beacon.retry_sec = 0.02, 0.05
-    e.ctl.messaging.tick_sec = 0.02
-    e.ctl.rigstatus.poll_sec = 0.02
-    await e.start()
-    await e.until_usable()                                                # (the TNC has settled)
+    e = await quick_start(tmp_path, beacon=True, messaging=True, rigstatus=True, operator=False)
     if changes:
         assert await e.ctl.save_config(replace(e.ctl.config, **changes))    # type: ignore[arg-type]
     return e
