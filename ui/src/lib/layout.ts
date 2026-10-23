@@ -23,7 +23,13 @@ export const MAP_MIN = 360;
 /** What a remembered width may be at the most (the window it is shown in clamps it again). */
 export const PANEL_STORED_MAX = 20000;
 
-/** The widest the panel may be on a page this wide: 80 % of it, leaving the map 360 px; never less than the least. */
+/**
+ * How wide the Messages tab must be (the tab itself, not the window: the panel beside the map can be narrow on a wide screen) to show the list of conversations beside the open conversation.
+ * 600 px is a list of 240 px, the divider and a conversation of 359 px, which holds the compose row (call, Stations, "67 left") and bubbles that can still be read; narrower, one of the two at a time.
+ */
+export const MESSAGES_WIDE = 600;
+
+/** The widest the panel may be on a page this wide:80 % of it, leaving the map 360 px; never less than the least. */
 export function panelMax(pageWidth: number): number {
   return Math.max(PANEL_MIN, Math.min(Math.floor(pageWidth * PANEL_MAX_SHARE), pageWidth - MAP_MIN));
 }

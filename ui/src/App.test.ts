@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "@/App.vue";
 import { FakeMap, FakeMarker, fakeState, resetFakes } from "@/test/fakemap";
 import { FakeSocket } from "@/test/fakesocket";
+import { stubWidth } from "@/test/width";
 import { FakeAudioContext, FakeNotification, openedAt, setSeen, stubBrowser } from "@/test/fakealert";
 import {
   ago,
@@ -53,7 +54,10 @@ async function open() {
 
 const tabButton = (wrapper: VueWrapper, title: string) => wrapper.findAll("[role='tab']").find((t) => t.text().startsWith(title));
 
+// the panel is 720 px wide, so that the Messages tab has the list beside the conversation; the narrow layout is tried where a test says so
+let panelWidth: ReturnType<typeof stubWidth>;
 beforeEach(() => {
+  panelWidth = stubWidth(720);
   FakeSocket.all = [];
   resetFakes();
   localStorage.clear();
@@ -61,6 +65,7 @@ beforeEach(() => {
   vi.stubGlobal("WebSocket", FakeSocket);
 });
 afterEach(() => {
+  panelWidth.restore();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   openedAt("127.0.0.1");
@@ -488,8 +493,9 @@ describe("App", () => {
       .findAll(".card .btn")
       .find((b) => b.text() === "Message")
       ?.trigger("click");
-    const header = wrapper.find<HTMLInputElement>("#pane-messages .thread-head .rfonly input");
-    expect(wrapper.findAll("#pane-messages .thread-head label").map((l) => l.text())).toEqual(["Path", "RF only"]);
+    await wrapper.find("#pane-messages .convo-head .route-button").trigger("click");
+    const header = wrapper.find<HTMLInputElement>("#pane-messages .route-box .rfonly input");
+    expect(wrapper.findAll("#pane-messages .route-box label").map((l) => l.text())).toEqual(["Path", "RF only"]);
     await header.setValue(true);
     expect(socket.sent).toContainEqual({ cmd: "set_station_rf_only", call: "OH2PU-9", on: true });
     socket.say({
@@ -499,8 +505,8 @@ describe("App", () => {
       ops: [{ op: "set", key: "OH2PU-9", value: { path: null, hide_after_min: null, rf_only: true } }],
     });
     await flushPromises();
-    expect(wrapper.find<HTMLInputElement>("#pane-messages .thread-head .rfonly input").element.checked).toBe(true);
-    await wrapper.find<HTMLInputElement>("#pane-messages .thread-head .rfonly input").setValue(false);
+    expect(wrapper.find<HTMLInputElement>("#pane-messages .route-box .rfonly input").element.checked).toBe(true);
+    await wrapper.find<HTMLInputElement>("#pane-messages .route-box .rfonly input").setValue(false);
     expect(socket.sent).toContainEqual({ cmd: "set_station_rf_only", call: "OH2PU-9", on: false });
   });
 
@@ -593,8 +599,8 @@ describe("App", () => {
       const { wrapper, socket } = await open();
       await tabButton(wrapper, "Messages")?.trigger("click");
       await wrapper.find("#pane-messages .conv").trigger("click");
-      expect(wrapper.findAll("#pane-messages .msg").length).toBeGreaterThan(0);
-      expect(wrapper.find("#pane-messages .msg-delete").exists()).toBe(false);
+      expect(wrapper.findAll("#pane-messages .bubble").length).toBeGreaterThan(0);
+      expect(wrapper.find("#pane-messages .bubble-delete").exists()).toBe(false);
       expect(JSON.stringify(socket.sent)).not.toContain("message_delete");
     });
   });
@@ -904,25 +910,23 @@ describe("App", () => {
         .find((c) => c.find(".conv-call").text() === call)
         ?.find(".conv-delete");
 
-    it("is a toggle: a click on the open one closes its thread, a click on another opens that one", async () => {
+    it("is opened by a click on its row, and another row opens that one; the open one is the highlighted row, and a click on it keeps it open", async () => {
       const { wrapper } = await open();
       await tabButton(wrapper, "Messages")?.trigger("click");
       expect(wrapper.find("#pane-messages .conv.active").exists()).toBe(false);
+      expect(wrapper.find("#pane-messages .convo-empty").text()).toContain("Choose a conversation");
       await conv(wrapper, "OH2RDG")?.trigger("click");
-      expect(wrapper.findAll("#pane-messages .msg")).toHaveLength(2);
+      expect(wrapper.findAll("#pane-messages .bubble")).toHaveLength(2);
       expect(wrapper.find<HTMLInputElement>("#msg-to").element.value).toBe("OH2RDG");
       await conv(wrapper, "OH2PU-9")?.trigger("click");
       expect(wrapper.find("#pane-messages .conv.active .conv-call").text()).toBe("OH2PU-9");
       expect(wrapper.find<HTMLInputElement>("#msg-to").element.value).toBe("OH2PU-9");
       await conv(wrapper, "OH2PU-9")?.trigger("click");
-      expect(wrapper.find("#pane-messages .conv.active").exists()).toBe(false);
-      expect(wrapper.findAll("#pane-messages .msg")).toHaveLength(0);
-      expect(wrapper.find("#pane-messages .thread").text()).toBe("");
-      expect(wrapper.find<HTMLInputElement>("#msg-to").element.value).toBe("");
+      expect(wrapper.find("#pane-messages .conv.active .conv-call").text()).toBe("OH2PU-9");
       expect(wrapper.findAll("#pane-messages .conv")).toHaveLength(2);
     });
 
-    it("is opened by the Message button of the station's card, which opens it again rather than toggling it", async () => {
+    it("is opened by the Message button of the station's card, again and again, and a new message leaves the open one", async () => {
       const { wrapper } = await open();
       await wrapper
         .findAll("#pane-stations tbody tr")
@@ -934,10 +938,30 @@ describe("App", () => {
       expect(wrapper.find("#pane-messages .conv.active .conv-call").text()).toBe("OH2PU-9");
       await message()?.trigger("click");
       expect(wrapper.find("#pane-messages .conv.active .conv-call").text()).toBe("OH2PU-9");
-      await conv(wrapper, "OH2PU-9")?.trigger("click");
+      await wrapper.find("#pane-messages .new-message").trigger("click");
       expect(wrapper.find("#pane-messages .conv.active").exists()).toBe(false);
+      expect(wrapper.find("#pane-messages .convo-title").text()).toBe("New message");
       await message()?.trigger("click");
       expect(wrapper.find("#pane-messages .conv.active .conv-call").text()).toBe("OH2PU-9");
+    });
+
+    it("is opened straight, without the list, by the Message button of the station's card on a narrow panel, and Esc is back to the list", async () => {
+      panelWidth.set(400);
+      const { wrapper } = await open();
+      await wrapper
+        .findAll("#pane-stations tbody tr")
+        .find((r) => r.text().includes("OH2PU-9"))
+        ?.trigger("click");
+      await wrapper
+        .findAll(".card .btn")
+        .find((b) => b.text() === "Message")
+        ?.trigger("click");
+      expect(wrapper.find("#pane-messages .convlist").exists()).toBe(false);
+      expect(wrapper.find("#pane-messages .convo-title").text()).toBe("OH2PU-9");
+      expect(wrapper.find<HTMLInputElement>("#msg-to").element.value).toBe("OH2PU-9");
+      await wrapper.find("#pane-messages .convo").trigger("keydown", { key: "Escape" });
+      expect(wrapper.find("#pane-messages .convo").exists()).toBe(false);
+      expect(wrapper.findAll("#pane-messages .conv")).toHaveLength(2);
     });
 
     it("is deleted after two clicks on its x, with one command, and its thread closes if it was the open one", async () => {
@@ -950,7 +974,7 @@ describe("App", () => {
       await x(wrapper, "OH2RDG")?.trigger("click");
       expect(socket.sent).toContainEqual({ cmd: "conversation_delete", call: "OH2RDG" });
       expect(wrapper.find("#pane-messages .conv.active").exists()).toBe(false);
-      expect(wrapper.find<HTMLInputElement>("#msg-to").element.value).toBe("");
+      expect(wrapper.find("#pane-messages .convo").exists()).toBe(false);
       socket.say({
         type: "patch",
         topic: "messages",
@@ -981,7 +1005,7 @@ describe("App", () => {
       await flushPromises();
       await tabButton(wrapper, "Messages")?.trigger("click");
       expect(x(wrapper, "OH2AAA > OH2BBB")).toBeUndefined();
-      await wrapper.find<HTMLInputElement>("#pane-messages .toolbar input").setValue(true);
+      await wrapper.find<HTMLInputElement>("#pane-messages .convlist-overheard input").setValue(true);
       await x(wrapper, "OH2AAA > OH2BBB")?.trigger("click");
       expect(x(wrapper, "OH2AAA > OH2BBB")?.text()).toBe("sure?");
       expect(JSON.stringify(socket.sent)).not.toContain("overheard_delete");
