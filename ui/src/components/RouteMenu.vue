@@ -1,8 +1,9 @@
 <script setup lang="ts">
 // "Route" in the header of a conversation: a small button that opens the path the messages to the station go by and the tickbox RF only (StationPrefs) in a box under the header. It is closed until it is pressed, and closed again by Esc, a click or
 // tap outside it, or the focus moving away. A dot on the button says the route is not the default one (a path of its own, or RF only), which the old closed heading said by being open.
-import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import StationPrefs from "@/components/StationPrefs.vue";
+import { usePopup } from "@/composables/usePopup";
 import { effectivePath } from "@/lib/messages";
 
 const props = withDefaults(
@@ -16,34 +17,16 @@ const root = ref<HTMLElement | null>(null);
 const button = ref<HTMLButtonElement | null>(null);
 const changed = computed(() => effectivePath(props.paths, props.fallbackPath, props.call).own || props.rfOnly.has(props.call));
 
-function away(event: Event): void {
-  if (!(event.target instanceof Node) || !root.value?.contains(event.target)) open.value = false;
-}
-
 /** Esc closes the box and is not passed on (on a narrow page it would also go back to the list). */
-function onKey(event: KeyboardEvent): void {
-  if (event.key !== "Escape" || !open.value) return;
-  event.stopPropagation();
-  open.value = false;
-  button.value?.focus();
-}
-
-function listen(on: boolean): void {
-  const act = (type: string, handler: EventListener): void => (on ? document.addEventListener(type, handler) : document.removeEventListener(type, handler));
-  act("pointerdown", away);
-  act("focusin", away);
-}
-
-watch(open, listen);
+const popup = usePopup({ open, root, trigger: button, close: () => (open.value = false), stopEscape: true });
 watch(
   () => props.call,
   () => (open.value = false),
 );
-onBeforeUnmount(() => listen(false));
 </script>
 
 <template>
-  <div ref="root" class="routemenu" @keydown="onKey">
+  <div ref="root" class="routemenu" @keydown="popup.onEscape">
     <button
       ref="button"
       type="button"
