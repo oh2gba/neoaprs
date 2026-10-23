@@ -2,29 +2,24 @@
 general query waits and is taken once in ten minutes; and what is not a query, not to us or not heard is left alone."""
 import asyncio
 import logging
-from dataclasses import replace
 from datetime import timedelta
 
 import pytest
 
 from neoaprs import ax25
 from neoaprs.aprsmessage import MAX_TEXT, parse_message
-from neoaprs.config import Config
 from neoaprs.packet import Message, Other, Packet, Status
 from neoaprs.services.beacon import Beacon
 from neoaprs.services.queries import GENERAL_DELAY_MAX_SEC, GENERAL_EVERY_SEC, Queries, directs_messages, path_text
 from neoaprs.source import Source
 from neoaprs.stationbook import StationBook
-from tests.support.stubtnc import StubTnc
-from tests.support.clock import FixedClock
-from tests.support.env import ON_AIR, remember_stop, until
+from tests.support.rig import ServiceRig
+from tests.support.env import remember_stop, until
 
 
-class Rig:
+class Rig(ServiceRig):
     def __init__(self, delay: float = 0.0, **changes: object) -> None:
-        self.config: Config = replace(ON_AIR, **changes)             # type: ignore[arg-type]
-        self.clock = FixedClock()
-        self.tnc = StubTnc()
+        super().__init__(**changes)
         self.book = StationBook(self.clock)
         self.book.set_me(self.config.station_call, self.config.station_lat, self.config.station_lon)
         self.paths: dict[str, tuple[str, ...]] = {}

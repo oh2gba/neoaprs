@@ -10,7 +10,6 @@ from pathlib import Path
 import pytest
 
 from neoaprs import ax25
-from neoaprs.config import Config
 from neoaprs.message import MSG_IDS, MessageRecord, MessagingError
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet, ThirdParty
@@ -19,9 +18,10 @@ from neoaprs.services.messaging import Messaging
 from neoaprs.services.prefbook import PrefBook
 from neoaprs.source import Source
 from neoaprs.store import DB_NAME
+from tests.support.rig import ServiceRig
 from tests.support.stubtnc import StubTnc
 from tests.support.clock import FixedClock
-from tests.support.env import ON_AIR, remember_stop, until
+from tests.support.env import remember_stop, until
 from tests.support.storedb import keep_old_attempts, store_at
 
 TICK = 0.01
@@ -29,21 +29,16 @@ RUN_OUT = (30, 30, 60, 240)                        # the waits after each attemp
 WORKED = "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :Hello Pekka{01}"
 
 
-class Rig:
+class Rig(ServiceRig):
     def __init__(self, log: MessageLog, clock: FixedClock, tnc: StubTnc | None = None, spacing_sec: float = 0.0, **changes: object) -> None:
-        self.config: Config = replace(ON_AIR, **changes)             # type: ignore[arg-type]
-        self.tnc = tnc or StubTnc()
-        self.clock = clock
+        super().__init__(clock, tnc, **changes)
         self.log = log
         self.prefs = PrefBook(log, lambda: self.config)
         self.board: list[tuple[Packet, Message]] = []                   # what messaging handed to the message board
         self.m = Messaging(self.tnc, lambda: self.config, log, self.prefs.path_for, clock, tick_sec=TICK, board=lambda packet, message: self.board.append((packet, message)),
                         spacing_sec=spacing_sec)
         remember_stop(self.m.stop)
-        self.changed: list[MessageRecord] = []
-        self.removed: list[MessageRecord] = []
-        self.m.changed.connect(self.changed.append)
-        self.m.removed.connect(self.removed.append)
+        self.record(self.m)
 
     async def start(self) -> None:
         """What the controller's start does for messaging: the paths of the stations, then the service."""

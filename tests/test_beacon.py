@@ -2,7 +2,6 @@
 the TNC is not connected, a changed interval)."""
 import asyncio
 import logging
-from dataclasses import replace
 from datetime import timedelta
 
 import pytest
@@ -14,20 +13,16 @@ from neoaprs.config import Config
 from neoaprs.packet import Status
 from neoaprs.services.beacon import Beacon, BeaconError, phg_text, uncompressed_position
 from neoaprs.source import Source
+from tests.support.rig import ServiceRig
 from tests.support.stubtnc import StubTnc
 from tests.support.clock import FixedClock
 from tests.support.env import ON_AIR, until
 
 
-class Rig:
+class Rig(ServiceRig):
     def __init__(self, **changes: object) -> None:
-        self.config: Config = replace(ON_AIR, **changes)             # type: ignore[arg-type]
-        self.tnc = StubTnc()
-        self.clock = FixedClock()
+        super().__init__(**changes)
         self.beacon = Beacon(self.tnc, lambda: self.config, self.clock, first_delay_sec=30.0, tick_sec=0.01, retry_sec=5.0)
-
-    def set(self, **changes: object) -> None:
-        self.config = replace(self.config, **changes)                  # type: ignore[arg-type]
 
 
 # ---- the frame -----------------------------------------------------------------------------------------------------------------------------------

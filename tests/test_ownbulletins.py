@@ -6,33 +6,28 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs.config import Config
-from neoaprs.ownbulletin import MAX_POSTED, OwnBulletin, PostError
+from neoaprs.ownbulletin import MAX_POSTED, PostError
 from neoaprs.ownlog import OwnLog
 from neoaprs.services.ownbulletins import OwnBulletins
 from neoaprs.services.sender import Sender
 from neoaprs.source import Source
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
-from tests.support.env import ON_AIR, remember_stop
+from tests.support.env import remember_stop
 from tests.support.storedb import store_at
-from tests.support.stubtnc import StubTnc
+from tests.support.rig import ServiceRig
 
 
-class Rig:
+class Rig(ServiceRig):
     """One run of the daemon's bulletins: made again on the same log and clock after a stop."""
 
     def __init__(self, log: OwnLog, clock: FixedClock, **changes: object) -> None:
-        self.log, self.clock, self.begin = log, clock, clock()
-        self.config: Config = replace(ON_AIR, **changes)               # type: ignore[arg-type]
-        self.tnc = StubTnc()
+        super().__init__(clock, **changes)
+        self.log, self.begin = log, clock()
         self.sender = Sender(self.tnc, lambda: self.config, clock, spacing_sec=10.0)
         self.posts = OwnBulletins(self.sender, lambda: self.config, log, clock, tick_sec=3600.0)
         self.sent: list[tuple[int, bytes]] = []                         # (seconds since the rig was made, the information field)
-        self.changed: list[OwnBulletin] = []
-        self.removed: list[OwnBulletin] = []
-        self.posts.changed.connect(self.changed.append)
-        self.posts.removed.connect(self.removed.append)
+        self.record(self.posts)
 
     async def start(self) -> "Rig":
         await self.posts.start()
