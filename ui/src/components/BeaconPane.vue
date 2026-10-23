@@ -2,6 +2,7 @@
 // The Beacon tab: the settings the beacon and the status are made from (our station, the beacon, the status), which apply as they are changed like the Settings tab's, with a preview, closed until asked for, of the packet those values would make and,
 // for a status that is a text of our own, of the status report. The buttons that send now are in their groups: "Last beacon: 2 min ago" with Beacon now at the top of the Beacon group, and, while there is a status, the status last sent with Send status now at
 // the top of the Status group (SendRow; useSendNow says when they are on and asks twice).
+import DisclosureBox from "@/components/DisclosureBox.vue";
 import SendRow from "@/components/SendRow.vue";
 import type { Picked } from "@/composables/usePositionPick";
 import SettingsForm from "@/components/SettingsForm.vue";
@@ -58,8 +59,12 @@ const current = computed(() => {
         />
       </template>
       <template #preview="{ draft }">
-        <details class="beacon-preview">
-          <summary :class="{ problem: !beaconText(draft) }">{{ beaconText(draft) ? "Preview" : "Preview: these values make no packet yet" }}</summary>
+        <DisclosureBox
+          plain
+          class="beacon-preview"
+          :title="beaconText(draft) ? 'Preview' : 'Preview: these values make no packet yet'"
+          :summary-class="{ problem: !beaconText(draft) }"
+        >
           <div class="beacon-preview-body">
             <span class="muted">Packet</span>
             <code v-if="beaconText(draft)" class="mono" aria-label="The beacon as it would be sent">{{ beaconText(draft) }}</code>
@@ -68,7 +73,7 @@ const current = computed(() => {
               <code class="mono" aria-label="The status as it would be sent">{{ statusText(draft, new Date(now)) }}</code>
             </template>
           </div>
-        </details>
+        </DisclosureBox>
       </template>
     </SettingsForm>
   </div>
