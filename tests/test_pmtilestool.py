@@ -242,7 +242,7 @@ async def test_a_dry_run_asks_for_the_box_and_the_zoom_and_gives_the_sizes(tmp_p
     fake = install_fake(tmp_path / "bin")
     sizes = await extract(fake.path, "https://build.example/20261022.pmtiles", tmp_path / "out.pmtiles", (23.5, 58.9, 26.4, 61.4), 12, dry_run=True)
     assert (sizes.tiles, sizes.bytes) == (41233, 493_000_000)
-    assert fake.calls() == [["extract", "https://build.example/20261022.pmtiles", str(tmp_path / "out.pmtiles"), "--maxzoom=12", "--bbox=23.50000,58.90000,26.40000,61.40000", "--dry-run"]]
+    assert fake.calls() == [["extract", "https://build.example/20261022.pmtiles", str(tmp_path / "out.pmtiles"), "--maxzoom=12", "--bbox=23.50000,58.90000,26.40000,61.40000", "--download-threads=8", "--dry-run"]]
     assert not (tmp_path / "out.pmtiles").exists(), "a dry run writes nothing"
 
 

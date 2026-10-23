@@ -181,7 +181,7 @@ async def test_the_page_is_told_the_steps_and_the_percent_of_each(rig: Rig) -> N
     assert [s.step for s in working][0] == "world" and working[-1].step == "area"
     for step in ("world", "area"):
         percents = [s.percent for s in working if s.step == step and s.percent is not None]
-        assert percents[0] == 0 and percents[-1] == 100 and percents == sorted(percents) and len(set(percents)) == len(percents)
+        assert percents[0] == 0 and percents[-1] == 100 and percents == sorted(percents) and {0, 25, 50, 75, 100} <= set(percents)
     assert rig.states()[-1] == "ready"
 
 

@@ -409,6 +409,10 @@ export interface MapState {
   step: "" | "tool" | "build" | "world" | "area";
   /** how far the step is; null when it cannot say (the program and the build have no bar) */
   percent: number | null;
+  /** the size so far of the file the step is making, in bytes (it grows while the download moves); null when no file is being made yet */
+  downloaded: number | null;
+  /** what the job says of a download that has not moved for a while: `no progress: trying again (2 of 3)`; empty when all is well */
+  note: string;
   /** why no job can be started now (no position, or a job is running); empty when one can */
   blocked: string;
   /** why the last job failed; empty if it did not, and while a job runs */

@@ -14,6 +14,7 @@ An Email tab that explains itself.
 - A mail whose ack never came back is "sent twice, not confirmed" with a hollow check, not failed: the gateway's acks reach a station only when an iGate puts them on the air, so a mail that went through often looks failed. What the gateway itself sends is marked "EMAIL-2 answers" in the thread.
 - The gateway's commands and a new shortcut give `EMAIL-2` its count of 2 attempts the first time, as mail does, so a first "Email the list" is not sent six times.
 - The manual's Email section says what the gateway is, that an iGate must be in reach, what a shortcut is and how it is made (by a message, not on a web page), and what each action sends.
+- The map download no longer hangs. A download of which neither the percent nor the size of the half-made file has moved for 2 minutes is ended and begun again from the start, three tries in all, and the Settings tab says so ("no progress: trying again (2 of 3)"); after the last try the job ends with "the map server is too slow now; try again later" and the map that was there stays. The progress line shows the size downloaded so far next to the percent ("Map of the area 49% · 340 MB"), so that a slow download is seen to move, and so does `neoaprs map`. The pmtiles program is run with eight download threads instead of four.
 
 ## 0.3.0
 

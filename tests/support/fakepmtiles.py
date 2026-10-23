@@ -2,7 +2,7 @@
 bar redrawn with a carriage return) and writes a file that has a PMTiles header. Nothing is fetched from anywhere.
 
     fake = install_fake(tmp_path / "bin")          # the program, `fake.path`
-    fake.mode("fail")                              # ok (default), fail (a part of the file, then an error), slow (a bar at 10% and then waits to be killed), linger (a bar at 75% for a second, then done), nosize (a dry run that says nothing of the size)
+    fake.mode("fail")                              # ok (default), fail (a part of the file, then an error), slow (a bar at 10% and then waits to be killed), stall-once (slow for the first run, ok after), grow (a bar at 10% that never moves again while the file grows for a second, then done), linger (a bar at 75% for a second, then done), nosize (a dry run that says nothing of the size)
     fake.calls()                                   # one list of the arguments for each run, in order
     fake.pid()                                     # the process id of the latest run"""
 import json
@@ -56,6 +56,22 @@ with open(target, "wb") as out:
         say("\r" + bar.format(10, "#", 51))
         time.sleep(60)
         sys.exit(1)
+    marker = os.path.join(here, "stalled")
+    if mode == "stall-once" and not os.path.exists(marker):
+        open(marker, "w").close()
+        say("\r" + bar.format(10, "#", 51))
+        time.sleep(60)
+        sys.exit(1)
+    if mode == "grow":
+        out.write(data[60:])
+        say("\r" + bar.format(10, "#", 51))
+        for _ in range(12):
+            out.write(b"tiles" * 100)
+            out.flush()
+            time.sleep(0.1)
+        say("\r" + bar.format(100, "#" * 10, 512) + "\n")
+        say(stamp + "612: Extract transferred 512 MB (overfetch 0.05) for an archive size of 493 MB\n")
+        sys.exit(0)
     for percent in (0, 25, 50, 75):
         say("\r" + bar.format(percent, "#" * (percent // 10), percent * 5))
     if mode == "linger":

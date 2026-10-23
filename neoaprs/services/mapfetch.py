@@ -3,14 +3,20 @@
 `data/basemap.pmtiles` is cut out of the Protomaps daily build (or of `map/source`) with the pmtiles tool (neoaprs/pmtilestool.py) for the box that `map/radius_km` makes round the station's position, down to
 `map/maxzoom`. `data/basemap-world.pmtiles` is the world to zoom 5 (about 15 MB), fetched first when it is not there, so that the page has something under the detailed area and outside it.
 
+A download that has stood still for `Patience.stall_sec` (neither the tool's percent nor the size of the `.part` file moved) is ended and tried again from the start, up to `Patience.tries` times in all, saying so in the
+status (`note`); after the last try the job fails with a text that says the server is too slow, and the map that was there stays. The status also tells the size of the `.part` file, so that a slow download is seen to move.
+
 One job at a time: `estimate()` is a dry run that says how big the detailed map will be, `fetch()` makes the files, `cancel()` ends the job running. A file is made beside the final one (`.part`) and moved into
 place only when the tool has finished, so a failed or cancelled job leaves the map that was there. `status()` is what the page is told; `changed` is emitted with every change of it. The command line is `python -m neoaprs.services.mapfetch`
 (neoaprs/services/mapcli.py)."""
 import asyncio
+import contextlib
 import json
 import logging
 import re
+import time
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -29,6 +35,22 @@ WORLD = "basemap-world.pmtiles"
 WORLD_MAXZOOM = 5
 BUILDS = "https://build.protomaps.com"
 BUILD_DAYS = 8                                  # today's build and the seven before it: a day's build is not always published yet
+SLOW = "the map server is too slow now; try again later"
+
+
+@dataclass(frozen=True)
+class Patience:
+    stall_sec: float = 120.0                    # how long neither the percent nor the size of the file may move
+    tries: int = 3                              # downloads begun in all before the job gives up
+    pause_sec: float = 10.0                     # between the end of a stalled download and the next
+    poll_sec: float = 2.0                       # how often the size of the file is looked at
+
+
+PATIENCE = Patience()
+
+
+class _Stalled(Exception):
+    pass
 
 
 def describe_file(path: Path) -> MapFile | None:
@@ -59,18 +81,22 @@ async def latest_build(now: datetime, probe: Callable[[str], bool] = url_exists)
 
 class MapFetch:
     def __init__(self, data_dir: Path, config: Callable[[], Config], clock: Clock = utcnow, installer: Callable[[Path], Awaitable[Path]] = ensure,
-                 probe: Callable[[str], bool] = url_exists) -> None:
+                 probe: Callable[[str], bool] = url_exists, patience: Patience = PATIENCE) -> None:
         self.data_dir = data_dir
         self.config = config
         self.clock = clock
         self.changed: Signal[[]] = Signal("map_changed")
         self._installer = installer
         self._probe = probe
+        self.patience = patience
         self._tasks = TaskSet(self._task_failed)
         self._busy: Job | None = None
         self._current: "asyncio.Task[object] | None" = None
         self._step: Step = ""
         self._percent: int | None = None
+        self._downloaded: int | None = None
+        self._note = ""
+        self._moved = 0.0
         self._problem = ""
         self._estimate: Estimate | None = None
 
@@ -98,16 +124,21 @@ class MapFetch:
         except MapError as e:
             box, blocked = None, str(e)
         state: State = "estimating" if self._busy == "estimate" else "downloading" if self._busy == "fetch" else "error" if self._problem else "ready" if detail else "none"
-        return MapStatus(state, self._step, self._percent, blocked, self._problem if self._busy is None else "", self._estimate, config.map_radius_km, config.map_maxzoom, box,
+        return MapStatus(state, self._step, self._percent, self._downloaded, self._note, blocked, self._problem if self._busy is None else "", self._estimate, config.map_radius_km, config.map_maxzoom, box,
                          detail, describe_file(self.data_dir / WORLD))
 
     def _set(self, step: Step) -> None:
-        self._step, self._percent = step, None
+        self._step, self._percent, self._downloaded, self._note = step, None, None, ""
         self.changed.emit()
+
+    def _moves(self) -> None:
+        """The download went on: the time of it is kept for the watch, and a note about a stall is no longer true."""
+        self._moved, self._note = time.monotonic(), ""
 
     def _progress(self, percent: int) -> None:
         if percent != self._percent:
             self._percent = percent
+            self._moves()
             self.changed.emit()
 
     # ---- the jobs
@@ -116,7 +147,7 @@ class MapFetch:
             raise MapError("a map job is running already")
         self._plan()
         self._busy, self._problem = job, ""
-        self._step, self._percent = "", None
+        self._step, self._percent, self._downloaded, self._note = "", None, None, ""
 
     def begin(self, job: Job) -> None:
         """Starts the job in the background; MapError (nothing started) if one is running or there is no position. Its end is told by `changed`."""
@@ -166,7 +197,7 @@ class MapFetch:
         finally:
             for part in parts:
                 part.unlink(missing_ok=True)
-            self._busy, self._current, self._step, self._percent = None, None, "", None
+            self._busy, self._current, self._step, self._percent, self._downloaded, self._note = None, None, "", None, None, ""
             self.changed.emit()
 
     async def _program(self) -> Path:
@@ -209,7 +240,7 @@ class MapFetch:
 
     async def _make(self, program: Path, source: str, build: str, name: str, box: Box | None, zoom: int) -> None:
         part, final = self.data_dir / (name + ".part"), self.data_dir / name
-        await extract(program, source, part, box, zoom, on_percent=self._progress)
+        await self._download(program, source, part, box, zoom)
         if not part.is_file():
             raise ToolError(f"the pmtiles program ended without making {part.name}")
         await asyncio.to_thread(replace_file, part, final)
@@ -217,6 +248,48 @@ class MapFetch:
             final.with_suffix(".json").write_text(json.dumps({"build": build}))
         except OSError as e:
             log.warning("the note on the build of %s could not be written: %s", name, e)
+
+    async def _download(self, program: Path, source: str, part: Path, box: Box | None, zoom: int) -> None:
+        """Runs the tool until it has made `part`; a run that stands still is ended and begun again from the start (the tool cannot take up a half-made file) after a pause, `tries` times in all; then ToolError."""
+        for attempt in range(1, self.patience.tries + 1):
+            part.unlink(missing_ok=True)
+            try:
+                return await self._watched(extract(program, source, part, box, zoom, on_percent=self._progress), part)
+            except _Stalled:
+                log.warning("the download of %s stood still for %g s (try %d of %d)", part.name, self.patience.stall_sec, attempt, self.patience.tries)
+            if attempt == self.patience.tries:
+                raise ToolError(SLOW) from None
+            self._percent, self._downloaded = None, None
+            self._note = f"no progress: trying again ({attempt + 1} of {self.patience.tries})"
+            self.changed.emit()
+            await asyncio.sleep(self.patience.pause_sec)
+
+    async def _watched(self, run: Awaitable[object], part: Path) -> None:
+        """Waits for the tool, looking at the size of `part` now and then; _Stalled (the tool is ended) when neither that nor the percent has moved for `stall_sec`."""
+        task = asyncio.ensure_future(run)
+        self._moved = time.monotonic()
+        try:
+            while not task.done():
+                await asyncio.wait([task], timeout=self.patience.poll_sec)
+                self._look(part)
+                if not task.done() and time.monotonic() - self._moved > self.patience.stall_sec:
+                    raise _Stalled
+            await task
+        finally:
+            if not task.done():
+                task.cancel()
+                with contextlib.suppress(asyncio.CancelledError, Exception):
+                    await task
+
+    def _look(self, part: Path) -> None:
+        try:
+            size = part.stat().st_size
+        except OSError:
+            return
+        if size != self._downloaded:
+            self._downloaded = size
+            self._moves()
+            self.changed.emit()
 
 
 if __name__ == "__main__":

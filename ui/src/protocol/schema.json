@@ -1550,6 +1550,22 @@
           ],
           "description": "how far the step is; null when it cannot say (the program and the build have no bar)"
         },
+        "downloaded": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the size so far of the file the step is making, in bytes (it grows while the download moves); null when no file is being made yet"
+        },
+        "note": {
+          "description": "what the job says of a download that has not moved for a while: `no progress: trying again (2 of 3)`; empty when all is well",
+          "type": "string"
+        },
         "blocked": {
           "description": "why no job can be started now (no position, or a job is running); empty when one can",
           "type": "string"
@@ -1620,6 +1636,8 @@
         "state",
         "step",
         "percent",
+        "downloaded",
+        "note",
         "blocked",
         "problem",
         "estimate",
