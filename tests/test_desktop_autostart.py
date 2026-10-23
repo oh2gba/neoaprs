@@ -17,10 +17,11 @@ SCRIPTS = r"C:\Users\Jo Doe\AppData\Local\uv\tools\neoaprs\Scripts"
 def test_the_command_is_the_installed_script_with_tray_and_the_data_folder_only_when_it_is_not_the_default(tmp_path: Path) -> None:
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
-    (bin_dir / "neoaprs-app").write_text("#!/bin/sh\n", encoding="utf-8")
+    script = bin_dir / ("neoaprs-app.exe" if sys.platform == "win32" else "neoaprs-app")      # the paths are this system's, so the system is too
+    script.write_text("#!/bin/sh\n", encoding="utf-8")
     python = str(bin_dir / "python")
-    assert app_command(default_data_dir(), "linux", False, python) == [str(bin_dir / "neoaprs-app"), "--tray"]
-    assert app_command(tmp_path / "my data", "linux", False, python) == [str(bin_dir / "neoaprs-app"), "--tray", "--data", str(tmp_path / "my data")]
+    assert app_command(default_data_dir(), sys.platform, False, python) == [str(script), "--tray"]
+    assert app_command(tmp_path / "my data", sys.platform, False, python) == [str(script), "--tray", "--data", str(tmp_path / "my data")]
 
 
 def test_without_the_script_it_is_this_python_with_the_module(tmp_path: Path) -> None:
@@ -59,6 +60,7 @@ def test_linux_writes_and_removes_an_autostart_file_in_the_config_folder(tmp_pat
 def test_linux_without_a_config_folder_variable_uses_dot_config_in_the_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
     monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))                  # the home of Windows, where the tests run too
     assert DesktopFileAutoStart(["x"]).path == tmp_path / ".config" / "autostart" / "neoaprs.desktop"
 
 
