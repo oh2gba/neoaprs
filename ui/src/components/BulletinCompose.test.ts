@@ -1,9 +1,11 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
+import type { OwnBulletinRow } from "@/protocol/protocol";
+import { ownBulletin } from "@/test/fixtures";
 import BulletinCompose from "@/components/BulletinCompose.vue";
 
 function compose() {
-  const wrapper = mount(BulletinCompose);
+  const wrapper = mount(BulletinCompose, { props: { ownBulletins: new Map<string, OwnBulletinRow>() } });
   const kind = wrapper.find<HTMLSelectElement>("#post-kind");
   const id = wrapper.find<HTMLSelectElement>("#post-id");
   const text = wrapper.find<HTMLInputElement>("#post-text");
@@ -38,14 +40,44 @@ describe("BulletinCompose", () => {
     expect(post.element.disabled).toBe(true);
   });
 
-  it("posts the slot and the text, and empties the text but keeps the kind and the identifier", async () => {
+  it("posts the slot and the text, and keeps both until the daemon has the bulletin, then empties the text and keeps the kind and the identifier", async () => {
     const { wrapper, id, text } = compose();
     await id.setValue("3");
     await text.setValue(" Snow expected ");
     await wrapper.find("form").trigger("submit");
     expect(wrapper.emitted("post")).toEqual([["BLN3", "Snow expected"]]);
+    expect(text.element.value).toBe(" Snow expected ");
+    await wrapper.setProps({ ownBulletins: new Map([["BLN3", ownBulletin("BLN3", { text: "Snow expected" })]]) });
     expect(text.element.value).toBe("");
     expect(id.element.value).toBe("3");
+  });
+
+  it("keeps the text when the daemon refuses, and a bulletin of the slot with another text is not the answer", async () => {
+    const { wrapper, text } = compose();
+    await text.setValue("Road closed");
+    await wrapper.find("form").trigger("submit");
+    await wrapper.setProps({ ownBulletins: new Map([["BLN1", ownBulletin("BLN1", { text: "an older text" })]]) });
+    expect(text.element.value).toBe("Road closed");
+    await text.setValue("Road open");
+    await wrapper.find("form").trigger("submit");
+    expect(wrapper.emitted("post")).toEqual([
+      ["BLN1", "Road closed"],
+      ["BLN1", "Road open"],
+    ]);
+    await wrapper.setProps({ ownBulletins: new Map([["BLN1", ownBulletin("BLN1", { text: "Road open" })]]) });
+    expect(text.element.value).toBe("");
+  });
+
+  it("takes the same text posted again to a slot that holds it as done when the row is the daemon's new one, and leaves what was typed since", async () => {
+    const { wrapper, text } = compose();
+    const first = ownBulletin("BLN1", { text: "same" });
+    await wrapper.setProps({ ownBulletins: new Map([["BLN1", first]]) });
+    await text.setValue("same");
+    await wrapper.find("form").trigger("submit");
+    expect(text.element.value).toBe("same");
+    await text.setValue("typed meanwhile");
+    await wrapper.setProps({ ownBulletins: new Map([["BLN1", ownBulletin("BLN1", { text: "same", sent: 0 })]]) });
+    expect(text.element.value).toBe("typed meanwhile");
   });
 
   it("has lettered identifiers for an announcement, and the number it had is replaced by the first letter", async () => {

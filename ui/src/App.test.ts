@@ -633,8 +633,13 @@ describe("App", () => {
       await wrapper.find("#post-text").setValue("Road closed");
       await wrapper.find("#pane-bulletins .bulletin-compose").trigger("submit");
       expect(socket.sent.filter((c) => (c as { cmd?: string }).cmd === "bulletin_post")).toEqual([{ cmd: "bulletin_post", slot: "BLN1", text: "Road closed" }]);
+      expect(wrapper.find<HTMLInputElement>("#post-text").element.value).toBe("Road closed");
+      socket.say({ type: "error", text: "bulletin_post: set your call first" });
+      await flushPromises();
+      expect(wrapper.find<HTMLInputElement>("#post-text").element.value).toBe("Road closed");
       socket.say({ type: "state", topic: "own_bulletins", rev: 0, value: { BLN1: ownBulletin("BLN1", { text: "Road closed" }) } });
       await flushPromises();
+      expect(wrapper.find<HTMLInputElement>("#post-text").element.value).toBe("");
       const mine = wrapper.find("#pane-bulletins .bulletin.mine");
       expect(mine.find(".bulletin-head strong").text()).toBe("OH2GBA");
       expect(mine.find(".own-mark").text()).toBe("ours");
@@ -720,7 +725,25 @@ describe("App", () => {
           path: null,
         },
       ]);
+      expect(wrapper.find("#pane-objects .objform").exists()).toBe(true);
+      expect(field(wrapper, "Name")?.element.value).toBe("MARK");
+      socket.say({ type: "state", topic: "own_objects", rev: 0, value: { MARK: ownObject("MARK", { lat: 60.5, lon: 25.5 }) } });
+      await flushPromises();
       expect(wrapper.find("#pane-objects .objform").exists()).toBe(false);
+    });
+
+    it("keeps the form and what was typed when the daemon refuses the object, and shows its error", async () => {
+      const { wrapper, socket } = await open();
+      await tabButton(wrapper, "Objects")?.trigger("click");
+      await wrapper.find("#pane-objects .toolbar .btn").trigger("click");
+      await field(wrapper, "Name")?.setValue("MARK");
+      await field(wrapper, "Comment")?.setValue("kept");
+      await wrapper.find("#pane-objects form").trigger("submit");
+      socket.say({ type: "error", text: "object_set: set your call first" });
+      await flushPromises();
+      expect(wrapper.find("#pane-objects .objform").exists()).toBe(true);
+      expect(field(wrapper, "Comment")?.element.value).toBe("kept");
+      expect(wrapper.find(".toast").text()).toContain("set your call first");
     });
 
     it("shows a pin on the map while the form has a place, and a click on the map is not the first-run guide's", async () => {

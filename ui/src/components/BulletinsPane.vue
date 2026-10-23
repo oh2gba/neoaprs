@@ -25,7 +25,7 @@ const remove = (b: BoardEntry): void => (b.own ? emit("unpost", b.slot) : emit("
 
 <template>
   <div class="boardwrap">
-    <BulletinCompose @post="(slot, text) => emit('post', slot, text)" />
+    <BulletinCompose :own-bulletins="ownBulletins" @post="(slot, text) => emit('post', slot, text)" />
     <div class="boardpane">
       <p v-if="shown.length === 0" class="empty">Nothing on the board.</p>
       <section v-for="section in shown" :key="section.kind" class="board-section" :aria-label="section.title">

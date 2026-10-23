@@ -1,10 +1,12 @@
 <script setup lang="ts">
 // The box to post to the message board, at the top of the Bulletins tab: the kind (a bulletin, an announcement, a group bulletin), the identifier it has (a number, a capital letter for an announcement), the group
 // of a group bulletin, and the text, with the characters of the 67 it has left. Post is on when the text can be sent (printable ASCII without | ~ {) and, for a group, the group is one to five letters and digits. The text is
-// cleared once it is posted. A slot that already holds a text of ours gets the new one in its place.
-import { computed, reactive, watch } from "vue";
+// cleared when the daemon has the bulletin (the topic `own_bulletins` tells it); one it refused stays for the user to correct. A slot that already holds a text of ours gets the new one in its place.
+import { computed, reactive, ref, watch } from "vue";
+import type { OwnBulletinRow } from "@/protocol/protocol";
 import { GROUP_MAX, POST_KINDS, canPost, charsLeft, groupOf, groupOk, idsOf, postCommand, type PostDraft } from "@/lib/bulletins";
 
+const props = defineProps<{ ownBulletins: ReadonlyMap<string, OwnBulletinRow> }>();
 const emit = defineEmits<{ post: [slot: string, text: string] }>();
 const draft = reactive<PostDraft>({ kind: "bulletin", id: "1", group: "", text: "" });
 
@@ -19,12 +21,24 @@ watch(
   },
 );
 
+const asked = ref<{ slot: string; text: string; before: OwnBulletinRow | undefined } | null>(null); // what was posted, until the daemon has it
+
+watch(
+  () => (asked.value === null ? undefined : props.ownBulletins.get(asked.value.slot)),
+  (row) => {
+    const sent = asked.value;
+    if (sent === null || row === undefined || row === sent.before || row.text !== sent.text) return;
+    asked.value = null;
+    if (draft.text.trim() === sent.text) draft.text = "";
+  },
+);
+
 function submit(): void {
   const command = postCommand(draft);
   if (command === null) return;
   draft.group = groupOf(draft.group);
+  asked.value = { slot: command.slot, text: command.text, before: props.ownBulletins.get(command.slot) };
   emit("post", command.slot, command.text);
-  draft.text = "";
 }
 </script>
 

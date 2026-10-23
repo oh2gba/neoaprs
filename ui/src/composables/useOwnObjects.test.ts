@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import { ref } from "vue";
+import { nextTick, ref, shallowReactive } from "vue";
 import { useOwnObjects } from "@/composables/useOwnObjects";
 import type { Panel } from "@/composables/usePanel";
 import type { Command, OwnObjectRow } from "@/protocol/protocol";
 import { ownObject } from "@/test/fixtures";
 
 function setUp(rows: OwnObjectRow[] = [], sends = true) {
-  const table = new Map(rows.map((r) => [r.name, r]));
+  const table = shallowReactive(new Map(rows.map((r) => [r.name, r])));
   const sent: Command[] = [];
   const send = vi.fn((command: Command) => {
     sent.push(command);
@@ -105,8 +105,8 @@ describe("useOwnObjects", () => {
     expect(view.pin).toEqual({ lat: 60, lon: 24.94 });
   });
 
-  it("saves the object as the form has it, and closes the form", () => {
-    const { view, sent } = setUp();
+  it("saves the object as the form has it, and keeps the form open until the daemon has it", async () => {
+    const { view, sent, table } = setUp();
     view.start();
     view.draft.name = "LEADER";
     view.draft.comment = "Rescue 1";
@@ -127,10 +127,68 @@ describe("useOwnObjects", () => {
         path: null,
       },
     ]);
+    expect(view.open).toBe(true);
+    expect(view.draft).toMatchObject({ name: "LEADER", comment: "Rescue 1", speed: "40" });
+    table.set("LEADER", ownObject("LEADER", { lat: 60.17, lon: 24.94, comment: "Rescue 1", speed_kmh: 40 }));
+    await nextTick();
     expect(view.open).toBe(false);
   });
 
-  it("sends nothing for a draft that is not ready, and keeps the form open when the command could not be sent", () => {
+  it("keeps the form open with what was typed when the daemon refuses, for another try", async () => {
+    const { view, sent, table } = setUp();
+    view.start();
+    view.draft.name = "LEADER";
+    view.draft.comment = "Rescue 1";
+    view.save();
+    await nextTick();
+    expect(view.open).toBe(true);
+    expect(view.draft).toMatchObject({ name: "LEADER", comment: "Rescue 1" });
+    view.draft.comment = "Rescue 2";
+    view.save();
+    expect(sent).toHaveLength(2);
+    table.set("LEADER", ownObject("LEADER", { lat: 60.17, lon: 24.94, comment: "Rescue 1" }));
+    await nextTick();
+    expect(view.open).toBe(true);
+    table.set("LEADER", ownObject("LEADER", { lat: 60.17, lon: 24.94, comment: "Rescue 2" }));
+    await nextTick();
+    expect(view.open).toBe(false);
+  });
+
+  it("closes a change at once when the object is there as the form has it, with nothing to send", () => {
+    const { view, sent } = setUp([ownObject("LEADER", { comment: "Rescue 1" })]);
+    view.edit("LEADER");
+    view.save();
+    expect(sent).toEqual([]);
+    expect(view.open).toBe(false);
+  });
+
+  it("waits for the change of an object that is there: a row that is not what was asked for does not close the form", async () => {
+    const { view, sent, table } = setUp([ownObject("LEADER", { comment: "Rescue 1" })]);
+    view.edit("LEADER");
+    view.draft.comment = "Moved";
+    view.save();
+    expect(sent).toHaveLength(1);
+    table.set("LEADER", ownObject("LEADER", { comment: "Rescue 1", sent: 5 }));
+    await nextTick();
+    expect(view.open).toBe(true);
+    table.set("LEADER", ownObject("LEADER", { comment: "Moved" }));
+    await nextTick();
+    expect(view.open).toBe(false);
+  });
+
+  it("does not close a form that was cancelled and opened for another object when the first one is confirmed", async () => {
+    const { view, table } = setUp();
+    view.start();
+    view.draft.name = "ONE";
+    view.save();
+    view.start();
+    view.draft.name = "TWO";
+    table.set("ONE", ownObject("ONE", { lat: 60.17, lon: 24.94 }));
+    await nextTick();
+    expect(view.open).toBe(true);
+  });
+
+  it("sends nothing for a draft that is not ready, and keeps the form open when the command could not be sent", async () => {
     const { view, sent } = setUp();
     view.start();
     view.save();
@@ -141,6 +199,9 @@ describe("useOwnObjects", () => {
     down.view.draft.name = "LEADER";
     down.view.save();
     expect(down.sent).toHaveLength(1);
+    expect(down.view.open).toBe(true);
+    down.table.set("LEADER", ownObject("LEADER", { lat: 60.17, lon: 24.94 }));
+    await nextTick();
     expect(down.view.open).toBe(true);
   });
 
