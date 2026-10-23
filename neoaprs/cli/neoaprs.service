@@ -11,7 +11,7 @@ StartLimitBurst=5
 [Service]
 Type=simple
 WorkingDirectory=@WORKING_DIRECTORY@
-ExecStart=@PYTHON@ -m neoaprs --data @DATA@
+ExecStart=@COMMAND@ --data @DATA@
 Environment=PYTHONUNBUFFERED=1
 # the message alert runs a command of the operator's (messages/alert_command, notify-send by default), and a user service does not inherit the desktop session's environment: notify-send finds the desktop's message bus here
 Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=%t/bus

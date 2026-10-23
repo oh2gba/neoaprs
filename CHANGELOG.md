@@ -17,4 +17,4 @@ The first release.
 - A setup guide for the call, the position, the symbol, the radio and the map; `neoaprs doctor` says what keeps the radio from working.
 - `neoaprs replay` plays a capture as a TNC, to try NeoAPRS without a radio.
 - A SQLite database for everything NeoAPRS keeps, with migrations and a backup copy before each one.
-- Downloads: the Windows installer `NeoAPRS-Setup-0.1.0.exe`, the wheel and sdist, and `install.sh` for Linux, macOS and the Raspberry Pi, with `SHA256SUMS` and build provenance. `neoaprs service install` starts it at login (systemd, the Run key of Windows, launchd).
+- Downloads: the Windows installer `NeoAPRS-Setup-0.1.0.exe`, the Linux AppImage `NeoAPRS-0.1.0-x86_64.AppImage`, the wheel and sdist, and `install.sh` for Linux, macOS and the Raspberry Pi, with `SHA256SUMS` and build provenance. `neoaprs service install` starts it at login (systemd, the Run key of Windows, launchd).

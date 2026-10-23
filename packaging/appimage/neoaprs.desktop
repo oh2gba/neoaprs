@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=NeoAPRS
+GenericName=APRS client
+Comment=APRS client with a map, messages and a tray icon
+Exec=AppRun
+Icon=neoaprs
+Terminal=false
+Categories=HamRadio;Network;
+Keywords=APRS;ham;radio;packet;

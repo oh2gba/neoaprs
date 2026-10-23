@@ -153,7 +153,7 @@ def test_every_unit_has_a_line_in_the_readme_of_the_systemd_folder() -> None:
 
 def test_the_unit_is_a_template_that_names_the_interpreter_the_data_folder_and_the_clone_by_placeholders_and_the_port_of_the_page() -> None:
     unit = (ROOT / "neoaprs" / "cli" / "neoaprs.service").read_text(encoding="utf-8")
-    assert "WorkingDirectory=@WORKING_DIRECTORY@\n" in unit and "ExecStart=@PYTHON@ -m neoaprs --data @DATA@\n" in unit and "Documentation=@DOCUMENTATION@\n" in unit
+    assert "WorkingDirectory=@WORKING_DIRECTORY@\n" in unit and "ExecStart=@COMMAND@ --data @DATA@\n" in unit and "Documentation=@DOCUMENTATION@\n" in unit
     assert "/home/" not in unit, "no path of a machine in the tracked file"
     assert "7303" in unit.split("[Service]")[0]
     for key in ("Restart=always", "RestartPreventExitStatus=2", "StartLimitBurst=5", "KillSignal=SIGTERM", "WantedBy=default.target"):

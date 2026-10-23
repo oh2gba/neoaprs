@@ -28,11 +28,14 @@ def parser() -> argparse.ArgumentParser:
 
 
 def daemon_argv(data: Path) -> list[str]:
-    """The command that runs the daemon on `data`: the windowless program on Windows, else this interpreter (or, in a frozen program, itself)."""
+    """The command that runs the daemon on `data`: the windowless program on Windows, the AppImage file in an AppImage (the daemon outlives this process, and the folder the AppImage is mounted at does not),
+    else this interpreter (or, in a frozen program, itself)."""
     gui, pythonw = servicecmd.windowless_programs()
-    plan = servicecmd.Plan(os.path.abspath(sys.executable), data, None, False, gui, pythonw)
+    plan = servicecmd.Plan(os.path.abspath(sys.executable), data, None, False, gui, pythonw, servicecmd.appimage_file())
     if sys.platform == "win32":
         return servicewindows.launch_argv(plan)
+    elif plan.appimage:
+        return [plan.appimage, "run", "--data", str(data)]
     else:
         frozen = getattr(sys, "frozen", False)
         return [plan.python, "run", "--data", str(data)] if frozen else [plan.python, "-m", "neoaprs", "run", "--data", str(data)]

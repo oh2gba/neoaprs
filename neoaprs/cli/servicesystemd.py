@@ -1,5 +1,5 @@
 """The service on Linux: a systemd user unit, ~/.config/systemd/user/neoaprs.service, written from the template `neoaprs.service` of this package with the interpreter that runs this and the data
-folder. A unit this program did not write is never touched (its first line says who wrote it). The unit is
+folder (in an AppImage it starts the AppImage file, not the interpreter inside the mount). A unit this program did not write is never touched (its first line says who wrote it). The unit is
 enabled and started, and restarted when what it runs changed; `--linger` lets it start at boot and survive a logout. A user must be in the group that owns the serial devices: it is checked and the
 command that cures it is said."""
 import getpass
@@ -45,12 +45,13 @@ def render(plan: Plan) -> str:
         documentation = "file://" + (folder if PLAIN.fullmatch(folder) else urllib.parse.quote(folder).replace("%", "%%")) + "/README.md"
     else:
         folder, documentation = "", REPO
+    command = quote(plan.appimage) if plan.appimage else f"{quote(plan.python)} -m neoaprs"
     body = []
     for line in template.splitlines():
         if "@WORKING_DIRECTORY@" in line and plan.clone is None:
             continue
         body.append(line.replace("@WORKING_DIRECTORY@", folder.replace("%", "%%")).replace("@DOCUMENTATION@", documentation)
-                    .replace("@PYTHON@", quote(plan.python)).replace("@DATA@", quote(str(plan.data))))
+                    .replace("@COMMAND@", command).replace("@DATA@", quote(str(plan.data))))
     return HEADER + "\n" + "\n".join(body).rstrip("\n") + "\n"
 
 
@@ -114,7 +115,7 @@ def install(plan: Plan) -> int:
         scratch = path.with_name(path.name + ".new")
         scratch.write_text(unit, encoding="utf-8")
         scratch.replace(path)
-        print(f"wrote {path} for {plan.clone or plan.python}")
+        print(f"wrote {path} for {plan.clone or plan.appimage or plan.python}")
     for step in (("daemon-reload",), ("enable", "--now", UNIT_NAME)):
         code = systemctl(*step)
         if code != 0:

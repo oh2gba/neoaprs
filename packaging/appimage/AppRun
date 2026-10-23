@@ -1,0 +1,11 @@
+#!/bin/sh
+# The entry of the AppImage: no arguments start the desktop app (neoaprs-app), arguments go to the `neoaprs` command (--version, doctor, service install, run, ...).
+here="$(dirname "$(readlink -f "$0")")"
+[ $# -gt 0 ] || set -- app
+# The web engine's sandbox needs user namespaces for every user, which some systems refuse (the AppArmor of Ubuntu 24.04, a kernel with none): the window would not start there. The engine then runs
+# without its sandbox; it shows NeoAPRS's own page only (every other address opens in the browser).
+if [ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null)" = 1 ] || [ "$(cat /proc/sys/user/max_user_namespaces 2>/dev/null)" = 0 ]; then
+    export QTWEBENGINE_DISABLE_SANDBOX="${QTWEBENGINE_DISABLE_SANDBOX:-1}"
+fi
+# -I: nothing of the user's Python environment (PYTHONPATH, user site) gets into the image's
+exec "$here/usr/bin/python3" -I -m neoaprs "$@"
