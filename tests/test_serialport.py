@@ -254,7 +254,7 @@ async def test_a_closed_port_can_be_opened_again(radios: Radios) -> None:
     port.close()
     await port.open()
     try:
-        await until(lambda: radio.clients == 1)
+        await until(lambda: radio.connections == 2 and radio.clients == 1)         # (the second connection, and the first one gone: else the radio would speak to the one that is closing)
         radio.feed(b"again")
         await until(lambda: b"".join(chunks) == b"again")
     finally:
