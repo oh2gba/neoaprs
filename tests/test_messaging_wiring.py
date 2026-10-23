@@ -20,6 +20,7 @@ WORKED = "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :Hello Pekka{01}"
 async def started(tmp_path: Path) -> Env:
     e = Env(tmp_path)
     e.ctl.messaging.tick_sec = 0.02
+    e.ctl.messaging.pace.spacing_sec = 0.0
     await e.start()
     await asyncio.sleep(0.2)                                                # (the TNC has settled: nothing was said in command mode)
     return e

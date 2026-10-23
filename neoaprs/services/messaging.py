@@ -41,6 +41,7 @@ from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet
 from neoaprs.services.delivery import Delivery
 from neoaprs.services.inbox import Inbox
+from neoaprs.services.pace import SPACING_SEC, Pace
 from neoaprs.signal import Signal
 from neoaprs.source import Source
 
@@ -79,14 +80,14 @@ def _named(name: str) -> str:
 class Messaging:
     def __init__(self, tnc: Radio, config: Callable[[], Config], messagelog: MessageLog, paths: Callable[[str], tuple[str, ...]], clock: Clock = utcnow, tick_sec: float = TICK_SEC,
                  board: Callable[[Packet, Message], None] | None = None, alert: Callable[[MessageRecord], None] | None = None,
-                 attempts: Callable[[str], int] | None = None) -> None:
+                 attempts: Callable[[str], int] | None = None, spacing_sec: float = SPACING_SEC) -> None:
         self._tnc = tnc
         self._config = config
         self._log = messagelog
         self._paths = paths                                     # the digipeaters of what we send to a station (PrefBook.path_for)
         self._attempts = attempts                               # how many attempts a message to a station is given (PrefBook.attempts_for); else the setting
-        self.clock = clock
-        self.tick_sec = tick_sec
+        self.clock, self.tick_sec = clock, tick_sec
+        self.pace = Pace(clock, spacing_sec)                    # several messages written together go out one after the other, never in a burst
         self.changed: Signal[[MessageRecord]] = Signal("messaging_changed")
         self.removed: Signal[[MessageRecord]] = Signal("messaging_removed")
         self._records: dict[int, MessageRecord] = {}            # every message by id
@@ -276,8 +277,8 @@ class Messaging:
 
     def _attempt(self, record: MessageRecord) -> MessageRecord:
         """Transmits the message once, when the radio can; the message as it is after that."""
-        if not self._radio_up():
-            return record
+        if not self._radio_up() or self.pace.too_soon():
+            return record                                            # (what waits is due at the next tick)
         reply = None if record.msg_id is None else self.inbox.heard.reply_for(record.to_call, self.clock()) or ""
         try:
             frame = self._frame(_info(record.to_call, record.text, record.msg_id, reply), record.to_call)
@@ -290,7 +291,7 @@ class Messaging:
         self._refused.pop(record.id, None)
         if not sent:
             return record                                            # (the TNC is restarting into KISS mode, or the write failed: it is tried again at the next tick)
-        at = self.clock()
+        at = self.pace.stamp()
         record = replace(record, attempts=record.attempts + 1, last_attempt_at=at)
         self.delivery.sent(record, tuple(str(a) for a in frame.path), at)
         if record.msg_id is None:

@@ -298,7 +298,7 @@ describe("MessagesPane", () => {
     await wrapper.find("#msg-text").setValue("å".repeat(34));
     expect(wrapper.find(".compose-left").text()).toBe("-1");
     expect(wrapper.find(".compose-left").classes()).toContain("over");
-    expect(wrapper.find(".compose button").attributes("disabled")).toBeDefined();
+    expect(wrapper.find(".compose button[type='submit']").attributes("disabled")).toBeDefined();
   });
 
   it("sends the call in capitals and the text, and empties the box", async () => {
@@ -315,7 +315,7 @@ describe("MessagesPane", () => {
     const wrapper = pane();
     await wrapper.find("#msg-text").setValue("hello");
     await wrapper.find("#msg-to").setValue("email-2");
-    const send = wrapper.find(".compose button");
+    const send = wrapper.find(".compose button[type='submit']");
     expect(send.attributes("disabled")).toBeDefined();
     expect(send.attributes("title")).toBe("Use the Email tab");
     expect(wrapper.find("#msg-to").classes()).toContain("invalid");
@@ -324,6 +324,21 @@ describe("MessagesPane", () => {
     await wrapper.find("#msg-to").setValue("EMAIL-3");
     expect(send.attributes("disabled")).toBeUndefined();
     expect(send.attributes("title")).toBeUndefined();
+  });
+
+  it("sends one text to the stations picked from the list, as a command for the page to send to each", async () => {
+    const wrapper = pane({
+      candidates: [
+        { call: "OH2AAA", direct: true, heardAt: "2026-10-21T11:59:00Z" },
+        { call: "OH2BBB", direct: false, heardAt: "2026-10-21T11:00:00Z" },
+      ],
+    });
+    await wrapper.find("button[aria-expanded]").trigger("click");
+    for (const box of wrapper.findAll(".picker-list input")) await box.setValue(true);
+    await wrapper.find("#msg-text").setValue("Net at 20:00");
+    await wrapper.find("form").trigger("submit");
+    expect(wrapper.emitted("sendMany")).toEqual([[["OH2AAA", "OH2BBB", "OH2RDG"], "Net at 20:00"]]);
+    expect(wrapper.emitted("send")).toBeUndefined();
   });
 
   it("sends on Enter in the text box", async () => {
@@ -336,7 +351,7 @@ describe("MessagesPane", () => {
 
   it("has Send off while the text is empty, the call is not a call, or the TNC is not connected, and explains nothing in words", async () => {
     const wrapper = pane();
-    const send = () => wrapper.find(".compose button");
+    const send = () => wrapper.find(".compose button[type='submit']");
     expect(send().attributes("disabled")).toBeDefined();
     await wrapper.find("#msg-text").setValue("hello");
     expect(send().attributes("disabled")).toBeUndefined();
