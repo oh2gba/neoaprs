@@ -8,16 +8,12 @@ import {
   emailLine,
   checkingMail,
   forgetAddress,
+  isCheck,
   isNotConfirmed,
-  listContacts,
-  gatewayLine,
   mailMarkOf,
   mailStateText,
   parseAddresses,
   rememberAddress,
-  removeContact,
-  validAddress,
-  validContact,
 } from "@/lib/email";
 
 describe("the line to the gateway", () => {
@@ -57,24 +53,10 @@ describe("canSendEmail", () => {
   });
 });
 
-describe("the gateway's commands", () => {
-  it("are name L, name R and get", () => {
-    expect(listContacts("me")).toBe("me L");
-    expect(listContacts(" me ")).toBe("me L");
-    expect(removeContact("jane")).toBe("jane R");
-    expect(removeContact(" jane ")).toBe("jane R");
+describe("isCheck", () => {
+  it("is the get of Check email, in any letters and with blanks round it, and no other text", () => {
+    expect([isCheck("get"), isCheck(" GET "), isCheck("get mail"), isCheck("me get"), isCheck("")]).toEqual([true, true, false, false, false]);
     expect(GET_HELD).toBe("get");
-  });
-
-  it("take a contact name that is letters and digits", () => {
-    expect([validContact("jane"), validContact("Me2"), validContact(" me "), validContact(""), validContact("a b"), validContact("a@b.c")]).toEqual([
-      true,
-      true,
-      true,
-      false,
-      false,
-      false,
-    ]);
   });
 });
 
@@ -119,19 +101,6 @@ describe("the addressees used before", () => {
   });
 });
 
-describe("validAddress", () => {
-  it("is one word with an @ between two parts", () => {
-    expect([
-      validAddress("jane@example.com"),
-      validAddress(" jane@example.com "),
-      validAddress("jane"),
-      validAddress("@x.y"),
-      validAddress("a@"),
-      validAddress("a b@c.d"),
-    ]).toEqual([true, true, false, false, false, false]);
-  });
-});
-
 describe("a mail that got no ack", () => {
   const to = (state: "failed" | "unconfirmed" | "acked" | "rejected" | "sending" | "cancelled", attempts: number) =>
     message(1, { to_call: "EMAIL-2", state, attempts, attempts_max: Math.max(attempts, 1) });
@@ -158,28 +127,5 @@ describe("a mail that got no ack", () => {
     expect(mailMarkOf(to("rejected", 1))?.kind).toBe("cross");
     expect(mailMarkOf(to("acked", 1))?.kind).toBe("check");
     expect(mailMarkOf(message(2, { direction: "in", state: "received" }))).toBeNull();
-  });
-});
-
-describe("gatewayLine", () => {
-  it("reads a mail as who it is to and what it says", () => {
-    expect(gatewayLine("jane@example.com Hello there")).toEqual({ kind: "mail", to: "jane@example.com", text: "Hello there" });
-    expect(gatewayLine("me Back at the shack")).toEqual({ kind: "mail", to: "me", text: "Back at the shack" });
-  });
-
-  it("reads the gateway's own commands", () => {
-    expect(gatewayLine("get")).toEqual({ kind: "get" });
-    expect(gatewayLine(" GET ")).toEqual({ kind: "get" });
-    expect(gatewayLine("me jane@example.com")).toEqual({ kind: "add", name: "me", address: "jane@example.com" });
-    expect(gatewayLine("me L")).toEqual({ kind: "list", name: "me" });
-    expect(gatewayLine("me R")).toEqual({ kind: "remove", name: "me" });
-  });
-
-  it("leaves a line that is none of these a mail", () => {
-    expect(gatewayLine("hello")).toEqual({ kind: "mail", to: "hello", text: "" });
-    expect(gatewayLine("jane@example.com L")).toEqual({ kind: "mail", to: "jane@example.com", text: "L" });
-    expect(gatewayLine("jane@example.com bob@example.com")).toEqual({ kind: "mail", to: "jane@example.com", text: "bob@example.com" });
-    expect(gatewayLine("me l")).toEqual({ kind: "mail", to: "me", text: "l" });
-    expect(gatewayLine("not-a-name x@y.z")).toEqual({ kind: "mail", to: "not-a-name", text: "x@y.z" });
   });
 });

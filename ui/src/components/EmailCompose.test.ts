@@ -7,17 +7,18 @@ function box(extra: Record<string, unknown> = {}) {
 }
 const send = (wrapper: ReturnType<typeof box>) => wrapper.find<HTMLButtonElement>("button[type='submit']");
 const picks = (wrapper: ReturnType<typeof box>) => wrapper.findAll(".suggestion-pick").map((b) => b.text());
+const value = (wrapper: ReturnType<typeof box>, id: string) => wrapper.find<HTMLInputElement>(id).element.value;
 
 describe("EmailCompose", () => {
-  it("is the form New email, with To, Text, the count and Cancel and Send, and the focus in To", () => {
+  it("is the box to write an email in, with To, Text, the count and Send only, and no hint under it", () => {
     const wrapper = box();
-    expect(wrapper.attributes("aria-label")).toBe("New email");
+    expect(wrapper.attributes("aria-label")).toBe("Email");
     expect(wrapper.find("label[for='mail-to']").text()).toBe("To");
-    expect(wrapper.find("#mail-to").attributes("placeholder")).toBe("Name or address");
+    expect(wrapper.find("#mail-to").attributes("placeholder")).toBe("Email address");
     expect(wrapper.find("#mail-text").attributes("placeholder")).toBe("Text");
-    expect(wrapper.findAll("button").map((b) => b.text())).toEqual(["Cancel", "Send"]);
+    expect(wrapper.findAll("button").map((b) => b.text())).toEqual(["Send"]);
+    expect(send(wrapper).classes()).toContain("primary");
     expect(wrapper.findAll("p")).toHaveLength(0);
-    expect(document.activeElement).toBe(wrapper.find("#mail-to").element);
     wrapper.unmount();
   });
 
@@ -34,7 +35,7 @@ describe("EmailCompose", () => {
     wrapper.unmount();
   });
 
-  it("has Send off with no addressee, no text, a line that is too long, or the TNC not connected", async () => {
+  it("has Send off with no address, no text, a line that is too long, or the TNC not connected", async () => {
     const wrapper = box();
     expect(send(wrapper).attributes("disabled")).toBeDefined();
     await wrapper.find("#mail-text").setValue("Hello");
@@ -53,25 +54,35 @@ describe("EmailCompose", () => {
     wrapper.unmount();
   });
 
-  it("sends the addressee as typed, not in capitals", async () => {
+  it("sends the address as typed, not in capitals, and empties the text but keeps the address, with the focus in the text", async () => {
     const wrapper = box();
     await wrapper.find("#mail-to").setValue(" jane@Example.com ");
     await wrapper.find("#mail-text").setValue("Hello");
     await wrapper.find("form").trigger("submit");
     expect(wrapper.emitted("send")).toEqual([["jane@Example.com", "Hello"]]);
+    expect(value(wrapper, "#mail-text")).toBe("");
+    expect(value(wrapper, "#mail-to")).toBe(" jane@Example.com ");
+    expect(document.activeElement).toBe(wrapper.find("#mail-text").element);
+    expect(send(wrapper).attributes("disabled")).toBeDefined();
     wrapper.unmount();
   });
 
-  it("cancels with Cancel and with Esc", async () => {
+  it("sends with Enter in the text, and a second mail to the same address", async () => {
     const wrapper = box();
-    await wrapper.findAll("button")[0]?.trigger("click");
-    await wrapper.find("form").trigger("keydown", { key: "Escape" });
-    expect(wrapper.emitted("cancel")).toHaveLength(2);
+    await wrapper.find("#mail-to").setValue("jane@example.com");
+    await wrapper.find("#mail-text").setValue("One");
+    await wrapper.find("form").trigger("submit");
+    await wrapper.find("#mail-text").setValue("Two");
+    await wrapper.find("form").trigger("submit");
+    expect(wrapper.emitted("send")).toEqual([
+      ["jane@example.com", "One"],
+      ["jane@example.com", "Two"],
+    ]);
     wrapper.unmount();
   });
 });
 
-describe("EmailCompose: the addressees used before", () => {
+describe("EmailCompose: the addresses used before", () => {
   const used = ["me", "jane@example.com", "bob@example.org"];
 
   it("lists them under To while it has the focus, and a click puts one in To and moves on to the text", async () => {
@@ -79,7 +90,7 @@ describe("EmailCompose: the addressees used before", () => {
     await wrapper.find("#mail-to").trigger("focus");
     expect(picks(wrapper)).toEqual(used);
     await wrapper.findAll(".suggestion-pick")[1]?.trigger("click");
-    expect(wrapper.find<HTMLInputElement>("#mail-to").element.value).toBe("jane@example.com");
+    expect(value(wrapper, "#mail-to")).toBe("jane@example.com");
     expect(wrapper.find(".suggestions").exists()).toBe(false);
     expect(document.activeElement).toBe(wrapper.find("#mail-text").element);
     expect(wrapper.emitted("send")).toBeUndefined();
@@ -99,7 +110,7 @@ describe("EmailCompose: the addressees used before", () => {
     wrapper.unmount();
   });
 
-  it("forgets an addressee with its trash can, without putting it in To", async () => {
+  it("forgets an address with its trash can, without putting it in To", async () => {
     const wrapper = box({ addresses: used });
     await wrapper.find("#mail-to").trigger("focus");
     const x = wrapper.findAll(".suggestion .xbtn");
@@ -107,16 +118,15 @@ describe("EmailCompose: the addressees used before", () => {
     expect(x[0]?.attributes("title")).toBe("Forget me");
     await x[0]?.trigger("click");
     expect(wrapper.emitted("forget")).toEqual([["me"]]);
-    expect(wrapper.find<HTMLInputElement>("#mail-to").element.value).toBe("");
+    expect(value(wrapper, "#mail-to")).toBe("");
     wrapper.unmount();
   });
 
-  it("closes the list on Esc (the form stays) and when the focus leaves, and lists nothing with no addressee used", async () => {
+  it("closes the list on Esc and when the focus leaves, and lists nothing with no address used", async () => {
     const wrapper = box({ addresses: used });
     await wrapper.find("#mail-to").trigger("focus");
     await wrapper.find("form").trigger("keydown", { key: "Escape" });
     expect(wrapper.find(".suggestions").exists()).toBe(false);
-    expect(wrapper.emitted("cancel")).toBeUndefined();
     await wrapper.find("#mail-to").trigger("focus");
     await wrapper.find("#mail-to").trigger("focusout", { relatedTarget: document.body });
     expect(wrapper.find(".suggestions").exists()).toBe(false);
@@ -125,60 +135,12 @@ describe("EmailCompose: the addressees used before", () => {
     expect(wrapper.find(".suggestions").exists()).toBe(false);
     wrapper.unmount();
   });
-});
 
-describe("EmailCompose: the contacts", () => {
-  const contacts = [
-    { name: "me", address: "jane@example.com", state: "confirmed" as const },
-    { name: "Bob", address: "bob@example.org", state: "unconfirmed" as const },
-  ];
-  const used = ["bob", "carl@example.net", "jane@example.com"];
-
-  it("lists the contacts first, each with its address, then the addressees used before without the names of contacts", async () => {
-    const wrapper = box({ contacts, addresses: used });
+  it("has no contacts among the suggestions: they are addresses only", async () => {
+    const wrapper = box({ addresses: used });
     await wrapper.find("#mail-to").trigger("focus");
-    expect(wrapper.findAll(".contact-pick").map((li) => [li.find(".mono").text(), li.find(".suggestion-hint").text()])).toEqual([
-      ["me", "jane@example.com"],
-      ["Bob", "bob@example.org"],
-    ]);
-    expect(wrapper.findAll(".suggestion").map((li) => li.classes().includes("contact-pick"))).toEqual([true, true, false, false]);
-    expect(wrapper.findAll(".suggestion:not(.contact-pick) .suggestion-pick").map((b) => b.text())).toEqual(["carl@example.net", "jane@example.com"]);
-    wrapper.unmount();
-  });
-
-  it("has no trash can on a contact (Remove in Contacts does that), and one on an address used before", async () => {
-    const wrapper = box({ contacts, addresses: used });
-    await wrapper.find("#mail-to").trigger("focus");
-    expect(wrapper.findAll(".contact-pick .xbtn")).toHaveLength(0);
-    expect(wrapper.findAll(".suggestion:not(.contact-pick) .xbtn")).toHaveLength(2);
-    wrapper.unmount();
-  });
-
-  it("lists the contacts that match what is typed, by name or by address, and not the one whose name is typed whole", async () => {
-    const wrapper = box({ contacts, addresses: used });
-    await wrapper.find("#mail-to").setValue("bob@");
-    expect(wrapper.findAll(".contact-pick .mono:first-child").map((b) => b.text())).toEqual(["Bob"]);
-    await wrapper.find("#mail-to").setValue("JANE");
-    expect(wrapper.findAll(".contact-pick .mono:first-child").map((b) => b.text())).toEqual(["me"]);
-    await wrapper.find("#mail-to").setValue("ME");
     expect(wrapper.find(".contact-pick").exists()).toBe(false);
-    wrapper.unmount();
-  });
-
-  it("puts the name of the contact in To when it is picked, and moves on to the text", async () => {
-    const wrapper = box({ contacts, addresses: used });
-    await wrapper.find("#mail-to").trigger("focus");
-    await wrapper.find(".contact-pick .suggestion-pick").trigger("click");
-    expect(wrapper.find<HTMLInputElement>("#mail-to").element.value).toBe("me");
-    expect(document.activeElement).toBe(wrapper.find("#mail-text").element);
-    wrapper.unmount();
-  });
-
-  it("opens with the name given by a contact's Mail button in To, and the focus in the text", () => {
-    const wrapper = box({ contacts, addresses: used, to: "me" });
-    expect(wrapper.find<HTMLInputElement>("#mail-to").element.value).toBe("me");
-    expect(document.activeElement).toBe(wrapper.find("#mail-text").element);
-    expect(wrapper.find(".suggestions").exists()).toBe(false);
+    expect(wrapper.find(".suggestion-hint").exists()).toBe(false);
     wrapper.unmount();
   });
 });

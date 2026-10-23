@@ -1,16 +1,16 @@
-// The Email tab's list: every message to and from the gateway EMAIL-2 as one row of a mail list (not a conversation). A message of ours is a mail ("To jane@example.com" and its text) or one of the gateway's
-// commands in words ("Checked for mail", "Added contact me (jane@example.com)"), with its state in words: Sending (1 of 2), Delivered, Not confirmed, Rejected. What the gateway sent is "From EMAIL-2" (its
-// replies to a command) or, when its text starts with an email address, the mail it forwards, "From jane@example.com". The gateway's acks are no rows: the daemon uses them to settle the mail they belong to.
-import { gatewayLine } from "@/lib/email";
+// The Email tab's list: every message to and from the gateway EMAIL-2 as one row of a mail list (not a conversation). A message of ours is a mail ("To jane@example.com" and its text) or the `get` of Check email ("Checked email"),
+// with its state in words: Sending (1 of 2), Delivered, Not confirmed, Rejected. What the gateway sent is "From EMAIL-2" (its replies) or, when its text starts with an email address, the mail it forwards, "From jane@example.com".
+// The gateway's acks are no rows: the daemon uses them to settle the mail they belong to.
+import { isCheck } from "@/lib/email";
 import { dateTimeText } from "@/lib/format";
 import type { MessageRow } from "@/protocol/protocol";
 
-type MailKind = "mail" | "contact" | "list" | "remove" | "get" | "reply" | "forwarded";
+type MailKind = "mail" | "get" | "reply" | "forwarded";
 
 export interface MailItem {
   row: MessageRow;
   kind: MailKind;
-  /** the first line: "To jane@example.com", "From EMAIL-2", "Fetch held mail" */
+  /** the first line: "To jane@example.com", "From EMAIL-2", "Checked email" */
   title: string;
   /** the text under it (empty for a command, which says all in its title) */
   text: string;
@@ -25,23 +25,15 @@ export interface MailState {
   tone: "ok" | "bad" | "plain";
 }
 
-/** A message of ours, read: the gateway's commands (`get`, `name address`, `name L`, `name R`) in words, anything else a mail to the first word. */
+/** A message of ours, read: the `get` of Check email in words, anything else a mail to the first word (an old shortcut command, `me jane@example.com`, is one too: the page no longer has shortcuts). */
 function outgoing(row: MessageRow): MailItem {
   const line = row.text.trim();
-  const make = (kind: MailKind, title: string, text = ""): MailItem => ({ row, kind, title, text, line });
-  const read = gatewayLine(line);
-  switch (read.kind) {
-    case "get":
-      return make("get", "Checked for mail");
-    case "add":
-      return make("contact", `Added contact ${read.name} (${read.address})`);
-    case "list":
-      return make("list", `Asked for the contact list (${read.name})`);
-    case "remove":
-      return make("remove", `Removed contact ${read.name}`);
-    default:
-      return make("mail", `To ${read.to}`, read.text);
-  }
+  if (isCheck(line)) return { row, kind: "get", title: "Checked email", text: "", line };
+  const split = /^(\S+)\s+(.+)$/.exec(line);
+  const to = split?.[1];
+  const text = split?.[2]?.trim();
+  if (to === undefined || text === undefined) return { row, kind: "mail", title: `To ${line}`, text: "", line };
+  return { row, kind: "mail", title: `To ${to}`, text, line };
 }
 
 /** What came in from the gateway: its text starting with an email address and a blank (`<jane@example.com>` or `jane@example.com:` too) is mail it forwards, from that address; else it is the gateway's own reply. */
