@@ -193,7 +193,6 @@ const mapUnsaved = computed(() => Object.keys(changed.value).some((key) => key.s
             <span class="info-line"
               >Once a day NeoAPRS asks the project's version page whether a newer version is out, and tells you in the header when there is one.</span
             >
-            <span class="info-line">It sends the version number and the kind of system (for example linux-arm) and nothing else. Check now asks at once.</span>
           </InfoTip>
         </div>
       </div>
