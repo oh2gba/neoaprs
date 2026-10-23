@@ -5,6 +5,7 @@ import App from "@/App.vue";
 import { PROTOCOL } from "@/protocol/lists";
 import { FakeMap, FakeMarker, fakeState, resetFakes } from "@/test/fakemap";
 import { FakeSocket } from "@/test/fakesocket";
+import { FakeAudioContext, FakeNotification, openedAt, setSeen, stubBrowser } from "@/test/fakealert";
 import { ago, bulletin, configValues, incoming, mapFile, mapState, message, ownBulletin, ownObject, packet, station, status, tncState } from "@/test/fixtures";
 
 const stations = {
@@ -47,7 +48,10 @@ beforeEach(() => {
 });
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+  openedAt("127.0.0.1");
   Reflect.deleteProperty(document, "visibilityState");
+  document.title = "NeoAPRS";
   document.body.replaceChildren();
 });
 
@@ -1125,5 +1129,60 @@ describe("App", () => {
     });
     await flushPromises();
     expect(FakeMap.last().styles).toHaveLength(2);
+  });
+});
+
+describe("the alert of this browser", () => {
+  const patch = (socket: FakeSocket, rev: number, key: string, row: object) =>
+    socket.say({ type: "patch", topic: "messages", rev, ops: [{ op: "set", key, value: row }] });
+
+  it("is off on the loopback: a message to us makes no sound there", async () => {
+    stubBrowser();
+    const { socket } = await open();
+    patch(socket, 1, "4", incoming(4, "OH2DPN"));
+    await flushPromises();
+    expect(FakeAudioContext.played()).toBe(0);
+    expect(FakeNotification.shown).toEqual([]);
+  });
+
+  it("chimes once for a message to us that arrives after the page loaded, flashes the tab, and not again on a reconnect", async () => {
+    stubBrowser({ secure: false });
+    openedAt("192.168.1.20");
+    setSeen(false);
+    const { socket } = await open();
+    window.dispatchEvent(new Event("pointerdown"));
+    await flushPromises();
+    patch(socket, 1, "4", incoming(4, "OH2DPN", { text: "Moi!" }));
+    await flushPromises();
+    expect(FakeAudioContext.played()).toBe(2);
+    expect(document.title).toBe("✉ OH2DPN");
+    patch(socket, 2, "5", incoming(5, "OH2RDG", { state: "overheard", to_call: "OH2XYZ" }));
+    patch(socket, 3, "6", message(6, { to_call: "OH2RDG" }));
+    await flushPromises();
+    expect(FakeAudioContext.played()).toBe(2);
+    socket.hangUp();
+    vi.useFakeTimers();
+    vi.advanceTimersByTime(1000);
+    vi.useRealTimers();
+    const again = FakeSocket.last();
+    again.say({ type: "hello", protocol: PROTOCOL, version: "0.1.0", topics: [] });
+    again.say({ type: "state", topic: "messages", rev: 0, value: { ...messages, "4": incoming(4, "OH2DPN", { text: "Moi!" }) } });
+    await flushPromises();
+    expect(FakeAudioContext.played()).toBe(2);
+  });
+
+  it("shows a notification that opens the conversation when it is clicked", async () => {
+    stubBrowser();
+    FakeNotification.permission = "granted";
+    openedAt("192.168.1.20");
+    vi.spyOn(window, "focus").mockImplementation(() => undefined);
+    const { wrapper, socket } = await open();
+    patch(socket, 1, "4", incoming(4, "OH2DPN", { text: "Moi!" }));
+    await flushPromises();
+    expect(FakeNotification.shown.map((n) => n.title)).toEqual(["APRS message from OH2DPN"]);
+    FakeNotification.shown[0]?.onclick?.();
+    await flushPromises();
+    expect(tabButton(wrapper, "Messages")?.attributes("aria-selected")).toBe("true");
+    expect(wrapper.find("#pane-messages").text()).toContain("Moi!");
   });
 });

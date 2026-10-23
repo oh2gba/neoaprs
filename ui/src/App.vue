@@ -1,10 +1,11 @@
 <script setup lang="ts">
 // The page: a header with the connection and the radio link, the map filling the page, and at its right a panel with the stations, the packets, the messages, the email, the bulletins, our objects, the beacon, the TNC and the settings.
 // The shell only: what the daemon tells is `useDaemon`, the panel `usePanel`, the station picked `useSelection`, the Messages tab `useMessagesView`, the Email tab `useEmail`, the Bulletins tab `useBulletins`, the Objects tab `useOwnObjects`, the paths, timeouts and attempts of the stations
-// `useStationPrefs`, the first-run guide (it opens by itself while the daemon has no call) `useSetupGuide`; the components take props and emit events, and the commands go out through `send`.
+// `useStationPrefs`, the first-run guide (it opens by itself while the daemon has no call) `useSetupGuide`, the alert of this browser for a message to us `useBrowserAlerts` and `usePageAlerts`; the components take props and emit events, and the commands go out through `send`.
 import { computed, watch } from "vue";
 import AppHeader from "@/components/AppHeader.vue";
 import BeaconPane from "@/components/BeaconPane.vue";
+import BrowserAlerts from "@/components/BrowserAlerts.vue";
 import BulletinsPane from "@/components/BulletinsPane.vue";
 import EmailPane from "@/components/EmailPane.vue";
 import MessagesPane from "@/components/MessagesPane.vue";
@@ -18,12 +19,14 @@ import StationMap from "@/components/StationMap.vue";
 import StationsTable from "@/components/StationsTable.vue";
 import TncPanel from "@/components/TncPanel.vue";
 import ToastBar from "@/components/ToastBar.vue";
+import { useBrowserAlerts } from "@/composables/useBrowserAlerts";
 import { useBulletins } from "@/composables/useBulletins";
 import { useDaemon } from "@/composables/useDaemon";
 import { useDark } from "@/composables/useDark";
 import { useEmail } from "@/composables/useEmail";
 import { useMessagesView } from "@/composables/useMessagesView";
 import { useNow } from "@/composables/useNow";
+import { usePageAlerts } from "@/composables/usePageAlerts";
 import { useOwnObjects } from "@/composables/useOwnObjects";
 import { usePanel } from "@/composables/usePanel";
 import { useSelection } from "@/composables/useSelection";
@@ -40,6 +43,7 @@ const {
   stations: heard,
   packets,
   messages,
+  messagesLoaded,
   bulletins,
   ownObjects,
   ownBulletins,
@@ -94,7 +98,12 @@ const { selected, focus, row: selectedRow, pickFromTable, forget } = useSelectio
 const talk = useMessagesView(messages, panel, send);
 const mail = useEmail(messages, panel, send, ownAttempts);
 const board = useBulletins(bulletins, panel);
-useTitle(computed(() => talk.unread.value + mail.unread.value));
+const alerts = useBrowserAlerts(talk.writeTo);
+usePageAlerts(messages, messagesLoaded, alerts.announce);
+useTitle(
+  computed(() => talk.unread.value + mail.unread.value),
+  alerts.tabTitle,
+);
 const suggestions = computed(() => new Map([...stations.value].map(([call, row]) => [call, row.suggested_path] as const)));
 const heardDirect = computed(() => new Set([...stations.value].filter(([, row]) => row.heard_direct > 0).map(([call]) => call)));
 const fallbackPath = computed(() => config.value?.values["beacon/path"] ?? "");
@@ -263,7 +272,9 @@ function onPick(at: Home): void {
           <TncPanel :tnc="tnc" :now="now" @reconnect="send({ cmd: 'tnc_reconnect' })" />
         </template>
         <template #settings>
-          <SettingsForm :config="config" :last-error="lastError" :alert-result="alertResult" :map="map" :send="send" @setup="guide.show()" />
+          <SettingsForm :config="config" :last-error="lastError" :alert-result="alertResult" :map="map" :send="send" @setup="guide.show()">
+            <BrowserAlerts :alerts="alerts" />
+          </SettingsForm>
         </template>
       </SidePanel>
     </main>
