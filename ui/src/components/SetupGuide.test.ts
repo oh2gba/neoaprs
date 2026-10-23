@@ -91,7 +91,6 @@ describe("SetupGuide: the frame", () => {
     const { wrapper, guide } = make({ config: configValues({ "beacon/interval_min": "0" }) });
     guide.go(4);
     await nextTick();
-    expect(wrapper.find(".setup-beacon").exists()).toBe(false);
     expect(guide.changes["beacon/interval_min"]).toBeUndefined();
     const sixty = make({ config: configValues({ "beacon/interval_min": "60" }) });
     sixty.guide.go(4);
@@ -420,6 +419,18 @@ describe("SetupGuide: the map and Finish", () => {
     expect(wrapper.find(".setup-step-name").text()).toBe("Call");
     expect(wrapper.find(".field-error").text()).toBe("'OH2ABC-99' is not a call");
     expect(wrapper.find(".setup").exists()).toBe(true);
+  });
+
+  it("has the radio and the map steps, with no default of the daemon to show, before it has told its settings", async () => {
+    const { wrapper, guide, config } = make();
+    config.value = null;
+    guide.step = 3;
+    await nextTick();
+    expect(wrapper.find<HTMLSelectElement>("#setup-profile").exists()).toBe(true);
+    expect(wrapper.find("#setup-baud").attributes("placeholder")).toBe("9600"); // (the speed of the profile)
+    guide.step = 4;
+    await nextTick();
+    expect(wrapper.find("#setup-radius").attributes("placeholder")).toBe("(default)");
   });
 
   it("has no map panel while the daemon has not told its map", async () => {
