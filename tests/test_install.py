@@ -32,7 +32,7 @@ class Setup:
 
     def run(self, *args: str, **env: str) -> subprocess.CompletedProcess[str]:
         environment = {"PATH": f"{self.tools.folder}:{os.environ['PATH']}", "HOME": str(self.home), "USER": "tester", "FAKE_CALLS": str(self.tools.calls_file), "FAKE_FAIL": "", "FAKE_LINGER": "no",
-                       "LC_ALL": "C.UTF-8", "PYTHONPATH": str(ROOT), **env}
+                       "LC_ALL": "C.UTF-8", "PYTHONPATH": str(ROOT), "NEOAPRS_SERIAL_PATTERN": os.environ["NEOAPRS_SERIAL_PATTERN"], **env}
         return subprocess.run([str(self.clone / "scripts" / "install.sh"), *args], cwd=self.clone.parent, env=environment, capture_output=True, text=True, timeout=60)
 
 

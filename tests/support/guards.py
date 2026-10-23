@@ -3,7 +3,7 @@
 * no real machine: HOME, the XDG folders and the profile folders of Windows (USERPROFILE, LOCALAPPDATA, APPDATA) point into an empty folder of the test (the data folder and the settings of whoever runs the tests are not
   there to be read), and a socket that connects, sends a datagram or looks up a name that is not on this machine fails the test (a test must never post a made-up packet to the real
   internet, and pass);
-* no radio: a test that opens /dev/brainbox_* or /dev/tty* (through `serial.Serial` or `os.open`) fails; the tests use a fake radio on the loopback (tests/support/fakeradio.py) or, for a device file, a pseudo-terminal pair (tests/support/ptyline.py), and the live port is the operator's;
+* no radio: a test that opens a serial device of the machine (/dev/brainbox_*, /dev/tty*, /dev/serial/*, /dev/rfcomm*, or any device node of the serial drivers, whatever it is called or linked as) through `serial.Serial` or `os.open` fails; the tests use a fake radio on the loopback (tests/support/fakeradio.py) or, for a device file, a pseudo-terminal pair (tests/support/ptyline.py), and the live port is the operator's. A process a test starts inherits NEOAPRS_SERIAL_PATTERN (tests/conftest.py), which makes its search find no port; one that is given an environment of its own must carry the variable (`ProcessGuard`);
 * no leak: a test that ends with an asyncio task still running fails (the daemons of `Env` are stopped for it first, see env.stop_all), and so does one that ends with the thread of
   a Db (neoaprs/db.py) still running (`await db.close()`);
 * no swallowed error: a test that makes the code log an ERROR it did not say it expects fails (`@pytest.mark.expects_errors`, or a test that reads the log
@@ -21,6 +21,8 @@ import ipaddress
 import logging
 import os
 import socket
+import stat
+import subprocess
 import tempfile
 import threading
 import time
@@ -132,11 +134,24 @@ class NetworkGuard:
 
 # ---- no radio
 
-RADIO_PATTERNS = ("/dev/brainbox_*", "/dev/tty*")
+RADIO_PATTERNS = ("/dev/brainbox_*", "/dev/tty*", "/dev/serial/*", "/dev/rfcomm*", "/dev/cu.*")
+SERIAL_MAJORS = frozenset({4, 166, 188, 204})        # Linux: the character devices of ttyS*, ttyACM*, ttyUSB* and the on-chip UARTs (a node of another name is found by its number); a pseudo-terminal is /dev/pts/N, 136 and up
+SEARCH_VARIABLE = "NEOAPRS_SERIAL_PATTERN"
 
 
 class RadioTouched(PermissionError):
     """Raised, as a refused open, where a test's code would have opened the operator's serial port."""
+
+
+def is_serial_device(name: str) -> bool:
+    real = os.path.realpath(name)
+    if any(fnmatch.fnmatchcase(candidate, pattern) for candidate in (name, real) for pattern in RADIO_PATTERNS):
+        return True
+    try:
+        node = os.stat(real) if real.startswith("/dev/") else None
+    except OSError:
+        return False
+    return node is not None and stat.S_ISCHR(node.st_mode) and os.major(node.st_rdev) in SERIAL_MAJORS
 
 
 class SerialGuard:
@@ -153,7 +168,7 @@ class SerialGuard:
             name = os.fsdecode(path)
         except TypeError:
             return
-        if any(fnmatch.fnmatchcase(candidate, pattern) for candidate in (name, os.path.realpath(name)) for pattern in RADIO_PATTERNS):
+        if is_serial_device(name):
             self.refused.append(name)
             raise RadioTouched(errno.EACCES, f"a test may not open the radio's serial port {name}")
 
@@ -165,6 +180,33 @@ class SerialGuard:
             return original_open(path, *args, **kwargs)
 
         patch(os, "open", guarded_open)
+
+
+class ProcessGuard:
+    """Patches `subprocess.Popen`: the `neoaprs` command (or `python -m neoaprs`) started with an environment of its own, which does not carry NEOAPRS_SERIAL_PATTERN, would search the machine's serial ports: refused, and remembered."""
+
+    def __init__(self) -> None:
+        self.refused: list[str] = []
+
+    @staticmethod
+    def starts_neoaprs(args: Any) -> bool:
+        words = [os.fsdecode(a) for a in args] if isinstance(args, (list, tuple)) else os.fsdecode(args).split()
+        program = os.path.basename(words[0].replace("\\", "/")).removesuffix(".exe") if words else ""
+        return program in ("neoaprs", "neoaprs-app", "neoaprsw") or any(a == "-m" and b.split(".")[0] == "neoaprs" for a, b in zip(words, words[1:]))
+
+    def check(self, args: Any, env: Any) -> None:
+        if env is not None and not env.get(SEARCH_VARIABLE) and self.starts_neoaprs(args):
+            self.refused.append(str(args))
+            raise RadioTouched(errno.EACCES, f"a test may not start neoaprs without {SEARCH_VARIABLE} in its environment: {args}")
+
+    def install(self, patch: Callable[[Any, str, Any], None]) -> None:
+        original_init = subprocess.Popen.__init__
+
+        def guarded_init(popen: Any, args: Any, *rest: Any, **kwargs: Any) -> None:
+            self.check(args, kwargs.get("env"))
+            original_init(popen, args, *rest, **kwargs)
+
+        patch(subprocess.Popen, "__init__", guarded_init)
 
 
 # ---- no leak
@@ -290,11 +332,13 @@ def isolated_machine(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyP
         empty_home(Path(root), monkeypatch.setenv)
         network = NetworkGuard()
         network.install(monkeypatch.setattr)
-        radio = SerialGuard()
+        radio, processes = SerialGuard(), ProcessGuard()
         radio.install(monkeypatch.setattr)
+        processes.install(monkeypatch.setattr)
         yield
         assert not network.refused, "the test tried to reach something that is not this machine: " + ", ".join(network.refused)
         assert not radio.refused, "the test tried to open the radio's serial port: " + ", ".join(radio.refused)
+        assert not processes.refused, f"the test started neoaprs without {SEARCH_VARIABLE} in its environment: " + ", ".join(processes.refused)
 
 
 @pytest.fixture(autouse=True)

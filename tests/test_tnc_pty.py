@@ -288,7 +288,7 @@ async def keep_feeding_frame(master: int) -> None:
         await asyncio.sleep(0.03)
 
 
-async def test_the_search_listens_to_the_pattern_of_the_settings_and_a_new_pattern_restarts_it(tmp_path: Path) -> None:
+async def test_the_search_listens_to_the_pattern_of_the_settings_and_a_new_pattern_restarts_it(tmp_path: Path, search_pattern_from_settings: None) -> None:
     e = Env(tmp_path, radio=False)
     e.ctl.pattern_override = ""                                    # (the Env gives its folder as the pattern of the run; here the settings decide)
     first_master, first = e.new_pty("first_1")

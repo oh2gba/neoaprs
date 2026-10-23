@@ -10,6 +10,7 @@ from .app import Services
 from .config import Config
 from .packet import Packet
 from .packetcodec import tnc2
+from .serialprobe import search_pattern
 from .source import Source
 from .tnc import Tnc
 from .tncprofile import Profile, names_tcp, tcp_url
@@ -29,9 +30,9 @@ class TncSettings(NamedTuple):
 
 def tnc_settings(config: Config, port_override: str = "", pattern_override: str = "") -> TncSettings:
     """What the Tnc is started with. A port given for this run is the only one tried; otherwise the port of the settings, else the one the search found last time (and a port that cannot be
-    opened is followed by the search). The search listens to the ports of serial/pattern, or of `pattern_override` when the process was given one for this run. A TCP profile connects to tcp/host and
+    opened is followed by the search). The search listens to the ports of `pattern_override` when the process was given one for this run, else of NEOAPRS_SERIAL_PATTERN when that is set, else of serial/pattern. A TCP profile connects to tcp/host and
     tcp/port (or to the `tcp://` address in serial/port) and never searches."""
-    pattern = pattern_override or config.serial_pattern
+    pattern = pattern_override or search_pattern(config.serial_pattern)
     profile, baud = config.profile, config.tnc_baud
     if port_override:
         return TncSettings(port_override, baud, profile, False, config.serial_skip_paths, pattern)

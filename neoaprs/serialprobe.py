@@ -13,12 +13,14 @@ from dataclasses import dataclass
 import serial.tools.list_ports  # type: ignore[import-untyped]
 
 from .config import DEFAULT_SERIAL_PATTERN
+from .serialboards import board_kind, describe
 from .serialholders import held_by, port_key
 from .serialport import SerialError, SerialPort
 
 log = logging.getLogger("neoaprs.serialport")
 
 DEFAULT_PATTERN = DEFAULT_SERIAL_PATTERN       # what the search looks at when the settings say nothing else: the usual names of USB serial adapters
+PATTERN_ENV = "NEOAPRS_SERIAL_PATTERN"         # the globs of this variable, when it is set and not empty, are searched instead of serial/pattern and the default (the tests: a pattern that matches nothing)
 HEARD_KEPT_BYTES = 16384            # a listening port keeps this much of the latest bytes for the validity test, so a port that never stops talking noise costs no memory
 
 
@@ -47,6 +49,11 @@ def can_search() -> bool:
     return sys.platform.startswith("linux")
 
 
+def search_pattern(stored: str = DEFAULT_PATTERN) -> str:
+    """The globs the search looks at: those of the environment variable NEOAPRS_SERIAL_PATTERN if there are any, else `stored` (serial/pattern)."""
+    return os.environ.get(PATTERN_ENV, "").strip() or stored
+
+
 def candidate_ports(pattern: str = DEFAULT_PATTERN) -> list[str]:
     """The ports the search may listen to: what the globs of `pattern` (separated by spaces) match. A device is listed once however many names it has (a link in /dev/serial/by-id and the
     ttyUSB node it points to): the name that the earliest glob matched stays, which is the stable one when the globs are in that order. A name that leads nowhere is left out. Sorted."""
@@ -57,6 +64,17 @@ def candidate_ports(pattern: str = DEFAULT_PATTERN) -> list[str]:
             if real not in found and os.path.exists(real):
                 found[real] = path
     return sorted(found.values())
+
+
+def searchable_ports(pattern: str = DEFAULT_PATTERN) -> tuple[list[str], dict[str, str]]:
+    """The ports the search may listen to, and the ones it leaves out because a development board is behind them (serialboards.py): {path: "an ESP32 development board (USB 303a:1001)"}. The system is asked
+    for the ports' USB ids only when the globs match anything. A port the system does not list, or lists without ids, stays."""
+    paths = candidate_ports(pattern)
+    if not paths:
+        return [], {}
+    kinds = {port_key(p.device): describe(p.vid, p.pid) for p in available_ports() if p.vid is not None and p.pid is not None and board_kind(p.vid, p.pid)}
+    boards = {path: kinds[port_key(path)] for path in paths if port_key(path) in kinds}
+    return [p for p in paths if p not in boards], boards
 
 
 class _Listener(SerialPort):

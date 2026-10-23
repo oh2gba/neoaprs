@@ -14,6 +14,11 @@ os.environ.setdefault("NEOAPRS_VALIDATE_OUT", "1")           # NEOAPRS_VALIDATE_
 os.environ.setdefault("NEOAPRS_VALIDATE_RAISE", "1")
 
 
+# No test may open a serial device of the machine (a development board resets when its port is opened, a radio may be keyed): the search of every daemon, in this process and in the processes the tests start (they inherit the
+# variable), looks at a pattern that matches nothing. A test of the search names the folder of its pseudo-terminals, or clears the variable (the fixture search_pattern_from_settings).
+os.environ["NEOAPRS_SERIAL_PATTERN"] = "/dev/neoaprs-test-no-such-port*"
+
+
 # Hypothesis is in the dev group. 'ci' is the default so that a run is reproducible (derandomize: the same examples every time, no example database);
 # HYPOTHESIS_PROFILE=dev explores far more, with a random seed, and keeps what it finds in .hypothesis/ to replay.
 try:
@@ -28,7 +33,7 @@ else:
 # Everything the tests are built from is in tests/support. A fixture is found by pytest where this file imports it.
 from tests.support.clock import FixedClock  # noqa: E402, F401
 from tests.support.files import FIXTURES, fixture_bytes, fixture_text  # noqa: E402, F401
-from tests.support.fixtures import clock, protocol_violations, tmp_data  # noqa: E402, F401
+from tests.support.fixtures import clock, protocol_violations, search_pattern_from_settings, tmp_data  # noqa: E402, F401
 from tests.support import guards, markers  # noqa: E402
 from tests.support.guards import isolated_machine, logging_restored, no_leaked_db_threads, no_leaked_tasks, no_unexpected_errors  # noqa: E402, F401
 from tests.support.ptyline import ptys  # noqa: E402, F401

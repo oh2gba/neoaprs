@@ -215,7 +215,7 @@ async def test_a_port_given_for_this_run_is_used_alone_and_never_stored(tmp_path
     await e.stop()
 
 
-def test_the_settings_become_the_tncs() -> None:
+def test_the_settings_become_the_tncs(search_pattern_from_settings: None) -> None:
     assert tnc_settings(DEFAULTS) == ("", 9600, KISS, True, (), "/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*")
     assert tnc_settings(replace(DEFAULTS, serial_last_port="/dev/brainbox_3")).port == "/dev/brainbox_3"
     assert tnc_settings(replace(DEFAULTS, serial_port="/dev/ttyUSB0", serial_last_port="/dev/brainbox_3", serial_baud=1200, tnc_profile="kenwood-tnc2")) == ("/dev/ttyUSB0", 1200, KENWOOD_TNC2, True, (), DEFAULTS.serial_pattern)
@@ -225,7 +225,7 @@ def test_the_settings_become_the_tncs() -> None:
     assert tnc_settings(DEFAULTS, pattern_override="/tmp/probe_*").pattern == "/tmp/probe_*"
 
 
-def test_a_tcp_profile_connects_to_the_host_and_port_and_never_searches() -> None:
+def test_a_tcp_profile_connects_to_the_host_and_port_and_never_searches(search_pattern_from_settings: None) -> None:
     tcp = replace(DEFAULTS, tnc_profile="kiss-tcp")
     assert tnc_settings(tcp) == ("socket://127.0.0.1:8001", 9600, KISS_TCP, False, (), DEFAULTS.serial_pattern)
     assert tnc_settings(replace(tcp, tcp_host="pi.local", tcp_port=8100, serial_last_port="/dev/ttyUSB0")).port == "socket://pi.local:8100"

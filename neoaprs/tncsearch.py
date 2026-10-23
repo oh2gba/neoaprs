@@ -19,6 +19,7 @@ class PortSearch:
         self._note = note
         self.listening: list[str] = []                                   # the ports the search has open, while it runs
         self._searched: list[str] = []                                   # the ports the latest search opened
+        self._told: set[str] = set()                                     # the boards that were logged as skipped (once each, however often the search runs)
 
     @property
     def possible(self) -> bool:
@@ -29,8 +30,11 @@ class PortSearch:
         written to the quiet ports (a profile that cannot be asked is only listened to)."""
         if not self.possible:
             raise SerialError("no port is chosen: the radio is not looked for among the ports on this system, so choose its port in the settings")
-        paths = serialprobe.candidate_ports(pattern)
+        paths, boards = await asyncio.to_thread(serialprobe.searchable_ports, pattern)         # (the system's list is read from files: not on the loop)
+        self._tell_boards(boards)
         if not paths:
+            if boards:
+                raise SerialError(f"no port to listen to: {'; '.join(f'{path} is {what}' for path, what in boards.items())}, which the search leaves alone; choose the port by its name in the settings to use it")
             raise SerialError(f"no port matches {pattern}")
         outcome: list[str | None] = []
         self._searched = []
@@ -55,6 +59,12 @@ class PortSearch:
                 raise SerialError(f"no port could be listened to (skipped, held by another program or not openable: {', '.join(paths)})")
             raise SerialError(f"no port delivers KISS frames (tried {', '.join(self._searched)})")
         return outcome[0]
+
+    def _tell_boards(self, boards: dict[str, str]) -> None:
+        for path, what in boards.items():
+            if path not in self._told:
+                self._told.add(path)
+                log.info("tnc: skipping %s: %s", path, what)
 
     def _opened(self, opened: list[str]) -> None:
         self.listening = self._searched = opened
