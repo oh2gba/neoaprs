@@ -17,12 +17,11 @@ from neoaprs.services import messaging as messaging_module
 from neoaprs.services.messaging import Messaging
 from neoaprs.services.prefbook import PrefBook
 from neoaprs.source import Source
-from neoaprs.store import DB_NAME
 from tests.support.rig import ServiceRig
 from tests.support.stubtnc import StubTnc
 from tests.support.clock import FixedClock
 from tests.support.env import idle_for, remember_stop, until
-from tests.support.storedb import keep_old_attempts, store_at
+from tests.support.storedb import keep_old_attempts, log_at
 
 TICK = 0.01
 RUN_OUT = (30, 30, 60, 240)                        # the waits after each attempt, the last of them the wait for the answer to the fourth: after these the message has failed
@@ -75,14 +74,17 @@ class Rig(ServiceRig):
         return record
 
 
-@pytest.fixture
-async def rig(tmp_path: Path) -> Rig:
-    clock = FixedClock()
-    store = await store_at(tmp_path / DB_NAME, clock)
-    assert store.db is not None
-    r = Rig(MessageLog(store.db, clock), clock)
+async def started_rig(tmp_path: Path, **changes: object) -> Rig:
+    """A Rig on a new database in the test's folder, started (the fixtures `rig` of this module and of the tests that go with it: test_messaging_pacing, test_messaging_rules)."""
+    log, _, clock = await log_at(tmp_path, MessageLog)
+    r = Rig(log, clock, **changes)
     await r.start()
     return r
+
+
+@pytest.fixture
+async def rig(tmp_path: Path) -> Rig:
+    return await started_rig(tmp_path)
 
 
 @pytest.fixture

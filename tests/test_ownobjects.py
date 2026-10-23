@@ -11,27 +11,22 @@ from neoaprs.ownlog import OwnLog
 from neoaprs.ownobject import OwnError, OwnObject
 from neoaprs.packet import ObjectReport, Packet, Position
 from neoaprs.services.ownobjects import MAX_OBJECTS, OwnObjects
-from neoaprs.services.sender import Sender
 from neoaprs.source import Source
-from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
 from tests.support.env import remember_stop
-from tests.support.storedb import store_at
-from tests.support.rig import ServiceRig
+from tests.support.rig import OwnRig
+from tests.support.storedb import log_at
 
 STEP = 5                                                    # seconds the clock moves between two looks at it
 LAT, LON = 60.17, 24.94
 
 
-class Rig(ServiceRig):
+class Rig(OwnRig):
     """One run of the daemon's objects: made again on the same log and clock after a stop."""
 
     def __init__(self, log: OwnLog, clock: FixedClock, **changes: object) -> None:
-        super().__init__(clock, **changes)
-        self.log, self.begin = log, clock()
-        self.sender = Sender(self.tnc, lambda: self.config, clock, spacing_sec=10.0)
+        super().__init__(log, clock, **changes)
         self.objects = OwnObjects(self.sender, lambda: self.config, log, lambda name: name == "OH2RDG", clock, tick_sec=3600.0)
-        self.sent: list[tuple[int, bytes]] = []                         # (seconds since the rig was made, the information field), in the order they went out
         self.record(self.objects)
 
     async def start(self) -> "Rig":
@@ -45,26 +40,12 @@ class Rig(ServiceRig):
 
     def run(self, seconds: int) -> None:
         """Looks at the clock every STEP seconds for this long, the first look now."""
-        for _ in range(0, seconds + 1, STEP):
-            before = len(self.tnc.sent)
-            self.objects.tick()
-            self.sent += [(round((self.clock() - self.begin).total_seconds()), frame.info) for frame in self.tnc.sent[before:]]
-            self.clock.advance(STEP)
-        self.clock.advance(-STEP)
-
-    def offsets(self) -> list[int]:
-        return [t for t, _ in self.sent]
-
-    async def settled(self) -> None:
-        assert self.log.db is not None
-        await self.log.db.barrier()
+        self.look(self.objects.tick, seconds, STEP)
 
 
 async def rig_at(tmp_path: Path, **changes: object) -> Rig:
-    clock = FixedClock()
-    store = await store_at(tmp_path / DB_NAME, clock)
-    assert store.db is not None
-    return await Rig(OwnLog(store.db, clock), clock, **changes).start()
+    log, _, clock = await log_at(tmp_path, OwnLog)
+    return await Rig(log, clock, **changes).start()
 
 
 def reported(name: str, at: datetime, sender: str = "OH2XYZ", alive: bool = True) -> Packet:
