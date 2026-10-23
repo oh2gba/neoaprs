@@ -45,7 +45,7 @@ def test_the_frames_are_the_frames_of_the_capture_encoded_again() -> None:
 
 
 async def test_a_tnc_that_connects_hears_the_capture_as_packets_one_frame_at_a_time() -> None:
-    replay = Replay(FRAMES, interval=0.05, settle_sec=0.0)
+    replay = Replay(FRAMES, interval=0.05, settle_sec=1.0)       # longer than the Tnc's entry into KISS, in which what it hears is thrown away (each frame is sent once)
     task, port = await start(replay)
     tnc = Tnc(f"socket://127.0.0.1:{port}", check_sec=0.0, settle_sec=0.05, backoff=Backoff([0.05, 0.05]), fallback_probe=False)
     heard: list[Packet] = []
