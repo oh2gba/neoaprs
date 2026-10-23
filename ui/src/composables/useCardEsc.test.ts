@@ -37,10 +37,22 @@ describe("useCardEsc", () => {
     expect(closeNewest).toHaveBeenCalledTimes(2);
   });
 
-  it("leaves the key to a field that is being typed in", () => {
+  it("leaves the key to a field that has text in it, and takes it from an empty one", () => {
     const { closeNewest, wrapper } = setUp();
-    press(wrapper.find("#field").element);
+    const field = wrapper.find("#field").element as HTMLInputElement;
+    field.value = "OH2";
+    press(field);
     expect(closeNewest).not.toHaveBeenCalled();
+    field.value = "";
+    press(field);
+    expect(closeNewest).toHaveBeenCalledTimes(1);
+  });
+
+  it("takes it from the page, a row of a table and a button, where the focus is not in a field", () => {
+    const { closeNewest, wrapper } = setUp();
+    press(wrapper.find("#plain").element);
+    press(document.body);
+    expect(closeNewest).toHaveBeenCalledTimes(2);
   });
 
   it("leaves the key to what takes it first (the guide, the update panel), even when that has closed itself on the same key", () => {

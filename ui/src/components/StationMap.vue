@@ -125,13 +125,13 @@ function addLayers(): void {
   drawRoute();
 }
 
-/** The stations that are drawn: with a position and not past their timeout. */
+/** The stations that are drawn: with a position and not past their timeout (a station whose card is open is drawn, with its track, whatever its timeout). */
 function drawn(): StationRow[] {
-  return [...props.stations.values()].filter((row) => hasPosition(row) && !timedOut(props.aging, row, props.now));
+  return [...props.stations.values()].filter((row) => hasPosition(row) && (isOpen(row.call) || !timedOut(props.aging, row, props.now)));
 }
 
 function drawTracks(): void {
-  void map?.getSource<GeoJSONSource>("tracks")?.setData(trackLines(drawn(), props.selected, props.now, props.aging));
+  void map?.getSource<GeoJSONSource>("tracks")?.setData(trackLines(drawn(), openCalls(), props.now, props.aging));
 }
 
 function makePlaced(call: string): Placed | null {
@@ -153,6 +153,7 @@ function makePlaced(call: string): Placed | null {
 
 /** A station with a card open (the selected one, or one of the others): its marker shows, and is marked, even when it is past its timeout. */
 const isOpen = (call: string): boolean => call === props.selected || props.others.includes(call);
+const openCalls = (): string[] => (props.selected === null ? [...props.others] : [...props.others, props.selected]);
 
 function syncMarkers(): void {
   if (!map) return;

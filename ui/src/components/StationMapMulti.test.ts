@@ -11,7 +11,15 @@ const stations = () =>
     station("OH2ZWA", { lat: 60.2, lon: 24.65, symbol_code: "_" }),
     station("OH2ZWB", { lat: 60.3, lon: 24.75, symbol_code: "_" }),
     station("OH2ZWC", { lat: 60.1, lon: 24.55, symbol_code: "_" }),
-    station("OH2OLD", { lat: 60.4, lon: 25.1, last_position_at: ago(5 * 3600) }),
+    station("OH2OLD", {
+      lat: 60.4,
+      lon: 25.1,
+      last_position_at: ago(5 * 3600),
+      track: [
+        [ago(5 * 3600 + 600), 60.39, 25.05],
+        [ago(5 * 3600), 60.4, 25.1],
+      ],
+    }),
   );
 
 async function mounted(extra = {}) {
@@ -85,5 +93,54 @@ describe("StationMap with several cards", () => {
     const before = FakeMap.last().resizes;
     await wrapper.setProps({ focus: { call: "OH2ZWA", n: 1 } });
     expect(FakeMap.last().resizes).toBeGreaterThan(before);
+  });
+
+  it("draws a station past its timeout again, its marker and its track, while its card is open, and hides them when the card is closed", async () => {
+    const wrapper = await mounted();
+    const lines = () =>
+      (FakeMap.last().getSource("tracks")?.setData.mock.calls.at(-1)?.[0] as { features: { properties: { call: string; selected: number } }[] }).features.map(
+        (f) => [f.properties.call, f.properties.selected],
+      );
+    FakeMap.last().fire("style.load");
+    expect(markerOf("OH2OLD")).toBeUndefined();
+    expect(lines()).toEqual([]);
+    await wrapper.setProps({ selected: "OH2OLD" });
+    expect(selected("OH2OLD")).toBe(true);
+    expect(lines()).toEqual([["OH2OLD", 1]]);
+    await wrapper.setProps({ selected: null });
+    expect(markerOf("OH2OLD")).toBeUndefined();
+    expect(lines()).toEqual([]);
+  });
+
+  it("draws the tracks of all the open cards as selected ones, the timed out station's too", async () => {
+    const wrapper = await mounted({
+      stations: table(
+        station("OH2ZWA", {
+          lat: 60.2,
+          lon: 24.65,
+          track: [
+            [ago(300), 60.19, 24.6],
+            [ago(100), 60.2, 24.65],
+          ],
+        }),
+        station("OH2OLD", {
+          lat: 60.4,
+          lon: 25.1,
+          last_position_at: ago(5 * 3600),
+          track: [
+            [ago(5 * 3600 + 600), 60.39, 25.05],
+            [ago(5 * 3600), 60.4, 25.1],
+          ],
+        }),
+      ),
+    });
+    FakeMap.last().fire("style.load");
+    await wrapper.setProps({ selected: "OH2ZWA", others: ["OH2OLD"] });
+    const features = (FakeMap.last().getSource("tracks")?.setData.mock.calls.at(-1)?.[0] as { features: { properties: { call: string; selected: number } }[] })
+      .features;
+    expect(features.map((f) => [f.properties.call, f.properties.selected]).sort()).toEqual([
+      ["OH2OLD", 1],
+      ["OH2ZWA", 1],
+    ]);
   });
 });

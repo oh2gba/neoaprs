@@ -146,18 +146,51 @@ describe("several station cards on a desktop (1400 by 900)", () => {
     expect(marked()).toEqual([]);
   });
 
-  it("closes the newest card with Esc, one at a time, and not while a field is being typed in", async () => {
+  it("closes the newest card with Esc, one at a time, and not while a field has text in it", async () => {
     const { wrapper } = await open(1400, 900);
     for (const call of ["OH2ZWA", "OH2ZWB", "OH2ZWC"]) await row(wrapper, call)?.trigger("click", { ctrlKey: true });
     esc();
     await nextTick();
     expect(cards(wrapper)).toEqual(["OH2ZWA", "OH2ZWB"]);
+    await wrapper.find("input[type='search']").setValue("ZW");
     const filter = wrapper.find("input[type='search']").element;
     filter.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
     await nextTick();
     expect(cards(wrapper)).toEqual(["OH2ZWA", "OH2ZWB"]);
     esc();
     esc();
+    await nextTick();
+    expect(wrapper.find(".cardstack").exists()).toBe(false);
+  });
+
+  it("deselects with Esc on the Stations tab, with the focus on a row of the table: the newest card closes and its row is not marked", async () => {
+    const { wrapper } = await open(1400, 900);
+    await row(wrapper, "OH2ZWA")?.trigger("click");
+    await row(wrapper, "OH2ZWB")?.trigger("click", { ctrlKey: true });
+    const focused = row(wrapper, "OH2ZWB")?.element as HTMLElement;
+    focused.focus();
+    focused.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    await nextTick();
+    expect(cards(wrapper)).toEqual(["OH2ZWA"]);
+    expect(wrapper.findAll("#pane-stations tr.selected").map((r) => r.find("td.call").text())).toEqual(["OH2ZWA"]);
+    expect(marked()).toEqual(["OH2ZWA"]);
+    focused.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    await nextTick();
+    expect(wrapper.find(".cardstack").exists()).toBe(false);
+    expect(wrapper.findAll("#pane-stations tr.selected")).toHaveLength(0);
+  });
+
+  it("clears the text of the filter box with the first Esc, and deselects with the next", async () => {
+    const { wrapper } = await open(1400, 900);
+    await row(wrapper, "OH2ZWA")?.trigger("click");
+    const box = wrapper.find("#pane-stations input[type='search']");
+    await box.setValue("ZWA");
+    const press = () => box.element.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    press();
+    await nextTick();
+    expect((box.element as HTMLInputElement).value).toBe("");
+    expect(cards(wrapper)).toEqual(["OH2ZWA"]);
+    press();
     await nextTick();
     expect(wrapper.find(".cardstack").exists()).toBe(false);
   });

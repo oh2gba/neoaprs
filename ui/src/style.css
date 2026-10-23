@@ -415,6 +415,8 @@ tbody tr:focus-visible {
   flex: 1;
   min-height: 0;
   overflow: auto;
+  /* a row that is scrolled to (a focused one, one picked from the map) stops under the sticky head, not behind it */
+  scroll-padding-top: 36px;
 }
 .foot {
   padding: 4px 10px;
@@ -2194,4 +2196,24 @@ button.linkbtn {
   .prefs .pathbox .input {
     flex: 1 1 8em;
   }
+}
+
+/* the Stations table reads as one block: at most 640 px wide, in the middle of a wider panel; its filter box and the three tickboxes wrap onto a second line when they do not fit, the tickboxes together */
+.tablepane.capped > .toolbar,
+.tablepane.capped > .foot,
+.tablepane.capped .grid.stations {
+  width: 100%;
+  max-width: 640px;
+  margin-right: auto;
+  margin-left: auto;
+}
+.filterbox {
+  flex: 1 1 12em;
+  min-width: min(12em, 100%);
+}
+.toolbar-checks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
 }

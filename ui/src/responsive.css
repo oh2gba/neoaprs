@@ -156,7 +156,8 @@ button,
 .size-phone .pane {
   padding-bottom: env(safe-area-inset-bottom);
 }
-.size-phone .toolbar .input.grow {
+.size-phone .toolbar .input.grow,
+.size-phone .toolbar .filterbox {
   flex: 1 1 100%;
 }
 

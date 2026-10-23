@@ -50,6 +50,13 @@ const rows = computed(() =>
   }),
 );
 
+/** Esc in the filter box clears the text; with the box empty it is not taken, and goes on to close the newest card. */
+function clearFilter(event: KeyboardEvent): void {
+  if (filter.value === "") return;
+  filter.value = "";
+  event.preventDefault();
+}
+
 function sortBy(key: SortKey | null): void {
   if (key === null) return;
   sort.value = sort.value.key === key ? { key, dir: sort.value.dir === 1 ? -1 : 1 } : { key, dir: firstDirection(key) };
@@ -62,12 +69,22 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
 </script>
 
 <template>
-  <div class="tablepane">
+  <div class="tablepane capped">
     <div class="toolbar">
-      <input v-model="filter" class="input grow" type="search" placeholder="Filter" title="Call, symbol, comment, path" aria-label="Filter the stations" />
-      <label class="check"><input v-model="withPositionOnly" type="checkbox" /> with position only</label>
-      <label class="check"><input v-model="hideTimedOut" type="checkbox" /> hide timed out</label>
-      <label class="check"><input v-model="directOnly" type="checkbox" /> direct only</label>
+      <input
+        v-model="filter"
+        class="input filterbox"
+        type="search"
+        placeholder="Filter"
+        title="Call, symbol, comment, path"
+        aria-label="Filter the stations"
+        @keydown.esc="clearFilter"
+      />
+      <div class="toolbar-checks">
+        <label class="check"><input v-model="withPositionOnly" type="checkbox" /> with position only</label>
+        <label class="check"><input v-model="hideTimedOut" type="checkbox" /> hide timed out</label>
+        <label class="check"><input v-model="directOnly" type="checkbox" /> direct only</label>
+      </div>
     </div>
     <div class="scroll">
       <table class="grid stations">
