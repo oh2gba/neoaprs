@@ -38,8 +38,8 @@ describe("describeFile", () => {
   it("is the line of the current map and then the world's", () => {
     expect(fileLines(mapState())).toEqual([]);
     expect(fileLines(mapState({ detail: mapFile(), world: mapFile({ bytes: 15_000_000, max_zoom: 5 }) }))).toEqual([
-      "58.8N to 61.5N, 22.1E to 27.8E, zoom 12, 123 MB, 2026-10-22",
-      "World: zoom 5, 15 MB, 2026-10-22",
+      "Detailed map here: 58.8N to 61.5N, 22.1E to 27.8E, zoom 12, 123 MB, 2026-10-22",
+      "World map here: zoom 5, 15 MB, 2026-10-22",
     ]);
   });
 

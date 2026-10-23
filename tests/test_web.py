@@ -260,8 +260,8 @@ async def test_set_config_changes_the_settings_and_the_page_is_told_them_again(t
     # a second page is told when the first saves
     other = await e.ws()
     await other.until(lambda: len(other.of("state")) == len(TOPIC_NAMES))
-    await page.send({"cmd": "set_config", "values": {"log/keep_days": "7"}})
-    await other.until(lambda: other.topics["config"]["values"]["log/keep_days"] == "7")
+    await page.send({"cmd": "set_config", "values": {"map/radius_km": "77"}})
+    await other.until(lambda: other.topics["config"]["values"]["map/radius_km"] == "77")
 
 
 async def test_set_config_of_the_position_moves_our_row_and_every_distance(tmp_path: Path) -> None:
