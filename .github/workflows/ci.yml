@@ -40,10 +40,12 @@ jobs:
       - run: uv sync --frozen --extra app
       - run: uv lock --check
       - run: uv run ruff check .
-      - run: uv run mypy
-      - name: mypy for Windows (one tree must type-check for both systems)
+      # mypy for both systems on Linux, the one runner that has every toolkit (Windows has no Qt): one tree must type-check for both.
+      - name: mypy
         if: runner.os == 'Linux'
-        run: uv run mypy --platform win32
+        run: |
+          uv run mypy
+          uv run mypy --platform win32
       - run: uv run pytest -n auto
 
   # The wheel as a user gets it: built, installed into a fresh environment, and the installed command run against a fake TNC (scripts/smoke.py), on both systems.
