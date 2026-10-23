@@ -336,6 +336,6 @@ async def test_an_operation_that_runs_long_is_told_in_the_log(tmp_path: Path, ca
         await db.read(lambda conn: time.sleep(0.3))
         await db.read(lambda conn: 1)                                              # (quick, but a busy machine may hold it past slow_sec too: the count is at least one)
         told = [float(m.group(1)) for r in caplog.records if (m := re.search(r"ran for ([\d.]+) s", r.getMessage()))]
-        assert told and max(told) >= 0.25 and db.stats()["slow"] >= 1, (told, db.stats()["slow"])
+        assert told and max(told) >= 0.15 and db.stats()["slow"] >= 1, (told, db.stats()["slow"])   # (told while it still runs: past slow_sec, not necessarily its whole 0.3 s)
     finally:
         await db.close()
