@@ -1,6 +1,5 @@
 """The transmit interlock (`config.can_transmit`, `services/interlock.py`, the Tnc's `permit`): a station with no call, or a call that is none (N0CALL, NOCALL, MYCALL, not an amateur call), transmits nothing at all, and the
 defaults are such a station. The rules on their own, then the whole daemon on a pseudo-terminal radio that is never written to; with a call set, everything goes out as before."""
-import asyncio
 import logging
 from dataclasses import replace
 from pathlib import Path

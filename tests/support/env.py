@@ -94,6 +94,14 @@ async def until(condition: Callable[[], object], timeout_sec: float = 5.0) -> No
         await asyncio.sleep(0.01)
 
 
+async def until_async(condition: Callable[[], Awaitable[object]], timeout_sec: float = 5.0) -> None:
+    """`until` for a condition that has to be awaited (a row of the database)."""
+    deadline = asyncio.get_running_loop().time() + timeout_sec
+    while not await condition():
+        assert asyncio.get_running_loop().time() < deadline, "the condition did not come true"
+        await asyncio.sleep(0.01)
+
+
 async def idle_for(seconds: float) -> None:
     """A wait that is the point: the time in which a timer has had its chance to do something that a test then asserts it did not (or in which the loop runs the tasks the test just started). It never waits for something
     that should happen: that is `until`."""

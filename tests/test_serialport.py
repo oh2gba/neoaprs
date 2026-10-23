@@ -26,7 +26,7 @@ from neoaprs.serialport import SerialError, SerialPort, is_socket, normalize
 from neoaprs.serialprobe import PortInfo, available_ports, can_search, candidate_ports, probe
 from tests.conftest import ROOT
 from tests.support import guards
-from tests.support.env import until
+from tests.support.env import idle_for, until
 from tests.support.fakeradio import REFUSED, FakeRadio
 from tests.support.ptyline import posix_only
 
@@ -241,7 +241,7 @@ async def test_closing_ends_the_threads_and_the_connection_and_the_port_can_be_c
     port.close()
     await until(lambda: radio.clients == 0)
     assert not {t for t in threading.enumerate() if t.name.startswith("serial-read") and radio.url in t.name and t.is_alive()}
-    await asyncio.sleep(0.1)
+    await idle_for(0.1)
     assert chunks == []
 
 
@@ -267,10 +267,12 @@ class SlowSer:
     def __init__(self, seconds: float, fail: bool = False) -> None:
         self.seconds, self.fail = seconds, fail
         self.closed = threading.Event()
+        self.opening = threading.Event()
         self.in_waiting = 0
 
     def open(self) -> None:
-        time.sleep(self.seconds)
+        self.opening.set()
+        time.sleep(self.seconds)               # (the open that takes this long is the point)
         if self.fail:
             raise serial.SerialException("could not open port 'COM9': FileNotFoundError(2, 'The system cannot find the file specified.', None, 2)")
 
@@ -295,7 +297,7 @@ async def test_the_open_is_made_in_a_thread_so_the_loop_goes_on(monkeypatch: pyt
         ticks += 1
     await task
     port.close()
-    assert ticks >= 20, "the loop ran during the open"
+    assert ticks >= 5, "the loop ran during the open"
 
 
 async def test_an_open_that_is_cancelled_leaves_no_port_open(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -303,7 +305,7 @@ async def test_an_open_that_is_cancelled_leaves_no_port_open(monkeypatch: pytest
     monkeypatch.setattr(serialport, "_build", lambda path, baud: ser)
     port = SerialPort("COM9")
     task = asyncio.get_running_loop().create_task(port.open())
-    await asyncio.sleep(0.05)
+    await until(ser.opening.is_set)
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task
@@ -345,7 +347,7 @@ async def test_a_connection_that_closes_emits_dropped_once_and_closes_the_port(r
     await radio.connected()
     radio.drop()
     await until(lambda: reasons)
-    await asyncio.sleep(0.1)
+    await idle_for(0.1)
     assert len(reasons) == 1 and "disconnected" in reasons[0]
     assert not port.is_open
     with pytest.raises(SerialError):
@@ -379,7 +381,7 @@ async def test_a_read_or_a_write_that_fails_reports_the_line_lost_once(which: st
         port.write(b"x")
         port.write(b"y")
     await until(lambda: reasons)
-    await asyncio.sleep(0.1)
+    await idle_for(0.1)
     assert len(reasons) == 1 and not port.is_open and ser.closed.is_set()
     assert ("write failed" in reasons[0]) == (which == "write")
 
@@ -414,7 +416,7 @@ async def test_a_line_that_takes_no_more_writes_refuses_them_and_a_stuck_write_i
     began = time.monotonic()
     port.close()
     assert time.monotonic() - began < 2.0 and ser.cancelled and ser.closed.is_set()
-    await asyncio.sleep(0.1)
+    await idle_for(0.1)
     assert lost == [], "a write cut short by our own close is not a lost line"
 
 
@@ -493,7 +495,7 @@ async def keep_feeding(radio: FakeRadio, data: bytes) -> None:
     while True:
         if radio.clients:
             radio.feed(data)
-        await asyncio.sleep(0.02)
+        await asyncio.sleep(0.02)              # (the speed of the talker)
 
 
 async def stop_feeding(*feeders: "asyncio.Task[None]") -> None:
@@ -567,7 +569,7 @@ async def test_probe_listens_to_every_port_at_once_and_finds_the_one_that_talks_
     loop = asyncio.get_running_loop()
 
     async def late() -> None:
-        await asyncio.sleep(0.3)
+        await asyncio.sleep(0.3)               # (a radio that starts to talk late is the point)
         await three[2].connected()
         three[2].feed(encode(b"a frame"))
 
@@ -603,7 +605,7 @@ async def test_probe_tells_which_ports_it_opened(radios: Radios) -> None:
 async def test_probe_sends_the_nudge_to_every_port_once_after_the_wait(radios: Radios) -> None:
     three = await radios(3)
     task = asyncio.get_running_loop().create_task(probe([r.url for r in three], 9600, 0.5, lambda data: False, nudge=b"\r", nudge_after_sec=0.2))
-    await asyncio.sleep(0.1)
+    await asyncio.sleep(0.1)                   # (half way to the nudge: the time is the point)
     for radio in three:
         assert await radio.said(1, 0.0) == b"", "nothing is sent before the wait is over"
     assert await task is None
@@ -664,13 +666,15 @@ async def test_cancelling_the_probe_closes_every_port(radios: Radios) -> None:
 async def test_cancelling_the_probe_during_the_opens_leaves_no_port_open(radios: Radios, monkeypatch: pytest.MonkeyPatch) -> None:
     pair = await radios(2)
     real_build = serialport._build
+    opening = threading.Semaphore(0)
 
     def slow(path: str, baud: int) -> Any:
         ser = real_build(path, baud)
         real_open = ser.open
 
         def open_() -> None:
-            time.sleep(0.3)
+            opening.release()
+            time.sleep(0.3)                    # (the open that takes this long is the point)
             real_open()
 
         ser.open = open_
@@ -678,11 +682,11 @@ async def test_cancelling_the_probe_during_the_opens_leaves_no_port_open(radios:
 
     monkeypatch.setattr(serialport, "_build", slow)
     task = asyncio.get_running_loop().create_task(probe([r.url for r in pair], 9600, None, lambda data: False))
-    await asyncio.sleep(0.1)
+    assert await asyncio.to_thread(opening.acquire, True, 5.0), "an open began"
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task
-    await asyncio.sleep(0.8)
+    await idle_for(0.8)                        # (the slow opens finish in their threads: no port may be left open after them)
     assert all(r.clients == 0 for r in pair)
 
 

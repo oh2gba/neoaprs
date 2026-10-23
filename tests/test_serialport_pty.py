@@ -15,7 +15,7 @@ from neoaprs.kiss import KissDecoder, encode
 from neoaprs.serialholders import held_by, holders
 from neoaprs.serialport import SerialError, SerialPort
 from neoaprs.serialprobe import candidate_ports, probe
-from tests.support.env import until
+from tests.support.env import idle_for, until
 from tests.support.ptyline import Ptys, close_pty, feed, heard, held_by_a_program, posix_only
 
 pytestmark = posix_only
@@ -67,7 +67,7 @@ async def test_a_device_that_goes_away_emits_dropped_once_and_closes_the_port(pt
     await port.open()
     close_pty(master)
     await until(lambda: reasons)
-    await asyncio.sleep(0.2)
+    await idle_for(0.2)
     assert len(reasons) == 1 and reasons[0]
     assert not port.is_open
     with pytest.raises(SerialError):
@@ -201,7 +201,7 @@ async def open_within(path: str, seconds: float) -> None:
 async def test_cancelling_the_probe_closes_every_port(ptys: Ptys) -> None:
     paths = [ptys()[1] for _ in range(3)]
     task = asyncio.get_running_loop().create_task(probe(paths, 9600, None, lambda data: False, nudge=b"\r"))
-    await asyncio.sleep(0.1)
+    await idle_for(0.1)
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task

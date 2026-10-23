@@ -8,7 +8,7 @@ from pathlib import Path
 from neoaprs import serialport
 from neoaprs.source import Backoff, Source
 from neoaprs.tnc import ENTER_KISS, Tnc
-from tests.support.env import Env, until
+from tests.support.env import Env, idle_for, until, until_async
 from tests.support.ptyline import Ptys, close_pty, feed, held_by_a_program, heard, posix_only
 from tests.test_silent import QUICK
 from tests.test_tnc import MONITOR_LINE, SETTLE, kiss_of, nothing_runs, tiny_backoff, ui_frame
@@ -206,7 +206,7 @@ async def test_a_named_port_that_another_program_holds_is_waiting_with_the_holde
             name = open(f"/proc/{child.pid}/comm").read().strip()
             assert tnc.state is Source.State.WAITING and tnc.stats.opens == 0
             assert tnc.problem == f"{path}: held by {name} (pid {child.pid})"
-            await asyncio.sleep(0.3)                                 # (several attempts later)
+            await idle_for(0.3)                                 # (several attempts later)
             assert tnc.state is Source.State.WAITING and tnc.stats.opens == 0 and not select.select([master], [], [], 0)[0], "the held port is not opened, nothing is written to it"
         await until(lambda: tnc.state is Source.State.CONNECTED)
         assert tnc.path == path and tnc.stats.opens == 1
@@ -246,7 +246,7 @@ async def test_a_named_port_that_cannot_be_opened_stays_waiting_when_the_probe_i
     tnc = Tnc(str(tmp_path / "remembered"), pattern=pattern, backoff=tiny_backoff(), fallback_probe=False)
     try:
         await tnc.start()
-        await asyncio.sleep(0.4)
+        await idle_for(0.4)
         await until(lambda: tnc.state is Source.State.WAITING)              # (it tries the port again and again: between two tries it is waiting)
         assert tnc.stats.opens == 0 and "No such file or directory" in tnc.problem
     finally:
@@ -321,10 +321,10 @@ async def test_the_port_the_search_found_is_stored_and_tried_first_next_time(tmp
         assert e.tnc.path == link
         async def stored() -> str | None:
             return await e.ctl.store.setting("serial/last_port")
-        for _ in range(100):
-            if await stored() == link:
-                break
-            await asyncio.sleep(0.02)
+
+        async def is_stored() -> bool:
+            return await stored() == link
+        await until_async(is_stored)
         assert await stored() == link and e.ctl.config.serial_last_port == link and await e.ctl.store.setting("serial/port") is None
         await e.stop()
         again = Env(tmp_path, radio=False, ports=e.ports)                 # (the same "/dev")
@@ -351,10 +351,10 @@ async def test_a_remembered_port_that_is_gone_is_followed_by_the_search_and_the_
         await until(lambda: again.tnc.port == str(e.ports / "gone") and again.tnc.stats.opens == 0 and again.tnc.state is Source.State.WAITING)
         await until(lambda: again.tnc.state is Source.State.CONNECTED)
         assert again.tnc.path == link
-        for _ in range(100):
-            if await again.ctl.store.setting("serial/last_port") == link:
-                break
-            await asyncio.sleep(0.02)
+
+        async def is_stored_again() -> bool:
+            return await again.ctl.store.setting("serial/last_port") == link
+        await until_async(is_stored_again)
         assert await again.ctl.store.setting("serial/last_port") == link
         await again.stop()
     finally:
