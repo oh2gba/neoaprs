@@ -9,7 +9,7 @@ from collections.abc import Callable
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Protocol
 
-from neoaprs.cli import servicewindows
+from neoaprs.cli import servicecmd, servicewindows
 from neoaprs.paths import default_data_dir
 
 APP_NAME = "neoaprs-app"
@@ -26,14 +26,19 @@ class AutoStart(Protocol):
     def disable(self) -> None: ...
 
 
-def app_command(data: Path, platform: str | None = None, frozen: bool | None = None, executable: str | None = None, which: Callable[[str], str | None] = shutil.which) -> list[str]:
-    """The program and arguments that start the app in the tray: the installed program `neoaprs-app` (next to this Python; in a frozen app its own windowless program, beside whichever one of the folder
-    is running), else this Python with `-m neoaprs app` (`pythonw` on Windows: no console window). `--data` is given only when the folder is not the default one."""
+def app_command(data: Path, platform: str | None = None, frozen: bool | None = None, executable: str | None = None, which: Callable[[str], str | None] = shutil.which,
+                appimage: Callable[[], str | None] = servicecmd.appimage_file) -> list[str]:
+    """The program and arguments that start the app in the tray: in an AppImage the AppImage file with `app` (the interpreter is in a folder that is gone when it ends), else the installed program `neoaprs-app`
+    (next to this Python; in a frozen app its own windowless program, beside whichever one of the folder is running), else this Python with `-m neoaprs app` (`pythonw` on Windows: no console window).
+    `--data` is given only when the folder is not the default one."""
     platform = sys.platform if platform is None else platform
     frozen = bool(getattr(sys, "frozen", False)) if frozen is None else frozen
     here = (PureWindowsPath if platform == "win32" else PurePosixPath)(sys.executable if executable is None else executable)
     suffix = ".exe" if platform == "win32" else ""
     tail = ["--tray"] if data.resolve() == default_data_dir().resolve() else ["--tray", "--data", str(data)]
+    image = appimage() if platform.startswith("linux") else None
+    if image:
+        return [image, "app", *tail]
     if frozen:
         return [str(here.with_name(APP_NAME + suffix)), *tail]
     script = here.with_name(APP_NAME + suffix)

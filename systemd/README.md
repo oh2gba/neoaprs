@@ -3,7 +3,7 @@
 One line per unit file in the repository; `tests/test_hygiene.py` fails when a unit is added without a line here, or a line names a unit that is gone.
 
 This is the user unit that `neoaprs service install` writes on Linux. **The file is a template and is part of the package** (`neoaprs/cli/neoaprs.service`, package data of the wheel): it is never copied into a
-system folder as it stands. `neoaprs service install` fills its places in (`@PYTHON@`, the interpreter that runs the command, `@DATA@`, the data folder, `@WORKING_DIRECTORY@` and `@DOCUMENTATION@`, the clone's
+system folder as it stands. `neoaprs service install` fills its places in (`@COMMAND@`, the interpreter that runs the command with `-m neoaprs`, or the AppImage file when it runs from an AppImage, `@DATA@`, the data folder, `@WORKING_DIRECTORY@` and `@DOCUMENTATION@`, the clone's
 folder and its README when NeoAPRS runs from a git clone, else the project's web address and no working directory) and writes the result to `~/.config/systemd/user/neoaprs.service` (`$XDG_CONFIG_HOME/systemd/user`)
 under a first line that says it wrote it, runs `systemctl --user daemon-reload` and `enable --now`, and restarts the service if what the unit does changed. `neoaprs service remove` stops and disables the service and
 deletes that file. A change to the template reaches systemd by running `neoaprs service install` again. A file at that place that the command did not write is never touched. `scripts/install.sh` is the same command for a clone: `.venv/bin/python -m neoaprs service install --data DIR/data --clone DIR --linger`.
