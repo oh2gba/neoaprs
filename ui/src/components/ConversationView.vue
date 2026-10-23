@@ -6,34 +6,25 @@ import { computed, onMounted, ref } from "vue";
 import ConversationThread from "@/components/ConversationThread.vue";
 import MessageCompose from "@/components/MessageCompose.vue";
 import RouteMenu from "@/components/RouteMenu.vue";
+import { useDaemonContext } from "@/composables/useDaemonContext";
 import { conversationName, isOverheard, replyTo } from "@/lib/messages";
 import type { MessageRow } from "@/protocol/protocol";
 
-const props = withDefaults(
-  defineProps<{
-    selected: string;
-    /** one column at a time: the header has the way back to the list */
-    narrow: boolean;
-    thread: readonly MessageRow[];
-    connected: boolean;
-    paths: ReadonlyMap<string, string>;
-    suggestions?: ReadonlyMap<string, string | null>;
-    fallbackPath: string;
-    rfOnly?: ReadonlySet<string>;
-    heardDirect?: ReadonlySet<string>;
-  }>(),
-  { suggestions: () => new Map<string, string | null>(), rfOnly: () => new Set<string>(), heardDirect: () => new Set<string>() },
-);
+const props = defineProps<{
+  selected: string;
+  /** one column at a time: the header has the way back to the list */
+  narrow: boolean;
+  thread: readonly MessageRow[];
+}>();
 const text = defineModel<string>("text", { default: "" });
 const emit = defineEmits<{
   back: [];
   send: [to: string, text: string];
   retry: [id: number];
   cancel: [id: number];
-  path: [call: string, path: string];
-  clearPath: [call: string];
-  setRfOnly: [call: string, on: boolean];
 }>();
+const { connected, heardDirect, suggestions, fallbackPath, prefs } = useDaemonContext();
+const { paths, rfOnly } = prefs;
 
 const root = ref<HTMLElement | null>(null);
 const heard = computed(() => isOverheard(props.selected));
@@ -61,9 +52,9 @@ onMounted(() => {
         :fallback-path="fallbackPath"
         :rf-only="rfOnly"
         :suggested="suggestions.get(selected) ?? null"
-        @path="(c, p) => emit('path', c, p)"
-        @clear-path="emit('clearPath', $event)"
-        @set-rf-only="(c, on) => emit('setRfOnly', c, on)"
+        @path="prefs.setPath"
+        @clear-path="prefs.clearPath"
+        @set-rf-only="prefs.setRfOnly"
       />
     </header>
     <ConversationThread :thread="thread" :peer="selected" :heard-direct="heardDirect" @retry="emit('retry', $event)" @cancel="emit('cancel', $event)" />

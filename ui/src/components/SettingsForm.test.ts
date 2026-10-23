@@ -1,15 +1,17 @@
 import { mount } from "@vue/test-utils";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import SettingsForm from "@/components/SettingsForm.vue";
 import type { Scope } from "@/lib/settings";
 import { CONFIG_KEYS } from "@/protocol/lists";
-import type { Command, PortsMessage } from "@/protocol/protocol";
+import type { PortsMessage } from "@/protocol/protocol";
+import { fakeDaemon, tell, withDaemon, type Given } from "@/test/context";
 import { configValues, mapState, toastOf } from "@/test/fixtures";
 
-function make(extra: Record<string, string> = {}, scope: Scope = "settings") {
-  const send = vi.fn((_command: Command) => true);
-  const wrapper = mount(SettingsForm, { props: { config: configValues(extra), lastError: null, send, scope } });
-  return { wrapper, send };
+/** The form in a page whose settings are the fixtures' with `extra` over them; `more` is what else the context has. */
+function make(extra: Record<string, string> = {}, scope: Scope = "settings", more: Given = {}) {
+  const daemon = fakeDaemon({ config: configValues(extra), ...more });
+  const wrapper = mount(SettingsForm, { props: { scope }, global: withDaemon(daemon) });
+  return { wrapper, send: daemon.send, daemon };
 }
 
 const row = (device: string, description: string) => ({ device, description, hwid: "n/a", vid: null, pid: null });
@@ -41,7 +43,9 @@ describe("SettingsForm", () => {
           k !== "web/allowed_hosts" &&
           k !== "map/maxzoom" &&
           k !== "map/source",
-      ).length + 1, // (the New version row of the Update check group, which is no setting)
+      ).length +
+        1 + // (the New version row of the Update check group, which is no setting)
+        3, // (the browser's own: Alert for a new message, Sound, Pop-up)
     );
     expect(wrapper.find("#set-station-lat").exists()).toBe(false);
   });
@@ -63,8 +67,9 @@ describe("SettingsForm", () => {
 
   it("has our station's keys, then the beacon's, in the Beacon scope, and a place for the preview", () => {
     const wrapper = mount(SettingsForm, {
-      props: { config: configValues(), lastError: null, send: vi.fn(() => true), scope: "beacon" },
+      props: { scope: "beacon" },
       slots: { preview: "<p class='sample'>preview</p>" },
+      global: withDaemon(),
     });
     expect(wrapper.findAll("fieldset legend").map((l) => l.text())).toEqual(["Station", "Beacon", "Status"]);
     expect(wrapper.findAll(".field label").map((l) => l.text())).toEqual([
@@ -148,14 +153,14 @@ describe("SettingsForm", () => {
     });
 
     it("works the fields in the folds like the others: a typed one when it is left, a choice at once", async () => {
-      const { wrapper, send } = make({ "beacon/power_w": "5" }, "beacon");
+      const { wrapper, send, daemon } = make({ "beacon/power_w": "5" }, "beacon");
       await wrapper.find("#set-beacon-path").setValue("WIDE2-2");
       expect(send).not.toHaveBeenCalled();
       await wrapper.find("#set-beacon-path").trigger("blur");
       expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "beacon/path": "WIDE2-2" } });
       await wrapper.find("#set-beacon-antenna_direction").setValue("N");
       expect(send).toHaveBeenCalledTimes(1); // (waits for the answer to the first)
-      await wrapper.setProps({ config: configValues({ "beacon/power_w": "5", "beacon/path": "WIDE2-2" }) });
+      await tell(daemon, { config: configValues({ "beacon/power_w": "5", "beacon/path": "WIDE2-2" }) });
       expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "beacon/antenna_direction": "N" } });
     });
 
@@ -177,7 +182,7 @@ describe("SettingsForm", () => {
   it("shows the default as the placeholder of a field that is empty", () => {
     const config = configValues();
     config.defaults["map/radius_km"] = "45";
-    const wrapper = mount(SettingsForm, { props: { config, lastError: null, send: vi.fn(() => true) } });
+    const wrapper = mount(SettingsForm, { global: withDaemon(fakeDaemon({ config })) });
     expect(wrapper.find<HTMLInputElement>("#set-map-radius_km").attributes("placeholder")).toBe("45");
   });
 
@@ -289,9 +294,9 @@ describe("SettingsForm", () => {
     });
 
     it("shows the refusal of the daemon under the profile", async () => {
-      const { wrapper } = make();
+      const { wrapper, daemon } = make();
       await wrapper.find("#set-tnc-profile").setValue("kiss-tcp");
-      await wrapper.setProps({
+      await tell(daemon, {
         lastError: toastOf("set_config: tnc/profile: KISS over TCP connects over TCP (tcp/host and tcp/port), not to the serial port COM3"),
       });
       expect(wrapper.find("#set-tnc-profile").element.closest(".field")?.querySelector(".field-error")?.textContent).toContain("not to the serial port COM3");
@@ -300,11 +305,7 @@ describe("SettingsForm", () => {
 
   describe("the TNC port", () => {
     const OWNER = { "serial/port": "/dev/brainbox_3", "serial/pattern": "/dev/brainbox_*", "serial/last_port": "/dev/brainbox_3", "serial/baud": "9600" };
-    const withPorts = (extra: Record<string, string> = {}, ports: PortsMessage | null = portList()) => {
-      const send = vi.fn((_command: Command) => true);
-      const wrapper = mount(SettingsForm, { props: { config: configValues(extra), lastError: null, send, ports } });
-      return { wrapper, send };
-    };
+    const withPorts = (extra: Record<string, string> = {}, ports: PortsMessage | null = portList()) => make(extra, "settings", { ports });
     type Wrapper = ReturnType<typeof make>["wrapper"];
     const select = (wrapper: Wrapper) => wrapper.find<HTMLSelectElement>("#set-serial-port");
     const options = (wrapper: Wrapper) =>
@@ -420,19 +421,19 @@ describe("SettingsForm", () => {
     });
 
     it("never sends the port found, whatever else is changed, and sends the changes one at a time", async () => {
-      const { wrapper, send } = withPorts({ "serial/port": "" });
+      const { wrapper, send, daemon } = withPorts({ "serial/port": "" });
       await wrapper.find("#set-serial-baud").setValue("19200");
       await wrapper.find("#set-serial-baud").trigger("blur");
       await wrapper.find("#set-map-radius_km").setValue("200");
       await wrapper.find("#set-map-radius_km").trigger("blur");
       expect(send.mock.calls.filter(([c]) => c.cmd === "set_config")).toEqual([[{ cmd: "set_config", values: { "serial/baud": "19200" } }]]);
-      await wrapper.setProps({ config: configValues({ "serial/port": "", "serial/baud": "19200" }) });
+      await tell(daemon, { config: configValues({ "serial/port": "", "serial/baud": "19200" }) });
       expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "map/radius_km": "200" } });
     });
 
     it("follows the daemon when it finds the radio on another port", async () => {
-      const { wrapper } = withPorts({ "serial/port": "", "serial/last_port": "/dev/ttyUSB0" });
-      await wrapper.setProps({ config: configValues({ "serial/port": "", "serial/last_port": "/dev/ttyACM0" }) });
+      const { wrapper, daemon } = withPorts({ "serial/port": "", "serial/last_port": "/dev/ttyUSB0" });
+      await tell(daemon, { config: configValues({ "serial/port": "", "serial/last_port": "/dev/ttyACM0" }) });
       expect(found(wrapper).text()).toBe("found: /dev/ttyACM0");
     });
 
@@ -554,10 +555,10 @@ describe("SettingsForm", () => {
 
   describe("what the daemon answers", () => {
     it("shows the error of the daemon under the field it names, with the typed text kept and the value in force unchanged", async () => {
-      const { wrapper } = make({}, "beacon");
+      const { wrapper, daemon } = make({}, "beacon");
       await wrapper.find("#set-station-comment").setValue("é is not ascii");
       await wrapper.find("#set-station-comment").trigger("blur");
-      await wrapper.setProps({ lastError: toastOf("set_config: station/comment: 'é' is not ASCII") });
+      await tell(daemon, { lastError: toastOf("set_config: station/comment: 'é' is not ASCII") });
       const field = wrapper.find("#set-station-comment").element.closest(".field");
       expect(field?.querySelector(".field-error")?.textContent).toBe("'é' is not ASCII");
       expect(wrapper.find<HTMLInputElement>("#set-station-comment").element.value).toBe("é is not ascii");
@@ -565,14 +566,14 @@ describe("SettingsForm", () => {
     });
 
     it("shows nothing beside the field while a change is on its way or when it is saved, so that nothing moves; a screen reader is told", async () => {
-      const { wrapper } = make({}, "beacon");
+      const { wrapper, daemon } = make({}, "beacon");
       const field = () => wrapper.find("#set-station-comment").element.closest(".field");
       const shape = () => [...(field()?.querySelectorAll("*") ?? [])].map((e) => e.tagName).join(" ");
       const before = shape();
       await wrapper.find("#set-station-comment").setValue("Hello");
       await wrapper.find("#set-station-comment").trigger("blur");
       expect(wrapper.find("[role='status'][aria-live]").text()).toBe("");
-      await wrapper.setProps({ config: configValues({ "station/comment": "Hello" }) });
+      await tell(daemon, { config: configValues({ "station/comment": "Hello" }) });
       expect(wrapper.find("[role='status'][aria-live]").text()).toBe("Saved");
       expect(wrapper.find(".field-state").exists()).toBe(false);
       expect(wrapper.text()).not.toContain("Saved ✓");
@@ -582,17 +583,17 @@ describe("SettingsForm", () => {
     });
 
     it("shows a refused choice as it was, with the reason under it", async () => {
-      const { wrapper } = make();
+      const { wrapper, daemon } = make();
       await wrapper.find("#set-tnc-profile").setValue("kiss");
-      await wrapper.setProps({ lastError: toastOf("set_config: tnc/profile: KISS TNC is too much") });
+      await tell(daemon, { lastError: toastOf("set_config: tnc/profile: KISS TNC is too much") });
       expect(wrapper.find<HTMLSelectElement>("#set-tnc-profile").element.value).toBe("kenwood-tnc2");
       expect(wrapper.find("#set-tnc-profile").element.closest(".field")?.querySelector(".field-error")?.textContent).toBe("KISS TNC is too much");
     });
 
     it("leaves a field that is being edited alone when the daemon tells other settings, and follows it in a field that is not", async () => {
-      const { wrapper } = make({}, "beacon");
+      const { wrapper, daemon } = make({}, "beacon");
       await wrapper.find("#set-station-comment").setValue("mine");
-      await wrapper.setProps({ config: configValues({ "station/comment": "theirs", "beacon/path": "WIDE2-2" }) });
+      await tell(daemon, { config: configValues({ "station/comment": "theirs", "beacon/path": "WIDE2-2" }) });
       expect(wrapper.find<HTMLInputElement>("#set-station-comment").element.value).toBe("mine");
       expect(wrapper.find<HTMLInputElement>("#set-beacon-path").element.value).toBe("WIDE2-2");
     });
@@ -607,10 +608,10 @@ describe("SettingsForm", () => {
     });
 
     it("says on the power that the comment must be shorter first", async () => {
-      const { wrapper } = make({ "station/comment": "x".repeat(40) }, "beacon");
+      const { wrapper, daemon } = make({ "station/comment": "x".repeat(40) }, "beacon");
       await wrapper.find("#set-beacon-power_w").setValue("5");
       await wrapper.find("#set-beacon-power_w").trigger("blur");
-      await wrapper.setProps({
+      await tell(daemon, {
         lastError: toastOf(
           "set_config: station/comment: 40 characters is more than the 36 allowed with the PHG extension (clear beacon/power_w to send none)",
           "setting.comment_too_long",
@@ -623,21 +624,18 @@ describe("SettingsForm", () => {
   });
 
   describe("the Notifications group", () => {
-    it("has the daemon's own alert under a heading of its own, with no Messaging group beside it, and the slot for the browser's fields after it", () => {
-      const wrapper = mount(SettingsForm, {
-        props: { config: configValues(), lastError: null, send: vi.fn(() => true) },
-        slots: { notifications: '<p id="from-slot">browser</p>' },
-      });
+    it("has the daemon's own alert under a heading of its own, with no Messaging group beside it, and the browser's fields after it", () => {
+      const wrapper = mount(SettingsForm, { global: withDaemon() });
       const groups = wrapper.findAll("fieldset");
       const titles = groups.map((g) => g.find("legend").text());
       expect(titles).toContain("Notifications");
       const group = groups[titles.indexOf("Notifications")];
-      expect(group?.findAll("label").map((l) => l.text())).toEqual(["Alert", "Command"]);
+      expect(group?.findAll("label").map((l) => l.text())).toEqual(["Alert", "Command", "Alert for a new message", "Sound", "Pop-up"]);
       expect(group?.find("h3").text()).toBe("On the NeoAPRS computer i");
       expect(group?.find("h3").attributes("title")).toBeTruthy();
-      expect(group?.find("#from-slot").exists()).toBe(true);
+      expect(group?.find("#alert-mode").exists()).toBe(true);
       expect(titles).not.toContain("Messaging");
-      expect(wrapper.findAll("#from-slot")).toHaveLength(1);
+      expect(wrapper.findAll("#alert-mode")).toHaveLength(1);
     });
     it("is not in the Beacon tab", () => {
       expect(make({}, "beacon").wrapper.text()).not.toContain("On the NeoAPRS computer");
@@ -680,22 +678,22 @@ describe("SettingsForm", () => {
     });
 
     it("sends update_check, waits for the answer and says up to date with the version", async () => {
-      const { wrapper, send } = make();
+      const { wrapper, send, daemon } = make();
       await check(wrapper)?.trigger("click");
       expect(send).toHaveBeenCalledWith({ cmd: "update_check" });
       expect(check(wrapper)?.attributes("disabled")).toBeDefined();
       await check(wrapper)?.trigger("click");
       expect(send).toHaveBeenCalledTimes(1);
-      await wrapper.setProps({ updateResult: answer({}) });
+      await tell(daemon, { updateResult: answer({}) });
       expect(check(wrapper)?.attributes("disabled")).toBeUndefined();
       expect(wrapper.find(".updatecheck-result").text()).toBe("up to date (0.3.0)");
       expect(wrapper.find("button.updatecheck-result").exists()).toBe(false);
     });
 
     it("says which version is available, as a button that asks for the panel with the steps", async () => {
-      const { wrapper } = make();
+      const { wrapper, daemon } = make();
       await check(wrapper)?.trigger("click");
-      await wrapper.setProps({ updateResult: answer({ outcome: "newer", version: "0.4.0" }) });
+      await tell(daemon, { updateResult: answer({ outcome: "newer", version: "0.4.0" }) });
       const result = wrapper.find("button.updatecheck-result");
       expect(result.text()).toBe("0.4.0 available");
       await result.trigger("click");
@@ -703,9 +701,9 @@ describe("SettingsForm", () => {
     });
 
     it("says no answer, with the reason when the daemon gave one", async () => {
-      const { wrapper } = make();
+      const { wrapper, daemon } = make();
       await check(wrapper)?.trigger("click");
-      await wrapper.setProps({ updateResult: answer({ outcome: "no_answer", version: "", text: "the version page could not be reached" }) });
+      await tell(daemon, { updateResult: answer({ outcome: "no_answer", version: "", text: "the version page could not be reached" }) });
       expect(wrapper.find(".updatecheck-result").text()).toBe("the version page could not be reached");
     });
   });
@@ -719,7 +717,14 @@ describe("SettingsForm", () => {
     it("is right of the alert command, and of no other field but the update check's and the (i) of the digipeater, and not in the Beacon tab", () => {
       const { wrapper } = make();
       expect(button(wrapper)?.textContent?.trim()).toBe("Test");
-      expect(wrapper.findAll(".field button:not(.info-toggle)").map((b) => b.text())).toEqual(["Refresh", "Test", "Check now"]);
+      expect(wrapper.findAll(".field button:not(.info-toggle)").map((b) => b.text())).toEqual([
+        "Refresh",
+        "Test",
+        "Enable pop-ups…",
+        "Test sound",
+        "Test pop-up",
+        "Check now",
+      ]);
       expect(
         make({}, "beacon")
           .wrapper.findAll(".field button:not(.info-toggle)")
@@ -728,22 +733,22 @@ describe("SettingsForm", () => {
     });
 
     it("sends alert_test, waits while it runs, and shows ran in green under the field", async () => {
-      const { wrapper, send } = make();
+      const { wrapper, send, daemon } = make();
       await wrapper.find("#set-messages-alert_command + button").trigger("click");
       expect(send).toHaveBeenCalledWith({ cmd: "alert_test" });
       expect(button(wrapper)?.hasAttribute("disabled")).toBe(true);
       await wrapper.find("#set-messages-alert_command + button").trigger("click");
       expect(send.mock.calls.filter(([c]) => c.cmd === "alert_test")).toHaveLength(1);
-      await wrapper.setProps({ alertResult: { type: "alert_result", ok: true, text: "ran" } });
+      await tell(daemon, { alertResult: { type: "alert_result", ok: true, text: "ran" } });
       expect(button(wrapper)?.hasAttribute("disabled")).toBe(false);
       expect(result(wrapper)?.textContent).toBe("ran");
       expect(result(wrapper)?.classList.contains("ok")).toBe(true);
     });
 
     it("shows a failure in red, and the result goes with the next edit", async () => {
-      const { wrapper } = make();
+      const { wrapper, daemon } = make();
       await wrapper.find("#set-messages-alert_command + button").trigger("click");
-      await wrapper.setProps({ alertResult: { type: "alert_result", ok: false, text: "exit code 3: no display" } });
+      await tell(daemon, { alertResult: { type: "alert_result", ok: false, text: "exit code 3: no display" } });
       expect(result(wrapper)?.textContent).toBe("exit code 3: no display");
       expect(result(wrapper)?.classList.contains("ok")).toBe(false);
       await wrapper.find("#set-messages-alert_command").setValue("true");
@@ -751,9 +756,9 @@ describe("SettingsForm", () => {
     });
 
     it("shows the error of an empty command as the result", async () => {
-      const { wrapper } = make();
+      const { wrapper, daemon } = make();
       await wrapper.find("#set-messages-alert_command + button").trigger("click");
-      await wrapper.setProps({ lastError: toastOf("alert_test: no alert command") });
+      await tell(daemon, { lastError: toastOf("alert_test: no alert command") });
       expect(result(wrapper)?.textContent).toBe("no alert command");
       expect(button(wrapper)?.hasAttribute("disabled")).toBe(false);
     });
@@ -769,16 +774,12 @@ describe("SettingsForm", () => {
   });
 
   it("says there is no word before the daemon has spoken", () => {
-    const wrapper = mount(SettingsForm, { props: { config: null, lastError: null, send: vi.fn(() => true) } });
+    const wrapper = mount(SettingsForm, { global: withDaemon(fakeDaemon({ config: null })) });
     expect(wrapper.text()).toContain("No word from the daemon yet.");
   });
 
   describe("the Map group", () => {
-    const mount_ = (map = mapState(), extra: Record<string, string> = {}, scope: Scope = "settings") => {
-      const send = vi.fn(() => true);
-      const wrapper = mount(SettingsForm, { props: { config: configValues(extra), lastError: null, send, scope, map } });
-      return { wrapper, send };
-    };
+    const mount_ = (map = mapState(), extra: Record<string, string> = {}, scope: Scope = "settings") => make(extra, scope, { map });
 
     it("ends with the buttons that make the map, in the Map group and nowhere else", () => {
       const { wrapper } = mount_();
@@ -789,7 +790,7 @@ describe("SettingsForm", () => {
     });
 
     it("has no buttons until the daemon has told the state of the map", () => {
-      const wrapper = mount(SettingsForm, { props: { config: configValues(), lastError: null, send: vi.fn(() => true) } });
+      const wrapper = mount(SettingsForm, { global: withDaemon() });
       expect(wrapper.find(".mapfetch").exists()).toBe(false);
     });
 
@@ -807,14 +808,14 @@ describe("SettingsForm", () => {
     });
 
     it("turns the buttons off while a map setting is being saved, and on again when it is, and takes the radius when the field is left", async () => {
-      const { wrapper, send } = mount_();
+      const { wrapper, send, daemon } = mount_();
       const buttons = () => wrapper.findAll(".mapfetch button");
       await wrapper.find("#set-map-radius_km").setValue("60");
       expect(buttons().every((b) => b.attributes("disabled") === undefined)).toBe(true); // (typing sends nothing)
       await wrapper.find("#set-map-radius_km").trigger("blur");
       expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "map/radius_km": "60" } });
       expect(buttons().every((b) => b.attributes("disabled") !== undefined && b.attributes("title") === "Saving…")).toBe(true);
-      await wrapper.setProps({ config: configValues({ "map/radius_km": "60" }) });
+      await tell(daemon, { config: configValues({ "map/radius_km": "60" }) });
       expect(buttons().every((b) => b.attributes("disabled") === undefined)).toBe(true);
     });
   });
@@ -859,10 +860,10 @@ describe("SettingsForm: the Location of our station (Beacon tab)", () => {
   });
 
   it("applies a place picked on the map at once, latitude and longitude in one set_config", async () => {
-    const { wrapper, send } = make({}, "beacon");
+    const { wrapper, send, daemon } = make({}, "beacon");
     await wrapper.setProps({ picked: { lat: 60.429449, lon: 24.1452399, n: 1 } });
     expect(send.mock.calls).toEqual([[{ cmd: "set_config", values: { "station/lat": "60.42945", "station/lon": "24.14524" } }]]);
-    await wrapper.setProps({ config: configValues({ "station/lat": "60.42945", "station/lon": "24.14524" }) });
+    await tell(daemon, { config: configValues({ "station/lat": "60.42945", "station/lon": "24.14524" }) });
     expect(wrapper.find(".location-line").text()).toContain("60.42945 N, 24.14524 E");
   });
 

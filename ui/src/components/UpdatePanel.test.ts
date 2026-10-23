@@ -2,11 +2,12 @@ import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import UpdatePanel from "@/components/UpdatePanel.vue";
 import type { InstallInfo } from "@/protocol/protocol";
+import { fakeDaemon, withDaemon } from "@/test/context";
 
 afterEach(() => vi.restoreAllMocks());
 
 const install = (kind: InstallInfo["kind"], extra: Partial<InstallInfo> = {}): InstallInfo => ({ kind, appimage: "", service: false, arch: "", ...extra });
-const panel = (info: InstallInfo | null, version = "0.4.0") => mount(UpdatePanel, { props: { version, install: info } });
+const panel = (info: InstallInfo | null, version = "0.4.0") => mount(UpdatePanel, { props: { version }, global: withDaemon(fakeDaemon({ install: info })) });
 const copyButtons = (wrapper: ReturnType<typeof panel>) => wrapper.findAll("button").filter((b) => b.text().startsWith("Copy") || b.text() === "Copied");
 
 describe("UpdatePanel", () => {
@@ -103,7 +104,7 @@ describe("UpdatePanel", () => {
   });
 
   it("closes with the cross and with Escape", async () => {
-    const wrapper = mount(UpdatePanel, { props: { version: "0.4.0", install: install("pip") }, attachTo: document.body });
+    const wrapper = mount(UpdatePanel, { props: { version: "0.4.0" }, global: withDaemon(fakeDaemon({ install: install("pip") })), attachTo: document.body });
     expect(wrapper.find("button[aria-label=Close]").classes()).toContain("xbtn");
     await wrapper.find("button[aria-label=Close]").trigger("click");
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));

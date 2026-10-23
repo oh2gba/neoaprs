@@ -1,8 +1,8 @@
 import "@/test/mockmap";
-import { flushPromises, mount } from "@vue/test-utils";
+import { flushPromises } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import StationMap from "@/components/StationMap.vue";
 import { FakeMap, resetFakes } from "@/test/fakemap";
+import { mountStationMap } from "@/test/stationmap";
 import { NOW, ago, station, table } from "@/test/fixtures";
 import { cssRule } from "@/test/css";
 
@@ -40,7 +40,7 @@ async function mounted(withCard = true) {
   page.className = "mapwrap";
   if (withCard) page.innerHTML = '<section class="card"></section>';
   document.body.append(page);
-  const wrapper = mount(StationMap, { props: props(), attachTo: page });
+  const { wrapper } = mountStationMap(props(), page);
   await flushPromises();
   return wrapper;
 }

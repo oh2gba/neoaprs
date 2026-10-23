@@ -7,6 +7,7 @@ import { useSetupGuide } from "@/composables/useSetupGuide";
 import { SYMBOL_CHOICES } from "@/lib/setup";
 import { TNC_PROFILES } from "@/protocol/lists";
 import type { Command, ConfigValues, MapState, PortsMessage } from "@/protocol/protocol";
+import { fakeDaemon, withDaemon } from "@/test/context";
 import { configValues, mapState, toastOf } from "@/test/fixtures";
 
 const fresh = (extra: Record<string, string> = {}) =>
@@ -24,9 +25,11 @@ function make(opts: { config?: ConfigValues; map?: MapState | null } = {}) {
   const lastError = ref<Toast | null>(null);
   const portList = ref<PortsMessage | null>(null);
   const sent: Command[] = [];
-  const guide = useSetupGuide(config, lastError, portList, (command) => (sent.push(command), true));
+  const send = (command: Command) => (sent.push(command), true);
+  const guide = useSetupGuide(config, lastError, portList, send);
   guide.show();
-  const wrapper = mount(SetupGuide, { props: { guide, config: config.value, map: opts.map === undefined ? mapState() : opts.map }, attachTo: document.body });
+  const map = opts.map === undefined ? mapState() : opts.map;
+  const wrapper = mount(SetupGuide, { global: withDaemon(fakeDaemon({ config, lastError, ports: portList, guide, map, send })), attachTo: document.body });
   const type = (id: string, text: string) => wrapper.find<HTMLInputElement>(`#${id}`).setValue(text);
   const next = () => wrapper.find("form").trigger("submit");
   const button = (label: string) => wrapper.findAll("button").find((b) => b.text() === label);

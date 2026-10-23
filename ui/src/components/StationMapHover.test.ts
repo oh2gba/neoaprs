@@ -1,8 +1,8 @@
 import "@/test/mockmap";
-import { flushPromises, mount } from "@vue/test-utils";
+import { flushPromises } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import StationMap from "@/components/StationMap.vue";
 import { FakeMap, FakeMarker, resetFakes } from "@/test/fakemap";
+import { mountStationMap } from "@/test/stationmap";
 import { NOW, ago, station, table, weather } from "@/test/fixtures";
 
 const stations = () =>
@@ -41,7 +41,7 @@ function pointer(target: HTMLElement, type: string, pointerType = "mouse"): void
 }
 
 async function mounted(extra = {}) {
-  const wrapper = mount(StationMap, { props: props(extra), attachTo: document.body });
+  const { wrapper } = mountStationMap(props(extra));
   await flushPromises();
   vi.useFakeTimers();
   return wrapper;

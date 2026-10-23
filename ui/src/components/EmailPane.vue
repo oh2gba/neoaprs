@@ -6,16 +6,14 @@ import { computed } from "vue";
 import EmailCompose from "@/components/EmailCompose.vue";
 import EmailList from "@/components/EmailList.vue";
 import InfoTip from "@/components/InfoTip.vue";
+import { useDaemonContext } from "@/composables/useDaemonContext";
 import { checkingMail } from "@/lib/email";
 import type { MessageRow } from "@/protocol/protocol";
 
-const props = withDefaults(
-  defineProps<{ thread: readonly MessageRow[]; connected: boolean; addresses: readonly string[]; freshAfter?: number; heardDirect?: ReadonlySet<string> }>(),
-  {
-    freshAfter: Number.MAX_SAFE_INTEGER,
-    heardDirect: () => new Set<string>(),
-  },
-);
+const props = withDefaults(defineProps<{ thread: readonly MessageRow[]; addresses: readonly string[]; freshAfter?: number }>(), {
+  freshAfter: Number.MAX_SAFE_INTEGER,
+});
+const { connected, heardDirect } = useDaemonContext();
 const emit = defineEmits<{
   send: [to: string, text: string];
   forget: [name: string];
@@ -26,7 +24,7 @@ const emit = defineEmits<{
 }>();
 
 const checking = computed(() => checkingMail(props.thread));
-const away = computed(() => (!props.connected ? "The TNC is not connected" : checking.value ? "Already checking" : undefined));
+const away = computed(() => (!connected.value ? "The TNC is not connected" : checking.value ? "Already checking" : undefined));
 </script>
 
 <template>

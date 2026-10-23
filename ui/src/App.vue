@@ -1,153 +1,44 @@
 <script setup lang="ts">
 // The page: a calm header (the title, a link to the project's page, and the messages not seen), the map filling the page, and at its right a panel with the stations, the packets, the messages, the email, the bulletins, our objects, the beacon and the settings (which open with the state of the radio link), and under the open tab a footer with the version, a newer version if there is one and what is wrong with the radio link, if anything.
-// The shell only: what the daemon tells is `useDaemon`, the panel `usePanel`, the station cards (one, or several with Ctrl+click) `useStationCards`, the size of the page and what a phone shows `useLayout`, the Messages tab `useMessagesView`, the Email tab `useEmail`, the Bulletins tab `useBulletins`, the Objects tab `useOwnObjects`, the paths, timeouts and RF only of the stations
-// `useStationPrefs`, the settings of the Beacon tab and the Settings tab, which apply as they are changed (one queue for both, and the toast that undoes the latest change) `useSettings`, the first-run guide (it opens by itself while the daemon has no call) `useSetupGuide`, the alert of this browser for a message to us `useBrowserAlerts` and `usePageAlerts`; the components take props and emit events, and the commands go out through `send`.
-import { useMapPicks } from "@/composables/useMapPicks";
-import { computed, ref, watch } from "vue";
+// The layout only: the page put together, and what the panes share (the daemon's state, `send`, the settings, the guide, the panel), is `useAppShell`; a pane takes from the context what is the page's as a whole, and as props what is its own (the rows it lists, the one that is open).
 import AppHeader from "@/components/AppHeader.vue";
 import BeaconPane from "@/components/BeaconPane.vue";
-import BrowserAlerts from "@/components/BrowserAlerts.vue";
 import BulletinsPane from "@/components/BulletinsPane.vue";
 import EmailPane from "@/components/EmailPane.vue";
+import MapPickBar from "@/components/MapPickBar.vue";
 import MessagesPane from "@/components/MessagesPane.vue";
 import ObjectsPane from "@/components/ObjectsPane.vue";
 import PacketsLog from "@/components/PacketsLog.vue";
 import PanelFooter from "@/components/PanelFooter.vue";
-import SetupGuide from "@/components/SetupGuide.vue";
 import SettingsForm from "@/components/SettingsForm.vue";
+import SetupGuide from "@/components/SetupGuide.vue";
 import SidePanel from "@/components/SidePanel.vue";
-import MapPickBar from "@/components/MapPickBar.vue";
 import StationCards from "@/components/StationCards.vue";
 import StationMap from "@/components/StationMap.vue";
 import StationsTable from "@/components/StationsTable.vue";
-import RadioStatus from "@/components/RadioStatus.vue";
 import ToastBar from "@/components/ToastBar.vue";
 import UndoToast from "@/components/UndoToast.vue";
 import UpdatePanel from "@/components/UpdatePanel.vue";
-import { useBrowserAlerts } from "@/composables/useBrowserAlerts";
-import { useHome } from "@/composables/useHome";
-import { useLayout } from "@/composables/useLayout";
-import { useBulletins } from "@/composables/useBulletins";
-import { useDaemon } from "@/composables/useDaemon";
-import { useDark } from "@/composables/useDark";
-import { useEmail } from "@/composables/useEmail";
-import { useMessagesView } from "@/composables/useMessagesView";
-import { useNow } from "@/composables/useNow";
-import { usePageAlerts } from "@/composables/usePageAlerts";
-import { useOwnObjects } from "@/composables/useOwnObjects";
-import { usePanel } from "@/composables/usePanel";
-import { useStationCards } from "@/composables/useStationCards";
-import { useSettings } from "@/composables/useSettings";
-import { useSetupGuide } from "@/composables/useSetupGuide";
-import { useStationPrefs } from "@/composables/useStationPrefs";
-import { useTitle } from "@/composables/useTitle";
-import { DEFAULT_TIMEOUT_MIN, type Aging } from "@/lib/aging";
-import { filesKey } from "@/lib/mapfetch";
-import { withOwnSymbol } from "@/lib/stations";
+import { useAppShell } from "@/composables/useAppShell";
 
-const {
-  stations: heard,
-  packets,
-  messages,
-  messagesLoaded,
-  bulletins,
-  ownObjects,
-  ownBulletins,
-  stationPrefs,
-  tnc,
-  config,
-  map,
-  status,
-  connection,
-  lastError,
-  version,
-  install,
-  weatherSeriesByCall,
-  alertResult,
-  updateResult,
-  ports,
-  send,
-} = useDaemon();
-// the ports the system lists, for the Settings tab and the setup guide: asked each time the daemon is connected (not before: a command then is refused with a toast)
-watch(connection, (state) => {
-  if (state === "open") send({ cmd: "list_ports" });
-});
-const settings = useSettings(config, lastError, send);
-const stations = computed(() => withOwnSymbol(heard, config.value?.values));
-const { paths: stationPaths, timeouts, rfOnly, setRfOnly, setPath, clearPath, setTimeoutMin, clearTimeoutMin } = useStationPrefs(stationPrefs, send);
-const aging = computed<Aging>(() => ({ timeouts: timeouts.value, defaultMin: DEFAULT_TIMEOUT_MIN }));
-// the panel with the steps of an update is open on purpose, and goes when the newer version does
-const updateOpen = ref(false);
-const newer = computed(() => status.value?.update?.version ?? null);
-watch(newer, (version) => version === null && (updateOpen.value = false));
-const now = useNow();
-const dark = useDark();
-const guide = useSetupGuide(config, lastError, ports, send);
-let guideShown = false;
-// the guide opens once, when the daemon says it has no call (the page's first word of a fresh install)
-watch(
-  () => config.value?.values["station/call"] === "",
-  (empty) => {
-    if (empty && !guideShown) {
-      guideShown = true;
-      guide.show();
-    }
-  },
-  { immediate: true },
-);
-
-const panel = usePanel();
-const talk = useMessagesView(messages, panel, send);
-const mail = useEmail(messages, panel, send);
-const board = useBulletins(bulletins, panel);
-const alerts = useBrowserAlerts(talk.writeTo);
-usePageAlerts(messages, messagesLoaded, alerts.announce);
-// the messages not seen, those of the Messages tab and those of the email gateway: one count, the one of the header, of the folded panel's handle and of the browser tab's title
-const unread = computed(() => talk.unread.value + mail.unread.value);
-useTitle(unread, alerts.tabTitle);
-/** The mail of the header: the Messages tab, or the Email tab when the messages not seen are all the gateway's. */
-function openUnread(): void {
-  if (talk.unread.value > 0 || mail.unread.value === 0) talk.openMessages();
-  else panel.show("email");
-}
-const suggestions = computed(() => new Map([...stations.value].map(([call, row]) => [call, row.suggested_path] as const)));
-const heardDirect = computed(() => new Set([...stations.value].filter(([, row]) => row.heard_direct > 0).map(([call]) => call)));
-const fallbackPath = computed(() => config.value?.values["beacon/path"] ?? "");
-const connected = computed(() => tnc.value?.state === "connected");
-
-const call = computed<string | null>(() => config.value?.values["station/call"] ?? status.value?.call ?? null);
-const home = useHome(config, status);
-const objects = useOwnObjects(ownObjects, home, send, panel);
-
-const picks = useMapPicks(guide, objects);
+const { daemon, call, unread, openUnread, updateOpen, newer, talk, mail, board, objects, picks, layout, cards, guide, panel, settings, prefs } = useAppShell();
+const { send, ownObjects, ownBulletins, bulletins, packets, lastError } = daemon;
 const { stationPick, pickingTab } = picks;
-
-// the size of the page, what a phone shows (the map or the tab), and the station cards: one, or several with Ctrl+click on a desktop and a tablet
-const layout = useLayout(
-  panel,
-  computed(() => guide.open),
-  pickingTab,
-);
-const cards = useStationCards(stations, send, layout, () => guide.open || updateOpen.value);
 const { selected, focus } = cards;
+const retry = (id: number): boolean => send({ cmd: "message_retry", id });
+const cancel = (id: number): boolean => send({ cmd: "message_cancel", id });
 </script>
 
 <template>
   <div class="app" :class="layout.rootClass.value">
     <AppHeader :call="call" :unread="unread" @messages="openUnread" @setup="guide.show()" />
-    <UpdatePanel v-if="updateOpen && newer" :version="newer" :install="install" @close="updateOpen = false" />
+    <UpdatePanel v-if="updateOpen && newer" :version="newer" @close="updateOpen = false" />
     <main class="main">
       <div class="mapwrap">
         <StationMap
-          :stations="stations"
           :selected="selected"
           :others="cards.others.value"
           :focus="focus"
-          :home="home"
-          :now="now"
-          :dark="dark"
-          :aging="aging"
-          :files-key="filesKey(map)"
           :picking="guide.picking || objects.picking || stationPick.picking.value"
           :pin="guide.open ? guide.pin : objects.pin"
           @select="cards.onMarker"
@@ -155,14 +46,11 @@ const { selected, focus } = cards;
           @move="objects.move"
           @download="panel.show('settings')"
         />
-        <SetupGuide :guide="guide" :config="config" :map="map" />
+        <SetupGuide />
         <MapPickBar v-if="layout.phone.value && pickingTab" @cancel="picks.cancel" />
         <StationCards
           :rows="cards.rows.value"
           :size="layout.size.value"
-          :now="now"
-          :aging="aging"
-          :weather-series="weatherSeriesByCall"
           @close="cards.close"
           @close-all="cards.closeAll"
           @message-all="talk.openGroup"
@@ -172,8 +60,8 @@ const { selected, focus } = cards;
           @edit="objects.edit"
           @kill="objects.kill"
           @message="talk.writeTo"
-          @timeout="setTimeoutMin"
-          @clear-timeout="clearTimeoutMin"
+          @timeout="prefs.setTimeoutMin"
+          @clear-timeout="prefs.clearTimeoutMin"
         />
       </div>
       <SidePanel
@@ -186,27 +74,10 @@ const { selected, focus } = cards;
         @update:view="layout.view.value = $event"
       >
         <template #footer>
-          <PanelFooter
-            :connection="connection"
-            :tnc="tnc"
-            :version="version"
-            :now="now"
-            :status="status"
-            @update="updateOpen = true"
-            @radio="panel.show('settings')"
-          />
+          <PanelFooter @update="updateOpen = true" @radio="panel.show('settings')" />
         </template>
         <template #stations>
-          <StationsTable
-            :stations="stations"
-            :selected="selected"
-            :others="cards.others.value"
-            :now="now"
-            :aging="aging"
-            :own-call="call"
-            @select="cards.onRow"
-            @message="talk.writeTo"
-          />
+          <StationsTable :selected="selected" :others="cards.others.value" @select="cards.onRow" @message="talk.writeTo" />
         </template>
         <template #packets>
           <PacketsLog :packets="packets" />
@@ -216,92 +87,43 @@ const { selected, focus } = cards;
             :conversations="talk.list.value"
             :selected="talk.selected.value"
             :thread="talk.thread.value"
-            :connected="connected"
-            :now="now"
             :show-overheard="talk.showOverheard.value"
-            :paths="stationPaths"
-            :suggestions="suggestions"
-            :fallback-path="fallbackPath"
-            :rf-only="rfOnly"
-            :heard-direct="heardDirect"
             :group="talk.group.value"
             @update:show-overheard="talk.showOverheard.value = $event"
             @update:group="talk.group.value = $event"
-            @path="setPath"
-            @clear-path="clearPath"
-            @set-rf-only="setRfOnly"
             @select="talk.selected.value = $event"
             @delete-conversation="talk.deleteConversation"
             @delete-overheard="talk.deleteOverheard"
             @send="talk.sendMessage"
             @send-many="talk.sendMessages"
-            @retry="send({ cmd: 'message_retry', id: $event })"
-            @cancel="send({ cmd: 'message_cancel', id: $event })"
+            @retry="retry"
+            @cancel="cancel"
           />
         </template>
         <template #email>
           <EmailPane
             :thread="mail.thread.value"
-            :connected="connected"
             :addresses="mail.addresses.value"
             :fresh-after="mail.freshAfter.value"
-            :heard-direct="heardDirect"
             @send="mail.sendMail"
             @forget="mail.forget"
             @get="mail.checkMail"
             @delete="mail.remove"
-            @retry="send({ cmd: 'message_retry', id: $event })"
-            @cancel="send({ cmd: 'message_cancel', id: $event })"
+            @retry="retry"
+            @cancel="cancel"
           />
         </template>
         <template #bulletins>
-          <BulletinsPane
-            :bulletins="bulletins"
-            :own-bulletins="ownBulletins"
-            :call="call"
-            :now="now"
-            @delete="(sender, slot) => send({ cmd: 'bulletin_delete', sender, slot })"
-            @post="(slot, text) => send({ cmd: 'bulletin_post', slot, text })"
-            @unpost="(slot) => send({ cmd: 'bulletin_unpost', slot })"
-          />
+          <BulletinsPane :bulletins="bulletins" :own-bulletins="ownBulletins" />
         </template>
         <template #objects>
-          <ObjectsPane :objects="ownObjects" :form="objects" :fallback-path="fallbackPath" :now="now" />
+          <ObjectsPane :objects="ownObjects" :form="objects" />
         </template>
         <template #beacon>
-          <BeaconPane
-            :status="status"
-            :connected="connected"
-            :now="now"
-            :config="config"
-            :last-error="lastError"
-            :send="send"
-            :settings="settings"
-            :picking="stationPick.picking.value"
-            :picked="stationPick.picked.value"
-            @beacon="send({ cmd: 'beacon_now' })"
-            @status="send({ cmd: 'status_now' })"
-            @pick-position="stationPick.toggle()"
-          />
+          <BeaconPane :picking="stationPick.picking.value" :picked="stationPick.picked.value" @pick-position="stationPick.toggle()" />
         </template>
         <template #settings>
-          <SettingsForm
-            :config="config"
-            :last-error="lastError"
-            :alert-result="alertResult"
-            :update-result="updateResult"
-            :map="map"
-            :ports="ports"
-            :send="send"
-            :settings="settings"
-            @setup="guide.show()"
-            @update="updateOpen = true"
-          >
-            <template #radio
-              ><RadioStatus :tnc="tnc" :now="now" :digipeater="config?.values['digi/enabled'] === 'true'" @reconnect="send({ cmd: 'tnc_reconnect' })"
-            /></template>
-            <template #notifications><BrowserAlerts :alerts="alerts" :https="config?.https" /></template>
-          </SettingsForm>
+          <SettingsForm @setup="guide.show()" @update="updateOpen = true" />
         </template>
       </SidePanel>
     </main>

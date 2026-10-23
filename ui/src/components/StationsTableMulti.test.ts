@@ -2,7 +2,8 @@ import { mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it } from "vitest";
 import StationsTable from "@/components/StationsTable.vue";
 import { cssRule } from "@/test/css";
-import { NOW, ago, station, table } from "@/test/fixtures";
+import { fakeDaemon, withDaemon } from "@/test/context";
+import { ago, station, table } from "@/test/fixtures";
 
 const rows = table(
   station("OH2ZWA", { distance_km: 7, last_heard: ago(60) }),
@@ -10,7 +11,7 @@ const rows = table(
   station("OH2ZWC", { distance_km: 13, last_heard: ago(180) }),
 );
 const make = (selected: string | null = null, others: string[] = []) =>
-  mount(StationsTable, { props: { stations: rows, selected, others, now: NOW, aging: { timeouts: new Map(), defaultMin: 0 } } });
+  mount(StationsTable, { props: { selected, others }, global: withDaemon(fakeDaemon({ stations: rows, aging: { timeouts: new Map(), defaultMin: 0 } })) });
 const row = (wrapper: ReturnType<typeof make>, call: string) => wrapper.findAll("tbody tr").find((r) => r.text().includes(call));
 
 beforeEach(() => localStorage.clear());
@@ -45,7 +46,7 @@ describe("StationsTable with several cards", () => {
       station("OH2OLD", { lat: 60.4, lon: 25.1, last_position_at: ago(5 * 3600), last_heard: ago(5 * 3600) }),
     );
     const aging = { timeouts: new Map(), defaultMin: 180 };
-    const wrapper = mount(StationsTable, { props: { stations: old, selected: null, others: [], now: NOW, aging } });
+    const wrapper = mount(StationsTable, { props: { selected: null, others: [] }, global: withDaemon(fakeDaemon({ stations: old, aging })) });
     expect(wrapper.findAll("tbody td.call").map((td) => td.text())).toEqual(["OH2NEW", "OH2OLD"]);
     expect(row(wrapper, "OH2OLD")?.text()).toContain("timed out");
     await row(wrapper, "OH2OLD")?.trigger("click", { ctrlKey: true });
@@ -96,7 +97,8 @@ describe("StationsTable with several cards", () => {
   describe("Message OH2XYZ under an empty result", () => {
     const withFilter = async (text: string, ownCall: string | null = "OH2GBA") => {
       const wrapper = mount(StationsTable, {
-        props: { stations: rows, selected: null, others: [], now: NOW, aging: { timeouts: new Map(), defaultMin: 0 }, ownCall },
+        props: { selected: null, others: [] },
+        global: withDaemon(fakeDaemon({ stations: rows, aging: { timeouts: new Map(), defaultMin: 0 }, call: ownCall })),
       });
       await wrapper.find("input[type='search']").setValue(text);
       return wrapper;
@@ -116,7 +118,8 @@ describe("StationsTable with several cards", () => {
       const withUs = table(station("OH2GBA", { is_me: true }), station("OH2ZWA"));
       const make = (text: string) => {
         const wrapper = mount(StationsTable, {
-          props: { stations: withUs, selected: null, now: NOW, aging: { timeouts: new Map(), defaultMin: 0 }, ownCall: "OH2GBA" },
+          props: { selected: null },
+          global: withDaemon(fakeDaemon({ stations: withUs, aging: { timeouts: new Map(), defaultMin: 0 }, call: "OH2GBA" })),
         });
         return wrapper
           .find("input[type='search']")

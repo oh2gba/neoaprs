@@ -7,12 +7,14 @@ import IconButton from "@/components/IconButton.vue";
 import ObjectForm from "@/components/ObjectForm.vue";
 import SymbolIcon from "@/components/SymbolIcon.vue";
 import type { OwnObjectsView } from "@/composables/useOwnObjects";
+import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useSure } from "@/composables/useSure";
 import { useToNewest } from "@/composables/useToNewest";
 import { stateText } from "@/lib/ownobjects";
 import type { OwnObjectRow } from "@/protocol/protocol";
 
-const props = defineProps<{ objects: ReadonlyMap<string, OwnObjectRow>; form: OwnObjectsView; fallbackPath: string; now: number }>();
+const props = defineProps<{ objects: ReadonlyMap<string, OwnObjectRow>; form: OwnObjectsView }>();
+const { fallbackPath, now } = useDaemonContext();
 const sure = useSure<string>(); // (the name of a row)
 const rows = computed(() =>
   [...props.objects.values()].sort((a, b) => (a.created_at === b.created_at ? a.name.localeCompare(b.name) : a.created_at < b.created_at ? -1 : 1)),

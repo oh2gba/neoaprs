@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 import StationsTable from "@/components/StationsTable.vue";
 import type { Aging } from "@/lib/aging";
 import { cssRule } from "@/test/css";
-import { NOW, ago, station, table } from "@/test/fixtures";
+import { fakeDaemon, withDaemon } from "@/test/context";
+import { ago, station, table } from "@/test/fixtures";
 
 const rows = table(
   station("OH2GBA", { is_me: true, distance_km: null, bearing_deg: null, last_heard: ago(500), symbol_code: "-" }),
@@ -19,7 +20,7 @@ function calls(wrapper: ReturnType<typeof mount>): string[] {
 const never: Aging = { timeouts: new Map(), defaultMin: 0 };
 
 function make(selected: string | null = null, aging: Aging = never, stations = rows) {
-  return mount(StationsTable, { props: { stations, selected, now: NOW, aging } });
+  return mount(StationsTable, { props: { selected }, global: withDaemon(fakeDaemon({ stations, aging })) });
 }
 
 beforeEach(() => localStorage.clear());
@@ -194,7 +195,7 @@ describe("StationsTable", () => {
   });
 
   it("says so when there is no station", () => {
-    const wrapper = mount(StationsTable, { props: { stations: new Map(), selected: null, now: NOW, aging: never } });
+    const wrapper = mount(StationsTable, { props: { selected: null }, global: withDaemon(fakeDaemon({ aging: never })) });
     expect(wrapper.text()).toContain("No station heard yet.");
   });
 });

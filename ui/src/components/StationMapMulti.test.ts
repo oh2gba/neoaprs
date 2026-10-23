@@ -1,8 +1,8 @@
 import "@/test/mockmap";
-import { flushPromises, mount } from "@vue/test-utils";
+import { flushPromises } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import StationMap from "@/components/StationMap.vue";
 import { FakeMap, FakeMarker, resetFakes } from "@/test/fakemap";
+import { mountStationMap } from "@/test/stationmap";
 import { NOW, ago, station, table } from "@/test/fixtures";
 
 const stations = () =>
@@ -23,18 +23,15 @@ const stations = () =>
   );
 
 async function mounted(extra = {}) {
-  const wrapper = mount(StationMap, {
-    props: {
-      stations: stations(),
-      selected: null,
-      focus: null,
-      home: { lat: 60.17, lon: 24.94 },
-      now: NOW,
-      dark: false,
-      aging: { timeouts: new Map(), defaultMin: 60 },
-      ...extra,
-    },
-    attachTo: document.body,
+  const { wrapper } = mountStationMap({
+    stations: stations(),
+    selected: null,
+    focus: null,
+    home: { lat: 60.17, lon: 24.94 },
+    now: NOW,
+    dark: false,
+    aging: { timeouts: new Map(), defaultMin: 60 },
+    ...extra,
   });
   await flushPromises();
   return wrapper;

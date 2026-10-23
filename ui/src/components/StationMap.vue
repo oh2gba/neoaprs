@@ -20,13 +20,15 @@ import {
   OPEN_ZOOM,
   type Archives,
 } from "@/lib/basemapstyle";
+import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useClearOfCard } from "@/composables/useClearOfCard";
 import { useMapFollow } from "@/composables/useMapFollow";
 import { useResized } from "@/composables/useResized";
 import { buildMarkerDom, paintMarker, type MarkerDom } from "@/lib/markerdom";
 import { readView, writeView, type Focus, type Home } from "@/lib/mapview";
-import { markerStep, timedOut, type Aging } from "@/lib/aging";
+import { markerStep, timedOut } from "@/lib/aging";
 import { HoverCard } from "@/lib/hovercard";
+import { filesKey } from "@/lib/mapfetch";
 import { heardDirectRecently } from "@/lib/routes";
 import { routeFeatures } from "@/lib/routeline";
 import { addRouteLayers, ROUTE_SOURCE } from "@/lib/routelayers";
@@ -41,25 +43,21 @@ const LABELS_FROM_ZOOM = 8;
 
 const props = withDefaults(
   defineProps<{
-    stations: ReadonlyMap<string, StationRow>;
     selected: string | null;
     /** The stations of the other cards that are open (Ctrl+click): their markers are marked as the selected one's is (the route is drawn for the selected one only). */
     others?: readonly string[];
     focus: Focus | null;
-    home: Home | null;
-    now: number;
-    dark: boolean;
-    aging: Aging;
-    /** Changes when the map files on the daemon are other ones (their dates); null until the daemon has told. */
-    filesKey?: string | null;
     /** A click on the map is a place for the first-run guide. */
     picking?: boolean;
     /** The place the first-run guide holds, shown with a marker. */
     pin?: Home | null;
   }>(),
-  { others: () => [], filesKey: null, picking: false, pin: null },
+  { others: () => [], picking: false, pin: null },
 );
 const emit = defineEmits<{ select: [call: string | null, multi?: boolean]; download: []; pick: [at: Home]; move: [call: string, lat: number, lon: number] }>();
+const page = useDaemonContext();
+/** Changes when the map files on the daemon are other ones (their dates); null until the daemon has told. */
+const mapFiles = computed(() => filesKey(page.map.value));
 
 interface Placed {
   marker: Marker;
@@ -79,7 +77,7 @@ let map: MapLibreMap | null = null;
 let engine: Awaited<ReturnType<typeof loadMapEngine>> | null = null;
 let hasFiles = { detail: false, world: false }; // which of the two files the daemon has
 let generation = 0; // counts the times the files were made again: the addresses carry it, so that the reader of the archives starts afresh
-let seenKey: string | null = props.filesKey;
+let seenKey: string | null = mapFiles.value;
 let shown = ""; // the addresses the style on the map was made with
 let centred = true; // the view is the one of the last visit, or has been set to where we are
 let gone = false;
@@ -88,7 +86,7 @@ let hover: HoverCard | null = null;
 let clicked = false; // the pin moved because the map was clicked: the map is where the user is looking already
 
 /** The tracks are drawn again once a minute, and when a station changes; the fading is in steps that wide anyway. */
-const minute = computed(() => Math.floor(props.now / 60_000));
+const minute = computed(() => Math.floor(page.now.value / 60_000));
 
 const archives = (): Archives => ({
   detail: hasFiles.detail ? archiveUrl(BASEMAP_FILE, generation > 0 ? String(generation) : "") : null,
@@ -109,29 +107,29 @@ async function refreshBasemap(): Promise<void> {
   const now = JSON.stringify(archives());
   if (now === shown) return;
   shown = now;
-  map.setStyle(styleFor(props.dark));
+  map.setStyle(styleFor(page.dark.value));
 }
 
 function drawRoute(): void {
-  const row = props.selected === null ? undefined : props.stations.get(props.selected);
-  void map?.getSource<GeoJSONSource>(ROUTE_SOURCE)?.setData(routeFeatures(row, props.stations, props.home));
+  const row = props.selected === null ? undefined : page.stations.value.get(props.selected);
+  void map?.getSource<GeoJSONSource>(ROUTE_SOURCE)?.setData(routeFeatures(row, page.stations.value, page.home.value));
 }
 
 function addLayers(): void {
   if (!map) return;
-  addTrackLayers(map, trackLines([], null, props.now, props.aging));
+  addTrackLayers(map, trackLines([], null, page.now.value, page.aging.value));
   drawTracks();
-  addRouteLayers(map, routeFeatures(undefined, props.stations, null));
+  addRouteLayers(map, routeFeatures(undefined, page.stations.value, null));
   drawRoute();
 }
 
 /** The stations that are drawn: with a position and not past their timeout (a station whose card is open is drawn, with its track, whatever its timeout). */
 function drawn(): StationRow[] {
-  return [...props.stations.values()].filter((row) => hasPosition(row) && (isOpen(row.call) || !timedOut(props.aging, row, props.now)));
+  return [...page.stations.value.values()].filter((row) => hasPosition(row) && (isOpen(row.call) || !timedOut(page.aging.value, row, page.now.value)));
 }
 
 function drawTracks(): void {
-  void map?.getSource<GeoJSONSource>("tracks")?.setData(trackLines(drawn(), openCalls(), props.now, props.aging));
+  void map?.getSource<GeoJSONSource>("tracks")?.setData(trackLines(drawn(), openCalls(), page.now.value, page.aging.value));
 }
 
 function makePlaced(call: string): Placed | null {
@@ -158,8 +156,8 @@ const openCalls = (): string[] => (props.selected === null ? [...props.others] :
 function syncMarkers(): void {
   if (!map) return;
   const present = new Set<string>();
-  for (const row of props.stations.values()) {
-    if (!hasPosition(row) || (!isOpen(row.call) && timedOut(props.aging, row, props.now))) continue;
+  for (const row of page.stations.value.values()) {
+    if (!hasPosition(row) || (!isOpen(row.call) && timedOut(page.aging.value, row, page.now.value))) continue;
     present.add(row.call);
     const one = placed.get(row.call) ?? makePlaced(row.call);
     if (!one) continue;
@@ -171,9 +169,9 @@ function syncMarkers(): void {
     }
     one.marker.setDraggable(row.own);
     paintMarker(one.dom, row, {
-      fade: markerStep(props.aging, row, props.now),
+      fade: markerStep(page.aging.value, row, page.now.value),
       selected: isOpen(row.call),
-      direct: heardDirectRecently(row, props.now),
+      direct: heardDirectRecently(row, page.now.value),
     });
   }
   for (const [call, one] of placed) {
@@ -218,12 +216,12 @@ async function create(): Promise<void> {
   shown = JSON.stringify(archives());
   const view = readView();
   centred = view !== null;
-  const home = view ?? (props.home ? { ...props.home, zoom: OPEN_ZOOM } : WORLD_VIEW);
-  centred ||= props.home !== null;
+  const home = view ?? (page.home.value ? { ...page.home.value, zoom: OPEN_ZOOM } : WORLD_VIEW);
+  centred ||= page.home.value !== null;
   try {
     map = new engine.Map({
       container: host.value,
-      style: styleFor(props.dark),
+      style: styleFor(page.dark.value),
       center: [home.lon, home.lat],
       zoom: home.zoom,
       maxZoom: MAX_ZOOM,
@@ -252,21 +250,21 @@ async function create(): Promise<void> {
   syncPin();
 }
 
-watch([() => [...props.stations.values()], () => [props.selected, props.others, [...props.aging.timeouts], props.aging.defaultMin]], () => {
+watch([() => [...page.stations.value.values()], () => [props.selected, props.others, [...page.aging.value.timeouts], page.aging.value.defaultMin]], () => {
   syncMarkers();
   drawTracks();
   drawRoute();
 });
-watch(() => props.now, syncMarkers);
+watch(() => page.now.value, syncMarkers);
 watch(minute, drawTracks);
 useMapFollow(() => map, card, {
   focus: () => props.focus,
   selected: () => props.selected,
-  station: (call) => props.stations.get(call),
+  station: (call) => page.stations.value.get(call),
   marker: (call) => placed.get(call),
 });
 watch(
-  () => props.home,
+  () => page.home.value,
   (home) => {
     drawRoute();
     if (!map || !home || centred) return;
@@ -283,7 +281,7 @@ watch(
   },
 );
 watch(
-  () => props.filesKey,
+  () => mapFiles.value,
   (key) => {
     if (key === null || key === seenKey) return;
     if (seenKey !== null) generation += 1; // (the first word from the daemon is not a change)
@@ -292,7 +290,7 @@ watch(
   },
 );
 watch(
-  () => props.dark,
+  () => page.dark.value,
   (dark) => map?.setStyle(styleFor(dark)),
 );
 
@@ -300,8 +298,8 @@ onMounted(() => {
   if (root.value)
     hover = new HoverCard(
       root.value,
-      (call) => props.stations.get(call),
-      () => props.now,
+      (call) => page.stations.value.get(call),
+      () => page.now.value,
     );
   void create();
 });

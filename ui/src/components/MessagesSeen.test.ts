@@ -7,7 +7,8 @@ import { useMessagesView } from "@/composables/useMessagesView";
 import { usePanel } from "@/composables/usePanel";
 import { MESSAGES_WIDE } from "@/lib/layout";
 import type { Command, MessageRow } from "@/protocol/protocol";
-import { NOW, incoming, message } from "@/test/fixtures";
+import { fakeDaemon, withDaemon } from "@/test/context";
+import { incoming, message } from "@/test/fixtures";
 import { stubWidth } from "@/test/width";
 
 let width: ReturnType<typeof stubWidth>;
@@ -35,11 +36,7 @@ async function page(size: number, ...rows: MessageRow[]) {
             conversations: view.list.value,
             selected: view.selected.value,
             thread: view.thread.value,
-            connected: true,
-            now: NOW,
             showOverheard: false,
-            paths: new Map(),
-            fallbackPath: "WIDE1-1",
             group: view.group.value,
             "onUpdate:group": (calls: string[] | null) => (view.group.value = calls),
             onSend: view.sendMessage,
@@ -49,7 +46,7 @@ async function page(size: number, ...rows: MessageRow[]) {
           });
       },
     }),
-    { attachTo: document.body },
+    { global: withDaemon(fakeDaemon({ send, fallbackPath: "WIDE1-1" })), attachTo: document.body },
   );
   await flushPromises();
   if (made === undefined) throw new Error("not set up");

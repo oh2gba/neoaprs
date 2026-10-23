@@ -9,23 +9,25 @@ import ObjectsPane from "@/components/ObjectsPane.vue";
 import { useOwnObjects } from "@/composables/useOwnObjects";
 import type { Panel } from "@/composables/usePanel";
 import type { OwnBulletinRow } from "@/protocol/protocol";
-import { NOW, ago, bulletin, incoming, message, ownObject } from "@/test/fixtures";
+import { fakeDaemon, withDaemon } from "@/test/context";
+import { ago, bulletin, incoming, message, ownObject } from "@/test/fixtures";
 
 function bulletins() {
   const rows = [bulletin("BLN1", { text: "Road closed" })];
   return mount(BulletinsPane, {
-    props: { bulletins: new Map(rows.map((r) => [`${r.sender}/${r.slot}`, r])), ownBulletins: new Map<string, OwnBulletinRow>(), call: "OH2GBA", now: NOW },
+    props: { bulletins: new Map(rows.map((r) => [`${r.sender}/${r.slot}`, r])), ownBulletins: new Map<string, OwnBulletinRow>() },
+    global: withDaemon(),
   });
 }
 
 function email(thread = [message(1, { to_call: "EMAIL-2", text: "jane@example.com Hello" }), incoming(2, "EMAIL-2", { text: "bob@example.org Hi" })]) {
-  return mount(EmailPane, { props: { thread, connected: true, addresses: [] }, attachTo: document.body });
+  return mount(EmailPane, { props: { thread, addresses: [] }, global: withDaemon(), attachTo: document.body });
 }
 
 function objects() {
   const table = new Map([["LEADER", ownObject("LEADER", { created_at: ago(900) })]]);
   const form = useOwnObjects(table, ref({ lat: 60.17, lon: 24.94 }), () => true, { show: vi.fn() } as unknown as Panel);
-  const wrapper = mount(ObjectsPane, { props: { objects: table, form, fallbackPath: "", now: NOW } });
+  const wrapper = mount(ObjectsPane, { props: { objects: table, form }, global: withDaemon() });
   return { wrapper, form };
 }
 
@@ -72,7 +74,8 @@ describe("Bulletins", () => {
   it("keeps the board newest first in its sections", () => {
     const rows = [bulletin("BLN1", { text: "old", last_heard: ago(900) }), bulletin("BLN2", { text: "new", last_heard: ago(30) })];
     const wrapper = mount(BulletinsPane, {
-      props: { bulletins: new Map(rows.map((r) => [`${r.sender}/${r.slot}`, r])), ownBulletins: new Map<string, OwnBulletinRow>(), call: null, now: NOW },
+      props: { bulletins: new Map(rows.map((r) => [`${r.sender}/${r.slot}`, r])), ownBulletins: new Map<string, OwnBulletinRow>() },
+      global: withDaemon(fakeDaemon({ call: null })),
     });
     expect(wrapper.findAll(".bulletin-text").map((t) => t.text())).toEqual(["new", "old"]);
   });
@@ -106,7 +109,7 @@ describe("Email", () => {
   });
 
   it("opens the suggestions of the address upward, inside the box", async () => {
-    const wrapper = mount(EmailPane, { props: { thread: [], connected: true, addresses: ["carl@example.net"] }, attachTo: document.body });
+    const wrapper = mount(EmailPane, { props: { thread: [], addresses: ["carl@example.net"] }, global: withDaemon(), attachTo: document.body });
     await wrapper.find("#mail-to").trigger("focus");
     expect(barOf(wrapper).find(".mail-address .suggestions").exists()).toBe(true);
     wrapper.unmount();

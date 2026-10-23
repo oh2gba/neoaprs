@@ -8,6 +8,7 @@ import { computed, nextTick, ref } from "vue";
 import ConversationList from "@/components/ConversationList.vue";
 import ConversationView from "@/components/ConversationView.vue";
 import GroupCompose from "@/components/GroupCompose.vue";
+import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useElementWidth } from "@/composables/useElementWidth";
 import { MESSAGES_WIDE } from "@/lib/layout";
 import type { Conversation } from "@/lib/messages";
@@ -18,22 +19,11 @@ const props = withDefaults(
     conversations: readonly Conversation[];
     selected: string | null;
     thread: readonly MessageRow[];
-    connected: boolean;
-    now: number;
     showOverheard: boolean;
-    paths: ReadonlyMap<string, string>;
-    /** the path to send by that the daemon suggests for each station that has one (see the station card) */
-    suggestions?: ReadonlyMap<string, string | null>;
-    /** the path of the setting beacon/path, which a station without one of its own has */
-    fallbackPath: string;
-    /** the stations that are RF only */
-    rfOnly?: ReadonlySet<string>;
-    /** the stations heard direct, which the chain under a message judges a digipeater that was not heard by */
-    heardDirect?: ReadonlySet<string>;
     /** the calls of the group compose that is open (one text to several stations), null when there is none; the page opens it (useMessagesView `openGroup`) */
     group?: readonly string[] | null;
   }>(),
-  { rfOnly: () => new Set<string>(), suggestions: () => new Map<string, string | null>(), heardDirect: () => new Set<string>(), group: null },
+  { group: null },
 );
 const emit = defineEmits<{
   /** a conversation was picked; null: the open one was left (the way back on a narrow page) */
@@ -49,10 +39,8 @@ const emit = defineEmits<{
   /** every overheard message of the pair: who sent it, who it was for */
   deleteOverheard: [from: string, to: string];
   "update:showOverheard": [show: boolean];
-  path: [call: string, path: string];
-  clearPath: [call: string];
-  setRfOnly: [call: string, on: boolean];
 }>();
+const { connected, now } = useDaemonContext();
 
 const root = ref<HTMLElement | null>(null);
 const width = useElementWidth(root);
@@ -122,19 +110,10 @@ function sent(send: () => void): void {
       :selected="selected"
       :narrow="!wide"
       :thread="thread"
-      :connected="connected"
-      :paths="paths"
-      :suggestions="suggestions"
-      :fallback-path="fallbackPath"
-      :rf-only="rfOnly"
-      :heard-direct="heardDirect"
       @back="back"
       @send="(to, text) => emit('send', to, text)"
       @retry="emit('retry', $event)"
       @cancel="emit('cancel', $event)"
-      @path="(c, p) => emit('path', c, p)"
-      @clear-path="emit('clearPath', $event)"
-      @set-rf-only="(c, on) => emit('setRfOnly', c, on)"
     />
     <div v-else-if="wide" class="convo-empty">
       <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true">

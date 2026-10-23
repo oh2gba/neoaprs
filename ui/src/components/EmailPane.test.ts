@@ -1,6 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import EmailPane from "@/components/EmailPane.vue";
+import { fakeDaemon, withDaemon } from "@/test/context";
 import { incoming, message } from "@/test/fixtures";
 
 const thread = [
@@ -14,8 +15,12 @@ const thread = [
   message(8, { to_call: "EMAIL-2", text: "bob@example.org Last mail", state: "acked", attempts: 2 }),
 ];
 
-function pane(extra: Record<string, unknown> = {}) {
-  return mount(EmailPane, { props: { thread, connected: true, addresses: [], ...extra }, attachTo: document.body });
+function pane({ connected = true, ...extra }: Record<string, unknown> = {}) {
+  return mount(EmailPane, {
+    props: { thread, addresses: [], ...extra },
+    global: withDaemon(fakeDaemon({ connected: connected as boolean })),
+    attachTo: document.body,
+  });
 }
 type Pane = ReturnType<typeof pane>;
 /** The rows of the list, the newest first: the list itself is oldest first (see "the list order" below), so the row numbers here count from its bottom. */

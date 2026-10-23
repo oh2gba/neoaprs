@@ -5,55 +5,55 @@
 import { computed } from "vue";
 import DisclosureBox from "@/components/DisclosureBox.vue";
 import SettingsField from "@/components/SettingsField.vue";
-import type { SetupGuide } from "@/composables/useSetupGuide";
+import { useDaemonContext } from "@/composables/useDaemonContext";
 import { positionToLocator } from "@/lib/locator";
 
-const props = defineProps<{ guide: SetupGuide }>();
+const { guide } = useDaemonContext();
 const degrees = { lat: { label: "Latitude", unit: "°", empty: "60.17" }, lon: { label: "Longitude", unit: "°", empty: "24.94" } };
 const locator = { label: "Locator", empty: "KP20le" };
 
 /** The place as the fields have it, in words: degrees with N or S, E or W, and the locator; "Not set" while there is none. */
 const line = computed(() => {
-  const at = props.guide.pin;
+  const at = guide.pin;
   if (at === null) return "Not set";
   const shown = (value: number) => String(Math.round(Math.abs(value) * 1e5) / 1e5);
   return `${shown(at.lat)} ${at.lat < 0 ? "S" : "N"}, ${shown(at.lon)} ${at.lon < 0 ? "W" : "E"} · ${positionToLocator(at.lat, at.lon)}`;
 });
-const wrong = computed(() => !!(props.guide.problems.lat || props.guide.problems.lon || props.guide.problems.locator));
+const wrong = computed(() => !!(guide.problems.lat || guide.problems.lon || guide.problems.locator));
 </script>
 
 <template>
   <div class="location">
-    <button type="button" class="btn primary location-pick setup-onmap" @click="props.guide.peek(true)">Pick on the map</button>
+    <button type="button" class="btn primary location-pick setup-onmap" @click="guide.peek(true)">Pick on the map</button>
     <span class="location-line" :class="{ muted: line === 'Not set' }">{{ line }}</span>
   </div>
   <DisclosureBox title="Enter coordinates or locator" :open="wrong">
     <SettingsField
       id="setup-lat"
       :info="degrees.lat"
-      :model-value="props.guide.fields.lat"
+      :model-value="guide.fields.lat"
       fallback=""
-      :error="props.guide.problems.lat ?? ''"
+      :error="guide.problems.lat ?? ''"
       :changed="false"
-      @update:model-value="props.guide.edit('lat', $event)"
+      @update:model-value="guide.edit('lat', $event)"
     />
     <SettingsField
       id="setup-lon"
       :info="degrees.lon"
-      :model-value="props.guide.fields.lon"
+      :model-value="guide.fields.lon"
       fallback=""
-      :error="props.guide.problems.lon ?? ''"
+      :error="guide.problems.lon ?? ''"
       :changed="false"
-      @update:model-value="props.guide.edit('lon', $event)"
+      @update:model-value="guide.edit('lon', $event)"
     />
     <SettingsField
       id="setup-locator"
       :info="locator"
-      :model-value="props.guide.fields.locator"
+      :model-value="guide.fields.locator"
       fallback=""
-      :error="props.guide.problems.locator ?? ''"
+      :error="guide.problems.locator ?? ''"
       :changed="false"
-      @update:model-value="props.guide.edit('locator', $event)"
+      @update:model-value="guide.edit('locator', $event)"
     />
   </DisclosureBox>
 </template>

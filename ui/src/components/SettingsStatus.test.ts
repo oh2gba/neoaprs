@@ -1,18 +1,19 @@
 import { mount } from "@vue/test-utils";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import SettingsForm from "@/components/SettingsForm.vue";
-import type { Command } from "@/protocol/protocol";
+import { fakeDaemon, tell, withDaemon } from "@/test/context";
 import { configValues, toastOf } from "@/test/fixtures";
 
 function make(extra: Record<string, string> = {}) {
-  const send = vi.fn((_command: Command) => true);
-  const wrapper = mount(SettingsForm, { props: { config: configValues(extra), lastError: null, send, scope: "beacon" } });
+  const daemon = fakeDaemon({ config: configValues(extra) });
+  const send = daemon.send;
+  const wrapper = mount(SettingsForm, { props: { scope: "beacon" }, global: withDaemon(daemon) });
   const status = () => wrapper.findAll("fieldset").find((f) => f.find("legend").text() === "Status");
   const labels = () =>
     status()
       ?.findAll(".field label")
       .map((l) => l.text());
-  return { wrapper, send, status, labels };
+  return { wrapper, send, daemon, status, labels };
 }
 
 describe("the Status group", () => {
@@ -70,7 +71,7 @@ describe("the Status group", () => {
   });
 
   it("sends nothing for an old installation, applies the choice once it is made, and the text when its field is left", async () => {
-    const { wrapper, send } = make({ "status/rigctld": "127.0.0.1:4532" });
+    const { wrapper, send, daemon } = make({ "status/rigctld": "127.0.0.1:4532" });
     expect(wrapper.find(".field.changed").exists()).toBe(false);
     expect(send).not.toHaveBeenCalled();
     await wrapper.find("#set-status-source").setValue("text");
@@ -78,7 +79,7 @@ describe("the Status group", () => {
     await wrapper.find("#set-station-status").setValue("QRV 145.500");
     expect(send).toHaveBeenCalledTimes(1);
     await wrapper.find("#set-station-status").trigger("blur");
-    await wrapper.setProps({ config: configValues({ "status/rigctld": "127.0.0.1:4532", "status/source": "text" }) });
+    await tell(daemon, { config: configValues({ "status/rigctld": "127.0.0.1:4532", "status/source": "text" }) });
     expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "station/status": "QRV 145.500" } });
   });
 
@@ -98,10 +99,10 @@ describe("the Status group", () => {
   });
 
   it("shows the daemon's refusal of the radio without an address under the rigctld that was cleared", async () => {
-    const { wrapper } = make({ "status/source": "rig", "status/rigctld": "127.0.0.1:4532" });
+    const { wrapper, daemon } = make({ "status/source": "rig", "status/rigctld": "127.0.0.1:4532" });
     await wrapper.find("#set-status-rigctld").setValue("");
     await wrapper.find("#set-status-rigctld").trigger("blur");
-    await wrapper.setProps({ lastError: toastOf("set_config: status/source: the radio needs status/rigctld (host:port of a rigctld, 127.0.0.1:4532)") });
+    await tell(daemon, { lastError: toastOf("set_config: status/source: the radio needs status/rigctld (host:port of a rigctld, 127.0.0.1:4532)") });
     expect(wrapper.find("#set-status-rigctld").element.closest(".field")?.querySelector(".field-error")?.textContent).toContain("needs status/rigctld");
     expect(wrapper.find("#set-status-source").element.closest(".field")?.querySelector(".field-error")).toBeNull();
     expect(wrapper.find<HTMLInputElement>("#set-status-rigctld").element.value).toBe("");

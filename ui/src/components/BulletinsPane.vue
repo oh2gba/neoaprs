@@ -7,22 +7,19 @@
 import { computed } from "vue";
 import BulletinCompose from "@/components/BulletinCompose.vue";
 import IconButton from "@/components/IconButton.vue";
+import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useSure } from "@/composables/useSure";
 import { ageText, dateTimeText } from "@/lib/format";
 import { ownEntries, ownMeta, sections, targetOf, timesText, type BoardEntry } from "@/lib/bulletins";
 import type { BulletinRow, OwnBulletinRow } from "@/protocol/protocol";
 
-const props = defineProps<{
-  bulletins: ReadonlyMap<string, BulletinRow>;
-  ownBulletins: ReadonlyMap<string, OwnBulletinRow>;
-  call: string | null;
-  now: number;
-}>();
-const emit = defineEmits<{ delete: [sender: string, slot: string]; post: [slot: string, text: string]; unpost: [slot: string] }>();
+const props = defineProps<{ bulletins: ReadonlyMap<string, BulletinRow>; ownBulletins: ReadonlyMap<string, OwnBulletinRow> }>();
+const { call, now, send } = useDaemonContext();
 const sure = useSure<string>(); // (the key of a row)
 const keyOf = (b: BoardEntry) => (b.own ? `own/${b.slot}` : `${b.sender}/${b.slot}`);
-const shown = computed(() => sections<BoardEntry>([...props.bulletins.values(), ...ownEntries(props.ownBulletins.values(), props.call ?? "us")]));
-const remove = (b: BoardEntry): void => (b.own ? emit("unpost", b.slot) : emit("delete", b.sender, b.slot));
+const shown = computed(() => sections<BoardEntry>([...props.bulletins.values(), ...ownEntries(props.ownBulletins.values(), call.value ?? "us")]));
+const remove = (b: BoardEntry): void =>
+  void (b.own ? send({ cmd: "bulletin_unpost", slot: b.slot }) : send({ cmd: "bulletin_delete", sender: b.sender, slot: b.slot }));
 </script>
 
 <template>
@@ -60,6 +57,6 @@ const remove = (b: BoardEntry): void => (b.own ? emit("unpost", b.slot) : emit("
         </ul>
       </section>
     </div>
-    <BulletinCompose :own-bulletins="ownBulletins" @post="(slot, text) => emit('post', slot, text)" />
+    <BulletinCompose :own-bulletins="ownBulletins" @post="(slot, text) => send({ cmd: 'bulletin_post', slot, text })" />
   </div>
 </template>

@@ -7,6 +7,8 @@ import type { Aging } from "@/lib/aging";
 import { writeView } from "@/lib/mapview";
 import { NO_BASEMAP_TEXT, NO_DETAIL_TEXT, NO_ENGINE_TEXT, OPEN_ZOOM } from "@/lib/basemapstyle";
 import { FakeMap, FakeMarker, fakeState, resetFakes } from "@/test/fakemap";
+import { fakeDaemon, withDaemon } from "@/test/context";
+import { mountStationMap } from "@/test/stationmap";
 import { NOW, ago, station, table } from "@/test/fixtures";
 
 const stations = () =>
@@ -41,7 +43,7 @@ const markerOf = (call: string) => FakeMarker.live().find((m) => m.element.textC
 const lastData = () => FakeMap.last().getSource("tracks")?.setData.mock.calls.at(-1)?.[0] as { features: { properties: { call: string; opacity: number } }[] };
 
 async function mounted(extra = {}) {
-  const wrapper = mount(StationMap, { props: props(extra), attachTo: document.body });
+  const { wrapper } = mountStationMap(props(extra));
   await flushPromises();
   return wrapper;
 }
@@ -358,11 +360,12 @@ describe("StationMap", () => {
 
   it("does not fly to a place that was clicked, and flies to the next one that is typed", async () => {
     const pin = ref<{ lat: number; lon: number } | null>(null);
+    const { stations, home, now, dark, aging, ...own } = props({ picking: true });
     const wrapper = mount(
       defineComponent({
-        render: () => h(StationMap, { ...props({ picking: true }), pin: pin.value, onPick: (at: { lat: number; lon: number }) => (pin.value = at) }),
+        render: () => h(StationMap, { ...own, pin: pin.value, onPick: (at: { lat: number; lon: number }) => (pin.value = at) }),
       }),
-      { attachTo: document.body },
+      { global: withDaemon(fakeDaemon({ stations, home, now, dark, aging })), attachTo: document.body },
     );
     await flushPromises();
     FakeMap.last().fire("click", { lngLat: { lat: 60.1, lng: 24.9 } });
