@@ -36,7 +36,7 @@ log = logging.getLogger("neoaprs.alerts")
 
 TIMEOUT_SEC = 60.0 if sys.platform == "win32" else 20.0          # a cold PowerShell on a busy Windows machine can take longer than 20 s to show a toast
 TOLD_EVERY = timedelta(hours=1)
-TEST_FROM = "OH2GBA-7"                                          # the message the test button pretends to have heard
+TEST_FROM = "NEOAPRS"                                            # the message the test button pretends to have heard
 TEST_TEXT = "This is a test of the NeoAPRS alert"
 MAX_RUNNING = 5                                                 # alerts running at once; more are dropped (a flood of messages is no reason to start a flood of programs)
 MAX_LINE = 200                                                  # characters of the first line of stderr the test button shows

@@ -192,7 +192,7 @@ describe("Test", () => {
     const alerts = make(open);
     setSeen(true);
     await alerts.test();
-    expect(FakeNotification.shown.map((n) => [n.title, n.options.body])).toEqual([["APRS message from OH2GBA-7", "This is a test of the NeoAPRS alert"]]);
+    expect(FakeNotification.shown.map((n) => [n.title, n.options.body])).toEqual([["APRS message from NEOAPRS", "This is a test of the NeoAPRS alert"]]);
     FakeNotification.shown[0]?.onclick?.();
     expect(open).not.toHaveBeenCalled(); // (there is no such conversation)
   });
@@ -202,6 +202,6 @@ describe("Test", () => {
     setSeen(true);
     await alerts.test();
     expect(FakeAudioContext.played()).toBe(2);
-    expect(alerts.tabTitle.value).toBe("✉ OH2GBA-7");
+    expect(alerts.tabTitle.value).toBe("✉ NEOAPRS");
   });
 });

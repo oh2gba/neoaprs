@@ -12,7 +12,7 @@ import type { MessageRow } from "@/protocol/protocol";
 /** What an alert needs of a message. */
 export type Alerted = Pick<MessageRow, "id" | "from_call" | "text">;
 
-const TEST_MESSAGE: Alerted = { id: 0, from_call: "OH2GBA-7", text: "This is a test of the NeoAPRS alert" };
+const TEST_MESSAGE: Alerted = { id: 0, from_call: "NEOAPRS", text: "This is a test of the NeoAPRS alert" };
 /** After a long disconnect many messages can arrive at once: so many notifications, the rest are in the page. */
 const NOTIFICATIONS_MAX = 5;
 const ON_OFF = ["on", "off"] as const;
