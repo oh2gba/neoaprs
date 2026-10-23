@@ -1,9 +1,10 @@
 <script setup lang="ts">
 // The gateway's other actions, under the compose box, named for what they do; the command each one sends is its hover title. "Mailbox": "Fetch held mail" (`get`: the gateway sends again the mail it holds
-// for this station). "Shortcuts": a shortcut is a name the gateway keeps for an address, made by sending `name address` ("Register") and
+// for this station). "Shortcuts" (a disclosure, closed): a shortcut is a name the gateway keeps for an address, made by sending `name address` ("Register") and
 // used as the addressee; "Email the list" (`name L`: the gateway emails the list of the shortcuts to this shortcut's address) and "Remove" (`name R`, after "sure?", forgotten after 5 s) work only for a name
 // that was registered, so they stay off until "Your shortcut" holds a name. All are off while the TNC is not connected (the title says so). The page sends them as messages to the gateway; what it answers is in the thread.
 import { computed, ref } from "vue";
+import Disclosure from "@/components/Disclosure.vue";
 import { useSure } from "@/composables/useSure";
 import { GET_HELD, listShortcuts, removeShortcut, validAddress, validShortcut } from "@/lib/email";
 
@@ -51,41 +52,42 @@ function remove(): void {
         Fetch held mail
       </button>
     </div>
-    <form class="mail-shortcut" @submit.prevent="register">
-      <strong class="mail-shortcut-head">Shortcut</strong>
-      <label class="path-label" for="mail-shortcut">Name</label>
-      <input id="mail-shortcut" v-model="name" class="input mono" type="text" placeholder="john" autocomplete="off" spellcheck="false" />
-      <label class="path-label" for="mail-address">Address</label>
-      <input id="mail-address" v-model="address" class="input mono" type="text" placeholder="only to register it" autocomplete="off" spellcheck="false" />
-      <div class="mail-shortcut-buttons">
-        <button
-          type="submit"
-          class="btn"
-          :disabled="!canRegister"
-          :title="away ?? `Sends '${name.trim() || 'name'} ${address.trim() || 'address'}': the gateway keeps the address under the name`"
-        >
-          Register
-        </button>
-        <button
-          type="button"
-          class="btn"
-          :disabled="!known"
-          :title="titleFor(`Sends '${listShortcuts(name)}': the gateway emails the list of your shortcuts to this shortcut's address`)"
-          @click="emit('list', name.trim())"
-        >
-          Email the list
-        </button>
-        <button
-          type="button"
-          class="btn"
-          :class="{ danger: armed }"
-          :disabled="!known"
-          :title="titleFor(`Sends '${removeShortcut(name)}': the gateway removes this shortcut`)"
-          @click="remove"
-        >
-          {{ armed ? "sure?" : "Remove" }}
-        </button>
-      </div>
-    </form>
+    <Disclosure title="Shortcuts">
+      <form class="mail-shortcut" @submit.prevent="register">
+        <label class="path-label" for="mail-shortcut">Name</label>
+        <input id="mail-shortcut" v-model="name" class="input mono" type="text" placeholder="john" autocomplete="off" spellcheck="false" />
+        <label class="path-label" for="mail-address">Address</label>
+        <input id="mail-address" v-model="address" class="input mono" type="text" placeholder="name@example.com" autocomplete="off" spellcheck="false" />
+        <div class="mail-shortcut-buttons">
+          <button
+            type="submit"
+            class="btn"
+            :disabled="!canRegister"
+            :title="away ?? `Sends '${name.trim() || 'name'} ${address.trim() || 'address'}': the gateway keeps the address under the name`"
+          >
+            Register
+          </button>
+          <button
+            type="button"
+            class="btn"
+            :disabled="!known"
+            :title="titleFor(`Sends '${listShortcuts(name)}': the gateway emails the list of your shortcuts to this shortcut's address`)"
+            @click="emit('list', name.trim())"
+          >
+            Email the list
+          </button>
+          <button
+            type="button"
+            class="btn"
+            :class="{ danger: armed }"
+            :disabled="!known"
+            :title="titleFor(`Sends '${removeShortcut(name)}': the gateway removes this shortcut`)"
+            @click="remove"
+          >
+            {{ armed ? "sure?" : "Remove" }}
+          </button>
+        </div>
+      </form>
+    </Disclosure>
   </div>
 </template>

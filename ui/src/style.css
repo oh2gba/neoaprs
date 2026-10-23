@@ -734,12 +734,22 @@ tbody tr:focus-visible {
 .bulletin p {
   margin: 0;
 }
-.bulletin-delete {
+.bulletin-actions {
   position: absolute;
   top: 2px;
   right: 2px;
-  padding: 2px 8px;
-  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.bulletin {
+  min-height: 38px;
+}
+.bulletin-head {
+  padding-right: 40px;
+}
+.ownobject .bulletin-head {
+  padding-right: 100px;
 }
 .bulletin-target {
   color: var(--accent);
@@ -769,11 +779,6 @@ tbody tr:focus-visible {
 }
 .bulletin.mine {
   border-color: var(--accent);
-}
-.object-edit {
-  position: absolute;
-  top: 3px;
-  right: 40px;
 }
 .ownobject.killing {
   opacity: 0.6;
@@ -857,24 +862,32 @@ tbody tr:focus-visible {
   text-align: left;
   cursor: pointer;
 }
-.conv-delete {
+.xbtn {
+  display: inline-flex;
   flex: none;
-  min-width: 34px;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
   padding: 0 8px;
   border: 0;
+  border-radius: 6px;
   background: none;
   color: var(--muted);
   font: inherit;
   cursor: pointer;
 }
-.conv-delete:hover,
-.conv-delete:focus-visible {
+.xbtn:hover,
+.xbtn:focus-visible {
   color: var(--text);
   background: var(--row-hover);
 }
-.conv-delete.danger {
+.xbtn.armed {
   color: var(--bad);
   font-weight: 600;
+}
+.conv-item .xbtn {
+  align-self: center;
 }
 .conv:hover {
   background: var(--row-hover);
@@ -1110,6 +1123,9 @@ tbody tr:focus-visible {
   width: 9em;
   text-transform: uppercase;
 }
+.compose-to::placeholder {
+  text-transform: none;
+}
 .compose-left {
   margin-left: auto;
   color: var(--muted);
@@ -1164,8 +1180,7 @@ tbody tr:focus-visible {
   top: 100%;
   left: 0;
   z-index: 5;
-  width: 280px;
-  max-width: 80vw;
+  width: min(280px, calc(100vw - 16px));
   margin-top: 4px;
   padding: 6px 8px;
   border: 1px solid var(--border);
@@ -1201,20 +1216,6 @@ tbody tr:focus-visible {
 .address {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-}
-.address-forget {
-  padding: 0 4px;
-  border: 0;
-  background: none;
-  color: var(--muted);
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-}
-.address-forget:hover,
-.address-forget:focus-visible {
-  color: var(--bad);
 }
 .mailpane .compose .toolbar {
   padding: 0;
@@ -1362,8 +1363,13 @@ tbody tr:focus-visible {
   color: #fff;
   box-shadow: var(--shadow);
 }
-.toast .iconbtn {
+.toast .xbtn {
   color: #fff;
+}
+.toast .xbtn:hover,
+.toast .xbtn:focus-visible {
+  color: #fff;
+  background: rgb(255 255 255 / 20%);
 }
 
 /* the map: markers, credits */
@@ -1939,4 +1945,73 @@ button.linkbtn {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+/* a heading that opens what is under it (Disclosure), and the TNC tab's status line */
+.disclosure {
+  padding: 0 10px;
+}
+.disclosure > summary {
+  padding: 6px 0;
+  color: var(--muted);
+  cursor: pointer;
+}
+.disclosure-body {
+  padding-bottom: 6px;
+}
+.disclosure-body > .card-fields {
+  padding-right: 0;
+  padding-left: 0;
+}
+.tncstatus {
+  margin: 0;
+  padding: 0 10px 6px;
+  overflow-wrap: anywhere;
+}
+.tncports {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.thread-head .disclosure {
+  padding: 0;
+}
+.mail-tools .disclosure {
+  padding: 0;
+}
+
+/* a field with its label over it, in a row of controls */
+.compose-row.labelled {
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.stack > label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* a narrow page: the open conversation is the only row left of the list, so that the thread has the room; the compose box is tighter */
+@media (max-width: 800px) {
+  .msgpane.has-thread > .toolbar {
+    display: none;
+  }
+  .convs.short {
+    max-height: none;
+  }
+  .convs.short .conv-item:not(.open) {
+    display: none;
+  }
+  .msgpane .compose {
+    gap: 4px;
+    padding: 6px 8px;
+  }
+  .prefs .pathbox .input {
+    flex: 1 1 8em;
+  }
 }

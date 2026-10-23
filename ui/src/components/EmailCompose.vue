@@ -3,7 +3,9 @@
 // it). The number is how many of the 67 characters the line "address text" may still have, the address and the space counting; Send is off while the TNC is not connected (its title says so) or the address
 // or the text is empty or the line is too long. The text is cleared once it is sent.
 import { computed, ref } from "vue";
+import IconButton from "@/components/IconButton.vue";
 import { canSendEmail, emailBytesLeft } from "@/lib/email";
+import { leftText } from "@/lib/format";
 import { MESSAGE_TEXT_MAX } from "@/protocol/lists";
 
 const props = defineProps<{ connected: boolean; addresses: readonly string[] }>();
@@ -29,7 +31,7 @@ function submit(): void {
       <strong>Send an email</strong>
       <span class="grow" />
       <span class="compose-left mono" :class="{ over: left < 0 }" :title="`${left} of ${MESSAGE_TEXT_MAX} characters left; the address and the space count too`"
-        >{{ left }} left</span
+        >{{ leftText(left) }}</span
       >
     </div>
     <div class="compose-row">
@@ -39,7 +41,7 @@ function submit(): void {
         v-model="to"
         class="input mono mail-to"
         type="text"
-        placeholder="To: email address or shortcut"
+        placeholder="Address or shortcut"
         autocomplete="off"
         spellcheck="false"
       />
@@ -50,7 +52,7 @@ function submit(): void {
     <ul v-if="addresses.length > 0" class="addresses" aria-label="Used before">
       <li v-for="a in addresses" :key="a" class="address">
         <button type="button" class="chip address-pick" @click="to = a">{{ a }}</button>
-        <button type="button" class="address-forget" :title="`Forget ${a}`" :aria-label="`Forget ${a}`" @click="emit('forget', a)">x</button>
+        <IconButton kind="delete" class="address-forget" :label="`Forget ${a}`" :title="`Forget ${a}`" @click="emit('forget', a)" />
       </li>
     </ul>
   </form>

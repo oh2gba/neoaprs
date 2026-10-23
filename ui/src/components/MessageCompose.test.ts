@@ -24,7 +24,7 @@ function compose(extra: Record<string, unknown> = {}) {
 describe("MessageCompose to one station", () => {
   it("is To, Stations, the bytes left, Send and the text, with no list and no chip until Stations is pressed", () => {
     const { wrapper, to, send } = compose();
-    expect(to.attributes("placeholder")).toBe("To");
+    expect(to.attributes("placeholder")).toBe("Call");
     expect(wrapper.findAll("button").map((b) => b.text())).toEqual(["Stations", "Send"]);
     expect(send.text()).toBe("Send");
     expect(wrapper.find(".picker").exists()).toBe(false);

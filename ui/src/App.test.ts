@@ -1015,7 +1015,7 @@ describe("App", () => {
     it("shows the thread with the gateway there and leaves it out of the Messages tab and its count", async () => {
       const { wrapper, socket } = await open();
       await say(socket, 1, message(10, { to_call: "EMAIL-2", text: "me hello" }), gateway(11));
-      expect(wrapper.findAll("#pane-email .msg").map((m) => m.find(".msg-text").text())).toEqual(["me hello", "Msg sent to jane@example.com"]);
+      expect(wrapper.findAll("#pane-email .msg").map((m) => m.find(".msg-text").text())).toEqual(["hello", "Msg sent to jane@example.com"]);
       expect(wrapper.findAll("#pane-messages .conv-call").map((c) => c.text())).toEqual(["OH2PU-9", "OH2RDG"]);
       expect(tabButton(wrapper, "Messages")?.find(".badge").text()).toBe("2");
       expect(wrapper.find(".headmail").text()).toContain("2");

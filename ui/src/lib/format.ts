@@ -128,3 +128,8 @@ export function bytesText(n: number): string {
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} kB`;
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+/** What is left of a limit, for the counter of a box: "12 left", or "3 over" when the text is too long. */
+export function leftText(left: number): string {
+  return left < 0 ? `${-left} over` : `${left} left`;
+}
