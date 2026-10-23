@@ -306,8 +306,11 @@
 .path-label {
   font-weight: 600;
 }
-.input.invalid {
-  border-color: var(--bad);
+/* the path of a conversation is a row of fields in the box under its header */
+@media (max-width: 800px) {
+  .prefs .pathbox .input {
+    flex: 1 1 8em;
+  }
 }
 .chip {
   padding: 0 8px;
@@ -322,27 +325,6 @@
 .chip:hover,
 .chip:focus-visible {
   background: var(--row-hover);
-}
-.card-path {
-  padding: 0 10px 6px;
-}
-.prefs {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.timeout-input {
-  width: 9.5em;
-}
-.grid tr.timedout {
-  opacity: 0.55;
-}
-.grid tr.timedout.selected {
-  opacity: 1;
-}
-.timedword {
-  color: var(--warn);
-  font-weight: 600;
 }
 .thread {
   display: flex;
@@ -359,6 +341,9 @@
 .msg-state.state-failed,
 .msg-state.state-rejected {
   color: var(--bad);
+}
+.msg-state.state-unconfirmed {
+  color: var(--muted);
 }
 .chain {
   margin-top: 3px;
@@ -404,10 +389,6 @@
 .hop-failed {
   color: var(--bad);
 }
-.btn.small {
-  padding: 0 8px;
-  font-size: 12px;
-}
 .mark {
   display: inline-flex;
   align-items: center;
@@ -421,12 +402,4 @@
 }
 .mark-cross {
   color: var(--bad);
-}
-.compose {
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px;
-  border-top: 1px solid var(--border);
 }

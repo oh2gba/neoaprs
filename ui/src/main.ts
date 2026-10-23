@@ -12,7 +12,7 @@ import "./styles/settings.css";
 import "./styles/toast.css";
 import "./styles/map.css";
 import "./styles/setup.css";
-import "./styles/leftovers.css";
+import "./styles/help.css";
 import "./styles/responsive.css";
 import { createApp } from "vue";
 import AccessGate from "./AccessGate.vue";

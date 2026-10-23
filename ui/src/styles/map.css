@@ -1,3 +1,31 @@
+/* the map in the page, and the note on it when there is no base map */
+.mapwrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.stationmap {
+  position: absolute;
+  inset: 0;
+  /* its own stacking context: a marker (the selected one is raised) and the map's buttons stay under the card, which is above the map */
+  z-index: 0;
+}
+.mapbox {
+  width: 100%;
+  height: 100%;
+}
+.mapnote {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: start center;
+  padding-top: 14px;
+  pointer-events: none;
+  color: var(--muted);
+  font-size: 15px;
+  text-align: center;
+}
 /* the map: markers, credits */
 .stn {
   position: relative;
@@ -147,6 +175,13 @@
   height: 10px !important;
   margin: 4px;
 }
+@media (prefers-color-scheme: dark) {
+  .symicon:not(.stn-plain) {
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.88);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.88);
+  }
+}
 .attrib {
   position: absolute;
   right: 8px;
@@ -209,4 +244,9 @@
 }
 .mapnote-box .btn {
   pointer-events: auto;
+}
+/* The map waits for a click that sets a place (the setup guide's position, an object's Pick on the map): a crosshair instead of the hand. */
+.map-picking .maplibregl-canvas-container.maplibregl-interactive,
+.map-picking .maplibregl-canvas-container.maplibregl-interactive:active {
+  cursor: crosshair;
 }

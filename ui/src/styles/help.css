@@ -1,0 +1,127 @@
+/* the steps to allow pop-ups in the person's browser (Settings, Notifications, In this browser), and a text with its Copy button */
+.popuphelp {
+  margin: 4px 0 10px;
+  padding: 6px 12px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+.popuphelp-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.popuphelp-head h4 {
+  flex: 1;
+  margin: 0;
+  font-size: 14px;
+}
+.popuphelp-steps {
+  margin: 6px 0 0;
+  padding-left: 20px;
+}
+.popuphelp-steps li {
+  margin: 6px 0;
+}
+.popuphelp-plain {
+  margin: 6px 0;
+}
+.popuphelp-more {
+  margin-top: 8px;
+}
+.copyfield {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 3px 0;
+}
+.copyfield code {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 6px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+/* the panel with the steps to a new version (UpdatePanel) */
+.updatepanel {
+  position: fixed;
+  top: 34px;
+  right: 12px;
+  z-index: 6;
+  width: min(480px, calc(100vw - 24px));
+  max-height: calc(100vh - 50px);
+  overflow: auto;
+  padding: 8px 12px 10px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+.updatepanel-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.updatepanel-head h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 15px;
+}
+.updatepanel-news {
+  margin: 6px 0;
+}
+.updatepanel-steps {
+  margin: 0;
+  padding-left: 20px;
+}
+.updatepanel-steps li {
+  margin: 4px 0;
+}
+.updatepanel-file {
+  margin-left: 6px;
+  overflow-wrap: anywhere;
+}
+.updatepanel-command {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+.updatepanel-command code {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.updatepanel-foot {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+
+/* the guide to install NeoAPRS's certificate (Settings, Web page; the pop-up guide) */
+.httpsguide {
+  margin: 4px 0 10px;
+  padding: 6px 12px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+.httpsguide-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.httpsguide-print {
+  margin-top: 8px;
+}

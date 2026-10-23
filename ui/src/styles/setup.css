@@ -189,3 +189,21 @@
   grid-template-columns: repeat(auto-fill, minmax(5.5em, 1fr));
   gap: 6px;
 }
+/* the key screen of a device on the network */
+.keyscreen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 100%;
+  padding: 16px;
+}
+.keyscreen .input {
+  flex: 0 1 16em;
+  font-family: var(--mono);
+}
+.keyscreen .field-error {
+  flex-basis: 100%;
+  text-align: center;
+}

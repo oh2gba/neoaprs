@@ -1,3 +1,12 @@
+/* the box to write in under a conversation (MessageCompose, GroupCompose) */
+.compose {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-top: 1px solid var(--border);
+}
 /* the box to write in on the tabs Bulletins, Email and Objects (ComposeBar.vue): fixed at the bottom of the tab, the list above it scrolling; the fields, and under them the counter and the buttons at the right, the
    secondary one (Cancel) left of the primary one. The tab (.pane) leaves the notch alone on a phone, and the page is 100dvh high, so the keyboard does not cover it. */
 .composebar {
@@ -57,6 +66,20 @@
   align-items: center;
   gap: 8px;
 }
+/* a field with its label over it, in a row of controls */
+.compose-row.labelled {
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.stack > label {
+  color: var(--muted);
+  font-size: 12px;
+}
 .compose-left {
   margin-left: auto;
   color: var(--muted);
@@ -72,47 +95,4 @@
   margin: 0;
   padding: 0;
   list-style: none;
-}
-.infotip {
-  position: relative;
-  display: inline-flex;
-}
-.info-toggle {
-  width: 20px;
-  height: 20px;
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  background: var(--panel);
-  color: var(--text);
-  font: italic 700 12px/1 serif;
-  cursor: pointer;
-}
-.info-line {
-  display: block;
-}
-.info-line + .info-line {
-  margin-top: 4px;
-}
-.field-control .info-text {
-  right: 0;
-  left: auto;
-}
-.field-control .check {
-  margin: 0;
-}
-.info-text {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  z-index: 5;
-  width: min(280px, calc(100vw - 16px));
-  margin-top: 4px;
-  padding: 6px 8px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--panel);
-  color: var(--text);
-  font-size: 12px;
-  font-weight: 400;
-  line-height: 1.4;
 }

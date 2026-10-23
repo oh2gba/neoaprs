@@ -211,3 +211,35 @@
 .tone-rain {
   --tone: var(--wx-rain);
 }
+/* under a card: the box to send a message, and the path, timeout and preferences of the station */
+.sendrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin: 6px 0;
+}
+.sendrow .card-fields {
+  flex: 1 1 14em;
+  min-width: 0;
+}
+.sendrow .btn {
+  flex: none;
+  min-width: 11em;
+}
+.card-path {
+  padding: 0 10px 6px;
+}
+.prefs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.timeout-input {
+  width: 9.5em;
+}
+.timedword {
+  color: var(--warn);
+  font-weight: 600;
+}

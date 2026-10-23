@@ -15,6 +15,9 @@ tbody tr:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -1px;
 }
+.input.invalid {
+  border-color: var(--bad);
+}
 .btn {
   padding: 5px 12px;
   border: 1px solid var(--border);
@@ -37,6 +40,14 @@ tbody tr:focus-visible {
   background: var(--bad);
   border-color: var(--bad);
   color: #fff;
+}
+.btn.small {
+  padding: 0 8px;
+  font-size: 12px;
+}
+a.btn {
+  display: inline-block;
+  text-decoration: none;
 }
 .iconbtn {
   width: 24px;
@@ -68,4 +79,76 @@ tbody tr:focus-visible {
   padding: 16px;
   text-align: center;
   color: var(--muted);
+}
+.problem {
+  margin: 0 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--warn);
+  border-radius: 4px;
+  color: var(--warn);
+}
+/* the (i) beside a field and the text it opens (InfoTip) */
+.infotip {
+  position: relative;
+  display: inline-flex;
+}
+.info-toggle {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--panel);
+  color: var(--text);
+  font: italic 700 12px/1 serif;
+  cursor: pointer;
+}
+.info-toggle:hover,
+.info-toggle[aria-expanded="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.info-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.info-line {
+  display: block;
+}
+.info-line + .info-line {
+  margin-top: 4px;
+}
+.info-text {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 5;
+  width: min(280px, calc(100vw - 16px));
+  margin-top: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+/* buttons that look like a link: the new version in the header, the result of the update check, a link in a sentence */
+button.update,
+button.updatecheck-result,
+button.linkbtn {
+  font: inherit;
+  font-size: 11px;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.updatecheck-result {
+  font-size: 12px;
+}
+button.linkbtn {
+  font-size: inherit;
 }

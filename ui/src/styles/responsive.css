@@ -1,10 +1,10 @@
 /* The page for the size of the window: phone, tablet, desktop (lib/layout.ts decides which, composables/useViewport.ts keeps it up to date, and App.vue puts it on the root as `size-phone`, `size-tablet` or `size-desktop`; a phone
    also has `view-map` or `view-panel`: what it shows now). The rules here use that class and not media queries of their own, so that the script and the style never disagree; only what belongs to the kind of device (a finger, the notch)
-   is a media query. style.css has the page as it is on a desktop: the map, and at its right the panel the user can drag wider.
+   is a media query. The sheets before this one have the page as it is on a desktop: the map, and at its right the panel the user can drag wider.
 
    phone   (under 700 px, or a short window under 1000 px: a phone held sideways)  one view at a time: the open tab fills the screen under a compact header, or the map does; the Map button begins the tab bar
    tablet  (700 to 1100 px)                                                        the map and the panel side by side, the panel 380 to 420 px wide
-   desktop (from 1100 px)                                                          as style.css has it, the panel's width the user's */
+   desktop (from 1100 px)                                                          as the sheets before this one have it, the panel's width the user's */
 
 /* every size: the page is the window and does not scroll; the notch and the home bar of a phone are left alone */
 html,
