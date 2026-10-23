@@ -1,12 +1,24 @@
-"""Positions: the timestamp resolution, the coordinates, the extensions, the compressed form and its encoder."""
+"""Positions: the timestamp resolution, the coordinates, the extensions and the compressed form."""
 from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 
-from neoaprs.aprsposition import PositionError, compress_position, degrees, motion, parse_position, resolve_mdhm, resolve_timestamp
+from neoaprs.aprsposition import PositionError, degrees, motion, parse_position, resolve_mdhm, resolve_timestamp
 
 NOW = datetime(2026, 10, 21, 12, 0, tzinfo=UTC)
 BODY = b"4903.50N/07201.75W-"
+
+
+def compress_position(lat: float, lon: float, symbol_table: str, symbol_code: str) -> bytes:
+    """A compressed position without course, speed or altitude, to feed the parser: symbol table, latitude, longitude, symbol code, "  " (no cs) and the type byte "#"."""
+    y = min(max(round((90 - lat) * 380926), 0), 91 ** 4 - 1)
+    x = min(max(round((180 + lon) * 190463), 0), 91 ** 4 - 1)
+    table_byte = chr(ord(symbol_table) - ord("0") + ord("a")) if symbol_table.isdigit() else symbol_table      # overlays 0-9 are written a-j
+    return (table_byte + _base91_text(y) + _base91_text(x) + symbol_code + "  #").encode("ascii")
+
+
+def _base91_text(v: int) -> str:
+    return "".join(chr(33 + v // 91 ** i % 91) for i in (3, 2, 1, 0))
 
 
 def at(*args: int) -> datetime:
@@ -182,18 +194,9 @@ def test_degrees_helper() -> None:
     assert degrees(49, 0, 3) == pytest.approx(49 + 5 / 60)
 
 
-def test_compress_position_shape() -> None:
-    out = compress_position(49.5, -72.75, "/", ">")
-    assert len(out) == 13 and out[0:1] == b"/" and out[9:10] == b">" and out[10:12] == b"  "
-    assert all(33 <= b <= 123 for b in out[1:9])
-    assert compress_position(0.0, 0.0, "5", "#")[0:1] == b"f"             # overlay 5 is written f
+def test_an_overlay_digit_is_written_as_a_letter_and_read_back() -> None:
+    assert compress_position(0.0, 0.0, "5", "#")[0:1] == b"f"
     assert parse_position(compress_position(0.0, 0.0, "5", "#"), NOW).symbol_table == "5"
-
-
-def test_the_type_byte_does_not_claim_a_gps_fix() -> None:
-    """T is 0 0 | fix: old | NMEA source: other | origin: software, the byte "#": a fixed station has no current fix."""
-    t = compress_position(60.17, 24.94, "/", "-")[12] - 33
-    assert (t >> 5 & 1, t >> 3 & 3, t & 7) == (0, 0, 2)
 
 
 def test_a_local_timestamp_is_kept_as_sent_and_flagged() -> None:
@@ -215,8 +218,3 @@ def test_compress_position_corners_round_trip() -> None:
     for lat, lon in [(90.0, -180.0), (-90.0, 180.0), (0.0, 0.0), (60.17, 24.94), (-90.0, -180.0)]:
         p = parse_position(compress_position(lat, lon, "/", "-"), NOW)
         assert (p.lat, p.lon) == (pytest.approx(lat, abs=1e-5), pytest.approx(lon, abs=1e-5))
-
-
-def test_compress_position_refuses_a_bad_symbol() -> None:
-    with pytest.raises(PositionError):
-        compress_position(0.0, 0.0, "?", "-")

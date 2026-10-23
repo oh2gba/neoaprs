@@ -19,7 +19,6 @@ _COURSE_SPEED = re.compile(r"(\d{3})/(\d{3})")
 _ALTITUDE = re.compile(r"/A=(-\d{5}|\d{6})")
 _UNCOMPRESSED_LEN, _COMPRESSED_LEN = 19, 13
 HUNDREDTHS_PER_DEGREE = 6000
-THOUSANDTHS_PER_DEGREE = 60000
 
 
 class PositionError(ValueError):
@@ -253,18 +252,3 @@ def _coordinate_text(value: float, whole_digits: int, negative: str, positive: s
 def uncompressed_position(lat: float, lon: float, symbol_table: str, symbol_code: str) -> bytes:
     """The 19 bytes DDMM.mmN/DDDMM.mmE- of an uncompressed position: latitude, symbol table, longitude, symbol code."""
     return f"{_coordinate_text(lat, 2, 'S', 'N')}{symbol_table}{_coordinate_text(lon, 3, 'W', 'E')}{symbol_code}".encode("ascii")
-
-
-def compress_position(lat: float, lon: float, symbol_table: str, symbol_code: str) -> bytes:
-    """The 13 bytes of a compressed position without course, speed or altitude: symbol table, latitude, longitude, symbol code, "  " (no cs) and a type byte that says what a fixed station is: not a current
-    GPS fix, no NMEA source, compressed by software (the byte means nothing while there is no cs, but it must not claim more)."""
-    table, code = _symbol(symbol_table, symbol_code)
-    y = min(max(round((90 - lat) * 380926), 0), 91 ** 4 - 1)
-    x = min(max(round((180 + lon) * 190463), 0), 91 ** 4 - 1)
-    # Overlays 0-9 are written a-j in a compressed position, so that the first byte is never a digit (which marks the uncompressed form).
-    table_byte = chr(ord(table) - ord("0") + ord("a")) if table.isdigit() else table
-    return (table_byte + _base91_text(y) + _base91_text(x) + code + "  #").encode("ascii")
-
-
-def _base91_text(v: int) -> str:
-    return "".join(chr(33 + v // 91 ** i % 91) for i in (3, 2, 1, 0))
