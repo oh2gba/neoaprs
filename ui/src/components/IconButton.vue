@@ -7,7 +7,18 @@ withDefaults(defineProps<{ kind: "delete" | "close"; label: string; title?: stri
 <template>
   <button type="button" class="xbtn" :class="{ armed }" :aria-label="label" :title="title ?? (kind === 'delete' ? 'Delete' : 'Close')">
     <template v-if="armed">sure?</template>
-    <svg v-else width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <svg
+      v-else
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
       <path v-if="kind === 'delete'" d="M2.5 4h11M6 4V2.5h4V4M4 4l.7 9.5h6.6L12 4M6.8 6.5v4.5M9.2 6.5v4.5" />
       <path v-else d="M3.5 3.5l9 9M12.5 3.5l-9 9" />
     </svg>

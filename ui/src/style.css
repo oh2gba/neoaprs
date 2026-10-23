@@ -378,8 +378,7 @@ tbody tr:focus-visible {
 }
 
 /* the tables */
-.tablepane,
-.tncpane {
+.tablepane {
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -502,8 +501,7 @@ tbody tr:focus-visible {
   word-break: break-all;
 }
 .tnclines {
-  flex: 1;
-  min-height: 120px;
+  max-height: 16em;
   padding: 8px;
   overflow: auto;
   background: var(--bg);
@@ -1981,10 +1979,7 @@ button.linkbtn {
   gap: 6px;
 }
 
-/* a heading that opens what is under it (Disclosure), and the TNC tab's status line */
-.disclosure {
-  padding: 0 10px;
-}
+/* a heading that opens what is under it (DisclosureBox), and the radio status of the Settings tab */
 .disclosure > summary {
   padding: 6px 0;
   color: var(--muted);
@@ -1993,26 +1988,25 @@ button.linkbtn {
 .disclosure-body {
   padding-bottom: 6px;
 }
-.disclosure-body > .card-fields {
-  padding-right: 0;
-  padding-left: 0;
+.radiostatus-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 4px 0 6px;
 }
 .tncstatus {
-  margin: 0;
-  padding: 0 10px 6px;
+  margin: 0 0 4px;
   overflow-wrap: anywhere;
+}
+.radiostatus .problem {
+  margin: 6px 0;
 }
 .tncports {
   margin: 0;
   padding-left: 18px;
   font-size: 12px;
   overflow-wrap: anywhere;
-}
-.thread-head .disclosure {
-  padding: 0;
-}
-.mail-tools .disclosure {
-  padding: 0;
 }
 
 /* a field with its label over it, in a row of controls */

@@ -1,6 +1,23 @@
 import { describe, expect, it } from "vitest";
 import { message } from "@/test/fixtures";
-import { ADDRESSES_KEPT, GET_HELD, canSendEmail, emailBytesLeft, emailLine, forgetAddress, isNotConfirmed, listShortcuts, mailLine, mailMarkOf, mailStateText, parseAddresses, rememberAddress, removeShortcut, validAddress, validShortcut } from "@/lib/email";
+import {
+  ADDRESSES_KEPT,
+  GET_HELD,
+  canSendEmail,
+  emailBytesLeft,
+  emailLine,
+  forgetAddress,
+  isNotConfirmed,
+  listShortcuts,
+  mailLine,
+  mailMarkOf,
+  mailStateText,
+  parseAddresses,
+  rememberAddress,
+  removeShortcut,
+  validAddress,
+  validShortcut,
+} from "@/lib/email";
 
 describe("the line to the gateway", () => {
   it("is the addressee, a space and the text", () => {

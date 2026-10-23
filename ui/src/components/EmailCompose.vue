@@ -30,21 +30,16 @@ function submit(): void {
     <div class="toolbar">
       <strong>Send an email</strong>
       <span class="grow" />
-      <span class="compose-left mono" :class="{ over: left < 0 }" :title="`${left} of ${MESSAGE_TEXT_MAX} characters left; the address and the space count too`"
+      <span
+        class="compose-left mono"
+        :class="{ over: left < 0 }"
+        :title="`${left} of ${MESSAGE_TEXT_MAX} characters left; the address and the space count too`"
         >{{ leftText(left) }}</span
       >
     </div>
     <div class="compose-row">
       <label class="sr-only" for="mail-to">To</label>
-      <input
-        id="mail-to"
-        v-model="to"
-        class="input mono mail-to"
-        type="text"
-        placeholder="Address or shortcut"
-        autocomplete="off"
-        spellcheck="false"
-      />
+      <input id="mail-to" v-model="to" class="input mono mail-to" type="text" placeholder="Address or shortcut" autocomplete="off" spellcheck="false" />
       <button type="submit" class="btn primary" :disabled="!ready" :title="connected ? undefined : 'The TNC is not connected'">Send</button>
     </div>
     <label class="sr-only" for="mail-text">Text</label>

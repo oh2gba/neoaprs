@@ -26,6 +26,16 @@ describe("BulletinCompose", () => {
     expect(wrapper.find("p").exists()).toBe(false);
   });
 
+  it("labels the kind and the number (a letter for an announcement)", async () => {
+    const { wrapper, kind } = compose();
+    expect(wrapper.find("label[for='post-kind']").text()).toBe("Kind");
+    expect(wrapper.find("label[for='post-id']").text()).toBe("Number");
+    await kind.setValue("announcement");
+    expect(wrapper.find("label[for='post-id']").text()).toBe("Letter");
+    await kind.setValue("group");
+    expect(wrapper.find("label[for='post-group']").text()).toBe("Group");
+  });
+
   it("has an (i) that says in a few sentences what a bulletin, a bulletin to a group and a message are, closed until it is pressed", async () => {
     const { wrapper } = compose();
     const info = wrapper.find<HTMLButtonElement>(".info-toggle");

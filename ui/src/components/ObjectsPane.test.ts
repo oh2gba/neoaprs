@@ -54,6 +54,13 @@ describe("ObjectsPane", () => {
     expect(wrapper.find<HTMLInputElement>("input[maxlength='9']").element.value).toBe("");
   });
 
+  it("has an Edit as big as the other buttons and a delete that says it kills the object on the air", () => {
+    const { wrapper } = pane(rows);
+    expect(wrapper.find(".object-edit").classes()).not.toContain("small");
+    expect(wrapper.find(".bulletin-delete").attributes("title")).toBe("Delete (kill on the air)");
+    expect(wrapper.find(".bulletin-delete").classes()).toContain("xbtn");
+  });
+
   it("opens the form with the object when Edit is pressed", async () => {
     const { wrapper, form } = pane(rows);
     await wrapper.find(".ownobject .object-edit").trigger("click");

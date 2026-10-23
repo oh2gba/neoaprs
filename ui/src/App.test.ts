@@ -362,11 +362,14 @@ describe("App", () => {
     expect(wrapper.find("#pane-packets tbody tr").text()).toContain("third");
   });
 
-  it("shows the radio link in the TNC tab and asks for a reconnect", async () => {
+  it("shows the radio link at the top of the TNC group of the Settings tab and asks for a reconnect", async () => {
     const { wrapper, socket } = await open();
-    await tabButton(wrapper, "TNC")?.trigger("click");
-    expect(wrapper.find("#pane-tnc").text()).toContain("9600 baud");
-    await wrapper.find("#pane-tnc button").trigger("click");
+    expect(tabButton(wrapper, "TNC")).toBeUndefined();
+    await tabButton(wrapper, "Settings")?.trigger("click");
+    const group = wrapper.find("#pane-settings fieldset");
+    expect(group.find("legend").text()).toBe("TNC");
+    expect(group.find(".radiostatus .tncstatus").text()).toMatch(/^Connected to \/dev\/brainbox_3, last packet /);
+    await group.find(".radiostatus button").trigger("click");
     expect(socket.sent).toContainEqual({ cmd: "tnc_reconnect" });
   });
 
@@ -598,7 +601,6 @@ describe("App", () => {
         "Bulletins",
         "Objects",
         "Beacon",
-        "TNC",
         "Settings",
       ]);
       await sayBoard(socket);
@@ -1104,8 +1106,8 @@ describe("App", () => {
       throw new Error("blocked");
     });
     const { wrapper } = await open();
-    await tabButton(wrapper, "TNC")?.trigger("click");
-    expect(wrapper.find("[aria-selected='true']").text()).toBe("TNC");
+    await tabButton(wrapper, "Settings")?.trigger("click");
+    expect(wrapper.find("[aria-selected='true']").text()).toBe("Settings");
     vi.restoreAllMocks();
   });
 

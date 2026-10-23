@@ -71,6 +71,45 @@ describe("MessagesPane", () => {
     expect(wrapper.emitted("select")?.[2]).toEqual(["OH2RDG"]);
   });
 
+  describe("the route of a conversation", () => {
+    const routeOf = (wrapper: ReturnType<typeof pane>) => wrapper.find<HTMLDetailsElement>(".thread-head details").element;
+
+    it("is behind a closed Route while the default route is used", () => {
+      const wrapper = pane();
+      expect(wrapper.find(".thread-head summary").text()).toBe("Route");
+      expect(routeOf(wrapper).open).toBe(false);
+      expect(wrapper.find(".thread-head .pathbox").exists()).toBe(true);
+    });
+
+    it("is shown open when the station has a path of its own, or is RF only", () => {
+      expect(routeOf(pane({ paths: new Map([["OH2RDG", "OH2RCH-2"]]) })).open).toBe(true);
+      expect(routeOf(pane({ rfOnly: new Set(["OH2RDG"]) })).open).toBe(true);
+      expect(routeOf(pane({ paths: new Map([["OH2XYZ", "OH2RCH-2"]]) })).open).toBe(false);
+    });
+
+    it("opens for the next conversation as that one's route says, not as the last was left", async () => {
+      const wrapper = pane({ paths: new Map([["OH2XYZ", "OH2RCH-2"]]) });
+      routeOf(wrapper).open = true;
+      await wrapper.find(".thread-head details").trigger("toggle");
+      await wrapper.setProps({ selected: "OH2XYZ" });
+      expect(routeOf(wrapper).open).toBe(true);
+      await wrapper.setProps({ selected: "OH2RDG" });
+      expect(routeOf(wrapper).open).toBe(false);
+    });
+  });
+
+  it("explains what overheard means in an (i), and marks the open conversation for a narrow page", () => {
+    const wrapper = pane();
+    expect(wrapper.find(".toolbar .info-toggle").attributes("aria-label")).toBe("What overheard means");
+    expect(wrapper.findAll(".conv-item").map((i) => i.classes().includes("open"))).toEqual([false, true]);
+    expect(wrapper.find(".msgpane").classes()).toContain("has-thread");
+    expect(wrapper.find(".convs").classes()).toContain("short");
+  });
+
+  it("has a Call placeholder in To", () => {
+    expect(pane().find("#msg-to").attributes("placeholder")).toBe("Call");
+  });
+
   describe("deleting a conversation", () => {
     beforeEach(() => vi.useFakeTimers());
     afterEach(() => vi.useRealTimers());
@@ -328,7 +367,7 @@ describe("MessagesPane", () => {
         { call: "OH2BBB", direct: false, heardAt: "2026-10-21T11:00:00Z" },
       ],
     });
-    await wrapper.find("button[aria-expanded]").trigger("click");
+    await wrapper.find(".compose button[aria-expanded]").trigger("click");
     for (const box of wrapper.findAll(".picker-list input")) await box.setValue(true);
     await wrapper.find("#msg-text").setValue("Net at 20:00");
     await wrapper.find("form").trigger("submit");

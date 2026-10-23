@@ -80,7 +80,8 @@ export function mailLine(text: string): MailLine {
   const rest = split?.[2];
   if (first === undefined || rest === undefined) return { head: null, body: line };
   const named = !first.includes("@");
-  if (named && (rest === "L" || rest === "R")) return { head: null, body: rest === "L" ? `Email the list of shortcuts to ${first}` : `Remove the shortcut ${first}` };
+  if (named && (rest === "L" || rest === "R"))
+    return { head: null, body: rest === "L" ? `Email the list of shortcuts to ${first}` : `Remove the shortcut ${first}` };
   if (named && validAddress(rest)) return { head: null, body: `Shortcut ${first}: ${rest}` };
   return { head: `to ${first}`, body: rest };
 }

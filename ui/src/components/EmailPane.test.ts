@@ -55,7 +55,20 @@ describe("EmailPane", () => {
   it("marks what the gateway sent as its answer, and nothing of ours", () => {
     const messages = pane().findAll(".msg");
     expect(messages[1]?.find(".msg-from").text()).toBe("EMAIL-2 answers");
-    expect(pane().findAll(".msg-from").filter((p) => p.text().endsWith("answers"))).toHaveLength(1);
+    expect(
+      pane()
+        .findAll(".msg-from")
+        .filter((p) => p.text().endsWith("answers")),
+    ).toHaveLength(1);
+  });
+
+  it("shows a mail of ours as to whom it is, and the gateway's commands in words, with the line as sent in the title", () => {
+    const messages = pane().findAll(".msg");
+    expect(messages[0]?.find(".msg-from").text()).toBe("to me");
+    expect(messages[0]?.find(".msg-text").text()).toBe("hello");
+    expect(messages[0]?.find(".msg-text").attributes("title")).toBe("me hello");
+    expect(messages[2]?.find(".msg-text").text()).toBe("Fetch held mail");
+    expect(messages[1]?.find(".msg-text").attributes("title")).toBeUndefined();
   });
 
   it("offers Retry and Cancel as the Messages tab does", async () => {

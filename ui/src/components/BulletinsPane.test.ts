@@ -56,7 +56,7 @@ describe("BulletinsPane", () => {
       const wrapper = pane(...rows);
       expect(wrapper.findAll(".bulletin-delete").map((b) => b.text())).toEqual(["", "", "", ""]);
       expect(x(wrapper, 1)?.attributes("aria-label")).toBe("Delete the bulletin BLN1 from OH2XYZ");
-      expect(x(wrapper, 0)?.classes()).toContain("conv-delete");
+      expect(x(wrapper, 0)?.classes()).toContain("xbtn");
     });
 
     it("asks twice: the first press says sure?, the second emits the sender and the slot", async () => {

@@ -4,7 +4,7 @@
 // used as the addressee; "Email the list" (`name L`: the gateway emails the list of the shortcuts to this shortcut's address) and "Remove" (`name R`, after "sure?", forgotten after 5 s) work only for a name
 // that was registered, so they stay off until "Your shortcut" holds a name. All are off while the TNC is not connected (the title says so). The page sends them as messages to the gateway; what it answers is in the thread.
 import { computed, ref } from "vue";
-import Disclosure from "@/components/Disclosure.vue";
+import DisclosureBox from "@/components/DisclosureBox.vue";
 import { useSure } from "@/composables/useSure";
 import { GET_HELD, listShortcuts, removeShortcut, validAddress, validShortcut } from "@/lib/email";
 
@@ -52,7 +52,7 @@ function remove(): void {
         Fetch held mail
       </button>
     </div>
-    <Disclosure title="Shortcuts">
+    <DisclosureBox title="Shortcuts">
       <form class="mail-shortcut" @submit.prevent="register">
         <label class="path-label" for="mail-shortcut">Name</label>
         <input id="mail-shortcut" v-model="name" class="input mono" type="text" placeholder="john" autocomplete="off" spellcheck="false" />
@@ -88,6 +88,6 @@ function remove(): void {
           </button>
         </div>
       </form>
-    </Disclosure>
+    </DisclosureBox>
   </div>
 </template>

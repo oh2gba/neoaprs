@@ -36,7 +36,9 @@ watch(
     <div v-for="m in thread" :key="m.id" class="msg" :class="m.direction">
       <p v-if="gateway && m.direction === 'in'" class="msg-from muted">{{ peer }} answers</p>
       <p v-if="gateway && m.direction === 'out' && mailLine(m.text).head" class="msg-from muted">{{ mailLine(m.text).head }}</p>
-      <p class="msg-text" :title="gateway && m.direction === 'out' ? m.text : undefined">{{ gateway && m.direction === "out" ? mailLine(m.text).body : m.text }}</p>
+      <p class="msg-text" :title="gateway && m.direction === 'out' ? m.text : undefined">
+        {{ gateway && m.direction === "out" ? mailLine(m.text).body : m.text }}
+      </p>
       <p class="msg-meta muted">
         <span :title="dateTimeText(m.at)">{{ clockText(m.at) }}</span>
         <MessageMark :row="m" :mail="gateway" />

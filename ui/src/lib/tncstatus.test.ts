@@ -1,20 +1,24 @@
 import { describe, expect, it } from "vitest";
 import { clockText } from "@/lib/format";
-import { localLine, searchedPorts, tncStatus } from "@/lib/tncstatus";
+import { localLine, searchedPorts, tncCounts, tncStatus } from "@/lib/tncstatus";
 import { NOW, ago, tncState } from "@/test/fixtures";
 
 const searching = () =>
-  tncState({ state: "waiting", path: "", describe: "listening on /dev/ttyUSB0, /dev/serial/by-id/usb-X-if00 for the radio", stats: { ...tncState().stats, packets: 0 } });
-
-describe("tncStatus", () => {
-  it("says what it is connected to, how many packets it has heard and when the last one came", () => {
-    const tnc = tncState({ path: "/dev/ttyUSB0", stats: { ...tncState().stats, packets: 412, last_packet: ago(120) } });
-    expect(tncStatus(tnc, NOW)).toBe("Connected to /dev/ttyUSB0, 412 packets, last 2 min ago");
+  tncState({
+    state: "waiting",
+    path: "",
+    describe: "listening on /dev/ttyUSB0, /dev/serial/by-id/usb-X-if00 for the radio",
+    stats: { ...tncState().stats, packets: 0 },
   });
 
-  it("says so when no packet has been heard, and is right about one", () => {
-    expect(tncStatus(tncState({ stats: { ...tncState().stats, packets: 0, last_packet: null } }), NOW)).toBe("Connected to /dev/brainbox_3, no packets yet");
-    expect(tncStatus(tncState({ stats: { ...tncState().stats, packets: 1, last_packet: ago(5) } }), NOW)).toBe("Connected to /dev/brainbox_3, 1 packet, last 5 s ago");
+describe("tncStatus", () => {
+  it("says what it is connected to and when the last packet came", () => {
+    const tnc = tncState({ path: "/dev/ttyUSB0", stats: { ...tncState().stats, packets: 412, last_packet: ago(120) } });
+    expect(tncStatus(tnc, NOW)).toBe("Connected to /dev/ttyUSB0, last packet 2 min ago");
+  });
+
+  it("says so when no packet has been heard", () => {
+    expect(tncStatus(tncState({ stats: { ...tncState().stats, packets: 0, last_packet: null } }), NOW)).toBe("Connected to /dev/brainbox_3, no packet yet");
   });
 
   it("says it is searching for the radio instead of listing the ports", () => {
@@ -25,11 +29,22 @@ describe("tncStatus", () => {
     expect(tncStatus(tncState({ state: "silent", silent_since: ago(7 * 60) }), NOW)).toMatch(/^nothing heard since \d\d:\d\d \(7 min\)$/);
   });
 
-  it("says what it is waiting for, or trying", () => {
-    expect(tncStatus(tncState({ state: "waiting" }), NOW)).toBe("Waiting for /dev/brainbox_3…");
-    expect(tncStatus(tncState({ state: "waiting", path: "" }), NOW)).toBe("Waiting for the radio…");
-    expect(tncStatus(tncState({ state: "connecting" }), NOW)).toBe("Connecting to /dev/brainbox_3…");
+  it("says why it is not connected: the problem, else the last error, else nothing more", () => {
+    expect(tncStatus(tncState({ state: "waiting", problem: "no KISS frames", last_error: "busy" }), NOW)).toBe("Not connected: no KISS frames");
+    expect(tncStatus(tncState({ state: "waiting", last_error: "busy" }), NOW)).toBe("Not connected: busy");
     expect(tncStatus(tncState({ state: "stopped" }), NOW)).toBe("Not connected");
+  });
+
+  it("says what it is connecting to", () => {
+    expect(tncStatus(tncState({ state: "connecting" }), NOW)).toBe("Connecting to /dev/brainbox_3…");
+    expect(tncStatus(tncState({ state: "connecting", path: "" }), NOW)).toBe("Connecting…");
+  });
+});
+
+describe("tncCounts", () => {
+  it("says how much came in and went out, for the hover title of the line", () => {
+    expect(tncCounts(tncState())).toBe("11 packets heard, 2.0 kB in, 0 B out");
+    expect(tncCounts(tncState({ stats: { ...tncState().stats, packets: 1 } }))).toContain("1 packet heard");
   });
 });
 

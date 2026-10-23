@@ -1,6 +1,6 @@
-// What the TNC tab says about the radio link in plain words: one status line instead of the daemon's counters, the ports a search listens to (told in the daemon's `describe` line while it looks for the radio), and the daemon's log lines
+// What the radio group of the Settings tab says about the radio link in plain words: one status line instead of the daemon's counters, the ports a search listens to (told in the daemon's `describe` line while it looks for the radio), and the daemon's log lines
 // (which begin with the time in UTC) in the viewer's time.
-import { ageText, clockText, silentText } from "@/lib/format";
+import { ageText, bytesText, clockText, silentText } from "@/lib/format";
 import type { TncState } from "@/protocol/protocol";
 
 const SEARCHING = /^listening on (.+) for the radio$/;
@@ -14,26 +14,24 @@ export function searchedPorts(tnc: TncState): string[] | null {
   return found?.[1] === undefined ? null : found[1].split(", ");
 }
 
-function packetsText(tnc: TncState, nowMs: number): string {
-  const { packets, last_packet } = tnc.stats;
-  if (packets === 0) return "no packets yet";
-  return `${packets} ${packets === 1 ? "packet" : "packets"}, last ${ageText(last_packet, nowMs)} ago`;
+function lastPacketText(tnc: TncState, nowMs: number): string {
+  return tnc.stats.last_packet === null ? "no packet yet" : `last packet ${ageText(tnc.stats.last_packet, nowMs)} ago`;
 }
 
-/** The one line: "Connected to /dev/ttyUSB0, 412 packets, last 2 min ago", "Searching for the radio...", "nothing heard since 02:43 (5 h)". */
+/** The one line: "Connected to /dev/ttyUSB0, last packet 2 min ago", "Searching for the radio…", "Not connected: no KISS frames on the port", "nothing heard since 02:43 (5 h)". */
 export function tncStatus(tnc: TncState, nowMs: number): string {
   if (tnc.state === "silent") return silentText(tnc.silent_since, nowMs);
   if (searchedPorts(tnc) !== null) return "Searching for the radio…";
-  switch (tnc.state) {
-    case "connected":
-      return `Connected to ${tnc.path}, ${packetsText(tnc, nowMs)}`;
-    case "connecting":
-      return tnc.path === "" ? "Connecting…" : `Connecting to ${tnc.path}…`;
-    case "waiting":
-      return tnc.path === "" ? "Waiting for the radio…" : `Waiting for ${tnc.path}…`;
-    default:
-      return "Not connected";
-  }
+  if (tnc.state === "connected") return `Connected to ${tnc.path}, ${lastPacketText(tnc, nowMs)}`;
+  if (tnc.state === "connecting") return tnc.path === "" ? "Connecting…" : `Connecting to ${tnc.path}…`;
+  const why = tnc.problem || tnc.last_error;
+  return why === "" ? "Not connected" : `Not connected: ${why}`;
+}
+
+/** What the line's hover title adds: how much has come in and gone out. */
+export function tncCounts(tnc: TncState): string {
+  const { packets, bytes_in, bytes_out } = tnc.stats;
+  return `${packets} ${packets === 1 ? "packet" : "packets"} heard, ${bytesText(bytes_in)} in, ${bytesText(bytes_out)} out`;
 }
 
 /** A log line of the daemon with its time (HH:MM:SS, UTC, of today or of yesterday for a time that has not come yet) in the viewer's time; any other line as it is. */

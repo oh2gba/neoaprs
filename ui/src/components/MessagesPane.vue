@@ -2,7 +2,7 @@
 // The Messages tab: the conversations (one for each other station, the newest first, with the number of messages not seen yet; a click on the row of the one that is open closes its thread, a click on another opens that one, and the delete button at the right
 // end of a row deletes the whole conversation, or the whole overheard pair, after "sure?": the one way to delete, a single message has no button), the thread of the open one (MessageThread) and the box to write in (MessageCompose, which can also write one text to several stations). A conversation with messages
 // not seen that is not the open one is highlighted. Under the list is "Route", closed unless the route of the open conversation was changed: the path the station's messages go by (with the suggested one) and the tickbox RF only. A message that came in has the route it came by under its time ("via OH2RCH-2"). "Show overheard" lists the messages sent to other stations, a pair of stations at a time, which are otherwise left out.
-import Disclosure from "@/components/Disclosure.vue";
+import DisclosureBox from "@/components/DisclosureBox.vue";
 import IconButton from "@/components/IconButton.vue";
 import InfoTip from "@/components/InfoTip.vue";
 import MessageCompose from "@/components/MessageCompose.vue";
@@ -104,7 +104,7 @@ function remove(call: string): void {
     </ul>
     <div v-if="selected !== null" class="thread-head">
       <p v-if="isOverheard(selected)" class="muted">Overheard: {{ conversationName(selected) }}</p>
-      <Disclosure v-else :key="selected" title="Route" :open="routeChanged(selected)">
+      <DisclosureBox v-else :key="selected" title="Route" :open="routeChanged(selected)">
         <StationPrefs
           :call="selected"
           :paths="paths"
@@ -115,7 +115,7 @@ function remove(call: string): void {
           @clear-path="emit('clearPath', $event)"
           @set-rf-only="(c, on) => emit('setRfOnly', c, on)"
         />
-      </Disclosure>
+      </DisclosureBox>
     </div>
     <MessageThread :thread="thread" :peer="selected" :heard-direct="heardDirect" @retry="emit('retry', $event)" @cancel="emit('cancel', $event)" />
     <MessageCompose
