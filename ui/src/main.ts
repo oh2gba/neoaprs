@@ -1,4 +1,5 @@
 import "./style.css";
+import "./responsive.css";
 import { createApp } from "vue";
 import AccessGate from "./AccessGate.vue";
 import { listenForInstall } from "./composables/useInstall";

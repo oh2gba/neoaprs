@@ -1,4 +1,5 @@
-// The page's layout numbers: the tabs of the panel and how wide the panel may be. (Under 800 px of page the panel goes under the map: that is the media query of style.css.)
+// The page's layout numbers: the tabs of the panel, how wide the panel may be, and the three sizes of the page (phone, tablet, desktop) with how many station cards fit on the map at each. The sizes are decided here, once, from the window
+// (composables/useViewport.ts), and the page marks its root with the one it is (`size-phone`, ...): style.css uses that class and not media queries of its own, so that the script and the style never disagree.
 
 export const TAB_IDS = ["stations", "packets", "messages", "email", "bulletins", "objects", "beacon", "settings"] as const;
 export type TabId = (typeof TAB_IDS)[number];
@@ -16,6 +17,14 @@ export const TAB_TITLES: Record<TabId, string> = {
 
 export const PANEL_MIN = 280;
 export const PANEL_DEFAULT = 480;
+/** From this window width on, a panel the user has not dragged is `PANEL_DEFAULT_WIDE` wide: wide enough for the two columns of the Messages tab. */
+const WIDE_WINDOW = 1280;
+export const PANEL_DEFAULT_WIDE = 640;
+
+/** The width of the panel of a user who has not dragged it, for a window this wide. */
+export function defaultPanelWidth(pageWidth: number): number {
+  return pageWidth >= WIDE_WINDOW ? PANEL_DEFAULT_WIDE : PANEL_DEFAULT;
+}
 /** The panel may take this share of the window... */
 const PANEL_MAX_SHARE = 0.8;
 /** ...but the map keeps at least this many pixels, so on a narrow window the most is less. */
@@ -31,4 +40,31 @@ export function panelMax(pageWidth: number): number {
 /** A panel width, whole pixels, at least PANEL_MIN and at most `panelMax(pageWidth)`. */
 export function clampWidth(width: number, pageWidth: number): number {
   return Math.round(Math.max(PANEL_MIN, Math.min(panelMax(pageWidth), width)));
+}
+
+export type SizeClass = "phone" | "tablet" | "desktop";
+
+/** A window narrower than this is a phone (a portrait one; a wide window that is short is a phone held sideways: see `SHORT_HEIGHT`). */
+const PHONE_MAX = 700;
+/** A window narrower than this (and not a phone) is a tablet: the map and the panel side by side, the panel a comfortable fixed width; from here on the panel is the user's to size. */
+const TABLET_MAX = 1100;
+/** A window shorter than this and narrower than `SHORT_WIDTH` is a phone held sideways (844 by 390, 932 by 430): the tabs and the map take turns there too. */
+const SHORT_HEIGHT = 500;
+const SHORT_WIDTH = 1000;
+
+export function sizeOf(width: number, height: number): SizeClass {
+  if (width < PHONE_MAX || (height < SHORT_HEIGHT && width < SHORT_WIDTH)) return "phone";
+  return width < TABLET_MAX ? "tablet" : "desktop";
+}
+
+/** The room a compact card takes in the column on the map (its height and the gap), and what the column leaves: the header, the map's zoom buttons above it, the map's corner under it. */
+const CARD_SLOT = 150;
+const CARD_RESERVED = 154;
+const MOST_CARDS = 6;
+
+/** How many station cards may be open at once: one on a phone (a tap replaces it), two on a tablet, and on a desktop as many compact cards as the height of the window has room for, at least 1 and at most 6. */
+export function cardCapacity(size: SizeClass, height: number): number {
+  if (size === "phone") return 1;
+  if (size === "tablet") return 2;
+  return Math.max(1, Math.min(MOST_CARDS, Math.floor((height - CARD_RESERVED) / CARD_SLOT)));
 }

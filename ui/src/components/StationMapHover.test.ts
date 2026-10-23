@@ -105,7 +105,7 @@ describe("the card of a station under the pointer", () => {
     vi.advanceTimersByTime(1000);
     expect(shown()).toBe(false);
     markerOf("OH2PU-9").click();
-    expect(wrapper.emitted("select")).toEqual([["OH2PU-9"]]);
+    expect(wrapper.emitted("select")).toEqual([["OH2PU-9", false]]);
   });
 
   it("goes with a click, which still selects the station", async () => {
@@ -114,7 +114,7 @@ describe("the card of a station under the pointer", () => {
     vi.advanceTimersByTime(300);
     markerOf("OH2PU-9").click();
     expect(shown()).toBe(false);
-    expect(wrapper.emitted("select")).toEqual([["OH2PU-9"]]);
+    expect(wrapper.emitted("select")).toEqual([["OH2PU-9", false]]);
   });
 
   it("goes when the map moves and when the station is gone, and follows the station's row", async () => {

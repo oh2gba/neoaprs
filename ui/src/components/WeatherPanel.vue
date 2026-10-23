@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // The weather of a weather station at the top of its card: the latest readings (temperature large, the wind as an arrow with its speed and gusts, humidity, pressure, rain over the hour, 24 hours and since midnight,
 // luminosity and snow when they are sent) with how long ago they were heard, and under them the trend graphs of the last 24 hours or the last 7 days (the switch is remembered): temperature, pressure, wind with its
-// gusts as a lighter band, and rain as bars. The daemon is asked for the series when the card opens, when the switch changes and when a new observation comes (`ask`).
+// gusts as a lighter band, and rain as bars. The daemon is asked for the series when the card opens, when the switch changes and when a new observation comes (`ask`). On a compact card (one of several) only the latest readings are shown (not those of the day, the light and the snow), and the daemon is not asked.
 import { computed, watch } from "vue";
 import TrendChart from "@/components/TrendChart.vue";
 import { usePersisted } from "@/composables/usePersisted";
@@ -9,7 +9,7 @@ import { ageText, bearingText, dateTimeText } from "@/lib/format";
 import { arrowAngle, columnOf, hasValues, humidityText, pressureText, rainText, tempText, windSpeedText } from "@/lib/weather";
 import type { StationRow, WeatherSeriesMessage } from "@/protocol/protocol";
 
-const props = defineProps<{ row: StationRow; series: WeatherSeriesMessage | null; now: number }>();
+const props = withDefaults(defineProps<{ row: StationRow; series: WeatherSeriesMessage | null; now: number; compact?: boolean }>(), { compact: false });
 const emit = defineEmits<{ ask: [call: string, hours: number] }>();
 
 const SPANS = [
@@ -20,8 +20,10 @@ const span = usePersisted("wxhours", "24", ["24", "168"] as const);
 const hours = computed(() => Number(span.value));
 
 watch(
-  () => [props.row.call, hours.value, props.row.weather_at] as const,
-  ([call, asked]) => emit("ask", call, asked),
+  () => [props.row.call, hours.value, props.row.weather_at, props.compact] as const,
+  ([call, asked, , compact]) => {
+    if (!compact) emit("ask", call, asked);
+  },
   { immediate: true },
 );
 
@@ -67,21 +69,23 @@ const heard = computed(() => (props.row.weather_at === null ? "" : `${ageText(pr
         <dd>{{ rainText(wx.rain_1h_mm) }}</dd>
         <dt>Rain 24 h</dt>
         <dd>{{ rainText(wx.rain_24h_mm) }}</dd>
-        <dt>Rain today</dt>
-        <dd>{{ rainText(wx.rain_today_mm) }}</dd>
-        <template v-if="wx.luminosity !== null">
-          <dt>Light</dt>
-          <dd>{{ wx.luminosity }} W/m²</dd>
-        </template>
-        <template v-if="wx.snow_mm !== null">
-          <dt>Snow 24 h</dt>
-          <dd>{{ rainText(wx.snow_mm) }}</dd>
+        <template v-if="!compact">
+          <dt>Rain today</dt>
+          <dd>{{ rainText(wx.rain_today_mm) }}</dd>
+          <template v-if="wx.luminosity !== null">
+            <dt>Light</dt>
+            <dd>{{ wx.luminosity }} W/m²</dd>
+          </template>
+          <template v-if="wx.snow_mm !== null">
+            <dt>Snow 24 h</dt>
+            <dd>{{ rainText(wx.snow_mm) }}</dd>
+          </template>
         </template>
       </dl>
       <div class="wx-when muted" :title="dateTimeText(row.weather_at)">{{ heard }}</div>
     </div>
     <div v-else class="wx-none muted">No weather report heard yet.</div>
-    <div class="wx-span" role="group" aria-label="Period of the graphs">
+    <div v-if="!compact" class="wx-span" role="group" aria-label="Period of the graphs">
       <button
         v-for="s in SPANS"
         :key="s.hours"
@@ -94,23 +98,25 @@ const heard = computed(() => (props.row.weather_at === null ? "" : `${ageText(pr
         {{ s.label }}
       </button>
     </div>
-    <p v-if="mine === null" class="wx-none muted">Loading the observations…</p>
-    <p v-else-if="mine.points.length === 0" class="wx-none muted">No observations in this period.</p>
-    <template v-else>
-      <TrendChart v-if="hasValues(charts.temp)" title="Temperature" unit="°C" :from="from" :to="to" :main="charts.temp" tone="temp" />
-      <TrendChart v-if="hasValues(charts.pressure)" title="Pressure" unit="hPa" :from="from" :to="to" :main="charts.pressure" tone="pressure" />
-      <TrendChart
-        v-if="hasValues(charts.wind)"
-        title="Wind and gusts"
-        unit="km/h"
-        :from="from"
-        :to="to"
-        :main="charts.wind"
-        :band="charts.gust"
-        zero
-        tone="wind"
-      />
-      <TrendChart v-if="hasValues(charts.rain)" title="Rain, last hour" unit="mm" :from="from" :to="to" :main="charts.rain" as-bars zero tone="rain" />
+    <template v-if="!compact">
+      <p v-if="mine === null" class="wx-none muted">Loading the observations…</p>
+      <p v-else-if="mine.points.length === 0" class="wx-none muted">No observations in this period.</p>
+      <template v-else>
+        <TrendChart v-if="hasValues(charts.temp)" title="Temperature" unit="°C" :from="from" :to="to" :main="charts.temp" tone="temp" />
+        <TrendChart v-if="hasValues(charts.pressure)" title="Pressure" unit="hPa" :from="from" :to="to" :main="charts.pressure" tone="pressure" />
+        <TrendChart
+          v-if="hasValues(charts.wind)"
+          title="Wind and gusts"
+          unit="km/h"
+          :from="from"
+          :to="to"
+          :main="charts.wind"
+          :band="charts.gust"
+          zero
+          tone="wind"
+        />
+        <TrendChart v-if="hasValues(charts.rain)" title="Rain, last hour" unit="mm" :from="from" :to="to" :main="charts.rain" as-bars zero tone="rain" />
+      </template>
     </template>
   </section>
 </template>

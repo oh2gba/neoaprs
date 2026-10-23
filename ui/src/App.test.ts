@@ -54,6 +54,8 @@ async function open() {
 const tabButton = (wrapper: VueWrapper, title: string) => wrapper.findAll("[role='tab']").find((t) => t.text().startsWith(title));
 
 beforeEach(() => {
+  window.innerWidth = 1400; // a desktop (the tests of the other sizes set their own)
+  window.innerHeight = 900;
   FakeSocket.all = [];
   resetFakes();
   localStorage.clear();

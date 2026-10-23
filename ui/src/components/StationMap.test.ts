@@ -213,7 +213,7 @@ describe("StationMap", () => {
       .find((m) => m.element.textContent === "OH2PU-9")
       ?.element.click();
     FakeMap.last().fire("click");
-    expect(wrapper.emitted("select")).toEqual([["OH2PU-9"], [null]]);
+    expect(wrapper.emitted("select")).toEqual([["OH2PU-9", false], [null]]);
   });
 
   it("marks the selected station", async () => {

@@ -1,4 +1,4 @@
-// Keeps the station that was picked from being under its card: the card is in the same `.mapwrap` as the map and covers a corner of it. This reads where the card is on the screen and asks lib/cardclear.ts how far a marker has to move; the map does the moving
+// Keeps the station that was picked from being under its card: the card (or the column of cards, or the sheet of a phone: `.cardstack`) is in the same `.mapwrap` as the map and covers a corner of it. This reads where the card is on the screen and asks lib/cardclear.ts how far a marker has to move; the map does the moving
 // (components/StationMap.vue: a flight to a station ends with it clear of the card, a marker that is picked is moved out from under it).
 import type { Map as MapLibreMap } from "maplibre-gl";
 import type { Ref } from "vue";
@@ -7,7 +7,7 @@ import { moveClearOf, type Box, type Point } from "@/lib/cardclear";
 export function useClearOfCard(root: Readonly<Ref<HTMLElement | null>>, host: Readonly<Ref<HTMLElement | null>>) {
   /** The card over the map, in the pixels of the map; null when there is none. */
   function cardBox(): Box | null {
-    const card = root.value?.closest(".mapwrap")?.querySelector(".card");
+    const card = root.value?.closest(".mapwrap")?.querySelector(".cardstack, .card");
     const at = host.value?.getBoundingClientRect();
     if (!card || !at) return null;
     const c = card.getBoundingClientRect();

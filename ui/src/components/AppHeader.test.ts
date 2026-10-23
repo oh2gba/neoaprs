@@ -2,7 +2,7 @@ import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import AppHeader from "@/components/AppHeader.vue";
 import type { Connection } from "@/lib/hub";
-import { mediaRule } from "@/test/css";
+import { cssRule } from "@/test/css";
 import { ago, NOW, status, tncState } from "@/test/fixtures";
 
 const base = { call: "OH2GBA", connection: "open" as Connection, tnc: tncState(), version: "0.1.0", unread: 0, now: NOW };
@@ -133,8 +133,8 @@ describe("AppHeader", () => {
     const update = { version: "0.2.0", url: "", message: "" };
     const wrapper = header({ status: status({ update }) });
     expect(wrapper.find("button.update .update-to").text()).toBe("to 0.2.0");
-    expect(mediaRule("(max-width: 800px)", ".update-to")).toMatch(/display:\s*none/);
-    expect(mediaRule("(max-width: 800px)", ".version")).toMatch(/display:\s*none/);
-    expect(mediaRule("(max-width: 800px)", ".update")).not.toMatch(/display:\s*none/);
+    expect(cssRule(".size-phone .update-to")).toMatch(/display:\s*none/);
+    expect(cssRule(".size-phone .version")).toMatch(/display:\s*none/);
+    expect(cssRule(".size-phone .update")).not.toMatch(/display:\s*none/);
   });
 });

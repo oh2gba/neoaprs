@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAP_MIN, PANEL_MIN, clampWidth, panelMax } from "@/lib/layout";
+import { MAP_MIN, PANEL_DEFAULT, PANEL_DEFAULT_WIDE, PANEL_MIN, cardCapacity, clampWidth, defaultPanelWidth, panelMax, sizeOf } from "@/lib/layout";
 
 describe("panelMax", () => {
   it("is 80 % of a wide page", () => {
@@ -34,5 +34,46 @@ describe("clampWidth", () => {
     expect(clampWidth(1500, 1600)).toBe(1240);
     expect(clampWidth(900, 800)).toBe(440);
     expect(clampWidth(900, 300)).toBe(PANEL_MIN);
+  });
+});
+
+describe("sizeOf", () => {
+  it("is a phone under 700 px, a tablet from 700 to 1100 px, a desktop from 1100 px", () => {
+    expect([360, 375, 390, 699].map((w) => sizeOf(w, 800))).toEqual(["phone", "phone", "phone", "phone"]);
+    expect([700, 768, 1024, 1099].map((w) => sizeOf(w, 800))).toEqual(["tablet", "tablet", "tablet", "tablet"]);
+    expect([1100, 1280, 1920].map((w) => sizeOf(w, 900))).toEqual(["desktop", "desktop", "desktop"]);
+  });
+  it("is a phone held sideways when the window is short and not wide", () => {
+    expect(sizeOf(844, 390)).toBe("phone");
+    expect(sizeOf(932, 430)).toBe("phone");
+    expect(sizeOf(999, 499)).toBe("phone");
+    expect(sizeOf(1000, 499)).toBe("tablet");
+    expect(sizeOf(900, 500)).toBe("tablet");
+    expect(sizeOf(1280, 400)).toBe("desktop");
+  });
+  it("keeps a portrait tablet and a landscape one side by side", () => {
+    expect([sizeOf(768, 1024), sizeOf(1024, 768)]).toEqual(["tablet", "tablet"]);
+  });
+});
+
+describe("cardCapacity", () => {
+  it("is one on a phone and two on a tablet, whatever the height", () => {
+    expect([cardCapacity("phone", 2000), cardCapacity("tablet", 300), cardCapacity("tablet", 2000)]).toEqual([1, 2, 2]);
+  });
+  it("is as many compact cards as the height has room for on a desktop, at least 1 and at most 6", () => {
+    expect(cardCapacity("desktop", 300)).toBe(1);
+    expect(cardCapacity("desktop", 600)).toBe(2);
+    expect(cardCapacity("desktop", 800)).toBe(4);
+    expect(cardCapacity("desktop", 1080)).toBe(6);
+    expect(cardCapacity("desktop", 900)).toBe(4);
+    expect(cardCapacity("desktop", 700)).toBe(3);
+    expect(cardCapacity("desktop", 4000)).toBe(6);
+  });
+});
+
+describe("defaultPanelWidth", () => {
+  it("is 640 px on a window of 1280 px and more, so that the Messages tab has its two columns, and 480 px on a smaller one", () => {
+    expect([defaultPanelWidth(1279), defaultPanelWidth(1280), defaultPanelWidth(1920)]).toEqual([PANEL_DEFAULT, PANEL_DEFAULT_WIDE, PANEL_DEFAULT_WIDE]);
+    expect(PANEL_DEFAULT_WIDE).toBe(640);
   });
 });

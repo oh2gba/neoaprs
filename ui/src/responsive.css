@@ -1,0 +1,403 @@
+/* The page for the size of the window: phone, tablet, desktop (lib/layout.ts decides which, composables/useViewport.ts keeps it up to date, and App.vue puts it on the root as `size-phone`, `size-tablet` or `size-desktop`; a phone
+   also has `view-map` or `view-panel`: what it shows now). The rules here use that class and not media queries of their own, so that the script and the style never disagree; only what belongs to the kind of device (a finger, the notch)
+   is a media query. style.css has the page as it is on a desktop: the map, and at its right the panel the user can drag wider.
+
+   phone   (under 700 px, or a short window under 1000 px: a phone held sideways)  one view at a time: the open tab fills the screen under a compact header, or the map does; the Map button begins the tab bar
+   tablet  (700 to 1100 px)                                                        the map and the panel side by side, the panel 380 to 420 px wide
+   desktop (from 1100 px)                                                          as style.css has it, the panel's width the user's */
+
+/* every size: the page is the window and does not scroll; the notch and the home bar of a phone are left alone */
+html,
+body {
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+}
+.app {
+  height: 100%;
+  height: 100dvh;
+  padding-right: env(safe-area-inset-right);
+  padding-left: env(safe-area-inset-left);
+}
+.appheader {
+  padding-top: max(6px, env(safe-area-inset-top));
+}
+.main,
+.panel,
+.panel-body {
+  min-width: 0;
+}
+button,
+.btn,
+.tab {
+  touch-action: manipulation;
+}
+
+/* the station cards: a column at the left of the map, the newest on top (the first card does not move when another is added over it), "Close all" over them all */
+.cardstack {
+  position: absolute;
+  left: 10px;
+  bottom: 30px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 8px;
+  width: min(340px, calc(100% - 20px));
+  max-height: calc(100% - 114px);
+  pointer-events: none;
+}
+.cardstack > * {
+  pointer-events: auto;
+}
+.cardstack .card {
+  position: static;
+  flex: 0 1 auto;
+  width: auto;
+  max-height: none;
+  min-height: 0;
+}
+.cards-closeall {
+  order: 1;
+  align-self: flex-start;
+  box-shadow: var(--shadow);
+}
+.card-more {
+  flex: none;
+}
+.card.compact .card-head {
+  padding: 4px 4px 0 8px;
+  gap: 8px;
+}
+.card.compact .card-title > .muted {
+  display: none;
+}
+.card.compact .card-fields {
+  padding: 2px 8px 6px;
+  gap: 0 10px;
+  font-size: 12px;
+}
+.card.compact .wx {
+  padding: 0 8px 6px;
+  border-bottom: 0;
+}
+.card.compact .wx-now {
+  grid-template-columns: auto 1fr;
+  gap: 2px 10px;
+}
+.card.compact .wx-temp {
+  font-size: 24px;
+}
+.card.compact .wx-arrow {
+  width: 26px;
+  height: 26px;
+}
+.card.compact .wx-big {
+  font-size: 14px;
+}
+.card.compact .wx-values {
+  gap: 0 10px;
+  font-size: 12px;
+}
+.card.compact .wx-when {
+  font-size: 11px;
+}
+
+/* tablet: the panel has the width of its size, a fixed one (there is no mouse to drag the handle with) */
+.size-tablet .panel {
+  width: clamp(380px, 40%, 420px);
+}
+.size-tablet .panel.collapsed {
+  width: 34px;
+}
+
+/* phone: one view at a time. The panel is the tab bar and, in its turn, the open tab under it; the map is the rest of the screen */
+.size-phone .appheader {
+  gap: 10px;
+  padding-right: 10px;
+  padding-left: 10px;
+}
+.size-phone .version,
+.size-phone .update-to {
+  display: none;
+}
+.size-phone .update {
+  margin-left: auto;
+}
+.size-phone .main {
+  flex-direction: column;
+}
+.size-phone .panel {
+  order: -1;
+  flex: 1 1 auto;
+  width: auto;
+  min-height: 0;
+  border-left: 0;
+}
+.size-phone.view-map .panel {
+  flex: none;
+}
+.size-phone.view-panel .mapwrap {
+  display: none;
+}
+.size-phone .panel-body {
+  min-height: 0;
+}
+.size-phone .tabs {
+  padding-right: 6px;
+}
+.size-phone .tab-map {
+  flex: none;
+  margin: 4px 0 0 6px;
+  padding-right: 14px;
+  padding-left: 14px;
+  border-right: 1px solid var(--border);
+  font-weight: 600;
+}
+.size-phone .pane {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.size-phone .toolbar .input.grow {
+  flex: 1 1 100%;
+}
+
+/* phone: the station card is a bottom sheet, part of the screen: folded to its head and the first facts, a tap or a swipe up on its grip opens it, a swipe down folds it (and closes the folded one) */
+.size-phone .cardstack {
+  right: 0;
+  bottom: 0;
+  left: 0;
+  flex-direction: column;
+  gap: 0;
+  width: auto;
+  max-height: 88%;
+  padding-bottom: env(safe-area-inset-bottom);
+  border-top: 1px solid var(--border);
+  border-radius: 14px 14px 0 0;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  pointer-events: auto;
+}
+.size-phone .cardstack .card {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.sheet-grip {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  touch-action: none;
+}
+.sheet-grip span {
+  width: 40px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--muted);
+  opacity: 0.6;
+}
+.sheet-grip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.sheet:not(.expanded) .card-body {
+  max-height: 124px;
+  overflow: hidden;
+}
+.size-phone .mapnote {
+  padding-top: 52px;
+}
+
+/* phone: picking a place on the map, with the way out */
+.pickbar {
+  position: absolute;
+  right: 10px;
+  bottom: max(10px, env(safe-area-inset-bottom));
+  left: 10px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 6px 6px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+/* phone: the first-run guide is the whole screen (the map behind it, which "Pick on the map" folds it to its head to show) */
+.size-phone.guide-open .appheader,
+.size-phone.guide-open .panel {
+  display: none;
+}
+.size-phone .setup {
+  top: 0;
+  right: 0;
+  left: 0;
+  width: auto;
+  max-height: 100%;
+  padding-top: env(safe-area-inset-top);
+  border-width: 0;
+  border-radius: 0;
+}
+.size-phone .setup:not(.peeking) {
+  bottom: 0;
+}
+.size-phone .setup form {
+  flex: 1;
+}
+/* (the steps are a line of their own: five round buttons the width of a finger do not go beside the title) */
+.size-phone .setup-head {
+  flex-wrap: wrap;
+}
+.size-phone .setup-head .btn,
+.size-phone .setup-close {
+  order: 1;
+}
+.size-phone .setup-steps {
+  order: 2;
+  flex: 1 0 100%;
+  justify-content: space-between;
+}
+.size-phone .setup-foot {
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+}
+.size-phone .updatepanel {
+  top: calc(34px + env(safe-area-inset-top));
+  right: 8px;
+  left: 8px;
+  width: auto;
+  max-height: calc(100dvh - 50px);
+}
+.size-phone .toast {
+  bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+/* a phone held sideways: the sheet is a column at the left, and short */
+@media (orientation: landscape) {
+  .size-phone .cardstack {
+    right: auto;
+    width: min(380px, 56%);
+    max-height: calc(100% - 14px);
+    border-right: 1px solid var(--border);
+    border-radius: 0 14px 0 0;
+  }
+  .size-phone .sheet:not(.expanded) .card-body {
+    max-height: 64px;
+  }
+  .size-phone .pickbar {
+    right: auto;
+    width: min(380px, calc(100% - 20px));
+  }
+}
+
+/* a finger: every control is at least 40 px high (and wide, for the ones that are only a symbol) */
+@media (pointer: coarse) {
+  .btn,
+  .tab,
+  .input,
+  select,
+  .check,
+  .headbtn,
+  .iconbtn,
+  .xbtn,
+  .panel-fold,
+  .setup-dot,
+  summary,
+  .linkbutton {
+    min-height: 40px;
+  }
+  .appheader {
+    align-items: center;
+    min-height: 44px;
+  }
+  .headmail,
+  button.status,
+  .nocall,
+  .update {
+    /* the small things of the header are as high as the header, which is the height of a finger and a bit */
+    position: relative;
+    overflow: visible;
+  }
+  .headmail::after,
+  button.status::after,
+  .nocall::after,
+  .update::after,
+  .qrz::after,
+  .sheet-grip::before {
+    content: "";
+    position: absolute;
+    inset: -12px -10px;
+  }
+  .qrz,
+  .sheet-grip {
+    position: relative;
+  }
+  .sheet-grip::before {
+    inset: -14px 0 -4px;
+  }
+  /* the little (i) is drawn 20 px and answers to 40: its box is that, over its neighbours' edges, and its circle is the middle of it */
+  .info-toggle,
+  .attrib-toggle {
+    position: relative;
+    isolation: isolate;
+    width: 40px;
+    height: 40px;
+    margin: -10px;
+    border: 0;
+    background: none;
+  }
+  .info-toggle::before,
+  .attrib-toggle::before {
+    content: "";
+    position: absolute;
+    inset: 10px;
+    z-index: -1;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background: var(--panel);
+  }
+  .info-toggle:hover::before,
+  .info-toggle[aria-expanded="true"]::before {
+    border-color: var(--accent);
+  }
+  .maplibregl-ctrl.maplibregl-ctrl-group button {
+    width: 40px;
+    height: 40px;
+  }
+  .headbtn,
+  .xbtn,
+  .iconbtn,
+  .panel-fold,
+  .setup-dot {
+    min-width: 40px;
+  }
+  .check {
+    gap: 8px;
+  }
+  .check input,
+  .field-control input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+  }
+  .grid td,
+  .grid.stations td {
+    height: 40px;
+  }
+  .input,
+  select,
+  textarea {
+    /* a smaller text makes a phone zoom the page in when a field is focused */
+    font-size: 16px;
+  }
+  .card-more {
+    min-width: 56px;
+  }
+}

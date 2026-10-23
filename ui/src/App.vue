@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // The page: a header with the connection and the radio link, the map filling the page, and at its right a panel with the stations, the packets, the messages, the email, the bulletins, our objects, the beacon and the settings (which open with the state of the radio link).
-// The shell only: what the daemon tells is `useDaemon`, the panel `usePanel`, the station picked `useSelection`, the Messages tab `useMessagesView`, the Email tab `useEmail`, the Bulletins tab `useBulletins`, the Objects tab `useOwnObjects`, the paths, timeouts and RF only of the stations
+// The shell only: what the daemon tells is `useDaemon`, the panel `usePanel`, the station cards (one, or several with Ctrl+click) `useStationCards`, the size of the page and what a phone shows `useLayout`, the Messages tab `useMessagesView`, the Email tab `useEmail`, the Bulletins tab `useBulletins`, the Objects tab `useOwnObjects`, the paths, timeouts and RF only of the stations
 // `useStationPrefs`, the first-run guide (it opens by itself while the daemon has no call) `useSetupGuide`, the alert of this browser for a message to us `useBrowserAlerts` and `usePageAlerts`; the components take props and emit events, and the commands go out through `send`.
 import { usePositionPick } from "@/composables/usePositionPick";
 import { computed, ref, watch } from "vue";
@@ -15,13 +15,15 @@ import PacketsLog from "@/components/PacketsLog.vue";
 import SetupGuide from "@/components/SetupGuide.vue";
 import SettingsForm from "@/components/SettingsForm.vue";
 import SidePanel from "@/components/SidePanel.vue";
-import StationCard from "@/components/StationCard.vue";
+import MapPickBar from "@/components/MapPickBar.vue";
+import StationCards from "@/components/StationCards.vue";
 import StationMap from "@/components/StationMap.vue";
 import StationsTable from "@/components/StationsTable.vue";
 import RadioStatus from "@/components/RadioStatus.vue";
 import ToastBar from "@/components/ToastBar.vue";
 import UpdatePanel from "@/components/UpdatePanel.vue";
 import { useBrowserAlerts } from "@/composables/useBrowserAlerts";
+import { useLayout } from "@/composables/useLayout";
 import { useBulletins } from "@/composables/useBulletins";
 import { useDaemon } from "@/composables/useDaemon";
 import { useDark } from "@/composables/useDark";
@@ -31,7 +33,7 @@ import { useNow } from "@/composables/useNow";
 import { usePageAlerts } from "@/composables/usePageAlerts";
 import { useOwnObjects } from "@/composables/useOwnObjects";
 import { usePanel } from "@/composables/usePanel";
-import { useSelection } from "@/composables/useSelection";
+import { useStationCards } from "@/composables/useStationCards";
 import { useSetupGuide } from "@/composables/useSetupGuide";
 import { useStationPrefs } from "@/composables/useStationPrefs";
 import { useTitle } from "@/composables/useTitle";
@@ -93,7 +95,6 @@ watch(
 
 const panel = usePanel();
 const { tab, collapsed, width } = panel;
-const { selected, focus, row: selectedRow, pickFromTable, forget } = useSelection(stations, send);
 const talk = useMessagesView(messages, panel, send);
 const mail = useEmail(messages, panel, send);
 const board = useBulletins(bulletins, panel);
@@ -129,10 +130,24 @@ function onPick(at: Home): void {
   else if (stationPick.picking.value) stationPick.place(at.lat, at.lon);
   else objects.place(at.lat, at.lon);
 }
+const pickingTab = computed(() => stationPick.picking.value || objects.picking); // (a place that a tab asked for; the guide's own is its business)
+function cancelPick(): void {
+  stationPick.picking.value = false;
+  objects.placing = false;
+}
+
+// the size of the page, what a phone shows (the map or the tab), and the station cards: one, or several with Ctrl+click on a desktop and a tablet
+const layout = useLayout(
+  panel,
+  computed(() => guide.open),
+  pickingTab,
+);
+const cards = useStationCards(stations, send, layout, () => guide.open || updateOpen.value);
+const { selected, focus } = cards;
 </script>
 
 <template>
-  <div class="app">
+  <div class="app" :class="layout.rootClass.value">
     <AppHeader
       :call="call"
       :connection="connection"
@@ -152,6 +167,7 @@ function onPick(at: Home): void {
         <StationMap
           :stations="stations"
           :selected="selected"
+          :others="cards.others.value"
           :focus="focus"
           :home="home"
           :now="now"
@@ -160,21 +176,24 @@ function onPick(at: Home): void {
           :files-key="filesKey(map)"
           :picking="guide.picking || objects.picking || stationPick.picking.value"
           :pin="guide.open ? guide.pin : objects.pin"
-          @select="selected = $event"
+          @select="cards.onMarker"
           @pick="onPick"
           @move="objects.move"
           @download="panel.show('settings')"
         />
         <SetupGuide :guide="guide" :config="config" :map="map" />
-        <StationCard
-          v-if="selectedRow"
-          :row="selectedRow"
+        <MapPickBar v-if="layout.phone.value && pickingTab" @cancel="cancelPick" />
+        <StationCards
+          :rows="cards.rows.value"
+          :size="layout.size.value"
           :now="now"
           :aging="aging"
           :weather-series="weatherSeries"
-          @close="selected = null"
+          @close="cards.close"
+          @close-all="cards.closeAll"
+          @only="selected = $event"
           @weather="(call, hours) => send({ cmd: 'weather_series', call, hours })"
-          @forget="forget"
+          @forget="cards.forget"
           @edit="objects.edit"
           @kill="objects.kill"
           @message="talk.writeTo"
@@ -186,10 +205,13 @@ function onPick(at: Home): void {
         v-model:tab="tab"
         v-model:collapsed="collapsed"
         v-model:width="width"
+        :size="layout.size.value"
+        :view="layout.showing.value"
         :badges="{ messages: talk.unread.value, email: mail.unread.value, bulletins: board.fresh.value }"
+        @update:view="layout.view.value = $event"
       >
         <template #stations>
-          <StationsTable :stations="stations" :selected="selected" :now="now" :aging="aging" @select="pickFromTable" />
+          <StationsTable :stations="stations" :selected="selected" :others="cards.others.value" :now="now" :aging="aging" @select="cards.onRow" />
         </template>
         <template #packets>
           <PacketsLog :packets="packets" />

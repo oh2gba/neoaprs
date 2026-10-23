@@ -12,8 +12,16 @@ import { heardDirect } from "@/lib/routes";
 import { firstDirection, listStations, type Sort, type SortKey } from "@/lib/stations";
 import type { StationRow } from "@/protocol/protocol";
 
-const props = defineProps<{ stations: ReadonlyMap<string, StationRow>; selected: string | null; now: number; aging: Aging }>();
-const emit = defineEmits<{ select: [call: string] }>();
+const props = withDefaults(
+  defineProps<{ stations: ReadonlyMap<string, StationRow>; selected: string | null; others?: readonly string[]; now: number; aging: Aging }>(),
+  {
+    others: () => [],
+  },
+);
+const emit = defineEmits<{ select: [call: string, multi?: boolean] }>();
+const isOpen = (call: string): boolean => call === props.selected || props.others.includes(call);
+/** Ctrl (Cmd on a Mac) held: the station's card is added to the open ones, or closed when it is open. */
+const withKey = (event: MouseEvent | KeyboardEvent): boolean => event.ctrlKey || event.metaKey;
 
 const COLUMNS: { key: SortKey | null; title: string; numeric?: boolean }[] = [
   { key: null, title: "" },
@@ -77,11 +85,11 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
           <tr
             v-for="row in rows"
             :key="row.call"
-            :class="{ selected: row.call === selected, me: row.is_me, own: row.own, timedout: isTimedOut(row) }"
-            :aria-selected="row.call === selected"
+            :class="{ selected: isOpen(row.call), me: row.is_me, own: row.own, timedout: isTimedOut(row) }"
+            :aria-selected="isOpen(row.call)"
             tabindex="0"
-            @click="emit('select', row.call)"
-            @keydown.enter="emit('select', row.call)"
+            @click="emit('select', row.call, withKey($event))"
+            @keydown.enter="emit('select', row.call, withKey($event))"
           >
             <td class="symbol" :title="row.symbol_name"><SymbolIcon :table="row.symbol_table" :code="row.symbol_code" :size="18" /></td>
             <td class="mono strong call">{{ row.call }}</td>

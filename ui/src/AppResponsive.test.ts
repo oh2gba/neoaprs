@@ -1,0 +1,357 @@
+import "@/test/mockmap";
+import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { nextTick } from "vue";
+import App from "@/App.vue";
+import { FakeMap, FakeMarker, resetFakes } from "@/test/fakemap";
+import { FakeSocket } from "@/test/fakesocket";
+import { ago, configValues, hello, station, status, tncState } from "@/test/fixtures";
+
+const CALLS = ["OH2ZWA", "OH2ZWB", "OH2ZWC", "OH2ZWD", "OH2ZWE", "OH2ZWF"];
+const stations = {
+  OH2GBA: station("OH2GBA", { is_me: true, lat: 60.17, lon: 24.94, symbol_table: "", symbol_code: "", distance_km: null, bearing_deg: null }),
+  ...Object.fromEntries(
+    CALLS.map((call, i) => [
+      call,
+      station(call, { symbol_code: "_", symbol_name: "Weather station", lat: 60.1 + i / 10, lon: 24.6 + i / 10, last_heard: ago(10 + i) }),
+    ]),
+  ),
+};
+
+function resize(width: number, height: number): void {
+  window.innerWidth = width;
+  window.innerHeight = height;
+  window.dispatchEvent(new Event("resize"));
+}
+
+const opened: VueWrapper[] = [];
+async function open(width: number, height: number, call = "OH2GBA") {
+  resize(width, height);
+  const wrapper = mount(App, { attachTo: document.body });
+  opened.push(wrapper);
+  await flushPromises();
+  const socket = FakeSocket.last();
+  socket.say(hello());
+  socket.say({ type: "state", topic: "stations", rev: 0, value: stations });
+  socket.say({ type: "state", topic: "tnc", rev: 0, value: tncState() });
+  socket.say({ type: "state", topic: "config", rev: 0, value: configValues({ "station/call": call, "map/hide_after_min": "0" }) });
+  socket.say(status());
+  await flushPromises();
+  return { wrapper, socket };
+}
+
+const row = (wrapper: VueWrapper, call: string) => wrapper.findAll("#pane-stations tbody tr").find((r) => r.find("td.call").text() === call);
+const cards = (wrapper: VueWrapper) => wrapper.findAll(".cardstack .card").map((card) => card.find("strong").text());
+const marker = (call: string) => FakeMarker.live().find((m) => m.element.textContent === call);
+const marked = () =>
+  FakeMarker.live()
+    .filter((m) => m.element.classList.contains("stn--selected"))
+    .map((m) => m.element.textContent);
+const ctrl = (call: string) => marker(call)?.element.dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
+const esc = () => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+const root = (wrapper: VueWrapper) => wrapper.find(".app").classes();
+const route = () => FakeMap.last().getSource("route")?.setData.mock.calls.at(-1)?.[0] as { features: { properties: Record<string, unknown> }[] } | undefined;
+
+beforeEach(() => {
+  FakeSocket.all = [];
+  resetFakes();
+  localStorage.clear();
+  vi.stubGlobal("WebSocket", FakeSocket);
+});
+afterEach(() => {
+  for (const wrapper of opened.splice(0)) wrapper.unmount();
+  vi.unstubAllGlobals();
+  document.body.replaceChildren();
+  resize(1024, 768);
+});
+
+describe("several station cards on a desktop (1400 by 900)", () => {
+  it("opens one card for a plain click, on a marker or a row, and the next plain click replaces it", async () => {
+    const { wrapper } = await open(1400, 900);
+    marker("OH2ZWA")?.element.click();
+    await nextTick();
+    expect(cards(wrapper)).toEqual(["OH2ZWA"]);
+    await row(wrapper, "OH2ZWB")?.trigger("click");
+    expect(cards(wrapper)).toEqual(["OH2ZWB"]);
+    marker("OH2ZWC")?.element.click();
+    await nextTick();
+    expect(cards(wrapper)).toEqual(["OH2ZWC"]);
+  });
+
+  it("adds a card with Ctrl+click on a row or a marker, and closes it with the same click again", async () => {
+    const { wrapper } = await open(1400, 900);
+    await row(wrapper, "OH2ZWA")?.trigger("click", { ctrlKey: true });
+    await row(wrapper, "OH2ZWB")?.trigger("click", { metaKey: true });
+    ctrl("OH2ZWC");
+    await nextTick();
+    expect(cards(wrapper)).toEqual(["OH2ZWA", "OH2ZWB", "OH2ZWC"]);
+    expect(wrapper.findAll(".card.compact")).toHaveLength(3);
+    expect(marked().sort()).toEqual(["OH2ZWA", "OH2ZWB", "OH2ZWC"]);
+    expect(wrapper.findAll("#pane-stations tr.selected")).toHaveLength(3);
+    await row(wrapper, "OH2ZWB")?.trigger("click", { ctrlKey: true });
+    ctrl("OH2ZWA");
+    await nextTick();
+    expect(cards(wrapper)).toEqual(["OH2ZWC"]);
+    expect(wrapper.find(".card").classes()).not.toContain("compact");
+  });
+
+  it("draws the route of the newest card only: the same as for that station alone", async () => {
+    const { wrapper } = await open(1400, 900);
+    FakeMap.last().fire("style.load");
+    await row(wrapper, "OH2ZWB")?.trigger("click");
+    const alone = JSON.stringify(route());
+    expect(route()?.features.length).toBeGreaterThan(0);
+    await row(wrapper, "OH2ZWA")?.trigger("click", { ctrlKey: true });
+    await row(wrapper, "OH2ZWB")?.trigger("click", { ctrlKey: true }); // (closes B: the route is A's now)
+    expect(JSON.stringify(route())).not.toBe(alone);
+    await row(wrapper, "OH2ZWB")?.trigger("click", { ctrlKey: true });
+    expect(cards(wrapper)).toEqual(["OH2ZWA", "OH2ZWB"]);
+    expect(JSON.stringify(route())).toBe(alone);
+  });
+
+  it("does not fly the map for a card that is added, and flies for a plain click", async () => {
+    const { wrapper } = await open(1400, 900);
+    await row(wrapper, "OH2ZWA")?.trigger("click");
+    const flights = FakeMap.last().flights.length;
+    expect(flights).toBeGreaterThan(0);
+    await row(wrapper, "OH2ZWB")?.trigger("click", { ctrlKey: true });
+    expect(FakeMap.last().flights).toHaveLength(flights);
+  });
+
+  it("closes the oldest card when there is no room for another: four cards in a window 900 px high", async () => {
+    const { wrapper } = await open(1400, 900);
+    for (const call of CALLS) await row(wrapper, call)?.trigger("click", { ctrlKey: true });
+    expect(cards(wrapper)).toEqual(["OH2ZWC", "OH2ZWD", "OH2ZWE", "OH2ZWF"]);
+  });
+
+  it("has room for more in a taller window (six at 1080 px), for fewer in a lower one (three at 700 px), and closes the oldest when the window is made lower", async () => {
+    const { wrapper } = await open(1920, 1080);
+    for (const call of CALLS) await row(wrapper, call)?.trigger("click", { ctrlKey: true });
+    expect(cards(wrapper)).toHaveLength(6);
+    resize(1920, 700);
+    await nextTick();
+    expect(cards(wrapper)).toEqual(["OH2ZWD", "OH2ZWE", "OH2ZWF"]);
+  });
+
+  it("has Close all when there is more than one card, which closes them all, and each card its own cross", async () => {
+    const { wrapper } = await open(1400, 900);
+    await row(wrapper, "OH2ZWA")?.trigger("click");
+    expect(wrapper.find(".cards-closeall").exists()).toBe(false);
+    await row(wrapper, "OH2ZWB")?.trigger("click", { ctrlKey: true });
+    await row(wrapper, "OH2ZWC")?.trigger("click", { ctrlKey: true });
+    await wrapper.findAll(".card")[1]?.find("button[aria-label='Close']").trigger("click");
+    expect(cards(wrapper)).toEqual(["OH2ZWA", "OH2ZWC"]);
+    await wrapper.find(".cards-closeall").trigger("click");
+    expect(wrapper.find(".cardstack").exists()).toBe(false);
+    expect(marked()).toEqual([]);
+  });
+
+  it("closes the newest card with Esc, one at a time, and not while a field is being typed in", async () => {
+    const { wrapper } = await open(1400, 900);
+    for (const call of ["OH2ZWA", "OH2ZWB", "OH2ZWC"]) await row(wrapper, call)?.trigger("click", { ctrlKey: true });
+    esc();
+    await nextTick();
+    expect(cards(wrapper)).toEqual(["OH2ZWA", "OH2ZWB"]);
+    const filter = wrapper.find("input[type='search']").element;
+    filter.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    await nextTick();
+    expect(cards(wrapper)).toEqual(["OH2ZWA", "OH2ZWB"]);
+    esc();
+    esc();
+    await nextTick();
+    expect(wrapper.find(".cardstack").exists()).toBe(false);
+  });
+
+  it("makes a compact card the only one, whole, with its More", async () => {
+    const { wrapper } = await open(1400, 900);
+    for (const call of ["OH2ZWA", "OH2ZWB"]) await row(wrapper, call)?.trigger("click", { ctrlKey: true });
+    await wrapper.findAll(".card")[0]?.find(".card-more").trigger("click");
+    expect(cards(wrapper)).toEqual(["OH2ZWA"]);
+    expect(wrapper.find(".card").classes()).not.toContain("compact");
+  });
+
+  it("leaves the first-run guide the Esc key", async () => {
+    const { wrapper } = await open(1400, 900, "");
+    expect(wrapper.find(".setup").exists()).toBe(true);
+    await row(wrapper, "OH2ZWA")?.trigger("click");
+    esc();
+    await nextTick();
+    expect(wrapper.find(".setup").exists()).toBe(false);
+    expect(cards(wrapper)).toEqual(["OH2ZWA"]);
+    esc();
+    await nextTick();
+    expect(cards(wrapper)).toEqual([]);
+  });
+});
+
+describe("station cards on a tablet and a phone", () => {
+  it("has two cards at the most on a tablet, in both turns of it", async () => {
+    for (const [w, h] of [
+      [768, 1024],
+      [1024, 768],
+    ] as const) {
+      const { wrapper } = await open(w, h);
+      expect(root(wrapper)).toContain("size-tablet");
+      for (const call of CALLS.slice(0, 3)) await row(wrapper, call)?.trigger("click", { ctrlKey: true });
+      expect(cards(wrapper)).toEqual(["OH2ZWB", "OH2ZWC"]);
+      wrapper.unmount();
+      FakeSocket.all = [];
+    }
+  });
+
+  it("has one card on a phone: a tap, with or without Ctrl, replaces it, and it is a sheet", async () => {
+    const { wrapper } = await open(390, 844);
+    expect(root(wrapper)).toContain("size-phone");
+    marker("OH2ZWA")?.element.click();
+    ctrl("OH2ZWB");
+    await nextTick();
+    expect(cards(wrapper)).toEqual(["OH2ZWB"]);
+    expect(wrapper.find(".cardstack").classes()).toContain("sheet");
+    expect(wrapper.find(".cards-closeall").exists()).toBe(false);
+    expect(wrapper.findAll(".card.compact")).toHaveLength(0);
+  });
+
+  it("has one card in a phone held sideways (844 by 390), too", async () => {
+    const { wrapper } = await open(844, 390);
+    expect(root(wrapper)).toContain("size-phone");
+    for (const call of ["OH2ZWA", "OH2ZWB"]) await row(wrapper, call)?.trigger("click", { ctrlKey: true });
+    expect(cards(wrapper)).toEqual(["OH2ZWB"]);
+  });
+});
+
+describe("what a phone shows", () => {
+  const panelOn = (wrapper: VueWrapper) =>
+    wrapper
+      .findAll("[role='tabpanel']")
+      .filter((p) => (p.element as HTMLElement).style.display !== "none")
+      .map((p) => p.attributes("id"));
+
+  it("starts on the map, with the tab bar over it, and the Map button marked", async () => {
+    const { wrapper } = await open(390, 844);
+    expect(root(wrapper)).toContain("view-map");
+    expect(panelOn(wrapper)).toEqual([]);
+    expect(wrapper.find(".tab-map").attributes("aria-pressed")).toBe("true");
+  });
+
+  it("brings the open tab with a tab of the bar and the map with the Map button, and remembers where it was left", async () => {
+    const { wrapper } = await open(390, 844);
+    await wrapper.find("#tab-packets").trigger("click");
+    expect(root(wrapper)).toContain("view-panel");
+    expect(panelOn(wrapper)).toEqual(["pane-packets"]);
+    await wrapper.find(".tab-map").trigger("click");
+    expect(root(wrapper)).toContain("view-map");
+    expect(panelOn(wrapper)).toEqual([]);
+    await wrapper.find("#tab-settings").trigger("click");
+    expect(localStorage.getItem("NeoAPRS.view")).toBe("panel");
+    expect(localStorage.getItem("NeoAPRS.tab")).toBe("settings");
+  });
+
+  it("shows the map with the card when a row of the table is tapped, and the tab again with its bar", async () => {
+    const { wrapper } = await open(390, 844);
+    await wrapper.find("#tab-stations").trigger("click");
+    await row(wrapper, "OH2ZWC")?.trigger("click");
+    expect(root(wrapper)).toContain("view-map");
+    expect(cards(wrapper)).toEqual(["OH2ZWC"]);
+    expect(FakeMap.last().flights.length).toBeGreaterThan(0);
+    await wrapper.find("#tab-stations").trigger("click");
+    expect(root(wrapper)).toContain("view-panel");
+    expect(panelOn(wrapper)).toEqual(["pane-stations"]);
+  });
+
+  it("brings the panel when the page asks for a tab: the Message button of a card, the unread mail, the radio state of the header", async () => {
+    const { wrapper } = await open(390, 844);
+    marker("OH2ZWA")?.element.click();
+    await nextTick();
+    await wrapper
+      .findAll(".card .btn")
+      .find((b) => b.text() === "Message")
+      ?.trigger("click");
+    expect(root(wrapper)).toContain("view-panel");
+    expect(panelOn(wrapper)).toEqual(["pane-messages"]);
+    await wrapper.find(".tab-map").trigger("click");
+    await wrapper.find("button.status").trigger("click");
+    expect(panelOn(wrapper)).toEqual(["pane-settings"]);
+  });
+
+  it("goes to the map to pick a place, and comes back to the tab with the place filled in", async () => {
+    const { wrapper } = await open(390, 844);
+    await wrapper.find("#tab-beacon").trigger("click");
+    await wrapper
+      .findAll("#pane-beacon .btn")
+      .find((b) => b.text() === "Pick on the map")
+      ?.trigger("click");
+    expect(root(wrapper)).toContain("view-map");
+    expect(wrapper.find(".pickbar").exists()).toBe(true);
+    FakeMap.last().fire("click", { lngLat: { lat: 60.1234, lng: 24.9876 } });
+    await flushPromises();
+    expect(root(wrapper)).toContain("view-panel");
+    expect(panelOn(wrapper)).toEqual(["pane-beacon"]);
+    expect(wrapper.find(".pickbar").exists()).toBe(false);
+    expect((wrapper.find("#set-station-lat").element as HTMLInputElement).value).toBe("60.1234");
+  });
+
+  it("goes to the map to pick a place for an object, and its Cancel brings the tab back", async () => {
+    const { wrapper } = await open(390, 844);
+    await wrapper.find("#tab-objects").trigger("click");
+    await wrapper
+      .findAll("#pane-objects .btn")
+      .find((b) => b.text() === "New object" || b.text() === "New")
+      ?.trigger("click");
+    await wrapper
+      .findAll("#pane-objects .btn")
+      .find((b) => b.text() === "Pick on the map")
+      ?.trigger("click");
+    expect(root(wrapper)).toContain("view-map");
+    await wrapper.find(".pickbar .btn").trigger("click");
+    await flushPromises();
+    expect(root(wrapper)).toContain("view-panel");
+    expect(wrapper.find(".pickbar").exists()).toBe(false);
+  });
+
+  it("shows the guide on the whole screen, with the map under it, and the tab as it was when the guide is closed", async () => {
+    const { wrapper } = await open(390, 844, "");
+    expect(wrapper.find(".setup").exists()).toBe(true);
+    expect(root(wrapper)).toEqual(expect.arrayContaining(["guide-open", "view-map"]));
+    await wrapper.find(".setup-close").trigger("click");
+    expect(root(wrapper)).not.toContain("guide-open");
+    await wrapper.find("#tab-stations").trigger("click");
+    expect(root(wrapper)).toContain("view-panel");
+  });
+
+  it("does not hide the map or the panel on a tablet or a desktop", async () => {
+    const { wrapper } = await open(768, 1024);
+    expect(root(wrapper)).toContain("size-tablet");
+    expect(root(wrapper).some((c) => c.startsWith("view-"))).toBe(false);
+    expect(wrapper.find(".tab-map").exists()).toBe(false);
+    expect(wrapper.find(".stationmap").exists()).toBe(true);
+  });
+
+  it("changes from a phone to a tablet and back when the window is turned, keeping the tab", async () => {
+    const { wrapper } = await open(390, 844);
+    await wrapper.find("#tab-packets").trigger("click");
+    resize(768, 1024);
+    await nextTick();
+    expect(root(wrapper)).toContain("size-tablet");
+    expect(wrapper.find("[aria-selected='true']").text()).toBe("Packets");
+    resize(390, 844);
+    await nextTick();
+    expect(root(wrapper)).toContain("size-phone");
+    expect(wrapper.find("[aria-selected='true']").text()).toBe("Packets");
+  });
+});
+
+describe("the default width of the panel", () => {
+  it("is 640 px on a window of 1280 px and more, 480 px on a smaller one, and the user's own width when it was dragged", async () => {
+    const wide = await open(1440, 900);
+    expect(wide.wrapper.find(".panel").attributes("style")).toContain("--panel-width: 640px");
+    wide.wrapper.unmount();
+    FakeSocket.all = [];
+    const small = await open(1200, 800);
+    expect(small.wrapper.find(".panel").attributes("style")).toContain("--panel-width: 480px");
+    small.wrapper.unmount();
+    FakeSocket.all = [];
+    localStorage.setItem("NeoAPRS.panelwidth", "520");
+    const dragged = await open(1440, 900);
+    expect(dragged.wrapper.find(".panel").attributes("style")).toContain("--panel-width: 520px");
+  });
+});
