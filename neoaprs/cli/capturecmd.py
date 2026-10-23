@@ -14,7 +14,7 @@ from typing import BinaryIO
 
 from neoaprs.kiss import KissDecoder
 from neoaprs.serialport import SerialError, SerialPort
-from neoaprs.serialprobe import candidate_ports, can_search, probe, search_pattern
+from neoaprs.serialprobe import can_search, probe, search_pattern, searchable_ports
 
 from .output import ctrl_break_is_ctrl_c, say
 
@@ -33,7 +33,9 @@ def parse(argv: list[str]) -> argparse.Namespace:
 
 
 async def find_port(baud: int) -> str | None:
-    paths = candidate_ports(search_pattern()) if can_search() else []
+    paths, boards = searchable_ports(search_pattern()) if can_search() else ([], {})
+    for path, what in boards.items():
+        say(f"capture: skipping {path}: {what}")
     if not paths:
         say("capture: no USB serial port to look at here; give the port with --port (COM3, /dev/ttyUSB0, socket://127.0.0.1:8001)")
         return None

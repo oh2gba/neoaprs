@@ -17,6 +17,7 @@ from neoaprs.db import Db
 from neoaprs.dberror import DbClosed, SqlError, StoreError
 from neoaprs.migrations import SCHEMA_VERSION, schema_version
 from neoaprs.paths import default_data_dir
+from neoaprs.serialboards import board_kind
 from neoaprs.serialprobe import available_ports
 from neoaprs.store import DB_NAME, Store
 
@@ -100,7 +101,8 @@ def check_ports() -> Finding:
     lines = []
     for p in ports:
         ids = f"{p.vid:04x}:{p.pid:04x}" if p.vid is not None and p.pid is not None else "-"
-        lines.append(f"    {p.device}  {p.description or '-'}  VID:PID {ids}")
+        board = board_kind(p.vid, p.pid)
+        lines.append(f"    {p.device}  {p.description or '-'}  VID:PID {ids}" + (f"  ({board}: the search leaves it alone; name the port to use it)" if board else ""))
     return Finding("ok", f"{len(ports)} serial port{'s' if len(ports) != 1 else ''} listed by the system:\n" + "\n".join(lines))
 
 
