@@ -243,18 +243,16 @@ def parse_position(body: bytes, now: datetime, *, messaging: bool = False) -> Po
                     tail.altitude if tail.altitude is not None else fix.altitude, timestamp, messaging, compressed, fix.ambiguity, _with_wind(weather, fix.wind), tail.extensions, local)
 
 
-def _coordinate_text(value: float, whole_digits: int, negative: str, positive: str, dao: bool = False) -> str:
-    """DDMM.mmN or DDDMM.mmE: the minutes rounded to hundredths (a rounding that reaches 60 minutes carries into the degrees). With `dao` the minutes are rounded to thousandths and the
-    thousandths digit is left to the DAO extension, so that the two together are the position and the hundredths are cut, not rounded."""
-    thousandths = round(abs(value) * THOUSANDTHS_PER_DEGREE)
-    total = thousandths // 10 if dao else round(abs(value) * HUNDREDTHS_PER_DEGREE)
+def _coordinate_text(value: float, whole_digits: int, negative: str, positive: str) -> str:
+    """DDMM.mmN or DDDMM.mmE: the minutes rounded to hundredths (a rounding that reaches 60 minutes carries into the degrees)."""
+    total = round(abs(value) * HUNDREDTHS_PER_DEGREE)
     degrees, rest = divmod(total, HUNDREDTHS_PER_DEGREE)
-    return f"{degrees:0{whole_digits}d}{rest // 100:02d}.{rest % 100:02d}{negative if value < 0 and (thousandths if dao else total) else positive}"
+    return f"{degrees:0{whole_digits}d}{rest // 100:02d}.{rest % 100:02d}{negative if value < 0 and total else positive}"
 
 
-def uncompressed_position(lat: float, lon: float, symbol_table: str, symbol_code: str, dao: bool = False) -> bytes:
+def uncompressed_position(lat: float, lon: float, symbol_table: str, symbol_code: str) -> bytes:
     """The 19 bytes DDMM.mmN/DDDMM.mmE- of an uncompressed position: latitude, symbol table, longitude, symbol code."""
-    return f"{_coordinate_text(lat, 2, 'S', 'N', dao)}{symbol_table}{_coordinate_text(lon, 3, 'W', 'E', dao)}{symbol_code}".encode("ascii")
+    return f"{_coordinate_text(lat, 2, 'S', 'N')}{symbol_table}{_coordinate_text(lon, 3, 'W', 'E')}{symbol_code}".encode("ascii")
 
 
 def compress_position(lat: float, lon: float, symbol_table: str, symbol_code: str) -> bytes:

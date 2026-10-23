@@ -15,7 +15,7 @@ from neoaprs.ownbulletin import PostError
 from neoaprs.ownobject import OwnError
 from neoaprs.serialprobe import available_ports, can_search, paired_bluetooth_ports, with_links
 
-from .beaconwire import BeaconNow
+from .beaconwire import BeaconNow, StatusNow
 from .bulletinwire import BulletinDelete
 from .dispatch import Ctx, UserError, command
 from .hostwire import AskStatus, CheckUpdate, Ping
@@ -91,6 +91,12 @@ async def beacon_now(ctx: Ctx, cmd: BeaconNow) -> None:
     beacon = ctx.ctl.beacon
     if not beacon.send_now("request"):
         raise UserError(f"beacon_now: nothing was sent: {beacon.problem}")
+
+
+@command(StatusNow)
+async def status_now(ctx: Ctx, cmd: StatusNow) -> None:
+    if problem := await ctx.ctl.rigstatus.send_now():
+        raise UserError(f"status_now: nothing was sent: {problem}")
 
 
 @command(SendMessage)

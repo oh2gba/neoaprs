@@ -235,15 +235,12 @@ def test_nothing_is_sent_while_the_radio_is_silent_and_the_log_says_so(caplog: p
     assert rig.tnc.sent == [] and any("the radio is silent" in r.getMessage() for r in caplog.records)
 
 
-def test_a_tnc_that_will_not_take_the_frame_and_settings_that_make_none_are_told(caplog: pytest.LogCaptureFixture) -> None:
+def test_a_tnc_that_will_not_take_the_frame_is_told(caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.WARNING, "neoaprs.queries")
     rig = Rig()
     rig.tnc.takes = False
     rig.ask("OH2RDG", "?APRSP")
     assert any("would not take" in r.getMessage() for r in caplog.records)
-    bad = Rig(beacon_destination="A B")
-    bad.ask("OH2RDG", "?APRSP")
-    assert bad.tnc.sent == [] and any("was not answered" in r.getMessage() for r in caplog.records)
 
 
 # ---- the general query ---------------------------------------------------------------------------------------------------------------------------

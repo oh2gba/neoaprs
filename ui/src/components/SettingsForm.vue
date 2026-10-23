@@ -5,6 +5,7 @@
 import MapFetchPanel from "@/components/MapFetchPanel.vue";
 import InfoTip from "@/components/InfoTip.vue";
 import SettingsField from "@/components/SettingsField.vue";
+import SymbolField from "@/components/SymbolField.vue";
 import SettingsPort from "@/components/SettingsPort.vue";
 import type { Toast } from "@/composables/useDaemon";
 import { ALERT_KEY, useAlertTest } from "@/composables/useAlertTest";
@@ -13,7 +14,8 @@ import { useUpdateCheck } from "@/composables/useUpdateCheck";
 import { useSettingsForm } from "@/composables/useSettingsForm";
 import type { Picked } from "@/composables/usePositionPick";
 import { degreesText } from "@/lib/setup";
-import { FIELDS, SUBGROUPS, portForProfile, shownFor, speedFallback, type Scope } from "@/lib/settings";
+import { FIELDS, SUBGROUPS, portForProfile, shownByValues, shownFor, speedFallback, type Scope } from "@/lib/settings";
+import { statusSource } from "@/lib/status";
 import type { AlertResultMessage, Command, ConfigValues, MapState, PortsMessage, UpdateResultMessage } from "@/protocol/protocol";
 import { computed, toRef, watch } from "vue";
 
@@ -32,7 +34,7 @@ const props = withDefaults(
   }>(),
   { scope: "settings", alertResult: null, updateResult: null, map: null, ports: null, picking: false, picked: null },
 );
-const emit = defineEmits<{ setup: []; update: []; pickPosition: [] }>();
+const emit = defineEmits<{ setup: []; update: []; dirty: [value: boolean]; pickPosition: [] }>();
 
 const { draft, errors, saving, saved, groups, defaults, changed, dirty, save, edit, revert } = useSettingsForm(
   toRef(props, "config"),
@@ -40,6 +42,7 @@ const { draft, errors, saving, saved, groups, defaults, changed, dirty, save, ed
   (command) => props.send(command),
   props.scope,
 );
+watch(dirty, (now) => emit("dirty", now));
 const alertTest = useAlertTest(
   toRef(props, "alertResult"),
   toRef(props, "lastError"),
@@ -49,6 +52,8 @@ const alertTest = useAlertTest(
 );
 const updateCheck = useUpdateCheck(toRef(props, "updateResult"), toRef(props, "lastError"), (command) => props.send(command));
 const newKey = useNewKey();
+const SYMBOL_TABLE = "station/symbol_table";
+const SYMBOL_CODE = "station/symbol_code";
 const info = (key: string) => FIELDS[key] ?? { label: key };
 /** The network is let in and the daemon has made a key (what is saved, not the draft of the switch). */
 const network = computed(() => props.config?.values["web/network"] === "true" && (props.config.values[KEY_KEY] ?? "") !== "");
@@ -58,7 +63,16 @@ const resultOf = (key: string) => (key === ALERT_KEY ? alertTest.result.value : 
 const profile = computed(() => draft["tnc/profile"]);
 /** Whether the daemon looks for the radio among the ports (Linux); true until it has said. */
 const search = computed(() => props.ports?.search ?? true);
-const shown = (keys: string[]) => keys.filter((key) => shownFor(key, profile.value, network.value, search.value));
+const shown = (keys: string[]) =>
+  keys.filter(
+    (key) => key !== SYMBOL_CODE && shownFor(key, profile.value, network.value, search.value) && (props.scope === "settings" || shownByValues(key, draft)),
+  );
+/** The symbol is one field, which sets the table and the code. */
+const symbol = computed(() => `${draft[SYMBOL_TABLE] ?? ""}${draft[SYMBOL_CODE] ?? ""}`);
+function editSymbol(text: string): void {
+  edit(SYMBOL_TABLE, text.slice(0, 1));
+  edit(SYMBOL_CODE, text.slice(1, 2));
+}
 // a place picked on the map (the Beacon tab's Pick on the map) fills our station's latitude and longitude, to be saved like any change
 watch(
   () => props.picked,
@@ -93,8 +107,15 @@ const mapUnsaved = computed(() => Object.keys(changed.value).some((key) => key.s
             <span v-for="line in SUBGROUPS[key]?.tip" :key="line" class="info-line">{{ line }}</span>
           </InfoTip>
         </h3>
+        <SymbolField
+          v-if="key === SYMBOL_TABLE"
+          id="set-station-symbol"
+          :symbol="symbol"
+          :changed="SYMBOL_TABLE in changed || SYMBOL_CODE in changed"
+          @update:symbol="editSymbol"
+        />
         <SettingsPort
-          v-if="key === 'serial/port'"
+          v-else-if="key === 'serial/port'"
           :id="`set-${key.replace('/', '-')}`"
           :info="info(key)"
           :model-value="draft[key] ?? ''"
@@ -109,17 +130,14 @@ const mapUnsaved = computed(() => Object.keys(changed.value).some((key) => key.s
           v-else
           :id="`set-${key.replace('/', '-')}`"
           :info="info(key)"
-          :model-value="draft[key] ?? ''"
+          :model-value="key === 'status/source' ? statusSource(draft) : (draft[key] ?? '')"
           :fallback="fallback(key)"
           :error="errors[key] ?? ''"
           :changed="key in changed"
           :result="resultOf(key)"
           @update:model-value="onEdit(key, $event)"
         >
-          <template v-if="key === 'station/lon' && scope === 'beacon'" #after>
-            <button class="btn" type="button" :class="{ active: picking }" @click="emit('pickPosition')">{{ picking ? "Cancel" : "Pick on the map" }}</button>
-          </template>
-          <template v-else-if="key === ALERT_KEY" #after>
+          <template v-if="key === ALERT_KEY" #after>
             <button
               class="btn"
               type="button"
@@ -136,6 +154,9 @@ const mapUnsaved = computed(() => Object.keys(changed.value).some((key) => key.s
             </button>
           </template>
         </SettingsField>
+        <div v-if="key === 'station/lon' && scope === 'beacon'" class="pick-row">
+          <button class="btn" type="button" :class="{ active: picking }" @click="emit('pickPosition')">{{ picking ? "Cancel" : "Pick on the map" }}</button>
+        </div>
         <div v-if="key === KEY_KEY && urls.length" class="field">
           <label for="set-web-url-0">Open at</label>
           <div class="field-control">

@@ -5,7 +5,7 @@ from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
 
-from neoaprs import ax25, kiss
+from neoaprs import TOCALL, ax25, kiss
 from neoaprs.packet import Position
 from neoaprs.source import Source
 from tests.support.env import Env, until
@@ -57,13 +57,13 @@ async def test_the_beacon_is_in_the_packet_log_as_a_packet_we_sent_and_the_book_
     await e.stop()
 
 
-async def test_a_compressed_beacon_goes_out_as_one_when_the_setting_says_so(tmp_path: Path) -> None:
-    e = await started(tmp_path, beacon_compressed=True)
+async def test_the_beacon_on_the_line_is_to_the_tocall_with_the_plain_position(tmp_path: Path) -> None:
+    e = await started(tmp_path)
     assert e.ctl.beacon.send_now()
     frame = await on_the_line(e)
-    assert frame.info[:2] == b"=/" and len(frame.info) == 1 + 13 + len("mobile")
+    assert str(frame.destination) == TOCALL and frame.info[:2] == b"=6" and len(frame.info) == 1 + 19 + len("mobile") and b"!W" not in frame.info
     [sent] = await e.packets()
-    assert isinstance(sent.decoded, Position) and sent.decoded.compressed and abs(sent.decoded.lat - 60.17) < 1e-5
+    assert isinstance(sent.decoded, Position) and not sent.decoded.compressed
     await e.stop()
 
 
