@@ -1,8 +1,8 @@
 <script setup lang="ts">
-// The Email tab: a mail list, not a conversation. At the top three buttons of one size, New email (it opens EmailCompose, which closes with Send or Cancel), Contacts (it opens EmailContacts, the people this station mails by name and who may
-// mail it) and Check for mail (`get`: the gateway sends again the mail it kept for this station; off while the TNC is not connected or a `get` is still being sent, the title says why), and an (i). One panel is open at a time, in place
-// under the buttons. Under them the list (EmailList): the mail we sent with its state, and what the gateway EMAIL-2 sent us, newest first. The page sends it all as messages to EMAIL-2 (composables/useEmail.ts).
-import { computed, ref } from "vue";
+// The Email tab: a mail list, not a conversation. At the top three buttons of one size, New email (it opens EmailCompose at the bottom of the tab, under the list; it closes with Send or Cancel), Contacts (it opens EmailContacts, the people this station mails by name and who may
+// mail it) and Check for mail (`get`: the gateway sends again the mail it kept for this station; off while the TNC is not connected or a `get` is still being sent, the title says why), and an (i). One panel is open at a time: Contacts
+// under the buttons, New email at the bottom. The list (EmailList) fills the tab between them: the mail we sent with its state, and what the gateway EMAIL-2 sent us, the oldest first and scrolled to the newest, as Messages. The page sends it all as messages to EMAIL-2 (composables/useEmail.ts).
+import { computed, nextTick, ref, watch } from "vue";
 import EmailCompose from "@/components/EmailCompose.vue";
 import EmailContacts from "@/components/EmailContacts.vue";
 import EmailList from "@/components/EmailList.vue";
@@ -38,6 +38,10 @@ const away = computed(() => (!props.connected ? "The TNC is not connected" : che
 const form = ref<"new" | "contacts" | null>(null);
 /** The addressee New email opens with (the Mail button of a contact). */
 const writeTo = ref("");
+const list = ref<{ toNewest: () => Promise<void> } | null>(null);
+
+// a panel that opens or closes changes the height of the list: the newest mail stays in sight
+watch(form, () => void nextTick(() => list.value?.toNewest()));
 
 function toggle(which: "new" | "contacts"): void {
   writeTo.value = "";
@@ -68,6 +72,25 @@ function send(to: string, text: string): void {
         <span class="info-line">If your radio missed one, Check for mail asks the gateway to send again what it kept (it keeps mail for 24 hours).</span>
       </InfoTip>
     </div>
+    <EmailContacts
+      v-if="form === 'contacts'"
+      :connected="connected"
+      :contacts="contacts"
+      @add="(name, address) => emit('add', name, address)"
+      @list="emit('list', $event)"
+      @remove="emit('remove', $event)"
+      @mail="mailTo"
+      @close="form = null"
+    />
+    <EmailList
+      ref="list"
+      :thread="thread"
+      :fresh-after="freshAfter"
+      :heard-direct="heardDirect"
+      @retry="emit('retry', $event)"
+      @cancel="emit('cancel', $event)"
+      @delete="emit('delete', $event)"
+    />
     <EmailCompose
       v-if="form === 'new'"
       :connected="connected"
@@ -78,25 +101,5 @@ function send(to: string, text: string): void {
       @forget="emit('forget', $event)"
       @cancel="form = null"
     />
-    <EmailContacts
-      v-else-if="form === 'contacts'"
-      :connected="connected"
-      :contacts="contacts"
-      @add="(name, address) => emit('add', name, address)"
-      @list="emit('list', $event)"
-      @remove="emit('remove', $event)"
-      @mail="mailTo"
-      @close="form = null"
-    />
-    <div class="maillist-wrap">
-      <EmailList
-        :thread="thread"
-        :fresh-after="freshAfter"
-        :heard-direct="heardDirect"
-        @retry="emit('retry', $event)"
-        @cancel="emit('cancel', $event)"
-        @delete="emit('delete', $event)"
-      />
-    </div>
   </div>
 </template>

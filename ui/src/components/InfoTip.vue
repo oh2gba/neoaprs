@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The small (i) that explains what a control is for: closed until it is pressed, then a note that opens downward from it, kept inside the page (moved sideways where it would run off an edge, as on a phone): the slot (the sentences of the note, one `info-line` each). One note is open at a time; Esc, a click or tap outside
+// The small (i) that explains what a control is for: closed until it is pressed, then a note that opens downward from it (upward in the box at the bottom of a tab, ComposeBar), kept inside the page (moved sideways where it would run off an edge, as on a phone): the slot (the sentences of the note, one `info-line` each). One note is open at a time; Esc, a click or tap outside
 // it, or the focus moving away closes it. The note is text, not a tooltip: it works with a finger and with the keyboard. `label` is the name of the button for a screen reader ("About Path").
 import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { newTipId, openTip } from "@/lib/infotip";

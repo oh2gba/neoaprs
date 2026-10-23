@@ -46,8 +46,8 @@ describe("mailItem: what came in", () => {
 });
 
 describe("mailItems", () => {
-  it("lists the newest first", () => {
-    expect(mailItems([message(1), message(3), message(2)]).map((i) => i.row.id)).toEqual([3, 2, 1]);
+  it("lists the oldest first", () => {
+    expect(mailItems([message(1), message(3), message(2)]).map((i) => i.row.id)).toEqual([1, 2, 3]);
   });
 });
 

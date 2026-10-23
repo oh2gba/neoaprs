@@ -1,8 +1,9 @@
 <script setup lang="ts">
-// The form of an object or an item of ours, in the Objects tab: name and kind (the name of an object that is being changed stays), the symbol (a picture to change, as in the Beacon tab), the position (typed, or
-// picked with a click on the map: Pick on the map), the comment with the characters it has left, the course and speed, and the path the object goes by (the placeholder is the beacon's). A field with something wrong
+// The form of an object or an item of ours, in the Objects tab, in the box at the bottom of the tab (ComposeBar, as everywhere; its fields scroll on a short screen, the line with Pick on the map, the counter, Cancel and Save does not): name and kind (the name of an object that is being changed stays), the symbol (a picture to change, as in the Beacon tab), the position (typed, or
+// picked with a click on the map: Pick on the map), the comment (the characters it has left are the counter beside the buttons), the course and speed, and the path the object goes by (the placeholder is the beacon's). A field with something wrong
 // is red and its title says what. Save is on when there is a name, a place and a symbol and nothing is wrong; the daemon checks it all again.
 import { computed, useId } from "vue";
+import ComposeBar from "@/components/ComposeBar.vue";
 import SymbolField from "@/components/SymbolField.vue";
 import type { OwnObjectsView } from "@/composables/useOwnObjects";
 import { commentLimit, draftProblems, draftReady, NAME_MAX } from "@/lib/ownobjects";
@@ -16,7 +17,14 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
 </script>
 
 <template>
-  <form class="objform" @submit.prevent="form.save()">
+  <ComposeBar
+    class="objform"
+    :label="form.editing === null ? 'New object' : `Edit ${form.editing}`"
+    :left="left"
+    :left-title="`${left} characters left in the comment`"
+    scrolls
+    @submit="form.save()"
+  >
     <div class="field" :class="{ invalid: problems.name }" :title="problems.name">
       <label :for="`${id}-name`">Name</label>
       <div class="field-control">
@@ -49,14 +57,10 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
         <input :id="`${id}-lon`" v-model="draft.lon" class="input mono" type="text" inputmode="decimal" autocomplete="off" />
       </div>
     </div>
-    <div class="pick-row">
-      <button type="button" class="btn" :class="{ primary: form.placing }" :aria-pressed="form.placing" @click="form.togglePlacing()">Pick on the map</button>
-    </div>
     <div class="field" :class="{ invalid: problems.comment }" :title="problems.comment">
       <label :for="`${id}-comment`">Comment</label>
       <div class="field-control">
         <input :id="`${id}-comment`" v-model="draft.comment" class="input" type="text" autocomplete="off" />
-        <span class="muted mono" :class="{ over: left < 0 }" :title="`${left} characters left`">{{ left }}</span>
       </div>
     </div>
     <div class="field" :class="{ invalid: problems.course }" :title="problems.course">
@@ -87,9 +91,12 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
         />
       </div>
     </div>
-    <div class="objform-actions">
-      <button type="submit" class="btn primary" :disabled="!ready">Save</button>
+    <template #aside>
+      <button type="button" class="btn" :class="{ primary: form.placing }" :aria-pressed="form.placing" @click="form.togglePlacing()">Pick on the map</button>
+    </template>
+    <template #buttons>
       <button type="button" class="btn" @click="form.cancel()">Cancel</button>
-    </div>
-  </form>
+      <button type="submit" class="btn primary" :disabled="!ready">Save</button>
+    </template>
+  </ComposeBar>
 </template>

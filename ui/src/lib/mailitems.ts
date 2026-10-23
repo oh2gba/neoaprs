@@ -59,9 +59,9 @@ export function mailItem(row: MessageRow): MailItem {
   return row.direction === "in" ? incoming(row) : outgoing(row);
 }
 
-/** The rows of the list, the newest first. */
+/** The rows of the list, the oldest first: the newest is at the bottom, next to the form that writes the next, as in the Messages tab. */
 export function mailItems(thread: readonly MessageRow[]): MailItem[] {
-  return [...thread].sort((a, b) => b.id - a.id).map(mailItem);
+  return [...thread].sort((a, b) => a.id - b.id).map(mailItem);
 }
 
 /** The state of a message of ours in words. A mail whose attempts ran out without an ack is "Not confirmed", never failed: the gateway's acks reach us only through an iGate. Null for a message that came in. */

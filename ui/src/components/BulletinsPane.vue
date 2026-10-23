@@ -1,8 +1,9 @@
 <script setup lang="ts">
-// The Bulletins tab: a box to post to the board on top (components/BulletinCompose.vue), and under it the message board, newest first in four sections (announcements, bulletins, group messages, weather service), each row with
+// The Bulletins tab: the message board filling the tab, newest first in four sections (announcements, bulletins, group messages, weather service), each row with
 // who sent it, what it is addressed to (the group of a group bulletin, else the slot: BLN1, BLNA, QST), the text, how often it was heard and how long ago it was last heard. None of these is a conversation and none is answered;
 // nothing ages out: a row stays until the delete button at its corner is pressed twice ("sure?"), which deletes it on the daemon. A bulletin of ours is on the board too, marked "ours" (the call is ours), with how often it was sent
-// and when it goes out next; its delete stops it and takes it off the board.
+// and when it goes out next; its delete stops it and takes it off the board. The box to post to the board is fixed at the bottom of the tab (components/BulletinCompose.vue), as the box of every tab. The board stays newest first
+// in each section, as a board is read from the top: the sections and their headings keep their places (a stream oldest first, scrolled to the end, would open on the weather service).
 import { computed } from "vue";
 import BulletinCompose from "@/components/BulletinCompose.vue";
 import IconButton from "@/components/IconButton.vue";
@@ -26,7 +27,6 @@ const remove = (b: BoardEntry): void => (b.own ? emit("unpost", b.slot) : emit("
 
 <template>
   <div class="boardwrap">
-    <BulletinCompose :own-bulletins="ownBulletins" @post="(slot, text) => emit('post', slot, text)" />
     <div class="boardpane">
       <p v-if="shown.length === 0" class="empty">Nothing on the board.</p>
       <section v-for="section in shown" :key="section.kind" class="board-section" :aria-label="section.title">
@@ -60,5 +60,6 @@ const remove = (b: BoardEntry): void => (b.own ? emit("unpost", b.slot) : emit("
         </ul>
       </section>
     </div>
+    <BulletinCompose :own-bulletins="ownBulletins" @post="(slot, text) => emit('post', slot, text)" />
   </div>
 </template>

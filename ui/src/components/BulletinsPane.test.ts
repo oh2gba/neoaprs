@@ -98,7 +98,7 @@ describe("BulletinsPane", () => {
     expect(wrapper.findAll(".bulletin-text").map((t) => t.text())).toEqual(["Club meeting on Thursday", "Road open again"]);
   });
 
-  it("has the box to post in on top, and passes what is posted on", async () => {
+  it("has the box to post in at the bottom, and passes what is posted on", async () => {
     const wrapper = pane(...rows);
     expect(wrapper.find(".bulletin-compose").exists()).toBe(true);
     await wrapper.find("#post-text").setValue("Hello board");

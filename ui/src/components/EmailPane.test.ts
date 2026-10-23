@@ -18,7 +18,8 @@ function pane(extra: Record<string, unknown> = {}) {
   return mount(EmailPane, { props: { thread, connected: true, addresses: [], ...extra }, attachTo: document.body });
 }
 type Pane = ReturnType<typeof pane>;
-const rows = (wrapper: Pane) => wrapper.findAll(".mail");
+/** The rows of the list, the newest first: the list itself is oldest first (see "the list order" below), so the row numbers here count from its bottom. */
+const rows = (wrapper: Pane) => wrapper.findAll(".mail").reverse();
 const bar = (wrapper: Pane, label: string) => wrapper.findAll(".mail-bar button").find((b) => b.text() === label);
 
 beforeEach(() => vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] }));
@@ -191,7 +192,7 @@ describe("EmailPane: Check for mail", () => {
 });
 
 describe("EmailPane: the list", () => {
-  it("has one row for each message to and from the gateway, the newest first, and no bubbles", () => {
+  it("has one row for each message to and from the gateway, and no bubbles", () => {
     const wrapper = pane();
     expect(rows(wrapper)).toHaveLength(8);
     expect(rows(wrapper).map((r) => r.find(".mail-title").text())).toEqual([
@@ -234,10 +235,10 @@ describe("EmailPane: the list", () => {
     const states = wrapper.findAll(".mail-state");
     expect(states.map((s) => s.classes().filter((c) => c.startsWith("tone-")))).toEqual([
       ["tone-ok"],
+      ["tone-plain"],
+      ["tone-plain"],
+      ["tone-plain"],
       ["tone-bad"],
-      ["tone-plain"],
-      ["tone-plain"],
-      ["tone-plain"],
       ["tone-ok"],
     ]);
     expect(wrapper.findAll(".mark-hollow")[0]?.attributes("title")).toContain("iGate");
