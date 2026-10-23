@@ -3,7 +3,7 @@
 * no real machine: HOME, the XDG folders and the profile folders of Windows (USERPROFILE, LOCALAPPDATA, APPDATA) point into an empty folder of the test (the data folder and the settings of whoever runs the tests are not
   there to be read), and a socket that connects, sends a datagram or looks up a name that is not on this machine fails the test (a test must never post a made-up packet to the real
   internet, and pass);
-* no radio: a test that opens a serial device of the machine (/dev/brainbox_*, /dev/tty*, /dev/serial/*, /dev/rfcomm*, or any device node of the serial drivers, whatever it is called or linked as) through `serial.Serial` or `os.open` fails; the tests use a fake radio on the loopback (tests/support/fakeradio.py) or, for a device file, a pseudo-terminal pair (tests/support/ptyline.py), and the live port is the operator's. A process a test starts inherits NEOAPRS_SERIAL_PATTERN (tests/conftest.py), which makes its search find no port; one that is given an environment of its own must carry the variable (`ProcessGuard`);
+* no radio: a test that opens a serial device of the machine (/dev/brainbox_*, /dev/tty*, /dev/serial/*, /dev/rfcomm*, or any device node of the serial drivers, whatever it is called or linked as) through `serial.Serial` or `os.open` fails; the tests use a fake radio on the loopback (tests/support/fakeradio.py) or, for a device file, a pseudo-terminal pair (tests/support/ptyline.py), and the live port is the operator's. A process a test starts inherits NEOAPRS_SERIAL_PATTERN (tests/conftest.py), which makes its search find no port, and NEOAPRS_UPDATE_CHECK=0, which keeps its daily update check from asking the version page on the internet; one that is given an environment of its own must carry both (`ProcessGuard`);
 * no leak: a test that ends with an asyncio task still running fails (the daemons of `Env` are stopped for it first, see env.stop_all), and so does one that ends with the thread of
   a Db (neoaprs/db.py) still running (`await db.close()`);
 * no swallowed error: a test that makes the code log an ERROR it did not say it expects fails (`@pytest.mark.expects_errors`, or a test that reads the log
@@ -138,6 +138,7 @@ class NetworkGuard:
 RADIO_PATTERNS = ("/dev/brainbox_*", "/dev/tty*", "/dev/serial/*", "/dev/rfcomm*", "/dev/cu.*")
 SERIAL_MAJORS = frozenset({4, 166, 188, 204})        # Linux: the character devices of ttyS*, ttyACM*, ttyUSB* and the on-chip UARTs (a node of another name is found by its number); a pseudo-terminal is /dev/pts/N, 136 and up
 SEARCH_VARIABLE = "NEOAPRS_SERIAL_PATTERN"
+UPDATE_VARIABLE = "NEOAPRS_UPDATE_CHECK"
 
 
 class RadioTouched(PermissionError):
@@ -193,7 +194,7 @@ class SerialGuard:
 
 
 class ProcessGuard:
-    """Patches `subprocess.Popen`: the `neoaprs` command (or `python -m neoaprs`) started with an environment of its own, which does not carry NEOAPRS_SERIAL_PATTERN, would search the machine's serial ports: refused, and remembered."""
+    """Patches `subprocess.Popen`: the `neoaprs` command (or `python -m neoaprs`) started with an environment of its own, which does not carry NEOAPRS_SERIAL_PATTERN, would search the machine's serial ports, and without NEOAPRS_UPDATE_CHECK=0 would ask the version page on the internet: refused, and remembered."""
 
     def __init__(self) -> None:
         self.refused: list[str] = []
@@ -205,9 +206,9 @@ class ProcessGuard:
         return program in ("neoaprs", "neoaprs-app", "neoaprsw") or any(a == "-m" and b.split(".")[0] == "neoaprs" for a, b in zip(words, words[1:]))
 
     def check(self, args: Any, env: Any) -> None:
-        if env is not None and not env.get(SEARCH_VARIABLE) and self.starts_neoaprs(args):
+        if env is not None and (not env.get(SEARCH_VARIABLE) or env.get(UPDATE_VARIABLE) != "0") and self.starts_neoaprs(args):
             self.refused.append(str(args))
-            raise RadioTouched(errno.EACCES, f"a test may not start neoaprs without {SEARCH_VARIABLE} in its environment: {args}")
+            raise RadioTouched(errno.EACCES, f"a test may not start neoaprs without {SEARCH_VARIABLE} and {UPDATE_VARIABLE}=0 in its environment: {args}")
 
     def install(self, patch: Callable[[Any, str, Any], None]) -> None:
         original_init = subprocess.Popen.__init__

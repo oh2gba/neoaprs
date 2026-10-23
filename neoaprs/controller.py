@@ -28,8 +28,8 @@ WebFactory = Callable[["Controller", Config], Frontend]
 
 
 class Controller(Services):
-    def __init__(self, data_directory: str | Path, clock: Clock = utcnow, store: Store | None = None, busy_ms: int = DEFAULT_BUSY_MS, tnc: Tnc | None = None, port: str = "", web: WebFactory | None = None, pattern: str = "") -> None:
-        super().__init__(Path(data_directory), clock, store, tnc, port, pattern)
+    def __init__(self, data_directory: str | Path, clock: Clock = utcnow, store: Store | None = None, busy_ms: int = DEFAULT_BUSY_MS, tnc: Tnc | None = None, port: str = "", web: WebFactory | None = None, pattern: str = "", appimage: bool = False) -> None:
+        super().__init__(Path(data_directory), clock, store, tnc, port, pattern, appimage)
         self._web_factory = web
         self.busy_ms = busy_ms                  # how long the thread's connection waits for another writer: the daemon asks for a few seconds
         self._tnc_task: asyncio.Task[None] | None = None
@@ -69,12 +69,14 @@ class Controller(Services):
         await self.prefbook.load()
         await self.messaging.start()
         await self._start_web()
+        await self.updatecheck.start()
         self.tasks.spawn(self._prune_daily(), "prune")
 
     async def stop(self) -> None:
         self.running = False
         try:
             await self._stop_web()
+            await self.updatecheck.stop()
             await self.mapfetch.stop()
             await self.queries.stop()
             await self.messaging.stop()

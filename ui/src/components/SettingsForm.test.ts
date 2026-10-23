@@ -14,7 +14,7 @@ function make(extra: Record<string, string> = {}, scope: Scope = "settings") {
 describe("SettingsForm", () => {
   it("has a field for every key of the Settings tab, in groups, and none of the beacon's", () => {
     const { wrapper } = make();
-    expect(wrapper.findAll("fieldset legend").map((l) => l.text())).toEqual(["TNC", "Web page", "Log", "Messaging", "Map"]);
+    expect(wrapper.findAll("fieldset legend").map((l) => l.text())).toEqual(["TNC", "Web page", "Log", "Messaging", "Map", "Updates"]);
     expect(wrapper.findAll(".field")).toHaveLength(
       CONFIG_KEYS.filter((k) => !k.startsWith("beacon/") && !k.startsWith("station/") && !k.startsWith("status/") && !k.startsWith("tcp/") && k !== "web/key")
         .length,

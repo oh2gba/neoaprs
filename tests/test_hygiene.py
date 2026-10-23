@@ -66,7 +66,7 @@ def run_help(path: Path, tmp_path: Path) -> subprocess.CompletedProcess[str]:
     """`--help` in an empty folder with a HOME of its own: a script that does not know the flag must not be able to reach the user's files or services."""
     home = tmp_path / "home"
     home.mkdir(exist_ok=True)
-    env = {"PATH": os.environ["PATH"], "HOME": str(home), "NEOAPRS_PYTHON": sys.executable, "NEOAPRS_DATA_DIR": str(tmp_path / "data"), "LC_ALL": "C.UTF-8", "PYTHONPATH": str(ROOT), "NEOAPRS_SERIAL_PATTERN": os.environ["NEOAPRS_SERIAL_PATTERN"]}
+    env = {"PATH": os.environ["PATH"], "HOME": str(home), "NEOAPRS_PYTHON": sys.executable, "NEOAPRS_DATA_DIR": str(tmp_path / "data"), "LC_ALL": "C.UTF-8", "PYTHONPATH": str(ROOT), "NEOAPRS_SERIAL_PATTERN": os.environ["NEOAPRS_SERIAL_PATTERN"], "NEOAPRS_UPDATE_CHECK": "0"}
     command = [sys.executable, str(path), "--help"] if path.suffix == ".py" else [str(path), "--help"]
     return subprocess.run(command, cwd=tmp_path, env=env, capture_output=True, text=True, timeout=120)
 

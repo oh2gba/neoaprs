@@ -12,6 +12,7 @@ permissions:
   contents: read
 
 env:
+  NEOAPRS_UPDATE_CHECK: "0"          # no daemon of a smoke step asks the version page
   UV_FROZEN: "1"
 
 concurrency:

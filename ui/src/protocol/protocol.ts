@@ -739,6 +739,8 @@ export interface StatusMessage {
   rss_mb: number | null;
   /** seconds since the daemon started, by its clock */
   uptime_sec: number;
+  /** the latest version while it is newer than this one, from the daily update check (`update/check`); null when there is none, the check is off or has not been answered */
+  update: UpdateInfo | null;
 }
 
 /** Follow these topics (all are followed from the start): each is answered with `state`, then with `patch` as it changes. A topic that is followed already is sent whole again. A topic that is not there is refused with an `error` that names it; the others in the command are not affected. */
@@ -855,6 +857,16 @@ export interface TopicValues {
 export interface UnsubscribeCommand {
   cmd: "unsubscribe";
   topics: string[];
+}
+
+/** A newer version than the daemon's, as the version page named it (services/updatecheck.py). */
+export interface UpdateInfo {
+  /** the latest version */
+  version: string;
+  /** where to get it: an https address, or empty */
+  url: string;
+  /** a short note from the project, at most 200 characters; empty for none */
+  message: string;
 }
 
 /** Asks for the observations a weather station made in the last `hours` hours. Answered with a `weather_series` message to the page that asked, or an `error` for a call that is empty or hours out of range; a call with no observations is answered with no points. */

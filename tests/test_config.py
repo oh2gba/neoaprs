@@ -14,7 +14,8 @@ def test_the_defaults_are_the_ones_of_the_brief() -> None:
         "beacon/antenna_direction": "omni", "log/keep_days": "30", "web/network": "false", "web/key": "", "web/port": "7303", "web/allowed_hosts": "", "beacon/interval_min": "0",
         "beacon/path": "WIDE1-1,WIDE2-1", "beacon/destination": "APZNEO", "beacon/compressed": "false", "beacon/dao": "false", "messages/attempts": "6",
         "messages/alert": "true", "messages/alert_command": DEFAULT_ALERT_COMMAND, "status/rigctld": "", "status/interval_min": "30", "status/template": "QRV {freq} {mode}",
-        "map/hide_after_min": "180", "map/radius_km": "150", "map/maxzoom": "12", "map/source": ""}
+        "map/hide_after_min": "180", "map/radius_km": "150", "map/maxzoom": "12", "map/source": "",
+        "update/check": "true", "update/url": "https://oh2gba.eu/neoaprs/version.php"}
     assert Config() == DEFAULTS
 
 
@@ -63,7 +64,7 @@ def test_a_call_is_checked_and_written_in_capitals() -> None:
     ("beacon/destination", "TOOLONGCALL"), ("beacon/destination", ""), ("beacon/compressed", "sometimes"),
     ("beacon/power_w", "-1"), ("beacon/power_w", "10000"), ("beacon/power_w", "lots"), ("beacon/antenna_height_m", "-1"), ("beacon/antenna_height_m", "10000"), ("beacon/antenna_height_m", "tall"), ("beacon/antenna_gain_db", "10"),
     ("beacon/antenna_gain_db", "-1"), ("beacon/antenna_gain_db", "3.5"), ("beacon/antenna_direction", "up"), ("beacon/antenna_direction", "NNE"), ("beacon/antenna_direction", ""), ("beacon/dao", "maybe"),
-    ("tnc/check_sec", "-1"), ("tnc/check_sec", "5"), ("tnc/check_sec", "9"), ("tnc/check_sec", "3601"), ("tnc/check_sec", "soon"), ("map/hide_after_min", "-1"), ("map/hide_after_min", "10081"), ("map/hide_after_min", "never"), ("messages/attempts", "0"), ("messages/attempts", "11"), ("messages/attempts", "six"),
+    ("tnc/check_sec", "-1"), ("tnc/check_sec", "5"), ("tnc/check_sec", "9"), ("tnc/check_sec", "3601"), ("tnc/check_sec", "soon"), ("update/check", "sometimes"), ("update/url", ""), ("update/url", "ftp://example.org/v.php"), ("update/url", "https://"), ("update/url", "two words"), ("update/url", "https://example.org/" + "x" * 500), ("map/hide_after_min", "-1"), ("map/hide_after_min", "10081"), ("map/hide_after_min", "never"), ("messages/attempts", "0"), ("messages/attempts", "11"), ("messages/attempts", "six"),
     ("messages/alert", "loud"), ("messages/alert_command", "x" * 1001), ("messages/alert_command", "two\nlines"), ("status/rigctld", "localhost"), ("status/rigctld", "localhost:0"), ("status/rigctld", "localhost:70000"),
     ("status/rigctld", ":4532"), ("status/rigctld", "two words:4532"), ("status/interval_min", "0"), ("status/interval_min", "1441"), ("status/interval_min", "often"), ("status/template", "QRV {frequency}"),
     ("status/template", "x" * 63), ("status/template", "{freq} {mode} " + "x" * 50), ("status/template", "two\nlines")])
@@ -269,3 +270,10 @@ def test_a_tcp_profile_is_refused_with_a_serial_port_and_accepted_with_a_tcp_add
         Config.checked(tcp, {"serial/port": "COM3"})
     assert Config.checked(replace(DEFAULTS, tnc_profile="kenwood-tnc2"), {"serial/port": "socket://localhost:7000"}).serial_port == "socket://localhost:7000", "a serial profile on a socket works as it always did"
     assert Config.checked(DEFAULTS, {"serial/port": "/dev/ttyUSB0"}).serial_port == "/dev/ttyUSB0"
+
+
+def test_the_update_check_is_on_and_asks_the_page_of_the_project_unless_the_settings_say_otherwise() -> None:
+    assert DEFAULTS.update_check is True and DEFAULTS.update_url == "https://oh2gba.eu/neoaprs/version.php"
+    c = Config.from_data({"update/check": "off", "update/url": " http://127.0.0.1:8000/version.php "})
+    assert (c.update_check, c.update_url) == (False, "http://127.0.0.1:8000/version.php")
+    assert Config.check("update/check", "No") == "false" and Config.check("update/url", "https://example.org/v.php?a=1") == "https://example.org/v.php?a=1"

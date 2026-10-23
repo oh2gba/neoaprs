@@ -20,6 +20,7 @@ python="$ROOT/.venv/bin/python"
 [ -x "$python" ] || python=python3
 if [ "${1:-}" = --python ]; then python="${2:?--python needs a program}"; fi
 
+export NEOAPRS_UPDATE_CHECK=0           # none of the daemons below asks the version page
 say() { echo "smoke-appimage: $*"; }
 fail() { echo "smoke-appimage: FAILED: $*" >&2; exit 1; }
 

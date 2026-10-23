@@ -1,0 +1,2 @@
+# The start log and the cache of the latest version are written by version.php and must not be readable from the web.
+Require all denied

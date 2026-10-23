@@ -1,6 +1,7 @@
 """The types a setting can have (config.py has the table of the settings): each is a function from the text of a value to the value, raising ValueError with the reason, and `over_the_air_problem`, the rule for text that goes
 on the air."""
 from collections.abc import Callable
+from urllib.parse import urlsplit
 
 from .message import normal_call
 
@@ -95,6 +96,15 @@ def optional_float(low: float, high: float) -> Callable[[str], float | None]:
     def parse(text: str) -> float | None:
         return None if text.strip() == "" else number(text)
     return parse
+
+
+def web_address(text: str) -> str:
+    """An http or https address with a host and no blanks."""
+    value = text.strip()
+    parts = urlsplit(value)
+    if parts.scheme not in ("http", "https") or not parts.netloc or any(c.isspace() for c in value) or not value.isprintable() or len(value) > 500:
+        raise ValueError(f"{text!r} is not an http or https address")
+    return value
 
 
 KEY_ALPHABET = "23456789abcdefghjkmnpqrstuvwxyz"       # digits and lower case letters without 0, 1, i, l and o, which look alike

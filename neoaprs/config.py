@@ -13,9 +13,10 @@ from urllib.parse import urlsplit
 from .alertcommand import DEFAULT_ALERT_COMMAND
 from .callsign import call_problem
 from .configlegacy import with_legacy
-from .configtypes import access_key, boolean, call_or_empty, int_in, int_or_off, optional_float, optional_int, over_the_air_problem, text_of
+from .configtypes import access_key, boolean, call_or_empty, int_in, int_or_off, optional_float, optional_int, over_the_air_problem, text_of, web_address
 from .message import DEFAULT_ATTEMPTS, MAX_ATTEMPTS, normal_call, normal_path
 from .tncprofile import DEFAULT as DEFAULT_PROFILE, Profile, names_tcp, profile_of
+from .versions import UPDATE_URL
 
 log = logging.getLogger("neoaprs.config")
 
@@ -217,6 +218,8 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("map_radius_km", "map/radius_km", int_in(*MAP_RADIUS_KM)),      # the detailed base map covers a square this far from our position in every direction
     Setting("map_maxzoom", "map/maxzoom", int_in(*MAP_MAXZOOM)),            # and goes down to this zoom (10 towns, 12 streets, 14 houses)
     Setting("map_source", "map/source", _map_source),                       # where the map is cut from; empty: the latest daily build of build.protomaps.com
+    Setting("update_check", "update/check", boolean),                         # true: once a day the daemon asks the version page for the latest version (services/updatecheck.py)
+    Setting("update_url", "update/url", web_address),                         # that page: it is sent this program's version and platform and nothing else
 )
 BY_KEY = {s.key: s for s in SETTINGS}
 KEYS = tuple(s.key for s in SETTINGS)
@@ -268,6 +271,8 @@ class Config:
     map_radius_km: int = 150
     map_maxzoom: int = 12
     map_source: str = ""
+    update_check: bool = True
+    update_url: str = UPDATE_URL
 
     @property
     def station_position(self) -> tuple[float, float] | None:

@@ -29,6 +29,22 @@ describe("AppHeader", () => {
     expect(header({ call: null }).find(".nocall").exists()).toBe(false);
   });
 
+  it("shows a newer version after the version as a link to its page, the project's note as the title", () => {
+    const update = { version: "0.2.0", url: "https://oh2gba.github.io/neoaprs/", message: "Fixes the map download" };
+    const link = header({ status: status({ update }) }).find("a.update");
+    expect(link.text()).toBe("0.2.0");
+    expect(link.attributes("href")).toBe("https://oh2gba.github.io/neoaprs/");
+    expect(link.attributes("title")).toBe("Fixes the map download");
+    expect(link.attributes("rel")).toContain("noopener");
+  });
+
+  it("shows no link while there is no newer version, and the number alone when the answer had no address", () => {
+    expect(header({ status: status() }).find(".update").exists()).toBe(false);
+    const plain = header({ status: status({ update: { version: "0.2.0", url: "", message: "" } }) }).find(".update");
+    expect(plain.element.tagName).toBe("SPAN");
+    expect(plain.text()).toBe("0.2.0");
+  });
+
   it("shows nothing when all are seen", () => {
     expect(header().find(".headmail").exists()).toBe(false);
   });

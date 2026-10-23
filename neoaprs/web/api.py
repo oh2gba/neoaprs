@@ -7,6 +7,7 @@ import asyncio
 import json
 import logging
 from collections.abc import Callable
+from dataclasses import asdict
 from typing import Any
 
 from neoaprs import VERSION
@@ -66,6 +67,7 @@ class Api:
                 "call": c.station_call, "lat": c.station_lat, "lon": c.station_lon,
                 "beacon_interval_min": c.beacon_interval_min, "beacon_last_sent": iso(beacon.last_sent), "beacon_next_due": iso(beacon.next_due),
                 "station_status": rig.last_text, "rig_state": rig.rig_state,
+                "update": None if self.ctl.updatecheck.latest is None else asdict(self.ctl.updatecheck.latest),
                 "cpu_percent": cpu_percent, "rss_mb": rss_mb, "uptime_sec": int((self.ctl.clock() - self.started_at).total_seconds())}
 
     def _packet_sent(self) -> None:

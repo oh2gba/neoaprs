@@ -57,6 +57,7 @@ class Daemon:
 
     async def start(self) -> str:
         env = {k: v for k, v in os.environ.items() if not k.startswith("NEOAPRS_")}
+        env["NEOAPRS_UPDATE_CHECK"] = "0"                        # (a made-up day: the daemon does not ask the version page)
         self.proc = await asyncio.create_subprocess_exec(sys.executable, "-m", "neoaprs", "--data", str(self.data), "--web-port", "0", *self.extra, env=env, cwd=ROOT,
                                                          stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
         asyncio.create_task(self._drain())

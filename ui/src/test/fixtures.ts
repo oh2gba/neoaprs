@@ -249,6 +249,8 @@ export function configValues(extra: Record<string, string> = {}): ConfigValues {
     "map/radius_km": "150",
     "map/maxzoom": "12",
     "map/source": "",
+    "update/check": "true",
+    "update/url": "https://oh2gba.eu/neoaprs/version.php",
     ...extra,
   };
   return { values, defaults: { ...values }, urls: [] };
@@ -304,6 +306,7 @@ export function status(extra: Partial<StatusMessage> = {}): StatusMessage {
     cpu_percent: 0.3,
     rss_mb: 42.4,
     uptime_sec: 10800,
+    update: null,
     ...extra,
   };
 }

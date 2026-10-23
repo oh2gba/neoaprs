@@ -73,6 +73,8 @@ The page's forms carry no explanations (a label, a placeholder with the default,
 | `map/radius_km` | `150` | the detailed base map covers a square this far from our position in every direction, 10 to 1000 km (the Settings tab, Map, Radius): see "The page", "The base map". Read when the map is made, not before |
 | `map/maxzoom` | `12` | the deepest zoom the detailed map has tiles for, 6 to 15: 10 shows towns, 12 streets, 14 houses (the Settings tab, Map, Detail). A deeper zoom of the page draws the last one magnified |
 | `map/source` | empty | where the map is cut from: empty is the latest daily build of build.protomaps.com (today's, else back up to a week); or a web address (`https://...`) or the path of a PMTiles file, such as a planet file of your own |
+| `update/check` | `true` | `true` asks the version page once a day whether a newer version is out; `false` asks nothing: see "Update check" |
+| `update/url` | `https://oh2gba.eu/neoaprs/version.php` | the address of that page (`http` or `https`) |
 
 ### The neoaprs command
 
@@ -245,6 +247,15 @@ The page answers on this computer only. To open it from another device on the sa
 * **Windows** asks whether to let NeoAPRS through its firewall the first time the switch is on: allow it on private networks.
 * Whoever is logged in can change every setting, the alert command (a shell line the computer runs) among them: the key is the only lock, so give it to your own devices only.
 
+### Update check
+
+Once a day the daemon asks the project's version page whether a newer NeoAPRS is out, so that you hear of it and the project can tell how many copies are in use. The first question comes a minute after the daemon starts, then one every 24 hours; a desktop app and the daemon it starts count once, and opening the page asks nothing.
+
+* **What is sent.** One GET of `update/url` with the version and the kind of system in the address: `https://oh2gba.eu/neoaprs/version.php?v=0.1.0&os=linux`, and a User-Agent that says the same (`NeoAPRS/0.1.0 (linux)`). The system is `windows`, `macos`, `linux`, `linux-appimage` (the AppImage) or `linux-arm` (a Raspberry Pi: aarch64 or armv7). Nothing else: no call, no position, no setting, no identifier.
+* **What is kept.** The page adds a line with the time (to the minute, UTC), the version and the system to a log on the server and hands the same three values to the project's status page, where they are counted. No address of yours is stored: the address of the request is used only to tell two copies of the same version and system apart in the count, and is not stored anywhere. The source of the page is `server/version.php`.
+* **The answer** is a few lines of JSON, the latest release of the project (read from its GitHub releases), the address of the project page and an optional note. When the version is newer than yours, the page shows it small in the header after the version number, as a link to the project page; the note is its hover title. A page that cannot be reached, or answers something else, is ignored: nothing is shown, the log has a line only with `--debug`, and the next question is the next day.
+* **Switching it off.** Settings tab, Updates, **Check once a day** set to no (`neoaprs db set update/check false`); it counts within the hour. `NEOAPRS_UPDATE_CHECK=0` in the environment switches it off for one run whatever the setting says (`CONVENTIONS.md`, the table of environment variables). `update/url` can point at a page of your own.
+
 ### The desktop app
 
 `neoaprs app` (or `neoaprs-app`, the same without a console window) is NeoAPRS for people who do not want to run a daemon: the page in a window of its own and an icon in the tray. It needs the extra `app`: `uv tool install "neoaprs[app]"` or `pip install "neoaprs[app]"` (in a clone `uv sync --frozen --extra app`); the Windows installer has it inside. The window is the page, not a second program: the same page that the daemon serves, in the system's own web engine, so anything the page does in a browser it does here.
@@ -400,6 +411,7 @@ The daemon serves a page at `http://127.0.0.1:7303/` (the port is `web/port`): a
 * `scripts/`: the tools (table above).
 * `.github/`: the CI workflow (`.github/workflows/ci.yml`: the Python checks and tests, the smoke test, the page's checks, a stale-page check), run by GitHub on every push, and the release workflow (`.github/workflows/release.yml`), and the workflow of the project page (`.github/workflows/pages.yml`).
 * `site/`: the project page ("The project page").
+* `server/`: the version page that the update check asks, on the project's web host: `version.php`, `log/.htaccess` (the log and the cache are not served), `deploy.sh` (uploads those two files and nothing else) and `usage-report.sh` (fetches the logs and counts the starts per day, version and system). `docs/MAINTAINING.md` has when to look at it.
 * `packaging/`: what the release is made from besides the package: `install.sh.in` (the install script's template) and `test-install.sh` (its test), and `windows/` (`neoaprs.spec` for PyInstaller with its entry script, `bundle_pmtiles.py`, `neoaprs.iss` for Inno Setup) and `appimage/` (`AppRun`, `neoaprs.desktop`, `prune.py`). "Releases".
 * `.gitattributes`: LF line ends in every checkout (a Windows checkout would otherwise break the tests), the binary files marked.
 * `systemd/`: the notes on the unit (`systemd/README.md`); the unit itself is the template `neoaprs/cli/neoaprs.service`.
