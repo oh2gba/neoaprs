@@ -302,7 +302,7 @@ jobs:
           printf '#!/bin/sh\nexit 0\n' > "$RUNNER_TEMP/fakebin/systemctl"
           cp "$RUNNER_TEMP/fakebin/systemctl" "$RUNNER_TEMP/fakebin/loginctl"
           chmod +x "$RUNNER_TEMP/fakebin/systemctl" "$RUNNER_TEMP/fakebin/loginctl"
-          HOME="$RUNNER_TEMP/home" PATH="$RUNNER_TEMP/fakebin:$PATH" neoaprs service install --data "$RUNNER_TEMP/servicedata"
+          HOME="$RUNNER_TEMP/home" XDG_CONFIG_HOME="$RUNNER_TEMP/home/.config" PATH="$RUNNER_TEMP/fakebin:$PATH" neoaprs service install --data "$RUNNER_TEMP/servicedata"
           grep -n '^ExecStart=/opt/neoaprs/bin/python3 -m neoaprs ' "$RUNNER_TEMP/home/.config/systemd/user/neoaprs.service"
       - name: Install it over itself (an upgrade), then remove it; the data of a user stays
         run: |
