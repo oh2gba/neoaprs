@@ -12,9 +12,11 @@ describe("StationTimeout", () => {
   it("shows the default as the placeholder when the station has no timeout of its own, and nothing else", () => {
     const wrapper = field();
     expect(wrapper.find<HTMLInputElement>("input").element.value).toBe("");
-    expect(wrapper.find("input").attributes("placeholder")).toBe("(default: 1 d)");
-    expect(field([], 180).find("input").attributes("placeholder")).toBe("(default: 3 h)");
-    expect(field([], 0).find("input").attributes("placeholder")).toBe("(default: never)");
+    expect(wrapper.find("label").text()).toBe("Hide from map after");
+    expect(wrapper.find("input").attributes("placeholder")).toBe("1 d (usual)");
+    expect(field([], 180).find("input").attributes("placeholder")).toBe("3 h (usual)");
+    expect(field([], 0).find("input").attributes("placeholder")).toBe("never (usual)");
+    expect(wrapper.find("input").attributes("title")).toBe("Minutes, or never; empty for the usual time");
     expect(wrapper.find("button").exists()).toBe(false);
     expect(wrapper.find("p").exists()).toBe(false);
     expect(wrapper.find(".hint").exists()).toBe(false);

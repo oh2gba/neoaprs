@@ -1,9 +1,8 @@
 // How the packets of a station reached us, as the page words it: the counts of the card and the path the daemon suggests to send by. The daemon works the routes out (neoaprs/route.py); these only format.
-import { ageSeconds, ageText } from "@/lib/format";
+import { ageSeconds } from "@/lib/format";
 import type { StationRow } from "@/protocol/protocol";
 
 type Counts = Pick<StationRow, "heard_direct" | "heard_via" | "heard_gated">;
-type Direct = Pick<StationRow, "heard_direct" | "heard_via" | "heard_gated" | "last_direct_at">;
 
 /** A station heard direct within this long has a ring on its marker. */
 const DIRECT_RECENT_SEC = 3600;
@@ -36,27 +35,21 @@ export function bestText(row: Suggestion): string {
   return `${row.best_route}; ${unknown}${row.suggested_path === "" ? "send direct" : `send by ${row.suggested_path}`}`;
 }
 
-/** The share of the packets counted for the station that came direct, in whole percent; null before any packet is counted. */
-export function directShare(row: Counts): number | null {
-  const counted = row.heard_direct + row.heard_gated + row.heard_via.reduce((sum, [, count]) => sum + count, 0);
-  return counted === 0 ? null : Math.round((100 * row.heard_direct) / counted);
-}
-
 /** Whether a packet of the station was heard direct within the last hour. */
 export function heardDirectRecently(row: Pick<StationRow, "last_direct_at">, nowMs: number): boolean {
   return row.last_direct_at !== null && ageSeconds(row.last_direct_at, nowMs) <= DIRECT_RECENT_SEC;
 }
 
-/** The Direct column: when the station was last heard direct and the share of its packets that came direct, "5 min, 40 %"; "-" for a station never heard direct. */
-export function directText(row: Direct, nowMs: number): string {
-  if (row.last_direct_at === null) return "-";
-  const share = directShare(row);
-  return share === null ? ageText(row.last_direct_at, nowMs) : `${ageText(row.last_direct_at, nowMs)}, ${share} %`;
+/** Whether a station (not our own, not an object) was heard direct at some time: its call has the green check mark. */
+export function heardDirect(row: Pick<StationRow, "kind" | "is_me" | "last_direct_at">): boolean {
+  return row.kind === "station" && !row.is_me && row.last_direct_at !== null;
 }
 
-/** The same for the card, in words: "heard direct 5 min ago, 40 % of its packets"; "never heard direct" for a station that was not. */
-export function directWords(row: Direct, nowMs: number): string {
-  if (row.last_direct_at === null) return "not heard direct";
-  const share = directShare(row);
-  return `heard direct ${ageText(row.last_direct_at, nowMs)} ago${share === null ? "" : `, ${share} % of its packets`}`;
+/** The way of the latest packet written for a person: "direct", "via OH2RCH-2", "via a repeater → OH2RCH-2" (a repeater that put no call in the packet), "via OH7JHF-1 (internet)"; before a route is known, the way most of its packets came by; null when none is known. */
+export function reachedText(row: Pick<StationRow, "last_route" | "heard_direct" | "heard_via" | "heard_gated">): string | null {
+  if (row.last_route !== "") return row.last_route.replaceAll("?", "a repeater");
+  if (row.heard_direct > 0) return "direct";
+  const first = row.heard_via[0];
+  if (first !== undefined) return `via ${first[0] === "?" ? "a repeater" : first[0]}`;
+  return row.heard_gated > 0 ? "via the internet" : null;
 }

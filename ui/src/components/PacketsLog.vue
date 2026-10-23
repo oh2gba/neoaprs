@@ -1,10 +1,11 @@
 <script setup lang="ts">
 // The packets as they arrive, newest first: the time, whether it was heard ("in") or sent by us ("out"), the packet as a TNC2 line, the route it came by ("via OH2RCH-2", "direct", "via OH7JHF-1 (internet)" for a packet an iGate put on the air; empty for one we sent) and what the daemon made of it. A filter box narrows
-// the list; a click on a packet opens what the parser decoded of it, as JSON, with the time the packet carries when it has one ("09 23:45 local" for a time the sender gave in its local clock).
+// the list; a click on a packet opens it in plain facts (components/PacketDetail.vue), with what the parser decoded of it, as JSON, under "Raw". A route breaks between its words, never inside a callsign.
 import { computed, ref } from "vue";
+import PacketDetail from "@/components/PacketDetail.vue";
+import RouteText from "@/components/RouteText.vue";
 import { clockText } from "@/lib/format";
-import { sentTimeText } from "@/lib/details";
-import { decodedJson, filterPackets, newestFirst } from "@/lib/packets";
+import { filterPackets, newestFirst } from "@/lib/packets";
 import type { PacketRow } from "@/protocol/protocol";
 
 const props = defineProps<{ packets: ReadonlyMap<string, PacketRow> }>();
@@ -41,13 +42,12 @@ function toggle(id: number): void {
               <td class="mono nowrap">{{ clockText(row.heard_at) }}</td>
               <td :class="row.direction">{{ row.direction }}</td>
               <td class="mono wrap">{{ row.tnc2 }}</td>
-              <td class="wrap muted">{{ row.route }}</td>
+              <td class="muted route-cell"><RouteText :text="row.route" /></td>
               <td class="wrap">{{ row.summary }}</td>
             </tr>
             <tr v-if="open === row.id" class="detail">
               <td colspan="5">
-                <div v-if="sentTimeText(row)" class="muted">Time in the packet: {{ sentTimeText(row) }}</div>
-                <pre class="json">{{ decodedJson(row) }}</pre>
+                <PacketDetail :row="row" />
               </td>
             </tr>
           </template>

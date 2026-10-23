@@ -79,6 +79,11 @@ export function agoText(iso: string | null, nowMs: number): string {
   return iso === null ? NONE : `${ageText(iso, nowMs)} ago (${dateTimeText(iso)})`;
 }
 
+/** How long ago, in words: "2 min ago"; a dash for none. The full time goes in a hover title (`dateTimeText`). */
+export function agoWords(iso: string | null, nowMs: number): string {
+  return iso === null ? NONE : `${ageText(iso, nowMs)} ago`;
+}
+
 /** Kilometres, one decimal under 10 and whole above. */
 export function distanceText(km: number | null): string {
   if (km === null) return NONE;
@@ -97,6 +102,13 @@ export function bearingText(deg: number | null): string {
   if (deg === null) return NONE;
   const whole = Math.round(deg);
   return `${whole}° ${compassPoint(whole)}`;
+}
+
+/** The bearing for a hover title: "NE, 47°"; a dash for none. */
+export function bearingTitle(deg: number | null): string {
+  if (deg === null) return NONE;
+  const whole = Math.round(deg);
+  return `${compassPoint(whole)}, ${whole}°`;
 }
 
 /** "60.17000 N 24.94000 E". */

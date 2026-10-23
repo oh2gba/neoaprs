@@ -29,11 +29,3 @@ export function unreadText(unread: number): string {
 export function badgeText(tab: TabId, count: number): string {
   return tab === "bulletins" ? `${count} new ${count === 1 ? "bulletin" : "bulletins"}` : unreadText(count);
 }
-
-/** What the badges say together, for the handle of the folded panel: "3 messages not seen yet, 1 new bulletin". */
-export function foldedText(badges: Partial<Record<TabId, number>>): string {
-  return Object.entries(badges)
-    .filter(([, count]) => count > 0)
-    .map(([tab, count]) => badgeText(tab as TabId, count))
-    .join(", ");
-}

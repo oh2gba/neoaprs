@@ -13,7 +13,7 @@ const rows = table(
 );
 
 function calls(wrapper: ReturnType<typeof mount>): string[] {
-  return wrapper.findAll("tbody tr td:first-child").map((td) => td.text());
+  return wrapper.findAll("tbody tr td.call").map((td) => td.text());
 }
 
 const never: Aging = { timeouts: new Map(), defaultMin: 0 };
@@ -30,39 +30,75 @@ describe("StationsTable", () => {
   });
 
   it("keeps a call with an SSID on one line: the call cell has the class whose rule forbids wrapping", () => {
-    const cells = make().findAll("tbody tr td:first-child");
+    const cells = make().findAll("tbody tr td.call");
     expect(cells.length).toBeGreaterThan(0);
-    for (const cell of cells) expect(cell.classes()).toContain("call");
     expect(cssRule(".grid .call")).toMatch(/white-space:\s*nowrap/);
   });
 
-  it("writes the distance, the bearing, the ages, the packets and the path", () => {
-    const text = make().findAll("tbody tr")[2]?.text() ?? "";
+  it("has the columns symbol, Call, a check mark, km, the bearing as an arrow and Last heard, and nothing else: the rest is on the card", () => {
+    const wrapper = make();
+    expect(wrapper.findAll("thead th").map((th) => th.text())).toEqual(["", "Call", "heard direct", "km", "bearing", "Last heard ▼"]);
+    for (const tr of wrapper.findAll("tbody tr")) expect(tr.findAll("td")).toHaveLength(6);
+    const text = wrapper.findAll("tbody tr")[2]?.text() ?? "";
     expect(text).toContain("OH2PU-9");
     expect(text).toContain("16");
-    expect(text).toContain("45° NE");
     expect(text).toContain("3 min");
-    expect(text).toContain("20");
-    expect(text).toContain("OH2RCH-2*");
+    expect(text).not.toContain("OH2RCH-2*");
+    expect(text).not.toContain("Brg");
+    expect(text).not.toContain("20");
   });
 
-  it("has a wx column with the temperature of a weather station and a dash for any other, sorted by a click", async () => {
+  it("shows the bearing as a small arrow turned to it, north up, the compass point and the degrees only as its hover title; none for a station with no bearing", () => {
+    const rowsOf = make().findAll("tbody tr");
+    const pu = rowsOf[2]?.find("td.bearing");
+    expect(pu?.attributes("title")).toBe("NE, 45°");
+    expect(pu?.find(".arrow").attributes("style")).toContain("rotate(45deg)");
+    expect(pu?.find(".arrow").attributes("aria-hidden")).toBe("true");
+    expect(pu?.text()).toContain("NE, 45°"); // for a screen reader
+    const mine = rowsOf[0]?.find("td.bearing");
+    expect(mine?.find(".arrow").exists()).toBe(false);
+    expect(mine?.attributes("title")).toBe("-");
+  });
+
+  it("is sorted by the other columns, not by the arrow", () => {
+    const heads = make().findAll("thead th");
+    expect(heads[4]?.find("button").exists()).toBe(false);
+    expect(heads[3]?.find("button").exists()).toBe(true);
+  });
+
+  it("says when a station was last heard, anything it sent, with the full time as the hover title", () => {
+    const cell = make().findAll("tbody tr")[2]?.findAll("td")[5];
+    expect(cell?.text()).toBe("3 min");
+    expect(cell?.attributes("title")).toMatch(/^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$/);
+  });
+
+  it("has a green check mark after the call of a station heard direct, named for a screen reader, and nothing for the others", () => {
     const stations = table(
-      station("OH2GBA", { is_me: true }),
-      weatherStation("OH2MUI", { weather: weather({ temp_c: 10 }) }),
-      weatherStation("OH2NJR", { weather: weather({ temp_c: -3.25 }) }),
-      station("OH2CAR"),
+      station("OH2GBA", { is_me: true, last_direct_at: ago(60) }),
+      station("OH2NEAR", { last_direct_at: ago(300) }),
+      station("OH2FAR", { last_direct_at: null }),
     );
     const wrapper = make(null, never, stations);
-    const cells = (): string[] => wrapper.findAll("tbody tr").map((tr) => tr.findAll("td")[7]?.text() ?? "");
-    const head = wrapper.findAll("th button").find((b) => b.text().startsWith("wx"));
-    expect(head).toBeDefined();
-    await head?.trigger("click");
-    expect(wrapper.findAll("tbody tr td:first-child").map((td) => td.text())).toEqual(["OH2GBA", "OH2MUI", "OH2NJR", "OH2CAR"]);
-    expect(cells()).toEqual(["-", "10.0°", "-3.3°", "-"]);
-    await head?.trigger("click");
-    expect(wrapper.findAll("tbody tr td:first-child").map((td) => td.text())).toEqual(["OH2GBA", "OH2NJR", "OH2MUI", "OH2CAR"]);
-    expect(wrapper.findAll("tbody tr")[1]?.findAll("td")[7]?.attributes("title")).toBe("10 min ago");
+    const marks = Object.fromEntries(wrapper.findAll("tbody tr").map((tr) => [tr.find("td.call").text(), tr.find("td.direct .direct-mark")]));
+    expect(marks.OH2NEAR?.exists()).toBe(true);
+    expect(marks.OH2NEAR?.attributes("aria-label")).toBe("Heard direct");
+    expect(marks.OH2NEAR?.attributes("title")).toBe("Heard direct");
+    expect(marks.OH2GBA?.exists()).toBe(false);
+    expect(marks.OH2FAR?.exists()).toBe(false);
+    expect(wrapper.text()).not.toMatch(/\d+ %/);
+  });
+
+  it("shows the symbol first, as a picture with its name for a hover", () => {
+    const first = make().findAll("tbody tr")[1]?.findAll("td")[0];
+    expect(first?.find(".symicon").exists()).toBe(true);
+    expect(first?.attributes("title")).toBe("Car");
+  });
+
+  it("makes every row one line, the same height, in a table that fits a narrow panel", () => {
+    const wrapper = make();
+    expect(wrapper.find("table").classes()).toContain("stations");
+    expect(cssRule(".grid.stations td")).toMatch(/white-space:\s*nowrap/);
+    expect(cssRule(".grid.stations td")).toMatch(/height:\s*30px/);
   });
 
   it("sorts by a column on a click, and the other way on the next", async () => {
@@ -100,12 +136,12 @@ describe("StationsTable", () => {
     const aging: Aging = { timeouts: new Map([["OH2FRESH", 0]]), defaultMin: 60 };
     const lines = (wrapper: ReturnType<typeof make>) => wrapper.findAll("tbody tr");
 
-    it("stays in the table, dim, with the word timed out in the Position column; ours and a fresh one do not have it", () => {
+    it("stays in the table, dim, with the word timed out after the time it was heard; ours and a fresh one do not have it", () => {
       const wrapper = make(null, aging, old);
       expect(calls(wrapper)).toEqual(["OH2GBA", "OH2FRESH", "OH2OLD"]);
       const [mine, fresh, gone] = lines(wrapper);
       expect(gone?.classes()).toContain("timedout");
-      expect(gone?.findAll("td")[5]?.text()).toBe("3 h timed out");
+      expect(gone?.findAll("td")[5]?.text()).toBe("1 min timed out");
       expect(mine?.classes()).not.toContain("timedout");
       expect(fresh?.text()).not.toContain("timed out");
     });
@@ -135,29 +171,6 @@ describe("StationsTable", () => {
       station("OH2ONCE", { last_heard: ago(60), last_direct_at: ago(7200), heard_direct: 1, heard_via: [["OH2RCH-2", 3]], packets: 4 }),
       station("OH2FAR", { last_heard: ago(90), last_direct_at: null, heard_direct: 0, heard_via: [["OH2RCH-2", 3]], packets: 3 }),
     );
-    const cells = (wrapper: ReturnType<typeof make>) =>
-      Object.fromEntries(wrapper.findAll("tbody tr").map((tr) => [tr.find("td").text(), tr.findAll("td")[6]?.text()]));
-
-    it("has a Direct column: when the station was last heard direct and the share of its packets that came direct", () => {
-      const wrapper = make(null, never, heard);
-      expect(wrapper.findAll("th").map((th) => th.text())).toContain("Direct");
-      expect(cells(wrapper)).toEqual({ OH2GBA: "-", OH2NEAR: "5 min, 40 %", OH2ONCE: "2 h, 25 %", OH2FAR: "-" });
-    });
-
-    it("sorts by when it was last heard direct, the latest first, and a station never heard direct last", async () => {
-      const wrapper = make(null, never, heard);
-      await wrapper
-        .findAll("th button")
-        .find((b) => b.text().startsWith("Direct"))
-        ?.trigger("click");
-      expect(calls(wrapper)).toEqual(["OH2GBA", "OH2NEAR", "OH2ONCE", "OH2FAR"]);
-      await wrapper
-        .findAll("th button")
-        .find((b) => b.text().startsWith("Direct"))
-        ?.trigger("click");
-      expect(calls(wrapper)).toEqual(["OH2GBA", "OH2ONCE", "OH2NEAR", "OH2FAR"]);
-    });
-
     it("can be narrowed to them by a toggle, which is remembered; our own station stays", async () => {
       const wrapper = make(null, never, heard);
       const toggle = wrapper.findAll("input[type='checkbox']")[2];

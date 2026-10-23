@@ -75,6 +75,9 @@ body {
 .muted {
   color: var(--muted);
 }
+a {
+  color: var(--accent);
+}
 .strong {
   font-weight: 600;
 }
@@ -132,14 +135,11 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.process {
-  font-size: 11px;
-  margin-left: -8px;
-}
 .version {
   margin-left: auto;
 }
 .update {
+  flex: none;
   font-size: 11px;
   margin-left: -8px;
 }
@@ -179,6 +179,8 @@ body {
 .stationmap {
   position: absolute;
   inset: 0;
+  /* its own stacking context: a marker (the selected one is raised) and the map's buttons stay under the card, which is above the map */
+  z-index: 0;
 }
 .mapbox {
   width: 100%;
@@ -265,12 +267,17 @@ body {
 }
 .tabs {
   display: flex;
-  flex-wrap: wrap;
+  /* one row: it scrolls sideways when the tabs do not fit */
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
   gap: 0 2px;
   padding: 4px 38px 0 6px;
   border-bottom: 1px solid var(--border);
 }
 .tab {
+  flex: none;
+  white-space: nowrap;
   padding: 6px 12px;
   border: 0;
   border-bottom: 2px solid transparent;
@@ -295,7 +302,6 @@ body {
 .tab.active {
   color: var(--text);
   border-bottom-color: var(--accent);
-  font-weight: 600;
 }
 .pane {
   display: flex;
@@ -439,6 +445,49 @@ tbody tr:focus-visible {
 .grid .wrap {
   word-break: break-all;
 }
+.grid .route-cell {
+  min-width: 7em;
+}
+.grid.stations td {
+  height: 30px;
+  padding-top: 0;
+  padding-bottom: 0;
+  white-space: nowrap;
+}
+.grid.stations td.direct {
+  width: 1%;
+  padding-left: 0;
+  padding-right: 0;
+}
+.direct-mark {
+  color: var(--ok);
+  font-weight: 700;
+}
+.grid.stations td.bearing {
+  width: 1%;
+  padding-left: 0;
+  padding-right: 4px;
+  text-align: center;
+  color: var(--muted);
+}
+.grid.stations .arrow {
+  display: inline-block;
+  font-weight: 700;
+  line-height: 1;
+}
+.grid.stations td.symbol {
+  width: 1%;
+  padding-right: 0;
+}
+.packet-detail {
+  padding: 2px 2px 6px;
+}
+.packet-detail .card-fields {
+  padding: 4px 6px;
+}
+.packet-detail .more {
+  padding: 0 6px;
+}
 .grid .path {
   min-width: 9em;
   overflow-wrap: anywhere;
@@ -517,7 +566,8 @@ tbody tr:focus-visible {
   bottom: 30px;
   z-index: 3;
   width: min(340px, calc(100% - 20px));
-  max-height: calc(100% - 50px);
+  /* the top 84 px of the map stay free for its zoom buttons */
+  max-height: calc(100% - 114px);
   overflow: auto;
   background: var(--panel);
   border: 1px solid var(--border);
@@ -560,6 +610,26 @@ tbody tr:focus-visible {
   margin: 0;
   min-width: 0;
   overflow-wrap: anywhere;
+}
+.card-close {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  font-size: 22px;
+  line-height: 1;
+}
+.more > summary {
+  cursor: pointer;
+  color: var(--accent);
+}
+.card-details {
+  border-top: 1px solid var(--border);
+}
+.card-details > summary {
+  padding: 6px 10px;
+}
+.card-details .card-fields {
+  padding-top: 0;
 }
 .card-foot {
   display: flex;
@@ -1566,12 +1636,16 @@ tbody tr:focus-visible {
     display: none;
   }
   .version,
-  .update {
+  .update-to {
     display: none;
+  }
+  .update {
+    margin-left: auto;
   }
   .card {
     bottom: 10px;
-    max-height: calc(100% - 20px);
+    /* the map above the card stays free for the marker of the station, and for the zoom buttons */
+    max-height: calc(100% - 144px);
   }
 }
 

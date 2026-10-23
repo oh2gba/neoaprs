@@ -1,12 +1,11 @@
 <script setup lang="ts">
 // The one line at the top: the title, our call (amber "no call set", a button that opens the first-run guide, while none is set: nothing is transmitted then; with the number of messages not seen, a button that opens them), one dot and the words for whether the radio works (green "radio ok": the page's socket is open and
 // the TNC is connected; amber "radio: searching", "radio: waiting", "radio: entering KISS" or "radio: stopped": the socket is up and the TNC is not, its problem the title; amber "radio: silent": the line is
-// open and the radio does not answer, the title says since when; red "daemon offline": the socket is down)
-// and, small and muted beside them, what the daemon costs the machine (the full figures with the uptime are the title). The port, the speed and the packet count are on the TNC tab. When the update check has found a newer
-// version it is shown after the version number, a button that opens the panel with the steps to it (UpdatePanel), the project's note as the title.
+// open and the radio does not answer, the title says since when; red "daemon offline": the socket is down). What the daemon costs the machine (the CPU share, the memory, the uptime) is not shown, only in the title of the radio state. The port, the speed and the packet count are on the TNC tab. When the update check has found a newer
+// version it is shown after the version number, a button that opens the panel with the steps to it (UpdatePanel), the project's note as the title; on a phone, where the version number is left out, the button stays ("Update") so that the update is not missed.
 import { computed } from "vue";
 import type { Connection } from "@/lib/hub";
-import { processText, processTextShort, silentText } from "@/lib/format";
+import { processText, silentText } from "@/lib/format";
 import { unreadText } from "@/lib/unread";
 import type { StatusMessage, TncState } from "@/protocol/protocol";
 
@@ -40,14 +39,9 @@ const link = computed<Link>(() => {
     title: props.tnc === null ? "no word from the TNC yet" : props.tnc.problem || props.tnc.describe || props.tnc.state,
   };
 });
-const process = computed(() =>
-  props.status
-    ? {
-        short: processTextShort(props.status.cpu_percent, props.status.rss_mb),
-        full: processText(props.status.cpu_percent, props.status.rss_mb, props.status.uptime_sec),
-      }
-    : null,
-);
+/** What the daemon costs the machine, for the title of the radio state: "0.3 % · 42 MB · up 3 h". */
+const cost = computed(() => (props.status ? processText(props.status.cpu_percent, props.status.rss_mb, props.status.uptime_sec) : null));
+const hover = computed(() => [link.value.title, cost.value === null ? null : `NeoAPRS uses ${cost.value}`].filter((text) => text).join("\n") || undefined);
 </script>
 
 <template>
@@ -60,14 +54,13 @@ const process = computed(() =>
     <button v-if="unread > 0" type="button" class="badge headmail" :title="`${unreadText(unread)}: open the messages`" @click="emit('messages')">
       <span aria-hidden="true">&#9993;</span> {{ unread }}<span class="sr-only"> {{ unreadText(unread) }}</span>
     </button>
-    <span class="status" :class="`link-${link.level}`" role="status" :title="link.title">
+    <span class="status" :class="`link-${link.level}`" role="status" :title="hover">
       <span class="dot" aria-hidden="true"></span>
       {{ link.text }}
     </span>
-    <span v-if="process" class="muted process" :title="process.full">{{ process.short }}</span>
     <span v-if="version" class="muted version">v{{ version }}</span>
     <button v-if="status?.update" type="button" class="update" :title="status.update.message || `Update to ${status.update.version}`" @click="emit('update')">
-      {{ status.update.version }}
+      Update<span class="update-to"> to {{ status.update.version }}</span>
     </button>
   </header>
 </template>

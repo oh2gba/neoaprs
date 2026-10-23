@@ -20,6 +20,7 @@ import {
   OPEN_ZOOM,
   type Archives,
 } from "@/lib/basemapstyle";
+import { moveClearOf, type Box } from "@/lib/cardclear";
 import { buildMarkerDom, paintMarker, type MarkerDom } from "@/lib/markerdom";
 import { readView, writeView, type Focus, type Home } from "@/lib/mapview";
 import { markerStep, timedOut, type Aging } from "@/lib/aging";
@@ -191,6 +192,34 @@ function pickAt(lat: number, lon: number): void {
   void nextTick(() => (clicked = false)); // after the update the click causes
 }
 
+/** The card over the map (it is in the same `.mapwrap` as the map), in the pixels of the map; null when there is none. */
+function cardBox(): Box | null {
+  const card = root.value?.closest(".mapwrap")?.querySelector(".card");
+  const at = host.value?.getBoundingClientRect();
+  if (!card || !at) return null;
+  const c = card.getBoundingClientRect();
+  return { left: c.left - at.left, top: c.top - at.top, right: c.right - at.left, bottom: c.bottom - at.top };
+}
+
+const viewBox = (): Box => ({ left: 0, top: 0, right: host.value?.clientWidth ?? 0, bottom: host.value?.clientHeight ?? 0 });
+
+/** Where the marker stands, from the middle of the map, when the map has flown to it with the card over it in the way: clear of the card. */
+function flightOffset(): { offset: [number, number] } | undefined {
+  const card = cardBox();
+  const view = viewBox();
+  const move = card && moveClearOf(card, { x: view.right / 2, y: view.bottom / 2 }, view);
+  return move ? { offset: [move.x, move.y] } : undefined;
+}
+
+/** The marker of the station that was picked is under the card: the map moves so that it is not (a map that is on its way to the station is left to arrive, with the same care). */
+function clearOfCard(): void {
+  const one = props.selected === null ? undefined : placed.get(props.selected);
+  const card = cardBox();
+  if (!map || !one || !card || map.isMoving()) return;
+  const move = moveClearOf(card, map.project([one.lon, one.lat]), viewBox());
+  if (move) map.panBy([0 - move.x, 0 - move.y], { duration: 300 });
+}
+
 function showLabels(): void {
   host.value?.classList.toggle("labels-off", (map?.getZoom() ?? OPEN_ZOOM) < LABELS_FROM_ZOOM);
 }
@@ -260,13 +289,16 @@ watch(
 );
 watch(() => props.now, syncMarkers);
 watch(minute, drawTracks);
+// (after the page is drawn, so that the card of the station is there to keep clear of)
 watch(
   () => props.focus,
   (focus) => {
     const row = focus ? props.stations.get(focus.call) : undefined;
-    if (map && row && hasPosition(row)) map.flyTo({ center: [row.lon, row.lat], zoom: Math.max(map.getZoom(), FLY_ZOOM) });
+    if (map && row && hasPosition(row)) map.flyTo({ center: [row.lon, row.lat], zoom: Math.max(map.getZoom(), FLY_ZOOM), ...flightOffset() });
   },
+  { flush: "post" },
 );
+watch(() => props.selected, clearOfCard, { flush: "post" });
 watch(
   () => props.home,
   (home) => {
