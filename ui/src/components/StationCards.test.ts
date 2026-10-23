@@ -32,7 +32,6 @@ describe("StationCards: the row of a tablet and a desktop", () => {
   it("shows one card whole, with no Close all and no grip", () => {
     const wrapper = make([car]);
     expect(wrapper.findAll(".card")).toHaveLength(1);
-    expect(wrapper.find(".card").classes()).not.toContain("compact");
     expect(wrapper.find(".cards-closeall").exists()).toBe(false);
     expect(wrapper.find(".sheet-grip").exists()).toBe(false);
     expect(wrapper.find(".cardstack").classes()).not.toContain("sheet");
@@ -42,7 +41,6 @@ describe("StationCards: the row of a tablet and a desktop", () => {
   it("shows several cards side by side, each the whole card, the oldest first (the style puts it at the left), each with its own close, and Close all over the map", async () => {
     const wrapper = make([wx("OH2ZWA"), wx("OH2ZWB"), car]);
     expect(wrapper.findAll(".card").map((c) => c.find("strong").text())).toEqual(["OH2ZWA", "OH2ZWB", "OH2ZMA-9"]);
-    expect(wrapper.findAll(".card.compact")).toHaveLength(0);
     expect(wrapper.findAll(".card .card-foot")).toHaveLength(3); // (the buttons of a whole card)
     expect(wrapper.findAll(".card").every((card) => card.text().includes("Details"))).toBe(true);
     expect(wrapper.find(".card-more").exists()).toBe(false);

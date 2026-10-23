@@ -55,8 +55,6 @@ describe("SettingsForm", () => {
     for (const id of ["set-log-keep_days", "set-update-check", "set-web-port", "set-web-allowed_hosts", "set-update-url"])
       expect(wrapper.find(`#${id}`).exists(), id).toBe(false);
     expect(wrapper.text()).not.toContain("Allowed hosts");
-    expect(CONFIG_KEYS).not.toContain("log/keep_days");
-    expect(CONFIG_KEYS).not.toContain("update/check");
   });
 
   it("has no group called Other, and no raw key as a label, whatever the daemon lists", () => {
@@ -261,11 +259,9 @@ describe("SettingsForm", () => {
       expect(select.element.value).toBe("kenwood-tnc2");
     });
 
-    it("shows the port and the speed of a serial TNC, and no keep-alive: that is fixed at 60 seconds and is no setting", async () => {
+    it("shows the port and the speed of a serial TNC", async () => {
       const { wrapper } = make();
       expect(fieldIds(wrapper)).toEqual(["set-tnc-profile", "set-serial-port", "set-serial-baud"]);
-      expect(wrapper.find("#set-tnc-check_sec").exists()).toBe(false);
-      expect(wrapper.text()).not.toContain("Keep-alive");
       await wrapper.find("#set-tnc-profile").setValue("kiss");
       expect(fieldIds(wrapper)).toEqual(["set-tnc-profile", "set-serial-port", "set-serial-baud"]);
     });

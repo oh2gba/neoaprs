@@ -1,7 +1,7 @@
 // The messages of the topic `messages`: grouped into conversations (one for each other station), the thread of one, how many are unread, and the rules the compose box shows (the call, the bytes
 // a message may still have). Messages we only overheard (sent to another station) are no conversation of ours: with `showOverheard` each pair of stations is listed as one, read-only in spirit.
 // The daemon checks all of this again; the page only keeps the user from sending what it would refuse. What a call is, and a path, is lib/calls.ts.
-import { normalizeCall, validCall } from "@/lib/calls";
+import { normalizeCall } from "@/lib/calls";
 import { dateTimeText } from "@/lib/format";
 import { LIMITS } from "@/protocol/lists";
 import type { MessageRow } from "@/protocol/protocol";
@@ -63,11 +63,6 @@ export function textBytes(text: string): number {
 /** How many bytes more the text may have; negative when it is too long. */
 export function bytesLeft(text: string): number {
   return LIMITS.message.textMax - textBytes(text);
-}
-
-/** Whether Send is on: the TNC is connected, the call is a call (not the email gateway, which has its own tab), and the text is there and fits. */
-export function canSend(connected: boolean, to: string, text: string): boolean {
-  return connected && validCall(to) && !isGateway(to) && text.trim() !== "" && bytesLeft(text) >= 0;
 }
 
 /** The conversations, the one with the newest message first; the email gateway's is not among them. `readUpTo(call)` is the highest message id the user has seen in the conversation. */

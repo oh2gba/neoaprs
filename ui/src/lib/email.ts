@@ -2,7 +2,7 @@
 // kept, the newest first. (The gateway's shortcuts, `name address`, `name L`, `name R`, are not used by the page.) The daemon sends it all as an ordinary
 // message: the page only keeps the user from sending what the gateway would refuse, and says honestly what became of a mail (its acks reach this station only through an iGate). Where the list is kept (the browser)
 // is composables/useAddressBook.ts.
-import { markOf, stateText, textBytes } from "@/lib/messages";
+import { markOf, textBytes } from "@/lib/messages";
 import { LIMITS } from "@/protocol/lists";
 import type { MessageRow } from "@/protocol/protocol";
 
@@ -42,12 +42,6 @@ const NOT_CONFIRMED = "sent, not confirmed: the gateway's ack reaches you only t
 /** Whether a message of ours to the gateway used its attempts without an ack: it is not known to have failed, since the gateway's acks need an iGate in reach of our radio. */
 export function isNotConfirmed(row: MessageRow): boolean {
   return row.direction === "out" && (row.state === "failed" || row.state === "unconfirmed");
-}
-
-/** The state of a message to the gateway in words: "sent twice, not confirmed" where the Messages tab would say failed or "no ack". */
-export function mailStateText(row: MessageRow): string {
-  if (!isNotConfirmed(row)) return stateText(row);
-  return `sent ${row.attempts === 1 ? "once" : row.attempts === 2 ? "twice" : `${row.attempts} times`}, not confirmed`;
 }
 
 /** The mark of a message to the gateway: the hollow check, never the cross, for one that was sent and not confirmed. */

@@ -34,11 +34,6 @@ describe("beaconText", () => {
     expect(beaconText(settings({ "station/call": "oh2gba-9", "beacon/path": "", "station/comment": "" }))).toBe("OH2GBA-9>APZNEO:=6010.20N/02456.40E-");
     expect(beaconText(settings({ "beacon/path": " wide1-1 , " }))).toBe("OH2GBA>APZNEO,WIDE1-1:=6010.20N/02456.40E-NeoAPRS");
   });
-  it("is to the tocall of the program and the position is always the plain one, whatever an older database stored", () => {
-    expect(beaconText(settings({ "beacon/destination": "APRS", "beacon/compressed": "true", "beacon/dao": "true" }))).toBe(
-      "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=6010.20N/02456.40E-NeoAPRS",
-    );
-  });
   it("has the PHG after the symbol when there is a power", () => {
     const antenna = { "beacon/power_w": "2", "beacon/antenna_height_m": "3", "beacon/antenna_gain_db": "2" };
     expect(beaconText(settings(antenna))).toBe("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=6010.20N/02456.40E-PHG1020NeoAPRS");

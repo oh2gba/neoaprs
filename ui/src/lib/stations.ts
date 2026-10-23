@@ -84,12 +84,6 @@ export function listStations(rows: Iterable<StationRow>, options: ListOptions): 
   );
 }
 
-/** The row the page calls "us": the one the daemon marks. */
-export function ownRow(rows: Iterable<StationRow>): StationRow | null {
-  for (const row of rows) if (row.is_me) return row;
-  return null;
-}
-
 /** The rows with our own station drawn as the settings say when its row has no symbol of its own (the daemon gives our row the symbol of the settings, so this only fills in for a row that came without one): the same map when nothing needs changing. */
 export function withOwnSymbol(rows: ReadonlyMap<string, StationRow>, settings: Readonly<Record<string, string>> | undefined): ReadonlyMap<string, StationRow> {
   const table = settings?.["station/symbol_table"] ?? "";

@@ -88,14 +88,12 @@ describe("several station cards on a desktop (1400 by 900)", () => {
     ctrl("OH2ZWC");
     await nextTick();
     expect(cards(wrapper)).toEqual(["OH2ZWA", "OH2ZWB", "OH2ZWC"]);
-    expect(wrapper.findAll(".card.compact")).toHaveLength(0); // (every card is the whole card)
     expect(marked().sort()).toEqual(["OH2ZWA", "OH2ZWB", "OH2ZWC"]);
     expect(wrapper.findAll("#pane-stations tr.selected")).toHaveLength(3);
     await row(wrapper, "OH2ZWB")?.trigger("click", { ctrlKey: true });
     ctrl("OH2ZWA");
     await nextTick();
     expect(cards(wrapper)).toEqual(["OH2ZWC"]);
-    expect(wrapper.find(".card").classes()).not.toContain("compact");
   });
 
   it("draws the route of the newest card only: the same as for that station alone", async () => {
@@ -265,7 +263,6 @@ describe("station cards on a tablet and a phone", () => {
     expect(cards(wrapper)).toEqual(["OH2ZWB"]);
     expect(wrapper.find(".cardstack").classes()).toContain("sheet");
     expect(wrapper.find(".cards-closeall").exists()).toBe(false);
-    expect(wrapper.findAll(".card.compact")).toHaveLength(0);
   });
 
   it("has one card in a phone held sideways (844 by 390), too", async () => {

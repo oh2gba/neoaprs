@@ -3,7 +3,6 @@ import {
   bytesLeft,
   canCancel,
   canRetry,
-  canSend,
   conversationName,
   conversations,
   effectivePath,
@@ -125,19 +124,6 @@ describe("messages: the compose box", () => {
 
   it("knows the email gateway however it is typed, and never sends to it from here", () => {
     expect([isGateway("EMAIL-2"), isGateway(" email-2 "), isGateway("EMAIL"), isGateway("EMAIL-3")]).toEqual([true, true, false, false]);
-    expect(canSend(true, "email-2", "hello")).toBe(false);
-    expect(canSend(true, "EMAIL-3", "hello")).toBe(true);
-  });
-
-  it("sends only when the TNC is connected, the call is a call, and the text is there and fits", () => {
-    expect(canSend(true, "OH2RDG", "hello")).toBe(true);
-    expect(canSend(false, "OH2RDG", "hello")).toBe(false);
-    expect(canSend(true, "OH2RDG", "")).toBe(false);
-    expect(canSend(true, "OH2RDG", "   ")).toBe(false);
-    expect(canSend(true, "", "hello")).toBe(false);
-    expect(canSend(true, "NOT A CALL", "hello")).toBe(false);
-    expect(canSend(true, "OH2RDG", "x".repeat(67))).toBe(true);
-    expect(canSend(true, "OH2RDG", "x".repeat(68))).toBe(false);
   });
 });
 

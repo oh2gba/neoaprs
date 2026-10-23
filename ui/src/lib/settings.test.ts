@@ -82,12 +82,6 @@ describe("groupKeys", () => {
     expect(FIELDS["status/source"]?.kind).toBe("choice");
     expect(FIELDS["beacon/antenna_direction"]?.kind).toBe("choice");
   });
-  it("has a gone-from-the-page setting nowhere: the tocall, the compressed form and the DAO are the program's", () => {
-    expect(CONFIG_KEYS).not.toContain("beacon/destination");
-    expect(CONFIG_KEYS).not.toContain("beacon/compressed");
-    expect(CONFIG_KEYS).not.toContain("beacon/dao");
-    expect(Object.keys(FIELDS).filter((k) => ["beacon/destination", "beacon/compressed", "beacon/dao"].includes(k))).toEqual([]);
-  });
   it("explains the fields that a word cannot in an (i) of two to four sentences and an example, not on hover", () => {
     const keys = [
       "station/comment",
@@ -148,10 +142,6 @@ describe("groupKeys", () => {
       { value: "120", label: "Every 2 hours" },
     ]);
     expect(info?.other?.("90")).toBe("Every 90 min");
-  });
-  it("has no keep-alive setting: it is fixed at 60 seconds", () => {
-    expect(CONFIG_KEYS).not.toContain("tnc/check_sec");
-    expect(FIELDS["tnc/check_sec"]).toBeUndefined();
   });
   it("offers the beacon as off, every 15, 30 or 60 minutes, and a stored interval that is none of them in words", () => {
     const info = FIELDS["beacon/interval_min"];

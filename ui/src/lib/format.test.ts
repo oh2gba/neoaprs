@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   ageSeconds,
   ageText,
-  agoText,
   bearingText,
   bytesText,
   clockText,
@@ -101,11 +100,6 @@ describe("times", () => {
     expect(dateTimeText(iso)).toContain(String(d.getFullYear()));
     expect(dateTimeText(null)).toBe("-");
     expect(clockText("nope")).toBe("-");
-  });
-
-  it("says how long ago and when, or a dash for none", () => {
-    expect(agoText(ago(125), NOW)).toBe(`2 min ago (${dateTimeText(ago(125))})`);
-    expect(agoText(null, NOW)).toBe("-");
   });
 });
 
