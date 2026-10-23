@@ -3,7 +3,7 @@
 import { DETAIL_CHOICES } from "@/lib/mapfetch";
 import { CONFIG_KEYS, TNC_PROFILES } from "@/protocol/lists";
 
-export type FieldKind = "text" | "bool" | "readonly" | "choice";
+type FieldKind = "text" | "bool" | "readonly" | "choice";
 
 export interface FieldInfo {
   label: string;
