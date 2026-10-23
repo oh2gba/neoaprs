@@ -46,12 +46,7 @@ describe("MessageChain", () => {
     expect(failed.at(-1)?.text()).toContain("✗");
   });
 
-  it("has no earlier attempts to open for a message sent once", () => {
-    const wrapper = show(message(1, { attempts_detail: [attempt("2026-10-22T12:00:00Z", path("OH2RCH-2"))] }));
-    expect(wrapper.find("details").exists()).toBe(false);
-  });
-
-  it("offers '3 attempts' for a message sent three times and holds the chains of all of them, the newest first", () => {
+  it("shows only the chain of the latest attempt of a message sent several times, with no line of attempts", () => {
     const row = message(1, {
       to_call: "OH2CUB-7",
       state: "acked",
@@ -68,15 +63,9 @@ describe("MessageChain", () => {
       ],
     });
     const wrapper = show(row);
-    expect(wrapper.find("summary").text()).toBe("3 attempts");
     expect(texts(wrapper)).toEqual(["you", "→OH2RCH-2✓", "→OH2RDG✓", "→OH2CUB-7✓"]);
-    const lines = wrapper.findAll(".chain-attempt");
-    expect(lines).toHaveLength(3);
-    expect(lines.map((l) => l.find(".chain-sent").text().split(" · ")[0])).toEqual(["3", "2", "1"]);
-    expect(lines[2]?.findAll(".chip-hop").map((c) => c.text().replace(/\s+/g, " "))).toEqual(["you", "→OH2RCH-2✓", "→OH2RDG?", "→OH2CUB-7"]);
-    expect(lines[1]?.findAll(".chip-hop").at(-1)?.classes()).toContain("hop-waiting");
-    const details = wrapper.find("details");
-    expect((details.element as HTMLDetailsElement).open).toBe(false);
+    expect(wrapper.find("details").exists()).toBe(false);
+    expect(wrapper.text()).not.toContain("attempts");
   });
 
   it("adds an internet chip when a copy came back that way and no hop shows it", () => {

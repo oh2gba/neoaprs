@@ -18,7 +18,6 @@ describe("the addresses", () => {
 describe("updateHelp", () => {
   it("is a download and a run for the Windows installer", () => {
     const help = updateHelp(install("windows-installer"), "0.4.0");
-    expect(help.how).toBe("Windows installer");
     expect(help.steps.map((s) => s.link?.href)).toEqual([installerUrl("0.4.0"), undefined]);
     expect(help.steps[0]?.link?.label).toBe("NeoAPRS-Setup-0.4.0.exe");
     expect(commands(help)).toEqual([]);
@@ -42,7 +41,6 @@ describe("updateHelp", () => {
 
   it("is the package of the machine's architecture, apt install and a restart of the service for a deb", () => {
     const help = updateHelp(install("deb", { arch: "arm64", service: true }), "0.4.0");
-    expect(help.how).toBe("Debian package");
     expect(help.steps[0]?.link).toEqual({
       href: "https://github.com/oh2gba/neoaprs/releases/download/v0.4.0/neoaprs_0.4.0_arm64.deb",
       label: "neoaprs_0.4.0_arm64.deb",
@@ -83,7 +81,6 @@ describe("updateHelp", () => {
 
   it("has only the release page while the daemon has not said how it was installed", () => {
     const help = updateHelp(null, "0.4.0");
-    expect(help.how).toBe("");
     expect(help.steps).toHaveLength(1);
     expect(help.steps[0]?.link?.href).toBe(releaseNotes("0.4.0"));
   });

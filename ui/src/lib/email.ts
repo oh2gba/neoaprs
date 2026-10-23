@@ -65,6 +65,27 @@ export function mailMarkOf(row: MessageRow): ReturnType<typeof markOf> {
   return isNotConfirmed(row) ? { kind: "hollow", title: NOT_CONFIRMED } : markOf(row);
 }
 
+/** A message of ours to the gateway as it is read: who a mail is to (`head`, null for the others) and what it says (`body`). */
+export interface MailLine {
+  head: string | null;
+  body: string;
+}
+
+/** What the thread shows for a line sent to the gateway: "to jane@example.com" over the text of a mail, and in words what the gateway's own commands (get, name address, name L, name R) do. A line that is none of these is shown as it was sent. */
+export function mailLine(text: string): MailLine {
+  const line = text.trim();
+  if (line.toLowerCase() === GET_HELD) return { head: null, body: "Fetch held mail" };
+  const split = /^(\S+)\s+(.+)$/.exec(line);
+  const first = split?.[1];
+  const rest = split?.[2];
+  if (first === undefined || rest === undefined) return { head: null, body: line };
+  const named = !first.includes("@");
+  if (named && (rest === "L" || rest === "R"))
+    return { head: null, body: rest === "L" ? `Email the list of shortcuts to ${first}` : `Remove the shortcut ${first}` };
+  if (named && validAddress(rest)) return { head: null, body: `Shortcut ${first}: ${rest}` };
+  return { head: `to ${first}`, body: rest };
+}
+
 /** The addressees with `to` first (the same one typed in other letters is not listed twice); at most ADDRESSES_KEPT. Nothing for an empty one. */
 export function rememberAddress(list: readonly string[], to: string): string[] {
   const name = to.trim();

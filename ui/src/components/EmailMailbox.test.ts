@@ -21,7 +21,9 @@ describe("EmailMailbox", () => {
   it("has the actions named for what they do, with the command each one sends as its title", async () => {
     const wrapper = box();
     expect(wrapper.findAll("button").map((b) => b.text())).toEqual(["Fetch held mail", "Register", "Email the list", "Remove"]);
-    expect(wrapper.findAll("strong").map((s) => s.text())).toEqual(["Mailbox", "Shortcut"]);
+    expect(wrapper.findAll("strong").map((s) => s.text())).toEqual(["Mailbox"]);
+    expect(wrapper.find(".disclosure summary").text()).toBe("Shortcuts");
+    expect(wrapper.find<HTMLDetailsElement>("details.disclosure").element.open).toBe(false);
     expect(button(wrapper, "Fetch held mail").attributes("title")).toBe("Sends 'get': the gateway sends again the mail it holds for you");
     await name(wrapper, " john ");
     await address(wrapper, "jane@example.com");

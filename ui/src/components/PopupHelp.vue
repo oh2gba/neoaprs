@@ -4,7 +4,9 @@
 // While the daemon serves https (`https.on`) the first step is the secure page, with the guide to install its certificate (HttpsGuide) below it, and the steps of http stay for whoever keeps it.
 import { computed } from "vue";
 import CopyField from "@/components/CopyField.vue";
+import DisclosureBox from "@/components/DisclosureBox.vue";
 import HttpsGuide from "@/components/HttpsGuide.vue";
+import IconButton from "@/components/IconButton.vue";
 import { secureUrl } from "@/lib/httpshelp";
 import { browserKind, CHROMIUM, FLATPAK_COMMANDS, flagAddress, isChromium, onLinuxDesktop } from "@/lib/popuphelp";
 import type { HttpsState } from "@/protocol/protocol";
@@ -31,7 +33,7 @@ function reload(): void {
   <section class="popuphelp" aria-label="Enable pop-ups">
     <header class="popuphelp-head">
       <h4>{{ browser ? `Enable pop-ups in ${browser}` : "Enable pop-ups" }}</h4>
-      <button type="button" class="btn small" aria-label="Close" title="Close" @click="emit('close')">&times;</button>
+      <IconButton kind="close" label="Close" @click="emit('close')" />
     </header>
 
     <template v-if="secure && https">
@@ -40,10 +42,10 @@ function reload(): void {
           Open the secure page: <a :href="secureUrl(https.port)">{{ secureUrl(https.port) }}</a>
         </li>
       </ol>
-      <HttpsGuide :https="https" :link="false" />
+      <DisclosureBox title="Remove the browser's warning"><HttpsGuide :https="https" :link="false" /></DisclosureBox>
     </template>
 
-    <component :is="secure ? 'details' : 'div'" class="popuphelp-http">
+    <component :is="secure ? 'details' : 'div'" class="popuphelp-http" :class="{ disclosure: secure }">
       <summary v-if="secure">Or keep http</summary>
       <ol v-if="kind === 'firefox'" class="popuphelp-steps">
         <li>Open a new tab, type <code class="mono">about:config</code> and press Enter, then click "Accept the Risk and Continue".</li>

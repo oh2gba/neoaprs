@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The page: a header with the connection and the radio link, the map filling the page, and at its right a panel with the stations, the packets, the messages, the email, the bulletins, our objects, the beacon, the TNC and the settings.
+// The page: a header with the connection and the radio link, the map filling the page, and at its right a panel with the stations, the packets, the messages, the email, the bulletins, our objects, the beacon and the settings (which open with the state of the radio link).
 // The shell only: what the daemon tells is `useDaemon`, the panel `usePanel`, the station picked `useSelection`, the Messages tab `useMessagesView`, the Email tab `useEmail`, the Bulletins tab `useBulletins`, the Objects tab `useOwnObjects`, the paths, timeouts and RF only of the stations
 // `useStationPrefs`, the first-run guide (it opens by itself while the daemon has no call) `useSetupGuide`, the alert of this browser for a message to us `useBrowserAlerts` and `usePageAlerts`; the components take props and emit events, and the commands go out through `send`.
 import { usePositionPick } from "@/composables/usePositionPick";
@@ -18,7 +18,7 @@ import SidePanel from "@/components/SidePanel.vue";
 import StationCard from "@/components/StationCard.vue";
 import StationMap from "@/components/StationMap.vue";
 import StationsTable from "@/components/StationsTable.vue";
-import TncPanel from "@/components/TncPanel.vue";
+import RadioStatus from "@/components/RadioStatus.vue";
 import ToastBar from "@/components/ToastBar.vue";
 import UpdatePanel from "@/components/UpdatePanel.vue";
 import { useBrowserAlerts } from "@/composables/useBrowserAlerts";
@@ -99,10 +99,14 @@ const mail = useEmail(messages, panel, send);
 const board = useBulletins(bulletins, panel);
 const alerts = useBrowserAlerts(talk.writeTo);
 usePageAlerts(messages, messagesLoaded, alerts.announce);
-useTitle(
-  computed(() => talk.unread.value + mail.unread.value),
-  alerts.tabTitle,
-);
+// the messages not seen, those of the Messages tab and those of the email gateway: one count, the one of the header, of the folded panel's handle and of the browser tab's title
+const unread = computed(() => talk.unread.value + mail.unread.value);
+useTitle(unread, alerts.tabTitle);
+/** The mail of the header: the Messages tab, or the Email tab when the messages not seen are all the gateway's. */
+function openUnread(): void {
+  if (talk.unread.value > 0 || mail.unread.value === 0) talk.openMessages();
+  else panel.show("email");
+}
 const suggestions = computed(() => new Map([...stations.value].map(([call, row]) => [call, row.suggested_path] as const)));
 const heardDirect = computed(() => new Set([...stations.value].filter(([, row]) => row.heard_direct > 0).map(([call]) => call)));
 const fallbackPath = computed(() => config.value?.values["beacon/path"] ?? "");
@@ -134,12 +138,13 @@ function onPick(at: Home): void {
       :connection="connection"
       :tnc="tnc"
       :version="version"
-      :unread="talk.unread.value"
+      :unread="unread"
       :now="now"
       :status="status"
-      @messages="talk.openMessages"
+      @messages="openUnread"
       @setup="guide.show()"
       @update="updateOpen = true"
+      @radio="panel.show('settings')"
     />
     <UpdatePanel v-if="updateOpen && newer" :version="newer" :install="install" @close="updateOpen = false" />
     <main class="main">
@@ -257,11 +262,9 @@ function onPick(at: Home): void {
             :picking="stationPick.picking.value"
             :picked="stationPick.picked.value"
             @beacon="send({ cmd: 'beacon_now' })"
+            @status="send({ cmd: 'status_now' })"
             @pick-position="stationPick.toggle()"
           />
-        </template>
-        <template #tnc>
-          <TncPanel :tnc="tnc" :now="now" @reconnect="send({ cmd: 'tnc_reconnect' })" />
         </template>
         <template #settings>
           <SettingsForm
@@ -275,6 +278,9 @@ function onPick(at: Home): void {
             @setup="guide.show()"
             @update="updateOpen = true"
           >
+            <template #radio
+              ><RadioStatus :tnc="tnc" :now="now" :digipeater="config?.values['digi/enabled'] === 'true'" @reconnect="send({ cmd: 'tnc_reconnect' })"
+            /></template>
             <template #notifications><BrowserAlerts :alerts="alerts" :https="config?.https" /></template>
           </SettingsForm>
         </template>

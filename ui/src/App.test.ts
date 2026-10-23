@@ -160,12 +160,12 @@ describe("App", () => {
     expect(wrapper.find(".setup").exists()).toBe(false);
   });
 
-  it("opens the guide again from the Setup button of the Settings tab, with the answers the daemon has", async () => {
+  it("opens the guide again from the link at the top of the Settings tab, with the answers the daemon has", async () => {
     const { wrapper } = await open();
     expect(wrapper.find(".setup").exists()).toBe(false);
     await tabButton(wrapper, "Settings")?.trigger("click");
-    const setup = wrapper.findAll("#pane-settings button").find((b) => b.text() === "Setup");
-    await setup?.trigger("click");
+    const setup = wrapper.find("#pane-settings button.setup-open");
+    await setup.trigger("click");
     expect(wrapper.find(".setup").exists()).toBe(true);
     expect(wrapper.find<HTMLInputElement>("#setup-call").element.value).toBe("OH2GBA");
   });
@@ -362,12 +362,22 @@ describe("App", () => {
     expect(wrapper.find("#pane-packets tbody tr").text()).toContain("third");
   });
 
-  it("shows the radio link in the TNC tab and asks for a reconnect", async () => {
+  it("shows the radio link at the top of the TNC group of the Settings tab and asks for a reconnect", async () => {
     const { wrapper, socket } = await open();
-    await tabButton(wrapper, "TNC")?.trigger("click");
-    expect(wrapper.find("#pane-tnc").text()).toContain("9600 baud");
-    await wrapper.find("#pane-tnc button").trigger("click");
+    expect(tabButton(wrapper, "TNC")).toBeUndefined();
+    await tabButton(wrapper, "Settings")?.trigger("click");
+    const group = wrapper.find("#pane-settings fieldset");
+    expect(group.find("legend").text()).toBe("TNC");
+    expect(group.find(".radiostatus .tncstatus").text()).toMatch(/^Connected to \/dev\/brainbox_3, last packet /);
+    await group.find(".radiostatus button").trigger("click");
     expect(socket.sent).toContainEqual({ cmd: "tnc_reconnect" });
+  });
+
+  it("opens the Settings tab, where the radio is, from the radio state in the header", async () => {
+    const { wrapper } = await open();
+    await tabButton(wrapper, "Stations")?.trigger("click");
+    await wrapper.find(".appheader button.status").trigger("click");
+    expect(wrapper.find("[aria-selected='true']").text()).toContain("Settings");
   });
 
   it("sends a beacon from the Beacon tab after two clicks, and shows the times the status tells", async () => {
@@ -380,6 +390,25 @@ describe("App", () => {
     expect(socket.sent).not.toContainEqual({ cmd: "beacon_now" });
     await wrapper.find("#pane-beacon .beaconbox button").trigger("click");
     expect(socket.sent).toContainEqual({ cmd: "beacon_now" });
+  });
+
+  it("sends the status from the Beacon tab after two clicks once there is a status, and not before", async () => {
+    const { wrapper, socket } = await open();
+    await tabButton(wrapper, "Beacon")?.trigger("click");
+    expect(wrapper.findAll("#pane-beacon .beaconbox button").map((b) => b.text())).toEqual(["Beacon now"]);
+    socket.say({
+      type: "state",
+      topic: "config",
+      rev: 1,
+      value: configValues({ "map/hide_after_min": "0", "status/source": "text", "station/status": "QRV 145.500" }),
+    });
+    await flushPromises();
+    expect(wrapper.findAll("#pane-beacon .beaconbox button").map((b) => b.text())).toEqual(["Beacon now", "Send status now"]);
+    await wrapper.findAll("#pane-beacon .beaconbox button")[1]?.trigger("click");
+    expect(socket.sent).not.toContainEqual({ cmd: "status_now" });
+    await wrapper.findAll("#pane-beacon .beaconbox button")[1]?.trigger("click");
+    expect(socket.sent).toContainEqual({ cmd: "status_now" });
+    expect(socket.sent).not.toContainEqual({ cmd: "beacon_now" });
   });
 
   it("previews the beacon packet and saves the beacon's settings from the Beacon tab", async () => {
@@ -598,7 +627,6 @@ describe("App", () => {
         "Bulletins",
         "Objects",
         "Beacon",
-        "TNC",
         "Settings",
       ]);
       await sayBoard(socket);
@@ -632,8 +660,10 @@ describe("App", () => {
       await flushPromises();
       expect(badge(wrapper)?.text()).toBe("1");
       await wrapper.find(".panel-fold").trigger("click");
-      expect(wrapper.find(".fold-badge").text()).toBe("3");
-      expect(wrapper.find(".fold-badge").attributes("title")).toBe("2 messages not seen yet, 1 new bulletin");
+      // the handle counts the messages not seen, as the header does: a new bulletin is not one
+      expect(wrapper.find(".fold-badge").text()).toBe("2");
+      expect(wrapper.find(".fold-badge").attributes("title")).toBe("2 messages not seen yet");
+      expect(wrapper.find(".headmail").text()).toContain("2");
     });
 
     it("deletes a board entry after two presses of its x, with one command", async () => {
@@ -736,7 +766,7 @@ describe("App", () => {
       await wrapper.find("#pane-objects .toolbar .btn").trigger("click");
       expect(field(wrapper, "Latitude")?.element.value).toBe("60.17");
       await field(wrapper, "Name")?.setValue("MARK");
-      await button(wrapper, "Place")?.trigger("click");
+      await button(wrapper, "Pick on the map")?.trigger("click");
       FakeMap.last().fire("click", { lngLat: { lat: 60.5, lng: 25.5 } });
       await flushPromises();
       expect(field(wrapper, "Latitude")?.element.value).toBe("60.5");
@@ -867,7 +897,7 @@ describe("App", () => {
       expect(wrapper.find("#setup-lat").exists()).toBe(true);
       await tabButton(wrapper, "Objects")?.trigger("click");
       await wrapper.find("#pane-objects .toolbar .btn").trigger("click");
-      await button(wrapper, "Place")?.trigger("click");
+      await button(wrapper, "Pick on the map")?.trigger("click");
       FakeMap.last().fire("click", { lngLat: { lat: 59.5, lng: 24.5 } });
       await flushPromises();
       expect(wrapper.find<HTMLInputElement>("#setup-lat").element.value).toBe("59.5");
@@ -1015,10 +1045,10 @@ describe("App", () => {
     it("shows the thread with the gateway there and leaves it out of the Messages tab and its count", async () => {
       const { wrapper, socket } = await open();
       await say(socket, 1, message(10, { to_call: "EMAIL-2", text: "me hello" }), gateway(11));
-      expect(wrapper.findAll("#pane-email .msg").map((m) => m.find(".msg-text").text())).toEqual(["me hello", "Msg sent to jane@example.com"]);
+      expect(wrapper.findAll("#pane-email .msg").map((m) => m.find(".msg-text").text())).toEqual(["hello", "Msg sent to jane@example.com"]);
       expect(wrapper.findAll("#pane-messages .conv-call").map((c) => c.text())).toEqual(["OH2PU-9", "OH2RDG"]);
       expect(tabButton(wrapper, "Messages")?.find(".badge").text()).toBe("2");
-      expect(wrapper.find(".headmail").text()).toContain("2");
+      expect(wrapper.find(".headmail").text()).toContain("3"); // the messages not seen, the gateway's one included: the count of the title and of the folded panel's handle too
     });
 
     it("counts the gateway's messages on the Email tab, in the title and on the folded handle, until the tab is on show", async () => {
@@ -1034,6 +1064,27 @@ describe("App", () => {
       await tabButton(wrapper, "Email")?.trigger("click");
       expect(badge(wrapper)?.exists()).toBe(false);
       expect(document.title).toBe("(2) NeoAPRS");
+    });
+
+    it("has one count of the messages not seen: the header, the folded handle and the title say the same", async () => {
+      const { wrapper, socket } = await open();
+      await say(socket, 1, gateway(11), gateway(12));
+      expect(wrapper.find(".headmail").text()).toContain("4");
+      expect(document.title).toBe("(4) NeoAPRS");
+      await wrapper.find(".panel-fold").trigger("click");
+      expect(wrapper.find(".fold-badge").text()).toBe("4");
+      expect(wrapper.find(".fold-badge").attributes("title")).toBe("4 messages not seen yet");
+    });
+
+    it("opens the Email tab from the header when the messages not seen are all the gateway's", async () => {
+      const { wrapper, socket } = await open();
+      await tabButton(wrapper, "Messages")?.trigger("click");
+      for (const conv of wrapper.findAll("#pane-messages .conv")) await conv.trigger("click");
+      await say(socket, 1, gateway(11));
+      expect(wrapper.find(".headmail").text()).toContain("1");
+      await tabButton(wrapper, "Packets")?.trigger("click");
+      await wrapper.find(".headmail").trigger("click");
+      expect(wrapper.find("[aria-selected='true']").text()).toContain("Email");
     });
 
     it("keeps counting while the page is hidden or the panel folded, with the Email tab in front", async () => {
@@ -1104,8 +1155,8 @@ describe("App", () => {
       throw new Error("blocked");
     });
     const { wrapper } = await open();
-    await tabButton(wrapper, "TNC")?.trigger("click");
-    expect(wrapper.find("[aria-selected='true']").text()).toBe("TNC");
+    await tabButton(wrapper, "Settings")?.trigger("click");
+    expect(wrapper.find("[aria-selected='true']").text()).toBe("Settings");
     vi.restoreAllMocks();
   });
 
@@ -1161,9 +1212,9 @@ describe("the alert of this browser", () => {
     await tabButton(wrapper, "Settings")?.trigger("click");
     const groups = wrapper.findAll("#pane-settings fieldset").filter((g) => g.find("legend").text() === "Notifications");
     expect(groups).toHaveLength(1);
-    expect(groups[0]?.findAll("h3").map((h) => h.text())).toEqual(["On the NeoAPRS computer", "In this browser"]);
+    expect(groups[0]?.findAll("h3").map((h) => h.text().replace(/ i$/, ""))).toEqual(["On the NeoAPRS computer", "In this browser"]);
     expect(groups[0]?.findAll("label").map((l) => l.text())).toEqual(["Alert", "Command", "Alert for a new message", "Sound", "Pop-up"]);
-    expect(groups[0]?.findAll("button").map((b) => b.text())).toEqual(["Test", "Test sound", "Test pop-up"]);
+    expect(groups[0]?.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(["Test", "Test sound", "Test pop-up"]);
   });
 
   it("is off on the loopback: a message to us makes no sound there", async () => {
@@ -1240,7 +1291,7 @@ describe("the alert of this browser", () => {
     socket.say({ type: "update_result", outcome: "newer", version: "0.4.0", text: "" });
     socket.say(status({ update: { version: "0.4.0", url: "", message: "" } }));
     await flushPromises();
-    expect(wrapper.find("button.update").text()).toBe("0.4.0");
+    expect(wrapper.find("button.update").text()).toBe("Update to 0.4.0");
     await wrapper.find("#pane-settings button.updatecheck-result").trigger("click");
     expect(wrapper.find(".updatepanel h2").text()).toBe("Update to 0.4.0");
   });

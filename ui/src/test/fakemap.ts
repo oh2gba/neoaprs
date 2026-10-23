@@ -15,6 +15,10 @@ export class FakeMap {
   center: { lng: number; lat: number };
   flights: unknown[] = [];
   jumps: unknown[] = [];
+  pans: unknown[] = [];
+  /** where `project` puts a place, in the pixels of the map; a test sets it */
+  screen = { x: 0, y: 0 };
+  moving = false;
   styles: unknown[] = [];
   removed = false;
   touchZoomRotate = { disableRotation: vi.fn() };
@@ -59,6 +63,15 @@ export class FakeMap {
   }
   flyTo(options: unknown): void {
     this.flights.push(options);
+  }
+  project(): { x: number; y: number } {
+    return this.screen;
+  }
+  isMoving(): boolean {
+    return this.moving;
+  }
+  panBy(offset: [number, number], options?: unknown): void {
+    this.pans.push({ offset, options });
   }
   jumpTo(options: unknown): void {
     this.jumps.push(options);

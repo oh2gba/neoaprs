@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bestText, directShare, directText, directWords, heardDirectRecently, heardText, pathWords, viaName } from "@/lib/routes";
+import { bestText, heardDirect, heardDirectRecently, heardText, pathWords, reachedText, viaName } from "@/lib/routes";
 import { NOW, ago, station } from "@/test/fixtures";
 
 describe("heardText", () => {
@@ -46,27 +46,41 @@ describe("pathWords and viaName", () => {
 });
 
 describe("what is direct", () => {
-  const near = station("OH2PU-9", { last_direct_at: ago(300), heard_direct: 2, heard_via: [["OH2RCH-2", 3]], heard_gated: 0 });
-
-  it("takes the share of the packets counted, the ones from the internet and by a repeater with the direct ones", () => {
-    expect(directShare(near)).toBe(40);
-    expect(directShare(station("A", { heard_direct: 1, heard_via: [["OH2RCH-2", 1]], heard_gated: 1 }))).toBe(33);
-    expect(directShare(station("A", { heard_direct: 3, heard_via: [], heard_gated: 0 }))).toBe(100);
-    expect(directShare(station("A", { heard_direct: 0, heard_via: [], heard_gated: 0 }))).toBeNull();
-  });
-
-  it("writes when it was last heard direct and the share, as the Direct column and the card have it", () => {
-    expect(directText(near, NOW)).toBe("5 min, 40 %");
-    expect(directWords(near, NOW)).toBe("heard direct 5 min ago, 40 % of its packets");
-    expect(directText(station("A", { last_direct_at: null }), NOW)).toBe("-");
-    expect(directWords(station("A", { last_direct_at: null }), NOW)).toBe("not heard direct");
-    const nocount = station("A", { last_direct_at: ago(30), heard_direct: 0, heard_via: [], heard_gated: 0 });
-    expect([directText(nocount, NOW), directWords(nocount, NOW)]).toEqual(["30 s", "heard direct 30 s ago"]);
-  });
-
   it("is recent for an hour", () => {
     expect(heardDirectRecently(station("A", { last_direct_at: ago(3600) }), NOW)).toBe(true);
     expect(heardDirectRecently(station("A", { last_direct_at: ago(3601) }), NOW)).toBe(false);
     expect(heardDirectRecently(station("A", { last_direct_at: null }), NOW)).toBe(false);
+  });
+
+  it("has the check mark for a station heard direct at some time, not for our own station, an object or a station never heard direct", () => {
+    expect(heardDirect(station("A", { last_direct_at: ago(86400) }))).toBe(true);
+    expect(heardDirect(station("A", { last_direct_at: null }))).toBe(false);
+    expect(heardDirect(station("A", { last_direct_at: ago(60), is_me: true }))).toBe(false);
+    expect(heardDirect(station("A", { last_direct_at: ago(60), kind: "object" }))).toBe(false);
+  });
+});
+
+describe("reachedText", () => {
+  const none = { last_route: "", heard_direct: 0, heard_via: [] as [string, number][], heard_gated: 0 };
+
+  it("is the way of the latest packet, in words", () => {
+    expect(reachedText({ ...none, last_route: "direct" })).toBe("direct");
+    expect(reachedText({ ...none, last_route: "via OH2RCH-2" })).toBe("via OH2RCH-2");
+    expect(reachedText({ ...none, last_route: "via OH7JHF-1 (internet)" })).toBe("via OH7JHF-1 (internet)");
+  });
+
+  it("calls a repeater that put no call in the packet a repeater", () => {
+    expect(reachedText({ ...none, last_route: "via ? → OH2RCH-2" })).toBe("via a repeater → OH2RCH-2");
+  });
+
+  it("falls back on how most of the packets came when the latest way is not known", () => {
+    expect(reachedText({ ...none, heard_direct: 2, heard_via: [["OH2RCH-2", 9]] })).toBe("direct");
+    expect(reachedText({ ...none, heard_via: [["OH2RCH-2", 9]] })).toBe("via OH2RCH-2");
+    expect(reachedText({ ...none, heard_via: [["?", 9]] })).toBe("via a repeater");
+    expect(reachedText({ ...none, heard_gated: 1 })).toBe("via the internet");
+  });
+
+  it("is null before any packet is counted", () => {
+    expect(reachedText(none)).toBeNull();
   });
 });

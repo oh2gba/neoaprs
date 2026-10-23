@@ -1,5 +1,5 @@
 """Check now (`update_check`, answered with `update_result`): the question of the daily update check put to the version page on request, through the daemon, against a fake version page on the loopback. It works whatever
-`update/check` and NEOAPRS_UPDATE_CHECK say (an explicit click), tells the page that asked what came of it and the newer version in a `status`, and leaves the daily schedule alone."""
+NEOAPRS_UPDATE_CHECK says (an explicit click), tells the page that asked what came of it and the newer version in a `status`, and leaves the daily schedule alone."""
 import asyncio
 from dataclasses import replace
 from pathlib import Path
@@ -70,9 +70,9 @@ async def test_a_page_that_cannot_be_reached_or_understood_is_no_answer_with_the
     await e.stop()
 
 
-async def test_it_asks_even_when_the_daily_check_is_switched_off_and_does_not_start_the_schedule(tmp_path: Path) -> None:
+async def test_it_asks_even_when_the_environment_switches_the_daily_check_off_and_does_not_start_the_schedule(tmp_path: Path) -> None:
     fake = await version_page(NEWER)
-    e = await started(tmp_path, fake.url, **{"update/check": "false"})
+    e = await started(tmp_path, fake.url)
     service = e.ctl.updatecheck
     assert not service.enabled
     page = await e.ws()

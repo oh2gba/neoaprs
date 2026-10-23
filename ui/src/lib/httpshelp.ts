@@ -2,10 +2,6 @@
 // make a device trust it, for the device this is. The steps are of the systems' own menus and only the person can walk them: a page can install nothing. Without the certificate the browser shows a warning the first time,
 // which can also be continued past.
 
-/** The text of the (i) beside the switch. */
-export const HTTPS_TIP =
-  "Needed for pop-ups on phones and for installing NeoAPRS as an app. Browsers show a warning the first time; you can continue past it, or install NeoAPRS's certificate on each device to make the warning go away.";
-
 /** Where the daemon gives the authority's certificate, and the name the download has. */
 export const CERT_PATH = "/neoaprs-ca.crt";
 export const CERT_FILE = "NeoAPRS-CA.crt";

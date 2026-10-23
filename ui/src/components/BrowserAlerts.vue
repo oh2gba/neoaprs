@@ -3,6 +3,7 @@
 // the few words of what happened. The choice is kept in the browser, not on the daemon, so each device decides. The options with a pop-up are disabled, with the reason as their title, where the browser cannot show one; where the
 // page is not a secure context (plain http from another computer) "Enable pop-ups…" opens the steps for the person's browser (PopupHelp), which start with the secure page while the daemon serves https (`https`).
 import { ref } from "vue";
+import InstallApp from "@/components/InstallApp.vue";
 import PopupHelp from "@/components/PopupHelp.vue";
 import type { BrowserAlerts } from "@/composables/useBrowserAlerts";
 import { MODES, wantsPopup, type AlertMode } from "@/lib/alertmode";
@@ -58,5 +59,6 @@ async function onChoose(event: Event): Promise<void> {
       <button v-if="!alerts.secure && alerts.popupStatus.value" class="linkbtn" type="button" @click="helpOpen = true">Enable pop-ups…</button>
     </div>
   </div>
+  <InstallApp />
   <PopupHelp v-if="!alerts.secure && helpOpen" :https="https" @close="helpOpen = false" />
 </template>

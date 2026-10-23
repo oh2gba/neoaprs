@@ -1,18 +1,21 @@
 <script setup lang="ts">
-// The Messages tab: the conversations (one for each other station, the newest first, with the number of messages not seen yet; a click on the row of the one that is open closes its thread, a click on another opens that one, and the small "x" at the right
+// The Messages tab: the conversations (one for each other station, the newest first, with the number of messages not seen yet; a click on the row of the one that is open closes its thread, a click on another opens that one, and the delete button at the right
 // end of a row deletes the whole conversation, or the whole overheard pair, after "sure?": the one way to delete, a single message has no button), the thread of the open one (MessageThread) and the box to write in (MessageCompose, which can also write one text to several stations). A conversation with messages
-// not seen that is not the open one is highlighted. Above the thread are the path the station's messages go by (with "Use suggested") beside it the tickbox RF only. A message that came in has the route it came by under its time ("via OH2RCH-2"). "Show overheard" lists the messages sent to other stations, a pair of stations at a time, which are otherwise left out.
+// not seen that is not the open one is highlighted. Under the list is "Route", closed unless the route of the open conversation was changed: the path the station's messages go by (with the suggested one) and the tickbox RF only. A message that came in has the route it came by under its time ("via OH2RCH-2"). "Show overheard" lists the messages sent to other stations, a pair of stations at a time, which are otherwise left out.
+import DisclosureBox from "@/components/DisclosureBox.vue";
+import IconButton from "@/components/IconButton.vue";
+import InfoTip from "@/components/InfoTip.vue";
 import MessageCompose from "@/components/MessageCompose.vue";
 import MessageThread from "@/components/MessageThread.vue";
 import StationPrefs from "@/components/StationPrefs.vue";
 import { useSure } from "@/composables/useSure";
 import { ageText } from "@/lib/format";
-import { conversationName, isHighlighted, isOverheard, overheardPair, type Conversation } from "@/lib/messages";
+import { conversationName, effectivePath, isHighlighted, isOverheard, overheardPair, type Conversation } from "@/lib/messages";
 import { unreadText } from "@/lib/unread";
 import type { Candidate } from "@/lib/recipients";
 import type { MessageRow } from "@/protocol/protocol";
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     conversations: readonly Conversation[];
     selected: string | null;
@@ -53,7 +56,12 @@ const emit = defineEmits<{
 
 const sure = useSure<string>(); // (the call of a conversation, the pair of an overheard one)
 
-/** The x of a row: the conversation goes, or the overheard pair. */
+/** Whether the route of the open conversation is not the default one (a path of its own, or RF only): the Route is then shown open. */
+function routeChanged(call: string): boolean {
+  return effectivePath(props.paths, props.fallbackPath, call).own || props.rfOnly.has(call);
+}
+
+/** The delete of a row: the conversation goes, or the overheard pair. */
 function remove(call: string): void {
   const pair = overheardPair(call);
   if (pair === null) emit("deleteConversation", call);
@@ -62,15 +70,16 @@ function remove(call: string): void {
 </script>
 
 <template>
-  <div class="msgpane">
+  <div class="msgpane" :class="{ 'has-thread': selected !== null }">
     <div class="toolbar">
       <label class="check"
         ><input type="checkbox" :checked="showOverheard" @change="emit('update:showOverheard', ($event.target as HTMLInputElement).checked)" /> Show
         overheard</label
       >
+      <InfoTip label="What overheard means">Messages that other stations sent to each other and that we heard on the radio.</InfoTip>
     </div>
-    <ul class="convs" aria-label="Conversations">
-      <li v-for="c in conversations" :key="c.call" class="conv-item">
+    <ul class="convs" :class="{ short: selected !== null }" aria-label="Conversations">
+      <li v-for="c in conversations" :key="c.call" class="conv-item" :class="{ open: c.call === selected }">
         <button
           type="button"
           class="conv"
@@ -83,31 +92,30 @@ function remove(call: string): void {
           <span class="conv-age muted">{{ ageText(c.last.at, now) }}</span>
           <span class="conv-text muted">{{ c.last.direction === "out" ? "You: " : "" }}{{ c.last.text }}</span>
         </button>
-        <button
-          type="button"
+        <IconButton
+          kind="delete"
           class="conv-delete"
-          :class="{ danger: sure.armed.value === c.call }"
-          :aria-label="c.overheard ? `Delete the overheard messages ${conversationName(c.call)}` : `Delete the conversation with ${c.call}`"
+          :armed="sure.armed.value === c.call"
+          :label="c.overheard ? `Delete the overheard messages ${conversationName(c.call)}` : `Delete the conversation with ${c.call}`"
           @click="sure.press(c.call, () => remove(c.call))"
-        >
-          {{ sure.armed.value === c.call ? "sure?" : "x" }}
-        </button>
+        />
       </li>
       <li v-if="conversations.length === 0" class="empty">No message yet.</li>
     </ul>
     <div v-if="selected !== null" class="thread-head">
       <p v-if="isOverheard(selected)" class="muted">Overheard: {{ conversationName(selected) }}</p>
-      <StationPrefs
-        v-else
-        :call="selected"
-        :paths="paths"
-        :fallback-path="fallbackPath"
-        :rf-only="rfOnly"
-        :suggested="suggestions.get(selected) ?? null"
-        @path="(c, p) => emit('path', c, p)"
-        @clear-path="emit('clearPath', $event)"
-        @set-rf-only="(c, on) => emit('setRfOnly', c, on)"
-      />
+      <DisclosureBox v-else :key="selected" title="Route" :open="routeChanged(selected)">
+        <StationPrefs
+          :call="selected"
+          :paths="paths"
+          :fallback-path="fallbackPath"
+          :rf-only="rfOnly"
+          :suggested="suggestions.get(selected) ?? null"
+          @path="(c, p) => emit('path', c, p)"
+          @clear-path="emit('clearPath', $event)"
+          @set-rf-only="(c, on) => emit('setRfOnly', c, on)"
+        />
+      </DisclosureBox>
     </div>
     <MessageThread :thread="thread" :peer="selected" :heard-direct="heardDirect" @retry="emit('retry', $event)" @cancel="emit('cancel', $event)" />
     <MessageCompose

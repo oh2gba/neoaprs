@@ -4,7 +4,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import HttpsGuide from "@/components/HttpsGuide.vue";
 import PopupHelp from "@/components/PopupHelp.vue";
 import SettingsForm from "@/components/SettingsForm.vue";
-import { HTTPS_TIP } from "@/lib/httpshelp";
 import type { HttpsState } from "@/protocol/protocol";
 import { openedAt, resetSeen } from "@/test/fakealert";
 import { configValues } from "@/test/fixtures";
@@ -102,10 +101,11 @@ describe("the Web page group", () => {
   it("has one switch, Secure connection (https), with the (i), where the network is on and not before", async () => {
     const wrapper = settings(OFF);
     expect(wrapper.find("label[for='set-web-https']").text()).toBe("Secure connection (https)");
-    expect(wrapper.find<HTMLSelectElement>("#set-web-https").element.value).toBe("false");
-    await wrapper.find(".infotip .info-toggle").trigger("click");
-    expect(wrapper.find(".info-text").text()).toBe(HTTPS_TIP);
-    expect(HTTPS_TIP).toBe(
+    const box = wrapper.find<HTMLInputElement>("#set-web-https");
+    expect(box.attributes("type")).toBe("checkbox");
+    expect(box.element.checked).toBe(false);
+    await wrapper.find("button[aria-label='About the secure connection']").trigger("click");
+    expect(wrapper.find(".info-text").text()).toBe(
       "Needed for pop-ups on phones and for installing NeoAPRS as an app. Browsers show a warning the first time; you can continue past it, or install NeoAPRS's certificate on each device to make the warning go away.",
     );
     expect(settings(OFF, {}).find("#set-web-https").exists()).toBe(false);
@@ -115,30 +115,27 @@ describe("the Web page group", () => {
     const send = vi.fn(() => true);
     const config = configValues(NETWORK);
     const wrapper = mount(SettingsForm, { props: { config, lastError: null, send } });
-    await wrapper.find("#set-web-https").setValue("true");
+    await wrapper.find("#set-web-https").setValue(true);
     await wrapper.find("form").trigger("submit");
     expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "web/https": "true" } });
   });
 
   it("shows no guide while https is not served, and the reason when it could not start", () => {
     const off = settings(OFF);
-    expect(off.find("#set-web-cert").exists()).toBe(false);
+    expect(off.find(".disclosure").exists()).toBe(false);
     expect(off.find(".httpsguide").exists()).toBe(false);
     const failed = settings({ ...OFF, problem: "the secure page cannot listen on a port after 7303: address in use" });
     expect(failed.find(".field-error").text()).toContain("address in use");
   });
 
-  it("opens the guide from a link while https is served, and closes it again", async () => {
+  it("has the guide under a heading while https is served", () => {
     vi.stubGlobal("navigator", { userAgent: ANDROID, maxTouchPoints: 0 });
     const wrapper = settings(ON, { ...NETWORK, "web/https": "true" });
-    expect(wrapper.find(".httpsguide").exists()).toBe(false);
-    const link = wrapper.find("#set-web-cert");
-    expect(link.text()).toBe("Install on a device…");
-    await link.trigger("click");
-    expect(wrapper.find(".httpsguide a.btn").attributes("href")).toBe("/neoaprs-ca.crt");
-    expect(wrapper.find(".httpsguide .copyfield code").text()).toBe(FINGERPRINT);
-    await link.trigger("click");
-    expect(wrapper.find(".httpsguide").exists()).toBe(false);
+    const box = wrapper.find("details.disclosure");
+    expect(box.find("summary").text()).toBe("Install the certificate on a device");
+    expect(box.attributes("open")).toBeUndefined();
+    expect(box.find(".httpsguide a.btn").attributes("href")).toBe("/neoaprs-ca.crt");
+    expect(box.find(".httpsguide .copyfield code").text()).toBe(FINGERPRINT);
   });
 });
 
@@ -154,6 +151,7 @@ describe("the pop-up guide", () => {
     const first = wrapper.find("ol li");
     expect(first.text()).toBe("Open the secure page: https://192.168.1.20:7304/");
     expect(first.find("a").attributes("href")).toBe("https://192.168.1.20:7304/");
+    expect(wrapper.find(".disclosure summary").text()).toBe("Remove the browser's warning");
     expect(wrapper.find(".httpsguide a.btn").text()).toBe("Download certificate");
     expect(wrapper.findAll(".httpsguide p")).toHaveLength(0);
     const http = wrapper.find("details.popuphelp-http");

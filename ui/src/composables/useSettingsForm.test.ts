@@ -20,7 +20,7 @@ describe("useSettingsForm", () => {
     expect(form.draft["station/call"]).toBe("OH2GBA");
     expect(form.dirty.value).toBe(false);
     expect(form.groups.value.map((g) => g.id)).toEqual(["station", "beacon", "status"]);
-    expect(setUp("settings").form.groups.value.map((g) => g.id)).toEqual(["serial", "web", "log", "notifications", "map", "update"]);
+    expect(setUp("settings").form.groups.value.map((g) => g.id)).toEqual(["serial", "digi", "web", "notifications", "map"]);
   });
 
   it("counts and sends only the keys of its scope", () => {

@@ -35,6 +35,12 @@ export default tseslint.config(
     ...tseslint.configs.disableTypeChecked,
   },
   { files: ["eslint.config.js", "vite.config.ts"], languageOptions: { globals: globals.node } },
+  {
+    // the service worker is a plain file of its own (sw/sw.js, written out beside index.html by vite.config.ts), not part of the page's TypeScript project
+    files: ["sw/sw.js"],
+    ...tseslint.configs.disableTypeChecked,
+  },
+  { files: ["sw/sw.js"], languageOptions: { globals: globals.serviceworker } },
 
   {
     rules: {

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// "Update to 0.4.0": opened from the new version in the header. A link to what is new, and the steps for the way this copy was installed (lib/update.ts): a command has a button that copies it, a file a link that downloads it. Escape and the cross close it.
+// "Update to 0.4.0": opened from the new version in the header. A link to what is new (in the page's link colour), and the steps for the way this copy was installed (lib/update.ts; the way is not named: the steps say it): a command has a button that copies it, a file a link that downloads it. Escape and the cross close it.
 // The longer explanation of each way is in the manual (Updating).
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import IconButton from "@/components/IconButton.vue";
 import { copyText } from "@/lib/clipboard";
 import { releaseNotes, updateHelp } from "@/lib/update";
 import type { InstallInfo } from "@/protocol/protocol";
@@ -35,11 +36,10 @@ onBeforeUnmount(() => {
   <section class="updatepanel" role="dialog" :aria-label="`Update to ${version}`">
     <header class="updatepanel-head">
       <h2>Update to {{ version }}</h2>
-      <button type="button" class="btn small" aria-label="Close" title="Close" @click="emit('close')">&times;</button>
+      <IconButton kind="close" label="Close" @click="emit('close')" />
     </header>
     <p class="updatepanel-news">
       <a :href="releaseNotes(version)" target="_blank" rel="noopener noreferrer">What is new</a>
-      <span v-if="help.how" class="muted"> &middot; this copy: {{ help.how }}</span>
     </p>
     <ol class="updatepanel-steps">
       <li v-for="step in help.steps" :key="step.text + (step.command ?? '')">

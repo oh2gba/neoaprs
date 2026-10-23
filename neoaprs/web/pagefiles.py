@@ -120,6 +120,13 @@ class Page(Secured, tornado.web.StaticFileHandler):
         self.set_header("Cache-Control", "public, max-age=31536000, immutable" if is_hashed_asset(PurePath(path)) else "no-cache")      # (the hash in a name of assets/ is that of its content)
         self.set_header("X-Content-Type-Options", "nosniff")
 
+    def get_content_type(self) -> str:
+        """The manifest has its own type, whatever the system's table says (the registry of Windows may not know the suffix); sw.js is JavaScript on every system, which a worker needs."""
+        name = self.absolute_path.rsplit(os.sep, 1)[-1] if self.absolute_path else ""
+        if name.endswith(".webmanifest"):
+            return "application/manifest+json"
+        return "text/javascript; charset=UTF-8" if name == "sw.js" else super().get_content_type()
+
     def validate_absolute_path(self, root: str, absolute_path: str) -> str | None:
         """Nothing whose name (or a folder's above it) starts with a dot is served, and no source map: a build that leaves a .env, a .git or a .map in page/ publishes it. 404, as for a file
         that is not there."""
