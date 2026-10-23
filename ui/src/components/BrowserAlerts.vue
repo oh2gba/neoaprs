@@ -1,10 +1,15 @@
 <script setup lang="ts">
 // The browser's part of the Settings tab's "Notifications" group: what this browser does for a new message (off, sound, sound and pop-up, pop-up only), with a Test button for the sound and one for the pop-up, each with
-// the few words of what happened. The choice is kept in the browser, not on the daemon, so each device decides. The options with a pop-up are disabled, with the reason as their title, where the browser cannot show one.
+// the few words of what happened. The choice is kept in the browser, not on the daemon, so each device decides. The options with a pop-up are disabled, with the reason as their title, where the browser cannot show one; where the
+// page is not a secure context (plain http from another computer) "Enable pop-ups…" opens the steps for the person's browser (PopupHelp).
+import { ref } from "vue";
+import PopupHelp from "@/components/PopupHelp.vue";
 import type { BrowserAlerts } from "@/composables/useBrowserAlerts";
 import { MODES, wantsPopup, type AlertMode } from "@/lib/alertmode";
 
 const props = defineProps<{ alerts: BrowserAlerts }>();
+
+const helpOpen = ref(false);
 
 /** The permission is asked here, in the click; the select shows what came of it. */
 async function onChoose(event: Event): Promise<void> {
@@ -32,6 +37,9 @@ async function onChoose(event: Event): Promise<void> {
         </option>
       </select>
       <span v-if="alerts.note.value" class="muted" role="status">{{ alerts.note.value }}</span>
+      <button v-if="!alerts.secure" id="alert-enable-popups" class="linkbtn" type="button" :aria-expanded="helpOpen" @click="helpOpen = !helpOpen">
+        Enable pop-ups…
+      </button>
     </div>
   </div>
   <div class="field">
@@ -46,6 +54,8 @@ async function onChoose(event: Event): Promise<void> {
     <div class="field-control">
       <button id="alert-test-popup" class="btn" type="button" @click="alerts.testPopup">Test pop-up</button>
       <span v-if="alerts.popupStatus.value" class="muted" role="status">{{ alerts.popupStatus.value }}</span>
+      <button v-if="!alerts.secure && alerts.popupStatus.value" class="linkbtn" type="button" @click="helpOpen = true">Enable pop-ups…</button>
     </div>
   </div>
+  <PopupHelp v-if="!alerts.secure && helpOpen" @close="helpOpen = false" />
 </template>

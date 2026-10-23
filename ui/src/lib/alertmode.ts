@@ -17,7 +17,7 @@ export const wantsPopup = (mode: AlertMode): boolean => mode === "both" || mode 
 
 /** Why this browser cannot show a pop-up, else undefined: `possible` is a secure context with the API, `permission` what the browser has answered so far. */
 export function popupWhy(possible: boolean, permission: NotificationPermission): string | undefined {
-  if (!possible) return "This address does not allow pop-ups (needs https or localhost)";
+  if (!possible) return "Pop-ups are off in this browser for this address";
   return permission === "denied" ? "Pop-ups are blocked for this page in the browser" : undefined;
 }
 

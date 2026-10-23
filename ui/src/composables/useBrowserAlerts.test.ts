@@ -198,7 +198,7 @@ describe("the choice of a pop-up", () => {
     stubBrowser({ secure: false });
     const insecure = make();
     expect(insecure.possible).toBe(false);
-    expect(insecure.why.value).toBe("This address does not allow pop-ups (needs https or localhost)");
+    expect(insecure.why.value).toBe("Pop-ups are off in this browser for this address");
     vi.unstubAllGlobals();
     stubBrowser({ notifications: false });
     vi.stubGlobal("Notification", undefined);
@@ -336,7 +336,7 @@ describe("Test pop-up", () => {
     stubBrowser({ secure: false });
     const alerts = make();
     await alerts.testPopup();
-    expect(alerts.popupStatus.value).toBe("needs https or localhost");
+    expect(alerts.popupStatus.value).toBe("pop-ups are off for this address");
     expect(FakeNotification.asked).toBe(0);
   });
 

@@ -70,8 +70,10 @@ export function useBrowserAlerts(openConversation: (call: string) => void) {
   const tab = useTabAlert();
   const here = isLoopbackHost(location.hostname);
 
+  /** The page is a secure context; where it is not, the way to make it one is shown (PopupHelp). */
+  const secure = window.isSecureContext === true;
   /** The browser can show pop-ups here: a secure context (localhost, https, an address the browser was told to trust) with the API. */
-  const possible = typeof Notification !== "undefined" && window.isSecureContext === true;
+  const possible = typeof Notification !== "undefined" && secure;
   const permission = ref<NotificationPermission>(possible ? Notification.permission : "denied");
   /** why a pop-up cannot be chosen, else undefined */
   const why = computed(() => popupWhy(possible, permission.value));
@@ -135,7 +137,7 @@ export function useBrowserAlerts(openConversation: (call: string) => void) {
 
   /** Test pop-up, a click: a pop-up now, whatever the choice is (it asks for the permission if the browser has not been asked); where none can be shown it says why, and the browser tab alerts for a few seconds. */
   async function testPopup(): Promise<void> {
-    if (!possible) return popupStatus.set("needs https or localhost");
+    if (!possible) return popupStatus.set("pop-ups are off for this address");
     const failed = () => {
       tab.start(TEST_MESSAGE.from_call, true);
       popupStatus.set("pop-up blocked");
@@ -151,6 +153,7 @@ export function useBrowserAlerts(openConversation: (call: string) => void) {
     note,
     popupOn,
     possible,
+    secure,
     soundStatus: soundStatus.text,
     popupStatus: popupStatus.text,
     tabTitle: tab.shown,
