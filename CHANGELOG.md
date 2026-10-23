@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.4.0
+
+Easier settings and email, a hover card and the route on the map, and updates that explain themselves.
+
 - The list of ports has the other names of each port after it (the `/dev/serial/by-id` names and links of your own udev rules, such as `/dev/brainbox_3`), and is asked for once the daemon is connected, so a page that opens on the Settings tab no longer shows "Not connected to the daemon".
 - The setup guide: the step's name is in its title and no longer twice on the page ("Your call", the symbol's "Code"); the position is picked on the map with **Pick on the map** on every screen, a crosshair while the map waits for the click, and a pin that can be dragged; the browser is no longer asked for its place (on a desktop it is mostly a guess).
 - The TNC group of the Settings tab names the port once. **Port** is one choice: find automatically, a port the system lists (with Refresh), or Other... for a path or a `socket://` address typed; beside an automatic port the page says `found: PORT` for the port the daemon found last, which is no longer a field of its own. Which ports the search looks at and leaves alone is no longer on the page (the defaults suit nearly everyone; `neoaprs db set` changes them). No setting changed its name, meaning or stored value.
