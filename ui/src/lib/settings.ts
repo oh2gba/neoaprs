@@ -1,6 +1,11 @@
 // The settings form's logic: which key goes in which group, what each field says of itself, and which field an error of the daemon is about.
 // The keys and their order come from the daemon (CONFIG_KEYS of the generated lists); a key this file does not know is shown under its own name.
+// What a field says of itself is words of the catalogue (i18n/en/settings.ts), made when they are read: `FIELDS[key].label` is in the language the page has at that moment, so a template that reads it follows a change of language.
+import { t } from "@/i18n";
+import type { MessageId } from "@/i18n/catalogue";
 import { errorReason, type Failure } from "@/i18n/errortext";
+import type { Params } from "@/i18n/message";
+import { lazyText } from "@/lib/lazytext";
 import { STATUS_CHOICES, statusShown, statusSource } from "@/lib/status";
 import { CONFIG_KEYS, LIMITS, TNC_PROFILES } from "@/protocol/lists";
 
@@ -32,233 +37,234 @@ export interface Choice {
   label: string;
 }
 
+/** A text of the page: the id of a message, the id with its values, or a function that makes the words (for what is no message: a port, an address). */
+type Say = MessageId | readonly [MessageId, Params] | (() => string);
+const said = (say: Say): string => (typeof say === "function" ? say() : typeof say === "string" ? t(say) : t(say[0], say[1]));
+/** Words that are the same in every language and are no message. */
+const plain =
+  (text: string): Say =>
+  () =>
+    text;
+
+/** What a field is, in ids: the words are looked up when they are read. */
+interface FieldSpec {
+  label: Say;
+  name?: Say;
+  unit?: string;
+  empty?: Say;
+  title?: Say;
+  tip?: readonly Say[];
+  tipLabel?: Say;
+  kind?: FieldKind;
+  choices?: () => readonly (string | Choice)[];
+  other?: (value: string) => string;
+}
+
+/** The field of a spec, with its words as getters. */
+function field(spec: FieldSpec): FieldInfo {
+  const info = {} as FieldInfo;
+  const words = (key: "label" | "name" | "empty" | "title" | "tipLabel", say: Say | undefined): void => {
+    if (say !== undefined) Object.defineProperty(info, key, { enumerable: true, get: () => said(say) });
+  };
+  words("label", spec.label);
+  words("name", spec.name);
+  words("empty", spec.empty);
+  words("title", spec.title);
+  words("tipLabel", spec.tipLabel);
+  const tip = spec.tip;
+  if (tip !== undefined) Object.defineProperty(info, "tip", { enumerable: true, get: () => tip.map(said) });
+  if (spec.choices !== undefined) Object.defineProperty(info, "choices", { enumerable: true, get: spec.choices });
+  if (spec.unit !== undefined) info.unit = spec.unit;
+  if (spec.kind !== undefined) info.kind = spec.kind;
+  if (spec.other !== undefined) info.other = spec.other;
+  return info;
+}
+
+const every = (minutes: number | string): string => t("settings.every_min", { minutes });
+
 /** The status's choices: every 30 or 60 minutes or every 2 hours (15 is the least the daemon takes). */
-const STATUS_INTERVAL_CHOICES: readonly Choice[] = [
-  { value: "30", label: "Every 30 min" },
-  { value: "60", label: "Every 60 min" },
-  { value: "120", label: "Every 2 hours" },
+const statusIntervalChoices = (): readonly Choice[] => [
+  { value: "30", label: every(30) },
+  { value: "60", label: every(60) },
+  { value: "120", label: t("settings.every_hours", { n: 2 }) },
 ];
 
 /** The beacon's choices: off, or every 15, 30 or 60 minutes (15 is the least the daemon takes). */
-const BEACON_CHOICES: readonly Choice[] = [
-  { value: "0", label: "Off" },
-  { value: String(LIMITS.interval.minMin), label: `Every ${LIMITS.interval.minMin} min` },
-  { value: "30", label: "Every 30 min" },
-  { value: "60", label: "Every 60 min" },
+const beaconChoices = (): readonly Choice[] => [
+  { value: "0", label: t("settings.beacon_interval.off") },
+  { value: String(LIMITS.interval.minMin), label: every(LIMITS.interval.minMin) },
+  { value: "30", label: every(30) },
+  { value: "60", label: every(60) },
+];
+
+const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+const directionChoices = (): readonly Choice[] => [
+  { value: "omni", label: t("settings.antenna_direction.omni") },
+  ...COMPASS.map((point) => ({ value: point, label: point })),
 ];
 
 const GAIN = LIMITS.range["beacon/antenna_gain_db"];
 
-export const FIELDS: Record<string, FieldInfo> = {
-  "station/call": { label: "Call" },
-  "station/lat": { label: "Latitude", unit: "°" },
-  "station/lon": { label: "Longitude", unit: "°" },
-  "station/symbol_table": { name: "Symbol", label: "Symbol" },
-  "station/symbol_code": { name: "Symbol", label: "Symbol code" },
+const SPECS: Record<string, FieldSpec> = {
+  "station/call": { label: "settings.call.label" },
+  "station/lat": { label: "settings.lat.label", unit: "°" },
+  "station/lon": { label: "settings.lon.label", unit: "°" },
+  "station/symbol_table": { name: "settings.symbol.label", label: "settings.symbol.label" },
+  "station/symbol_code": { name: "settings.symbol.label", label: "settings.symbol_code.label" },
   "station/comment": {
-    label: "Comment",
-    tip: [
-      `A short text sent with your position in every beacon. Other stations see it beside your name on their map. Letters, digits and ordinary punctuation, no | or ~. It can be ${LIMITS.comment.max} characters long, ${LIMITS.comment.maxWithPhg} when Power is set.`,
-      "Example: Home station, 2 m FM",
-    ],
+    label: "settings.comment.label",
+    tip: [["settings.comment.tip1", { max: LIMITS.comment.max, with_phg: LIMITS.comment.maxWithPhg }], "settings.comment.tip2"],
   },
   "station/status": {
-    name: "Status text",
-    label: "Text",
-    empty: "none",
-    tip: [
-      `A line about what you are doing, sent on its own, not with every beacon. Other stations see it as your status. It goes out when it is new and the Every time has passed since the last status. Up to ${LIMITS.status.max} characters, no | or ~.`,
-      "Example: At the summer cottage, QRV 145.500 FM",
-    ],
+    name: "settings.station_status.name",
+    label: "settings.station_status.label",
+    empty: "settings.none",
+    tip: [["settings.station_status.tip1", { max: LIMITS.status.max }], "settings.station_status.tip2"],
   },
   "beacon/power_w": {
-    label: "Power",
+    label: "settings.power.label",
     unit: "W",
-    empty: "none",
-    tip: [
-      "The transmitter's output power. Together with the antenna height, gain and direction it adds a short code (PHG) to the beacon that tells others how far you can be heard. Leave it empty to send none of the four.",
-      "Example: 5",
-    ],
+    empty: "settings.none",
+    tip: ["settings.power.tip1", "settings.power.tip2"],
   },
   "beacon/antenna_height_m": {
-    label: "Antenna height",
+    label: "settings.antenna_height.label",
     unit: "m",
-    tip: [
-      "How high the antenna is above the average ground around it, not above the sea. Used only for the PHG code.",
-      "Example: 10 for a mast on a house on level ground",
-    ],
+    tip: ["settings.antenna_height.tip1", "settings.antenna_height.tip2"],
   },
   "beacon/antenna_gain_db": {
-    label: "Antenna gain",
+    label: "settings.antenna_gain.label",
     unit: "dB",
-    tip: [`How much the antenna concentrates the signal, ${GAIN.min} to ${GAIN.max} dB. Use 0 if you do not know. Used only for the PHG code.`, "Example: 3"],
+    tip: [["settings.antenna_gain.tip1", { min: GAIN.min, max: GAIN.max }], "settings.antenna_gain.tip2"],
   },
   "beacon/antenna_direction": {
-    label: "Antenna direction",
+    label: "settings.antenna_direction.label",
     kind: "choice",
-    choices: ["omni", "N", "NE", "E", "SE", "S", "SW", "W", "NW"],
-    tip: [
-      "The way the antenna favours: omni when it works the same in every direction, as most whips and verticals do, or the point of the compass a beam antenna points to. Used only for the PHG code.",
-    ],
+    choices: directionChoices,
+    tip: ["settings.antenna_direction.tip1"],
   },
   "tnc/profile": {
-    label: "Radio type",
+    label: "settings.profile.label",
     kind: "choice",
-    choices: TNC_PROFILES.map((p) => ({ value: p.key, label: p.name })),
-    tipLabel: "Which radio type to pick",
-    tip: [
-      "This tells NeoAPRS how to talk to your radio or modem (its TNC, the part that turns sound into packets). Pick the line that matches yours.",
-      "KISS TNC: Mobilinkd, NinoTNC, TNC-Pi, and the Kenwood TH-D74 and TH-D75 with KISS switched on at the radio. The usual choice.",
-      "KISS over TCP: Direwolf or a sound-card modem running on this or another computer. A Digirig or SignaLink goes this way too.",
-      "Kenwood TH-D7, TM-D700, TS-2000: NeoAPRS puts the radio into KISS itself. So it does for the TM-D710 and TH-D72, and for the Kantronics KPC-3+.",
-      "Not sure? See the radio guide, docs/RADIOS.md.",
-    ],
+    choices: () => TNC_PROFILES.map((p) => ({ value: p.key, label: p.name })),
+    tipLabel: "settings.profile.tip_label",
+    tip: ["settings.profile.tip1", "settings.profile.tip2", "settings.profile.tip3", "settings.profile.tip4", "settings.profile.tip5"],
   },
   "serial/port": {
-    name: "TNC port",
-    label: "Port",
-    empty: "/dev/ttyUSB0",
-    tipLabel: "About the port",
-    tip: [
-      "The connection to the radio. On Linux, automatic means NeoAPRS listens to the USB ports until it finds the radio, and remembers it. Choose a port yourself if you have several devices, or if the search picks the wrong one.",
-      "A USB radio is /dev/ttyUSB0 on Linux and COM3 on Windows. A Bluetooth radio appears in this list after you have paired it with the computer.",
-      "Refresh reads the list again, for example after you plug the cable in.",
-    ],
+    name: "settings.port.name",
+    label: "settings.port.label",
+    empty: plain("/dev/ttyUSB0"),
+    tipLabel: "settings.port.tip_label",
+    tip: ["settings.port.tip1", "settings.port.tip2", "settings.port.tip3"],
   },
   "serial/baud": {
-    name: "TNC speed",
-    label: "Speed",
+    name: "settings.baud.name",
+    label: "settings.baud.label",
     unit: "baud",
-    tipLabel: "About the speed",
-    tip: [
-      "The speed of the cable between the computer and the TNC. Leave it empty: NeoAPRS then uses the speed of the TNC you chose, 9600 for most.",
-      "Set it only if the manual of your TNC says so, for example 57600 for a NinoTNC. Bluetooth and TCP connections have no speed.",
-    ],
+    tipLabel: "settings.baud.tip_label",
+    tip: ["settings.baud.tip1", "settings.baud.tip2"],
   },
-  "tcp/host": { label: "TCP host" },
-  "tcp/port": { label: "TCP port", title: "Direwolf 8001, soundmodem 8100" },
-  "serial/last_port": { label: "Last port found", kind: "readonly", empty: "-" },
-  "serial/pattern": { label: "Ports to search", title: "Device globs, separated by spaces" },
-  "serial/skip": { label: "Ports to skip", empty: "none", title: "Device paths, separated by commas" },
+  "tcp/host": { label: "settings.tcp_host.label" },
+  "tcp/port": { label: "settings.tcp_port.label", title: "settings.tcp_port.title" },
+  "serial/last_port": { label: "settings.last_port.label", kind: "readonly", empty: plain("-") },
+  "serial/pattern": { label: "settings.pattern.label", title: "settings.pattern.title" },
+  "serial/skip": { label: "settings.skip.label", empty: "settings.none", title: "settings.skip.title" },
   "web/network": {
-    name: "Network access",
-    label: "Allow access from the network",
+    name: "settings.network.name",
+    label: "settings.network.label",
     kind: "bool",
-    tipLabel: "About network access",
-    tip: [
-      "Lets other devices on your network open this page: a laptop, a phone or a tablet. Without it, only the computer NeoAPRS runs on can open the page.",
-      "Set it to yes and Save: an access key appears with the addresses to open. Type the key once on each device.",
-      "The connection is plain http on your home network: fine at home, not for the internet. Do not open a port to NeoAPRS in your router.",
-    ],
+    tipLabel: "settings.network.tip_label",
+    tip: ["settings.network.tip1", "settings.network.tip2", "settings.network.tip3"],
   },
   "web/key": {
-    label: "Access key",
+    label: "settings.access_key.label",
     kind: "readonly",
-    tipLabel: "About the access key",
-    tip: [
-      "The password for the other devices. Open one of the addresses below on the laptop or phone and type this key once; the device stays logged in.",
-      "New key makes another one and logs every other device out. Type the new key again on each.",
-    ],
+    tipLabel: "settings.access_key.tip_label",
+    tip: ["settings.access_key.tip1", "settings.access_key.tip2"],
   },
   "web/https": {
-    name: "Secure connection",
-    label: "Secure connection (https)",
+    name: "settings.https.name",
+    label: "settings.https.label",
     kind: "bool",
-    tipLabel: "About the secure connection",
-    tip: [
-      "Needed for pop-ups on phones and for installing NeoAPRS as an app. Browsers show a warning the first time; you can continue past it, or install NeoAPRS's certificate on each device to make the warning go away.",
-    ],
+    tipLabel: "settings.https.tip_label",
+    tip: ["settings.https.tip1"],
   },
   "map/radius_km": {
-    name: "Map radius",
-    label: "Radius",
+    name: "settings.radius.name",
+    label: "settings.radius.label",
     unit: "km",
-    tipLabel: "About the radius",
-    tip: [
-      "How far from your station, in every direction, the detailed map reaches. The world map is always there; this is the area with streets and names.",
-      "A bigger radius means a bigger download: 150 km is a region, 500 km a large part of a country. The size is shown before you start.",
-    ],
+    tipLabel: "settings.radius.tip_label",
+    tip: ["settings.radius.tip1", "settings.radius.tip2"],
   },
   "digi/enabled": {
-    label: "Digipeater",
+    label: "settings.digipeater.label",
     kind: "bool",
-    tipLabel: "What the digipeater does",
-    tip: [
-      "Helps nearby stations that cannot reach a digipeater: packets asking for WIDE1-1, or sent through your call, are repeated once by your radio.",
-      "Leave it off unless you are in a spot with poor coverage.",
-    ],
+    tipLabel: "settings.digipeater.tip_label",
+    tip: ["settings.digipeater.tip1", "settings.digipeater.tip2"],
   },
-  "messages/alert": { name: "Alert", label: "Alert", kind: "bool" },
-  "messages/alert_command": { name: "Alert command", label: "Command" },
+  "messages/alert": { name: "settings.alert.label", label: "settings.alert.label", kind: "bool" },
+  "messages/alert_command": { name: "settings.alert_command.name", label: "settings.alert_command.label" },
   "status/source": {
-    label: "Status",
+    label: "settings.status_source.label",
     kind: "choice",
-    choices: STATUS_CHOICES,
-    tip: [
-      "A status is a line other stations see with your name. Off sends none. A text of my own sends the line you type. The frequency from my radio asks your radio, through rigctld, what it is tuned to and sends that.",
-    ],
+    choices: () => STATUS_CHOICES,
+    tip: ["settings.status_source.tip1"],
   },
   "status/rigctld": {
-    label: "Rigctld",
-    empty: "127.0.0.1:4532",
-    tip: [
-      "rigctld is a small Hamlib program that lets a computer ask a radio what it is tuned to; start it for your radio first. Type where it listens, as address:port. 4532 is the usual port.",
-      "Example: 127.0.0.1:4532",
-    ],
+    label: "settings.status_rigctld.label",
+    empty: plain("127.0.0.1:4532"),
+    tip: ["settings.status_rigctld.tip1", "settings.status_rigctld.tip2"],
   },
   "status/interval_min": {
-    name: "Status interval",
-    label: "Every",
+    name: "settings.status_interval.name",
+    label: "settings.status_interval.label",
     kind: "choice",
-    choices: STATUS_INTERVAL_CHOICES,
-    other: (value) => `Every ${value} min`,
-    tip: [
-      "The least time between two status reports. A status is not sent again while it says the same as the last one, however long it has been; 30 minutes to 2 hours suit a status that tells what you are doing or what the radio is tuned to.",
-    ],
+    choices: statusIntervalChoices,
+    other: every,
+    tip: ["settings.status_interval.tip1"],
   },
   "status/template": {
-    name: "Status template",
-    label: "Text",
-    tip: [
-      `The status is made from this text with what your radio is tuned to now: {freq} becomes the frequency and {mode} the mode. Up to ${LIMITS.status.max} characters once they are filled in.`,
-      "Example: QRV {freq} {mode} gives QRV 14.074 MHz USB",
-    ],
+    name: "settings.status_template.name",
+    label: "settings.status_template.label",
+    tip: [["settings.status_template.tip1", { max: LIMITS.status.max }], "settings.status_template.tip2"],
   },
   "beacon/interval_min": {
-    name: "Beacon interval",
-    label: "Beacon",
+    name: "settings.beacon_interval.name",
+    label: "settings.beacon_interval.label",
     kind: "choice",
-    choices: BEACON_CHOICES,
-    other: (value) => `Every ${value} min`,
-    tip: [
-      `How often your position is sent. Off sends none by itself; Beacon now still sends one. Every beacon uses the channel for everyone around, so 30 minutes is a good choice for a station that stays where it is; ${LIMITS.interval.minMin} is the least.`,
-    ],
+    choices: beaconChoices,
+    other: every,
+    tip: [["settings.beacon_interval.tip1", { min: LIMITS.interval.minMin }]],
   },
   "beacon/path": {
-    name: "Beacon path",
-    label: "Path",
-    empty: "direct",
-    tip: [
-      "The digipeaters, the stations that repeat your packet so it travels further, in the order it should use them, separated by commas. Empty sends direct, with no help.",
-      "WIDE1-1,WIDE2-1 is the usual choice: a small digipeater nearby picks the packet up first and a wide-area one carries it on. WIDE2-2 goes straight to the wide-area digipeaters, for a station that they hear directly, such as one on a hill.",
-    ],
+    name: "settings.path.name",
+    label: "settings.path.label",
+    empty: "settings.path.empty",
+    tip: ["settings.path.tip1", "settings.path.tip2"],
   },
 };
+
+/** What each setting says of itself (words in the language of the page, made when they are read); a key this page does not know has none. */
+export const FIELDS: Record<string, FieldInfo> = Object.fromEntries(Object.entries(SPECS).map(([key, spec]) => [key, field(spec)]));
 
 /** The settings of the daemon's own alert, which the Notifications group shows (beside the alert of the browser, which is the page's). */
 const ALERT = ["messages/alert", "messages/alert_command"];
 
 /** The heading that goes above a key inside its group: the daemon's own alert, which runs on the computer NeoAPRS runs on, whichever device shows the page. */
-export const SUBGROUPS: Record<string, { text: string; title: string; tipLabel: string; tip: readonly string[] }> = {
+export const SUBGROUPS: Record<string, { readonly text: string; readonly title: string; readonly tipLabel: string; readonly tip: readonly string[] }> = {
   "messages/alert": {
-    text: "On the NeoAPRS computer",
-    title: "NeoAPRS's own alert: the command the daemon runs on the computer it runs on",
-    tipLabel: "About the alerts",
-    tip: [
-      "A new message can alert you in two places. This group is the NeoAPRS computer itself: with Alert on, it runs the Command when a message arrives, by default a notification and a sound. When NeoAPRS runs on another computer, that is where it sounds.",
-      "The next group is this browser, on whatever device has the page open: no alert, a sound, a sound and a pop-up, or a pop-up only. Each device chooses for itself, and Test sound and Test pop-up try it.",
-      "If you read NeoAPRS on the computer it runs on, one of the two is enough; use both only if you want to be told twice.",
-    ],
+    get text() {
+      return t("settings.alerts.text");
+    },
+    get title() {
+      return t("settings.alerts.title");
+    },
+    get tipLabel() {
+      return t("settings.alerts.tip_label");
+    },
+    get tip() {
+      return [t("settings.alerts.tip1"), t("settings.alerts.tip2"), t("settings.alerts.tip3")];
+    },
   },
 };
 
@@ -266,9 +272,9 @@ export const SUBGROUPS: Record<string, { text: string; title: string; tipLabel: 
 const ANTENNA = ["beacon/power_w", "beacon/antenna_height_m", "beacon/antenna_gain_db", "beacon/antenna_direction"];
 
 /** What the Beacon group keeps behind a closed heading: the antenna (the PHG part of the beacon) and the path. */
-export const BEACON_FOLDS: readonly { title: string; keys: readonly string[] }[] = [
-  { title: "Antenna", keys: ANTENNA },
-  { title: "Advanced", keys: ["beacon/path"] },
+export const BEACON_FOLDS: readonly { readonly title: string; readonly keys: readonly string[] }[] = [
+  lazyText({ keys: ANTENNA }, { title: () => t("settings.fold.antenna") }),
+  lazyText({ keys: ["beacon/path"] }, { title: () => t("settings.fold.advanced") }),
 ];
 
 interface Group {
@@ -277,15 +283,15 @@ interface Group {
   keys: string[];
 }
 
-const GROUPS: { id: string; title: string; prefixes: string[]; also?: string[]; except?: string[] }[] = [
-  { id: "station", title: "Station", prefixes: ["station/"], except: ["station/status", "station/comment"] },
-  { id: "serial", title: "TNC", prefixes: ["tnc/", "serial/", "tcp/"] },
-  { id: "web", title: "Web page", prefixes: ["web/"] },
-  { id: "notifications", title: "Notifications", prefixes: [], also: ALERT },
-  { id: "map", title: "Map", prefixes: ["map/"] },
-  { id: "digi", title: "Digipeater", prefixes: ["digi/"] },
-  { id: "beacon", title: "Beacon", prefixes: ["beacon/"], also: ["station/comment"] },
-  { id: "status", title: "Status", prefixes: ["status/"], also: ["station/status"] },
+const GROUPS: { id: string; title: MessageId; prefixes: string[]; also?: string[]; except?: string[] }[] = [
+  { id: "station", title: "settings.group.station", prefixes: ["station/"], except: ["station/status", "station/comment"] },
+  { id: "serial", title: "settings.group.tnc", prefixes: ["tnc/", "serial/", "tcp/"] },
+  { id: "web", title: "settings.group.web", prefixes: ["web/"] },
+  { id: "notifications", title: "settings.group.notifications", prefixes: [], also: ALERT },
+  { id: "map", title: "settings.group.map", prefixes: ["map/"] },
+  { id: "digi", title: "settings.group.digi", prefixes: ["digi/"] },
+  { id: "beacon", title: "settings.group.beacon", prefixes: ["beacon/"], also: ["station/comment"] },
+  { id: "status", title: "settings.group.status", prefixes: ["status/"], also: ["station/status"] },
 ];
 
 /** Which settings a form shows: the Beacon tab has what the beacon says and sends, the Settings tab the rest (and any key this file does not know), so that no key is in two places. */
@@ -323,7 +329,7 @@ export function groupKeys(keys: readonly string[], scope: Scope = "settings"): G
   const sorted = keys.filter((k) => !NOT_ON_THE_PAGE.includes(k)).sort((a, b) => order(a) - order(b));
   const groups: Group[] = GROUPS.map((g) => ({
     id: g.id,
-    title: g.title,
+    title: t(g.title),
     keys: sorted.filter((k) => (g.also?.includes(k) ?? false) || (g.prefixes.some((p) => k.startsWith(p)) && !g.except?.includes(k))),
   }));
   for (const group of groups) {
@@ -331,7 +337,7 @@ export function groupKeys(keys: readonly string[], scope: Scope = "settings"): G
     if (order) group.keys.sort((a, b) => rank(order, a) - rank(order, b));
   }
   const known = new Set(groups.flatMap((g) => g.keys));
-  groups.push({ id: "other", title: "Other", keys: sorted.filter((k) => !known.has(k)) });
+  groups.push({ id: "other", title: t("settings.group.other"), keys: sorted.filter((k) => !known.has(k)) });
   const shown = scope === "beacon" ? SCOPE_GROUPS.beacon : [...SCOPE_GROUPS.settings, "other"];
   return shown.flatMap((id) => groups.filter((g) => g.id === id && g.keys.length > 0));
 }

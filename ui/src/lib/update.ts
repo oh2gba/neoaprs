@@ -1,4 +1,5 @@
-// What to do to update, for the way this copy was installed (the daemon says: `install` of its hello). The steps are data, so that the panel (components/UpdatePanel.vue) only draws them: a line of words, a command to copy, a file to download.
+// What to do to update, for the way this copy was installed (the daemon says: `install` of its hello). The steps are data, so that the panel (components/UpdatePanel.vue) only draws them: a line of words (made in the language of the page when they are asked for), a command to copy, a file to download.
+import { t } from "@/i18n";
 import type { InstallInfo } from "@/protocol/protocol";
 
 const RELEASES = "https://github.com/oh2gba/neoaprs/releases";
@@ -30,7 +31,7 @@ function fileName(path: string): string {
 
 /** Quits and starts again: a service is restarted with `command`, a program started by hand is quit and started. */
 function restart(service: boolean, command: string): Step {
-  return service ? { text: "Restart the service", command } : { text: "Quit NeoAPRS and start it again" };
+  return service ? { text: t("help.update.restart_service"), command } : { text: t("help.update.restart") };
 }
 
 /** The steps to the version `version` for a copy installed as `install`; null while the daemon has not said how (then the release page is all there is). */
@@ -39,20 +40,19 @@ export function updateHelp(install: InstallInfo | null, version: string): Update
     case "windows-installer":
       return {
         steps: [
-          { text: "Download the installer", link: { href: installerUrl(version), label: `NeoAPRS-Setup-${version}.exe` } },
-          { text: "Run it: it replaces the running NeoAPRS and starts it again" },
+          { text: t("help.update.download_installer"), link: { href: installerUrl(version), label: `NeoAPRS-Setup-${version}.exe` } },
+          { text: t("help.update.run_installer") },
         ],
       };
     case "appimage": {
       const file = `./${appImageName(version)}`;
       const steps: Step[] = [
-        { text: "Download the new file", link: { href: appImageUrl(version), label: appImageName(version) } },
-        { text: "Make it executable", command: `chmod +x ${appImageName(version)}` },
-        { text: "Quit NeoAPRS and start the new file", command: file },
+        { text: t("help.update.download_file"), link: { href: appImageUrl(version), label: appImageName(version) } },
+        { text: t("help.update.make_executable"), command: `chmod +x ${appImageName(version)}` },
+        { text: t("help.update.start_file"), command: file },
       ];
-      if (install.service)
-        steps.push({ text: "A service runs the old file: from where you keep the new one, run this once", command: `${file} service install` });
-      if (install.appimage) steps.push({ text: `Delete the old file, ${fileName(install.appimage)}` });
+      if (install.service) steps.push({ text: t("help.update.service_file"), command: `${file} service install` });
+      if (install.appimage) steps.push({ text: t("help.update.delete_old", { name: fileName(install.appimage) }) });
       return { steps };
     }
     case "deb": {
@@ -61,32 +61,32 @@ export function updateHelp(install: InstallInfo | null, version: string): Update
       return {
         steps: [
           install.arch
-            ? { text: "Download the new package", link: { href: debUrl(version, install.arch), label: file } }
-            : { text: "Download the package for your machine from the release page", link: { href: releaseNotes(version), label: `NeoAPRS ${version}` } },
-          { text: "Install it over the old one", command: `sudo apt install ./${file}` },
+            ? { text: t("help.update.download_package"), link: { href: debUrl(version, install.arch), label: file } }
+            : { text: t("help.update.download_package_here"), link: { href: releaseNotes(version), label: `NeoAPRS ${version}` } },
+          { text: t("help.update.install_package"), command: `sudo apt install ./${file}` },
           restart(install.service, "systemctl --user restart neoaprs"),
         ],
       };
     }
     case "uv-tool":
-      return { steps: [{ text: "Run the install line again: it updates NeoAPRS and restarts its service", command: INSTALL_LINE }] };
+      return { steps: [{ text: t("help.update.install_line"), command: INSTALL_LINE }] };
     case "pip":
       return {
         steps: [
-          { text: "In its environment", command: "pip install -U neoaprs" },
-          { text: "or, with uv", command: "uv pip install -U neoaprs" },
+          { text: t("help.update.in_environment"), command: "pip install -U neoaprs" },
+          { text: t("help.update.or_uv"), command: "uv pip install -U neoaprs" },
           restart(install.service, "neoaprs service install"),
         ],
       };
     case "source":
       return {
         steps: [
-          { text: "In the folder of the clone", command: "git pull" },
-          { text: "Bring the environment up to date", command: "uv sync" },
+          { text: t("help.update.in_clone"), command: "git pull" },
+          { text: t("help.update.sync"), command: "uv sync" },
           restart(install.service, "systemctl --user restart neoaprs"),
         ],
       };
     default:
-      return { steps: [{ text: "Get the new version from the release page", link: { href: releaseNotes(version), label: `NeoAPRS ${version}` } }] };
+      return { steps: [{ text: t("help.update.release_page"), link: { href: releaseNotes(version), label: `NeoAPRS ${version}` } }] };
   }
 }

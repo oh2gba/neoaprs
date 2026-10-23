@@ -1,6 +1,7 @@
 // The Check now button of the Update check group: it asks the daemon to put the question of the daily check to the version page at once (`update_check`) and shows the answer (`update_result`) beside the button for a few seconds. The button waits while the
 // question is out; the daemon answers whether the daily check is on or not.
 import { onScopeDispose, ref, shallowRef, watch, type Ref } from "vue";
+import { t } from "@/i18n";
 import type { Toast } from "@/composables/useDaemon";
 import { reasonOf } from "@/lib/settings";
 import type { Command, UpdateResultMessage } from "@/protocol/protocol";
@@ -15,9 +16,9 @@ export interface Outcome {
 
 /** The answer in a few words. */
 export function outcomeOf(message: UpdateResultMessage): Outcome {
-  if (message.outcome === "newer") return { text: `${message.version} available`, newer: true };
-  if (message.outcome === "current") return { text: `up to date (${message.version})`, newer: false };
-  return { text: message.text || "no answer", newer: false };
+  if (message.outcome === "newer") return { text: t("settings.update.available", { version: message.version }), newer: true };
+  if (message.outcome === "current") return { text: t("settings.update.current", { version: message.version }), newer: false };
+  return { text: message.text || t("settings.update.no_answer"), newer: false };
 }
 
 export function useUpdateCheck(updateResult: Ref<UpdateResultMessage | null>, lastError: Ref<Toast | null>, send: (command: Command) => boolean) {

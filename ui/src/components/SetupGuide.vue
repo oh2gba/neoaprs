@@ -9,8 +9,9 @@ import SetupMap from "@/components/SetupMap.vue";
 import SetupPosition from "@/components/SetupPosition.vue";
 import SetupRadio from "@/components/SetupRadio.vue";
 import SetupSymbol from "@/components/SetupSymbol.vue";
+import { t } from "@/i18n";
 import { useDaemonContext } from "@/composables/useDaemonContext";
-import { LAST_STEP, STEP_TITLES } from "@/lib/setup";
+import { LAST_STEP, STEP_COUNT, stepTitle } from "@/lib/setup";
 
 const { guide } = useDaemonContext();
 const root = ref<HTMLElement | null>(null);
@@ -34,29 +35,29 @@ watch(
 </script>
 
 <template>
-  <section v-if="guide.open" ref="root" class="setup" :class="{ peeking: guide.peeking }" role="dialog" aria-label="Setup">
+  <section v-if="guide.open" ref="root" class="setup" :class="{ peeking: guide.peeking }" role="dialog" :aria-label="t('setup.title')">
     <form novalidate @submit.prevent="guide.next()">
       <header class="setup-head">
         <h2>
-          Setup<span class="setup-step-name">{{ STEP_TITLES[guide.step] }}</span>
+          {{ t("setup.title") }}<span class="setup-step-name">{{ stepTitle(guide.step) }}</span>
         </h2>
         <ol class="setup-steps">
-          <li v-for="(title, i) in STEP_TITLES" :key="title">
+          <li v-for="i in STEP_COUNT" :key="i">
             <button
               type="button"
               class="setup-dot"
-              :class="{ active: i === guide.step, done: i <= guide.reached && guide.valid[i] && i !== guide.step }"
-              :aria-current="i === guide.step ? 'step' : undefined"
-              :aria-label="`${i + 1} ${title}`"
-              :title="title"
-              @click="guide.go(i)"
+              :class="{ active: i - 1 === guide.step, done: i - 1 <= guide.reached && guide.valid[i - 1] && i - 1 !== guide.step }"
+              :aria-current="i - 1 === guide.step ? 'step' : undefined"
+              :aria-label="t('setup.step_label', { n: i, title: stepTitle(i - 1) })"
+              :title="stepTitle(i - 1)"
+              @click="guide.go(i - 1)"
             >
-              {{ i + 1 }}
+              {{ i }}
             </button>
           </li>
         </ol>
-        <button v-if="guide.peeking" type="button" class="btn small" @click="guide.peek(false)">Done</button>
-        <IconButton kind="close" class="setup-close" label="Close" @click="guide.close()" />
+        <button v-if="guide.peeking" type="button" class="btn small" @click="guide.peek(false)">{{ t("setup.done") }}</button>
+        <IconButton kind="close" class="setup-close" :label="t('setup.close')" @click="guide.close()" />
       </header>
       <div class="setup-body">
         <SetupCall v-if="guide.step === 0" />
@@ -66,9 +67,9 @@ watch(
         <SetupMap v-else />
       </div>
       <footer class="setup-foot">
-        <button v-if="guide.step > 0" type="button" class="btn" @click="guide.back()">Back</button>
+        <button v-if="guide.step > 0" type="button" class="btn" @click="guide.back()">{{ t("setup.back") }}</button>
         <button type="submit" class="btn primary" :disabled="!guide.valid[guide.step] || guide.saving">
-          {{ guide.step < LAST_STEP ? "Next" : guide.saving ? "Saving..." : "Finish" }}
+          {{ guide.step < LAST_STEP ? t("setup.next") : guide.saving ? t("setup.saving") : t("setup.finish") }}
         </button>
       </footer>
     </form>

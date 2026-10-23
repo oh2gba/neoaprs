@@ -10,7 +10,7 @@ import {
   setupChanges,
   stepOk,
   stepProblems,
-  STEP_TITLES,
+  STEP_COUNT,
   type FieldName,
   type Problems,
   type SetupFields,
@@ -25,10 +25,10 @@ export function useSetupAnswers(values: Ref<Record<string, string>>, search: Ref
 
   const tcp = computed(() => profileOf(fields.profile)?.transport === "tcp");
   const changes = computed(() => setupChanges(fields, values.value));
-  const valid = computed(() => STEP_TITLES.map((_, i) => stepOk(i, fields, search.value)));
+  const valid = computed(() => Array.from({ length: STEP_COUNT }, (_, i) => stepOk(i, fields, search.value)));
   const problems = computed<Problems>(() => {
     const found: Problems = {};
-    STEP_TITLES.forEach((_, i) => Object.assign(found, stepProblems(i, fields)));
+    for (let i = 0; i < STEP_COUNT; i++) Object.assign(found, stepProblems(i, fields));
     const locator = locatorProblem(fields.locator);
     return { ...found, ...(locator ? { locator } : {}), ...errors };
   });

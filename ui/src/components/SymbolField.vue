@@ -4,19 +4,20 @@
 // `commit` says a symbol is final: one picked from the picker, or the letter when its field is left or Enter is pressed (the Beacon tab applies it then).
 import { computed, nextTick, ref } from "vue";
 import SymbolIcon from "@/components/SymbolIcon.vue";
+import { t } from "@/i18n";
 import SymbolPicker from "@/components/SymbolPicker.vue";
 import { overlayOf, symbolName, tableWithOverlay, takesOverlay } from "@/lib/symbolpicker";
 
 const props = withDefaults(defineProps<{ id: string; symbol: string; label?: string; button?: string; changed?: boolean }>(), {
-  label: "Symbol",
-  button: "Change",
+  label: undefined,
+  button: undefined,
   changed: false,
 });
 const emit = defineEmits<{ "update:symbol": [value: string]; commit: [] }>();
 
 const table = computed(() => props.symbol.slice(0, 1));
 const code = computed(() => props.symbol.slice(1, 2));
-const name = computed(() => symbolName(table.value, code.value) || "No symbol");
+const name = computed(() => symbolName(table.value, code.value) || t("settings.symbol.none"));
 const overlay = computed(() => takesOverlay(table.value, code.value));
 const open = ref(false);
 const change = ref<HTMLButtonElement | null>(null);
@@ -41,13 +42,13 @@ function typed(event: Event): void {
 
 <template>
   <div class="field" :class="{ changed }">
-    <label :for="`${id}-change`">{{ label }}</label>
+    <label :for="`${id}-change`">{{ label ?? t("settings.symbol.label") }}</label>
     <div class="field-control symbolfield">
       <SymbolIcon :table="table" :code="code" :size="32" />
       <span class="symbolfield-name">{{ name }}</span>
-      <button :id="`${id}-change`" ref="change" class="btn" type="button" @click="open = true">{{ button }}</button>
+      <button :id="`${id}-change`" ref="change" class="btn" type="button" @click="open = true">{{ button ?? t("settings.symbol.change") }}</button>
       <label v-if="overlay" class="symbolfield-over muted">
-        Letter or digit on it
+        {{ t("settings.symbol.overlay") }}
         <input
           class="input"
           type="text"

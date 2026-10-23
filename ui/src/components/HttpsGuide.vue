@@ -4,6 +4,8 @@
 // continue past the browser's warning (not shown on the secure page itself, or where the caller has said the link is above).
 import { computed, ref } from "vue";
 import CopyField from "@/components/CopyField.vue";
+import RichMessage from "@/components/RichMessage.vue";
+import { t } from "@/i18n";
 import { CERT_FILE, CERT_PATH, DEVICES, STEPS, deviceOf, secureUrl, type Device } from "@/lib/httpshelp";
 import type { HttpsState } from "@/protocol/protocol";
 
@@ -16,21 +18,27 @@ const onSecurePage = location.protocol === "https:";
 </script>
 
 <template>
-  <section class="httpsguide" aria-label="Install the certificate">
+  <section class="httpsguide" :aria-label="t('help.https.label')">
     <div class="httpsguide-head">
-      <a class="btn" :href="CERT_PATH" :download="CERT_FILE">Download certificate</a>
-      <label for="https-device">for</label>
+      <a class="btn" :href="CERT_PATH" :download="CERT_FILE">{{ t("help.https.download") }}</a>
+      <label for="https-device">{{ t("help.https.for_device") }}</label>
       <select id="https-device" v-model="device" class="input">
         <option v-for="d in DEVICES" :key="d.value" :value="d.value">{{ d.label }}</option>
       </select>
     </div>
     <div class="httpsguide-print">
-      <span class="muted">Fingerprint</span>
+      <span class="muted">{{ t("help.https.fingerprint") }}</span>
       <CopyField :text="https.fingerprint" />
     </div>
     <ol class="popuphelp-steps">
       <li v-for="step in steps" :key="step">{{ step }}</li>
     </ol>
-    <p v-if="link && !onSecurePage" class="popuphelp-plain">Or just <a :href="url">open the secure page</a> and continue past the warning.</p>
+    <p v-if="link && !onSecurePage" class="popuphelp-plain">
+      <RichMessage id="help.https.or_just"
+        ><template #link
+          ><a :href="url">{{ t("help.https.open_secure") }}</a></template
+        ></RichMessage
+      >
+    </p>
   </section>
 </template>

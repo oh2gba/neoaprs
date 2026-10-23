@@ -1,30 +1,42 @@
 // The first-run guide's rules (components/SetupGuide.vue): the steps, the symbols it offers, what is wrong with each field as it is typed, and which settings its answers change. The daemon checks
 // everything again when the guide saves; this keeps the user from sending what it would refuse, and the page from sending a key whose value is the one the daemon has.
+import { t } from "@/i18n";
+import type { MessageId } from "@/i18n/catalogue";
 import { normalizeCall } from "@/lib/calls";
 import { callOk, parseNumber, problemOf, symbolProblem } from "@/lib/fieldcheck";
+import { lazyText } from "@/lib/lazytext";
 import { locatorToPosition, positionToLocator } from "@/lib/locator";
 import { portForProfile, speedFallback, type Choice } from "@/lib/settings";
 import { TNC_PROFILES } from "@/protocol/lists";
 import type { PortsMessage } from "@/protocol/protocol";
 
-export const STEP_TITLES = ["Call", "Position", "Symbol", "Radio", "Map"] as const;
-export const LAST_STEP = STEP_TITLES.length - 1;
+const STEP_IDS: readonly MessageId[] = ["setup.step.call", "setup.step.position", "setup.step.symbol", "setup.step.radio", "setup.step.map"];
+export const STEP_COUNT = STEP_IDS.length;
+export const LAST_STEP = STEP_COUNT - 1;
+
+/** The name of a step, in the language of the page. */
+export const stepTitle = (step: number): string => {
+  const id = STEP_IDS[step];
+  return id === undefined ? "" : t(id);
+};
 
 /** The 12 symbols most stations use, in the primary table. */
-export const SYMBOL_CHOICES = [
-  { table: "/", code: "-", name: "House" },
-  { table: "/", code: ">", name: "Car" },
-  { table: "/", code: "k", name: "Truck" },
-  { table: "/", code: "v", name: "Van" },
-  { table: "/", code: "<", name: "Motorcycle" },
-  { table: "/", code: "b", name: "Bike" },
-  { table: "/", code: "[", name: "Walker" },
-  { table: "/", code: "s", name: "Boat" },
-  { table: "/", code: "#", name: "Digipeater" },
-  { table: "/", code: "_", name: "Weather station" },
-  { table: "/", code: ";", name: "Portable" },
-  { table: "/", code: "r", name: "Antenna" },
-] as const;
+export const SYMBOL_CHOICES: readonly { readonly table: "/"; readonly code: string; readonly name: string }[] = (
+  [
+    ["-", "setup.symbol.house"],
+    [">", "setup.symbol.car"],
+    ["k", "setup.symbol.truck"],
+    ["v", "setup.symbol.van"],
+    ["<", "setup.symbol.motorcycle"],
+    ["b", "setup.symbol.bike"],
+    ["[", "setup.symbol.walker"],
+    ["s", "setup.symbol.boat"],
+    ["#", "setup.symbol.digipeater"],
+    ["_", "setup.symbol.weather_station"],
+    [";", "setup.symbol.portable"],
+    ["r", "setup.symbol.antenna"],
+  ] as const satisfies readonly (readonly [string, MessageId])[]
+).map(([code, id]) => lazyText({ table: "/" as const, code }, { name: () => t(id) }));
 
 /** What the guide asks, as text the way it is typed. */
 export interface SetupFields {
@@ -188,7 +200,7 @@ export function setupChanges(f: SetupFields, values: Readonly<Record<string, str
 
 /** The ports to pick from, as a choice: "Automatic" first where the daemon looks for the radio itself, else a blank to say none is picked; each port with what the system calls it. */
 export function portChoices(ports: PortsMessage | null): Choice[] {
-  const first: Choice = ports?.search === false ? { value: "", label: "-" } : { value: "", label: "Automatic" };
+  const first: Choice = ports?.search === false ? { value: "", label: "-" } : { value: "", label: t("setup.port_automatic") };
   const rows = (ports?.ports ?? []).map((p) => ({
     value: p.device,
     label: p.description && p.description !== "n/a" && p.description !== p.device ? `${p.device} - ${p.description}` : p.device,
@@ -208,5 +220,5 @@ const LOCATOR_FROM = 6; // a locator of fewer characters is still being typed
 /** The locator field's own problem: it is said once there are 6 characters and they are not one (7 is a locator of 8 on the way). */
 export function locatorProblem(text: string): string {
   const typed = text.trim();
-  return typed.length >= LOCATOR_FROM && typed.length !== 7 && locatorToPosition(typed) === null ? "Not a locator" : "";
+  return typed.length >= LOCATOR_FROM && typed.length !== 7 && locatorToPosition(typed) === null ? t("setup.not_locator") : "";
 }

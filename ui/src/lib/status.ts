@@ -1,12 +1,16 @@
 // Where our status report comes from, as the Status group of the Beacon tab shows it: nothing, a text of our own, or the frequency and mode of the radio (rigctld). The daemon keeps this in `status/source`;
 // while that is empty it is what the other settings say, as the daemon works it out (Config.status_choice of neoaprs/config.py): the radio when `status/rigctld` is set, else the text when there is one, else nothing.
 
+import { t } from "@/i18n";
+import { lazyText } from "@/lib/lazytext";
+
 export type StatusSource = "off" | "text" | "rig";
 
-export const STATUS_CHOICES: readonly { value: StatusSource; label: string }[] = [
-  { value: "off", label: "off" },
-  { value: "text", label: "a text of my own" },
-  { value: "rig", label: "the frequency from my radio (rigctld)" },
+/** The sources the status can come from, each with the words it is shown as. */
+export const STATUS_CHOICES: readonly { value: StatusSource; readonly label: string }[] = [
+  lazyText({ value: "off" as const }, { label: () => t("settings.status_source.off") }),
+  lazyText({ value: "text" as const }, { label: () => t("settings.status_source.text") }),
+  lazyText({ value: "rig" as const }, { label: () => t("settings.status_source.rig") }),
 ];
 
 /** The source the settings (key to text, as a form holds them) make. */

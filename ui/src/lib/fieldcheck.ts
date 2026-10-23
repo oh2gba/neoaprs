@@ -1,6 +1,7 @@
 // What the page checks of a value before it sends it, for the settings form (once the person has finished the field: Enter, or leaving it) and for the first-run guide (as it is typed): enough to keep a half-typed call, position or
 // number from going to the daemon. Every figure is LIMITS (the daemon's own constants); the rules that are code are held to the daemon's by ui/src/protocol/vectors.json. The daemon checks every value again against the settings
 // in force (and the rules between settings: the comment against the power, the status against the rigctld, the port against the radio type); its refusal is shown under the field.
+import { t } from "@/i18n";
 import { baseCall, mayTransmitAs, normalizeCall, parsePath, placeholderCall } from "@/lib/calls";
 import { LIMITS, SYMBOL_TABLES } from "@/protocol/lists";
 
@@ -23,9 +24,9 @@ export function parseNumber(text: string): number | null {
 function wholeProblem(key: string, text: string, quiet: boolean): string {
   const { min, max } = LIMITS.range[key as keyof typeof LIMITS.range];
   const value = text.trim();
-  if (value === "") return WHOLE[key] || quiet ? "" : `${min} to ${max}`;
+  if (value === "") return WHOLE[key] || quiet ? "" : t("settings.check.range", { min, max });
   const n = /^\d+$/.test(value) ? Number(value) : NaN;
-  return n >= min && n <= max ? "" : `${min} to ${max}`;
+  return n >= min && n <= max ? "" : t("settings.check.range", { min, max });
 }
 
 /** Whether a latitude and a longitude are a place on the earth (the settings' limits). */
@@ -37,8 +38,8 @@ export function onEarth(lat: number, lon: number): boolean {
 /** What is wrong with a call as it stands, or "" when it is fine (or still empty: Next waits for it, but nothing is said yet). A placeholder such as N0CALL is the call the programs ship with, never a call. */
 export function callProblem(text: string): string {
   if (text.trim() === "") return "";
-  if (placeholderCall(text)) return `${baseCall(text)} is not a call`;
-  return mayTransmitAs(text) ? "" : "Not a call";
+  if (placeholderCall(text)) return t("settings.check.placeholder_call", { call: baseCall(text) });
+  return mayTransmitAs(text) ? "" : t("settings.check.not_call");
 }
 
 export function callOk(text: string): boolean {
@@ -49,17 +50,17 @@ export function callOk(text: string): boolean {
 export function degreesProblem(text: string, limit: number): string {
   if (text.trim() === "") return "";
   const value = parseNumber(text);
-  if (value === null) return "Not a number";
-  return Math.abs(value) <= limit ? "" : `Between -${limit} and ${limit}`;
+  if (value === null) return t("settings.check.not_number");
+  return Math.abs(value) <= limit ? "" : t("settings.check.between", { limit });
 }
 
 export function symbolProblem(text: string): string {
   if (text === "") return "";
   const table = text[0] ?? "";
   const code = text[1] ?? "";
-  if (text.length !== 2) return "Table and code";
-  if (!SYMBOL_TABLES.includes(table)) return "Table: / \\ 0-9 A-Z";
-  return code >= "!" && code <= "~" ? "" : "Code: one printable character";
+  if (text.length !== 2) return t("settings.check.symbol_length");
+  if (!SYMBOL_TABLES.includes(table)) return t("settings.check.symbol_table");
+  return code >= "!" && code <= "~" ? "" : t("settings.check.symbol_code");
 }
 
 /** What is wrong with the text of a setting as it stands, or "" when the page has nothing against it (the daemon may still refuse it). `quiet`: an empty field says nothing, whether or not the setting needs a value (the guide:
@@ -74,9 +75,9 @@ export function problemOf(key: string, text: string, quiet = false): string {
     case "station/lon":
       return degreesProblem(text, LIMITS.range["station/lon"].max);
     case "tcp/host":
-      return (text.trim() === "" && !quiet) || /\s/.test(text.trim()) ? "Not an address" : "";
+      return (text.trim() === "" && !quiet) || /\s/.test(text.trim()) ? t("settings.check.not_address") : "";
     case "beacon/path":
-      return parsePath(text) === null ? `Calls separated by commas, ${LIMITS.path.maxCalls} at the most` : "";
+      return parsePath(text) === null ? t("settings.check.path", { max: LIMITS.path.maxCalls }) : "";
     default:
       return "";
   }
@@ -98,7 +99,7 @@ export function pairProblems(keys: readonly string[], texts: Readonly<Record<str
   if (!keys.includes("station/lat") || !keys.includes("station/lon")) return {};
   const lat = (texts["station/lat"] ?? "").trim();
   const lon = (texts["station/lon"] ?? "").trim();
-  if (lat !== "" && lon === "") return { "station/lon": "Needed with the latitude" };
-  if (lon !== "" && lat === "") return { "station/lat": "Needed with the longitude" };
+  if (lat !== "" && lon === "") return { "station/lon": t("settings.check.needs_latitude") };
+  if (lon !== "" && lat === "") return { "station/lat": t("settings.check.needs_longitude") };
   return {};
 }

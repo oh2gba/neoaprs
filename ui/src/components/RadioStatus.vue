@@ -3,7 +3,8 @@
 // the counters are its hover title), the problem when the line does not already say it, and Reconnect. "Terminal" is closed until it is wanted: the latest lines of what the TNC saw and did, newest last, in the viewer's time, following the end unless it was scrolled up.
 import { computed, nextTick, ref, watch } from "vue";
 import DisclosureBox from "@/components/DisclosureBox.vue";
-import { lineText, searchedPorts, tncCounts, tncStatus } from "@/lib/tncstatus";
+import { t } from "@/i18n";
+import { lineText, searchedPorts, stateText, tncCounts, tncStatus } from "@/lib/tncstatus";
 import type { TncState } from "@/protocol/protocol";
 
 const props = withDefaults(defineProps<{ tnc: TncState | null; now: number; digipeater?: boolean }>(), { digipeater: false });
@@ -37,18 +38,18 @@ async function opened(): Promise<void> {
 <template>
   <div v-if="tnc" class="radiostatus">
     <div class="radiostatus-head">
-      <span class="statepill" :class="`tnc-${tnc.state}`">{{ tnc.state }}</span>
-      <button class="btn" type="button" @click="emit('reconnect')">Reconnect</button>
+      <span class="statepill" :class="`tnc-${tnc.state}`">{{ stateText(tnc.state) }}</span>
+      <button class="btn" type="button" @click="emit('reconnect')">{{ t("settings.tnc.reconnect") }}</button>
     </div>
     <p class="tncstatus" role="status" :title="tncCounts(tnc)">{{ status }}</p>
-    <DisclosureBox v-if="ports" title="Ports">
+    <DisclosureBox v-if="ports" :title="t('settings.tnc.ports')">
       <ul class="tncports mono">
         <li v-for="port in ports" :key="port">{{ port }}</li>
       </ul>
     </DisclosureBox>
     <p v-if="problem" class="problem" role="status">{{ problem }}</p>
-    <DisclosureBox title="Terminal" @toggle="opened">
-      <pre ref="log" class="tnclines" aria-label="What the TNC saw and did">{{ lines.join("\n") }}</pre>
+    <DisclosureBox :title="t('settings.tnc.terminal')" @toggle="opened">
+      <pre ref="log" class="tnclines" :aria-label="t('settings.tnc.terminal_label')">{{ lines.join("\n") }}</pre>
     </DisclosureBox>
   </div>
 </template>

@@ -4,6 +4,7 @@
 import InfoTip from "@/components/InfoTip.vue";
 import MapFetchPanel from "@/components/MapFetchPanel.vue";
 import SettingsField from "@/components/SettingsField.vue";
+import { t } from "@/i18n";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { FIELDS, type FieldInfo } from "@/lib/settings";
 import { computed } from "vue";
@@ -26,10 +27,10 @@ const minutes = computed(() => Number(guide.changes["beacon/interval_min"] ?? co
   />
   <MapFetchPanel v-if="map" :map="map" :stale="guide.saving || !guide.valid[3] || !guide.valid[4]" early :send="guide.sendMap" />
   <p v-if="minutes > 0" class="setup-beacon muted">
-    Beacon every {{ minutes }} min
-    <InfoTip label="About the beacon">
-      <span class="info-line">NeoAPRS sends your position at this interval, so that other stations see you on their map.</span>
-      <span class="info-line">Change it, or switch it off, on the Beacon tab.</span>
+    {{ t("setup.beacon_every", { minutes }) }}
+    <InfoTip :label="t('setup.beacon_tip_label')">
+      <span class="info-line">{{ t("setup.beacon_tip1") }}</span>
+      <span class="info-line">{{ t("setup.beacon_tip2") }}</span>
     </InfoTip>
   </p>
 </template>

@@ -3,6 +3,7 @@
 // (the profile's own is the placeholder), or for KISS over TCP the host and the port.
 import { computed } from "vue";
 import SettingsField from "@/components/SettingsField.vue";
+import { t } from "@/i18n";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { FIELDS, speedFallback, type FieldInfo } from "@/lib/settings";
 import { portChoices } from "@/lib/setup";
@@ -10,7 +11,7 @@ import { portChoices } from "@/lib/setup";
 const { guide, config } = useDaemonContext();
 const defaults = computed<Record<string, string>>(() => config.value?.defaults ?? {});
 const fields = computed(() => guide.fields);
-const portInfo = computed(() => ({ label: "Port", kind: "choice" as const, choices: portChoices(guide.ports) }));
+const portInfo = computed(() => ({ label: t("settings.port.label"), kind: "choice" as const, choices: portChoices(guide.ports) }));
 const fallback = (key: string): string => defaults.value[key] ?? "";
 const info = (key: string): FieldInfo => FIELDS[key] ?? { label: key };
 const err = (field: keyof typeof fields.value): string => guide.problems[field] ?? "";
@@ -57,7 +58,7 @@ const err = (field: keyof typeof fields.value): string => guide.problems[field] 
       @update:model-value="guide.edit('port', $event)"
     >
       <template #after>
-        <button type="button" class="btn" @click="guide.refreshPorts()">Refresh</button>
+        <button type="button" class="btn" @click="guide.refreshPorts()">{{ t("settings.port.refresh") }}</button>
       </template>
     </SettingsField>
     <SettingsField

@@ -3,6 +3,7 @@
 // The longer explanation of each way is in the manual (Updating).
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import IconButton from "@/components/IconButton.vue";
+import { t } from "@/i18n";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { copyText } from "@/lib/clipboard";
 import { releaseNotes, updateHelp } from "@/lib/update";
@@ -21,7 +22,7 @@ async function copy(command: string): Promise<void> {
   clearTimeout(timer);
   timer = setTimeout(() => (copied.value = null), 2000);
 }
-const label = (command: string): string => (copied.value?.command !== command ? "Copy" : copied.value.ok ? "Copied" : "Not copied");
+const label = (command: string): string => t(copied.value?.command !== command ? "help.copy" : copied.value.ok ? "help.copied" : "help.not_copied");
 
 function onKey(event: KeyboardEvent): void {
   if (event.key === "Escape" && !event.defaultPrevented) emit("close");
@@ -34,13 +35,13 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="updatepanel" role="dialog" :aria-label="`Update to ${version}`">
+  <section class="updatepanel" role="dialog" :aria-label="t('help.update.title', { version })">
     <header class="updatepanel-head">
-      <h2>Update to {{ version }}</h2>
-      <IconButton kind="close" label="Close" @click="emit('close')" />
+      <h2>{{ t("help.update.title", { version }) }}</h2>
+      <IconButton kind="close" :label="t('help.close')" @click="emit('close')" />
     </header>
     <p class="updatepanel-news">
-      <a :href="releaseNotes(version)" target="_blank" rel="noopener noreferrer">What is new</a>
+      <a :href="releaseNotes(version)" target="_blank" rel="noopener noreferrer">{{ t("help.update.news") }}</a>
     </p>
     <ol class="updatepanel-steps">
       <li v-for="step in help.steps" :key="step.text + (step.command ?? '')">
@@ -52,8 +53,6 @@ onBeforeUnmount(() => {
         </span>
       </li>
     </ol>
-    <p class="muted updatepanel-foot">
-      Your data (settings, messages, packets, the map) stays. Open pages load the new version by themselves after the update.
-    </p>
+    <p class="muted updatepanel-foot">{{ t("help.update.foot") }}</p>
   </section>
 </template>

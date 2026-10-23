@@ -4,6 +4,7 @@
 // the field is left (`commit`), and Esc (`cancel`) puts the port in force back.
 import { computed, ref, watch } from "vue";
 import SettingsField from "@/components/SettingsField.vue";
+import { t } from "@/i18n";
 import { PORT_OTHER, portOptions } from "@/lib/portchoice";
 import type { FieldInfo } from "@/lib/settings";
 import type { PortsMessage } from "@/protocol/protocol";
@@ -73,14 +74,14 @@ watch(
         spellcheck="false"
         :value="modelValue"
         :placeholder="info.empty"
-        aria-label="Port path"
+        :aria-label="t('settings.port.path_label')"
         @input="type"
         @blur="leave"
         @keydown.enter.prevent="emit('commit', null)"
         @keydown.esc="escape"
       />
-      <span v-else-if="modelValue === '' && found !== ''" class="muted port-found">found: {{ found }}</span>
-      <button type="button" class="btn" @click="emit('refresh')">Refresh</button>
+      <span v-else-if="modelValue === '' && found !== ''" class="muted port-found">{{ t("settings.port.found", { port: found }) }}</span>
+      <button type="button" class="btn" @click="emit('refresh')">{{ t("settings.port.refresh") }}</button>
     </template>
   </SettingsField>
 </template>

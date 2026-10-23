@@ -1,6 +1,7 @@
 // What the person is given of a change that applies as it is made (composables/useSettings.ts): a line for a screen reader ("Saved") and the latest change, which can be undone for a while. Nothing is shown beside the field: nothing on the page
 // may change size or move when a setting applies.
 import { getCurrentScope, onScopeDispose, ref, shallowRef } from "vue";
+import { t } from "@/i18n";
 import type { Request } from "@/composables/useSettingsQueue";
 import type { ConfigValues } from "@/protocol/protocol";
 
@@ -30,7 +31,7 @@ export function useSettingsFeedback() {
 
   /** The request was saved: a screen reader is told, and its change can be undone for a while (unless it changed nothing, or is an Undo itself, or more changes wait behind it: the toast covers the latest). */
   function saved(request: Request, now: ConfigValues, last: boolean): void {
-    say("Saved");
+    say(t("settings.saved"));
     const changed = request.keys.some((key) => request.previous[key] !== (now.values[key] ?? ""));
     if (!changed || request.undo || !last) return;
     dismissUndo();

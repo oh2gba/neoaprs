@@ -1,6 +1,7 @@
 // What the page tells a person about the secure connection (https): the hover text of its switch, the address of the secure page, where the daemon gives the certificate of NeoAPRS's own certificate authority, and the few steps to
 // make a device trust it, for the device this is. The steps are of the systems' own menus and only the person can walk them: a page can install nothing. Without the certificate the browser shows a warning the first time,
 // which can also be continued past.
+import { t } from "@/i18n";
 
 /** Where the daemon gives the authority's certificate, and the name the download has. */
 export const CERT_PATH = "/neoaprs-ca.crt";
@@ -28,39 +29,28 @@ export function deviceOf(userAgent: string, touchPoints = 0): Device {
   return "linux";
 }
 
-const FILE = `NeoAPRS-CA.crt`;
+const file = { file: CERT_FILE };
 
-/** The steps after the download, for each device. */
+/** The steps after the download, for each device, in the language of the page (the menus are the systems' own, in their words: a language gives the steps as its systems write them). They are made when read, so `STEPS.android` follows the language. */
 export const STEPS: Readonly<Record<Device, readonly string[]>> = {
-  android: [
-    'Open Settings → Security → Encryption & credentials → Install a certificate → CA certificate (or search the settings for "CA certificate").',
-    `Tap "Install anyway" and choose ${FILE} from Downloads.`,
-    "Open the secure page again.",
-  ],
-  ios: [
-    "Open this page in Safari, tap Download certificate and Allow.",
-    "Open Settings → Profile Downloaded → Install.",
-    'Open Settings → General → About → Certificate Trust Settings and switch on "NeoAPRS local CA".',
-  ],
-  windows: [
-    `Open ${FILE} → Install Certificate → Current User or Local Machine → Next.`,
-    'Choose "Place all certificates in the following store" → Browse → Trusted Root Certification Authorities → Next → Finish.',
-    "Restart the browser.",
-  ],
-  mac: [
-    `Open Keychain Access and import ${FILE} into the System keychain (File → Import Items).`,
-    'Double-click "NeoAPRS local CA", open Trust and choose Always Trust.',
-    "Restart the browser.",
-  ],
-  linux: [
-    "Open Settings → Privacy and security → Security → Manage certificates → Authorities.",
-    `Click Import, choose ${FILE} and tick "Trust this certificate for identifying websites".`,
-    "Restart the browser.",
-  ],
-  firefox: [
-    "Open Settings → Privacy & Security → Certificates → View Certificates → Authorities.",
-    `Click Import, choose ${FILE} and tick "Trust this CA to identify websites".`,
-  ],
+  get android() {
+    return [t("help.cert.android1"), t("help.cert.android2", file), t("help.cert.android3")];
+  },
+  get ios() {
+    return [t("help.cert.ios1"), t("help.cert.ios2"), t("help.cert.ios3")];
+  },
+  get windows() {
+    return [t("help.cert.windows1", file), t("help.cert.windows2"), t("help.cert.windows3")];
+  },
+  get mac() {
+    return [t("help.cert.mac1", file), t("help.cert.mac2"), t("help.cert.mac3")];
+  },
+  get linux() {
+    return [t("help.cert.linux1"), t("help.cert.linux2", file), t("help.cert.linux3")];
+  },
+  get firefox() {
+    return [t("help.cert.firefox1"), t("help.cert.firefox2", file)];
+  },
 };
 
 /** The secure page on the host the page was opened at (an IPv6 address already has its brackets in `location.hostname`). */

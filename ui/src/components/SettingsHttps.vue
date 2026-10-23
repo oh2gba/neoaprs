@@ -3,6 +3,7 @@
 // certificate on a device (HttpsGuide).
 import DisclosureBox from "@/components/DisclosureBox.vue";
 import HttpsGuide from "@/components/HttpsGuide.vue";
+import { t } from "@/i18n";
 import type { HttpsState } from "@/protocol/protocol";
 
 defineProps<{ https: HttpsState }>();
@@ -10,5 +11,5 @@ defineProps<{ https: HttpsState }>();
 
 <template>
   <p v-if="https.problem" class="field-error" role="alert">{{ https.problem }}</p>
-  <DisclosureBox v-if="https.on" title="Install the certificate on a device"><HttpsGuide :https="https" /></DisclosureBox>
+  <DisclosureBox v-if="https.on" :title="t('help.https.install_title')"><HttpsGuide :https="https" /></DisclosureBox>
 </template>

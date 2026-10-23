@@ -4,6 +4,7 @@
 // work for the radius and the detail it has in force; a setting that is still being saved (`stale`) disables the button for the moment, unless the form saves it before it sends the command (`early`, the first-run guide), in which case the
 // daemon having no position yet does not disable it either. A change of the radius takes the question back.
 import { computed, ref, watch } from "vue";
+import { t } from "@/i18n";
 import { useSure } from "@/composables/useSure";
 import { currentEstimate, downloadedLine, formatBytes, isRunning, progressText } from "@/lib/mapfetch";
 import type { Command, MapState } from "@/protocol/protocol";
@@ -13,7 +14,9 @@ const props = defineProps<{ map: MapState; stale: boolean; send: (command: Comma
 const running = computed(() => isRunning(props.map));
 const estimate = computed(() => currentEstimate(props.map));
 const idle = computed(() => !running.value && !props.stale && (props.early || props.map.blocked === ""));
-const why = computed(() => (props.stale ? (props.early ? undefined : "Saving…") : running.value || props.early ? undefined : props.map.blocked || undefined));
+const why = computed(() =>
+  props.stale ? (props.early ? undefined : t("settings.saving")) : running.value || props.early ? undefined : props.map.blocked || undefined,
+);
 /** The first press has been made and the size is not known yet. */
 const checking = ref(false);
 /** The size is known and the button asks "Download 493 MB?": the second press sends the download (it asks until it is answered or the question is taken back, no time limit). */
@@ -62,14 +65,14 @@ function press(): void {
 }
 const label = computed(() =>
   checking.value || props.map.state === "estimating"
-    ? "Checking size…"
+    ? t("settings.map.checking")
     : asking.value && estimate.value
-      ? `Download ${formatBytes(estimate.value.bytes)}?`
+      ? t("settings.map.download_size", { size: formatBytes(estimate.value.bytes) })
       : props.map.state === "downloading"
-        ? "Downloading…"
+        ? t("settings.map.downloading")
         : props.map.detail
-          ? "Download map again"
-          : "Download map",
+          ? t("settings.map.download_again")
+          : t("settings.map.download"),
 );
 const progress = computed(() => progressText(props.map));
 const done = computed(() => downloadedLine(props.map));
@@ -79,7 +82,7 @@ const done = computed(() => downloadedLine(props.map));
   <div class="mapfetch">
     <div class="mapfetch-actions">
       <button class="btn primary" :class="{ danger: asking }" type="button" :disabled="!idle || checking" :title="why" @click="press">{{ label }}</button>
-      <button v-if="running" class="btn" type="button" @click="send({ cmd: 'map_cancel' })">Cancel</button>
+      <button v-if="running" class="btn" type="button" @click="send({ cmd: 'map_cancel' })">{{ t("settings.map.cancel") }}</button>
     </div>
     <div v-if="running" class="mapfetch-progress">
       <progress max="100" :value="map.percent ?? undefined" :aria-label="progress"></progress>

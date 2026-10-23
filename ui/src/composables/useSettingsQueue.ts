@@ -1,6 +1,7 @@
 // The sending of `set_config` one request at a time (composables/useSettings.ts): the daemon's answer to it (the topic `config` told again, or an `error`) carries no id, so the next request waits until the one that is out
 // has been answered, and each answer belongs to exactly one request. A request the daemon does not answer in time is given up, so that the queue cannot stay stuck.
 import { computed, ref, shallowRef } from "vue";
+import { t } from "@/i18n";
 import type { Command } from "@/protocol/protocol";
 
 /** How long the daemon may take to answer a `set_config` before it is given up. */
@@ -36,8 +37,8 @@ export function useSettingsQueue(
     queue.value.shift();
     next.previous = Object.fromEntries(next.keys.map((key) => [key, inForce()[key] ?? ""]));
     inflight.value = next;
-    timer = setTimeout(() => give(next, "No answer from the daemon."), ANSWER_MS);
-    if (!send({ cmd: "set_config", values: { ...next.values } })) give(next, "Not sent: there is no connection to the daemon.");
+    timer = setTimeout(() => give(next, t("settings.no_answer")), ANSWER_MS);
+    if (!send({ cmd: "set_config", values: { ...next.values } })) give(next, t("settings.not_sent"));
   }
 
   function give(request: Request, reason: string): void {
