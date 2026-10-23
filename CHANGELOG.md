@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.6.5
+
 No new features: the wire between the daemon and the page is structured, the rules are written once, the code, the tests and the stylesheet are tidier, and the documents are readable.
 
 The wire contract.
