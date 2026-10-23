@@ -1,6 +1,5 @@
 """The queries and the message board inside the whole daemon, the radio a pseudo-terminal: a query to us gives the right frame on the line, a message to a bulletin or a group is on the board and not
 acked, ?APRSS answers with the status last sent, and the controller starts and stops the parts."""
-import asyncio
 import logging
 from dataclasses import replace
 from datetime import timedelta
@@ -11,15 +10,11 @@ import pytest
 from neoaprs.clock import utc
 from neoaprs.bulletin import BulletinRecord
 from tests.support.air import message_info, on_air, said
-from tests.support.env import Env, until
+from tests.support.env import Env, idle_for, quick_start, until
 
 
 async def started(tmp_path: Path, **changes: object) -> Env:
-    e = Env(tmp_path)
-    e.ctl.messaging.tick_sec = 0.02
-    e.ctl.rigstatus.poll_sec = 0.02
-    await e.start()
-    await asyncio.sleep(0.2)                                                # (the TNC has settled: nothing was said in command mode)
+    e = await quick_start(tmp_path, messaging=True, rigstatus=True)
     if changes:
         assert await e.ctl.save_config(replace(e.ctl.config, **changes))    # type: ignore[arg-type]
     return e
@@ -126,21 +121,21 @@ async def test_the_general_query_gives_our_position_after_the_wait_and_not_again
     e.ctl.queries._delay = lambda: 0.1                                     # (0 to 120 s in the field)
     e.feed(on_air("OH2RDG", b"?APRS?", path="OH2RCH-2*"))
     await heard(e, 1)
-    await asyncio.sleep(0.4)                                                # (said() blocks the loop: the wait runs out before it is read)
+    await idle_for(0.4)                                                # (said() blocks the loop: the wait runs out before it is read)
     [frame] = await said(e, 1, 2.0)
     assert frame.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=6010.20N/02456.40E-NeoAPRS"
     e.feed(on_air("OH2ABC", b"?APRS?"))
     await heard(e, 2)
-    await asyncio.sleep(0.4)
+    await idle_for(0.4)
     assert await said(e, 1, 0.2) == []
     e.now.advance(601)                                                      # type: ignore[attr-defined]
     e.feed(on_air("OH2ABC", message_info("ALL", "?APRS?")))                 # (a message with that text is no query)
     await heard(e, 3)
-    await asyncio.sleep(0.4)
+    await idle_for(0.4)
     assert await said(e, 1, 0.2) == []
     e.feed(on_air("OH2ABC", b"?APRS?V60.17,24.94,0010"))
     await heard(e, 4)
-    await asyncio.sleep(0.4)
+    await idle_for(0.4)
     assert len(await said(e, 1, 2.0)) == 1
     await e.stop()
 
@@ -197,7 +192,7 @@ async def test_a_restart_finds_the_board_and_nothing_ages_out(tmp_path: Path) ->
     await second.start()
     assert [b.key for b in second.ctl.bulletins.records()] == ["OH2XYZ/BLN1"]
     second.now.advance(30 * 86400)                                          # type: ignore[attr-defined]
-    await asyncio.sleep(0.2)
+    await idle_for(0.2)
     assert [b.key for b in second.ctl.bulletins.records()] == ["OH2XYZ/BLN1"]
     await second.stop()
 

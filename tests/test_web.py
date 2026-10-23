@@ -14,7 +14,7 @@ from neoaprs.clock import iso
 from neoaprs.config import DEFAULTS
 from neoaprs.source import Source
 from tests.support.air import ack_info, message_info, on_air, reject_info
-from tests.support.env import ON_AIR, OPERATOR, Env, until
+from tests.support.env import Env, idle_for, ON_AIR, OPERATOR, until
 from tests.support.wsclient import WsClient
 from neoaprs.web import handlers as web_handlers
 from neoaprs.web import server as web_server
@@ -333,7 +333,7 @@ async def test_tnc_reconnect_opens_the_line_again(tmp_path: Path) -> None:
 async def test_beacon_now_sends_our_position_and_the_pages_are_told_the_packet_and_the_status(tmp_path: Path) -> None:
     e = Env(tmp_path, web=True)
     await e.start()
-    await asyncio.sleep(0.2)                                                                            # (the TNC has settled)
+    await e.until_usable()                                                                            # (the TNC has settled)
     page = await e.ws()
     other = await e.ws()
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES) and len(page.of("status")) == 1)
@@ -366,7 +366,7 @@ async def test_beacon_now_while_the_tnc_is_not_connected_is_an_error_and_sends_n
 async def test_beacon_now_with_settings_that_make_no_frame_is_an_error(tmp_path: Path) -> None:
     e = Env(tmp_path, web=True)
     await e.start()
-    await asyncio.sleep(0.2)
+    await e.until_usable()
     assert await e.ctl.save_config(replace(e.ctl.config, station_comment="x" * 44))                     # (a row somebody edited by hand: the page's save would have refused it)
     page = await e.ws()
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
@@ -550,7 +550,7 @@ async def test_connections_are_capped_and_a_connection_over_the_cap_is_closed(tm
     e = Env(tmp_path, web=True)
     await e.start()
     held = [await asyncio.open_connection("127.0.0.1", e.port) for _ in range(3)]
-    await asyncio.sleep(0.1)                                              # (the server has taken them in)
+    await idle_for(0.1)                                              # (the server has taken them in)
     reader, writer = await asyncio.open_connection("127.0.0.1", e.port)
     writer.write(b"GET / HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n")
     assert await asyncio.wait_for(reader.read(100), 5) == b"", "closed without an answer"
@@ -568,7 +568,7 @@ async def with_page(tmp_path: Path) -> tuple[Env, WsClient]:
     e.ctl.messaging.pace.spacing_sec = 0.0
     e.ctl.bulletins.tick_sec = 0.02
     await e.start()
-    await asyncio.sleep(0.2)                                                                            # (the TNC has settled)
+    await e.until_usable()                                                                            # (the TNC has settled)
     page = await e.ws()
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
     return e, page
@@ -661,7 +661,7 @@ async def test_a_message_sent_while_the_tnc_is_not_connected_is_kept_and_goes_ou
     e = Env(tmp_path, web=True)
     e.ctl.messaging.tick_sec = 0.02
     await e.start()
-    await asyncio.sleep(0.2)
+    await e.until_usable()
     e.unplug()
     await until(lambda: e.tnc.state is Source.State.WAITING)
     page = await e.ws()

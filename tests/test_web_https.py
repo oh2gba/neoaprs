@@ -19,7 +19,7 @@ from neoaprs.web import access as web_access
 from neoaprs.web import secureside
 from neoaprs.web.access import COOKIE
 from neoaprs.web.tls import fingerprint_of
-from tests.support.env import Env, until
+from tests.support.env import Env, until, until_async
 from tests.support.wsclient import WsClient
 
 KEY = "k7m2-x9pq-4hrt"
@@ -99,11 +99,9 @@ async def names_served(e: Env) -> set[str]:
 
 
 async def until_served(e: Env, name: str) -> None:
-    for _ in range(100):
-        if name in await names_served(e):
-            return
-        await asyncio.sleep(0.05)
-    raise AssertionError(f"{name} did not come into the certificate")
+    async def served() -> bool:
+        return name in await names_served(e)
+    await until_async(served, 5.0)
 
 
 def names_of(cert: x509.Certificate) -> set[str]:

@@ -15,7 +15,7 @@ from neoaprs.services.alerts import Alerts, alert_environment
 from tests.support.alertcmd import MISSING_STATUS, SHORT_TIMEOUT_SEC, SURVIVOR_AFTER_SEC, TIMEOUT_SEC, WINDOWS, failing, missing_notifier, not_a_program, starting_a_survivor, then_succeeds, writing
 from tests.support.air import message_info, on_air, said
 from tests.support.clock import FixedClock
-from tests.support.env import Env, ON_AIR, remember_stop, until
+from tests.support.env import Env, idle_for, ON_AIR, remember_stop, until
 
 
 def record(text: str = "Moi, tulossa kahville?", msg_id: str | None = "12") -> MessageRecord:
@@ -142,7 +142,7 @@ async def test_a_command_that_runs_out_of_time_is_killed_with_what_it_started(tm
     rig.alerts.alert(record())
     await rig.finished()
     assert any(f"did not end within {SHORT_TIMEOUT_SEC:g} s" in r.getMessage() for r in caplog.records)
-    await asyncio.sleep(SURVIVOR_AFTER_SEC + 1.0)
+    await asyncio.sleep(SURVIVOR_AFTER_SEC + 1.0)                          # (the time the survivor would have taken to write its marker is the point)
     assert not marker.exists(), "the sleep the shell started was killed with it"
 
 
@@ -168,7 +168,7 @@ async def started(tmp_path: Path) -> tuple[Env, Path]:
     e = Env(tmp_path)
     out = tmp_path / "alert.txt"
     await e.start()
-    await asyncio.sleep(0.2)
+    await e.until_usable()
     assert await e.ctl.save_config(replace(e.ctl.config, messages_alert_command=writing(out)))
     return e, out
 
@@ -183,7 +183,7 @@ async def test_a_message_to_us_runs_the_alert_once_for_the_first_copy_only(tmp_p
     e.now.advance(15)                                                       # type: ignore[attr-defined]  (the same message by another digipeater: acked again, kept and announced once)
     e.feed(on_air("OH2RDG-7", message_info("OH2GBA", "Moi!", "12"), path="OH2RCH-3*"))
     await until(lambda: e.tnc.stats.packets == 2)
-    await asyncio.sleep(0.4)
+    await idle_for(0.4)
     assert not out.exists(), "the second copy runs nothing"
     await e.stop()
 
@@ -195,7 +195,7 @@ async def test_what_is_not_a_message_to_us_runs_nothing(tmp_path: Path) -> None:
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "?APRSP")))                       # a query
     e.feed(on_air("OH2RDG", message_info("OH2ABC", "Hello Pekka", "3")))             # a message to somebody else, overheard
     await until(lambda: e.tnc.stats.packets == 4)
-    await asyncio.sleep(0.4)
+    await idle_for(0.4)
     assert not out.exists()
     e.feed(on_air("OH2RDG", message_info("OH2GBA-9", "not ours", "4")))              # another SSID is another station
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "Now it is for us")))
@@ -207,7 +207,7 @@ async def test_what_is_not_a_message_to_us_runs_nothing(tmp_path: Path) -> None:
 async def test_a_broken_command_does_not_harm_the_daemon_and_the_message_is_kept_and_acked(tmp_path: Path) -> None:
     e = Env(tmp_path)
     await e.start()
-    await asyncio.sleep(0.2)
+    await e.until_usable()
     assert await e.ctl.save_config(replace(e.ctl.config, messages_alert_command="exit 9"))
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "Moi!", "12")))
     await until(lambda: e.tnc.stats.packets == 1)                           # (said() blocks the loop: it comes after the packet was heard)

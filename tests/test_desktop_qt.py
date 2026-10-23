@@ -211,3 +211,39 @@ def test_without_the_web_engine_window_there_is_a_tray_and_no_window(tmp_path: P
     assert built.window is None and not built.frame.has_window and built.tray is not None
     qtshell.fill_menu(built)
     assert [a.text() for a in built.entries] == ["Open NeoAPRS", "Quit (NeoAPRS keeps running as a service)"]
+
+
+def test_a_message_for_the_user_goes_to_the_log_where_there_is_no_tray_to_show_it(tmp_path: Path, qapp: QApplication, caplog: pytest.LogCaptureFixture) -> None:
+    ctx = ShellContext(Session(tmp_path, "http://127.0.0.1:7303/", owned=False), False, False, None, SingleApp(tmp_path), FakeDaemon(up=True))
+    built = qtshell.build(ctx, qapp)
+    assert not built.tray.isVisible()                                       # (the offscreen platform has no tray)
+    with caplog.at_level("WARNING", "neoaprs.desktop"):
+        built.frame.tell("the daemon was started")
+    assert [r.getMessage() for r in caplog.records] == ["the daemon was started"]
+
+
+def test_quitting_remembers_the_size_of_the_window_and_ends_the_app(rig: Rig, monkeypatch: pytest.MonkeyPatch) -> None:
+    ended: list[bool] = []
+    monkeypatch.setattr(QApplication, "quit", staticmethod(lambda: ended.append(True)))
+    rig.window.show()                                                       # (a window that is not shown reports nonsense: its size is not remembered)
+    rig.window.resize(1111, 666)
+    rig.built.frame.quit()
+    rig.window.hide()
+    assert ended == [True] and appstate.load_size(rig.data) == (1111, 666)
+
+
+def test_where_no_tray_comes_the_window_is_shown_when_the_wait_is_over(tmp_path: Path, qapp: QApplication, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    monkeypatch.setattr(qtshell, "TRAY_WAIT_SEC", 0.06)
+    monkeypatch.setattr(qtshell, "TRAY_POLL_MS", 20)
+    ctx = ShellContext(Session(tmp_path, "http://127.0.0.1:7303/", owned=False), False, False, None, SingleApp(tmp_path), FakeDaemon(up=True))
+    built = qtshell.build(ctx, qapp)
+    shown: list[bool] = []
+    built.actions.show = lambda: shown.append(True)                         # type: ignore[method-assign]
+    with caplog.at_level("WARNING", "neoaprs.desktop"):
+        qtshell.await_tray(built, built.tray)
+        spin(lambda: shown)
+    assert any("no system tray" in r.getMessage() for r in caplog.records)
+
+
+def test_the_app_that_runs_is_the_one_the_shell_uses(qapp: QApplication) -> None:
+    assert qtshell.application() is qapp

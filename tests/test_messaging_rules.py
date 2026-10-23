@@ -6,22 +6,13 @@ from pathlib import Path
 import pytest
 
 from neoaprs.message import MessageRecord, MessagingError
-from neoaprs.messagelog import MessageLog
 from neoaprs.source import Source
-from neoaprs.store import DB_NAME
-from tests.support.clock import FixedClock
-from tests.support.storedb import store_at
-from tests.test_messaging import Rig
+from tests.test_messaging import Rig, started_rig
 
 
 @pytest.fixture
 async def rig(tmp_path: Path) -> Rig:
-    clock = FixedClock()
-    store = await store_at(tmp_path / DB_NAME, clock)
-    assert store.db is not None
-    r = Rig(MessageLog(store.db, clock), clock)
-    await r.start()
-    return r
+    return await started_rig(tmp_path)
 
 
 def received(rig: Rig) -> list[tuple[str, str | None]]:

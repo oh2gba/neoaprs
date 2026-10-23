@@ -12,7 +12,7 @@ from neoaprs import ax25, kiss
 from neoaprs.source import Backoff, Source
 from neoaprs.tnc import ENTER_KISS, Tnc
 from neoaprs.tncprofile import BY_KEY, DEFAULT, KANTRONICS, KENWOOD_D710, KENWOOD_TNC2, KISS, KISS_EXIT, KISS_TCP, PROFILES, Profile, names_tcp, profile_of, tcp_url
-from tests.support.env import Env, until
+from tests.support.env import Env, idle_for, until
 from tests.support.fakeradio import FakeRadio
 from tests.support.ptyline import Ptys, heard, posix_only
 from tests.test_silent import QUICK
@@ -112,7 +112,7 @@ async def test_what_the_tnc_says_while_the_sequence_runs_is_thrown_away_and_it_i
     rest = await arrivals(r.radio, 4)
     assert [data for data, _ in first + rest] == [data for data, _ in KENWOOD_D710.enter], "the answer does not start another entry"
     r.radio.feed(kiss_of(ui_frame("OH2XXX")))                             # inside the settle time
-    await asyncio.sleep(0.4)
+    await idle_for(0.4)
     r.radio.feed(kiss_of(ui_frame("OH2BBB")))
     await until(lambda: r.packets)
     assert [p.source for p in r.packets] == ["OH2BBB"] and r.tnc.problem == "" and await r.radio.said(1, 0.3) == b""
@@ -132,7 +132,7 @@ async def test_the_tnc2_profile_writes_its_one_step_at_once_and_settles_for_sett
     r.radio.feed(MONITOR_LINE)
     assert await r.radio.said(len(ENTER_KISS)) == ENTER_KISS
     assert r.tnc.usable is False
-    await asyncio.sleep(0.5)
+    await until(lambda: r.tnc.usable)
     assert r.tnc.usable is True
 
 
@@ -149,7 +149,7 @@ async def test_the_check_of_the_d710_leaves_kiss_asks_and_enters_again_with_the_
 # ---- a profile that is sent nothing
 
 async def quiet_for(radio: FakeRadio, seconds: float) -> bytes:
-    await asyncio.sleep(seconds)
+    await idle_for(seconds)
     return await radio.said(1, 0.05)
 
 
@@ -181,7 +181,7 @@ async def test_a_kiss_profile_reads_frames_and_writes_only_frames(rig: Rigs, pro
 @stops_rigs
 async def test_a_kiss_tnc_that_is_quiet_for_a_long_time_stays_connected_and_is_never_silent(rig: Rigs) -> None:
     r = await rig(profile=KISS_TCP, **QUICK)
-    await asyncio.sleep(1.0)
+    await idle_for(1.0)
     assert r.tnc.state is Source.State.CONNECTED and r.tnc.stats.watchdog_probes == 0 and r.tnc.silent_since is None
     assert r.tnc.describe() == f"{r.tnc.path}, listening, 0 packets"
 

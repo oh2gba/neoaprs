@@ -6,33 +6,23 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs.config import Config
-from neoaprs.ownbulletin import MAX_POSTED, OwnBulletin, PostError
+from neoaprs.ownbulletin import MAX_POSTED, PostError
 from neoaprs.ownlog import OwnLog
 from neoaprs.services.ownbulletins import OwnBulletins
-from neoaprs.services.sender import Sender
 from neoaprs.source import Source
-from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
-from tests.support.env import ON_AIR, remember_stop
-from tests.support.storedb import store_at
-from tests.support.stubtnc import StubTnc
+from tests.support.env import remember_stop
+from tests.support.rig import OwnRig
+from tests.support.storedb import log_at
 
 
-class Rig:
+class Rig(OwnRig):
     """One run of the daemon's bulletins: made again on the same log and clock after a stop."""
 
     def __init__(self, log: OwnLog, clock: FixedClock, **changes: object) -> None:
-        self.log, self.clock, self.begin = log, clock, clock()
-        self.config: Config = replace(ON_AIR, **changes)               # type: ignore[arg-type]
-        self.tnc = StubTnc()
-        self.sender = Sender(self.tnc, lambda: self.config, clock, spacing_sec=10.0)
+        super().__init__(log, clock, **changes)
         self.posts = OwnBulletins(self.sender, lambda: self.config, log, clock, tick_sec=3600.0)
-        self.sent: list[tuple[int, bytes]] = []                         # (seconds since the rig was made, the information field)
-        self.changed: list[OwnBulletin] = []
-        self.removed: list[OwnBulletin] = []
-        self.posts.changed.connect(self.changed.append)
-        self.posts.removed.connect(self.removed.append)
+        self.record(self.posts)
 
     async def start(self) -> "Rig":
         await self.posts.start()
@@ -41,26 +31,12 @@ class Rig:
 
     def run(self, seconds: int, step: int = 5) -> None:
         """Looks at the clock every `step` seconds for this long, the first look now; the clock ends where the last look was."""
-        for _ in range(0, seconds + 1, step):
-            before = len(self.tnc.sent)
-            self.posts.tick()
-            self.sent += [(round((self.clock() - self.begin).total_seconds()), frame.info) for frame in self.tnc.sent[before:]]
-            self.clock.advance(step)
-        self.clock.advance(-step)
-
-    def offsets(self) -> list[int]:
-        return [t for t, _ in self.sent]
-
-    async def settled(self) -> None:
-        assert self.log.db is not None
-        await self.log.db.barrier()
+        self.look(self.posts.tick, seconds, step)
 
 
 async def rig_at(tmp_path: Path, **changes: object) -> Rig:
-    clock = FixedClock()
-    store = await store_at(tmp_path / DB_NAME, clock)
-    assert store.db is not None
-    return await Rig(OwnLog(store.db, clock), clock, **changes).start()
+    log, _, clock = await log_at(tmp_path, OwnLog)
+    return await Rig(log, clock, **changes).start()
 
 
 @pytest.fixture

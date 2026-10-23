@@ -13,7 +13,7 @@ from neoaprs.source import CHECKING, Source
 from neoaprs.tnc import ENTER_KISS, KISS_EXIT, Tnc
 from neoaprs.tncprofile import KISS, KISS_TCP, Profile
 from tests.support.clock import FixedClock
-from tests.support.env import Env, until
+from tests.support.env import Env, idle_for, until
 from tests.support.fakeradio import FakeRadio
 from tests.test_tnc import NO_DETECT, NUDGE_BYTE, SETTLE, Rig, Rigs, hear_until, kiss_of, news, nothing_runs, stops_rigs, tiny_backoff, ui_frame
 
@@ -81,7 +81,7 @@ async def test_the_allowance_to_enter_kiss_is_given_back_on_the_return_from_sile
     r = await rig(**{"probe_sec": 30.0, "check_sec": 0.0})
     r.radio.feed(b"\r\ncmd:")                                      # a fresh open: KISS ON is sent, once
     assert await hear_until(r.radio, ENTER_KISS, 1.0)
-    await asyncio.sleep(SETTLE + 0.05)
+    await idle_for(SETTLE + 0.05)
     assert r.tnc._entered
     r.tnc.went_silent()
     r.radio.feed(b"\r\ncmd:")                                      # the radio was switched off and on
@@ -207,11 +207,11 @@ async def test_a_line_that_is_lost_while_silent_is_waiting_and_comes_back_connec
 async def test_stop_while_a_probe_waits_for_an_answer_leaves_nothing_running(rig: Rigs) -> None:
     r, _ = await silent_rig(rig, probe_sec=0.05, probe_answer_sec=30.0)
     await until(lambda: r.tnc.stats.watchdog_probes == 1)
-    await asyncio.sleep(0.15)                                        # (inside the wait after KISS ON)
+    await idle_for(0.15)                                        # (inside the wait after KISS ON)
     await r.tnc.stop()
     nothing_runs(r.tnc)
     probes = r.tnc.stats.watchdog_probes
-    await asyncio.sleep(0.2)
+    await idle_for(0.2)
     assert r.tnc.stats.watchdog_probes == probes and r.tnc._looking is False
 
 
@@ -252,7 +252,7 @@ async def test_a_beacon_due_during_the_outage_is_written_only_after_the_settle_a
     await until(lambda: e.tnc.state is Source.State.SILENT)
     assert await e.ctl.save_config(replace(e.ctl.config, beacon_interval_min=1))
     e.now.advance(30 + 60)                                           # type: ignore[attr-defined]  (the first beacon, and an interval, passed in the night)
-    await asyncio.sleep(0.2)
+    await idle_for(0.2)
     assert e.ctl.beacon.last_sent is None and e.ctl.beacon.next_due is not None and e.ctl.beacon.next_due < e.now()
     assert await hear_until(e.radio, KISS_EXIT + NUDGE_BYTE, 3.0)   # a probe
     e.tnc.set_check(0)                                               # (a 0.1 s check would reset the quiet radio again at once)
@@ -380,7 +380,7 @@ async def test_a_beacon_due_at_the_open_goes_out_only_after_the_radio_has_answer
     e = tnc2_daemon(tmp_path, reply_sec=0.5, answer_sec=1.0)
     await e.start()
     assert await hear_until(e.radio, CHECK, 1.0) == CHECK
-    await asyncio.sleep(0.2)                                                  # (many ticks of the beacon's timer)
+    await idle_for(0.2)                                                  # (many ticks of the beacon's timer)
     assert e.ctl.beacon.last_sent is None and e.tnc.usable is False and e.tnc.state is Source.State.CONNECTED
     assert await e.heard(1, 0.1) == b""
     e.feed(b"\r\ncmd:")                                                       # the radio is there
@@ -397,7 +397,7 @@ async def test_a_beacon_due_at_the_open_is_not_sent_nor_remembered_when_the_radi
     e = tnc2_daemon(tmp_path, reply_sec=0.05, answer_sec=0.1)
     await e.start()
     await until(lambda: e.tnc.state is Source.State.SILENT, 2.0)
-    await asyncio.sleep(0.3)
+    await idle_for(0.3)
     assert e.ctl.beacon.last_sent is None and e.ctl.beacon.next_due is not None and e.ctl.beacon.next_due <= e.now()
     assert await e.heard(len(CHECK + ENTER_KISS), 0.5) == CHECK + ENTER_KISS, "the check, and no frame"
     assert await e.heard(1, 0.2) == b"" and await e.packets() == []

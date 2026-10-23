@@ -8,16 +8,14 @@ from pathlib import Path
 import pytest
 
 from neoaprs import ax25
-from neoaprs.config import Config
 from neoaprs.packet import Packet
 from neoaprs.services.digipeater import BURST_MAX, BURST_WINDOW_SEC, DUPLICATE_SEC, Digipeater
 from neoaprs.source import Source
 from neoaprs.tncmode import packet_of
 from neoaprs.tncwatchdog import TncStats
 from tests.support.air import on_air, said
-from tests.support.clock import FixedClock
 from tests.support.env import ON_AIR, Env, until
-from tests.support.stubtnc import StubTnc
+from tests.support.rig import ServiceRig
 
 INFO = b"!6010.20N/02456.40E-test"
 
@@ -26,11 +24,9 @@ def frame(path: str = "WIDE1-1,WIDE2-1", source: str = "OH2XYZ", info: bytes = I
     return ax25.Frame(ax25.Address.parse(destination), ax25.Address.parse(source), tuple(ax25.Address.parse(p) for p in path.split(",") if p), info=info)
 
 
-class Rig:
+class Rig(ServiceRig):
     def __init__(self, **changes: object) -> None:
-        self.config: Config = replace(ON_AIR, digi_enabled=True, **changes)       # type: ignore[arg-type]
-        self.clock = FixedClock()
-        self.tnc = StubTnc()
+        super().__init__(digi_enabled=True, **changes)
         self.stats = TncStats()
         self.digi = Digipeater(self.tnc, lambda: self.config, self.clock, self.stats)
 
@@ -38,9 +34,6 @@ class Rig:
         packet = packet_of(direction, ax25.encode(f), f, self.clock())     # type: ignore[arg-type]
         self.digi.on_packet(packet)
         return packet
-
-    def lines(self) -> list[str]:
-        return [f.tnc2() for f in self.tnc.sent]
 
 
 def test_wide1_1_becomes_our_call_marked_as_used_and_the_rest_of_the_path_stays() -> None:

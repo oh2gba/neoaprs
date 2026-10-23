@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 
 from neoaprs.tasks import TaskSet, cancel_all
+from tests.support.env import until
 
 
 async def test_cancel_all_ends_the_tasks_and_waits_for_them_whatever_they_ended_with(caplog: pytest.LogCaptureFixture) -> None:
@@ -70,7 +71,7 @@ async def test_a_task_that_fails_is_handed_to_the_owner_and_a_cancelled_one_is_n
 
     bad = tasks.spawn(fails(), "bad")
     tasks.spawn(waits(), "waits")
-    await asyncio.sleep(0.01)
+    await until(lambda: failed == [bad])
     assert failed == [bad] and isinstance(bad.exception(), ValueError)
     await tasks.cancel_all()
     assert failed == [bad] and len(tasks) == 0

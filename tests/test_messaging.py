@@ -10,63 +10,34 @@ from pathlib import Path
 import pytest
 
 from neoaprs import ax25
-from neoaprs.config import Config
 from neoaprs.message import MSG_IDS, MessageRecord, MessagingError
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet, ThirdParty
 from neoaprs.services import messaging as messaging_module
 from neoaprs.services.messaging import Messaging
 from neoaprs.services.prefbook import PrefBook
-from neoaprs.source import Source, unusable_because
-from neoaprs.store import DB_NAME
+from neoaprs.source import Source
+from tests.support.rig import ServiceRig
+from tests.support.stubtnc import StubTnc
 from tests.support.clock import FixedClock
-from tests.support.env import ON_AIR, remember_stop, until
-from tests.support.storedb import keep_old_attempts, store_at
+from tests.support.env import idle_for, remember_stop, until
+from tests.support.storedb import keep_old_attempts, log_at
 
 TICK = 0.01
 RUN_OUT = (30, 30, 60, 240)                        # the waits after each attempt, the last of them the wait for the answer to the fourth: after these the message has failed
 WORKED = "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :Hello Pekka{01}"
 
 
-class StubTnc:
-    """The part of the Tnc messaging uses: a state, and the frames it was given."""
-
-    def __init__(self) -> None:
-        self.state = Source.State.CONNECTED
-        self.sent: list[ax25.Frame] = []
-        self.takes = True
-
-    @property
-    def usable(self) -> bool:
-        return self.state is Source.State.CONNECTED
-
-    def why_unusable(self) -> str:
-        return unusable_because(self.state)
-
-    def send_frame(self, frame: ax25.Frame) -> bool:
-        if self.takes:
-            self.sent.append(frame)
-        return self.takes
-
-    def lines(self) -> list[str]:
-        return [f.tnc2() for f in self.sent]
-
-
-class Rig:
+class Rig(ServiceRig):
     def __init__(self, log: MessageLog, clock: FixedClock, tnc: StubTnc | None = None, spacing_sec: float = 0.0, **changes: object) -> None:
-        self.config: Config = replace(ON_AIR, **changes)             # type: ignore[arg-type]
-        self.tnc = tnc or StubTnc()
-        self.clock = clock
+        super().__init__(clock, tnc, **changes)
         self.log = log
         self.prefs = PrefBook(log, lambda: self.config)
         self.board: list[tuple[Packet, Message]] = []                   # what messaging handed to the message board
         self.m = Messaging(self.tnc, lambda: self.config, log, self.prefs.path_for, clock, tick_sec=TICK, board=lambda packet, message: self.board.append((packet, message)),
                         spacing_sec=spacing_sec)
         remember_stop(self.m.stop)
-        self.changed: list[MessageRecord] = []
-        self.removed: list[MessageRecord] = []
-        self.m.changed.connect(self.changed.append)
-        self.m.removed.connect(self.removed.append)
+        self.record(self.m)
 
     async def start(self) -> None:
         """What the controller's start does for messaging: the paths of the stations, then the service."""
@@ -82,12 +53,12 @@ class Rig:
     async def radio(self, state: Source.State) -> None:
         """The Tnc changes state and the ticker, which looks at it every few milliseconds, has seen it."""
         self.tnc.state = state
-        await asyncio.sleep(TICK * 6)
+        await idle_for(TICK * 6)
 
     async def pass_time(self, seconds: float) -> None:
         """The clock moves and the ticker, which looks at it every few milliseconds, has looked."""
         self.clock.advance(seconds)
-        await asyncio.sleep(TICK * 6)
+        await idle_for(TICK * 6)
 
     def heard(self, source: str, addressee: str, text: str = "", msg_id: str | None = None, ack: str | None = None, rej: str | None = None, direction: str = "in",
               reply: str | None = None) -> Packet:
@@ -103,14 +74,17 @@ class Rig:
         return record
 
 
-@pytest.fixture
-async def rig(tmp_path: Path) -> Rig:
-    clock = FixedClock()
-    store = await store_at(tmp_path / DB_NAME, clock)
-    assert store.db is not None
-    r = Rig(MessageLog(store.db, clock), clock)
+async def started_rig(tmp_path: Path, **changes: object) -> Rig:
+    """A Rig on a new database in the test's folder, started (the fixtures `rig` of this module and of the tests that go with it: test_messaging_pacing, test_messaging_rules)."""
+    log, _, clock = await log_at(tmp_path, MessageLog)
+    r = Rig(log, clock, **changes)
     await r.start()
     return r
+
+
+@pytest.fixture
+async def rig(tmp_path: Path) -> Rig:
+    return await started_rig(tmp_path)
 
 
 @pytest.fixture
@@ -728,7 +702,7 @@ async def test_a_tnc_that_will_not_take_the_frame_is_not_an_attempt_and_is_tried
     rig.tnc.takes = False
     record = await rig.m.send("OH2RDG", "Hello")
     assert record.attempts == 0
-    await asyncio.sleep(TICK * 5)
+    await idle_for(TICK * 5)
     assert rig.state().attempts == 0
     rig.tnc.takes = True
     await until(lambda: rig.state().attempts == 1)

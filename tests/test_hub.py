@@ -1,6 +1,5 @@
 """The state hub (neoaprs/web/hub.py) with pages that are lists: what a patch holds, when it is made, a page that is behind, and the window of packets and the publisher that go with it (neoaprs/web/topics.py,
 neoaprs/web/outbound.py). The topics of the real daemon over a socket are tests/test_web.py."""
-import asyncio
 import json
 from typing import Any
 
@@ -13,6 +12,7 @@ from neoaprs.web.hub import BEHIND, StateHub, Topic
 from neoaprs.web.outbound import MAX_MESSAGE, ProtocolViolation, Publisher
 from neoaprs.web.session import Connection, error_message
 from neoaprs.web.topics import PacketWindow
+from tests.support.env import idle_for, until
 
 
 class Page:
@@ -115,11 +115,11 @@ async def test_the_tick_tells_the_pages_by_itself_and_stops_with_the_hub() -> No
     rows["a"] = {"n": 1}
     hub.changed("rows", "a")
     assert page.frames == [], "not at once: a burst is one patch"
-    await asyncio.sleep(0.25)
+    await until(lambda: page.frames)                # (the burst is told when the hub's pause is over)
     assert [f["type"] for f in page.frames] == ["patch"]
     hub.changed("rows", "a")
     hub.stop()
-    await asyncio.sleep(0.25)
+    await idle_for(0.25)
     assert len(page.frames) == 1, "a stopped hub tells nobody"
 
 

@@ -1,20 +1,24 @@
 """The Store for tests, on the database thread the way the daemon has it (one Db, one connection):
 
     store = await store_at(path, clock, busy_ms)        # a file, migrated by the thread if it is new; ":memory:" is a database of its own
+    log, store, clock = await log_at(tmp_path, MessageLog)      # a log (anything made from the Db and the clock) on a new database file of the test's folder, with its Store and the clock
 
 Every Db opened here is remembered by tests/support/env.py: `env.stop_all` (called when a test is over) closes it, and the guard for leaked database threads fails the test that does not.
 A test that wants its own order closes the Db itself (`await store.db.close()`)."""
 import sqlite3
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 from neoaprs.clock import Clock, utcnow
 from neoaprs.db import Db
 from neoaprs.dbfile import DEFAULT_BUSY_MS
 from neoaprs.dbopen import open_connection
-from neoaprs.store import Store
+from neoaprs.store import DB_NAME, Store
 from tests.support import env
+from tests.support.clock import FixedClock
+
+L = TypeVar("L")
 
 
 async def store_at(path: str | Path = ":memory:", clock: Clock = utcnow, busy_ms: int = DEFAULT_BUSY_MS, opener: Callable[[], sqlite3.Connection] | None = None) -> Store:
@@ -25,6 +29,14 @@ async def store_at(path: str | Path = ":memory:", clock: Clock = utcnow, busy_ms
     store = Store(clock)
     store.use(db, path)
     return store
+
+
+async def log_at(tmp_path: Path, make: Callable[[Db, FixedClock], L], clock: FixedClock | None = None) -> tuple[L, Store, FixedClock]:
+    """A log of the daemon (a class made from the Db and the clock: MessageLog, OwnLog, BulletinLog) on a new database file in the test's folder; with its Store and its clock."""
+    clock = clock or FixedClock()
+    store = await store_at(tmp_path / DB_NAME, clock)
+    assert store.db is not None
+    return make(store.db, clock), store, clock
 
 
 async def sql(store: Store, statement: str, *args: object) -> list[tuple[Any, ...]]:

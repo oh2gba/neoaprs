@@ -8,11 +8,12 @@ import pytest
 
 from neoaprs.config import Config
 from neoaprs.geo import box_around
-from neoaprs.mapstate import Job, MapError, MapStatus
+from neoaprs.mapstate import Job, MapError
 from neoaprs.pmtilestool import ToolError
 from neoaprs.services.mapfetch import DETAIL, WORLD, MapFetch, latest_build
 from tests.support.clock import FixedClock
 from tests.support.env import ON_AIR, remember_stop, until
+from tests.support.maprig import MapRig
 from tests.support.fakepmtiles import FakePmtiles, alive, install_fake
 
 SOURCE = "https://build.example/20261020.pmtiles"
@@ -20,22 +21,13 @@ CONFIG = replace(ON_AIR, map_source=SOURCE)
 JOBS: tuple[Job, Job] = ("estimate", "fetch")
 
 
-class Rig:
+class Rig(MapRig):
     def __init__(self, data: Path, fake: FakePmtiles, config: Config) -> None:
-        self.data, self.fake, self.config = data, fake, config
-        self.service = MapFetch(data, lambda: self.config, FixedClock())
-        self.seen: list[MapStatus] = []
-        self.service.changed.connect(lambda: self.seen.append(self.service.status()))
-        remember_stop(self.service.stop)
-
-    def status(self) -> MapStatus:
-        return self.service.status()
+        super().__init__(data, fake, lambda: self.config)
+        self.config = config
 
     def states(self) -> list[str]:
         return [s.state for s in self.seen]
-
-    async def idle(self) -> None:
-        await until(lambda: self.status().state not in ("estimating", "downloading"))
 
 
 @pytest.fixture

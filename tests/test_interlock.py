@@ -1,6 +1,5 @@
 """The transmit interlock (`config.can_transmit`, `services/interlock.py`, the Tnc's `permit`): a station with no call, or a call that is none (N0CALL, NOCALL, MYCALL, not an amateur call), transmits nothing at all, and the
 defaults are such a station. The rules on their own, then the whole daemon on a pseudo-terminal radio that is never written to; with a call set, everything goes out as before."""
-import asyncio
 import logging
 from dataclasses import replace
 from pathlib import Path
@@ -11,7 +10,7 @@ from neoaprs import ax25
 from neoaprs.config import DEFAULTS, Config, can_transmit
 from neoaprs.message import MessagingError
 from tests.support.air import message_info, on_air, said
-from tests.support.env import Env, until
+from tests.support.env import Env, idle_for, quick_start, until
 
 SET_FIRST = "set your call first"
 
@@ -55,12 +54,7 @@ def test_the_settings_take_an_empty_call_and_an_empty_position_and_write_them_em
 # ---- the whole daemon -----------------------------------------------------------------------------------------------------------------------
 
 async def started(tmp_path: Path, **changes: object) -> Env:
-    e = Env(tmp_path, operator=False)
-    e.ctl.beacon.tick_sec, e.ctl.beacon.retry_sec = 0.02, 0.05
-    e.ctl.messaging.tick_sec = 0.02
-    e.ctl.rigstatus.poll_sec = 0.02
-    await e.start()
-    await asyncio.sleep(0.2)                                                # (the TNC has settled)
+    e = await quick_start(tmp_path, beacon=True, messaging=True, rigstatus=True, operator=False)
     if changes:
         assert await e.ctl.save_config(replace(e.ctl.config, **changes))    # type: ignore[arg-type]
     return e
@@ -68,7 +62,7 @@ async def started(tmp_path: Path, **changes: object) -> Env:
 
 async def quiet(e: Env, seconds: float = 0.4) -> None:
     """Nothing came out of the daemon's radio port in this time (the read blocks the loop, so what the daemon would send has had its turn first)."""
-    await asyncio.sleep(0.2)
+    await idle_for(0.2)
     assert await e.heard(1, seconds) == b"", "something was transmitted"
 
 
@@ -145,7 +139,7 @@ async def test_no_position_means_no_beacon_and_no_own_station_but_messages_go(tm
 
 async def test_the_tnc_is_still_switched_to_kiss_with_no_call_set_that_is_no_transmission(tmp_path: Path) -> None:
     e = await started(tmp_path, tnc_profile="kenwood-tnc2")
-    await asyncio.sleep(0.3)                                                # (the TNC was restarted for its profile)
+    await until(lambda: e.tnc.stats.opens >= 2)                             # (the TNC was restarted for its profile)
     await e.until_connected()
     e.feed(b"OH2FZV-2>VP1R61,WIDE1,OH2RCH-2*:!6010.00N/02456.00E>test\r\n")                  # a TNC in command mode, monitoring
     await until(lambda: e.tnc.stats.bytes_out >= 17)

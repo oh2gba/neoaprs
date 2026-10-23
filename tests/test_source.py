@@ -6,6 +6,7 @@ import pytest
 
 from neoaprs.source import Backoff, Source, os_error_text
 from tests.support.clock import FixedClock
+from tests.support.env import until
 
 
 class Dummy(Source):
@@ -91,7 +92,7 @@ async def test_the_tasks_of_a_source_end_with_it_and_a_failed_one_is_logged(capl
 
     s._spawn(fails())
     waiting = s._spawn(waits())
-    await asyncio.sleep(0.01)
+    await until(lambda: any("source tnc: task failed" in r.getMessage() for r in caplog.records))
     assert any("source tnc: task failed" in r.getMessage() for r in caplog.records)
     await s.stop()
     assert waiting.cancelled()

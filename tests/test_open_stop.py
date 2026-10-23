@@ -16,6 +16,7 @@ from neoaprs import PROGRAM, stopfile
 from neoaprs.cli import opencmd, stopcmd
 from neoaprs.cli.daemonstate import is_running, page_answers, page_url
 from tests.conftest import ROOT
+from tests.support.env import idle_for
 from tests.support.proc import NEW_GROUP
 
 
@@ -70,7 +71,7 @@ def test_the_stop_file_is_asked_for_seen_and_taken_away(tmp_path: Path) -> None:
 async def test_the_watch_ends_the_run_when_the_file_appears_and_deletes_it(tmp_path: Path) -> None:
     stop = asyncio.Event()
     watching = asyncio.create_task(stopfile.watch(tmp_path, stop, poll_sec=0.01))
-    await asyncio.sleep(0.05)
+    await idle_for(0.05)
     assert not stop.is_set()
     stopfile.request(tmp_path)
     await asyncio.wait_for(stop.wait(), 5)

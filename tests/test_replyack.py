@@ -1,22 +1,16 @@
 """Reply-acks (neoaprs/aprsmessage.py, services/inbox.py, services/messaging.py) inside the whole daemon, the radio a pseudo-terminal: the exact frames on the line for a message we send, its ack and a
 reply-ack, and what a reply-ack of a station settles."""
-import asyncio
 from pathlib import Path
 
 from neoaprs.message import MessageRecord
 from tests.support.air import ack_info, message_info, on_air, said
-from tests.support.env import Env, until
+from tests.support.env import Env, quick_start, until
 
 SENT = "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :"                        # (the frame of every message and ack to OH2RDG, up to its text)
 
 
 async def started(tmp_path: Path) -> Env:
-    e = Env(tmp_path)
-    e.ctl.messaging.tick_sec = 0.02
-    e.ctl.messaging.pace.spacing_sec = 0.0
-    await e.start()
-    await asyncio.sleep(0.2)
-    return e
+    return await quick_start(tmp_path, messaging=True, unpaced=True)
 
 
 def sent_one(e: Env) -> MessageRecord:

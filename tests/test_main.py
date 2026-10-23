@@ -26,6 +26,7 @@ from neoaprs.daemon import _LogFile, _poll_for_signals, _stop_on_signals, setup_
 from neoaprs.migrations import SCHEMA_VERSION
 from neoaprs.store import DB_NAME
 from tests.conftest import ROOT
+from tests.support.env import idle_for
 from tests.support.files import fixture_bytes
 from tests.support.proc import NEW_GROUP, WINDOWS, send, stop
 from tests.support.ptyline import posix_only
@@ -63,15 +64,40 @@ def start(data: Path, *extra: str) -> "subprocess.Popen[str]":
     return subprocess.Popen([sys.executable, "-m", "neoaprs", "--data", str(data), *port, "--web-port", "0", *extra], cwd=ROOT, env=environment(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, creationflags=NEW_GROUP)
 
 
-def wait_for(path: Path, text: str, proc: "subprocess.Popen[str]", seconds: float = 30) -> None:
+PATIENCE_SEC = 120          # a daemon started or stopped on a machine that is busy with a whole test run takes its time: this is the longest a test waits for it, not how long it takes
+# The daemon's first prune (the daily one, which runs at the start) can still be asking the database for its write when the signal comes: the stop cancels the task that asked, the write commits all the same (neoaprs/db.py) and the
+# stop says so as a WARNING, on stderr too. That is what the stop is for, not a fault of the run.
+CUT_OFF = "a write of the database whose asker was cancelled before the answer came is committed"
+
+
+def log_of(data: Path) -> str:
+    path = data / "neoaprs.log"
+    return path.read_text(encoding="utf-8") if path.exists() else "(no log)"
+
+
+def wait_for(path: Path, text: str, proc: "subprocess.Popen[str]", seconds: float = PATIENCE_SEC) -> None:
     deadline = time.monotonic() + seconds
     while time.monotonic() < deadline:
         if path.exists() and text in path.read_text(encoding="utf-8"):
             return
-        assert proc.poll() is None, f"the daemon ended early: {proc.communicate()}"
+        assert proc.poll() is None, f"the daemon ended early: {proc.communicate()}\nits log:\n{log_of(path.parent)}"
         time.sleep(0.02)
     proc.kill()
-    raise AssertionError(f"{text!r} did not appear in {path}")
+    raise AssertionError(f"{text!r} did not appear in {path} in {seconds} s; its log:\n{log_of(path.parent)}")
+
+
+def ended(proc: "subprocess.Popen[str]", data: Path, seconds: float = PATIENCE_SEC) -> tuple[str, str]:
+    """Waits for the daemon to end and gives what it wrote to stdout and stderr; one that is still there when the time is up is killed and the test fails with its log."""
+    try:
+        return proc.communicate(timeout=seconds)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        out, err = proc.communicate()
+        raise AssertionError(f"the daemon did not end in {seconds} s\nstdout: {out}\nstderr: {err}\nits log:\n{log_of(data)}") from None
+
+
+def without_the_cut_off(err: str) -> str:
+    return "".join(line for line in err.splitlines(keepends=True) if CUT_OFF not in line)
 
 
 @pytest.mark.parametrize("sig", SIGNALS)
@@ -81,11 +107,11 @@ def test_the_daemon_starts_makes_its_database_and_stops_cleanly_on_a_signal(tmp_
     wait_for(data / "neoaprs.log", f"{PROGRAM} is running", proc)
     assert (data / DB_NAME).is_file()
     send(proc, sig)
-    out, err = proc.communicate(timeout=30)
+    out, err = ended(proc, data)
     assert proc.returncode == 0, (out, err)
     log = (data / "neoaprs.log").read_text(encoding="utf-8")
     assert f"{PROGRAM} {VERSION} starting, data in {data}" in log and f"{PROGRAM} is closing" in log and log.rstrip().endswith(f"{PROGRAM} ended")
-    assert " ERROR " not in log and err == "", "nothing but warnings and errors goes to stderr, and a clean run has none"
+    assert " ERROR " not in log and without_the_cut_off(err) == "", f"nothing but warnings and errors goes to stderr, and a clean run has none; the log:\n{log}"
     db = sqlite3.connect(data / DB_NAME)
     assert db.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION and db.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
     db.close()
@@ -97,7 +123,7 @@ def test_the_program_creates_nothing_for_others(tmp_path: Path) -> None:
     proc = start(data)
     wait_for(data / "neoaprs.log", f"{PROGRAM} is running", proc)
     stop(proc)
-    proc.communicate(timeout=30)
+    ended(proc, data)
     assert stat.S_IMODE(data.stat().st_mode) == 0o700, "the folder is made private even when the program made it"
     assert stat.S_IMODE((data / "neoaprs.log").stat().st_mode) == 0o600      # the umask of the program: private from the start
     assert stat.S_IMODE((data / DB_NAME).stat().st_mode) == 0o600
@@ -110,7 +136,7 @@ def test_a_data_folder_that_is_there_already_is_made_private_too(tmp_path: Path)
     proc = start(data)
     wait_for(data / "neoaprs.log", f"{PROGRAM} is running", proc)
     stop(proc)
-    proc.communicate(timeout=30)
+    ended(proc, data)
     assert stat.S_IMODE(data.stat().st_mode) == 0o700
 
 
@@ -119,7 +145,7 @@ def test_the_data_folder_is_the_one_in_the_environment_when_none_is_given(tmp_pa
     proc = subprocess.Popen([sys.executable, "-m", "neoaprs", "--port", radio()[1], "--web-port", "0"], cwd=ROOT, env={**environment(), "NEOAPRS_DATA_DIR": str(data)}, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, creationflags=NEW_GROUP)
     wait_for(data / "neoaprs.log", f"{PROGRAM} is running", proc)
     stop(proc)
-    proc.communicate(timeout=30)
+    ended(proc, data)
     assert (data / DB_NAME).is_file()
 
 
@@ -129,7 +155,7 @@ def test_debug_logs_more(tmp_path: Path) -> None:
         proc = start(data, *flag)
         wait_for(data / "neoaprs.log", f"{PROGRAM} is running", proc)
         stop(proc)
-        proc.communicate(timeout=30)
+        ended(proc, data)
     assert " DEBUG " not in (quiet / "neoaprs.log").read_text(encoding="utf-8") and " DEBUG " in (loud / "neoaprs.log").read_text(encoding="utf-8")
 
 
@@ -142,7 +168,7 @@ def test_a_database_of_a_newer_version_is_refused_without_a_restart_loop(tmp_pat
     db.close()
     before = (data / DB_NAME).read_bytes()
     proc = start(data)
-    out, err = proc.communicate(timeout=60)
+    out, err = ended(proc, data)
     assert proc.returncode == 2, (out, err)                                           # 2: the unit does not restart on it
     assert "newer NeoAPRS" in (data / "neoaprs.log").read_text(encoding="utf-8") and "newer NeoAPRS" in err
     assert (data / DB_NAME).read_bytes() == before, "the file is not touched"
@@ -153,7 +179,7 @@ def test_a_file_that_is_not_a_database_ends_the_daemon_with_2(tmp_path: Path) ->
     data.mkdir()
     (data / DB_NAME).write_bytes(b"not a database, a sentence of some length " * 30)
     proc = start(data)
-    out, err = proc.communicate(timeout=60)
+    out, err = ended(proc, data)
     assert proc.returncode == 2, (out, err)
     assert "the database could not be used" in (data / "neoaprs.log").read_text(encoding="utf-8")
 
@@ -182,12 +208,12 @@ def test_the_daemon_on_a_tcp_port_logs_and_keeps_the_capture_and_stops_on_sigter
     wait_for(data / "neoaprs.log", "OH2PU-9>APOTC1,OH2RCH-2*:", proc)
     began = time.monotonic()
     stop(proc)
-    out, err = proc.communicate(timeout=10)
+    out, err = ended(proc, data)
     connection.close()
     assert proc.returncode == 0 and time.monotonic() - began < 10, (out, err)
     log = (data / "neoaprs.log").read_text(encoding="utf-8")
     assert "OH2RDK-7>APRX29,OH2RCH-2*,TRACE2-1:!6009.90NT02456.80E&432.500 MHz -> position 60.1650 24.9467 T& 432.500 MHz" in log and log.count(" -> position ") == 4
-    assert " ERROR " not in log and err == ""
+    assert " ERROR " not in log and without_the_cut_off(err) == "", log
     db = sqlite3.connect(data / DB_NAME)
     assert db.execute("SELECT COUNT(*) FROM packet").fetchone()[0] == 4
     assert [r[0] for r in db.execute("SELECT call FROM station WHERE lat IS NOT NULL AND call <> 'OH2GBA' ORDER BY call")] == ["OH2PU-9", "OH2RDG", "OH2RDK-7", "OH2RDS"]
@@ -212,7 +238,7 @@ def test_the_daemon_serves_the_page_on_a_free_port_it_tells_in_the_log(tmp_path:
         assert answer.status == 200 and "Content-Security-Policy" in answer.headers and answer.headers["X-Frame-Options"] == "DENY"
     assert "NeoAPRS" in body and ("scripts/build-page" in body or 'id="app"' in body), "the placeholder, or the built page"
     stop(proc)
-    out, err = proc.communicate(timeout=30)
+    out, err = ended(proc, data)
     assert proc.returncode == 0, (out, err)
     log = (data / "neoaprs.log").read_text(encoding="utf-8")
     assert " ERROR " not in log and " ERROR " not in err and log.rstrip().endswith(f"{PROGRAM} ended")
@@ -253,7 +279,7 @@ def test_a_port_that_is_in_use_moves_the_page_to_the_next_free_one_and_the_log_s
         with urllib.request.urlopen(url, timeout=10) as answer:
             assert answer.status == 200
         stop(proc)
-        out, err = proc.communicate(timeout=30)
+        out, err = ended(proc, data)
     assert proc.returncode == 0, (out, err)
     port = int(url.rstrip("/").rsplit(":", 1)[1])
     assert taken < port <= taken + 10, "one of the ten after the port it was asked for"
@@ -267,7 +293,7 @@ def test_when_the_port_and_the_ten_after_it_are_in_use_the_daemon_runs_without_t
         proc = start(data, "--web-port", str(taken))
         wait_for(data / "neoaprs.log", f"{PROGRAM} is running", proc)
         stop(proc)
-        out, err = proc.communicate(timeout=30)
+        out, err = ended(proc, data)
     assert proc.returncode == 0, (out, err)
     log = (data / "neoaprs.log").read_text(encoding="utf-8")
     assert f"the web server cannot listen on 127.0.0.1:{taken}" in log and "goes on without the page" in log and "web page at" not in log
@@ -282,13 +308,13 @@ def test_a_second_daemon_on_the_same_data_folder_refuses_to_start_and_the_first_
     wait_for(data / "neoaprs.log", f"{PROGRAM} is running", first)
     log_before = (data / "neoaprs.log").read_text(encoding="utf-8")
     second = start(data)
-    out, err = second.communicate(timeout=60)
+    out, err = ended(second, data)
     assert second.returncode == 2, (out, err)
     assert "another NeoAPRS is already running with the data folder" in err and str(data) in err and "--data" in err
     assert (data / "neoaprs.log").read_text(encoding="utf-8").startswith(log_before) and " ERROR " not in (data / "neoaprs.log").read_text(encoding="utf-8"), "the log is the first one's"
     assert first.poll() is None
     stop(first)
-    out, err = first.communicate(timeout=30)
+    out, err = ended(first, data)
     assert first.returncode == 0, (out, err)
     third = start(data)                                              # the lock went with the first daemon
     deadline = time.monotonic() + 30
@@ -296,7 +322,7 @@ def test_a_second_daemon_on_the_same_data_folder_refuses_to_start_and_the_first_
         assert third.poll() is None
         time.sleep(0.02)
     stop(third)
-    out, err = third.communicate(timeout=30)
+    out, err = ended(third, data)
     assert third.returncode == 0, (out, err)
 
 
@@ -307,7 +333,7 @@ def test_a_daemon_on_another_data_folder_starts_beside_the_first(tmp_path: Path)
         wait_for(data / "neoaprs.log", f"{PROGRAM} is running", proc)
     for proc in (first, second):
         stop(proc)
-        out, err = proc.communicate(timeout=30)
+        out, err = ended(proc, data)
         assert proc.returncode == 0, (out, err)
 
 
@@ -350,7 +376,7 @@ async def test_the_poll_that_wakes_a_windows_loop_ends_with_the_stop(monkeypatch
     monkeypatch.setattr(entry, "SIGNAL_POLL_SEC", 0.01)
     stop = asyncio.Event()
     poll = asyncio.create_task(_poll_for_signals(stop))
-    await asyncio.sleep(0.05)
+    await idle_for(0.05)
     assert not poll.done()
     stop.set()
     await asyncio.wait_for(poll, 5)

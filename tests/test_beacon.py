@@ -1,8 +1,6 @@
 """The beacon (neoaprs/services/beacon.py) on a Tnc that is a stub and a clock the test holds: the frame the settings make, byte for byte, and the timer (the first delay, the interval, the skip while
 the TNC is not connected, a changed interval)."""
-import asyncio
 import logging
-from dataclasses import replace
 from datetime import timedelta
 
 import pytest
@@ -13,43 +11,17 @@ from neoaprs.aprsposition import parse_position
 from neoaprs.config import Config
 from neoaprs.packet import Status
 from neoaprs.services.beacon import Beacon, BeaconError, phg_text, uncompressed_position
-from neoaprs.source import Source, unusable_because
+from neoaprs.source import Source
+from tests.support.rig import ServiceRig
+from tests.support.stubtnc import StubTnc
 from tests.support.clock import FixedClock
-from tests.support.env import ON_AIR, until
+from tests.support.env import idle_for, ON_AIR, until
 
 
-class StubTnc:
-    """The part of the Tnc the beacon uses: a state, and the frames it was given."""
-
-    def __init__(self, state: Source.State = Source.State.CONNECTED) -> None:
-        self.state = state
-        self.sent: list[ax25.Frame] = []
-        self.takes = True
-        self.asked = 0
-
-    @property
-    def usable(self) -> bool:
-        return self.state is Source.State.CONNECTED
-
-    def why_unusable(self) -> str:
-        return unusable_because(self.state)
-
-    def send_frame(self, frame: ax25.Frame) -> bool:
-        self.asked += 1
-        if self.takes:
-            self.sent.append(frame)
-        return self.takes
-
-
-class Rig:
+class Rig(ServiceRig):
     def __init__(self, **changes: object) -> None:
-        self.config: Config = replace(ON_AIR, **changes)             # type: ignore[arg-type]
-        self.tnc = StubTnc()
-        self.clock = FixedClock()
+        super().__init__(**changes)
         self.beacon = Beacon(self.tnc, lambda: self.config, self.clock, first_delay_sec=30.0, tick_sec=0.01, retry_sec=5.0)
-
-    def set(self, **changes: object) -> None:
-        self.config = replace(self.config, **changes)                  # type: ignore[arg-type]
 
 
 # ---- the frame -----------------------------------------------------------------------------------------------------------------------------------
@@ -247,7 +219,7 @@ def test_settings_that_make_no_frame_make_no_status_frame() -> None:
 # ---- the timer -----------------------------------------------------------------------------------------------------------------------------------
 
 async def quiet(rig: Rig, ticks: int = 8) -> None:
-    await asyncio.sleep(rig.beacon.tick_sec * ticks)
+    await idle_for(rig.beacon.tick_sec * ticks)
 
 
 async def test_the_first_beacon_is_thirty_seconds_after_the_start_and_then_one_every_interval() -> None:

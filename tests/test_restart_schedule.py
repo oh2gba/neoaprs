@@ -1,41 +1,24 @@
 """The beacon and the status report keep their schedule across a restart (neoaprs/services/memory.py): the rows `beacon/last_sent_at`, `status/last_sent_at` and `status/last_text` of a real Store on a
 temporary database, a clock the test holds, a Tnc that is a stub. A second Beacon or RigStatus on the same Store is the daemon started again."""
-import asyncio
 from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
 
-from neoaprs import ax25
+import pytest
+
 from neoaprs.clock import iso
 from neoaprs.config import DEFAULTS, STATE_KEYS, Config
 from neoaprs.rigctld import read_rig
 from neoaprs.services.beacon import Beacon
 from neoaprs.services.rigstatus import RigStatus
-from neoaprs.source import Source, unusable_because
 from neoaprs.store import Store
+from tests.support.stubtnc import StubTnc
 from tests.support.clock import FixedClock
-from tests.support.env import Env, ON_AIR, remember_stop, until
+from tests.support.env import Env, idle_for, ON_AIR, remember_stop, until
 from tests.support.fakes import FakeRigctld, rigctld
 from tests.support.storedb import store_at
 
 BEACON_ROW, STATUS_ROW, TEXT_ROW = STATE_KEYS
-
-
-class StubTnc:
-    def __init__(self) -> None:
-        self.state = Source.State.CONNECTED
-        self.sent: list[ax25.Frame] = []
-
-    @property
-    def usable(self) -> bool:
-        return self.state is Source.State.CONNECTED
-
-    def why_unusable(self) -> str:
-        return unusable_because(self.state)
-
-    def send_frame(self, frame: ax25.Frame) -> bool:
-        self.sent.append(frame)
-        return True
 
 
 class Daemon:
@@ -61,7 +44,7 @@ class Daemon:
 
 
 async def quiet() -> None:
-    await asyncio.sleep(0.15)
+    await idle_for(0.15)
 
 
 async def kept(tmp_path: Path) -> tuple[Store, FixedClock]:
@@ -106,19 +89,11 @@ async def test_a_start_ten_minutes_after_a_beacon_with_an_hour_interval_sends_th
     await d.stop()
 
 
-async def test_a_start_two_hours_after_a_beacon_sends_the_first_at_thirty_seconds(tmp_path: Path) -> None:
+@pytest.mark.parametrize("minutes_ago", [120, None], ids=["two hours after a beacon", "no stored time"])
+async def test_a_start_two_hours_after_a_beacon_or_with_no_stored_time_sends_the_first_at_thirty_seconds(tmp_path: Path, minutes_ago: int | None) -> None:
     store, clock = await kept(tmp_path)
-    await beacon_sent_ago(store, clock, 120)
-    d = Daemon(store, clock, beacon_interval_min=60)
-    await d.beacon.start()
-    assert d.beacon.next_due == clock() + timedelta(seconds=30)
-    clock.advance(30)
-    await until(lambda: len(d.infos()) == 1)
-    await d.stop()
-
-
-async def test_a_start_with_no_stored_time_sends_the_first_at_thirty_seconds(tmp_path: Path) -> None:
-    store, clock = await kept(tmp_path)
+    if minutes_ago is not None:
+        await beacon_sent_ago(store, clock, minutes_ago)
     d = Daemon(store, clock, beacon_interval_min=60)
     await d.beacon.start()
     assert d.beacon.next_due == clock() + timedelta(seconds=30)

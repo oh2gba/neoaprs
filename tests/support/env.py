@@ -94,6 +94,41 @@ async def until(condition: Callable[[], object], timeout_sec: float = 5.0) -> No
         await asyncio.sleep(0.01)
 
 
+async def until_async(condition: Callable[[], Awaitable[object]], timeout_sec: float = 5.0) -> None:
+    """`until` for a condition that has to be awaited (a row of the database)."""
+    deadline = asyncio.get_running_loop().time() + timeout_sec
+    while not await condition():
+        assert asyncio.get_running_loop().time() < deadline, "the condition did not come true"
+        await asyncio.sleep(0.01)
+
+
+async def idle_for(seconds: float) -> None:
+    """A wait that is the point: the time in which a timer has had its chance to do something that a test then asserts it did not (or in which the loop runs the tasks the test just started). It never waits for something
+    that should happen: that is `until`."""
+    await asyncio.sleep(seconds)
+
+
+async def quick_start(tmp_path: Path, *, beacon: bool = False, messaging: bool = False, rigstatus: bool = False, own: bool = False, unpaced: bool = False, **options: Any) -> "Env":
+    """A started Env whose Tnc is connected and settled and whose named services tick every 20 ms (the beacon, messaging, the status poll, the own objects and bulletins); `unpaced`: and send one frame after the other with no
+    pause (the messaging pace, the own sender). The other options are the Env's."""
+    e = Env(tmp_path, **options)
+    if beacon:
+        e.ctl.beacon.tick_sec, e.ctl.beacon.retry_sec = 0.02, 0.05
+    if messaging:
+        e.ctl.messaging.tick_sec = 0.02
+        if unpaced:
+            e.ctl.messaging.pace.spacing_sec = 0.0
+    if rigstatus:
+        e.ctl.rigstatus.poll_sec = 0.02
+    if own:
+        e.ctl.ownobjects.tick_sec = e.ctl.ownbulletins.tick_sec = 0.02
+        if unpaced:
+            e.ctl.sender.spacing_sec = 0.0
+    await e.start()
+    await e.until_usable()
+    return e
+
+
 class Env:
     def __init__(self, tmp_path: Path, clock: Clock | None = None, radio: bool | str = True, ports: Path | None = None, web: bool = False, operator: bool = True, settings: dict[str, str] | None = None, **tnc_options: Any) -> None:
         self.dir = tmp_path
@@ -198,6 +233,10 @@ class Env:
 
     async def stop(self) -> None:
         await self.ctl.stop()
+
+    async def until_usable(self) -> None:
+        """The Tnc is connected and settled: past the wait after KISS ON, so that what the daemon sends from here on is not thrown away."""
+        await until(lambda: self.tnc.usable)
 
     async def until_connected(self) -> None:
         await until(lambda: self.tnc.state is Source.State.CONNECTED)

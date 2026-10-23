@@ -16,7 +16,7 @@ from neoaprs.packet import Packet
 from neoaprs.source import Backoff, Source
 from neoaprs.tnc import Tnc
 from tests.conftest import ROOT
-from tests.support.env import until
+from tests.support.env import idle_for, until
 from tests.support.files import FIXTURES
 from tests.support.proc import NEW_GROUP, interrupt
 
@@ -66,7 +66,7 @@ async def test_nothing_is_sent_until_a_client_is_there_and_the_frames_go_on_for_
     replay = Replay(FRAMES, interval=0.1, settle_sec=0.0)
     task, port = await start(replay)
     try:
-        await asyncio.sleep(0.2)
+        await idle_for(0.2)
         assert replay.sent == 0
         reader, writer = await asyncio.open_connection("127.0.0.1", port)
         first = await asyncio.wait_for(reader.readexactly(len(FRAMES[0])), 5)
@@ -74,10 +74,10 @@ async def test_nothing_is_sent_until_a_client_is_there_and_the_frames_go_on_for_
         writer.close()
         await writer.wait_closed()
         await until(lambda: not replay.clients)
-        await asyncio.sleep(0.3)
+        await idle_for(0.3)
         sent = replay.sent
         assert 1 <= sent < 4
-        await asyncio.sleep(0.3)
+        await idle_for(0.3)
         assert replay.sent == sent, "with nobody connected it waits where it was"
         reader, writer = await asyncio.open_connection("127.0.0.1", port)
         again = await asyncio.wait_for(reader.readexactly(len(FRAMES[sent])), 5)

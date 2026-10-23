@@ -1,51 +1,24 @@
 """The queries (neoaprs/services/queries.py) on a Tnc that is a stub, the real beacon and station book and a clock the test holds: each query to us gives the frame it should, by the path of the asker; the
 general query waits and is taken once in ten minutes; and what is not a query, not to us or not heard is left alone."""
-import asyncio
 import logging
-from dataclasses import replace
 from datetime import timedelta
 
 import pytest
 
 from neoaprs import ax25
 from neoaprs.aprsmessage import MAX_TEXT, parse_message
-from neoaprs.config import Config
 from neoaprs.packet import Message, Other, Packet, Status
 from neoaprs.services.beacon import Beacon
 from neoaprs.services.queries import GENERAL_DELAY_MAX_SEC, GENERAL_EVERY_SEC, Queries, directs_messages, path_text
-from neoaprs.source import Source, unusable_because
+from neoaprs.source import Source
 from neoaprs.stationbook import StationBook
-from tests.support.clock import FixedClock
-from tests.support.env import ON_AIR, remember_stop, until
+from tests.support.rig import ServiceRig
+from tests.support.env import idle_for, remember_stop, until
 
 
-class StubTnc:
-    def __init__(self) -> None:
-        self.state = Source.State.CONNECTED
-        self.sent: list[ax25.Frame] = []
-        self.takes = True
-
-    @property
-    def usable(self) -> bool:
-        return self.state is Source.State.CONNECTED
-
-    def why_unusable(self) -> str:
-        return unusable_because(self.state)
-
-    def send_frame(self, frame: ax25.Frame) -> bool:
-        if self.takes:
-            self.sent.append(frame)
-        return self.takes
-
-    def lines(self) -> list[str]:
-        return [f.tnc2() for f in self.sent]
-
-
-class Rig:
+class Rig(ServiceRig):
     def __init__(self, delay: float = 0.0, **changes: object) -> None:
-        self.config: Config = replace(ON_AIR, **changes)             # type: ignore[arg-type]
-        self.clock = FixedClock()
-        self.tnc = StubTnc()
+        super().__init__(**changes)
         self.book = StationBook(self.clock)
         self.book.set_me(self.config.station_call, self.config.station_lat, self.config.station_lon)
         self.paths: dict[str, tuple[str, ...]] = {}
@@ -253,7 +226,7 @@ async def test_the_general_query_in_a_message_is_not_answered_whoever_it_is_addr
     rig = Rig()
     for to in ("ALL", "OH2XYZ", "OH2GBA"):
         rig.ask("OH2RDG", "?APRS?", to=to)
-    await asyncio.sleep(0.1)
+    await idle_for(0.1)
     assert rig.tnc.sent == []
 
 
@@ -271,7 +244,7 @@ async def test_the_general_query_gives_the_position_alone_while_no_status_has_be
     rig = Rig()
     general(rig)
     await until(lambda: len(rig.tnc.sent) == 1)
-    await asyncio.sleep(0.1)
+    await idle_for(0.1)
     assert [f.info for f in rig.tnc.sent] == [rig.beacon.frame().info]
 
 
@@ -280,11 +253,11 @@ async def test_the_general_query_is_taken_once_in_ten_minutes() -> None:
     general(rig, "OH2RDG")
     general(rig, "OH2DEF")
     await until(lambda: len(rig.tnc.sent) == 1)
-    await asyncio.sleep(0.1)
+    await idle_for(0.1)
     assert len(rig.tnc.sent) == 1
     rig.clock.advance(GENERAL_EVERY_SEC - 1)
     general(rig)
-    await asyncio.sleep(0.1)
+    await idle_for(0.1)
     assert len(rig.tnc.sent) == 1
     rig.clock.advance(2)
     general(rig)
@@ -297,7 +270,7 @@ async def test_the_general_query_is_taken_once_in_ten_minutes() -> None:
 async def test_a_footprint_is_honoured_we_answer_only_from_inside_it(text: str, inside: bool) -> None:
     rig = Rig()                                          # (we are at 60.17 N 24.94 E)
     general(rig, text=text)
-    await asyncio.sleep(0.1)
+    await idle_for(0.1)
     assert len(rig.tnc.sent) == (1 if inside else 0)
 
 
@@ -306,7 +279,7 @@ async def test_a_footprint_that_does_not_read_is_not_answered_and_a_query_outsid
     for text in ("?APRS?V60.17,24.94", "?APRS?V95.0,24.94,0010", "?APRS?x", "?APRS?V60.17,24.94,00100"):
         general(rig, text=text)
     general(rig, text="?APRS?V34.02,-117.15,0200")
-    await asyncio.sleep(0.1)
+    await idle_for(0.1)
     assert rig.tnc.sent == []
     general(rig, "OH2ABC")
     await until(lambda: len(rig.tnc.sent) == 1)
@@ -331,5 +304,5 @@ async def test_a_general_query_heard_while_the_tnc_is_away_gives_no_answer_when_
     rig = Rig()
     general(rig)
     rig.tnc.state = Source.State.WAITING
-    await asyncio.sleep(0.1)
+    await idle_for(0.1)
     assert rig.tnc.sent == []

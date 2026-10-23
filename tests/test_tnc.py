@@ -17,7 +17,7 @@ from neoaprs.tnc import ENTER_KISS, KISS_EXIT, Tnc
 from neoaprs.tncmode import Mode, ModeDetector
 from neoaprs.tncprofile import KENWOOD_TNC2, KISS_TCP
 from tests.support.clock import FixedClock
-from tests.support.env import until
+from tests.support.env import idle_for, until
 from tests.support.fakeradio import REFUSED, FakeRadio
 from tests.support.files import fixture_bytes
 
@@ -150,7 +150,7 @@ async def test_a_tnc_in_command_mode_is_switched_to_kiss_once(rig: Rigs) -> None
     assert await r.radio.said(len(ENTER_KISS)) == b"\rKISS ON\rRESTART\r"
     r.radio.feed(b"KISS ON\r\nKISS     was OFF\r\ncmd:\x11\x11")           # what the TNC says while it restarts
     r.radio.feed(kiss_of(ui_frame("OH2AAA")))                                # a frame that arrives inside the settling time is thrown away
-    await asyncio.sleep(SETTLE + 0.1)
+    await idle_for(SETTLE + 0.1)
     r.radio.feed(MONITOR_LINE)                                                # text again after KISS ON: left alone, said in the problem
     r.radio.feed(kiss_of(ui_frame("OH2BBB")))
     await until(lambda: r.packets)
@@ -165,7 +165,7 @@ async def test_text_that_goes_on_after_kiss_on_is_told_in_the_problem(rig: Rigs)
     r = await rig()
     r.radio.feed(b"cmd:")
     assert await r.radio.said(len(ENTER_KISS)) == ENTER_KISS
-    await asyncio.sleep(SETTLE + 0.1)
+    await idle_for(SETTLE + 0.1)
     r.radio.feed(MONITOR_LINE)
     await until(lambda: r.tnc.problem)
     assert "command mode" in r.tnc.problem and r.tnc.state is Source.State.CONNECTED
@@ -282,7 +282,7 @@ async def test_a_tnc_on_a_socket_is_never_asked_whether_the_radio_is_there() -> 
     tnc = Tnc(radio.url, profile=KISS_TCP, fallback_probe=False, check_sec=0.1, check_pause_sec=0.02, reply_sec=0.02, answer_sec=0.05)
     try:
         await tnc.start()
-        await asyncio.sleep(0.5)
+        await idle_for(0.5)
         assert await radio.said(1, 0.1) == b"" and tnc.stats.keepalive_checks == 0 and tnc._watchdog_task is None
         assert tnc.state is Source.State.CONNECTED
         tnc.profile = KENWOOD_TNC2                               # a profile that says the TNC can be asked
@@ -375,7 +375,7 @@ async def test_nothing_is_sent_when_stopped_or_waiting_or_restarting(rig: Rigs, 
     r.radio.feed(b"cmd:")
     assert await r.radio.said(len(ENTER_KISS)) == ENTER_KISS
     assert r.tnc.send_frame(ui_frame()) is False, "the TNC is restarting"
-    await asyncio.sleep(SETTLE + 0.1)
+    await idle_for(SETTLE + 0.1)
     assert r.tnc.send_frame(ui_frame()) is True
     await r.tnc.stop()
     assert r.tnc.send_frame(ui_frame()) is False and len(r.packets) == 1
@@ -538,7 +538,7 @@ async def test_no_check_is_made_while_packets_flow(rig: Rigs) -> None:
     r = await confirmed_rig(rig)
     for _ in range(10):
         r.radio.feed(kiss_of(ui_frame()))                          # (twice as often as check_sec)
-        await asyncio.sleep(0.15)
+        await idle_for(0.15)
     assert r.tnc.stats.keepalive_checks == 0 and len(r.packets) == 11 and r.tnc.usable          # (the one that confirmed the line, and ten)
     assert await r.radio.said(1, 0.05) == b""
     assert await hear_until(r.radio, KISS_EXIT)                     # and when they stop, the check comes
@@ -549,29 +549,29 @@ async def test_bytes_that_are_not_a_packet_count_as_heard(rig: Rigs) -> None:
     r = await confirmed_rig(rig)
     for _ in range(10):
         r.radio.feed(b"\x00noise")
-        await asyncio.sleep(0.1)
+        await idle_for(0.1)
     assert r.tnc.stats.keepalive_checks == 0 and await r.radio.said(1, 0.05) == b""
 
 
 @stops_rigs
 async def test_check_sec_zero_does_nothing_and_a_new_period_counts_at_once(rig: Rigs) -> None:
     r = await rig(**{**QUICK, "check_sec": 0.0})
-    await asyncio.sleep(0.4)
+    await idle_for(0.4)
     assert await r.radio.said(1, 0.1) == b"" and r.tnc._watchdog_task is None and r.tnc.stats.keepalive_checks == 0
     r.tnc.set_check(0.1)                                             # the operator saved a period
     assert await hear_until(r.radio, KISS_EXIT, 2.0)
     r.tnc.set_check(0.0)                                             # and took it away again, in the middle of a check
-    await asyncio.sleep(0.1)
+    await idle_for(0.1)
     assert r.tnc._watchdog_task is None and r.tnc._looking is False
     await r.radio.said(4096, 0.05)
-    await asyncio.sleep(0.4)
+    await idle_for(0.4)
     assert await r.radio.said(1, 0.1) == b"" and r.tnc.stats.keepalive_checks == 1
 
 
 @stops_rigs
 async def test_a_tnc_that_is_not_to_enter_kiss_is_not_checked(rig: Rigs) -> None:
     r = await rig(profile=NO_DETECT, **QUICK)
-    await asyncio.sleep(0.6)
+    await idle_for(0.6)
     assert await r.radio.said(1, 0.05) == b"" and r.tnc._watchdog_task is None and r.tnc.state is Source.State.CONNECTED
 
 

@@ -8,53 +8,25 @@ from pathlib import Path
 import pytest
 
 from neoaprs import ax25
-from neoaprs.config import Config
 from neoaprs.rigctld import RigError, read_rig
 from neoaprs.services.beacon import Beacon
 from neoaprs.services.rigstatus import RigStatus, clipped, freq_text
-from neoaprs.source import Source, unusable_because
+from neoaprs.source import Source
+from tests.support.rig import ServiceRig
 from tests.support.air import on_air
-from tests.support.clock import FixedClock
-from tests.support.env import Env, ON_AIR, remember_stop, until
+from tests.support.env import Env, remember_stop, until
 from tests.support.fakes import FakeRigctld, rigctld
 
 FIRST = "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:>211200zQRV 14.074 MHz USB"
 
 
-class StubTnc:
-    def __init__(self) -> None:
-        self.state = Source.State.CONNECTED
-        self.sent: list[ax25.Frame] = []
-        self.takes = True
-
-    @property
-    def usable(self) -> bool:
-        return self.state is Source.State.CONNECTED
-
-    def why_unusable(self) -> str:
-        return unusable_because(self.state)
-
-    def send_frame(self, frame: ax25.Frame) -> bool:
-        if self.takes:
-            self.sent.append(frame)
-        return self.takes
-
-    def lines(self) -> list[str]:
-        return [f.tnc2() for f in self.sent]
-
-
-class Rig:
+class Rig(ServiceRig):
     def __init__(self, rigd: FakeRigctld | None, **changes: object) -> None:
+        super().__init__(**({"status_rigctld": rigd.address} if rigd else {}), **changes)
         self.rigd = rigd
-        self.config: Config = replace(ON_AIR, **({"status_rigctld": rigd.address} if rigd else {}), **changes)       # type: ignore[arg-type]
-        self.clock = FixedClock()
-        self.tnc = StubTnc()
         self.beacon = Beacon(self.tnc, lambda: self.config, self.clock)
         self.status = RigStatus(self.tnc, lambda: self.config, self.beacon, self.clock, poll_sec=0.01, read=lambda host, port: read_rig(host, port, 0.3))
         remember_stop(self.status.stop)
-
-    def set(self, **changes: object) -> None:
-        self.config = replace(self.config, **changes)                  # type: ignore[arg-type]
 
 
 # ---- the radio ------------------------------------------------------------------------------------------------------------------------------------

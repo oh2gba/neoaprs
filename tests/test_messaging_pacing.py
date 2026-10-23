@@ -3,22 +3,13 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs.messagelog import MessageLog
 from neoaprs.source import Source
-from neoaprs.store import DB_NAME
-from tests.support.clock import FixedClock
-from tests.support.storedb import store_at
-from tests.test_messaging import Rig
+from tests.test_messaging import Rig, started_rig
 
 
 @pytest.fixture
 async def rig(tmp_path: Path) -> Rig:
-    clock = FixedClock()
-    store = await store_at(tmp_path / DB_NAME, clock)
-    assert store.db is not None
-    r = Rig(MessageLog(store.db, clock), clock, spacing_sec=10.0)
-    await r.start()
-    return r
+    return await started_rig(tmp_path, spacing_sec=10.0)
 
 
 async def test_the_first_message_goes_at_once_and_the_others_written_with_it_follow_ten_seconds_apart(rig: Rig) -> None:

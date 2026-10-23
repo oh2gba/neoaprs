@@ -17,6 +17,7 @@ import pytest
 
 from neoaprs.db import Db, DbClosed, StoreError
 from neoaprs.dbthread import Tuning
+from tests.support.env import until
 from tests.support.ptyline import posix_only
 from tests.support.dbactor import (THREAD_PREFIX, committed, db_threads, eager, started, wait_gone)
 from tests.conftest import ROOT
@@ -70,8 +71,7 @@ async def test_asking_while_the_shutdown_is_under_way_is_refused_not_lost(tmp_pa
     db = await started(tmp_path / "x.sqlite")
     inside, release = threading.Event(), threading.Event()
     blocker = asyncio.ensure_future(db.write(lambda conn: (inside.set(), release.wait(10))))
-    while not inside.is_set():
-        await asyncio.sleep(0.002)
+    await until(inside.is_set)
     closing = asyncio.ensure_future(db.close())
     await asyncio.sleep(0.01)
     with pytest.raises(DbClosed):
@@ -87,8 +87,7 @@ async def test_a_write_on_the_queue_when_the_db_closes_is_committed_though_its_a
     db = await started(path)
     inside, release = threading.Event(), threading.Event()
     blocker = asyncio.ensure_future(db.write(lambda conn: (inside.set(), release.wait(10))))
-    while not inside.is_set():
-        await asyncio.sleep(0.002)
+    await until(inside.is_set)
     cut = asyncio.ensure_future(db.write(lambda conn: conn.execute("INSERT INTO t VALUES (1, 'a message')")))
     await asyncio.sleep(0.01)
     cut.cancel()
@@ -308,8 +307,7 @@ async def test_the_wait_in_the_queue_and_the_run_time_are_measured(tmp_path: Pat
     db = await started(tmp_path / "x.sqlite")
     inside = threading.Event()
     slow = asyncio.ensure_future(db.write(lambda conn: (inside.set(), time.sleep(0.12))))
-    while not inside.is_set():
-        await asyncio.sleep(0.002)
+    await until(inside.is_set)
     await db.read(lambda conn: 1)                                                  # asked while the slow one runs: it waits for the rest of it
     await slow
     stats: Any = db.stats()

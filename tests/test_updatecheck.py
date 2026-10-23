@@ -1,6 +1,5 @@
 """The daily update check (neoaprs/services/updatecheck.py): it asks the page a minute after the start and then once a day, takes a newer version into `latest` and nothing else, is off when the environment says so, and a page that
 fails changes nothing. The page is a stub here; against a fake version page on the loopback, and through the daemon to the page, below."""
-import asyncio
 import json
 from dataclasses import replace
 from pathlib import Path
@@ -11,7 +10,7 @@ from neoaprs import VERSION
 from neoaprs.config import DEFAULTS, Config
 from neoaprs.services.updatecheck import ENV_SWITCH, EVERY_SEC, FIRST_SEC, WHILE_OFF_SEC, UpdateCheck
 from neoaprs.updatefetch import fetch
-from tests.support.env import Env, remember_stop, until
+from tests.support.env import Env, idle_for, remember_stop, until
 from tests.support.fakeversionpage import version_page
 
 NEWER = json.dumps({"version": "0.2.0", "url": "https://oh2gba.github.io/neoaprs/", "message": "Fixes the map download"}).encode()
@@ -72,7 +71,7 @@ async def test_it_does_not_ask_while_the_environment_says_no_and_asks_when_that_
     service = check(page, environ={ENV_SWITCH: "0"}, first_sec=0.02, every_sec=0.02)
     assert not service.enabled
     await service.start()
-    await asyncio.sleep(0.15)
+    await idle_for(0.15)
     assert page.asked == []
     assert WHILE_OFF_SEC == 3600.0
     await service.stop()
@@ -117,6 +116,6 @@ async def test_a_daemon_of_the_tests_asks_nothing(tmp_path: Path) -> None:
     e = Env(tmp_path, settings={"update/url": fake.url})
     e.ctl.updatecheck.first_sec = 0.01
     await e.start()
-    await asyncio.sleep(0.2)
+    await idle_for(0.2)
     assert fake.requests == [] and e.ctl.updatecheck.latest is None
     await e.stop()

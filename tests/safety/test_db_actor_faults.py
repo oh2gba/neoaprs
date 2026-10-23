@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from neoaprs.dbthread import Tuning
+from tests.support.env import until
 from tests.support.dbactor import (QUICK, Injected, arm, committed, faulty_connection,
                                    started)
 
@@ -150,8 +151,7 @@ async def test_a_full_queue_of_appends_says_no_and_keeps_what_it_has(tmp_path: P
         release.wait(10)
 
     blocker = asyncio.ensure_future(db.write(hold))
-    while not inside.is_set():
-        await asyncio.sleep(0.002)
+    await until(inside.is_set)
     answers = [db.write_nowait(lambda conn, n=n: conn.execute("INSERT INTO t VALUES (?, 'x')", (n,))) for n in range(80)]
     assert answers == [True] * 50 + [False] * 30, "the first 50 are queued, the rest are refused at once (the producer is never made to wait)"
     waiting = asyncio.ensure_future(db.write(lambda conn: conn.execute("INSERT INTO t VALUES (1000, 'awaited')")))            # an awaited operation is never refused
@@ -170,8 +170,7 @@ async def test_the_refusals_are_told_in_the_log_not_every_time(tmp_path: Path, c
     db = await started(tmp_path / "x.sqlite", tuning=Tuning(tick=0.01, max_appends=1))
     inside, release = threading.Event(), threading.Event()
     blocker = asyncio.ensure_future(db.write(lambda conn: (inside.set(), release.wait(10))))
-    while not inside.is_set():
-        await asyncio.sleep(0.002)
+    await until(inside.is_set)
     for _ in range(121):
         db.write_nowait(lambda conn: None)
     release.set()
