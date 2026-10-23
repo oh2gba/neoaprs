@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import vue from "@vitejs/plugin-vue";
 import { readFileSync } from "node:fs";
 import { fileURLToPath, URL } from "node:url";
@@ -11,10 +11,23 @@ function packageVersion(): string {
   return found[1];
 }
 
+/** sw/sw.js, the service worker, is written out as sw.js at the root of the page (its scope is all of it), with the version of the package in it: a new release is a different file, which the browser takes as an update. */
+function serviceWorker(version: string): Plugin {
+  return {
+    name: "neoaprs-service-worker",
+    generateBundle() {
+      const source = readFileSync(fileURLToPath(new URL("./sw/sw.js", import.meta.url)), "utf-8");
+      this.emitFile({ type: "asset", fileName: "sw.js", source: source.replaceAll("__PAGE_VERSION__", version) });
+    },
+  };
+}
+
+const VERSION = packageVersion();
+
 // The page is built into ../neoaprs/page (scripts/build-page sets NEOAPRS_OUT to it), package data that the daemon serves as it is and the wheel carries; the built files are kept in git, so the machine that runs NeoAPRS needs no node.
 export default defineConfig({
-  plugins: [vue()],
-  define: { __PAGE_VERSION__: JSON.stringify(packageVersion()) },
+  plugins: [vue(), serviceWorker(VERSION)],
+  define: { __PAGE_VERSION__: JSON.stringify(VERSION) },
   base: "./",
   resolve: {
     alias: {
