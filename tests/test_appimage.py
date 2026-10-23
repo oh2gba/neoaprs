@@ -51,6 +51,7 @@ def test_outside_an_appimage_there_is_none(monkeypatch: pytest.MonkeyPatch, tmp_
     assert servicecmd.appimage_file() is None, "a file that is not there is not an AppImage"
 
 
+@posix_only                       # an AppImage is a Linux thing (and Windows spells the temporary folder two ways)
 def test_the_unit_starts_the_appimage_file_and_not_the_interpreter_in_the_mount(image: Image, tmp_path: Path) -> None:
     plan = servicecmd.make_plan(servicecmd.parser().parse_args(["install", "--data", str(tmp_path / "data")]))
     exec_start = next(line for line in servicesystemd.render(plan).splitlines() if line.startswith("ExecStart="))
@@ -62,10 +63,12 @@ def test_a_path_with_a_space_is_quoted_in_the_unit(tmp_path: Path) -> None:
     assert 'ExecStart="/home/u/My Apps/NeoAPRS.AppImage" --data ' in servicesystemd.render(plan)
 
 
+@posix_only                       # an AppImage is a Linux thing (and Windows spells the temporary folder two ways)
 def test_the_detached_daemon_is_a_run_of_the_appimage(image: Image, tmp_path: Path) -> None:
     assert opencmd.daemon_argv(tmp_path / "data") == [str(image.file), "run", "--data", str(tmp_path / "data")]
 
 
+@posix_only                       # an AppImage is a Linux thing (and Windows spells the temporary folder two ways)
 def test_start_at_sign_in_is_the_appimage_in_the_tray(image: Image, tmp_path: Path) -> None:
     assert app_command(default_data_dir(), "linux") == [str(image.file), "app", "--tray"]
     assert app_command(tmp_path / "d", "linux") == [str(image.file), "app", "--tray", "--data", str(tmp_path / "d")]
