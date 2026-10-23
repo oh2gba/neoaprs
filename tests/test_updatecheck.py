@@ -1,4 +1,4 @@
-"""The daily update check (neoaprs/services/updatecheck.py): it asks the page a minute after the start and then once a day, takes a newer version into `latest` and nothing else, is off when the setting or the environment says so, and a page that
+"""The daily update check (neoaprs/services/updatecheck.py): it asks the page a minute after the start and then once a day, takes a newer version into `latest` and nothing else, is off when the environment says so, and a page that
 fails changes nothing. The page is a stub here; against a fake version page on the loopback, and through the daemon to the page, below."""
 import asyncio
 import json
@@ -67,9 +67,9 @@ async def test_it_asks_a_minute_after_the_start_and_then_every_day() -> None:
     assert service.latest is not None
 
 
-async def test_it_does_not_ask_while_the_setting_or_the_environment_says_no_and_asks_when_that_is_over() -> None:
+async def test_it_does_not_ask_while_the_environment_says_no_and_asks_when_that_is_over() -> None:
     page = Page(NEWER)
-    service = check(page, replace(DEFAULTS, update_check=False), first_sec=0.02, every_sec=0.02)
+    service = check(page, environ={ENV_SWITCH: "0"}, first_sec=0.02, every_sec=0.02)
     assert not service.enabled
     await service.start()
     await asyncio.sleep(0.15)

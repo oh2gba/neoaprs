@@ -160,12 +160,12 @@ describe("App", () => {
     expect(wrapper.find(".setup").exists()).toBe(false);
   });
 
-  it("opens the guide again from the Setup button of the Settings tab, with the answers the daemon has", async () => {
+  it("opens the guide again from the link at the top of the Settings tab, with the answers the daemon has", async () => {
     const { wrapper } = await open();
     expect(wrapper.find(".setup").exists()).toBe(false);
     await tabButton(wrapper, "Settings")?.trigger("click");
-    const setup = wrapper.findAll("#pane-settings button").find((b) => b.text() === "Setup");
-    await setup?.trigger("click");
+    const setup = wrapper.find("#pane-settings button.setup-open");
+    await setup.trigger("click");
     expect(wrapper.find(".setup").exists()).toBe(true);
     expect(wrapper.find<HTMLInputElement>("#setup-call").element.value).toBe("OH2GBA");
   });
@@ -380,6 +380,25 @@ describe("App", () => {
     expect(socket.sent).not.toContainEqual({ cmd: "beacon_now" });
     await wrapper.find("#pane-beacon .beaconbox button").trigger("click");
     expect(socket.sent).toContainEqual({ cmd: "beacon_now" });
+  });
+
+  it("sends the status from the Beacon tab after two clicks once there is a status, and not before", async () => {
+    const { wrapper, socket } = await open();
+    await tabButton(wrapper, "Beacon")?.trigger("click");
+    expect(wrapper.findAll("#pane-beacon .beaconbox button").map((b) => b.text())).toEqual(["Beacon now"]);
+    socket.say({
+      type: "state",
+      topic: "config",
+      rev: 1,
+      value: configValues({ "map/hide_after_min": "0", "status/source": "text", "station/status": "QRV 145.500" }),
+    });
+    await flushPromises();
+    expect(wrapper.findAll("#pane-beacon .beaconbox button").map((b) => b.text())).toEqual(["Beacon now", "Send status now"]);
+    await wrapper.findAll("#pane-beacon .beaconbox button")[1]?.trigger("click");
+    expect(socket.sent).not.toContainEqual({ cmd: "status_now" });
+    await wrapper.findAll("#pane-beacon .beaconbox button")[1]?.trigger("click");
+    expect(socket.sent).toContainEqual({ cmd: "status_now" });
+    expect(socket.sent).not.toContainEqual({ cmd: "beacon_now" });
   });
 
   it("previews the beacon packet and saves the beacon's settings from the Beacon tab", async () => {
@@ -738,7 +757,7 @@ describe("App", () => {
       await wrapper.find("#pane-objects .toolbar .btn").trigger("click");
       expect(field(wrapper, "Latitude")?.element.value).toBe("60.17");
       await field(wrapper, "Name")?.setValue("MARK");
-      await button(wrapper, "Place")?.trigger("click");
+      await button(wrapper, "Pick on the map")?.trigger("click");
       FakeMap.last().fire("click", { lngLat: { lat: 60.5, lng: 25.5 } });
       await flushPromises();
       expect(field(wrapper, "Latitude")?.element.value).toBe("60.5");
@@ -869,7 +888,7 @@ describe("App", () => {
       expect(wrapper.find("#setup-lat").exists()).toBe(true);
       await tabButton(wrapper, "Objects")?.trigger("click");
       await wrapper.find("#pane-objects .toolbar .btn").trigger("click");
-      await button(wrapper, "Place")?.trigger("click");
+      await button(wrapper, "Pick on the map")?.trigger("click");
       FakeMap.last().fire("click", { lngLat: { lat: 59.5, lng: 24.5 } });
       await flushPromises();
       expect(wrapper.find<HTMLInputElement>("#setup-lat").element.value).toBe("59.5");
@@ -1184,9 +1203,9 @@ describe("the alert of this browser", () => {
     await tabButton(wrapper, "Settings")?.trigger("click");
     const groups = wrapper.findAll("#pane-settings fieldset").filter((g) => g.find("legend").text() === "Notifications");
     expect(groups).toHaveLength(1);
-    expect(groups[0]?.findAll("h3").map((h) => h.text())).toEqual(["On the NeoAPRS computer", "In this browser"]);
+    expect(groups[0]?.findAll("h3").map((h) => h.text().replace(/ i$/, ""))).toEqual(["On the NeoAPRS computer", "In this browser"]);
     expect(groups[0]?.findAll("label").map((l) => l.text())).toEqual(["Alert", "Command", "Alert for a new message", "Sound", "Pop-up"]);
-    expect(groups[0]?.findAll("button").map((b) => b.text())).toEqual(["Test", "Test sound", "Test pop-up"]);
+    expect(groups[0]?.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(["Test", "Test sound", "Test pop-up"]);
   });
 
   it("is off on the loopback: a message to us makes no sound there", async () => {

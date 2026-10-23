@@ -125,10 +125,6 @@ export function altitudeText(m: number | null): string {
   return m === null ? NONE : `${Math.round(m)} m`;
 }
 
-export function courseText(deg: number | null): string {
-  return deg === null ? NONE : `${deg}°`;
-}
-
 /** The digipeaters of a path, as the packet would carry them. */
 export function pathText(path: readonly string[]): string {
   return path.length === 0 ? NONE : path.join(",");

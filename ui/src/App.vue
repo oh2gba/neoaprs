@@ -261,6 +261,7 @@ function onPick(at: Home): void {
             :picking="stationPick.picking.value"
             :picked="stationPick.picked.value"
             @beacon="send({ cmd: 'beacon_now' })"
+            @status="send({ cmd: 'status_now' })"
             @pick-position="stationPick.toggle()"
           />
         </template>

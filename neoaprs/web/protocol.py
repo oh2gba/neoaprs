@@ -20,7 +20,7 @@ from typing import Annotated, Any, Union, cast, get_args, get_type_hints
 
 from pydantic import Field, TypeAdapter
 
-from .beaconwire import BeaconNow
+from .beaconwire import BeaconNow, StatusNow
 from .bulletinwire import BulletinDelete, BulletinRow
 from .configwire import ConfigValues, SetConfig
 from .hostwire import AskStatus, CheckUpdate, Error, Hello, Ping, Pong, Status, UpdateResultMsg
@@ -38,7 +38,7 @@ from .wirebase import _Command, _Message, _Model
 
 
 # ---- Client to server
-AnyCommand = Union[Ping, AskStatus, CheckUpdate, Subscribe, Unsubscribe, ForgetStation, TncReconnect, ListPorts, SetConfig, BeaconNow, SendMessage, MessageRetry, MessageCancel, MessageDelete, ConversationDelete, OverheardDelete, SetStationPath, ClearStationPath, SetStationTimeout, ClearStationTimeout, SetStationRfOnly, WeatherSeries, AlertTest, BulletinDelete, ObjectSet, ObjectKill, BulletinPost, BulletinUnpost, MapEstimate, MapFetch, MapCancel]
+AnyCommand = Union[Ping, AskStatus, CheckUpdate, Subscribe, Unsubscribe, ForgetStation, TncReconnect, ListPorts, SetConfig, BeaconNow, StatusNow, SendMessage, MessageRetry, MessageCancel, MessageDelete, ConversationDelete, OverheardDelete, SetStationPath, ClearStationPath, SetStationTimeout, ClearStationTimeout, SetStationRfOnly, WeatherSeries, AlertTest, BulletinDelete, ObjectSet, ObjectKill, BulletinPost, BulletinUnpost, MapEstimate, MapFetch, MapCancel]
 Command = Annotated[AnyCommand, Field(discriminator="cmd")]
 """Every command the page may send."""
 

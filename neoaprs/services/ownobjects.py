@@ -1,7 +1,7 @@
 """The objects and items of our own: made, changed and killed by the operator, kept in the database, shown on the map as stations of their own, and sent on the air by a schedule of their own.
 
 `set` makes an object or an item (or changes the one of that name: a changed object starts its decay again), `kill` ends one. What is sent is `ownobject.info_of`: `;NAME     *DDHHMMz<position><motion><comment>`
-for an object, `)NAME!<position><comment>` for an item, from `station/call` to `beacon/destination` by the object's own path, else `beacon/path`. The schedule is the decay algorithm of the specification's Packet
+for an object, `)NAME!<position><comment>` for an item, from `station/call` to the tocall by the object's own path, else `beacon/path`. The schedule is the decay algorithm of the specification's Packet
 Timing (neoaprs/decay.py): the new or changed object goes out at once (never sooner than a minute after the last packet of that object), then 1, 2, 4 ... minutes later, never more than the net cycle time of its
 path apart, until it is changed or killed. A kill is sent as the killed form three times (0, 1 and 3 minutes after it is asked for), and then the object is forgotten; an object that was never sent is simply
 removed. The sender (services/sender.py) holds back everything while the call is not set, while the radio is not usable, and between two frames of ours; what is due then goes out when the radio is back, one

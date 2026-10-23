@@ -1,5 +1,5 @@
 """The daily update check: a minute after the start and then every 24 hours the daemon asks the version page (`update/url`) which version is the latest, sending its own version and platform and nothing else. When the answer is a
-newer version, `latest` has it; the page is told in its next status and shows it beside the version. `update/check` switches it off (so does `NEOAPRS_UPDATE_CHECK=0` in the environment, which the tests set), and is looked at again an hour later while it is off.
+newer version, `latest` has it; the page is told in its next status and shows it beside the version. It is always on; `NEOAPRS_UPDATE_CHECK=0` in the environment switches it off for one run (the tests set it), and is looked at again an hour later while it is off.
 A page that cannot be reached or understood is only a line in the debug log: the next try is the next day. Nothing is kept between runs. `check_now` is the same question asked on request (the Settings tab's Check now): it works whatever the switches
 say, tells what came of it, and leaves the schedule alone.
 """
@@ -47,7 +47,7 @@ class UpdateCheck:
 
     @property
     def enabled(self) -> bool:
-        return self._config().update_check and self._environ.get(ENV_SWITCH) != "0"
+        return self._environ.get(ENV_SWITCH) != "0"
 
     async def start(self) -> None:
         if not self._tasks:

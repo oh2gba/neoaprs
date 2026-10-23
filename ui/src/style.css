@@ -525,15 +525,45 @@ tbody tr:focus-visible {
 .beaconbox {
   border-bottom: 1px solid var(--border);
 }
+.beaconact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 2px 10px;
+}
+.beaconact .card-fields {
+  flex: 1 1 14em;
+  padding: 6px 0;
+}
+.beaconact .btn {
+  flex: none;
+  min-width: 11em;
+}
+@media (max-width: 480px) {
+  .beaconact .btn {
+    width: 100%;
+    margin-bottom: 6px;
+  }
+}
 .beacon-preview {
+  margin: 8px 0;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.beacon-preview summary {
+  cursor: pointer;
+  padding: 3px 0;
+}
+.beacon-preview-body {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin: 8px 0;
-  padding: 6px 8px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg);
+  padding-bottom: 6px;
 }
 .beacon-preview code {
   font-size: 12px;
@@ -542,6 +572,18 @@ tbody tr:focus-visible {
 }
 .beacon-preview .problem {
   margin: 0;
+  color: var(--warn);
+}
+.pick-row {
+  display: flex;
+  margin: 2px 0 6px;
+}
+@media (prefers-color-scheme: dark) {
+  .symicon:not(.stn-plain) {
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.88);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.88);
+  }
 }
 .json,
 .tnclines {
@@ -867,19 +909,6 @@ tbody tr:focus-visible {
   padding: 4px 8px 8px;
   border: 1px solid var(--border);
   border-radius: 8px;
-}
-.objform-symbols {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
-  margin: 2px 0 6px;
-}
-.objform-symbols .iconbtn {
-  width: 30px;
-  height: 30px;
-}
-.objform-symbols .iconbtn.active {
-  outline: 2px solid var(--accent);
 }
 .objform-actions {
   display: flex;
@@ -1229,6 +1258,19 @@ tbody tr:focus-visible {
   font: italic 700 12px/1 serif;
   cursor: pointer;
 }
+.info-line {
+  display: block;
+}
+.info-line + .info-line {
+  margin-top: 4px;
+}
+.field-control .info-text {
+  right: 0;
+  left: auto;
+}
+.field-control .check {
+  margin: 0;
+}
 .info-text {
   position: absolute;
   top: 100%;
@@ -1241,7 +1283,9 @@ tbody tr:focus-visible {
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--panel);
+  color: var(--text);
   font-size: 12px;
+  font-weight: 400;
   line-height: 1.4;
 }
 
@@ -1358,6 +1402,7 @@ tbody tr:focus-visible {
   color: var(--muted);
 }
 .field {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(7em, 36%) 1fr;
   align-items: center;
@@ -1366,6 +1411,15 @@ tbody tr:focus-visible {
 }
 .field label {
   font-weight: 600;
+}
+.info-toggle:hover,
+.info-toggle[aria-expanded="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.info-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 .field-control {
   display: flex;
@@ -1376,9 +1430,47 @@ tbody tr:focus-visible {
 .field-control .input {
   flex: 1;
 }
-.field-control.urls {
+.symbolfield {
+  flex-wrap: wrap;
+}
+.symbolfield-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.field .symbolfield-over {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 400;
+}
+.field-control .symbolfield-over .input {
+  flex: none;
+  width: 3em;
+  text-align: center;
+}
+.field-control .urls {
+  display: flex;
+  flex: 1;
   flex-direction: column;
-  align-items: stretch;
+  gap: 6px;
+  min-width: 0;
+}
+.field-control .infotip {
+  flex: none;
+}
+.settings-setup {
+  margin: 4px 0;
+  text-align: right;
+}
+.linkbutton {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
 }
 .field-control .port-found {
   min-width: 0;
@@ -1760,7 +1852,8 @@ tbody tr:focus-visible {
   font-weight: 700;
 }
 .setup-dot:focus-visible,
-.setup-symbol:focus-visible {
+.setup-symbol:focus-visible,
+.sympick-symbol:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
@@ -1794,7 +1887,8 @@ tbody tr:focus-visible {
   gap: 6px;
   margin: 6px 0 10px;
 }
-.setup-symbol {
+.setup-symbol,
+.sympick-symbol {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1808,10 +1902,12 @@ tbody tr:focus-visible {
   font-size: 12px;
   cursor: pointer;
 }
-.setup-symbol:hover {
+.setup-symbol:hover,
+.sympick-symbol:hover {
   background: var(--row-hover);
 }
-.setup-symbol.active {
+.setup-symbol.active,
+.sympick-symbol.active {
   border-color: var(--accent);
   background: var(--row-selected);
 }
@@ -1843,6 +1939,53 @@ tbody tr:focus-visible {
   }
 }
 
+/* the symbol picker */
+.sympick-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.45);
+}
+.sympick {
+  display: flex;
+  flex-direction: column;
+  width: min(640px, 100%);
+  max-height: min(80vh, 100%);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+.sympick-head {
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.sympick-head .input {
+  flex: 1;
+  min-width: 0;
+}
+.sympick-body {
+  min-height: 0;
+  padding: 2px 10px 10px;
+  overflow: auto;
+}
+.sympick-body h3 {
+  margin: 10px 0 4px;
+  font-size: 14px;
+}
+.sympick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(5.5em, 1fr));
+  gap: 6px;
+}
+
 /* the key screen of a device on the network */
 .keyscreen {
   display: flex;
@@ -1862,7 +2005,7 @@ tbody tr:focus-visible {
   text-align: center;
 }
 
-/* The map waits for a click that sets a place (the setup guide's position, an object's Place): a crosshair instead of the hand. */
+/* The map waits for a click that sets a place (the setup guide's position, an object's Pick on the map): a crosshair instead of the hand. */
 .map-picking .maplibregl-canvas-container.maplibregl-interactive,
 .map-picking .maplibregl-canvas-container.maplibregl-interactive:active {
   cursor: crosshair;

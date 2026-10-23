@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import StationsTable from "@/components/StationsTable.vue";
 import type { Aging } from "@/lib/aging";
 import { cssRule } from "@/test/css";
-import { NOW, ago, station, table, weather, weatherStation } from "@/test/fixtures";
+import { NOW, ago, station, table } from "@/test/fixtures";
 
 const rows = table(
   station("OH2GBA", { is_me: true, distance_km: null, bearing_deg: null, last_heard: ago(500), symbol_code: "-" }),

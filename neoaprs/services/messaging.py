@@ -1,7 +1,7 @@
 """Messaging: APRS text messages to and from other stations, with acknowledgements and retries, kept in the database.
 
 Outgoing (`send`): the addressee and the text (printable ASCII) are checked, the message is given the next message id (two characters: 01..99, then A0..ZZ, 0A..9Z and 00, 1296 in all, going round and skipping those of messages still being
-sent) and kept with state "sending", and it is transmitted at once: a UI frame from `station/call` to `beacon/destination` by way of the station's path (below) whose information field is `:` and the message
+sent) and kept with state "sending", and it is transmitted at once: a UI frame from `station/call` to the tocall by way of the station's path (below) whose information field is `:` and the message
 (aprsmessage.format_message). Every message carries its number as a reply-ack, `{MM}` or, when the station has sent us a message with a reply-ack number that its ack has not reached it with, `{MM}AA`, the
 id of the latest such message (services/heard.py); an attempt is made as it is, so a retry carries the latest. The attempts
 are made 4 times, 2 for the email gateway (message.attempts_for; the record keeps the number: `attempts_max`), 0, 30, 60, 120, 240, 480, 960 ... seconds after the first with no wait
@@ -30,7 +30,7 @@ from dataclasses import replace
 from datetime import datetime, timedelta
 from typing import Protocol
 
-from neoaprs import ax25
+from neoaprs import TOCALL, ax25
 from neoaprs.bulletin import board_slot
 from neoaprs.aprsmessage import MessageError, format_ack, format_message
 from neoaprs.callsign import CallsignError
@@ -257,10 +257,10 @@ class Messaging:
         return ident
 
     def _frame(self, info: bytes, to: str) -> ax25.Frame:
-        """Our frame to the station for this information field: from `station/call` to `beacon/destination` by way of the station's path."""
+        """Our frame to the station for this information field: from `station/call` to the tocall by way of the station's path."""
         c = self._config()
         try:
-            return ax25.Frame(ax25.Address.parse(c.beacon_destination), ax25.Address.parse(c.station_call), tuple(ax25.Address.parse(call) for call in self._paths(to)), info=info)
+            return ax25.Frame(ax25.Address.parse(TOCALL), ax25.Address.parse(c.station_call), tuple(ax25.Address.parse(call) for call in self._paths(to)), info=info)
         except MessagingError:
             raise                                                   # (the path of a station that is RF only is too long: the reason is the path's)
         except (ax25.Ax25Error, CallsignError, ValueError) as e:

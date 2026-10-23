@@ -7,8 +7,17 @@ import { NOW, ago, station, table } from "@/test/fixtures";
 import { cssRule } from "@/test/css";
 
 // A phone: a map 390 wide and 380 high with the card over its bottom, its top 130 px down.
-const rect = (left: number, top: number, right: number, bottom: number): DOMRect =>
-  ({ left, top, right, bottom, width: right - left, height: bottom - top, x: left, y: top, toJSON: () => ({}) }) as DOMRect;
+const rect = (left: number, top: number, right: number, bottom: number): DOMRect => ({
+  left,
+  top,
+  right,
+  bottom,
+  width: right - left,
+  height: bottom - top,
+  x: left,
+  y: top,
+  toJSON: () => ({}),
+});
 
 const stations = () =>
   table(

@@ -2,8 +2,8 @@
 // The buttons of the Map group of the Settings tab: Estimate (a dry run that says how big the detailed map will be), Download (the world map if it is not there, then the detailed map), Cancel while a job runs, the progress of the
 // job and what it failed with, and the map files that are there. The daemon does the work for the area and the detail it has saved; unsaved changes of the form (`stale`) disable the buttons, unless the form saves them before
 // it sends the command (`early`, the first-run guide), in which case the daemon having no position yet does not disable them either.
-import { computed } from "vue";
-import { currentEstimate, fileLines, formatBytes, isRunning, progressText } from "@/lib/mapfetch";
+import { computed, ref, watch } from "vue";
+import { BIG_DOWNLOAD_BYTES, currentEstimate, fileLines, formatBytes, isRunning, progressText } from "@/lib/mapfetch";
 import type { Command, MapState } from "@/protocol/protocol";
 
 const props = defineProps<{ map: MapState; stale: boolean; send: (command: Command) => boolean; early?: boolean }>();
@@ -14,6 +14,18 @@ const idle = computed(() => !running.value && !props.stale && (props.early || pr
 const why = computed(() =>
   props.stale ? (props.early ? undefined : "Save first") : running.value || props.early ? undefined : props.map.blocked || undefined,
 );
+/** The download is big and has been pressed once: the button asks "Download 513 MB?" and the second press sends it. */
+const sure = ref(false);
+const big = computed(() => estimate.value !== null && estimate.value.bytes > BIG_DOWNLOAD_BYTES);
+watch([() => estimate.value?.bytes, running, () => props.stale], () => (sure.value = false));
+function download(): void {
+  if (big.value && !sure.value) {
+    sure.value = true;
+    return;
+  }
+  sure.value = false;
+  props.send({ cmd: "map_fetch" });
+}
 const progress = computed(() => progressText(props.map));
 const files = computed(() => fileLines(props.map));
 </script>
@@ -22,8 +34,10 @@ const files = computed(() => fileLines(props.map));
   <div class="mapfetch">
     <div class="mapfetch-actions">
       <button class="btn" type="button" :disabled="!idle" :title="why" @click="send({ cmd: 'map_estimate' })">Estimate</button>
-      <span v-if="estimate && !running" class="mapfetch-size" role="status">{{ formatBytes(estimate.bytes) }}</span>
-      <button class="btn primary" type="button" :disabled="!idle" :title="why" @click="send({ cmd: 'map_fetch' })">Download</button>
+      <span v-if="estimate && !running" class="mapfetch-size" role="status">Download size {{ formatBytes(estimate.bytes) }}</span>
+      <button class="btn primary" :class="{ danger: sure }" type="button" :disabled="!idle" :title="why" @click="download">
+        {{ sure && estimate ? `Download ${formatBytes(estimate.bytes)}?` : "Download" }}
+      </button>
       <button v-if="running" class="btn" type="button" @click="send({ cmd: 'map_cancel' })">Cancel</button>
     </div>
     <div v-if="running" class="mapfetch-progress">

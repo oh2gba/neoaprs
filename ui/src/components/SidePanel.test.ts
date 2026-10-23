@@ -41,7 +41,7 @@ describe("SidePanel", () => {
     wrapper.unmount();
   });
 
-  it("turns the wheel of a mouse over the tab bar into a sideways scroll while the tabs do not fit", async () => {
+  it("turns the wheel of a mouse over the tab bar into a sideways scroll while the tabs do not fit", () => {
     const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400 }, slots });
     const bar = wrapper.find("[role='tablist']").element;
     Object.defineProperty(bar, "scrollWidth", { value: 700, configurable: true });

@@ -56,15 +56,15 @@ class Status(_Message):
     beacon_last_sent: Iso | None = Field(description="when the latest beacon was sent, by the timer or on request; null for none since the daemon started")
     beacon_next_due: Iso | None = Field(description="when the timer sends the next one; null while the interval is 0")
     station_status: str = Field(description="the text of the status report last sent in this run (services/rigstatus.py); empty until one has gone")
-    rig_state: Literal["off", "on", "unused"] = Field(description="whether the radio the status is made from answers: `on`, `off` (rigctld is away or the radio is off, nothing is sent), or `unused` while `status/rigctld` is empty and the status is the static text")
+    rig_state: Literal["off", "on", "unused"] = Field(description="whether the radio the status is made from answers: `on`, `off` (rigctld is away or the radio is off, nothing is sent), or `unused` while the status does not come from a radio (`status/source` is `text` or `off`)")
     cpu_percent: float = Field(description="the daemon's CPU time (user and system) as a share of one core, in percent to a tenth, since the previous status that was at least a second before; the first counts from the start")
     rss_mb: float | None = Field(description="the daemon's resident memory in megabytes, to a tenth; null where the system does not say")
     uptime_sec: int = Field(description="seconds since the daemon started, by its clock")
-    update: UpdateInfo | None = Field(description="the latest version while it is newer than this one, from the daily update check (`update/check`); null when there is none, the check is off or has not been answered")
+    update: UpdateInfo | None = Field(description="the latest version while it is newer than this one, from the daily update check; null when there is none or the check has not been answered")
 
 
 class CheckUpdate(_Command):
-    """Asks the version page now, the question of the daily update check (`update/check`), whether that is switched on or not; the daily schedule is left as it was. Answered with `update_result` and then a `status` (with the newer version, if there is one) to the page that asked."""
+    """Asks the version page now, the question of the daily update check; the daily schedule is left as it was. Answered with `update_result` and then a `status` (with the newer version, if there is one) to the page that asked."""
     cmd: Literal["update_check"]
 
 

@@ -36,12 +36,28 @@ describe("MapFetchPanel", () => {
       make(mapState({ estimate: ESTIMATE }))
         .wrapper.find(".mapfetch-size")
         .text(),
-    ).toBe("493 MB");
+    ).toBe("Download size 493 MB");
     expect(
       make(mapState({ estimate: ESTIMATE, radius_km: 200 }))
         .wrapper.find(".mapfetch-size")
         .exists(),
     ).toBe(false);
+  });
+
+  it("asks again, with the size on the button, before a download over 200 MB, and sends it on the second press", async () => {
+    const { send, button, wrapper } = make(mapState({ estimate: ESTIMATE }));
+    await button("Download")?.trigger("click");
+    expect(send).not.toHaveBeenCalled();
+    expect(button("Download 493 MB?")).toBeDefined();
+    await button("Download 493 MB?")?.trigger("click");
+    expect(send).toHaveBeenCalledWith({ cmd: "map_fetch" });
+    expect(wrapper.findAll("button").map((b) => b.text())).toContain("Download");
+  });
+
+  it("downloads at once when the estimate is small, and when there is none", async () => {
+    const small = make(mapState({ estimate: { ...ESTIMATE, bytes: 60_000_000 } }));
+    await small.button("Download")?.trigger("click");
+    expect(small.send).toHaveBeenCalledWith({ cmd: "map_fetch" });
   });
 
   it("shows a bar with the percent and the step while a job runs, and Cancel instead of enabled buttons", async () => {
@@ -92,8 +108,8 @@ describe("MapFetchPanel", () => {
   it("tells the maps that are there: the area, the detail, the size and the day, and the world's", () => {
     const { wrapper } = make(mapState({ state: "ready", detail: mapFile(), world: mapFile({ bytes: 15_100_000, max_zoom: 5 }) }));
     expect(wrapper.findAll(".mapfetch-file").map((p) => p.text())).toEqual([
-      "58.8N to 61.5N, 22.1E to 27.8E, zoom 12, 123 MB, 2026-10-22",
-      "World: zoom 5, 15 MB, 2026-10-22",
+      "Detailed map here: 58.8N to 61.5N, 22.1E to 27.8E, zoom 12, 123 MB, 2026-10-22",
+      "World map here: zoom 5, 15 MB, 2026-10-22",
     ]);
   });
 
