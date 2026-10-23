@@ -14,7 +14,6 @@ from .config import LOG_KEEP_DAYS, TNC_CHECK_SEC, Config
 from .db import Db
 from .dbfile import DEFAULT_BUSY_MS
 from .dbopen import open_connection
-from .stationbook import DETAILS_SEEN
 from .store import DB_NAME, Store
 from .tasks import cancel_all
 from .tnc import Tnc
@@ -58,13 +57,7 @@ class Controller(Services):
         self.data_dir.mkdir(parents=True, exist_ok=True)
         await self.open_database()
         self.config = Config.from_data(await self.store.settings())
-        self.stationbook.seed(await self.packetlog.stations())
-        self.stationbook.seed_deliveries(await self.packetlog.deliveries())
-        self._place_me()
-        self.stationbook.seed_tracks(await self.packetlog.positions(LOG_KEEP_DAYS))      # (after our own station is in the book: it gets no track)
-        await self._seed_weather()
-        self.stationbook.seed_details(await self.packetlog.recent(DETAILS_SEEN))
-        self.stationbook.seed_messaging(await self.packetlog.messaging_evidence(LOG_KEEP_DAYS))
+        await wiring.seed_station_book(self)
         self.running = True
         await self.bulletins.start()
         self.start_tnc()
@@ -96,14 +89,6 @@ class Controller(Services):
         finally:
             if self.db is not None:
                 await self.db.close()                           # what was asked of the database thread is done, then its connection is closed
-
-    async def _seed_weather(self) -> None:
-        """The weather log made from the packets kept when it is empty (once), then the newest observation of each station into the book."""
-        if await self.weatherlog.count() == 0:
-            made = await self.weatherlog.backfill(LOG_KEEP_DAYS)
-            if made:
-                log.info("the weather log was empty: %d observations were read from the packets already kept", made)
-        self.stationbook.seed_weather(await self.weatherlog.latest_all())
 
     # ---- the page
     async def _start_web(self) -> None:
@@ -140,13 +125,6 @@ class Controller(Services):
         await self.tnc.stop()
 
     # ---- the settings
-    def _place_me(self) -> None:
-        c = self.config
-        if c.station_call and c.station_position is not None:
-            self.stationbook.set_me(c.station_call, *c.station_position, c.station_symbol_table, c.station_symbol_code, c.station_comment)
-        else:
-            self.stationbook.clear_me()                                 # (no own station until there is a call and a position)
-
     async def save_config(self, config: Config) -> bool:
         """Stores every setting, puts them in force, and restarts the Tnc when the port, the speed or entering KISS changed. False when the
         database would not take them (nothing changed)."""
@@ -154,7 +132,7 @@ class Controller(Services):
             return False
         before = wiring.tnc_settings(self.config, self.port_override, self.pattern_override)
         self.config = config
-        self._place_me()
+        wiring.place_me(self)
         self.beacon.settings_changed()
         if wiring.tnc_settings(config, self.port_override, self.pattern_override) != before:
             self.start_tnc()
