@@ -454,7 +454,11 @@ describe("SettingsForm", () => {
       const { wrapper } = make();
       expect(button(wrapper)?.textContent?.trim()).toBe("Test");
       expect(wrapper.findAll(".field button").map((b) => b.text())).toEqual(["Refresh", "Test", "Check now"]);
-      expect(make({}, "beacon").wrapper.findAll(".field button")).toHaveLength(0);
+      expect(
+        make({}, "beacon")
+          .wrapper.findAll(".field button")
+          .map((b) => b.text()),
+      ).toEqual(["Pick on the map"]); // (the Beacon tab's one field button is for our place)
     });
 
     it("sends alert_test, waits while it runs, and shows ran in green under the field", async () => {
@@ -557,5 +561,33 @@ describe("SettingsForm", () => {
       await wrapper.find("form").trigger("submit");
       expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "map/maxzoom": "14" } });
     });
+  });
+});
+
+describe("SettingsForm: our position picked on the map (Beacon tab)", () => {
+  it("has Pick on the map beside the longitude in the Beacon tab only, Cancel while the map waits, and asks the page to wait for a click", async () => {
+    const { wrapper } = make({}, "beacon");
+    const pick = () => wrapper.findAll("button").find((b) => b.text() === "Pick on the map" || b.text() === "Cancel");
+    expect(pick()?.text()).toBe("Pick on the map");
+    await pick()?.trigger("click");
+    expect(wrapper.emitted("pickPosition")).toHaveLength(1);
+    await wrapper.setProps({ picking: true });
+    expect(pick()?.text()).toBe("Cancel");
+    expect(
+      make()
+        .wrapper.findAll("button")
+        .some((b) => b.text() === "Pick on the map"),
+    ).toBe(false);
+  });
+
+  it("fills the latitude and the longitude with the place picked, to be saved like any change", async () => {
+    const { wrapper, send } = make({}, "beacon");
+    await wrapper.setProps({ picked: { lat: 60.429449, lon: 24.1452399, n: 1 } });
+    expect(wrapper.find<HTMLInputElement>("#set-station-lat").element.value).toBe("60.42945");
+    expect(wrapper.find<HTMLInputElement>("#set-station-lon").element.value).toBe("24.14524");
+    await wrapper.find("form").trigger("submit");
+    const saved = send.mock.calls.at(-1)?.[0] as { cmd: string; values: Record<string, string> } | undefined;
+    expect(saved?.cmd).toBe("set_config");
+    expect([saved?.values["station/lat"], saved?.values["station/lon"]]).toEqual(["60.42945", "24.14524"]);
   });
 });

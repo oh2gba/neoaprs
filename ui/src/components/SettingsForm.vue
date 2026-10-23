@@ -10,9 +10,11 @@ import { ALERT_KEY, useAlertTest } from "@/composables/useAlertTest";
 import { KEY_KEY, useNewKey } from "@/composables/useNewKey";
 import { useUpdateCheck } from "@/composables/useUpdateCheck";
 import { useSettingsForm } from "@/composables/useSettingsForm";
+import type { Picked } from "@/composables/usePositionPick";
+import { degreesText } from "@/lib/setup";
 import { FIELDS, SUBGROUPS, portForProfile, shownFor, speedFallback, type Scope } from "@/lib/settings";
 import type { AlertResultMessage, Command, ConfigValues, MapState, PortsMessage, UpdateResultMessage } from "@/protocol/protocol";
-import { computed, toRef } from "vue";
+import { computed, toRef, watch } from "vue";
 
 const props = withDefaults(
   defineProps<{
@@ -24,10 +26,12 @@ const props = withDefaults(
     updateResult?: UpdateResultMessage | null;
     map?: MapState | null;
     ports?: PortsMessage | null;
+    picking?: boolean;
+    picked?: Picked | null;
   }>(),
-  { scope: "settings", alertResult: null, updateResult: null, map: null, ports: null },
+  { scope: "settings", alertResult: null, updateResult: null, map: null, ports: null, picking: false, picked: null },
 );
-const emit = defineEmits<{ setup: []; update: [] }>();
+const emit = defineEmits<{ setup: []; update: []; pickPosition: [] }>();
 
 const { draft, errors, saving, saved, groups, defaults, changed, dirty, save, edit, revert } = useSettingsForm(
   toRef(props, "config"),
@@ -54,6 +58,15 @@ const profile = computed(() => draft["tnc/profile"]);
 /** Whether the daemon looks for the radio among the ports (Linux); true until it has said. */
 const search = computed(() => props.ports?.search ?? true);
 const shown = (keys: string[]) => keys.filter((key) => shownFor(key, profile.value, network.value, search.value));
+// a place picked on the map (the Beacon tab's Pick on the map) fills our station's latitude and longitude, to be saved like any change
+watch(
+  () => props.picked,
+  (at) => {
+    if (!at) return;
+    edit("station/lat", degreesText(Math.round(at.lat * 1e5) / 1e5));
+    edit("station/lon", degreesText(Math.round((((((at.lon + 180) % 360) + 360) % 360) - 180) * 1e5) / 1e5));
+  },
+);
 const refreshPorts = () => props.send({ cmd: "list_ports" }); // (the page asks for the list itself each time the daemon is connected: App.vue)
 const fallback = (key: string) => (key === "serial/baud" ? speedFallback(profile.value, defaults.value[key] ?? "") : (defaults.value[key] ?? ""));
 /** A serial device does not go with a TCP profile: choosing one clears it, so that Save is not refused for it. */
@@ -94,7 +107,10 @@ const mapUnsaved = computed(() => Object.keys(changed.value).some((key) => key.s
           :result="resultOf(key)"
           @update:model-value="onEdit(key, $event)"
         >
-          <template v-if="key === ALERT_KEY" #after>
+          <template v-if="key === 'station/lon' && scope === 'beacon'" #after>
+            <button class="btn" type="button" :class="{ active: picking }" @click="emit('pickPosition')">{{ picking ? "Cancel" : "Pick on the map" }}</button>
+          </template>
+          <template v-else-if="key === ALERT_KEY" #after>
             <button
               class="btn"
               type="button"

@@ -2,6 +2,7 @@
 // The page: a header with the connection and the radio link, the map filling the page, and at its right a panel with the stations, the packets, the messages, the email, the bulletins, our objects, the beacon, the TNC and the settings.
 // The shell only: what the daemon tells is `useDaemon`, the panel `usePanel`, the station picked `useSelection`, the Messages tab `useMessagesView`, the Email tab `useEmail`, the Bulletins tab `useBulletins`, the Objects tab `useOwnObjects`, the paths, timeouts and attempts of the stations
 // `useStationPrefs`, the first-run guide (it opens by itself while the daemon has no call) `useSetupGuide`, the alert of this browser for a message to us `useBrowserAlerts` and `usePageAlerts`; the components take props and emit events, and the commands go out through `send`.
+import { usePositionPick } from "@/composables/usePositionPick";
 import { computed, ref, watch } from "vue";
 import AppHeader from "@/components/AppHeader.vue";
 import BeaconPane from "@/components/BeaconPane.vue";
@@ -130,8 +131,10 @@ const home = computed<Home | null>(() => {
 const objects = useOwnObjects(ownObjects, home, send, panel);
 
 /** A click on the map is a place for the first-run guide while it asks for one, else for the form of an object. */
+const stationPick = usePositionPick(); // the Beacon tab's Pick on the map
 function onPick(at: Home): void {
   if (guide.picking) guide.place(at.lat, at.lon);
+  else if (stationPick.picking.value) stationPick.place(at.lat, at.lon);
   else objects.place(at.lat, at.lon);
 }
 </script>
@@ -162,7 +165,7 @@ function onPick(at: Home): void {
           :dark="dark"
           :aging="aging"
           :files-key="filesKey(map)"
-          :picking="guide.picking || objects.picking"
+          :picking="guide.picking || objects.picking || stationPick.picking.value"
           :pin="guide.open ? guide.pin : objects.pin"
           @select="selected = $event"
           @pick="onPick"
@@ -267,7 +270,10 @@ function onPick(at: Home): void {
             :config="config"
             :last-error="lastError"
             :send="send"
+            :picking="stationPick.picking.value"
+            :picked="stationPick.picked.value"
             @beacon="send({ cmd: 'beacon_now' })"
+            @pick-position="stationPick.toggle()"
           />
         </template>
         <template #tnc>

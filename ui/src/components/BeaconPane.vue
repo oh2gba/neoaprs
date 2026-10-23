@@ -2,6 +2,7 @@
 // The Beacon tab: the beacon box on top (the last and the next beacon, "Beacon now"), and under it the settings the beacon is made from (the beacon's own and our station's: call, position, symbol,
 // comment, status), saved as the Settings tab saves, with a preview of the packet those values would make and, when the static status is not empty, of the status report it makes.
 import BeaconBox from "@/components/BeaconBox.vue";
+import type { Picked } from "@/composables/usePositionPick";
 import SettingsForm from "@/components/SettingsForm.vue";
 import type { Toast } from "@/composables/useDaemon";
 import { beaconText, statusText } from "@/lib/beacon";
@@ -14,14 +15,24 @@ defineProps<{
   config: ConfigValues | null;
   lastError: Toast | null;
   send: (command: Command) => boolean;
+  picking?: boolean;
+  picked?: Picked | null;
 }>();
-const emit = defineEmits<{ beacon: [] }>();
+const emit = defineEmits<{ beacon: []; pickPosition: [] }>();
 </script>
 
 <template>
   <div class="beaconpane">
     <BeaconBox :status="status" :connected="connected" :now="now" @send="emit('beacon')" />
-    <SettingsForm :config="config" :last-error="lastError" :send="send" scope="beacon">
+    <SettingsForm
+      :config="config"
+      :last-error="lastError"
+      :send="send"
+      scope="beacon"
+      :picking="picking"
+      :picked="picked"
+      @pick-position="emit('pickPosition')"
+    >
       <template #preview="{ draft }">
         <div class="beacon-preview">
           <span class="muted">Packet</span>

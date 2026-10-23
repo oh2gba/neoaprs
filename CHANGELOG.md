@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Beacon tab: **Pick on the map** beside the longitude: the next click on the map is our station's place, to be saved like any change.
 - The route on the map: a station whose latest packet came back from the internet through an iGate is drawn by its route over the radio, not from the iGate.
 
 ## 0.4.0
