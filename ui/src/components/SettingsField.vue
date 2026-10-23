@@ -4,6 +4,7 @@
 // A field whose meaning a non-developer may not know has a small (i) after it (`info.tip`); nothing else explains it, and the one thing a word cannot say is the `title` of the field.
 import { computed } from "vue";
 import InfoTip from "@/components/InfoTip.vue";
+import { t } from "@/i18n";
 import type { Choice, FieldInfo } from "@/lib/settings";
 
 const props = defineProps<{
@@ -21,7 +22,7 @@ const emit = defineEmits<{ "update:modelValue": [value: string]; choose: [value:
 
 const errorId = computed(() => `${props.id}-error`);
 const describedBy = computed(() => (props.error ? errorId.value : undefined));
-const placeholder = computed(() => props.info.empty ?? (props.fallback !== "" ? props.fallback : "(default)"));
+const placeholder = computed(() => props.info.empty ?? (props.fallback !== "" ? props.fallback : t("settings.default_placeholder")));
 
 /** The options of a choice: the words for each value, and the value in force when it is none of them (a setting changed from the shell). */
 const options = computed<Choice[]>(() => {
@@ -95,7 +96,7 @@ function onEscape(event: KeyboardEvent): void {
       />
       <span v-if="info.unit" class="unit muted">{{ info.unit }}</span>
       <slot name="after"></slot>
-      <InfoTip v-if="info.tip" :label="info.tipLabel ?? `About ${info.label}`">
+      <InfoTip v-if="info.tip" :label="info.tipLabel ?? t('settings.about', { label: info.label })">
         <span v-for="line in info.tip" :key="line" class="info-line">{{ line }}</span>
       </InfoTip>
     </div>

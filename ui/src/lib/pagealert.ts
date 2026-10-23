@@ -1,6 +1,7 @@
 // The alert of the page itself for a message to us (the daemon's alert command runs on the server, which is not where the person is when the page is open from a laptop or a phone): which messages are
 // new, the words of the notification and of the browser tab, and what a page opened from this address does by default. The sound is lib/chime.ts, the switches and the notification
 // composables/useBrowserAlerts.ts, the browser tab composables/useTabAlert.ts.
+import { t } from "@/i18n";
 import type { MessageRow } from "@/protocol/protocol";
 
 /** Whether the page is open on the machine it is served from (localhost, 127.x.x.x, ::1): there the daemon's own alert and the desktop app already notify. */
@@ -31,7 +32,7 @@ export function scan(rows: Iterable<MessageRow>, mark: number | null): Scan {
 
 /** The title of the notification. */
 export function notificationTitle(from: string): string {
-  return `APRS message from ${from}`;
+  return t("settings.alert.notification_title", { call: from });
 }
 
 /** The text the browser tab shows while it is alerting: "✉ OH2DPN". */

@@ -1,15 +1,17 @@
 // What this browser does for a message to us, as one choice (the Settings tab, "Notifications", "In this browser"): nothing, the chime, the chime and a pop-up, or a pop-up only. A pop-up is a notification of the browser.
+import { t } from "@/i18n";
+import { lazyText } from "@/lib/lazytext";
 import { readStored, removeStored, writeStored } from "@/lib/storage";
 
 export type AlertMode = "off" | "sound" | "both" | "popup";
 
 export const MODE_KEY = "alert.mode";
 
-export const MODES: readonly { value: AlertMode; label: string }[] = [
-  { value: "off", label: "off" },
-  { value: "sound", label: "sound" },
-  { value: "both", label: "sound and pop-up" },
-  { value: "popup", label: "pop-up only" },
+export const MODES: readonly { value: AlertMode; readonly label: string }[] = [
+  lazyText({ value: "off" as const }, { label: () => t("settings.alert_mode.off") }),
+  lazyText({ value: "sound" as const }, { label: () => t("settings.alert_mode.sound") }),
+  lazyText({ value: "both" as const }, { label: () => t("settings.alert_mode.both") }),
+  lazyText({ value: "popup" as const }, { label: () => t("settings.alert_mode.popup") }),
 ];
 
 export const wantsSound = (mode: AlertMode): boolean => mode === "sound" || mode === "both";
@@ -17,8 +19,8 @@ export const wantsPopup = (mode: AlertMode): boolean => mode === "both" || mode 
 
 /** Why this browser cannot show a pop-up, else undefined: `possible` is a secure context with the API, `permission` what the browser has answered so far. */
 export function popupWhy(possible: boolean, permission: NotificationPermission): string | undefined {
-  if (!possible) return "Pop-ups are off in this browser for this address";
-  return permission === "denied" ? "Pop-ups are blocked for this page in the browser" : undefined;
+  if (!possible) return t("settings.alert_mode.why_off");
+  return permission === "denied" ? t("settings.alert_mode.why_blocked") : undefined;
 }
 
 /** The default for a page opened on the machine the daemon runs on (where the daemon's own alert notifies) is off, elsewhere the sound and a pop-up where one is allowed, else the sound. */

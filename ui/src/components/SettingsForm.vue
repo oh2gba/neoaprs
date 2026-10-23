@@ -18,6 +18,7 @@ import SettingsLocation from "@/components/SettingsLocation.vue";
 import SettingsHttps from "@/components/SettingsHttps.vue";
 import SymbolField from "@/components/SymbolField.vue";
 import SettingsPort from "@/components/SettingsPort.vue";
+import { t } from "@/i18n";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { ALERT_KEY, useAlertTest } from "@/composables/useAlertTest";
 import { KEY_KEY, useNewKey } from "@/composables/useNewKey";
@@ -99,7 +100,7 @@ function typed(key: string, text: string): void {
   <form v-if="config" class="settings" novalidate @submit.prevent>
     <LanguageField v-if="scope === 'settings'" />
     <p v-if="scope === 'settings'" class="settings-setup">
-      <button class="linkbutton setup-open" type="button" @click="emit('setup')">Run the setup guide again</button>
+      <button class="linkbutton setup-open" type="button" @click="emit('setup')">{{ t("settings.setup_again") }}</button>
     </p>
     <span class="sr-only" role="status" aria-live="polite"
       ><span :key="settings.announcement.value.n">{{ settings.announcement.value.text }}</span></span
@@ -167,28 +168,27 @@ function typed(key: string, text: string): void {
           @cancel="settings.cancel(key)"
         >
           <template v-if="key === ALERT_KEY" #after>
-            <button class="btn" type="button" :disabled="alertTest.running.value || alertTest.stale.value" @click="alertTest.test">Test</button>
+            <button class="btn" type="button" :disabled="alertTest.running.value || alertTest.stale.value" @click="alertTest.test">
+              {{ t("settings.alert_test") }}
+            </button>
           </template>
           <template v-else-if="key === KEY_KEY" #after>
             <button class="btn" :class="{ danger: newKey.armed.value }" type="button" :disabled="newKey.running.value" @click="newKey.press">
-              {{ newKey.armed.value ? "sure?" : "New key" }}
+              {{ newKey.armed.value ? t("settings.new_key_sure") : t("settings.new_key") }}
             </button>
           </template>
         </SettingsField>
         <ConfirmRow v-if="question?.key === key" :message="question.message" @yes="form.answer(true)" @cancel="form.answer(false)" />
         <SettingsHttps v-if="key === 'web/https'" :https="config.https" />
         <div v-if="key === KEY_KEY && urls.length" class="field">
-          <label for="set-web-url-0">Open at</label>
+          <label for="set-web-url-0">{{ t("settings.urls.label") }}</label>
           <div class="field-control">
             <div class="urls">
               <input v-for="(url, i) in urls" :id="`set-web-url-${i}`" :key="url" class="input" type="text" readonly :value="url" />
             </div>
-            <InfoTip label="About the addresses">
-              <span class="info-line">Type one of these in the browser of the laptop or phone, which must be on the same network as NeoAPRS.</span>
-              <span class="info-line"
-                >The one with numbers works everywhere on the network. The one ending in .local is easier to remember and works on most phones and
-                laptops.</span
-              >
+            <InfoTip :label="t('settings.urls.tip_label')">
+              <span class="info-line">{{ t("settings.urls.tip1") }}</span>
+              <span class="info-line">{{ t("settings.urls.tip2") }}</span>
             </InfoTip>
           </div>
         </div>
@@ -208,21 +208,21 @@ function typed(key: string, text: string): void {
       <MapFetchPanel v-if="group.id === 'map' && map" :map="map" :stale="settings.saving.value" :send="send" />
     </fieldset>
     <fieldset v-if="scope === 'settings'" class="update-check">
-      <legend>Update check</legend>
+      <legend>{{ t("settings.update.group") }}</legend>
       <div class="field">
-        <label for="set-update-now">New version</label>
+        <label for="set-update-now">{{ t("settings.update.label") }}</label>
         <div class="field-control">
-          <button id="set-update-now" class="btn" type="button" :disabled="updateCheck.running.value" @click="updateCheck.check">Check now</button>
+          <button id="set-update-now" class="btn" type="button" :disabled="updateCheck.running.value" @click="updateCheck.check">
+            {{ t("settings.update.check") }}
+          </button>
           <template v-if="updateCheck.outcome.value">
             <button v-if="updateCheck.outcome.value.newer" class="updatecheck-result" type="button" role="status" @click="emit('update')">
               {{ updateCheck.outcome.value.text }}
             </button>
             <span v-else class="updatecheck-result muted" role="status">{{ updateCheck.outcome.value.text }}</span>
           </template>
-          <InfoTip label="About the update check">
-            <span class="info-line"
-              >Once a day NeoAPRS asks the project's version page whether a newer version is out, and tells you in the footer when there is one.</span
-            >
+          <InfoTip :label="t('settings.update.tip_label')">
+            <span class="info-line">{{ t("settings.update.tip") }}</span>
           </InfoTip>
         </div>
       </div>
@@ -230,5 +230,5 @@ function typed(key: string, text: string): void {
     <slot></slot>
     <slot name="preview" :draft="draft"></slot>
   </form>
-  <p v-else class="empty">No word from the daemon yet.</p>
+  <p v-else class="empty">{{ t("settings.no_word") }}</p>
 </template>

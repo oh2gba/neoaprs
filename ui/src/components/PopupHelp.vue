@@ -7,9 +7,15 @@ import CopyField from "@/components/CopyField.vue";
 import DisclosureBox from "@/components/DisclosureBox.vue";
 import HttpsGuide from "@/components/HttpsGuide.vue";
 import IconButton from "@/components/IconButton.vue";
+import RichMessage from "@/components/RichMessage.vue";
+import { t } from "@/i18n";
 import { secureUrl } from "@/lib/httpshelp";
 import { browserKind, CHROMIUM, FLATPAK_COMMANDS, flagAddress, isChromium, onLinuxDesktop } from "@/lib/popuphelp";
 import type { HttpsState } from "@/protocol/protocol";
+
+/** What the person types into Firefox: the page of its settings and the name of the setting. */
+const FIREFOX_CONFIG = "about:config";
+const FIREFOX_KEY = "dom.securecontext.allowlist";
 
 const props = defineProps<{ https?: HttpsState | null }>();
 const emit = defineEmits<{ close: [] }>();
@@ -30,55 +36,79 @@ function reload(): void {
 </script>
 
 <template>
-  <section class="popuphelp" aria-label="Enable pop-ups">
+  <section class="popuphelp" :aria-label="t('help.popup.title')">
     <header class="popuphelp-head">
-      <h4>{{ browser ? `Enable pop-ups in ${browser}` : "Enable pop-ups" }}</h4>
-      <IconButton kind="close" label="Close" @click="emit('close')" />
+      <h4>{{ browser ? t("help.popup.title_in", { browser }) : t("help.popup.title") }}</h4>
+      <IconButton kind="close" :label="t('help.close')" @click="emit('close')" />
     </header>
 
     <template v-if="secure && https">
       <ol class="popuphelp-steps">
         <li>
-          Open the secure page: <a :href="secureUrl(https.port)">{{ secureUrl(https.port) }}</a>
+          <RichMessage id="help.popup.secure_page"
+            ><template #link
+              ><a :href="secureUrl(https.port)">{{ secureUrl(https.port) }}</a></template
+            ></RichMessage
+          >
         </li>
       </ol>
-      <DisclosureBox title="Remove the browser's warning"><HttpsGuide :https="https" :link="false" /></DisclosureBox>
+      <DisclosureBox :title="t('help.popup.remove_warning')"><HttpsGuide :https="https" :link="false" /></DisclosureBox>
     </template>
 
-    <component :is="secure ? DisclosureBox : 'div'" class="popuphelp-http" v-bind="secure ? { title: 'Or keep http' } : {}">
+    <component :is="secure ? DisclosureBox : 'div'" class="popuphelp-http" v-bind="secure ? { title: t('help.popup.keep_http') } : {}">
       <ol v-if="kind === 'firefox'" class="popuphelp-steps">
-        <li>Open a new tab, type <code class="mono">about:config</code> and press Enter, then click "Accept the Risk and Continue".</li>
-        <li>Search for <code class="mono">dom.securecontext.allowlist</code>.</li>
         <li>
-          If it is not there, choose "String" and click "+". Put in this and click the tick:
-          <CopyField :text="host" />
-          If it has text already, add a comma and this at the end.
+          <RichMessage id="help.popup.firefox1"
+            ><template #config
+              ><code class="mono">{{ FIREFOX_CONFIG }}</code></template
+            ></RichMessage
+          >
         </li>
-        <li>Come back here and <button type="button" class="btn small" @click="reload">Reload</button></li>
+        <li>
+          <RichMessage id="help.popup.firefox2"
+            ><template #key
+              ><code class="mono">{{ FIREFOX_KEY }}</code></template
+            ></RichMessage
+          >
+        </li>
+        <li>
+          {{ t("help.popup.firefox3a") }}
+          <CopyField :text="host" />
+          {{ t("help.popup.firefox3b") }}
+        </li>
+        <li>
+          <RichMessage id="help.popup.back"
+            ><template #reload
+              ><button type="button" class="btn small" @click="reload">{{ t("help.popup.reload") }}</button></template
+            ></RichMessage
+          >
+        </li>
       </ol>
 
       <ol v-else-if="chromium" class="popuphelp-steps">
         <li>
-          Open a new tab and paste this in the address bar:
+          {{ t("help.popup.chromium1") }}
           <CopyField :text="flagAddress(chromium.scheme)" />
         </li>
         <li>
-          In the box put this, and set the choice beside it to "Enabled":
+          {{ t("help.popup.chromium2") }}
           <CopyField :text="origin" />
         </li>
-        <li>Click "Relaunch" at the bottom.</li>
-        <li>Come back here and <button type="button" class="btn small" @click="reload">Reload</button></li>
+        <li>{{ t("help.popup.chromium3") }}</li>
+        <li>
+          <RichMessage id="help.popup.back"
+            ><template #reload
+              ><button type="button" class="btn small" @click="reload">{{ t("help.popup.reload") }}</button></template
+            ></RichMessage
+          >
+        </li>
       </ol>
 
-      <p v-else-if="kind === 'phone'" class="popuphelp-plain">
-        Phones show pop-ups only for https pages, and this page is not one. The sound and the tab alert work here.
-      </p>
-      <p v-else class="popuphelp-plain">
-        This browser has no way to allow pop-ups for this address. The sound and the tab alert work here. Firefox, Chrome and Edge on a computer can allow them.
-      </p>
+      <p v-else-if="kind === 'phone'" class="popuphelp-plain">{{ t("help.popup.phone") }}</p>
+      <p v-else class="popuphelp-plain">{{ t("help.popup.other") }}</p>
 
-      <DisclosureBox v-if="kind === 'firefox' && onLinuxDesktop(userAgent)" plain class="popuphelp-more" title="If the pop-up still doesn't show">
-        <p class="popuphelp-plain">Firefox installed as a Flatpak (KDE) needs these two commands in a terminal, then a restart of Firefox:</p>
+      <DisclosureBox v-if="kind === 'firefox' && onLinuxDesktop(userAgent)" plain class="popuphelp-more" :title="t('help.popup.still')">
+        <p class="popuphelp-plain">{{ t("help.popup.flatpak") }}</p>
         <CopyField v-for="command in FLATPAK_COMMANDS" :key="command" :text="command" />
       </DisclosureBox>
     </component>

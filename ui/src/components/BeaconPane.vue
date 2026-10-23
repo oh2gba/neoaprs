@@ -6,6 +6,7 @@ import DisclosureBox from "@/components/DisclosureBox.vue";
 import SendRow from "@/components/SendRow.vue";
 import type { Picked } from "@/composables/usePositionPick";
 import SettingsForm from "@/components/SettingsForm.vue";
+import { t } from "@/i18n";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useSendNow } from "@/composables/useSendNow";
 import { beaconText, statusText } from "@/lib/beacon";
@@ -23,11 +24,11 @@ const statusOn = computed(() => config.value !== null && statusSource(config.val
 
 // only when the last beacon went out, in words, the full time on hover; how often is the choice below
 const lastAt = computed(() => status.value?.beacon_last_sent ?? null);
-const last = computed(() => (lastAt.value === null ? "not yet" : agoWords(lastAt.value, now.value)));
+const last = computed(() => (lastAt.value === null ? t("beacon.not_yet") : agoWords(lastAt.value, now.value)));
 const current = computed(() => {
   const text = status.value?.station_status ?? "";
   const rig = status.value?.rig_state ?? "unused";
-  return `${text === "" ? NONE : text}${rig === "unused" ? "" : ` · rigctld ${rig}`}`;
+  return `${text === "" ? NONE : text}${rig === "unused" ? "" : ` · ${t(rig === "on" ? "beacon.rigctld_on" : "beacon.rigctld_off")}`}`;
 });
 </script>
 
@@ -36,10 +37,10 @@ const current = computed(() => {
     <SettingsForm scope="beacon" :picking="picking" :picked="picked" @pick-position="emit('pickPosition')">
       <template #beacon>
         <SendRow
-          label="Last beacon"
+          :label="t('beacon.last_beacon')"
           :text="last"
           :hover="lastAt === null ? undefined : dateTimeText(lastAt)"
-          button="Beacon now"
+          :button="t('beacon.beacon_now')"
           :armed="sending.armed.value === 'beacon'"
           :disabled="!sending.ready.value"
           :why="sending.why.value"
@@ -49,9 +50,9 @@ const current = computed(() => {
       <template #status>
         <SendRow
           v-if="statusOn"
-          label="Status"
+          :label="t('beacon.status')"
           :text="current"
-          button="Send status now"
+          :button="t('beacon.send_status_now')"
           :armed="sending.armed.value === 'status'"
           :disabled="!sending.ready.value"
           :why="sending.why.value"
@@ -62,15 +63,15 @@ const current = computed(() => {
         <DisclosureBox
           plain
           class="beacon-preview"
-          :title="beaconText(draft) ? 'Preview' : 'Preview: these values make no packet yet'"
+          :title="beaconText(draft) ? t('beacon.preview') : t('beacon.preview_empty')"
           :summary-class="{ problem: !beaconText(draft) }"
         >
           <div class="beacon-preview-body">
-            <span class="muted">Packet</span>
-            <code v-if="beaconText(draft)" class="mono" aria-label="The beacon as it would be sent">{{ beaconText(draft) }}</code>
+            <span class="muted">{{ t("beacon.packet") }}</span>
+            <code v-if="beaconText(draft)" class="mono" :aria-label="t('beacon.packet_label')">{{ beaconText(draft) }}</code>
             <template v-if="statusText(draft, new Date(now))">
-              <span class="muted">Status</span>
-              <code class="mono" aria-label="The status as it would be sent">{{ statusText(draft, new Date(now)) }}</code>
+              <span class="muted">{{ t("beacon.status") }}</span>
+              <code class="mono" :aria-label="t('beacon.status_label')">{{ statusText(draft, new Date(now)) }}</code>
             </template>
           </div>
         </DisclosureBox>

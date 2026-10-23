@@ -5,6 +5,7 @@
 import { ref } from "vue";
 import InstallApp from "@/components/InstallApp.vue";
 import PopupHelp from "@/components/PopupHelp.vue";
+import { t } from "@/i18n";
 import type { BrowserAlerts } from "@/composables/useBrowserAlerts";
 import { MODES, wantsPopup, type AlertMode } from "@/lib/alertmode";
 import type { HttpsState } from "@/protocol/protocol";
@@ -23,9 +24,9 @@ async function onChoose(event: Event): Promise<void> {
 </script>
 
 <template>
-  <h3 class="subgroup">In this browser</h3>
+  <h3 class="subgroup">{{ t("settings.browser.heading") }}</h3>
   <div class="field">
-    <label for="alert-mode">Alert for a new message</label>
+    <label for="alert-mode">{{ t("settings.browser.mode") }}</label>
     <div class="field-control">
       <select id="alert-mode" class="input" :value="alerts.mode.value" :title="alerts.why.value" @change="onChoose">
         <option
@@ -40,23 +41,25 @@ async function onChoose(event: Event): Promise<void> {
       </select>
       <span v-if="alerts.note.value" class="muted" role="status">{{ alerts.note.value }}</span>
       <button v-if="!alerts.secure" id="alert-enable-popups" class="linkbtn" type="button" :aria-expanded="helpOpen" @click="helpOpen = !helpOpen">
-        Enable pop-ups…
+        {{ t("settings.browser.enable_popups") }}
       </button>
     </div>
   </div>
   <div class="field">
-    <label for="alert-test-sound">Sound</label>
+    <label for="alert-test-sound">{{ t("settings.browser.sound") }}</label>
     <div class="field-control">
-      <button id="alert-test-sound" class="btn" type="button" @click="alerts.testSound">Test sound</button>
+      <button id="alert-test-sound" class="btn" type="button" @click="alerts.testSound">{{ t("settings.browser.test_sound") }}</button>
       <span v-if="alerts.soundStatus.value" class="muted" role="status">{{ alerts.soundStatus.value }}</span>
     </div>
   </div>
   <div class="field">
-    <label for="alert-test-popup">Pop-up</label>
+    <label for="alert-test-popup">{{ t("settings.browser.popup") }}</label>
     <div class="field-control">
-      <button id="alert-test-popup" class="btn" type="button" @click="alerts.testPopup">Test pop-up</button>
+      <button id="alert-test-popup" class="btn" type="button" @click="alerts.testPopup">{{ t("settings.browser.test_popup") }}</button>
       <span v-if="alerts.popupStatus.value" class="muted" role="status">{{ alerts.popupStatus.value }}</span>
-      <button v-if="!alerts.secure && alerts.popupStatus.value" class="linkbtn" type="button" @click="helpOpen = true">Enable pop-ups…</button>
+      <button v-if="!alerts.secure && alerts.popupStatus.value" class="linkbtn" type="button" @click="helpOpen = true">
+        {{ t("settings.browser.enable_popups") }}
+      </button>
     </div>
   </div>
   <InstallApp />

@@ -3,6 +3,7 @@
 // Esc, the Close button or a click outside closes it without a choice. The symbol now in use is marked. It says nothing of tables and codes: the choice is the table and the code, written as the settings write them.
 import { computed, onMounted, ref } from "vue";
 import SymbolButton from "@/components/SymbolButton.vue";
+import { t } from "@/i18n";
 import { ALL_SYMBOLS, filterSymbols, symbolName, type PickSymbol } from "@/lib/symbolpicker";
 import { SYMBOL_CHOICES } from "@/lib/setup";
 
@@ -22,24 +23,24 @@ onMounted(() => search.value?.focus());
 
 <template>
   <div class="sympick-backdrop" @pointerdown.self="emit('close')" @keydown.esc.stop="emit('close')">
-    <div class="sympick" role="dialog" aria-modal="true" aria-label="Choose a symbol">
+    <div class="sympick" role="dialog" aria-modal="true" :aria-label="t('settings.picker.title')">
       <div class="sympick-head">
         <input
           ref="search"
           v-model="query"
           class="input"
           type="search"
-          placeholder="Search: house, car, digi, wx..."
-          aria-label="Search symbols"
+          :placeholder="t('settings.picker.placeholder')"
+          :aria-label="t('settings.picker.search')"
           autocomplete="off"
           spellcheck="false"
         />
-        <button class="btn" type="button" @click="emit('close')">Close</button>
+        <button class="btn" type="button" @click="emit('close')">{{ t("settings.picker.close") }}</button>
       </div>
       <div class="sympick-body">
         <template v-if="!searching">
-          <h3>Usual</h3>
-          <div class="sympick-grid" role="group" aria-label="Usual symbols">
+          <h3>{{ t("settings.picker.usual") }}</h3>
+          <div class="sympick-grid" role="group" :aria-label="t('settings.picker.usual_symbols')">
             <SymbolButton
               v-for="s in usual"
               :key="s.table + s.code"
@@ -51,9 +52,9 @@ onMounted(() => search.value?.focus());
               @pick="emit('pick', s.table, s.code)"
             />
           </div>
-          <h3>All</h3>
+          <h3>{{ t("settings.picker.all") }}</h3>
         </template>
-        <div class="sympick-grid" role="group" aria-label="All symbols">
+        <div class="sympick-grid" role="group" :aria-label="t('settings.picker.all_symbols')">
           <SymbolButton
             v-for="s in found"
             :key="s.table + s.code"
@@ -65,7 +66,7 @@ onMounted(() => search.value?.focus());
             @pick="emit('pick', s.table, s.code)"
           />
         </div>
-        <p v-if="found.length === 0" class="empty">No symbol like that.</p>
+        <p v-if="found.length === 0" class="empty">{{ t("settings.picker.none") }}</p>
       </div>
     </div>
   </div>

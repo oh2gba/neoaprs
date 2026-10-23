@@ -1,5 +1,7 @@
 // How the settings that belong together are handled when they apply as they are changed: the fields that are sent in one `set_config`, the values that go with a choice so that the choice is valid at once, the field a
 // refusal of the daemon is shown under when it names another setting than the one that was changed, the changes that ask first, and the words for "<label> changed · Undo".
+import { t } from "@/i18n";
+import type { MessageId } from "@/i18n/catalogue";
 import { isLoopbackHost } from "@/lib/pagealert";
 import { FIELDS, portForProfile, reasonOf } from "@/lib/settings";
 import type { ErrorMessage } from "@/protocol/protocol";
@@ -15,17 +17,17 @@ export const TOGETHER: Record<string, readonly string[]> = {
   "tcp/port": ["tcp/host", "tcp/port"],
 };
 
-/** What a set of keys changed is called when all of it is changed together. */
-const NAMES: { keys: readonly string[]; name: string }[] = [
-  { keys: ["station/lat", "station/lon"], name: "Position" },
-  { keys: ["tcp/host", "tcp/port"], name: "TCP address" },
-  { keys: ["station/symbol_table", "station/symbol_code"], name: "Symbol" },
+/** What a set of keys changed is called when all of it is changed together (the id of the words). */
+const NAMES: { keys: readonly string[]; name: MessageId }[] = [
+  { keys: ["station/lat", "station/lon"], name: "settings.name.position" },
+  { keys: ["tcp/host", "tcp/port"], name: "settings.name.tcp_address" },
+  { keys: ["station/symbol_table", "station/symbol_code"], name: "settings.symbol.label" },
 ];
 
 /** The words for a change in the toast that offers to undo it: the group's name when all of a group changed, else the name of the first key. */
 export function changeName(keys: readonly string[]): string {
   const group = NAMES.find((n) => n.keys.every((k) => keys.includes(k)));
-  if (group) return group.name;
+  if (group) return t(group.name);
   const first = keys[0] ?? "";
   const info = FIELDS[first];
   return info?.name ?? info?.label ?? first;
@@ -53,7 +55,7 @@ export function refusalFor(error: Pick<ErrorMessage, "text" | "cmd" | "key" | "c
   if (keys.includes(named)) return { key: named, reason };
   if (named === "station/comment" && keys.includes("beacon/power_w")) {
     const limit = error.code === "setting.comment_too_long" ? error.params["limit"] : undefined;
-    return { key: "beacon/power_w", reason: limit === undefined ? reason : `Shorten the comment to ${limit} first` };
+    return { key: "beacon/power_w", reason: limit === undefined ? reason : t("settings.shorten_comment", { limit }) };
   }
   if (named === "status/source" && keys.includes("status/rigctld")) return { key: "status/rigctld", reason };
   return { key: first, reason };
@@ -63,8 +65,8 @@ export function refusalFor(error: Pick<ErrorMessage, "text" | "cmd" | "key" | "c
  * when there is one) asks first, on a page opened from another device (`remote`); nothing else asks. */
 export function confirmMessage(key: string, text: string, remote: boolean): string | null {
   if (!remote) return null;
-  if (key === "web/network" && text === "false") return "This device will lose the page. Turn off?";
-  if (key === "web/https") return `This device will lose the page. Turn ${text === "true" ? "on" : "off"}?`;
+  if (key === "web/network" && text === "false") return t("settings.confirm.network_off");
+  if (key === "web/https") return t(text === "true" ? "settings.confirm.https_on" : "settings.confirm.https_off");
   return null;
 }
 

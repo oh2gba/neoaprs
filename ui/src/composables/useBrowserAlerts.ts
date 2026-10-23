@@ -3,6 +3,8 @@
 // the chime (the first click or key press unlocks the audio); a pop-up is a notification of the browser, shown where it allows one (a secure context, permission given), and where none is shown, or the browser fails to show it, the
 // browser tab alerts (useTabAlert). The permission is asked only in a click: on choosing a pop-up, and on the Test pop-up button. Test sound and Test pop-up each say, for a few seconds, what happened.
 import { computed, onScopeDispose, getCurrentScope, ref } from "vue";
+import { t } from "@/i18n";
+import type { MessageId } from "@/i18n/catalogue";
 import { useTabAlert } from "@/composables/useTabAlert";
 import { Chime } from "@/lib/chime";
 import { storedMode, popupWhy, wantsPopup, wantsSound, MODE_KEY, type AlertMode } from "@/lib/alertmode";
@@ -13,19 +15,21 @@ import type { MessageRow } from "@/protocol/protocol";
 /** What an alert needs of a message. */
 export type Alerted = Pick<MessageRow, "id" | "from_call" | "text">;
 
-const TEST_MESSAGE: Alerted = { id: 0, from_call: "NEOAPRS", text: "This is a test of the NeoAPRS alert" };
+/** The message of the Test pop-up, in the language of the page. */
+const testMessage = (): Alerted => ({ id: 0, from_call: "NEOAPRS", text: t("settings.alert.test_message") });
 /** After a long disconnect many messages can arrive at once: so many pop-ups, the rest are in the page. */
 const POPUPS_MAX = 5;
 const STATUS_MS = 5000;
 
-/** The words after a Test button, which go after a few seconds. */
+/** The words after a Test button, which go after a few seconds (the id of the words is kept, so that they follow the language of the page). */
 function useStatus() {
-  const text = ref("");
+  const said = ref<MessageId | "">("");
+  const text = computed(() => (said.value === "" ? "" : t(said.value)));
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const set = (words: string): void => {
-    text.value = words;
+  const set = (words: MessageId): void => {
+    said.value = words;
     clearTimeout(timer);
-    timer = setTimeout(() => (text.value = ""), STATUS_MS);
+    timer = setTimeout(() => (said.value = ""), STATUS_MS);
   };
   if (getCurrentScope()) onScopeDispose(() => clearTimeout(timer));
   return { text, set };
@@ -78,14 +82,14 @@ export function useBrowserAlerts(openConversation: (call: string) => void) {
   /** why a pop-up cannot be chosen, else undefined */
   const why = computed(() => popupWhy(possible, permission.value));
   const mode = ref<AlertMode>(storedMode(here, popupWhy(possible, permission.value)));
-  /** what was said of a refused permission, next to the choice, until the next choice */
-  const refused = ref("");
+  /** the permission was refused for the pop-up that was chosen: said next to the choice, until the next choice */
+  const refused = ref(false);
   const popupOn = computed(() => possible && wantsPopup(mode.value) && permission.value === "granted");
   /** a few words next to the choice when a pop-up is chosen and cannot be shown yet */
   const note = computed(() => {
-    if (refused.value !== "") return refused.value;
+    if (refused.value) return t("settings.alert.note_refused");
     if (!wantsPopup(mode.value) || !possible) return "";
-    return permission.value === "denied" ? "pop-ups blocked" : permission.value === "default" ? "pop-ups not allowed yet" : "";
+    return permission.value === "denied" ? t("settings.alert.note_blocked") : permission.value === "default" ? t("settings.alert.note_not_yet") : "";
   });
   const soundStatus = useStatus();
   const popupStatus = useStatus();
@@ -107,11 +111,11 @@ export function useBrowserAlerts(openConversation: (call: string) => void) {
 
   /** The choice, a click: a choice with a pop-up asks for the permission if the browser has not been asked, and falls back to sound alone when it is not given. */
   async function choose(next: AlertMode): Promise<void> {
-    refused.value = "";
+    refused.value = false;
     keep(next);
     if (!wantsPopup(next) || (await allow())) return;
     keep("sound");
-    refused.value = "pop-ups refused: sound only";
+    refused.value = true;
   }
 
   /** What a message to us does in this browser: the chime when the choice has the sound, and a pop-up where one can be shown, else the alert of the browser tab. */
@@ -132,18 +136,18 @@ export function useBrowserAlerts(openConversation: (call: string) => void) {
   /** Test sound, a click: the chime now, whatever the choice is. */
   async function testSound(): Promise<void> {
     const ok = (await chime.unlock()) && chime.play();
-    soundStatus.set(ok ? "played" : "sound locked: click the page once");
+    soundStatus.set(ok ? "settings.alert.sound_played" : "settings.alert.sound_locked");
   }
 
   /** Test pop-up, a click: a pop-up now, whatever the choice is (it asks for the permission if the browser has not been asked); where none can be shown it says why, and the browser tab alerts for a few seconds. */
   async function testPopup(): Promise<void> {
-    if (!possible) return popupStatus.set("pop-ups are off for this address");
+    if (!possible) return popupStatus.set("settings.alert.popup_off");
     const failed = () => {
-      tab.start(TEST_MESSAGE.from_call, true);
-      popupStatus.set("pop-up blocked");
+      tab.start(testMessage().from_call, true);
+      popupStatus.set("settings.alert.popup_blocked");
     };
     if (!(await allow())) return failed();
-    if (showPopup(TEST_MESSAGE, null, failed)) popupStatus.set("pop-up sent");
+    if (showPopup(testMessage(), null, failed)) popupStatus.set("settings.alert.popup_sent");
     else failed();
   }
 

@@ -2,6 +2,7 @@
 // both are disabled while the TNC is not connected or while a change of the settings is being saved (what is sent is what is in force), and the first press is forgotten after a few seconds, when the TNC drops or the save starts, and when a place is
 // picked on the map (picking a place and a send that waits for its second press do not go together: starting one ends the other).
 import { computed, watch, type Ref } from "vue";
+import { t } from "@/i18n";
 import { useSure } from "@/composables/useSure";
 
 export type SendKey = "beacon" | "status";
@@ -9,7 +10,7 @@ export type SendKey = "beacon" | "status";
 export function useSendNow(connected: Ref<boolean>, saving: Ref<boolean>, picking: Ref<boolean>, endPick: () => void) {
   const sure = useSure<SendKey>();
   const ready = computed(() => connected.value && !saving.value);
-  const why = computed(() => (saving.value ? "Saving…" : undefined));
+  const why = computed(() => (saving.value ? t("settings.saving") : undefined));
 
   watch(ready, (now) => {
     if (!now) sure.disarm();
