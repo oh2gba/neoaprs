@@ -23,6 +23,7 @@ import os
 import socket
 import stat
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -147,11 +148,20 @@ def is_serial_device(name: str) -> bool:
     real = os.path.realpath(name)
     if any(fnmatch.fnmatchcase(candidate, pattern) for candidate in (name, real) for pattern in RADIO_PATTERNS):
         return True
-    try:
-        node = os.stat(real) if real.startswith("/dev/") else None
-    except OSError:
-        return False
-    return node is not None and stat.S_ISCHR(node.st_mode) and os.major(node.st_rdev) in SERIAL_MAJORS
+    return _serial_node(real)
+
+
+if sys.platform == "win32":
+    def _serial_node(real: str) -> bool:
+        return False                                  # Windows has no device numbers (and no /dev)
+else:
+    def _serial_node(real: str) -> bool:
+        """Is `real` a character device of a serial driver, whatever its name?"""
+        try:
+            node = os.stat(real) if real.startswith("/dev/") else None
+        except OSError:
+            return False
+        return node is not None and stat.S_ISCHR(node.st_mode) and os.major(node.st_rdev) in SERIAL_MAJORS
 
 
 class SerialGuard:
