@@ -8,3 +8,4 @@ src/protocol/protocol.ts
 src/protocol/schema.json
 src/protocol/lists.ts
 src/protocol/vectors.json
+src/protocol/errors.json

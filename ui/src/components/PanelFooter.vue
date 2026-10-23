@@ -5,6 +5,7 @@
 // When the radio is fine the line says nothing of it. The line has the same height all the time (ui/src/styles/base.css), so nothing moves when the message comes or goes. What the daemon costs the machine (the CPU share, the memory, the uptime) is the title of the version.
 import { computed } from "vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
+import { t } from "@/i18n";
 import { processText, silentText } from "@/lib/format";
 
 const { connection: link, tnc, version, now, status } = useDaemonContext();
@@ -15,15 +16,15 @@ type Trouble = { level: "warn" | "bad"; text: string; title?: string };
 const trouble = computed<Trouble | null>(() => {
   const connection = link.value;
   const radio = tnc.value;
-  if (connection === "closed") return { level: "bad", text: "Daemon offline" };
-  if (connection === "connecting") return { level: "warn", text: "Connecting…" };
-  if (radio === null) return { level: "warn", text: "Radio: waiting…", title: "no word from the TNC yet" };
+  if (connection === "closed") return { level: "bad", text: t("footer.offline") };
+  if (connection === "connecting") return { level: "warn", text: t("footer.connecting") };
+  if (radio === null) return { level: "warn", text: t("footer.radio.waiting"), title: t("footer.radio.waiting_title") };
   if (radio.state === "connected") return null;
-  if (radio.state === "silent") return { level: "warn", text: "Radio: silent", title: silentText(radio.silent_since, now.value) };
+  if (radio.state === "silent") return { level: "warn", text: t("footer.radio.silent"), title: silentText(radio.silent_since, now.value) };
   const why = radio.problem || radio.describe || radio.state;
   if (radio.state === "connecting")
-    return { level: "warn", text: radio.describe.includes("entering KISS") ? "Radio: entering KISS…" : "Radio: searching…", title: why };
-  return { level: "warn", text: "Radio: not connected", title: why };
+    return { level: "warn", text: t(radio.describe.includes("entering KISS") ? "footer.radio.entering_kiss" : "footer.radio.searching"), title: why };
+  return { level: "warn", text: t("footer.radio.not_connected"), title: why };
 });
 /** What the daemon costs the machine, for the title of the version: "0.3 % · 42 MB · up 3 h". */
 const cost = computed(() => (status.value ? processText(status.value.cpu_percent, status.value.rss_mb, status.value.uptime_sec) : null));
@@ -31,9 +32,15 @@ const cost = computed(() => (status.value ? processText(status.value.cpu_percent
 
 <template>
   <footer class="panelfoot">
-    <span v-if="version" class="muted version" :title="cost === null ? undefined : `NeoAPRS uses ${cost}`">NeoAPRS {{ version }}</span>
-    <button v-if="status?.update" type="button" class="update" :title="status.update.message || `Update to ${status.update.version}`" @click="emit('update')">
-      Update to {{ status.update.version }}
+    <span v-if="version" class="muted version" :title="cost === null ? undefined : t('footer.cost_title', { cost })">NeoAPRS {{ version }}</span>
+    <button
+      v-if="status?.update"
+      type="button"
+      class="update"
+      :title="status.update.message || t('footer.update', { version: status.update.version })"
+      @click="emit('update')"
+    >
+      {{ t("footer.update", { version: status.update.version }) }}
     </button>
     <span class="footradio" role="status">
       <button
@@ -41,7 +48,7 @@ const cost = computed(() => (status.value ? processText(status.value.cpu_percent
         type="button"
         class="status"
         :class="`link-${trouble.level}`"
-        :title="trouble.title ?? 'Open the radio settings'"
+        :title="trouble.title ?? t('footer.radio.open_settings')"
         @click="emit('radio')"
       >
         {{ trouble.text }}

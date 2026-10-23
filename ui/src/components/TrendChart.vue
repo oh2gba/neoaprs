@@ -3,6 +3,7 @@
 // time of the nearest observation in the heading. The scaling and the paths are lib/chart.ts. A series with no value draws nothing but the frame. `range` is the value axis that several weather cards share (components/StationCards.vue), so that the curves of several
 // stations can be compared: it is rounded to round numbers as the graph's own range would be.
 import { computed, ref } from "vue";
+import { formatNumber } from "@/i18n";
 import {
   bandPath,
   bars,
@@ -61,7 +62,7 @@ const y = computed(() => linearScale([axis.value.min, axis.value.max], [BOTTOM, 
 const gap = computed(() => gapLimit(props.main));
 const decimals = computed(() => tickDecimals(axis.value.step));
 const xTicks = computed(() => timeTicks(props.from, props.to).map((t) => ({ ...t, x: x.value(t.at) })));
-const yTicks = computed(() => axis.value.ticks.map((v) => ({ v, y: y.value(v), label: v.toFixed(decimals.value) })));
+const yTicks = computed(() => axis.value.ticks.map((v) => ({ v, y: y.value(v), label: formatNumber(v, decimals.value) })));
 
 const line = computed(() => (props.asBars ? "" : linePath(props.main, x.value, y.value, gap.value)));
 const upper = computed(() => linePath(props.band, x.value, y.value, gap.value));
@@ -80,7 +81,7 @@ const shown = computed(() => {
 const readout = computed(() =>
   shown.value === null
     ? ""
-    : `${shown.value.p.v?.toFixed(1)} ${props.unit}${shown.value.hovered ? `  ${clockText(new Date(shown.value.p.t).toISOString())}` : ""}`,
+    : `${formatNumber(shown.value.p.v ?? 0, 1)} ${props.unit}${shown.value.hovered ? `  ${clockText(new Date(shown.value.p.t).toISOString())}` : ""}`,
 );
 
 function move(event: PointerEvent): void {

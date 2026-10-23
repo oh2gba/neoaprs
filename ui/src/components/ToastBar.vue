@@ -3,6 +3,8 @@
 import { onBeforeUnmount, ref, watch } from "vue";
 import IconButton from "@/components/IconButton.vue";
 import type { Toast } from "@/composables/useDaemon";
+import { t } from "@/i18n";
+import { errorLine } from "@/i18n/errortext";
 
 const props = defineProps<{ toast: Toast | null; seconds?: number }>();
 
@@ -22,7 +24,7 @@ onBeforeUnmount(() => clearTimeout(timer));
 
 <template>
   <div v-if="shown" class="toast" role="alert">
-    <span>{{ shown.text }}</span>
-    <IconButton kind="close" label="Dismiss" title="Dismiss" @click="shown = null" />
+    <span>{{ errorLine(shown) }}</span>
+    <IconButton kind="close" :label="t('common.dismiss')" :title="t('common.dismiss')" @click="shown = null" />
   </div>
 </template>

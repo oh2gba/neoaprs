@@ -4,7 +4,8 @@
 import { computed, nextTick, ref } from "vue";
 import TabBadge from "@/components/TabBadge.vue";
 import { usePopup } from "@/composables/usePopup";
-import { TAB_IDS, TAB_TITLES, type TabId } from "@/lib/layout";
+import { t } from "@/i18n";
+import { TAB_IDS, tabTitle, type TabId } from "@/lib/layout";
 
 const props = defineProps<{ tab: TabId; badges: Partial<Record<TabId, number>>; on: boolean }>();
 const emit = defineEmits<{ pick: [tab: TabId] }>();
@@ -76,9 +77,9 @@ function menuKey(event: KeyboardEvent): void {
       @click="toggle"
       @keydown="buttonKey"
     >
-      <span aria-hidden="true">&#9776;</span> {{ TAB_TITLES[tab] }}
+      <span aria-hidden="true">&#9776;</span> {{ tabTitle(tab) }}
       <span v-if="total > 0" class="badge" aria-hidden="true">{{ total }}</span>
-      <span v-if="total > 0" class="sr-only">, {{ total }} new</span>
+      <span v-if="total > 0" class="sr-only">{{ t("tab.menu_new", { n: total }) }}</span>
     </button>
     <ul v-if="open" id="tabmenu-list" class="tabmenu-list" role="menu" aria-labelledby="tabmenu-button" @keydown="menuKey">
       <li v-for="(id, index) in TAB_IDS" :key="id" role="none">
@@ -91,7 +92,7 @@ function menuKey(event: KeyboardEvent): void {
           :aria-current="id === tab ? 'page' : undefined"
           @click="pick(id)"
         >
-          {{ TAB_TITLES[id] }}
+          {{ tabTitle(id) }}
           <TabBadge :tab="id" :count="badges[id]" />
         </button>
       </li>

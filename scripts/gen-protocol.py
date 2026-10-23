@@ -5,6 +5,8 @@
   ui/src/protocol/protocol.ts   TypeScript types made from it (by this script: no node, no json-schema-to-typescript)
   ui/src/protocol/lists.ts      the lists the daemon owns and the page shows (the settings' keys, the TNC profiles, the symbol names, ...) and `LIMITS`, every number the page checks a value against (the
                                 ranges of the settings, the length of a comment, a message, a status, the minimum interval ...), written from the daemon's own constants
+  ui/src/protocol/errors.json   the refusals of the daemon that carry a code: for each code the values it passes and the English sentence it writes (found in the source by scripts/errorcodes.py); the page's catalogue
+                                is held to it by ui/src/i18n/errors.test.ts
   ui/src/protocol/vectors.json  the rules that are code and not numbers (is this a call? what is the PHG text of this antenna? what beacon does this make?): inputs with the results that Python gives; tests/test_vectors.py
                                 and ui/src/protocol/vectors.test.ts hold the daemon and the page to them
   PROTOCOL.md                   the reference: the prose below, then the commands and the messages from the models' docstrings and field descriptions
@@ -21,10 +23,12 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "scripts"))
 
 from pydantic import BaseModel  # noqa: E402
 
 import neoaprs.web.protocol as protocol  # noqa: E402
+from errorcodes import error_codes  # noqa: E402
 from neoaprs import TOCALL  # noqa: E402
 from neoaprs.aprsmessage import FORBIDDEN, MAX_TEXT  # noqa: E402
 from neoaprs.ax25 import MAX_PATH  # noqa: E402
@@ -45,6 +49,7 @@ SCHEMA = ROOT / "ui" / "src" / "protocol" / "schema.json"
 TYPES = ROOT / "ui" / "src" / "protocol" / "protocol.ts"
 LISTS = ROOT / "ui" / "src" / "protocol" / "lists.ts"
 VECTORS = ROOT / "ui" / "src" / "protocol" / "vectors.json"
+ERRORS = ROOT / "ui" / "src" / "protocol" / "errors.json"
 DOC = ROOT / "PROTOCOL.md"
 # The order of the first objects of the Objects section of PROTOCOL.md; every other model of the schema follows them, sorted by name.
 OBJECT_ORDER = "StationRow PacketRow MessageRow DecodedPosition DecodedMessage DecodedObject DecodedItem DecodedStatus DecodedTelemetry DecodedOther DecodedUndecoded DecodedWeather PositionFields TncState TncStats ConfigValues SetOp DelOp ReplaceOp".split()
@@ -581,9 +586,15 @@ def vectors_text() -> str:
     return "{\n" + ",\n".join(blocks) + "\n}\n"
 
 
+def errors_text() -> str:
+    """One code to a line, so that two additions meet in two lines and not in one."""
+    codes = error_codes(ROOT / "neoaprs")
+    return "{\n" + ",\n".join(f" {json.dumps(code)}: {json.dumps(entry, ensure_ascii=False)}" for code, entry in codes.items()) + "\n}\n"
+
+
 def render() -> dict[Path, str]:
     schema = build_schema()
-    return {SCHEMA: json.dumps(schema, indent=2) + "\n", TYPES: types_text(schema), LISTS: lists_text(), VECTORS: vectors_text(), DOC: doc_text()}
+    return {SCHEMA: json.dumps(schema, indent=2) + "\n", TYPES: types_text(schema), LISTS: lists_text(), VECTORS: vectors_text(), ERRORS: errors_text(), DOC: doc_text()}
 
 
 def main(argv: list[str]) -> int:

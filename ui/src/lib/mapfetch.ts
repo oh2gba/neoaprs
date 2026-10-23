@@ -1,4 +1,5 @@
 // The Map group of the Settings tab, in words: sizes, the day the map was downloaded, what the running job is doing, and which of the daemon's `map` state the button and the map may rely on.
+import { formatNumber } from "@/i18n";
 import type { MapSizeEstimate, MapState } from "@/protocol/protocol";
 
 /** What `step` of the topic `map` is called in the progress line. */
@@ -20,7 +21,7 @@ export function formatBytes(bytes: number): string {
     unit += 1;
   }
   const digits = unit === 0 || value >= 10 ? 0 : 1;
-  return `${value.toFixed(digits)} ${units[unit]}`;
+  return `${formatNumber(value, digits)} ${units[unit]}`;
 }
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];

@@ -1,6 +1,8 @@
 // The arithmetic of the trend graphs (components/TrendChart.vue): the scales, the ticks with round numbers, the paths of a line, a band and bars, and the point under the pointer. Plain functions of numbers, so that
 // the page draws inline SVG in its own colours with no chart library. A point is a time in ms and a value, null where the station did not send one.
 
+import { weekdayShort } from "@/i18n";
+
 export interface Point {
   t: number;
   v: number | null;
@@ -20,7 +22,6 @@ interface TimeTick {
 
 const HOUR = 3_600_000;
 const MINUTE = 60_000;
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 /** The function that maps a value of `domain` to a place in `range` (the range may run backwards: the y axis of a screen); a domain of no width maps everything to the middle. */
 export function linearScale(domain: readonly [number, number], range: readonly [number, number]): (v: number) => number {
@@ -67,7 +68,7 @@ export function timeTicks(from: number, to: number): TimeTick[] {
   d.setHours(stepHours >= 24 ? 0 : Math.floor(d.getHours() / stepHours) * stepHours);
   const ticks: TimeTick[] = [];
   for (let guard = 0; d.getTime() <= to && guard < 400; guard++) {
-    if (d.getTime() >= from) ticks.push({ at: d.getTime(), label: stepHours >= 24 ? `${WEEKDAYS[d.getDay()]} ${d.getDate()}` : `${pad(d.getHours())}:00` });
+    if (d.getTime() >= from) ticks.push({ at: d.getTime(), label: stepHours >= 24 ? `${weekdayShort(d)} ${d.getDate()}` : `${pad(d.getHours())}:00` });
     d.setHours(d.getHours() + stepHours);
   }
   return ticks;

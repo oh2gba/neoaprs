@@ -79,6 +79,9 @@ that both the daemon and the page are tested against (`ui/src/protocol/vectors.j
 - A refusal that the operator can cause carries a stable code and its values: `CodedError(text, code, **params)` (`neoaprs/coded.py`), and for a setting
   `SettingError` (`neoaprs/config.py`), which adds the key. The English `text` is for the log and for a code the page has no sentence for; the page goes by
   `cmd`, `key` and `code`, never by parsing the words (`docs/development.md`, "The wire").
+- Every word the page says to a person is a message of the catalogue (`ui/src/i18n/en/`), asked for by `t("area.thing.detail", { values })`: never written into a
+  template or a `lib/` function, never a sentence glued from pieces (a plural is `{ one, other }`, a number or a name a `{value}`), and the page never decides
+  by the words of a text (`docs/development.md`, "Translations").
 - Wire rows are built from the domain objects through their models in `neoaprs/web/*wire.py`. A field is added to the model and the object only, and the
   golden-file test of `tests/test_wire_rows.py` shows the JSON.
 

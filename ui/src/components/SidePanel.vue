@@ -8,7 +8,8 @@ import TabBadge from "@/components/TabBadge.vue";
 import TabMenu from "@/components/TabMenu.vue";
 import type { PhoneView } from "@/composables/useLayout";
 import { useTabsFit } from "@/composables/useTabsFit";
-import { TAB_IDS, TAB_TITLES, clampWidth, type SizeClass, type TabId } from "@/lib/layout";
+import { t } from "@/i18n";
+import { TAB_IDS, tabTitle, clampWidth, type SizeClass, type TabId } from "@/lib/layout";
 import { unreadText } from "@/lib/unread";
 
 const props = withDefaults(
@@ -98,18 +99,18 @@ function nudge(event: KeyboardEvent): void {
     class="panel"
     :class="{ collapsed: folded, 'bar-only': !paneOn }"
     :style="folded || size !== 'desktop' ? undefined : { '--panel-width': `${shown}px` }"
-    aria-label="Details"
+    :aria-label="t('panel.label')"
   >
     <button
       v-if="!phone"
       class="panel-fold"
       type="button"
       :aria-expanded="!folded"
-      :title="folded ? 'Show the panel' : 'Hide the panel'"
+      :title="folded ? t('panel.show') : t('panel.hide')"
       @click="emit('update:collapsed', !folded)"
     >
       <span aria-hidden="true">{{ folded ? "‹" : "›" }}</span>
-      <span class="sr-only">{{ folded ? "Show the panel" : "Hide the panel" }}{{ folded && unseen > 0 ? `, ${unseenTitle}` : "" }}</span>
+      <span class="sr-only">{{ folded ? (unseen > 0 ? t("panel.show_unseen", { unseen: unseenTitle }) : t("panel.show")) : t("panel.hide") }}</span>
     </button>
     <span v-if="folded && unseen > 0" class="badge fold-badge" :title="unseenTitle" aria-hidden="true">{{ unseen }}</span>
     <template v-if="!folded">
@@ -118,7 +119,7 @@ function nudge(event: KeyboardEvent): void {
         class="panel-handle"
         role="separator"
         aria-orientation="vertical"
-        aria-label="Panel width"
+        :aria-label="t('panel.width')"
         tabindex="0"
         @pointerdown.prevent="drag"
         @keydown="nudge"
@@ -134,7 +135,7 @@ function nudge(event: KeyboardEvent): void {
             :aria-pressed="!paneOn"
             @click="emit('update:view', 'map')"
           >
-            Map
+            {{ t("panel.map") }}
           </button>
           <TabMenu v-if="!fits" :tab="tab" :badges="badges" :on="paneOn" @pick="pick" />
           <div ref="bar" class="tabs" :class="{ measuring: !fits }" role="tablist" :aria-hidden="fits ? undefined : 'true'" @wheel="wheel">
@@ -150,7 +151,7 @@ function nudge(event: KeyboardEvent): void {
               :aria-controls="`pane-${id}`"
               @click="pick(id)"
             >
-              {{ TAB_TITLES[id] }}
+              {{ tabTitle(id) }}
               <TabBadge :tab="id" :count="badges[id]" />
             </button>
           </div>

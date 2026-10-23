@@ -1,8 +1,8 @@
 // The settings form's logic: which key goes in which group, what each field says of itself, and which field an error of the daemon is about.
 // The keys and their order come from the daemon (CONFIG_KEYS of the generated lists); a key this file does not know is shown under its own name.
+import { errorReason, type Failure } from "@/i18n/errortext";
 import { STATUS_CHOICES, statusShown, statusSource } from "@/lib/status";
 import { CONFIG_KEYS, LIMITS, TNC_PROFILES } from "@/protocol/lists";
-import type { ErrorMessage } from "@/protocol/protocol";
 
 type FieldKind = "text" | "bool" | "readonly" | "choice";
 
@@ -336,13 +336,8 @@ export function groupKeys(keys: readonly string[], scope: Scope = "settings"): G
   return shown.flatMap((id) => groups.filter((g) => g.id === id && g.keys.length > 0));
 }
 
-/** What is wrong, in the daemon's words without the command and the setting in front: its sentence is "<cmd>: [<key>: ]<reason>" (neoaprs/web/handlers.py; tests/test_error_codes.py holds it to that). */
-export function reasonOf(error: Pick<ErrorMessage, "text" | "cmd" | "key">): string {
-  let text = error.text;
-  if (error.cmd !== "" && text.startsWith(`${error.cmd}: `)) text = text.slice(error.cmd.length + 2);
-  if (error.key !== null && text.startsWith(`${error.key}: `)) text = text.slice(error.key.length + 2);
-  return text;
-}
+/** What is wrong, without the command and the setting in front: the page's sentence for the refusal's code, else the daemon's English one, whose sentence is "<cmd>: [<key>: ]<reason>" (neoaprs/web/handlers.py; tests/test_error_codes.py holds it to that). */
+export const reasonOf: (error: Failure) => string = errorReason;
 
 const SERIAL_ONLY = ["serial/port", "serial/baud"];
 /** The search for the radio, which a serial TNC falls back to where the daemon can search at all. */
