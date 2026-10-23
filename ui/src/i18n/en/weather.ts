@@ -1,0 +1,23 @@
+// The weather of a weather station: the readings on its card and the graphs of the last 24 hours or 7 days.
+export const weather = {
+  "weather.label": "Weather",
+  "weather.temperature": "Temperature",
+  "weather.wind": "Wind",
+  "weather.wind_from": "from {bearing}",
+  "weather.gusts": "gusts {speed}",
+  "weather.humidity": "Humidity",
+  "weather.pressure": "Pressure",
+  "weather.rain_1h": "Rain 1 h",
+  "weather.rain_24h": "Rain 24 h",
+  "weather.rain_today": "Rain today",
+  "weather.light": "Light",
+  "weather.snow_24h": "Snow 24 h",
+  "weather.none": "No weather report heard yet.",
+  "weather.period": "Period of the graphs",
+  "weather.span.days": { one: "{n} day", other: "{n} days" },
+  "weather.loading": "Loading the observations…",
+  "weather.no_observations": "No observations in this period.",
+  "weather.chart.wind": "Wind and gusts",
+  "weather.chart.rain": "Rain, last hour",
+  "weather.chart.label": "{title}, {unit}",
+} as const;

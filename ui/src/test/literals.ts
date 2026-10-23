@@ -8,7 +8,7 @@
 import { parse } from "vue/compiler-sfc";
 
 /** Words that are not translated: the brand and the units. */
-const ALLOWED = ["NeoAPRS", "APRS", "km", "hPa", "mm", "MB", "kB", "GB", "MHz", "kHz", "Hz", "min"];
+const ALLOWED = ["NeoAPRS", "APRS", "QRZ", "km", "hPa", "mm", "MB", "kB", "GB", "MHz", "kHz", "Hz", "min"];
 const ATTRIBUTES = ["title", "placeholder", "aria-label", "label", "alt"];
 const WORD = /\p{L}{2,}/u;
 const STRING = /'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"|`((?:[^`\\$]|\\.|\$(?!\{))*)`/g;

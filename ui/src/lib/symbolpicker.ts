@@ -1,6 +1,8 @@
 // What the symbol picker lists and how it finds a symbol: every symbol of the primary and of the alternate table with its name (the daemon's own list, SYMBOL_NAMES of the generated lists), without the codes
 // the specification keeps reserved, searched by words ("house", "car", "digi", "wx"). A symbol is written the way the settings write it, as two characters: the table (`/` primary, `\` alternate, or a digit or
 // a capital letter, which is the alternate table with that character drawn over the symbol) and the code (`-` is a house).
+import { t } from "@/i18n";
+import { symbolText } from "@/lib/symbols";
 import { SYMBOL_NAMES } from "@/protocol/lists";
 
 export interface PickSymbol {
@@ -27,24 +29,40 @@ const SYNONYMS: Record<string, string> = {
   home: "house",
 };
 
-function nameOf(table: string, index: number): string {
-  const name = (table === "/" ? SYMBOL_NAMES.primary : SYMBOL_NAMES.alternate)[index] ?? "";
-  // the ten numbered circles of the primary table are all called "Circle" by the list
-  return table === "/" && name === "Circle" ? `Circle ${String.fromCharCode(index + FIRST_CODE)}` : name;
+function tableList(table: string): readonly string[] {
+  return table === "/" ? SYMBOL_NAMES.primary : SYMBOL_NAMES.alternate;
 }
 
-/** Every symbol that can be chosen: the primary table, then the alternate one. */
+/** The name of the symbol at an index of a table, in the page's language. */
+function nameOf(table: string, index: number): string {
+  const code = String.fromCharCode(index + FIRST_CODE);
+  const name = symbolText(table, code);
+  // the ten numbered circles of the primary table are all called "Circle" by the list
+  return table === "/" && tableList(table)[index] === "Circle" ? t("symbol.numbered", { name, code }) : name;
+}
+
+/** Every symbol that can be chosen: the primary table, then the alternate one. The name is read when it is asked for, so that it follows the language of the page. */
 export const ALL_SYMBOLS: readonly PickSymbol[] = ["/", "\\"].flatMap((table) =>
-  (table === "/" ? SYMBOL_NAMES.primary : SYMBOL_NAMES.alternate)
-    .map((_, index) => ({ table, code: String.fromCharCode(index + FIRST_CODE), name: nameOf(table, index) }))
-    .filter((s) => !NOT_LISTED.includes(s.name)),
+  tableList(table).flatMap((english, index) =>
+    NOT_LISTED.includes(english)
+      ? []
+      : [
+          {
+            table,
+            code: String.fromCharCode(index + FIRST_CODE),
+            get name(): string {
+              return nameOf(table, index);
+            },
+          },
+        ],
+  ),
 );
 
 /** The name of the symbol of this table and code, "" for one that is none. An overlay table is the alternate table. */
 export function symbolName(table: string, code: string): string {
   const index = code.length === 1 ? code.charCodeAt(0) - FIRST_CODE : -1;
-  const name = index >= 0 ? nameOf(table === "/" ? "/" : "\\", index) : "";
-  return NOT_LISTED.includes(name) ? "" : name;
+  const kind = table === "/" ? "/" : "\\";
+  return index >= 0 && index < tableList(kind).length && !NOT_LISTED.includes(tableList(kind)[index] ?? "") ? nameOf(kind, index) : "";
 }
 
 /** Whether a letter or a digit can go over the symbol: the symbols made for it, and any that has one already. */

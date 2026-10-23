@@ -12,9 +12,11 @@ import StationTimeout from "@/components/StationTimeout.vue";
 import SymbolIcon from "@/components/SymbolIcon.vue";
 import WeatherPanel from "@/components/WeatherPanel.vue";
 import { useSure } from "@/composables/useSure";
+import { t } from "@/i18n";
 import { timedOut, type Aging } from "@/lib/aging";
 import { qrzUrl } from "@/lib/calls";
 import { heardDirect, reachedText } from "@/lib/routes";
+import { symbolLabel } from "@/lib/stations";
 import { agoWords, altitudeText, bearingText, dateTimeText, distanceText, positionText, speedText } from "@/lib/format";
 import { isWeatherStation, type Ranges } from "@/lib/weather";
 import type { StationRow, WeatherSeriesMessage } from "@/protocol/protocol";
@@ -53,67 +55,73 @@ const forget = (): void => sure.press(props.row.call, () => emit("forget", props
 const kill = (): void => sure.press(props.row.call, () => emit("kill", props.row.call));
 
 const qrz = computed(() => (props.row.kind === "station" ? qrzUrl(props.row.call) : null));
-const fromUs = computed(() => (props.row.distance_km === null ? null : `${distanceText(props.row.distance_km)} km, ${bearingText(props.row.bearing_deg)}`));
+const fromUs = computed(() =>
+  props.row.distance_km === null
+    ? null
+    : t("station.from_us_value", { distance: distanceText(props.row.distance_km), bearing: bearingText(props.row.bearing_deg) }),
+);
 const position = computed(() => (props.row.lat === null || props.row.lon === null ? null : positionText(props.row.lat, props.row.lon)));
 /** Only a station that moves has a speed and a course worth saying: "85 km/h, course 96° E". */
 const moving = computed(() => {
   const { speed_kmh: speed, course_deg: course } = props.row;
   if (speed === null || speed <= 0) return null;
-  return course === null ? speedText(speed) : `${speedText(speed)}, course ${bearingText(course)}`;
+  return course === null ? speedText(speed) : t("station.speed_course", { speed: speedText(speed), course: bearingText(course) });
 });
 const weather = computed(() => isWeatherStation(props.row));
 const reached = computed(() => (props.row.kind === "station" && !props.row.is_me && !props.row.own ? reachedText(props.row) : null));
 </script>
 
 <template>
-  <section class="card" aria-label="Station">
+  <section class="card" :aria-label="t('station.card.label')">
     <header class="card-head">
       <SymbolIcon :table="row.symbol_table" :code="row.symbol_code" :size="32" />
       <div class="card-title">
         <span class="card-call">
           <strong>{{ row.call }}</strong>
           <DirectMark v-if="heardDirect(row)" />
-          <a v-if="qrz" class="qrz" :href="qrz" target="_blank" rel="noopener noreferrer" title="Open the QRZ page of this call">QRZ</a>
+          <a v-if="qrz" class="qrz" :href="qrz" target="_blank" rel="noopener noreferrer" :title="t('station.card.qrz_title')">QRZ</a>
         </span>
-        <span class="muted">{{ row.symbol_name }}{{ row.is_me ? " (our station)" : row.own ? " (ours)" : "" }}</span>
+        <span class="muted">{{ symbolLabel(row, true) }}</span>
       </div>
-      <IconButton kind="close" class="card-close" label="Close" @click="emit('close')" />
+      <IconButton kind="close" class="card-close" :label="t('iconbutton.close')" @click="emit('close')" />
     </header>
     <div class="card-body">
       <WeatherPanel v-if="weather" :row="row" :series="weatherSeries" :now="now" :ranges="ranges" @ask="(c, h) => emit('weather', c, h)" />
       <dl class="card-fields">
         <template v-if="row.kind !== 'station'">
-          <dt>Kind</dt>
-          <dd>{{ row.kind }}, reported by {{ row.reported_by || "-" }}</dd>
+          <dt>{{ t("station.field.kind") }}</dt>
+          <dd>{{ t("station.kind_reported", { kind: t(`station.kind.${row.kind}`), by: row.reported_by || "-" }) }}</dd>
         </template>
-        <dt>Last heard</dt>
+        <dt>{{ t("station.field.last_heard") }}</dt>
         <dd :title="dateTimeText(row.last_heard)">{{ agoWords(row.last_heard, now) }}</dd>
         <template v-if="position !== null">
-          <dt>Position</dt>
-          <dd>{{ position }}<span v-if="timedOut(aging, row, now)" class="timedword"> - timed out</span></dd>
+          <dt>{{ t("station.field.position") }}</dt>
+          <dd>
+            {{ position }}<span v-if="timedOut(aging, row, now)" class="timedword">{{ ` - ${t("station.timed_out")}` }}</span>
+          </dd>
         </template>
         <template v-if="fromUs !== null">
-          <dt>From us</dt>
+          <dt>{{ t("station.field.from_us") }}</dt>
           <dd>{{ fromUs }}</dd>
         </template>
         <template v-if="moving !== null">
-          <dt>Speed</dt>
+          <dt>{{ t("station.field.speed") }}</dt>
           <dd>{{ moving }}</dd>
         </template>
         <template v-if="row.altitude_m !== null">
-          <dt>Altitude</dt>
+          <dt>{{ t("station.field.altitude") }}</dt>
           <dd>{{ altitudeText(row.altitude_m) }}</dd>
         </template>
         <template v-if="row.last_status">
-          <dt>Status</dt>
+          <dt>{{ t("station.field.status") }}</dt>
           <dd>{{ row.last_status }}</dd>
         </template>
         <template v-if="row.last_comment">
-          <dt>Comment</dt>
+          <dt>{{ t("station.field.comment") }}</dt>
           <dd>{{ row.last_comment }}</dd>
         </template>
         <template v-if="reached !== null">
-          <dt>Reached us</dt>
+          <dt>{{ t("station.field.reached") }}</dt>
           <dd><RouteText :text="reached" /></dd>
         </template>
       </dl>
@@ -124,12 +132,18 @@ const reached = computed(() => (props.row.kind === "station" && !props.row.is_me
       </StationDetails>
     </div>
     <footer v-if="row.own" class="card-foot">
-      <button class="btn primary" type="button" @click="emit('edit', row.call)">Edit</button>
-      <button class="btn forget" :class="{ danger: armed }" type="button" @click="kill">{{ armed ? "Really kill?" : "Kill" }}</button>
+      <button class="btn primary" type="button" @click="emit('edit', row.call)">{{ t("station.card.edit") }}</button>
+      <button class="btn forget" :class="{ danger: armed }" type="button" @click="kill">
+        {{ armed ? t("station.card.kill_sure") : t("station.card.kill") }}
+      </button>
     </footer>
     <footer v-else-if="!row.is_me" class="card-foot">
-      <button v-if="row.kind === 'station' && row.can_message" class="btn primary" type="button" @click="emit('message', row.call)">Message</button>
-      <button class="btn forget" :class="{ danger: armed }" type="button" @click="forget">{{ armed ? "Really forget?" : "Forget" }}</button>
+      <button v-if="row.kind === 'station' && row.can_message" class="btn primary" type="button" @click="emit('message', row.call)">
+        {{ t("station.card.message") }}
+      </button>
+      <button class="btn forget" :class="{ danger: armed }" type="button" @click="forget">
+        {{ armed ? t("station.card.forget_sure") : t("station.card.forget") }}
+      </button>
     </footer>
   </section>
 </template>

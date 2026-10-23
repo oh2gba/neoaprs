@@ -7,12 +7,13 @@ import DirectMark from "@/components/DirectMark.vue";
 import SymbolIcon from "@/components/SymbolIcon.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { usePersistedFlag } from "@/composables/usePersisted";
+import { t } from "@/i18n";
 import { timedOut } from "@/lib/aging";
 import { normalizeCall, validCall } from "@/lib/calls";
 import { ageText, bearingTitle, dateTimeText, distanceText } from "@/lib/format";
 import { isGateway } from "@/lib/messages";
 import { heardDirect } from "@/lib/routes";
-import { firstDirection, listStations, type Sort, type SortKey } from "@/lib/stations";
+import { firstDirection, listStations, symbolName, type Sort, type SortKey } from "@/lib/stations";
 import type { StationRow } from "@/protocol/protocol";
 
 const props = withDefaults(
@@ -28,14 +29,15 @@ const isOpen = (call: string): boolean => call === props.selected || props.other
 /** Ctrl (Cmd on a Mac) held: the station's card is added to the open ones, or closed when it is open. */
 const withKey = (event: MouseEvent | KeyboardEvent): boolean => event.ctrlKey || event.metaKey;
 
-const COLUMNS: { key: SortKey | null; title: string; numeric?: boolean }[] = [
+/** The columns, with the head of each in the page's language (made again when the language changes). */
+const columns = computed<{ key: SortKey | null; title: string; numeric?: boolean }[]>(() => [
   { key: null, title: "" },
-  { key: "call", title: "Call" },
-  { key: null, title: "heard direct" },
+  { key: "call", title: t("station.table.call") },
+  { key: null, title: t("station.heard_direct") },
   { key: "distance_km", title: "km", numeric: true },
-  { key: null, title: "bearing" },
-  { key: "last_heard", title: "Last heard", numeric: true },
-];
+  { key: null, title: t("station.table.bearing") },
+  { key: "last_heard", title: t("station.field.last_heard"), numeric: true },
+]);
 
 const filter = ref("");
 const withPositionOnly = ref(false);
@@ -87,22 +89,22 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
         v-model="filter"
         class="input filterbox"
         type="search"
-        placeholder="Filter"
-        title="Call, symbol, comment, path"
-        aria-label="Filter the stations"
+        :placeholder="t('station.table.filter')"
+        :title="t('station.table.filter_title')"
+        :aria-label="t('station.table.filter_label')"
         @keydown.esc="clearFilter"
       />
       <div class="toolbar-checks">
-        <label class="check"><input v-model="withPositionOnly" type="checkbox" /> with position only</label>
-        <label class="check"><input v-model="hideTimedOut" type="checkbox" /> hide timed out</label>
-        <label class="check"><input v-model="directOnly" type="checkbox" /> direct only</label>
+        <label class="check"><input v-model="withPositionOnly" type="checkbox" /> {{ t("station.table.with_position") }}</label>
+        <label class="check"><input v-model="hideTimedOut" type="checkbox" /> {{ t("station.table.hide_timed_out") }}</label>
+        <label class="check"><input v-model="directOnly" type="checkbox" /> {{ t("station.table.direct_only") }}</label>
       </div>
     </div>
     <div class="scroll">
       <table class="grid stations">
         <thead>
           <tr>
-            <th v-for="c in COLUMNS" :key="c.title" :class="{ num: c.numeric, sortable: c.key !== null }" :aria-sort="ariaSort(c.key)">
+            <th v-for="(c, i) in columns" :key="i" :class="{ num: c.numeric, sortable: c.key !== null }" :aria-sort="ariaSort(c.key)">
               <button v-if="c.key" type="button" class="headbtn" @click="sortBy(c.key)">
                 {{ c.title }}<span v-if="sort.key === c.key" aria-hidden="true">{{ sort.dir === 1 ? " ▲" : " ▼" }}</span>
               </button>
@@ -120,7 +122,7 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
             @click="emit('select', row.call, withKey($event))"
             @keydown.enter="emit('select', row.call, withKey($event))"
           >
-            <td class="symbol" :title="row.symbol_name"><SymbolIcon :table="row.symbol_table" :code="row.symbol_code" :size="18" /></td>
+            <td class="symbol" :title="symbolName(row)"><SymbolIcon :table="row.symbol_table" :code="row.symbol_code" :size="18" /></td>
             <td class="mono strong call">{{ row.call }}</td>
             <td class="direct"><DirectMark v-if="heardDirect(row)" /></td>
             <td class="num">{{ distanceText(row.distance_km) }}</td>
@@ -144,20 +146,22 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
               <span v-if="row.bearing_deg !== null" class="sr-only">{{ bearingTitle(row.bearing_deg) }}</span>
             </td>
             <td class="num" :title="dateTimeText(row.last_heard)">
-              {{ ageText(row.last_heard, now) }}<span v-if="isTimedOut(row)" class="timedword"> timed out</span>
+              {{ ageText(row.last_heard, now) }}<span v-if="isTimedOut(row)" class="timedword">{{ ` ${t("station.timed_out")}` }}</span>
             </td>
           </tr>
           <tr v-if="rows.length === 0">
-            <td :colspan="COLUMNS.length" class="empty">{{ stations.size === 0 ? "No station heard yet." : "No station matches." }}</td>
+            <td :colspan="columns.length" class="empty">{{ stations.size === 0 ? t("station.table.none_yet") : t("station.table.none_match") }}</td>
           </tr>
           <tr v-if="strangerCall !== null" class="stranger">
-            <td :colspan="COLUMNS.length" class="empty">
-              <button type="button" class="btn primary" @click="emit('message', strangerCall)">Message {{ strangerCall }}</button>
+            <td :colspan="columns.length" class="empty">
+              <button type="button" class="btn primary" @click="emit('message', strangerCall)">
+                {{ t("station.table.message_call", { call: strangerCall }) }}
+              </button>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
-    <div class="foot muted">{{ rows.length }} of {{ stations.size }} stations</div>
+    <div class="foot muted">{{ t("station.table.count", { shown: rows.length, n: stations.size }) }}</div>
   </div>
 </template>

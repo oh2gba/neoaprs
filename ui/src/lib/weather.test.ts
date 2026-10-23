@@ -39,7 +39,7 @@ describe("a weather station", () => {
   });
 
   it("adds its temperature to the tooltip of its marker, and nothing to any other", () => {
-    expect(markerWeather(weatherStation())).toBe(", 10.0 °C");
+    expect(markerWeather(weatherStation())).toBe("10.0 °C");
     expect(markerWeather(station("A"))).toBe("");
     expect(markerWeather(weatherStation("A", { weather: weather({ temp_c: null }) }))).toBe("");
   });

@@ -15,7 +15,7 @@ describe("hasPosition", () => {
 describe("listStations", () => {
   const rows = [
     station("OH2PU-9", { distance_km: 16, last_heard: ago(30), packets: 5, last_comment: "D-STAR" }),
-    station("OH2RDG", { distance_km: 25, last_heard: ago(10), packets: 9, symbol_name: "Digipeater" }),
+    station("OH2RDG", { distance_km: 25, last_heard: ago(10), packets: 9, symbol_code: "#" }),
     station("OH2XYZ", { distance_km: null, lat: null, lon: null, last_position_at: null, last_heard: ago(5), packets: 1 }),
     station("OH2GBA", { is_me: true, distance_km: null, last_heard: ago(100) }),
   ];

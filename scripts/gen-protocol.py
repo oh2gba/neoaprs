@@ -9,6 +9,7 @@
                                 is held to it by ui/src/i18n/errors.test.ts
   ui/src/protocol/vectors.json  the rules that are code and not numbers (is this a call? what is the PHG text of this antenna? what beacon does this make?): inputs with the results that Python gives; tests/test_vectors.py
                                 and ui/src/protocol/vectors.test.ts hold the daemon and the page to them
+  ui/src/i18n/en/symbols.ts     the names of the APRS symbols as messages of the page's English catalogue (`symbol.primary.21`, `symbol.alternate.7e`: the table and the code in hex), so that they can be translated
   PROTOCOL.md                   the reference: the prose below, then the commands and the messages from the models' docstrings and field descriptions
 
 Run it with the venv's python from the repository root:  .venv/bin/python scripts/gen-protocol.py
@@ -50,6 +51,7 @@ TYPES = ROOT / "ui" / "src" / "protocol" / "protocol.ts"
 LISTS = ROOT / "ui" / "src" / "protocol" / "lists.ts"
 VECTORS = ROOT / "ui" / "src" / "protocol" / "vectors.json"
 ERRORS = ROOT / "ui" / "src" / "protocol" / "errors.json"
+SYMBOLS = ROOT / "ui" / "src" / "i18n" / "en" / "symbols.ts"
 DOC = ROOT / "PROTOCOL.md"
 # The order of the first objects of the Objects section of PROTOCOL.md; every other model of the schema follows them, sorted by name.
 OBJECT_ORDER = "StationRow PacketRow MessageRow DecodedPosition DecodedMessage DecodedObject DecodedItem DecodedStatus DecodedTelemetry DecodedOther DecodedUndecoded DecodedWeather PositionFields TncState TncStats ConfigValues SetOp DelOp ReplaceOp".split()
@@ -195,6 +197,14 @@ def _profiles() -> str:
 def _symbol_names() -> str:
     return ("/** The names of the APRS symbols, the codes `!` to `~` in order, of the primary and of the alternate table (SYMBOL_NAMES of neoaprs/symbols.py): the symbol picker lists them. */\n"
             f"export const SYMBOL_NAMES = {_literal({k: list(v) for k, v in SYMBOL_NAMES.items()})} as const;\n")
+
+
+def symbols_text() -> str:
+    """The names of the symbols as the English catalogue's messages: `symbol.<table>.<code in hex>` for each code "!" to "~" of the primary and of the alternate table, and `symbol.unknown` for none."""
+    rows = [f'  "symbol.{table}.{ord("!") + index:02x}": {json.dumps(name)},\n' for table in ("primary", "alternate") for index, name in enumerate(SYMBOL_NAMES[table])]
+    return ("// The names of the APRS symbols, written from the daemon's own list (SYMBOL_NAMES of neoaprs/symbols.py) by scripts/gen-protocol.py: never edited by hand. The id is the table and the code of the symbol in hex\n"
+            "// (`symbol.primary.3e` is the car of `/>`); an overlay table is the alternate one. Another language translates them in its own catalogue; the page falls back to these.\n"
+            "export const symbols = {\n" + "".join(rows) + '  "symbol.unknown": "unknown",\n} as const;\n')
 
 
 def limits() -> dict[str, Any]:
@@ -594,7 +604,7 @@ def errors_text() -> str:
 
 def render() -> dict[Path, str]:
     schema = build_schema()
-    return {SCHEMA: json.dumps(schema, indent=2) + "\n", TYPES: types_text(schema), LISTS: lists_text(), VECTORS: vectors_text(), ERRORS: errors_text(), DOC: doc_text()}
+    return {SCHEMA: json.dumps(schema, indent=2) + "\n", TYPES: types_text(schema), LISTS: lists_text(), VECTORS: vectors_text(), ERRORS: errors_text(), SYMBOLS: symbols_text(), DOC: doc_text()}
 
 
 def main(argv: list[str]) -> int:

@@ -9,6 +9,7 @@ import StationCard from "@/components/StationCard.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useResized } from "@/composables/useResized";
 import { provideWxSpan } from "@/composables/useWxSpan";
+import { t } from "@/i18n";
 import { CARDS_FREE_SIDE, CARD_GAP, type SizeClass } from "@/lib/layout";
 import { SWIPE_MIN, sheetMove, type SheetMove } from "@/lib/sheet";
 import { isWeatherStation, sharedRanges } from "@/lib/weather";
@@ -104,9 +105,9 @@ function tap(): void {
 
 <template>
   <div v-if="rows.length > 1 && size !== 'phone'" class="cards-actions">
-    <button type="button" class="btn small cards-closeall" @click="emit('closeAll')">Close all</button>
+    <button type="button" class="btn small cards-closeall" @click="emit('closeAll')">{{ t("station.cards.close_all") }}</button>
     <button v-if="askable.length > 1" type="button" class="btn small cards-message" @click="emit('messageAll', askable)">
-      Message these {{ askable.length }}
+      {{ t("station.cards.message_all", { n: askable.length }) }}
     </button>
   </div>
   <div v-if="rows.length > 0" ref="stack" class="cardstack" :class="{ sheet: size === 'phone', expanded }">
@@ -115,7 +116,7 @@ function tap(): void {
       type="button"
       class="sheet-grip"
       :aria-expanded="expanded"
-      :aria-label="expanded ? 'Fold the card' : 'Open the card'"
+      :aria-label="expanded ? t('station.cards.fold') : t('station.cards.open')"
       @pointerdown="down"
       @pointerup="up"
       @pointercancel="cancel"

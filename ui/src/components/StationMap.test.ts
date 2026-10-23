@@ -5,7 +5,7 @@ import { defineComponent, h, ref } from "vue";
 import StationMap from "@/components/StationMap.vue";
 import type { Aging } from "@/lib/aging";
 import { writeView } from "@/lib/mapview";
-import { NO_BASEMAP_TEXT, NO_DETAIL_TEXT, NO_ENGINE_TEXT, OPEN_ZOOM } from "@/lib/basemapstyle";
+import { OPEN_ZOOM } from "@/lib/basemapstyle";
 import { FakeMap, FakeMarker, fakeState, resetFakes } from "@/test/fakemap";
 import { fakeDaemon, withDaemon } from "@/test/context";
 import { mountStationMap } from "@/test/stationmap";
@@ -256,7 +256,7 @@ describe("StationMap", () => {
   it("has no base map: says so over a blank background, offers the download, and draws the stations all the same", async () => {
     fakeState.archive = false;
     const wrapper = await mounted();
-    expect(wrapper.find(".mapnote span").text()).toBe(NO_BASEMAP_TEXT);
+    expect(wrapper.find(".mapnote span").text()).toBe("No base map");
     expect(JSON.stringify(FakeMap.last().options.style)).not.toContain("pmtiles");
     expect(FakeMarker.live().length).toBe(4);
     expect(wrapper.text()).not.toContain("fetch-basemap");
@@ -268,7 +268,7 @@ describe("StationMap", () => {
     fakeState.archive = false;
     fakeState.world = true;
     const wrapper = await mounted();
-    expect(wrapper.find(".mapnote span").text()).toBe(NO_DETAIL_TEXT);
+    expect(wrapper.find(".mapnote span").text()).toBe("No detailed map");
     expect(wrapper.find(".mapnote button").exists()).toBe(true);
     const style = JSON.stringify(FakeMap.last().options.style);
     expect(style).toContain("basemap-world.pmtiles");
@@ -288,7 +288,7 @@ describe("StationMap", () => {
   it("reads the files again when the daemon makes them: the style is set once more, the addresses new", async () => {
     fakeState.archive = false;
     const wrapper = await mounted({ filesKey: "- -" });
-    expect(wrapper.find(".mapnote span").text()).toBe(NO_BASEMAP_TEXT);
+    expect(wrapper.find(".mapnote span").text()).toBe("No base map");
     fakeState.archive = true;
     fakeState.world = true;
     await wrapper.setProps({ filesKey: "2026-10-22T19:03:53Z 2026-10-22T19:00:00Z" });
@@ -382,7 +382,7 @@ describe("StationMap", () => {
   it("says so when the map cannot be loaded", async () => {
     fakeState.engine = false;
     const wrapper = await mounted();
-    expect(wrapper.find(".mapnote").text()).toBe(NO_ENGINE_TEXT);
+    expect(wrapper.find(".mapnote").text()).toBe("The map could not be loaded");
     expect(FakeMap.all).toHaveLength(0);
   });
 

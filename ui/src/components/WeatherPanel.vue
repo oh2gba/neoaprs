@@ -5,17 +5,19 @@
 import { computed, watch } from "vue";
 import TrendChart from "@/components/TrendChart.vue";
 import { useWxSpan } from "@/composables/useWxSpan";
-import { ageText, bearingText, dateTimeText } from "@/lib/format";
+import { t } from "@/i18n";
+import { agoWords, bearingText, dateTimeText } from "@/lib/format";
 import { arrowAngle, columnOf, hasValues, humidityText, pressureText, rainText, tempText, windSpeedText, type Ranges } from "@/lib/weather";
 import type { StationRow, WeatherSeriesMessage } from "@/protocol/protocol";
 
 const props = defineProps<{ row: StationRow; series: WeatherSeriesMessage | null; now: number; ranges?: Ranges }>();
 const emit = defineEmits<{ ask: [call: string, hours: number] }>();
 
-const SPANS = [
-  { hours: "24", label: "24 h" },
-  { hours: "168", label: "7 days" },
-] as const;
+/** The spans of the graphs, with the words of each in the page's language. */
+const spans = computed(() => [
+  { hours: "24" as const, label: t("time.span.h", { n: 24 }) },
+  { hours: "168" as const, label: t("weather.span.days", { n: 7 }) },
+]);
 const span = useWxSpan(); // (the one of all the open cards, when there are several)
 const hours = computed(() => Number(span.value));
 
@@ -38,52 +40,60 @@ const charts = computed(() => ({
   gust: columnOf(mine.value, "gust"),
   rain: columnOf(mine.value, "rain"),
 }));
-const heard = computed(() => (props.row.weather_at === null ? "" : `${ageText(props.row.weather_at, props.now)} ago`));
+const heard = computed(() => (props.row.weather_at === null ? "" : agoWords(props.row.weather_at, props.now)));
+/** "from 123° ESE gusts 20 km/h": the direction the wind comes from and its gusts, as far as they are known. */
+const windNote = computed(() => {
+  const w = wx.value;
+  if (w === null) return "";
+  return [
+    w.wind_dir === null ? "" : t("weather.wind_from", { bearing: bearingText(w.wind_dir) }),
+    w.gust_kmh === null ? "" : t("weather.gusts", { speed: windSpeedText(w.gust_kmh) }),
+  ]
+    .filter((part) => part !== "")
+    .join(" ");
+});
 </script>
 
 <template>
-  <section class="wx" aria-label="Weather">
+  <section class="wx" :aria-label="t('weather.label')">
     <div v-if="wx" class="wx-now">
-      <div class="wx-temp" title="Temperature">{{ tempText(wx.temp_c) }}</div>
-      <div class="wx-wind" title="Wind">
+      <div class="wx-temp" :title="t('weather.temperature')">{{ tempText(wx.temp_c) }}</div>
+      <div class="wx-wind" :title="t('weather.wind')">
         <svg v-if="angle !== null" class="wx-arrow" viewBox="-12 -12 24 24" aria-hidden="true">
           <g :transform="`rotate(${angle})`"><path d="M0,-10 L6,6 L0,3 L-6,6 Z" /></g>
         </svg>
         <span v-else class="wx-arrow" aria-hidden="true" />
         <div>
           <div class="wx-big">{{ windSpeedText(wx.wind_kmh) }}</div>
-          <div class="muted">
-            <template v-if="wx.wind_dir !== null">from {{ bearingText(wx.wind_dir) }}</template>
-            <template v-if="wx.gust_kmh !== null"> gusts {{ windSpeedText(wx.gust_kmh) }}</template>
-          </div>
+          <div class="muted">{{ windNote }}</div>
         </div>
       </div>
       <dl class="wx-values">
-        <dt>Humidity</dt>
+        <dt>{{ t("weather.humidity") }}</dt>
         <dd>{{ humidityText(wx.humidity) }}</dd>
-        <dt>Pressure</dt>
+        <dt>{{ t("weather.pressure") }}</dt>
         <dd>{{ pressureText(wx.pressure_hpa) }}</dd>
-        <dt>Rain 1 h</dt>
+        <dt>{{ t("weather.rain_1h") }}</dt>
         <dd>{{ rainText(wx.rain_1h_mm) }}</dd>
-        <dt>Rain 24 h</dt>
+        <dt>{{ t("weather.rain_24h") }}</dt>
         <dd>{{ rainText(wx.rain_24h_mm) }}</dd>
-        <dt>Rain today</dt>
+        <dt>{{ t("weather.rain_today") }}</dt>
         <dd>{{ rainText(wx.rain_today_mm) }}</dd>
         <template v-if="wx.luminosity !== null">
-          <dt>Light</dt>
+          <dt>{{ t("weather.light") }}</dt>
           <dd>{{ wx.luminosity }} W/m²</dd>
         </template>
         <template v-if="wx.snow_mm !== null">
-          <dt>Snow 24 h</dt>
+          <dt>{{ t("weather.snow_24h") }}</dt>
           <dd>{{ rainText(wx.snow_mm) }}</dd>
         </template>
       </dl>
       <div class="wx-when muted" :title="dateTimeText(row.weather_at)">{{ heard }}</div>
     </div>
-    <div v-else class="wx-none muted">No weather report heard yet.</div>
-    <div class="wx-span" role="group" aria-label="Period of the graphs">
+    <div v-else class="wx-none muted">{{ t("weather.none") }}</div>
+    <div class="wx-span" role="group" :aria-label="t('weather.period')">
       <button
-        v-for="s in SPANS"
+        v-for="s in spans"
         :key="s.hours"
         type="button"
         class="btn small"
@@ -94,13 +104,22 @@ const heard = computed(() => (props.row.weather_at === null ? "" : `${ageText(pr
         {{ s.label }}
       </button>
     </div>
-    <p v-if="mine === null" class="wx-none muted">Loading the observations…</p>
-    <p v-else-if="mine.points.length === 0" class="wx-none muted">No observations in this period.</p>
+    <p v-if="mine === null" class="wx-none muted">{{ t("weather.loading") }}</p>
+    <p v-else-if="mine.points.length === 0" class="wx-none muted">{{ t("weather.no_observations") }}</p>
     <template v-else>
-      <TrendChart v-if="hasValues(charts.temp)" title="Temperature" unit="°C" :from="from" :to="to" :main="charts.temp" tone="temp" :range="ranges?.temp" />
+      <TrendChart
+        v-if="hasValues(charts.temp)"
+        :title="t('weather.temperature')"
+        unit="°C"
+        :from="from"
+        :to="to"
+        :main="charts.temp"
+        tone="temp"
+        :range="ranges?.temp"
+      />
       <TrendChart
         v-if="hasValues(charts.pressure)"
-        title="Pressure"
+        :title="t('weather.pressure')"
         unit="hPa"
         :from="from"
         :to="to"
@@ -110,7 +129,7 @@ const heard = computed(() => (props.row.weather_at === null ? "" : `${ageText(pr
       />
       <TrendChart
         v-if="hasValues(charts.wind)"
-        title="Wind and gusts"
+        :title="t('weather.chart.wind')"
         unit="km/h"
         :from="from"
         :to="to"
@@ -122,7 +141,7 @@ const heard = computed(() => (props.row.weather_at === null ? "" : `${ageText(pr
       />
       <TrendChart
         v-if="hasValues(charts.rain)"
-        title="Rain, last hour"
+        :title="t('weather.chart.rain')"
         unit="mm"
         :from="from"
         :to="to"

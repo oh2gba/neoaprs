@@ -28,7 +28,25 @@ const ENGLISH = Object.values(en as Record<string, Message>)
   }));
 
 /** Words of components that are not converted yet (src/i18n/unconverted.json) that are the same as a message that is: they show in English in the pseudo-locale. Whoever converts the component takes its word out; a word that no tab shows any more fails the test. */
-const STILL_ENGLISH = ["Beacon", "Email", "Map"];
+const STILL_ENGLISH = [
+  "Antenna",
+  "Beacon",
+  "Call",
+  "Close",
+  "Comment",
+  "Digipeater",
+  "Email",
+  "Kind",
+  "Map",
+  "Packet",
+  "Path",
+  "Position",
+  "Speed",
+  "Station",
+  "Status",
+  "Text",
+  "direct",
+];
 const shown = new Set<string>();
 
 const ATTRIBUTES = ["title", "aria-label", "placeholder", "alt", "label"];
