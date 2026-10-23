@@ -148,7 +148,8 @@ jobs:
           $p = Start-Process "$app\neoaprs-app.exe" -ArgumentList '--tray', '--data', $data -PassThru
           $url = $null
           foreach ($i in 1..60) {
-            $m = Select-String -Path "$data\neoaprs.log" -Pattern 'web page at (http://\S+/)' -ErrorAction SilentlyContinue | Select-Object -Last 1
+            # (Select-String stops the step on a file that is not there yet, whatever -ErrorAction says)
+            $m = if (Test-Path "$data\neoaprs.log") { Select-String -Path "$data\neoaprs.log" -Pattern 'web page at (http://\S+/)' | Select-Object -Last 1 }
             if ($m) { $url = $m.Matches[0].Groups[1].Value; break }
             if ($p.HasExited) { break }
             Start-Sleep 1
@@ -186,7 +187,7 @@ jobs:
           $app = "$env:LOCALAPPDATA\Programs\NeoAPRS"
           # the app is running, with its daemon, when the uninstaller starts: it ends both
           $running = Start-Process "$app\neoaprs-app.exe" -ArgumentList '--tray' -PassThru
-          foreach ($i in 1..60) { if ((Select-String -Path "$env:LOCALAPPDATA\NeoAPRS\neoaprs.log" -Pattern 'NeoAPRS is running' -Quiet -ErrorAction SilentlyContinue)) { break }; Start-Sleep 1 }
+          foreach ($i in 1..60) { if ((Test-Path "$env:LOCALAPPDATA\NeoAPRS\neoaprs.log") -and (Select-String -Path "$env:LOCALAPPDATA\NeoAPRS\neoaprs.log" -Pattern 'NeoAPRS is running' -Quiet)) { break }; Start-Sleep 1 }
           if ($running.HasExited) { throw "the app did not stay up" }
           $u = Start-Process "$app\unins000.exe" -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=$PWD\uninstall.log" -PassThru
           $u.WaitForExit()
