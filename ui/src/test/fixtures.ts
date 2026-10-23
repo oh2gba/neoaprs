@@ -244,6 +244,7 @@ export function tncState(extra: Partial<TncState> = {}): TncState {
       keepalive_checks: 0,
       watchdog_probes: 0,
       port_reopens: 0,
+      digipeated: 0,
     },
     lines: ["12:00:00 NeoAPRS: opened /dev/brainbox_3 at 9600", "12:00:01 OH2RDG>APN391:!6007.47NN02429.82E#"],
     ...extra,
@@ -278,12 +279,10 @@ export function configValues(extra: Record<string, string> = {}): ConfigValues {
     "web/allowed_hosts": "",
     "beacon/interval_min": "0",
     "beacon/path": "WIDE1-1,WIDE2-1",
-    "beacon/destination": "APZNEO",
-    "beacon/compressed": "false",
-    "beacon/dao": "false",
     "messages/alert": "true",
     "messages/alert_command":
       '(notify-send -- "APRS message from $NEOAPRS_FROM" "$NEOAPRS_TEXT" 2>/dev/null || kdialog --title "APRS message from $NEOAPRS_FROM" --passivepopup "$NEOAPRS_TEXT" 10); paplay /usr/share/sounds/freedesktop/stereo/message-new-instant.oga',
+    "status/source": "",
     "status/rigctld": "",
     "status/interval_min": "30",
     "status/template": "QRV {freq} {mode}",
@@ -292,6 +291,7 @@ export function configValues(extra: Record<string, string> = {}): ConfigValues {
     "map/maxzoom": "12",
     "map/source": "",
     "update/url": "https://oh2gba.eu/neoaprs/version.php",
+    "digi/enabled": "false",
     ...extra,
   };
   return { values, defaults: { ...values }, urls: [] };

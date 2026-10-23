@@ -7,13 +7,12 @@ from datetime import timedelta
 
 import pytest
 
-from neoaprs import ax25
+from neoaprs import TOCALL, ax25
 from neoaprs.aprsparse import parse
 from neoaprs.aprsposition import parse_position
 from neoaprs.config import Config
-from neoaprs.geo import distance_km
 from neoaprs.packet import Status
-from neoaprs.services.beacon import Beacon, BeaconError, dao_text, phg_text, uncompressed_position
+from neoaprs.services.beacon import Beacon, BeaconError, phg_text, uncompressed_position
 from neoaprs.source import Source, unusable_because
 from tests.support.clock import FixedClock
 from tests.support.env import ON_AIR, until
@@ -63,9 +62,16 @@ def test_the_default_beacon_is_the_uncompressed_position_with_the_comment_to_the
     assert ax25.decode(ax25.encode(frame)) == frame, "it is a frame that goes over the air and comes back"
 
 
+def test_a_stored_destination_compressed_or_dao_is_ignored_and_the_tocall_is_the_codes() -> None:
+    stored = Config.from_data({**ON_AIR.to_data(), "beacon/destination": "APRS", "beacon/compressed": "true", "beacon/dao": "true"})
+    assert stored == ON_AIR and TOCALL == "APZNEO"
+    frame = Beacon(StubTnc(), lambda: stored, FixedClock()).frame()
+    assert frame.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=6010.20N/02456.40E-NeoAPRS"
+
+
 def test_the_frame_follows_the_settings() -> None:
-    frame = Rig(station_call="OH2GBA-9", beacon_path="", beacon_destination="APRS", station_symbol_table="\\", station_symbol_code=">", station_comment="").beacon.frame()
-    assert frame.tnc2() == "OH2GBA-9>APRS:=6010.20N\\02456.40E>"
+    frame = Rig(station_call="OH2GBA-9", beacon_path="", station_symbol_table="\\", station_symbol_code=">", station_comment="").beacon.frame()
+    assert frame.tnc2() == "OH2GBA-9>APZNEO:=6010.20N\\02456.40E>"
     assert Rig(beacon_path="WIDE2-2").beacon.frame().path_text == "WIDE2-2"
 
 
@@ -86,18 +92,8 @@ def test_the_uncompressed_position_reads_back_in_the_parser_within_a_hundredth_o
         assert position.ambiguity == 0 and position.messaging and not position.compressed and position.comment == "NeoAPRS"
 
 
-@pytest.mark.parametrize("table, code", [("/", "-"), ("\\", ">"), ("5", "k"), ("T", "&")])
-def test_the_compressed_beacon_reads_back_within_a_metre(table: str, code: str) -> None:
-    for lat, lon in ((60.17, 24.94), (-33.8688, 151.2093), (89.9, -179.9)):
-        info = Rig(beacon_compressed=True, station_lat=lat, station_lon=lon, station_symbol_table=table, station_symbol_code=code).beacon.frame().info
-        assert info[:1] == b"=" and len(info) == 1 + 13 + len("NeoAPRS") and info.endswith(b"NeoAPRS")
-        position = parse_position(info[1:], FixedClock()(), messaging=True)
-        assert distance_km(lat, lon, position.lat, position.lon) * 1000 < 1.0
-        assert (position.symbol_table, position.symbol_code, position.comment, position.compressed, position.messaging) == (table, code, "NeoAPRS", True, True)
-
-
 @pytest.mark.parametrize("changes", [
-    {"station_comment": "x" * 44}, {"station_comment": "åäö"}, {"beacon_destination": "A B"}, {"beacon_path": "WIDE1-1,BAD CALL"},
+    {"station_comment": "x" * 44}, {"station_comment": "åäö"}, {"beacon_path": "WIDE1-1,BAD CALL"},
     {"beacon_path": ",".join(["WIDE1-1"] * 9)}, {"station_lat": 91.0}, {"station_lon": -181.0}, {"station_symbol_table": "!!"}, {"station_symbol_code": " "}])
 def test_settings_that_make_no_frame_are_an_error_and_nothing_is_sent(changes: dict[str, object], caplog: pytest.LogCaptureFixture) -> None:
     rig = Rig(**changes)
@@ -109,7 +105,7 @@ def test_settings_that_make_no_frame_are_an_error_and_nothing_is_sent(changes: d
     assert any("no beacon sent" in r.getMessage() for r in caplog.records)
 
 
-# ---- the PHG extension and DAO ---------------------------------------------------------------------------------------------------------------------
+# ---- the PHG extension ---------------------------------------------------------------------------------------------------------------------
 
 @pytest.mark.parametrize("power, height, gain, direction, text", [
     (2, 3, 2, "omni", "PHG1020"),                      # a small station: 2 W (p 1.4 -> 1), 3 m = 9.8 ft (h 0), 2 dB, omni
@@ -142,13 +138,6 @@ def test_the_beacon_has_the_phg_right_after_the_symbol_and_before_the_comment() 
     assert ax25.decode(ax25.encode(frame)) == frame
 
 
-def test_a_compressed_position_has_no_data_extension_so_no_phg_is_sent() -> None:
-    compressed = Rig(beacon_compressed=True).beacon.frame()
-    with_power = Rig(beacon_compressed=True, beacon_power_w=25, beacon_antenna_height_m=6, beacon_antenna_gain_db=3, beacon_antenna_direction="E").beacon.frame()
-    assert with_power == compressed and b"PHG" not in with_power.info and with_power.info.endswith(b"NeoAPRS")
-    assert Rig(beacon_compressed=True, beacon_power_w=25, beacon_dao=True).beacon.frame() == compressed
-
-
 def test_without_a_power_there_is_no_phg_whatever_the_rest_says() -> None:
     plain = Rig().beacon.frame()
     assert plain.info == b"=6010.20N/02456.40E-NeoAPRS"
@@ -164,38 +153,9 @@ def test_the_phg_is_read_back_by_the_parser_as_the_extension_and_not_the_comment
     assert (position.extensions.phg.power_w, position.extensions.phg.gain_db, position.extensions.phg.direction_deg) == (25, 3, 90)
 
 
-@pytest.mark.parametrize("lat, lon, position, dao", [
-    (60.1738, 24.9433, b"6010.42N/02456.59E-", "!W88!"), (-33.8688, 151.2093, b"3352.12S/15112.55E-", "!W88!"), (60.17, 24.94, b"6010.20N/02456.40E-", "!W00!"),
-    (60.1741, 24.9406, b"6010.44N/02456.43E-", "!W66!"), (0.0, 0.0, b"0000.00N/00000.00E-", "!W00!"), (-0.00001, -0.00001, b"0000.00S/00000.00W-", "!W11!"),
-    (59.999999, 24.999999, b"6000.00N/02500.00E-", "!W00!"), (60.1749, 24.9999999, b"6010.49N/02500.00E-", "!W40!"), (60.1749999, 24.9999999, b"6010.50N/02500.00E-", "!W00!"), (-90.0, 180.0, b"9000.00S/18000.00E-", "!W00!")])
-def test_dao_is_the_digit_after_the_hundredths_of_the_minutes_of_the_latitude_and_the_longitude(lat: float, lon: float, position: bytes, dao: str) -> None:
-    assert uncompressed_position(lat, lon, "/", "-", dao=True) == position
-    assert dao_text(lat, lon) == dao
-
-
-def test_the_beacon_ends_in_dao_when_asked_and_the_position_with_the_dao_is_finer_than_without() -> None:
-    lat, lon = 60.1738, 24.9433
-    frame = Rig(station_lat=lat, station_lon=lon, beacon_dao=True).beacon.frame()
-    assert frame.info == b"=6010.42N/02456.59E-NeoAPRS!W88!"
-    assert Rig(station_lat=lat, station_lon=lon).beacon.frame().info == b"=6010.43N/02456.60E-NeoAPRS"
-    position = parse_position(frame.info[1:-5], FixedClock()(), messaging=True)
-    x, y = int(frame.info[-3:-2]), int(frame.info[-2:-1])
-    assert position.lat + x / 60000 == pytest.approx(lat, abs=1e-8) and position.lon + y / 60000 == pytest.approx(lon, abs=1e-8)
-    assert distance_km(lat, lon, position.lat, position.lon) * 1000 < 20.0
-    assert distance_km(lat, lon, position.lat + x / 60000, position.lon + y / 60000) * 1000 < 1.0
-
-
-def test_dao_comes_after_the_comment_and_the_phg_before_it_and_neither_changes_the_other() -> None:
-    both = Rig(beacon_power_w=2, beacon_antenna_gain_db=2, beacon_dao=True, station_lat=60.1738, station_lon=24.9433).beacon.frame()
-    assert both.info == b"=6010.42N/02456.59E-PHG1020NeoAPRS!W88!"
-    assert Rig(beacon_dao=True, station_comment="").beacon.frame().info == b"=6010.20N/02456.40E-!W00!"
-    assert Rig(beacon_dao=True, station_comment="x" * 43).beacon.frame().info.endswith(b"x" * 43 + b"!W00!"), "the DAO comes on top of the limit of the comment"
-    assert Rig(beacon_dao=True, station_comment="x" * 36, beacon_power_w=1).beacon.frame().info.endswith(b"PHG1000" + b"x" * 36 + b"!W00!")
-
-
 @pytest.mark.parametrize("changes, longest", [
-    ({}, 43), ({"beacon_power_w": 5}, 36), ({"beacon_compressed": True}, 40), ({"beacon_compressed": True, "beacon_power_w": 5}, 40), ({"beacon_dao": True}, 43), ({"beacon_dao": True, "beacon_power_w": 5}, 36)])
-def test_the_comment_may_be_43_36_or_40_characters_for_what_the_beacon_sends_and_no_more(changes: dict[str, object], longest: int) -> None:
+    ({}, 43), ({"beacon_power_w": 5}, 36)])
+def test_the_comment_may_be_43_or_36_characters_for_what_the_beacon_sends_and_no_more(changes: dict[str, object], longest: int) -> None:
     assert Rig(station_comment="x" * longest, **changes).beacon.frame().info.count(b"x") == longest
     with pytest.raises(BeaconError, match=rf"station/comment: {longest + 1} characters is more than the {longest} allowed"):
         Rig(station_comment="x" * (longest + 1), **changes).beacon.frame()
@@ -219,10 +179,6 @@ def test_a_frame_with_an_information_field_over_256_bytes_is_refused() -> None:
     with pytest.raises(BeaconError, match="more than the 256"):
         rig.beacon._frame_of(b"=" + b"x" * 256)
     assert len(rig.beacon._frame_of(b"=" + b"x" * 255).info) == 256
-
-
-def test_the_compressed_form_has_no_dao() -> None:
-    assert Rig(beacon_compressed=True, beacon_dao=True).beacon.frame() == Rig(beacon_compressed=True).beacon.frame()
 
 
 # ---- on request ----------------------------------------------------------------------------------------------------------------------------------

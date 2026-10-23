@@ -3308,7 +3308,7 @@
           "type": "string"
         },
         "rig_state": {
-          "description": "whether the radio the status is made from answers: `on`, `off` (rigctld is away or the radio is off, nothing is sent), or `unused` while `status/rigctld` is empty and the status is the static text",
+          "description": "whether the radio the status is made from answers: `on`, `off` (rigctld is away or the radio is off, nothing is sent), or `unused` while the status does not come from a radio (`status/source` is `text` or `off`)",
           "enum": [
             "off",
             "on",
@@ -3367,6 +3367,21 @@
         "update"
       ],
       "title": "StatusMessage",
+      "type": "object"
+    },
+    "StatusNow": {
+      "additionalProperties": false,
+      "description": "Sends our status report now, with the settings as they are (from the text or from the radio, as `status/source` says), whether it changed and inside the interval; the next one of the timer\nis an interval later. It goes out through the TNC, so it is not answered: it arrives as the new `packets` row with direction `out`, and `status` follows with the text. Answered with an `error` when\nit could not be sent: the status is off or has no text, the radio is away, the call is not set, the TNC is not connected or the settings make no frame.",
+      "properties": {
+        "cmd": {
+          "const": "status_now",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd"
+      ],
+      "title": "StatusNowCommand",
       "type": "object"
     },
     "Subscribe": {
@@ -3657,6 +3672,11 @@
           "description": "times the port was closed and opened again (every 5th probe of a silent radio)",
           "minimum": 0,
           "type": "integer"
+        },
+        "digipeated": {
+          "description": "frames the digipeater (`digi/enabled`) sent again for other stations",
+          "minimum": 0,
+          "type": "integer"
         }
       },
       "required": [
@@ -3669,7 +3689,8 @@
         "last_packet",
         "keepalive_checks",
         "watchdog_probes",
-        "port_reopens"
+        "port_reopens",
+        "digipeated"
       ],
       "title": "TncStats",
       "type": "object"
@@ -4147,6 +4168,7 @@
           "set_station_rf_only": "#/$defs/SetStationRfOnly",
           "set_station_timeout": "#/$defs/SetStationTimeout",
           "status": "#/$defs/AskStatus",
+          "status_now": "#/$defs/StatusNow",
           "subscribe": "#/$defs/Subscribe",
           "tnc_reconnect": "#/$defs/TncReconnect",
           "unsubscribe": "#/$defs/Unsubscribe",
@@ -4185,6 +4207,9 @@
         },
         {
           "$ref": "#/$defs/BeaconNow"
+        },
+        {
+          "$ref": "#/$defs/StatusNow"
         },
         {
           "$ref": "#/$defs/SendMessage"

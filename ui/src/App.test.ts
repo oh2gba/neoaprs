@@ -385,6 +385,25 @@ describe("App", () => {
     expect(socket.sent).toContainEqual({ cmd: "beacon_now" });
   });
 
+  it("sends the status from the Beacon tab after two clicks once there is a status, and not before", async () => {
+    const { wrapper, socket } = await open();
+    await tabButton(wrapper, "Beacon")?.trigger("click");
+    expect(wrapper.findAll("#pane-beacon .beaconbox button").map((b) => b.text())).toEqual(["Beacon now"]);
+    socket.say({
+      type: "state",
+      topic: "config",
+      rev: 1,
+      value: configValues({ "map/hide_after_min": "0", "status/source": "text", "station/status": "QRV 145.500" }),
+    });
+    await flushPromises();
+    expect(wrapper.findAll("#pane-beacon .beaconbox button").map((b) => b.text())).toEqual(["Beacon now", "Send status now"]);
+    await wrapper.findAll("#pane-beacon .beaconbox button")[1]?.trigger("click");
+    expect(socket.sent).not.toContainEqual({ cmd: "status_now" });
+    await wrapper.findAll("#pane-beacon .beaconbox button")[1]?.trigger("click");
+    expect(socket.sent).toContainEqual({ cmd: "status_now" });
+    expect(socket.sent).not.toContainEqual({ cmd: "beacon_now" });
+  });
+
   it("previews the beacon packet and saves the beacon's settings from the Beacon tab", async () => {
     const { wrapper, socket } = await open();
     await tabButton(wrapper, "Beacon")?.trigger("click");
@@ -738,7 +757,7 @@ describe("App", () => {
       await wrapper.find("#pane-objects .toolbar .btn").trigger("click");
       expect(field(wrapper, "Latitude")?.element.value).toBe("60.17");
       await field(wrapper, "Name")?.setValue("MARK");
-      await button(wrapper, "Place")?.trigger("click");
+      await button(wrapper, "Pick on the map")?.trigger("click");
       FakeMap.last().fire("click", { lngLat: { lat: 60.5, lng: 25.5 } });
       await flushPromises();
       expect(field(wrapper, "Latitude")?.element.value).toBe("60.5");
@@ -869,7 +888,7 @@ describe("App", () => {
       expect(wrapper.find("#setup-lat").exists()).toBe(true);
       await tabButton(wrapper, "Objects")?.trigger("click");
       await wrapper.find("#pane-objects .toolbar .btn").trigger("click");
-      await button(wrapper, "Place")?.trigger("click");
+      await button(wrapper, "Pick on the map")?.trigger("click");
       FakeMap.last().fire("click", { lngLat: { lat: 59.5, lng: 24.5 } });
       await flushPromises();
       expect(wrapper.find<HTMLInputElement>("#setup-lat").element.value).toBe("59.5");

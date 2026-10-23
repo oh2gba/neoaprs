@@ -18,6 +18,7 @@ class TncStats(_Model):
     keepalive_checks: int = Field(ge=0, description="times the keep-alive checked that the radio is there (after `tnc/check_sec` of nothing heard)")
     watchdog_probes: int = Field(ge=0, description="times the watchdog probed a silent radio (the same sequence as a check, every 30 seconds)")
     port_reopens: int = Field(ge=0, description="times the port was closed and opened again (every 5th probe of a silent radio)")
+    digipeated: int = Field(ge=0, description="frames the digipeater (`digi/enabled`) sent again for other stations")
 
 
 class TncState(_Model):

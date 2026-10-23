@@ -22,12 +22,15 @@ from pydantic import BaseModel  # noqa: E402
 
 import neoaprs.web.protocol as protocol  # noqa: E402
 from neoaprs.aprsmessage import MAX_TEXT  # noqa: E402
+from neoaprs import TOCALL  # noqa: E402
 from neoaprs.bulletin import KINDS as BULLETIN_KINDS  # noqa: E402
-from neoaprs.config import KEYS, MAX_COMMENT, MAX_STATUS, SYMBOL_TABLES  # noqa: E402
+from neoaprs.config import KEYS, MAX_COMMENT, SYMBOL_TABLES  # noqa: E402
+from neoaprs.configstatus import MAX_STATUS  # noqa: E402
 from neoaprs.message import STATES  # noqa: E402
 from neoaprs.packetcodec import KINDS  # noqa: E402
 from neoaprs.source import Source  # noqa: E402
 from neoaprs.stationbook import TRACK_MAX  # noqa: E402
+from neoaprs.symbols import SYMBOL_NAMES  # noqa: E402
 from neoaprs.tncprofile import PROFILES  # noqa: E402
 from neoaprs.web.hubwire import PROTOCOL  # noqa: E402
 from neoaprs.web.stationwire import StationRow  # noqa: E402
@@ -162,6 +165,11 @@ def _profiles() -> str:
             f"export const TNC_PROFILES = {json.dumps(rows)} as const;\n")
 
 
+def _symbol_names() -> str:
+    return ("/** The names of the APRS symbols, the codes `!` to `~` in order, of the primary and of the alternate table (SYMBOL_NAMES of neoaprs/symbols.py): the symbol picker lists them. */\n"
+            f"export const SYMBOL_NAMES = {json.dumps({k: list(v) for k, v in SYMBOL_NAMES.items()})} as const;\n")
+
+
 def lists_text() -> str:
     """The daemon's lists as TypeScript constants: the page reads them instead of keeping a second copy."""
     blocks = [
@@ -171,6 +179,8 @@ def lists_text() -> str:
         _array("MESSAGE_TYPES", sorted(protocol.MESSAGE_NAMES), "Every message the daemon sends (the `type` of the Message union)."),
         _array("CONFIG_KEYS", KEYS, "The keys of the settings, in the order of the settings form (SETTINGS of neoaprs/config.py)."),
         _profiles(),
+        _symbol_names(),
+        f"/** The destination call of every frame we send; the beacon's preview shows it (TOCALL of neoaprs/__init__.py). */\nexport const TOCALL = {json.dumps(TOCALL)};\n",
         _array("PACKET_KINDS", KINDS, "What the parser makes of a packet (KINDS of neoaprs/packetcodec.py)."),
         _array("STATION_KINDS", list(get_args(StationRow.model_fields["kind"].annotation)), "A station, or an object or an item that a station reports (neoaprs/web/stationwire.py)."),
         _array("TNC_STATES", [s.value for s in Source.State], "The states of the TNC (Source.State of neoaprs/source.py)."),

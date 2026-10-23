@@ -18,11 +18,14 @@ function lastPacketText(tnc: TncState, nowMs: number): string {
   return tnc.stats.last_packet === null ? "no packet yet" : `last packet ${ageText(tnc.stats.last_packet, nowMs)} ago`;
 }
 
-/** The one line: "Connected to /dev/ttyUSB0, last packet 2 min ago", "Searching for the radio…", "Not connected: no KISS frames on the port", "nothing heard since 02:43 (5 h)". */
-export function tncStatus(tnc: TncState, nowMs: number): string {
+/** The one line (with how many packets the digipeater repeated, while it is on): "Connected to /dev/ttyUSB0, last packet 2 min ago", "Searching for the radio…", "Not connected: no KISS frames on the port", "nothing heard since 02:43 (5 h)". */
+export function tncStatus(tnc: TncState, nowMs: number, digipeater = false): string {
   if (tnc.state === "silent") return silentText(tnc.silent_since, nowMs);
   if (searchedPorts(tnc) !== null) return "Searching for the radio…";
-  if (tnc.state === "connected") return `Connected to ${tnc.path}, ${lastPacketText(tnc, nowMs)}`;
+  if (tnc.state === "connected") {
+    const digipeated = digipeater && tnc.stats.digipeated > 0 ? `, digipeated ${tnc.stats.digipeated}` : "";
+    return `Connected to ${tnc.path}, ${lastPacketText(tnc, nowMs)}${digipeated}`;
+  }
   if (tnc.state === "connecting") return tnc.path === "" ? "Connecting…" : `Connecting to ${tnc.path}…`;
   const why = tnc.problem || tnc.last_error;
   return why === "" ? "Not connected" : `Not connected: ${why}`;
@@ -30,8 +33,8 @@ export function tncStatus(tnc: TncState, nowMs: number): string {
 
 /** What the line's hover title adds: how much has come in and gone out. */
 export function tncCounts(tnc: TncState): string {
-  const { packets, bytes_in, bytes_out } = tnc.stats;
-  return `${packets} ${packets === 1 ? "packet" : "packets"} heard, ${bytesText(bytes_in)} in, ${bytesText(bytes_out)} out`;
+  const { packets, bytes_in, bytes_out, digipeated } = tnc.stats;
+  return `${packets} ${packets === 1 ? "packet" : "packets"} heard, ${bytesText(bytes_in)} in, ${bytesText(bytes_out)} out, ${digipeated} digipeated`;
 }
 
 /** A log line of the daemon with its time (HH:MM:SS, UTC, of today or of yesterday for a time that has not come yet) in the viewer's time; any other line as it is. */

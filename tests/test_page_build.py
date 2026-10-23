@@ -19,6 +19,7 @@ HINT = "run scripts/build-page and commit neoaprs/page/"
 SHIPPED = (
     "symbols/primary.png", "symbols/alternate.png", "symbols/overlay.png", "symbols/SOURCE.txt", "symbols/COPYRIGHT.txt",
     "fonts/NotoSans-Regular/0-255.pbf", "fonts/NotoSans-Medium/0-255.pbf", "fonts/OFL.txt",
+    "manifest.webmanifest", "sw.js", "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon.png",
 )
 
 
@@ -58,7 +59,7 @@ def test_the_built_page_is_there_and_works_from_any_path() -> None:
     refs = [r for r in re.findall(r'(?:src|href)="([^"]+)"', html) if not r.startswith("data:")]
     assert refs, "index.html names no script and no style sheet"
     for ref in refs:
-        assert ref.startswith("./assets/"), f"{ref}: a path from the root of the site would break the page behind a prefix; the build must use base './'"
+        assert ref.startswith("./"), f"{ref}: a path from the root of the site would break the page behind a prefix; the build must use base './'"
         assert ref[2:] in files, f"{ref} is named in index.html but is not in page/: {HINT}"
     assert all(re.search(r"-[\w-]{8}\.(m?js|css)$", name) for name in files if name.startswith("assets/")), "the files in assets/ carry the hash of their content"
 

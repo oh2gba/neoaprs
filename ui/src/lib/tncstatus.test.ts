@@ -17,6 +17,13 @@ describe("tncStatus", () => {
     expect(tncStatus(tnc, NOW)).toBe("Connected to /dev/ttyUSB0, last packet 2 min ago");
   });
 
+  it("adds how many packets the digipeater repeated, only while it is on and only when there were some", () => {
+    const tnc = tncState({ stats: { ...tncState().stats, digipeated: 3 } });
+    expect(tncStatus(tnc, NOW, true)).toBe("Connected to /dev/brainbox_3, last packet 30 s ago, digipeated 3");
+    expect(tncStatus(tnc, NOW, false)).not.toContain("digipeated");
+    expect(tncStatus(tncState(), NOW, true)).not.toContain("digipeated");
+  });
+
   it("says so when no packet has been heard", () => {
     expect(tncStatus(tncState({ stats: { ...tncState().stats, packets: 0, last_packet: null } }), NOW)).toBe("Connected to /dev/brainbox_3, no packet yet");
   });
@@ -43,7 +50,7 @@ describe("tncStatus", () => {
 
 describe("tncCounts", () => {
   it("says how much came in and went out, for the hover title of the line", () => {
-    expect(tncCounts(tncState())).toBe("11 packets heard, 2.0 kB in, 0 B out");
+    expect(tncCounts(tncState())).toBe("11 packets heard, 2.0 kB in, 0 B out, 0 digipeated");
     expect(tncCounts(tncState({ stats: { ...tncState().stats, packets: 1 } }))).toContain("1 packet heard");
   });
 });

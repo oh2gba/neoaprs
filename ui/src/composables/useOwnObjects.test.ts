@@ -65,7 +65,7 @@ describe("useOwnObjects", () => {
     expect(show).not.toHaveBeenCalled();
   });
 
-  it("picks the place on the map only while Place is on, and a click sets it, to five decimals, and ends the picking", () => {
+  it("picks the place on the map only while Pick on the map is on, and a click sets it, to five decimals, and ends the picking", () => {
     const { view } = setUp();
     view.start();
     expect(view.picking).toBe(false);

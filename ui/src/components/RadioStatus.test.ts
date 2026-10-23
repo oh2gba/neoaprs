@@ -11,7 +11,7 @@ describe("RadioStatus", () => {
     const wrapper = radio(tncState());
     expect(wrapper.find(".statepill").text()).toBe("connected");
     expect(wrapper.find(".tncstatus").text()).toBe("Connected to /dev/brainbox_3, last packet 30 s ago");
-    expect(wrapper.find(".tncstatus").attributes("title")).toBe("11 packets heard, 2.0 kB in, 0 B out");
+    expect(wrapper.find(".tncstatus").attributes("title")).toBe("11 packets heard, 2.0 kB in, 0 B out, 0 digipeated");
     expect(wrapper.find("button").text()).toBe("Reconnect");
     expect(wrapper.find<HTMLDetailsElement>("details").element.open).toBe(false);
     expect(wrapper.find("summary").text()).toBe("Terminal");
@@ -49,6 +49,16 @@ describe("RadioStatus", () => {
         .findAll("summary")
         .map((s) => s.text()),
     ).toEqual(["Terminal"]);
+  });
+
+  it("tells how many packets the digipeater repeated, while it is on", () => {
+    const tnc = tncState({ stats: { ...tncState().stats, digipeated: 5 } });
+    expect(radio(tnc).find(".tncstatus").text()).not.toContain("digipeated");
+    expect(
+      mount(RadioStatus, { props: { tnc, now: NOW, digipeater: true } })
+        .find(".tncstatus")
+        .text(),
+    ).toMatch(/, digipeated 5$/);
   });
 
   it("asks for a reconnect", async () => {

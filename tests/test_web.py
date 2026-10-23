@@ -382,10 +382,10 @@ async def test_the_status_tells_the_interval_and_when_the_next_beacon_is_due(tmp
     await e.start()
     page = await e.ws()
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
-    await page.send({"cmd": "set_config", "values": {"beacon/interval_min": "15", "beacon/path": "wide2-2", "beacon/destination": "apzxyz"}})
+    await page.send({"cmd": "set_config", "values": {"beacon/interval_min": "15", "beacon/path": "wide2-2"}})
     await page.until(lambda: page.topics["config"]["values"]["beacon/interval_min"] == "15")
-    assert page.topics["config"]["values"]["beacon/path"] == "WIDE2-2" and page.topics["config"]["values"]["beacon/destination"] == "APZXYZ"
-    assert page.topics["config"]["defaults"]["beacon/path"] == "WIDE1-1,WIDE2-1" and page.topics["config"]["values"]["beacon/compressed"] == "false"
+    assert page.topics["config"]["values"]["beacon/path"] == "WIDE2-2"
+    assert page.topics["config"]["defaults"]["beacon/path"] == "WIDE1-1,WIDE2-1" and "beacon/compressed" not in page.topics["config"]["values"]
     await page.send({"cmd": "status"})
     await page.until(lambda: page.of("status")[-1]["beacon_interval_min"] == 15)
     assert page.of("status")[-1]["beacon_next_due"] is not None and page.of("status")[-1]["beacon_last_sent"] is None
@@ -396,7 +396,7 @@ async def test_the_beacon_settings_are_checked_by_the_settings_command(tmp_path:
     await e.start()
     page = await e.ws()
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
-    for key, value in (("beacon/path", "WIDE1-1,TOOLONGCALL"), ("beacon/destination", "APRS-3"), ("beacon/compressed", "perhaps"), ("beacon/interval_min", "1441")):
+    for key, value in (("beacon/path", "WIDE1-1,TOOLONGCALL"), ("status/source", "radio"), ("beacon/interval_min", "1441")):
         await page.send({"cmd": "set_config", "values": {key: value}})
         assert key in (await page.expect("error"))["text"]
     assert await e.ctl.store.settings() == OPERATOR

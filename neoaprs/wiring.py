@@ -55,6 +55,7 @@ def wire(parts: Services) -> None:
     tnc.packet.connect(parts.messaging.on_packet)
     tnc.packet.connect(parts.queries.on_packet)
     tnc.packet.connect(parts.ownobjects.on_packet)
+    tnc.packet.connect(parts.digipeater.on_packet)               # (after the rest: what was heard is logged and handled before the copy that is sent)
     parts.ownobjects.changed.connect(book.own_object)
     parts.ownobjects.removed.connect(book.forget_own)
     book.changed.connect(packetlog.save_station)

@@ -1,5 +1,5 @@
 """The composition root: the parts of the program, made in one place. The data directory, the clock, the settings (`config`), the Store, the Tnc, the station book, the beacon, the status, the message alert, messaging, the message board,
-the objects and the bulletins of our own and their sender, the queries, the base map and the update check (the services are made here and nowhere else), the station preferences, the packet log, the message log, the bulletin log, the log of our own objects and bulletins, the weather log and the task set. The parts are made here and connected in neoaprs/wiring.py; the start and the stop are neoaprs/controller.py.
+the objects and the bulletins of our own and their sender, the queries, the digipeater, the base map and the update check (the services are made here and nowhere else), the station preferences, the packet log, the message log, the bulletin log, the log of our own objects and bulletins, the weather log and the task set. The parts are made here and connected in neoaprs/wiring.py; the start and the stop are neoaprs/controller.py.
 """
 import asyncio
 import logging
@@ -20,6 +20,7 @@ from .packetlog import PacketLog
 from .services.alerts import Alerts
 from .services.beacon import Beacon
 from .services.bulletins import Bulletins
+from .services.digipeater import Digipeater
 from .services.mapfetch import MapFetch
 from .services.messaging import Messaging
 from .services.ownbulletins import OwnBulletins
@@ -77,6 +78,7 @@ class Services:
         self.mapfetch = MapFetch(data_dir, lambda: self.config, clock)  # the base map: the detailed map round our position and the world map under it, made on request from the page; nothing to start
         self.install = install                                           # how this copy was installed, for the page (the steps of an update)
         self.updatecheck = UpdateCheck(lambda: self.config, VERSION, platform_name(sys.platform, platform.machine(), install.kind == "appimage"), fetch_update)   # once a day: which version is the latest (update/check); started by the controller
+        self.digipeater = Digipeater(self.tnc, lambda: self.config, clock, self.tnc.stats)     # the fill-in digipeater (digi/enabled): a packet that asks for WIDE1-1 or for our call is sent again; nothing to start
         self.config_changed: Signal[[Config]] = Signal("config_changed")   # every save of the settings, though nothing differs: the page's settings form waits for it
         self.web: Frontend | None = None                                # the page's server, made by the controller from the factory the process gave it, once the settings are read
         self.db: Db | None = None                                       # its thread, once the controller has opened it

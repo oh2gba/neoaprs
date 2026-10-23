@@ -192,23 +192,29 @@ describe("SetupGuide: the symbol", () => {
     expect(buttons.every((b) => b.find(".symicon .stn-layer").exists())).toBe(true);
     expect(buttons[0]?.find(".stn-layer").attributes("style")).toContain("symbols/primary.png");
     expect(buttons[0]?.attributes("aria-pressed")).toBe("true");
-    expect(wrapper.find<HTMLInputElement>("#setup-symbol").element.value).toBe("/-");
+    expect(wrapper.find("#setup-symbol-change").exists()).toBe(true);
+    expect(wrapper.find(".symbolfield-name").text()).toBe("House");
   });
 
-  it("sets the table and code from a symbol, and a symbol from any table and code typed", async () => {
-    const { wrapper, guide, stand, type } = make();
+  it("sets the table and code from a symbol of the 12, and any other from the picker that More... opens", async () => {
+    const { wrapper, guide, stand } = make();
     await stand(2);
     await wrapper.findAll(".setup-symbol")[1]?.trigger("click");
     expect(guide.fields.symbol).toBe("/>");
-    expect(wrapper.find<HTMLInputElement>("#setup-symbol").element.value).toBe("/>");
+    expect(wrapper.find(".symbolfield-name").text()).toBe("Car");
     expect(wrapper.findAll(".setup-symbol")[1]?.attributes("aria-pressed")).toBe("true");
     expect(wrapper.findAll(".setup-symbol")[0]?.attributes("aria-pressed")).toBe("false");
-    await type("setup-symbol", "\\k");
-    expect(guide.fields.symbol).toBe("\\k");
+    expect(wrapper.find(".sympick").exists()).toBe(false);
+    const more = wrapper.findAll("button").find((b) => b.text() === "More...");
+    await more?.trigger("click");
+    expect(wrapper.find(".sympick").exists()).toBe(true);
+    await wrapper.find<HTMLInputElement>(".sympick input[type=search]").setValue("lighthouse");
+    await wrapper.find(".sympick-symbol").trigger("click");
+    expect(guide.fields.symbol).toBe("\\L");
+    expect(wrapper.find(".symbolfield-name").text()).toBe("Lighthouse");
     expect(wrapper.findAll(".setup-symbol").every((b) => b.attributes("aria-pressed") === "false")).toBe(true);
-    await type("setup-symbol", "a-");
-    expect(wrapper.find(".field-error").text()).toBe("Table: / \\ 0-9 A-Z");
-    expect(wrapper.find("button[type=submit]").attributes("disabled")).toBeDefined();
+    expect(wrapper.find(".sympick").exists()).toBe(false);
+    expect(wrapper.find("button[type=submit]").attributes("disabled")).toBeUndefined();
   });
 });
 

@@ -1,45 +1,79 @@
 <script setup lang="ts">
-// A small (i) that explains what a control is for: closed until it is clicked, then a few sentences (the slot) in a box that opens downward from it, kept inside the page (moved left where it would run off the right edge, as on a phone); Escape, a click anywhere
-// else or the (i) again closes it.
-import { nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from "vue";
+// The small (i) that explains what a control is for: closed until it is pressed, then a note that opens downward from it, kept inside the page (moved sideways where it would run off an edge, as on a phone): the slot (the sentences of the note, one `info-line` each). One note is open at a time; Esc, a click or tap outside
+// it, or the focus moving away closes it. The note is text, not a tooltip: it works with a finger and with the keyboard. `label` is the name of the button for a screen reader ("About Path").
+import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
+import { newTipId, openTip } from "@/lib/infotip";
 
 defineProps<{ label: string }>();
-const open = ref(false);
-const root = useTemplateRef<HTMLElement>("root");
-const box = useTemplateRef<HTMLElement>("box");
-/** How far the box is moved sideways from the (i), in px: 0 until it is measured. */
+
+const id = newTipId();
+const root = ref<HTMLElement | null>(null);
+const button = ref<HTMLButtonElement | null>(null);
+const note = ref<HTMLElement | null>(null);
+const open = computed(() => openTip.value === id);
+/** How far the note is moved sideways to be wholly in the page, px. */
 const shift = ref(0);
 const MARGIN = 8;
 
-/** Puts the box wholly in the page: at the (i)'s left edge when it fits there, else as far left as it needs, never past the left margin. */
+/** Moves the note left where it runs past the right edge, then right where that took it past the left one. */
 function place(): void {
-  const tip = root.value;
-  const text = box.value;
-  if (!tip || !text) return;
-  const left = tip.getBoundingClientRect().left;
+  const box = note.value?.getBoundingClientRect();
+  if (!box) return;
   const right = document.documentElement.clientWidth - MARGIN;
-  shift.value = Math.max(MARGIN - left, Math.min(0, right - text.offsetWidth - left));
+  const base = box.left - shift.value;
+  const edge = base + box.width;
+  shift.value = Math.max(MARGIN - base, Math.min(0, right - edge));
 }
 
-function outside(event: Event): void {
-  if (event.target instanceof Node && !root.value?.contains(event.target)) open.value = false;
+function close(): void {
+  if (openTip.value === id) openTip.value = null;
+}
+
+function away(event: Event): void {
+  if (!(event.target instanceof Node) || !root.value?.contains(event.target)) close();
+}
+
+function onKey(event: KeyboardEvent): void {
+  if (event.key !== "Escape") return;
+  close();
+  button.value?.focus();
+}
+
+function listen(on: boolean): void {
+  const act = (type: string, handler: EventListener): void => (on ? document.addEventListener(type, handler) : document.removeEventListener(type, handler));
+  act("pointerdown", away);
+  act("focusin", away);
+  act("keydown", onKey as EventListener);
 }
 
 watch(open, async (now) => {
-  if (!now) {
-    document.removeEventListener("pointerdown", outside);
-    return;
-  }
-  document.addEventListener("pointerdown", outside);
+  listen(now);
+  if (!now) return;
+  shift.value = 0;
   await nextTick();
   place();
 });
-onBeforeUnmount(() => document.removeEventListener("pointerdown", outside));
+onBeforeUnmount(() => {
+  listen(false);
+  close();
+});
 </script>
 
 <template>
-  <span ref="root" class="infotip" @keydown.esc="open = false">
-    <button type="button" class="info-toggle" :aria-expanded="open" :aria-label="label" :title="label" @click="open = !open">i</button>
-    <span v-if="open" ref="box" class="info-text" role="note" :style="{ left: `${shift}px` }"><slot /></span>
+  <span ref="root" class="infotip" @keydown.esc="close">
+    <button
+      ref="button"
+      type="button"
+      class="info-toggle"
+      :aria-expanded="open"
+      :aria-controls="`${id}-note`"
+      :aria-label="label"
+      :title="label"
+      @click="openTip = open ? null : id"
+      v-text="'i'"
+    ></button>
+    <span v-if="open" :id="`${id}-note`" ref="note" class="info-text" role="note" :style="shift === 0 ? undefined : { transform: `translateX(${shift}px)` }"
+      ><slot></slot
+    ></span>
   </span>
 </template>

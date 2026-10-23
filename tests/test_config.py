@@ -4,7 +4,8 @@ from dataclasses import fields, replace
 
 import pytest
 
-from neoaprs.config import BY_KEY, DEFAULT_ALERT_COMMAND, DEFAULTS, KEYS, LOG_KEEP_DAYS, MAX_COMMENT, MAX_COMMENT_COMPRESSED, MAX_COMMENT_PHG, MAX_STATUS, SETTINGS, Config, fill_template
+from neoaprs.config import BY_KEY, DEFAULT_ALERT_COMMAND, DEFAULTS, KEYS, LOG_KEEP_DAYS, MAX_COMMENT, MAX_COMMENT_PHG, SETTINGS, Config
+from neoaprs.configstatus import MAX_STATUS, fill_template
 
 
 def test_the_defaults_are_the_ones_of_the_brief() -> None:
@@ -12,10 +13,10 @@ def test_the_defaults_are_the_ones_of_the_brief() -> None:
         "tnc/profile": "kiss", "serial/port": "", "serial/baud": "", "tcp/host": "127.0.0.1", "tcp/port": "8001", "serial/last_port": "", "serial/pattern": "/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*", "serial/skip": "", "tnc/check_sec": "60", "station/call": "", "station/lat": "", "station/lon": "",
         "station/symbol_table": "/", "station/symbol_code": "-", "station/comment": "NeoAPRS", "station/status": "", "beacon/power_w": "", "beacon/antenna_height_m": "0", "beacon/antenna_gain_db": "0",
         "beacon/antenna_direction": "omni", "web/network": "false", "web/key": "", "web/port": "7303", "web/allowed_hosts": "", "beacon/interval_min": "0",
-        "beacon/path": "WIDE1-1,WIDE2-1", "beacon/destination": "APZNEO", "beacon/compressed": "false", "beacon/dao": "false",
-        "messages/alert": "true", "messages/alert_command": DEFAULT_ALERT_COMMAND, "status/rigctld": "", "status/interval_min": "30", "status/template": "QRV {freq} {mode}",
+        "beacon/path": "WIDE1-1,WIDE2-1",
+        "messages/alert": "true", "messages/alert_command": DEFAULT_ALERT_COMMAND, "status/source": "", "status/rigctld": "", "status/interval_min": "30", "status/template": "QRV {freq} {mode}",
         "map/hide_after_min": "180", "map/radius_km": "150", "map/maxzoom": "12", "map/source": "",
-        "update/url": "https://oh2gba.eu/neoaprs/version.php"}
+        "update/url": "https://oh2gba.eu/neoaprs/version.php", "digi/enabled": "false"}
     assert Config() == DEFAULTS
 
 
@@ -28,7 +29,7 @@ def test_nothing_in_the_database_is_the_defaults_and_what_is_written_is_read_bac
     assert Config.from_data({}) == DEFAULTS
     c = Config(serial_port="/dev/brainbox_3", serial_baud=19200, serial_last_port="/dev/brainbox_3", serial_pattern="/dev/brainbox_* /dev/ttyUSB*", serial_skip="/dev/brainbox_2, /dev/ttyUSB1", tnc_profile="kenwood-d710", tcp_host="::1", tcp_port=8100, tnc_check_sec=0, station_call="OH2GBA-9", station_lat=-33.5, station_lon=151.25,
                station_symbol_table="\\", station_symbol_code=">", station_comment="mobile", station_status="On the road, QRV 145.500", beacon_power_w=5, beacon_antenna_height_m=12, beacon_antenna_gain_db=3, beacon_antenna_direction="NW", web_network=True, web_key="k7m2-x9pq-4hrt", web_port=8080, web_allowed_hosts="aprs.example, pi", beacon_interval_min=30,
-               beacon_path="WIDE2-2", beacon_destination="APRS", beacon_compressed=True, beacon_dao=True, messages_alert=False, messages_alert_command="echo $NEOAPRS_FROM", status_rigctld="localhost:4532", status_interval_min=1440, status_template="{mode} {freq}", map_hide_after_min=10080)
+               beacon_path="WIDE2-2", messages_alert=False, messages_alert_command="echo $NEOAPRS_FROM", status_source="rig", status_rigctld="localhost:4532", status_interval_min=1440, status_template="{mode} {freq}", map_hide_after_min=10080)
     assert Config.from_data(c.to_data()) == c
 
 
@@ -60,10 +61,9 @@ def test_a_call_is_checked_and_written_in_capitals() -> None:
     ("serial/baud", "fast"), ("serial/baud", "50"), ("tnc/profile", "tnc2"), ("tnc/profile", ""), ("tcp/port", "0"), ("tcp/port", "70000"), ("tcp/host", "two words"), ("station/call", "OH2GBA-16"), ("station/call", "TOOLONGCALL"), ("station/lat", "91"), ("station/lat", "nan"),
     ("station/lon", "-181"), ("station/symbol_table", "//"), ("station/symbol_table", "!"), ("station/symbol_code", ""), ("station/comment", "x" * 44), ("station/comment", "tab\there"),
     ("station/comment", "åäö"), ("station/status", "x" * 63), ("station/status", "å" * 32), ("station/status", "two\nlines"), ("web/key", "two words"), ("web/key", "abcd-efgh-jklm0"), ("web/network", "maybe"), ("web/port", "-1"), ("web/port", "70000"), ("web/allowed_hosts", "x" * 501), ("beacon/interval_min", "-1"),
-    ("beacon/interval_min", "1441"), ("beacon/path", "WIDE1-1,TOOLONGCALL"), ("beacon/path", "A,B,C,D,E,F,G,H,I"), ("beacon/path", "WIDE1-16"), ("beacon/destination", "APZNEO-1"),
-    ("beacon/destination", "TOOLONGCALL"), ("beacon/destination", ""), ("beacon/compressed", "sometimes"),
+    ("beacon/interval_min", "1441"), ("beacon/path", "WIDE1-1,TOOLONGCALL"), ("beacon/path", "A,B,C,D,E,F,G,H,I"), ("beacon/path", "WIDE1-16"),
     ("beacon/power_w", "-1"), ("beacon/power_w", "10000"), ("beacon/power_w", "lots"), ("beacon/antenna_height_m", "-1"), ("beacon/antenna_height_m", "10000"), ("beacon/antenna_height_m", "tall"), ("beacon/antenna_gain_db", "10"),
-    ("beacon/antenna_gain_db", "-1"), ("beacon/antenna_gain_db", "3.5"), ("beacon/antenna_direction", "up"), ("beacon/antenna_direction", "NNE"), ("beacon/antenna_direction", ""), ("beacon/dao", "maybe"),
+    ("beacon/antenna_gain_db", "-1"), ("beacon/antenna_gain_db", "3.5"), ("beacon/antenna_direction", "up"), ("beacon/antenna_direction", "NNE"), ("beacon/antenna_direction", ""),
     ("tnc/check_sec", "-1"), ("tnc/check_sec", "5"), ("tnc/check_sec", "9"), ("tnc/check_sec", "3601"), ("tnc/check_sec", "soon"), ("update/url", ""), ("update/url", "ftp://example.org/v.php"), ("update/url", "https://"), ("update/url", "two words"), ("update/url", "https://example.org/" + "x" * 500), ("map/hide_after_min", "-1"), ("map/hide_after_min", "10081"), ("map/hide_after_min", "never"),
     ("messages/alert", "loud"), ("messages/alert_command", "x" * 1001), ("messages/alert_command", "two\nlines"), ("status/rigctld", "localhost"), ("status/rigctld", "localhost:0"), ("status/rigctld", "localhost:70000"),
     ("status/rigctld", ":4532"), ("status/rigctld", "two words:4532"), ("status/interval_min", "0"), ("status/interval_min", "1441"), ("status/interval_min", "often"), ("status/template", "QRV {frequency}"),
@@ -102,12 +102,6 @@ def test_the_path_of_the_beacon_is_a_list_of_calls_written_in_capitals_without_b
     assert Config.check("beacon/path", ",".join(["WIDE1-1"] * 8)).count(",") == 7
 
 
-def test_the_destination_of_the_beacon_is_a_call_without_an_ssid() -> None:
-    assert Config.check("beacon/destination", "apzneo") == "APZNEO" and Config.check("beacon/destination", "APRS") == "APRS"
-    with pytest.raises(ValueError, match="beacon/destination.*SSID"):
-        Config.check("beacon/destination", "APRS-1")
-
-
 def test_the_keep_alive_and_the_map_timeout_take_their_whole_range() -> None:
     assert (DEFAULTS.tnc_check_sec, DEFAULTS.map_hide_after_min) == (60, 180)
     c = Config.from_data({"tnc/check_sec": "0", "map/hide_after_min": "0"})
@@ -140,22 +134,17 @@ def test_the_comment_and_the_status_texts_refuse_the_tnc_switch_characters_and_a
 
 
 def test_the_comment_limit_is_what_the_beacon_will_send() -> None:
-    assert (MAX_COMMENT, MAX_COMMENT_PHG, MAX_COMMENT_COMPRESSED) == (43, 36, 40)
-    assert [Config(**kw).comment_limit for kw in ({}, {"beacon_power_w": 5}, {"beacon_compressed": True}, {"beacon_compressed": True, "beacon_power_w": 5}, {"beacon_dao": True})] == [43, 36, 40, 40, 43]
-    assert Config(station_comment="x" * 43).comment_problem() == "" and Config(station_comment="x" * 43, beacon_dao=True).comment_problem() == "", "the DAO is on top"
+    assert (MAX_COMMENT, MAX_COMMENT_PHG) == (43, 36)
+    assert [Config(**kw).comment_limit for kw in ({}, {"beacon_power_w": 5})] == [43, 36]
+    assert Config(station_comment="x" * 43).comment_problem() == ""
     assert "36 allowed with the PHG" in Config(station_comment="x" * 37, beacon_power_w=1).comment_problem()
-    assert "40 allowed with a compressed position" in Config(station_comment="x" * 41, beacon_compressed=True).comment_problem()
-    assert Config(station_comment="x" * 40, beacon_compressed=True, beacon_power_w=1).comment_problem() == "", "no PHG is sent after a compressed position"
 
 
 def test_a_save_checks_the_comment_against_the_settings_it_is_saved_with() -> None:
     base = Config(station_comment="x" * 43)
     with pytest.raises(ValueError, match=r"station/comment: 43 characters is more than the 36"):
         Config.checked(base, {"beacon/power_w": "5"})
-    with pytest.raises(ValueError, match=r"station/comment: 43 characters is more than the 40"):
-        Config.checked(base, {"beacon/compressed": "true"})
     assert Config.checked(base, {"beacon/power_w": "5", "station/comment": "y" * 36}).comment_limit == 36
-    assert Config.checked(base, {"beacon/compressed": "true", "station/comment": "y" * 40}).beacon_compressed
     with pytest.raises(ValueError, match="station/comment: 37 characters"):
         Config.checked(Config(beacon_power_w=5), {"station/comment": "z" * 37})
     assert Config.checked(replace(base, beacon_power_w=5), {"web/port": "8000"}).web_port == 8000, "a setting that does not touch the comment is not held up by it"
@@ -191,10 +180,16 @@ def test_the_direction_of_the_antenna_is_omni_or_a_point_of_the_compass_written_
         Config.check("beacon/antenna_direction", "NNW")
 
 
-def test_the_antenna_and_dao_settings_come_with_the_beacons_in_the_order_the_page_lists_them() -> None:
+def test_the_antenna_settings_come_with_the_beacons_in_the_order_the_page_lists_them() -> None:
     keys = list(KEYS)
     assert keys[keys.index("station/status") + 1:keys.index("station/status") + 5] == ["beacon/power_w", "beacon/antenna_height_m", "beacon/antenna_gain_db", "beacon/antenna_direction"]
-    assert keys[keys.index("beacon/compressed") + 1] == "beacon/dao"
+
+
+def test_the_tocall_the_position_format_are_not_settings_and_what_an_older_database_stored_for_them_is_ignored() -> None:
+    assert not {"beacon/destination", "beacon/compressed", "beacon/dao"} & set(KEYS)
+    assert Config.from_data({"beacon/destination": "APRS", "beacon/compressed": "true", "beacon/dao": "true"}) == DEFAULTS
+    with pytest.raises(ValueError, match="beacon/destination: no such setting"):
+        Config.check("beacon/destination", "APRS")
 
 
 def test_the_alert_and_status_settings_have_their_defaults_and_are_read_back() -> None:
@@ -286,6 +281,12 @@ def test_the_log_time_and_the_update_check_are_fixed_and_what_an_earlier_version
         with pytest.raises(ValueError, match=f"{key}: no such setting"):
             Config.parse(key, "false")
     assert Config.from_data({"log/keep_days": "400", "update/check": "false"}) == DEFAULTS
+
+
+def test_the_digipeater_is_off_unless_the_setting_says_it_is_on() -> None:
+    assert DEFAULTS.digi_enabled is False and Config.from_data({"station/call": "OH2GBA"}).digi_enabled is False, "a database from before the setting has none"
+    assert Config.from_data({"digi/enabled": "yes"}).digi_enabled is True and Config.check("digi/enabled", "On") == "true"
+    assert Config.from_data({"digi/enabled": "perhaps"}).digi_enabled is False
 
 
 def test_the_attempts_setting_of_an_older_version_is_not_a_setting_and_is_left_alone() -> None:

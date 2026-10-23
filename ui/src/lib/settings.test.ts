@@ -1,21 +1,23 @@
 import { describe, expect, it } from "vitest";
 import { CONFIG_KEYS } from "@/protocol/lists";
-import { FIELDS, SUBGROUPS, changedValues, errorKey, errorReason, groupKeys, shownFor } from "@/lib/settings";
+import { FIELDS, SUBGROUPS, changedValues, errorKey, errorReason, groupKeys, shownByValues, shownFor } from "@/lib/settings";
 import { PORT_OTHER, portOptions } from "@/lib/portchoice";
 
 describe("groupKeys", () => {
   it("gives the Settings tab the serial and TNC, web, notifications and map keys, in the daemon's order", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "settings");
-    expect(groups.map((g) => g.id)).toEqual(["serial", "web", "notifications", "map"]);
+    expect(groups.map((g) => g.id)).toEqual(["serial", "digi", "web", "notifications", "map"]);
     expect(groups[0]?.keys).toEqual(["tnc/profile", "serial/port", "serial/baud", "tcp/host", "tcp/port", "tnc/check_sec", "serial/last_port"]);
-    expect(groups[2]?.title).toBe("Notifications");
-    expect(groups[2]?.keys).toEqual(["messages/alert", "messages/alert_command"]);
-    expect(groups[3]?.keys).toEqual(["map/hide_after_min", "map/radius_km", "map/maxzoom", "map/source"]);
+    expect(groups[1]?.title).toBe("Digipeater");
+    expect(groups[1]?.keys).toEqual(["digi/enabled"]);
+    expect(groups[3]?.title).toBe("Notifications");
+    expect(groups[3]?.keys).toEqual(["messages/alert", "messages/alert_command"]);
+    expect(groups[4]?.keys).toEqual(["map/hide_after_min", "map/radius_km", "map/maxzoom", "map/source"]);
   });
   it("gives the Beacon tab the station keys first (the call is its first field), then the beacon keys and the status keys", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "beacon");
     expect(groups.map((g) => g.id)).toEqual(["station", "beacon", "status"]);
-    expect(groups[1]?.keys).toEqual(["beacon/interval_min", "beacon/path", "beacon/destination", "beacon/compressed", "beacon/dao"]);
+    expect(groups[1]?.keys).toEqual(["beacon/interval_min", "beacon/path"]);
     expect(groups[0]?.keys).toEqual([
       "station/call",
       "station/lat",
@@ -23,13 +25,12 @@ describe("groupKeys", () => {
       "station/symbol_table",
       "station/symbol_code",
       "station/comment",
-      "station/status",
       "beacon/power_w",
       "beacon/antenna_height_m",
       "beacon/antenna_gain_db",
       "beacon/antenna_direction",
     ]);
-    expect(groups[2]?.keys).toEqual(["status/rigctld", "status/interval_min", "status/template"]);
+    expect(groups[2]?.keys).toEqual(["status/source", "station/status", "status/rigctld", "status/template", "status/interval_min"]);
   });
   it("has every key in one place only", () => {
     const shown = [...groupKeys(CONFIG_KEYS, "settings"), ...groupKeys(CONFIG_KEYS, "beacon")].flatMap((g) => g.keys);
@@ -65,13 +66,57 @@ describe("groupKeys", () => {
       expect(Object.keys(info ?? {}), key).not.toContain("hint");
       expect(info?.title?.length ?? 0, key).toBeLessThanOrEqual(50);
     }
-    expect(FIELDS["beacon/compressed"]?.kind).toBe("bool");
+    expect(FIELDS["status/source"]?.kind).toBe("choice");
     expect(FIELDS["beacon/antenna_direction"]?.kind).toBe("choice");
   });
-  it("says on hover what the limits of the beacon and the status are", () => {
-    expect(["beacon/interval_min", "status/interval_min"].map((k) => FIELDS[k]?.title)).toEqual(["10 at least", "10 at least"]);
-    expect(FIELDS["station/comment"]?.title).toContain("43");
-    expect(FIELDS["station/status"]?.title).toContain("55");
+  it("has a gone-from-the-page setting nowhere: the tocall, the compressed form and the DAO are the program's", () => {
+    expect(CONFIG_KEYS).not.toContain("beacon/destination");
+    expect(CONFIG_KEYS).not.toContain("beacon/compressed");
+    expect(CONFIG_KEYS).not.toContain("beacon/dao");
+    expect(Object.keys(FIELDS).filter((k) => ["beacon/destination", "beacon/compressed", "beacon/dao"].includes(k))).toEqual([]);
+  });
+  it("explains the fields that a word cannot in an (i) of two to four sentences and an example, not on hover", () => {
+    const keys = [
+      "station/comment",
+      "station/status",
+      "status/source",
+      "status/rigctld",
+      "status/template",
+      "status/interval_min",
+      "beacon/interval_min",
+      "beacon/path",
+      "beacon/power_w",
+      "beacon/antenna_height_m",
+      "beacon/antenna_gain_db",
+      "beacon/antenna_direction",
+    ];
+    for (const key of keys) {
+      const tip = FIELDS[key]?.tip ?? [];
+      expect(tip.length, key).toBeGreaterThan(0);
+      expect(tip.join(" ").split(/[.:;] /).length, key).toBeLessThanOrEqual(8);
+      expect(FIELDS[key]?.title, key).toBeUndefined();
+    }
+    expect(FIELDS["station/comment"]?.tip?.join(" ")).toContain("43");
+    expect(FIELDS["station/status"]?.tip?.join(" ")).toContain("55");
+    expect(FIELDS["beacon/interval_min"]?.tip?.join(" ")).toContain("10");
+    expect(FIELDS["status/template"]?.tip?.join(" ")).toMatch(/\{freq\}.*\{mode\}/);
+    expect(FIELDS["status/template"]?.tip?.at(-1)).toContain("14.074 MHz USB");
+  });
+  it("shows the status fields its source needs and the antenna's figures once there is a power", () => {
+    const shown = (values: Record<string, string>) =>
+      ["status/source", "station/status", "status/rigctld", "status/template", "status/interval_min"].filter((k) => shownByValues(k, values));
+    expect(shown({})).toEqual(["status/source"]);
+    expect(shown({ "status/source": "text" })).toEqual(["status/source", "station/status", "status/interval_min"]);
+    expect(shown({ "status/source": "rig" })).toEqual(["status/source", "status/rigctld", "status/template", "status/interval_min"]);
+    expect(shown({ "status/rigctld": "127.0.0.1:4532" })).toEqual(["status/source", "status/rigctld", "status/template", "status/interval_min"]);
+    expect(shown({ "station/status": "QRV" })).toEqual(["status/source", "station/status", "status/interval_min"]);
+    expect(shown({ "status/source": "off", "station/status": "QRV", "status/rigctld": "127.0.0.1:4532" })).toEqual(["status/source"]);
+    const antenna = (power: string) =>
+      ["beacon/power_w", "beacon/antenna_height_m", "beacon/antenna_gain_db", "beacon/antenna_direction"].filter((k) =>
+        shownByValues(k, { "beacon/power_w": power }),
+      );
+    expect(antenna("")).toEqual(["beacon/power_w"]);
+    expect(antenna("5")).toHaveLength(4);
   });
   it("gives a unit to the keys that are counted in one, and a word for 0 where 0 is a state", () => {
     expect(["tnc/check_sec", "map/hide_after_min", "beacon/interval_min"].map((k) => FIELDS[k]?.unit)).toEqual(["s", "min", "min"]);

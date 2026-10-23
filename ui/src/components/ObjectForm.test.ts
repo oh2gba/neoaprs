@@ -26,10 +26,10 @@ describe("ObjectForm", () => {
   });
 
   it("starts at the place we are, with the car and the path of the beacon as the placeholder", () => {
-    const { input } = form();
+    const { input, field } = form();
     expect(input("Latitude")?.element.value).toBe("60.17");
     expect(input("Longitude")?.element.value).toBe("24.94");
-    expect(input("Symbol")?.element.value).toBe("/>");
+    expect(field("Symbol")?.find(".symbolfield-name").text()).toBe("Car");
     expect(input("Path")?.attributes("placeholder")).toBe("WIDE1-1,WIDE2-1");
     expect(input("Path")?.element.value).toBe("");
   });
@@ -91,22 +91,21 @@ describe("ObjectForm", () => {
     expect(field("Comment")?.classes()).toContain("invalid");
   });
 
-  it("sets the symbol from the icons, and shows it", async () => {
-    const { wrapper, input } = form();
-    const buttons = wrapper.findAll(".objform-symbols button");
-    expect(buttons).toHaveLength(12);
-    expect(buttons[0]?.attributes("title")).toBe("House");
-    await buttons[0]?.trigger("click");
-    expect(input("Symbol")?.element.value).toBe("/-");
-    expect(buttons[0]?.attributes("aria-pressed")).toBe("true");
-    expect(buttons[1]?.attributes("aria-pressed")).toBe("false");
-    await input("Symbol")?.setValue("\\k");
-    expect(buttons.every((b) => b.attributes("aria-pressed") === "false")).toBe(true);
+  it("shows the symbol as a picture and a name and sets it from the picker, with no table or code to type", async () => {
+    const { wrapper, field, view } = form();
+    expect(field("Symbol")?.find("input").exists()).toBe(false);
+    expect(field("Symbol")?.find(".symicon .stn-layer").exists()).toBe(true);
+    await field("Symbol")?.find("button").trigger("click");
+    const house = wrapper.findAll(".sympick-symbol").find((b) => b.text() === "House");
+    await house?.trigger("click");
+    expect(view.draft.symbol).toBe("/-");
+    expect(field("Symbol")?.find(".symbolfield-name").text()).toBe("House");
+    expect(wrapper.find(".sympick").exists()).toBe(false);
   });
 
-  it("has Place, which asks for a click on the map and is pressed while it waits", async () => {
+  it("has Pick on the map, on a row of its own under the latitude and the longitude, which asks for a click on the map and is pressed while it waits", async () => {
     const { wrapper, view } = form();
-    const place = wrapper.findAll("button").find((b) => b.text() === "Place");
+    const place = wrapper.findAll("button").find((b) => b.text() === "Pick on the map");
     expect(place?.attributes("aria-pressed")).toBe("false");
     await place?.trigger("click");
     expect(view.picking).toBe(true);

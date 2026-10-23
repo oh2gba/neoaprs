@@ -6,12 +6,12 @@ import DisclosureBox from "@/components/DisclosureBox.vue";
 import { localLine, searchedPorts, tncCounts, tncStatus } from "@/lib/tncstatus";
 import type { TncState } from "@/protocol/protocol";
 
-const props = defineProps<{ tnc: TncState | null; now: number }>();
+const props = withDefaults(defineProps<{ tnc: TncState | null; now: number; digipeater?: boolean }>(), { digipeater: false });
 const emit = defineEmits<{ reconnect: [] }>();
 
 const log = ref<HTMLElement | null>(null);
 const FOLLOW_SLACK_PX = 24;
-const status = computed(() => (props.tnc === null ? "" : tncStatus(props.tnc, props.now)));
+const status = computed(() => (props.tnc === null ? "" : tncStatus(props.tnc, props.now, props.digipeater)));
 const ports = computed(() => (props.tnc === null ? null : searchedPorts(props.tnc)));
 const problem = computed(() => (props.tnc !== null && props.tnc.problem !== "" && !status.value.includes(props.tnc.problem) ? props.tnc.problem : ""));
 const lines = computed(() => (props.tnc?.lines ?? []).map((l) => localLine(l, props.now)));

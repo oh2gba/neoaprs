@@ -257,6 +257,7 @@ function onPick(at: Home): void {
             :picking="stationPick.picking.value"
             :picked="stationPick.picked.value"
             @beacon="send({ cmd: 'beacon_now' })"
+            @status="send({ cmd: 'status_now' })"
             @pick-position="stationPick.toggle()"
           />
         </template>
@@ -272,7 +273,9 @@ function onPick(at: Home): void {
             @setup="guide.show()"
             @update="updateOpen = true"
           >
-            <template #radio><RadioStatus :tnc="tnc" :now="now" @reconnect="send({ cmd: 'tnc_reconnect' })" /></template>
+            <template #radio
+              ><RadioStatus :tnc="tnc" :now="now" :digipeater="config?.values['digi/enabled'] === 'true'" @reconnect="send({ cmd: 'tnc_reconnect' })"
+            /></template>
             <template #notifications><BrowserAlerts :alerts="alerts" /></template>
           </SettingsForm>
         </template>

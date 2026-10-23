@@ -21,6 +21,8 @@ _ALTERNATE = ("Emergency|reserved|Digipeater|Bank or ATM|Power plant|Gateway|Cra
 
 _OVERLAYS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
+SYMBOL_NAMES = {"primary": tuple(_PRIMARY), "alternate": tuple(_ALTERNATE)}      # the names of the codes "!" to "~" of each table, in order, for the page's symbol picker
+
 
 def table_of(table: str) -> str | None:
     """The table character in its canonical form ("/", "\\", or an overlay 0-9 / A-Z; a-j become 0-9), None when it is none."""
