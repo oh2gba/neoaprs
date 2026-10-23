@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Messages tab: **Stations** beside To writes one text to several stations. It lists the stations heard in the last day (stations only, those heard direct first) with a filter and a tickbox for each; the ones ticked are chips that a click removes, a call typed in To followed by a space or a comma becomes a chip too, and a call that is not in the list is added from the filter box. Send makes an ordinary message for each recipient, with its own id, acknowledgement, attempts and conversation; with one recipient nothing changed. The daemon now sends the attempts of all messages at least 10 seconds apart, so several messages never go out in a burst.
+- Bulletins tab: the kind "Group" is **Bulletin to a group** and its field is **Group name**; a small (i) beside the kind says what a bulletin, a bulletin to a group and a message are, and that particular stations are reached with a message.
 - Beacon tab: **Pick on the map** beside the longitude: the next click on the map is our station's place, to be saved like any change.
 - The route on the map: a station whose latest packet came back from the internet through an iGate is drawn by its route over the radio, not from the iGate.
 Classic Bluetooth without `rfcomm bind`.

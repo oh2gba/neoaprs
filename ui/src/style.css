@@ -1118,6 +1118,62 @@ tbody tr:focus-visible {
   color: var(--bad);
   font-weight: 600;
 }
+.recipients {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.picker-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5em, 1fr));
+  gap: 2px 8px;
+  max-height: 9em;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.picker-list .empty {
+  grid-column: 1 / -1;
+  padding: 4px;
+}
+.infotip {
+  position: relative;
+  display: inline-flex;
+}
+.info-toggle {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--panel);
+  color: var(--text);
+  font: italic 700 12px/1 serif;
+  cursor: pointer;
+}
+.info-text {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 5;
+  width: 280px;
+  max-width: 80vw;
+  margin-top: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel);
+  font-size: 12px;
+  line-height: 1.4;
+}
 
 /* the email tab */
 .mailpane {

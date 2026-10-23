@@ -567,6 +567,7 @@ async def test_connections_are_capped_and_a_connection_over_the_cap_is_closed(tm
 async def with_page(tmp_path: Path) -> tuple[Env, WsClient]:
     e = Env(tmp_path, web=True)
     e.ctl.messaging.tick_sec = 0.02
+    e.ctl.messaging.pace.spacing_sec = 0.0
     e.ctl.bulletins.tick_sec = 0.02
     await e.start()
     await asyncio.sleep(0.2)                                                                            # (the TNC has settled)

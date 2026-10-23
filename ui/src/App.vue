@@ -37,6 +37,7 @@ import { useStationPrefs } from "@/composables/useStationPrefs";
 import { useTitle } from "@/composables/useTitle";
 import { defaultTimeoutMin, type Aging } from "@/lib/aging";
 import { filesKey } from "@/lib/mapfetch";
+import { candidates as messageCandidates } from "@/lib/recipients";
 import { withOwnSymbol } from "@/lib/stations";
 import type { Home } from "@/lib/mapview";
 
@@ -108,6 +109,7 @@ const fallbackPath = computed(() => config.value?.values["beacon/path"] ?? "");
 const connected = computed(() => tnc.value?.state === "connected");
 
 const call = computed<string | null>(() => config.value?.values["station/call"] ?? status.value?.call ?? null);
+const candidates = computed(() => messageCandidates(stations.value, call.value, now.value));
 const home = computed<Home | null>(() => {
   const place = (text: string | number | null | undefined): number => (text === undefined || text === null || text === "" ? NaN : Number(text));
   const lat = place(config.value?.values["station/lat"] ?? status.value?.lat);
@@ -200,6 +202,7 @@ function onPick(at: Home): void {
             :fallback-path="fallbackPath"
             :rf-only="rfOnly"
             :heard-direct="heardDirect"
+            :candidates="candidates"
             @update:show-overheard="talk.showOverheard.value = $event"
             @path="setPath"
             @clear-path="clearPath"
@@ -208,6 +211,7 @@ function onPick(at: Home): void {
             @delete-conversation="talk.deleteConversation"
             @delete-overheard="talk.deleteOverheard"
             @send="talk.sendMessage"
+            @send-many="talk.sendMessages"
             @retry="send({ cmd: 'message_retry', id: $event })"
             @cancel="send({ cmd: 'message_cancel', id: $event })"
           />

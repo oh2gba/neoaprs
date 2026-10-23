@@ -47,5 +47,10 @@ export function useMessagesView(messages: ReadonlyMap<string, MessageRow>, panel
     if (send({ cmd: "send_message", to, text })) talk.selected.value = to;
   }
 
-  return { ...talk, showOverheard, writeTo, openMessages, deleteConversation, deleteOverheard, sendMessage };
+  /** Sends the same text to several stations, a message to each (the daemon spaces them); the conversation open stays open. */
+  function sendMessages(to: readonly string[], text: string): void {
+    for (const call of to) send({ cmd: "send_message", to: call, text });
+  }
+
+  return { ...talk, showOverheard, writeTo, openMessages, deleteConversation, deleteOverheard, sendMessage, sendMessages };
 }

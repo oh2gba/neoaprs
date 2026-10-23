@@ -67,6 +67,18 @@ describe("useMessagesView", () => {
     expect(view.selected.value).toBeNull();
   });
 
+  it("sends the same text to several stations, a command for each, and leaves the open conversation as it is", () => {
+    const { send, view } = setUp();
+    view.selected.value = "OH2XYZ";
+    view.sendMessages(["OH2AAA", "OH2BBB", "OH2CCC"], "Net at 20:00");
+    expect(send.mock.calls.map(([c]) => c)).toEqual([
+      { cmd: "send_message", to: "OH2AAA", text: "Net at 20:00" },
+      { cmd: "send_message", to: "OH2BBB", text: "Net at 20:00" },
+      { cmd: "send_message", to: "OH2CCC", text: "Net at 20:00" },
+    ]);
+    expect(view.selected.value).toBe("OH2XYZ");
+  });
+
   it("deletes an overheard pair with its two calls, and closes its thread if it was open", () => {
     const { send, view } = setUp();
     view.selected.value = "OH2AAA>OH2BBB";

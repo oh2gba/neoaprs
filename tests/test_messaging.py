@@ -53,14 +53,15 @@ class StubTnc:
 
 
 class Rig:
-    def __init__(self, log: MessageLog, clock: FixedClock, tnc: StubTnc | None = None, **changes: object) -> None:
+    def __init__(self, log: MessageLog, clock: FixedClock, tnc: StubTnc | None = None, spacing_sec: float = 0.0, **changes: object) -> None:
         self.config: Config = replace(ON_AIR, **changes)             # type: ignore[arg-type]
         self.tnc = tnc or StubTnc()
         self.clock = clock
         self.log = log
         self.prefs = PrefBook(log, lambda: self.config)
         self.board: list[tuple[Packet, Message]] = []                   # what messaging handed to the message board
-        self.m = Messaging(self.tnc, lambda: self.config, log, self.prefs.path_for, clock, tick_sec=TICK, board=lambda packet, message: self.board.append((packet, message)))
+        self.m = Messaging(self.tnc, lambda: self.config, log, self.prefs.path_for, clock, tick_sec=TICK, board=lambda packet, message: self.board.append((packet, message)),
+                        spacing_sec=spacing_sec)
         remember_stop(self.m.stop)
         self.changed: list[MessageRecord] = []
         self.removed: list[MessageRecord] = []
@@ -1100,7 +1101,7 @@ async def test_a_message_we_hear_from_ourselves_to_a_bulletin_is_not_the_boards(
 
 
 async def test_without_a_board_a_message_to_a_bulletin_is_overheard(rig: Rig) -> None:
-    alone = Messaging(rig.tnc, lambda: rig.config, rig.log, rig.prefs.path_for, rig.clock, tick_sec=TICK)
+    alone = Messaging(rig.tnc, lambda: rig.config, rig.log, rig.prefs.path_for, rig.clock, tick_sec=TICK, spacing_sec=0.0)
     remember_stop(alone.stop)
     alone.on_packet(rig.heard("OH2RDG", "BLN1", "net tonight 20:00"))
     await asyncio.gather(*alone.inbox.tasks)
