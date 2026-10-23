@@ -74,6 +74,42 @@ describe("StationMap", () => {
     expect(FakeMap.last().options.zoom).toBe(11);
   });
 
+  describe("an object or an item of ours", () => {
+    const withOurs = () =>
+      table(
+        station("OH2GBA", { is_me: true, lat: 60.17, lon: 24.94, symbol_code: "-" }),
+        station("OH2PU-9", { lat: 60.2, lon: 24.65 }),
+        station("LEADER", { kind: "object", own: true, reported_by: "OH2GBA", lat: 60.3, lon: 25.0, last_position_at: ago(5 * 86400) }),
+      );
+
+    it("has a marker that can be dragged, marked as ours, and no other marker can", async () => {
+      await mounted({ stations: withOurs() });
+      expect(markerOf("LEADER")?.draggable).toBe(true);
+      expect(markerOf("LEADER")?.element.classList.contains("stn--own")).toBe(true);
+      expect(markerOf("OH2PU-9")?.draggable).toBe(false);
+      expect(markerOf("OH2GBA")?.draggable).toBe(false);
+    });
+
+    it("is never past its timeout, however old", async () => {
+      await mounted({ stations: withOurs(), aging: aging(60) });
+      expect(markerOf("LEADER")).toBeDefined();
+    });
+
+    it("says where it was dropped", async () => {
+      const wrapper = await mounted({ stations: withOurs() });
+      markerOf("LEADER")?.dragTo(60.5, 25.5);
+      expect(wrapper.emitted("move")).toEqual([["LEADER", 60.5, 25.5]]);
+    });
+
+    it("stops being draggable when it is no longer ours (another station took the name)", async () => {
+      const wrapper = await mounted({ stations: withOurs() });
+      const taken = withOurs();
+      taken.set("LEADER", station("LEADER", { kind: "object", own: false, reported_by: "OH2XYZ", lat: 60.3, lon: 25.0 }));
+      await wrapper.setProps({ stations: taken });
+      expect(markerOf("LEADER")?.draggable).toBe(false);
+    });
+  });
+
   it("puts a marker with the call on every station that has a position, and none on the rest", async () => {
     await mounted();
     const calls = FakeMarker.live().map((m) => m.element.querySelector(".stn-label")?.textContent);

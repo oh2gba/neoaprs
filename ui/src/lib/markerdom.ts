@@ -1,4 +1,4 @@
-// The marker of a station on the map as DOM nodes (the call is text, never markup): the APRS symbol as sprite layers, the call under it, classes for our own station, the selected one and
+// The marker of a station on the map as DOM nodes (the call is text, never markup): the APRS symbol as sprite layers, the call under it, classes for our own station and our own objects, the selected one and
 // how dim it is and a ring for a station heard direct within the hour. The map (components/StationMap.vue) puts the element at the station's position; styles are in style.css.
 import type { StationRow } from "@/protocol/protocol";
 import { MARKER_STEPS } from "@/lib/aging";
@@ -50,8 +50,9 @@ export function paintMarker(dom: MarkerDom, row: StationRow, state: MarkerState)
     dom.icon.classList.toggle("stn-plain", dom.icon.childElementCount === 0);
   }
   if (dom.label.textContent !== row.call) dom.label.textContent = row.call;
-  dom.root.title = `${row.call}: ${row.symbol_name}${markerWeather(row)}${state.direct ? ", heard direct" : ""}`;
+  dom.root.title = `${row.call}: ${row.symbol_name}${row.own ? " (ours)" : ""}${markerWeather(row)}${state.direct ? ", heard direct" : ""}`;
   dom.root.classList.toggle("stn--me", row.is_me);
+  dom.root.classList.toggle("stn--own", row.own);
   dom.root.classList.toggle("stn--selected", state.selected);
   dom.root.classList.toggle("stn--direct", state.direct);
   for (let step = 1; step < MARKER_STEPS; step++) dom.root.classList.toggle(`stn--fade-${step}`, state.fade === step);

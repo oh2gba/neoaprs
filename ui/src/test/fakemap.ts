@@ -75,8 +75,26 @@ export class FakeMarker {
   static all: FakeMarker[] = [];
   lngLat: [number, number] = [0, 0];
   removed = false;
+  draggable = false;
+  handlers = new Map<string, Handler[]>();
   constructor(readonly options: { element: HTMLElement }) {
     FakeMarker.all.push(this);
+  }
+  setDraggable(on: boolean): this {
+    this.draggable = on;
+    return this;
+  }
+  getLngLat(): { lng: number; lat: number } {
+    return { lng: this.lngLat[0], lat: this.lngLat[1] };
+  }
+  on(event: string, handler: Handler): this {
+    this.handlers.set(event, [...(this.handlers.get(event) ?? []), handler]);
+    return this;
+  }
+  /** The user drops the marker at a place: its position moves and `dragend` fires. */
+  dragTo(lat: number, lon: number): void {
+    this.lngLat = [lon, lat];
+    for (const handler of this.handlers.get("dragend") ?? []) handler();
   }
   setLngLat(at: [number, number]): this {
     this.lngLat = at;

@@ -22,9 +22,9 @@ export function defaultTimeoutMin(settings: Readonly<Record<string, string>> | u
   return Number.isFinite(minutes) && minutes > 0 ? Math.round(minutes) : 0;
 }
 
-/** The timeout of a station in minutes, 0 for never: its own, else the default; our own station never times out. */
+/** The timeout of a station in minutes, 0 for never: its own, else the default; our own station and our own objects never time out. */
 export function timeoutMin(aging: Aging, row: StationRow): number {
-  return row.is_me ? 0 : (aging.timeouts.get(row.call) ?? aging.defaultMin);
+  return row.is_me || row.own ? 0 : (aging.timeouts.get(row.call) ?? aging.defaultMin);
 }
 
 /** The age in seconds of the last position (the last packet for a row that has a position and no time for it). */
@@ -54,9 +54,9 @@ export function trailOpacity(ageSec: number, minutes: number): number {
   return Math.round((1 - (step / (TRAIL_STEPS - 1)) * (1 - TRAIL_OLDEST)) * 100) / 100;
 }
 
-/** How dim the marker of a station is: 0 fresh up to MARKER_STEPS - 1 just before the timeout. Our own station is always 0. */
+/** How dim the marker of a station is: 0 fresh up to MARKER_STEPS - 1 just before the timeout. Our own station and our own objects are always 0. */
 export function markerStep(aging: Aging, row: StationRow, nowMs: number): number {
-  return row.is_me ? 0 : stepOf(fadeFraction(positionAge(row, nowMs), timeoutMin(aging, row)), MARKER_STEPS);
+  return row.is_me || row.own ? 0 : stepOf(fadeFraction(positionAge(row, nowMs), timeoutMin(aging, row)), MARKER_STEPS);
 }
 
 const TIMEOUT_MAX_MIN = 1_000_000;

@@ -80,7 +80,7 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
           <tr
             v-for="row in rows"
             :key="row.call"
-            :class="{ selected: row.call === selected, me: row.is_me, timedout: isTimedOut(row) }"
+            :class="{ selected: row.call === selected, me: row.is_me, own: row.own, timedout: isTimedOut(row) }"
             :aria-selected="row.call === selected"
             tabindex="0"
             @click="emit('select', row.call)"

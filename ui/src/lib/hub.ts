@@ -8,6 +8,8 @@ import type {
   HelloMessage,
   Message,
   MessageRow,
+  OwnBulletinRow,
+  OwnObjectRow,
   PacketRow,
   PortsMessage,
   StationPref,
@@ -24,7 +26,7 @@ export const MAX_DELAY_MS = 30000;
 type TopicName = keyof TopicValues;
 export type Connection = "connecting" | "open" | "closed";
 
-/** Where what the daemon says goes. A keyed topic (stations, packets, messages, bulletins, station_prefs) is told item by item, the others (tnc, config, map) as a whole. */
+/** Where what the daemon says goes. A keyed topic (stations, packets, messages, bulletins, own_objects, own_bulletins, station_prefs) is told item by item, the others (tnc, config, map) as a whole. */
 export interface Store {
   connection(state: Connection): void;
   hello(message: HelloMessage): void;
@@ -38,6 +40,8 @@ export interface Store {
   replaceMessages(rows: Record<string, MessageRow>): void;
   replaceBulletins(rows: Record<string, BulletinRow>): void;
   replaceStationPrefs(rows: Record<string, StationPref>): void;
+  replaceOwnObjects(rows: Record<string, OwnObjectRow>): void;
+  replaceOwnBulletins(rows: Record<string, OwnBulletinRow>): void;
   replaceTnc(value: TopicValues["tnc"]): void;
   replaceConfig(value: TopicValues["config"]): void;
   replaceMap(value: TopicValues["map"]): void;
@@ -46,11 +50,15 @@ export interface Store {
   setMessage(key: string, row: MessageRow): void;
   setBulletin(key: string, row: BulletinRow): void;
   setStationPref(call: string, pref: StationPref): void;
+  setOwnObject(name: string, row: OwnObjectRow): void;
+  setOwnBulletin(slot: string, row: OwnBulletinRow): void;
   delStation(key: string): void;
   delPacket(key: string): void;
   delMessage(key: string): void;
   delBulletin(key: string): void;
   delStationPref(call: string): void;
+  delOwnObject(name: string): void;
+  delOwnBulletin(slot: string): void;
 }
 
 /** What the hub needs of a WebSocket: the browser's has more. */
@@ -245,6 +253,8 @@ export class Hub {
     else if (topic === "messages") this.store.replaceMessages(value as TopicValues["messages"]);
     else if (topic === "bulletins") this.store.replaceBulletins(value as TopicValues["bulletins"]);
     else if (topic === "station_prefs") this.store.replaceStationPrefs(value as TopicValues["station_prefs"]);
+    else if (topic === "own_objects") this.store.replaceOwnObjects(value as TopicValues["own_objects"]);
+    else if (topic === "own_bulletins") this.store.replaceOwnBulletins(value as TopicValues["own_bulletins"]);
     else if (topic === "tnc") this.store.replaceTnc(value as TopicValues["tnc"]);
     else if (topic === "map") this.store.replaceMap(value as TopicValues["map"]);
     else this.store.replaceConfig(value as TopicValues["config"]);
@@ -256,6 +266,8 @@ export class Hub {
     else if (topic === "messages") this.store.setMessage(key, value as MessageRow);
     else if (topic === "bulletins") this.store.setBulletin(key, value as BulletinRow);
     else if (topic === "station_prefs") this.store.setStationPref(key, value as StationPref);
+    else if (topic === "own_objects") this.store.setOwnObject(key, value as OwnObjectRow);
+    else if (topic === "own_bulletins") this.store.setOwnBulletin(key, value as OwnBulletinRow);
   }
 
   private del(topic: TopicName, key: string): void {
@@ -264,5 +276,7 @@ export class Hub {
     else if (topic === "messages") this.store.delMessage(key);
     else if (topic === "bulletins") this.store.delBulletin(key);
     else if (topic === "station_prefs") this.store.delStationPref(key);
+    else if (topic === "own_objects") this.store.delOwnObject(key);
+    else if (topic === "own_bulletins") this.store.delOwnBulletin(key);
   }
 }

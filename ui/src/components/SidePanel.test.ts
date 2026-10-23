@@ -27,7 +27,7 @@ describe("SidePanel", () => {
     expect(cssRule(".tabs")).not.toMatch(/overflow/);
   });
 
-  it("has the eight tabs, the chosen one selected, and shows its pane only", () => {
+  it("has the nine tabs, the chosen one selected, and shows its pane only", () => {
     const wrapper = mount(SidePanel, { props: { tab: "packets", collapsed: false, width: 400 }, slots });
     expect(wrapper.findAll("[role='tab']").map((t) => t.text())).toEqual([
       "Stations",
@@ -35,6 +35,7 @@ describe("SidePanel", () => {
       "Messages",
       "Email",
       "Bulletins",
+      "Objects",
       "Beacon",
       "TNC",
       "Settings",
@@ -51,14 +52,14 @@ describe("SidePanel", () => {
 
   it("says which tab was picked", async () => {
     const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400 }, slots });
-    await wrapper.findAll("[role='tab']")[7]?.trigger("click");
+    await wrapper.findAll("[role='tab']")[8]?.trigger("click");
     expect(wrapper.emitted("update:tab")).toEqual([["settings"]]);
   });
 
   it("shows the count of a tab that has one in a badge, and none for zero or for a tab without", () => {
     const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400, badges: { messages: 3, packets: 0 } }, slots });
     const tabs = wrapper.findAll("[role='tab']");
-    expect(tabs.map((t) => t.find(".badge").exists())).toEqual([false, false, true, false, false, false, false, false]);
+    expect(tabs.map((t) => t.find(".badge").exists())).toEqual([false, false, true, false, false, false, false, false, false]);
     expect(tabs[2]?.find(".badge").text()).toBe("3");
     expect(tabs[2]?.text()).toBe("Messages 3");
     expect(tabs[2]?.find(".badge").attributes("title")).toBe("3 messages not seen yet");

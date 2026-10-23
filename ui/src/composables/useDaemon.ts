@@ -1,4 +1,4 @@
-// The daemon as the page sees it: the eight topics as reactive state (the stations' own paths and timeouts are `stationPrefs`), the status, the latest answer to `weather_series`, to `alert_test` and to `list_ports`, the state of the connection, and `send`. Opens the socket when the component that calls it is mounted and
+// The daemon as the page sees it: the ten topics as reactive state (the stations' own paths and timeouts are `stationPrefs`), the status, the latest answer to `weather_series`, to `alert_test` and to `list_ports`, the state of the connection, and `send`. Opens the socket when the component that calls it is mounted and
 // closes it when it is unmounted. The conversation itself is lib/hub.ts.
 import { onBeforeUnmount, onMounted, ref, shallowReactive, shallowRef } from "vue";
 import type {
@@ -15,6 +15,7 @@ import type {
   TncState,
   WeatherSeriesMessage,
 } from "@/protocol/protocol";
+import { useOwnTables } from "@/composables/useOwnTables";
 import { probe } from "@/lib/access";
 import { Hub, type Connection, type Store } from "@/lib/hub";
 import { reloadOnce } from "@/lib/reload";
@@ -38,6 +39,7 @@ export function useDaemon(url: () => string = socketUrl) {
   const messages = shallowReactive(new Map<string, MessageRow>());
   const bulletins = shallowReactive(new Map<string, BulletinRow>());
   const stationPrefs = shallowReactive(new Map<string, StationPref>());
+  const own = useOwnTables();
   const tnc = shallowRef<TncState | null>(null);
   const config = shallowRef<ConfigValues | null>(null);
   const map = shallowRef<MapState | null>(null);
@@ -68,6 +70,7 @@ export function useDaemon(url: () => string = socketUrl) {
     replaceMessages: (rows) => fill(messages, rows),
     replaceBulletins: (rows) => fill(bulletins, rows),
     replaceStationPrefs: (rows) => fill(stationPrefs, rows),
+    ...own.handlers,
     replaceTnc: (value) => (tnc.value = value),
     replaceConfig: (value) => (config.value = value),
     replaceMap: (value) => (map.value = value),
@@ -102,6 +105,8 @@ export function useDaemon(url: () => string = socketUrl) {
     messages,
     bulletins,
     stationPrefs,
+    ownObjects: own.ownObjects,
+    ownBulletins: own.ownBulletins,
     tnc,
     config,
     map,

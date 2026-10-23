@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// The page: a header with the connection and the radio link, the map filling the page, and at its right a panel with the stations, the packets, the messages, the email, the bulletins, the beacon, the TNC and the settings.
-// The shell only: what the daemon tells is `useDaemon`, the panel `usePanel`, the station picked `useSelection`, the Messages tab `useMessagesView`, the Email tab `useEmail`, the Bulletins tab `useBulletins`, the paths, timeouts and attempts of the stations
+// The page: a header with the connection and the radio link, the map filling the page, and at its right a panel with the stations, the packets, the messages, the email, the bulletins, our objects, the beacon, the TNC and the settings.
+// The shell only: what the daemon tells is `useDaemon`, the panel `usePanel`, the station picked `useSelection`, the Messages tab `useMessagesView`, the Email tab `useEmail`, the Bulletins tab `useBulletins`, the Objects tab `useOwnObjects`, the paths, timeouts and attempts of the stations
 // `useStationPrefs`, the first-run guide (it opens by itself while the daemon has no call) `useSetupGuide`; the components take props and emit events, and the commands go out through `send`.
 import { computed, watch } from "vue";
 import AppHeader from "@/components/AppHeader.vue";
@@ -8,6 +8,7 @@ import BeaconPane from "@/components/BeaconPane.vue";
 import BulletinsPane from "@/components/BulletinsPane.vue";
 import EmailPane from "@/components/EmailPane.vue";
 import MessagesPane from "@/components/MessagesPane.vue";
+import ObjectsPane from "@/components/ObjectsPane.vue";
 import PacketsLog from "@/components/PacketsLog.vue";
 import SetupGuide from "@/components/SetupGuide.vue";
 import SettingsForm from "@/components/SettingsForm.vue";
@@ -23,6 +24,7 @@ import { useDark } from "@/composables/useDark";
 import { useEmail } from "@/composables/useEmail";
 import { useMessagesView } from "@/composables/useMessagesView";
 import { useNow } from "@/composables/useNow";
+import { useOwnObjects } from "@/composables/useOwnObjects";
 import { usePanel } from "@/composables/usePanel";
 import { useSelection } from "@/composables/useSelection";
 import { useSetupGuide } from "@/composables/useSetupGuide";
@@ -39,6 +41,8 @@ const {
   packets,
   messages,
   bulletins,
+  ownObjects,
+  ownBulletins,
   stationPrefs,
   tnc,
   config,
@@ -103,6 +107,13 @@ const home = computed<Home | null>(() => {
   const lon = place(config.value?.values["station/lon"] ?? status.value?.lon);
   return Number.isFinite(lat) && Number.isFinite(lon) ? { lat, lon } : null;
 });
+const objects = useOwnObjects(ownObjects, home, send, panel);
+
+/** A click on the map is a place for the first-run guide while it asks for one, else for the form of an object. */
+function onPick(at: Home): void {
+  if (guide.picking) guide.place(at.lat, at.lon);
+  else objects.place(at.lat, at.lon);
+}
 </script>
 
 <template>
@@ -129,10 +140,11 @@ const home = computed<Home | null>(() => {
           :dark="dark"
           :aging="aging"
           :files-key="filesKey(map)"
-          :picking="guide.picking"
-          :pin="guide.open ? guide.pin : null"
+          :picking="guide.picking || objects.picking"
+          :pin="guide.open ? guide.pin : objects.pin"
           @select="selected = $event"
-          @pick="guide.place($event.lat, $event.lon)"
+          @pick="onPick"
+          @move="objects.move"
           @download="panel.show('settings')"
         />
         <SetupGuide :guide="guide" :config="config" :map="map" />
@@ -149,6 +161,8 @@ const home = computed<Home | null>(() => {
           @close="selected = null"
           @weather="(call, hours) => send({ cmd: 'weather_series', call, hours })"
           @forget="forget"
+          @edit="objects.edit"
+          @kill="objects.kill"
           @message="talk.writeTo"
           @path="setPath"
           @clear-path="clearPath"
@@ -221,7 +235,18 @@ const home = computed<Home | null>(() => {
           />
         </template>
         <template #bulletins>
-          <BulletinsPane :bulletins="bulletins" :now="now" @delete="(sender, slot) => send({ cmd: 'bulletin_delete', sender, slot })" />
+          <BulletinsPane
+            :bulletins="bulletins"
+            :own-bulletins="ownBulletins"
+            :call="call"
+            :now="now"
+            @delete="(sender, slot) => send({ cmd: 'bulletin_delete', sender, slot })"
+            @post="(slot, text) => send({ cmd: 'bulletin_post', slot, text })"
+            @unpost="(slot) => send({ cmd: 'bulletin_unpost', slot })"
+          />
+        </template>
+        <template #objects>
+          <ObjectsPane :objects="ownObjects" :form="objects" :fallback-path="fallbackPath" :now="now" />
         </template>
         <template #beacon>
           <BeaconPane

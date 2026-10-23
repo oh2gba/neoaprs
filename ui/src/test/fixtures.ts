@@ -5,6 +5,8 @@ import type {
   MapFileInfo,
   MapState,
   MessageRow,
+  OwnBulletinRow,
+  OwnObjectRow,
   PacketRow,
   StationRow,
   StatusMessage,
@@ -49,6 +51,7 @@ export function station(call: string, extra: Partial<StationRow> = {}): StationR
     distance_km: 10,
     bearing_deg: 45,
     is_me: false,
+    own: false,
     weather: null,
     weather_at: null,
     telemetry: null,
@@ -174,6 +177,44 @@ export function bulletin(slot: string, extra: Partial<BulletinRow> = {}): Bullet
     first_heard: ago(60),
     last_heard: ago(60),
     times_heard: 1,
+    ...extra,
+  };
+}
+
+/** An object of ours: a live object "LEADER" sent twice, the next one in 3 minutes. */
+export function ownObject(name: string, extra: Partial<OwnObjectRow> = {}): OwnObjectRow {
+  return {
+    name,
+    kind: "object",
+    lat: 60.2,
+    lon: 24.9,
+    symbol_table: "/",
+    symbol_code: ">",
+    comment: "",
+    course_deg: null,
+    speed_kmh: null,
+    path: null,
+    state: "live",
+    created_at: ago(600),
+    updated_at: ago(600),
+    sent: 2,
+    last_sent_at: ago(60),
+    next_at: new Date(NOW + 180_000).toISOString(),
+    ...extra,
+  };
+}
+
+/** A bulletin of ours: a bulletin in the slot, sent twice, the next one in 18 minutes. */
+export function ownBulletin(slot: string, extra: Partial<OwnBulletinRow> = {}): OwnBulletinRow {
+  return {
+    slot,
+    group: "",
+    kind: "bulletin",
+    text: `ours in ${slot}`,
+    posted_at: ago(600),
+    sent: 2,
+    last_sent_at: ago(60),
+    next_at: new Date(NOW + 18 * 60_000).toISOString(),
     ...extra,
   };
 }

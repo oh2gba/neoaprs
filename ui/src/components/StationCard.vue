@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Everything the daemon knows of one station, as a card over the map: the symbol, the position, how far and in which direction from us, how it moves, when it was heard, the path of its latest
 // packet and the route it came by, how its packets reached us (direct, by which repeaters, from the internet), when it was last heard direct and the share of its packets that came direct, and the best route with the path to send by, its status and comment, how many packets it sent. "Message" opens the Messages tab with the station as the addressee; the path field is the path its messages go by, the timeout field how long
-// it stays on the map and the attempts field how many times a message to it is transmitted. The details that the daemon decodes beyond the position follow the altitude, a line each: the data extensions (PHG, range, DF, area), the Maidenhead locator of its status, and the telemetry channels with the names and units it defined. A weather station (the weather symbol, or one that has sent weather) has its weather panel at the top (components/WeatherPanel.vue). "Forget" takes it out of the station book (it is back when it is heard again); it asks twice, and forgets the first click after 5 s like the other buttons that ask twice (`useSure`).
+// it stays on the map and the attempts field how many times a message to it is transmitted. The details that the daemon decodes beyond the position follow the altitude, a line each: the data extensions (PHG, range, DF, area), the Maidenhead locator of its status, and the telemetry channels with the names and units it defined. A weather station (the weather symbol, or one that has sent weather) has its weather panel at the top (components/WeatherPanel.vue). "Forget" takes it out of the station book (it is back when it is heard again); it asks twice, and forgets the first click after 5 s like the other buttons that ask twice (`useSure`). An object or an item of ours has "Edit" (the Objects tab opens with it) and "Kill" (it asks twice, too) in place of "Message" and "Forget", and none of the fields of a station that is heard.
 import { computed, watch } from "vue";
 import StationPrefs from "@/components/StationPrefs.vue";
 import SymbolIcon from "@/components/SymbolIcon.vue";
@@ -38,6 +38,8 @@ const props = withDefaults(
 );
 const emit = defineEmits<{
   forget: [call: string];
+  edit: [name: string];
+  kill: [name: string];
   message: [call: string];
   path: [call: string, path: string];
   clearPath: [call: string];
@@ -55,6 +57,7 @@ watch(() => props.row.call, sure.disarm);
 
 const armed = computed(() => sure.armed.value === props.row.call);
 const forget = (): void => sure.press(props.row.call, () => emit("forget", props.row.call));
+const kill = (): void => sure.press(props.row.call, () => emit("kill", props.row.call));
 
 const qrz = computed(() => (props.row.kind === "station" ? qrzUrl(props.row.call) : null));
 const extensions = computed(() => extensionRows(props.row.extensions));
@@ -70,7 +73,7 @@ const fromUs = (row: StationRow): string => (row.distance_km === null ? "-" : `$
           <strong>{{ row.call }}</strong>
           <a v-if="qrz" class="qrz" :href="qrz" target="_blank" rel="noopener noreferrer" title="Open the QRZ page of this call">QRZ</a>
         </span>
-        <span class="muted">{{ row.symbol_name }}{{ row.is_me ? " (our station)" : "" }}</span>
+        <span class="muted">{{ row.symbol_name }}{{ row.is_me ? " (our station)" : row.own ? " (ours)" : "" }}</span>
       </div>
       <button class="iconbtn" type="button" aria-label="Close" title="Close" @click="emit('close')">x</button>
     </header>
@@ -131,7 +134,7 @@ const fromUs = (row: StationRow): string => (row.distance_km === null ? "-" : `$
       <dt>Packets</dt>
       <dd>{{ row.packets }}</dd>
     </dl>
-    <div v-if="!row.is_me" class="card-path">
+    <div v-if="!row.is_me && !row.own" class="card-path">
       <StationPrefs
         :call="row.call"
         :aging="aging"
@@ -150,7 +153,11 @@ const fromUs = (row: StationRow): string => (row.distance_km === null ? "-" : `$
         @set-rf-only="(c, on) => emit('setRfOnly', c, on)"
       />
     </div>
-    <footer v-if="!row.is_me" class="card-foot">
+    <footer v-if="row.own" class="card-foot">
+      <button class="btn primary" type="button" @click="emit('edit', row.call)">Edit</button>
+      <button class="btn forget" :class="{ danger: armed }" type="button" @click="kill">{{ armed ? "Really kill?" : "Kill" }}</button>
+    </footer>
+    <footer v-else-if="!row.is_me" class="card-foot">
       <button v-if="row.kind === 'station'" class="btn primary" type="button" @click="emit('message', row.call)">Message</button>
       <button class="btn forget" :class="{ danger: armed }" type="button" @click="forget">{{ armed ? "Really forget?" : "Forget" }}</button>
     </footer>
