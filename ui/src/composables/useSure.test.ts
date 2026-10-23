@@ -27,6 +27,20 @@ describe("useSure", () => {
     expect(quick.armed.value).toBeNull();
   });
 
+  it("is armed without a press by `arm`, and with no time limit when it is made with null", () => {
+    const sure = useSure<string>(null);
+    sure.arm("download");
+    vi.advanceTimersByTime(3_600_000);
+    expect(sure.armed.value).toBe("download");
+    const act = vi.fn();
+    sure.press("download", act);
+    expect([sure.armed.value, act.mock.calls.length]).toEqual([null, 1]);
+    const timed = useSure<string>(100);
+    timed.arm("a");
+    vi.advanceTimersByTime(101);
+    expect(timed.armed.value).toBeNull();
+  });
+
   it("is armed for one key at a time, and arming another starts the time again", () => {
     const sure = useSure<number>();
     const act = vi.fn();
