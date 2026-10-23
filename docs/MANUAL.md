@@ -328,6 +328,18 @@ Started by hand (Actions, release, *Run workflow*, or `gh workflow run release.y
 
 **The install script.** `curl -LsSf https://github.com/oh2gba/neoaprs/releases/latest/download/install.sh | sh` on Linux and macOS: installs uv with Astral's installer when there is none, `uv tool install --force --python 3.13` of the release's wheel, `neoaprs service install` (a systemd user unit; launchd on macOS), a restart of the service when it was an update, the `usermod` line for `dialout` (`uucp`) when you are not in the group, the page's address and `neoaprs doctor`. It needs no root. `NEOAPRS_WHEEL_URL` (`CONVENTIONS.md`) takes another wheel address, which is how the workflow tests it.
 
+### The project page
+
+`site/` is the project page, <https://oh2gba.github.io/neoaprs/>: plain files (`index.html`, `style.css`, `site.js`, the icons and `shots/`), a system font stack, no external file, tracker or framework, and a Content-Security-Policy that lets it load its own files only. `.github/workflows/pages.yml` publishes the folder as it is when a push to master touches it (or by hand); Pages is switched on once, in the repository's settings (Pages, Source: GitHub Actions). To look at it: `python -m http.server --directory site`.
+
+The screenshots are made by `scripts/screenshots.py`, which starts a daemon of its own on a temporary data folder, plays a day on the air into it (`scripts/demoscene.py`: made-up calls round Helsinki, a car, a hiker and a boat moving, two weather stations, messages that are acked, retried or fail, bulletins, email, the beacon) through a KISS TNC on a TCP port of the loopback, and takes the shots with Chromium at 1440 x 900 and 390 x 844, each in the light and the dark scheme (`NAME-dark.png`). They go to `site/shots/`, with `thumbs/` for the gallery and `og.png` for the link preview; `map`, `weather`, `messages`, `beacon` and `setup` are copied to `docs/screenshots/` for the README. The close-ups of the delivery chain (`chain.png`, `chain-failed.png`) are taken at twice the pixels; the network access is on in the demo folder with a key made at random for the run, and the Settings shot shows a made-up key and made-up addresses instead of the daemon's own. Nothing touches a radio. The street map is copied from `data/basemap.pmtiles` (or `--basemap`), which is only read:
+
+```bash
+uv run --with playwright --with pillow python scripts/screenshots.py                    # all of them
+uv run --with playwright --with pillow python scripts/screenshots.py --only map messages
+uv run --with playwright --with pillow python scripts/screenshots.py --chromium PATH --no-sandbox   # a browser Playwright did not install
+```
+
 ### The stages of scripts/check
 
 | stage | what it checks |
@@ -357,7 +369,9 @@ The stages from `ui-types` on need node (on the `PATH`, else the newest in `~/.n
 | `scripts/dup-check` | the duplication ratchet of the Python half: jscpd (from `ui/node_modules`) over `neoaprs/` and `tests/support/` against `scripts/dup-baseline.json`; `--update` tightens the baseline and never makes it larger |
 | `scripts/dup-compare.py` | the decision of `dup-check`: compares a jscpd report with the baseline, clone by the pair of files it joins |
 | `scripts/neoaprs-db` | a clone's wrapper of `neoaprs db` with `--data` set to the clone's `./data` (a `--data` of your own wins) |
-| `scripts/make-icon.py` | draws the desktop app's icon, `neoaprs/desktop/icon.png` and `icon.ico` (they are committed; this is how they were made); needs Pillow: `uv run --with Pillow scripts/make-icon.py` |
+| `scripts/make-icon.py` | draws the desktop app's icon, `neoaprs/desktop/icon.png` and `icon.ico` (they are committed; this is how they were made), and with `--site` the icons of the project page; needs Pillow: `uv run --with Pillow scripts/make-icon.py` |
+| `scripts/screenshots.py` | takes the screenshots of the README and of the project page with Playwright, on a daemon of its own and a made-up day on the air; "The project page" |
+| `scripts/demoscene.py` | the day on the air that `screenshots.py` plays: a KISS TNC on a TCP port of the loopback and a daemon on a clock moved back in time, with stations on the move, weather, messages, email and bulletins |
 | `scripts/smoke.py` | the smoke test of an installed NeoAPRS, on any system: a fake KISS TNC on a TCP port plays the capture, the daemon runs on a temporary data folder, the page, its script and `/ws` are checked, the daemon is stopped as its system stops a program and must end with exit code 0, `NeoAPRS ended` and a database that passes `integrity_check`; `--command` names the installed `neoaprs` (CI runs it against the wheel on Linux and Windows) |
 | `scripts/build-appimage` | builds `dist-appimage/NeoAPRS-VERSION-x86_64.AppImage` from the wheel (`--wheel FILE`, else it builds one; `--out DIR`); the tools it fetches are pinned by version and SHA-256 in the script and cached in `~/.cache/neoaprs-build` ("The AppImage") |
 | `scripts/smoke-appimage` | the smoke test of such a file: `--version`, `smoke.py`, the daemon with no radio, the unit `service install` writes, the app on the offscreen platform; without FUSE it extracts the file and runs its `AppRun` |
@@ -384,7 +398,8 @@ The daemon serves a page at `http://127.0.0.1:7303/` (the port is `web/port`): a
 * `neoaprs/`: the daemon (the layers are in `docs/ARCHITECTURE.md`): `clock`, `signal`, the protocol (`kiss`, `ax25`, `callsign`, `geo`, `symbols`, the `aprs*` decoders with `aprsthirdparty` and `aprsweather`, `packet`, `packetcodec`, `route`); `message`, `pref`, `tncmode`; `config`, `stationbook`; `source`, `tasks`, `serialport` with `serialholders` and `serialprobe`, `tnc` with `tncsearch` and `tncwatchdog`; `bulletin`; `services/beacon`, `services/messaging` with `services/inbox` and `services/heard`, `services/bulletins`, `services/queries`, `services/prefbook`; the database actor (`db`, `dbthread`, `dbfile`, `dberror`, `dbstats`, `dbopen`, `durable`, `walcare`, `backupfolder`), `migrations`, `store`, `storesql`, `dblog`, `packetsql`, `packetlog`, `messagesql`, `messagelog`, `bulletinsql`, `bulletinlog`, `weathersql`, `weatherlog`, `paths`; `app`, `wiring`, `controller`, `daemon` (the process), `__main__` (`python -m neoaprs`), and the packages `cli/` (the `neoaprs` command: `service`, `doctor`, `db`, `map`, `replay`, `capture`, `open`, `stop`), `desktop/` (the desktop app: "The desktop app"), `web/` and `page/` (below).
 * `tests/`: the suite (`tests/README.md`); `tests/support/` is what the tests are built from, `tests/safety/` the tests of the database actor, `tests/fixtures/` the captured frames and streams of the radio and the parser's cases.
 * `scripts/`: the tools (table above).
-* `.github/`: the CI workflow (`.github/workflows/ci.yml`: the Python checks and tests, the smoke test, the page's checks, a stale-page check), run by GitHub on every push, and the release workflow (`.github/workflows/release.yml`).
+* `.github/`: the CI workflow (`.github/workflows/ci.yml`: the Python checks and tests, the smoke test, the page's checks, a stale-page check), run by GitHub on every push, and the release workflow (`.github/workflows/release.yml`), and the workflow of the project page (`.github/workflows/pages.yml`).
+* `site/`: the project page ("The project page").
 * `packaging/`: what the release is made from besides the package: `install.sh.in` (the install script's template) and `test-install.sh` (its test), and `windows/` (`neoaprs.spec` for PyInstaller with its entry script, `bundle_pmtiles.py`, `neoaprs.iss` for Inno Setup) and `appimage/` (`AppRun`, `neoaprs.desktop`, `prune.py`). "Releases".
 * `.gitattributes`: LF line ends in every checkout (a Windows checkout would otherwise break the tests), the binary files marked.
 * `systemd/`: the notes on the unit (`systemd/README.md`); the unit itself is the template `neoaprs/cli/neoaprs.service`.
