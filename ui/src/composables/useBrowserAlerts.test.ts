@@ -28,43 +28,62 @@ beforeEach(() => {
 });
 afterEach(() => {
   scopes.splice(0).forEach((scope) => scope.stop());
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   resetSeen();
   document.title = "NeoAPRS";
 });
 
-describe("the defaults of this browser", () => {
-  it("are off for a page on the loopback, where the daemon's own alert notifies", () => {
+describe("the default of this browser", () => {
+  it("is off for a page on the loopback, where the daemon's own alert notifies", () => {
     for (const host of ["127.0.0.1", "localhost", "[::1]"]) {
       localStorage.clear();
       openedAt(host);
-      const alerts = make();
-      expect(alerts.enabled.value, host).toBe(false);
+      expect(make().mode.value, host).toBe("off");
     }
   });
 
-  it("are on for a page opened from another device", () => {
+  it("is sound and pop-up for a page from another device where a pop-up is allowed", () => {
     openedAt("192.168.1.20");
     const alerts = make();
-    expect(alerts.enabled.value).toBe(true);
-    expect(alerts.sound.value).toBe(true);
+    expect(alerts.mode.value).toBe("both");
+    expect(alerts.why.value).toBeUndefined();
   });
 
-  it("are what the person chose, kept in the browser", async () => {
+  it("is sound alone where the address does not allow a pop-up, or the browser blocked it", () => {
     openedAt("192.168.1.20");
-    make().enabled.value = false;
-    await nextTick();
-    expect(make().enabled.value).toBe(false);
+    stubBrowser({ secure: false });
+    expect(make().mode.value).toBe("sound");
+    stubBrowser();
+    FakeNotification.permission = "denied";
+    expect(make().mode.value).toBe("sound");
+  });
+
+  it("is what the person chose, kept in the browser", async () => {
+    openedAt("192.168.1.20");
+    await make().choose("off");
+    expect(localStorage.getItem("NeoAPRS.alert.mode")).toBe("off");
+    expect(make().mode.value).toBe("off");
     openedAt("127.0.0.1");
+    localStorage.setItem("NeoAPRS.alert.mode", "sound");
+    expect(make().mode.value).toBe("sound");
+  });
+
+  it("is made from the switches of an earlier page, once", () => {
+    openedAt("192.168.1.20");
     localStorage.setItem("NeoAPRS.alert.web", "on");
-    expect(make().enabled.value).toBe(true);
+    localStorage.setItem("NeoAPRS.alert.sound", "off");
+    localStorage.setItem("NeoAPRS.alert.notify", "on");
+    expect(make().mode.value).toBe("popup");
+    expect(localStorage.getItem("NeoAPRS.alert.mode")).toBe("popup");
+    expect(localStorage.getItem("NeoAPRS.alert.web")).toBeNull();
   });
 });
 
 describe("a message to us", () => {
   beforeEach(() => openedAt("192.168.1.20"));
 
-  it("is a notification when one can be shown, with the chime when Sound is on, and no flash of the tab", async () => {
+  it("is a pop-up when one can be shown, with the chime for sound and pop-up, and no flash of the tab", async () => {
     FakeNotification.permission = "granted";
     const alerts = make();
     await click();
@@ -75,17 +94,39 @@ describe("a message to us", () => {
     expect(alerts.tabTitle.value).toBeNull();
   });
 
-  it("plays no chime with Sound off, a notification or not", async () => {
+  it("is a pop-up without the chime for pop-up only", async () => {
     FakeNotification.permission = "granted";
+    localStorage.setItem("NeoAPRS.alert.mode", "popup");
     const alerts = make();
-    alerts.sound.value = false;
     await click();
     alerts.announce([incoming(5, "OH2DPN")]);
     expect(FakeNotification.shown).toHaveLength(1);
     expect(FakeAudioContext.played()).toBe(0);
   });
 
-  it("alerts the browser tab when the browser could not show the notification after all", async () => {
+  it("is the chime and the alert of the browser tab, and no pop-up, for sound", async () => {
+    FakeNotification.permission = "granted";
+    localStorage.setItem("NeoAPRS.alert.mode", "sound");
+    const alerts = make();
+    await click();
+    alerts.announce([incoming(5, "OH2DPN")]);
+    expect(FakeNotification.shown).toEqual([]);
+    expect(FakeAudioContext.played()).toBe(2);
+    expect(alerts.tabTitle.value).toBe("✉ OH2DPN");
+  });
+
+  it("is nothing for off, not even the tab", async () => {
+    FakeNotification.permission = "granted";
+    localStorage.setItem("NeoAPRS.alert.mode", "off");
+    const alerts = make();
+    await click();
+    alerts.announce([incoming(5, "OH2DPN")]);
+    expect(FakeNotification.shown).toEqual([]);
+    expect(FakeAudioContext.played()).toBe(0);
+    expect(alerts.tabTitle.value).toBeNull();
+  });
+
+  it("alerts the browser tab when the browser could not show the pop-up after all", async () => {
     FakeNotification.permission = "granted";
     const alerts = make();
     await click();
@@ -96,18 +137,7 @@ describe("a message to us", () => {
     expect(alerts.tabTitle.value).not.toBeNull();
   });
 
-  it("gives every test a notification of its own, so that a second one is not a silent replacement", async () => {
-    FakeNotification.permission = "granted";
-    const alerts = make();
-    await alerts.test();
-    await new Promise((done) => setTimeout(done, 2));
-    await alerts.test();
-    const tags = FakeNotification.shown.map((n) => n.options.tag);
-    expect(tags).toHaveLength(2);
-    expect(new Set(tags).size).toBe(2);
-  });
-
-  it("is the chime and the alert of the browser tab where no notification can be shown", async () => {
+  it("is the chime and the tab alert where no pop-up can be shown, and where the permission was not given", async () => {
     stubBrowser({ secure: false });
     const alerts = make();
     await click();
@@ -115,19 +145,22 @@ describe("a message to us", () => {
     expect(FakeNotification.shown).toEqual([]);
     expect(FakeAudioContext.played()).toBe(2);
     expect(alerts.tabTitle.value).toBe("✉ OH2DPN");
+    stubBrowser();
+    const asked = make();
+    await click();
+    asked.announce([incoming(6, "OH2DPN")]);
+    expect(FakeNotification.shown).toEqual([]);
+    expect(asked.tabTitle.value).toBe("✉ OH2DPN");
   });
 
-  it("is the chime and the tab alert too when the permission was not given, and when the browser refuses the notification", async () => {
-    const alerts = make();
-    await click();
-    alerts.announce([incoming(5, "OH2DPN")]);
-    expect(FakeAudioContext.played()).toBe(2);
+  it("is the chime again when the browser refuses the pop-up", async () => {
     FakeNotification.permission = "granted";
     FakeNotification.refuses = true;
-    const again = make();
+    const alerts = make();
     await click();
-    again.announce([incoming(6, "OH2DPN")]);
-    expect(FakeAudioContext.played()).toBe(4);
+    alerts.announce([incoming(6, "OH2DPN")]);
+    expect(FakeAudioContext.played()).toBe(2);
+    expect(alerts.tabTitle.value).toBe("✉ OH2DPN");
   });
 
   it("falls back to the tab alone, silently, while the audio is still locked", () => {
@@ -138,21 +171,7 @@ describe("a message to us", () => {
     expect(alerts.tabTitle.value).toBe("✉ OH2DPN");
   });
 
-  it("makes no sound when Sound is off, and shows nothing when the web alert is off", async () => {
-    stubBrowser({ secure: false });
-    const alerts = make();
-    await click();
-    alerts.sound.value = false;
-    alerts.announce([incoming(5, "OH2DPN")]);
-    expect(FakeAudioContext.played()).toBe(0);
-    expect(alerts.tabTitle.value).toBe("✉ OH2DPN");
-    const off = make();
-    off.enabled.value = false;
-    off.announce([incoming(6, "OH2PU-9")]);
-    expect(off.tabTitle.value).toBeNull();
-  });
-
-  it("opens the conversation when the notification is clicked", () => {
+  it("opens the conversation when the pop-up is clicked", () => {
     FakeNotification.permission = "granted";
     const open = vi.fn();
     const focus = vi.spyOn(window, "focus").mockImplementation(() => undefined);
@@ -165,75 +184,170 @@ describe("a message to us", () => {
     expect(open).toHaveBeenCalledWith("OH2DPN");
   });
 
-  it("is one notification for each message, the same tag for the same one", () => {
+  it("is one pop-up for each message, the same tag for the same one", () => {
     FakeNotification.permission = "granted";
     make().announce([incoming(5, "OH2DPN"), incoming(6, "OH2RDG")]);
     expect(FakeNotification.shown.map((n) => n.options.tag)).toEqual(["neoaprs-5", "neoaprs-6"]);
   });
 });
 
-describe("the Notifications switch", () => {
+describe("the choice of a pop-up", () => {
   beforeEach(() => openedAt("192.168.1.20"));
 
-  it("is not possible outside a secure context, or in a browser without the API", () => {
+  it("is impossible outside a secure context, or in a browser without the API, and says why", () => {
     stubBrowser({ secure: false });
     const insecure = make();
     expect(insecure.possible).toBe(false);
-    expect(insecure.notifyTitle.value).toBe("Needs https or localhost");
+    expect(insecure.why.value).toBe("This address does not allow pop-ups (needs https or localhost)");
     vi.unstubAllGlobals();
     stubBrowser({ notifications: false });
     vi.stubGlobal("Notification", undefined);
     expect(make().possible).toBe(false);
   });
 
-  it("never asks for the permission by itself, only when it is switched on", async () => {
+  it("is impossible once the browser says denied, and says why", () => {
+    FakeNotification.permission = "denied";
+    expect(make().why.value).toBe("Pop-ups are blocked for this page in the browser");
+  });
+
+  it("never asks for the permission by itself, only in the click that chooses it", async () => {
+    localStorage.setItem("NeoAPRS.alert.mode", "sound");
     const alerts = make();
     await click();
     alerts.announce([incoming(5, "OH2DPN")]);
     await nextTick();
     expect(FakeNotification.asked).toBe(0);
-    expect(alerts.notifyOn.value).toBe(false);
-    await alerts.setNotify(true);
+    await alerts.choose("both");
     expect(FakeNotification.asked).toBe(1);
-    expect(alerts.notifyOn.value).toBe(true);
+    expect(alerts.mode.value).toBe("both");
+    expect(alerts.popupOn.value).toBe(true);
+    expect(alerts.note.value).toBe("");
   });
 
-  it("goes back off when the permission is refused, and is blocked once the browser says denied", async () => {
+  it("does not ask for the choices without a pop-up", async () => {
+    const alerts = make();
+    await alerts.choose("sound");
+    await alerts.choose("off");
+    expect(FakeNotification.asked).toBe(0);
+  });
+
+  it("does not ask again where the browser has answered", async () => {
+    FakeNotification.permission = "granted";
+    const alerts = make();
+    await alerts.choose("popup");
+    expect(FakeNotification.asked).toBe(0);
+    expect(alerts.mode.value).toBe("popup");
+  });
+
+  it("falls back to sound, and says so, when the permission is refused", async () => {
     FakeNotification.answer = "denied";
     const alerts = make();
-    await alerts.setNotify(true);
-    expect(alerts.notifyOn.value).toBe(false);
-    expect(localStorage.getItem("NeoAPRS.alert.notify")).toBe("off");
-    expect(make().notifyTitle.value).toBe("Blocked in the browser's settings");
+    await alerts.choose("both");
+    expect(alerts.mode.value).toBe("sound");
+    expect(localStorage.getItem("NeoAPRS.alert.mode")).toBe("sound");
+    expect(alerts.note.value).toBe("pop-ups refused: sound only");
+    expect(alerts.why.value).toBe("Pop-ups are blocked for this page in the browser");
+    await alerts.choose("off");
+    expect(alerts.note.value).toBe("");
   });
 
-  it("is on from the start where the permission was given earlier", () => {
+  it("says in a few words that a pop-up is chosen but not yet allowed, or blocked", () => {
+    expect(make().note.value).toBe("pop-ups not allowed yet");
+    FakeNotification.permission = "denied";
+    localStorage.setItem("NeoAPRS.alert.mode", "popup");
+    expect(make().note.value).toBe("pop-ups blocked");
     FakeNotification.permission = "granted";
-    expect(make().notifyOn.value).toBe(true);
-    localStorage.setItem("NeoAPRS.alert.notify", "off");
-    expect(make().notifyOn.value).toBe(false);
+    expect(make().note.value).toBe("");
   });
 });
 
-describe("Test", () => {
+describe("Test sound", () => {
   beforeEach(() => openedAt("192.168.1.20"));
 
-  it("does what a message does: a notification where one can be shown", async () => {
+  it("plays the chime now, unlocking the audio itself, whatever the choice is, and says played for a few seconds", async () => {
+    localStorage.setItem("NeoAPRS.alert.mode", "off");
+    const alerts = make();
+    vi.useFakeTimers();
+    await alerts.testSound();
+    expect(FakeAudioContext.played()).toBe(2);
+    expect(alerts.soundStatus.value).toBe("played");
+    expect(alerts.popupStatus.value).toBe("");
+    vi.advanceTimersByTime(6000);
+    expect(alerts.soundStatus.value).toBe("");
+  });
+
+  it("says the sound is locked where the browser does not let the audio run", async () => {
+    FakeAudioContext.afterResume = "suspended";
+    const alerts = make();
+    await alerts.testSound();
+    expect(FakeAudioContext.played()).toBe(0);
+    expect(alerts.soundStatus.value).toBe("sound locked: click the page once");
+  });
+
+  it("neither shows a pop-up nor flashes the tab", async () => {
     FakeNotification.permission = "granted";
+    const alerts = make();
+    await alerts.testSound();
+    expect(FakeNotification.shown).toEqual([]);
+    expect(alerts.tabTitle.value).toBeNull();
+  });
+});
+
+describe("Test pop-up", () => {
+  beforeEach(() => openedAt("192.168.1.20"));
+
+  it("shows a pop-up now, whatever the choice is, and says pop-up sent; a click on it opens no conversation", async () => {
+    FakeNotification.permission = "granted";
+    localStorage.setItem("NeoAPRS.alert.mode", "off");
     const open = vi.fn();
     const alerts = make(open);
     setSeen(true);
-    await alerts.test();
+    await alerts.testPopup();
     expect(FakeNotification.shown.map((n) => [n.title, n.options.body])).toEqual([["APRS message from NEOAPRS", "This is a test of the NeoAPRS alert"]]);
+    expect(alerts.popupStatus.value).toBe("pop-up sent");
+    expect(FakeAudioContext.played()).toBe(0);
     FakeNotification.shown[0]?.onclick?.();
-    expect(open).not.toHaveBeenCalled(); // (there is no such conversation)
+    expect(open).not.toHaveBeenCalled();
   });
 
-  it("else plays the chime, unlocking the audio itself, and flashes the tab though the page is in front", async () => {
+  it("asks for the permission in its click when the browser has not been asked", async () => {
     const alerts = make();
+    await alerts.testPopup();
+    expect(FakeNotification.asked).toBe(1);
+    expect(alerts.popupStatus.value).toBe("pop-up sent");
+  });
+
+  it("says pop-up blocked, and flashes the tab, when the permission is refused or the browser refuses", async () => {
+    FakeNotification.answer = "denied";
+    const refused = make();
     setSeen(true);
-    await alerts.test();
-    expect(FakeAudioContext.played()).toBe(2);
-    expect(alerts.tabTitle.value).toBe("✉ NEOAPRS");
+    await refused.testPopup();
+    expect(FakeNotification.shown).toEqual([]);
+    expect(refused.popupStatus.value).toBe("pop-up blocked");
+    expect(refused.tabTitle.value).toBe("✉ NEOAPRS");
+    FakeNotification.reset("granted");
+    FakeNotification.refuses = true;
+    const broken = make();
+    await broken.testPopup();
+    expect(broken.popupStatus.value).toBe("pop-up blocked");
+  });
+
+  it("says why where the address does not allow pop-ups", async () => {
+    stubBrowser({ secure: false });
+    const alerts = make();
+    await alerts.testPopup();
+    expect(alerts.popupStatus.value).toBe("needs https or localhost");
+    expect(FakeNotification.asked).toBe(0);
+  });
+
+  it("gives every test a pop-up of its own, so that a second one is not a silent replacement", async () => {
+    FakeNotification.permission = "granted";
+    const alerts = make();
+    await alerts.testPopup();
+    await new Promise((done) => setTimeout(done, 2));
+    await alerts.testPopup();
+    const tags = FakeNotification.shown.map((n) => n.options.tag);
+    expect(tags).toHaveLength(2);
+    expect(new Set(tags).size).toBe(2);
   });
 });

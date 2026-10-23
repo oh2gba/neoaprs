@@ -273,7 +273,7 @@ function onPick(at: Home): void {
         </template>
         <template #settings>
           <SettingsForm :config="config" :last-error="lastError" :alert-result="alertResult" :map="map" :send="send" @setup="guide.show()">
-            <BrowserAlerts :alerts="alerts" />
+            <template #notifications><BrowserAlerts :alerts="alerts" /></template>
           </SettingsForm>
         </template>
       </SidePanel>

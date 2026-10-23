@@ -14,7 +14,7 @@ function make(extra: Record<string, string> = {}, scope: Scope = "settings") {
 describe("SettingsForm", () => {
   it("has a field for every key of the Settings tab, in groups, and none of the beacon's", () => {
     const { wrapper } = make();
-    expect(wrapper.findAll("fieldset legend").map((l) => l.text())).toEqual(["TNC", "Web page", "Log", "Messaging", "Map", "Update check"]);
+    expect(wrapper.findAll("fieldset legend").map((l) => l.text())).toEqual(["TNC", "Web page", "Log", "Messaging", "Notifications", "Map", "Update check"]);
     expect(wrapper.findAll(".field")).toHaveLength(
       CONFIG_KEYS.filter((k) => !k.startsWith("beacon/") && !k.startsWith("station/") && !k.startsWith("status/") && !k.startsWith("tcp/") && k !== "web/key")
         .length,
@@ -232,6 +232,28 @@ describe("SettingsForm", () => {
     await wrapper.find("form").trigger("submit");
     await wrapper.setProps({ config: configValues({ "station/lat": "61.5" }) });
     expect(wrapper.find("[role='status']").text()).toBe("Saved.");
+  });
+
+  describe("the Notifications group", () => {
+    it("has the daemon's own alert under a heading of its own, out of the Messaging group, and the slot for the browser's fields after it", () => {
+      const wrapper = mount(SettingsForm, {
+        props: { config: configValues(), lastError: null, send: vi.fn(() => true) },
+        slots: { notifications: '<p id="from-slot">browser</p>' },
+      });
+      const groups = wrapper.findAll("fieldset");
+      const titles = groups.map((g) => g.find("legend").text());
+      expect(titles).toContain("Notifications");
+      const group = groups[titles.indexOf("Notifications")];
+      expect(group?.findAll("label").map((l) => l.text())).toEqual(["Alert", "Command"]);
+      expect(group?.find("h3").text()).toBe("On the NeoAPRS computer");
+      expect(group?.find("h3").attributes("title")).toBeTruthy();
+      expect(group?.find("#from-slot").exists()).toBe(true);
+      expect(groups[titles.indexOf("Messaging")]?.findAll("label").map((l) => l.text())).toEqual(["Attempts"]);
+      expect(wrapper.findAll("#from-slot")).toHaveLength(1);
+    });
+    it("is not in the Beacon tab", () => {
+      expect(make({}, "beacon").wrapper.text()).not.toContain("On the NeoAPRS computer");
+    });
   });
 
   describe("the Test button of the alert", () => {

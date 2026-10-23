@@ -1,14 +1,14 @@
 <script setup lang="ts">
 // The settings of the daemon, one field for every key it lists in the scope of the form (the Settings tab, or the Beacon tab with the keys the beacon sends), in groups. Save sends the keys that were changed (the daemon checks them all before it stores any; a wrong one is shown under
 // its field); the alert command has a Test button, which runs the saved command and shows how it went under the field; a field left empty shows the default as a placeholder. The Map group ends with the buttons that make
-// the map (MapFetchPanel), which work on the saved settings. On the Settings tab the Setup button opens the first-run guide again; the default slot is for more groups (the page's own, which are not settings of the daemon). While the network is let in, the Web group shows the access key with a New key button and the addresses to open the page at.
+// the map (MapFetchPanel), which work on the saved settings. On the Settings tab the Setup button opens the first-run guide again; the default slot is for more groups (the page's own, which are not settings of the daemon), and the slot `notifications` for the fields of the page's own alert, which end the Notifications group. While the network is let in, the Web group shows the access key with a New key button and the addresses to open the page at.
 import MapFetchPanel from "@/components/MapFetchPanel.vue";
 import SettingsField from "@/components/SettingsField.vue";
 import type { Toast } from "@/composables/useDaemon";
 import { ALERT_KEY, useAlertTest } from "@/composables/useAlertTest";
 import { KEY_KEY, useNewKey } from "@/composables/useNewKey";
 import { useSettingsForm } from "@/composables/useSettingsForm";
-import { FIELDS, portForProfile, shownFor, speedFallback, type Scope } from "@/lib/settings";
+import { FIELDS, SUBGROUPS, portForProfile, shownFor, speedFallback, type Scope } from "@/lib/settings";
 import type { AlertResultMessage, Command, ConfigValues, MapState } from "@/protocol/protocol";
 import { computed, toRef } from "vue";
 
@@ -62,6 +62,7 @@ const mapUnsaved = computed(() => Object.keys(changed.value).some((key) => key.s
     <fieldset v-for="group in groups" :key="group.id">
       <legend>{{ group.title }}</legend>
       <template v-for="key in shown(group.keys)" :key="key">
+        <h3 v-if="SUBGROUPS[key]" class="subgroup" :title="SUBGROUPS[key]?.title">{{ SUBGROUPS[key]?.text }}</h3>
         <SettingsField
           :id="`set-${key.replace('/', '-')}`"
           :info="info(key)"
@@ -96,6 +97,7 @@ const mapUnsaved = computed(() => Object.keys(changed.value).some((key) => key.s
           </div>
         </div>
       </template>
+      <slot v-if="group.id === 'notifications'" name="notifications"></slot>
       <MapFetchPanel v-if="group.id === 'map' && map" :map="map" :stale="mapUnsaved" :send="props.send" />
     </fieldset>
     <slot></slot>

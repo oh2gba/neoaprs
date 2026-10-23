@@ -1,5 +1,5 @@
 """`neoaprs doctor [--data DIR]`: a checklist of what a NeoAPRS needs, one line each marked ok, warn or fail, with the fix under every line that is not ok: the Python, the data folder, the database and its
-version, the call, the serial ports the system lists (and on Linux the group that owns them, and brltty and ModemManager, which grab USB serial adapters), a daemon that runs on the data folder and
+version, the call, the serial ports the system lists (and on Linux the group that owns them, and brltty and ModemManager, which grab USB serial adapters, and Firefox as a Flatpak on KDE, whose web pop-ups can go missing), a daemon that runs on the data folder and
 where its page is, the base map and whether the service is set up. Nothing is changed, written or sent: the database is opened for reading, the ports are listed and not opened. The exit code is 1
 when something failed and 0 otherwise (a warning is not a failure)."""
 import argparse
@@ -23,7 +23,7 @@ from neoaprs.store import DB_NAME, Store
 
 from . import servicecmd
 from .daemonstate import describe
-from .hostcheck import brltty_installed, modemmanager_installed, serial_group_check
+from .hostcheck import brltty_installed, firefox_flatpak, modemmanager_installed, serial_group_check
 
 MIN_PYTHON = (3, 13)
 READ_WAIT_MS = 3000
@@ -126,6 +126,15 @@ def check_grabbers() -> list[Finding]:
     return found
 
 
+def check_firefox_flatpak() -> Finding | None:
+    check = firefox_flatpak()
+    if check is None:
+        return None
+    if check.status == "ok":
+        return Finding("ok", "Firefox is a Flatpak: its web pop-ups go to the desktop's notification service")
+    return Finding("warn", "Firefox is a Flatpak: on KDE its web pop-ups can go missing (the desktop portal accepts them and shows none)", check.fix)
+
+
 def check_daemon(data: Path) -> Finding:
     running, line = describe(data)
     if running and "does not" in line:
@@ -152,7 +161,7 @@ def check_service(data: Path) -> Finding:
 
 def diagnose(data: Path) -> list[Finding]:
     database, rows = check_database(data)
-    findings = [check_python(), check_data_folder(data), database, check_call(rows), check_ports(), check_group(), *check_grabbers(), check_daemon(data), check_map(data), check_service(data)]
+    findings = [check_python(), check_data_folder(data), database, check_call(rows), check_ports(), check_group(), *check_grabbers(), check_firefox_flatpak(), check_daemon(data), check_map(data), check_service(data)]
     return [f for f in findings if f is not None]
 
 

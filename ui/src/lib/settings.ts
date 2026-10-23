@@ -61,7 +61,7 @@ export const FIELDS: Record<string, FieldInfo> = {
   "update/url": { label: "Address" },
   "messages/attempts": { label: "Attempts" },
   "messages/alert": { label: "Alert", kind: "bool" },
-  "messages/alert_command": { label: "Alert command" },
+  "messages/alert_command": { label: "Command" },
   "status/rigctld": { label: "Rigctld", empty: "off", title: "host:port" },
   "status/interval_min": { label: "Interval", unit: "min", title: "10 at least" },
   "status/template": { label: "Template", title: "{freq} {mode}" },
@@ -70,6 +70,14 @@ export const FIELDS: Record<string, FieldInfo> = {
   "beacon/destination": { label: "Destination" },
   "beacon/compressed": { label: "Compressed", kind: "bool" },
   "beacon/dao": { label: "DAO", kind: "bool", title: "One more digit of the position, !Wxy!" },
+};
+
+/** The settings of the daemon's own alert, which the Notifications group shows (beside the alert of the browser, which is the page's). */
+const ALERT = ["messages/alert", "messages/alert_command"];
+
+/** The heading that goes above a key inside its group: the daemon's own alert, which runs on the computer NeoAPRS runs on, whichever device shows the page. */
+export const SUBGROUPS: Record<string, { text: string; title: string }> = {
+  "messages/alert": { text: "On the NeoAPRS computer", title: "NeoAPRS's own alert: the command the daemon runs on the computer it runs on" },
 };
 
 /** The antenna's keys belong to the station, though they are the beacon's to send. */
@@ -86,7 +94,8 @@ const GROUPS: { id: string; title: string; prefixes: string[]; also?: string[]; 
   { id: "serial", title: "TNC", prefixes: ["tnc/", "serial/", "tcp/"] },
   { id: "web", title: "Web page", prefixes: ["web/"] },
   { id: "log", title: "Log", prefixes: ["log/"] },
-  { id: "messages", title: "Messaging", prefixes: ["messages/"] },
+  { id: "messages", title: "Messaging", prefixes: ["messages/"], except: ALERT },
+  { id: "notifications", title: "Notifications", prefixes: [], also: ALERT },
   { id: "map", title: "Map", prefixes: ["map/"] },
   { id: "update", title: "Update check", prefixes: ["update/"] },
   { id: "beacon", title: "Beacon", prefixes: ["beacon/"], except: ANTENNA },
@@ -97,7 +106,7 @@ const GROUPS: { id: string; title: string; prefixes: string[]; also?: string[]; 
 export type Scope = "settings" | "beacon";
 const SCOPE_GROUPS: Record<Scope, readonly string[]> = {
   beacon: ["station", "beacon", "status"],
-  settings: ["serial", "web", "log", "messages", "map", "update"],
+  settings: ["serial", "web", "log", "messages", "notifications", "map", "update"],
 };
 
 /** The keys in the order of the daemon's list (a key it did not list last), in the groups of the form `scope` shows. */

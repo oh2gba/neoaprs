@@ -19,6 +19,14 @@ export function writeStored(key: string, value: string): void {
   }
 }
 
+export function removeStored(key: string): void {
+  try {
+    localStorage.removeItem(PREFIX + key);
+  } catch {
+    // nothing to remove
+  }
+}
+
 /** The stored text of `key` as a number inside [min, max], else `fallback`. */
 export function readStoredNumber(key: string, fallback: number, min: number, max: number): number {
   const text = readStored(key);

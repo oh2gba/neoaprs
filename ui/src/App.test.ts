@@ -1136,6 +1136,17 @@ describe("the alert of this browser", () => {
   const patch = (socket: FakeSocket, rev: number, key: string, row: object) =>
     socket.say({ type: "patch", topic: "messages", rev, ops: [{ op: "set", key, value: row }] });
 
+  it("has one Notifications group in the Settings tab: the daemon's own alert, then the choice of this browser with its two tests", async () => {
+    stubBrowser();
+    const { wrapper } = await open();
+    await tabButton(wrapper, "Settings")?.trigger("click");
+    const groups = wrapper.findAll("#pane-settings fieldset").filter((g) => g.find("legend").text() === "Notifications");
+    expect(groups).toHaveLength(1);
+    expect(groups[0]?.findAll("h3").map((h) => h.text())).toEqual(["On the NeoAPRS computer", "In this browser"]);
+    expect(groups[0]?.findAll("label").map((l) => l.text())).toEqual(["Alert", "Command", "Alert for a new message", "Sound", "Pop-up"]);
+    expect(groups[0]?.findAll("button").map((b) => b.text())).toEqual(["Test", "Test sound", "Test pop-up"]);
+  });
+
   it("is off on the loopback: a message to us makes no sound there", async () => {
     stubBrowser();
     const { socket } = await open();

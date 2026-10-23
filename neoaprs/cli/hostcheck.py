@@ -1,9 +1,12 @@
 """What on this computer keeps a serial port from working, as `neoaprs doctor` and `neoaprs service install` say it: the user is not in the group that owns the serial devices, and the programs
-(brltty, ModemManager) that take a USB serial adapter for a braille display or a modem as soon as it is plugged in. Linux only; elsewhere there is nothing to say."""
+(brltty, ModemManager) that take a USB serial adapter for a braille display or a modem as soon as it is plugged in, and Firefox as a Flatpak on KDE, whose web pop-ups (what the page's alert shows) go to a desktop
+portal that accepts them and shows nothing. Linux only; elsewhere there is nothing to say."""
 import glob
 import os
 import shutil
+import subprocess
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -87,3 +90,54 @@ def brltty_installed() -> bool:
 
 def modemmanager_installed() -> bool:
     return sys.platform == "linux" and _installed("ModemManager", MODEMMANAGER_FILES)
+
+
+FIREFOX_FLATPAK = "org.mozilla.firefox"
+NOTIFICATIONS_BUS_NAME = "org.freedesktop.Notifications"
+IGNORE_PORTAL = "NOTIFY_IGNORE_PORTAL=1"
+FLATPAK_WAIT_SEC = 10
+
+# runs `flatpak ARGS` and gives (exit status, standard output); (1, "") when it cannot run
+FlatpakRun = Callable[[list[str]], tuple[int, str]]
+
+
+@dataclass(frozen=True)
+class FlatpakFirefox:
+    status: str                 # "ok" (pop-ups go to the desktop's notification service) or "missing" (they go to a portal that may show none)
+    fix: str                    # the commands that cure it, one after the other; empty when ok
+
+
+def run_flatpak(args: list[str]) -> tuple[int, str]:
+    try:
+        done = subprocess.run(["flatpak", *args], capture_output=True, text=True, timeout=FLATPAK_WAIT_SEC, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return 1, ""
+    return done.returncode, done.stdout
+
+
+def firefox_flatpak(run: FlatpakRun = run_flatpak, desktop: str | None = None, flatpak_installed: bool | None = None) -> FlatpakFirefox | None:
+    """Whether Firefox is a Flatpak that, on KDE, may lose its web pop-ups: it hands them to the desktop portal, and the KDE portal accepts them and never shows them. The cure is to let Firefox talk to the
+    notification service itself and to tell it not to use the portal. None where this does not apply: not Linux, not KDE, no `flatpak`, or Firefox is not installed as a Flatpak. Read-only: only `flatpak info` and
+    `flatpak override --show` run."""
+    if not _linux():
+        return None
+    where = os.environ.get("XDG_CURRENT_DESKTOP", "") if desktop is None else desktop
+    if "KDE" not in where.upper().split(":"):
+        return None
+    if not (shutil.which("flatpak") is not None if flatpak_installed is None else flatpak_installed):
+        return None
+    if run(["info", FIREFOX_FLATPAK])[0] != 0:
+        return None
+    settings = "\n".join(
+        run(args)[1]
+        for args in (["override", "--user", "--show", FIREFOX_FLATPAK], ["override", "--system", "--show", FIREFOX_FLATPAK], ["info", "--show-permissions", FIREFOX_FLATPAK])
+    )
+    lines = {line.strip() for line in settings.splitlines()}
+    fix = []
+    if not lines & {f"{NOTIFICATIONS_BUS_NAME}=talk", f"{NOTIFICATIONS_BUS_NAME}=own"}:
+        fix.append(f"flatpak override --user --talk-name={NOTIFICATIONS_BUS_NAME} {FIREFOX_FLATPAK}")
+    if IGNORE_PORTAL not in lines:
+        fix.append(f"flatpak override --user --env={IGNORE_PORTAL} {FIREFOX_FLATPAK}")
+    if not fix:
+        return FlatpakFirefox("ok", "")
+    return FlatpakFirefox("missing", "\n      ".join([*fix, "then restart Firefox"]))

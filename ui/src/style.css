@@ -1216,6 +1216,12 @@ tbody tr:focus-visible {
   padding: 0 6px;
   font-weight: 600;
 }
+.settings .subgroup {
+  margin: 10px 0 2px;
+  font-size: 0.9em;
+  font-weight: 600;
+  color: var(--muted);
+}
 .field {
   display: grid;
   grid-template-columns: minmax(7em, 36%) 1fr;

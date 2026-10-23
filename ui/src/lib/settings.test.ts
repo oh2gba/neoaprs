@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { CONFIG_KEYS } from "@/protocol/lists";
-import { FIELDS, changedValues, errorKey, errorReason, groupKeys } from "@/lib/settings";
+import { FIELDS, SUBGROUPS, changedValues, errorKey, errorReason, groupKeys } from "@/lib/settings";
 
 describe("groupKeys", () => {
-  it("gives the Settings tab the serial and TNC, web, log, messaging and map keys, in the daemon's order", () => {
+  it("gives the Settings tab the serial and TNC, web, log, messaging, notifications and map keys, in the daemon's order", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "settings");
-    expect(groups.map((g) => g.id)).toEqual(["serial", "web", "log", "messages", "map", "update"]);
+    expect(groups.map((g) => g.id)).toEqual(["serial", "web", "log", "messages", "notifications", "map", "update"]);
     expect(groups[0]?.keys).toEqual([
       "tnc/profile",
       "serial/port",
@@ -17,9 +17,11 @@ describe("groupKeys", () => {
       "serial/skip",
       "tnc/check_sec",
     ]);
-    expect(groups[3]?.keys).toEqual(["messages/attempts", "messages/alert", "messages/alert_command"]);
-    expect(groups[4]?.keys).toEqual(["map/hide_after_min", "map/radius_km", "map/maxzoom", "map/source"]);
-    expect(groups[5]?.keys).toEqual(["update/check", "update/url"]);
+    expect(groups[3]?.keys).toEqual(["messages/attempts"]);
+    expect(groups[4]?.title).toBe("Notifications");
+    expect(groups[4]?.keys).toEqual(["messages/alert", "messages/alert_command"]);
+    expect(groups[5]?.keys).toEqual(["map/hide_after_min", "map/radius_km", "map/maxzoom", "map/source"]);
+    expect(groups[6]?.keys).toEqual(["update/check", "update/url"]);
   });
   it("gives the Beacon tab the station keys first (the call is its first field), then the beacon keys and the status keys", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "beacon");
@@ -49,6 +51,11 @@ describe("groupKeys", () => {
       ["web", ["web/port"]],
       ["other", ["mystery/key"]],
     ]);
+  });
+  it("heads the daemon's own alert in the Notifications group with a line that says where it runs", () => {
+    expect(SUBGROUPS["messages/alert"]?.text).toBe("On the NeoAPRS computer");
+    expect(Object.keys(SUBGROUPS)).toEqual(["messages/alert"]);
+    expect([FIELDS["messages/alert"]?.label, FIELDS["messages/alert_command"]?.label]).toEqual(["Alert", "Command"]);
   });
   it("keeps the timeout of the map in a group of its own", () => {
     expect(groupKeys(["web/port", "map/hide_after_min"]).map((g) => g.id)).toEqual(["web", "map"]);

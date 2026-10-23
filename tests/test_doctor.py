@@ -1,5 +1,5 @@
 """`neoaprs doctor`: the checklist on a temporary data folder: each check ok, warn or fail with its fix, the exit code, and the pieces that tell about the computer (the group of the serial devices, brltty and
-ModemManager, the ports, a daemon that holds the data folder). The ports are listed by a stand-in; nothing is opened, written or sent."""
+ModemManager, Firefox as a Flatpak, the ports, a daemon that holds the data folder). The ports are listed by a stand-in; nothing is opened, written or sent."""
 import http.server
 import sqlite3
 import sys
@@ -24,6 +24,7 @@ def this_computer(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(doctor, "serial_group_check", lambda: hostcheck.GroupCheck("ok", "dialout", ""))
     monkeypatch.setattr(doctor, "brltty_installed", lambda: False)
     monkeypatch.setattr(doctor, "modemmanager_installed", lambda: False)
+    monkeypatch.setattr(doctor, "firefox_flatpak", lambda: None)
 
 
 def run(data: Path, capsys: pytest.CaptureFixture[str]) -> tuple[int, str]:
@@ -236,3 +237,99 @@ def test_brltty_and_modemmanager_are_found_by_their_programs_or_their_files(tmp_
     assert hostcheck.modemmanager_installed()
     monkeypatch.setattr(hostcheck.sys, "platform", "win32")
     assert not hostcheck.brltty_installed() and not hostcheck.modemmanager_installed()
+
+
+# ---- Firefox as a Flatpak on KDE ----
+
+NO_OVERRIDES = ""
+BOTH_OVERRIDES = "[Session Bus Policy]\norg.freedesktop.Notifications=talk\n\n[Environment]\nNOTIFY_IGNORE_PORTAL=1\n"
+
+
+def fake_flatpak(installed: bool = True, user: str = NO_OVERRIDES, system: str = NO_OVERRIDES, permissions: str = "[Session Bus Policy]\norg.freedesktop.portal.Desktop=talk\n") -> tuple[list[list[str]], hostcheck.FlatpakRun]:
+    """A `flatpak` that answers from the text it is given and records what it was asked."""
+    asked: list[list[str]] = []
+
+    def run(args: list[str]) -> tuple[int, str]:
+        asked.append(args)
+        if args[0] == "info" and len(args) == 2:
+            return (0, "Firefox") if installed else (1, "")
+        if args[:3] == ["override", "--user", "--show"]:
+            return 0, user
+        if args[:3] == ["override", "--system", "--show"]:
+            return 0, system
+        if args[:2] == ["info", "--show-permissions"]:
+            return 0, permissions
+        raise AssertionError(f"a command that may change something: {args}")
+
+    return asked, run
+
+
+@pytest.fixture
+def on_linux(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(hostcheck.sys, "platform", "linux")
+
+
+def test_firefox_as_a_flatpak_on_kde_without_the_overrides_is_missing_both_commands(on_linux: None) -> None:
+    asked, run = fake_flatpak()
+    check = hostcheck.firefox_flatpak(run, "KDE", True)
+    assert check is not None and check.status == "missing"
+    lines = check.fix.splitlines()
+    assert lines[0] == "flatpak override --user --talk-name=org.freedesktop.Notifications org.mozilla.firefox"
+    assert lines[1].strip() == "flatpak override --user --env=NOTIFY_IGNORE_PORTAL=1 org.mozilla.firefox"
+    assert lines[2].strip() == "then restart Firefox"
+    assert asked == [
+        ["info", "org.mozilla.firefox"],
+        ["override", "--user", "--show", "org.mozilla.firefox"],
+        ["override", "--system", "--show", "org.mozilla.firefox"],
+        ["info", "--show-permissions", "org.mozilla.firefox"],
+    ]
+
+
+def test_one_override_that_is_there_is_not_asked_for_again(on_linux: None) -> None:
+    check = hostcheck.firefox_flatpak(fake_flatpak(user="[Environment]\nNOTIFY_IGNORE_PORTAL=1\n")[1], "KDE", True)
+    assert check is not None and check.status == "missing" and "NOTIFY_IGNORE_PORTAL" not in check.fix and "--talk-name=org.freedesktop.Notifications" in check.fix
+    check = hostcheck.firefox_flatpak(fake_flatpak(user="[Session Bus Policy]\norg.freedesktop.Notifications=talk\n")[1], "KDE", True)
+    assert check is not None and "--env=NOTIFY_IGNORE_PORTAL=1" in check.fix and "--talk-name" not in check.fix
+
+
+def test_the_overrides_are_found_wherever_they_are_set(on_linux: None) -> None:
+    runs = (
+        fake_flatpak(user=BOTH_OVERRIDES)[1],
+        fake_flatpak(system=BOTH_OVERRIDES)[1],
+        fake_flatpak(user="[Environment]\nNOTIFY_IGNORE_PORTAL=1\n", permissions="[Session Bus Policy]\norg.freedesktop.Notifications=talk\n")[1],
+    )
+    for run in runs:
+        assert hostcheck.firefox_flatpak(run, "KDE", True) == hostcheck.FlatpakFirefox("ok", "")
+
+
+def test_it_does_not_apply_without_kde_a_flatpak_command_or_a_flatpak_firefox(monkeypatch: pytest.MonkeyPatch, on_linux: None) -> None:
+    run = fake_flatpak()[1]
+    assert hostcheck.firefox_flatpak(run, "GNOME", True) is None
+    assert hostcheck.firefox_flatpak(run, "", True) is None
+    assert hostcheck.firefox_flatpak(run, "KDE", False) is None
+    assert hostcheck.firefox_flatpak(fake_flatpak(installed=False)[1], "KDE", True) is None
+    assert hostcheck.firefox_flatpak(run, "ubuntu:KDE", True) is not None
+    monkeypatch.setattr(hostcheck.sys, "platform", "win32")
+    assert hostcheck.firefox_flatpak(run, "KDE", True) is None
+
+
+def test_the_desktop_comes_from_the_environment_and_flatpak_from_the_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, on_linux: None) -> None:
+    monkeypatch.setenv("XDG_CURRENT_DESKTOP", "KDE")
+    monkeypatch.setenv("PATH", str(tmp_path / "empty"))
+    assert hostcheck.firefox_flatpak(fake_flatpak()[1]) is None
+
+
+def test_the_flatpak_runner_survives_a_missing_program(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("PATH", str(tmp_path / "empty"))
+    assert hostcheck.run_flatpak(["info", "org.mozilla.firefox"]) == (1, "")
+
+
+def test_the_doctor_warns_with_the_commands_for_firefox_as_a_flatpak(tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
+    fix = "flatpak override --user --talk-name=org.freedesktop.Notifications org.mozilla.firefox\n      then restart Firefox"
+    monkeypatch.setattr(doctor, "firefox_flatpak", lambda: hostcheck.FlatpakFirefox("missing", fix))
+    code, out = run(tmp_path / "data", capsys)
+    assert code == 0
+    assert "warn  Firefox is a Flatpak: on KDE its web pop-ups can go missing" in out
+    assert "fix: flatpak override --user --talk-name=org.freedesktop.Notifications org.mozilla.firefox" in out
+    monkeypatch.setattr(doctor, "firefox_flatpak", lambda: hostcheck.FlatpakFirefox("ok", ""))
+    assert "ok    Firefox is a Flatpak: its web pop-ups go to the desktop's notification service" in run(tmp_path / "data", capsys)[1]

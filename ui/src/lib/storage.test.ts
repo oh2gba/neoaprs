@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { readStored, readStoredNumber, writeStored } from "@/lib/storage";
+import { readStored, readStoredNumber, removeStored, writeStored } from "@/lib/storage";
 import { readView, writeView } from "@/lib/mapview";
 
 afterEach(() => {
@@ -12,6 +12,11 @@ describe("storage", () => {
     writeStored("a", "b");
     expect(readStored("a")).toBe("b");
     expect(readStored("missing")).toBeNull();
+  });
+  it("removes a text", () => {
+    writeStored("a", "b");
+    removeStored("a");
+    expect(readStored("a")).toBeNull();
   });
   it("reads a number inside its limits, else the fallback", () => {
     writeStored("n", "300");
