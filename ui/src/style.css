@@ -469,7 +469,6 @@ tbody tr:focus-visible {
   white-space: nowrap;
 }
 .grid.stations td.direct {
-  width: 1%;
   padding-left: 0;
   padding-right: 0;
 }
@@ -482,15 +481,15 @@ tbody tr:focus-visible {
   padding-left: 0;
   padding-right: 4px;
   text-align: center;
-  color: var(--muted);
+}
+.grid.stations td:not(:last-child) {
+  width: 1%;
 }
 .grid.stations .arrow {
   display: inline-block;
-  font-weight: 700;
-  line-height: 1;
+  vertical-align: middle;
 }
 .grid.stations td.symbol {
-  width: 1%;
   padding-right: 0;
 }
 .packet-detail {
@@ -680,6 +679,10 @@ tbody tr:focus-visible {
   padding-top: 0;
 }
 .card-foot {
+  /* the buttons stay in view when the card scrolls (a phone) */
+  position: sticky;
+  bottom: 0;
+  background: var(--panel);
   display: flex;
   gap: 8px;
   padding: 6px 10px 10px;
@@ -1749,7 +1752,25 @@ tbody tr:focus-visible {
   .card {
     bottom: 10px;
     /* the map above the card stays free for the marker of the station, and for the zoom buttons */
-    max-height: calc(100% - 144px);
+    max-height: calc(100% - 134px);
+  }
+  /* a closer card, so that its buttons fit under the facts */
+  .card-head {
+    padding-top: 4px;
+    padding-bottom: 0;
+  }
+  .card-fields {
+    gap: 0 12px;
+    padding-top: 2px;
+    padding-bottom: 4px;
+  }
+  .card-details > summary {
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+  .card-foot {
+    padding-top: 4px;
+    padding-bottom: 8px;
   }
 }
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // What the daemon knows of one station, as a card over the map, in the few facts a person asks for: the symbol with its name and a green check mark beside the call for a station that was heard direct (no repeater), when it was last heard ("6 min ago", the full time when the mouse rests on it), the position and how far and in which direction it is from us, how fast it moves (only a station that does),
 // the altitude, the status and the comment, and one line of how its packets reach us ("Reached us via OH2RCH-2", or "direct"). A row with nothing to say is left out. The rest is under "Details", closed (components/StationDetails.vue: the path as it was sent, the counts of the routes, the best route, when it was first heard, the packets, the decoded extras).
-// A weather station (the weather symbol, or one that has sent weather) has its weather panel at the top (components/WeatherPanel.vue). "Message" opens the Messages tab with the station as the addressee, where the path its messages go by and RF only are set; the timeout field is how long it stays on the map.
+// A weather station (the weather symbol, or one that has sent weather) has its weather panel at the top (components/WeatherPanel.vue). "Message" opens the Messages tab with the station as the addressee, where the path its messages go by and RF only are set; the timeout field, under Details, is how long it stays on the map.
 // "Forget" takes it out of the station book (it is back when it is heard again); it asks twice, and forgets the first click after 5 s like the other buttons that ask twice (`useSure`). An object or an item of ours has "Edit" (the Objects tab opens with it) and "Kill" (it asks twice, too) in place of "Message" and "Forget", and none of the fields of a station that is heard.
 import { computed, watch } from "vue";
 import IconButton from "@/components/IconButton.vue";
@@ -112,10 +112,11 @@ const reached = computed(() => (props.row.kind === "station" && !props.row.is_me
         <dd><RouteText :text="reached" /></dd>
       </template>
     </dl>
-    <StationDetails :row="row" />
-    <div v-if="!row.is_me && !row.own" class="card-path">
-      <StationTimeout :call="row.call" :aging="aging" @set="(c, m) => emit('timeout', c, m)" @clear="emit('clearTimeout', $event)" />
-    </div>
+    <StationDetails :row="row">
+      <div v-if="!row.is_me && !row.own" class="card-path">
+        <StationTimeout :call="row.call" :aging="aging" @set="(c, m) => emit('timeout', c, m)" @clear="emit('clearTimeout', $event)" />
+      </div>
+    </StationDetails>
     <footer v-if="row.own" class="card-foot">
       <button class="btn primary" type="button" @click="emit('edit', row.call)">Edit</button>
       <button class="btn forget" :class="{ danger: armed }" type="button" @click="kill">{{ armed ? "Really kill?" : "Kill" }}</button>

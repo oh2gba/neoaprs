@@ -88,7 +88,22 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
             <td class="direct"><DirectMark v-if="heardDirect(row)" /></td>
             <td class="num">{{ distanceText(row.distance_km) }}</td>
             <td class="bearing" :title="bearingTitle(row.bearing_deg)">
-              <span v-if="row.bearing_deg !== null" class="arrow" :style="{ transform: `rotate(${row.bearing_deg}deg)` }" aria-hidden="true">&uarr;</span>
+              <svg
+                v-if="row.bearing_deg !== null"
+                class="arrow"
+                width="14"
+                height="14"
+                viewBox="0 0 14 14"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                :style="{ transform: `rotate(${row.bearing_deg}deg)` }"
+                aria-hidden="true"
+              >
+                <path d="M7 12.5V2M3 6l4-4 4 4" />
+              </svg>
               <span v-if="row.bearing_deg !== null" class="sr-only">{{ bearingTitle(row.bearing_deg) }}</span>
             </td>
             <td class="num" :title="dateTimeText(row.last_heard)">

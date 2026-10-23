@@ -368,7 +368,7 @@ describe("StationCard", () => {
 
   it("keeps the card clear of the zoom buttons of the map and, on a phone, leaves room above it for the marker", () => {
     expect(cssRule(".card")).toMatch(/max-height:\s*calc\(100% - 114px\)/);
-    expect(mediaRule("(max-width: 800px)", ".card")).toMatch(/max-height:\s*calc\(100% - 144px\)/);
+    expect(mediaRule("(max-width: 800px)", ".card")).toMatch(/max-height:\s*calc\(100% - 134px\)/);
   });
 
   it("puts the weather panel at the top of a weather station's card, above the fields", () => {
