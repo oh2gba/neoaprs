@@ -221,6 +221,7 @@ function onPick(at: Home): void {
             :thread="mail.thread.value"
             :connected="connected"
             :addresses="mail.addresses.value"
+            :fresh-after="mail.freshAfter.value"
             :heard-direct="heardDirect"
             @send="mail.sendMail"
             @forget="mail.forget"
@@ -228,6 +229,7 @@ function onPick(at: Home): void {
             @list="mail.listShortcuts"
             @remove="mail.removeShortcut"
             @get="mail.getHeld"
+            @delete="mail.remove"
             @retry="send({ cmd: 'message_retry', id: $event })"
             @cancel="send({ cmd: 'message_cancel', id: $event })"
           />

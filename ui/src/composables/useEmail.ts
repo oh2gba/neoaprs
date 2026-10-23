@@ -1,6 +1,6 @@
 // The Email tab as the page runs it: the thread with the gateway EMAIL-2, how many of its messages are not seen (only while the Email tab is on show, the panel open and the page visible, lib/unread.ts),
 // the addressees used before, and the messages the tab sends: mail, a new shortcut, and the gateway's own commands. The daemon sends a message to the gateway twice at most, the gateway's acks reaching a station only through an iGate.
-import { computed, watch } from "vue";
+import { computed, shallowRef, watch } from "vue";
 import { useAddressBook } from "@/composables/useAddressBook";
 import { useReadMarks } from "@/composables/useConversations";
 import type { Panel } from "@/composables/usePanel";
@@ -18,10 +18,14 @@ export function useEmail(messages: ReadonlyMap<string, MessageRow>, panel: Panel
   const thread = computed(() => threadOf(messages.values(), EMAIL_GATEWAY));
   const unread = computed(() => threadUnread(thread.value, marks.readUpTo(EMAIL_GATEWAY)));
 
+  // The rows that came in after `freshAfter` are shown as new (bold): the mark of what was seen when the tab last came on show, so that they stay new for as long as the tab is open and are not new the next time.
+  const freshAfter = shallowRef(marks.readUpTo(EMAIL_GATEWAY));
   watch(
     [viewing, () => newestIncomingId(thread.value)],
-    ([showing, newest]) => {
-      if (showing) marks.mark(EMAIL_GATEWAY, newest);
+    ([showing, newest], [wasShowing]) => {
+      if (!showing) return;
+      if (!wasShowing) freshAfter.value = marks.readUpTo(EMAIL_GATEWAY);
+      marks.mark(EMAIL_GATEWAY, newest);
     },
     { immediate: true },
   );
@@ -44,9 +48,14 @@ export function useEmail(messages: ReadonlyMap<string, MessageRow>, panel: Panel
   const removeShortcutNamed = (name: string): void => viaGateway(null, removeShortcut(name));
   const getHeld = (): void => viaGateway(null, GET_HELD);
 
+  /** Takes a row out of the list (the daemon deletes it; a mail still being sent is cancelled first). */
+  const remove = (id: number): void => void send({ cmd: "message_delete", id });
+
   return {
     thread,
     unread,
+    freshAfter,
+    remove,
     addresses: book.addresses,
     forget: book.forget,
     sendMail,

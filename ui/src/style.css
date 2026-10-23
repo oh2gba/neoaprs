@@ -1220,52 +1220,215 @@ tbody tr:focus-visible {
   line-height: 1.4;
 }
 
-/* the email tab */
+/* the email tab: the buttons on top, a form under them while one is open, the mail list */
 .mailpane {
   display: flex;
   flex: 1;
   flex-direction: column;
   min-height: 0;
 }
-.mailpane .compose {
-  border-top: 0;
+.mail-bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
   border-bottom: 1px solid var(--border);
 }
-.mail-to {
-  flex: 1;
+.mail-bar .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.mail-bar .info-text {
+  right: 0;
+  left: auto;
+}
+.mail-menu {
+  position: relative;
+}
+.menu-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 6;
+  min-width: 100%;
+  margin: 4px 0 0;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  list-style: none;
+  white-space: nowrap;
+}
+.menu-item {
+  display: block;
+  width: 100%;
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.menu-item:hover,
+.menu-item:focus-visible {
+  background: var(--row-hover);
+}
+.menu-item:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.mailform {
+  display: grid;
+  flex: none;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--row-hover);
+}
+.mailform > label {
+  font-weight: 600;
+}
+.mailform-actions {
+  display: flex;
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.mailform-actions .compose-left {
+  margin-right: auto;
+}
+.mail-address {
+  position: relative;
+  display: flex;
   min-width: 0;
 }
-.addresses {
+.mail-address .input {
+  flex: 1;
+}
+.suggestions {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  z-index: 6;
+  max-height: 40vh;
+  margin: 2px 0 0;
+  padding: 2px 4px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  list-style: none;
+}
+.suggestion {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px 8px;
+  align-items: center;
+}
+.suggestion-pick {
+  flex: 1;
+  min-width: 0;
+  min-height: 32px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-size: 13px;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.suggestion-pick:hover,
+.suggestion-pick:focus-visible {
+  color: var(--accent);
+}
+.maillist-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.maillist {
   margin: 0;
   padding: 0;
   list-style: none;
 }
-.address {
-  display: inline-flex;
-  align-items: center;
-}
-.mailpane .compose .toolbar {
-  padding: 0;
-}
-.mail-tools {
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  gap: 6px;
-  padding: 6px 8px;
+.mail {
+  padding: 6px 10px;
   border-bottom: 1px solid var(--border);
 }
-.mail-row {
+.mail.fresh {
+  background: var(--row-selected);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.mail.fresh .mail-title,
+.mail.fresh .mail-text {
+  font-weight: 700;
+}
+.mail-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+.mail-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.mail-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.mail-text {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mail.open .mail-text {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.mail-delete {
+  margin: -5px -6px -5px 0;
+}
+.mail-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 8px;
+  gap: 2px 8px;
+  margin: 0;
+  font-size: 12px;
 }
-.mail-shortcut .input {
-  width: 10em;
+.mail-state.tone-ok {
+  color: var(--ok);
+}
+.mail-state.tone-bad {
+  color: var(--bad);
+}
+.mail-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+  font-size: 12px;
 }
 .msg-from {
   font-size: 12px;
@@ -2056,24 +2219,6 @@ button.linkbtn {
 .updatepanel-foot {
   margin: 8px 0 0;
   font-size: 12px;
-}
-
-/* the Email tab's shortcut: the name and the address one under the other, the three actions on a line of their own */
-.mail-shortcut {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 6px 10px;
-  align-items: center;
-  margin-top: 6px;
-}
-.mail-shortcut-head,
-.mail-shortcut-buttons {
-  grid-column: 1 / -1;
-}
-.mail-shortcut-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
 }
 
 /* a heading that opens what is under it (DisclosureBox), and the radio status of the Settings tab */

@@ -88,6 +88,34 @@ describe("useEmail: what the page sends", () => {
   });
 });
 
+describe("useEmail: the new rows and Delete", () => {
+  const rows = [incoming(2, "EMAIL-2", { text: "held mail" }), incoming(3, "EMAIL-2", { text: "more" })];
+
+  it("takes what came in since the tab was last on show for new, for as long as the tab stays on show", async () => {
+    const { panel, messages, mail } = setUp(undefined, ...rows);
+    expect(mail.freshAfter.value).toBe(0);
+    panel.show("email");
+    await nextTick();
+    expect(mail.freshAfter.value).toBe(0);
+    messages.set("4", incoming(4, "EMAIL-2"));
+    await nextTick();
+    expect(mail.freshAfter.value).toBe(0);
+    expect(mail.unread.value).toBe(0);
+    panel.show("packets");
+    await nextTick();
+    panel.show("email");
+    await nextTick();
+    expect(mail.freshAfter.value).toBe(4);
+  });
+
+  it("asks the daemon to delete a row", () => {
+    const { send, mail } = setUp();
+    mail.remove(7);
+    expect(send).toHaveBeenLastCalledWith({ cmd: "message_delete", id: 7 });
+    expect(mail.addresses.value).toEqual([]);
+  });
+});
+
 describe("useEmail: the thread and the badge", () => {
   const rows = [
     message(1, { to_call: "EMAIL-2", text: "me hello" }),

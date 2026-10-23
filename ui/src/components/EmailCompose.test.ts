@@ -3,17 +3,22 @@ import { describe, expect, it } from "vitest";
 import EmailCompose from "@/components/EmailCompose.vue";
 
 function box(extra: Record<string, unknown> = {}) {
-  return mount(EmailCompose, { props: { connected: true, addresses: [], ...extra } });
+  return mount(EmailCompose, { props: { connected: true, addresses: [], ...extra }, attachTo: document.body });
 }
 const send = (wrapper: ReturnType<typeof box>) => wrapper.find<HTMLButtonElement>("button[type='submit']");
+const picks = (wrapper: ReturnType<typeof box>) => wrapper.findAll(".suggestion-pick").map((b) => b.text());
 
 describe("EmailCompose", () => {
-  it("is the box Send an email, with To and Text", () => {
+  it("is the form New email, with To, Text, the count and Cancel and Send, and the focus in To", () => {
     const wrapper = box();
-    expect(wrapper.find("strong").text()).toBe("Send an email");
+    expect(wrapper.attributes("aria-label")).toBe("New email");
+    expect(wrapper.find("label[for='mail-to']").text()).toBe("To");
     expect(wrapper.find("#mail-to").attributes("placeholder")).toBe("Address or shortcut");
     expect(wrapper.find("#mail-text").attributes("placeholder")).toBe("Text");
+    expect(wrapper.findAll("button").map((b) => b.text())).toEqual(["Cancel", "Send"]);
     expect(wrapper.findAll("p")).toHaveLength(0);
+    expect(document.activeElement).toBe(wrapper.find("#mail-to").element);
+    wrapper.unmount();
   });
 
   it("counts the characters left of 67 over the address, the space and the text", async () => {
@@ -26,6 +31,7 @@ describe("EmailCompose", () => {
     await wrapper.find("#mail-text").setValue("å".repeat(32) + "x");
     expect(wrapper.find(".compose-left").text()).toBe("1 over");
     expect(wrapper.find(".compose-left").classes()).toContain("over");
+    wrapper.unmount();
   });
 
   it("has Send off with no addressee, no text, a line that is too long, or the TNC not connected", async () => {
@@ -44,37 +50,79 @@ describe("EmailCompose", () => {
     expect(send(wrapper).attributes("title")).toBe("The TNC is not connected");
     await wrapper.find("form").trigger("submit");
     expect(wrapper.emitted("send")).toBeUndefined();
+    wrapper.unmount();
   });
 
-  it("sends the addressee as typed, not in capitals, and empties the text but not the addressee", async () => {
+  it("sends the addressee as typed, not in capitals", async () => {
     const wrapper = box();
     await wrapper.find("#mail-to").setValue(" jane@Example.com ");
     await wrapper.find("#mail-text").setValue("Hello");
     await wrapper.find("form").trigger("submit");
     expect(wrapper.emitted("send")).toEqual([["jane@Example.com", "Hello"]]);
-    expect(wrapper.find<HTMLInputElement>("#mail-text").element.value).toBe("");
-    expect(wrapper.find<HTMLInputElement>("#mail-to").element.value).toBe("jane@Example.com");
+    wrapper.unmount();
   });
 
-  it("lists the addressees used before, and a click puts one in To", async () => {
-    const wrapper = box({ addresses: ["me", "jane@example.com"] });
-    expect(wrapper.findAll(".address-pick").map((b) => b.text())).toEqual(["me", "jane@example.com"]);
-    await wrapper.findAll(".address-pick")[1]?.trigger("click");
+  it("cancels with Cancel and with Esc", async () => {
+    const wrapper = box();
+    await wrapper.findAll("button")[0]?.trigger("click");
+    await wrapper.find("form").trigger("keydown", { key: "Escape" });
+    expect(wrapper.emitted("cancel")).toHaveLength(2);
+    wrapper.unmount();
+  });
+});
+
+describe("EmailCompose: the addressees used before", () => {
+  const used = ["me", "jane@example.com", "bob@example.org"];
+
+  it("lists them under To while it has the focus, and a click puts one in To and moves on to the text", async () => {
+    const wrapper = box({ addresses: used });
+    await wrapper.find("#mail-to").trigger("focus");
+    expect(picks(wrapper)).toEqual(used);
+    await wrapper.findAll(".suggestion-pick")[1]?.trigger("click");
     expect(wrapper.find<HTMLInputElement>("#mail-to").element.value).toBe("jane@example.com");
+    expect(wrapper.find(".suggestions").exists()).toBe(false);
+    expect(document.activeElement).toBe(wrapper.find("#mail-text").element);
     expect(wrapper.emitted("send")).toBeUndefined();
+    wrapper.unmount();
   });
 
-  it("forgets an addressee with its x, without putting it in To", async () => {
-    const wrapper = box({ addresses: ["me", "jane@example.com"] });
-    const x = wrapper.findAll(".address-forget");
-    expect(x.map((b) => b.text())).toEqual(["", ""]);
+  it("lists only the ones that match what is typed, and not the one that is typed whole", async () => {
+    const wrapper = box({ addresses: used });
+    await wrapper.find("#mail-to").setValue("example");
+    expect(picks(wrapper)).toEqual(["jane@example.com", "bob@example.org"]);
+    await wrapper.find("#mail-to").setValue("J");
+    expect(picks(wrapper)).toEqual(["jane@example.com"]);
+    await wrapper.find("#mail-to").setValue("ME");
+    expect(wrapper.find(".suggestions").exists()).toBe(false);
+    await wrapper.find("#mail-to").setValue("nobody");
+    expect(wrapper.find(".suggestions").exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("forgets an addressee with its trash can, without putting it in To", async () => {
+    const wrapper = box({ addresses: used });
+    await wrapper.find("#mail-to").trigger("focus");
+    const x = wrapper.findAll(".suggestion .xbtn");
+    expect(x.map((b) => b.text())).toEqual(["", "", ""]);
     expect(x[0]?.attributes("title")).toBe("Forget me");
     await x[0]?.trigger("click");
     expect(wrapper.emitted("forget")).toEqual([["me"]]);
     expect(wrapper.find<HTMLInputElement>("#mail-to").element.value).toBe("");
+    wrapper.unmount();
   });
 
-  it("shows no list with no addressee used", () => {
-    expect(box().find(".addresses").exists()).toBe(false);
+  it("closes the list on Esc (the form stays) and when the focus leaves, and lists nothing with no addressee used", async () => {
+    const wrapper = box({ addresses: used });
+    await wrapper.find("#mail-to").trigger("focus");
+    await wrapper.find("form").trigger("keydown", { key: "Escape" });
+    expect(wrapper.find(".suggestions").exists()).toBe(false);
+    expect(wrapper.emitted("cancel")).toBeUndefined();
+    await wrapper.find("#mail-to").trigger("focus");
+    await wrapper.find("#mail-to").trigger("focusout", { relatedTarget: document.body });
+    expect(wrapper.find(".suggestions").exists()).toBe(false);
+    await wrapper.setProps({ addresses: [] });
+    await wrapper.find("#mail-to").trigger("focus");
+    expect(wrapper.find(".suggestions").exists()).toBe(false);
+    wrapper.unmount();
   });
 });
