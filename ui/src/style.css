@@ -1602,7 +1602,7 @@ tbody tr:focus-visible {
   line-height: 1.4;
 }
 
-/* the email tab: the buttons on top, a form under them while one is open, the mail list */
+/* the email tab: the button and the (i) on top, the mail list, the box to write in at the bottom */
 .mailpane {
   display: flex;
   flex: 1;
@@ -1626,68 +1626,6 @@ tbody tr:focus-visible {
 .mail-bar .info-text {
   right: 0;
   left: auto;
-}
-.contacts {
-  flex: none;
-  max-height: 60vh;
-  overflow-y: auto;
-  border-bottom: 1px solid var(--border);
-  background: var(--row-hover);
-}
-.contact-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.contact {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px 10px;
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--border);
-}
-.contact-who {
-  display: flex;
-  flex: 1 1 12em;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0 8px;
-  min-width: 0;
-}
-.contact-name {
-  font-weight: 600;
-}
-.contact-address {
-  font-size: 13px;
-  overflow-wrap: anywhere;
-}
-.contact-state {
-  font-size: 12px;
-}
-.contact-actions {
-  display: flex;
-  flex: none;
-  gap: 6px;
-}
-.contact-actions .btn {
-  min-height: 28px;
-}
-.contact-actions .btn:last-child {
-  min-width: 4.8em;
-}
-.contacts .contact-add {
-  border-top: 0;
-  background: none;
-}
-.contacts > .empty {
-  padding: 8px 10px 0;
-  text-align: left;
-}
-.suggestion-pick .suggestion-hint {
-  margin-left: 8px;
-  font-size: 12px;
 }
 .mailfields {
   display: grid;

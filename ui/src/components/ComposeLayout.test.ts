@@ -79,35 +79,27 @@ describe("Bulletins", () => {
 });
 
 describe("Email", () => {
-  it("opens the form at the bottom, under the list, with the counter, Cancel and Send at its right", async () => {
+  it("has the list and under it, last in the tab, the box with the counter and Send at its right, with no button to open it", () => {
     const wrapper = email();
-    expect(barOf(wrapper).exists()).toBe(false);
-    await wrapper.find(".mail-bar .btn.primary").trigger("click");
     expectAtTheBottom(wrapper, ".maillist-wrap");
-    expectTheBar(wrapper, "Send", "Cancel");
+    expectTheBar(wrapper, "Send", null);
     expect(barOf(wrapper).find(".compose-left").text()).toMatch(/left$/);
     wrapper.unmount();
   });
 
-  it("lists the mail oldest first, the newest at the bottom next to the form", async () => {
+  it("lists the mail oldest first, the newest at the bottom next to the box", () => {
     const wrapper = email();
     expect(wrapper.findAll(".mail").map((m) => m.find(".mail-title").text())).toEqual(["To jane@example.com", "From bob@example.org"]);
-    await wrapper.find(".mail-bar .btn.primary").trigger("click");
     const newest = wrapper.findAll(".mail").at(-1)?.element ?? document.body;
     expect(newest.compareDocumentPosition(barOf(wrapper).element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     wrapper.unmount();
   });
 
-  it("scrolls the list to the newest when it is shown, when mail comes in and when the form opens", async () => {
+  it("scrolls the list to the newest when mail comes in", async () => {
     const wrapper = email();
     const list = wrapper.find(".maillist-wrap").element;
     Object.defineProperty(list, "scrollHeight", { configurable: true, value: 500 });
     await wrapper.setProps({ thread: [...(wrapper.props("thread") as []), incoming(3, "EMAIL-2", { text: "bob@example.org Again" })] });
-    await wrapper.vm.$nextTick();
-    expect(list.scrollTop).toBe(500);
-    list.scrollTop = 0;
-    await wrapper.find(".mail-bar .btn.primary").trigger("click");
-    await wrapper.vm.$nextTick();
     await wrapper.vm.$nextTick();
     expect(list.scrollTop).toBe(500);
     wrapper.unmount();
@@ -115,22 +107,8 @@ describe("Email", () => {
 
   it("opens the suggestions of the address upward, inside the box", async () => {
     const wrapper = mount(EmailPane, { props: { thread: [], connected: true, addresses: ["carl@example.net"] }, attachTo: document.body });
-    await wrapper.find(".mail-bar .btn.primary").trigger("click");
     await wrapper.find("#mail-to").trigger("focus");
     expect(barOf(wrapper).find(".mail-address .suggestions").exists()).toBe(true);
-    wrapper.unmount();
-  });
-
-  it("has Close left of Add contact, which is the last, in the box of the Contacts panel", async () => {
-    const wrapper = email();
-    await wrapper
-      .findAll(".mail-bar .btn")
-      .find((b) => b.text() === "Contacts")
-      ?.trigger("click");
-    const add = wrapper.find("form.composebar[aria-label='Add contact']");
-    const buttons = add.findAll(".composebar-foot button");
-    expect(buttons.map((b) => b.text())).toEqual(["Close", "Add contact"]);
-    expect(buttons.at(-1)?.classes()).toContain("primary");
     wrapper.unmount();
   });
 });

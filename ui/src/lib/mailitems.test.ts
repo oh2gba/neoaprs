@@ -10,12 +10,15 @@ describe("mailItem: what we sent", () => {
     expect(sent("me hello")).toMatchObject({ kind: "mail", title: "To me", text: "hello" });
   });
 
-  it("reads the gateway's commands in words, with no text line", () => {
-    expect(sent("get")).toMatchObject({ kind: "get", title: "Checked for mail", text: "" });
+  it("reads the get of Check email in words, with no text line", () => {
+    expect(sent("get")).toMatchObject({ kind: "get", title: "Checked email", text: "" });
     expect(sent("GET")).toMatchObject({ kind: "get" });
-    expect(sent("me jane@example.com")).toMatchObject({ kind: "contact", title: "Added contact me (jane@example.com)", text: "" });
-    expect(sent("me L")).toMatchObject({ kind: "list", title: "Asked for the contact list (me)" });
-    expect(sent("me R")).toMatchObject({ kind: "remove", title: "Removed contact me" });
+  });
+
+  it("shows an old shortcut command of the gateway as the plain mail it is on the wire", () => {
+    expect(sent("me jane@example.com")).toMatchObject({ kind: "mail", title: "To me", text: "jane@example.com" });
+    expect(sent("me L")).toMatchObject({ kind: "mail", title: "To me", text: "L" });
+    expect(sent("me R")).toMatchObject({ kind: "mail", title: "To me", text: "R" });
   });
 
   it("keeps a mail to an address whose text is an address, or an L, a mail", () => {

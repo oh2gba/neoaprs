@@ -48,19 +48,8 @@ describe("useEmail: what it sends", () => {
     expect(mail.addresses.value).toEqual([]);
   });
 
-  it("adds a contact by sending the name, a space and the address, and keeps no addressee for it (the Contacts panel lists it)", () => {
+  it("checks the mail by sending the text get, and remembers no addressee for it", () => {
     const { send, mail } = setUp();
-    mail.addContact(" john ", "jane@example.com");
-    expect(send).toHaveBeenLastCalledWith({ cmd: "send_message", to: "EMAIL-2", text: "john jane@example.com" });
-    expect(mail.addresses.value).toEqual([]);
-  });
-
-  it("sends the three commands as the texts name L, name R and get", () => {
-    const { send, mail } = setUp();
-    mail.emailList("me");
-    expect(send).toHaveBeenLastCalledWith({ cmd: "send_message", to: "EMAIL-2", text: "me L" });
-    mail.removeContact("jane");
-    expect(send).toHaveBeenLastCalledWith({ cmd: "send_message", to: "EMAIL-2", text: "jane R" });
     mail.checkMail();
     expect(send).toHaveBeenLastCalledWith({ cmd: "send_message", to: "EMAIL-2", text: "get" });
     expect(mail.addresses.value).toEqual([]);
@@ -68,15 +57,13 @@ describe("useEmail: what it sends", () => {
 });
 
 describe("useEmail: what the page sends", () => {
-  it("sends mail, a new contact and the commands at once as messages to the gateway, with no setting of attempts before them", () => {
+  it("sends mail and the get at once as messages to the gateway, with no setting of attempts before them", () => {
     const { send, mail } = setUp();
     mail.sendMail("me", "Hi");
     mail.checkMail();
-    mail.addContact("jane", "jane@example.com");
     expect(send.mock.calls.map((c) => c[0])).toEqual([
       { cmd: "send_message", to: "EMAIL-2", text: "me Hi" },
       { cmd: "send_message", to: "EMAIL-2", text: "get" },
-      { cmd: "send_message", to: "EMAIL-2", text: "jane jane@example.com" },
     ]);
     expect(mail.addresses.value).toEqual(["me"]);
   });

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// The Email tab's list: every message to and from the gateway EMAIL-2 as a row (EmailRow), the oldest first and scrolled to the newest at the bottom, as the Messages tab is, so that the newest mail is next to the form that opens under it. It fills the
-// height the tab leaves it and scrolls. Rows that came in after `freshAfter` (a message id) are the new ones. `toNewest()` scrolls to the end again (the tab calls it when a form opens or closes and the list changes height).
+// The Email tab's list: every message to and from the gateway EMAIL-2 as a row (EmailRow), the oldest first and scrolled to the newest at the bottom, as the Messages tab is, so that the newest mail is next to the box to write in under it. It fills the
+// height the tab leaves it and scrolls. Rows that came in after `freshAfter` (a message id) are the new ones.
 import { computed, ref } from "vue";
 import EmailRow from "@/components/EmailRow.vue";
 import { useNow } from "@/composables/useNow";
@@ -16,8 +16,7 @@ const emit = defineEmits<{ retry: [id: number]; cancel: [id: number]; delete: [i
 const now = useNow(30000);
 const items = computed(() => mailItems(props.thread));
 const log = ref<HTMLElement | null>(null);
-const toNewest = useToNewest(log, () => props.thread.length);
-defineExpose({ toNewest });
+useToNewest(log, () => props.thread.length);
 </script>
 
 <template>
