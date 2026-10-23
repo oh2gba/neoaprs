@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// How long after its last position a station stays on the map: minutes, empty for the default of the setting map/hide_after_min (the placeholder says which), "never" (or 0) for never. It is saved when the
+// How long after its last position a station stays on the map: minutes, empty for the default of 3 hours (the placeholder says which), "never" (or 0) for never. It is saved when the
 // field is changed and left, or Enter is pressed; an empty field takes the station's own timeout away, and so does the x.
 import { computed, ref, useId, watch } from "vue";
 import { NEVER, parseTimeoutText, timeoutText, type Aging } from "@/lib/aging";

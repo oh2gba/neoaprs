@@ -130,9 +130,9 @@ async def test_the_stop_ends_the_radio_the_tasks_and_the_database(tmp_path: Path
 async def test_the_settings_are_stored_and_read_back_by_the_next_run(tmp_path: Path) -> None:
     e = Env(tmp_path, radio=False)
     await e.start(connected=False)
-    new = replace(e.ctl.config, station_comment="mobile", beacon_interval_min=10)
+    new = replace(e.ctl.config, station_comment="mobile", beacon_interval_min=20)
     assert await e.ctl.save_config(new) and e.ctl.config is new
-    assert (await e.ctl.store.settings())["beacon/interval_min"] == "10" and Config.from_data(await e.ctl.store.settings()) == new
+    assert (await e.ctl.store.settings())["beacon/interval_min"] == "20" and Config.from_data(await e.ctl.store.settings()) == new
     await e.stop()
     assert not await e.ctl.save_config(replace(new, beacon_interval_min=0)), "the database is closed: nothing is stored"
     assert e.ctl.config is new

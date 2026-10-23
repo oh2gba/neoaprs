@@ -37,7 +37,9 @@ describe("SettingsForm", () => {
           k !== "serial/pattern" &&
           k !== "serial/skip" &&
           k !== "web/port" &&
-          k !== "web/allowed_hosts",
+          k !== "web/allowed_hosts" &&
+          k !== "map/maxzoom" &&
+          k !== "map/source",
       ).length + 1, // (the New version row of the Update check group, which is no setting)
     );
     expect(wrapper.find("#set-station-lat").exists()).toBe(false);
@@ -69,22 +71,103 @@ describe("SettingsForm", () => {
       "Latitude",
       "Longitude",
       "Symbol",
+      "Beacon",
       "Comment",
       "Power",
-      "Interval",
       "Path",
       "Status",
     ]);
     expect(wrapper.find(".sample").exists()).toBe(true);
   });
 
-  it("has a link at the top of the Settings tab, outside the Save bar, which asks for the first-run guide, and none on the Beacon tab", async () => {
+  describe("the Beacon group of the Beacon tab", () => {
+    const group = (wrapper: ReturnType<typeof make>["wrapper"], title: string) => wrapper.findAll("fieldset").find((f) => f.find("legend").text() === title);
+    const folds = (wrapper: ReturnType<typeof make>["wrapper"]) => group(wrapper, "Beacon")?.findAll("details.disclosure") ?? [];
+
+    it("has Call, Location and Symbol in the Station group, and the comment with the beacon", () => {
+      const { wrapper } = make({}, "beacon");
+      expect(
+        group(wrapper, "Station")
+          ?.findAll(".field label, h3")
+          .map((e) => e.text()),
+      ).toEqual(["Call", "Location", "Latitude", "Longitude", "Symbol"]);
+      expect(group(wrapper, "Station")?.find("#set-station-comment").exists()).toBe(false);
+      expect(group(wrapper, "Beacon")?.find("#set-station-comment").exists()).toBe(true);
+    });
+
+    it("is one choice for how often: off, every 15, 30 or 60 minutes, then the comment", () => {
+      const { wrapper } = make({ "beacon/interval_min": "30" }, "beacon");
+      const select = wrapper.find<HTMLSelectElement>("#set-beacon-interval_min");
+      expect(wrapper.find("label[for=set-beacon-interval_min]").text()).toBe("Beacon");
+      expect(select.element.tagName).toBe("SELECT");
+      expect(select.findAll("option").map((o) => [o.attributes("value"), o.text()])).toEqual([
+        ["0", "Off"],
+        ["15", "Every 15 min"],
+        ["30", "Every 30 min"],
+        ["60", "Every 60 min"],
+      ]);
+      expect(select.element.value).toBe("30");
+      expect(
+        group(wrapper, "Beacon")
+          ?.findAll(".field > label")
+          .map((l) => l.text())
+          .slice(0, 2),
+      ).toEqual(["Beacon", "Comment"]);
+    });
+
+    it("shows a stored interval that is none of the choices as one more, so that nothing changes until another is picked", async () => {
+      const { wrapper, send } = make({ "beacon/interval_min": "20" }, "beacon");
+      const select = wrapper.find<HTMLSelectElement>("#set-beacon-interval_min");
+      expect(select.findAll("option").map((o) => o.text())).toEqual(["Off", "Every 15 min", "Every 30 min", "Every 60 min", "Every 20 min"]);
+      expect(select.element.value).toBe("20");
+      expect(send).not.toHaveBeenCalled();
+      await select.setValue("60");
+      expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "beacon/interval_min": "60" } });
+    });
+
+    it("applies the interval at once", async () => {
+      const { wrapper, send } = make({}, "beacon");
+      await wrapper.find("#set-beacon-interval_min").setValue("15");
+      expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "beacon/interval_min": "15" } });
+    });
+
+    it("keeps the antenna behind a closed Antenna heading and the path behind a closed Advanced heading, each with its (i)", () => {
+      const { wrapper } = make({ "beacon/power_w": "5" }, "beacon");
+      expect(folds(wrapper).map((f) => [f.find("summary").text(), (f.element as HTMLDetailsElement).open])).toEqual([
+        ["Antenna", false],
+        ["Advanced", false],
+      ]);
+      const antenna = folds(wrapper)[0];
+      expect(antenna?.findAll(".field > label").map((l) => l.text())).toEqual(["Power", "Antenna height", "Antenna gain", "Antenna direction"]);
+      expect(antenna?.findAll(".info-toggle")).toHaveLength(4);
+      const advanced = folds(wrapper)[1];
+      expect(advanced?.findAll(".field > label").map((l) => l.text())).toEqual(["Path"]);
+      expect(advanced?.find(".info-toggle").exists()).toBe(true);
+      expect(advanced?.find<HTMLInputElement>("#set-beacon-path").element.value).toBe("WIDE1-1,WIDE2-1");
+    });
+
+    it("works the fields in the folds like the others: a typed one when it is left, a choice at once", async () => {
+      const { wrapper, send } = make({ "beacon/power_w": "5" }, "beacon");
+      await wrapper.find("#set-beacon-path").setValue("WIDE2-2");
+      expect(send).not.toHaveBeenCalled();
+      await wrapper.find("#set-beacon-path").trigger("blur");
+      expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "beacon/path": "WIDE2-2" } });
+      await wrapper.find("#set-beacon-antenna_direction").setValue("N");
+      expect(send).toHaveBeenCalledTimes(1); // (waits for the answer to the first)
+      await wrapper.setProps({ config: configValues({ "beacon/power_w": "5", "beacon/path": "WIDE2-2" }) });
+      expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "beacon/antenna_direction": "N" } });
+    });
+
+    it("is not in the Settings tab", () => {
+      expect(make().wrapper.find("details.settings-fold").exists()).toBe(false);
+    });
+  });
+
+  it("has a link at the top of the Settings tab which asks for the first-run guide, and none on the Beacon tab", async () => {
     const { wrapper } = make();
     const setup = wrapper.find("button.setup-open");
     expect(setup.text()).toBe("Run the setup guide again");
     expect(setup.attributes("type")).toBe("button");
-    expect(setup.element.closest(".settings-actions")).toBeNull();
-    expect(wrapper.find(".settings-actions").text()).not.toContain("Setup");
     await setup.trigger("click");
     expect(wrapper.emitted("setup")).toHaveLength(1);
     expect(make({}, "beacon").wrapper.find(".setup-open").exists()).toBe(false);
@@ -115,9 +198,7 @@ describe("SettingsForm", () => {
     const unit = (id: string) => wrapper.find(`#${id}`).element.closest(".field")?.querySelector(".unit")?.textContent;
     expect(unit("set-tnc-check_sec")).toBe("s");
     expect(unit("set-serial-baud")).toBe("baud");
-    expect(unit("set-map-hide_after_min")).toBe("min");
-    await wrapper.find("#set-map-hide_after_min").setValue("0");
-    expect(unit("set-map-hide_after_min")).toBe("never");
+    expect(unit("set-map-radius_km")).toBe("km");
     await wrapper.find("#set-tnc-check_sec").setValue("0");
     expect(unit("set-tnc-check_sec")).toBe("off");
   });
@@ -131,11 +212,11 @@ describe("SettingsForm", () => {
     expect(beacon.find("#set-station-status").attributes("placeholder")).toBe("none");
   });
 
-  it("has the antenna in the Station group with its units, and a choice for the direction, once there is a power", async () => {
+  it("has the antenna in the Antenna fold with its units, and a choice for the direction, once there is a power", async () => {
     const { wrapper } = make({}, "beacon");
     expect(wrapper.find("#set-beacon-antenna_height_m").exists()).toBe(false);
     await wrapper.find("#set-beacon-power_w").setValue("5");
-    const station = wrapper.findAll("fieldset").find((f) => f.find("legend").text() === "Station");
+    const station = wrapper.find("details.settings-fold");
     expect(station?.find("#set-beacon-power_w").exists()).toBe(true);
     const units = ["power_w", "antenna_height_m", "antenna_gain_db"].map(
       (k) => station?.find(`#set-beacon-${k}`).element.closest(".field")?.querySelector(".unit")?.textContent,
@@ -198,11 +279,9 @@ describe("SettingsForm", () => {
     it("clears a serial device when a TCP profile is chosen, so that the daemon does not refuse the save, and keeps an address", async () => {
       const { wrapper, send } = make({ "serial/port": "/dev/ttyUSB0" });
       await wrapper.find("#set-tnc-profile").setValue("kiss-tcp");
-      await wrapper.find("form").trigger("submit");
       expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "tnc/profile": "kiss-tcp", "serial/port": "" } });
       const kept = make({ "serial/port": "tcp://10.0.0.5:8100" });
       await kept.wrapper.find("#set-tnc-profile").setValue("kiss-tcp");
-      await kept.wrapper.find("form").trigger("submit");
       expect(kept.send).toHaveBeenCalledWith({ cmd: "set_config", values: { "tnc/profile": "kiss-tcp" } });
     });
 
@@ -216,7 +295,6 @@ describe("SettingsForm", () => {
     it("shows the refusal of the daemon under the profile", async () => {
       const { wrapper } = make();
       await wrapper.find("#set-tnc-profile").setValue("kiss-tcp");
-      await wrapper.find("form").trigger("submit");
       await wrapper.setProps({
         lastError: { text: "set_config: tnc/profile: KISS over TCP connects over TCP (tcp/host and tcp/port), not to the serial port COM3", n: 1 },
       });
@@ -305,15 +383,12 @@ describe("SettingsForm", () => {
     it("saves only the port when find automatically is chosen: the port is cleared and nothing else", async () => {
       const { wrapper, send } = withPorts(OWNER);
       await select(wrapper).setValue("");
-      expect(wrapper.text()).toContain("1 changed");
-      await wrapper.find("form").trigger("submit");
       expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "serial/port": "" } });
     });
 
     it("saves only the port that was picked from the list", async () => {
       const { wrapper, send } = withPorts({ "serial/port": "" });
       await select(wrapper).setValue("/dev/ttyUSB0");
-      await wrapper.find("form").trigger("submit");
       expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "serial/port": "/dev/ttyUSB0" } });
     });
 
@@ -322,25 +397,41 @@ describe("SettingsForm", () => {
       expect(wrapper.find("#set-serial-port-typed").exists()).toBe(false);
       await select(wrapper).setValue("\u0000other");
       expect(wrapper.find("#set-serial-port-typed").attributes("placeholder")).toBe("/dev/ttyUSB0");
-      expect(wrapper.text()).not.toContain("changed");
       await wrapper.find("#set-serial-port-typed").setValue("socket://10.0.0.5:8100");
-      await wrapper.find("form").trigger("submit");
+      expect(send).not.toHaveBeenCalled(); // (not while it is typed)
+      await wrapper.find("#set-serial-port-typed").trigger("blur");
       expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "serial/port": "socket://10.0.0.5:8100" } });
     });
 
-    it("leaves a stored installation as it is: opening the page and saving unchanged sends nothing", async () => {
+    it("sends a typed path on Enter, and Esc puts the port in force back", async () => {
+      const { wrapper, send } = withPorts({ "serial/port": "" });
+      await select(wrapper).setValue("\u0000other");
+      await wrapper.find("#set-serial-port-typed").setValue("/dev/ttyACM1");
+      await wrapper.find("#set-serial-port-typed").trigger("keydown", { key: "Enter" });
+      expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "serial/port": "/dev/ttyACM1" } });
+      const other = withPorts({ "serial/port": "" });
+      await select(other.wrapper).setValue("\u0000other");
+      await other.wrapper.find("#set-serial-port-typed").setValue("/dev/nope");
+      await other.wrapper.find("#set-serial-port-typed").trigger("keydown", { key: "Escape" });
+      expect(select(other.wrapper).element.value).toBe("");
+      expect(other.send).not.toHaveBeenCalled();
+    });
+
+    it("leaves a stored installation as it is: opening the page and leaving every field sends nothing", async () => {
       const { wrapper, send } = withPorts(OWNER);
-      expect(wrapper.find("button[type='submit']").attributes("disabled")).toBeDefined();
-      await wrapper.find("form").trigger("submit");
+      for (const input of wrapper.findAll("input[type=text]:not([readonly])")) await input.trigger("blur");
       expect(send.mock.calls.filter(([c]) => c.cmd === "set_config")).toHaveLength(0);
     });
 
-    it("never sends the port found, whatever else is changed", async () => {
+    it("never sends the port found, whatever else is changed, and sends the changes one at a time", async () => {
       const { wrapper, send } = withPorts({ "serial/port": "" });
       await wrapper.find("#set-serial-baud").setValue("19200");
+      await wrapper.find("#set-serial-baud").trigger("blur");
       await wrapper.find("#set-tnc-check_sec").setValue("90");
-      await wrapper.find("form").trigger("submit");
-      expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "serial/baud": "19200", "tnc/check_sec": "90" } });
+      await wrapper.find("#set-tnc-check_sec").trigger("blur");
+      expect(send.mock.calls.filter(([c]) => c.cmd === "set_config")).toEqual([[{ cmd: "set_config", values: { "serial/baud": "19200" } }]]);
+      await wrapper.setProps({ config: configValues({ "serial/port": "", "serial/baud": "19200" }) });
+      expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "tnc/check_sec": "90" } });
     });
 
     it("follows the daemon when it finds the radio on another port", async () => {
@@ -369,34 +460,166 @@ describe("SettingsForm", () => {
     });
   });
 
-  it("saves only what was changed", async () => {
-    const { wrapper, send } = make({}, "beacon");
-    expect(wrapper.find("button[type='submit']").attributes("disabled")).toBeDefined();
-    await wrapper.find("#set-station-lat").setValue("61.5");
-    await wrapper.find("#set-beacon-path").setValue("WIDE2-2");
-    await wrapper.find("#set-beacon-power_w").setValue("5");
-    expect(wrapper.find("button[type='submit']").attributes("disabled")).toBeUndefined();
-    expect(wrapper.text()).toContain("3 changed");
-    await wrapper.find("form").trigger("submit");
-    expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "station/lat": "61.5", "beacon/path": "WIDE2-2", "beacon/power_w": "5" } });
+  describe("typed fields", () => {
+    const type = async (wrapper: ReturnType<typeof make>["wrapper"], id: string, text: string) => {
+      await wrapper.find(`#${id}`).setValue(text);
+    };
+
+    it("are sent when the field is left, and not while they are typed", async () => {
+      const { wrapper, send } = make({}, "beacon");
+      await type(wrapper, "set-beacon-path", "WIDE2-2");
+      await type(wrapper, "set-station-comment", "Hello");
+      expect(send).not.toHaveBeenCalled();
+      await wrapper.find("#set-beacon-path").trigger("blur");
+      expect(send).toHaveBeenCalledTimes(1);
+      expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "beacon/path": "WIDE2-2" } });
+    });
+
+    it("are sent on Enter, and not again when the field is left after", async () => {
+      const { wrapper, send } = make({}, "beacon");
+      await type(wrapper, "set-station-comment", "Hello");
+      await wrapper.find("#set-station-comment").trigger("keydown", { key: "Enter" });
+      await wrapper.find("#set-station-comment").trigger("blur");
+      expect(send.mock.calls).toEqual([[{ cmd: "set_config", values: { "station/comment": "Hello" } }]]);
+    });
+
+    it("are never sent when the page finds them wrong: the reason is under the field and the text stays", async () => {
+      const { wrapper, send } = make({}, "beacon");
+      await type(wrapper, "set-station-call", "OH2 GBA");
+      await wrapper.find("#set-station-call").trigger("blur");
+      await type(wrapper, "set-station-lat", "95");
+      await wrapper.find("#set-station-lat").trigger("blur");
+      expect(send).not.toHaveBeenCalled();
+      expect(wrapper.find("#set-station-call").element.closest(".field")?.querySelector(".field-error")?.textContent).toBe("Not a call");
+      expect(wrapper.find("#set-station-lat").element.closest(".field")?.querySelector(".field-error")?.textContent).toBe("Between -90 and 90");
+      expect(wrapper.find<HTMLInputElement>("#set-station-lat").element.value).toBe("95");
+    });
+
+    it("go back to what is in force on Esc, with the reason gone", async () => {
+      const { wrapper, send } = make({}, "beacon");
+      await type(wrapper, "set-station-lat", "95");
+      await wrapper.find("#set-station-lat").trigger("blur");
+      await wrapper.find("#set-station-lat").trigger("keydown", { key: "Escape" });
+      expect(wrapper.find<HTMLInputElement>("#set-station-lat").element.value).toBe("60.17");
+      expect(wrapper.find(".field-error").exists()).toBe(false);
+      await type(wrapper, "set-station-comment", "typing");
+      await wrapper.find("#set-station-comment").trigger("keydown", { key: "Escape" });
+      expect(wrapper.find<HTMLInputElement>("#set-station-comment").element.value).toBe("NeoAPRS");
+      await wrapper.find("#set-station-comment").trigger("blur");
+      expect(send).not.toHaveBeenCalled();
+    });
+
+    it("show the field as changed while they are typed and not yet sent", async () => {
+      const { wrapper } = make({}, "beacon");
+      await type(wrapper, "set-station-comment", "Hello");
+      expect(wrapper.find("#set-station-comment").element.closest(".field")?.classList.contains("changed")).toBe(true);
+      await wrapper.find("#set-station-comment").trigger("blur");
+      expect(wrapper.find("#set-station-comment").element.closest(".field")?.classList.contains("changed")).toBe(false);
+    });
   });
 
-  it("shows the error of the daemon under the field it names", async () => {
-    const { wrapper } = make({}, "beacon");
-    await wrapper.find("#set-station-lat").setValue("95");
-    await wrapper.find("form").trigger("submit");
-    await wrapper.setProps({ lastError: { text: "set_config: station/lat: 95 is not between -90 and 90", n: 1 } });
-    const field = wrapper.find("#set-station-lat").element.closest(".field");
-    expect(field?.querySelector(".field-error")?.textContent).toBe("95 is not between -90 and 90");
-    expect(wrapper.find("#set-station-lon").element.closest(".field")?.querySelector(".field-error")).toBeNull();
+  describe("fields that belong together", () => {
+    it("send the latitude and the longitude in one set_config when focus leaves the pair, not when it moves from one to the other", async () => {
+      const { wrapper, send } = make({}, "beacon");
+      await wrapper.find("#set-station-lat").setValue("61.5");
+      await wrapper.find("#set-station-lat").trigger("blur", { relatedTarget: wrapper.find("#set-station-lon").element });
+      expect(send).not.toHaveBeenCalled();
+      await wrapper.find("#set-station-lon").setValue("25.5");
+      await wrapper.find("#set-station-lon").trigger("blur");
+      expect(send.mock.calls).toEqual([[{ cmd: "set_config", values: { "station/lat": "61.5", "station/lon": "25.5" } }]]);
+    });
+
+    it("send the TCP host and the TCP port in one set_config, so that the TNC restarts once", async () => {
+      const { wrapper, send } = make({ "tnc/profile": "kiss-tcp" });
+      await wrapper.find("#set-tcp-host").setValue("10.0.0.5");
+      await wrapper.find("#set-tcp-host").trigger("blur", { relatedTarget: wrapper.find("#set-tcp-port").element });
+      await wrapper.find("#set-tcp-port").setValue("8100");
+      await wrapper.find("#set-tcp-port").trigger("keydown", { key: "Enter" });
+      expect(send.mock.calls).toEqual([[{ cmd: "set_config", values: { "tcp/host": "10.0.0.5", "tcp/port": "8100" } }]]);
+    });
+
+    it("send a place picked on the map as latitude and longitude together", async () => {
+      const { wrapper, send } = make({}, "beacon");
+      await wrapper.setProps({ picked: { lat: 60.429449, lon: 24.1452399, n: 1 } });
+      expect(wrapper.find<HTMLInputElement>("#set-station-lat").element.value).toBe("60.42945");
+      expect(wrapper.find<HTMLInputElement>("#set-station-lon").element.value).toBe("24.14524");
+      expect(send.mock.calls).toEqual([[{ cmd: "set_config", values: { "station/lat": "60.42945", "station/lon": "24.14524" } }]]);
+    });
   });
 
-  it("says Saved when the settings come back", async () => {
-    const { wrapper } = make({}, "beacon");
-    await wrapper.find("#set-station-lat").setValue("61.5");
-    await wrapper.find("form").trigger("submit");
-    await wrapper.setProps({ config: configValues({ "station/lat": "61.5" }) });
-    expect(wrapper.find("[role='status']").text()).toBe("Saved.");
+  describe("choices", () => {
+    it("apply at once: a list and a switch", async () => {
+      const { wrapper, send } = make({ "beacon/power_w": "5" }, "beacon");
+      await wrapper.find("#set-beacon-antenna_direction").setValue("N");
+      expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "beacon/antenna_direction": "N" } });
+      const settings = make();
+      await settings.wrapper.find("#set-digi-enabled").setValue(true);
+      expect(settings.send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "digi/enabled": "true" } });
+    });
+  });
+
+  describe("what the daemon answers", () => {
+    it("shows the error of the daemon under the field it names, with the typed text kept and the value in force unchanged", async () => {
+      const { wrapper } = make({}, "beacon");
+      await wrapper.find("#set-station-comment").setValue("é is not ascii");
+      await wrapper.find("#set-station-comment").trigger("blur");
+      await wrapper.setProps({ lastError: { text: "set_config: station/comment: 'é' is not ASCII", n: 1 } });
+      const field = wrapper.find("#set-station-comment").element.closest(".field");
+      expect(field?.querySelector(".field-error")?.textContent).toBe("'é' is not ASCII");
+      expect(wrapper.find<HTMLInputElement>("#set-station-comment").element.value).toBe("é is not ascii");
+      expect(wrapper.find("#set-station-lon").element.closest(".field")?.querySelector(".field-error")).toBeNull();
+    });
+
+    it("says Saving, then Saved with a tick beside the field when the settings come back, and a screen reader is told", async () => {
+      const { wrapper } = make({}, "beacon");
+      await wrapper.find("#set-station-comment").setValue("Hello");
+      await wrapper.find("#set-station-comment").trigger("blur");
+      const state = () => wrapper.find("#set-station-comment").element.closest(".field")?.querySelector(".field-state")?.textContent;
+      expect(state()).toBe("Saving…");
+      await wrapper.setProps({ config: configValues({ "station/comment": "Hello" }) });
+      expect(state()).toBe("Saved ✓");
+      expect(wrapper.find("[role='status'][aria-live]").text()).toBe("Saved");
+      expect(wrapper.find<HTMLInputElement>("#set-station-comment").element.value).toBe("Hello");
+    });
+
+    it("shows a refused choice as it was, with the reason under it", async () => {
+      const { wrapper } = make();
+      await wrapper.find("#set-tnc-profile").setValue("kiss");
+      await wrapper.setProps({ lastError: { text: "set_config: tnc/profile: KISS TNC is too much", n: 1 } });
+      expect(wrapper.find<HTMLSelectElement>("#set-tnc-profile").element.value).toBe("kenwood-tnc2");
+      expect(wrapper.find("#set-tnc-profile").element.closest(".field")?.querySelector(".field-error")?.textContent).toBe("KISS TNC is too much");
+    });
+
+    it("leaves a field that is being edited alone when the daemon tells other settings, and follows it in a field that is not", async () => {
+      const { wrapper } = make({}, "beacon");
+      await wrapper.find("#set-station-comment").setValue("mine");
+      await wrapper.setProps({ config: configValues({ "station/comment": "theirs", "beacon/path": "WIDE2-2" }) });
+      expect(wrapper.find<HTMLInputElement>("#set-station-comment").element.value).toBe("mine");
+      expect(wrapper.find<HTMLInputElement>("#set-beacon-path").element.value).toBe("WIDE2-2");
+    });
+  });
+
+  describe("linked settings", () => {
+    it("fills in the usual rigctld with the radio as the status, so that the choice is valid at once", async () => {
+      const { wrapper, send } = make({}, "beacon");
+      await wrapper.find("#set-status-source").setValue("rig");
+      expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "status/source": "rig", "status/rigctld": "127.0.0.1:4532" } });
+      expect(wrapper.find<HTMLInputElement>("#set-status-rigctld").element.value).toBe("127.0.0.1:4532");
+    });
+
+    it("says on the power that the comment must be shorter first", async () => {
+      const { wrapper } = make({ "station/comment": "x".repeat(40) }, "beacon");
+      await wrapper.find("#set-beacon-power_w").setValue("5");
+      await wrapper.find("#set-beacon-power_w").trigger("blur");
+      await wrapper.setProps({
+        lastError: {
+          text: "set_config: station/comment: 40 characters is more than the 36 allowed with the PHG extension (clear beacon/power_w to send none)",
+          n: 1,
+        },
+      });
+      expect(wrapper.find("#set-beacon-power_w").element.closest(".field")?.querySelector(".field-error")?.textContent).toBe("Shorten the comment to 36 first");
+      expect(wrapper.find<HTMLInputElement>("#set-beacon-power_w").element.value).toBe("5");
+    });
   });
 
   describe("the Notifications group", () => {
@@ -439,7 +662,6 @@ describe("SettingsForm", () => {
     it("saves digi/enabled when it is switched on", async () => {
       const { wrapper, send } = make();
       await wrapper.find("#set-digi-enabled").setValue(true);
-      await wrapper.find("form").trigger("submit");
       expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "digi/enabled": "true" } });
     });
   });
@@ -536,12 +758,11 @@ describe("SettingsForm", () => {
       expect(button(wrapper)?.hasAttribute("disabled")).toBe(false);
     });
 
-    it("is disabled with the title Save first while the field differs from the saved command", async () => {
+    it("is disabled while the field differs from the command in force (it is being saved)", async () => {
       const { wrapper, send } = make();
-      expect(button(wrapper)?.getAttribute("title")).toBeNull();
+      expect(button(wrapper)?.hasAttribute("disabled")).toBe(false);
       await wrapper.find("#set-messages-alert_command").setValue("notify-send changed");
       expect(button(wrapper)?.hasAttribute("disabled")).toBe(true);
-      expect(button(wrapper)?.getAttribute("title")).toBe("Save first");
       await wrapper.find("#set-messages-alert_command + button").trigger("click");
       expect(send).not.toHaveBeenCalledWith({ cmd: "alert_test" });
     });
@@ -562,7 +783,7 @@ describe("SettingsForm", () => {
     it("ends with the buttons that make the map, in the Map group and nowhere else", () => {
       const { wrapper } = mount_();
       const group = wrapper.findAll("fieldset").find((f) => f.find("legend").text() === "Map");
-      expect(group?.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(["Estimate", "Download"]);
+      expect(group?.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(["Download map"]);
       expect(wrapper.findAll(".mapfetch")).toHaveLength(1);
       expect(mount_(mapState(), {}, "beacon").wrapper.find(".mapfetch").exists()).toBe(false);
     });
@@ -572,69 +793,95 @@ describe("SettingsForm", () => {
       expect(wrapper.find(".mapfetch").exists()).toBe(false);
     });
 
-    it("has the radius in km and the detail as a choice with a word for each zoom", () => {
+    it("has the radius in km, and no detail, no map source and no time for stations to leave the map: those are not on the page", () => {
       const { wrapper } = mount_();
       expect(wrapper.find<HTMLInputElement>("#set-map-radius_km").element.value).toBe("150");
       expect(wrapper.find("#set-map-radius_km").element.closest(".field")?.querySelector(".unit")?.textContent).toBe("km");
-      const detail = wrapper.find<HTMLSelectElement>("#set-map-maxzoom");
-      expect(detail.findAll("option").map((o) => o.text())).toEqual(["10 town", "12 streets", "14 houses"]);
-      expect(detail.element.value).toBe("12");
+      for (const id of ["set-map-maxzoom", "set-map-source", "set-map-hide_after_min"]) expect(wrapper.find(`#${id}`).exists(), id).toBe(false);
+      expect(
+        wrapper
+          .find("fieldset:has(#set-map-radius_km)")
+          .findAll(".field label")
+          .map((l) => l.text()),
+      ).toEqual(["Radius"]);
     });
 
-    it("keeps a detail that is none of the three in the choice, as the number", () => {
-      const { wrapper } = mount_(mapState({ maxzoom: 11 }), { "map/maxzoom": "11" });
-      const detail = wrapper.find<HTMLSelectElement>("#set-map-maxzoom");
-      expect(detail.findAll("option").map((o) => o.text())).toEqual(["10 town", "12 streets", "14 houses", "11"]);
-      expect(detail.element.value).toBe("11");
-    });
-
-    it("turns the buttons off while a map setting is changed and not saved, and on again when it is put back", async () => {
-      const { wrapper } = mount_();
+    it("turns the buttons off while a map setting is being saved, and on again when it is, and takes the radius when the field is left", async () => {
+      const { wrapper, send } = mount_();
       const buttons = () => wrapper.findAll(".mapfetch button");
       await wrapper.find("#set-map-radius_km").setValue("60");
-      expect(buttons().every((b) => b.attributes("disabled") !== undefined && b.attributes("title") === "Save first")).toBe(true);
-      await wrapper.find("#set-map-radius_km").setValue("150");
+      expect(buttons().every((b) => b.attributes("disabled") === undefined)).toBe(true); // (typing sends nothing)
+      await wrapper.find("#set-map-radius_km").trigger("blur");
+      expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "map/radius_km": "60" } });
+      expect(buttons().every((b) => b.attributes("disabled") !== undefined && b.attributes("title") === "Saving…")).toBe(true);
+      await wrapper.setProps({ config: configValues({ "map/radius_km": "60" }) });
       expect(buttons().every((b) => b.attributes("disabled") === undefined)).toBe(true);
-      await wrapper.find("#set-tnc-check_sec").setValue("30");
-      expect(buttons().every((b) => b.attributes("disabled") === undefined)).toBe(true);
-    });
-
-    it("sends the detail as the number the daemon keeps", async () => {
-      const { wrapper, send } = mount_();
-      await wrapper.find("#set-map-maxzoom").setValue("14");
-      await wrapper.find("form").trigger("submit");
-      expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "map/maxzoom": "14" } });
     });
   });
 });
 
-describe("SettingsForm: our position picked on the map (Beacon tab)", () => {
-  it("has Pick on the map on a row of its own under the longitude in the Beacon tab only, Cancel while the map waits, and asks the page to wait for a click", async () => {
+describe("SettingsForm: the Location of our station (Beacon tab)", () => {
+  const pick = (wrapper: ReturnType<typeof make>["wrapper"]) => wrapper.find<HTMLButtonElement>("button.location-pick");
+  const details = (wrapper: ReturnType<typeof make>["wrapper"]) => wrapper.find<HTMLDetailsElement>("details.disclosure");
+
+  it("is a sub-section after the call: a primary Pick on the map, Cancel while the map waits, and the place in force as one line", async () => {
     const { wrapper } = make({}, "beacon");
-    const row = wrapper.find(".pick-row");
-    expect(row.element.previousElementSibling?.querySelector("#set-station-lon")).not.toBeNull();
-    expect(row.element.closest(".field")).toBeNull();
-    const pick = () => wrapper.findAll("button").find((b) => b.text() === "Pick on the map" || b.text() === "Cancel");
-    expect(pick()?.text()).toBe("Pick on the map");
-    await pick()?.trigger("click");
+    expect(wrapper.find("h3.subgroup").text()).toBe("Location");
+    expect(pick(wrapper).classes()).toContain("primary");
+    expect(pick(wrapper).text()).toBe("Pick on the map");
+    expect(wrapper.find(".location-line").text()).toBe("60.17 N, 24.94 E · KP20le");
+    await pick(wrapper).trigger("click");
     expect(wrapper.emitted("pickPosition")).toHaveLength(1);
     await wrapper.setProps({ picking: true });
-    expect(pick()?.text()).toBe("Cancel");
-    expect(
-      make()
-        .wrapper.findAll("button")
-        .some((b) => b.text() === "Pick on the map"),
-    ).toBe(false);
+    expect(pick(wrapper).text()).toBe("Cancel");
+    const order = wrapper.findAll(".field label, h3.subgroup").map((e) => e.text());
+    expect(order.slice(0, 4)).toEqual(["Call", "Location", "Latitude", "Longitude"]);
   });
 
-  it("fills the latitude and the longitude with the place picked, to be saved like any change", async () => {
+  it("is only on the Beacon tab", () => {
+    expect(make().wrapper.find(".location").exists()).toBe(false);
+  });
+
+  it("writes south and west as S and W, and says Not set while there is no place", () => {
+    expect(make({ "station/lat": "-33.8568", "station/lon": "-70.1" }, "beacon").wrapper.find(".location-line").text()).toMatch(/^33\.8568 S, 70\.1 W · /);
+    expect(make({ "station/lat": "", "station/lon": "" }, "beacon").wrapper.find(".location-line").text()).toBe("Not set");
+  });
+
+  it("keeps the coordinates behind Enter coordinates, closed while there is a place, open while there is none or one is wrong", async () => {
+    const { wrapper } = make({}, "beacon");
+    expect(details(wrapper).element.open).toBe(false);
+    expect(details(wrapper).find("summary").text()).toBe("Enter coordinates");
+    expect(details(wrapper).find("#set-station-lat").exists()).toBe(true);
+    expect(make({ "station/lat": "", "station/lon": "" }, "beacon").wrapper.find<HTMLDetailsElement>("details.disclosure").element.open).toBe(true);
+    await wrapper.find("#set-station-lat").setValue("95");
+    await wrapper.find("#set-station-lat").trigger("blur");
+    expect(details(wrapper).element.open).toBe(true);
+  });
+
+  it("applies a place picked on the map at once, latitude and longitude in one set_config", async () => {
     const { wrapper, send } = make({}, "beacon");
     await wrapper.setProps({ picked: { lat: 60.429449, lon: 24.1452399, n: 1 } });
-    expect(wrapper.find<HTMLInputElement>("#set-station-lat").element.value).toBe("60.42945");
-    expect(wrapper.find<HTMLInputElement>("#set-station-lon").element.value).toBe("24.14524");
-    await wrapper.find("form").trigger("submit");
-    const saved = send.mock.calls.at(-1)?.[0] as { cmd: string; values: Record<string, string> } | undefined;
-    expect(saved?.cmd).toBe("set_config");
-    expect([saved?.values["station/lat"], saved?.values["station/lon"]]).toEqual(["60.42945", "24.14524"]);
+    expect(send.mock.calls).toEqual([[{ cmd: "set_config", values: { "station/lat": "60.42945", "station/lon": "24.14524" } }]]);
+    await wrapper.setProps({ config: configValues({ "station/lat": "60.42945", "station/lon": "24.14524" }) });
+    expect(wrapper.find(".location-line").text()).toContain("60.42945 N, 24.14524 E");
+    expect(wrapper.find(".location .field-state").text()).toBe("Saved ✓");
+  });
+
+  it("applies typed coordinates together when focus leaves the pair and both are right, and not before", async () => {
+    const { wrapper, send } = make({ "station/lat": "", "station/lon": "" }, "beacon");
+    await wrapper.find("#set-station-lat").setValue("60.5");
+    await wrapper.find("#set-station-lat").trigger("blur", { relatedTarget: wrapper.find("#set-station-lon").element });
+    expect(send).not.toHaveBeenCalled();
+    await wrapper.find("#set-station-lon").setValue("24,5");
+    await wrapper.find("#set-station-lon").trigger("blur");
+    expect(send.mock.calls).toEqual([[{ cmd: "set_config", values: { "station/lat": "60.5", "station/lon": "24,5" } }]]);
+  });
+
+  it("sends nothing while only one of the two is given, and says which is missing", async () => {
+    const { wrapper, send } = make({ "station/lat": "", "station/lon": "" }, "beacon");
+    await wrapper.find("#set-station-lat").setValue("60.5");
+    await wrapper.find("#set-station-lat").trigger("blur");
+    expect(send).not.toHaveBeenCalled();
+    expect(wrapper.find("#set-station-lon").element.closest(".field")?.querySelector(".field-error")?.textContent).toBe("Needed with the latitude");
   });
 });

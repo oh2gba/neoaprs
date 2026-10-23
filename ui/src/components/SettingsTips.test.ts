@@ -30,10 +30,7 @@ describe("the (i) of the Settings tab", () => {
     ["set-serial-port", "About the port", /automatic.*\/dev\/ttyUSB0.*COM3.*Bluetooth radio appears in this list after you have paired/s],
     ["set-serial-baud", "About the speed", /Leave it empty.*57600 for a NinoTNC/s],
     ["set-tnc-check_sec", "About the keep-alive", /still there.*0 turns it off/s],
-    ["set-map-hide_after_min", "About leaving the map", /180 minutes is three hours.*0 keeps stations/s],
     ["set-map-radius_km", "About the radius", /bigger download.*150 km is a region/s],
-    ["set-map-maxzoom", "About the detail", /towns, streets or houses.*several times bigger/s],
-    ["set-map-source", "About the map data", /Protomaps.*PMTiles/s],
     ["set-update-now", "About the update check", /Once a day.*version number and the kind of system.*nothing else/s],
   ];
 

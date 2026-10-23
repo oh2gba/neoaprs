@@ -102,7 +102,7 @@ export interface ClearStationPathCommand {
   call: string;
 }
 
-/** Takes a station's own timeout away, so that it has the setting `map/hide_after_min` again (a station without one is no error). Answered by the `set` of its entry in `station_prefs` with a null `hide_after_min` (or the `del` of the entry when it had no path either), or by an `error`. */
+/** Takes a station's own timeout away, so that it has the fixed 180 minutes again (a station without one is no error). Answered by the `set` of its entry in `station_prefs` with a null `hide_after_min` (or the `del` of the entry when it had no path either), or by an `error`. */
 export interface ClearStationTimeoutCommand {
   cmd: "clear_station_timeout";
   call: string;
@@ -674,7 +674,7 @@ export interface SendMessageCommand {
   text: string;
 }
 
-/** Changes settings. Every key and value is checked before anything is stored: the first that is wrong is answered with an `error` that names the key, and nothing changes. A key that is left out keeps its value. The answer is the `config` topic told again. `web/port` and `web/allowed_hosts` are read at the daemon's start, `web/network` (and with it the access key `web/key`) counts at once, `serial/*`, `tcp/*` and `tnc/profile` restart the TNC, `station/*` move our own station on the map. `tnc/check_sec` and `map/hide_after_min` count at once, with no restart. */
+/** Changes settings. Every key and value is checked before anything is stored: the first that is wrong is answered with an `error` that names the key, and nothing changes. A key that is left out keeps its value. The answer is the `config` topic told again. `web/port` and `web/allowed_hosts` are read at the daemon's start, `web/network` (and with it the access key `web/key`) counts at once, `serial/*`, `tcp/*` and `tnc/profile` restart the TNC, `station/*` move our own station on the map. `tnc/check_sec` counts at once, with no restart. */
 export interface SetConfigCommand {
   cmd: "set_config";
   /** key to the new text of the value; the text is checked and written the way the daemon writes it (`oh2gba` becomes `OH2GBA`) */
@@ -703,7 +703,7 @@ export interface SetStationRfOnlyCommand {
   on: boolean;
 }
 
-/** Gives a station a timeout of its own: how long after its last position it stays on the map, in minutes; 0 is never. The page hides a station whose last position is older than that (a station without one of its own uses the setting `map/hide_after_min`), and the daily prune does not remove a station with a timeout of 0 from the station book. `call` is a station's call as it is in the topic `stations` (the name of an object or an item too). Answered by the `set` of the station's entry in the topic `station_prefs` (its `path` is whatever it was), or by an `error` that names the reason. */
+/** Gives a station a timeout of its own: how long after its last position it stays on the map, in minutes; 0 is never. The page hides a station whose last position is older than that (a station without one of its own is hidden after 180 minutes), and the daily prune does not remove a station with a timeout of 0 from the station book. `call` is a station's call as it is in the topic `stations` (the name of an object or an item too). Answered by the `set` of the station's entry in the topic `station_prefs` (its `path` is whatever it was), or by an `error` that names the reason. */
 export interface SetStationTimeoutCommand {
   cmd: "set_station_timeout";
   call: string;
@@ -723,7 +723,7 @@ export interface StateMessage {
 export interface StationPref {
   /** the digipeaters that a message to the station, and the ack of a message from it, go by way of: calls separated by commas, empty for direct (no digipeaters at all); null if none is set, and the setting `beacon/path` counts */
   path: string | null;
-  /** the minutes after the station's last position that it leaves the map (the page does the hiding); 0 is never; null if none is set, and the setting `map/hide_after_min` counts */
+  /** the minutes after the station's last position that it leaves the map (the page does the hiding); 0 is never; null if none is set, and the default of 180 minutes counts */
   hide_after_min: number | null;
   /** true if everything sent to the station (a message and each attempt of it, an ack, the answer to a query) has `RFONLY` as the last element of its path, which iGates that honour it do not put on the internet */
   rf_only: boolean;

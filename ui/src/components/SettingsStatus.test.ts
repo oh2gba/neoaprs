@@ -67,13 +67,17 @@ describe("the Status group", () => {
     expect(chosen.wrapper.find<HTMLSelectElement>("#set-status-source").element.value).toBe("text");
   });
 
-  it("shows nothing as changed for an old installation, and saves the choice once it is made", async () => {
+  it("sends nothing for an old installation, applies the choice once it is made, and the text when its field is left", async () => {
     const { wrapper, send } = make({ "status/rigctld": "127.0.0.1:4532" });
-    expect(wrapper.find("button[type='submit']").attributes("disabled")).toBeDefined();
+    expect(wrapper.find(".field.changed").exists()).toBe(false);
+    expect(send).not.toHaveBeenCalled();
     await wrapper.find("#set-status-source").setValue("text");
+    expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "status/source": "text" } });
     await wrapper.find("#set-station-status").setValue("QRV 145.500");
-    await wrapper.find("form").trigger("submit");
-    expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "status/source": "text", "station/status": "QRV 145.500" } });
+    expect(send).toHaveBeenCalledTimes(1);
+    await wrapper.find("#set-station-status").trigger("blur");
+    await wrapper.setProps({ config: configValues({ "status/rigctld": "127.0.0.1:4532", "status/source": "text" }) });
+    expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "station/status": "QRV 145.500" } });
   });
 
   it("keeps what was typed for the other choice while the choice is changed back and forth", async () => {
@@ -84,12 +88,21 @@ describe("the Status group", () => {
     expect(wrapper.find<HTMLInputElement>("#set-station-status").element.value).toBe("At the cottage");
   });
 
-  it("shows the daemon's refusal of the radio without an address under the choice", async () => {
-    const { wrapper } = make();
+  it("fills in the usual rigctld with the choice of the radio, so that the choice is not refused", async () => {
+    const { wrapper, send } = make();
     await wrapper.find("#set-status-source").setValue("rig");
-    await wrapper.find("form").trigger("submit");
+    expect(wrapper.find<HTMLInputElement>("#set-status-rigctld").element.value).toBe("127.0.0.1:4532");
+    expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "status/source": "rig", "status/rigctld": "127.0.0.1:4532" } });
+  });
+
+  it("shows the daemon's refusal of the radio without an address under the rigctld that was cleared", async () => {
+    const { wrapper } = make({ "status/source": "rig", "status/rigctld": "127.0.0.1:4532" });
+    await wrapper.find("#set-status-rigctld").setValue("");
+    await wrapper.find("#set-status-rigctld").trigger("blur");
     await wrapper.setProps({ lastError: { text: "set_config: status/source: the radio needs status/rigctld (host:port of a rigctld, 127.0.0.1:4532)", n: 1 } });
-    expect(wrapper.find("#set-status-source").element.closest(".field")?.querySelector(".field-error")?.textContent).toContain("needs status/rigctld");
+    expect(wrapper.find("#set-status-rigctld").element.closest(".field")?.querySelector(".field-error")?.textContent).toContain("needs status/rigctld");
+    expect(wrapper.find("#set-status-source").element.closest(".field")?.querySelector(".field-error")).toBeNull();
+    expect(wrapper.find<HTMLInputElement>("#set-status-rigctld").element.value).toBe("");
   });
 });
 
@@ -104,7 +117,7 @@ describe("the Symbol field", () => {
     expect(wrapper.find("#set-station-symbol_code").exists()).toBe(false);
   });
 
-  it("is changed in the picker, which sets the table and the code underneath and is saved like any change", async () => {
+  it("is changed in the picker, which sets the table and the code underneath and applies at once", async () => {
     const { wrapper, send } = make();
     await wrapper.find("#set-station-symbol-change").trigger("click");
     expect(wrapper.find(".sympick").exists()).toBe(true);
@@ -114,8 +127,6 @@ describe("the Symbol field", () => {
     await digi[1]?.trigger("click");
     expect(wrapper.find(".sympick").exists()).toBe(false);
     expect(wrapper.find(".symbolfield-name").text()).toBe("Digipeater");
-    expect(wrapper.text()).toContain("2 changed");
-    await wrapper.find("form").trigger("submit");
     expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "station/symbol_table": "\\", "station/symbol_code": "#" } });
   });
 
@@ -127,10 +138,7 @@ describe("the Symbol field", () => {
     await over.setValue("s");
     expect(over.element.value).toBe("S");
     expect(wrapper.find(".symbolfield-name").text()).toBe("Digipeater");
-    await wrapper.find("form").trigger("submit");
     expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "station/symbol_table": "S" } });
-    await over.setValue("");
-    expect(wrapper.text()).not.toContain("changed");
     expect(make().wrapper.find(".symbolfield-over").exists()).toBe(false);
   });
 });
@@ -143,12 +151,12 @@ describe("the (i) of a field", () => {
       .filter((f) => f.find(".info-toggle").exists())
       .map((f) => f.find("label").text());
     expect(withTip).toEqual([
+      "Beacon",
       "Comment",
       "Power",
       "Antenna height",
       "Antenna gain",
       "Antenna direction",
-      "Interval",
       "Path",
       "Status",
       "Rigctld",

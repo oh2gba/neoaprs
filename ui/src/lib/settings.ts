@@ -1,6 +1,5 @@
-// The settings form's logic: which key goes in which group, what each field says of itself, which keys the user changed, and which field an error of the daemon is about.
+// The settings form's logic: which key goes in which group, what each field says of itself, and which field an error of the daemon is about.
 // The keys and their order come from the daemon (CONFIG_KEYS of the generated lists); a key this file does not know is shown under its own name.
-import { DETAIL_CHOICES } from "@/lib/mapfetch";
 import { STATUS_CHOICES, statusShown, statusSource } from "@/lib/status";
 import { CONFIG_KEYS, TNC_PROFILES } from "@/protocol/lists";
 
@@ -8,6 +7,8 @@ type FieldKind = "text" | "bool" | "readonly" | "choice";
 
 export interface FieldInfo {
   label: string;
+  /** What the toast calls the setting after a change ("Beacon interval changed"), when the label alone does not say it. */
+  name?: string;
   /** After the input: "min", "W", "km/h". */
   unit?: string;
   /** The word that stands in the unit's place while the value is 0: "never", "off". */
@@ -23,6 +24,8 @@ export interface FieldInfo {
   kind?: FieldKind;
   /** The values a `choice` offers: the text of the setting, or the text with the words it is shown as. */
   choices?: readonly (string | Choice)[];
+  /** The words for a value that is none of the choices (a setting stored from the shell): "Every 20 min"; else the value itself. */
+  other?: (value: string) => string;
 }
 
 export interface Choice {
@@ -30,12 +33,20 @@ export interface Choice {
   label: string;
 }
 
+/** The beacon's choices: off, or every 15, 30 or 60 minutes (15 is the least the daemon takes). */
+const BEACON_CHOICES: readonly Choice[] = [
+  { value: "0", label: "Off" },
+  { value: "15", label: "Every 15 min" },
+  { value: "30", label: "Every 30 min" },
+  { value: "60", label: "Every 60 min" },
+];
+
 export const FIELDS: Record<string, FieldInfo> = {
   "station/call": { label: "Call" },
   "station/lat": { label: "Latitude", unit: "°" },
   "station/lon": { label: "Longitude", unit: "°" },
-  "station/symbol_table": { label: "Symbol" },
-  "station/symbol_code": { label: "Symbol code" },
+  "station/symbol_table": { name: "Symbol", label: "Symbol" },
+  "station/symbol_code": { name: "Symbol", label: "Symbol code" },
   "station/comment": {
     label: "Comment",
     tip: [
@@ -44,6 +55,7 @@ export const FIELDS: Record<string, FieldInfo> = {
     ],
   },
   "station/status": {
+    name: "Status text",
     label: "Text",
     empty: "none",
     tip: [
@@ -95,6 +107,7 @@ export const FIELDS: Record<string, FieldInfo> = {
     ],
   },
   "serial/port": {
+    name: "TNC port",
     label: "Port",
     empty: "/dev/ttyUSB0",
     tipLabel: "About the port",
@@ -105,6 +118,7 @@ export const FIELDS: Record<string, FieldInfo> = {
     ],
   },
   "serial/baud": {
+    name: "TNC speed",
     label: "Speed",
     unit: "baud",
     tipLabel: "About the speed",
@@ -129,6 +143,7 @@ export const FIELDS: Record<string, FieldInfo> = {
     ],
   },
   "web/network": {
+    name: "Network access",
     label: "Allow access from the network",
     kind: "bool",
     tipLabel: "About network access",
@@ -147,42 +162,14 @@ export const FIELDS: Record<string, FieldInfo> = {
       "New key makes another one and logs every other device out. Type the new key again on each.",
     ],
   },
-  "map/hide_after_min": {
-    label: "Hide stations after",
-    unit: "min",
-    zero: "never",
-    tipLabel: "About leaving the map",
-    tip: [
-      "A station that has not sent its position for this long is taken off the map. It stays in the Stations table. 180 minutes is three hours; 0 keeps stations on the map for ever.",
-      "A single station can have its own time in its details.",
-    ],
-  },
   "map/radius_km": {
+    name: "Map radius",
     label: "Radius",
     unit: "km",
     tipLabel: "About the radius",
     tip: [
       "How far from your station, in every direction, the detailed map reaches. The world map is always there; this is the area with streets and names.",
       "A bigger radius means a bigger download: 150 km is a region, 500 km a large part of a country. The size is shown before you start.",
-    ],
-  },
-  "map/maxzoom": {
-    label: "Detail",
-    kind: "choice",
-    choices: DETAIL_CHOICES,
-    tipLabel: "About the detail",
-    tip: [
-      "How closely you can zoom in on the detailed map: towns, streets or houses.",
-      "Each step up makes the map several times bigger and the download longer. Streets are enough for most; choose houses only for a small radius.",
-    ],
-  },
-  "map/source": {
-    label: "Map data",
-    empty: "daily build",
-    tipLabel: "About the map data",
-    tip: [
-      "Where the detailed map is cut from. Empty uses the newest daily build of the free Protomaps map of the world, which is made from OpenStreetMap.",
-      "Fill it in only to use a map of your own: the web address or the file path of a PMTiles file.",
     ],
   },
   "digi/enabled": {
@@ -194,8 +181,8 @@ export const FIELDS: Record<string, FieldInfo> = {
       "Leave it off unless you are in a spot with poor coverage.",
     ],
   },
-  "messages/alert": { label: "Alert", kind: "bool" },
-  "messages/alert_command": { label: "Command" },
+  "messages/alert": { name: "Alert", label: "Alert", kind: "bool" },
+  "messages/alert_command": { name: "Alert command", label: "Command" },
   "status/source": {
     label: "Status",
     kind: "choice",
@@ -213,6 +200,7 @@ export const FIELDS: Record<string, FieldInfo> = {
     ],
   },
   "status/interval_min": {
+    name: "Status interval",
     label: "Every",
     unit: "min",
     tip: [
@@ -221,6 +209,7 @@ export const FIELDS: Record<string, FieldInfo> = {
     ],
   },
   "status/template": {
+    name: "Status template",
     label: "Text",
     tip: [
       "The status is made from this text with what your radio is tuned to now: {freq} becomes the frequency and {mode} the mode. Up to 55 characters once they are filled in.",
@@ -228,20 +217,22 @@ export const FIELDS: Record<string, FieldInfo> = {
     ],
   },
   "beacon/interval_min": {
-    label: "Interval",
-    unit: "min",
-    zero: "off",
+    name: "Beacon interval",
+    label: "Beacon",
+    kind: "choice",
+    choices: BEACON_CHOICES,
+    other: (value) => `Every ${value} min`,
     tip: [
-      "How often your position is sent, in minutes, 10 at the least. 0 sends none by itself; Beacon now still sends one. Every beacon uses the channel for everyone around, so choose it with care.",
-      "Example: 30 for a station that stays where it is",
+      "How often your position is sent. Off sends none by itself; Beacon now still sends one. Every beacon uses the channel for everyone around, so 30 minutes is a good choice for a station that stays where it is; 15 is the least.",
     ],
   },
   "beacon/path": {
+    name: "Beacon path",
     label: "Path",
     empty: "direct",
     tip: [
-      "The digipeaters, the stations that repeat your packet so it travels further, in the order it should use them, separated by commas. WIDE1-1,WIDE2-1 is the usual choice. Empty sends direct, with no help.",
-      "Example: WIDE1-1,WIDE2-1",
+      "The digipeaters, the stations that repeat your packet so it travels further, in the order it should use them, separated by commas. Empty sends direct, with no help.",
+      "WIDE1-1,WIDE2-1 is the usual choice: a small digipeater nearby picks the packet up first and a wide-area one carries it on. WIDE2-2 goes straight to the wide-area digipeaters, for a station that they hear directly, such as one on a hill.",
     ],
   },
 };
@@ -266,6 +257,12 @@ export const SUBGROUPS: Record<string, { text: string; title: string; tipLabel: 
 /** The antenna's keys belong to the station, though they are the beacon's to send. */
 const ANTENNA = ["beacon/power_w", "beacon/antenna_height_m", "beacon/antenna_gain_db", "beacon/antenna_direction"];
 
+/** What the Beacon group keeps behind a closed heading: the antenna (the PHG part of the beacon) and the path. */
+export const BEACON_FOLDS: readonly { title: string; keys: readonly string[] }[] = [
+  { title: "Antenna", keys: ANTENNA },
+  { title: "Advanced", keys: ["beacon/path"] },
+];
+
 interface Group {
   id: string;
   title: string;
@@ -273,13 +270,13 @@ interface Group {
 }
 
 const GROUPS: { id: string; title: string; prefixes: string[]; also?: string[]; except?: string[] }[] = [
-  { id: "station", title: "Station", prefixes: ["station/"], also: ANTENNA, except: ["station/status"] },
+  { id: "station", title: "Station", prefixes: ["station/"], except: ["station/status", "station/comment"] },
   { id: "serial", title: "TNC", prefixes: ["tnc/", "serial/", "tcp/"] },
   { id: "web", title: "Web page", prefixes: ["web/"] },
   { id: "notifications", title: "Notifications", prefixes: [], also: ALERT },
   { id: "map", title: "Map", prefixes: ["map/"] },
   { id: "digi", title: "Digipeater", prefixes: ["digi/"] },
-  { id: "beacon", title: "Beacon", prefixes: ["beacon/"], except: ANTENNA },
+  { id: "beacon", title: "Beacon", prefixes: ["beacon/"], also: ["station/comment"] },
   { id: "status", title: "Status", prefixes: ["status/"], also: ["station/status"] },
 ];
 
@@ -295,7 +292,9 @@ const TNC_ORDER = ["tnc/profile", "serial/port", "serial/baud", "tcp/host", "tcp
 
 /** The Status group: the choice first, then what that choice needs. */
 const STATUS_ORDER = ["status/source", "station/status", "status/rigctld", "status/template", "status/interval_min"];
-const GROUP_ORDER: Record<string, readonly string[]> = { serial: TNC_ORDER, status: STATUS_ORDER };
+/** The Beacon group: how often, what it says, then the folds (the antenna, the path). */
+const BEACON_ORDER = ["beacon/interval_min", "station/comment", ...ANTENNA, "beacon/path"];
+const GROUP_ORDER: Record<string, readonly string[]> = { serial: TNC_ORDER, status: STATUS_ORDER, beacon: BEACON_ORDER };
 
 function rank(order: readonly string[], key: string): number {
   const at = order.indexOf(key);
@@ -303,8 +302,18 @@ function rank(order: readonly string[], key: string): number {
 }
 
 /** Settings that stay in the daemon (`neoaprs db set`) and are not on the page: the address the update check asks, which ports the search for the radio looks at and leaves alone, and the port and the host names of the page itself
- * (the defaults suit nearly everyone, and the daemon moves to a free port and says which in the log). */
-const NOT_ON_THE_PAGE: readonly string[] = ["update/url", "serial/pattern", "serial/skip", "web/port", "web/allowed_hosts"];
+ * (the defaults suit nearly everyone, and the daemon moves to a free port and says which in the log), and the map's detail (12, streets), source (the latest daily build) and the time stations stay on the map (180 min; a station can have
+ * its own in its details). The map download uses the stored values, so a custom source or detail still works. */
+const NOT_ON_THE_PAGE: readonly string[] = [
+  "update/url",
+  "serial/pattern",
+  "serial/skip",
+  "web/port",
+  "web/allowed_hosts",
+  "map/hide_after_min",
+  "map/maxzoom",
+  "map/source",
+];
 
 /** The keys in the order of the daemon's list (a key it did not list last; the TNC and Status groups in their own order), in the groups of the form `scope` shows. */
 export function groupKeys(keys: readonly string[], scope: Scope = "settings"): Group[] {
@@ -326,13 +335,6 @@ export function groupKeys(keys: readonly string[], scope: Scope = "settings"): G
   groups.push({ id: "other", title: "Other", keys: sorted.filter((k) => !known.has(k)) });
   const shown = scope === "beacon" ? SCOPE_GROUPS.beacon : [...SCOPE_GROUPS.settings, "other"];
   return shown.flatMap((id) => groups.filter((g) => g.id === id && g.keys.length > 0));
-}
-
-/** The keys whose draft is not what the daemon has: what Save sends. */
-export function changedValues(draft: Readonly<Record<string, string>>, values: Readonly<Record<string, string>>): Record<string, string> {
-  const changed: Record<string, string> = {};
-  for (const [key, text] of Object.entries(draft)) if (key in values && text !== values[key]) changed[key] = text;
-  return changed;
 }
 
 /** The setting an error of the daemon is about: its text names the key ("set_config: station/lat: 95 is not between -90 and 90"). The longest key that is named wins. */

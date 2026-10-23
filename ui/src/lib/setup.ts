@@ -43,7 +43,6 @@ export interface SetupFields {
   host: string;
   tcpPort: string;
   radius: string;
-  maxzoom: string;
 }
 
 export type FieldName = keyof SetupFields;
@@ -62,7 +61,6 @@ export const STEP_OF: Record<FieldName, number> = {
   host: 3,
   tcpPort: 3,
   radius: 4,
-  maxzoom: 4,
 };
 
 /** The setting each field is the answer to (the locator and the symbol's two characters are the exceptions: they make other keys). */
@@ -78,7 +76,6 @@ export const KEY_OF: Record<string, FieldName> = {
   "tcp/host": "host",
   "tcp/port": "tcpPort",
   "map/radius_km": "radius",
-  "map/maxzoom": "maxzoom",
 };
 
 export const profileOf = (key: string) => TNC_PROFILES.find((p) => p.key === key);
@@ -189,7 +186,6 @@ export function fieldsFrom(values: Readonly<Record<string, string>>): SetupField
     host: values["tcp/host"] ?? "",
     tcpPort: values["tcp/port"] ?? "",
     radius: values["map/radius_km"] ?? "",
-    maxzoom: values["map/maxzoom"] ?? "",
   };
 }
 
@@ -204,7 +200,6 @@ export function setupChanges(f: SetupFields, values: Readonly<Record<string, str
     "station/symbol_code": f.symbol.slice(1),
     "tnc/profile": f.profile,
     "map/radius_km": f.radius.trim(),
-    "map/maxzoom": f.maxzoom.trim(),
   };
   if (profileOf(f.profile)?.transport === "tcp") {
     wanted["tcp/host"] = f.host.trim();

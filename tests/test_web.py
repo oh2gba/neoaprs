@@ -122,8 +122,8 @@ async def test_the_check_period_of_the_settings_counts_at_once_without_a_restart
     await e.start()
     page = await e.ws()
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
-    assert e.tnc.watchdog.sec == 0.0 and page.topics["config"]["values"]["tnc/check_sec"] == "0" and page.topics["config"]["values"]["map/hide_after_min"] == "180"      # (the checks are off in the settings of an Env)
-    await page.send({"cmd": "set_config", "values": {"tnc/check_sec": "300", "map/hide_after_min": "0"}})
+    assert e.tnc.watchdog.sec == 0.0 and page.topics["config"]["values"]["tnc/check_sec"] == "0" and "map/hide_after_min" not in page.topics["config"]["values"]      # (the checks are off in the settings of an Env)
+    await page.send({"cmd": "set_config", "values": {"tnc/check_sec": "300", "map/radius_km": "200"}})
     await page.until(lambda: page.topics["config"]["values"]["tnc/check_sec"] == "300")
     assert e.tnc.watchdog.sec == 300.0 and e.tnc.stats.opens == 1 and e.tnc._watchdog_task is not None
     await page.send({"cmd": "set_config", "values": {"tnc/check_sec": "0"}})
@@ -134,7 +134,7 @@ async def test_the_check_period_of_the_settings_counts_at_once_without_a_restart
     await e.stop()
     again = Env(tmp_path)
     await again.start()
-    assert again.tnc.watchdog.sec == 0.0 and again.ctl.config.map_hide_after_min == 0, "the settings are what the next start reads"
+    assert again.tnc.watchdog.sec == 0.0 and again.ctl.config.map_radius_km == 200, "the settings are what the next start reads"
     await again.stop()
 
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Step 5 of the first-run guide: the area and the detail of the base map, and the buttons that estimate and download it (MapFetchPanel; the guide saves the answers first when they differ from the settings). Finish without
+// Step 5 of the first-run guide: the radius of the base map and the button that downloads it (MapFetchPanel; the guide saves the answers first when they differ from the settings). Finish without
 // downloading leaves the map for later.
 import MapFetchPanel from "@/components/MapFetchPanel.vue";
 import SettingsField from "@/components/SettingsField.vue";
@@ -20,15 +20,6 @@ const props = defineProps<{ guide: SetupGuide; defaults: Record<string, string>;
     :error="props.guide.problems.radius ?? ''"
     :changed="false"
     @update:model-value="props.guide.edit('radius', $event)"
-  />
-  <SettingsField
-    id="setup-maxzoom"
-    :info="info('map/maxzoom')"
-    :model-value="props.guide.fields.maxzoom"
-    fallback=""
-    :error="props.guide.problems.maxzoom ?? ''"
-    :changed="false"
-    @update:model-value="props.guide.edit('maxzoom', $event)"
   />
   <MapFetchPanel
     v-if="props.map"

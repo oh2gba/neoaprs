@@ -311,7 +311,7 @@
     },
     "ClearStationTimeout": {
       "additionalProperties": false,
-      "description": "Takes a station's own timeout away, so that it has the setting `map/hide_after_min` again (a station without one is no error). Answered by the `set` of its entry in `station_prefs` with a null\n`hide_after_min` (or the `del` of the entry when it had no path either), or by an `error`.",
+      "description": "Takes a station's own timeout away, so that it has the fixed 180 minutes again (a station without one is no error). Answered by the `set` of its entry in `station_prefs` with a null\n`hide_after_min` (or the `del` of the entry when it had no path either), or by an `error`.",
       "properties": {
         "cmd": {
           "const": "clear_station_timeout",
@@ -2679,7 +2679,7 @@
     },
     "SetConfig": {
       "additionalProperties": false,
-      "description": "Changes settings. Every key and value is checked before anything is stored: the first that is wrong is answered with an `error` that names the key, and nothing changes. A key that is\nleft out keeps its value. The answer is the `config` topic told again. `web/port` and `web/allowed_hosts` are read at the daemon's start, `web/network` (and with it the access key `web/key`) counts at once, `serial/*`, `tcp/*` and `tnc/profile` restart the\nTNC, `station/*` move our own station on the map. `tnc/check_sec` and `map/hide_after_min` count at once, with no restart.",
+      "description": "Changes settings. Every key and value is checked before anything is stored: the first that is wrong is answered with an `error` that names the key, and nothing changes. A key that is\nleft out keeps its value. The answer is the `config` topic told again. `web/port` and `web/allowed_hosts` are read at the daemon's start, `web/network` (and with it the access key `web/key`) counts at once, `serial/*`, `tcp/*` and `tnc/profile` restart the\nTNC, `station/*` move our own station on the map. `tnc/check_sec` counts at once, with no restart.",
       "properties": {
         "cmd": {
           "const": "set_config",
@@ -2777,7 +2777,7 @@
     },
     "SetStationTimeout": {
       "additionalProperties": false,
-      "description": "Gives a station a timeout of its own: how long after its last position it stays on the map, in minutes; 0 is never. The page hides a station whose last position is older than that (a station\nwithout one of its own uses the setting `map/hide_after_min`), and the daily prune does not remove a station with a timeout of 0 from the station book. `call` is a station's call as it is in the\ntopic `stations` (the name of an object or an item too). Answered by the `set` of the station's entry in the topic `station_prefs` (its `path` is whatever it was), or by an `error` that names the reason.",
+      "description": "Gives a station a timeout of its own: how long after its last position it stays on the map, in minutes; 0 is never. The page hides a station whose last position is older than that (a station\nwithout one of its own is hidden after 180 minutes), and the daily prune does not remove a station with a timeout of 0 from the station book. `call` is a station's call as it is in the\ntopic `stations` (the name of an object or an item too). Answered by the `set` of the station's entry in the topic `station_prefs` (its `path` is whatever it was), or by an `error` that names the reason.",
       "properties": {
         "cmd": {
           "const": "set_station_timeout",
@@ -2858,7 +2858,7 @@
               "type": "null"
             }
           ],
-          "description": "the minutes after the station's last position that it leaves the map (the page does the hiding); 0 is never; null if none is set, and the setting `map/hide_after_min` counts"
+          "description": "the minutes after the station's last position that it leaves the map (the page does the hiding); 0 is never; null if none is set, and the default of 180 minutes counts"
         },
         "rf_only": {
           "description": "true if everything sent to the station (a message and each attempt of it, an ack, the answer to a query) has `RFONLY` as the last element of its path, which iGates that honour it do not put on the internet",

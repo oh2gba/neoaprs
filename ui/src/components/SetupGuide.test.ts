@@ -286,18 +286,18 @@ describe("SetupGuide: the radio", () => {
 });
 
 describe("SetupGuide: the map and Finish", () => {
-  it("has the radius, the detail and MapFetchPanel's Estimate and Download, and Finish in place of Next", async () => {
+  it("has the radius and MapFetchPanel's one Download map button, and Finish in place of Next", async () => {
     const { wrapper, stand } = make();
     await stand(4);
     expect(wrapper.find(".setup-step-name").text()).toBe("Map");
-    expect(wrapper.findAll(".field label").map((l) => l.text())).toEqual(["Radius", "Detail"]);
+    expect(wrapper.findAll(".field label").map((l) => l.text())).toEqual(["Radius"]);
     expect(wrapper.find<HTMLInputElement>("#setup-radius").attributes("placeholder")).toBe("150");
-    expect(wrapper.findAll("#setup-maxzoom option").map((o) => o.text())).toEqual(["10 town", "12 streets", "14 houses"]);
-    expect(wrapper.findAll(".mapfetch button").map((b) => b.text())).toEqual(["Estimate", "Download"]);
+    expect(wrapper.find("#setup-maxzoom").exists()).toBe(false);
+    expect(wrapper.findAll(".mapfetch button").map((b) => b.text())).toEqual(["Download map"]);
     expect(wrapper.find("button[type=submit]").text()).toBe("Finish");
   });
 
-  it("has Estimate and Download on while the daemon has no position yet (the guide saves it first), and off for a wrong radius", async () => {
+  it("has Download map on while the daemon has no position yet (the guide saves it first), and off for a wrong radius", async () => {
     const { wrapper, stand, type } = make({ map: mapState({ blocked: "no position", box: null }) });
     await stand(4);
     const mapButtons = () => wrapper.findAll(".mapfetch button");

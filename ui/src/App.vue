@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // The page: a header with the connection and the radio link, the map filling the page, and at its right a panel with the stations, the packets, the messages, the email, the bulletins, our objects, the beacon and the settings (which open with the state of the radio link).
 // The shell only: what the daemon tells is `useDaemon`, the panel `usePanel`, the station picked `useSelection`, the Messages tab `useMessagesView`, the Email tab `useEmail`, the Bulletins tab `useBulletins`, the Objects tab `useOwnObjects`, the paths, timeouts and RF only of the stations
-// `useStationPrefs`, the first-run guide (it opens by itself while the daemon has no call) `useSetupGuide`, the alert of this browser for a message to us `useBrowserAlerts` and `usePageAlerts`; the components take props and emit events, and the commands go out through `send`.
+// `useStationPrefs`, the settings of the Beacon tab and the Settings tab, which apply as they are changed (one queue for both, and the toast that undoes the latest change) `useSettings`, the first-run guide (it opens by itself while the daemon has no call) `useSetupGuide`, the alert of this browser for a message to us `useBrowserAlerts` and `usePageAlerts`; the components take props and emit events, and the commands go out through `send`.
 import { usePositionPick } from "@/composables/usePositionPick";
 import { computed, ref, watch } from "vue";
 import AppHeader from "@/components/AppHeader.vue";
@@ -20,6 +20,7 @@ import StationMap from "@/components/StationMap.vue";
 import StationsTable from "@/components/StationsTable.vue";
 import RadioStatus from "@/components/RadioStatus.vue";
 import ToastBar from "@/components/ToastBar.vue";
+import UndoToast from "@/components/UndoToast.vue";
 import UpdatePanel from "@/components/UpdatePanel.vue";
 import { useBrowserAlerts } from "@/composables/useBrowserAlerts";
 import { useBulletins } from "@/composables/useBulletins";
@@ -32,10 +33,11 @@ import { usePageAlerts } from "@/composables/usePageAlerts";
 import { useOwnObjects } from "@/composables/useOwnObjects";
 import { usePanel } from "@/composables/usePanel";
 import { useSelection } from "@/composables/useSelection";
+import { useSettings } from "@/composables/useSettings";
 import { useSetupGuide } from "@/composables/useSetupGuide";
 import { useStationPrefs } from "@/composables/useStationPrefs";
 import { useTitle } from "@/composables/useTitle";
-import { defaultTimeoutMin, type Aging } from "@/lib/aging";
+import { DEFAULT_TIMEOUT_MIN, type Aging } from "@/lib/aging";
 import { filesKey } from "@/lib/mapfetch";
 import { candidates as messageCandidates } from "@/lib/recipients";
 import { withOwnSymbol } from "@/lib/stations";
@@ -68,9 +70,10 @@ const {
 watch(connection, (state) => {
   if (state === "open") send({ cmd: "list_ports" });
 });
+const settings = useSettings(config, lastError, send);
 const stations = computed(() => withOwnSymbol(heard, config.value?.values));
 const { paths: stationPaths, timeouts, rfOnly, setRfOnly, setPath, clearPath, setTimeoutMin, clearTimeoutMin } = useStationPrefs(stationPrefs, send);
-const aging = computed<Aging>(() => ({ timeouts: timeouts.value, defaultMin: defaultTimeoutMin(config.value?.values) }));
+const aging = computed<Aging>(() => ({ timeouts: timeouts.value, defaultMin: DEFAULT_TIMEOUT_MIN }));
 // the panel with the steps of an update is open on purpose, and goes when the newer version does
 const updateOpen = ref(false);
 const newer = computed(() => status.value?.update?.version ?? null);
@@ -254,6 +257,7 @@ function onPick(at: Home): void {
             :config="config"
             :last-error="lastError"
             :send="send"
+            :settings="settings"
             :picking="stationPick.picking.value"
             :picked="stationPick.picked.value"
             @beacon="send({ cmd: 'beacon_now' })"
@@ -270,6 +274,7 @@ function onPick(at: Home): void {
             :map="map"
             :ports="ports"
             :send="send"
+            :settings="settings"
             @setup="guide.show()"
             @update="updateOpen = true"
           >
@@ -281,6 +286,7 @@ function onPick(at: Home): void {
         </template>
       </SidePanel>
     </main>
+    <UndoToast :undo="settings.undo.value" @undo="settings.undoLast()" @dismiss="settings.dismissUndo()" />
     <ToastBar :toast="lastError" />
   </div>
 </template>

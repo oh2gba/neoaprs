@@ -1,20 +1,28 @@
 <script setup lang="ts">
-// The settings of the daemon, one field for every key it lists in the scope of the form (the Settings tab, or the Beacon tab with the keys the beacon sends), in groups. Save sends the keys that were changed (the daemon checks them all before it stores any; a wrong one is shown under
-// its field); the alert command has a Test button, which runs the saved command and shows how it went under the field; a field left empty shows the default as a placeholder. The Map group ends with the buttons that make
-// the map (MapFetchPanel), which work on the saved settings. On the Settings tab a link at the top opens the first-run guide again; the default slot is for more groups (the page's own, which are not settings of the daemon), the slot `radio` for the state of the radio link, which opens the TNC group, and the slot `notifications` for the fields of the page's own alert, which end the Notifications group. The Update check group (the daily check itself is always on) has a Check now button, which asks the version page at once and shows the answer beside it for a few seconds. While the network is let in, the Web group shows the access key with a New key button and the addresses to open the page at.
+// The settings of the daemon, one field for every key it lists in the scope of the form (the Settings tab, or the Beacon tab with the keys the beacon sends), in groups. There is no Save button: a choice (a list, a switch, a symbol, a place
+// picked on the map) applies at once, a typed field on Enter or when it is left (never while it is typed), after the page's own check of it; the daemon checks it again, and a wrong one is shown under its field with what was typed kept. What
+// the person sees of it (Saving..., Saved, the Undo toast) is useSettings, shared with the other tab so that there is one queue. The alert command has a Test button, which runs the saved command and shows how it went under the field; a field
+// left empty shows the default as a placeholder. The Map group ends with the buttons that make the map (MapFetchPanel), which work on the saved settings. On the Settings tab a link at the top opens the first-run guide again; the default slot is
+// for more groups (the page's own, which are not settings of the daemon), the slot `radio` for the state of the radio link, which opens the TNC group, and the slot `notifications` for the fields of the page's own alert, which end the
+// Notifications group. The Update check group (the daily check itself is always on) has a Check now button, which asks the version page at once and shows the answer beside it for a few seconds. While the network is let in, the Web group shows
+// the access key with a New key button and the addresses to open the page at.
+import ConfirmRow from "@/components/ConfirmRow.vue";
 import MapFetchPanel from "@/components/MapFetchPanel.vue";
 import InfoTip from "@/components/InfoTip.vue";
 import SettingsField from "@/components/SettingsField.vue";
+import SettingsFold from "@/components/SettingsFold.vue";
+import SettingsLocation from "@/components/SettingsLocation.vue";
 import SymbolField from "@/components/SymbolField.vue";
 import SettingsPort from "@/components/SettingsPort.vue";
 import type { Toast } from "@/composables/useDaemon";
 import { ALERT_KEY, useAlertTest } from "@/composables/useAlertTest";
 import { KEY_KEY, useNewKey } from "@/composables/useNewKey";
 import { useUpdateCheck } from "@/composables/useUpdateCheck";
-import { useSettingsForm } from "@/composables/useSettingsForm";
+import { useSettings, type Settings } from "@/composables/useSettings";
+import { fieldId, useSettingsForm } from "@/composables/useSettingsForm";
 import type { Picked } from "@/composables/usePositionPick";
 import { degreesText } from "@/lib/setup";
-import { FIELDS, SUBGROUPS, portForProfile, shownByValues, shownFor, speedFallback, type Scope } from "@/lib/settings";
+import { BEACON_FOLDS, FIELDS, SUBGROUPS, shownByValues, shownFor, speedFallback, type Scope } from "@/lib/settings";
 import { statusSource } from "@/lib/status";
 import type { AlertResultMessage, Command, ConfigValues, MapState, PortsMessage, UpdateResultMessage } from "@/protocol/protocol";
 import { computed, toRef, watch } from "vue";
@@ -25,6 +33,8 @@ const props = withDefaults(
     lastError: Toast | null;
     send: (command: Command) => boolean;
     scope?: Scope;
+    /** the settings that apply as they are changed, shared with the other tab; the form makes its own if the page gives none */
+    settings?: Settings | null;
     alertResult?: AlertResultMessage | null;
     updateResult?: UpdateResultMessage | null;
     map?: MapState | null;
@@ -32,17 +42,14 @@ const props = withDefaults(
     picking?: boolean;
     picked?: Picked | null;
   }>(),
-  { scope: "settings", alertResult: null, updateResult: null, map: null, ports: null, picking: false, picked: null },
+  { scope: "settings", settings: null, alertResult: null, updateResult: null, map: null, ports: null, picking: false, picked: null },
 );
-const emit = defineEmits<{ setup: []; update: []; dirty: [value: boolean]; pickPosition: [] }>();
+const emit = defineEmits<{ setup: []; update: []; pickPosition: [] }>();
 
-const { draft, errors, saving, saved, groups, defaults, changed, dirty, save, edit, revert } = useSettingsForm(
-  toRef(props, "config"),
-  toRef(props, "lastError"),
-  (command) => props.send(command),
-  props.scope,
-);
-watch(dirty, (now) => emit("dirty", now));
+const settings = props.settings ?? useSettings(toRef(props, "config"), toRef(props, "lastError"), (command) => props.send(command));
+const { draft, errors, marks } = settings;
+const form = useSettingsForm(toRef(props, "config"), settings, props.scope);
+const { groups, question, defaults } = form;
 const alertTest = useAlertTest(
   toRef(props, "alertResult"),
   toRef(props, "lastError"),
@@ -55,7 +62,7 @@ const newKey = useNewKey();
 const SYMBOL_TABLE = "station/symbol_table";
 const SYMBOL_CODE = "station/symbol_code";
 const info = (key: string) => FIELDS[key] ?? { label: key };
-/** The network is let in and the daemon has made a key (what is saved, not the draft of the switch). */
+/** The network is let in and the daemon has made a key (what is in force, not the switch as it is being changed). */
 const network = computed(() => props.config?.values["web/network"] === "true" && (props.config.values[KEY_KEY] ?? "") !== "");
 const urls = computed(() => props.config?.urls ?? []);
 const resultOf = (key: string) => (key === ALERT_KEY ? alertTest.result.value : key === KEY_KEY ? newKey.result.value : null);
@@ -63,41 +70,53 @@ const resultOf = (key: string) => (key === ALERT_KEY ? alertTest.result.value : 
 const profile = computed(() => draft["tnc/profile"]);
 /** Whether the daemon looks for the radio among the ports (Linux); true until it has said. */
 const search = computed(() => props.ports?.search ?? true);
-const shown = (keys: string[]) =>
+/** The keys the Beacon group keeps behind closed headings (the antenna, the path): they are not in the group's own list. */
+const folded = new Set(props.scope === "beacon" ? BEACON_FOLDS.flatMap((fold) => fold.keys) : []);
+const shown = (keys: readonly string[], inGroup = true) =>
   keys.filter(
-    (key) => key !== SYMBOL_CODE && shownFor(key, profile.value, network.value, search.value) && (props.scope === "settings" || shownByValues(key, draft)),
+    (key) =>
+      key !== SYMBOL_CODE &&
+      !(key === "station/lon" && props.scope === "beacon") &&
+      !(inGroup && folded.has(key)) &&
+      shownFor(key, profile.value, network.value, search.value) &&
+      (props.scope === "settings" || shownByValues(key, draft)),
   );
 /** The symbol is one field, which sets the table and the code. */
 const symbol = computed(() => `${draft[SYMBOL_TABLE] ?? ""}${draft[SYMBOL_CODE] ?? ""}`);
+const symbolMark = computed(() => marks[SYMBOL_TABLE] ?? marks[SYMBOL_CODE] ?? "");
 function editSymbol(text: string): void {
-  edit(SYMBOL_TABLE, text.slice(0, 1));
-  edit(SYMBOL_CODE, text.slice(1, 2));
+  settings.edit(SYMBOL_TABLE, text.slice(0, 1));
+  settings.edit(SYMBOL_CODE, text.slice(1, 2));
 }
-// a place picked on the map (the Beacon tab's Pick on the map) fills our station's latitude and longitude, to be saved like any change
+// a place picked on the map (the Beacon tab's Pick on the map) is our station's latitude and longitude, sent together
 watch(
   () => props.picked,
   (at) => {
     if (!at) return;
-    edit("station/lat", degreesText(Math.round(at.lat * 1e5) / 1e5));
-    edit("station/lon", degreesText(Math.round((((((at.lon + 180) % 360) + 360) % 360) - 180) * 1e5) / 1e5));
+    settings.change({
+      "station/lat": degreesText(Math.round(at.lat * 1e5) / 1e5),
+      "station/lon": degreesText(Math.round((((((at.lon + 180) % 360) + 360) % 360) - 180) * 1e5) / 1e5),
+    });
   },
 );
 const refreshPorts = () => props.send({ cmd: "list_ports" }); // (the page asks for the list itself each time the daemon is connected: App.vue)
 const fallback = (key: string) => (key === "serial/baud" ? speedFallback(profile.value, defaults.value[key] ?? "") : (defaults.value[key] ?? ""));
-/** A serial device does not go with a TCP profile: choosing one clears it, so that Save is not refused for it. */
-function onEdit(key: string, text: string): void {
-  edit(key, text);
-  if (key === "tnc/profile" && "serial/port" in draft) edit("serial/port", portForProfile(text, draft["serial/port"] ?? ""));
+/** A typed field follows the typing; a choice is made by `choose` (it also says the text it has, which is not typing). */
+function typed(key: string, text: string): void {
+  const kind = info(key).kind;
+  if (kind !== "bool" && kind !== "choice") settings.edit(key, text);
 }
-/** The map is made for the settings the daemon has: unsaved changes of its keys have to be saved first. */
-const mapUnsaved = computed(() => Object.keys(changed.value).some((key) => key.startsWith("map/")));
+const mark = (key: string) => marks[key] ?? "";
 </script>
 
 <template>
-  <form v-if="config" class="settings" novalidate @submit.prevent="save">
+  <form v-if="config" class="settings" novalidate @submit.prevent>
     <p v-if="scope === 'settings'" class="settings-setup">
       <button class="linkbutton setup-open" type="button" @click="emit('setup')">Run the setup guide again</button>
     </p>
+    <span class="sr-only" role="status" aria-live="polite"
+      ><span :key="settings.announcement.value.n">{{ settings.announcement.value.text }}</span></span
+    >
     <fieldset v-for="group in groups" :key="group.id">
       <legend>{{ group.title }}</legend>
       <slot v-if="group.id === 'serial'" name="radio"></slot>
@@ -108,46 +127,62 @@ const mapUnsaved = computed(() => Object.keys(changed.value).some((key) => key.s
             <span v-for="line in SUBGROUPS[key]?.tip" :key="line" class="info-line">{{ line }}</span>
           </InfoTip>
         </h3>
+        <SettingsLocation
+          v-if="key === 'station/lat'"
+          :draft="draft"
+          :current="{ lat: config.values['station/lat'] ?? '', lon: config.values['station/lon'] ?? '' }"
+          :errors="errors"
+          :marks="marks"
+          :changed="form.changed"
+          :picking="picking"
+          @type="settings.edit"
+          @commit="form.finish"
+          @cancel="settings.cancel"
+          @pick="emit('pickPosition')"
+        />
         <SymbolField
-          v-if="key === SYMBOL_TABLE"
+          v-else-if="key === SYMBOL_TABLE"
           id="set-station-symbol"
           :symbol="symbol"
-          :changed="SYMBOL_TABLE in changed || SYMBOL_CODE in changed"
+          :changed="form.changed(SYMBOL_TABLE) || form.changed(SYMBOL_CODE)"
+          :state="symbolMark"
           @update:symbol="editSymbol"
+          @commit="settings.commit([SYMBOL_TABLE, SYMBOL_CODE], true)"
         />
         <SettingsPort
           v-else-if="key === 'serial/port'"
-          :id="`set-${key.replace('/', '-')}`"
+          :id="fieldId(key)"
           :info="info(key)"
           :model-value="draft[key] ?? ''"
           :found="config.values['serial/last_port'] ?? ''"
           :ports="ports"
           :error="errors[key] ?? ''"
-          :changed="key in changed"
-          @update:model-value="onEdit(key, $event)"
+          :changed="form.changed(key)"
+          :state="mark(key)"
+          @update:model-value="settings.edit(key, $event)"
+          @choose="form.choose({ [key]: $event })"
+          @commit="form.finish(key, $event)"
+          @cancel="settings.cancel(key)"
           @refresh="refreshPorts"
         />
         <SettingsField
           v-else
-          :id="`set-${key.replace('/', '-')}`"
+          :id="fieldId(key)"
           :info="info(key)"
           :model-value="key === 'status/source' ? statusSource(draft) : (draft[key] ?? '')"
           :fallback="fallback(key)"
           :error="errors[key] ?? ''"
-          :changed="key in changed"
+          :changed="form.changed(key)"
           :result="resultOf(key)"
-          @update:model-value="onEdit(key, $event)"
+          :state="mark(key)"
+          :apply="true"
+          @update:model-value="typed(key, $event)"
+          @choose="form.choose({ [key]: $event })"
+          @commit="form.finish(key, $event)"
+          @cancel="settings.cancel(key)"
         >
           <template v-if="key === ALERT_KEY" #after>
-            <button
-              class="btn"
-              type="button"
-              :disabled="alertTest.running.value || alertTest.stale.value"
-              :title="alertTest.stale.value ? 'Save first' : undefined"
-              @click="alertTest.test"
-            >
-              Test
-            </button>
+            <button class="btn" type="button" :disabled="alertTest.running.value || alertTest.stale.value" @click="alertTest.test">Test</button>
           </template>
           <template v-else-if="key === KEY_KEY" #after>
             <button class="btn" :class="{ danger: newKey.armed.value }" type="button" :disabled="newKey.running.value" @click="newKey.press">
@@ -155,9 +190,7 @@ const mapUnsaved = computed(() => Object.keys(changed.value).some((key) => key.s
             </button>
           </template>
         </SettingsField>
-        <div v-if="key === 'station/lon' && scope === 'beacon'" class="pick-row">
-          <button class="btn" type="button" :class="{ active: picking }" @click="emit('pickPosition')">{{ picking ? "Cancel" : "Pick on the map" }}</button>
-        </div>
+        <ConfirmRow v-if="question?.key === key" :message="question.message" @yes="form.answer(true)" @cancel="form.answer(false)" />
         <div v-if="key === KEY_KEY && urls.length" class="field">
           <label for="set-web-url-0">Open at</label>
           <div class="field-control">
@@ -174,8 +207,19 @@ const mapUnsaved = computed(() => Object.keys(changed.value).some((key) => key.s
           </div>
         </div>
       </template>
+      <template v-if="group.id === 'beacon' && scope === 'beacon'">
+        <SettingsFold
+          v-for="fold in BEACON_FOLDS"
+          :key="fold.title"
+          :title="fold.title"
+          :keys="shown(fold.keys, false)"
+          :settings="settings"
+          :form="form"
+          :defaults="defaults"
+        />
+      </template>
       <slot v-if="group.id === 'notifications'" name="notifications"></slot>
-      <MapFetchPanel v-if="group.id === 'map' && map" :map="map" :stale="mapUnsaved" :send="props.send" />
+      <MapFetchPanel v-if="group.id === 'map' && map" :map="map" :stale="settings.saving.value" :send="props.send" />
     </fieldset>
     <fieldset v-if="scope === 'settings'" class="update-check">
       <legend>Update check</legend>
@@ -200,12 +244,6 @@ const mapUnsaved = computed(() => Object.keys(changed.value).some((key) => key.s
     </fieldset>
     <slot></slot>
     <slot name="preview" :draft="draft"></slot>
-    <div class="settings-actions">
-      <button class="btn primary" type="submit" :disabled="!dirty || saving">{{ saving ? "Saving..." : "Save" }}</button>
-      <button class="btn" type="button" :disabled="!dirty" @click="revert">Revert</button>
-      <span v-if="saved && !dirty" class="muted" role="status">Saved.</span>
-      <span v-else-if="dirty" class="muted">{{ Object.keys(changed).length }} changed</span>
-    </div>
   </form>
   <p v-else class="empty">No word from the daemon yet.</p>
 </template>

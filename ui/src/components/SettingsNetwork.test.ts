@@ -2,6 +2,7 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import SettingsForm from "@/components/SettingsForm.vue";
+import { openedAt, resetSeen } from "@/test/fakealert";
 import { FakeFetch } from "@/test/fakefetch";
 import { configValues } from "@/test/fixtures";
 
@@ -14,17 +15,19 @@ function make(extra: Record<string, string> = {}, urls: string[] = []) {
   return { wrapper: mount(SettingsForm, { props: { config, lastError: null, send } }), send };
 }
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  resetSeen();
+});
 
 describe("the network access", () => {
-  it("has a switch labelled Allow access from the network, off by default, and sends it like any setting", async () => {
+  it("has a switch labelled Allow access from the network, off by default, and applies it at once", async () => {
     const { wrapper, send } = make();
     const switch_ = wrapper.find<HTMLInputElement>("#set-web-network");
     expect(wrapper.find("label[for='set-web-network']").text()).toBe("Allow access from the network");
     expect(switch_.attributes("type")).toBe("checkbox");
     expect(switch_.element.checked).toBe(false);
     await switch_.setValue(true);
-    await wrapper.find("form").trigger("submit");
     expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "web/network": "true" } });
   });
 
@@ -35,7 +38,7 @@ describe("the network access", () => {
     expect(make({}, ["http://192.168.1.20:7303/"]).wrapper.find("#set-web-url-0").exists()).toBe(false);
   });
 
-  it("does not show the key of a switch that is only turned on in the form, until it is saved", async () => {
+  it("does not show the key of a switch that is only turned on in the form, until the daemon has made one", async () => {
     const { wrapper } = make({ "web/key": "k7m2-x9pq-4hrt" });
     await wrapper.find("#set-web-network").setValue(true);
     expect(wrapper.find("#set-web-key").exists()).toBe(false);
@@ -52,7 +55,6 @@ describe("the network access", () => {
       "http://raspberrypi.local:7303/",
     ]);
     expect(wrapper.find("label[for='set-web-url-0']").text()).toBe("Open at");
-    expect(wrapper.find("button[type=submit]").attributes("disabled")).toBeDefined(); // (the key is shown, not edited: nothing is changed)
   });
 
   it("makes a new key only on the second press, and says so when the daemon does not answer", async () => {
@@ -73,5 +75,54 @@ describe("the network access", () => {
     await button()?.trigger("click");
     await flushPromises();
     expect(wrapper.find(".field-result").text()).toBe("No answer from the daemon.");
+  });
+});
+
+describe("turning the network access off", () => {
+  const off = async (wrapper: ReturnType<typeof make>["wrapper"]) => wrapper.find("#set-web-network").setValue(false);
+  const buttons = (wrapper: ReturnType<typeof make>["wrapper"]) => wrapper.findAll(".confirm-row button").map((b) => b.text());
+
+  it("just happens on the computer NeoAPRS runs on (a loopback address): nothing asks", async () => {
+    for (const host of ["127.0.0.1", "localhost"]) {
+      openedAt(host);
+      const { wrapper, send } = make(ON);
+      await off(wrapper);
+      expect(wrapper.find(".confirm-row").exists()).toBe(false);
+      expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "web/network": "false" } });
+    }
+  });
+
+  it("asks first on a page opened from another device, and sends nothing until Yes", async () => {
+    openedAt("192.168.1.20");
+    const { wrapper, send } = make(ON);
+    await off(wrapper);
+    expect(wrapper.find(".confirm-row").text()).toContain("This device will lose the page. Turn off?");
+    expect(buttons(wrapper)).toEqual(["Yes", "Cancel"]);
+    expect(send).not.toHaveBeenCalled();
+    await wrapper.findAll(".confirm-row button")[0]?.trigger("click");
+    expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "web/network": "false" } });
+    expect(wrapper.find(".confirm-row").exists()).toBe(false);
+  });
+
+  it("leaves the switch on and sends nothing on Cancel, or on Esc", async () => {
+    openedAt("raspberrypi.local");
+    const { wrapper, send } = make(ON);
+    await off(wrapper);
+    await wrapper.findAll(".confirm-row button")[1]?.trigger("click");
+    expect(wrapper.find<HTMLInputElement>("#set-web-network").element.checked).toBe(true);
+    expect(wrapper.find(".confirm-row").exists()).toBe(false);
+    await off(wrapper);
+    await wrapper.find(".confirm-row").trigger("keydown", { key: "Escape" });
+    expect(wrapper.find<HTMLInputElement>("#set-web-network").element.checked).toBe(true);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("does not ask when the network is turned on, or for any other setting", async () => {
+    openedAt("192.168.1.20");
+    const { wrapper, send } = make();
+    await wrapper.find("#set-web-network").setValue(true);
+    await wrapper.find("#set-digi-enabled").setValue(true);
+    expect(wrapper.find(".confirm-row").exists()).toBe(false);
+    expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "web/network": "true" } }); // (the next waits for its answer)
   });
 });

@@ -21,7 +21,7 @@ describe("BeaconPane", () => {
 
   it("asks nothing about the destination, the compressed form or the DAO: the program decides", () => {
     const { wrapper } = pane({ "status/source": "text" });
-    expect(labels(wrapper)).toEqual(["Call", "Latitude", "Longitude", "Symbol", "Comment", "Power", "Interval", "Path", "Status", "Text", "Every"]);
+    expect(labels(wrapper)).toEqual(["Call", "Latitude", "Longitude", "Symbol", "Beacon", "Comment", "Power", "Path", "Status", "Text", "Every"]);
     for (const id of ["destination", "compressed", "dao", "symbol_table", "symbol_code"])
       expect(wrapper.find(`#set-beacon-${id}, #set-station-${id}`).exists()).toBe(false);
   });
@@ -88,13 +88,15 @@ describe("BeaconPane", () => {
       }
     });
 
-    it("waits for a save: it acts on what is saved, so both buttons are off while a field holds a change", async () => {
-      const { wrapper } = pane({ "status/source": "text" });
+    it("waits for a save: it acts on what is in force, so both buttons are off while a change is on its way, and not before", async () => {
+      const { wrapper, send } = pane({ "status/source": "text" });
       const disabled = () => wrapper.findAll(".beaconbox button").map((b) => b.attributes("disabled") !== undefined);
       expect(disabled()).toEqual([false, false]);
       await wrapper.find("#set-station-status").setValue("At the cottage");
+      expect(disabled()).toEqual([false, false]); // (typing sends nothing)
+      await wrapper.find("#set-station-status").trigger("blur");
+      expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "station/status": "At the cottage" } });
       expect(disabled()).toEqual([true, true]);
-      await wrapper.find("form").trigger("submit");
       await wrapper.setProps({ config: configValues({ "status/source": "text", "station/status": "At the cottage" }) });
       expect(disabled()).toEqual([false, false]);
     });
@@ -117,10 +119,14 @@ describe("BeaconPane", () => {
     expect(wrapper.find(".beaconbox button").text()).toBe("Beacon now");
   });
 
-  it("has Pick on the map under the longitude, not beside it", () => {
+  it("has the Location sub-section, with the big Pick on the map button, between the call and the symbol", () => {
     const { wrapper } = pane();
-    const row = wrapper.find(".pick-row");
-    expect(row.text()).toBe("Pick on the map");
-    expect(row.element.previousElementSibling?.querySelector("#set-station-lon")).not.toBeNull();
+    expect(wrapper.find("button.location-pick").text()).toBe("Pick on the map");
+    expect(
+      wrapper
+        .findAll("form h3, form .field label")
+        .map((e) => e.text())
+        .slice(0, 5),
+    ).toEqual(["Call", "Location", "Latitude", "Longitude", "Symbol"]);
   });
 });

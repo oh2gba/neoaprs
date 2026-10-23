@@ -172,7 +172,6 @@ describe("what the guide starts with", () => {
       host: "127.0.0.1",
       tcpPort: "8001",
       radius: "150",
-      maxzoom: "12",
     });
     expect(baudShown("kenwood-tnc2", "57600")).toBe("57600");
     expect(baudShown("kenwood-tnc2", " 9600 ")).toBe("");
@@ -187,7 +186,7 @@ describe("setupChanges", () => {
       "station/lat": "60.17",
       "station/lon": "24.94",
     });
-    expect(setupChanges(answered({ symbol: "/>", radius: "200", maxzoom: "14", profile: "kantronics", port: "/dev/ttyUSB0", baud: "4800" }), fresh())).toEqual({
+    expect(setupChanges(answered({ symbol: "/>", radius: "200", profile: "kantronics", port: "/dev/ttyUSB0", baud: "4800" }), fresh())).toEqual({
       "station/call": "OH2ABC",
       "station/lat": "60.17",
       "station/lon": "24.94",
@@ -196,7 +195,6 @@ describe("setupChanges", () => {
       "serial/port": "/dev/ttyUSB0",
       "serial/baud": "4800",
       "map/radius_km": "200",
-      "map/maxzoom": "14",
     });
   });
 
