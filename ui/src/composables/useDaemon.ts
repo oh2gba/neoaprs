@@ -119,7 +119,7 @@ export function useDaemon(url: () => string = socketUrl) {
     version,
     install,
     updateResult: answers.updateResult,
-    weatherSeries: answers.weatherSeries,
+    weatherSeriesByCall: answers.weatherSeriesByCall,
     alertResult: answers.alertResult,
     ports: answers.ports,
     send,

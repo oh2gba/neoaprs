@@ -62,7 +62,7 @@ const {
   lastError,
   version,
   install,
-  weatherSeries,
+  weatherSeriesByCall,
   alertResult,
   updateResult,
   ports,
@@ -181,9 +181,10 @@ const { selected, focus } = cards;
           :size="layout.size.value"
           :now="now"
           :aging="aging"
-          :weather-series="weatherSeries"
+          :weather-series="weatherSeriesByCall"
           @close="cards.close"
           @close-all="cards.closeAll"
+          @overflow="cards.closeOldest"
           @only="selected = $event"
           @weather="(call, hours) => send({ cmd: 'weather_series', call, hours })"
           @forget="cards.forget"

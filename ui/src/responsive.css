@@ -56,6 +56,10 @@ button,
   max-height: none;
   min-height: 0;
 }
+/* a card has two forms: the whole one, alone (its body scrolls if the map is too low for it), and the compact one, which has one size however many cards there are: it is never squeezed, the page closes the oldest card when the column does not fit */
+.cardstack .card.compact {
+  flex: none;
+}
 .cards-closeall {
   order: 1;
   align-self: flex-start;
@@ -76,30 +80,54 @@ button,
   gap: 0 10px;
   font-size: 12px;
 }
+/* the compact weather card: the readings in one line, then a small graph for each quantity */
 .card.compact .wx {
-  padding: 0 8px 6px;
+  padding: 0 8px 4px;
   border-bottom: 0;
 }
-.card.compact .wx-now {
-  grid-template-columns: auto 1fr;
-  gap: 2px 10px;
-}
-.card.compact .wx-temp {
-  font-size: 24px;
-}
-.card.compact .wx-arrow {
-  width: 26px;
-  height: 26px;
-}
-.card.compact .wx-big {
-  font-size: 14px;
-}
-.card.compact .wx-values {
+.wx-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
   gap: 0 10px;
   font-size: 12px;
 }
-.card.compact .wx-when {
+.wx-line .wx-temp {
+  font-size: 18px;
+}
+.wx-line .wx-wind {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.wx-line .wx-arrow {
+  width: 14px;
+  height: 14px;
+}
+.wx-line .wx-when {
   font-size: 11px;
+}
+.wx-graphs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 6px;
+}
+.trend.compact {
+  position: relative;
+  margin: 2px 0 0;
+}
+.trend.compact .trend-head {
+  position: absolute;
+  top: 0;
+  right: 2px;
+  left: 28px;
+  z-index: 1;
+  font-size: 10px;
+  line-height: 12px;
+  pointer-events: none;
+}
+.trend.compact .trend-grid text {
+  font-size: 8px;
 }
 
 /* tablet: the panel has the width of its size, a fixed one (there is no mouse to drag the handle with) */

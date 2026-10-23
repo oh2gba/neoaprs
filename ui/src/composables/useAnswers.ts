@@ -7,14 +7,19 @@ type AnswerHandlers = Pick<Store, "weatherSeries" | "alertResult" | "ports" | "u
 
 export function useAnswers() {
   const weatherSeries = shallowRef<WeatherSeriesMessage | null>(null);
+  /** The latest answer for each station: several weather cards are open at once, each with its own graphs. */
+  const weatherSeriesByCall = shallowRef<ReadonlyMap<string, WeatherSeriesMessage>>(new Map());
   const alertResult = shallowRef<AlertResultMessage | null>(null);
   const ports = shallowRef<PortsMessage | null>(null);
   const updateResult = shallowRef<UpdateResultMessage | null>(null);
   const handlers: AnswerHandlers = {
-    weatherSeries: (message) => (weatherSeries.value = message),
+    weatherSeries: (message) => {
+      weatherSeries.value = message;
+      weatherSeriesByCall.value = new Map(weatherSeriesByCall.value).set(message.call, message);
+    },
     alertResult: (message) => (alertResult.value = message),
     ports: (message) => (ports.value = message),
     updateResult: (message) => (updateResult.value = message),
   };
-  return { weatherSeries, alertResult, ports, updateResult, handlers };
+  return { weatherSeries, weatherSeriesByCall, alertResult, ports, updateResult, handlers };
 }
