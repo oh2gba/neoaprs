@@ -28,6 +28,12 @@ function wholeProblem(key: string, text: string, quiet: boolean): string {
   return n >= min && n <= max ? "" : `${min} to ${max}`;
 }
 
+/** Whether a latitude and a longitude are a place on the earth (the settings' limits). */
+export function onEarth(lat: number, lon: number): boolean {
+  const { "station/lat": latitude, "station/lon": longitude } = LIMITS.range;
+  return Math.abs(lat) <= latitude.max && Math.abs(lon) <= longitude.max;
+}
+
 /** What is wrong with a call as it stands, or "" when it is fine (or still empty: Next waits for it, but nothing is said yet). A placeholder such as N0CALL is the call the programs ship with, never a call. */
 export function callProblem(text: string): string {
   if (text.trim() === "") return "";

@@ -5,7 +5,7 @@ import { computed, reactive, ref, watch, type Ref } from "vue";
 import type { Panel } from "@/composables/usePanel";
 import { draftOf, emptyDraft, isObjectOf, moveCommand, objectCommand, wrapLongitude, type ObjectDraft } from "@/lib/ownobjects";
 import type { Home } from "@/lib/mapview";
-import { parseNumber } from "@/lib/fieldcheck";
+import { onEarth, parseNumber } from "@/lib/fieldcheck";
 import { degreesText } from "@/lib/setup";
 import type { Command, OwnObjectRow } from "@/protocol/protocol";
 
@@ -20,7 +20,7 @@ export function useOwnObjects(rows: ReadonlyMap<string, OwnObjectRow>, home: Ref
   const pin = computed(() => {
     const lat = parseNumber(draft.lat);
     const lon = parseNumber(draft.lon);
-    return open.value && lat !== null && lon !== null && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? { lat, lon } : null;
+    return open.value && lat !== null && lon !== null && onEarth(lat, lon) ? { lat, lon } : null;
   });
 
   /** The form for a new object, at the place we are. */
