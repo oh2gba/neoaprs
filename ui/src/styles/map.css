@@ -77,7 +77,8 @@
   outline: 2px solid var(--accent);
   background: var(--map-halo);
 }
-.stn--me .stn-label {
+.stn--me .stn-label,
+.stn--own .stn-label {
   color: var(--accent);
   font-weight: 800;
 }
@@ -88,10 +89,6 @@
   border-radius: 50%;
   outline: 2px dashed var(--accent);
   background: var(--map-halo);
-}
-.stn--own .stn-label {
-  color: var(--accent);
-  font-weight: 800;
 }
 .stn--selected {
   z-index: 5;
@@ -203,23 +200,14 @@
 .attrib-text p {
   margin: 2px 0;
 }
-.attrib-toggle {
-  width: 20px;
-  height: 20px;
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  background: var(--panel);
-  color: var(--text);
-  font: italic 700 12px/1 serif;
-  cursor: pointer;
-}
 
 /* the map's download in the settings */
 .mapfetch {
   margin: 8px 0 2px;
 }
 .mapfetch-actions,
-.mapfetch-progress {
+.mapfetch-progress,
+.mapnote-box {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -236,11 +224,6 @@
 }
 .mapfetch-file {
   margin: 4px 0 0;
-}
-.mapnote-box {
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 .mapnote-box .btn {
   pointer-events: auto;

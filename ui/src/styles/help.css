@@ -1,12 +1,14 @@
 /* the steps to allow pop-ups in the person's browser (Settings, Notifications, In this browser), and a text with its Copy button */
-.popuphelp {
+.popuphelp,
+.httpsguide {
   margin: 4px 0 10px;
   padding: 6px 12px 10px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--bg);
 }
-.popuphelp-head {
+.popuphelp-head,
+.updatepanel-head {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -62,11 +64,6 @@
   border-radius: 8px;
   box-shadow: var(--shadow);
 }
-.updatepanel-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
 .updatepanel-head h2 {
   flex: 1;
   margin: 0;
@@ -109,13 +106,6 @@
 }
 
 /* the guide to install NeoAPRS's certificate (Settings, Web page; the pop-up guide) */
-.httpsguide {
-  margin: 4px 0 10px;
-  padding: 6px 12px 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
-}
 .httpsguide-head {
   display: flex;
   align-items: center;

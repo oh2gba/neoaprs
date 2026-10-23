@@ -92,7 +92,8 @@ a.btn {
   position: relative;
   display: inline-flex;
 }
-.info-toggle {
+.info-toggle,
+.attrib-toggle {
   width: 20px;
   height: 20px;
   border: 1px solid var(--border);

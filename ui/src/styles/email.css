@@ -1,10 +1,4 @@
 /* the email tab: the button and the (i) on top, the mail list, the box to write in at the bottom */
-.mailpane {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
-}
 .mail-bar {
   display: flex;
   flex: none;

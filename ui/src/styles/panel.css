@@ -179,3 +179,13 @@
   min-height: 0;
   overflow: auto;
 }
+/* what fills the pane of a tab: a column that takes its height */
+.tablepane,
+.boardwrap,
+.objectspane,
+.mailpane {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
