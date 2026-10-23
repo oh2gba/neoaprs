@@ -126,13 +126,13 @@ def find_cycle(graph: dict[str, list[Import]]) -> list[str]:
 # ---- Signal wiring ------------------------------------------------------------------------------------------------------------------------------------------
 
 def connect_sites(tree: Tree) -> dict[str, int]:
-    """Per file, how many `x.connect(...)` calls it has. `sqlite3.connect` is not a Signal and is left out."""
+    """Per file, how many `x.connect(...)` calls it has. `sqlite3.connect` and the `connect` of a network socket (a variable called `sock`) are not a Signal and are left out."""
     counts: dict[str, int] = {}
     for rel, source in tree.items():
         n = sum(
             1 for node in ast.walk(ast.parse(source))
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "connect"
-            and not (isinstance(node.func.value, ast.Name) and node.func.value.id == "sqlite3")
+            and not (isinstance(node.func.value, ast.Name) and node.func.value.id in ("sqlite3", "sock"))
         )
         if n:
             counts[rel] = n

@@ -1,4 +1,5 @@
-"""The line of the radio, on every system: a serial port (`/dev/ttyUSB0`, `COM3`) or a TCP socket (`socket://host:port`, KISS over TCP: Direwolf on 8001, the sound-card modems; `tcp://host:port` is accepted for it).
+"""The line of the radio, on every system: a serial port (`/dev/ttyUSB0`, `COM3`), a TCP socket (`socket://host:port`, KISS over TCP: Direwolf on 8001, the sound-card modems; `tcp://host:port` is accepted for it) or, on Linux,
+a Bluetooth serial port that is paired with the system (`bt://AA:BB:CC:DD:EE:FF`, `btserial.py`).
 
 `SerialPort` reports what happens as signals (`data`, `dropped`); it never reopens by itself: the TNC that owns it decides when to try again. The port is made with pyserial's `serial_for_url`, the control lines held low
 before the open (a sound-card interface keys the transmitter on RTS), the open run in a thread (a Bluetooth COM port can take seconds to say no), and each open line has a thread that reads it and a thread that writes it,
@@ -17,6 +18,7 @@ from typing import Any
 
 import serial  # type: ignore[import-untyped]
 
+from .btserial import BluetoothSerial, is_bluetooth
 from .signal import Signal
 from .source import os_error_text
 
@@ -45,8 +47,8 @@ def is_url(path: str) -> bool:
 
 
 def is_socket(path: str) -> bool:
-    """A TCP KISS port: no device behind it that has a command mode, a file to look for holders of, or a cable to pull."""
-    return normalize(path).lower().startswith("socket://")
+    """A TCP KISS port or a Bluetooth one: a stream socket with no speed, no device file to look for holders of, and no cable to pull."""
+    return normalize(path).lower().startswith("socket://") or is_bluetooth(path)
 
 
 def _on_windows() -> bool:
@@ -75,7 +77,12 @@ def _in_use(e: BaseException) -> bool:
 def _build(path: str, baud: int) -> Any:
     """The pyserial object, not yet open: 8N1, no flow control, DTR and RTS low before the open (they are what a sound-card interface keys the transmitter with), and exclusive on a POSIX device."""
     url = normalize(path)
-    ser = serial.serial_for_url(url, do_not_open=True, baudrate=baud, bytesize=8, parity="N", stopbits=1, xonxoff=False, rtscts=False, dsrdtr=False, timeout=READ_TIMEOUT_SEC, write_timeout=WRITE_TIMEOUT_SEC)
+    settings: dict[str, Any] = dict(baudrate=baud, bytesize=8, parity="N", stopbits=1, xonxoff=False, rtscts=False, dsrdtr=False, timeout=READ_TIMEOUT_SEC, write_timeout=WRITE_TIMEOUT_SEC)
+    if is_bluetooth(url):                                 # (pyserial does not know bt://: its port class is made here, as serial_for_url would)
+        ser = BluetoothSerial(None, **settings)
+        ser.port = url
+    else:
+        ser = serial.serial_for_url(url, do_not_open=True, **settings)
     ser.dtr = False
     ser.rts = False
     if os.name == "posix" and not is_url(url):
@@ -84,9 +91,9 @@ def _build(path: str, baud: int) -> Any:
 
 
 def _keep_alive(ser: Any) -> None:
-    """A TCP line that nobody answers is found dead by the operating system in the end, not never."""
+    """A TCP line that nobody answers is found dead by the operating system in the end, not never. (A Bluetooth link has its own supervision timeout.)"""
     sock = getattr(ser, "_socket", None)
-    if sock is not None:
+    if sock is not None and not isinstance(ser, BluetoothSerial):
         try:
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
         except OSError as e:
@@ -245,7 +252,7 @@ class SerialPort:
         if line is None:
             return
         line.end()
-        if self.is_socket:                                # pyserial's socket close sleeps a third of a second, so it is done off the loop
+        if self.is_socket:                                # pyserial's socket close sleeps a third of a second, so it is done off the loop (a Bluetooth link closes slowly too)
             threading.Thread(target=_close_quietly, args=(line.ser,), name=f"serial-close {self.path}", daemon=True).start()
         else:
             _close_quietly(line.ser)
