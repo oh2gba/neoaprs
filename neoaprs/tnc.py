@@ -18,6 +18,7 @@ answer to the check, confirms, and no answer within the check's answer time make
 (`check_sec` 0) nothing is asked and the line is usable as soon as it is open, as it is for a profile that cannot be asked."""
 import asyncio
 import logging
+from collections import deque
 from collections.abc import Callable
 from datetime import datetime
 
@@ -25,6 +26,7 @@ from . import ax25, kiss, serialprobe
 from .clock import Clock, utcnow
 from .interlock import Interlock
 from .packet import Packet
+from .policy import TNC_CHECK_SEC
 from .serialholders import held_by
 from .serialport import SerialError, SerialPort, is_socket
 from .signal import Signal
@@ -62,6 +64,9 @@ class _TncPort(SerialPort):
             self._lost(reason)
 
 
+LINE_TIME_WIDTH = len("12:00:00  ")             # what Source puts in front of every line it keeps: the time of day and two blanks
+
+
 def _speed(path: str, baud: int) -> str:
     """" at 9600" for a serial line; a TCP line has no speed."""
     return "" if is_socket(path) else f" at {baud}"
@@ -76,7 +81,7 @@ class Tnc(Source):
 
     def __init__(self, port: str = "", baud: int = 9600, profile: Profile = KENWOOD_TNC2, pattern: str = "", clock: Clock = utcnow, probe_seconds: float = 0.0,
                  backoff: Backoff | None = None, settle_sec: float | None = None, pace: float = 1.0, fallback_probe: bool = True, probe_nudge_sec: float = 10.0,
-                 skip: tuple[str, ...] = (), check_sec: float = 60.0, check_pause_sec: float = CHECK_PAUSE_SEC, reply_sec: float = REPLY_SEC, answer_sec: float = ANSWER_SEC, probe_sec: float = PROBE_SEC) -> None:
+                 skip: tuple[str, ...] = (), check_sec: float = TNC_CHECK_SEC, check_pause_sec: float = CHECK_PAUSE_SEC, reply_sec: float = REPLY_SEC, answer_sec: float = ANSWER_SEC, probe_sec: float = PROBE_SEC) -> None:
         super().__init__("tnc", clock)
         self.stats = TncStats()
         self.port, self.baud, self.profile, self.pattern = port, baud, profile, pattern or serialprobe.search_pattern()
@@ -95,6 +100,7 @@ class Tnc(Source):
         self.watchdog = Watchdog(self, check_sec, check_pause_sec, reply_sec, answer_sec, probe_sec)    # check_sec 0: no checks
         self.last_watchdog_action = ""                                   # "check", "probe" or "reopen"; empty until the watchdog has done anything
         self.last_watchdog_at: datetime | None = None
+        self.line_times: deque[datetime] = deque(maxlen=self.MAX_LINES)   # when each of `lines` was written, the same length and order
         self._open_reset()
 
     def _open_reset(self) -> None:
@@ -356,11 +362,24 @@ class Tnc(Source):
         self.packet.emit(packet)
         return True
 
+    def _add_line(self, text: str) -> None:
+        self.line_times.append(self.clock())
+        super()._add_line(text)
+
+    def recent_lines(self, count: int) -> list[tuple[datetime, str]]:
+        """The latest `count` lines, oldest first, each with the time it was written and its text without the time that `lines` shows in front of it."""
+        return [(at, line[LINE_TIME_WIDTH:]) for at, line in zip(list(self.line_times)[-count:], list(self.lines)[-count:], strict=False)]
+
+    @property
+    def searching(self) -> list[str]:
+        """The ports the search for the radio is listening to; none while a port is open or no search is under way."""
+        return list(self._search.listening) if self._port is None else []
+
     def describe(self) -> str:
         if self.state is Source.State.SILENT and self.last_byte_at is not None:
             return f"silent since {self.last_byte_at:%H:%M} ({minutes_between(self.last_byte_at, self.now())})"
-        if self._search.listening and self._port is None:
-            return f"listening on {', '.join(self._search.listening)} for the radio"
+        if self.searching:
+            return f"listening on {', '.join(self.searching)} for the radio"
         if self._port is None:
             return f"{self.path or self.port or 'no port'}{_speed(self.path or self.port, self.baud)}, {self.state.value}"
         mode = "KISS" if self._kiss_seen else ("entering KISS" if self._entered else "listening")

@@ -7,6 +7,7 @@ not yet acknowledged by a frame of its own, so that the acknowledgement rides on
 the brace; `reply_ack_of` reads the rest. The ack of such a message is `ackMM}AA` (a copy of the number), and the id of an ack it takes is the `MM` before the brace."""
 import re
 
+from neoaprs.coded import CodedError
 from neoaprs.packet import Message, decode_text
 
 _ADDRESSEE_LEN = 9
@@ -17,7 +18,7 @@ MAX_TEXT = 67                                        # characters of message tex
 FORBIDDEN = "|~{"
 
 
-class MessageError(ValueError):
+class MessageError(CodedError):
     """A body that is not a message, or a message that cannot be sent."""
 
 

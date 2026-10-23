@@ -21,6 +21,12 @@ class TncStats(_Model):
     digipeated: int = Field(ge=0, description="frames the digipeater (`digi/enabled`) sent again for other stations")
 
 
+class TncLine(_Model):
+    """One line of the TNC's log."""
+    at: Iso = Field(description="when the line was written")
+    text: str = Field(description="what the TNC saw (TNC2 text and what it understood of it) or did (`NeoAPRS: ...`), without the time")
+
+
 class TncState(_Model):
     """The TNC, the one feed of packets: its state and why it is not connected, the port, and the latest lines of what it saw and did. The value of the topic `tnc`."""
     state: Literal["stopped", "connecting", "connected", "waiting", "silent"] = Field(
@@ -29,13 +35,14 @@ class TncState(_Model):
     last_error: str = Field(description="the latest reason for waiting")
     path: str = Field(description="the serial port in use; empty while none is open")
     baud: int
-    describe: str = Field(description="one line for the status bar: the port, the speed and what the TNC does; while `silent` it says since when, in UTC")
+    describe: str = Field(description="one line for the log and `neoaprs doctor`: the port, the speed and what the TNC does; while `silent` it says since when, in UTC")
+    searching: list[str] = Field(description="the ports the daemon is listening to while it looks for the radio; empty when it is not searching")
     silent_since: Iso | None = Field(description="while `state` is `silent`, when the latest byte came; null otherwise")
     stats: TncStats
     last_watchdog_action: Literal["", "check", "probe", "reopen"] = Field(
         description="what the watchdog did last: `check` (the radio asked whether it is there, after a quiet period), `probe` (the same, while the radio is silent) or `reopen` (the port closed and opened again); empty if it has done nothing since the daemon started")
     last_watchdog_at: Iso | None = Field(description="when the watchdog did that; null if it has done nothing since the daemon started")
-    lines: list[str] = Field(max_length=100, description="the latest 100 lines of what the TNC saw (TNC2 text and what it understood of it) and did (`NeoAPRS: ...`), oldest first, each begins with the time HH:MM:SS")
+    lines: list[TncLine] = Field(max_length=100, description="the latest 100 lines of what the TNC saw and did, oldest first")
 
 
 class TncReconnect(_Command):

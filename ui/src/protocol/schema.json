@@ -1073,19 +1073,59 @@
     },
     "Error": {
       "additionalProperties": false,
-      "description": "A command that could not be done. A frame the daemon could not understand is answered the same way, naming the command, the field and the problem; nothing was changed.",
+      "description": "A command that could not be done. A frame the daemon could not understand is answered the same way, naming the command, the field and the problem; nothing was changed. A page goes by `cmd`, `key`\nand `code`; `text` is the English sentence for a log and for a code the page has no sentence for.",
       "properties": {
         "type": {
           "const": "error",
           "type": "string"
         },
+        "cmd": {
+          "description": "the command it answers; empty for a frame that was no command (not JSON, not an object, no `cmd`, an unknown one)",
+          "type": "string"
+        },
+        "key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the setting it is about (`set_config`), a key of `CONFIG_KEYS`; null for any other error"
+        },
+        "code": {
+          "description": "a stable word for what is wrong, such as `setting.range`, `call.ssid` or `message.too_long`; `other` for an error that has no code yet",
+          "type": "string"
+        },
+        "params": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "description": "the values the sentence is made of, by name, such as `value`, `min` and `max` of `setting.range`; empty when there are none",
+          "type": "object"
+        },
         "text": {
-          "description": "what could not be done and why, in a sentence; for a setting it begins with the key",
+          "description": "what could not be done and why, in a sentence in English: the command, then the setting if there is one, then the reason (`set_config: station/lat: 95 is not between -90 and 90`)",
           "type": "string"
         }
       },
       "required": [
         "type",
+        "cmd",
+        "key",
+        "code",
+        "params",
         "text"
       ],
       "title": "ErrorMessage",
@@ -3546,6 +3586,27 @@
       "title": "TelemetryValues",
       "type": "object"
     },
+    "TncLine": {
+      "additionalProperties": false,
+      "description": "One line of the TNC's log.",
+      "properties": {
+        "at": {
+          "description": "when the line was written",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "text": {
+          "description": "what the TNC saw (TNC2 text and what it understood of it) or did (`NeoAPRS: ...`), without the time",
+          "type": "string"
+        }
+      },
+      "required": [
+        "at",
+        "text"
+      ],
+      "title": "TncLine",
+      "type": "object"
+    },
     "TncReconnect": {
       "additionalProperties": false,
       "description": "Opens the radio's line again with the settings as they are now (the port, the speed, entering KISS): the TNC is stopped and started in the background. The new state is told in `tnc`.",
@@ -3592,8 +3653,15 @@
           "type": "integer"
         },
         "describe": {
-          "description": "one line for the status bar: the port, the speed and what the TNC does; while `silent` it says since when, in UTC",
+          "description": "one line for the log and `neoaprs doctor`: the port, the speed and what the TNC does; while `silent` it says since when, in UTC",
           "type": "string"
+        },
+        "searching": {
+          "description": "the ports the daemon is listening to while it looks for the radio; empty when it is not searching",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         },
         "silent_since": {
           "anyOf": [
@@ -3635,9 +3703,9 @@
           "description": "when the watchdog did that; null if it has done nothing since the daemon started"
         },
         "lines": {
-          "description": "the latest 100 lines of what the TNC saw (TNC2 text and what it understood of it) and did (`NeoAPRS: ...`), oldest first, each begins with the time HH:MM:SS",
+          "description": "the latest 100 lines of what the TNC saw and did, oldest first",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/TncLine"
           },
           "maxItems": 100,
           "type": "array"
@@ -3650,6 +3718,7 @@
         "path",
         "baud",
         "describe",
+        "searching",
         "silent_since",
         "stats",
         "last_watchdog_action",

@@ -109,10 +109,10 @@ class Api:
         try:
             raw = json.loads(text, parse_constant=_no_constant)
         except (ValueError, RecursionError) as e:
-            conn.error(f"That is not JSON ({str(e)[:80]})")
+            conn.error(f"That is not JSON ({str(e)[:80]})", code="not_json")
             return
         if not isinstance(raw, dict):
-            conn.error("A command is a JSON object with a \"cmd\"")
+            conn.error("A command is a JSON object with a \"cmd\"", code="not_object")
             return
         self.tasks.spawn(self._run(conn, raw), "web-command")
 

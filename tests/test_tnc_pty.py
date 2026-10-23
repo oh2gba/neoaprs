@@ -114,9 +114,11 @@ async def test_the_search_listens_for_as_long_as_it_takes_and_says_where(ptys: P
         want = f"listening on {tmp_path / 'port_1'}, {tmp_path / 'port_3'} for the radio"
         await until(lambda: tnc.state is Source.State.CONNECTING and tnc.describe() == want)
         assert any(want in line for line in tnc.lines)
+        assert tnc.searching == [str(tmp_path / 'port_1'), str(tmp_path / 'port_3')]
         await asyncio.wait_for(starting, 3.0)
         assert loop.time() - began >= 0.45
         assert tnc.state is Source.State.CONNECTED and tnc.path == str(tmp_path / "port_3") and "for the radio" not in tnc.describe()
+        assert tnc.searching == []
         feed(third, kiss_of(ui_frame()))
         await until(lambda: tnc.stats.packets == 1)
     finally:

@@ -11,26 +11,45 @@ from urllib.parse import urlsplit
 
 from .alertcommand import DEFAULT_ALERT_COMMAND
 from .callsign import call_problem
+from .coded import CodedError, Param
 from .configlegacy import with_legacy
 from .configstatus import DEFAULT_STATUS_TEMPLATE, MAX_STATUS, hostport, status_source, status_template, status_text
-from .configtypes import access_key, boolean, call_or_empty, int_in, int_or_off, optional_float, optional_int, over_the_air_problem, text_of, web_address
+from .configtypes import access_key, boolean, call_or_empty, int_in, int_or_off, optional_float, optional_int, over_the_air_refusal, text_of, web_address
 from .message import normal_path
 from .tncprofile import DEFAULT as DEFAULT_PROFILE, Profile, names_tcp, profile_of
 from .versions import UPDATE_URL
 
 log = logging.getLogger("neoaprs.config")
 
-LOG_KEEP_DAYS = 7                    # packets, weather observations and stations are kept this long (the weather graphs reach back 7 days); not a setting, a stored `log/keep_days` is not read
-MAX_HIDE_AFTER_MIN = 10080           # a week: the longest a station may stay on the map after its last position (the longest own timeout of a station)
-HIDE_AFTER_MIN = 180                 # a station whose last position is older than this leaves the map (the page hides it; the table keeps it); a station can have a timeout of its own, 0 for never. Not a setting: a stored `map/hide_after_min` is not read
+
+class SettingError(CodedError):
+    """A setting that cannot be put in force: `key` is the one it is about (the first that is wrong, or the one a rule between settings holds up), `code` and `params` say what is wrong, `text` is the
+    English sentence with the key in front."""
+
+    def __init__(self, key: str, code: str, params: Mapping[str, Param], text: str) -> None:
+        super().__init__(text, code, **params)
+        self.key = key
+
 MAX_COMMENT = 43                     # what the comment of a position packet may be, with no data extension (spec 1517)
 MAX_COMMENT_PHG = 36                 # with the 7-byte PHG data extension (spec 1546)
 MIN_INTERVAL_MIN = 15                # the shortest time between two beacons or two status reports: the page offers 15, 30 and 60 minutes for the beacon and 30 minutes to 2 hours for the status; a stored lower value is raised to this, with a line in the log
-TNC_CHECK_SEC = 60                   # seconds of nothing at all on the line before the keep-alive asks a TNC that can be asked (the Kenwood and Kantronics profiles) whether the radio is there. Not a setting: a stored `tnc/check_sec` is not read
 MAX_ALERT_COMMAND = 1000             # the longest line of messages/alert_command
 MAX_MAP_SOURCE = 500                 # the longest map/source
 MAP_RADIUS_KM = (10, 1000)           # map/radius_km: the area of the detailed map round the station
 MAP_MAXZOOM = (6, 15)                # map/maxzoom: the deepest zoom of the detailed map
+LATITUDE = (-90.0, 90.0)
+LONGITUDE = (-180.0, 180.0)
+RANGES: dict[str, tuple[int, int]] = {          # the whole numbers of the settings and what each may be, from the least to the most: also the page's (LIMITS of ui/src/protocol/lists.ts)
+    "serial/baud": (300, 921600),
+    "tcp/port": (1, 65535),
+    "beacon/power_w": (0, 9999),
+    "beacon/antenna_height_m": (0, 9999),
+    "beacon/antenna_gain_db": (0, 9),
+    "beacon/interval_min": (MIN_INTERVAL_MIN, 1440),
+    "status/interval_min": (MIN_INTERVAL_MIN, 1440),
+    "map/radius_km": MAP_RADIUS_KM,
+    "map/maxzoom": MAP_MAXZOOM,
+}
 DEFAULT_SERIAL_PATTERN = "/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*"     # the ports the search listens to: by-id first, so that the stable name of a device is the one kept
 MAX_SERIAL_PATTERN = 500
 STATUS_KEYS = frozenset({"status/source", "status/rigctld"})            # the settings that decide whether the radio can be the status's source
@@ -46,7 +65,7 @@ def _globs(text: str) -> str:
     """One or more device globs, each an absolute path, separated by spaces (written with single spaces)."""
     parts = text.split()
     if not parts or any(not part.startswith("/") for part in parts):
-        raise ValueError(f"{text!r} is not one or more absolute patterns separated by spaces, such as /dev/ttyUSB*")
+        raise CodedError(f"{text!r} is not one or more absolute patterns separated by spaces, such as /dev/ttyUSB*", "setting.not_globs", value=text)
     return text_of(MAX_SERIAL_PATTERN)(" ".join(parts))
 
 
@@ -62,25 +81,25 @@ def _direction(text: str) -> str:
         return "omni"
     if word.upper() in ANTENNA_DIRECTIONS:
         return word.upper()
-    raise ValueError(f"{text!r} is not omni or one of N NE E SE S SW W NW")
+    raise CodedError(f"{text!r} is not omni or one of N NE E SE S SW W NW", "setting.not_direction", value=text)
 
 
 def _symbol_table(text: str) -> str:
     if len(text) != 1 or text not in SYMBOL_TABLES:
-        raise ValueError(f"{text!r} is not / or \\ or an overlay character A-Z, 0-9")
+        raise CodedError(f"{text!r} is not / or \\ or an overlay character A-Z, 0-9", "setting.not_symbol_table", value=text)
     return text
 
 
 def _symbol_code(text: str) -> str:
     if len(text) != 1 or not "!" <= text <= "~":
-        raise ValueError(f"{text!r} is not one printable ASCII character")
+        raise CodedError(f"{text!r} is not one printable ASCII character", "setting.not_symbol_code", value=text)
     return text
 
 
 def _host(text: str) -> str:
     value = text.strip()
     if not value or any(c.isspace() for c in value) or not value.isprintable():
-        raise ValueError(f"{text!r} is not an address or a name")
+        raise CodedError(f"{text!r} is not an address or a name", "setting.not_host", value=text)
     return value
 
 
@@ -90,9 +109,9 @@ def _map_source(text: str) -> str:
     if value == "":
         return ""
     if len(value) > MAX_MAP_SOURCE or any(c.isspace() for c in value) or not value.isprintable() or value.startswith("-"):
-        raise ValueError(f"{text!r} is not a web address or the path of a PMTiles file")
+        raise CodedError(f"{text!r} is not a web address or the path of a PMTiles file", "setting.not_map_source", value=text)
     if "://" in value and urlsplit(value).scheme not in ("http", "https"):
-        raise ValueError(f"{text!r} is not an http or https address")
+        raise CodedError(f"{text!r} is not an http or https address", "setting.not_web_address", value=text)
     return value
 
 
@@ -131,38 +150,38 @@ def _raised(setting: Setting, text: str) -> int | None:
 SETTINGS: tuple[Setting, ...] = (
     Setting("tnc_profile", "tnc/profile", _profile),                         # what kind of TNC the radio is: what is said to it to put it in KISS, whether it can be asked if it is there, and how it is reached
     Setting("serial_port", "serial/port", text_of(255)),                     # empty: find the radio by listening to the ports of serial/pattern (a TCP profile connects to tcp/host and tcp/port instead)
-    Setting("serial_baud", "serial/baud", optional_int(300, 921600)),        # empty: the speed of the profile
+    Setting("serial_baud", "serial/baud", optional_int(*RANGES["serial/baud"])),        # empty: the speed of the profile
     Setting("tcp_host", "tcp/host", _host),                                  # where the TCP KISS server (Direwolf, a sound-card modem) runs
-    Setting("tcp_port", "tcp/port", int_in(1, 65535)),                       # and its KISS port: 8001 for Direwolf, 8100 for the sound-card modems
+    Setting("tcp_port", "tcp/port", int_in(*RANGES["tcp/port"])),                       # and its KISS port: 8001 for Direwolf, 8100 for the sound-card modems
     Setting("serial_last_port", "serial/last_port", text_of(255)),           # what the search found last time, tried first the next time
     Setting("serial_pattern", "serial/pattern", _globs),                   # space-separated globs of the device files the search listens to when no port is named
     Setting("serial_skip", "serial/skip", text_of(500)),                     # device paths, separated by commas, that the search for the radio never opens (a rotator's port, say)
     Setting("station_call", "station/call", call_or_empty),                 # empty: nothing is transmitted until a call is set (can_transmit)
-    Setting("station_lat", "station/lat", optional_float(-90.0, 90.0)),     # empty: no position (no beacon; the map opens on the world)
-    Setting("station_lon", "station/lon", optional_float(-180.0, 180.0)),
+    Setting("station_lat", "station/lat", optional_float(*LATITUDE)),     # empty: no position (no beacon; the map opens on the world)
+    Setting("station_lon", "station/lon", optional_float(*LONGITUDE)),
     Setting("station_symbol_table", "station/symbol_table", _symbol_table),
     Setting("station_symbol_code", "station/symbol_code", _symbol_code),
     Setting("station_comment", "station/comment", text_of(MAX_COMMENT, ascii_only=True)),
     Setting("station_status", "station/status", status_text(MAX_STATUS)),   # free text sent as a status report (at most every status/interval_min, when it changed) and in answer to ?APRSS; empty: none
-    Setting("beacon_power_w", "beacon/power_w", optional_int(0, 9999)),    # the transmitter's power for the PHG extension of the beacon; empty: no PHG is sent
-    Setting("beacon_antenna_height_m", "beacon/antenna_height_m", int_in(0, 9999)),   # the antenna above average terrain, for the PHG extension
-    Setting("beacon_antenna_gain_db", "beacon/antenna_gain_db", int_in(0, 9)),        # its gain over a dipole's isotropic figure, for the PHG extension
+    Setting("beacon_power_w", "beacon/power_w", optional_int(*RANGES["beacon/power_w"])),    # the transmitter's power for the PHG extension of the beacon; empty: no PHG is sent
+    Setting("beacon_antenna_height_m", "beacon/antenna_height_m", int_in(*RANGES["beacon/antenna_height_m"])),   # the antenna above average terrain, for the PHG extension
+    Setting("beacon_antenna_gain_db", "beacon/antenna_gain_db", int_in(*RANGES["beacon/antenna_gain_db"])),        # its gain over a dipole's isotropic figure, for the PHG extension
     Setting("beacon_antenna_direction", "beacon/antenna_direction", _direction),    # "omni" or the point of the compass it favours, for the PHG extension
     Setting("web_network", "web/network", boolean),                           # true: the page listens on every interface and a device other than this one logs in with web/key
     Setting("web_key", "web/key", access_key),                                # what a device on the network types to log in; made when web/network is first on, empty until then
     Setting("web_https", "web/https", boolean),                               # true (with web/network): the page is also served over https, on the port after web/port, with NeoAPRS's own certificate authority (neoaprs/web/tls.py)
     Setting("web_port", "web/port", int_in(0, 65535)),                        # 0: the system picks a free port (the log says which)
     Setting("web_allowed_hosts", "web/allowed_hosts", text_of(500)),         # names besides localhost, 127.0.0.1 and this machine's that a Host header may carry, separated by commas
-    Setting("beacon_interval_min", "beacon/interval_min", int_or_off(MIN_INTERVAL_MIN, 1440), MIN_INTERVAL_MIN),   # 0: no beacon
+    Setting("beacon_interval_min", "beacon/interval_min", int_or_off(*RANGES["beacon/interval_min"]), MIN_INTERVAL_MIN),   # 0: no beacon
     Setting("beacon_path", "beacon/path", _path),                           # the digipeaters of our beacon, "WIDE1-1,WIDE2-1"; empty: none
     Setting("messages_alert", "messages/alert", boolean),                                       # true: a message to us runs messages/alert_command
     Setting("messages_alert_command", "messages/alert_command", text_of(MAX_ALERT_COMMAND)),    # a shell line, run with NEOAPRS_FROM, NEOAPRS_TEXT, NEOAPRS_AT and NEOAPRS_MSG_ID in its environment; empty: none
     Setting("status_source", "status/source", status_source),                                # where the status comes from: off, text (station/status) or rig (status/rigctld, status/template); empty: rig when status/rigctld is set, else text when station/status is, else off
     Setting("status_rigctld", "status/rigctld", hostport),                                   # host:port of a rigctld whose frequency and mode make the status; empty: the static station/status is the status
-    Setting("status_interval_min", "status/interval_min", int_in(MIN_INTERVAL_MIN, 1440), MIN_INTERVAL_MIN),   # a status report goes out at most this often
+    Setting("status_interval_min", "status/interval_min", int_in(*RANGES["status/interval_min"]), MIN_INTERVAL_MIN),   # a status report goes out at most this often
     Setting("status_template", "status/template", status_template),                         # the text of a status made from the radio: {freq} and {mode}
-    Setting("map_radius_km", "map/radius_km", int_in(*MAP_RADIUS_KM)),      # the detailed base map covers a square this far from our position in every direction
-    Setting("map_maxzoom", "map/maxzoom", int_in(*MAP_MAXZOOM)),            # and goes down to this zoom (10 towns, 12 streets, 14 houses)
+    Setting("map_radius_km", "map/radius_km", int_in(*RANGES["map/radius_km"])),      # the detailed base map covers a square this far from our position in every direction
+    Setting("map_maxzoom", "map/maxzoom", int_in(*RANGES["map/maxzoom"])),            # and goes down to this zoom (10 towns, 12 streets, 14 houses)
     Setting("map_source", "map/source", _map_source),                       # where the map is cut from; empty: the latest daily build of build.protomaps.com
     Setting("update_url", "update/url", web_address),                         # that page: it is sent this program's version and platform and nothing else
     Setting("digi_enabled", "digi/enabled", boolean),                         # true: a packet that asks for WIDE1-1, or for our call, is sent again by our radio (services/digipeater.py)
@@ -232,11 +251,12 @@ class Config:
         """The speed to open a serial line at: serial/baud, else the profile's, else 9600."""
         return self.serial_baud or self.profile.baud or 9600
 
-    def port_problem(self, key: str = "tnc/profile") -> str:
-        """Why the profile and serial/port do not go together, or empty when they do: a TCP profile connects to tcp/host and tcp/port, not to a serial device (a `tcp://` address in serial/port is fine)."""
+    def port_refusal(self, key: str = "tnc/profile") -> SettingError | None:
+        """Why the profile and serial/port do not go together, or None when they do: a TCP profile connects to tcp/host and tcp/port, not to a serial device (a `tcp://` address in serial/port is fine)."""
         if self.profile.transport == "tcp" and self.serial_port and not names_tcp(self.serial_port):
-            return f"{key}: {self.profile.name} connects over TCP (tcp/host and tcp/port), not to the serial port {self.serial_port}: clear serial/port, or choose a serial TNC"
-        return ""
+            return SettingError(key, "setting.profile_port", {"profile": self.profile.name, "port": self.serial_port},
+                                f"{key}: {self.profile.name} connects over TCP (tcp/host and tcp/port), not to the serial port {self.serial_port}: clear serial/port, or choose a serial TNC")
+        return None
 
     @property
     def serial_skip_paths(self) -> tuple[str, ...]:
@@ -268,27 +288,32 @@ class Config:
         """How many characters the comment may have for what the beacon sends with these settings: 36 when the PHG extension is sent (beacon/power_w is set), else 43."""
         return MAX_COMMENT if self.beacon_power_w is None else MAX_COMMENT_PHG
 
-    def comment_problem(self) -> str:
-        """Why station/comment cannot be sent with the other settings, or empty when it can."""
-        if problem := over_the_air_problem(self.station_comment):
-            return f"station/comment: {problem}"
+    def comment_refusal(self) -> SettingError | None:
+        """Why station/comment cannot be sent with the other settings, or None when it can."""
+        if refusal := over_the_air_refusal(self.station_comment):
+            return SettingError("station/comment", refusal.code, refusal.params, f"station/comment: {refusal}")
         limit = self.comment_limit
         if len(self.station_comment) <= limit:
-            return ""
-        return f"station/comment: {len(self.station_comment)} characters is more than the {limit} allowed with the PHG extension (clear beacon/power_w to send none)"
+            return None
+        return SettingError("station/comment", "setting.comment_too_long", {"length": len(self.station_comment), "limit": limit},
+                            f"station/comment: {len(self.station_comment)} characters is more than the {limit} allowed with the PHG extension (clear beacon/power_w to send none)")
+
+    def comment_problem(self) -> str:
+        """The sentence of comment_refusal; empty when the comment can be sent."""
+        return str(refusal) if (refusal := self.comment_refusal()) else ""
 
     @classmethod
     def checked(cls, base: "Config", values: Mapping[str, str]) -> "Config":
         """The settings in force with these values (key to text) put in, for a save: every value is checked and the first wrong one raises ValueError with its key, and when one of the
-        settings that decide the length of the comment is among them, so is the comment against the new settings."""
+        settings that decide the length of the comment is among them, so is the comment against the new settings. The error is a SettingError: its key, code and params are what the page goes by."""
         parsed = {key: cls.check(key, text) for key, text in values.items()}
         config = cls.from_data({**base.to_data(), **parsed})
-        if COMMENT_KEYS & parsed.keys() and (problem := config.comment_problem()):
-            raise ValueError(problem)
+        if COMMENT_KEYS & parsed.keys() and (refusal := config.comment_refusal()):
+            raise refusal
         if STATUS_KEYS & parsed.keys() and config.status_source == "rig" and not config.status_rigctld:
-            raise ValueError("status/source: the radio needs status/rigctld (host:port of a rigctld, 127.0.0.1:4532)")
-        if PORT_KEYS & parsed.keys() and (problem := config.port_problem("tnc/profile" if "tnc/profile" in parsed else "serial/port")):
-            raise ValueError(problem)
+            raise SettingError("status/source", "setting.status_needs_rigctld", {}, "status/source: the radio needs status/rigctld (host:port of a rigctld, 127.0.0.1:4532)")
+        if PORT_KEYS & parsed.keys() and (refusal := config.port_refusal("tnc/profile" if "tnc/profile" in parsed else "serial/port")):
+            raise refusal
         return config
 
     @classmethod
@@ -315,14 +340,16 @@ class Config:
 
     @staticmethod
     def parse(key: str, text: str) -> Any:
-        """The value of one setting from its text; ValueError with the key in it when the key is not a setting or the text is not a value of it."""
+        """The value of one setting from its text; SettingError (a ValueError, with the key in its text) when the key is not a setting or the text is not a value of it."""
         setting = BY_KEY.get(key)
         if setting is None:
-            raise ValueError(f"{key}: no such setting (the settings are {', '.join(KEYS)})")
+            raise SettingError(key, "setting.unknown", {}, f"{key}: no such setting (the settings are {', '.join(KEYS)})")
         try:
             return setting.parse(text)
+        except CodedError as e:
+            raise SettingError(key, e.code, e.params, f"{key}: {e}") from None
         except ValueError as e:
-            raise ValueError(f"{key}: {e}") from None
+            raise SettingError(key, "other", {}, f"{key}: {e}") from None
 
     @classmethod
     def check(cls, key: str, text: str) -> str:

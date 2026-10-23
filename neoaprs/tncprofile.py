@@ -6,6 +6,8 @@ bytes to write and the seconds to wait after them; the wait after the last step 
 from dataclasses import dataclass
 from typing import Literal
 
+from .coded import CodedError
+
 KISS_EXIT = b"\xc0\xff\xc0"          # the KISS "return" command (FEND, 0xFF, FEND): the TNC leaves KISS mode
 
 Step = tuple[bytes, float]
@@ -73,7 +75,7 @@ def profile_of(key: str) -> Profile:
     try:
         return BY_KEY[key.strip()]
     except KeyError:
-        raise ValueError(f"{key!r} is not a TNC profile (the profiles are {', '.join(BY_KEY)})") from None
+        raise CodedError(f"{key!r} is not a TNC profile (the profiles are {', '.join(BY_KEY)})", "setting.not_profile", value=key) from None
 
 
 def names_tcp(path: str) -> bool:

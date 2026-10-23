@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
+from neoaprs.aprsmessage import MAX_TEXT
 from neoaprs.config import KEYS
 from neoaprs.packetcodec import KINDS
 from neoaprs.web import dispatch, handlers  # noqa: F401  (importing the handlers registers them)
@@ -70,8 +71,7 @@ def test_the_lists_of_the_page_are_the_daemons_own() -> None:
     assert f"export const PROTOCOL = {PROTOCOL};" in lists
     for key in KEYS:
         assert json.dumps(key) in lists
-    for kind in KINDS:
-        assert json.dumps(kind) in lists
+    assert "export const LIMITS = {" in lists and "textMax: %d" % MAX_TEXT in lists
     assert json.dumps(list(TOPIC_NAMES)) in lists
 
 
@@ -118,9 +118,9 @@ MESSAGE_ROW: dict[str, Any] = {"id": 3, "at": NOW, "direction": "out", "from_cal
                                                     "internet": None, "acked": False}]}
 PACKET: dict[str, Any] = {"id": 7, "heard_at": NOW, "direction": "in", "source": "OH2RDK-7", "destination": "APRX29", "path": ["OH2RCH-2*"], "route": "via OH2RCH-2", "via": "", "kind": "position", "summary": "position 60.1650 24.9467 T&",
                           "tnc2": "OH2RDK-7>APRX29,OH2RCH-2*:!6009.90NT02456.80E&432.500 MHz", "decoded": {"type": "position", **POSITION}}
-TNC: dict[str, Any] = {"state": "connected", "problem": "", "last_error": "", "path": "/dev/brainbox_3", "baud": 9600, "describe": "/dev/brainbox_3 at 9600, KISS, 4 packets", "silent_since": None,
+TNC: dict[str, Any] = {"state": "connected", "problem": "", "last_error": "", "path": "/dev/brainbox_3", "baud": 9600, "describe": "/dev/brainbox_3 at 9600, KISS, 4 packets", "searching": [], "silent_since": None,
                        "stats": {"opens": 1, "bytes_in": 400, "bytes_out": 18, "frames_in": 4, "packets": 4, "rejected": 0, "last_packet": NOW, "keepalive_checks": 2, "watchdog_probes": 0, "port_reopens": 1, "digipeated": 0},
-                       "last_watchdog_action": "check", "last_watchdog_at": NOW, "lines": ["12:00:00  NeoAPRS: opened /dev/brainbox_3"]}
+                       "last_watchdog_action": "check", "last_watchdog_at": NOW, "lines": [{"at": NOW, "text": "NeoAPRS: opened /dev/brainbox_3"}]}
 CONFIG: dict[str, Any] = {"values": {"station/call": "OH2GBA"}, "defaults": {"station/call": "OH2GBA"}, "urls": [], "https": {"on": False, "port": 0, "fingerprint": "", "problem": ""}}
 
 MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
@@ -145,7 +145,8 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
     "update_result": [{"type": "update_result", "outcome": "newer", "version": "0.4.0", "text": ""}, {"type": "update_result", "outcome": "current", "version": "0.3.0", "text": ""},
                       {"type": "update_result", "outcome": "no_answer", "version": "", "text": "the version page could not be reached"}],
     "alert_result": [{"type": "alert_result", "ok": True, "text": "ran"}, {"type": "alert_result", "ok": False, "text": "exit code 3: no display"}],
-    "error": [{"type": "error", "text": "set_config: station/lat: 95 is not between -90 and 90"}],
+    "error": [{"type": "error", "cmd": "set_config", "key": "station/lat", "code": "setting.range", "params": {"value": 95.0, "min": -90.0, "max": 90.0}, "text": "set_config: station/lat: 95 is not between -90 and 90"},
+              {"type": "error", "cmd": "", "key": None, "code": "not_json", "params": {}, "text": "That is not JSON (Expecting value)"}],
     "state": [{"type": "state", "topic": "stations", "rev": 0, "value": {"OH2RDK-7": STATION}}, {"type": "state", "topic": "packets", "rev": 3, "value": {"7": PACKET}},
               {"type": "state", "topic": "tnc", "rev": 1, "value": TNC}, {"type": "state", "topic": "config", "rev": 0, "value": CONFIG},
               {"type": "state", "topic": "messages", "rev": 2, "value": {"3": MESSAGE_ROW}}, {"type": "state", "topic": "bulletins", "rev": 1, "value": {"OH2XYZ/BLN3HAMS": BULLETIN_ROW}},
@@ -252,7 +253,7 @@ def test_the_models_are_strict() -> None:
     with pytest.raises(ValidationError):
         TncState.model_validate_json(json.dumps({**TNC, "state": "asleep"}))
     with pytest.raises(ValidationError):
-        TncState.model_validate_json(json.dumps({**TNC, "lines": ["x"] * 101}))
+        TncState.model_validate_json(json.dumps({**TNC, "lines": [{"at": NOW, "text": "x"}] * 101}))
     assert StationRow.model_validate_json(json.dumps({**STATION, "lat": None, "lon": None})).lat is None
 
 

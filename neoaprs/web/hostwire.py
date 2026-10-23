@@ -83,6 +83,11 @@ class Pong(_Message):
 
 
 class Error(_Message):
-    """A command that could not be done. A frame the daemon could not understand is answered the same way, naming the command, the field and the problem; nothing was changed."""
+    """A command that could not be done. A frame the daemon could not understand is answered the same way, naming the command, the field and the problem; nothing was changed. A page goes by `cmd`, `key`
+    and `code`; `text` is the English sentence for a log and for a code the page has no sentence for."""
     type: Literal["error"]
-    text: str = Field(description="what could not be done and why, in a sentence; for a setting it begins with the key")
+    cmd: str = Field(description="the command it answers; empty for a frame that was no command (not JSON, not an object, no `cmd`, an unknown one)")
+    key: str | None = Field(description="the setting it is about (`set_config`), a key of `CONFIG_KEYS`; null for any other error")
+    code: str = Field(description="a stable word for what is wrong, such as `setting.range`, `call.ssid` or `message.too_long`; `other` for an error that has no code yet")
+    params: dict[str, str | int | float] = Field(description="the values the sentence is made of, by name, such as `value`, `min` and `max` of `setting.range`; empty when there are none")
+    text: str = Field(description="what could not be done and why, in a sentence in English: the command, then the setting if there is one, then the reason (`set_config: station/lat: 95 is not between -90 and 90`)")

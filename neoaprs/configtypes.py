@@ -3,6 +3,7 @@ on the air."""
 from collections.abc import Callable
 from urllib.parse import urlsplit
 
+from .coded import CodedError
 from .message import normal_call
 
 TNC_SWITCH_CHARS = "|~"              # the characters a TNC takes for its channel switch: the spec keeps them out of a comment and a status (1129)
@@ -14,9 +15,9 @@ def int_in(low: int, high: int) -> Callable[[str], int]:
         try:
             value = int(text.strip())
         except ValueError:
-            raise ValueError(f"{text!r} is not a whole number") from None
+            raise CodedError(f"{text!r} is not a whole number", "setting.not_whole", value=text) from None
         if not low <= value <= high:
-            raise ValueError(f"{value} is not between {low} and {high}")
+            raise CodedError(f"{value} is not between {low} and {high}", "setting.range", value=value, min=low, max=high)
         return value
     return parse
 
@@ -28,7 +29,7 @@ def int_or_off(low: int, high: int) -> Callable[[str], int]:
     def parse(text: str) -> int:
         value = whole(text)
         if 0 < value < low:
-            raise ValueError(f"{value} is not 0 (off) or between {low} and {high}")
+            raise CodedError(f"{value} is not 0 (off) or between {low} and {high}", "setting.off_or_range", value=value, min=low, max=high)
         return value
     return parse
 
@@ -47,9 +48,9 @@ def float_in(low: float, high: float) -> Callable[[str], float]:
         try:
             value = float(text.strip())
         except ValueError:
-            raise ValueError(f"{text!r} is not a number") from None
+            raise CodedError(f"{text!r} is not a number", "setting.not_number", value=text) from None
         if not low <= value <= high:                         # (also false for NaN)
-            raise ValueError(f"{value:g} is not between {low:g} and {high:g}")
+            raise CodedError(f"{value:g} is not between {low:g} and {high:g}", "setting.range", value=value, min=low, max=high)
         return value
     return parse
 
@@ -60,28 +61,33 @@ def boolean(text: str) -> bool:
         return True
     if word in _FALSE:
         return False
-    raise ValueError(f"{text!r} is not true or false")
+    raise CodedError(f"{text!r} is not true or false", "setting.not_boolean", value=text)
 
 
 def text_of(max_length: int = 200, ascii_only: bool = False) -> Callable[[str], str]:
     def parse(text: str) -> str:
         value = text.strip()
         if len(value) > max_length:
-            raise ValueError(f"{len(value)} characters is more than the {max_length} allowed")
-        if ascii_only and (problem := over_the_air_problem(value)):
-            raise ValueError(problem)
+            raise CodedError(f"{len(value)} characters is more than the {max_length} allowed", "setting.too_long", length=len(value), max=max_length)
+        if ascii_only and (refusal := over_the_air_refusal(value)):
+            raise refusal
         if not value.isprintable():
-            raise ValueError("it has characters that are not printable")
+            raise CodedError("it has characters that are not printable", "setting.not_printable")
         return value
     return parse
 
 
-def over_the_air_problem(text: str) -> str:
-    """Why this text may not be sent as a comment or a status: it must be printable ASCII without `|` and `~`. Empty when it may."""
+def over_the_air_refusal(text: str) -> CodedError | None:
+    """Why this text may not be sent as a comment or a status: it must be printable ASCII without `|` and `~`. None when it may."""
     if not text.isprintable() or not text.isascii():
-        return "it has characters that are not printable ASCII"
+        return CodedError("it has characters that are not printable ASCII", "setting.not_ascii")
     bad = next((c for c in text if c in TNC_SWITCH_CHARS), "")
-    return f"{bad!r} is a character a TNC takes for a command and may not be in it" if bad else ""
+    return CodedError(f"{bad!r} is a character a TNC takes for a command and may not be in it", "setting.tnc_char", char=bad) if bad else None
+
+
+def over_the_air_problem(text: str) -> str:
+    """The sentence of over_the_air_refusal; empty when the text may be sent."""
+    return str(refusal) if (refusal := over_the_air_refusal(text)) else ""
 
 
 def call_or_empty(text: str) -> str:
@@ -103,7 +109,7 @@ def web_address(text: str) -> str:
     value = text.strip()
     parts = urlsplit(value)
     if parts.scheme not in ("http", "https") or not parts.netloc or any(c.isspace() for c in value) or not value.isprintable() or len(value) > 500:
-        raise ValueError(f"{text!r} is not an http or https address")
+        raise CodedError(f"{text!r} is not an http or https address", "setting.not_web_address", value=text)
     return value
 
 
@@ -117,5 +123,5 @@ def access_key(text: str) -> str:
     if letters == "":
         return ""
     if len(letters) != KEY_GROUPS * KEY_GROUP_SIZE or any(c not in KEY_ALPHABET for c in letters):
-        raise ValueError("it is not an access key (three groups of four digits and letters, such as k7m2-x9pq-4hrt)")
+        raise CodedError("it is not an access key (three groups of four digits and letters, such as k7m2-x9pq-4hrt)", "setting.not_access_key")
     return "-".join(letters[i:i + KEY_GROUP_SIZE] for i in range(0, len(letters), KEY_GROUP_SIZE))

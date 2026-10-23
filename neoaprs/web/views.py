@@ -127,11 +127,11 @@ def pref_row(pref: Pref) -> dict[str, Any]:
 def tnc_state(tnc: Tnc) -> dict[str, Any]:
     s = tnc.stats
     return {
-        "state": tnc.state.value, "problem": tnc.problem, "last_error": tnc.last_error, "path": tnc.path, "baud": tnc.baud, "describe": tnc.describe(), "silent_since": iso(tnc.silent_since),
+        "state": tnc.state.value, "problem": tnc.problem, "last_error": tnc.last_error, "path": tnc.path, "baud": tnc.baud, "describe": tnc.describe(), "searching": tnc.searching, "silent_since": iso(tnc.silent_since),
         "stats": {"opens": s.opens, "bytes_in": s.bytes_in, "bytes_out": s.bytes_out, "frames_in": s.frames_in, "packets": s.packets, "rejected": s.rejected, "last_packet": iso(s.last_packet),
                   "keepalive_checks": s.keepalive_checks, "watchdog_probes": s.watchdog_probes, "port_reopens": s.port_reopens, "digipeated": s.digipeated},
         "last_watchdog_action": tnc.last_watchdog_action, "last_watchdog_at": iso(tnc.last_watchdog_at),
-        "lines": list(tnc.lines)[-LINES_MAX:],
+        "lines": [{"at": iso(at), "text": text} for at, text in tnc.recent_lines(LINES_MAX)],
     }
 
 

@@ -16,7 +16,8 @@ from typing import Literal, get_args
 
 from neoaprs.aprsposition import uncompressed_position
 from neoaprs.config import MAX_COMMENT, MAX_COMMENT_PHG, SYMBOL_TABLES
-from neoaprs.configtypes import over_the_air_problem
+from neoaprs.coded import CodedError
+from neoaprs.configtypes import over_the_air_refusal
 from neoaprs.message import normal_path
 
 Kind = Literal["object", "item"]
@@ -31,7 +32,7 @@ KNOT_KMH = 1.852
 SPEED_MAX_KMH = 999 * KNOT_KMH               # three digits of knots
 
 
-class OwnError(ValueError):
+class OwnError(CodedError):
     """What cannot be an object of ours or be sent as one; the text says why."""
 
 
@@ -69,24 +70,24 @@ class OwnObject:
 def _name(name: str, kind: str) -> str:
     low, high = OBJECT_NAME if kind == "object" else ITEM_NAME
     if name != name.strip() or not name.isascii() or not name.isprintable() or any(c in name for c in NAME_FORBIDDEN):
-        raise OwnError(f"the name {name!r} has a blank at an end or a character that cannot be in it ({' '.join(NAME_FORBIDDEN)} and anything but printable ASCII)")
+        raise OwnError(f"the name {name!r} has a blank at an end or a character that cannot be in it ({' '.join(NAME_FORBIDDEN)} and anything but printable ASCII)", "object.name_chars", name=name)
     if not low <= len(name) <= high:
-        raise OwnError(f"the name of {'an object' if kind == 'object' else 'an item'} is {low} to {high} characters, not {len(name)}")
+        raise OwnError(f"the name of {'an object' if kind == 'object' else 'an item'} is {low} to {high} characters, not {len(name)}", "object.name_length", kind=kind, min=low, max=high, length=len(name))
     return name
 
 
 def _place(lat: float, lon: float, table: str, code: str) -> None:
     if not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0):
-        raise OwnError(f"the position {lat}, {lon} is not on the earth")
+        raise OwnError(f"the position {lat}, {lon} is not on the earth", "object.position", lat=lat, lon=lon)
     if len(table) != 1 or table not in SYMBOL_TABLES or len(code) != 1 or not "!" <= code <= "~":
-        raise OwnError(f"the symbol {table!r} {code!r} is not a table (/ \\ A-Z 0-9) and one printable character")
+        raise OwnError(f"the symbol {table!r} {code!r} is not a table (/ \\ A-Z 0-9) and one printable character", "object.symbol", table=table, symbol=code)
 
 
 def _motion(course: int | None, speed: float | None) -> None:
     if course is not None and not 0 <= course <= 359:
-        raise OwnError(f"the course {course} is not between 0 and 359 degrees")
+        raise OwnError(f"the course {course} is not between 0 and 359 degrees", "object.course", value=course)
     if speed is not None and not 0.0 <= speed <= SPEED_MAX_KMH:
-        raise OwnError(f"the speed {speed:g} is not between 0 and {SPEED_MAX_KMH:.0f} km/h")
+        raise OwnError(f"the speed {speed:g} is not between 0 and {SPEED_MAX_KMH:.0f} km/h", "object.speed", value=speed, max=round(SPEED_MAX_KMH))
 
 
 def _path(path: str | None) -> str | None:
@@ -94,8 +95,8 @@ def _path(path: str | None) -> str | None:
         return None
     try:
         return ",".join(normal_path(path))
-    except ValueError as e:
-        raise OwnError(f"the path: {e}") from None
+    except CodedError as e:
+        raise OwnError(f"the path: {e}", e.code, **e.params) from None
 
 
 def make_object(now: datetime, name: str, kind: str, lat: float, lon: float, symbol_table: str, symbol_code: str, comment: str = "", course_deg: int | None = None,
@@ -103,16 +104,17 @@ def make_object(now: datetime, name: str, kind: str, lat: float, lon: float, sym
     """The object of these values, or OwnError that says what is wrong. With `before` (the object of that name we have) the times and the count of what was sent are kept, so that the rules of the
     schedule see the change: a changed object starts its decay again."""
     if kind not in KINDS:
-        raise OwnError(f"{kind!r} is not an object or an item")
+        raise OwnError(f"{kind!r} is not an object or an item", "object.kind", value=kind)
     _name(name, kind)
     _place(lat, lon, symbol_table, symbol_code)
     _motion(course_deg, speed_kmh)
     comment = comment.strip()
-    if problem := over_the_air_problem(comment):
-        raise OwnError(f"the comment: {problem}")
+    if refusal := over_the_air_refusal(comment):
+        raise OwnError(f"the comment: {refusal}", refusal.code, **refusal.params)
     limit = COMMENT_MAX if course_deg is None and speed_kmh is None else COMMENT_MAX_MOTION
     if len(comment) > limit:
-        raise OwnError(f"the comment is {len(comment)} characters, at most {limit} fit{' behind the course and speed' if limit == COMMENT_MAX_MOTION else ''}")
+        raise OwnError(f"the comment is {len(comment)} characters, at most {limit} fit{' behind the course and speed' if limit == COMMENT_MAX_MOTION else ''}", "object.comment_length",
+                       length=len(comment), max=limit, motion=int(limit == COMMENT_MAX_MOTION))
     made = OwnObject(name, "object" if kind == "object" else "item", lat, lon, symbol_table, symbol_code, now if before is None else before.created_at, now, comment, course_deg, speed_kmh, _path(path))
     return made if before is None else replace(made, sent=0, last_sent_at=before.last_sent_at)
 

@@ -10,6 +10,7 @@ from typing import Literal, get_args
 
 from neoaprs.aprsmessage import FORBIDDEN, MAX_TEXT, MessageError
 from neoaprs.ax25 import MAX_PATH
+from neoaprs.coded import CodedError
 from neoaprs.callsign import format_call, parse_call
 
 State = Literal["sending", "acked", "rejected", "failed", "unconfirmed", "cancelled", "received", "overheard"]
@@ -35,7 +36,7 @@ TELEMETRY_DEFINITIONS = ("PARM.", "UNIT.", "EQNS.", "BITS.")
 EMAIL_GATEWAY = "EMAIL-2"                  # the APRS email gateway: a station on the internet, which no message can reach by RF only
 
 
-class MessagingError(ValueError):
+class MessagingError(CodedError):
     """The message cannot be sent, or the command cannot be done; the text says why."""
 
 
@@ -71,7 +72,7 @@ def normal_path(text: str) -> tuple[str, ...]:
     what is wrong: a call that is none, more than 8 of them. The rules of the setting beacon/path."""
     calls = tuple(normal_call(piece) for piece in text.split(",") if piece.strip())
     if len(calls) > MAX_PATH:
-        raise ValueError(f"{len(calls)} digipeaters is more than the {MAX_PATH} a path may have")
+        raise CodedError(f"{len(calls)} digipeaters is more than the {MAX_PATH} a path may have", "path.too_long", count=len(calls), max=MAX_PATH)
     return calls
 
 
@@ -113,17 +114,17 @@ def check_text(text: str) -> None:
     """Raises MessageError that says what is wrong with the text of a message: empty, over `MAX_TEXT` characters, a character the format has no place for, a control character, a character that is not
     printable ASCII (the specification's text is ASCII, and radios show anything else wrongly)."""
     if not text.strip():
-        raise MessageError("the message is empty")
+        raise MessageError("the message is empty", "message.empty")
     if len(text) > MAX_TEXT:
-        raise MessageError(f"the text is {len(text)} characters, at most {MAX_TEXT} fit in a message")
+        raise MessageError(f"the text is {len(text)} characters, at most {MAX_TEXT} fit in a message", "message.too_long", length=len(text), max=MAX_TEXT)
     bad = [c for c in FORBIDDEN if c in text]
     if bad:
-        raise MessageError(f"the text has {' '.join(bad)}, which a message cannot carry ({' '.join(FORBIDDEN)} are not allowed)")
+        raise MessageError(f"the text has {' '.join(bad)}, which a message cannot carry ({' '.join(FORBIDDEN)} are not allowed)", "message.forbidden", chars=" ".join(bad))
     if not text.isascii():
         odd = "".join(dict.fromkeys(c for c in text if not c.isascii() and c.isprintable()))
-        raise MessageError(f"the text has {odd or 'a character'} that is not printable ASCII: a message carries printable ASCII only")
+        raise MessageError(f"the text has {odd or 'a character'} that is not printable ASCII: a message carries printable ASCII only", "message.not_ascii", chars=odd)
     if not text.isprintable():
-        raise MessageError("the text has a control character")
+        raise MessageError("the text has a control character", "message.control")
 
 
 def attempts_for(to_call: str) -> int:

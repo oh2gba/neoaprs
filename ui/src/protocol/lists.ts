@@ -6,42 +6,6 @@ export const PROTOCOL = 1;
 /** The topics of the hub, in the order the daemon tells them (TopicValues of neoaprs/web/protocol.py). */
 export const TOPIC_NAMES = ["stations", "packets", "tnc", "config", "station_prefs", "messages", "bulletins", "own_objects", "own_bulletins", "map"] as const;
 
-/** Every command the page may send (the `cmd` of the Command union). */
-export const COMMAND_NAMES = [
-  "alert_test",
-  "beacon_now",
-  "bulletin_delete",
-  "bulletin_post",
-  "bulletin_unpost",
-  "clear_station_path",
-  "clear_station_timeout",
-  "conversation_delete",
-  "forget_station",
-  "list_ports",
-  "map_cancel",
-  "map_estimate",
-  "map_fetch",
-  "message_cancel",
-  "message_delete",
-  "message_retry",
-  "object_kill",
-  "object_set",
-  "overheard_delete",
-  "ping",
-  "send_message",
-  "set_config",
-  "set_station_path",
-  "set_station_rf_only",
-  "set_station_timeout",
-  "status",
-  "status_now",
-  "subscribe",
-  "tnc_reconnect",
-  "unsubscribe",
-  "update_check",
-  "weather_series",
-] as const;
-
 /** Every message the daemon sends (the `type` of the Message union). */
 export const MESSAGE_TYPES = ["alert_result", "error", "hello", "patch", "pong", "ports", "state", "status", "update_result", "weather_series"] as const;
 
@@ -294,41 +258,94 @@ export const SYMBOL_NAMES = {
 /** The destination call of every frame we send; the beacon's preview shows it (TOCALL of neoaprs/__init__.py). */
 export const TOCALL = "APZNEO";
 
-/** What the parser makes of a packet (KINDS of neoaprs/packetcodec.py). */
-export const PACKET_KINDS = ["position", "message", "object", "item", "status", "other", "undecoded"] as const;
-
-/** A station, or an object or an item that a station reports (neoaprs/web/stationwire.py). */
-export const STATION_KINDS = ["station", "object", "item"] as const;
-
-/** The states of the TNC (Source.State of neoaprs/source.py). */
-export const TNC_STATES = ["stopped", "connecting", "connected", "waiting", "silent"] as const;
-
-/** The states of a message (State of neoaprs/message.py). */
-export const MESSAGE_STATES = ["sending", "acked", "rejected", "failed", "unconfirmed", "cancelled", "received", "overheard"] as const;
-
-/** How many bytes of UTF-8 the text of a message may have (MAX_TEXT of neoaprs/aprsmessage.py). */
-export const MESSAGE_TEXT_MAX = 67;
-
-/** How many positions of a station's track the daemon keeps (TRACK_MAX of neoaprs/stationbook.py). */
-export const TRACK_MAX = 50;
-
-/** How many packets the topic `packets` holds (PACKETS_KEPT of neoaprs/web/topics.py). */
-export const PACKETS_KEPT = 200;
-
-/** How many lines of the TNC the topic `tnc` holds (LINES_MAX of neoaprs/web/views.py). */
-export const TNC_LINES_MAX = 100;
-
-/** The least time between two patches of the topic `tnc` (TNC_EVERY_SEC of neoaprs/web/topics.py). */
-export const TNC_EVERY_SEC = 0.25;
-
-/** The kinds of a row of the message board (Kind of neoaprs/bulletin.py). */
-export const BULLETIN_KINDS = ["announcement", "bulletin", "group", "nws"] as const;
-
-/** How many bytes of UTF-8 the setting station/status may have (MAX_STATUS of neoaprs/config.py). */
-export const STATUS_MAX = 55;
-
-/** How long the comment of a position packet may be (MAX_COMMENT of neoaprs/config.py). */
-export const COMMENT_MAX = 43;
+/** Every number the page checks a value against, by area, from the daemon's own constants (the ranges of the settings by key: RANGES of neoaprs/config.py; the comment, status and message lengths, the least interval, the calls, the objects and bulletins, the time a station stays on the map). */
+export const LIMITS = {
+  range: {
+    "serial/baud": {
+      min: 300,
+      max: 921600,
+    },
+    "tcp/port": {
+      min: 1,
+      max: 65535,
+    },
+    "beacon/power_w": {
+      min: 0,
+      max: 9999,
+    },
+    "beacon/antenna_height_m": {
+      min: 0,
+      max: 9999,
+    },
+    "beacon/antenna_gain_db": {
+      min: 0,
+      max: 9,
+    },
+    "beacon/interval_min": {
+      min: 15,
+      max: 1440,
+    },
+    "status/interval_min": {
+      min: 15,
+      max: 1440,
+    },
+    "map/radius_km": {
+      min: 10,
+      max: 1000,
+    },
+    "map/maxzoom": {
+      min: 6,
+      max: 15,
+    },
+    "station/lat": {
+      min: -90.0,
+      max: 90.0,
+    },
+    "station/lon": {
+      min: -180.0,
+      max: 180.0,
+    },
+  },
+  comment: {
+    max: 43,
+    maxWithPhg: 36,
+  },
+  status: {
+    max: 55,
+  },
+  interval: {
+    minMin: 15,
+  },
+  message: {
+    textMax: 67,
+    forbidden: "|~{",
+    gateway: "EMAIL-2",
+  },
+  call: {
+    baseMax: 6,
+    amateurBaseMin: 3,
+    maxSsid: 15,
+    placeholders: ["MYCALL", "N0CALL", "NOCALL"],
+  },
+  path: {
+    maxCalls: 8,
+  },
+  object: {
+    nameMax: 9,
+    itemNameMin: 3,
+    nameForbidden: "!_|~",
+    commentMax: 43,
+    commentMaxMotion: 36,
+    speedMaxKmh: 1850,
+  },
+  bulletin: {
+    groupMax: 5,
+  },
+  station: {
+    hideAfterMin: 180,
+    maxHideAfterMin: 10080,
+  },
+} as const;
 
 /** The characters a symbol table can be: the primary, the alternate and the overlays (SYMBOL_TABLES of neoaprs/config.py). */
 export const SYMBOL_TABLES = "/\\ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
