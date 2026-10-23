@@ -84,6 +84,8 @@ class StationRow(_Model):
     bearing_deg: float | None = Field(description="the direction from our position, degrees from north; null as the distance is")
     is_me: bool = Field(description="our own station: the row of the call in the settings, at the position in the settings")
     own: bool = Field(description="an object or an item of ours, which we send (the topic `own_objects` has its values and its schedule): the map marks it as ours and the card has Edit and Kill in place of Forget; false for any other row")
+    can_message: bool = Field(description="a message to the station makes sense, and the card has a Message button: false for an object or an item and for our own station; for a station true when it has sent a message or an ack (heard, overheard too) "
+                                          "or its latest position was a Mic-E one or began with `=` or `@`, false when that began with `!` or `/`; true for a station of which nothing of that is known")
     track: list[tuple[Iso, float, float]] = Field(max_length=50, description="the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed")
 
 

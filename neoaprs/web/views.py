@@ -63,7 +63,7 @@ def station_row(book: StationBook, station: Station) -> dict[str, Any]:
         "altitude_m": station.altitude_m, "course_deg": station.course_deg, "speed_kmh": station.speed_kmh, "first_heard": iso(station.first_heard), "last_heard": iso(station.last_heard),
         "last_position_at": iso(station.last_position_at), "last_status": station.last_status, "last_comment": station.last_comment, "packets": station.packets,
         "last_path": list(station.last_path), "distance_km": None if distance is None else round(distance, 2), "bearing_deg": None if bearing is None else round(bearing, 1),
-        "is_me": station.is_me, "own": station.own, "weather": weather_values(station.weather), "weather_at": iso(station.weather_at), "telemetry": telemetry_values(book, station),
+        "is_me": station.is_me, "own": station.own, "can_message": station.can_message, "weather": weather_values(station.weather), "weather_at": iso(station.weather_at), "telemetry": telemetry_values(book, station),
         "telemetry_at": iso(station.telemetry_at), "locator": None if station.locator is None else asdict(station.locator),
         "extensions": None if station.extensions is None else asdict(station.extensions), "last_direct_at": iso(station.last_direct_at), **_routes(station), "track": [[iso(when), lat, lon] for when, lat, lon in station.track],
     }

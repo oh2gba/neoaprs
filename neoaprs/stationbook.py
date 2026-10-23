@@ -9,7 +9,9 @@ from datetime import datetime
 
 from .aprsextension import Extensions
 from .aprslocator import Locator
-from .aprstelemetry import Telemetry, TelemetryDefinition, apply_definition
+from .aprsthirdparty import header_of
+from .aprstelemetry import Telemetry, TelemetryDefinition, apply_definition, is_definition
+from .bulletin import board_slot
 from .aprsweather import Weather
 from .clock import Clock, utcnow
 from .geo import bearing_deg, distance_km
@@ -22,6 +24,7 @@ TRACK_MAX = 50                      # positions kept per station
 TRACK_MOVED_M = 10.0                # a new position goes on the track when the station moved more than this ...
 TRACK_EVERY_SEC = 300.0             # ... or when this long has passed since the last one on it
 DEFINITIONS_MAX = 500               # stations whose telemetry definitions are kept (the oldest goes first)
+MICE_IDENTIFIERS = (b"'", b"`", b"\x1c", b"\x1d")   # the data type identifiers of a Mic-E packet (a radio that sends one does messages)
 DETAILS_SEEN = 2000                 # the packets that telemetry, its definitions, locators and data extensions are read from at the start
 
 Track = list[tuple[datetime, float, float]]
@@ -54,6 +57,8 @@ class Station:
     telemetry_at: datetime | None = None
     locator: Locator | None = None              # the Maidenhead locator of its latest status report (or Mic-E status text)
     extensions: Extensions | None = None        # PHG, RNG, DF and area data of its latest position
+    sent_message: bool = False                  # it has sent a message or an ack to a station (overheard or not): it does messages (not kept in the cache: it is read again from the packet log at the start)
+    position_messaging: bool | None = None      # its latest position says whether it takes messages (`=` and `@`, or Mic-E); None until a position is heard (not kept in the cache either)
     track: Track = field(default_factory=list)  # (time, lat, lon), the latest TRACK_MAX positions, oldest first
     is_me: bool = False
     own: bool = False                           # an object or an item of ours, which we send (services/ownobjects.py): the settings' station is `is_me`, this is `own`; not kept in the cache, the objects of ours have a table of their own
@@ -62,6 +67,14 @@ class Station:
     @property
     def has_position(self) -> bool:
         return self.lat is not None and self.lon is not None
+
+    @property
+    def can_message(self) -> bool:
+        """Whether a message to it makes sense. Never for an object or an item, and not for us. A station that has sent a message or an ack does messages, whatever its positions say; else its latest
+        position says (`=` and `@` yes, `!` and `/` no, Mic-E yes); a station with neither is not hidden."""
+        if self.kind != "station" or self.is_me:
+            return False
+        return self.sent_message or self.position_messaging is not False
 
     @property
     def last_direct_at(self) -> datetime | None:
@@ -146,6 +159,14 @@ class StationBook:
                 station.extensions, station.locator = decoded.extensions, decoded.locator or station.locator
             elif isinstance(decoded, Status):
                 station.locator = decoded.locator or station.locator
+
+    def seed_messaging(self, packets: Iterable[Packet]) -> None:
+        """What the packets kept say about who does messages, oldest first (a later position wins): a message or an ack from a station, the flag of a station's position. A station that is not in the book is
+        left out. Nothing is signalled."""
+        for packet in packets:
+            station = self._stations.get(packet.sender)
+            if station is not None and packet.direction == "in" and not station.is_me:
+                self._note_messaging(station, packet)
 
     def telemetry_definition(self, call: str) -> TelemetryDefinition | None:
         """What the definition messages of the station said, None when it sent none."""
@@ -253,6 +274,7 @@ class StationBook:
         sender = self._heard(packet.sender, packet)
         about: Station | None = sender
         decoded = packet.decoded
+        self._note_messaging(sender, packet)
         if isinstance(decoded, Position):
             self._place(sender, decoded, packet.heard_at)
         elif isinstance(decoded, Status):
@@ -267,6 +289,17 @@ class StationBook:
         if isinstance(decoded, (ObjectReport, ItemReport)):
             about = self._named(packet, decoded)
         return about
+
+    @staticmethod
+    def _note_messaging(station: Station, packet: Packet) -> None:
+        """A message or an ack from the station (not a bulletin, not a definition of its own telemetry: those are not talk with a station) says it does messages; a position says what its identifier does."""
+        decoded = packet.decoded
+        if isinstance(decoded, Message):
+            if board_slot(decoded.addressee) is None and not is_definition(decoded.text):
+                station.sent_message = True
+        elif isinstance(decoded, Position):
+            opened = header_of(packet.info) if packet.third_party is not None else None
+            station.position_messaging = decoded.messaging or (packet.info if opened is None else opened[1])[:1] in MICE_IDENTIFIERS
 
     def _note_telemetry(self, packet: Packet) -> Station | None:
         """Keeps a telemetry report as its sender's latest, or a definition message as its addressee's; returns the station that gained a definition (to be signalled), if it is in the book."""

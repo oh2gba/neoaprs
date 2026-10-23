@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- A station that cannot do messages has no **Message** button on its card: the data type of its latest position says (`!` and `/` cannot, `=` and `@` can), a Mic-E position can, an object or an item never; a station that has sent a message or an ack that we heard (overheard ones too) always can, and a station we know nothing about yet is not hidden. The station row has the new field `can_message`, found again from the packet log at the start.
 - The tabs by importance: Messages, Stations, Email, Bulletins, Objects, Beacon, Packets, Settings; a new page opens on Messages (a tab chosen before is remembered as before).
 - Beacon tab: the top says only when the last beacon went out ("Last beacon: 2 min ago", the full time on hover); the interval line and "Next due" with their dates are gone, since the choice below says how often.
 - Email tab: **Fetch held mail** is off while a fetch is still being sent (its title says "Already fetching held mail"), so the gateway is not asked twice.
