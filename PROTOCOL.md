@@ -6,14 +6,14 @@ text below) or the prose in the script, not this file. `tests/test_protocol.py` 
 One WebSocket per browser tab at `ws://host:7303/ws`. JSON text frames both ways. Every time is UTC ISO 8601 with a `Z`. A station is referred to by its call and a packet by its id, never by
 a position in a list.
 
-The conversation: the page opens the socket and is sent `hello` (the version of this protocol, the version of the daemon, the topics), then the **state** of every topic (`state`: its revision
+The conversation: the page opens the socket and is sent `hello` (the version of this protocol, the version of the daemon, how it was installed, the topics), then the **state** of every topic (`state`: its revision
 and its whole value), and `status`. From then on it is sent what changes (`patch`). Everything else is a **command** from the page (`ping`, `set_config`, `forget_station`, ...), answered by
 the change it makes in a topic, or by `pong`, `status` or `error`. All the state of the daemon that the page shows is small, so a page follows every topic from the start; it may stop following one
 (`unsubscribe`) and ask for it again (`subscribe`, which is answered with `state`).
 
 ```
 page                                     daemon
-  |  <-------------------------------------  hello {protocol, version, topics}
+  |  <-------------------------------------  hello {protocol, version, install, topics}
   |  <-------------------------------------  state {topic, rev, value}          (one for each topic: stations, packets, tnc, config, station_prefs, messages, bulletins)
   |  <-------------------------------------  status {version, started_at, packets, stations, call, lat, lon, ..., cpu_percent, rss_mb, uptime_sec}   (every 10 s too)
   |  <-------------------------------------  patch {topic, rev, ops}            (as it changes, on a tick of 100 ms)
@@ -95,7 +95,7 @@ TypeScript types for both unions are in `ui/src/protocol/protocol.ts`, the JSON 
 
 ## Client to server
 
-32 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
+33 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
 
 ### `ping`
 
@@ -104,6 +104,10 @@ Answered with `pong`.
 ### `status`
 
 Answered with `status` at once (the daemon also sends one every 10 s).
+
+### `update_check`
+
+Asks the version page now, the question of the daily update check (`update/check`), whether that is switched on or not; the daily schedule is left as it was. Answered with `update_result` and then a `status` (with the newer version, if there is one) to the page that asked.
 
 ### `subscribe`
 
@@ -372,7 +376,7 @@ Ends the running job; the files it was making are removed and the maps stay as t
 
 ## Server to client
 
-9 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
+10 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
 
 ### `hello`
 
@@ -381,7 +385,8 @@ The first message of a connection; `status` and the `state` of every topic follo
 | field | type | | description |
 |---|---|---|---|
 | `protocol` | integer |  | the version of these messages: a page built for another one says so and loads itself again |
-| `version` | string |  | the version of the daemon |
+| `version` | string |  | the version of the daemon: a page built for another one loads itself again, once for each version |
+| `install` | InstallInfo |  | how this daemon was installed, for the steps of an update |
 | `topics` | string[] |  | the topics the page is following from the start: all of them (a page may `unsubscribe` from one) |
 
 ### `status`
@@ -471,6 +476,16 @@ The answer to `alert_test`, when the command has ended or run out of its 20 s.
 |---|---|---|---|
 | `ok` | boolean |  | the command ended with exit code 0 |
 | `text` | string |  | `ran` when it worked; else why not: the exit code and the first line of stderr (`exit code 3: no display`), or that it could not start or was killed after 20 s |
+
+### `update_result`
+
+The answer to `update_check`: what the version page said, or why it said nothing.
+
+| field | type | | description |
+|---|---|---|---|
+| `outcome` | "newer" \| "current" \| "no_answer" |  | `newer`: a newer version is out; `current`: this is the latest; `no_answer`: the page could not be reached or did not name a version |
+| `version` | string |  | the latest version for `newer`, this version for `current`; empty for `no_answer` |
+| `text` | string |  | for `no_answer` why, in a sentence; empty otherwise |
 
 ## Topics
 
@@ -888,6 +903,16 @@ One digipeater of the path an attempt went by, and whether a copy of our own mes
 | `heard` | boolean |  | a copy was heard by radio with this hop's has-been-repeated bit set (or a later hop's: a hop works the first unused address) |
 | `heard_at` | time \| null |  | when the first copy that showed the hop was heard (by radio if there was one, else over the internet); null when it was not heard |
 | `by_internet` | boolean |  | a copy gated back by an iGate as a third-party packet showed the hop used; with `heard` false the hop is known only that way |
+
+### InstallInfo
+
+How this copy of the daemon was installed, which is what the steps of an update depend on (neoaprs/versions.py, neoaprs/cli/installkind.py).
+
+| field | type | | description |
+|---|---|---|---|
+| `kind` | "windows-installer" \| "appimage" \| "uv-tool" \| "pip" \| "source" |  | `windows-installer` (the frozen program of the installer), `appimage`, `uv-tool` (the install script, or `uv tool install`), `pip` (a plain environment) or `source` (a clone of the repository) |
+| `appimage` | string |  | the AppImage file this runs from; empty for the other kinds |
+| `service` | boolean |  | whether a service starts it: the systemd unit, the launchd agent or the Windows Run key |
 
 ### LocatorValues
 

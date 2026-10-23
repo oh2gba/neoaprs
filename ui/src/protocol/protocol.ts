@@ -1,9 +1,9 @@
 // The types of the wire protocol between the daemon and the page, written from the models of neoaprs/web/protocol.py by scripts/gen-protocol.py: never edited by hand.
 // `Command` is what the page sends (tagged by `cmd`), `Message` what the daemon sends (tagged by `type`), `TopicValues` the value of each topic the page follows.
 
-export type Command = PingCommand | AskStatusCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | TncReconnectCommand | ListPortsCommand | SetConfigCommand | BeaconNowCommand | SendMessageCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationTimeoutCommand | ClearStationTimeoutCommand | SetStationAttemptsCommand | ClearStationAttemptsCommand | SetStationRfOnlyCommand | WeatherSeriesCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapCancelCommand;
+export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | TncReconnectCommand | ListPortsCommand | SetConfigCommand | BeaconNowCommand | SendMessageCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationTimeoutCommand | ClearStationTimeoutCommand | SetStationAttemptsCommand | ClearStationAttemptsCommand | SetStationRfOnlyCommand | WeatherSeriesCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapCancelCommand;
 
-export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | AlertResultMessage;
+export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | AlertResultMessage | UpdateResultMessage;
 
 /** The answer to `alert_test`, when the command has ended or run out of its 20 s. */
 export interface AlertResultMessage {
@@ -89,6 +89,11 @@ export interface BulletinRow {
 export interface BulletinUnpostCommand {
   cmd: "bulletin_unpost";
   slot: string;
+}
+
+/** Asks the version page now, the question of the daily update check (`update/check`), whether that is switched on or not; the daily schedule is left as it was. Answered with `update_result` and then a `status` (with the newer version, if there is one) to the page that asked. */
+export interface CheckUpdateCommand {
+  cmd: "update_check";
 }
 
 /** Takes a station's own attempts away, so that the setting `messages/attempts` counts again (a station without them is no error). Answered by the `set` of its entry in `station_prefs` with a null `attempts` (or the `del` of the entry when it had no path and no timeout either), or by an `error`. */
@@ -305,8 +310,10 @@ export interface HelloMessage {
   type: "hello";
   /** the version of these messages: a page built for another one says so and loads itself again */
   protocol: number;
-  /** the version of the daemon */
+  /** the version of the daemon: a page built for another one loads itself again, once for each version */
   version: string;
+  /** how this daemon was installed, for the steps of an update */
+  install: InstallInfo;
   /** the topics the page is following from the start: all of them (a page may `unsubscribe` from one) */
   topics: string[];
 }
@@ -321,6 +328,16 @@ export interface HopRow {
   heard_at: string | null;
   /** a copy gated back by an iGate as a third-party packet showed the hop used; with `heard` false the hop is known only that way */
   by_internet: boolean;
+}
+
+/** How this copy of the daemon was installed, which is what the steps of an update depend on (neoaprs/versions.py, neoaprs/cli/installkind.py). */
+export interface InstallInfo {
+  /** `windows-installer` (the frozen program of the installer), `appimage`, `uv-tool` (the install script, or `uv tool install`), `pip` (a plain environment) or `source` (a clone of the repository) */
+  kind: "windows-installer" | "appimage" | "uv-tool" | "pip" | "source";
+  /** the AppImage file this runs from; empty for the other kinds */
+  appimage: string;
+  /** whether a service starts it: the systemd unit, the launchd agent or the Windows Run key */
+  service: boolean;
 }
 
 /** Asks for the serial ports of the machine the daemon runs on. Answered with `ports` to the page that asked. A KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a port of the machine: it is typed. */
@@ -957,6 +974,17 @@ export interface UpdateInfo {
   url: string;
   /** a short note from the project, at most 200 characters; empty for none */
   message: string;
+}
+
+/** The answer to `update_check`: what the version page said, or why it said nothing. */
+export interface UpdateResultMessage {
+  type: "update_result";
+  /** `newer`: a newer version is out; `current`: this is the latest; `no_answer`: the page could not be reached or did not name a version */
+  outcome: "newer" | "current" | "no_answer";
+  /** the latest version for `newer`, this version for `current`; empty for `no_answer` */
+  version: string;
+  /** for `no_answer` why, in a sentence; empty otherwise */
+  text: string;
 }
 
 /** Asks for the observations a weather station made in the last `hours` hours. Answered with a `weather_series` message to the page that asked, or an `error` for a call that is empty or hours out of range; a call with no observations is answered with no points. */

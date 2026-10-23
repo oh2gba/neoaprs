@@ -3,6 +3,7 @@ import { FIRST_DELAY_MS, Hub, MAX_DELAY_MS, nextDelay, parseMessage, type Connec
 import { PROTOCOL } from "@/protocol/lists";
 import type {
   AlertResultMessage,
+  HelloMessage,
   BulletinRow,
   MessageRow,
   OwnBulletinRow,
@@ -12,10 +13,11 @@ import type {
   StationPref,
   StationRow,
   TncState,
+  UpdateResultMessage,
   WeatherSeriesMessage,
 } from "@/protocol/protocol";
 import { FakeSocket } from "@/test/fakesocket";
-import { bulletin, configValues, mapFile, mapState, message, ownBulletin, ownObject, packet, station, tncState } from "@/test/fixtures";
+import { bulletin, configValues, hello, mapFile, mapState, message, ownBulletin, ownObject, packet, station, tncState } from "@/test/fixtures";
 
 function memory() {
   const seen = {
@@ -24,6 +26,7 @@ function memory() {
     series: [] as WeatherSeriesMessage[],
     alerts: [] as AlertResultMessage[],
     ports: [] as PortsMessage[],
+    updates: [] as UpdateResultMessage[],
     stations: new Map<string, StationRow>(),
     packets: new Map<string, PacketRow>(),
     messages: new Map<string, MessageRow>(),
@@ -46,6 +49,7 @@ function memory() {
     weatherSeries: (m) => seen.series.push(m),
     alertResult: (m) => seen.alerts.push(m),
     ports: (m) => seen.ports.push(m),
+    updateResult: (m) => seen.updates.push(m),
     replaceStations: (rows) => (seen.stations = new Map(Object.entries(rows))),
     replacePackets: (rows) => (seen.packets = new Map(Object.entries(rows))),
     replaceMessages: (rows) => (seen.messages = new Map(Object.entries(rows))),
@@ -84,9 +88,9 @@ describe("Hub", () => {
   });
   afterEach(() => vi.useRealTimers());
 
-  function opened(outOfDate?: () => void) {
+  function opened(onHello?: (message: HelloMessage) => void) {
     const m = memory();
-    const hub = new Hub(m.store, { url: () => "ws://host/ws", socket: (url) => new FakeSocket(url), outOfDate });
+    const hub = new Hub(m.store, { url: () => "ws://host/ws", socket: (url) => new FakeSocket(url), onHello });
     hub.open();
     return { ...m, hub, socket: FakeSocket.last() };
   }
@@ -280,11 +284,22 @@ describe("Hub", () => {
     expect(seen.stations.size).toBe(0);
   });
 
-  it("says when the page is for another protocol", () => {
-    const outOfDate = vi.fn();
-    const { socket } = opened(outOfDate);
-    socket.say({ type: "hello", protocol: PROTOCOL + 1, version: "9", topics: [] });
-    expect(outOfDate).toHaveBeenCalledOnce();
+  it("hands every hello to the caller, which decides whether the page is out of date", () => {
+    const onHello = vi.fn<(message: HelloMessage) => void>();
+    const { socket } = opened(onHello);
+    socket.say(hello({ protocol: PROTOCOL + 1, version: "9" }));
+    socket.say(hello());
+    expect(onHello.mock.calls.map(([m]) => [m.protocol, m.version])).toEqual([
+      [PROTOCOL + 1, "9"],
+      [PROTOCOL, hello().version],
+    ]);
+  });
+
+  it("hands the answer to update_check to the store as it is", () => {
+    const { seen, socket } = opened();
+    const answer = { type: "update_result", outcome: "newer", version: "0.4.0", text: "" };
+    socket.say(answer);
+    expect(seen.updates).toEqual([answer]);
   });
 
   it("sends commands only while the socket is open", () => {

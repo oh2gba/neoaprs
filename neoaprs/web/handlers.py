@@ -18,7 +18,7 @@ from neoaprs.serialprobe import available_ports, can_search, with_links
 from .beaconwire import BeaconNow
 from .bulletinwire import BulletinDelete
 from .dispatch import Ctx, UserError, command
-from .hostwire import AskStatus, Ping
+from .hostwire import AskStatus, CheckUpdate, Ping
 from .hubwire import Subscribe, Unsubscribe
 from .mapwire import MapCancel, MapEstimate, MapFetch
 from .ownwire import BulletinPost, BulletinUnpost, ObjectKill, ObjectSet
@@ -180,6 +180,13 @@ async def set_config(ctx: Ctx, cmd: SetConfig) -> None:
         raise UserError(f"set_config: {e}") from None
     if not await ctx.ctl.save_config(config):
         raise UserError("set_config: the settings could not be stored (the database would not take them); nothing changed")
+
+
+@command(CheckUpdate)
+async def update_check(ctx: Ctx, cmd: CheckUpdate) -> None:
+    result = await ctx.ctl.updatecheck.check_now()
+    ctx.conn.send({"type": "update_result", "outcome": result.outcome, "version": result.version, "text": result.reason})
+    ctx.conn.send(await ctx.status())                                   # (the other pages have it at the next status, within 10 s)
 
 
 @command(WeatherSeries)

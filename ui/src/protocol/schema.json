@@ -273,6 +273,21 @@
       "title": "BulletinUnpostCommand",
       "type": "object"
     },
+    "CheckUpdate": {
+      "additionalProperties": false,
+      "description": "Asks the version page now, the question of the daily update check (`update/check`), whether that is switched on or not; the daily schedule is left as it was. Answered with `update_result` and then a `status` (with the newer version, if there is one) to the page that asked.",
+      "properties": {
+        "cmd": {
+          "const": "update_check",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd"
+      ],
+      "title": "CheckUpdateCommand",
+      "type": "object"
+    },
     "ClearStationAttempts": {
       "additionalProperties": false,
       "description": "Takes a station's own attempts away, so that the setting `messages/attempts` counts again (a station without them is no error). Answered by the `set` of its entry in `station_prefs` with a null `attempts`\n(or the `del` of the entry when it had no path and no timeout either), or by an `error`.",
@@ -1192,8 +1207,12 @@
           "type": "integer"
         },
         "version": {
-          "description": "the version of the daemon",
+          "description": "the version of the daemon: a page built for another one loads itself again, once for each version",
           "type": "string"
+        },
+        "install": {
+          "$ref": "#/$defs/InstallInfo",
+          "description": "how this daemon was installed, for the steps of an update"
         },
         "topics": {
           "description": "the topics the page is following from the start: all of them (a page may `unsubscribe` from one)",
@@ -1207,6 +1226,7 @@
         "type",
         "protocol",
         "version",
+        "install",
         "topics"
       ],
       "title": "HelloMessage",
@@ -1249,6 +1269,38 @@
         "by_internet"
       ],
       "title": "HopRow",
+      "type": "object"
+    },
+    "InstallInfo": {
+      "additionalProperties": false,
+      "description": "How this copy of the daemon was installed, which is what the steps of an update depend on (neoaprs/versions.py, neoaprs/cli/installkind.py).",
+      "properties": {
+        "kind": {
+          "description": "`windows-installer` (the frozen program of the installer), `appimage`, `uv-tool` (the install script, or `uv tool install`), `pip` (a plain environment) or `source` (a clone of the repository)",
+          "enum": [
+            "windows-installer",
+            "appimage",
+            "uv-tool",
+            "pip",
+            "source"
+          ],
+          "type": "string"
+        },
+        "appimage": {
+          "description": "the AppImage file this runs from; empty for the other kinds",
+          "type": "string"
+        },
+        "service": {
+          "description": "whether a service starts it: the systemd unit, the launchd agent or the Windows Run key",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind",
+        "appimage",
+        "service"
+      ],
+      "title": "InstallInfo",
       "type": "object"
     },
     "ListPorts": {
@@ -3791,6 +3843,41 @@
       "title": "UpdateInfo",
       "type": "object"
     },
+    "UpdateResultMsg": {
+      "additionalProperties": false,
+      "description": "The answer to `update_check`: what the version page said, or why it said nothing.",
+      "properties": {
+        "type": {
+          "const": "update_result",
+          "type": "string"
+        },
+        "outcome": {
+          "description": "`newer`: a newer version is out; `current`: this is the latest; `no_answer`: the page could not be reached or did not name a version",
+          "enum": [
+            "newer",
+            "current",
+            "no_answer"
+          ],
+          "type": "string"
+        },
+        "version": {
+          "description": "the latest version for `newer`, this version for `current`; empty for `no_answer`",
+          "type": "string"
+        },
+        "text": {
+          "description": "for `no_answer` why, in a sentence; empty otherwise",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "outcome",
+        "version",
+        "text"
+      ],
+      "title": "UpdateResultMessage",
+      "type": "object"
+    },
     "WeatherSeries": {
       "additionalProperties": false,
       "description": "Asks for the observations a weather station made in the last `hours` hours. Answered with a `weather_series` message to the page that asked, or an `error` for a call that is empty or hours out of range; a call with no\nobservations is answered with no points.",
@@ -4103,6 +4190,7 @@
           "subscribe": "#/$defs/Subscribe",
           "tnc_reconnect": "#/$defs/TncReconnect",
           "unsubscribe": "#/$defs/Unsubscribe",
+          "update_check": "#/$defs/CheckUpdate",
           "weather_series": "#/$defs/WeatherSeries"
         },
         "propertyName": "cmd"
@@ -4113,6 +4201,9 @@
         },
         {
           "$ref": "#/$defs/AskStatus"
+        },
+        {
+          "$ref": "#/$defs/CheckUpdate"
         },
         {
           "$ref": "#/$defs/Subscribe"
@@ -4218,6 +4309,7 @@
           "ports": "#/$defs/PortsMsg",
           "state": "#/$defs/StateMsg",
           "status": "#/$defs/Status",
+          "update_result": "#/$defs/UpdateResultMsg",
           "weather_series": "#/$defs/WeatherSeriesMsg"
         },
         "propertyName": "type"
@@ -4249,6 +4341,9 @@
         },
         {
           "$ref": "#/$defs/AlertResultMsg"
+        },
+        {
+          "$ref": "#/$defs/UpdateResultMsg"
         }
       ],
       "title": "Message"

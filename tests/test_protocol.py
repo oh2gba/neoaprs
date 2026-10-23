@@ -124,7 +124,8 @@ TNC: dict[str, Any] = {"state": "connected", "problem": "", "last_error": "", "p
 CONFIG: dict[str, Any] = {"values": {"station/call": "OH2GBA"}, "defaults": {"station/call": "OH2GBA"}, "urls": []}
 
 MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
-    "hello": [{"type": "hello", "protocol": PROTOCOL, "version": "0.1.0", "topics": list(TOPIC_NAMES)}],
+    "hello": [{"type": "hello", "protocol": PROTOCOL, "version": "0.1.0", "install": {"kind": "uv-tool", "appimage": "", "service": True}, "topics": list(TOPIC_NAMES)},
+              {"type": "hello", "protocol": PROTOCOL, "version": "0.1.0", "install": {"kind": "appimage", "appimage": "/home/u/NeoAPRS-0.1.0-x86_64.AppImage", "service": False}, "topics": []}],
     "status": [{"type": "status", "version": "0.1.0", "started_at": NOW, "packets": 12, "stations": 5, "call": "OH2GBA", "lat": 60.17, "lon": 24.94,
                 "beacon_interval_min": 30, "beacon_last_sent": NOW, "beacon_next_due": "2026-10-21T12:30:00Z",
                 "station_status": "QRV 14.074 MHz USB", "rig_state": "on",
@@ -140,6 +141,8 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
               {"type": "ports", "search": True, "ports": []}],
     "weather_series": [{"type": "weather_series", "call": "OH2MUI", "hours": 24, "points": [[NOW, 10.0, 1028.4, 1.6, 1.6, 0.3, 85], ["2026-10-21T12:10:00Z", 10.5, None, None, None, None, None]]},
                        {"type": "weather_series", "call": "OH2NONE", "hours": 168, "points": []}],
+    "update_result": [{"type": "update_result", "outcome": "newer", "version": "0.4.0", "text": ""}, {"type": "update_result", "outcome": "current", "version": "0.3.0", "text": ""},
+                      {"type": "update_result", "outcome": "no_answer", "version": "", "text": "the version page could not be reached"}],
     "alert_result": [{"type": "alert_result", "ok": True, "text": "ran"}, {"type": "alert_result", "ok": False, "text": "exit code 3: no display"}],
     "error": [{"type": "error", "text": "set_config: station/lat: 95 is not between -90 and 90"}],
     "state": [{"type": "state", "topic": "stations", "rev": 0, "value": {"OH2RDK-7": STATION}}, {"type": "state", "topic": "packets", "rev": 3, "value": {"7": PACKET}},
@@ -185,7 +188,7 @@ COMMAND_EXAMPLES: dict[str, dict[str, Any]] = {
     "clear_station_path": {"cmd": "clear_station_path", "call": "OH2RDG"}, "set_station_timeout": {"cmd": "set_station_timeout", "call": "OH2RDG", "minutes": 0},
     "clear_station_timeout": {"cmd": "clear_station_timeout", "call": "OH2RDG"}, "set_station_attempts": {"cmd": "set_station_attempts", "call": "EMAIL-2", "attempts": 2},
     "clear_station_attempts": {"cmd": "clear_station_attempts", "call": "EMAIL-2"}, "set_station_rf_only": {"cmd": "set_station_rf_only", "call": "OH2RDG", "on": True},
-    "weather_series": {"cmd": "weather_series", "call": "OH2MUI", "hours": 24}, "alert_test": {"cmd": "alert_test"},
+    "weather_series": {"cmd": "weather_series", "call": "OH2MUI", "hours": 24}, "alert_test": {"cmd": "alert_test"}, "update_check": {"cmd": "update_check"},
     "bulletin_delete": {"cmd": "bulletin_delete", "sender": "OH2XYZ", "slot": "BLN3HAMS"},
     "object_set": {"cmd": "object_set", "name": "LEADER", "kind": "object", "lat": 60, "lon": 25, "symbol_table": "/", "symbol_code": ">", "comment": "Rescue 1", "course_deg": 88, "speed_kmh": 67, "path": "WIDE1-1"},
     "object_kill": {"cmd": "object_kill", "name": "LEADER"},

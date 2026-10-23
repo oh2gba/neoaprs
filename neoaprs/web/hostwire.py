@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import Field
 
+from neoaprs.versions import InstallKind
+
 from .wirebase import Iso, _Command, _Message, _Model
 
 
@@ -16,11 +18,19 @@ class AskStatus(_Command):
     cmd: Literal["status"]
 
 
+class InstallInfo(_Model):
+    """How this copy of the daemon was installed, which is what the steps of an update depend on (neoaprs/versions.py, neoaprs/cli/installkind.py)."""
+    kind: InstallKind = Field(description="`windows-installer` (the frozen program of the installer), `appimage`, `uv-tool` (the install script, or `uv tool install`), `pip` (a plain environment) or `source` (a clone of the repository)")
+    appimage: str = Field(description="the AppImage file this runs from; empty for the other kinds")
+    service: bool = Field(description="whether a service starts it: the systemd unit, the launchd agent or the Windows Run key")
+
+
 class Hello(_Message):
     """The first message of a connection; `status` and the `state` of every topic follow it at once, so a page need not ask for them."""
     type: Literal["hello"]
     protocol: int = Field(description="the version of these messages: a page built for another one says so and loads itself again")
-    version: str = Field(description="the version of the daemon")
+    version: str = Field(description="the version of the daemon: a page built for another one loads itself again, once for each version")
+    install: InstallInfo = Field(description="how this daemon was installed, for the steps of an update")
     topics: list[str] = Field(description="the topics the page is following from the start: all of them (a page may `unsubscribe` from one)")
 
 
@@ -50,6 +60,19 @@ class Status(_Message):
     rss_mb: float | None = Field(description="the daemon's resident memory in megabytes, to a tenth; null where the system does not say")
     uptime_sec: int = Field(description="seconds since the daemon started, by its clock")
     update: UpdateInfo | None = Field(description="the latest version while it is newer than this one, from the daily update check (`update/check`); null when there is none, the check is off or has not been answered")
+
+
+class CheckUpdate(_Command):
+    """Asks the version page now, the question of the daily update check (`update/check`), whether that is switched on or not; the daily schedule is left as it was. Answered with `update_result` and then a `status` (with the newer version, if there is one) to the page that asked."""
+    cmd: Literal["update_check"]
+
+
+class UpdateResultMsg(_Message):
+    """The answer to `update_check`: what the version page said, or why it said nothing."""
+    type: Literal["update_result"]
+    outcome: Literal["newer", "current", "no_answer"] = Field(description="`newer`: a newer version is out; `current`: this is the latest; `no_answer`: the page could not be reached or did not name a version")
+    version: str = Field(description="the latest version for `newer`, this version for `current`; empty for `no_answer`")
+    text: str = Field(description="for `no_answer` why, in a sentence; empty otherwise")
 
 
 class Pong(_Message):

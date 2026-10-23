@@ -24,7 +24,7 @@ The README, the project page, the announcement and `packaging/install.sh.in` nam
 
 ## A release
 
-1. The version in `neoaprs/__init__.py` (the one place it is written) and a `## <version>` section in `CHANGELOG.md` under `## Unreleased`.
+1. The version in `neoaprs/__init__.py` (the one place it is written) and a `## <version>` section in `CHANGELOG.md` under `## Unreleased`. The page has the version built in (open pages load themselves again when the daemon's differs): run `scripts/build-page` after the change and commit `neoaprs/page/`; `tests/test_page_build.py` fails until you do.
 2. `scripts/check` green, CI green on master.
 3. The screenshots and the project page brought up to date (above).
 4. A tag `v<version>` pushed: `.github/workflows/release.yml` builds, smoke-tests and publishes the release.

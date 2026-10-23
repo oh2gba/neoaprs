@@ -2,7 +2,7 @@
 // The page: a header with the connection and the radio link, the map filling the page, and at its right a panel with the stations, the packets, the messages, the email, the bulletins, our objects, the beacon, the TNC and the settings.
 // The shell only: what the daemon tells is `useDaemon`, the panel `usePanel`, the station picked `useSelection`, the Messages tab `useMessagesView`, the Email tab `useEmail`, the Bulletins tab `useBulletins`, the Objects tab `useOwnObjects`, the paths, timeouts and attempts of the stations
 // `useStationPrefs`, the first-run guide (it opens by itself while the daemon has no call) `useSetupGuide`, the alert of this browser for a message to us `useBrowserAlerts` and `usePageAlerts`; the components take props and emit events, and the commands go out through `send`.
-import { computed, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import AppHeader from "@/components/AppHeader.vue";
 import BeaconPane from "@/components/BeaconPane.vue";
 import BrowserAlerts from "@/components/BrowserAlerts.vue";
@@ -19,6 +19,7 @@ import StationMap from "@/components/StationMap.vue";
 import StationsTable from "@/components/StationsTable.vue";
 import TncPanel from "@/components/TncPanel.vue";
 import ToastBar from "@/components/ToastBar.vue";
+import UpdatePanel from "@/components/UpdatePanel.vue";
 import { useBrowserAlerts } from "@/composables/useBrowserAlerts";
 import { useBulletins } from "@/composables/useBulletins";
 import { useDaemon } from "@/composables/useDaemon";
@@ -55,8 +56,10 @@ const {
   connection,
   lastError,
   version,
+  install,
   weatherSeries,
   alertResult,
+  updateResult,
   ports,
   send,
 } = useDaemon();
@@ -80,6 +83,10 @@ const {
 } = useStationPrefs(stationPrefs, send);
 const aging = computed<Aging>(() => ({ timeouts: timeouts.value, defaultMin: defaultTimeoutMin(config.value?.values) }));
 const attempts = computed<Attempts>(() => ({ own: ownAttempts.value, defaultCount: defaultAttempts(config.value?.values) }));
+// the panel with the steps of an update is open on purpose, and goes when the newer version does
+const updateOpen = ref(false);
+const newer = computed(() => status.value?.update?.version ?? null);
+watch(newer, (version) => version === null && (updateOpen.value = false));
 const now = useNow();
 const dark = useDark();
 const guide = useSetupGuide(config, lastError, ports, send);
@@ -141,7 +148,9 @@ function onPick(at: Home): void {
       :status="status"
       @messages="talk.openMessages"
       @setup="guide.show()"
+      @update="updateOpen = true"
     />
+    <UpdatePanel v-if="updateOpen && newer" :version="newer" :install="install" @close="updateOpen = false" />
     <main class="main">
       <div class="mapwrap">
         <StationMap
@@ -276,7 +285,17 @@ function onPick(at: Home): void {
           <TncPanel :tnc="tnc" :now="now" @reconnect="send({ cmd: 'tnc_reconnect' })" />
         </template>
         <template #settings>
-          <SettingsForm :config="config" :last-error="lastError" :alert-result="alertResult" :map="map" :ports="ports" :send="send" @setup="guide.show()">
+          <SettingsForm
+            :config="config"
+            :last-error="lastError"
+            :alert-result="alertResult"
+            :update-result="updateResult"
+            :map="map"
+            :ports="ports"
+            :send="send"
+            @setup="guide.show()"
+            @update="updateOpen = true"
+          >
             <template #notifications><BrowserAlerts :alerts="alerts" /></template>
           </SettingsForm>
         </template>

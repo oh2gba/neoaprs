@@ -1,10 +1,20 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
+import { readFileSync } from "node:fs";
 import { fileURLToPath, URL } from "node:url";
+
+/** The version of the package the page is built with: VERSION of neoaprs/__init__.py, the one place it is written. The page compares it with the daemon's. */
+function packageVersion(): string {
+  const text = readFileSync(fileURLToPath(new URL("../neoaprs/__init__.py", import.meta.url)), "utf-8");
+  const found = /^VERSION\s*=\s*"([^"]+)"/m.exec(text);
+  if (!found?.[1]) throw new Error("no VERSION in neoaprs/__init__.py");
+  return found[1];
+}
 
 // The page is built into ../neoaprs/page (scripts/build-page sets NEOAPRS_OUT to it), package data that the daemon serves as it is and the wheel carries; the built files are kept in git, so the machine that runs NeoAPRS needs no node.
 export default defineConfig({
   plugins: [vue()],
+  define: { __PAGE_VERSION__: JSON.stringify(packageVersion()) },
   base: "./",
   resolve: {
     alias: {

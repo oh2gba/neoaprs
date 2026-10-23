@@ -1,8 +1,9 @@
-"""Versions and the update check's two small decisions that need no I/O: which of two versions is newer, what the answer of the version page means, and what this installation calls its platform."""
+"""Versions and the update check's small decisions that need no I/O: which of two versions is newer, what the answer of the version page means, what this installation calls its platform, and how this copy was installed
+(which is what tells the page the steps of an update)."""
 import json
 import re
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal, get_args
 
 UPDATE_URL = "https://oh2gba.eu/neoaprs/version.php"          # the default of the setting update/url
 MAX_MESSAGE = 200                    # the longest note of the answer that is kept
@@ -61,3 +62,30 @@ def platform_name(system: str, machine: str, appimage: bool) -> str:
     if appimage:
         return "linux-appimage"
     return "linux-arm" if machine.lower() in _ARM_MACHINES else "linux"
+
+
+InstallKind = Literal["windows-installer", "appimage", "uv-tool", "pip", "source"]
+INSTALL_KINDS: tuple[str, ...] = get_args(InstallKind)
+
+
+@dataclass(frozen=True)
+class InstallInfo:
+    """How this copy was installed. `appimage` is the file it runs from (kind `appimage` only, else empty); `service` says whether a service (the systemd unit, the launchd agent, the Windows Run key) starts it."""
+    kind: InstallKind
+    appimage: str = ""
+    service: bool = False
+
+
+def install_kind(frozen: bool, appimage: str | None, checkout: bool, uv_tool: bool) -> InstallKind:
+    """The way this copy got here, from what the process can see: a frozen program is the Windows installer's, a run from an AppImage file is the AppImage, a package imported from a clone of the repository is a checkout, a package in the environment
+    `uv tool` made is the install script's, anything else a plain pip (or `uv pip`) environment."""
+    if frozen:
+        return "windows-installer"
+    if appimage:
+        return "appimage"
+    if checkout:
+        return "source"
+    return "uv-tool" if uv_tool else "pip"
+
+
+PLAIN_INSTALL = InstallInfo("pip")          # what a part that was not told how it was installed assumes (the tests)

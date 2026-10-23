@@ -32,7 +32,8 @@ describe("SettingsForm", () => {
           !k.startsWith("status/") &&
           !k.startsWith("tcp/") &&
           k !== "web/key" &&
-          k !== "serial/last_port",
+          k !== "serial/last_port" &&
+          k !== "update/url",
       ).length,
     );
     expect(wrapper.find("#set-station-lat").exists()).toBe(false);
@@ -408,16 +409,59 @@ describe("SettingsForm", () => {
     });
   });
 
+  describe("the Check now button of the update check", () => {
+    const check = (wrapper: ReturnType<typeof make>["wrapper"]) => wrapper.findAll(".field button").find((b) => b.text() === "Check now");
+    const answer = (extra: object) => ({ type: "update_result" as const, outcome: "current" as const, version: "0.3.0", text: "", ...extra });
+
+    it("is the group's only other field than the switch: the address is not on the page", () => {
+      const { wrapper } = make();
+      const group = wrapper.findAll("fieldset").find((f) => f.find("legend").text() === "Update check");
+      expect(group?.findAll(".field")).toHaveLength(1);
+      expect(group?.find("label").text()).toBe("Check once a day");
+      expect(wrapper.find("#set-update-url").exists()).toBe(false);
+    });
+
+    it("sends update_check, waits for the answer and says up to date with the version", async () => {
+      const { wrapper, send } = make();
+      await check(wrapper)?.trigger("click");
+      expect(send).toHaveBeenCalledWith({ cmd: "update_check" });
+      expect(check(wrapper)?.attributes("disabled")).toBeDefined();
+      await check(wrapper)?.trigger("click");
+      expect(send).toHaveBeenCalledTimes(1);
+      await wrapper.setProps({ updateResult: answer({}) });
+      expect(check(wrapper)?.attributes("disabled")).toBeUndefined();
+      expect(wrapper.find(".updatecheck-result").text()).toBe("up to date (0.3.0)");
+      expect(wrapper.find("button.updatecheck-result").exists()).toBe(false);
+    });
+
+    it("says which version is available, as a button that asks for the panel with the steps", async () => {
+      const { wrapper } = make();
+      await check(wrapper)?.trigger("click");
+      await wrapper.setProps({ updateResult: answer({ outcome: "newer", version: "0.4.0" }) });
+      const result = wrapper.find("button.updatecheck-result");
+      expect(result.text()).toBe("0.4.0 available");
+      await result.trigger("click");
+      expect(wrapper.emitted("update")).toHaveLength(1);
+    });
+
+    it("says no answer, with the reason when the daemon gave one", async () => {
+      const { wrapper } = make();
+      await check(wrapper)?.trigger("click");
+      await wrapper.setProps({ updateResult: answer({ outcome: "no_answer", version: "", text: "the version page could not be reached" }) });
+      expect(wrapper.find(".updatecheck-result").text()).toBe("the version page could not be reached");
+    });
+  });
+
   describe("the Test button of the alert", () => {
     const button = (wrapper: ReturnType<typeof make>["wrapper"]) =>
       wrapper.find("#set-messages-alert_command").element.closest(".field")?.querySelector("button");
     const result = (wrapper: ReturnType<typeof make>["wrapper"]) =>
       wrapper.find("#set-messages-alert_command").element.closest(".field")?.querySelector(".field-result");
 
-    it("is right of the alert command, and of no other field, and not in the Beacon tab", () => {
+    it("is right of the alert command, and of no other field but the update check's, and not in the Beacon tab", () => {
       const { wrapper } = make();
       expect(button(wrapper)?.textContent?.trim()).toBe("Test");
-      expect(wrapper.findAll(".field button").map((b) => b.text())).toEqual(["Refresh", "Test"]);
+      expect(wrapper.findAll(".field button").map((b) => b.text())).toEqual(["Refresh", "Test", "Check now"]);
       expect(make({}, "beacon").wrapper.findAll(".field button")).toHaveLength(0);
     });
 

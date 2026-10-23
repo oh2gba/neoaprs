@@ -35,7 +35,7 @@ from .store import Store
 from .tasks import TaskSet
 from .tnc import Tnc
 from .updatefetch import fetch as fetch_update
-from .versions import platform_name
+from .versions import PLAIN_INSTALL, InstallInfo, platform_name
 from .weatherlog import WeatherLog
 
 log = logging.getLogger("neoaprs.controller")
@@ -49,7 +49,7 @@ class Frontend(Protocol):
 
 
 class Services:
-    def __init__(self, data_dir: Path, clock: Clock = utcnow, store: Store | None = None, tnc: Tnc | None = None, port: str = "", pattern: str = "", appimage: bool = False) -> None:
+    def __init__(self, data_dir: Path, clock: Clock = utcnow, store: Store | None = None, tnc: Tnc | None = None, port: str = "", pattern: str = "", install: InstallInfo = PLAIN_INSTALL) -> None:
         self.data_dir = data_dir
         self.clock = clock
         self.config: Config = DEFAULTS                                  # the settings; the controller reads them from the database at its start
@@ -75,7 +75,8 @@ class Services:
         self.messaging = Messaging(self.tnc, lambda: self.config, self.messagelog, self.prefbook.path_for, clock, board=self.bulletins.heard, alert=self.alerts.alert, attempts=self.prefbook.attempts_for)       # messages with acks and retries, by each station's path; started by the controller after the beacon
         self.queries = Queries(self.tnc, lambda: self.config, self.beacon, self.rigstatus.status_frame, self.stationbook, self.prefbook.path_for, clock)       # the answers to ?APRSP, ?APRSS, ?APRSD, ?APRST, ?PING? and ?APRS?, by the asker's path
         self.mapfetch = MapFetch(data_dir, lambda: self.config, clock)  # the base map: the detailed map round our position and the world map under it, made on request from the page; nothing to start
-        self.updatecheck = UpdateCheck(lambda: self.config, VERSION, platform_name(sys.platform, platform.machine(), appimage), fetch_update)   # once a day: which version is the latest (update/check); started by the controller
+        self.install = install                                           # how this copy was installed, for the page (the steps of an update)
+        self.updatecheck = UpdateCheck(lambda: self.config, VERSION, platform_name(sys.platform, platform.machine(), install.kind == "appimage"), fetch_update)   # once a day: which version is the latest (update/check); started by the controller
         self.config_changed: Signal[[Config]] = Signal("config_changed")   # every save of the settings, though nothing differs: the page's settings form waits for it
         self.web: Frontend | None = None                                # the page's server, made by the controller from the factory the process gave it, once the settings are read
         self.db: Db | None = None                                       # its thread, once the controller has opened it

@@ -2,11 +2,25 @@ import "@/test/mockmap";
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "@/App.vue";
-import { PROTOCOL } from "@/protocol/lists";
 import { FakeMap, FakeMarker, fakeState, resetFakes } from "@/test/fakemap";
 import { FakeSocket } from "@/test/fakesocket";
 import { FakeAudioContext, FakeNotification, openedAt, setSeen, stubBrowser } from "@/test/fakealert";
-import { ago, bulletin, configValues, incoming, mapFile, mapState, message, ownBulletin, ownObject, packet, station, status, tncState } from "@/test/fixtures";
+import {
+  ago,
+  bulletin,
+  configValues,
+  hello,
+  incoming,
+  mapFile,
+  mapState,
+  message,
+  ownBulletin,
+  ownObject,
+  packet,
+  station,
+  status,
+  tncState,
+} from "@/test/fixtures";
 
 const stations = {
   OH2GBA: station("OH2GBA", { is_me: true, lat: 60.17, lon: 24.94, symbol_table: "", symbol_code: "", distance_km: null, bearing_deg: null }),
@@ -25,7 +39,7 @@ async function open() {
   const wrapper = mount(App, { attachTo: document.body });
   await flushPromises();
   const socket = FakeSocket.last();
-  socket.say({ type: "hello", protocol: PROTOCOL, version: "0.1.0", topics: [] });
+  socket.say(hello());
   socket.say({ type: "state", topic: "stations", rev: 0, value: stations });
   socket.say({ type: "state", topic: "packets", rev: 0, value: { "1": packet(1), "2": packet(2, { summary: "second" }) } });
   socket.say({ type: "state", topic: "tnc", rev: 0, value: tncState() });
@@ -62,7 +76,7 @@ describe("App", () => {
     await flushPromises();
     const socket = FakeSocket.last();
     expect(socket.sent.filter((c) => (c as { cmd: string }).cmd === "list_ports")).toHaveLength(0);
-    socket.say({ type: "hello", protocol: PROTOCOL, version: "0.1.0", topics: [] });
+    socket.say(hello());
     socket.say({ type: "state", topic: "config", rev: 0, value: configValues() });
     await flushPromises();
     expect(socket.sent.filter((c) => (c as { cmd: string }).cmd === "list_ports")).toHaveLength(1);
@@ -74,7 +88,7 @@ describe("App", () => {
     await flushPromises();
     expect(wrapper.find(".appheader").text()).toContain("connecting");
     const socket = FakeSocket.last();
-    socket.say({ type: "hello", protocol: PROTOCOL, version: "0.1.0", topics: [] });
+    socket.say(hello());
     socket.say({ type: "state", topic: "tnc", rev: 0, value: tncState() });
     socket.say({ type: "state", topic: "config", rev: 0, value: configValues() });
     await flushPromises();
@@ -141,7 +155,7 @@ describe("App", () => {
   it("does not open the guide before the daemon has told its settings", async () => {
     const wrapper = mount(App, { attachTo: document.body });
     await flushPromises();
-    FakeSocket.last().say({ type: "hello", protocol: PROTOCOL, version: "0.1.0", topics: [] });
+    FakeSocket.last().say(hello());
     await flushPromises();
     expect(wrapper.find(".setup").exists()).toBe(false);
   });
@@ -1189,7 +1203,7 @@ describe("the alert of this browser", () => {
     vi.advanceTimersByTime(1000);
     vi.useRealTimers();
     const again = FakeSocket.last();
-    again.say({ type: "hello", protocol: PROTOCOL, version: "0.1.0", topics: [] });
+    again.say(hello());
     again.say({ type: "state", topic: "messages", rev: 0, value: { ...messages, "4": incoming(4, "OH2DPN", { text: "Moi!" }) } });
     await flushPromises();
     expect(FakeAudioContext.played()).toBe(2);
@@ -1208,5 +1222,34 @@ describe("the alert of this browser", () => {
     await flushPromises();
     expect(tabButton(wrapper, "Messages")?.attributes("aria-selected")).toBe("true");
     expect(wrapper.find("#pane-messages").text()).toContain("Moi!");
+  });
+
+  it("opens the steps of the update for the way this copy was installed from the new version in the header, and closes them when it is gone", async () => {
+    const { wrapper, socket } = await open();
+    expect(wrapper.find(".updatepanel").exists()).toBe(false);
+    socket.say(hello({ install: { kind: "uv-tool", appimage: "", service: true } }));
+    socket.say(status({ update: { version: "0.4.0", url: "", message: "" } }));
+    await flushPromises();
+    await wrapper.find("button.update").trigger("click");
+    const panel = wrapper.find(".updatepanel");
+    expect(panel.find("h2").text()).toBe("Update to 0.4.0");
+    expect(panel.find("code").text()).toContain("install.sh | sh");
+    socket.say(status());
+    await flushPromises();
+    expect(wrapper.find(".updatepanel").exists()).toBe(false);
+  });
+
+  it("asks the daemon to check at once from the Settings tab and opens the steps from the answer", async () => {
+    const { wrapper, socket } = await open();
+    await tabButton(wrapper, "Settings")?.trigger("click");
+    const button = wrapper.findAll("#pane-settings button").find((b) => b.text() === "Check now");
+    await button?.trigger("click");
+    expect(socket.sent.filter((c) => (c as { cmd: string }).cmd === "update_check")).toHaveLength(1);
+    socket.say({ type: "update_result", outcome: "newer", version: "0.4.0", text: "" });
+    socket.say(status({ update: { version: "0.4.0", url: "", message: "" } }));
+    await flushPromises();
+    expect(wrapper.find("button.update").text()).toBe("0.4.0");
+    await wrapper.find("#pane-settings button.updatecheck-result").trigger("click");
+    expect(wrapper.find(".updatepanel h2").text()).toBe("Update to 0.4.0");
   });
 });

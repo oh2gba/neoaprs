@@ -200,14 +200,14 @@ text below) or the prose in the script, not this file. `tests/test_protocol.py` 
 One WebSocket per browser tab at `ws://host:7303/ws`. JSON text frames both ways. Every time is UTC ISO 8601 with a `Z`. A station is referred to by its call and a packet by its id, never by
 a position in a list.
 
-The conversation: the page opens the socket and is sent `hello` (the version of this protocol, the version of the daemon, the topics), then the **state** of every topic (`state`: its revision
+The conversation: the page opens the socket and is sent `hello` (the version of this protocol, the version of the daemon, how it was installed, the topics), then the **state** of every topic (`state`: its revision
 and its whole value), and `status`. From then on it is sent what changes (`patch`). Everything else is a **command** from the page (`ping`, `set_config`, `forget_station`, ...), answered by
 the change it makes in a topic, or by `pong`, `status` or `error`. All the state of the daemon that the page shows is small, so a page follows every topic from the start; it may stop following one
 (`unsubscribe`) and ask for it again (`subscribe`, which is answered with `state`).
 
 ```
 page                                     daemon
-  |  <-------------------------------------  hello {protocol, version, topics}
+  |  <-------------------------------------  hello {protocol, version, install, topics}
   |  <-------------------------------------  state {topic, rev, value}          (one for each topic: stations, packets, tnc, config, station_prefs, messages, bulletins)
   |  <-------------------------------------  status {version, started_at, packets, stations, call, lat, lon, ..., cpu_percent, rss_mb, uptime_sec}   (every 10 s too)
   |  <-------------------------------------  patch {topic, rev, ops}            (as it changes, on a tick of 100 ms)

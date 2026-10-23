@@ -2,8 +2,8 @@
 // The one line at the top: the title, our call (amber "no call set", a button that opens the first-run guide, while none is set: nothing is transmitted then; with the number of messages not seen, a button that opens them), one dot and the words for whether the radio works (green "radio ok": the page's socket is open and
 // the TNC is connected; amber "radio: searching", "radio: waiting", "radio: entering KISS" or "radio: stopped": the socket is up and the TNC is not, its problem the title; amber "radio: silent": the line is
 // open and the radio does not answer, the title says since when; red "daemon offline": the socket is down)
-// and, small and muted beside them, what the daemon costs the machine (the full figures with the uptime are the title). The port, the speed and the packet count are on the TNC tab. When the daily update check has found a newer
-// version it is shown after the version number, a link to the project's page with the project's note as the title.
+// and, small and muted beside them, what the daemon costs the machine (the full figures with the uptime are the title). The port, the speed and the packet count are on the TNC tab. When the update check has found a newer
+// version it is shown after the version number, a button that opens the panel with the steps to it (UpdatePanel), the project's note as the title.
 import { computed } from "vue";
 import type { Connection } from "@/lib/hub";
 import { processText, processTextShort, silentText } from "@/lib/format";
@@ -20,7 +20,7 @@ const props = defineProps<{
   now: number;
   status?: StatusMessage | null;
 }>();
-const emit = defineEmits<{ messages: []; setup: [] }>();
+const emit = defineEmits<{ messages: []; setup: []; update: [] }>();
 
 type Link = { level: "ok" | "warn" | "bad"; text: string; title?: string };
 /** The TNC's state in a word: it is searching for the port until the line is open, then entering KISS. */
@@ -66,15 +66,8 @@ const process = computed(() =>
     </span>
     <span v-if="process" class="muted process" :title="process.full">{{ process.short }}</span>
     <span v-if="version" class="muted version">v{{ version }}</span>
-    <a
-      v-if="status?.update?.url"
-      class="update"
-      :href="status.update.url"
-      :title="status.update.message || undefined"
-      target="_blank"
-      rel="noopener noreferrer"
-      >{{ status.update.version }}</a
-    >
-    <span v-else-if="status?.update" class="update" :title="status.update.message || undefined">{{ status.update.version }}</span>
+    <button v-if="status?.update" type="button" class="update" :title="status.update.message || `Update to ${status.update.version}`" @click="emit('update')">
+      {{ status.update.version }}
+    </button>
   </header>
 </template>
