@@ -4,6 +4,8 @@ from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
 
+import pytest
+
 from neoaprs.clock import iso
 from neoaprs.config import DEFAULTS, STATE_KEYS, Config
 from neoaprs.rigctld import read_rig
@@ -87,19 +89,11 @@ async def test_a_start_ten_minutes_after_a_beacon_with_an_hour_interval_sends_th
     await d.stop()
 
 
-async def test_a_start_two_hours_after_a_beacon_sends_the_first_at_thirty_seconds(tmp_path: Path) -> None:
+@pytest.mark.parametrize("minutes_ago", [120, None], ids=["two hours after a beacon", "no stored time"])
+async def test_a_start_two_hours_after_a_beacon_or_with_no_stored_time_sends_the_first_at_thirty_seconds(tmp_path: Path, minutes_ago: int | None) -> None:
     store, clock = await kept(tmp_path)
-    await beacon_sent_ago(store, clock, 120)
-    d = Daemon(store, clock, beacon_interval_min=60)
-    await d.beacon.start()
-    assert d.beacon.next_due == clock() + timedelta(seconds=30)
-    clock.advance(30)
-    await until(lambda: len(d.infos()) == 1)
-    await d.stop()
-
-
-async def test_a_start_with_no_stored_time_sends_the_first_at_thirty_seconds(tmp_path: Path) -> None:
-    store, clock = await kept(tmp_path)
+    if minutes_ago is not None:
+        await beacon_sent_ago(store, clock, minutes_ago)
     d = Daemon(store, clock, beacon_interval_min=60)
     await d.beacon.start()
     assert d.beacon.next_due == clock() + timedelta(seconds=30)
