@@ -7,17 +7,7 @@ describe("groupKeys", () => {
   it("gives the Settings tab the serial and TNC, web, log, messaging, notifications and map keys, in the daemon's order", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "settings");
     expect(groups.map((g) => g.id)).toEqual(["serial", "web", "log", "messages", "notifications", "map", "update"]);
-    expect(groups[0]?.keys).toEqual([
-      "tnc/profile",
-      "serial/port",
-      "serial/baud",
-      "tcp/host",
-      "tcp/port",
-      "tnc/check_sec",
-      "serial/pattern",
-      "serial/skip",
-      "serial/last_port",
-    ]);
+    expect(groups[0]?.keys).toEqual(["tnc/profile", "serial/port", "serial/baud", "tcp/host", "tcp/port", "tnc/check_sec", "serial/last_port"]);
     expect(groups[3]?.keys).toEqual(["messages/attempts"]);
     expect(groups[4]?.title).toBe("Notifications");
     expect(groups[4]?.keys).toEqual(["messages/alert", "messages/alert_command"]);
@@ -45,7 +35,7 @@ describe("groupKeys", () => {
   });
   it("has every key in one place only", () => {
     const shown = [...groupKeys(CONFIG_KEYS, "settings"), ...groupKeys(CONFIG_KEYS, "beacon")].flatMap((g) => g.keys);
-    expect(shown.sort()).toEqual(CONFIG_KEYS.filter((key) => key !== "update/url").sort());
+    expect(shown.sort()).toEqual(CONFIG_KEYS.filter((key) => !["update/url", "serial/pattern", "serial/skip"].includes(key)).sort());
   });
   it("leaves the address of the update check off the page: it is set with neoaprs db set", () => {
     expect(groupKeys(CONFIG_KEYS, "settings").flatMap((g) => g.keys)).not.toContain("update/url");
@@ -59,8 +49,7 @@ describe("groupKeys", () => {
   });
   it("heads the daemon's own alert in the Notifications group with a line that says where it runs", () => {
     expect(SUBGROUPS["messages/alert"]?.text).toBe("On the NeoAPRS computer");
-    expect(Object.keys(SUBGROUPS)).toEqual(["messages/alert", "serial/pattern"]);
-    expect(SUBGROUPS["serial/pattern"]?.text).toBe("Search");
+    expect(Object.keys(SUBGROUPS)).toEqual(["messages/alert"]);
     expect([FIELDS["messages/alert"]?.label, FIELDS["messages/alert_command"]?.label]).toEqual(["Alert", "Command"]);
   });
   it("keeps the timeout of the map in a group of its own", () => {

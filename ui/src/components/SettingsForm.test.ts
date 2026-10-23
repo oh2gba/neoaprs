@@ -33,7 +33,9 @@ describe("SettingsForm", () => {
           !k.startsWith("tcp/") &&
           k !== "web/key" &&
           k !== "serial/last_port" &&
-          k !== "update/url",
+          k !== "update/url" &&
+          k !== "serial/pattern" &&
+          k !== "serial/skip",
       ).length,
     );
     expect(wrapper.find("#set-station-lat").exists()).toBe(false);
@@ -100,10 +102,7 @@ describe("SettingsForm", () => {
 
   it("shows what an empty value means as the placeholder, else the default", () => {
     const { wrapper } = make();
-    expect(wrapper.find("#set-serial-skip").attributes("placeholder")).toBe("none");
     expect(wrapper.find("#set-serial-baud").attributes("placeholder")).toBe("9600");
-    expect(wrapper.find("label[for=set-serial-pattern]").text()).toBe("Ports to search");
-    expect(wrapper.find("#set-serial-pattern").attributes("placeholder")).toBe("/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*");
     const beacon = make({}, "beacon").wrapper;
     expect(beacon.find("#set-beacon-path").attributes("placeholder")).toBe("direct");
     expect(beacon.find("#set-beacon-power_w").attributes("placeholder")).toBe("none");
@@ -158,22 +157,15 @@ describe("SettingsForm", () => {
       expect(select.element.value).toBe("kenwood-tnc2");
     });
 
-    it("shows the port, the speed, the keep-alive and the search of a TNC that has a command mode", () => {
+    it("shows the port, the speed and the keep-alive of a TNC that has a command mode", () => {
       const { wrapper } = make();
-      expect(fieldIds(wrapper)).toEqual([
-        "set-tnc-profile",
-        "set-serial-port",
-        "set-serial-baud",
-        "set-tnc-check_sec",
-        "set-serial-pattern",
-        "set-serial-skip",
-      ]);
+      expect(fieldIds(wrapper)).toEqual(["set-tnc-profile", "set-serial-port", "set-serial-baud", "set-tnc-check_sec"]);
     });
 
     it("leaves the keep-alive out for a KISS TNC, which cannot be asked if it is there", async () => {
       const { wrapper } = make();
       await wrapper.find("#set-tnc-profile").setValue("kiss");
-      expect(fieldIds(wrapper)).toEqual(["set-tnc-profile", "set-serial-port", "set-serial-baud", "set-serial-pattern", "set-serial-skip"]);
+      expect(fieldIds(wrapper)).toEqual(["set-tnc-profile", "set-serial-port", "set-serial-baud"]);
     });
 
     it("shows the host and the port of the TCP server for KISS over TCP, and no serial port", async () => {
@@ -265,16 +257,16 @@ describe("SettingsForm", () => {
       expect(options(wrapper).filter((o) => o === "/dev/brainbox_3")).toHaveLength(1);
     });
 
-    it("shows the port of the owner's station once, with the search under its own heading", () => {
+    it("shows the port of the owner's station once, and not which ports the search looks at or skips (those stay in the daemon)", () => {
       const { wrapper } = withPorts(OWNER);
-      expect(labels(wrapper)).toEqual(["TNC", "Port", "Speed", "Keep-alive", "Ports to search", "Ports to skip"]);
-      expect(wrapper.find<HTMLInputElement>("#set-serial-pattern").element.value).toBe("/dev/brainbox_*");
-      expect(headings(wrapper)?.map((h) => h.text())).toEqual(["Search"]);
-      expect(headings(wrapper)?.[0]?.element.nextElementSibling?.querySelector("#set-serial-pattern")).not.toBeNull();
+      expect(labels(wrapper)).toEqual(["TNC", "Port", "Speed", "Keep-alive"]);
+      expect(wrapper.find("#set-serial-pattern").exists()).toBe(false);
+      expect(wrapper.find("#set-serial-skip").exists()).toBe(false);
+      expect(headings(wrapper)).toHaveLength(0);
     });
 
-    it("keeps the search for an automatic port too, and hides it where the daemon does not search", () => {
-      expect(labels(withPorts().wrapper)).toContain("Ports to search");
+    it("says 'none chosen' for the empty port where the daemon does not search", () => {
+      expect(labels(withPorts().wrapper)).toEqual(["TNC", "Port", "Speed", "Keep-alive"]);
       const { wrapper } = withPorts({}, portList({ search: false }));
       expect(labels(wrapper)).toEqual(["TNC", "Port", "Speed", "Keep-alive"]);
       expect(headings(wrapper)).toHaveLength(0);
@@ -326,9 +318,9 @@ describe("SettingsForm", () => {
     it("never sends the port found, whatever else is changed", async () => {
       const { wrapper, send } = withPorts({ "serial/port": "" });
       await wrapper.find("#set-serial-baud").setValue("19200");
-      await wrapper.find("#set-serial-pattern").setValue("/dev/ttyUSB*");
+      await wrapper.find("#set-tnc-check_sec").setValue("90");
       await wrapper.find("form").trigger("submit");
-      expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "serial/baud": "19200", "serial/pattern": "/dev/ttyUSB*" } });
+      expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "serial/baud": "19200", "tnc/check_sec": "90" } });
     });
 
     it("follows the daemon when it finds the radio on another port", async () => {

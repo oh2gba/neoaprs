@@ -40,7 +40,7 @@ export const FIELDS: Record<string, FieldInfo> = {
   "beacon/antenna_gain_db": { label: "Antenna gain", unit: "dB" },
   "beacon/antenna_direction": { label: "Antenna direction", kind: "choice", choices: ["omni", "N", "NE", "E", "SE", "S", "SW", "W", "NW"] },
   "tnc/profile": { label: "TNC", kind: "choice", choices: TNC_PROFILES.map((p) => ({ value: p.key, label: p.name })) },
-  "serial/port": { label: "Port", empty: "/dev/ttyUSB0", title: "Automatic listens to the ports under Search" },
+  "serial/port": { label: "Port", empty: "/dev/ttyUSB0", title: "Automatic: NeoAPRS listens for the radio" },
   "serial/baud": { label: "Speed", unit: "baud" },
   "tcp/host": { label: "Host" },
   "tcp/port": { label: "Port", title: "Direwolf 8001, soundmodem 8100" },
@@ -77,7 +77,6 @@ const ALERT = ["messages/alert", "messages/alert_command"];
 /** The heading that goes above a key inside its group: the daemon's own alert, which runs on the computer NeoAPRS runs on, whichever device shows the page. */
 export const SUBGROUPS: Record<string, { text: string; title: string }> = {
   "messages/alert": { text: "On the NeoAPRS computer", title: "NeoAPRS's own alert: the command the daemon runs on the computer it runs on" },
-  "serial/pattern": { text: "Search", title: "Used when no port is chosen, and when the chosen port cannot be opened" },
 };
 
 /** The antenna's keys belong to the station, though they are the beacon's to send. */
@@ -117,8 +116,8 @@ function rank(key: string): number {
   return at < 0 ? TNC_ORDER.length : at;
 }
 
-/** Settings that stay in the daemon (`neoaprs db set`) and are not on the page: the address the update check asks. */
-const NOT_ON_THE_PAGE: readonly string[] = ["update/url"];
+/** Settings that stay in the daemon (`neoaprs db set`) and are not on the page: the address the update check asks, and which ports the search for the radio looks at and leaves alone (the defaults suit nearly everyone). */
+const NOT_ON_THE_PAGE: readonly string[] = ["update/url", "serial/pattern", "serial/skip"];
 
 /** The keys in the order of the daemon's list (a key it did not list last; the TNC group in its own order), in the groups of the form `scope` shows. */
 export function groupKeys(keys: readonly string[], scope: Scope = "settings"): Group[] {
