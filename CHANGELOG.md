@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Pop-ups for a page opened from another computer over plain http (the Raspberry Pi's address): the Settings tab (Notifications, In this browser) no longer says "needs https or localhost". Beside the choice, and after Test pop-up, **Enable pop-ups…** opens the steps in the page for the browser in use (Firefox, Chrome, Edge, Brave, Opera; a phone is told plainly), with the host name or the address to copy and a Reload button; Firefox as a Flatpak on KDE has its two `flatpak override` commands in a fold.
+
 - Beacon tab: **Pick on the map** beside the longitude: the next click on the map is our station's place, to be saved like any change.
 - The route on the map: a station whose latest packet came back from the internet through an iGate is drawn by its route over the radio, not from the iGate.
 Classic Bluetooth without `rfcomm bind`.

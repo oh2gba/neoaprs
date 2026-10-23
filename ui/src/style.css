@@ -1740,7 +1740,8 @@ tbody tr:focus-visible {
 
 /* the new version in the header, and the panel with the steps to it */
 button.update,
-button.updatecheck-result {
+button.updatecheck-result,
+button.linkbtn {
   font: inherit;
   font-size: 11px;
   color: var(--accent);
@@ -1752,6 +1753,58 @@ button.updatecheck-result {
 }
 .updatecheck-result {
   font-size: 12px;
+}
+button.linkbtn {
+  font-size: inherit;
+}
+
+/* the steps to allow pop-ups in the person's browser (Settings, Notifications, In this browser), and a text with its Copy button */
+.popuphelp {
+  margin: 4px 0 10px;
+  padding: 6px 12px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+.popuphelp-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.popuphelp-head h4 {
+  flex: 1;
+  margin: 0;
+  font-size: 14px;
+}
+.popuphelp-steps {
+  margin: 6px 0 0;
+  padding-left: 20px;
+}
+.popuphelp-steps li {
+  margin: 6px 0;
+}
+.popuphelp-plain {
+  margin: 6px 0;
+}
+.popuphelp-more {
+  margin-top: 8px;
+}
+.copyfield {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 3px 0;
+}
+.copyfield code {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 6px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  user-select: all;
 }
 .updatepanel {
   position: fixed;
