@@ -33,6 +33,7 @@ class DemoRadio:
     def __init__(self) -> None:
         self.port = 0
         self.sent: list[ax25.Frame] = []
+        self.on_frame: Callable[[ax25.Frame], None] | None = None       # called with each frame the daemon writes (the air's answer to it)
         self._clients: list[asyncio.StreamWriter] = []
         self._pending = bytearray()
         self._server: asyncio.Server | None = None
@@ -59,9 +60,12 @@ class DemoRadio:
             while data := await reader.read(4096):
                 for f in decoder.feed(data):
                     try:
-                        self.sent.append(ax25.decode(f.payload))
+                        frame = ax25.decode(f.payload)
                     except ax25.Ax25Error:
-                        pass
+                        continue
+                    self.sent.append(frame)
+                    if self.on_frame is not None:
+                        self.on_frame(frame)
         except OSError:
             pass
         finally:
@@ -167,6 +171,24 @@ class Scene:
 
     def __init__(self, ctl: Controller, radio: DemoRadio, clock: Clock) -> None:
         self.ctl, self.radio, self.clock = ctl, radio, clock
+        self.heard_back: dict[str, list[tuple[str, ...]]] = {}        # by the text of a message: for each attempt, the copies the air returns (a path with its stars, or ~IGATE for a copy gated back from the internet)
+        self._attempts: dict[bytes, int] = {}
+        radio.on_frame = self._air
+
+    def _air(self, frame: ax25.Frame) -> None:
+        """What the air does with a message of ours: a digipeater repeats it, as heard with its has-been-repeated bits, and an iGate may put a copy on the air from the internet. Acks are not repeated."""
+        body = frame.info
+        if str(frame.source) != ME or not body.startswith(b":") or body[11:14] in (b"ack", b"rej"):
+            return
+        number = self._attempts[body] = self._attempts.get(body, 0) + 1
+        plan = self.heard_back.get(body[11:].split(b"{")[0].decode(), [("OH2RCH-2*,WIDE2-1",)])
+        for copy in plan[min(number, len(plan)) - 1]:
+            if copy.startswith("~"):
+                gate = copy[1:]
+                inner = f"{ME}>{frame.destination},TCPIP,{gate}*:".encode()
+                self.radio.feed(on_air(gate, b"}" + inner + body, ""))
+            else:
+                self.radio.feed(on_air(ME, body, copy, str(frame.destination)))
 
     async def hear(self, source: str, info: bytes, path: str = "OH2RCH-2*") -> None:
         before = self.ctl.tnc.stats.packets
@@ -182,9 +204,13 @@ class Scene:
     async def say_to_me(self, source: str, text: str, msg_id: str, path: str = "OH2RCH-2*") -> None:
         await self.hear(source, b":" + format_message(ME, text, msg_id), path)
 
-    async def send(self, to: str, text: str, ack_after_sec: float | None = 6, ack_path: str = "OH2RCH-2*", tries: int = 1, wrap: str | None = None) -> None:
+    async def send(self, to: str, text: str, ack_after_sec: float | None = 6, ack_path: str = "OH2RCH-2*", tries: int = 1, wrap: str | None = None,
+                   heard: list[tuple[str, ...]] | None = None) -> None:
         """We send a message; the other station acks it after some seconds of the clock, at our `tries`th transmission, or never (None: the attempts run out and it fails)."""
+        if heard is not None:
+            self.heard_back[text] = heard
         record = await self.ctl.messaging.send(to, text)
+        await asyncio.sleep(0.15)                                  # (the first attempt is on the air, and its copy is heard, before the clock moves)
         assert record.msg_id is not None
         number = record.id
 
@@ -201,6 +227,7 @@ class Scene:
         for attempt in range(2, tries + 1):
             self.clock.shift += timedelta(minutes=2)
             await _until(lambda attempt=attempt: current().attempts >= attempt)
+            await asyncio.sleep(0.15)
         self.clock.shift += timedelta(seconds=ack_after_sec)
         info = b":" + format_ack(ME, record.msg_id)
         if wrap:
@@ -267,10 +294,16 @@ def _board(source: str, ago: float, slot: str, text: str, path: str = "OH2RCH-2*
     return Event(ago, lambda s: s.hear(source, b":" + format_message(slot, text), path))
 
 
+async def _path_of_the_partner(s: Scene) -> None:
+    """Messages to the friend go by a path of their own: the digipeater next door, then the one on the hill that our radio does not hear."""
+    await s.ctl.prefbook.set_path("OH2ZPK", "OH2RCH-2,OH2RDG")
+
+
 def events(local_hour_now: float) -> list[Event]:
     day: list[Event] = []
     # The stations of the sample capture: three digipeaters/stations of Kirkkonummi, Helsinki and Sipoo, and a D-STAR node
     day.append(Event(1380, lambda s: s.hear_frames(SAMPLE.read_bytes())))
+    day.append(Event(1370, _path_of_the_partner))
     day += _fixed("OH2RDG", 25, "N#", 60.1245, 24.4970, "PHG8470/R,W,T,Wn,Tn Kirkkonummi", repeats=6, every=35)
     day += _fixed("OH2RDS", 47, "N#", 60.2777, 25.2543, "PHG8470/R,W,T,Wn,Tn Sipoo", repeats=5, every=40)
     day += _fixed("OH2RCH-2", 9, "/#", 60.2000, 24.9600, "PHG7470/W2 Helsinki Kumpula digi", path="", repeats=8, every=20)
@@ -288,20 +321,22 @@ def events(local_hour_now: float) -> list[Event]:
     day += _mover("OH2ZSV-5", "/Y", "s/y Tuuli, Gulf of Finland", [(60.0600, 24.7000), (60.0800, 24.8200), (60.1050, 24.9100), (60.1250, 24.9650)], 20, 300, 12, 6, "OH2RCH-2*")
     day += _mover("OH2ZBK-8", "/b", "Rannikkoreitti", [(60.1800, 24.6200), (60.1840, 24.6600), (60.1900, 24.7000)], 10, 70, 28, 7, "OH2RCH-2*")
     # Messages
-    day.append(_out(1000, "OH2ZXA", "Hello, are you there?", ack_after_sec=None))
+    day.append(_out(1000, "OH2ZXA", "Hello, are you there?", ack_after_sec=None,
+                    heard=[("OH2RCH-2*,WIDE2-1", "~OH2ZIG-10"), (), ("OH2RCH-2*,WIDE2-1",), (), (), ()]))
     day.append(_text("OH2ZMA-9", 300, "Test from the car, do you copy?", "07"))
     day.append(_out(298, "OH2ZMA-9", "Copy 5/9, you show on the map", ack_after_sec=5))
     day.append(Event(240, lambda s: s.hear("OH2ZMA-9", b":" + format_message("OH2ZPK", "Moi Jari, tonight at 20?", "03"), "OH2RCH-2*")))
     day.append(_text("OH2ZPK", 190, "Moi John! Are you QRV on the 2 m net tonight?", "41", "OH2RCH-2*"))
-    day.append(_out(175, "OH2ZPK", "Moi Jari! Yes, 144.800 at 20:00", ack_after_sec=7))
+    day.append(_out(175, "OH2ZPK", "Moi Jari! Yes, 144.800 at 20:00", ack_after_sec=7, heard=[("OH2RCH-2*,OH2RDG*",)]))
     day.append(_text("OH2ZPK", 160, "Great. I take the TH-D7 to the lake on Saturday", "42", "OH2RCH-2*,OH2RDK-7*"))
-    day.append(_out(150, "OH2ZPK", "Nice! Beacon every 5 min so I can follow you on the map", ack_after_sec=8, ack_path="OH2RCH-2*,OH2RDK-7*", tries=2))
+    day.append(_out(150, "OH2ZPK", "Nice! Beacon every 5 min so I can follow you on the map", ack_after_sec=8, ack_path="OH2RDG*", tries=2,
+                    heard=[(), ("OH2RCH-2*,OH2RDG",)]))
     day.append(_text("OH3ZHK-7", 95, "At the Nuuksio car park, 3 km to the lookout", "17", "WIDE1-1"))
     day.append(_out(90, "OH3ZHK-7", "Enjoy! Send a position from the top", ack_after_sec=9, ack_path=""))
     day.append(_text("OH2ZPK", 40, "Heading out now, my signal is on the map soon", "43", "OH2RCH-2*"))
-    day.append(_out(38, "OH2ZPK", "73, have a good trip!", ack_after_sec=6))
+    day.append(_out(38, "OH2ZPK", "73, have a good trip!", ack_after_sec=6, heard=[("OH2RCH-2*,OH2RDG",)]))
     day.append(_text("OH3ZHK-7", 20, "Lookout reached, 144.800 loud and clear here", "18", "WIDE1-1"))
-    day.append(_out(12, "OH2ZPK", "Did you get the new antenna up?", ack_after_sec=10))
+    day.append(_out(12, "OH2ZPK", "Did you get the new antenna up?", ack_after_sec=10, heard=[("OH2RCH-2*,OH2RDG*",)]))
     day.append(_text("OH2ZPK", 6, "Yes! 5 dB more on 2 m, will tell you tonight", "44", "OH2RCH-2*,OH2RDK-7*"))
     # Email through the gateway (its acks come as third-party frames from an iGate)
     day.append(_out(120, "EMAIL-2", "me jane@example.com", ack_after_sec=12, wrap="OH2ZIG-10", ack_path=""))

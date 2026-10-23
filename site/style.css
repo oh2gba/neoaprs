@@ -461,6 +461,16 @@ h2 {
   position: relative;
 }
 
+.frame.chain {
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.feature.access {
+  margin-top: clamp(40px, 6vw, 72px);
+}
+
 .zoom.frame::after {
   content: "Enlarge";
   position: absolute;

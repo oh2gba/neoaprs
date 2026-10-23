@@ -133,13 +133,21 @@
       <h2>Messages that arrive, and proof that they did</h2>
       <ul class="ticks">
         <li>Acks, reply-acks and retries are done for you.</li>
-        <li>The route of every message, hop by hop, with a check mark when the ack comes back.</li>
+        <li>The delivery chain of every message: each digipeater you hear repeat it turns green, one you do not hear stays grey with a ?, a copy that came back from the internet is blue.</li>
         <li>A path, a timeout and a number of attempts for each station.</li>
         <li>Alerts on the desktop, bulletins and group messages, and the APRS queries.</li>
       </ul>
     </div>
     <figure class="shot">
-      <a class="zoom frame crop panel" href="shots/messages.png"><picture><source srcset="shots/messages-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/messages.png" width="1440" height="900" loading="lazy" alt="A conversation: each message with its time, whether it was acked and after how many attempts, and the chain of hops it went through"></picture></a>
+      <a class="zoom frame chain" href="shots/chain.png"><picture><source srcset="shots/chain-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/chain.png" width="1112" height="1292" loading="lazy" alt="The thread of a conversation: each message of ours with its chain, you to OH2RCH-2 with a check, OH2RDG with a question mark or a check, and the station with a check when its ack came; a message sent twice has its two attempts unfolded"></picture></a>
+    </figure>
+  </div>
+  <div class="wrap pair">
+    <figure class="shot">
+      <a class="zoom frame crop panel" href="shots/messages.png"><picture><source srcset="shots/messages-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/messages.png" width="1440" height="900" loading="lazy" alt="The Messages tab: the conversations, the path of the station, and the thread with its chains"></picture></a>
+    </figure>
+    <figure class="shot">
+      <a class="zoom frame chain" href="shots/chain-failed.png"><picture><source srcset="shots/chain-failed-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/chain-failed.png" width="1112" height="446" loading="lazy" alt="A message that failed after six attempts: every attempt with its chain, the first one also heard again from the internet"></picture></a>
     </figure>
   </div>
 </section>
@@ -249,15 +257,27 @@
       </div>
     </div>
   </div>
+  <div class="wrap feature access">
+    <div class="blurb">
+      <h3>Open it from another device</h3>
+      <ul class="ticks">
+        <li>Switch on <b>Allow access from the network</b> in Settings. The page shows an access key and the addresses to open.</li>
+        <li>Type the key once on each laptop or phone.</li>
+      </ul>
+    </div>
+    <figure class="shot">
+      <a class="zoom frame crop pane short" href="shots/settings-web.png"><picture><source srcset="shots/settings-web-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/settings-web.png" width="1440" height="900" loading="lazy" alt="Settings, Web page: Allow access from the network set to yes, the access key and the addresses to open the page at"></picture></a>
+    </figure>
+  </div>
   <div class="wrap pair phones">
+    <figure class="shot">
+      <a class="zoom phone" href="shots/phone-key.png"><picture><source srcset="shots/phone-key-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/phone-key.png" width="390" height="844" loading="lazy" alt="On a phone: the key screen, one field for the access key"></picture></a>
+    </figure>
     <figure class="shot">
       <a class="zoom phone" href="shots/phone-map.png"><picture><source srcset="shots/phone-map-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/phone-map.png" width="390" height="844" loading="lazy" alt="On a phone: the map above, the Stations table below"></picture></a>
     </figure>
     <figure class="shot">
       <a class="zoom phone" href="shots/phone-weather.png"><picture><source srcset="shots/phone-weather-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/phone-weather.png" width="390" height="844" loading="lazy" alt="On a phone: the card of a weather station with its readings and graphs"></picture></a>
-    </figure>
-    <figure class="shot">
-      <a class="zoom phone" href="shots/phone-bulletins.png"><picture><source srcset="shots/phone-bulletins-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/phone-bulletins.png" width="390" height="844" loading="lazy" alt="On a phone: the message board under the map"></picture></a>
     </figure>
   </div>
 </section>
@@ -342,12 +362,16 @@
       <li><a class="zoom" href="shots/station.png" data-dark="shots/station-dark.png"><picture><source srcset="shots/thumbs/station-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/station.png" width="640" height="400" loading="lazy" alt=""></picture><span>A station card</span></a></li>
       <li><a class="zoom" href="shots/weather.png" data-dark="shots/weather-dark.png"><picture><source srcset="shots/thumbs/weather-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/weather.png" width="640" height="400" loading="lazy" alt=""></picture><span>A weather station and its graphs</span></a></li>
       <li><a class="zoom" href="shots/messages.png" data-dark="shots/messages-dark.png"><picture><source srcset="shots/thumbs/messages-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/messages.png" width="640" height="400" loading="lazy" alt=""></picture><span>A conversation with the delivery chain</span></a></li>
+      <li class="tall"><a class="zoom" href="shots/chain.png" data-dark="shots/chain-dark.png"><picture><source srcset="shots/thumbs/chain-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/chain.png" width="640" height="744" loading="lazy" alt=""></picture><span>The delivery chain, close up</span></a></li>
+      <li><a class="zoom" href="shots/chain-failed.png" data-dark="shots/chain-failed-dark.png"><picture><source srcset="shots/thumbs/chain-failed-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/chain-failed.png" width="640" height="257" loading="lazy" alt=""></picture><span>A message that failed: six attempts</span></a></li>
       <li><a class="zoom" href="shots/email.png" data-dark="shots/email-dark.png"><picture><source srcset="shots/thumbs/email-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/email.png" width="640" height="400" loading="lazy" alt=""></picture><span>Email through the gateway</span></a></li>
       <li><a class="zoom" href="shots/bulletins.png" data-dark="shots/bulletins-dark.png"><picture><source srcset="shots/thumbs/bulletins-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/bulletins.png" width="640" height="400" loading="lazy" alt=""></picture><span>The message board</span></a></li>
       <li><a class="zoom" href="shots/beacon.png" data-dark="shots/beacon-dark.png"><picture><source srcset="shots/thumbs/beacon-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/beacon.png" width="640" height="400" loading="lazy" alt=""></picture><span>The beacon and the status</span></a></li>
       <li><a class="zoom" href="shots/settings.png" data-dark="shots/settings-dark.png"><picture><source srcset="shots/thumbs/settings-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/settings.png" width="640" height="400" loading="lazy" alt=""></picture><span>The settings</span></a></li>
+      <li><a class="zoom" href="shots/settings-web.png" data-dark="shots/settings-web-dark.png"><picture><source srcset="shots/thumbs/settings-web-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/settings-web.png" width="640" height="400" loading="lazy" alt=""></picture><span>Network access: the key and the addresses</span></a></li>
       <li><a class="zoom" href="shots/setup.png" data-dark="shots/setup-dark.png"><picture><source srcset="shots/thumbs/setup-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/setup.png" width="640" height="400" loading="lazy" alt=""></picture><span>The setup guide</span></a></li>
       <li><a class="zoom" href="shots/packets.png" data-dark="shots/packets-dark.png"><picture><source srcset="shots/thumbs/packets-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/packets.png" width="640" height="400" loading="lazy" alt=""></picture><span>The packet log</span></a></li>
+      <li class="tall"><a class="zoom" href="shots/phone-key.png" data-dark="shots/phone-key-dark.png"><picture><source srcset="shots/thumbs/phone-key-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/phone-key.png" width="270" height="584" loading="lazy" alt=""></picture><span>On a phone: the key screen</span></a></li>
       <li class="tall"><a class="zoom" href="shots/phone-map.png" data-dark="shots/phone-map-dark.png"><picture><source srcset="shots/thumbs/phone-map-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/phone-map.png" width="270" height="584" loading="lazy" alt=""></picture><span>On a phone: the map</span></a></li>
       <li class="tall"><a class="zoom" href="shots/phone-weather.png" data-dark="shots/phone-weather-dark.png"><picture><source srcset="shots/thumbs/phone-weather-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/phone-weather.png" width="270" height="584" loading="lazy" alt=""></picture><span>On a phone: weather</span></a></li>
       <li class="tall"><a class="zoom" href="shots/phone-bulletins.png" data-dark="shots/phone-bulletins-dark.png"><picture><source srcset="shots/thumbs/phone-bulletins-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/phone-bulletins.png" width="270" height="584" loading="lazy" alt=""></picture><span>On a phone: bulletins</span></a></li>

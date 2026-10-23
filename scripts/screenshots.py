@@ -13,6 +13,7 @@ import io
 import logging
 import os
 import re
+import secrets
 import shutil
 import signal
 import subprocess
@@ -40,7 +41,9 @@ SETTINGS = {
     "station/comment": "NeoAPRS in Espoo", "beacon/power_w": "5", "beacon/antenna_height_m": "10", "beacon/antenna_gain_db": "3", "messages/alert": "false", "tnc/profile": "kiss-tcp",
     "tcp/host": demoscene.HOST,
 }
-AFTER_THE_DAY = {"beacon/interval_min": "30", "station/status": "QRV 144.800 MHz FM", "messages/alert": "true"}          # (the day is played without the alert command, the beacon timer and the status: the page's daemon starts them)
+AFTER_THE_DAY = {"beacon/interval_min": "30", "station/status": "QRV 144.800 MHz FM", "messages/alert": "true", "web/network": "true"}          # (the day is played without the alert command, the beacon timer and the status: the page's daemon starts them)
+SHOWN_KEY = "k7m2-x9pq-4hrt"                                       # what the Settings shot shows as the access key, and the addresses: the daemon's own key is made at random for the run and never shown
+SHOWN_URLS = ["http://192.168.1.20:7303/", "http://neoaprs-pi.local:7303/"]
 
 
 class Daemon:
@@ -109,6 +112,8 @@ async def prepare(work: Path, radio: demoscene.DemoRadio, basemap: Path | None) 
         put_map(basemap, data / "basemap.pmtiles")
     played = await demoscene.history(data, radio)
     print(f"the day: {played} events, {len(radio.sent)} frames sent to the radio")
+    letters = "abcdefghjkmnpqrstuvwxyz23456789"
+    neoaprs_db_set(data, "web/key", "-".join("".join(secrets.choice(letters) for _ in range(4)) for _ in range(3)))
     for key, value in AFTER_THE_DAY.items():
         neoaprs_db_set(data, key, value)
     return data
@@ -130,8 +135,9 @@ class Shots:
             await asyncio.sleep(left)
 
     async def page(self, size: dict[str, int], scheme: str | None = None, tab: str = "stations", view: tuple[float, float, float] | None = None, panel: int | None = None,
-                   wx_hours: str | None = None, url: str | None = None, wait_ms: int = 5000) -> Any:
-        context = await self.browser.new_context(viewport=size, color_scheme=scheme or self.scheme, device_scale_factor=1, locale="en-GB", timezone_id="Europe/Helsinki")
+                   wx_hours: str | None = None, url: str | None = None, wait_ms: int = 5000, scale: int = 1, headers: dict[str, str] | None = None) -> Any:
+        context = await self.browser.new_context(viewport=size, color_scheme=scheme or self.scheme, device_scale_factor=scale, locale="en-GB", timezone_id="Europe/Helsinki",
+                                                 extra_http_headers=headers)
         keys = {"tab": tab, "panel": "open"}
         if view:
             keys["mapview"] = f'{{"lat":{view[0]},"lon":{view[1]},"zoom":{view[2]}}}'
@@ -146,10 +152,10 @@ class Shots:
         await page.wait_for_timeout(wait_ms)
         return page
 
-    async def save(self, page: Any, name: str, full: bool = False) -> None:
+    async def save(self, page: Any, name: str, clip: dict[str, int] | None = None) -> None:
         await page.mouse.move(2, 2)                                # (the pointer is not left on a row or a marker)
         await page.wait_for_timeout(300)
-        raw = await page.screenshot(full_page=full)
+        raw = await page.screenshot(clip=clip)
         data = shrink(raw)
         name = name + ("-dark" if self.scheme == "dark" else "")
         (self.out / f"{name}.png").write_bytes(data)
@@ -209,11 +215,44 @@ async def shot_weather(s: Shots, _: str) -> None:
     await s.save(page, "weather")
 
 
-async def shot_messages(s: Shots, _: str) -> None:
-    page = await s.page(DESKTOP, tab="messages", view=CITY, panel=560)
-    await page.locator("#pane-messages").get_by_text("OH2ZPK").first.click()
+async def open_thread(s: Shots, call: str, scale: int = 1, size: dict[str, int] = DESKTOP) -> Any:
+    """The Messages tab with the conversation of `call` open and the chains of the message with several attempts unfolded."""
+    page = await s.page(size, tab="messages", view=CITY, panel=560, scale=scale)
+    await page.locator("#pane-messages").get_by_text(call).first.click()
     await settle(page)
+    for summary in await page.locator("#pane-messages summary").all():
+        await summary.click()
+    await settle(page, 600)
+    return page
+
+
+async def shot_messages(s: Shots, _: str) -> None:
+    page = await open_thread(s, "OH2ZPK")
     await s.save(page, "messages")
+
+
+async def thread_clip(page: Any, most: int) -> dict[str, int]:
+    """The thread of the open conversation from its top to the bottom of its last message (at most `most` pixels): the close-up of the chains."""
+    await page.evaluate("document.querySelector('#pane-messages .thread').scrollTop = 0")
+    box = await page.locator("#pane-messages .thread").bounding_box()
+    last = await page.locator("#pane-messages .thread .msg").last.bounding_box()
+    height = min(round(last["y"] + last["height"] - box["y"]) + 12, round(box["height"]), most)
+    return {"x": round(box["x"]), "y": round(box["y"]), "width": round(box["width"]), "height": height}
+
+
+TALL = {"width": 1440, "height": 1250}                                  # (a taller window, so that the thread has room: the close-ups are cut out of it)
+
+
+async def shot_chain(s: Shots, _: str) -> None:
+    """The thread of the main conversation, close up: the delivery chain of each message, at twice the pixels."""
+    page = await open_thread(s, "OH2ZPK", scale=2, size=TALL)
+    await s.save(page, "chain", clip=await thread_clip(page, 760))
+
+
+async def shot_chain_failed(s: Shots, _: str) -> None:
+    """A message that failed after six attempts, one of them heard again from the internet."""
+    page = await open_thread(s, "OH2ZXA", scale=2, size=TALL)
+    await s.save(page, "chain-failed", clip=await thread_clip(page, 330))
 
 
 async def shot_email(s: Shots, _: str) -> None:
@@ -230,6 +269,29 @@ async def shot_beacon(s: Shots, _: str) -> None:
     await s.since_start(45)
     page = await s.page(DESKTOP, tab="beacon", view=CITY, panel=560)
     await s.save(page, "beacon")
+
+
+async def shot_settings_web(s: Shots, _: str) -> None:
+    """Settings, the Web page group: the switch on, the access key and where to open the page (the daemon's own key and addresses are replaced by made-up ones on the screen)."""
+    page = await s.page(DESKTOP, tab="settings", view=CITY, panel=560)
+    await page.locator("legend", has_text="Web page").scroll_into_view_if_needed()
+    await page.evaluate("""([key, urls]) => {
+        const field = document.getElementById("set-web-key");
+        if (field) field.value = key;
+        const inputs = [...document.querySelectorAll('[id^="set-web-url-"]')];
+        while (inputs.length && inputs.length < urls.length) { const copy = inputs[0].cloneNode(true); inputs[0].parentElement.append(copy); inputs.push(copy); }
+        inputs.forEach((input, i) => { if (i < urls.length) input.value = urls[i]; else input.remove(); });
+    }""", [SHOWN_KEY, SHOWN_URLS])
+    await page.evaluate("document.querySelector('#pane-settings fieldset:has(#set-web-key)')?.scrollIntoView({block: 'start'})")
+    await settle(page, 400)
+    await s.save(page, "settings-web")
+
+
+async def shot_phone_key(s: Shots, _: str) -> None:
+    """What a phone on the network sees before it is let in: a request that says it came through a proxy counts as from the network, so the daemon asks for the key."""
+    page = await s.page(PHONE, headers={"X-Forwarded-For": "192.168.1.50"}, wait_ms=3000)
+    await page.fill("#access-key", SHOWN_KEY)
+    await s.save(page, "phone-key")
 
 
 async def shot_settings(s: Shots, _: str) -> None:
@@ -324,9 +386,9 @@ EXTRAS = ("thumbs", "og")                                          # what is mad
 SHOTS: dict[str, Shot] = {
     "map": shot_map, "stations": shot_stations, "station": shot_station, "weather": shot_weather, "messages": shot_messages, "email": shot_email, "bulletins": shot_bulletins,
     "beacon": shot_beacon, "settings": shot_settings, "packets": shot_packets, "phone-map": shot_phone_map, "phone-bulletins": shot_phone_bulletins, "phone-weather": shot_phone_weather,
-    "setup": shot_setup,
+    "setup": shot_setup, "chain": shot_chain, "chain-failed": shot_chain_failed, "settings-web": shot_settings_web, "phone-key": shot_phone_key,
 }
-DARK_TOO = ("map", "stations", "station", "weather", "messages", "email", "bulletins", "beacon", "settings", "packets", "phone-map", "phone-bulletins", "phone-weather", "setup")
+DARK_TOO = ("map", "stations", "station", "weather", "messages", "email", "bulletins", "beacon", "settings", "packets", "phone-map", "phone-bulletins", "phone-weather", "setup", "chain", "chain-failed", "settings-web", "phone-key")
 
 
 def in_the_dark(shot: Shot) -> Shot:
