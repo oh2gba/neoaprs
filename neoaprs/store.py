@@ -1,7 +1,7 @@
 """The one database file: everything NeoAPRS keeps (the settings here; the packets and the stations are packetlog.py's, the messages and the preferences of the stations messagelog.py's). The only
 thing outside it is the log of the program itself, a rotating text file.
 
-This is the part of it that the daemon uses through the database thread (db.py): the settings, the minute's care of the write-ahead log and the copy of the file. The file is brought up to
+This is the part of it that the daemon uses through the database thread (db.py): the settings, the checkpoint of the write-ahead log and the copy of the file. The file is brought up to
 date before the thread uses it, by the migrations (migrations.py).
 """
 import logging
@@ -11,9 +11,8 @@ from typing import TypeVar
 
 from .clock import Clock, utcnow
 from .db import Db
-from .dberror import Connection, DbClosed, SettingsConflict as SettingsConflict, SqlError, StoreError as StoreError           # (kept here: the names the rest of the program imports them by)
+from .dberror import Connection, DbClosed, SqlError, StoreError as StoreError           # (kept here: the names the rest of the program imports them by)
 from .storesql import Settings, delete_setting, read_setting, read_settings, write_setting, write_settings
-from .walcare import WalWatch
 
 log = logging.getLogger("neoaprs.store")
 
@@ -30,7 +29,6 @@ class Store:
         self.now = clock
         self.db: Db | None = None
         self.path = ""
-        self.wal = WalWatch()
 
     def use(self, db: Db, path: str | Path) -> None:
         """The store in the database the Db is the thread of (the file is migrated already, by open_connection())."""
@@ -70,14 +68,6 @@ class Store:
             except (SqlError, DbClosed) as e:
                 log.warning("the checkpoint failed: %s", e)
 
-    async def upkeep(self) -> None:                             # the minute's care of the write-ahead log (walcare.py)
-        if self.is_open():
-            assert self.db is not None
-            try:
-                await self.db.maintain(self.wal.tick)
-            except DbClosed:
-                pass
-
     # ---- the settings: a key ("station/call") and the raw text of the value
     async def settings(self) -> Settings:
         return await self._read(read_settings, {})
@@ -85,15 +75,13 @@ class Store:
     async def setting(self, key: str) -> str | None:
         return await self._read(lambda db: read_setting(db, key), None)
 
-    async def put_setting(self, key: str, value: str, expect_rev: int | None = None) -> bool:
-        """One setting, replaced in one statement. With `expect_rev`, only if nobody has written it since that revision; otherwise SettingsConflict, and nothing is changed."""
+    async def put_setting(self, key: str, value: str) -> bool:
+        """One setting, replaced in one statement."""
         db = self.db
         if db is None or not db.is_open:
             return False
         try:
-            await db.write(lambda conn: write_setting(conn, key, value, expect_rev))
-        except SettingsConflict:
-            raise
+            await db.write(lambda conn: write_setting(conn, key, value))
         except (SqlError, DbClosed) as e:
             log.error("the setting %s could not be stored: %s", key, e)
             return False

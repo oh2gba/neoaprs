@@ -1,5 +1,4 @@
-"""How a connection to the database file is set up (neoaprs/dbfile.py), the transaction helper of the tools, the whole checked copy, and the care of the write-ahead log (neoaprs/walcare.py)."""
-import logging
+"""How a connection to the database file is set up (neoaprs/dbfile.py), the transaction helper of the tools, the whole checked copy, and the limits of the write-ahead log (neoaprs/walcare.py)."""
 import os
 import sqlite3
 import sys
@@ -9,7 +8,6 @@ import pytest
 
 from neoaprs import walcare
 from neoaprs.dbfile import DEFAULT_BUSY_MS, connect, copy_database, private, transaction
-from neoaprs.walcare import WalWatch
 
 PROC = Path("/proc/self/fd").is_dir()               # where a descriptor can be turned into the path it names
 
@@ -93,35 +91,3 @@ def test_a_copy_that_fails_removes_what_it_started(tmp_path: Path) -> None:
         copy_database(db, tmp_path / "blocked" / "copy.sqlite")
     assert sorted(p.name for p in tmp_path.iterdir() if p.name.startswith(("copy", "blocked"))) == ["blocked"]
     db.close()
-
-
-def test_a_reader_that_holds_the_log_back_is_told_once_and_forgiven_when_it_lets_go(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
-    monkeypatch.setattr(walcare, "WAL_LIMIT_BYTES", 8192)
-    path = tmp_path / "x.sqlite"
-    db = connect(path)
-    db.execute("CREATE TABLE t (n INTEGER PRIMARY KEY, v TEXT)")
-    reader = sqlite3.connect(path, isolation_level=None)
-    reader.execute("BEGIN")
-    reader.execute("SELECT COUNT(*) FROM t").fetchall()                          # a snapshot the checkpoint cannot pass
-    for n in range(100):
-        db.execute("INSERT INTO t VALUES (?, ?)", (n, "x" * 500))
-    watch = WalWatch()
-    caplog.set_level(logging.WARNING, "neoaprs.store")
-    watch.tick(db)
-    watch.tick(db)
-    told = [r for r in caplog.records if "cannot be moved into the database" in r.getMessage()]
-    assert len(told) == 1 and watch.told
-    reader.execute("COMMIT")
-    reader.close()
-    watch.tick(db)
-    assert not watch.told
-    db.close()
-
-
-def test_the_checkpoint_of_a_database_in_memory_or_a_closed_one_is_a_warning_not_a_crash(caplog: pytest.LogCaptureFixture) -> None:
-    db = sqlite3.connect(":memory:")
-    WalWatch().tick(db)                                  # no log: frames is -1
-    db.close()
-    caplog.set_level(logging.WARNING, "neoaprs.store")
-    WalWatch().tick(db)                                  # closed
-    assert any("the checkpoint of the write-ahead log failed" in r.getMessage() for r in caplog.records)
