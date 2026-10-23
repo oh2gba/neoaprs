@@ -5,6 +5,7 @@
 import MapFetchPanel from "@/components/MapFetchPanel.vue";
 import InfoTip from "@/components/InfoTip.vue";
 import SettingsField from "@/components/SettingsField.vue";
+import SettingsHttps from "@/components/SettingsHttps.vue";
 import SymbolField from "@/components/SymbolField.vue";
 import SettingsPort from "@/components/SettingsPort.vue";
 import type { Toast } from "@/composables/useDaemon";
@@ -155,6 +156,7 @@ const mapUnsaved = computed(() => Object.keys(changed.value).some((key) => key.s
             </button>
           </template>
         </SettingsField>
+        <SettingsHttps v-if="key === 'web/https'" :https="config.https" />
         <div v-if="key === 'station/lon' && scope === 'beacon'" class="pick-row">
           <button class="btn" type="button" :class="{ active: picking }" @click="emit('pickPosition')">{{ picking ? "Cancel" : "Pick on the map" }}</button>
         </div>

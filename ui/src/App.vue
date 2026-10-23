@@ -281,7 +281,7 @@ function onPick(at: Home): void {
             <template #radio
               ><RadioStatus :tnc="tnc" :now="now" :digipeater="config?.values['digi/enabled'] === 'true'" @reconnect="send({ cmd: 'tnc_reconnect' })"
             /></template>
-            <template #notifications><BrowserAlerts :alerts="alerts" /></template>
+            <template #notifications><BrowserAlerts :alerts="alerts" :https="config?.https" /></template>
           </SettingsForm>
         </template>
       </SidePanel>
