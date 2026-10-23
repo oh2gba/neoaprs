@@ -5,7 +5,7 @@
 import DisclosureBox from "@/components/DisclosureBox.vue";
 import SettingsField from "@/components/SettingsField.vue";
 import { positionToLocator } from "@/lib/locator";
-import { parseNumber } from "@/lib/setup";
+import { parseNumber } from "@/lib/fieldcheck";
 import { FIELDS } from "@/lib/settings";
 import { computed } from "vue";
 

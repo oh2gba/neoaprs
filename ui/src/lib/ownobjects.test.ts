@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  COMMENT_MAX,
-  COMMENT_MAX_MOTION,
   commentLimit,
   draftOf,
   draftProblems,
@@ -15,6 +13,7 @@ import {
   wrapLongitude,
   type ObjectDraft,
 } from "@/lib/ownobjects";
+import { LIMITS } from "@/protocol/lists";
 import { NOW, ownObject } from "@/test/fixtures";
 
 const ready = (extra: Partial<ObjectDraft> = {}): ObjectDraft => ({ ...emptyDraft({ lat: 60.17, lon: 24.94 }), name: "LEADER", ...extra });
@@ -110,9 +109,9 @@ describe("draftProblems and draftReady", () => {
   });
 
   it("allows 43 characters of comment, 36 behind a course or a speed", () => {
-    expect(commentLimit(ready())).toBe(COMMENT_MAX);
-    expect(commentLimit(ready({ course: "10" }))).toBe(COMMENT_MAX_MOTION);
-    expect(commentLimit(ready({ speed: "5" }))).toBe(COMMENT_MAX_MOTION);
+    expect(commentLimit(ready())).toBe(LIMITS.object.commentMax);
+    expect(commentLimit(ready({ course: "10" }))).toBe(LIMITS.object.commentMaxMotion);
+    expect(commentLimit(ready({ speed: "5" }))).toBe(LIMITS.object.commentMaxMotion);
     expect(draftProblems(ready({ comment: "x".repeat(43) }))).toEqual({});
     expect(draftProblems(ready({ comment: "x".repeat(44) })).comment).toBe("At most 43 characters");
     expect(draftProblems(ready({ comment: "x".repeat(37), speed: "5" })).comment).toBe("At most 36 characters");

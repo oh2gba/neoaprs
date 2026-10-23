@@ -134,6 +134,8 @@ async def test_a_page_is_told_the_command_the_key_and_the_code_of_every_refusal(
         ("map_cancel", None, "map.no_job"),
         ("subscribe", None, "topic.unknown"),
     ]
+    for a in answers:                                                               # (the page takes the command and the setting off the front of the sentence to get the reason: ui/src/lib/settings.ts `reasonOf`)
+        assert a["text"].startswith(f"{a['cmd']}: " + (f"{a['key']}: " if a["key"] else ""))
     assert answers[0]["params"] == {"value": 95.0, "min": -90.0, "max": 90.0} and answers[0]["text"] == "set_config: station/lat: 95 is not between -90 and 90"
     assert answers[3]["params"] == {"length": 68, "max": 67} and answers[3]["text"].startswith("send_message: the text is 68 characters")
     assert answers[4]["text"] == "send_message: OH2GBA is our own call", "a refusal that has no code yet keeps its text"

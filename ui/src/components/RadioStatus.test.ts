@@ -4,6 +4,7 @@ import RadioStatus from "@/components/RadioStatus.vue";
 import { clockText } from "@/lib/format";
 import { NOW, ago, tncState } from "@/test/fixtures";
 
+const lines = (...texts: string[]) => texts.map((text, i) => ({ at: new Date(NOW - (texts.length - i) * 1000).toISOString(), text }));
 const radio = (tnc: ReturnType<typeof tncState> | null) => mount(RadioStatus, { props: { tnc, now: NOW } });
 
 describe("RadioStatus", () => {
@@ -39,7 +40,9 @@ describe("RadioStatus", () => {
   });
 
   it("says it is searching and lists the ports behind a click", () => {
-    const wrapper = radio(tncState({ state: "waiting", path: "", describe: "listening on /dev/ttyUSB0, /dev/ttyUSB1 for the radio" }));
+    const wrapper = radio(
+      tncState({ state: "waiting", path: "", describe: "listening on /dev/ttyUSB0, /dev/ttyUSB1 for the radio", searching: ["/dev/ttyUSB0", "/dev/ttyUSB1"] }),
+    );
     expect(wrapper.find(".tncstatus").text()).toBe("Searching for the radio…");
     const ports = wrapper.findAll("details").find((d) => d.find("summary").text() === "Ports");
     expect(ports?.element.open).toBe(false);
@@ -69,8 +72,8 @@ describe("RadioStatus", () => {
 
   it("shows the lines of the terminal with their time in the viewer's time", () => {
     const at = new Date(NOW - 20_000).toISOString();
-    const wrapper = radio(tncState({ lines: [`${at.slice(11, 19)} NeoAPRS: opened /dev/brainbox_3`] }));
-    expect(wrapper.find(".tnclines").text()).toBe(`${clockText(at)} NeoAPRS: opened /dev/brainbox_3`);
+    const wrapper = radio(tncState({ lines: [{ at, text: "NeoAPRS: opened /dev/brainbox_3" }] }));
+    expect(wrapper.find(".tnclines").text()).toBe(`${clockText(at)}  NeoAPRS: opened /dev/brainbox_3`);
   });
 
   it("says nothing before the daemon has spoken", () => {
@@ -83,11 +86,11 @@ describe("RadioStatus", () => {
     Object.defineProperty(box, "scrollHeight", { value: 1000, configurable: true });
     Object.defineProperty(box, "clientHeight", { value: 100, configurable: true });
     box.scrollTop = 900;
-    await wrapper.setProps({ tnc: tncState({ lines: ["a", "b", "c"] }) });
+    await wrapper.setProps({ tnc: tncState({ lines: lines("a", "b", "c") }) });
     await wrapper.vm.$nextTick();
     expect(box.scrollTop).toBe(1000);
     box.scrollTop = 100;
-    await wrapper.setProps({ tnc: tncState({ lines: ["a", "b", "c", "d"] }) });
+    await wrapper.setProps({ tnc: tncState({ lines: lines("a", "b", "c", "d") }) });
     await wrapper.vm.$nextTick();
     expect(box.scrollTop).toBe(100);
     wrapper.unmount();

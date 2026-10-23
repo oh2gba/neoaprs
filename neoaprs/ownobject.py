@@ -28,6 +28,7 @@ ITEM_NAME = (3, 9)
 NAME_FORBIDDEN = "!_|~"
 COMMENT_MAX = MAX_COMMENT                    # without a data extension
 COMMENT_MAX_MOTION = MAX_COMMENT_PHG         # behind the course and speed
+COURSE_MAX = 359                             # degrees from north; the course 360 is how north is written on the air
 KNOT_KMH = 1.852
 SPEED_MAX_KMH = 999 * KNOT_KMH               # three digits of knots
 
@@ -84,8 +85,8 @@ def _place(lat: float, lon: float, table: str, code: str) -> None:
 
 
 def _motion(course: int | None, speed: float | None) -> None:
-    if course is not None and not 0 <= course <= 359:
-        raise OwnError(f"the course {course} is not between 0 and 359 degrees", "object.course", value=course)
+    if course is not None and not 0 <= course <= COURSE_MAX:
+        raise OwnError(f"the course {course} is not between 0 and {COURSE_MAX} degrees", "object.course", value=course, max=COURSE_MAX)
     if speed is not None and not 0.0 <= speed <= SPEED_MAX_KMH:
         raise OwnError(f"the speed {speed:g} is not between 0 and {SPEED_MAX_KMH:.0f} km/h", "object.speed", value=speed, max=round(SPEED_MAX_KMH))
 

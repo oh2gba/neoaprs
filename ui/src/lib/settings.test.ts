@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CONFIG_KEYS } from "@/protocol/lists";
-import { BEACON_FOLDS, FIELDS, SUBGROUPS, errorKey, errorReason, groupKeys, shownByValues, shownFor } from "@/lib/settings";
+import { BEACON_FOLDS, FIELDS, SUBGROUPS, groupKeys, reasonOf, shownByValues, shownFor } from "@/lib/settings";
 import { PORT_OTHER, portOptions } from "@/lib/portchoice";
 
 describe("groupKeys", () => {
@@ -166,19 +166,16 @@ describe("groupKeys", () => {
   });
 });
 
-describe("errorKey", () => {
-  const keys = ["station/lat", "station/lon", "serial/port", "serial/baud"];
-  it("finds the key an error begins with, behind the command's name or not", () => {
-    expect(errorKey("set_config: station/lat: 95 is not between -90 and 90", keys)).toBe("station/lat");
-    expect(errorKey("serial/baud: 5 is not between 300 and 921600", keys)).toBe("serial/baud");
+describe("reasonOf", () => {
+  it("gives the reason without the command and the setting in front", () => {
+    expect(reasonOf({ cmd: "set_config", key: "station/lat", text: "set_config: station/lat: 95 is not between -90 and 90" })).toBe(
+      "95 is not between -90 and 90",
+    );
+    expect(reasonOf({ cmd: "alert_test", key: null, text: "alert_test: no alert command" })).toBe("no alert command");
   });
-  it("is none for an error about something else", () => {
-    expect(errorKey("forget_station: call: is missing", keys)).toBeNull();
-    expect(errorKey("Not connected to the daemon.", keys)).toBeNull();
-  });
-  it("gives the reason without the command and the key", () => {
-    expect(errorReason("set_config: station/lat: 95 is not between -90 and 90", "station/lat")).toBe("95 is not between -90 and 90");
-    expect(errorReason("something else", "station/lat")).toBe("something else");
+  it("leaves a sentence that does not begin with them as it is", () => {
+    expect(reasonOf({ cmd: "", key: null, text: "Not connected to the daemon." })).toBe("Not connected to the daemon.");
+    expect(reasonOf({ cmd: "set_config", key: "station/lat", text: "something else" })).toBe("something else");
   });
 });
 

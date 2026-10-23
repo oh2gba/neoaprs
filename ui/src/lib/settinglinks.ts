@@ -1,7 +1,8 @@
 // How the settings that belong together are handled when they apply as they are changed: the fields that are sent in one `set_config`, the values that go with a choice so that the choice is valid at once, the field a
 // refusal of the daemon is shown under when it names another setting than the one that was changed, the changes that ask first, and the words for "<label> changed · Undo".
 import { isLoopbackHost } from "@/lib/pagealert";
-import { FIELDS, portForProfile } from "@/lib/settings";
+import { FIELDS, portForProfile, reasonOf } from "@/lib/settings";
+import type { ErrorMessage } from "@/protocol/protocol";
 
 /** Where rigctld listens when nobody says otherwise (the placeholder of its field). */
 const RIGCTLD_DEFAULT = "127.0.0.1:4532";
@@ -42,15 +43,17 @@ export function linkedValues(key: string, text: string, draft: Readonly<Record<s
   return {};
 }
 
-/** The field a refusal is shown under, and what it says there. `named` is the setting the daemon's error names (null when it names none), `reason` its words after the key, `keys` the settings that were sent. The comment
- * that is too long for the power just set is shown under the power; the radio without a rigctld under the rigctld that was just cleared. */
-export function refusalFor(named: string | null, reason: string, keys: readonly string[]): { key: string; reason: string } {
+/** The field a refusal is shown under, and what it says there. `error` is the daemon's `error` for the `set_config` (its `key` is the setting it names, null when it names none, its `code` and `params` say what is wrong), `keys` the
+ * settings that were sent. The comment that is too long for the power just set is shown under the power; the radio without a rigctld under the rigctld that was just cleared. */
+export function refusalFor(error: Pick<ErrorMessage, "text" | "cmd" | "key" | "code" | "params">, keys: readonly string[]): { key: string; reason: string } {
   const first = keys[0] ?? "";
+  const named = error.key;
+  const reason = reasonOf(error);
   if (named === null) return { key: first, reason };
   if (keys.includes(named)) return { key: named, reason };
   if (named === "station/comment" && keys.includes("beacon/power_w")) {
-    const limit = /more than the (\d+)/.exec(reason)?.[1];
-    return { key: "beacon/power_w", reason: limit ? `Shorten the comment to ${limit} first` : reason };
+    const limit = error.code === "setting.comment_too_long" ? error.params["limit"] : undefined;
+    return { key: "beacon/power_w", reason: limit === undefined ? reason : `Shorten the comment to ${limit} first` };
   }
   if (named === "status/source" && keys.includes("status/rigctld")) return { key: "status/rigctld", reason };
   return { key: first, reason };

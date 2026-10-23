@@ -4,6 +4,7 @@ import { onBeforeUnmount, onMounted, ref, shallowReactive, shallowRef, type Ref 
 import type {
   BulletinRow,
   ConfigValues,
+  ErrorMessage,
   InstallInfo,
   MapState,
   MessageRow,
@@ -26,8 +27,8 @@ export function socketUrl(): string {
   return url.toString();
 }
 
-export interface Toast {
-  text: string;
+/** An `error` of the daemon, or of the page itself (`cmd` empty, `code` `not_connected`): the page goes by `cmd`, `key` and `code`, and shows `text`. */
+export interface Toast extends Omit<ErrorMessage, "type"> {
   /** counts up, so that the same text twice is two toasts */
   n: number;
 }
@@ -65,7 +66,7 @@ export function useDaemon(url: () => string = socketUrl) {
       install.value = message.install;
     },
     status: (message) => (status.value = message),
-    error: (text) => (lastError.value = { text, n: ++toasts }),
+    error: ({ cmd, key, code, params, text }) => (lastError.value = { cmd, key, code, params, text, n: ++toasts }),
     replaceStations: (rows) => fill(stations, rows),
     replacePackets: (rows) => fill(packets, rows),
     replaceMessages: (rows) => fill(messages, rows, messagesLoaded),
@@ -94,7 +95,7 @@ export function useDaemon(url: () => string = socketUrl) {
   /** Sends a command; the toast says so when the socket is not open. */
   function send(command: Parameters<Hub["send"]>[0]): boolean {
     const sent = hub.send(command);
-    if (!sent) store.error("Not connected to the daemon.");
+    if (!sent) store.error({ type: "error", cmd: "", key: null, code: "not_connected", params: {}, text: "Not connected to the daemon." });
     return sent;
   }
 

@@ -6,7 +6,6 @@ import {
   fieldsFrom,
   locatorOf,
   locatorProblem,
-  parseNumber,
   profileOf,
   setupChanges,
   stepOk,
@@ -16,6 +15,7 @@ import {
   type Problems,
   type SetupFields,
 } from "@/lib/setup";
+import { parseNumber } from "@/lib/fieldcheck";
 import { locatorToPosition } from "@/lib/locator";
 
 export function useSetupAnswers(values: Ref<Record<string, string>>, search: Ref<boolean | null>) {

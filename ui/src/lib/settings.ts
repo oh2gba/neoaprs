@@ -1,7 +1,8 @@
 // The settings form's logic: which key goes in which group, what each field says of itself, and which field an error of the daemon is about.
 // The keys and their order come from the daemon (CONFIG_KEYS of the generated lists); a key this file does not know is shown under its own name.
 import { STATUS_CHOICES, statusShown, statusSource } from "@/lib/status";
-import { CONFIG_KEYS, TNC_PROFILES } from "@/protocol/lists";
+import { CONFIG_KEYS, LIMITS, TNC_PROFILES } from "@/protocol/lists";
+import type { ErrorMessage } from "@/protocol/protocol";
 
 type FieldKind = "text" | "bool" | "readonly" | "choice";
 
@@ -41,10 +42,12 @@ const STATUS_INTERVAL_CHOICES: readonly Choice[] = [
 /** The beacon's choices: off, or every 15, 30 or 60 minutes (15 is the least the daemon takes). */
 const BEACON_CHOICES: readonly Choice[] = [
   { value: "0", label: "Off" },
-  { value: "15", label: "Every 15 min" },
+  { value: String(LIMITS.interval.minMin), label: `Every ${LIMITS.interval.minMin} min` },
   { value: "30", label: "Every 30 min" },
   { value: "60", label: "Every 60 min" },
 ];
+
+const GAIN = LIMITS.range["beacon/antenna_gain_db"];
 
 export const FIELDS: Record<string, FieldInfo> = {
   "station/call": { label: "Call" },
@@ -55,7 +58,7 @@ export const FIELDS: Record<string, FieldInfo> = {
   "station/comment": {
     label: "Comment",
     tip: [
-      "A short text sent with your position in every beacon. Other stations see it beside your name on their map. Letters, digits and ordinary punctuation, no | or ~. It can be 43 characters long, 36 when Power is set.",
+      `A short text sent with your position in every beacon. Other stations see it beside your name on their map. Letters, digits and ordinary punctuation, no | or ~. It can be ${LIMITS.comment.max} characters long, ${LIMITS.comment.maxWithPhg} when Power is set.`,
       "Example: Home station, 2 m FM",
     ],
   },
@@ -64,7 +67,7 @@ export const FIELDS: Record<string, FieldInfo> = {
     label: "Text",
     empty: "none",
     tip: [
-      "A line about what you are doing, sent on its own, not with every beacon. Other stations see it as your status. It goes out when it is new and the Every time has passed since the last status. Up to 55 characters, no | or ~.",
+      `A line about what you are doing, sent on its own, not with every beacon. Other stations see it as your status. It goes out when it is new and the Every time has passed since the last status. Up to ${LIMITS.status.max} characters, no | or ~.`,
       "Example: At the summer cottage, QRV 145.500 FM",
     ],
   },
@@ -88,7 +91,7 @@ export const FIELDS: Record<string, FieldInfo> = {
   "beacon/antenna_gain_db": {
     label: "Antenna gain",
     unit: "dB",
-    tip: ["How much the antenna concentrates the signal, 0 to 9 dB. Use 0 if you do not know. Used only for the PHG code.", "Example: 3"],
+    tip: [`How much the antenna concentrates the signal, ${GAIN.min} to ${GAIN.max} dB. Use 0 if you do not know. Used only for the PHG code.`, "Example: 3"],
   },
   "beacon/antenna_direction": {
     label: "Antenna direction",
@@ -217,7 +220,7 @@ export const FIELDS: Record<string, FieldInfo> = {
     name: "Status template",
     label: "Text",
     tip: [
-      "The status is made from this text with what your radio is tuned to now: {freq} becomes the frequency and {mode} the mode. Up to 55 characters once they are filled in.",
+      `The status is made from this text with what your radio is tuned to now: {freq} becomes the frequency and {mode} the mode. Up to ${LIMITS.status.max} characters once they are filled in.`,
       "Example: QRV {freq} {mode} gives QRV 14.074 MHz USB",
     ],
   },
@@ -228,7 +231,7 @@ export const FIELDS: Record<string, FieldInfo> = {
     choices: BEACON_CHOICES,
     other: (value) => `Every ${value} min`,
     tip: [
-      "How often your position is sent. Off sends none by itself; Beacon now still sends one. Every beacon uses the channel for everyone around, so 30 minutes is a good choice for a station that stays where it is; 15 is the least.",
+      `How often your position is sent. Off sends none by itself; Beacon now still sends one. Every beacon uses the channel for everyone around, so 30 minutes is a good choice for a station that stays where it is; ${LIMITS.interval.minMin} is the least.`,
     ],
   },
   "beacon/path": {
@@ -342,16 +345,12 @@ export function groupKeys(keys: readonly string[], scope: Scope = "settings"): G
   return shown.flatMap((id) => groups.filter((g) => g.id === id && g.keys.length > 0));
 }
 
-/** The setting an error of the daemon is about: its text names the key ("set_config: station/lat: 95 is not between -90 and 90"). The longest key that is named wins. */
-export function errorKey(text: string, keys: readonly string[]): string | null {
-  const named = keys.filter((k) => text.startsWith(`${k}:`) || text.includes(` ${k}:`) || text.startsWith(k));
-  return named.sort((a, b) => b.length - a.length)[0] ?? null;
-}
-
-/** What is wrong with the setting, without the command and the key in front. */
-export function errorReason(text: string, key: string): string {
-  const at = text.indexOf(key);
-  return at < 0 ? text : text.slice(at + key.length).replace(/^:\s*/, "");
+/** What is wrong, in the daemon's words without the command and the setting in front: its sentence is "<cmd>: [<key>: ]<reason>" (neoaprs/web/handlers.py; tests/test_error_codes.py holds it to that). */
+export function reasonOf(error: Pick<ErrorMessage, "text" | "cmd" | "key">): string {
+  let text = error.text;
+  if (error.cmd !== "" && text.startsWith(`${error.cmd}: `)) text = text.slice(error.cmd.length + 2);
+  if (error.key !== null && text.startsWith(`${error.key}: `)) text = text.slice(error.key.length + 2);
+  return text;
 }
 
 const SERIAL_ONLY = ["serial/port", "serial/baud"];

@@ -2,20 +2,20 @@
 // all of it again (neoaprs/ownobject.py); the page only keeps the user from sending what it would refuse, and says what is wrong in the title of the field.
 import { parsePath } from "@/lib/calls";
 import { untilText } from "@/lib/format";
-import { degreesText, parseNumber, symbolProblem } from "@/lib/setup";
+import { parseNumber, symbolProblem } from "@/lib/fieldcheck";
+import { degreesText } from "@/lib/setup";
+import { LIMITS } from "@/protocol/lists";
 import type { Command, OwnObjectRow } from "@/protocol/protocol";
 
 type Kind = OwnObjectRow["kind"];
 type ObjectCommand = Extract<Command, { cmd: "object_set" }>;
 
-/** The longest name of an object and the shortest and longest of an item (OBJECT_NAME and ITEM_NAME of neoaprs/ownobject.py). */
-export const NAME_MAX = 9;
-const ITEM_NAME_MIN = 3;
-const NAME_FORBIDDEN = "!_|~";
-/** The comment of an object: 43 characters, 36 behind a course and speed (COMMENT_MAX and COMMENT_MAX_MOTION). */
-export const COMMENT_MAX = 43;
-export const COMMENT_MAX_MOTION = 36;
-const SPEED_MAX_KMH = 1850;
+/** The longest name of an object and the shortest and longest of an item. */
+export const NAME_MAX = LIMITS.object.nameMax;
+const ITEM_NAME_MIN = LIMITS.object.itemNameMin;
+const NAME_FORBIDDEN = LIMITS.object.nameForbidden;
+const SPEED_MAX_KMH = LIMITS.object.speedMaxKmh;
+const COURSE_MAX = LIMITS.object.courseMax;
 /** The symbol a new object has: the car, which is what the map shows for something that moves. */
 const DEFAULT_SYMBOL = "/>";
 /** How long past its time an object waits for the radio before the list says so. */
@@ -79,7 +79,7 @@ const wholeIn = (text: string, min: number, max: number): boolean => /^\d+$/.tes
 
 /** How many characters the comment may have: fewer when a course or speed goes in front of it. */
 export function commentLimit(draft: ObjectDraft): number {
-  return draft.course.trim() === "" && draft.speed.trim() === "" ? COMMENT_MAX : COMMENT_MAX_MOTION;
+  return draft.course.trim() === "" && draft.speed.trim() === "" ? LIMITS.object.commentMax : LIMITS.object.commentMaxMotion;
 }
 
 /** What is wrong with each field as it stands (the empty ones are not wrong here: `draftReady` says what is still needed). */
@@ -91,8 +91,8 @@ export function draftProblems(draft: ObjectDraft): DraftProblems {
   set("name", nameProblem(draft.name, draft.kind));
   set("symbol", symbolProblem(draft.symbol));
   for (const [field, limit] of [
-    ["lat", 90],
-    ["lon", 180],
+    ["lat", LIMITS.range["station/lat"].max],
+    ["lon", LIMITS.range["station/lon"].max],
   ] as const) {
     const value = parseNumber(draft[field]);
     set(field, draft[field].trim() === "" ? "" : value === null ? "Not a number" : Math.abs(value) <= limit ? "" : `Between -${limit} and ${limit}`);
@@ -106,10 +106,10 @@ export function draftProblems(draft: ObjectDraft): DraftProblems {
         ? `At most ${commentLimit(draft)} characters`
         : "",
   );
-  set("course", draft.course.trim() === "" || wholeIn(draft.course, 0, 359) ? "" : "0 to 359 degrees");
+  set("course", draft.course.trim() === "" || wholeIn(draft.course, 0, COURSE_MAX) ? "" : `0 to ${COURSE_MAX} degrees`);
   const speed = parseNumber(draft.speed);
   set("speed", draft.speed.trim() === "" || (speed !== null && speed >= 0 && speed <= SPEED_MAX_KMH) ? "" : `0 to ${SPEED_MAX_KMH} km/h`);
-  set("path", parsePath(draft.path) === null ? "Calls separated by commas, at most 8" : "");
+  set("path", parsePath(draft.path) === null ? `Calls separated by commas, at most ${LIMITS.path.maxCalls}` : "");
   return found;
 }
 

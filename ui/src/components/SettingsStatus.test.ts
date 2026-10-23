@@ -2,7 +2,7 @@ import { mount } from "@vue/test-utils";
 import { describe, expect, it, vi } from "vitest";
 import SettingsForm from "@/components/SettingsForm.vue";
 import type { Command } from "@/protocol/protocol";
-import { configValues } from "@/test/fixtures";
+import { configValues, toastOf } from "@/test/fixtures";
 
 function make(extra: Record<string, string> = {}) {
   const send = vi.fn((_command: Command) => true);
@@ -101,7 +101,7 @@ describe("the Status group", () => {
     const { wrapper } = make({ "status/source": "rig", "status/rigctld": "127.0.0.1:4532" });
     await wrapper.find("#set-status-rigctld").setValue("");
     await wrapper.find("#set-status-rigctld").trigger("blur");
-    await wrapper.setProps({ lastError: { text: "set_config: status/source: the radio needs status/rigctld (host:port of a rigctld, 127.0.0.1:4532)", n: 1 } });
+    await wrapper.setProps({ lastError: toastOf("set_config: status/source: the radio needs status/rigctld (host:port of a rigctld, 127.0.0.1:4532)") });
     expect(wrapper.find("#set-status-rigctld").element.closest(".field")?.querySelector(".field-error")?.textContent).toContain("needs status/rigctld");
     expect(wrapper.find("#set-status-source").element.closest(".field")?.querySelector(".field-error")).toBeNull();
     expect(wrapper.find<HTMLInputElement>("#set-status-rigctld").element.value).toBe("");

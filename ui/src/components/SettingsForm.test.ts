@@ -4,7 +4,7 @@ import SettingsForm from "@/components/SettingsForm.vue";
 import type { Scope } from "@/lib/settings";
 import { CONFIG_KEYS } from "@/protocol/lists";
 import type { Command, PortsMessage } from "@/protocol/protocol";
-import { configValues, mapState } from "@/test/fixtures";
+import { configValues, mapState, toastOf } from "@/test/fixtures";
 
 function make(extra: Record<string, string> = {}, scope: Scope = "settings") {
   const send = vi.fn((_command: Command) => true);
@@ -292,7 +292,7 @@ describe("SettingsForm", () => {
       const { wrapper } = make();
       await wrapper.find("#set-tnc-profile").setValue("kiss-tcp");
       await wrapper.setProps({
-        lastError: { text: "set_config: tnc/profile: KISS over TCP connects over TCP (tcp/host and tcp/port), not to the serial port COM3", n: 1 },
+        lastError: toastOf("set_config: tnc/profile: KISS over TCP connects over TCP (tcp/host and tcp/port), not to the serial port COM3"),
       });
       expect(wrapper.find("#set-tnc-profile").element.closest(".field")?.querySelector(".field-error")?.textContent).toContain("not to the serial port COM3");
     });
@@ -557,7 +557,7 @@ describe("SettingsForm", () => {
       const { wrapper } = make({}, "beacon");
       await wrapper.find("#set-station-comment").setValue("é is not ascii");
       await wrapper.find("#set-station-comment").trigger("blur");
-      await wrapper.setProps({ lastError: { text: "set_config: station/comment: 'é' is not ASCII", n: 1 } });
+      await wrapper.setProps({ lastError: toastOf("set_config: station/comment: 'é' is not ASCII") });
       const field = wrapper.find("#set-station-comment").element.closest(".field");
       expect(field?.querySelector(".field-error")?.textContent).toBe("'é' is not ASCII");
       expect(wrapper.find<HTMLInputElement>("#set-station-comment").element.value).toBe("é is not ascii");
@@ -584,7 +584,7 @@ describe("SettingsForm", () => {
     it("shows a refused choice as it was, with the reason under it", async () => {
       const { wrapper } = make();
       await wrapper.find("#set-tnc-profile").setValue("kiss");
-      await wrapper.setProps({ lastError: { text: "set_config: tnc/profile: KISS TNC is too much", n: 1 } });
+      await wrapper.setProps({ lastError: toastOf("set_config: tnc/profile: KISS TNC is too much") });
       expect(wrapper.find<HTMLSelectElement>("#set-tnc-profile").element.value).toBe("kenwood-tnc2");
       expect(wrapper.find("#set-tnc-profile").element.closest(".field")?.querySelector(".field-error")?.textContent).toBe("KISS TNC is too much");
     });
@@ -611,10 +611,11 @@ describe("SettingsForm", () => {
       await wrapper.find("#set-beacon-power_w").setValue("5");
       await wrapper.find("#set-beacon-power_w").trigger("blur");
       await wrapper.setProps({
-        lastError: {
-          text: "set_config: station/comment: 40 characters is more than the 36 allowed with the PHG extension (clear beacon/power_w to send none)",
-          n: 1,
-        },
+        lastError: toastOf(
+          "set_config: station/comment: 40 characters is more than the 36 allowed with the PHG extension (clear beacon/power_w to send none)",
+          "setting.comment_too_long",
+          { length: 40, limit: 36 },
+        ),
       });
       expect(wrapper.find("#set-beacon-power_w").element.closest(".field")?.querySelector(".field-error")?.textContent).toBe("Shorten the comment to 36 first");
       expect(wrapper.find<HTMLInputElement>("#set-beacon-power_w").element.value).toBe("5");
@@ -752,7 +753,7 @@ describe("SettingsForm", () => {
     it("shows the error of an empty command as the result", async () => {
       const { wrapper } = make();
       await wrapper.find("#set-messages-alert_command + button").trigger("click");
-      await wrapper.setProps({ lastError: { text: "alert_test: no alert command", n: 1 } });
+      await wrapper.setProps({ lastError: toastOf("alert_test: no alert command") });
       expect(result(wrapper)?.textContent).toBe("no alert command");
       expect(button(wrapper)?.hasAttribute("disabled")).toBe(false);
     });

@@ -3,7 +3,8 @@ it; the ports of a search are a list and not a sentence."""
 from datetime import timedelta
 
 from neoaprs.clock import iso
-from neoaprs.tnc import LINE_TIME_WIDTH, Tnc
+from neoaprs.tnc import Tnc
+from neoaprs.tnclines import LINE_TIME_WIDTH
 from tests.support.clock import FixedClock
 
 

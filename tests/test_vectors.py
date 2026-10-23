@@ -48,9 +48,9 @@ def test_the_beacon_the_settings_make_is_null_where_the_daemon_would_send_none()
     beacons = vectors()["beacons"]
     texts = [b["text"] for b in beacons]
     assert texts[0] == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=6010.20N/02456.40E-NeoAPRS" and "PHG" in (texts[1] or "")
-    assert any(b["values"]["station/call"] == "NOCALL" and b["text"] is None for b in beacons)
+    assert any(b["values"]["station/call"] == "" and b["text"] is None for b in beacons)
     assert any(b["values"]["station/lat"] == "" and b["text"] is None for b in beacons)
-    assert any(b["values"]["station/comment"] == "x" * 37 and b["text"] is None for b in beacons), "37 characters do not fit with the PHG extension"
+    assert any(b["values"]["beacon/path"] == "BAD CALL" and b["text"] is None for b in beacons)
 
 
 def test_every_category_has_cases_and_the_phg_and_the_positions_are_the_daemons_figures() -> None:

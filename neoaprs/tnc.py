@@ -18,7 +18,6 @@ answer to the check, confirms, and no answer within the check's answer time make
 (`check_sec` 0) nothing is asked and the line is usable as soon as it is open, as it is for a profile that cannot be asked."""
 import asyncio
 import logging
-from collections import deque
 from collections.abc import Callable
 from datetime import datetime
 
@@ -32,6 +31,7 @@ from .serialport import SerialError, SerialPort, is_socket
 from .signal import Signal
 from .source import CHECKING, Backoff, Source, minutes_between, unusable_because
 from .tncentry import KissEntry
+from .tnclines import TimedSource
 from .tncmode import Mode, ModeDetector, looks_valid, packet_of, read_frame
 from .tncsearch import PortSearch
 from .tncprofile import KENWOOD_TNC2, KISS_EXIT as KISS_EXIT, Profile
@@ -64,9 +64,6 @@ class _TncPort(SerialPort):
             self._lost(reason)
 
 
-LINE_TIME_WIDTH = len("12:00:00  ")             # what Source puts in front of every line it keeps: the time of day and two blanks
-
-
 def _speed(path: str, baud: int) -> str:
     """" at 9600" for a serial line; a TCP line has no speed."""
     return "" if is_socket(path) else f" at {baud}"
@@ -76,7 +73,7 @@ def _printable(text: str) -> str:
     return "".join(c if c.isprintable() else "?" for c in text)
 
 
-class Tnc(Source):
+class Tnc(TimedSource):
     stats: TncStats
 
     def __init__(self, port: str = "", baud: int = 9600, profile: Profile = KENWOOD_TNC2, pattern: str = "", clock: Clock = utcnow, probe_seconds: float = 0.0,
@@ -100,7 +97,6 @@ class Tnc(Source):
         self.watchdog = Watchdog(self, check_sec, check_pause_sec, reply_sec, answer_sec, probe_sec)    # check_sec 0: no checks
         self.last_watchdog_action = ""                                   # "check", "probe" or "reopen"; empty until the watchdog has done anything
         self.last_watchdog_at: datetime | None = None
-        self.line_times: deque[datetime] = deque(maxlen=self.MAX_LINES)   # when each of `lines` was written, the same length and order
         self._open_reset()
 
     def _open_reset(self) -> None:
@@ -361,14 +357,6 @@ class Tnc(Source):
         self._note(_printable(f"sent {frame.tnc2()}"))
         self.packet.emit(packet)
         return True
-
-    def _add_line(self, text: str) -> None:
-        self.line_times.append(self.clock())
-        super()._add_line(text)
-
-    def recent_lines(self, count: int) -> list[tuple[datetime, str]]:
-        """The latest `count` lines, oldest first, each with the time it was written and its text without the time that `lines` shows in front of it."""
-        return [(at, line[LINE_TIME_WIDTH:]) for at, line in zip(list(self.line_times)[-count:], list(self.lines)[-count:], strict=False)]
 
     @property
     def searching(self) -> list[str]:

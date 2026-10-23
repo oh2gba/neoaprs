@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { TOGETHER, changeName, confirmMessage, linkedValues, refusalFor, remotePage } from "@/lib/settinglinks";
-import { pairProblems, problemOf, sameValue } from "@/lib/settingcheck";
+import { pairProblems, problemOf, sameValue } from "@/lib/fieldcheck";
+import { reasonOf } from "@/lib/settings";
 import { openedAt, resetSeen } from "@/test/fakealert";
+import { errorOf } from "@/test/fixtures";
 
 afterEach(() => resetSeen());
 
@@ -71,12 +73,20 @@ describe("settinglinks", () => {
   });
 
   it("puts a refusal under the key that was changed, or the one that explains it", () => {
-    const comment = "40 characters is more than the 36 allowed with the PHG extension (clear beacon/power_w to send none)";
-    expect(refusalFor("station/lat", "95 is out", ["station/lat", "station/lon"])).toEqual({ key: "station/lat", reason: "95 is out" });
-    expect(refusalFor("station/comment", comment, ["beacon/power_w"])).toEqual({ key: "beacon/power_w", reason: "Shorten the comment to 36 first" });
-    expect(refusalFor("status/source", "needs it", ["status/rigctld"])).toEqual({ key: "status/rigctld", reason: "needs it" });
-    expect(refusalFor(null, "the settings could not be stored", ["digi/enabled"])).toEqual({ key: "digi/enabled", reason: "the settings could not be stored" });
-    expect(refusalFor("serial/baud", "x", ["map/radius_km"])).toEqual({ key: "map/radius_km", reason: "x" });
+    const comment = errorOf(
+      "set_config: station/comment: 40 characters is more than the 36 allowed with the PHG extension (clear beacon/power_w to send none)",
+      "setting.comment_too_long",
+      { length: 40, limit: 36 },
+    );
+    expect(refusalFor(errorOf("set_config: station/lat: 95 is out"), ["station/lat", "station/lon"])).toEqual({ key: "station/lat", reason: "95 is out" });
+    expect(refusalFor(comment, ["beacon/power_w"])).toEqual({ key: "beacon/power_w", reason: "Shorten the comment to 36 first" });
+    expect(refusalFor(errorOf("set_config: status/source: needs it"), ["status/rigctld"])).toEqual({ key: "status/rigctld", reason: "needs it" });
+    expect(refusalFor(errorOf("set_config: the settings could not be stored"), ["digi/enabled"])).toEqual({
+      key: "digi/enabled",
+      reason: "the settings could not be stored",
+    });
+    expect(refusalFor(errorOf("set_config: serial/baud: x"), ["map/radius_km"])).toEqual({ key: "map/radius_km", reason: "x" });
+    expect(refusalFor({ ...comment, code: "other", params: {} }, ["beacon/power_w"]).reason).toBe(reasonOf(comment));
   });
 
   it("asks only for what would cut the device off, and only on another device", () => {

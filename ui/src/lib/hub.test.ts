@@ -3,6 +3,7 @@ import { FIRST_DELAY_MS, Hub, MAX_DELAY_MS, nextDelay, parseMessage, type Connec
 import { PROTOCOL } from "@/protocol/lists";
 import type {
   AlertResultMessage,
+  ErrorMessage,
   HelloMessage,
   BulletinRow,
   MessageRow,
@@ -17,12 +18,12 @@ import type {
   WeatherSeriesMessage,
 } from "@/protocol/protocol";
 import { FakeSocket } from "@/test/fakesocket";
-import { bulletin, configValues, hello, mapFile, mapState, message, ownBulletin, ownObject, packet, station, tncState } from "@/test/fixtures";
+import { bulletin, configValues, errorOf, hello, mapFile, mapState, message, ownBulletin, ownObject, packet, station, tncState } from "@/test/fixtures";
 
 function memory() {
   const seen = {
     connection: [] as Connection[],
-    errors: [] as string[],
+    errors: [] as ErrorMessage[],
     series: [] as WeatherSeriesMessage[],
     alerts: [] as AlertResultMessage[],
     ports: [] as PortsMessage[],
@@ -45,7 +46,7 @@ function memory() {
     connection: (c) => seen.connection.push(c),
     hello: () => seen.hello++,
     status: () => seen.statuses++,
-    error: (t) => seen.errors.push(t),
+    error: (e) => seen.errors.push(e),
     weatherSeries: (m) => seen.series.push(m),
     alertResult: (m) => seen.alerts.push(m),
     ports: (m) => seen.ports.push(m),
@@ -274,13 +275,22 @@ describe("Hub", () => {
 
   it("hands an error to the store and ignores what it does not understand", () => {
     const { seen, socket } = opened();
-    socket.say({ type: "error", text: "set_config: station/lat: 95 is not between -90 and 90" });
+    socket.say(errorOf("set_config: station/lat: 95 is not between -90 and 90", "setting.range", { value: 95, min: -90, max: 90 }));
     socket.onmessage?.(new MessageEvent("message", { data: "not json" }));
     socket.onmessage?.(new MessageEvent("message", { data: JSON.stringify({ type: "unheard-of" }) }));
     socket.onmessage?.(new MessageEvent("message", { data: JSON.stringify([1, 2]) }));
     socket.say(state("nosuchtopic", 1, {}));
     socket.say(state("stations", 1, "not an object"));
-    expect(seen.errors).toEqual(["set_config: station/lat: 95 is not between -90 and 90"]);
+    expect(seen.errors).toEqual([
+      {
+        type: "error",
+        cmd: "set_config",
+        key: "station/lat",
+        code: "setting.range",
+        params: { value: 95, min: -90, max: 90 },
+        text: "set_config: station/lat: 95 is not between -90 and 90",
+      },
+    ]);
     expect(seen.stations.size).toBe(0);
   });
 

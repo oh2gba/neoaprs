@@ -1,6 +1,7 @@
 // How stations age on the map: the timeout of a station (its own, else the default of 180 minutes; 0 is never), whether a station has passed it, and how faded the marker and
 // the trail of a station are on the way there. Plain functions of rows and the time.
 import { ageSeconds } from "@/lib/format";
+import { LIMITS } from "@/protocol/lists";
 import type { StationRow } from "@/protocol/protocol";
 
 /** What the page knows of the timeouts: the minutes of the stations that have one of their own (0 is never), and the default for the others (0 is never). */
@@ -16,8 +17,8 @@ export const TRAIL_STEPS = 8;
 export const TRAIL_OLDEST = 0.15;
 export const MARKER_STEPS = 4;
 
-/** The timeout of a station that has none of its own, in minutes: three hours (fixed, like HIDE_AFTER_MIN of the daemon's config.py; it is no setting). */
-export const DEFAULT_TIMEOUT_MIN = 180;
+/** The timeout of a station that has none of its own, in minutes: three hours (fixed, HIDE_AFTER_MIN of the daemon's policy.py; it is no setting). */
+export const DEFAULT_TIMEOUT_MIN = LIMITS.station.hideAfterMin;
 
 /** The timeout of a station in minutes, 0 for never: its own, else the default; our own station and our own objects never time out. */
 export function timeoutMin(aging: Aging, row: StationRow): number {

@@ -336,6 +336,7 @@ export const LIMITS = {
     nameForbidden: "!_|~",
     commentMax: 43,
     commentMaxMotion: 36,
+    courseMax: 359,
     speedMaxKmh: 1850,
   },
   bulletin: {

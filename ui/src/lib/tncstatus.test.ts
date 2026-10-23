@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { clockText } from "@/lib/format";
-import { localLine, searchedPorts, tncCounts, tncStatus } from "@/lib/tncstatus";
+import { lineText, searchedPorts, tncCounts, tncStatus } from "@/lib/tncstatus";
 import { NOW, ago, tncState } from "@/test/fixtures";
 
 const searching = () =>
@@ -8,6 +8,7 @@ const searching = () =>
     state: "waiting",
     path: "",
     describe: "listening on /dev/ttyUSB0, /dev/serial/by-id/usb-X-if00 for the radio",
+    searching: ["/dev/ttyUSB0", "/dev/serial/by-id/usb-X-if00"],
     stats: { ...tncState().stats, packets: 0 },
   });
 
@@ -63,23 +64,18 @@ describe("searchedPorts", () => {
   it("is null when a port is open or the line says something else", () => {
     expect(searchedPorts(tncState())).toBeNull();
     expect(searchedPorts(tncState({ path: "", describe: "socket://127.0.0.1:8001, waiting" }))).toBeNull();
+    expect(searchedPorts(tncState({ searching: ["/dev/ttyUSB0"] }))).toBeNull();
   });
 });
 
-describe("localLine", () => {
-  it("shows the time of a log line, which the daemon writes in UTC, in the viewer's time", () => {
+describe("lineText", () => {
+  it("shows the time a log line was written, which the daemon tells in UTC, in the viewer's time", () => {
     const at = new Date(NOW - 10_000).toISOString();
-    const utc = at.slice(11, 19);
-    expect(localLine(`${utc} NeoAPRS: opened /dev/x`, NOW)).toBe(`${clockText(at)} NeoAPRS: opened /dev/x`);
+    expect(lineText({ at, text: "NeoAPRS: opened /dev/x" })).toBe(`${clockText(at)}  NeoAPRS: opened /dev/x`);
   });
 
-  it("takes a time that has not come yet today for one of yesterday", () => {
-    const later = new Date(NOW + 3_600_000);
-    const line = `${later.toISOString().slice(11, 19)} text`;
-    expect(localLine(line, NOW)).toBe(`${clockText(new Date(later.getTime() - 86_400_000).toISOString())} text`);
-  });
-
-  it("leaves a line without a time as it is", () => {
-    expect(localLine("no time here", NOW)).toBe("no time here");
+  it("takes the day from the line itself: a line of last week is a line of last week", () => {
+    const at = new Date(NOW - 7 * 86_400_000).toISOString();
+    expect(lineText({ at, text: "text" })).toBe(`${clockText(at)}  text`);
   });
 });

@@ -5,7 +5,8 @@ import { computed, reactive, ref, watch, type Ref } from "vue";
 import type { Panel } from "@/composables/usePanel";
 import { draftOf, emptyDraft, isObjectOf, moveCommand, objectCommand, wrapLongitude, type ObjectDraft } from "@/lib/ownobjects";
 import type { Home } from "@/lib/mapview";
-import { degreesText, parseNumber } from "@/lib/setup";
+import { parseNumber } from "@/lib/fieldcheck";
+import { degreesText } from "@/lib/setup";
 import type { Command, OwnObjectRow } from "@/protocol/protocol";
 
 export function useOwnObjects(rows: ReadonlyMap<string, OwnObjectRow>, home: Ref<Home | null>, send: (command: Command) => boolean, panel: Panel) {

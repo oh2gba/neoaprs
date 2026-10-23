@@ -2,6 +2,7 @@
 import type {
   BulletinRow,
   ConfigValues,
+  ErrorMessage,
   MapFileInfo,
   MapState,
   MessageRow,
@@ -15,6 +16,7 @@ import type {
   WeatherSeriesMessage,
   WeatherValues,
 } from "@/protocol/protocol";
+import type { Toast } from "@/composables/useDaemon";
 import { PAGE_VERSION } from "@/lib/build";
 import { PROTOCOL } from "@/protocol/lists";
 
@@ -22,6 +24,18 @@ export const NOW = Date.parse("2026-10-21T12:00:00Z");
 
 export function ago(seconds: number): string {
   return new Date(NOW - seconds * 1000).toISOString();
+}
+
+/** An `error` the way the daemon sends it for a sentence "<cmd>: [<key>: ]<reason>": its command and its setting are the first words, as the daemon's handlers put them there; `code` and `params` say what is wrong. */
+export function errorOf(text: string, code = "other", params: Record<string, string | number> = {}): ErrorMessage {
+  const found = /^([a-z_]+): (?:([a-z_]+\/[a-z_]+): )?/.exec(text);
+  return { type: "error", cmd: found?.[1] ?? "", key: found?.[2] ?? null, code, params, text };
+}
+
+/** The same as the page keeps it for the toast. */
+export function toastOf(text: string, code = "other", params: Record<string, string | number> = {}, n = 1): Toast {
+  const { cmd, key } = errorOf(text);
+  return { cmd, key, code, params, text, n };
 }
 
 export function station(call: string, extra: Partial<StationRow> = {}): StationRow {
@@ -231,6 +245,7 @@ export function tncState(extra: Partial<TncState> = {}): TncState {
     path: "/dev/brainbox_3",
     baud: 9600,
     describe: "/dev/brainbox_3 at 9600, KISS",
+    searching: [],
     silent_since: null,
     last_watchdog_action: "",
     last_watchdog_at: null,
@@ -247,7 +262,10 @@ export function tncState(extra: Partial<TncState> = {}): TncState {
       port_reopens: 0,
       digipeated: 0,
     },
-    lines: ["12:00:00 NeoAPRS: opened /dev/brainbox_3 at 9600", "12:00:01 OH2RDG>APN391:!6007.47NN02429.82E#"],
+    lines: [
+      { at: "2026-10-21T12:00:00Z", text: "NeoAPRS: opened /dev/brainbox_3 at 9600" },
+      { at: "2026-10-21T12:00:01Z", text: "OH2RDG>APN391:!6007.47NN02429.82E#" },
+    ],
     ...extra,
   };
 }

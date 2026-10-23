@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // One conversation of the Messages tab, filling its column: a header bar (on a narrow page the back arrow "‹" to the list; the call; "Route" for the path and RF only), the bubbles (ConversationThread) filling the height and the box to write in (MessageCompose: the text,
-// "67 left" and Send, no To: the conversation is the station) fixed at the bottom. An overheard pair has no Route and no box to write in (the messages are not ours: only the bubbles, and the delete in the list). It is the page's to put a new one in place of this when
+// "12 left" and Send, no To: the conversation is the station) fixed at the bottom. An overheard pair has no Route and no box to write in (the messages are not ours: only the bubbles, and the delete in the list). It is the page's to put a new one in place of this when
 // another conversation is picked (a `key`), and on a narrow page it takes the focus when it appears, so that Esc goes back.
 import { computed, onMounted, ref } from "vue";
 import ConversationThread from "@/components/ConversationThread.vue";

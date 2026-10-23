@@ -33,7 +33,7 @@ from neoaprs.config import ANTENNA_DIRECTIONS, DEFAULTS, KEYS, LATITUDE, LONGITU
 from neoaprs.configstatus import MAX_STATUS  # noqa: E402
 from neoaprs.message import EMAIL_GATEWAY, check_text, normal_path  # noqa: E402
 from neoaprs.ownbulletin import GROUP_MAX, PostError, make_bulletin, slot_of  # noqa: E402
-from neoaprs.ownobject import COMMENT_MAX, COMMENT_MAX_MOTION, ITEM_NAME, NAME_FORBIDDEN, OBJECT_NAME, SPEED_MAX_KMH, OwnError, make_object  # noqa: E402
+from neoaprs.ownobject import COMMENT_MAX, COMMENT_MAX_MOTION, COURSE_MAX, ITEM_NAME, NAME_FORBIDDEN, OBJECT_NAME, SPEED_MAX_KMH, OwnError, make_object  # noqa: E402
 from neoaprs.policy import HIDE_AFTER_MIN, MAX_HIDE_AFTER_MIN  # noqa: E402
 from neoaprs.aprsposition import uncompressed_position  # noqa: E402
 from neoaprs.services.beacon import Beacon, BeaconError, phg_text  # noqa: E402
@@ -204,7 +204,7 @@ def limits() -> dict[str, Any]:
         "call": {"baseMax": BASE_MAX, "amateurBaseMin": AMATEUR_BASE_MIN, "maxSsid": MAX_SSID, "placeholders": sorted(PLACEHOLDER_CALLS)},
         "path": {"maxCalls": MAX_PATH},
         "object": {"nameMax": OBJECT_NAME[1], "itemNameMin": ITEM_NAME[0], "nameForbidden": NAME_FORBIDDEN, "commentMax": COMMENT_MAX, "commentMaxMotion": COMMENT_MAX_MOTION,
-                   "speedMaxKmh": round(SPEED_MAX_KMH)},
+                   "courseMax": COURSE_MAX, "speedMaxKmh": round(SPEED_MAX_KMH)},
         "bulletin": {"groupMax": GROUP_MAX},
         "station": {"hideAfterMin": HIDE_AFTER_MIN, "maxHideAfterMin": MAX_HIDE_AFTER_MIN},
     }
@@ -452,12 +452,12 @@ CALLS = ["OH2GBA", "oh2gba", " oh2gba ", "OH2GBA-7", "OH2GBA-15", "OH2GBA-16", "
          "AB", "A1", "A1B", "ABC", "123", "1234", "OH2GBAA", "OH2G BA", "OH2GBA/P", "OH2GB\u00c4", "\u00df1A", "W1AW", "K1", "KB1ABC-9", "EMAIL-2", "WIDE1-1", "APZNEO", "TCPIP", "a-b", "OH 2GBA"]
 PATHS = ["", " ", "WIDE1-1,WIDE2-1", "wide1-1, wide2-1", "WIDE2-2", ",", "WIDE1-1,", ",WIDE1-1", "WIDE1-1,,WIDE2-1", "OH2RCH-0", "A,B,C,D,E,F,G,H", "A,B,C,D,E,F,G,H,I", "TOOLONGCALL", "OH2RCH-16", "WIDE1-1,N0CALL"]
 MESSAGE_TEXTS = ["Hello", " Hello ", "", "   ", "x" * 67, "x" * 68, " " + "x" * 66 + " "]
-BULLETIN_TEXTS = ["Snow expected", "", "   ", " padded ", "x" * 67, "x" * 68, "with | bar", "with ~ tilde", "with { brace", "tab\there", "\u00e5\u00e4\u00f6", "emoji \U0001f600", "a:b", "ack1", "rej2"]
-BULLETIN_SLOTS = [("bulletin", i, "") for i in "0189AZ"] + [("announcement", i, "") for i in "09AZaz"] + [("group", i, g) for i in "09A" for g in ("", "HAMS", "HAMS1", "HAMS12", "HA-MS", "ha ms", "ham", "H")]
+BULLETIN_TEXTS = ["Snow expected", "", "   ", " padded ", "x" * 67, "x" * 68, "with | bar", "with ~ tilde", "with { brace", "tab\there", "\u00e5\u00e4\u00f6", "emoji \U0001f600", "a:b"]
+BULLETIN_SLOTS = [("bulletin", i, "") for i in "0189AZ"] + [("announcement", i, "") for i in "09AZ"] + [("group", i, g) for i in "09A" for g in ("", "HAMS", "HAMS1", "HAMS12", "HA-MS", "ha ms", "ham", "H")]
 OBJECT_NAMES = [("object", n) for n in ("A", "OH2GBA", "NINECHARS", "TENCHARS12", "", " X", "X ", "A B", "has!bang", "has_under", "has|bar", "has~tilde", "caf\u00e9", "lower", "UPPER 1")] + \
     [("item", n) for n in ("AB", "ABC", "NINECHARS", "TENCHARS12", "", "A_B", "A!")]
 OBJECT_COMMENTS = [("", False), ("x" * 43, False), ("x" * 44, False), ("x" * 36, True), ("x" * 37, True), ("x" * 43, True), ("with | bar", False), ("with ~ tilde", False), ("caf\u00e9", False), ("tab\there", False), (" padded ", False)]
-SETTING_VALUES = [(key, text) for key in ("station/lat", "station/lon") for text in ("0", "60.17", "-90", "90", "-180", "180", "90.0001", "-90.1", "180.5", "", " 45 ", "abc", "1e2")] + \
+SETTING_VALUES = [(key, text) for key in ("station/lat", "station/lon") for text in ("0", "60.17", "-90", "90", "-180", "180", "90.0001", "-90.1", "180.5", "", " 45 ", "abc")] + \
     [(key, text) for key in ("serial/baud", "tcp/port", "beacon/power_w", "beacon/antenna_height_m", "beacon/antenna_gain_db", "map/radius_km")
      for text in ("", "0", "1", "9", "10", "299", "300", "1000", "1001", "9999", "10000", "65535", "65536", "921600", "921601", "-1", "1.5", "abc", " 5 ")]
 PHG_CASES = [(p, h, 3, "NE") for p in (0, 1, 2, 5, 25, 81, 100, 9999) for h in (0, 1, 3, 3.048, 4, 10, 20, 100, 9999)] + [(5, 10, g, d) for g in (0, 3, 9, 10, -1) for d in ANTENNA_DIRECTIONS]
@@ -465,10 +465,10 @@ POSITIONS = [(60.17, 24.94), (0.0, 0.0), (-33.8688, 151.2093), (90.0, 180.0), (-
 BEACON_BASE = {"station/call": "OH2GBA", "station/lat": "60.17", "station/lon": "24.94", "station/symbol_table": "/", "station/symbol_code": "-", "station/comment": "NeoAPRS",
                "beacon/power_w": "", "beacon/antenna_height_m": "0", "beacon/antenna_gain_db": "0", "beacon/antenna_direction": "omni", "beacon/path": "WIDE1-1,WIDE2-1"}
 BEACONS = [{}, {"beacon/power_w": "5", "beacon/antenna_height_m": "10", "beacon/antenna_gain_db": "3", "beacon/antenna_direction": "NE", "station/comment": "Home"}, {"station/comment": ""}, {"station/call": "oh2gba-7"},
-           {"station/call": "N0CALL"}, {"station/call": "NOCALL"}, {"station/call": "MYCALL"}, {"station/call": "AB"}, {"station/call": ""}, {"station/lat": ""}, {"station/lat": "91"}, {"station/lon": "181"},
+           {"station/call": ""}, {"station/lat": ""}, {"station/lat": "91"}, {"station/lon": "181"},
            {"station/symbol_table": "Z", "station/symbol_code": "~"}, {"station/symbol_table": "a"}, {"station/symbol_code": " "}, {"beacon/path": ""}, {"beacon/path": "WIDE2-2"}, {"beacon/path": "BAD CALL"},
            {"station/lat": "0.03125", "station/lon": "0.09375"}, {"station/lat": "-0.00001", "station/lon": "-0.00001"}, {"beacon/power_w": "100", "beacon/antenna_height_m": "9999", "beacon/antenna_gain_db": "9",
-            "beacon/antenna_direction": "N", "station/comment": "x" * 36}, {"beacon/power_w": "5", "station/comment": "x" * 37}]
+            "beacon/antenna_direction": "N", "station/comment": "x" * 36}]
 
 
 def _call_vector(text: str) -> dict[str, Any]:

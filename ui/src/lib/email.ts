@@ -1,9 +1,9 @@
-// The Email tab's rules (the APRS email gateway, aprs-is.net/Email.aspx): a message to EMAIL-2 has the addressee (an email address), a space and the text, 67 bytes of UTF-8 in all; `get` asks it for the mail it kept; and the addressees used before are
+// The Email tab's rules (the APRS email gateway, aprs-is.net/Email.aspx): a message to EMAIL-2 has the addressee (an email address), a space and the text, as many bytes of UTF-8 in all as a message may have; `get` asks it for the mail it kept; and the addressees used before are
 // kept, the newest first. (The gateway's shortcuts, `name address`, `name L`, `name R`, are not used by the page.) The daemon sends it all as an ordinary
 // message: the page only keeps the user from sending what the gateway would refuse, and says honestly what became of a mail (its acks reach this station only through an iGate). Where the list is kept (the browser)
 // is composables/useAddressBook.ts.
 import { markOf, stateText, textBytes } from "@/lib/messages";
-import { MESSAGE_TEXT_MAX } from "@/protocol/lists";
+import { LIMITS } from "@/protocol/lists";
 import type { MessageRow } from "@/protocol/protocol";
 
 /** What the gateway is sent to hand over the mail it holds for the station (Check email). */
@@ -28,7 +28,7 @@ export function emailLine(to: string, text: string): string {
 
 /** How many bytes the line may still have; negative when it is too long. The addressee and the space count with the text. */
 export function emailBytesLeft(to: string, text: string): number {
-  return MESSAGE_TEXT_MAX - textBytes(emailLine(to, text));
+  return LIMITS.message.textMax - textBytes(emailLine(to, text));
 }
 
 /** Whether Send is on: the TNC is connected, there is an addressee (one word) and a text, and the line fits. */

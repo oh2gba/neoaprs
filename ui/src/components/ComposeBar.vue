@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The box to write in, the same on every tab: fixed at the bottom of the tab, the list above it scrolling. The fields are the default slot; under them one line with, at its right, the counter ("67 left", red and "3 over"
+// The box to write in, the same on every tab: fixed at the bottom of the tab, the list above it scrolling. The fields are the default slot; under them one line with, at its right, the counter ("12 left", red and "3 over"
 // when the text is too long; none when `left` is not given) and then the buttons (slot `buttons`: the secondary one, Cancel, left of the primary one, which is rightmost). The slot `aside` is what goes at the left of that line
 // (Pick on the map). `scrolls` is for a form so tall that on a phone its fields scroll inside the bar, the line with the buttons always in view. A phone's keyboard must not hide the field being typed in: the field is
 // brought into view when it takes the focus. The form sends `submit` (Enter in a field, or the button of type submit).

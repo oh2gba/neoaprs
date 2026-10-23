@@ -2,6 +2,7 @@
 // field. The button waits while a test runs (the command has up to 20 s), is disabled while the field differs from what is saved (the daemon runs the saved one), and the answer goes with the next edit.
 import { computed, ref, watch, type Ref } from "vue";
 import type { Toast } from "@/composables/useDaemon";
+import { reasonOf } from "@/lib/settings";
 import type { AlertResultMessage, Command } from "@/protocol/protocol";
 
 export const ALERT_KEY = "messages/alert_command";
@@ -28,9 +29,9 @@ export function useAlertTest(
     result.value = { ok: message.ok, text: message.text };
   });
   watch(lastError, (toast) => {
-    if (!toast || !running.value) return;
+    if (!toast || !running.value || toast.cmd !== "alert_test") return;
     running.value = false;
-    result.value = { ok: false, text: toast.text.replace(/^alert_test:\s*/, "") };
+    result.value = { ok: false, text: reasonOf(toast) };
   });
   watch(
     () => draft[ALERT_KEY],

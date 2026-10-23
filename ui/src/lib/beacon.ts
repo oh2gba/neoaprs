@@ -4,16 +4,22 @@
 // The daemon checks the settings again; this only shows what they would make, and null while they do not make a packet.
 import { callList, validCall } from "@/lib/calls";
 import { statusSource } from "@/lib/status";
-import { SYMBOL_TABLES, TOCALL } from "@/protocol/lists";
+import { LIMITS, SYMBOL_TABLES, TOCALL } from "@/protocol/lists";
 
 const HUNDREDTHS_PER_DEGREE = 6000;
 const FEET_PER_METRE = 3.2808;
 /** The directivity digit of PHG is the place in this list. */
 const DIRECTIONS = ["omni", "NE", "E", "SE", "S", "SW", "W", "NW", "N"];
 
+/** Rounded to a whole number as the daemon's Python does: a half goes to the even one (a position that is exactly on a half hundredth of a minute). */
+function roundHalfEven(x: number): number {
+  const down = Math.floor(x);
+  return x - down === 0.5 ? down + (down % 2) : Math.round(x);
+}
+
 /** DDMM.mmN or DDDMM.mmE: the minutes rounded to hundredths (a rounding that reaches 60 minutes carries into the degrees). */
 function coordinate(value: number, wholeDigits: number, negative: string, positive: string): string {
-  const total = Math.round(Math.abs(value) * HUNDREDTHS_PER_DEGREE);
+  const total = roundHalfEven(Math.abs(value) * HUNDREDTHS_PER_DEGREE);
   const degrees = Math.floor(total / HUNDREDTHS_PER_DEGREE);
   const rest = total % HUNDREDTHS_PER_DEGREE;
   const minutes = String(Math.floor(rest / 100)).padStart(2, "0");
@@ -34,23 +40,28 @@ export function phgText(powerW: number, heightM: number, gainDb: number, directi
   return `PHG${p}${h}${Math.min(9, Math.max(0, gainDb))}${DIRECTIONS.indexOf(direction)}`;
 }
 
-function number(text: string | undefined, low: number, high: number): number | null {
-  if (text === undefined || text.trim() === "") return null;
-  const value = Number(text);
-  return Number.isFinite(value) && value >= low && value <= high ? value : null;
+interface Range {
+  readonly min: number;
+  readonly max: number;
 }
 
-function whole(text: string | undefined, low: number, high: number): number | null {
-  const value = number(text, low, high);
+function number(text: string | undefined, range: Range): number | null {
+  if (text === undefined || text.trim() === "") return null;
+  const value = Number(text);
+  return Number.isFinite(value) && value >= range.min && value <= range.max ? value : null;
+}
+
+function whole(text: string | undefined, range: Range): number | null {
+  const value = number(text, range);
   return value !== null && Number.isInteger(value) ? value : null;
 }
 
 /** The PHG of the settings: "" while no power is set, null when the antenna's figures are no figures, else `PHGphgd`. */
 function phg(values: Readonly<Record<string, string>>): string | null {
   if ((values["beacon/power_w"] ?? "").trim() === "") return "";
-  const power = whole(values["beacon/power_w"], 0, 9999);
-  const height = whole(values["beacon/antenna_height_m"], 0, 9999);
-  const gain = whole(values["beacon/antenna_gain_db"], 0, 9);
+  const power = whole(values["beacon/power_w"], LIMITS.range["beacon/power_w"]);
+  const height = whole(values["beacon/antenna_height_m"], LIMITS.range["beacon/antenna_height_m"]);
+  const gain = whole(values["beacon/antenna_gain_db"], LIMITS.range["beacon/antenna_gain_db"]);
   const direction = (values["beacon/antenna_direction"] ?? "").trim();
   const known = DIRECTIONS.find((d) => d.toLowerCase() === direction.toLowerCase());
   return power === null || height === null || gain === null || known === undefined ? null : phgText(power, height, gain, known);
@@ -83,8 +94,8 @@ export function statusText(values: Readonly<Record<string, string>>, now: Date):
 /** The TNC2 text of the beacon for these settings (key to text, as the form holds them), or null when they do not make one: a call that is not a call, a position off the earth, a symbol that is none. */
 export function beaconText(values: Readonly<Record<string, string>>): string | null {
   const head = header(values);
-  const lat = number(values["station/lat"], -90, 90);
-  const lon = number(values["station/lon"], -180, 180);
+  const lat = number(values["station/lat"], LIMITS.range["station/lat"]);
+  const lon = number(values["station/lon"], LIMITS.range["station/lon"]);
   const table = values["station/symbol_table"] ?? "";
   const code = values["station/symbol_code"] ?? "";
   if (head === null || lat === null || lon === null || !validSymbol(table, code)) return null;

@@ -5,6 +5,7 @@ import type {
   AlertResultMessage,
   BulletinRow,
   Command,
+  ErrorMessage,
   HelloMessage,
   Message,
   MessageRow,
@@ -32,7 +33,7 @@ export interface Store {
   connection(state: Connection): void;
   hello(message: HelloMessage): void;
   status(message: StatusMessage): void;
-  error(text: string): void;
+  error(message: ErrorMessage): void;
   weatherSeries(message: WeatherSeriesMessage): void;
   alertResult(message: AlertResultMessage): void;
   updateResult(message: UpdateResultMessage): void;
@@ -200,7 +201,7 @@ export class Hub {
         this.store.status(message);
         break;
       case "error":
-        this.store.error(message.text);
+        this.store.error(message);
         break;
       case "state":
         this.onState(message.topic, message.rev, message.value);

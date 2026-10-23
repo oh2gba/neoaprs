@@ -3,6 +3,7 @@ import { effectScope, shallowRef } from "vue";
 import type { Toast } from "@/composables/useDaemon";
 import { outcomeOf, SHOWN_MS, useUpdateCheck } from "@/composables/useUpdateCheck";
 import type { UpdateResultMessage } from "@/protocol/protocol";
+import { toastOf } from "@/test/fixtures";
 
 const answer = (extra: Partial<UpdateResultMessage>): UpdateResultMessage => ({
   type: "update_result",
@@ -78,10 +79,19 @@ describe("useUpdateCheck", () => {
   it("shows the error of the daemon in place of an answer", async () => {
     const { check, error } = setUp();
     check.check();
-    error.value = { text: "update_check: the database is busy", n: 1 };
+    error.value = toastOf("update_check: the database is busy");
     await vi.advanceTimersByTimeAsync(0);
     expect(check.running.value).toBe(false);
     expect(check.outcome.value?.text).toBe("the database is busy");
+  });
+
+  it("leaves the error of another command alone", async () => {
+    const { check, error } = setUp();
+    check.check();
+    error.value = toastOf("set_config: station/lat: 95 is out", "setting.range");
+    await vi.advanceTimersByTimeAsync(0);
+    expect(check.running.value).toBe(true);
+    expect(check.outcome.value).toBeNull();
   });
 
   it("clears the earlier answer when it asks again", async () => {
