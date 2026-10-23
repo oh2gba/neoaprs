@@ -48,37 +48,37 @@ describe("useEmail: what it sends", () => {
     expect(mail.addresses.value).toEqual([]);
   });
 
-  it("makes a shortcut by sending the name, a space and the address, and remembers the name as an addressee", () => {
+  it("adds a contact by sending the name, a space and the address, and keeps no addressee for it (the Contacts panel lists it)", () => {
     const { send, mail } = setUp();
-    mail.registerShortcut(" john ", "jane@example.com");
+    mail.addContact(" john ", "jane@example.com");
     expect(send).toHaveBeenLastCalledWith({ cmd: "send_message", to: "EMAIL-2", text: "john jane@example.com" });
-    expect(mail.addresses.value).toEqual(["john"]);
+    expect(mail.addresses.value).toEqual([]);
   });
 
   it("sends the three commands as the texts name L, name R and get", () => {
     const { send, mail } = setUp();
-    mail.listShortcuts("me");
+    mail.emailList("me");
     expect(send).toHaveBeenLastCalledWith({ cmd: "send_message", to: "EMAIL-2", text: "me L" });
-    mail.removeShortcut("jane");
+    mail.removeContact("jane");
     expect(send).toHaveBeenLastCalledWith({ cmd: "send_message", to: "EMAIL-2", text: "jane R" });
-    mail.getHeld();
+    mail.checkMail();
     expect(send).toHaveBeenLastCalledWith({ cmd: "send_message", to: "EMAIL-2", text: "get" });
     expect(mail.addresses.value).toEqual([]);
   });
 });
 
 describe("useEmail: what the page sends", () => {
-  it("sends mail, a new shortcut and the commands at once as messages to the gateway, with no setting of attempts before them", () => {
+  it("sends mail, a new contact and the commands at once as messages to the gateway, with no setting of attempts before them", () => {
     const { send, mail } = setUp();
     mail.sendMail("me", "Hi");
-    mail.getHeld();
-    mail.registerShortcut("jane", "jane@example.com");
+    mail.checkMail();
+    mail.addContact("jane", "jane@example.com");
     expect(send.mock.calls.map((c) => c[0])).toEqual([
       { cmd: "send_message", to: "EMAIL-2", text: "me Hi" },
       { cmd: "send_message", to: "EMAIL-2", text: "get" },
       { cmd: "send_message", to: "EMAIL-2", text: "jane jane@example.com" },
     ]);
-    expect(mail.addresses.value).toEqual(["jane", "me"]);
+    expect(mail.addresses.value).toEqual(["me"]);
   });
 
   it("remembers no addressee for a message that could not be sent", () => {

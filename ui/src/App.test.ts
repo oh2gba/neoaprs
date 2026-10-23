@@ -1107,7 +1107,7 @@ describe("App", () => {
     };
     const badge = (wrapper: VueWrapper) => tabButton(wrapper, "Email")?.find(".badge");
 
-    it("sends mail as a message to EMAIL-2 and a new shortcut and the commands as their texts, and keeps the addressee in the list", async () => {
+    it("sends mail as a message to EMAIL-2 and a new contact and the commands as their texts, and keeps the addressee in the list", async () => {
       const { wrapper, socket } = await open();
       await tabButton(wrapper, "Email")?.trigger("click");
       const pane = () => wrapper.find("#pane-email");
@@ -1123,16 +1123,16 @@ describe("App", () => {
       expect(JSON.stringify(socket.sent)).not.toContain("_attempts");
       expect(pane().find("form.mailform").exists()).toBe(false);
       expect(JSON.parse(localStorage.getItem("NeoAPRS.emailto") ?? "[]")).toEqual(["jane@example.com"]);
-      await button("Mailbox")?.trigger("click");
-      await pane().findAll("[role='menuitem']")[1]?.trigger("click");
-      await wrapper.find("#mail-shortcut").setValue("me");
-      await wrapper.find("#mail-address").setValue("jane@example.com");
-      await wrapper.find("#pane-email form.mailform").trigger("submit");
-      await button("Email the list")?.trigger("click");
+      await button("Contacts")?.trigger("click");
+      await wrapper.find("#contact-name").setValue("me");
+      await wrapper.find("#contact-address").setValue("jane@example.com");
+      await wrapper.find("#pane-email form[aria-label='Add contact']").trigger("submit");
+      // the gateway's messages come back as rows of the topic: the contact is listed from the one we sent
+      await say(socket, 1, message(10, { to_call: "EMAIL-2", text: "me jane@example.com", state: "acked" }));
+      await button("Email me the list")?.trigger("click");
       await button("Remove")?.trigger("click");
       await button("sure?")?.trigger("click");
-      await button("Mailbox")?.trigger("click");
-      await pane().findAll("[role='menuitem']")[0]?.trigger("click");
+      await button("Check for mail")?.trigger("click");
       expect(socket.sent.slice(-4)).toEqual([
         { cmd: "send_message", to: "EMAIL-2", text: "me jane@example.com" },
         { cmd: "send_message", to: "EMAIL-2", text: "me L" },

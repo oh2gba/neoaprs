@@ -1,11 +1,11 @@
 // The Email tab as the page runs it: the thread with the gateway EMAIL-2, how many of its messages are not seen (only while the Email tab is on show, the panel open and the page visible, lib/unread.ts),
-// the addressees used before, and the messages the tab sends: mail, a new shortcut, and the gateway's own commands. The daemon sends a message to the gateway twice at most, the gateway's acks reaching a station only through an iGate.
+// the addressees used before, and the messages the tab sends: mail, a new contact, and the gateway's own commands. The daemon sends a message to the gateway twice at most, the gateway's acks reaching a station only through an iGate.
 import { computed, shallowRef, watch } from "vue";
 import { useAddressBook } from "@/composables/useAddressBook";
 import { useReadMarks } from "@/composables/useConversations";
 import type { Panel } from "@/composables/usePanel";
 import { useVisible } from "@/composables/useVisible";
-import { GET_HELD, emailLine, listShortcuts, removeShortcut } from "@/lib/email";
+import { GET_HELD, emailLine, listContacts, removeContact } from "@/lib/email";
 import { EMAIL_GATEWAY, newestIncomingId, threadOf, threadUnread } from "@/lib/messages";
 import { isViewingTab } from "@/lib/unread";
 import type { Command, MessageRow } from "@/protocol/protocol";
@@ -40,13 +40,13 @@ export function useEmail(messages: ReadonlyMap<string, MessageRow>, panel: Panel
   /** Sends mail: the line "to text" to the gateway. */
   const sendMail = (to: string, text: string): void => viaGateway(to, emailLine(to, text));
 
-  /** Makes a shortcut: the line "name address" (the name is remembered as an addressee, like the ones mail went to). */
-  const registerShortcut = (name: string, address: string): void => viaGateway(name.trim(), emailLine(name, address));
+  /** Adds a contact (the gateway's shortcut): the line "name address". The Contacts panel lists it from the thread, so the name is not kept as an addressee. */
+  const addContact = (name: string, address: string): void => viaGateway(null, emailLine(name, address));
 
   /** The gateway's three commands. */
-  const listShortcutsOf = (name: string): void => viaGateway(null, listShortcuts(name));
-  const removeShortcutNamed = (name: string): void => viaGateway(null, removeShortcut(name));
-  const getHeld = (): void => viaGateway(null, GET_HELD);
+  const emailList = (name: string): void => viaGateway(null, listContacts(name));
+  const removeContactNamed = (name: string): void => viaGateway(null, removeContact(name));
+  const checkMail = (): void => viaGateway(null, GET_HELD);
 
   /** Takes a row out of the list (the daemon deletes it; a mail still being sent is cancelled first). */
   const remove = (id: number): void => void send({ cmd: "message_delete", id });
@@ -59,9 +59,9 @@ export function useEmail(messages: ReadonlyMap<string, MessageRow>, panel: Panel
     addresses: book.addresses,
     forget: book.forget,
     sendMail,
-    registerShortcut,
-    listShortcuts: listShortcutsOf,
-    removeShortcut: removeShortcutNamed,
-    getHeld,
+    addContact,
+    emailList,
+    removeContact: removeContactNamed,
+    checkMail,
   };
 }

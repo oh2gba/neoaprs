@@ -368,6 +368,8 @@ def events(local_hour_now: float) -> list[Event]:
     # Email through the gateway: its acks and replies come as third-party frames from an iGate. One mail never gets its ack (it shows "Not confirmed"), and the gateway forwards a mail to us
     day.append(_out(300, "EMAIL-2", "me jane@example.com", ack_after_sec=12, wrap="OH2ZIG-10", ack_path=""))
     day.append(_gateway(298, "Shortcut me set to jane@example.com", "g1"))
+    day.append(_out(290, "EMAIL-2", "bob bob@example.org", ack_after_sec=10, wrap="OH2ZIG-10", ack_path=""))
+    day.append(_gateway(288, "Shortcut bob set to bob@example.org", "g4"))
     day.append(_out(250, "EMAIL-2", "me New antenna is up: 5 dB more on 2 m!", ack_after_sec=None))
     day.append(_out(150, "EMAIL-2", "me Back at the shack by 18, QRV on 2 m", ack_after_sec=14, wrap="OH2ZIG-10", ack_path=""))
     day.append(_out(100, "EMAIL-2", "get", ack_after_sec=9, wrap="OH2ZIG-10", ack_path=""))
