@@ -21,9 +21,9 @@ onMounted(() => search.value?.focus());
 </script>
 
 <template>
-  <div class="picker-backdrop" @pointerdown.self="emit('close')" @keydown.esc.stop="emit('close')">
-    <div class="picker" role="dialog" aria-modal="true" aria-label="Choose a symbol">
-      <div class="picker-head">
+  <div class="sympick-backdrop" @pointerdown.self="emit('close')" @keydown.esc.stop="emit('close')">
+    <div class="sympick" role="dialog" aria-modal="true" aria-label="Choose a symbol">
+      <div class="sympick-head">
         <input
           ref="search"
           v-model="query"
@@ -36,15 +36,15 @@ onMounted(() => search.value?.focus());
         />
         <button class="btn" type="button" @click="emit('close')">Close</button>
       </div>
-      <div class="picker-body">
+      <div class="sympick-body">
         <template v-if="!searching">
           <h3>Usual</h3>
-          <div class="picker-grid" role="group" aria-label="Usual symbols">
+          <div class="sympick-grid" role="group" aria-label="Usual symbols">
             <button
               v-for="s in usual"
               :key="s.table + s.code"
               type="button"
-              class="picker-symbol"
+              class="sympick-symbol"
               :class="{ active: current(s) }"
               :aria-pressed="current(s)"
               @click="emit('pick', s.table, s.code)"
@@ -55,12 +55,12 @@ onMounted(() => search.value?.focus());
           </div>
           <h3>All</h3>
         </template>
-        <div class="picker-grid" role="group" aria-label="All symbols">
+        <div class="sympick-grid" role="group" aria-label="All symbols">
           <button
             v-for="s in found"
             :key="s.table + s.code"
             type="button"
-            class="picker-symbol"
+            class="sympick-symbol"
             :class="{ active: current(s) }"
             :aria-pressed="current(s)"
             @click="emit('pick', s.table, s.code)"

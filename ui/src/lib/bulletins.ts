@@ -85,7 +85,7 @@ type PostCommand = Extract<Command, { cmd: "bulletin_post" }>;
 export const POST_KINDS: { kind: PostKind; title: string; ids: string }[] = [
   { kind: "bulletin", title: "Bulletin", ids: "0123456789" },
   { kind: "announcement", title: "Announcement", ids: "ABCDEFGHIJKLMNOPQRSTUVWXYZ" },
-  { kind: "group", title: "Group", ids: "0123456789" },
+  { kind: "group", title: "Bulletin to a group", ids: "0123456789" },
 ];
 export const GROUP_MAX = 5;
 

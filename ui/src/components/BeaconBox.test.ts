@@ -126,4 +126,27 @@ describe("BeaconBox", () => {
       ]);
     });
   });
+
+  describe("picking a place on the map", () => {
+    it("forgets a send that waits for its second press when the pick starts", async () => {
+      const wrapper = box();
+      await wrapper.findAll("button")[0]?.trigger("click");
+      expect(wrapper.findAll("button")[0]?.text()).toBe("Really send?");
+      await wrapper.setProps({ picking: true });
+      expect(wrapper.findAll("button")[0]?.text()).toBe("Beacon now");
+      expect(wrapper.emitted("send")).toBeUndefined();
+    });
+
+    it("asks the page to end the pick when a send is armed, once, and not when it is sent or nothing is picked", async () => {
+      const wrapper = box({}, true, { statusOn: true, picking: true });
+      await wrapper.findAll("button")[1]?.trigger("click");
+      expect(wrapper.emitted("arm")).toHaveLength(1);
+      await wrapper.findAll("button")[1]?.trigger("click");
+      expect(wrapper.emitted("arm")).toHaveLength(1);
+      expect(wrapper.emitted("send-status")).toHaveLength(1);
+      const idle = box();
+      await idle.findAll("button")[0]?.trigger("click");
+      expect(idle.emitted("arm")).toBeUndefined();
+    });
+  });
 });

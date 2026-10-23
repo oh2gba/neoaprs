@@ -1,15 +1,15 @@
 <script setup lang="ts">
 // The Messages tab: the conversations (one for each other station, the newest first, with the number of messages not seen yet; a click on the row of the one that is open closes its thread, a click on another opens that one, and the small "x" at the right
-// end of a row deletes the whole conversation, or the whole overheard pair, after "sure?": the one way to delete, a single message has no button), the thread of the open one (MessageThread) and the box to write in (MessageCompose). A conversation with messages
-// not seen that is not the open one is highlighted. Above the thread are the path the station's messages go by (with "Use suggested") and how long the station stays on the map and how many attempts its messages are given; beside the path is the tickbox RF only. A message that came in has the route it came by under its time ("via OH2RCH-2"). "Show overheard" lists the messages sent to other stations, a pair of stations at a time, which are otherwise left out.
+// end of a row deletes the whole conversation, or the whole overheard pair, after "sure?": the one way to delete, a single message has no button), the thread of the open one (MessageThread) and the box to write in (MessageCompose, which can also write one text to several stations). A conversation with messages
+// not seen that is not the open one is highlighted. Above the thread are the path the station's messages go by (with "Use suggested") beside it the tickbox RF only. A message that came in has the route it came by under its time ("via OH2RCH-2"). "Show overheard" lists the messages sent to other stations, a pair of stations at a time, which are otherwise left out.
 import MessageCompose from "@/components/MessageCompose.vue";
 import MessageThread from "@/components/MessageThread.vue";
 import StationPrefs from "@/components/StationPrefs.vue";
 import { useSure } from "@/composables/useSure";
-import type { Attempts } from "@/lib/attempts";
 import { ageText } from "@/lib/format";
 import { conversationName, isHighlighted, isOverheard, overheardPair, type Conversation } from "@/lib/messages";
 import { unreadText } from "@/lib/unread";
+import type { Candidate } from "@/lib/recipients";
 import type { MessageRow } from "@/protocol/protocol";
 
 withDefaults(
@@ -21,7 +21,6 @@ withDefaults(
     now: number;
     showOverheard: boolean;
     paths: ReadonlyMap<string, string>;
-    attempts: Attempts;
     /** the path to send by that the daemon suggests for each station that has one (see the station card) */
     suggestions?: ReadonlyMap<string, string | null>;
     /** the path of the setting beacon/path, which a station without one of its own has */
@@ -30,13 +29,17 @@ withDefaults(
     rfOnly?: ReadonlySet<string>;
     /** the stations heard direct, which the chain under a message judges a digipeater that was not heard by */
     heardDirect?: ReadonlySet<string>;
+    /** the stations that can be picked in the compose box's list "Stations" (lib/recipients.ts) */
+    candidates?: readonly Candidate[];
   }>(),
-  { rfOnly: () => new Set<string>(), suggestions: () => new Map<string, string | null>(), heardDirect: () => new Set<string>() },
+  { rfOnly: () => new Set<string>(), suggestions: () => new Map<string, string | null>(), heardDirect: () => new Set<string>(), candidates: () => [] },
 );
 const emit = defineEmits<{
   /** a conversation was picked; null when the one that is open was picked again, which closes it */
   select: [call: string | null];
   send: [to: string, text: string];
+  /** one text to several stations: a message of its own for each */
+  sendMany: [to: string[], text: string];
   retry: [id: number];
   cancel: [id: number];
   deleteConversation: [call: string];
@@ -45,8 +48,6 @@ const emit = defineEmits<{
   "update:showOverheard": [show: boolean];
   path: [call: string, path: string];
   clearPath: [call: string];
-  setAttempts: [call: string, attempts: number];
-  clearAttempts: [call: string];
   setRfOnly: [call: string, on: boolean];
 }>();
 
@@ -99,19 +100,22 @@ function remove(call: string): void {
       <StationPrefs
         v-else
         :call="selected"
-        :attempts="attempts"
         :paths="paths"
         :fallback-path="fallbackPath"
         :rf-only="rfOnly"
         :suggested="suggestions.get(selected) ?? null"
         @path="(c, p) => emit('path', c, p)"
         @clear-path="emit('clearPath', $event)"
-        @set-attempts="(c, n) => emit('setAttempts', c, n)"
-        @clear-attempts="emit('clearAttempts', $event)"
         @set-rf-only="(c, on) => emit('setRfOnly', c, on)"
       />
     </div>
     <MessageThread :thread="thread" :peer="selected" :heard-direct="heardDirect" @retry="emit('retry', $event)" @cancel="emit('cancel', $event)" />
-    <MessageCompose :selected="selected" :connected="connected" @send="(to, text) => emit('send', to, text)" />
+    <MessageCompose
+      :selected="selected"
+      :connected="connected"
+      :candidates="candidates"
+      @send="(to, text) => emit('send', to, text)"
+      @send-many="(to, text) => emit('sendMany', to, text)"
+    />
   </div>
 </template>

@@ -134,7 +134,7 @@
       <ul class="ticks">
         <li>Acks, reply-acks and retries are done for you.</li>
         <li>The delivery chain of every message: each digipeater you hear repeat it turns green, one you do not hear stays grey with a ?, a copy that came back from the internet is blue.</li>
-        <li>A path, a timeout and a number of attempts for each station.</li>
+        <li>A path and a timeout for each station.</li>
         <li>Alerts on the desktop, bulletins and group messages, and the APRS queries.</li>
       </ul>
     </div>
@@ -368,6 +368,15 @@
         <h3>Linux</h3>
         <p>Make the AppImage executable and run it.</p>
         <a class="btn primary" href="https://github.com/oh2gba/neoaprs/releases/latest">Linux AppImage</a>
+      </div>
+      <div class="card">
+        <h3>Raspberry Pi, Debian, Ubuntu</h3>
+        <p>The .deb for your machine (arm64 for a Pi, amd64 for a PC) brings its own Python.</p>
+        <a class="btn primary" href="https://github.com/oh2gba/neoaprs/releases/latest">Raspberry Pi .deb</a>
+        <div class="cmd">
+          <code id="deb-line"><span class="prompt">$ </span>sudo apt install ./neoaprs_*.deb &amp;&amp; neoaprs service install --linger</code>
+          <button class="copy" type="button" data-target="deb-line" data-text="sudo apt install ./neoaprs_*.deb &amp;&amp; neoaprs service install --linger" hidden>Copy</button>
+        </div>
       </div>
       <div class="card">
         <h3>Linux, macOS, Raspberry Pi</h3>

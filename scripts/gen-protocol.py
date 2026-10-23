@@ -26,7 +26,7 @@ from neoaprs import TOCALL  # noqa: E402
 from neoaprs.bulletin import KINDS as BULLETIN_KINDS  # noqa: E402
 from neoaprs.config import KEYS, MAX_COMMENT, SYMBOL_TABLES  # noqa: E402
 from neoaprs.configstatus import MAX_STATUS  # noqa: E402
-from neoaprs.message import DEFAULT_ATTEMPTS, MAX_ATTEMPTS, STATES  # noqa: E402
+from neoaprs.message import STATES  # noqa: E402
 from neoaprs.packetcodec import KINDS  # noqa: E402
 from neoaprs.source import Source  # noqa: E402
 from neoaprs.stationbook import TRACK_MAX  # noqa: E402
@@ -186,8 +186,6 @@ def lists_text() -> str:
         _array("TNC_STATES", [s.value for s in Source.State], "The states of the TNC (Source.State of neoaprs/source.py)."),
         _array("MESSAGE_STATES", STATES, "The states of a message (State of neoaprs/message.py)."),
         _number("MESSAGE_TEXT_MAX", MAX_TEXT, "How many bytes of UTF-8 the text of a message may have (MAX_TEXT of neoaprs/aprsmessage.py)."),
-        _number("MESSAGE_ATTEMPTS_DEFAULT", DEFAULT_ATTEMPTS, "How many times a message is transmitted before it has failed when the setting messages/attempts is not changed (DEFAULT_ATTEMPTS of neoaprs/message.py)."),
-        _number("MESSAGE_ATTEMPTS_MAX", MAX_ATTEMPTS, "The most the setting messages/attempts may be (MAX_ATTEMPTS of neoaprs/message.py)."),
         _number("TRACK_MAX", TRACK_MAX, "How many positions of a station's track the daemon keeps (TRACK_MAX of neoaprs/stationbook.py)."),
         _number("PACKETS_KEPT", PACKETS_KEPT, "How many packets the topic `packets` holds (PACKETS_KEPT of neoaprs/web/topics.py)."),
         _number("TNC_LINES_MAX", LINES_MAX, "How many lines of the TNC the topic `tnc` holds (LINES_MAX of neoaprs/web/views.py)."),

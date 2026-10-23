@@ -105,4 +105,22 @@ describe("BeaconPane", () => {
       expect(wrapper.findAll(".beaconbox button")).toHaveLength(2);
     });
   });
+
+  it("ends the pick of a place on the map when a send is armed, and the pick forgets a send that waits", async () => {
+    const send = vi.fn((_command: Command) => true);
+    const wrapper = mount(BeaconPane, { props: { status: status(), connected: true, now: NOW, config: configValues(), lastError: null, send, picking: true } });
+    await wrapper.find(".beaconbox button").trigger("click");
+    expect(wrapper.emitted("pickPosition")).toHaveLength(1);
+    await wrapper.setProps({ picking: false });
+    expect(wrapper.find(".beaconbox button").text()).toBe("Really send?");
+    await wrapper.setProps({ picking: true });
+    expect(wrapper.find(".beaconbox button").text()).toBe("Beacon now");
+  });
+
+  it("has Pick on the map under the longitude, not beside it", () => {
+    const { wrapper } = pane();
+    const row = wrapper.find(".pick-row");
+    expect(row.text()).toBe("Pick on the map");
+    expect(row.element.previousElementSibling?.querySelector("#set-station-lon")).not.toBeNull();
+  });
 });

@@ -54,7 +54,7 @@ describe("the browser's part of the Notifications group", () => {
   it("disables the choices with a pop-up outside a secure context, each with the reason on hover", () => {
     stubBrowser({ secure: false });
     const { wrapper } = make();
-    const why = "This address does not allow pop-ups (needs https or localhost)";
+    const why = "Pop-ups are off in this browser for this address";
     expect(options(wrapper)).toEqual([
       { label: "off", disabled: false, title: undefined },
       { label: "sound", disabled: false, title: undefined },
@@ -137,7 +137,47 @@ describe("the browser's part of the Notifications group", () => {
     const insecure = make();
     await insecure.wrapper.find("#alert-test-popup").trigger("click");
     await flushPromises();
-    expect(insecure.wrapper.find("#alert-test-popup ~ [role='status']").text()).toBe("needs https or localhost");
+    expect(insecure.wrapper.find("#alert-test-popup ~ [role='status']").text()).toBe("pop-ups are off for this address");
+  });
+
+  it("has no Enable pop-ups and no steps where the page is a secure context", async () => {
+    const { wrapper } = make();
+    expect(wrapper.find("#alert-enable-popups").exists()).toBe(false);
+    FakeNotification.permission = "granted";
+    await wrapper.find("#alert-test-popup").trigger("click");
+    await flushPromises();
+    expect(wrapper.findAll(".linkbtn")).toHaveLength(0);
+    expect(wrapper.find(".popuphelp").exists()).toBe(false);
+  });
+
+  it("offers Enable pop-ups… beside the choice where the page is not a secure context, and opens the steps for the browser", async () => {
+    stubBrowser({ secure: false });
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0" });
+    const { wrapper } = make("neoaprs-pi.local");
+    expect(wrapper.find(".popuphelp").exists()).toBe(false);
+    const link = wrapper.find("#alert-mode ~ #alert-enable-popups");
+    expect(link.text()).toBe("Enable pop-ups…");
+    await link.trigger("click");
+    expect(wrapper.find(".popuphelp h4").text()).toBe("Enable pop-ups in Firefox");
+    expect(wrapper.find(".popuphelp .copyfield code").text()).toBe("neoaprs-pi.local");
+    await wrapper.find(".popuphelp header button").trigger("click");
+    expect(wrapper.find(".popuphelp").exists()).toBe(false);
+    await link.trigger("click");
+    await link.trigger("click");
+    expect(wrapper.find(".popuphelp").exists()).toBe(false);
+  });
+
+  it("says in plain words after Test pop-up that they are off for this address, and offers the same link", async () => {
+    stubBrowser({ secure: false });
+    const { wrapper } = make();
+    expect(wrapper.find("#alert-test-popup ~ .linkbtn").exists()).toBe(false);
+    await wrapper.find("#alert-test-popup").trigger("click");
+    await flushPromises();
+    const status = wrapper.find("#alert-test-popup ~ [role='status']").text();
+    expect(status).toBe("pop-ups are off for this address");
+    expect(status).not.toMatch(/https|localhost|secure|context/i);
+    await wrapper.find("#alert-test-popup ~ .linkbtn").trigger("click");
+    expect(wrapper.find(".popuphelp").exists()).toBe(true);
   });
 
   it("has its tests enabled whatever the choice is", async () => {

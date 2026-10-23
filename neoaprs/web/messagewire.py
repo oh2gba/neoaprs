@@ -37,7 +37,7 @@ class MessageRow(_Model):
         description="`sending`: attempts are being made; `acked`: the addressee acknowledged it; `rejected`: the addressee refused it; `failed`: no answer after the last attempt; `unconfirmed`: no answer after the last attempt of a message that was given 1 or 2 attempts (the station is not expected to ack; a late ack still settles it); `cancelled`: stopped by the page; "
                     "`received`: it was sent to us; `overheard`: it was sent to another station and we heard it (`from_call` sent it, `to_call` is who it is for)")
     attempts: int = Field(ge=0, description="how many times it has been transmitted (at most `attempts_max`: 0, 30, 60, 120, 240, 480, 960 ... seconds after the first, no wait longer than 960)")
-    attempts_max: int = Field(ge=1, le=10, description="how many attempts the message was given: the setting `messages/attempts` when it was sent (6 for a message from before the setting); a later change of the setting does not touch it")
+    attempts_max: int = Field(ge=1, le=10, description="how many attempts the message was given when it was sent: 4, 2 for the email gateway `EMAIL-2`, 1 for a bulletin (messages from before the count was fixed have their own, up to 10)")
     last_attempt_at: Iso | None = Field(description="when it was transmitted last; null until the first attempt (the TNC may be away)")
     acked_at: Iso | None = Field(description="when the acknowledgement was heard")
     attempts_detail: list[AttemptRow] = Field(description="for a message of ours, each attempt made (`attempts` of them, the oldest first; fewer for a message sent before the delivery chain was kept, none until the first attempt) with the hops of its path that a copy of our own message was heard back with; a hop heard is a `set` of the message's row. Empty for a message that came in")
@@ -46,7 +46,7 @@ class MessageRow(_Model):
 
 class SendMessage(_Command):
     """Sends a message to a station: the addressee is a call with an optional SSID, the text at most 67 bytes of UTF-8 without `|`, `~`, `{` or a control character. The message is kept and transmitted at
-    once with the next message id; it arrives as a new row of the topic `messages` (state `sending`) and as the `out` packet, and its row changes when the acknowledgement comes or the attempts run out. The attempts it is given are the station's own (`station_prefs`) else the setting `messages/attempts`.
+    once with the next message id; it arrives as a new row of the topic `messages` (state `sending`) and as the `out` packet, and its row changes when the acknowledgement comes or the attempts run out. It is transmitted at most 4 times, 2 for `EMAIL-2`.
     When the TNC is not connected the message is kept and its first attempt waits for the radio. Answered with an `error` that names the reason when the addressee or the text is refused."""
     cmd: Literal["send_message"]
     to: str = Field(min_length=1, max_length=64)
@@ -75,7 +75,7 @@ class MessageDelete(_Command):
 
 class ConversationDelete(_Command):
     """Removes the whole conversation with a station: every message we sent to it and every one it sent to us (not the messages it was only overheard sending to others), from the database in one write, from
-    the daemon and from every page: each message's row is a `del` of the topic `messages`. A message that is still being sent is cancelled first. The path, the timeout and the attempts of the station stay. Answered by the
+    the daemon and from every page: each message's row is a `del` of the topic `messages`. A message that is still being sent is cancelled first. The path and the timeout of the station stay. Answered by the
     `del`s, or by an `error` (the call is none, or there is no message with that station)."""
     cmd: Literal["conversation_delete"]
     call: str = Field(min_length=1, max_length=64)

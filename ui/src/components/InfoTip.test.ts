@@ -8,7 +8,7 @@ const mounted: ReturnType<typeof mount>[] = [];
 function tip(props: { label?: string; text?: string; example?: string } = {}) {
   const host = document.createElement("div");
   document.body.appendChild(host);
-  const wrapper = mount(InfoTip, { props: { label: "DAO", text: "One more digit of the position.", example: "!W41!", ...props }, attachTo: host });
+  const wrapper = mount(InfoTip, { props: { label: "About DAO", text: "One more digit of the position.", example: "!W41!", ...props }, attachTo: host });
   mounted.push(wrapper);
   return wrapper;
 }
@@ -27,24 +27,34 @@ describe("InfoTip", () => {
     expect(button.attributes("aria-label")).toBe("About DAO");
     expect(button.attributes("aria-expanded")).toBe("false");
     expect(button.attributes("type")).toBe("button");
-    expect(wrapper.find(".infotip-note").exists()).toBe(false);
+    expect(wrapper.find(".info-text").exists()).toBe(false);
   });
 
   it("opens the note on a click or a tap, with the example, and closes it on the next", async () => {
     const wrapper = tip();
     await wrapper.find("button").trigger("click");
     expect(wrapper.find("button").attributes("aria-expanded")).toBe("true");
-    const note = wrapper.find(".infotip-note");
+    const note = wrapper.find(".info-text");
     expect(note.text().replace(/\s+/g, " ")).toBe("One more digit of the position. Example: !W41!");
     expect(wrapper.find("button").attributes("aria-controls")).toBe(note.attributes("id"));
     await wrapper.find("button").trigger("click");
-    expect(wrapper.find(".infotip-note").exists()).toBe(false);
+    expect(wrapper.find(".info-text").exists()).toBe(false);
+  });
+
+  it("shows what is put in its slot instead of the text, so that a few sentences of markup can be explained too", async () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const wrapper = mount(InfoTip, { props: { label: "What the kinds are" }, slots: { default: "A bulletin is <b>for everyone</b>." }, attachTo: host });
+    mounted.push(wrapper);
+    await wrapper.find("button").trigger("click");
+    expect(wrapper.find(".info-text").text()).toBe("A bulletin is for everyone.");
+    expect(wrapper.find("b").exists()).toBe(true);
   });
 
   it("has no example line when there is none", async () => {
     const wrapper = tip({ example: undefined });
     await wrapper.find("button").trigger("click");
-    expect(wrapper.find(".infotip-example").exists()).toBe(false);
+    expect(wrapper.find(".info-example").exists()).toBe(false);
   });
 
   it("closes on Esc and gives the focus back to the button", async () => {
@@ -52,7 +62,7 @@ describe("InfoTip", () => {
     await wrapper.find("button").trigger("click");
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     await wrapper.vm.$nextTick();
-    expect(wrapper.find(".infotip-note").exists()).toBe(false);
+    expect(wrapper.find(".info-text").exists()).toBe(false);
     expect(document.activeElement).toBe(wrapper.find("button").element);
   });
 
@@ -60,12 +70,12 @@ describe("InfoTip", () => {
     const wrapper = tip();
     await wrapper.find("button").trigger("click");
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "a" }));
-    wrapper.find(".infotip-note").element.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    wrapper.find(".info-text").element.dispatchEvent(new Event("pointerdown", { bubbles: true }));
     await wrapper.vm.$nextTick();
-    expect(wrapper.find(".infotip-note").exists()).toBe(true);
+    expect(wrapper.find(".info-text").exists()).toBe(true);
     document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
     await wrapper.vm.$nextTick();
-    expect(wrapper.find(".infotip-note").exists()).toBe(false);
+    expect(wrapper.find(".info-text").exists()).toBe(false);
   });
 
   it("closes when the focus moves to something else, as Tab does", async () => {
@@ -75,7 +85,7 @@ describe("InfoTip", () => {
     await wrapper.find("button").trigger("click");
     other.dispatchEvent(new Event("focusin", { bubbles: true }));
     await wrapper.vm.$nextTick();
-    expect(wrapper.find(".infotip-note").exists()).toBe(false);
+    expect(wrapper.find(".info-text").exists()).toBe(false);
   });
 
   it("is the only note open: opening another closes the first", async () => {
@@ -83,8 +93,8 @@ describe("InfoTip", () => {
     const second = tip({ label: "DAO" });
     await first.find("button").trigger("click");
     await second.find("button").trigger("click");
-    expect(first.find(".infotip-note").exists()).toBe(false);
-    expect(second.find(".infotip-note").exists()).toBe(true);
+    expect(first.find(".info-text").exists()).toBe(false);
+    expect(second.find(".info-text").exists()).toBe(true);
   });
 
   it("lets go of the page's listeners when it goes away", async () => {

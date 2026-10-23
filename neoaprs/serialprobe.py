@@ -12,6 +12,7 @@ from dataclasses import dataclass
 
 import serial.tools.list_ports  # type: ignore[import-untyped]
 
+from .btpaired import paired_devices
 from .config import DEFAULT_SERIAL_PATTERN
 from .serialboards import board_kind, describe
 from .serialholders import held_by, port_key
@@ -42,6 +43,11 @@ def available_ports() -> list[PortInfo]:
         log.info("listing the ports failed: %s", e)
         return []
     return [PortInfo(p.device, p.description or "", p.hwid or "", p.vid, p.pid) for p in found]
+
+
+def paired_bluetooth_ports() -> list[PortInfo]:
+    """The Bluetooth devices paired with the system (Linux), each as the port `bt://ADDRESS` that opens it. They are listed for the operator to pick from and are never opened by the search or to list them."""
+    return [PortInfo(f"bt://{d.address}", f"Bluetooth: {d.name}" if d.name else "Bluetooth device", "", None, None) for d in paired_devices()]
 
 
 LINK_DIRS = ("/dev/serial/by-id", "/dev")         # where the other names of a port are: the stable names udev makes, and links of the user's own rules (such as /dev/brainbox_3)

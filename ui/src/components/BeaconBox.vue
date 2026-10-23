@@ -7,11 +7,15 @@ import { useSure } from "@/composables/useSure";
 import { NONE, agoText, dateTimeText, untilText } from "@/lib/format";
 import type { StatusMessage } from "@/protocol/protocol";
 
-const props = withDefaults(defineProps<{ status: StatusMessage | null; connected: boolean; now: number; statusOn?: boolean; unsaved?: boolean }>(), {
-  statusOn: false,
-  unsaved: false,
-});
-const emit = defineEmits<{ send: []; "send-status": [] }>();
+const props = withDefaults(
+  defineProps<{ status: StatusMessage | null; connected: boolean; now: number; statusOn?: boolean; unsaved?: boolean; picking?: boolean }>(),
+  {
+    statusOn: false,
+    unsaved: false,
+    picking: false,
+  },
+);
+const emit = defineEmits<{ send: []; "send-status": []; arm: [] }>();
 
 const sure = useSure<"beacon" | "status">();
 const ready = computed(() => props.connected && !props.unsaved);
@@ -20,6 +24,18 @@ const why = computed(() => (props.unsaved ? "Save your changes first" : undefine
 watch(ready, (now) => {
   if (!now) sure.disarm();
 });
+// picking a place on the map and a send that waits for its second press do not go together: starting one ends the other
+watch(
+  () => props.picking,
+  (now) => {
+    if (now) sure.disarm();
+  },
+);
+
+function press(key: "beacon" | "status", act: () => void): void {
+  if (sure.armed.value !== key && props.picking) emit("arm");
+  sure.press(key, act);
+}
 
 const interval = computed(() => {
   const minutes = props.status?.beacon_interval_min;
@@ -57,7 +73,7 @@ const next = computed(() => {
         type="button"
         :disabled="!ready"
         :title="why"
-        @click="sure.press('beacon', () => emit('send'))"
+        @click="press('beacon', () => emit('send'))"
       >
         {{ sure.armed.value === "beacon" ? "Really send?" : "Beacon now" }}
       </button>
@@ -73,7 +89,7 @@ const next = computed(() => {
         type="button"
         :disabled="!ready"
         :title="why"
-        @click="sure.press('status', () => emit('send-status'))"
+        @click="press('status', () => emit('send-status'))"
       >
         {{ sure.armed.value === "status" ? "Really send?" : "Send status now" }}
       </button>

@@ -18,6 +18,7 @@ Every file is on the [Releases page](https://github.com/oh2gba/neoaprs/releases/
 |---|---|
 | Windows | `NeoAPRS-Setup-<version>.exe`: run it, no administrator rights are needed. SmartScreen may warn about an unsigned installer: **More info**, **Run anyway** |
 | Linux | `NeoAPRS-<version>-x86_64.AppImage`: make it executable and run it |
+| Raspberry Pi, Debian, Ubuntu | `neoaprs_<version>_arm64.deb` / `_amd64.deb`: `sudo apt install ./neoaprs_<version>_arm64.deb`, then `neoaprs service install --linger` ([the .deb](docs/MANUAL.md#the-deb)) |
 | Linux, macOS, Raspberry Pi | the install line below: it installs [uv](https://docs.astral.sh/uv/) and NeoAPRS and starts NeoAPRS as a service of your user (systemd on Linux, launchd on macOS) |
 
 ```bash
@@ -26,7 +27,7 @@ curl -LsSf https://github.com/oh2gba/neoaprs/releases/latest/download/install.sh
 
 Then run `neoaprs open`, or open <http://127.0.0.1:7303/>. If the port says *permission denied* on Linux: `sudo usermod -aG dialout $USER`, then log out and in. `neoaprs doctor` says what keeps the radio from working.
 
-When a newer version is out, its number appears in the page's header; a click shows the steps for the way you installed it. To update, run the newer installer or the install line again; your data (settings, messages, packets, the map) is not touched, and open pages load the new version by themselves ([Updating](docs/MANUAL.md#updating)). To remove: *Settings*, *Apps*, NeoAPRS on Windows; `neoaprs service remove` and `uv tool uninstall neoaprs` elsewhere.
+When a newer version is out, its number appears in the page's header; a click shows the steps for the way you installed it. To update, run the newer installer or the install line again (`sudo apt install` the newer .deb); your data (settings, messages, packets, the map) is not touched, and open pages load the new version by themselves ([Updating](docs/MANUAL.md#updating)). To remove: *Settings*, *Apps*, NeoAPRS on Windows; `neoaprs service remove` and `uv tool uninstall neoaprs` elsewhere (`sudo apt remove neoaprs` for the .deb).
 
 ## First start
 
@@ -42,6 +43,8 @@ The page opens a setup guide in five steps: **call**, **position** (**Pick on th
 | Kenwood TM-D710, TH-D72 | [serial or USB](docs/RADIOS.md#kenwood-tm-d710-and-th-d72) |
 | Kenwood TH-D74, TH-D75 | [USB or Bluetooth](docs/RADIOS.md#kenwood-th-d74-and-th-d75) |
 | Mobilinkd TNC3, TNC4 | [USB or Bluetooth](docs/RADIOS.md#mobilinkd-tnc3-and-tnc4) |
+| BTech UV-PRO, Vero VR-N76, Radioddity GA-5WB (untested) | [Bluetooth](docs/RADIOS.md#btech-uv-pro-vero-vr-n76-radioddity-ga-5wb) |
+| PicoAPRS V4 (untested) | [Bluetooth, USB-C or TCP](docs/RADIOS.md#picoaprs-v4) |
 | NinoTNC, TNC-Pi, TNC-X, any TNC already in KISS | [USB or serial](docs/RADIOS.md#ninotnc) |
 | Kantronics KPC-3+ | [RS-232](docs/RADIOS.md#kantronics-kpc-3) |
 | Any radio with a sound-card interface (Digirig, SignaLink, USB dongle), through Direwolf or a soundmodem | [KISS over TCP](docs/RADIOS.md#direwolf-sound-card) |

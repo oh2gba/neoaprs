@@ -1,5 +1,6 @@
-# What a release is made of, built by GitHub: the wheel and the sdist, the Windows installer (PyInstaller and Inno Setup), the Linux AppImage, the Linux and macOS install script, and SHA256SUMS. Pushing a tag
-# `v*` builds all of it, checks it (the wheel, the installed Windows app, the AppImage and the install script are each run against a fake TNC or a fresh home) and creates the release. Run by hand (workflow_dispatch) it is a dry run: the
+# What a release is made of, built by GitHub: the wheel and the sdist, the Windows installer (PyInstaller and Inno Setup), the Linux AppImage, the Debian packages for amd64 and arm64 (the Raspberry Pi), the Linux and macOS
+# install script, and SHA256SUMS. Pushing a tag `v*` builds all of it, checks it (the wheel, the installed Windows app, the AppImage, the packages installed with apt and the install script are each run against a fake TNC
+# or a fresh home) and creates the release. Run by hand (workflow_dispatch) it is a dry run: the
 # same builds and checks, the files kept as the artifacts of the run, and no release. How to make a release: docs/MANUAL.md, "Releases".
 name: release
 
@@ -248,6 +249,77 @@ jobs:
           path: dist-appimage/NeoAPRS-*.AppImage
           if-no-files-found: error
 
+  # The Debian package for the Raspberry Pi, Debian and Ubuntu (scripts/build-deb, from the wheel of the job above: CPython and the locked dependencies in /opt/neoaprs), one for each architecture, each built and
+  # tried on a runner of its own: installed with apt, the command, the daemon against a fake TNC with the Python of the package, the unit a service install writes, an upgrade over itself, and the removal.
+  deb:
+    needs: [verify, wheel]
+    if: ${{ !failure() && !cancelled() }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.13"
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
+      - name: Build the package from the wheel
+        run: |
+          scripts/build-deb --arch "${{ matrix.arch }}" --wheel dist/neoaprs-*.whl --out dist-deb
+          version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)"
+          [ -f "dist-deb/neoaprs_${version}_${{ matrix.arch }}.deb" ] && [ "$(ls dist-deb | wc -l)" = 1 ]
+          ls -l dist-deb
+          dpkg-deb --info dist-deb/*.deb
+          dpkg-deb --contents dist-deb/*.deb | grep -v ' ./opt/neoaprs/lib/python3.13/'
+      - name: Install it with apt, then the command and the daemon against a fake TNC (the Python of the package runs the smoke test, so that nothing of the system's Python is used)
+        run: |
+          version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)"
+          sudo apt install -y ./dist-deb/*.deb
+          [ "$(neoaprs --version)" = "NeoAPRS $version" ]
+          [ "$(readlink -f /usr/bin/neoaprs)" = /opt/neoaprs/bin/neoaprs ]
+          [ -f /usr/share/doc/neoaprs/copyright ]
+          /opt/neoaprs/bin/python3 -I -c 'import sys; assert sys.version_info[:2] == (3, 13), sys.version'
+          /opt/neoaprs/bin/python3 -I - "${{ matrix.arch }}" <<'PY'
+          import sys
+          from pathlib import Path
+          from neoaprs.cli.installkind import detect_here
+          info = detect_here(Path("/nonexistent"))
+          assert (info.kind, info.arch) == ("deb", sys.argv[1]), info
+          PY
+          /opt/neoaprs/bin/python3 -I scripts/smoke.py --command /usr/bin/neoaprs
+      - name: A service install writes a unit that starts the Python of the package (a HOME and a systemctl of the test's own)
+        run: |
+          mkdir -p "$RUNNER_TEMP/home" "$RUNNER_TEMP/fakebin"
+          printf '#!/bin/sh\nexit 0\n' > "$RUNNER_TEMP/fakebin/systemctl"
+          cp "$RUNNER_TEMP/fakebin/systemctl" "$RUNNER_TEMP/fakebin/loginctl"
+          chmod +x "$RUNNER_TEMP/fakebin/systemctl" "$RUNNER_TEMP/fakebin/loginctl"
+          HOME="$RUNNER_TEMP/home" XDG_CONFIG_HOME="$RUNNER_TEMP/home/.config" PATH="$RUNNER_TEMP/fakebin:$PATH" neoaprs service install --data "$RUNNER_TEMP/servicedata"
+          grep -n '^ExecStart=/opt/neoaprs/bin/python3 -m neoaprs ' "$RUNNER_TEMP/home/.config/systemd/user/neoaprs.service"
+      - name: Install it over itself (an upgrade), then remove it; the data of a user stays
+        run: |
+          mkdir -p "$RUNNER_TEMP/keep"
+          echo data > "$RUNNER_TEMP/keep/neoaprs.sqlite"
+          sudo apt install -y --reinstall ./dist-deb/*.deb 2>&1 | tee upgrade.log
+          grep -q 'keeps the old version until it is restarted' upgrade.log
+          neoaprs --version
+          sudo apt remove -y neoaprs
+          [ ! -e /opt/neoaprs ] && [ ! -e /usr/bin/neoaprs ] && ! dpkg -s neoaprs 2>/dev/null | grep -q 'Status: install ok installed'
+          [ "$(cat "$RUNNER_TEMP/keep/neoaprs.sqlite")" = data ]
+      - uses: actions/upload-artifact@v7
+        with:
+          name: deb-${{ matrix.arch }}
+          path: dist-deb/neoaprs_*.deb
+          if-no-files-found: error
+
   # install.sh, rendered for this version and tried against the wheel that was just built: a fresh home, no uv, a systemctl that only writes down its calls.
   install-script:
     needs: [verify, wheel]
@@ -283,7 +355,7 @@ jobs:
 
   # Everything a release carries in one place, with the checksums and the notes: made on a dry run too, so that this half is tried before a tag.
   assemble:
-    needs: [wheel, windows, appimage, install-script]
+    needs: [wheel, windows, appimage, deb, install-script]
     if: ${{ !failure() && !cancelled() }}
     runs-on: ubuntu-latest
     steps:
@@ -296,14 +368,14 @@ jobs:
         run: |
           version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)"
           cd release-files
-          for f in "neoaprs-$version-py3-none-any.whl" "neoaprs-$version.tar.gz" "NeoAPRS-Setup-$version.exe" "NeoAPRS-$version-x86_64.AppImage" install.sh; do [ -f "$f" ] || { echo "::error::$f is missing"; exit 1; }; done
-          [ "$(ls | wc -l)" = 5 ] || { echo "::error::unexpected files"; ls -l; exit 1; }
+          for f in "neoaprs-$version-py3-none-any.whl" "neoaprs-$version.tar.gz" "NeoAPRS-Setup-$version.exe" "NeoAPRS-$version-x86_64.AppImage" "neoaprs_${version}_amd64.deb" "neoaprs_${version}_arm64.deb" install.sh; do [ -f "$f" ] || { echo "::error::$f is missing"; exit 1; }; done
+          [ "$(ls | wc -l)" = 7 ] || { echo "::error::unexpected files"; ls -l; exit 1; }
           sha256sum -- * > SHA256SUMS
           cat SHA256SUMS
           cd ..
           if [ "${GITHUB_REF_TYPE}" = tag ]; then notes_for="$version"; else notes_for=""; fi
           python3 scripts/release-notes.py $notes_for > notes.md
-          printf '\nThe files are checked by SHA256SUMS and carry build provenance (`gh attestation verify FILE --repo oh2gba/neoaprs`). Windows: run NeoAPRS-Setup-%s.exe (SmartScreen may warn about an unsigned installer: More info, Run anyway). Linux: make NeoAPRS-%s-x86_64.AppImage executable and run it. Linux and macOS: `curl -LsSf https://github.com/oh2gba/neoaprs/releases/latest/download/install.sh | sh`.\n' "$version" "$version" >> notes.md
+          printf '\nThe files are checked by SHA256SUMS and carry build provenance (`gh attestation verify FILE --repo oh2gba/neoaprs`). Windows: run NeoAPRS-Setup-%s.exe (SmartScreen may warn about an unsigned installer: More info, Run anyway). Linux: make NeoAPRS-%s-x86_64.AppImage executable and run it. Raspberry Pi, Debian, Ubuntu: `sudo apt install ./neoaprs_%s_arm64.deb` (amd64 for a PC), then `neoaprs service install --linger`. Linux and macOS: `curl -LsSf https://github.com/oh2gba/neoaprs/releases/latest/download/install.sh | sh`.\n' "$version" "$version" "$version" >> notes.md
           head -c 600 notes.md
       - uses: actions/upload-artifact@v7
         with:

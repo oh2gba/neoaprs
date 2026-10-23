@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { appImageUrl, installerUrl, INSTALL_LINE, releaseNotes, updateHelp } from "@/lib/update";
+import { appImageUrl, debName, debUrl, installerUrl, INSTALL_LINE, releaseNotes, updateHelp } from "@/lib/update";
 import type { InstallInfo } from "@/protocol/protocol";
 
-const install = (kind: InstallInfo["kind"], extra: Partial<InstallInfo> = {}): InstallInfo => ({ kind, appimage: "", service: false, ...extra });
+const install = (kind: InstallInfo["kind"], extra: Partial<InstallInfo> = {}): InstallInfo => ({ kind, appimage: "", service: false, arch: "", ...extra });
 const commands = (help: ReturnType<typeof updateHelp>) => help.steps.flatMap((s) => (s.command ? [s.command] : []));
 
 describe("the addresses", () => {
@@ -10,6 +10,8 @@ describe("the addresses", () => {
     expect(releaseNotes("0.4.0")).toBe("https://github.com/oh2gba/neoaprs/releases/tag/v0.4.0");
     expect(installerUrl("0.4.0")).toBe("https://github.com/oh2gba/neoaprs/releases/download/v0.4.0/NeoAPRS-Setup-0.4.0.exe");
     expect(appImageUrl("0.4.0")).toBe("https://github.com/oh2gba/neoaprs/releases/download/v0.4.0/NeoAPRS-0.4.0-x86_64.AppImage");
+    expect(debName("0.4.0", "arm64")).toBe("neoaprs_0.4.0_arm64.deb");
+    expect(debUrl("0.4.0", "amd64")).toBe("https://github.com/oh2gba/neoaprs/releases/download/v0.4.0/neoaprs_0.4.0_amd64.deb");
   });
 });
 
@@ -36,6 +38,26 @@ describe("updateHelp", () => {
       "./NeoAPRS-0.4.0-x86_64.AppImage",
       "./NeoAPRS-0.4.0-x86_64.AppImage service install",
     ]);
+  });
+
+  it("is the package of the machine's architecture, apt install and a restart of the service for a deb", () => {
+    const help = updateHelp(install("deb", { arch: "arm64", service: true }), "0.4.0");
+    expect(help.how).toBe("Debian package");
+    expect(help.steps[0]?.link).toEqual({
+      href: "https://github.com/oh2gba/neoaprs/releases/download/v0.4.0/neoaprs_0.4.0_arm64.deb",
+      label: "neoaprs_0.4.0_arm64.deb",
+    });
+    expect(commands(help)).toEqual(["sudo apt install ./neoaprs_0.4.0_arm64.deb", "systemctl --user restart neoaprs"]);
+    expect(updateHelp(install("deb", { arch: "amd64" }), "0.5.1").steps[0]?.link?.href).toContain("/v0.5.1/neoaprs_0.5.1_amd64.deb");
+    const by_hand = updateHelp(install("deb", { arch: "amd64" }), "0.4.0");
+    expect(commands(by_hand)).toEqual(["sudo apt install ./neoaprs_0.4.0_amd64.deb"]);
+    expect(by_hand.steps.at(-1)?.text).toBe("Quit NeoAPRS and start it again");
+  });
+
+  it("sends a deb of a machine without a package to the release page and installs whichever file was downloaded", () => {
+    const help = updateHelp(install("deb"), "0.4.0");
+    expect(help.steps[0]?.link?.href).toBe(releaseNotes("0.4.0"));
+    expect(commands(help)).toEqual(["sudo apt install ./neoaprs_0.4.0_*.deb"]);
   });
 
   it("is the install line again for the uv tool", () => {

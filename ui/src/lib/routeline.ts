@@ -1,6 +1,7 @@
 // How a station's packets reach us, drawn on the map: a line from the station through each digipeater of its latest route that has a position to our own station, and, when the route most of its
 // packets came by is another one, that route too. The routes come from the station row as the daemon words them (`last_route`, `best_route`: "direct", "via OH2RCH-2", "via OH2RCH-1 → OH2RCH-3",
-// "via OH7JHF-1 (internet) → OH2RCH-3"); a hop with no position (`?` or a station we have not placed) is left out and the line goes on to the next.
+// "via OH7JHF-1 (internet) → OH2RCH-3"); a hop with no position (`?` or a station we have not placed) is left out and the line goes on to the next. A latest packet that was a copy an iGate gated
+// back from the internet says nothing of how the station reaches us by radio: then the best route (which counts no such copies), when there is one, is the line, drawn as the latest one is.
 import { hasPosition } from "@/lib/stations";
 import type { StationRow } from "@/protocol/protocol";
 
@@ -69,8 +70,10 @@ export function routeFeatures(
   const features: RouteCollection["features"] = [];
   if (row && home && !row.is_me) {
     const us: LonLat = [home.lon, home.lat];
-    features.push(...(oneRoute(row, row.last_route, stations, us, 0) ?? []));
-    if (row.best_route !== row.last_route) {
+    const gated = routeHops(row.last_route)?.gate != null;
+    const latest = gated && routeHops(row.best_route) !== null ? row.best_route : row.last_route; // (with no radio route known, the gate's is all there is)
+    features.push(...(oneRoute(row, latest, stations, us, 0) ?? []));
+    if (row.best_route !== latest) {
       const seen = new Set(features.filter((f) => f.geometry.type === "Point").map((f) => f.properties.call));
       for (const f of oneRoute(row, row.best_route, stations, us, 1) ?? []) {
         if (f.geometry.type === "LineString" || !seen.has(f.properties.call)) features.push(f);

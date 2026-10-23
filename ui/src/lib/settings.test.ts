@@ -4,15 +4,14 @@ import { FIELDS, SUBGROUPS, changedValues, errorKey, errorReason, groupKeys, sho
 import { PORT_OTHER, portOptions } from "@/lib/portchoice";
 
 describe("groupKeys", () => {
-  it("gives the Settings tab the serial and TNC, web, log, messaging, notifications and map keys, in the daemon's order", () => {
+  it("gives the Settings tab the serial and TNC, web, log, notifications, map and update keys, in the daemon's order", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "settings");
-    expect(groups.map((g) => g.id)).toEqual(["serial", "web", "log", "messages", "notifications", "map", "update"]);
+    expect(groups.map((g) => g.id)).toEqual(["serial", "web", "log", "notifications", "map", "update"]);
     expect(groups[0]?.keys).toEqual(["tnc/profile", "serial/port", "serial/baud", "tcp/host", "tcp/port", "tnc/check_sec", "serial/last_port"]);
-    expect(groups[3]?.keys).toEqual(["messages/attempts"]);
-    expect(groups[4]?.title).toBe("Notifications");
-    expect(groups[4]?.keys).toEqual(["messages/alert", "messages/alert_command"]);
-    expect(groups[5]?.keys).toEqual(["map/hide_after_min", "map/radius_km", "map/maxzoom", "map/source"]);
-    expect(groups[6]?.keys).toEqual(["update/check"]);
+    expect(groups[3]?.title).toBe("Notifications");
+    expect(groups[3]?.keys).toEqual(["messages/alert", "messages/alert_command"]);
+    expect(groups[4]?.keys).toEqual(["map/hide_after_min", "map/radius_km", "map/maxzoom", "map/source"]);
+    expect(groups[5]?.keys).toEqual(["update/check"]);
   });
   it("gives the Beacon tab the station keys first (the call is its first field), then the beacon keys and the status keys", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "beacon");
@@ -191,6 +190,16 @@ describe("portOptions", () => {
   it("lists a port once whichever way it is known", () => {
     expect(portOptions(ports(), "/dev/ttyUSB0", "/dev/ttyUSB0").map((c) => c.value)).toEqual(["", "/dev/ttyUSB0", "/dev/ttyACM0", PORT_OTHER]);
     expect(portOptions(null, "", "").map((c) => c.label)).toEqual(["find automatically", "Other..."]);
+  });
+  it("lists a paired Bluetooth device by its name, after the serial ports, and keeps a typed bt:// address with a channel", () => {
+    const listed = {
+      type: "ports" as const,
+      search: true,
+      ports: [row("/dev/ttyUSB0", "FT232R"), { ...row("bt://AA:BB:CC:DD:EE:01", "Bluetooth: TH-D74"), hwid: "" }],
+    };
+    const options = portOptions(listed, "bt://AA:BB:CC:DD:EE:01/2", "");
+    expect(options.map((c) => c.value)).toEqual(["", "/dev/ttyUSB0", "bt://AA:BB:CC:DD:EE:01", "bt://AA:BB:CC:DD:EE:01/2", PORT_OTHER]);
+    expect(options[2].label).toBe("bt://AA:BB:CC:DD:EE:01 - Bluetooth: TH-D74");
   });
   it("calls the empty port none chosen where the daemon does not search", () => {
     expect(portOptions(ports(false), "", "")[0]).toEqual({ value: "", label: "none chosen" });

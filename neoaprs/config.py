@@ -14,7 +14,7 @@ from .callsign import call_problem
 from .configlegacy import with_legacy
 from .configstatus import DEFAULT_STATUS_TEMPLATE, MAX_STATUS, hostport, status_source, status_template, status_text
 from .configtypes import access_key, boolean, call_or_empty, int_in, int_or_off, optional_float, optional_int, over_the_air_problem, text_of, web_address
-from .message import DEFAULT_ATTEMPTS, MAX_ATTEMPTS, normal_path
+from .message import normal_path
 from .tncprofile import DEFAULT as DEFAULT_PROFILE, Profile, names_tcp, profile_of
 from .versions import UPDATE_URL
 
@@ -153,7 +153,6 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("web_allowed_hosts", "web/allowed_hosts", text_of(500)),         # names besides localhost, 127.0.0.1 and this machine's that a Host header may carry, separated by commas
     Setting("beacon_interval_min", "beacon/interval_min", int_or_off(MIN_INTERVAL_MIN, 1440), MIN_INTERVAL_MIN),   # 0: no beacon
     Setting("beacon_path", "beacon/path", _path),                           # the digipeaters of our beacon, "WIDE1-1,WIDE2-1"; empty: none
-    Setting("messages_attempts", "messages/attempts", int_in(1, MAX_ATTEMPTS)),                  # how many times a message is transmitted before it has failed; a message keeps the number it was sent with
     Setting("messages_alert", "messages/alert", boolean),                                       # true: a message to us runs messages/alert_command
     Setting("messages_alert_command", "messages/alert_command", text_of(MAX_ALERT_COMMAND)),    # a shell line, run with NEOAPRS_FROM, NEOAPRS_TEXT, NEOAPRS_AT and NEOAPRS_MSG_ID in its environment; empty: none
     Setting("status_source", "status/source", status_source),                                # where the status comes from: off, text (station/status) or rig (status/rigctld, status/template); empty: rig when status/rigctld is set, else text when station/status is, else off
@@ -204,7 +203,6 @@ class Config:
     web_allowed_hosts: str = ""
     beacon_interval_min: int = 0
     beacon_path: str = "WIDE1-1,WIDE2-1"
-    messages_attempts: int = DEFAULT_ATTEMPTS
     messages_alert: bool = True
     messages_alert_command: str = DEFAULT_ALERT_COMMAND
     status_source: str = ""

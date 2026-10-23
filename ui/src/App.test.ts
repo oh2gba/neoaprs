@@ -45,7 +45,7 @@ async function open() {
   socket.say({ type: "state", topic: "tnc", rev: 0, value: tncState() });
   socket.say({ type: "state", topic: "config", rev: 0, value: configValues({ "map/hide_after_min": "0" }) }); // the fixtures' times are fixed, so nothing times out
   socket.say({ type: "state", topic: "messages", rev: 0, value: messages });
-  socket.say({ type: "state", topic: "station_prefs", rev: 0, value: { OH2RDG: { path: "OH2RCH-2", hide_after_min: null, attempts: null, rf_only: false } } });
+  socket.say({ type: "state", topic: "station_prefs", rev: 0, value: { OH2RDG: { path: "OH2RCH-2", hide_after_min: null, rf_only: false } } });
   socket.say(status());
   await flushPromises();
   return { wrapper, socket };
@@ -462,7 +462,7 @@ describe("App", () => {
       type: "patch",
       topic: "station_prefs",
       rev: 1,
-      ops: [{ op: "set", key: "OH2PU-9", value: { path: null, hide_after_min: 45, attempts: null, rf_only: false } }],
+      ops: [{ op: "set", key: "OH2PU-9", value: { path: null, hide_after_min: 45, rf_only: false } }],
     });
     await flushPromises();
     expect(field().element.value).toBe("45");
@@ -480,21 +480,20 @@ describe("App", () => {
       .find((r) => r.text().includes("OH2PU-9"))
       ?.trigger("click");
     expect(wrapper.find(".card .rfonly").exists()).toBe(false);
-    expect(wrapper.find(".card .attempts-input").exists()).toBe(false);
     expect(wrapper.find(".card .use-suggested").exists()).toBe(false);
     await wrapper
       .findAll(".card .btn")
       .find((b) => b.text() === "Message")
       ?.trigger("click");
     const header = wrapper.find<HTMLInputElement>("#pane-messages .thread-head .rfonly input");
-    expect(wrapper.findAll("#pane-messages .thread-head label").map((l) => l.text())).toEqual(["Path", "RF only", "Attempts"]);
+    expect(wrapper.findAll("#pane-messages .thread-head label").map((l) => l.text())).toEqual(["Path", "RF only"]);
     await header.setValue(true);
     expect(socket.sent).toContainEqual({ cmd: "set_station_rf_only", call: "OH2PU-9", on: true });
     socket.say({
       type: "patch",
       topic: "station_prefs",
       rev: 1,
-      ops: [{ op: "set", key: "OH2PU-9", value: { path: null, hide_after_min: null, attempts: null, rf_only: true } }],
+      ops: [{ op: "set", key: "OH2PU-9", value: { path: null, hide_after_min: null, rf_only: true } }],
     });
     await flushPromises();
     expect(wrapper.find<HTMLInputElement>("#pane-messages .thread-head .rfonly input").element.checked).toBe(true);
@@ -1004,17 +1003,8 @@ describe("App", () => {
       await wrapper.find("#mail-to").setValue("jane@example.com");
       await wrapper.find("#mail-text").setValue("Hello");
       await wrapper.find("#pane-email form.compose").trigger("submit");
-      expect(socket.sent).toContainEqual({ cmd: "set_station_attempts", call: "EMAIL-2", attempts: 2 });
-      expect(JSON.stringify(socket.sent)).not.toContain("jane@example.com Hello");
-      socket.say({
-        type: "patch",
-        topic: "station_prefs",
-        rev: 1,
-        ops: [{ op: "set", key: "EMAIL-2", value: { path: null, hide_after_min: null, attempts: 2, rf_only: false } }],
-      });
-      await flushPromises();
       expect(socket.sent).toContainEqual({ cmd: "send_message", to: "EMAIL-2", text: "jane@example.com Hello" });
-      expect(wrapper.find<HTMLInputElement>("#pane-email .attempts-input").element.value).toBe("2");
+      expect(JSON.stringify(socket.sent)).not.toContain("_attempts");
       expect(wrapper.findAll("#pane-email .address-pick").map((b) => b.text())).toEqual(["jane@example.com"]);
       expect(JSON.parse(localStorage.getItem("NeoAPRS.emailto") ?? "[]")).toEqual(["jane@example.com"]);
       const tool = (label: string) => wrapper.findAll("#pane-email .mail-tools button").find((b) => b.text() === label);
@@ -1033,13 +1023,12 @@ describe("App", () => {
       ]);
     });
 
-    it("shows the gateway's attempts in the Mailbox row and sends the change", async () => {
-      const { wrapper, socket } = await open();
+    it("has no attempts field in the Email tab or in the Messages header: the daemon decides", async () => {
+      const { wrapper } = await open();
       await tabButton(wrapper, "Email")?.trigger("click");
-      const input = wrapper.find<HTMLInputElement>("#pane-email .attempts-input");
-      expect(input.attributes("placeholder")).toBe("(default: 6)");
-      await input.setValue("1");
-      expect(socket.sent).toContainEqual({ cmd: "set_station_attempts", call: "EMAIL-2", attempts: 1 });
+      expect(wrapper.find("#pane-email .attempts-input").exists()).toBe(false);
+      expect(wrapper.find("#pane-messages .attempts-input").exists()).toBe(false);
+      expect(wrapper.find("#pane-email").text()).not.toContain("Attempts");
     });
 
     it("shows the thread with the gateway there and leaves it out of the Messages tab and its count", async () => {
@@ -1249,7 +1238,7 @@ describe("the alert of this browser", () => {
   it("opens the steps of the update for the way this copy was installed from the new version in the header, and closes them when it is gone", async () => {
     const { wrapper, socket } = await open();
     expect(wrapper.find(".updatepanel").exists()).toBe(false);
-    socket.say(hello({ install: { kind: "uv-tool", appimage: "", service: true } }));
+    socket.say(hello({ install: { kind: "uv-tool", appimage: "", service: true, arch: "" } }));
     socket.say(status({ update: { version: "0.4.0", url: "", message: "" } }));
     await flushPromises();
     await wrapper.find("button.update").trigger("click");

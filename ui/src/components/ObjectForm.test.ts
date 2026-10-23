@@ -96,11 +96,11 @@ describe("ObjectForm", () => {
     expect(field("Symbol")?.find("input").exists()).toBe(false);
     expect(field("Symbol")?.find(".symicon .stn-layer").exists()).toBe(true);
     await field("Symbol")?.find("button").trigger("click");
-    const house = wrapper.findAll(".picker-symbol").find((b) => b.text() === "House");
+    const house = wrapper.findAll(".sympick-symbol").find((b) => b.text() === "House");
     await house?.trigger("click");
     expect(view.draft.symbol).toBe("/-");
     expect(field("Symbol")?.find(".symbolfield-name").text()).toBe("House");
-    expect(wrapper.find(".picker").exists()).toBe(false);
+    expect(wrapper.find(".sympick").exists()).toBe(false);
   });
 
   it("has Pick on the map, on a row of its own under the latitude and the longitude, which asks for a click on the map and is pressed while it waits", async () => {

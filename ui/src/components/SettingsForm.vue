@@ -11,6 +11,8 @@ import { ALERT_KEY, useAlertTest } from "@/composables/useAlertTest";
 import { KEY_KEY, useNewKey } from "@/composables/useNewKey";
 import { useUpdateCheck } from "@/composables/useUpdateCheck";
 import { useSettingsForm } from "@/composables/useSettingsForm";
+import type { Picked } from "@/composables/usePositionPick";
+import { degreesText } from "@/lib/setup";
 import { FIELDS, SUBGROUPS, portForProfile, shownByValues, shownFor, speedFallback, type Scope } from "@/lib/settings";
 import { statusSource } from "@/lib/status";
 import type { AlertResultMessage, Command, ConfigValues, MapState, PortsMessage, UpdateResultMessage } from "@/protocol/protocol";
@@ -26,10 +28,12 @@ const props = withDefaults(
     updateResult?: UpdateResultMessage | null;
     map?: MapState | null;
     ports?: PortsMessage | null;
+    picking?: boolean;
+    picked?: Picked | null;
   }>(),
-  { scope: "settings", alertResult: null, updateResult: null, map: null, ports: null },
+  { scope: "settings", alertResult: null, updateResult: null, map: null, ports: null, picking: false, picked: null },
 );
-const emit = defineEmits<{ setup: []; update: []; dirty: [value: boolean] }>();
+const emit = defineEmits<{ setup: []; update: []; dirty: [value: boolean]; pickPosition: [] }>();
 
 const { draft, errors, saving, saved, groups, defaults, changed, dirty, save, edit, revert } = useSettingsForm(
   toRef(props, "config"),
@@ -68,6 +72,15 @@ function editSymbol(text: string): void {
   edit(SYMBOL_TABLE, text.slice(0, 1));
   edit(SYMBOL_CODE, text.slice(1, 2));
 }
+// a place picked on the map (the Beacon tab's Pick on the map) fills our station's latitude and longitude, to be saved like any change
+watch(
+  () => props.picked,
+  (at) => {
+    if (!at) return;
+    edit("station/lat", degreesText(Math.round(at.lat * 1e5) / 1e5));
+    edit("station/lon", degreesText(Math.round((((((at.lon + 180) % 360) + 360) % 360) - 180) * 1e5) / 1e5));
+  },
+);
 const refreshPorts = () => props.send({ cmd: "list_ports" }); // (the page asks for the list itself each time the daemon is connected: App.vue)
 const fallback = (key: string) => (key === "serial/baud" ? speedFallback(profile.value, defaults.value[key] ?? "") : (defaults.value[key] ?? ""));
 /** A serial device does not go with a TCP profile: choosing one clears it, so that Save is not refused for it. */
@@ -141,6 +154,9 @@ const mapUnsaved = computed(() => Object.keys(changed.value).some((key) => key.s
             </button>
           </template>
         </SettingsField>
+        <div v-if="key === 'station/lon' && scope === 'beacon'" class="pick-row">
+          <button class="btn" type="button" :class="{ active: picking }" @click="emit('pickPosition')">{{ picking ? "Cancel" : "Pick on the map" }}</button>
+        </div>
         <div v-if="key === KEY_KEY && urls.length" class="field">
           <label for="set-web-url-0">Open at</label>
           <div class="field-control urls">

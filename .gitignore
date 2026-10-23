@@ -16,10 +16,11 @@ ui/node_modules/
 ui/dist/
 ui/dist.prev-*
 
-# What the packaging makes (packaging/windows, packaging/appimage, the release workflow): the frozen app, the installer, the AppImage, the build environments.
+# What the packaging makes (packaging/windows, packaging/appimage, packaging/deb, the release workflow): the frozen app, the installer, the AppImage, the .deb files, the build environments.
 /dist/
 /dist-installer/
 /dist-appimage/
+/dist-deb/
 /dist-wheel/
 /build/
 /build-venv/

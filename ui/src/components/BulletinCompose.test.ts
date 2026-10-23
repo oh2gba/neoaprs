@@ -16,7 +16,7 @@ function compose() {
 describe("BulletinCompose", () => {
   it("has a kind, an identifier, the text and Post, and no sentence of help", () => {
     const { wrapper, kind, id, text, post } = compose();
-    expect(kind.findAll("option").map((o) => o.text())).toEqual(["Bulletin", "Announcement", "Group"]);
+    expect(kind.findAll("option").map((o) => o.text())).toEqual(["Bulletin", "Announcement", "Bulletin to a group"]);
     expect(kind.element.value).toBe("bulletin");
     expect(id.findAll("option").map((o) => o.text())).toEqual([..."0123456789"]);
     expect(id.element.value).toBe("1");
@@ -24,6 +24,20 @@ describe("BulletinCompose", () => {
     expect(post.text()).toBe("Post");
     expect(wrapper.find("#post-group").exists()).toBe(false);
     expect(wrapper.find("p").exists()).toBe(false);
+  });
+
+  it("has an (i) that says in a few sentences what a bulletin, a bulletin to a group and a message are, closed until it is pressed", async () => {
+    const { wrapper } = compose();
+    const info = wrapper.find<HTMLButtonElement>(".info-toggle");
+    expect(info.attributes("aria-expanded")).toBe("false");
+    expect(wrapper.find(".info-text").exists()).toBe(false);
+    await info.trigger("click");
+    const note = wrapper.find(".info-text").text();
+    expect(note).toContain("for everyone");
+    expect(note).toContain("group name");
+    expect(note).toContain("Messages tab");
+    await info.trigger("click");
+    expect(wrapper.find(".info-text").exists()).toBe(false);
   });
 
   it("has Post off until there is a text that can be sent, and counts the 67 characters", async () => {
@@ -104,7 +118,7 @@ describe("BulletinCompose", () => {
     await kind.setValue("group");
     const group = wrapper.find<HTMLInputElement>("#post-group");
     expect(group.exists()).toBe(true);
-    expect(group.attributes("placeholder")).toBe("Group");
+    expect(group.attributes("placeholder")).toBe("Group name");
     await text.setValue("Net tonight 20:00");
     expect(post.element.disabled).toBe(true);
     await group.setValue("a b");

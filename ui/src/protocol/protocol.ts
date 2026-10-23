@@ -1,7 +1,7 @@
 // The types of the wire protocol between the daemon and the page, written from the models of neoaprs/web/protocol.py by scripts/gen-protocol.py: never edited by hand.
 // `Command` is what the page sends (tagged by `cmd`), `Message` what the daemon sends (tagged by `type`), `TopicValues` the value of each topic the page follows.
 
-export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | TncReconnectCommand | ListPortsCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationTimeoutCommand | ClearStationTimeoutCommand | SetStationAttemptsCommand | ClearStationAttemptsCommand | SetStationRfOnlyCommand | WeatherSeriesCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapCancelCommand;
+export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | TncReconnectCommand | ListPortsCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationTimeoutCommand | ClearStationTimeoutCommand | SetStationRfOnlyCommand | WeatherSeriesCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapCancelCommand;
 
 export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | AlertResultMessage | UpdateResultMessage;
 
@@ -96,12 +96,6 @@ export interface CheckUpdateCommand {
   cmd: "update_check";
 }
 
-/** Takes a station's own attempts away, so that the setting `messages/attempts` counts again (a station without them is no error). Answered by the `set` of its entry in `station_prefs` with a null `attempts` (or the `del` of the entry when it had no path and no timeout either), or by an `error`. */
-export interface ClearStationAttemptsCommand {
-  cmd: "clear_station_attempts";
-  call: string;
-}
-
 /** Takes a station's own path away, so that it has the path of the setting `beacon/path` again (a station without one is no error). Answered by the `set` of its entry in `station_prefs` with a null `path` (or the `del` of the entry when it had no timeout either), or by an `error`. */
 export interface ClearStationPathCommand {
   cmd: "clear_station_path";
@@ -124,7 +118,7 @@ export interface ConfigValues {
   urls: string[];
 }
 
-/** Removes the whole conversation with a station: every message we sent to it and every one it sent to us (not the messages it was only overheard sending to others), from the database in one write, from the daemon and from every page: each message's row is a `del` of the topic `messages`. A message that is still being sent is cancelled first. The path, the timeout and the attempts of the station stay. Answered by the `del`s, or by an `error` (the call is none, or there is no message with that station). */
+/** Removes the whole conversation with a station: every message we sent to it and every one it sent to us (not the messages it was only overheard sending to others), from the database in one write, from the daemon and from every page: each message's row is a `del` of the topic `messages`. A message that is still being sent is cancelled first. The path and the timeout of the station stay. Answered by the `del`s, or by an `error` (the call is none, or there is no message with that station). */
 export interface ConversationDeleteCommand {
   cmd: "conversation_delete";
   call: string;
@@ -332,15 +326,17 @@ export interface HopRow {
 
 /** How this copy of the daemon was installed, which is what the steps of an update depend on (neoaprs/versions.py, neoaprs/cli/installkind.py). */
 export interface InstallInfo {
-  /** `windows-installer` (the frozen program of the installer), `appimage`, `uv-tool` (the install script, or `uv tool install`), `pip` (a plain environment) or `source` (a clone of the repository) */
-  kind: "windows-installer" | "appimage" | "uv-tool" | "pip" | "source";
+  /** `windows-installer` (the frozen program of the installer), `appimage`, `deb` (the Debian package, in /opt/neoaprs), `uv-tool` (the install script, or `uv tool install`), `pip` (a plain environment) or `source` (a clone of the repository) */
+  kind: "windows-installer" | "appimage" | "deb" | "uv-tool" | "pip" | "source";
   /** the AppImage file this runs from; empty for the other kinds */
   appimage: string;
   /** whether a service starts it: the systemd unit, the launchd agent or the Windows Run key */
   service: boolean;
+  /** the architecture of the package it was installed from, `amd64` or `arm64`; empty for the other kinds, and for a machine that has no package */
+  arch: string;
 }
 
-/** Asks for the serial ports of the machine the daemon runs on. Answered with `ports` to the page that asked. A KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a port of the machine: it is typed. */
+/** Asks for the serial ports of the machine the daemon runs on, and the Bluetooth devices paired with it. Answered with `ports` to the page that asked. A KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a port of the machine: it is typed. */
 export interface ListPortsCommand {
   cmd: "list_ports";
 }
@@ -468,7 +464,7 @@ export interface MessageRow {
   state: "sending" | "acked" | "rejected" | "failed" | "unconfirmed" | "cancelled" | "received" | "overheard";
   /** how many times it has been transmitted (at most `attempts_max`: 0, 30, 60, 120, 240, 480, 960 ... seconds after the first, no wait longer than 960) */
   attempts: number;
-  /** how many attempts the message was given: the setting `messages/attempts` when it was sent (6 for a message from before the setting); a later change of the setting does not touch it */
+  /** how many attempts the message was given when it was sent: 4, 2 for the email gateway `EMAIL-2`, 1 for a bulletin (messages from before the count was fixed have their own, up to 10) */
   attempts_max: number;
   /** when it was transmitted last; null until the first attempt (the TNC may be away) */
   last_attempt_at: string | null;
@@ -615,9 +611,9 @@ export interface PongMessage {
   now: string;
 }
 
-/** A serial port the system lists. Nothing was opened to find it. */
+/** A serial port the system lists, or a Bluetooth device paired with it (Linux). Nothing was opened or connected to find it. */
 export interface PortRow {
-  /** the name to give as `serial/port`: `COM3`, `/dev/ttyUSB0` */
+  /** the name to give as `serial/port`: `COM3`, `/dev/ttyUSB0`, `bt://AA:BB:CC:DD:EE:FF` for a paired Bluetooth device */
   device: string;
   /** what the system calls it, such as `USB Serial Port (COM3)`; `n/a` where it does not say */
   description: string;
@@ -632,7 +628,7 @@ export interface PortRow {
 /** The answer to `list_ports`. */
 export interface PortsMessage {
   type: "ports";
-  /** the ports, in natural order (`COM2` before `COM10`) */
+  /** the ports, in natural order (`COM2` before `COM10`), then the paired Bluetooth devices */
   ports: PortRow[];
   /** whether the daemon looks for the radio among the ports by itself (Linux, the ports that match `serial/pattern`); where it is false (Windows, macOS) the radio is the port in `serial/port`, so the operator picks it from this list */
   search: boolean;
@@ -671,7 +667,7 @@ export interface ReplaceOp {
   value: unknown;
 }
 
-/** Sends a message to a station: the addressee is a call with an optional SSID, the text at most 67 bytes of UTF-8 without `|`, `~`, `{` or a control character. The message is kept and transmitted at once with the next message id; it arrives as a new row of the topic `messages` (state `sending`) and as the `out` packet, and its row changes when the acknowledgement comes or the attempts run out. The attempts it is given are the station's own (`station_prefs`) else the setting `messages/attempts`. When the TNC is not connected the message is kept and its first attempt waits for the radio. Answered with an `error` that names the reason when the addressee or the text is refused. */
+/** Sends a message to a station: the addressee is a call with an optional SSID, the text at most 67 bytes of UTF-8 without `|`, `~`, `{` or a control character. The message is kept and transmitted at once with the next message id; it arrives as a new row of the topic `messages` (state `sending`) and as the `out` packet, and its row changes when the acknowledgement comes or the attempts run out. It is transmitted at most 4 times, 2 for `EMAIL-2`. When the TNC is not connected the message is kept and its first attempt waits for the radio. Answered with an `error` that names the reason when the addressee or the text is refused. */
 export interface SendMessageCommand {
   cmd: "send_message";
   to: string;
@@ -691,13 +687,6 @@ export interface SetOp {
   /** the key of an item of a keyed topic: a station's call, a packet's id as text */
   key: string;
   value: unknown;
-}
-
-/** Gives a station a count of attempts of its own, 1 to 10: the number of times a message sent to it from now on is transmitted before it has failed (a message already being sent keeps its own). With 1 or 2 a message that gets no ack is `unconfirmed`, not `failed`. Answered by the `set` of the station's entry in the topic `station_prefs` (its `path` and `hide_after_min` are whatever they were), or by an `error` that names the reason. */
-export interface SetStationAttemptsCommand {
-  cmd: "set_station_attempts";
-  call: string;
-  attempts: number;
 }
 
 /** Gives a station a path of its own: the digipeaters that a message to it, and the ack of a message from it, go by way of. `path` is up to 8 digipeater calls separated by commas, checked as the setting `beacon/path` is; an empty `path` is a valid path of its own, direct with no digipeaters at all, which is not the same as none set. Answered by the `set` of the station's entry in the topic `station_prefs` (its `hide_after_min` is whatever it was), or by an `error` that names the reason. */
@@ -730,14 +719,12 @@ export interface StateMessage {
   value: unknown;
 }
 
-/** What the operator has set for one station, apart from what its packets say. The entries are the values of the topic `station_prefs`, keyed by call: a station with no path, no timeout and no attempts of its own, and not RF only, has no entry. A command that sets or changes one part is a `set` of the whole entry, one that clears the last part a `del`. */
+/** What the operator has set for one station, apart from what its packets say. The entries are the values of the topic `station_prefs`, keyed by call: a station with no path and no timeout of its own, and not RF only, has no entry. A command that sets or changes one part is a `set` of the whole entry, one that clears the last part a `del`. */
 export interface StationPref {
   /** the digipeaters that a message to the station, and the ack of a message from it, go by way of: calls separated by commas, empty for direct (no digipeaters at all); null if none is set, and the setting `beacon/path` counts */
   path: string | null;
   /** the minutes after the station's last position that it leaves the map (the page does the hiding); 0 is never; null if none is set, and the setting `map/hide_after_min` counts */
   hide_after_min: number | null;
-  /** how many times a message to the station is transmitted before it has failed (taken when the message is sent); 1 or 2 attempts without an ack leave the message `unconfirmed`, not `failed`; null if none is set, and the setting `messages/attempts` counts */
-  attempts: number | null;
   /** true if everything sent to the station (a message and each attempt of it, an ack, the answer to a query) has `RFONLY` as the last element of its path, which iGates that honour it do not put on the internet */
   rf_only: boolean;
 }
@@ -955,7 +942,7 @@ export interface TopicValues {
   tnc: TncState;
   /** the settings; told again after every save, though nothing differs: the settings form waits for it */
   config: ConfigValues;
-  /** what the operator set for each station that has anything set, by call: its own path, its own timeout and its own attempts, each null where none is set, and whether it is RF only. `set_station_path`, `clear_station_path`, `set_station_timeout`, `clear_station_timeout`, `set_station_attempts`, `clear_station_attempts` and `set_station_rf_only` each give a `set` of the entry, or a `del` when nothing is left in it */
+  /** what the operator set for each station that has anything set, by call: its own path and its own timeout, each null where none is set, and whether it is RF only. `set_station_path`, `clear_station_path`, `set_station_timeout`, `clear_station_timeout` and `set_station_rf_only` each give a `set` of the entry, or a `del` when nothing is left in it */
   station_prefs: { [key: string]: StationPref };
   /** every message by id (as text), all of them sent with the first `state`: a message that is new or changes is a `set` of its row, one that is deleted a `del`; none leaves on its own */
   messages: { [key: string]: MessageRow };

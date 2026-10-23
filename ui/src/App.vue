@@ -1,7 +1,8 @@
 <script setup lang="ts">
 // The page: a header with the connection and the radio link, the map filling the page, and at its right a panel with the stations, the packets, the messages, the email, the bulletins, our objects, the beacon, the TNC and the settings.
-// The shell only: what the daemon tells is `useDaemon`, the panel `usePanel`, the station picked `useSelection`, the Messages tab `useMessagesView`, the Email tab `useEmail`, the Bulletins tab `useBulletins`, the Objects tab `useOwnObjects`, the paths, timeouts and attempts of the stations
+// The shell only: what the daemon tells is `useDaemon`, the panel `usePanel`, the station picked `useSelection`, the Messages tab `useMessagesView`, the Email tab `useEmail`, the Bulletins tab `useBulletins`, the Objects tab `useOwnObjects`, the paths, timeouts and RF only of the stations
 // `useStationPrefs`, the first-run guide (it opens by itself while the daemon has no call) `useSetupGuide`, the alert of this browser for a message to us `useBrowserAlerts` and `usePageAlerts`; the components take props and emit events, and the commands go out through `send`.
+import { usePositionPick } from "@/composables/usePositionPick";
 import { computed, ref, watch } from "vue";
 import AppHeader from "@/components/AppHeader.vue";
 import BeaconPane from "@/components/BeaconPane.vue";
@@ -35,8 +36,8 @@ import { useSetupGuide } from "@/composables/useSetupGuide";
 import { useStationPrefs } from "@/composables/useStationPrefs";
 import { useTitle } from "@/composables/useTitle";
 import { defaultTimeoutMin, type Aging } from "@/lib/aging";
-import { defaultAttempts, type Attempts } from "@/lib/attempts";
 import { filesKey } from "@/lib/mapfetch";
+import { candidates as messageCandidates } from "@/lib/recipients";
 import { withOwnSymbol } from "@/lib/stations";
 import type { Home } from "@/lib/mapview";
 
@@ -68,21 +69,8 @@ watch(connection, (state) => {
   if (state === "open") send({ cmd: "list_ports" });
 });
 const stations = computed(() => withOwnSymbol(heard, config.value?.values));
-const {
-  paths: stationPaths,
-  timeouts,
-  attempts: ownAttempts,
-  rfOnly,
-  setRfOnly,
-  setPath,
-  clearPath,
-  setTimeoutMin,
-  clearTimeoutMin,
-  setAttempts,
-  clearAttempts,
-} = useStationPrefs(stationPrefs, send);
+const { paths: stationPaths, timeouts, rfOnly, setRfOnly, setPath, clearPath, setTimeoutMin, clearTimeoutMin } = useStationPrefs(stationPrefs, send);
 const aging = computed<Aging>(() => ({ timeouts: timeouts.value, defaultMin: defaultTimeoutMin(config.value?.values) }));
-const attempts = computed<Attempts>(() => ({ own: ownAttempts.value, defaultCount: defaultAttempts(config.value?.values) }));
 // the panel with the steps of an update is open on purpose, and goes when the newer version does
 const updateOpen = ref(false);
 const newer = computed(() => status.value?.update?.version ?? null);
@@ -107,7 +95,7 @@ const panel = usePanel();
 const { tab, collapsed, width } = panel;
 const { selected, focus, row: selectedRow, pickFromTable, forget } = useSelection(stations, send);
 const talk = useMessagesView(messages, panel, send);
-const mail = useEmail(messages, panel, send, ownAttempts);
+const mail = useEmail(messages, panel, send);
 const board = useBulletins(bulletins, panel);
 const alerts = useBrowserAlerts(talk.writeTo);
 usePageAlerts(messages, messagesLoaded, alerts.announce);
@@ -121,6 +109,7 @@ const fallbackPath = computed(() => config.value?.values["beacon/path"] ?? "");
 const connected = computed(() => tnc.value?.state === "connected");
 
 const call = computed<string | null>(() => config.value?.values["station/call"] ?? status.value?.call ?? null);
+const candidates = computed(() => messageCandidates(stations.value, call.value, now.value));
 const home = computed<Home | null>(() => {
   const place = (text: string | number | null | undefined): number => (text === undefined || text === null || text === "" ? NaN : Number(text));
   const lat = place(config.value?.values["station/lat"] ?? status.value?.lat);
@@ -130,8 +119,10 @@ const home = computed<Home | null>(() => {
 const objects = useOwnObjects(ownObjects, home, send, panel);
 
 /** A click on the map is a place for the first-run guide while it asks for one, else for the form of an object. */
+const stationPick = usePositionPick(); // the Beacon tab's Pick on the map
 function onPick(at: Home): void {
   if (guide.picking) guide.place(at.lat, at.lon);
+  else if (stationPick.picking.value) stationPick.place(at.lat, at.lon);
   else objects.place(at.lat, at.lon);
 }
 </script>
@@ -162,7 +153,7 @@ function onPick(at: Home): void {
           :dark="dark"
           :aging="aging"
           :files-key="filesKey(map)"
-          :picking="guide.picking || objects.picking"
+          :picking="guide.picking || objects.picking || stationPick.picking.value"
           :pin="guide.open ? guide.pin : objects.pin"
           @select="selected = $event"
           @pick="onPick"
@@ -206,22 +197,21 @@ function onPick(at: Home): void {
             :connected="connected"
             :now="now"
             :show-overheard="talk.showOverheard.value"
-            :attempts="attempts"
             :paths="stationPaths"
             :suggestions="suggestions"
             :fallback-path="fallbackPath"
             :rf-only="rfOnly"
             :heard-direct="heardDirect"
+            :candidates="candidates"
             @update:show-overheard="talk.showOverheard.value = $event"
             @path="setPath"
             @clear-path="clearPath"
-            @set-attempts="setAttempts"
-            @clear-attempts="clearAttempts"
             @set-rf-only="setRfOnly"
             @select="talk.selected.value = $event"
             @delete-conversation="talk.deleteConversation"
             @delete-overheard="talk.deleteOverheard"
             @send="talk.sendMessage"
+            @send-many="talk.sendMessages"
             @retry="send({ cmd: 'message_retry', id: $event })"
             @cancel="send({ cmd: 'message_cancel', id: $event })"
           />
@@ -231,7 +221,6 @@ function onPick(at: Home): void {
             :thread="mail.thread.value"
             :connected="connected"
             :addresses="mail.addresses.value"
-            :attempts="attempts"
             :heard-direct="heardDirect"
             @send="mail.sendMail"
             @forget="mail.forget"
@@ -239,8 +228,6 @@ function onPick(at: Home): void {
             @list="mail.listShortcuts"
             @remove="mail.removeShortcut"
             @get="mail.getHeld"
-            @set-attempts="setAttempts"
-            @clear-attempts="clearAttempts"
             @retry="send({ cmd: 'message_retry', id: $event })"
             @cancel="send({ cmd: 'message_cancel', id: $event })"
           />
@@ -267,8 +254,11 @@ function onPick(at: Home): void {
             :config="config"
             :last-error="lastError"
             :send="send"
+            :picking="stationPick.picking.value"
+            :picked="stationPick.picked.value"
             @beacon="send({ cmd: 'beacon_now' })"
             @status="send({ cmd: 'status_now' })"
+            @pick-position="stationPick.toggle()"
           />
         </template>
         <template #tnc>

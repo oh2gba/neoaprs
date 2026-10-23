@@ -31,3 +31,8 @@ async def sql(store: Store, statement: str, *args: object) -> list[tuple[Any, ..
     """A statement of the test itself, on the connection of the database thread, as another version of the program or a tool would have run it; the rows it gives."""
     assert store.db is not None
     return await store.db.write(lambda conn: [tuple(r) for r in conn.execute(statement, args)])
+
+
+async def keep_old_attempts(db: Db, call: str, attempts: int, path: str | None = None) -> None:
+    """A row of `station_pref` as a version that let the operator choose the attempts wrote it: the station's own count, and a path when given."""
+    await db.write(lambda conn: conn.execute("INSERT INTO station_pref (call, path, attempts, updated_at) VALUES (?, ?, ?, '2026-10-01T00:00:00.000000Z')", (call, path, attempts)))

@@ -107,12 +107,12 @@ describe("the Symbol field", () => {
   it("is changed in the picker, which sets the table and the code underneath and is saved like any change", async () => {
     const { wrapper, send } = make();
     await wrapper.find("#set-station-symbol-change").trigger("click");
-    expect(wrapper.find(".picker").exists()).toBe(true);
-    await wrapper.find<HTMLInputElement>(".picker input[type=search]").setValue("digi");
-    const digi = wrapper.findAll(".picker-symbol");
+    expect(wrapper.find(".sympick").exists()).toBe(true);
+    await wrapper.find<HTMLInputElement>(".sympick input[type=search]").setValue("digi");
+    const digi = wrapper.findAll(".sympick-symbol");
     expect(digi.map((b) => b.text())).toEqual(["Digipeater", "Digipeater"]);
     await digi[1]?.trigger("click");
-    expect(wrapper.find(".picker").exists()).toBe(false);
+    expect(wrapper.find(".sympick").exists()).toBe(false);
     expect(wrapper.find(".symbolfield-name").text()).toBe("Digipeater");
     expect(wrapper.text()).toContain("2 changed");
     await wrapper.find("form").trigger("submit");
@@ -155,14 +155,14 @@ describe("the (i) of a field", () => {
       "Text",
       "Every",
     ]);
-    expect(wrapper.find(".infotip-note").exists()).toBe(false);
+    expect(wrapper.find(".info-text").exists()).toBe(false);
   });
 
   it("opens beside the field it explains and says what it is, with an example", async () => {
     const { wrapper } = make({ "status/source": "rig" });
     const field = wrapper.findAll(".field").find((f) => f.find("label").text() === "Text");
-    await field?.find(".infotip-button").trigger("click");
-    expect(field?.find(".infotip-note").text()).toContain("{freq}");
-    expect(field?.find(".infotip-note").text()).toContain("Example: QRV {freq} {mode} gives QRV 14.074 MHz USB");
+    await field?.find(".info-toggle").trigger("click");
+    expect(field?.find(".info-text").text()).toContain("{freq}");
+    expect(field?.find(".info-text").text()).toContain("Example: QRV {freq} {mode} gives QRV 14.074 MHz USB");
   });
 });

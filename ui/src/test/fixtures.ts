@@ -279,7 +279,6 @@ export function configValues(extra: Record<string, string> = {}): ConfigValues {
     "web/allowed_hosts": "",
     "beacon/interval_min": "0",
     "beacon/path": "WIDE1-1,WIDE2-1",
-    "messages/attempts": "6",
     "messages/alert": "true",
     "messages/alert_command":
       '(notify-send -- "APRS message from $NEOAPRS_FROM" "$NEOAPRS_TEXT" 2>/dev/null || kdialog --title "APRS message from $NEOAPRS_FROM" --passivepopup "$NEOAPRS_TEXT" 10); paplay /usr/share/sounds/freedesktop/stereo/message-new-instant.oga',
@@ -334,7 +333,7 @@ export function mapState(extra: Partial<MapState> = {}): MapState {
 
 /** The daemon's `hello` for a page of this build: the same version and protocol, so that the page does not load itself again. */
 export function hello(extra: Partial<HelloMessage> = {}): HelloMessage {
-  return { type: "hello", protocol: PROTOCOL, version: PAGE_VERSION, install: { kind: "pip", appimage: "", service: false }, topics: [], ...extra };
+  return { type: "hello", protocol: PROTOCOL, version: PAGE_VERSION, install: { kind: "pip", appimage: "", service: false, arch: "" }, topics: [], ...extra };
 }
 
 export function status(extra: Partial<StatusMessage> = {}): StatusMessage {

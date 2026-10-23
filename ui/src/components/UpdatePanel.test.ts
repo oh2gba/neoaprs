@@ -5,7 +5,7 @@ import type { InstallInfo } from "@/protocol/protocol";
 
 afterEach(() => vi.restoreAllMocks());
 
-const install = (kind: InstallInfo["kind"], extra: Partial<InstallInfo> = {}): InstallInfo => ({ kind, appimage: "", service: false, ...extra });
+const install = (kind: InstallInfo["kind"], extra: Partial<InstallInfo> = {}): InstallInfo => ({ kind, appimage: "", service: false, arch: "", ...extra });
 const panel = (info: InstallInfo | null, version = "0.4.0") => mount(UpdatePanel, { props: { version, install: info } });
 const copyButtons = (wrapper: ReturnType<typeof panel>) => wrapper.findAll("button").filter((b) => b.text().startsWith("Copy") || b.text() === "Copied");
 
@@ -41,6 +41,13 @@ describe("UpdatePanel", () => {
     ]);
     expect(wrapper.text()).toContain("Delete the old file, NeoAPRS-0.3.0-x86_64.AppImage");
     expect(panel(install("appimage")).findAll("code")).toHaveLength(2);
+  });
+
+  it("gives a deb its download for the architecture, the apt command and, with a service, the restart", () => {
+    const wrapper = panel(install("deb", { arch: "arm64", service: true }));
+    expect(wrapper.find("a[href$='neoaprs_0.4.0_arm64.deb']").exists()).toBe(true);
+    expect(wrapper.findAll("code").map((c) => c.text())).toEqual(["sudo apt install ./neoaprs_0.4.0_arm64.deb", "systemctl --user restart neoaprs"]);
+    expect(wrapper.text()).toContain("this copy: Debian package");
   });
 
   it("gives the install line of the uv tool, pip's commands and a clone's, each with a copy button", () => {

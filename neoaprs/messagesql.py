@@ -64,13 +64,13 @@ def highest_sent_msg_id(db: sqlite3.Connection) -> int:
 
 
 def all_prefs(db: sqlite3.Connection) -> list[Row]:
-    """(call, path, hide_after_min, attempts, rf_only) of every station the operator has said something about; the first three are null where nothing was said, rf_only is 0 or 1."""
-    return [tuple(r) for r in db.execute("SELECT call, path, hide_after_min, attempts, rf_only FROM station_pref ORDER BY call")]
+    """(call, path, hide_after_min, rf_only) of every station the operator has said something about; path and hide_after_min are null where nothing was said, rf_only is 0 or 1. The column `attempts` is not read: a count kept by an older version is ignored, and a row that holds only that says nothing."""
+    return [tuple(r) for r in db.execute("SELECT call, path, hide_after_min, rf_only FROM station_pref WHERE path IS NOT NULL OR hide_after_min IS NOT NULL OR rf_only = 1 ORDER BY call")]
 
 
-def save_pref(db: sqlite3.Connection, call: str, path: str | None, hide_after_min: int | None, attempts: int | None, rf_only: bool, stamp: str) -> None:
-    db.execute("INSERT INTO station_pref (call, path, hide_after_min, attempts, rf_only, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6) "
-               "ON CONFLICT(call) DO UPDATE SET path = ?2, hide_after_min = ?3, attempts = ?4, rf_only = ?5, updated_at = ?6", (call, path, hide_after_min, attempts, int(rf_only), stamp))
+def save_pref(db: sqlite3.Connection, call: str, path: str | None, hide_after_min: int | None, rf_only: bool, stamp: str) -> None:
+    db.execute("INSERT INTO station_pref (call, path, hide_after_min, rf_only, updated_at) VALUES (?1, ?2, ?3, ?4, ?5) "
+               "ON CONFLICT(call) DO UPDATE SET path = ?2, hide_after_min = ?3, rf_only = ?4, updated_at = ?5", (call, path, hide_after_min, int(rf_only), stamp))
 
 
 def delete_pref(db: sqlite3.Connection, call: str) -> int:

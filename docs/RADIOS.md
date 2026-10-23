@@ -12,13 +12,14 @@ How to connect your radio or TNC to NeoAPRS, on Linux or Windows. In the page, *
 | Kenwood TH-D74, TH-D75 | yes | KISS TNC (Mobilinkd, NinoTNC, TNC-Pi, TH-D74/D75…) | USB-C or Bluetooth; KISS switched on at the radio |
 | Kenwood TS-2000 | yes with notes (unverified) | Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2 | COM port, shared with CAT |
 | Kenwood TM-D750E | unknown | – | announced, nothing known |
-| Mobilinkd TNC3, TNC4 | yes | KISS TNC | USB or Bluetooth |
+| Mobilinkd TNC3, TNC4 | yes | KISS TNC | USB or Bluetooth (the TNC3 is classic Bluetooth; for the TNC4 see its entry) |
 | NinoTNC | yes | KISS TNC | USB, 57600 |
 | TNC-X, TNC-Pi, other TNC already in KISS | yes | KISS TNC | serial or USB; TNC-Pi baud unverified (19200 reported) |
 | MFJ-1270B/1274/1278, TAPR TNC-2 clones | yes with notes | Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2 | RS-232; depends on the firmware |
 | Kantronics KPC-3+ | yes | Kantronics KPC-3+ | RS-232 |
 | Direwolf or soundmodem with a sound card: Digirig, SignaLink, a radio's data port, a USB sound dongle | yes | KISS over TCP (Direwolf, soundmodem) | Direwolf or the soundmodem serves KISS on a TCP port |
-| BTech UV-PRO, Vero VR-N76 | untested | KISS TNC | Bluetooth, only forum reports |
+| BTech UV-PRO, Vero VR-N76, Radioddity GA-5WB (one radio under three names) | untested, reports say it works | KISS TNC | Bluetooth (classic); users' reports only. Its Bluetooth LE is not supported by NeoAPRS |
+| PicoAPRS V4 (DB1NTO) | untested, follows the manual | KISS TNC | Bluetooth (classic), USB-C or TCP. Its Bluetooth LE mode is not supported by NeoAPRS |
 | Yaesu FTM-*, FT1D/2D/3D/5D | no | – | no KISS TNC for a PC. They send received APRS to the PC, never transmit from it. Use a sound-card interface and Direwolf instead |
 | Icom (D-STAR radios, IC-9700, IC-705) | no | – | D-PRS is not APRS packets. A sound card and Direwolf work as for any radio |
 | Icom ID-5200A | unverified | – | has a KISS TNC (USB, Bluetooth); entry and speed not known, needs a tester |
@@ -33,7 +34,7 @@ NeoAPRS sends and receives over RF only. Receiving from the internet needs no TN
 2. TNC setting: *Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2*. Port: your adapter. Baud: 9600.
 3. Switch the radio on with the TNC in packet mode (the display shows PACKET). Nothing else: NeoAPRS sends `KISS ON` and `RESTART` itself, waits 3 s, and later checks that the radio is still there.
 
-- TM-D700: leave the COM speed at 9600 (menu 1-9-5). A Bluetooth module without handshake lines needs RTS and CTS joined.
+- TM-D700: leave the COM speed at 9600 (menu 1-9-5). A Bluetooth module without handshake lines needs RTS and CTS joined. A serial module that is paired with the computer is a Bluetooth port like the others ("Bluetooth" below; the module's own speed is set on the module).
 - TH-D7: a forum report says the TNC is unstable in KISS at 9600 bps on air and fine at 1200. Unverified.
 
 ## Kenwood TM-D710 and TH-D72
@@ -53,8 +54,8 @@ KISS only, no command mode. NeoAPRS cannot enter KISS or ask the radio anything,
 
 1. Menu 983: choose **USB** or **Bluetooth** for KISS (one at a time).
 2. USB: menu 980 to *COM + AF/IF Output* (not Mass Storage). Connect USB-C. **Windows:** install the Kenwood virtual COM driver *before* the first plugging in. **Linux:** the port is a ttyACM device, under `/dev/serial/by-id` named like `usb-JVCKENWOOD_TH-D75-if00` (D75; the D74's name is unverified). The baud setting is ignored.
-   Bluetooth: pair as in "Bluetooth" below (radio side: menu 930 on, 932 search; D74: menu 931 on, 934 pairing mode). RFCOMM channel on Linux: usually 2.
-3. TNC setting: *KISS TNC (Mobilinkd, NinoTNC, TNC-Pi, TH-D74/D75…)*. Port: the serial port, COM port or rfcomm device.
+   Bluetooth: pair it once with the system as in "Bluetooth" below (radio side: menu 930 on, 932 search; D74: menu 931 on, 934 pairing mode).
+3. TNC setting: *KISS TNC (Mobilinkd, NinoTNC, TNC-Pi, TH-D74/D75…)*. Port: the serial port, the COM port, or on Linux the paired radio in the list (`bt://AA:BB:CC:DD:EE:FF`; NeoAPRS finds its serial channel, which is usually 2, itself).
 4. On the radio press **[F]** then **[LIST]** until the display shows KISS (D75; D74: **[F]** then **[TNC]**). Menu 505 data speed 1200 or 9600, menu 506 data band A or B, menu 508 TX delay (D75).
 
 - While KISS is on, the radio takes no PC commands and sends no GPS or APRS output.
@@ -65,10 +66,33 @@ KISS only, no command mode. NeoAPRS cannot enter KISS or ask the radio anything,
 
 1. **USB:** connect it. Linux: a ttyACM device; Windows: a COM port. Blue LED: three short blips = USB.
 2. **Bluetooth:** pair it ("Bluetooth" below); if a passkey is asked for, it is `123456`. Double blip = connected. One connection at a time: close the phone app.
-   Linux: `sudo rfcomm bind /dev/rfcomm0 AA:BB:CC:DD:EE:FF 1`, then use the port `/dev/rfcomm0`. Windows: the *Outgoing* COM port.
+   Linux: pick the paired TNC in *Port* (`bt://AA:BB:CC:DD:EE:FF`; its channel is usually 1). Windows: the *Outgoing* COM port.
 3. TNC setting: *KISS TNC…*. Baud: any, the default is fine.
 
-The TNC4 guide describes Bluetooth serial as working, but one project calls the TNC4 BLE-only. If Bluetooth fails, use USB. Bluetooth LE is not supported by NeoAPRS.
+The TNC4 guide describes Bluetooth serial as working, but one project calls the TNC4 BLE-only. If it does not show up among the paired devices, or the connection fails, use USB: Bluetooth LE is not supported by NeoAPRS.
+
+## BTech UV-PRO, Vero VR-N76, Radioddity GA-5WB
+
+One radio sold under these names (the GA-5WB too). It has a KISS TNC that is reached over Bluetooth. **Status: untested by us.** Users report it working over classic Bluetooth serial (SPP) with APRSdroid and with Linux software through an RFCOMM port; the radio also has Bluetooth LE, which NeoAPRS does not support, and one project lists it as LE-only for KISS, so what your radio's firmware offers is settled by trying. Please report what you find.
+
+1. **KISS on:** Menu, General Settings, *KISS TNC*: switch it on and save (the UV-PRO's menu; the VR-N76's names may differ slightly).
+2. **Pair:** on the radio Menu, *Pairing*, OK (it stays discoverable about two minutes); then pair it with the computer as in "Bluetooth" below. The device is named `UV-PRO` or `VR-N76`. If a code is asked for, try `0000` or `1234`.
+3. **Disconnect the radio's own app** (the phone app) first. A Bluetooth serial link serves one program at a time; the vendors do not say so, it is the rule for the others.
+4. **NeoAPRS:** TNC setting *KISS TNC (Mobilinkd, NinoTNC, TNC-Pi, TH-D74/D75…)*, *Port*: the radio, `bt://AA:BB:CC:DD:EE:FF`. Reports give RFCOMM channel 1 (a user who bound it by hand says another number did not work); NeoAPRS asks the radio which channel its serial port is on and tries 1 to 3 after it, and the log (`neoaprs.log`) says which channel connected. If it is not the right one, write it: `bt://AA:BB:CC:DD:EE:FF/1` with *Other...*.
+5. The radio shows a small telephone icon beside the power level when the link is up. A silent line is normal until it hears a packet.
+
+- On Linux a desktop that connects the radio as a headset (audio) can get in the way: one report fixes it with `Disable=Headset` in the `[General]` section of `/etc/bluetooth/input.conf`, then restarting Bluetooth. Unverified here.
+- One report says that Direwolf received through the radio's KISS but did not transmit; another saw APRS messages arrive with a `(NOT AX.25)` mark. Whether NeoAPRS is affected is not known.
+- The TX delay and similar KISS parameters are not documented by the vendors; NeoAPRS does not set them.
+
+## PicoAPRS V4
+
+DB1NTO's pocket APRS device (VHF, 0.5 or 1 W, GPS, a KISS TNC). **Status: untested by us;** this follows the manual of the V4 (November 2023, and later firmware). It offers its KISS TNC over USB-C, TCP, **Bluetooth Classic** and **Bluetooth LE**, as four choices in its menu; NeoAPRS uses the classic one (or USB-C, or KISS over TCP). The manual does not give the RFCOMM channel.
+
+1. **Mode:** device mode *TNC*, then choose *Bluetooth* (not *Bluetooth LE*). Bluetooth works only in TNC mode and switches on with it.
+2. **Pair:** the PicoAPRS is visible for 4 minutes after TNC mode is switched on and then switches Bluetooth off to save power; the Bluetooth icon in its main menu switches it on again. Pair it with the computer as in "Bluetooth" below, in that time: it is named `PicoAPRS`, both sides show a PIN, and the **right-hand button (Confirm)** on the device confirms it.
+3. **NeoAPRS:** TNC setting *KISS TNC (Mobilinkd, NinoTNC, TNC-Pi, TH-D74/D75…)*, *Port*: `bt://AA:BB:CC:DD:EE:FF` as listed under its name. The channel is looked up on the device; if that fails, 1 to 3 are tried, and the log says which one connected (name it with `/1` if need be).
+4. The Bluetooth LE mode needs no pairing and does not appear among the paired devices; NeoAPRS cannot use it. The USB-C port (a virtual COM port, 115200, ignored by the device) is the alternative.
 
 ## NinoTNC
 
@@ -118,26 +142,35 @@ KISS exit is `C0 FF C0`, or a hard reset.
 
 ## Bluetooth
 
+NeoAPRS uses classic Bluetooth serial (the Serial Port Profile, SPP/RFCOMM): the Kenwood TH-D74/D75, the Mobilinkd TNC3, a TM-D700 with a Bluetooth serial module. **Bluetooth LE** (the Mobilinkd TNC4 in its LE mode, the BTech UV-PRO, the Vero VR-N76) is not supported.
+
 **Linux**
 
-```
-bluetoothctl
-  power on
-  agent on
-  scan on                      # note the radio's address
-  pair AA:BB:CC:DD:EE:FF       # TH-D75: confirm on the radio within 30 s
-  trust AA:BB:CC:DD:EE:FF
-  quit
-sudo rfcomm bind /dev/rfcomm0 AA:BB:CC:DD:EE:FF 2
-```
+1. Pair the radio once with the system. **KDE Plasma:** System Settings, Bluetooth (or the Bluetooth icon in the tray), *Add New Device*, choose the radio, *Pair*; GNOME: Settings, Bluetooth. Or in a terminal, with the radio in pairing mode:
 
-The last number is the RFCOMM channel: 2 is usual on the TH-D74/D75, 1 on Mobilinkd. `sdptool browse AA:BB:CC:DD:EE:FF` lists them. The port is `/dev/rfcomm0`; NeoAPRS's search does not look at it, so set the *Port*. The link is made when NeoAPRS opens the port and drops when the radio sleeps; NeoAPRS opens it again. `rfcomm` is deprecated in BlueZ but still works.
+   ```
+   bluetoothctl
+     power on
+     agent on
+     scan on                      # note the radio's address
+     pair AA:BB:CC:DD:EE:FF       # TH-D75: confirm on the radio within 30 s
+     trust AA:BB:CC:DD:EE:FF
+     quit
+   ```
+
+2. In NeoAPRS, *Settings*, *TNC*, *Port*: choose the radio, listed by its name as `bt://AA:BB:CC:DD:EE:FF` (Refresh if it is new). The setup guide's radio step lists it too.
+
+The list is the system's own (BlueZ, which KDE's Bluedevil and the other desktops use), so a radio paired in any of them appears. NeoAPRS opens the Bluetooth link itself: no `rfcomm bind`, no root, no dialout group. The serial channel is looked up on the radio when the port is opened (the TH-D74/D75 use 2, Mobilinkd 1); if the radio lists none, or refuses the one it lists, channels 1 to 3 are tried in turn and the log says which connected. To name it, write it after the address, `bt://AA:BB:CC:DD:EE:FF/2`, with *Other...* in the list. The link is made when NeoAPRS opens the port and drops when the radio sleeps or goes out of range; NeoAPRS opens it again. The list holds the paired devices that have a serial port (a device the system has not yet looked into is listed too). It is read from BlueZ's records and no device is connected to for it. The search for the radio does not look at Bluetooth devices: a `bt://` port is used only when it is chosen. A radio keeps one connection at a time: close the phone app or the other program first. If the open fails with "Connection refused", the channel is wrong (name it); "Host is down" or "no answer" means the radio is off or out of range or its Bluetooth is off.
+
+The older way still works as a fallback, when a program of the system has to share the link or your Python has no Bluetooth sockets: `sudo rfcomm bind /dev/rfcomm0 AA:BB:CC:DD:EE:FF 2` (the last number is the channel; `sdptool browse AA:BB:CC:DD:EE:FF` lists them), then the port is `/dev/rfcomm0`. `rfcomm` is deprecated in BlueZ but still works.
 
 **Windows**
 
 1. Settings, Bluetooth & devices, add the radio or TNC and pair it.
 2. More Bluetooth settings, *COM Ports* tab: Windows lists two ports; use the **Outgoing** one. Choose it as the *Port* in NeoAPRS.
 3. An older PC may ask for the PIN `0000`.
+
+`bt://` ports are for Linux. **macOS:** pair the radio in System Settings, Bluetooth; the serial port is the `/dev/cu.*` one named after it.
 
 ## Permissions on Linux
 
@@ -164,6 +197,8 @@ Then `sudo udevadm control --reload` and plug the device in again.
 
 ## Sources
 
+- [PicoAPRS V4 manual (WiMo)](https://www.wimo.com/media/akeneo_connector/media_files/P/i/PicoAPRS_V4_User_Manual_May2024_9d06.pdf)
+- [VR-N76 (UV-PRO) KISS-TNC under Linux (hamradiotech.de)](https://www.hamradiotech.de/posts/2025-09-11-VR-N76-KISS-TNC/), [btkiss](https://github.com/8ff/btkiss), [VR-N76 with APRSdroid (hamradio.my)](https://hamradio.my/setting-up-bluetooth-kiss-tnc-on-verotelecom-vgc-vr-n76-with-aprsdroid/)
 - [Kenwood TH-D75 manual, chapters 12, 15, 18](https://kasc.kenwood.com/files/prod/3692/5/THD75E_User_manuals_English.pdf)
 - [Kenwood TM-D710GA/GE manual](https://kasc.kenwood.com/files/prod/2681/5/TM-D710GE_GA_Instruction_Manual_CD-ROM_V1.01.pdf)
 - [Kenwood TM-D700 APRS/packet manual](https://www.repeater-builder.com/kenwood/pdfs/tm-d700a-aprs-packet-manual.pdf)

@@ -49,7 +49,7 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
         <input :id="`${id}-lon`" v-model="draft.lon" class="input mono" type="text" inputmode="decimal" autocomplete="off" />
       </div>
     </div>
-    <div class="objform-pick">
+    <div class="pick-row">
       <button type="button" class="btn" :class="{ primary: form.placing }" :aria-pressed="form.placing" @click="form.togglePlacing()">Pick on the map</button>
     </div>
     <div class="field" :class="{ invalid: problems.comment }" :title="problems.comment">

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Takes out of the AppImage's usr/ folder what NeoAPRS does not run, so that the image is a third of the size: the parts of CPython that are tests, Tk and documentation, and almost all of Qt except the
 web engine and the few modules the desktop app imports (neoaprs/desktop/qtshell.py, qtwindow.py). Run by scripts/build-appimage with the Python of the image itself:  prune.py USR
+(scripts/build-deb has the same Python in /opt/neoaprs and no Qt:  prune.py --python-only PREFIX)
 
 The Qt libraries that stay are the ones that something kept names (the files are searched for the names of libraries, so that a library loaded by name stays too), and nothing else; scripts/smoke-appimage
 starts the app, which is the proof that nothing was taken that it needs."""
@@ -18,7 +19,7 @@ PLUGINS = {
 }                                                       # a folder of plugins: the files that stay (None: all of them)
 LOCALE = "en-US.pak"                                    # the web engine falls back to this one when the language of the user has none
 LIBRARY = re.compile(rb"lib[A-Za-z0-9_+-]+\.so(?:\.[0-9]+)*")
-STDLIB_DROP = ("test", "idlelib", "tkinter", "turtledemo", "ensurepip", "pydoc_data", "site-packages/pip", "config-3.13-x86_64-linux-gnu")
+STDLIB_DROP = ("test", "idlelib", "tkinter", "turtledemo", "ensurepip", "pydoc_data", "site-packages/pip")
 
 
 def remove(path: Path) -> None:
@@ -32,7 +33,7 @@ def prune_python(usr: Path) -> None:
     lib = usr / "lib" / "python3.13"
     for name in STDLIB_DROP:
         remove(lib / name)
-    for path in lib.glob("lib-dynload/_tkinter*"):
+    for path in list(lib.glob("lib-dynload/_tkinter*")) + list(lib.glob("config-3.13-*")):
         remove(path)
     for pattern in ("lib/tcl*", "lib/tk*", "lib/itcl*", "lib/thread*", "lib/libtcl*", "lib/pkgconfig", "include", "share", "bin/python*-config", "lib/python3.13/site-packages/pip-*"):
         for path in usr.glob(pattern):
@@ -96,10 +97,11 @@ def prune_libraries(site: Path, qt: Path) -> None:
 
 
 def main() -> int:
-    usr = Path(sys.argv[1]).resolve()
-    site = usr / "lib" / "python3.13" / "site-packages"
+    python_only = sys.argv[1] == "--python-only"
+    usr = Path(sys.argv[-1]).resolve()
     prune_python(usr)
-    prune_qt(site)
+    if not python_only:
+        prune_qt(usr / "lib" / "python3.13" / "site-packages")
     return 0
 
 

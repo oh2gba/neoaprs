@@ -13,7 +13,7 @@ def test_the_defaults_are_the_ones_of_the_brief() -> None:
         "tnc/profile": "kiss", "serial/port": "", "serial/baud": "", "tcp/host": "127.0.0.1", "tcp/port": "8001", "serial/last_port": "", "serial/pattern": "/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*", "serial/skip": "", "tnc/check_sec": "60", "station/call": "", "station/lat": "", "station/lon": "",
         "station/symbol_table": "/", "station/symbol_code": "-", "station/comment": "NeoAPRS", "station/status": "", "beacon/power_w": "", "beacon/antenna_height_m": "0", "beacon/antenna_gain_db": "0",
         "beacon/antenna_direction": "omni", "log/keep_days": "30", "web/network": "false", "web/key": "", "web/port": "7303", "web/allowed_hosts": "", "beacon/interval_min": "0",
-        "beacon/path": "WIDE1-1,WIDE2-1", "messages/attempts": "6",
+        "beacon/path": "WIDE1-1,WIDE2-1",
         "messages/alert": "true", "messages/alert_command": DEFAULT_ALERT_COMMAND, "status/source": "", "status/rigctld": "", "status/interval_min": "30", "status/template": "QRV {freq} {mode}",
         "map/hide_after_min": "180", "map/radius_km": "150", "map/maxzoom": "12", "map/source": "",
         "update/check": "true", "update/url": "https://oh2gba.eu/neoaprs/version.php"}
@@ -29,7 +29,7 @@ def test_nothing_in_the_database_is_the_defaults_and_what_is_written_is_read_bac
     assert Config.from_data({}) == DEFAULTS
     c = Config(serial_port="/dev/brainbox_3", serial_baud=19200, serial_last_port="/dev/brainbox_3", serial_pattern="/dev/brainbox_* /dev/ttyUSB*", serial_skip="/dev/brainbox_2, /dev/ttyUSB1", tnc_profile="kenwood-d710", tcp_host="::1", tcp_port=8100, tnc_check_sec=0, station_call="OH2GBA-9", station_lat=-33.5, station_lon=151.25,
                station_symbol_table="\\", station_symbol_code=">", station_comment="mobile", station_status="On the road, QRV 145.500", beacon_power_w=5, beacon_antenna_height_m=12, beacon_antenna_gain_db=3, beacon_antenna_direction="NW", log_keep_days=7, web_network=True, web_key="k7m2-x9pq-4hrt", web_port=8080, web_allowed_hosts="aprs.example, pi", beacon_interval_min=30,
-               beacon_path="WIDE2-2", messages_attempts=10, messages_alert=False, messages_alert_command="echo $NEOAPRS_FROM", status_source="rig", status_rigctld="localhost:4532", status_interval_min=1440, status_template="{mode} {freq}", map_hide_after_min=10080)
+               beacon_path="WIDE2-2", messages_alert=False, messages_alert_command="echo $NEOAPRS_FROM", status_source="rig", status_rigctld="localhost:4532", status_interval_min=1440, status_template="{mode} {freq}", map_hide_after_min=10080)
     assert Config.from_data(c.to_data()) == c
 
 
@@ -64,7 +64,7 @@ def test_a_call_is_checked_and_written_in_capitals() -> None:
     ("beacon/interval_min", "1441"), ("beacon/path", "WIDE1-1,TOOLONGCALL"), ("beacon/path", "A,B,C,D,E,F,G,H,I"), ("beacon/path", "WIDE1-16"),
     ("beacon/power_w", "-1"), ("beacon/power_w", "10000"), ("beacon/power_w", "lots"), ("beacon/antenna_height_m", "-1"), ("beacon/antenna_height_m", "10000"), ("beacon/antenna_height_m", "tall"), ("beacon/antenna_gain_db", "10"),
     ("beacon/antenna_gain_db", "-1"), ("beacon/antenna_gain_db", "3.5"), ("beacon/antenna_direction", "up"), ("beacon/antenna_direction", "NNE"), ("beacon/antenna_direction", ""),
-    ("tnc/check_sec", "-1"), ("tnc/check_sec", "5"), ("tnc/check_sec", "9"), ("tnc/check_sec", "3601"), ("tnc/check_sec", "soon"), ("update/check", "sometimes"), ("update/url", ""), ("update/url", "ftp://example.org/v.php"), ("update/url", "https://"), ("update/url", "two words"), ("update/url", "https://example.org/" + "x" * 500), ("map/hide_after_min", "-1"), ("map/hide_after_min", "10081"), ("map/hide_after_min", "never"), ("messages/attempts", "0"), ("messages/attempts", "11"), ("messages/attempts", "six"),
+    ("tnc/check_sec", "-1"), ("tnc/check_sec", "5"), ("tnc/check_sec", "9"), ("tnc/check_sec", "3601"), ("tnc/check_sec", "soon"), ("update/check", "sometimes"), ("update/url", ""), ("update/url", "ftp://example.org/v.php"), ("update/url", "https://"), ("update/url", "two words"), ("update/url", "https://example.org/" + "x" * 500), ("map/hide_after_min", "-1"), ("map/hide_after_min", "10081"), ("map/hide_after_min", "never"),
     ("messages/alert", "loud"), ("messages/alert_command", "x" * 1001), ("messages/alert_command", "two\nlines"), ("status/rigctld", "localhost"), ("status/rigctld", "localhost:0"), ("status/rigctld", "localhost:70000"),
     ("status/rigctld", ":4532"), ("status/rigctld", "two words:4532"), ("status/interval_min", "0"), ("status/interval_min", "1441"), ("status/interval_min", "often"), ("status/template", "QRV {frequency}"),
     ("status/template", "x" * 63), ("status/template", "{freq} {mode} " + "x" * 50), ("status/template", "two\nlines")])
@@ -272,3 +272,10 @@ def test_the_update_check_is_on_and_asks_the_page_of_the_project_unless_the_sett
     c = Config.from_data({"update/check": "off", "update/url": " http://127.0.0.1:8000/version.php "})
     assert (c.update_check, c.update_url) == (False, "http://127.0.0.1:8000/version.php")
     assert Config.check("update/check", "No") == "false" and Config.check("update/url", "https://example.org/v.php?a=1") == "https://example.org/v.php?a=1"
+
+
+def test_the_attempts_setting_of_an_older_version_is_not_a_setting_and_is_left_alone() -> None:
+    assert "messages/attempts" not in KEYS
+    assert Config.from_data({"messages/attempts": "9"}) == DEFAULTS
+    with pytest.raises(ValueError, match="messages/attempts: no such setting"):
+        Config.parse("messages/attempts", "3")

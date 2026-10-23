@@ -7,7 +7,7 @@ import pytest
 from neoaprs.aprsmessage import MessageError
 from neoaprs.callsign import CallsignError
 from neoaprs.clock import utc
-from neoaprs.message import (DEFAULT_ATTEMPTS, FINAL_WAIT_SEC, MAX_ATTEMPTS, MSG_IDS, MessageRecord, addressed_to, check_text, due_at, is_query, is_telemetry_definition, next_msg_id, normal_call,
+from neoaprs.message import (EMAIL_ATTEMPTS, FINAL_WAIT_SEC, MAX_ATTEMPTS, MSG_IDS, STATION_ATTEMPTS, MessageRecord, addressed_to, attempts_for, check_text, due_at, is_query, is_telemetry_definition, next_msg_id, normal_call,
                             same_call, schedule_sec, wait_after)
 
 T0 = utc(2026, 10, 21, 12, 0, 0)
@@ -48,10 +48,17 @@ def test_a_text_that_fits_is_taken(text: str) -> None:
     check_text(text)
 
 
-def test_the_schedule_is_six_attempts_by_default_at_0_30_60_120_240_and_480_seconds_and_the_last_is_waited_for() -> None:
-    assert schedule_sec(DEFAULT_ATTEMPTS) == (0, 30, 60, 120, 240, 480) and DEFAULT_ATTEMPTS == 6
-    assert [wait_after(n).total_seconds() for n in range(1, 7)] == [30, 30, 60, 120, 240, FINAL_WAIT_SEC]
-    assert sum(wait_after(n).total_seconds() for n in range(1, 6)) == 480
+def test_a_message_is_given_4_attempts_and_one_to_the_email_gateway_2() -> None:
+    assert (STATION_ATTEMPTS, EMAIL_ATTEMPTS) == (4, 2)
+    assert [attempts_for(to) for to in ("OH2RDG", "OH2RDG-7", "EMAIL-2", "EMAIL-1", "EMAIL-22")] == [4, 4, 2, 4, 4]
+    assert schedule_sec(STATION_ATTEMPTS) == (0, 30, 60, 120) and schedule_sec(EMAIL_ATTEMPTS) == (0, 30)
+    assert [wait_after(n).total_seconds() for n in range(1, 5)] == [30, 30, 60, FINAL_WAIT_SEC]
+    assert sum(wait_after(n).total_seconds() for n in range(1, 4)) == 120
+
+
+def test_the_schedule_of_a_message_an_older_version_gave_more_attempts_goes_on_to_960_seconds() -> None:
+    assert schedule_sec(6) == (0, 30, 60, 120, 240, 480) and schedule_sec(10)[-1] == 3840
+    assert [wait_after(n, 6).total_seconds() for n in range(1, 7)] == [30, 30, 60, 120, 240, FINAL_WAIT_SEC]
 
 
 def test_the_schedule_follows_the_number_of_attempts_doubles_and_no_wait_is_over_960_seconds() -> None:

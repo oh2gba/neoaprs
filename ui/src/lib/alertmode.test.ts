@@ -25,7 +25,7 @@ describe("the choices", () => {
 
 describe("why a pop-up cannot be chosen", () => {
   it("is the address outside a secure context, or the block in the browser, else nothing", () => {
-    expect(popupWhy(false, "default")).toBe("This address does not allow pop-ups (needs https or localhost)");
+    expect(popupWhy(false, "default")).toBe("Pop-ups are off in this browser for this address");
     expect(popupWhy(true, "denied")).toBe("Pop-ups are blocked for this page in the browser");
     expect(popupWhy(true, "default")).toBeUndefined();
     expect(popupWhy(true, "granted")).toBeUndefined();

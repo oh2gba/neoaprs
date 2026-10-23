@@ -9,19 +9,19 @@ function picker(table = "/", code = "-") {
   return mount(SymbolPicker, { props: { table, code }, attachTo: host });
 }
 
-const names = (wrapper: ReturnType<typeof picker>) => wrapper.findAll(".picker-symbol").map((b) => b.text());
+const names = (wrapper: ReturnType<typeof picker>) => wrapper.findAll(".sympick-symbol").map((b) => b.text());
 
 describe("SymbolPicker", () => {
   it("is a dialog with a search box that has the focus, the usual symbols first and then all of them with their pictures", () => {
     const wrapper = picker();
-    expect(wrapper.find(".picker").attributes("role")).toBe("dialog");
-    expect(wrapper.find(".picker").attributes("aria-modal")).toBe("true");
+    expect(wrapper.find(".sympick").attributes("role")).toBe("dialog");
+    expect(wrapper.find(".sympick").attributes("aria-modal")).toBe("true");
     expect(document.activeElement).toBe(wrapper.find("input[type=search]").element);
     expect(wrapper.findAll("h3").map((h) => h.text())).toEqual(["Usual", "All"]);
-    const usual = wrapper.findAll("[aria-label='Usual symbols'] .picker-symbol");
+    const usual = wrapper.findAll("[aria-label='Usual symbols'] .sympick-symbol");
     expect(usual).toHaveLength(12);
     expect(usual.slice(0, 2).map((b) => b.text())).toEqual(["House", "Car"]);
-    const all = wrapper.findAll("[aria-label='All symbols'] .picker-symbol");
+    const all = wrapper.findAll("[aria-label='All symbols'] .sympick-symbol");
     expect(all).toHaveLength(ALL_SYMBOLS.length);
     expect(all.every((b) => b.find(".symicon .stn-layer").exists())).toBe(true);
     wrapper.unmount();
@@ -37,12 +37,12 @@ describe("SymbolPicker", () => {
 
   it("marks the symbol in use, in the usual symbols and in all of them", () => {
     const wrapper = picker("/", "-");
-    const marked = wrapper.findAll(".picker-symbol[aria-pressed='true']");
+    const marked = wrapper.findAll(".sympick-symbol[aria-pressed='true']");
     expect(marked.map((b) => b.text())).toEqual(["House", "House"]);
     wrapper.unmount();
     const alternate = picker("S", "#");
-    expect(alternate.findAll(".picker-symbol[aria-pressed='true']").map((b) => b.text())).toEqual(["Digipeater"]);
-    expect(alternate.find(".picker-symbol[aria-pressed='true']").element.closest("[aria-label='All symbols']")).not.toBeNull();
+    expect(alternate.findAll(".sympick-symbol[aria-pressed='true']").map((b) => b.text())).toEqual(["Digipeater"]);
+    expect(alternate.find(".sympick-symbol[aria-pressed='true']").element.closest("[aria-label='All symbols']")).not.toBeNull();
     alternate.unmount();
   });
 
@@ -75,16 +75,16 @@ describe("SymbolPicker", () => {
   it("chooses a symbol with the table and the code underneath", async () => {
     const wrapper = picker();
     await wrapper.find("input[type=search]").setValue("house (hf)");
-    await wrapper.find(".picker-symbol").trigger("click");
+    await wrapper.find(".sympick-symbol").trigger("click");
     expect(wrapper.emitted("pick")).toEqual([["\\", "-"]]);
     wrapper.unmount();
   });
 
   it("closes with Esc, with the Close button and with a click outside, and not with a click inside", async () => {
     const wrapper = picker();
-    await wrapper.find(".picker").trigger("pointerdown");
+    await wrapper.find(".sympick").trigger("pointerdown");
     expect(wrapper.emitted("close")).toBeUndefined();
-    await wrapper.find(".picker-backdrop").trigger("pointerdown");
+    await wrapper.find(".sympick-backdrop").trigger("pointerdown");
     expect(wrapper.emitted("close")).toHaveLength(1);
     await wrapper.find("input[type=search]").trigger("keydown", { key: "Escape" });
     expect(wrapper.emitted("close")).toHaveLength(2);

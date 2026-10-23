@@ -13,7 +13,7 @@ from neoaprs.mapstate import Job, MapError
 from neoaprs.message import MessagingError
 from neoaprs.ownbulletin import PostError
 from neoaprs.ownobject import OwnError
-from neoaprs.serialprobe import available_ports, can_search, with_links
+from neoaprs.serialprobe import available_ports, can_search, paired_bluetooth_ports, with_links
 
 from .beaconwire import BeaconNow, StatusNow
 from .bulletinwire import BulletinDelete
@@ -24,7 +24,7 @@ from .mapwire import MapCancel, MapEstimate, MapFetch
 from .ownwire import BulletinPost, BulletinUnpost, ObjectKill, ObjectSet
 from .messagewire import AlertTest, ConversationDelete, MessageCancel, MessageDelete, MessageRetry, OverheardDelete, SendMessage
 from .portwire import ListPorts
-from .prefwire import ClearStationAttempts, ClearStationPath, ClearStationTimeout, SetStationAttempts, SetStationPath, SetStationRfOnly, SetStationTimeout
+from .prefwire import ClearStationPath, ClearStationTimeout, SetStationPath, SetStationRfOnly, SetStationTimeout
 from .configwire import SetConfig
 from .stationwire import ForgetStation
 from .tncwire import TncReconnect
@@ -82,7 +82,7 @@ async def tnc_reconnect(ctx: Ctx, cmd: TncReconnect) -> None:
 
 @command(ListPorts)
 async def list_ports(ctx: Ctx, cmd: ListPorts) -> None:
-    ports = await asyncio.to_thread(lambda: with_links(available_ports()))   # (the system's lists are read from files and the registry: not on the loop); the by-id names and the user's own links too
+    ports = await asyncio.to_thread(lambda: with_links(available_ports()) + paired_bluetooth_ports())   # (the system's lists are read from files, the registry and BlueZ: not on the loop); the by-id names and the user's own links too, then the paired Bluetooth devices
     ctx.conn.send({"type": "ports", "search": can_search(), "ports": [{"device": p.device, "description": p.description, "hwid": p.hwid, "vid": p.vid, "pid": p.pid} for p in ports]})
 
 
@@ -157,18 +157,6 @@ async def set_station_timeout(ctx: Ctx, cmd: SetStationTimeout) -> None:
 async def clear_station_timeout(ctx: Ctx, cmd: ClearStationTimeout) -> None:
     with refused(cmd.cmd):
         await ctx.ctl.prefbook.clear_timeout(cmd.call)
-
-
-@command(SetStationAttempts)
-async def set_station_attempts(ctx: Ctx, cmd: SetStationAttempts) -> None:
-    with refused(cmd.cmd):
-        await ctx.ctl.prefbook.set_attempts(cmd.call, cmd.attempts)
-
-
-@command(ClearStationAttempts)
-async def clear_station_attempts(ctx: Ctx, cmd: ClearStationAttempts) -> None:
-    with refused(cmd.cmd):
-        await ctx.ctl.prefbook.clear_attempts(cmd.call)
 
 
 @command(SetStationRfOnly)

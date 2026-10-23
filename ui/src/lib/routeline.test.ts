@@ -105,7 +105,14 @@ describe("routeFeatures", () => {
     expect(dots(book)).toEqual(["OH2RCH-1", "OH2RCH-3"]);
   });
 
-  it("starts a third-party packet at the iGate that put it on the air", () => {
+  it("draws the best radio route, not the iGate's, when the latest packet was a copy gated back from the internet", () => {
+    const book = stations({ last_route: "via OH2RCH-3 (internet) → OH2RCH-1", best_route: "via OH2RCH-1" });
+    expect(lines(book)).toHaveLength(1);
+    expect(lines(book)[0]?.best).toBe(0);
+    expect(dots(book)).toEqual(["OH2RCH-1"]);
+  });
+
+  it("starts a third-party packet at the iGate that put it on the air when no radio route is known", () => {
     const book = stations({ last_route: "via OH2RCH-3 (internet) → OH2RCH-1", best_route: "" });
     expect(lines(book)[0]?.at).toEqual([
       [24.8, 60.25],

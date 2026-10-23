@@ -7,13 +7,13 @@ export const PROTOCOL = 1;
 export const TOPIC_NAMES = ["stations", "packets", "tnc", "config", "station_prefs", "messages", "bulletins", "own_objects", "own_bulletins", "map"] as const;
 
 /** Every command the page may send (the `cmd` of the Command union). */
-export const COMMAND_NAMES = ["alert_test", "beacon_now", "bulletin_delete", "bulletin_post", "bulletin_unpost", "clear_station_attempts", "clear_station_path", "clear_station_timeout", "conversation_delete", "forget_station", "list_ports", "map_cancel", "map_estimate", "map_fetch", "message_cancel", "message_delete", "message_retry", "object_kill", "object_set", "overheard_delete", "ping", "send_message", "set_config", "set_station_attempts", "set_station_path", "set_station_rf_only", "set_station_timeout", "status", "status_now", "subscribe", "tnc_reconnect", "unsubscribe", "update_check", "weather_series"] as const;
+export const COMMAND_NAMES = ["alert_test", "beacon_now", "bulletin_delete", "bulletin_post", "bulletin_unpost", "clear_station_path", "clear_station_timeout", "conversation_delete", "forget_station", "list_ports", "map_cancel", "map_estimate", "map_fetch", "message_cancel", "message_delete", "message_retry", "object_kill", "object_set", "overheard_delete", "ping", "send_message", "set_config", "set_station_path", "set_station_rf_only", "set_station_timeout", "status", "status_now", "subscribe", "tnc_reconnect", "unsubscribe", "update_check", "weather_series"] as const;
 
 /** Every message the daemon sends (the `type` of the Message union). */
 export const MESSAGE_TYPES = ["alert_result", "error", "hello", "patch", "pong", "ports", "state", "status", "update_result", "weather_series"] as const;
 
 /** The keys of the settings, in the order of the settings form (SETTINGS of neoaprs/config.py). */
-export const CONFIG_KEYS = ["tnc/profile", "serial/port", "serial/baud", "tcp/host", "tcp/port", "serial/last_port", "serial/pattern", "serial/skip", "tnc/check_sec", "station/call", "station/lat", "station/lon", "station/symbol_table", "station/symbol_code", "station/comment", "station/status", "beacon/power_w", "beacon/antenna_height_m", "beacon/antenna_gain_db", "beacon/antenna_direction", "log/keep_days", "web/network", "web/key", "web/port", "web/allowed_hosts", "beacon/interval_min", "beacon/path", "messages/attempts", "messages/alert", "messages/alert_command", "status/source", "status/rigctld", "status/interval_min", "status/template", "map/hide_after_min", "map/radius_km", "map/maxzoom", "map/source", "update/check", "update/url"] as const;
+export const CONFIG_KEYS = ["tnc/profile", "serial/port", "serial/baud", "tcp/host", "tcp/port", "serial/last_port", "serial/pattern", "serial/skip", "tnc/check_sec", "station/call", "station/lat", "station/lon", "station/symbol_table", "station/symbol_code", "station/comment", "station/status", "beacon/power_w", "beacon/antenna_height_m", "beacon/antenna_gain_db", "beacon/antenna_direction", "log/keep_days", "web/network", "web/key", "web/port", "web/allowed_hosts", "beacon/interval_min", "beacon/path", "messages/alert", "messages/alert_command", "status/source", "status/rigctld", "status/interval_min", "status/template", "map/hide_after_min", "map/radius_km", "map/maxzoom", "map/source", "update/check", "update/url"] as const;
 
 /** The TNC profiles, in the order the settings form offers them (PROFILES of neoaprs/tncprofile.py): how each is reached (`serial` or `tcp`), its speed and whether the daemon can ask it if it is there. */
 export const TNC_PROFILES = [{"key": "kenwood-tnc2", "name": "Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2", "transport": "serial", "baud": 9600, "probe": true}, {"key": "kenwood-d710", "name": "Kenwood TM-D710 / TH-D72", "transport": "serial", "baud": 9600, "probe": true}, {"key": "kantronics", "name": "Kantronics KPC-3+", "transport": "serial", "baud": 9600, "probe": true}, {"key": "kiss", "name": "KISS TNC (Mobilinkd, NinoTNC, TNC-Pi, TH-D74/D75\u2026)", "transport": "serial", "baud": 9600, "probe": false}, {"key": "kiss-tcp", "name": "KISS over TCP (Direwolf, soundmodem)", "transport": "tcp", "baud": null, "probe": false}] as const;
@@ -38,12 +38,6 @@ export const MESSAGE_STATES = ["sending", "acked", "rejected", "failed", "unconf
 
 /** How many bytes of UTF-8 the text of a message may have (MAX_TEXT of neoaprs/aprsmessage.py). */
 export const MESSAGE_TEXT_MAX = 67;
-
-/** How many times a message is transmitted before it has failed when the setting messages/attempts is not changed (DEFAULT_ATTEMPTS of neoaprs/message.py). */
-export const MESSAGE_ATTEMPTS_DEFAULT = 6;
-
-/** The most the setting messages/attempts may be (MAX_ATTEMPTS of neoaprs/message.py). */
-export const MESSAGE_ATTEMPTS_MAX = 10;
 
 /** How many positions of a station's track the daemon keeps (TRACK_MAX of neoaprs/stationbook.py). */
 export const TRACK_MAX = 50;

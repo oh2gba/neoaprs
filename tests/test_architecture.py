@@ -21,7 +21,7 @@ from tests.support.codemap import Import, Tree, connect_sites, find_cycle, forbi
 LAYERS: dict[str, list[str]] = {
     "foundation": ["neoaprs", "clock", "signal", "callsign", "geo", "symbols", "kiss", "ax25", "aprsposition", "aprsmice", "aprsmessage", "aprsparse", "aprsweather", "aprsthirdparty", "aprsextension", "aprslocator", "aprstelemetry", "aprsnmea", "packet", "packetcodec", "message", "bulletin", "decay", "tncmode", "tncprofile", "pref", "route", "chain", "mapstate", "serialboards", "versions"],
     "domain": ["alertcommand", "config", "configlegacy", "configstatus", "configtypes", "interlock", "stationbook", "ownobject", "ownbulletin"],
-    "adapters": ["source", "tasks", "serialport", "serialholders", "serialprobe", "tnc", "tncsearch", "tncwatchdog", "tncentry", "childenv", "rigctld", "pmtilestool", "updatefetch"],
+    "adapters": ["source", "tasks", "serialport", "serialholders", "serialprobe", "btsdp", "btserial", "btpaired", "tnc", "tncsearch", "tncwatchdog", "tncentry", "childenv", "rigctld", "pmtilestool", "updatefetch"],
     "persistence": ["store", "migrations", "migrations2", "backupfolder", "durable", "instancelock", "stopfile", "walcare", "dbfile", "dberror", "dbstats", "dbthread", "db", "dbopen", "storesql", "paths", "dblog", "packetsql", "packetlog", "messagesql", "messagelog", "bulletinsql", "bulletinlog", "weathersql", "weatherlog", "ownsql", "ownlog"],
     "services": [],
     "app": ["controller", "app", "wiring"],
@@ -38,7 +38,7 @@ MAY_IMPORT: dict[str, set[str]] = {
 }
 # Inside the adapters layer a feed may use the base every feed shares, and the few siblings named here; any other adapter-to-adapter import is a violation.
 ADAPTER_BASES = {"neoaprs.source", "neoaprs.tasks"}
-ADAPTER_SIBLINGS: set[tuple[str, str]] = {("neoaprs.tnc", "neoaprs.serialport"), ("neoaprs.tnc", "neoaprs.serialprobe"), ("neoaprs.tnc", "neoaprs.serialholders"), ("neoaprs.tnc", "neoaprs.tncsearch"), ("neoaprs.tnc", "neoaprs.tncwatchdog"), ("neoaprs.tnc", "neoaprs.tncentry"), ("neoaprs.tncsearch", "neoaprs.serialport"), ("neoaprs.tncsearch", "neoaprs.serialprobe"), ("neoaprs.serialprobe", "neoaprs.serialport"), ("neoaprs.serialprobe", "neoaprs.serialholders"), ("neoaprs.serialholders", "neoaprs.serialport")}      # (importer, imported): the TNC reads the serial line, and its search and watchdog are parts of it
+ADAPTER_SIBLINGS: set[tuple[str, str]] = {("neoaprs.tnc", "neoaprs.serialport"), ("neoaprs.tnc", "neoaprs.serialprobe"), ("neoaprs.tnc", "neoaprs.serialholders"), ("neoaprs.tnc", "neoaprs.tncsearch"), ("neoaprs.tnc", "neoaprs.tncwatchdog"), ("neoaprs.tnc", "neoaprs.tncentry"), ("neoaprs.tncsearch", "neoaprs.serialport"), ("neoaprs.tncsearch", "neoaprs.serialprobe"), ("neoaprs.serialprobe", "neoaprs.serialport"), ("neoaprs.serialprobe", "neoaprs.serialholders"), ("neoaprs.serialholders", "neoaprs.serialport"), ("neoaprs.serialport", "neoaprs.btserial"), ("neoaprs.btserial", "neoaprs.btsdp"), ("neoaprs.serialprobe", "neoaprs.btpaired")}      # (importer, imported): the TNC reads the serial line, and its search and watchdog are parts of it
 DELIVERY_PACKAGES = ("neoaprs.web", "neoaprs.cli", "neoaprs.desktop")
 WIRE_ASSEMBLERS = {"neoaprs.web.protocol"}
 PURE = {"foundation", "domain"}
@@ -359,7 +359,7 @@ def test_a_module_that_builds_a_service_of_its_own_is_found_and_the_root_and_the
 
 def test_connect_is_counted_per_file_and_sqlite_is_not_a_signal(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(sys.modules[__name__], "COMPOSITION_ROOTS", {"neoaprs/wiring.py"})
-    tree = {"neoaprs/a.py": "import sqlite3\ndb = sqlite3.connect('x')\nsig.connect(f)\nself.client.message.connect(g)\n", "neoaprs/wiring.py": "s.connect(h)\n", "neoaprs/web/api.py": "pass\n"}
+    tree = {"neoaprs/a.py": "import sqlite3\ndb = sqlite3.connect('x')\nsock.connect(('h', 1))\nsig.connect(f)\nself.client.message.connect(g)\n", "neoaprs/wiring.py": "s.connect(h)\n", "neoaprs/web/api.py": "pass\n"}
     assert connect_sites(tree) == {"neoaprs/a.py": 2, "neoaprs/wiring.py": 1}
     assert wiring_outside_the_root(connect_sites(tree)) == {"neoaprs/a.py": 2}
 

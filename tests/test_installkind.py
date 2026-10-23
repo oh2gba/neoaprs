@@ -5,28 +5,40 @@ from pathlib import Path
 import pytest
 
 from neoaprs.cli import installkind
-from neoaprs.cli.installkind import detect, is_checkout, service_set, uv_tool_environment
+from neoaprs.cli.installkind import DEB_PREFIX, deb_environment, detect, is_checkout, service_set, uv_tool_environment
 from neoaprs.versions import INSTALL_KINDS, InstallInfo, install_kind
 from tests.support.env import Env
 
 
-@pytest.mark.parametrize("frozen, appimage, checkout, uv_tool, kind", [
-    (True, None, False, False, "windows-installer"),
-    (True, "/x/NeoAPRS.AppImage", True, True, "windows-installer"),          # (a frozen program is the installer's whatever else holds)
-    (False, "/home/u/NeoAPRS.AppImage", False, False, "appimage"),
-    (False, "/home/u/NeoAPRS.AppImage", True, True, "appimage"),
-    (False, None, True, False, "source"),
-    (False, None, True, True, "source"),                                      # (a clone made with `uv sync` has a uv environment too)
-    (False, None, False, True, "uv-tool"),
-    (False, None, False, False, "pip"),
+@pytest.mark.parametrize("frozen, appimage, deb, checkout, uv_tool, kind", [
+    (True, None, False, False, False, "windows-installer"),
+    (True, "/x/NeoAPRS.AppImage", True, True, True, "windows-installer"),     # (a frozen program is the installer's whatever else holds)
+    (False, "/home/u/NeoAPRS.AppImage", False, False, False, "appimage"),
+    (False, "/home/u/NeoAPRS.AppImage", True, True, True, "appimage"),
+    (False, None, True, False, False, "deb"),
+    (False, None, True, True, True, "deb"),
+    (False, None, False, True, False, "source"),
+    (False, None, False, True, True, "source"),                               # (a clone made with `uv sync` has a uv environment too)
+    (False, None, False, False, True, "uv-tool"),
+    (False, None, False, False, False, "pip"),
 ])
-def test_the_kind_follows_what_the_process_can_see_in_this_order(frozen: bool, appimage: str | None, checkout: bool, uv_tool: bool, kind: str) -> None:
-    assert install_kind(frozen, appimage, checkout, uv_tool) == kind
+def test_the_kind_follows_what_the_process_can_see_in_this_order(frozen: bool, appimage: str | None, deb: bool, checkout: bool, uv_tool: bool, kind: str) -> None:
+    assert install_kind(frozen, appimage, deb, checkout, uv_tool) == kind
     assert kind in INSTALL_KINDS
 
 
-def test_there_are_five_kinds() -> None:
-    assert INSTALL_KINDS == ("windows-installer", "appimage", "uv-tool", "pip", "source")
+def test_there_are_six_kinds() -> None:
+    assert INSTALL_KINDS == ("windows-installer", "appimage", "deb", "uv-tool", "pip", "source")
+
+
+def test_the_deb_is_the_python_of_opt_neoaprs(tmp_path: Path) -> None:
+    assert DEB_PREFIX == "/opt/neoaprs"
+    assert deb_environment("/opt/neoaprs")
+    assert not deb_environment("/opt/neoaprs/lib")
+    assert not deb_environment("/usr")
+    (tmp_path / "real").mkdir()
+    (tmp_path / "link").symlink_to(tmp_path / "real")
+    assert deb_environment(str(tmp_path / "link"), str(tmp_path / "real")), "a prefix that is a link to the folder is the folder"
 
 
 def test_a_uv_tool_environment_has_the_receipt_or_is_in_the_tool_folder(tmp_path: Path) -> None:
@@ -68,6 +80,12 @@ def test_detect_puts_the_facts_together_and_names_the_appimage_file_only_for_an_
     assert detect(False, None, str(tmp_path / "venv"), None, False, {}) == InstallInfo("pip", "", False)
 
 
+@pytest.mark.parametrize("machine, arch", [("x86_64", "amd64"), ("AMD64", "amd64"), ("aarch64", "arm64"), ("arm64", "arm64"), ("armv7l", ""), ("riscv64", "")])
+def test_a_deb_install_names_the_architecture_of_its_package_and_no_other_kind_does(machine: str, arch: str, tmp_path: Path) -> None:
+    assert detect(False, None, DEB_PREFIX, None, True, {}, machine) == InstallInfo("deb", "", True, arch)
+    assert detect(False, None, str(tmp_path / "venv"), None, True, {}, machine) == InstallInfo("pip", "", True, "")
+
+
 def test_a_service_is_what_the_systems_own_backend_says(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     class Backend:
         answer: object = (True, "the user unit")
@@ -104,7 +122,16 @@ async def test_a_page_is_told_how_the_daemon_was_installed_in_hello(tmp_path: Pa
     await e.start()
     page = await e.ws()
     hello = await page.expect("hello")
-    assert hello["install"] == {"kind": "appimage", "appimage": "/home/u/NeoAPRS-0.3.0-x86_64.AppImage", "service": True}
+    assert hello["install"] == {"kind": "appimage", "appimage": "/home/u/NeoAPRS-0.3.0-x86_64.AppImage", "service": True, "arch": ""}
+    await e.stop()
+
+
+async def test_the_architecture_of_a_deb_is_in_hello(tmp_path: Path) -> None:
+    e = Env(tmp_path, web=True)
+    e.ctl.install = InstallInfo("deb", "", True, "arm64")
+    await e.start()
+    hello = await (await e.ws()).expect("hello")
+    assert hello["install"] == {"kind": "deb", "appimage": "", "service": True, "arch": "arm64"}
     await e.stop()
 
 
@@ -112,5 +139,5 @@ async def test_a_daemon_made_without_saying_is_a_plain_install(tmp_path: Path) -
     e = Env(tmp_path, web=True)
     await e.start()
     hello = await (await e.ws()).expect("hello")
-    assert hello["install"] == {"kind": "pip", "appimage": "", "service": False}
+    assert hello["install"] == {"kind": "pip", "appimage": "", "service": False, "arch": ""}
     await e.stop()

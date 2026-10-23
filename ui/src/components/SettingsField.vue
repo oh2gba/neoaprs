@@ -40,7 +40,7 @@ function onInput(event: Event): void {
   <div class="field" :class="{ changed, invalid: error !== '' }" :title="info.title">
     <div class="field-name">
       <label :for="id">{{ info.label }}</label>
-      <InfoTip v-if="info.help" :label="info.label" :text="info.help" :example="info.example" />
+      <InfoTip v-if="info.help" :label="`About ${info.label}`" :text="info.help" :example="info.example" />
     </div>
     <div class="field-control">
       <select v-if="info.kind === 'bool'" :id="id" class="input" :value="modelValue" :aria-describedby="describedBy" @change="onInput">

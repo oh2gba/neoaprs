@@ -23,7 +23,7 @@ const portList = (extra: Partial<PortsMessage> = {}): PortsMessage => ({
 describe("SettingsForm", () => {
   it("has a field for every key of the Settings tab, in groups, and none of the beacon's", () => {
     const { wrapper } = make();
-    expect(wrapper.findAll("fieldset legend").map((l) => l.text())).toEqual(["TNC", "Web page", "Log", "Messaging", "Notifications", "Map", "Update check"]);
+    expect(wrapper.findAll("fieldset legend").map((l) => l.text())).toEqual(["TNC", "Web page", "Log", "Notifications", "Map", "Update check"]);
     expect(wrapper.findAll(".field")).toHaveLength(
       CONFIG_KEYS.filter(
         (k) =>
@@ -105,7 +105,6 @@ describe("SettingsForm", () => {
     expect(unit("set-map-hide_after_min")).toBe("never");
     await wrapper.find("#set-tnc-check_sec").setValue("0");
     expect(unit("set-tnc-check_sec")).toBe("off");
-    expect(unit("set-messages-attempts")).toBeUndefined();
   });
 
   it("shows what an empty value means as the placeholder, else the default", () => {
@@ -386,7 +385,7 @@ describe("SettingsForm", () => {
   });
 
   describe("the Notifications group", () => {
-    it("has the daemon's own alert under a heading of its own, out of the Messaging group, and the slot for the browser's fields after it", () => {
+    it("has the daemon's own alert under a heading of its own, with no Messaging group beside it, and the slot for the browser's fields after it", () => {
       const wrapper = mount(SettingsForm, {
         props: { config: configValues(), lastError: null, send: vi.fn(() => true) },
         slots: { notifications: '<p id="from-slot">browser</p>' },
@@ -399,7 +398,7 @@ describe("SettingsForm", () => {
       expect(group?.find("h3").text()).toBe("On the NeoAPRS computer");
       expect(group?.find("h3").attributes("title")).toBeTruthy();
       expect(group?.find("#from-slot").exists()).toBe(true);
-      expect(groups[titles.indexOf("Messaging")]?.findAll("label").map((l) => l.text())).toEqual(["Attempts"]);
+      expect(titles).not.toContain("Messaging");
       expect(wrapper.findAll("#from-slot")).toHaveLength(1);
     });
     it("is not in the Beacon tab", () => {
@@ -567,5 +566,36 @@ describe("SettingsForm", () => {
       await wrapper.find("form").trigger("submit");
       expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "map/maxzoom": "14" } });
     });
+  });
+});
+
+describe("SettingsForm: our position picked on the map (Beacon tab)", () => {
+  it("has Pick on the map on a row of its own under the longitude in the Beacon tab only, Cancel while the map waits, and asks the page to wait for a click", async () => {
+    const { wrapper } = make({}, "beacon");
+    const row = wrapper.find(".pick-row");
+    expect(row.element.previousElementSibling?.querySelector("#set-station-lon")).not.toBeNull();
+    expect(row.element.closest(".field")).toBeNull();
+    const pick = () => wrapper.findAll("button").find((b) => b.text() === "Pick on the map" || b.text() === "Cancel");
+    expect(pick()?.text()).toBe("Pick on the map");
+    await pick()?.trigger("click");
+    expect(wrapper.emitted("pickPosition")).toHaveLength(1);
+    await wrapper.setProps({ picking: true });
+    expect(pick()?.text()).toBe("Cancel");
+    expect(
+      make()
+        .wrapper.findAll("button")
+        .some((b) => b.text() === "Pick on the map"),
+    ).toBe(false);
+  });
+
+  it("fills the latitude and the longitude with the place picked, to be saved like any change", async () => {
+    const { wrapper, send } = make({}, "beacon");
+    await wrapper.setProps({ picked: { lat: 60.429449, lon: 24.1452399, n: 1 } });
+    expect(wrapper.find<HTMLInputElement>("#set-station-lat").element.value).toBe("60.42945");
+    expect(wrapper.find<HTMLInputElement>("#set-station-lon").element.value).toBe("24.14524");
+    await wrapper.find("form").trigger("submit");
+    const saved = send.mock.calls.at(-1)?.[0] as { cmd: string; values: Record<string, string> } | undefined;
+    expect(saved?.cmd).toBe("set_config");
+    expect([saved?.values["station/lat"], saved?.values["station/lon"]]).toEqual(["60.42945", "24.14524"]);
   });
 });
