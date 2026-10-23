@@ -1,13 +1,15 @@
 <script setup lang="ts">
-// The station cards over the map. On a tablet and a desktop they are a column at the left of the map, the newest on top (the first card stays where it is when another is added above it), each with its own cross, and a "Close all" over
-// them when there is more than one (and **Message these 3** beside it, when two or more of the cards are for stations that can be messaged: one text to all of them, in the group compose of the Messages tab); with more than one card each is compact (components/StationCard.vue), and its "More" makes it the only one, whole. How many there may be is the page's (composables/useSelection.ts). On a phone the one card is a bottom
-// sheet that is part of the screen: folded to its head and the first facts, it opens up with a tap or a swipe up on its grip, folds with a swipe down, and a swipe down on the folded sheet closes it; its cross is there too.
+// The station cards over the map. On a tablet and a desktop they are a row at the left of the map, side by side, the oldest at the left and the newest at the right, each the whole card, as it is alone (with several weather stations open each is the full weather card
+// with its graphs, and the graphs are on the same value axes in every card, so that the stations can be compared). A card has its own cross. Two or more cards have **Close all** over the map's top left, beside the zoom buttons, and **Message these 3** beside it when two or
+// more of the cards are for stations that can be messaged (one text to all of them, in the group compose of the Messages tab). How many there may be is the page's (composables/useSelection.ts), and a row that is wider than the map has room for closes
+// its oldest card (`overflow`): a card is never made narrower. On a phone the one card is a bottom sheet that is part of the screen: folded to its head and the first facts, it opens up with a tap or a swipe up on its grip, folds with a swipe down, and a
+// swipe down on the folded sheet closes it; its cross is there too.
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 import StationCard from "@/components/StationCard.vue";
 import { useResized } from "@/composables/useResized";
 import { provideWxSpan } from "@/composables/useWxSpan";
 import type { Aging } from "@/lib/aging";
-import { CARDS_FREE, CARD_GAP, type SizeClass } from "@/lib/layout";
+import { CARDS_FREE_SIDE, CARD_GAP, type SizeClass } from "@/lib/layout";
 import { SWIPE_MIN, sheetMove, type SheetMove } from "@/lib/sheet";
 import { isWeatherStation, sharedRanges } from "@/lib/weather";
 import type { StationRow, WeatherSeriesMessage } from "@/protocol/protocol";
@@ -24,7 +26,6 @@ const emit = defineEmits<{
   close: [call: string];
   closeAll: [];
   messageAll: [calls: string[]];
-  only: [call: string];
   forget: [call: string];
   edit: [name: string];
   kill: [name: string];
@@ -50,15 +51,15 @@ const ranges = computed(() => {
       );
 });
 
-// a column that is taller than the map has room for (weather cards with graphs are tall) is not squeezed: the oldest card closes (the page does that when it hears `overflow`)
+// a row that is wider than the map has room for is not squeezed: the oldest card closes (the page does that when it hears `overflow`)
 const stack = ref<HTMLElement | null>(null);
 function fit(): void {
   const el = stack.value;
   if (!el || props.size === "phone" || props.rows.length < 2) return;
-  const map = el.parentElement?.clientHeight ?? 0; // (0 where nothing is laid out: no room to measure against)
-  const kids = [...el.children] as HTMLElement[]; // (the cards and Close all, and the gaps between them; the box of the column itself is cut at its largest height, so it cannot say)
-  const total = kids.reduce((sum, kid) => sum + kid.offsetHeight, 0) + CARD_GAP * (kids.length - 1);
-  if (map > 0 && total > map - CARDS_FREE) emit("overflow");
+  const room = el.clientWidth - CARDS_FREE_SIDE; // (0 where nothing is laid out: no room to measure against)
+  const cards = [...el.children] as HTMLElement[];
+  const total = cards.reduce((sum, card) => sum + card.offsetWidth, 0) + CARD_GAP * (cards.length - 1);
+  if (el.clientWidth > 0 && total > room) emit("overflow");
 }
 useResized(stack, fit);
 watch(
@@ -104,6 +105,12 @@ function tap(): void {
 </script>
 
 <template>
+  <div v-if="rows.length > 1 && size !== 'phone'" class="cards-actions">
+    <button type="button" class="btn small cards-closeall" @click="emit('closeAll')">Close all</button>
+    <button v-if="askable.length > 1" type="button" class="btn small cards-message" @click="emit('messageAll', askable)">
+      Message these {{ askable.length }}
+    </button>
+  </div>
   <div v-if="rows.length > 0" ref="stack" class="cardstack" :class="{ sheet: size === 'phone', expanded }">
     <button
       v-if="size === 'phone'"
@@ -118,12 +125,6 @@ function tap(): void {
     >
       <span aria-hidden="true"></span>
     </button>
-    <div v-else-if="rows.length > 1" class="cards-actions">
-      <button type="button" class="btn small cards-closeall" @click="emit('closeAll')">Close all</button>
-      <button v-if="askable.length > 1" type="button" class="btn small cards-message" @click="emit('messageAll', askable)">
-        Message these {{ askable.length }}
-      </button>
-    </div>
     <StationCard
       v-for="row in rows"
       :key="row.call"
@@ -132,9 +133,7 @@ function tap(): void {
       :aging="aging"
       :weather-series="weatherSeries.get(row.call) ?? null"
       :ranges="ranges"
-      :compact="rows.length > 1"
       @close="emit('close', row.call)"
-      @only="emit('only', $event)"
       @forget="emit('forget', $event)"
       @edit="emit('edit', $event)"
       @kill="emit('kill', $event)"

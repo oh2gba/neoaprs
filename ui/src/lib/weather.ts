@@ -13,7 +13,7 @@ export function columnOf(series: WeatherSeriesMessage | null, column: Column): P
   return (series?.points ?? []).map((point) => ({ t: Date.parse(point[0]), v: point[index] as number | null }));
 }
 
-/** The quantities a compact weather card draws as a graph each. */
+/** The quantities of a weather card that have a graph each, for the axes that cards share. */
 type Quantity = "temp" | "wind" | "pressure" | "humidity" | "rain";
 /** The span of values of each quantity (the lowest and the highest, before the axis is rounded to round numbers). */
 export type Ranges = Partial<Record<Quantity, readonly [number, number]>>;
