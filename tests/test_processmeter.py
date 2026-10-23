@@ -2,6 +2,7 @@
 import sys
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
@@ -97,6 +98,26 @@ def test_windows_where_the_call_cannot_be_made_has_no_memory_and_no_error(monkey
     monkeypatch.setattr(winmemory, "sys", SimpleNamespace(platform="win32"))
     monkeypatch.setattr(winmemory.ctypes, "WinDLL", refused, raising=False)        # (the failed call, whether this is Windows or not)
     assert winmemory.working_set_mb() is None
+
+
+class FakePsapi:
+    """kernel32 and psapi as far as the call uses them: `GetProcessMemoryInfo` fills the counters it is given with a working set of 50 MB, or fails."""
+
+    def __init__(self, works: bool) -> None:
+        self.works = works
+        self.GetCurrentProcess = lambda: 1
+        self.GetProcessMemoryInfo = lambda handle, counters, size: self.fill(handle, counters, size)        # (plain functions: the call sets their argtypes and restype)
+
+    def fill(self, handle: object, counters: Any, size: int) -> bool:
+        counters._obj.WorkingSetSize = 50 * 1024 * 1024
+        return self.works
+
+
+@pytest.mark.parametrize("works, expected", [(True, 50.0), (False, None)])
+def test_windows_gives_the_working_set_in_megabytes_when_psapi_answers_and_none_when_it_does_not(monkeypatch: pytest.MonkeyPatch, works: bool, expected: float | None) -> None:
+    monkeypatch.setattr(winmemory, "sys", SimpleNamespace(platform="win32"))
+    monkeypatch.setattr(winmemory.ctypes, "WinDLL", lambda name, use_last_error=False: FakePsapi(works), raising=False)
+    assert winmemory.working_set_mb() == expected
 
 
 def test_the_meter_asks_windows_for_the_working_set(monkeypatch: pytest.MonkeyPatch) -> None:
