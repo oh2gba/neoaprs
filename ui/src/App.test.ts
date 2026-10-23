@@ -402,17 +402,17 @@ describe("App", () => {
     socket.say(status({ beacon_interval_min: 15, beacon_last_sent: ago(60), beacon_next_due: new Date(Date.now() + 840_000).toISOString() }));
     await flushPromises();
     await tabButton(wrapper, "Beacon")?.trigger("click");
-    expect(wrapper.find("#pane-beacon .beaconbox").text()).toContain("Last beacon1 min ago");
-    await wrapper.find("#pane-beacon .beaconbox button").trigger("click");
+    expect(wrapper.find("#pane-beacon .sendrow").text()).toContain("Last beacon1 min ago");
+    await wrapper.find("#pane-beacon .sendrow button").trigger("click");
     expect(socket.sent).not.toContainEqual({ cmd: "beacon_now" });
-    await wrapper.find("#pane-beacon .beaconbox button").trigger("click");
+    await wrapper.find("#pane-beacon .sendrow button").trigger("click");
     expect(socket.sent).toContainEqual({ cmd: "beacon_now" });
   });
 
   it("sends the status from the Beacon tab after two clicks once there is a status, and not before", async () => {
     const { wrapper, socket } = await open();
     await tabButton(wrapper, "Beacon")?.trigger("click");
-    expect(wrapper.findAll("#pane-beacon .beaconbox button").map((b) => b.text())).toEqual(["Beacon now"]);
+    expect(wrapper.findAll("#pane-beacon .sendrow button").map((b) => b.text())).toEqual(["Beacon now"]);
     socket.say({
       type: "state",
       topic: "config",
@@ -420,10 +420,10 @@ describe("App", () => {
       value: configValues({ "status/source": "text", "station/status": "QRV 145.500" }),
     });
     await flushPromises();
-    expect(wrapper.findAll("#pane-beacon .beaconbox button").map((b) => b.text())).toEqual(["Beacon now", "Send status now"]);
-    await wrapper.findAll("#pane-beacon .beaconbox button")[1]?.trigger("click");
+    expect(wrapper.findAll("#pane-beacon .sendrow button").map((b) => b.text())).toEqual(["Beacon now", "Send status now"]);
+    await wrapper.findAll("#pane-beacon .sendrow button")[1]?.trigger("click");
     expect(socket.sent).not.toContainEqual({ cmd: "status_now" });
-    await wrapper.findAll("#pane-beacon .beaconbox button")[1]?.trigger("click");
+    await wrapper.findAll("#pane-beacon .sendrow button")[1]?.trigger("click");
     expect(socket.sent).toContainEqual({ cmd: "status_now" });
     expect(socket.sent).not.toContainEqual({ cmd: "beacon_now" });
   });

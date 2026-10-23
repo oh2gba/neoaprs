@@ -144,7 +144,7 @@ async def test_no_position_means_no_beacon_and_no_own_station_but_messages_go(tm
 
 
 async def test_the_tnc_is_still_switched_to_kiss_with_no_call_set_that_is_no_transmission(tmp_path: Path) -> None:
-    e = await started(tmp_path, tnc_profile="kenwood-tnc2", tnc_check_sec=0)
+    e = await started(tmp_path, tnc_profile="kenwood-tnc2")
     await asyncio.sleep(0.3)                                                # (the TNC was restarted for its profile)
     await e.until_connected()
     e.feed(b"OH2FZV-2>VP1R61,WIDE1,OH2RCH-2*:!6010.00N/02456.00E>test\r\n")                  # a TNC in command mode, monitoring

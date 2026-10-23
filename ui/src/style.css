@@ -543,30 +543,21 @@ tbody tr:focus-visible {
   color: var(--warn);
   font-weight: 600;
 }
-.beaconbox {
-  border-bottom: 1px solid var(--border);
-}
-.beaconact {
+.sendrow {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 4px 12px;
-  padding: 2px 10px;
+  margin: 6px 0;
 }
-.beaconact .card-fields {
+.sendrow .card-fields {
   flex: 1 1 14em;
-  padding: 6px 0;
+  min-width: 0;
 }
-.beaconact .btn {
+.sendrow .btn {
   flex: none;
   min-width: 11em;
-}
-@media (max-width: 480px) {
-  .beaconact .btn {
-    width: 100%;
-    margin-bottom: 6px;
-  }
 }
 .beacon-preview {
   margin: 8px 0;
@@ -1849,15 +1840,6 @@ tbody tr:focus-visible {
   font-weight: 600;
 }
 .field-result.ok {
-  color: var(--ok);
-}
-.field-state {
-  flex: none;
-  font-size: 0.85em;
-  color: var(--muted);
-  white-space: nowrap;
-}
-.field-state.saved {
   color: var(--ok);
 }
 .confirm-row {

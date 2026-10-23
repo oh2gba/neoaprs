@@ -688,7 +688,7 @@ export interface SendMessageCommand {
   text: string;
 }
 
-/** Changes settings. Every key and value is checked before anything is stored: the first that is wrong is answered with an `error` that names the key, and nothing changes. A key that is left out keeps its value. The answer is the `config` topic told again. `web/port` and `web/allowed_hosts` are read at the daemon's start, `web/network` (and with it the access key `web/key`) and `web/https` count at once, `serial/*`, `tcp/*` and `tnc/profile` restart the TNC, `station/*` move our own station on the map. `tnc/check_sec` counts at once, with no restart. */
+/** Changes settings. Every key and value is checked before anything is stored: the first that is wrong is answered with an `error` that names the key, and nothing changes. A key that is left out keeps its value. The answer is the `config` topic told again. `web/port` and `web/allowed_hosts` are read at the daemon's start, `web/network` (and with it the access key `web/key`) and `web/https` count at once, `serial/*`, `tcp/*` and `tnc/profile` restart the TNC, `station/*` move our own station on the map. */
 export interface SetConfigCommand {
   cmd: "set_config";
   /** key to the new text of the value; the text is checked and written the way the daemon writes it (`oh2gba` becomes `OH2GBA`) */
@@ -938,7 +938,7 @@ export interface TncStats {
   rejected: number;
   /** when the latest packet was heard; null for none yet */
   last_packet: string | null;
-  /** times the keep-alive checked that the radio is there (after `tnc/check_sec` of nothing heard) */
+  /** times the keep-alive checked that the radio is there (after 60 seconds of nothing heard) */
   keepalive_checks: number;
   /** times the watchdog probed a silent radio (the same sequence as a check, every 30 seconds) */
   watchdog_probes: number;

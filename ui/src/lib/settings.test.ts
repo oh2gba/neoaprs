@@ -7,7 +7,7 @@ describe("groupKeys", () => {
   it("gives the Settings tab the serial and TNC, web, notifications and map keys, in the daemon's order", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "settings");
     expect(groups.map((g) => g.id)).toEqual(["serial", "digi", "web", "notifications", "map"]);
-    expect(groups[0]?.keys).toEqual(["tnc/profile", "serial/port", "serial/baud", "tcp/host", "tcp/port", "tnc/check_sec", "serial/last_port"]);
+    expect(groups[0]?.keys).toEqual(["tnc/profile", "serial/port", "serial/baud", "tcp/host", "tcp/port", "serial/last_port"]);
     expect(groups[1]?.title).toBe("Digipeater");
     expect(groups[1]?.keys).toEqual(["digi/enabled"]);
     expect(groups[3]?.title).toBe("Notifications");
@@ -135,10 +135,23 @@ describe("groupKeys", () => {
     expect(antenna("")).toEqual(["beacon/power_w"]);
     expect(antenna("5")).toHaveLength(4);
   });
-  it("gives a unit to the keys that are counted in one, and a word for 0 where 0 is a state", () => {
-    expect(["tnc/check_sec", "map/radius_km"].map((k) => FIELDS[k]?.unit)).toEqual(["s", "km"]);
+  it("gives a unit to the keys that are counted in one", () => {
+    expect(["map/radius_km"].map((k) => FIELDS[k]?.unit)).toEqual(["km"]);
     expect(["beacon/power_w", "beacon/antenna_height_m", "beacon/antenna_gain_db"].map((k) => FIELDS[k]?.unit)).toEqual(["W", "m", "dB"]);
-    expect(["tnc/check_sec"].map((k) => FIELDS[k]?.zero)).toEqual(["off"]);
+  });
+  it("offers the status every 30 or 60 minutes or every 2 hours, and a stored interval that is none of them in words", () => {
+    const info = FIELDS["status/interval_min"];
+    expect(info?.kind).toBe("choice");
+    expect(info?.choices).toEqual([
+      { value: "30", label: "Every 30 min" },
+      { value: "60", label: "Every 60 min" },
+      { value: "120", label: "Every 2 hours" },
+    ]);
+    expect(info?.other?.("90")).toBe("Every 90 min");
+  });
+  it("has no keep-alive setting: it is fixed at 60 seconds", () => {
+    expect(CONFIG_KEYS).not.toContain("tnc/check_sec");
+    expect(FIELDS["tnc/check_sec"]).toBeUndefined();
   });
   it("offers the beacon as off, every 15, 30 or 60 minutes, and a stored interval that is none of them in words", () => {
     const info = FIELDS["beacon/interval_min"];
@@ -176,10 +189,10 @@ describe("the map's fields", () => {
 });
 
 describe("shownFor in the TNC group", () => {
-  const keys = ["serial/port", "serial/baud", "serial/pattern", "serial/skip", "serial/last_port", "tcp/host", "tcp/port", "tnc/check_sec"];
+  const keys = ["serial/port", "serial/baud", "serial/pattern", "serial/skip", "serial/last_port", "tcp/host", "tcp/port"];
   const shown = (profile: string, search = true) => keys.filter((k) => shownFor(k, profile, true, search));
-  it("shows the port, the speed and the search for a serial TNC, the keep-alive only for one that can be asked, and never the port found", () => {
-    expect(shown("kenwood-tnc2")).toEqual(["serial/port", "serial/baud", "serial/pattern", "serial/skip", "tnc/check_sec"]);
+  it("shows the port, the speed and the search for a serial TNC, and never the port found", () => {
+    expect(shown("kenwood-tnc2")).toEqual(["serial/port", "serial/baud", "serial/pattern", "serial/skip"]);
     expect(shown("kiss")).toEqual(["serial/port", "serial/baud", "serial/pattern", "serial/skip"]);
   });
   it("leaves the search out where the daemon does not search", () => {

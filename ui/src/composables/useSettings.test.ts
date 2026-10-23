@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { nextTick, ref } from "vue";
-import { SAVED_MS, UNDO_MS } from "@/composables/useSettingsFeedback";
+import { UNDO_MS } from "@/composables/useSettingsFeedback";
 import { ANSWER_MS } from "@/composables/useSettingsQueue";
 import { useSettings } from "@/composables/useSettings";
 import type { Toast } from "@/composables/useDaemon";
@@ -42,7 +42,6 @@ describe("useSettings: when a change applies", () => {
     const { settings, sets } = setUp();
     settings.change({ "digi/enabled": "true" });
     expect(sets()).toEqual([{ "digi/enabled": "true" }]);
-    expect(settings.marks["digi/enabled"]).toBe("saving");
     expect(settings.saving.value).toBe(true);
   });
 
@@ -68,9 +67,9 @@ describe("useSettings: when a change applies", () => {
     settings.edit("station/lat", "95");
     settings.commit(["station/lat"]);
     expect(settings.errors["station/lat"]).toBe("Between -90 and 90");
-    settings.edit("tnc/check_sec", "5");
-    settings.commit(["tnc/check_sec"]);
-    expect(settings.errors["tnc/check_sec"]).toBe("0, or 10 to 3600");
+    settings.edit("map/radius_km", "5");
+    settings.commit(["map/radius_km"]);
+    expect(settings.errors["map/radius_km"]).toBe("10 to 1000");
     settings.edit("tcp/port", "");
     settings.commit(["tcp/port"]);
     expect(settings.errors["tcp/port"]).toBe("1 to 65535");
@@ -134,8 +133,6 @@ describe("useSettings: one save at a time", () => {
     expect(sets()).toEqual([{ "digi/enabled": "true" }]);
     await answer({ "digi/enabled": "true" });
     expect(sets()).toEqual([{ "digi/enabled": "true" }, { "map/radius_km": "200" }]);
-    expect(settings.marks["digi/enabled"]).toBe("saved");
-    expect(settings.marks["map/radius_km"]).toBe("saving");
     await answer({ "map/radius_km": "200" });
     expect(sets()[2]).toEqual({ "station/comment": "third" });
     await answer({ "station/comment": "third" });
@@ -152,7 +149,6 @@ describe("useSettings: one save at a time", () => {
     expect(settings.errors["digi/enabled"]).toBeUndefined();
     expect(sets()).toEqual([{ "map/source": "ftp://x.org/m.pmtiles" }, { "digi/enabled": "true" }]);
     await answer({ "digi/enabled": "true" });
-    expect(settings.marks["digi/enabled"]).toBe("saved");
     expect(settings.errors["map/source"]).toBe("ftp://x.org/m.pmtiles is not an http or https address");
   });
 
@@ -195,16 +191,13 @@ describe("useSettings: one save at a time", () => {
 });
 
 describe("useSettings: the daemon's answer", () => {
-  it("marks Saved when the settings come back, takes the value the way the daemon writes it, and drops the mark after a moment", async () => {
+  it("tells a screen reader Saved when the settings come back, and takes the value the way the daemon writes it", async () => {
     const { settings, answer } = setUp();
     settings.edit("station/call", "oh2gba-9");
     settings.commit(["station/call"]);
     await answer({ "station/call": "OH2GBA-9" });
-    expect(settings.marks["station/call"]).toBe("saved");
     expect(settings.draft["station/call"]).toBe("OH2GBA-9");
     expect(settings.announcement.value.text).toBe("Saved");
-    vi.advanceTimersByTime(SAVED_MS + 1);
-    expect(settings.marks["station/call"]).toBeUndefined();
   });
 
   it("shows the refusal under the key it names, keeps the typed text, and leaves the old value in force", async () => {
@@ -215,7 +208,6 @@ describe("useSettings: the daemon's answer", () => {
     expect(settings.errors["station/lat"]).toBe("89.5 is not between -90 and 90");
     expect(settings.draft["station/lat"]).toBe("89.5");
     expect(config.value?.values["station/lat"]).toBe("60.17");
-    expect(settings.marks["station/lat"]).toBeUndefined();
     expect(settings.saving.value).toBe(false);
     settings.edit("station/lat", "60");
     expect(settings.errors["station/lat"]).toBeUndefined();
@@ -312,7 +304,6 @@ describe("useSettings: Undo", () => {
     expect(settings.undo.value).toBeNull();
     await answer({ "beacon/interval_min": "0" });
     expect(settings.undo.value).toBeNull(); // (an Undo is not undone in its turn)
-    expect(settings.marks["beacon/interval_min"]).toBe("saved");
   });
 
   it("puts back everything a change replaced, in one request", async () => {

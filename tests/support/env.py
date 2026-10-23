@@ -14,7 +14,7 @@ test builds its world with it; `stop_all` is called when a test is over and also
     Env(tmp_path, operator=False)        # a fresh install: no call and no position (the default); every other Env has the operator's station in its settings, as an install that was set up has
     Env(tmp_path, web=True)              # the page's server too, on a free port (`e.port`): `page = await e.ws()` is a tab (tests/support/wsclient.py), `await e.fetch("/path")` an HTTP request
 
-The Tnc is the real one with quick timers; its search pattern is a folder of the test, never /dev/brainbox_*. The keep-alive (which writes to the radio when it is quiet, and at the open) is off in the settings of the Env (`tnc/check_sec` 0), so that the line is usable as soon as it is open; a test about it sets `tnc/check_sec`. The settings of an Env with an operator name the Kenwood TNC-2 profile (`tnc/profile`), the TNC the tests are about; a fresh install's (`operator=False`) have no rows, so its TNC is sent nothing."""
+The Tnc is the real one with quick timers; its search pattern is a folder of the test, never /dev/brainbox_*. The keep-alive (which writes to the radio when it is quiet, and at the open) is off in an Env (`check_sec` 0, the Controller's `check_sec` follows the Tnc's), so that the line is usable as soon as it is open; a test about it passes `check_sec`. The settings of an Env with an operator name the Kenwood TNC-2 profile (`tnc/profile`), the TNC the tests are about; a fresh install's (`operator=False`) have no rows, so its TNC is sent nothing."""
 import asyncio
 import shutil
 import tempfile
@@ -46,8 +46,8 @@ _dbs: list[Db] = []                                       # the Db of every Stor
 _stops: list[Callable[[], Awaitable[None]]] = []          # the stop of every part a test started by itself (a service on a stub): called when the test is over, before the databases are closed
 
 CAPTURE = "kiss/thd7-2026-10-21.bin"
-OPERATOR = {"station/call": "OH2GBA", "station/lat": "60.17", "station/lon": "24.94", "tnc/profile": "kenwood-tnc2", "tnc/check_sec": "0"}       # the station of the tests, with the TNC the tests are about: with no call set nothing is transmitted (config.can_transmit)
-ON_AIR: Config = replace(DEFAULTS, station_call="OH2GBA", station_lat=60.17, station_lon=24.94, tnc_profile="kenwood-tnc2", tnc_check_sec=0)      # the same as a Config, for the tests that hold one: the defaults are a station with no call and a TNC that is sent nothing
+OPERATOR = {"station/call": "OH2GBA", "station/lat": "60.17", "station/lon": "24.94", "tnc/profile": "kenwood-tnc2"}       # the station of the tests, with the TNC the tests are about: with no call set nothing is transmitted (config.can_transmit)
+ON_AIR: Config = replace(DEFAULTS, station_call="OH2GBA", station_lat=60.17, station_lon=24.94, tnc_profile="kenwood-tnc2")      # the same as a Config, for the tests that hold one: the defaults are a station with no call and a TNC that is sent nothing
 
 
 def remember(db: Db) -> None:
@@ -97,7 +97,7 @@ async def until(condition: Callable[[], object], timeout_sec: float = 5.0) -> No
 class Env:
     def __init__(self, tmp_path: Path, clock: Clock | None = None, radio: bool | str = True, ports: Path | None = None, web: bool = False, operator: bool = True, settings: dict[str, str] | None = None, **tnc_options: Any) -> None:
         self.dir = tmp_path
-        self.settings = {**OPERATOR, **(settings or {})}          # the rows of the operator's data folder at the first start: a test about the keep-alive turns it on here (`tnc/check_sec`)
+        self.settings = {**OPERATOR, **(settings or {})}          # the rows of the operator's data folder at the first start: a test about the keep-alive turns it on with `check_sec`
         self.operator = operator
         self.loop = _running_loop()
         _live.append(self)
@@ -111,6 +111,7 @@ class Env:
         self._extra_radios: list[FakeRadio] = []
         options: dict[str, Any] = {"pattern": str(self.ports / "probe_*"), "check_sec": 0.0, "settle_sec": 0.15, "probe_seconds": 0.3, "backoff": Backoff([0.05, 0.05])}
         self.tnc = Tnc(clock=self.now, **{**options, **tnc_options})
+        check_sec = float({**options, **tnc_options}["check_sec"])
         if radio == "pty":
             self.master, self.link = self.new_pty("radio")
         elif radio:
@@ -118,7 +119,7 @@ class Env:
             self.link = self.radio.url
         self.server: WebServer | None = None                 # the page's server, once the Controller made it
         self.pages: list[WsClient] = []                       # the tabs `ws()` opened: closed when the test is over
-        self.ctl = Controller(tmp_path, clock=self.now, tnc=self.tnc, port=self.link, pattern=self.tnc.pattern, web=self._page if web else None)
+        self.ctl = Controller(tmp_path, clock=self.now, tnc=self.tnc, port=self.link, pattern=self.tnc.pattern, web=self._page if web else None, check_sec=check_sec)
 
     def _page(self, ctl: Controller, config: Config) -> WebServer:
         self.server = WebServer(ctl, replace(config, web_port=0))         # a free port: the tests run side by side

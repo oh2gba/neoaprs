@@ -261,7 +261,6 @@ export function configValues(extra: Record<string, string> = {}): ConfigValues {
     "serial/last_port": "/dev/brainbox_3",
     "serial/pattern": "/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*",
     "serial/skip": "",
-    "tnc/check_sec": "60",
     "station/call": "OH2GBA",
     "station/lat": "60.17",
     "station/lon": "24.94",

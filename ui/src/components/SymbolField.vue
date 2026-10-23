@@ -7,11 +7,10 @@ import SymbolIcon from "@/components/SymbolIcon.vue";
 import SymbolPicker from "@/components/SymbolPicker.vue";
 import { overlayOf, symbolName, tableWithOverlay, takesOverlay } from "@/lib/symbolpicker";
 
-const props = withDefaults(defineProps<{ id: string; symbol: string; label?: string; button?: string; changed?: boolean; state?: "saving" | "saved" | "" }>(), {
+const props = withDefaults(defineProps<{ id: string; symbol: string; label?: string; button?: string; changed?: boolean }>(), {
   label: "Symbol",
   button: "Change",
   changed: false,
-  state: "",
 });
 const emit = defineEmits<{ "update:symbol": [value: string]; commit: [] }>();
 
@@ -61,7 +60,6 @@ function typed(event: Event): void {
           @keydown.enter="emit('commit')"
         />
       </label>
-      <span v-if="state" class="field-state" :class="state" aria-hidden="true">{{ state === "saved" ? "Saved ✓" : "Saving…" }}</span>
     </div>
     <SymbolPicker v-if="open" :table="table" :code="code" @pick="pick" @close="close" />
   </div>

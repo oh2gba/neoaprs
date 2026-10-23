@@ -29,7 +29,6 @@ describe("the (i) of the Settings tab", () => {
     ["set-tnc-profile", "Which radio type to pick", /KISS TNC: Mobilinkd.*KISS over TCP: Direwolf.*Kenwood TH-D7.*radio guide/s],
     ["set-serial-port", "About the port", /automatic.*\/dev\/ttyUSB0.*COM3.*Bluetooth radio appears in this list after you have paired/s],
     ["set-serial-baud", "About the speed", /Leave it empty.*57600 for a NinoTNC/s],
-    ["set-tnc-check_sec", "About the keep-alive", /still there.*0 turns it off/s],
     ["set-map-radius_km", "About the radius", /bigger download.*150 km is a region/s],
     ["set-update-now", "About the update check", /Once a day NeoAPRS asks/],
   ];

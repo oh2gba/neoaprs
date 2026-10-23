@@ -10,7 +10,7 @@ from pathlib import Path
 from . import wiring
 from .app import Frontend, Services
 from .clock import Clock, days, utcnow
-from .config import LOG_KEEP_DAYS, Config
+from .config import LOG_KEEP_DAYS, TNC_CHECK_SEC, Config
 from .db import Db
 from .dbfile import DEFAULT_BUSY_MS
 from .dbopen import open_connection
@@ -29,9 +29,10 @@ WebFactory = Callable[["Controller", Config], Frontend]
 
 
 class Controller(Services):
-    def __init__(self, data_directory: str | Path, clock: Clock = utcnow, store: Store | None = None, busy_ms: int = DEFAULT_BUSY_MS, tnc: Tnc | None = None, port: str = "", web: WebFactory | None = None, pattern: str = "", install: InstallInfo = PLAIN_INSTALL) -> None:
+    def __init__(self, data_directory: str | Path, clock: Clock = utcnow, store: Store | None = None, busy_ms: int = DEFAULT_BUSY_MS, tnc: Tnc | None = None, port: str = "", web: WebFactory | None = None, pattern: str = "", install: InstallInfo = PLAIN_INSTALL, check_sec: float = TNC_CHECK_SEC) -> None:
         super().__init__(Path(data_directory), clock, store, tnc, port, pattern, install)
         self._web_factory = web
+        self.check_sec = check_sec              # the keep-alive's quiet period in seconds (TNC_CHECK_SEC; the tests make it shorter, or 0 for none)
         self.busy_ms = busy_ms                  # how long the thread's connection waits for another writer: the daemon asks for a few seconds
         self._tnc_task: asyncio.Task[None] | None = None
         wiring.wire(self)
@@ -128,7 +129,7 @@ class Controller(Services):
             await cancel_all([previous])
         await self.tnc.stop()
         wiring.apply_tnc_settings(self.tnc, wiring.tnc_settings(self.config, self.port_override, self.pattern_override))
-        self.tnc.set_check(self.config.tnc_check_sec)
+        self.tnc.set_check(self.check_sec)
         await self.tnc.start()
 
     async def _stop_tnc(self) -> None:
@@ -146,17 +147,14 @@ class Controller(Services):
             self.stationbook.clear_me()                                 # (no own station until there is a call and a position)
 
     async def save_config(self, config: Config) -> bool:
-        """Stores every setting, puts them in force, and restarts the Tnc when the port, the speed or entering KISS changed (a new check period counts at once, without a restart). False when the
+        """Stores every setting, puts them in force, and restarts the Tnc when the port, the speed or entering KISS changed. False when the
         database would not take them (nothing changed)."""
         if not await self.store.put_settings(config.to_data()):
             return False
         before = wiring.tnc_settings(self.config, self.port_override, self.pattern_override)
-        check = self.config.tnc_check_sec
         self.config = config
         self._place_me()
         self.beacon.settings_changed()
-        if config.tnc_check_sec != check:
-            self.tnc.set_check(config.tnc_check_sec)
         if wiring.tnc_settings(config, self.port_override, self.pattern_override) != before:
             self.start_tnc()
         self.config_changed.emit(config)
