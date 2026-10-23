@@ -9,6 +9,7 @@ import {
   fieldsFrom,
   parseNumber,
   portChoices,
+  NEW_STATION_BEACON_MIN,
   setupChanges,
   stepOk,
   stepProblems,
@@ -172,11 +173,24 @@ describe("what the guide starts with", () => {
       host: "127.0.0.1",
       tcpPort: "8001",
       radius: "150",
-      maxzoom: "12",
     });
     expect(baudShown("kenwood-tnc2", "57600")).toBe("57600");
     expect(baudShown("kenwood-tnc2", " 9600 ")).toBe("");
     expect(fieldsFrom({}).symbol).toBe("/-");
+  });
+});
+
+describe("the beacon of a new station", () => {
+  it("is every 30 minutes with the first call, when the daemon has no call and its beacon is off or empty", () => {
+    expect(NEW_STATION_BEACON_MIN).toBe("30");
+    expect(setupChanges(answered(), fresh())["beacon/interval_min"]).toBe("30");
+    expect(setupChanges(answered(), { ...fresh(), "beacon/interval_min": "0" })["beacon/interval_min"]).toBe("30");
+    expect(setupChanges(answered(), { ...fresh(), "beacon/interval_min": "" })["beacon/interval_min"]).toBe("30");
+  });
+
+  it("is left alone when the station has a beacon of its own or already has a call (the guide run again never starts one)", () => {
+    expect(setupChanges(answered(), { ...fresh(), "beacon/interval_min": "60" })["beacon/interval_min"]).toBeUndefined();
+    expect(setupChanges(answered(), { ...fresh(), "station/call": "OH2GBA", "beacon/interval_min": "0" })["beacon/interval_min"]).toBeUndefined();
   });
 });
 
@@ -186,8 +200,9 @@ describe("setupChanges", () => {
       "station/call": "OH2ABC",
       "station/lat": "60.17",
       "station/lon": "24.94",
+      "beacon/interval_min": "30",
     });
-    expect(setupChanges(answered({ symbol: "/>", radius: "200", maxzoom: "14", profile: "kantronics", port: "/dev/ttyUSB0", baud: "4800" }), fresh())).toEqual({
+    expect(setupChanges(answered({ symbol: "/>", radius: "200", profile: "kantronics", port: "/dev/ttyUSB0", baud: "4800" }), fresh())).toEqual({
       "station/call": "OH2ABC",
       "station/lat": "60.17",
       "station/lon": "24.94",
@@ -196,7 +211,7 @@ describe("setupChanges", () => {
       "serial/port": "/dev/ttyUSB0",
       "serial/baud": "4800",
       "map/radius_km": "200",
-      "map/maxzoom": "14",
+      "beacon/interval_min": "30",
     });
   });
 
@@ -224,6 +239,7 @@ describe("setupChanges", () => {
       "tcp/host": "192.168.1.5",
       "tcp/port": "8002",
       "serial/port": "",
+      "beacon/interval_min": "30",
     });
     expect(setupChanges(answered({ profile: "kiss-tcp" }), { ...fresh(), "serial/port": "socket://127.0.0.1:8001" })).not.toHaveProperty("serial/port");
   });

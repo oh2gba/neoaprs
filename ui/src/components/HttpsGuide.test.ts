@@ -111,12 +111,11 @@ describe("the Web page group", () => {
     expect(settings(OFF, {}).find("#set-web-https").exists()).toBe(false);
   });
 
-  it("sends the switch like any setting", async () => {
+  it("applies the switch at once, like any setting", async () => {
     const send = vi.fn(() => true);
     const config = configValues(NETWORK);
     const wrapper = mount(SettingsForm, { props: { config, lastError: null, send } });
     await wrapper.find("#set-web-https").setValue(true);
-    await wrapper.find("form").trigger("submit");
     expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "web/https": "true" } });
   });
 

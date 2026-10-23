@@ -1,74 +1,56 @@
-// The state of the settings form: a draft of every value that starts as the daemon's, the keys the user changed, Save (only those, as `set_config`), and what the daemon answers: the topic
-// `config` told again means it was saved, an `error` that names a key is shown under that field. A value the user has not touched follows the daemon when it changes. A form has a scope (the
-// Settings tab and the Beacon tab each show their own keys): only the keys of its scope count as changed, and only those are sent.
-import { computed, reactive, ref, watch, type Ref } from "vue";
-import type { Command, ConfigValues } from "@/protocol/protocol";
-import type { Toast } from "@/composables/useDaemon";
-import { changedValues, errorKey, errorReason, groupKeys, type Scope } from "@/lib/settings";
+// The settings form of one tab, over the settings that apply as they are changed (useSettings): the groups and keys of its scope (the Settings tab and the Beacon tab each show their own), and what happens when a field is
+// worked: a typed field is sent when Enter is pressed or the field is left (the fields that belong together wait until the person has left all of them), a choice at once, Esc puts the value in force back, and a change that could
+// cut off the device the page is open on asks first.
+import { computed, ref, type Ref } from "vue";
+import type { Settings } from "@/composables/useSettings";
+import { confirmMessage, remotePage, TOGETHER } from "@/lib/settinglinks";
+import { groupKeys, type Scope } from "@/lib/settings";
+import type { ConfigValues } from "@/protocol/protocol";
 
-export function useSettingsForm(
-  config: Ref<ConfigValues | null>,
-  lastError: Ref<Toast | null>,
-  send: (command: Command) => boolean,
-  scope: Scope = "settings",
-) {
-  const draft = reactive<Record<string, string>>({});
-  const errors = reactive<Record<string, string>>({});
-  const saving = ref(false);
-  const saved = ref(false);
-
-  const values = computed(() => config.value?.values ?? {});
-  const defaults = computed(() => config.value?.defaults ?? {});
-  const groups = computed(() => groupKeys(Object.keys(values.value), scope));
-  const shown = computed(() => new Set(groups.value.flatMap((g) => g.keys)));
-  const changed = computed(() => changedValues(draft, Object.fromEntries(Object.entries(values.value).filter(([key]) => shown.value.has(key)))));
-  const dirty = computed(() => Object.keys(changed.value).length > 0);
-
-  watch(
-    config,
-    (now, before) => {
-      if (!now) return;
-      for (const [key, text] of Object.entries(now.values)) {
-        const untouched = !(key in draft) || draft[key] === before?.values[key] || saving.value;
-        if (untouched) draft[key] = text;
-      }
-      if (saving.value) {
-        saving.value = false;
-        saved.value = true;
-      }
-    },
-    { immediate: true },
-  );
-
-  watch(lastError, (toast) => {
-    if (!toast || !saving.value) return;
-    saving.value = false;
-    const key = errorKey(toast.text, [...shown.value]);
-    if (key) errors[key] = errorReason(toast.text, key);
-  });
-
-  function clearErrors(): void {
-    for (const key of Object.keys(errors)) delete errors[key];
-  }
-
-  function save(): void {
-    if (!dirty.value || saving.value) return;
-    clearErrors();
-    saved.value = false;
-    saving.value = send({ cmd: "set_config", values: { ...changed.value } });
-  }
-
-  function edit(key: string, text: string): void {
-    draft[key] = text;
-    delete errors[key];
-    saved.value = false;
-  }
-
-  /** Puts the daemon's own value back in the field (what the user changed is dropped). */
-  function revert(): void {
-    for (const key of shown.value) draft[key] = values.value[key] ?? "";
-    clearErrors();
-  }
-
-  return { draft, errors, saving, saved, groups, defaults, values, changed, dirty, save, edit, revert };
+/** A change that waits for a yes. */
+export interface Question {
+  key: string;
+  text: string;
+  message: string;
 }
+
+export function useSettingsForm(config: Ref<ConfigValues | null>, settings: Settings, scope: Scope = "settings", remote: () => boolean = remotePage) {
+  const defaults = computed(() => config.value?.defaults ?? {});
+  const groups = computed(() => groupKeys(Object.keys(settings.values.value), scope));
+  const shown = computed(() => new Set(groups.value.flatMap((g) => g.keys)));
+  const question = ref<Question | null>(null);
+
+  /** The field has typed text that is not yet what the daemon has. */
+  const changed = (key: string): boolean => (settings.draft[key] ?? "") !== settings.expected(key);
+
+  /** A choice (a list, a switch, a symbol, a place picked on the map) is made at once; one that could cut the page off asks first. */
+  function choose(choices: Record<string, string>): void {
+    const [key, text] = Object.entries(choices)[0] ?? ["", ""];
+    const message = Object.keys(choices).length === 1 ? confirmMessage(key, text, remote()) : null;
+    if (message === null) return settings.change(choices);
+    settings.edit(key, text);
+    question.value = { key, text, message };
+  }
+
+  function answer(yes: boolean): void {
+    const asked = question.value;
+    question.value = null;
+    if (!asked) return;
+    if (yes) settings.change({ [asked.key]: asked.text });
+    else settings.cancel(asked.key);
+  }
+
+  /** A typed field was finished with Enter (`next` is null) or left for the element `next`: it is sent, with the fields it belongs with, unless focus only moved to one of those. */
+  function finish(key: string, next: EventTarget | null): void {
+    const together = TOGETHER[key] ?? [key];
+    const within = next instanceof Element && together.some((other) => other !== key && next.id === fieldId(other));
+    if (!within) settings.commit(together);
+  }
+
+  return { groups, shown, defaults, question, changed, choose, answer, finish };
+}
+
+export type SettingsFormState = ReturnType<typeof useSettingsForm>;
+
+/** The id of the input of a key in the form. */
+export const fieldId = (key: string): string => `set-${key.replace("/", "-")}`;

@@ -21,10 +21,12 @@ from .versions import UPDATE_URL
 log = logging.getLogger("neoaprs.config")
 
 LOG_KEEP_DAYS = 7                    # packets, weather observations and stations are kept this long (the weather graphs reach back 7 days); not a setting, a stored `log/keep_days` is not read
-MAX_HIDE_AFTER_MIN = 10080           # a week: the longest a station may stay on the map after its last position
+MAX_HIDE_AFTER_MIN = 10080           # a week: the longest a station may stay on the map after its last position (the longest own timeout of a station)
+HIDE_AFTER_MIN = 180                 # a station whose last position is older than this leaves the map (the page hides it; the table keeps it); a station can have a timeout of its own, 0 for never. Not a setting: a stored `map/hide_after_min` is not read
 MAX_COMMENT = 43                     # what the comment of a position packet may be, with no data extension (spec 1517)
 MAX_COMMENT_PHG = 36                 # with the 7-byte PHG data extension (spec 1546)
-MIN_INTERVAL_MIN = 10                # the shortest time between two beacons or two status reports: the net cycle time of a station one hop from a digipeater (spec 646-662)
+MIN_INTERVAL_MIN = 10                # the shortest time between two status reports: the net cycle time of a station one hop from a digipeater (spec 646-662)
+MIN_BEACON_INTERVAL_MIN = 15         # the shortest time between two beacons: the page offers off, 15, 30 and 60; a stored lower value is raised to this, with a line in the log
 MAX_ALERT_COMMAND = 1000             # the longest line of messages/alert_command
 MAX_MAP_SOURCE = 500                 # the longest map/source
 MAP_RADIUS_KM = (10, 1000)           # map/radius_km: the area of the detailed map round the station
@@ -152,7 +154,7 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("web_https", "web/https", boolean),                               # true (with web/network): the page is also served over https, on the port after web/port, with NeoAPRS's own certificate authority (neoaprs/web/tls.py)
     Setting("web_port", "web/port", int_in(0, 65535)),                        # 0: the system picks a free port (the log says which)
     Setting("web_allowed_hosts", "web/allowed_hosts", text_of(500)),         # names besides localhost, 127.0.0.1 and this machine's that a Host header may carry, separated by commas
-    Setting("beacon_interval_min", "beacon/interval_min", int_or_off(MIN_INTERVAL_MIN, 1440), MIN_INTERVAL_MIN),   # 0: no beacon
+    Setting("beacon_interval_min", "beacon/interval_min", int_or_off(MIN_BEACON_INTERVAL_MIN, 1440), MIN_BEACON_INTERVAL_MIN),   # 0: no beacon
     Setting("beacon_path", "beacon/path", _path),                           # the digipeaters of our beacon, "WIDE1-1,WIDE2-1"; empty: none
     Setting("messages_alert", "messages/alert", boolean),                                       # true: a message to us runs messages/alert_command
     Setting("messages_alert_command", "messages/alert_command", text_of(MAX_ALERT_COMMAND)),    # a shell line, run with NEOAPRS_FROM, NEOAPRS_TEXT, NEOAPRS_AT and NEOAPRS_MSG_ID in its environment; empty: none
@@ -160,7 +162,6 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("status_rigctld", "status/rigctld", hostport),                                   # host:port of a rigctld whose frequency and mode make the status; empty: the static station/status is the status
     Setting("status_interval_min", "status/interval_min", int_in(MIN_INTERVAL_MIN, 1440), MIN_INTERVAL_MIN),   # a status report goes out at most this often
     Setting("status_template", "status/template", status_template),                         # the text of a status made from the radio: {freq} and {mode}
-    Setting("map_hide_after_min", "map/hide_after_min", int_in(0, MAX_HIDE_AFTER_MIN)),    # a station whose last position is older than this leaves the map (the page hides it); 0: never. A station can have its own
     Setting("map_radius_km", "map/radius_km", int_in(*MAP_RADIUS_KM)),      # the detailed base map covers a square this far from our position in every direction
     Setting("map_maxzoom", "map/maxzoom", int_in(*MAP_MAXZOOM)),            # and goes down to this zoom (10 towns, 12 streets, 14 houses)
     Setting("map_source", "map/source", _map_source),                       # where the map is cut from; empty: the latest daily build of build.protomaps.com
@@ -210,7 +211,6 @@ class Config:
     status_rigctld: str = ""
     status_interval_min: int = 30
     status_template: str = DEFAULT_STATUS_TEMPLATE
-    map_hide_after_min: int = 180
     map_radius_km: int = 150
     map_maxzoom: int = 12
     map_source: str = ""

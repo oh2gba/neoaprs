@@ -9,87 +9,102 @@ const ESTIMATE = { bytes: 493_000_000, tiles: 41233, radius_km: 150, maxzoom: 12
 function make(map: MapState, stale = false, early = false) {
   const send = vi.fn(() => true);
   const wrapper = mount(MapFetchPanel, { props: { map, stale, send, early } });
-  const button = (label: string) => wrapper.findAll("button").find((b) => b.text() === label);
+  const button = () => wrapper.find<HTMLButtonElement>(".mapfetch-actions button.primary");
   return { wrapper, send, button };
 }
 
 describe("MapFetchPanel", () => {
-  it("has Estimate and Download, both on, and nothing else while no map is made", () => {
+  it("is one button, Download map, on, and nothing else while no map is made", () => {
     const { wrapper, button } = make(mapState());
-    expect(wrapper.findAll("button").map((b) => b.text())).toEqual(["Estimate", "Download"]);
-    expect(button("Estimate")?.attributes("disabled")).toBeUndefined();
-    expect(button("Download")?.attributes("disabled")).toBeUndefined();
+    expect(wrapper.findAll("button").map((b) => b.text())).toEqual(["Download map"]);
+    expect(button().attributes("disabled")).toBeUndefined();
     expect(wrapper.find("progress").exists()).toBe(false);
-    expect(wrapper.find(".mapfetch-size").exists()).toBe(false);
     expect(wrapper.find(".mapfetch-file").exists()).toBe(false);
   });
 
-  it("asks the daemon to estimate, and to download", async () => {
-    const { send, button } = make(mapState());
-    await button("Estimate")?.trigger("click");
-    await button("Download")?.trigger("click");
+  it("runs the estimate on the first press, and says Checking size… until the size is known", async () => {
+    const { wrapper, send, button } = make(mapState());
+    await button().trigger("click");
+    expect(send.mock.calls).toEqual([[{ cmd: "map_estimate" }]]);
+    expect(button().text()).toBe("Checking size…");
+    expect(button().attributes("disabled")).toBeDefined();
+    await wrapper.setProps({ map: mapState({ state: "estimating", step: "build", percent: null }) });
+    expect(button().text()).toBe("Checking size…");
+    expect(wrapper.find(".mapfetch-progress").exists()).toBe(true);
+  });
+
+  it("then asks Download 493 MB? whatever the size, and sends the download on the second press", async () => {
+    const { wrapper, send, button } = make(mapState());
+    await button().trigger("click");
+    await wrapper.setProps({ map: mapState({ state: "none", estimate: ESTIMATE }) });
+    expect(button().text()).toBe("Download 493 MB?");
+    expect(button().classes()).toContain("danger");
+    expect(send).toHaveBeenCalledTimes(1);
+    await button().trigger("click");
     expect(send.mock.calls).toEqual([[{ cmd: "map_estimate" }], [{ cmd: "map_fetch" }]]);
+    await wrapper.setProps({ map: mapState({ state: "downloading", step: "world", percent: 1 }) });
+    expect(button().classes()).not.toContain("danger");
   });
 
-  it("shows the size beside the button when the estimate is for the area and the detail of the settings", () => {
-    expect(
-      make(mapState({ estimate: ESTIMATE }))
-        .wrapper.find(".mapfetch-size")
-        .text(),
-    ).toBe("Download size 493 MB");
-    expect(
-      make(mapState({ estimate: ESTIMATE, radius_km: 200 }))
-        .wrapper.find(".mapfetch-size")
-        .exists(),
-    ).toBe(false);
+  it("asks with the size of a small map too", async () => {
+    const { wrapper, button } = make(mapState());
+    await button().trigger("click");
+    await wrapper.setProps({ map: mapState({ estimate: { ...ESTIMATE, bytes: 60_000_000 } }) });
+    expect(button().text()).toBe("Download 60 MB?");
   });
 
-  it("asks again, with the size on the button, before a download over 200 MB, and sends it on the second press", async () => {
-    const { send, button, wrapper } = make(mapState({ estimate: ESTIMATE }));
-    await button("Download")?.trigger("click");
-    expect(send).not.toHaveBeenCalled();
-    expect(button("Download 493 MB?")).toBeDefined();
-    await button("Download 493 MB?")?.trigger("click");
-    expect(send).toHaveBeenCalledWith({ cmd: "map_fetch" });
-    expect(wrapper.findAll("button").map((b) => b.text())).toContain("Download");
+  it("takes the question back when the radius changes", async () => {
+    const { wrapper, button } = make(mapState());
+    await button().trigger("click");
+    await wrapper.setProps({ map: mapState({ estimate: ESTIMATE }) });
+    expect(button().text()).toBe("Download 493 MB?");
+    await wrapper.setProps({ map: mapState({ estimate: ESTIMATE, radius_km: 200 }) });
+    expect(button().text()).toBe("Download map");
   });
 
-  it("downloads at once when the estimate is small, and when there is none", async () => {
-    const small = make(mapState({ estimate: { ...ESTIMATE, bytes: 60_000_000 } }));
-    await small.button("Download")?.trigger("click");
-    expect(small.send).toHaveBeenCalledWith({ cmd: "map_fetch" });
+  it("takes the question back, and shows why, when the check fails", async () => {
+    const { wrapper, button } = make(mapState());
+    await button().trigger("click");
+    await wrapper.setProps({ map: mapState({ state: "error", problem: "no daily build was found" }) });
+    expect(button().text()).toBe("Download map");
+    expect(wrapper.find(".mapfetch-error").text()).toBe("no daily build was found");
   });
 
-  it("shows a bar with the percent and the step while a job runs, and Cancel instead of enabled buttons", async () => {
+  it("does not wait for a size when the command could not be sent", async () => {
+    const send = vi.fn(() => false);
+    const wrapper = mount(MapFetchPanel, { props: { map: mapState(), stale: false, send } });
+    await wrapper.find("button").trigger("click");
+    expect(wrapper.find("button").text()).toBe("Download map");
+  });
+
+  it("shows a bar with the percent and the step while a job runs, and Cancel", async () => {
     const { wrapper, send, button } = make(mapState({ state: "downloading", step: "world", percent: 42, blocked: "a map job is running" }));
     expect(wrapper.find("progress").attributes("value")).toBe("42");
     expect(wrapper.find(".mapfetch-progress").text()).toBe("World map 42%");
-    expect(button("Estimate")?.attributes("disabled")).toBeDefined();
-    expect(button("Download")?.attributes("disabled")).toBeDefined();
-    await button("Cancel")?.trigger("click");
+    expect(button().attributes("disabled")).toBeDefined();
+    expect(button().text()).toBe("Downloading…");
+    await wrapper
+      .findAll("button")
+      .find((b) => b.text() === "Cancel")
+      ?.trigger("click");
     expect(send).toHaveBeenCalledWith({ cmd: "map_cancel" });
   });
 
-  it("has a bar without a value when the step cannot say how far it is, and none of the size while it works", () => {
+  it("has a bar without a value when the step cannot say how far it is", () => {
     const { wrapper } = make(mapState({ state: "estimating", step: "build", percent: null, estimate: ESTIMATE }));
     expect(wrapper.find("progress").attributes("value")).toBeUndefined();
-    expect(wrapper.find(".mapfetch-size").exists()).toBe(false);
   });
 
   it("is off, with the reason as the hover, when the daemon says no job can start", () => {
     const { button } = make(mapState({ blocked: "the station has no position yet: set Latitude and Longitude (the map is cut round them)", box: null }));
-    for (const label of ["Estimate", "Download"]) {
-      expect(button(label)?.attributes("disabled")).toBeDefined();
-      expect(button(label)?.attributes("title")).toContain("no position");
-    }
+    expect(button().attributes("disabled")).toBeDefined();
+    expect(button().attributes("title")).toContain("no position");
   });
 
-  it("is off, asking to save first, while the form has map settings that are not saved", () => {
+  it("is off, saying Saving, while a map setting is being saved", () => {
     const { button } = make(mapState(), true);
-    for (const label of ["Estimate", "Download"]) {
-      expect(button(label)?.attributes("disabled")).toBeDefined();
-      expect(button(label)?.attributes("title")).toBe("Save first");
-    }
+    expect(button().attributes("disabled")).toBeDefined();
+    expect(button().attributes("title")).toBe("Saving…");
   });
 
   it("shows why the last job failed, and only in the state error", () => {
@@ -105,32 +120,40 @@ describe("MapFetchPanel", () => {
     ).toBe(false);
   });
 
-  it("tells the maps that are there: the area, the detail, the size and the day, and the world's", () => {
-    const { wrapper } = make(mapState({ state: "ready", detail: mapFile(), world: mapFile({ bytes: 15_100_000, max_zoom: 5 }) }));
-    expect(wrapper.findAll(".mapfetch-file").map((p) => p.text())).toEqual([
-      "Detailed map here: 58.8N to 61.5N, 22.1E to 27.8E, zoom 12, 123 MB, 2026-10-22",
-      "World map here: zoom 5, 15 MB, 2026-10-22",
-    ]);
+  it("says one plain line when there is a detailed map, and then offers Download map again; nothing of the world map or of the details", () => {
+    const { wrapper, button } = make(mapState({ state: "ready", detail: mapFile(), world: mapFile({ bytes: 15_100_000, max_zoom: 5 }) }));
+    expect(wrapper.findAll(".mapfetch-file").map((p) => p.text())).toEqual(["Map downloaded 22 Oct"]);
+    expect(wrapper.text()).not.toContain("World map");
+    expect(wrapper.text()).not.toContain("zoom");
+    expect(button().text()).toBe("Download map again");
   });
 
-  it("explains nothing in sentences: no hint under the buttons", () => {
+  it("says nothing of the maps for a world map only", () => {
+    expect(
+      make(mapState({ state: "none", world: mapFile({ max_zoom: 5 }) }))
+        .wrapper.find(".mapfetch-file")
+        .exists(),
+    ).toBe(false);
+  });
+
+  it("explains nothing in sentences: no hint under the button", () => {
     const { wrapper } = make(mapState({ state: "ready", detail: mapFile() }));
     expect(wrapper.find(".hint").exists()).toBe(false);
     expect(wrapper.findAll("p").every((p) => p.classes().some((c) => c === "mapfetch-file" || c === "mapfetch-error"))).toBe(true);
   });
 
-  it("keeps the buttons on for an early form (the first-run guide) when the daemon has no position yet, and off for a job that runs or a form that cannot be saved", () => {
+  it("keeps the button on for an early form (the first-run guide) when the daemon has no position yet, and off for a job that runs or a form that cannot be saved", () => {
     const blocked = mapState({ blocked: "no position" });
-    expect(make(blocked).button("Estimate")?.attributes("disabled")).toBeDefined();
+    expect(make(blocked).button().attributes("disabled")).toBeDefined();
     const early = make(blocked, false, true);
-    expect(early.button("Estimate")?.attributes("disabled")).toBeUndefined();
-    expect(early.button("Download")?.attributes("title")).toBeUndefined();
-    expect(make(blocked, true, true).button("Download")?.attributes("disabled")).toBeDefined();
-    expect(make(blocked, true, true).button("Download")?.attributes("title")).toBeUndefined();
+    expect(early.button().attributes("disabled")).toBeUndefined();
+    expect(early.button().attributes("title")).toBeUndefined();
+    expect(make(blocked, true, true).button().attributes("disabled")).toBeDefined();
+    expect(make(blocked, true, true).button().attributes("title")).toBeUndefined();
     expect(
       make(mapState({ state: "downloading", step: "area", percent: 3 }), false, true)
-        .button("Download")
-        ?.attributes("disabled"),
+        .button()
+        .attributes("disabled"),
     ).toBeDefined();
   });
 });

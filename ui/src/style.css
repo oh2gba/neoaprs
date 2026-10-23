@@ -591,6 +591,22 @@ tbody tr:focus-visible {
   display: flex;
   margin: 2px 0 6px;
 }
+.location {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin: 4px 0;
+}
+.location-line {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .location-pick {
+    flex: 1 1 100%;
+  }
+}
 @media (prefers-color-scheme: dark) {
   .symicon:not(.stn-plain) {
     border-radius: 6px;
@@ -1820,14 +1836,22 @@ tbody tr:focus-visible {
 .field-result.ok {
   color: var(--ok);
 }
-.settings-actions {
+.field-state {
+  flex: none;
+  font-size: 0.85em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.field-state.saved {
+  color: var(--ok);
+}
+.confirm-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  position: sticky;
-  bottom: 0;
-  padding: 8px 0;
-  background: var(--panel);
+  gap: 8px;
+  margin: 6px 0;
+  font-weight: 600;
 }
 
 /* the toast */
@@ -1846,6 +1870,20 @@ tbody tr:focus-visible {
   background: var(--bad);
   color: #fff;
   box-shadow: var(--shadow);
+}
+.toast.undo {
+  background: var(--text);
+  color: var(--panel);
+}
+.toast.undo .linkbutton {
+  color: inherit;
+  font-weight: 600;
+}
+.toast.undo .xbtn,
+.toast.undo .xbtn:hover,
+.toast.undo .xbtn:focus-visible {
+  color: var(--panel);
+  background: none;
 }
 .toast .xbtn {
   color: #fff;

@@ -1,7 +1,7 @@
 """What the operator says about a station, apart from what its packets say: a path, a timeout of its own and whether it is RF only. Each is optional and independent, and a station with none has no entry.
 
 The path: the digipeaters a message (and its ack) to the station goes by way of; empty is direct, which is not the same as none set (then it has `beacon/path`). The timeout: the minutes after its last
-position that the station leaves the map; 0 is never, none set means the setting `map/hide_after_min` (the page does the hiding, the daemon only keeps and tells the number; the daily prune never removes a
+position that the station leaves the map; 0 is never, none set means the fixed 180 minutes (`HIDE_AFTER_MIN` of config.py) (the page does the hiding, the daemon only keeps and tells the number; the daily prune never removes a
 station with a timeout of 0). RF only: everything we send to the station (a message and each attempt of it, its acks, the answers to its queries) goes by its path with RFONLY
 added at the end, which iGates that honour it do not put on the internet; the email gateway EMAIL-2 is on the internet and can never be RF only. They are operator data, kept in the table `station_pref` of the message log's database, read once at the start and written through; `changed` tells (call, pref) when a station's
 entry is set or changes and (call, None) when its last part is cleared and the entry is gone."""
@@ -68,7 +68,7 @@ class PrefBook:
         return added
 
     def timeout_for(self, call: str) -> int | None:
-        """The station's own timeout in minutes (0 is never), None when it has none: the setting `map/hide_after_min` counts then."""
+        """The station's own timeout in minutes (0 is never), None when it has none: the fixed 180 minutes count then."""
         try:
             own = self._own.get(_key(call))
         except MessagingError:
@@ -107,7 +107,7 @@ class PrefBook:
         return minutes
 
     async def clear_timeout(self, call: str) -> None:
-        """Takes the station's own timeout away: it has `map/hide_after_min` again. A station without one is not an error."""
+        """Takes the station's own timeout away: it has the fixed 180 minutes again. A station without one is not an error."""
         await self._change(_key(call), lambda pref: replace(pref, hide_after_min=None), "the timeout could not be removed", quiet=True)
 
     # ---- RF only

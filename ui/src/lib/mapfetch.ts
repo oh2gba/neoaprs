@@ -1,5 +1,5 @@
-// The Map group of the Settings tab, in words: sizes, areas and dates of the map files, what the running job is doing, and which of the daemon's `map` state the buttons and the map may rely on.
-import type { MapFileInfo, MapSizeEstimate, MapState } from "@/protocol/protocol";
+// The Map group of the Settings tab, in words: sizes, the day the map was downloaded, what the running job is doing, and which of the daemon's `map` state the button and the map may rely on.
+import type { MapSizeEstimate, MapState } from "@/protocol/protocol";
 
 /** What `step` of the topic `map` is called in the progress line. */
 const STEP_TEXT: Record<MapState["step"], string> = {
@@ -9,13 +9,6 @@ const STEP_TEXT: Record<MapState["step"], string> = {
   world: "World map",
   area: "Map of the area",
 };
-
-/** The detail choices of the settings form: the deepest zoom, with a word for what it shows. */
-export const DETAIL_CHOICES = [
-  { value: "10", label: "10 town" },
-  { value: "12", label: "12 streets" },
-  { value: "14", label: "14 houses" },
-] as const;
 
 /** Bytes as the pmtiles program writes them (thousands): `15 kB`, `493 MB`, `1.2 GB`. */
 export function formatBytes(bytes: number): string {
@@ -30,43 +23,15 @@ export function formatBytes(bytes: number): string {
   return `${value.toFixed(digits)} ${units[unit]}`;
 }
 
-function degrees(value: number, positive: string, negative: string): string {
-  return `${Math.abs(value).toFixed(1)}${value < 0 ? negative : positive}`;
-}
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-/** An area given as [west, south, east, north]: `58.8N to 61.5N, 22.1E to 27.8E`. */
-export function formatBox(box: readonly number[]): string {
-  const [west, south, east, north] = box;
-  if (west === undefined || south === undefined || east === undefined || north === undefined) return "";
-  return `${degrees(south, "N", "S")} to ${degrees(north, "N", "S")}, ${degrees(west, "E", "W")} to ${degrees(east, "E", "W")}`;
+/** The one plain line about the map on disk: "Map downloaded 23 Oct" when there is a detailed map, else nothing. The world map ships with NeoAPRS and is not mentioned; the rest is in the log. */
+export function downloadedLine(map: MapState): string {
+  if (!map.detail) return "";
+  const day = /^\d{4}-(\d{2})-(\d{2})/.exec(map.detail.modified);
+  const month = MONTHS[Number(day?.[1]) - 1];
+  return day && month ? `Map downloaded ${Number(day[2])} ${month}` : "Map downloaded";
 }
-
-/** The day of a time stamp (`2026-10-22T19:03:53Z`). */
-export function formatDay(iso: string): string {
-  return iso.slice(0, 10);
-}
-
-/** One map file in a line: its area (not the world's), its deepest zoom, its size and the day it was made. */
-export function describeFile(file: MapFileInfo, withArea: boolean): string {
-  const parts = [
-    ...(withArea && file.bbox ? [formatBox(file.bbox)] : []),
-    ...(file.max_zoom === null ? [] : [`zoom ${file.max_zoom}`]),
-    formatBytes(file.bytes),
-    formatDay(file.modified),
-  ];
-  return parts.join(", ");
-}
-
-/** The lines about the files on disk, each saying what it is: the detailed map first, then the world's. */
-export function fileLines(map: MapState): string[] {
-  return [
-    ...(map.detail ? [`Detailed map here: ${describeFile(map.detail, true)}`] : []),
-    ...(map.world ? [`World map here: ${describeFile(map.world, false)}`] : []),
-  ];
-}
-
-/** A download over this many bytes is asked about first (Download 513 MB?): a mobile connection or a small card would feel it. */
-export const BIG_DOWNLOAD_BYTES = 200_000_000;
 
 /** The estimate, if it is for the area and the zoom the settings ask for now; an older one is not shown. */
 export function currentEstimate(map: MapState): MapSizeEstimate | null {

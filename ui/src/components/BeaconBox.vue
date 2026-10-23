@@ -1,25 +1,25 @@
 <script setup lang="ts">
 // The top of the Beacon tab: what our beacon and our status are doing and, beside each, the button that sends it now ("Beacon now", "Send status now"; the second only while there is a status). A button asks twice
-// (what goes on the air cannot be taken back: the first press says "Really send?"), is disabled while the TNC is not connected or while the settings below hold changes that are not saved (what is sent is
-// what is saved), and forgets the first press after a few seconds.
+// (what goes on the air cannot be taken back: the first press says "Really send?"), is disabled while the TNC is not connected or while a change of the settings below is being saved (what is sent is
+// what is in force), and forgets the first press after a few seconds.
 import { computed, watch } from "vue";
 import { useSure } from "@/composables/useSure";
 import { NONE, agoText, dateTimeText, untilText } from "@/lib/format";
 import type { StatusMessage } from "@/protocol/protocol";
 
 const props = withDefaults(
-  defineProps<{ status: StatusMessage | null; connected: boolean; now: number; statusOn?: boolean; unsaved?: boolean; picking?: boolean }>(),
+  defineProps<{ status: StatusMessage | null; connected: boolean; now: number; statusOn?: boolean; saving?: boolean; picking?: boolean }>(),
   {
     statusOn: false,
-    unsaved: false,
+    saving: false,
     picking: false,
   },
 );
 const emit = defineEmits<{ send: []; "send-status": []; arm: [] }>();
 
 const sure = useSure<"beacon" | "status">();
-const ready = computed(() => props.connected && !props.unsaved);
-const why = computed(() => (props.unsaved ? "Save your changes first" : undefined));
+const ready = computed(() => props.connected && !props.saving);
+const why = computed(() => (props.saving ? "Saving…" : undefined));
 
 watch(ready, (now) => {
   if (!now) sure.disarm();

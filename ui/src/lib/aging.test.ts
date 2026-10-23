@@ -4,7 +4,7 @@ import {
   MARKER_STEPS,
   TRAIL_OLDEST,
   TRAIL_STEPS,
-  defaultTimeoutMin,
+  DEFAULT_TIMEOUT_MIN,
   fadeFraction,
   markerStep,
   parseTimeoutText,
@@ -18,13 +18,9 @@ import { NOW, ago, station } from "@/test/fixtures";
 
 const aging = (defaultMin: number, own: [string, number][] = []): Aging => ({ timeouts: new Map(own), defaultMin });
 
-describe("defaultTimeoutMin", () => {
-  it("reads the setting, and is never (0) for a daemon that has none or text that is no number", () => {
-    expect(defaultTimeoutMin({ "map/hide_after_min": "1440" })).toBe(1440);
-    expect(defaultTimeoutMin({ "map/hide_after_min": "0" })).toBe(0);
-    expect(defaultTimeoutMin({ "map/hide_after_min": "soon" })).toBe(0);
-    expect(defaultTimeoutMin({})).toBe(0);
-    expect(defaultTimeoutMin(undefined)).toBe(0);
+describe("DEFAULT_TIMEOUT_MIN", () => {
+  it("is three hours, fixed", () => {
+    expect(DEFAULT_TIMEOUT_MIN).toBe(180);
   });
 });
 

@@ -43,7 +43,6 @@ export interface SetupFields {
   host: string;
   tcpPort: string;
   radius: string;
-  maxzoom: string;
 }
 
 export type FieldName = keyof SetupFields;
@@ -62,7 +61,6 @@ export const STEP_OF: Record<FieldName, number> = {
   host: 3,
   tcpPort: 3,
   radius: 4,
-  maxzoom: 4,
 };
 
 /** The setting each field is the answer to (the locator and the symbol's two characters are the exceptions: they make other keys). */
@@ -78,7 +76,6 @@ export const KEY_OF: Record<string, FieldName> = {
   "tcp/host": "host",
   "tcp/port": "tcpPort",
   "map/radius_km": "radius",
-  "map/maxzoom": "maxzoom",
 };
 
 export const profileOf = (key: string) => TNC_PROFILES.find((p) => p.key === key);
@@ -189,12 +186,20 @@ export function fieldsFrom(values: Readonly<Record<string, string>>): SetupField
     host: values["tcp/host"] ?? "",
     tcpPort: values["tcp/port"] ?? "",
     radius: values["map/radius_km"] ?? "",
-    maxzoom: values["map/maxzoom"] ?? "",
   };
 }
 
+/** How often a new station beacons, in minutes: the guide sets it with the first call, so that the daemon's default can stay Off (an upgrade never starts to transmit). */
+export const NEW_STATION_BEACON_MIN = "30";
+
+/** The daemon has no call and no beacon: the first run. */
+function isNewStation(values: Readonly<Record<string, string>>): boolean {
+  return (values["station/call"] ?? "") === "" && ["", "0"].includes((values["beacon/interval_min"] ?? "").trim());
+}
+
 /** The settings to save: the keys whose answer is not what the daemon has, with the text to write. Only the keys of the chosen kind of TNC (a serial TNC's port and speed, a TCP one's host and port), and a serial device
- * the daemon holds is cleared when the TNC is a TCP one, which it would refuse otherwise. */
+ * the daemon holds is cleared when the TNC is a TCP one, which it would refuse otherwise. A station that has no call yet (the first run) and no beacon interval gets the beacon every NEW_STATION_BEACON_MIN minutes in the same save;
+ * the guide run again on a station that has a call leaves the beacon as it is. */
 export function setupChanges(f: SetupFields, values: Readonly<Record<string, string>>): Record<string, string> {
   const wanted: Record<string, string> = {
     "station/call": normalizeCall(f.call),
@@ -204,8 +209,8 @@ export function setupChanges(f: SetupFields, values: Readonly<Record<string, str
     "station/symbol_code": f.symbol.slice(1),
     "tnc/profile": f.profile,
     "map/radius_km": f.radius.trim(),
-    "map/maxzoom": f.maxzoom.trim(),
   };
+  if (isNewStation(values)) wanted["beacon/interval_min"] = NEW_STATION_BEACON_MIN;
   if (profileOf(f.profile)?.transport === "tcp") {
     wanted["tcp/host"] = f.host.trim();
     wanted["tcp/port"] = f.tcpPort.trim();

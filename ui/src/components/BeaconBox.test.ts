@@ -117,12 +117,12 @@ describe("BeaconBox", () => {
       expect(buttons(wrapper)[0]?.text()).toBe("Really send?");
     });
 
-    it("is off while the TNC is not connected, and so are both while the settings below hold changes that are not saved", () => {
+    it("is off while the TNC is not connected, and so are both while a change of the settings below is being saved", () => {
       expect(buttons(box({}, false))[1]?.attributes("disabled")).toBeDefined();
-      const wrapper = box({}, true, { statusOn: true, unsaved: true });
+      const wrapper = box({}, true, { statusOn: true, saving: true });
       expect(buttons(wrapper).map((b) => [b.attributes("disabled") !== undefined, b.attributes("title")])).toEqual([
-        [true, "Save your changes first"],
-        [true, "Save your changes first"],
+        [true, "Saving…"],
+        [true, "Saving…"],
       ]);
     });
   });
