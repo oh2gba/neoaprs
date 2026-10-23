@@ -292,10 +292,8 @@ async def shot_beacon(s: Shots, _: str) -> None:
     await s.save(page, "beacon")
 
 
-async def shot_settings_web(s: Shots, _: str) -> None:
-    """Settings, the Web page group: the switch on, the access key and where to open the page (the daemon's own key and addresses are replaced by made-up ones on the screen)."""
-    page = await s.page(DESKTOP, tab="settings", view=CITY, panel=560)
-    await page.locator("legend", has_text="Web page").scroll_into_view_if_needed()
+async def made_up_web(page: Any) -> None:
+    """Puts the made-up access key and addresses in place of the daemon's own on a page that shows the Settings tab: the machine's own address and name never appear in a shot."""
     await page.evaluate("""([key, urls]) => {
         const field = document.getElementById("set-web-key");
         if (field) field.value = key;
@@ -303,6 +301,13 @@ async def shot_settings_web(s: Shots, _: str) -> None:
         while (inputs.length && inputs.length < urls.length) { const copy = inputs[0].cloneNode(true); inputs[0].parentElement.append(copy); inputs.push(copy); }
         inputs.forEach((input, i) => { if (i < urls.length) input.value = urls[i]; else input.remove(); });
     }""", [SHOWN_KEY, SHOWN_URLS])
+
+
+async def shot_settings_web(s: Shots, _: str) -> None:
+    """Settings, the Web page group: the switch on, the access key and where to open the page (the daemon's own key and addresses are replaced by made-up ones on the screen)."""
+    page = await s.page(DESKTOP, tab="settings", view=CITY, panel=560)
+    await page.locator("legend", has_text="Web page").scroll_into_view_if_needed()
+    await made_up_web(page)
     await page.evaluate("document.querySelector('#pane-settings fieldset:has(#set-web-key)')?.scrollIntoView({block: 'start'})")
     await settle(page, 400)
     await s.save(page, "settings-web")
@@ -317,6 +322,8 @@ async def shot_phone_key(s: Shots, _: str) -> None:
 
 async def shot_settings(s: Shots, _: str) -> None:
     page = await s.page(DESKTOP, tab="settings", view=CITY, panel=560)
+    await made_up_web(page)
+    await settle(page, 400)
     await s.save(page, "settings")
 
 
