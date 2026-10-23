@@ -6,13 +6,20 @@ import { attemptsText, chainOf } from "@/lib/chain";
 import { clockText } from "@/lib/format";
 import type { MessageRow } from "@/protocol/protocol";
 
-const props = withDefaults(defineProps<{ row: MessageRow; heardDirect?: ReadonlySet<string> }>(), { heardDirect: () => new Set<string>() });
+const props = withDefaults(defineProps<{ row: MessageRow; heardDirect?: ReadonlySet<string>; mail?: boolean }>(), {
+  heardDirect: () => new Set<string>(),
+  mail: false,
+});
 
 /** Every attempt with its chips, the newest first. */
 const attempts = computed(() => {
   const all = props.row.attempts_detail;
   return all
-    .map((attempt, index) => ({ number: index + 1, sentAt: attempt.sent_at, chips: chainOf(props.row, attempt, index === all.length - 1, props.heardDirect) }))
+    .map((attempt, index) => ({
+      number: index + 1,
+      sentAt: attempt.sent_at,
+      chips: chainOf(props.row, attempt, index === all.length - 1, props.heardDirect, props.mail),
+    }))
     .reverse();
 });
 </script>

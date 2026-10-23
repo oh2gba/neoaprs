@@ -21,7 +21,7 @@ describe("EmailMailbox", () => {
   it("has the actions named for what they do, with the command each one sends as its title", async () => {
     const wrapper = box();
     expect(wrapper.findAll("button").map((b) => b.text())).toEqual(["Fetch held mail", "Register", "Email the list", "Remove"]);
-    expect(wrapper.findAll("strong").map((s) => s.text())).toEqual(["Mailbox", "Shortcuts"]);
+    expect(wrapper.findAll("strong").map((s) => s.text())).toEqual(["Mailbox", "Shortcut"]);
     expect(button(wrapper, "Fetch held mail").attributes("title")).toBe("Sends 'get': the gateway sends again the mail it holds for you");
     await name(wrapper, " john ");
     await address(wrapper, "jane@example.com");
@@ -34,11 +34,11 @@ describe("EmailMailbox", () => {
 
   it("asks for the shortcut where it is chosen: a label and a placeholder, and the actions that need it are off until it is filled in", async () => {
     const wrapper = box();
-    expect(wrapper.find("label[for='mail-shortcut']").text()).toBe("Your shortcut");
-    expect(wrapper.find("#mail-shortcut").attributes("placeholder")).toBe("a name for the gateway");
-    expect(wrapper.find("label[for='mail-address']").text()).toBe("Its address");
+    expect(wrapper.find("label[for='mail-shortcut']").text()).toBe("Name");
+    expect(wrapper.find("#mail-shortcut").attributes("placeholder")).toBe("john");
+    expect(wrapper.find("label[for='mail-address']").text()).toBe("Address");
     for (const label of ["Register", "Email the list", "Remove"]) expect(button(wrapper, label).attributes("disabled")).toBeDefined();
-    expect(button(wrapper, "Email the list").attributes("title")).toContain("Fill in Your shortcut");
+    expect(button(wrapper, "Email the list").attributes("title")).toContain("Fill in the shortcut's Name");
     expect(button(wrapper, "Fetch held mail").attributes("disabled")).toBeUndefined();
     await name(wrapper, "not a name");
     expect(button(wrapper, "Email the list").attributes("disabled")).toBeDefined();

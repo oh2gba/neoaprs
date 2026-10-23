@@ -46,9 +46,11 @@ function hopChip(hop: HopRow, heardDirect: ReadonlySet<string>): Chip {
   return { kind: "unheard", text: hop.call, mark: "?", title: beyond ? "not heard here: beyond what this station can hear" : "not heard" };
 }
 
-function recipientChip(row: MessageRow, attempt: AttemptRow, latest: boolean): Chip {
+function recipientChip(row: MessageRow, attempt: AttemptRow, latest: boolean, mail: boolean): Chip {
   const text = row.to_call;
   if (attempt.acked) return { kind: "acked", text, mark: "✓", title: row.acked_at === null ? "acked" : `acked ${dateTimeText(row.acked_at)}` };
+  if (latest && mail && row.state === "failed")
+    return { kind: "waiting", text, mark: "", title: "sent, not confirmed: the gateway's ack reaches us only through an iGate" };
   if (latest && (row.state === "failed" || row.state === "rejected")) {
     return { kind: "failed", text, mark: "✗", title: row.state === "failed" ? `no answer after ${row.attempts} attempts` : "rejected" };
   }
@@ -63,12 +65,12 @@ function recipientChip(row: MessageRow, attempt: AttemptRow, latest: boolean): C
 }
 
 /** The chips of one attempt: us, each digipeater of its path (RFONLY, NOGATE, TCPIP and the like are not hops), a chip for a copy that came back over the internet when no hop shows it, and the recipient. `latest` is the newest attempt of the message, the one a failure is told on. */
-export function chainOf(row: MessageRow, attempt: AttemptRow, latest: boolean, heardDirect: ReadonlySet<string> = new Set()): Chip[] {
+export function chainOf(row: MessageRow, attempt: AttemptRow, latest: boolean, heardDirect: ReadonlySet<string> = new Set(), mail = false): Chip[] {
   const chips: Chip[] = [{ kind: "you", text: "you", mark: "", title: `sent ${dateTimeText(attempt.sent_at)}` }];
   chips.push(...attempt.hops.filter((hop) => !isMarker(hop.call)).map((hop) => hopChip(hop, heardDirect)));
   if (attempt.internet !== null && !attempt.hops.some((hop) => hop.by_internet)) {
     chips.push({ kind: "internet", text: "internet", mark: "", title: `a copy came back over the internet, by ${attempt.internet}` });
   }
-  chips.push(recipientChip(row, attempt, latest));
+  chips.push(recipientChip(row, attempt, latest, mail)); // (mail: a gateway whose ack may never reach us is not failed)
   return chips;
 }

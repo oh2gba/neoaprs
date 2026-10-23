@@ -106,3 +106,13 @@ describe("isAlias and attemptsText", () => {
     expect([attemptsText(1), attemptsText(3)]).toEqual(["1 attempt", "3 attempts"]);
   });
 });
+
+describe("chainOf for mail", () => {
+  it("leaves the gateway grey, not red, when its ack never came: it reaches us only through an iGate", () => {
+    const mail = message(2, { to_call: "EMAIL-2", state: "failed", attempts: 4 });
+    const last = chainOf(mail, attempt([]), true, new Set(), true).at(-1);
+    expect(last?.kind).toBe("waiting");
+    expect(last?.title).toContain("not confirmed");
+    expect(chainOf(mail, attempt([]), true).at(-1)?.kind).toBe("failed");
+  });
+});

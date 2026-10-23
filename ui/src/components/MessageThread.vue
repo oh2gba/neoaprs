@@ -43,7 +43,7 @@ watch(
         <button v-if="canRetry(m)" type="button" class="btn small" @click="emit('retry', m.id)">Retry</button>
         <button v-if="canCancel(m)" type="button" class="btn small" @click="emit('cancel', m.id)">Cancel</button>
       </p>
-      <MessageChain v-if="m.direction === 'out'" :row="m" :heard-direct="heardDirect" />
+      <MessageChain v-if="m.direction === 'out'" :row="m" :heard-direct="heardDirect" :mail="gateway" />
       <p v-if="m.route" class="msg-route muted" title="How the packet reached us">{{ m.route }}</p>
     </div>
   </div>

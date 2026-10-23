@@ -28,7 +28,7 @@ const known = computed(() => props.connected && validShortcut(name.value));
 const canRegister = computed(() => known.value && validAddress(address.value));
 const armed = computed(() => sure.armed.value === name.value.trim());
 
-const needName = "Fill in Your shortcut: a name registered with the gateway";
+const needName = "Fill in the shortcut's Name: a name registered with the gateway";
 const titleFor = (sent: string): string => away.value ?? (validShortcut(name.value) ? sent : needName);
 
 function register(): void {
@@ -57,39 +57,41 @@ function remove(): void {
       </button>
       <StationAttempts :call="EMAIL_GATEWAY" :attempts="attempts" @set="(c, n) => emit('setAttempts', c, n)" @clear="emit('clearAttempts', $event)" />
     </div>
-    <form class="mail-row mail-shortcut" @submit.prevent="register">
-      <strong>Shortcuts</strong>
-      <label class="path-label" for="mail-shortcut">Your shortcut</label>
-      <input id="mail-shortcut" v-model="name" class="input mono" type="text" placeholder="a name for the gateway" autocomplete="off" spellcheck="false" />
-      <label class="path-label" for="mail-address">Its address</label>
-      <input id="mail-address" v-model="address" class="input mono" type="text" placeholder="to register it" autocomplete="off" spellcheck="false" />
-      <button
-        type="submit"
-        class="btn small"
-        :disabled="!canRegister"
-        :title="away ?? `Sends '${name.trim() || 'name'} ${address.trim() || 'address'}': the gateway keeps the address under the name`"
-      >
-        Register
-      </button>
-      <button
-        type="button"
-        class="btn small"
-        :disabled="!known"
-        :title="titleFor(`Sends '${listShortcuts(name)}': the gateway emails the list of your shortcuts to this shortcut's address`)"
-        @click="emit('list', name.trim())"
-      >
-        Email the list
-      </button>
-      <button
-        type="button"
-        class="btn small"
-        :class="{ danger: armed }"
-        :disabled="!known"
-        :title="titleFor(`Sends '${removeShortcut(name)}': the gateway removes this shortcut`)"
-        @click="remove"
-      >
-        {{ armed ? "sure?" : "Remove" }}
-      </button>
+    <form class="mail-shortcut" @submit.prevent="register">
+      <strong class="mail-shortcut-head">Shortcut</strong>
+      <label class="path-label" for="mail-shortcut">Name</label>
+      <input id="mail-shortcut" v-model="name" class="input mono" type="text" placeholder="john" autocomplete="off" spellcheck="false" />
+      <label class="path-label" for="mail-address">Address</label>
+      <input id="mail-address" v-model="address" class="input mono" type="text" placeholder="only to register it" autocomplete="off" spellcheck="false" />
+      <div class="mail-shortcut-buttons">
+        <button
+          type="submit"
+          class="btn small"
+          :disabled="!canRegister"
+          :title="away ?? `Sends '${name.trim() || 'name'} ${address.trim() || 'address'}': the gateway keeps the address under the name`"
+        >
+          Register
+        </button>
+        <button
+          type="button"
+          class="btn small"
+          :disabled="!known"
+          :title="titleFor(`Sends '${listShortcuts(name)}': the gateway emails the list of your shortcuts to this shortcut's address`)"
+          @click="emit('list', name.trim())"
+        >
+          Email the list
+        </button>
+        <button
+          type="button"
+          class="btn small"
+          :class="{ danger: armed }"
+          :disabled="!known"
+          :title="titleFor(`Sends '${removeShortcut(name)}': the gateway removes this shortcut`)"
+          @click="remove"
+        >
+          {{ armed ? "sure?" : "Remove" }}
+        </button>
+      </div>
     </form>
   </div>
 </template>

@@ -1771,3 +1771,21 @@ button.updatecheck-result {
   margin: 8px 0 0;
   font-size: 12px;
 }
+
+/* the Email tab's shortcut: the name and the address one under the other, the three actions on a line of their own */
+.mail-shortcut {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 10px;
+  align-items: center;
+  margin-top: 6px;
+}
+.mail-shortcut-head,
+.mail-shortcut-buttons {
+  grid-column: 1 / -1;
+}
+.mail-shortcut-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}

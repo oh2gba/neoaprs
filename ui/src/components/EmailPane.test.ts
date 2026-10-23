@@ -20,7 +20,7 @@ describe("EmailPane", () => {
   it("has Send an email, the mailbox and the shortcuts, and the thread under them, in that order", () => {
     const wrapper = pane();
     const html = wrapper.html();
-    expect(wrapper.findAll("strong").map((s) => s.text())).toEqual(["Send an email", "Mailbox", "Shortcuts"]);
+    expect(wrapper.findAll("strong").map((s) => s.text())).toEqual(["Send an email", "Mailbox", "Shortcut"]);
     expect([html.indexOf("mail-to"), html.indexOf("mail-tools"), html.indexOf('role="log"')].every((i) => i >= 0)).toBe(true);
     expect(html.indexOf("mail-to")).toBeLessThan(html.indexOf("mail-tools"));
     expect(html.indexOf("mail-tools")).toBeLessThan(html.indexOf('role="log"'));
