@@ -94,20 +94,36 @@ describe("App", () => {
     expect(wrapper.text()).not.toContain("Not connected to the daemon");
   });
 
-  it("says connecting, then radio ok with our call in the header", async () => {
+  it("says Connecting… under the panel, then nothing of the radio; the header has the title and not our call", async () => {
     const wrapper = mount(App, { attachTo: document.body });
     await flushPromises();
-    expect(wrapper.find(".appheader").text()).toContain("connecting");
+    expect(wrapper.find(".panelfoot").text()).toContain("Connecting…");
     const socket = FakeSocket.last();
     socket.say(hello());
     socket.say({ type: "state", topic: "tnc", rev: 0, value: tncState() });
     socket.say({ type: "state", topic: "config", rev: 0, value: configValues() });
     await flushPromises();
     const header = wrapper.find(".appheader").text();
-    expect(header).toContain("NeoAPRS");
-    expect(header).toContain("OH2GBA");
-    expect(header).toContain("radio ok");
-    expect(header).not.toContain("brainbox");
+    expect(header).toBe("NeoAPRS");
+    expect(wrapper.find(".appheader a").attributes("href")).toBe("https://oh2gba.github.io/neoaprs/");
+    const foot = wrapper.find(".panelfoot").text();
+    expect(foot).toBe(`NeoAPRS ${hello().version}`);
+    expect(wrapper.find("#pane-settings").element.parentElement?.lastElementChild).toBe(wrapper.find(".panelfoot").element);
+    expect(wrapper.find(".mapwrap .panelfoot").exists()).toBe(false);
+  });
+
+  it("shows the radio under the panel only while it is not connected, and the line does not change", async () => {
+    const { wrapper, socket } = await open();
+    const foot = wrapper.find(".panelfoot");
+    expect(foot.find("button.status").exists()).toBe(false);
+    socket.say({ type: "state", topic: "tnc", rev: 1, value: tncState({ state: "waiting", problem: "no radio found", describe: "waiting" }) });
+    await flushPromises();
+    expect(wrapper.find(".panelfoot").element).toBe(foot.element);
+    expect(foot.find("button.status").text()).toBe("Radio: not connected");
+    socket.say({ type: "state", topic: "tnc", rev: 2, value: tncState() });
+    await flushPromises();
+    expect(foot.find("button.status").exists()).toBe(false);
+    expect(wrapper.find(".appheader").text()).not.toMatch(/radio/i);
   });
 
   it("says daemon offline when the socket closes, and connects again", async () => {
@@ -115,7 +131,7 @@ describe("App", () => {
     vi.useFakeTimers();
     socket.hangUp();
     await flushPromises();
-    expect(wrapper.find(".appheader .link-bad").text()).toBe("daemon offline");
+    expect(wrapper.find(".panelfoot .link-bad").text()).toBe("Daemon offline");
     vi.advanceTimersByTime(1000);
     vi.useRealTimers();
     expect(FakeSocket.all).toHaveLength(2);
@@ -281,7 +297,7 @@ describe("App", () => {
     await flushPromises();
     expect(wrapper.find(".setup").exists()).toBe(false);
     expect(configs()).toHaveLength(1);
-    expect(wrapper.find(".appheader .call").text()).toBe("OH2ABC-9"); // (the header follows the settings, the status comes every 10 s)
+    expect(wrapper.find(".appheader").text()).not.toContain("OH2ABC"); // (our call is in the settings and the status, not in the header)
     expect(wrapper.find(".appheader .nocall").exists()).toBe(false);
   });
 
@@ -390,10 +406,12 @@ describe("App", () => {
     expect(socket.sent).toContainEqual({ cmd: "tnc_reconnect" });
   });
 
-  it("opens the Settings tab, where the radio is, from the radio state in the header", async () => {
-    const { wrapper } = await open();
+  it("opens the Settings tab, where the radio is, from the radio state under the panel", async () => {
+    const { wrapper, socket } = await open();
+    socket.say({ type: "state", topic: "tnc", rev: 1, value: tncState({ state: "connecting", problem: "", describe: "listening on /dev/brainbox_1" }) });
+    await flushPromises();
     await tabButton(wrapper, "Stations")?.trigger("click");
-    await wrapper.find(".appheader button.status").trigger("click");
+    await wrapper.find(".panelfoot button.status").trigger("click");
     expect(wrapper.find("[aria-selected='true']").text()).toContain("Settings");
   });
 
@@ -1422,7 +1440,7 @@ describe("the alert of this browser", () => {
     expect(wrapper.find("#pane-messages").text()).toContain("Moi!");
   });
 
-  it("opens the steps of the update for the way this copy was installed from the new version in the header, and closes them when it is gone", async () => {
+  it("opens the steps of the update for the way this copy was installed from the new version under the panel, and closes them when it is gone", async () => {
     const { wrapper, socket } = await open();
     expect(wrapper.find(".updatepanel").exists()).toBe(false);
     socket.say(hello({ install: { kind: "uv-tool", appimage: "", service: true, arch: "" } }));

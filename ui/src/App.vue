@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The page: a header with the connection and the radio link, the map filling the page, and at its right a panel with the stations, the packets, the messages, the email, the bulletins, our objects, the beacon and the settings (which open with the state of the radio link).
+// The page: a calm header (the title, a link to the project's page, and the messages not seen), the map filling the page, and at its right a panel with the stations, the packets, the messages, the email, the bulletins, our objects, the beacon and the settings (which open with the state of the radio link), and under the open tab a footer with the version, a newer version if there is one and what is wrong with the radio link, if anything.
 // The shell only: what the daemon tells is `useDaemon`, the panel `usePanel`, the station cards (one, or several with Ctrl+click) `useStationCards`, the size of the page and what a phone shows `useLayout`, the Messages tab `useMessagesView`, the Email tab `useEmail`, the Bulletins tab `useBulletins`, the Objects tab `useOwnObjects`, the paths, timeouts and RF only of the stations
 // `useStationPrefs`, the settings of the Beacon tab and the Settings tab, which apply as they are changed (one queue for both, and the toast that undoes the latest change) `useSettings`, the first-run guide (it opens by itself while the daemon has no call) `useSetupGuide`, the alert of this browser for a message to us `useBrowserAlerts` and `usePageAlerts`; the components take props and emit events, and the commands go out through `send`.
 import { useMapPicks } from "@/composables/useMapPicks";
@@ -12,6 +12,7 @@ import EmailPane from "@/components/EmailPane.vue";
 import MessagesPane from "@/components/MessagesPane.vue";
 import ObjectsPane from "@/components/ObjectsPane.vue";
 import PacketsLog from "@/components/PacketsLog.vue";
+import PanelFooter from "@/components/PanelFooter.vue";
 import SetupGuide from "@/components/SetupGuide.vue";
 import SettingsForm from "@/components/SettingsForm.vue";
 import SidePanel from "@/components/SidePanel.vue";
@@ -133,19 +134,7 @@ const { selected, focus } = cards;
 
 <template>
   <div class="app" :class="layout.rootClass.value">
-    <AppHeader
-      :call="call"
-      :connection="connection"
-      :tnc="tnc"
-      :version="version"
-      :unread="unread"
-      :now="now"
-      :status="status"
-      @messages="openUnread"
-      @setup="guide.show()"
-      @update="updateOpen = true"
-      @radio="panel.show('settings')"
-    />
+    <AppHeader :call="call" :unread="unread" @messages="openUnread" @setup="guide.show()" />
     <UpdatePanel v-if="updateOpen && newer" :version="newer" :install="install" @close="updateOpen = false" />
     <main class="main">
       <div class="mapwrap">
@@ -196,6 +185,17 @@ const { selected, focus } = cards;
         :badges="{ messages: talk.unread.value, email: mail.unread.value, bulletins: board.fresh.value }"
         @update:view="layout.view.value = $event"
       >
+        <template #footer>
+          <PanelFooter
+            :connection="connection"
+            :tnc="tnc"
+            :version="version"
+            :now="now"
+            :status="status"
+            @update="updateOpen = true"
+            @radio="panel.show('settings')"
+          />
+        </template>
         <template #stations>
           <StationsTable
             :stations="stations"
