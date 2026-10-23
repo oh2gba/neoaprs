@@ -28,3 +28,10 @@ def tmp_data(tmp_path: Path) -> Path:
     d = tmp_path / "data"
     d.mkdir()
     return d
+
+
+@pytest.fixture
+def search_pattern_from_settings(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The test is about the pattern of the settings (serial/pattern and the default): NEOAPRS_SERIAL_PATTERN, which tests/conftest.py sets for every test, is cleared. The test must not let a search that this
+    pattern reaches open a real device: it names a folder of its own, or never starts one."""
+    monkeypatch.delenv("NEOAPRS_SERIAL_PATTERN")

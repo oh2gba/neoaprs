@@ -19,6 +19,7 @@ from .serialport import SerialError, SerialPort
 log = logging.getLogger("neoaprs.serialport")
 
 DEFAULT_PATTERN = DEFAULT_SERIAL_PATTERN       # what the search looks at when the settings say nothing else: the usual names of USB serial adapters
+PATTERN_ENV = "NEOAPRS_SERIAL_PATTERN"         # the globs of this variable, when it is set and not empty, are searched instead of serial/pattern and the default (the tests: a pattern that matches nothing)
 HEARD_KEPT_BYTES = 16384            # a listening port keeps this much of the latest bytes for the validity test, so a port that never stops talking noise costs no memory
 
 
@@ -45,6 +46,11 @@ def available_ports() -> list[PortInfo]:
 def can_search() -> bool:
     """Whether the radio may be looked for among the ports (see the top of this module)."""
     return sys.platform.startswith("linux")
+
+
+def search_pattern(stored: str = DEFAULT_PATTERN) -> str:
+    """The globs the search looks at: those of the environment variable NEOAPRS_SERIAL_PATTERN if there are any, else `stored` (serial/pattern)."""
+    return os.environ.get(PATTERN_ENV, "").strip() or stored
 
 
 def candidate_ports(pattern: str = DEFAULT_PATTERN) -> list[str]:

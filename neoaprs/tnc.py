@@ -74,12 +74,12 @@ def _printable(text: str) -> str:
 class Tnc(Source):
     stats: TncStats
 
-    def __init__(self, port: str = "", baud: int = 9600, profile: Profile = KENWOOD_TNC2, pattern: str = serialprobe.DEFAULT_PATTERN, clock: Clock = utcnow, probe_seconds: float = 0.0,
+    def __init__(self, port: str = "", baud: int = 9600, profile: Profile = KENWOOD_TNC2, pattern: str = "", clock: Clock = utcnow, probe_seconds: float = 0.0,
                  backoff: Backoff | None = None, settle_sec: float | None = None, pace: float = 1.0, fallback_probe: bool = True, probe_nudge_sec: float = 10.0,
                  skip: tuple[str, ...] = (), check_sec: float = 60.0, check_pause_sec: float = CHECK_PAUSE_SEC, reply_sec: float = REPLY_SEC, answer_sec: float = ANSWER_SEC, probe_sec: float = PROBE_SEC) -> None:
         super().__init__("tnc", clock)
         self.stats = TncStats()
-        self.port, self.baud, self.profile, self.pattern = port, baud, profile, pattern
+        self.port, self.baud, self.profile, self.pattern = port, baud, profile, pattern or serialprobe.search_pattern()
         self.probe_seconds = probe_seconds                                                                 # the whole wait of the search, 0 = no limit
         self.probe_nudge_sec, self.skip = probe_nudge_sec, skip          # how long the search listens before it sends a carriage return to the ports; the device paths it never opens (the operator's serial/skip)
         self.interlock: Interlock | None = None                          # the transmit interlock (neoaprs/interlock.py, set by app.py): while it refuses, no frame is sent; none when not given

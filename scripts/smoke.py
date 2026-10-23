@@ -107,6 +107,7 @@ def start_daemon(program: list[str], data: Path, tnc: FakeTnc) -> subprocess.Pop
     out = (data.parent / "daemon.out").open("wb")
     flags = subprocess.CREATE_NEW_PROCESS_GROUP if WINDOWS else 0          # type: ignore[attr-defined, unused-ignore]  (so that Ctrl+Break reaches this child only)
     env = {k: v for k, v in os.environ.items() if k not in ("NEOAPRS_DATA_DIR", "NEOAPRS_DEBUG")}
+    env.setdefault("NEOAPRS_SERIAL_PATTERN", "/dev/neoaprs-smoke-no-such-port*")          # the daemon has a radio (--port) and searches no serial port of the machine
     return subprocess.Popen([*program, "--data", str(data), "--port", tnc.url, "--web-port", "0"], stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT, env=env, creationflags=flags)
 
 
