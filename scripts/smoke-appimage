@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+# The smoke test of an AppImage made by scripts/build-appimage, as a user would meet it: on data folders of its own, with no radio and no serial device, and nothing leaves the loopback.
+#
+#   scripts/smoke-appimage FILE [--python PYTHON]
+#
+# It checks, in order: `--version`; scripts/smoke.py against the file (a fake KISS TNC on a TCP port, the page and its WebSocket, the stop by SIGTERM); the daemon on its own (no `--port`: it has no radio, the
+# page answers, it ends cleanly); `service install` with a HOME and a systemctl of the test's own, whose ExecStart must be the file and not the mount; and the desktop app started with no arguments on the
+# offscreen platform, which must start its daemon and the window with the web engine, stay up, and end at `app --quit` together with the daemon. PYTHON (default .venv/bin/python, else python3) runs
+# smoke.py and needs Tornado. Without FUSE (no /dev/fuse or no fusermount) the file is extracted once and its AppRun run with the two variables the runtime would set (`--appimage-extract-and-run`
+# does not pass a stop signal on to the program). Exit code 0: all is well; 1: the first thing that was not.
+case "${1:-}" in -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;; esac
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+file="${1:-}"
+[ -f "$file" ] || { echo "smoke-appimage: usage: scripts/smoke-appimage FILE [--python PYTHON]" >&2; exit 2; }
+file="$(readlink -f "$file")"
+shift
+python="$ROOT/.venv/bin/python"
+[ -x "$python" ] || python=python3
+if [ "${1:-}" = --python ]; then python="${2:?--python needs a program}"; fi
+
+say() { echo "smoke-appimage: $*"; }
+fail() { echo "smoke-appimage: FAILED: $*" >&2; exit 1; }
+
+work="$(mktemp -d)"
+pids=()
+cleanup() {
+    for pid in ${pids[@]+"${pids[@]}"}; do kill "$pid" 2>/dev/null || true; done
+    rm -rf "$work"
+}
+trap cleanup EXIT
+# a variable of the shell this is run from could point the program at a data folder or a home of the user's
+unset NEOAPRS_DATA_DIR NEOAPRS_DEBUG
+export XDG_DATA_HOME="$work/xdg-data" XDG_CONFIG_HOME="$work/xdg-config"
+
+# `run` is what is started: the file, or without FUSE a program that does what the runtime does once the image is mounted
+run="$file"
+if [ ! -c /dev/fuse ] || { ! command -v fusermount >/dev/null && ! command -v fusermount3 >/dev/null; }; then
+    say "no FUSE here: the file is extracted and its AppRun run"
+    (cd "$work" && "$file" --appimage-extract > /dev/null)
+    run="$work/run-appimage"
+    # (the daemon the app starts is a run of the file itself, which here has to extract itself too)
+    printf '#!/bin/sh\nAPPIMAGE_EXTRACT_AND_RUN=1 APPIMAGE=%q APPDIR=%q exec %q "$@"\n' "$file" "$work/squashfs-root" "$work/squashfs-root/AppRun" > "$run"
+    chmod +x "$run"
+fi
+
+# wait_for FILE PATTERN SECONDS: until the log has the line
+wait_for() {
+    local i
+    for ((i = 0; i < $3 * 4; i++)); do
+        grep -qs -- "$2" "$1" && return 0
+        sleep 0.25
+    done
+    return 1
+}
+
+say "--version"
+"$run" --version | grep -q '^NeoAPRS [0-9]' || fail "--version did not say NeoAPRS and a number"
+
+say "scripts/smoke.py against the file"
+"$python" "$ROOT/scripts/smoke.py" --command "$run"
+
+say "the daemon with no radio: the page answers, it ends cleanly"
+data="$work/headless"
+"$run" --data "$data" --web-port 0 > "$work/headless.out" 2>&1 &
+pids+=($!)
+wait_for "$data/neoaprs.log" "web page at http" 60 || { cat "$work/headless.out"; fail "the daemon did not log its page"; }
+url="$(sed -n 's/.*web page at \(http:[^ ]*\).*/\1/p' "$data/neoaprs.log" | tail -n 1)"
+[ "$(curl -s -o /dev/null -w '%{http_code}' "$url")" = 200 ] || fail "the page at $url does not answer 200"
+kill -TERM "${pids[0]}"
+wait "${pids[0]}" || fail "the daemon did not end with exit code 0 after SIGTERM"
+pids=()
+tail -n 1 "$data/neoaprs.log" | grep -q 'NeoAPRS ended$' || fail "the last line of the log is not 'NeoAPRS ended'"
+
+say "service install writes the file, not the mount, as ExecStart"
+home="$work/home"
+mkdir -p "$home" "$work/fake-bin"
+for tool in systemctl loginctl; do printf '#!/bin/sh\nexit 0\n' > "$work/fake-bin/$tool"; chmod +x "$work/fake-bin/$tool"; done
+HOME="$home" USER=smoke PATH="$work/fake-bin:$PATH" "$run" service install --data "$work/service-data" > "$work/service.out" 2>&1 || { cat "$work/service.out"; fail "service install failed"; }
+grep -qxF "ExecStart=$file --data $work/service-data" "$XDG_CONFIG_HOME/systemd/user/neoaprs.service" || { grep ExecStart "$XDG_CONFIG_HOME/systemd/user/neoaprs.service" >&2; fail "ExecStart is not the file"; }
+
+say "the desktop app (no arguments, offscreen) starts its daemon and the window, and ends at --quit"
+app_data="$work/app-data"
+"$run" db --data "$app_data" set web/port 0 > /dev/null
+export NEOAPRS_DATA_DIR="$app_data"
+QT_QPA_PLATFORM=offscreen "$run" > "$work/app.out" 2>&1 &
+app=$!
+pids=("$app")
+wait_for "$app_data/neoaprs-app.log" "the Qt shell runs" 90 || { cat "$work/app.out"; tail -n 20 "$app_data/neoaprs-app.log" >&2 || true; fail "the app did not start its window"; }
+grep -q 'window and tray' "$app_data/neoaprs-app.log" || fail "the app chose no window and tray"
+url="$(sed -n 's/.*web page at \(http:[^ ]*\).*/\1/p' "$app_data/neoaprs.log" | tail -n 1)"
+[ "$(curl -s -o /dev/null -w '%{http_code}' "$url")" = 200 ] || fail "the page at $url does not answer 200"
+sleep 5
+kill -0 "$app" 2>/dev/null || { cat "$work/app.out"; fail "the app ended by itself"; }
+"$run" app --quit --data "$app_data" || fail "app --quit failed"
+wait "$app" || { cat "$work/app.out"; fail "the app did not end with exit code 0"; }
+pids=()
+unset NEOAPRS_DATA_DIR
+tail -n 1 "$app_data/neoaprs.log" | grep -q 'NeoAPRS ended$' || fail "the daemon of the app did not end cleanly"
+say "ok"

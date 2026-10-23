@@ -1,5 +1,5 @@
-# What a release is made of, built by GitHub: the wheel and the sdist, the Windows installer (PyInstaller and Inno Setup), the Linux and macOS install script, and SHA256SUMS. Pushing a tag `v*` builds all of
-# it, checks it (the wheel, the installed Windows app and the install script are each run against a fake TNC or a fresh home) and creates the release. Run by hand (workflow_dispatch) it is a dry run: the
+# What a release is made of, built by GitHub: the wheel and the sdist, the Windows installer (PyInstaller and Inno Setup), the Linux AppImage, the Linux and macOS install script, and SHA256SUMS. Pushing a tag
+# `v*` builds all of it, checks it (the wheel, the installed Windows app, the AppImage and the install script are each run against a fake TNC or a fresh home) and creates the release. Run by hand (workflow_dispatch) it is a dry run: the
 # same builds and checks, the files kept as the artifacts of the run, and no release. How to make a release: docs/MANUAL.md, "Releases".
 name: release
 
@@ -209,6 +209,43 @@ jobs:
           path: dist-installer/NeoAPRS-Setup-*.exe
           if-no-files-found: error
 
+  # The Linux app as one file: CPython, the wheel and the locked dependencies of its extra app (Qt with the web engine) in an AppImage (scripts/build-appimage, from the wheel of the job above), then run as a user
+  # would (scripts/smoke-appimage: the daemon, the page, the service unit, the window on the offscreen platform). ubuntu-22.04 and not latest: it has glibc 2.35, the oldest that the Qt wheels
+  # inside (glibc 2.34) run on, so that the file is shown to run on the oldest system it claims (what is inside does not depend on the runner that builds it).
+  appimage:
+    needs: [verify, wheel]
+    if: ${{ !failure() && !cancelled() }}
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.13"
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
+      - name: FUSE, which the file mounts itself with, and the system libraries of the Qt web engine (the smoke test starts the window)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fuse libfuse2 libegl1 libgl1 libnss3 libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libxtst6 libasound2 libdbus-1-3 libfontconfig1 libxcb-cursor0 libxkbfile1
+      - name: Build the AppImage from the wheel
+        run: |
+          scripts/build-appimage --wheel dist/neoaprs-*.whl --out dist-appimage
+          version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)"
+          [ -f "dist-appimage/NeoAPRS-$version-x86_64.AppImage" ] && [ "$(ls dist-appimage | wc -l)" = 1 ]
+          ls -l dist-appimage
+      - name: Smoke test of the file (Tornado for scripts/smoke.py comes from the wheel, in a fresh environment)
+        run: |
+          uv venv "$RUNNER_TEMP/smoke-venv"
+          uv pip install --python "$RUNNER_TEMP/smoke-venv/bin/python" dist/*.whl
+          scripts/smoke-appimage dist-appimage/NeoAPRS-*.AppImage --python "$RUNNER_TEMP/smoke-venv/bin/python"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: appimage
+          path: dist-appimage/NeoAPRS-*.AppImage
+          if-no-files-found: error
+
   # install.sh, rendered for this version and tried against the wheel that was just built: a fresh home, no uv, a systemctl that only writes down its calls.
   install-script:
     needs: [verify, wheel]
@@ -244,7 +281,7 @@ jobs:
 
   # Everything a release carries in one place, with the checksums and the notes: made on a dry run too, so that this half is tried before a tag.
   assemble:
-    needs: [wheel, windows, install-script]
+    needs: [wheel, windows, appimage, install-script]
     if: ${{ !failure() && !cancelled() }}
     runs-on: ubuntu-latest
     steps:
@@ -257,14 +294,14 @@ jobs:
         run: |
           version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)"
           cd release-files
-          for f in "neoaprs-$version-py3-none-any.whl" "neoaprs-$version.tar.gz" "NeoAPRS-Setup-$version.exe" install.sh; do [ -f "$f" ] || { echo "::error::$f is missing"; exit 1; }; done
-          [ "$(ls | wc -l)" = 4 ] || { echo "::error::unexpected files"; ls -l; exit 1; }
+          for f in "neoaprs-$version-py3-none-any.whl" "neoaprs-$version.tar.gz" "NeoAPRS-Setup-$version.exe" "NeoAPRS-$version-x86_64.AppImage" install.sh; do [ -f "$f" ] || { echo "::error::$f is missing"; exit 1; }; done
+          [ "$(ls | wc -l)" = 5 ] || { echo "::error::unexpected files"; ls -l; exit 1; }
           sha256sum -- * > SHA256SUMS
           cat SHA256SUMS
           cd ..
           if [ "${GITHUB_REF_TYPE}" = tag ]; then notes_for="$version"; else notes_for=""; fi
           python3 scripts/release-notes.py $notes_for > notes.md
-          printf '\nThe files are checked by SHA256SUMS and carry build provenance (`gh attestation verify FILE --repo oh2gba/neoaprs`). Windows: run NeoAPRS-Setup-%s.exe (SmartScreen may warn about an unsigned installer: More info, Run anyway). Linux and macOS: `curl -LsSf https://github.com/oh2gba/neoaprs/releases/latest/download/install.sh | sh`.\n' "$version" >> notes.md
+          printf '\nThe files are checked by SHA256SUMS and carry build provenance (`gh attestation verify FILE --repo oh2gba/neoaprs`). Windows: run NeoAPRS-Setup-%s.exe (SmartScreen may warn about an unsigned installer: More info, Run anyway). Linux: make NeoAPRS-%s-x86_64.AppImage executable and run it. Linux and macOS: `curl -LsSf https://github.com/oh2gba/neoaprs/releases/latest/download/install.sh | sh`.\n' "$version" "$version" >> notes.md
           head -c 600 notes.md
       - uses: actions/upload-artifact@v7
         with:
