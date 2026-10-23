@@ -2,10 +2,10 @@ import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defineComponent } from "vue";
 import { socketUrl, useDaemon } from "@/composables/useDaemon";
-import { PROTOCOL } from "@/protocol/lists";
 import { FakeFetch } from "@/test/fakefetch";
 import { FakeSocket } from "@/test/fakesocket";
-import { bulletin, configValues, message, ownBulletin, ownObject, packet, station, tncState } from "@/test/fixtures";
+import { PAGE_VERSION } from "@/lib/build";
+import { bulletin, configValues, hello, message, ownBulletin, ownObject, packet, station, tncState } from "@/test/fixtures";
 
 function setUp() {
   let daemon: ReturnType<typeof useDaemon> | undefined;
@@ -39,7 +39,7 @@ describe("useDaemon", () => {
 
   it("holds the topics as reactive state", () => {
     const { daemon, socket } = setUp();
-    socket.say({ type: "hello", protocol: PROTOCOL, version: "0.1.0", topics: [] });
+    socket.say(hello());
     socket.say({ type: "state", topic: "stations", rev: 0, value: { A: station("A") } });
     socket.say({ type: "state", topic: "packets", rev: 0, value: { "1": packet(1) } });
     socket.say({ type: "state", topic: "tnc", rev: 0, value: tncState() });
@@ -51,7 +51,8 @@ describe("useDaemon", () => {
     expect(daemon.bulletins.get("OH2XYZ/BLN1")?.text).toBe("text of BLN1");
     expect(daemon.messages.get("1")?.text).toBe("message 1");
     expect(daemon.stationPrefs.get("OH2RDG")).toEqual({ path: "WIDE2-1", hide_after_min: 45 });
-    expect(daemon.version.value).toBe("0.1.0");
+    expect(daemon.version.value).toBe(PAGE_VERSION);
+    expect(daemon.install.value).toEqual({ kind: "pip", appimage: "", service: false });
     expect([...daemon.stations.keys()]).toEqual(["A"]);
     expect(daemon.packets.get("1")?.id).toBe(1);
     expect(daemon.tnc.value?.state).toBe("connected");
@@ -70,7 +71,7 @@ describe("useDaemon", () => {
 
   it("holds our own objects by name and our own bulletins by slot, whole and by patch", () => {
     const { daemon, socket } = setUp();
-    socket.say({ type: "hello", protocol: PROTOCOL, version: "0.1.0", topics: [] });
+    socket.say(hello());
     socket.say({ type: "state", topic: "own_objects", rev: 0, value: { LEADER: ownObject("LEADER"), AID: ownObject("AID", { kind: "item" }) } });
     socket.say({ type: "state", topic: "own_bulletins", rev: 0, value: { BLN1: ownBulletin("BLN1") } });
     expect([...daemon.ownObjects.keys()]).toEqual(["LEADER", "AID"]);
@@ -129,14 +130,14 @@ describe("useDaemon", () => {
     const { daemon, socket } = setUp();
     expect(daemon.send({ cmd: "ping" })).toBe(false);
     expect(daemon.lastError.value?.text).toBe("Not connected to the daemon.");
-    socket.say({ type: "hello", protocol: PROTOCOL, version: "0.1.0", topics: [] });
+    socket.say(hello());
     expect(daemon.send({ cmd: "tnc_reconnect" })).toBe(true);
     expect(socket.sent).toEqual([{ cmd: "tnc_reconnect" }]);
   });
 
   it("shows the connection as closed when the socket drops", () => {
     const { daemon, socket } = setUp();
-    socket.say({ type: "hello", protocol: PROTOCOL, version: "0.1.0", topics: [] });
+    socket.say(hello());
     socket.hangUp();
     expect(daemon.connection.value).toBe("closed");
   });
@@ -159,6 +160,36 @@ describe("useDaemon", () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(reload).not.toHaveBeenCalled();
     reload.mockRestore();
+  });
+
+  it("loads the page again when the daemon it meets is of another version, once, and again for a later update after a match", () => {
+    const reload = vi.spyOn(location, "reload").mockImplementation(() => undefined);
+    sessionStorage.clear();
+    const { socket } = setUp();
+    socket.say(hello({ version: "99.0.0" }));
+    socket.say(hello({ version: "99.0.0" }));
+    expect(reload).toHaveBeenCalledTimes(1);
+    socket.say(hello());
+    expect(reload).toHaveBeenCalledTimes(1);
+    socket.say(hello({ version: "99.0.0" }));
+    expect(reload).toHaveBeenCalledTimes(2);
+    sessionStorage.clear();
+    reload.mockRestore();
+  });
+
+  it("does not load the page again for a daemon of its own version", () => {
+    const reload = vi.spyOn(location, "reload").mockImplementation(() => undefined);
+    const { socket } = setUp();
+    socket.say(hello());
+    expect(reload).not.toHaveBeenCalled();
+    reload.mockRestore();
+  });
+
+  it("keeps the latest answer to update_check", () => {
+    const { daemon, socket } = setUp();
+    expect(daemon.updateResult.value).toBeNull();
+    socket.say({ type: "update_result", outcome: "current", version: "0.3.0", text: "" });
+    expect(daemon.updateResult.value).toEqual({ type: "update_result", outcome: "current", version: "0.3.0", text: "" });
   });
 
   it("finds the socket beside the page", () => {

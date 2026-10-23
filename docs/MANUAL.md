@@ -74,7 +74,7 @@ The page's forms carry no explanations (a label, a placeholder with the default,
 | `map/maxzoom` | `12` | the deepest zoom the detailed map has tiles for, 6 to 15: 10 shows towns, 12 streets, 14 houses (the Settings tab, Map, Detail). A deeper zoom of the page draws the last one magnified |
 | `map/source` | empty | where the map is cut from: empty is the latest daily build of build.protomaps.com (today's, else back up to a week); or a web address (`https://...`) or the path of a PMTiles file, such as a planet file of your own |
 | `update/check` | `true` | `true` asks the version page once a day whether a newer version is out; `false` asks nothing: see "Update check" |
-| `update/url` | `https://oh2gba.eu/neoaprs/version.php` | the address of that page (`http` or `https`) |
+| `update/url` | `https://oh2gba.eu/neoaprs/version.php` | the address of that page (`http` or `https`). It is not on the page: set it with `neoaprs db set update/url ADDRESS` (the tests point it at a version page of their own) |
 
 ### The neoaprs command
 
@@ -314,8 +314,23 @@ Once a day the daemon asks the project's version page whether a newer NeoAPRS is
 
 * **What is sent.** One GET of `update/url` with the version and the kind of system in the address: `https://oh2gba.eu/neoaprs/version.php?v=0.1.0&os=linux`, and a User-Agent that says the same (`NeoAPRS/0.1.0 (linux)`). The system is `windows`, `macos`, `linux`, `linux-appimage` (the AppImage) or `linux-arm` (a Raspberry Pi: aarch64 or armv7). Nothing else: no call, no position, no setting, no identifier.
 * **What is kept.** The page adds a line with the time (to the minute, UTC), the version and the system to a log on the server and hands the same three values to the project's status page, where they are counted. No address of yours is stored: the address of the request is used only to tell two copies of the same version and system apart in the count, and is not stored anywhere. The source of the page is `server/version.php`.
-* **The answer** is a few lines of JSON, the latest release of the project (read from its GitHub releases), the address of the project page and an optional note. When the version is newer than yours, the page shows it small in the header after the version number, as a link to the project page; the note is its hover title. A page that cannot be reached, or answers something else, is ignored: nothing is shown, the log has a line only with `--debug`, and the next question is the next day.
-* **Switching it off.** Settings tab, Update check, **Check once a day** set to no (`neoaprs db set update/check false`); it counts within the hour. `NEOAPRS_UPDATE_CHECK=0` in the environment switches it off for one run whatever the setting says (`CONVENTIONS.md`, the table of environment variables). `update/url` can point at a page of your own.
+* **The answer** is a few lines of JSON, the latest release of the project (read from its GitHub releases), the address of the project page and an optional note. When the version is newer than yours, the page shows it small in the header after the version number, as a button that opens the steps to update ([Updating](#updating)); the note is its hover title. A page that cannot be reached, or answers something else, is ignored: nothing is shown, the log has a line only with `--debug`, and the next question is the next day.
+* **Switching it off.** Settings tab, Update check, **Check once a day** set to no (`neoaprs db set update/check false`); it counts within the hour. `NEOAPRS_UPDATE_CHECK=0` in the environment switches it off for one run whatever the setting says (`CONVENTIONS.md`, the table of environment variables). `update/url` can point at a page of your own (`neoaprs db set update/url ADDRESS`; it is not on the page).
+* **Check now.** The button beside the switch asks the version page at once, with the same request, and says beside it for a few seconds `up to date (0.3.0)`, `0.4.0 available` (a button that opens the steps to update; the header shows the version too) or why there was no answer. It works with the daily check switched off, since you pressed it, and does not move the daily schedule.
+
+### Updating
+
+When the update check finds a newer version, its number appears in the page's header; a click opens **Update to 0.4.0** with a link to what is new (the release's notes on GitHub) and the steps for the way **this** copy was installed, the commands each with a copy button. The daemon works the kind out (`neoaprs/cli/installkind.py`) and tells the page in `hello`; the same steps are here. Your data (settings, messages, packets, the map) stays in every case.
+
+| installed as | how to update |
+|---|---|
+| Windows installer | download `NeoAPRS-Setup-VERSION.exe` from the [release](https://github.com/oh2gba/neoaprs/releases/latest) and run it; it ends the running app and daemon, replaces the program and starts it again |
+| AppImage | download `NeoAPRS-VERSION-x86_64.AppImage`, `chmod +x` it, quit NeoAPRS and start the new file. When a service starts the AppImage (the unit names the old file), run `./NeoAPRS-VERSION-x86_64.AppImage service install` once from where you keep the new file, so that the service starts it; then delete the old file |
+| install line (`uv tool`) | run `curl -LsSf https://github.com/oh2gba/neoaprs/releases/latest/download/install.sh \| sh` again: it updates NeoAPRS and restarts the service |
+| pip | `pip install -U neoaprs` (or `uv pip install -U neoaprs`) in its environment, then restart: `neoaprs service install` restarts a service, else quit NeoAPRS and start it again |
+| a clone of the repository | `git pull`, `uv sync`, then `systemctl --user restart neoaprs` for a service, else quit and start it again |
+
+**Open pages follow by themselves.** The page is built for one version of NeoAPRS (the number is built in) and the daemon says its version in `hello`: when they differ, the page loads itself again once, in a browser tab and in the desktop app's window alike, and has the new one; the daemon serves the page's `index.html` with `no-cache` and the other files by the hash of their content. It loads again for the next update too (the page remembers only which version it loaded for, and forgets it when the versions agree again); a daemon that serves a page older than itself does not make it loop.
 
 ### The desktop app
 

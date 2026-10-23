@@ -2,23 +2,22 @@
 // closes it when it is unmounted. The conversation itself is lib/hub.ts.
 import { onBeforeUnmount, onMounted, ref, shallowReactive, shallowRef, type Ref } from "vue";
 import type {
-  AlertResultMessage,
   BulletinRow,
   ConfigValues,
+  InstallInfo,
   MapState,
   MessageRow,
   PacketRow,
-  PortsMessage,
   StationPref,
   StationRow,
   StatusMessage,
   TncState,
-  WeatherSeriesMessage,
 } from "@/protocol/protocol";
+import { useAnswers } from "@/composables/useAnswers";
 import { useOwnTables } from "@/composables/useOwnTables";
 import { probe } from "@/lib/access";
 import { Hub, type Connection, type Store } from "@/lib/hub";
-import { reloadOnce } from "@/lib/reload";
+import { reloadForDaemon } from "@/lib/reload";
 
 /** The page's own socket: beside the page, so that it works from any path. */
 export function socketUrl(): string {
@@ -48,25 +47,24 @@ export function useDaemon(url: () => string = socketUrl) {
   const bulletins = shallowReactive(new Map<string, BulletinRow>());
   const stationPrefs = shallowReactive(new Map<string, StationPref>());
   const own = useOwnTables();
+  const answers = useAnswers();
   const tnc = shallowRef<TncState | null>(null);
   const config = shallowRef<ConfigValues | null>(null);
   const map = shallowRef<MapState | null>(null);
   const status = shallowRef<StatusMessage | null>(null);
   const connection = ref<Connection>("connecting");
   const lastError = shallowRef<Toast | null>(null);
-  const weatherSeries = shallowRef<WeatherSeriesMessage | null>(null);
-  const alertResult = shallowRef<AlertResultMessage | null>(null);
-  const ports = shallowRef<PortsMessage | null>(null);
   const version = ref("");
+  const install = shallowRef<InstallInfo | null>(null);
   let toasts = 0;
 
   const store: Store = {
     connection: (state) => (connection.value = state),
-    hello: (message) => (version.value = message.version),
+    hello: (message) => {
+      version.value = message.version;
+      install.value = message.install;
+    },
     status: (message) => (status.value = message),
-    weatherSeries: (message) => (weatherSeries.value = message),
-    alertResult: (message) => (alertResult.value = message),
-    ports: (message) => (ports.value = message),
     error: (text) => (lastError.value = { text, n: ++toasts }),
     replaceStations: (rows) => fill(stations, rows),
     replacePackets: (rows) => fill(packets, rows),
@@ -74,6 +72,7 @@ export function useDaemon(url: () => string = socketUrl) {
     replaceBulletins: (rows) => fill(bulletins, rows),
     replaceStationPrefs: (rows) => fill(stationPrefs, rows),
     ...own.handlers,
+    ...answers.handlers,
     replaceTnc: (value) => (tnc.value = value),
     replaceConfig: (value) => (config.value = value),
     replaceMap: (value) => (map.value = value),
@@ -90,7 +89,7 @@ export function useDaemon(url: () => string = socketUrl) {
   };
   // a socket that closes before it has heard anything may have been refused for want of a login: if the daemon says so, the page loads again and shows the key screen
   const refused = (): void => void probe().then((access) => access === "locked" && location.reload());
-  const hub = new Hub(store, { url, outOfDate: () => void reloadOnce(), refused });
+  const hub = new Hub(store, { url, onHello: (hello) => void reloadForDaemon(hello), refused });
 
   /** Sends a command; the toast says so when the socket is not open. */
   function send(command: Parameters<Hub["send"]>[0]): boolean {
@@ -118,9 +117,11 @@ export function useDaemon(url: () => string = socketUrl) {
     connection,
     lastError,
     version,
-    weatherSeries,
-    alertResult,
-    ports,
+    install,
+    updateResult: answers.updateResult,
+    weatherSeries: answers.weatherSeries,
+    alertResult: answers.alertResult,
+    ports: answers.ports,
     send,
   };
 }

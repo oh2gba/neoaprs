@@ -1,11 +1,14 @@
 """The daily update check: a minute after the start and then every 24 hours the daemon asks the version page (`update/url`) which version is the latest, sending its own version and platform and nothing else. When the answer is a
 newer version, `latest` has it; the page is told in its next status and shows it beside the version. `update/check` switches it off (so does `NEOAPRS_UPDATE_CHECK=0` in the environment, which the tests set), and is looked at again an hour later while it is off.
-A page that cannot be reached or understood is only a line in the debug log: the next try is the next day. Nothing is kept between runs.
+A page that cannot be reached or understood is only a line in the debug log: the next try is the next day. Nothing is kept between runs. `check_now` is the same question asked on request (the Settings tab's Check now): it works whatever the switches
+say, tells what came of it, and leaves the schedule alone.
 """
 import asyncio
 import logging
 import os
 from collections.abc import Awaitable, Callable, Mapping
+from dataclasses import dataclass
+from typing import Literal
 
 from neoaprs.config import Config
 from neoaprs.tasks import TaskSet
@@ -20,6 +23,14 @@ ENV_SWITCH = "NEOAPRS_UPDATE_CHECK"             # "0" is off for this run, whate
 Fetch = Callable[[str, str, str], Awaitable[bytes | None]]     # (address, version, platform) to the body of the answer
 
 
+@dataclass(frozen=True)
+class CheckResult:
+    """What a question put on request came to: `newer` (`version` is the latest), `current` (`version` is ours) or `no_answer` (`reason` says why)."""
+    outcome: Literal["newer", "current", "no_answer"]
+    version: str = ""
+    reason: str = ""
+
+
 class UpdateCheck:
     def __init__(self, config: Callable[[], Config], version: str, platform: str, fetch: Fetch, first_sec: float = FIRST_SEC, every_sec: float = EVERY_SEC,
                  environ: Mapping[str, str] = os.environ) -> None:
@@ -32,6 +43,7 @@ class UpdateCheck:
         self._environ = environ
         self.latest: Update | None = None                       # the answer, while it names a version newer than ours
         self._tasks = TaskSet(self._task_failed)
+        self._asking = asyncio.Lock()                           # one question at a time, whoever asks
 
     @property
     def enabled(self) -> bool:
@@ -59,16 +71,37 @@ class UpdateCheck:
                 except Exception:                                # (a check that fails must not end the timer)
                     log.debug("the update check failed", exc_info=True)
 
-    async def check(self) -> Update | None:
-        """Asks the page now; the newer version it names, else None. `latest` follows the answer; an answer that did not come leaves it as it was."""
-        body = await self._fetch(self._config().update_url, self.version, self.platform)
-        answer = None if body is None else parse_update(body)
-        if answer is None:
-            log.debug("the update check got no usable answer from %s", self._config().update_url)
-            return None
+    async def _ask(self) -> tuple[Update | None, str]:
+        """(the answer of the page, ''), or (None, why not)."""
+        address = self._config().update_url
+        body = await self._fetch(address, self.version, self.platform)
+        if body is None:
+            return None, "the version page could not be reached"
+        answer = parse_update(body)
+        return (answer, "") if answer is not None else (None, "the version page gave an answer that is not a version")
+
+    def _take(self, answer: Update) -> Update | None:
         newer = answer if compare_versions(answer.version, self.version) > 0 else None
         if newer != self.latest:
             self.latest = newer
             if newer is not None:
                 log.info("NeoAPRS %s is available (this is %s): %s", newer.version, self.version, newer.url or "no address")
         return newer
+
+    async def check(self) -> Update | None:
+        """Asks the page now; the newer version it names, else None. `latest` follows the answer; an answer that did not come leaves it as it was."""
+        async with self._asking:
+            answer, reason = await self._ask()
+            if answer is None:
+                log.debug("the update check got no usable answer from %s: %s", self._config().update_url, reason)
+                return None
+            return self._take(answer)
+
+    async def check_now(self) -> CheckResult:
+        """The same question on request, whether the daily check is on or not; `latest` follows the answer, and the timer of the daily check is not touched."""
+        async with self._asking:
+            answer, reason = await self._ask()
+            if answer is None:
+                return CheckResult("no_answer", reason=reason)
+            newer = self._take(answer)
+            return CheckResult("newer", newer.version) if newer is not None else CheckResult("current", self.version)

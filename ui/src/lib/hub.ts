@@ -16,9 +16,10 @@ import type {
   StationRow,
   StatusMessage,
   TopicValues,
+  UpdateResultMessage,
   WeatherSeriesMessage,
 } from "@/protocol/protocol";
-import { MESSAGE_TYPES, PROTOCOL, TOPIC_NAMES } from "@/protocol/lists";
+import { MESSAGE_TYPES, TOPIC_NAMES } from "@/protocol/lists";
 
 export const FIRST_DELAY_MS = 1000;
 export const MAX_DELAY_MS = 30000;
@@ -34,6 +35,7 @@ export interface Store {
   error(text: string): void;
   weatherSeries(message: WeatherSeriesMessage): void;
   alertResult(message: AlertResultMessage): void;
+  updateResult(message: UpdateResultMessage): void;
   ports(message: PortsMessage): void;
   replaceStations(rows: Record<string, StationRow>): void;
   replacePackets(rows: Record<string, PacketRow>): void;
@@ -75,8 +77,8 @@ interface HubOptions {
   url: () => string;
   /** makes the socket; the browser's WebSocket by default */
   socket?: (url: string) => SocketLike;
-  /** the page is out of date: it loads itself again (once; the caller guards the loop) */
-  outOfDate?: () => void;
+  /** the daemon has said hello: the caller looks at its version and protocol (lib/reload.ts) */
+  onHello?: (message: HelloMessage) => void;
   /** a socket closed before the daemon said anything: it may have been refused */
   refused?: () => void;
 }
@@ -191,8 +193,8 @@ export class Hub {
     if (message === null) return;
     switch (message.type) {
       case "hello":
-        if (message.protocol !== PROTOCOL) this.options.outOfDate?.();
         this.store.hello(message);
+        this.options.onHello?.(message);
         break;
       case "status":
         this.store.status(message);
@@ -211,6 +213,9 @@ export class Hub {
         break;
       case "alert_result":
         this.store.alertResult(message);
+        break;
+      case "update_result":
+        this.store.updateResult(message);
         break;
       case "ports":
         this.store.ports(message);

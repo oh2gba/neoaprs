@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-Nothing yet.
+- Updating: the new version in the header opens a panel, "Update to 0.4.0", with a link to what is new and the steps for the way this copy was installed (Windows installer, AppImage, the install line, pip, a clone), the commands each with a copy button and the downloads linked by version. The daemon works out how it was installed and says so in `hello` (`install`: the kind, the AppImage file, whether a service starts it). The manual has an Updating section.
+- A page that is open when NeoAPRS is updated loads the new version by itself: the page knows the version it was built for and loads again, once for each version of the daemon, when the daemon says another one (before, only a new protocol did, and only once for the tab). A daemon that serves an older page than itself does not make it loop. The same in the desktop app's window.
+- Settings, Update check: a **Check now** button asks the version page at once and says beside it `up to date (0.3.0)`, `0.4.0 available` or why there was no answer; it works with the daily check off. The address of the version page (`update/url`) is no longer in the form; `neoaprs db set update/url` still sets it.
 
 ## 0.3.0
 

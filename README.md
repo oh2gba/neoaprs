@@ -26,7 +26,7 @@ curl -LsSf https://github.com/oh2gba/neoaprs/releases/latest/download/install.sh
 
 Then run `neoaprs open`, or open <http://127.0.0.1:7303/>. If the port says *permission denied* on Linux: `sudo usermod -aG dialout $USER`, then log out and in. `neoaprs doctor` says what keeps the radio from working.
 
-To update, run the newer installer or the install line again; your data (settings, messages, packets, the map) is not touched. To remove: *Settings*, *Apps*, NeoAPRS on Windows; `neoaprs service remove` and `uv tool uninstall neoaprs` elsewhere.
+When a newer version is out, its number appears in the page's header; a click shows the steps for the way you installed it. To update, run the newer installer or the install line again; your data (settings, messages, packets, the map) is not touched, and open pages load the new version by themselves ([Updating](docs/MANUAL.md#updating)). To remove: *Settings*, *Apps*, NeoAPRS on Windows; `neoaprs service remove` and `uv tool uninstall neoaprs` elsewhere.
 
 ## First start
 

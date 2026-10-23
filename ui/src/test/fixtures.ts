@@ -9,11 +9,14 @@ import type {
   OwnObjectRow,
   PacketRow,
   StationRow,
+  HelloMessage,
   StatusMessage,
   TncState,
   WeatherSeriesMessage,
   WeatherValues,
 } from "@/protocol/protocol";
+import { PAGE_VERSION } from "@/lib/build";
+import { PROTOCOL } from "@/protocol/lists";
 
 export const NOW = Date.parse("2026-10-21T12:00:00Z");
 
@@ -327,6 +330,11 @@ export function mapState(extra: Partial<MapState> = {}): MapState {
     world: null,
     ...extra,
   };
+}
+
+/** The daemon's `hello` for a page of this build: the same version and protocol, so that the page does not load itself again. */
+export function hello(extra: Partial<HelloMessage> = {}): HelloMessage {
+  return { type: "hello", protocol: PROTOCOL, version: PAGE_VERSION, install: { kind: "pip", appimage: "", service: false }, topics: [], ...extra };
 }
 
 export function status(extra: Partial<StatusMessage> = {}): StatusMessage {

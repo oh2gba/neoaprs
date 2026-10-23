@@ -58,7 +58,6 @@ export const FIELDS: Record<string, FieldInfo> = {
   "map/maxzoom": { label: "Detail", kind: "choice", choices: DETAIL_CHOICES },
   "map/source": { label: "Source", empty: "latest build" },
   "update/check": { label: "Check once a day", kind: "bool", title: "Sends this version and the platform" },
-  "update/url": { label: "Address" },
   "messages/attempts": { label: "Attempts" },
   "messages/alert": { label: "Alert", kind: "bool" },
   "messages/alert_command": { label: "Command" },
@@ -109,13 +108,16 @@ const SCOPE_GROUPS: Record<Scope, readonly string[]> = {
   settings: ["serial", "web", "log", "messages", "notifications", "map", "update"],
 };
 
+/** Settings that stay in the daemon (`neoaprs db set`) and are not on the page: the address the update check asks. */
+const NOT_ON_THE_PAGE: readonly string[] = ["update/url"];
+
 /** The keys in the order of the daemon's list (a key it did not list last), in the groups of the form `scope` shows. */
 export function groupKeys(keys: readonly string[], scope: Scope = "settings"): Group[] {
   const order = (key: string): number => {
     const at = (CONFIG_KEYS as readonly string[]).indexOf(key);
     return at < 0 ? CONFIG_KEYS.length : at;
   };
-  const sorted = [...keys].sort((a, b) => order(a) - order(b));
+  const sorted = keys.filter((k) => !NOT_ON_THE_PAGE.includes(k)).sort((a, b) => order(a) - order(b));
   const groups: Group[] = GROUPS.map((g) => ({
     id: g.id,
     title: g.title,

@@ -21,7 +21,7 @@ describe("groupKeys", () => {
     expect(groups[4]?.title).toBe("Notifications");
     expect(groups[4]?.keys).toEqual(["messages/alert", "messages/alert_command"]);
     expect(groups[5]?.keys).toEqual(["map/hide_after_min", "map/radius_km", "map/maxzoom", "map/source"]);
-    expect(groups[6]?.keys).toEqual(["update/check", "update/url"]);
+    expect(groups[6]?.keys).toEqual(["update/check"]);
   });
   it("gives the Beacon tab the station keys first (the call is its first field), then the beacon keys and the status keys", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "beacon");
@@ -44,7 +44,11 @@ describe("groupKeys", () => {
   });
   it("has every key in one place only", () => {
     const shown = [...groupKeys(CONFIG_KEYS, "settings"), ...groupKeys(CONFIG_KEYS, "beacon")].flatMap((g) => g.keys);
-    expect(shown.sort()).toEqual([...CONFIG_KEYS].sort());
+    expect(shown.sort()).toEqual(CONFIG_KEYS.filter((key) => key !== "update/url").sort());
+  });
+  it("leaves the address of the update check off the page: it is set with neoaprs db set", () => {
+    expect(groupKeys(CONFIG_KEYS, "settings").flatMap((g) => g.keys)).not.toContain("update/url");
+    expect(FIELDS["update/url"]).toBeUndefined();
   });
   it("shows a key it does not know under Other", () => {
     expect(groupKeys(["web/port", "mystery/key"], "settings").map((g) => [g.id, g.keys])).toEqual([
@@ -61,7 +65,7 @@ describe("groupKeys", () => {
     expect(groupKeys(["web/port", "map/hide_after_min"]).map((g) => g.id)).toEqual(["web", "map"]);
   });
   it("knows every key of the daemon: a short label for each, and no hint text anywhere", () => {
-    for (const key of CONFIG_KEYS) {
+    for (const key of CONFIG_KEYS.filter((k) => k !== "update/url")) {
       const info = FIELDS[key];
       expect(info?.label, key).toBeTruthy();
       expect(info?.label.length, key).toBeLessThanOrEqual(30);

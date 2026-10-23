@@ -88,7 +88,7 @@ class Api:
     def attach(self, client: Client, ip: str = "127.0.0.1") -> None:
         """A page opened: it is sent `hello`, every topic whole (it follows them from then on) and `status` (which waits for the database to count the packets)."""
         conn = self.out.open(client, ip)
-        conn.send({"type": "hello", "protocol": PROTOCOL, "version": VERSION, "topics": list(self.hub.topics)})
+        conn.send({"type": "hello", "protocol": PROTOCOL, "version": VERSION, "install": asdict(self.ctl.install), "topics": list(self.hub.topics)})
         self.hub.attach(conn)
         self.tasks.spawn(self._tell_status(conn), "web-status")
 
