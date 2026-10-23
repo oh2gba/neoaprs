@@ -27,17 +27,28 @@ def tree(folder: Path) -> dict[str, str]:
     return {p.relative_to(folder).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(folder.rglob("*")) if p.is_file()}
 
 
+NODE_NEEDED = (22, 12)                                   # what the page's build tools need (as scripts/check)
+
+
+def node_version(node: str) -> tuple[int, ...]:
+    try:
+        out = subprocess.run([node, "--version"], capture_output=True, text=True, timeout=30).stdout
+    except (OSError, subprocess.SubprocessError):
+        return ()
+    return tuple(int(n) for n in re.findall(r"\d+", out)[:3])
+
+
 def node_dir() -> str | None:
-    """The folder of a node: the one on the PATH, else the newest of the operator's ~/.nvm (the tests run with an empty HOME, so the real one is looked up)."""
+    """The folder of a node new enough: the one on the PATH, else the newest of the operator's ~/.nvm (the tests run with an empty HOME, so the real one is looked up)."""
     found = shutil.which("node")
-    if found:
+    if found and node_version(found) >= NODE_NEEDED:
         return str(Path(found).parent)
     if sys.platform == "win32":
         return None                                      # (no nvm there, and no pwd)
     import pwd
     versions = Path(pwd.getpwuid(os.getuid()).pw_dir) / ".nvm" / "versions" / "node"
     newest = sorted(versions.glob("v*/bin/node"), key=lambda p: [int(n) for n in re.findall(r"\d+", p.parent.parent.name)]) if versions.is_dir() else []
-    return str(newest[-1].parent) if newest else None
+    return str(newest[-1].parent) if newest and node_version(str(newest[-1])) >= NODE_NEEDED else None
 
 
 def test_the_built_page_is_there_and_works_from_any_path() -> None:
@@ -71,7 +82,7 @@ def test_the_files_the_page_reads_at_run_time_are_shipped() -> None:
         assert not (PAGE / gone).exists(), f"page/{gone} is of the page before the build: {HINT}"
 
 
-@pytest.mark.skipif(node_dir() is None, reason="node is not installed: the page is not rebuilt to compare")
+@pytest.mark.skipif(node_dir() is None, reason="no node 22.12 or newer (on the PATH or in ~/.nvm): the page is not rebuilt to compare")
 @pytest.mark.skipif(not VITE.exists(), reason="ui/node_modules is not installed (cd ui && npm ci): the page is not rebuilt to compare")
 def test_the_page_is_what_the_source_builds(tmp_path: Path) -> None:
     fresh_dir = tmp_path / "fresh"

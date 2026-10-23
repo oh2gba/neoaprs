@@ -247,7 +247,8 @@ async def test_a_named_port_that_cannot_be_opened_stays_waiting_when_the_probe_i
     try:
         await tnc.start()
         await asyncio.sleep(0.4)
-        assert tnc.state is Source.State.WAITING and tnc.stats.opens == 0 and "No such file or directory" in tnc.problem
+        await until(lambda: tnc.state is Source.State.WAITING)              # (it tries the port again and again: between two tries it is waiting)
+        assert tnc.stats.opens == 0 and "No such file or directory" in tnc.problem
     finally:
         feeder.cancel()
         await tnc.stop()

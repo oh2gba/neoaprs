@@ -33,6 +33,7 @@ from typing import Any
 
 import pytest
 import pytest_asyncio
+import serial.tools.list_ports  # type: ignore[import-untyped]
 
 from neoaprs.dbthread import DbThread
 from tests.support import env as env_module
@@ -345,6 +346,7 @@ def isolated_machine(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyP
         network.install(monkeypatch.setattr)
         radio, processes = SerialGuard(), ProcessGuard()
         radio.install(monkeypatch.setattr)
+        monkeypatch.setattr(serial.tools.list_ports, "comports", lambda: [])    # the machine's USB devices are not read (slow, and not the test's): a test that needs some gives its own list
         processes.install(monkeypatch.setattr)
         yield
         assert not network.refused, "the test tried to reach something that is not this machine: " + ", ".join(network.refused)
