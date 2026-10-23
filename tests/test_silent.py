@@ -371,7 +371,7 @@ async def test_switching_the_checks_off_while_a_fresh_line_waits_makes_it_usable
 
 def tnc2_daemon(tmp_path: Path, **timings: float) -> Env:
     """A daemon on a fake radio with the Kenwood TNC-2 profile, the keep-alive on and a beacon that is due at the start."""
-    e = Env(tmp_path, settings={"tnc/check_sec": "60", "beacon/interval_min": "1"}, check_pause_sec=0.02, probe_sec=30.0, **timings)
+    e = Env(tmp_path, settings={"beacon/interval_min": "1"}, check_sec=60.0, check_pause_sec=0.02, probe_sec=30.0, **timings)
     e.ctl.beacon.tick_sec, e.ctl.beacon.retry_sec, e.ctl.beacon.first_delay_sec = 0.02, 0.05, 0.0
     return e
 

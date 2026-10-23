@@ -11,8 +11,6 @@ export interface FieldInfo {
   name?: string;
   /** After the input: "min", "W", "km/h". */
   unit?: string;
-  /** The word that stands in the unit's place while the value is 0: "never", "off". */
-  zero?: string;
   /** The placeholder of a field whose empty value means something ("none", "auto", "direct"); else the placeholder is the default. */
   empty?: string;
   /** On hover: the one thing a word cannot say. */
@@ -32,6 +30,13 @@ export interface Choice {
   value: string;
   label: string;
 }
+
+/** The status's choices: every 30 or 60 minutes or every 2 hours (15 is the least the daemon takes). */
+const STATUS_INTERVAL_CHOICES: readonly Choice[] = [
+  { value: "30", label: "Every 30 min" },
+  { value: "60", label: "Every 60 min" },
+  { value: "120", label: "Every 2 hours" },
+];
 
 /** The beacon's choices: off, or every 15, 30 or 60 minutes (15 is the least the daemon takes). */
 const BEACON_CHOICES: readonly Choice[] = [
@@ -132,16 +137,6 @@ export const FIELDS: Record<string, FieldInfo> = {
   "serial/last_port": { label: "Last port found", kind: "readonly", empty: "-" },
   "serial/pattern": { label: "Ports to search", title: "Device globs, separated by spaces" },
   "serial/skip": { label: "Ports to skip", empty: "none", title: "Device paths, separated by commas" },
-  "tnc/check_sec": {
-    label: "Keep-alive",
-    unit: "s",
-    zero: "off",
-    tipLabel: "About the keep-alive",
-    tip: [
-      "When nothing at all has come from the radio for this many seconds, NeoAPRS asks it whether it is still there. That way a radio that was switched off and on again is noticed and put back into KISS.",
-      "60 suits most. 0 turns it off. It applies to the Kenwood and Kantronics TNCs, which can be asked; a KISS TNC is not asked.",
-    ],
-  },
   "web/network": {
     name: "Network access",
     label: "Allow access from the network",
@@ -211,10 +206,11 @@ export const FIELDS: Record<string, FieldInfo> = {
   "status/interval_min": {
     name: "Status interval",
     label: "Every",
-    unit: "min",
+    kind: "choice",
+    choices: STATUS_INTERVAL_CHOICES,
+    other: (value) => `Every ${value} min`,
     tip: [
-      "The least time between two status reports, 10 to 1440 minutes. A status is not sent again while it says the same as the last one, however long it has been.",
-      "Example: 30",
+      "The least time between two status reports. A status is not sent again while it says the same as the last one, however long it has been; 30 minutes to 2 hours suit a status that tells what you are doing or what the radio is tuned to.",
     ],
   },
   "status/template": {
@@ -297,7 +293,7 @@ const SCOPE_GROUPS: Record<Scope, readonly string[]> = {
 };
 
 /** The order of the TNC group on the page: the port and its speed, the keep-alive, then the search (which the port falls back to). */
-const TNC_ORDER = ["tnc/profile", "serial/port", "serial/baud", "tcp/host", "tcp/port", "tnc/check_sec", "serial/pattern", "serial/skip", "serial/last_port"];
+const TNC_ORDER = ["tnc/profile", "serial/port", "serial/baud", "tcp/host", "tcp/port", "serial/pattern", "serial/skip", "serial/last_port"];
 
 /** The Status group: the choice first, then what that choice needs. */
 const STATUS_ORDER = ["status/source", "station/status", "status/rigctld", "status/template", "status/interval_min"];
@@ -378,7 +374,6 @@ export function shownFor(key: string, profileKey: string | undefined, network = 
   if (key.startsWith("tcp/")) return profile.transport === "tcp";
   if (SERIAL_ONLY.includes(key)) return profile.transport === "serial";
   if (SEARCH.includes(key)) return profile.transport === "serial" && search;
-  if (key === "tnc/check_sec") return profile.probe;
   return true;
 }
 

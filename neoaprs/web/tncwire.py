@@ -15,7 +15,7 @@ class TncStats(_Model):
     packets: int = Field(description="packets handed on")
     rejected: int = Field(description="frames that could not be read as a packet")
     last_packet: Iso | None = Field(description="when the latest packet was heard; null for none yet")
-    keepalive_checks: int = Field(ge=0, description="times the keep-alive checked that the radio is there (after `tnc/check_sec` of nothing heard)")
+    keepalive_checks: int = Field(ge=0, description="times the keep-alive checked that the radio is there (after 60 seconds of nothing heard)")
     watchdog_probes: int = Field(ge=0, description="times the watchdog probed a silent radio (the same sequence as a check, every 30 seconds)")
     port_reopens: int = Field(ge=0, description="times the port was closed and opened again (every 5th probe of a silent radio)")
     digipeated: int = Field(ge=0, description="frames the digipeater (`digi/enabled`) sent again for other stations")

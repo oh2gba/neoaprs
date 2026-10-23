@@ -8,19 +8,15 @@ interface Whole {
   max: number;
   /** an empty field is a value (none, or the profile's own) */
   empty?: boolean;
-  /** 0 is a value besides min to max (off, never) */
-  zero?: boolean;
 }
 
 /** The limits of the daemon's whole numbers (neoaprs/config.py). */
 const WHOLE: Record<string, Whole> = {
   "serial/baud": { min: 300, max: 921600, empty: true },
   "tcp/port": { min: 1, max: 65535 },
-  "tnc/check_sec": { min: 10, max: 3600, zero: true },
   "beacon/power_w": { min: 0, max: 9999, empty: true },
   "beacon/antenna_height_m": { min: 0, max: 9999 },
   "beacon/antenna_gain_db": { min: 0, max: 9 },
-  "status/interval_min": { min: 10, max: 1440 },
   "map/radius_km": { min: 10, max: 1000 },
 };
 
@@ -28,9 +24,7 @@ function wholeProblem(text: string, limits: Whole): string {
   const value = text.trim();
   if (value === "") return limits.empty ? "" : `${limits.min} to ${limits.max}`;
   const n = /^\d+$/.test(value) ? Number(value) : NaN;
-  const fine = (n >= limits.min && n <= limits.max) || (limits.zero === true && n === 0);
-  if (fine) return "";
-  return limits.zero ? `0, or ${limits.min} to ${limits.max}` : `${limits.min} to ${limits.max}`;
+  return n >= limits.min && n <= limits.max ? "" : `${limits.min} to ${limits.max}`;
 }
 
 /** What is wrong with the text of a setting as it stands, or "" when the page has nothing against it (the daemon may still refuse it). */

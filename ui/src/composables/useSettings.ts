@@ -17,9 +17,8 @@ export function useSettings(config: Ref<ConfigValues | null>, lastError: Ref<Toa
   const feedback = useSettingsFeedback();
   const values = computed(() => config.value?.values ?? {});
 
-  /** The request was not saved: the reason under the key, no mark, and a refused choice shows the value in force again. */
+  /** The request was not saved: the reason under the key, and a refused choice shows the value in force again. */
   function refuse(request: Request, reason: string, key = request.keys[0] ?? ""): void {
-    feedback.dropped(request.keys);
     errors[key] = reason;
     for (const k of request.revert) if (!queue.waiting(k)) draft[k] = values.value[k] ?? "";
   }
@@ -30,7 +29,6 @@ export function useSettings(config: Ref<ConfigValues | null>, lastError: Ref<Toa
   function edit(key: string, text: string): void {
     draft[key] = text;
     delete errors[key];
-    if (feedback.marks[key] === "saved") delete feedback.marks[key];
   }
 
   /** Esc: the value the key has (or will have) comes back. */
@@ -41,7 +39,6 @@ export function useSettings(config: Ref<ConfigValues | null>, lastError: Ref<Toa
 
   function enqueue(request: Request): void {
     feedback.dismissUndo(); // (earlier changes are just applied: the toast covers the latest)
-    feedback.saving(request.keys);
     queue.enqueue(request);
   }
 
@@ -86,7 +83,6 @@ export function useSettings(config: Ref<ConfigValues | null>, lastError: Ref<Toa
     draft,
     errors,
     values,
-    marks: feedback.marks,
     undo: feedback.undo,
     announcement: feedback.announcement,
     saving: queue.saving,

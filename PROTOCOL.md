@@ -146,7 +146,7 @@ Asks for the serial ports of the machine the daemon runs on, and the Bluetooth d
 
 Changes settings. Every key and value is checked before anything is stored: the first that is wrong is answered with an `error` that names the key, and nothing changes. A key that is
 left out keeps its value. The answer is the `config` topic told again. `web/port` and `web/allowed_hosts` are read at the daemon's start, `web/network` (and with it the access key `web/key`) and `web/https` count at once, `serial/*`, `tcp/*` and `tnc/profile` restart the
-TNC, `station/*` move our own station on the map. `tnc/check_sec` counts at once, with no restart.
+TNC, `station/*` move our own station on the map.
 
 | field | type | | description |
 |---|---|---|---|
@@ -763,7 +763,7 @@ What the TNC has counted since the daemon started.
 | `packets` | integer |  | packets handed on |
 | `rejected` | integer |  | frames that could not be read as a packet |
 | `last_packet` | time \| null |  | when the latest packet was heard; null for none yet |
-| `keepalive_checks` | integer |  | times the keep-alive checked that the radio is there (after `tnc/check_sec` of nothing heard) (>= 0) |
+| `keepalive_checks` | integer |  | times the keep-alive checked that the radio is there (after 60 seconds of nothing heard) (>= 0) |
 | `watchdog_probes` | integer |  | times the watchdog probed a silent radio (the same sequence as a check, every 30 seconds) (>= 0) |
 | `port_reopens` | integer |  | times the port was closed and opened again (every 5th probe of a silent radio) (>= 0) |
 | `digipeated` | integer |  | frames the digipeater (`digi/enabled`) sent again for other stations (>= 0) |

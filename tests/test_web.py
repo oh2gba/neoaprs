@@ -117,20 +117,18 @@ async def test_the_keep_alive_counters_and_the_last_action_are_in_the_tnc_topic(
     assert page.of("error") == []
 
 
-async def test_the_check_period_of_the_settings_counts_at_once_without_a_restart(tmp_path: Path) -> None:
+async def test_a_setting_that_counts_at_once_needs_no_restart_and_is_what_the_next_start_reads(tmp_path: Path) -> None:
     e = Env(tmp_path, web=True)
     await e.start()
     page = await e.ws()
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
-    assert e.tnc.watchdog.sec == 0.0 and page.topics["config"]["values"]["tnc/check_sec"] == "0" and "map/hide_after_min" not in page.topics["config"]["values"]      # (the checks are off in the settings of an Env)
-    await page.send({"cmd": "set_config", "values": {"tnc/check_sec": "300", "map/radius_km": "200"}})
-    await page.until(lambda: page.topics["config"]["values"]["tnc/check_sec"] == "300")
-    assert e.tnc.watchdog.sec == 300.0 and e.tnc.stats.opens == 1 and e.tnc._watchdog_task is not None
-    await page.send({"cmd": "set_config", "values": {"tnc/check_sec": "0"}})
-    await page.until(lambda: page.topics["config"]["values"]["tnc/check_sec"] == "0")
-    assert e.tnc.watchdog.sec == 0.0 and e.tnc._watchdog_task is None and e.tnc.stats.opens == 1 and e.tnc.state is Source.State.CONNECTED
+    values = page.topics["config"]["values"]
+    assert e.tnc.watchdog.sec == 0.0 and not {"tnc/check_sec", "map/hide_after_min"} & values.keys()      # (the keep-alive is off in an Env, and neither is a setting any more)
+    await page.send({"cmd": "set_config", "values": {"map/radius_km": "200"}})
+    await page.until(lambda: page.topics["config"]["values"]["map/radius_km"] == "200")
+    assert e.tnc.stats.opens == 1 and e.tnc.state is Source.State.CONNECTED, "the TNC was not restarted"
     await page.send({"cmd": "set_config", "values": {"tnc/check_sec": "5"}})
-    assert (await page.expect("error"))["text"].startswith("set_config: tnc/check_sec")
+    assert (await page.expect("error"))["text"].startswith("set_config: tnc/check_sec: no such setting")
     await e.stop()
     again = Env(tmp_path)
     await again.start()

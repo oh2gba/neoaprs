@@ -14,9 +14,8 @@ describe("problemOf", () => {
     expect(problemOf("station/lat", "60,17")).toBe("");
     expect(problemOf("station/lat", "abc")).toBe("Not a number");
     expect(problemOf("station/lon", "181")).toBe("Between -180 and 180");
-    expect(problemOf("tnc/check_sec", "0")).toBe("");
-    expect(problemOf("tnc/check_sec", "9")).toBe("0, or 10 to 3600");
-    expect(problemOf("status/interval_min", "9")).toBe("10 to 1440");
+    expect(problemOf("map/radius_km", "5")).toBe("10 to 1000");
+    expect(problemOf("status/interval_min", "7")).toBe(""); // (a choice of the page: the daemon is the judge of a stored one)
     expect(problemOf("beacon/interval_min", "7")).toBe(""); // (a choice of the page: the daemon is the judge of a stored one)
     expect(problemOf("serial/baud", "")).toBe("");
     expect(problemOf("serial/baud", "12")).toBe("300 to 921600");

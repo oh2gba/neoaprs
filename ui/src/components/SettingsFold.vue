@@ -21,7 +21,6 @@ defineProps<{ title: string; keys: readonly string[]; settings: Settings; form: 
       :fallback="defaults[key] ?? ''"
       :error="settings.errors[key] ?? ''"
       :changed="form.changed(key)"
-      :state="settings.marks[key] ?? ''"
       :apply="true"
       @update:model-value="FIELDS[key]?.kind === 'choice' ? undefined : settings.edit(key, $event)"
       @choose="form.choose({ [key]: $event })"

@@ -194,14 +194,11 @@ describe("SettingsForm", () => {
     }
   });
 
-  it("puts a unit after the field where one applies, and the word for 0 in its place", async () => {
+  it("puts a unit after the field where one applies", () => {
     const { wrapper } = make();
     const unit = (id: string) => wrapper.find(`#${id}`).element.closest(".field")?.querySelector(".unit")?.textContent;
-    expect(unit("set-tnc-check_sec")).toBe("s");
     expect(unit("set-serial-baud")).toBe("baud");
     expect(unit("set-map-radius_km")).toBe("km");
-    await wrapper.find("#set-tnc-check_sec").setValue("0");
-    expect(unit("set-tnc-check_sec")).toBe("off");
   });
 
   it("shows what an empty value means as the placeholder, else the default", () => {
@@ -259,13 +256,11 @@ describe("SettingsForm", () => {
       expect(select.element.value).toBe("kenwood-tnc2");
     });
 
-    it("shows the port, the speed and the keep-alive of a TNC that has a command mode", () => {
+    it("shows the port and the speed of a serial TNC, and no keep-alive: that is fixed at 60 seconds and is no setting", async () => {
       const { wrapper } = make();
-      expect(fieldIds(wrapper)).toEqual(["set-tnc-profile", "set-serial-port", "set-serial-baud", "set-tnc-check_sec"]);
-    });
-
-    it("leaves the keep-alive out for a KISS TNC, which cannot be asked if it is there", async () => {
-      const { wrapper } = make();
+      expect(fieldIds(wrapper)).toEqual(["set-tnc-profile", "set-serial-port", "set-serial-baud"]);
+      expect(wrapper.find("#set-tnc-check_sec").exists()).toBe(false);
+      expect(wrapper.text()).not.toContain("Keep-alive");
       await wrapper.find("#set-tnc-profile").setValue("kiss");
       expect(fieldIds(wrapper)).toEqual(["set-tnc-profile", "set-serial-port", "set-serial-baud"]);
     });
@@ -358,16 +353,16 @@ describe("SettingsForm", () => {
 
     it("shows the port of the owner's station once, and not which ports the search looks at or skips (those stay in the daemon)", () => {
       const { wrapper } = withPorts(OWNER);
-      expect(labels(wrapper)).toEqual(["Radio type", "Port", "Speed", "Keep-alive"]);
+      expect(labels(wrapper)).toEqual(["Radio type", "Port", "Speed"]);
       expect(wrapper.find("#set-serial-pattern").exists()).toBe(false);
       expect(wrapper.find("#set-serial-skip").exists()).toBe(false);
       expect(headings(wrapper)).toHaveLength(0);
     });
 
     it("says 'none chosen' for the empty port where the daemon does not search", () => {
-      expect(labels(withPorts().wrapper)).toEqual(["Radio type", "Port", "Speed", "Keep-alive"]);
+      expect(labels(withPorts().wrapper)).toEqual(["Radio type", "Port", "Speed"]);
       const { wrapper } = withPorts({}, portList({ search: false }));
-      expect(labels(wrapper)).toEqual(["Radio type", "Port", "Speed", "Keep-alive"]);
+      expect(labels(wrapper)).toEqual(["Radio type", "Port", "Speed"]);
       expect(headings(wrapper)).toHaveLength(0);
       expect(options(wrapper)[0]).toBe("none chosen");
     });
@@ -428,11 +423,11 @@ describe("SettingsForm", () => {
       const { wrapper, send } = withPorts({ "serial/port": "" });
       await wrapper.find("#set-serial-baud").setValue("19200");
       await wrapper.find("#set-serial-baud").trigger("blur");
-      await wrapper.find("#set-tnc-check_sec").setValue("90");
-      await wrapper.find("#set-tnc-check_sec").trigger("blur");
+      await wrapper.find("#set-map-radius_km").setValue("200");
+      await wrapper.find("#set-map-radius_km").trigger("blur");
       expect(send.mock.calls.filter(([c]) => c.cmd === "set_config")).toEqual([[{ cmd: "set_config", values: { "serial/baud": "19200" } }]]);
       await wrapper.setProps({ config: configValues({ "serial/port": "", "serial/baud": "19200" }) });
-      expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "tnc/check_sec": "90" } });
+      expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "map/radius_km": "200" } });
     });
 
     it("follows the daemon when it finds the radio on another port", async () => {
@@ -451,12 +446,10 @@ describe("SettingsForm", () => {
       expect(send.mock.calls.filter(([c]) => c.cmd === "list_ports")).toHaveLength(1);
     });
 
-    it("puts the units and the hover titles on the speed, the keep-alive and the port", () => {
+    it("puts the unit and the (i) on the speed and the port", () => {
       const { wrapper } = withPorts();
       const field = (id: string) => wrapper.find(`#${id}`).element.closest(".field");
       expect(field("set-serial-baud")?.querySelector(".unit")?.textContent).toBe("baud");
-      expect(field("set-tnc-check_sec")?.querySelector(".unit")?.textContent).toBe("s");
-      expect(field("set-tnc-check_sec")?.querySelector(".info-toggle")).not.toBeNull();
       expect(field("set-serial-port")?.querySelector(".info-toggle")).not.toBeNull();
     });
   });
@@ -571,15 +564,20 @@ describe("SettingsForm", () => {
       expect(wrapper.find("#set-station-lon").element.closest(".field")?.querySelector(".field-error")).toBeNull();
     });
 
-    it("says Saving, then Saved with a tick beside the field when the settings come back, and a screen reader is told", async () => {
+    it("shows nothing beside the field while a change is on its way or when it is saved, so that nothing moves; a screen reader is told", async () => {
       const { wrapper } = make({}, "beacon");
+      const field = () => wrapper.find("#set-station-comment").element.closest(".field");
+      const shape = () => [...(field()?.querySelectorAll("*") ?? [])].map((e) => e.tagName).join(" ");
+      const before = shape();
       await wrapper.find("#set-station-comment").setValue("Hello");
       await wrapper.find("#set-station-comment").trigger("blur");
-      const state = () => wrapper.find("#set-station-comment").element.closest(".field")?.querySelector(".field-state")?.textContent;
-      expect(state()).toBe("Saving…");
+      expect(wrapper.find("[role='status'][aria-live]").text()).toBe("");
       await wrapper.setProps({ config: configValues({ "station/comment": "Hello" }) });
-      expect(state()).toBe("Saved ✓");
       expect(wrapper.find("[role='status'][aria-live]").text()).toBe("Saved");
+      expect(wrapper.find(".field-state").exists()).toBe(false);
+      expect(wrapper.text()).not.toContain("Saved ✓");
+      expect(wrapper.text()).not.toContain("Saving");
+      expect(shape()).toBe(before);
       expect(wrapper.find<HTMLInputElement>("#set-station-comment").element.value).toBe("Hello");
     });
 
@@ -865,7 +863,6 @@ describe("SettingsForm: the Location of our station (Beacon tab)", () => {
     expect(send.mock.calls).toEqual([[{ cmd: "set_config", values: { "station/lat": "60.42945", "station/lon": "24.14524" } }]]);
     await wrapper.setProps({ config: configValues({ "station/lat": "60.42945", "station/lon": "24.14524" }) });
     expect(wrapper.find(".location-line").text()).toContain("60.42945 N, 24.14524 E");
-    expect(wrapper.find(".location .field-state").text()).toBe("Saved ✓");
   });
 
   it("applies typed coordinates together when focus leaves the pair and both are right, and not before", async () => {
