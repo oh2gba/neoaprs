@@ -46,6 +46,10 @@ export class FakeMap {
   }
 
   addControl(): void {}
+  resizes = 0;
+  resize(): void {
+    this.resizes += 1;
+  }
   addSource(id: string): void {
     this.sources.set(id, { setData: vi.fn() });
   }

@@ -280,15 +280,21 @@ button.status:hover {
   flex-direction: column;
   min-width: 0;
 }
+.tabbar {
+  display: flex;
+  flex: none;
+  border-bottom: 1px solid var(--border);
+}
 .tabs {
   display: flex;
+  flex: 1;
+  min-width: 0;
   /* one row: it scrolls sideways when the tabs do not fit */
   flex-wrap: nowrap;
   overflow-x: auto;
   scrollbar-width: thin;
   gap: 0 2px;
   padding: 4px 38px 0 6px;
-  border-bottom: 1px solid var(--border);
 }
 .tab {
   flex: none;
@@ -409,6 +415,8 @@ tbody tr:focus-visible {
   flex: 1;
   min-height: 0;
   overflow: auto;
+  /* a row that is scrolled to (a focused one, one picked from the map) stops under the sticky head, not behind it */
+  scroll-padding-top: 36px;
 }
 .foot {
   padding: 4px 10px;
@@ -638,13 +646,21 @@ tbody tr:focus-visible {
   width: min(340px, calc(100% - 20px));
   /* the top 84 px of the map stay free for its zoom buttons */
   max-height: calc(100% - 114px);
-  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 6px;
   box-shadow: var(--shadow);
 }
+.card-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
 .card-head {
+  flex: none;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -695,9 +711,8 @@ tbody tr:focus-visible {
   padding-top: 0;
 }
 .card-foot {
-  /* the buttons stay in view when the card scrolls (a phone) */
-  position: sticky;
-  bottom: 0;
+  /* the buttons stay in view when the body of the card scrolls */
+  flex: none;
   background: var(--panel);
   display: flex;
   gap: 8px;
@@ -2072,56 +2087,6 @@ tbody tr:focus-visible {
   cursor: pointer;
 }
 
-/* a narrow page: the panel goes under the map */
-@media (max-width: 800px) {
-  .main {
-    flex-direction: column;
-  }
-  .panel {
-    width: auto;
-    height: 52%;
-    border-left: 0;
-    border-top: 1px solid var(--border);
-  }
-  .panel.collapsed {
-    width: auto;
-    height: 36px;
-  }
-  .panel-handle {
-    display: none;
-  }
-  .version,
-  .update-to {
-    display: none;
-  }
-  .update {
-    margin-left: auto;
-  }
-  .card {
-    bottom: 10px;
-    /* the map above the card stays free for the marker of the station, and for the zoom buttons */
-    max-height: calc(100% - 134px);
-  }
-  /* a closer card, so that its buttons fit under the facts */
-  .card-head {
-    padding-top: 4px;
-    padding-bottom: 0;
-  }
-  .card-fields {
-    gap: 0 12px;
-    padding-top: 2px;
-    padding-bottom: 4px;
-  }
-  .card-details > summary {
-    padding-top: 4px;
-    padding-bottom: 4px;
-  }
-  .card-foot {
-    padding-top: 4px;
-    padding-bottom: 8px;
-  }
-}
-
 /* the map's download in the settings */
 .mapfetch {
   margin: 8px 0 2px;
@@ -2158,7 +2123,7 @@ tbody tr:focus-visible {
   pointer-events: auto;
 }
 
-/* the first-run guide: a panel over the map (full width under 800 px) */
+/* the first-run guide: a panel over the map (the whole screen on a phone: responsive.css) */
 .setup {
   position: absolute;
   top: 10px;
@@ -2307,17 +2272,6 @@ tbody tr:focus-visible {
   border-radius: 50%;
   background: color-mix(in srgb, var(--panel) 60%, transparent);
   box-shadow: var(--shadow);
-}
-@media (max-width: 800px) {
-  .setup {
-    top: 0;
-    right: 0;
-    left: 0;
-    width: auto;
-    max-height: 100%;
-    border-width: 0 0 1px;
-    border-radius: 0;
-  }
 }
 
 /* the symbol picker */
@@ -2571,6 +2525,26 @@ button.linkbtn {
   .prefs .pathbox .input {
     flex: 1 1 8em;
   }
+}
+
+/* the Stations table reads as one block: at most 640 px wide, in the middle of a wider panel; its filter box and the three tickboxes wrap onto a second line when they do not fit, the tickboxes together */
+.tablepane.capped > .toolbar,
+.tablepane.capped > .foot,
+.tablepane.capped .grid.stations {
+  width: 100%;
+  max-width: 640px;
+  margin-right: auto;
+  margin-left: auto;
+}
+.filterbox {
+  flex: 1 1 12em;
+  min-width: min(12em, 100%);
+}
+.toolbar-checks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
 }
 
 /* the guide to install NeoAPRS's certificate (Settings, Web page; the pop-up guide) */

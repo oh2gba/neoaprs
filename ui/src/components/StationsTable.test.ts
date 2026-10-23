@@ -190,7 +190,7 @@ describe("StationsTable", () => {
     expect(wrapper.findAll("tr.selected")).toHaveLength(1);
     expect(wrapper.find("tr.selected").text()).toContain("OH2PU-9");
     await wrapper.findAll("tbody tr")[1]?.trigger("click");
-    expect(wrapper.emitted("select")).toEqual([["OH2RDG"]]);
+    expect(wrapper.emitted("select")).toEqual([["OH2RDG", false]]);
   });
 
   it("says so when there is no station", () => {

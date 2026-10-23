@@ -203,6 +203,55 @@ describe("SetupGuide: the position", () => {
   });
 });
 
+describe("SetupGuide: the position, in the look of the Location of the Beacon tab", () => {
+  async function onPosition() {
+    const made = make();
+    await made.type("setup-call", "oh2abc");
+    await made.next();
+    return made;
+  }
+  const line = (wrapper: ReturnType<typeof make>["wrapper"]) => wrapper.find(".location-line");
+
+  it("has a primary Pick on the map first, the place as one line ('Not set' while there is none), and Next waiting for a place", async () => {
+    const { wrapper } = await onPosition();
+    const first = wrapper.find(".setup-body").element.firstElementChild;
+    expect(first?.classList.contains("location")).toBe(true);
+    const pick = wrapper.find("button.location-pick");
+    expect(pick.text()).toBe("Pick on the map");
+    expect(pick.classes()).toContain("primary");
+    expect([line(wrapper).text(), line(wrapper).classes()]).toEqual(["Not set", expect.arrayContaining(["muted"])]);
+    expect(wrapper.find("button[type=submit]").attributes("disabled")).toBeDefined();
+  });
+
+  it("keeps the three fields behind a closed 'Enter coordinates or locator', and says the place in words when it is set", async () => {
+    const { wrapper, type } = await onPosition();
+    const fold = wrapper.find("details.disclosure");
+    expect(fold.find("summary").text()).toBe("Enter coordinates or locator");
+    expect(fold.attributes("open")).toBeUndefined();
+    expect(fold.findAll(".field label").map((l) => l.text())).toEqual(["Latitude", "Longitude", "Locator"]);
+    await type("setup-lat", "60.17");
+    await type("setup-lon", "-24.94");
+    expect(line(wrapper).text()).toBe("60.17 N, 24.94 W \u00b7 " + wrapper.find<HTMLInputElement>("#setup-locator").element.value);
+    expect(line(wrapper).classes()).not.toContain("muted");
+    expect(wrapper.find("button[type=submit]").attributes("disabled")).toBeUndefined();
+  });
+
+  it("opens the fold by itself when a field is wrong, and not otherwise", async () => {
+    const { wrapper, type } = await onPosition();
+    await type("setup-lat", "95");
+    expect(wrapper.find("details.disclosure").attributes("open")).toBeDefined();
+    expect(wrapper.find(".field-error").text()).toBe("Between -90 and 90");
+  });
+
+  it("is set by a click on the map, which shows in the line", async () => {
+    const { wrapper, guide } = await onPosition();
+    await wrapper.find("button.location-pick").trigger("click");
+    guide.place(60.42945, 24.14524);
+    await nextTick();
+    expect(line(wrapper).text()).toMatch(/^60\.42945 N, 24\.14524 E \u00b7 KP\d\d[a-z]{2}$/);
+  });
+});
+
 describe("SetupGuide: the symbol", () => {
   it("draws the 12 symbols from the sprite and the house is the one in force", async () => {
     const { wrapper, stand } = make();

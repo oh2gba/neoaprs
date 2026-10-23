@@ -58,13 +58,13 @@ describe("SidePanel", () => {
   it("has the eight tabs, the chosen one selected, and shows its pane only", () => {
     const wrapper = mount(SidePanel, { props: { tab: "packets", collapsed: false, width: 400 }, slots });
     expect(wrapper.findAll("[role='tab']").map((t) => t.text())).toEqual([
-      "Stations",
-      "Packets",
       "Messages",
+      "Stations",
       "Email",
       "Bulletins",
       "Objects",
       "Beacon",
+      "Packets",
       "Settings",
     ]);
     expect(wrapper.find("[aria-selected='true']").text()).toBe("Packets");
@@ -86,21 +86,21 @@ describe("SidePanel", () => {
   it("shows the count of a tab that has one in a badge, and none for zero or for a tab without", () => {
     const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400, badges: { messages: 3, packets: 0 } }, slots });
     const tabs = wrapper.findAll("[role='tab']");
-    expect(tabs.map((t) => t.find(".badge").exists())).toEqual([false, false, true, false, false, false, false, false]);
-    expect(tabs[2]?.find(".badge").text()).toBe("3");
-    expect(tabs[2]?.text()).toBe("Messages 3");
-    expect(tabs[2]?.find(".badge").attributes("title")).toBe("3 messages not seen yet");
+    expect(tabs.map((t) => t.find(".badge").exists())).toEqual([true, false, false, false, false, false, false, false]);
+    expect(tabs[0]?.find(".badge").text()).toBe("3");
+    expect(tabs[0]?.text()).toBe("Messages 3");
+    expect(tabs[0]?.find(".badge").attributes("title")).toBe("3 messages not seen yet");
   });
 
   it("counts the messages of the Email tab as messages not seen", () => {
     const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400, badges: { email: 1 } }, slots });
-    const badge = wrapper.findAll("[role='tab']")[3]?.find(".badge");
+    const badge = wrapper.findAll("[role='tab']")[2]?.find(".badge");
     expect([badge?.text(), badge?.attributes("title")]).toEqual(["1", "1 message not seen yet"]);
   });
 
   it("words the badge of the Bulletins tab as the bulletins that are new", () => {
     const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400, badges: { bulletins: 2 } }, slots });
-    const badge = wrapper.findAll("[role='tab']")[4]?.find(".badge");
+    const badge = wrapper.findAll("[role='tab']")[3]?.find(".badge");
     expect([badge?.text(), badge?.attributes("title")]).toEqual(["2", "2 new bulletins"]);
   });
 

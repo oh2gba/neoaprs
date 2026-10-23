@@ -12,8 +12,16 @@ import { heardDirect } from "@/lib/routes";
 import { firstDirection, listStations, type Sort, type SortKey } from "@/lib/stations";
 import type { StationRow } from "@/protocol/protocol";
 
-const props = defineProps<{ stations: ReadonlyMap<string, StationRow>; selected: string | null; now: number; aging: Aging }>();
-const emit = defineEmits<{ select: [call: string] }>();
+const props = withDefaults(
+  defineProps<{ stations: ReadonlyMap<string, StationRow>; selected: string | null; others?: readonly string[]; now: number; aging: Aging }>(),
+  {
+    others: () => [],
+  },
+);
+const emit = defineEmits<{ select: [call: string, multi?: boolean] }>();
+const isOpen = (call: string): boolean => call === props.selected || props.others.includes(call);
+/** Ctrl (Cmd on a Mac) held: the station's card is added to the open ones, or closed when it is open. */
+const withKey = (event: MouseEvent | KeyboardEvent): boolean => event.ctrlKey || event.metaKey;
 
 const COLUMNS: { key: SortKey | null; title: string; numeric?: boolean }[] = [
   { key: null, title: "" },
@@ -42,6 +50,13 @@ const rows = computed(() =>
   }),
 );
 
+/** Esc in the filter box clears the text; with the box empty it is not taken, and goes on to close the newest card. */
+function clearFilter(event: KeyboardEvent): void {
+  if (filter.value === "") return;
+  filter.value = "";
+  event.preventDefault();
+}
+
 function sortBy(key: SortKey | null): void {
   if (key === null) return;
   sort.value = sort.value.key === key ? { key, dir: sort.value.dir === 1 ? -1 : 1 } : { key, dir: firstDirection(key) };
@@ -54,12 +69,22 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
 </script>
 
 <template>
-  <div class="tablepane">
+  <div class="tablepane capped">
     <div class="toolbar">
-      <input v-model="filter" class="input grow" type="search" placeholder="Filter" title="Call, symbol, comment, path" aria-label="Filter the stations" />
-      <label class="check"><input v-model="withPositionOnly" type="checkbox" /> with position only</label>
-      <label class="check"><input v-model="hideTimedOut" type="checkbox" /> hide timed out</label>
-      <label class="check"><input v-model="directOnly" type="checkbox" /> direct only</label>
+      <input
+        v-model="filter"
+        class="input filterbox"
+        type="search"
+        placeholder="Filter"
+        title="Call, symbol, comment, path"
+        aria-label="Filter the stations"
+        @keydown.esc="clearFilter"
+      />
+      <div class="toolbar-checks">
+        <label class="check"><input v-model="withPositionOnly" type="checkbox" /> with position only</label>
+        <label class="check"><input v-model="hideTimedOut" type="checkbox" /> hide timed out</label>
+        <label class="check"><input v-model="directOnly" type="checkbox" /> direct only</label>
+      </div>
     </div>
     <div class="scroll">
       <table class="grid stations">
@@ -77,11 +102,11 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
           <tr
             v-for="row in rows"
             :key="row.call"
-            :class="{ selected: row.call === selected, me: row.is_me, own: row.own, timedout: isTimedOut(row) }"
-            :aria-selected="row.call === selected"
+            :class="{ selected: isOpen(row.call), me: row.is_me, own: row.own, timedout: isTimedOut(row) }"
+            :aria-selected="isOpen(row.call)"
             tabindex="0"
-            @click="emit('select', row.call)"
-            @keydown.enter="emit('select', row.call)"
+            @click="emit('select', row.call, withKey($event))"
+            @keydown.enter="emit('select', row.call, withKey($event))"
           >
             <td class="symbol" :title="row.symbol_name"><SymbolIcon :table="row.symbol_table" :code="row.symbol_code" :size="18" /></td>
             <td class="mono strong call">{{ row.call }}</td>

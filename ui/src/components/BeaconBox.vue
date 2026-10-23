@@ -4,7 +4,7 @@
 // what is in force), and forgets the first press after a few seconds.
 import { computed, watch } from "vue";
 import { useSure } from "@/composables/useSure";
-import { NONE, agoText, dateTimeText, untilText } from "@/lib/format";
+import { NONE, agoWords, dateTimeText } from "@/lib/format";
 import type { StatusMessage } from "@/protocol/protocol";
 
 const props = withDefaults(
@@ -37,22 +37,13 @@ function press(key: "beacon" | "status", act: () => void): void {
   sure.press(key, act);
 }
 
-const interval = computed(() => {
-  const minutes = props.status?.beacon_interval_min;
-  return minutes === undefined ? NONE : minutes === 0 ? "off" : `every ${minutes} min`;
-});
-const last = computed(() => {
-  const at = props.status?.beacon_last_sent ?? null;
-  return at === null ? NONE : agoText(at, props.now);
-});
+// how often is the choice below, and the next one follows from the last: only when the last went out, in words, the full time on hover
+const lastAt = computed(() => props.status?.beacon_last_sent ?? null);
+const last = computed(() => (lastAt.value === null ? "not yet" : agoWords(lastAt.value, props.now)));
 const current = computed(() => {
   const text = props.status?.station_status ?? "";
   const rig = props.status?.rig_state ?? "unused";
   return `${text === "" ? NONE : text}${rig === "unused" ? "" : ` · rigctld ${rig}`}`;
-});
-const next = computed(() => {
-  const at = props.status?.beacon_next_due ?? null;
-  return at === null ? NONE : `${untilText(at, props.now)} (${dateTimeText(at)})`;
 });
 </script>
 
@@ -60,12 +51,8 @@ const next = computed(() => {
   <section class="beaconbox" aria-label="Beacon">
     <div class="beaconact">
       <dl class="card-fields">
-        <dt>Beacon</dt>
-        <dd>{{ interval }}</dd>
         <dt>Last beacon</dt>
-        <dd>{{ last }}</dd>
-        <dt>Next due</dt>
-        <dd>{{ next }}</dd>
+        <dd :title="lastAt === null ? undefined : dateTimeText(lastAt)">{{ last }}</dd>
       </dl>
       <button
         class="btn primary"

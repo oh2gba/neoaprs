@@ -20,18 +20,18 @@ beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 
 describe("BeaconBox", () => {
-  it("shows the interval, the last beacon and the next one due", () => {
-    const text = box().text();
-    expect(text).toContain("every 30 min");
-    expect(text).toContain("2 min ago");
-    expect(text).toContain("in 29 min");
+  it("says only when the last beacon went out, in words, with the full time on hover and no interval or next one", () => {
+    const wrapper = box();
+    const last = wrapper.findAll("dt").find((t) => t.text() === "Last beacon")?.element.nextElementSibling;
+    expect(last?.textContent).toBe("2 min ago");
+    expect(last?.getAttribute("title")).toMatch(/^\d{4}-\d\d-\d\d \d\d:\d\d/);
+    expect(wrapper.text()).not.toContain("Next due");
+    expect(wrapper.text()).not.toContain("every 30 min");
+    expect(wrapper.text()).not.toMatch(/\(\d{4}-/);
   });
 
-  it("says off and a dash for the last and the next beacon when the beacon is off and nothing was sent", () => {
-    const text = box({ beacon_interval_min: 0, beacon_last_sent: null, beacon_next_due: null }).text();
-    expect(text).toContain("off");
-    expect(text).toMatch(/Last beacon\s*-/);
-    expect(text).toMatch(/Next due\s*-/);
+  it("says not yet when no beacon was sent", () => {
+    expect(box({ beacon_interval_min: 0, beacon_last_sent: null, beacon_next_due: null }).text()).toMatch(/Last beacon\s*not yet/);
   });
 
   it("shows the status last sent in one line, with the state of the radio when a radio makes it, and only while there is a status", () => {
@@ -46,7 +46,7 @@ describe("BeaconBox", () => {
   it("shows nothing it does not know before the status has come", () => {
     const wrapper = mount(BeaconBox, { props: { status: null, connected: true, now: NOW } });
     expect(wrapper.text()).toContain("Beacon");
-    expect(wrapper.text()).toMatch(/Next due\s*-/);
+    expect(wrapper.text()).toMatch(/Last beacon\s*not yet/);
   });
 
   it("asks twice before it sends", async () => {
