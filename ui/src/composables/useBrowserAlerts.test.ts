@@ -64,15 +64,47 @@ describe("the defaults of this browser", () => {
 describe("a message to us", () => {
   beforeEach(() => openedAt("192.168.1.20"));
 
-  it("is a notification when one can be shown, and then no chime and no flash (the system has its own sound)", async () => {
+  it("is a notification when one can be shown, with the chime when Sound is on, and no flash of the tab", async () => {
     FakeNotification.permission = "granted";
     const alerts = make();
     await click();
     alerts.announce([incoming(5, "OH2DPN", { text: "Moi!" })]);
     await nextTick();
     expect(FakeNotification.shown.map((n) => [n.title, n.options.body])).toEqual([["APRS message from OH2DPN", "Moi!"]]);
-    expect(FakeAudioContext.played()).toBe(0);
+    expect(FakeAudioContext.played()).toBeGreaterThan(0);
     expect(alerts.tabTitle.value).toBeNull();
+  });
+
+  it("plays no chime with Sound off, a notification or not", async () => {
+    FakeNotification.permission = "granted";
+    const alerts = make();
+    alerts.sound.value = false;
+    await click();
+    alerts.announce([incoming(5, "OH2DPN")]);
+    expect(FakeNotification.shown).toHaveLength(1);
+    expect(FakeAudioContext.played()).toBe(0);
+  });
+
+  it("alerts the browser tab when the browser could not show the notification after all", async () => {
+    FakeNotification.permission = "granted";
+    const alerts = make();
+    await click();
+    alerts.announce([incoming(5, "OH2DPN")]);
+    expect(alerts.tabTitle.value).toBeNull();
+    FakeNotification.shown[0]?.onerror?.();
+    await nextTick();
+    expect(alerts.tabTitle.value).not.toBeNull();
+  });
+
+  it("gives every test a notification of its own, so that a second one is not a silent replacement", async () => {
+    FakeNotification.permission = "granted";
+    const alerts = make();
+    await alerts.test();
+    await new Promise((done) => setTimeout(done, 2));
+    await alerts.test();
+    const tags = FakeNotification.shown.map((n) => n.options.tag);
+    expect(tags).toHaveLength(2);
+    expect(new Set(tags).size).toBe(2);
   });
 
   it("is the chime and the alert of the browser tab where no notification can be shown", async () => {

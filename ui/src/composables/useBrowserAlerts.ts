@@ -1,7 +1,7 @@
 // The alert of this browser for a message to us, and its switches (the Settings tab, "This browser"; kept in localStorage, so each device decides): the web alert as a whole, which is off by default on the machine the
-// daemon runs on (the page on the loopback, the desktop app: the daemon's own alert command notifies there) and on for a page opened from another device, then Sound and Notifications. A notification, where the browser
-// allows one (a secure context, permission given), is the alert, and the system plays its own sound; where none can be shown the page plays the chime (the first click or key press unlocks the audio) and the browser tab
-// alerts (useTabAlert). The permission is asked only when the Notifications switch is turned on.
+// daemon runs on (the page on the loopback, the desktop app: the daemon's own alert command notifies there) and on for a page opened from another device, then Sound and Notifications. Sound plays the chime (the first
+// click or key press unlocks the audio) whenever it is on; a notification is shown where the browser allows one (a secure context, permission given), and where none can be shown, or the browser fails to show it, the
+// browser tab alerts (useTabAlert). The permission is asked only when the Notifications switch is turned on.
 import { computed, onScopeDispose, getCurrentScope, ref } from "vue";
 import { usePersistedFlag } from "@/composables/usePersisted";
 import { useTabAlert } from "@/composables/useTabAlert";
@@ -55,10 +55,13 @@ export function useBrowserAlerts(openConversation: (call: string) => void) {
     if (permission.value !== "granted") wanted.value = false;
   }
 
-  /** Shows the notification of a message; false when the browser refuses (some, on a phone, want a service worker). A click focuses the page and opens the conversation. */
-  function show(message: Alerted, open: boolean): boolean {
+  /** Shows the notification of a message; false when the browser refuses (some, on a phone, want a service worker), and `failed` is called when it could not show it after all. A click focuses the page and opens the
+   *  conversation. A test has a tag of its own each time: a notification with the tag of one still on show replaces it without a sound. */
+  function show(message: Alerted, open: boolean, failed: () => void): boolean {
     try {
-      const note = new Notification(notificationTitle(message.from_call), { body: message.text, tag: `neoaprs-${message.id}` });
+      const tag = open ? `neoaprs-${message.id}` : `neoaprs-test-${Date.now()}`;
+      const note = new Notification(notificationTitle(message.from_call), { body: message.text, tag });
+      note.onerror = failed;
       note.onclick = () => {
         window.focus();
         note.close();
@@ -70,19 +73,19 @@ export function useBrowserAlerts(openConversation: (call: string) => void) {
     }
   }
 
-  /** What a message to us does in this browser: a notification where one can be shown, else the chime and the alert of the browser tab. */
+  /** What a message to us does in this browser: the chime when Sound is on, and a notification where one can be shown, else the alert of the browser tab. */
   function announce(fresh: readonly Alerted[], test = false): void {
     const last = fresh[fresh.length - 1];
     if (!enabled.value || last === undefined) return;
+    if (sound.value) chime.play();
+    const tabAlert = () => tab.start(last.from_call, test);
     const shown =
       notifyOn.value &&
       fresh
         .slice(-NOTIFICATIONS_MAX)
-        .map((message) => show(message, !test))
+        .map((message) => show(message, !test, tabAlert))
         .includes(true);
-    if (shown) return;
-    if (sound.value) chime.play();
-    tab.start(last.from_call, test);
+    if (!shown) tabAlert();
   }
 
   /** The Test button, a click: the same as a message to us. */

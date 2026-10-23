@@ -47,6 +47,7 @@ export class FakeNotification {
   static asked = 0;
   static refuses = false;
   onclick: (() => void) | null = null;
+  onerror: (() => void) | null = null;
   closed = false;
 
   constructor(
