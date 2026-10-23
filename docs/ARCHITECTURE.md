@@ -83,7 +83,7 @@ The homes of SQL (`SQL_HOMES` in the test): every file that imports `sqlite3` or
 | `neoaprs/ownsql.py` | the statements of the tables of our own objects and bulletins (what we send of our own accord): functions of a connection that the thread runs |
 | `neoaprs/packetsql.py` | the statements of the packet log and the station cache: functions of a connection that the thread runs |
 | `neoaprs/storesql.py` | the statements of the settings: functions of a connection that the thread runs |
-| `neoaprs/walcare.py` | the minute's care of the write-ahead log: a function of the connection, run by the thread |
+| `neoaprs/walcare.py` | the limits of the write-ahead log (journal_size_limit and the automatic checkpoint): a function of the connection, run by the thread |
 | `neoaprs/weathersql.py` | the statements of the weather table (every observation of every weather station) and the read of the packets it is made from: functions of a connection that the thread runs |
 <!-- /doc-arch -->
 

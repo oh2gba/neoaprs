@@ -1,10 +1,9 @@
-"""The Store (neoaprs/store.py): the settings on the database thread, a store whose database is not open says no, a copy of the file, and the minute's care of the log."""
+"""The Store (neoaprs/store.py): the settings on the database thread, a store whose database is not open says no, a copy of the file and the checkpoint."""
 import sqlite3
 from pathlib import Path
 
 import pytest
 
-from neoaprs.dberror import SettingsConflict
 from neoaprs.migrations import SCHEMA_VERSION
 from neoaprs.store import DB_NAME, Store
 from tests.support.clock import FixedClock
@@ -44,19 +43,6 @@ async def test_the_settings_round_trip_exactly(tmp_path: Path) -> None:
     assert await store.settings() == {**data, "station/call": "OH2GBA", "web/port": "7303"}
 
 
-async def test_a_write_on_top_of_an_older_revision_is_refused_and_changes_nothing(tmp_path: Path) -> None:
-    store = await store_at(tmp_path / DB_NAME)
-    await store.put_setting("station/call", "OH2GBA")
-    rev = await setting_rev(store, "station/call")
-    assert await store.put_setting("station/call", "OH2GBA-1", expect_rev=rev)                  # nobody wrote in between: fine
-    with pytest.raises(SettingsConflict, match="station/call"):
-        await store.put_setting("station/call", "OH2GBA-2", expect_rev=rev)                     # somebody did (the write above)
-    assert await store.setting("station/call") == "OH2GBA-1"
-    assert await store.put_setting("web/port", "7303", expect_rev=0)                            # 0: it was not there
-    with pytest.raises(SettingsConflict):
-        await store.put_setting("web/port", "7304", expect_rev=0)
-
-
 async def test_settings_stored_during_an_error_are_not_half_stored(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     store = await store_at(tmp_path / DB_NAME)
     await store.put_settings({"a": "1"})
@@ -72,7 +58,6 @@ async def test_a_store_that_is_not_open_says_no_and_does_not_crash(tmp_path: Pat
     assert not await store.put_setting("x", "1") and not await store.put_settings({"x": "1"}) and not await store.backup(tmp_path / "copy.sqlite")
     await store.delete_setting("x")
     await store.checkpoint()
-    await store.upkeep()
     opened = await store_at(tmp_path / DB_NAME)
     assert opened.db is not None
     await opened.db.close()
@@ -116,14 +101,13 @@ async def test_a_database_in_memory_cannot_be_copied() -> None:
     assert await store.put_setting("a", "1") and not await store.backup(Path("never.sqlite"))
 
 
-async def test_the_checkpoint_and_the_minutes_care_of_the_log_run_on_the_thread(tmp_path: Path) -> None:
+async def test_the_checkpoint_moves_the_log_into_the_file_on_the_thread(tmp_path: Path) -> None:
     path = tmp_path / DB_NAME
     store = await store_at(path)
     for n in range(20):
         await store.put_setting(f"k/{n}", "x" * 400)
     wal = Path(str(path) + "-wal")
     assert wal.stat().st_size > 0
-    await store.upkeep()
     await store.checkpoint()
     assert wal.stat().st_size == 0 and len(await store.settings()) == 20
 

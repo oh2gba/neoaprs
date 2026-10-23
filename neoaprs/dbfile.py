@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import TypeVar
 
 from .durable import fsync_dir, fsync_file
-from .walcare import WalWatch
+from .walcare import limit as limit_wal
 
 DEFAULT_BUSY_MS = 30000
 
@@ -29,7 +29,7 @@ def configure(db: sqlite3.Connection, path: str | Path, busy_ms: int) -> None:
     db.execute("PRAGMA journal_mode=WAL")
     db.execute("PRAGMA synchronous=FULL")             # in WAL mode NORMAL does not sync a commit: a setting the page was told of could be lost to a power cut
     db.execute(f"PRAGMA busy_timeout={int(busy_ms)}")
-    WalWatch.limit(db)                                # the log is cut to a limit when it restarts
+    limit_wal(db)                                # the log is cut to a limit when it restarts
     if str(path) != ":memory:":
         private(Path(path))                           # the operator's position and messages are in it: for this user only (the -wal and -shm follow the file)
 

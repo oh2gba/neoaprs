@@ -29,7 +29,3 @@ class DbClosed(DbError):
 
 class NestedUse(DbError):
     """A function that the database thread runs asked the database thread for something: it would wait for itself. Do the work in the same function, on the connection it was given."""
-
-
-class SettingsConflict(StoreError):
-    """A setting was changed by somebody else (neoaprs-db set, a restore) since this program last read it."""
