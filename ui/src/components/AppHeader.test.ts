@@ -2,6 +2,7 @@ import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import AppHeader from "@/components/AppHeader.vue";
 import type { Connection } from "@/lib/hub";
+import { mediaRule } from "@/test/css";
 import { ago, NOW, status, tncState } from "@/test/fixtures";
 
 const base = { call: "OH2GBA", connection: "open" as Connection, tnc: tncState(), version: "0.1.0", unread: 0, now: NOW };
@@ -33,7 +34,7 @@ describe("AppHeader", () => {
     const update = { version: "0.2.0", url: "https://oh2gba.github.io/neoaprs/", message: "Fixes the map download" };
     const wrapper = header({ status: status({ update }) });
     const button = wrapper.find("button.update");
-    expect(button.text()).toBe("0.2.0");
+    expect(button.text()).toBe("Update to 0.2.0");
     expect(button.attributes("title")).toBe("Fixes the map download");
     await button.trigger("click");
     expect(wrapper.emitted("update")).toHaveLength(1);
@@ -55,6 +56,13 @@ describe("AppHeader", () => {
 
   it("shows nothing when all are seen", () => {
     expect(header().find(".headmail").exists()).toBe(false);
+  });
+
+  it("has the radio state as a button that asks for the Settings tab, where the radio is", async () => {
+    const wrapper = header();
+    expect(wrapper.find("[role='status'] button.status").text()).toBe("radio ok");
+    await wrapper.find("button.status").trigger("click");
+    expect(wrapper.emitted("radio")).toHaveLength(1);
   });
 
   it("is one dot and its words: green radio ok while the socket is open and the TNC is connected", () => {
@@ -107,14 +115,26 @@ describe("AppHeader", () => {
     expect(header({ tnc: tncState({ state: "waiting", problem: "x" }) }).text()).not.toMatch(/brainbox|9600/);
   });
 
-  it("shows the share and the memory small beside the status, the full figures with the uptime as the title, and nothing before the first status", () => {
+  it("does not show what the daemon costs the machine: only the title of the radio state has it, with the uptime", () => {
     expect(header().find(".process").exists()).toBe(false);
     expect(header().find("h1").attributes("title")).toBeUndefined();
     const wrapper = header({ status: status({ cpu_percent: 0.3, rss_mb: 42.4, uptime_sec: 3 * 3600 }) });
-    const figures = wrapper.find(".process");
-    expect(figures.text()).toBe("0.3 % · 42 MB");
-    expect(figures.attributes("title")).toBe("0.3 % · 42 MB · up 3 h");
-    expect(figures.classes()).toContain("muted");
-    expect(wrapper.find(".status").element.nextElementSibling).toBe(figures.element);
+    expect(wrapper.text()).not.toMatch(/MB|%/);
+    expect(wrapper.find(".status").text()).toBe("radio ok");
+    expect(wrapper.find(".status").attributes("title")).toBe("NeoAPRS uses 0.3 % · 42 MB · up 3 h");
+    const waiting = header({
+      tnc: tncState({ state: "waiting", problem: "no radio found", describe: "waiting" }),
+      status: status({ cpu_percent: 1, rss_mb: 50, uptime_sec: 60 }),
+    });
+    expect(waiting.find(".status").attributes("title")).toBe("no radio found\nNeoAPRS uses 1.0 % · 50 MB · up 1 min");
+  });
+
+  it("keeps a short Update button for a phone, where the version number is left out by the style sheet: the version is hidden there and the button is not", () => {
+    const update = { version: "0.2.0", url: "", message: "" };
+    const wrapper = header({ status: status({ update }) });
+    expect(wrapper.find("button.update .update-to").text()).toBe("to 0.2.0");
+    expect(mediaRule("(max-width: 800px)", ".update-to")).toMatch(/display:\s*none/);
+    expect(mediaRule("(max-width: 800px)", ".version")).toMatch(/display:\s*none/);
+    expect(mediaRule("(max-width: 800px)", ".update")).not.toMatch(/display:\s*none/);
   });
 });

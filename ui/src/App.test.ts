@@ -373,6 +373,13 @@ describe("App", () => {
     expect(socket.sent).toContainEqual({ cmd: "tnc_reconnect" });
   });
 
+  it("opens the Settings tab, where the radio is, from the radio state in the header", async () => {
+    const { wrapper } = await open();
+    await tabButton(wrapper, "Stations")?.trigger("click");
+    await wrapper.find(".appheader button.status").trigger("click");
+    expect(wrapper.find("[aria-selected='true']").text()).toContain("Settings");
+  });
+
   it("sends a beacon from the Beacon tab after two clicks, and shows the times the status tells", async () => {
     const { wrapper, socket } = await open();
     socket.say(status({ beacon_interval_min: 15, beacon_last_sent: ago(60), beacon_next_due: new Date(Date.now() + 840_000).toISOString() }));
@@ -653,8 +660,10 @@ describe("App", () => {
       await flushPromises();
       expect(badge(wrapper)?.text()).toBe("1");
       await wrapper.find(".panel-fold").trigger("click");
-      expect(wrapper.find(".fold-badge").text()).toBe("3");
-      expect(wrapper.find(".fold-badge").attributes("title")).toBe("2 messages not seen yet, 1 new bulletin");
+      // the handle counts the messages not seen, as the header does: a new bulletin is not one
+      expect(wrapper.find(".fold-badge").text()).toBe("2");
+      expect(wrapper.find(".fold-badge").attributes("title")).toBe("2 messages not seen yet");
+      expect(wrapper.find(".headmail").text()).toContain("2");
     });
 
     it("deletes a board entry after two presses of its x, with one command", async () => {
@@ -1039,7 +1048,7 @@ describe("App", () => {
       expect(wrapper.findAll("#pane-email .msg").map((m) => m.find(".msg-text").text())).toEqual(["hello", "Msg sent to jane@example.com"]);
       expect(wrapper.findAll("#pane-messages .conv-call").map((c) => c.text())).toEqual(["OH2PU-9", "OH2RDG"]);
       expect(tabButton(wrapper, "Messages")?.find(".badge").text()).toBe("2");
-      expect(wrapper.find(".headmail").text()).toContain("2");
+      expect(wrapper.find(".headmail").text()).toContain("3"); // the messages not seen, the gateway's one included: the count of the title and of the folded panel's handle too
     });
 
     it("counts the gateway's messages on the Email tab, in the title and on the folded handle, until the tab is on show", async () => {
@@ -1055,6 +1064,27 @@ describe("App", () => {
       await tabButton(wrapper, "Email")?.trigger("click");
       expect(badge(wrapper)?.exists()).toBe(false);
       expect(document.title).toBe("(2) NeoAPRS");
+    });
+
+    it("has one count of the messages not seen: the header, the folded handle and the title say the same", async () => {
+      const { wrapper, socket } = await open();
+      await say(socket, 1, gateway(11), gateway(12));
+      expect(wrapper.find(".headmail").text()).toContain("4");
+      expect(document.title).toBe("(4) NeoAPRS");
+      await wrapper.find(".panel-fold").trigger("click");
+      expect(wrapper.find(".fold-badge").text()).toBe("4");
+      expect(wrapper.find(".fold-badge").attributes("title")).toBe("4 messages not seen yet");
+    });
+
+    it("opens the Email tab from the header when the messages not seen are all the gateway's", async () => {
+      const { wrapper, socket } = await open();
+      await tabButton(wrapper, "Messages")?.trigger("click");
+      for (const conv of wrapper.findAll("#pane-messages .conv")) await conv.trigger("click");
+      await say(socket, 1, gateway(11));
+      expect(wrapper.find(".headmail").text()).toContain("1");
+      await tabButton(wrapper, "Packets")?.trigger("click");
+      await wrapper.find(".headmail").trigger("click");
+      expect(wrapper.find("[aria-selected='true']").text()).toContain("Email");
     });
 
     it("keeps counting while the page is hidden or the panel folded, with the Email tab in front", async () => {
@@ -1261,7 +1291,7 @@ describe("the alert of this browser", () => {
     socket.say({ type: "update_result", outcome: "newer", version: "0.4.0", text: "" });
     socket.say(status({ update: { version: "0.4.0", url: "", message: "" } }));
     await flushPromises();
-    expect(wrapper.find("button.update").text()).toBe("0.4.0");
+    expect(wrapper.find("button.update").text()).toBe("Update to 0.4.0");
     await wrapper.find("#pane-settings button.updatecheck-result").trigger("click");
     expect(wrapper.find(".updatepanel h2").text()).toBe("Update to 0.4.0");
   });

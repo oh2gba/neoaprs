@@ -1,17 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  arrowAngle,
-  columnOf,
-  hasValues,
-  humidityText,
-  isWeatherStation,
-  markerWeather,
-  pressureText,
-  rainText,
-  tempShort,
-  tempText,
-  windSpeedText,
-} from "@/lib/weather";
+import { arrowAngle, columnOf, hasValues, humidityText, isWeatherStation, markerWeather, pressureText, rainText, tempText, windSpeedText } from "@/lib/weather";
 import { NOW, ago, series, station, weather, weatherStation } from "@/test/fixtures";
 
 describe("the readings as text", () => {
@@ -21,12 +9,6 @@ describe("the readings as text", () => {
     expect([humidityText(85), humidityText(null)]).toEqual(["85 %", "-"]);
     expect([windSpeedText(1.6), windSpeedText(0), windSpeedText(null)]).toEqual(["2 km/h", "0 km/h", "-"]);
     expect([rainText(0.3), rainText(null)]).toEqual(["0.3 mm", "-"]);
-  });
-
-  it("writes the temperature of a row narrowly, a dash for a station with no weather", () => {
-    expect(tempShort(weatherStation())).toBe("10.0°");
-    expect(tempShort(station("A"))).toBe("-");
-    expect(tempShort(weatherStation("A", { weather: weather({ temp_c: null }) }))).toBe("-");
   });
 });
 

@@ -1,6 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import PacketsLog from "@/components/PacketsLog.vue";
+import { cssRule } from "@/test/css";
 import { packet } from "@/test/fixtures";
 
 const packets = new Map([
@@ -53,26 +54,52 @@ describe("PacketsLog", () => {
     expect(wrapper.find(".foot").text()).toBe("1 of 3 packets");
   });
 
-  it("shows what was decoded as JSON on a click, and hides it on the next", async () => {
+  it("shows a readable summary on a click, the raw JSON only under Raw, and hides both on the next", async () => {
     const wrapper = mount(PacketsLog, { props: { packets } });
-    expect(wrapper.find("pre").exists()).toBe(false);
+    expect(wrapper.find(".packet-detail").exists()).toBe(false);
     await wrapper.findAll("tbody tr")[0]?.trigger("click");
-    expect(wrapper.find("pre").text()).toContain('"type": "position"');
+    const facts = Object.fromEntries(wrapper.findAll(".packet-detail dt").map((dt) => [dt.text(), dt.element.nextElementSibling?.textContent?.trim()]));
+    expect(facts["From"]).toBe("OH2GBA");
+    expect(facts["Kind"]).toBe("Position report");
+    expect(facts["Position"]).toBe("60.12000 N 24.49000 E");
+    const raw = wrapper.find("details.more");
+    expect(raw.find("summary").text()).toBe("Raw");
+    expect(raw.attributes("open")).toBeUndefined();
+    expect(raw.find("pre").text()).toContain('"type": "position"');
+    expect(wrapper.find(".packet-detail").text()).not.toMatch(/^\s*\{/);
     await wrapper.findAll("tbody tr")[0]?.trigger("click");
-    expect(wrapper.find("pre").exists()).toBe(false);
+    expect(wrapper.find(".packet-detail").exists()).toBe(false);
   });
 
+  it("never breaks a callsign in a route, in the list or in the detail: the line breaks between the words only", async () => {
+    const wrapper = mount(PacketsLog, { props: { packets: new Map([["1", packet(1, { route: "via OH2RCH-2" })]]) } });
+    expect(
+      wrapper
+        .find("td.route-cell")
+        .findAll(".nowrap")
+        .map((w) => w.text()),
+    ).toEqual(["via", "OH2RCH-2"]);
+    expect(cssRule(".grid .route-cell")).not.toMatch(/break-all|anywhere/);
+    await wrapper.find("tbody tr").trigger("click");
+    expect(
+      wrapper
+        .find(".packet-detail .route")
+        .findAll(".nowrap")
+        .map((w) => w.text()),
+    ).toEqual(["via", "OH2RCH-2"]);
+  });
   it("says in the detail that a time in the packet is the sender's local time", async () => {
     const base = packet(1);
     const local = { ...base, decoded: { ...base.decoded, timestamp: "2026-10-09T23:45:00.000000Z", timestamp_local: true } } as typeof base;
     const wrapper = mount(PacketsLog, { props: { packets: new Map([["1", local]]) } });
     await wrapper.find("tbody tr").trigger("click");
-    expect(wrapper.find(".detail").text()).toContain("Time in the packet: 09 23:45 local");
+    const labels = (w: ReturnType<typeof mount>) => w.findAll(".packet-detail dt").map((dt) => dt.text());
+    const sent = wrapper.findAll(".packet-detail dt").find((dt) => dt.text() === "Time in the packet");
+    expect(sent?.element.nextElementSibling?.textContent?.trim()).toBe("09 23:45 local");
     const plain = mount(PacketsLog, { props: { packets: new Map([["1", base]]) } });
     await plain.find("tbody tr").trigger("click");
-    expect(plain.find(".detail").text()).not.toContain("Time in the packet");
+    expect(labels(plain)).not.toContain("Time in the packet");
   });
-
   it("keeps the detail of a packet open while newer ones arrive", async () => {
     const live = new Map(packets);
     const wrapper = mount(PacketsLog, { props: { packets: live } });

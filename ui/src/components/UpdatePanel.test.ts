@@ -17,6 +17,7 @@ describe("UpdatePanel", () => {
     expect(news.text()).toBe("What is new");
     expect(news.attributes("href")).toBe("https://github.com/oh2gba/neoaprs/releases/tag/v0.4.0");
     expect(news.attributes("rel")).toContain("noopener");
+    expect(wrapper.find(".updatepanel-news").text()).toBe("What is new");
     expect(wrapper.text()).toContain("Your data (settings, messages, packets, the map) stays.");
     expect(wrapper.text()).toContain("Open pages load the new version by themselves after the update.");
   });
@@ -26,7 +27,7 @@ describe("UpdatePanel", () => {
     const file = wrapper.find("a.updatepanel-file");
     expect(file.attributes("href")).toBe("https://github.com/oh2gba/neoaprs/releases/download/v0.4.0/NeoAPRS-Setup-0.4.0.exe");
     expect(copyButtons(wrapper)).toHaveLength(0);
-    expect(wrapper.text()).toContain("this copy: Windows installer");
+    expect(wrapper.text()).not.toContain("this copy");
   });
 
   it("gives an AppImage its download, its commands and, with a service, the service install of the new file", () => {
@@ -47,7 +48,6 @@ describe("UpdatePanel", () => {
     const wrapper = panel(install("deb", { arch: "arm64", service: true }));
     expect(wrapper.find("a[href$='neoaprs_0.4.0_arm64.deb']").exists()).toBe(true);
     expect(wrapper.findAll("code").map((c) => c.text())).toEqual(["sudo apt install ./neoaprs_0.4.0_arm64.deb", "systemctl --user restart neoaprs"]);
-    expect(wrapper.text()).toContain("this copy: Debian package");
   });
 
   it("gives the install line of the uv tool, pip's commands and a clone's, each with a copy button", () => {

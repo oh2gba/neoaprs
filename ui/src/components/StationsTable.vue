@@ -1,14 +1,14 @@
 <script setup lang="ts">
-// The stations heard, as a table: call, symbol, distance, bearing, how long ago it was heard and when its position was, the current temperature of a weather station ("wx"), when it was last heard direct and the share of its packets that came direct ("5 min, 40 %"), packets, path. A column is sorted by a click on its head (again to
+// The stations heard, as a short table that fits the panel: the symbol, the call (a green check mark after it for a station heard direct), the distance from us, the bearing as a small arrow (north up; "NE, 47°" is its hover title) and when the station was last heard at all (the newest of anything it sent, with the full time as the hover title); the rest of what is known of a station (when its position was, how its packets reach us, the path, the packets, the weather) is on its card, a click away. A column is sorted by a click on its head (again to
 // reverse), a filter box and the toggles "with position only", "direct only" (the stations heard direct at some time) and "hide timed out" narrow it, our own station is always on top, the selected row is marked and a click on a row selects the station
-// (the map flies to it). A station past its timeout is off the map: its row is dim and says "timed out" in the Position column.
+// (the map flies to it). A station past its timeout is off the map: its row is dim and says "timed out" after the time it was heard. Every row is one line high.
 import { computed, ref } from "vue";
+import DirectMark from "@/components/DirectMark.vue";
 import SymbolIcon from "@/components/SymbolIcon.vue";
 import { usePersistedFlag } from "@/composables/usePersisted";
 import { timedOut, type Aging } from "@/lib/aging";
-import { ageText, bearingText, distanceText, pathText } from "@/lib/format";
-import { directText } from "@/lib/routes";
-import { tempShort } from "@/lib/weather";
+import { ageText, bearingTitle, dateTimeText, distanceText } from "@/lib/format";
+import { heardDirect } from "@/lib/routes";
 import { firstDirection, listStations, type Sort, type SortKey } from "@/lib/stations";
 import type { StationRow } from "@/protocol/protocol";
 
@@ -16,16 +16,12 @@ const props = defineProps<{ stations: ReadonlyMap<string, StationRow>; selected:
 const emit = defineEmits<{ select: [call: string] }>();
 
 const COLUMNS: { key: SortKey | null; title: string; numeric?: boolean }[] = [
-  { key: "call", title: "Call" },
   { key: null, title: "" },
+  { key: "call", title: "Call" },
+  { key: null, title: "heard direct" },
   { key: "distance_km", title: "km", numeric: true },
-  { key: "bearing_deg", title: "Brg", numeric: true },
-  { key: "last_heard", title: "Heard", numeric: true },
-  { key: "last_position_at", title: "Position", numeric: true },
-  { key: "last_direct_at", title: "Direct", numeric: true },
-  { key: "temp_c", title: "wx", numeric: true },
-  { key: "packets", title: "Pkts", numeric: true },
-  { key: "last_path", title: "Path" },
+  { key: null, title: "bearing" },
+  { key: "last_heard", title: "Last heard", numeric: true },
 ];
 
 const filter = ref("");
@@ -66,13 +62,14 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
       <label class="check"><input v-model="directOnly" type="checkbox" /> direct only</label>
     </div>
     <div class="scroll">
-      <table class="grid">
+      <table class="grid stations">
         <thead>
           <tr>
             <th v-for="c in COLUMNS" :key="c.title" :class="{ num: c.numeric, sortable: c.key !== null }" :aria-sort="ariaSort(c.key)">
               <button v-if="c.key" type="button" class="headbtn" @click="sortBy(c.key)">
                 {{ c.title }}<span v-if="sort.key === c.key" aria-hidden="true">{{ sort.dir === 1 ? " ▲" : " ▼" }}</span>
               </button>
+              <span v-else-if="c.title" class="sr-only">{{ c.title }}</span>
             </th>
           </tr>
         </thead>
@@ -86,16 +83,32 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
             @click="emit('select', row.call)"
             @keydown.enter="emit('select', row.call)"
           >
+            <td class="symbol" :title="row.symbol_name"><SymbolIcon :table="row.symbol_table" :code="row.symbol_code" :size="18" /></td>
             <td class="mono strong call">{{ row.call }}</td>
-            <td><SymbolIcon :table="row.symbol_table" :code="row.symbol_code" :size="18" /></td>
+            <td class="direct"><DirectMark v-if="heardDirect(row)" /></td>
             <td class="num">{{ distanceText(row.distance_km) }}</td>
-            <td class="num">{{ bearingText(row.bearing_deg) }}</td>
-            <td class="num">{{ ageText(row.last_heard, now) }}</td>
-            <td class="num">{{ ageText(row.last_position_at, now) }}<span v-if="isTimedOut(row)" class="timedword"> timed out</span></td>
-            <td class="num">{{ directText(row, now) }}</td>
-            <td class="num" :title="row.weather_at ? `${ageText(row.weather_at, now)} ago` : undefined">{{ tempShort(row) }}</td>
-            <td class="num">{{ row.packets }}</td>
-            <td class="mono path">{{ pathText(row.last_path) }}</td>
+            <td class="bearing" :title="bearingTitle(row.bearing_deg)">
+              <svg
+                v-if="row.bearing_deg !== null"
+                class="arrow"
+                width="14"
+                height="14"
+                viewBox="0 0 14 14"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                :style="{ transform: `rotate(${row.bearing_deg}deg)` }"
+                aria-hidden="true"
+              >
+                <path d="M7 12.5V2M3 6l4-4 4 4" />
+              </svg>
+              <span v-if="row.bearing_deg !== null" class="sr-only">{{ bearingTitle(row.bearing_deg) }}</span>
+            </td>
+            <td class="num" :title="dateTimeText(row.last_heard)">
+              {{ ageText(row.last_heard, now) }}<span v-if="isTimedOut(row)" class="timedword"> timed out</span>
+            </td>
           </tr>
           <tr v-if="rows.length === 0">
             <td :colspan="COLUMNS.length" class="empty">{{ stations.size === 0 ? "No station heard yet." : "No station matches." }}</td>

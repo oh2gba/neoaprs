@@ -13,8 +13,6 @@ interface Step {
 }
 
 export interface UpdateHelp {
-  /** how this copy was installed, in a few words; empty while the daemon has not said */
-  how: string;
   steps: Step[];
 }
 
@@ -40,7 +38,6 @@ export function updateHelp(install: InstallInfo | null, version: string): Update
   switch (install?.kind) {
     case "windows-installer":
       return {
-        how: "Windows installer",
         steps: [
           { text: "Download the installer", link: { href: installerUrl(version), label: `NeoAPRS-Setup-${version}.exe` } },
           { text: "Run it: it replaces the running NeoAPRS and starts it again" },
@@ -56,13 +53,12 @@ export function updateHelp(install: InstallInfo | null, version: string): Update
       if (install.service)
         steps.push({ text: "A service runs the old file: from where you keep the new one, run this once", command: `${file} service install` });
       if (install.appimage) steps.push({ text: `Delete the old file, ${fileName(install.appimage)}` });
-      return { how: "AppImage", steps };
+      return { steps };
     }
     case "deb": {
       // the machine's architecture is known for amd64 and arm64; for any other the release page lists the files, and the command takes whichever one was downloaded
       const file = install.arch ? debName(version, install.arch) : `neoaprs_${version}_*.deb`;
       return {
-        how: "Debian package",
         steps: [
           install.arch
             ? { text: "Download the new package", link: { href: debUrl(version, install.arch), label: file } }
@@ -73,10 +69,9 @@ export function updateHelp(install: InstallInfo | null, version: string): Update
       };
     }
     case "uv-tool":
-      return { how: "install line", steps: [{ text: "Run the install line again: it updates NeoAPRS and restarts its service", command: INSTALL_LINE }] };
+      return { steps: [{ text: "Run the install line again: it updates NeoAPRS and restarts its service", command: INSTALL_LINE }] };
     case "pip":
       return {
-        how: "pip",
         steps: [
           { text: "In its environment", command: "pip install -U neoaprs" },
           { text: "or, with uv", command: "uv pip install -U neoaprs" },
@@ -85,7 +80,6 @@ export function updateHelp(install: InstallInfo | null, version: string): Update
       };
     case "source":
       return {
-        how: "source",
         steps: [
           { text: "In the folder of the clone", command: "git pull" },
           { text: "Bring the environment up to date", command: "uv sync" },
@@ -93,6 +87,6 @@ export function updateHelp(install: InstallInfo | null, version: string): Update
         ],
       };
     default:
-      return { how: "", steps: [{ text: "Get the new version from the release page", link: { href: releaseNotes(version), label: `NeoAPRS ${version}` } }] };
+      return { steps: [{ text: "Get the new version from the release page", link: { href: releaseNotes(version), label: `NeoAPRS ${version}` } }] };
   }
 }

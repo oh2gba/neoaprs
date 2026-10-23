@@ -20,6 +20,7 @@ import {
   OPEN_ZOOM,
   type Archives,
 } from "@/lib/basemapstyle";
+import { useClearOfCard } from "@/composables/useClearOfCard";
 import { buildMarkerDom, paintMarker, type MarkerDom } from "@/lib/markerdom";
 import { readView, writeView, type Focus, type Home } from "@/lib/mapview";
 import { markerStep, timedOut, type Aging } from "@/lib/aging";
@@ -66,6 +67,7 @@ interface Placed {
 
 const root = ref<HTMLElement | null>(null);
 const host = ref<HTMLElement | null>(null);
+const card = useClearOfCard(root, host);
 const note = ref(""); // what stands over the map when there is no base map (or no map engine)
 const offerDownload = ref(false); // ... and whether it has the button that goes to where the map is made
 const placed = new Map<string, Placed>();
@@ -242,30 +244,29 @@ async function create(): Promise<void> {
   syncPin();
 }
 
-watch(
-  () => [...props.stations.values()],
-  () => {
-    syncMarkers();
-    drawTracks();
-    drawRoute();
-  },
-);
-watch(
-  () => [props.selected, [...props.aging.timeouts], props.aging.defaultMin],
-  () => {
-    syncMarkers();
-    drawTracks();
-    drawRoute();
-  },
-);
+watch([() => [...props.stations.values()], () => [props.selected, [...props.aging.timeouts], props.aging.defaultMin]], () => {
+  syncMarkers();
+  drawTracks();
+  drawRoute();
+});
 watch(() => props.now, syncMarkers);
 watch(minute, drawTracks);
+// (after the page is drawn, so that the card of the station is there to keep clear of)
 watch(
   () => props.focus,
   (focus) => {
     const row = focus ? props.stations.get(focus.call) : undefined;
-    if (map && row && hasPosition(row)) map.flyTo({ center: [row.lon, row.lat], zoom: Math.max(map.getZoom(), FLY_ZOOM) });
+    if (map && row && hasPosition(row)) map.flyTo({ center: [row.lon, row.lat], zoom: Math.max(map.getZoom(), FLY_ZOOM), ...card.flightOffset() });
   },
+  { flush: "post" },
+);
+watch(
+  () => props.selected,
+  (call) => {
+    const one = call === null ? undefined : placed.get(call);
+    if (map && one) card.panClear(map, one);
+  },
+  { flush: "post" },
 );
 watch(
   () => props.home,
