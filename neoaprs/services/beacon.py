@@ -115,7 +115,7 @@ class Beacon:
         return self._frame_of(b">" + self.clock().strftime("%d%H%M").encode("ascii") + b"z" + text.encode("ascii"))
 
     def _frame_of(self, info: bytes) -> ax25.Frame:
-        """Our frame with this information field: from `station/call` to `beacon/destination` by way of `beacon/path`."""
+        """Our frame with this information field: from `station/call` to the tocall by way of `beacon/path`."""
         c = self._config()
         if reason := can_transmit(c):
             raise BeaconError(reason)

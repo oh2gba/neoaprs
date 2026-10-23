@@ -31,7 +31,7 @@ Read this before writing a module. `docs/ARCHITECTURE.md` has the layers and the
 
 - `neoaprs.signal.Signal[[Args]]` is the only observer: `s = Signal[[Packet]]()`, `s.connect(fn)`, `s.emit(packet)`; synchronous, exceptions in a handler are logged and do not stop the others. Signals are connected in one place, the composition root (`neoaprs/wiring.py`).
 - A timer is an asyncio task with `await asyncio.sleep(...)` in a loop. Every task a part starts is in a `TaskSet` (`neoaprs/tasks.py`) and is cancelled when the part stops; the Controller's `tasks` is the one for the parts it makes.
-- Every feed of packets derives from `neoaprs.source.Source` (read it): `async def start()`, `async def stop()`, `async def reconnect()`, `async def send(data) -> bool`, `describe() -> str`; inside: `_set_state`, `_set_problem`, `_note`, `_saw`, `_reject`,
+- Every feed of packets derives from `neoaprs.source.Source` (read it): `async def start()`, `async def stop()`, `async def send(data) -> bool`, `describe() -> str`; inside: `_set_state`, `_set_problem`, `_note`, `_saw`, `_reject`,
   `self.stats`, `self.now()`. Reconnection uses `neoaprs.source.Backoff`. A source never raises out of its tasks: it logs, sets `WAITING` with the problem text, and retries.
 
 ## Tests

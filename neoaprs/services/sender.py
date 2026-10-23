@@ -4,7 +4,7 @@ frame and hands it to the Tnc.
 Nothing goes while the call is not set (the interlock, `ready("object")`: the first refusal is told in the log, as the interlock does) and nothing while the Tnc is not usable: not connected, silent, not yet
 confirmed or settling after KISS ON. What is due then is not skipped and not made up: it waits, the log says once per outage `... due and the radio is silent`, and it goes out when the radio is back. Our own
 frames go out one at a time: after one, `spacing_sec` pass before the next, so that a restart with many objects due at once, or a radio that comes back, never sends a burst. The frame is from `station/call` to
-`beacon/destination` by the path given, else `beacon/path`; one that cannot be made (a path of more than 8 digipeaters, an information field that is too long) is a SendError."""
+the tocall by the path given, else `beacon/path`; one that cannot be made (a path of more than 8 digipeaters, an information field that is too long) is a SendError."""
 import logging
 from datetime import datetime
 

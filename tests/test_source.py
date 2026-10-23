@@ -1,7 +1,6 @@
 """What every feed of packets looks like from outside (neoaprs/source.py): the state and the problem, the lines it keeps, its tasks, and the back-off between two tries."""
 import asyncio
 import errno
-from typing import Any
 
 import pytest
 
@@ -96,16 +95,6 @@ async def test_the_tasks_of_a_source_end_with_it_and_a_failed_one_is_logged(capl
     assert any("source tnc: task failed" in r.getMessage() for r in caplog.records)
     await s.stop()
     assert waiting.cancelled()
-
-
-async def test_reconnect_is_a_stop_and_a_start() -> None:
-    seen: list[Any] = []
-    s = Dummy("tnc")
-    s.state_changed.connect(seen.append)
-    await s.start()
-    await s.reconnect()
-    assert seen == [Source.State.CONNECTING, Source.State.CONNECTED, Source.State.STOPPED, Source.State.CONNECTING, Source.State.CONNECTED]
-    await s.stop()
 
 
 async def test_a_source_that_implements_nothing_says_so() -> None:
