@@ -12,6 +12,7 @@ import InfoTip from "@/components/InfoTip.vue";
 import SettingsField from "@/components/SettingsField.vue";
 import SettingsFold from "@/components/SettingsFold.vue";
 import SettingsLocation from "@/components/SettingsLocation.vue";
+import SettingsHttps from "@/components/SettingsHttps.vue";
 import SymbolField from "@/components/SymbolField.vue";
 import SettingsPort from "@/components/SettingsPort.vue";
 import type { Toast } from "@/composables/useDaemon";
@@ -191,6 +192,7 @@ const mark = (key: string) => marks[key] ?? "";
           </template>
         </SettingsField>
         <ConfirmRow v-if="question?.key === key" :message="question.message" @yes="form.answer(true)" @cancel="form.answer(false)" />
+        <SettingsHttps v-if="key === 'web/https'" :https="config.https" />
         <div v-if="key === KEY_KEY && urls.length" class="field">
           <label for="set-web-url-0">Open at</label>
           <div class="field-control">
@@ -237,7 +239,6 @@ const mark = (key: string) => marks[key] ?? "";
             <span class="info-line"
               >Once a day NeoAPRS asks the project's version page whether a newer version is out, and tells you in the header when there is one.</span
             >
-            <span class="info-line">It sends the version number and the kind of system (for example linux-arm) and nothing else. Check now asks at once.</span>
           </InfoTip>
         </div>
       </div>

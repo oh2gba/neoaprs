@@ -151,6 +151,7 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("beacon_antenna_direction", "beacon/antenna_direction", _direction),    # "omni" or the point of the compass it favours, for the PHG extension
     Setting("web_network", "web/network", boolean),                           # true: the page listens on every interface and a device other than this one logs in with web/key
     Setting("web_key", "web/key", access_key),                                # what a device on the network types to log in; made when web/network is first on, empty until then
+    Setting("web_https", "web/https", boolean),                               # true (with web/network): the page is also served over https, on the port after web/port, with NeoAPRS's own certificate authority (neoaprs/web/tls.py)
     Setting("web_port", "web/port", int_in(0, 65535)),                        # 0: the system picks a free port (the log says which)
     Setting("web_allowed_hosts", "web/allowed_hosts", text_of(500)),         # names besides localhost, 127.0.0.1 and this machine's that a Host header may carry, separated by commas
     Setting("beacon_interval_min", "beacon/interval_min", int_or_off(MIN_BEACON_INTERVAL_MIN, 1440), MIN_BEACON_INTERVAL_MIN),   # 0: no beacon
@@ -199,6 +200,7 @@ class Config:
     beacon_antenna_direction: str = "omni"
     web_network: bool = False
     web_key: str = ""
+    web_https: bool = False
     web_port: int = 7303
     web_allowed_hosts: str = ""
     beacon_interval_min: int = 0

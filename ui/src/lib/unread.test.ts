@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { TAB_IDS } from "@/lib/layout";
-import { badgeText, foldedText, isViewingTab, titleText, unreadText, type PanelView } from "@/lib/unread";
+import { badgeText, isViewingTab, titleText, unreadText, type PanelView } from "@/lib/unread";
 
 const view = (extra: Partial<PanelView> = {}): PanelView => ({ tab: "messages", collapsed: false, visible: true, ...extra });
 
@@ -42,17 +42,11 @@ describe("unreadText", () => {
   });
 });
 
-describe("badgeText and foldedText", () => {
-  it("say what a badge counts: messages not seen, bulletins that are new", () => {
+describe("badgeText", () => {
+  it("says what a badge counts: messages not seen, bulletins that are new", () => {
     expect(badgeText("messages", 2)).toBe("2 messages not seen yet");
     expect(badgeText("email", 2)).toBe("2 messages not seen yet");
     expect(badgeText("bulletins", 1)).toBe("1 new bulletin");
     expect(badgeText("bulletins", 3)).toBe("3 new bulletins");
-  });
-
-  it("put the badges of the tabs together and leave out a tab with none", () => {
-    expect(foldedText({ messages: 3, bulletins: 1 })).toBe("3 messages not seen yet, 1 new bulletin");
-    expect(foldedText({ messages: 0, bulletins: 2 })).toBe("2 new bulletins");
-    expect(foldedText({})).toBe("");
   });
 });

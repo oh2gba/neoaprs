@@ -1,14 +1,15 @@
 <script setup lang="ts">
 // The browser's part of the Settings tab's "Notifications" group: what this browser does for a new message (off, sound, sound and pop-up, pop-up only), with a Test button for the sound and one for the pop-up, each with
 // the few words of what happened. The choice is kept in the browser, not on the daemon, so each device decides. The options with a pop-up are disabled, with the reason as their title, where the browser cannot show one; where the
-// page is not a secure context (plain http from another computer) "Enable pop-ups…" opens the steps for the person's browser (PopupHelp).
+// page is not a secure context (plain http from another computer) "Enable pop-ups…" opens the steps for the person's browser (PopupHelp), which start with the secure page while the daemon serves https (`https`).
 import { ref } from "vue";
 import InstallApp from "@/components/InstallApp.vue";
 import PopupHelp from "@/components/PopupHelp.vue";
 import type { BrowserAlerts } from "@/composables/useBrowserAlerts";
 import { MODES, wantsPopup, type AlertMode } from "@/lib/alertmode";
+import type { HttpsState } from "@/protocol/protocol";
 
-const props = defineProps<{ alerts: BrowserAlerts }>();
+const props = defineProps<{ alerts: BrowserAlerts; https?: HttpsState | null }>();
 
 const helpOpen = ref(false);
 
@@ -59,5 +60,5 @@ async function onChoose(event: Event): Promise<void> {
     </div>
   </div>
   <InstallApp />
-  <PopupHelp v-if="!alerts.secure && helpOpen" @close="helpOpen = false" />
+  <PopupHelp v-if="!alerts.secure && helpOpen" :https="https" @close="helpOpen = false" />
 </template>

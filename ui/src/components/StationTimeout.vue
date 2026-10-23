@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// How long after its last position a station stays on the map: minutes, empty for the default of 3 hours (the placeholder says which), "never" (or 0) for never. It is saved when the
+// How long after its last position a station stays on the map ("Hide from map after"): minutes, empty for the usual 3 hours (the placeholder says which), "never" (or 0) for never. It is saved when the
 // field is changed and left, or Enter is pressed; an empty field takes the station's own timeout away, and so does the x.
 import { computed, ref, useId, watch } from "vue";
 import { NEVER, parseTimeoutText, timeoutText, type Aging } from "@/lib/aging";
@@ -33,7 +33,7 @@ function save(): void {
 
 <template>
   <div class="pathbox timeoutbox">
-    <label :for="id" class="path-label">Off map after</label>
+    <label :for="id" class="path-label">Hide from map after</label>
     <input
       :id="id"
       v-model="draft"
@@ -41,8 +41,8 @@ function save(): void {
       :class="{ invalid: parsed === null }"
       type="text"
       inputmode="numeric"
-      :placeholder="`(default: ${timeoutText(aging.defaultMin)})`"
-      :title="parsed === null ? 'Whole minutes, or never' : undefined"
+      :placeholder="`${timeoutText(aging.defaultMin)} (usual)`"
+      :title="parsed === null ? 'Whole minutes, or never' : 'Minutes, or never; empty for the usual time'"
       autocomplete="off"
       spellcheck="false"
       @change="save"

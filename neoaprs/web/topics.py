@@ -72,7 +72,7 @@ class PacketWindow:
 
 
 class Topics:
-    def __init__(self, ctl: Controller, hub: StateHub, sent: Callable[[], None] | None = None, reach: Callable[[], list[str]] = list) -> None:
+    def __init__(self, ctl: Controller, hub: StateHub, sent: Callable[[], None] | None = None, reach: Callable[[], list[str]] = list, secure: Callable[[], dict[str, Any]] | None = None) -> None:
         self.ctl = ctl
         self.hub = hub
         self._sent = sent                           # told when a packet of ours went out: the status (the count of packets, the time of the beacon) has changed
@@ -82,7 +82,7 @@ class Topics:
         hub.add(Topic("stations", lambda: {s.call: station_row(book, s) for s in book.stations()}, lambda call: self._station(call)))
         hub.add(Topic("packets", self.window.whole, self.window.item))
         hub.add(Topic("tnc", lambda: tnc_state(ctl.tnc), interval=TNC_EVERY_SEC))
-        hub.add(Topic("config", lambda: config_values(ctl.config, reach())))
+        hub.add(Topic("config", lambda: config_values(ctl.config, reach(), None if secure is None else secure())))
         hub.add(Topic("station_prefs", lambda: {call: pref_row(pref) for call, pref in ctl.prefbook.all().items()}, self._station_pref))
         hub.add(Topic("messages", lambda: {str(m.id): self._message_row(m) for m in ctl.messaging.records()}, self._message))
         hub.add(Topic("bulletins", lambda: {b.key: bulletin_row(b) for b in ctl.bulletins.records()}, self._bulletin))

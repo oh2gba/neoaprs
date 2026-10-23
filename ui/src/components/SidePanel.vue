@@ -1,9 +1,9 @@
 <script setup lang="ts">
-// The panel at the right of the map (under it on a narrow page): the tabs Stations, Packets, Messages, Email, Bulletins, Beacon and Settings (a tab can carry a badge with a count, which the folded panel shows on its handle), a button that folds it away, and a handle
+// The panel at the right of the map (under it on a narrow page): the tabs Stations, Packets, Messages, Email, Bulletins, Objects, Beacon and Settings, in one row that scrolls sideways when they do not all fit (the tab on show is not bold or wider: the others do not move) (a tab can carry a badge with a count; the folded panel shows the messages not seen, those of the Messages and the Email tab, on its handle: the same count as the header), a button that folds it away, and a handle
 // to drag its width (up to 80 % of the window, the map keeping 360 px). The tab and the width are the page's to remember; a remembered width that is too much for the window is shown clamped, and is whole again when the window is wide again. The contents of every tab stay mounted, so that a filter or a scroll position is there when the tab is back.
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { TAB_IDS, TAB_TITLES, clampWidth, type TabId } from "@/lib/layout";
-import { badgeText, foldedText } from "@/lib/unread";
+import { badgeText, unreadText } from "@/lib/unread";
 
 const props = defineProps<{ tab: TabId; collapsed: boolean; width: number; badges?: Partial<Record<TabId, number>> }>();
 const emit = defineEmits<{ "update:tab": [tab: TabId]; "update:collapsed": [collapsed: boolean]; "update:width": [width: number] }>();
@@ -16,9 +16,23 @@ const onResize = (): void => {
 };
 onMounted(() => window.addEventListener("resize", onResize));
 onBeforeUnmount(() => window.removeEventListener("resize", onResize));
-/** What the badges of all the tabs add up to: shown on the handle while the panel is folded, when no tab is. */
-const folded = computed(() => Object.values(props.badges ?? {}).reduce((sum, n) => sum + n, 0));
-const foldedTitle = computed(() => foldedText(props.badges ?? {}));
+/** The messages not seen (those of the Messages tab and of the Email tab), the count of the header: shown on the handle while the panel is folded, when no tab is. The new bulletins are not messages and are not in it. */
+const folded = computed(() => (props.badges?.messages ?? 0) + (props.badges?.email ?? 0));
+const foldedTitle = computed(() => unreadText(folded.value));
+
+const bar = ref<HTMLElement | null>(null);
+/** The tab bar is one row that scrolls sideways when the tabs do not fit; the tab that is picked (by a click, or from elsewhere on the page) is scrolled into view. */
+watch(
+  () => props.tab,
+  () => void nextTick(() => bar.value?.querySelector(".tab.active")?.scrollIntoView?.({ block: "nearest", inline: "nearest" })),
+);
+/** The wheel of a mouse turns the tab bar sideways when it has more tabs than room. */
+function wheel(event: WheelEvent): void {
+  const el = bar.value;
+  if (!el || el.scrollWidth <= el.clientWidth || event.deltaX !== 0 || event.deltaY === 0) return;
+  event.preventDefault();
+  el.scrollLeft += event.deltaY;
+}
 
 function drag(event: PointerEvent): void {
   const handle = event.currentTarget;
@@ -67,7 +81,7 @@ function nudge(event: KeyboardEvent): void {
         @keydown="nudge"
       ></div>
       <div class="panel-body">
-        <div class="tabs" role="tablist">
+        <div ref="bar" class="tabs" role="tablist" @wheel="wheel">
           <button
             v-for="id in TAB_IDS"
             :id="`tab-${id}`"

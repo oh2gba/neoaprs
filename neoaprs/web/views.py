@@ -135,7 +135,7 @@ def tnc_state(tnc: Tnc) -> dict[str, Any]:
     }
 
 
-def config_values(config: Config, urls: list[str]) -> dict[str, Any]:
-    return {"values": config.to_data(), "defaults": DEFAULTS.to_data(), "urls": urls}
+def config_values(config: Config, urls: list[str], https: dict[str, Any] | None = None) -> dict[str, Any]:
+    return {"values": config.to_data(), "defaults": DEFAULTS.to_data(), "urls": urls, "https": https or {"on": False, "port": 0, "fingerprint": "", "problem": ""}}
 
 

@@ -102,10 +102,14 @@ const mail = useEmail(messages, panel, send);
 const board = useBulletins(bulletins, panel);
 const alerts = useBrowserAlerts(talk.writeTo);
 usePageAlerts(messages, messagesLoaded, alerts.announce);
-useTitle(
-  computed(() => talk.unread.value + mail.unread.value),
-  alerts.tabTitle,
-);
+// the messages not seen, those of the Messages tab and those of the email gateway: one count, the one of the header, of the folded panel's handle and of the browser tab's title
+const unread = computed(() => talk.unread.value + mail.unread.value);
+useTitle(unread, alerts.tabTitle);
+/** The mail of the header: the Messages tab, or the Email tab when the messages not seen are all the gateway's. */
+function openUnread(): void {
+  if (talk.unread.value > 0 || mail.unread.value === 0) talk.openMessages();
+  else panel.show("email");
+}
 const suggestions = computed(() => new Map([...stations.value].map(([call, row]) => [call, row.suggested_path] as const)));
 const heardDirect = computed(() => new Set([...stations.value].filter(([, row]) => row.heard_direct > 0).map(([call]) => call)));
 const fallbackPath = computed(() => config.value?.values["beacon/path"] ?? "");
@@ -137,12 +141,13 @@ function onPick(at: Home): void {
       :connection="connection"
       :tnc="tnc"
       :version="version"
-      :unread="talk.unread.value"
+      :unread="unread"
       :now="now"
       :status="status"
-      @messages="talk.openMessages"
+      @messages="openUnread"
       @setup="guide.show()"
       @update="updateOpen = true"
+      @radio="panel.show('settings')"
     />
     <UpdatePanel v-if="updateOpen && newer" :version="newer" :install="install" @close="updateOpen = false" />
     <main class="main">
@@ -281,7 +286,7 @@ function onPick(at: Home): void {
             <template #radio
               ><RadioStatus :tnc="tnc" :now="now" :digipeater="config?.values['digi/enabled'] === 'true'" @reconnect="send({ cmd: 'tnc_reconnect' })"
             /></template>
-            <template #notifications><BrowserAlerts :alerts="alerts" /></template>
+            <template #notifications><BrowserAlerts :alerts="alerts" :https="config?.https" /></template>
           </SettingsForm>
         </template>
       </SidePanel>

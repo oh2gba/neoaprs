@@ -125,4 +125,19 @@ describe("turning the network access off", () => {
     expect(wrapper.find(".confirm-row").exists()).toBe(false);
     expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "web/network": "true" } }); // (the next waits for its answer)
   });
+
+  it("asks before the secure connection (https) is switched on or off on a page opened from another device, and not on this computer", async () => {
+    openedAt("192.168.1.20");
+    const remote = make(ON);
+    await remote.wrapper.find("#set-web-https").setValue(true);
+    expect(remote.wrapper.find(".confirm-row").text()).toContain("This device will lose the page. Turn on?");
+    expect(remote.send).not.toHaveBeenCalled();
+    await remote.wrapper.findAll(".confirm-row button")[0]?.trigger("click");
+    expect(remote.send).toHaveBeenCalledWith({ cmd: "set_config", values: { "web/https": "true" } });
+    openedAt("127.0.0.1");
+    const local = make(ON);
+    await local.wrapper.find("#set-web-https").setValue(true);
+    expect(local.wrapper.find(".confirm-row").exists()).toBe(false);
+    expect(local.send).toHaveBeenCalledWith({ cmd: "set_config", values: { "web/https": "true" } });
+  });
 });

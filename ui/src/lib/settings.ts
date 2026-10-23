@@ -162,6 +162,15 @@ export const FIELDS: Record<string, FieldInfo> = {
       "New key makes another one and logs every other device out. Type the new key again on each.",
     ],
   },
+  "web/https": {
+    name: "Secure connection",
+    label: "Secure connection (https)",
+    kind: "bool",
+    tipLabel: "About the secure connection",
+    tip: [
+      "Needed for pop-ups on phones and for installing NeoAPRS as an app. Browsers show a warning the first time; you can continue past it, or install NeoAPRS's certificate on each device to make the warning go away.",
+    ],
+  },
   "map/radius_km": {
     name: "Map radius",
     label: "Radius",
@@ -362,7 +371,7 @@ function profileOf(key: string | undefined) {
  * where it cannot: Windows, macOS), the keep-alive for one that can be asked if it is there; the access key while the daemon lets the network in (`network`) and has made one. The port the search found last is no field:
  * the port's own control says it. */
 export function shownFor(key: string, profileKey: string | undefined, network = true, search = true): boolean {
-  if (key === "web/key") return network;
+  if (key === "web/key" || key === "web/https") return network;
   if (key === "serial/last_port") return false;
   const profile = profileOf(profileKey);
   if (!profile) return true;

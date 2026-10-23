@@ -27,12 +27,6 @@ export function tempText(c: number | null | undefined): string {
   return c === null || c === undefined ? NONE : `${c.toFixed(1)} °C`;
 }
 
-/** The temperature for a narrow column: "10.0°", a dash for a station that has no weather. */
-export function tempShort(row: StationRow): string {
-  const c = row.weather?.temp_c;
-  return c === null || c === undefined ? NONE : `${c.toFixed(1)}°`;
-}
-
 export function pressureText(hpa: number | null): string {
   return hpa === null ? NONE : `${hpa.toFixed(1)} hPa`;
 }
