@@ -1,14 +1,14 @@
 <script setup lang="ts">
 // Everything the daemon knows of one station, as a card over the map: the symbol, the position, how far and in which direction from us, how it moves, when it was heard, the path of its latest
-// packet and the route it came by, how its packets reached us (direct, by which repeaters, from the internet), when it was last heard direct and the share of its packets that came direct, and the best route with the path to send by, its status and comment, how many packets it sent. "Message" opens the Messages tab with the station as the addressee; the path field is the path its messages go by, the timeout field how long
-// it stays on the map and the attempts field how many times a message to it is transmitted. The details that the daemon decodes beyond the position follow the altitude, a line each: the data extensions (PHG, range, DF, area), the Maidenhead locator of its status, and the telemetry channels with the names and units it defined. A weather station (the weather symbol, or one that has sent weather) has its weather panel at the top (components/WeatherPanel.vue). "Forget" takes it out of the station book (it is back when it is heard again); it asks twice, and forgets the first click after 5 s like the other buttons that ask twice (`useSure`). An object or an item of ours has "Edit" (the Objects tab opens with it) and "Kill" (it asks twice, too) in place of "Message" and "Forget", and none of the fields of a station that is heard.
+// packet and the route it came by, how its packets reached us (direct, by which repeaters, from the internet), when it was last heard direct and the share of its packets that came direct, and the best route with the path to send by, its status and comment, how many packets it sent. A row with nothing to say
+// is left out (no course, speed or altitude for a house, no status when none was heard). "Message" opens the Messages tab with the station as the addressee, where the path its messages go by, RF only and the attempts are set; the timeout field is how long
+// it stays on the map. The details that the daemon decodes beyond the position follow the altitude, a line each: the data extensions (PHG, range, DF, area), the Maidenhead locator of its status, and the telemetry channels with the names and units it defined. A weather station (the weather symbol, or one that has sent weather) has its weather panel at the top (components/WeatherPanel.vue). "Forget" takes it out of the station book (it is back when it is heard again); it asks twice, and forgets the first click after 5 s like the other buttons that ask twice (`useSure`). An object or an item of ours has "Edit" (the Objects tab opens with it) and "Kill" (it asks twice, too) in place of "Message" and "Forget", and none of the fields of a station that is heard.
 import { computed, watch } from "vue";
-import StationPrefs from "@/components/StationPrefs.vue";
+import StationTimeout from "@/components/StationTimeout.vue";
 import SymbolIcon from "@/components/SymbolIcon.vue";
 import WeatherPanel from "@/components/WeatherPanel.vue";
 import { useSure } from "@/composables/useSure";
 import { timedOut, type Aging } from "@/lib/aging";
-import type { Attempts } from "@/lib/attempts";
 import { qrzUrl } from "@/lib/calls";
 import { bestText, directWords, heardText } from "@/lib/routes";
 import { extensionRows, locatorText, telemetryBitsText, telemetryText } from "@/lib/details";
@@ -21,18 +21,10 @@ const props = withDefaults(
     row: StationRow;
     now: number;
     aging?: Aging;
-    attempts?: Attempts;
-    paths?: ReadonlyMap<string, string>;
-    fallbackPath?: string;
-    rfOnly?: ReadonlySet<string>;
     weatherSeries?: WeatherSeriesMessage | null;
   }>(),
   {
     aging: () => ({ timeouts: new Map<string, number>(), defaultMin: 0 }),
-    attempts: () => ({ own: new Map<string, number>(), defaultCount: 6 }),
-    paths: () => new Map<string, string>(),
-    fallbackPath: "",
-    rfOnly: () => new Set<string>(),
     weatherSeries: null,
   },
 );
@@ -41,13 +33,8 @@ const emit = defineEmits<{
   edit: [name: string];
   kill: [name: string];
   message: [call: string];
-  path: [call: string, path: string];
-  clearPath: [call: string];
   timeout: [call: string, minutes: number];
   clearTimeout: [call: string];
-  setAttempts: [call: string, attempts: number];
-  clearAttempts: [call: string];
-  setRfOnly: [call: string, on: boolean];
   weather: [call: string, hours: number];
   close: [];
 }>();
@@ -61,7 +48,11 @@ const kill = (): void => sure.press(props.row.call, () => emit("kill", props.row
 
 const qrz = computed(() => (props.row.kind === "station" ? qrzUrl(props.row.call) : null));
 const extensions = computed(() => extensionRows(props.row.extensions));
-const fromUs = (row: StationRow): string => (row.distance_km === null ? "-" : `${distanceText(row.distance_km)} km, ${bearingText(row.bearing_deg)}`);
+const fromUs = computed(() => (props.row.distance_km === null ? null : `${distanceText(props.row.distance_km)} km, ${bearingText(props.row.bearing_deg)}`));
+const position = computed(() => (props.row.lat === null || props.row.lon === null ? null : positionText(props.row.lat, props.row.lon)));
+const heard = computed(() => heardText(props.row));
+const best = computed(() => bestText(props.row));
+const direct = computed(() => (props.row.kind === "station" && !props.row.is_me ? directWords(props.row, props.now) : null));
 </script>
 
 <template>
@@ -87,16 +78,26 @@ const fromUs = (row: StationRow): string => (row.distance_km === null ? "-" : `$
       <dd>
         {{ row.symbol_name }} <span class="muted mono">{{ row.symbol_table }}{{ row.symbol_code }}</span>
       </dd>
-      <dt>Position</dt>
-      <dd>{{ positionText(row.lat, row.lon) }}</dd>
-      <dt>From us</dt>
-      <dd>{{ fromUs(row) }}</dd>
-      <dt>Course</dt>
-      <dd>{{ courseText(row.course_deg) }}</dd>
-      <dt>Speed</dt>
-      <dd>{{ speedText(row.speed_kmh) }}</dd>
-      <dt>Altitude</dt>
-      <dd>{{ altitudeText(row.altitude_m) }}</dd>
+      <template v-if="position !== null">
+        <dt>Position</dt>
+        <dd>{{ position }}</dd>
+      </template>
+      <template v-if="fromUs !== null">
+        <dt>From us</dt>
+        <dd>{{ fromUs }}</dd>
+      </template>
+      <template v-if="row.course_deg !== null">
+        <dt>Course</dt>
+        <dd>{{ courseText(row.course_deg) }}</dd>
+      </template>
+      <template v-if="row.speed_kmh !== null">
+        <dt>Speed</dt>
+        <dd>{{ speedText(row.speed_kmh) }}</dd>
+      </template>
+      <template v-if="row.altitude_m !== null">
+        <dt>Altitude</dt>
+        <dd>{{ altitudeText(row.altitude_m) }}</dd>
+      </template>
       <template v-for="ext in extensions" :key="ext.label">
         <dt>{{ ext.label }}</dt>
         <dd>{{ ext.text }}</dd>
@@ -113,45 +114,45 @@ const fromUs = (row: StationRow): string => (row.distance_km === null ? "-" : `$
       </template>
       <dt>Last heard</dt>
       <dd>{{ agoText(row.last_heard, now) }}</dd>
-      <dt>Last position</dt>
-      <dd>{{ agoText(row.last_position_at, now) }}<span v-if="timedOut(aging, row, now)" class="timedword"> - timed out</span></dd>
+      <template v-if="row.last_position_at !== null">
+        <dt>Last position</dt>
+        <dd>{{ agoText(row.last_position_at, now) }}<span v-if="timedOut(aging, row, now)" class="timedword"> - timed out</span></dd>
+      </template>
       <dt>First heard</dt>
       <dd>{{ dateTimeText(row.first_heard) }}</dd>
-      <dt>Path</dt>
-      <dd class="mono">{{ pathText(row.last_path) }}</dd>
-      <dt>Route</dt>
-      <dd>{{ row.last_route || "-" }}</dd>
-      <dt>Heard</dt>
-      <dd>{{ heardText(row) }}</dd>
-      <dt>Direct</dt>
-      <dd>{{ row.kind === "station" && !row.is_me ? directWords(row, now) : "-" }}</dd>
-      <dt>Best route</dt>
-      <dd>{{ bestText(row) }}</dd>
-      <dt>Status</dt>
-      <dd>{{ row.last_status || "-" }}</dd>
-      <dt>Comment</dt>
-      <dd>{{ row.last_comment || "-" }}</dd>
+      <template v-if="row.last_path.length > 0">
+        <dt>Path</dt>
+        <dd class="mono">{{ pathText(row.last_path) }}</dd>
+      </template>
+      <template v-if="row.last_route">
+        <dt>Route</dt>
+        <dd>{{ row.last_route }}</dd>
+      </template>
+      <template v-if="heard !== '-'">
+        <dt>Heard</dt>
+        <dd>{{ heard }}</dd>
+      </template>
+      <template v-if="direct !== null">
+        <dt>Direct</dt>
+        <dd>{{ direct }}</dd>
+      </template>
+      <template v-if="best !== '-'">
+        <dt>Best route</dt>
+        <dd>{{ best }}</dd>
+      </template>
+      <template v-if="row.last_status">
+        <dt>Status</dt>
+        <dd>{{ row.last_status }}</dd>
+      </template>
+      <template v-if="row.last_comment">
+        <dt>Comment</dt>
+        <dd>{{ row.last_comment }}</dd>
+      </template>
       <dt>Packets</dt>
       <dd>{{ row.packets }}</dd>
     </dl>
     <div v-if="!row.is_me && !row.own" class="card-path">
-      <StationPrefs
-        :call="row.call"
-        :aging="aging"
-        :attempts="attempts"
-        :paths="paths"
-        :fallback-path="fallbackPath"
-        :rf-only="rfOnly"
-        :with-path="row.kind === 'station'"
-        :suggested="row.suggested_path"
-        @clear-path="emit('clearPath', $event)"
-        @clear-timeout="emit('clearTimeout', $event)"
-        @clear-attempts="emit('clearAttempts', $event)"
-        @path="(c, p) => emit('path', c, p)"
-        @timeout="(c, m) => emit('timeout', c, m)"
-        @set-attempts="(c, n) => emit('setAttempts', c, n)"
-        @set-rf-only="(c, on) => emit('setRfOnly', c, on)"
-      />
+      <StationTimeout :call="row.call" :aging="aging" @set="(c, m) => emit('timeout', c, m)" @clear="emit('clearTimeout', $event)" />
     </div>
     <footer v-if="row.own" class="card-foot">
       <button class="btn primary" type="button" @click="emit('edit', row.call)">Edit</button>

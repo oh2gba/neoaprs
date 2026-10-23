@@ -454,13 +454,22 @@ describe("App", () => {
     expect(wrapper.find("#pane-messages .timeout-input").exists()).toBe(false); // the map timeout is the station's, not the conversation's
   });
 
-  it("ticks RF only from the card and from the conversation header, sends it, and follows the daemon", async () => {
+  it("has the message settings in the conversation the card's Message button opens, none on the card; RF only is sent and follows the daemon", async () => {
     const { wrapper, socket } = await open();
     await wrapper
       .findAll("#pane-stations tbody tr")
       .find((r) => r.text().includes("OH2PU-9"))
       ?.trigger("click");
-    await wrapper.find(".card .rfonly input").setValue(true);
+    expect(wrapper.find(".card .rfonly").exists()).toBe(false);
+    expect(wrapper.find(".card .attempts-input").exists()).toBe(false);
+    expect(wrapper.find(".card .use-suggested").exists()).toBe(false);
+    await wrapper
+      .findAll(".card .btn")
+      .find((b) => b.text() === "Message")
+      ?.trigger("click");
+    const header = wrapper.find<HTMLInputElement>("#pane-messages .thread-head .rfonly input");
+    expect(wrapper.findAll("#pane-messages .thread-head label").map((l) => l.text())).toEqual(["Path", "RF only", "Attempts"]);
+    await header.setValue(true);
     expect(socket.sent).toContainEqual({ cmd: "set_station_rf_only", call: "OH2PU-9", on: true });
     socket.say({
       type: "patch",
@@ -469,15 +478,8 @@ describe("App", () => {
       ops: [{ op: "set", key: "OH2PU-9", value: { path: null, hide_after_min: null, attempts: null, rf_only: true } }],
     });
     await flushPromises();
-    expect(wrapper.find<HTMLInputElement>(".card .rfonly input").element.checked).toBe(true);
-    await tabButton(wrapper, "Messages")?.trigger("click");
-    await wrapper
-      .findAll("#pane-messages .conv")
-      .find((c) => c.text().includes("OH2PU-9"))
-      ?.trigger("click");
-    const header = wrapper.find<HTMLInputElement>("#pane-messages .thread-head .rfonly input");
-    expect(header.element.checked).toBe(true);
-    await header.setValue(false);
+    expect(wrapper.find<HTMLInputElement>("#pane-messages .thread-head .rfonly input").element.checked).toBe(true);
+    await wrapper.find<HTMLInputElement>("#pane-messages .thread-head .rfonly input").setValue(false);
     expect(socket.sent).toContainEqual({ cmd: "set_station_rf_only", call: "OH2PU-9", on: false });
   });
 

@@ -6,7 +6,6 @@ import MessageCompose from "@/components/MessageCompose.vue";
 import MessageThread from "@/components/MessageThread.vue";
 import StationPrefs from "@/components/StationPrefs.vue";
 import { useSure } from "@/composables/useSure";
-import type { Aging } from "@/lib/aging";
 import type { Attempts } from "@/lib/attempts";
 import { ageText } from "@/lib/format";
 import { conversationName, isHighlighted, isOverheard, overheardPair, type Conversation } from "@/lib/messages";
@@ -22,7 +21,6 @@ withDefaults(
     now: number;
     showOverheard: boolean;
     paths: ReadonlyMap<string, string>;
-    aging: Aging;
     attempts: Attempts;
     /** the path to send by that the daemon suggests for each station that has one (see the station card) */
     suggestions?: ReadonlyMap<string, string | null>;
@@ -47,8 +45,6 @@ const emit = defineEmits<{
   "update:showOverheard": [show: boolean];
   path: [call: string, path: string];
   clearPath: [call: string];
-  timeout: [call: string, minutes: number];
-  clearTimeout: [call: string];
   setAttempts: [call: string, attempts: number];
   clearAttempts: [call: string];
   setRfOnly: [call: string, on: boolean];
@@ -103,8 +99,6 @@ function remove(call: string): void {
       <StationPrefs
         v-else
         :call="selected"
-        :aging="aging"
-        :with-timeout="false"
         :attempts="attempts"
         :paths="paths"
         :fallback-path="fallbackPath"
@@ -112,8 +106,6 @@ function remove(call: string): void {
         :suggested="suggestions.get(selected) ?? null"
         @path="(c, p) => emit('path', c, p)"
         @clear-path="emit('clearPath', $event)"
-        @timeout="(c, m) => emit('timeout', c, m)"
-        @clear-timeout="emit('clearTimeout', $event)"
         @set-attempts="(c, n) => emit('setAttempts', c, n)"
         @clear-attempts="emit('clearAttempts', $event)"
         @set-rf-only="(c, on) => emit('setRfOnly', c, on)"
