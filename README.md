@@ -42,6 +42,8 @@ The page opens a setup guide in five steps: **call**, **position** (**Pick on th
 | Kenwood TM-D710, TH-D72 | [serial or USB](docs/RADIOS.md#kenwood-tm-d710-and-th-d72) |
 | Kenwood TH-D74, TH-D75 | [USB or Bluetooth](docs/RADIOS.md#kenwood-th-d74-and-th-d75) |
 | Mobilinkd TNC3, TNC4 | [USB or Bluetooth](docs/RADIOS.md#mobilinkd-tnc3-and-tnc4) |
+| BTech UV-PRO, Vero VR-N76, Radioddity GA-5WB (untested) | [Bluetooth](docs/RADIOS.md#btech-uv-pro-vero-vr-n76-radioddity-ga-5wb) |
+| PicoAPRS V4 (untested) | [Bluetooth, USB-C or TCP](docs/RADIOS.md#picoaprs-v4) |
 | NinoTNC, TNC-Pi, TNC-X, any TNC already in KISS | [USB or serial](docs/RADIOS.md#ninotnc) |
 | Kantronics KPC-3+ | [RS-232](docs/RADIOS.md#kantronics-kpc-3) |
 | Any radio with a sound-card interface (Digirig, SignaLink, USB dongle), through Direwolf or a soundmodem | [KISS over TCP](docs/RADIOS.md#direwolf-sound-card) |

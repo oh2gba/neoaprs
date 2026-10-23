@@ -149,6 +149,16 @@ describe("portOptions", () => {
     expect(portOptions(ports(), "/dev/ttyUSB0", "/dev/ttyUSB0").map((c) => c.value)).toEqual(["", "/dev/ttyUSB0", "/dev/ttyACM0", PORT_OTHER]);
     expect(portOptions(null, "", "").map((c) => c.label)).toEqual(["find automatically", "Other..."]);
   });
+  it("lists a paired Bluetooth device by its name, after the serial ports, and keeps a typed bt:// address with a channel", () => {
+    const listed = {
+      type: "ports" as const,
+      search: true,
+      ports: [row("/dev/ttyUSB0", "FT232R"), { ...row("bt://AA:BB:CC:DD:EE:01", "Bluetooth: TH-D74"), hwid: "" }],
+    };
+    const options = portOptions(listed, "bt://AA:BB:CC:DD:EE:01/2", "");
+    expect(options.map((c) => c.value)).toEqual(["", "/dev/ttyUSB0", "bt://AA:BB:CC:DD:EE:01", "bt://AA:BB:CC:DD:EE:01/2", PORT_OTHER]);
+    expect(options[2].label).toBe("bt://AA:BB:CC:DD:EE:01 - Bluetooth: TH-D74");
+  });
   it("calls the empty port none chosen where the daemon does not search", () => {
     expect(portOptions(ports(false), "", "")[0]).toEqual({ value: "", label: "none chosen" });
   });

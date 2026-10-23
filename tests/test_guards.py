@@ -68,6 +68,18 @@ async def test_stops_its_daemon_itself_and_the_guard_does_not_mind(tmp_path):
     await e.start()
     await e.ctl.stop()
 
+@pytest.mark.skipif(not hasattr(socket, "AF_BLUETOOTH"), reason="this Python has no Bluetooth sockets")
+def test_makes_a_bluetooth_socket_and_swallows_the_error():
+    try:
+        socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
+    except OSError:
+        pass
+
+def test_makes_a_pair_of_sockets_that_stand_in_for_a_radio():
+    a, b = socket.socketpair()
+    a.close()
+    b.close()
+
 def test_sends_a_datagram_out():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
@@ -157,12 +169,13 @@ def child_outcomes(tmp_path_factory: pytest.TempPathFactory) -> dict[str, str]:
 
 @pytest.mark.parametrize("name", [
     "test_clean", "test_a_task_that_is_finishing_is_not_a_leak", "test_forgets_to_stop_its_daemon_and_the_guard_stops_it", "test_stops_its_daemon_itself_and_the_guard_does_not_mind", "test_talks_to_the_loopback", "test_logs_an_error_on_purpose", "test_reads_the_log_itself",
-    "test_a_warning_and_the_asyncio_logger_are_not_errors", "test_the_home_is_empty_and_not_the_real_one", "test_changes_the_logging", "test_the_logging_is_as_it_was_before_the_test_that_changed_it"])
+    "test_a_warning_and_the_asyncio_logger_are_not_errors", "test_makes_a_pair_of_sockets_that_stand_in_for_a_radio", "test_the_home_is_empty_and_not_the_real_one", "test_changes_the_logging", "test_the_logging_is_as_it_was_before_the_test_that_changed_it"])
 def test_what_is_allowed_passes_the_guards(child_outcomes: dict[str, str], name: str) -> None:
     assert child_outcomes[name] == "ok"
 
 
-@pytest.mark.parametrize("name", ["test_leaks_a_task", "test_reaches_out_and_swallows_the_error", "test_sends_a_datagram_out", "test_looks_up_a_name", "test_logs_an_error", "test_asks_the_rigctld_of_this_machine", "test_asks_the_rotctld_of_this_machine_by_name"])
+@pytest.mark.parametrize("name", ["test_leaks_a_task", "test_reaches_out_and_swallows_the_error", "test_sends_a_datagram_out", "test_looks_up_a_name", "test_logs_an_error", "test_asks_the_rigctld_of_this_machine", "test_asks_the_rotctld_of_this_machine_by_name",
+                                  *(["test_makes_a_bluetooth_socket_and_swallows_the_error"] if hasattr(socket, "AF_BLUETOOTH") else [])])
 def test_what_is_forbidden_fails_the_test(child_outcomes: dict[str, str], name: str) -> None:
     assert child_outcomes[name] == "error"
 
@@ -253,3 +266,20 @@ async def test_a_database_thread_that_is_left_running_is_found_and_a_closed_one_
     assert len(leaked) == 1 and leaked[0].is_alive()
     await db.close()
     assert guards.leaked_db_threads() == []
+
+
+def test_the_bluetooth_guard_refuses_and_remembers_even_when_the_error_is_swallowed() -> None:
+    bluetooth = guards.BluetoothGuard()
+    with pytest.MonkeyPatch.context() as mp:
+        bluetooth.install(mp.setattr)
+        a, b = socket.socketpair()                      # a socket of another family is none of its business
+        a.close()
+        b.close()
+        if hasattr(socket, "AF_BLUETOOTH"):
+            with pytest.raises(guards.BluetoothTouched):
+                socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
+            with pytest.raises(guards.BluetoothTouched):
+                socket.socket(socket.AF_BLUETOOTH, socket.SOCK_SEQPACKET, socket.BTPROTO_L2CAP)
+            assert len(bluetooth.refused) == 2
+        else:
+            assert bluetooth.refused == []

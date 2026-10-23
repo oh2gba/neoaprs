@@ -2,7 +2,11 @@
 
 ## Unreleased
 
-Nothing yet.
+Classic Bluetooth without `rfcomm bind`.
+
+- A Bluetooth radio or TNC that is paired with the computer is a port of its own on Linux: `bt://AA:BB:CC:DD:EE:FF` (or `bt://AA:BB:CC:DD:EE:FF/2` with the RFCOMM channel). NeoAPRS opens the Bluetooth serial link itself, with no `sudo rfcomm bind` and no root, finds the serial channel on the radio (the TH-D74/D75 use 2, Mobilinkd 1; a radio that lists none, or refuses the one it lists, gets channels 1 to 3 in turn, and the log says which connected), and opens the link again when the radio goes out of range or is switched off, like any other port that drops. It has no speed, and the search for the radio never looks at Bluetooth devices.
+- The Port choice of the Settings tab and of the setup guide lists the paired Bluetooth devices that have a serial port, by name (`Bluetooth: TH-D74`), after the serial ports. They are read from BlueZ's records (`busctl`, else `bluetoothctl`); no device is connected to for the list.
+- The Bluetooth section of the radios document says how to pair once and pick the radio; the old `rfcomm bind` way stays as a fallback. Windows still uses the paired device's *Outgoing* COM port and macOS its `/dev/cu.*` port. The radios guide has entries for the BTech UV-PRO / Vero VR-N76 / Radioddity GA-5WB and the PicoAPRS V4 (both untested: users' reports and the manual). Bluetooth LE (the Mobilinkd TNC4's, the PicoAPRS's own LE mode) is not supported, as before.
 
 ## 0.4.0
 

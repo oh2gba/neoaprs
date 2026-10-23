@@ -340,7 +340,7 @@ export interface InstallInfo {
   service: boolean;
 }
 
-/** Asks for the serial ports of the machine the daemon runs on. Answered with `ports` to the page that asked. A KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a port of the machine: it is typed. */
+/** Asks for the serial ports of the machine the daemon runs on, and the Bluetooth devices paired with it. Answered with `ports` to the page that asked. A KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a port of the machine: it is typed. */
 export interface ListPortsCommand {
   cmd: "list_ports";
 }
@@ -615,9 +615,9 @@ export interface PongMessage {
   now: string;
 }
 
-/** A serial port the system lists. Nothing was opened to find it. */
+/** A serial port the system lists, or a Bluetooth device paired with it (Linux). Nothing was opened or connected to find it. */
 export interface PortRow {
-  /** the name to give as `serial/port`: `COM3`, `/dev/ttyUSB0` */
+  /** the name to give as `serial/port`: `COM3`, `/dev/ttyUSB0`, `bt://AA:BB:CC:DD:EE:FF` for a paired Bluetooth device */
   device: string;
   /** what the system calls it, such as `USB Serial Port (COM3)`; `n/a` where it does not say */
   description: string;
@@ -632,7 +632,7 @@ export interface PortRow {
 /** The answer to `list_ports`. */
 export interface PortsMessage {
   type: "ports";
-  /** the ports, in natural order (`COM2` before `COM10`) */
+  /** the ports, in natural order (`COM2` before `COM10`), then the paired Bluetooth devices */
   ports: PortRow[];
   /** whether the daemon looks for the radio among the ports by itself (Linux, the ports that match `serial/pattern`); where it is false (Windows, macOS) the radio is the port in `serial/port`, so the operator picks it from this list */
   search: boolean;

@@ -1305,7 +1305,7 @@
     },
     "ListPorts": {
       "additionalProperties": false,
-      "description": "Asks for the serial ports of the machine the daemon runs on. Answered with `ports` to the page that asked. A KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a port of the machine: it is typed.",
+      "description": "Asks for the serial ports of the machine the daemon runs on, and the Bluetooth devices paired with it. Answered with `ports` to the page that asked. A KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a port of the machine: it is typed.",
       "properties": {
         "cmd": {
           "const": "list_ports",
@@ -2442,10 +2442,10 @@
     },
     "PortRow": {
       "additionalProperties": false,
-      "description": "A serial port the system lists. Nothing was opened to find it.",
+      "description": "A serial port the system lists, or a Bluetooth device paired with it (Linux). Nothing was opened or connected to find it.",
       "properties": {
         "device": {
-          "description": "the name to give as `serial/port`: `COM3`, `/dev/ttyUSB0`",
+          "description": "the name to give as `serial/port`: `COM3`, `/dev/ttyUSB0`, `bt://AA:BB:CC:DD:EE:FF` for a paired Bluetooth device",
           "type": "string"
         },
         "description": {
@@ -2498,7 +2498,7 @@
           "type": "string"
         },
         "ports": {
-          "description": "the ports, in natural order (`COM2` before `COM10`)",
+          "description": "the ports, in natural order (`COM2` before `COM10`), then the paired Bluetooth devices",
           "items": {
             "$ref": "#/$defs/PortRow"
           },

@@ -195,6 +195,18 @@ async def test_list_ports_is_answered_with_the_ports_of_the_machine_and_whether_
     assert page.of("ports")[-1]["ports"] == []
 
 
+async def test_list_ports_ends_with_the_paired_bluetooth_devices(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from neoaprs.serialprobe import PortInfo
+    monkeypatch.setattr(web_handlers, "available_ports", lambda: [PortInfo("/dev/ttyUSB0", "CP2102", "USB VID:PID=10C4:EA60", 0x10C4, 0xEA60)])
+    monkeypatch.setattr(web_handlers, "paired_bluetooth_ports", lambda: [PortInfo("bt://AA:BB:CC:DD:EE:01", "Bluetooth: TH-D74", "", None, None)])
+    e = Env(tmp_path, web=True)
+    await e.start()
+    page = await e.ws()
+    await page.send({"cmd": "list_ports"})
+    ports = (await page.expect("ports"))["ports"]
+    assert [(p["device"], p["description"]) for p in ports if p["device"].startswith(("bt://", "/dev/ttyUSB0"))] == [("/dev/ttyUSB0", "CP2102"), ("bt://AA:BB:CC:DD:EE:01", "Bluetooth: TH-D74")]
+
+
 async def test_a_frame_that_is_not_a_command_is_an_error_and_changes_nothing(tmp_path: Path) -> None:
     e = Env(tmp_path, web=True)
     await e.start()

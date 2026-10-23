@@ -140,7 +140,7 @@ Opens the radio's line again with the settings as they are now (the port, the sp
 
 ### `list_ports`
 
-Asks for the serial ports of the machine the daemon runs on. Answered with `ports` to the page that asked. A KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a port of the machine: it is typed.
+Asks for the serial ports of the machine the daemon runs on, and the Bluetooth devices paired with it. Answered with `ports` to the page that asked. A KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a port of the machine: it is typed.
 
 ### `set_config`
 
@@ -434,7 +434,7 @@ The answer to `list_ports`.
 
 | field | type | | description |
 |---|---|---|---|
-| `ports` | PortRow[] |  | the ports, in natural order (`COM2` before `COM10`) |
+| `ports` | PortRow[] |  | the ports, in natural order (`COM2` before `COM10`), then the paired Bluetooth devices |
 | `search` | boolean |  | whether the daemon looks for the radio among the ports by itself (Linux, the ports that match `serial/pattern`); where it is false (Windows, macOS) the radio is the port in `serial/port`, so the operator picks it from this list |
 
 ### `state`
@@ -1028,11 +1028,11 @@ A station's power, antenna height above average terrain, antenna gain and direct
 
 ### PortRow
 
-A serial port the system lists. Nothing was opened to find it.
+A serial port the system lists, or a Bluetooth device paired with it (Linux). Nothing was opened or connected to find it.
 
 | field | type | | description |
 |---|---|---|---|
-| `device` | string |  | the name to give as `serial/port`: `COM3`, `/dev/ttyUSB0` |
+| `device` | string |  | the name to give as `serial/port`: `COM3`, `/dev/ttyUSB0`, `bt://AA:BB:CC:DD:EE:FF` for a paired Bluetooth device |
 | `description` | string |  | what the system calls it, such as `USB Serial Port (COM3)`; `n/a` where it does not say |
 | `hwid` | string |  | the hardware id the system gives, such as `USB VID:PID=0403:6001 SER=A1`; `n/a` where it does not say |
 | `vid` | integer \| null |  | the USB vendor id of an adapter; null for a port that is not USB |
