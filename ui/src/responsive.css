@@ -407,3 +407,8 @@ button,
     min-width: 56px;
   }
 }
+
+/* the first-run guide's Pick on the map is as wide as the guide, as the Location of the Beacon tab's is on a narrow window */
+.setup .location-pick {
+  flex: 1 1 100%;
+}
