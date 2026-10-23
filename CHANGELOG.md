@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-Nothing yet.
+- Messages tab, laid out like Signal: when the tab is 600 px wide or more (the panel, not the window) the list of conversations is at the left and the open conversation at the right with a line between them, and "Choose a conversation" with **New message** while none is open; on a narrower tab (a phone, the panel at its default width) one fills the tab at a time, the list first, then the conversation with a back arrow "‹" (or Esc) to the list. The list has the call, the last text, the age and the unread count, the open one filled, and **New message** at its top. The conversation has a header with the call and a small **Route** button (a dot when the route is not the default) instead of the heading above the thread, bubbles (ours at the right, theirs at the left, the time and the mark small) and the box to write in fixed at the bottom; what you typed stays when you go back. A message still counts as seen only while its conversation is open and visible, on a narrow tab only while the conversation, not the list, is shown. A click on the open conversation's row no longer closes it.
 
 ## 0.5.0
 

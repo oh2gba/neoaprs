@@ -935,19 +935,49 @@ tbody tr:focus-visible {
 }
 
 /* the messages */
+/* the list of conversations and the open conversation: side by side when the tab is wide (the class wide, MessagesPane), one at a time when it is narrow */
 .msgpane {
   display: flex;
   flex: 1;
-  flex-direction: column;
+  min-width: 0;
   min-height: 0;
 }
-.convs {
+.msgpane > * {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.msgpane.wide > .convlist {
   flex: none;
-  max-height: 34%;
+  width: clamp(240px, 36%, 340px);
+  border-right: 1px solid var(--border);
+}
+.convlist {
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+}
+.convlist-head {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.convlist-overheard {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.convs {
+  flex: 1;
+  min-height: 0;
   margin: 0;
   padding: 0;
   overflow-y: auto;
-  border-bottom: 1px solid var(--border);
   list-style: none;
 }
 .conv-item {
@@ -955,20 +985,203 @@ tbody tr:focus-visible {
   align-items: stretch;
   border-bottom: 1px solid var(--border);
 }
+.conv-item.open {
+  background: var(--row-selected);
+}
 .conv {
   display: grid;
   flex: 1;
   min-width: 0;
-  grid-template-columns: auto auto 1fr;
-  align-items: baseline;
-  gap: 0 8px;
-  padding: 6px 10px;
+  min-height: 56px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-content: center;
+  align-items: center;
+  gap: 2px 8px;
+  padding: 8px 4px 8px 12px;
   border: 0;
   background: none;
   color: var(--text);
   font: inherit;
   text-align: left;
   cursor: pointer;
+}
+.conv:hover {
+  background: var(--row-hover);
+}
+.conv.active:hover {
+  background: none;
+}
+.conv:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.conv-call {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.conv.heard .conv-call {
+  font-weight: 400;
+  font-style: italic;
+}
+.conv-age {
+  grid-column: 2;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.conv-text {
+  grid-column: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.conv .badge {
+  grid-column: 2;
+  grid-row: 2;
+  margin: 0;
+  justify-self: end;
+}
+.conv.fresh {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.conv.fresh .conv-text {
+  color: var(--text);
+  font-weight: 600;
+}
+.convo {
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  outline: none;
+}
+.convo-head {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  min-height: 48px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.convo-back {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0 0 5px;
+  margin-left: -6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 30px;
+  line-height: 1;
+  cursor: pointer;
+}
+.convo-back:hover,
+.convo-back:focus-visible {
+  background: var(--row-hover);
+}
+.convo-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.routemenu {
+  flex: none;
+}
+.route-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.route-box {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  z-index: 4;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+.bubbles {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+  padding: 10px 12px;
+  overflow-y: auto;
+  background: var(--bg);
+}
+.bubble {
+  max-width: 82%;
+  padding: 6px 10px 4px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--panel);
+}
+.bubble.in {
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+}
+.bubble.out {
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+  border-color: transparent;
+  background: var(--row-selected);
+}
+.bubble p {
+  margin: 0;
+}
+.bubble-text {
+  overflow-wrap: anywhere;
+}
+.bubble-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px 6px;
+  font-size: 11px;
+}
+.bubble-route {
+  font-size: 11px;
+  text-align: right;
+}
+.bubble .chain .chips {
+  justify-content: flex-end;
+}
+.convo .compose {
+  background: var(--panel);
+}
+.convo-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--muted);
+  background: var(--bg);
+}
+.convo-empty p {
+  margin: 0;
+  font-size: 15px;
 }
 .xbtn {
   display: inline-flex;
@@ -996,53 +1209,6 @@ tbody tr:focus-visible {
 }
 .conv-item .xbtn {
   align-self: center;
-}
-.conv:hover {
-  background: var(--row-hover);
-}
-.conv.active {
-  background: var(--row-selected);
-}
-.conv:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-}
-.conv-call {
-  font-weight: 600;
-}
-.conv.unread .conv-call {
-  color: var(--accent);
-}
-.conv.fresh {
-  background: var(--row-selected);
-  box-shadow: inset 3px 0 0 var(--accent);
-}
-.conv.fresh .conv-text {
-  color: var(--text);
-  font-weight: 600;
-}
-.conv .badge {
-  margin-left: 0;
-  justify-self: start;
-}
-.conv-age {
-  grid-column: 3;
-  justify-self: end;
-  grid-row: 1;
-}
-.conv-text {
-  grid-column: 1 / -1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.thread-head {
-  flex: none;
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--border);
-}
-.thread-head p {
-  margin: 0;
 }
 .pathbox {
   display: flex;
@@ -1090,10 +1256,6 @@ tbody tr:focus-visible {
 .timedword {
   color: var(--warn);
   font-weight: 600;
-}
-.conv.heard .conv-call {
-  font-weight: 400;
-  font-style: italic;
 }
 .thread {
   display: flex;
@@ -2224,21 +2386,8 @@ button.linkbtn {
   font-size: 12px;
 }
 
-/* a narrow page: the open conversation is the only row left of the list, so that the thread has the room; the compose box is tighter */
+/* the path of a conversation is a row of fields in the box under its header */
 @media (max-width: 800px) {
-  .msgpane.has-thread > .toolbar {
-    display: none;
-  }
-  .convs.short {
-    max-height: none;
-  }
-  .convs.short .conv-item:not(.open) {
-    display: none;
-  }
-  .msgpane .compose {
-    gap: 4px;
-    padding: 6px 8px;
-  }
   .prefs .pathbox .input {
     flex: 1 1 8em;
   }
