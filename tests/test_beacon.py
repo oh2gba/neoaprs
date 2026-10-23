@@ -1,6 +1,5 @@
 """The beacon (neoaprs/services/beacon.py) on a Tnc that is a stub and a clock the test holds: the frame the settings make, byte for byte, and the timer (the first delay, the interval, the skip while
 the TNC is not connected, a changed interval)."""
-import asyncio
 import logging
 from datetime import timedelta
 
@@ -16,7 +15,7 @@ from neoaprs.source import Source
 from tests.support.rig import ServiceRig
 from tests.support.stubtnc import StubTnc
 from tests.support.clock import FixedClock
-from tests.support.env import ON_AIR, until
+from tests.support.env import idle_for, ON_AIR, until
 
 
 class Rig(ServiceRig):
@@ -220,7 +219,7 @@ def test_settings_that_make_no_frame_make_no_status_frame() -> None:
 # ---- the timer -----------------------------------------------------------------------------------------------------------------------------------
 
 async def quiet(rig: Rig, ticks: int = 8) -> None:
-    await asyncio.sleep(rig.beacon.tick_sec * ticks)
+    await idle_for(rig.beacon.tick_sec * ticks)
 
 
 async def test_the_first_beacon_is_thirty_seconds_after_the_start_and_then_one_every_interval() -> None:

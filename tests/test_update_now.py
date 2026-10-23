@@ -8,7 +8,7 @@ from neoaprs import VERSION
 from neoaprs.config import DEFAULTS
 from neoaprs.services.updatecheck import CheckResult, UpdateCheck
 from neoaprs.updatefetch import fetch
-from tests.support.env import Env, until
+from tests.support.env import Env, idle_for, until
 from tests.support.fakeversionpage import version_page
 
 NEWER = {"version": "9.9.9", "url": "https://oh2gba.github.io/neoaprs/", "message": "News"}
@@ -98,6 +98,6 @@ async def test_check_now_does_not_wait_for_the_timer_and_does_not_move_it() -> N
     result = await service.check_now()
     assert result == CheckResult("current", "0.1.0")
     await until(lambda: len(fake.requests) == 1)
-    await asyncio.sleep(0.1)
+    await idle_for(0.1)
     assert len(fake.requests) == 1
     await service.stop()

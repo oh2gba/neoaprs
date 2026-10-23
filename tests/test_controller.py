@@ -84,7 +84,7 @@ async def test_a_task_that_fails_is_told_in_the_log_and_the_stop_ends_the_rest(t
 
     e.ctl.tasks.spawn(fails(), "fails")
     still = e.ctl.tasks.spawn(waits(), "waits")
-    await asyncio.sleep(0.05)
+    await until(lambda: any("task fails failed" in r.getMessage() for r in caplog.records))
     assert any("task fails failed" in r.getMessage() and "boom" in r.getMessage() for r in caplog.records)
     assert not still.done()
     await e.stop()

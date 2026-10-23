@@ -1,6 +1,5 @@
 """The message board (neoaprs/services/bulletins.py) on a real bulletin log and a clock the test holds: what is kept for a sender and a slot, a text that is replaced, the hearings counted, that
 nothing ages out or is trimmed, the delete, and a restart."""
-import asyncio
 from pathlib import Path
 
 import pytest
@@ -10,6 +9,7 @@ from neoaprs.bulletinlog import BulletinLog
 from neoaprs.packet import Message, Packet, ThirdParty
 from neoaprs.services.bulletins import COPY_SEC, Bulletins
 from neoaprs.store import DB_NAME
+from tests.support.env import idle_for
 from tests.support.clock import FixedClock
 from tests.support.storedb import store_at
 
@@ -32,7 +32,7 @@ class Rig:
 
     async def tick(self, seconds: float = 0.0) -> None:
         self.clock.advance(seconds)
-        await asyncio.sleep(TICK * 6)
+        await idle_for(TICK * 6)
 
     async def settled(self) -> None:
         assert self.log.db is not None

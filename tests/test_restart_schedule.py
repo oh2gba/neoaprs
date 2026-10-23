@@ -1,6 +1,5 @@
 """The beacon and the status report keep their schedule across a restart (neoaprs/services/memory.py): the rows `beacon/last_sent_at`, `status/last_sent_at` and `status/last_text` of a real Store on a
 temporary database, a clock the test holds, a Tnc that is a stub. A second Beacon or RigStatus on the same Store is the daemon started again."""
-import asyncio
 from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
@@ -13,7 +12,7 @@ from neoaprs.services.rigstatus import RigStatus
 from neoaprs.store import Store
 from tests.support.stubtnc import StubTnc
 from tests.support.clock import FixedClock
-from tests.support.env import Env, ON_AIR, remember_stop, until
+from tests.support.env import Env, idle_for, ON_AIR, remember_stop, until
 from tests.support.fakes import FakeRigctld, rigctld
 from tests.support.storedb import store_at
 
@@ -43,7 +42,7 @@ class Daemon:
 
 
 async def quiet() -> None:
-    await asyncio.sleep(0.15)
+    await idle_for(0.15)
 
 
 async def kept(tmp_path: Path) -> tuple[Store, FixedClock]:

@@ -80,7 +80,7 @@ def test_the_replay_on_a_pseudo_terminal_ends_on_ctrl_c_and_says_what_it_does(tm
     assert replay.stdout is not None
     path = replay.stdout.readline().strip()
     assert path.startswith("/dev/pts/")
-    time.sleep(0.3)
+    time.sleep(0.3)                                                            # (nothing may be sent before a port opens it: the time is the point)
     port = os.open(path, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)              # a port opens it: until then nothing is sent
     heard = bytearray()
     try:
