@@ -4,11 +4,12 @@
 // By the size of the page (lib/layout.ts): a desktop has the handle and the user's width; a tablet has a width of its own (CSS) and the fold button; a phone has neither, and its tab bar starts with a Map button: the map and the open tab take turns (`view`),
 // a tab picked in the bar brings the panel, the Map button the map, and the contents of the tab are the whole area under the bar.
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import TabBadge from "@/components/TabBadge.vue";
 import TabMenu from "@/components/TabMenu.vue";
 import type { PhoneView } from "@/composables/useLayout";
 import { useTabsFit } from "@/composables/useTabsFit";
 import { TAB_IDS, TAB_TITLES, clampWidth, type SizeClass, type TabId } from "@/lib/layout";
-import { badgeText, unreadText } from "@/lib/unread";
+import { unreadText } from "@/lib/unread";
 
 const props = withDefaults(
   defineProps<{ tab: TabId; collapsed: boolean; width: number; badges?: Partial<Record<TabId, number>>; size?: SizeClass; view?: PhoneView }>(),
@@ -150,7 +151,7 @@ function nudge(event: KeyboardEvent): void {
               @click="pick(id)"
             >
               {{ TAB_TITLES[id] }}
-              <span v-if="badges[id]" class="badge" :title="badgeText(id, badges[id] ?? 0)">{{ badges[id] }}</span>
+              <TabBadge :tab="id" :count="badges[id]" />
             </button>
           </div>
         </div>

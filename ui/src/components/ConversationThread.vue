@@ -2,9 +2,10 @@
 // The messages with one station as bubbles, the oldest first: ours at the right, theirs at the left. In a bubble the text, and under it, small, the time, for ours the mark and the state with Retry or Cancel where they apply, the delivery chain
 // of the digipeaters its packet went by (MessageChain) under ours, and under one that came in the route it came by ("via OH2RCH-2"). It is scrolled to the newest when it is shown and whenever a message is added. `peer` is the station the thread is with
 // (null: a new message is being written, and nothing is said). The Email tab has its own list (EmailList).
-import { nextTick, onMounted, ref, watch } from "vue";
+import { ref } from "vue";
 import MessageChain from "@/components/MessageChain.vue";
 import MessageMark from "@/components/MessageMark.vue";
+import { useToNewest } from "@/composables/useToNewest";
 import { clockText, dateTimeText } from "@/lib/format";
 import { canCancel, canRetry, stateText } from "@/lib/messages";
 import type { MessageRow } from "@/protocol/protocol";
@@ -16,13 +17,7 @@ const emit = defineEmits<{ retry: [id: number]; cancel: [id: number] }>();
 
 const log = ref<HTMLElement | null>(null);
 
-async function toNewest(): Promise<void> {
-  await nextTick();
-  if (log.value) log.value.scrollTop = log.value.scrollHeight;
-}
-
-onMounted(toNewest);
-watch(() => [props.peer, props.thread.length], toNewest);
+useToNewest(log, () => [props.peer, props.thread.length]);
 </script>
 
 <template>

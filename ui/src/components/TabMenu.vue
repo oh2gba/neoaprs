@@ -2,9 +2,9 @@
 // The tabs of the panel as one button, for a panel too narrow for the row of tabs (SidePanel measures that): "☰ Messages", the name of the open tab, with the count of everything that has a badge (the messages and the mail not seen, the new bulletins) when there is any.
 // It opens a menu with all the tabs in their order, each with its badge, the open one marked (aria-current); a click on one picks it and closes the menu, Esc and a click outside close it, Up and Down, Home and End move in it (Down or Up on the button opens it on the open tab or the last).
 import { computed, nextTick, ref } from "vue";
+import TabBadge from "@/components/TabBadge.vue";
 import { usePopup } from "@/composables/usePopup";
 import { TAB_IDS, TAB_TITLES, type TabId } from "@/lib/layout";
-import { badgeText } from "@/lib/unread";
 
 const props = defineProps<{ tab: TabId; badges: Partial<Record<TabId, number>>; on: boolean }>();
 const emit = defineEmits<{ pick: [tab: TabId] }>();
@@ -92,7 +92,7 @@ function menuKey(event: KeyboardEvent): void {
           @click="pick(id)"
         >
           {{ TAB_TITLES[id] }}
-          <span v-if="badges[id]" class="badge" :title="badgeText(id, badges[id] ?? 0)">{{ badges[id] }}</span>
+          <TabBadge :tab="id" :count="badges[id]" />
         </button>
       </li>
     </ul>

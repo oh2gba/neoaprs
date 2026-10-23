@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Step 3 of the first-run guide: the symbol the station is drawn with: the 12 most common ones from the sprite, or any other from the picker (More...), which has them all.
 import SymbolField from "@/components/SymbolField.vue";
-import SymbolIcon from "@/components/SymbolIcon.vue";
+import SymbolButton from "@/components/SymbolButton.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { SYMBOL_CHOICES } from "@/lib/setup";
 
@@ -10,18 +10,16 @@ const { guide } = useDaemonContext();
 
 <template>
   <div class="setup-symbols" role="group" aria-label="Symbols">
-    <button
+    <SymbolButton
       v-for="s in SYMBOL_CHOICES"
       :key="s.table + s.code"
-      type="button"
       class="setup-symbol"
-      :class="{ active: guide.fields.symbol === s.table + s.code }"
-      :aria-pressed="guide.fields.symbol === s.table + s.code"
-      @click="guide.edit('symbol', s.table + s.code)"
-    >
-      <SymbolIcon :table="s.table" :code="s.code" :size="32" />
-      <span>{{ s.name }}</span>
-    </button>
+      :table="s.table"
+      :code="s.code"
+      :name="s.name"
+      :active="guide.fields.symbol === s.table + s.code"
+      @pick="guide.edit('symbol', s.table + s.code)"
+    />
   </div>
   <SymbolField id="setup-symbol" :symbol="guide.fields.symbol" button="More..." @update:symbol="guide.edit('symbol', $event)" />
 </template>
