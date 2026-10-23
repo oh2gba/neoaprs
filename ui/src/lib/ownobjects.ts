@@ -146,6 +146,23 @@ export function objectCommand(draft: ObjectDraft): ObjectCommand | null {
   };
 }
 
+/** Whether the object the daemon has is what the command asked for (so the daemon has taken it). */
+export function isObjectOf(row: OwnObjectRow, command: ObjectCommand): boolean {
+  const near = (a: number | null, b: number | null): boolean => (a === null || b === null ? a === b : Math.abs(a - b) < 1e-9);
+  return (
+    row.name === command.name &&
+    row.kind === command.kind &&
+    near(row.lat, command.lat) &&
+    near(row.lon, command.lon) &&
+    row.symbol_table === command.symbol_table &&
+    row.symbol_code === command.symbol_code &&
+    row.comment === command.comment &&
+    row.course_deg === command.course_deg &&
+    near(row.speed_kmh, command.speed_kmh) &&
+    row.path === command.path
+  );
+}
+
 /** The command that puts an object where the map says (the marker was dragged): everything as it is, the place new. */
 export function moveCommand(row: OwnObjectRow, lat: number, lon: number): ObjectCommand {
   return {
