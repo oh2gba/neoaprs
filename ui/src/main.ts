@@ -1,5 +1,5 @@
 import "./style.css";
 import { createApp } from "vue";
-import App from "./App.vue";
+import AccessGate from "./AccessGate.vue";
 
-createApp(App).mount("#app");
+createApp(AccessGate).mount("#app");

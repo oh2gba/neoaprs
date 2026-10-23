@@ -31,3 +31,8 @@ def security_headers(host: str) -> dict[str, str]:
         "X-Content-Type-Options": "nosniff",
         "Cross-Origin-Resource-Policy": "same-origin",
     }
+
+
+def origin_is_host(origin: str, host: str) -> bool:
+    """Does the Origin header of a request name the host it was sent to? The page is served from here, so a request from another origin is another site's script."""
+    return bool(host) and origin.split("://", 1)[-1].lower() == host.lower()

@@ -9,6 +9,8 @@ from typing import Any
 import tornado.httpserver
 from tornado.iostream import IOStream
 
+from .access import is_loopback
+
 log = logging.getLogger("neoaprs.web")
 
 MAX_CONNECTIONS = 256                     # open connections in all (a descriptor each: the process has 1 024 by default and needs some for the radio, the database and the log)
@@ -22,6 +24,12 @@ class LimitedHTTPServer(tornado.httpserver.HTTPServer):
         super().__init__(*args, **kwargs)
         self._streams: dict[str, list[IOStream]] = {}        # per address, in the order they came
         self._proved: set[IOStream] = set()                   # the sockets of pages that were let in (the token was right, or none is asked for): never closed to make room
+
+    def stop_listening(self) -> None:
+        """Closes the listening sockets and leaves the connections open; `listen` can be called again."""
+        self.stop()
+        self._sockets.clear()
+        self._stopped = False
 
     def proved(self, stream: IOStream) -> None:
         self._proved = {s for s in self._proved if not s.closed()} | {stream}
@@ -50,7 +58,7 @@ class LimitedHTTPServer(tornado.httpserver.HTTPServer):
 
     def handle_stream(self, stream: IOStream, address: Any) -> Any:
         ip = str(address[0]) if isinstance(address, tuple) and address else ""
-        loopback = ip in ("127.0.0.1", "::1") or ip.startswith("::ffff:127.")
+        loopback = is_loopback(ip)
         if len(self._streams) > 1000:                                # addresses that went away are not kept
             for gone in list(self._streams):
                 self._open_from(gone)

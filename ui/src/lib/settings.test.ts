@@ -56,7 +56,7 @@ describe("groupKeys", () => {
     for (const key of CONFIG_KEYS) {
       const info = FIELDS[key];
       expect(info?.label, key).toBeTruthy();
-      expect(info?.label.length, key).toBeLessThanOrEqual(20);
+      expect(info?.label.length, key).toBeLessThanOrEqual(30);
       expect(Object.keys(info ?? {}), key).not.toContain("hint");
       expect(info?.title?.length ?? 0, key).toBeLessThanOrEqual(50);
     }

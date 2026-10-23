@@ -16,7 +16,8 @@ describe("SettingsForm", () => {
     const { wrapper } = make();
     expect(wrapper.findAll("fieldset legend").map((l) => l.text())).toEqual(["TNC", "Web page", "Log", "Messaging", "Map"]);
     expect(wrapper.findAll(".field")).toHaveLength(
-      CONFIG_KEYS.filter((k) => !k.startsWith("beacon/") && !k.startsWith("station/") && !k.startsWith("status/") && !k.startsWith("tcp/")).length,
+      CONFIG_KEYS.filter((k) => !k.startsWith("beacon/") && !k.startsWith("station/") && !k.startsWith("status/") && !k.startsWith("tcp/") && k !== "web/key")
+        .length,
     );
     expect(wrapper.find("#set-station-lat").exists()).toBe(false);
   });

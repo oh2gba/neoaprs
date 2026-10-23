@@ -1153,6 +1153,10 @@ tbody tr:focus-visible {
 .field-control .input {
   flex: 1;
 }
+.field-control.urls {
+  flex-direction: column;
+  align-items: stretch;
+}
 .field-control .unit {
   flex: none;
   min-width: 2.5em;
@@ -1547,4 +1551,23 @@ tbody tr:focus-visible {
   .setup-onmap {
     display: inline-block;
   }
+}
+
+/* the key screen of a device on the network */
+.keyscreen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 100%;
+  padding: 16px;
+}
+.keyscreen .input {
+  flex: 0 1 16em;
+  font-family: var(--mono);
+}
+.keyscreen .field-error {
+  flex-basis: 100%;
+  text-align: center;
 }

@@ -6,6 +6,7 @@ and gives each command a page sends to the dispatcher (neoaprs/web/dispatch.py, 
 import asyncio
 import json
 import logging
+from collections.abc import Callable
 from typing import Any
 
 from neoaprs import VERSION
@@ -32,12 +33,12 @@ def _no_constant(name: str) -> Any:
 
 
 class Api:
-    def __init__(self, controller: Controller, validate_out: bool | None = None) -> None:
+    def __init__(self, controller: Controller, validate_out: bool | None = None, reach: Callable[[], list[str]] = list) -> None:
         self.ctl = controller
         self.out = Publisher(validate_out)
         self.clients = self.out.connections             # the open pages, by their sockets
         self.hub = StateHub()
-        self.topics = Topics(controller, self.hub, self._packet_sent)
+        self.topics = Topics(controller, self.hub, self._packet_sent, reach)
         self.dispatcher = Dispatcher(controller, self.hub, self.status)
         self.started_at = controller.clock()
         self.meter = ProcessMeter()

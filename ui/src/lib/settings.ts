@@ -48,7 +48,8 @@ export const FIELDS: Record<string, FieldInfo> = {
   "serial/pattern": { label: "Search ports", title: "Device globs, separated by spaces" },
   "serial/skip": { label: "Ports to skip", empty: "none" },
   "tnc/check_sec": { label: "Keep-alive", unit: "s", zero: "off", title: "Check the radio after this much silence" },
-  "web/bind": { label: "Bind address", title: AT_START },
+  "web/network": { label: "Allow access from the network", kind: "bool" },
+  "web/key": { label: "Access key", kind: "readonly" },
   "web/port": { label: "Port", zero: "any", title: AT_START },
   "web/allowed_hosts": { label: "Allowed hosts", empty: "none", title: AT_START },
   "log/keep_days": { label: "Keep", unit: "days" },
@@ -137,8 +138,10 @@ function profileOf(key: string | undefined) {
   return TNC_PROFILES.find((p) => p.key === key);
 }
 
-/** Whether a setting is shown for the chosen TNC profile: the host and port for one that is reached over TCP, the port and speed for a serial one, the keep-alive for one that can be asked if it is there. */
-export function shownFor(key: string, profileKey: string | undefined): boolean {
+/** Whether a setting is shown for the chosen TNC profile: the host and port for one that is reached over TCP, the port and speed for a serial one, the keep-alive for one that can be asked if it is there; the access
+ * key while the daemon lets the network in (`network`) and has made one. */
+export function shownFor(key: string, profileKey: string | undefined, network = true): boolean {
+  if (key === "web/key") return network;
   const profile = profileOf(profileKey);
   if (!profile) return true;
   if (key.startsWith("tcp/")) return profile.transport === "tcp";

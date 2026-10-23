@@ -15,6 +15,7 @@ import type {
   TncState,
   WeatherSeriesMessage,
 } from "@/protocol/protocol";
+import { probe } from "@/lib/access";
 import { Hub, type Connection, type Store } from "@/lib/hub";
 import { reloadOnce } from "@/lib/reload";
 
@@ -81,7 +82,9 @@ export function useDaemon(url: () => string = socketUrl) {
     delBulletin: (key) => void bulletins.delete(key),
     delStationPref: (call) => void stationPrefs.delete(call),
   };
-  const hub = new Hub(store, { url, outOfDate: () => void reloadOnce() });
+  // a socket that closes before it has heard anything may have been refused for want of a login: if the daemon says so, the page loads again and shows the key screen
+  const refused = (): void => void probe().then((access) => access === "locked" && location.reload());
+  const hub = new Hub(store, { url, outOfDate: () => void reloadOnce(), refused });
 
   /** Sends a command; the toast says so when the socket is not open. */
   function send(command: Parameters<Hub["send"]>[0]): boolean {
