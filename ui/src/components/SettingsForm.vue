@@ -233,7 +233,7 @@ function typed(key: string, text: string): void {
           </template>
           <InfoTip label="About the update check">
             <span class="info-line"
-              >Once a day NeoAPRS asks the project's version page whether a newer version is out, and tells you in the header when there is one.</span
+              >Once a day NeoAPRS asks the project's version page whether a newer version is out, and tells you in the footer when there is one.</span
             >
           </InfoTip>
         </div>
