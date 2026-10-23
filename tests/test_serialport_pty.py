@@ -180,9 +180,22 @@ async def test_probe_returns_none_when_nothing_is_valid_and_closes_every_port_it
     paths = [ptys()[1] for _ in range(2)]
     assert await probe(paths, 9600, 0.05, lambda data: False) is None
     for path in paths:                                        # a port left open would still hold the exclusive lock
+        await open_within(path, 2.0)                          # (each port is closed as the probe ends: its thread may take a moment)
+
+
+async def open_within(path: str, seconds: float) -> None:
+    deadline = asyncio.get_running_loop().time() + seconds
+    while True:
         again = SerialPort(path)
-        await again.open()
+        try:
+            await again.open()
+        except SerialError:
+            if asyncio.get_running_loop().time() > deadline:
+                raise
+            await asyncio.sleep(0.05)
+            continue
         again.close()
+        return
 
 
 async def test_cancelling_the_probe_closes_every_port(ptys: Ptys) -> None:
@@ -193,9 +206,7 @@ async def test_cancelling_the_probe_closes_every_port(ptys: Ptys) -> None:
     with pytest.raises(asyncio.CancelledError):
         await task
     for path in paths:                                        # a port left open would still hold the exclusive lock
-        again = SerialPort(path)
-        await again.open()
-        again.close()
+        await open_within(path, 2.0)                          # an open that was under way when the probe was cancelled is closed by its own thread, a moment later
 
 
 async def test_probe_gives_up_on_a_port_that_dies_while_listening_and_goes_on(ptys: Ptys) -> None:
