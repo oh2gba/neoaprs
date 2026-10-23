@@ -3,7 +3,7 @@
 import { clockText, dateTimeText } from "@/lib/format";
 import type { AttemptRow, HopRow, MessageRow } from "@/protocol/protocol";
 
-export type ChipKind = "you" | "heard" | "internet" | "unheard" | "acked" | "failed" | "waiting";
+type ChipKind = "you" | "heard" | "internet" | "unheard" | "acked" | "failed" | "waiting";
 
 export interface Chip {
   kind: ChipKind;

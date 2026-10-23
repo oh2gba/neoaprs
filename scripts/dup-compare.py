@@ -10,6 +10,7 @@ number of duplicated lines is larger. It compares the number of lines, not the p
 it can hide a new clone. The percentage is printed.
 """
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -17,10 +18,15 @@ from typing import Any
 Summary = dict[str, Any]
 
 
+def relative(name: str) -> str:
+    """A path of the report as the baseline writes it: jscpd is asked for absolute paths (its relative ones start at a root of its own choosing), and the script runs in the repository root."""
+    return os.path.relpath(name).replace(os.sep, "/") if os.path.isabs(name) else name
+
+
 def summarize(report: dict[str, Any]) -> Summary:
     pairs: dict[str, dict[str, int]] = {}
     for clone in report["duplicates"]:
-        key = " <-> ".join(sorted((clone["firstFile"]["name"], clone["secondFile"]["name"])))
+        key = " <-> ".join(sorted((relative(clone["firstFile"]["name"]), relative(clone["secondFile"]["name"]))))
         pair = pairs.setdefault(key, {"clones": 0, "lines": 0})
         pair["clones"] += 1
         pair["lines"] += int(clone["lines"])

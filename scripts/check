@@ -13,7 +13,7 @@ set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
 
-# The stages: the Python ones, then the page's (ui-types ... dup, which need node: on the PATH, else the newest in ~/.nvm), then the duplication check of the Python tree (jscpd, from ui/node_modules).
+# The stages: the Python ones, then the page's (ui-types ... dup, which need node 22.12 or newer: the one on the PATH, else the newest in ~/.nvm), then the duplication check of the Python tree (jscpd, from ui/node_modules).
 STAGES=(lock ruff mypy architecture pytest ui-types ui-lint ui-tests ui-build page dup dup-py)
 ALL_STAGES=("${STAGES[@]}")
 
@@ -38,6 +38,13 @@ if [ -z "$python" ]; then
     python="$root/.venv/bin/python"
 fi
 [ -x "$python" ] || { echo "check: no Python environment: run 'uv sync --frozen' in $root" >&2; exit 2; }
+
+# Node 22.12 or newer, from the PATH, else the newest of ~/.nvm; put first on the PATH, so that every stage (the page test too) runs the same one.
+node_ok() { command -v node >/dev/null && node -e 'const [a, b] = process.versions.node.split(".").map(Number); process.exit(a > 22 || (a === 22 && b >= 12) ? 0 : 1)'; }
+if ! node_ok; then
+    newest="$(ls -d "$HOME"/.nvm/versions/node/v*/bin 2>/dev/null | sort -V | tail -n 1 || true)"
+    [ -n "$newest" ] && PATH="$newest:$PATH"
+fi
 
 log="$(mktemp)"
 trap 'rm -f "$log"' EXIT
@@ -69,15 +76,10 @@ stage_pytest() {
     "$python" -m pytest -q -n "$workers" --dist worksteal ${cap[@]+"${cap[@]}"} "${common[@]}"
 }
 
-# The UI stages are skipped (and say so) in a tree without ui/. node_modules is installed from the lock file when it is missing. Node is the one on the PATH, else the newest of ~/.nvm.
+# The UI stages are skipped (and say so) in a tree without ui/. node_modules is installed from the lock file when it is missing. Node is the one on the PATH, else the newest of ~/.nvm (22.12 or newer: what vitest and knip need).
 ui_run() {
     [ -d ui ] || { echo "no ui/ in this tree: nothing to do"; return 0; }
-    if ! command -v node >/dev/null; then
-        local newest
-        newest="$(ls -d "$HOME"/.nvm/versions/node/v*/bin 2>/dev/null | sort -V | tail -n 1 || true)"
-        [ -n "$newest" ] && PATH="$newest:$PATH"
-    fi
-    command -v node >/dev/null || { echo "node is not installed (node 18 or newer, on the PATH or in ~/.nvm)"; return 1; }
+    node_ok || { echo "node 22.12 or newer is needed (on the PATH or in ~/.nvm)"; return 1; }
     export npm_config_update_notifier=false npm_config_fund=false npm_config_audit=false           # npm asks the registry about nothing but the install itself
     if [ ! -d ui/node_modules ]; then (cd ui && npm ci) || return 1; fi
     (cd ui && "$@")

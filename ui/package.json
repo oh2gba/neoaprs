@@ -21,27 +21,27 @@
   "dependencies": {
     "maplibre-gl": "6.14.0",
     "pmtiles": "4.5.0",
-    "vue": "3.5.13"
+    "vue": "3.5.44"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",
-    "@types/node": "18.19.130",
-    "@vitejs/plugin-vue": "5.2.1",
-    "@vitest/coverage-v8": "2.1.8",
+    "@types/node": "22.20.5",
+    "@vitejs/plugin-vue": "6.0.10",
+    "@vitest/coverage-v8": "5.0.5",
     "@vue/test-utils": "2.4.6",
     "eslint": "9.39.5",
     "eslint-config-prettier": "9.1.2",
-    "eslint-plugin-vue": "9.33.0",
+    "eslint-plugin-vue": "10.11.1",
     "globals": "17.13.0",
-    "happy-dom": "15.11.7",
-    "jscpd": "3.5.10",
-    "knip": "5.88.1",
+    "happy-dom": "21.0.4",
+    "jscpd": "5.4.2",
+    "knip": "6.42.1",
     "prettier": "3.9.10",
     "typescript": "5.6.3",
     "typescript-eslint": "8.71.1",
     "vite": "6.4.4",
-    "vitest": "2.1.8",
-    "vue-eslint-parser": "9.4.3",
+    "vitest": "5.0.5",
+    "vue-eslint-parser": "10.4.1",
     "vue-tsc": "2.1.10"
   }
 }
