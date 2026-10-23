@@ -92,13 +92,13 @@ describe("useDaemon", () => {
     expect(daemon.config.value).toBeNull();
   });
 
-  it("keeps the latest answer to weather_series", () => {
+  it("keeps the latest answer to weather_series of each station", () => {
     const { daemon, socket } = setUp();
-    expect(daemon.weatherSeries.value).toBeNull();
+    expect(daemon.weatherSeriesByCall.value.size).toBe(0);
     socket.say({ type: "weather_series", call: "OH2MUI", hours: 24, points: [] });
     socket.say({ type: "weather_series", call: "OH2NJR", hours: 168, points: [["2026-10-21T12:00:00Z", 10, null, null, null, null, null]] });
-    expect(daemon.weatherSeries.value?.call).toBe("OH2NJR");
-    expect(daemon.weatherSeries.value?.points).toHaveLength(1);
+    expect([...daemon.weatherSeriesByCall.value.keys()]).toEqual(["OH2MUI", "OH2NJR"]);
+    expect(daemon.weatherSeriesByCall.value.get("OH2NJR")?.points).toHaveLength(1);
   });
 
   it("keeps the latest answer to alert_test", () => {

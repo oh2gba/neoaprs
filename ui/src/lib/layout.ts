@@ -66,6 +66,10 @@ export function sizeOf(width: number, height: number): SizeClass {
 /** The room a compact card takes in the column on the map (its height and the gap), and what the column leaves: the header, the map's zoom buttons above it, the map's corner under it. */
 const CARD_SLOT = 150;
 const CARD_RESERVED = 154;
+/** What the column of cards leaves free of the map's height: the top 84 px for the zoom buttons, the bottom 30 px (`.cardstack` in responsive.css). */
+export const CARDS_FREE = 114;
+/** The gap between two cards of the column (`.cardstack` in responsive.css). */
+export const CARD_GAP = 8;
 const MOST_CARDS = 6;
 
 /** How many station cards may be open at once: one on a phone (a tap replaces it), two on a tablet, and on a desktop as many compact cards as the height of the window has room for, at least 1 and at most 6. */

@@ -22,7 +22,7 @@ describe("the (i) of the Settings tab", () => {
     [
       "set-web-network",
       "About network access",
-      /Raspberry Pi in the shack.*access key appears.*Type the key once on each device.*plain http.*not for the internet/s,
+      /other devices on your network.*access key appears.*Type the key once on each device.*plain http.*not for the internet/s,
     ],
     ["set-web-key", "About the access key", /type this key once.*New key.*logs every other device out/s],
     ["set-web-url-0", "About the addresses", /same network as NeoAPRS.*\.local/s],
@@ -50,7 +50,7 @@ describe("the (i) of the Settings tab", () => {
     const wrapper = make();
     await wrapper.find<HTMLButtonElement>("h3.subgroup .info-toggle").trigger("click");
     const text = wrapper.find(".info-text").text();
-    expect(text).toMatch(/runs the Command when a message arrives.*speaker of the Pi/s);
+    expect(text).toMatch(/runs the Command when a message arrives.*runs on another computer, that is where it sounds/s);
     expect(text).toMatch(/a sound, a sound and a pop-up, or a pop-up only/);
   });
 

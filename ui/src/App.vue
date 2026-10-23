@@ -24,6 +24,7 @@ import ToastBar from "@/components/ToastBar.vue";
 import UndoToast from "@/components/UndoToast.vue";
 import UpdatePanel from "@/components/UpdatePanel.vue";
 import { useBrowserAlerts } from "@/composables/useBrowserAlerts";
+import { useHome } from "@/composables/useHome";
 import { useLayout } from "@/composables/useLayout";
 import { useBulletins } from "@/composables/useBulletins";
 import { useDaemon } from "@/composables/useDaemon";
@@ -42,7 +43,6 @@ import { useTitle } from "@/composables/useTitle";
 import { DEFAULT_TIMEOUT_MIN, type Aging } from "@/lib/aging";
 import { filesKey } from "@/lib/mapfetch";
 import { withOwnSymbol } from "@/lib/stations";
-import type { Home } from "@/lib/mapview";
 
 const {
   stations: heard,
@@ -61,7 +61,7 @@ const {
   lastError,
   version,
   install,
-  weatherSeries,
+  weatherSeriesByCall,
   alertResult,
   updateResult,
   ports,
@@ -96,7 +96,6 @@ watch(
 );
 
 const panel = usePanel();
-const { tab, collapsed, width } = panel;
 const talk = useMessagesView(messages, panel, send);
 const mail = useEmail(messages, panel, send);
 const board = useBulletins(bulletins, panel);
@@ -116,12 +115,7 @@ const fallbackPath = computed(() => config.value?.values["beacon/path"] ?? "");
 const connected = computed(() => tnc.value?.state === "connected");
 
 const call = computed<string | null>(() => config.value?.values["station/call"] ?? status.value?.call ?? null);
-const home = computed<Home | null>(() => {
-  const place = (text: string | number | null | undefined): number => (text === undefined || text === null || text === "" ? NaN : Number(text));
-  const lat = place(config.value?.values["station/lat"] ?? status.value?.lat);
-  const lon = place(config.value?.values["station/lon"] ?? status.value?.lon);
-  return Number.isFinite(lat) && Number.isFinite(lon) ? { lat, lon } : null;
-});
+const home = useHome(config, status);
 const objects = useOwnObjects(ownObjects, home, send, panel);
 
 const picks = useMapPicks(guide, objects);
@@ -179,9 +173,11 @@ const { selected, focus } = cards;
           :size="layout.size.value"
           :now="now"
           :aging="aging"
-          :weather-series="weatherSeries"
+          :weather-series="weatherSeriesByCall"
           @close="cards.close"
           @close-all="cards.closeAll"
+          @message-all="talk.openGroup"
+          @overflow="cards.closeOldest"
           @only="selected = $event"
           @weather="(call, hours) => send({ cmd: 'weather_series', call, hours })"
           @forget="cards.forget"
@@ -193,16 +189,25 @@ const { selected, focus } = cards;
         />
       </div>
       <SidePanel
-        v-model:tab="tab"
-        v-model:collapsed="collapsed"
-        v-model:width="width"
+        v-model:tab="panel.tab.value"
+        v-model:collapsed="panel.collapsed.value"
+        v-model:width="panel.width.value"
         :size="layout.size.value"
         :view="layout.showing.value"
         :badges="{ messages: talk.unread.value, email: mail.unread.value, bulletins: board.fresh.value }"
         @update:view="layout.view.value = $event"
       >
         <template #stations>
-          <StationsTable :stations="stations" :selected="selected" :others="cards.others.value" :now="now" :aging="aging" @select="cards.onRow" />
+          <StationsTable
+            :stations="stations"
+            :selected="selected"
+            :others="cards.others.value"
+            :now="now"
+            :aging="aging"
+            :own-call="call"
+            @select="cards.onRow"
+            @message="talk.writeTo"
+          />
         </template>
         <template #packets>
           <PacketsLog :packets="packets" />

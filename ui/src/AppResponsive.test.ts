@@ -136,6 +136,54 @@ describe("several station cards on a desktop (1400 by 900)", () => {
     expect(cards(wrapper)).toEqual(["OH2ZWD", "OH2ZWE", "OH2ZWF"]);
   });
 
+  it("closes the oldest card when the column of cards is taller than the map has room for, as tall weather cards are, and never squeezes one", async () => {
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", { configurable: true, get: () => 600 }); // (the map: 486 px for cards)
+    Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
+      configurable: true,
+      get(this: HTMLElement) {
+        return this.classList.contains("card") ? 140 : 30;
+      },
+    });
+    try {
+      const { wrapper } = await open(1920, 1080);
+      for (const call of CALLS.slice(0, 3)) await row(wrapper, call)?.trigger("click", { ctrlKey: true });
+      await flushPromises();
+      expect(cards(wrapper)).toEqual(["OH2ZWA", "OH2ZWB", "OH2ZWC"]);
+      await row(wrapper, "OH2ZWD")?.trigger("click", { ctrlKey: true });
+      await flushPromises();
+      expect(cards(wrapper)).toEqual(["OH2ZWB", "OH2ZWC", "OH2ZWD"]);
+    } finally {
+      for (const name of ["clientHeight", "offsetHeight"]) Reflect.deleteProperty(HTMLElement.prototype, name);
+    }
+  });
+
+  it("has Message these N beside Close all, which opens the group compose of the Messages tab for the stations of the cards", async () => {
+    const { wrapper } = await open(1400, 900);
+    await row(wrapper, "OH2ZWA")?.trigger("click");
+    expect(wrapper.find(".cards-message").exists()).toBe(false);
+    await row(wrapper, "OH2ZWB")?.trigger("click", { ctrlKey: true });
+    await row(wrapper, "OH2ZWC")?.trigger("click", { ctrlKey: true });
+    expect(wrapper.find(".cards-message").text()).toBe("Message these 3");
+    await wrapper.find(".cards-message").trigger("click");
+    await flushPromises();
+    expect(wrapper.find("[aria-selected='true']").text()).toContain("Messages");
+    expect(wrapper.find("#pane-messages").text()).toContain("OH2ZWA");
+    expect(wrapper.find("#pane-messages").text()).toContain("OH2ZWC");
+  });
+
+  it("opens the conversation with a call that is not in the Stations table, from the Message button under the empty result", async () => {
+    const { wrapper } = await open(1400, 900);
+    await wrapper.find("#tab-stations").trigger("click");
+    await wrapper.find("#pane-stations input[type='search']").setValue("oh9new");
+    await wrapper.find("#pane-stations tr.stranger button").trigger("click");
+    await flushPromises();
+    expect(wrapper.find("[aria-selected='true']").text()).toContain("Messages");
+    expect(wrapper.find("#pane-messages").text()).toContain("OH9NEW");
+    await wrapper.find("#tab-stations").trigger("click");
+    await wrapper.find("#pane-stations input[type='search']").setValue("OH2GBA"); // (our own call: no button)
+    expect(wrapper.find("#pane-stations tr.stranger").exists()).toBe(false);
+  });
+
   it("has Close all when there is more than one card, which closes them all, and each card its own cross", async () => {
     const { wrapper } = await open(1400, 900);
     await row(wrapper, "OH2ZWA")?.trigger("click");

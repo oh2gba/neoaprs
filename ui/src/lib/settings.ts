@@ -143,7 +143,7 @@ export const FIELDS: Record<string, FieldInfo> = {
     kind: "bool",
     tipLabel: "About network access",
     tip: [
-      "For NeoAPRS on a Raspberry Pi in the shack with the page opened on a laptop or a phone at home. Without this, only the computer NeoAPRS runs on can open the page.",
+      "Lets other devices on your network open this page: a laptop, a phone or a tablet. Without it, only the computer NeoAPRS runs on can open the page.",
       "Set it to yes and Save: an access key appears with the addresses to open. Type the key once on each device.",
       "The connection is plain http on your home network: fine at home, not for the internet. Do not open a port to NeoAPRS in your router.",
     ],
@@ -252,7 +252,7 @@ export const SUBGROUPS: Record<string, { text: string; title: string; tipLabel: 
     title: "NeoAPRS's own alert: the command the daemon runs on the computer it runs on",
     tipLabel: "About the alerts",
     tip: [
-      "A new message can alert you in two places. This group is the NeoAPRS computer itself: with Alert on, it runs the Command when a message arrives, by default a notification and a sound. On a Raspberry Pi in the shack that is the speaker of the Pi.",
+      "A new message can alert you in two places. This group is the NeoAPRS computer itself: with Alert on, it runs the Command when a message arrives, by default a notification and a sound. When NeoAPRS runs on another computer, that is where it sounds.",
       "The next group is this browser, on whatever device has the page open: no alert, a sound, a sound and a pop-up, or a pop-up only. Each device chooses for itself, and Test sound and Test pop-up try it.",
       "If you read NeoAPRS on the computer it runs on, one of the two is enough; use both only if you want to be told twice.",
     ],

@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { arrowAngle, columnOf, hasValues, humidityText, isWeatherStation, markerWeather, pressureText, rainText, tempText, windSpeedText } from "@/lib/weather";
+import {
+  arrowAngle,
+  columnOf,
+  hasValues,
+  humidityText,
+  isWeatherStation,
+  markerWeather,
+  pressureText,
+  rainText,
+  sharedRanges,
+  tempText,
+  windSpeedText,
+} from "@/lib/weather";
 import { NOW, ago, series, station, weather, weatherStation } from "@/test/fixtures";
 
 describe("the readings as text", () => {
@@ -50,5 +62,47 @@ describe("the series", () => {
     expect(hasValues(columnOf(s, "wind"))).toBe(false);
     expect(columnOf(null, "temp")).toEqual([]);
     expect(hasValues(columnOf(series("A", 24, 2), "temp"))).toBe(true);
+  });
+});
+
+describe("sharedRanges: the value axes that several weather cards share", () => {
+  const make = (call: string, hours: number, rows: [number | null, number | null, number | null, number | null, number | null, number | null][]) => ({
+    type: "weather_series" as const,
+    call,
+    hours,
+    points: rows.map((r, i): [string, ...(number | null)[]] => [ago(3600 - i * 600), ...r]) as ReturnType<typeof series>["points"],
+  });
+  // [temp, pressure, wind, gust, rain, humidity]
+  const cold = make("OH2ZWA", 24, [
+    [-5, 1000, 2, 4, 0, 90],
+    [-3, 1002, 3, 5, 0.2, 88],
+  ]);
+  const warm = make("OH2ZWB", 24, [
+    [12, 1020, 1, 9, 0, 40],
+    [8, 1018, 4, 6, 0, 45],
+  ]);
+
+  it("is the lowest and the highest value of all the series, for each quantity", () => {
+    const ranges = sharedRanges([cold, warm], 24);
+    expect(ranges.temp).toEqual([-5, 12]);
+    expect(ranges.pressure).toEqual([1000, 1020]);
+    expect(ranges.humidity).toEqual([40, 90]);
+  });
+
+  it("has the wind and the rain from 0, and the wind up to the highest gust of any of them", () => {
+    const ranges = sharedRanges([cold, warm], 24);
+    expect(ranges.wind).toEqual([0, 9]);
+    expect(ranges.rain).toEqual([0, 0.2]);
+  });
+
+  it("is the same for any order of the cards, and does not count a series of another span, or one that has not come", () => {
+    expect(sharedRanges([warm, cold], 24)).toEqual(sharedRanges([cold, warm], 24));
+    expect(sharedRanges([cold, make("OH2ZWC", 168, [[40, 900, 50, 90, 9, 1]]), null], 24)).toEqual(sharedRanges([cold], 24));
+    expect(sharedRanges([null, null], 24)).toEqual({});
+  });
+
+  it("leaves out a quantity that no series has", () => {
+    const only = make("OH2ZWD", 24, [[3, null, null, null, null, null]]);
+    expect(Object.keys(sharedRanges([only], 24))).toEqual(["temp"]);
   });
 });
