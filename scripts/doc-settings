@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+"""Prints the table of settings and the list of fixed values of docs/manual/settings.md, made from neoaprs/config.py (SETTINGS) and the constants of the program, and keeps the blocks of that document up to date.
+
+    .venv/bin/python scripts/doc-settings            print every block
+    .venv/bin/python scripts/doc-settings --write    make the blocks of docs/manual/settings.md again (run it after a change to the settings or to a constant they quote)
+    .venv/bin/python scripts/doc-settings --check    write nothing; exit 1 and name the blocks that are out of date (tests/test_docs.py does the same inside pytest)
+"""
+import argparse
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+DOCUMENT = ROOT / "docs" / "manual" / "settings.md"
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="the table of settings of docs/manual/settings.md, made from neoaprs/config.py")
+    parser.add_argument("--write", action="store_true", help="make the blocks of docs/manual/settings.md again")
+    parser.add_argument("--check", action="store_true", help="exit 1 when a block of docs/manual/settings.md is out of date")
+    args = parser.parse_args()
+    from tests.support import settingsdoc      # it imports the program: the venv's python; --help does not
+    text = DOCUMENT.read_text()
+    if args.write:
+        DOCUMENT.write_text(settingsdoc.refreshed(text))
+        return 0
+    if args.check:
+        stale = settingsdoc.stale_blocks(text)
+        if stale:
+            print(f"docs/manual/settings.md: out of date: {', '.join(stale)} (scripts/doc-settings --write)", file=sys.stderr)
+        return 1 if stale else 0
+    for name, make in settingsdoc.MAKERS.items():
+        print(f"<!-- doc-settings:{name} -->\n{make()}<!-- /doc-settings -->\n")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
