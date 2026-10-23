@@ -527,6 +527,28 @@ async def test_delete_cancels_a_message_that_is_being_sent_first_and_no_attempt_
     assert rig.m.records() == [], "an ack for a message that is gone settles nothing"
 
 
+async def test_a_message_deleted_while_it_waits_for_its_first_attempt_never_goes_out(rig: Rig) -> None:
+    rig = Rig(rig.log, rig.clock, rig.tnc, spacing_sec=10.0)                 # (the pause between attempts, as on the air)
+    await rig.m.send("OH2RDG", "first")
+    waiting = await rig.m.send("OH2AAA", "second")                          # (behind the pause after the first: no attempt yet)
+    assert waiting.attempts == 0 and [f.info for f in rig.tnc.sent if b"second" in f.info] == []
+    await rig.m.delete(waiting.id)
+    await rig.pass_time(3600)
+    assert [f.info for f in rig.tnc.sent if b"second" in f.info] == [], "a deleted message is never sent"
+    assert any(b"first" in f.info for f in rig.tnc.sent)
+
+
+async def test_deleting_a_conversation_stops_its_waiting_messages_and_the_email_gateway_s_too(rig: Rig) -> None:
+    rig = Rig(rig.log, rig.clock, rig.tnc, spacing_sec=10.0)
+    await rig.m.send("OH2RDG", "first")
+    await rig.m.send("OH2AAA", "chat")
+    mail = await rig.m.send("EMAIL-2", "jane@example.com hello")
+    await rig.m.delete_conversation("OH2AAA")
+    await rig.m.delete(mail.id)
+    await rig.pass_time(3600)
+    assert [f.info for f in rig.tnc.sent if b"chat" in f.info or b"jane@" in f.info] == []
+
+
 async def test_delete_of_a_message_there_is_not_is_refused_and_so_is_one_the_database_would_not_remove(rig: Rig) -> None:
     with pytest.raises(MessagingError, match="no message 7"):
         await rig.m.delete(7)
