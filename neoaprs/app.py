@@ -1,5 +1,5 @@
 """The composition root: the parts of the program, made in one place. The data directory, the clock, the settings (`config`), the Store, the Tnc, the station book, the beacon, the status, the message alert, messaging, the message board,
-the queries and the base map (the services are made here and nowhere else), the station preferences, the packet log, the message log, the bulletin log, the weather log and the task set. The parts are made here and connected in neoaprs/wiring.py; the start and the stop are neoaprs/controller.py.
+the objects and the bulletins of our own and their sender, the queries and the base map (the services are made here and nowhere else), the station preferences, the packet log, the message log, the bulletin log, the log of our own objects and bulletins, the weather log and the task set. The parts are made here and connected in neoaprs/wiring.py; the start and the stop are neoaprs/controller.py.
 """
 import asyncio
 import logging
@@ -12,15 +12,19 @@ from .config import DEFAULTS, Config
 from .db import Db
 from .interlock import Interlock
 from .messagelog import MessageLog
+from .ownlog import OwnLog
 from .packetlog import PacketLog
 from .services.alerts import Alerts
 from .services.beacon import Beacon
 from .services.bulletins import Bulletins
 from .services.mapfetch import MapFetch
 from .services.messaging import Messaging
+from .services.ownbulletins import OwnBulletins
+from .services.ownobjects import OwnObjects
 from .services.prefbook import PrefBook
 from .services.queries import Queries
 from .services.rigstatus import RigStatus
+from .services.sender import Sender
 from .signal import Signal
 from .stationbook import StationBook
 from .store import Store
@@ -58,6 +62,10 @@ class Services:
         self.weatherlog = WeatherLog(clock=clock)                       # every observation of the weather stations, in the database
         self.bulletinlog = BulletinLog(clock=clock)                     # the message board in the database
         self.bulletins = Bulletins(self.bulletinlog, clock)             # bulletins, announcements and group messages, one for each sender and slot; they stay until deleted; started by the controller before the Tnc
+        self.ownlog = OwnLog(clock=clock)                               # the objects, items and bulletins of our own, in the database
+        self.sender = Sender(self.tnc, lambda: self.config, clock)      # our frames that go out by a schedule: one at a time, by the interlock and the state of the radio
+        self.ownobjects = OwnObjects(self.sender, lambda: self.config, self.ownlog, self._is_station, clock)       # the objects and items of ours, on the decay schedule of the specification; started by the controller after the beacon
+        self.ownbulletins = OwnBulletins(self.sender, lambda: self.config, self.ownlog, clock)       # the bulletins and announcements of ours, on their schedule; started by the controller after the beacon
         self.messaging = Messaging(self.tnc, lambda: self.config, self.messagelog, self.prefbook.path_for, clock, board=self.bulletins.heard, alert=self.alerts.alert, attempts=self.prefbook.attempts_for)       # messages with acks and retries, by each station's path; started by the controller after the beacon
         self.queries = Queries(self.tnc, lambda: self.config, self.beacon, self.rigstatus.status_frame, self.stationbook, self.prefbook.path_for, clock)       # the answers to ?APRSP, ?APRSS, ?APRSD, ?APRST, ?PING? and ?APRS?, by the asker's path
         self.mapfetch = MapFetch(data_dir, lambda: self.config, clock)  # the base map: the detailed map round our position and the world map under it, made on request from the page; nothing to start
@@ -67,6 +75,11 @@ class Services:
         self.tasks = TaskSet(self._task_failed)                         # what the parts start on the loop; the controller's stop ends them
         self.running = False
         self.debug = False
+
+    def _is_station(self, name: str) -> bool:
+        """Is the name that of a station of the book (a call that was heard, not an object)? An object of ours is never made under it."""
+        found = self.stationbook.get(name)
+        return found is not None and found.kind == "station"
 
     def _task_failed(self, task: "asyncio.Task[Any]") -> None:
         log.error("task %s failed: %r", task.get_name(), task.exception())

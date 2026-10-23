@@ -95,7 +95,7 @@ TypeScript types for both unions are in `ui/src/protocol/protocol.ts`, the JSON 
 
 ## Client to server
 
-28 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
+32 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
 
 ### `ping`
 
@@ -308,6 +308,54 @@ the `del`, or by an `error` (no such entry).
 | `sender` | string |  | the call that sent it, as the row has it (max 64 chars, min 1 chars) |
 | `slot` | string |  | the addressee as the row has it: `BLN1`, `BLNA`, `BLN3HAMS`, `QST` (max 16 chars, min 1 chars) |
 
+### `object_set`
+
+Makes an object or an item of ours, or changes the one of that name (a changed object starts its schedule again, and is sent at once, never sooner than a minute after its last packet). `name` is 1 to 9
+characters for an object and 3 to 9 for an item, printable ASCII without `!`, `_`, `|` and `~` and without a blank at either end, and not our own call or the call of a station; `lat` and `lon` the position in decimal
+degrees; the symbol is a table character and a code character; `comment` at most 43 characters (36 with a course or speed); `course_deg` and `speed_kmh` the course and speed, each or both or none; `path` the digipeaters, calls
+separated by commas (null: `beacon/path`). Nothing is sent while the call is not set. Answered by the `set` of its row in `own_objects` and `stations`, or by an `error` that names the reason.
+
+| field | type | | description |
+|---|---|---|---|
+| `name` | string |  | (max 9 chars, min 1 chars) |
+| `kind` | "object" \| "item" |  |  |
+| `lat` | number |  | (>= -90, <= 90) |
+| `lon` | number |  | (>= -180, <= 180) |
+| `symbol_table` | string |  | (max 1 chars, min 1 chars) |
+| `symbol_code` | string |  | (max 1 chars, min 1 chars) |
+| `comment` | string |  | (max 43 chars) |
+| `course_deg` | integer \| null |  | (>= 0, <= 359) |
+| `speed_kmh` | number \| null |  | (>= 0, <= 1850) |
+| `path` | string \| null |  | (max 256 chars) |
+
+### `object_kill`
+
+Kills an object or an item of ours: the killed form is sent three times (at once, after a minute and after three) and then it is forgotten, and it leaves the map now. One that was never sent is removed at
+once. Answered by the `del` of its row in `stations` (and in `own_objects` once the kill is sent, or at once), or by an `error` (no such object of ours).
+
+| field | type | | description |
+|---|---|---|---|
+| `name` | string |  | (max 9 chars, min 1 chars) |
+
+### `bulletin_post`
+
+Posts a bulletin, an announcement or a group bulletin of ours: `slot` is `BLN0`..`BLN9`, `BLNA`..`BLNZ` or `BLN`, a number and a group of up to five characters (`BLN3HAMS`), `text` at most 67 characters of
+printable ASCII without `|`, `~` and `{`. It is sent at once and then on the schedule of the specification (a bulletin a few times early and every 20 minutes for 4 hours, an announcement every hour for 72 hours);
+a text for a slot that holds one replaces it. Nothing is sent while the call is not set. Answered by the `set` of its row in `own_bulletins`, or by an `error` that names the reason.
+
+| field | type | | description |
+|---|---|---|---|
+| `slot` | string |  | (max 9 chars, min 4 chars) |
+| `text` | string |  | (max 512 chars, min 1 chars) |
+
+### `bulletin_unpost`
+
+Deletes a bulletin of ours: it is not sent again and leaves the board. Answered by the `del` of its row in `own_bulletins`, or by an `error` (no such bulletin of ours).
+
+| field | type | | description |
+|---|---|---|---|
+| `slot` | string |  | (max 9 chars, min 4 chars) |
+
 ### `map_estimate`
 
 Starts a dry run: how big the detailed map for `map/radius_km` and `map/maxzoom` round our position will be. Answered by the topic `map` (state `estimating`, then `estimate` filled in), or by an `error` when no job can start
@@ -436,6 +484,8 @@ The value of each topic (`state` carries it, a `replace` op brings a new one).
 | `station_prefs` | { [key: string]: StationPref } | what the operator set for each station that has anything set, by call: its own path, its own timeout and its own attempts, each null where none is set, and whether it is RF only. `set_station_path`, `clear_station_path`, `set_station_timeout`, `clear_station_timeout`, `set_station_attempts`, `clear_station_attempts` and `set_station_rf_only` each give a `set` of the entry, or a `del` when nothing is left in it |
 | `messages` | { [key: string]: MessageRow } | every message by id (as text), all of them sent with the first `state`: a message that is new or changes is a `set` of its row, one that is deleted a `del`; none leaves on its own |
 | `bulletins` | { [key: string]: BulletinRow } | the message board by `sender/slot` (`OH2XYZ/BLN1`): the bulletins, announcements, group bulletins and group messages heard and not deleted; one that is new or heard again is a `set` of its row, one that is deleted (`bulletin_delete`) a `del` |
+| `own_objects` | { [key: string]: OwnObjectRow } | the objects and items of ours by name: `object_set` makes or changes one (a `set` of its row, each time it is sent too), `object_kill` ends one (its row changes to `killing`, and is a `del` once the kill has been sent); a live one is also a row of `stations` |
+| `own_bulletins` | { [key: string]: OwnBulletinRow } | the bulletins, announcements and group bulletins of ours by slot (`BLN1`): `bulletin_post` posts one (a `set` of its row, each time it is sent too), `bulletin_unpost` deletes one (a `del`) |
 | `map` | MapState | the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps; told whole as it changes, at most four times a second |
 
 ## Objects
@@ -484,6 +534,7 @@ row has a new distance and bearing, and the topic is told whole again.
 | `distance_km` | number \| null |  | from our position, null for us and for a station without a position |
 | `bearing_deg` | number \| null |  | the direction from our position, degrees from north; null as the distance is |
 | `is_me` | boolean |  | our own station: the row of the call in the settings, at the position in the settings |
+| `own` | boolean |  | an object or an item of ours, which we send (the topic `own_objects` has its values and its schedule): the map marks it as ours and the card has Edit and Kill in place of Forget; false for any other row |
 | `track` | [time, number, number][] |  | the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed (max 50 items) |
 
 ### PacketRow
@@ -893,6 +944,47 @@ The base map: the files, the area and detail the settings ask for, the size esti
 | `box` | number[] \| null |  | the area those settings make round our position, [west, south, east, north]; null without a position (max 4 items) |
 | `detail` | MapFileInfo \| null |  | `basemap.pmtiles`; null if it is not there |
 | `world` | MapFileInfo \| null |  | `basemap-world.pmtiles`; null if it is not there |
+
+### OwnBulletinRow
+
+One bulletin, announcement or group bulletin of ours: its text and where its schedule stands. The rows are the values of the topic `own_bulletins`, keyed by `slot` (`BLN1`): a bulletin that is posted, and
+each time it is sent, is a `set` of its row, one that is deleted (`bulletin_unpost`) a `del`. One whose schedule is over stays, with a null `next_at`, until it is deleted or posted again.
+
+| field | type | | description |
+|---|---|---|---|
+| `slot` | string |  | the addressee: `BLN1`, `BLNA`, `BLN3HAMS` |
+| `group` | string |  | the group of a group bulletin (`HAMS`); empty for any other |
+| `kind` | "bulletin" \| "announcement" \| "group" |  |  |
+| `text` | string |  |  |
+| `posted_at` | time |  | when the text was posted |
+| `sent` | integer |  | how often it was sent (>= 0) |
+| `last_sent_at` | time \| null |  | when it was last sent; null while it has not been sent |
+| `next_at` | time \| null |  | when it is sent next; null when its schedule is over (a bulletin: now, after 2 and 6 minutes, then every 20 minutes until 4 hours after the first; an announcement: the same early, then every hour until 72 hours after the first) |
+
+### OwnObjectRow
+
+One object or item of ours: what we send and where its schedule stands. The rows are the values of the topic `own_objects`, keyed by `name`: an object that is made or changed, and each time it is sent,
+is a `set` of its row, one that is gone (the kill was sent three times, or another station took the name over) a `del`. A live object is also a row of the topic `stations` with `own` true, which is what the
+map shows; a killed one leaves that topic at once and stays here, as `killing`, until its kill has been sent.
+
+| field | type | | description |
+|---|---|---|---|
+| `name` | string |  | the name of the object (1 to 9 characters) or of the item (3 to 9), as it is sent: case-sensitive |
+| `kind` | "object" \| "item" |  |  |
+| `lat` | number |  |  |
+| `lon` | number |  |  |
+| `symbol_table` | string |  | `/` (primary), `\` (alternate) or an overlay character 0-9, A-Z |
+| `symbol_code` | string |  |  |
+| `comment` | string |  | at most 43 characters, 36 when it follows a course and speed |
+| `course_deg` | integer \| null |  | the course in degrees from north (0 to 359); null for none |
+| `speed_kmh` | number \| null |  | the speed in km/h; null for none |
+| `path` | string \| null |  | the digipeaters it goes by, calls separated by commas; null: the path of the setting `beacon/path` is used |
+| `state` | "live" \| "killing" |  | `live`: it is being sent on the decay schedule; `killing`: it was killed and its killed form is being sent (three times), then it is forgotten |
+| `created_at` | time |  | when it was first made |
+| `updated_at` | time |  | when it was last changed or killed |
+| `sent` | integer |  | how often it was sent since it was last changed or killed (>= 0) |
+| `last_sent_at` | time \| null |  | when it was last sent; null while it has not been sent (the call is not set, or the radio is away) |
+| `next_at` | time \| null |  | when it is sent next: 1, 2, 4 ... minutes after the last packet, never more than the net cycle time of its path apart; a time that has passed means it waits for the radio or for the call |
 
 ### PhgValues
 

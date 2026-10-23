@@ -167,6 +167,33 @@
       "title": "BulletinDeleteCommand",
       "type": "object"
     },
+    "BulletinPost": {
+      "additionalProperties": false,
+      "description": "Posts a bulletin, an announcement or a group bulletin of ours: `slot` is `BLN0`..`BLN9`, `BLNA`..`BLNZ` or `BLN`, a number and a group of up to five characters (`BLN3HAMS`), `text` at most 67 characters of\nprintable ASCII without `|`, `~` and `{`. It is sent at once and then on the schedule of the specification (a bulletin a few times early and every 20 minutes for 4 hours, an announcement every hour for 72 hours);\na text for a slot that holds one replaces it. Nothing is sent while the call is not set. Answered by the `set` of its row in `own_bulletins`, or by an `error` that names the reason.",
+      "properties": {
+        "cmd": {
+          "const": "bulletin_post",
+          "type": "string"
+        },
+        "slot": {
+          "maxLength": 9,
+          "minLength": 4,
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "slot",
+        "text"
+      ],
+      "title": "BulletinPostCommand",
+      "type": "object"
+    },
     "BulletinRow": {
       "additionalProperties": false,
       "description": "One bulletin, announcement, group bulletin or group message on the board: what a station sent to `BLN0`..`BLN9`, `BLNA`..`BLNZ`, `BLN3HAMS` (a number or letter and a group of up to five characters) or `ALL`, `CQ`\nor `QST`. None of them is a conversation and none is acked. The rows are the values of the topic `bulletins`, keyed by `sender/slot` (`OH2XYZ/BLN1`): the board holds one row for each sender and slot, a sender\nsending the slot again replaces the text. A bulletin that is new or heard again is a `set` of its row, one that is deleted (`bulletin_delete`) a `del`. Nothing ages out: an\nentry stays on the board until it is deleted.",
@@ -223,6 +250,27 @@
         "times_heard"
       ],
       "title": "BulletinRow",
+      "type": "object"
+    },
+    "BulletinUnpost": {
+      "additionalProperties": false,
+      "description": "Deletes a bulletin of ours: it is not sent again and leaves the board. Answered by the `del` of its row in `own_bulletins`, or by an `error` (no such bulletin of ours).",
+      "properties": {
+        "cmd": {
+          "const": "bulletin_unpost",
+          "type": "string"
+        },
+        "slot": {
+          "maxLength": 9,
+          "minLength": 4,
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "slot"
+      ],
+      "title": "BulletinUnpostCommand",
       "type": "object"
     },
     "ClearStationAttempts": {
@@ -1718,6 +1766,123 @@
       "title": "MessageRow",
       "type": "object"
     },
+    "ObjectKill": {
+      "additionalProperties": false,
+      "description": "Kills an object or an item of ours: the killed form is sent three times (at once, after a minute and after three) and then it is forgotten, and it leaves the map now. One that was never sent is removed at\nonce. Answered by the `del` of its row in `stations` (and in `own_objects` once the kill is sent, or at once), or by an `error` (no such object of ours).",
+      "properties": {
+        "cmd": {
+          "const": "object_kill",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 9,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "name"
+      ],
+      "title": "ObjectKillCommand",
+      "type": "object"
+    },
+    "ObjectSet": {
+      "additionalProperties": false,
+      "description": "Makes an object or an item of ours, or changes the one of that name (a changed object starts its schedule again, and is sent at once, never sooner than a minute after its last packet). `name` is 1 to 9\ncharacters for an object and 3 to 9 for an item, printable ASCII without `!`, `_`, `|` and `~` and without a blank at either end, and not our own call or the call of a station; `lat` and `lon` the position in decimal\ndegrees; the symbol is a table character and a code character; `comment` at most 43 characters (36 with a course or speed); `course_deg` and `speed_kmh` the course and speed, each or both or none; `path` the digipeaters, calls\nseparated by commas (null: `beacon/path`). Nothing is sent while the call is not set. Answered by the `set` of its row in `own_objects` and `stations`, or by an `error` that names the reason.",
+      "properties": {
+        "cmd": {
+          "const": "object_set",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 9,
+          "minLength": 1,
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "object",
+            "item"
+          ],
+          "type": "string"
+        },
+        "lat": {
+          "maximum": 90,
+          "minimum": -90,
+          "type": "number"
+        },
+        "lon": {
+          "maximum": 180,
+          "minimum": -180,
+          "type": "number"
+        },
+        "symbol_table": {
+          "maxLength": 1,
+          "minLength": 1,
+          "type": "string"
+        },
+        "symbol_code": {
+          "maxLength": 1,
+          "minLength": 1,
+          "type": "string"
+        },
+        "comment": {
+          "maxLength": 43,
+          "type": "string"
+        },
+        "course_deg": {
+          "anyOf": [
+            {
+              "maximum": 359,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "speed_kmh": {
+          "anyOf": [
+            {
+              "maximum": 1850,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "path": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "cmd",
+        "name",
+        "kind",
+        "lat",
+        "lon",
+        "symbol_table",
+        "symbol_code",
+        "comment",
+        "course_deg",
+        "speed_kmh",
+        "path"
+      ],
+      "title": "ObjectSetCommand",
+      "type": "object"
+    },
     "OverheardDelete": {
       "additionalProperties": false,
       "description": "Removes every message we only overheard `from_call` sending to `to_call` (the state `overheard`, that sender, that addressee: one pair of the Messages list's overheard rows) from the database in one write,\nfrom the daemon and from every page: each message's row is a `del` of the topic `messages`. The conversations are not touched: a message we sent or one sent to us is never removed by this. Answered by the\n`del`s, or by an `error` (no overheard message of that pair).",
@@ -1743,6 +1908,215 @@
         "to_call"
       ],
       "title": "OverheardDeleteCommand",
+      "type": "object"
+    },
+    "OwnBulletinRow": {
+      "additionalProperties": false,
+      "description": "One bulletin, announcement or group bulletin of ours: its text and where its schedule stands. The rows are the values of the topic `own_bulletins`, keyed by `slot` (`BLN1`): a bulletin that is posted, and\neach time it is sent, is a `set` of its row, one that is deleted (`bulletin_unpost`) a `del`. One whose schedule is over stays, with a null `next_at`, until it is deleted or posted again.",
+      "properties": {
+        "slot": {
+          "description": "the addressee: `BLN1`, `BLNA`, `BLN3HAMS`",
+          "type": "string"
+        },
+        "group": {
+          "description": "the group of a group bulletin (`HAMS`); empty for any other",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "bulletin",
+            "announcement",
+            "group"
+          ],
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "posted_at": {
+          "description": "when the text was posted",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "sent": {
+          "description": "how often it was sent",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "last_sent_at": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when it was last sent; null while it has not been sent"
+        },
+        "next_at": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when it is sent next; null when its schedule is over (a bulletin: now, after 2 and 6 minutes, then every 20 minutes until 4 hours after the first; an announcement: the same early, then every hour until 72 hours after the first)"
+        }
+      },
+      "required": [
+        "slot",
+        "group",
+        "kind",
+        "text",
+        "posted_at",
+        "sent",
+        "last_sent_at",
+        "next_at"
+      ],
+      "title": "OwnBulletinRow",
+      "type": "object"
+    },
+    "OwnObjectRow": {
+      "additionalProperties": false,
+      "description": "One object or item of ours: what we send and where its schedule stands. The rows are the values of the topic `own_objects`, keyed by `name`: an object that is made or changed, and each time it is sent,\nis a `set` of its row, one that is gone (the kill was sent three times, or another station took the name over) a `del`. A live object is also a row of the topic `stations` with `own` true, which is what the\nmap shows; a killed one leaves that topic at once and stays here, as `killing`, until its kill has been sent.",
+      "properties": {
+        "name": {
+          "description": "the name of the object (1 to 9 characters) or of the item (3 to 9), as it is sent: case-sensitive",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "object",
+            "item"
+          ],
+          "type": "string"
+        },
+        "lat": {
+          "type": "number"
+        },
+        "lon": {
+          "type": "number"
+        },
+        "symbol_table": {
+          "description": "`/` (primary), `\\` (alternate) or an overlay character 0-9, A-Z",
+          "type": "string"
+        },
+        "symbol_code": {
+          "type": "string"
+        },
+        "comment": {
+          "description": "at most 43 characters, 36 when it follows a course and speed",
+          "type": "string"
+        },
+        "course_deg": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the course in degrees from north (0 to 359); null for none"
+        },
+        "speed_kmh": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the speed in km/h; null for none"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the digipeaters it goes by, calls separated by commas; null: the path of the setting `beacon/path` is used"
+        },
+        "state": {
+          "description": "`live`: it is being sent on the decay schedule; `killing`: it was killed and its killed form is being sent (three times), then it is forgotten",
+          "enum": [
+            "live",
+            "killing"
+          ],
+          "type": "string"
+        },
+        "created_at": {
+          "description": "when it was first made",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "updated_at": {
+          "description": "when it was last changed or killed",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "sent": {
+          "description": "how often it was sent since it was last changed or killed",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "last_sent_at": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when it was last sent; null while it has not been sent (the call is not set, or the radio is away)"
+        },
+        "next_at": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when it is sent next: 1, 2, 4 ... minutes after the last packet, never more than the net cycle time of its path apart; a time that has passed means it waits for the radio or for the call"
+        }
+      },
+      "required": [
+        "name",
+        "kind",
+        "lat",
+        "lon",
+        "symbol_table",
+        "symbol_code",
+        "comment",
+        "course_deg",
+        "speed_kmh",
+        "path",
+        "state",
+        "created_at",
+        "updated_at",
+        "sent",
+        "last_sent_at",
+        "next_at"
+      ],
+      "title": "OwnObjectRow",
       "type": "object"
     },
     "PacketRow": {
@@ -2765,6 +3139,10 @@
           "description": "our own station: the row of the call in the settings, at the position in the settings",
           "type": "boolean"
         },
+        "own": {
+          "description": "an object or an item of ours, which we send (the topic `own_objects` has its values and its schedule): the map marks it as ours and the card has Edit and Kill in place of Forget; false for any other row",
+          "type": "boolean"
+        },
         "track": {
           "description": "the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed",
           "items": {
@@ -2824,6 +3202,7 @@
         "distance_km",
         "bearing_deg",
         "is_me",
+        "own",
         "track"
       ],
       "title": "StationRow",
@@ -3316,6 +3695,20 @@
           "description": "the message board by `sender/slot` (`OH2XYZ/BLN1`): the bulletins, announcements, group bulletins and group messages heard and not deleted; one that is new or heard again is a `set` of its row, one that is deleted (`bulletin_delete`) a `del`",
           "type": "object"
         },
+        "own_objects": {
+          "additionalProperties": {
+            "$ref": "#/$defs/OwnObjectRow"
+          },
+          "description": "the objects and items of ours by name: `object_set` makes or changes one (a `set` of its row, each time it is sent too), `object_kill` ends one (its row changes to `killing`, and is a `del` once the kill has been sent); a live one is also a row of `stations`",
+          "type": "object"
+        },
+        "own_bulletins": {
+          "additionalProperties": {
+            "$ref": "#/$defs/OwnBulletinRow"
+          },
+          "description": "the bulletins, announcements and group bulletins of ours by slot (`BLN1`): `bulletin_post` posts one (a `set` of its row, each time it is sent too), `bulletin_unpost` deletes one (a `del`)",
+          "type": "object"
+        },
         "map": {
           "$ref": "#/$defs/MapState",
           "description": "the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps; told whole as it changes, at most four times a second"
@@ -3329,6 +3722,8 @@
         "station_prefs",
         "messages",
         "bulletins",
+        "own_objects",
+        "own_bulletins",
         "map"
       ],
       "title": "TopicValues",
@@ -3643,6 +4038,8 @@
           "alert_test": "#/$defs/AlertTest",
           "beacon_now": "#/$defs/BeaconNow",
           "bulletin_delete": "#/$defs/BulletinDelete",
+          "bulletin_post": "#/$defs/BulletinPost",
+          "bulletin_unpost": "#/$defs/BulletinUnpost",
           "clear_station_attempts": "#/$defs/ClearStationAttempts",
           "clear_station_path": "#/$defs/ClearStationPath",
           "clear_station_timeout": "#/$defs/ClearStationTimeout",
@@ -3655,6 +4052,8 @@
           "message_cancel": "#/$defs/MessageCancel",
           "message_delete": "#/$defs/MessageDelete",
           "message_retry": "#/$defs/MessageRetry",
+          "object_kill": "#/$defs/ObjectKill",
+          "object_set": "#/$defs/ObjectSet",
           "overheard_delete": "#/$defs/OverheardDelete",
           "ping": "#/$defs/Ping",
           "send_message": "#/$defs/SendMessage",
@@ -3746,6 +4145,18 @@
         },
         {
           "$ref": "#/$defs/BulletinDelete"
+        },
+        {
+          "$ref": "#/$defs/ObjectSet"
+        },
+        {
+          "$ref": "#/$defs/ObjectKill"
+        },
+        {
+          "$ref": "#/$defs/BulletinPost"
+        },
+        {
+          "$ref": "#/$defs/BulletinUnpost"
         },
         {
           "$ref": "#/$defs/MapEstimate"

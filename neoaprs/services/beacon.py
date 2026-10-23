@@ -21,7 +21,7 @@ from datetime import datetime, timedelta
 from typing import Protocol
 
 from neoaprs import ax25
-from neoaprs.aprsposition import compress_position
+from neoaprs.aprsposition import THOUSANDTHS_PER_DEGREE, compress_position, uncompressed_position
 from neoaprs.callsign import CallsignError
 from neoaprs.clock import Clock, utcnow
 from neoaprs.config import ANTENNA_DIRECTIONS, BEACON_SENT, MAX_STATUS, SYMBOL_TABLES, Config, can_transmit
@@ -37,8 +37,6 @@ FIRST_DELAY_SEC = 30.0
 TICK_SEC = 1.0
 RETRY_SEC = 5.0
 ATTEMPTS = 6                                                    # the Tnc refusing the frame this many times in a row skips the interval
-_HUNDREDTHS_PER_DEGREE = 6000
-_THOUSANDTHS_PER_DEGREE = 60000
 _FEET_PER_METRE = 3.2808
 
 
@@ -56,23 +54,9 @@ class Radio(Protocol):
     def send_frame(self, frame: ax25.Frame) -> bool: ...
 
 
-def _coordinate(value: float, whole_digits: int, negative: str, positive: str, dao: bool = False) -> str:
-    """DDMM.mmN or DDDMM.mmE: the minutes rounded to hundredths (a rounding that reaches 60 minutes carries into the degrees). With `dao` the minutes are rounded to thousandths and the
-    thousandths digit is left to the DAO extension, so that the two together are the position and the hundredths are cut, not rounded."""
-    thousandths = round(abs(value) * _THOUSANDTHS_PER_DEGREE)
-    total = thousandths // 10 if dao else round(abs(value) * _HUNDREDTHS_PER_DEGREE)
-    degrees, rest = divmod(total, _HUNDREDTHS_PER_DEGREE)
-    return f"{degrees:0{whole_digits}d}{rest // 100:02d}.{rest % 100:02d}{negative if value < 0 and (thousandths if dao else total) else positive}"
-
-
-def uncompressed_position(lat: float, lon: float, symbol_table: str, symbol_code: str, dao: bool = False) -> bytes:
-    """The 19 bytes DDMM.mmN/DDDMM.mmE- of an uncompressed position: latitude, symbol table, longitude, symbol code."""
-    return f"{_coordinate(lat, 2, 'S', 'N', dao)}{symbol_table}{_coordinate(lon, 3, 'W', 'E', dao)}{symbol_code}".encode("ascii")
-
-
 def dao_text(lat: float, lon: float) -> str:
     """The DAO extension `!Wxy!` of the specification (datum WGS84, human readable): x and y are the digits 0 to 9 that follow the hundredths in the minutes of the latitude and of the longitude."""
-    return f"!W{round(abs(lat) * _THOUSANDTHS_PER_DEGREE) % 10}{round(abs(lon) * _THOUSANDTHS_PER_DEGREE) % 10}!"
+    return f"!W{round(abs(lat) * THOUSANDTHS_PER_DEGREE) % 10}{round(abs(lon) * THOUSANDTHS_PER_DEGREE) % 10}!"
 
 
 def _round_half_up(x: float) -> int:

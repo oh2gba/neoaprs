@@ -11,7 +11,7 @@ The docstrings and field descriptions are the documentation: `scripts/gen-protoc
 Nothing else in the repository describes the format.
 
 This module holds the two unions, the value of each topic (`TopicValues`) and the validators made from them. The models themselves are in the `neoaprs/web/*wire.py` modules, one for each area
-(the daemon, the hub, the stations, the packets, the TNC, the settings, the beacon, the messages, the message board, the station preferences, the weather, the base map), which import `neoaprs/web/wirebase.py` and nothing else of neoaprs/web/, never this module.
+(the daemon, the hub, the stations, the packets, the TNC, the settings, the beacon, the messages, the message board, the objects and bulletins of ours, the station preferences, the weather, the base map), which import `neoaprs/web/wirebase.py` and nothing else of neoaprs/web/, never this module.
 
 Conventions: every time is UTC ISO 8601 ending in `Z` (`2026-10-21T12:00:00Z`); a station is referred to by its call and a packet by its id, never by a position in a list; the models are strict
 (no `"5"` for 5, no `1` for true) and reject fields they do not know. pydantic lives in `neoaprs/web/` only: the rest of `neoaprs/` stays free of it.
@@ -27,6 +27,7 @@ from .hostwire import AskStatus, Error, Hello, Ping, Pong, Status
 from .hubwire import PatchMsg, StateMsg, Subscribe, Unsubscribe
 from .mapwire import MapCancel, MapEstimate, MapFetch, MapState
 from .messagewire import AlertResultMsg, AlertTest, ConversationDelete, MessageCancel, MessageDelete, MessageRetry, MessageRow, OverheardDelete, SendMessage
+from .ownwire import BulletinPost, BulletinUnpost, ObjectKill, ObjectSet, OwnBulletinRow, OwnObjectRow
 from .packetwire import PacketRow
 from .portwire import ListPorts, PortsMsg
 from .prefwire import ClearStationAttempts, ClearStationPath, ClearStationTimeout, SetStationAttempts, SetStationPath, SetStationRfOnly, SetStationTimeout, StationPref
@@ -37,7 +38,7 @@ from .wirebase import _Command, _Message, _Model
 
 
 # ---- Client to server
-AnyCommand = Union[Ping, AskStatus, Subscribe, Unsubscribe, ForgetStation, TncReconnect, ListPorts, SetConfig, BeaconNow, SendMessage, MessageRetry, MessageCancel, MessageDelete, ConversationDelete, OverheardDelete, SetStationPath, ClearStationPath, SetStationTimeout, ClearStationTimeout, SetStationAttempts, ClearStationAttempts, SetStationRfOnly, WeatherSeries, AlertTest, BulletinDelete, MapEstimate, MapFetch, MapCancel]
+AnyCommand = Union[Ping, AskStatus, Subscribe, Unsubscribe, ForgetStation, TncReconnect, ListPorts, SetConfig, BeaconNow, SendMessage, MessageRetry, MessageCancel, MessageDelete, ConversationDelete, OverheardDelete, SetStationPath, ClearStationPath, SetStationTimeout, ClearStationTimeout, SetStationAttempts, ClearStationAttempts, SetStationRfOnly, WeatherSeries, AlertTest, BulletinDelete, ObjectSet, ObjectKill, BulletinPost, BulletinUnpost, MapEstimate, MapFetch, MapCancel]
 Command = Annotated[AnyCommand, Field(discriminator="cmd")]
 """Every command the page may send."""
 
@@ -57,13 +58,15 @@ class TopicValues(_Model):
                                                    "`set_station_path`, `clear_station_path`, `set_station_timeout`, `clear_station_timeout`, `set_station_attempts`, `clear_station_attempts` and `set_station_rf_only` each give a `set` of the entry, or a `del` when nothing is left in it")
     messages: dict[str, MessageRow] = Field(description="every message by id (as text), all of them sent with the first `state`: a message that is new or changes is a `set` of its row, one that is deleted a `del`; none leaves on its own")
     bulletins: dict[str, BulletinRow] = Field(description="the message board by `sender/slot` (`OH2XYZ/BLN1`): the bulletins, announcements, group bulletins and group messages heard and not deleted; one that is new or heard again is a `set` of its row, one that is deleted (`bulletin_delete`) a `del`")
+    own_objects: dict[str, OwnObjectRow] = Field(description="the objects and items of ours by name: `object_set` makes or changes one (a `set` of its row, each time it is sent too), `object_kill` ends one (its row changes to `killing`, and is a `del` once the kill has been sent); a live one is also a row of `stations`")
+    own_bulletins: dict[str, OwnBulletinRow] = Field(description="the bulletins, announcements and group bulletins of ours by slot (`BLN1`): `bulletin_post` posts one (a `set` of its row, each time it is sent too), `bulletin_unpost` deletes one (a `del`)")
     map: MapState = Field(description="the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps; told whole as it changes, at most four times a second")
 
 
 TOPIC_NAMES: tuple[str, ...] = tuple(get_type_hints(TopicValues))
 TOPIC_VALUES = {name: TypeAdapter(annotation) for name, annotation in get_type_hints(TopicValues).items()}
 """A validator for the value of each topic, by the topic's name: the outgoing check looks at `state` and `patch` with it (neoaprs/web/outbound.py)."""
-TOPIC_ITEMS: dict[str, "TypeAdapter[Any]"] = {"stations": TypeAdapter(StationRow), "packets": TypeAdapter(PacketRow), "messages": TypeAdapter(MessageRow), "bulletins": TypeAdapter(BulletinRow), "station_prefs": TypeAdapter(StationPref)}
+TOPIC_ITEMS: dict[str, "TypeAdapter[Any]"] = {"stations": TypeAdapter(StationRow), "packets": TypeAdapter(PacketRow), "messages": TypeAdapter(MessageRow), "bulletins": TypeAdapter(BulletinRow), "station_prefs": TypeAdapter(StationPref), "own_objects": TypeAdapter(OwnObjectRow), "own_bulletins": TypeAdapter(OwnBulletinRow)}
 """A validator for one item of a table topic: the outgoing check looks at the `set` ops with it."""
 
 

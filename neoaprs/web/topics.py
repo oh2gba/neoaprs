@@ -6,6 +6,8 @@
     config     the settings                          changed by Controller.config_changed, which every save emits
     messages   every message by id                   changed by Messaging.changed (a new or changed message) and .removed (one that was deleted)
     bulletins  the message board by sender/slot    changed by Bulletins.changed (a new or heard again) and .removed (one that is deleted)
+    own_objects  the objects and items of ours by name     changed by OwnObjects.changed (made, changed, sent) and .removed (forgotten)
+    own_bulletins  the bulletins of ours by slot           changed by OwnBulletins.changed (posted, sent) and .removed (deleted)
     station_prefs  the path, timeout, attempts and RF only of each station by call   changed by PrefBook.changed (one of them set or cleared)
     map        the base map: files, estimate, the job   changed by MapFetch.changed, and by every save of the settings (the area follows our position); at most four times a second
 
@@ -19,6 +21,8 @@ from neoaprs.bulletin import BulletinRecord
 from neoaprs.config import Config
 from neoaprs.controller import Controller
 from neoaprs.message import MessageRecord
+from neoaprs.ownbulletin import OwnBulletin
+from neoaprs.ownobject import OwnObject
 from neoaprs.packet import Packet
 from neoaprs.pref import Pref
 from neoaprs.signal import Signal
@@ -27,7 +31,7 @@ from neoaprs.stationbook import Station
 
 from .hub import StateHub, Topic
 from .mapview import map_state
-from .views import bulletin_row, config_values, message_row, packet_row, pref_row, station_row, tnc_state
+from .views import bulletin_row, config_values, message_row, own_bulletin_row, own_object_row, packet_row, pref_row, station_row, tnc_state
 
 log = logging.getLogger("neoaprs.web")
 
@@ -82,6 +86,8 @@ class Topics:
         hub.add(Topic("station_prefs", lambda: {call: pref_row(pref) for call, pref in ctl.prefbook.all().items()}, self._station_pref))
         hub.add(Topic("messages", lambda: {str(m.id): self._message_row(m) for m in ctl.messaging.records()}, self._message))
         hub.add(Topic("bulletins", lambda: {b.key: bulletin_row(b) for b in ctl.bulletins.records()}, self._bulletin))
+        hub.add(Topic("own_objects", lambda: {o.name: self._own_object_row(o) for o in ctl.ownobjects.records()}, self._own_object))
+        hub.add(Topic("own_bulletins", lambda: {b.slot: self._own_bulletin_row(b) for b in ctl.ownbulletins.records()}, self._own_bulletin))
         hub.add(Topic("map", lambda: map_state(ctl.mapfetch.status()), interval=TNC_EVERY_SEC))
         self.connected = False
 
@@ -96,6 +102,20 @@ class Topics:
     def _bulletin(self, key: str) -> dict[str, Any] | None:
         record = self.ctl.bulletins.get(key)
         return None if record is None else bulletin_row(record)
+
+    def _own_object(self, name: str) -> dict[str, Any] | None:
+        record = self.ctl.ownobjects.get(name)
+        return None if record is None else self._own_object_row(record)
+
+    def _own_object_row(self, obj: OwnObject) -> dict[str, Any]:
+        return own_object_row(obj, self.ctl.ownobjects.next_at(obj.name))
+
+    def _own_bulletin(self, slot: str) -> dict[str, Any] | None:
+        record = self.ctl.ownbulletins.get(slot)
+        return None if record is None else self._own_bulletin_row(record)
+
+    def _own_bulletin_row(self, bulletin: OwnBulletin) -> dict[str, Any]:
+        return own_bulletin_row(bulletin, self.ctl.ownbulletins.next_at(bulletin.slot))
 
     def _message(self, key: str) -> dict[str, Any] | None:
         record = self.ctl.messaging.get(int(key)) if key.isdigit() else None
@@ -119,6 +139,8 @@ class Topics:
             (ctl.config_changed, self._config_changed),
             (ctl.messaging.changed, self._message_changed), (ctl.messaging.removed, self._message_changed),
             (ctl.bulletins.changed, self._bulletin_changed), (ctl.bulletins.removed, self._bulletin_changed),
+            (ctl.ownobjects.changed, self._own_object_changed), (ctl.ownobjects.removed, self._own_object_changed),
+            (ctl.ownbulletins.changed, self._own_bulletin_changed), (ctl.ownbulletins.removed, self._own_bulletin_changed),
             (ctl.prefbook.changed, self._pref_changed), (ctl.mapfetch.changed, self._map_changed),
         ]
 
@@ -159,6 +181,12 @@ class Topics:
 
     def _bulletin_changed(self, record: BulletinRecord) -> None:
         self.hub.changed("bulletins", record.key)
+
+    def _own_object_changed(self, obj: OwnObject) -> None:
+        self.hub.changed("own_objects", obj.name)
+
+    def _own_bulletin_changed(self, bulletin: OwnBulletin) -> None:
+        self.hub.changed("own_bulletins", bulletin.slot)
 
     def _map_changed(self) -> None:
         self.hub.changed("map")

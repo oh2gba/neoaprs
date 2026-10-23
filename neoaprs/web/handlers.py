@@ -11,6 +11,8 @@ from neoaprs.clock import iso
 from neoaprs.config import Config
 from neoaprs.mapstate import Job, MapError
 from neoaprs.message import MessagingError
+from neoaprs.ownbulletin import PostError
+from neoaprs.ownobject import OwnError
 from neoaprs.serialprobe import available_ports, can_search
 
 from .beaconwire import BeaconNow
@@ -19,6 +21,7 @@ from .dispatch import Ctx, UserError, command
 from .hostwire import AskStatus, Ping
 from .hubwire import Subscribe, Unsubscribe
 from .mapwire import MapCancel, MapEstimate, MapFetch
+from .ownwire import BulletinPost, BulletinUnpost, ObjectKill, ObjectSet
 from .messagewire import AlertTest, ConversationDelete, MessageCancel, MessageDelete, MessageRetry, OverheardDelete, SendMessage
 from .portwire import ListPorts
 from .prefwire import ClearStationAttempts, ClearStationPath, ClearStationTimeout, SetStationAttempts, SetStationPath, SetStationRfOnly, SetStationTimeout
@@ -34,7 +37,7 @@ def refused(name: str) -> Iterator[None]:
     """A part that refuses with a MessagingError (messaging, the station preferences): the reason is the page's error, after the name of the command."""
     try:
         yield
-    except MessagingError as e:
+    except (MessagingError, OwnError, PostError) as e:
         raise UserError(f"{name}: {e}") from None
 
 
@@ -66,6 +69,8 @@ async def forget_station(ctx: Ctx, cmd: ForgetStation) -> None:
     station = book.get(cmd.call)
     if station is None:
         raise UserError(f"forget_station: there is no station {cmd.call!r}")
+    if station.own:
+        raise UserError(f"forget_station: {cmd.call} is an object of ours: kill it (object_kill)")
     if not book.forget(cmd.call):
         raise UserError(f"forget_station: {cmd.call} is our own station, which stays")
 
@@ -203,6 +208,30 @@ def start_map_job(ctx: Ctx, job: Job, name: str) -> None:
         ctx.ctl.mapfetch.begin(job)
     except MapError as e:
         raise UserError(f"{name}: {e}") from None
+
+
+@command(ObjectSet)
+async def object_set(ctx: Ctx, cmd: ObjectSet) -> None:
+    with refused(cmd.cmd):
+        ctx.ctl.ownobjects.set(cmd.name, cmd.kind, cmd.lat, cmd.lon, cmd.symbol_table, cmd.symbol_code, cmd.comment, cmd.course_deg, cmd.speed_kmh, cmd.path)
+
+
+@command(ObjectKill)
+async def object_kill(ctx: Ctx, cmd: ObjectKill) -> None:
+    with refused(cmd.cmd):
+        ctx.ctl.ownobjects.kill(cmd.name)
+
+
+@command(BulletinPost)
+async def bulletin_post(ctx: Ctx, cmd: BulletinPost) -> None:
+    with refused(cmd.cmd):
+        ctx.ctl.ownbulletins.post(cmd.slot, cmd.text)
+
+
+@command(BulletinUnpost)
+async def bulletin_unpost(ctx: Ctx, cmd: BulletinUnpost) -> None:
+    if not ctx.ctl.ownbulletins.delete(cmd.slot):
+        raise UserError(f"bulletin_unpost: there is no bulletin {cmd.slot} of ours")
 
 
 @command(MapEstimate)
