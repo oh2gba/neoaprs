@@ -217,13 +217,10 @@ async def shot_weather(s: Shots, _: str) -> None:
 
 
 async def open_thread(s: Shots, call: str, scale: int = 1, size: dict[str, int] = DESKTOP) -> Any:
-    """The Messages tab with the conversation of `call` open and the chains of the message with several attempts unfolded."""
+    """The Messages tab with the conversation of `call` open."""
     page = await s.page(size, tab="messages", view=CITY, panel=560, scale=scale)
     await page.locator("#pane-messages").get_by_text(call).first.click()
-    await settle(page)
-    for summary in await page.locator("#pane-messages summary").all():
-        await summary.click()
-    await settle(page, 600)
+    await settle(page, 1500)
     return page
 
 
@@ -241,6 +238,7 @@ async def thread_clip(page: Any, most: int) -> dict[str, int]:
     return {"x": round(box["x"]), "y": round(box["y"]), "width": round(box["width"]), "height": height}
 
 
+WIDE_PANEL = 760                                                         # (the width at which the tab bar shows all its tabs, so that the tab on show is seen: Beacon, Settings)
 TALL = {"width": 1440, "height": 1250}                                  # (a taller window, so that the thread has room: the close-ups are cut out of it)
 
 
@@ -251,7 +249,7 @@ async def shot_chain(s: Shots, _: str) -> None:
 
 
 async def shot_chain_failed(s: Shots, _: str) -> None:
-    """A message that failed after six attempts, one of them heard again from the internet."""
+    """A message that failed after its four attempts."""
     page = await open_thread(s, "OH2ZXA", scale=2, size=TALL)
     await s.save(page, "chain-failed", clip=await thread_clip(page, 330))
 
@@ -288,24 +286,28 @@ async def shot_objects_form(s: Shots, _: str) -> None:
 
 async def shot_beacon(s: Shots, _: str) -> None:
     await s.since_start(45)
-    page = await s.page(DESKTOP, tab="beacon", view=CITY, panel=560)
+    page = await s.page(DESKTOP, tab="beacon", view=CITY, panel=WIDE_PANEL)
     await s.save(page, "beacon")
 
 
 async def made_up_web(page: Any) -> None:
     """Puts the made-up access key and addresses in place of the daemon's own on a page that shows the Settings tab: the machine's own address and name never appear in a shot."""
     await page.evaluate("""([key, urls]) => {
-        const field = document.getElementById("set-web-key");
-        if (field) field.value = key;
-        const inputs = [...document.querySelectorAll('[id^="set-web-url-"]')];
-        while (inputs.length && inputs.length < urls.length) { const copy = inputs[0].cloneNode(true); inputs[0].parentElement.append(copy); inputs.push(copy); }
-        inputs.forEach((input, i) => { if (i < urls.length) input.value = urls[i]; else input.remove(); });
+        const put = () => {
+            const field = document.getElementById("set-web-key");
+            if (field) field.value = key;
+            const inputs = [...document.querySelectorAll('[id^="set-web-url-"]')];
+            while (inputs.length && inputs.length < urls.length) { const copy = inputs[0].cloneNode(true); inputs[0].parentElement.append(copy); inputs.push(copy); }
+            inputs.forEach((input, i) => { if (i < urls.length) input.value = urls[i]; else input.remove(); });
+        };
+        put();
+        setInterval(put, 25);                                   // (the page draws the settings again when the radio's state changes, and puts its own key and addresses back: they are put over again)
     }""", [SHOWN_KEY, SHOWN_URLS])
 
 
 async def shot_settings_web(s: Shots, _: str) -> None:
     """Settings, the Web page group: the switch on, the access key and where to open the page (the daemon's own key and addresses are replaced by made-up ones on the screen)."""
-    page = await s.page(DESKTOP, tab="settings", view=CITY, panel=560)
+    page = await s.page(DESKTOP, tab="settings", view=CITY, panel=WIDE_PANEL)
     await page.locator("legend", has_text="Web page").scroll_into_view_if_needed()
     await made_up_web(page)
     await page.evaluate("document.querySelector('#pane-settings fieldset:has(#set-web-key)')?.scrollIntoView({block: 'start'})")
@@ -321,7 +323,7 @@ async def shot_phone_key(s: Shots, _: str) -> None:
 
 
 async def shot_settings(s: Shots, _: str) -> None:
-    page = await s.page(DESKTOP, tab="settings", view=CITY, panel=560)
+    page = await s.page(DESKTOP, tab="settings", view=CITY, panel=WIDE_PANEL)
     await made_up_web(page)
     await settle(page, 400)
     await s.save(page, "settings")
