@@ -1,14 +1,57 @@
 """The bases of the models of the wire format (the `neoaprs/web/*wire.py` modules and `neoaprs/web/protocol.py`): strict, no field the model does not know, and the titles the TypeScript names are made of; and
 the scalar types and the models that several of those modules share (a time, the details of a position)."""
-from typing import Annotated
+from dataclasses import fields, is_dataclass
+from datetime import datetime
+from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from neoaprs.clock import iso
 
 Iso = Annotated[str, Field(pattern=r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$", description="UTC, ISO 8601 with a Z")]
 
 
+def plain(value: Any) -> Any:
+    """What the page is told of a value of the daemon: a time as ISO text, a tuple or a list as a list, a named tuple or a dataclass as a dict, anything else as it is."""
+    kind = type(value)
+    if kind in _SCALARS:
+        return value
+    if kind is datetime:
+        return iso(value)
+    if kind is tuple or kind is list:
+        return [plain(item) for item in value]
+    if hasattr(value, "_asdict"):
+        return {name: plain(item) for name, item in value._asdict().items()}
+    if is_dataclass(value):
+        return {f.name: plain(getattr(value, f.name)) for f in fields(value)}
+    return value
+
+
+_NAMES: dict[type, dict[str, None]] = {}                 # the field names of each model, in order
+_SCALARS = frozenset({type(None), str, int, float, bool})
+
+
 class _Model(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, allow_inf_nan=False)
+
+    @classmethod
+    def row(cls, source: Any, **given: Any) -> dict[str, Any]:
+        """The model's value of a domain object, as the plain dict that goes on the wire: each field is the attribute of the same name of `source` (made plain), except the ones in `given`, which are
+        the fields whose value is not an attribute of the object (a distance from us, the next time it is sent). The fields, their order and their names are the model's: a field the object
+        has is told by adding it to the model, and one that cannot be found fails loudly (the tests and NEOAPRS_VALIDATE_OUT hold the dict to the model)."""
+        names = _NAMES.get(cls)
+        if names is None:
+            names = _NAMES[cls] = dict.fromkeys(cls.model_fields)
+        if given and not given.keys() <= names.keys():
+            raise TypeError(f"{cls.__name__} has no field {', '.join(sorted(given.keys() - names.keys()))}")
+        out: dict[str, Any] = {}
+        for name in names:
+            if name in given:
+                out[name] = given[name]
+            else:
+                value = getattr(source, name)
+                out[name] = value if type(value) in _SCALARS else plain(value)
+        return out
 
 
 def _command_title(cls: type) -> str:
