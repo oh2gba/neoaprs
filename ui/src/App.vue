@@ -268,6 +268,7 @@ function onPick(at: Home): void {
             :last-error="lastError"
             :send="send"
             @beacon="send({ cmd: 'beacon_now' })"
+            @status="send({ cmd: 'status_now' })"
           />
         </template>
         <template #tnc>

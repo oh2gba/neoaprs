@@ -82,7 +82,7 @@ export function useOwnObjects(rows: ReadonlyMap<string, OwnObjectRow>, home: Ref
     if (row !== undefined) send(moveCommand(row, lat, lon));
   }
 
-  /** The Place button: the next click on the map is the place, or no longer. */
+  /** The Pick on the map button: the next click on the map is the place, or no longer. */
   function togglePlacing(): void {
     placing.value = !placing.value;
   }

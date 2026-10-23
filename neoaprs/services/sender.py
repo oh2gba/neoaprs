@@ -10,7 +10,7 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import Protocol
 
-from neoaprs import ax25
+from neoaprs import TOCALL, ax25
 from neoaprs.callsign import CallsignError
 from neoaprs.clock import Clock, utcnow
 from neoaprs.config import Config
@@ -71,7 +71,7 @@ class Sender:
         if len(info) > ax25.MAX_INFO:
             raise SendError(f"the information field is {len(info)} bytes, more than the {ax25.MAX_INFO} AX.25 allows")
         try:
-            return ax25.Frame(ax25.Address.parse(c.beacon_destination), ax25.Address.parse(c.station_call), tuple(ax25.Address.parse(call) for call in calls), info=info)
+            return ax25.Frame(ax25.Address.parse(TOCALL), ax25.Address.parse(c.station_call), tuple(ax25.Address.parse(call) for call in calls), info=info)
         except (ax25.Ax25Error, CallsignError, ValueError) as e:
             raise SendError(str(e)) from None
 

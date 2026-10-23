@@ -2,7 +2,15 @@
 
 ## Unreleased
 
-Nothing yet.
+The Beacon tab made plainer.
+
+- Status: one group, **Status**, with one choice: *off*, *a text of my own* or *the frequency from my radio (rigctld)*, and then only the fields that choice needs (**Text** and **Every** for a text; **Rigctld**, **Text** with `{freq}` and `{mode}`, and **Every** for the radio). A new setting `status/source` keeps the choice; while it is empty it is what the other settings say (the radio while `status/rigctld` is set, else the text while there is one, else off), so an installation keeps doing what it did. Choosing the radio without an address is refused with the reason.
+- **Send status now** beside the status at the top of the Beacon tab (the new command `status_now`): sends the status at once, inside the interval and although nothing changed, by the same checks as the timer's (no call set, the TNC, 55 characters with the time) and says why when it cannot; the interval counts from it.
+- **Beacon now** and **Send status now** are primary buttons beside the information they act on, one row each at the top of the tab, of one size; both ask once more ("Really send?") and are off while the TNC is not connected or the settings below hold changes that are not saved.
+- The symbol is a picture and its name with **Change**, which opens a picker with every symbol of the primary and of the alternate table, the usual ones first, searchable by name (`house`, `car`, `digi`, `wx`). The table and code fields are gone from the Beacon tab, the setup guide (its 12 usual symbols stay on top, **More...** opens the picker) and the Objects form. A symbol made to carry a letter or a digit has a small "Letter or digit on it".
+- A small **(i)** after the label of the fields whose meaning is not plain (comment, the status and its text, the radio, how often, the beacon's interval, the path, the antenna's power, height, gain and direction) opens a short note with an example; Esc, a click outside or moving on closes it.
+- The preview of the packet and the status at the bottom of the Beacon tab is a closed disclosure, "Preview" (it says in its title when the values make no packet). The Objects form's map button is **Pick on the map** (was Place), on a row of its own under the latitude and the longitude, which are the same width. In the dark colour scheme a symbol picture has a light chip behind it, so that the dark outlines (bike, car, motorcycle) show.
+- Less to fill in: the destination call (`APZNEO`, now a constant of the program that every frame we send carries; a stored `beacon/destination` is ignored), the compressed form and the DAO (the beacon is always the plain uncompressed position; stored `beacon/compressed` and `beacon/dao` are ignored) are no settings any more. The antenna's height, gain and direction show once a power is set; the Status group shows only what its choice needs.
 
 ## 0.4.0
 

@@ -12,7 +12,7 @@ and `tests/test_docs.py` fails when one differs: change `LAYERS` and the lists i
 | layer | modules | may import | may not import |
 | --- | --- | --- | --- |
 | foundation | `clock signal callsign geo symbols kiss ax25 aprsposition aprsmice aprsmessage aprsparse aprsweather aprsthirdparty aprsextension aprslocator aprstelemetry aprsnmea packet packetcodec message bulletin decay tncmode tncprofile pref route chain mapstate serialboards versions` | foundation | domain, adapters, persistence, services, app, delivery, and any I/O library |
-| domain | `alertcommand config configlegacy configtypes interlock stationbook ownobject ownbulletin` | foundation, domain | adapters, persistence, services, app, delivery, and any I/O library |
+| domain | `alertcommand config configlegacy configstatus configtypes interlock stationbook ownobject ownbulletin` | foundation, domain | adapters, persistence, services, app, delivery, and any I/O library |
 | adapters | `source tasks serialport serialholders serialprobe tnc tncsearch tncwatchdog tncentry childenv rigctld pmtilestool updatefetch` | foundation, domain, adapters | persistence, services, app, delivery |
 | persistence | `store migrations migrations2 backupfolder durable instancelock stopfile walcare dbfile dberror dbstats dbthread db dbopen storesql paths dblog packetsql packetlog messagesql messagelog bulletinsql bulletinlog weathersql weatherlog ownsql ownlog` | foundation, domain, persistence | adapters, services, app, delivery |
 | services | everything in `neoaprs/services/` | foundation, domain, adapters, persistence, services | app, delivery |

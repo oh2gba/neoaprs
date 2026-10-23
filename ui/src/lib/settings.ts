@@ -1,6 +1,7 @@
 // The settings form's logic: which key goes in which group, what each field says of itself, which keys the user changed, and which field an error of the daemon is about.
 // The keys and their order come from the daemon (CONFIG_KEYS of the generated lists); a key this file does not know is shown under its own name.
 import { DETAIL_CHOICES } from "@/lib/mapfetch";
+import { STATUS_CHOICES, statusShown, statusSource } from "@/lib/status";
 import { CONFIG_KEYS, TNC_PROFILES } from "@/protocol/lists";
 
 type FieldKind = "text" | "bool" | "readonly" | "choice";
@@ -15,6 +16,10 @@ export interface FieldInfo {
   empty?: string;
   /** On hover: the one thing a word cannot say. */
   title?: string;
+  /** What the (i) after the label says: two to four plain sentences. */
+  help?: string;
+  /** The example that ends it. */
+  example?: string;
   kind?: FieldKind;
   /** The values a `choice` offers: the text of the setting, or the text with the words it is shown as. */
   choices?: readonly (string | Choice)[];
@@ -31,14 +36,44 @@ export const FIELDS: Record<string, FieldInfo> = {
   "station/call": { label: "Call" },
   "station/lat": { label: "Latitude", unit: "°" },
   "station/lon": { label: "Longitude", unit: "°" },
-  "station/symbol_table": { label: "Symbol table", title: "/ primary, \\ alternate, 0-9 and A-Z overlay" },
+  "station/symbol_table": { label: "Symbol" },
   "station/symbol_code": { label: "Symbol code" },
-  "station/comment": { label: "Comment", title: "43 characters; 36 with PHG, 40 compressed" },
-  "station/status": { label: "Static text", empty: "none", title: "55 characters, ASCII" },
-  "beacon/power_w": { label: "Power", unit: "W", empty: "none", title: "PHG; not sent when compressed" },
-  "beacon/antenna_height_m": { label: "Antenna height", unit: "m" },
-  "beacon/antenna_gain_db": { label: "Antenna gain", unit: "dB" },
-  "beacon/antenna_direction": { label: "Antenna direction", kind: "choice", choices: ["omni", "N", "NE", "E", "SE", "S", "SW", "W", "NW"] },
+  "station/comment": {
+    label: "Comment",
+    help: "A short text sent with your position in every beacon. Other stations see it beside your name on their map. Letters, digits and ordinary punctuation, no | or ~. It can be 43 characters long, 36 when Power is set.",
+    example: "Home station, 2 m FM",
+  },
+  "station/status": {
+    label: "Text",
+    empty: "none",
+    help: "A line about what you are doing, sent on its own, not with every beacon. Other stations see it as your status. It goes out when it is new and the Every time has passed since the last status. Up to 55 characters, no | or ~.",
+    example: "At the summer cottage, QRV 145.500 FM",
+  },
+  "beacon/power_w": {
+    label: "Power",
+    unit: "W",
+    empty: "none",
+    help: "The transmitter's output power. Together with the antenna height, gain and direction it adds a short code (PHG) to the beacon that tells others how far you can be heard. Leave it empty to send none of the four.",
+    example: "5",
+  },
+  "beacon/antenna_height_m": {
+    label: "Antenna height",
+    unit: "m",
+    help: "How high the antenna is above the average ground around it, not above the sea. Used only for the PHG code.",
+    example: "10 for a mast on a house on level ground",
+  },
+  "beacon/antenna_gain_db": {
+    label: "Antenna gain",
+    unit: "dB",
+    help: "How much the antenna concentrates the signal, 0 to 9 dB. Use 0 if you do not know. Used only for the PHG code.",
+    example: "3",
+  },
+  "beacon/antenna_direction": {
+    label: "Antenna direction",
+    kind: "choice",
+    choices: ["omni", "N", "NE", "E", "SE", "S", "SW", "W", "NW"],
+    help: "The way the antenna favours: omni when it works the same in every direction, as most whips and verticals do, or the point of the compass a beam antenna points to. Used only for the PHG code.",
+  },
   "tnc/profile": { label: "TNC", kind: "choice", choices: TNC_PROFILES.map((p) => ({ value: p.key, label: p.name })) },
   "serial/port": { label: "Port", empty: "/dev/ttyUSB0", title: "Automatic: NeoAPRS listens for the radio" },
   "serial/baud": { label: "Speed", unit: "baud" },
@@ -61,14 +96,42 @@ export const FIELDS: Record<string, FieldInfo> = {
   "messages/attempts": { label: "Attempts" },
   "messages/alert": { label: "Alert", kind: "bool" },
   "messages/alert_command": { label: "Command" },
-  "status/rigctld": { label: "Rigctld", empty: "off", title: "host:port" },
-  "status/interval_min": { label: "Interval", unit: "min", title: "10 at least" },
-  "status/template": { label: "Template", title: "{freq} {mode}" },
-  "beacon/interval_min": { label: "Interval", unit: "min", zero: "off", title: "10 at least" },
-  "beacon/path": { label: "Path", empty: "direct" },
-  "beacon/destination": { label: "Destination" },
-  "beacon/compressed": { label: "Compressed", kind: "bool" },
-  "beacon/dao": { label: "DAO", kind: "bool", title: "One more digit of the position, !Wxy!" },
+  "status/source": {
+    label: "Status",
+    kind: "choice",
+    choices: STATUS_CHOICES,
+    help: "A status is a line other stations see with your name. Off sends none. A text of my own sends the line you type. The frequency from my radio asks your radio, through rigctld, what it is tuned to and sends that.",
+  },
+  "status/rigctld": {
+    label: "Rigctld",
+    empty: "127.0.0.1:4532",
+    help: "rigctld is a small Hamlib program that lets a computer ask a radio what it is tuned to; start it for your radio first. Type where it listens, as address:port. 4532 is the usual port.",
+    example: "127.0.0.1:4532",
+  },
+  "status/interval_min": {
+    label: "Every",
+    unit: "min",
+    help: "The least time between two status reports, 10 to 1440 minutes. A status is not sent again while it says the same as the last one, however long it has been.",
+    example: "30",
+  },
+  "status/template": {
+    label: "Text",
+    help: "The status is made from this text with what your radio is tuned to now: {freq} becomes the frequency and {mode} the mode. Up to 55 characters once they are filled in.",
+    example: "QRV {freq} {mode} gives QRV 14.074 MHz USB",
+  },
+  "beacon/interval_min": {
+    label: "Interval",
+    unit: "min",
+    zero: "off",
+    help: "How often your position is sent, in minutes, 10 at the least. 0 sends none by itself; Beacon now still sends one. Every beacon uses the channel for everyone around, so choose it with care.",
+    example: "30 for a station that stays where it is",
+  },
+  "beacon/path": {
+    label: "Path",
+    empty: "direct",
+    help: "The digipeaters, the stations that repeat your packet so it travels further, in the order it should use them, separated by commas. WIDE1-1,WIDE2-1 is the usual choice. Empty sends direct, with no help.",
+    example: "WIDE1-1,WIDE2-1",
+  },
 };
 
 /** The settings of the daemon's own alert, which the Notifications group shows (beside the alert of the browser, which is the page's). */
@@ -89,7 +152,7 @@ interface Group {
 }
 
 const GROUPS: { id: string; title: string; prefixes: string[]; also?: string[]; except?: string[] }[] = [
-  { id: "station", title: "Station", prefixes: ["station/"], also: ANTENNA },
+  { id: "station", title: "Station", prefixes: ["station/"], also: ANTENNA, except: ["station/status"] },
   { id: "serial", title: "TNC", prefixes: ["tnc/", "serial/", "tcp/"] },
   { id: "web", title: "Web page", prefixes: ["web/"] },
   { id: "log", title: "Log", prefixes: ["log/"] },
@@ -98,7 +161,7 @@ const GROUPS: { id: string; title: string; prefixes: string[]; also?: string[]; 
   { id: "map", title: "Map", prefixes: ["map/"] },
   { id: "update", title: "Update check", prefixes: ["update/"] },
   { id: "beacon", title: "Beacon", prefixes: ["beacon/"], except: ANTENNA },
-  { id: "status", title: "Status", prefixes: ["status/"] },
+  { id: "status", title: "Status", prefixes: ["status/"], also: ["station/status"] },
 ];
 
 /** Which settings a form shows: the Beacon tab has what the beacon says and sends, the Settings tab the rest (and any key this file does not know), so that no key is in two places. */
@@ -111,15 +174,19 @@ const SCOPE_GROUPS: Record<Scope, readonly string[]> = {
 /** The order of the TNC group on the page: the port and its speed, the keep-alive, then the search (which the port falls back to). */
 const TNC_ORDER = ["tnc/profile", "serial/port", "serial/baud", "tcp/host", "tcp/port", "tnc/check_sec", "serial/pattern", "serial/skip", "serial/last_port"];
 
-function rank(key: string): number {
-  const at = TNC_ORDER.indexOf(key);
-  return at < 0 ? TNC_ORDER.length : at;
+/** The Status group: the choice first, then what that choice needs. */
+const STATUS_ORDER = ["status/source", "station/status", "status/rigctld", "status/template", "status/interval_min"];
+const GROUP_ORDER: Record<string, readonly string[]> = { serial: TNC_ORDER, status: STATUS_ORDER };
+
+function rank(order: readonly string[], key: string): number {
+  const at = order.indexOf(key);
+  return at < 0 ? order.length : at;
 }
 
 /** Settings that stay in the daemon (`neoaprs db set`) and are not on the page: the address the update check asks, and which ports the search for the radio looks at and leaves alone (the defaults suit nearly everyone). */
 const NOT_ON_THE_PAGE: readonly string[] = ["update/url", "serial/pattern", "serial/skip"];
 
-/** The keys in the order of the daemon's list (a key it did not list last; the TNC group in its own order), in the groups of the form `scope` shows. */
+/** The keys in the order of the daemon's list (a key it did not list last; the TNC and Status groups in their own order), in the groups of the form `scope` shows. */
 export function groupKeys(keys: readonly string[], scope: Scope = "settings"): Group[] {
   const order = (key: string): number => {
     const at = (CONFIG_KEYS as readonly string[]).indexOf(key);
@@ -131,8 +198,10 @@ export function groupKeys(keys: readonly string[], scope: Scope = "settings"): G
     title: g.title,
     keys: sorted.filter((k) => (g.also?.includes(k) ?? false) || (g.prefixes.some((p) => k.startsWith(p)) && !g.except?.includes(k))),
   }));
-  const tnc = groups.find((g) => g.id === "serial");
-  if (tnc) tnc.keys.sort((a, b) => rank(a) - rank(b));
+  for (const group of groups) {
+    const order = GROUP_ORDER[group.id];
+    if (order) group.keys.sort((a, b) => rank(order, a) - rank(order, b));
+  }
   const known = new Set(groups.flatMap((g) => g.keys));
   groups.push({ id: "other", title: "Other", keys: sorted.filter((k) => !known.has(k)) });
   const shown = scope === "beacon" ? SCOPE_GROUPS.beacon : [...SCOPE_GROUPS.settings, "other"];
@@ -191,4 +260,11 @@ export function speedFallback(profileKey: string | undefined, fallback: string):
 /** The port to keep when the profile is changed: a serial device does not go with a TCP profile (the daemon refuses it), so it is cleared; an address stays. */
 export function portForProfile(profileKey: string, port: string): string {
   return profileOf(profileKey)?.transport === "tcp" && port !== "" && !/^(socket|tcp):\/\//i.test(port.trim()) ? "" : port;
+}
+
+/** Whether a field of the Beacon tab is shown for the values the form holds: the Status group shows what its source needs, and the antenna's height, gain and direction come once there is a power (they only make the PHG code with it). */
+export function shownByValues(key: string, values: Readonly<Record<string, string>>): boolean {
+  if (key.startsWith("status/") || key === "station/status") return statusShown(key, statusSource(values));
+  if (ANTENNA.includes(key) && key !== "beacon/power_w") return (values["beacon/power_w"] ?? "").trim() !== "";
+  return true;
 }

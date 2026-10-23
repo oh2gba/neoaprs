@@ -24,7 +24,7 @@ from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from typing import Protocol
 
-from neoaprs import ax25
+from neoaprs import TOCALL, ax25
 from neoaprs.aprsmessage import MAX_TEXT, MessageError, format_message
 from neoaprs.callsign import CallsignError
 from neoaprs.config import Config
@@ -237,7 +237,7 @@ class Queries:
     def _message(self, asker: str, text: str) -> ax25.Frame:
         """Our frame carrying a message to the asker, without an id (nothing is waited for)."""
         c = self._config()
-        return ax25.Frame(ax25.Address.parse(c.beacon_destination), ax25.Address.parse(c.station_call), (), info=b":" + format_message(asker, text))
+        return ax25.Frame(ax25.Address.parse(TOCALL), ax25.Address.parse(c.station_call), (), info=b":" + format_message(asker, text))
 
     def _send(self, asker: str, frame: ax25.Frame) -> bool:
         """Sends the frame by the asker's path; whether it went, and a word in the log when it did not."""

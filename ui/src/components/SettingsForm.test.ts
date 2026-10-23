@@ -47,9 +47,17 @@ describe("SettingsForm", () => {
       slots: { preview: "<p class='sample'>preview</p>" },
     });
     expect(wrapper.findAll("fieldset legend").map((l) => l.text())).toEqual(["Station", "Beacon", "Status"]);
-    expect(wrapper.findAll(".field")).toHaveLength(
-      CONFIG_KEYS.filter((k) => k.startsWith("beacon/") || k.startsWith("station/") || k.startsWith("status/")).length,
-    );
+    expect(wrapper.findAll(".field label").map((l) => l.text())).toEqual([
+      "Call",
+      "Latitude",
+      "Longitude",
+      "Symbol",
+      "Comment",
+      "Power",
+      "Interval",
+      "Path",
+      "Status",
+    ]);
     expect(wrapper.find(".sample").exists()).toBe(true);
   });
 
@@ -103,14 +111,16 @@ describe("SettingsForm", () => {
   it("shows what an empty value means as the placeholder, else the default", () => {
     const { wrapper } = make();
     expect(wrapper.find("#set-serial-baud").attributes("placeholder")).toBe("9600");
-    const beacon = make({}, "beacon").wrapper;
+    const beacon = make({ "status/source": "text" }, "beacon").wrapper;
     expect(beacon.find("#set-beacon-path").attributes("placeholder")).toBe("direct");
     expect(beacon.find("#set-beacon-power_w").attributes("placeholder")).toBe("none");
     expect(beacon.find("#set-station-status").attributes("placeholder")).toBe("none");
   });
 
-  it("has the antenna in the Station group with its units, and a choice for the direction", () => {
+  it("has the antenna in the Station group with its units, and a choice for the direction, once there is a power", async () => {
     const { wrapper } = make({}, "beacon");
+    expect(wrapper.find("#set-beacon-antenna_height_m").exists()).toBe(false);
+    await wrapper.find("#set-beacon-power_w").setValue("5");
     const station = wrapper.findAll("fieldset").find((f) => f.find("legend").text() === "Station");
     expect(station?.find("#set-beacon-power_w").exists()).toBe(true);
     const units = ["power_w", "antenna_height_m", "antenna_gain_db"].map(
@@ -120,13 +130,9 @@ describe("SettingsForm", () => {
     const direction = station?.find("#set-beacon-antenna_direction");
     expect(direction?.element.tagName).toBe("SELECT");
     expect(direction?.findAll("option").map((o) => o.text())).toEqual(["omni", "N", "NE", "E", "SE", "S", "SW", "W", "NW"]);
-    expect(
-      wrapper
-        .findAll("fieldset")
-        .find((f) => f.find("legend").text() === "Beacon")
-        ?.find("#set-beacon-dao")
-        .exists(),
-    ).toBe(true);
+    expect(wrapper.find("#set-beacon-dao").exists()).toBe(false);
+    expect(wrapper.find("#set-beacon-compressed").exists()).toBe(false);
+    expect(wrapper.find("#set-beacon-destination").exists()).toBe(false);
   });
 
   it("offers a choice for the TNC, and the port the daemon found is no field", () => {
@@ -353,12 +359,12 @@ describe("SettingsForm", () => {
     const { wrapper, send } = make({}, "beacon");
     expect(wrapper.find("button[type='submit']").attributes("disabled")).toBeDefined();
     await wrapper.find("#set-station-lat").setValue("61.5");
-    await wrapper.find("#set-beacon-compressed").setValue("true");
-    await wrapper.find("#set-beacon-antenna_direction").setValue("NE");
+    await wrapper.find("#set-beacon-path").setValue("WIDE2-2");
+    await wrapper.find("#set-beacon-power_w").setValue("5");
     expect(wrapper.find("button[type='submit']").attributes("disabled")).toBeUndefined();
     expect(wrapper.text()).toContain("3 changed");
     await wrapper.find("form").trigger("submit");
-    expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "station/lat": "61.5", "beacon/compressed": "true", "beacon/antenna_direction": "NE" } });
+    expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "station/lat": "61.5", "beacon/path": "WIDE2-2", "beacon/power_w": "5" } });
   });
 
   it("shows the error of the daemon under the field it names", async () => {
@@ -454,7 +460,11 @@ describe("SettingsForm", () => {
       const { wrapper } = make();
       expect(button(wrapper)?.textContent?.trim()).toBe("Test");
       expect(wrapper.findAll(".field button").map((b) => b.text())).toEqual(["Refresh", "Test", "Check now"]);
-      expect(make({}, "beacon").wrapper.findAll(".field button")).toHaveLength(0);
+      expect(
+        make({}, "beacon")
+          .wrapper.findAll(".field button")
+          .map((b) => b.text()),
+      ).toEqual(["Change", "i", "i", "i", "i", "i"]);
     });
 
     it("sends alert_test, waits while it runs, and shows ran in green under the field", async () => {

@@ -4,15 +4,17 @@
 // the map (MapFetchPanel), which work on the saved settings. On the Settings tab the Setup button opens the first-run guide again; the default slot is for more groups (the page's own, which are not settings of the daemon), and the slot `notifications` for the fields of the page's own alert, which end the Notifications group. The Update check group has a Check now button, which asks the version page at once and shows the answer beside it for a few seconds. While the network is let in, the Web group shows the access key with a New key button and the addresses to open the page at.
 import MapFetchPanel from "@/components/MapFetchPanel.vue";
 import SettingsField from "@/components/SettingsField.vue";
+import SymbolField from "@/components/SymbolField.vue";
 import SettingsPort from "@/components/SettingsPort.vue";
 import type { Toast } from "@/composables/useDaemon";
 import { ALERT_KEY, useAlertTest } from "@/composables/useAlertTest";
 import { KEY_KEY, useNewKey } from "@/composables/useNewKey";
 import { useUpdateCheck } from "@/composables/useUpdateCheck";
 import { useSettingsForm } from "@/composables/useSettingsForm";
-import { FIELDS, SUBGROUPS, portForProfile, shownFor, speedFallback, type Scope } from "@/lib/settings";
+import { FIELDS, SUBGROUPS, portForProfile, shownByValues, shownFor, speedFallback, type Scope } from "@/lib/settings";
+import { statusSource } from "@/lib/status";
 import type { AlertResultMessage, Command, ConfigValues, MapState, PortsMessage, UpdateResultMessage } from "@/protocol/protocol";
-import { computed, toRef } from "vue";
+import { computed, toRef, watch } from "vue";
 
 const props = withDefaults(
   defineProps<{
@@ -27,7 +29,7 @@ const props = withDefaults(
   }>(),
   { scope: "settings", alertResult: null, updateResult: null, map: null, ports: null },
 );
-const emit = defineEmits<{ setup: []; update: [] }>();
+const emit = defineEmits<{ setup: []; update: []; dirty: [value: boolean] }>();
 
 const { draft, errors, saving, saved, groups, defaults, changed, dirty, save, edit, revert } = useSettingsForm(
   toRef(props, "config"),
@@ -35,6 +37,7 @@ const { draft, errors, saving, saved, groups, defaults, changed, dirty, save, ed
   (command) => props.send(command),
   props.scope,
 );
+watch(dirty, (now) => emit("dirty", now));
 const alertTest = useAlertTest(
   toRef(props, "alertResult"),
   toRef(props, "lastError"),
@@ -44,6 +47,8 @@ const alertTest = useAlertTest(
 );
 const updateCheck = useUpdateCheck(toRef(props, "updateResult"), toRef(props, "lastError"), (command) => props.send(command));
 const newKey = useNewKey();
+const SYMBOL_TABLE = "station/symbol_table";
+const SYMBOL_CODE = "station/symbol_code";
 const info = (key: string) => FIELDS[key] ?? { label: key };
 /** The network is let in and the daemon has made a key (what is saved, not the draft of the switch). */
 const network = computed(() => props.config?.values["web/network"] === "true" && (props.config.values[KEY_KEY] ?? "") !== "");
@@ -53,7 +58,16 @@ const resultOf = (key: string) => (key === ALERT_KEY ? alertTest.result.value : 
 const profile = computed(() => draft["tnc/profile"]);
 /** Whether the daemon looks for the radio among the ports (Linux); true until it has said. */
 const search = computed(() => props.ports?.search ?? true);
-const shown = (keys: string[]) => keys.filter((key) => shownFor(key, profile.value, network.value, search.value));
+const shown = (keys: string[]) =>
+  keys.filter(
+    (key) => key !== SYMBOL_CODE && shownFor(key, profile.value, network.value, search.value) && (props.scope === "settings" || shownByValues(key, draft)),
+  );
+/** The symbol is one field, which sets the table and the code. */
+const symbol = computed(() => `${draft[SYMBOL_TABLE] ?? ""}${draft[SYMBOL_CODE] ?? ""}`);
+function editSymbol(text: string): void {
+  edit(SYMBOL_TABLE, text.slice(0, 1));
+  edit(SYMBOL_CODE, text.slice(1, 2));
+}
 const refreshPorts = () => props.send({ cmd: "list_ports" }); // (the page asks for the list itself each time the daemon is connected: App.vue)
 const fallback = (key: string) => (key === "serial/baud" ? speedFallback(profile.value, defaults.value[key] ?? "") : (defaults.value[key] ?? ""));
 /** A serial device does not go with a TCP profile: choosing one clears it, so that Save is not refused for it. */
@@ -71,8 +85,15 @@ const mapUnsaved = computed(() => Object.keys(changed.value).some((key) => key.s
       <legend>{{ group.title }}</legend>
       <template v-for="key in shown(group.keys)" :key="key">
         <h3 v-if="SUBGROUPS[key]" class="subgroup" :title="SUBGROUPS[key]?.title">{{ SUBGROUPS[key]?.text }}</h3>
+        <SymbolField
+          v-if="key === SYMBOL_TABLE"
+          id="set-station-symbol"
+          :symbol="symbol"
+          :changed="SYMBOL_TABLE in changed || SYMBOL_CODE in changed"
+          @update:symbol="editSymbol"
+        />
         <SettingsPort
-          v-if="key === 'serial/port'"
+          v-else-if="key === 'serial/port'"
           :id="`set-${key.replace('/', '-')}`"
           :info="info(key)"
           :model-value="draft[key] ?? ''"
@@ -87,7 +108,7 @@ const mapUnsaved = computed(() => Object.keys(changed.value).some((key) => key.s
           v-else
           :id="`set-${key.replace('/', '-')}`"
           :info="info(key)"
-          :model-value="draft[key] ?? ''"
+          :model-value="key === 'status/source' ? statusSource(draft) : (draft[key] ?? '')"
           :fallback="fallback(key)"
           :error="errors[key] ?? ''"
           :changed="key in changed"

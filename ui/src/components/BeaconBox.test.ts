@@ -5,9 +5,14 @@ import { NOW, ago, status } from "@/test/fixtures";
 
 const inSeconds = (s: number): string => new Date(NOW + s * 1000).toISOString();
 
-function box(extra = {}, connected = true) {
+function box(extra = {}, connected = true, props: Record<string, unknown> = { statusOn: true }) {
   return mount(BeaconBox, {
-    props: { status: status({ beacon_interval_min: 30, beacon_last_sent: ago(125), beacon_next_due: inSeconds(1700), ...extra }), connected, now: NOW },
+    props: {
+      status: status({ beacon_interval_min: 30, beacon_last_sent: ago(125), beacon_next_due: inSeconds(1700), ...extra }),
+      connected,
+      now: NOW,
+      ...props,
+    },
   });
 }
 
@@ -29,11 +34,13 @@ describe("BeaconBox", () => {
     expect(text).toMatch(/Next due\s*-/);
   });
 
-  it("shows the status last sent in one line, with the state of the radio when a radio makes it", () => {
-    expect(box().text()).toMatch(/Status\s*-/);
-    expect(box({ station_status: "QRV 14.074 MHz USB" }).text()).toMatch(/Status\s*QRV 14.074 MHz USB$/);
-    expect(box({ station_status: "QRV 14.074 MHz USB", rig_state: "on" }).text()).toContain("QRV 14.074 MHz USB · rigctld on");
-    expect(box({ station_status: "", rig_state: "off" }).text()).toMatch(/Status\s*- · rigctld off/);
+  it("shows the status last sent in one line, with the state of the radio when a radio makes it, and only while there is a status", () => {
+    const line = (wrapper: ReturnType<typeof box>) => wrapper.findAll("dt").find((t) => t.text() === "Status")?.element.nextElementSibling?.textContent;
+    expect(box({}, true, {}).text()).not.toContain("Status");
+    expect(line(box())).toBe("-");
+    expect(line(box({ station_status: "QRV 14.074 MHz USB" }))).toBe("QRV 14.074 MHz USB");
+    expect(line(box({ station_status: "QRV 14.074 MHz USB", rig_state: "on" }))).toBe("QRV 14.074 MHz USB · rigctld on");
+    expect(line(box({ station_status: "", rig_state: "off" }))).toBe("- · rigctld off");
   });
 
   it("shows nothing it does not know before the status has come", () => {
@@ -77,5 +84,46 @@ describe("BeaconBox", () => {
     await wrapper.find("button").trigger("click");
     expect(wrapper.emitted("send")).toBeUndefined();
     expect(box({}, false).find("button").attributes("disabled")).toBeDefined();
+  });
+
+  describe("Send status now", () => {
+    const buttons = (wrapper: ReturnType<typeof box>) => wrapper.findAll("button");
+
+    it("is a second primary button of the same kind beside the status, there only while there is a status", () => {
+      const [beacon, status] = buttons(box());
+      expect([beacon?.text(), status?.text()]).toEqual(["Beacon now", "Send status now"]);
+      expect([beacon?.classes(), status?.classes()]).toEqual([expect.arrayContaining(["btn", "primary"]), expect.arrayContaining(["btn", "primary"])]);
+      expect(buttons(box({}, true, {}))).toHaveLength(1);
+    });
+
+    it("asks twice before it sends", async () => {
+      const wrapper = box();
+      const status = buttons(wrapper)[1];
+      await status?.trigger("click");
+      expect(wrapper.emitted("send-status")).toBeUndefined();
+      expect(status?.text()).toBe("Really send?");
+      expect(status?.classes()).toContain("danger");
+      await status?.trigger("click");
+      expect(wrapper.emitted("send-status")).toHaveLength(1);
+      expect(wrapper.emitted("send")).toBeUndefined();
+      expect(status?.text()).toBe("Send status now");
+    });
+
+    it("is armed one at a time: arming the other button forgets the first", async () => {
+      const wrapper = box();
+      await buttons(wrapper)[1]?.trigger("click");
+      await buttons(wrapper)[0]?.trigger("click");
+      expect(buttons(wrapper)[1]?.text()).toBe("Send status now");
+      expect(buttons(wrapper)[0]?.text()).toBe("Really send?");
+    });
+
+    it("is off while the TNC is not connected, and so are both while the settings below hold changes that are not saved", () => {
+      expect(buttons(box({}, false))[1]?.attributes("disabled")).toBeDefined();
+      const wrapper = box({}, true, { statusOn: true, unsaved: true });
+      expect(buttons(wrapper).map((b) => [b.attributes("disabled") !== undefined, b.attributes("title")])).toEqual([
+        [true, "Save your changes first"],
+        [true, "Save your changes first"],
+      ]);
+    });
   });
 });

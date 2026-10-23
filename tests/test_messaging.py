@@ -134,13 +134,13 @@ async def test_a_message_goes_out_at_once_as_the_frame_the_settings_make_and_is_
     assert await rig.log.recent() == [record]
 
 
-async def test_the_frame_follows_the_settings_destination_and_path_and_our_call(rig: Rig) -> None:
-    rig.config = replace(rig.config, station_call="OH2GBA-9", beacon_destination="APRS", beacon_path="WIDE2-2")
+async def test_the_frame_follows_the_settings_path_and_our_call_and_has_the_tocall(rig: Rig) -> None:
+    rig.config = replace(rig.config, station_call="OH2GBA-9", beacon_path="WIDE2-2")
     await rig.m.send("OH2RDG-7", "x")
-    assert rig.tnc.lines() == ["OH2GBA-9>APRS,WIDE2-2::OH2RDG-7 :x{01}"]
+    assert rig.tnc.lines() == ["OH2GBA-9>APZNEO,WIDE2-2::OH2RDG-7 :x{01}"]
     rig.config = replace(rig.config, beacon_path="")
     await rig.m.send("OH2RDG", "y")
-    assert rig.tnc.lines()[1] == "OH2GBA-9>APRS::OH2RDG   :y{02}"
+    assert rig.tnc.lines()[1] == "OH2GBA-9>APZNEO::OH2RDG   :y{02}"
 
 
 async def test_the_message_ids_go_01_02_03_and_on_after_a_restart(rig: Rig, another: Callable[..., Rig]) -> None:
@@ -206,7 +206,7 @@ async def test_only_our_call_with_its_ssid_is_ours_to_refuse_and_the_base_call_a
 
 
 async def test_settings_that_make_no_frame_refuse_the_message_before_it_is_kept(rig: Rig) -> None:
-    rig.config = replace(rig.config, beacon_destination="A B")
+    rig.config = replace(rig.config, beacon_path="BAD CALL")
     with pytest.raises(MessagingError, match="no frame"):
         await rig.m.send("OH2RDG", "x")
     await rig.settled()

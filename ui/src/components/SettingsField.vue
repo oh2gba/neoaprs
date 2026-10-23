@@ -1,7 +1,8 @@
 <script setup lang="ts">
 // One setting: its label, the input (a choice for a yes/no setting or a short list, read-only for one the daemon writes), the default as the placeholder, a unit after it, the daemon's complaint under it (or the result of a test, in the same place), and a slot after it for a button.
-// Nothing explains it further: the one thing a word cannot say is the `title` of the field.
+// A field whose meaning a word cannot say has an (i) after its label (InfoTip) with a few sentences and an example; one thing a word cannot say is the `title` of the field.
 import { computed } from "vue";
+import InfoTip from "@/components/InfoTip.vue";
 import type { Choice, FieldInfo } from "@/lib/settings";
 
 const props = defineProps<{
@@ -37,7 +38,10 @@ function onInput(event: Event): void {
 
 <template>
   <div class="field" :class="{ changed, invalid: error !== '' }" :title="info.title">
-    <label :for="id">{{ info.label }}</label>
+    <div class="field-name">
+      <label :for="id">{{ info.label }}</label>
+      <InfoTip v-if="info.help" :label="info.label" :text="info.help" :example="info.example" />
+    </div>
     <div class="field-control">
       <select v-if="info.kind === 'bool'" :id="id" class="input" :value="modelValue" :aria-describedby="describedBy" @change="onInput">
         <option value="true">yes</option>

@@ -1,12 +1,11 @@
 <script setup lang="ts">
-// The form of an object or an item of ours, in the Objects tab: name and kind (the name of an object that is being changed stays), the symbol (typed, or one of the usual ones), the position (typed, or
-// placed with a click on the map: Place), the comment with the characters it has left, the course and speed, and the path the object goes by (the placeholder is the beacon's). A field with something wrong
+// The form of an object or an item of ours, in the Objects tab: name and kind (the name of an object that is being changed stays), the symbol (a picture to change, as in the Beacon tab), the position (typed, or
+// picked with a click on the map: Pick on the map), the comment with the characters it has left, the course and speed, and the path the object goes by (the placeholder is the beacon's). A field with something wrong
 // is red and its title says what. Save is on when there is a name, a place and a symbol and nothing is wrong; the daemon checks it all again.
 import { computed, useId } from "vue";
-import SymbolIcon from "@/components/SymbolIcon.vue";
+import SymbolField from "@/components/SymbolField.vue";
 import type { OwnObjectsView } from "@/composables/useOwnObjects";
 import { commentLimit, draftProblems, draftReady, NAME_MAX } from "@/lib/ownobjects";
-import { SYMBOL_CHOICES } from "@/lib/setup";
 
 const props = defineProps<{ form: OwnObjectsView; fallbackPath: string }>();
 const id = useId();
@@ -37,50 +36,11 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
         </select>
       </div>
     </div>
-    <div class="field" :class="{ invalid: problems.symbol }" :title="problems.symbol ?? 'Table and code: / primary, \\ alternate, 0-9 and A-Z overlay'">
-      <label :for="`${id}-symbol`">Symbol</label>
-      <div class="field-control">
-        <input
-          :id="`${id}-symbol`"
-          v-model="draft.symbol"
-          class="input mono"
-          type="text"
-          maxlength="2"
-          placeholder="/>"
-          autocomplete="off"
-          spellcheck="false"
-        />
-        <SymbolIcon :table="draft.symbol.slice(0, 1)" :code="draft.symbol.slice(1)" :size="28" />
-      </div>
-    </div>
-    <div class="objform-symbols" role="group" aria-label="Symbols">
-      <button
-        v-for="s in SYMBOL_CHOICES"
-        :key="s.table + s.code"
-        type="button"
-        class="iconbtn"
-        :class="{ active: draft.symbol === s.table + s.code }"
-        :aria-pressed="draft.symbol === s.table + s.code"
-        :title="s.name"
-        @click="draft.symbol = s.table + s.code"
-      >
-        <SymbolIcon :table="s.table" :code="s.code" :size="22" />
-      </button>
-    </div>
+    <SymbolField :id="`${id}-symbol`" v-model:symbol="draft.symbol" />
     <div class="field" :class="{ invalid: problems.lat }" :title="problems.lat">
       <label :for="`${id}-lat`">Latitude</label>
       <div class="field-control">
         <input :id="`${id}-lat`" v-model="draft.lat" class="input mono" type="text" inputmode="decimal" autocomplete="off" />
-        <button
-          type="button"
-          class="btn small"
-          :class="{ primary: form.placing }"
-          :aria-pressed="form.placing"
-          title="Click the map to place it"
-          @click="form.togglePlacing()"
-        >
-          Place
-        </button>
       </div>
     </div>
     <div class="field" :class="{ invalid: problems.lon }" :title="problems.lon">
@@ -88,6 +48,9 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
       <div class="field-control">
         <input :id="`${id}-lon`" v-model="draft.lon" class="input mono" type="text" inputmode="decimal" autocomplete="off" />
       </div>
+    </div>
+    <div class="objform-pick">
+      <button type="button" class="btn" :class="{ primary: form.placing }" :aria-pressed="form.placing" @click="form.togglePlacing()">Pick on the map</button>
     </div>
     <div class="field" :class="{ invalid: problems.comment }" :title="problems.comment">
       <label :for="`${id}-comment`">Comment</label>

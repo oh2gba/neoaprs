@@ -95,7 +95,7 @@ TypeScript types for both unions are in `ui/src/protocol/protocol.ts`, the JSON 
 
 ## Client to server
 
-33 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
+34 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
 
 ### `ping`
 
@@ -157,6 +157,12 @@ TNC, `station/*` move our own station on the map. `tnc/check_sec` and `map/hide_
 Sends our position packet now, with the settings as they are (the same packet as the timer's), and the next one is an interval later. It goes out through the TNC, so it is not answered:
 it arrives as the new `packets` row with direction `out`, and `status` follows with the time of the beacon. Answered with an `error` when it could not be sent: the TNC is not connected, or
 the settings make no frame.
+
+### `status_now`
+
+Sends our status report now, with the settings as they are (from the text or from the radio, as `status/source` says), whether it changed and inside the interval; the next one of the timer
+is an interval later. It goes out through the TNC, so it is not answered: it arrives as the new `packets` row with direction `out`, and `status` follows with the text. Answered with an `error` when
+it could not be sent: the status is off or has no text, the radio is away, the call is not set, the TNC is not connected or the settings make no frame.
 
 ### `send_message`
 
@@ -406,7 +412,7 @@ What the daemon is, for the status bar: sent after `hello`, every 10 s, when ask
 | `beacon_last_sent` | time \| null |  | when the latest beacon was sent, by the timer or on request; null for none since the daemon started |
 | `beacon_next_due` | time \| null |  | when the timer sends the next one; null while the interval is 0 |
 | `station_status` | string |  | the text of the status report last sent in this run (services/rigstatus.py); empty until one has gone |
-| `rig_state` | "off" \| "on" \| "unused" |  | whether the radio the status is made from answers: `on`, `off` (rigctld is away or the radio is off, nothing is sent), or `unused` while `status/rigctld` is empty and the status is the static text |
+| `rig_state` | "off" \| "on" \| "unused" |  | whether the radio the status is made from answers: `on`, `off` (rigctld is away or the radio is off, nothing is sent), or `unused` while the status does not come from a radio (`status/source` is `text` or `off`) |
 | `cpu_percent` | number |  | the daemon's CPU time (user and system) as a share of one core, in percent to a tenth, since the previous status that was at least a second before; the first counts from the start |
 | `rss_mb` | number \| null |  | the daemon's resident memory in megabytes, to a tenth; null where the system does not say |
 | `uptime_sec` | integer |  | seconds since the daemon started, by its clock |

@@ -1,12 +1,11 @@
 <script setup lang="ts">
-// Step 3 of the first-run guide: the symbol the station is drawn with: the 12 most common ones from the sprite, or any table and code typed (`/-`, `\k`, `S#`).
-import SettingsField from "@/components/SettingsField.vue";
+// Step 3 of the first-run guide: the symbol the station is drawn with: the 12 most common ones from the sprite, or any other from the picker (More...), which has them all.
+import SymbolField from "@/components/SymbolField.vue";
 import SymbolIcon from "@/components/SymbolIcon.vue";
 import type { SetupGuide } from "@/composables/useSetupGuide";
 import { SYMBOL_CHOICES } from "@/lib/setup";
 
 const props = defineProps<{ guide: SetupGuide }>();
-const info = { label: "Code", empty: "/-", title: "Table and code: / primary, \\ alternate, 0-9 and A-Z overlay" };
 </script>
 
 <template>
@@ -24,17 +23,5 @@ const info = { label: "Code", empty: "/-", title: "Table and code: / primary, \\
       <span>{{ s.name }}</span>
     </button>
   </div>
-  <SettingsField
-    id="setup-symbol"
-    :info="info"
-    :model-value="props.guide.fields.symbol"
-    fallback=""
-    :error="props.guide.problems.symbol ?? ''"
-    :changed="false"
-    @update:model-value="props.guide.edit('symbol', $event)"
-  >
-    <template #after>
-      <SymbolIcon :table="props.guide.fields.symbol.slice(0, 1)" :code="props.guide.fields.symbol.slice(1)" :size="28" />
-    </template>
-  </SettingsField>
+  <SymbolField id="setup-symbol" :symbol="props.guide.fields.symbol" button="More..." @update:symbol="props.guide.edit('symbol', $event)" />
 </template>
