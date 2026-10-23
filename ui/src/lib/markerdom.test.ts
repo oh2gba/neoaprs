@@ -34,29 +34,29 @@ describe("the marker of a station", () => {
     paintMarker(dom, station("A"), { fade: 0, selected: false, direct: false });
     expect([...dom.root.classList].some((c) => c.startsWith("stn--fade"))).toBe(false);
   });
-  it("marks an object of ours by a class and says so in the title", () => {
+  it("marks an object of ours by a class and says so in its name", () => {
     const dom = buildMarkerDom();
     paintMarker(dom, station("LEADER", { kind: "object", own: true }), { fade: 0, selected: false, direct: false });
     expect(dom.root.classList.contains("stn--own")).toBe(true);
     expect(dom.root.classList.contains("stn--me")).toBe(false);
-    expect(dom.root.title).toBe("LEADER: Car (ours)");
+    expect(dom.root.getAttribute("aria-label")).toBe("LEADER: Car (ours)");
     paintMarker(dom, station("LEADER", { kind: "object", own: false }), { fade: 0, selected: false, direct: false });
     expect(dom.root.classList.contains("stn--own")).toBe(false);
   });
-  it("puts a ring on a station heard direct and says so in the title", () => {
+  it("puts a ring on a station heard direct and says so in its name", () => {
     const dom = buildMarkerDom();
     paintMarker(dom, station("OH2PU-9"), { fade: 0, selected: false, direct: true });
     expect(dom.root.classList.contains("stn--direct")).toBe(true);
-    expect(dom.root.title).toBe("OH2PU-9: Car, heard direct");
+    expect(dom.root.getAttribute("aria-label")).toBe("OH2PU-9: Car, heard direct");
     paintMarker(dom, station("OH2PU-9"), { fade: 0, selected: false, direct: false });
     expect(dom.root.classList.contains("stn--direct")).toBe(false);
-    expect(dom.root.title).toBe("OH2PU-9: Car");
+    expect(dom.root.getAttribute("aria-label")).toBe("OH2PU-9: Car");
   });
-  it("keeps the weather symbol of a weather station and puts its temperature in the title", () => {
+  it("keeps the weather symbol of a weather station and puts its temperature in its name", () => {
     const dom = buildMarkerDom();
     paintMarker(dom, weatherStation("OH2MUI"), { fade: 0, selected: false, direct: false });
     expect(dom.icon.querySelectorAll(".stn-layer")).toHaveLength(1);
-    expect(dom.root.title).toBe("OH2MUI: Weather station, 10.0 °C");
+    expect(dom.root.getAttribute("aria-label")).toBe("OH2MUI: Weather station, 10.0 °C");
   });
   it("makes the layers again only when the symbol changes", () => {
     const dom = buildMarkerDom();

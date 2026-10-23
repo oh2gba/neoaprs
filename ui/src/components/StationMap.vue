@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // The map: the base map the daemon serves (no request leaves the machine), a marker with the APRS symbol and the call for every station that has a position, and a line for the track of
-// every station that has more than one. A marker dims and a track fades on the way to the station's timeout, and a station heard direct within the hour has a ring round its marker; a station past it is not drawn (unless it is the selected one, whose marker shows). Without the base map files the background is blank and a line says so, with a button that takes the user to where the map is made, and the stations are drawn all the same;
+// every station that has more than one; a mouse resting on a marker shows a small card with the station's main facts (lib/hovercard.ts), and the selected station has the route its packets come by drawn
+// to our own station (lib/routeline.ts). A marker dims and a track fades on the way to the station's timeout, and a station heard direct within the hour has a ring round its marker; a station past it is not drawn (unless it is the selected one, whose marker shows). Without the base map files the background is blank and a line says so, with a button that takes the user to where the map is made, and the stations are drawn all the same;
 // when the daemon makes the files again (`filesKey` changes) the style is set again. One map for the life of the page,
 // opened where we are (zoom 9; on the world while we have no position) or where it was left; the colour scheme follows the system. While the first-run guide asks for the position (`picking`) a click on the map is a place (`pick`), and the place the guide
 // holds (`pin`) has a marker, which the map flies to when it was typed and not clicked. An object or an item of ours (`own`) has a marker that can be dragged: where it is dropped is its new place (`move`).
@@ -22,7 +23,12 @@ import {
 import { buildMarkerDom, paintMarker, type MarkerDom } from "@/lib/markerdom";
 import { readView, writeView, type Focus, type Home } from "@/lib/mapview";
 import { markerStep, timedOut, type Aging } from "@/lib/aging";
+import { HoverCard } from "@/lib/hovercard";
 import { heardDirectRecently } from "@/lib/routes";
+import { routeFeatures } from "@/lib/routeline";
+import { addRouteLayers, ROUTE_SOURCE } from "@/lib/routelayers";
+import { addTrackLayers } from "@/lib/tracklayers";
+import { placePin } from "@/lib/pinmarker";
 import { hasPosition } from "@/lib/stations";
 import { trackLines } from "@/lib/tracks";
 import type { StationRow } from "@/protocol/protocol";
@@ -30,8 +36,6 @@ import type { StationRow } from "@/protocol/protocol";
 const FLY_ZOOM = 11;
 const WORLD_VIEW = { lat: 20, lon: 0, zoom: 1.5 }; // where the map opens while we have no position
 const LABELS_FROM_ZOOM = 8;
-const TRACK_COLOR = "#2f80ed";
-const TRACK_SELECTED_COLOR = "#ff6d00";
 
 const props = withDefaults(
   defineProps<{
@@ -60,6 +64,7 @@ interface Placed {
   lon: number;
 }
 
+const root = ref<HTMLElement | null>(null);
 const host = ref<HTMLElement | null>(null);
 const note = ref(""); // what stands over the map when there is no base map (or no map engine)
 const offerDownload = ref(false); // ... and whether it has the button that goes to where the map is made
@@ -73,6 +78,7 @@ let shown = ""; // the addresses the style on the map was made with
 let centred = true; // the view is the one of the last visit, or has been set to where we are
 let gone = false;
 let pinMarker: Marker | null = null;
+let hover: HoverCard | null = null;
 let clicked = false; // the pin moved because the map was clicked: the map is where the user is looking already
 
 /** The tracks are drawn again once a minute, and when a station changes; the fading is in steps that wide anyway. */
@@ -100,21 +106,17 @@ async function refreshBasemap(): Promise<void> {
   map.setStyle(styleFor(props.dark));
 }
 
-function addTrackLayers(): void {
-  if (!map || map.getSource("tracks")) return;
-  map.addSource("tracks", { type: "geojson", data: trackLines([], null, props.now, props.aging) });
-  map.addLayer({
-    id: "tracks-line",
-    type: "line",
-    source: "tracks",
-    layout: { "line-cap": "butt", "line-join": "round" },
-    paint: {
-      "line-color": ["case", ["==", ["get", "selected"], 1], TRACK_SELECTED_COLOR, TRACK_COLOR],
-      "line-width": ["case", ["==", ["get", "selected"], 1], 4, 2],
-      "line-opacity": ["get", "opacity"],
-    },
-  });
+function drawRoute(): void {
+  const row = props.selected === null ? undefined : props.stations.get(props.selected);
+  void map?.getSource<GeoJSONSource>(ROUTE_SOURCE)?.setData(routeFeatures(row, props.stations, props.home));
+}
+
+function addLayers(): void {
+  if (!map) return;
+  addTrackLayers(map, trackLines([], null, props.now, props.aging));
   drawTracks();
+  addRouteLayers(map, routeFeatures(undefined, props.stations, null));
+  drawRoute();
 }
 
 /** The stations that are drawn: with a position and not past their timeout. */
@@ -131,8 +133,10 @@ function makePlaced(call: string): Placed | null {
   const dom = buildMarkerDom();
   dom.root.addEventListener("click", (event) => {
     event.stopPropagation(); // not a click on the map, which lets go of the selection
+    hover?.hide();
     emit("select", call);
   });
+  hover?.attach(dom.root, call);
   const marker = new engine.Marker({ element: dom.root, anchor: "center" }).setLngLat([0, 0]).addTo(map);
   marker.on("dragend", () => {
     const at = marker.getLngLat();
@@ -166,42 +170,25 @@ function syncMarkers(): void {
     if (present.has(call)) continue;
     one.marker.remove();
     placed.delete(call);
+    hover?.release(call);
   }
+  hover?.refresh();
 }
 
 /** The marker of the place the guide holds: made when there is one, moved when it changes, gone when it is. */
 function syncPin(): void {
-  if (!map || !engine) return;
-  const at = props.pin;
-  if (!at) {
-    pinMarker?.remove();
-    pinMarker = null;
-    return;
-  }
-  if (!pinMarker) {
-    const element = document.createElement("div");
-    element.className = "setuppin";
-    element.setAttribute("aria-hidden", "true");
-    pinMarker = new engine.Marker({ element, anchor: "center" }).setLngLat([at.lon, at.lat]).setDraggable(true).addTo(map);
-    const dragged = pinMarker;
-    dragged.on("dragend", () => {
-      // the pin dropped somewhere else is the place, as a click there would be
-      const to = dragged.getLngLat();
-      clicked = true;
-      emit("pick", { lat: to.lat, lon: to.lng });
-      void nextTick(() => (clicked = false));
-    });
-  }
-  pinMarker.setLngLat([at.lon, at.lat]);
+  if (map && engine) pinMarker = placePin(engine, map, pinMarker, props.pin, pickAt); // (the pin dropped somewhere else is the place, as a click there would be)
 }
 
 function onClick(event?: { lngLat?: { lat: number; lng: number } }): void {
   emit("select", null);
-  if (props.picking && event?.lngLat) {
-    clicked = true;
-    emit("pick", { lat: event.lngLat.lat, lon: event.lngLat.lng });
-    void nextTick(() => (clicked = false)); // after the update the click causes
-  }
+  if (props.picking && event?.lngLat) pickAt(event.lngLat.lat, event.lngLat.lng);
+}
+
+function pickAt(lat: number, lon: number): void {
+  clicked = true;
+  emit("pick", { lat, lon });
+  void nextTick(() => (clicked = false)); // after the update the click causes
 }
 
 function showLabels(): void {
@@ -241,7 +228,8 @@ async function create(): Promise<void> {
   }
   map.touchZoomRotate.disableRotation();
   map.addControl(new engine.NavigationControl({ showCompass: false }), "top-left");
-  map.on("style.load", addTrackLayers);
+  map.on("style.load", addLayers);
+  map.on("movestart", () => hover?.hide());
   map.on("click", onClick);
   map.on("zoom", showLabels);
   map.on("moveend", () => {
@@ -259,6 +247,7 @@ watch(
   () => {
     syncMarkers();
     drawTracks();
+    drawRoute();
   },
 );
 watch(
@@ -266,6 +255,7 @@ watch(
   () => {
     syncMarkers();
     drawTracks();
+    drawRoute();
   },
 );
 watch(() => props.now, syncMarkers);
@@ -280,6 +270,7 @@ watch(
 watch(
   () => props.home,
   (home) => {
+    drawRoute();
     if (!map || !home || centred) return;
     centred = true;
     map.jumpTo({ center: [home.lon, home.lat], zoom: OPEN_ZOOM });
@@ -307,9 +298,19 @@ watch(
   (dark) => map?.setStyle(styleFor(dark)),
 );
 
-onMounted(() => void create());
+onMounted(() => {
+  if (root.value)
+    hover = new HoverCard(
+      root.value,
+      (call) => props.stations.get(call),
+      () => props.now,
+    );
+  void create();
+});
 onBeforeUnmount(() => {
   gone = true;
+  hover?.destroy();
+  hover = null;
   for (const one of placed.values()) one.marker.remove();
   placed.clear();
   pinMarker?.remove();
@@ -320,7 +321,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="stationmap">
+  <div ref="root" class="stationmap">
     <div ref="host" class="mapbox" :class="{ 'map-picking': props.picking }" role="application" aria-label="Map of the stations"></div>
     <div v-if="note" class="mapnote" role="status">
       <div class="mapnote-box">

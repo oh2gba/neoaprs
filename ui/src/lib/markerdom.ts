@@ -18,6 +18,7 @@ export interface MarkerDom {
 export function buildMarkerDom(): MarkerDom {
   const root = document.createElement("div");
   root.className = "stn";
+  root.setAttribute("role", "button"); // the hover card (lib/hovercard.ts) is the tooltip, so the name is for a screen reader
   const icon = document.createElement("div");
   icon.className = "stn-icon";
   const label = document.createElement("span");
@@ -50,7 +51,7 @@ export function paintMarker(dom: MarkerDom, row: StationRow, state: MarkerState)
     dom.icon.classList.toggle("stn-plain", dom.icon.childElementCount === 0);
   }
   if (dom.label.textContent !== row.call) dom.label.textContent = row.call;
-  dom.root.title = `${row.call}: ${row.symbol_name}${row.own ? " (ours)" : ""}${markerWeather(row)}${state.direct ? ", heard direct" : ""}`;
+  dom.root.setAttribute("aria-label", `${row.call}: ${row.symbol_name}${row.own ? " (ours)" : ""}${markerWeather(row)}${state.direct ? ", heard direct" : ""}`);
   dom.root.classList.toggle("stn--me", row.is_me);
   dom.root.classList.toggle("stn--own", row.own);
   dom.root.classList.toggle("stn--selected", state.selected);
