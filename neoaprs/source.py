@@ -104,10 +104,6 @@ class Source:
     async def stop(self) -> None:
         raise NotImplementedError
 
-    async def reconnect(self) -> None:
-        await self.stop()
-        await self.start()
-
     async def send(self, data: bytes) -> bool:
         return False
 

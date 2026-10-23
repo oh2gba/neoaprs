@@ -14,18 +14,16 @@ is settling after KISS ON is not usable either, and the beacon waits for it quie
 import asyncio
 import logging
 import math
-from collections.abc import Callable
 from datetime import datetime, timedelta
-from typing import Protocol
 
-from neoaprs import TOCALL, ax25
+from neoaprs import ax25
 from neoaprs.aprsposition import uncompressed_position
-from neoaprs.callsign import CallsignError
 from neoaprs.clock import Clock, utcnow
 from neoaprs.config import ANTENNA_DIRECTIONS, BEACON_SENT, SYMBOL_TABLES, Config, can_transmit
 from neoaprs.configstatus import MAX_STATUS
 from neoaprs.configtypes import over_the_air_problem
 from neoaprs.interlock import Interlock
+from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, our_frame
 from neoaprs.services.memory import Memory, Remembered, stamp
 from neoaprs.source import Source
 from neoaprs.tasks import TaskSet
@@ -43,16 +41,6 @@ class BeaconError(ValueError):
     """The settings do not make a frame."""
 
 
-class Radio(Protocol):
-    """What the beacon needs of the Tnc."""
-    @property
-    def state(self) -> Source.State: ...
-    @property
-    def usable(self) -> bool: ...
-    def why_unusable(self) -> str: ...
-    def send_frame(self, frame: ax25.Frame) -> bool: ...
-
-
 def _round_half_up(x: float) -> int:
     return math.floor(x + 0.5)
 
@@ -67,7 +55,7 @@ def phg_text(power_w: int, height_m: float, gain_db: int, direction: str) -> str
 
 
 class Beacon:
-    def __init__(self, tnc: Radio, config: Callable[[], Config], clock: Clock = utcnow, first_delay_sec: float = FIRST_DELAY_SEC, tick_sec: float = TICK_SEC,
+    def __init__(self, tnc: Radio, config: ConfigSource, clock: Clock = utcnow, first_delay_sec: float = FIRST_DELAY_SEC, tick_sec: float = TICK_SEC,
                  memory: Memory | None = None, retry_sec: float = RETRY_SEC) -> None:
         self._tnc = tnc
         self._config = config
@@ -87,7 +75,7 @@ class Beacon:
         self._skip_told = False
         self._refused = 0                                       # how many times in a row the Tnc refused the due beacon
         self._retry_at: datetime | None = None                  # when the refused beacon is tried again
-        self._tasks = TaskSet(self._task_failed)
+        self._tasks = TaskSet(log, "beacon")
 
     # ---- the frame
     def frame(self) -> ax25.Frame:
@@ -127,15 +115,15 @@ class Beacon:
         return self._frame_of(b">" + self.clock().strftime("%d%H%M").encode("ascii") + b"z" + text.encode("ascii"))
 
     def _frame_of(self, info: bytes) -> ax25.Frame:
-        """Our frame with this information field: from `station/call` to `beacon/destination` by way of `beacon/path`."""
+        """Our frame with this information field: from `station/call` to the tocall by way of `beacon/path`."""
         c = self._config()
         if reason := can_transmit(c):
             raise BeaconError(reason)
         if len(info) > ax25.MAX_INFO:
             raise BeaconError(f"the information field is {len(info)} bytes, more than the {ax25.MAX_INFO} AX.25 allows")
         try:
-            return ax25.Frame(ax25.Address.parse(TOCALL), ax25.Address.parse(c.station_call), tuple(ax25.Address.parse(call) for call in c.beacon_path_calls), info=info)
-        except (ax25.Ax25Error, CallsignError, ValueError) as e:
+            return our_frame(c, c.beacon_path_calls, info)
+        except FRAME_ERRORS as e:
             raise BeaconError(str(e)) from None
 
     # ---- sending
@@ -245,6 +233,3 @@ class Beacon:
         step = timedelta(minutes=self._planned_min)
         self.next_due = due + step * ((self.clock() - due) // step + 1)
 
-    @staticmethod
-    def _task_failed(task: "asyncio.Task[None]") -> None:
-        log.error("beacon task %s failed: %r", task.get_name(), task.exception())

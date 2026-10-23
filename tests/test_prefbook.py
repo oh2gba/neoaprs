@@ -25,6 +25,12 @@ class Rig:
         self.told: list[tuple[str, Pref | None]] = []
         self.book.changed.connect(lambda call, pref: self.told.append((call, pref)))
 
+    def timeout_for(self, call: str) -> int | None:
+        """The station's own timeout in minutes, None when it has none."""
+        everyone, name = self.book.all(), call.strip()
+        own = everyone.get(name.upper()) or everyone.get(name)
+        return None if own is None else own.hide_after_min
+
 
 @pytest.fixture
 async def rig(tmp_path: Path) -> Rig:
@@ -46,7 +52,7 @@ def restart(rig: Rig) -> Callable[[], Rig]:
 
 async def test_a_station_has_the_defaults_until_it_is_given_something(rig: Rig) -> None:
     assert rig.book.all() == {} and rig.book.paths() == {} and rig.book.never_hidden() == frozenset()
-    assert rig.book.path_for("OH2RDG") == ("WIDE1-1", "WIDE2-1") and rig.book.timeout_for("OH2RDG") is None
+    assert rig.book.path_for("OH2RDG") == ("WIDE1-1", "WIDE2-1") and rig.timeout_for("OH2RDG") is None
 
 
 async def test_a_path_and_a_timeout_are_kept_by_the_call_and_read_back_by_the_next_start(rig: Rig, restart: Callable[[], Rig]) -> None:
@@ -55,10 +61,10 @@ async def test_a_path_and_a_timeout_are_kept_by_the_call_and_read_back_by_the_ne
     assert await rig.book.set_timeout("OH2PU-9", 0) == 0
     assert await rig.book.set_path("OH2XYZ", "") == ()
     assert rig.book.all() == {"OH2RDG": Pref(("OH2RCH-2", "WIDE2-1"), 45), "OH2PU-9": Pref(None, 0), "OH2XYZ": Pref((), None)}
-    assert rig.book.path_for("oh2rdg") == ("OH2RCH-2", "WIDE2-1") and rig.book.timeout_for("oh2rdg") == 45
-    assert rig.book.path_for("OH2PU-9") == ("WIDE1-1", "WIDE2-1") and rig.book.timeout_for("OH2PU-9") == 0, "a timeout alone leaves the path the default"
-    assert rig.book.path_for("OH2XYZ") == () and rig.book.timeout_for("OH2XYZ") is None, "a path alone leaves the timeout the default; empty is direct"
-    assert rig.book.path_for("OH2RDG-7") == ("WIDE1-1", "WIDE2-1") and rig.book.timeout_for("OH2RDG-7") is None, "another SSID is another station"
+    assert rig.book.path_for("oh2rdg") == ("OH2RCH-2", "WIDE2-1") and rig.timeout_for("oh2rdg") == 45
+    assert rig.book.path_for("OH2PU-9") == ("WIDE1-1", "WIDE2-1") and rig.timeout_for("OH2PU-9") == 0, "a timeout alone leaves the path the default"
+    assert rig.book.path_for("OH2XYZ") == () and rig.timeout_for("OH2XYZ") is None, "a path alone leaves the timeout the default; empty is direct"
+    assert rig.book.path_for("OH2RDG-7") == ("WIDE1-1", "WIDE2-1") and rig.timeout_for("OH2RDG-7") is None, "another SSID is another station"
     assert rig.book.paths() == {"OH2RDG": ("OH2RCH-2", "WIDE2-1"), "OH2XYZ": ()} and rig.book.never_hidden() == frozenset({"OH2PU-9"})
     assert await rig.log.prefs() == {"OH2RDG": ("OH2RCH-2,WIDE2-1", 45, False), "OH2PU-9": (None, 0, False), "OH2XYZ": ("", None, False)}
     again = restart()
@@ -103,7 +109,7 @@ async def test_up_to_eight_digipeaters_are_a_path(rig: Rig) -> None:
 async def test_a_station_that_is_not_a_call_can_have_a_timeout_but_not_a_path(rig: Rig) -> None:
     await rig.book.set_timeout("STORM", 30)                           # (an object's name)
     await rig.book.set_timeout(" Big Storm ", 0)
-    assert rig.book.all() == {"STORM": Pref(None, 30), "Big Storm": Pref(None, 0)} and rig.book.timeout_for("STORM") == 30 and rig.book.timeout_for("Big Storm") == 0
+    assert rig.book.all() == {"STORM": Pref(None, 30), "Big Storm": Pref(None, 0)} and rig.timeout_for("STORM") == 30 and rig.timeout_for("Big Storm") == 0
     with pytest.raises(MessagingError, match="call"):
         await rig.book.set_path("Big Storm", "WIDE1-1")
     assert rig.book.path_for("STORM") == ("WIDE1-1", "WIDE2-1")
@@ -148,7 +154,7 @@ async def test_a_timeout_out_of_range_is_refused_and_changes_nothing(rig: Rig, m
 async def test_the_whole_range_is_a_timeout(rig: Rig) -> None:
     await rig.book.set_timeout("OH2RDG", 0)
     await rig.book.set_timeout("OH2RDG", 10080)
-    assert rig.book.timeout_for("OH2RDG") == 10080 and rig.book.never_hidden() == frozenset()
+    assert rig.timeout_for("OH2RDG") == 10080 and rig.book.never_hidden() == frozenset()
 
 
 @pytest.mark.parametrize("call", ["", "   ", "TOOLONGNAMEFORANOBJECT", "tab\there"])
@@ -156,7 +162,7 @@ async def test_a_name_that_is_neither_a_call_nor_an_objects_is_refused(rig: Rig,
     for action in (rig.book.set_timeout(call, 5), rig.book.clear_timeout(call)):
         with pytest.raises(MessagingError, match="not a call or the name of an object"):
             await action
-    assert rig.book.timeout_for(call) is None and rig.book.all() == {} and rig.told == []
+    assert rig.timeout_for(call) is None and rig.book.all() == {} and rig.told == []
 
 
 async def test_two_changes_at_once_for_one_station_both_land(rig: Rig) -> None:

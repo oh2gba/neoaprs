@@ -22,14 +22,13 @@ import signal
 import subprocess
 import sys
 import threading
-from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from neoaprs.childenv import child_environment
 from neoaprs.clock import Clock, iso, utcnow
-from neoaprs.config import Config
 from neoaprs.message import MessageRecord, is_query
+from neoaprs.services.common import ConfigSource
 from neoaprs.tasks import TaskSet
 
 log = logging.getLogger("neoaprs.alerts")
@@ -79,12 +78,12 @@ def alert_environment(record: MessageRecord, base: dict[str, str] | None = None)
 
 
 class Alerts:
-    def __init__(self, config: Callable[[], Config], clock: Clock = utcnow, timeout_sec: float = TIMEOUT_SEC) -> None:
+    def __init__(self, config: ConfigSource, clock: Clock = utcnow, timeout_sec: float = TIMEOUT_SEC) -> None:
         self._config = config
         self.clock = clock
         self.timeout_sec = timeout_sec
         self._told_at: datetime | None = None                   # when a failure was last logged above DEBUG
-        self._tasks = TaskSet(self._task_failed)
+        self._tasks = TaskSet(log, "alert")
 
     def alert(self, record: MessageRecord) -> None:
         """A message to us was heard for the first time: run the command, in a task."""
@@ -100,10 +99,6 @@ class Alerts:
     async def stop(self) -> None:
         """An alert that is running is ended with the daemon (the command and what it started are killed)."""
         await self._tasks.cancel_all()
-
-    @staticmethod
-    def _task_failed(task: "asyncio.Task[None]") -> None:
-        log.error("alert task %s failed: %r", task.get_name(), task.exception())
 
     async def _run(self, command: str, env: dict[str, str], sender: str) -> None:
         outcome = await self._execute(command, env)

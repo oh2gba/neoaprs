@@ -7,7 +7,7 @@ import pytest
 from neoaprs.aprsmessage import MessageError
 from neoaprs.callsign import CallsignError
 from neoaprs.clock import utc
-from neoaprs.message import (EMAIL_ATTEMPTS, FINAL_WAIT_SEC, MAX_ATTEMPTS, MSG_IDS, STATION_ATTEMPTS, MessageRecord, addressed_to, attempts_for, check_text, due_at, is_query, is_telemetry_definition, next_msg_id, normal_call,
+from neoaprs.message import (EMAIL_ATTEMPTS, FINAL_WAIT_SEC, MSG_IDS, STATION_ATTEMPTS, MessageRecord, addressed_to, attempts_for, check_text, due_at, is_query, is_telemetry_definition, next_msg_id, normal_call,
                             same_call, schedule_sec, wait_after)
 
 T0 = utc(2026, 10, 21, 12, 0, 0)
@@ -63,7 +63,7 @@ def test_the_schedule_of_a_message_an_older_version_gave_more_attempts_goes_on_t
 
 def test_the_schedule_follows_the_number_of_attempts_doubles_and_no_wait_is_over_960_seconds() -> None:
     assert schedule_sec(1) == (0,) and schedule_sec(3) == (0, 30, 60)
-    assert schedule_sec(MAX_ATTEMPTS) == (0, 30, 60, 120, 240, 480, 960, 1920, 2880, 3840) and MAX_ATTEMPTS == 10
+    assert schedule_sec(10) == (0, 30, 60, 120, 240, 480, 960, 1920, 2880, 3840)
     assert [wait_after(n, 10).total_seconds() for n in range(1, 11)] == [30, 30, 60, 120, 240, 480, 960, 960, 960, FINAL_WAIT_SEC]
     assert [wait_after(n, 3).total_seconds() for n in range(1, 4)] == [30, 30, FINAL_WAIT_SEC], "the last attempt of any number is waited for the same time"
     assert wait_after(1, 1).total_seconds() == FINAL_WAIT_SEC

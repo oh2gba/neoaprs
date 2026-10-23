@@ -7,7 +7,7 @@ value). A topic can ask for a gap between two patches (`interval`): the TNC chan
 
 Back-pressure: the hub keeps nothing for a page. A page whose socket already holds more than `BEHIND` bytes (an eighth of what the socket is cut off at, `MAX_WRITE_BUFFER`) is not sent the patch;
 the topic is marked stale for it and it is sent the whole `state` of the topic when its socket has been read down. A slow phone costs the daemon nothing, and a page that never reads is cut off by
-the socket (neoaprs/web/server.py). Everything leaves as text through the page's `Connection`, which writes through the publisher (the cap on the size, the outgoing check).
+the socket (neoaprs/web/pagesocket.py). Everything leaves as text through the page's `Connection`, which writes through the publisher (the cap on the size, the outgoing check).
 """
 import asyncio
 import logging

@@ -58,11 +58,6 @@ def sending_messages(db: sqlite3.Connection) -> list[Row]:
     return [tuple(r) for r in db.execute(f"SELECT {_LIST} FROM message WHERE state = 'sending' ORDER BY id")]
 
 
-def highest_sent_msg_id(db: sqlite3.Connection) -> int:
-    """The highest message id (as a number) of the messages we sent; 0 when there is none."""
-    return int(db.execute("SELECT COALESCE(MAX(CAST(msg_id AS INTEGER)), 0) FROM message WHERE direction = 'out' AND msg_id NOT GLOB '*[^0-9]*'").fetchone()[0])
-
-
 def all_prefs(db: sqlite3.Connection) -> list[Row]:
     """(call, path, hide_after_min, rf_only) of every station the operator has said something about; path and hide_after_min are null where nothing was said, rf_only is 0 or 1. The column `attempts` is not read: a count kept by an older version is ignored, and a row that holds only that says nothing."""
     return [tuple(r) for r in db.execute("SELECT call, path, hide_after_min, rf_only FROM station_pref WHERE path IS NOT NULL OR hide_after_min IS NOT NULL OR rf_only = 1 ORDER BY call")]

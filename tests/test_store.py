@@ -13,20 +13,26 @@ from tests.support.safety import FaultyConnection, raw
 from tests.support.storedb import sql, store_at
 
 
+async def setting_rev(store: Store, key: str) -> int:
+    """How many times the setting has been written, 0 when it is not there."""
+    rows = await sql(store, "SELECT rev FROM settings WHERE key = ?", key)
+    return int(rows[0][0]) if rows else 0
+
+
 async def test_a_new_file_has_the_current_version_and_no_settings(tmp_path: Path) -> None:
     store = await store_at(tmp_path / DB_NAME)
     assert store.is_open() and await sql(store, "PRAGMA user_version") == [(SCHEMA_VERSION,)]
-    assert await store.settings() == {} and await store.setting("station/call") is None and await store.setting_rev("station/call") == 0
+    assert await store.settings() == {} and await store.setting("station/call") is None and await setting_rev(store, "station/call") == 0
 
 
 async def test_a_setting_is_kept_replaced_and_deleted(tmp_path: Path) -> None:
     store = await store_at(tmp_path / DB_NAME)
     assert await store.put_setting("station/call", "OH2GBA")
-    assert await store.setting("station/call") == "OH2GBA" and await store.setting_rev("station/call") == 1
+    assert await store.setting("station/call") == "OH2GBA" and await setting_rev(store, "station/call") == 1
     assert await store.put_setting("station/call", "OH2GBA-9")
-    assert await store.settings() == {"station/call": "OH2GBA-9"} and await store.setting_rev("station/call") == 2
+    assert await store.settings() == {"station/call": "OH2GBA-9"} and await setting_rev(store, "station/call") == 2
     await store.delete_setting("station/call")
-    assert await store.settings() == {} and await store.setting_rev("station/call") == 0
+    assert await store.settings() == {} and await setting_rev(store, "station/call") == 0
 
 
 async def test_the_settings_round_trip_exactly(tmp_path: Path) -> None:
@@ -41,7 +47,7 @@ async def test_the_settings_round_trip_exactly(tmp_path: Path) -> None:
 async def test_a_write_on_top_of_an_older_revision_is_refused_and_changes_nothing(tmp_path: Path) -> None:
     store = await store_at(tmp_path / DB_NAME)
     await store.put_setting("station/call", "OH2GBA")
-    rev = await store.setting_rev("station/call")
+    rev = await setting_rev(store, "station/call")
     assert await store.put_setting("station/call", "OH2GBA-1", expect_rev=rev)                  # nobody wrote in between: fine
     with pytest.raises(SettingsConflict, match="station/call"):
         await store.put_setting("station/call", "OH2GBA-2", expect_rev=rev)                     # somebody did (the write above)
@@ -62,7 +68,7 @@ async def test_settings_stored_during_an_error_are_not_half_stored(tmp_path: Pat
 async def test_a_store_that_is_not_open_says_no_and_does_not_crash(tmp_path: Path) -> None:
     store = Store(FixedClock())
     assert not store.is_open()
-    assert await store.settings() == {} and await store.setting("x") is None and await store.setting_rev("x") == 0
+    assert await store.settings() == {} and await store.setting("x") is None
     assert not await store.put_setting("x", "1") and not await store.put_settings({"x": "1"}) and not await store.backup(tmp_path / "copy.sqlite")
     await store.delete_setting("x")
     await store.checkpoint()

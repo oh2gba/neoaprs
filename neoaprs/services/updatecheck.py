@@ -10,7 +10,7 @@ from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from typing import Literal
 
-from neoaprs.config import Config
+from neoaprs.services.common import ConfigSource
 from neoaprs.tasks import TaskSet
 from neoaprs.versions import Update, compare_versions, parse_update
 
@@ -32,7 +32,7 @@ class CheckResult:
 
 
 class UpdateCheck:
-    def __init__(self, config: Callable[[], Config], version: str, platform: str, fetch: Fetch, first_sec: float = FIRST_SEC, every_sec: float = EVERY_SEC,
+    def __init__(self, config: ConfigSource, version: str, platform: str, fetch: Fetch, first_sec: float = FIRST_SEC, every_sec: float = EVERY_SEC,
                  environ: Mapping[str, str] = os.environ) -> None:
         self._config = config
         self.version = version
@@ -42,7 +42,7 @@ class UpdateCheck:
         self.every_sec = every_sec
         self._environ = environ
         self.latest: Update | None = None                       # the answer, while it names a version newer than ours
-        self._tasks = TaskSet(self._task_failed)
+        self._tasks = TaskSet(log, "update")
         self._asking = asyncio.Lock()                           # one question at a time, whoever asks
 
     @property
@@ -55,10 +55,6 @@ class UpdateCheck:
 
     async def stop(self) -> None:
         await self._tasks.cancel_all()
-
-    @staticmethod
-    def _task_failed(task: "asyncio.Task[None]") -> None:
-        log.error("update task %s failed: %r", task.get_name(), task.exception())
 
     async def _run(self) -> None:
         wait = self.first_sec

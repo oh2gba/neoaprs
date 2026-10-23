@@ -1,12 +1,11 @@
 """The composition root: the parts of the program, made in one place. The data directory, the clock, the settings (`config`), the Store, the Tnc, the station book, the beacon, the status, the message alert, messaging, the message board,
 the objects and the bulletins of our own and their sender, the queries, the digipeater, the base map and the update check (the services are made here and nowhere else), the station preferences, the packet log, the message log, the bulletin log, the log of our own objects and bulletins, the weather log and the task set. The parts are made here and connected in neoaprs/wiring.py; the start and the stop are neoaprs/controller.py.
 """
-import asyncio
 import logging
 import platform
 import sys
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Protocol
 
 from . import VERSION
 from .bulletinlog import BulletinLog
@@ -82,7 +81,7 @@ class Services:
         self.config_changed: Signal[[Config]] = Signal("config_changed")   # every save of the settings, though nothing differs: the page's settings form waits for it
         self.web: Frontend | None = None                                # the page's server, made by the controller from the factory the process gave it, once the settings are read
         self.db: Db | None = None                                       # its thread, once the controller has opened it
-        self.tasks = TaskSet(self._task_failed)                         # what the parts start on the loop; the controller's stop ends them
+        self.tasks = TaskSet(log)                                             # what the parts start on the loop; the controller's stop ends them
         self.running = False
         self.debug = False
 
@@ -90,6 +89,3 @@ class Services:
         """Is the name that of a station of the book (a call that was heard, not an object)? An object of ours is never made under it."""
         found = self.stationbook.get(name)
         return found is not None and found.kind == "station"
-
-    def _task_failed(self, task: "asyncio.Task[Any]") -> None:
-        log.error("task %s failed: %r", task.get_name(), task.exception())

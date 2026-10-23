@@ -8,8 +8,9 @@ from hypothesis import strategies as st
 
 from neoaprs.aprsmessage import format_message, parse_message
 from neoaprs.aprsparse import parse
-from neoaprs.aprsposition import compress_position, parse_position
+from neoaprs.aprsposition import parse_position
 from neoaprs.packet import Message
+from tests.test_aprsposition import compress_position
 
 NOW = datetime(2026, 10, 21, 12, 0, tzinfo=UTC)
 _ADDRESSEE = st.text(alphabet=st.characters(min_codepoint=33, max_codepoint=126, exclude_characters=":"), min_size=1, max_size=9)

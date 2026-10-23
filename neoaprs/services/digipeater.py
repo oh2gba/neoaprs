@@ -10,17 +10,15 @@ Nothing goes while the interlock refuses (no call set: config.can_transmit) or t
 ten seconds between our scheduled frames; instead at most BURST_MAX digipeated frames go out in any BURST_WINDOW_SEC and the rest are dropped (the TNC's own channel access still decides when a frame is on the air)."""
 import logging
 from collections import deque
-from collections.abc import Callable
 from dataclasses import replace
 from datetime import datetime, timedelta
 
 from neoaprs import ax25
 from neoaprs.callsign import parse_call
 from neoaprs.clock import Clock, utcnow
-from neoaprs.config import Config
 from neoaprs.interlock import Interlock
 from neoaprs.packet import Packet
-from neoaprs.services.sender import Radio
+from neoaprs.services.common import ConfigSource, Radio
 from neoaprs.tncwatchdog import TncStats
 
 log = logging.getLogger("neoaprs.digipeater")
@@ -54,7 +52,7 @@ def repeat(frame: ax25.Frame, ours: tuple[str, int]) -> ax25.Frame | None:
 
 
 class Digipeater:
-    def __init__(self, tnc: Radio, config: Callable[[], Config], clock: Clock = utcnow, stats: TncStats | None = None) -> None:
+    def __init__(self, tnc: Radio, config: ConfigSource, clock: Clock = utcnow, stats: TncStats | None = None) -> None:
         self._tnc = tnc
         self._config = config
         self._interlock = Interlock(config)

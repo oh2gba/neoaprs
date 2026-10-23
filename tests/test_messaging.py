@@ -580,7 +580,7 @@ async def test_delete_conversation_removes_every_message_with_the_station_and_no
     await rig.settled()
     assert sorted(m.text for m in await rig.log.recent()) == ["other friend", "ours to the other"]
     assert sorted(m.text for m in await rig.log.recent(overheard=True)) == ["overheard from him", "overheard to him"]
-    assert rig.prefs.path_for("OH2RDG") == ("OH2RCH-2",) and rig.prefs.timeout_for("OH2RDG") == 30, "the path and the timeout are the station's, not the conversation's"
+    assert rig.prefs.path_for("OH2RDG") == ("OH2RCH-2",) and rig.prefs.all()["OH2RDG"].hide_after_min == 30, "the path and the timeout are the station's, not the conversation's"
 
 
 async def test_delete_conversation_stops_the_messages_being_sent_and_goes_by_the_peer_not_by_the_records(rig: Rig) -> None:

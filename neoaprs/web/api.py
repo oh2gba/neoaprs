@@ -43,11 +43,7 @@ class Api:
         self.dispatcher = Dispatcher(controller, self.hub, self.status)
         self.started_at = controller.clock()
         self.meter = ProcessMeter()
-        self.tasks = TaskSet(self._task_failed)
-
-    @staticmethod
-    def _task_failed(task: "asyncio.Task[Any]") -> None:
-        log.error("web task %s failed: %r", task.get_name(), task.exception())
+        self.tasks = TaskSet(log, "web")
 
     # ---- lifecycle
     async def start(self) -> None:

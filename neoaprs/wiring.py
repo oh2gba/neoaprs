@@ -1,22 +1,24 @@
 """The signals of the program connected, in the one place that does it (`Signal.connect` is for the composition root only): what the radio hears goes to the packet log, the station book, messaging (which hands bulletins to the board), the queries and our objects (one that another station
 reports is theirs and is dropped), our objects go to the station book, what the book changes goes to the database, and the port the search found is remembered.
 
-Also how the settings become the Tnc's: `tnc_settings`."""
+Also how the settings become the Tnc's: `tnc_settings`, and how the station book is filled from the database at the start: `seed_station_book`."""
 import logging
 from dataclasses import replace
 from typing import NamedTuple
 
 from .app import Services
-from .config import Config
+from .config import LOG_KEEP_DAYS, Config
 from .packet import Packet
 from .packetcodec import tnc2
 from .serialprobe import search_pattern
 from .source import Source
+from .stationbook import DETAILS_SEEN
 from .tnc import Tnc
 from .tncprofile import Profile, names_tcp, tcp_url
 
 log = logging.getLogger("neoaprs.wiring")
 packets_log = logging.getLogger("neoaprs.packets")
+start_log = logging.getLogger("neoaprs.controller")          # what the start of the daemon says is the controller's, whoever does it
 
 
 class TncSettings(NamedTuple):
@@ -80,3 +82,33 @@ async def _store_last_port(parts: Services, path: str) -> None:
     if await parts.store.put_setting("serial/last_port", path):
         parts.config = replace(parts.config, serial_last_port=path)
         log.info("the radio was found on %s; it is tried first next time", path)
+
+
+def place_me(parts: Services) -> None:
+    """Our own station in the book, from the settings."""
+    c = parts.config
+    if c.station_call and c.station_position is not None:
+        parts.stationbook.set_me(c.station_call, *c.station_position, c.station_symbol_table, c.station_symbol_code, c.station_comment)
+    else:
+        parts.stationbook.clear_me()                                 # (no own station until there is a call and a position)
+
+
+async def seed_station_book(parts: Services) -> None:
+    """The station book made from the packets, the messages and the weather log kept in the database, at the start."""
+    book, packetlog = parts.stationbook, parts.packetlog
+    book.seed(await packetlog.stations())
+    book.seed_deliveries(await packetlog.deliveries())
+    place_me(parts)
+    book.seed_tracks(await packetlog.positions(LOG_KEEP_DAYS))      # (after our own station is in the book: it gets no track)
+    await _seed_weather(parts)
+    book.seed_details(await packetlog.recent(DETAILS_SEEN))
+    book.seed_messaging(await packetlog.messaging_evidence(LOG_KEEP_DAYS))
+
+
+async def _seed_weather(parts: Services) -> None:
+    """The weather log made from the packets kept when it is empty (once), then the newest observation of each station into the book."""
+    if await parts.weatherlog.count() == 0:
+        made = await parts.weatherlog.backfill(LOG_KEEP_DAYS)
+        if made:
+            start_log.info("the weather log was empty: %d observations were read from the packets already kept", made)
+    parts.stationbook.seed_weather(await parts.weatherlog.latest_all())

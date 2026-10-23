@@ -16,12 +16,13 @@ from dataclasses import replace
 from datetime import datetime, timedelta
 
 from neoaprs.clock import Clock, utcnow
-from neoaprs.config import Config, can_transmit
+from neoaprs.config import can_transmit
 from neoaprs.decay import KILL_SENDS, MIN_GAP_SEC, kill_wait_sec, object_wait_sec
 from neoaprs.message import same_call
 from neoaprs.ownlog import OwnLog
 from neoaprs.ownobject import OwnError, OwnObject, info_of, make_object
 from neoaprs.packet import ItemReport, ObjectReport, Packet
+from neoaprs.services.common import ConfigSource
 from neoaprs.services.repeater import TICK_SEC, Repeater
 from neoaprs.services.sender import Sender
 from neoaprs.signal import Signal
@@ -34,7 +35,7 @@ MAX_OBJECTS = 50                                            # objects and items 
 class OwnObjects(Repeater[str]):
     kind = "object"
 
-    def __init__(self, sender: Sender, config: Callable[[], Config], ownlog: OwnLog, is_station: Callable[[str], bool] = lambda name: False, clock: Clock = utcnow, tick_sec: float = TICK_SEC) -> None:
+    def __init__(self, sender: Sender, config: ConfigSource, ownlog: OwnLog, is_station: Callable[[str], bool] = lambda name: False, clock: Clock = utcnow, tick_sec: float = TICK_SEC) -> None:
         super().__init__(sender, clock, tick_sec)
         self._config = config
         self._log = ownlog

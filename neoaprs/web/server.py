@@ -1,6 +1,8 @@
 """The web server: the page's files and one WebSocket per browser tab. Tornado on the same asyncio loop as everything else. It listens on the loopback, where no key is asked for, and, while `web/network` is on, on every
 interface, where a device logs in with the access key first (neoaprs/web/access.py); the switch is followed without a restart.
 
+The socket of a tab is neoaprs/web/pagesocket.py, the choice of the port neoaprs/web/listen.py; this module is the coordinator: the routes, the Host names, the switch and the key.
+
 While `web/https` is on too, the page is also served over TLS on the port after the plain one (neoaprs/web/secureside.py), and the plain port sends a device other than this computer there (neoaprs/web/securehandlers.py).
 
 Routes: `/ws` (the socket), `/access` and `/access/new` (the key screen's login and a new key), `/neoaprs-ca.crt` (the certificate authority's certificate, on both ports), `/basemap.pmtiles` and `/basemap-world.pmtiles` (the files of the data folder, with byte ranges), and everything else from the page's
@@ -8,7 +10,6 @@ folder (`neoaprs/page/`, made by scripts/build-page; the folder `neoaprs/web/pla
 Host name that is not ours (neoaprs/web/pagefiles.py); the socket and the map are refused to a device that has not logged in.
 """
 import asyncio
-import errno
 import ipaddress
 import logging
 import re
@@ -16,13 +17,13 @@ import socket
 import ssl
 from dataclasses import replace
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Sequence
 
 import tornado.httpserver
 import tornado.httputil
 import tornado.web
 import tornado.websocket
-from tornado.iostream import IOStream, StreamBufferFullError
+from tornado.iostream import IOStream
 
 from neoaprs.config import Config
 from neoaprs.controller import Controller
@@ -31,9 +32,10 @@ from .access import Access, Login, NewKey, new_key
 from .addresses import lan_addresses
 from .api import Api
 from .connections import LimitedHTTPServer
-from .headers import host_name, origin_is_host
-from .outbound import MAX_WRITE_BUFFER
-from .pagefiles import Basemap, Page, SecurityHeaders, refuse_foreign_host, refuse_plain, refuse_unless_logged_in
+from .headers import host_name
+from .listen import listen_near
+from .pagefiles import Basemap, Page
+from .pagesocket import Socket
 from .securehandlers import CA_PATH, CaCertificate, secure_target
 from .secureside import SecureSide
 from .tls import FOLDER
@@ -48,91 +50,8 @@ HEADER_TIMEOUT_SEC = 60.0                 # a connection that has sent no reques
 BODY_TIMEOUT_SEC = 30.0
 LOOPBACK = "127.0.0.1"
 
-# The socket is compressed when the browser offers permessage-deflate (RFC 7692; every browser does): the table of the stations is large JSON with much repetition. Tornado keeps one deflate state
-# for each direction of each socket, a few hundred kilobytes, and the connections are capped (neoaprs/web/connections.py).
-COMPRESSION = {"compression_level": 5, "mem_level": 6}
-
-
-def _looked_at(future: "asyncio.Future[None]") -> None:
-    if not future.cancelled():
-        future.exception()
-
-
-class _Socket(SecurityHeaders, tornado.websocket.WebSocketHandler):
-    def initialize(self, server: "WebServer") -> None:
-        self.server = server
-
-    def prepare(self) -> None:
-        if not refuse_foreign_host(self, self.server) and not refuse_plain(self, self.server):
-            refuse_unless_logged_in(self, self.server)
-
-    def get_compression_options(self) -> dict[str, Any]:
-        return COMPRESSION
-
-    def check_origin(self, origin: str) -> bool:
-        # the page is served from here, so a socket from anywhere else is another site's script. That the Host is one of ours is checked in prepare():
-        # an Origin that agrees with the Host proves nothing when both are the attacker's (DNS rebinding)
-        return origin_is_host(origin, self.request.headers.get("Host", ""))
-
-    def open(self, *args: Any, **kwargs: Any) -> None:
-        self.set_nodelay(True)
-        stream = getattr(self.ws_connection, "stream", None)
-        if stream is not None:
-            stream.max_write_buffer_size = MAX_WRITE_BUFFER          # a page that stops reading is cut off here, not when the ping times out 50 s later
-            self.server.page_proved(stream)
-        ip = self.request.remote_ip or ""
-        self.server.api.attach(self, ip)
-        log.info("page connected from %s", ip)
-
-    def on_message(self, message: str | bytes) -> None:
-        try:
-            text = message.decode() if isinstance(message, bytes) else message
-        except UnicodeDecodeError:
-            return                                   # a binary frame that is no text: the page sends none, so it is ignored
-        try:
-            self.server.api.on_command(self, text)
-        except RecursionError:
-            return                                   # JSON nested deeper than the parser can follow
-
-    def on_close(self) -> None:
-        self.server.api.detach(self)
-
-    def buffered(self) -> int:
-        """What the socket holds that the page has not read: the number the write limit is held against (neoaprs/web/hub.py calls a page behind when it is a share of it)."""
-        stream = getattr(self.ws_connection, "stream", None)
-        held = getattr(stream, "_write_buffer", None)          # Tornado has no public count; this is what it compares max_write_buffer_size with
-        return 0 if held is None else len(held)
-
-    def send_json(self, text: str) -> None:
-        try:
-            written = self.write_message(text)
-            # the future of a write that fails later (the page left, or was cut off) is looked at, or asyncio logs "exception was never retrieved" for each message in flight
-            written.add_done_callback(_looked_at)
-        except tornado.websocket.WebSocketClosedError:
-            self._gone()
-        except StreamBufferFullError:
-            self._cut_off()
-
-    def _gone(self) -> None:
-        """The page's socket is closed (it hung up, or its closing has begun and Tornado has not yet told the daemon): the push is dropped and the page is forgotten now, so that the pushes
-        that follow do not look for it. `Api.detach` can be asked again by `on_close`."""
-        log.debug("a push to the closed page %s was dropped", self.request.remote_ip)
-        self.server.api.detach(self)
-
-    def _cut_off(self) -> None:
-        """This page is the only one that is closed: a page that does not read (a phone gone to sleep with the socket open) has a buffer that is full and no frame can be written to it."""
-        log.warning("a page that does not read was cut off (%s)", self.request.remote_ip)
-        stream = getattr(self.ws_connection, "stream", None)
-        if stream is not None:
-            stream.close()
-
-
 def default_page_dir() -> Path:
     return PAGE_DIR if (PAGE_DIR / "index.html").is_file() else PLACEHOLDER_DIR
-
-
-PORT_TRIES = 10                                           # ports after web/port that are tried when it is taken
-PORT_TAKEN = {errno.EADDRINUSE, errno.EACCES, getattr(errno, "WSAEADDRINUSE", errno.EADDRINUSE), getattr(errno, "WSAEACCES", errno.EACCES)}     # in use, or not for us to take
 
 
 class WebServer:
@@ -176,11 +95,6 @@ class WebServer:
                 server.proved(stream)
 
     @property
-    def secure_port(self) -> int:
-        """The port the secure page is served on; 0 while it is not."""
-        return self.secure.port
-
-    @property
     def secure_ca(self) -> bytes | None:
         return self.secure.ca_der
 
@@ -218,7 +132,7 @@ class WebServer:
         await self._ensure_key()
         self.address = "" if self.controller.config.web_network else LOOPBACK
         app = tornado.web.Application([
-            (r"/ws", _Socket, {"server": self}),
+            (r"/ws", Socket, {"server": self}),
             (r"/access", Login),
             (r"/access/new", NewKey),
             (re.escape(CA_PATH), CaCertificate, {"server": self}),
@@ -229,7 +143,7 @@ class WebServer:
         self._app = app
         await self.api.start()                      # (before the first page can come: the packets the database holds are in the window, the signals are connected)
         server = self._limited(None)
-        failure = self._listen(server)
+        failure = listen_near(server, self.address, c.web_port)
         if failure is not None:
             log.error("the web server cannot listen on %s:%d: %s; NeoAPRS goes on without the page", self.address or "every interface", c.web_port, failure)
             self._server = None
@@ -251,24 +165,6 @@ class WebServer:
         if urls := self.reach():
             log.info("network access is on: other devices open the page at %s and log in with the access key of Settings, Web (on this computer: neoaprs db get web/key)", ", ".join(urls))
 
-    def _listen(self, server: LimitedHTTPServer) -> OSError | None:
-        """Listens on `web/port`, or, when it is taken (or forbidden: Windows keeps ranges of ports for itself), on the first of the next `PORT_TRIES` that is free; port 0 is a free one at once.
-        None when it listens, else the error of the first try (or the first error that no other port would cure)."""
-        first: OSError | None = None
-        wanted = self.config.web_port
-        for port in range(wanted, min(wanted + (PORT_TRIES if wanted else 0), 65535) + 1):
-            try:
-                server.listen(port, self.address)
-            except OSError as e:
-                first = first or e
-                if e.errno not in PORT_TAKEN:
-                    return first
-                continue
-            if port != wanted:
-                log.warning("web/port %d is in use (%s): the page is on port %d", wanted, first, port)
-            return None
-        return first
-
     # ---- the switch and the key
     def settings_changed(self, config: Config) -> None:
         """The settings were saved: the switch and the key are followed, in a task."""
@@ -282,7 +178,7 @@ class WebServer:
             self._relisten("" if self.controller.config.web_network else LOOPBACK)
             await self._follow_secure()
             for client in list(self.api.clients):                  # a device that is not let in any more (the key is new, or the network is off) is cut off
-                if isinstance(client, _Socket) and not self.access.allowed(client.request):
+                if isinstance(client, Socket) and not self.access.allowed(client.request):
                     client.close(1008, "logged out")
             if self.address != before:
                 self.api.hub.changed("config")                     # (where the page can be opened from)
@@ -294,7 +190,7 @@ class WebServer:
         changed = await self.secure.follow(c.web_https and c.web_network and self.address == "", self.address, self.bound_port(), self._limited)
         if not self.secure.state.on:
             for client in list(self.api.clients):
-                if isinstance(client, _Socket) and client.request.protocol == "https":
+                if isinstance(client, Socket) and client.request.protocol == "https":
                     client.close(1001, "the secure connection was turned off")
         if changed:
             self.api.hub.changed("config")
@@ -357,7 +253,7 @@ class WebServer:
         await self.api.stop()
         # the sockets of the open tabs are closed with a reason; otherwise close_all_connections waits out its timeout
         for client in list(self.api.clients):
-            if isinstance(client, _Socket):
+            if isinstance(client, Socket):
                 client.close(1001, "NeoAPRS is stopping")
         await self.secure.close()
         if self._server:

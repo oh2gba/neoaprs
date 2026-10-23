@@ -1,13 +1,16 @@
 """How this copy was installed (neoaprs/versions.py `install_kind`, neoaprs/cli/installkind.py): the kind from what the process can see, with the facts faked in a folder of the test; and what the page is told of it in `hello`."""
 import sys
+from typing import get_args
 from pathlib import Path
 
 import pytest
 
 from neoaprs.cli import installkind
 from neoaprs.cli.installkind import DEB_PREFIX, deb_environment, detect, is_checkout, service_set, uv_tool_environment
-from neoaprs.versions import INSTALL_KINDS, InstallInfo, install_kind
+from neoaprs.versions import InstallInfo, InstallKind, install_kind
 from tests.support.env import Env
+
+INSTALL_KINDS = get_args(InstallKind)
 
 
 @pytest.mark.parametrize("frozen, appimage, deb, checkout, uv_tool, kind", [
