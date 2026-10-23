@@ -21,6 +21,8 @@ import {
   type Archives,
 } from "@/lib/basemapstyle";
 import { useClearOfCard } from "@/composables/useClearOfCard";
+import { useMapFollow } from "@/composables/useMapFollow";
+import { useResized } from "@/composables/useResized";
 import { buildMarkerDom, paintMarker, type MarkerDom } from "@/lib/markerdom";
 import { readView, writeView, type Focus, type Home } from "@/lib/mapview";
 import { markerStep, timedOut, type Aging } from "@/lib/aging";
@@ -34,7 +36,6 @@ import { hasPosition } from "@/lib/stations";
 import { trackLines } from "@/lib/tracks";
 import type { StationRow } from "@/protocol/protocol";
 
-const FLY_ZOOM = 11;
 const WORLD_VIEW = { lat: 20, lon: 0, zoom: 1.5 }; // where the map opens while we have no position
 const LABELS_FROM_ZOOM = 8;
 
@@ -42,6 +43,8 @@ const props = withDefaults(
   defineProps<{
     stations: ReadonlyMap<string, StationRow>;
     selected: string | null;
+    /** The stations of the other cards that are open (Ctrl+click): their markers are marked as the selected one's is (the route is drawn for the selected one only). */
+    others?: readonly string[];
     focus: Focus | null;
     home: Home | null;
     now: number;
@@ -54,9 +57,9 @@ const props = withDefaults(
     /** The place the first-run guide holds, shown with a marker. */
     pin?: Home | null;
   }>(),
-  { filesKey: null, picking: false, pin: null },
+  { others: () => [], filesKey: null, picking: false, pin: null },
 );
-const emit = defineEmits<{ select: [call: string | null]; download: []; pick: [at: Home]; move: [call: string, lat: number, lon: number] }>();
+const emit = defineEmits<{ select: [call: string | null, multi?: boolean]; download: []; pick: [at: Home]; move: [call: string, lat: number, lon: number] }>();
 
 interface Placed {
   marker: Marker;
@@ -68,6 +71,7 @@ interface Placed {
 const root = ref<HTMLElement | null>(null);
 const host = ref<HTMLElement | null>(null);
 const card = useClearOfCard(root, host);
+useResized(host, () => map?.resize());
 const note = ref(""); // what stands over the map when there is no base map (or no map engine)
 const offerDownload = ref(false); // ... and whether it has the button that goes to where the map is made
 const placed = new Map<string, Placed>();
@@ -121,22 +125,22 @@ function addLayers(): void {
   drawRoute();
 }
 
-/** The stations that are drawn: with a position and not past their timeout. */
+/** The stations that are drawn: with a position and not past their timeout (a station whose card is open is drawn, with its track, whatever its timeout). */
 function drawn(): StationRow[] {
-  return [...props.stations.values()].filter((row) => hasPosition(row) && !timedOut(props.aging, row, props.now));
+  return [...props.stations.values()].filter((row) => hasPosition(row) && (isOpen(row.call) || !timedOut(props.aging, row, props.now)));
 }
 
 function drawTracks(): void {
-  void map?.getSource<GeoJSONSource>("tracks")?.setData(trackLines(drawn(), props.selected, props.now, props.aging));
+  void map?.getSource<GeoJSONSource>("tracks")?.setData(trackLines(drawn(), openCalls(), props.now, props.aging));
 }
 
 function makePlaced(call: string): Placed | null {
   if (!map || !engine) return null;
   const dom = buildMarkerDom();
-  dom.root.addEventListener("click", (event) => {
+  dom.root.addEventListener("click", (event: MouseEvent) => {
     event.stopPropagation(); // not a click on the map, which lets go of the selection
     hover?.hide();
-    emit("select", call);
+    emit("select", call, event.ctrlKey || event.metaKey); // (Ctrl, or Cmd on a Mac, adds the card to the open ones)
   });
   hover?.attach(dom.root, call);
   const marker = new engine.Marker({ element: dom.root, anchor: "center" }).setLngLat([0, 0]).addTo(map);
@@ -147,11 +151,15 @@ function makePlaced(call: string): Placed | null {
   return { marker, dom, lat: NaN, lon: NaN };
 }
 
+/** A station with a card open (the selected one, or one of the others): its marker shows, and is marked, even when it is past its timeout. */
+const isOpen = (call: string): boolean => call === props.selected || props.others.includes(call);
+const openCalls = (): string[] => (props.selected === null ? [...props.others] : [...props.others, props.selected]);
+
 function syncMarkers(): void {
   if (!map) return;
   const present = new Set<string>();
   for (const row of props.stations.values()) {
-    if (!hasPosition(row) || (row.call !== props.selected && timedOut(props.aging, row, props.now))) continue;
+    if (!hasPosition(row) || (!isOpen(row.call) && timedOut(props.aging, row, props.now))) continue;
     present.add(row.call);
     const one = placed.get(row.call) ?? makePlaced(row.call);
     if (!one) continue;
@@ -164,7 +172,7 @@ function syncMarkers(): void {
     one.marker.setDraggable(row.own);
     paintMarker(one.dom, row, {
       fade: markerStep(props.aging, row, props.now),
-      selected: row.call === props.selected,
+      selected: isOpen(row.call),
       direct: heardDirectRecently(row, props.now),
     });
   }
@@ -182,8 +190,8 @@ function syncPin(): void {
   if (map && engine) pinMarker = placePin(engine, map, pinMarker, props.pin, pickAt); // (the pin dropped somewhere else is the place, as a click there would be)
 }
 
-function onClick(event?: { lngLat?: { lat: number; lng: number } }): void {
-  emit("select", null);
+function onClick(event?: { lngLat?: { lat: number; lng: number }; originalEvent?: MouseEvent }): void {
+  if (!(event?.originalEvent?.ctrlKey || event?.originalEvent?.metaKey)) emit("select", null); // (a Ctrl+click beside a marker leaves the cards open)
   if (props.picking && event?.lngLat) pickAt(event.lngLat.lat, event.lngLat.lng);
 }
 
@@ -244,30 +252,19 @@ async function create(): Promise<void> {
   syncPin();
 }
 
-watch([() => [...props.stations.values()], () => [props.selected, [...props.aging.timeouts], props.aging.defaultMin]], () => {
+watch([() => [...props.stations.values()], () => [props.selected, props.others, [...props.aging.timeouts], props.aging.defaultMin]], () => {
   syncMarkers();
   drawTracks();
   drawRoute();
 });
 watch(() => props.now, syncMarkers);
 watch(minute, drawTracks);
-// (after the page is drawn, so that the card of the station is there to keep clear of)
-watch(
-  () => props.focus,
-  (focus) => {
-    const row = focus ? props.stations.get(focus.call) : undefined;
-    if (map && row && hasPosition(row)) map.flyTo({ center: [row.lon, row.lat], zoom: Math.max(map.getZoom(), FLY_ZOOM), ...card.flightOffset() });
-  },
-  { flush: "post" },
-);
-watch(
-  () => props.selected,
-  (call) => {
-    const one = call === null ? undefined : placed.get(call);
-    if (map && one) card.panClear(map, one);
-  },
-  { flush: "post" },
-);
+useMapFollow(() => map, card, {
+  focus: () => props.focus,
+  selected: () => props.selected,
+  station: (call) => props.stations.get(call),
+  marker: (call) => placed.get(call),
+});
 watch(
   () => props.home,
   (home) => {

@@ -1,6 +1,6 @@
 // The tracks of the stations as one GeoJSON collection of lines for the map. A track fades with age along its length: each stretch between two points has the opacity of its older point's age against
 // the timeout of the station (lib/aging.ts), the newest stretch full and the oldest faint. Neighbouring stretches of the same opacity are one line, so that the joins are not drawn twice over each other;
-// the selected station's line is marked so that it is drawn heavier.
+// the line of a selected station (of every open card) is marked so that it is drawn heavier.
 import { timeoutMin, trailOpacity, type Aging } from "@/lib/aging";
 import { ageSeconds } from "@/lib/format";
 import type { StationRow } from "@/protocol/protocol";
@@ -39,8 +39,10 @@ function stationLines(row: StationRow, selected: boolean, nowMs: number, aging: 
   return features;
 }
 
-export function trackLines(rows: Iterable<StationRow>, selected: string | null, nowMs: number, aging: Aging): TrackCollection {
+/** `selected` is the call of the selected station, or the calls of all the stations whose cards are open. */
+export function trackLines(rows: Iterable<StationRow>, selected: string | null | readonly string[], nowMs: number, aging: Aging): TrackCollection {
+  const picked = typeof selected === "string" ? [selected] : (selected ?? []);
   const features: TrackFeature[] = [];
-  for (const row of rows) features.push(...stationLines(row, row.call === selected, nowMs, aging));
+  for (const row of rows) features.push(...stationLines(row, picked.includes(row.call), nowMs, aging));
   return { type: "FeatureCollection", features };
 }

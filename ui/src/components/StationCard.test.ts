@@ -2,7 +2,7 @@ import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import StationCard from "@/components/StationCard.vue";
 import type { Aging } from "@/lib/aging";
-import { cssRule, mediaRule } from "@/test/css";
+import { cssRule } from "@/test/css";
 import { NOW, ago, series, station, weatherStation } from "@/test/fixtures";
 
 const row = station("OH2PU-9", {
@@ -368,7 +368,7 @@ describe("StationCard", () => {
 
   it("keeps the card clear of the zoom buttons of the map and, on a phone, leaves room above it for the marker", () => {
     expect(cssRule(".card")).toMatch(/max-height:\s*calc\(100% - 114px\)/);
-    expect(mediaRule("(max-width: 800px)", ".card")).toMatch(/max-height:\s*calc\(100% - 134px\)/);
+    expect(cssRule(".size-phone .cardstack")).toMatch(/max-height:\s*88%/);
   });
 
   it("puts the weather panel at the top of a weather station's card, above the fields", () => {
