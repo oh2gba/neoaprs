@@ -1,30 +1,25 @@
 import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { defineComponent, h, nextTick, shallowReactive, shallowRef, type Ref } from "vue";
+import { defineComponent, h, nextTick, shallowReactive } from "vue";
 import { useEmail } from "@/composables/useEmail";
 import { usePanel } from "@/composables/usePanel";
 import type { Command, MessageRow } from "@/protocol/protocol";
 import { incoming, message } from "@/test/fixtures";
 
 function setUp(send = vi.fn((_command: Command) => true), ...rows: MessageRow[]) {
-  const attempts = shallowRef<ReadonlyMap<string, number>>(new Map([["EMAIL-2", 2]]));
-  return withAttempts(attempts, send, ...rows);
-}
-
-function withAttempts(attempts: Ref<ReadonlyMap<string, number>>, send = vi.fn((_command: Command) => true), ...rows: MessageRow[]) {
   const messages = shallowReactive(new Map(rows.map((r) => [String(r.id), r])));
   let made: { panel: ReturnType<typeof usePanel>; mail: ReturnType<typeof useEmail> } | undefined;
   mount(
     defineComponent({
       setup() {
         const panel = usePanel();
-        made = { panel, mail: useEmail(messages, panel, send, attempts) };
+        made = { panel, mail: useEmail(messages, panel, send) };
         return () => h("div");
       },
     }),
   );
   if (made === undefined) throw new Error("not set up");
-  return { send, messages, attempts, ...made };
+  return { send, messages, ...made };
 }
 
 beforeEach(() => localStorage.clear());
@@ -72,100 +67,24 @@ describe("useEmail: what it sends", () => {
   });
 });
 
-describe("useEmail: the gateway's attempts", () => {
-  const none = (): Ref<ReadonlyMap<string, number>> => shallowRef<ReadonlyMap<string, number>>(new Map());
-  type Send = ReturnType<typeof vi.fn<(command: Command) => boolean>>;
-  const sent = (send: Send): Command[] => send.mock.calls.map((c) => c[0]);
-  const sets = (send: Send): Command[] => sent(send).filter((c) => c.cmd === "set_station_attempts");
-  const texts = (send: Send): Command[] => sent(send).filter((c) => c.cmd === "send_message");
-  const said = (send: Send): string[] => texts(send).map((c) => (c.cmd === "send_message" ? c.text : ""));
-
-  it("sends the mail at once, and sets nothing, when the gateway has a count of its own", () => {
+describe("useEmail: what the page sends", () => {
+  it("sends mail, a new shortcut and the commands at once as messages to the gateway, with no setting of attempts before them", () => {
     const { send, mail } = setUp();
     mail.sendMail("me", "Hi");
-    expect(sets(send)).toEqual([]);
-    expect(texts(send)).toEqual([{ cmd: "send_message", to: "EMAIL-2", text: "me Hi" }]);
-  });
-
-  it("sets the gateway to 2 attempts the first time mail is sent, and sends the mail when the daemon has told the count", async () => {
-    vi.useFakeTimers();
-    const attempts = none();
-    const { send, mail } = withAttempts(attempts);
-    mail.sendMail("me", "Hi");
-    expect(send.mock.calls.map((c) => c[0])).toEqual([{ cmd: "set_station_attempts", call: "EMAIL-2", attempts: 2 }]);
-    expect(mail.addresses.value).toEqual([]);
-    attempts.value = new Map([["EMAIL-2", 2]]);
-    await nextTick();
-    expect(send.mock.calls.map((c) => c[0])).toEqual([
-      { cmd: "set_station_attempts", call: "EMAIL-2", attempts: 2 },
-      { cmd: "send_message", to: "EMAIL-2", text: "me Hi" },
-    ]);
-    expect(mail.addresses.value).toEqual(["me"]);
-    await vi.advanceTimersByTimeAsync(10000);
-    expect(send).toHaveBeenCalledTimes(2);
-  });
-
-  it("holds every mail sent meanwhile, in order, and sends the mail anyway if the daemon does not answer in time", async () => {
-    vi.useFakeTimers();
-    const { send, mail } = withAttempts(none());
-    mail.sendMail("me", "one");
-    mail.sendMail("you", "two");
-    expect(send).toHaveBeenCalledTimes(1);
-    await vi.advanceTimersByTimeAsync(3100);
-    expect(said(send)).toEqual(["me one", "you two"]);
-    expect(sets(send)).toHaveLength(1);
-  });
-
-  it("does it once: not again when the count was cleared on purpose, not after a reload either", async () => {
-    vi.useFakeTimers();
-    const attempts = none();
-    const first = withAttempts(attempts);
-    first.mail.sendMail("me", "one");
-    attempts.value = new Map([["EMAIL-2", 2]]);
-    await nextTick();
-    attempts.value = new Map();
-    await nextTick();
-    first.mail.sendMail("me", "two");
-    expect(sets(first.send)).toHaveLength(1);
-    expect(said(first.send)).toEqual(["me one", "me two"]);
-    const reloaded = withAttempts(none());
-    reloaded.mail.sendMail("me", "three");
-    expect(sets(reloaded.send)).toEqual([]);
-    expect(texts(reloaded.send)).toHaveLength(1);
-  });
-
-  it("counts a count the operator set himself as done, so that clearing it later does not bring the 2 back", () => {
-    const attempts = shallowRef<ReadonlyMap<string, number>>(new Map([["EMAIL-2", 4]]));
-    const { send, mail } = withAttempts(attempts);
-    mail.sendMail("me", "one");
-    attempts.value = new Map();
-    mail.sendMail("me", "two");
-    expect(sets(send)).toEqual([]);
-    expect(texts(send)).toHaveLength(2);
-  });
-
-  it("does it for a command or a new shortcut as for mail, and remembers none of them as an addressee", async () => {
-    vi.useFakeTimers();
-    const attempts = none();
-    const { send, mail } = withAttempts(attempts);
     mail.getHeld();
-    mail.listShortcuts("me");
     mail.registerShortcut("jane", "jane@example.com");
-    expect(sent(send)).toEqual([{ cmd: "set_station_attempts", call: "EMAIL-2", attempts: 2 }]);
-    attempts.value = new Map([["EMAIL-2", 2]]);
-    await nextTick();
-    expect(said(send)).toEqual(["get", "me L", "jane jane@example.com"]);
-    expect(mail.addresses.value).toEqual(["jane"]);
+    expect(send.mock.calls.map((c) => c[0])).toEqual([
+      { cmd: "send_message", to: "EMAIL-2", text: "me Hi" },
+      { cmd: "send_message", to: "EMAIL-2", text: "get" },
+      { cmd: "send_message", to: "EMAIL-2", text: "jane jane@example.com" },
+    ]);
+    expect(mail.addresses.value).toEqual(["jane", "me"]);
   });
 
-  it("sends the mail anyway when the set cannot be sent (the socket is down)", () => {
-    const { send, mail } = withAttempts(
-      none(),
-      vi.fn(() => false),
-    );
+  it("remembers no addressee for a message that could not be sent", () => {
+    const { mail } = setUp(vi.fn(() => false));
     mail.sendMail("me", "one");
-    expect(send).toHaveBeenCalledTimes(2);
-    expect(localStorage.getItem("NeoAPRS.emailattempts")).toBeNull();
+    expect(mail.addresses.value).toEqual([]);
   });
 });
 

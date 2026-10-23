@@ -110,15 +110,15 @@ class MessageLog(DbLog):
         return await self._read(highest_sent_msg_id, 0)
 
     # ---- what the operator said about each station (the table station_pref)
-    async def prefs(self) -> dict[str, tuple[str | None, int | None, int | None, bool]]:
-        """Every station that has a preference: call to (path, hide_after_min, attempts, rf_only). The path is digipeater calls separated by commas (empty is direct), None when none is set; the timeout and the attempts are None when none is set."""
+    async def prefs(self) -> dict[str, tuple[str | None, int | None, bool]]:
+        """Every station that has a preference: call to (path, hide_after_min, rf_only). The path is digipeater calls separated by commas (empty is direct), None when none is set; the timeout is None when none is set."""
         rows: list[Row] = await self._read(all_prefs, [])
-        return {str(call): (None if path is None else str(path), None if hide is None else int(hide), None if attempts is None else int(attempts), bool(rf_only)) for call, path, hide, attempts, rf_only in rows}
+        return {str(call): (None if path is None else str(path), None if hide is None else int(hide), bool(rf_only)) for call, path, hide, rf_only in rows}
 
-    async def save_pref(self, call: str, path: str | None, hide_after_min: int | None, attempts: int | None, rf_only: bool = False) -> bool:
+    async def save_pref(self, call: str, path: str | None, hide_after_min: int | None, rf_only: bool = False) -> bool:
         """Keeps what is said of a station (replacing the row it had); False when the database would not take it."""
         stamped = stamp(self.clock())
-        return await self._done(lambda conn: save_pref(conn, call, path, hide_after_min, attempts, rf_only, stamped), "a station preference could not be kept")
+        return await self._done(lambda conn: save_pref(conn, call, path, hide_after_min, rf_only, stamped), "a station preference could not be kept")
 
     async def forget_pref(self, call: str) -> bool:
         """Removes the row of a station, so that it has the defaults again; False when the database would not take it."""

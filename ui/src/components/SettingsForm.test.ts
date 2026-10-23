@@ -23,7 +23,7 @@ const portList = (extra: Partial<PortsMessage> = {}): PortsMessage => ({
 describe("SettingsForm", () => {
   it("has a field for every key of the Settings tab, in groups, and none of the beacon's", () => {
     const { wrapper } = make();
-    expect(wrapper.findAll("fieldset legend").map((l) => l.text())).toEqual(["TNC", "Web page", "Log", "Messaging", "Notifications", "Map", "Update check"]);
+    expect(wrapper.findAll("fieldset legend").map((l) => l.text())).toEqual(["TNC", "Web page", "Log", "Notifications", "Map", "Update check"]);
     expect(wrapper.findAll(".field")).toHaveLength(
       CONFIG_KEYS.filter(
         (k) =>
@@ -97,7 +97,6 @@ describe("SettingsForm", () => {
     expect(unit("set-map-hide_after_min")).toBe("never");
     await wrapper.find("#set-tnc-check_sec").setValue("0");
     expect(unit("set-tnc-check_sec")).toBe("off");
-    expect(unit("set-messages-attempts")).toBeUndefined();
   });
 
   it("shows what an empty value means as the placeholder, else the default", () => {
@@ -380,7 +379,7 @@ describe("SettingsForm", () => {
   });
 
   describe("the Notifications group", () => {
-    it("has the daemon's own alert under a heading of its own, out of the Messaging group, and the slot for the browser's fields after it", () => {
+    it("has the daemon's own alert under a heading of its own, with no Messaging group beside it, and the slot for the browser's fields after it", () => {
       const wrapper = mount(SettingsForm, {
         props: { config: configValues(), lastError: null, send: vi.fn(() => true) },
         slots: { notifications: '<p id="from-slot">browser</p>' },
@@ -393,7 +392,7 @@ describe("SettingsForm", () => {
       expect(group?.find("h3").text()).toBe("On the NeoAPRS computer");
       expect(group?.find("h3").attributes("title")).toBeTruthy();
       expect(group?.find("#from-slot").exists()).toBe(true);
-      expect(groups[titles.indexOf("Messaging")]?.findAll("label").map((l) => l.text())).toEqual(["Attempts"]);
+      expect(titles).not.toContain("Messaging");
       expect(wrapper.findAll("#from-slot")).toHaveLength(1);
     });
     it("is not in the Beacon tab", () => {

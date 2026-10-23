@@ -1,23 +1,18 @@
 <script setup lang="ts">
 // The gateway's other actions, under the compose box, named for what they do; the command each one sends is its hover title. "Mailbox": "Fetch held mail" (`get`: the gateway sends again the mail it holds
-// for this station) and the gateway's count of attempts (the same field as a station's). "Shortcuts": a shortcut is a name the gateway keeps for an address, made by sending `name address` ("Register") and
+// for this station). "Shortcuts": a shortcut is a name the gateway keeps for an address, made by sending `name address` ("Register") and
 // used as the addressee; "Email the list" (`name L`: the gateway emails the list of the shortcuts to this shortcut's address) and "Remove" (`name R`, after "sure?", forgotten after 5 s) work only for a name
 // that was registered, so they stay off until "Your shortcut" holds a name. All are off while the TNC is not connected (the title says so). The page sends them as messages to the gateway; what it answers is in the thread.
 import { computed, ref } from "vue";
-import StationAttempts from "@/components/StationAttempts.vue";
 import { useSure } from "@/composables/useSure";
-import type { Attempts } from "@/lib/attempts";
 import { GET_HELD, listShortcuts, removeShortcut, validAddress, validShortcut } from "@/lib/email";
-import { EMAIL_GATEWAY } from "@/lib/messages";
 
-const props = defineProps<{ connected: boolean; attempts: Attempts }>();
+const props = defineProps<{ connected: boolean }>();
 const emit = defineEmits<{
   register: [name: string, address: string];
   list: [name: string];
   remove: [name: string];
   get: [];
-  setAttempts: [call: string, attempts: number];
-  clearAttempts: [call: string];
 }>();
 const sure = useSure<string>(); // (the shortcut that is to be removed)
 
@@ -48,14 +43,13 @@ function remove(): void {
       <strong>Mailbox</strong>
       <button
         type="button"
-        class="btn small"
+        class="btn"
         :disabled="!connected"
         :title="away ?? `Sends '${GET_HELD}': the gateway sends again the mail it holds for you`"
         @click="emit('get')"
       >
         Fetch held mail
       </button>
-      <StationAttempts :call="EMAIL_GATEWAY" :attempts="attempts" @set="(c, n) => emit('setAttempts', c, n)" @clear="emit('clearAttempts', $event)" />
     </div>
     <form class="mail-shortcut" @submit.prevent="register">
       <strong class="mail-shortcut-head">Shortcut</strong>
@@ -66,7 +60,7 @@ function remove(): void {
       <div class="mail-shortcut-buttons">
         <button
           type="submit"
-          class="btn small"
+          class="btn"
           :disabled="!canRegister"
           :title="away ?? `Sends '${name.trim() || 'name'} ${address.trim() || 'address'}': the gateway keeps the address under the name`"
         >
@@ -74,7 +68,7 @@ function remove(): void {
         </button>
         <button
           type="button"
-          class="btn small"
+          class="btn"
           :disabled="!known"
           :title="titleFor(`Sends '${listShortcuts(name)}': the gateway emails the list of your shortcuts to this shortcut's address`)"
           @click="emit('list', name.trim())"
@@ -83,7 +77,7 @@ function remove(): void {
         </button>
         <button
           type="button"
-          class="btn small"
+          class="btn"
           :class="{ danger: armed }"
           :disabled="!known"
           :title="titleFor(`Sends '${removeShortcut(name)}': the gateway removes this shortcut`)"

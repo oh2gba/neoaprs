@@ -1,4 +1,4 @@
-"""The preferences of the stations (neoaprs/services/prefbook.py) on a real message log and database thread: a path, a timeout and a count of attempts for each station, any of them, written through, read again by the
+"""The preferences of the stations (neoaprs/services/prefbook.py) on a real message log and database thread: a path and a timeout for each station, and RF only, any of them, written through, read again by the
 next start, the checks, and what is told."""
 import asyncio
 from collections.abc import Callable
@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs.config import DEFAULTS
 from neoaprs.message import MessagingError
 from neoaprs.messagelog import MessageLog
 from neoaprs.pref import Pref
@@ -15,7 +14,7 @@ from neoaprs.services.prefbook import PrefBook
 from neoaprs.store import DB_NAME
 from tests.support.env import ON_AIR
 from tests.support.clock import FixedClock
-from tests.support.storedb import store_at
+from tests.support.storedb import keep_old_attempts, store_at
 
 
 class Rig:
@@ -61,7 +60,7 @@ async def test_a_path_and_a_timeout_are_kept_by_the_call_and_read_back_by_the_ne
     assert rig.book.path_for("OH2XYZ") == () and rig.book.timeout_for("OH2XYZ") is None, "a path alone leaves the timeout the default; empty is direct"
     assert rig.book.path_for("OH2RDG-7") == ("WIDE1-1", "WIDE2-1") and rig.book.timeout_for("OH2RDG-7") is None, "another SSID is another station"
     assert rig.book.paths() == {"OH2RDG": ("OH2RCH-2", "WIDE2-1"), "OH2XYZ": ()} and rig.book.never_hidden() == frozenset({"OH2PU-9"})
-    assert await rig.log.prefs() == {"OH2RDG": ("OH2RCH-2,WIDE2-1", 45, None, False), "OH2PU-9": (None, 0, None, False), "OH2XYZ": ("", None, None, False)}
+    assert await rig.log.prefs() == {"OH2RDG": ("OH2RCH-2,WIDE2-1", 45, False), "OH2PU-9": (None, 0, False), "OH2XYZ": ("", None, False)}
     again = restart()
     await again.book.load()
     assert again.book.all() == rig.book.all()
@@ -114,11 +113,11 @@ async def test_clearing_one_part_keeps_the_other_and_clearing_the_last_removes_t
     await rig.book.set_path("OH2RDG", "WIDE2-1")
     await rig.book.set_timeout("OH2RDG", 90)
     await rig.book.clear_path("OH2RDG")
-    assert rig.book.all() == {"OH2RDG": Pref(None, 90)} and await rig.log.prefs() == {"OH2RDG": (None, 90, None, False)}
+    assert rig.book.all() == {"OH2RDG": Pref(None, 90)} and await rig.log.prefs() == {"OH2RDG": (None, 90, False)}
     assert rig.book.path_for("OH2RDG") == ("WIDE1-1", "WIDE2-1")
     await rig.book.set_path("OH2RDG", "")
     await rig.book.clear_timeout("OH2RDG")
-    assert rig.book.all() == {"OH2RDG": Pref((), None)} and await rig.log.prefs() == {"OH2RDG": ("", None, None, False)}, "an empty path is something"
+    assert rig.book.all() == {"OH2RDG": Pref((), None)} and await rig.log.prefs() == {"OH2RDG": ("", None, False)}, "an empty path is something"
     await rig.book.clear_path("OH2RDG")
     assert rig.book.all() == {} and await rig.log.prefs() == {}, "nothing left in it: the row is deleted"
     again = restart()
@@ -162,7 +161,7 @@ async def test_a_name_that_is_neither_a_call_nor_an_objects_is_refused(rig: Rig,
 
 async def test_two_changes_at_once_for_one_station_both_land(rig: Rig) -> None:
     await asyncio.gather(rig.book.set_path("OH2RDG", "WIDE2-1"), rig.book.set_timeout("OH2RDG", 20))
-    assert rig.book.all() == {"OH2RDG": Pref(("WIDE2-1",), 20)} and await rig.log.prefs() == {"OH2RDG": ("WIDE2-1", 20, None, False)}
+    assert rig.book.all() == {"OH2RDG": Pref(("WIDE2-1",), 20)} and await rig.log.prefs() == {"OH2RDG": ("WIDE2-1", 20, False)}
 
 
 async def test_a_database_that_is_not_open_keeps_nothing_and_the_caller_is_told() -> None:
@@ -172,82 +171,23 @@ async def test_a_database_that_is_not_open_keeps_nothing_and_the_caller_is_told(
     with pytest.raises(MessagingError, match="the database is not open"):
         await closed.book.set_timeout("OH2RDG", 5)
     with pytest.raises(MessagingError, match="the database is not open"):
-        await closed.book.set_attempts("OH2RDG", 2)
+        await closed.book.set_rf_only("OH2RDG", True)
     await closed.book.clear_timeout("OH2RDG")                         # (nothing there to clear: nothing to write)
-    await closed.book.clear_attempts("OH2RDG")
     assert closed.book.all() == {} and closed.told == []
 
 
-# ---- the attempts
+# ---- the attempts of an older version
 
-async def test_a_station_has_the_setting_attempts_until_it_is_given_a_count_of_its_own(rig: Rig, restart: Callable[[], Rig]) -> None:
-    assert rig.book.attempts_for("EMAIL-2") == DEFAULTS.messages_attempts == 6
-    assert await rig.book.set_attempts(" email-2 ", 2) == 2
-    assert rig.book.attempts_for("EMAIL-2") == 2 and rig.book.attempts_for("email-2") == 2
-    assert rig.book.attempts_for("EMAIL-3") == 6 and rig.book.attempts_for("OH2RDG") == 6, "another SSID or another station has the setting"
-    assert rig.book.attempts_for("not a call at all, with spaces and more than nine characters") == 6
-    rig.config = replace(rig.config, messages_attempts=4)
-    assert rig.book.attempts_for("OH2RDG") == 4 and rig.book.attempts_for("EMAIL-2") == 2, "the setting counts for a station that has none of its own"
-    assert rig.book.all() == {"EMAIL-2": Pref(None, None, 2)} and rig.book.paths() == {} and rig.book.never_hidden() == frozenset()
-    assert rig.book.path_for("EMAIL-2") == ("WIDE1-1", "WIDE2-1") and rig.book.timeout_for("EMAIL-2") is None, "attempts alone leave the path and the timeout the default"
-    assert await rig.log.prefs() == {"EMAIL-2": (None, None, 2, False)}
+async def test_a_count_of_attempts_kept_by_an_older_version_is_ignored_and_a_row_with_only_that_says_nothing(rig: Rig, restart: Callable[[], Rig]) -> None:
+    assert rig.log.db is not None
+    await keep_old_attempts(rig.log.db, "EMAIL-2", 2)
+    await keep_old_attempts(rig.log.db, "OH2RDG", 3, "WIDE2-1")
     again = restart()
     await again.book.load()
-    assert again.book.all() == rig.book.all()
-
-
-async def test_attempts_sit_beside_a_path_and_a_timeout_and_the_entry_goes_when_the_last_of_the_three_does(rig: Rig) -> None:
-    await rig.book.set_path("OH2RDG", "WIDE2-1")
-    await rig.book.set_timeout("OH2RDG", 90)
-    await rig.book.set_attempts("OH2RDG", 3)
-    assert rig.book.all() == {"OH2RDG": Pref(("WIDE2-1",), 90, 3)} and await rig.log.prefs() == {"OH2RDG": ("WIDE2-1", 90, 3, False)}
-    await rig.book.set_path("OH2RDG", "")                                    # (a path set again keeps the others)
-    await rig.book.set_timeout("OH2RDG", 5)
-    assert rig.book.all() == {"OH2RDG": Pref((), 5, 3)}
-    await rig.book.clear_path("OH2RDG")
-    await rig.book.clear_timeout("OH2RDG")
-    assert rig.book.all() == {"OH2RDG": Pref(None, None, 3)}, "the attempts keep the entry"
-    await rig.book.clear_attempts("OH2RDG")
-    assert rig.book.all() == {} and await rig.log.prefs() == {}, "nothing left in it: the row is deleted"
-    assert rig.told[-1] == ("OH2RDG", None)
-
-
-async def test_clearing_the_attempts_gives_back_the_setting_and_clearing_none_is_no_error(rig: Rig) -> None:
-    await rig.book.set_attempts("OH2RDG", 1)
-    await rig.book.set_timeout("OH2RDG", 30)
-    await rig.book.clear_attempts("OH2RDG")
-    assert rig.book.attempts_for("OH2RDG") == 6 and rig.book.all() == {"OH2RDG": Pref(None, 30, None)}
-    told = len(rig.told)
-    await rig.book.clear_attempts("OH2RDG")
-    await rig.book.clear_attempts("NOBODY")
-    assert len(rig.told) == told, "nothing to clear: not told"
-
-
-@pytest.mark.parametrize("attempts", [-1, 0, 11, 100])
-async def test_attempts_out_of_range_are_refused_and_change_nothing(rig: Rig, attempts: int) -> None:
-    with pytest.raises(MessagingError, match="between 1 and 10"):
-        await rig.book.set_attempts("OH2RDG", attempts)
-    assert rig.book.all() == {} and rig.told == [] and await rig.log.prefs() == {}
-
-
-@pytest.mark.parametrize("attempts", [1, 2, 6, 10])
-async def test_the_whole_range_is_a_count_of_attempts(rig: Rig, attempts: int) -> None:
-    await rig.book.set_attempts("OH2RDG", attempts)
-    assert rig.book.attempts_for("OH2RDG") == attempts
-
-
-async def test_a_name_that_is_not_a_call_can_have_attempts_and_a_bad_one_is_refused(rig: Rig) -> None:
-    await rig.book.set_attempts("STORM", 3)
-    assert rig.book.attempts_for("STORM") == 3
-    with pytest.raises(MessagingError, match="not a call or the name of an object"):
-        await rig.book.set_attempts("", 3)
-    with pytest.raises(MessagingError, match="not a call or the name of an object"):
-        await rig.book.clear_attempts("TOOLONGNAMEFORANOBJECT")
-
-
-async def test_attempts_set_at_once_with_a_path_both_land(rig: Rig) -> None:
-    await asyncio.gather(rig.book.set_path("OH2RDG", "WIDE2-1"), rig.book.set_attempts("OH2RDG", 2))
-    assert rig.book.all() == {"OH2RDG": Pref(("WIDE2-1",), None, 2)}
+    assert again.book.all() == {"OH2RDG": Pref(("WIDE2-1",), None)}, "the row of the count alone is no entry, and the other has only its path"
+    assert await again.log.prefs() == {"OH2RDG": ("WIDE2-1", None, False)}
+    await again.book.set_timeout("OH2RDG", 30)
+    assert again.book.all() == {"OH2RDG": Pref(("WIDE2-1",), 30)}
 
 
 # ---- RF only
@@ -255,7 +195,7 @@ async def test_attempts_set_at_once_with_a_path_both_land(rig: Rig) -> None:
 async def test_rf_only_is_set_kept_read_back_by_the_next_start_and_cleared(rig: Rig, restart: Callable[[], Rig]) -> None:
     assert rig.book.path_for("OH2RDG") == ("WIDE1-1", "WIDE2-1")
     await rig.book.set_rf_only("oh2rdg", True)
-    assert rig.book.all() == {"OH2RDG": Pref(rf_only=True)} and await rig.log.prefs() == {"OH2RDG": (None, None, None, True)}
+    assert rig.book.all() == {"OH2RDG": Pref(rf_only=True)} and await rig.log.prefs() == {"OH2RDG": (None, None, True)}
     assert rig.told == [("OH2RDG", Pref(rf_only=True))]
     again = restart()
     await again.book.load()
@@ -279,10 +219,10 @@ async def test_rf_only_goes_after_the_stations_own_path_and_direct_with_rf_only_
 
 
 async def test_rf_only_sits_beside_the_other_parts_and_the_entry_goes_when_the_last_of_them_does(rig: Rig) -> None:
-    await rig.book.set_attempts("OH2RDG", 3)
+    await rig.book.set_timeout("OH2RDG", 3)
     await rig.book.set_rf_only("OH2RDG", True)
-    assert rig.book.all() == {"OH2RDG": Pref(None, None, 3, True)}
-    await rig.book.clear_attempts("OH2RDG")
+    assert rig.book.all() == {"OH2RDG": Pref(None, 3, True)}
+    await rig.book.clear_timeout("OH2RDG")
     assert rig.book.all() == {"OH2RDG": Pref(rf_only=True)}, "RF only keeps the entry"
     await rig.book.set_timeout("OH2RDG", 5)
     await rig.book.set_rf_only("OH2RDG", False)

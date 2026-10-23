@@ -24,7 +24,7 @@ from .mapwire import MapCancel, MapEstimate, MapFetch
 from .ownwire import BulletinPost, BulletinUnpost, ObjectKill, ObjectSet
 from .messagewire import AlertTest, ConversationDelete, MessageCancel, MessageDelete, MessageRetry, OverheardDelete, SendMessage
 from .portwire import ListPorts
-from .prefwire import ClearStationAttempts, ClearStationPath, ClearStationTimeout, SetStationAttempts, SetStationPath, SetStationRfOnly, SetStationTimeout
+from .prefwire import ClearStationPath, ClearStationTimeout, SetStationPath, SetStationRfOnly, SetStationTimeout
 from .configwire import SetConfig
 from .stationwire import ForgetStation
 from .tncwire import TncReconnect
@@ -151,18 +151,6 @@ async def set_station_timeout(ctx: Ctx, cmd: SetStationTimeout) -> None:
 async def clear_station_timeout(ctx: Ctx, cmd: ClearStationTimeout) -> None:
     with refused(cmd.cmd):
         await ctx.ctl.prefbook.clear_timeout(cmd.call)
-
-
-@command(SetStationAttempts)
-async def set_station_attempts(ctx: Ctx, cmd: SetStationAttempts) -> None:
-    with refused(cmd.cmd):
-        await ctx.ctl.prefbook.set_attempts(cmd.call, cmd.attempts)
-
-
-@command(ClearStationAttempts)
-async def clear_station_attempts(ctx: Ctx, cmd: ClearStationAttempts) -> None:
-    with refused(cmd.cmd):
-        await ctx.ctl.prefbook.clear_attempts(cmd.call)
 
 
 @command(SetStationRfOnly)

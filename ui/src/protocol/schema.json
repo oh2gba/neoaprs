@@ -288,27 +288,6 @@
       "title": "CheckUpdateCommand",
       "type": "object"
     },
-    "ClearStationAttempts": {
-      "additionalProperties": false,
-      "description": "Takes a station's own attempts away, so that the setting `messages/attempts` counts again (a station without them is no error). Answered by the `set` of its entry in `station_prefs` with a null `attempts`\n(or the `del` of the entry when it had no path and no timeout either), or by an `error`.",
-      "properties": {
-        "cmd": {
-          "const": "clear_station_attempts",
-          "type": "string"
-        },
-        "call": {
-          "maxLength": 64,
-          "minLength": 1,
-          "type": "string"
-        }
-      },
-      "required": [
-        "cmd",
-        "call"
-      ],
-      "title": "ClearStationAttemptsCommand",
-      "type": "object"
-    },
     "ClearStationPath": {
       "additionalProperties": false,
       "description": "Takes a station's own path away, so that it has the path of the setting `beacon/path` again (a station without one is no error). Answered by the `set` of its entry in `station_prefs` with a null `path`\n(or the `del` of the entry when it had no timeout either), or by an `error`.",
@@ -387,7 +366,7 @@
     },
     "ConversationDelete": {
       "additionalProperties": false,
-      "description": "Removes the whole conversation with a station: every message we sent to it and every one it sent to us (not the messages it was only overheard sending to others), from the database in one write, from\nthe daemon and from every page: each message's row is a `del` of the topic `messages`. A message that is still being sent is cancelled first. The path, the timeout and the attempts of the station stay. Answered by the\n`del`s, or by an `error` (the call is none, or there is no message with that station).",
+      "description": "Removes the whole conversation with a station: every message we sent to it and every one it sent to us (not the messages it was only overheard sending to others), from the database in one write, from\nthe daemon and from every page: each message's row is a `del` of the topic `messages`. A message that is still being sent is cancelled first. The path and the timeout of the station stay. Answered by the\n`del`s, or by an `error` (the call is none, or there is no message with that station).",
       "properties": {
         "cmd": {
           "const": "conversation_delete",
@@ -1774,7 +1753,7 @@
           "type": "integer"
         },
         "attempts_max": {
-          "description": "how many attempts the message was given: the setting `messages/attempts` when it was sent (6 for a message from before the setting); a later change of the setting does not touch it",
+          "description": "how many attempts the message was given when it was sent: 4, 2 for the email gateway `EMAIL-2`, 1 for a bulletin (messages from before the count was fixed have their own, up to 10)",
           "maximum": 10,
           "minimum": 1,
           "type": "integer"
@@ -2668,7 +2647,7 @@
     },
     "SendMessage": {
       "additionalProperties": false,
-      "description": "Sends a message to a station: the addressee is a call with an optional SSID, the text at most 67 bytes of UTF-8 without `|`, `~`, `{` or a control character. The message is kept and transmitted at\nonce with the next message id; it arrives as a new row of the topic `messages` (state `sending`) and as the `out` packet, and its row changes when the acknowledgement comes or the attempts run out. The attempts it is given are the station's own (`station_prefs`) else the setting `messages/attempts`.\nWhen the TNC is not connected the message is kept and its first attempt waits for the radio. Answered with an `error` that names the reason when the addressee or the text is refused.",
+      "description": "Sends a message to a station: the addressee is a call with an optional SSID, the text at most 67 bytes of UTF-8 without `|`, `~`, `{` or a control character. The message is kept and transmitted at\nonce with the next message id; it arrives as a new row of the topic `messages` (state `sending`) and as the `out` packet, and its row changes when the acknowledgement comes or the attempts run out. It is transmitted at most 4 times, 2 for `EMAIL-2`.\nWhen the TNC is not connected the message is kept and its first attempt waits for the radio. Answered with an `error` that names the reason when the addressee or the text is refused.",
       "properties": {
         "cmd": {
           "const": "send_message",
@@ -2737,33 +2716,6 @@
         "value"
       ],
       "title": "SetOp",
-      "type": "object"
-    },
-    "SetStationAttempts": {
-      "additionalProperties": false,
-      "description": "Gives a station a count of attempts of its own, 1 to 10: the number of times a message sent to it from now on is transmitted before it has failed (a message already being sent keeps its own). With 1 or 2 a\nmessage that gets no ack is `unconfirmed`, not `failed`. Answered by the `set` of the station's entry in the topic `station_prefs` (its `path` and `hide_after_min` are whatever they were), or by an `error` that names the reason.",
-      "properties": {
-        "cmd": {
-          "const": "set_station_attempts",
-          "type": "string"
-        },
-        "call": {
-          "maxLength": 64,
-          "minLength": 1,
-          "type": "string"
-        },
-        "attempts": {
-          "maximum": 10,
-          "minimum": 1,
-          "type": "integer"
-        }
-      },
-      "required": [
-        "cmd",
-        "call",
-        "attempts"
-      ],
-      "title": "SetStationAttemptsCommand",
       "type": "object"
     },
     "SetStationPath": {
@@ -2876,7 +2828,7 @@
     },
     "StationPref": {
       "additionalProperties": false,
-      "description": "What the operator has set for one station, apart from what its packets say. The entries are the values of the topic `station_prefs`, keyed by call: a station with no path, no timeout and no attempts of its\nown, and not RF only, has no entry. A command that sets or changes one part is a `set` of the whole entry, one that clears the last part a `del`.",
+      "description": "What the operator has set for one station, apart from what its packets say. The entries are the values of the topic `station_prefs`, keyed by call: a station with no path and no timeout of its\nown, and not RF only, has no entry. A command that sets or changes one part is a `set` of the whole entry, one that clears the last part a `del`.",
       "properties": {
         "path": {
           "anyOf": [
@@ -2902,19 +2854,6 @@
           ],
           "description": "the minutes after the station's last position that it leaves the map (the page does the hiding); 0 is never; null if none is set, and the setting `map/hide_after_min` counts"
         },
-        "attempts": {
-          "anyOf": [
-            {
-              "maximum": 10,
-              "minimum": 1,
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "how many times a message to the station is transmitted before it has failed (taken when the message is sent); 1 or 2 attempts without an ack leave the message `unconfirmed`, not `failed`; null if none is set, and the setting `messages/attempts` counts"
-        },
         "rf_only": {
           "description": "true if everything sent to the station (a message and each attempt of it, an ack, the answer to a query) has `RFONLY` as the last element of its path, which iGates that honour it do not put on the internet",
           "type": "boolean"
@@ -2923,7 +2862,6 @@
       "required": [
         "path",
         "hide_after_min",
-        "attempts",
         "rf_only"
       ],
       "title": "StationPref",
@@ -3760,7 +3698,7 @@
           "additionalProperties": {
             "$ref": "#/$defs/StationPref"
           },
-          "description": "what the operator set for each station that has anything set, by call: its own path, its own timeout and its own attempts, each null where none is set, and whether it is RF only. `set_station_path`, `clear_station_path`, `set_station_timeout`, `clear_station_timeout`, `set_station_attempts`, `clear_station_attempts` and `set_station_rf_only` each give a `set` of the entry, or a `del` when nothing is left in it",
+          "description": "what the operator set for each station that has anything set, by call: its own path and its own timeout, each null where none is set, and whether it is RF only. `set_station_path`, `clear_station_path`, `set_station_timeout`, `clear_station_timeout` and `set_station_rf_only` each give a `set` of the entry, or a `del` when nothing is left in it",
           "type": "object"
         },
         "messages": {
@@ -4182,7 +4120,6 @@
           "bulletin_delete": "#/$defs/BulletinDelete",
           "bulletin_post": "#/$defs/BulletinPost",
           "bulletin_unpost": "#/$defs/BulletinUnpost",
-          "clear_station_attempts": "#/$defs/ClearStationAttempts",
           "clear_station_path": "#/$defs/ClearStationPath",
           "clear_station_timeout": "#/$defs/ClearStationTimeout",
           "conversation_delete": "#/$defs/ConversationDelete",
@@ -4200,7 +4137,6 @@
           "ping": "#/$defs/Ping",
           "send_message": "#/$defs/SendMessage",
           "set_config": "#/$defs/SetConfig",
-          "set_station_attempts": "#/$defs/SetStationAttempts",
           "set_station_path": "#/$defs/SetStationPath",
           "set_station_rf_only": "#/$defs/SetStationRfOnly",
           "set_station_timeout": "#/$defs/SetStationTimeout",
@@ -4273,12 +4209,6 @@
         },
         {
           "$ref": "#/$defs/ClearStationTimeout"
-        },
-        {
-          "$ref": "#/$defs/SetStationAttempts"
-        },
-        {
-          "$ref": "#/$defs/ClearStationAttempts"
         },
         {
           "$ref": "#/$defs/SetStationRfOnly"

@@ -960,9 +960,6 @@ tbody tr:focus-visible {
 .timeout-input {
   width: 9.5em;
 }
-.attempts-input {
-  width: 6em;
-}
 .grid tr.timedout {
   opacity: 0.55;
 }

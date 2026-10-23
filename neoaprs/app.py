@@ -64,7 +64,7 @@ class Services:
         self.alerts = Alerts(lambda: self.config, clock)                # the command run for a message to us; nothing to start
         self.packetlog = PacketLog(clock=clock)                         # every packet and the station cache, in the database
         self.messagelog = MessageLog(clock=clock)                       # every message we sent and every one sent to us, in the database
-        self.prefbook = PrefBook(self.messagelog, lambda: self.config)  # the path, the timeout and the attempts of each station, kept with the messages; read by the controller before messaging starts
+        self.prefbook = PrefBook(self.messagelog, lambda: self.config)  # the path, the timeout and RF only of each station, kept with the messages; read by the controller before messaging starts
         self.weatherlog = WeatherLog(clock=clock)                       # every observation of the weather stations, in the database
         self.bulletinlog = BulletinLog(clock=clock)                     # the message board in the database
         self.bulletins = Bulletins(self.bulletinlog, clock)             # bulletins, announcements and group messages, one for each sender and slot; they stay until deleted; started by the controller before the Tnc
@@ -72,7 +72,7 @@ class Services:
         self.sender = Sender(self.tnc, lambda: self.config, clock)      # our frames that go out by a schedule: one at a time, by the interlock and the state of the radio
         self.ownobjects = OwnObjects(self.sender, lambda: self.config, self.ownlog, self._is_station, clock)       # the objects and items of ours, on the decay schedule of the specification; started by the controller after the beacon
         self.ownbulletins = OwnBulletins(self.sender, lambda: self.config, self.ownlog, clock)       # the bulletins and announcements of ours, on their schedule; started by the controller after the beacon
-        self.messaging = Messaging(self.tnc, lambda: self.config, self.messagelog, self.prefbook.path_for, clock, board=self.bulletins.heard, alert=self.alerts.alert, attempts=self.prefbook.attempts_for)       # messages with acks and retries, by each station's path; started by the controller after the beacon
+        self.messaging = Messaging(self.tnc, lambda: self.config, self.messagelog, self.prefbook.path_for, clock, board=self.bulletins.heard, alert=self.alerts.alert)       # messages with acks and retries, by each station's path; started by the controller after the beacon
         self.queries = Queries(self.tnc, lambda: self.config, self.beacon, self.rigstatus.status_frame, self.stationbook, self.prefbook.path_for, clock)       # the answers to ?APRSP, ?APRSS, ?APRSD, ?APRST, ?PING? and ?APRS?, by the asker's path
         self.mapfetch = MapFetch(data_dir, lambda: self.config, clock)  # the base map: the detailed map round our position and the world map under it, made on request from the page; nothing to start
         self.install = install                                           # how this copy was installed, for the page (the steps of an update)

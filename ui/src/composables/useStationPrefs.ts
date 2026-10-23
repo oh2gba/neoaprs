@@ -1,5 +1,5 @@
 // What the operator has set for each station apart from what it says: its own path (the digipeaters its messages go by), its own timeout (minutes after its last position that it stays on
-// the map; 0 is never) and its own attempts (how many times a message to it is transmitted) and whether it is RF only. The daemon tells them in one topic, `station_prefs`, each part null where none is set; this splits it into the maps and the set the page works with, and sends the changes.
+// the map; 0 is never) and whether it is RF only. The daemon tells them in one topic, `station_prefs`, each part null where none is set; this splits it into the maps and the set the page works with, and sends the changes.
 import { computed } from "vue";
 import type { Command, StationPref } from "@/protocol/protocol";
 
@@ -15,12 +15,6 @@ export function useStationPrefs(prefs: ReadonlyMap<string, StationPref>, send: (
     return own;
   });
 
-  const attempts = computed(() => {
-    const own = new Map<string, number>();
-    for (const [call, pref] of prefs) if (pref.attempts !== null) own.set(call, pref.attempts);
-    return own;
-  });
-
   const rfOnly = computed(() => {
     const on = new Set<string>();
     for (const [call, pref] of prefs) if (pref.rf_only) on.add(call);
@@ -30,7 +24,6 @@ export function useStationPrefs(prefs: ReadonlyMap<string, StationPref>, send: (
   return {
     paths,
     timeouts,
-    attempts,
     rfOnly,
     /** Makes everything sent to a station RF only, or not. */
     setRfOnly: (call: string, on: boolean): boolean => send({ cmd: "set_station_rf_only", call, on }),
@@ -40,8 +33,5 @@ export function useStationPrefs(prefs: ReadonlyMap<string, StationPref>, send: (
     /** Gives a station a timeout of its own (0 is never). */
     setTimeoutMin: (call: string, minutes: number): boolean => send({ cmd: "set_station_timeout", call, minutes }),
     clearTimeoutMin: (call: string): boolean => send({ cmd: "clear_station_timeout", call }),
-    /** Gives a station a count of attempts of its own (1 to 10). */
-    setAttempts: (call: string, attempts: number): boolean => send({ cmd: "set_station_attempts", call, attempts }),
-    clearAttempts: (call: string): boolean => send({ cmd: "clear_station_attempts", call }),
   };
 }

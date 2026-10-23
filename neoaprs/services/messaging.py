@@ -4,7 +4,7 @@ Outgoing (`send`): the addressee and the text (printable ASCII) are checked, the
 sent) and kept with state "sending", and it is transmitted at once: a UI frame from `station/call` to `beacon/destination` by way of the station's path (below) whose information field is `:` and the message
 (aprsmessage.format_message). Every message carries its number as a reply-ack, `{MM}` or, when the station has sent us a message with a reply-ack number that its ack has not reached it with, `{MM}AA`, the
 id of the latest such message (services/heard.py); an attempt is made as it is, so a retry carries the latest. The attempts
-are made as many times as the station's own count (services/prefbook.py, `attempts_for`) or else the setting `messages/attempts` said when the message was sent (the record keeps that number: `attempts_max`), 0, 30, 60, 120, 240, 480, 960 ... seconds after the first with no wait
+are made 4 times, 2 for the email gateway (message.attempts_for; the record keeps the number: `attempts_max`), 0, 30, 60, 120, 240, 480, 960 ... seconds after the first with no wait
 longer than 960 (message.schedule_sec); the answer to the last is waited for FINAL_WAIT_SEC, then the message is "failed", or "unconfirmed" when it was given only 1 or 2 attempts (the station is not expected to ack; an ack that comes later still settles it). An ack from the addressee that quotes our id makes it "acked", a rej "rejected";
 A message to a bulletin or a group (BLN*, ALL, CQ, QST, NWS-*, SKY*, CWA*: neoaprs/bulletin.py) is sent once, without an id, and kept as "unconfirmed" with one attempt. `cancel` stops a message that is being sent, `retry` sends a failed, unconfirmed, rejected or cancelled one again from the first attempt, `delete` removes a message of any kind (a message being sent is cancelled first).
 While the Tnc is not connected, or the radio is silent, an attempt that is due waits (it is not used up, the waits that were running are moved on by the time the radio was away) and the log says so once.
@@ -36,7 +36,7 @@ from neoaprs.aprsmessage import MessageError, format_ack, format_message
 from neoaprs.callsign import CallsignError
 from neoaprs.clock import Clock, days, utcnow
 from neoaprs.config import Config, can_transmit
-from neoaprs.message import MESSAGES_HELD_MAX, MSG_IDS, UNCONFIRMED_MAX, MessageRecord, MessagingError, State, addressed_to, check_text, due_at, next_msg_id, normal_call
+from neoaprs.message import MESSAGES_HELD_MAX, MSG_IDS, UNCONFIRMED_MAX, MessageRecord, MessagingError, State, addressed_to, attempts_for, check_text, due_at, next_msg_id, normal_call
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet
 from neoaprs.services.delivery import Delivery
@@ -78,13 +78,11 @@ def _named(name: str) -> str:
 
 class Messaging:
     def __init__(self, tnc: Radio, config: Callable[[], Config], messagelog: MessageLog, paths: Callable[[str], tuple[str, ...]], clock: Clock = utcnow, tick_sec: float = TICK_SEC,
-                 board: Callable[[Packet, Message], None] | None = None, alert: Callable[[MessageRecord], None] | None = None,
-                 attempts: Callable[[str], int] | None = None) -> None:
+                 board: Callable[[Packet, Message], None] | None = None, alert: Callable[[MessageRecord], None] | None = None) -> None:
         self._tnc = tnc
         self._config = config
         self._log = messagelog
         self._paths = paths                                     # the digipeaters of what we send to a station (PrefBook.path_for)
-        self._attempts = attempts                               # how many attempts a message to a station is given (PrefBook.attempts_for); else the setting
         self.clock = clock
         self.tick_sec = tick_sec
         self.changed: Signal[[MessageRecord]] = Signal("messaging_changed")
@@ -158,7 +156,7 @@ class Messaging:
             raise MessagingError(self._tnc.why_unusable())
         self._frame(_info(to, text, None if board else MSG_IDS[0], None if board else ""), to)          # (the settings make a frame, and the text one)
         ident = None if board else self._allocate()
-        record = await self._log.insert(MessageRecord(0, self.clock(), "out", ours, to, text, ident, "sending", attempts_max=1 if board else self._attempts(to) if self._attempts else self._config().messages_attempts))
+        record = await self._log.insert(MessageRecord(0, self.clock(), "out", ours, to, text, ident, "sending", attempts_max=1 if board else attempts_for(to)))
         if record is None:
             raise MessagingError("the message could not be kept: the database is not open")
         self.put(record)
@@ -197,7 +195,7 @@ class Messaging:
 
     async def delete_conversation(self, call: str) -> int:
         """Removes every message of the conversation with the station (those we sent to it and those it sent to us; the ones we only overheard it sending to others are not the conversation's) from the
-        database in one write, from here and (by `removed`, one for each) from every page; those being sent are cancelled first. The station's path, timeout and attempts stay. Returns how many messages the database had.
+        database in one write, from here and (by `removed`, one for each) from every page; those being sent are cancelled first. The station's path and timeout stay. Returns how many messages the database had.
         Raises MessagingError when the call is none, when there is no message with the station, or when the database would not take the removal (the messages are then kept, those that were being sent cancelled)."""
         try:
             peer = normal_call(call)

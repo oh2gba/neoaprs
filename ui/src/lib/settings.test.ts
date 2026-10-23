@@ -4,15 +4,14 @@ import { FIELDS, SUBGROUPS, changedValues, errorKey, errorReason, groupKeys, sho
 import { PORT_OTHER, portOptions } from "@/lib/portchoice";
 
 describe("groupKeys", () => {
-  it("gives the Settings tab the serial and TNC, web, log, messaging, notifications and map keys, in the daemon's order", () => {
+  it("gives the Settings tab the serial and TNC, web, log, notifications, map and update keys, in the daemon's order", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "settings");
-    expect(groups.map((g) => g.id)).toEqual(["serial", "web", "log", "messages", "notifications", "map", "update"]);
+    expect(groups.map((g) => g.id)).toEqual(["serial", "web", "log", "notifications", "map", "update"]);
     expect(groups[0]?.keys).toEqual(["tnc/profile", "serial/port", "serial/baud", "tcp/host", "tcp/port", "tnc/check_sec", "serial/last_port"]);
-    expect(groups[3]?.keys).toEqual(["messages/attempts"]);
-    expect(groups[4]?.title).toBe("Notifications");
-    expect(groups[4]?.keys).toEqual(["messages/alert", "messages/alert_command"]);
-    expect(groups[5]?.keys).toEqual(["map/hide_after_min", "map/radius_km", "map/maxzoom", "map/source"]);
-    expect(groups[6]?.keys).toEqual(["update/check"]);
+    expect(groups[3]?.title).toBe("Notifications");
+    expect(groups[3]?.keys).toEqual(["messages/alert", "messages/alert_command"]);
+    expect(groups[4]?.keys).toEqual(["map/hide_after_min", "map/radius_km", "map/maxzoom", "map/source"]);
+    expect(groups[5]?.keys).toEqual(["update/check"]);
   });
   it("gives the Beacon tab the station keys first (the call is its first field), then the beacon keys and the status keys", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "beacon");

@@ -2,8 +2,8 @@ import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import EmailMailbox from "@/components/EmailMailbox.vue";
 
-function box(connected = true, own: [string, number][] = []) {
-  return mount(EmailMailbox, { props: { connected, attempts: { own: new Map(own), defaultCount: 6 } } });
+function box(connected = true) {
+  return mount(EmailMailbox, { props: { connected } });
 }
 type Box = ReturnType<typeof box>;
 const button = (wrapper: Box, label: string) => {
@@ -92,16 +92,20 @@ describe("EmailMailbox", () => {
     expect(button(wrapper, "Remove").text()).toBe("Remove");
   });
 
-  it("has the gateway's attempts in the Mailbox row: the setting as the placeholder, saved when changed, cleared by the x", async () => {
+  it("has no attempts field in the Mailbox row, and its button is a plain button like the others of the tab", () => {
     const wrapper = box();
-    expect(wrapper.find(".mail-row .attempts-input").attributes("placeholder")).toBe("(default: 6)");
-    expect(wrapper.find(".use-default").exists()).toBe(false);
-    await wrapper.find(".attempts-input").setValue("2");
-    expect(wrapper.emitted("setAttempts")).toEqual([["EMAIL-2", 2]]);
-    const own = box(true, [["EMAIL-2", 2]]);
-    expect(own.find<HTMLInputElement>(".attempts-input").element.value).toBe("2");
-    await own.find(".attemptsbox .use-default").trigger("click");
-    expect(own.emitted("clearAttempts")).toEqual([["EMAIL-2"]]);
+    expect(wrapper.find(".mail-row .attempts-input").exists()).toBe(false);
+    expect(wrapper.find(".mail-row").text()).not.toContain("Attempts");
+    expect(wrapper.findAll(".mail-row button")).toHaveLength(1);
+  });
+
+  it("gives every button of the tab the same classes: btn, and no small variant", () => {
+    const wrapper = box();
+    for (const b of wrapper.findAll("button")) {
+      expect(b.classes()).toContain("btn");
+      expect(b.classes()).not.toContain("small");
+    }
+    expect(button(wrapper, "Fetch held mail").classes()).toEqual(button(wrapper, "Email the list").classes());
   });
 
   it("is off, with the title, while the TNC is not connected", async () => {

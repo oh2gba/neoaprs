@@ -2,7 +2,10 @@
 
 ## Unreleased
 
-Nothing yet.
+Simpler messaging: what the program can decide, it decides.
+
+- The number of attempts is no longer chosen. A message to a station is sent at most 4 times, a message to the email gateway `EMAIL-2` at most 2 times (its acks rarely reach you: "sent, not confirmed" after that). The Attempts field is gone from the header of a conversation in the Messages tab and from the Email tab, `messages/attempts` is gone from the Settings tab (and with it the Messaging group), the page no longer gives `EMAIL-2` a count of its own, and the commands `set_station_attempts` and `clear_station_attempts` are removed from the protocol. A count or a setting that an earlier version stored is ignored; messages that were already sent keep the number of attempts they were given, and Retry keeps it.
+- The Email tab: "Fetch held mail" and the other buttons are all the same plain button, as Send is, with no small variant.
 
 ## 0.4.0
 

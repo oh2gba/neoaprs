@@ -761,17 +761,14 @@ async def test_overheard_delete_removes_the_overheard_messages_of_a_pair_from_th
     assert page.of("error")[-1]["text"].startswith("overheard_delete: from_call: ")
 
 
-async def test_the_attempts_setting_is_the_number_a_message_is_sent_with_from_then_on(tmp_path: Path) -> None:
+async def test_a_message_is_sent_4_times_and_one_to_the_email_gateway_twice_and_the_setting_of_an_older_version_is_refused(tmp_path: Path) -> None:
     e, page = await with_page(tmp_path)
-    assert page.topics["config"]["values"]["messages/attempts"] == "6"
+    assert "messages/attempts" not in page.topics["config"]["values"]
     await page.send({"cmd": "send_message", "to": "OH2RDG", "text": "one"})
-    await page.until(lambda: page.topics["messages"].get("1", {}).get("attempts") == 1)
+    await page.send({"cmd": "send_message", "to": "EMAIL-2", "text": "me@example.org two"})
+    await page.until(lambda: len(page.topics["messages"]) == 2)
+    assert (page.topics["messages"]["1"]["attempts_max"], page.topics["messages"]["2"]["attempts_max"]) == (4, 2)
     await page.send({"cmd": "set_config", "values": {"messages/attempts": "3"}})
-    await page.until(lambda: page.topics["config"]["values"]["messages/attempts"] == "3")
-    await page.send({"cmd": "send_message", "to": "OH2RDG", "text": "two"})
-    await page.until(lambda: page.topics["messages"].get("2", {}).get("attempts") == 1)
-    assert (page.topics["messages"]["1"]["attempts_max"], page.topics["messages"]["2"]["attempts_max"]) == (6, 3)
-    await page.send({"cmd": "set_config", "values": {"messages/attempts": "11"}})
     assert "messages/attempts" in (await page.expect("error"))["text"]
 
 
@@ -800,8 +797,8 @@ async def test_a_restarted_daemon_opens_with_the_messages_the_database_kept(tmp_
     assert {k: (r["direction"], r["text"], r["state"]) for k, r in again.topics["messages"].items()} == {"1": ("out", "Hello", "sending"), "2": ("in", "Moi!", "received")}
 
 
-def pref(path: str | None, hide_after_min: int | None, attempts: int | None = None, rf_only: bool = False) -> dict[str, object]:
-    return {"path": path, "hide_after_min": hide_after_min, "attempts": attempts, "rf_only": rf_only}
+def pref(path: str | None, hide_after_min: int | None, rf_only: bool = False) -> dict[str, object]:
+    return {"path": path, "hide_after_min": hide_after_min, "rf_only": rf_only}
 
 
 async def test_set_station_path_and_clear_station_path_change_the_entry_of_the_topic_and_the_path_of_the_message(tmp_path: Path) -> None:
@@ -852,16 +849,16 @@ async def test_set_station_rf_only_changes_the_entry_keeps_the_rest_and_the_next
     e, page = await with_page(tmp_path)
     other = await e.ws()
     await page.send({"cmd": "set_station_rf_only", "call": "oh2rdg", "on": True})
-    await page.until(lambda: page.topics["station_prefs"] == {"OH2RDG": pref(None, None, None, True)})
-    await other.until(lambda: other.topics["station_prefs"] == {"OH2RDG": pref(None, None, None, True)})
+    await page.until(lambda: page.topics["station_prefs"] == {"OH2RDG": pref(None, None, True)})
+    await other.until(lambda: other.topics["station_prefs"] == {"OH2RDG": pref(None, None, True)})
     await page.send({"cmd": "set_station_path", "call": "OH2RDG", "path": "OH2RCH-2,OH2RDG"})
-    await page.until(lambda: page.topics["station_prefs"] == {"OH2RDG": pref("OH2RCH-2,OH2RDG", None, None, True)})
+    await page.until(lambda: page.topics["station_prefs"] == {"OH2RDG": pref("OH2RCH-2,OH2RDG", None, True)})
     await page.send({"cmd": "send_message", "to": "OH2RDG", "text": "Hello"})
     await page.until(lambda: any("OH2RCH-2,OH2RDG,RFONLY" in r["tnc2"] for r in page.topics["packets"].values()))
     row = MessageRow.model_validate_json(json.dumps(page.topics["messages"]["1"]))
     assert [h.call for h in row.attempts_detail[0].hops] == ["OH2RCH-2", "OH2RDG"], "RFONLY is no hop of the chain"
     await page.send({"cmd": "set_station_rf_only", "call": "OH2RDG", "on": False})
-    await page.until(lambda: page.topics["station_prefs"] == {"OH2RDG": pref("OH2RCH-2,OH2RDG", None, None, False)})
+    await page.until(lambda: page.topics["station_prefs"] == {"OH2RDG": pref("OH2RCH-2,OH2RDG", None, False)})
     await page.send({"cmd": "clear_station_path", "call": "OH2RDG"})
     await page.until(lambda: page.topics["station_prefs"] == {})
     assert [(op["op"], op["key"]) for op in page.ops("station_prefs")] == [("set", "OH2RDG"), ("set", "OH2RDG"), ("set", "OH2RDG"), ("del", "OH2RDG")] and page.of("error") == []
@@ -881,45 +878,15 @@ async def test_set_station_rf_only_for_the_email_gateway_is_an_error_that_says_w
     assert page.topics["station_prefs"] == {} and len(page.of("error")) == 1 and page.ops("station_prefs") == []
 
 
-async def test_set_station_attempts_and_clear_station_attempts_change_the_entry_keep_the_rest_and_the_next_message_takes_the_count(tmp_path: Path) -> None:
+@pytest.mark.parametrize("command", [{"cmd": "set_station_attempts", "call": "OH2RDG", "attempts": 2}, {"cmd": "clear_station_attempts", "call": "OH2RDG"}])
+async def test_the_commands_for_the_attempts_of_a_station_are_gone(tmp_path: Path, command: dict[str, object]) -> None:
     e, page = await with_page(tmp_path)
-    other = await e.ws()
-    await page.send({"cmd": "set_station_attempts", "call": "email-2", "attempts": 2})
-    await page.until(lambda: page.topics["station_prefs"] == {"EMAIL-2": pref(None, None, 2)})
-    await other.until(lambda: other.topics["station_prefs"] == {"EMAIL-2": pref(None, None, 2)})
-    await page.send({"cmd": "set_station_timeout", "call": "EMAIL-2", "minutes": 30})
-    await page.until(lambda: page.topics["station_prefs"] == {"EMAIL-2": pref(None, 30, 2)})
-    await page.send({"cmd": "send_message", "to": "EMAIL-2", "text": "me@example.org Hello"})
-    await page.send({"cmd": "send_message", "to": "OH2RDG", "text": "Hello"})
-    await page.until(lambda: len(page.topics["messages"]) == 2)
-    rows = [MessageRow.model_validate_json(json.dumps(page.topics["messages"][k])) for k in ("1", "2")]
-    assert [(r.to_call, r.attempts_max, r.state) for r in rows] == [("EMAIL-2", 2, "sending"), ("OH2RDG", 6, "sending")]
-    await page.send({"cmd": "set_station_attempts", "call": "STORM", "attempts": 10})               # (an object has a name, not a call)
-    await page.send({"cmd": "clear_station_timeout", "call": "EMAIL-2"})
-    await page.until(lambda: page.topics["station_prefs"].get("EMAIL-2") == pref(None, None, 2))
-    await page.send({"cmd": "clear_station_attempts", "call": "EMAIL-2"})
-    await page.until(lambda: "EMAIL-2" not in page.topics["station_prefs"])
-    await page.send({"cmd": "clear_station_attempts", "call": "EMAIL-2"})                            # (nothing to clear: no error, no patch)
-    assert page.topics["station_prefs"] == {"STORM": pref(None, None, 10)} and page.of("error") == []
-    assert [(op["op"], op["key"]) for op in page.ops("station_prefs")] == [("set", "EMAIL-2"), ("set", "EMAIL-2"), ("set", "STORM"), ("set", "EMAIL-2"), ("del", "EMAIL-2")]
-    late = await e.ws()
-    await late.until(lambda: len(late.of("state")) == len(TOPIC_NAMES))
-    assert late.topics["station_prefs"] == {"STORM": pref(None, None, 10)}
-    for value in late.topics["station_prefs"].values():
-        StationPref.model_validate_json(json.dumps(value))
-
-
-@pytest.mark.parametrize("attempts, reason", [(0, "at least 1"), (11, "at most 10"), ("2", "whole number"), (None, "is missing")])
-async def test_attempts_out_of_range_are_refused_before_anything_is_done(tmp_path: Path, attempts: object, reason: str) -> None:
-    e, page = await with_page(tmp_path)
-    await page.send({"cmd": "set_station_attempts", "call": "OH2RDG", **({} if attempts is None else {"attempts": attempts})})
-    error = (await page.expect("error"))["text"]
-    assert error.startswith("set_station_attempts: attempts: ") and reason in error
+    await page.send(command)
+    assert command["cmd"] in (await page.expect("error"))["text"]
     assert page.topics["station_prefs"] == {}
 
 
 @pytest.mark.parametrize("command, reason", [
-    ({"cmd": "set_station_attempts", "call": "TOOLONGNAMEFORANOBJECT", "attempts": 2}, "not a call or the name of an object"), ({"cmd": "clear_station_attempts", "call": "   "}, "not a call or the name of an object"),
     ({"cmd": "set_station_path", "call": "TOOLONGCALL", "path": ""}, "call"), ({"cmd": "set_station_path", "call": "OH2RDG", "path": "WIDE 1"}, "call"),
     ({"cmd": "set_station_path", "call": "OH2RDG", "path": ",".join(["WIDE1-1"] * 9)}, "more than the 8"), ({"cmd": "clear_station_path", "call": "TOOLONGCALL"}, "call"),
     ({"cmd": "set_station_timeout", "call": "TOOLONGNAMEFORANOBJECT", "minutes": 5}, "not a call or the name of an object"), ({"cmd": "set_station_timeout", "call": "   ", "minutes": 5}, "not a call or the name of an object"),
