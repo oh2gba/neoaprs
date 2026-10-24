@@ -3,7 +3,9 @@
 // To add a language: a file `xx.ts` here that exports its catalogue (`export const xx: Catalogue = { ... }`, every id of en.ts), and its import and one line in LOCALES. The browser's languages are tried in order against
 // the codes of LOCALES (`detectLocale` in index.ts), English when none fits. A code is a language tag, `de`, `pt-BR`.
 import type { Catalogue } from "@/i18n/catalogue";
+import { de } from "@/i18n/de";
 import { en } from "@/i18n/en";
+import { fr } from "@/i18n/fr";
 
 export interface LocaleInfo {
   /** A language tag: `de`, `pt-BR`. */
@@ -13,7 +15,11 @@ export interface LocaleInfo {
   readonly messages: Catalogue;
 }
 
-export const LOCALES: readonly LocaleInfo[] = [{ code: "en", name: "English", messages: en }];
+export const LOCALES: readonly LocaleInfo[] = [
+  { code: "en", name: "English", messages: en },
+  { code: "de", name: "Deutsch", messages: de },
+  { code: "fr", name: "Français", messages: fr },
+];
 
 /** The language every missing message falls back to. */
 export const SOURCE = "en";

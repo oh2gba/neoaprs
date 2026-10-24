@@ -3,7 +3,7 @@ import { availableLocales, detectLocale, formatNumber, hasMessage, locale, setLo
 import type { Catalogue } from "@/i18n/catalogue";
 import { LOCALES, type LocaleInfo } from "@/i18n/locales";
 
-// Two languages that are not in the page yet, put in the list for these tests: the catalogue of one is whole but for one id (which falls back to English), the other has a plural.
+// Two languages put in the list for these tests (in place of the page's own German, if it has one): the catalogue of one is whole but for one id (which falls back to English), the other has a plural.
 const list = LOCALES as LocaleInfo[];
 const added: LocaleInfo[] = [
   {
@@ -16,8 +16,15 @@ const added: LocaleInfo[] = [
   },
   { code: "pt-BR", name: "Português (Brasil)", messages: { "tab.stations": "Estações" } as unknown as Catalogue },
 ];
-beforeAll(() => list.push(...added));
-afterAll(() => list.splice(list.length - added.length, added.length));
+const real = list.filter((l) => added.some((a) => a.code === l.code));
+beforeAll(() => {
+  for (const l of real) list.splice(list.indexOf(l), 1);
+  list.push(...added);
+});
+afterAll(() => {
+  list.splice(list.length - added.length, added.length);
+  list.push(...real);
+});
 beforeEach(() => localStorage.clear());
 
 describe("detectLocale", () => {
