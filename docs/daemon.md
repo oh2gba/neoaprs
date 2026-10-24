@@ -231,8 +231,8 @@ the default (`map/maxzoom reset to the default: 14 → 12`). The rows of the key
 `map/hide_after_min`, `beacon/destination`, `beacon/compressed`, `beacon/dao`) are deleted without a line. `web/port`, `web/allowed_hosts`, every setting on the page, the old rows `tnc/enter_kiss` and `web/bind` and the
 daemon's own state rows are not touched. Like every migration, it runs after a copy of the file is made in `backup/`, and a value set after it is kept.
 
-**The station timeouts** (migration 17, `neoaprs/migrations2.py`). The field "Hide from map after" of the station card is gone and every station follows the fixed 180 minutes, so once, at the first start of this version, the own
-timeouts stored in `station_pref.hide_after_min` are cleared, with one INFO line in the log for each station (`OH2RDG: the own timeout of 45 minutes removed, the fixed 180 minutes count`); a row that held nothing else is deleted, and
+**The station timeouts** (migration 17, `neoaprs/migrations2.py`). The field "Hide from map after" of the station card is gone and every station follows the one choice of the Stations tab (`map/station_hours`, 3 hours by default), so once, at the first start of this version, the own
+timeouts stored in `station_pref.hide_after_min` are cleared, with one INFO line in the log for each station (`OH2RDG: the own timeout of 45 minutes removed, the time on the map of the Stations tab counts`); a row that held nothing else is deleted, and
 the path and RF only of a station are not touched. The commands `set_station_timeout` and `clear_station_timeout` and the field `hide_after_min` of `station_prefs` are gone from the protocol.
 
 ## What the parser reads

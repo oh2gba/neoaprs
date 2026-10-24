@@ -58,9 +58,9 @@ def test_one_info_line_for_each_station_that_had_a_timeout(tmp_path: Path, caplo
     with caplog.at_level(logging.INFO, logger=MIGRATION_LOG):
         migrate(tmp_path).close()
     lines = [r.getMessage() for r in caplog.records if "own timeout" in r.getMessage() and r.levelno == logging.INFO]
-    assert lines == ["OH2ATTM: the own timeout of 5 minutes removed, the fixed 180 minutes count", "OH2BOTH: the own timeout of 45 minutes removed, the fixed 180 minutes count",
-                     "OH2DIRT: the own timeout of 10080 minutes removed, the fixed 180 minutes count", "OH2NEVR: the own timeout of never removed, the fixed 180 minutes count",
-                     "OH2RFTM: the own timeout of 30 minutes removed, the fixed 180 minutes count", "OH2TIME: the own timeout of 90 minutes removed, the fixed 180 minutes count"]
+    assert lines == ["OH2ATTM: the own timeout of 5 minutes removed, the time on the map of the Stations tab counts", "OH2BOTH: the own timeout of 45 minutes removed, the time on the map of the Stations tab counts",
+                     "OH2DIRT: the own timeout of 10080 minutes removed, the time on the map of the Stations tab counts", "OH2NEVR: the own timeout of never removed, the time on the map of the Stations tab counts",
+                     "OH2RFTM: the own timeout of 30 minutes removed, the time on the map of the Stations tab counts", "OH2TIME: the own timeout of 90 minutes removed, the time on the map of the Stations tab counts"]
 
 
 def test_a_database_without_timeouts_is_as_it_was_and_a_new_one_has_none(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:

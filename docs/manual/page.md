@@ -84,7 +84,7 @@ A click on a marker opens a card over the map. It is above the markers, clear of
 
 A row with nothing to say is left out: a station that stands still has no speed whatever course it gave, a station that sent no altitude has none, and so on. An altitude of 0 that the station did send is shown.
 
-The buttons are **Message**, which opens the Messages tab on the station, and **Forget**, the trash can at the right ("Forget OH2XYZ" on hover), which asks twice (it says "sure?" after the first press, and takes it back after 5 seconds). The station's own timeout, **Hide from map after**, is under Details.
+The buttons are **Message**, which opens the Messages tab on the station, and **Forget**, the trash can at the right ("Forget OH2XYZ" on hover), which asks twice (it says "sure?" after the first press, and takes it back after 5 seconds). How long stations stay on the map is one choice for all of them, **On map for** in the Stations tab.
 
 **Message** is there only for a station that can do messages. There is none for an object or an item, and none for a station that sent its positions with `!` or `/` (the identifiers of a station without messaging) or Mic-E positions whose comment starts with `'` (a tracker without messaging), unless it has sent a message or an ack that you heard (overheard ones too). Positions with `=` and `@`, other Mic-E positions, and a station of which nothing is known yet all have it.
 

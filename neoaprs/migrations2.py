@@ -111,4 +111,4 @@ def _v17(db: sqlite3.Connection) -> None:
     db.execute("DELETE FROM station_pref WHERE hide_after_min IS NOT NULL AND path IS NULL AND attempts IS NULL AND rf_only = 0")
     db.execute("UPDATE station_pref SET hide_after_min = NULL WHERE hide_after_min IS NOT NULL")
     for call, minutes in rows:
-        log.info("%s: the own timeout of %s removed, the fixed 180 minutes count", call, "never" if minutes == 0 else f"{minutes} minutes")
+        log.info("%s: the own timeout of %s removed, the time on the map of the Stations tab counts", call, "never" if minutes == 0 else f"{minutes} minutes")
