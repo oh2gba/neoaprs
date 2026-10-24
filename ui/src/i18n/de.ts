@@ -409,6 +409,8 @@ export const de: Catalogue = {
   "station.table.none_yet": "Noch keine Station gehört.",
   "station.table.none_match": "Keine passende Station.",
   "station.table.message_call": "Nachricht an {call}",
+  "station.table.forget_call": "{call} vergessen",
+  "station.table.forget_sure_call": "{call} wirklich vergessen?",
   "station.table.count": { one: "{shown} von {n} Station", other: "{shown} von {n} Stationen" },
 
   "station.timeout.label": "Von der Karte ausblenden nach",

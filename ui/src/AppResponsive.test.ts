@@ -168,6 +168,24 @@ describe("several station cards on a desktop (1400 by 900)", () => {
     expect(wrapper.find("#pane-stations tr.stranger").exists()).toBe(false);
   });
 
+  it("opens the conversation from the speech bubble of a row, without opening the row's card, and forgets from its trash can on the second press, closing the card of that station", async () => {
+    const { wrapper, socket } = await open(1400, 900);
+    await wrapper.find("#tab-stations").trigger("click");
+    await row(wrapper, "OH2ZWB")?.find("button[aria-label='Message OH2ZWB']").trigger("click");
+    await flushPromises();
+    expect(cards(wrapper)).toEqual([]);
+    expect(wrapper.find("[aria-selected='true']").text()).toContain("Messages");
+    expect(wrapper.find("#pane-messages").text()).toContain("OH2ZWB");
+    await wrapper.find("#tab-stations").trigger("click");
+    await row(wrapper, "OH2ZWC")?.trigger("click");
+    expect(cards(wrapper)).toEqual(["OH2ZWC"]);
+    await row(wrapper, "OH2ZWC")?.find("button[aria-label='Forget OH2ZWC']").trigger("click");
+    expect(socket.sent).not.toContainEqual({ cmd: "forget_station", call: "OH2ZWC" });
+    await row(wrapper, "OH2ZWC")?.find("button[aria-label='Really forget OH2ZWC?']").trigger("click");
+    expect(socket.sent).toContainEqual({ cmd: "forget_station", call: "OH2ZWC" });
+    expect(cards(wrapper)).toEqual([]);
+  });
+
   it("has Close all when there is more than one card, which closes them all, and each card its own cross", async () => {
     const { wrapper } = await open(1400, 900);
     await row(wrapper, "OH2ZWA")?.trigger("click");
@@ -322,6 +340,18 @@ describe("what a phone shows", () => {
       ?.trigger("click");
     expect(root(wrapper)).toContain("view-panel");
     expect(panelOn(wrapper)).toEqual(["pane-messages"]);
+  });
+
+  it("goes straight into the conversation from the speech bubble of a row of the Stations table, on a phone", async () => {
+    const { wrapper } = await open(390, 844);
+    await wrapper.find("#tab-stations").trigger("click");
+    await row(wrapper, "OH2ZWB")?.find("button[aria-label='Message OH2ZWB']").trigger("click");
+    await flushPromises();
+    expect(root(wrapper)).toContain("view-panel");
+    expect(panelOn(wrapper)).toEqual(["pane-messages"]);
+    expect(wrapper.find("#pane-messages").text()).toContain("OH2ZWB");
+    expect(wrapper.find("#pane-messages .convo-back").exists()).toBe(true);
+    expect(cards(wrapper)).toEqual([]);
   });
 
   it("goes to the map to pick a place, and comes back to the tab with the place filled in", async () => {

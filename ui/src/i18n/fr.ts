@@ -397,6 +397,8 @@ export const fr: Catalogue = {
   "station.table.none_yet": "Aucune station entendue pour l'instant.",
   "station.table.none_match": "Aucune station ne correspond.",
   "station.table.message_call": "Écrire à {call}",
+  "station.table.forget_call": "Oublier {call}",
+  "station.table.forget_sure_call": "Vraiment oublier {call} ?",
   "station.table.count": { one: "{shown} sur {n} station", other: "{shown} sur {n} stations" },
 
   "station.timeout.label": "Masquer de la carte après",

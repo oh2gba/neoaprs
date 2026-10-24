@@ -83,6 +83,8 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.table.none_yet": "受信した局はまだありません。",
   "station.table.none_match": "該当する局はありません。",
   "station.table.message_call": "{call}にメッセージ",
+  "station.table.forget_call": "{call}を消去",
+  "station.table.forget_sure_call": "本当に{call}を消去しますか?",
   "station.table.count": { other: "{n}局中{shown}局" },
 
   "station.timeout.label": "地図から隠すまでの時間",

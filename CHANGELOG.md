@@ -6,6 +6,9 @@
 - The button is **Choose on map** (was "Pick on the map") in all seven languages, in the Beacon tab, the Objects form and the setup guide's Position step.
 - Objects: the form's position has the same Location row (the button, the place in one line, **Enter coordinates**); the map button is no longer at the left of the line with Cancel and Save.
 - **Esc** closes the Objects form without saving, as Cancel does, unless the focus is in a field that still has text (that keeps its first Esc). While the map waits for a click, Esc ends that first.
+The Stations table.
+
+- Each row has, at its right end, an envelope that opens the conversation with the station and a trash can that forgets it (it asks twice, like the card's Forget), so that neither needs the card. The envelope is the one picture of "message" on the page: the header's count of messages not seen and the **Message OH2XYZ** button under an empty result have it too.
 
 ## 0.6.7
 

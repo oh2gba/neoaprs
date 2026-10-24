@@ -97,8 +97,23 @@
   padding-right: 4px;
   text-align: center;
 }
-.grid.stations td:not(:last-child) {
+.grid.stations td:not(:nth-last-child(2)) {
   width: 1%;
+}
+/* the buttons at the right end of a row (Message, Forget): they sit in the height of the row (a finger gets 40 px on a touch screen, in the row's 40), and the trash can has room for "sure?" so that the table does not move when it is pressed */
+.grid.stations td.actions {
+  padding-left: 0;
+  padding-right: 4px;
+  text-align: right;
+}
+.grid.stations td.actions .xbtn {
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0 4px;
+  vertical-align: middle;
+}
+.grid.stations td.actions .forgetbtn {
+  min-width: 46px;
 }
 .grid.stations .arrow {
   display: inline-block;

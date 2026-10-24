@@ -372,6 +372,13 @@ button,
   .grid.stations td {
     height: 40px;
   }
+  .grid.stations td.actions .xbtn {
+    min-width: 40px;
+    min-height: 40px;
+  }
+  .grid.stations td.actions .forgetbtn {
+    min-width: 46px;
+  }
   .input,
   select,
   textarea {
