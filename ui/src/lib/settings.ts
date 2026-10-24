@@ -89,12 +89,12 @@ const statusIntervalChoices = (): readonly Choice[] => [
   { value: "120", label: t("settings.every_hours", { n: 2 }) },
 ];
 
-/** The beacon's choices: off, or every 15, 30 or 60 minutes (15 is the least the daemon takes). */
+/** The beacon's choices: off, or every 30 or 60 minutes or every 3 hours (20 is the least the daemon takes; a stored 20 shows as one more choice). */
 const beaconChoices = (): readonly Choice[] => [
   { value: "0", label: t("settings.beacon_interval.off") },
-  { value: String(LIMITS.interval.minMin), label: every(LIMITS.interval.minMin) },
   { value: "30", label: every(30) },
   { value: "60", label: every(60) },
+  { value: "180", label: t("settings.every_hours", { n: 3 }) },
 ];
 
 const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
@@ -234,7 +234,7 @@ const SPECS: Record<string, FieldSpec> = {
     kind: "choice",
     choices: beaconChoices,
     other: every,
-    tip: [["settings.beacon_interval.tip1", { min: LIMITS.interval.minMin }]],
+    tip: [["settings.beacon_interval.tip1", { min: LIMITS.interval.beaconMinMin }]],
   },
   "beacon/path": {
     name: "settings.path.name",

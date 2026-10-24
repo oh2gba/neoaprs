@@ -312,7 +312,8 @@ export const fr: Catalogue = {
   "objects.form.new": "Nouvel objet",
   "objects.field.name": "Nom",
   "objects.field.kind": "Type",
-  "objects.field.object": "Objet",
+  "objects.field.kind_title": "Sur RF, les objets sont recommandés, pas les items.",
+  "objects.field.object": "Objet (recommandé)",
   "objects.field.item": "Item",
   "objects.field.lat": "Latitude",
   "objects.field.lon": "Longitude",
@@ -968,9 +969,9 @@ export const fr: Catalogue = {
   "settings.path.custom": "Personnalisé…",
   "settings.path.custom_label": "Digipeaters",
   "settings.path.tip1":
-    "Les digipeaters, les stations qui répètent votre paquet pour qu'il aille plus loin, par lesquels passent votre balise et vos objets. Le choix recommandé convient à la plupart : un petit digipeater proche prend le paquet en premier et un digipeater à grande portée le transmet. Choisissez Direct seulement si tous ceux à qui vous parlez vous entendent directement.",
+    "Le choix recommandé suit le symbole de votre station : une station mobile (voiture, vélo, bateau, avion) utilise WIDE1-1,WIDE2-1, pour qu'un petit digipeater proche prenne le paquet en premier et qu'un digipeater à grande portée le transmette. Tout autre symbole est une station fixe, qui atteint directement un digipeater à grande portée et n'a besoin que de WIDE2-1.",
   "settings.path.tip2":
-    "Une station fixe que les digipeaters à grande portée entendent directement, par exemple sur une colline, peut utiliser WIDE2-1 ou WIDE2-2 comme chemin personnalisé. Les messages choisissent leur propre chemin, sauf si vous en fixez un pour la station.",
+    "Choisissez Direct seulement si tous ceux à qui vous parlez vous entendent directement. Les messages choisissent leur propre chemin, sauf si vous en fixez un pour la station.",
 
   "settings.confirm.label": "Confirmer",
   "settings.confirm.yes": "Oui",

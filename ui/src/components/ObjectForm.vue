@@ -49,7 +49,7 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
           autocomplete="off"
           spellcheck="false"
         />
-        <select v-model="draft.kind" class="input" :aria-label="t('objects.field.kind')">
+        <select v-model="draft.kind" class="input" :aria-label="t('objects.field.kind')" :title="t('objects.field.kind_title')">
           <option value="object">{{ t("objects.field.object") }}</option>
           <option value="item">{{ t("objects.field.item") }}</option>
         </select>

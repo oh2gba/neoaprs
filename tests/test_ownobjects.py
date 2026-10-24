@@ -85,6 +85,15 @@ async def test_an_object_goes_by_its_own_path_else_by_the_beacons(tmp_path: Path
     assert [f.path_text for f in rig.tnc.sent] == ["WIDE2-2", "OH2RCH-2"]
 
 
+@pytest.mark.parametrize(("table", "code", "path"), [("/", "-", "WIDE2-1"), ("/", ">", "WIDE1-1,WIDE2-1"), ("\\", "s", "WIDE1-1,WIDE2-1")])
+async def test_an_object_without_a_path_goes_by_the_recommended_path_of_the_stations_symbol(tmp_path: Path, table: str, code: str, path: str) -> None:
+    rig = await rig_at(tmp_path, beacon_path="", station_symbol_table=table, station_symbol_code=code)
+    rig.make("ONE")
+    rig.make("TWO", path="OH2RCH-2")
+    rig.run(20)
+    assert [f.path_text for f in rig.tnc.sent] == [path, "OH2RCH-2"], "the symbol of the object does not matter: the station's does"
+
+
 async def test_a_path_with_rfonly_or_nogate_is_taken_and_they_count_no_digipeater_for_the_net_cycle_time(rig: Rig) -> None:
     rig.make("ONE", path="WIDE2-1,RFONLY")
     rig.make("TWO", path="OH2RCH-2,NOGATE")

@@ -33,9 +33,9 @@ from errorcodes import error_codes  # noqa: E402
 from neoaprs import TOCALL  # noqa: E402
 from neoaprs.aprsmessage import FORBIDDEN, MAX_TEXT  # noqa: E402
 from neoaprs.ax25 import MAX_PATH  # noqa: E402
-from neoaprs.route import DIRECT_ONLY, WIDE_PATH  # noqa: E402
+from neoaprs.route import DIRECT_ONLY, FIXED_PATH, WIDE_PATH  # noqa: E402
 from neoaprs.callsign import AMATEUR_BASE_MIN, BASE_MAX, MAX_SSID, PLACEHOLDER_CALLS, call_problem, parse_call  # noqa: E402
-from neoaprs.config import ANTENNA_DIRECTIONS, DEFAULTS, KEYS, LATITUDE, LONGITUDE, MAX_COMMENT, MAX_COMMENT_PHG, MIN_INTERVAL_MIN, RANGES, SYMBOL_TABLES, Config  # noqa: E402
+from neoaprs.config import ANTENNA_DIRECTIONS, DEFAULTS, KEYS, LATITUDE, LONGITUDE, MAX_COMMENT, MAX_COMMENT_PHG, MIN_BEACON_INTERVAL_MIN, MIN_STATUS_INTERVAL_MIN, RANGES, SYMBOL_TABLES, Config  # noqa: E402
 from neoaprs.configstatus import MAX_STATUS  # noqa: E402
 from neoaprs.message import EMAIL_GATEWAY, check_text, normal_path  # noqa: E402
 from neoaprs.ownbulletin import GROUP_MAX, PostError, make_bulletin, slot_of  # noqa: E402
@@ -43,7 +43,7 @@ from neoaprs.ownobject import COMMENT_MAX, COMMENT_MAX_MOTION, COURSE_MAX, ITEM_
 from neoaprs.policy import HIDE_AFTER_MIN, MAX_HIDE_AFTER_MIN  # noqa: E402
 from neoaprs.aprsposition import uncompressed_position  # noqa: E402
 from neoaprs.services.beacon import Beacon, BeaconError, phg_text  # noqa: E402
-from neoaprs.symbols import SYMBOL_NAMES  # noqa: E402
+from neoaprs.symbols import MOBILE_CODES, SYMBOL_NAMES  # noqa: E402
 from neoaprs.tncprofile import PROFILES  # noqa: E402
 from neoaprs.web.hubwire import PROTOCOL  # noqa: E402
 
@@ -200,6 +200,11 @@ def _symbol_names() -> str:
             f"export const SYMBOL_NAMES = {_literal({k: list(v) for k, v in SYMBOL_NAMES.items()})} as const;\n")
 
 
+def _mobile_symbols() -> str:
+    return ("/** The codes `!` to `~` of the symbols of a station that moves or is carried, in the primary and in the alternate table (MOBILE_CODES of neoaprs/symbols.py): a station with one of them is recommended WIDE1-1,WIDE2-1, any other WIDE2-1. */\n"
+            f"export const MOBILE_SYMBOLS = {_literal(dict(MOBILE_CODES))} as const;\n")
+
+
 def symbols_text() -> str:
     """The names of the symbols as the English catalogue's messages: `symbol.<table>.<code in hex>` for each code "!" to "~" of the primary and of the alternate table, and `symbol.unknown` for none."""
     rows = [f'  "symbol.{table}.{ord("!") + index:02x}": {json.dumps(name)},\n' for table in ("primary", "alternate") for index, name in enumerate(SYMBOL_NAMES[table])]
@@ -215,10 +220,10 @@ def limits() -> dict[str, Any]:
         "range": ranges,
         "comment": {"max": MAX_COMMENT, "maxWithPhg": MAX_COMMENT_PHG},
         "status": {"max": MAX_STATUS},
-        "interval": {"minMin": MIN_INTERVAL_MIN},
+        "interval": {"beaconMinMin": MIN_BEACON_INTERVAL_MIN, "statusMinMin": MIN_STATUS_INTERVAL_MIN},
         "message": {"textMax": MAX_TEXT, "forbidden": FORBIDDEN, "gateway": EMAIL_GATEWAY},
         "call": {"baseMax": BASE_MAX, "amateurBaseMin": AMATEUR_BASE_MIN, "maxSsid": MAX_SSID, "placeholders": sorted(PLACEHOLDER_CALLS)},
-        "path": {"maxCalls": MAX_PATH, "direct": DIRECT_ONLY, "recommended": WIDE_PATH},
+        "path": {"maxCalls": MAX_PATH, "direct": DIRECT_ONLY, "recommendedMobile": WIDE_PATH, "recommendedFixed": FIXED_PATH},
         "object": {"nameMax": OBJECT_NAME[1], "itemNameMin": ITEM_NAME[0], "nameForbidden": NAME_FORBIDDEN, "commentMax": COMMENT_MAX, "commentMaxMotion": COMMENT_MAX_MOTION,
                    "courseMax": COURSE_MAX, "speedMaxKmh": round(SPEED_MAX_KMH)},
         "bulletin": {"groupMax": GROUP_MAX},
@@ -253,6 +258,7 @@ def lists_text() -> str:
         _array("CONFIG_KEYS", KEYS, "The keys of the settings, in the order of the settings form (SETTINGS of neoaprs/config.py)."),
         _profiles(),
         _symbol_names(),
+        _mobile_symbols(),
         f"/** The destination call of every frame we send; the beacon's preview shows it (TOCALL of neoaprs/__init__.py). */\nexport const TOCALL = {json.dumps(TOCALL)};\n",
         _limits_block(),
         f"/** The characters a symbol table can be: the primary, the alternate and the overlays (SYMBOL_TABLES of neoaprs/config.py). */\nexport const SYMBOL_TABLES = {json.dumps(SYMBOL_TABLES)};\n",
@@ -482,7 +488,9 @@ BEACON_BASE = {"station/call": "OH2GBA", "station/lat": "60.17", "station/lon": 
                "beacon/power_w": "", "beacon/antenna_height_m": "0", "beacon/antenna_gain_db": "0", "beacon/antenna_direction": "omni", "beacon/path": "WIDE1-1,WIDE2-1"}
 BEACONS = [{}, {"beacon/power_w": "5", "beacon/antenna_height_m": "10", "beacon/antenna_gain_db": "3", "beacon/antenna_direction": "NE", "station/comment": "Home"}, {"station/comment": ""}, {"station/call": "oh2gba-7"},
            {"station/call": ""}, {"station/lat": ""}, {"station/lat": "91"}, {"station/lon": "181"},
-           {"station/symbol_table": "Z", "station/symbol_code": "~"}, {"station/symbol_table": "a"}, {"station/symbol_code": " "}, {"beacon/path": ""}, {"beacon/path": "DIRECT"}, {"beacon/path": "WIDE2-2"}, {"beacon/path": "BAD CALL"},
+           {"station/symbol_table": "Z", "station/symbol_code": "~"}, {"station/symbol_table": "a"}, {"station/symbol_code": " "}, {"beacon/path": ""}, {"beacon/path": "", "station/symbol_code": ">"}, {"beacon/path": "", "station/symbol_table": "\\", "station/symbol_code": "s"},
+           {"beacon/path": "", "station/symbol_table": "E", "station/symbol_code": ">"}, {"beacon/path": "", "station/symbol_table": "\\", "station/symbol_code": "#"}, {"beacon/path": "", "station/symbol_code": "b"},
+           {"beacon/path": "", "station/symbol_code": "_"}, {"beacon/path": "", "station/symbol_table": "2", "station/symbol_code": "k"}, {"beacon/path": "DIRECT"}, {"beacon/path": "WIDE2-2"}, {"beacon/path": "BAD CALL"},
            {"station/lat": "0.03125", "station/lon": "0.09375"}, {"station/lat": "-0.00001", "station/lon": "-0.00001"}, {"beacon/power_w": "100", "beacon/antenna_height_m": "9999", "beacon/antenna_gain_db": "9",
             "beacon/antenna_direction": "N", "station/comment": "x" * 36}]
 

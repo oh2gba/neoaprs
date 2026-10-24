@@ -100,16 +100,16 @@ describe("SettingsForm", () => {
       expect(group(wrapper, "Beacon")?.find("#set-station-comment").exists()).toBe(true);
     });
 
-    it("is one choice for how often: off, every 15, 30 or 60 minutes, then the comment", () => {
+    it("is one choice for how often: off, every 30 or 60 minutes or every 3 hours, then the comment", () => {
       const { wrapper } = make({ "beacon/interval_min": "30" }, "beacon");
       const select = wrapper.find<HTMLSelectElement>("#set-beacon-interval_min");
       expect(wrapper.find("label[for=set-beacon-interval_min]").text()).toBe("Beacon");
       expect(select.element.tagName).toBe("SELECT");
       expect(select.findAll("option").map((o) => [o.attributes("value"), o.text()])).toEqual([
         ["0", "Off"],
-        ["15", "Every 15 min"],
         ["30", "Every 30 min"],
         ["60", "Every 60 min"],
+        ["180", "Every 3 hours"],
       ]);
       expect(select.element.value).toBe("30");
       expect(
@@ -123,7 +123,7 @@ describe("SettingsForm", () => {
     it("shows a stored interval that is none of the choices as one more, so that nothing changes until another is picked", async () => {
       const { wrapper, send } = make({ "beacon/interval_min": "20" }, "beacon");
       const select = wrapper.find<HTMLSelectElement>("#set-beacon-interval_min");
-      expect(select.findAll("option").map((o) => o.text())).toEqual(["Off", "Every 15 min", "Every 30 min", "Every 60 min", "Every 20 min"]);
+      expect(select.findAll("option").map((o) => o.text())).toEqual(["Off", "Every 30 min", "Every 60 min", "Every 3 hours", "Every 20 min"]);
       expect(select.element.value).toBe("20");
       expect(send).not.toHaveBeenCalled();
       await select.setValue("60");
@@ -132,8 +132,8 @@ describe("SettingsForm", () => {
 
     it("applies the interval at once", async () => {
       const { wrapper, send } = make({}, "beacon");
-      await wrapper.find("#set-beacon-interval_min").setValue("15");
-      expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "beacon/interval_min": "15" } });
+      await wrapper.find("#set-beacon-interval_min").setValue("180");
+      expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "beacon/interval_min": "180" } });
     });
 
     it("keeps the antenna behind a closed Antenna heading and the path behind a closed Advanced heading, each with its (i)", () => {
@@ -149,12 +149,19 @@ describe("SettingsForm", () => {
       expect(advanced?.findAll(".field > label").map((l) => l.text())).toEqual(["Path"]);
       expect(advanced?.find(".info-toggle").exists()).toBe(true);
       expect(advanced?.find<HTMLSelectElement>("#set-beacon-path").element.value).toBe("recommended");
-      expect(advanced?.findAll("#set-beacon-path option").map((o) => o.text())).toEqual([
-        "Recommended (WIDE1-1,WIDE2-1)",
-        "Direct only (no digipeaters)",
-        "Custom…",
-      ]);
+      expect(advanced?.findAll("#set-beacon-path option").map((o) => o.text())).toEqual(["Recommended (WIDE2-1)", "Direct only (no digipeaters)", "Custom…"]);
       expect(advanced?.find("#set-beacon-path-typed").exists()).toBe(false);
+    });
+
+    it("names the recommended path of the symbol in the Path choice, and follows a change of the symbol", async () => {
+      const { wrapper, daemon } = make({ "beacon/power_w": "5", "station/symbol_table": "/", "station/symbol_code": ">" }, "beacon");
+      const options = () => wrapper.findAll("#set-beacon-path option").map((o) => o.text());
+      expect(options()[0]).toBe("Recommended (WIDE1-1,WIDE2-1)");
+      await tell(daemon, { config: configValues({ "beacon/power_w": "5", "station/symbol_table": "/", "station/symbol_code": "-" }) });
+      expect(options()[0]).toBe("Recommended (WIDE2-1)");
+      await tell(daemon, { config: configValues({ "beacon/power_w": "5", "station/symbol_table": "E", "station/symbol_code": "s" }) });
+      expect(options()[0]).toBe("Recommended (WIDE1-1,WIDE2-1)");
+      expect(wrapper.find<HTMLSelectElement>("#set-beacon-path").element.value).toBe("recommended");
     });
 
     it("works the fields in the folds like the others: a typed one when it is left, a choice at once", async () => {

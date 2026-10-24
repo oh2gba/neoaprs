@@ -54,9 +54,6 @@ export const callListText = (text: string): string => callList(text).join(",");
 /** The word that stands for no digipeaters at all in a path that is typed (the daemon's `DIRECT`); it is no call and stands alone. */
 export const DIRECT = LIMITS.path.direct;
 
-/** The path that is recommended (WIDE1-1,WIDE2-1), which an empty path setting means. */
-export const RECOMMENDED = LIMITS.path.recommended;
-
 /** The calls of a list of digipeaters as the daemon reads it (capitals, no blanks); null when a piece is no call (DIRECT is none) or there are more than the daemon takes. An empty text is a list of no calls. */
 export function parsePath(text: string): string[] | null {
   const calls = callList(text);
@@ -74,8 +71,8 @@ export function parsePathSetting(text: string): PathSetting | null {
   return parsed === null ? null : { kind: "calls", calls: parsed };
 }
 
-/** The digipeaters a path setting stands for (the beacon's: empty is the recommended path, DIRECT is none); null when the text is no path. */
-export function pathCalls(text: string): string[] | null {
+/** The digipeaters a path setting stands for (the beacon's: empty is `recommended`, the path of the station's symbol (`recommendedPath` of lib/symbols.ts), DIRECT is none); null when the text is no path. */
+export function pathCalls(text: string, recommended: string): string[] | null {
   const setting = parsePathSetting(text);
-  return setting === null ? null : setting.kind === "direct" ? [] : setting.kind === "auto" ? RECOMMENDED.split(",") : setting.calls;
+  return setting === null ? null : setting.kind === "direct" ? [] : setting.kind === "auto" ? recommended.split(",") : setting.calls;
 }

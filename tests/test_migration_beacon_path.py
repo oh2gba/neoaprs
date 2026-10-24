@@ -12,7 +12,7 @@ def version_thirteen(path: Path, clock: FixedClock, stored: dict[str, str]) -> N
     """A database as version 13 left it, with these settings."""
     opened(path, clock).close()
     db = raw(path)
-    db.execute("DELETE FROM schema_history WHERE version = 14")
+    db.execute("DELETE FROM schema_history WHERE version >= 14")
     db.execute("PRAGMA user_version = 13")
     for key, value in stored.items():
         db.execute("INSERT INTO settings (key, value) VALUES (?, ?)", (key, value))
@@ -26,7 +26,7 @@ def migrate(folder: Path, stored: dict[str, str]) -> dict[str, tuple[str, int]]:
     version_thirteen(old, clock, stored)
     migrated = opened(old, clock)
     assert migrated.version() == SCHEMA_VERSION >= 14
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][13:] == [(14, "_v14", GOLDEN[14])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][13:] == [(14, "_v14", GOLDEN[14]), (15, "_v15", GOLDEN[15])]
     found = {str(k): (str(v), int(rev)) for k, v, rev in migrated.db.execute("SELECT key, value, rev FROM settings")}
     migrated.close()
     return found
@@ -39,7 +39,7 @@ def test_a_stored_empty_beacon_path_becomes_direct_only_and_nothing_else_is_touc
 
 
 def test_a_beacon_path_that_names_digipeaters_is_as_it_was(tmp_path: Path) -> None:
-    assert migrate(tmp_path / "a", {"beacon/path": "WIDE1-1,WIDE2-1"})["beacon/path"] == ("WIDE1-1,WIDE2-1", 1)
+    assert migrate(tmp_path / "a", {"beacon/path": "WIDE1-1"})["beacon/path"] == ("WIDE1-1", 1)
 
 
 def test_a_custom_beacon_path_is_as_it_was(tmp_path: Path) -> None:

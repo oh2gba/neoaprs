@@ -30,7 +30,7 @@ describe("BeaconPane", () => {
     const { wrapper } = pane();
     expect(wrapper.find(".beaconbox").exists()).toBe(false);
     expect(wrapper.find(".beaconpane").element.firstElementChild?.tagName).toBe("FORM");
-    expect(wrapper.find(".beacon-preview code").text()).toBe("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=6010.20N/02456.40E-NeoAPRS");
+    expect(wrapper.find(".beacon-preview code").text()).toBe("OH2GBA>APZNEO,WIDE2-1:=6010.20N/02456.40E-NeoAPRS");
   });
 
   it("asks nothing about the destination, the compressed form or the DAO: the program decides", () => {
@@ -46,7 +46,7 @@ describe("BeaconPane", () => {
     await wrapper.find("#set-status-source").setValue("text");
     await wrapper.find("#set-station-status").setValue("QRV 145.500");
     const codes = wrapper.findAll(".beacon-preview code").map((c) => c.text());
-    expect(codes).toEqual(["OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=6010.20N/02456.40E-NeoAPRS", "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:>211200zQRV 145.500"]);
+    expect(codes).toEqual(["OH2GBA>APZNEO,WIDE2-1:=6010.20N/02456.40E-NeoAPRS", "OH2GBA>APZNEO,WIDE2-1:>211200zQRV 145.500"]);
     await wrapper.find("#set-station-status").setValue("");
     expect(wrapper.findAll(".beacon-preview code")).toHaveLength(1);
   });

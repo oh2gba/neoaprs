@@ -47,6 +47,18 @@ def test_the_frame_follows_the_settings() -> None:
     assert Rig(beacon_path="WIDE2-2").beacon.frame().path_text == "WIDE2-2"
 
 
+@pytest.mark.parametrize(("table", "code", "path"), [
+    ("/", "-", "WIDE2-1"), ("/", "_", "WIDE2-1"), ("\\", "#", "WIDE2-1"), ("/", "r", "WIDE2-1"),
+    ("/", ">", "WIDE1-1,WIDE2-1"), ("/", "b", "WIDE1-1,WIDE2-1"), ("/", "k", "WIDE1-1,WIDE2-1"), ("/", "[", "WIDE1-1,WIDE2-1"), ("\\", "s", "WIDE1-1,WIDE2-1"), ("E", ">", "WIDE1-1,WIDE2-1"),
+])
+def test_an_empty_path_is_the_recommended_path_of_the_symbol_for_the_beacon_and_the_status(table: str, code: str, path: str) -> None:
+    rig = Rig(beacon_path="", station_symbol_table=table, station_symbol_code=code)
+    assert rig.beacon.frame().path_text == path
+    status = rig.beacon.status_frame("QRV")
+    assert status is not None and status.path_text == path
+    assert Rig(beacon_path="WIDE2-2", station_symbol_table=table, station_symbol_code=code).beacon.frame().path_text == "WIDE2-2", "a path that is set is the owner's"
+
+
 @pytest.mark.parametrize("lat, lon, text", [
     (60.17, 24.94, b"6010.20N/02456.40E-"), (-33.8688, 151.2093, b"3352.13S/15112.56E-"), (0.0, 0.0, b"0000.00N/00000.00E-"), (90.0, -180.0, b"9000.00N/18000.00W-"),
     (-90.0, 180.0, b"9000.00S/18000.00E-"), (59.999999, 24.999999, b"6000.00N/02500.00E-"), (60.1699999, 24.9400001, b"6010.20N/02456.40E-"), (-0.00001, -0.00001, b"0000.00N/00000.00E-"),

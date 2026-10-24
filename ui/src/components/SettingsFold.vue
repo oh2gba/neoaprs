@@ -7,6 +7,7 @@ import SettingsPath from "@/components/SettingsPath.vue";
 import type { Settings } from "@/composables/useSettings";
 import { fieldId, type SettingsFormState } from "@/composables/useSettingsForm";
 import { FIELDS } from "@/lib/settings";
+import { recommendedPath } from "@/lib/symbols";
 
 defineProps<{ title: string; keys: readonly string[]; settings: Settings; form: SettingsFormState; defaults: Record<string, string> }>();
 </script>
@@ -21,6 +22,7 @@ defineProps<{ title: string; keys: readonly string[]; settings: Settings; form: 
         :model-value="settings.draft[key] ?? ''"
         :error="settings.errors[key] ?? ''"
         :changed="form.changed(key)"
+        :recommended="recommendedPath(settings.draft['station/symbol_table'] ?? '', settings.draft['station/symbol_code'] ?? '')"
         @update:model-value="settings.edit(key, $event)"
         @choose="form.choose({ [key]: $event })"
         @commit="form.finish(key, $event)"

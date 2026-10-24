@@ -267,6 +267,9 @@ export const SYMBOL_NAMES = {
   ],
 } as const;
 
+/** The codes `!` to `~` of the symbols of a station that moves or is carried, in the primary and in the alternate table (MOBILE_CODES of neoaprs/symbols.py): a station with one of them is recommended WIDE1-1,WIDE2-1, any other WIDE2-1. */
+export const MOBILE_SYMBOLS = {"primary": "'()*<=>CFOPRSUVXY[^abefgjkpsuv", "alternate": ">^ksuv"} as const;
+
 /** The destination call of every frame we send; the beacon's preview shows it (TOCALL of neoaprs/__init__.py). */
 export const TOCALL = "APZNEO";
 
@@ -294,7 +297,7 @@ export const LIMITS = {
       max: 9,
     },
     "beacon/interval_min": {
-      min: 15,
+      min: 20,
       max: 1440,
     },
     "status/interval_min": {
@@ -326,7 +329,8 @@ export const LIMITS = {
     max: 55,
   },
   interval: {
-    minMin: 15,
+    beaconMinMin: 20,
+    statusMinMin: 15,
   },
   message: {
     textMax: 67,
@@ -342,7 +346,8 @@ export const LIMITS = {
   path: {
     maxCalls: 8,
     direct: "DIRECT",
-    recommended: "WIDE1-1,WIDE2-1",
+    recommendedMobile: "WIDE1-1,WIDE2-1",
+    recommendedFixed: "WIDE2-1",
   },
   object: {
     nameMax: 9,

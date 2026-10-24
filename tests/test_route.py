@@ -4,7 +4,7 @@ from datetime import timedelta
 import pytest
 
 from neoaprs.clock import utc
-from neoaprs.route import ROUTES_KEPT, WIDE_PATH, Deliveries, Route, automatic_path, digipeaters, heard_path, is_marker, received_text, rf_only_path, route_of, route_text, suggested_path
+from neoaprs.route import ROUTES_KEPT, WIDE_PATH, Deliveries, Route, automatic_path, digipeaters, heard_path, is_marker, received_text, recommended_path, rf_only_path, route_of, route_text, suggested_path
 
 
 @pytest.mark.parametrize("path, hops, heard_from, direct, anonymous, text", [
@@ -256,3 +256,8 @@ def test_a_group_seeded_from_the_database_brings_its_two_latest_times() -> None:
     d = Deliveries()
     d.note(route_of(("OH2RCH-2*",)), 7, NOW - timedelta(minutes=3), NOW - timedelta(minutes=9))
     assert heard_path(d, NOW) == ("OH2RCH-2",)
+
+
+@pytest.mark.parametrize(("table", "code", "path"), [("/", "-", "WIDE2-1"), ("/", "#", "WIDE2-1"), ("/", ">", WIDE_PATH), ("\\", "s", WIDE_PATH), ("J", "^", WIDE_PATH), ("/", "?", "WIDE2-1"), ("", "", "WIDE2-1")])
+def test_the_recommended_path_is_the_fill_in_hop_and_a_wide_hop_for_a_mobile_symbol_and_a_wide_hop_for_any_other(table: str, code: str, path: str) -> None:
+    assert recommended_path(table, code) == path

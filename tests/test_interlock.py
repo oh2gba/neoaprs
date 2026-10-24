@@ -113,11 +113,11 @@ async def test_with_a_call_set_the_same_things_go_out_and_a_waiting_beacon_goes_
     assert me is not None and me.call == "OH2GBA" and (me.lat, me.lon) == (60.17, 24.94)
     await until(lambda: e.ctl.beacon.last_sent is not None)
     [beacon] = await said(e)
-    assert beacon.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=6010.20N/02456.40E-NeoAPRS"
+    assert beacon.tnc2() == "OH2GBA>APZNEO,WIDE2-1:=6010.20N/02456.40E-NeoAPRS"
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "Moi!", "12"), path="OH2RCH-2*"))
     await until(lambda: e.tnc.stats.packets == 1)
     [ack] = await said(e)
-    assert ack.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :ack12"
+    assert ack.tnc2() == "OH2GBA>APZNEO,WIDE2-1::OH2RDG   :ack12"
     record = await e.ctl.messaging.send("OH2RDG", "Hello")
     assert record.state == "sending" and record.attempts == 1
     await e.stop()
@@ -129,7 +129,7 @@ async def test_no_position_means_no_beacon_and_no_own_station_but_messages_go(tm
     assert not e.ctl.beacon.send_now("request") and e.ctl.beacon.problem.endswith("set your position first")
     await quiet(e)
     await e.ctl.messaging.send("OH2RDG", "Hello")
-    assert [f.tnc2() for f in await said(e)] == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :Hello{01}"]
+    assert [f.tnc2() for f in await said(e)] == ["OH2GBA>APZNEO,WIDE2-1::OH2RDG   :Hello{01}"]
     assert await e.ctl.save_config(replace(e.ctl.config, station_lat=60.17, station_lon=24.94))
     assert e.ctl.stationbook.me is not None
     assert await e.ctl.save_config(replace(e.ctl.config, station_lat=None, station_lon=None))

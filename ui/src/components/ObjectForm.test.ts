@@ -59,7 +59,20 @@ describe("ObjectForm", () => {
         .find("select[aria-label='Kind']")
         .findAll("option")
         .map((o) => o.text()),
-    ).toEqual(["Object", "Item"]);
+    ).toEqual(["Object (recommended)", "Item"]);
+  });
+
+  it("makes an object unless the Kind is changed to item, and says on the Kind that objects are recommended on RF", async () => {
+    const { wrapper, input, sent } = form();
+    const kind = wrapper.find<HTMLSelectElement>("select[aria-label='Kind']");
+    expect(kind.element.value).toBe("object");
+    expect(kind.attributes("title")).toBe("Objects are recommended on RF; items are not.");
+    await input("Name")?.setValue("LEADER");
+    await wrapper.find("form").trigger("submit");
+    expect(sent.map((c) => (c.cmd === "object_set" ? c.kind : null))).toEqual(["object"]);
+    await kind.setValue("item");
+    await wrapper.find("form").trigger("submit");
+    expect(sent.map((c) => (c.cmd === "object_set" ? c.kind : null))).toEqual(["object", "item"]);
   });
 
   it("marks a field that is wrong, with what is wrong in its title, and has Save off", async () => {

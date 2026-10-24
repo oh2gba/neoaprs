@@ -12,7 +12,7 @@ Objects of other stations that you hear are stations of their own on the map, na
 **New** opens the form at the bottom of the tab, under the list of your objects (oldest first, scrolled to the newest, so that it is next to the form). It is the box that every tab writes in; its fields scroll on a short screen. The line under them has, at the right, "N left" for the comment, **Cancel** and **Save**. **Esc** closes the form without saving, as Cancel does (a field that still has text keeps its first Esc; while the map waits for a click, Esc ends that first).
 
 - **Name.** Printable ASCII, case-sensitive, none of `!`, `_`, `|` and `~`, no blank at either end. It is never your own call, and never the call of a station that was heard.
-- **Object or item.**
+- **Object or item.** A new one is an object unless you choose item: objects are recommended on RF (the specification advises against the item format on the air).
 - **Symbol.** A picture and its name, as in the Beacon tab: Change opens the picker.
 - **Location.** As in the Beacon tab: a **Choose on map** button and a click on the map (Cancel while the map waits), the place as one line under it, and the latitude and longitude behind **Enter coordinates**, which is open while the place is missing or wrong. The form shows a pin where it is.
 - **Comment.** 43 characters, 36 behind a course and speed.
@@ -56,12 +56,12 @@ The net cycle time follows the number of digipeaters of the path (chapter 2, poi
 | digipeaters | net cycle time |
 |---|---|
 | none or one | 10 minutes |
-| two (`WIDE1-1,WIDE2-1` is two: the default) | 20 minutes |
+| two (`WIDE1-1,WIDE2-1` is two: the recommended path of a moving station) | 20 minutes |
 | three or more | 30 minutes |
 
 A `WIDEn-N` counts the N hops it has left. `RFONLY`, `NOGATE` and the markers of the internet count none.
 
-So with the default path the packets go out at minute 0, 1, 3, 7, 15, 31 and then every 20 minutes (51, 71 ...). With `WIDE2-1` they go at 0, 1, 3, 7, 15, 25 and then every 10. With `WIDE3-3` they go at 0, 1, 3, 7, 15, 31, 61 and then every 30.
+So with `WIDE1-1,WIDE2-1` the packets go out at minute 0, 1, 3, 7, 15, 31 and then every 20 minutes (51, 71 ...). With `WIDE2-1`, the recommended path of a fixed station, they go at 0, 1, 3, 7, 15, 25 and then every 10. With `WIDE3-3` they go at 0, 1, 3, 7, 15, 31, 61 and then every 30.
 
 - No packet of one object goes out less than a minute after the one before it, a change included. A change asked for sooner waits.
 - At most one packet of yours of this kind (an object or a bulletin) goes out every 10 seconds, whatever is due. A restart with many objects, or a radio that comes back, sends no burst.

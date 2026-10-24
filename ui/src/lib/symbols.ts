@@ -3,6 +3,7 @@
 // of the codes of the same characters, white with a shadow: an overlay table draws the alternate symbol of the code and the overlay character of the table over it.
 
 import { hasMessage, t } from "@/i18n";
+import { LIMITS, MOBILE_SYMBOLS } from "@/protocol/lists";
 
 export const SPRITE_PX = 48;
 export const SPRITE_COLUMNS = 16;
@@ -62,4 +63,15 @@ export function symbolText(table: string, code: string): string {
   const known = table === "/" || table === "\\" || OVERLAYS.test(table) || COMPRESSED_OVERLAY.test(table);
   const id = `symbol.${table === "/" ? "primary" : "alternate"}.${code.length === 1 ? code.charCodeAt(0).toString(16) : ""}`;
   return known && hasMessage(id) ? t(id) : t("symbol.unknown");
+}
+
+/** Whether a symbol is the one of a station that moves or is carried (a car, a bike, a jogger, a boat, an aircraft ...), by the daemon's own list (MOBILE_SYMBOLS): in either table and with any overlay, false for any other. */
+export function isMobileSymbol(table: string, code: string): boolean {
+  const known = table === "/" || table === "\\" || OVERLAYS.test(table) || COMPRESSED_OVERLAY.test(table);
+  return known && code.length === 1 && (table === "/" ? MOBILE_SYMBOLS.primary : MOBILE_SYMBOLS.alternate).includes(code);
+}
+
+/** The path that is recommended for a station with this symbol, which an empty path setting means: WIDE1-1,WIDE2-1 for a mobile symbol, WIDE2-1 (no fill-in hop) for any other, a fixed station. */
+export function recommendedPath(table: string, code: string): string {
+  return isMobileSymbol(table, code) ? LIMITS.path.recommendedMobile : LIMITS.path.recommendedFixed;
 }

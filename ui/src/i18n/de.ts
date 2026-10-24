@@ -324,7 +324,8 @@ export const de: Catalogue = {
   "objects.form.new": "Neues Objekt",
   "objects.field.name": "Name",
   "objects.field.kind": "Art",
-  "objects.field.object": "Objekt",
+  "objects.field.kind_title": "Auf Funk werden Objekte empfohlen, Items nicht.",
+  "objects.field.object": "Objekt (empfohlen)",
   "objects.field.item": "Item",
   "objects.field.lat": "Breite",
   "objects.field.lon": "Länge",
@@ -980,9 +981,9 @@ export const de: Catalogue = {
   "settings.path.custom": "Eigener…",
   "settings.path.custom_label": "Digipeater",
   "settings.path.tip1":
-    "Die Digipeater, also die Stationen, die dein Paket wiederholen, damit es weiter kommt, über die dein Bake und deine Objekte laufen. Empfohlen passt für die meisten: Ein kleiner Digipeater in der Nähe nimmt das Paket zuerst auf, und ein Weitbereichs-Digipeater trägt es weiter. Wähle Nur direkt, wenn dich alle, mit denen du sprichst, direkt hören.",
+    "Empfohlen richtet sich nach dem Symbol deiner Station: Eine bewegte Station (Auto, Fahrrad, Boot, Flugzeug) nutzt WIDE1-1,WIDE2-1, damit ein kleiner Digipeater in der Nähe das Paket zuerst aufnimmt und ein Weitbereichs-Digipeater es weiterträgt. Jedes andere Symbol gilt als feste Station, die einen Weitbereichs-Digipeater direkt erreicht und nur WIDE2-1 braucht.",
   "settings.path.tip2":
-    "Eine feste Station, die die Weitbereichs-Digipeater direkt hören, etwa auf einem Berg, kann WIDE2-1 oder WIDE2-2 als eigenen Pfad verwenden. Nachrichten wählen ihren Pfad selbst, außer du legst für die Station einen fest.",
+    "Wähle Nur direkt, wenn dich alle, mit denen du sprichst, direkt hören. Nachrichten wählen ihren Pfad selbst, außer du legst für die Station einen fest.",
 
   "settings.confirm.label": "Bestätigen",
   "settings.confirm.yes": "Ja",

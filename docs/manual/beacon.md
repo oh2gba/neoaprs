@@ -6,7 +6,7 @@ A first transmission on the air is not tried by NeoAPRS's tests, which never ope
 
 ## The beacon
 
-Set the beacon to Off, or to every 15, 30 or 60 minutes. The setting `beacon/interval_min` takes 0 (off) or 15 to 1440. A stored value that the page does not offer, such as 20 or 120, is shown as one more choice until you pick another. The default is off, so an upgrade never starts to transmit.
+Set the beacon to Off, or to every 30 minutes, every 60 minutes or every 3 hours. The setting `beacon/interval_min` takes 0 (off) or 20 to 1440: 20 minutes is the net cycle of the APRS specification for a path of two hops, and 30 is routine operation. A stored value that the page does not offer, such as 20 or 45, is shown as one more choice until you pick another, and one below 20 is raised to 20 (the log says so). The default is off, so an upgrade never starts to transmit. The setup guide gives a new station a beacon every 30 minutes.
 
 The first beacon goes out 30 seconds after the daemon starts, so that the radio and the TNC settle first. After that one goes out every interval, counted from the latest beacon, however it was sent.
 
@@ -15,21 +15,25 @@ The first beacon goes out 30 seconds after the daemon starts, so that the radio 
 - **A frame the TNC refuses** (it is settling after entering KISS, or the write failed) is tried again 5 seconds later, six refusals in all. Then that interval is skipped and the next is the first interval boundary after now.
 - **Beacon now** and a changed interval count from the kept time. Saving a new interval takes effect at once, and 0 stops the timer.
 
-The beacon is a packet from your call to the tocall `APZNEO`, by the digipeaters of `beacon/path`. Its information field starts with `=` (a station that takes messages), then your position rounded to the hundredth of a minute, your symbol and your comment. With the defaults it is:
+The beacon is a packet from your call to the tocall `APZNEO`, by the digipeaters of `beacon/path`. Its information field starts with `=` (a station that takes messages), then your position rounded to the hundredth of a minute, your symbol and your comment. With the defaults (a house, the recommended path of a fixed station) it is:
 
 ```
-OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=6010.20N/02456.40E-NeoAPRS
+OH2GBA>APZNEO,WIDE2-1:=6010.20N/02456.40E-NeoAPRS
 ```
 
 The position is always the plain uncompressed form, which every receiver reads. `APZNEO` is in the experimental range of destination calls. Every frame NeoAPRS sends carries it: the beacon, status, messages and their acks, answers to queries, objects and bulletins.
 
 The **path** (Advanced) is one choice:
 
-- **Recommended (WIDE1-1,WIDE2-1)**, the default and right for most stations: a small digipeater nearby picks the packet up first and a wide-area one carries it on.
+- **Recommended**, the default, which goes by your station's type. The type is the **symbol** of your station; there is no setting for it. The choice names the path of the symbol you have, and follows it when you change the symbol.
+  - A moving or carried station is **Recommended (WIDE1-1,WIDE2-1)**: a small digipeater nearby picks the packet up first and a wide-area one carries it on. Its symbol is a car, truck, van, bus, jeep, motorcycle, bicycle, jogger, wheelchair, boat, ship, canoe, yacht, aircraft, helicopter, glider, balloon, snowmobile, horse, farm vehicle, recreational vehicle, ambulance, fire truck or police car, with any overlay.
+  - Any other symbol is a fixed station, which reaches a wide-area digipeater directly and needs no fill-in hop: **Recommended (WIDE2-1)**.
 - **Direct only (no digipeaters)**, for a station that everyone you talk to hears directly.
-- **Custom...**, which shows a field for up to 8 calls separated by commas, each a call with an optional SSID: `WIDE2-2`, or `WIDE2-1` for a fixed station that the wide-area digipeaters hear directly, such as one on a hill. A path that is neither of the first two shows as Custom.
+- **Custom...**, which shows a field for up to 8 calls separated by commas, each a call with an optional SSID: `WIDE2-2`, say. A path that is neither of the first two shows as Custom, `WIDE1-1,WIDE2-1` typed in included, and stays as it is when you change the symbol.
 
-Recommended and Direct only apply at once; the custom calls apply on Enter or when the field is left. An empty custom field is the recommended path again. In the database the setting `beacon/path` is the calls, `DIRECT` for direct only, and empty means the recommended path: **an empty path is never "no digipeaters"**, that is always said with the word `DIRECT`. (Older versions took an empty path to mean none; a database that has one is changed once to `DIRECT` by the update, so that nothing starts to digipeat.)
+Recommended and Direct only apply at once; the custom calls apply on Enter or when the field is left. An empty custom field is the recommended path again.
+
+In the database the setting `beacon/path` is the calls, `DIRECT` for direct only, and empty means the recommended path of the symbol: **an empty path is never "no digipeaters"**, that is always said with the word `DIRECT`. (Older versions took an empty path to mean none; a database that has one is changed once to `DIRECT` by the update, so that nothing starts to digipeat. Older versions also stored `WIDE1-1,WIDE2-1` as the default of every save, so the update changes that stored value to empty, and your path then follows your symbol; any other path you have is kept.)
 
 The same path is what status reports, objects without a path of their own, bulletins and the answers to queries use, and what a message goes by for its last two attempts (below, in [messages](messages.md#how-the-path-of-a-message-is-chosen)).
 
@@ -91,7 +95,7 @@ The tab shows only the fields the choice needs. For a text: **Text** and **Every
 **From the radio.** NeoAPRS connects to `host:port` of the rigctld (Hamlib's default is `127.0.0.1:4532`) every 30 seconds, asks the frequency and the mode, and fills in the template. The default template is `QRV {freq} {mode}`. `{freq}` is megahertz with three decimals (`14.074 MHz`), `{mode}` is the mode as rigctld names it (`USB`, `LSB`, `CW`, `FM`). No other field in braces, and at most 55 characters with the widest values (`1296.000 MHz`, `PKTUSB`). With `14074000` Hz and `USB` the frame at 12:00 UTC on the 21st is:
 
 ```
-OH2GBA>APZNEO,WIDE1-1,WIDE2-1:>211200zQRV 14.074 MHz USB
+OH2GBA>APZNEO,WIDE2-1:>211200zQRV 14.074 MHz USB
 ```
 
 **The rule.** A status goes out when the interval (`status/interval_min`, a choice of 30 min, 60 min or 2 hours, at least 15) has passed since the last one, and what it says has changed since that one: the frequency to the kilohertz, or the mode, for a radio; the text for a static status. So:

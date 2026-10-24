@@ -48,6 +48,9 @@ def test_the_beacon_the_settings_make_is_null_where_the_daemon_would_send_none()
     beacons = vectors()["beacons"]
     texts = [b["text"] for b in beacons]
     assert texts[0] == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=6010.20N/02456.40E-NeoAPRS" and "PHG" in (texts[1] or "")
+    by_symbol = {(b["values"]["station/symbol_table"], b["values"]["station/symbol_code"]): (b["text"] or "").split(":")[0] for b in beacons if b["values"]["beacon/path"] == ""}
+    assert by_symbol[("/", "-")] == by_symbol[("/", "_")] == by_symbol[("\\", "#")] == "OH2GBA>APZNEO,WIDE2-1", "a house, a weather station, a digipeater: fixed"
+    assert by_symbol[("/", ">")] == by_symbol[("\\", "s")] == by_symbol[("E", ">")] == by_symbol[("/", "b")] == by_symbol[("2", "k")] == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1", "a car, a boat, a bike, a truck: moving"
     assert any(b["values"]["station/call"] == "" and b["text"] is None for b in beacons)
     assert any(b["values"]["station/lat"] == "" and b["text"] is None for b in beacons)
     assert any(b["values"]["beacon/path"] == "BAD CALL" and b["text"] is None for b in beacons)

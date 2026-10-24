@@ -70,3 +70,10 @@ def _v14(db: sqlite3.Connection) -> None:
     """The path settings: an empty `beacon/path` now means the recommended path (WIDE1-1,WIDE2-1) and `DIRECT` means no digipeaters at all. A stored empty path was cleared on purpose and meant none, so it becomes
     DIRECT: nobody starts to digipeat on an upgrade. Any other stored value is as it was (WIDE1-1,WIDE2-1 is the recommended path, the rest is a custom one)."""
     db.execute("UPDATE settings SET value = 'DIRECT', rev = rev + 1 WHERE key = 'beacon/path' AND trim(value) = ''")
+
+
+def _v15(db: sqlite3.Connection) -> None:
+    """The recommended path follows the station's type (a mobile symbol WIDE1-1,WIDE2-1, any other WIDE2-1). Every save of the settings stores every setting, so the literal `WIDE1-1,WIDE2-1`, which was the default of
+    `beacon/path` up to now, is in the database of nearly every install whether its operator chose it or not, and cannot be told from the default: it becomes empty, the recommended path. Any other stored value (a
+    custom path, `DIRECT`) is as it was."""
+    db.execute("UPDATE settings SET value = '', rev = rev + 1 WHERE key = 'beacon/path' AND trim(value) = 'WIDE1-1,WIDE2-1'")

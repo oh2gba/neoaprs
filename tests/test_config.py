@@ -14,7 +14,7 @@ def test_the_defaults_are_the_ones_of_the_brief() -> None:
         "tnc/profile": "kiss", "serial/port": "", "serial/baud": "", "tcp/host": "127.0.0.1", "tcp/port": "8001", "serial/last_port": "", "serial/pattern": "/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*", "serial/skip": "", "station/call": "", "station/lat": "", "station/lon": "",
         "station/symbol_table": "/", "station/symbol_code": "-", "station/comment": "NeoAPRS", "station/status": "", "beacon/power_w": "", "beacon/antenna_height_m": "0", "beacon/antenna_gain_db": "0",
         "beacon/antenna_direction": "omni", "web/network": "false", "web/key": "", "web/https": "false", "web/port": "7303", "web/allowed_hosts": "", "beacon/interval_min": "0",
-        "beacon/path": "WIDE1-1,WIDE2-1",
+        "beacon/path": "",
         "messages/alert": "true", "messages/alert_command": DEFAULT_ALERT_COMMAND, "status/source": "", "status/rigctld": "", "status/interval_min": "30", "status/template": "QRV {freq} {mode}",
         "map/radius_km": "150", "map/maxzoom": "12", "map/source": "",
         "update/url": "https://oh2gba.eu/neoaprs/version.php", "digi/enabled": "false"}
@@ -97,14 +97,26 @@ def test_changed_names_the_keys_that_differ() -> None:
 
 def test_the_path_of_the_beacon_is_a_list_of_calls_written_in_capitals_without_blanks() -> None:
     assert Config.check("beacon/path", " wide1-1 , wide2-1 ") == "WIDE1-1,WIDE2-1"
-    assert Config.check("beacon/path", "") == "" and Config.from_data({"beacon/path": ""}).beacon_path_calls == ("WIDE1-1", "WIDE2-1"), "empty is the recommended path, not none"
+    assert Config.check("beacon/path", "") == "" and Config.from_data({"beacon/path": ""}).beacon_path_calls == ("WIDE2-1",), "empty is the recommended path (of a house), not none"
     assert Config.check("beacon/path", " direct ") == "DIRECT" and Config.from_data({"beacon/path": "DIRECT"}).beacon_path_calls == (), "DIRECT is no digipeaters, said explicitly"
     assert Config.from_data({"beacon/path": "WIDE2-2"}).beacon_path_calls == ("WIDE2-2",)
     with pytest.raises(ValueError, match="DIRECT"):
         Config.check("beacon/path", "DIRECT,WIDE1-1")
     assert Config.from_data({"beacon/path": "wide1-1,,wide2-1,"}).beacon_path_calls == ("WIDE1-1", "WIDE2-1")
-    assert DEFAULTS.beacon_path_calls == ("WIDE1-1", "WIDE2-1")
+    assert DEFAULTS.beacon_path == "" and DEFAULTS.beacon_path_calls == ("WIDE2-1",), "the default is the recommended path, which follows the symbol: a house is fixed"
     assert Config.check("beacon/path", ",".join(["WIDE1-1"] * 8)).count(",") == 7
+
+
+@pytest.mark.parametrize(("table", "code", "calls"), [
+    ("/", "-", ("WIDE2-1",)), ("/", "_", ("WIDE2-1",)), ("/", "#", ("WIDE2-1",)), ("\\", "-", ("WIDE2-1",)), ("D", "#", ("WIDE2-1",)),
+    ("/", ">", ("WIDE1-1", "WIDE2-1")), ("/", "b", ("WIDE1-1", "WIDE2-1")), ("/", "[", ("WIDE1-1", "WIDE2-1")), ("/", "O", ("WIDE1-1", "WIDE2-1")), ("\\", "s", ("WIDE1-1", "WIDE2-1")), ("E", ">", ("WIDE1-1", "WIDE2-1")),
+])
+def test_the_empty_path_is_the_recommended_path_of_the_symbol_and_a_path_that_is_set_is_not(table: str, code: str, calls: tuple[str, ...]) -> None:
+    empty = Config(station_symbol_table=table, station_symbol_code=code, beacon_path="")
+    assert empty.beacon_path_calls == calls and empty.recommended_path == ",".join(calls)
+    assert replace(empty, beacon_path="WIDE2-2").beacon_path_calls == ("WIDE2-2",), "a custom path (the owner's) does not follow the symbol"
+    assert replace(empty, beacon_path="WIDE1-1,WIDE2-1").beacon_path_calls == ("WIDE1-1", "WIDE2-1"), "typed in, it is a custom path too"
+    assert replace(empty, beacon_path="DIRECT").beacon_path_calls == ()
 
 
 def test_the_keep_alive_is_fixed_at_60_seconds_and_what_an_earlier_version_stored_is_ignored() -> None:
@@ -167,20 +179,24 @@ def test_a_save_checks_the_comment_against_the_settings_it_is_saved_with() -> No
         Config.checked(base, {"station/status": "x" * 56})
 
 
-def test_the_beacon_is_off_or_every_15_minutes_or_more_and_the_status_too_and_a_stored_lower_one_is_raised(caplog: pytest.LogCaptureFixture) -> None:
-    assert Config.check("beacon/interval_min", "0") == "0" and Config.check("beacon/interval_min", "15") == "15" and Config.check("status/interval_min", "15") == "15"
-    with pytest.raises(ValueError, match=r"beacon/interval_min: 14 is not 0 \(off\) or between 15 and 1440"):
-        Config.check("beacon/interval_min", "14")
+def test_the_beacon_is_off_or_every_20_minutes_or_more_and_the_status_every_15_and_a_stored_lower_one_is_raised(caplog: pytest.LogCaptureFixture) -> None:
+    assert Config.check("beacon/interval_min", "0") == "0" and Config.check("beacon/interval_min", "20") == "20" and Config.check("status/interval_min", "15") == "15"
+    for text in ("14", "15", "19"):
+        with pytest.raises(ValueError, match=rf"beacon/interval_min: {text} is not 0 \(off\) or between 20 and 1440"):
+            Config.check("beacon/interval_min", text)
     with pytest.raises(ValueError, match=r"status/interval_min: 14 is not between 15 and 1440"):
         Config.check("status/interval_min", "14")
     with caplog.at_level(logging.WARNING, logger="neoaprs.config"):
         c = Config.from_data({"beacon/interval_min": "1", "status/interval_min": "5", "web/port": "9"})
-        assert (c.beacon_interval_min, c.status_interval_min, c.web_port) == (15, 15, 9)
-        assert Config.from_data({"beacon/interval_min": "10"}).beacon_interval_min == 15, "a beacon every 10 minutes, which 0.5.0 allowed, is every 15"
-    assert sum("15 is used" in r.getMessage() for r in caplog.records) == 3 and any("beacon/interval_min" in r.getMessage() for r in caplog.records)
-    assert sum("10 is used" in r.getMessage() for r in caplog.records) == 0
+        assert (c.beacon_interval_min, c.status_interval_min, c.web_port) == (20, 15, 9)
+        assert Config.from_data({"beacon/interval_min": "10"}).beacon_interval_min == 20, "a beacon every 10 minutes, which 0.5.0 allowed, is every 20"
+        assert Config.from_data({"beacon/interval_min": "15"}).beacon_interval_min == 20, "a beacon every 15 minutes, which 0.6 allowed, is every 20"
+        assert Config.from_data({"beacon/interval_min": "19"}).beacon_interval_min == 20
+    assert sum("20 is used" in r.getMessage() for r in caplog.records) == 4 and any("beacon/interval_min" in r.getMessage() for r in caplog.records)
+    assert sum("15 is used" in r.getMessage() for r in caplog.records) == 1 and any("status/interval_min" in r.getMessage() for r in caplog.records)
     assert Config.from_data({"beacon/interval_min": "0"}).beacon_interval_min == 0, "an installation that turned the beacon off keeps it off"
-    assert Config.from_data({"beacon/interval_min": "20"}).beacon_interval_min == 20 and Config.from_data({"beacon/interval_min": "120"}).beacon_interval_min == 120, "a stored value that is none of the page's choices stays"
+    assert Config.from_data({"beacon/interval_min": "20"}).beacon_interval_min == 20 and Config.from_data({"beacon/interval_min": "45"}).beacon_interval_min == 45, "a stored value that is none of the page's choices stays"
+    assert [Config.from_data({"beacon/interval_min": t}).beacon_interval_min for t in ("30", "60", "180")] == [30, 60, 180], "the choices of the page"
     assert Config.from_data({}).beacon_interval_min == 0, "the beacon is off unless the station says otherwise: an upgrade never starts transmitting (the setup guide sets 30 for a new station)"
     assert Config.from_data({"status/interval_min": "0"}).status_interval_min == 30, "a status interval of nothing is no number: the default"
     assert Config.from_data({"beacon/interval_min": "x"}).beacon_interval_min == 0

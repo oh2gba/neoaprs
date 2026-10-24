@@ -140,9 +140,10 @@ within the window, no anonymous hop, no gate (those are counted apart), no marke
 are in `neoaprs/policy.py`. The delivery chain records the digipeaters of each attempt as it was sent. The station row tells the choice as `heard_path` (null: none, empty: direct), worked out
 when the row is made.
 
-**The path settings.** An empty path never means no digipeaters. `beacon/path` empty is the recommended `WIDE1-1,WIDE2-1`; the word `DIRECT` (`route.DIRECT_ONLY`,
+**The path settings.** An empty path never means no digipeaters. `beacon/path` empty is the recommended path of the station's symbol (`route.recommended_path`: `WIDE1-1,WIDE2-1` when `symbols.is_mobile` of the symbol, else `WIDE2-1`;
+`Config.beacon_path_calls` is the one place that works it out for the beacon, the status, objects, bulletins, queries, acks and the fallback of a message); the word `DIRECT` (`route.DIRECT_ONLY`,
 `message.path_choice`) is no digipeaters, and stands alone (`normal_path` refuses it among calls with `path.direct_alone`). Migration 14 changed a stored empty
-`beacon/path` to `DIRECT`. A station's own path: the stored `path` null is none (automatic), `''` is direct; `set_station_path` takes calls or `DIRECT`, and an empty
+`beacon/path` to `DIRECT`; migration 15 changed the stored `WIDE1-1,WIDE2-1` (the old default, which every save wrote, so it cannot be told from a choice) to empty. A station's own path: the stored `path` null is none (automatic), `''` is direct; `set_station_path` takes calls or `DIRECT`, and an empty
 `path` is `clear_station_path`. An own object's or item's path: null (or empty) is `beacon/path`, `DIRECT` is none.
 
 **The station preferences** (`neoaprs/services/prefbook.py`; the table `station_pref`). The path, the timeout (`hide_after_min`) and the RF-only flag of each

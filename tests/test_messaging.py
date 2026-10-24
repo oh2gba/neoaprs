@@ -1113,7 +1113,18 @@ async def test_the_beacon_path_that_is_direct_only_is_the_fallback_and_no_path_i
     assert sent_paths(rig) == ["OH2RCH-2", "OH2RCH-2", "", ""]
     rig.config = replace(rig.config, beacon_path="")
     await rig.m.send("OH2XYZ", "b")
-    assert sent_paths(rig)[-1] == "WIDE1-1,WIDE2-1", "an empty beacon path is the recommended one"
+    assert sent_paths(rig)[-1] == "WIDE2-1", "an empty beacon path is the recommended one, which for a fixed station (the house) is WIDE2-1"
+
+
+@pytest.mark.parametrize(("table", "code", "recommended"), [("/", "-", "WIDE2-1"), ("/", "_", "WIDE2-1"), ("/", ">", "WIDE1-1,WIDE2-1"), ("\\", "s", "WIDE1-1,WIDE2-1"), ("E", "k", "WIDE1-1,WIDE2-1")])
+async def test_the_recommended_path_of_the_symbol_is_the_fallback_of_a_message_the_email_gateway_and_an_ack(rig: Rig, table: str, code: str, recommended: str) -> None:
+    rig.config = replace(rig.config, beacon_path="", station_symbol_table=table, station_symbol_code=code)
+    await rig.m.send("OH2XYZ", "hello")
+    await rig.m.send("EMAIL-2", "me@example.org hello")
+    assert sent_paths(rig) == [recommended, recommended]
+    rig.config = replace(rig.config, beacon_path="WIDE2-2")
+    await rig.m.send("OH2ABC", "again")
+    assert sent_paths(rig)[-1] == "WIDE2-2", "a path that was set does not follow the symbol"
 
 
 async def test_the_attempts_and_a_retry_use_the_path_the_station_has_then(rig: Rig) -> None:
