@@ -1,7 +1,10 @@
 """The migrations from the twelfth on, frozen here beside neoaprs/migrations.py (which lists them in MIGRATIONS and runs them): the same rules, a step is never edited once it has been released."""
+import logging
 import sqlite3
 
 from .dberror import StoreError
+
+log = logging.getLogger("neoaprs.store")                    # the name the migrations' lines carry in the log file (migrations.py)
 
 
 def _v12(db: sqlite3.Connection) -> None:
@@ -77,3 +80,23 @@ def _v15(db: sqlite3.Connection) -> None:
     `beacon/path` up to now, is in the database of nearly every install whether its operator chose it or not, and cannot be told from the default: it becomes empty, the recommended path. Any other stored value (a
     custom path, `DIRECT`) is as it was."""
     db.execute("UPDATE settings SET value = '', rev = rev + 1 WHERE key = 'beacon/path' AND trim(value) = 'WIDE1-1,WIDE2-1'")
+
+
+def _v16(db: sqlite3.Connection) -> None:
+    """Settings the page no longer has go back to the recommended values, once. `map/maxzoom`, `map/source`, `update/url`, `serial/pattern` and `serial/skip` are not on the page any more, so nobody can change them back, and a
+    value stored for them (every save stored every setting, a command of the shell could store anything) is dropped: the row is deleted and the default (12; the latest daily build; the project's version page; the
+    usual serial device files; no device skipped) is in force, with one INFO line in the log for each key whose value was not the default already. They stay settings, for `neoaprs db set`. The rows of the keys that are no settings any more (`messages/attempts`, `log/keep_days`, `update/check`, `tnc/check_sec`, `tnc/watchdog_min`,
+    `map/hide_after_min`, `beacon/destination`, `beacon/compressed`, `beacon/dao`) are deleted too, so that the database is clean. Everything else stays as it was, among it `web/port` and `web/allowed_hosts` (a page
+    that moved would be lost), the old rows `tnc/enter_kiss` and `web/bind` (read while the setting that took their place has no row) and every setting that is on the page."""
+    defaults = {"map/maxzoom": "12", "map/source": "", "update/url": "https://oh2gba.eu/neoaprs/version.php",
+                "serial/pattern": "/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*", "serial/skip": ""}
+    removed = ("messages/attempts", "log/keep_days", "update/check", "tnc/check_sec", "tnc/watchdog_min", "map/hide_after_min", "beacon/destination", "beacon/compressed", "beacon/dao")
+    for key, default in defaults.items():
+        row = db.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+        if row is None:
+            continue
+        db.execute("DELETE FROM settings WHERE key = ?", (key,))
+        if " ".join(str(row[0]).split()) != default:
+            log.info("%s reset to the default: %s → %s", key, str(row[0]) or "(empty)", default or "(empty)")
+    for key in removed:
+        db.execute("DELETE FROM settings WHERE key = ?", (key,))

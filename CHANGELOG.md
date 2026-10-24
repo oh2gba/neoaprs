@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Settings that are no longer on the page go back to their defaults once: at the first start of this version `map/maxzoom`, `map/source`, `update/url`, `serial/pattern` and `serial/skip` lose what was stored for them (they stay settings, for `neoaprs db set`, and a value set after that is kept), and the stored rows of the settings that no longer exist (`messages/attempts`, `log/keep_days`, `update/check`, `tnc/check_sec`, `tnc/watchdog_min`, `map/hide_after_min`, `beacon/destination`, `beacon/compressed`, `beacon/dao`) are deleted. Each reset is a line in the log with the old value. `web/port` and `web/allowed_hosts` and every setting on the page are not touched.
 - A conversation opens scrolled to its newest message, and stays there while it fills in (a tab that was hidden, late delivery chains); scrolling up to read older messages is left alone.
 - Beacon tab: the Location is a row like the Call above it: the word **Location** in the label column and, in the input column, the **Choose on map** button (the whole width on a phone), the place as one line under it and **Enter coordinates** under that.
 - The button is **Choose on map** (was "Pick on the map") in all seven languages, in the Beacon tab, the Objects form and the setup guide's Position step.

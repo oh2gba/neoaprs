@@ -18,7 +18,7 @@ from .backupfolder import sweep
 from .clock import Clock, from_unix, to_unix, utcnow
 from .dberror import StoreError
 from .dbfile import DEFAULT_BUSY_MS, configure, copy_database as _copy_database
-from .migrations2 import _v12, _v13, _v14, _v15
+from .migrations2 import _v12, _v13, _v14, _v15, _v16
 
 log = logging.getLogger("neoaprs.store")                    # the name the migrations' lines carry in the log file
 
@@ -272,7 +272,7 @@ def source_hash(step: Callable[[sqlite3.Connection], None]) -> str:
 
 
 # one function per version, in order: version N is reached by running MIGRATIONS[N - 1] on version N - 1
-MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [_v1, _v2, _v3, _v4, _v5, _v6, _v7, _v8, _v9, _v10, _v11, _v12, _v13, _v14, _v15]
+MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [_v1, _v2, _v3, _v4, _v5, _v6, _v7, _v8, _v9, _v10, _v11, _v12, _v13, _v14, _v15, _v16]
 SCHEMA_VERSION = len(MIGRATIONS)
 
 
