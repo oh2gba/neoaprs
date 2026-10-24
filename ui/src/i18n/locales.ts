@@ -4,6 +4,8 @@
 // the codes of LOCALES (`detectLocale` in index.ts), English when none fits. A code is a language tag, `de`, `pt-BR`.
 import type { Catalogue } from "@/i18n/catalogue";
 import { en } from "@/i18n/en";
+import { es } from "@/i18n/es";
+import { it } from "@/i18n/it";
 
 export interface LocaleInfo {
   /** A language tag: `de`, `pt-BR`. */
@@ -13,7 +15,11 @@ export interface LocaleInfo {
   readonly messages: Catalogue;
 }
 
-export const LOCALES: readonly LocaleInfo[] = [{ code: "en", name: "English", messages: en }];
+export const LOCALES: readonly LocaleInfo[] = [
+  { code: "en", name: "English", messages: en },
+  { code: "es", name: "Español", messages: es },
+  { code: "it", name: "Italiano", messages: it },
+];
 
 /** The language every missing message falls back to. */
 export const SOURCE = "en";
