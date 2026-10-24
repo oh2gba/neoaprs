@@ -167,8 +167,6 @@ const SPECS: Record<string, FieldSpec> = {
   "tcp/host": { label: "settings.tcp_host.label" },
   "tcp/port": { label: "settings.tcp_port.label", title: "settings.tcp_port.title" },
   "serial/last_port": { label: "settings.last_port.label", kind: "readonly", empty: plain("-") },
-  "serial/pattern": { label: "settings.pattern.label", title: "settings.pattern.title" },
-  "serial/skip": { label: "settings.skip.label", empty: "settings.none", title: "settings.skip.title" },
   "web/network": {
     name: "settings.network.name",
     label: "settings.network.label",
@@ -300,8 +298,8 @@ const SCOPE_GROUPS: Record<Scope, readonly string[]> = {
   settings: ["serial", "digi", "web", "notifications", "map"],
 };
 
-/** The order of the TNC group on the page: the port and its speed, the keep-alive, then the search (which the port falls back to). */
-const TNC_ORDER = ["tnc/profile", "serial/port", "serial/baud", "tcp/host", "tcp/port", "serial/pattern", "serial/skip", "serial/last_port"];
+/** The order of the TNC group on the page: the type of TNC, the port and its speed, or the host and port of a TCP one. */
+const TNC_ORDER = ["tnc/profile", "serial/port", "serial/baud", "tcp/host", "tcp/port", "serial/last_port"];
 
 /** The Status group: the choice first, then what that choice needs. */
 const STATUS_ORDER = ["status/source", "station/status", "status/rigctld", "status/template", "status/interval_min"];
@@ -345,25 +343,21 @@ export function groupKeys(keys: readonly string[], scope: Scope = "settings"): G
 export const reasonOf: (error: Failure) => string = errorReason;
 
 const SERIAL_ONLY = ["serial/port", "serial/baud"];
-/** The search for the radio, which a serial TNC falls back to where the daemon can search at all. */
-const SEARCH = ["serial/pattern", "serial/skip"];
 
 /** The profile a form shows (its draft or the daemon's value), or undefined for a key this page does not know. */
 function profileOf(key: string | undefined) {
   return TNC_PROFILES.find((p) => p.key === key);
 }
 
-/** Whether a setting is shown for the chosen TNC profile: the host and port for one that is reached over TCP, the port and speed for a serial one, with the search for the radio where the daemon can search (`search`, false
- * where it cannot: Windows, macOS), the keep-alive for one that can be asked if it is there; the access key while the daemon lets the network in (`network`) and has made one. The port the search found last is no field:
- * the port's own control says it. */
-export function shownFor(key: string, profileKey: string | undefined, network = true, search = true): boolean {
+/** Whether a setting is shown for the chosen TNC profile: the host and port for one that is reached over TCP, the port and speed for a serial one; the access key while the daemon lets the network in (`network`) and has made one.
+ * The port the search found last is no field: the port's own control says it. */
+export function shownFor(key: string, profileKey: string | undefined, network = true): boolean {
   if (key === "web/key" || key === "web/https") return network;
   if (key === "serial/last_port") return false;
   const profile = profileOf(profileKey);
   if (!profile) return true;
   if (key.startsWith("tcp/")) return profile.transport === "tcp";
   if (SERIAL_ONLY.includes(key)) return profile.transport === "serial";
-  if (SEARCH.includes(key)) return profile.transport === "serial" && search;
   return true;
 }
 

@@ -31,6 +31,7 @@ export const settings: Record<keyof typeof source, Message> = {
 
   "settings.name.position": "Posição",
   "settings.name.tcp_address": "Endereço TCP",
+  "settings.name.radio": "Rádio",
 
   "settings.call.label": "Indicativo",
   "settings.lat.label": "Latitude",
@@ -105,10 +106,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tcp_port.label": "Porta TCP",
   "settings.tcp_port.title": "Direwolf 8001, soundmodem 8100",
   "settings.last_port.label": "Última porta encontrada",
-  "settings.pattern.label": "Portas a procurar",
-  "settings.pattern.title": "Padrões de dispositivo, separados por espaços",
-  "settings.skip.label": "Portas a ignorar",
-  "settings.skip.title": "Caminhos de dispositivo, separados por vírgulas",
 
   "settings.network.name": "Acesso pela rede",
   "settings.network.label": "Permitir acesso pela rede",
@@ -292,6 +289,13 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tnc.ports": "Portas",
   "settings.tnc.terminal": "Terminal",
   "settings.tnc.terminal_label": "O que o TNC viu e fez",
+  "settings.find.button": "Encontrar meu rádio",
+  "settings.find.cancel": "Cancelar",
+  "settings.find.searching": "Procurando o rádio…",
+  "settings.find.trying": "Procurando o rádio: {port} a {baud} baud ({number} de {total})",
+  "settings.find.trying_port": "Procurando o rádio: {port} ({number} de {total})",
+  "settings.find.already": "O rádio já está em {port}, como configurado",
+  "settings.find.cancelled": "Busca cancelada",
 
   "settings.map.step.tool": "Baixando o programa pmtiles",
   "settings.map.step.build": "Procurando a versão mais recente",

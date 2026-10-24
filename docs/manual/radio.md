@@ -4,7 +4,7 @@ How to connect each radio and TNC is in [`docs/RADIOS.md`](../RADIOS.md). This p
 
 ## The port
 
-The radio's port is the setting `serial/port`. In the Settings tab, in the TNC group, it is one choice, **Port**.
+The radio's port is the setting `serial/port`. In the Settings tab, in the TNC group (behind the arrow of its status line), it is one choice, **Port**.
 
 | port | what it is |
 |---|---|
@@ -32,18 +32,29 @@ With no port given, on Linux NeoAPRS listens to all the ports that match the set
 
 On Windows and macOS NeoAPRS listens to no port it was not told of, because it could write into a GPS or into a rig interface that keys a transmitter. The radio is the port in `serial/port` or the one remembered. A COM port that another program has open is reported as in use by another program.
 
+## Find my radio
+
+The button **Find my radio**, behind the arrow of the TNC group (Linux only, like the search above), finds the port, the speed and the type of TNC by itself, and puts them in the settings like any other change (the toast offers **Undo**). Nothing happens unless you press it.
+
+- It tries the ports of the search above, one after the other (the by-id name first), and with the default pattern the paired Bluetooth devices after them. The ports a development board is behind, the ones that `serial/skip` names and the ones another program holds are left out, as they are in the search. A TCP address is never tried.
+- Each serial port is opened at 9600, 57600, 19200, 38400, 115200, 4800 and 1200 baud in turn; a Bluetooth port has no speed and is tried once. Each try listens for 1 second, writes one carriage return and listens for 1.5 seconds more, so a port nobody answers on costs about 18 seconds.
+- It stops at the first that answers. A TNC that sends a KISS frame (it has heard a packet) is the type `kiss`. A TNC that answers the carriage return with text is in command mode: the Kenwood TH-D7 type is tried first, then the TM-D710 and then the Kantronics, each by the steps that put that TNC in KISS (the table below), and the first after which the TNC no longer answers a carriage return with text is the type. Nothing is sent to the air.
+- The radio's own line is closed while it runs and opened again after it, found or not.
+- The toast at the bottom says which port at which speed it is trying and how many tries there are, with **Cancel**. When nothing answered the toast says so. A TNC that is in KISS mode says nothing until it hears a packet, so on a quiet band it may not be found: try again when the channel is busy, or choose the port yourself.
+
 ## The radio status
 
-The TNC group of the Settings tab opens with the radio status.
+The TNC group of the Settings tab is one line, the radio status, with an arrow in front of it. The arrow opens the rest of the group; it is closed unless the radio is not connected.
 
 - The state is a coloured word: connected, waiting, silent, and so on.
-- One plain line follows. "Last packet 2 min ago" (the Port below names the port), "Searching for the radio…" with the ports it listens to behind **Ports**, "Not connected: the reason", or for a silent radio since when it said nothing. The packet and byte counts are its hover text.
-- **Reconnect** opens the line again.
+- One plain line follows. "Last packet 2 min ago", "Searching for the radio…" with the ports it listens to behind **Ports**, "Not connected: the reason", or for a silent radio since when it said nothing. The packet and byte counts are its hover text.
+- **Reconnect**, small, at the end of the line, opens the line again.
+
+Behind the arrow are the type of TNC, as **Radio type**, and the fields that follow it: the host and port for a TCP type, and for a serial one the port and the speed; then **Find my radio** and **Terminal**.
+
 - **Terminal**, closed until you open it, shows the latest 100 lines of what the TNC saw and did, in monospace and in your browser's time. It follows the end unless you scroll up.
 
 When the digipeater is on and has repeated something, the status says "digipeated N".
-
-The group then shows the type of TNC first, as **Radio type**, and the fields that follow it: the host and port for a TCP type, and for a serial one the port and the speed.
 
 ## The TNC type
 

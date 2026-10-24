@@ -8,15 +8,32 @@ const lines = (...texts: string[]) => texts.map((text, i) => ({ at: new Date(NOW
 const radio = (tnc: ReturnType<typeof tncState> | null) => mount(RadioStatus, { props: { tnc, now: NOW } });
 
 describe("RadioStatus", () => {
-  it("has the state, one plain line, Reconnect and a closed Terminal, and none of the counters", () => {
+  it("has the state, one plain line and Reconnect in the heading of a fold, and none of the counters", () => {
     const wrapper = radio(tncState());
-    expect(wrapper.find(".statepill").text()).toBe("connected");
-    expect(wrapper.find(".tncstatus").text()).toBe("Last packet 30 s ago");
-    expect(wrapper.find(".tncstatus").attributes("title")).toBe("11 packets heard, 2.0 kB in, 0 B out, 0 digipeated");
-    expect(wrapper.find("button").text()).toBe("Reconnect");
-    expect(wrapper.find<HTMLDetailsElement>("details").element.open).toBe(false);
-    expect(wrapper.find("summary").text()).toBe("Terminal");
+    const head = wrapper.find("summary.radiohead");
+    expect(head.find(".statepill").text()).toBe("connected");
+    expect(head.find(".tncstatus").text()).toBe("Last packet 30 s ago");
+    expect(head.find(".tncstatus").attributes("title")).toBe("11 packets heard, 2.0 kB in, 0 B out, 0 digipeated");
+    expect(head.find("button").text()).toBe("Reconnect");
     for (const word of ["Opened", "Bytes", "Frames", "Keep-alive", "Speed", "Last error", "Details"]) expect(wrapper.text()).not.toContain(word);
+  });
+
+  it("keeps the Terminal and what is given for the fold behind its arrow, closed unless the radio is not connected", async () => {
+    const wrapper = mount(RadioStatus, { props: { tnc: tncState(), now: NOW }, slots: { default: "<p class='fields'>the fields</p>" } });
+    const fold = wrapper.find<HTMLDetailsElement>("details.radiostatus");
+    expect(fold.element.open).toBe(false);
+    expect(fold.find(".fields").exists()).toBe(true);
+    expect(wrapper.findAll("summary").map((s) => s.find("button").exists() || s.text())).toEqual([true, "Terminal"]);
+    expect(wrapper.findAll<HTMLDetailsElement>("details").map((d) => d.element.open)).toEqual([false, false]);
+    await wrapper.setProps({ open: true });
+    expect(fold.element.open).toBe(true);
+    expect(mount(RadioStatus, { props: { tnc: tncState(), now: NOW, open: true } }).find<HTMLDetailsElement>("details.radiostatus").element.open).toBe(true);
+  });
+
+  it("shows what is given for the fold without the line before the daemon has told the radio", () => {
+    const wrapper = mount(RadioStatus, { props: { tnc: null, now: NOW }, slots: { default: "<p class='fields'>the fields</p>" } });
+    expect(wrapper.find(".fields").exists()).toBe(true);
+    expect(wrapper.find("details").exists()).toBe(false);
   });
 
   it("says why it is not connected in the line, once", () => {
@@ -49,8 +66,8 @@ describe("RadioStatus", () => {
     expect(ports?.findAll("li").map((li) => li.text())).toEqual(["/dev/ttyUSB0", "/dev/ttyUSB1"]);
     expect(
       radio(tncState())
-        .findAll("summary")
-        .map((s) => s.text()),
+        .findAll("details details")
+        .map((d) => d.find("summary").text()),
     ).toEqual(["Terminal"]);
   });
 
@@ -64,10 +81,11 @@ describe("RadioStatus", () => {
     ).toMatch(/, digipeated 5$/);
   });
 
-  it("asks for a reconnect", async () => {
+  it("asks for a reconnect without opening or closing the fold", async () => {
     const wrapper = radio(tncState());
     await wrapper.find("button").trigger("click");
     expect(wrapper.emitted("reconnect")).toHaveLength(1);
+    expect(wrapper.find<HTMLDetailsElement>("details").element.open).toBe(false);
   });
 
   it("shows the lines of the terminal with their time in the viewer's time", () => {

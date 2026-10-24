@@ -16,6 +16,7 @@ import SidePanel from "@/components/SidePanel.vue";
 import StationCards from "@/components/StationCards.vue";
 import StationMap from "@/components/StationMap.vue";
 import StationsTable from "@/components/StationsTable.vue";
+import FindRadioToast from "@/components/FindRadioToast.vue";
 import ToastBar from "@/components/ToastBar.vue";
 import UndoToast from "@/components/UndoToast.vue";
 import UpdateDialog from "@/components/UpdateDialog.vue";
@@ -40,6 +41,7 @@ const {
   settings,
   prefs,
   notice,
+  findRadio,
   stationActions,
 } = useAppShell();
 const { send, ownObjects, ownBulletins, bulletins, packets, lastError } = daemon;
@@ -165,5 +167,6 @@ const cancel = (id: number): boolean => send({ cmd: "message_cancel", id });
     </main>
     <UndoToast :undo="settings.undo.value" @undo="settings.undoLast()" @dismiss="settings.dismissUndo()" />
     <ToastBar :toast="lastError" :notice="notice" />
+    <FindRadioToast :find="findRadio" />
   </div>
 </template>

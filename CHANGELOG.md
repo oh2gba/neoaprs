@@ -2,7 +2,11 @@
 
 ## Unreleased
 
-Nothing yet.
+The Settings tab's TNC group.
+
+- The group is one line, the radio status with a small **Reconnect** at its end, and an arrow in front that opens the rest: the type of TNC, the port, the speed (or the host and port of a TCP type) and the **Terminal**. It is closed unless the radio is not connected.
+- **Find my radio** (Linux), a button behind the arrow, finds the radio by itself: it tries the ports of the search for the radio, and with the default search the paired Bluetooth devices, one after the other at 9600, 57600, 19200, 38400, 115200, 4800 and 1200 baud, and stops at the first TNC that sends KISS or answers a carriage return with command-mode text, which the TNC types' own steps then put in KISS. It writes nothing but that carriage return and those steps, never to the air. The port, the speed and the type go into the settings like any other change, with **Undo**. The toast shows the port it is trying, with **Cancel**; when nothing answered it says so.
+- The settings `serial/pattern` and `serial/skip`, which are for `neoaprs db set` only, have no leftovers on the page any more.
 
 ## 0.7.0
 

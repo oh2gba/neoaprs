@@ -8,6 +8,7 @@ import { useBulletins } from "@/composables/useBulletins";
 import { useDaemon } from "@/composables/useDaemon";
 import { useDark } from "@/composables/useDark";
 import { useEmail } from "@/composables/useEmail";
+import { useFindRadio } from "@/composables/useFindRadio";
 import { useFormEsc } from "@/composables/useFormEsc";
 import { useHeardIndex } from "@/composables/useHeardIndex";
 import { useHome } from "@/composables/useHome";
@@ -132,6 +133,7 @@ export function useAppShell() {
   // the notices (a toast that is no error) and what the menu of a row of the Stations table sends or copies
   const { notice, say } = useNotice();
   const stationActions = useStationActions(send, say);
+  const findRadio = useFindRadio(daemon.radioSearch, lastError, connection, send, derived.settings, config, say);
 
   provideDaemon({
     ...daemon,
@@ -139,8 +141,9 @@ export function useAppShell() {
     ...derived,
     guide,
     panel,
+    findRadio,
     alerts: tabs.alerts,
   });
 
-  return { daemon, updateOpen, newer, objects, picks, layout, cards, guide, panel, notice, stationActions, ...tabs, ...derived };
+  return { daemon, updateOpen, newer, objects, picks, layout, cards, guide, panel, notice, findRadio, stationActions, ...tabs, ...derived };
 }

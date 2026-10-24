@@ -11,6 +11,7 @@ import type {
   OwnObjectRow,
   PacketRow,
   PortsMessage,
+  RadioSearchMessage,
   StationPref,
   StationRow,
   TncState,
@@ -27,6 +28,7 @@ function memory() {
     series: [] as WeatherSeriesMessage[],
     alerts: [] as AlertResultMessage[],
     ports: [] as PortsMessage[],
+    searches: [] as RadioSearchMessage[],
     updates: [] as UpdateResultMessage[],
     stations: new Map<string, StationRow>(),
     packets: new Map<string, PacketRow>(),
@@ -51,6 +53,7 @@ function memory() {
     weatherSeries: (m) => seen.series.push(m),
     alertResult: (m) => seen.alerts.push(m),
     ports: (m) => seen.ports.push(m),
+    radioSearch: (m) => seen.searches.push(m),
     updateResult: (m) => seen.updates.push(m),
     replaceStations: (rows) => (seen.stations = new Map(Object.entries(rows))),
     replacePackets: (rows) => (seen.packets = new Map(Object.entries(rows))),
@@ -188,6 +191,15 @@ describe("Hub", () => {
     };
     socket.say(answer);
     expect(seen.ports).toEqual([answer]);
+  });
+
+  it("hands the steps and the end of find_radio to the store as they are", () => {
+    const { seen, socket } = opened();
+    const trying = { type: "radio_search", state: "trying", port: "/dev/ttyUSB0", baud: 9600, profile: "", number: 1, total: 14 };
+    const found = { type: "radio_search", state: "found", port: "/dev/ttyUSB0", baud: 9600, profile: "kenwood-tnc2", number: 0, total: 0 };
+    socket.say(trying);
+    socket.say(found);
+    expect(seen.searches).toEqual([trying, found]);
   });
 
   it("follows the message board by sender and slot: a bulletin heard again is set again, one that was deleted is gone", () => {

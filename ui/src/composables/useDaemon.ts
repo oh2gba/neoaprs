@@ -135,6 +135,7 @@ export function useDaemon(url: () => string = socketUrl) {
     weatherSeriesByCall: answers.weatherSeriesByCall,
     alertResult: answers.alertResult,
     ports: answers.ports,
+    radioSearch: answers.radioSearch,
     send,
   };
 }

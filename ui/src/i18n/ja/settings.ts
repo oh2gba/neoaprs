@@ -31,6 +31,7 @@ export const settings: Record<keyof typeof source, Message> = {
 
   "settings.name.position": "位置",
   "settings.name.tcp_address": "TCPアドレス",
+  "settings.name.radio": "無線機",
 
   "settings.call.label": "コールサイン",
   "settings.lat.label": "緯度",
@@ -104,10 +105,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tcp_port.label": "TCPポート",
   "settings.tcp_port.title": "Direwolf 8001、soundmodem 8100",
   "settings.last_port.label": "最後に検出したポート",
-  "settings.pattern.label": "検索するポート",
-  "settings.pattern.title": "デバイスのパターン(スペース区切り)",
-  "settings.skip.label": "除外するポート",
-  "settings.skip.title": "デバイスのパス(カンマ区切り)",
 
   "settings.network.name": "ネットワークアクセス",
   "settings.network.label": "ネットワークからのアクセスを許可",
@@ -287,6 +284,13 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tnc.ports": "ポート",
   "settings.tnc.terminal": "ターミナル",
   "settings.tnc.terminal_label": "TNCが見たものと行ったこと",
+  "settings.find.button": "無線機を探す",
+  "settings.find.cancel": "キャンセル",
+  "settings.find.searching": "無線機を探しています…",
+  "settings.find.trying": "無線機を探しています: {port}、{baud} bps({number}/{total})",
+  "settings.find.trying_port": "無線機を探しています: {port}({number}/{total})",
+  "settings.find.already": "無線機は設定どおり {port} にあります",
+  "settings.find.cancelled": "検索をキャンセルしました",
 
   "settings.map.step.tool": "pmtilesプログラムを取得中",
   "settings.map.step.build": "最新のビルドを確認中",

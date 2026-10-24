@@ -41,6 +41,15 @@
   background: var(--text);
   color: var(--panel);
 }
+.toast.findradio {
+  width: min(560px, calc(100% - 24px));
+  justify-content: space-between;
+}
+.toast.findradio .linkbutton {
+  flex: none;
+  color: inherit;
+  font-weight: 600;
+}
 .toast.notice .xbtn,
 .toast.notice .xbtn:hover,
 .toast.notice .xbtn:focus-visible {
