@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+The radio hears more.
+
+- The keep-alive asks the TNC whether the radio is there only after 10 quiet minutes (was one minute), and after a random minute or two more. The check takes the TNC out of KISS and back, which deafens it for a few seconds; after one quiet minute it fell again and again on the next beacon of a station that sends one a minute, so a thin hour on the channel became a nearly silent one. A radio switched off is noticed within about 12 minutes; one switched off and on again at once, from the text its TNC prints.
+
 Weather graphs that bridge the gaps.
 
 - A weather card's graphs (temperature, pressure, wind and gusts) draw each line as one smooth curve through the readings, across the hours where the station sent none, where a gap used to leave short broken pieces and lone dashes. The curve is a monotone cubic (Fritsch-Carlson): it never rises above or falls below the readings it runs between, so a pressure curve does not invent a peak. It starts at the first reading and ends at the last, and a single reading is still a dot.

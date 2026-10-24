@@ -1,18 +1,20 @@
 """The TNC's keep-alive: how the Tnc learns that the radio is there. A TH-D7 that is switched off leaves the USB adapter and its port in place, a TNC in KISS mode sends nothing until it hears a packet, and a
 radio that is power-cycled comes back in command mode, so a quiet line is not proof of anything; the radio's absence has to be asked for.
 
-When nothing at all has been heard for `sec` the watchdog makes a check (only for a TNC profile that can be asked, tncprofile.py): the profile's KISS exit frame, a pause, a bare carriage return (a TH-D7 that is on answers that with text, "cmd:", within about a second),
+When nothing at all has been heard for `sec` (and a random part of it more, TNC_CHECK_JITTER, so that the checks never keep step with a station that beacons at a fixed rate) the watchdog makes a check (only for a TNC profile that can be asked, tncprofile.py): the profile's KISS exit frame, a pause, a bare carriage return (a TH-D7 that is on answers that with text, "cmd:", within about a second),
 then the profile's entry (KISS ON). Any byte in answer means the radio is there, and the clock starts again from the latest byte; the check costs a few seconds of reception, which is why it runs only after a quiet period. A line that was just opened has not shown yet that the radio is there (the Tnc is not `usable`, `confirmed` is False), so its first check is made at once. No
 byte at all within `answer_sec` of the carriage return and KISS ON makes the radio silent (`Source.went_silent`): then the same sequence is a probe, made every `probe_sec`, and the first byte that comes,
 whatever it is, ends the silence (the Tnc does that, in `_on_data`). Every 5th probe also closes the port and opens it again, for a USB adapter that dropped. Nothing is logged above DEBUG for a check or a probe;
 the Tnc says once when the silence begins and once when it ends. The `Tnc` does each action (its `look_*` methods); this module keeps the clock, the count and the words."""
 import asyncio
 import logging
+import random
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
 
+from .policy import TNC_CHECK_JITTER
 from .source import Source, Stats
 from .tncprofile import Profile
 
@@ -64,14 +66,24 @@ class Watchdog:
         self.pause_sec, self.reply_sec, self.answer_sec, self.probe_sec = pause_sec, reply_sec, answer_sec, probe_sec
         self.probes = 0                        # probes since the latest byte
         self._heard_at = 0.0                   # loop time of the latest byte (or of the open)
+        self._extra = 0.0                      # the random part of this quiet period (TNC_CHECK_JITTER)
 
     def heard(self) -> None:
         """A byte came: the quiet period starts again."""
         self.probes = 0
-        self._heard_at = asyncio.get_running_loop().time()
+        self._restart()
 
     def opened(self) -> None:
+        self._restart()
+
+    @property
+    def quiet_sec(self) -> float:
+        """The quiet period now in force: `sec` and its random part."""
+        return self.sec + self._extra
+
+    def _restart(self) -> None:
         self._heard_at = asyncio.get_running_loop().time()
+        self._extra = random.uniform(0.0, TNC_CHECK_JITTER) * self.sec
 
     async def run(self, alive: Callable[[], bool], check_first: bool = False) -> None:
         """Waits and looks while `alive()` (the line this was started for is still the Tnc's). `check_first`: a line that was just opened has not shown yet that the radio is there, so the first check is made at once,
@@ -85,7 +97,7 @@ class Watchdog:
                 if alive() and self.tnc.state is Source.State.SILENT:
                     await self._look("probe", alive)
             elif self.sec > 0:
-                if (left := self._heard_at + self.sec - loop.time()) > 0:
+                if (left := self._heard_at + self.quiet_sec - loop.time()) > 0:
                     await asyncio.sleep(left)
                 elif self.tnc.state is Source.State.CONNECTED:
                     await self._look("check", alive)

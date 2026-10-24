@@ -2,7 +2,8 @@
 
 LOG_KEEP_DAYS = 7                    # packets, weather observations and stations are kept this long (the weather graphs reach back 7 days)
 HIDE_AFTER_MIN = 180                 # a station whose last position is older than this leaves the map (the page hides it; the table keeps it)
-TNC_CHECK_SEC = 60                   # seconds of nothing at all on the line before the keep-alive asks a TNC that can be asked (the Kenwood and Kantronics profiles) whether the radio is there
+TNC_CHECK_SEC = 600                  # seconds of nothing at all on the line before the keep-alive asks a TNC that can be asked (the Kenwood and Kantronics profiles) whether the radio is there: a check deafens the TNC for a few seconds, and after one quiet minute it fell again and again on the next beacon of a station that sends one a minute
+TNC_CHECK_JITTER = 0.2               # each quiet period is longer by a random part of it, up to this share, so that the checks never keep step with a station's beacons
 HEARD_PATH_WINDOW_MIN = 60           # the automatic path of a message goes by the way a station's packets reached us only if they came that way this recently (minutes)
 HEARD_PATH_MIN_PACKETS = 2           # ... and at least this many came that way within the window (a single packet is luck)
 HEARD_PATH_MAX_DIGIPEATERS = 3       # a route of more digipeaters than this is not sent by (heard that way, but too long a path to repeat)

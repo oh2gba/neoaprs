@@ -118,7 +118,7 @@ def fixed() -> str:
     items = [
         f"Packets, weather observations and stations are kept {LOG_KEEP_DAYS} days and cleaned up once a day. Messages and bulletins are kept until you delete them.",
         f"A station leaves the map {HIDE_AFTER_MIN} minutes ({_hours(HIDE_AFTER_MIN)}) after its last position.",
-        f"The keep-alive asks a TNC that can be asked after {TNC_CHECK_SEC} seconds of silence on the line.",
+        f"The keep-alive asks a TNC that can be asked after {TNC_CHECK_SEC // 60} minutes of silence on the line (and a random minute or two more).",
         f"A message to a station is sent {STATION_ATTEMPTS} times, and one to the email gateway {EMAIL_ATTEMPTS} times, before it has failed or is unconfirmed.",
         f"Your own frames go out at least {int(SPACING_SEC)} seconds apart, except acks, answers to queries and digipeated packets.",
         f"The first beacon goes out {int(FIRST_DELAY_SEC)} seconds after the daemon starts.",

@@ -11,7 +11,7 @@ are in `neoaprs/policy.py`.
 `kiss-tcp`) never has the check, the silent state or the probes.
 
 **The check.** While the port is open and the profile can be asked, the Tnc counts the time since anything at all arrived; a damaged frame or noise counts.
-After a quiet `TNC_CHECK_SEC` (60 seconds) it makes a check: the profile's exit (`C0 FF C0`), half a second (`CHECK_PAUSE_SEC`), a bare carriage return
+After a quiet `TNC_CHECK_SEC` (600 seconds, longer by a random share of up to `TNC_CHECK_JITTER`, 20 %) it makes a check: the profile's exit (`C0 FF C0`), half a second (`CHECK_PAUSE_SEC`), a bare carriage return
 (`PROMPT`), and then the profile's entry with its settling time. A TH-D7 that is on answers with text (`cmd:`) within about a second. Any byte in answer means
 the radio is there: the state stays `connected` and the clock starts again from the latest byte.
 
