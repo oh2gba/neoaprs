@@ -6,6 +6,7 @@
 - The button is **Choose on map** (was "Pick on the map") in all seven languages, in the Beacon tab, the Objects form and the setup guide's Position step.
 - Objects: the form's position has the same Location row (the button, the place in one line, **Enter coordinates**); the map button is no longer at the left of the line with Cancel and Save.
 - **Esc** closes the Objects form without saving, as Cancel does, unless the focus is in a field that still has text (that keeps its first Esc). While the map waits for a click, Esc ends that first.
+- Fixed rows drawn over each other in the Stations table.
 
 The Stations table.
 

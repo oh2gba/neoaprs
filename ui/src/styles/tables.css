@@ -153,10 +153,13 @@
 .grid tr.own td {
   font-weight: 600;
 }
-.grid tr.timedout {
+/* a timed-out row is dimmed cell by cell, not by an opacity on the row, and the bearing's cell is left alone (its arrow is dimmed itself): Chromium leaves stale copies of a row's cells, painted over other rows, when a row that has an opacity on it, and an arrow turned by a transform in it, is moved or changes */
+.grid tr.timedout td:not(.bearing),
+.grid tr.timedout .arrow {
   opacity: 0.55;
 }
-.grid tr.timedout.selected {
+.grid tr.timedout.selected td,
+.grid tr.timedout.selected .arrow {
   opacity: 1;
 }
 .grid tr.detail,
