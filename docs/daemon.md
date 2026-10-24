@@ -1,7 +1,7 @@
 # How the daemon behaves
 
 The details behind the [manual](manual/README.md), with the names the code and the wire use. The wire itself is in [`PROTOCOL.md`](../PROTOCOL.md); the layers
-the parts are in are in [`docs/ARCHITECTURE.md`](ARCHITECTURE.md). The policy numbers (`LOG_KEEP_DAYS`, `HIDE_AFTER_MIN`, `TNC_CHECK_SEC`)
+the parts are in are in [`docs/ARCHITECTURE.md`](ARCHITECTURE.md). The policy numbers (`LOG_KEEP_DAYS`, `TNC_CHECK_SEC`)
 are in `neoaprs/policy.py`.
 
 ## The TNC and its keep-alive
@@ -161,7 +161,7 @@ when the row is made.
 station, under the call as written, in the row `{path, rf_only}` of the topic `station_prefs` (the path null where none is set, a `path` of `""` is
 direct; an entry with no path and `rf_only` false is not kept). The commands are `set_station_path` (calls, or `DIRECT`; an empty `path` clears), `clear_station_path`
 and `set_station_rf_only{call, on}`. `PrefBook.path_for` adds `RFONLY` so every frame to the station takes the same road. Messaging is given
-`path_for`. `set_station_rf_only` for `EMAIL-2` is an `error`. A station has no timeout of its own: every station leaves the map 180 minutes after its last position (the page does that; the daily prune keeps
+`path_for`. `set_station_rf_only` for `EMAIL-2` is an `error`. A station has no timeout of its own: every station leaves the map as many hours after its last position as the setting `map/station_hours` says (1, 3, 6, 12 or 24, 3 by default; the page does that, the daily prune keeps
 packets and stations 7 days). Migration 17 cleared the timeouts that earlier versions stored (the column `station_pref.hide_after_min` is always null and not read).
 
 **The station book** (`neoaprs/stationbook.py`) counts, for each station, how many packets came direct and by each route, from the packets since the start and
@@ -277,6 +277,8 @@ the path and RF only of a station are not touched. The commands `set_station_tim
   as aprs-deviceid's tables have it: a leading `>` with an optional trailing `=`, `^` or `&` (Kenwood TH-D72, TH-D74, TH-D75), `]` with an optional `=`
   (TM-D700, TM-D710), and a leading `` ` `` or `'` with one of the table's two-byte suffixes (`_%` FTM-400DR, `|3` TinyTrak3, `[1` APRSdroid ...); a suffix
   not in the table stays in the text. The leading `'` says the radio does no messages (`can_message`). The altitude `xxx}` is read at the start of the status text (after the locator) or as a word of its own after a space.
+- **The device a station runs** (`neoaprs/device.py`, the station row's `device`): the name the APRS device identification list (`neoaprs/devicedata.py`, a snapshot of Hessu's `tocalls.yaml`, CC BY-SA 2.0, made by `scripts/gen-devices.py` and never fetched by the daemon) gives for the destination call of the station's latest packet (an exact tocall before a wildcarded one, the more characters written out the better; `?` is any character, `n` a digit), or for a Mic-E packet the type code at the ends of its comment. The station row also has `packets_hour`, the packets of the last hour (counted for each minute, read from the packet log at the start).
+- **The ALOHA circle** (`neoaprs/aloha.py`, `neoaprs/services/aloha.py`, the field `aloha_km` of the topic `map`): once a minute the stations heard on RF in the last hour (not objects, not ours, not the ones an iGate put on the air) are walked from the nearest to the farthest, each adding what it sends in 30 minutes by its kind (a moving mobile 15, any other mobile 7, a weather station 6, a digipeater 3, any other 2, times a factor that starts at 1 and rises by one after each digipeater) until the sum reaches 1800, the packets a 1200 baud channel carries in 30 minutes; the distance of that station is the radius. None without a position or when the sum is not reached. The numbers are in `neoaprs/policy.py`.
 
 ## The update check
 
@@ -284,7 +286,7 @@ the path and RF only of a station are not touched. The commands `set_station_tim
 `neoaprs/versions.py` compares the versions and reads the answer. It keeps the answer only if it is newer than ours, and the `status` message carries it.
 `check_now` is the same question on request (`update_check`, answered by `update_result`). `NEOAPRS_UPDATE_CHECK=0` switches it off for the run. The kind of
 system sent is worked out by the process in `neoaprs/cli/installkind.py` and given to the controller; the `hello` message carries it so the page can say how to
-update. The page loads itself again when its built-in version differs from the one in `hello`; the daemon serves `index.html` with `no-cache` and the other
+update. The page loads itself again when its built-in version or its build (the field `page` of `hello`, the name of the page's main script) differs from the one in `hello`; the daemon serves `index.html` with `no-cache` and the other
 files by the hash of their content.
 
 **Update now** (`neoaprs/services/selfupdate.py`) is the update the daemon does itself on the page's `update_now`, for the Windows installer and an AppImage:

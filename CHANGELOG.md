@@ -2,83 +2,76 @@
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.8.0
+
+A radio that hears more, a Receive only switch, station cards that say what a station runs, a time on the map you choose, the ALOHA circle, a Settings → TNC group that folds and finds your radio, and buttons of one size.
+
+The radio hears more.
+
+- The keep-alive asks the TNC whether the radio is there only after 10 quiet minutes (was one minute), and after a random minute or two more. The check takes the TNC out of KISS and back, which deafens it for a few seconds; after one quiet minute it fell again and again on the next beacon of a station that sends one a minute, so a thin hour on the channel became a nearly silent one. A radio switched off is noticed within about 12 minutes. One switched off and on again while it was in KISS is put back in KISS at once: its TNC starts in command mode and types what it hears, and text after KISS frames now means that (it used to wait for the next check).
+
 Receive only.
 
 - A new switch **Transmit** at the top of the Beacon tab, with the choices **On** and **Receive only** (the setting `station/transmit`, `true` by default, also for `neoaprs db set`), for the days you want to listen and not transmit. While it is off nothing at all is transmitted: no beacon, status, message, ack, answer to a query, object, bulletin or digipeated packet. The page shows an amber **Receive only** badge in its header, beside the title, on every screen size; it opens the Beacon tab. The setting is kept in the database.
 - While it is off, **Beacon now**, **Send status now**, a new message (a retry too), an email, an object and a bulletin are refused at once with the coded error `transmit.off` ("Receive only: nothing is sent" in the toast, in all seven languages). The messages already being sent wait: no attempt is used up, none fails, and they go on when it is switched on; the acks of received messages are not sent. A beacon or a status that came due goes out once after it is switched on, never as a burst.
 
-Buttons of one size.
+Station cards.
 
-- Every text button, input and select of a form or a toolbar is now the same height (32 px) on every tab, in the setup guide, the update dialog and over the map: Reconnect, Download in the map note, Close all, Message these, Done and Cancel of the map bars, the news link and Update now were smaller or larger, and a select was taller than the inputs beside it. Only Retry, Cancel, Copy, Route and the weather hours stay compact (24 px), and on a touch screen every control is still at least 40 px. The button that is the action of a row (Test sound, Test pop-up, Check now, Find my radio, Download map, Choose on map) has one least width, like Beacon now. The rule is in `CONVENTIONS.md`, and `ui/src/styles/buttons.test.ts` holds it.
+- A new row, **Device**, says what the station runs ("Kenwood TH-D74", "APRSdroid", "OpenTracker"), from the destination call of its packets (with the list's wildcards) or, for a Mic-E tracker, from the type code at the ends of its comment. It is left out when the station is not in the list. The names come from the APRS device identification list of Hessu, OH7LZB (aprsorg/aprs-deviceid, CC BY-SA 2.0), a snapshot of which the program carries (`scripts/gen-devices.py` refreshes it; the daemon never fetches it) and credits in the (i) on the map and in the README.
+- The antenna of a PHG report (in the **Details**) shows the direction it favours as a small arrow, the same as the bearing in the Stations table (a small circle for omni), with the compass point and the degrees as its hover title, in place of the degrees in the text.
+- **Packets** in the details says how many of them came in the last hour: "312 · 14 in the last hour". The count is kept for each minute, read from the packet log at the start, and moves on every minute. Your own station and your objects, which are not heard, show the total only.
+- A station card has a **pin** beside its cross (on a tablet and a desktop). A pinned card stays on the map past **Esc**, **Close all**, a click on the map or on another station, and a reload of the page, in the place it stands, until its cross is clicked (the cross unpins and closes it). The pin is filled while it is on, says so to a screen reader, and has the hover title "Pin card" or "Unpin card" in all seven languages. A card opened later goes to a free place and never on a pinned one. The pinned calls and their places are remembered in the browser (localStorage), not by the daemon. The route of a pinned card is drawn only while its station is picked: Esc or a click on the map leaves the pinned cards open and marked, without their route lines.
+- A card that was moved low and then grows (**Details** opened, a weather card's graphs loaded) moves up as far as it needs to be whole inside the map, and no further, and does not get a scroll bar for it; only a card taller than the map is put at its top and scrolls. Another card never moves for it.
+- The card's field **Hide from map after** is gone, with its words in all seven languages: how long a station stays on the map is one choice for all of them, **On map for** in the Stations tab (below). A timeout stored for a station has no effect any more, and is cleared once at the first start of this version (migration 17): one line in the log for each station with the old value, a row that held nothing else is deleted, and the path and RF only of the station are not touched.
 
-Pages that keep up.
+The map and the Stations tab.
 
-- A page left open loads itself again when the daemon it reconnects to serves another build of the page, not only another version: the daemon names its page's build in `hello` (the new field `page`, the name of the page's main script). Once for each build, as for a version.
-
-The radio hears more.
-
-- The keep-alive asks the TNC whether the radio is there only after 10 quiet minutes (was one minute), and after a random minute or two more. The check takes the TNC out of KISS and back, which deafens it for a few seconds; after one quiet minute it fell again and again on the next beacon of a station that sends one a minute, so a thin hour on the channel became a nearly silent one. A radio switched off is noticed within about 12 minutes. One switched off and on again while it was in KISS is put back in KISS at once: its TNC starts in command mode and types what it hears, and text after KISS frames now means that (it used to wait for the next check).
+- The Stations tab has a choice **On map for** in its filter row: 1, 3, 6, 12 or 24 hours after a station's last position (3 by default). It is one setting of the daemon, `map/station_hours` (also for `neoaprs db set`), so every browser and device shows the same, and a change applies at once with an Undo. The map, the tracks and the dimmed "timed out" rows of the table follow it. Your own station and objects never leave the map, and the daemon still keeps stations for 7 days.
+- The ALOHA circle of Bob Bruninga, WB4APR, is drawn round your station: a thin dashed circle, under the markers, with its radius as the hover text ("ALOHA circle: 42 km"). It is the distance within which the stations heard on the radio would fill the channel; a packet for a station beyond it is hard to receive reliably. The daemon works it out by WB4APR's method ("The ALOHA Circle", aprs.org, 2011) once a minute from the stations heard in the last hour, nearest first, each by what it sends in half an hour (a moving mobile 15 packets, any other mobile 7, a weather station 6, a digipeater 3, any other station 2, and each digipeater nearer than a station makes the packets of the stations beyond it count once more), until the sum reaches 1800, the packets a 1200 baud channel carries in half an hour. Without a position, or with too few stations heard to fill the channel, there is no circle.
+- The tickbox **with position only** of the Stations list is gone: the stations without a position show as they do with it off.
 
 Weather graphs that bridge the gaps.
 
 - A weather card's graphs (temperature, pressure, wind and gusts) draw each line as one smooth curve through the readings, across the hours where the station sent none, where a gap used to leave short broken pieces and lone dashes. The curve is a monotone cubic (Fritsch-Carlson): it never rises above or falls below the readings it runs between, so a pressure curve does not invent a peak. It starts at the first reading and ends at the last, and a single reading is still a dot.
 - The lighter band between the wind and its gusts follows the same two curves. The rain stays bars, with no bar for an hour with no reading.
 
-How long a station stays on the map.
-
-- The Stations tab has a choice **On map for** in its filter row: 1, 3, 6, 12 or 24 hours after a station's last position (3 by default). It replaces the fixed 3 hours: it is one setting of the daemon, `map/station_hours` (also for `neoaprs db set`), so every browser and device shows the same, and a change applies at once with an Undo. The map, the tracks and the dimmed "timed out" rows of the table follow it. Your own station and objects never leave the map, and the daemon still keeps stations for 7 days. The old `map/hide_after_min` is not used again; the page's limits `LIMITS.station.hideAfterMin` became `LIMITS.station.hours` and `defaultHours`.
-
-Objects.
-
-- The Objects form no longer has a choice between Object and Item: a new one is always an object, which is what the specification recommends on RF. An item you made before is still in the list, on the map and on the air, and can be changed and killed until you delete it.
-
-The Stations list.
-
-- The tickbox **with position only** is gone: the stations without a position show as they do with it off.
-
-The station card.
-
-- A new row, **Device**, says what the station runs ("Kenwood TH-D74", "APRSdroid", "OpenTracker"), from the destination call of its packets (with the list's wildcards) or, for a Mic-E tracker, from the type code at the ends of its comment. It is left out when the station is not in the list. The names come from the APRS device identification list of Hessu, OH7LZB (aprsorg/aprs-deviceid, CC BY-SA 2.0), a snapshot of which the program carries (`scripts/gen-devices.py` refreshes it; the daemon never fetches it) and credits in the (i) on the map and in the README. The station row of the page's protocol has the new field `device`.
-- The antenna of a PHG report shows the direction it favours as a small arrow, the same as the bearing in the Stations table (a small circle for omni), with the compass point and the degrees as its hover title, in place of the degrees in the text.
-- **Packets** in the details says how many of them came in the last hour: "312 · 14 in the last hour". The count is kept for each minute, read from the packet log at the start, and moves on every minute; the station row has the new field `packets_hour`.
-
-The footer.
-
-- The hover text of the version is a sentence in the page's language, "NeoAPRS uses 0.3 % of one processor core and 56 MB of memory, running for 3 h", not "0.3 % · 56 MB · up 3 h".
-
-The log.
-
-- The lines of the database migrations (for the upgrade that put the settings that are not on the page back to their defaults: one line for each, with the value it had) are on stderr too, so that `journalctl --user -u neoaprs` has them, not only `neoaprs.log`. `neoaprs db set` on a database of an older version says them on its stderr. Their logger is `neoaprs.migrations`.
-
-The Email tab.
-
-- **Esc** in the box to write a mail closes the list of addresses used before; with none open, it clears the address and the text being written.
-
-The map.
-
-- The ALOHA circle of Bob Bruninga, WB4APR, is drawn round your station: a thin dashed circle, under the markers, with its radius as the hover text ("ALOHA circle: 42 km"). It is the distance within which the stations heard on the radio would fill the channel; a packet for a station beyond it is hard to receive reliably. The daemon works it out by WB4APR's method ("The ALOHA Circle", aprs.org, 2011) once a minute from the stations heard in the last hour, nearest first, each by what it sends in half an hour (a moving mobile 15 packets, any other mobile 7, a weather station 6, a digipeater 3, any other station 2, and each digipeater nearer than a station makes the packets of the stations beyond it count once more), until the sum reaches 1800, the packets a 1200 baud channel carries in half an hour. Without a position, or with too few stations heard to fill the channel, there is no circle. The radius is the new field `aloha_km` of the topic `map`.
-
-Messages.
-
-- A message of yours that is no longer being sent and was never acked (failed, unconfirmed, refused or cancelled) has a small trash can beside Retry: pressed twice, it deletes the message from the conversation.
-
-Nothing moves when a button answers.
-
-- The answers of **Check now**, the alert command's **Test**, **New key** and **Test sound** / **Test pop-up** are said in the toast at the bottom, like the other notices, not beside or under the button (where they pushed the (i) aside). When Check now finds a newer version, the update window opens.
-
-The Settings tab's TNC group.
+The Settings tab's TNC group and Find my radio.
 
 - The group is one line, the radio status with a small **Reconnect** at its end, and an arrow in front that opens the rest: the type of TNC, the port, the speed (or the host and port of a TCP type) and the **Terminal**. It is closed unless the radio is not connected.
 - **Find my radio** (Linux), a button behind the arrow, finds the radio by itself: it tries the ports of the search for the radio, and with the default search the paired Bluetooth devices, one after the other at 9600, 57600, 19200, 38400, 115200, 4800 and 1200 baud, and stops at the first TNC that sends KISS or answers a carriage return with command-mode text, which the TNC types' own steps then put in KISS. It writes nothing but that carriage return and those steps, never to the air. The port, the speed and the type go into the settings like any other change, with **Undo**. The toast shows the port it is trying, with **Cancel**; when nothing answered it says so.
 - The settings `serial/pattern` and `serial/skip`, which are for `neoaprs db set` only, have no leftovers on the page any more.
 
-- A station card has a **pin** beside its cross (on a tablet and a desktop). A pinned card stays on the map past **Esc**, **Close all**, a click on the map or on another station, and a reload of the page, in the place it stands, until its cross is clicked (the cross unpins and closes it). The pin is filled while it is on, says so to a screen reader, and has the hover title "Pin card" or "Unpin card" in all seven languages. A card opened later goes to a free place and never on a pinned one. The pinned calls and their places are remembered in the browser (localStorage), not by the daemon. The route of a pinned card is drawn only while its station is picked: Esc or a click on the map leaves the pinned cards open and marked, without their route lines.
-- A card that was moved low and then grows (**Details** opened, a weather card's graphs loaded) moves up as far as it needs to be whole inside the map, and no further, and does not get a scroll bar for it; only a card taller than the map is put at its top and scrolls. Another card never moves for it.
-- The card's field **Hide from map after** is gone, with its words in all seven languages: every station leaves the map 180 minutes after its last position (a station past it is still dim in the Stations table). A timeout stored for a station has no effect any more, and is cleared once at the first start of this version (migration 17): one line in the log for each station with the old value, a row that held nothing else is deleted, and the path and RF only of the station are not touched. The commands `set_station_timeout` and `clear_station_timeout` and the field `hide_after_min` of `station_prefs` are gone from the protocol, and the daily clean-up no longer keeps a station for a timeout of "never".
+Messages, email and objects.
 
-The Objects form.
+- A message of yours that is no longer being sent and was never acked (failed, unconfirmed, refused or cancelled) has a small trash can beside Retry: pressed twice, it deletes the message from the conversation.
+- **Esc** in the box to write a mail closes the list of addresses used before; with none open, it clears the address and the text being written.
+- The Objects form no longer has a choice between Object and Item: a new one is always an object, which is what the specification recommends on RF. An item you made before is still in the list, on the map and on the air, and can be changed and killed until you delete it.
+- **Course** and **speed** of the Objects form are behind a closed **Moving** heading, since most objects (a meeting point, a repeater) do not move. It opens by itself for an object that already has either; an empty fold means neither is sent.
 
-- **Course** and **speed** are behind a closed **Moving** heading, since most objects (a meeting point, a repeater) do not move. It opens by itself for an object that already has either; an empty fold means neither is sent.
+Nothing moves when a button answers.
+
+- The answers of **Check now**, the alert command's **Test**, **New key** and **Test sound** / **Test pop-up** are said in the toast at the bottom, like the other notices, not beside or under the button (where they pushed the (i) aside). When Check now finds a newer version, the update window opens.
+
+Buttons of one size.
+
+- Every text button, input and select of a form or a toolbar is now the same height (32 px) on every tab, in the setup guide, the update dialog and over the map: Reconnect, Download in the map note, Close all, Message these, Done and Cancel of the map bars, the news link and Update now were smaller or larger, and a select was taller than the inputs beside it. Only Retry, Cancel, Copy, Route and the weather hours stay compact (24 px), and on a touch screen every control is still at least 40 px. The button that is the action of a row (Test sound, Test pop-up, Check now, Find my radio, Download map, Choose on map) has one least width, like Beacon now.
+
+Pages that keep up.
+
+- A page left open loads itself again when the daemon it reconnects to serves another build of the page, not only another version. Once for each build, as for a version.
+- The hover text of the version in the footer is a sentence in the page's language, "NeoAPRS uses 0.3 % of one processor core and 56 MB of memory, running for 3 h", not "0.3 % · 56 MB · up 3 h".
+
+The log.
+
+- The lines of the database migrations (for the upgrade that put the settings that are not on the page back to their defaults: one line for each, with the value it had) are on stderr too, so that `journalctl --user -u neoaprs` has them, not only `neoaprs.log`. `neoaprs db set` on a database of an older version says them on its stderr. Their logger is `neoaprs.migrations`.
+
+For developers.
+
+- The wire has the station row's new fields `device` and `packets_hour`, the topic `map`'s new field `aloha_km`, and the field `page` of `hello` (the name of the page's main script, which the daemon serves). The commands `set_station_timeout` and `clear_station_timeout` and the field `hide_after_min` of `station_prefs` are gone, and the daily clean-up no longer keeps a station for a timeout of "never".
+- The setting `map/hide_after_min` is not used again; the page's limits `LIMITS.station.hideAfterMin` became `LIMITS.station.hours` and `defaultHours`.
+- One button size: the rule is in `CONVENTIONS.md`, and `ui/src/styles/buttons.test.ts` holds it.
 
 ## 0.7.0
 

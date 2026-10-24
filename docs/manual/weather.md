@@ -13,6 +13,8 @@ The **card** of a weather station (the weather symbol, or a station that has sen
 - under them, the graphs of the temperature, the pressure, the wind (with its gusts as a lighter band) and the rain (as bars), over the last 24 hours or 7 days. The switch is remembered;
 - a line under the pointer that says the value and the time of the nearest observation.
 
+Each line of a graph is one smooth curve through the readings, across the hours where the station sent none (a monotone cubic: it never rises above or falls below the readings it runs between, so a pressure curve does not invent a peak). It starts at the first reading and ends at the last, a single reading is a dot, and the band between the wind and its gusts follows the same two curves. The rain is bars, none for an hour with no reading.
+
 The graphs are drawn by the page in its own colours. The page asks for them when the card opens, when the switch changes and when a new observation comes.
 
 While two or more weather cards are open, every graph is on the same value axis and time span, so the stations can be compared ([page.md](page.md#several-cards)).
