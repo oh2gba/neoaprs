@@ -64,8 +64,8 @@ const cancel = (id: number): boolean => send({ cmd: "message_cancel", id });
     <main class="main">
       <div class="mapwrap">
         <StationMap
-          :selected="selected"
-          :others="cards.others.value"
+          :selected="cards.mapSelected.value"
+          :others="cards.mapOthers.value"
           :focus="focus"
           :picking="guide.picking || objects.picking || stationPick.picking.value"
           :pin="guide.open ? guide.pin : objects.pin"

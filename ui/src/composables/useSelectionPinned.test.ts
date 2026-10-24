@@ -41,6 +41,22 @@ describe("useSelection with pinned cards", () => {
     expect([picked.pinned.value, picked.open.value]).toEqual([[], ["OH2ZWA"]]);
   });
 
+  it("draws no route once the pinned cards are let go of (Esc, a click on the map): they stay marked, and a pick draws its route again", () => {
+    const { picked } = setUp();
+    picked.pick("OH2ZWA");
+    picked.pin("OH2ZWA", true);
+    expect([picked.mapSelected.value, picked.mapOthers.value]).toEqual(["OH2ZWA", []]);
+    expect(picked.closeAll()).toBe(true); // (the first Esc lets go of the route, so it is the page's)
+    expect(picked.open.value).toEqual(["OH2ZWA"]);
+    expect([picked.mapSelected.value, picked.mapOthers.value]).toEqual([null, ["OH2ZWA"]]);
+    expect(picked.closeAll()).toBe(false); // (nothing more to let go of: Esc goes on to whatever else wants it)
+    picked.pick("OH2ZWB");
+    expect([picked.mapSelected.value, picked.mapOthers.value]).toEqual(["OH2ZWB", ["OH2ZWA"]]);
+    picked.closeAll();
+    picked.pick("OH2ZWA");
+    expect([picked.mapSelected.value, picked.mapOthers.value]).toEqual(["OH2ZWA", []]);
+  });
+
   it("keeps a pinned card when another station is picked, with or without Ctrl, and closes the unpinned ones", () => {
     const { picked } = setUp();
     picked.pick("OH2ZWA");

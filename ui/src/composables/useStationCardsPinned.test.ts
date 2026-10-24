@@ -67,13 +67,17 @@ describe("useStationCards: pinned cards", () => {
     expect(cards.open.value).toEqual(["OH2ZWA", "OH2ZWB"]);
   });
 
-  it("does not take Esc when only pinned cards are open", () => {
+  it("takes the first Esc to let go of a pinned card's route, and not the next one when only pinned cards are open", () => {
     const { cards } = setUp();
     cards.pick("OH2ZWA");
     cards.pin("OH2ZWA", true);
-    const event = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
-    document.body.dispatchEvent(event);
-    expect(event.defaultPrevented).toBe(false);
+    const esc = () => new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+    const first = esc();
+    document.body.dispatchEvent(first);
+    expect([first.defaultPrevented, cards.mapSelected.value, cards.open.value]).toEqual([true, null, ["OH2ZWA"]]);
+    const second = esc();
+    document.body.dispatchEvent(second);
+    expect(second.defaultPrevented).toBe(false);
   });
 
   it("remembers the pinned calls and their places in this browser, and forgets them when the cross is clicked", async () => {

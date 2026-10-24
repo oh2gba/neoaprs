@@ -27,6 +27,7 @@ export function useSelection(
   const pinned = pins.pinned ?? ref<string[]>([]);
   const isPinned = (call: string): boolean => (pins.pinsOn?.value ?? true) && pinned.value.includes(call);
   const focus = ref<Focus | null>(null);
+  const active = ref(true); // a station was picked and not let go of: its route is drawn. Esc and a click on the map end that, also for the pinned cards that stay
   let asked = 0;
   const most = (): number => Math.max(1, capacity?.value ?? 1);
 
@@ -36,6 +37,9 @@ export function useSelection(
     set: (call) => (open.value = call === null ? [] : [call]),
   });
   const others = computed(() => open.value.slice(0, -1));
+  /** What the map marks: the selected station (whose route it draws) and the others; after Esc or a click on the map the pinned cards that stay are all "others", with no route. */
+  const mapSelected = computed(() => (active.value ? selected.value : null));
+  const mapOthers = computed(() => (active.value ? others.value : open.value));
   const rows = computed(() => open.value.flatMap((call) => stations.value.get(call) ?? []));
   const row = computed(() => (selected.value === null ? null : (stations.value.get(selected.value) ?? null)));
 
@@ -56,6 +60,7 @@ export function useSelection(
 
   /** A click on a marker or a row: this station's card alone; with `multi`, added to the open ones (or closed, when it is one of them). Returns whether the station's card is open after it. */
   function pick(call: string, multi = false): boolean {
+    active.value = true;
     const kept = open.value.filter((one) => one !== call && isPinned(one)); // (the pinned cards stay, and a pinned card picked again is the newest)
     if (!multi || most() < 2) {
       open.value = [...kept, call];
@@ -91,8 +96,9 @@ export function useSelection(
   /** Esc, and Close all: every card that is not pinned goes, and with them the marking of the markers and the rows; whether there was one. */
   function closeAll(): boolean {
     const staying = open.value.filter(isPinned);
-    const some = staying.length < open.value.length;
+    const some = staying.length < open.value.length || (active.value && staying.length > 0);
     open.value = staying;
+    active.value = false;
     return some;
   }
 
@@ -107,7 +113,7 @@ export function useSelection(
     if (send({ cmd: "forget_station", call })) close(call);
   }
 
-  return { selected, others, open, rows, focus, row, pinned, pin, pick, pickFromTable, close, closeOldest, closeAll, forget };
+  return { selected, others, mapSelected, mapOthers, open, rows, focus, row, pinned, pin, pick, pickFromTable, close, closeOldest, closeAll, forget };
 }
 
 /**
