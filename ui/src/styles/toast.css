@@ -37,3 +37,13 @@
   color: #fff;
   background: rgb(255 255 255 / 20%);
 }
+.toast.notice {
+  background: var(--text);
+  color: var(--panel);
+}
+.toast.notice .xbtn,
+.toast.notice .xbtn:hover,
+.toast.notice .xbtn:focus-visible {
+  color: var(--panel);
+  background: none;
+}

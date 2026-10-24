@@ -6,7 +6,7 @@ import InfoTip from "@/components/InfoTip.vue";
 import { t } from "@/i18n";
 import { useSure } from "@/composables/useSure";
 import { ageText } from "@/lib/format";
-import { conversationName, isHighlighted, overheardPair, type Conversation } from "@/lib/messages";
+import { askedText, conversationName, isHighlighted, overheardPair, queryKind, type Conversation } from "@/lib/messages";
 import { unreadText } from "@/lib/unread";
 
 defineProps<{ conversations: readonly Conversation[]; selected: string | null; now: number; showOverheard: boolean }>();
@@ -19,6 +19,13 @@ const emit = defineEmits<{
 }>();
 
 const sure = useSure<string>(); // (the call of a conversation, the pair of an overheard one)
+
+/** The last text on a row: ours has "You: " before it, a query we sent is the note of it ("You asked for its status"). */
+function preview(row: Conversation["last"]): string {
+  const asked = queryKind(row);
+  if (asked !== null) return askedText(asked);
+  return row.direction === "out" ? t("messages.last_out", { text: row.text }) : row.text;
+}
 
 /** The delete of a row: the conversation goes, or the overheard pair. */
 function remove(call: string): void {
@@ -51,7 +58,7 @@ function remove(call: string): void {
         >
           <span class="conv-call">{{ conversationName(c.call) }}</span>
           <span class="conv-age muted">{{ ageText(c.last.at, now) }}</span>
-          <span class="conv-text muted">{{ c.last.direction === "out" ? t("messages.last_out", { text: c.last.text }) : c.last.text }}</span>
+          <span class="conv-text muted">{{ preview(c.last) }}</span>
           <span v-if="c.unread > 0" class="badge" :title="unreadText(c.unread)">{{ c.unread }}</span>
         </button>
         <IconButton

@@ -11,7 +11,8 @@ from neoaprs.clock import iso
 from neoaprs.coded import CodedError
 from neoaprs.config import Config, SettingError
 from neoaprs.mapstate import Job, MapError
-from neoaprs.message import MessagingError
+from neoaprs.callsign import CallsignError
+from neoaprs.message import MessagingError, normal_call
 from neoaprs.ownbulletin import PostError
 from neoaprs.ownobject import OwnError
 from neoaprs.serialprobe import available_ports, can_search, paired_bluetooth_ports, with_links
@@ -23,7 +24,7 @@ from .hostwire import AskStatus, CheckUpdate, Ping
 from .hubwire import Subscribe, Unsubscribe
 from .mapwire import MapCancel, MapEstimate, MapFetch
 from .ownwire import BulletinPost, BulletinUnpost, ObjectKill, ObjectSet
-from .messagewire import AlertTest, ConversationDelete, MessageCancel, MessageDelete, MessageRetry, OverheardDelete, SendMessage
+from .messagewire import AlertTest, ConversationDelete, MessageCancel, MessageDelete, MessageRetry, OverheardDelete, QueryStation, SendMessage
 from .portwire import ListPorts
 from .prefwire import ClearStationPath, ClearStationTimeout, SetStationPath, SetStationRfOnly, SetStationTimeout
 from .configwire import SetConfig
@@ -107,6 +108,22 @@ async def status_now(ctx: Ctx, cmd: StatusNow) -> None:
 async def send_message(ctx: Ctx, cmd: SendMessage) -> None:
     with refused(cmd.cmd):
         await ctx.ctl.messaging.send(cmd.to, cmd.text)
+
+
+@command(QueryStation)
+async def query_station(ctx: Ctx, cmd: QueryStation) -> None:
+    """A query goes to a station that is in the book and takes messages (else there is nobody to ask: the station is no object, item or ourselves, and not one whose position says it takes none)."""
+    with refused(cmd.cmd):
+        try:
+            call = normal_call(cmd.call)
+        except CallsignError as e:
+            raise MessagingError(str(e)) from None
+        station = ctx.ctl.stationbook.get(call)
+        if station is None:
+            raise UserError(f"{cmd.cmd}: there is no station {call!r}", "station.unknown", params={"call": call})
+        if not station.can_message:
+            raise UserError(f"{cmd.cmd}: {call} does not take messages: there is nobody to ask", "query.not_capable", params={"call": call})
+        await ctx.ctl.messaging.asking.ask(call, cmd.kind)
 
 
 @command(MessageRetry)

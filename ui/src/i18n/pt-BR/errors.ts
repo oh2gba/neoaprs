@@ -41,6 +41,8 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.object.speed": "a velocidade {value} não está entre 0 e {max} km/h",
   "error.object.symbol": "o símbolo '{table}' '{symbol}' não é uma tabela (/ \\ A-Z 0-9) e um caractere imprimível",
   "error.path.too_long": "{count} digipeaters são mais que os {max} que um caminho pode ter",
+  "error.query.not_capable": "{call} não recebe mensagens: não há ninguém para consultar",
+  "error.query.too_soon": "{call} acabou de receber a mesma pergunta: aguarde {seconds} s",
   "error.setting.comment_too_long": "{length} caracteres são mais que os {limit} permitidos com a extensão PHG (apague beacon/power_w para não enviar)",
   "error.setting.not_access_key": "não é uma chave de acesso (três grupos de quatro dígitos e letras, como k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "tem caracteres que não são ASCII imprimível",

@@ -6,7 +6,8 @@ sent) and kept with state "sending", and it is transmitted at once: a UI frame f
 id of the latest such message (services/heard.py); an attempt is made as it is, so a retry carries the latest. The attempts
 are made 4 times, 2 for the email gateway (message.attempts_for; the record keeps the number: `attempts_max`), 0, 30, 60, 120, 240, 480, 960 ... seconds after the first with no wait
 longer than 960 (message.schedule_sec); the answer to the last is waited for FINAL_WAIT_SEC, then the message is "failed", or "unconfirmed" when it was given only 1 or 2 attempts (the station is not expected to ack; an ack that comes later still settles it). An ack from the addressee that quotes our id makes it "acked", a rej "rejected";
-A message to a bulletin or a group (BLN*, ALL, CQ, QST, NWS-*, SKY*, CWA*: neoaprs/bulletin.py) is sent once, without an id, and kept as "unconfirmed" with one attempt. `cancel` stops a message that is being sent, `retry` sends a failed, unconfirmed, rejected or cancelled one again from the first attempt, `delete` removes a message of any kind (a message being sent is cancelled first).
+A message to a bulletin or a group (BLN*, ALL, CQ, QST, NWS-*, SKY*, CWA*: neoaprs/bulletin.py) is sent once, without an id, and kept as "unconfirmed" with one attempt; so is a directed query (`ask`: ?APRSP, ?APRSS, ?APRSD, ?APRST to a
+station, once per station and kind in QUERY_EVERY_SEC: services/asking.py, through `send` with `once`), which the conversation shows as a note of what was asked. `cancel` stops a message that is being sent, `retry` sends a failed, unconfirmed, rejected or cancelled one again from the first attempt, `delete` removes a message of any kind (a message being sent is cancelled first).
 While the Tnc is not connected, or the radio is silent, an attempt that is due waits (it is not used up, the waits that were running are moved on by the time the radio was away) and the log says so once.
 
 Incoming (`on_packet`, from the Tnc): the inbox (services/inbox.py) keeps a message to us (state "received"), answers it with an ack when it carries an id (`ackMM`, or `ackMM}AA` for the number `{MM}AA`), and
@@ -39,6 +40,7 @@ from neoaprs.message import MESSAGES_HELD_MAX, MSG_IDS, UNCONFIRMED_MAX, Message
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet
 from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, our_frame
+from neoaprs.services.asking import Asking
 from neoaprs.services.delivery import Delivery
 from neoaprs.services.inbox import Inbox
 from neoaprs.services.pace import SPACING_SEC, Pace
@@ -88,6 +90,7 @@ class Messaging:
         self._refused: dict[int, str] = {}                      # the messages whose attempt cannot be made, with why: told once, not at every tick
         self._ticker: asyncio.Task[None] | None = None
         self.delivery = Delivery(messagelog)                    # the attempts of every message and the hops heard back (services/delivery.py)
+        self.asking = Asking(self, clock)                       # the directed queries we send (services/asking.py)
         self.inbox = Inbox(self, config, messagelog, TaskSet(log, "messaging"), board, alert)       # what the Tnc hears (services/inbox.py); `board` takes the messages to bulletins and groups, `alert` the first copy of each message to us
 
     def records(self) -> list[MessageRecord]:
@@ -124,13 +127,15 @@ class Messaging:
         await self.inbox.stop()
 
     # ---- sending
-    async def send(self, to_call: str, text: str) -> MessageRecord:
+    async def send(self, to_call: str, text: str, once: bool = False) -> MessageRecord:
         """Keeps a new message to `to_call` and transmits it. Raises MessagingError, with the reason, when the addressee or the text is not right, the radio is silent, or the message cannot be kept. The message is given back
-        as it is after the first attempt; when the Tnc is not connected it has had none yet and the attempt waits. While the call is not set (the interlock) it is refused with "set your call first"."""
+        as it is after the first attempt; when the Tnc is not connected it has had none yet and the attempt waits. While the call is not set (the interlock) it is refused with "set your call first". With `once` (what a
+        directed query is, services/asking.py) it goes out as a message to a bulletin does: without an id, with one attempt."""
         if reason := can_transmit(self._config()):
             raise MessagingError(reason)
         ours = self._config().station_call
         board = board_slot(to_call)
+        once = once or board is not None
         try:
             to = to_call.strip().upper() if board is not None else normal_call(to_call)
         except CallsignError as e:
@@ -143,9 +148,9 @@ class Messaging:
             raise MessagingError(str(e)) from None
         if self._tnc.state is Source.State.SILENT:
             raise MessagingError(self._tnc.why_unusable())
-        self._frame(_info(to, text, None if board else MSG_IDS[0], None if board else ""), to)          # (the settings make a frame, and the text one)
-        ident = None if board else self._allocate()
-        record = await self._log.insert(MessageRecord(0, self.clock(), "out", ours, to, text, ident, "sending", attempts_max=1 if board else attempts_for(to)))
+        self._frame(_info(to, text, None if once else MSG_IDS[0], None if once else ""), to)          # (the settings make a frame, and the text one)
+        ident = None if once else self._allocate()
+        record = await self._log.insert(MessageRecord(0, self.clock(), "out", ours, to, text, ident, "sending", attempts_max=1 if once else attempts_for(to)))
         if record is None:
             raise MessagingError("the message could not be kept: the database is not open")
         self.put(record)

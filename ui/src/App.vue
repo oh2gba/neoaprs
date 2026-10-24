@@ -21,7 +21,27 @@ import UndoToast from "@/components/UndoToast.vue";
 import UpdatePanel from "@/components/UpdatePanel.vue";
 import { useAppShell } from "@/composables/useAppShell";
 
-const { daemon, call, unread, openUnread, updateOpen, newer, talk, mail, board, objects, picks, layout, cards, guide, panel, settings, prefs } = useAppShell();
+const {
+  daemon,
+  call,
+  unread,
+  openUnread,
+  updateOpen,
+  newer,
+  talk,
+  mail,
+  board,
+  objects,
+  picks,
+  layout,
+  cards,
+  guide,
+  panel,
+  settings,
+  prefs,
+  notice,
+  stationActions,
+} = useAppShell();
 const { send, ownObjects, ownBulletins, bulletins, packets, lastError } = daemon;
 const { stationPick, pickingTab } = picks;
 const { selected, focus } = cards;
@@ -78,7 +98,15 @@ const cancel = (id: number): boolean => send({ cmd: "message_cancel", id });
           <PanelFooter @update="updateOpen = true" @radio="panel.show('settings')" />
         </template>
         <template #stations>
-          <StationsTable :selected="selected" :others="cards.others.value" @select="cards.onRow" @message="talk.writeTo" @forget="cards.forget" />
+          <StationsTable
+            :selected="selected"
+            :others="cards.others.value"
+            @select="cards.onRow"
+            @message="talk.writeTo"
+            @forget="cards.forget"
+            @ask="stationActions.ask"
+            @copy="stationActions.copy"
+          />
         </template>
         <template #packets>
           <PacketsLog :packets="packets" />
@@ -129,6 +157,6 @@ const cancel = (id: number): boolean => send({ cmd: "message_cancel", id });
       </SidePanel>
     </main>
     <UndoToast :undo="settings.undo.value" @undo="settings.undoLast()" @dismiss="settings.dismissUndo()" />
-    <ToastBar :toast="lastError" />
+    <ToastBar :toast="lastError" :notice="notice" />
   </div>
 </template>

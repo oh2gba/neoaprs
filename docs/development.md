@@ -118,6 +118,11 @@ them seldom conflict; after a merge, regenerate rather than resolve by hand.
   (a stable word such as `setting.range`, `call.ssid` or `message.too_long`; `other` for one without a code yet), `params` (the values the sentence is made of,
   by name) and `text` (the English sentence, for a log and for a code the page has no sentence for). The page goes by `cmd`, `key` and `code`, never by the
   words of `text`. `neoaprs/coded.py` has `CodedError`, and `neoaprs/config.py` a `SettingError` that adds the key.
+- **Directed queries.** `query` (`call`, `kind`: `position`, `status`, `heard` or `trace`) sends `?APRSP`, `?APRSS`, `?APRSD` or `?APRST` to a station as a message through `Asking.ask` (`neoaprs/services/asking.py`): the normal path of
+  a message (the interlock, the radio's state, the pacing, the station's path), but once, with no message id and one attempt, so that no ack is waited for and none is retried (the specification's queries are not
+  numbered); the row is kept as `unconfirmed`, an `out` message with no `msg_id` whose text is one of the four, which the page shows as a note and not a bubble. One query of a kind to a station in 60 seconds
+  (`QUERY_EVERY_SEC`), else `query.too_soon` with `call` and `seconds`; a call that is not in the station book is `station.unknown`, one that takes no messages (an object, an item, ourselves, a station whose
+  position says it takes none) `query.not_capable`. The answers are the packets and messages the stations send, which the daemon treats as it treats any.
 - **The TNC** is `TncState` of the topic `tnc`: `searching` is the ports being listened to and `lines` the latest 100 as `{at, text}`; the page parses no sentence for either.
 - **The rows** of `stations`, `packets` and the other topics are built from the domain objects through their models (`neoaprs/web/*wire.py`), so a field is
   added to the model and the object only. A golden-file test (`tests/test_wire_rows.py`) holds the JSON of every row kind.

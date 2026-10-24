@@ -1,4 +1,4 @@
-"""The messages on the wire: the topic `messages` (a table of rows by id) the commands to send one, send one again and stop sending one, and the test of the alert that tells of one. Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`."""
+"""The messages on the wire: the topic `messages` (a table of rows by id) the commands to send one, send a directed query, send one again and stop sending one, and the test of the alert that tells of one. Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`."""
 from typing import Literal
 
 from pydantic import Field
@@ -51,6 +51,18 @@ class SendMessage(_Command):
     cmd: Literal["send_message"]
     to: str = Field(min_length=1, max_length=64)
     text: str = Field(max_length=512)
+
+
+class QueryStation(_Command):
+    """Asks a station a directed query (APRS 1.0.1 chapter 15): a message to it with the text of the query, `?APRSP` (`kind` `position`: its position packet), `?APRSS` (`status`: its status report), `?APRSD` (`heard`: the stations it
+    hears direct, as a message) or `?APRST` (`trace`: the path our query reached it by, as a message). The query is sent once, without a message id: no attempts follow and no ack is expected. It is kept as a row of the topic
+    `messages` to the station, in state `sending` until it has been transmitted and then `unconfirmed`, whose `text` is the query; the page shows such a row (an `out` message with no `msg_id` whose text is one of the four) as a note of what was asked. The answer is whatever the
+    station sends: a packet (the station's card changes) or a message (a row `in`). Not more than one query of a kind to a station in 60 seconds. Answered with an `error` when the station is not in the station book
+    (`station.unknown`), is no station that takes messages (`query.not_capable`: an object, an item, ourselves, a station whose position says it takes none and that never sent a message), the same query was sent less than 60 seconds ago
+    (`query.too_soon`) or the message is refused as `send_message` refuses it (the call is not set, the radio is silent)."""
+    cmd: Literal["query"]
+    call: str = Field(min_length=1, max_length=64)
+    kind: Literal["position", "status", "heard", "trace"]
 
 
 class MessageRetry(_Command):

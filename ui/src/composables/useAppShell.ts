@@ -14,12 +14,14 @@ import { useHome } from "@/composables/useHome";
 import { useLayout } from "@/composables/useLayout";
 import { useMapPicks } from "@/composables/useMapPicks";
 import { useMessagesView } from "@/composables/useMessagesView";
+import { useNotice } from "@/composables/useNotice";
 import { useNow } from "@/composables/useNow";
 import { useOwnObjects } from "@/composables/useOwnObjects";
 import { usePageAlerts } from "@/composables/usePageAlerts";
 import { usePanel } from "@/composables/usePanel";
 import { useSettings } from "@/composables/useSettings";
 import { useSetupGuide, type SetupGuide } from "@/composables/useSetupGuide";
+import { useStationActions } from "@/composables/useStationActions";
 import { useStationCards } from "@/composables/useStationCards";
 import { useStationPrefs } from "@/composables/useStationPrefs";
 import { useTitle } from "@/composables/useTitle";
@@ -121,6 +123,9 @@ export function useAppShell() {
     blocked: escBlocked,
   });
   const cards = useStationCards(derived.stations, send, layout, escBlocked);
+  // the notices (a toast that is no error) and what the menu of a row of the Stations table sends or copies
+  const { notice, say } = useNotice();
+  const stationActions = useStationActions(send, say);
 
   provideDaemon({
     ...daemon,
@@ -131,5 +136,5 @@ export function useAppShell() {
     alerts: tabs.alerts,
   });
 
-  return { daemon, updateOpen, newer, objects, picks, layout, cards, guide, panel, ...tabs, ...derived };
+  return { daemon, updateOpen, newer, objects, picks, layout, cards, guide, panel, notice, stationActions, ...tabs, ...derived };
 }

@@ -32,6 +32,10 @@ _QUERY = re.compile(r"\?(APRS[DHMOPST]?|IGATE|WX|PING)(\?.*|\s.*)?$", re.IGNOREC
 TELEMETRY_DEFINITIONS = ("PARM.", "UNIT.", "EQNS.", "BITS.")
 
 
+QUERIES: dict[str, str] = {"position": "?APRSP", "status": "?APRSS", "heard": "?APRSD", "trace": "?APRST"}     # the directed queries the page can send (APRS 1.0.1 ch. 15), by kind: the text of the message
+QUERY_EVERY_SEC = 60                            # one query of a kind to a station in this time; the same question again sooner is refused
+
+
 EMAIL_GATEWAY = "EMAIL-2"                  # the APRS email gateway: a station on the internet, which no message can reach by RF only
 
 

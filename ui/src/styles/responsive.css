@@ -145,6 +145,16 @@ button,
 .size-phone .toolbar .filterbox {
   flex: 1 1 100%;
 }
+/* the Stations table on a phone: the row has room for two buttons, Message and the "..." of the menu (which has Forget too), so that the table does not scroll sideways */
+.size-phone .grid.stations td.actions {
+  padding-right: 0;
+}
+.size-phone .grid.stations td.actions .xbtn {
+  min-width: 36px;
+}
+.size-phone .grid.stations td.actions .forgetbtn {
+  display: none;
+}
 
 /* phone: the station card is a bottom sheet, part of the screen: folded to its head and the first facts, a tap or a swipe up on its grip opens it, a swipe down folds it (and closes the folded one) */
 .size-phone .cardstack {
@@ -295,6 +305,7 @@ button,
   .btn,
   .tab,
   .tabmenu-item,
+  .ctxmenu-item,
   .input,
   select,
   .check,
@@ -311,6 +322,12 @@ button,
   }
   .appheader {
     min-height: 44px;
+  }
+  /* a long press on a row of the Stations table opens its menu: the page does not select text or show the system's callout instead */
+  .grid.stations tbody tr {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
   }
   .panelfoot {
     height: 36px;

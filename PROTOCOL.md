@@ -100,7 +100,7 @@ TypeScript types for both unions are in `ui/src/protocol/protocol.ts`, the JSON 
 
 ## Client to server
 
-32 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
+33 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
 
 ### `ping`
 
@@ -179,6 +179,20 @@ When the TNC is not connected the message is kept and its first attempt waits fo
 |---|---|---|---|
 | `to` | string |  | (max 64 chars, min 1 chars) |
 | `text` | string |  | (max 512 chars) |
+
+### `query`
+
+Asks a station a directed query (APRS 1.0.1 chapter 15): a message to it with the text of the query, `?APRSP` (`kind` `position`: its position packet), `?APRSS` (`status`: its status report), `?APRSD` (`heard`: the stations it
+hears direct, as a message) or `?APRST` (`trace`: the path our query reached it by, as a message). The query is sent once, without a message id: no attempts follow and no ack is expected. It is kept as a row of the topic
+`messages` to the station, in state `sending` until it has been transmitted and then `unconfirmed`, whose `text` is the query; the page shows such a row (an `out` message with no `msg_id` whose text is one of the four) as a note of what was asked. The answer is whatever the
+station sends: a packet (the station's card changes) or a message (a row `in`). Not more than one query of a kind to a station in 60 seconds. Answered with an `error` when the station is not in the station book
+(`station.unknown`), is no station that takes messages (`query.not_capable`: an object, an item, ourselves, a station whose position says it takes none and that never sent a message), the same query was sent less than 60 seconds ago
+(`query.too_soon`) or the message is refused as `send_message` refuses it (the call is not set, the radio is silent).
+
+| field | type | | description |
+|---|---|---|---|
+| `call` | string |  | (max 64 chars, min 1 chars) |
+| `kind` | "position" \| "status" \| "heard" \| "trace" |  |  |
 
 ### `message_retry`
 

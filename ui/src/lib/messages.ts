@@ -4,6 +4,7 @@
 import { t } from "@/i18n";
 import { normalizeCall } from "@/lib/calls";
 import { dateTimeText } from "@/lib/format";
+import type { QueryKind } from "@/lib/stations";
 import { LIMITS } from "@/protocol/lists";
 import type { MessageRow } from "@/protocol/protocol";
 
@@ -54,6 +55,18 @@ export function overheardPair(call: string): [string, string] | null {
 /** A conversation as its row and its thread name it: the call, or the pair of an overheard one with room round the arrow, "OH2AAA > OH2BBB". */
 export function conversationName(call: string): string {
   return call.replace(">", " > ");
+}
+
+const QUERY_TEXT: Record<string, QueryKind> = { "?APRSP": "position", "?APRSS": "status", "?APRSD": "heard", "?APRST": "trace" };
+
+/** The query a row of the conversation is the note of: a message of ours with no message id whose text is one of the four queries (what the menu of the Stations table sends: once, with no id, so that no ack is waited for); null for any other message. The thread shows such a row as a grey line, "You asked for its status", not as a bubble. */
+export function queryKind(row: Pick<MessageRow, "direction" | "msg_id" | "text" | "state">): QueryKind | null {
+  return row.direction === "out" && row.msg_id === null && row.state !== "overheard" ? (QUERY_TEXT[row.text] ?? null) : null;
+}
+
+/** The note of a query in words: "You asked for its status". */
+export function askedText(kind: QueryKind): string {
+  return t(`messages.asked.${kind}`);
 }
 
 /** How many bytes the text takes in a message (UTF-8). */

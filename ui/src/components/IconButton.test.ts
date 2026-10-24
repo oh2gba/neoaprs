@@ -14,6 +14,13 @@ describe("IconButton", () => {
     expect(close.find("path").attributes("d")).not.toBe(del.find("path").attributes("d"));
   });
 
+  it("is three dots titled with its label for a more, a button that opens a menu", () => {
+    const more = mount(IconButton, { props: { kind: "more", label: "More actions for OH2RDG" } });
+    expect(more.attributes("title")).toBe("More actions for OH2RDG");
+    expect(more.attributes("aria-label")).toBe("More actions for OH2RDG");
+    expect(more.findAll("circle")).toHaveLength(3);
+  });
+
   it("has its own title when it is given one, and says sure? while it is armed", async () => {
     const wrapper = mount(IconButton, { props: { kind: "delete", label: "Delete", title: "Delete (kill on the air)" } });
     expect(wrapper.attributes("title")).toBe("Delete (kill on the air)");
