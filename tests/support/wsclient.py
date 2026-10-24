@@ -108,14 +108,19 @@ class WsClient:
         return f"{message['type']}:{message['topic']}" if "topic" in message else str(message["type"])
 
     async def until(self, condition: Callable[[], object], timeout: float = 5.0) -> None:
-        """Waits until the condition holds (it is looked at when a message arrives)."""
+        """Waits until the condition holds (it is looked at when a message arrives). A condition that looks at a topic or a row that has not come yet (KeyError) does not hold yet."""
+        def holds() -> bool:
+            try:
+                return bool(condition())
+            except KeyError:
+                return False
         deadline = asyncio.get_running_loop().time() + timeout
-        while not condition():
+        while not holds():
             try:
                 await self._wait(deadline)
             except TimeoutError:
                 raise AssertionError(f"the condition did not come true; got {[self._label(m) for m in self.messages]}") from None
-            if self.closed_with is not None and not condition():
+            if self.closed_with is not None and not holds():
                 raise AssertionError(f"the socket was closed {self.closed_with}")
 
     async def quiet(self, seconds: float = 0.3) -> None:
