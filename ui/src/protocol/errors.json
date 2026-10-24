@@ -24,6 +24,7 @@
  "object.position": {"params": ["lat", "lon"], "text": ["the position {lat}, {lon} is not on the earth"]},
  "object.speed": {"params": ["max", "value"], "text": ["the speed {value} is not between 0 and {max} km/h"]},
  "object.symbol": {"params": ["symbol", "table"], "text": ["the symbol '{table}' '{symbol}' is not a table (/ \\ A-Z 0-9) and one printable character"]},
+ "path.direct_alone": {"params": ["word"], "text": ["{word} is no digipeater: written alone it means no digipeaters at all"]},
  "path.too_long": {"params": ["count", "max"], "text": ["{count} digipeaters is more than the {max} a path may have"]},
  "setting.comment_too_long": {"params": ["length", "limit"], "text": ["{length} characters is more than the {limit} allowed with the PHG extension (clear beacon/power_w to send none)"]},
  "setting.not_access_key": {"params": [], "text": ["it is not an access key (three groups of four digits and letters, such as k7m2-x9pq-4hrt)"]},

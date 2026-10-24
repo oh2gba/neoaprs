@@ -7,6 +7,7 @@ from tests.support.air import ack_info, message_info, on_air, said
 from tests.support.env import Env, quick_start, until
 
 SENT = "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :"                        # (the frame of every message and ack to OH2RDG, up to its text)
+DIRECT = "OH2GBA>APZNEO::OH2RDG   :"                                      # (the frame of an attempt 1 or 2 once OH2RDG has been heard direct twice: no digipeaters)
 
 
 async def started(tmp_path: Path) -> Env:
@@ -82,11 +83,11 @@ async def test_every_attempt_carries_the_latest_message_that_is_owed_an_ack_and_
     await until(lambda: e.tnc.stats.packets == 2)
     e.now.advance(30)                                                       # type: ignore[attr-defined]
     await until(lambda: sent_one(e).attempts == 2)
-    assert [f.tnc2() for f in await said(e, 3)] == [SENT + "Moikka{01}05", SENT + "ack06", SENT + "Moikka{01}06"], "the retry keeps the number 01 and carries the latest AA"
+    assert [f.tnc2() for f in await said(e, 3)] == [SENT + "Moikka{01}05", SENT + "ack06", DIRECT + "Moikka{01}06"], "the retry keeps the number 01 and carries the latest AA"
     e.feed(on_air("OH2RDG", ack_info("OH2GBA", "01")))
     await until(lambda: sent_one(e).state == "acked")
     await e.ctl.messaging.send("OH2RDG", "Kiitos")
-    assert [f.tnc2() for f in await said(e)] == [SENT + "Kiitos{02}"], "they answered, so nothing is owed"
+    assert [f.tnc2() for f in await said(e)] == [DIRECT + "Kiitos{02}"], "they answered, so nothing is owed"
     await e.stop()
 
 

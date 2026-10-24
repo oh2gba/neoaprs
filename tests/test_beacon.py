@@ -42,7 +42,7 @@ def test_a_stored_destination_compressed_or_dao_is_ignored_and_the_tocall_is_the
 
 
 def test_the_frame_follows_the_settings() -> None:
-    frame = Rig(station_call="OH2GBA-9", beacon_path="", station_symbol_table="\\", station_symbol_code=">", station_comment="").beacon.frame()
+    frame = Rig(station_call="OH2GBA-9", beacon_path="DIRECT", station_symbol_table="\\", station_symbol_code=">", station_comment="").beacon.frame()
     assert frame.tnc2() == "OH2GBA-9>APZNEO:=6010.20N\\02456.40E>"
     assert Rig(beacon_path="WIDE2-2").beacon.frame().path_text == "WIDE2-2"
 

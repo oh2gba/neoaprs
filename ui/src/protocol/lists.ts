@@ -329,6 +329,8 @@ export const LIMITS = {
   },
   path: {
     maxCalls: 8,
+    direct: "DIRECT",
+    recommended: "WIDE1-1,WIDE2-1",
   },
   object: {
     nameMax: 9,

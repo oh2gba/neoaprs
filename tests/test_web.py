@@ -820,7 +820,7 @@ async def test_set_station_path_and_clear_station_path_change_the_entry_of_the_t
     await other.until(lambda: other.topics["station_prefs"] == {"OH2RDG": pref("OH2RCH-2,WIDE2-1", None)})
     await page.send({"cmd": "send_message", "to": "OH2RDG", "text": "Hello"})
     await page.until(lambda: any("OH2RCH-2,WIDE2-1" in r["tnc2"] for r in page.topics["packets"].values()))
-    await page.send({"cmd": "set_station_path", "call": "OH2XYZ", "path": ""})
+    await page.send({"cmd": "set_station_path", "call": "OH2XYZ", "path": "DIRECT"})
     await page.until(lambda: page.topics["station_prefs"].get("OH2XYZ") == pref("", None), timeout=5)
     await page.send({"cmd": "clear_station_path", "call": "OH2RDG"})
     await page.until(lambda: "OH2RDG" not in page.topics["station_prefs"])

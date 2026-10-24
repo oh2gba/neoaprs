@@ -255,7 +255,7 @@ async def test_the_station_path_comes_before_rfonly_and_a_path_that_has_rfonly_o
     await e.ctl.messaging.send("OH2RDG", "two")
     await e.ctl.prefbook.set_path("OH2RDG", "OH2RCH-2,NOGATE")
     await e.ctl.messaging.send("OH2RDG", "three")
-    await e.ctl.prefbook.set_path("OH2RDG", "")
+    await e.ctl.prefbook.set_path("OH2RDG", "DIRECT")
     await e.ctl.messaging.send("OH2RDG", "four")
     assert [f.tnc2() for f in await said(e, 4)] == [
         "OH2GBA>APZNEO,OH2RCH-2,WIDE2-1,RFONLY::OH2RDG   :one{01}", "OH2GBA>APZNEO,RFONLY,OH2RCH-2::OH2RDG   :two{02}",

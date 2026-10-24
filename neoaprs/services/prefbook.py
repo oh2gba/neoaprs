@@ -1,6 +1,6 @@
 """What the operator says about a station, apart from what its packets say: a path, a timeout of its own and whether it is RF only. Each is optional and independent, and a station with none has no entry.
 
-The path: the digipeaters a message (and its ack) to the station goes by way of; empty is direct, which is not the same as none set (then it has `beacon/path`). The timeout: the minutes after its last
+The path: the digipeaters a message (and its ack) to the station goes by way of; empty is direct (chosen as DIRECT), which is not the same as none set (then the first attempts of a message go by the path lately heard to reach the station, the rest and everything else by `beacon/path`). The timeout: the minutes after its last
 position that the station leaves the map; 0 is never, none set means the fixed 180 minutes (`HIDE_AFTER_MIN` of policy.py) (the page does the hiding, the daemon only keeps and tells the number; the daily prune never removes a
 station with a timeout of 0). RF only: everything we send to the station (a message and each attempt of it, its acks, the answers to its queries) goes by its path with RFONLY
 added at the end, which iGates that honour it do not put on the internet; the email gateway EMAIL-2 is on the internet and can never be RF only. They are operator data, kept in the table `station_pref` of the message log's database, read once at the start and written through; `changed` tells (call, pref) when a station's
@@ -11,12 +11,13 @@ from dataclasses import replace
 
 from neoaprs.ax25 import MAX_PATH
 from neoaprs.callsign import CallsignError
+from neoaprs.clock import Clock, utcnow
 from neoaprs.config import Config
 from neoaprs.policy import MAX_HIDE_AFTER_MIN
-from neoaprs.message import EMAIL_GATEWAY, MessagingError, normal_call, normal_path
+from neoaprs.message import EMAIL_GATEWAY, MessagingError, normal_call, normal_path, path_choice
 from neoaprs.messagelog import MessageLog
 from neoaprs.pref import Pref
-from neoaprs.route import rf_only_path
+from neoaprs.route import Deliveries, automatic_path, rf_only_path
 from neoaprs.signal import Signal
 
 MAX_NAME = 9                          # the longest name that is not a call: an object's
@@ -34,9 +35,11 @@ def _key(name: str) -> str:
 
 
 class PrefBook:
-    def __init__(self, messagelog: MessageLog, config: Callable[[], Config]) -> None:
+    def __init__(self, messagelog: MessageLog, config: Callable[[], Config], heard: Callable[[str], Deliveries | None] = lambda call: None, clock: Clock = utcnow) -> None:
         self._log = messagelog
         self._config = config
+        self._heard = heard                            # how the packets of a station reached us (the station book's Deliveries), None for a station not heard
+        self._clock = clock
         self._own: dict[str, Pref] = {}
         self._lock = asyncio.Lock()                    # a change reads the entry and writes it back: two at once for one station must not lose one
         self.changed: Signal[[str, Pref | None]] = Signal("prefs_changed")
@@ -53,14 +56,20 @@ class PrefBook:
         """The stations that have a path of their own, by call."""
         return {call: pref.path for call, pref in self._own.items() if pref.path is not None}
 
-    def path_for(self, call: str) -> tuple[str, ...]:
-        """The path everything we send to the station goes by: its own when it has one, else `beacon/path`; with RFONLY at the end when the station is RF only. Raises MessagingError when that would be more than
+    def path_for(self, call: str, attempt: int | None = None) -> tuple[str, ...]:
+        """The path everything we send to the station goes by: its own when it has one, else (for attempt number `attempt` of a message, 1 for the first, when it is given) the path that has lately been heard to
+        reach the station for the first attempts (route.automatic_path), else `beacon/path`; with RFONLY at the end when the station is RF only. Raises MessagingError when that would be more than
         8 digipeaters ("path too long for RF only"): nothing is sent then."""
         try:
-            own = self._own.get(normal_call(call))
+            key = normal_call(call)
+            own = self._own.get(key)
         except ValueError:
-            own = None
-        path = self._config().beacon_path_calls if own is None or own.path is None else own.path
+            key, own = "", None
+        heard = None
+        if own is None or own.path is None:
+            if attempt is not None and key != EMAIL_GATEWAY:
+                heard = automatic_path(self._heard(key), self._clock(), attempt)
+        path = (self._config().beacon_path_calls if heard is None else heard) if own is None or own.path is None else own.path
         if own is None or not own.rf_only:
             return path
         added = rf_only_path(path)
@@ -72,13 +81,26 @@ class PrefBook:
         """The stations whose own timeout is 0, which the daily prune keeps in the station book."""
         return frozenset(call for call, pref in self._own.items() if pref.hide_after_min == 0)
 
+    def automatic_path(self, call: str) -> tuple[str, ...] | None:
+        """The path that has lately been heard to reach the station, which the first attempts of a message to it go by when the operator has set no path of its own; None when there is none (`beacon/path`)."""
+        try:
+            key = normal_call(call)
+        except ValueError:
+            return None
+        deliveries = self._heard(key)
+        return None if deliveries is None else automatic_path(deliveries, self._clock(), 1)
+
     # ---- the path
     async def set_path(self, call: str, path: str) -> tuple[str, ...]:
-        """Gives the station a path of its own: 0 to 8 digipeater calls separated by commas, checked as beacon/path is; empty is direct. Raises MessagingError with the reason; the path as it is kept."""
+        """Gives the station a path of its own: 1 to 8 digipeater calls separated by commas, checked as beacon/path is, or DIRECT for no digipeaters at all; an empty path takes the station's own away (it is
+        automatic again), as clear_path does. Raises MessagingError with the reason; the path as it is kept (empty for direct)."""
         try:
-            key, calls = normal_call(call), normal_path(path)
+            key, calls = normal_call(call), path_choice(path)
         except ValueError as e:
             raise MessagingError(str(e)) from None
+        if calls is None:
+            await self.clear_path(call)
+            return ()
         await self._change(key, lambda pref: replace(pref, path=calls), "the path could not be kept", quiet=False)
         return calls
 

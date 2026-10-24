@@ -50,7 +50,7 @@ def test_a_database_of_version_twelve_gets_the_two_empty_tables_and_keeps_everyt
     assert migrated.db.execute("SELECT id, text, state FROM message ORDER BY id").fetchall() == messages
     assert migrated.db.execute("SELECT call, path, rf_only FROM station_pref ORDER BY call").fetchall() == prefs
     assert migrated.db.execute("SELECT sender, slot, text, times_heard FROM bulletin").fetchall() == board
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][12:] == [(13, "_v13", GOLDEN[13])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][12:] == [(13, "_v13", GOLDEN[13]), (14, "_v14", GOLDEN[14])]
     migrated.db.execute(INSERT_OBJECT, OBJECT)
     migrated.db.execute(INSERT_BULLETIN, BULLETIN)
     for opened_ in (migrated, fresh):

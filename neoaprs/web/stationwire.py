@@ -74,6 +74,9 @@ class StationRow(_Model):
     best_route: str = Field(description="the route most of its packets came by, as `last_route` writes it, direct included; empty until a packet was counted")
     suggested_path: str | None = Field(description="the path to send by to reach it, the best route turned round: empty for direct, `OH2RCH-2` for one hop, `OH2RCH-3,OH2RCH-1` for `via OH2RCH-1 → OH2RCH-3`, `WIDE1-1,WIDE2-1` when the best route "
                                                    "has a hop with no call; null when no route is known (an object or item, or a station not heard since the packets were pruned)")
+    heard_path: str | None = Field(description="the path that has lately been heard to reach the station, which the first two attempts of a message to it go by when the operator has set no path of its own (the later ones go by `beacon/path`): "
+                                               "empty for direct (at least 2 packets heard direct within 60 minutes), else the latest named route that at least 2 packets came by within 60 minutes, turned round, as `suggested_path` writes it "
+                                               "(no hop without a call, no iGate, at most 3 digipeaters); null when there is none. Worked out when the row is sent, so a path that goes stale is told with the station's next row")
     weather: WeatherValues | None = Field(description="the latest weather the station sent (a position with the weather symbol, or a positionless weather report); null for a station that sent none since the weather log began (or was made from the packets kept)")
     weather_at: Iso | None = Field(description="when `weather` was heard; null as it is")
     telemetry: TelemetryValues | None = Field(description="the latest telemetry report of the station, scaled and named by the definitions it sent (read again from the latest packets at the start); null for a station that sent none")

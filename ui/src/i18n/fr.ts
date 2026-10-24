@@ -98,6 +98,7 @@ export const fr: Catalogue = {
   "error.object.speed": "la vitesse {value} n'est pas comprise entre 0 et {max} km/h",
   "error.object.symbol": "le symbole « {table} » « {symbol} » n'est pas une table (/ \\ A-Z 0-9) suivie d'un caractère imprimable",
   "error.path.too_long": "{count} digipeaters, c'est plus que les {max} qu'un chemin peut avoir",
+  "error.path.direct_alone": "{word} n'est pas un digipeater : écrit seul, il veut dire aucun digipeater",
   "error.setting.comment_too_long": "{length} caractères, c'est plus que les {limit} permis avec l'extension PHG (videz beacon/power_w pour ne pas en émettre)",
   "error.setting.not_access_key": "ce n'est pas une clé d'accès (trois groupes de quatre chiffres et lettres, comme k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "il contient des caractères qui ne sont pas de l'ASCII imprimable",

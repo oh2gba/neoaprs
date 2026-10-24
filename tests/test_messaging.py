@@ -13,6 +13,7 @@ from neoaprs import ax25
 from neoaprs.message import MSG_IDS, MessageRecord, MessagingError
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet, ThirdParty
+from neoaprs.route import Deliveries, route_of
 from neoaprs.services import messaging as messaging_module
 from neoaprs.services.messaging import Messaging
 from neoaprs.services.prefbook import PrefBook
@@ -32,7 +33,8 @@ class Rig(ServiceRig):
     def __init__(self, log: MessageLog, clock: FixedClock, tnc: StubTnc | None = None, spacing_sec: float = 0.0, **changes: object) -> None:
         super().__init__(clock, tnc, **changes)
         self.log = log
-        self.prefs = PrefBook(log, lambda: self.config)
+        self.deliveries: dict[str, Deliveries] = {}                      # how the packets of each station reached us (the station book's, here by hand)
+        self.prefs = PrefBook(log, lambda: self.config, self.deliveries.get, clock)
         self.board: list[tuple[Packet, Message]] = []                   # what messaging handed to the message board
         self.m = Messaging(self.tnc, lambda: self.config, log, self.prefs.path_for, clock, tick_sec=TICK, board=lambda packet, message: self.board.append((packet, message)),
                         spacing_sec=spacing_sec)
@@ -120,7 +122,7 @@ async def test_the_frame_follows_the_settings_path_and_our_call_and_has_the_toca
     rig.config = replace(rig.config, station_call="OH2GBA-9", beacon_path="WIDE2-2")
     await rig.m.send("OH2RDG-7", "x")
     assert rig.tnc.lines() == ["OH2GBA-9>APZNEO,WIDE2-2::OH2RDG-7 :x{01}"]
-    rig.config = replace(rig.config, beacon_path="")
+    rig.config = replace(rig.config, beacon_path="DIRECT")
     await rig.m.send("OH2RDG", "y")
     assert rig.tnc.lines()[1] == "OH2GBA-9>APZNEO::OH2RDG   :y{02}"
 
@@ -993,11 +995,125 @@ async def test_a_message_that_came_in_just_before_the_stop_is_kept(rig: Rig) -> 
 
 async def test_a_message_goes_by_way_of_the_path_of_its_station_and_the_others_by_the_beacon_path(rig: Rig) -> None:
     await rig.prefs.set_path("OH2RDG", "OH2RCH-2,WIDE2-1")
-    await rig.prefs.set_path("OH2DIR", "")
+    await rig.prefs.set_path("OH2DIR", "DIRECT")
     await rig.m.send("OH2RDG", "a")
     await rig.m.send("OH2DIR", "b")
     await rig.m.send("OH2XYZ", "c")
     assert rig.tnc.lines() == ["OH2GBA>APZNEO,OH2RCH-2,WIDE2-1::OH2RDG   :a{01}", "OH2GBA>APZNEO::OH2DIR   :b{02}", "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2XYZ   :c{03}"]
+
+
+def hear(rig: Rig, call: str, *path: str, minutes_ago: float = 1.0) -> None:
+    """A packet of the station was heard `minutes_ago` minutes before now, by the path (the star marks the hops that repeated it)."""
+    rig.deliveries.setdefault(call, Deliveries()).note(route_of(path), 1, rig.clock() - timedelta(minutes=minutes_ago))
+
+
+def sent_paths(rig: Rig) -> list[str]:
+    return [frame.path_text for frame in rig.tnc.sent]
+
+
+async def run_out(rig: Rig) -> None:
+    """The four attempts of the message that was sent, each after the wait the schedule has."""
+    for seconds in RUN_OUT[:3]:
+        await rig.pass_time(seconds + 1)
+
+
+async def test_the_first_two_attempts_go_by_the_path_heard_and_the_last_two_by_the_beacon_path(rig: Rig) -> None:
+    hear(rig, "OH2RDG", "OH2RCH-1*", "OH2RCH-3*", minutes_ago=20)
+    hear(rig, "OH2RDG", "OH2RCH-1*", "OH2RCH-3*", minutes_ago=5)
+    await rig.m.send("OH2RDG", "a")
+    await run_out(rig)
+    assert sent_paths(rig) == ["OH2RCH-3,OH2RCH-1", "OH2RCH-3,OH2RCH-1", "WIDE1-1,WIDE2-1", "WIDE1-1,WIDE2-1"]
+    assert [a.path for a in rig.m.delivery.attempts_of(1)] == [("OH2RCH-3", "OH2RCH-1")] * 2 + [("WIDE1-1", "WIDE2-1")] * 2, "the chain records the path of each attempt"
+
+
+async def test_a_station_heard_direct_twice_is_sent_to_direct_for_the_first_two_attempts(rig: Rig) -> None:
+    hear(rig, "OH2RDG", minutes_ago=30)
+    hear(rig, "OH2RDG", minutes_ago=2)
+    await rig.m.send("OH2RDG", "a")
+    await run_out(rig)
+    assert sent_paths(rig) == ["", "", "WIDE1-1,WIDE2-1", "WIDE1-1,WIDE2-1"]
+    assert [a.path for a in rig.m.delivery.attempts_of(1)] == [()] * 2 + [("WIDE1-1", "WIDE2-1")] * 2
+
+
+async def test_a_path_learned_while_the_message_is_being_sent_counts_for_the_attempt_that_follows(rig: Rig) -> None:
+    await rig.m.send("OH2RDG", "a")
+    hear(rig, "OH2RDG", "OH2RCH-2*", minutes_ago=0.5)
+    hear(rig, "OH2RDG", "OH2RCH-2*", minutes_ago=0.1)
+    await rig.pass_time(31)
+    assert sent_paths(rig) == ["WIDE1-1,WIDE2-1", "OH2RCH-2"]
+
+
+async def test_a_path_that_goes_stale_between_attempts_is_not_used(rig: Rig) -> None:
+    hear(rig, "OH2RDG", "OH2RCH-2*", minutes_ago=59.5)
+    hear(rig, "OH2RDG", "OH2RCH-2*", minutes_ago=58)
+    await rig.m.send("OH2RDG", "a")
+    await rig.pass_time(121)
+    assert sent_paths(rig) == ["OH2RCH-2", "WIDE1-1,WIDE2-1"], "when the second attempt is made one of the two packets is more than an hour old"
+
+
+async def test_nothing_heard_is_the_beacon_path_for_every_attempt(rig: Rig) -> None:
+    hear(rig, "OH2RDG", "WIDE1*", "OH2RCH-2*", minutes_ago=5)
+    hear(rig, "OH2RDG", "WIDE1*", "OH2RCH-2*", minutes_ago=2)
+    await rig.m.send("OH2RDG", "a")
+    await run_out(rig)
+    assert sent_paths(rig) == ["WIDE1-1,WIDE2-1"] * 4, "a hop with no call is no route to send by"
+
+
+async def test_the_path_the_operator_set_wins_for_every_attempt_and_direct_is_one_too(rig: Rig) -> None:
+    hear(rig, "OH2RDG", "OH2RCH-2*", minutes_ago=5)
+    hear(rig, "OH2RDG", "OH2RCH-2*", minutes_ago=2)
+    hear(rig, "OH2XYZ", minutes_ago=5)
+    hear(rig, "OH2XYZ", minutes_ago=2)
+    await rig.prefs.set_path("OH2RDG", "WIDE2-2")
+    await rig.prefs.set_path("OH2XYZ", "OH2RCH-9")
+    await rig.m.send("OH2RDG", "a")
+    await rig.m.send("OH2XYZ", "b")
+    await rig.pass_time(31)
+    assert sent_paths(rig) == ["WIDE2-2", "OH2RCH-9", "WIDE2-2", "OH2RCH-9"]
+    await rig.prefs.set_path("OH2RDG", "DIRECT")
+    await rig.pass_time(61)
+    assert sent_paths(rig)[-2:] == ["", "OH2RCH-9"]
+
+
+async def test_clearing_the_stations_own_path_makes_the_choice_automatic_again(rig: Rig) -> None:
+    hear(rig, "OH2RDG", "OH2RCH-2*", minutes_ago=5)
+    hear(rig, "OH2RDG", "OH2RCH-2*", minutes_ago=2)
+    await rig.prefs.set_path("OH2RDG", "WIDE2-2")
+    await rig.prefs.set_path("OH2RDG", "")
+    await rig.m.send("OH2RDG", "a")
+    assert sent_paths(rig) == ["OH2RCH-2"] and rig.prefs.all() == {}
+
+
+async def test_rf_only_is_added_to_the_path_of_every_attempt_whichever_it_is(rig: Rig) -> None:
+    hear(rig, "OH2RDG", "OH2RCH-2*", minutes_ago=5)
+    hear(rig, "OH2RDG", "OH2RCH-2*", minutes_ago=2)
+    await rig.prefs.set_rf_only("OH2RDG", True)
+    await rig.m.send("OH2RDG", "a")
+    await run_out(rig)
+    assert sent_paths(rig) == ["OH2RCH-2,RFONLY", "OH2RCH-2,RFONLY", "WIDE1-1,WIDE2-1,RFONLY", "WIDE1-1,WIDE2-1,RFONLY"]
+    assert [a.path for a in rig.m.delivery.attempts_of(1)][0] == ("OH2RCH-2",), "RFONLY is no hop"
+
+
+async def test_the_email_gateway_and_a_bulletin_go_by_the_beacon_path_whatever_was_heard(rig: Rig) -> None:
+    for call in ("EMAIL-2", "BLN1"):
+        hear(rig, call, minutes_ago=5)
+        hear(rig, call, minutes_ago=2)
+    await rig.m.send("EMAIL-2", "me@example.org hello")
+    await rig.m.send("BLN1", "Net tonight")
+    await rig.pass_time(31)
+    assert sent_paths(rig) == ["WIDE1-1,WIDE2-1"] * 3, "EMAIL-2 twice and the bulletin once"
+
+
+async def test_the_beacon_path_that_is_direct_only_is_the_fallback_and_no_path_is_heard_by_it(rig: Rig) -> None:
+    rig.config = replace(rig.config, beacon_path="DIRECT")
+    hear(rig, "OH2RDG", "OH2RCH-2*", minutes_ago=5)
+    hear(rig, "OH2RDG", "OH2RCH-2*", minutes_ago=2)
+    await rig.m.send("OH2RDG", "a")
+    await run_out(rig)
+    assert sent_paths(rig) == ["OH2RCH-2", "OH2RCH-2", "", ""]
+    rig.config = replace(rig.config, beacon_path="")
+    await rig.m.send("OH2XYZ", "b")
+    assert sent_paths(rig)[-1] == "WIDE1-1,WIDE2-1", "an empty beacon path is the recommended one"
 
 
 async def test_the_attempts_and_a_retry_use_the_path_the_station_has_then(rig: Rig) -> None:
@@ -1018,7 +1134,7 @@ async def test_the_ack_goes_by_way_of_the_remembered_path_of_the_station_and_by_
     rig.m.on_packet(rig.heard("OH2RDG-7", "OH2GBA", "two", "2"))
     rig.m.on_packet(rig.heard("OH2XYZ", "OH2GBA", "three", "3"))
     assert rig.tnc.lines()[-2:] == ["OH2GBA>APZNEO,OH2RCH-2,WIDE2-1::OH2RDG-7 :ack2", "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2XYZ   :ack3"]
-    await rig.prefs.set_path("OH2RDG-7", "")
+    await rig.prefs.set_path("OH2RDG-7", "DIRECT")
     rig.m.on_packet(rig.heard("OH2RDG-7", "OH2GBA", "four", "4"))
     assert rig.tnc.lines()[-1] == "OH2GBA>APZNEO::OH2RDG-7 :ack4", "direct is a path too"
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "five", "5"))

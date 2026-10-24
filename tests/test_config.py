@@ -97,7 +97,11 @@ def test_changed_names_the_keys_that_differ() -> None:
 
 def test_the_path_of_the_beacon_is_a_list_of_calls_written_in_capitals_without_blanks() -> None:
     assert Config.check("beacon/path", " wide1-1 , wide2-1 ") == "WIDE1-1,WIDE2-1"
-    assert Config.check("beacon/path", "") == "" and Config.from_data({"beacon/path": ""}).beacon_path_calls == ()
+    assert Config.check("beacon/path", "") == "" and Config.from_data({"beacon/path": ""}).beacon_path_calls == ("WIDE1-1", "WIDE2-1"), "empty is the recommended path, not none"
+    assert Config.check("beacon/path", " direct ") == "DIRECT" and Config.from_data({"beacon/path": "DIRECT"}).beacon_path_calls == (), "DIRECT is no digipeaters, said explicitly"
+    assert Config.from_data({"beacon/path": "WIDE2-2"}).beacon_path_calls == ("WIDE2-2",)
+    with pytest.raises(ValueError, match="DIRECT"):
+        Config.check("beacon/path", "DIRECT,WIDE1-1")
     assert Config.from_data({"beacon/path": "wide1-1,,wide2-1,"}).beacon_path_calls == ("WIDE1-1", "WIDE2-1")
     assert DEFAULTS.beacon_path_calls == ("WIDE1-1", "WIDE2-1")
     assert Config.check("beacon/path", ",".join(["WIDE1-1"] * 8)).count(",") == 7

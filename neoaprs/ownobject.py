@@ -18,7 +18,8 @@ from neoaprs.aprsposition import uncompressed_position
 from neoaprs.config import MAX_COMMENT, MAX_COMMENT_PHG, SYMBOL_TABLES
 from neoaprs.coded import CodedError
 from neoaprs.configtypes import over_the_air_refusal
-from neoaprs.message import normal_path
+from neoaprs.message import path_choice
+from neoaprs.route import DIRECT_ONLY
 
 Kind = Literal["object", "item"]
 KINDS: tuple[str, ...] = get_args(Kind)
@@ -50,14 +51,14 @@ class OwnObject:
     comment: str = ""
     course_deg: int | None = None
     speed_kmh: float | None = None
-    path: str | None = None                      # the digipeaters, "WIDE1-1,WIDE2-1"; None: the path of the beacon
+    path: str | None = None                      # the digipeaters, "WIDE1-1,WIDE2-1", or DIRECT for none at all; None: the path of the beacon
     alive: bool = True                           # False once killed: the kill is being sent
     sent: int = 0                                # how often it was sent since it was last changed or killed
     last_sent_at: datetime | None = None
 
     @property
     def path_calls(self) -> tuple[str, ...] | None:
-        return None if self.path is None else tuple(self.path.split(","))
+        return None if self.path is None else () if self.path == DIRECT_ONLY else tuple(self.path.split(","))
 
     def same_content(self, other: "OwnObject") -> bool:
         """Do the two say the same on the air (everything but the times and the count of what was sent)?"""
@@ -92,10 +93,9 @@ def _motion(course: int | None, speed: float | None) -> None:
 
 
 def _path(path: str | None) -> str | None:
-    if path is None or not path.strip():
-        return None
     try:
-        return ",".join(normal_path(path))
+        calls = path_choice(path or "")
+        return None if calls is None else DIRECT_ONLY if not calls else ",".join(calls)
     except CodedError as e:
         raise OwnError(f"the path: {e}", e.code, **e.params) from None
 

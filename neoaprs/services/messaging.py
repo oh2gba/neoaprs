@@ -20,8 +20,8 @@ Every message is kept: those to us, those we send with every change of their sta
 "overheard" (once for a repeat within DUPLICATE_WINDOW_SEC), apart from the conversations. A message to a bulletin or a group (BLN1, BLNA, BLN3HAMS, ALL, CQ, QST) goes to the
 board (services/bulletins.py) instead, and is never acked; a query or a definition of telemetry channels is not kept at all.
 
-A station may have a path of its own (services/prefbook.py, which the composition root gives this as `paths`: the station's own path, empty for direct, else `beacon/path`), and every message and
-every ack to the station goes by way of it, with RFONLY after it when the station is RF only (a path that would be more than 8 digipeaters with it is no path: a message to the station is refused, an attempt
+A station may have a path of its own (services/prefbook.py, which the composition root gives this as `paths`: the station's own path, empty for direct; else, for attempts 1 and 2 of a message to a station, the path lately heard to reach
+it (route.automatic_path, chosen when the attempt is sent), else `beacon/path`), and every message and every ack to the station goes by way of the own path, or by `beacon/path`, with RFONLY after it when the station is RF only (a path that would be more than 8 digipeaters with it is no path: a message to the station is refused, an attempt
 waits, an ack is not sent, and the log says "path too long for RF only")."""
 import asyncio
 import logging
@@ -69,13 +69,13 @@ def _named(name: str) -> str:
 
 
 class Messaging:
-    def __init__(self, tnc: Radio, config: ConfigSource, messagelog: MessageLog, paths: Callable[[str], tuple[str, ...]], clock: Clock = utcnow, tick_sec: float = TICK_SEC,
+    def __init__(self, tnc: Radio, config: ConfigSource, messagelog: MessageLog, paths: Callable[[str, int | None], tuple[str, ...]], clock: Clock = utcnow, tick_sec: float = TICK_SEC,
                  board: Callable[[Packet, Message], None] | None = None, alert: Callable[[MessageRecord], None] | None = None,
                  spacing_sec: float = SPACING_SEC) -> None:
         self._tnc = tnc
         self._config = config
         self._log = messagelog
-        self._paths = paths                                     # the digipeaters of what we send to a station (PrefBook.path_for)
+        self._paths = paths                                     # the digipeaters of what we send to a station, for attempt n of a message (PrefBook.path_for)
         self.clock, self.tick_sec = clock, tick_sec
         self.pace = Pace(clock, spacing_sec)                    # several messages written together go out one after the other, never in a burst
         self.changed: Signal[[MessageRecord]] = Signal("messaging_changed")
@@ -243,11 +243,11 @@ class Messaging:
         self._last_id = ident
         return ident
 
-    def _frame(self, info: bytes, to: str) -> ax25.Frame:
-        """Our frame to the station for this information field: from `station/call` to the tocall by way of the station's path."""
+    def _frame(self, info: bytes, to: str, attempt: int | None = None) -> ax25.Frame:
+        """Our frame to the station for this information field: from `station/call` to the tocall by way of the station's path (for attempt number `attempt` of a message to it, when it is given)."""
         c = self._config()
         try:
-            return our_frame(c, self._paths(to), info)
+            return our_frame(c, self._paths(to, attempt), info)
         except MessagingError:
             raise                                                   # (the path of a station that is RF only is too long: the reason is the path's)
         except FRAME_ERRORS as e:
@@ -267,7 +267,7 @@ class Messaging:
             return record                                            # (what waits is due at the next tick)
         reply = None if record.msg_id is None else self.inbox.heard.reply_for(record.to_call, self.clock()) or ""
         try:
-            frame = self._frame(_info(record.to_call, record.text, record.msg_id, reply), record.to_call)
+            frame = self._frame(_info(record.to_call, record.text, record.msg_id, reply), record.to_call, None if record.msg_id is None else record.attempts + 1)
             sent = self._tnc.send_frame(frame)
         except MessagingError as e:
             if self._refused.get(record.id) != str(e):

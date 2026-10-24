@@ -15,7 +15,8 @@ from .coded import CodedError, Param
 from .configlegacy import with_legacy
 from .configstatus import DEFAULT_STATUS_TEMPLATE, MAX_STATUS, hostport, status_source, status_template, status_text
 from .configtypes import access_key, boolean, call_or_empty, int_in, int_or_off, optional_float, optional_int, over_the_air_refusal, text_of, web_address
-from .message import normal_path
+from .message import path_choice
+from .route import DIRECT_ONLY, WIDE_PATH
 from .tncprofile import DEFAULT as DEFAULT_PROFILE, Profile, names_tcp, profile_of
 from .versions import UPDATE_URL
 
@@ -70,8 +71,10 @@ def _globs(text: str) -> str:
 
 
 def _path(text: str) -> str:
-    """A list of digipeater calls separated by commas, each checked as a call; written the way the frame carries it (capitals, no blanks), empty for none."""
-    return ",".join(normal_path(text))
+    """A list of digipeater calls separated by commas, each checked as a call; written the way the frame carries it (capitals, no blanks). Empty is the recommended path (WIDE1-1,WIDE2-1), DIRECT alone
+    is no digipeaters at all."""
+    calls = path_choice(text)
+    return "" if calls is None else DIRECT_ONLY if not calls else ",".join(calls)
 
 
 def _direction(text: str) -> str:
@@ -173,7 +176,7 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("web_port", "web/port", int_in(0, 65535)),                        # 0: the system picks a free port (the log says which)
     Setting("web_allowed_hosts", "web/allowed_hosts", text_of(500)),         # names besides localhost, 127.0.0.1 and this machine's that a Host header may carry, separated by commas
     Setting("beacon_interval_min", "beacon/interval_min", int_or_off(*RANGES["beacon/interval_min"]), MIN_INTERVAL_MIN),   # 0: no beacon
-    Setting("beacon_path", "beacon/path", _path),                           # the digipeaters of our beacon, "WIDE1-1,WIDE2-1"; empty: none
+    Setting("beacon_path", "beacon/path", _path),                           # the digipeaters of our beacon, "WIDE1-1,WIDE2-1"; empty: the same, recommended; DIRECT: none
     Setting("messages_alert", "messages/alert", boolean),                                       # true: a message to us runs messages/alert_command
     Setting("messages_alert_command", "messages/alert_command", text_of(MAX_ALERT_COMMAND)),    # a shell line, run with NEOAPRS_FROM, NEOAPRS_TEXT, NEOAPRS_AT and NEOAPRS_MSG_ID in its environment; empty: none
     Setting("status_source", "status/source", status_source),                                # where the status comes from: off, text (station/status) or rig (status/rigctld, status/template); empty: rig when status/rigctld is set, else text when station/status is, else off
@@ -280,8 +283,10 @@ class Config:
 
     @property
     def beacon_path_calls(self) -> tuple[str, ...]:
-        """beacon/path as the list of calls it names."""
-        return tuple(call for call in self.beacon_path.split(",") if call)
+        """beacon/path as the list of calls it names: the recommended path when it is empty, none at all for DIRECT."""
+        if self.beacon_path == DIRECT_ONLY:
+            return ()
+        return tuple(call for call in (self.beacon_path or WIDE_PATH).split(",") if call)
 
     @property
     def comment_limit(self) -> int:

@@ -64,3 +64,9 @@ def _v13(db: sqlite3.Connection) -> None:
         CONSTRAINT own_bulletin_sent_has_times CHECK (sent = 0 OR (first_sent_at IS NOT NULL AND last_sent_at IS NOT NULL)),
         CONSTRAINT own_bulletin_sent_in_order CHECK (first_sent_at IS NULL OR last_sent_at IS NULL OR last_sent_at >= first_sent_at)
     ) STRICT""")
+
+
+def _v14(db: sqlite3.Connection) -> None:
+    """The path settings: an empty `beacon/path` now means the recommended path (WIDE1-1,WIDE2-1) and `DIRECT` means no digipeaters at all. A stored empty path was cleared on purpose and meant none, so it becomes
+    DIRECT: nobody starts to digipeat on an upgrade. Any other stored value is as it was (WIDE1-1,WIDE2-1 is the recommended path, the rest is a custom one)."""
+    db.execute("UPDATE settings SET value = 'DIRECT', rev = rev + 1 WHERE key = 'beacon/path' AND trim(value) = ''")

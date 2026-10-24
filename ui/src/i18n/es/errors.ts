@@ -40,6 +40,7 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.object.speed": "la velocidad {value} no está entre 0 y {max} km/h",
   "error.object.symbol": "el símbolo “{table}” “{symbol}” no es una tabla (/ \\ A-Z 0-9) y un carácter imprimible",
   "error.path.too_long": "{count} digipeaters son más de los {max} que puede tener una ruta",
+  "error.path.direct_alone": "{word} no es un digipeater: solo, significa ningún digipeater",
   "error.setting.comment_too_long": "{length} caracteres son más de los {limit} que se permiten con la extensión PHG (vacía beacon/power_w para no enviarla)",
   "error.setting.not_access_key": "no es una clave de acceso (tres grupos de cuatro dígitos y letras, como k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "tiene caracteres que no son ASCII imprimible",

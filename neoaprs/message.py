@@ -12,6 +12,7 @@ from neoaprs.aprsmessage import FORBIDDEN, MAX_TEXT, MessageError
 from neoaprs.ax25 import MAX_PATH
 from neoaprs.coded import CodedError
 from neoaprs.callsign import format_call, parse_call
+from neoaprs.route import DIRECT_ONLY
 
 State = Literal["sending", "acked", "rejected", "failed", "unconfirmed", "cancelled", "received", "overheard"]
 STATES: tuple[str, ...] = get_args(State)
@@ -67,12 +68,22 @@ def normal_call(text: str) -> str:
 
 
 def normal_path(text: str) -> tuple[str, ...]:
-    """A path as it is written, digipeater calls separated by commas, as the calls the frame carries (capitals, no blanks, no SSID of 0); empty for no digipeaters at all. Raises ValueError that says
-    what is wrong: a call that is none, more than 8 of them. The rules of the setting beacon/path."""
+    """A path as it is written, digipeater calls separated by commas, as the calls the frame carries (capitals, no blanks, no SSID of 0); empty for none written. Raises ValueError that says
+    what is wrong: a call that is none, more than 8 of them, DIRECT (it is no call: see `path_choice`). The rules of the setting beacon/path."""
     calls = tuple(normal_call(piece) for piece in text.split(",") if piece.strip())
+    if DIRECT_ONLY in calls:
+        raise CodedError(f"{DIRECT_ONLY} is no digipeater: written alone it means no digipeaters at all", "path.direct_alone", word=DIRECT_ONLY)
     if len(calls) > MAX_PATH:
         raise CodedError(f"{len(calls)} digipeaters is more than the {MAX_PATH} a path may have", "path.too_long", count=len(calls), max=MAX_PATH)
     return calls
+
+
+def path_choice(text: str) -> tuple[str, ...] | None:
+    """What a path that is typed says: None for an empty one (the recommended or automatic path, never no digipeaters), the empty tuple for DIRECT (no digipeaters at all, explicitly), else the calls as
+    `normal_path` has them. Raises what it raises."""
+    if not text.strip():
+        return None
+    return () if text.strip().upper() == DIRECT_ONLY else normal_path(text)
 
 
 def same_call(a: str, b: str) -> bool:

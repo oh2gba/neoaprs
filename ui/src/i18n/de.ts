@@ -99,6 +99,7 @@ export const de: Catalogue = {
   "error.object.speed": "die Geschwindigkeit {value} liegt nicht zwischen 0 und {max} km/h",
   "error.object.symbol": "das Symbol „{table}“ „{symbol}“ ist weder eine Tabelle (/ \\ A-Z 0-9) noch ein druckbares Zeichen",
   "error.path.too_long": "{count} Digipeater sind mehr als die {max}, die ein Pfad haben darf",
+  "error.path.direct_alone": "{word} ist kein Digipeater: allein geschrieben bedeutet es gar keine Digipeater",
   "error.setting.comment_too_long":
     "{length} Zeichen sind mehr als die {limit}, die mit der PHG-Erweiterung erlaubt sind (beacon/power_w leeren, um keine zu senden)",
   "error.setting.not_access_key": "das ist kein Zugangsschlüssel (drei Gruppen aus vier Ziffern und Buchstaben, etwa k7m2-x9pq-4hrt)",
