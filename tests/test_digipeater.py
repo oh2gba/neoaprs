@@ -186,6 +186,30 @@ def test_only_the_path_differs_from_the_frame_that_was_heard() -> None:
     assert ax25.decode(out) == sent
 
 
+def _address(call: str, ssid: int, flags: int) -> bytes:
+    return bytes(ord(c) << 1 for c in call.ljust(6)) + bytes([flags | (ssid << 1)])
+
+
+def test_the_address_flag_bits_of_the_destination_and_the_source_go_out_as_they_came() -> None:
+    rig = Rig()
+    info = b">test"
+    raw = _address("APRS", 0, 0x00) + _address("OH2XYZ", 0, 0x80) + _address("WIDE1", 1, 0x01) + b"\x03\xf0" + info     # (C bits of a response, reserved bits clear)
+    heard = ax25.decode(raw)
+    rig.digi.on_packet(packet_of("in", raw, heard, rig.clock()))
+    [out] = rig.tnc.raw
+    assert out[:14] == raw[:14], "the destination and the source are the bytes that came, not those encode() would write"
+    assert out[14:21] == _address("OH2GBA", 0, 0xE1), "only the path is encoded again: our call, used, last"
+    assert out[21:] == raw[21:]
+
+
+def test_the_duplicate_check_counts_the_destination_without_its_ssid() -> None:
+    rig = Rig()
+    rig.hear(frame("WIDE1-1", destination="APRS"))
+    rig.clock.advance(5)
+    rig.hear(frame("WIDE1-1", destination="APRS-1"))
+    assert len(rig.tnc.sent) == 1, "the same source, destination call and information field is the same packet (WB2OSZ's digipeater algorithm)"
+
+
 def test_not_more_than_a_few_frames_go_out_in_a_burst_and_it_goes_on_when_the_window_has_passed() -> None:
     rig = Rig()
     for n in range(BURST_MAX + 3):

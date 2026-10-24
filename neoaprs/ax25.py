@@ -148,6 +148,11 @@ def _encode_address(address: Address, flag: bool, last: bool) -> bytes:
     return bytes(b << 1 for b in letters) + bytes([last_byte])
 
 
+def encode_path(path: tuple[Address, ...]) -> bytes:
+    """The digipeater addresses of a path as they follow the source: the has-been-repeated bit on each used one, the last-address bit on the last."""
+    return b"".join(_encode_address(a, a.repeated, i == len(path) - 1) for i, a in enumerate(path))
+
+
 def encode(frame: Frame) -> bytes:
     """The bytes of a frame, as a command frame is sent: the destination's C bit set, the source's clear, the reserved bits set. Ax25Error when the information field is longer than MAX_INFO."""
     if len(frame.info) > MAX_INFO:

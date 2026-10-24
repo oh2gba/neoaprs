@@ -6,6 +6,7 @@
     tnc.infos()                             # the information fields of the frames it took
     tnc.lines()                             # the same frames as TNC-2 lines ("OH2GBA>APNEO1:text")
     tnc.asked                               # how many times it was asked to send, taken or not
+    tnc.raw                                 # the bytes it took with a frame (send_frame's `raw`: the digipeater's), as they were given
 """
 from neoaprs import ax25
 from neoaprs.source import Source, unusable_because
@@ -15,6 +16,7 @@ class StubTnc:
     def __init__(self, state: Source.State = Source.State.CONNECTED) -> None:
         self.state = state
         self.sent: list[ax25.Frame] = []
+        self.raw: list[bytes] = []                  # the bytes given with a frame (the digipeater's), as they were given
         self.takes = True
         self.asked = 0
 
@@ -25,10 +27,13 @@ class StubTnc:
     def why_unusable(self) -> str:
         return unusable_because(self.state)
 
-    def send_frame(self, frame: ax25.Frame) -> bool:
+    def send_frame(self, frame: ax25.Frame, raw: bytes | None = None) -> bool:
         self.asked += 1
         if self.takes:
             self.sent.append(frame)
+            if raw is not None:
+                assert ax25.decode(raw) == frame, "the bytes are the frame's"
+                self.raw.append(raw)
         return self.takes
 
     def infos(self) -> list[bytes]:
