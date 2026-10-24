@@ -79,6 +79,7 @@ class Controller(Services):
             await self.updatecheck.stop()
             await self.selfupdate.stop()
             await self.mapfetch.stop()
+            await self.radiofinder.stop()
             await self.queries.stop()
             await self.messaging.stop()
             await self.alerts.stop()
@@ -119,6 +120,13 @@ class Controller(Services):
         wiring.apply_tnc_settings(self.tnc, wiring.tnc_settings(self.config, self.port_override, self.pattern_override))
         self.tnc.set_check(self.check_sec)
         await self.tnc.start()
+
+    async def hold_tnc(self) -> None:
+        await self._stop_tnc()
+
+    def release_tnc(self) -> None:
+        if self.running:
+            self.start_tnc()
 
     async def _stop_tnc(self) -> None:
         task, self._tnc_task = self._tnc_task, None

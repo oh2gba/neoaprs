@@ -145,6 +145,9 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
                        {"type": "weather_series", "call": "OH2NONE", "hours": 168, "points": []}],
     "update_result": [{"type": "update_result", "outcome": "newer", "version": "0.4.0", "text": ""}, {"type": "update_result", "outcome": "current", "version": "0.3.0", "text": ""},
                       {"type": "update_result", "outcome": "no_answer", "version": "", "text": "the version page could not be reached"}],
+    "radio_search": [{"type": "radio_search", "state": "trying", "port": "/dev/ttyUSB0", "baud": 9600, "profile": "", "number": 1, "total": 14},
+                     {"type": "radio_search", "state": "found", "port": "bt://AA:BB:CC:DD:EE:FF", "baud": None, "profile": "kiss", "number": 0, "total": 0},
+                     {"type": "radio_search", "state": "cancelled", "port": "", "baud": None, "profile": "", "number": 0, "total": 0}],
     "alert_result": [{"type": "alert_result", "ok": True, "text": "ran"}, {"type": "alert_result", "ok": False, "text": "exit code 3: no display"}],
     "error": [{"type": "error", "cmd": "set_config", "key": "station/lat", "code": "setting.range", "params": {"value": 95.0, "min": -90.0, "max": 90.0}, "text": "set_config: station/lat: 95 is not between -90 and 90"},
               {"type": "error", "cmd": "", "key": None, "code": "not_json", "params": {}, "text": "That is not JSON (Expecting value)"}],
@@ -184,7 +187,7 @@ DECODED = [
 
 COMMAND_EXAMPLES: dict[str, dict[str, Any]] = {
     "ping": {"cmd": "ping"}, "status": {"cmd": "status"}, "subscribe": {"cmd": "subscribe", "topics": ["packets", "tnc"]}, "unsubscribe": {"cmd": "unsubscribe", "topics": ["packets"]},
-    "forget_station": {"cmd": "forget_station", "call": "OH2RDG"}, "tnc_reconnect": {"cmd": "tnc_reconnect"}, "list_ports": {"cmd": "list_ports"}, "set_config": {"cmd": "set_config", "values": {"station/lat": "61.5"}},
+    "forget_station": {"cmd": "forget_station", "call": "OH2RDG"}, "tnc_reconnect": {"cmd": "tnc_reconnect"}, "list_ports": {"cmd": "list_ports"}, "find_radio": {"cmd": "find_radio"}, "find_radio_cancel": {"cmd": "find_radio_cancel"}, "set_config": {"cmd": "set_config", "values": {"station/lat": "61.5"}},
     "beacon_now": {"cmd": "beacon_now"}, "status_now": {"cmd": "status_now"}, "send_message": {"cmd": "send_message", "to": "OH2RDG", "text": "hello"}, "query": {"cmd": "query", "call": "OH2RDG", "kind": "status"}, "message_retry": {"cmd": "message_retry", "id": 3},
     "message_cancel": {"cmd": "message_cancel", "id": 3}, "message_delete": {"cmd": "message_delete", "id": 3}, "conversation_delete": {"cmd": "conversation_delete", "call": "OH2RDG"},
     "overheard_delete": {"cmd": "overheard_delete", "from_call": "OH2AAA", "to_call": "OH2BBB"},

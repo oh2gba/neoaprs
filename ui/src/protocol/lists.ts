@@ -19,7 +19,19 @@ export const TOPIC_NAMES = [
 ] as const;
 
 /** Every message the daemon sends (the `type` of the Message union). */
-export const MESSAGE_TYPES = ["alert_result", "error", "hello", "patch", "pong", "ports", "state", "status", "update_result", "weather_series"] as const;
+export const MESSAGE_TYPES = [
+  "alert_result",
+  "error",
+  "hello",
+  "patch",
+  "pong",
+  "ports",
+  "radio_search",
+  "state",
+  "status",
+  "update_result",
+  "weather_series",
+] as const;
 
 /** The keys of the settings, in the order of the settings form (SETTINGS of neoaprs/config.py). */
 export const CONFIG_KEYS = [
