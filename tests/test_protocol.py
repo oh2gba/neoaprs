@@ -154,8 +154,8 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
               {"type": "state", "topic": "messages", "rev": 2, "value": {"3": MESSAGE_ROW}}, {"type": "state", "topic": "bulletins", "rev": 1, "value": {"OH2XYZ/BLN3HAMS": BULLETIN_ROW}},
               {"type": "state", "topic": "own_objects", "rev": 1, "value": {"LEADER": OWN_OBJECT_ROW}}, {"type": "state", "topic": "own_bulletins", "rev": 1, "value": {"BLN3HAMS": OWN_BULLETIN_ROW}},
               {"type": "state", "topic": "station_prefs", "rev": 1,
-               "value": {"OH2RDG": {"path": "WIDE2-1", "hide_after_min": None, "rf_only": False}, "OH2XYZ": {"path": "", "hide_after_min": 0, "rf_only": True},
-                         "OH2ABC": {"path": None, "hide_after_min": 90, "rf_only": False}, "EMAIL-2": {"path": None, "hide_after_min": None, "rf_only": False}}}],
+               "value": {"OH2RDG": {"path": "WIDE2-1", "rf_only": False}, "OH2XYZ": {"path": "", "rf_only": True},
+                         "OH2ABC": {"path": None, "rf_only": False}, "EMAIL-2": {"path": None, "rf_only": False}}}],
     "patch": [{"type": "patch", "topic": "stations", "rev": 4, "ops": [{"op": "set", "key": "OH2RDK-7", "value": STATION}, {"op": "del", "key": "OH2RDG"}]},
               {"type": "patch", "topic": "packets", "rev": 5, "ops": [{"op": "set", "key": "8", "value": PACKET}, {"op": "del", "key": "1"}]},
               {"type": "patch", "topic": "tnc", "rev": 2, "ops": [{"op": "replace", "value": TNC}]}, {"type": "patch", "topic": "config", "rev": 1, "ops": [{"op": "replace", "value": CONFIG}]},
@@ -163,8 +163,8 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
               {"type": "patch", "topic": "bulletins", "rev": 2, "ops": [{"op": "set", "key": "OH2XYZ/BLN3HAMS", "value": {**BULLETIN_ROW, "times_heard": 4}}, {"op": "del", "key": "OH2ABC/BLN1"}]},
               {"type": "patch", "topic": "own_objects", "rev": 2, "ops": [{"op": "set", "key": "LEADER", "value": {**OWN_OBJECT_ROW, "state": "killing", "sent": 0}}, {"op": "del", "key": "MARK"}]},
               {"type": "patch", "topic": "own_bulletins", "rev": 2, "ops": [{"op": "set", "key": "BLN3HAMS", "value": {**OWN_BULLETIN_ROW, "sent": 2, "next_at": None}}, {"op": "del", "key": "BLN1"}]},
-              {"type": "patch", "topic": "station_prefs", "rev": 2, "ops": [{"op": "set", "key": "OH2RDG", "value": {"path": "OH2RCH-2,WIDE2-1", "hide_after_min": 10080, "rf_only": False}},
-                                                                        {"op": "set", "key": "OH2XYZ", "value": {"path": "", "hide_after_min": None, "rf_only": True}}, {"op": "del", "key": "OH2ABC"}]}],
+              {"type": "patch", "topic": "station_prefs", "rev": 2, "ops": [{"op": "set", "key": "OH2RDG", "value": {"path": "OH2RCH-2,WIDE2-1", "rf_only": False}},
+                                                                        {"op": "set", "key": "OH2XYZ", "value": {"path": "", "rf_only": True}}, {"op": "del", "key": "OH2ABC"}]}],
 }
 DECODED = [
     {"type": "position", **POSITION},
@@ -189,8 +189,8 @@ COMMAND_EXAMPLES: dict[str, dict[str, Any]] = {
     "message_cancel": {"cmd": "message_cancel", "id": 3}, "message_delete": {"cmd": "message_delete", "id": 3}, "conversation_delete": {"cmd": "conversation_delete", "call": "OH2RDG"},
     "overheard_delete": {"cmd": "overheard_delete", "from_call": "OH2AAA", "to_call": "OH2BBB"},
     "set_station_path": {"cmd": "set_station_path", "call": "OH2RDG", "path": "OH2RCH-2,WIDE2-1"},
-    "clear_station_path": {"cmd": "clear_station_path", "call": "OH2RDG"}, "set_station_timeout": {"cmd": "set_station_timeout", "call": "OH2RDG", "minutes": 0},
-    "clear_station_timeout": {"cmd": "clear_station_timeout", "call": "OH2RDG"}, "set_station_rf_only": {"cmd": "set_station_rf_only", "call": "OH2RDG", "on": True},
+    "clear_station_path": {"cmd": "clear_station_path", "call": "OH2RDG"},
+    "set_station_rf_only": {"cmd": "set_station_rf_only", "call": "OH2RDG", "on": True},
     "weather_series": {"cmd": "weather_series", "call": "OH2MUI", "hours": 24}, "alert_test": {"cmd": "alert_test"}, "update_check": {"cmd": "update_check"},
     "bulletin_delete": {"cmd": "bulletin_delete", "sender": "OH2XYZ", "slot": "BLN3HAMS"},
     "object_set": {"cmd": "object_set", "name": "LEADER", "kind": "object", "lat": 60, "lon": 25, "symbol_table": "/", "symbol_code": ">", "comment": "Rescue 1", "course_deg": 88, "speed_kmh": 67, "path": "WIDE1-1"},
@@ -260,16 +260,17 @@ def test_the_models_are_strict() -> None:
     assert StationRow.model_validate_json(json.dumps({**STATION, "lat": None, "lon": None})).lat is None
 
 
-def test_a_message_row_may_be_unconfirmed_and_a_station_pref_has_no_attempts() -> None:
+def test_a_message_row_may_be_unconfirmed_and_a_station_pref_has_no_attempts_and_no_timeout() -> None:
     assert MessageRow.model_validate_json(json.dumps({**MESSAGE_ROW, "state": "unconfirmed", "attempts": 2, "attempts_max": 2})).state == "unconfirmed"
     with pytest.raises(ValidationError):
         MessageRow.model_validate_json(json.dumps({**MESSAGE_ROW, "state": "unknown"}))
-    pref = {"path": None, "hide_after_min": None, "rf_only": False}
+    pref = {"path": None, "rf_only": False}
     assert not hasattr(StationPref.model_validate_json(json.dumps(pref)), "attempts")
+    for extra in ({"attempts": 2}, {"hide_after_min": 90}):
+        with pytest.raises(ValidationError):
+            StationPref.model_validate_json(json.dumps({**pref, **extra}))
     with pytest.raises(ValidationError):
-        StationPref.model_validate_json(json.dumps({**pref, "attempts": 2}))
-    with pytest.raises(ValidationError):
-        StationPref.model_validate_json(json.dumps({"path": None, "hide_after_min": None}))
+        StationPref.model_validate_json(json.dumps({"path": None}))
 
 
 # ---- the commands ---------------------------------------------------------------------------------------------------------------------------------
@@ -306,9 +307,8 @@ def test_the_limits_of_the_commands() -> None:
         COMMANDS.validate_python({"cmd": "set_config", "values": {f"k{n}": "v" for n in range(65)}})
     for bad in ({"cmd": "send_message", "to": "", "text": "x"}, {"cmd": "send_message", "to": "X" * 65, "text": "x"}, {"cmd": "send_message", "to": "OH2RDG", "text": "x" * 513},
                 {"cmd": "query", "call": "", "kind": "status"}, {"cmd": "query", "call": "OH2RDG", "kind": "all"}, {"cmd": "query", "call": "OH2RDG"}, {"cmd": "message_retry", "id": 0}, {"cmd": "message_cancel", "id": -1}, {"cmd": "message_delete", "id": 0}, {"cmd": "conversation_delete", "call": ""}, {"cmd": "set_station_path", "call": "", "path": ""}, {"cmd": "set_station_path", "call": "X", "path": "W" * 257},
-                {"cmd": "set_station_path", "call": "OH2RDG", "path": None}, {"cmd": "clear_station_path", "call": ""}, {"cmd": "set_station_timeout", "call": "", "minutes": 5}, {"cmd": "set_station_timeout", "call": "OH2RDG", "minutes": -1},
-                {"cmd": "set_station_timeout", "call": "OH2RDG", "minutes": 10081}, {"cmd": "set_station_timeout", "call": "OH2RDG", "minutes": "5"}, {"cmd": "set_station_timeout", "call": "OH2RDG"},
-                {"cmd": "clear_station_timeout", "call": ""}, {"cmd": "set_station_attempts", "call": "EMAIL-2", "attempts": 2}, {"cmd": "clear_station_attempts", "call": "EMAIL-2"}, {"cmd": "set_station_rf_only", "call": "", "on": True}, {"cmd": "set_station_rf_only", "call": "OH2RDG"}, {"cmd": "set_station_rf_only", "call": "OH2RDG", "on": "yes"},
+                {"cmd": "set_station_path", "call": "OH2RDG", "path": None}, {"cmd": "clear_station_path", "call": ""}, {"cmd": "set_station_timeout", "call": "OH2RDG", "minutes": 5}, {"cmd": "clear_station_timeout", "call": "OH2RDG"},
+                {"cmd": "set_station_attempts", "call": "EMAIL-2", "attempts": 2}, {"cmd": "clear_station_attempts", "call": "EMAIL-2"}, {"cmd": "set_station_rf_only", "call": "", "on": True}, {"cmd": "set_station_rf_only", "call": "OH2RDG"}, {"cmd": "set_station_rf_only", "call": "OH2RDG", "on": "yes"},
                 {"cmd": "overheard_delete", "from_call": "", "to_call": "OH2BBB"}, {"cmd": "overheard_delete", "from_call": "OH2AAA", "to_call": ""},
                 {"cmd": "overheard_delete", "from_call": "OH2AAA"}):
         with pytest.raises(ValidationError):

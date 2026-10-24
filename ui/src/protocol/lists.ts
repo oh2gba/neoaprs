@@ -363,7 +363,6 @@ export const LIMITS = {
   },
   station: {
     hideAfterMin: 180,
-    maxHideAfterMin: 10080,
   },
 } as const;
 

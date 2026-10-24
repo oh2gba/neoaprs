@@ -26,7 +26,7 @@ from .mapwire import MapCancel, MapEstimate, MapFetch
 from .ownwire import BulletinPost, BulletinUnpost, ObjectKill, ObjectSet
 from .messagewire import AlertTest, ConversationDelete, MessageCancel, MessageDelete, MessageRetry, OverheardDelete, QueryStation, SendMessage
 from .portwire import ListPorts
-from .prefwire import ClearStationPath, ClearStationTimeout, SetStationPath, SetStationRfOnly, SetStationTimeout
+from .prefwire import ClearStationPath, SetStationPath, SetStationRfOnly
 from .configwire import SetConfig
 from .stationwire import ForgetStation
 from .tncwire import TncReconnect
@@ -167,18 +167,6 @@ async def set_station_path(ctx: Ctx, cmd: SetStationPath) -> None:
 async def clear_station_path(ctx: Ctx, cmd: ClearStationPath) -> None:
     with refused(cmd.cmd):
         await ctx.ctl.prefbook.clear_path(cmd.call)
-
-
-@command(SetStationTimeout)
-async def set_station_timeout(ctx: Ctx, cmd: SetStationTimeout) -> None:
-    with refused(cmd.cmd):
-        await ctx.ctl.prefbook.set_timeout(cmd.call, cmd.minutes)
-
-
-@command(ClearStationTimeout)
-async def clear_station_timeout(ctx: Ctx, cmd: ClearStationTimeout) -> None:
-    with refused(cmd.cmd):
-        await ctx.ctl.prefbook.clear_timeout(cmd.call)
 
 
 @command(SetStationRfOnly)

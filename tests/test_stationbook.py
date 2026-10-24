@@ -219,18 +219,6 @@ def test_prune_removes_the_stations_not_heard_since_and_not_ours() -> None:
     assert book.prune(T0 - timedelta(days=30)) == []
 
 
-def test_prune_keeps_the_stations_it_is_told_to_keep() -> None:
-    book = StationBook(lambda: T0 - timedelta(days=100))
-    heard = Heard(book)
-    book.set_me("OH2GBA", 60.1, 24.1)
-    for call in ("OH2OLD", "OH2KEPT", "OH2ALSO"):
-        book.take(packet(position(), source=call, at=T0 - timedelta(days=40)))
-    assert book.prune(T0 - timedelta(days=30), {"OH2KEPT", "NOT-HERE"}) == ["OH2OLD", "OH2ALSO"]
-    assert sorted(s.call for s in book.stations()) == ["OH2GBA", "OH2KEPT"] and heard.removed == ["OH2OLD", "OH2ALSO"]
-    assert book.prune(T0 - timedelta(days=30), frozenset({"OH2KEPT"})) == []
-    assert book.prune(T0 - timedelta(days=30)) == ["OH2KEPT"], "without the list it goes like any other"
-
-
 def test_seed_fills_the_book_without_a_word_and_gives_each_position_a_track() -> None:
     book = StationBook()
     heard = Heard(book)

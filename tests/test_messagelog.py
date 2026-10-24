@@ -156,12 +156,12 @@ async def test_held_gives_the_latest_of_any_kind_newest_first_and_nothing_is_pru
 async def test_what_is_said_of_a_station_is_kept_replaced_and_forgotten_and_an_empty_path_is_not_none(tmp_path: Path) -> None:
     log, clock = await opened(tmp_path)
     assert await log.prefs() == {}
-    assert await log.save_pref("OH2RDG", "WIDE1-1,WIDE2-1", None) and await log.save_pref("OH2XYZ", "", 0) and await log.save_pref("OH2ABC", None, 90)
-    assert await log.save_pref("EMAIL-2", None, None, True)
-    assert await log.prefs() == {"OH2RDG": ("WIDE1-1,WIDE2-1", None, False), "OH2XYZ": ("", 0, False), "OH2ABC": (None, 90, False), "EMAIL-2": (None, None, True)}
+    assert await log.save_pref("OH2RDG", "WIDE1-1,WIDE2-1") and await log.save_pref("OH2XYZ", "") and await log.save_pref("OH2ABC", "WIDE2-1", True)
+    assert await log.save_pref("EMAIL-2", None, True)
+    assert await log.prefs() == {"OH2RDG": ("WIDE1-1,WIDE2-1", False), "OH2XYZ": ("", False), "OH2ABC": ("WIDE2-1", True), "EMAIL-2": (None, True)}
     clock.advance(60)
-    assert await log.save_pref("OH2RDG", "OH2RCH-2", 10080)
-    assert (await log.prefs())["OH2RDG"] == ("OH2RCH-2", 10080, False)
+    assert await log.save_pref("OH2RDG", "OH2RCH-2")
+    assert (await log.prefs())["OH2RDG"] == ("OH2RCH-2", False)
     assert await log.forget_pref("OH2XYZ") and await log.forget_pref("NOBODY")
     assert set(await log.prefs()) == {"OH2RDG", "OH2ABC", "EMAIL-2"}
     assert log.db is not None
@@ -171,6 +171,6 @@ async def test_what_is_said_of_a_station_is_kept_replaced_and_forgotten_and_an_e
 @pytest.mark.expects_errors
 async def test_a_preference_the_table_refuses_is_not_kept_and_the_caller_is_told(tmp_path: Path) -> None:
     log, _ = await opened(tmp_path)
-    assert not await log.save_pref("OH2RDG", "wide1-1", None) and not await log.save_pref("OH2RDG", None, None) and not await log.save_pref("OH2RDG", None, 10081)
+    assert not await log.save_pref("OH2RDG", "wide1-1") and not await log.save_pref("OH2RDG", None)
     assert await log.prefs() == {}
-    assert not await MessageLog().save_pref("OH2RDG", "", None) and not await MessageLog().forget_pref("OH2RDG") and await MessageLog().prefs() == {}
+    assert not await MessageLog().save_pref("OH2RDG", "") and not await MessageLog().forget_pref("OH2RDG") and await MessageLog().prefs() == {}

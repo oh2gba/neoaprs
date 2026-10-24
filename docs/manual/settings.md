@@ -62,7 +62,7 @@ These are not settings. They are fixed by design, and no field or `neoaprs db se
 
 <!-- doc-settings:fixed -->
 - Packets, weather observations and stations are kept 7 days and cleaned up once a day. Messages and bulletins are kept until you delete them.
-- A station leaves the map 180 minutes (3 hours) after its last position. A station can have a timeout of its own, up to 10080 minutes, or 0 for never.
+- A station leaves the map 180 minutes (3 hours) after its last position.
 - The keep-alive asks a TNC that can be asked after 60 seconds of silence on the line.
 - A message to a station is sent 4 times, and one to the email gateway 2 times, before it has failed or is unconfirmed.
 - Your own frames go out at least 10 seconds apart, except acks, answers to queries and digipeated packets.
