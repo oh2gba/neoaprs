@@ -77,5 +77,11 @@ export default tseslint.config(
     rules: { "max-lines": "off", "max-lines-per-function": "off", "@typescript-eslint/unbound-method": "off", "vue/one-component-per-file": "off" },
   },
 
+  {
+    // a language's catalogue is one file of data with every id of en.ts (docs/development.md, Translations): it is not split by size
+    files: ["src/i18n/de.ts", "src/i18n/fr.ts"],
+    rules: { "max-lines": "off" },
+  },
+
   prettier,
 );
