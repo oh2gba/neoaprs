@@ -28,6 +28,7 @@ export const objects: Record<keyof typeof source, Message> = {
   "objects.field.comment": "コメント",
   "objects.field.course": "進行方向",
   "objects.field.speed": "速度",
+  "objects.field.moving": "移動中",
   "objects.field.path": "パス",
   "objects.unit.deg": "度",
   "objects.form.cancel": "キャンセル",

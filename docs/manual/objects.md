@@ -16,7 +16,7 @@ Objects of other stations that you hear are stations of their own on the map, na
 - **Symbol.** A picture and its name, as in the Beacon tab: Change opens the picker.
 - **Location.** As in the Beacon tab: a **Choose on map** button and a click on the map (Cancel while the map waits), the place as one line under it, and the latitude and longitude behind **Enter coordinates**, which is open while the place is missing or wrong. The form shows a pin where it is.
 - **Comment.** 43 characters, 36 behind a course and speed.
-- **Course** in degrees and **speed** in km/h: each, both or neither.
+- **Moving.** A closed heading with the **course** in degrees and the **speed** in km/h: each, both or neither. It is open when the object you change already has a course or a speed; empty, the object does not move.
 - **Path.** The placeholder is the beacon's path, which an empty field means. Up to 8 digipeaters, or the word `DIRECT` for none at all. `RFONLY` or `NOGATE` in it keeps the iGates from putting it on the internet.
 
 A field with something wrong is red and its title says what. Save waits until nothing is wrong. Saving a name that is there changes that object. You can have at most 50 objects and items at once, and nothing is made while the call is not set.

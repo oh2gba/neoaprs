@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-Nothing yet.
+The Objects form.
+
+- **Course** and **speed** are behind a closed **Moving** heading, since most objects (a meeting point, a repeater) do not move. It opens by itself for an object that already has either; an empty fold means neither is sent.
 
 ## 0.7.0
 

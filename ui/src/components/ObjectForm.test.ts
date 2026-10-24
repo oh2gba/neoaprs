@@ -188,6 +188,46 @@ describe("ObjectForm", () => {
     ]);
   });
 
+  it("keeps Course and Speed behind a closed fold, Moving, for a new object", () => {
+    const { wrapper, field } = form();
+    const moving = wrapper.findAll<HTMLDetailsElement>("details").find((d) => d.find("summary").text() === "Moving");
+    expect(moving?.exists()).toBe(true);
+    expect(moving?.element.open).toBe(false);
+    expect(moving?.findAll("label").map((l) => l.text())).toEqual(["Course", "Speed"]);
+    expect(field("Course")?.element.closest("details")).toBe(moving?.element);
+    expect(field("Path")?.element.closest("details")).toBeNull();
+  });
+
+  it("opens Moving by itself for an object that has a course or a speed, and keeps it closed for one that has neither", async () => {
+    const { view, wrapper } = form([
+      ownObject("LEADER", { course_deg: 88, speed_kmh: null }),
+      ownObject("FAST", { course_deg: null, speed_kmh: 40 }),
+      ownObject("MEET"),
+    ]);
+    const open = () => wrapper.findAll<HTMLDetailsElement>("details").find((d) => d.find("summary").text() === "Moving")?.element.open;
+    view.edit("MEET");
+    await wrapper.vm.$nextTick();
+    expect(open()).toBe(false);
+    view.edit("LEADER");
+    await wrapper.vm.$nextTick();
+    expect(open()).toBe(true);
+    view.cancel();
+    view.start();
+    view.edit("FAST");
+    await wrapper.vm.$nextTick();
+    expect(open()).toBe(true);
+  });
+
+  it("still sends the course and speed of an object that was changed from behind the fold", async () => {
+    const { view, wrapper, sent, input } = form([ownObject("LEADER", { course_deg: 88, speed_kmh: 40 })]);
+    view.edit("LEADER");
+    await wrapper.vm.$nextTick();
+    await input("Comment")?.setValue("Rescue 1");
+    await wrapper.find("form").trigger("submit");
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({ cmd: "object_set", name: "LEADER", comment: "Rescue 1", course_deg: 88, speed_kmh: 40 });
+  });
+
   it("keeps the name of an object that is being changed", () => {
     const { view, wrapper } = form([ownObject("LEADER", { comment: "Rescue 1" })]);
     view.edit("LEADER");

@@ -34,6 +34,12 @@
 .composebar .field {
   margin: 0;
 }
+/* a fold of the form (DisclosureBox, as the Moving of the Objects form): its fields are as far apart as the fields of the form */
+.composebar-fields > .disclosure > .disclosure-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 .composebar-foot {
   display: flex;
   flex: none;
