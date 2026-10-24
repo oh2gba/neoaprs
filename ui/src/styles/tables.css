@@ -185,3 +185,60 @@
   background: var(--bg);
   border-top: 1px solid var(--border);
 }
+
+/* the menu of a row of the Stations table (right-click, long press, the "..." button): at the pointer, over everything, kept in the window */
+.ctxmenu {
+  position: fixed;
+  z-index: 30;
+  min-width: 210px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+.ctxmenu-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 32px;
+  padding: 5px 12px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.ctxmenu-item:hover,
+.ctxmenu-item:focus-visible {
+  background: var(--row-hover);
+}
+.ctxmenu-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.ctxmenu-item.danger {
+  color: var(--bad);
+}
+.ctxmenu-item.armed {
+  background: var(--bad);
+  color: #fff;
+  font-weight: 600;
+}
+.ctxmenu-line {
+  height: 1px;
+  margin: 4px 2px;
+  background: var(--border);
+}
+.ctxmenu-note {
+  padding: 2px 12px 4px;
+  font-size: 12px;
+}

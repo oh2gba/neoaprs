@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { firstDirection, hasPosition, listStations, withOwnSymbol, type Sort } from "@/lib/stations";
+import { firstDirection, hasPosition, listStations, menuGroup, menuItems, withOwnSymbol, type Sort } from "@/lib/stations";
 import { ago, station, weather } from "@/test/fixtures";
 
 const base: { filter: string; withPositionOnly: boolean; sort: Sort } = { filter: "", withPositionOnly: false, sort: { key: "call", dir: 1 } };
@@ -106,4 +106,22 @@ it("sorts the timed-out stations after the live ones, whatever the column", () =
     "OH2PU-9",
     "OH2RDG",
   ]);
+});
+
+describe("menuItems", () => {
+  it("offers Message and the four queries only where Message is offered, and Forget only where Forget is", () => {
+    expect(menuItems(station("OH2RDG"))).toEqual(["message", "ask_position", "ask_status", "ask_heard", "ask_trace", "show", "copy", "qrz", "forget"]);
+    expect(menuItems(station("EMAIL-2", { can_message: false }))).toEqual(["show", "copy", "qrz", "forget"]);
+    expect(menuItems(station("OH2GBA", { is_me: true }))).toEqual(["show", "copy", "qrz"]);
+    expect(menuItems(station("OH2OBJ", { kind: "object", own: true, can_message: false }))).toEqual(["show", "copy"]);
+    expect(menuItems(station("FOREIGN", { kind: "object" }))).toEqual(["show", "copy", "forget"]);
+  });
+
+  it("has no QRZ page for a name that is no call", () => {
+    expect(menuItems(station("Big Storm"))).not.toContain("qrz");
+  });
+
+  it("puts talking, looking and forgetting in three groups", () => {
+    expect(menuItems(station("OH2RDG")).map(menuGroup)).toEqual([0, 0, 0, 0, 0, 1, 1, 1, 2]);
+  });
 });

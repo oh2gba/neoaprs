@@ -8,6 +8,8 @@
 - **Esc** closes the Objects form without saving, as Cancel does, unless the focus is in a field that still has text (that keeps its first Esc). While the map waits for a click, Esc ends that first.
 The Stations table.
 
+- A row has a menu: a right-click on it, a long press on a touch screen or the new "..." button at its end opens it where the pointer is. It has **Message**, four questions to the station, **Ask for position**, **Ask for status**, **Ask what it hears direct** and **Trace the route** (the directed queries `?APRSP`, `?APRSS`, `?APRSD` and `?APRST`), **Show on map**, **Copy call**, the **QRZ page** and **Forget** (asking twice). The questions are for the stations that take messages; your own station and objects have Show and Copy call (and Forget where the row has it). A phone's row has the envelope and the "..." only.
+- The daemon has a command `query` for this. A question is sent once, as a message with no message number, and is not repeated or waited for; the same question to the same station is refused for 60 seconds (`query.too_soon`), and one to a station that is not known or takes no messages is refused (`station.unknown`, `query.not_capable`). The conversation shows it as a grey line, "You asked for its status", and the page says "Asked OH2XYZ for its status" in a toast, in all seven languages.
 - Each row has, at its right end, an envelope that opens the conversation with the station and a trash can that forgets it (it asks twice, like the card's Forget), so that neither needs the card. The envelope is the one picture of "message" on the page: the header's count of messages not seen and the **Message OH2XYZ** button under an empty result have it too.
 
 ## 0.6.7

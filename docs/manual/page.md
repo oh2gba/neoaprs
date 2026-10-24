@@ -29,7 +29,18 @@ The table has the symbol, the call, the distance from you, the bearing as a smal
 - A green check mark after a call means the station was heard direct ("Heard direct", also on its card).
 - The filter box has three tickboxes that wrap onto a second line when they do not fit: "with position only", "hide timed out" and "direct only" (stations heard direct at some time). The last two are remembered.
 - A click on a row flies the map to the station and shows its card, with the marker above the card and not under it.
-- At the right end of a row are two small buttons, the same as on the card. The envelope, **Message OH2XYZ**, opens the conversation with the station (on a phone, straight into the conversation); it is there for the stations a message can go to, not for your own station, an object, an item or the email gateway. The trash can, **Forget OH2XYZ**, takes the station out of the station book and asks twice like the card's Forget ("sure?", taken back after 5 seconds); your own station and your own objects have none (an object is killed on its card). A click on either does not select the row.
+- At the right end of a row are three small buttons: two as on the card and a "..." that opens the row's menu (below).
+  - The envelope, **Message OH2XYZ**, opens the conversation with the station (on a phone, straight into the conversation); it is there for the stations a message can go to, not for your own station, an object, an item or the email gateway.
+  - The trash can, **Forget OH2XYZ**, takes the station out of the station book and asks twice like the card's Forget ("sure?", taken back after 5 seconds); your own station and your own objects have none (an object is killed on its card).
+  - A click on any of them does not select the row. On a phone the row has only the envelope and the "...": Forget is in the menu.
+- **The menu of a row** opens with a right-click on the row, a long press on a touch screen or the "..." button at the row's end (from the keyboard: Tab to the button and Enter, or the menu key on the row). It opens where the pointer is, kept inside the window. Up, Down, Home and End move in it; Esc, a click outside it or Tab closes it, and Esc puts the focus back where it came from. It has:
+  - **Message**, as the envelope.
+  - Four questions to the station, **Ask for position**, **Ask for status**, **Ask what it hears direct** and **Trace the route** (the directed queries `?APRSP`, `?APRSS`, `?APRSD` and `?APRST` of the APRS specification). They are there only where the envelope is. A toast says "Asked OH2XYZ for its status" and the conversation with the station gets a grey line, "You asked for its status".
+  - The answer comes as it would to anyone: a position or a status report changes the station's card, and what it hears direct or the route comes as a message in the conversation.
+  - A question is sent once, with no message number, and is never repeated. Many stations do not answer queries, and the menu says so. The same question to the same station is refused for 60 seconds (the toast says "wait 42 s").
+  - **Show on map** (**Open its card** for a station with no position), which does what a click on the row does; **Copy call**; and the **QRZ page**, as on the card.
+  - **Forget**, which asks twice like the trash can: the first press says "Really forget?".
+  - Your own station has Show, Copy call and the QRZ page, an object or an item of yours Show and Copy call, and an object of someone else's Show, Copy call and Forget; none has the questions.
 - A station past its timeout is dim, listed last, with "timed out" after the time it was heard.
 
 ### Packets

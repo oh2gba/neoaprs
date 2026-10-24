@@ -1,5 +1,6 @@
 // The station rows as the page lists and draws them: which have a position, the filter and the order of the table. Plain functions of rows and the time.
 import { t } from "@/i18n";
+import { qrzUrl } from "@/lib/calls";
 import { symbolText } from "@/lib/symbols";
 import type { StationRow } from "@/protocol/protocol";
 
@@ -17,6 +18,26 @@ export function canMessage(row: Pick<StationRow, "kind" | "can_message" | "is_me
 /** Whether a station's Forget is offered (on its card and in the table): not ourselves, and not our own object or item, which is killed instead. */
 export function canForget(row: Pick<StationRow, "is_me" | "own">): boolean {
   return !row.is_me && !row.own;
+}
+
+/** The directed queries the menu of a row offers (the daemon's command `query`): `?APRSP` position, `?APRSS` status, `?APRSD` what it hears direct, `?APRST` the route. */
+export const QUERY_KINDS = ["position", "status", "heard", "trace"] as const;
+export type QueryKind = (typeof QUERY_KINDS)[number];
+
+/** What the menu of a row of the Stations table offers, in its order: Message and the four queries where the card has Message (a station that takes messages, not ours, not an object), Show, Copy and the QRZ page of any station, Forget where the card has it. */
+export type MenuItem = "message" | `ask_${QueryKind}` | "show" | "copy" | "qrz" | "forget";
+
+export function menuItems(row: Pick<StationRow, "call" | "kind" | "can_message" | "is_me" | "own">): MenuItem[] {
+  const items: MenuItem[] = canMessage(row) ? ["message", ...QUERY_KINDS.map((k): MenuItem => `ask_${k}`)] : [];
+  items.push("show", "copy");
+  if (row.kind === "station" && qrzUrl(row.call) !== null) items.push("qrz");
+  if (canForget(row)) items.push("forget");
+  return items;
+}
+
+/** The group of the menu an item is in (a line is drawn between groups): talking to the station, looking at it, forgetting it. */
+export function menuGroup(item: MenuItem): number {
+  return item === "message" || item.startsWith("ask_") ? 0 : item === "forget" ? 2 : 1;
 }
 
 export type SortKey = "call" | "distance_km" | "bearing_deg" | "last_heard" | "last_position_at" | "last_direct_at" | "packets" | "last_path" | "temp_c";

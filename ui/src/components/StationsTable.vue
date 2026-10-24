@@ -1,13 +1,15 @@
 <script setup lang="ts">
 // The stations heard, as a short table that fits the panel: the symbol, the call (a green check mark after it for a station heard direct), the distance from us, the bearing as a small arrow (north up; "NE, 47°" is its hover title) and when the station was last heard at all (the newest of anything it sent, with the full time as the hover title); the rest of what is known of a station (when its position was, how its packets reach us, the path, the packets, the weather) is on its card, a click away. A column is sorted by a click on its head (again to
 // reverse), a filter box and the toggles "with position only", "direct only" (the stations heard direct at some time) and "hide timed out" narrow it, our own station is always on top, the selected row is marked and a click on a row selects the station
-// (the map flies to it; with Ctrl it adds a card). When the filter text is a call that no station has been heard under (not ours, not the email gateway), a button "Message OH2XYZ" under the empty result writes to it all the same. A station past its timeout is off the map: its row is dim and says "timed out" after the time it was heard. Every row is one line high. At the right end of a row are two small buttons, as on the card: a speech bubble that opens the conversation with the station ("Message OH2XYZ", where the card has Message) and a trash can that forgets it ("Forget OH2XYZ", where the card has Forget; it asks twice like the card's, "sure?" for 5 s); a click on them does not select the row.
-import { computed, ref } from "vue";
+// (the map flies to it; with Ctrl it adds a card). When the filter text is a call that no station has been heard under (not ours, not the email gateway), a button "Message OH2XYZ" under the empty result writes to it all the same. A station past its timeout is off the map: its row is dim and says "timed out" after the time it was heard. Every row is one line high. At the right end of a row are two small buttons, as on the card: a speech bubble that opens the conversation with the station ("Message OH2XYZ", where the card has Message) and a trash can that forgets it ("Forget OH2XYZ", where the card has Forget; it asks twice like the card's, "sure?" for 5 s); a click on them does not select the row. Between them is a "..." button, and a right-click on a row (a long press on a touch screen) opens the same menu where the pointer is (StationMenu: Message, the directed queries, Show, Copy call, QRZ, Forget).
+import { computed, ref, watch } from "vue";
 import DirectMark from "@/components/DirectMark.vue";
 import IconButton from "@/components/IconButton.vue";
 import MessageGlyph from "@/components/MessageGlyph.vue";
+import StationMenu from "@/components/StationMenu.vue";
 import SymbolIcon from "@/components/SymbolIcon.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
+import { useLongPress } from "@/composables/useLongPress";
 import { usePersistedFlag } from "@/composables/usePersisted";
 import { useSure } from "@/composables/useSure";
 import { t } from "@/i18n";
@@ -16,7 +18,7 @@ import { normalizeCall, validCall } from "@/lib/calls";
 import { ageText, bearingTitle, dateTimeText, distanceText } from "@/lib/format";
 import { isGateway } from "@/lib/messages";
 import { heardDirect } from "@/lib/routes";
-import { canForget, canMessage, firstDirection, listStations, symbolName, type Sort, type SortKey } from "@/lib/stations";
+import { canForget, canMessage, firstDirection, listStations, symbolName, type QueryKind, type Sort, type SortKey } from "@/lib/stations";
 import type { StationRow } from "@/protocol/protocol";
 
 const props = withDefaults(
@@ -27,7 +29,13 @@ const props = withDefaults(
   { others: () => [] },
 );
 const { stations, now, aging, call: ownCall } = useDaemonContext();
-const emit = defineEmits<{ select: [call: string, multi?: boolean]; message: [call: string]; forget: [call: string] }>();
+const emit = defineEmits<{
+  select: [call: string, multi?: boolean];
+  message: [call: string];
+  forget: [call: string];
+  ask: [call: string, kind: QueryKind];
+  copy: [call: string];
+}>();
 const isOpen = (call: string): boolean => call === props.selected || props.others.includes(call);
 /** Ctrl (Cmd on a Mac) held: the station's card is added to the open ones, or closed when it is open. */
 const withKey = (event: MouseEvent | KeyboardEvent): boolean => event.ctrlKey || event.metaKey;
@@ -47,6 +55,50 @@ const columns = computed<{ key: SortKey | null; title: string; numeric?: boolean
 const sure = useSure<string>();
 const armed = (call: string): boolean => sure.armed.value === call;
 const forget = (call: string): void => sure.press(call, () => emit("forget", call));
+
+/** The menu of a row (StationMenu): opened by a right-click on the row, a long press on a touch screen or the "..." button at its end, where the pointer is (under the button for that). `n` makes a menu opened again a new one, in its new place. */
+const menu = ref<{ call: string; x: number; y: number; trigger: HTMLElement; n: number } | null>(null);
+let menus = 0;
+const menuRow = computed(() => (menu.value === null ? undefined : stations.value.get(menu.value.call)));
+watch(menuRow, (row) => row === undefined && (menu.value = null));
+function openMenu(call: string, x: number, y: number, trigger: HTMLElement): void {
+  menu.value = { call, x, y, trigger, n: ++menus };
+}
+/** The right button on a row (or the menu key): the menu is where the pointer is, and the browser's own is not shown. A key has no pointer: the menu is at the row. */
+function onContextMenu(event: MouseEvent, call: string): void {
+  event.preventDefault();
+  const row = event.currentTarget as HTMLElement;
+  if (event.clientX === 0 && event.clientY === 0) {
+    const box = row.getBoundingClientRect();
+    openMenu(call, box.left + 24, box.bottom, row);
+  } else openMenu(call, event.clientX, event.clientY, row);
+}
+const press = useLongPress((x, y, target) => {
+  const call = target.dataset.call;
+  if (call !== undefined) openMenu(call, x, y, target);
+});
+/** The "..." button: the menu opens under it (and the button gets the focus back when it closes); the button again closes it. The press outside the menu closes it before the click comes, so the press says whether this button's menu was open. */
+let closing = false;
+const isOpenFrom = (call: string, button: HTMLElement): boolean => menu.value?.call === call && menu.value.trigger === button;
+function pressFrom(event: PointerEvent, call: string): void {
+  closing = isOpenFrom(call, event.currentTarget as HTMLElement);
+}
+function openFrom(event: MouseEvent, call: string): void {
+  const button = event.currentTarget as HTMLElement;
+  const wasOpen = closing || isOpenFrom(call, button);
+  closing = false;
+  if (wasOpen) {
+    menu.value = null;
+    return;
+  }
+  const box = button.getBoundingClientRect();
+  openMenu(call, box.left, box.bottom + 2, button);
+}
+/** A click on a row selects it, except the click of the finger that was lifted after a long press. */
+function onRowClick(event: MouseEvent, call: string): void {
+  if (press.swallowClick()) return;
+  emit("select", call, withKey(event));
+}
 
 const filter = ref("");
 const withPositionOnly = ref(false);
@@ -128,8 +180,14 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
             :class="{ selected: isOpen(row.call), me: row.is_me, own: row.own, timedout: isTimedOut(row) }"
             :aria-selected="isOpen(row.call)"
             tabindex="0"
-            @click="emit('select', row.call, withKey($event))"
+            :data-call="row.call"
+            @click="onRowClick($event, row.call)"
             @keydown.enter="emit('select', row.call, withKey($event))"
+            @contextmenu="onContextMenu($event, row.call)"
+            @pointerdown="press.down"
+            @pointermove="press.move"
+            @pointerup="press.up"
+            @pointercancel="press.cancel"
           >
             <td class="symbol" :title="symbolName(row)"><SymbolIcon :table="row.symbol_table" :code="row.symbol_code" :size="18" /></td>
             <td class="mono strong call">{{ row.call }}</td>
@@ -174,6 +232,15 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
                 :title="t('station.table.forget_call', { call: row.call })"
                 @click="forget(row.call)"
               />
+              <IconButton
+                kind="more"
+                class="morebtn"
+                aria-haspopup="menu"
+                :aria-expanded="menu?.call === row.call"
+                :label="t('station.menu.more', { call: row.call })"
+                @pointerdown="pressFrom($event, row.call)"
+                @click="openFrom($event, row.call)"
+              />
             </td>
           </tr>
           <tr v-if="rows.length === 0">
@@ -190,6 +257,21 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
         </tbody>
       </table>
     </div>
+    <StationMenu
+      v-if="menu && menuRow"
+      :key="menu.n"
+      :row="menuRow"
+      :x="menu.x"
+      :y="menu.y"
+      :trigger="menu.trigger"
+      :armed="armed(menu.call)"
+      @close="menu = null"
+      @message="emit('message', $event)"
+      @ask="(call, kind) => emit('ask', call, kind)"
+      @show="emit('select', $event, false)"
+      @copy="emit('copy', $event)"
+      @forget="forget"
+    />
     <div class="foot muted">{{ t("station.table.count", { shown: rows.length, n: stations.size }) }}</div>
   </div>
 </template>

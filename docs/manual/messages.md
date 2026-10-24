@@ -18,6 +18,8 @@ OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :Hello Pekka{01}
 
 A message to a bulletin or a group (`BLN0` to `BLNZ`, `BLN3HAMS`, `ALL`, `CQ`, `QST`, `NWS-xxxxx`, `SKY`, `CWA`) goes out once, without an id, and is never retried. It is kept as *unconfirmed* with one attempt.
 
+A query that you ask from the menu of the Stations table (`?APRSP`, `?APRSS`, `?APRSD`, `?APRST`: see [Page](page.md)) is the same: a message to the station sent once, with no id, never retried, kept as *unconfirmed*. The thread shows it as a small grey line in the middle, "You asked for its status" and the time, and not as a bubble with the query in it. The answer is the station's own: a packet, or a message that is a bubble like any other. The same query to the same station is not sent twice within 60 seconds.
+
 ### Attempts
 
 The same frame is sent again until the addressee answers: 4 times in all, and 2 times for the email gateway, because its acks rarely reach you. There is no setting for this. The waits double: the 4 attempts are made 0, 30, 60 and 120 seconds after the first, the 2 to the gateway at 0 and 30. The answer to the last attempt is waited for 240 seconds, then the message has *failed*. A message that was given only 1 or 2 attempts (the gateway's, a bulletin's) is *unconfirmed* instead, since no ack was expected.
@@ -76,7 +78,7 @@ Resize the panel and the layout follows, with the same conversation open.
 
 ### The list
 
-- The conversations are listed with the newest message first. A row has the call (an overheard pair as "OH2AAA > OH2BBB"), the age, the last text on one line ("You: " before one of yours), the number of messages that came in since you last looked, and a trash can at its right end.
+- The conversations are listed with the newest message first. A row has the call (an overheard pair as "OH2AAA > OH2BBB"), the age, the last text on one line ("You: " before one of yours; "You asked for its status" for a query you sent), the number of messages that came in since you last looked, and a trash can at its right end.
 - The open conversation is the filled row. A conversation with messages not seen that is not the open one has its text in bold and a bar at its left. A row is a button, so Tab walks the list.
 - There is no New message button. A chat starts from a station: the **Message** button of its card on the map or in the Stations table opens the conversation, or creates it. In the Stations tab you can also type a call that was never heard into the filter, and **Message OH2XYZ** writes to it all the same.
 - **Show overheard** (with an (i)) at the top of the list is off by default and remembered.

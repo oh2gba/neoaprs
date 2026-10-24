@@ -200,6 +200,16 @@
   border-radius: 16px;
   background: var(--panel);
 }
+/* a query we sent (Ask for status ...): a small grey line in the middle of the thread, not a bubble */
+.asked {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 2px 0;
+  font-size: 12px;
+  text-align: center;
+}
 .bubble.in {
   align-self: flex-start;
   border-bottom-left-radius: 4px;
