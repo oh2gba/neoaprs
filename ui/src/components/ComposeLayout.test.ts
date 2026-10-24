@@ -117,15 +117,15 @@ describe("Email", () => {
 });
 
 describe("Objects", () => {
-  it("has the list and, once New is pressed, the form last in the tab: Pick on the map at its left, the counter, Cancel and Save at its right", async () => {
+  it("has the list and, once New is pressed, the form last in the tab: the counter, Cancel and Save at its right (the map button is in its Location row)", async () => {
     const { wrapper, form } = objects();
     expect(barOf(wrapper).exists()).toBe(false);
     form.start();
     await wrapper.vm.$nextTick();
     expectAtTheBottom(wrapper, ".objectlist");
     expectTheBar(wrapper, "Save", "Cancel");
-    const aside = barOf(wrapper).find(".composebar-aside");
-    expect(aside.findAll("button").map((b) => b.text())).toEqual(["Pick on the map"]);
+    expect(barOf(wrapper).find(".composebar-aside").findAll("button")).toHaveLength(0);
+    expect(barOf(wrapper).find(".location-field button").text()).toBe("Choose on map");
     expect(barOf(wrapper).find(".compose-left").text()).toBe("43 left");
   });
 

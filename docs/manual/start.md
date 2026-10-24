@@ -14,7 +14,7 @@ If the port says *permission denied* on Linux, add yourself to the group that ow
 On a fresh install the page opens a guide in five steps. It opens by itself once, when NeoAPRS has no call. The amber **no call set** button in the header and **Run the setup guide again** in the Settings tab open it again, and what you typed is still there.
 
 1. **Call.** Your call sign, with an SSID if you use one.
-2. **Position.** Press **Pick on the map** and click where you are, or drag the pin. Or open **Enter coordinates or locator** and type latitude and longitude in decimal degrees: north and east positive, south and west negative (Sydney is -33.87, 151.21). A Maidenhead locator works too.
+2. **Position.** Press **Choose on map** and click where you are, or drag the pin. Or open **Enter coordinates or locator** and type latitude and longitude in decimal degrees: north and east positive, south and west negative (Sydney is -33.87, 151.21). A Maidenhead locator works too.
 3. **Symbol.** The twelve usual ones are on top; **More...** opens the picker with every symbol.
 4. **Radio.** The type of TNC, and for a serial one the port and speed, for a TCP one the host and port ([radio.md](radio.md)).
 5. **Map.** The radius of the detailed map and its download. A few minutes of internet are needed, once ([page.md](page.md#the-base-map)).
@@ -45,7 +45,7 @@ Everything NeoAPRS keeps is in one folder, one daemon to a folder. A second daem
 
 The Settings tab and the Beacon tab have no Save button and no Revert. A setting is put in force as you change it, as on a phone.
 
-- A tickbox, a choice from a list, the port list, the symbol and **Pick on the map** apply at once.
+- A tickbox, a choice from a list, the port list, the symbol and **Choose on map** apply at once.
 - A field you type in (the call, the comment, the position, the path) applies when you press Enter or leave the field, never while you type, so a half-typed call or position is never beaconed. Esc puts back the value in force.
 - The page checks the value first and says what is wrong under the field. Nothing is sent until it is right.
 - Fields that belong together are sent as one change: the latitude and the longitude, and the TCP host and port (the TNC restarts once, not twice).

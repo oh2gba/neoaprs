@@ -51,7 +51,7 @@ describe("App: the Objects tab", () => {
       await wrapper.find("#pane-objects .toolbar .btn").trigger("click");
       expect(field(wrapper, "Latitude")?.element.value).toBe("60.17");
       await field(wrapper, "Name")?.setValue("MARK");
-      await button(wrapper, "Pick on the map")?.trigger("click");
+      await button(wrapper, "Choose on map")?.trigger("click");
       FakeMap.last().fire("click", { lngLat: { lat: 60.5, lng: 25.5 } });
       await flushPromises();
       expect(field(wrapper, "Latitude")?.element.value).toBe("60.5");
@@ -182,7 +182,7 @@ describe("App: the Objects tab", () => {
       expect(wrapper.find("#setup-lat").exists()).toBe(true);
       await tabButton(wrapper, "Objects")?.trigger("click");
       await wrapper.find("#pane-objects .toolbar .btn").trigger("click");
-      await button(wrapper, "Pick on the map")?.trigger("click");
+      await button(wrapper, "Choose on map")?.trigger("click");
       FakeMap.last().fire("click", { lngLat: { lat: 59.5, lng: 24.5 } });
       await flushPromises();
       expect(wrapper.find<HTMLInputElement>("#setup-lat").element.value).toBe("59.5");

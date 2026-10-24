@@ -52,11 +52,11 @@ A beacon you send is in the Packets tab as a packet with direction `out`.
 
 ## The location
 
-The Location, in the Station group under the call, has a large **Pick on the map** button. The next click on the map becomes your position, applied at once as latitude and longitude together. The button says Cancel while the map waits.
+The Location is a row of the Station group under the call, like the call itself: the word Location bold in the label column and, in the input column, a **Choose on map** button (full width on a phone). The next click on the map becomes your position, applied at once as latitude and longitude together. The button says Cancel while the map waits.
 
-One line beside it says where you are ("60.42945 N, 24.14524 E · KP20le", with the Maidenhead locator after the dot; "Not set" while there is none).
+One line under the button says where you are ("60.42945 N, 24.14524 E · KP20le", with the Maidenhead locator after the dot; "Not set" while there is none).
 
-The latitude and longitude fields are behind a small **Enter coordinates** heading. It is open while there is no position or one of the fields is wrong, else until you open it. What you type applies together, when you leave the pair and both are right. North and east are positive, south and west negative.
+Under that line the latitude and longitude fields are behind a small **Enter coordinates** heading. It is open while there is no position or one of the fields is wrong, else until you open it. What you type applies together, when you leave the pair and both are right. North and east are positive, south and west negative.
 
 With no position there is no beacon, no station of your own on the map, and the map opens on the world.
 

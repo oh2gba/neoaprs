@@ -249,7 +249,7 @@ export const settings = {
   "settings.check.needs_longitude": "Needed with the longitude",
 
   "settings.location.heading": "Location",
-  "settings.location.pick": "Pick on the map",
+  "settings.location.pick": "Choose on map",
   "settings.location.cancel": "Cancel",
   "settings.location.not_set": "Not set",
   "settings.location.enter": "Enter coordinates",

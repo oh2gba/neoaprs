@@ -316,7 +316,6 @@ export const de: Catalogue = {
   "objects.field.speed": "Geschwindigkeit",
   "objects.field.path": "Pfad",
   "objects.unit.deg": "Grad",
-  "objects.form.pick": "Auf der Karte wählen",
   "objects.form.cancel": "Abbrechen",
   "objects.form.save": "Speichern",
 
@@ -967,7 +966,7 @@ export const de: Catalogue = {
   "settings.check.needs_longitude": "Nötig zusammen mit der Länge",
 
   "settings.location.heading": "Standort",
-  "settings.location.pick": "Auf der Karte wählen",
+  "settings.location.pick": "Auf Karte wählen",
   "settings.location.cancel": "Abbrechen",
   "settings.location.not_set": "Nicht gesetzt",
   "settings.location.enter": "Koordinaten eingeben",

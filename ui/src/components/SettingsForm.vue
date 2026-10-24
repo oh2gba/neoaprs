@@ -76,7 +76,7 @@ function editSymbol(text: string): void {
   settings.edit(SYMBOL_TABLE, text.slice(0, 1));
   settings.edit(SYMBOL_CODE, text.slice(1, 2));
 }
-// a place picked on the map (the Beacon tab's Pick on the map) is our station's latitude and longitude, sent together
+// a place picked on the map (the Beacon tab's Choose on map) is our station's latitude and longitude, sent together
 watch(
   () => props.picked,
   (at) => {

@@ -68,15 +68,30 @@ describe("BeaconPane", () => {
     expect(wrapper.find(".beacon-preview").text()).toContain("make no packet");
   });
 
-  it("has the Location sub-section, with the big Pick on the map button, between the call and the symbol", () => {
+  it("has the Location row, with the Choose on map button, between the call and the symbol", () => {
     const { wrapper } = pane();
-    expect(wrapper.find("button.location-pick").text()).toBe("Pick on the map");
+    expect(wrapper.find("button.location-pick").text()).toBe("Choose on map");
     expect(
       wrapper
-        .findAll("form h3, form .field label")
+        .findAll("form .field label, form .field .field-label")
         .map((e) => e.text())
         .slice(0, 5),
     ).toEqual(["Call", "Location", "Latitude", "Longitude", "Symbol"]);
+  });
+
+  it("lays the Location out as the Call is: the label in the first column, the button, the place and Enter coordinates in the second", () => {
+    const { wrapper } = pane();
+    const row = wrapper.find(".location-field");
+    const call = wrapper.find("#set-station-call").element.closest(".field");
+    expect(row.element.classList.contains("field")).toBe(true);
+    expect(row.element.previousElementSibling).toBe(call);
+    expect([...row.element.children].map((c) => c.className.split(" ")[0])).toEqual(["field-label", "field-control"]);
+    expect(row.find(".field-label").text()).toBe("Location");
+    expect(row.find(".field-label").element.nextElementSibling).toBe(row.find(".field-control").element);
+    expect(call?.querySelector(".field-control")?.tagName).toBe("DIV");
+    expect([...row.find(".field-control").element.children].map((c) => c.className.split(" ")[0])).toEqual(["btn", "location-line", "disclosure"]);
+    expect(row.find(".disclosure summary").text()).toBe("Enter coordinates");
+    expect(wrapper.find("h3.subgroup").exists()).toBe(false);
   });
 
   describe("Beacon now, in the Beacon group", () => {

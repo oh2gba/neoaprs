@@ -9,12 +9,12 @@ Objects of other stations that you hear are stations of their own on the map, na
 
 ## Making one
 
-**New** opens the form at the bottom of the tab, under the list of your objects (oldest first, scrolled to the newest, so that it is next to the form). It is the box that every tab writes in; its fields scroll on a short screen. The line under them has **Pick on the map** at the left and, at the right, "N left" for the comment, **Cancel** and **Save**.
+**New** opens the form at the bottom of the tab, under the list of your objects (oldest first, scrolled to the newest, so that it is next to the form). It is the box that every tab writes in; its fields scroll on a short screen. The line under them has, at the right, "N left" for the comment, **Cancel** and **Save**. **Esc** closes the form without saving, as Cancel does (a field that still has text keeps its first Esc; while the map waits for a click, Esc ends that first).
 
 - **Name.** Printable ASCII, case-sensitive, none of `!`, `_`, `|` and `~`, no blank at either end. It is never your own call, and never the call of a station that was heard.
 - **Object or item.**
 - **Symbol.** A picture and its name, as in the Beacon tab: Change opens the picker.
-- **Position.** Typed, or **Pick on the map** and a click on the map; the form shows a pin where it is.
+- **Location.** As in the Beacon tab: a **Choose on map** button and a click on the map (Cancel while the map waits), the place as one line under it, and the latitude and longitude behind **Enter coordinates**, which is open while the place is missing or wrong. The form shows a pin where it is.
 - **Comment.** 43 characters, 36 behind a course and speed.
 - **Course** in degrees and **speed** in km/h: each, both or neither.
 - **Path.** The placeholder is the beacon's path, which an empty field means. Up to 8 digipeaters. `RFONLY` or `NOGATE` in it keeps the iGates from putting it on the internet.

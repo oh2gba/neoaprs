@@ -228,7 +228,7 @@
 .mapnote-box .btn {
   pointer-events: auto;
 }
-/* The map waits for a click that sets a place (the setup guide's position, an object's Pick on the map): a crosshair instead of the hand. */
+/* The map waits for a click that sets a place (the setup guide's position, an object's Choose on map): a crosshair instead of the hand. */
 .map-picking .maplibregl-canvas-container.maplibregl-interactive,
 .map-picking .maplibregl-canvas-container.maplibregl-interactive:active {
   cursor: crosshair;

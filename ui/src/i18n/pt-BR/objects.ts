@@ -29,7 +29,6 @@ export const objects: Record<keyof typeof source, Message> = {
   "objects.field.speed": "Velocidade",
   "objects.field.path": "Caminho",
   "objects.unit.deg": "graus",
-  "objects.form.pick": "Escolher no mapa",
   "objects.form.cancel": "Cancelar",
   "objects.form.save": "Salvar",
 

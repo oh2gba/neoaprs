@@ -28,7 +28,6 @@ export const objects: Readonly<Record<keyof typeof en, Message>> = {
   "objects.field.speed": "Velocità",
   "objects.field.path": "Percorso",
   "objects.unit.deg": "°",
-  "objects.form.pick": "Scegli sulla mappa",
   "objects.form.cancel": "Annulla",
   "objects.form.save": "Salva",
 

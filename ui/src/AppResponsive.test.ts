@@ -329,7 +329,7 @@ describe("what a phone shows", () => {
     await wrapper.find("#tab-beacon").trigger("click");
     await wrapper
       .findAll("#pane-beacon .btn")
-      .find((b) => b.text() === "Pick on the map")
+      .find((b) => b.text() === "Choose on map")
       ?.trigger("click");
     expect(root(wrapper)).toContain("view-map");
     expect(wrapper.find(".pickbar").exists()).toBe(true);
@@ -350,7 +350,7 @@ describe("what a phone shows", () => {
       ?.trigger("click");
     await wrapper
       .findAll("#pane-objects .btn")
-      .find((b) => b.text() === "Pick on the map")
+      .find((b) => b.text() === "Choose on map")
       ?.trigger("click");
     expect(root(wrapper)).toContain("view-map");
     await wrapper.find(".pickbar .btn").trigger("click");
