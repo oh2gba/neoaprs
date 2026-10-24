@@ -797,18 +797,18 @@ async def test_the_copies_of_a_message_within_ten_seconds_get_one_ack_between_th
     assert sum("not acked again" in r.getMessage() for r in caplog.records) == 2, "the copies that were not answered are noted in the log"
 
 
-async def test_a_copy_more_than_ten_seconds_after_our_last_ack_is_acked_again_and_ten_seconds_is_not_enough(rig: Rig) -> None:
+async def test_a_copy_thirty_seconds_or_more_after_our_last_ack_is_acked_again_and_29_seconds_is_not_enough(rig: Rig) -> None:
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "Moi!", "12"))
-    rig.clock.advance(10)
+    rig.clock.advance(29)
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "Moi!", "12"))
-    assert len(rig.tnc.sent) == 1, "exactly ten seconds is not more than ten seconds"
-    rig.clock.advance(1)                                                          # (11 s after the first ack)
-    rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "Moi!", "12"))
-    assert len(rig.tnc.sent) == 2
-    rig.clock.advance(5)                                                          # (the ten seconds count from the last ack, not from the first)
+    assert len(rig.tnc.sent) == 1, "a digipeater drops a duplicate for 30 s: an ack again within them would be lost"
+    rig.clock.advance(1)                                                          # (30 s after the first ack)
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "Moi!", "12"))
     assert len(rig.tnc.sent) == 2
-    rig.clock.advance(6)
+    rig.clock.advance(15)                                                         # (the thirty seconds count from the last ack, not from the first)
+    rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "Moi!", "12"))
+    assert len(rig.tnc.sent) == 2
+    rig.clock.advance(15)
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "Moi!", "12"))
     await rig.settled()
     assert len(rig.tnc.sent) == 3 and len(rig.m.records()) == 1
@@ -824,13 +824,13 @@ async def test_a_copy_after_half_an_hour_is_a_new_message_and_is_acked(rig: Rig)
     assert len(rig.tnc.sent) == 2 and len(rig.m.records()) == 2
 
 
-async def test_a_copy_an_igate_put_on_the_air_within_ten_seconds_of_our_ack_is_not_acked_and_one_after_them_is(rig: Rig) -> None:
+async def test_a_copy_an_igate_put_on_the_air_within_thirty_seconds_of_our_ack_is_not_acked_and_one_after_them_is(rig: Rig) -> None:
     gated = replace(rig.heard("OH7JHF-1", "OH2GBA", "Moi!", "12"), source="OH7JHF-1", third_party=ThirdParty("OH2RDG", "APRS", ("TCPIP", "OH7JHF-1*")))
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "Moi!", "12"))
     rig.clock.advance(4)
     rig.m.on_packet(replace(gated, heard_at=rig.clock()))
     assert len(rig.tnc.sent) == 1, "the sender inside the frame is the same station: the same message"
-    rig.clock.advance(7)
+    rig.clock.advance(26)
     rig.m.on_packet(replace(gated, heard_at=rig.clock()))
     await rig.settled()
     assert len(rig.tnc.sent) == 2 and len(rig.m.records()) == 1 and rig.m.records()[0].route == "via ? → OH2RCH-2"

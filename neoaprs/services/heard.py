@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from neoaprs.message import MessageRecord
 
 DUPLICATE_WINDOW_SEC = 30 * 60
-ACK_AGAIN_SEC = 10                                          # a copy of a message is acked again only when it comes more than this long after our last ack of it
+ACK_AGAIN_SEC = 30                                          # a copy of a message is acked again only when it comes at least this long after our last ack of it (digipeaters drop a duplicate for 30 s)
 
 
 class Heard:
@@ -40,12 +40,12 @@ class Heard:
 
     def ack_due(self, record: MessageRecord, at: datetime) -> bool:
         """Whether to ack the message heard at `at`, and if so notes that we did. The first copy is acked at once; a further copy of the same message (the burst of a sender, two digipeaters and an iGate)
-        only when more than ACK_AGAIN_SEC have passed since our last ack of it, which is a sender that did not hear us and tries again."""
+        only when at least ACK_AGAIN_SEC have passed since our last ack of it, which is a sender that did not hear us and tries again."""
         key = self.key_of(record)
         if key is None:
             return False
         before = self._acked.get(key)
-        if before is not None and at - before <= timedelta(seconds=ACK_AGAIN_SEC):
+        if before is not None and at - before < timedelta(seconds=ACK_AGAIN_SEC):
             return False
         self._acked[key] = at
         return True

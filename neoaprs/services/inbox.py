@@ -1,5 +1,5 @@
 """What messaging does with the packets the Tnc hears: a message to us is kept (state "received") and, when it carries an id, answered at once with an ack; the same id and text from the same station
-within DUPLICATE_WINDOW_SEC is not kept again, and is answered again only when it comes more than ACK_AGAIN_SEC after our last ack of it (the copies of one burst get one ack); a message to another
+within DUPLICATE_WINDOW_SEC is not kept again, and is answered again only when it comes at least ACK_AGAIN_SEC after our last ack of it (the copies of one burst get one ack); a message to another
 station is kept as "overheard"; an ack or a rej to us settles the message of ours that it quotes. A packet from our own call (a digipeater's copy of a message we sent, or an iGate's) is no message to keep: it is
 handed to the host, which links it to the message it is a copy of (services/delivery.py).
 

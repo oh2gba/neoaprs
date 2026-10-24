@@ -95,7 +95,7 @@ groups are the board's. Every message is a row of the table `message`, so a rest
 - **While the TNC is away** an attempt that is due waits, none is used up, and the waits that were running are moved on by the time the radio was away.
 - **The pace** is `SPACING_SEC` (10 s) in `neoaprs/services/pace.py`: our own attempts go out one at a time, at least that far apart. Acks and the answers to queries are not held back.
 - **Receiving.** A message is for us when its addressee is `station/call` with its SSID exactly. `neoaprs/services/inbox.py` takes what the Tnc hears;
-  `neoaprs/services/heard.py` holds the repeats already heard and when each was last acked, in memory. The ack goes by the sender's path.
+  `neoaprs/services/heard.py` holds the repeats already heard and when each was last acked, in memory; a copy is acked again only `ACK_AGAIN_SEC` (30 s, the digipeaters' duplicate window) or more after our last ack of it. The ack goes by the sender's path.
 - **The delivery chain** (`neoaprs/services/delivery.py`). A copy of one of our own messages that the radio hears again (same addressee, id and text from our
   call; also one an iGate gated back as a third-party packet) is linked to the message and to the attempt it belongs to, the latest attempt sent before it was
   heard. Each attempt keeps when it was sent and the digipeaters it went by (the table `message_attempt`), and each hop that a copy was heard with its

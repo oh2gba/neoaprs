@@ -74,7 +74,7 @@ async def test_a_message_sent_to_us_is_kept_and_the_ack_is_on_the_line_and_in_th
     assert [p.direction for p in reversed(await e.packets())] == ["in", "out"], "the message, then our ack"
     station = e.ctl.stationbook.get("OH2RDG-7")
     assert station is not None and station.packets == 1
-    e.now.advance(11)                                                        # type: ignore[attr-defined]  (it did not hear the ack: it sends it again, and that is more than ten seconds after our ack)
+    e.now.advance(30)                                                        # type: ignore[attr-defined]  (it did not hear the ack: it sends it again, and that is thirty seconds after our ack)
     e.feed(on_air("OH2RDG-7", message_info("OH2GBA", "Moi!", "12")))
     await until(lambda: e.tnc.stats.packets == 2)
     assert len(await said(e)) == 1
@@ -188,7 +188,7 @@ async def test_a_message_the_internet_sent_is_received_once_and_acked_to_the_inn
     await until(lambda: len(e.ctl.messaging.records()) == 1)
     e.feed(on_air("OH2BEA-9", message_info("OH2GBA", "Test ok", "06"), path=""))     # (the same message, heard direct as well)
     await until(lambda: e.tnc.stats.packets == 2)
-    assert await said(e, 1, 0.3) == [], "the copy that came direct, within ten seconds of our ack, is not acked again"
+    assert await said(e, 1, 0.3) == [], "the copy that came direct, within thirty seconds of our ack, is not acked again"
     [row] = await kept(e)
     assert (row.from_call, row.to_call, row.text, row.msg_id, row.state) == ("OH2BEA-9", "OH2GBA", "Test ok", "06", "received")
     assert row.route == "via OH7JHF-1 (internet) → OH2RCH-3", "the copy that came first is the one that was kept"

@@ -37,6 +37,7 @@ Closer to the APRS standard.
 
 - The fill-in digipeater repeats a third-party packet (an iGate putting a message from the internet on the air with `WIDE1-1`): only the path before the `}` counts, as APRS 1.2 says. A packet whose own path has `TCPIP` or `TCPXX` is still not repeated.
 - A message from a station on the internet whose name is no radio call (a D-STAR `-L`, an SSID above 15, a name such as `WINLINK`) is shown and acked, and can be answered. Before, it was not recognised as a message, so the sender tried until it gave up.
+- A repeated copy of a message to you is acked again only 30 seconds or more after the last ack (was 10): the digipeaters drop a second ack within 30 seconds anyway.
 
 ## 0.6.7
 
