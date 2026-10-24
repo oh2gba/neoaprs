@@ -8,6 +8,7 @@ import pytest
 
 from neoaprs import migrations as migrations_module
 from neoaprs.migrations import MIGRATIONS, SCHEMA_VERSION, source_hash
+from neoaprs.migrations2 import MIGRATION_LOG
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
 from tests.support.migrated import opened, try_open
@@ -63,7 +64,7 @@ def test_a_second_open_migrates_nothing_and_keeps_the_rows(tmp_path: Path, caplo
     s = opened(path)
     s.db.execute("INSERT INTO settings (key, value) VALUES ('station/call', 'OH2GBA')")
     s.close()
-    caplog.set_level(logging.INFO, "neoaprs.store")
+    caplog.set_level(logging.INFO, MIGRATION_LOG)
     s = opened(path)
     assert s.db.execute("SELECT key, value FROM settings").fetchall() == [("station/call", "OH2GBA")]
     assert [r[0] for r in s.history()] == list(range(1, SCHEMA_VERSION + 1))
@@ -189,7 +190,7 @@ def test_history_records_when_and_what_and_flags_a_migration_that_was_edited_sin
                                                                                         (5, "_v5", GOLDEN[5], clock.now, ""), (6, "_v6", GOLDEN[6], clock.now, ""), (7, "_v7", GOLDEN[7], clock.now, ""), (8, "_v8", GOLDEN[8], clock.now, ""), (9, "_v9", GOLDEN[9], clock.now, ""),
                                                                                         (10, "_v10", GOLDEN[10], clock.now, ""), (11, "_v11", GOLDEN[11], clock.now, ""), (12, "_v12", GOLDEN[12], clock.now, ""), (13, "_v13", GOLDEN[13], clock.now, ""), (14, "_v14", GOLDEN[14], clock.now, ""), (15, "_v15", GOLDEN[15], clock.now, ""), (16, "_v16", GOLDEN[16], clock.now, "")]
     s.close()
-    caplog.set_level(logging.WARNING, "neoaprs.store")
+    caplog.set_level(logging.WARNING, MIGRATION_LOG)
     opened(path).close()
     assert not [r for r in caplog.records if "source has changed" in r.getMessage()]
     tampered = raw(path)
@@ -205,7 +206,7 @@ def test_a_history_row_of_a_step_this_program_does_not_know_is_told(tmp_path: Pa
     db = raw(path)
     db.execute("INSERT INTO schema_history (version, name, sha256, applied) VALUES (?, ?, 'x', 0)", (NEXT, f"_v{NEXT}"))
     db.close()
-    caplog.set_level(logging.WARNING, "neoaprs.store")
+    caplog.set_level(logging.WARNING, MIGRATION_LOG)
     opened(path).close()
     assert any(f"a step {NEXT} that this NeoAPRS does not know" in r.getMessage() for r in caplog.records)
 

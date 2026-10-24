@@ -26,10 +26,12 @@ from neoaprs.daemon import _LogFile, _poll_for_signals, _stop_on_signals, setup_
 from neoaprs.migrations import SCHEMA_VERSION
 from neoaprs.store import DB_NAME
 from tests.conftest import ROOT
+from tests.support.clock import FixedClock
 from tests.support.env import idle_for
 from tests.support.files import fixture_bytes
 from tests.support.proc import NEW_GROUP, WINDOWS, send, stop
 from tests.support.ptyline import posix_only
+from tests.test_migration_settings_reset import version_fifteen
 
 _radios: list[socket.socket] = []
 # A program that is stopped by a signal is stopped the way its system does: on Windows only Ctrl+Break reaches a child, and only one in a process group of its own (SIGTERM there is a kill).
@@ -115,6 +117,20 @@ def test_the_daemon_starts_makes_its_database_and_stops_cleanly_on_a_signal(tmp_
     db = sqlite3.connect(data / DB_NAME)
     assert db.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION and db.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
     db.close()
+
+
+def test_the_lines_of_a_migration_are_in_the_log_and_on_stderr_where_the_journal_has_them(tmp_path: Path) -> None:
+    data = tmp_path / "data"
+    data.mkdir()
+    version_fifteen(data / DB_NAME, FixedClock(), {"map/maxzoom": "14", "update/url": "http://localhost:9/v.php", "station/call": "OH2GBA"})
+    proc = start(data)
+    wait_for(data / "neoaprs.log", f"{PROGRAM} is running", proc)
+    stop(proc)
+    out, err = ended(proc, data)
+    log = (data / "neoaprs.log").read_text(encoding="utf-8")
+    for line in ("map/maxzoom reset to the default: 14 → 12", "update/url reset to the default: http://localhost:9/v.php → https://oh2gba.eu/neoaprs/version.php", "is now version 16 (was 15)"):
+        assert line in log and line in err, (line, log, err)
+    assert " INFO  starting" not in err and "is running" not in err, "the rest of the INFO lines stay in the log file"
 
 
 @posix_only      # (modes)

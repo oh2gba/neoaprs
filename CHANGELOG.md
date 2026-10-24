@@ -6,6 +6,10 @@ The Stations list.
 
 - The tickbox **with position only** is gone: the stations without a position show as they do with it off.
 
+The log.
+
+- The lines of the database migrations (for the upgrade that put the settings that are not on the page back to their defaults: one line for each, with the value it had) are on stderr too, so that `journalctl --user -u neoaprs` has them, not only `neoaprs.log`. `neoaprs db set` on a database of an older version says them on its stderr. Their logger is `neoaprs.migrations`.
+
 The Email tab.
 
 - **Esc** in the box to write a mail closes the list of addresses used before; with none open, it clears the address and the text being written.

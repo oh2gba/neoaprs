@@ -1,7 +1,7 @@
 """The daemon: python -m neoaprs [--data DIR] [--port PATH] [--web-port N] [--debug]
 
 One process, one asyncio loop. Everything NeoAPRS keeps is in one database, data/neoaprs.sqlite; the log is data/neoaprs.log, rotated and bounded; only what matters for `systemctl status`
-goes to stderr. SIGTERM, SIGINT and SIGHUP (on Windows SIGINT, SIGTERM and SIGBREAK) end the program the same way, and so does the file `neoaprs.stop` in the data folder (`neoaprs stop`, neoaprs/stopfile.py). Exit code 2: the database cannot be used, or another NeoAPRS has the data folder; a
+goes to stderr (warnings, errors and the lines of the migrations). SIGTERM, SIGINT and SIGHUP (on Windows SIGINT, SIGTERM and SIGBREAK) end the program the same way, and so does the file `neoaprs.stop` in the data folder (`neoaprs stop`, neoaprs/stopfile.py). Exit code 2: the database cannot be used, or another NeoAPRS has the data folder; a
 restart would not cure either (the unit does not restart on it).
 The page is served by neoaprs/web/server.py on web/port of the settings (default http://127.0.0.1:7303/; web/network opens it to the network), or on the next free port of the ten after it; the log says where ("web page at ..."), and
 when none of them is free the daemon runs without the page.
@@ -25,6 +25,7 @@ from .config import Config
 from .controller import Controller
 from .dberror import SqlError, StoreError
 from .instancelock import AlreadyRunning, InstanceLock
+from .migrations2 import MIGRATION_LOG
 from .paths import default_data_dir
 from .cli.installkind import detect_here
 from .cli.servicecmd import appimage_file
@@ -66,6 +67,11 @@ class _LogFile(logging.handlers.RotatingFileHandler):
                 self.stream = self._open()
 
 
+def _for_stderr(record: logging.LogRecord) -> bool:
+    """What goes to stderr, and so to the journal: warnings and errors, and the lines of the migrations (once per upgrade, and they say what was changed in what the operator stored)."""
+    return record.levelno >= logging.WARNING or record.name == MIGRATION_LOG
+
+
 def setup_logging(data_dir: Path, debug: bool) -> None:
     # the level is in the line so that a health check tells an error from a line that only contains the word by what the log says it is
     fmt = _UtcFormatter("%(asctime)sZ  %(levelname)s  %(message)s", "%Y-%m-%d %H:%M:%S")
@@ -77,7 +83,7 @@ def setup_logging(data_dir: Path, debug: bool) -> None:
     root.addHandler(file_handler)
     if sys.stderr is not None:                               # (a program without a console, pythonw or a windowed build, has none)
         err = logging.StreamHandler(sys.stderr)
-        err.setLevel(logging.WARNING)
+        err.addFilter(_for_stderr)
         err.setFormatter(fmt)
         root.addHandler(err)
     logging.getLogger("tornado.access").setLevel(logging.WARNING)
