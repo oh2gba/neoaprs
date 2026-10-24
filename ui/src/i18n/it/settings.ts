@@ -145,6 +145,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
     "Serve per le notifiche sui telefoni e per installare NeoAPRS come app. I browser mostrano un avviso la prima volta; puoi proseguire comunque, oppure installare il certificato di NeoAPRS su ogni dispositivo per far sparire l’avviso.",
 
   "settings.radius.name": "Raggio della mappa",
+  "settings.station_hours.name": "Tempo sulla mappa",
   "settings.radius.label": "Raggio",
   "settings.radius.tip_label": "Informazioni sul raggio",
   "settings.radius.tip1":

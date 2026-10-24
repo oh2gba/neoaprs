@@ -78,6 +78,8 @@ export const stations: Readonly<Record<keyof typeof en, Message>> = {
   "station.table.filter_label": "Filtra le stazioni",
   "station.table.hide_timed_out": "nascondi scadute",
   "station.table.direct_only": "solo dirette",
+  "station.table.on_map": "Sulla mappa per",
+  "station.table.hours": "{n} h",
   "station.table.call": "Nominativo",
   "station.table.bearing": "azimut",
   "station.table.none_yet": "Ancora nessuna stazione ricevuta.",

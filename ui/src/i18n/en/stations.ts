@@ -77,6 +77,8 @@ export const stations = {
   "station.table.filter_label": "Filter the stations",
   "station.table.hide_timed_out": "hide timed out",
   "station.table.direct_only": "direct only",
+  "station.table.on_map": "On map for",
+  "station.table.hours": "{n} h",
   "station.table.call": "Call",
   "station.table.bearing": "bearing",
   "station.table.none_yet": "No station heard yet.",

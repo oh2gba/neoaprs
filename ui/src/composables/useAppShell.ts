@@ -26,7 +26,7 @@ import { useStationActions } from "@/composables/useStationActions";
 import { useStationCards } from "@/composables/useStationCards";
 import { useStationPrefs } from "@/composables/useStationPrefs";
 import { useTitle } from "@/composables/useTitle";
-import { DEFAULT_TIMEOUT_MIN, type Aging } from "@/lib/aging";
+import { agingOf, type Aging } from "@/lib/aging";
 import { pathCalls } from "@/lib/calls";
 import { recommendedPath } from "@/lib/symbols";
 import type { ConfigValues } from "@/protocol/protocol";
@@ -58,7 +58,7 @@ function useDerived(daemon: ReturnType<typeof useDaemon>) {
     prefs,
     now: useNow(),
     dark: useDark(),
-    aging: computed<Aging>(() => ({ defaultMin: DEFAULT_TIMEOUT_MIN })),
+    aging: computed<Aging>(() => agingOf(config.value?.values)),
     call: computed<string | null>(() => config.value?.values["station/call"] ?? status.value?.call ?? null),
     home: useHome(config, status),
     fallbackPath: computed(() => {

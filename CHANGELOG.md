@@ -15,6 +15,10 @@ Weather graphs that bridge the gaps.
 - A weather card's graphs (temperature, pressure, wind and gusts) draw each line as one smooth curve through the readings, across the hours where the station sent none, where a gap used to leave short broken pieces and lone dashes. The curve is a monotone cubic (Fritsch-Carlson): it never rises above or falls below the readings it runs between, so a pressure curve does not invent a peak. It starts at the first reading and ends at the last, and a single reading is still a dot.
 - The lighter band between the wind and its gusts follows the same two curves. The rain stays bars, with no bar for an hour with no reading.
 
+How long a station stays on the map.
+
+- The Stations tab has a choice **On map for** in its filter row: 1, 3, 6, 12 or 24 hours after a station's last position (3 by default). It replaces the fixed 3 hours: it is one setting of the daemon, `map/station_hours` (also for `neoaprs db set`), so every browser and device shows the same, and a change applies at once with an Undo. The map, the tracks and the dimmed "timed out" rows of the table follow it. Your own station and objects never leave the map, and the daemon still keeps stations for 7 days. The old `map/hide_after_min` is not used again; the page's limits `LIMITS.station.hideAfterMin` became `LIMITS.station.hours` and `defaultHours`.
+
 Objects.
 
 - The Objects form no longer has a choice between Object and Item: a new one is always an object, which is what the specification recommends on RF. An item you made before is still in the list, on the map and on the air, and can be changed and killed until you delete it.

@@ -78,13 +78,13 @@ describe("StationsTable with several cards", () => {
     }
   });
 
-  it("wraps the filter row instead of cutting it off: the box has a width to keep, the three tickboxes are one group that wraps itself, and a phone puts them under the box", () => {
+  it("wraps the filter row instead of cutting it off: the box has a width to keep, the tickboxes and the select of the hours are one group that wraps itself, and a phone puts them under the box", () => {
     const wrapper = make();
     expect(wrapper.find(".toolbar").classes()).not.toContain("nowrap");
     expect(cssRule(".toolbar")).toMatch(/flex-wrap:\s*wrap/);
     expect(cssRule(".filterbox")).toMatch(/flex:\s*1 1 12em/);
     expect(cssRule(".filterbox")).toMatch(/min-width:\s*min\(12em, 100%\)/);
-    expect(wrapper.findAll(".toolbar > .toolbar-checks > label.check")).toHaveLength(2);
+    expect(wrapper.findAll(".toolbar > .toolbar-checks > label.check")).toHaveLength(3);
     expect(cssRule(".toolbar-checks")).toMatch(/flex-wrap:\s*wrap/);
     expect(cssRule(".size-phone .toolbar .filterbox")).toMatch(/flex:\s*1 1 100%/);
   });

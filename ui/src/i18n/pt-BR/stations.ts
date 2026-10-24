@@ -79,6 +79,8 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.table.filter_label": "Filtrar as estações",
   "station.table.hide_timed_out": "ocultar expiradas",
   "station.table.direct_only": "só diretas",
+  "station.table.on_map": "No mapa por",
+  "station.table.hours": "{n} h",
   "station.table.call": "Indicativo",
   "station.table.bearing": "marcação",
   "station.table.none_yet": "Nenhuma estação recebida ainda.",

@@ -51,6 +51,7 @@ The table below is made from the program, so it lists every setting there is, wi
 | `messages/alert_command` | a notification and a sound | Settings tab, Notifications (Command) | the shell line that is run (at most 1000 characters; empty runs nothing). The default shows a notification and plays a sound, in a form that suits the system |
 | `map/radius_km` | `150` | Settings tab, Map (Radius) | the detailed base map covers a square this far from your position in every direction (10 to 1000 km). Read when the map is made ([page.md](page.md#the-base-map)) |
 | `map/maxzoom` | `12` | `neoaprs db set` only | the deepest zoom the detailed map has tiles for (6 to 15): 10 shows towns, 12 streets, 14 houses. The page's Download map uses the stored value |
+| `map/station_hours` | `3` | Stations tab, On map for | how many hours after its last position a station stays on the map: 1, 3, 6, 12, 24. The same for every station, in every browser; your own station and objects never leave. The Stations table keeps a station that has left the map, dim |
 | `map/source` | empty | `neoaprs db set` only | where the map is cut from: empty is the latest daily build of build.protomaps.com; or a web address (`https://...`) or the path of a PMTiles file, such as a planet file of your own |
 | `update/url` | `https://oh2gba.eu/neoaprs/version.php` | `neoaprs db set` only | the address of the version page that the daily update check asks (`http` or `https`; [install.md](install.md#the-update-check)) |
 | `digi/enabled` | `false` | Settings tab, Digipeater | `true` switches the fill-in digipeater on ([beacon.md](beacon.md#the-fill-in-digipeater)) |
@@ -62,7 +63,6 @@ These are not settings. They are fixed by design, and no field or `neoaprs db se
 
 <!-- doc-settings:fixed -->
 - Packets, weather observations and stations are kept 7 days and cleaned up once a day. Messages and bulletins are kept until you delete them.
-- A station leaves the map 180 minutes (3 hours) after its last position.
 - The keep-alive asks a TNC that can be asked after 10 minutes of silence on the line (and a random minute or two more).
 - A message to a station is sent 4 times, and one to the email gateway 2 times, before it has failed or is unconfirmed.
 - Your own frames go out at least 10 seconds apart, except acks, answers to queries and digipeated packets.

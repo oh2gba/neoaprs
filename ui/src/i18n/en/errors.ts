@@ -57,6 +57,7 @@ export const errors = {
   "error.setting.not_access_key": "it is not an access key (three groups of four digits and letters, such as k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "it has characters that are not printable ASCII",
   "error.setting.not_boolean": "'{value}' is not true or false",
+  "error.setting.not_among": "{value} is not one of {choices}",
   "error.setting.not_direction": "'{value}' is not omni or one of N NE E SE S SW W NW",
   "error.setting.not_globs": "'{value}' is not one or more absolute patterns separated by spaces, such as /dev/ttyUSB*",
   "error.setting.not_host": "'{value}' is not an address or a name",

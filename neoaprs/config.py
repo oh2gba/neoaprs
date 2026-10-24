@@ -14,7 +14,7 @@ from .callsign import call_problem
 from .coded import CodedError, Param
 from .configlegacy import with_legacy
 from .configstatus import DEFAULT_STATUS_TEMPLATE, MAX_STATUS, hostport, status_source, status_template, status_text
-from .configtypes import access_key, boolean, call_or_empty, int_in, int_or_off, optional_float, optional_int, over_the_air_refusal, text_of, web_address
+from .configtypes import access_key, boolean, call_or_empty, int_among, int_in, int_or_off, optional_float, optional_int, over_the_air_refusal, text_of, web_address
 from .message import path_choice
 from .route import DIRECT_ONLY, recommended_path
 from .tncprofile import DEFAULT as DEFAULT_PROFILE, Profile, names_tcp, profile_of
@@ -39,6 +39,8 @@ MAX_ALERT_COMMAND = 1000             # the longest line of messages/alert_comman
 MAX_MAP_SOURCE = 500                 # the longest map/source
 MAP_RADIUS_KM = (10, 1000)           # map/radius_km: the area of the detailed map round the station
 MAP_MAXZOOM = (6, 15)                # map/maxzoom: the deepest zoom of the detailed map
+STATION_HOURS = (1, 3, 6, 12, 24)  # map/station_hours: the hours after its last position that a station stays on the map (the page hides it then; the table keeps it): the choices of the Stations tab
+DEFAULT_STATION_HOURS = 3
 LATITUDE = (-90.0, 90.0)
 LONGITUDE = (-180.0, 180.0)
 RANGES: dict[str, tuple[int, int]] = {          # the whole numbers of the settings and what each may be, from the least to the most: also the page's (LIMITS of ui/src/protocol/lists.ts)
@@ -186,6 +188,7 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("status_template", "status/template", status_template),                         # the text of a status made from the radio: {freq} and {mode}
     Setting("map_radius_km", "map/radius_km", int_in(*RANGES["map/radius_km"])),      # the detailed base map covers a square this far from our position in every direction
     Setting("map_maxzoom", "map/maxzoom", int_in(*RANGES["map/maxzoom"])),            # and goes down to this zoom (10 towns, 12 streets, 14 houses)
+    Setting("map_station_hours", "map/station_hours", int_among(STATION_HOURS)),     # how long a station stays on the map after its last position (the Stations tab chooses; our own station and objects stay)
     Setting("map_source", "map/source", _map_source),                       # where the map is cut from; empty: the latest daily build of build.protomaps.com
     Setting("update_url", "update/url", web_address),                         # that page: it is sent this program's version and platform and nothing else
     Setting("digi_enabled", "digi/enabled", boolean),                         # true: a packet that asks for WIDE1-1, or for our call, is sent again by our radio (services/digipeater.py)
@@ -234,6 +237,7 @@ class Config:
     status_template: str = DEFAULT_STATUS_TEMPLATE
     map_radius_km: int = 150
     map_maxzoom: int = 12
+    map_station_hours: int = DEFAULT_STATION_HOURS
     map_source: str = ""
     update_url: str = UPDATE_URL
     digi_enabled: bool = False

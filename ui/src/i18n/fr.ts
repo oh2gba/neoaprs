@@ -117,6 +117,7 @@ export const fr: Catalogue = {
   "error.setting.not_access_key": "ce n'est pas une clé d'accès (trois groupes de quatre chiffres et lettres, comme k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "il contient des caractères qui ne sont pas de l'ASCII imprimable",
   "error.setting.not_boolean": "« {value} » n'est ni true ni false",
+  "error.setting.not_among": "{value} n'est pas l'une des valeurs {choices}",
   "error.setting.not_direction": "« {value} » n'est ni omni ni l'un de N NE E SE S SW W NW",
   "error.setting.not_globs": "« {value} » n'est pas un ou plusieurs motifs absolus séparés par des espaces, comme /dev/ttyUSB*",
   "error.setting.not_host": "« {value} » n'est ni une adresse ni un nom",
@@ -414,6 +415,8 @@ export const fr: Catalogue = {
   "station.table.filter_label": "Filtrer les stations",
   "station.table.hide_timed_out": "masquer les expirées",
   "station.table.direct_only": "en direct seulement",
+  "station.table.on_map": "Sur la carte pendant",
+  "station.table.hours": "{n} h",
   "station.table.call": "Indicatif",
   "station.table.bearing": "cap",
   "station.table.none_yet": "Aucune station entendue pour l'instant.",
@@ -883,6 +886,7 @@ export const fr: Catalogue = {
     "Nécessaire pour les fenêtres de notification sur téléphone et pour installer NeoAPRS comme application. Les navigateurs affichent un avertissement la première fois ; vous pouvez le passer, ou installer le certificat de NeoAPRS sur chaque appareil pour le faire disparaître.",
 
   "settings.radius.name": "Rayon de la carte",
+  "settings.station_hours.name": "Durée sur la carte",
   "settings.radius.label": "Rayon",
   "settings.radius.tip_label": "À propos du rayon",
   "settings.radius.tip1":

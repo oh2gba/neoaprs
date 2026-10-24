@@ -1,10 +1,10 @@
-// How stations age on the map: the timeout of a station (the fixed 180 minutes; our own station and our own objects never time out), whether a station has passed it, and how faded the marker and
+// How stations age on the map: the timeout of a station (the setting `map/station_hours`, 3 hours unless chosen; our own station and our own objects never time out), whether a station has passed it, and how faded the marker and
 // the trail of a station are on the way there. Plain functions of rows and the time.
 import { ageSeconds } from "@/lib/format";
 import { LIMITS } from "@/protocol/lists";
 import type { StationRow } from "@/protocol/protocol";
 
-/** What the page knows of the timeout: the minutes after which a station has passed it (0 is never; the page's is DEFAULT_TIMEOUT_MIN, the tests pass others). */
+/** What the page knows of the timeout: the minutes after which a station has passed it (0 is never; the page's follows the setting, `agingOf`; the tests pass others). */
 export interface Aging {
   defaultMin: number;
 }
@@ -16,8 +16,23 @@ export const TRAIL_STEPS = 8;
 export const TRAIL_OLDEST = 0.15;
 export const MARKER_STEPS = 4;
 
-/** The timeout of every station, in minutes: three hours (fixed, HIDE_AFTER_MIN of the daemon's policy.py; it is no setting). */
-export const DEFAULT_TIMEOUT_MIN = LIMITS.station.hideAfterMin;
+/** The setting that says how many hours a station stays on the map after its last position (the Stations tab chooses it), and the hours it can be (STATION_HOURS of the daemon's config.py). */
+export const STATION_HOURS_KEY = "map/station_hours";
+export const STATION_HOURS: readonly number[] = LIMITS.station.hours;
+
+/** The timeout of every station, in minutes, while the setting is not known: its default, three hours. */
+export const DEFAULT_TIMEOUT_MIN = LIMITS.station.defaultHours * 60;
+
+/** The hours the setting says (the default for a value that is none of the choices or is not there). */
+export function stationHours(values: Readonly<Record<string, string>> | undefined): number {
+  const hours = Number(values?.[STATION_HOURS_KEY]);
+  return STATION_HOURS.includes(hours) ? hours : LIMITS.station.defaultHours;
+}
+
+/** How stations age for the settings the daemon has. */
+export function agingOf(values: Readonly<Record<string, string>> | undefined): Aging {
+  return { defaultMin: stationHours(values) * 60 };
+}
 
 /** The timeout of a station in minutes, 0 for never: the same for every station; our own station and our own objects never time out. */
 export function timeoutMin(aging: Aging, row: StationRow): number {

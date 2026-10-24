@@ -21,7 +21,7 @@ KEPT = {"station/call": "OH2GBA", "station/lat": "60.17", "station/lon": "24.94"
         "beacon/interval_min": "45", "beacon/path": "WIDE2-2", "beacon/power_w": "25", "beacon/antenna_height_m": "12", "beacon/antenna_gain_db": "3", "beacon/antenna_direction": "NE",
         "web/network": "true", "web/key": "k7m2-x9pq-4hrt", "web/https": "true", "web/port": "7777", "web/allowed_hosts": "radio.lan,shack",
         "messages/alert": "false", "messages/alert_command": "echo hi", "status/source": "rig", "status/rigctld": "127.0.0.1:4532", "status/interval_min": "60", "status/template": "{freq}",
-        "map/radius_km": "300", "digi/enabled": "true",
+        "map/radius_km": "300", "map/station_hours": "12", "digi/enabled": "true",
         "tnc/enter_kiss": "true", "web/bind": "0.0.0.0", "beacon/last_sent_at": "2026-10-23T10:00:00Z", "status/last_sent_at": "2026-10-23T10:00:00Z", "status/last_text": "on 145.800"}
 
 

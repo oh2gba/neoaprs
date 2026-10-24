@@ -69,6 +69,7 @@ export const CONFIG_KEYS = [
   "status/template",
   "map/radius_km",
   "map/maxzoom",
+  "map/station_hours",
   "map/source",
   "update/url",
   "digi/enabled",
@@ -374,7 +375,8 @@ export const LIMITS = {
     groupMax: 5,
   },
   station: {
-    hideAfterMin: 180,
+    hours: [1, 3, 6, 12, 24],
+    defaultHours: 3,
   },
 } as const;
 

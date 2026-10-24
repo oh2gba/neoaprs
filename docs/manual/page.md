@@ -27,7 +27,7 @@ The table has the symbol, the call, the distance from you, the bearing as a smal
 
 - The columns Call, km and Last heard sort on a click. Your own station is on top.
 - A green check mark after a call means the station was heard direct ("Heard direct", also on its card).
-- The filter box has two tickboxes that wrap onto a second line when they do not fit: "hide timed out" and "direct only" (stations heard direct at some time). Both are remembered.
+- The filter box has two tickboxes and a choice that wrap onto a second line when they do not fit: "hide timed out", "direct only" (stations heard direct at some time) and **On map for** (1, 3, 6, 12 or 24 hours, [below](#the-map)). The tickboxes are remembered by your browser; the hours are a setting of the daemon.
 - A click on a row flies the map to the station and shows its card, with the marker above the card and not under it.
 - At the right end of a row are three small buttons: two as on the card and a "..." that opens the row's menu (below).
   - The envelope, **Message OH2XYZ**, opens the conversation with the station (on a phone, straight into the conversation); it is there for the stations a message can go to, not for your own station, an object, an item or the email gateway.
@@ -65,7 +65,7 @@ A marker for every station that has a position shows the APRS symbol with the ca
 
 A station whose last position is older than its timeout is left off the map, marker and track, and stays in the Stations table. Selecting its row still flies the map to its last position and shows its card, and its marker for as long as it is selected.
 
-The timeout is 3 hours (180 minutes), the same for every station and not a setting. Your own station and your own objects never time out.
+The timeout is chosen in the Stations tab, in the filter row: **On map for** 1, 3, 6, 12 or 24 hours (3 by default). It applies at once, with an Undo, to the map, the track and the dimming of the table, and it is the same for every station and for every browser and device that shows this daemon (the setting `map/station_hours`; it replaces the fixed 3 hours of earlier versions). Your own station and your own objects never time out.
 
 Without a base map the map area says "No base map" with a Download button over a blank background, and the stations are drawn all the same ([The base map](#the-base-map)).
 

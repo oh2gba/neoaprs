@@ -140,6 +140,7 @@ export const settings = {
     "Needed for pop-ups on phones and for installing NeoAPRS as an app. Browsers show a warning the first time; you can continue past it, or install NeoAPRS's certificate on each device to make the warning go away.",
 
   "settings.radius.name": "Map radius",
+  "settings.station_hours.name": "Time on the map",
   "settings.radius.label": "Radius",
   "settings.radius.tip_label": "About the radius",
   "settings.radius.tip1":

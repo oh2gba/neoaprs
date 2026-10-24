@@ -42,7 +42,8 @@ describe("SettingsForm", () => {
           k !== "web/port" &&
           k !== "web/allowed_hosts" &&
           k !== "map/maxzoom" &&
-          k !== "map/source",
+          k !== "map/source" &&
+          k !== "map/station_hours", // (the Stations tab has it)
       ).length +
         1 + // (the New version row of the Update check group, which is no setting)
         3 + // (the browser's own: Alert for a new message, Sound, Pop-up)
@@ -809,7 +810,8 @@ describe("SettingsForm", () => {
       const { wrapper } = mount_();
       expect(wrapper.find<HTMLInputElement>("#set-map-radius_km").element.value).toBe("150");
       expect(wrapper.find("#set-map-radius_km").element.closest(".field")?.querySelector(".unit")?.textContent).toBe("km");
-      for (const id of ["set-map-maxzoom", "set-map-source", "set-map-hide_after_min"]) expect(wrapper.find(`#${id}`).exists(), id).toBe(false);
+      for (const id of ["set-map-maxzoom", "set-map-source", "set-map-hide_after_min", "set-map-station_hours"])
+        expect(wrapper.find(`#${id}`).exists(), id).toBe(false);
       expect(
         wrapper
           .find("fieldset:has(#set-map-radius_km)")

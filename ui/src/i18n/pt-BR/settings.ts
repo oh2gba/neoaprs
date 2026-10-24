@@ -142,6 +142,7 @@ export const settings: Record<keyof typeof source, Message> = {
     "Necessária para pop-ups em celulares e para instalar o NeoAPRS como aplicativo. Os navegadores mostram um aviso na primeira vez; você pode seguir adiante, ou instalar o certificado do NeoAPRS em cada dispositivo para o aviso sumir.",
 
   "settings.radius.name": "Raio do mapa",
+  "settings.station_hours.name": "Tempo no mapa",
   "settings.radius.label": "Raio",
   "settings.radius.tip_label": "Sobre o raio",
   "settings.radius.tip1":

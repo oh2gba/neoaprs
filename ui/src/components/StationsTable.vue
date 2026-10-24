@@ -13,11 +13,12 @@ import { useLongPress } from "@/composables/useLongPress";
 import { usePersistedFlag } from "@/composables/usePersisted";
 import { useSure } from "@/composables/useSure";
 import { t } from "@/i18n";
-import { timedOut } from "@/lib/aging";
+import { STATION_HOURS_KEY, stationHours, timedOut } from "@/lib/aging";
 import { normalizeCall, validCall } from "@/lib/calls";
 import { ageText, bearingTitle, dateTimeText, distanceText } from "@/lib/format";
 import { isGateway } from "@/lib/messages";
 import { heardDirect } from "@/lib/routes";
+import { FIELDS } from "@/lib/settings";
 import { canForget, canMessage, firstDirection, listStations, symbolName, type QueryKind, type Sort, type SortKey } from "@/lib/stations";
 import type { StationRow } from "@/protocol/protocol";
 
@@ -28,7 +29,7 @@ const props = withDefaults(
   }>(),
   { others: () => [] },
 );
-const { stations, now, aging, call: ownCall } = useDaemonContext();
+const { stations, now, aging, call: ownCall, settings } = useDaemonContext();
 const emit = defineEmits<{
   select: [call: string, multi?: boolean];
   message: [call: string];
@@ -105,6 +106,15 @@ const sort = ref<Sort>({ key: "last_heard", dir: -1 });
 const hideTimedOut = usePersistedFlag("hidetimedout", ["on", "off"], false);
 const directOnly = usePersistedFlag("directonly", ["on", "off"], false);
 
+/** How long a station stays on the map: the setting of the daemon (the same in every browser), changed at once with an Undo. */
+const hours = computed(() =>
+  String(stationHours({ [STATION_HOURS_KEY]: settings.draft[STATION_HOURS_KEY] ?? settings.values.value[STATION_HOURS_KEY] ?? "" })),
+);
+const hourChoices = computed(() => (FIELDS[STATION_HOURS_KEY]?.choices ?? []).map((c) => (typeof c === "string" ? { value: c, label: c } : c)));
+function chooseHours(event: Event): void {
+  settings.change({ [STATION_HOURS_KEY]: (event.target as HTMLSelectElement).value });
+}
+
 const isTimedOut = (row: StationRow): boolean => timedOut(aging.value, row, now.value);
 const rows = computed(() =>
   listStations(stations.value.values(), {
@@ -156,6 +166,12 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
       <div class="toolbar-checks">
         <label class="check"><input v-model="hideTimedOut" type="checkbox" /> {{ t("station.table.hide_timed_out") }}</label>
         <label class="check"><input v-model="directOnly" type="checkbox" /> {{ t("station.table.direct_only") }}</label>
+        <label class="check onmap"
+          >{{ t("station.table.on_map") }}
+          <select id="stations-on-map" class="input" :value="hours" @change="chooseHours">
+            <option v-for="choice in hourChoices" :key="choice.value" :value="choice.value">{{ choice.label }}</option>
+          </select></label
+        >
       </div>
     </div>
     <div class="scroll">

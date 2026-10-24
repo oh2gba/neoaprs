@@ -245,3 +245,11 @@
   padding: 2px 12px 4px;
   font-size: 12px;
 }
+/* "On map for" [3 h]: the label and a select as narrow as its longest choice, in the line of the tickboxes */
+.onmap {
+  gap: 6px;
+}
+.onmap .input {
+  padding-top: 2px;
+  padding-bottom: 2px;
+}

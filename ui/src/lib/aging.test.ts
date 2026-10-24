@@ -5,6 +5,10 @@ import {
   TRAIL_OLDEST,
   TRAIL_STEPS,
   DEFAULT_TIMEOUT_MIN,
+  STATION_HOURS,
+  STATION_HOURS_KEY,
+  agingOf,
+  stationHours,
   fadeFraction,
   markerStep,
   timeoutMin,
@@ -17,8 +21,25 @@ import { NOW, ago, station } from "@/test/fixtures";
 const aging = (defaultMin: number): Aging => ({ defaultMin });
 
 describe("DEFAULT_TIMEOUT_MIN", () => {
-  it("is three hours, fixed", () => {
+  it("is three hours, the default of the setting", () => {
     expect(DEFAULT_TIMEOUT_MIN).toBe(180);
+  });
+});
+
+describe("stationHours and agingOf", () => {
+  it("follow map/station_hours: 1, 3, 6, 12 or 24 hours, else (not there, no choice) the default of 3", () => {
+    expect(STATION_HOURS).toEqual([1, 3, 6, 12, 24]);
+    for (const hours of STATION_HOURS) expect(agingOf({ [STATION_HOURS_KEY]: String(hours) })).toEqual({ defaultMin: hours * 60 });
+    for (const odd of [undefined, {} as Record<string, string>, { [STATION_HOURS_KEY]: "" }, { [STATION_HOURS_KEY]: "5" }, { [STATION_HOURS_KEY]: "soon" }]) {
+      expect(stationHours(odd)).toBe(3);
+      expect(agingOf(odd)).toEqual({ defaultMin: DEFAULT_TIMEOUT_MIN });
+    }
+  });
+
+  it("makes a station of 5 hours ago time out at 3 h and not at 6 h", () => {
+    const old = station("A", { last_position_at: ago(5 * 3600) });
+    expect(timedOut(agingOf({ [STATION_HOURS_KEY]: "3" }), old, NOW)).toBe(true);
+    expect(timedOut(agingOf({ [STATION_HOURS_KEY]: "6" }), old, NOW)).toBe(false);
   });
 });
 

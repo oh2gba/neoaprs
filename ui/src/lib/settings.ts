@@ -5,6 +5,7 @@ import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
 import { errorReason, type Failure } from "@/i18n/errortext";
 import type { Params } from "@/i18n/message";
+import { STATION_HOURS, STATION_HOURS_KEY } from "@/lib/aging";
 import { lazyText } from "@/lib/lazytext";
 import { STATUS_CHOICES, statusShown, statusSource } from "@/lib/status";
 import { CONFIG_KEYS, LIMITS, TNC_PROFILES } from "@/protocol/lists";
@@ -96,6 +97,10 @@ const beaconChoices = (): readonly Choice[] => [
   { value: "60", label: every(60) },
   { value: "180", label: t("settings.every_hours", { n: 3 }) },
 ];
+
+/** How long a station stays on the map: 1 h, 3 h, 6 h, 12 h or 24 h (the Stations tab offers them). */
+export const stationHoursChoices = (): readonly Choice[] =>
+  STATION_HOURS.map((hours) => ({ value: String(hours), label: t("station.table.hours", { n: hours }) }));
 
 const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 const directionChoices = (): readonly Choice[] => [
@@ -194,6 +199,7 @@ const SPECS: Record<string, FieldSpec> = {
     tipLabel: "settings.radius.tip_label",
     tip: ["settings.radius.tip1", "settings.radius.tip2"],
   },
+  [STATION_HOURS_KEY]: { name: "settings.station_hours.name", label: "station.table.on_map", kind: "choice", choices: stationHoursChoices },
   "digi/enabled": {
     label: "settings.digipeater.label",
     kind: "bool",
@@ -313,9 +319,11 @@ function rank(order: readonly string[], key: string): number {
 }
 
 /** Settings that stay in the daemon (`neoaprs db set`) and are not on the page: the address the update check asks, which ports the search for the radio looks at and leaves alone, and the port and the host names of the page itself
- * (the defaults suit nearly everyone, and the daemon moves to a free port and says which in the log), and the map's detail (12, streets), source (the latest daily build) and the time stations stay on the map (180 min; a station can have
- * its own in its details). The map download uses the stored values, so a custom source or detail still works. */
+ * (the defaults suit nearly everyone, and the daemon moves to a free port and says which in the log), and the map's detail (12, streets), source (the latest daily build). The map download uses the stored values, so a custom source or detail still works. */
 const NOT_ON_THE_PAGE: readonly string[] = ["update/url", "serial/pattern", "serial/skip", "web/port", "web/allowed_hosts", "map/maxzoom", "map/source"];
+
+/** Settings that are on the page, but in another tab than the Settings tab: the time stations stay on the map (map/station_hours) is chosen in the Stations tab. */
+const IN_ANOTHER_TAB: readonly string[] = [STATION_HOURS_KEY];
 
 /** The keys in the order of the daemon's list (a key it did not list last; the TNC and Status groups in their own order), in the groups of the form `scope` shows. */
 export function groupKeys(keys: readonly string[], scope: Scope = "settings"): Group[] {
@@ -323,7 +331,7 @@ export function groupKeys(keys: readonly string[], scope: Scope = "settings"): G
     const at = (CONFIG_KEYS as readonly string[]).indexOf(key);
     return at < 0 ? CONFIG_KEYS.length : at;
   };
-  const sorted = keys.filter((k) => !NOT_ON_THE_PAGE.includes(k)).sort((a, b) => order(a) - order(b));
+  const sorted = keys.filter((k) => !NOT_ON_THE_PAGE.includes(k) && !IN_ANOTHER_TAB.includes(k)).sort((a, b) => order(a) - order(b));
   const groups: Group[] = GROUPS.map((g) => ({
     id: g.id,
     title: t(g.title),
