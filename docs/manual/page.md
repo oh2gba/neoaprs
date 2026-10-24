@@ -112,9 +112,13 @@ The **footer** is one small muted line under the open tab of the panel (under th
 - At the right is the state of the radio, only when it is not ok, in the warning colour, as a button that opens the Settings tab where the radio is. "Radio: searching…" (looking for the port), "Radio: entering KISS…", "Radio: not connected" (it waits between two tries, or is stopped; the TNC's problem is the tooltip), "Radio: waiting…" (no word from the TNC yet), "Radio: silent" (the line is open and the radio does not answer; the tooltip says "nothing heard since 18:43 (5 h)" in the browser's time), "Connecting…" (the page's connection is being opened) and, in red, "Daemon offline".
 - When the radio is connected the footer says nothing of it. The port and when a packet was last heard are in the radio status at the top of the TNC group of the Settings tab.
 
+## The page's language
+
+The page speaks English, Deutsch, Español, Français, Italiano, 日本語 and Português (Brasil). It starts in your browser's language when it has it, else in English. **Language**, at the top of the Settings tab, changes it for this browser. The translations have not all been read by native-speaking hams yet: corrections are welcome. The daemon's own words (the log, the radio's terminal, the packet summaries, the names of the radio types) and the manual stay English.
+
 ## What the page remembers
 
-The panel's width and tab, the map's view, the table's "hide timed out" and "direct only", which messages and bulletins were seen, the addresses used for mail, and the choice of browser alert are kept in your browser's local storage, and nothing else is. Each device keeps its own.
+The panel's width and tab, the map's view, the table's "hide timed out" and "direct only", which messages and bulletins were seen, the addresses used for mail, the choice of browser alert and the language are kept in your browser's local storage, and nothing else is. Each device keeps its own.
 
 ## A phone, a tablet and a desktop
 

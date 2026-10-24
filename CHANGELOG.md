@@ -2,8 +2,15 @@
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.6.7
+
+No new features: the page in seven languages.
+
 Translations.
 
+- The page in English, Deutsch, Español, Français, Italiano, 日本語 and Português (Brasil). It starts in the browser's language when it has it; **Language** at the top of the Settings tab changes it for this browser. The translations wait for native-speaking hams to read them: corrections are welcome.
 - The words of the page are in a catalogue (`ui/src/i18n/`) that a language is a file of; English is the source. The Settings tab has a **Language** choice at the top, kept in this browser; until it is chosen the page follows the browser's language, else English. Only English is in it so far.
 - Numbers are written with the language's decimal point and the weekdays of the graphs by the language, from `Intl`.
 - A refusal of the daemon is said from the catalogue when it has the refusal's code, else with the daemon's English sentence. `ui/src/protocol/errors.json` lists the codes and their sentences, generated from the daemon's source.
