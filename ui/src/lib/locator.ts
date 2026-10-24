@@ -53,3 +53,9 @@ export function positionToLocator(lat: number, lon: number): string {
   const lower = (n: number) => String.fromCharCode(97 + n);
   return `${upper(Math.min(FIELD_LETTERS - 1, fieldX))}${upper(Math.min(FIELD_LETTERS - 1, fieldY))}${squareX}${squareY}${lower(subX)}${lower(subY)}`;
 }
+
+/** A place in words, as the Location lines say it: degrees with N or S, E or W, and the locator ("60.42945 N, 24.14524 E · KP20bk"). */
+export function placeLine(lat: number, lon: number): string {
+  const shown = (value: number) => String(Math.round(Math.abs(value) * 1e5) / 1e5);
+  return `${shown(lat)} ${lat < 0 ? "S" : "N"}, ${shown(lon)} ${lon < 0 ? "W" : "E"} · ${positionToLocator(lat, lon)}`;
+}

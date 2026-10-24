@@ -83,6 +83,8 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.table.none_yet": "Nenhuma estação recebida ainda.",
   "station.table.none_match": "Nenhuma estação corresponde.",
   "station.table.message_call": "Enviar mensagem a {call}",
+  "station.table.forget_call": "Esquecer {call}",
+  "station.table.forget_sure_call": "Esquecer {call} mesmo?",
   "station.table.count": { one: "{shown} de {n} estação", other: "{shown} de {n} estações" },
 
   "station.timeout.label": "Ocultar do mapa após",

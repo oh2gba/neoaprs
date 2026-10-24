@@ -8,6 +8,7 @@ import { useBulletins } from "@/composables/useBulletins";
 import { useDaemon } from "@/composables/useDaemon";
 import { useDark } from "@/composables/useDark";
 import { useEmail } from "@/composables/useEmail";
+import { useFormEsc } from "@/composables/useFormEsc";
 import { useHeardIndex } from "@/composables/useHeardIndex";
 import { useHome } from "@/composables/useHome";
 import { useLayout } from "@/composables/useLayout";
@@ -104,7 +105,22 @@ export function useAppShell() {
     computed(() => guide.open),
     picks.pickingTab,
   );
-  const cards = useStationCards(derived.stations, send, layout, () => guide.open || updateOpen.value);
+  // Esc ends a place the map waits for and then closes the Objects form (before the cards, which take the Esc that is left)
+  const escBlocked = () => guide.open || updateOpen.value;
+  useFormEsc({
+    cancelPick: () => {
+      const waiting = picks.pickingTab.value;
+      if (waiting) picks.cancel();
+      return waiting;
+    },
+    closeForm: () => {
+      const inSight = objects.open && panel.tab.value === "objects" && !panel.collapsed.value && (!layout.phone.value || layout.showing.value === "panel");
+      if (inSight) objects.cancel();
+      return inSight;
+    },
+    blocked: escBlocked,
+  });
+  const cards = useStationCards(derived.stations, send, layout, escBlocked);
 
   provideDaemon({
     ...daemon,

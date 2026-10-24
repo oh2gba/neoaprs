@@ -38,8 +38,8 @@ describe("StationsTable", () => {
 
   it("has the columns symbol, Call, a check mark, km, the bearing as an arrow and Last heard, and nothing else: the rest is on the card", () => {
     const wrapper = make();
-    expect(wrapper.findAll("thead th").map((th) => th.text())).toEqual(["", "Call", "heard direct", "km", "bearing", "Last heard ▼"]);
-    for (const tr of wrapper.findAll("tbody tr")) expect(tr.findAll("td")).toHaveLength(6);
+    expect(wrapper.findAll("thead th").map((th) => th.text())).toEqual(["", "Call", "heard direct", "km", "bearing", "Last heard ▼", ""]);
+    for (const tr of wrapper.findAll("tbody tr")) expect(tr.findAll("td")).toHaveLength(7);
     const text = wrapper.findAll("tbody tr")[2]?.text() ?? "";
     expect(text).toContain("OH2PU-9");
     expect(text).toContain("16");

@@ -214,6 +214,13 @@ describe("StationCard", () => {
     expect(wrapper.find(".card-foot .btn.forget").exists()).toBe(false);
   });
 
+  it("has the envelope of 'message' beside the word on Message", () => {
+    const wrapper = mount(StationCard, { props: { row, now: NOW } });
+    const button = wrapper.find(".card-foot .card-message");
+    expect(button.find("svg.msgglyph").exists()).toBe(true);
+    expect(button.text()).toBe("Message");
+  });
+
   it("says 'Drag to move' on its head only when it can be moved", async () => {
     const wrapper = mount(StationCard, { props: { row, now: NOW } });
     expect(wrapper.find(".card-head").attributes("title")).toBeUndefined();

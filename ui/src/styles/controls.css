@@ -27,6 +27,16 @@ tbody tr:focus-visible {
   font: inherit;
   cursor: pointer;
 }
+/* the envelope that says "message" (components/MessageGlyph.vue), beside a text or alone in a small button */
+.msgglyph {
+  flex: none;
+  vertical-align: -0.2em;
+}
+.btn.msgbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
 .btn:disabled {
   opacity: 0.5;
   cursor: default;

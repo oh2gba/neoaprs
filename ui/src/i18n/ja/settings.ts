@@ -247,7 +247,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.check.needs_longitude": "経度も必要です",
 
   "settings.location.heading": "位置",
-  "settings.location.pick": "地図で指定",
+  "settings.location.pick": "地図で選択",
   "settings.location.cancel": "キャンセル",
   "settings.location.not_set": "未設定",
   "settings.location.enter": "座標を入力",

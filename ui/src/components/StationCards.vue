@@ -6,6 +6,7 @@
 // against the room of the row, and it keeps its place while it is open (`places`, the page's, for the session). On a phone the one card is a bottom sheet that is part of the screen: folded to its head and the first facts, it opens up with a tap or a swipe up on its grip, folds with a swipe down, and a
 // swipe down on the folded sheet closes it; its cross is there too.
 import { computed, nextTick, onMounted, ref, watch } from "vue";
+import MessageGlyph from "@/components/MessageGlyph.vue";
 import StationCard from "@/components/StationCard.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useCardDrag, type Places } from "@/composables/useCardDrag";
@@ -15,6 +16,7 @@ import { t } from "@/i18n";
 import { type Place } from "@/lib/cardmove";
 import { CARDS_FREE_SIDE, CARD_GAP, type SizeClass } from "@/lib/layout";
 import { SWIPE_MIN, sheetMove, type SheetMove } from "@/lib/sheet";
+import { canMessage } from "@/lib/stations";
 import { isWeatherStation, sharedRanges } from "@/lib/weather";
 import type { StationRow } from "@/protocol/protocol";
 
@@ -39,7 +41,7 @@ const emit = defineEmits<{
 }>();
 
 /** The stations of the open cards that a message can go to: stations, not ourselves, and not one the daemon says cannot be messaged (the email gateway, an object...). */
-const askable = computed(() => props.rows.filter((row) => row.kind === "station" && row.can_message && !row.is_me && !row.own).map((row) => row.call));
+const askable = computed(() => props.rows.filter(canMessage).map((row) => row.call));
 
 // the weather graphs of all the open cards are of one span; and while two or more weather stations are open they are on the same value axes too, so that their curves can be compared (one card has its own)
 const span = provideWxSpan();
@@ -129,8 +131,8 @@ function tap(): void {
 <template>
   <div v-if="rows.length > 1 && size !== 'phone'" class="cards-actions">
     <button type="button" class="btn small cards-closeall" @click="emit('closeAll')">{{ t("station.cards.close_all") }}</button>
-    <button v-if="askable.length > 1" type="button" class="btn small cards-message" @click="emit('messageAll', askable)">
-      {{ t("station.cards.message_all", { n: askable.length }) }}
+    <button v-if="askable.length > 1" type="button" class="btn small msgbtn cards-message" @click="emit('messageAll', askable)">
+      <MessageGlyph :size="14" /> {{ t("station.cards.message_all", { n: askable.length }) }}
     </button>
   </div>
   <div

@@ -2,7 +2,7 @@
 // one view at a time: the open tab of the panel (`view` "panel") or the map (`view` "map", the Map button of the tab bar); the view is remembered. What brings the other view:
 // - a tab picked in the bar shows the panel (SidePanel does that), and so does anything on the page that asks for a tab (`panel.shown` counts: the unread mail of the header, a card's Message or Edit, the radio state of the header);
 // - the first-run guide is on the map, so the map shows while it is open (and the panel is back when it closes);
-// - a place to pick on the map (the Beacon tab's Pick on the map, the Objects tab's) shows the map, and when the place is picked, or the picking is cancelled, the tab it came from is back (`picking`);
+// - a place to pick on the map (the Beacon tab's Choose on map, the Objects tab's) shows the map, and when the place is picked, or the picking is cancelled, the tab it came from is back (`picking`);
 // - a station picked in the table shows the map with its card (`showMap`).
 import { computed, watch, type Ref } from "vue";
 import { usePersisted } from "@/composables/usePersisted";

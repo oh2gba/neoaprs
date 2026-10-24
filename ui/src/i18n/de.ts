@@ -316,7 +316,6 @@ export const de: Catalogue = {
   "objects.field.speed": "Geschwindigkeit",
   "objects.field.path": "Pfad",
   "objects.unit.deg": "Grad",
-  "objects.form.pick": "Auf der Karte wählen",
   "objects.form.cancel": "Abbrechen",
   "objects.form.save": "Speichern",
 
@@ -410,6 +409,8 @@ export const de: Catalogue = {
   "station.table.none_yet": "Noch keine Station gehört.",
   "station.table.none_match": "Keine passende Station.",
   "station.table.message_call": "Nachricht an {call}",
+  "station.table.forget_call": "{call} vergessen",
+  "station.table.forget_sure_call": "{call} wirklich vergessen?",
   "station.table.count": { one: "{shown} von {n} Station", other: "{shown} von {n} Stationen" },
 
   "station.timeout.label": "Von der Karte ausblenden nach",
@@ -967,7 +968,7 @@ export const de: Catalogue = {
   "settings.check.needs_longitude": "Nötig zusammen mit der Länge",
 
   "settings.location.heading": "Standort",
-  "settings.location.pick": "Auf der Karte wählen",
+  "settings.location.pick": "Auf Karte wählen",
   "settings.location.cancel": "Abbrechen",
   "settings.location.not_set": "Nicht gesetzt",
   "settings.location.enter": "Koordinaten eingeben",

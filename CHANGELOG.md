@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Beacon tab: the Location is a row like the Call above it: the word **Location** in the label column and, in the input column, the **Choose on map** button (the whole width on a phone), the place as one line under it and **Enter coordinates** under that.
+- The button is **Choose on map** (was "Pick on the map") in all seven languages, in the Beacon tab, the Objects form and the setup guide's Position step.
+- Objects: the form's position has the same Location row (the button, the place in one line, **Enter coordinates**); the map button is no longer at the left of the line with Cancel and Save.
+- **Esc** closes the Objects form without saving, as Cancel does, unless the focus is in a field that still has text (that keeps its first Esc). While the map waits for a click, Esc ends that first.
+
+The Stations table.
+
+- Each row has, at its right end, an envelope that opens the conversation with the station and a trash can that forgets it (it asks twice, like the card's Forget), so that neither needs the card. The envelope is the one picture of "message" on the page: the header's count of messages not seen and the **Message OH2XYZ** button under an empty result have it too.
+
 The station cards.
 
 - A station card can be moved: drag it by its head (the symbol and the call) anywhere over the map, or move the focused card with Alt and the arrow keys. It stays in the map and keeps its place while it is open; the cards left in the row close up, a newly opened card goes to the next place of the row, and a card that is closed and opened again is back in the row. Only the cards in the row count against how many fit, and the map keeps a marker clear of a moved card where it stands. Not on a phone, where the card is a bottom sheet.

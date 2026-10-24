@@ -93,7 +93,7 @@ describe("SettingsForm", () => {
       const { wrapper } = make({}, "beacon");
       expect(
         group(wrapper, "Station")
-          ?.findAll(".field label, h3")
+          ?.findAll(".field label, .field .field-label, h3")
           .map((e) => e.text()),
       ).toEqual(["Call", "Location", "Latitude", "Longitude", "Symbol"]);
       expect(group(wrapper, "Station")?.find("#set-station-comment").exists()).toBe(false);
@@ -192,6 +192,7 @@ describe("SettingsForm", () => {
       expect(wrapper.findAll(".field p")).toHaveLength(0);
       expect(wrapper.find("[id$='-hint']").exists()).toBe(false);
       for (const field of wrapper.findAll(".field")) {
+        if (field.classes().includes("location-field")) continue; // (the row Location: a button, the place, a closed heading; its coordinate fields are checked on their own)
         const text = field.find("select").exists() ? field.find("label").text() : field.text(); // (the options of a select are its choices, not words about it; the (i) is closed and says "i")
         expect(text.length, text).toBeLessThan(42);
       }
@@ -724,7 +725,7 @@ describe("SettingsForm", () => {
       ]);
       expect(
         make({}, "beacon")
-          .wrapper.findAll(".field button:not(.info-toggle)")
+          .wrapper.findAll(".field button:not(.info-toggle):not(.location-pick)")
           .map((b) => b.text()),
       ).toEqual(["Change"]);
     });
@@ -822,22 +823,23 @@ describe("SettingsForm: the Location of our station (Beacon tab)", () => {
   const pick = (wrapper: ReturnType<typeof make>["wrapper"]) => wrapper.find<HTMLButtonElement>("button.location-pick");
   const details = (wrapper: ReturnType<typeof make>["wrapper"]) => wrapper.find<HTMLDetailsElement>("details.disclosure");
 
-  it("is a sub-section after the call: a primary Pick on the map, Cancel while the map waits, and the place in force as one line", async () => {
+  it("is a row after the call: Location in the label column, a primary Choose on map, Cancel while the map waits, and the place in force as one line", async () => {
     const { wrapper } = make({}, "beacon");
-    expect(wrapper.find("h3.subgroup").text()).toBe("Location");
+    expect(wrapper.find(".location-field > .field-label").text()).toBe("Location");
+    expect(wrapper.find(".location-field > .field-control button.location-pick").exists()).toBe(true);
     expect(pick(wrapper).classes()).toContain("primary");
-    expect(pick(wrapper).text()).toBe("Pick on the map");
+    expect(pick(wrapper).text()).toBe("Choose on map");
     expect(wrapper.find(".location-line").text()).toBe("60.17 N, 24.94 E · KP20le");
     await pick(wrapper).trigger("click");
     expect(wrapper.emitted("pickPosition")).toHaveLength(1);
     await wrapper.setProps({ picking: true });
     expect(pick(wrapper).text()).toBe("Cancel");
-    const order = wrapper.findAll(".field label, h3.subgroup").map((e) => e.text());
+    const order = wrapper.findAll(".field label, .field .field-label").map((e) => e.text());
     expect(order.slice(0, 4)).toEqual(["Call", "Location", "Latitude", "Longitude"]);
   });
 
   it("is only on the Beacon tab", () => {
-    expect(make().wrapper.find(".location").exists()).toBe(false);
+    expect(make().wrapper.find(".location-field").exists()).toBe(false);
   });
 
   it("writes south and west as S and W, and says Not set while there is no place", () => {

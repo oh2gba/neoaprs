@@ -78,7 +78,7 @@ const cancel = (id: number): boolean => send({ cmd: "message_cancel", id });
           <PanelFooter @update="updateOpen = true" @radio="panel.show('settings')" />
         </template>
         <template #stations>
-          <StationsTable :selected="selected" :others="cards.others.value" @select="cards.onRow" @message="talk.writeTo" />
+          <StationsTable :selected="selected" :others="cards.others.value" @select="cards.onRow" @message="talk.writeTo" @forget="cards.forget" />
         </template>
         <template #packets>
           <PacketsLog :packets="packets" />

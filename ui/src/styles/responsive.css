@@ -221,7 +221,7 @@ button,
   box-shadow: var(--shadow);
 }
 
-/* phone: the first-run guide is the whole screen (the map behind it, which "Pick on the map" folds it to its head to show) */
+/* phone: the first-run guide is the whole screen (the map behind it, which "Choose on map" folds it to its head to show) */
 .size-phone.guide-open .appheader,
 .size-phone.guide-open .panel {
   display: none;
@@ -393,6 +393,13 @@ button,
   .grid.stations td {
     height: 40px;
   }
+  .grid.stations td.actions .xbtn {
+    min-width: 40px;
+    min-height: 40px;
+  }
+  .grid.stations td.actions .forgetbtn {
+    min-width: 46px;
+  }
   .input,
   select,
   textarea {
@@ -401,7 +408,7 @@ button,
   }
 }
 
-/* the first-run guide's Pick on the map is as wide as the guide, as the Location of the Beacon tab's is on a narrow window */
+/* the first-run guide's Choose on map is as wide as the guide, as the Location of the Beacon tab's is on a narrow window */
 .setup .location-pick {
   flex: 1 1 100%;
 }

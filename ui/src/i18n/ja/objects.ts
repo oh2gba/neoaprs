@@ -29,7 +29,6 @@ export const objects: Record<keyof typeof source, Message> = {
   "objects.field.speed": "速度",
   "objects.field.path": "パス",
   "objects.unit.deg": "度",
-  "objects.form.pick": "地図で指定",
   "objects.form.cancel": "キャンセル",
   "objects.form.save": "保存",
 

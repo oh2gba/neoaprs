@@ -81,6 +81,8 @@ export const stations = {
   "station.table.none_yet": "No station heard yet.",
   "station.table.none_match": "No station matches.",
   "station.table.message_call": "Message {call}",
+  "station.table.forget_call": "Forget {call}",
+  "station.table.forget_sure_call": "Really forget {call}?",
   "station.table.count": { one: "{shown} of {n} stations", other: "{shown} of {n} stations" },
 
   "station.timeout.label": "Hide from map after",

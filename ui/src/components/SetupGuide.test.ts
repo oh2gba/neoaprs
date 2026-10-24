@@ -188,18 +188,18 @@ describe("SetupGuide: the position", () => {
     const { wrapper, stand, button } = make();
     await stand(1);
     expect(button("Use this computer's location")).toBeUndefined();
-    expect(wrapper.find(".setup-onmap").text()).toBe("Pick on the map");
+    expect(wrapper.find(".setup-onmap").text()).toBe("Choose on map");
   });
 
-  it("folds to its head for 'Pick on the map' and comes back with Done, or with the click that sets the place", async () => {
+  it("folds to its head for 'Choose on map' and comes back with Done, or with the click that sets the place", async () => {
     const { wrapper, guide, stand, button } = make();
     await stand(1);
-    await button("Pick on the map")?.trigger("click");
+    await button("Choose on map")?.trigger("click");
     expect(wrapper.find(".setup").classes()).toContain("peeking");
     expect(button("Done")).toBeDefined();
     await button("Done")?.trigger("click");
     expect(wrapper.find(".setup").classes()).not.toContain("peeking");
-    await button("Pick on the map")?.trigger("click");
+    await button("Choose on map")?.trigger("click");
     guide.place(60.2, 24.9);
     await nextTick();
     expect(wrapper.find(".setup").classes()).not.toContain("peeking");
@@ -215,12 +215,12 @@ describe("SetupGuide: the position, in the look of the Location of the Beacon ta
   }
   const line = (wrapper: ReturnType<typeof make>["wrapper"]) => wrapper.find(".location-line");
 
-  it("has a primary Pick on the map first, the place as one line ('Not set' while there is none), and Next waiting for a place", async () => {
+  it("has a primary Choose on map first, the place as one line ('Not set' while there is none), and Next waiting for a place", async () => {
     const { wrapper } = await onPosition();
     const first = wrapper.find(".setup-body").element.firstElementChild;
     expect(first?.classList.contains("location")).toBe(true);
     const pick = wrapper.find("button.location-pick");
-    expect(pick.text()).toBe("Pick on the map");
+    expect(pick.text()).toBe("Choose on map");
     expect(pick.classes()).toContain("primary");
     expect([line(wrapper).text(), line(wrapper).classes()]).toEqual(["Not set", expect.arrayContaining(["muted"])]);
     expect(wrapper.find("button[type=submit]").attributes("disabled")).toBeDefined();

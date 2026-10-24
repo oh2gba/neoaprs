@@ -5,6 +5,7 @@
 // Several cards can be open (Ctrl+click, components/StationCards.vue), side by side: each is this whole card, as when it is alone. Forget (the trash can, "Forget OH2XYZ") takes it out of the station book (it is back when it is heard again); it asks twice ("sure?"), and forgets the first click after 5 s like the other buttons that ask twice (`useSure`). An object or an item of ours has "Edit" (the Objects tab opens with it) and "Kill" (it asks twice, too) in place of "Message" and "Forget", and none of the fields of a station that is heard.
 import { computed, watch } from "vue";
 import IconButton from "@/components/IconButton.vue";
+import MessageGlyph from "@/components/MessageGlyph.vue";
 import DirectMark from "@/components/DirectMark.vue";
 import RouteText from "@/components/RouteText.vue";
 import StationDetails from "@/components/StationDetails.vue";
@@ -16,7 +17,7 @@ import { t } from "@/i18n";
 import { timedOut, type Aging } from "@/lib/aging";
 import { qrzUrl } from "@/lib/calls";
 import { heardDirect, reachedText } from "@/lib/routes";
-import { symbolLabel } from "@/lib/stations";
+import { canForget, canMessage, symbolLabel } from "@/lib/stations";
 import { agoWords, altitudeText, bearingText, dateTimeText, distanceText, positionText, speedText } from "@/lib/format";
 import { isWeatherStation, type Ranges } from "@/lib/weather";
 import type { StationRow, WeatherSeriesMessage } from "@/protocol/protocol";
@@ -140,9 +141,9 @@ const reached = computed(() => (props.row.kind === "station" && !props.row.is_me
         {{ armed ? t("station.card.kill_sure") : t("station.card.kill") }}
       </button>
     </footer>
-    <footer v-else-if="!row.is_me" class="card-foot">
-      <button v-if="row.kind === 'station' && row.can_message" class="btn primary" type="button" @click="emit('message', row.call)">
-        {{ t("station.card.message") }}
+    <footer v-else-if="canForget(row)" class="card-foot">
+      <button v-if="canMessage(row)" class="btn primary msgbtn card-message" type="button" @click="emit('message', row.call)">
+        <MessageGlyph :size="14" /> {{ t("station.card.message") }}
       </button>
       <IconButton
         kind="delete"
