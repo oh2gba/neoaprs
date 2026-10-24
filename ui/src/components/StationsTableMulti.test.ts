@@ -84,7 +84,7 @@ describe("StationsTable with several cards", () => {
     expect(cssRule(".toolbar")).toMatch(/flex-wrap:\s*wrap/);
     expect(cssRule(".filterbox")).toMatch(/flex:\s*1 1 12em/);
     expect(cssRule(".filterbox")).toMatch(/min-width:\s*min\(12em, 100%\)/);
-    expect(wrapper.findAll(".toolbar > .toolbar-checks > label.check")).toHaveLength(3);
+    expect(wrapper.findAll(".toolbar > .toolbar-checks > label.check")).toHaveLength(2);
     expect(cssRule(".toolbar-checks")).toMatch(/flex-wrap:\s*wrap/);
     expect(cssRule(".size-phone .toolbar .filterbox")).toMatch(/flex:\s*1 1 100%/);
   });

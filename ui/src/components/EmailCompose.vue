@@ -38,6 +38,16 @@ function leave(event: FocusEvent): void {
   if (!(into instanceof Node) || !(event.currentTarget instanceof Node) || !event.currentTarget.contains(into)) listed.value = false;
 }
 
+/** Esc closes the suggestions when they are open, else it clears the address and the text being written. */
+function escape(): void {
+  if (shown.value) {
+    listed.value = false;
+    return;
+  }
+  to.value = "";
+  text.value = "";
+}
+
 function submit(): void {
   if (!ready.value) return;
   emit("send", to.value.trim(), text.value);
@@ -53,7 +63,7 @@ function submit(): void {
     :left="left"
     :left-title="leftTitle(left, 'address', LIMITS.message.textMax)"
     @submit="submit"
-    @keydown.esc.stop="listed = false"
+    @keydown.esc.stop="escape"
   >
     <div class="mailfields">
       <label for="mail-to">{{ t("email.field.to") }}</label>

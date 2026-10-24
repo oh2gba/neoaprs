@@ -4,7 +4,8 @@ import sqlite3
 
 from .dberror import StoreError
 
-log = logging.getLogger("neoaprs.store")                    # the name the migrations' lines carry in the log file (migrations.py)
+MIGRATION_LOG = "neoaprs.migrations"                      # the logger of the migrations (migrations.py has them all); its lines go to stderr too, and so to the journal (daemon.py)
+log = logging.getLogger(MIGRATION_LOG)
 
 
 def _v12(db: sqlite3.Connection) -> None:

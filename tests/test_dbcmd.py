@@ -11,6 +11,8 @@ from neoaprs.config import BEACON_SENT
 from neoaprs.dberror import SqlError
 from neoaprs.migrations import SCHEMA_VERSION
 from neoaprs.store import DB_NAME
+from tests.support.clock import FixedClock
+from tests.test_migration_settings_reset import version_fifteen
 
 
 def db(*args: str, data: Path) -> int:
@@ -57,6 +59,15 @@ def test_a_database_of_an_older_version_is_not_read_the_daemon_has_to_migrate_it
     assert db("get", "station/call", data=data) == 1
     err = capsys.readouterr().err
     assert f"is of version {SCHEMA_VERSION - 1}, this NeoAPRS needs {SCHEMA_VERSION}" in err and "start the daemon once" in err
+
+
+def test_set_on_a_database_of_an_older_version_migrates_it_and_says_what_the_migration_did(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    version_fifteen(tmp_path / DB_NAME, FixedClock(), {"map/maxzoom": "14"})
+    capsys.readouterr()
+    assert db("set", "station/call", "OH2XYZ", data=tmp_path) == 0
+    err = capsys.readouterr().err
+    assert "map/maxzoom reset to the default: 14 → 12" in err and f"is now version {SCHEMA_VERSION} (was {SCHEMA_VERSION - 1})" in err
+    assert db("get", "station/call", data=tmp_path) == 0 and capsys.readouterr().err == "", "a command that does not write says nothing of the kind"
 
 
 def test_a_database_of_a_newer_version_is_read_but_never_written(data: Path, capsys: pytest.CaptureFixture[str]) -> None:

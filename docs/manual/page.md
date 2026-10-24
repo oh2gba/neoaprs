@@ -27,7 +27,7 @@ The table has the symbol, the call, the distance from you, the bearing as a smal
 
 - The columns Call, km and Last heard sort on a click. Your own station is on top.
 - A green check mark after a call means the station was heard direct ("Heard direct", also on its card).
-- The filter box has three tickboxes that wrap onto a second line when they do not fit: "with position only", "hide timed out" and "direct only" (stations heard direct at some time). The last two are remembered.
+- The filter box has two tickboxes that wrap onto a second line when they do not fit: "hide timed out" and "direct only" (stations heard direct at some time). Both are remembered.
 - A click on a row flies the map to the station and shows its card, with the marker above the card and not under it.
 - At the right end of a row are three small buttons: two as on the card and a "..." that opens the row's menu (below).
   - The envelope, **Message OH2XYZ**, opens the conversation with the station (on a phone, straight into the conversation); it is there for the stations a message can go to, not for your own station, an object, an item or the email gateway.

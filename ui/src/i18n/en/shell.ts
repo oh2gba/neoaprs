@@ -30,7 +30,8 @@ export const shell = {
   "panel.hide": "Hide the panel",
   "panel.show_unseen": "Show the panel, {unseen}",
 
-  "footer.cost_title": "NeoAPRS uses {cost}",
+  "footer.cost": "NeoAPRS uses {cpu} % of one processor core and {mb} MB of memory, running for {span}",
+  "footer.cost_no_memory": "NeoAPRS uses {cpu} % of one processor core, running for {span}",
   "footer.update": "Update to {version}",
   "footer.offline": "Daemon offline",
   "footer.connecting": "Connecting…",

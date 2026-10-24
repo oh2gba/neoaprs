@@ -11,6 +11,22 @@ Objects.
 
 - The Objects form no longer has a choice between Object and Item: a new one is always an object, which is what the specification recommends on RF. An item you made before is still in the list, on the map and on the air, and can be changed and killed until you delete it.
 
+The Stations list.
+
+- The tickbox **with position only** is gone: the stations without a position show as they do with it off.
+
+The footer.
+
+- The hover text of the version is a sentence in the page's language, "NeoAPRS uses 0.3 % of one processor core and 56 MB of memory, running for 3 h", not "0.3 % · 56 MB · up 3 h".
+
+The log.
+
+- The lines of the database migrations (for the upgrade that put the settings that are not on the page back to their defaults: one line for each, with the value it had) are on stderr too, so that `journalctl --user -u neoaprs` has them, not only `neoaprs.log`. `neoaprs db set` on a database of an older version says them on its stderr. Their logger is `neoaprs.migrations`.
+
+The Email tab.
+
+- **Esc** in the box to write a mail closes the list of addresses used before; with none open, it clears the address and the text being written.
+
 ## 0.7.0
 
 The page in seven languages, an update you can start from the page, a menu on the Stations list with APRS queries, messages that choose their own path, station cards you can move, and closer to the APRS standard.

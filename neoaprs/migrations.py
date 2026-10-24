@@ -18,9 +18,9 @@ from .backupfolder import sweep
 from .clock import Clock, from_unix, to_unix, utcnow
 from .dberror import StoreError
 from .dbfile import DEFAULT_BUSY_MS, configure, copy_database as _copy_database
-from .migrations2 import _v12, _v13, _v14, _v15, _v16
+from .migrations2 import MIGRATION_LOG, _v12, _v13, _v14, _v15, _v16
 
-log = logging.getLogger("neoaprs.store")                    # the name the migrations' lines carry in the log file
+log = logging.getLogger(MIGRATION_LOG)                    # the migrations' lines are on stderr too (daemon.py), because they change what the operator has stored
 
 
 def _v1(db: sqlite3.Connection) -> None:

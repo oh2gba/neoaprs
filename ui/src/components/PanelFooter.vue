@@ -26,13 +26,13 @@ const trouble = computed<Trouble | null>(() => {
     return { level: "warn", text: t(radio.describe.includes("entering KISS") ? "footer.radio.entering_kiss" : "footer.radio.searching"), title: why };
   return { level: "warn", text: t("footer.radio.not_connected"), title: why };
 });
-/** What the daemon costs the machine, for the title of the version: "0.3 % · 42 MB · up 3 h". */
+/** What the daemon costs the machine, for the title of the version, as a sentence: "NeoAPRS uses 0.3 % of one processor core and 42 MB of memory, running for 3 h". */
 const cost = computed(() => (status.value ? processText(status.value.cpu_percent, status.value.rss_mb, status.value.uptime_sec) : null));
 </script>
 
 <template>
   <footer class="panelfoot">
-    <span v-if="version" class="muted version" :title="cost === null ? undefined : t('footer.cost_title', { cost })">NeoAPRS {{ version }}</span>
+    <span v-if="version" class="muted version" :title="cost ?? undefined">NeoAPRS {{ version }}</span>
     <button
       v-if="status?.update"
       type="button"

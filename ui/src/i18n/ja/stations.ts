@@ -75,7 +75,6 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.table.filter": "絞り込み",
   "station.table.filter_title": "コールサイン、シンボル、コメント、パス",
   "station.table.filter_label": "局を絞り込む",
-  "station.table.with_position": "位置のある局のみ",
   "station.table.hide_timed_out": "時間切れを隠す",
   "station.table.direct_only": "直接受信のみ",
   "station.table.call": "コールサイン",
