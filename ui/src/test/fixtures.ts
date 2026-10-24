@@ -284,6 +284,7 @@ export function configValues(extra: Record<string, string> = {}): ConfigValues {
     "serial/pattern": "/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*",
     "serial/skip": "",
     "station/call": "OH2GBA",
+    "station/transmit": "true",
     "station/lat": "60.17",
     "station/lon": "24.94",
     "station/symbol_table": "/",

@@ -4,6 +4,16 @@ The Beacon tab holds what your station says on the air: the **Station** group (c
 
 A first transmission on the air is not tried by NeoAPRS's tests, which never open the radio. Check it live with **Beacon now**, then look for your call on aprs.fi or on another station's screen, before you leave a timer on.
 
+## Receive only
+
+The first row of the Station group is **Transmit**, with the choices **On** and **Receive only** (the setting `station/transmit`, `true` by default). It is for the days you want the radio to listen and nothing more. While it is **Receive only** nothing at all is transmitted, whoever asks and whatever is due: no beacon, status, message, ack, answer to a query, object, bulletin or digipeated packet.
+
+The page shows an amber **Receive only** badge beside the title in its header, on every screen size; a click on it opens this tab. The setting is kept in the database, so it holds after a restart of the daemon.
+
+* **Beacon now**, **Send status now**, a message, an email, an object or a bulletin you send meanwhile is refused at once with the toast "Receive only: nothing is sent" (`neoaprs db set` and the wire give the code `transmit.off`).
+* A message that was already being sent waits: no attempt is used up and it does not fail, and the waits that were running are moved on by the time transmitting was off. It goes on when you switch back to **On**. A message you receive is kept, but its ack is not sent and not kept for later; the station that sent it will try again.
+* Timers do not catch up. A beacon or a status that came due meanwhile goes out once, at the first moment after you switch to **On**, and the next one an interval after that; objects and bulletins that are due follow one at a time, with the usual pause between frames, so there is never a burst.
+
 ## The beacon
 
 Set the beacon to Off, or to every 30 minutes, every 60 minutes or every 3 hours. The setting `beacon/interval_min` takes 0 (off) or 20 to 1440: 20 minutes is the net cycle of the APRS specification for a path of two hops, and 30 is routine operation. A stored value that the page does not offer, such as 20 or 45, is shown as one more choice until you pick another, and one below 20 is raised to 20 (the log says so). The default is off, so an upgrade never starts to transmit. The setup guide gives a new station a beacon every 30 minutes.

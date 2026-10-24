@@ -63,6 +63,19 @@ describe("AppHeader", () => {
     expect(header({ call: null }).find(".nocall").exists()).toBe(false);
   });
 
+  it("shows the amber Receive only badge beside the title while transmitting is off, and a click asks for the Beacon tab", async () => {
+    const wrapper = header({ receiveOnly: true });
+    const badge = wrapper.find(".rxonly");
+    expect(badge.text()).toBe("Receive only");
+    expect(badge.attributes("title")).toBe("Nothing is transmitted: open the Transmit switch");
+    expect(badge.element.previousElementSibling?.tagName).toBe("H1");
+    expect(cssRule(".rxonly")).toMatch(/color:\s*var\(--warn\)/);
+    await badge.trigger("click");
+    expect(wrapper.emitted("receive")).toHaveLength(1);
+    expect(header().find(".rxonly").exists()).toBe(false);
+    expect(header({ receiveOnly: false }).find(".rxonly").exists()).toBe(false);
+  });
+
   it("is as high with a badge and a button as without them", () => {
     expect(cssRule(".appheader")).toMatch(/min-height:\s*34px/);
   });

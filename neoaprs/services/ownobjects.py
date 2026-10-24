@@ -72,6 +72,8 @@ class OwnObjects(Repeater[str]):
             path: str | None = None) -> OwnObject:
         """Makes the object or item, or changes the one of the name: it is sent at once. Raises OwnError, with the reason, when the call is not set, the values make no object (neoaprs/ownobject.py), the
         name is our own call or a station's, or there are already MAX_OBJECTS."""
+        if not self._config().station_transmit:
+            raise OwnError("Receive only: nothing is sent", "transmit.off")
         if reason := can_transmit(self._config()):
             raise OwnError(reason)
         ours = self._config().station_call

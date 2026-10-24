@@ -8,7 +8,8 @@ are made 4 times, 2 for the email gateway (message.attempts_for; the record keep
 longer than 960 (message.schedule_sec); the answer to the last is waited for FINAL_WAIT_SEC, then the message is "failed", or "unconfirmed" when it was given only 1 or 2 attempts (the station is not expected to ack; an ack that comes later still settles it). An ack from the addressee that quotes our id makes it "acked", a rej "rejected";
 A message to a bulletin or a group (BLN*, ALL, CQ, QST, NWS-*, SKY*, CWA*: neoaprs/bulletin.py) is sent once, without an id, and kept as "unconfirmed" with one attempt; so is a directed query (`ask`: ?APRSP, ?APRSS, ?APRSD, ?APRST to a
 station, once per station and kind in QUERY_EVERY_SEC: services/asking.py, through `send` with `once`), which the conversation shows as a note of what was asked. `cancel` stops a message that is being sent, `retry` sends a failed, unconfirmed, rejected or cancelled one again from the first attempt, `delete` removes a message of any kind (a message being sent is cancelled first).
-While the Tnc is not connected, or the radio is silent, an attempt that is due waits (it is not used up, the waits that were running are moved on by the time the radio was away) and the log says so once.
+While the Tnc is not connected, or the radio is silent, or transmitting is switched off (receive only: `station/transmit`), an attempt that is due waits (it is not used up, nothing fails, the waits that were running are moved on by the time it
+was away) and the log says so once; a new message, and a retry, is refused at once while it is switched off (code `transmit.off`) and an ack for a message we receive is not sent (nothing is queued).
 
 Incoming (`on_packet`, from the Tnc): the inbox (services/inbox.py) keeps a message to us (state "received"), answers it with an ack when it carries an id (`ackMM`, or the exact copy of a reply-ack number: `ackMM}` for `{MM}`, `ackMM}AA` for `{MM}AA`), and
 lets an ack, a rej or the reply-ack of a message to us settle the message of ours that it quotes.
@@ -35,7 +36,8 @@ from neoaprs.bulletin import board_slot
 from neoaprs.aprsmessage import MessageError, format_ack, format_message
 from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.clock import Clock, days, utcnow
-from neoaprs.config import can_transmit
+from neoaprs.config import Config, can_transmit
+from neoaprs.interlock import Interlock
 from neoaprs.message import MESSAGES_HELD_MAX, MSG_IDS, UNCONFIRMED_MAX, MessageRecord, MessagingError, State, addressed_to, attempts_for, check_text, due_at, next_msg_id
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet
@@ -62,6 +64,15 @@ def _info(to: str, text: str, ident: str | None, reply: str | None) -> bytes:
         raise MessagingError(str(e)) from None
 
 
+def _our_call(config: Config) -> str:
+    """The call we send under; raises MessagingError when nothing may be transmitted: receive only (the code `transmit.off`), or the interlock's reason (no call)."""
+    if not config.station_transmit:
+        raise MessagingError("Receive only: nothing is sent", "transmit.off")
+    if reason := can_transmit(config):
+        raise MessagingError(reason)
+    return config.station_call
+
+
 def _named(name: str) -> str:
     """A station as the overheard messages name it: a call in its normal form, else (an addressee that is no call) the text as it is."""
     try:
@@ -76,6 +87,7 @@ class Messaging:
                  spacing_sec: float = SPACING_SEC) -> None:
         self._tnc = tnc
         self._config = config
+        self._interlock = Interlock(config)
         self._log = messagelog
         self._paths = paths                                     # the digipeaters of what we send to a station, for attempt n of a message (PrefBook.path_for)
         self.clock, self.tick_sec = clock, tick_sec
@@ -131,9 +143,7 @@ class Messaging:
         """Keeps a new message to `to_call` and transmits it. Raises MessagingError, with the reason, when the addressee or the text is not right, the radio is silent, or the message cannot be kept. The message is given back
         as it is after the first attempt; when the Tnc is not connected it has had none yet and the attempt waits. While the call is not set (the interlock) it is refused with "set your call first". With `once` (what a
         directed query is, services/asking.py) it goes out as a message to a bulletin does: without an id, with one attempt."""
-        if reason := can_transmit(self._config()):
-            raise MessagingError(reason)
-        ours = self._config().station_call
+        ours = _our_call(self._config())
         board = board_slot(to_call)
         once = once or board is not None
         try:
@@ -158,6 +168,7 @@ class Messaging:
 
     def retry(self, number: int) -> MessageRecord:
         """Sends a failed, unconfirmed, rejected or cancelled message again, from the first attempt of the schedule."""
+        _our_call(self._config())
         record = self._ours(number)
         if record.state not in _RETRYABLE:
             raise MessagingError(f"message {number} is {record.state}: only a failed, unconfirmed, rejected or cancelled message is sent again")
@@ -302,10 +313,10 @@ class Messaging:
 
     def _tick(self) -> None:
         now = self.clock()
-        if not self._tnc.usable:
+        if not self._tnc.usable or can_transmit(self._config()) is not None:      # (the radio is away, or the interlock is shut: receive only, no call)
             self._down_since = self._down_since or now
-            if any(now >= due for due in self._due.values()):
-                self._radio_up()                                     # (tells once)
+            if any(now >= due for due in self._due.values()) and self._radio_up():
+                self._interlock.refused("message")                   # (tells once)
             return
         self._told_down = False
         if self._down_since is not None:
@@ -363,6 +374,8 @@ class Messaging:
 
     def ack(self, to: str, msg_id: str, reply_ack: str | None = None) -> None:
         """Acknowledges message `msg_id` of the station `to`: `ackMM`, or the number as it came for a message with a reply-ack number, `ackMM}` for `{MM}` (`reply_ack` "") and `ackMM}AA` for `{MM}AA`."""
+        if self._interlock.refused("ack"):
+            return                                                  # (no ack is kept for later: the sender sends again)
         try:
             if not self._tnc.send_frame(self._frame(b":" + format_ack(to, msg_id, reply_ack), to)):
                 log.warning("the ack of message %s from %s was not sent: the TNC would not take it", msg_id, to)

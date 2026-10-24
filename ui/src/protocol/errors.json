@@ -67,6 +67,7 @@
  "status.not_sent": {"params": ["reason"], "text": ["nothing was sent: {reason}"]},
  "too_big": {"params": ["kind", "max", "megabytes"], "text": ["The {kind} answer is {*} MB, too big to send ({max} MB at most)"]},
  "topic.unknown": {"params": ["names"], "text": []},
+ "transmit.off": {"params": [], "text": ["Receive only: nothing is sent"]},
  "unknown_command": {"params": ["name"], "text": ["unknown command '{name}'"]},
  "update.blocked": {"params": ["reason"], "text": ["NeoAPRS cannot update itself here: {reason}"]},
  "update.busy": {"params": [], "text": ["an update is running already"]},

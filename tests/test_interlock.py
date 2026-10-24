@@ -99,7 +99,7 @@ async def test_a_call_that_is_a_placeholder_gets_no_ack_and_no_answer_to_a_query
     with pytest.raises(MessagingError, match=SET_FIRST):
         await e.ctl.messaging.send("OH2RDG", "Hello")
     refusals = [r.getMessage() for r in caplog.records if r.name == "neoaprs.interlock"]
-    assert len(refusals) == len(set(refusals)) and any("no frame sent" in m for m in refusals) and any("no query answer sent" in m for m in refusals), "once for each kind"
+    assert len(refusals) == len(set(refusals)) and any("no ack sent" in m for m in refusals) and any("no query answer sent" in m for m in refusals), "once for each kind"
     await e.stop()
 
 

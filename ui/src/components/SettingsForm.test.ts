@@ -73,6 +73,7 @@ describe("SettingsForm", () => {
     });
     expect(wrapper.findAll("fieldset legend").map((l) => l.text())).toEqual(["Station", "Beacon", "Status"]);
     expect(wrapper.findAll(".field label").map((l) => l.text())).toEqual([
+      "Transmit",
       "Call",
       "Latitude",
       "Longitude",
@@ -96,7 +97,7 @@ describe("SettingsForm", () => {
         group(wrapper, "Station")
           ?.findAll(".field label, .field .field-label, h3")
           .map((e) => e.text()),
-      ).toEqual(["Call", "Location", "Latitude", "Longitude", "Symbol"]);
+      ).toEqual(["Transmit", "Call", "Location", "Latitude", "Longitude", "Symbol"]);
       expect(group(wrapper, "Station")?.find("#set-station-comment").exists()).toBe(false);
       expect(group(wrapper, "Beacon")?.find("#set-station-comment").exists()).toBe(true);
     });
@@ -850,7 +851,7 @@ describe("SettingsForm: the Location of our station (Beacon tab)", () => {
     await wrapper.setProps({ picking: true });
     expect(pick(wrapper).text()).toBe("Cancel");
     const order = wrapper.findAll(".field label, .field .field-label").map((e) => e.text());
-    expect(order.slice(0, 4)).toEqual(["Call", "Location", "Latitude", "Longitude"]);
+    expect(order.slice(1, 5)).toEqual(["Call", "Location", "Latitude", "Longitude"]);
   });
 
   it("is only on the Beacon tab", () => {

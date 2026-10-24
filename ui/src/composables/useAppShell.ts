@@ -59,6 +59,7 @@ function useDerived(daemon: ReturnType<typeof useDaemon>) {
     now: useNow(),
     dark: useDark(),
     aging: computed<Aging>(() => agingOf(config.value?.values)),
+    receiveOnly: computed(() => config.value?.values["station/transmit"] === "false"),
     call: computed<string | null>(() => config.value?.values["station/call"] ?? status.value?.call ?? null),
     home: useHome(config, status),
     fallbackPath: computed(() => {

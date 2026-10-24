@@ -33,6 +33,9 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.name.tcp_address": "TCPアドレス",
   "settings.name.radio": "無線機",
 
+  "settings.transmit.label": "送信",
+  "settings.transmit.on": "オン",
+  "settings.transmit.off": "受信専用",
   "settings.call.label": "コールサイン",
   "settings.lat.label": "緯度",
   "settings.lon.label": "経度",

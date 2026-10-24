@@ -17,7 +17,7 @@ describe("groupKeys", () => {
   it("gives the Beacon tab the station keys first (the call, the place, the symbol), then how often and what the beacon says, the antenna and the path, and the status keys", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "beacon");
     expect(groups.map((g) => g.id)).toEqual(["station", "beacon", "status"]);
-    expect(groups[0]?.keys).toEqual(["station/call", "station/lat", "station/lon", "station/symbol_table", "station/symbol_code"]);
+    expect(groups[0]?.keys).toEqual(["station/transmit", "station/call", "station/lat", "station/lon", "station/symbol_table", "station/symbol_code"]);
     expect(groups[1]?.keys).toEqual([
       "beacon/interval_min",
       "station/comment",

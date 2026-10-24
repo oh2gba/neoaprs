@@ -31,6 +31,7 @@ class SettingError(CodedError):
         super().__init__(text, code, **params)
         self.key = key
 
+RECEIVE_ONLY = "receive only: transmitting is switched off"      # why can_transmit refuses while station/transmit is false (a refusal to the page has the code "transmit.off" and says "Receive only: nothing is sent")
 MAX_COMMENT = 43                     # what the comment of a position packet may be, with no data extension (spec 1517)
 MAX_COMMENT_PHG = 36                 # with the 7-byte PHG data extension (spec 1546)
 MIN_BEACON_INTERVAL_MIN = 20         # the shortest time between two beacons (the net cycle of a 2-hop path is 20 minutes, routine operation 30): the page offers 30 and 60 minutes and 3 hours; a stored lower value is raised to this, with a line in the log
@@ -163,6 +164,7 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("serial_pattern", "serial/pattern", _globs),                   # space-separated globs of the device files the search listens to when no port is named
     Setting("serial_skip", "serial/skip", text_of(500)),                     # device paths, separated by commas, that the search for the radio never opens (a rotator's port, say)
     Setting("station_call", "station/call", call_or_empty),                 # empty: nothing is transmitted until a call is set (can_transmit)
+    Setting("station_transmit", "station/transmit", boolean),               # false: receive only, nothing is transmitted whatever is asked or due (can_transmit); kept in the database, so it holds after a restart
     Setting("station_lat", "station/lat", optional_float(*LATITUDE)),     # empty: no position (no beacon; the map opens on the world)
     Setting("station_lon", "station/lon", optional_float(*LONGITUDE)),
     Setting("station_symbol_table", "station/symbol_table", _symbol_table),
@@ -212,6 +214,7 @@ class Config:
     serial_pattern: str = DEFAULT_SERIAL_PATTERN
     serial_skip: str = ""
     station_call: str = ""
+    station_transmit: bool = True
     station_lat: float | None = None
     station_lon: float | None = None
     station_symbol_table: str = "/"
@@ -381,5 +384,7 @@ DEFAULTS = Config()
 
 def can_transmit(config: Config) -> str | None:
     """The transmit interlock, the one place that decides it: None when this station may transmit, else the reason it may not. Nothing at all is transmitted while there is one: no beacon, status,
-    message, ack or answer to a query."""
+    message, ack or answer to a query. Receive only (`station/transmit` false) is the first reason."""
+    if not config.station_transmit:
+        return RECEIVE_ONLY
     return call_problem(config.station_call) or None

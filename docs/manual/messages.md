@@ -28,6 +28,8 @@ An ack from the addressee that quotes your id makes the message *acked*. A rejec
 
 **Cancel** stops a message that is being sent. **Retry** sends a failed, unconfirmed, rejected or cancelled one again from the first attempt, with the same id.
 
+While transmitting is switched off (**Receive only**, [beacon.md](beacon.md#receive-only)) a new message is refused with "Receive only: nothing is sent", and the messages being sent wait in the same way as for a TNC that is away: no attempt is used up and none fails, and they go on when transmitting is switched on. The acks of messages you receive are not sent meanwhile.
+
 While the TNC is not connected, an attempt that is due waits for it. None is used up, the waits that were running are moved on by the time the radio was away, and the log says so once. A message written then is kept and its first attempt goes out when the TNC is back. After a restart the schedule goes on from the latest attempt that was made.
 
 ### The pace

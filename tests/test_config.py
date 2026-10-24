@@ -11,7 +11,7 @@ from neoaprs.configstatus import MAX_STATUS, fill_template
 
 def test_the_defaults_are_the_ones_of_the_brief() -> None:
     assert DEFAULTS.to_data() == {
-        "tnc/profile": "kiss", "serial/port": "", "serial/baud": "", "tcp/host": "127.0.0.1", "tcp/port": "8001", "serial/last_port": "", "serial/pattern": "/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*", "serial/skip": "", "station/call": "", "station/lat": "", "station/lon": "",
+        "tnc/profile": "kiss", "serial/port": "", "serial/baud": "", "tcp/host": "127.0.0.1", "tcp/port": "8001", "serial/last_port": "", "serial/pattern": "/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*", "serial/skip": "", "station/call": "", "station/transmit": "true", "station/lat": "", "station/lon": "",
         "station/symbol_table": "/", "station/symbol_code": "-", "station/comment": "NeoAPRS", "station/status": "", "beacon/power_w": "", "beacon/antenna_height_m": "0", "beacon/antenna_gain_db": "0",
         "beacon/antenna_direction": "omni", "web/network": "false", "web/key": "", "web/https": "false", "web/port": "7303", "web/allowed_hosts": "", "beacon/interval_min": "0",
         "beacon/path": "",

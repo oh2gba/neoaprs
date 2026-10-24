@@ -6,6 +6,8 @@ export const shell: Record<keyof typeof source, Message> = {
   "common.dismiss": "Dispensar",
 
   "header.project_title": "A página do projeto NeoAPRS",
+  "header.receive_only": "Somente recepção",
+  "header.receive_only_title": "Nada é transmitido: abrir a chave Transmitir",
   "header.no_call": "indicativo não definido",
   "header.no_call_title": "Nada é transmitido enquanto não houver um indicativo: abra a configuração",
   "header.unread_open": {

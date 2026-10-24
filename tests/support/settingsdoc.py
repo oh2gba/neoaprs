@@ -39,6 +39,7 @@ def _numbers() -> dict[str, object]:
 # key: (where it is on the page, what it is). The order is the order of the table.
 DESCRIPTIONS: dict[str, tuple[str, str]] = {
     "station/call": ("Beacon tab, Station", "your call, with an SSID if any. **While it is empty, `N0CALL`, `NOCALL`, `MYCALL` or not an amateur call (3 to 6 letters and digits with at least one of each), nothing at all is transmitted** ([start.md](start.md#the-setup-guide))"),
+    "station/transmit": ("Beacon tab, Station (Transmit)", "`false` is receive only: nothing at all is transmitted (beacon, status, messages, acks, answers to queries, objects, bulletins, the digipeater); messages being sent wait, with no attempt used up ([beacon.md](beacon.md#receive-only))"),
     "station/lat": ("Beacon tab, Location", "where you are, decimal degrees, north positive (−90 to 90). The map opens here and distances are measured from here. Empty with the longitude: no position, no beacon, no station of your own, and the map opens on the world"),
     "station/lon": ("Beacon tab, Location", "decimal degrees, east positive (−180 to 180)"),
     "station/symbol_table": ("Beacon tab, Station (the symbol)", "`/` is the primary table, `\\` the alternate one, `0`-`9` and `A`-`Z` an overlay on the alternate table"),
