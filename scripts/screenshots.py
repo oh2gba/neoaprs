@@ -59,6 +59,7 @@ class Daemon:
     async def start(self) -> str:
         env = {k: v for k, v in os.environ.items() if not k.startswith("NEOAPRS_")}
         env["NEOAPRS_UPDATE_CHECK"] = "0"                        # (a made-up day: the daemon does not ask the version page)
+        env["NEOAPRS_SERIAL_PATTERN"] = "/nonexistent/none*"     # (the search for the radio looks at ports that match nothing: no serial device of this machine is ever opened)
         env.update(self.env)
         self.proc = await asyncio.create_subprocess_exec(sys.executable, "-m", "neoaprs", "--data", str(self.data), "--web-port", "0", *self.extra, env=env, cwd=ROOT,
                                                          stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
@@ -123,7 +124,7 @@ async def serve_version(version: str) -> asyncio.Server:
     return await asyncio.start_server(answer, demoscene.HOST, 0)
 
 
-UPDATE_TO = "0.7.1"                                                # (made up: the version page of the update shot says this one is out)
+UPDATE_TO = "0.8.1"                                                # (made up: the version page of the update shot says this one is out)
 
 
 async def prepare(work: Path, radio: demoscene.DemoRadio, basemap: Path | None) -> Path:
@@ -154,6 +155,7 @@ class Shots:
         self.browser, self.url, self.out = browser, url, out
         self.written: dict[str, int] = {}
         self.update_url = ""                                       # the page of the daemon that has an update on offer (the "update" shot)
+        self.receive_url = ""                                      # the page of the daemon that is set to Receive only (the "beacon-rx" shot)
         self.scheme = "light"                                      # the colour scheme of the shots being taken; a dark one is saved as NAME-dark.png
         self.started = asyncio.get_running_loop().time()
 
@@ -249,6 +251,15 @@ async def shot_station(s: Shots, _: str) -> None:
     await s.save(page, "station")
 
 
+async def shot_station_details(s: Shots, _: str) -> None:
+    """The card of a station that runs a Kenwood TH-D74 with Details open: the Device row, the antenna of its PHG report with the arrow of the direction it favours, and the Packets, in all and in the last hour."""
+    page = await s.page(DESKTOP, view=(60.232, 24.946, 10.3), panel=480)                    # (a wide map: the station's marker is clear of its card at the bottom left)
+    await pick_station(page, "OH2ZPK", wait=2500)
+    await page.locator('.cardstack .card[data-call="OH2ZPK"]').get_by_text("Details", exact=True).click()
+    await settle(page, 800)
+    await s.save(page, "station-details")
+
+
 async def shot_weather(s: Shots, _: str) -> None:
     """Two weather stations, their cards side by side over the map: the same graphs, each on the same value axis in both."""
     page = await s.page(DESKTOP, view=(60.08, 24.62, 9.6), panel=560)                      # (a map wide enough for two whole cards: the oldest card closes when there is not)
@@ -288,11 +299,13 @@ async def shot_stations_menu(s: Shots, _: str) -> None:
 async def shot_update(s: Shots, _: str) -> None:
     """The window of an update (the daemon of this shot is told by a version page of its own that a newer version is out, and plays a Windows install): what is new, Update now and the steps by hand."""
     page = await s.page(DESKTOP, tab="settings", view=CITY, panel=WIDE_PANEL, url=s.update_url)
-    await page.locator("#set-update-now").click()
+    await page.locator("#set-update-now").click()                     # (Check now finds the newer version and opens the window by itself: closed again, so that it is not drawn over the Settings tab)
     await settle(page, 1500)
+    await page.keyboard.press("Escape")
+    await settle(page, 400)
     await page.locator("#tab-stations").click()                       # (the Settings tab shows the daemon's own key and addresses: not under this shot)
     await settle(page, 400)
-    await page.get_by_role("button", name="Update to 0.7.1").click()
+    await page.get_by_role("button", name=f"Update to {UPDATE_TO}").click()
     await page.locator(".updatedialog-hand summary").click()
     await settle(page, 800)
     await s.save(page, "update")
@@ -413,6 +426,30 @@ async def shot_settings_web(s: Shots, _: str) -> None:
     await page.evaluate("document.querySelector('#pane-settings fieldset:has(#set-web-key)')?.scrollIntoView({block: 'start'})")
     await settle(page, 400)
     await s.save(page, "settings-web")
+
+
+async def shot_settings_tnc(s: Shots, _: str) -> None:
+    """Settings, the TNC group opened by its arrow: the type of TNC, the port and the speed, Find my radio and the Terminal (a connected radio keeps it folded to its one line)."""
+    page = await s.page(DESKTOP, tab="settings", view=CITY, panel=560)
+    await made_up_web(page)
+    await page.locator("#pane-settings .radiohead").click()
+    await settle(page, 600)
+    await page.evaluate("document.querySelector('#pane-settings .radiostatus')?.scrollIntoView({block: 'start'})")
+    await settle(page, 400)
+    await s.save(page, "settings-tnc")
+
+
+async def shot_beacon_rx(s: Shots, _: str) -> None:
+    """The Beacon tab of a station that is set to Receive only: the Transmit switch at its top and the amber badge in the header, beside the title."""
+    page = await s.page(DESKTOP, tab="beacon", view=CITY, panel=WIDE_PANEL, url=s.receive_url)
+    await settle(page, 400)
+    await s.save(page, "beacon-rx")
+
+
+async def shot_phone_beacon_rx(s: Shots, _: str) -> None:
+    """A phone set to Receive only: the amber badge beside the title and, under the tab bar, the Beacon tab with the Transmit switch at the top."""
+    page = await s.page(PHONE, tab="beacon", view=CITY, phone_view="panel", url=s.receive_url)
+    await s.save(page, "phone-beacon-rx")
 
 
 async def shot_phone_key(s: Shots, _: str) -> None:
@@ -536,8 +573,9 @@ SHOTS: dict[str, Shot] = {
     "map": shot_map, "stations": shot_stations, "station": shot_station, "weather": shot_weather, "messages": shot_messages, "email": shot_email, "bulletins": shot_bulletins,
     "objects": shot_objects, "objects-form": shot_objects_form, "beacon": shot_beacon, "settings": shot_settings, "packets": shot_packets, "phone-map": shot_phone_map, "phone-bulletins": shot_phone_bulletins, "phone-weather": shot_phone_weather,
     "cards": shot_cards, "stations-menu": shot_stations_menu, "update": shot_update, "beacon-de": shot_beacon_de, "phone-messages": shot_phone_messages, "tablet": shot_tablet, "setup": shot_setup, "chain": shot_chain, "chain-failed": shot_chain_failed, "settings-web": shot_settings_web, "phone-key": shot_phone_key,
+    "station-details": shot_station_details, "settings-tnc": shot_settings_tnc, "beacon-rx": shot_beacon_rx, "phone-beacon-rx": shot_phone_beacon_rx,
 }
-DARK_TOO = ("map", "stations", "station", "weather", "messages", "email", "bulletins", "objects", "objects-form", "beacon", "settings", "packets", "phone-map", "phone-bulletins", "phone-weather", "cards", "stations-menu", "update", "beacon-de", "phone-messages", "tablet", "setup", "chain", "chain-failed", "settings-web", "phone-key")
+DARK_TOO = ("map", "stations", "station", "weather", "messages", "email", "bulletins", "objects", "objects-form", "beacon", "settings", "packets", "phone-map", "phone-bulletins", "phone-weather", "cards", "stations-menu", "update", "beacon-de", "phone-messages", "tablet", "setup", "chain", "chain-failed", "settings-web", "phone-key", "station-details", "settings-tnc", "beacon-rx", "phone-beacon-rx")
 
 
 def in_the_dark(shot: Shot) -> Shot:
@@ -596,10 +634,16 @@ async def take(args: argparse.Namespace, chosen: list[str]) -> None:
             neoaprs_db_set(work / "updating", "update/url", f"http://{demoscene.HOST}:{versions.sockets[0].getsockname()[1]}/version.php")
             updating = Daemon(work / "updating", env={"NEOAPRS_INSTALL_KIND": "windows-installer"})        # (a simulated install: Update now is offered, and would only rehearse)
             daemons.append(updating)
+        receiving: Daemon | None = None
+        if {"beacon-rx", "beacon-rx-dark", "phone-beacon-rx", "phone-beacon-rx-dark"} & set(chosen):
+            copy_data(data, work / "receiving")
+            neoaprs_db_set(work / "receiving", "station/transmit", "false")
+            receiving = Daemon(work / "receiving")                                                   # (the same day on the air, with the Transmit switch at Receive only)
+            daemons.append(receiving)
         main_daemon = Daemon(data)
         daemons.append(main_daemon)
         url = await main_daemon.start()
-        radio.feed(demoscene.on_air("OH2ZMA-9", demoscene.position(60.164, 24.88, "/>", "Pekka on the road", course=96, knots=46), path="OH2RCH-2*"))    # (a packet heard just now: the radio status says when the last one came)
+        radio.feed(demoscene.on_air("OH2ZMA-9", demoscene.position(60.164, 24.88, "/>", "Pekka on the road", course=96, knots=46), path="OH2RCH-2*", destination="APOT21"))    # (a packet heard just now: the radio status says when the last one came)
         (work / "fresh").mkdir()
         if (data / "basemap.pmtiles").exists():
             put_map(data / "basemap.pmtiles", work / "fresh" / "basemap.pmtiles")
@@ -608,6 +652,7 @@ async def take(args: argparse.Namespace, chosen: list[str]) -> None:
         fresh_url = await fresh.start() if {"setup", "setup-dark"} & set(chosen) else ""
         print("the page:", url, " the fresh one:", fresh_url)
         update_url = await updating.start() if updating else ""
+        receive_url = await receiving.start() if receiving else ""
         async with async_playwright() as p:
             options: dict[str, Any] = {"args": ["--no-sandbox"] if args.no_sandbox else []}
             if args.chromium:
@@ -615,6 +660,7 @@ async def take(args: argparse.Namespace, chosen: list[str]) -> None:
             browser = await p.chromium.launch(**options)
             shots = Shots(browser, url, args.out)
             shots.update_url = update_url
+            shots.receive_url = receive_url
             for name in chosen:
                 await SHOTS[name](shots, fresh_url)
             await browser.close()

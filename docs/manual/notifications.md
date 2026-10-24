@@ -33,7 +33,7 @@ The text is in the environment and not in the command line, so what a stranger w
 
 **On Windows** the command is a PowerShell script. Read the variables as `$env:NEOAPRS_FROM` and `$env:NEOAPRS_TEXT`. A step that fails ends the script with status 1, and `exit N` gives its own status. The default is a PowerShell toast with the sender and the text, and the system's sound.
 
-**The Test button** to the right of the Command field runs the command as it is saved, exactly as for a real message. `NEOAPRS_FROM` is `NEOAPRS`, `NEOAPRS_TEXT` is `This is a test of the NeoAPRS alert`, `NEOAPRS_AT` is now and `NEOAPRS_MSG_ID` is empty. It works whatever **Alert** says.
+**The Test button** to the right of the Command field runs the command as it is saved, exactly as for a real message. `NEOAPRS_FROM` is `NEOAPRS`, `NEOAPRS_TEXT` is `This is a test of the NeoAPRS alert`, `NEOAPRS_AT` is now and `NEOAPRS_MSG_ID` is empty. It works whatever **Alert** says. Its result is said in the toast at the bottom of the page.
 
 The answer is shown under the field until the next edit: green `ran` when it worked, else red with the exit code and the first line of stderr (`exit code 3: no display`), or that it could not start or was killed. An empty command answers `no alert command`. The button waits while a test runs, and is off, with the title "Save first", while the field differs from the saved command.
 
@@ -57,13 +57,13 @@ The command runs on the computer the daemon runs on, which is not where you are 
 - Choosing one is the click that asks the browser for the permission. The page never asks by itself. When it is refused the choice goes back to **sound** and the words "pop-ups refused: sound only" stand beside it. "pop-ups not allowed yet" or "pop-ups blocked" next to the choice say that a pop-up is chosen but the permission is not there.
 - A browser lets a page make a sound only after you have clicked or pressed a key in it, so the chime is silent until then and the tab alert is all there is.
 
-Each test beside the choice works whatever the choice is and says for a few seconds what happened:
+Each test beside the choice works whatever the choice is and says what happened in the toast at the bottom of the page (not beside the button, so that nothing moves):
 
-| button | what it does | words after it |
+| button | what it does | what the toast says |
 |---|---|---|
 | **Test sound** | plays the chime now | `played`; `sound locked: click the page once` when the browser will not let the audio run yet |
 | **Test pop-up** | shows a pop-up now, "APRS message from NEOAPRS", asking for the permission first if the browser has not been asked. Where none can be shown it flashes the browser tab for a few seconds | `pop-up sent`; `pop-up blocked` when the permission is refused or the browser will not show it; `pop-ups are off for this address` with **Enable pop-ups…** beside it |
-| **Test** (on the NeoAPRS computer) | runs the alert command as it is saved | the command's result, under its field |
+| **Test** (on the NeoAPRS computer) | runs the alert command as it is saved | the command's result |
 
 ### Pop-ups need a secure address
 

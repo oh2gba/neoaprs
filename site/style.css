@@ -516,6 +516,11 @@ h2 {
   border-radius: 24px;
 }
 
+.feature .phone {
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .shot figcaption {
   margin-top: 10px;
   font-size: 0.9rem;

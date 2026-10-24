@@ -95,11 +95,13 @@
       <ul class="ticks">
         <li>APRS symbols and calls on a street-level map of your area, made once and kept on your disk.</li>
         <li>Trails that fade with age. A green ring marks a station heard direct; markers dim as a station ages.</li>
+        <li>A thin dashed ALOHA circle round your station: the distance within which the stations you hear would fill the channel, so a packet for a station beyond it is hard to receive.</li>
         <li>Point at a station for a quick card: status, comment, distance, how it reaches you. Click it for the full card, and its route is drawn on the map, through each digipeater.</li>
+        <li>The card says what the station runs (a Kenwood TH-D74, APRSdroid, an OpenTracker), and under <b>Details</b> its antenna's direction as an arrow and how many packets came in the last hour. A <b>pin</b> keeps a card on the map, past a reload.</li>
       </ul>
     </div>
     <figure class="shot">
-      <a class="zoom frame crop left" href="shots/station.png"><picture><source srcset="shots/station-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/station.png" width="1440" height="900" loading="lazy" alt="The card of a moving station, a car, open on the map: when it was last heard, position, speed, how its packets reach us, and its route drawn on the map"></picture></a>
+      <a class="zoom frame crop left" href="shots/station-details.png"><picture><source srcset="shots/station-details-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/station-details.png" width="1440" height="900" loading="lazy" alt="The card of a house station over the map with Details open: it runs a Kenwood TH-D74, its PHG antenna has an arrow for the direction it favours, how its packets reach us, and 23 packets, 7 of them in the last hour"></picture></a>
     </figure>
   </div>
   <div class="wrap feature flip">
@@ -107,6 +109,7 @@
       <h2>The Stations table</h2>
       <ul class="ticks">
         <li>Sort, filter, hide the timed out, keep the stations heard direct.</li>
+        <li><b>On map for</b> chooses how long a station stays on the map after its last position, from 1 to 24 hours, for every browser and device at once; the table keeps it, dimmed.</li>
         <li>Distance and bearing from you (a small arrow), when each station was last heard, and a check mark for the ones heard direct.</li>
         <li>An envelope to message a station and a trash can to forget it on every row, and a menu (right-click, long press or the <b>...</b> button) with the APRS queries: ask a station for its position, its status, what it hears direct, or trace the route to it.</li>
       </ul>
@@ -176,7 +179,7 @@
       <h2>Weather stations, with graphs</h2>
       <ul class="ticks">
         <li>Temperature, wind and gusts, humidity, pressure and rain, as the station reports them.</li>
-        <li>24 hour and 7 day graphs of temperature, pressure, wind and rain, drawn in the page's own colours.</li>
+        <li>24 hour and 7 day graphs of temperature, pressure, wind and rain, drawn in the page's own colours. Each line is one smooth curve across the hours where the station sent nothing, and never rises above or falls below its readings.</li>
         <li>Open several weather stations side by side: their graphs share the same scales, so the curves can be read against each other.</li>
       </ul>
     </div>
@@ -198,11 +201,46 @@
         <li>A status report from your radio through Hamlib rigctld, or a text of your own: one choice, and only the fields it needs.</li>
         <li>A fill-in digipeater for WIDE1-1, one tickbox, off until you switch it on.</li>
         <li>Settings apply as you change them: no Save button, and an Undo for the last change.</li>
-        <li>Nothing is transmitted until a call is set.</li>
+        <li>Nothing is transmitted until a call is set, and <b>Receive only</b> stops it again whenever you want (below).</li>
       </ul>
     </div>
     <figure class="shot">
       <a class="zoom frame crop panel" href="shots/beacon.png"><picture><source srcset="shots/beacon-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/beacon.png" width="1440" height="900" loading="lazy" alt="The Beacon tab in groups: the station with its place and symbol, the beacon with Beacon now, the path choice set to Recommended, and the status with Send status now"></picture></a>
+    </figure>
+  </div>
+</section>
+
+<section id="listen">
+  <div class="wrap feature">
+    <div class="blurb">
+      <p class="eyebrow">Receive only</p>
+      <h2>A day to listen, and nothing on the air</h2>
+      <ul class="ticks">
+        <li>The <b>Transmit</b> switch at the top of the Beacon tab: <b>On</b> or <b>Receive only</b>.</li>
+        <li>While it is off nothing at all is transmitted: no beacon, status, message, ack, answer to a query, object, bulletin or digipeated packet.</li>
+        <li>An amber <b>Receive only</b> badge beside the title says so on every screen, and a click on it opens the switch.</li>
+        <li>The messages being sent wait and go on when you switch it on again; nothing is lost, nothing comes as a burst.</li>
+      </ul>
+    </div>
+    <figure class="shot">
+      <a class="zoom phone" href="shots/phone-beacon-rx.png"><picture><source srcset="shots/phone-beacon-rx-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/phone-beacon-rx.png" width="390" height="844" loading="lazy" alt="On a phone set to Receive only: the amber Receive only badge beside the title and the Beacon tab with Transmit set to Receive only"></picture></a>
+    </figure>
+  </div>
+</section>
+
+<section id="radio">
+  <div class="wrap feature flip">
+    <div class="blurb">
+      <p class="eyebrow">Your radio</p>
+      <h2>One line while it works, and a button that finds it</h2>
+      <ul class="ticks">
+        <li>The TNC group of the Settings tab is one line: the state of the radio and when a packet last came, with <b>Reconnect</b>. An arrow opens the type of TNC, the port, the speed and the terminal; it is open by itself when the radio is not connected.</li>
+        <li><b>Find my radio</b> (Linux) tries the ports and the paired Bluetooth devices at the usual speeds and finds a TNC that talks KISS or can be put in KISS. It writes nothing to the air, and the port, speed and type go into the settings with an Undo.</li>
+        <li>A radio switched off and on again is put back in KISS at once, and the keep-alive no longer deafens a busy channel: it asks only after 10 quiet minutes.</li>
+      </ul>
+    </div>
+    <figure class="shot">
+      <a class="zoom frame crop pane" href="shots/settings-tnc.png"><picture><source srcset="shots/settings-tnc-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/settings-tnc.png" width="1440" height="900" loading="lazy" alt="Settings, the TNC group opened: the state connected with Reconnect, the radio type, the TCP host and port, the Find my radio button and the Terminal"></picture></a>
     </figure>
   </div>
 </section>
@@ -250,7 +288,7 @@
       <h2>Make one, change it, kill it</h2>
       <ul class="ticks">
         <li>The Objects tab lists them with how often each was sent and when it goes out next.</li>
-        <li>Edit opens the form: symbol, position, comment, course and speed, and a path of its own.</li>
+        <li>Edit opens the form: symbol, position, comment, a path of its own, and course and speed behind a closed <b>Moving</b> heading.</li>
         <li>A kill is sent three times and the object is gone from the map and from the air.</li>
       </ul>
     </div>
@@ -463,6 +501,7 @@
       <li><a class="zoom" href="shots/stations.png" data-dark="shots/stations-dark.png"><picture><source srcset="shots/thumbs/stations-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/stations.png" width="640" height="400" loading="lazy" alt=""></picture><span>The Stations table</span></a></li>
       <li><a class="zoom" href="shots/stations-menu.png" data-dark="shots/stations-menu-dark.png"><picture><source srcset="shots/thumbs/stations-menu-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/stations-menu.png" width="640" height="400" loading="lazy" alt=""></picture><span>The menu of a station: the APRS queries</span></a></li>
       <li><a class="zoom" href="shots/station.png" data-dark="shots/station-dark.png"><picture><source srcset="shots/thumbs/station-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/station.png" width="640" height="400" loading="lazy" alt=""></picture><span>A station card</span></a></li>
+      <li><a class="zoom" href="shots/station-details.png" data-dark="shots/station-details-dark.png"><picture><source srcset="shots/thumbs/station-details-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/station-details.png" width="640" height="400" loading="lazy" alt=""></picture><span>A station card with Details open</span></a></li>
       <li><a class="zoom" href="shots/cards.png" data-dark="shots/cards-dark.png"><picture><source srcset="shots/thumbs/cards-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/cards.png" width="640" height="400" loading="lazy" alt=""></picture><span>Station cards side by side, movable</span></a></li>
       <li><a class="zoom" href="shots/weather.png" data-dark="shots/weather-dark.png"><picture><source srcset="shots/thumbs/weather-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/weather.png" width="640" height="400" loading="lazy" alt=""></picture><span>Weather stations and their graphs</span></a></li>
       <li><a class="zoom" href="shots/messages.png" data-dark="shots/messages-dark.png"><picture><source srcset="shots/thumbs/messages-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/messages.png" width="640" height="400" loading="lazy" alt=""></picture><span>Messages: the list, a conversation and its delivery chain</span></a></li>
@@ -474,7 +513,9 @@
       <li><a class="zoom" href="shots/objects-form.png" data-dark="shots/objects-form-dark.png"><picture><source srcset="shots/thumbs/objects-form-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/objects-form.png" width="640" height="400" loading="lazy" alt=""></picture><span>The object form</span></a></li>
       <li><a class="zoom" href="shots/beacon.png" data-dark="shots/beacon-dark.png"><picture><source srcset="shots/thumbs/beacon-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/beacon.png" width="640" height="400" loading="lazy" alt=""></picture><span>The beacon and the status</span></a></li>
       <li><a class="zoom" href="shots/settings.png" data-dark="shots/settings-dark.png"><picture><source srcset="shots/thumbs/settings-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/settings.png" width="640" height="400" loading="lazy" alt=""></picture><span>The settings: the radio status</span></a></li>
+      <li><a class="zoom" href="shots/settings-tnc.png" data-dark="shots/settings-tnc-dark.png"><picture><source srcset="shots/thumbs/settings-tnc-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/settings-tnc.png" width="640" height="400" loading="lazy" alt=""></picture><span>Settings, the TNC group</span></a></li>
       <li><a class="zoom" href="shots/settings-web.png" data-dark="shots/settings-web-dark.png"><picture><source srcset="shots/thumbs/settings-web-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/settings-web.png" width="640" height="400" loading="lazy" alt=""></picture><span>Network access: the key and the addresses</span></a></li>
+      <li><a class="zoom" href="shots/beacon-rx.png" data-dark="shots/beacon-rx-dark.png"><picture><source srcset="shots/thumbs/beacon-rx-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/beacon-rx.png" width="640" height="400" loading="lazy" alt=""></picture><span>Receive only</span></a></li>
       <li><a class="zoom" href="shots/update.png" data-dark="shots/update-dark.png"><picture><source srcset="shots/thumbs/update-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/update.png" width="640" height="400" loading="lazy" alt=""></picture><span>The update window: Update now</span></a></li>
       <li><a class="zoom" href="shots/beacon-de.png" data-dark="shots/beacon-de-dark.png"><picture><source srcset="shots/thumbs/beacon-de-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/beacon-de.png" width="640" height="400" loading="lazy" alt=""></picture><span>The page in German</span></a></li>
       <li><a class="zoom" href="shots/setup.png" data-dark="shots/setup-dark.png"><picture><source srcset="shots/thumbs/setup-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/setup.png" width="640" height="400" loading="lazy" alt=""></picture><span>The setup guide</span></a></li>
@@ -484,6 +525,7 @@
       <li class="tall"><a class="zoom" href="shots/phone-map.png" data-dark="shots/phone-map-dark.png"><picture><source srcset="shots/thumbs/phone-map-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/phone-map.png" width="270" height="584" loading="lazy" alt=""></picture><span>On a phone: the map</span></a></li>
       <li class="tall"><a class="zoom" href="shots/phone-messages.png" data-dark="shots/phone-messages-dark.png"><picture><source srcset="shots/thumbs/phone-messages-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/phone-messages.png" width="270" height="584" loading="lazy" alt=""></picture><span>On a phone: a conversation</span></a></li>
       <li class="tall"><a class="zoom" href="shots/phone-weather.png" data-dark="shots/phone-weather-dark.png"><picture><source srcset="shots/thumbs/phone-weather-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/phone-weather.png" width="270" height="584" loading="lazy" alt=""></picture><span>On a phone: weather</span></a></li>
+      <li class="tall"><a class="zoom" href="shots/phone-beacon-rx.png" data-dark="shots/phone-beacon-rx-dark.png"><picture><source srcset="shots/thumbs/phone-beacon-rx-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/phone-beacon-rx.png" width="270" height="584" loading="lazy" alt=""></picture><span>On a phone: Receive only</span></a></li>
       <li class="tall"><a class="zoom" href="shots/phone-bulletins.png" data-dark="shots/phone-bulletins-dark.png"><picture><source srcset="shots/thumbs/phone-bulletins-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/phone-bulletins.png" width="270" height="584" loading="lazy" alt=""></picture><span>On a phone: bulletins</span></a></li>
     </ul>
   </div>

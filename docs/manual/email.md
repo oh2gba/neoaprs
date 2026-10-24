@@ -23,7 +23,7 @@ The tab is a mail list, not a conversation. It has one row for each message to o
 
 **At the bottom**, always there, is the box for a mail:
 
-- **To** is an email address. While the box has the focus, the addresses used before that match what you typed are listed under it, opening upward over the list, newest first. A click picks one, and the trash can beside it forgets it. The addresses are kept in your browser.
+- **To** is an email address. While the box has the focus, the addresses used before that match what you typed are listed under it, opening upward over the list, newest first. A click picks one, and the trash can beside it forgets it. The addresses are kept in your browser. **Esc** closes that list; with none open, it clears the address and the text being written.
 - **Text** and "N left", the characters left of the 67 over the address, the space and the text.
 - **Send** at the lower right. It is off while the TNC is not connected, the address or the text is empty, the address has a space in it, or the line is more than 67 bytes. After Send the text is empty again and the address stays, for the next mail to the same person.
 

@@ -191,9 +191,9 @@ class Scene:
             else:
                 self.radio.feed(on_air(ME, body, copy, str(frame.destination)))
 
-    async def hear(self, source: str, info: bytes, path: str = "OH2RCH-2*") -> None:
+    async def hear(self, source: str, info: bytes, path: str = "OH2RCH-2*", destination: str = "APRS") -> None:
         before = self.ctl.tnc.stats.packets
-        self.radio.feed(on_air(source, info, path))
+        self.radio.feed(on_air(source, info, path, destination))
         await _until(lambda: self.ctl.tnc.stats.packets > before)
 
     async def hear_frames(self, data: bytes) -> None:
@@ -290,18 +290,18 @@ def _weather_station(call: str, lat: float, lon: float, comment: str, base_c: fl
     return events
 
 
-def _mover(call: str, symbol: str, comment: str, points: list[tuple[float, float]], count: int, start_ago: float, end_ago: float, knots: float, path: str) -> list[Event]:
+def _mover(call: str, symbol: str, comment: str, points: list[tuple[float, float]], count: int, start_ago: float, end_ago: float, knots: float, path: str, destination: str = "APRS") -> list[Event]:
     events = []
     for i, (lat, lon, course) in enumerate(along(points, count)):
         ago = start_ago + (end_ago - start_ago) * i / (count - 1)
         info = position(lat, lon, symbol, comment, course, knots)
-        events.append(Event(ago, lambda s, c=call, f=info, p=path: s.hear(c, f, p)))
+        events.append(Event(ago, lambda s, c=call, f=info, p=path: s.hear(c, f, p, destination)))
     return events
 
 
-def _fixed(call: str, ago: float, symbol: str, lat: float, lon: float, comment: str, path: str = "OH2RCH-2*", repeats: int = 1, every: float = 30) -> list[Event]:
+def _fixed(call: str, ago: float, symbol: str, lat: float, lon: float, comment: str, path: str = "OH2RCH-2*", repeats: int = 1, every: float = 30, destination: str = "APRS") -> list[Event]:
     info = position(lat, lon, symbol, comment)
-    return [Event(ago + i * every, lambda s: s.hear(call, info, path)) for i in range(repeats)]
+    return [Event(ago + i * every, lambda s: s.hear(call, info, path, destination)) for i in range(repeats)]
 
 
 def _text(source: str, ago: float, text: str, msg_id: str, path: str = "OH2RCH-2*") -> Event:
@@ -336,15 +336,15 @@ def events(local_hour_now: float) -> list[Event]:
     day += _fixed("OH2RCH-2", 9, "/#", 60.2000, 24.9600, "PHG7470/W2 Helsinki Kumpula digi", path="", repeats=8, every=20)
     day += _fixed("OH2RDK-7", 63, "/&", 60.1650, 24.9467, "432.500 MHz", repeats=4, every=50)
     day += _fixed("OH2ZIG-10", 18, "/&", 60.4030, 25.0970, "RX iGate Tuusula", path="OH2RCH-2*,OH2RDK-7*", repeats=5, every=25)
-    day += _fixed("OH2ZPK", 36, "/-", 60.2934, 25.0378, "Jari, Vantaa, 2 m net Tue 20:00", path="OH2RCH-2*", repeats=5, every=75)
+    day += _fixed("OH2ZPK", 10, "/-", 60.2934, 25.0378, "PHG5362Jari, Vantaa, 2 m net Tue 20:00", path="OH2RCH-2*", repeats=14, every=22, destination="APK004")      # (a Kenwood TH-D74; 25 W, 80 ft, 6 dB, favouring the east: the card's Device row and antenna arrow)
     day += _fixed("OH2ZVT-7", 330, "/>", 60.4160, 24.3220, "Vihti, parked", path="OH2RDG*", repeats=2, every=20)
     day += _fixed("OH2RDG-3", 41, "/r", 60.1330, 24.5240, "Kirkkonummi 145.650 repeater", path="OH2RDG*", repeats=2, every=60)
     # Two weather stations, 24 hours of reports each
     day += _weather_station("OH2ZWA", 60.1840, 24.8280, "Otaniemi WX", 6.4, 1015.0, local_hour_now, "OH2RCH-2*")
     day += _weather_station("OH2ZWB", 59.9770, 24.4210, "Porkkala WX", 7.4, 1014.0, local_hour_now, "")
     # Stations on the move
-    day += _mover("OH2ZMA-9", "/>", "Pekka on the road", [(60.1180, 24.4350), (60.1330, 24.5600), (60.1490, 24.6450), (60.1610, 24.7300), (60.1700, 24.7900), (60.1660, 24.8450), (60.1640, 24.8800)], 26, 100, 4, 46, "OH2RCH-2*")
-    day += _mover("OH3ZHK-7", "/[", "Hiking in Nuuksio", [(60.3100, 24.5000), (60.3140, 24.5060), (60.3180, 24.5040), (60.3215, 24.5120), (60.3240, 24.5200)], 14, 115, 8, 2, "WIDE1-1")
+    day += _mover("OH2ZMA-9", "/>", "Pekka on the road", [(60.1180, 24.4350), (60.1330, 24.5600), (60.1490, 24.6450), (60.1610, 24.7300), (60.1700, 24.7900), (60.1660, 24.8450), (60.1640, 24.8800)], 26, 100, 4, 46, "OH2RCH-2*", "APOT21")
+    day += _mover("OH3ZHK-7", "/[", "Hiking in Nuuksio", [(60.3100, 24.5000), (60.3140, 24.5060), (60.3180, 24.5040), (60.3215, 24.5120), (60.3240, 24.5200)], 14, 115, 8, 2, "WIDE1-1", "APDR16")
     day += _mover("OH2ZSV-5", "/Y", "s/y Tuuli, Gulf of Finland", [(60.0600, 24.7000), (60.0800, 24.8200), (60.1050, 24.9100), (60.1250, 24.9650)], 20, 300, 12, 6, "OH2RCH-2*")
     day += _mover("OH2ZBK-8", "/b", "Rannikkoreitti", [(60.1800, 24.6200), (60.1840, 24.6600), (60.1900, 24.7000)], 10, 70, 28, 7, "OH2RCH-2*")
     # Messages
@@ -355,7 +355,7 @@ def events(local_hour_now: float) -> list[Event]:
     day.append(Event(240, lambda s: s.hear("OH2ZMA-9", b":" + format_message("OH2ZPK", "Moi Jari, tonight at 20?", "03"), "OH2RCH-2*")))
     day.append(_text("OH2ZPK", 190, "Moi John! Are you QRV on the 2 m net tonight?", "41", "OH2RCH-2*"))
     day.append(_out(175, "OH2ZPK", "Moi Jari! Yes, 144.800 at 20:00", ack_after_sec=7, heard=[("OH2RCH-2*,OH2RDG*",)]))
-    day.append(_text("OH2ZPK", 160, "Great. I take the TH-D7 to the lake on Saturday", "42", "OH2RCH-2*,OH2RDK-7*"))
+    day.append(_text("OH2ZPK", 160, "Great. I take the TH-D74 to the lake on Saturday", "42", "OH2RCH-2*,OH2RDK-7*"))
     day.append(_out(150, "OH2ZPK", "Nice! Beacon every 5 min so I can follow you on the map", ack_after_sec=8, ack_path="OH2RDG*", tries=2,
                     heard=[(), ("OH2RCH-2*,OH2RDG",)]))
     day.append(_text("OH3ZHK-7", 95, "At the Nuuksio car park, 3 km to the lookout", "17", "WIDE1-1"))
