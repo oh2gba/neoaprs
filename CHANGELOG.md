@@ -39,6 +39,10 @@ The map.
 
 - The ALOHA circle of Bob Bruninga, WB4APR, is drawn round your station: a thin dashed circle, under the markers, with its radius as the hover text ("ALOHA circle: 42 km"). It is the distance within which the stations heard on the radio would fill the channel; a packet for a station beyond it is hard to receive reliably. The daemon works it out by WB4APR's method ("The ALOHA Circle", aprs.org, 2011) once a minute from the stations heard in the last hour, nearest first, each by what it sends in half an hour (a moving mobile 15 packets, any other mobile 7, a weather station 6, a digipeater 3, any other station 2, and each digipeater nearer than a station makes the packets of the stations beyond it count once more), until the sum reaches 1800, the packets a 1200 baud channel carries in half an hour. Without a position, or with too few stations heard to fill the channel, there is no circle. The radius is the new field `aloha_km` of the topic `map`.
 
+Nothing moves when a button answers.
+
+- The answers of **Check now**, the alert command's **Test**, **New key** and **Test sound** / **Test pop-up** are said in the toast at the bottom, like the other notices, not beside or under the button (where they pushed the (i) aside). When Check now finds a newer version, the update window opens.
+
 The Settings tab's TNC group.
 
 - The group is one line, the radio status with a small **Reconnect** at its end, and an arrow in front that opens the rest: the type of TNC, the port, the speed (or the host and port of a TCP type) and the **Terminal**. It is closed unless the radio is not connected.

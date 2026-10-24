@@ -13,7 +13,7 @@ function make(extra: Record<string, string> = {}, urls: string[] = []) {
   const config = configValues(extra);
   config.urls = urls;
   const daemon = fakeDaemon({ config });
-  return { wrapper: mount(SettingsForm, { global: withDaemon(daemon) }), send: daemon.send };
+  return { wrapper: mount(SettingsForm, { global: withDaemon(daemon) }), send: daemon.send, say: daemon.say };
 }
 
 afterEach(() => {
@@ -58,10 +58,10 @@ describe("the network access", () => {
     expect(wrapper.find("label[for='set-web-url-0']").text()).toBe("Open at");
   });
 
-  it("makes a new key only on the second press, and says so when the daemon does not answer", async () => {
+  it("makes a new key only on the second press, and says so in the toast when the daemon does not answer", async () => {
     const daemon = new FakeFetch(204);
     vi.stubGlobal("fetch", daemon.fetch);
-    const { wrapper } = make(ON);
+    const { wrapper, say } = make(ON);
     const button = () => wrapper.findAll("button").find((b) => b.text() === "New key" || b.text() === "sure?");
     expect(button()?.text()).toBe("New key");
     await button()?.trigger("click");
@@ -70,12 +70,12 @@ describe("the network access", () => {
     await button()?.trigger("click");
     await flushPromises();
     expect(daemon.calls.map((c) => [c.method, c.url])).toEqual([["POST", "http://127.0.0.1:7303/access/new"]]);
-    expect(wrapper.find(".field-result").exists()).toBe(false);
+    expect(say).not.toHaveBeenCalled();
     daemon.status = 500;
     await button()?.trigger("click");
     await button()?.trigger("click");
     await flushPromises();
-    expect(wrapper.find(".field-result").text()).toBe("No answer from the daemon.");
+    expect(say).toHaveBeenCalledExactlyOnceWith("No answer from the daemon.");
   });
 });
 

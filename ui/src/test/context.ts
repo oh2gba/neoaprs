@@ -1,5 +1,5 @@
 // The page's context (composables/useDaemonContext.ts) for a test that mounts a pane on its own: every part a pane may inject is there, quiet (a connected radio, the settings of the fixtures, no stations), and a test gives the parts it cares about
-// (a plain value, or a ref that it changes later) and reads `send`, which records the commands. `withDaemon(context)` is the `global` option of a mount.
+// (a plain value, or a ref that it changes later) and reads `send`, which records the commands, and `say`, which records what the page would say in its toast. `withDaemon(context)` is the `global` option of a mount.
 import { isRef, nextTick, shallowReactive, shallowRef, type Ref } from "vue";
 import { vi, type Mock } from "vitest";
 import { DAEMON_KEY, type DaemonContext } from "@/composables/useDaemonContext";
@@ -17,6 +17,7 @@ import { NOW, configValues } from "@/test/fixtures";
 /** The context as a test changes it: the parts that are refs are writable. */
 export type FakeDaemon = { [K in keyof DaemonContext]: DaemonContext[K] extends Readonly<Ref<infer T>> ? Ref<T> : DaemonContext[K] } & {
   send: Mock<(command: Command) => boolean>;
+  say: Mock<(text: string) => void>;
 };
 /** What a test gives: a plain value, or a ref it changes later. */
 export type Given = { [K in keyof DaemonContext]?: DaemonContext[K] extends Readonly<Ref<infer T>> ? T | Ref<T> : DaemonContext[K] };
@@ -32,6 +33,7 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
   const settings = over.settings ?? useSettings(config, lastError, sender);
   const context = {
     send: sender,
+    say: over.say ?? vi.fn((_text: string) => undefined),
     config,
     status: part(over.status, null),
     tnc: part(over.tnc, null),

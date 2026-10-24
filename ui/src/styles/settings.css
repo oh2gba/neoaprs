@@ -110,9 +110,6 @@
   color: var(--bad);
   font-weight: 600;
 }
-.field-result.ok {
-  color: var(--ok);
-}
 .confirm-row {
   display: flex;
   flex-wrap: wrap;

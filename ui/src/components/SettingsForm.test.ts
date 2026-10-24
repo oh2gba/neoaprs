@@ -691,7 +691,7 @@ describe("SettingsForm", () => {
       expect(wrapper.find("#set-update-url").exists()).toBe(false);
     });
 
-    it("sends update_check, waits for the answer and says up to date with the version", async () => {
+    it("sends update_check, waits for the answer and says up to date with the version in the toast", async () => {
       const { wrapper, send, daemon } = make();
       await check(wrapper)?.trigger("click");
       expect(send).toHaveBeenCalledWith({ cmd: "update_check" });
@@ -700,33 +700,32 @@ describe("SettingsForm", () => {
       expect(send).toHaveBeenCalledTimes(1);
       await tell(daemon, { updateResult: answer({}) });
       expect(check(wrapper)?.attributes("disabled")).toBeUndefined();
-      expect(wrapper.find(".updatecheck-result").text()).toBe("up to date (0.3.0)");
-      expect(wrapper.find("button.updatecheck-result").exists()).toBe(false);
+      expect(daemon.say).toHaveBeenCalledExactlyOnceWith("up to date (0.3.0)");
+      expect(wrapper.find(".field-control").text()).not.toContain("up to date");
+      expect(wrapper.emitted("update")).toBeUndefined();
     });
 
-    it("says which version is available, as a button that asks for the panel with the steps", async () => {
+    it("asks for the panel with the steps, and says nothing, when a newer version is available", async () => {
       const { wrapper, daemon } = make();
       await check(wrapper)?.trigger("click");
       await tell(daemon, { updateResult: answer({ outcome: "newer", version: "0.4.0" }) });
-      const result = wrapper.find("button.updatecheck-result");
-      expect(result.text()).toBe("0.4.0 available");
-      await result.trigger("click");
       expect(wrapper.emitted("update")).toHaveLength(1);
+      expect(daemon.say).not.toHaveBeenCalled();
     });
 
     it("says no answer, with the reason when the daemon gave one", async () => {
       const { wrapper, daemon } = make();
       await check(wrapper)?.trigger("click");
       await tell(daemon, { updateResult: answer({ outcome: "no_answer", version: "", text: "the version page could not be reached" }) });
-      expect(wrapper.find(".updatecheck-result").text()).toBe("the version page could not be reached");
+      expect(daemon.say).toHaveBeenCalledExactlyOnceWith("the version page could not be reached");
     });
   });
 
   describe("the Test button of the alert", () => {
     const button = (wrapper: ReturnType<typeof make>["wrapper"]) =>
       wrapper.find("#set-messages-alert_command").element.closest(".field")?.querySelector("button");
-    const result = (wrapper: ReturnType<typeof make>["wrapper"]) =>
-      wrapper.find("#set-messages-alert_command").element.closest(".field")?.querySelector(".field-result");
+    const beside = (wrapper: ReturnType<typeof make>["wrapper"]) =>
+      wrapper.find("#set-messages-alert_command").element.closest(".field")?.querySelector("[role='status']");
 
     it("is right of the alert command, and of no other field but the update check's and the (i) of the digipeater, and not in the Beacon tab", () => {
       const { wrapper } = make();
@@ -746,7 +745,7 @@ describe("SettingsForm", () => {
       ).toEqual(["Change"]);
     });
 
-    it("sends alert_test, waits while it runs, and shows ran in green under the field", async () => {
+    it("sends alert_test, waits while it runs, and says ran in the toast", async () => {
       const { wrapper, send, daemon } = make();
       await wrapper.find("#set-messages-alert_command + button").trigger("click");
       expect(send).toHaveBeenCalledWith({ cmd: "alert_test" });
@@ -755,25 +754,23 @@ describe("SettingsForm", () => {
       expect(send.mock.calls.filter(([c]) => c.cmd === "alert_test")).toHaveLength(1);
       await tell(daemon, { alertResult: { type: "alert_result", ok: true, text: "ran" } });
       expect(button(wrapper)?.hasAttribute("disabled")).toBe(false);
-      expect(result(wrapper)?.textContent).toBe("ran");
-      expect(result(wrapper)?.classList.contains("ok")).toBe(true);
+      expect(daemon.say).toHaveBeenCalledExactlyOnceWith("ran");
+      expect(beside(wrapper)).toBeNull();
     });
 
-    it("shows a failure in red, and the result goes with the next edit", async () => {
+    it("says a failure in the toast", async () => {
       const { wrapper, daemon } = make();
       await wrapper.find("#set-messages-alert_command + button").trigger("click");
       await tell(daemon, { alertResult: { type: "alert_result", ok: false, text: "exit code 3: no display" } });
-      expect(result(wrapper)?.textContent).toBe("exit code 3: no display");
-      expect(result(wrapper)?.classList.contains("ok")).toBe(false);
-      await wrapper.find("#set-messages-alert_command").setValue("true");
-      expect(result(wrapper)).toBeNull();
+      expect(daemon.say).toHaveBeenCalledExactlyOnceWith("exit code 3: no display");
+      expect(beside(wrapper)).toBeNull();
     });
 
-    it("shows the error of an empty command as the result", async () => {
+    it("says the error of an empty command in the toast", async () => {
       const { wrapper, daemon } = make();
       await wrapper.find("#set-messages-alert_command + button").trigger("click");
       await tell(daemon, { lastError: toastOf("alert_test: no alert command") });
-      expect(result(wrapper)?.textContent).toBe("no alert command");
+      expect(daemon.say).toHaveBeenCalledExactlyOnceWith("no alert command");
       expect(button(wrapper)?.hasAttribute("disabled")).toBe(false);
     });
 

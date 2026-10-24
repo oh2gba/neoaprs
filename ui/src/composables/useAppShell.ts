@@ -143,6 +143,7 @@ export function useAppShell() {
     panel,
     findRadio,
     alerts: tabs.alerts,
+    say,
   });
 
   return { daemon, updateOpen, newer, objects, picks, layout, cards, guide, panel, notice, findRadio, stationActions, ...tabs, ...derived };

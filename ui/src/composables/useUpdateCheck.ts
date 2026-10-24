@@ -1,4 +1,4 @@
-// The Check now button of the Update check group: it asks the daemon to put the question of the daily check to the version page at once (`update_check`) and shows the answer (`update_result`) beside the button for a few seconds. The button waits while the
+// The Check now button of the Update check group: it asks the daemon to put the question of the daily check to the version page at once (`update_check`) and gives the answer (`update_result`) for the form to say. The button waits while the
 // question is out; the daemon answers whether the daily check is on or not.
 import { onScopeDispose, ref, shallowRef, watch, type Ref } from "vue";
 import { t } from "@/i18n";

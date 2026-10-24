@@ -144,9 +144,8 @@ a.btn {
   font-weight: 400;
   line-height: 1.4;
 }
-/* buttons that look like a link: the new version in the header, the result of the update check, a link in a sentence */
+/* buttons that look like a link: the new version in the header, a link in a sentence */
 button.update,
-button.updatecheck-result,
 button.linkbtn {
   font: inherit;
   font-size: 11px;
@@ -156,9 +155,6 @@ button.linkbtn {
   padding: 0;
   cursor: pointer;
   text-decoration: underline;
-}
-.updatecheck-result {
-  font-size: 12px;
 }
 button.linkbtn {
   font-size: inherit;

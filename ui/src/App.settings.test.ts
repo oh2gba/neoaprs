@@ -181,7 +181,20 @@ describe("App: the Settings tab", () => {
     socket.say(status({ update: { version: "0.4.0", url: "", message: "" } }));
     await flushPromises();
     expect(wrapper.find("button.update").text()).toBe("Update to 0.4.0");
-    await wrapper.find("#pane-settings button.updatecheck-result").trigger("click");
     expect(wrapper.find(".updatedialog h2").text()).toBe("NeoAPRS 0.4.0 is available");
+    expect(wrapper.find(".toast").exists()).toBe(false);
+  });
+
+  it("says in the toast, and opens nothing, when the check from the Settings tab finds the version up to date", async () => {
+    const { wrapper, socket } = await open();
+    await tabButton(wrapper, "Settings")?.trigger("click");
+    await wrapper
+      .findAll("#pane-settings button")
+      .find((b) => b.text() === "Check now")
+      ?.trigger("click");
+    socket.say({ type: "update_result", outcome: "current", version: "0.3.0", text: "" });
+    await flushPromises();
+    expect(wrapper.find(".toast").text()).toContain("up to date (0.3.0)");
+    expect(wrapper.find(".updatedialog").exists()).toBe(false);
   });
 });

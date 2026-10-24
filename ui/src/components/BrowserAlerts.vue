@@ -1,8 +1,8 @@
 <script setup lang="ts">
 // The browser's part of the Settings tab's "Notifications" group: what this browser does for a new message (off, sound, sound and pop-up, pop-up only), with a Test button for the sound and one for the pop-up, each with
-// the few words of what happened. The choice is kept in the browser, not on the daemon, so each device decides. The options with a pop-up are disabled, with the reason as their title, where the browser cannot show one; where the
+// the few words of what happened, said (`say`) in the page's toast. The choice is kept in the browser, not on the daemon, so each device decides. The options with a pop-up are disabled, with the reason as their title, where the browser cannot show one; where the
 // page is not a secure context (plain http from another computer) "Enable pop-ups…" opens the steps for the person's browser (PopupHelp), which start with the secure page while the daemon serves https (`https`).
-import { ref } from "vue";
+import { ref, watch } from "vue";
 import InstallApp from "@/components/InstallApp.vue";
 import PopupHelp from "@/components/PopupHelp.vue";
 import { t } from "@/i18n";
@@ -10,7 +10,12 @@ import type { BrowserAlerts } from "@/composables/useBrowserAlerts";
 import { MODES, wantsPopup, type AlertMode } from "@/lib/alertmode";
 import type { HttpsState } from "@/protocol/protocol";
 
-const props = defineProps<{ alerts: BrowserAlerts; https?: HttpsState | null }>();
+const props = defineProps<{ alerts: BrowserAlerts; https?: HttpsState | null; say?: (text: string) => void }>();
+// the answers of the two Test buttons are said in the toast, so that nothing moves
+watch([() => props.alerts.soundStatus.value, () => props.alerts.popupStatus.value], ([sound, popup], [soundBefore, popupBefore]) => {
+  if (sound && sound !== soundBefore) props.say?.(sound);
+  if (popup && popup !== popupBefore) props.say?.(popup);
+});
 
 const helpOpen = ref(false);
 
@@ -49,14 +54,12 @@ async function onChoose(event: Event): Promise<void> {
     <label for="alert-test-sound">{{ t("settings.browser.sound") }}</label>
     <div class="field-control">
       <button id="alert-test-sound" class="btn" type="button" @click="alerts.testSound">{{ t("settings.browser.test_sound") }}</button>
-      <span v-if="alerts.soundStatus.value" class="muted" role="status">{{ alerts.soundStatus.value }}</span>
     </div>
   </div>
   <div class="field">
     <label for="alert-test-popup">{{ t("settings.browser.popup") }}</label>
     <div class="field-control">
       <button id="alert-test-popup" class="btn" type="button" @click="alerts.testPopup">{{ t("settings.browser.test_popup") }}</button>
-      <span v-if="alerts.popupStatus.value" class="muted" role="status">{{ alerts.popupStatus.value }}</span>
       <button v-if="!alerts.secure && alerts.popupStatus.value" class="linkbtn" type="button" @click="helpOpen = true">
         {{ t("settings.browser.enable_popups") }}
       </button>

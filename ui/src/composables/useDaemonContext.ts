@@ -72,6 +72,8 @@ export interface DaemonContext {
   guide: SetupGuide;
   panel: Panel;
   alerts: BrowserAlerts;
+  /** A word in the toast that is no error ("up to date (0.7.0)", "Sound played"): the result of a button goes there, not beside the button, so that nothing moves */
+  say: (text: string) => void;
 }
 
 const KEY: InjectionKey<DaemonContext> = Symbol("daemon");
