@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs.services.selfupdate import SelfUpdate, UpdateNowError
+from neoaprs.services.selfupdate import TELL_SEC, SelfUpdate, UpdateNowError
 from neoaprs.updateasset import RELEASES, url_allowed
 from neoaprs.versions import InstallInfo
 from tests.support.env import until
@@ -34,6 +34,20 @@ async def test_the_update_downloads_checks_installs_and_waits_for_the_restart(tm
     status = job.status()
     assert (status.version, status.percent, status.downloaded, status.total, status.problem) == ("0.7.0", 100, len(BODY), len(BODY), "")
     assert not (tmp_path / f"{NAME}.part").exists()
+    await job.stop()
+
+
+async def test_the_daemon_is_ended_only_after_the_page_has_been_told_it_restarts(tmp_path: Path) -> None:
+    release = FakeRelease()
+    seen: list[str] = []
+    job = SelfUpdate(InstallInfo("appimage", str(tmp_path / "NeoAPRS-0.6.7-x86_64.AppImage")), FakeInstaller(tmp_path), lambda: "0.7.0", (RELEASES, url_allowed), release.fetch_sums, release.fetch,
+                     restart_grace_sec=30.0, end=lambda: seen.append(job.status().state))
+    job.begin("0.7.0")
+    await until(lambda: job.status().state == "restarting")
+    told = asyncio.get_running_loop().time()
+    assert seen == []                                   # (not at once: the page's socket gets the state first)
+    await until(lambda: seen != [])
+    assert seen == ["restarting"] and asyncio.get_running_loop().time() - told >= TELL_SEC * 0.8
     await job.stop()
 
 

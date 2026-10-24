@@ -78,8 +78,12 @@ async def test_a_bad_checksum_is_an_error_in_the_topic(tmp_path: Path) -> None:
 
 async def test_the_restart_of_an_appimage_is_the_daemons_stop_with_the_command_line_to_run_after_it(tmp_path: Path) -> None:
     e = await started(tmp_path)
+    e.ctl._end_for_restart()
+    assert not stopfile.requested(e.ctl.data_dir), "no restart asked for: the daemon goes on"
     e.ctl.restart_into(["/home/ham/NeoAPRS.AppImage", "run"])
     assert e.ctl.reexec == ["/home/ham/NeoAPRS.AppImage", "run"]
-    assert stopfile.requested(e.ctl.data_dir) and stopfile.restarting(e.ctl.data_dir)
+    assert not stopfile.requested(e.ctl.data_dir) and stopfile.restarting(e.ctl.data_dir), "ended only once the page is told"
+    e.ctl._end_for_restart()
+    assert stopfile.requested(e.ctl.data_dir)
     stopfile.clear(e.ctl.data_dir)
     await e.stop()

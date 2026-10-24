@@ -25,6 +25,7 @@ from .selfinstall import Installer, InstallError
 log = logging.getLogger("neoaprs.update")
 
 RESTART_GRACE_SEC = 300.0
+TELL_SEC = 0.5                  # between `restarting` and the daemon's end: the page is told before its socket closes
 State = Literal["idle", "downloading", "verifying", "installing", "restarting", "error"]
 Problem = Literal["", "download", "no_checksum", "checksum", "install", "no_restart"]
 FetchSums = Callable[[str, Allowed], bytes]
@@ -52,7 +53,7 @@ class UpdateNowError(CodedError):
 
 class SelfUpdate:
     def __init__(self, install: InstallInfo, installer: Installer | None, latest: Callable[[], str | None], source: tuple[str, Allowed], fetch_sums: FetchSums = fetch_bytes,
-                 fetch: FetchFile = fetch_file, restart_grace_sec: float = RESTART_GRACE_SEC) -> None:
+                 fetch: FetchFile = fetch_file, restart_grace_sec: float = RESTART_GRACE_SEC, end: Callable[[], None] = lambda: None) -> None:
         self.install = install
         self.installer = installer
         self._latest = latest                   # the version the update check announced, None while there is none
@@ -60,6 +61,7 @@ class SelfUpdate:
         self._fetch_sums = fetch_sums
         self._fetch = fetch
         self.restart_grace_sec = restart_grace_sec
+        self._end = end                         # ends the daemon when the installer asked for a restart into the new file (an AppImage); nothing otherwise
         self.changed: Signal[[]] = Signal("update_changed")
         self._tasks = TaskSet(log, "update")
         self._job = IDLE
@@ -152,6 +154,8 @@ class SelfUpdate:
         self._set(state="installing")
         await in_thread(lambda: installer.install(part, name, version))
         self._set(state="restarting")
+        await asyncio.sleep(TELL_SEC)
+        self._end()
         await asyncio.sleep(self.restart_grace_sec)
         self._fail("no_restart", f"NeoAPRS {version} was installed but NeoAPRS has not restarted; quit it and start it again")
 

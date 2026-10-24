@@ -81,7 +81,7 @@ class Services:
         self.mapfetch = MapFetch(data_dir, lambda: self.config, clock)  # the base map: the detailed map round our position and the world map under it, made on request from the page; nothing to start
         self.install = install                                           # how this copy was installed, for the page (the steps of an update)
         self.updatecheck = UpdateCheck(lambda: self.config, VERSION, platform_name(sys.platform, platform.machine(), install.kind == "appimage"), fetch_update)   # once a day: which version is the latest (update/check); started by the controller
-        self.selfupdate = SelfUpdate(install, installer_for(install, data_dir, self.restart_into), self._announced, release_source())      # Update now: on the page's request only; nothing to start
+        self.selfupdate = SelfUpdate(install, installer_for(install, data_dir, self.restart_into), self._announced, release_source(), end=self._end_for_restart)      # Update now: on the page's request only; nothing to start
         self.reexec: list[str] | None = None                            # the command line that is to run in the place of this process when it has ended (Update now of an AppImage)
         self.digipeater = Digipeater(self.tnc, lambda: self.config, clock, self.tnc.stats)     # the fill-in digipeater (digi/enabled): a packet that asks for WIDE1-1 or for our call is sent again; nothing to start
         self.config_changed: Signal[[Config]] = Signal("config_changed")   # every save of the settings, though nothing differs: the page's settings form waits for it
@@ -100,10 +100,14 @@ class Services:
         return latest.version if latest is not None else None
 
     def restart_into(self, argv: list[str]) -> None:
-        """Ends the daemon the way `neoaprs stop` does, and has the process run `argv` in its place once everything is let go (neoaprs/daemon.py). Called from a thread of Update now."""
+        """Has the process run `argv` in its place once the daemon has ended and everything is let go (neoaprs/daemon.py). Called from a thread of Update now, which ends the daemon after the page is told."""
         self.reexec = argv
         stopfile.mark_restart(self.data_dir)
-        stopfile.request(self.data_dir)
+
+    def _end_for_restart(self) -> None:
+        """Ends the daemon the way `neoaprs stop` does, when Update now has a command line to run in its place."""
+        if self.reexec is not None:
+            stopfile.request(self.data_dir)
 
     def _is_station(self, name: str) -> bool:
         """Is the name that of a station of the book (a call that was heard, not an object)? An object of ours is never made under it."""
