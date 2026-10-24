@@ -304,6 +304,7 @@ async def test_the_search_listens_to_the_pattern_of_the_settings_and_a_new_patte
         await e.start(connected=False)
         await until(lambda: e.tnc.state is Source.State.CONNECTED and e.tnc.path == first)
         assert e.tnc.pattern == f"{e.ports}/first_*"
+        await until(lambda: e.ctl.config.serial_last_port == first)    # (the controller stores the port the search found a moment after the connection: saved before it has, the late store would put it back in the settings the restart reads)
         assert await e.ctl.save_config(replace(e.ctl.config, serial_port="", serial_last_port="", serial_pattern=f"{e.ports}/second_*"))
         await until(lambda: e.tnc.state is Source.State.CONNECTED and e.tnc.path == second)
         assert e.tnc.pattern == f"{e.ports}/second_*"
