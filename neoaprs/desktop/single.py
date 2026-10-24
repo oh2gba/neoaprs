@@ -10,11 +10,11 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
-from neoaprs.instancelock import AlreadyRunning, InstanceLock
+from neoaprs.instancelock import APP_LOCK_NAME, AlreadyRunning, InstanceLock
 
 log = logging.getLogger("neoaprs.desktop")
 
-LOCK_NAME = "neoaprs-app.lock"
+LOCK_NAME = APP_LOCK_NAME
 PORT_NAME = "neoaprs-app.port"
 COMMANDS = ("show", "quit")
 HEAR_SEC = 2.0

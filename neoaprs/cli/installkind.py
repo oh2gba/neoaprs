@@ -1,15 +1,22 @@
-"""How this copy of NeoAPRS was installed, from what the process can see (neoaprs/versions.py has the kinds): the page tells the user the steps of an update for that kind. `detect` takes the facts, `detect_here` collects them."""
+"""How this copy of NeoAPRS was installed, from what the process can see (neoaprs/versions.py has the kinds): the page tells the user the steps of an update for that kind. `detect` takes the facts, `detect_here` collects them.
+
+`NEOAPRS_INSTALL_KIND` simulates a kind, for development (the screenshots of the update's steps): `deb`, `deb arm64 service`, `appimage /home/ham/NeoAPRS.AppImage`; the words after the kind are `amd64` or `arm64`, `service`
+and, for an AppImage, its path. A simulated kind is never updated for real (neoaprs/services/selfinstall.py rehearses it)."""
 import os
 import platform
 import sys
+from typing import get_args
 from collections.abc import Mapping
 from pathlib import Path
 
-from neoaprs.versions import InstallInfo, deb_architecture, install_kind
+from neoaprs import VERSION
+from neoaprs.versions import InstallInfo, InstallKind, deb_architecture, install_kind
 
 from . import servicecmd
 
 UV_RECEIPT = "uv-receipt.toml"          # `uv tool install` writes it into the folder of the tool's environment
+ENV_KIND = "NEOAPRS_INSTALL_KIND"
+KINDS: tuple[InstallKind, ...] = get_args(InstallKind)
 DEB_PREFIX = "/opt/neoaprs"             # where the .deb puts its Python (scripts/build-deb); the prefix of that Python is this folder
 
 
@@ -46,5 +53,18 @@ def service_set(data: Path) -> bool:
         return False
 
 
-def detect_here(data: Path) -> InstallInfo:
+def simulated(text: str) -> InstallInfo | None:
+    """The kind `NEOAPRS_INSTALL_KIND` names, with its words; None for an empty value or a kind that is not one."""
+    kind, *words = text.split() or [""]
+    found = next((k for k in KINDS if k == kind), None)
+    if found is None:
+        return None
+    arch = next((w for w in words if w in ("amd64", "arm64")), "amd64") if found == "deb" else ""
+    appimage = next((w for w in words if w.startswith("/")), str(Path.home() / f"NeoAPRS-{VERSION}-x86_64.AppImage")) if found == "appimage" else ""
+    return InstallInfo(found, appimage, "service" in words, arch)
+
+
+def detect_here(data: Path, environ: Mapping[str, str] = os.environ) -> InstallInfo:
+    if fake := simulated(environ.get(ENV_KIND, "")):
+        return fake
     return detect(bool(getattr(sys, "frozen", False)), servicecmd.appimage_file(), sys.prefix, servicecmd.source_tree(), service_set(data))

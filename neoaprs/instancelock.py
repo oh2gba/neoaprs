@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 LOCK_NAME = "neoaprs.lock"
+APP_LOCK_NAME = "neoaprs-app.lock"           # the desktop app's own lock of the data folder (neoaprs/desktop/single.py)
 
 
 class AlreadyRunning(Exception):
@@ -50,3 +51,18 @@ class InstanceLock:
             pass
         finally:
             os.close(fd)
+
+
+def is_held(data_dir: Path, name: str = LOCK_NAME) -> bool:
+    """Whether a program holds the lock `name` of the data folder (the lock is taken for a moment, and let go, to find out; a folder with no lock file has no such program)."""
+    if not (data_dir / name).is_file():
+        return False
+    lock = InstanceLock(data_dir, name)
+    try:
+        lock.acquire()
+    except AlreadyRunning:
+        return True
+    except OSError:
+        return False
+    lock.release()
+    return False

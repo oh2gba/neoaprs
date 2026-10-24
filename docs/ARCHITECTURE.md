@@ -12,9 +12,9 @@ The tables of this document that are that test's data (this one, the rules after
 <!-- doc-arch:layers -->
 | layer | modules | may import | may not import |
 | --- | --- | --- | --- |
-| foundation | `clock signal coded policy callsign geo symbols kiss ax25 aprsposition aprsmice aprsmessage aprsparse aprsweather aprsthirdparty aprsextension aprslocator aprstelemetry aprsnmea packet packetcodec message bulletin decay tncmode tncprofile pref route chain mapstate serialboards versions` | foundation | domain, adapters, persistence, services, app, delivery, and any I/O library |
+| foundation | `clock signal coded policy callsign geo symbols kiss ax25 aprsposition aprsmice aprsmessage aprsparse aprsweather aprsthirdparty aprsextension aprslocator aprstelemetry aprsnmea packet packetcodec message bulletin decay tncmode tncprofile pref route chain mapstate serialboards versions updateasset` | foundation | domain, adapters, persistence, services, app, delivery, and any I/O library |
 | domain | `alertcommand config configlegacy configstatus configtypes interlock stationbook ownobject ownbulletin` | foundation, domain | adapters, persistence, services, app, delivery, and any I/O library |
-| adapters | `source tasks serialport serialholders serialprobe btsdp btserial btpaired tnc tncsearch tncwatchdog tncentry tnclines childenv rigctld pmtilestool updatefetch` | foundation, domain, adapters | persistence, services, app, delivery |
+| adapters | `source tasks serialport serialholders serialprobe btsdp btserial btpaired tnc tncsearch tncwatchdog tncentry tnclines childenv rigctld pmtilestool updatefetch updatedownload selfreplace` | foundation, domain, adapters | persistence, services, app, delivery |
 | persistence | `store migrations migrations2 backupfolder durable instancelock stopfile walcare dbfile dberror dbstats dbthread db dbopen storesql paths dblog packetsql packetlog messagesql messagelog bulletinsql bulletinlog weathersql weatherlog ownsql ownlog` | foundation, domain, persistence | adapters, services, app, delivery |
 | services | everything in `neoaprs/services/` | foundation, domain, adapters, persistence, services | app, delivery |
 | app | `controller app wiring` | foundation, domain, adapters, persistence, services, app | delivery |
@@ -28,7 +28,7 @@ Besides the direction:
 * pyserial (`serial`) only in the adapters layer.
 * Among the adapters only the bases every feed shares may be imported: `neoaprs.source`, `neoaprs.tasks`; and the sibling pairs: `neoaprs.btserial` and `neoaprs.btsdp`, `neoaprs.serialholders` and `neoaprs.serialport`, `neoaprs.serialport` and `neoaprs.btserial`, `neoaprs.serialprobe` and `neoaprs.btpaired`, `neoaprs.serialprobe` and `neoaprs.serialholders`, `neoaprs.serialprobe` and `neoaprs.serialport`, `neoaprs.tnc` and `neoaprs.serialholders`, `neoaprs.tnc` and `neoaprs.serialport`, `neoaprs.tnc` and `neoaprs.serialprobe`, `neoaprs.tnc` and `neoaprs.tncentry`, `neoaprs.tnc` and `neoaprs.tnclines`, `neoaprs.tnc` and `neoaprs.tncsearch`, `neoaprs.tnc` and `neoaprs.tncwatchdog`, `neoaprs.tncsearch` and `neoaprs.serialport`, `neoaprs.tncsearch` and `neoaprs.serialprobe`.
 * Tornado only in `neoaprs/web/`.
-* pydantic only in the wire modules of `neoaprs/web/`: `neoaprs/web/beaconwire.py`, `neoaprs/web/bulletinwire.py`, `neoaprs/web/configwire.py`, `neoaprs/web/dispatch.py`, `neoaprs/web/hostwire.py`, `neoaprs/web/hubwire.py`, `neoaprs/web/mapwire.py`, `neoaprs/web/messagewire.py`, `neoaprs/web/outbound.py`, `neoaprs/web/ownwire.py`, `neoaprs/web/packetwire.py`, `neoaprs/web/portwire.py`, `neoaprs/web/prefwire.py`, `neoaprs/web/protocol.py`, `neoaprs/web/stationwire.py`, `neoaprs/web/tncwire.py`, `neoaprs/web/weatherwire.py`, `neoaprs/web/wirebase.py`.
+* pydantic only in the wire modules of `neoaprs/web/`: `neoaprs/web/beaconwire.py`, `neoaprs/web/bulletinwire.py`, `neoaprs/web/configwire.py`, `neoaprs/web/dispatch.py`, `neoaprs/web/hostwire.py`, `neoaprs/web/hubwire.py`, `neoaprs/web/mapwire.py`, `neoaprs/web/messagewire.py`, `neoaprs/web/outbound.py`, `neoaprs/web/ownwire.py`, `neoaprs/web/packetwire.py`, `neoaprs/web/portwire.py`, `neoaprs/web/prefwire.py`, `neoaprs/web/protocol.py`, `neoaprs/web/stationwire.py`, `neoaprs/web/tncwire.py`, `neoaprs/web/updatewire.py`, `neoaprs/web/weatherwire.py`, `neoaprs/web/wirebase.py`.
 * The desktop app's toolkits (`PIL PySide6 pystray shiboken6 webview`, the extra `app`) only in the shells: `neoaprs/desktop/qtshell.py`, `neoaprs/desktop/qtwindow.py`, `neoaprs/desktop/winshell.py`.
 <!-- /doc-arch -->
 
@@ -93,7 +93,7 @@ What each layer is for:
   * The fill-in digipeater (`services/digipeater.py`): a packet whose first unused hop is `WIDE1-1` or our call is sent again with our call as a used hop, when `digi/enabled` is on.
   * The preferences of the stations (`services/prefbook.py`): the path, the timeout and RF only of each station, which messaging is given as its `paths`.
   * What the services that send share (`services/common.py`): the `Radio` they need of the Tnc, `ConfigSource` and `our_frame`, our frame to the tocall.
-  * The alert (`services/alerts.py`), the base map (`services/mapfetch.py`, `services/mapcli.py`) and the update check (`services/updatecheck.py`).
+  * The alert (`services/alerts.py`), the base map (`services/mapfetch.py`, `services/mapcli.py`), the update check (`services/updatecheck.py`) and Update now (`services/selfupdate.py`, `services/selfinstall.py`).
 * **app**: the composition root. `app.py` makes the parts, `controller.py` is the object of the parts and brings them up and down, and `wiring.py` connects the
   signals, says how the settings become the Tnc's, and fills the station book from the database at the start.
 * **delivery**: one package each.
@@ -138,6 +138,8 @@ What each layer is for:
 | `queries` | the answers to queries, a service |
 | `digipeater` | the fill-in digipeater, a service: it repeats a packet that asks for WIDE1-1 or for our call, when `digi/enabled` is on |
 | `mapfetch` | the base map, a service: the detailed map round our position and the world map under it, made on request from the page with the pmtiles tool |
+| `selfupdate` | Update now, a service: on the page's request it downloads the file of the announced release that updates this copy (`neoaprs/updateasset.py`, `neoaprs/updatedownload.py`), checks its SHA-256 against the release's SHA256SUMS and has the installer of the kind put it in place (`services/selfinstall.py`: the Windows installer run silently, an AppImage renamed over the old one) |
+| `reexec` | the command line that runs in the place of the process once the daemon has ended, set by Update now of an AppImage (`neoaprs/selfreplace.py`) |
 | `updatecheck` | the update check, a service: once a day it asks the version page, through `neoaprs/updatefetch.py`, which version is the latest, and keeps it only if it is newer than ours. `neoaprs/versions.py` has the comparison. `check_now` is the same question on request |
 | `install` | how this copy was installed, worked out by the process in `neoaprs/cli/installkind.py` and given to the controller. The page's `hello` carries it, so that the page can say how to update |
 | `config_changed` | the signal that every save of the settings emits |

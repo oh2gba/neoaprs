@@ -10,6 +10,7 @@
     own_bulletins  the bulletins of ours by slot           changed by OwnBulletins.changed (posted, sent) and .removed (deleted)
     station_prefs  the path, timeout and RF only of each station by call   changed by PrefBook.changed (one of them set or cleared)
     map        the base map: files, estimate, the job   changed by MapFetch.changed, and by every save of the settings (the area follows our position); at most four times a second
+    update     Update now: whether it can, its steps    changed by SelfUpdate.changed; at most four times a second
 
 Each row's values are built in neoaprs/web/views.py and typed in `TopicValues` of neoaprs/web/protocol.py. Nothing is built for a topic nobody follows, and a patch holds the items that changed, as they are when it is made.
 """
@@ -31,6 +32,7 @@ from neoaprs.stationbook import Station
 
 from .hub import StateHub, Topic
 from .mapview import map_state
+from .updatewire import UpdateState
 from .views import bulletin_row, config_values, message_row, own_bulletin_row, own_object_row, packet_row, pref_row, station_row, tnc_state
 
 log = logging.getLogger("neoaprs.web")
@@ -89,6 +91,7 @@ class Topics:
         hub.add(Topic("own_objects", lambda: {o.name: self._own_object_row(o) for o in ctl.ownobjects.records()}, self._own_object))
         hub.add(Topic("own_bulletins", lambda: {b.slot: self._own_bulletin_row(b) for b in ctl.ownbulletins.records()}, self._own_bulletin))
         hub.add(Topic("map", lambda: map_state(ctl.mapfetch.status()), interval=TNC_EVERY_SEC))
+        hub.add(Topic("update", lambda: UpdateState.row(ctl.selfupdate.status()), interval=TNC_EVERY_SEC))
         self.connected = False
 
     def _station(self, call: str) -> dict[str, Any] | None:
@@ -141,7 +144,7 @@ class Topics:
             (ctl.bulletins.changed, self._bulletin_changed), (ctl.bulletins.removed, self._bulletin_changed),
             (ctl.ownobjects.changed, self._own_object_changed), (ctl.ownobjects.removed, self._own_object_changed),
             (ctl.ownbulletins.changed, self._own_bulletin_changed), (ctl.ownbulletins.removed, self._own_bulletin_changed),
-            (ctl.prefbook.changed, self._pref_changed), (ctl.mapfetch.changed, self._map_changed),
+            (ctl.prefbook.changed, self._pref_changed), (ctl.mapfetch.changed, self._map_changed), (ctl.selfupdate.changed, self._update_changed),
         ]
 
     def connect(self) -> None:
@@ -190,6 +193,9 @@ class Topics:
 
     def _map_changed(self) -> None:
         self.hub.changed("map")
+
+    def _update_changed(self) -> None:
+        self.hub.changed("update")
 
     def _pref_changed(self, call: str, pref: Pref | None) -> None:
         self.hub.changed("station_prefs", call)

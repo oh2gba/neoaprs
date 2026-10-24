@@ -4,7 +4,19 @@
 export const PROTOCOL = 1;
 
 /** The topics of the hub, in the order the daemon tells them (TopicValues of neoaprs/web/protocol.py). */
-export const TOPIC_NAMES = ["stations", "packets", "tnc", "config", "station_prefs", "messages", "bulletins", "own_objects", "own_bulletins", "map"] as const;
+export const TOPIC_NAMES = [
+  "stations",
+  "packets",
+  "tnc",
+  "config",
+  "station_prefs",
+  "messages",
+  "bulletins",
+  "own_objects",
+  "own_bulletins",
+  "map",
+  "update",
+] as const;
 
 /** Every message the daemon sends (the `type` of the Message union). */
 export const MESSAGE_TYPES = ["alert_result", "error", "hello", "patch", "pong", "ports", "state", "status", "update_result", "weather_series"] as const;

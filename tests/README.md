@@ -103,6 +103,12 @@
   one and a failed question not, the setting and `NEOAPRS_UPDATE_CHECK` switching it off, and through the whole daemon to the `status` message of a page; and
   `server/version.php` under PHP's own web server (skipped without `php`) with a fake GitHub: the answer, the log line, the status hand-off, the hour of the
   cache and the last good answer kept while GitHub fails, the note in `message.txt`. Every other test runs with the check off.
+* `test_updateasset.py`, `test_updatedownload.py`, `test_selfupdate.py`, `test_selfinstall.py`, `test_selfupdate_wire.py`: Update now. The file of the release for
+  each kind and architecture, its address built from the announced version alone and the hosts a download may go to, the line of SHA256SUMS; the downloads
+  with a stand-in opener (progress, cancel, a file cut short or too large, a redirect away from GitHub); the job with a fake release and installer
+  (`support/fakerelease.py`): the steps, a SHA-256 that is wrong or missing from SHA256SUMS, a cancel, the refusals, no restart; the Windows installer's command
+  line (built, never run) and the AppImage renamed over the old one on temporary files, its exec and the old file put back, the simulated kinds; and through the
+  daemon's socket the topic `update` and the commands `update_now` and `update_cancel`. No test reaches the network or replaces a file of the machine.
 * `test_alerts.py`: the message alert (`neoaprs/services/alerts.py`) with a shell line that writes its environment to a file of the test: the four variables,
   text that is data and not shell, the few names of the environment, alert off and an empty command, queries, a failing command told once an hour, a command
   that cannot start or runs out of time (killed with what it started), at most 5 at once; and in the whole daemon the first copy only, nothing for a bulletin, a
@@ -335,7 +341,8 @@ A fifth thing that is not a guard but behaves like one: the logging (levels, han
 `sent`, `infos()` and `lines()`, and how often it was asked), `support/rig.py` (`ServiceRig`: the settings, the clock and the stub Tnc that the tests of a
 service that sends by a schedule start from; `OwnRig` for the own objects and bulletins), `support/maprig.py` (`MapRig`: the map download service on a fake
 pmtiles tool), `support/storedb.py` (`store_at`, `log_at`: a log of the daemon on a new database file of the test), `support/fakeversionpage.py`
-(`version_page()`: the page the update check asks, on a free port of the loopback, with the requests it was sent), `support/fakes.py` (`FakeLineServer`, a line
+(`version_page()`: the page the update check asks, on a free port of the loopback, with the requests it was sent), `support/fakerelease.py` (`FakeRelease`, the
+files of a release as Update now's downloads see them, and `FakeInstaller`, which writes down what it was given), `support/fakes.py` (`FakeLineServer`, a line
 server on a free port of the loopback, and `FakeRigctld`/`rigctld()`: `f` answered with the frequency in Hz, `m` with the mode and the passband, `RPRT -5` for
 both while `radio_on` is false), `support/weather.py` (`report` and `heard`: a weather packet as the TNC makes it, or with the weather kept as plain comment
 text, with the report of OH2MUI by default), `support/env.py` (`until`: the one wait for a condition, 5 s before the test fails; `remember_stop`: a part a test

@@ -5,7 +5,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from neoaprs.instancelock import LOCK_NAME, AlreadyRunning, InstanceLock
+from neoaprs.instancelock import LOCK_NAME, is_held
 
 LOG_NAME = "neoaprs.log"
 SCAN_BYTES = 256 * 1024                  # the end of the log that is looked at for the page's address
@@ -15,18 +15,8 @@ PROBE_SEC = 2.0
 
 
 def is_running(data_dir: Path) -> bool:
-    """Whether a daemon holds the instance lock of the data folder (the lock is taken for a moment, and let go, to find out; a folder with no lock file has no daemon)."""
-    if not (data_dir / LOCK_NAME).is_file():
-        return False
-    lock = InstanceLock(data_dir)
-    try:
-        lock.acquire()
-    except AlreadyRunning:
-        return True
-    except OSError:
-        return False
-    lock.release()
-    return False
+    """Whether a daemon holds the instance lock of the data folder."""
+    return is_held(data_dir, LOCK_NAME)
 
 
 def tail(path: Path, lines: int = 50) -> list[str]:

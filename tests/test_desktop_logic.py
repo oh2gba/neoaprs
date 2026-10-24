@@ -227,6 +227,18 @@ def test_a_daemon_that_blinks_once_is_not_gone() -> None:
     watch.cancel()
 
 
+def test_a_daemon_that_restarts_as_a_new_version_is_waited_for_while_its_note_is_fresh() -> None:
+    gone = threading.Event()
+    daemon = FakeDaemon(up=False)
+    note = [True]
+    daemon.restarting = lambda data: note[0]
+    watch = DaemonWatch(Session(DATA, PAGE, owned=True), gone.set, daemon, every=0.02)
+    watch.start()
+    assert not gone.wait(0.3), "Update now of an AppImage: the daemon ends and the new file starts"
+    note[0] = False
+    assert gone.wait(5), "a restart that did not come up is an end"
+
+
 # ---- what the app remembers
 
 def test_the_window_size_is_remembered_and_a_bad_file_gives_the_default(tmp_path: Path) -> None:

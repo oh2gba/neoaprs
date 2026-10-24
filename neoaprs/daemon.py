@@ -5,6 +5,7 @@ goes to stderr. SIGTERM, SIGINT and SIGHUP (on Windows SIGINT, SIGTERM and SIGBR
 restart would not cure either (the unit does not restart on it).
 The page is served by neoaprs/web/server.py on web/port of the settings (default http://127.0.0.1:7303/; web/network opens it to the network), or on the next free port of the ten after it; the log says where ("web page at ..."), and
 when none of them is free the daemon runs without the page.
+After Update now of an AppImage the process, once the daemon has ended, runs the new file with the same arguments (neoaprs/selfreplace.py).
 """
 import argparse
 import asyncio
@@ -19,13 +20,14 @@ from pathlib import Path
 from types import FrameType
 from typing import Any
 
-from . import PROGRAM, VERSION, stopfile
+from . import PROGRAM, VERSION, selfreplace, stopfile
 from .config import Config
 from .controller import Controller
 from .dberror import SqlError, StoreError
 from .instancelock import AlreadyRunning, InstanceLock
 from .paths import default_data_dir
 from .cli.installkind import detect_here
+from .cli.servicecmd import appimage_file
 from .web.server import WebServer
 
 DATABASE_UNUSABLE = 2
@@ -122,19 +124,20 @@ def _take_the_data_folder(data_dir: Path) -> InstanceLock | None:
     return lock
 
 
-async def run(args: argparse.Namespace) -> int:
+async def run(args: argparse.Namespace, after: list[list[str]] | None = None) -> int:
+    """Runs the daemon until it is told to stop; the command line that is to run in the place of the process once it has ended (Update now) is put in `after`."""
     data_dir = Path(args.data).expanduser().resolve()
     data_dir.mkdir(parents=True, exist_ok=True)
     lock = _take_the_data_folder(data_dir)
     if lock is None:
         return DATABASE_UNUSABLE
     try:
-        return await _run_locked(args, data_dir)
+        return await _run_locked(args, data_dir, [] if after is None else after)
     finally:
         lock.release()
 
 
-async def _run_locked(args: argparse.Namespace, data_dir: Path) -> int:
+async def _run_locked(args: argparse.Namespace, data_dir: Path, after: list[list[str]]) -> int:
     setup_logging(data_dir, args.debug)
     log = logging.getLogger("neoaprs")
     _private_data_dir(data_dir, log)
@@ -151,7 +154,10 @@ async def _run_locked(args: argparse.Namespace, data_dir: Path) -> int:
     if sys.platform == "win32":
         helpers.append(asyncio.create_task(_poll_for_signals(stop)))
     try:
-        return await _serve(controller, stop, log)
+        code = await _serve(controller, stop, log)
+        if controller.reexec:
+            after.append(controller.reexec)
+        return code
     finally:
         for helper in helpers:
             helper.cancel()
@@ -167,6 +173,8 @@ async def _serve(controller: Controller, stop: asyncio.Event, log: logging.Logge
         await controller.stop()
         return DATABASE_UNUSABLE
     log.info("%s is running", PROGRAM)
+    stopfile.clear_restart(controller.data_dir)              # (a restart as a new version is over)
+    selfreplace.remove_old(appimage_file())
     await stop.wait()
     log.info("%s is closing", PROGRAM)
     await controller.stop()
@@ -190,10 +198,15 @@ def main(argv: list[str] | None = None, prog: str = "neoaprs") -> int:
     args = build_parser(prog).parse_args(argv)
     if os.environ.get("NEOAPRS_DEBUG"):
         args.debug = True
+    after: list[list[str]] = []
     try:
-        return asyncio.run(run(args))
+        code = asyncio.run(run(args, after))
     except KeyboardInterrupt:
         return 0
+    if after:
+        selfreplace.reexec(after[0])                         # (returns only when neither the new file nor the old one could be started)
+        return 1
+    return code
 
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 """The composition root: the parts of the program, made in one place. The data directory, the clock, the settings (`config`), the Store, the Tnc, the station book, the beacon, the status, the message alert, messaging, the message board,
-the objects and the bulletins of our own and their sender, the queries, the digipeater, the base map and the update check (the services are made here and nowhere else), the station preferences, the packet log, the message log, the bulletin log, the log of our own objects and bulletins, the weather log and the task set. The parts are made here and connected in neoaprs/wiring.py; the start and the stop are neoaprs/controller.py.
+the objects and the bulletins of our own and their sender, the queries, the digipeater, the base map, the update check and Update now (the services are made here and nowhere else), the station preferences, the packet log, the message log, the bulletin log, the log of our own objects and bulletins, the weather log and the task set. The parts are made here and connected in neoaprs/wiring.py; the start and the stop are neoaprs/controller.py.
 """
 import logging
 import platform
@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 from typing import Protocol
 
-from . import VERSION
+from . import VERSION, stopfile
 from .bulletinlog import BulletinLog
 from .clock import Clock, utcnow
 from .config import DEFAULTS, Config
@@ -27,6 +27,8 @@ from .services.ownobjects import OwnObjects
 from .services.prefbook import PrefBook
 from .services.queries import Queries
 from .services.rigstatus import RigStatus
+from .services.selfinstall import installer_for, release_source
+from .services.selfupdate import SelfUpdate
 from .services.sender import Sender
 from .services.updatecheck import UpdateCheck
 from .signal import Signal
@@ -77,6 +79,8 @@ class Services:
         self.mapfetch = MapFetch(data_dir, lambda: self.config, clock)  # the base map: the detailed map round our position and the world map under it, made on request from the page; nothing to start
         self.install = install                                           # how this copy was installed, for the page (the steps of an update)
         self.updatecheck = UpdateCheck(lambda: self.config, VERSION, platform_name(sys.platform, platform.machine(), install.kind == "appimage"), fetch_update)   # once a day: which version is the latest (update/check); started by the controller
+        self.selfupdate = SelfUpdate(install, installer_for(install, data_dir, self.restart_into), self._announced, release_source())      # Update now: on the page's request only; nothing to start
+        self.reexec: list[str] | None = None                            # the command line that is to run in the place of this process when it has ended (Update now of an AppImage)
         self.digipeater = Digipeater(self.tnc, lambda: self.config, clock, self.tnc.stats)     # the fill-in digipeater (digi/enabled): a packet that asks for WIDE1-1 or for our call is sent again; nothing to start
         self.config_changed: Signal[[Config]] = Signal("config_changed")   # every save of the settings, though nothing differs: the page's settings form waits for it
         self.web: Frontend | None = None                                # the page's server, made by the controller from the factory the process gave it, once the settings are read
@@ -84,6 +88,16 @@ class Services:
         self.tasks = TaskSet(log)                                             # what the parts start on the loop; the controller's stop ends them
         self.running = False
         self.debug = False
+
+    def _announced(self) -> str | None:
+        latest = self.updatecheck.latest
+        return latest.version if latest is not None else None
+
+    def restart_into(self, argv: list[str]) -> None:
+        """Ends the daemon the way `neoaprs stop` does, and has the process run `argv` in its place once everything is let go (neoaprs/daemon.py). Called from a thread of Update now."""
+        self.reexec = argv
+        stopfile.mark_restart(self.data_dir)
+        stopfile.request(self.data_dir)
 
     def _is_station(self, name: str) -> bool:
         """Is the name that of a station of the book (a call that was heard, not an object)? An object of ours is never made under it."""

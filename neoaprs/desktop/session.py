@@ -10,6 +10,7 @@ from pathlib import Path
 
 from neoaprs.cli import opencmd, stopcmd
 from neoaprs.cli.daemonstate import is_running
+from neoaprs import stopfile
 
 log = logging.getLogger("neoaprs.desktop")
 
@@ -41,6 +42,7 @@ class Daemon:
     start: Callable[[Path], "subprocess.Popen[bytes]"] = _start_detached
     wait: Callable[[Path, "subprocess.Popen[bytes] | None", float], str | None] = opencmd.wait_for_page
     stop: Callable[[Path, float], bool] = stopcmd.stop_daemon
+    restarting: Callable[[Path], bool] = stopfile.restarting
 
 
 def open_session(data: Path, daemon: Daemon | None = None, timeout: float = START_TIMEOUT_SEC) -> Session:
@@ -71,7 +73,8 @@ def stop_owned(session: Session, daemon: Daemon | None = None) -> bool:
 
 
 class DaemonWatch:
-    """Calls `gone` once when the daemon the app owns has ended without the app stopping it (`neoaprs stop`, the uninstaller, the Start menu's Stop). It looks every `every` seconds in a thread of its own; `cancel` stops it."""
+    """Calls `gone` once when the daemon the app owns has ended without the app stopping it (`neoaprs stop`, the uninstaller, the Start menu's Stop). It looks every `every` seconds in a thread of its own; `cancel` stops it.
+    A daemon that ends to start again as a new version (Update now of an AppImage: the note of neoaprs/stopfile.py) has not ended."""
 
     def __init__(self, session: Session, gone: Callable[[], None], daemon: Daemon | None = None, every: float = WATCH_SEC) -> None:
         self.session = session
@@ -91,7 +94,7 @@ class DaemonWatch:
     def _run(self) -> None:
         missing = 0
         while not self._cancelled.wait(self.every):
-            missing = 0 if self.daemon.running(self.session.data) else missing + 1
+            missing = 0 if self.daemon.running(self.session.data) or self.daemon.restarting(self.session.data) else missing + 1      # (a daemon that starts again as a new version is waited for)
             if missing >= GONE_AFTER:
                 log.info("the daemon on %s has ended: the app ends too", self.session.data)
                 self.gone()

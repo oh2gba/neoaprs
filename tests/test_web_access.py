@@ -15,6 +15,7 @@ from neoaprs.config import DEFAULTS
 from neoaprs.web import access as web_access
 from neoaprs.web import addresses
 from neoaprs.web.access import COOKIE, MAX_WRONG, SESSION_DAYS, Access, Verdict, new_key
+from neoaprs.web.protocol import TOPIC_NAMES
 from tests.support.clock import FixedClock
 from tests.support.env import Env, until
 from tests.support.wsclient import WsClient
@@ -254,7 +255,7 @@ async def test_the_switch_listens_on_every_interface_and_makes_a_key_the_first_t
     port = e.port
     assert listening_on(e) == {"127.0.0.1"} and e.server.reach() == [] and e.ctl.config.web_key == ""
     page = await e.ws()
-    await page.until(lambda: len(page.of("state")) == 10)
+    await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
     assert page.topics["config"]["urls"] == [] and page.topics["config"]["values"]["web/network"] == "false"
     await page.send({"cmd": "set_config", "values": {"web/network": "true"}})
     await wait_for_address(e, "")
@@ -280,7 +281,7 @@ async def test_switching_the_network_off_cuts_off_the_devices_that_came_in_by_it
     e = await served(tmp_path, NETWORK)
     cookie = cookie_of(await log_in(e))
     remote = await e.ws(cookie=cookie)
-    await remote.until(lambda: len(remote.of("state")) == 10)
+    await remote.until(lambda: len(remote.of("state")) == len(TOPIC_NAMES))
     await remote.send({"cmd": "set_config", "values": {"web/network": "false"}})
     await remote.until(lambda: remote.closed_with is not None)
     assert remote.closed_with is not None and remote.closed_with[0] == 1008
@@ -305,7 +306,7 @@ async def test_the_address_the_page_listens_on_that_is_taken_leaves_the_old_one_
 
     monkeypatch.setattr(e.server, "_bind", refuse_all_interfaces)
     page = await e.ws()
-    await page.until(lambda: len(page.of("state")) == 10)
+    await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
     await page.send({"cmd": "set_config", "values": {"web/network": "true"}})
     await until(lambda: any("cannot listen" in r.getMessage() for r in caplog.records))
     assert e.server.address == "127.0.0.1" and (await e.fetch("/")).code == 200 and listening_on(e) == {"127.0.0.1"}

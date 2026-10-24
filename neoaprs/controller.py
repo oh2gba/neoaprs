@@ -77,6 +77,7 @@ class Controller(Services):
         try:
             await self._stop_web()
             await self.updatecheck.stop()
+            await self.selfupdate.stop()
             await self.mapfetch.stop()
             await self.queries.stop()
             await self.messaging.stop()

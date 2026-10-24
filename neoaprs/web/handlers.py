@@ -29,6 +29,7 @@ from .prefwire import ClearStationPath, ClearStationTimeout, SetStationPath, Set
 from .configwire import SetConfig
 from .stationwire import ForgetStation
 from .tncwire import TncReconnect
+from .updatewire import UpdateCancel, UpdateNow
 from .views import weather_points
 from .weatherwire import WeatherSeries
 
@@ -187,6 +188,23 @@ async def update_check(ctx: Ctx, cmd: CheckUpdate) -> None:
     result = await ctx.ctl.updatecheck.check_now()
     ctx.conn.send({"type": "update_result", "outcome": result.outcome, "version": result.version, "text": result.reason})
     ctx.conn.send(await ctx.status())                                   # (the other pages have it at the next status, within 10 s)
+
+
+@command(UpdateNow)
+async def update_now(ctx: Ctx, cmd: UpdateNow) -> None:
+    """Over the page's socket, which only a page of this computer or one that has logged in with the access key has (neoaprs/web/access.py), like every command that changes the daemon."""
+    try:
+        ctx.ctl.selfupdate.begin(cmd.version)
+    except CodedError as e:
+        raise UserError(f"update_now: {e}", e.code, params=e.params) from None
+
+
+@command(UpdateCancel)
+async def update_cancel(ctx: Ctx, cmd: UpdateCancel) -> None:
+    try:
+        ctx.ctl.selfupdate.cancel()
+    except CodedError as e:
+        raise UserError(f"update_cancel: {e}", e.code, params=e.params) from None
 
 
 @command(WeatherSeries)
