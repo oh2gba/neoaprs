@@ -62,12 +62,34 @@ class ModeDetector:
             return False
 
     def _has_text_evidence(self) -> bool:
-        for segment in bytes(self._tail).split(b"\xc0"):
-            if segment and all(b in _TEXT_BYTES for b in segment):
-                text = segment.decode("ascii").replace("\r", "\n").replace("\x11", "\n").replace("\x13", "\n")
-                if "cmd:" in text or _TNC2_LINE.search(text):
-                    return True
+        return any(typed_text(segment) for segment in bytes(self._tail).split(b"\xc0"))
+
+
+class TextAfterKiss:
+    """Watches the bytes since the latest FEND once KISS frames have come: a TNC in KISS sends nothing but frames, so the text of command mode there means it has been restarted (the radio switched off and on)
+    and types what it hears. A frame on its way never looks like that: its first byte, the command, is not text."""
+
+    TAIL_BYTES = 512                  # how much of the bytes since the latest FEND is looked at
+
+    def __init__(self) -> None:
+        self._since_fend = bytearray()
+
+    def feed(self, chunk: bytes) -> bool:
+        end = chunk.rfind(kiss.FEND)
+        if end >= 0:
+            self._since_fend = bytearray(chunk[end + 1:])
+        else:
+            self._since_fend.extend(chunk)
+            del self._since_fend[:-self.TAIL_BYTES]
+        return typed_text(bytes(self._since_fend))
+
+
+def typed_text(segment: bytes) -> bool:
+    """Is this stretch of bytes between FENDs the text of command mode: all text, with "cmd:" or a TNC2 line in it? A KISS frame never is: its first byte, the command, is 0x00 for data, and its addresses are shifted past ASCII."""
+    if not segment or not all(b in _TEXT_BYTES for b in segment):
         return False
+    text = segment.decode("ascii").replace("\r", "\n").replace("\x11", "\n").replace("\x13", "\n")
+    return "cmd:" in text or bool(_TNC2_LINE.search(text))
 
 
 def packet_of(direction: Literal["in", "out"], raw: bytes, frame: ax25.Frame, now: datetime) -> Packet:

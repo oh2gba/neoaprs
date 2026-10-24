@@ -8,7 +8,7 @@ Pages that keep up.
 
 The radio hears more.
 
-- The keep-alive asks the TNC whether the radio is there only after 10 quiet minutes (was one minute), and after a random minute or two more. The check takes the TNC out of KISS and back, which deafens it for a few seconds; after one quiet minute it fell again and again on the next beacon of a station that sends one a minute, so a thin hour on the channel became a nearly silent one. A radio switched off is noticed within about 12 minutes; one switched off and on again at once, from the text its TNC prints.
+- The keep-alive asks the TNC whether the radio is there only after 10 quiet minutes (was one minute), and after a random minute or two more. The check takes the TNC out of KISS and back, which deafens it for a few seconds; after one quiet minute it fell again and again on the next beacon of a station that sends one a minute, so a thin hour on the channel became a nearly silent one. A radio switched off is noticed within about 12 minutes. One switched off and on again while it was in KISS is put back in KISS at once: its TNC starts in command mode and types what it hears, and text after KISS frames now means that (it used to wait for the next check).
 
 Weather graphs that bridge the gaps.
 
