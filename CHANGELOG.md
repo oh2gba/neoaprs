@@ -2,7 +2,10 @@
 
 ## Unreleased
 
-Nothing yet.
+Weather graphs that bridge the gaps.
+
+- A weather card's graphs (temperature, pressure, wind and gusts) draw each line as one smooth curve through the readings, across the hours where the station sent none, where a gap used to leave short broken pieces and lone dashes. The curve is a monotone cubic (Fritsch-Carlson): it never rises above or falls below the readings it runs between, so a pressure curve does not invent a peak. It starts at the first reading and ends at the last, and a single reading is still a dot.
+- The lighter band between the wind and its gusts follows the same two curves. The rain stays bars, with no bar for an hour with no reading.
 
 ## 0.7.0
 

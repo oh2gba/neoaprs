@@ -17,7 +17,7 @@ describe("TrendChart", () => {
   it("draws the series as a path in the tone of the chart, with ticks on both axes", () => {
     const wrapper = make();
     expect(wrapper.classes()).toContain("tone-temp");
-    expect(wrapper.find("path.trend-line").attributes("d")).toMatch(/^M[\d.]+,[\d.]+L/);
+    expect(wrapper.find("path.trend-line").attributes("d")).toMatch(/^M[\d.]+,[\d.]+C/);
     const labels = wrapper.findAll("text").map((t) => t.text());
     expect(labels).toEqual(expect.arrayContaining(["4", "6", "8", "10"]));
     expect(labels.some((l) => /^\d\d:00$/.test(l))).toBe(true);
@@ -59,11 +59,28 @@ describe("TrendChart", () => {
     expect(wrapper.find("path.trend-line").exists()).toBe(false);
   });
 
-  it("breaks the line where the station was silent and draws a series with no value as a frame only", () => {
+  it("carries the line on across the hours the station was silent, as one curve", () => {
     const quiet = [at(20, 4), at(19.8, 5), at(3, 6), at(2.8, 7)];
-    expect(make({ main: quiet }).find("path.trend-line").attributes("d")).toMatch(/^M[^M]+M[^M]+$/);
+    const d = make({ main: quiet }).find("path.trend-line").attributes("d") ?? "";
+    expect(d.match(/M/g)).toHaveLength(1);
+    expect(d.match(/C/g)).toHaveLength(3);
+  });
+
+  it("draws a single reading as a dot and a series with no value as a frame only", () => {
+    expect(
+      make({ main: [at(3, null), at(2, 5)] })
+        .find("path.trend-line")
+        .attributes("d"),
+    ).toMatch(/h0$/);
     const empty = make({ main: [at(3, null)] });
     expect(empty.find("path.trend-line").exists()).toBe(false);
     expect(empty.find(".trend-read").text()).toBe("");
+  });
+
+  it("leaves a bar out for an hour with no reading and draws no curve for the rain", () => {
+    const rain = [at(5, 0.4), at(4, null), at(3, null), at(2, 1)];
+    const wrapper = make({ title: "Rain", unit: "mm", main: rain, asBars: true, zero: true, tone: "rain" });
+    expect(wrapper.findAll("rect.trend-bar")).toHaveLength(2);
+    expect(wrapper.find("path.trend-line").exists()).toBe(false);
   });
 });

@@ -1,24 +1,10 @@
 <script setup lang="ts">
-// One trend graph as inline SVG in the page's colours: a line (the sustained wind with a lighter band up to its gusts, or bars for the rain), labelled ticks on both axes, and a line under the pointer with the value and the
+// One trend graph as inline SVG in the page's colours: a smooth line through the readings that carries on across the gaps between them (the sustained wind with a lighter band up to its gusts, or bars for the rain), labelled ticks on both axes, and a line under the pointer with the value and the
 // time of the nearest observation in the heading. The scaling and the paths are lib/chart.ts. A series with no value draws nothing but the frame. `range` is the value axis that several weather cards share (components/StationCards.vue), so that the curves of several
 // stations can be compared: it is rounded to round numbers as the graph's own range would be.
 import { computed, ref } from "vue";
 import { formatNumber, t } from "@/i18n";
-import {
-  bandPath,
-  bars,
-  extent,
-  gapLimit,
-  lastIndex,
-  linePath,
-  linearScale,
-  nearestIndex,
-  niceTicks,
-  tickDecimals,
-  timeTicks,
-  usualGap,
-  type Point,
-} from "@/lib/chart";
+import { bandPath, bars, extent, lastIndex, linePath, linearScale, nearestIndex, niceTicks, tickDecimals, timeTicks, usualGap, type Point } from "@/lib/chart";
 import { clockText } from "@/lib/format";
 
 const props = withDefaults(
@@ -59,14 +45,13 @@ const axis = computed(() => {
 });
 const x = computed(() => linearScale([props.from, props.to], [LEFT, RIGHT]));
 const y = computed(() => linearScale([axis.value.min, axis.value.max], [BOTTOM, TOP]));
-const gap = computed(() => gapLimit(props.main));
 const decimals = computed(() => tickDecimals(axis.value.step));
 const xTicks = computed(() => timeTicks(props.from, props.to).map((t) => ({ ...t, x: x.value(t.at) })));
 const yTicks = computed(() => axis.value.ticks.map((v) => ({ v, y: y.value(v), label: formatNumber(v, decimals.value) })));
 
-const line = computed(() => (props.asBars ? "" : linePath(props.main, x.value, y.value, gap.value)));
-const upper = computed(() => linePath(props.band, x.value, y.value, gap.value));
-const area = computed(() => bandPath(props.main, props.band, x.value, y.value, gap.value));
+const line = computed(() => (props.asBars ? "" : linePath(props.main, x.value, y.value)));
+const upper = computed(() => linePath(props.band, x.value, y.value));
+const area = computed(() => bandPath(props.main, props.band, x.value, y.value));
 const barWidth = computed(() => {
   const span = Math.max(1, props.to - props.from);
   return Math.min(8, Math.max(1.5, (usualGap(props.main) * 0.8 * (RIGHT - LEFT)) / span));

@@ -1,19 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  bandPath,
-  bars,
-  extent,
-  gapLimit,
-  lastIndex,
-  linePath,
-  linearScale,
-  nearestIndex,
-  niceTicks,
-  tickDecimals,
-  timeTicks,
-  usualGap,
-  type Point,
-} from "@/lib/chart";
+import { bandPath, bars, extent, lastIndex, linePath, linearScale, nearestIndex, niceTicks, tickDecimals, timeTicks, usualGap, type Point } from "@/lib/chart";
 
 const MIN = 60_000;
 const at = (minutes: number, v: number | null): Point => ({ t: minutes * MIN, v });
@@ -90,52 +76,145 @@ describe("timeTicks", () => {
   });
 });
 
-describe("the gaps in a line", () => {
-  it("finds the usual spacing and allows three times it, 20 minutes at least", () => {
-    const ten = [at(0, 1), at(10, 1), at(20, 1), at(30, 1)];
-    expect(usualGap(ten)).toBe(10 * MIN);
-    expect(gapLimit(ten)).toBe(30 * MIN);
-    expect(gapLimit([at(0, 1), at(1, 1)])).toBe(20 * MIN);
+describe("the usual spacing", () => {
+  it("is the median time between two observations, 0 for fewer than two", () => {
+    expect(usualGap([at(0, 1), at(10, 1), at(20, 1), at(30, 1)])).toBe(10 * MIN);
     expect(usualGap([at(0, 1)])).toBe(0);
   });
 });
 
+/** The segments of a path made of `M` and `C` as the numbers of the start and the three points of each. */
+function segments(path: string): number[][] {
+  const [start, ...rest] = path.split("C");
+  const first = (start ?? "").slice(1).split(",").map(Number);
+  let from = first;
+  return rest.map((c) => {
+    const seg = [...from.slice(-2), ...c.split(",").map(Number)];
+    from = seg.slice(-2);
+    return seg;
+  });
+}
+
 describe("linePath", () => {
-  it("joins the points with a line", () => {
-    expect(linePath([at(0, 1), at(1, 3), at(2, 2)], (t) => t / MIN, identity, 5 * MIN)).toBe("M0,1L1,3L2,2");
+  it("is one cubic curve through the readings, from the first to the last", () => {
+    const path = linePath([at(0, 1), at(1, 3), at(2, 2)], (t) => t / MIN, identity);
+    expect(path).toMatch(/^M0,1C[\d.,-]+C[\d.,-]+$/);
+    expect(path.match(/C/g)).toHaveLength(2);
+    expect(path.endsWith(",2,2")).toBe(true);
   });
 
-  it("breaks the line at a missing value and at a silence longer than the limit", () => {
-    const path = linePath([at(0, 1), at(1, 2), at(2, null), at(3, 3), at(4, 4), at(60, 5), at(61, 6)], (t) => t / MIN, identity, 5 * MIN);
-    expect(path).toBe("M0,1L1,2M3,3L4,4M60,5L61,6");
+  it("carries on across a missing value and a long silence, with no break", () => {
+    const path = linePath([at(0, 1), at(1, 2), at(2, null), at(3, 3), at(4, 4), at(600, 5), at(601, 6)], (t) => t / MIN, identity);
+    expect(path.match(/M/g)).toHaveLength(1);
+    const segs = segments(path);
+    expect(segs).toHaveLength(5); // 6 readings with a value
+    expect(segs[1]?.slice(-2)).toEqual([3, 3]); // the reading at 3 follows the one at 1 directly
+    expect(segs[3]?.slice(-2)).toEqual([600, 5]);
+    expect(segs[4]?.slice(-2)).toEqual([601, 6]);
   });
 
-  it("draws a lone point as a dot of no length, and nothing for no value", () => {
-    expect(linePath([at(5, 2)], (t) => t / MIN, identity, 5 * MIN)).toBe("M5,2h0");
-    expect(linePath([at(5, null)], (t) => t / MIN, identity, 5 * MIN)).toBe("");
-    expect(linePath([], identity, identity, 1)).toBe("");
+  it("stays between the neighbouring readings: no control point above or below them, so no invented peak", () => {
+    const series = [at(0, 1010), at(5, 1012), at(9, 1012), at(30, 1008), at(31, 1008.5), at(70, 1020), at(75, 1019), at(200, 1015), at(260, 1015.2)];
+    const y = (v: number): number => v;
+    const readings = series.map((p) => p.v as number);
+    const segs = segments(linePath(series, (t) => t / MIN, y));
+    expect(segs).toHaveLength(series.length - 1);
+    segs.forEach((seg, i) => {
+      const [lo, hi] = [Math.min(readings[i], readings[i + 1]), Math.max(readings[i], readings[i + 1])];
+      for (const cy of [seg[3], seg[5]] as number[]) {
+        expect(cy).toBeGreaterThanOrEqual(lo - 0.011);
+        expect(cy).toBeLessThanOrEqual(hi + 0.011);
+      }
+      // and in time the control points lie between the readings
+      expect(seg[2]).toBeGreaterThanOrEqual(seg[0]);
+      expect(seg[4]).toBeLessThanOrEqual(seg[6]);
+      expect(seg[2]).toBeLessThanOrEqual(seg[4]);
+    });
+  });
+
+  it("is level at a turning point and between equal readings", () => {
+    const segs = segments(linePath([at(0, 1), at(10, 5), at(20, 2), at(30, 2), at(40, 2)], (t) => t / MIN, identity));
+    expect(segs[0]?.[5]).toBe(5); // the peak: the control points beside it are at its height
+    expect(segs[1]?.[3]).toBe(5);
+    expect(segs[2]).toEqual([20, 2, 20 + 10 / 3, 2, 30 - 10 / 3, 2, 30, 2].map((n) => Math.round(n * 100) / 100));
+  });
+
+  it("is a straight stretch for two readings", () => {
+    expect(segments(linePath([at(0, 0), at(3, 6)], (t) => t / MIN, identity))).toEqual([[0, 0, 1, 2, 2, 4, 3, 6]]);
+  });
+
+  it("draws a lone reading as a dot of no length, and nothing for no value", () => {
+    expect(linePath([at(5, 2)], (t) => t / MIN, identity)).toBe("M5,2h0");
+    expect(linePath([at(1, null), at(5, 2), at(6, null)], (t) => t / MIN, identity)).toBe("M5,2h0");
+    expect(linePath([at(5, null)], (t) => t / MIN, identity)).toBe("");
+    expect(linePath([], identity, identity)).toBe("");
+  });
+
+  it("does not reach before the first reading or after the last", () => {
+    const xs = [...linePath([at(2, 1), at(3, 4), at(8, 2)], (t) => t / MIN, identity).matchAll(/[M,C](-?[\d.]+),(-?[\d.]+)/g)].map((m) => Number(m[1]));
+    expect(Math.min(...xs)).toBeGreaterThanOrEqual(2);
+    expect(Math.max(...xs)).toBeLessThanOrEqual(8);
   });
 
   it("rounds the numbers to two decimals", () => {
-    expect(linePath([at(0, 1.23456), at(1, 2)], () => 0.123456, identity, 5 * MIN)).toBe("M0.12,1.23L0.12,2");
+    expect(linePath([at(0, 1.23456), at(1, 2)], (t) => t / 3 / MIN, identity)).toBe("M0,1.23C0.11,1.49,0.22,1.74,0.33,2");
   });
 });
 
 describe("bandPath", () => {
-  it("closes a polygon between the two series where both have a value at the same time", () => {
-    const wind = [at(0, 2), at(1, 3), at(2, 4)];
-    const gust = [at(0, 5), at(1, 7), at(2, 6)];
-    expect(bandPath(wind, gust, (t) => t / MIN, identity, 5 * MIN)).toBe("M0,5L1,7L2,6L2,4L1,3L0,2Z");
+  /** the points of a closed path of M, L and Z */
+  const outline = (path: string): [number, number][] =>
+    path
+      .replace("Z", "")
+      .split(/[ML]/)
+      .filter(Boolean)
+      .map((p) => p.split(",").map(Number) as [number, number]);
+
+  it("closes one path between the curves of the two series, from the first time both have to the last", () => {
+    const wind = [at(0, 2), at(10, 3), at(20, 4)];
+    const gust = [at(0, 5), at(10, 7), at(20, 6)];
+    const path = bandPath(wind, gust, (t) => t / MIN, identity);
+    expect(path).toMatch(/^M0,2L.*Z$/);
+    expect(path.match(/M/g)).toHaveLength(1);
+    const points = outline(path);
+    expect(points[0]).toEqual([0, 2]);
+    expect(points).toContainEqual([10, 3]);
+    expect(points).toContainEqual([10, 7]);
+    expect(points).toContainEqual([20, 4]);
+    expect(points[points.length - 1]).toEqual([0, 5]);
   });
 
-  it("leaves out what is missing in either and what is a single point", () => {
-    const wind = [at(0, 2), at(1, null), at(2, 4), at(3, 5), at(4, 5)];
-    const gust = [at(0, 5), at(1, 7), at(2, null), at(3, 8), at(4, 9)];
-    expect(bandPath(wind, gust, (t) => t / MIN, identity, 5 * MIN)).toBe("M3,8L4,9L4,5L3,5Z");
+  it("follows the curves across the gaps and stays between them", () => {
+    const wind = [at(0, 2), at(10, null), at(20, 4), at(100, 5)];
+    const gust = [at(0, 5), at(10, 7), at(20, null), at(100, 9)];
+    const path = bandPath(wind, gust, (t) => t / MIN, identity);
+    expect(path.match(/M/g)).toHaveLength(1);
+    const points = outline(path);
+    const half = points.length / 2;
+    const low = points.slice(0, half);
+    const high = points.slice(half).reverse();
+    expect(low[0]?.[0]).toBe(0);
+    expect(low[low.length - 1]?.[0]).toBe(100);
+    low.forEach((p, i) => {
+      expect(p[0]).toBe(high[i]?.[0]);
+      expect(p[1]).toBeLessThanOrEqual(high[i]?.[1]);
+      expect(p[1]).toBeGreaterThanOrEqual(2 - 0.01);
+      expect(high[i]?.[1]).toBeLessThanOrEqual(9 + 0.01);
+    });
+    expect(low).toContainEqual([20, 4]);
+    expect(high).toContainEqual([10, 7]);
   });
 
-  it("is empty without a gust", () => {
-    expect(bandPath([at(0, 2), at(1, 3)], [], identity, identity, 5 * MIN)).toBe("");
+  it("covers only the time both series span", () => {
+    const points = outline(bandPath([at(5, 1), at(15, 2)], [at(0, 4), at(10, 5)], (t) => t / MIN, identity));
+    expect(Math.min(...points.map((p) => p[0]))).toBe(5);
+    expect(Math.max(...points.map((p) => p[0]))).toBe(10);
+  });
+
+  it("is empty without a gust, with a single reading or with no time in common", () => {
+    expect(bandPath([at(0, 2), at(1, 3)], [], identity, identity)).toBe("");
+    expect(bandPath([at(0, 2)], [at(0, 4)], identity, identity)).toBe("");
+    expect(bandPath([at(0, 2), at(1, 3)], [at(5, 4), at(6, 5)], identity, identity)).toBe("");
   });
 });
 
