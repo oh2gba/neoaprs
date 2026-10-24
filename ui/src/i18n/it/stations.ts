@@ -96,6 +96,8 @@ export const stations: Readonly<Record<keyof typeof en, Message>> = {
   "station.menu.show_card": "Apri la sua scheda",
   "station.menu.copy": "Copia nominativo",
   "station.menu.qrz": "Pagina QRZ",
+  "station.menu.forget": "Dimentica",
+  "station.menu.forget_sure": "Dimenticare davvero?",
   "station.menu.note": "Molte stazioni non rispondono alle richieste.",
   "station.menu.copied": "{call} copiato",
 

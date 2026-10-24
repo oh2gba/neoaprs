@@ -95,6 +95,8 @@ export const stations = {
   "station.menu.show_card": "Open its card",
   "station.menu.copy": "Copy call",
   "station.menu.qrz": "QRZ page",
+  "station.menu.forget": "Forget",
+  "station.menu.forget_sure": "Really forget?",
   "station.menu.note": "Many stations don't answer queries.",
   "station.menu.copied": "Copied {call}",
 

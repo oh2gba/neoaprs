@@ -417,6 +417,8 @@ export const fr: Catalogue = {
   "station.menu.show_card": "Ouvrir sa fiche",
   "station.menu.copy": "Copier l'indicatif",
   "station.menu.qrz": "Page QRZ",
+  "station.menu.forget": "Oublier",
+  "station.menu.forget_sure": "Vraiment oublier ?",
   "station.menu.note": "Beaucoup de stations ne répondent pas aux requêtes.",
   "station.menu.copied": "{call} copié",
 

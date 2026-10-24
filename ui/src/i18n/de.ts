@@ -429,6 +429,8 @@ export const de: Catalogue = {
   "station.menu.show_card": "Stationskarte öffnen",
   "station.menu.copy": "Rufzeichen kopieren",
   "station.menu.qrz": "QRZ-Seite",
+  "station.menu.forget": "Vergessen",
+  "station.menu.forget_sure": "Wirklich vergessen?",
   "station.menu.note": "Viele Stationen beantworten keine Anfragen.",
   "station.menu.copied": "{call} kopiert",
 

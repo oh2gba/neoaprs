@@ -56,7 +56,7 @@ function label(item: MenuItem): string {
     case "qrz":
       return t("station.menu.qrz");
     case "forget":
-      return props.armed ? t("station.card.forget_sure") : t("station.card.forget");
+      return props.armed ? t("station.menu.forget_sure") : t("station.menu.forget");
   }
 }
 

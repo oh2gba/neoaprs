@@ -97,6 +97,8 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.menu.show_card": "Abrir o cartão",
   "station.menu.copy": "Copiar indicativo",
   "station.menu.qrz": "Página do QRZ",
+  "station.menu.forget": "Esquecer",
+  "station.menu.forget_sure": "Esquecer mesmo?",
   "station.menu.note": "Muitas estações não respondem a consultas.",
   "station.menu.copied": "{call} copiado",
 

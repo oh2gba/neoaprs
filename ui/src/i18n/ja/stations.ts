@@ -97,6 +97,8 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.menu.show_card": "カードを開く",
   "station.menu.copy": "コールサインをコピー",
   "station.menu.qrz": "QRZページ",
+  "station.menu.forget": "消去",
+  "station.menu.forget_sure": "本当に消去しますか?",
   "station.menu.note": "問い合わせに応答しない局も多くあります。",
   "station.menu.copied": "{call}をコピーしました",
 
