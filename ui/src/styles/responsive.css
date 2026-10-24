@@ -58,7 +58,7 @@ button,
   max-height: 100%;
   min-height: 0;
 }
-/* a card the user has dragged (or moved with Alt and the arrows) is out of the row, where the script has put it (left and top, in the row's pixels); the cards that are left in the row close up. Its head is the handle: not the buttons and links on it.
+/* a card the user has dragged (or moved with Alt and the arrows), and every other open card with it, is out of the row, where the script has put it (left and top, in the row's pixels): no card moves for another. Its head is the handle: not the buttons and links on it.
    A phone's sheet has none of this (the script gives no place there, and the head is not a handle). */
 .cardstack .card.moved {
   position: absolute;

@@ -2,10 +2,10 @@
 // The station cards over the map. On a tablet and a desktop they are a row at the left of the map, side by side, the oldest at the left and the newest at the right, each the whole card, as it is alone (with several weather stations open each is the full weather card
 // with its graphs, and the graphs are on the same value axes in every card, so that the stations can be compared). A card has its own cross. Two or more cards have **Close all** over the map's top left, beside the zoom buttons, and **Message these 3** beside it when two or
 // more of the cards are for stations that can be messaged (one text to all of them, in the group compose of the Messages tab). How many there may be is the page's (composables/useSelection.ts), and a row that is wider than the map has room for closes
-// its oldest card (`overflow`): a card is never made narrower. On a tablet and a desktop a card can be dragged by its head, or moved with Alt and the arrows (composables/useCardDrag.ts) anywhere over the map: it is then out of the row (the others close up) and does not count
-// against the room of the row, and it keeps its place while it is open (`places`, the page's, for the session). On a phone the one card is a bottom sheet that is part of the screen: folded to its head and the first facts, it opens up with a tap or a swipe up on its grip, folds with a swipe down, and a
+// its oldest card (`overflow`): a card is never made narrower. On a tablet and a desktop a card can be dragged by its head, or moved with Alt and the arrows (composables/useCardDrag.ts) anywhere over the map, and it keeps its place while it is open (`places`, the page's, for the session). Moving a card
+// never moves another: the first time one is moved every open card is pinned where it stands (the moved card leaves its slot empty), a card that closes leaves the others where they are, and a card that is opened goes to the first free slot of the row, never on top of a card. On a phone the one card is a bottom sheet that is part of the screen: folded to its head and the first facts, it opens up with a tap or a swipe up on its grip, folds with a swipe down, and a
 // swipe down on the folded sheet closes it; its cross is there too.
-import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import MessageGlyph from "@/components/MessageGlyph.vue";
 import StationCard from "@/components/StationCard.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
@@ -56,7 +56,7 @@ const ranges = computed(() => {
 });
 
 // a row that is wider than the map has room for is not squeezed: the oldest card closes (the page does that when it hears `overflow`)
-// (a card that was moved is out of the row: it takes no room in it, and it is not the one that closes)
+// (a card that was moved is out of the row: it takes no room in it)
 const stack = ref<HTMLElement | null>(null);
 function fit(): void {
   const el = stack.value;
@@ -79,13 +79,36 @@ function resized(): void {
   fit();
 }
 useResized(stack, resized);
+// Cards come and go and the others stay where they are: the cards behind one that closes are pinned where they stand (before the page is drawn without it), and a card that is opened is put in the first free slot (once it is in the page, before it is drawn)
+const callsOf = (): string[] => props.rows.map((row) => row.call);
+watch(callsOf, (calls, before) => {
+  const gone = before.filter((call) => !calls.includes(call));
+  if (gone.length === 0) return;
+  // (one write: what the page is told is seen only when it has been drawn again)
+  const kept = Object.entries({ ...places.value, ...drag.pinAfter(gone, calls) }).filter(([call]) => calls.includes(call));
+  const next = Object.fromEntries(kept);
+  if (kept.length !== Object.keys(places.value).length || kept.some(([call, at]) => places.value[call] !== at)) places.value = next;
+});
+// A card that stands where it was put grows downwards (its Details, the graphs of a weather station): when it would leave the map it is kept inside it
+let sizes: ResizeObserver | null = null;
+function watchSizes(): void {
+  sizes?.disconnect();
+  sizes = null;
+  if (typeof ResizeObserver !== "function" || !stack.value) return;
+  const observer = new ResizeObserver(() => drag.keepInside());
+  for (const card of stack.value.querySelectorAll(":scope > .card")) observer.observe(card);
+  sizes = observer;
+}
 watch(
-  () => props.rows.map((row) => row.call),
-  (calls) => {
-    const gone = Object.keys(places.value).filter((call) => !calls.includes(call));
-    if (gone.length > 0) places.value = Object.fromEntries(Object.entries(places.value).filter(([call]) => calls.includes(call)));
+  callsOf,
+  (calls, before) => {
+    drag.placeNew(calls.filter((one) => !before.includes(one)));
+    watchSizes();
   },
+  { flush: "post" },
 );
+onMounted(watchSizes);
+onBeforeUnmount(() => sizes?.disconnect());
 watch(
   () => props.rows.length,
   () => void nextTick(fit),

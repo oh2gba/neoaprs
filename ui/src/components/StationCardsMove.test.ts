@@ -1,6 +1,7 @@
 import { mount, type VueWrapper } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import StationCards from "@/components/StationCards.vue";
+import type { Places } from "@/composables/useCardDrag";
 import type { SizeClass } from "@/lib/layout";
 import { fakeDaemon, withDaemon } from "@/test/context";
 import { cssRule } from "@/test/css";
@@ -31,7 +32,13 @@ function make(rows = [A, B], size: SizeClass = "desktop"): Wrapper {
   wrap = document.createElement("div");
   wrap.className = "mapwrap";
   document.body.append(wrap);
-  return mount(StationCards, { props: { rows, size }, global: withDaemon(fakeDaemon()), attachTo: wrap });
+  // (the places are the page's, as in the page: a write comes back as the prop only when the page has been drawn again, so a second write at once does not see the first)
+  const wrapper: Wrapper = mount(StationCards, {
+    props: { rows, size, places: {}, "onUpdate:places": (places: Places) => void wrapper.setProps({ places }) },
+    global: withDaemon(fakeDaemon()),
+    attachTo: wrap,
+  });
+  return wrapper;
 }
 
 beforeEach(() => {
@@ -79,14 +86,14 @@ describe("StationCards: moving a card by its head", () => {
     expect(cssRule(".cardstack .card.moved")).toContain("bottom: auto");
   });
 
-  it("moves the card by the distance of the pointer, out of the row, and the other card closes up", async () => {
+  it("moves the card by the distance of the pointer, and the other card stays where it stands (pinned there)", async () => {
     const wrapper = make();
     drag(wrapper, "OH2ZWB", [400, 500], [460, 440]); // (the second card stood at x = 358 - 10 = 348 of the row, y = 386)
     await wrapper.vm.$nextTick();
     expect(card(wrapper, "OH2ZWB").classes()).toContain("moved");
     expect(style(wrapper, "OH2ZWB")).toEqual({ left: "408px", top: "326px" });
-    expect(card(wrapper, "OH2ZWA").classes()).not.toContain("moved");
-    expect(wrapper.emitted("update:places")?.at(-1)).toEqual([{ OH2ZWB: { x: 408, y: 326 } }]);
+    expect(style(wrapper, "OH2ZWA")).toEqual({ left: "0px", top: "386px" });
+    expect(wrapper.emitted("update:places")?.at(-1)).toEqual([{ OH2ZWA: { x: 0, y: 386 }, OH2ZWB: { x: 408, y: 326 } }]);
   });
 
   it("moves with touch and pen the same way, and follows the pointer in steps", async () => {
@@ -164,34 +171,7 @@ describe("StationCards: moving a card by its head", () => {
     expect(style(wrapper, "OH2ZWA").left).toBe("450px"); // (800 - 340 - 10)
   });
 
-  it("puts a card that is opened later in the next place of the row, and leaves the moved card where it is", async () => {
-    const wrapper = make([A, B]);
-    drag(wrapper, "OH2ZWA", [100, 600], [300, 300]);
-    await wrapper.vm.$nextTick();
-    const at = style(wrapper, "OH2ZWA");
-    await wrapper.setProps({ rows: [A, B, C] });
-    expect(style(wrapper, "OH2ZWA")).toEqual(at);
-    expect(card(wrapper, "OH2ZWB").classes()).not.toContain("moved");
-    expect(card(wrapper, "OH2ZWC").classes()).not.toContain("moved");
-    expect(wrapper.findAll(".cardstack > .card").map((c) => c.attributes("data-call"))).toEqual(["OH2ZWA", "OH2ZWB", "OH2ZWC"]);
-  });
-
-  it("puts a card back in the row when it is closed and opened again, and the place of the others stays", async () => {
-    const wrapper = make([A, B]);
-    drag(wrapper, "OH2ZWA", [100, 600], [300, 300]);
-    drag(wrapper, "OH2ZWB", [500, 600], [600, 300]);
-    await wrapper.vm.$nextTick();
-    await wrapper.setProps({ rows: [B] });
-    await wrapper.setProps({ rows: [B, A] });
-    expect(card(wrapper, "OH2ZWA").classes()).not.toContain("moved");
-    expect(card(wrapper, "OH2ZWB").classes()).toContain("moved");
-    expect(Object.keys(wrapper.emitted("update:places")?.at(-1)?.[0] ?? {})).toEqual(["OH2ZWB"]);
-    await wrapper.setProps({ rows: [] });
-    await wrapper.setProps({ rows: [B] });
-    expect(card(wrapper, "OH2ZWB").classes()).not.toContain("moved");
-  });
-
-  it("asks to close the oldest card only when the cards in the row are too wide for the map: a moved card takes no room in it", async () => {
+  it("asks to close the oldest card only when the cards in the row are too wide for the map: cards that stand where they were put take no room in it", async () => {
     vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(340);
     vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockImplementation(function (this: HTMLElement) {
       return this.classList.contains("cardstack") ? 1180 : 0;
@@ -207,7 +187,102 @@ describe("StationCards: moving a card by its head", () => {
     await wrapper.setProps({ rows: [A, B, C, D] });
     await wrapper.vm.$nextTick();
     expect(wrapper.emitted("overflow")).toBeUndefined();
-    expect(wrapper.findAll(".cardstack > .card:not(.moved)")).toHaveLength(3);
+    expect(wrapper.findAll(".cardstack > .card:not(.moved)")).toHaveLength(0);
+  });
+});
+
+describe("StationCards: moving a card never moves another", () => {
+  const spot = (wrapper: Wrapper, call: string) => ({ ...style(wrapper, call), moved: card(wrapper, call).classes().includes("moved") });
+
+  it("drag the first (the leftmost) of two cards: the second stays where it was, and the first one's slot is empty", async () => {
+    const wrapper = make([A, B]);
+    drag(wrapper, "OH2ZWA", [100, 600], [700, 300]);
+    await wrapper.vm.$nextTick();
+    expect(spot(wrapper, "OH2ZWA")).toEqual({ left: "600px", top: "86px", moved: true });
+    expect(spot(wrapper, "OH2ZWB")).toEqual({ left: "348px", top: "386px", moved: true }); // (where it stood in the row: x = 358 - 10)
+  });
+
+  it("drag the second: the first stays where it was", async () => {
+    const wrapper = make([A, B]);
+    drag(wrapper, "OH2ZWB", [400, 600], [500, 300]);
+    await wrapper.vm.$nextTick();
+    expect(spot(wrapper, "OH2ZWA")).toEqual({ left: "0px", top: "386px", moved: true });
+    expect(spot(wrapper, "OH2ZWB")).toEqual({ left: "448px", top: "86px", moved: true });
+  });
+
+  it("moves with Alt and an arrow the same way: the others are pinned where they stand", async () => {
+    const wrapper = make([A, B, C]);
+    card(wrapper, "OH2ZWA")
+      .find("button[aria-label='Close']")
+      .element.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", altKey: true, shiftKey: true, bubbles: true, cancelable: true }));
+    await wrapper.vm.$nextTick();
+    expect(spot(wrapper, "OH2ZWA").top).toBe("290px");
+    expect(spot(wrapper, "OH2ZWB")).toEqual({ left: "348px", top: "386px", moved: true });
+    expect(spot(wrapper, "OH2ZWC")).toEqual({ left: "696px", top: "386px", moved: true });
+  });
+
+  it("closing the first of two cards leaves the second where it stood; closing the second leaves the first", async () => {
+    const wrapper = make([A, B]);
+    await wrapper.setProps({ rows: [B] });
+    expect(spot(wrapper, "OH2ZWB")).toEqual({ left: "348px", top: "386px", moved: true });
+    const other = make([A, B]);
+    await other.setProps({ rows: [A] });
+    expect(spot(other, "OH2ZWA").left).toBe("");
+    expect(other.emitted("update:places")).toBeUndefined();
+  });
+
+  it("closing a card of the row leaves the cards after it where they stood", async () => {
+    const wrapper = make([A, B, C]);
+    await wrapper.setProps({ rows: [A, C] });
+    expect(spot(wrapper, "OH2ZWC")).toEqual({ left: "696px", top: "386px", moved: true });
+    expect(spot(wrapper, "OH2ZWA").moved).toBe(false);
+  });
+
+  it("closing a card that was moved moves no one", async () => {
+    const wrapper = make([A, B]);
+    drag(wrapper, "OH2ZWA", [100, 600], [700, 300]);
+    await wrapper.vm.$nextTick();
+    await wrapper.setProps({ rows: [B] });
+    expect(spot(wrapper, "OH2ZWB")).toEqual({ left: "348px", top: "386px", moved: true });
+  });
+
+  it("opens a third card in the slot that the moved card left (the first free one, from the left)", async () => {
+    const wrapper = make([A, B]);
+    drag(wrapper, "OH2ZWA", [100, 600], [700, 300]);
+    await wrapper.vm.$nextTick();
+    await wrapper.setProps({ rows: [A, B, C] });
+    expect(spot(wrapper, "OH2ZWC")).toEqual({ left: "0px", top: "386px", moved: true });
+    expect(spot(wrapper, "OH2ZWB")).toEqual({ left: "348px", top: "386px", moved: true });
+    expect(spot(wrapper, "OH2ZWA")).toEqual({ left: "600px", top: "86px", moved: true });
+  });
+
+  it("opens a third card to the right of the rightmost when the slots are taken, never on top of a card", async () => {
+    const wrapper = make([A, B]);
+    drag(wrapper, "OH2ZWA", [100, 600], [120, 600]); // (a little to the right: the first slot is not free any more)
+    await wrapper.vm.$nextTick();
+    await wrapper.setProps({ rows: [A, B, C] });
+    expect(spot(wrapper, "OH2ZWC")).toEqual({ left: "696px", top: "386px", moved: true });
+  });
+
+  it("opens a card in the row above when the row has no room, and in the row when no card was moved or closed", async () => {
+    const wrapper = make([A, B, C]);
+    drag(wrapper, "OH2ZWA", [100, 600], [120, 600]);
+    await wrapper.vm.$nextTick();
+    await wrapper.setProps({ rows: [A, B, C, station("OH2ZWD")] });
+    expect(spot(wrapper, "OH2ZWD")).toEqual({ left: "0px", top: "78px", moved: true });
+    const plain = make([A]);
+    await plain.setProps({ rows: [A, B] });
+    expect(spot(plain, "OH2ZWB")).toEqual({ left: "", top: "", moved: false });
+  });
+
+  it("forgets all the places on Close all, and the cards opened after it are in the row", async () => {
+    const wrapper = make([A, B]);
+    drag(wrapper, "OH2ZWA", [100, 600], [700, 300]);
+    await wrapper.vm.$nextTick();
+    await wrapper.setProps({ rows: [] });
+    await wrapper.setProps({ rows: [A, B] });
+    expect(wrapper.findAll(".card.moved")).toHaveLength(0);
+    expect(wrapper.emitted("update:places")?.at(-1)).toEqual([{}]);
   });
 });
 

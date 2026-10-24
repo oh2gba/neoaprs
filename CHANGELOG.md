@@ -17,7 +17,7 @@ The Stations table.
 
 The station cards.
 
-- A station card can be moved: drag it by its head (the symbol and the call) anywhere over the map, or move the focused card with Alt and the arrow keys. It stays in the map and keeps its place while it is open; the cards left in the row close up, a newly opened card goes to the next place of the row, and a card that is closed and opened again is back in the row. Only the cards in the row count against how many fit, and the map keeps a marker clear of a moved card where it stands. Not on a phone, where the card is a bottom sheet.
+- A station card can be moved: drag it by its head (the symbol and the call) anywhere over the map, or move the focused card with Alt and the arrow keys. It stays in the map and keeps its place while it is open. Moving a card never moves another: when you start to move one, every other open card stays exactly where it is on the screen and the moved card's place stays empty, and closing a card does not make the others close up. A newly opened card goes to the first free place in the row (the place a card was moved out of, or to the right of the cards), never on top of a card; **Close all** and **Esc** start the row again from the left. All the open cards count against how many fit (the oldest closes), and the map keeps a marker clear of a card where it stands. Not on a phone, where the card is a bottom sheet.
 - **Forget** on the card is the trash can of the other lists, "Forget OH2XYZ" on hover, with the same second press to make sure.
 The path of a message, and the path settings.
 
