@@ -62,7 +62,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.antenna_height.tip2": "Esempio: 10 per un palo su una casa in terreno pianeggiante",
 
   "settings.antenna_gain.label": "Guadagno dell’antenna",
-  "settings.antenna_gain.tip1": "Quanto l’antenna concentra il segnale, da {min} a {max} dB. Metti 0 se non lo sai. Serve solo per il codice PHG.",
+  "settings.antenna_gain.tip1": "Quanto l’antenna concentra il segnale, da {min} a {max} dBi. Metti 0 se non lo sai. Serve solo per il codice PHG.",
   "settings.antenna_gain.tip2": "Esempio: 3",
 
   "settings.antenna_direction.label": "Direzione dell’antenna",

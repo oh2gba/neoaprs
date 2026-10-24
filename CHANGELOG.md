@@ -45,6 +45,7 @@ Closer to the APRS standard.
 - A Mic-E station whose comment starts with the type code `'` (a tracker without messaging) gets no Message button, unless it has sent a message.
 - A snow reading with a decimal point (`s1.5`) is read, and so is the radio range of a compressed position.
 - The `!DAO!` precision extension (TH-D74 and TH-D75, APRSdroid) is read: the position is finer and the `!W12!` no longer shows in the comment.
+- The manual and the (i) of the Beacon tab say what PHG means: the antenna height above the average terrain around it, the gain in dBi.
 
 ## 0.6.7
 

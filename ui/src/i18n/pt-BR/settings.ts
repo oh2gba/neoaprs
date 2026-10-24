@@ -62,7 +62,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.antenna_height.tip2": "Exemplo: 10 para um mastro em uma casa em terreno plano",
 
   "settings.antenna_gain.label": "Ganho da antena",
-  "settings.antenna_gain.tip1": "O quanto a antena concentra o sinal, de {min} a {max} dB. Use 0 se não souber. Usado apenas para o código PHG.",
+  "settings.antenna_gain.tip1": "O quanto a antena concentra o sinal, de {min} a {max} dBi. Use 0 se não souber. Usado apenas para o código PHG.",
   "settings.antenna_gain.tip2": "Exemplo: 3",
 
   "settings.antenna_direction.label": "Direção da antena",

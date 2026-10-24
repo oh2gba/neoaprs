@@ -800,7 +800,7 @@ export const fr: Catalogue = {
 
   "settings.antenna_gain.label": "Gain de l'antenne",
   "settings.antenna_gain.tip1":
-    "À quel point l'antenne concentre le signal, de {min} à {max} dB. Mettez 0 si vous ne le savez pas. Sert uniquement au code PHG.",
+    "À quel point l'antenne concentre le signal, de {min} à {max} dBi. Mettez 0 si vous ne le savez pas. Sert uniquement au code PHG.",
   "settings.antenna_gain.tip2": "Exemple : 3",
 
   "settings.antenna_direction.label": "Direction de l'antenne",

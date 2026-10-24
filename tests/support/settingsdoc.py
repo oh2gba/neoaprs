@@ -48,7 +48,7 @@ DESCRIPTIONS: dict[str, tuple[str, str]] = {
     "beacon/path": ("Beacon tab, Beacon, Advanced", "the digipeaters of your beacon: up to 8 calls separated by commas, each a call with an optional SSID. Empty is the recommended path, `DIRECT` is no digipeaters at all"),
     "beacon/power_w": ("Beacon tab, Beacon, Antenna", "the transmitter's power in watts ({beacon_power_w}) for the PHG extension of the beacon. Empty sends no PHG ([beacon.md](beacon.md#power-height-and-gain-phg))"),
     "beacon/antenna_height_m": ("Beacon tab, Beacon, Antenna", "the antenna's height above average terrain in metres ({beacon_antenna_height_m}), for PHG"),
-    "beacon/antenna_gain_db": ("Beacon tab, Beacon, Antenna", "its gain in dB ({beacon_antenna_gain_db}), for PHG"),
+    "beacon/antenna_gain_db": ("Beacon tab, Beacon, Antenna", "its gain in dBi ({beacon_antenna_gain_db}), for PHG"),
     "beacon/antenna_direction": ("Beacon tab, Beacon, Antenna", "`omni` or the point of the compass it favours ({directions}), for PHG"),
     "status/source": ("Beacon tab, Status", "where the status comes from: `off`, `text` (`station/status`) or `rig` (the frequency and mode of the radio, from `status/rigctld` and `status/template`). Empty follows the other settings: `rig` while `status/rigctld` is set, else `text` while `station/status` is not empty, else `off`. A save of `rig` without `status/rigctld` is refused"),
     "status/rigctld": ("Beacon tab, Status", "`host:port` of a Hamlib rigctld (its default is `127.0.0.1:4532`) whose frequency and mode make the status. Ignored for `text` and `off`"),

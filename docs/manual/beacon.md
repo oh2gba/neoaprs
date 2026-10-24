@@ -39,16 +39,16 @@ Your own row on the map is always your settings (position, symbol and comment), 
 
 ## Power, height and gain (PHG)
 
-With a power set (`beacon/power_w`, 0 to 9999 watts) the beacon carries the PHG extension right after the symbol. The Beacon tab asks for the antenna's height (0 to 9999 m), gain (0 to 9 dB) and direction (`omni` or N, NE, E, SE, S, SW, W, NW) only once there is a power. With no power set no PHG is sent.
+With a power set (`beacon/power_w`, 0 to 9999 watts) the beacon carries the PHG extension right after the symbol. The Beacon tab asks for the antenna's height above the average terrain around it (HAAT, not above sea level; 0 to 9999 m), gain (0 to 9 dBi) and direction (`omni` or N, NE, E, SE, S, SW, W, NW) only once there is a power. With no power set no PHG is sent.
 
 PHG is written `PHGphgd`:
 
 - `p` is the square root of the power in watts;
-- `h` is the base-2 logarithm of the antenna height in tens of feet;
-- `g` is the gain in dB;
+- `h` is the base-2 logarithm of the antenna height above average terrain in tens of feet;
+- `g` is the gain in dBi;
 - `d` is the direction: 0 omni, 1 NE, 2 E, 3 SE, 4 S, 5 SW, 6 W, 7 NW, 8 N.
 
-`p` and `h` are rounded and held to 0 to 9. For 2 W, 3 m, 2 dB and omni it is `PHG1020`. For 25 W, 6 m, 3 dB and east it is `PHG5132`, the specification's example.
+`p` and `h` are rounded and held to 0 to 9. For 2 W, 3 m, 2 dBi and omni it is `PHG1020`. For 25 W, 6 m, 3 dBi and east it is `PHG5132`, the specification's example.
 
 The **Preview** under the Beacon tab, closed until you open it, shows the packet the settings make and, for a status that is a text of your own, the status report.
 

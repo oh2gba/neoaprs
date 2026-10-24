@@ -24,7 +24,7 @@ The table below is made from the program, so it lists every setting there is, wi
 | `beacon/path` | `WIDE1-1,WIDE2-1` | Beacon tab, Beacon, Advanced | the digipeaters of your beacon: up to 8 calls separated by commas, each a call with an optional SSID. Empty is the recommended path, `DIRECT` is no digipeaters at all |
 | `beacon/power_w` | empty | Beacon tab, Beacon, Antenna | the transmitter's power in watts (0 to 9999) for the PHG extension of the beacon. Empty sends no PHG ([beacon.md](beacon.md#power-height-and-gain-phg)) |
 | `beacon/antenna_height_m` | `0` | Beacon tab, Beacon, Antenna | the antenna's height above average terrain in metres (0 to 9999), for PHG |
-| `beacon/antenna_gain_db` | `0` | Beacon tab, Beacon, Antenna | its gain in dB (0 to 9), for PHG |
+| `beacon/antenna_gain_db` | `0` | Beacon tab, Beacon, Antenna | its gain in dBi (0 to 9), for PHG |
 | `beacon/antenna_direction` | `omni` | Beacon tab, Beacon, Antenna | `omni` or the point of the compass it favours (`NE` `E` `SE` `S` `SW` `W` `NW` `N`), for PHG |
 | `status/source` | empty | Beacon tab, Status | where the status comes from: `off`, `text` (`station/status`) or `rig` (the frequency and mode of the radio, from `status/rigctld` and `status/template`). Empty follows the other settings: `rig` while `status/rigctld` is set, else `text` while `station/status` is not empty, else `off`. A save of `rig` without `status/rigctld` is refused |
 | `status/rigctld` | empty | Beacon tab, Status | `host:port` of a Hamlib rigctld (its default is `127.0.0.1:4532`) whose frequency and mode make the status. Ignored for `text` and `off` |

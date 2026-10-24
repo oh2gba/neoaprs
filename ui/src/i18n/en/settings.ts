@@ -60,7 +60,7 @@ export const settings = {
   "settings.antenna_height.tip2": "Example: 10 for a mast on a house on level ground",
 
   "settings.antenna_gain.label": "Antenna gain",
-  "settings.antenna_gain.tip1": "How much the antenna concentrates the signal, {min} to {max} dB. Use 0 if you do not know. Used only for the PHG code.",
+  "settings.antenna_gain.tip1": "How much the antenna concentrates the signal, {min} to {max} dBi. Use 0 if you do not know. Used only for the PHG code.",
   "settings.antenna_gain.tip2": "Example: 3",
 
   "settings.antenna_direction.label": "Antenna direction",

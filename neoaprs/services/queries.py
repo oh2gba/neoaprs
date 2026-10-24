@@ -1,6 +1,6 @@
 """Queries: what other stations ask of us in an APRS message, and the answers.
 
-A message to us (our call with its SSID, or our base call when ours has one) whose text is
+A message to us (our call with its SSID exactly: our base call is not ours when ours has an SSID, message.addressed_to) whose text is
 
     ?APRSP   is answered with our position packet (the beacon's frame, `Beacon.frame()`)
     ?APRSS   with our status report as it was last sent (services/rigstatus.py; nothing while none has been sent)

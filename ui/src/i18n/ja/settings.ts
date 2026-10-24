@@ -62,7 +62,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.antenna_height.tip2": "例: 平地の家の屋根にあるマストなら 10",
 
   "settings.antenna_gain.label": "アンテナ利得",
-  "settings.antenna_gain.tip1": "アンテナがどれだけ信号を絞り込むかを、{min}〜{max} dBで指定します。わからなければ 0 にします。PHGコードにのみ使われます。",
+  "settings.antenna_gain.tip1": "アンテナがどれだけ信号を絞り込むかを、{min}〜{max} dBiで指定します。わからなければ 0 にします。PHGコードにのみ使われます。",
   "settings.antenna_gain.tip2": "例: 3",
 
   "settings.antenna_direction.label": "アンテナの指向性",

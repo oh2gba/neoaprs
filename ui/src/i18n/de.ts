@@ -811,7 +811,7 @@ export const de: Catalogue = {
   "settings.antenna_height.tip2": "Beispiel: 10 für einen Mast auf einem Haus im flachen Gelände",
 
   "settings.antenna_gain.label": "Antennengewinn",
-  "settings.antenna_gain.tip1": "Wie stark die Antenne das Signal bündelt, {min} bis {max} dB. 0, wenn du es nicht weißt. Nur für den PHG-Code.",
+  "settings.antenna_gain.tip1": "Wie stark die Antenne das Signal bündelt, {min} bis {max} dBi. 0, wenn du es nicht weißt. Nur für den PHG-Code.",
   "settings.antenna_gain.tip2": "Beispiel: 3",
 
   "settings.antenna_direction.label": "Antennenrichtung",
