@@ -101,6 +101,12 @@ const beaconChoices = (): readonly Choice[] => [
 /** How long a station stays on the map: 1 h, 3 h, 6 h, 12 h or 24 h (the Stations tab offers them). */
 const stationHoursChoices = (): readonly Choice[] => STATION_HOURS.map((hours) => ({ value: String(hours), label: t("station.table.hours", { n: hours }) }));
 
+/** Whether the station transmits at all: on, or receive only (station/transmit). */
+const transmitChoices = (): readonly Choice[] => [
+  { value: "true", label: t("settings.transmit.on") },
+  { value: "false", label: t("settings.transmit.off") },
+];
+
 const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 const directionChoices = (): readonly Choice[] => [
   { value: "omni", label: t("settings.antenna_direction.omni") },
@@ -111,6 +117,7 @@ const GAIN = LIMITS.range["beacon/antenna_gain_db"];
 
 const SPECS: Record<string, FieldSpec> = {
   "station/call": { label: "settings.call.label" },
+  "station/transmit": { label: "settings.transmit.label", kind: "choice", choices: transmitChoices },
   "station/lat": { label: "settings.lat.label", unit: "°" },
   "station/lon": { label: "settings.lon.label", unit: "°" },
   "station/symbol_table": { name: "settings.symbol.label", label: "settings.symbol.label" },
@@ -310,7 +317,7 @@ const TNC_ORDER = ["tnc/profile", "serial/port", "serial/baud", "tcp/host", "tcp
 const STATUS_ORDER = ["status/source", "station/status", "status/rigctld", "status/template", "status/interval_min"];
 /** The Beacon group: how often, what it says, then the folds (the antenna, the path). */
 const BEACON_ORDER = ["beacon/interval_min", "station/comment", ...ANTENNA, "beacon/path"];
-const GROUP_ORDER: Record<string, readonly string[]> = { serial: TNC_ORDER, status: STATUS_ORDER, beacon: BEACON_ORDER };
+const GROUP_ORDER: Record<string, readonly string[]> = { station: ["station/transmit"], serial: TNC_ORDER, status: STATUS_ORDER, beacon: BEACON_ORDER };
 
 function rank(order: readonly string[], key: string): number {
   const at = order.indexOf(key);

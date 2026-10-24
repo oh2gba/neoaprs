@@ -33,6 +33,9 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.name.tcp_address": "Endereço TCP",
   "settings.name.radio": "Rádio",
 
+  "settings.transmit.label": "Transmitir",
+  "settings.transmit.on": "Ativado",
+  "settings.transmit.off": "Somente recepção",
   "settings.call.label": "Indicativo",
   "settings.lat.label": "Latitude",
   "settings.lon.label": "Longitude",

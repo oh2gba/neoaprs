@@ -32,6 +32,9 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.name.tcp_address": "Dirección TCP",
   "settings.name.radio": "Radio",
 
+  "settings.transmit.label": "Transmitir",
+  "settings.transmit.on": "Activado",
+  "settings.transmit.off": "Solo recepción",
   "settings.call.label": "Indicativo",
   "settings.lat.label": "Latitud",
   "settings.lon.label": "Longitud",

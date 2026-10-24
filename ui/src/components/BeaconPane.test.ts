@@ -35,7 +35,7 @@ describe("BeaconPane", () => {
 
   it("asks nothing about the destination, the compressed form or the DAO: the program decides", () => {
     const { wrapper } = pane({ "status/source": "text" });
-    expect(labels(wrapper)).toEqual(["Call", "Latitude", "Longitude", "Symbol", "Beacon", "Comment", "Power", "Path", "Status", "Text", "Every"]);
+    expect(labels(wrapper)).toEqual(["Transmit", "Call", "Latitude", "Longitude", "Symbol", "Beacon", "Comment", "Power", "Path", "Status", "Text", "Every"]);
     for (const id of ["destination", "compressed", "dao", "symbol_table", "symbol_code"])
       expect(wrapper.find(`#set-beacon-${id}, #set-station-${id}`).exists()).toBe(false);
   });
@@ -75,8 +75,8 @@ describe("BeaconPane", () => {
       wrapper
         .findAll("form .field label, form .field .field-label")
         .map((e) => e.text())
-        .slice(0, 5),
-    ).toEqual(["Call", "Location", "Latitude", "Longitude", "Symbol"]);
+        .slice(0, 6),
+    ).toEqual(["Transmit", "Call", "Location", "Latitude", "Longitude", "Symbol"]);
   });
 
   it("lays the Location out as the Call is: the label in the first column, the button, the place and Enter coordinates in the second", () => {

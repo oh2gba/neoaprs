@@ -9,7 +9,7 @@ from datetime import timedelta
 
 from neoaprs.clock import iso
 from neoaprs.coded import CodedError
-from neoaprs.config import Config, SettingError
+from neoaprs.config import RECEIVE_ONLY, Config, SettingError
 from neoaprs.mapstate import Job, MapError
 from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.message import MessagingError
@@ -122,12 +122,16 @@ async def find_radio_cancel(ctx: Ctx, cmd: FindRadioCancel) -> None:
 async def beacon_now(ctx: Ctx, cmd: BeaconNow) -> None:
     beacon = ctx.ctl.beacon
     if not beacon.send_now("request"):
+        if beacon.problem == RECEIVE_ONLY:
+            raise UserError("beacon_now: Receive only: nothing is sent", "transmit.off")
         raise UserError(f"beacon_now: nothing was sent: {beacon.problem}", "beacon.not_sent", params={"reason": beacon.problem})
 
 
 @command(StatusNow)
 async def status_now(ctx: Ctx, cmd: StatusNow) -> None:
     if problem := await ctx.ctl.rigstatus.send_now():
+        if problem == RECEIVE_ONLY:
+            raise UserError("status_now: Receive only: nothing is sent", "transmit.off")
         raise UserError(f"status_now: nothing was sent: {problem}", "status.not_sent", params={"reason": problem})
 
 

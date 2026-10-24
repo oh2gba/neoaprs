@@ -7,6 +7,8 @@ export const de: Catalogue = {
   "common.dismiss": "Ausblenden",
 
   "header.project_title": "Die Projektseite von NeoAPRS",
+  "header.receive_only": "Nur Empfang",
+  "header.receive_only_title": "Es wird nichts gesendet: den Schalter „Senden“ öffnen",
   "header.no_call": "kein Rufzeichen",
   "header.no_call_title": "Ohne Rufzeichen wird nichts gesendet: Einrichtung öffnen",
   "header.unread_open": {
@@ -112,6 +114,7 @@ export const de: Catalogue = {
   "error.object.symbol": "das Symbol „{table}“ „{symbol}“ ist weder eine Tabelle (/ \\ A-Z 0-9) noch ein druckbares Zeichen",
   "error.path.too_long": "{count} Digipeater sind mehr als die {max}, die ein Pfad haben darf",
   "error.query.not_capable": "{call} nimmt keine Nachrichten an: es gibt niemanden zu fragen",
+  "error.transmit.off": "Nur Empfang: es wird nichts gesendet",
   "error.query.too_soon": "{call} wurde eben erst dasselbe gefragt: {seconds} s warten",
   "error.path.direct_alone": "{word} ist kein Digipeater: allein geschrieben bedeutet es gar keine Digipeater",
   "error.setting.comment_too_long":
@@ -790,6 +793,9 @@ export const de: Catalogue = {
   "settings.name.tcp_address": "TCP-Adresse",
   "settings.name.radio": "Funkgerät",
 
+  "settings.transmit.label": "Senden",
+  "settings.transmit.on": "Ein",
+  "settings.transmit.off": "Nur Empfang",
   "settings.call.label": "Rufzeichen",
   "settings.lat.label": "Breite",
   "settings.lon.label": "Länge",

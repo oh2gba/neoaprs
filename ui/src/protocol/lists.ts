@@ -44,6 +44,7 @@ export const CONFIG_KEYS = [
   "serial/pattern",
   "serial/skip",
   "station/call",
+  "station/transmit",
   "station/lat",
   "station/lon",
   "station/symbol_table",

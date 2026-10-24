@@ -3,6 +3,8 @@ export const shell = {
   "common.dismiss": "Dismiss",
 
   "header.project_title": "The NeoAPRS project page",
+  "header.receive_only": "Receive only",
+  "header.receive_only_title": "Nothing is transmitted: open the Transmit switch",
   "header.no_call": "no call set",
   "header.no_call_title": "Nothing is transmitted until a call is set: open the setup",
   "header.unread_open": {

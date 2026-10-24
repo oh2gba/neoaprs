@@ -7,6 +7,8 @@ export const fr: Catalogue = {
   "common.dismiss": "Masquer",
 
   "header.project_title": "La page du projet NeoAPRS",
+  "header.receive_only": "Réception seule",
+  "header.receive_only_title": "Rien n'est émis : ouvrir l'interrupteur Émission",
   "header.no_call": "pas d'indicatif",
   "header.no_call_title": "Rien n'est émis tant qu'un indicatif n'est pas défini : ouvrir la configuration",
   "header.unread_open": {
@@ -111,6 +113,7 @@ export const fr: Catalogue = {
   "error.object.symbol": "le symbole « {table} » « {symbol} » n'est pas une table (/ \\ A-Z 0-9) suivie d'un caractère imprimable",
   "error.path.too_long": "{count} digipeaters, c'est plus que les {max} qu'un chemin peut avoir",
   "error.query.not_capable": "{call} ne reçoit pas de messages : il n'y a personne à interroger",
+  "error.transmit.off": "Réception seule : rien n'est émis",
   "error.query.too_soon": "La même question vient d'être posée à {call} : attendez {seconds} s",
   "error.path.direct_alone": "{word} n'est pas un digipeater : écrit seul, il veut dire aucun digipeater",
   "error.setting.comment_too_long": "{length} caractères, c'est plus que les {limit} permis avec l'extension PHG (videz beacon/power_w pour ne pas en émettre)",
@@ -778,6 +781,9 @@ export const fr: Catalogue = {
   "settings.name.tcp_address": "Adresse TCP",
   "settings.name.radio": "Radio",
 
+  "settings.transmit.label": "Émission",
+  "settings.transmit.on": "Activée",
+  "settings.transmit.off": "Réception seule",
   "settings.call.label": "Indicatif",
   "settings.lat.label": "Latitude",
   "settings.lon.label": "Longitude",

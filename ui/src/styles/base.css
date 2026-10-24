@@ -89,6 +89,20 @@ a {
   cursor: pointer;
   text-decoration: underline;
 }
+/* the badge of a station that transmits nothing: the warning colour, a small outlined pill of the height of the other things of the header */
+.rxonly {
+  flex: none;
+  padding: 0 8px;
+  border: 1px solid var(--warn);
+  border-radius: 9px;
+  background: none;
+  color: var(--warn);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+  cursor: pointer;
+}
 button.status {
   padding: 0;
   border: 0;

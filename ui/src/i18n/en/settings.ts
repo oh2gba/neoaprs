@@ -31,6 +31,9 @@ export const settings = {
   "settings.name.tcp_address": "TCP address",
   "settings.name.radio": "Radio",
 
+  "settings.transmit.label": "Transmit",
+  "settings.transmit.on": "On",
+  "settings.transmit.off": "Receive only",
   "settings.call.label": "Call",
   "settings.lat.label": "Latitude",
   "settings.lon.label": "Longitude",
