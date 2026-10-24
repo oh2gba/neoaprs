@@ -12,8 +12,8 @@ The tables of this document that are that test's data (this one, the rules after
 <!-- doc-arch:layers -->
 | layer | modules | may import | may not import |
 | --- | --- | --- | --- |
-| foundation | `clock signal coded policy callsign geo symbols kiss ax25 aprsposition aprsmice aprsmessage aprsparse aprsweather aprsthirdparty aprsextension aprslocator aprstelemetry aprsnmea packet packetcodec message bulletin decay tncmode tncprofile pref route chain mapstate radiosearch serialboards versions updateasset` | foundation | domain, adapters, persistence, services, app, delivery, and any I/O library |
-| domain | `alertcommand config configlegacy configstatus configtypes interlock stationbook aloha ownobject ownbulletin` | foundation, domain | adapters, persistence, services, app, delivery, and any I/O library |
+| foundation | `clock signal coded policy callsign geo symbols kiss ax25 aprsposition aprsmice aprsmessage aprsparse aprsweather aprsthirdparty aprsextension aprslocator aprstelemetry aprsnmea packet packetcodec message bulletin decay tncmode tncprofile pref route chain mapstate radiosearch serialboards versions updateasset device devicedata hourcount` | foundation | domain, adapters, persistence, services, app, delivery, and any I/O library |
+| domain | `alertcommand config configlegacy configstatus configtypes interlock station stationnotes stationbook aloha ownobject ownbulletin` | foundation, domain | adapters, persistence, services, app, delivery, and any I/O library |
 | adapters | `source tasks serialport serialholders serialprobe btsdp btserial btpaired tnc tncsearch tncwatchdog tncentry tnclines childenv rigctld pmtilestool updatefetch updatedownload selfreplace` | foundation, domain, adapters | persistence, services, app, delivery |
 | persistence | `store migrations migrations2 backupfolder durable instancelock stopfile walcare dbfile dberror dbstats dbthread db dbopen storesql paths dblog packetsql packetlog messagesql messagelog bulletinsql bulletinlog weathersql weatherlog ownsql ownlog` | foundation, domain, persistence | adapters, services, app, delivery |
 | services | everything in `neoaprs/services/` | foundation, domain, adapters, persistence, services | app, delivery |
@@ -49,13 +49,16 @@ What each layer is for:
     board's, and a bulletin as the board keeps it.
   * `route`: how a packet reached us (the route out of the starred addresses of a path, its text, the path to send by, the count of a station's routes).
     `chain`: the delivery chain of a message we sent (its attempts, the hops of a path that a copy heard back shows used).
+  * `device`: what a station runs, from the destination call of its packets or the type code of a Mic-E packet, by the APRS device identification list
+    (`devicedata`, a snapshot made by `scripts/gen-devices.py`: CC BY-SA 2.0, from aprsorg/aprs-deviceid, which the daemon never fetches).
   * `pref`: what the operator set for a station, as a value. `mapstate`: the base map's files, estimate and job as plain values.
   * `tncmode`: a KISS stream or command-mode text, the mode detector of the TNC. `decay`: when what we send of our own accord goes out again (the
     specification's decay algorithm, the net cycle time of a path, the schedules of a bulletin and of a kill).
   * `policy`: the fixed numbers that are not settings (how long things are kept, the keep-alive time).
 * **domain**:
   * `stationbook`: the stations as the packets tell them (who, where, when last, the track, the latest weather; objects and items, ours marked `own`; us). The
-    tracks and the weather the database kept are seeded at the start.
+    tracks and the weather the database kept are seeded at the start. `station` is the station as a value, `stationnotes` what a packet says of its sender that the
+    book notes (does it do messages; its packets of the last hour, which `hourcount` keeps as a count for each minute, so that a busy station costs no more than a quiet one).
   * `aloha`: the ALOHA circle of WB4APR, the distance round our position within which the stations heard on RF fill the channel (`policy.py` has the numbers). The service
     `services/aloha.py` works it out again every minute and when our position moves.
   * `config`: the settings as one immutable value, each key checked.

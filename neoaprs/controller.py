@@ -23,6 +23,7 @@ from .versions import PLAIN_INSTALL, InstallInfo
 log = logging.getLogger("neoaprs.controller")
 
 PRUNE_EVERY_SEC = 24 * 3600.0
+RECOUNT_EVERY_SEC = 60.0                # the station book's hour of packets moves on a minute at a time
 
 WebFactory = Callable[["Controller", Config], Frontend]
 """How the process says what its page's server is: neoaprs.web.server.WebServer. The controller makes it from the settings and the process, which is the delivery layer, is the one that names it."""
@@ -72,6 +73,7 @@ class Controller(Services):
         await self._start_web()
         await self.updatecheck.start()
         self.tasks.spawn(self._prune_daily(), "prune")
+        self.tasks.spawn(self._recount_minutely(), "recount")
 
     async def stop(self) -> None:
         self.running = False
@@ -169,3 +171,8 @@ class Controller(Services):
         while True:
             await self.prune()
             await asyncio.sleep(PRUNE_EVERY_SEC)
+
+    async def _recount_minutely(self) -> None:
+        while True:
+            await asyncio.sleep(RECOUNT_EVERY_SEC)
+            self.stationbook.recount()

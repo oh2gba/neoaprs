@@ -3166,6 +3166,15 @@
           "description": "how many packets of this station were heard",
           "type": "integer"
         },
+        "packets_hour": {
+          "description": "how many of them were heard in the last hour (counted from the packets of the hour at the start and as they come; the row is told again each minute that it becomes fewer)",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "device": {
+          "description": "what the station runs, as the APRS device identification list names it (\"Kenwood TH-D74\", \"APRSdroid\"): by the destination call of its packets, or by the type code of a Mic-E packet; empty when unknown",
+          "type": "string"
+        },
         "last_path": {
           "description": "the digipeaters of the latest packet, the one that repeated it marked with `*`",
           "items": {
@@ -3389,6 +3398,8 @@
         "last_status",
         "last_comment",
         "packets",
+        "packets_hour",
+        "device",
         "last_path",
         "last_route",
         "heard_direct",

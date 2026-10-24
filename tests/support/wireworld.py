@@ -27,9 +27,9 @@ def packets() -> list[Packet]:
     packet, one of ours."""
     return [
         heard("!4903.50N/07201.75W-Test", "N0AAA", ("OH2RCH-2*", "WIDE2-1")),
-        heard("=4903.50N/07201.75W>088/036/A=000123 mobile", "N0BBB-9", ("WIDE1*", "OH2RDG-1*")),
+        heard("=4903.50N/07201.75W>088/036/A=000123 mobile", "N0BBB-9", ("WIDE1*", "OH2RDG-1*"), destination="APK004"),
         heard("!4903.50N/07201.75W#PHG5132", "N0CCC"),
-        heard("@092345z4903.50N/07201.75W>RNG0050 range", "N0DDD", ("WIDE1-1",)),
+        heard("@092345z4903.50N/07201.75W>RNG0050 range", "N0DDD", ("WIDE1-1",), destination="APDR15"),
         heard(">IO91sx/- on the air", "N0EEE", ("OH2RCH-3*",)),
         heard(";LEADER   *092345z6012.00N/02456.00E>090/020 convoy", "N0FFF", ("OH2RCH-2*",)),
         heard(")AID #!6015.00N/02458.00EA first aid", "N0FFF"),

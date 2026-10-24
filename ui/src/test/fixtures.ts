@@ -57,6 +57,8 @@ export function station(call: string, extra: Partial<StationRow> = {}): StationR
     last_status: "",
     last_comment: "",
     packets: 3,
+    packets_hour: 2,
+    device: "",
     last_path: ["OH2RCH-2*"],
     last_route: "via OH2RCH-2",
     heard_direct: 0,

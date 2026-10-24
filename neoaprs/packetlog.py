@@ -13,7 +13,7 @@ from .dblog import DbLog
 from .packet import ItemReport, ObjectReport, Packet, Position
 from .packetcodec import PacketRow, packet_of, packet_row, parse_stamp, stamp
 from .packetsql import (Row, all_stations, count_packets, delete_station, heard_routes, insert_packet, message_packets, packets_since, position_packets, prune_packets_before, recent_packets, upsert_station)
-from .stationbook import Station
+from .station import Station
 
 log = logging.getLogger("neoaprs.packetlog")
 

@@ -17,9 +17,9 @@ describe("extensionRows", () => {
       area: { shape: "filled ellipse", colour: "cyan", lat_offset_deg: 1, lon_offset_deg: 0.25 },
     });
     expect(rows).toEqual([
-      { label: "PHG", text: "25 W, 6 m, 3 dB, 90°, range 13 km" },
+      { label: "PHG", text: "25 W, 6 m, 3 dB, range 13 km", direction: { deg: 90, title: "E, 90°" } },
       { label: "Range", text: "81 km" },
-      { label: "DF signal", text: "S2, 24 m, 6 dB, omni" },
+      { label: "DF signal", text: "S2, 24 m, 6 dB", direction: { deg: null, title: "omni" } },
       { label: "DF bearing", text: "270°, range 6 km, quality 9, hits 7" },
       { label: "Area", text: "cyan filled ellipse, 1° down, 0.25° right" },
     ]);

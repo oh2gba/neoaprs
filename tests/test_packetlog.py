@@ -18,7 +18,7 @@ from neoaprs.aprsthirdparty import parse_packet
 from neoaprs.packet import ItemReport, Message, ObjectReport, Other, Packet, Position, Status, ThirdParty, Undecoded
 from neoaprs.packetcodec import decode_decoded, encode_decoded, packet_of, packet_row, parse_stamp, stamp, tnc2
 from neoaprs.packetlog import PacketLog
-from neoaprs.stationbook import Station
+from neoaprs.station import Station
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
 from tests.support.files import fixture_bytes

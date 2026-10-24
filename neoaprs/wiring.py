@@ -4,6 +4,7 @@ reports is theirs and is dropped), our objects go to the station book, what the 
 Also how the settings become the Tnc's: `tnc_settings`, and how the station book is filled from the database at the start: `seed_station_book`."""
 import logging
 from dataclasses import replace
+from datetime import timedelta
 from typing import NamedTuple
 
 from .app import Services
@@ -105,6 +106,7 @@ async def seed_station_book(parts: Services) -> None:
     await _seed_weather(parts)
     book.seed_details(await packetlog.recent(DETAILS_SEEN))
     book.seed_messaging(await packetlog.messaging_evidence(LOG_KEEP_DAYS))
+    book.seed_recent(await packetlog.since(parts.clock() - timedelta(hours=1)))
 
 
 async def _seed_weather(parts: Services) -> None:

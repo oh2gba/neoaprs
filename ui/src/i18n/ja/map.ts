@@ -15,6 +15,7 @@ export const map: Record<keyof typeof source, Message> = {
   "map.credits.hide": "クレジットを隠す",
   "map.credits.show": "地図とシンボルのクレジット",
   "map.credits.symbols": "APRSシンボル: Heikki Hannikainen, OH7LZB によるaprs.fiセット(github.com/hessu/aprs-symbols)",
+  "map.credits.devices": "機器名: Hessu, OH7LZB による APRS機器識別リスト(github.com/aprsorg/aprs-deviceid, CC BY-SA 2.0)",
 
   "map.pick.tap": "地図上の場所をタップ",
   "map.pick.cancel": "キャンセル",

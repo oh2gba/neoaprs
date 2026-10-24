@@ -19,7 +19,8 @@ from neoaprs.packet import Packet
 from neoaprs.packetcodec import encode_decoded, tnc2
 from neoaprs.pref import Pref
 from neoaprs.route import digipeaters, heard_path, received_text, route_text, suggested_path
-from neoaprs.stationbook import Station, StationBook
+from neoaprs.station import Station
+from neoaprs.stationbook import StationBook
 from neoaprs.symbols import symbol_name
 from neoaprs.tnc import Tnc
 from neoaprs.weatherlog import Observation
@@ -66,7 +67,7 @@ def station_row(book: StationBook, station: Station) -> dict[str, Any]:
     bearing = None if station.is_me else book.bearing_deg(station)
     return StationRow.row(
         station, symbol_name=symbol_name(station.symbol_table, station.symbol_code) if station.symbol_code else "unknown", weather=weather_values(station.weather),
-        telemetry=telemetry_values(book, station), distance_km=None if distance is None else round(distance, 2), bearing_deg=None if bearing is None else round(bearing, 1), **_routes(station, book.clock()),
+        telemetry=telemetry_values(book, station), packets_hour=station.hour.count(book.clock()), distance_km=None if distance is None else round(distance, 2), bearing_deg=None if bearing is None else round(bearing, 1), **_routes(station, book.clock()),
     )
 
 

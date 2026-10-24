@@ -23,6 +23,12 @@ The Stations list.
 
 - The tickbox **with position only** is gone: the stations without a position show as they do with it off.
 
+The station card.
+
+- A new row, **Device**, says what the station runs ("Kenwood TH-D74", "APRSdroid", "OpenTracker"), from the destination call of its packets (with the list's wildcards) or, for a Mic-E tracker, from the type code at the ends of its comment. It is left out when the station is not in the list. The names come from the APRS device identification list of Hessu, OH7LZB (aprsorg/aprs-deviceid, CC BY-SA 2.0), a snapshot of which the program carries (`scripts/gen-devices.py` refreshes it; the daemon never fetches it) and credits in the (i) on the map and in the README. The station row of the page's protocol has the new field `device`.
+- The antenna of a PHG report shows the direction it favours as a small arrow, the same as the bearing in the Stations table (a small circle for omni), with the compass point and the degrees as its hover title, in place of the degrees in the text.
+- **Packets** in the details says how many of them came in the last hour: "312 · 14 in the last hour". The count is kept for each minute, read from the packet log at the start, and moves on every minute; the station row has the new field `packets_hour`.
+
 The footer.
 
 - The hover text of the version is a sentence in the page's language, "NeoAPRS uses 0.3 % of one processor core and 56 MB of memory, running for 3 h", not "0.3 % · 56 MB · up 3 h".

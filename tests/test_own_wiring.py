@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs.stationbook import Station
+from neoaprs.station import Station
 from neoaprs.web.ownwire import OwnBulletinRow, OwnObjectRow
 from neoaprs.web.protocol import TOPIC_NAMES
 from tests.support.air import on_air, said
