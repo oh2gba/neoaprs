@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { setLocale } from "@/i18n";
-import { SPRITE_COLUMNS, SPRITE_PX, cellOf, layerStyle, symbolLayers, symbolText } from "@/lib/symbols";
-import { SYMBOL_NAMES } from "@/protocol/lists";
+import { SPRITE_COLUMNS, SPRITE_PX, cellOf, isMobileSymbol, layerStyle, recommendedPath, symbolLayers, symbolText } from "@/lib/symbols";
+import { MOBILE_SYMBOLS, SYMBOL_NAMES } from "@/protocol/lists";
 
 describe("cellOf", () => {
   it("lays the codes ! to ~ out 16 to a row from the top left", () => {
@@ -85,5 +85,65 @@ describe("symbolText", () => {
   it("is in the language of the page", () => {
     setLocale("en-XA");
     expect(symbolText("/", ">")).toMatch(/^\[!! /);
+  });
+});
+
+describe("the type of a station from its symbol", () => {
+  const named = (table: "/" | "\\", name: string): string => {
+    const names: readonly string[] = table === "/" ? SYMBOL_NAMES.primary : SYMBOL_NAMES.alternate;
+    return String.fromCharCode(33 + names.indexOf(name));
+  };
+  it.each([
+    ["/", "Car"],
+    ["/", "Truck"],
+    ["/", "Van"],
+    ["/", "Bicycle"],
+    ["/", "Motorcycle"],
+    ["/", "Jogger"],
+    ["/", "Small aircraft"],
+    ["/", "Large aircraft"],
+    ["/", "Balloon"],
+    ["/", "Yacht"],
+    ["/", "Power boat"],
+    ["/", "Recreational vehicle"],
+    ["/", "Jeep"],
+    ["/", "Bus"],
+    ["/", "Farm vehicle"],
+    ["/", "Horse"],
+    ["\\", "Car"],
+    ["\\", "Ship or boat"],
+    ["\\", "Truck"],
+    ["\\", "Van"],
+    ["\\", "Large aircraft"],
+    ["\\", "Special vehicle"],
+  ] as const)("takes %s %s for a moving station", (table, name) => {
+    expect(isMobileSymbol(table, named(table, name)), name).toBe(true);
+    expect(recommendedPath(table, named(table, name))).toBe("WIDE1-1,WIDE2-1");
+  });
+  it.each([
+    ["/", "House"],
+    ["/", "Digipeater"],
+    ["/", "Weather station"],
+    ["/", "Red Cross"],
+    ["/", "Hospital"],
+    ["/", "Antenna"],
+    ["\\", "House (HF)"],
+    ["\\", "Digipeater"],
+    ["\\", "Gateway"],
+    ["\\", "Church"],
+  ] as const)("takes %s %s for a fixed station", (table, name) => {
+    expect(isMobileSymbol(table, named(table, name)), name).toBe(false);
+    expect(recommendedPath(table, named(table, name))).toBe("WIDE2-1");
+  });
+  it("sees through an overlay and a compressed overlay, and takes anything that is no symbol for a fixed station", () => {
+    expect([isMobileSymbol("E", ">"), isMobileSymbol("4", "s"), isMobileSymbol("e", ">"), isMobileSymbol("S", "#")]).toEqual([true, true, true, false]);
+    expect([isMobileSymbol("", ">"), isMobileSymbol("?", ">"), isMobileSymbol("/", ""), isMobileSymbol("/", ">>")]).toEqual([false, false, false, false]);
+  });
+  it("is the daemon's list, and every code of it is a symbol that has a name", () => {
+    for (const [table, codes] of [
+      ["/", MOBILE_SYMBOLS.primary],
+      ["\\", MOBILE_SYMBOLS.alternate],
+    ] as const)
+      for (const code of codes) expect(symbolText(table, code), `${table}${code}`).not.toBe("reserved");
   });
 });

@@ -27,6 +27,7 @@ import { useStationPrefs } from "@/composables/useStationPrefs";
 import { useTitle } from "@/composables/useTitle";
 import { DEFAULT_TIMEOUT_MIN, type Aging } from "@/lib/aging";
 import { pathCalls } from "@/lib/calls";
+import { recommendedPath } from "@/lib/symbols";
 import type { ConfigValues } from "@/protocol/protocol";
 
 /** The guide opens once, when the daemon says it has no call (the page's first word of a fresh install): not again when the settings are told again, nor when the call is set. */
@@ -60,8 +61,9 @@ function useDerived(daemon: ReturnType<typeof useDaemon>) {
     call: computed<string | null>(() => config.value?.values["station/call"] ?? status.value?.call ?? null),
     home: useHome(config, status),
     fallbackPath: computed(() => {
-      const text = config.value?.values["beacon/path"] ?? "";
-      return (pathCalls(text) ?? [text]).join(",");
+      const values = config.value?.values ?? {};
+      const text = values["beacon/path"] ?? "";
+      return (pathCalls(text, recommendedPath(values["station/symbol_table"] ?? "", values["station/symbol_code"] ?? "")) ?? [text]).join(",");
     }),
     connected: computed(() => tnc.value?.state === "connected"),
   };

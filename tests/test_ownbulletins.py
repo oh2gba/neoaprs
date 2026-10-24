@@ -70,6 +70,14 @@ async def test_a_group_bulletin_goes_to_its_group_by_the_beacons_path_on_the_bul
     assert frame.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::BLN3HAMS :Net tonight 20:00" and frame.is_ui
 
 
+@pytest.mark.parametrize(("table", "code", "path"), [("/", "-", "WIDE2-1"), ("/", ">", "WIDE1-1,WIDE2-1")])
+async def test_a_bulletin_goes_by_the_recommended_path_of_the_stations_symbol(tmp_path: Path, table: str, code: str, path: str) -> None:
+    rig = await rig_at(tmp_path, beacon_path="", station_symbol_table=table, station_symbol_code=code)
+    rig.posts.post("BLN1", "Net tonight")
+    rig.run(10)
+    assert rig.tnc.sent[0].path_text == path
+
+
 async def test_the_next_time_is_told_and_what_is_overdue_says_so(rig: Rig) -> None:
     rig.posts.post("BLN1", "x")
     assert rig.posts.next_at("BLN1") == rig.begin, "due at once"

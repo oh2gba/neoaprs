@@ -230,9 +230,9 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.path.custom": "Personalizzato…",
   "settings.path.custom_label": "Digipeater",
   "settings.path.tip1":
-    "I digipeater, le stazioni che ripetono il tuo pacchetto perché arrivi più lontano, attraverso cui passano il tuo beacon e i tuoi oggetti. Il percorso consigliato va bene per la maggior parte: un piccolo digipeater vicino raccoglie prima il pacchetto e uno ad ampia copertura lo porta oltre. Scegli Solo diretto se tutti quelli con cui parli ti sentono direttamente.",
+    "Il percorso consigliato segue il simbolo della tua stazione: una stazione in movimento (auto, bici, barca, aereo) usa WIDE1-1,WIDE2-1, così un piccolo digipeater vicino raccoglie prima il pacchetto e uno ad ampia copertura lo porta oltre. Qualsiasi altro simbolo è una stazione fissa, che raggiunge direttamente un digipeater ad ampia copertura e le basta WIDE2-1.",
   "settings.path.tip2":
-    "Una stazione fissa che i digipeater ad ampia copertura sentono direttamente, come una su una collina, può usare WIDE2-1 o WIDE2-2 come percorso personalizzato. I messaggi scelgono da soli il percorso, a meno che tu non ne imposti uno per la stazione.",
+    "Scegli Solo diretto se tutti quelli con cui parli ti sentono direttamente. I messaggi scelgono da soli il percorso, a meno che tu non ne imposti uno per la stazione.",
 
   "settings.confirm.label": "Conferma",
   "settings.confirm.yes": "Sì",

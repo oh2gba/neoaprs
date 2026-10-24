@@ -28,25 +28,37 @@ describe("phgText", () => {
 
 describe("beaconText", () => {
   it("is the packet of the default settings", () => {
-    expect(beaconText(settings())).toBe("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=6010.20N/02456.40E-NeoAPRS");
+    expect(beaconText(settings())).toBe("OH2GBA>APZNEO,WIDE2-1:=6010.20N/02456.40E-NeoAPRS");
   });
   it("follows the form: the call in capitals, no path (DIRECT), the path as typed, the recommended one when it is empty", () => {
     expect(beaconText(settings({ "station/call": "oh2gba-9", "beacon/path": "direct", "station/comment": "" }))).toBe("OH2GBA-9>APZNEO:=6010.20N/02456.40E-");
-    expect(beaconText(settings({ "beacon/path": "" }))).toBe("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=6010.20N/02456.40E-NeoAPRS");
+    expect(beaconText(settings({ "beacon/path": "" }))).toBe("OH2GBA>APZNEO,WIDE2-1:=6010.20N/02456.40E-NeoAPRS");
+    expect(beaconText(settings({ "beacon/path": "WIDE1-1,WIDE2-1" }))).toBe("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=6010.20N/02456.40E-NeoAPRS");
     expect(beaconText(settings({ "beacon/path": "DIRECT,WIDE1-1" }))).toBeNull();
     expect(beaconText(settings({ "beacon/path": " wide1-1 , " }))).toBe("OH2GBA>APZNEO,WIDE1-1:=6010.20N/02456.40E-NeoAPRS");
   });
+  it("goes by the recommended path of the symbol when the path is empty: WIDE2-1 for a fixed station, WIDE1-1,WIDE2-1 for a moving one", () => {
+    const by = (table: string, code: string, path = "") =>
+      beaconText(settings({ "station/symbol_table": table, "station/symbol_code": code, "beacon/path": path }))?.split(":")[0];
+    expect(by("/", "-")).toBe("OH2GBA>APZNEO,WIDE2-1");
+    expect(by("/", "_")).toBe("OH2GBA>APZNEO,WIDE2-1");
+    expect(by("/", ">")).toBe("OH2GBA>APZNEO,WIDE1-1,WIDE2-1");
+    expect(by("/", "b")).toBe("OH2GBA>APZNEO,WIDE1-1,WIDE2-1");
+    expect(by("\\", "s")).toBe("OH2GBA>APZNEO,WIDE1-1,WIDE2-1");
+    expect(by("E", ">")).toBe("OH2GBA>APZNEO,WIDE1-1,WIDE2-1");
+    expect(by("/", ">", "DIRECT")).toBe("OH2GBA>APZNEO");
+    expect(by("/", ">", "WIDE2-2")).toBe("OH2GBA>APZNEO,WIDE2-2");
+    expect(by("/", "-", "WIDE2-2")).toBe("OH2GBA>APZNEO,WIDE2-2");
+  });
   it("has the PHG after the symbol when there is a power", () => {
     const antenna = { "beacon/power_w": "2", "beacon/antenna_height_m": "3", "beacon/antenna_gain_db": "2" };
-    expect(beaconText(settings(antenna))).toBe("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=6010.20N/02456.40E-PHG1020NeoAPRS");
+    expect(beaconText(settings(antenna))).toBe("OH2GBA>APZNEO,WIDE2-1:=6010.20N/02456.40E-PHG1020NeoAPRS");
     expect(
       beaconText(settings({ "beacon/power_w": "25", "beacon/antenna_height_m": "12", "beacon/antenna_gain_db": "3", "beacon/antenna_direction": "n" })),
     ).toContain("-PHG5238NeoAPRS");
   });
   it("has no PHG without a power, whatever the antenna says", () => {
-    expect(beaconText(settings({ "beacon/antenna_height_m": "30", "beacon/antenna_gain_db": "9" }))).toBe(
-      "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=6010.20N/02456.40E-NeoAPRS",
-    );
+    expect(beaconText(settings({ "beacon/antenna_height_m": "30", "beacon/antenna_gain_db": "9" }))).toBe("OH2GBA>APZNEO,WIDE2-1:=6010.20N/02456.40E-NeoAPRS");
   });
   it("is null while the settings do not make a packet", () => {
     expect(beaconText(settings({ "beacon/power_w": "lots" }))).toBeNull();
@@ -66,7 +78,7 @@ describe("beaconText", () => {
 describe("statusText", () => {
   const at = new Date("2026-10-21T12:07:00Z");
   it("is the report of a text of our own: the same header, `>`, the day, hour and minute in UTC with a z, then the text", () => {
-    expect(statusText(settings({ "station/status": "On the road, QRV 145.500" }), at)).toBe("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:>211207zOn the road, QRV 145.500");
+    expect(statusText(settings({ "station/status": "On the road, QRV 145.500" }), at)).toBe("OH2GBA>APZNEO,WIDE2-1:>211207zOn the road, QRV 145.500");
     expect(statusText(settings({ "station/status": "x", "station/call": "oh2gba-9", "beacon/path": "DIRECT" }), new Date("2026-11-03T04:05:00Z"))).toBe(
       "OH2GBA-9>APZNEO:>030405zx",
     );
@@ -84,7 +96,7 @@ describe("statusText", () => {
   });
   it("is the text again when the text is chosen although a radio is set", () => {
     expect(statusText(settings({ "station/status": "x", "status/source": "text", "status/rigctld": "127.0.0.1:4532" }), at)).toBe(
-      "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:>211207zx",
+      "OH2GBA>APZNEO,WIDE2-1:>211207zx",
     );
   });
 });

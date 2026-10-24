@@ -35,6 +35,23 @@ def table_of(table: str) -> str | None:
     return None
 
 
+# The symbols of a station that moves or is carried, by name, for each table (an overlay table is the alternate one). The station's symbol decides which path is recommended (route.recommended_path): a mobile one
+# goes by WIDE1-1,WIDE2-1 (the fill-in hop, then a wide-area digipeater), a fixed one (a house, a digipeater, a weather station, anything else) by WIDE2-1.
+MOBILE_NAMES = {
+    "primary": ("Small aircraft", "Mobile satellite station", "Wheelchair", "Snowmobile", "Motorcycle", "Railroad engine", "Car", "Canoe", "Farm vehicle", "Balloon", "Police car", "Recreational vehicle",
+                "Space shuttle", "Bus", "ATV", "Helicopter", "Yacht", "Jogger", "Large aircraft", "Ambulance", "Bicycle", "Horse", "Fire truck", "Glider", "Jeep", "Truck", "Rover", "Power boat",
+                "Truck (18 wheeler)", "Van"),
+    "alternate": ("Car", "Large aircraft", "Special vehicle", "Ship or boat", "Truck", "Van"),
+}
+MOBILE_CODES = {table: "".join(chr(33 + i) for i, name in enumerate(SYMBOL_NAMES[table]) if name in names) for table, names in MOBILE_NAMES.items()}     # the codes "!" to "~" of those, for the page
+
+
+def is_mobile(table: str, code: str) -> bool:
+    """True for the symbol of a station that moves or is carried (a car, a bike, a jogger, a boat, an aircraft ...), in either table and with any overlay; false for any other, an unknown one included."""
+    t = table_of(table)
+    return t is not None and len(code) == 1 and code in MOBILE_CODES["primary" if t == "/" else "alternate"]
+
+
 def overlay(table: str) -> str | None:
     """The overlay character 0-9 / A-Z of an alternate table, else None."""
     t = table_of(table)

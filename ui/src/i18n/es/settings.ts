@@ -227,9 +227,9 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.path.custom": "Personalizada…",
   "settings.path.custom_label": "Digipeaters",
   "settings.path.tip1":
-    "Los digipeaters, las estaciones que repiten tu paquete para que llegue más lejos, por los que van tu baliza y tus objetos. Lo recomendado sirve para la mayoría: un digipeater pequeño cercano recoge primero el paquete y uno de área amplia lo lleva más lejos. Elige Solo directa si todos con quienes hablas te oyen directamente.",
+    "Lo recomendado depende del símbolo de tu estación: una estación en movimiento (coche, bicicleta, barco, avión) usa WIDE1-1,WIDE2-1, para que un digipeater pequeño cercano recoja primero el paquete y uno de área amplia lo lleve más lejos. Cualquier otro símbolo es una estación fija, que alcanza directamente un digipeater de área amplia y solo necesita WIDE2-1.",
   "settings.path.tip2":
-    "Una estación fija que los digipeaters de área amplia oyen directamente, como una situada en una colina, puede usar WIDE2-1 o WIDE2-2 como ruta personalizada. Los mensajes eligen su propia ruta, salvo que fijes una para la estación.",
+    "Elige Solo directa si todos con quienes hablas te oyen directamente. Los mensajes eligen su propia ruta, salvo que fijes una para la estación.",
 
   "settings.confirm.label": "Confirmar",
   "settings.confirm.yes": "Sí",

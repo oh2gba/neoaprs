@@ -1,14 +1,14 @@
 <script setup lang="ts">
-// The beacon's path as one choice: Recommended (WIDE1-1,WIDE2-1; the empty setting means it too), Direct only (no digipeaters) and Custom, which shows a field for the calls. Recommended and Direct only apply at once (`choose`);
+// The beacon's path as one choice: Recommended (the empty setting; the path of the station's symbol, WIDE1-1,WIDE2-1 for a moving station and WIDE2-1 for a fixed one: the `recommended` the form works out), Direct only (no digipeaters) and Custom, which shows a field for the calls. Recommended and Direct only apply at once (`choose`);
 // the custom calls apply on Enter or when the field is left (`commit`), and Esc (`cancel`) puts the path in force back. A path that is neither of the first two (WIDE2-2) shows as Custom with its calls in the field. An empty custom
 // field is the recommended path again.
 import { computed, ref, watch } from "vue";
 import SettingsField from "@/components/SettingsField.vue";
 import { t } from "@/i18n";
-import { DIRECT, RECOMMENDED, callListText } from "@/lib/calls";
+import { DIRECT, callListText } from "@/lib/calls";
 import type { Choice, FieldInfo } from "@/lib/settings";
 
-const props = defineProps<{ id: string; info: FieldInfo; modelValue: string; error: string; changed: boolean }>();
+const props = defineProps<{ id: string; info: FieldInfo; modelValue: string; error: string; changed: boolean; recommended: string }>();
 const emit = defineEmits<{ "update:modelValue": [value: string]; choose: [value: string]; commit: [next: EventTarget | null]; cancel: [] }>();
 
 const RECOMMENDED_CHOICE = "recommended";
@@ -18,18 +18,18 @@ const CUSTOM_CHOICE = "custom";
 /** Which of the three the setting as it stands is. */
 const kind = computed(() => {
   const text = callListText(props.modelValue);
-  return text === "" || text === RECOMMENDED ? RECOMMENDED_CHOICE : text === DIRECT ? DIRECT_CHOICE : CUSTOM_CHOICE;
+  return text === "" ? RECOMMENDED_CHOICE : text === DIRECT ? DIRECT_CHOICE : CUSTOM_CHOICE;
 });
 const typing = ref(kind.value === CUSTOM_CHOICE);
 /** The field was changed since Custom was picked: leaving it unchanged sends nothing. */
 const edited = ref(false);
 const shown = computed(() => (typing.value ? CUSTOM_CHOICE : kind.value));
 /** The calls the field starts with: the path in force when it is custom, else the recommended one to edit from. */
-const start = computed(() => (kind.value === CUSTOM_CHOICE ? props.modelValue : RECOMMENDED));
+const start = computed(() => (kind.value === CUSTOM_CHOICE ? props.modelValue : props.recommended));
 const text = ref(start.value);
 
 const choices = computed<Choice[]>(() => [
-  { value: RECOMMENDED_CHOICE, label: t("settings.path.recommended", { path: RECOMMENDED }) },
+  { value: RECOMMENDED_CHOICE, label: t("settings.path.recommended", { path: props.recommended }) },
   { value: DIRECT_CHOICE, label: t("settings.path.direct") },
   { value: CUSTOM_CHOICE, label: t("settings.path.custom") },
 ]);
@@ -54,7 +54,7 @@ function pick(value: string): void {
   }
   typing.value = false;
   edited.value = false;
-  emit("choose", value === DIRECT_CHOICE ? DIRECT : RECOMMENDED);
+  emit("choose", value === DIRECT_CHOICE ? DIRECT : "");
 }
 
 function type(event: Event): void {
@@ -106,7 +106,7 @@ watch(
         autocomplete="off"
         spellcheck="false"
         :value="text"
-        :placeholder="RECOMMENDED"
+        :placeholder="recommended"
         :aria-label="t('settings.path.custom_label')"
         @input="type"
         @blur="leave"

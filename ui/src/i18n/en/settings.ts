@@ -224,9 +224,8 @@ export const settings = {
   "settings.path.custom": "Custom…",
   "settings.path.custom_label": "Digipeaters",
   "settings.path.tip1":
-    "Which digipeaters, the stations that repeat your packet so it travels further, your beacon and your objects go by. Recommended suits most stations: a small digipeater nearby picks the packet up first and a wide-area one carries it on. Choose Direct only if everyone you talk to hears you directly.",
-  "settings.path.tip2":
-    "A fixed station that the wide-area digipeaters hear directly, such as one on a hill, may use WIDE2-1 or WIDE2-2 as a custom path. Messages choose their own path unless you set one for the station.",
+    "Recommended follows your station's symbol: a moving station (a car, a bike, a boat, an aircraft) uses WIDE1-1,WIDE2-1, so that a small digipeater nearby picks the packet up first and a wide-area one carries it on. Any other symbol is a fixed station, which reaches a wide-area digipeater directly and needs only WIDE2-1.",
+  "settings.path.tip2": "Choose Direct only if everyone you talk to hears you directly. Messages choose their own path unless you set one for the station.",
 
   "settings.confirm.label": "Confirm",
   "settings.confirm.yes": "Yes",

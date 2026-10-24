@@ -108,8 +108,9 @@ describe("groupKeys", () => {
     const tip = (key: string) => (FIELDS[key]?.tip ?? []).join(" ");
     expect(tip("station/comment")).toContain("43");
     expect(tip("station/status")).toContain("55");
-    expect(tip("beacon/interval_min")).toContain("15");
-    expect(tip("beacon/path")).toContain("WIDE2-2");
+    expect(tip("beacon/interval_min")).toContain("20");
+    expect(tip("beacon/path")).toContain("WIDE1-1,WIDE2-1");
+    expect(tip("beacon/path")).toContain("WIDE2-1");
     expect(tip("status/template")).toMatch(/\{freq\}.*\{mode\}/);
     expect(tip("status/template")).toContain("14.074 MHz USB");
   });
@@ -143,16 +144,17 @@ describe("groupKeys", () => {
     ]);
     expect(info?.other?.("90")).toBe("Every 90 min");
   });
-  it("offers the beacon as off, every 15, 30 or 60 minutes, and a stored interval that is none of them in words", () => {
+  it("offers the beacon as off, every 30 or 60 minutes or every 3 hours, and a stored interval that is none of them in words", () => {
     const info = FIELDS["beacon/interval_min"];
     expect(info?.kind).toBe("choice");
     expect(info?.choices).toEqual([
       { value: "0", label: "Off" },
-      { value: "15", label: "Every 15 min" },
       { value: "30", label: "Every 30 min" },
       { value: "60", label: "Every 60 min" },
+      { value: "180", label: "Every 3 hours" },
     ]);
     expect(info?.other?.("20")).toBe("Every 20 min");
+    expect(info?.other?.("15")).toBe("Every 15 min");
   });
 });
 

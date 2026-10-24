@@ -13,10 +13,12 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
 from neoaprs.policy import HEARD_PATH_ATTEMPTS, HEARD_PATH_MAX_DIGIPEATERS, HEARD_PATH_MIN_PACKETS, HEARD_PATH_WINDOW_MIN
+from neoaprs.symbols import is_mobile
 
 UNKNOWN = "?"                                       # a hop whose call is not known, in `Route.hops`
-WIDE_PATH = "WIDE1-1,WIDE2-1"                       # the recommended path: what an empty path setting means, and what is suggested for a station that was heard through a hop with no call
-DIRECT_ONLY = "DIRECT"                              # what a path setting says to mean no digipeaters at all, explicitly (an empty one means the recommended path); it stands alone and is no call
+WIDE_PATH = "WIDE1-1,WIDE2-1"                       # the recommended path of a mobile station (the fill-in hop, then a wide-area digipeater), and what is suggested for a station that was heard through a hop with no call
+FIXED_PATH = "WIDE2-1"                              # the recommended path of a fixed station, which reaches a wide-area digipeater directly and needs no fill-in hop
+DIRECT_ONLY = "DIRECT"                              # what a path setting says to mean no digipeaters at all, explicitly (an empty one means the recommended path of the station's type); it stands alone and is no call
 TIMES_KEPT = 2                                      # the times of the latest packets that are kept for each route (and for direct): enough to tell whether HEARD_PATH_MIN_PACKETS of them are recent
 ROUTES_KEPT = 8                                     # the routes counted for one station
 RF_ONLY = "RFONLY"                                  # the path element that an iGate does not gate to the internet a packet with (NOGATE says the same)
@@ -73,6 +75,11 @@ def route_text(route: Route) -> str:
 def received_text(path: tuple[str, ...], gate: str = "") -> str:
     """The text of the route of a packet that was heard, from its path (and the gate of a third-party packet)."""
     return route_text(route_of(path, gate))
+
+
+def recommended_path(table: str, code: str) -> str:
+    """The path that is recommended for a station with this symbol, which is what an empty path setting means: WIDE1-1,WIDE2-1 for a mobile one (neoaprs.symbols.MOBILE_NAMES), WIDE2-1 for any other."""
+    return WIDE_PATH if is_mobile(table, code) else FIXED_PATH
 
 
 def suggested_path(route: Route) -> str:

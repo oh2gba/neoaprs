@@ -46,8 +46,8 @@ _dbs: list[Db] = []                                       # the Db of every Stor
 _stops: list[Callable[[], Awaitable[None]]] = []          # the stop of every part a test started by itself (a service on a stub): called when the test is over, before the databases are closed
 
 CAPTURE = "kiss/thd7-2026-10-21.bin"
-OPERATOR = {"station/call": "OH2GBA", "station/lat": "60.17", "station/lon": "24.94", "tnc/profile": "kenwood-tnc2"}       # the station of the tests, with the TNC the tests are about: with no call set nothing is transmitted (config.can_transmit)
-ON_AIR: Config = replace(DEFAULTS, station_call="OH2GBA", station_lat=60.17, station_lon=24.94, tnc_profile="kenwood-tnc2")      # the same as a Config, for the tests that hold one: the defaults are a station with no call and a TNC that is sent nothing
+OPERATOR = {"station/call": "OH2GBA", "station/lat": "60.17", "station/lon": "24.94", "tnc/profile": "kenwood-tnc2", "beacon/path": "WIDE1-1,WIDE2-1"}       # the station of the tests, with the TNC the tests are about: with no call set nothing is transmitted (config.can_transmit)
+ON_AIR: Config = replace(DEFAULTS, station_call="OH2GBA", station_lat=60.17, station_lon=24.94, tnc_profile="kenwood-tnc2", beacon_path="WIDE1-1,WIDE2-1")      # the same as a Config, for the tests that hold one: the defaults are a station with no call and a TNC that is sent nothing
 
 
 def remember(db: Db) -> None:

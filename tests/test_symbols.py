@@ -68,3 +68,29 @@ def test_the_codes_of_the_appendix(table: str, code: str, xy: str) -> None:
 
 def test_every_symbol_of_both_tables_has_a_destination_of_its_own() -> None:
     assert len(symbols._GPS_SYMBOLS) == 188 and set(symbols._GPS_SYMBOLS.values()) == {(t, chr(c)) for t in "/\\" for c in range(33, 127)}
+
+
+@pytest.mark.parametrize(("table", "code"), [
+    ("/", ">"), ("/", "k"), ("/", "v"), ("/", "u"), ("/", "b"), ("/", "<"), ("/", "["), ("/", "'"), ("/", "^"), ("/", "O"), ("/", "Y"), ("/", "s"), ("/", "C"), ("/", "R"), ("/", "j"), ("/", "U"), ("/", "F"),
+    ("/", "e"), ("/", "*"), ("/", ")"), ("/", "a"), ("/", "f"), ("/", "P"), ("/", "X"), ("/", "g"), ("/", "="),
+    ("\\", ">"), ("\\", "s"), ("\\", "u"), ("\\", "v"), ("\\", "^"), ("\\", "k"),
+    ("E", ">"), ("5", "s"), ("e", ">"), ("A", "v"),
+])
+def test_the_symbol_of_a_station_that_moves_is_mobile(table: str, code: str) -> None:
+    assert symbols.is_mobile(table, code), symbol_name(table, code)
+
+
+@pytest.mark.parametrize(("table", "code"), [
+    ("/", "-"), ("/", "#"), ("/", "_"), ("/", "r"), ("/", "h"), ("/", "y"), ("/", "&"), ("/", "I"), ("/", "!"), ("/", "-"), ("/", "l"), ("/", "0"),
+    ("\\", "-"), ("\\", "#"), ("\\", "&"), ("\\", "_"), ("\\", "+"), ("\\", "0"),
+    ("D", "#"), ("1", "&"), ("a", "&"), ("S", "-"),
+    ("?", ">"), ("", ">"), ("/", ""), ("/", ">>"), ("/", " "), ("/", "é"),
+])
+def test_any_other_symbol_is_fixed(table: str, code: str) -> None:
+    assert not symbols.is_mobile(table, code)
+
+
+def test_the_mobile_list_names_only_symbols_that_exist_and_the_codes_are_what_the_names_say() -> None:
+    for table, names in symbols.MOBILE_NAMES.items():
+        assert names and set(names) <= set(symbols.SYMBOL_NAMES[table]) and "reserved" not in names and len(set(names)) == len(names)
+        assert [symbol_name("/" if table == "primary" else "\\", code) for code in symbols.MOBILE_CODES[table]] == [n for n in symbols.SYMBOL_NAMES[table] if n in names]

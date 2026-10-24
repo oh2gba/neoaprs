@@ -4,6 +4,7 @@
 // The daemon checks the settings again; this only shows what they would make, and null while they do not make a packet.
 import { callList, pathCalls, validCall } from "@/lib/calls";
 import { statusSource } from "@/lib/status";
+import { recommendedPath } from "@/lib/symbols";
 import { LIMITS, SYMBOL_TABLES, TOCALL } from "@/protocol/lists";
 
 const HUNDREDTHS_PER_DEGREE = 6000;
@@ -74,7 +75,7 @@ function validSymbol(table: string, code: string): boolean {
 /** "SRC>DEST,PATH:" of our frames for these settings, or null while the call or a digipeater is none. */
 function header(values: Readonly<Record<string, string>>): string | null {
   const [call = ""] = callList(values["station/call"] ?? "");
-  const path = pathCalls(values["beacon/path"] ?? "");
+  const path = pathCalls(values["beacon/path"] ?? "", recommendedPath(values["station/symbol_table"] ?? "", values["station/symbol_code"] ?? ""));
   return path !== null && [call, TOCALL, ...path].every(validCall) ? `${call}>${[TOCALL, ...path].join(",")}:` : null;
 }
 

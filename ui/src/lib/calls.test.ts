@@ -69,9 +69,10 @@ describe("a path setting", () => {
   });
 
   it("stands for the recommended calls when empty, for none at all as DIRECT, else for the calls", () => {
-    expect(pathCalls("")).toEqual(["WIDE1-1", "WIDE2-1"]);
-    expect(pathCalls("direct")).toEqual([]);
-    expect(pathCalls("wide2-2")).toEqual(["WIDE2-2"]);
-    expect(pathCalls("DIRECT,A1")).toBeNull();
+    expect(pathCalls("", "WIDE1-1,WIDE2-1")).toEqual(["WIDE1-1", "WIDE2-1"]);
+    expect(pathCalls("", "WIDE2-1")).toEqual(["WIDE2-1"]);
+    expect(pathCalls("direct", "WIDE2-1")).toEqual([]);
+    expect(pathCalls("wide2-2", "WIDE2-1")).toEqual(["WIDE2-2"]);
+    expect(pathCalls("DIRECT,A1", "WIDE2-1")).toBeNull();
   });
 });

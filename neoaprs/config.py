@@ -16,7 +16,7 @@ from .configlegacy import with_legacy
 from .configstatus import DEFAULT_STATUS_TEMPLATE, MAX_STATUS, hostport, status_source, status_template, status_text
 from .configtypes import access_key, boolean, call_or_empty, int_in, int_or_off, optional_float, optional_int, over_the_air_refusal, text_of, web_address
 from .message import path_choice
-from .route import DIRECT_ONLY, WIDE_PATH
+from .route import DIRECT_ONLY, recommended_path
 from .tncprofile import DEFAULT as DEFAULT_PROFILE, Profile, names_tcp, profile_of
 from .versions import UPDATE_URL
 
@@ -33,7 +33,8 @@ class SettingError(CodedError):
 
 MAX_COMMENT = 43                     # what the comment of a position packet may be, with no data extension (spec 1517)
 MAX_COMMENT_PHG = 36                 # with the 7-byte PHG data extension (spec 1546)
-MIN_INTERVAL_MIN = 15                # the shortest time between two beacons or two status reports: the page offers 15, 30 and 60 minutes for the beacon and 30 minutes to 2 hours for the status; a stored lower value is raised to this, with a line in the log
+MIN_BEACON_INTERVAL_MIN = 20         # the shortest time between two beacons (the net cycle of a 2-hop path is 20 minutes, routine operation 30): the page offers 30 and 60 minutes and 3 hours; a stored lower value is raised to this, with a line in the log
+MIN_STATUS_INTERVAL_MIN = 15         # the shortest time between two status reports: the page offers 30 minutes to 2 hours; a stored lower value is raised to this, with a line in the log
 MAX_ALERT_COMMAND = 1000             # the longest line of messages/alert_command
 MAX_MAP_SOURCE = 500                 # the longest map/source
 MAP_RADIUS_KM = (10, 1000)           # map/radius_km: the area of the detailed map round the station
@@ -46,8 +47,8 @@ RANGES: dict[str, tuple[int, int]] = {          # the whole numbers of the setti
     "beacon/power_w": (0, 9999),
     "beacon/antenna_height_m": (0, 9999),
     "beacon/antenna_gain_db": (0, 9),
-    "beacon/interval_min": (MIN_INTERVAL_MIN, 1440),
-    "status/interval_min": (MIN_INTERVAL_MIN, 1440),
+    "beacon/interval_min": (MIN_BEACON_INTERVAL_MIN, 1440),
+    "status/interval_min": (MIN_STATUS_INTERVAL_MIN, 1440),
     "map/radius_km": MAP_RADIUS_KM,
     "map/maxzoom": MAP_MAXZOOM,
 }
@@ -71,7 +72,7 @@ def _globs(text: str) -> str:
 
 
 def _path(text: str) -> str:
-    """A list of digipeater calls separated by commas, each checked as a call; written the way the frame carries it (capitals, no blanks). Empty is the recommended path (WIDE1-1,WIDE2-1), DIRECT alone
+    """A list of digipeater calls separated by commas, each checked as a call; written the way the frame carries it (capitals, no blanks). Empty is the recommended path of the station's symbol, DIRECT alone
     is no digipeaters at all."""
     calls = path_choice(text)
     return "" if calls is None else DIRECT_ONLY if not calls else ",".join(calls)
@@ -175,13 +176,13 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("web_https", "web/https", boolean),                               # true (with web/network): the page is also served over https, on the port after web/port, with NeoAPRS's own certificate authority (neoaprs/web/tls.py)
     Setting("web_port", "web/port", int_in(0, 65535)),                        # 0: the system picks a free port (the log says which)
     Setting("web_allowed_hosts", "web/allowed_hosts", text_of(500)),         # names besides localhost, 127.0.0.1 and this machine's that a Host header may carry, separated by commas
-    Setting("beacon_interval_min", "beacon/interval_min", int_or_off(*RANGES["beacon/interval_min"]), MIN_INTERVAL_MIN),   # 0: no beacon
-    Setting("beacon_path", "beacon/path", _path),                           # the digipeaters of our beacon, "WIDE1-1,WIDE2-1"; empty: the same, recommended; DIRECT: none
+    Setting("beacon_interval_min", "beacon/interval_min", int_or_off(*RANGES["beacon/interval_min"]), MIN_BEACON_INTERVAL_MIN),   # 0: no beacon
+    Setting("beacon_path", "beacon/path", _path),                           # the digipeaters of our beacon, empty: the recommended path of the station's symbol (route.recommended_path); DIRECT: none
     Setting("messages_alert", "messages/alert", boolean),                                       # true: a message to us runs messages/alert_command
     Setting("messages_alert_command", "messages/alert_command", text_of(MAX_ALERT_COMMAND)),    # a shell line, run with NEOAPRS_FROM, NEOAPRS_TEXT, NEOAPRS_AT and NEOAPRS_MSG_ID in its environment; empty: none
     Setting("status_source", "status/source", status_source),                                # where the status comes from: off, text (station/status) or rig (status/rigctld, status/template); empty: rig when status/rigctld is set, else text when station/status is, else off
     Setting("status_rigctld", "status/rigctld", hostport),                                   # host:port of a rigctld whose frequency and mode make the status; empty: the static station/status is the status
-    Setting("status_interval_min", "status/interval_min", int_in(*RANGES["status/interval_min"]), MIN_INTERVAL_MIN),   # a status report goes out at most this often
+    Setting("status_interval_min", "status/interval_min", int_in(*RANGES["status/interval_min"]), MIN_STATUS_INTERVAL_MIN),   # a status report goes out at most this often
     Setting("status_template", "status/template", status_template),                         # the text of a status made from the radio: {freq} and {mode}
     Setting("map_radius_km", "map/radius_km", int_in(*RANGES["map/radius_km"])),      # the detailed base map covers a square this far from our position in every direction
     Setting("map_maxzoom", "map/maxzoom", int_in(*RANGES["map/maxzoom"])),            # and goes down to this zoom (10 towns, 12 streets, 14 houses)
@@ -224,7 +225,7 @@ class Config:
     web_port: int = 7303
     web_allowed_hosts: str = ""
     beacon_interval_min: int = 0
-    beacon_path: str = "WIDE1-1,WIDE2-1"
+    beacon_path: str = ""
     messages_alert: bool = True
     messages_alert_command: str = DEFAULT_ALERT_COMMAND
     status_source: str = ""
@@ -283,10 +284,15 @@ class Config:
 
     @property
     def beacon_path_calls(self) -> tuple[str, ...]:
-        """beacon/path as the list of calls it names: the recommended path when it is empty, none at all for DIRECT."""
+        """beacon/path as the list of calls it names: the recommended path of the station's symbol when it is empty, none at all for DIRECT."""
         if self.beacon_path == DIRECT_ONLY:
             return ()
-        return tuple(call for call in (self.beacon_path or WIDE_PATH).split(",") if call)
+        return tuple(call for call in (self.beacon_path or self.recommended_path).split(",") if call)
+
+    @property
+    def recommended_path(self) -> str:
+        """The path that is recommended for this station: WIDE1-1,WIDE2-1 when its symbol is a mobile one, WIDE2-1 for any other (route.recommended_path)."""
+        return recommended_path(self.station_symbol_table, self.station_symbol_code)
 
     @property
     def comment_limit(self) -> int:
