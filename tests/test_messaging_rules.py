@@ -5,8 +5,11 @@ from pathlib import Path
 
 import pytest
 
+from neoaprs import ax25
 from neoaprs.message import MessageRecord, MessagingError
+from neoaprs.packet import Packet
 from neoaprs.source import Source
+from neoaprs.tncmode import packet_of
 from tests.test_messaging import Rig, started_rig
 
 
@@ -66,6 +69,29 @@ async def test_an_ack_from_another_station_or_with_another_id_is_a_word_like_any
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", ack="02"))
     await rig.settled()
     assert received(rig) == [("ack01", None), ("ack02", None)] and rig.state(1).state == "sending"
+
+
+def on_air(rig: Rig, source: str, info: bytes) -> Packet:
+    """A packet as the radio would deliver it, the information field read by the parser."""
+    frame = ax25.Frame(ax25.Address.parse("APRS"), ax25.Address.parse(source), (ax25.Address.parse("WIDE1-1"),), info=info)
+    return packet_of("in", ax25.encode(frame), frame, rig.clock())
+
+
+async def test_blanks_cr_and_lf_after_an_ack_or_a_message_number_do_not_count(rig: Rig) -> None:
+    await rig.m.send("OH2RDG", "Hello")
+    rig.m.on_packet(on_air(rig, "OH2RDG", b":OH2GBA   :ack01  "))
+    assert rig.state(1).state == "acked"
+    rig.m.on_packet(on_air(rig, "OH2RDG", b":OH2GBA   :Hello{12}  "))
+    rig.m.on_packet(on_air(rig, "OH2XYZ", b":OH2GBA   :Hi{7\r\n"))
+    await rig.settled()
+    assert received(rig) == [("Hello", "12"), ("Hi", "7")]
+    assert rig.tnc.lines()[1:] == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :ack12}", "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2XYZ   :ack7"]
+
+
+async def test_a_message_whose_addressee_field_is_a_little_short_is_taken(rig: Rig) -> None:
+    rig.m.on_packet(on_air(rig, "OH2RDG", b":OH2GBA:Moi{3"))
+    await rig.settled()
+    assert received(rig) == [("Moi", "3")] and rig.tnc.lines() == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :ack3"]
 
 
 # ---- bulletins and groups

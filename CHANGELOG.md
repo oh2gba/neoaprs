@@ -41,6 +41,7 @@ Closer to the APRS standard.
 - A message is sent again 32, 64 and 128 seconds after the first attempt (was 30, 60 and 120), so that no retry comes exactly at the end of the digipeaters' 30-second duplicate window.
 - The ack of a message numbered `{05}` is `ack05}`, the exact copy of the number, as the reply-ack paper says (was `ack05`).
 - The fill-in digipeater sends the frame it heard byte for byte with only the path changed (it rewrote some address bits of the destination and the source), and a packet whose destination differs only in its SSID is a duplicate.
+- An ack or a message number followed by blanks or a line end (`ack12  `) is understood, and so is a message whose addressee is not padded to nine characters.
 
 ## 0.6.7
 
