@@ -22,7 +22,7 @@ The installer is not signed. Windows SmartScreen may say "Windows protected your
 - The task **Desktop shortcut** is off by default.
 - The task **Start NeoAPRS when I sign in** is on by default. It starts the app in the tray when you sign in.
 - The last page offers **Open NeoAPRS now**.
-- Installing over an older version ends the running app and daemon first. **Open NeoAPRS now** on the last page starts the app again; a silent update leaves that to the next sign-in.
+- Installing over an older version ends the running app and daemon first. **Open NeoAPRS now** on the last page starts the app again; a silent update leaves that to the next sign-in, except the one of **Update now** ([Updating](#updating)), which starts again what was running.
 - The uninstaller ends the app and the daemon, removes the program, the start at sign-in and the service entry, and leaves the data folder `%LOCALAPPDATA%\NeoAPRS`.
 
 A silent install: `NeoAPRS-Setup-<version>.exe /VERYSILENT /SUPPRESSMSGBOXES /CURRENTUSER`. Add `/TASKS=""` for no start at sign-in and no desktop shortcut, `/DIR=` for another folder, `/LOG=FILE` for an install log.
@@ -46,7 +46,7 @@ chmod +x NeoAPRS-<version>-x86_64.AppImage
 - **Data** is where every install keeps it, `~/.local/share/neoaprs` (`$XDG_DATA_HOME/neoaprs`). A newer AppImage in place of the old one finds its settings, messages and map, and the file can be deleted without touching them.
 - **The radio's port** needs the group that owns serial devices: `sudo usermod -aG dialout $USER` (`uucp` on Arch), then log out and in. `doctor` says so.
 - **FUSE.** The file mounts itself with `fusermount`, which the `fuse3` (or `fuse`) package provides; `libfuse2` is not needed. Without FUSE (a container, a minimal install) start it with `--appimage-extract-and-run` as the first argument, which unpacks it into a temporary folder at every start. Or run `--appimage-extract` once and start `squashfs-root/AppRun`.
-- **Start at login.** `./NeoAPRS-<version>-x86_64.AppImage service install` writes a user service that starts the AppImage file. The tray menu's *Start at sign-in* writes the same file into the autostart entry. Move the file where you want it first, then run the command from there; run it again from the new file after an update.
+- **Start at login.** `./NeoAPRS-<version>-x86_64.AppImage service install` writes a user service that starts the AppImage file. The tray menu's *Start at sign-in* writes the same file into the autostart entry. Move the file where you want it first, then run the command from there; after an update by hand run it again from the new file (**Update now** keeps the file's name, so there is nothing to do).
 - **The window.** The web engine's sandbox needs user namespaces. Where the system refuses them (the AppArmor of Ubuntu 24.04) the AppImage starts the engine without it, which is safe because the window shows only NeoAPRS's own page.
 - **The map tool.** The `pmtiles` program that cuts the map is fetched into the `bin/` folder of the data folder the first time the map is made ([page.md](page.md#the-base-map)).
 
@@ -105,15 +105,33 @@ The page is on port 7303, on this computer only unless you allow access from the
 
 ## Updating
 
-NeoAPRS asks once a day whether a newer version is out ([the update check](#the-update-check)). When one is, an **Update to** button with the new number appears in the footer under the panel. A click opens a panel with a link to the release notes and the steps for the way this copy was installed, each command with a copy button. Your data stays in every case.
+NeoAPRS asks once a day whether a newer version is out ([the update check](#the-update-check)). When one is, **Update to <version>** appears in the footer under the panel; on a phone the header has a small badge with the new number, because the map has no footer.
 
-| installed as | how to update |
+A click opens a window in the middle of the page: **NeoAPRS <version> is available**, the version you have, what is new (the project's note and a button to the release notes), and what to do for the way this copy was installed. Your settings, messages, packets and map stay in every case, and open pages load the new version by themselves.
+
+### Update now (Windows installer, AppImage)
+
+Where NeoAPRS can update itself, the window has an **Update now** button. NeoAPRS then:
+
+1. downloads the file of exactly the announced version from the project's release page on GitHub, and the release's list of checksums (`SHA256SUMS`), showing how far the download is (**Cancel** stops it);
+2. checks that the file's SHA-256 checksum is the one the list gives it. A file that does not match is deleted and nothing is installed;
+3. installs it and starts again:
+   - **Windows:** the installer runs without a window. It ends the app and the daemon, replaces the program and starts again what was running (the app, or the daemon alone), on the same data folder. The page says *Installing… NeoAPRS restarts in a moment* and connects again by itself;
+   - **AppImage:** the new file takes the place of the old one, under the old file's name, so that a service or a start at login finds it. The old file is kept beside it as `<name>.old` until the new version has started. NeoAPRS then starts the file again with the same arguments.
+
+Nothing is downloaded or installed unless you press the button. When something goes wrong the window says so in plain words, offers **Try again** and shows the steps by hand. An AppImage in a folder you cannot write to has no Update now: the window shows the steps.
+
+### By hand
+
+The window shows the steps for this copy, each file as a button and each command with a **Copy** button. Under Update now they are folded away as **Or update by hand**.
+
+| installed as | the steps |
 |---|---|
-| Windows installer | download `NeoAPRS-Setup-<version>.exe` from the [release](https://github.com/oh2gba/neoaprs/releases/latest) and run it; it ends the running app and daemon and replaces the program; **Open NeoAPRS now** on its last page starts the app again |
-| AppImage | download `NeoAPRS-<version>-x86_64.AppImage`, make it executable, quit NeoAPRS and start the new file. If a service starts the AppImage (the unit names the old file), run `./NeoAPRS-<version>-x86_64.AppImage service install` once from where you keep the new file; then delete the old file |
-| .deb (Raspberry Pi, Debian, Ubuntu) | download `neoaprs_<version>_arm64.deb` (`_amd64.deb` on a PC) and run `sudo apt install ./neoaprs_<version>_arm64.deb`; it replaces `/opt/neoaprs` and restarts a running service. If the service still runs the old version, `systemctl --user restart neoaprs` |
-| install line | run the line again; it updates NeoAPRS and restarts the service |
-| pip | `pip install -U neoaprs` (or `uv pip install -U neoaprs`) in its environment, then `neoaprs service install` restarts a service, else quit NeoAPRS and start it again |
+| Windows installer | download `NeoAPRS-Setup-<version>.exe` and run it; it ends the running app and daemon and replaces the program; **Open NeoAPRS now** on its last page starts the app again |
+| AppImage | download `NeoAPRS-<version>-x86_64.AppImage`, make it executable (in its file properties, or `chmod +x`), quit NeoAPRS and start the new file instead of the old one, then delete the old file. If a service starts the AppImage (the service names the old file), run `./NeoAPRS-<version>-x86_64.AppImage service install` once in the folder of the new file |
+| .deb (Raspberry Pi, Debian, Ubuntu) | download the package for your computer (`neoaprs_<version>_arm64.deb` on a Raspberry Pi, `_amd64.deb` on a PC; the window picks the right one) and run `sudo apt install ./neoaprs_<version>_arm64.deb` in the folder you downloaded it to. It replaces `/opt/neoaprs` and restarts a running service; if the service still runs the old version, `systemctl --user restart neoaprs` |
+| install line | run the line again in a terminal; it installs the new version and restarts the service |
+| pip | `pip install -U` the release's wheel (the window has the whole command) in the environment NeoAPRS is installed in, then `neoaprs service install` restarts a service, else quit NeoAPRS and start it again |
 | a clone of the repository | `git pull`, `uv sync`, then `systemctl --user restart neoaprs` for a service, else quit and start it again |
 
 **Open pages follow by themselves.** A page is built for one version of NeoAPRS, and the daemon says its version when a page connects. When they differ the page loads itself again once, in a browser tab and in the desktop app's window alike. It does so for the next update too.

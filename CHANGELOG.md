@@ -2,7 +2,13 @@
 
 ## Unreleased
 
-Nothing yet.
+Updating.
+
+- **Update now** for the Windows installer and the AppImage: on a click, NeoAPRS downloads the file of exactly the announced version from the GitHub release and its `SHA256SUMS`, checks the file's SHA-256 (a file that does not match is deleted and nothing is installed), installs it and restarts. Windows runs the installer without a window, which starts again what was running; an AppImage is replaced under its own name, the old file kept as `.old` until the new version runs. The progress, a Cancel while it downloads and a failure in plain words are in the window, with the steps by hand.
+- The update is a window in the middle of the page (the whole screen on a phone): "NeoAPRS <version> is available", the version you have, what is new, then the steps for the way this copy was installed, in plain words, each file a button and each command with Copy. The .deb gets the package of the machine's architecture and one `apt` command; pip the release's wheel.
+- A phone shows the newer version in the header too, because its map has no footer.
+- The Windows installer, run silently by Update now, starts again the app or the daemon on the same data folder.
+- The wire: the topic `update` and the commands `update_now` and `update_cancel`. `NEOAPRS_INSTALL_KIND` simulates an install kind for development.
 
 ## 0.6.7
 
