@@ -79,7 +79,7 @@ async def test_the_size_of_the_part_file_is_told_with_the_percent(rig: Rig) -> N
     rig.fake.mode("grow")
     await rig.service.fetch()
     sizes = [s.downloaded for s in rig.seen if s.step == "area" and s.downloaded is not None]
-    assert sizes and sizes == sorted(sizes) and sizes[-1] > sizes[0] > 0
+    assert sizes and sizes == sorted(sizes) and sizes[-1] > sizes[0] >= 0     # (the first report may come before the first bytes)
     percents = [s.percent for s in rig.seen if s.step == "area" and s.percent is not None]
     assert percents[0] == 10 and rig.status().downloaded is None
 

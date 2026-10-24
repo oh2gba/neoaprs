@@ -76,7 +76,8 @@ def test_the_new_appimage_is_renamed_over_the_old_one_which_is_kept_beside_it_an
     assert swap.folder == image.parent and swap.blocked() == ""
     swap.install(part, "NeoAPRS-0.7.0-x86_64.AppImage", "0.7.0")
     assert image.read_bytes() == b"new version" and not part.exists()
-    assert stat.S_IMODE(image.stat().st_mode) & 0o111 == 0o111
+    if os.name == "posix":                         # (Windows has no execute bits; an AppImage runs on Linux)
+        assert stat.S_IMODE(image.stat().st_mode) & 0o111 == 0o111
     assert (image.parent / (image.name + ".old")).read_bytes() == b"old version"
     assert restarts == [[str(image), "run", "--data", "/home/ham/data"]]
 
