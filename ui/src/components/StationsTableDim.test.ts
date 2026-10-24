@@ -60,7 +60,11 @@ describe("the rows of the Stations table", () => {
     const wrapper = make();
     for (const match of sheet.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
       if (!/position:\s*(sticky|fixed|absolute)/.test(match[2] ?? "")) continue;
-      for (const selector of (match[1] ?? "").split(",").map((part) => part.trim())) expect(selector).toMatch(/^\.grid th$/);
+      const ofTheGrid = (match[1] ?? "")
+        .split(",")
+        .map((part) => part.trim())
+        .filter((selector) => selector.startsWith(".grid")); // (the table's own rules: a menu or popup beside it may float)
+      for (const selector of ofTheGrid) expect(selector).toMatch(/^\.grid th$/);
     }
     const selected = wrapper.find("tbody tr.timedout.selected");
     expect(selected.find("td.call").text()).toBe("OH2OLD");
