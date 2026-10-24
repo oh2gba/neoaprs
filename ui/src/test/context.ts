@@ -33,6 +33,7 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     status: part(over.status, null),
     tnc: part(over.tnc, null),
     map: part(over.map, null),
+    selfUpdate: part(over.selfUpdate, null),
     ports,
     alertResult: part(over.alertResult, null),
     updateResult: part(over.updateResult, null),

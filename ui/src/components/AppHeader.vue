@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // The one calm line at the top: the title, which is a link to the project's page (it looks like the title, not like a link: only a hover or the keyboard shows it), the amber button "no call set" while the call is empty (it opens the first-run guide: nothing is transmitted
-// until a call is set), and, at the right, the number of messages not seen, a button that opens them (the Email tab when all of them are the gateway's). Our call is not here, nor the radio state, the version or the update: they are in the footer of the panel (PanelFooter).
+// until a call is set), and, at the right, the number of messages not seen, a button that opens them (the Email tab when all of them are the gateway's). Our call is not here, nor the radio state or the version: they are in the footer of the panel (PanelFooter).
+// A phone, whose map has no footer, has the newer version here too (`update`): a small badge that opens the dialog of the update.
 import { t } from "@/i18n";
 import { unreadText } from "@/lib/unread";
 
@@ -8,8 +9,10 @@ defineProps<{
   /** Our call from the settings; only an empty one matters here (the button), null while the daemon has not said. */
   call: string | null;
   unread: number;
+  /** The newer version, where the header shows it (a phone); null for none. */
+  update?: string | null;
 }>();
-const emit = defineEmits<{ messages: []; setup: [] }>();
+const emit = defineEmits<{ messages: []; setup: []; update: [] }>();
 
 /** The project's page. */
 const PROJECT_URL = "https://oh2gba.github.io/neoaprs/";
@@ -22,6 +25,9 @@ const PROJECT_URL = "https://oh2gba.github.io/neoaprs/";
     </h1>
     <button v-if="call === ''" type="button" class="nocall" :title="t('header.no_call_title')" @click="emit('setup')">
       {{ t("header.no_call") }}
+    </button>
+    <button v-if="update" type="button" class="badge headupdate" :title="t('help.update.title', { version: update })" @click="emit('update')">
+      <span aria-hidden="true">&#8679;</span> {{ update }}<span class="sr-only"> {{ t("help.update.title", { version: update }) }}</span>
     </button>
     <button v-if="unread > 0" type="button" class="badge headmail" :title="t('header.unread_open', { n: unread })" @click="emit('messages')">
       <span aria-hidden="true">&#9993;</span> {{ unread }}<span class="sr-only"> {{ unreadText(unread) }}</span>

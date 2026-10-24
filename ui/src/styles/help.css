@@ -8,7 +8,7 @@
   background: var(--bg);
 }
 .popuphelp-head,
-.updatepanel-head {
+.updatedialog-head {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -48,48 +48,114 @@
   overflow-wrap: anywhere;
   user-select: all;
 }
-/* the panel with the steps to a new version (UpdatePanel) */
-.updatepanel {
+/* the dialog of a new version (UpdateDialog) over the dimmed page, and the steps by hand (UpdateSteps); on a phone it is the whole screen (responsive.css) */
+.updatedialog-backdrop {
   position: fixed;
-  top: 34px;
-  right: 12px;
-  z-index: 6;
-  width: min(480px, calc(100vw - 24px));
-  max-height: calc(100vh - 50px);
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.45);
+}
+.updatedialog {
+  width: min(540px, 100%);
+  max-height: min(88vh, 100%);
   overflow: auto;
-  padding: 8px 12px 10px;
+  padding: 12px 16px 14px;
   background: var(--panel);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 8px;
   box-shadow: var(--shadow);
 }
-.updatepanel-head h2 {
+.updatedialog:focus {
+  outline: none;
+}
+.updatedialog-head {
+  align-items: flex-start;
+}
+.updatedialog-titles {
   flex: 1;
-  margin: 0;
+  min-width: 0;
+}
+.updatedialog-head h2 {
+  margin: 4px 0 0;
+  font-size: 18px;
+}
+.updatedialog-installed {
+  margin: 2px 0 0;
+  font-size: 12px;
+}
+.updatedialog h3,
+.updatedialog-hand summary {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.updatedialog-news,
+.updatedialog-now,
+.updatedialog-hand {
+  margin-top: 14px;
+}
+.updatedialog-news p {
+  margin: 0 0 8px;
+}
+.updatedialog-now {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+.updatedialog-go {
+  padding: 8px 20px;
   font-size: 15px;
+  font-weight: 600;
 }
-.updatepanel-news {
-  margin: 6px 0;
-}
-.updatepanel-steps {
+.updatedialog-progress,
+.updatedialog-problem {
+  flex: 1 1 100%;
   margin: 0;
-  padding-left: 20px;
 }
-.updatepanel-steps li {
-  margin: 4px 0;
+.updatedialog-problem {
+  color: var(--bad);
 }
-.updatepanel-file {
-  margin-left: 6px;
+.updatedialog-now progress {
+  flex: 1 1 200px;
+  height: 10px;
+  accent-color: var(--accent);
+}
+.updatedialog-hand summary {
+  cursor: pointer;
+}
+.updatedialog-foot {
+  margin: 14px 0 0;
+  font-size: 12px;
+}
+.updatesteps {
+  margin: 0;
+  padding-left: 22px;
+}
+.updatesteps li {
+  margin: 8px 0;
+}
+.updatesteps-file {
+  display: table;
+  margin-top: 4px;
   overflow-wrap: anywhere;
 }
-.updatepanel-command {
+.updatesteps-command {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 2px;
+  margin-top: 4px;
 }
-.updatepanel-command code {
+.updatesteps-command code {
   flex: 1;
   min-width: 0;
   padding: 3px 6px;
@@ -99,10 +165,6 @@
   font-size: 12px;
   overflow-wrap: anywhere;
   user-select: all;
-}
-.updatepanel-foot {
-  margin: 8px 0 0;
-  font-size: 12px;
 }
 
 /* the guide to install NeoAPRS's certificate (Settings, Web page; the pop-up guide) */

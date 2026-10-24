@@ -157,17 +157,17 @@ describe("App: the Settings tab", () => {
 
   it("opens the steps of the update for the way this copy was installed from the new version under the panel, and closes them when it is gone", async () => {
     const { wrapper, socket } = await open();
-    expect(wrapper.find(".updatepanel").exists()).toBe(false);
+    expect(wrapper.find(".updatedialog").exists()).toBe(false);
     socket.say(hello({ install: { kind: "uv-tool", appimage: "", service: true, arch: "" } }));
     socket.say(status({ update: { version: "0.4.0", url: "", message: "" } }));
     await flushPromises();
     await wrapper.find("button.update").trigger("click");
-    const panel = wrapper.find(".updatepanel");
-    expect(panel.find("h2").text()).toBe("Update to 0.4.0");
+    const panel = wrapper.find(".updatedialog");
+    expect(panel.find("h2").text()).toBe("NeoAPRS 0.4.0 is available");
     expect(panel.find("code").text()).toContain("install.sh | sh");
     socket.say(status());
     await flushPromises();
-    expect(wrapper.find(".updatepanel").exists()).toBe(false);
+    expect(wrapper.find(".updatedialog").exists()).toBe(false);
   });
 
   it("asks the daemon to check at once from the Settings tab and opens the steps from the answer", async () => {
@@ -181,6 +181,6 @@ describe("App: the Settings tab", () => {
     await flushPromises();
     expect(wrapper.find("button.update").text()).toBe("Update to 0.4.0");
     await wrapper.find("#pane-settings button.updatecheck-result").trigger("click");
-    expect(wrapper.find(".updatepanel h2").text()).toBe("Update to 0.4.0");
+    expect(wrapper.find(".updatedialog h2").text()).toBe("NeoAPRS 0.4.0 is available");
   });
 });
