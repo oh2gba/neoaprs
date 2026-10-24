@@ -37,7 +37,7 @@ async def test_the_same_text_with_the_same_id_is_a_repeat_whatever_reply_ack_it_
     rig.clock.advance(60)
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "same", "12", reply="07"))     # (the retry carries another AA; the text is without it)
     await rig.settled()
-    assert received(rig) == [("same", "12")] and rig.tnc.lines()[0].endswith(":ack12") and rig.tnc.lines()[1].endswith(":ack12}07")
+    assert received(rig) == [("same", "12")] and rig.tnc.lines()[0].endswith(":ack12}") and rig.tnc.lines()[1].endswith(":ack12}07")
 
 
 # ---- what is an ack

@@ -57,12 +57,12 @@ An ack that has to cross several hops is the likeliest frame to be lost. So, fol
 Every message you send has the number in that form, and the normal ack frames go out too: the reply-ack is extra. With the defaults, a message 05 from OH2RDG that said `{05}` and your answer to it, message 01:
 
 ```
-OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :ack05
+OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :ack05}
 OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :Moikka{01}05
 ```
 
 - Every attempt of a message to a station carries the id of the latest message that station sent you with such a number, until the station acks or rejects a message of yours.
-- A message that comes as `{MM}AA` is acked with a copy of its number, such as `:ack05}01`, and its `AA` settles your message with that id to that station as an ack does.
+- A message is acked with an exact copy of its number: `{05}` as `:ack05}`, `{05}01` as `:ack05}01`, and the old form `{05` as `:ack05`. The `AA` of `{MM}AA` settles your message with that id to that station as an ack does.
 - An ack of the form `ackMM}AA` acks your message `MM`.
 - A message from a station that sent it as `{MM`, without the closing brace, is owed nothing.
 - The `AA` is not part of the text that is kept, so a repeat with another `AA` is a repeat.

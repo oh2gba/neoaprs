@@ -51,12 +51,12 @@ async def test_the_aa_of_another_station_or_of_no_message_of_ours_settles_nothin
     await e.stop()
 
 
-async def test_a_message_that_says_it_knows_reply_acks_is_acked_plainly_and_the_next_message_to_it_carries_its_number(tmp_path: Path) -> None:
+async def test_a_message_that_says_it_knows_reply_acks_is_acked_with_the_exact_copy_of_its_number_and_the_next_message_to_it_carries_it(tmp_path: Path) -> None:
     e = await started(tmp_path)
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "Moi", "05", "")))         # {05}
     await until(lambda: e.tnc.stats.packets == 1)
     [ack] = await said(e)
-    assert ack.tnc2() == SENT + "ack05"
+    assert ack.tnc2() == SENT + "ack05}", "the ack of {05} is ack05}, the number as it came"
     await e.ctl.messaging.send("OH2RDG", "Moikka")
     assert [f.tnc2() for f in await said(e)] == [SENT + "Moikka{01}05"], "our message acknowledges theirs by the way"
     await e.stop()
@@ -83,7 +83,7 @@ async def test_every_attempt_carries_the_latest_message_that_is_owed_an_ack_and_
     await until(lambda: e.tnc.stats.packets == 2)
     e.now.advance(30)                                                       # type: ignore[attr-defined]
     await until(lambda: sent_one(e).attempts == 2)
-    assert [f.tnc2() for f in await said(e, 3)] == [SENT + "Moikka{01}05", SENT + "ack06", DIRECT + "Moikka{01}06"], "the retry keeps the number 01 and carries the latest AA"
+    assert [f.tnc2() for f in await said(e, 3)] == [SENT + "Moikka{01}05", SENT + "ack06}", DIRECT + "Moikka{01}06"], "the retry keeps the number 01 and carries the latest AA"
     e.feed(on_air("OH2RDG", ack_info("OH2GBA", "01")))
     await until(lambda: sent_one(e).state == "acked")
     await e.ctl.messaging.send("OH2RDG", "Kiitos")

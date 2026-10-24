@@ -86,7 +86,7 @@ The commands are `send_message`, `query` (a directed query, once, with no id: `n
 groups are the board's. Every message is a row of the table `message`, so a restart goes on where the daemon stopped.
 
 - **The frame.** `OH2GBA>APZNEO,...::OH2RDG   :Hello Pekka{01}` is the source, the tocall, the path of the attempt (below), then `:`, the addressee padded to nine
-  characters, `:`, the text, `{`, the id and `}`. When the station sent a message with a reply-ack number that its own ack has not reached it with yet, the id
+  characters, `:`, the text, `{`, the id and `}`. Our ack of a message is the exact copy of its number: `ackMM` for `{MM`, `ackMM}` for `{MM}`, `ackMM}AA` for `{MM}AA`. When the station sent a message with a reply-ack number that its own ack has not reached it with yet, the id
   of the latest of them follows the brace.
 - **The attempts.** `STATION_ATTEMPTS` (4) and `EMAIL_ATTEMPTS` (2) of `neoaprs/message.py`. The wait after attempt n is `FIRST_WAIT_SEC` (32, not 30: a retry
   exactly on the edge of the digipeaters' 30-second duplicate window could be dropped as a duplicate) doubled each time

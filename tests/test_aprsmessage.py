@@ -51,7 +51,8 @@ def test_format() -> None:
     assert format_message("WU2Z", "Testing", "05", "") == b"WU2Z     :Testing{05}"
     assert format_message("WU2Z", "Testing", "05", "AB") == b"WU2Z     :Testing{05}AB"
     assert format_ack("N3LTQ-7", "05", "AB") == b"N3LTQ-7  :ack05}AB"
-    assert format_ack("N3LTQ-7", "05", "") == b"N3LTQ-7  :ack05" and format_ack("N3LTQ-7", "05", None) == b"N3LTQ-7  :ack05"
+    assert format_ack("N3LTQ-7", "05", "") == b"N3LTQ-7  :ack05}", "the ack of {05} is the exact copy of the number"
+    assert format_ack("N3LTQ-7", "05", None) == b"N3LTQ-7  :ack05"
     assert format_ack("N3LTQ-7", "003") == b"N3LTQ-7  :ack003"
 
 

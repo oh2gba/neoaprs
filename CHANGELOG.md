@@ -39,6 +39,7 @@ Closer to the APRS standard.
 - A message from a station on the internet whose name is no radio call (a D-STAR `-L`, an SSID above 15, a name such as `WINLINK`) is shown and acked, and can be answered. Before, it was not recognised as a message, so the sender tried until it gave up.
 - A repeated copy of a message to you is acked again only 30 seconds or more after the last ack (was 10): the digipeaters drop a second ack within 30 seconds anyway.
 - A message is sent again 32, 64 and 128 seconds after the first attempt (was 30, 60 and 120), so that no retry comes exactly at the end of the digipeaters' 30-second duplicate window.
+- The ack of a message numbered `{05}` is `ack05}`, the exact copy of the number, as the reply-ack paper says (was `ack05`).
 
 ## 0.6.7
 

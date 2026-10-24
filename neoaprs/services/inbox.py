@@ -7,7 +7,7 @@ A text that reads as an ack or a rej (`ack12`, `rej3`) is one only when it quote
 not acked. A message whose text is a query (neoaprs/message.py `is_query`) is never acked or kept (services/queries.py answers it), and neither is a definition of telemetry channels (`PARM.`, `UNIT.`,
 `EQNS.`, `BITS.`), to us or to another: those stay in the packet log.
 
-Reply-acks (neoaprs/aprsmessage.py): the `AA` of a message `{MM}AA` to us settles our message with that id to the sender as an ack does, and is acked as `ackMM}AA`; a message with a number of that
+Reply-acks (neoaprs/aprsmessage.py): the `AA` of a message `{MM}AA` to us settles our message with that id to the sender as an ack does, and is acked as `ackMM}AA` (`{MM}` as `ackMM}`); a message with a number of that
 form, `{MM}` too, tells us the sender knows reply-acks, and its id is what the next message we send it carries as its `AA` (services/heard.py) until the station answers one of ours.
 
 A message to a bulletin, an announcement, a group bulletin, ALL, CQ or QST, or a weather service bulletin (neoaprs/bulletin.py) is no conversation and is never acked: it goes to the board

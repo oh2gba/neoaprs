@@ -10,7 +10,7 @@ A message to a bulletin or a group (BLN*, ALL, CQ, QST, NWS-*, SKY*, CWA*: neoap
 station, once per station and kind in QUERY_EVERY_SEC: services/asking.py, through `send` with `once`), which the conversation shows as a note of what was asked. `cancel` stops a message that is being sent, `retry` sends a failed, unconfirmed, rejected or cancelled one again from the first attempt, `delete` removes a message of any kind (a message being sent is cancelled first).
 While the Tnc is not connected, or the radio is silent, an attempt that is due waits (it is not used up, the waits that were running are moved on by the time the radio was away) and the log says so once.
 
-Incoming (`on_packet`, from the Tnc): the inbox (services/inbox.py) keeps a message to us (state "received"), answers it with an ack when it carries an id (`ackMM`, or `ackMM}AA` for the number `{MM}AA`), and
+Incoming (`on_packet`, from the Tnc): the inbox (services/inbox.py) keeps a message to us (state "received"), answers it with an ack when it carries an id (`ackMM`, or the exact copy of a reply-ack number: `ackMM}` for `{MM}`, `ackMM}AA` for `{MM}AA`), and
 lets an ack, a rej or the reply-ack of a message to us settle the message of ours that it quotes.
 
 Every message is held here as well as in the database (the page's topic is made from them) and none leaves on its own: nothing is evicted and the daily care does not prune them (the operator deletes with
@@ -362,7 +362,7 @@ class Messaging:
             self.changed.emit(found)
 
     def ack(self, to: str, msg_id: str, reply_ack: str | None = None) -> None:
-        """Acknowledges message `msg_id` of the station `to`: `ackMM`, or `ackMM}AA` for a message that came as `{MM}AA` (`reply_ack` is the AA)."""
+        """Acknowledges message `msg_id` of the station `to`: `ackMM`, or the number as it came for a message with a reply-ack number, `ackMM}` for `{MM}` (`reply_ack` "") and `ackMM}AA` for `{MM}AA`."""
         try:
             if not self._tnc.send_frame(self._frame(b":" + format_ack(to, msg_id, reply_ack), to)):
                 log.warning("the ack of message %s from %s was not sent: the TNC would not take it", msg_id, to)

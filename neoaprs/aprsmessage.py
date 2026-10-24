@@ -4,7 +4,7 @@
 
 A reply-ack (WB4APR's addendum of December 1999) is a message number of the form `{MM}AA`: `MM` is the number of the message and `AA` the number of a message the sender has received from the addressee and
 not yet acknowledged by a frame of its own, so that the acknowledgement rides on the next message; `{MM}` alone says the sender knows the form. `parse_message` gives the message its `MM` and the text before
-the brace; `reply_ack_of` reads the rest. The ack of such a message is `ackMM}AA` (a copy of the number), and the id of an ack it takes is the `MM` before the brace."""
+the brace; `reply_ack_of` reads the rest. The ack of such a message is the exact copy of its number, `ackMM}AA` or `ackMM}`, and the id of an ack it takes is the `MM` before the brace."""
 import re
 
 from neoaprs.coded import CodedError
@@ -88,6 +88,7 @@ def format_message(addressee: str, text: str, msg_id: str | None = None, reply_a
 
 
 def format_ack(addressee: str, msg_id: str, reply_ack: str | None = None) -> bytes:
-    """The body of the ack of message `msg_id`; of a message with a reply-ack `AA` it is `ack` and the number as it came, `msg_id}AA`."""
-    tail = "" if not reply_ack else "}" + _check_id(reply_ack)
+    """The body of the ack of message `msg_id`: `ackMM` for a message numbered `{MM` (`reply_ack` None); for one with a reply-ack number it is `ack` and the number as it came, `ackMM}` for `{MM}`
+    (`reply_ack` "") and `ackMM}AA` for `{MM}AA`."""
+    tail = "" if reply_ack is None else "}" + (_check_id(reply_ack) if reply_ack else "")
     return f"{_check_addressee(addressee)}:ack{_check_id(msg_id)}{tail}".encode("ascii")
