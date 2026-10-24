@@ -1,0 +1,43 @@
+import type { setup as en } from "@/i18n/en/setup";
+import type { Message } from "@/i18n/message";
+
+export const setup: Readonly<Record<keyof typeof en, Message>> = {
+  "setup.title": "Configuración inicial",
+  "setup.step.call": "Indicativo",
+  "setup.step.position": "Posición",
+  "setup.step.symbol": "Símbolo",
+  "setup.step.radio": "Radio",
+  "setup.step.map": "Mapa",
+  "setup.step_label": "{n} {title}",
+  "setup.done": "Hecho",
+  "setup.close": "Cerrar",
+  "setup.back": "Atrás",
+  "setup.next": "Siguiente",
+  "setup.saving": "Guardando...",
+  "setup.finish": "Terminar",
+
+  "setup.call.label": "Tu indicativo",
+  "setup.locator.label": "Locator",
+  "setup.enter_coordinates": "Introducir coordenadas o locator",
+  "setup.not_locator": "No es un locator",
+  "setup.port_automatic": "Automático",
+  "setup.symbols": "Símbolos",
+  "setup.more": "Más...",
+  "setup.symbol.house": "Casa",
+  "setup.symbol.car": "Coche",
+  "setup.symbol.truck": "Camión",
+  "setup.symbol.van": "Furgoneta",
+  "setup.symbol.motorcycle": "Moto",
+  "setup.symbol.bike": "Bici",
+  "setup.symbol.walker": "Peatón",
+  "setup.symbol.boat": "Barco",
+  "setup.symbol.digipeater": "Digipeater",
+  "setup.symbol.weather_station": "Estación meteorológica",
+  "setup.symbol.portable": "Portátil",
+  "setup.symbol.antenna": "Antena",
+
+  "setup.beacon_every": "Baliza cada {minutes} min",
+  "setup.beacon_tip_label": "Acerca de la baliza",
+  "setup.beacon_tip1": "NeoAPRS envía tu posición con este intervalo, para que las demás estaciones te vean en su mapa.",
+  "setup.beacon_tip2": "Cámbialo, o desactívalo, en la pestaña Baliza.",
+};

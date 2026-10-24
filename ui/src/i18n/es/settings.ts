@@ -1,0 +1,318 @@
+import type { settings as en } from "@/i18n/en/settings";
+import type { Message } from "@/i18n/message";
+
+export const settings: Readonly<Record<keyof typeof en, Message>> = {
+  "settings.none": "ninguno",
+  "settings.default_placeholder": "(predeterminado)",
+  "settings.about": "Acerca de {label}",
+  "settings.saved": "Guardado",
+  "settings.saving": "Guardando…",
+  "settings.no_answer": "Sin respuesta del servicio.",
+  "settings.not_sent": "No enviado: no hay conexión con el servicio.",
+  "settings.no_word": "Aún sin noticias del servicio.",
+  "settings.setup_again": "Repetir el asistente de configuración",
+  "settings.shorten_comment": "Primero acorta el comentario a {limit}",
+
+  "settings.every_min": "Cada {minutes} min",
+  "settings.every_hours": { one: "Cada {n} hora", other: "Cada {n} horas" },
+
+  "settings.group.station": "Estación",
+  "settings.group.tnc": "TNC",
+  "settings.group.web": "Página web",
+  "settings.group.notifications": "Notificaciones",
+  "settings.group.map": "Mapa",
+  "settings.group.digi": "Digipeater",
+  "settings.group.beacon": "Baliza",
+  "settings.group.status": "Estado",
+  "settings.group.other": "Otros",
+  "settings.fold.antenna": "Antena",
+  "settings.fold.advanced": "Avanzado",
+
+  "settings.name.position": "Posición",
+  "settings.name.tcp_address": "Dirección TCP",
+
+  "settings.call.label": "Indicativo",
+  "settings.lat.label": "Latitud",
+  "settings.lon.label": "Longitud",
+  "settings.symbol.label": "Símbolo",
+  "settings.symbol_code.label": "Código del símbolo",
+  "settings.symbol.none": "Sin símbolo",
+  "settings.symbol.change": "Cambiar",
+  "settings.symbol.overlay": "Letra o dígito encima",
+
+  "settings.comment.label": "Comentario",
+  "settings.comment.tip1":
+    "Un texto corto que se envía con tu posición en cada baliza. Las demás estaciones lo ven junto a tu nombre en su mapa. Letras, dígitos y signos de puntuación normales, sin | ni ~. Puede tener {max} caracteres, {with_phg} si se indica la potencia.",
+  "settings.comment.tip2": "Ejemplo: Estación fija, 2 m FM",
+
+  "settings.station_status.name": "Texto de estado",
+  "settings.station_status.label": "Texto",
+  "settings.station_status.tip1":
+    "Una línea sobre lo que estás haciendo, que se envía por separado y no con cada baliza. Las demás estaciones la ven como tu estado. Se envía cuando es nueva y ha pasado el intervalo Cada desde el último estado. Hasta {max} caracteres, sin | ni ~.",
+  "settings.station_status.tip2": "Ejemplo: En la casa de campo, QRV 145.500 FM",
+
+  "settings.power.label": "Potencia",
+  "settings.power.tip1":
+    "La potencia de salida del transmisor. Junto con la altura, la ganancia y la dirección de la antena añade a la baliza un código corto (PHG) que dice a los demás hasta dónde se te puede escuchar. Déjalo vacío para no enviar ninguno de los cuatro.",
+  "settings.power.tip2": "Ejemplo: 5",
+
+  "settings.antenna_height.label": "Altura de la antena",
+  "settings.antenna_height.tip1": "A qué altura está la antena sobre el terreno medio de alrededor, no sobre el mar. Solo se usa para el código PHG.",
+  "settings.antenna_height.tip2": "Ejemplo: 10 para un mástil en una casa sobre terreno llano",
+
+  "settings.antenna_gain.label": "Ganancia de la antena",
+  "settings.antenna_gain.tip1": "Cuánto concentra la antena la señal, de {min} a {max} dB. Pon 0 si no lo sabes. Solo se usa para el código PHG.",
+  "settings.antenna_gain.tip2": "Ejemplo: 3",
+
+  "settings.antenna_direction.label": "Dirección de la antena",
+  "settings.antenna_direction.omni": "omni",
+  "settings.antenna_direction.tip1":
+    "Hacia dónde favorece la antena: omni si funciona igual en todas las direcciones, como la mayoría de las verticales y los látigos, o el punto cardinal hacia el que apunta una antena directiva. Solo se usa para el código PHG.",
+
+  "settings.profile.label": "Tipo de radio",
+  "settings.profile.tip_label": "Qué tipo de radio elegir",
+  "settings.profile.tip1":
+    "Esto indica a NeoAPRS cómo hablar con tu radio o módem (su TNC, la parte que convierte el sonido en paquetes). Elige la línea que coincida con la tuya.",
+  "settings.profile.tip2": "TNC KISS: Mobilinkd, NinoTNC, TNC-Pi, y los Kenwood TH-D74 y TH-D75 con KISS activado en la radio. La opción habitual.",
+  "settings.profile.tip3":
+    "KISS por TCP: Direwolf o un módem de tarjeta de sonido que funciona en este u otro ordenador. Un Digirig o un SignaLink también van por aquí.",
+  "settings.profile.tip4":
+    "Kenwood TH-D7, TM-D700, TS-2000: NeoAPRS pone la radio en KISS por sí mismo. Lo mismo vale para el TM-D710 y el TH-D72, y para el Kantronics KPC-3+.",
+  "settings.profile.tip5": "¿No estás seguro? Consulta la guía de radios, docs/RADIOS.md.",
+
+  "settings.port.name": "Puerto del TNC",
+  "settings.port.label": "Puerto",
+  "settings.port.tip_label": "Acerca del puerto",
+  "settings.port.tip1":
+    "La conexión con la radio. En Linux, automático significa que NeoAPRS escucha los puertos USB hasta encontrar la radio, y la recuerda. Elige tú el puerto si tienes varios dispositivos o si la búsqueda escoge el equivocado.",
+  "settings.port.tip2":
+    "Una radio USB es /dev/ttyUSB0 en Linux y COM3 en Windows. Una radio Bluetooth aparece en esta lista después de emparejarla con el ordenador.",
+  "settings.port.tip3": "Actualizar vuelve a leer la lista, por ejemplo después de enchufar el cable.",
+  "settings.port.auto": "buscar automáticamente",
+  "settings.port.none": "ninguno elegido",
+  "settings.port.other": "Otro...",
+  "settings.port.path_label": "Ruta del puerto",
+  "settings.port.found": "encontrado: {port}",
+  "settings.port.refresh": "Actualizar",
+
+  "settings.baud.name": "Velocidad del TNC",
+  "settings.baud.label": "Velocidad",
+  "settings.baud.tip_label": "Acerca de la velocidad",
+  "settings.baud.tip1":
+    "La velocidad del cable entre el ordenador y el TNC. Déjala vacía: NeoAPRS usa entonces la velocidad del TNC que elegiste, 9600 para la mayoría.",
+  "settings.baud.tip2": "Indícala solo si el manual de tu TNC lo dice, por ejemplo 57600 para un NinoTNC. Las conexiones Bluetooth y TCP no tienen velocidad.",
+
+  "settings.tcp_host.label": "Host TCP",
+  "settings.tcp_port.label": "Puerto TCP",
+  "settings.tcp_port.title": "Direwolf 8001, soundmodem 8100",
+  "settings.last_port.label": "Último puerto encontrado",
+  "settings.pattern.label": "Puertos donde buscar",
+  "settings.pattern.title": "Patrones de dispositivo, separados por espacios",
+  "settings.skip.label": "Puertos que omitir",
+  "settings.skip.title": "Rutas de dispositivo, separadas por comas",
+
+  "settings.network.name": "Acceso desde la red",
+  "settings.network.label": "Permitir el acceso desde la red",
+  "settings.network.tip_label": "Acerca del acceso desde la red",
+  "settings.network.tip1":
+    "Permite que otros dispositivos de tu red abran esta página: un portátil, un teléfono o una tableta. Sin esto, solo el ordenador donde funciona NeoAPRS puede abrirla.",
+  "settings.network.tip2":
+    "Ponlo en sí y pulsa Guardar: aparece una clave de acceso con las direcciones que abrir. Escribe la clave una vez en cada dispositivo.",
+  "settings.network.tip3": "La conexión es http sin cifrar en tu red doméstica: bien en casa, no para internet. No abras en tu router un puerto hacia NeoAPRS.",
+
+  "settings.access_key.label": "Clave de acceso",
+  "settings.access_key.tip_label": "Acerca de la clave de acceso",
+  "settings.access_key.tip1":
+    "La contraseña para los otros dispositivos. Abre una de las direcciones de abajo en el portátil o el teléfono y escribe esta clave una vez; el dispositivo queda con la sesión iniciada.",
+  "settings.access_key.tip2": "Clave nueva crea otra y cierra la sesión de todos los demás dispositivos. Escribe la clave nueva otra vez en cada uno.",
+  "settings.new_key": "Clave nueva",
+  "settings.new_key_sure": "¿seguro?",
+  "settings.urls.label": "Abrir en",
+  "settings.urls.tip_label": "Acerca de las direcciones",
+  "settings.urls.tip1": "Escribe una de estas en el navegador del portátil o del teléfono, que debe estar en la misma red que NeoAPRS.",
+  "settings.urls.tip2":
+    "La que lleva números funciona en cualquier parte de la red. La que termina en .local es más fácil de recordar y funciona en la mayoría de teléfonos y portátiles.",
+  "settings.key_screen.label": "Clave de acceso",
+  "settings.key_screen.placeholder": "xxxx-xxxx-xxxx",
+  "settings.key_screen.open": "Abrir",
+  "settings.access.wrong": "Clave incorrecta.",
+  "settings.access.shut_out": "Demasiados intentos. Espera unos minutos.",
+
+  "settings.https.name": "Conexión segura",
+  "settings.https.label": "Conexión segura (https)",
+  "settings.https.tip_label": "Acerca de la conexión segura",
+  "settings.https.tip1":
+    "Hace falta para las notificaciones en los teléfonos y para instalar NeoAPRS como aplicación. Los navegadores muestran un aviso la primera vez; puedes continuar pese a él, o instalar el certificado de NeoAPRS en cada dispositivo para que el aviso desaparezca.",
+
+  "settings.radius.name": "Radio del mapa",
+  "settings.radius.label": "Radio",
+  "settings.radius.tip_label": "Acerca del radio",
+  "settings.radius.tip1":
+    "Hasta dónde llega el mapa detallado desde tu estación, en todas las direcciones. El mapa del mundo siempre está; esta es la zona con calles y nombres.",
+  "settings.radius.tip2":
+    "Un radio mayor significa una descarga mayor: 150 km es una región, 500 km buena parte de un país. El tamaño se muestra antes de empezar.",
+
+  "settings.digipeater.label": "Digipeater",
+  "settings.digipeater.tip_label": "Qué hace el digipeater",
+  "settings.digipeater.tip1":
+    "Ayuda a las estaciones cercanas que no alcanzan un digipeater: los paquetes que piden WIDE1-1, o que pasan por tu indicativo, los repite una vez tu radio.",
+  "settings.digipeater.tip2": "Déjalo desactivado salvo que estés en un lugar con mala cobertura.",
+
+  "settings.alert.label": "Alerta",
+  "settings.alert_command.name": "Comando de alerta",
+  "settings.alert_command.label": "Comando",
+  "settings.alert_test": "Probar",
+  "settings.alerts.text": "En el ordenador de NeoAPRS",
+  "settings.alerts.title": "La alerta propia de NeoAPRS: el comando que el servicio ejecuta en el ordenador donde funciona",
+  "settings.alerts.tip_label": "Acerca de las alertas",
+  "settings.alerts.tip1":
+    "Un mensaje nuevo puede avisarte en dos sitios. Este grupo es el propio ordenador de NeoAPRS: con la alerta activada, ejecuta el Comando cuando llega un mensaje, por defecto una notificación y un sonido. Si NeoAPRS funciona en otro ordenador, suena allí.",
+  "settings.alerts.tip2":
+    "El grupo siguiente es este navegador, en el dispositivo que tenga la página abierta: sin alerta, un sonido, un sonido y una notificación, o solo una notificación. Cada dispositivo elige por sí mismo, y Probar sonido y Probar notificación lo prueban.",
+  "settings.alerts.tip3": "Si lees NeoAPRS en el ordenador donde funciona, basta con uno de los dos; usa ambos solo si quieres que te avise dos veces.",
+
+  "settings.browser.heading": "En este navegador",
+  "settings.browser.mode": "Alerta de mensaje nuevo",
+  "settings.browser.enable_popups": "Activar notificaciones…",
+  "settings.browser.sound": "Sonido",
+  "settings.browser.test_sound": "Probar sonido",
+  "settings.browser.popup": "Notificación",
+  "settings.browser.test_popup": "Probar notificación",
+  "settings.alert_mode.off": "desactivada",
+  "settings.alert_mode.sound": "sonido",
+  "settings.alert_mode.both": "sonido y notificación",
+  "settings.alert_mode.popup": "solo notificación",
+  "settings.alert_mode.why_off": "Las notificaciones están desactivadas en este navegador para esta dirección",
+  "settings.alert_mode.why_blocked": "Las notificaciones están bloqueadas para esta página en el navegador",
+  "settings.alert.notification_title": "Mensaje APRS de {call}",
+  "settings.alert.test_message": "Esto es una prueba de la alerta de NeoAPRS",
+  "settings.alert.note_refused": "notificaciones rechazadas: solo sonido",
+  "settings.alert.note_blocked": "notificaciones bloqueadas",
+  "settings.alert.note_not_yet": "notificaciones aún no permitidas",
+  "settings.alert.sound_played": "reproducido",
+  "settings.alert.sound_locked": "sonido bloqueado: haz clic en la página una vez",
+  "settings.alert.popup_off": "las notificaciones están desactivadas para esta dirección",
+  "settings.alert.popup_blocked": "notificación bloqueada",
+  "settings.alert.popup_sent": "notificación enviada",
+
+  "settings.status_source.label": "Estado",
+  "settings.status_source.off": "desactivado",
+  "settings.status_source.text": "un texto propio",
+  "settings.status_source.rig": "la frecuencia de mi radio (rigctld)",
+  "settings.status_source.tip1":
+    "Un estado es una línea que las demás estaciones ven con tu nombre. Desactivado no envía ninguno. Un texto propio envía la línea que escribas. La frecuencia de mi radio pregunta a tu radio, mediante rigctld, en qué está sintonizada y envía eso.",
+  "settings.status_rigctld.label": "Rigctld",
+  "settings.status_rigctld.tip1":
+    "rigctld es un pequeño programa de Hamlib que permite a un ordenador preguntar a una radio en qué está sintonizada; arráncalo antes para tu radio. Escribe dónde escucha, como dirección:puerto. 4532 es el puerto habitual.",
+  "settings.status_rigctld.tip2": "Ejemplo: 127.0.0.1:4532",
+  "settings.status_interval.name": "Intervalo del estado",
+  "settings.status_interval.label": "Cada",
+  "settings.status_interval.tip1":
+    "El tiempo mínimo entre dos informes de estado. Un estado no se vuelve a enviar mientras diga lo mismo que el anterior, por mucho tiempo que haya pasado; de 30 minutos a 2 horas va bien para un estado que dice lo que haces o en qué está sintonizada la radio.",
+  "settings.status_template.name": "Plantilla del estado",
+  "settings.status_template.label": "Texto",
+  "settings.status_template.tip1":
+    "El estado se hace con este texto y con lo que tu radio tiene sintonizado ahora: {{freq}} pasa a ser la frecuencia y {{mode}} el modo. Hasta {max} caracteres una vez rellenados.",
+  "settings.status_template.tip2": "Ejemplo: QRV {{freq}} {{mode}} da QRV 14.074 MHz USB",
+
+  "settings.beacon_interval.name": "Intervalo de la baliza",
+  "settings.beacon_interval.label": "Baliza",
+  "settings.beacon_interval.off": "Desactivada",
+  "settings.beacon_interval.tip1":
+    "Cada cuánto se envía tu posición. Desactivada no envía ninguna por sí sola; Enviar baliza ahora sigue enviando una. Cada baliza ocupa el canal para todos los de alrededor, así que 30 minutos es una buena elección para una estación que se queda donde está; {min} es lo mínimo.",
+  "settings.path.name": "Ruta de la baliza",
+  "settings.path.label": "Ruta",
+  "settings.path.empty": "directa",
+  "settings.path.tip1":
+    "Los digipeaters, las estaciones que repiten tu paquete para que llegue más lejos, en el orden en que debe usarlos, separados por comas. Vacía envía en directo, sin ayuda.",
+  "settings.path.tip2":
+    "WIDE1-1,WIDE2-1 es la opción habitual: un digipeater pequeño cercano recoge primero el paquete y uno de área amplia lo lleva más lejos. WIDE2-2 va directo a los digipeaters de área amplia, para una estación que ellos oyen directamente, como una situada en una colina.",
+
+  "settings.confirm.label": "Confirmar",
+  "settings.confirm.yes": "Sí",
+  "settings.confirm.cancel": "Cancelar",
+  "settings.confirm.network_off": "Este dispositivo perderá la página. ¿Desactivar?",
+  "settings.confirm.https_on": "Este dispositivo perderá la página. ¿Activar?",
+  "settings.confirm.https_off": "Este dispositivo perderá la página. ¿Desactivar?",
+
+  "settings.undo.changed": "{name} cambiado",
+  "settings.undo.undo": "Deshacer",
+
+  "settings.check.range": "{min} a {max}",
+  "settings.check.placeholder_call": "{call} no es un indicativo",
+  "settings.check.not_call": "No es un indicativo",
+  "settings.check.not_number": "No es un número",
+  "settings.check.between": "Entre -{limit} y {limit}",
+  "settings.check.symbol_length": "Tabla y código",
+  "settings.check.symbol_table": "Tabla: / \\ 0-9 A-Z",
+  "settings.check.symbol_code": "Código: un carácter imprimible",
+  "settings.check.not_address": "No es una dirección",
+  "settings.check.path": "Indicativos separados por comas, {max} como máximo",
+  "settings.check.needs_latitude": "Hace falta con la latitud",
+  "settings.check.needs_longitude": "Hace falta con la longitud",
+
+  "settings.location.heading": "Ubicación",
+  "settings.location.pick": "Elegir en el mapa",
+  "settings.location.cancel": "Cancelar",
+  "settings.location.not_set": "Sin definir",
+  "settings.location.enter": "Introducir coordenadas",
+
+  "settings.picker.title": "Elegir un símbolo",
+  "settings.picker.placeholder": "Buscar: casa, coche, digi, wx...",
+  "settings.picker.search": "Buscar símbolos",
+  "settings.picker.close": "Cerrar",
+  "settings.picker.usual": "Habituales",
+  "settings.picker.usual_symbols": "Símbolos habituales",
+  "settings.picker.all": "Todos",
+  "settings.picker.all_symbols": "Todos los símbolos",
+  "settings.picker.none": "Ningún símbolo así.",
+
+  "settings.tnc.state.stopped": "parado",
+  "settings.tnc.state.connecting": "conectando",
+  "settings.tnc.state.connected": "conectado",
+  "settings.tnc.state.waiting": "esperando",
+  "settings.tnc.state.silent": "en silencio",
+  "settings.tnc.no_packet": "Aún no hay paquetes",
+  "settings.tnc.last_packet": "Último paquete hace {span}",
+  "settings.tnc.no_packet_digipeated": "Aún no hay paquetes, repetidos {count}",
+  "settings.tnc.last_packet_digipeated": "Último paquete hace {span}, repetidos {count}",
+  "settings.tnc.searching": "Buscando la radio…",
+  "settings.tnc.connecting": "Conectando…",
+  "settings.tnc.connecting_to": "Conectando con {path}…",
+  "settings.tnc.not_connected": "Sin conexión",
+  "settings.tnc.not_connected_why": "Sin conexión: {why}",
+  "settings.tnc.counts": {
+    one: "{n} paquete escuchado, {bytes_in} rx, {bytes_out} tx, {digipeated} repetidos",
+    other: "{n} paquetes escuchados, {bytes_in} rx, {bytes_out} tx, {digipeated} repetidos",
+  },
+  "settings.tnc.reconnect": "Reconectar",
+  "settings.tnc.ports": "Puertos",
+  "settings.tnc.terminal": "Terminal",
+  "settings.tnc.terminal_label": "Lo que el TNC vio e hizo",
+
+  "settings.map.step.tool": "Obteniendo el programa pmtiles",
+  "settings.map.step.build": "Buscando la última versión",
+  "settings.map.step.world": "Mapa del mundo",
+  "settings.map.step.area": "Mapa de la zona",
+  "settings.map.estimating": "Calculando",
+  "settings.map.working": "Trabajando",
+  "settings.map.step_percent": "{step} {percent}%",
+  "settings.map.downloaded": "Mapa descargado",
+  "settings.map.downloaded_on": "Mapa descargado el {day} {month}",
+  "settings.map.checking": "Comprobando el tamaño…",
+  "settings.map.download_size": "¿Descargar {size}?",
+  "settings.map.downloading": "Descargando…",
+  "settings.map.download_again": "Descargar el mapa otra vez",
+  "settings.map.download": "Descargar mapa",
+  "settings.map.cancel": "Cancelar",
+
+  "settings.update.group": "Búsqueda de actualizaciones",
+  "settings.update.label": "Versión nueva",
+  "settings.update.check": "Buscar ahora",
+  "settings.update.tip_label": "Acerca de la búsqueda de actualizaciones",
+  "settings.update.tip":
+    "Una vez al día NeoAPRS pregunta a la página de versiones del proyecto si hay una versión más nueva, y te avisa en el pie cuando la hay.",
+  "settings.update.available": "{version} disponible",
+  "settings.update.current": "al día ({version})",
+  "settings.update.no_answer": "sin respuesta",
+};

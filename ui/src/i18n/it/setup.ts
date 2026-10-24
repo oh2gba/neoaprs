@@ -1,0 +1,43 @@
+import type { setup as en } from "@/i18n/en/setup";
+import type { Message } from "@/i18n/message";
+
+export const setup: Readonly<Record<keyof typeof en, Message>> = {
+  "setup.title": "Configurazione guidata",
+  "setup.step.call": "Nominativo",
+  "setup.step.position": "Posizione",
+  "setup.step.symbol": "Simbolo",
+  "setup.step.radio": "Radio",
+  "setup.step.map": "Mappa",
+  "setup.step_label": "{n} {title}",
+  "setup.done": "Fatto",
+  "setup.close": "Chiudi",
+  "setup.back": "Indietro",
+  "setup.next": "Avanti",
+  "setup.saving": "Salvataggio...",
+  "setup.finish": "Fine",
+
+  "setup.call.label": "Il tuo nominativo",
+  "setup.locator.label": "Locator",
+  "setup.enter_coordinates": "Inserisci coordinate o locator",
+  "setup.not_locator": "Non è un locator",
+  "setup.port_automatic": "Automatica",
+  "setup.symbols": "Simboli",
+  "setup.more": "Altri...",
+  "setup.symbol.house": "Casa",
+  "setup.symbol.car": "Auto",
+  "setup.symbol.truck": "Camion",
+  "setup.symbol.van": "Furgone",
+  "setup.symbol.motorcycle": "Moto",
+  "setup.symbol.bike": "Bici",
+  "setup.symbol.walker": "Pedone",
+  "setup.symbol.boat": "Barca",
+  "setup.symbol.digipeater": "Digipeater",
+  "setup.symbol.weather_station": "Stazione meteo",
+  "setup.symbol.portable": "Portatile",
+  "setup.symbol.antenna": "Antenna",
+
+  "setup.beacon_every": "Beacon ogni {minutes} min",
+  "setup.beacon_tip_label": "Informazioni sul beacon",
+  "setup.beacon_tip1": "NeoAPRS invia la tua posizione con questo intervallo, così le altre stazioni ti vedono sulla loro mappa.",
+  "setup.beacon_tip2": "Cambialo, o spegnilo, nella scheda Beacon.",
+};

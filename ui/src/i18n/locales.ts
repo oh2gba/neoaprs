@@ -5,7 +5,9 @@
 import type { Catalogue } from "@/i18n/catalogue";
 import { de } from "@/i18n/de";
 import { en } from "@/i18n/en";
+import { es } from "@/i18n/es";
 import { fr } from "@/i18n/fr";
+import { it } from "@/i18n/it";
 
 export interface LocaleInfo {
   /** A language tag: `de`, `pt-BR`. */
@@ -18,7 +20,9 @@ export interface LocaleInfo {
 export const LOCALES: readonly LocaleInfo[] = [
   { code: "en", name: "English", messages: en },
   { code: "de", name: "Deutsch", messages: de },
+  { code: "es", name: "Español", messages: es },
   { code: "fr", name: "Français", messages: fr },
+  { code: "it", name: "Italiano", messages: it },
 ];
 
 /** The language every missing message falls back to. */
