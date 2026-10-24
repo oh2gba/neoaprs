@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The form of an object or an item of ours, in the Objects tab, in the box at the bottom of the tab (ComposeBar, as everywhere; its fields scroll on a short screen, the line with the counter, Cancel and Save does not): name and kind (the name of an object that is being changed stays), the symbol (a picture to change, as in the Beacon tab), the position (the row Location of the Beacon tab, components/LocationField.vue: **Choose on map**, a click on the map, or the
+// The form of an object or an item of ours, in the Objects tab, in the box at the bottom of the tab (ComposeBar, as everywhere; its fields scroll on a short screen, the line with the counter, Cancel and Save does not): the name (that of an object that is being changed stays; a new one is always an object, an item of ours that is being changed stays an item), the symbol (a picture to change, as in the Beacon tab), the position (the row Location of the Beacon tab, components/LocationField.vue: **Choose on map**, a click on the map, or the
 // coordinates typed), the comment (the characters it has left are the counter beside the buttons), the course and speed, and the path the object goes by (the placeholder is the beacon's). A field with something wrong
 // is red and its title says what. Save is on when there is a name, a place and a symbol and nothing is wrong; the daemon checks it all again.
 import { computed, useId } from "vue";
@@ -49,10 +49,6 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
           autocomplete="off"
           spellcheck="false"
         />
-        <select v-model="draft.kind" class="input kind" :aria-label="t('objects.field.kind')" :title="t('objects.field.kind_title')">
-          <option value="object">{{ t("objects.field.object") }}</option>
-          <option value="item">{{ t("objects.field.item") }}</option>
-        </select>
       </div>
     </div>
     <SymbolField :id="`${id}-symbol`" v-model:symbol="draft.symbol" />

@@ -19,10 +19,6 @@ export const objects: Record<keyof typeof source, Message> = {
 
   "objects.form.new": "Novo objeto",
   "objects.field.name": "Nome",
-  "objects.field.kind": "Tipo",
-  "objects.field.kind_title": "Em RF, objetos são recomendados; itens não.",
-  "objects.field.object": "Objeto (recomendado)",
-  "objects.field.item": "Item",
   "objects.field.lat": "Latitude",
   "objects.field.lon": "Longitude",
   "objects.field.comment": "Comentário",

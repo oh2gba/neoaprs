@@ -311,10 +311,6 @@ export const fr: Catalogue = {
 
   "objects.form.new": "Nouvel objet",
   "objects.field.name": "Nom",
-  "objects.field.kind": "Type",
-  "objects.field.kind_title": "Sur RF, les objets sont recommandés, pas les items.",
-  "objects.field.object": "Objet (recommandé)",
-  "objects.field.item": "Item",
   "objects.field.lat": "Latitude",
   "objects.field.lon": "Longitude",
   "objects.field.comment": "Commentaire",

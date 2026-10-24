@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-Nothing yet.
+Objects.
+
+- The Objects form no longer has a choice between Object and Item: a new one is always an object, which is what the specification recommends on RF. An item you made before is still in the list, on the map and on the air, and can be changed and killed until you delete it.
 
 ## 0.7.0
 

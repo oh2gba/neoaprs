@@ -39,9 +39,6 @@
 .field-control .input {
   flex: 1;
 }
-.field-control .input.kind {
-  flex: 0 0 auto;
-}
 .field-control .info-text {
   right: 0;
   left: auto;
