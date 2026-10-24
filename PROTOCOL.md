@@ -559,6 +559,8 @@ row has a new distance and bearing, and the topic is told whole again.
 | `last_status` | string |  | the text of the latest status report |
 | `last_comment` | string |  | the comment of the latest position |
 | `packets` | integer |  | how many packets of this station were heard |
+| `packets_hour` | integer |  | how many of them were heard in the last hour (counted from the packets of the hour at the start and as they come; the row is told again each minute that it becomes fewer) (>= 0) |
+| `device` | string |  | what the station runs, as the APRS device identification list names it ("Kenwood TH-D74", "APRSdroid"): by the destination call of its packets, or by the type code of a Mic-E packet; empty when unknown |
 | `last_path` | string[] |  | the digipeaters of the latest packet, the one that repeated it marked with `*` |
 | `last_route` | string |  | how the latest packet reached us: `direct`, `via OH2RCH-2`, `via OH2RCH-1 → OH2RCH-3` (the digipeaters that repeated it, in order, `?` for one that did not put its call in) |
 | `heard_direct` | integer |  | how many packets came straight from the station (counted from the packets heard in this run and the latest 2000 the database kept) (>= 0) |

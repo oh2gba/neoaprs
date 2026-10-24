@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // What the daemon knows of one station, as a card over the map, in the few facts a person asks for: the symbol with its name and a green check mark beside the call for a station that was heard direct (no repeater), when it was last heard ("6 min ago", the full time when the mouse rests on it), the position and how far and in which direction it is from us, how fast it moves (only a station that does),
-// the altitude, the status and the comment, and one line of how its packets reach us ("Reached us via OH2RCH-2", or "direct"). A row with nothing to say is left out. The rest is under "Details", closed (components/StationDetails.vue: the path as it was sent, the counts of the routes, the best route, when it was first heard, the packets, the decoded extras).
+// the altitude, the status and the comment, what it runs ("Kenwood TH-D74", "APRSdroid"; only when the device list knows it), and one line of how its packets reach us ("Reached us via OH2RCH-2", or "direct"). A row with nothing to say is left out. The rest is under "Details", closed (components/StationDetails.vue: the path as it was sent, the counts of the routes, the best route, when it was first heard, the packets, the decoded extras).
 // A weather station (the weather symbol, or one that has sent weather) has its weather panel at the top (components/WeatherPanel.vue). "Message" opens the Messages tab with the station as the addressee, where the path its messages go by and RF only are set; the timeout field, under Details, is how long it stays on the map.
 // Several cards can be open (Ctrl+click, components/StationCards.vue), side by side: each is this whole card, as when it is alone. Forget (the trash can, "Forget OH2XYZ") takes it out of the station book (it is back when it is heard again); it asks twice ("sure?"), and forgets the first click after 5 s like the other buttons that ask twice (`useSure`). An object or an item of ours has "Edit" (the Objects tab opens with it) and "Kill" (it asks twice, too) in place of "Message" and "Forget", and none of the fields of a station that is heard.
 import { computed, watch } from "vue";
@@ -123,6 +123,10 @@ const reached = computed(() => (props.row.kind === "station" && !props.row.is_me
         <template v-if="row.last_comment">
           <dt>{{ t("station.field.comment") }}</dt>
           <dd>{{ row.last_comment }}</dd>
+        </template>
+        <template v-if="row.device !== ''">
+          <dt>{{ t("station.field.device") }}</dt>
+          <dd>{{ row.device }}</dd>
         </template>
         <template v-if="reached !== null">
           <dt>{{ t("station.field.reached") }}</dt>

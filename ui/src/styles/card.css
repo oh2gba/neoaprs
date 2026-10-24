@@ -58,6 +58,12 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+.card-fields .antenna {
+  display: inline-block;
+  margin-left: 6px;
+  vertical-align: middle;
+  color: var(--muted);
+}
 .more > summary {
   cursor: pointer;
   color: var(--accent);

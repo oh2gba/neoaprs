@@ -1,7 +1,7 @@
 // The details of a position or a station that the daemon decodes beyond where it is: the data extensions (PHG, range, DF, area), the Maidenhead locator, the telemetry channels, and the time a packet
 // carries (which may be the sender's local time).
 import { t } from "@/i18n";
-import { dateTimeText, positionText } from "@/lib/format";
+import { bearingTitle, dateTimeText, positionText } from "@/lib/format";
 import type {
   DecodedObject,
   DecodedOther,
@@ -13,12 +13,20 @@ import type {
   TelemetryValues,
 } from "@/protocol/protocol";
 
+/** Where an antenna favours, to be drawn as an arrow (a circle for omni); `title` says it in words, the compass point and the degrees. */
+export interface Directivity {
+  deg: number | null;
+  title: string;
+}
+
 interface DetailRow {
   label: string;
   text: string;
+  /** The antenna's direction, drawn after the text; none for a row that has no antenna. */
+  direction?: Directivity;
 }
 
-const directionText = (deg: number | null): string => (deg === null ? t("station.ext.omni") : `${deg}°`);
+const directivity = (deg: number | null): Directivity => ({ deg, title: deg === null ? t("station.ext.omni") : bearingTitle(deg) });
 
 /** One row for each data extension a position had: "PHG", "Range", "DF signal", "DF bearing", "Area". */
 export function extensionRows(ext: ExtensionValues | null): DetailRow[] {
@@ -32,9 +40,9 @@ export function extensionRows(ext: ExtensionValues | null): DetailRow[] {
         power: p.power_w,
         height: Math.round(p.height_m),
         gain: p.gain_db,
-        direction: directionText(p.direction_deg),
         range: Math.round(p.range_km),
       }),
+      direction: directivity(p.direction_deg),
     });
   }
   if (ext.range_km !== null) rows.push({ label: t("station.ext.range"), text: `${Math.round(ext.range_km)} km` });
@@ -42,7 +50,8 @@ export function extensionRows(ext: ExtensionValues | null): DetailRow[] {
     const d = ext.dfs;
     rows.push({
       label: t("station.ext.df_signal"),
-      text: t("station.ext.dfs_value", { strength: d.strength, height: Math.round(d.height_m), gain: d.gain_db, direction: directionText(d.direction_deg) }),
+      text: t("station.ext.dfs_value", { strength: d.strength, height: Math.round(d.height_m), gain: d.gain_db }),
+      direction: directivity(d.direction_deg),
     });
   }
   if (ext.df_bearing !== null) {

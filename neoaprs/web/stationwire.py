@@ -65,6 +65,8 @@ class StationRow(_Model):
     last_status: str = Field(description="the text of the latest status report")
     last_comment: str = Field(description="the comment of the latest position")
     packets: int = Field(description="how many packets of this station were heard")
+    packets_hour: int = Field(ge=0, description="how many of them were heard in the last hour (counted from the packets of the hour at the start and as they come; the row is told again each minute that it becomes fewer)")
+    device: str = Field(description="what the station runs, as the APRS device identification list names it (\"Kenwood TH-D74\", \"APRSdroid\"): by the destination call of its packets, or by the type code of a Mic-E packet; empty when unknown")
     last_path: list[str] = Field(description="the digipeaters of the latest packet, the one that repeated it marked with `*`")
     last_route: str = Field(description="how the latest packet reached us: `direct`, `via OH2RCH-2`, `via OH2RCH-1 → OH2RCH-3` (the digipeaters that repeated it, in order, `?` for one that did not put its call in)")
     heard_direct: int = Field(ge=0, description="how many packets came straight from the station (counted from the packets heard in this run and the latest 2000 the database kept)")

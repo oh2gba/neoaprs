@@ -32,7 +32,7 @@ from neoaprs.db import Db
 from neoaprs.kiss import KissDecoder
 from neoaprs.packet import Packet
 from neoaprs.source import Backoff, Source
-from neoaprs.stationbook import Station
+from neoaprs.station import Station
 from neoaprs.tnc import Tnc
 from tests.support.clock import FixedClock
 from tests.support.files import fixture_bytes

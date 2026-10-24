@@ -3,6 +3,7 @@
 // reverse), a filter box and the toggles "with position only", "direct only" (the stations heard direct at some time) and "hide timed out" narrow it, our own station is always on top, the selected row is marked and a click on a row selects the station
 // (the map flies to it; with Ctrl it adds a card). When the filter text is a call that no station has been heard under (not ours, not the email gateway), a button "Message OH2XYZ" under the empty result writes to it all the same. A station past its timeout is off the map: its row is dim and says "timed out" after the time it was heard. Every row is one line high. At the right end of a row are two small buttons, as on the card: a speech bubble that opens the conversation with the station ("Message OH2XYZ", where the card has Message) and a trash can that forgets it ("Forget OH2XYZ", where the card has Forget; it asks twice like the card's, "sure?" for 5 s); a click on them does not select the row. Between them is a "..." button, and a right-click on a row (a long press on a touch screen) opens the same menu where the pointer is (StationMenu: Message, the directed queries, Show, Copy call, QRZ, Forget).
 import { computed, ref, watch } from "vue";
+import BearingArrow from "@/components/BearingArrow.vue";
 import DirectMark from "@/components/DirectMark.vue";
 import IconButton from "@/components/IconButton.vue";
 import MessageGlyph from "@/components/MessageGlyph.vue";
@@ -194,22 +195,7 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
             <td class="direct"><DirectMark v-if="heardDirect(row)" /></td>
             <td class="num">{{ distanceText(row.distance_km) }}</td>
             <td class="bearing" :title="bearingTitle(row.bearing_deg)">
-              <svg
-                v-if="row.bearing_deg !== null"
-                class="arrow"
-                width="14"
-                height="14"
-                viewBox="0 0 14 14"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                :style="{ transform: `rotate(${row.bearing_deg}deg)` }"
-                aria-hidden="true"
-              >
-                <path d="M7 12.5V2M3 6l4-4 4 4" />
-              </svg>
+              <BearingArrow v-if="row.bearing_deg !== null" :deg="row.bearing_deg" />
               <span v-if="row.bearing_deg !== null" class="sr-only">{{ bearingTitle(row.bearing_deg) }}</span>
             </td>
             <td class="num" :title="dateTimeText(row.last_heard)">

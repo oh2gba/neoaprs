@@ -4,88 +4,25 @@ and the composition root (wiring.py) connects the two.
 A packet applies to the book in `take`. The sender of every packet heard counts as heard (a message or a telemetry packet gives no position, but the station is on the air), and the route the packet came by, direct or through which
 digipeaters (route.py), is counted for the sender. A position sets where the sender is; an object or an item is a station of its own, named by the object and marked with who reported it, and removed again when the report says it was killed. A packet from our own call, heard on the air (our beacon repeated or echoed), moves only the time we were last heard: where we are is the settings'."""
 from collections.abc import Collection, Iterable, Mapping
-from dataclasses import KW_ONLY, dataclass, field
 from datetime import datetime
 
-from .aprsextension import Extensions
-from .aprslocator import Locator
-from .aprsthirdparty import header_of
-from .aprstelemetry import Telemetry, TelemetryDefinition, apply_definition, is_definition
-from .bulletin import board_slot
+from .aprstelemetry import Telemetry, TelemetryDefinition, apply_definition
 from .aprsweather import Weather
 from .clock import Clock, utcnow
+from .device import packet_device
 from .geo import bearing_deg, distance_km
 from .ownobject import OwnObject
 from .packet import ItemReport, Message, ObjectReport, Other, Packet, Position, Status
-from .route import Deliveries, Route, route_of
+from .route import route_of
 from .signal import Signal
+from .station import Station
+from .stationnotes import expire_hours, note_messaging, seed_hour
 
 TRACK_MAX = 50                      # positions kept per station
 TRACK_MOVED_M = 10.0                # a new position goes on the track when the station moved more than this ...
 TRACK_EVERY_SEC = 300.0             # ... or when this long has passed since the last one on it
 DEFINITIONS_MAX = 500               # stations whose telemetry definitions are kept (the oldest goes first)
-MICE_IDENTIFIERS = (b"'", b"`", b"\x1c", b"\x1d")   # the data type identifiers of a Mic-E packet
-MICE_DUMB = b"'"                    # the type-code prefix of a Mic-E radio that does not do messages, the first byte of its comment (aprs-deviceid: ` does, ' does not)
-DETAILS_SEEN = 2000                 # the packets that telemetry, its definitions, locators and data extensions are read from at the start
-
-Track = list[tuple[datetime, float, float]]
-
-
-@dataclass
-class Station:
-    call: str                                   # the call with its SSID, or the name of the object or item
-    _: KW_ONLY
-    first_heard: datetime
-    last_heard: datetime
-    kind: str = "station"                       # "station", "object" or "item"
-    reported_by: str = ""                       # who sent the report, for an object or an item
-    symbol_table: str = ""
-    symbol_code: str = ""
-    lat: float | None = None                    # None until a position is heard
-    lon: float | None = None
-    altitude_m: float | None = None
-    course_deg: int | None = None
-    speed_kmh: float | None = None
-    last_position_at: datetime | None = None
-    last_status: str = ""
-    last_comment: str = ""
-    packets: int = 0
-    last_path: tuple[str, ...] = ()
-    last_via: str = ""                          # the iGate, when the latest packet came as a third-party packet (not kept in the cache: it is read again from the packets at the start)
-    weather: Weather | None = None              # the latest observation of a weather station (not kept in the cache: it is read again from the weather log at the start)
-    weather_at: datetime | None = None          # when it was heard
-    telemetry: Telemetry | None = None          # the latest telemetry report (not kept in the cache: it is read again from the latest packets at the start)
-    telemetry_at: datetime | None = None
-    locator: Locator | None = None              # the Maidenhead locator of its latest status report (or Mic-E status text)
-    extensions: Extensions | None = None        # PHG, RNG, DF and area data of its latest position
-    sent_message: bool = False                  # it has sent a message or an ack to a station (overheard or not): it does messages (not kept in the cache: it is read again from the packet log at the start)
-    position_messaging: bool | None = None      # its latest position says whether it takes messages (`=` and `@`, or Mic-E but the type code `'`); None until a position is heard (not kept in the cache either)
-    track: Track = field(default_factory=list)  # (time, lat, lon), the latest TRACK_MAX positions, oldest first
-    is_me: bool = False
-    own: bool = False                           # an object or an item of ours, which we send (services/ownobjects.py): the settings' station is `is_me`, this is `own`; not kept in the cache, the objects of ours have a table of their own
-    deliveries: Deliveries = field(default_factory=Deliveries)     # how the packets we heard from it reached us (neoaprs/route.py)
-
-    @property
-    def has_position(self) -> bool:
-        return self.lat is not None and self.lon is not None
-
-    @property
-    def can_message(self) -> bool:
-        """Whether a message to it makes sense. Never for an object or an item, and not for us. A station that has sent a message or an ack does messages, whatever its positions say; else its latest
-        position says (`=` and `@` yes, `!` and `/` no, Mic-E yes unless its comment starts with the type code `'` of a radio without messaging); a station with neither is not hidden."""
-        if self.kind != "station" or self.is_me:
-            return False
-        return self.sent_message or self.position_messaging is not False
-
-    @property
-    def last_direct_at(self) -> datetime | None:
-        """When a packet of the station was last heard direct, from the packets counted (this run's and the latest the database kept); None for a station never heard direct."""
-        return self.deliveries.last_direct_at
-
-    @property
-    def best_route(self) -> Route | None:
-        """The route most of its packets came by (direct included); None until a packet is counted."""
-        return self.deliveries.best()
+DETAILS_SEEN = 2000                 # the packets that telemetry, its definitions, locators, data extensions and the device are read from at the start
 
 
 class StationBook:
@@ -93,6 +30,7 @@ class StationBook:
         self.clock = clock
         self.changed: Signal[[Station]] = Signal("stationbook.changed")       # a station was added or changed (the live object: read it, do not keep it)
         self.removed: Signal[[str]] = Signal("stationbook.removed")           # its call
+        self.recounted: Signal[[Station]] = Signal("stationbook.recounted")   # the packets of its last hour became fewer (minute by minute, as old ones leave the hour): not saved, told to the page
         self._stations: dict[str, Station] = {}
         self._me = ""
         self._me_position: tuple[float, float] | None = None
@@ -149,17 +87,29 @@ class StationBook:
                 station.weather, station.weather_at = weather, at
 
     def seed_details(self, packets: Iterable[Packet]) -> None:
-        """What the latest packets kept say that the station cache does not keep, newest first as the log gives them: the latest telemetry report, the locator and the data extensions of each station, and
+        """What the latest packets kept say that the station cache does not keep, newest first as the log gives them: the latest telemetry report, the locator, the data extensions and the device of each station, and
         the telemetry definitions (read oldest first, so that a later one wins). A station that is not in the book is left out. Nothing is signalled."""
         for packet in reversed(list(packets)):
             station, decoded = self._stations.get(packet.sender), packet.decoded
             if packet.direction != "in" or station is None or station.is_me:
                 continue
+            station.device = packet_device(packet) or station.device
             self._note_telemetry(packet)
             if isinstance(decoded, Position):
                 station.extensions, station.locator = decoded.extensions, decoded.locator or station.locator
             elif isinstance(decoded, Status):
                 station.locator = decoded.locator or station.locator
+
+    def seed_recent(self, packets: Iterable[Packet]) -> None:
+        """The packets of the last hour that the log kept, oldest first, counted for the stations that sent them. Nothing is signalled."""
+        seed_hour(self._stations, packets)
+
+    def recount(self) -> list[Station]:
+        """Lets the packets that are an hour old now leave the last hour of each station; the stations whose count became smaller are signalled as `recounted` (and returned)."""
+        fewer = expire_hours(self._stations.values(), self.clock())
+        for station in fewer:
+            self.recounted.emit(station)
+        return fewer
 
     def seed_messaging(self, packets: Iterable[Packet]) -> None:
         """What the packets kept say about who does messages, oldest first (a later position wins): a message or an ack from a station, the flag of a station's position. A station that is not in the book is
@@ -167,7 +117,7 @@ class StationBook:
         for packet in packets:
             station = self._stations.get(packet.sender)
             if station is not None and packet.direction == "in" and not station.is_me:
-                self._note_messaging(station, packet)
+                note_messaging(station, packet)
 
     def telemetry_definition(self, call: str) -> TelemetryDefinition | None:
         """What the definition messages of the station said, None when it sent none."""
@@ -273,9 +223,10 @@ class StationBook:
         if packet.sender == self._me:
             return self._heard_ourselves(packet)
         sender = self._heard(packet.sender, packet)
+        sender.device = packet_device(packet) or sender.device
         about: Station | None = sender
         decoded = packet.decoded
-        self._note_messaging(sender, packet)
+        note_messaging(sender, packet)
         if isinstance(decoded, Position):
             self._place(sender, decoded, packet.heard_at)
         elif isinstance(decoded, Status):
@@ -290,18 +241,6 @@ class StationBook:
         if isinstance(decoded, (ObjectReport, ItemReport)):
             about = self._named(packet, decoded)
         return about
-
-    @staticmethod
-    def _note_messaging(station: Station, packet: Packet) -> None:
-        """A message or an ack from the station (not a bulletin, not a definition of its own telemetry: those are not talk with a station) says it does messages; a position says what its identifier does."""
-        decoded = packet.decoded
-        if isinstance(decoded, Message):
-            if board_slot(decoded.addressee) is None and not is_definition(decoded.text):
-                station.sent_message = True
-        elif isinstance(decoded, Position):
-            opened = header_of(packet.info) if packet.third_party is not None else None
-            info = packet.info if opened is None else opened[1]
-            station.position_messaging = decoded.messaging or (info[:1] in MICE_IDENTIFIERS and info[9:10] != MICE_DUMB)
 
     def _note_telemetry(self, packet: Packet) -> Station | None:
         """Keeps a telemetry report (or the base-91 telemetry in the comment of a position) as its sender's latest, or a definition message as its addressee's; returns the station that gained a definition (to be signalled), if it is in the book."""
@@ -341,6 +280,7 @@ class StationBook:
         station.last_heard = packet.heard_at
         station.last_path, station.last_via = packet.path, packet.via
         station.deliveries.note(route_of(packet.path, packet.via), 1, packet.heard_at)
+        station.hour.note(packet.heard_at)
         return station
 
     def _place(self, station: Station, position: Position, when: datetime) -> None:
@@ -377,6 +317,7 @@ class StationBook:
             station = self._stations[report.name] = Station(report.name, first_heard=packet.heard_at, last_heard=packet.heard_at, kind=kind)
         station.reported_by = packet.sender
         station.packets += 1
+        station.hour.note(packet.heard_at)
         station.last_heard = packet.heard_at
         station.last_path, station.last_via = packet.path, packet.via
         self._place(station, report.position, packet.heard_at)
