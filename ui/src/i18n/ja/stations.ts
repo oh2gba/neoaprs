@@ -13,12 +13,12 @@ export const stations: Record<keyof typeof source, Message> = {
 
   "station.card.label": "局",
   "station.card.qrz_title": "このコールサインのQRZページを開く",
+  "station.card.drag_title": "ドラッグしてカードを移動（Alt+矢印キーでフォーカス中のカードを移動）",
   "station.card.edit": "編集",
   "station.card.kill": "キル",
   "station.card.kill_sure": "本当にキルしますか?",
   "station.card.message": "メッセージ",
-  "station.card.forget": "消去",
-  "station.card.forget_sure": "本当に消去しますか?",
+  "station.card.forget": "{call}を消去",
   "station.card.details": "詳細",
 
   "station.cards.close_all": "すべて閉じる",

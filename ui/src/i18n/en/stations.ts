@@ -11,12 +11,12 @@ export const stations = {
 
   "station.card.label": "Station",
   "station.card.qrz_title": "Open the QRZ page of this call",
+  "station.card.drag_title": "Drag to move the card (Alt+arrow keys move the focused card)",
   "station.card.edit": "Edit",
   "station.card.kill": "Kill",
   "station.card.kill_sure": "Really kill?",
   "station.card.message": "Message",
-  "station.card.forget": "Forget",
-  "station.card.forget_sure": "Really forget?",
+  "station.card.forget": "Forget {call}",
   "station.card.details": "Details",
 
   "station.cards.close_all": "Close all",

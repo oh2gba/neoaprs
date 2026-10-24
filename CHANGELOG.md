@@ -2,7 +2,10 @@
 
 ## Unreleased
 
-Nothing yet.
+The station cards.
+
+- A station card can be moved: drag it by its head (the symbol and the call) anywhere over the map, or move the focused card with Alt and the arrow keys. It stays in the map and keeps its place while it is open; the cards left in the row close up, a newly opened card goes to the next place of the row, and a card that is closed and opened again is back in the row. Only the cards in the row count against how many fit, and the map keeps a marker clear of a moved card where it stands. Not on a phone, where the card is a bottom sheet.
+- **Forget** on the card is the trash can of the other lists, "Forget OH2XYZ" on hover, with the same second press to make sure.
 
 ## 0.6.7
 

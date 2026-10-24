@@ -67,8 +67,8 @@ describe("App: stations and the map", () => {
     await flushPromises();
     expect(wrapper.find(".card").text()).toContain("OH2PU-9");
     expect(wrapper.find("#pane-stations tr.selected").text()).toContain("OH2PU-9");
-    await wrapper.find(".card-foot .forget").trigger("click");
-    await wrapper.find(".card-foot .forget").trigger("click");
+    await wrapper.find(".card-foot .card-forget").trigger("click");
+    await wrapper.find(".card-foot .card-forget").trigger("click");
     expect(socket.sent).toContainEqual({ cmd: "forget_station", call: "OH2PU-9" });
     expect(wrapper.find(".card").exists()).toBe(false);
   });

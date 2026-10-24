@@ -2,14 +2,17 @@
 // The station cards over the map. On a tablet and a desktop they are a row at the left of the map, side by side, the oldest at the left and the newest at the right, each the whole card, as it is alone (with several weather stations open each is the full weather card
 // with its graphs, and the graphs are on the same value axes in every card, so that the stations can be compared). A card has its own cross. Two or more cards have **Close all** over the map's top left, beside the zoom buttons, and **Message these 3** beside it when two or
 // more of the cards are for stations that can be messaged (one text to all of them, in the group compose of the Messages tab). How many there may be is the page's (composables/useSelection.ts), and a row that is wider than the map has room for closes
-// its oldest card (`overflow`): a card is never made narrower. On a phone the one card is a bottom sheet that is part of the screen: folded to its head and the first facts, it opens up with a tap or a swipe up on its grip, folds with a swipe down, and a
+// its oldest card (`overflow`): a card is never made narrower. On a tablet and a desktop a card can be dragged by its head, or moved with Alt and the arrows (composables/useCardDrag.ts) anywhere over the map: it is then out of the row (the others close up) and does not count
+// against the room of the row, and it keeps its place while it is open (`places`, the page's, for the session). On a phone the one card is a bottom sheet that is part of the screen: folded to its head and the first facts, it opens up with a tap or a swipe up on its grip, folds with a swipe down, and a
 // swipe down on the folded sheet closes it; its cross is there too.
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 import StationCard from "@/components/StationCard.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
+import { useCardDrag, type Places } from "@/composables/useCardDrag";
 import { useResized } from "@/composables/useResized";
 import { provideWxSpan } from "@/composables/useWxSpan";
 import { t } from "@/i18n";
+import { type Place } from "@/lib/cardmove";
 import { CARDS_FREE_SIDE, CARD_GAP, type SizeClass } from "@/lib/layout";
 import { SWIPE_MIN, sheetMove, type SheetMove } from "@/lib/sheet";
 import { isWeatherStation, sharedRanges } from "@/lib/weather";
@@ -51,16 +54,36 @@ const ranges = computed(() => {
 });
 
 // a row that is wider than the map has room for is not squeezed: the oldest card closes (the page does that when it hears `overflow`)
+// (a card that was moved is out of the row: it takes no room in it, and it is not the one that closes)
 const stack = ref<HTMLElement | null>(null);
 function fit(): void {
   const el = stack.value;
-  if (!el || props.size === "phone" || props.rows.length < 2) return;
+  if (!el || props.size === "phone") return;
+  const cards = [...el.querySelectorAll<HTMLElement>(":scope > .card:not(.moved)")];
+  if (cards.length < 2) return;
   const room = el.clientWidth - CARDS_FREE_SIDE; // (0 where nothing is laid out: no room to measure against)
-  const cards = [...el.children] as HTMLElement[];
   const total = cards.reduce((sum, card) => sum + card.offsetWidth, 0) + CARD_GAP * (cards.length - 1);
   if (el.clientWidth > 0 && total > room) emit("overflow");
 }
-useResized(stack, fit);
+
+// Where the cards that were moved stand (a tablet and a desktop only; the page keeps it, for the session, and uses it for how many cards the row holds: composables/useStationCards.ts). A card that is closed forgets its place.
+const places = defineModel<Places>("places", { default: () => ({}) });
+const movable = computed(() => props.size !== "phone");
+const placeOf = (call: string): Place | undefined => (movable.value ? places.value[call] : undefined);
+const placeStyle = (place: Place | undefined) => (place ? { left: `${place.x}px`, top: `${place.y}px` } : undefined);
+const drag = useCardDrag(stack, places, () => movable.value);
+function resized(): void {
+  drag.keepInside();
+  fit();
+}
+useResized(stack, resized);
+watch(
+  () => props.rows.map((row) => row.call),
+  (calls) => {
+    const gone = Object.keys(places.value).filter((call) => !calls.includes(call));
+    if (gone.length > 0) places.value = Object.fromEntries(Object.entries(places.value).filter(([call]) => calls.includes(call)));
+  },
+);
 watch(
   () => props.rows.length,
   () => void nextTick(fit),
@@ -110,7 +133,17 @@ function tap(): void {
       {{ t("station.cards.message_all", { n: askable.length }) }}
     </button>
   </div>
-  <div v-if="rows.length > 0" ref="stack" class="cardstack" :class="{ sheet: size === 'phone', expanded }">
+  <div
+    v-if="rows.length > 0"
+    ref="stack"
+    class="cardstack"
+    :class="{ sheet: size === 'phone', expanded }"
+    @pointerdown="drag.down"
+    @pointermove="drag.move"
+    @pointerup="drag.up"
+    @pointercancel="drag.up"
+    @keydown="drag.key"
+  >
     <button
       v-if="size === 'phone'"
       type="button"
@@ -127,6 +160,10 @@ function tap(): void {
     <StationCard
       v-for="row in rows"
       :key="row.call"
+      :data-call="row.call"
+      :class="{ moved: placeOf(row.call) !== undefined }"
+      :style="placeStyle(placeOf(row.call))"
+      :movable="movable"
       :row="row"
       :now="now"
       :aging="aging"

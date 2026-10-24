@@ -340,12 +340,12 @@ export const de: Catalogue = {
 
   "station.card.label": "Station",
   "station.card.qrz_title": "Die QRZ-Seite dieses Rufzeichens öffnen",
+  "station.card.drag_title": "Zum Verschieben ziehen (Alt+Pfeiltasten verschieben die fokussierte Karte)",
   "station.card.edit": "Bearbeiten",
   "station.card.kill": "Zurückziehen",
   "station.card.kill_sure": "Wirklich zurückziehen?",
   "station.card.message": "Nachricht",
-  "station.card.forget": "Vergessen",
-  "station.card.forget_sure": "Wirklich vergessen?",
+  "station.card.forget": "{call} vergessen",
   "station.card.details": "Details",
 
   "station.cards.close_all": "Alle schließen",

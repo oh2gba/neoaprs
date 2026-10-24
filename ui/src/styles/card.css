@@ -79,6 +79,10 @@
   gap: 8px;
   padding: 6px 10px 10px;
 }
+.card-foot .card-forget {
+  margin-left: auto;
+  align-self: center;
+}
 
 /* the weather panel of a weather station's card and its trend graphs */
 .wx {

@@ -328,12 +328,12 @@ export const fr: Catalogue = {
 
   "station.card.label": "Station",
   "station.card.qrz_title": "Ouvrir la page QRZ de cet indicatif",
+  "station.card.drag_title": "Faire glisser pour déplacer la fiche (Alt+flèches déplacent la fiche ayant le focus)",
   "station.card.edit": "Modifier",
   "station.card.kill": "Retirer",
   "station.card.kill_sure": "Vraiment retirer ?",
   "station.card.message": "Message",
-  "station.card.forget": "Oublier",
-  "station.card.forget_sure": "Vraiment oublier ?",
+  "station.card.forget": "Oublier {call}",
   "station.card.details": "Détails",
 
   "station.cards.close_all": "Tout fermer",
