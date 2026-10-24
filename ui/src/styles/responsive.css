@@ -62,6 +62,7 @@ button,
    A phone's sheet has none of this (the script gives no place there, and the head is not a handle). */
 .cardstack .card.moved {
   position: absolute;
+  bottom: auto; /* (not the card's own bottom: 30px, which would stretch it from its top to there) */
   z-index: 1;
 }
 .cardstack:not(.sheet) .card-head {

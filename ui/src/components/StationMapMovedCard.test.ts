@@ -6,15 +6,33 @@ import { mountStationMap } from "@/test/stationmap";
 import { NOW, ago, station, table } from "@/test/fixtures";
 
 // A map 390 wide and 380 high with a card of the row over its bottom (10, 130 to 380, 370), and a card the user has moved to its top left (20, 20 to 150, 100).
-const rect = (left: number, top: number, right: number, bottom: number): DOMRect =>
-  ({ left, top, right, bottom, width: right - left, height: bottom - top, x: left, y: top, toJSON: () => ({}) });
+const rect = (left: number, top: number, right: number, bottom: number): DOMRect => ({
+  left,
+  top,
+  right,
+  bottom,
+  width: right - left,
+  height: bottom - top,
+  x: left,
+  y: top,
+  toJSON: () => ({}),
+});
 
 const stations = () =>
   table(
     station("OH2GBA", { is_me: true, lat: 60.17, lon: 24.94, symbol_code: "-" }),
     station("OH2PU-9", { lat: 60.2, lon: 24.65, last_position_at: ago(100) }),
   );
-const props = (extra = {}) => ({ stations: stations(), selected: null, focus: null, home: { lat: 60.17, lon: 24.94 }, now: NOW, dark: false, aging: { timeouts: new Map(), defaultMin: 0 }, ...extra });
+const props = (extra = {}) => ({
+  stations: stations(),
+  selected: null,
+  focus: null,
+  home: { lat: 60.17, lon: 24.94 },
+  now: NOW,
+  dark: false,
+  aging: { timeouts: new Map(), defaultMin: 0 },
+  ...extra,
+});
 
 async function mounted(cards: string) {
   const page = document.createElement("div");

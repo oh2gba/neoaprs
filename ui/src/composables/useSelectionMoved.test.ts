@@ -10,7 +10,15 @@ const CALLS = ["OH2ZWA", "OH2ZWB", "OH2ZWC", "OH2ZWD", "OH2ZWE"];
 function setUp(capacity: number, moved: string[], calls: string[] = CALLS) {
   const stations = shallowRef<ReadonlyMap<string, StationRow>>(new Map(calls.map((call) => [call, station(call)] as const)));
   const away = ref(moved);
-  return { away, picked: useSelection(stations, vi.fn(() => true), ref(capacity), () => away.value) };
+  return {
+    away,
+    picked: useSelection(
+      stations,
+      vi.fn(() => true),
+      ref(capacity),
+      () => away.value,
+    ),
+  };
 }
 
 describe("useSelection with cards the user has moved out of the row", () => {
@@ -44,7 +52,12 @@ describe("useSelection with cards the user has moved out of the row", () => {
   it("closes the oldest cards of the row when the window gets smaller, but not the moved ones", async () => {
     const stations = shallowRef<ReadonlyMap<string, StationRow>>(new Map(CALLS.map((call) => [call, station(call)] as const)));
     const room = ref(4);
-    const picked = useSelection(stations, vi.fn(() => true), room, () => ["OH2ZWA"]);
+    const picked = useSelection(
+      stations,
+      vi.fn(() => true),
+      room,
+      () => ["OH2ZWA"],
+    );
     for (const call of CALLS.slice(0, 4)) picked.pick(call, true);
     room.value = 2;
     await Promise.resolve();

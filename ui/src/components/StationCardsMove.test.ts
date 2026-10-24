@@ -76,6 +76,7 @@ describe("StationCards: moving a card by its head", () => {
     expect(cssRule(".cardstack:not(.sheet) .card-head")).toContain("user-select: none");
     expect(cssRule(".card-dragging *")).toContain("cursor: grabbing");
     expect(cssRule(".cardstack .card.moved")).toContain("position: absolute");
+    expect(cssRule(".cardstack .card.moved")).toContain("bottom: auto");
   });
 
   it("moves the card by the distance of the pointer, out of the row, and the other card closes up", async () => {

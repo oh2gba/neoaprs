@@ -29,7 +29,8 @@ function areaOf(row: HTMLElement): Area | null {
   return { left: map.left - at.left, top: map.top - at.top, right: map.right - at.left, bottom: map.bottom - at.top };
 }
 
-const cardOf = (row: HTMLElement, call: string): HTMLElement | null => [...row.querySelectorAll<HTMLElement>(":scope > .card")].find((card) => card.dataset.call === call) ?? null;
+const cardOf = (row: HTMLElement, call: string): HTMLElement | null =>
+  [...row.querySelectorAll<HTMLElement>(":scope > .card")].find((card) => card.dataset.call === call) ?? null;
 
 /** The call of the card whose head was pressed (not on a button or a link of it), with the head. */
 function headPressed(row: HTMLElement | null, event: Event): { call: string; head: HTMLElement } | null {
