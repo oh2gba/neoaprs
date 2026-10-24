@@ -10,6 +10,7 @@ export const map: Record<keyof typeof source, Message> = {
   "map.note.no_basemap": "Sem mapa base",
   "map.note.no_detail": "Sem mapa detalhado",
   "map.note.no_engine": "Não foi possível carregar o mapa",
+  "map.aloha": "Círculo ALOHA: {km} km",
 
   "map.credits.hide": "Ocultar os créditos",
   "map.credits.show": "Créditos do mapa e dos símbolos",

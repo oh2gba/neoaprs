@@ -527,7 +527,7 @@ The value of each topic (`state` carries it, a `replace` op brings a new one).
 | `bulletins` | { [key: string]: BulletinRow } | the message board by `sender/slot` (`OH2XYZ/BLN1`): the bulletins, announcements, group bulletins and group messages heard and not deleted; one that is new or heard again is a `set` of its row, one that is deleted (`bulletin_delete`) a `del` |
 | `own_objects` | { [key: string]: OwnObjectRow } | the objects and items of ours by name: `object_set` makes or changes one (a `set` of its row, each time it is sent too), `object_kill` ends one (its row changes to `killing`, and is a `del` once the kill has been sent); a live one is also a row of `stations` |
 | `own_bulletins` | { [key: string]: OwnBulletinRow } | the bulletins, announcements and group bulletins of ours by slot (`BLN1`): `bulletin_post` posts one (a `set` of its row, each time it is sent too), `bulletin_unpost` deletes one (a `del`) |
-| `map` | MapState | the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps; told whole as it changes, at most four times a second |
+| `map` | MapState | the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps, and the ALOHA circle; told whole as it changes, at most four times a second |
 | `update` | UpdateState | Update now: whether this copy can update itself, and the steps of the update it is doing; told whole as it changes, at most four times a second |
 
 ## Objects
@@ -1017,6 +1017,7 @@ The base map: the files, the area and detail the settings ask for, the size esti
 | `box` | number[] \| null |  | the area those settings make round our position, [west, south, east, north]; null without a position (max 4 items) |
 | `detail` | MapFileInfo \| null |  | `basemap.pmtiles`; null if it is not there |
 | `world` | MapFileInfo \| null |  | `basemap-world.pmtiles`; null if it is not there |
+| `aloha_km` | number \| null |  | the radius of the ALOHA circle round our position, in km to a tenth: the distance within which the stations heard on RF would fill the 1200 baud channel (WB4APR's method, worked out again every minute); null without a position and while the stations heard do not fill the channel (>= 0) |
 
 ### OwnBulletinRow
 

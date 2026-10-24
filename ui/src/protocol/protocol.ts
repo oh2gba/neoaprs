@@ -449,6 +449,8 @@ export interface MapState {
   detail: MapFileInfo | null;
   /** `basemap-world.pmtiles`; null if it is not there */
   world: MapFileInfo | null;
+  /** the radius of the ALOHA circle round our position, in km to a tenth: the distance within which the stations heard on RF would fill the 1200 baud channel (WB4APR's method, worked out again every minute); null without a position and while the stations heard do not fill the channel */
+  aloha_km: number | null;
 }
 
 /** Stops sending a message of ours that is still being sent; its row becomes `cancelled`. Answered by the new state of its row, or by an `error`. */
@@ -1012,7 +1014,7 @@ export interface TopicValues {
   own_objects: { [key: string]: OwnObjectRow };
   /** the bulletins, announcements and group bulletins of ours by slot (`BLN1`): `bulletin_post` posts one (a `set` of its row, each time it is sent too), `bulletin_unpost` deletes one (a `del`) */
   own_bulletins: { [key: string]: OwnBulletinRow };
-  /** the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps; told whole as it changes, at most four times a second */
+  /** the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps, and the ALOHA circle; told whole as it changes, at most four times a second */
   map: MapState;
   /** Update now: whether this copy can update itself, and the steps of the update it is doing; told whole as it changes, at most four times a second */
   update: UpdateState;

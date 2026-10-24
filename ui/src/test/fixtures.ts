@@ -346,6 +346,7 @@ export function mapState(extra: Partial<MapState> = {}): MapState {
     box: [22.1, 58.8, 27.8, 61.5],
     detail: null,
     world: null,
+    aloha_km: null,
     ...extra,
   };
 }

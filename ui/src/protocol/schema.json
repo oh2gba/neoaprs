@@ -1702,6 +1702,18 @@
             }
           ],
           "description": "`basemap-world.pmtiles`; null if it is not there"
+        },
+        "aloha_km": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the radius of the ALOHA circle round our position, in km to a tenth: the distance within which the stations heard on RF would fill the 1200 baud channel (WB4APR's method, worked out again every minute); null without a position and while the stations heard do not fill the channel"
         }
       },
       "required": [
@@ -1717,7 +1729,8 @@
         "maxzoom",
         "box",
         "detail",
-        "world"
+        "world",
+        "aloha_km"
       ],
       "title": "MapState",
       "type": "object"
@@ -3973,7 +3986,7 @@
         },
         "map": {
           "$ref": "#/$defs/MapState",
-          "description": "the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps; told whole as it changes, at most four times a second"
+          "description": "the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps, and the ALOHA circle; told whole as it changes, at most four times a second"
         },
         "update": {
           "$ref": "#/$defs/UpdateState",

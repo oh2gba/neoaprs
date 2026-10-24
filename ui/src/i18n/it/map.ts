@@ -9,6 +9,7 @@ export const map: Readonly<Record<keyof typeof en, Message>> = {
   "map.note.no_basemap": "Nessuna mappa di base",
   "map.note.no_detail": "Nessuna mappa dettagliata",
   "map.note.no_engine": "Impossibile caricare la mappa",
+  "map.aloha": "Cerchio ALOHA: {km} km",
 
   "map.credits.hide": "Nascondi i crediti",
   "map.credits.show": "Crediti di mappa e simboli",

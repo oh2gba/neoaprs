@@ -61,7 +61,7 @@ class TopicValues(_Model):
     bulletins: dict[str, BulletinRow] = Field(description="the message board by `sender/slot` (`OH2XYZ/BLN1`): the bulletins, announcements, group bulletins and group messages heard and not deleted; one that is new or heard again is a `set` of its row, one that is deleted (`bulletin_delete`) a `del`")
     own_objects: dict[str, OwnObjectRow] = Field(description="the objects and items of ours by name: `object_set` makes or changes one (a `set` of its row, each time it is sent too), `object_kill` ends one (its row changes to `killing`, and is a `del` once the kill has been sent); a live one is also a row of `stations`")
     own_bulletins: dict[str, OwnBulletinRow] = Field(description="the bulletins, announcements and group bulletins of ours by slot (`BLN1`): `bulletin_post` posts one (a `set` of its row, each time it is sent too), `bulletin_unpost` deletes one (a `del`)")
-    map: MapState = Field(description="the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps; told whole as it changes, at most four times a second")
+    map: MapState = Field(description="the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps, and the ALOHA circle; told whole as it changes, at most four times a second")
     update: UpdateState = Field(description="Update now: whether this copy can update itself, and the steps of the update it is doing; told whole as it changes, at most four times a second")
 
 

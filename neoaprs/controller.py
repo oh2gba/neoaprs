@@ -67,6 +67,7 @@ class Controller(Services):
         await self.ownbulletins.start()
         await self.rigstatus.start()
         await self.prefbook.load()
+        await self.aloha.start()
         await self.messaging.start()
         await self._start_web()
         await self.updatecheck.start()
@@ -77,6 +78,7 @@ class Controller(Services):
         try:
             await self._stop_web()
             await self.updatecheck.stop()
+            await self.aloha.stop()
             await self.selfupdate.stop()
             await self.mapfetch.stop()
             await self.queries.stop()

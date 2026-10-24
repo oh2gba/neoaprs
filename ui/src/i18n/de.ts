@@ -480,6 +480,7 @@ export const de: Catalogue = {
   "map.note.no_basemap": "Keine Basiskarte",
   "map.note.no_detail": "Keine Detailkarte",
   "map.note.no_engine": "Die Karte konnte nicht geladen werden",
+  "map.aloha": "ALOHA-Kreis: {km} km",
 
   "map.credits.hide": "Quellenangaben ausblenden",
   "map.credits.show": "Quellen von Karte und Symbolen",
