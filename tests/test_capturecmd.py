@@ -64,7 +64,7 @@ async def test_when_no_port_delivers_a_frame_the_command_says_so_and_suggests_po
 async def test_a_port_that_goes_away_ends_the_recording_with_exit_1_and_keeps_what_came(radio: FakeRadio, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     out = tmp_path / "out.bin"
     recording = asyncio.ensure_future(capturecmd.record(radio.url, 9600, 30.0, str(out)))
-    await radio.connected()
+    await until(out.exists)                     # (the port is open: pyserial's open of a socket drops what came before it was done)
     radio.feed(frame_bytes())
     await until(lambda: out.exists() and out.stat().st_size >= len(frame_bytes()), 10)   # (a busy Windows runner can be slow)
     radio.drop()
@@ -83,8 +83,8 @@ async def test_a_port_that_cannot_be_opened_is_told_and_leaves_no_file(radio: Fa
 
 async def test_a_recording_that_runs_its_time_out_is_a_success(radio: FakeRadio, tmp_path: Path) -> None:
     out = tmp_path / "out.bin"
-    recording = asyncio.ensure_future(capturecmd.record(radio.url, 9600, 2.0, str(out)))     # (time for a busy Windows runner to pass the bytes on)
-    await radio.connected()
+    recording = asyncio.ensure_future(capturecmd.record(radio.url, 9600, 1.0, str(out)))
+    await until(out.exists)                     # (as above)
     radio.feed(b"\x00partial")
     assert await asyncio.wait_for(recording, 10) == 0
     assert out.read_bytes() == b"\x00partial"
