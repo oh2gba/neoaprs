@@ -4,6 +4,8 @@
 ; is the program's own and is never touched by the installer or the uninstaller. Build, from the repository root, after packaging/windows/neoaprs.spec has made dist\NeoAPRS:
 ;     iscc /DAppVersion=0.1.0 /Qp packaging\windows\neoaprs.iss        (makes dist-installer\NeoAPRS-Setup-0.1.0.exe)
 ; Silent: NeoAPRS-Setup-VERSION.exe /VERYSILENT /SUPPRESSMSGBOXES /CURRENTUSER /NORESTART [/LOG=file] [/DIR=folder] [/TASKS=""]  (the last one: no start at sign-in, no desktop shortcut).
+; Update now (neoaprs/services/selfinstall.py) runs it silently with /NOCLOSEAPPLICATIONS (the code below ends the app and the daemon, in that order, before a file is replaced) and two values of its own:
+; /NEOAPRSDATA=folder (the data folder of the daemon that runs it) and /NEOAPRSRESTART=app or daemon (what was running, and is started again on that folder once the files are in place).
 #ifndef AppVersion
   #error Give the version: iscc /DAppVersion=0.1.0 packaging\windows\neoaprs.iss
 #endif
@@ -53,6 +55,9 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 
 [Run]
 Filename: "{app}\neoaprs-app.exe"; Description: "Open NeoAPRS now"; Flags: postinstall nowait skipifsilent
+; after a silent update that NeoAPRS started itself: what was running starts again, the app (which starts the daemon) or the daemon alone
+Filename: "{app}\neoaprs-app.exe"; Parameters: "{code:DataArgs}"; Flags: nowait; Check: RestartWanted('app')
+Filename: "{app}\neoaprsw.exe"; Parameters: "run {code:DataArgs}"; Flags: nowait runhidden; Check: RestartWanted('daemon')
 
 [UninstallRun]
 ; the app first (it stops the daemon it started), then whatever daemon is left (one that was running before the app), then the start at sign-in of a daemon that `neoaprs service install` made
@@ -61,7 +66,22 @@ Filename: "{app}\neoaprs.exe"; Parameters: "stop"; Flags: runhidden waituntilter
 Filename: "{app}\neoaprs.exe"; Parameters: "service remove"; Flags: runhidden waituntilterminated; RunOnceId: "RemoveStartAtSignIn"
 
 [Code]
-// An update over a NeoAPRS that is running: the app and the daemon are ended first, or their files cannot be replaced. (The last page's "Open NeoAPRS now" starts the app again; a silent update leaves it to the next sign-in.)
+// `--data "folder"` for the data folder Update now named (/NEOAPRSDATA), else nothing: the default folder.
+function DataArgs(Param: String): String;
+begin
+  Result := '';
+  if ExpandConstant('{param:NEOAPRSDATA|}') <> '' then
+    Result := '--data "' + ExpandConstant('{param:NEOAPRSDATA|}') + '"';
+end;
+
+// Is this the silent update of Update now, after which `What` (app or daemon) is started again?
+function RestartWanted(What: String): Boolean;
+begin
+  Result := WizardSilent and (CompareText(ExpandConstant('{param:NEOAPRSRESTART|}'), What) = 0);
+end;
+
+// An update over a NeoAPRS that is running: the app and the daemon are ended first, or their files cannot be replaced. (The last page's "Open NeoAPRS now" starts the app again; a silent update of Update now
+// starts again what was running, by the [Run] entries above; any other silent update leaves it to the next sign-in.)
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   Code: Integer;
@@ -69,8 +89,8 @@ begin
   if CurStep = ssInstall then
   begin
     if FileExists(ExpandConstant('{app}\neoaprs-app.exe')) then
-      Exec(ExpandConstant('{app}\neoaprs-app.exe'), '--quit', '', SW_HIDE, ewWaitUntilTerminated, Code);
+      Exec(ExpandConstant('{app}\neoaprs-app.exe'), Trim('--quit ' + DataArgs('')), '', SW_HIDE, ewWaitUntilTerminated, Code);
     if FileExists(ExpandConstant('{app}\neoaprs.exe')) then
-      Exec(ExpandConstant('{app}\neoaprs.exe'), 'stop', '', SW_HIDE, ewWaitUntilTerminated, Code);
+      Exec(ExpandConstant('{app}\neoaprs.exe'), Trim('stop ' + DataArgs('')), '', SW_HIDE, ewWaitUntilTerminated, Code);
   end;
 end;

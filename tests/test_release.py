@@ -108,6 +108,16 @@ def test_the_installer_script_is_per_user_and_does_what_the_manual_says() -> Non
     assert "UninstallDelete" not in INSTALLER, "the data folder is not the installer's to delete"
 
 
+def test_the_installer_starts_again_what_ran_after_the_silent_update_of_update_now() -> None:
+    run = INSTALLER.split("[Run]", 1)[1].split("[UninstallRun]", 1)[0]
+    assert 'Filename: "{app}\\neoaprs-app.exe"; Parameters: "{code:DataArgs}"; Flags: nowait; Check: RestartWanted(\'app\')' in run
+    assert 'Filename: "{app}\\neoaprsw.exe"; Parameters: "run {code:DataArgs}"; Flags: nowait runhidden; Check: RestartWanted(\'daemon\')' in run
+    code = INSTALLER.split("[Code]", 1)[1]
+    assert "function RestartWanted(What: String): Boolean;" in code and "WizardSilent and" in code and "{param:NEOAPRSRESTART|}" in code
+    assert "function DataArgs(Param: String): String;" in code and "{param:NEOAPRSDATA|}" in code
+    assert "Trim('--quit ' + DataArgs(''))" in code and "Trim('stop ' + DataArgs(''))" in code, "the app and the daemon of that data folder are the ones ended"
+
+
 def test_the_frozen_app_has_three_programs_whose_names_differ_for_a_system_that_ignores_case() -> None:
     spec = (ROOT / "packaging" / "windows" / "neoaprs.spec").read_text(encoding="utf-8")
     names = re.findall(r'EXE\(pyz, a\.scripts, \[\], name="([^"]+)", console=(True|False)', spec)
