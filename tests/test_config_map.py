@@ -1,9 +1,9 @@
-"""The settings of the base map (`map/radius_km`, `map/maxzoom`, `map/source`): their ranges, the forms a source may have, and that a wrong value names its key."""
+"""The settings of the base map (`map/radius_km`, `map/maxzoom`, `map/source`) and `map/station_hours`: their ranges, the forms a source may have, and that a wrong value names its key."""
 from dataclasses import replace
 
 import pytest
 
-from neoaprs.config import DEFAULTS, Config
+from neoaprs.config import DEFAULT_STATION_HOURS, DEFAULTS, STATION_HOURS, Config
 
 
 def test_the_defaults_are_150_km_zoom_12_and_the_latest_daily_build() -> None:
@@ -29,6 +29,25 @@ def test_a_source_is_empty_a_web_address_or_a_path(text: str) -> None:
 def test_a_source_that_is_an_option_another_kind_of_address_or_not_printable_is_refused(text: str) -> None:
     with pytest.raises(ValueError, match="map/source"):
         Config.check("map/source", text)
+
+
+def test_the_time_a_station_stays_on_the_map_is_1_3_6_12_or_24_hours_and_3_by_default() -> None:
+    assert STATION_HOURS == (1, 3, 6, 12, 24) and DEFAULTS.map_station_hours == 3 == DEFAULT_STATION_HOURS and Config.from_data({}).map_station_hours == 3
+    for hours in STATION_HOURS:
+        assert Config.check("map/station_hours", f" {hours} ") == str(hours)
+        assert Config.parse("map/station_hours", str(hours)) == hours
+    for text in ["0", "2", "4", "48", "-3", "three", "1.5", ""]:
+        with pytest.raises(ValueError, match="map/station_hours"):
+            Config.check("map/station_hours", text)
+    with pytest.raises(ValueError, match="map/station_hours: 2 is not one of 1, 3, 6, 12, 24"):
+        Config.checked(DEFAULTS, {"map/station_hours": "2"})
+    assert Config.checked(DEFAULTS, {"map/station_hours": "12"}).map_station_hours == 12
+
+
+def test_a_stored_time_on_the_map_that_is_no_choice_falls_back_to_3_hours_and_a_choice_stays() -> None:
+    assert Config.from_data({"map/station_hours": "5"}).map_station_hours == 3
+    assert Config.from_data({"map/station_hours": "24"}).map_station_hours == 24
+    assert Config.from_data({"map/station_hours": "24"}).to_data()["map/station_hours"] == "24"
 
 
 def test_a_save_puts_the_values_in_force_and_a_bad_one_changes_nothing() -> None:

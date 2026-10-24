@@ -139,6 +139,7 @@ export const settings: Record<keyof typeof source, Message> = {
     "スマートフォンでのポップアップ通知と、NeoAPRSをアプリとしてインストールするために必要です。最初にブラウザが警告を出しますが、そのまま続行できます。警告を出さないようにするには、各機器にNeoAPRSの証明書をインストールします。",
 
   "settings.radius.name": "地図の半径",
+  "settings.station_hours.name": "地図の表示時間",
   "settings.radius.label": "半径",
   "settings.radius.tip_label": "半径について",
   "settings.radius.tip1":

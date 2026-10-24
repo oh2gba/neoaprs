@@ -35,6 +35,7 @@
  "radio.not_running": {"params": [], "text": ["no search for the radio is running"]},
  "setting.comment_too_long": {"params": ["length", "limit"], "text": ["{length} characters is more than the {limit} allowed with the PHG extension (clear beacon/power_w to send none)"]},
  "setting.not_access_key": {"params": [], "text": ["it is not an access key (three groups of four digits and letters, such as k7m2-x9pq-4hrt)"]},
+ "setting.not_among": {"params": ["choices", "value"], "text": ["{value} is not one of {choices}"]},
  "setting.not_ascii": {"params": [], "text": ["it has characters that are not printable ASCII"]},
  "setting.not_boolean": {"params": ["value"], "text": ["'{value}' is not true or false"]},
  "setting.not_direction": {"params": ["value"], "text": ["'{value}' is not omni or one of N NE E SE S SW W NW"]},

@@ -119,6 +119,7 @@ export const de: Catalogue = {
   "error.setting.not_access_key": "das ist kein Zugangsschlüssel (drei Gruppen aus vier Ziffern und Buchstaben, etwa k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "es enthält Zeichen, die kein druckbares ASCII sind",
   "error.setting.not_boolean": "„{value}“ ist weder true noch false",
+  "error.setting.not_among": "{value} ist keiner der Werte {choices}",
   "error.setting.not_direction": "„{value}“ ist weder omni noch eines von N NE E SE S SW W NW",
   "error.setting.not_globs": "„{value}“ ist nicht ein oder mehrere absolute Muster, durch Leerzeichen getrennt, etwa /dev/ttyUSB*",
   "error.setting.not_host": "„{value}“ ist weder eine Adresse noch ein Name",
@@ -428,6 +429,8 @@ export const de: Catalogue = {
   "station.table.filter_label": "Stationen filtern",
   "station.table.hide_timed_out": "abgelaufene ausblenden",
   "station.table.direct_only": "nur direkt",
+  "station.table.on_map": "Auf der Karte für",
+  "station.table.hours": "{n} Std.",
   "station.table.call": "Rufzeichen",
   "station.table.bearing": "Richtung",
   "station.table.none_yet": "Noch keine Station gehört.",
@@ -898,6 +901,7 @@ export const de: Catalogue = {
     "Nötig für Pop-ups auf Handys und um NeoAPRS als App zu installieren. Browser zeigen beim ersten Mal eine Warnung; man kann sie übergehen oder das Zertifikat von NeoAPRS an jedem Gerät installieren, damit die Warnung verschwindet.",
 
   "settings.radius.name": "Kartenradius",
+  "settings.station_hours.name": "Zeit auf der Karte",
   "settings.radius.label": "Radius",
   "settings.radius.tip_label": "Über den Radius",
   "settings.radius.tip1":

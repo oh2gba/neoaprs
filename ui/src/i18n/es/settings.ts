@@ -142,6 +142,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
     "Hace falta para las notificaciones en los teléfonos y para instalar NeoAPRS como aplicación. Los navegadores muestran un aviso la primera vez; puedes continuar pese a él, o instalar el certificado de NeoAPRS en cada dispositivo para que el aviso desaparezca.",
 
   "settings.radius.name": "Radio del mapa",
+  "settings.station_hours.name": "Tiempo en el mapa",
   "settings.radius.label": "Radio",
   "settings.radius.tip_label": "Acerca del radio",
   "settings.radius.tip1":

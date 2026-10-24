@@ -37,7 +37,8 @@ describe("groupKeys", () => {
     const shown = [...groupKeys(CONFIG_KEYS, "settings"), ...groupKeys(CONFIG_KEYS, "beacon")].flatMap((g) => g.keys);
     expect(shown.sort()).toEqual(
       CONFIG_KEYS.filter(
-        (key) => !["update/url", "serial/pattern", "serial/skip", "web/port", "web/allowed_hosts", "map/maxzoom", "map/source"].includes(key),
+        (key) =>
+          !["update/url", "serial/pattern", "serial/skip", "web/port", "web/allowed_hosts", "map/maxzoom", "map/source", "map/station_hours"].includes(key),
       ).sort(),
     );
   });

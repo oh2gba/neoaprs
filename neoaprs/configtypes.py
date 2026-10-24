@@ -34,6 +34,21 @@ def int_or_off(low: int, high: int) -> Callable[[str], int]:
     return parse
 
 
+def int_among(choices: tuple[int, ...]) -> Callable[[str], int]:
+    """One of a short list of whole numbers (the choices the page offers)."""
+    listed = ", ".join(str(c) for c in choices)
+
+    def parse(text: str) -> int:
+        try:
+            value = int(text.strip())
+        except ValueError:
+            raise CodedError(f"{text!r} is not a whole number", "setting.not_whole", value=text) from None
+        if value not in choices:
+            raise CodedError(f"{value} is not one of {listed}", "setting.not_among", value=value, choices=listed)
+        return value
+    return parse
+
+
 def optional_int(low: int, high: int) -> Callable[[str], int | None]:
     """A whole number, or nothing: an empty text is None."""
     whole = int_in(low, high)

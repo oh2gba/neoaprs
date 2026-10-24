@@ -81,6 +81,8 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.table.filter_label": "局を絞り込む",
   "station.table.hide_timed_out": "時間切れを隠す",
   "station.table.direct_only": "直接受信のみ",
+  "station.table.on_map": "地図に表示",
+  "station.table.hours": "{n}時間",
   "station.table.call": "コールサイン",
   "station.table.bearing": "方位",
   "station.table.none_yet": "受信した局はまだありません。",

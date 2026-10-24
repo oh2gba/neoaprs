@@ -12,7 +12,7 @@ from neoaprs.configstatus import MAX_STATUS
 from neoaprs.decay import ANNOUNCEMENT, BULLETIN
 from neoaprs.message import EMAIL_ATTEMPTS, STATION_ATTEMPTS
 from neoaprs.ownbulletin import MAX_POSTED
-from neoaprs.policy import HIDE_AFTER_MIN, LOG_KEEP_DAYS, TNC_CHECK_SEC
+from neoaprs.policy import LOG_KEEP_DAYS, TNC_CHECK_SEC
 from neoaprs.services.beacon import FIRST_DELAY_SEC
 from neoaprs.services.ownobjects import MAX_OBJECTS
 from neoaprs.services.pace import SPACING_SEC
@@ -30,6 +30,7 @@ def _numbers() -> dict[str, object]:
     fields: dict[str, object] = {key.replace("/", "_"): f"{low} to {high}" for key, (low, high) in cfg.RANGES.items()}
     fields.update(
         comment=cfg.MAX_COMMENT, comment_phg=cfg.MAX_COMMENT_PHG, status=MAX_STATUS, beacon_min=cfg.MIN_BEACON_INTERVAL_MIN, status_min=cfg.MIN_STATUS_INTERVAL_MIN, alert_command=cfg.MAX_ALERT_COMMAND,
+        map_station_hours_choices=", ".join(str(h) for h in cfg.STATION_HOURS),
         profiles=", ".join(f"`{p.key}`" for p in PROFILES), directions=" ".join(f"`{d}`" for d in cfg.ANTENNA_DIRECTIONS if d != "omni"), tocall=TOCALL,
     )
     return fields
@@ -71,6 +72,7 @@ DESCRIPTIONS: dict[str, tuple[str, str]] = {
     "messages/alert_command": ("Settings tab, Notifications (Command)", "the shell line that is run (at most {alert_command} characters; empty runs nothing). The default shows a notification and plays a sound, in a form that suits the system"),
     "map/radius_km": ("Settings tab, Map (Radius)", "the detailed base map covers a square this far from your position in every direction ({map_radius_km} km). Read when the map is made ([page.md](page.md#the-base-map))"),
     "map/maxzoom": (DB_ONLY, "the deepest zoom the detailed map has tiles for ({map_maxzoom}): 10 shows towns, 12 streets, 14 houses. The page's Download map uses the stored value"),
+    "map/station_hours": ("Stations tab, On map for", "how many hours after its last position a station stays on the map: {map_station_hours_choices}. The same for every station, in every browser; your own station and objects never leave. The Stations table keeps a station that has left the map, dim"),
     "map/source": (DB_ONLY, "where the map is cut from: empty is the latest daily build of build.protomaps.com; or a web address (`https://...`) or the path of a PMTiles file, such as a planet file of your own"),
     "update/url": (DB_ONLY, "the address of the version page that the daily update check asks (`http` or `https`; [install.md](install.md#the-update-check))"),
     "digi/enabled": ("Settings tab, Digipeater", "`true` switches the fill-in digipeater on ([beacon.md](beacon.md#the-fill-in-digipeater))"),
@@ -108,16 +110,11 @@ def settings() -> str:
     return _table(("key", "default", "where", "what it is"), rows)
 
 
-def _hours(minutes: int) -> str:
-    return f"{minutes // 60} hours" if minutes % 60 == 0 and minutes >= 120 else f"{minutes} minutes"
-
-
 def fixed() -> str:
     """Numbers the program decides, with no setting."""
     updates = int(UPDATE_EVERY_SEC // 3600)
     items = [
         f"Packets, weather observations and stations are kept {LOG_KEEP_DAYS} days and cleaned up once a day. Messages and bulletins are kept until you delete them.",
-        f"A station leaves the map {HIDE_AFTER_MIN} minutes ({_hours(HIDE_AFTER_MIN)}) after its last position.",
         f"The keep-alive asks a TNC that can be asked after {TNC_CHECK_SEC // 60} minutes of silence on the line (and a random minute or two more).",
         f"A message to a station is sent {STATION_ATTEMPTS} times, and one to the email gateway {EMAIL_ATTEMPTS} times, before it has failed or is unconfirmed.",
         f"Your own frames go out at least {int(SPACING_SEC)} seconds apart, except acks, answers to queries and digipeated packets.",

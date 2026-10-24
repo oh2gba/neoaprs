@@ -60,6 +60,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.not_access_key": "não é uma chave de acesso (três grupos de quatro dígitos e letras, como k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "tem caracteres que não são ASCII imprimível",
   "error.setting.not_boolean": "'{value}' não é true nem false",
+  "error.setting.not_among": "{value} não é um de {choices}",
   "error.setting.not_direction": "'{value}' não é omni nem um de N NE E SE S SW W NW",
   "error.setting.not_globs": "'{value}' não é um ou mais padrões absolutos separados por espaços, como /dev/ttyUSB*",
   "error.setting.not_host": "'{value}' não é um endereço nem um nome",

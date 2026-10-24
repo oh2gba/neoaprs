@@ -59,6 +59,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.not_access_key": "アクセスキーではありません(英数字4文字の3つの組、例: k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "表示可能なASCII以外の文字があります",
   "error.setting.not_boolean": "「{value}」は true でも false でもありません",
+  "error.setting.not_among": "{value} は {choices} のいずれでもありません",
   "error.setting.not_direction": "「{value}」は omni でも N NE E SE S SW W NW のいずれでもありません",
   "error.setting.not_globs": "「{value}」は、スペースで区切った1つ以上の絶対パスのパターン(例: /dev/ttyUSB*)ではありません",
   "error.setting.not_host": "「{value}」はアドレスでも名前でもありません",

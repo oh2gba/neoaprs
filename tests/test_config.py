@@ -5,7 +5,7 @@ from dataclasses import fields, replace
 import pytest
 
 from neoaprs.config import BY_KEY, DEFAULT_ALERT_COMMAND, DEFAULTS, KEYS, MAX_COMMENT, MAX_COMMENT_PHG, SETTINGS, Config
-from neoaprs.policy import HIDE_AFTER_MIN, LOG_KEEP_DAYS, TNC_CHECK_SEC
+from neoaprs.policy import LOG_KEEP_DAYS, TNC_CHECK_SEC
 from neoaprs.configstatus import MAX_STATUS, fill_template
 
 
@@ -16,7 +16,7 @@ def test_the_defaults_are_the_ones_of_the_brief() -> None:
         "beacon/antenna_direction": "omni", "web/network": "false", "web/key": "", "web/https": "false", "web/port": "7303", "web/allowed_hosts": "", "beacon/interval_min": "0",
         "beacon/path": "",
         "messages/alert": "true", "messages/alert_command": DEFAULT_ALERT_COMMAND, "status/source": "", "status/rigctld": "", "status/interval_min": "30", "status/template": "QRV {freq} {mode}",
-        "map/radius_km": "150", "map/maxzoom": "12", "map/source": "",
+        "map/radius_km": "150", "map/maxzoom": "12", "map/station_hours": "3", "map/source": "",
         "update/url": "https://oh2gba.eu/neoaprs/version.php", "digi/enabled": "false"}
     assert Config() == DEFAULTS
 
@@ -128,14 +128,14 @@ def test_the_keep_alive_is_fixed_at_10_minutes_and_what_an_earlier_version_store
     assert Config.from_data({"tnc/check_sec": "0", "web/port": "9"}) == Config.from_data({"web/port": "9"}), "a stored 0 is ignored: the keep-alive runs"
 
 
-def test_the_time_a_station_stays_on_the_map_is_fixed_and_what_an_earlier_version_stored_is_ignored() -> None:
-    assert HIDE_AFTER_MIN == 180 and "map/hide_after_min" not in KEYS
+def test_what_an_earlier_version_stored_as_the_time_on_the_map_is_ignored() -> None:
+    assert DEFAULTS.map_station_hours == 3 and "map/hide_after_min" not in KEYS
     with pytest.raises(ValueError, match="map/hide_after_min: no such setting"):
         Config.parse("map/hide_after_min", "30")
     with pytest.raises(ValueError, match="map/hide_after_min: no such setting"):
         Config.checked(DEFAULTS, {"map/hide_after_min": "30"})
     stored = Config.from_data({"map/hide_after_min": "30"})
-    assert not hasattr(stored, "map_hide_after_min") and stored == DEFAULTS, "a stored 30 is ignored: the 180 applies"
+    assert not hasattr(stored, "map_hide_after_min") and stored == DEFAULTS, "a stored 30 is ignored: the 3 hours of map/station_hours apply"
 
 
 def test_a_stored_watchdog_row_from_before_is_ignored() -> None:

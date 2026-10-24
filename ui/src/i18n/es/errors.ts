@@ -59,6 +59,7 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.setting.not_access_key": "no es una clave de acceso (tres grupos de cuatro dígitos y letras, como k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "tiene caracteres que no son ASCII imprimible",
   "error.setting.not_boolean": "“{value}” no es true ni false",
+  "error.setting.not_among": "{value} no es ninguno de {choices}",
   "error.setting.not_direction": "“{value}” no es omni ni uno de N NE E SE S SW W NW",
   "error.setting.not_globs": "“{value}” no es uno o más patrones absolutos separados por espacios, como /dev/ttyUSB*",
   "error.setting.not_host": "“{value}” no es una dirección ni un nombre",

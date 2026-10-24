@@ -35,5 +35,5 @@ The radios and how to connect each are in [`docs/RADIOS.md`](../RADIOS.md).
 - A **setting** is a row of the database that you change on the page or with `neoaprs db set`.
 - The **radio** is what you transmit with; the **TNC** is the box that turns a packet into sound or the other way, built into some radios; the **rig** is a radio that a program such as Hamlib's rigctld can read the frequency of.
 - A **path** is the list of digipeaters a packet asks to be repeated by. The **route** is what a received packet actually went by, and the **chain** is the same for a message of yours, hop by hop.
-- The **timeout** of a station is how long it stays on the map after its last position: 3 hours, the same for every station.
+- The **timeout** of a station is how long it stays on the map after its last position: 1, 3, 6, 12 or 24 hours as you choose in the Stations tab (3 by default), the same for every station.
 - The **email gateway** is the APRS-IS station `EMAIL-2`.
