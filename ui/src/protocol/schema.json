@@ -1255,6 +1255,10 @@
           "description": "the version of the daemon: a page built for another one loads itself again, once for each version",
           "type": "string"
         },
+        "page": {
+          "description": "the build of the page this daemon serves, the name of its main script (`index-<hash>.js` of assets/): a page of another build loads itself again, once for each build, so that a page left open picks up a new one of the same version; empty when the daemon has no built page",
+          "type": "string"
+        },
         "install": {
           "$ref": "#/$defs/InstallInfo",
           "description": "how this daemon was installed, for the steps of an update"
@@ -1271,6 +1275,7 @@
         "type",
         "protocol",
         "version",
+        "page",
         "install",
         "topics"
       ],

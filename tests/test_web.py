@@ -983,3 +983,11 @@ async def test_a_station_row_says_when_the_station_was_last_heard_direct(tmp_pat
     assert direct.last_direct_at == iso(e.now()) and direct.heard_direct == 1 and far.last_direct_at is None
     assert page.topics["stations"]["OH2GBA"]["last_direct_at"] is None
     await e.stop()
+
+
+def test_the_page_build_is_the_main_script_of_the_page_served(tmp_path: Path) -> None:
+    from neoaprs.web.server import PAGE_DIR, page_build
+    (tmp_path / "index.html").write_text('<script type="module" crossorigin src="./assets/index-DefyaO5x.js"></script>', encoding="utf-8")
+    assert page_build(tmp_path) == "index-DefyaO5x.js"
+    assert page_build(tmp_path / "nothing") == ""
+    assert page_build(PAGE_DIR).startswith("index-") and (PAGE_DIR / "assets" / page_build(PAGE_DIR)).is_file()

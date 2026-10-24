@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+Pages that keep up.
+
+- A page left open loads itself again when the daemon it reconnects to serves another build of the page, not only another version: the daemon names its page's build in `hello` (the new field `page`, the name of the page's main script). Once for each build, as for a version.
+
 The radio hears more.
 
 - The keep-alive asks the TNC whether the radio is there only after 10 quiet minutes (was one minute), and after a random minute or two more. The check takes the TNC out of KISS and back, which deafens it for a few seconds; after one quiet minute it fell again and again on the next beacon of a station that sends one a minute, so a thin hour on the channel became a nearly silent one. A radio switched off is noticed within about 12 minutes; one switched off and on again at once, from the text its TNC prints.
