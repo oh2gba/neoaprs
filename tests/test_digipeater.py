@@ -114,8 +114,14 @@ def test_a_packet_that_came_from_the_internet_is_not_repeated() -> None:
     rig = Rig()
     rig.hear(frame("TCPIP*,WIDE1-1", info=b">a"))
     rig.hear(frame("WIDE1-1,TCPXX*", info=b">b"))
-    rig.hear(frame("WIDE1-1,WIDE2-1", info=b"}OH2ABC>APRS,TCPIP,OH2GBA*:>c"))
     assert rig.tnc.sent == []
+
+
+def test_a_third_party_packet_an_igate_puts_on_the_air_is_repeated_the_tcpip_inside_it_does_not_count() -> None:
+    rig = Rig()
+    info = b"}OH2XYZ>APRS,TCPIP,OH7JHF-1*::OH2GBA-7 :hi{12"
+    rig.hear(frame("WIDE1-1", source="OH7JHF-1", info=info))
+    assert rig.lines() == [f"OH7JHF-1>APRS,OH2GBA*:{info.decode()}"]
 
 
 def test_nogate_and_rfonly_keep_a_packet_off_the_internet_not_off_the_radio() -> None:

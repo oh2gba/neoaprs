@@ -141,7 +141,7 @@ Nothing else is repeated:
 - not a path whose first unused hop is anything else (`WIDE2-1`, `WIDE2-2` and the like are for the digipeaters on a high site);
 - not a packet from your own call, or one that already shows your call as used;
 - not a duplicate: the same source, destination and information field heard or sent in the last 30 seconds, whatever the path;
-- not a packet from the internet: a third-party packet (`}`) or a path with `TCPIP` or `TCPXX`. `NOGATE` and `RFONLY` ask iGates only and are repeated.
+- not a packet whose path has `TCPIP` or `TCPXX` (it came from the internet). `NOGATE` and `RFONLY` ask iGates only and are repeated. A third-party packet (`}`, which an iGate sends to put a message from the internet on the air) is repeated like any other: only its own path counts.
 
 The frame is the one that was heard, with only the path changed. It goes through the same checks as every transmission: nothing at all while no call is set or the radio is not usable. A fill-in is of use only at once, so it does not wait for the 10 seconds between your scheduled frames. At most 4 digipeated frames go out in any 10 seconds, and the rest are dropped.
 

@@ -2,9 +2,10 @@
 
 The first digipeater of the path that has not been used yet decides. `WIDE1-1` (the fill-in hop) is replaced by our call marked as used: `OH2XYZ>APRS,WIDE1-1,WIDE2-1` goes out as `OH2XYZ>APRS,OH2GBA*,WIDE2-1`.
 Our own call, with our SSID (a station that routes through us on purpose), is marked as used where it stands. Any other first hop (WIDE2-1, WIDE2-2, another station's call) is not ours to be, and a path with
-no unused hop is finished: nothing is sent. Never sent again: a packet from our own call, one that already shows our call as a used hop, one that came from the internet (third-party traffic, `}`, or a path
-with TCPIP or TCPXX; NOGATE and RFONLY only ask iGates to keep it off the internet, so they are digipeated), and a duplicate: the same source, destination and information field heard or sent by us
-within the last DUPLICATE_SEC, whatever the path. The frame is the one that was heard with only the path changed: source, destination, control, PID and information field are the bytes that arrived.
+no unused hop is finished: nothing is sent. Never sent again: a packet from our own call, one that already shows our call as a used hop, one whose own path says it came from the internet (TCPIP or TCPXX;
+NOGATE and RFONLY only ask iGates to keep it off the internet, so they are digipeated), and a duplicate: the same source, destination and information field heard or sent by us
+within the last DUPLICATE_SEC, whatever the path. A third-party packet (`}`, an iGate putting internet traffic on the air) is repeated like any other: only the path
+before the `}` counts (APRS 1.2, chapter 17), so the TCPIP inside it does not. The frame is the one that was heard with only the path changed: source, destination, control, PID and information field are the bytes that arrived.
 
 Nothing goes while the interlock refuses (no call set: config.can_transmit) or the radio is not usable. A fill-in is of use only at once, so it does not wait for the sender's pause (services/sender.py) of
 ten seconds between our scheduled frames; instead at most BURST_MAX digipeated frames go out in any BURST_WINDOW_SEC and the rest are dropped (the TNC's own channel access still decides when a frame is on the air)."""
@@ -28,7 +29,6 @@ BURST_MAX = 4
 BURST_WINDOW_SEC = 10.0
 FILL_IN = ("WIDE1", 1)
 INTERNET = frozenset({"TCPIP", "TCPXX"})
-THIRD_PARTY = b"}"
 _SEEN_MAX = 2000                                    # the most (source, destination, information field) kept for the duplicate check: a channel does not carry more than this in 30 seconds
 
 Key = tuple[str, str, bytes]
@@ -36,7 +36,7 @@ Key = tuple[str, str, bytes]
 
 def repeat(frame: ax25.Frame, ours: tuple[str, int]) -> ax25.Frame | None:
     """The frame as we send it again (only the path differs), or None when it is not ours to repeat: the rules of the module's head, except the duplicate check."""
-    if not frame.is_ui or frame.info.startswith(THIRD_PARTY) or (frame.source.call, frame.source.ssid) == ours:
+    if not frame.is_ui or (frame.source.call, frame.source.ssid) == ours:
         return None
     path = frame.path
     if any(hop.call in INTERNET or (hop.repeated and (hop.call, hop.ssid) == ours) for hop in path):

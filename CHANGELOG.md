@@ -33,6 +33,10 @@ Updating.
 - The Windows installer, run silently by Update now, starts again the app or the daemon on the same data folder.
 - The wire: the topic `update` and the commands `update_now` and `update_cancel`. `NEOAPRS_INSTALL_KIND` simulates an install kind for development.
 
+Closer to the APRS standard.
+
+- The fill-in digipeater repeats a third-party packet (an iGate putting a message from the internet on the air with `WIDE1-1`): only the path before the `}` counts, as APRS 1.2 says. A packet whose own path has `TCPIP` or `TCPXX` is still not repeated.
+
 ## 0.6.7
 
 No new features: the page in seven languages.
