@@ -304,6 +304,10 @@
   color: var(--bad);
   font-weight: 600;
 }
+/* a pin that is on: the pin is filled and in the accent colour */
+.xbtn.pressed {
+  color: var(--accent);
+}
 .conv-item .xbtn {
   align-self: center;
 }

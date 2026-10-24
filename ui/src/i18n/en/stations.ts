@@ -1,8 +1,10 @@
-// The stations area: the station card and its details, the table of stations, the hover card and the marker of the map, the timeout of a station, and the words that say how a station's packets reach us (lib/routes.ts). The names of the APRS
+// The stations area: the station card and its details, the table of stations, the hover card and the marker of the map, and the words that say how a station's packets reach us (lib/routes.ts). The names of the APRS
 // symbols are in symbols.ts (written by scripts/gen-protocol.py from the daemon's list).
 export const stations = {
   "iconbutton.delete": "Delete",
   "iconbutton.close": "Close",
+  "iconbutton.pin": "Pin card",
+  "iconbutton.unpin": "Unpin card",
   "iconbutton.sure": "sure?",
 
   "station.direct.title": "Heard direct",
@@ -104,13 +106,6 @@ export const stations = {
   "station.ask.status": "Asked {call} for its status",
   "station.ask.heard": "Asked {call} what it hears direct",
   "station.ask.trace": "Asked {call} for the route",
-
-  "station.timeout.label": "Hide from map after",
-  "station.timeout.usual": "{timeout} (usual)",
-  "station.timeout.bad": "Whole minutes, or never",
-  "station.timeout.hint": "Minutes, or never; empty for the usual time",
-  "station.timeout.use_default": "Use the default timeout",
-  "station.timeout.never": "never",
 
   "route.direct": "direct",
   "route.via": "via {hops}",

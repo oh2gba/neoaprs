@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // The rest of a station's card, closed until "Details" is opened: how its packets reach us (the path of the latest one as it was sent, how many came direct and by which repeaters, the best route and the path to send by),
 // when it was first heard, the number of packets, and what the daemon decodes beyond the position, a line each: the data extensions (PHG, range, DF, area), the Maidenhead locator of its status, and the telemetry channels with the names and units it defined.
-// A row with nothing to say is left out. It is for the few who want to know; the card says the main facts (components/StationCard.vue), and puts the station's own timeout in the slot, last.
+// A row with nothing to say is left out. It is for the few who want to know; the card says the main facts (components/StationCard.vue).
 import { computed } from "vue";
 import DisclosureBox from "@/components/DisclosureBox.vue";
 import { t } from "@/i18n";
@@ -51,6 +51,5 @@ const best = computed(() => bestText(props.row));
       <dt>{{ t("station.field.packets") }}</dt>
       <dd>{{ row.packets }}</dd>
     </dl>
-    <slot></slot>
   </DisclosureBox>
 </template>

@@ -17,7 +17,7 @@ function calls(wrapper: ReturnType<typeof mount>): string[] {
   return wrapper.findAll("tbody tr td.call").map((td) => td.text());
 }
 
-const never: Aging = { timeouts: new Map(), defaultMin: 0 };
+const never: Aging = { defaultMin: 0 };
 
 function make(selected: string | null = null, aging: Aging = never, stations = rows) {
   return mount(StationsTable, { props: { selected }, global: withDaemon(fakeDaemon({ stations, aging })) });
@@ -134,7 +134,7 @@ describe("StationsTable", () => {
       station("OH2FRESH", { last_heard: ago(30), last_position_at: ago(60) }),
       station("OH2OLD", { last_heard: ago(60), last_position_at: ago(3 * 3600) }),
     );
-    const aging: Aging = { timeouts: new Map([["OH2FRESH", 0]]), defaultMin: 60 };
+    const aging: Aging = { defaultMin: 60 };
     const lines = (wrapper: ReturnType<typeof make>) => wrapper.findAll("tbody tr");
 
     it("stays in the table, dim, with the word timed out after the time it was heard; ours and a fresh one do not have it", () => {

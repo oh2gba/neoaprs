@@ -23,6 +23,8 @@ import type { StationRow } from "@/protocol/protocol";
 const props = defineProps<{
   rows: readonly StationRow[];
   size: SizeClass;
+  /** The calls of the pinned cards (a tablet and a desktop): they stay open past Esc and Close all, and keep their places. */
+  pinned?: readonly string[];
 }>();
 const { now, aging, weatherSeries } = useDaemonContext();
 // (Forget, Message, Edit, ... are the card's own events: they go on)
@@ -34,8 +36,7 @@ const emit = defineEmits<{
   edit: [name: string];
   kill: [name: string];
   message: [call: string];
-  timeout: [call: string, minutes: number];
-  clearTimeout: [call: string];
+  pin: [call: string, on: boolean];
   weather: [call: string, hours: number];
   overflow: [];
 }>();
@@ -74,6 +75,13 @@ const movable = computed(() => props.size !== "phone");
 const placeOf = (call: string): Place | undefined => (movable.value ? places.value[call] : undefined);
 const placeStyle = (place: Place | undefined) => (place ? { left: `${place.x}px`, top: `${place.y}px` } : undefined);
 const drag = useCardDrag(stack, places, () => movable.value);
+const isPinned = (call: string): boolean => props.pinned?.includes(call) ?? false;
+/** A card is pinned where it stands (it gets its place first, so that the cards around it never move it), or its pin is taken away (it stays where it is). */
+function pin(call: string): void {
+  const on = !isPinned(call);
+  if (on) drag.pinHere(call);
+  emit("pin", call, on);
+}
 function resized(): void {
   drag.keepInside();
   fit();
@@ -153,7 +161,9 @@ function tap(): void {
 
 <template>
   <div v-if="rows.length > 1 && size !== 'phone'" class="cards-actions">
-    <button type="button" class="btn small cards-closeall" @click="emit('closeAll')">{{ t("station.cards.close_all") }}</button>
+    <button v-if="rows.some((row) => !isPinned(row.call))" type="button" class="btn small cards-closeall" @click="emit('closeAll')">
+      {{ t("station.cards.close_all") }}
+    </button>
     <button v-if="askable.length > 1" type="button" class="btn small msgbtn cards-message" @click="emit('messageAll', askable)">
       <MessageGlyph :size="14" /> {{ t("station.cards.message_all", { n: askable.length }) }}
     </button>
@@ -189,6 +199,7 @@ function tap(): void {
       :class="{ moved: placeOf(row.call) !== undefined }"
       :style="placeStyle(placeOf(row.call))"
       :movable="movable"
+      :pinned="isPinned(row.call)"
       :row="row"
       :now="now"
       :aging="aging"
@@ -199,8 +210,7 @@ function tap(): void {
       @edit="emit('edit', $event)"
       @kill="emit('kill', $event)"
       @message="emit('message', $event)"
-      @timeout="(call, minutes) => emit('timeout', call, minutes)"
-      @clear-timeout="emit('clearTimeout', $event)"
+      @pin="pin(row.call)"
       @weather="(call, hours) => emit('weather', call, hours)"
     />
   </div>

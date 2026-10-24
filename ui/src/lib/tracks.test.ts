@@ -3,7 +3,7 @@ import { TRAIL_OLDEST, trailOpacity, type Aging } from "@/lib/aging";
 import { trackLines } from "@/lib/tracks";
 import { NOW, ago, station } from "@/test/fixtures";
 
-const aging = (defaultMin: number, own: [string, number][] = []): Aging => ({ timeouts: new Map(own), defaultMin });
+const aging = (defaultMin: number): Aging => ({ defaultMin });
 
 describe("trackLines", () => {
   const moving = station("OH2PU-9", {
@@ -62,8 +62,8 @@ describe("trackLines", () => {
   it("is one line where neighbouring stretches have the same opacity", () => {
     expect(trackLines([long], null, NOW, aging(60 * 24 * 7)).features).toHaveLength(1);
   });
-  it("uses the station's own timeout, and fades every stretch to the faintest long after the timeout", () => {
-    const own = trackLines([long], null, NOW, aging(1440, [["OH2LONG", 5]])).features;
+  it("fades every stretch to the faintest long after the timeout", () => {
+    const own = trackLines([long], null, NOW, aging(5)).features;
     expect(own).toHaveLength(1);
     expect(own[0]?.properties.opacity).toBe(TRAIL_OLDEST);
   });

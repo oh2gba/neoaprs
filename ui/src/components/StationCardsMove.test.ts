@@ -20,6 +20,8 @@ const rect = (left: number, top: number, width: number, height: number): DOMRect
   toJSON: () => ({}),
 });
 const CARD = { width: 340, height: 300 };
+/** Cards that are taller than the others (a card that has grown), by call. */
+let taller: Record<string, number> = {};
 
 const A = station("OH2ZWA", { lat: 60.1, lon: 24.8 });
 const B = station("OH2ZWB", { lat: 60.2, lon: 24.9 });
@@ -28,13 +30,13 @@ const C = station("OH2ZWC", { lat: 60.3, lon: 25 });
 let wrap: HTMLElement;
 
 type Wrapper = VueWrapper<InstanceType<typeof StationCards>>;
-function make(rows = [A, B], size: SizeClass = "desktop"): Wrapper {
+function make(rows = [A, B], size: SizeClass = "desktop", extra: { pinned?: string[] } = {}): Wrapper {
   wrap = document.createElement("div");
   wrap.className = "mapwrap";
   document.body.append(wrap);
   // (the places are the page's, as in the page: a write comes back as the prop only when the page has been drawn again, so a second write at once does not see the first)
   const wrapper: Wrapper = mount(StationCards, {
-    props: { rows, size, places: {}, "onUpdate:places": (places: Places) => void wrapper.setProps({ places }) },
+    props: { rows, size, ...extra, places: {}, "onUpdate:places": (places: Places) => void wrapper.setProps({ places }) },
     global: withDaemon(fakeDaemon()),
     attachTo: wrap,
   });
@@ -46,7 +48,8 @@ beforeEach(() => {
     if (this.classList.contains("mapwrap")) return rect(0, 0, 1200, 800);
     if (this.classList.contains("cardstack")) return rect(10, 84, 1180, 686);
     if (this.classList.contains("card")) {
-      if (this.classList.contains("moved")) return rect(10 + parseFloat(this.style.left), 84 + parseFloat(this.style.top), CARD.width, CARD.height);
+      if (this.classList.contains("moved"))
+        return rect(10 + parseFloat(this.style.left), 84 + parseFloat(this.style.top), CARD.width, taller[this.dataset.call ?? ""] ?? CARD.height);
       const inRow = [...(this.parentElement?.querySelectorAll(":scope > .card:not(.moved)") ?? [])];
       return rect(10 + inRow.indexOf(this) * 348, 770 - CARD.height, CARD.width, CARD.height);
     }
@@ -348,5 +351,122 @@ describe("StationCards: the bottom sheet of a phone", () => {
     drag(wrapper, "OH2ZWA", [100, 600], [200, 400]);
     await wrapper.vm.$nextTick();
     expect(wrapper.findAll(".card.moved")).toHaveLength(1);
+  });
+});
+
+describe("StationCards: a card that grows where it stands", () => {
+  let observers: (() => void)[] = [];
+  beforeEach(() => {
+    observers = [];
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(callback: () => void) {
+          observers.push(callback);
+        }
+        observe(): void {}
+        disconnect(): void {}
+      },
+    );
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    taller = {};
+  });
+  const grow = async (wrapper: Wrapper, height: number, call = "OH2ZWA") => {
+    taller[call] = height;
+    for (const callback of observers) callback();
+    await wrapper.vm.$nextTick();
+  };
+
+  it("is moved up as far as it needs to be whole inside the map, and not further", async () => {
+    const wrapper = make([A]);
+    drag(wrapper, "OH2ZWA", [100, 600], [300, 590]); // (a card at the bottom: top 376 of the row, 460 of the map, its bottom at 760 of 800)
+    await wrapper.vm.$nextTick();
+    expect(style(wrapper, "OH2ZWA").top).toBe("376px");
+    await grow(wrapper, 400);
+    expect(style(wrapper, "OH2ZWA").top).toBe("316px"); // (the map's bottom, 800, less 400, less the row's top, 84)
+    await grow(wrapper, 330);
+    expect(style(wrapper, "OH2ZWA").top).toBe("316px"); // (smaller again: it stays where it is)
+    expect(style(wrapper, "OH2ZWA").left).toBe("200px");
+  });
+
+  it("is put at the top of the map when it is as tall as the map or taller: then it scrolls", async () => {
+    const wrapper = make([A]);
+    drag(wrapper, "OH2ZWA", [100, 600], [300, 590]);
+    await wrapper.vm.$nextTick();
+    await grow(wrapper, 800);
+    expect(style(wrapper, "OH2ZWA").top).toBe("-84px");
+    await grow(wrapper, 950);
+    expect(style(wrapper, "OH2ZWA").top).toBe("-84px");
+  });
+
+  it("moves no other card when one grows", async () => {
+    const wrapper = make([A, B]);
+    drag(wrapper, "OH2ZWB", [400, 600], [460, 590]);
+    await wrapper.vm.$nextTick();
+    const before = style(wrapper, "OH2ZWA");
+    await grow(wrapper, 500, "OH2ZWB");
+    expect(style(wrapper, "OH2ZWB").top).toBe("216px");
+    expect(style(wrapper, "OH2ZWA")).toEqual(before);
+  });
+
+  it("may be as tall as the map, not only as tall as the row", () => {
+    expect(cssRule(".cardstack .card.moved")).toContain("max-height: calc(100% + 114px)");
+  });
+});
+
+describe("StationCards: pinned cards", () => {
+  const pinOf = (wrapper: Wrapper, call: string) => card(wrapper, call).find("button[aria-label='Pin card']");
+
+  it("pins a card where it stands: its place is kept first, and then the pin is asked for; the pin is shown as pressed", async () => {
+    const wrapper = make([A, B]);
+    await pinOf(wrapper, "OH2ZWB").trigger("click");
+    expect(wrapper.emitted("update:places")?.at(-1)).toEqual([{ OH2ZWB: { x: 348, y: 386 } }]);
+    expect(wrapper.emitted("pin")).toEqual([["OH2ZWB", true]]);
+    expect(card(wrapper, "OH2ZWB").classes()).toContain("moved");
+    expect(card(wrapper, "OH2ZWA").classes()).not.toContain("moved");
+    await wrapper.setProps({ pinned: ["OH2ZWB"] });
+    expect(pinOf(wrapper, "OH2ZWB").attributes("aria-pressed")).toBe("true");
+    expect(pinOf(wrapper, "OH2ZWA").attributes("aria-pressed")).toBe("false");
+    await pinOf(wrapper, "OH2ZWB").trigger("click");
+    expect(wrapper.emitted("pin")?.at(-1)).toEqual(["OH2ZWB", false]);
+    expect(style(wrapper, "OH2ZWB")).toEqual({ left: "348px", top: "386px" }); // (unpinned, it stays where it is)
+  });
+
+  it("keeps the place a card was moved to when it is pinned", async () => {
+    const wrapper = make([A]);
+    drag(wrapper, "OH2ZWA", [100, 600], [300, 400]);
+    await wrapper.vm.$nextTick();
+    await pinOf(wrapper, "OH2ZWA").trigger("click");
+    expect(wrapper.emitted("update:places")?.at(-1)).toEqual([{ OH2ZWA: { x: 200, y: 186 } }]);
+  });
+
+  it("has Close all only while a card is not pinned", async () => {
+    const wrapper = make([A, B], "desktop", { pinned: ["OH2ZWA"] });
+    expect(wrapper.find(".cards-closeall").exists()).toBe(true);
+    await wrapper.setProps({ pinned: ["OH2ZWA", "OH2ZWB"] });
+    expect(wrapper.find(".cards-closeall").exists()).toBe(false);
+  });
+
+  it("has no pin on a phone", () => {
+    expect(make([A], "phone").find("button[aria-label='Pin card']").exists()).toBe(false);
+  });
+
+  it("opens a new card in the first free place, never on a pinned card or where one stood", async () => {
+    const wrapper = make([A]);
+    await pinOf(wrapper, "OH2ZWA").trigger("click"); // (it stands at the left of the row, y = 386)
+    await wrapper.setProps({ pinned: ["OH2ZWA"], rows: [A, B] });
+    expect(style(wrapper, "OH2ZWB")).toEqual({ left: "348px", top: "386px" });
+    await wrapper.setProps({ rows: [A, B, C] });
+    expect(style(wrapper, "OH2ZWC")).toEqual({ left: "696px", top: "386px" });
+  });
+
+  it("keeps a pinned card and its place when the other cards close", async () => {
+    const wrapper = make([A, B]);
+    await pinOf(wrapper, "OH2ZWA").trigger("click");
+    await wrapper.setProps({ pinned: ["OH2ZWA"], rows: [A] });
+    expect(style(wrapper, "OH2ZWA")).toEqual({ left: "0px", top: "386px" });
+    expect(wrapper.emitted("update:places")?.at(-1)?.[0]).toHaveProperty("OH2ZWA");
   });
 });

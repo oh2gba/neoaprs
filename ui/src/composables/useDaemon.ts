@@ -60,6 +60,7 @@ function useWholeTopics() {
 
 export function useDaemon(url: () => string = socketUrl) {
   const stations = shallowReactive(new Map<string, StationRow>());
+  const stationsLoaded = ref(false); // the daemon has told the stations once: `stations` is then what was there, not a part of it
   const packets = shallowReactive(new Map<string, PacketRow>());
   const messages = shallowReactive(new Map<string, MessageRow>());
   const messagesLoaded = ref(false); // the daemon has told the messages once: `messages` is then what was there, not a part of it
@@ -83,7 +84,7 @@ export function useDaemon(url: () => string = socketUrl) {
     },
     status: (message) => (status.value = message),
     error: ({ cmd, key, code, params, text }) => (lastError.value = { cmd, key, code, params, text, n: ++toasts }),
-    replaceStations: (rows) => fill(stations, rows),
+    replaceStations: (rows) => fill(stations, rows, stationsLoaded),
     replacePackets: (rows) => fill(packets, rows),
     replaceMessages: (rows) => fill(messages, rows, messagesLoaded),
     replaceBulletins: (rows) => fill(bulletins, rows),
@@ -118,6 +119,7 @@ export function useDaemon(url: () => string = socketUrl) {
 
   return {
     stations,
+    stationsLoaded,
     packets,
     messages,
     messagesLoaded,

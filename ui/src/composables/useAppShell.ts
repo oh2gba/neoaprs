@@ -57,7 +57,7 @@ function useDerived(daemon: ReturnType<typeof useDaemon>) {
     prefs,
     now: useNow(),
     dark: useDark(),
-    aging: computed<Aging>(() => ({ timeouts: prefs.timeouts.value, defaultMin: DEFAULT_TIMEOUT_MIN })),
+    aging: computed<Aging>(() => ({ defaultMin: DEFAULT_TIMEOUT_MIN })),
     call: computed<string | null>(() => config.value?.values["station/call"] ?? status.value?.call ?? null),
     home: useHome(config, status),
     fallbackPath: computed(() => {
@@ -128,7 +128,7 @@ export function useAppShell() {
     },
     blocked: escBlocked,
   });
-  const cards = useStationCards(derived.stations, send, layout, escBlocked);
+  const cards = useStationCards(derived.stations, send, layout, escBlocked, daemon.stationsLoaded);
   // the notices (a toast that is no error) and what the menu of a row of the Stations table sends or copies
   const { notice, say } = useNotice();
   const stationActions = useStationActions(send, say);

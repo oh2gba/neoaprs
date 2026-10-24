@@ -22,7 +22,7 @@ const props = (extra = {}) => ({
   home: { lat: 60.17, lon: 24.94 },
   now: NOW,
   dark: false,
-  aging: { timeouts: new Map(), defaultMin: 0 },
+  aging: { defaultMin: 0 },
   ...extra,
 });
 const drawn = (): Feature[] => (FakeMap.last().getSource("route")?.setData.mock.calls.at(-1)?.[0] as { features: Feature[] }).features;
