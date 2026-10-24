@@ -6,6 +6,10 @@ The Stations list.
 
 - The tickbox **with position only** is gone: the stations without a position show as they do with it off.
 
+The Email tab.
+
+- **Esc** in the box to write a mail closes the list of addresses used before; with none open, it clears the address and the text being written.
+
 ## 0.7.0
 
 The page in seven languages, an update you can start from the page, a menu on the Stations list with APRS queries, messages that choose their own path, station cards you can move, and closer to the APRS standard.

@@ -1,5 +1,5 @@
 import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import EmailCompose from "@/components/EmailCompose.vue";
 
 function box(extra: Record<string, unknown> = {}) {
@@ -133,6 +133,37 @@ describe("EmailCompose: the addresses used before", () => {
     await wrapper.setProps({ addresses: [] });
     await wrapper.find("#mail-to").trigger("focus");
     expect(wrapper.find(".suggestions").exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("closes the list with the first Esc and clears the address and the text with the next, which goes no further", async () => {
+    const wrapper = box({ addresses: used });
+    const outside = vi.fn();
+    document.addEventListener("keydown", outside);
+    await wrapper.find("#mail-to").setValue("e");
+    await wrapper.find("#mail-text").setValue("Hello");
+    await wrapper.find("#mail-to").trigger("focus");
+    expect(wrapper.find(".suggestions").exists()).toBe(true);
+    await wrapper.find("form").trigger("keydown", { key: "Escape" });
+    expect(wrapper.find(".suggestions").exists()).toBe(false);
+    expect(value(wrapper, "#mail-to")).toBe("e");
+    expect(value(wrapper, "#mail-text")).toBe("Hello");
+    await wrapper.find("form").trigger("keydown", { key: "Escape" });
+    expect(value(wrapper, "#mail-to")).toBe("");
+    expect(value(wrapper, "#mail-text")).toBe("");
+    expect(send(wrapper).attributes("disabled")).toBeDefined();
+    expect(outside).not.toHaveBeenCalled();
+    document.removeEventListener("keydown", outside);
+    wrapper.unmount();
+  });
+
+  it("clears with the first Esc when there is nothing to suggest", async () => {
+    const wrapper = box();
+    await wrapper.find("#mail-to").setValue("jane@example.com");
+    await wrapper.find("#mail-text").setValue("Hello");
+    await wrapper.find("form").trigger("keydown", { key: "Escape" });
+    expect(value(wrapper, "#mail-to")).toBe("");
+    expect(value(wrapper, "#mail-text")).toBe("");
     wrapper.unmount();
   });
 
