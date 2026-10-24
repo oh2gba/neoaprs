@@ -237,3 +237,7 @@ described in `neoaprs/migrations.py` and `neoaprs/migrations2.py`; how the datab
 system sent is worked out by the process in `neoaprs/cli/installkind.py` and given to the controller; the `hello` message carries it so the page can say how to
 update. The page loads itself again when its built-in version differs from the one in `hello`; the daemon serves `index.html` with `no-cache` and the other
 files by the hash of their content.
+
+**Update now** (`neoaprs/services/selfupdate.py`) is the update the daemon does itself on the page's `update_now`, for the Windows installer and an AppImage:
+the release's file and `SHA256SUMS` of the announced version from GitHub, the SHA-256 checked, then the installer of the kind (`neoaprs/services/selfinstall.py`)
+and the restart; the topic `update` tells its steps. The flow and its safety checks are in [development.md](development.md#update-now).

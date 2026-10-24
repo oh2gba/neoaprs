@@ -102,6 +102,11 @@
 .updatedialog-news p {
   margin: 0 0 8px;
 }
+/* (a link that is a button: its words in the middle of it, at a finger's height too) */
+.updatedialog a.btn {
+  display: inline-flex;
+  align-items: center;
+}
 .updatedialog-now {
   display: flex;
   flex-wrap: wrap;
@@ -144,8 +149,10 @@
 .updatesteps li {
   margin: 8px 0;
 }
-.updatesteps-file {
-  display: table;
+.updatedialog a.updatesteps-file {
+  display: flex;
+  width: fit-content;
+  max-width: 100%;
   margin-top: 4px;
   overflow-wrap: anywhere;
 }
