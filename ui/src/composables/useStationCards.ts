@@ -1,5 +1,5 @@
 // The station cards as the page runs them: the stations whose cards are open (composables/useSelection.ts, as many as the size of the window has room for), Esc, which closes them all, and the clicks of the map and of the table. A click on a marker is its card
-// alone, or with Ctrl (Cmd) held added to the open ones (a card the user has moved out of the row, `places`, does not count against the room of the row); the map itself lets go of all of them. A click on a row of the table does the same, and a phone, which shows the tab or the map, shows the map with the card.
+// alone, or with Ctrl (Cmd) held added to the open ones; the map itself lets go of all of them. A click on a row of the table does the same, and a phone, which shows the tab or the map, shows the map with the card.
 import { ref, type Ref } from "vue";
 import { useCardEsc } from "@/composables/useCardEsc";
 import type { Places } from "@/composables/useCardDrag";
@@ -15,7 +15,7 @@ export function useStationCards(
 ) {
   // where the cards the user has moved stand (components/StationCards.vue keeps them in step with the open cards); only for the session, and not on a phone, whose card is a sheet
   const places = ref<Places>({});
-  const cards = useSelection(stations, send, layout.capacity, () => (layout.phone.value ? [] : Object.keys(places.value)));
+  const cards = useSelection(stations, send, layout.capacity);
   useCardEsc(cards.closeAll, blocked);
 
   function onMarker(call: string | null, multi = false): void {
