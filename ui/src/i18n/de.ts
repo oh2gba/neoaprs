@@ -453,10 +453,10 @@ export const de: Catalogue = {
 
   "station.timeout.label": "Von der Karte ausblenden nach",
   "station.timeout.usual": "{timeout} (üblich)",
-  "station.timeout.bad": "Ganze Minuten oder never",
-  "station.timeout.hint": "Minuten oder never; leer für die übliche Zeit",
+  "station.timeout.bad": "Ganze Minuten oder nie",
+  "station.timeout.hint": "Minuten oder nie; leer für die übliche Zeit",
   "station.timeout.use_default": "Standard-Zeitüberschreitung verwenden",
-  "station.timeout.never": "never",
+  "station.timeout.never": "nie",
 
   "route.direct": "direkt",
   "route.via": "über {hops}",
@@ -474,6 +474,8 @@ export const de: Catalogue = {
 
   // map
   "map.label": "Karte der Stationen",
+  "map.zoom_in": "Vergrößern",
+  "map.zoom_out": "Verkleinern",
   "map.download": "Herunterladen",
   "map.note.no_basemap": "Keine Basiskarte",
   "map.note.no_detail": "Keine Detailkarte",

@@ -191,6 +191,19 @@ function pickAt(lat: number, lon: number): void {
   void nextTick(() => (clicked = false)); // after the update the click causes
 }
 
+/** The words of the map engine's own controls in the page's language (it has English only): the zoom buttons and the label of its canvas. Said again when the language changes. */
+function labelControls(): void {
+  const label = (selector: string, text: string): void => {
+    const el = host.value?.querySelector(selector);
+    el?.setAttribute("aria-label", text);
+    if (el?.hasAttribute("title")) el.setAttribute("title", text);
+  };
+  label(".maplibregl-ctrl-zoom-in", t("map.zoom_in"));
+  label(".maplibregl-ctrl-zoom-out", t("map.zoom_out"));
+  label(".maplibregl-canvas", t("map.label"));
+}
+watch(() => [t("map.zoom_in"), t("map.zoom_out"), t("map.label")], labelControls);
+
 function showLabels(): void {
   host.value?.classList.toggle("labels-off", (map?.getZoom() ?? OPEN_ZOOM) < LABELS_FROM_ZOOM);
 }
@@ -228,6 +241,7 @@ async function create(): Promise<void> {
   }
   map.touchZoomRotate.disableRotation();
   map.addControl(new engine.NavigationControl({ showCompass: false }), "top-left");
+  labelControls();
   map.on("style.load", addLayers);
   map.on("movestart", () => hover?.hide());
   map.on("click", onClick);

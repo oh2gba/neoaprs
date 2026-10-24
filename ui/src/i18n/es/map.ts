@@ -3,6 +3,8 @@ import type { Message } from "@/i18n/message";
 
 export const map: Readonly<Record<keyof typeof en, Message>> = {
   "map.label": "Mapa de las estaciones",
+  "map.zoom_in": "Acercar",
+  "map.zoom_out": "Alejar",
   "map.download": "Descargar",
   "map.note.no_basemap": "Sin mapa base",
   "map.note.no_detail": "Sin mapa detallado",

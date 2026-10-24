@@ -143,9 +143,9 @@ One line under the field says what the messages go by:
 - **Automatic: via OH2RDG,OH2RCH-2, then WIDE2-1**: the heard path for attempts 1 and 2, then the beacon's.
 - **Automatic: direct, then WIDE2-1**: the station is heard direct.
 - **Automatic: WIDE2-1**: nothing good was heard.
-
-(`WIDE2-1` is the recommended path of a fixed station, as in these examples; a moving station's is `WIDE1-1,WIDE2-1`.)
 - **Your path: ...** when you set one.
+
+`WIDE2-1` is the recommended path of a fixed station, as in these examples; a moving station's is `WIDE1-1,WIDE2-1`.
 
 The line is worked out when the station's row is sent, so it follows the station's next packet.
 

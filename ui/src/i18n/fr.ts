@@ -441,10 +441,10 @@ export const fr: Catalogue = {
 
   "station.timeout.label": "Masquer de la carte après",
   "station.timeout.usual": "{timeout} (habituel)",
-  "station.timeout.bad": "Minutes entières, ou never",
-  "station.timeout.hint": "Minutes, ou never ; vide pour la durée habituelle",
+  "station.timeout.bad": "Minutes entières, ou jamais",
+  "station.timeout.hint": "Minutes, ou jamais ; vide pour la durée habituelle",
   "station.timeout.use_default": "Utiliser le délai par défaut",
-  "station.timeout.never": "never",
+  "station.timeout.never": "jamais",
 
   "route.direct": "direct",
   "route.via": "via {hops}",
@@ -462,6 +462,8 @@ export const fr: Catalogue = {
 
   // map
   "map.label": "Carte des stations",
+  "map.zoom_in": "Zoom avant",
+  "map.zoom_out": "Zoom arrière",
   "map.download": "Télécharger",
   "map.note.no_basemap": "Pas de fond de carte",
   "map.note.no_detail": "Pas de carte détaillée",

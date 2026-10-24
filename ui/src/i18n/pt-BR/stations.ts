@@ -109,10 +109,10 @@ export const stations: Record<keyof typeof source, Message> = {
 
   "station.timeout.label": "Ocultar do mapa após",
   "station.timeout.usual": "{timeout} (padrão)",
-  "station.timeout.bad": "Minutos inteiros, ou never",
-  "station.timeout.hint": "Minutos, ou never; vazio para o tempo padrão",
+  "station.timeout.bad": "Minutos inteiros, ou nunca",
+  "station.timeout.hint": "Minutos, ou nunca; vazio para o tempo padrão",
   "station.timeout.use_default": "Usar o tempo limite padrão",
-  "station.timeout.never": "never",
+  "station.timeout.never": "nunca",
 
   "route.direct": "direto",
   "route.via": "via {hops}",

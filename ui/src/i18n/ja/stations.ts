@@ -109,10 +109,10 @@ export const stations: Record<keyof typeof source, Message> = {
 
   "station.timeout.label": "地図から隠すまでの時間",
   "station.timeout.usual": "{timeout}(既定)",
-  "station.timeout.bad": "整数の分、または never",
-  "station.timeout.hint": "分、または never。空欄は既定の時間",
+  "station.timeout.bad": "整数の分、または無期限",
+  "station.timeout.hint": "分、または無期限。空欄は既定の時間",
   "station.timeout.use_default": "既定のタイムアウトを使う",
-  "station.timeout.never": "never",
+  "station.timeout.never": "無期限",
 
   "route.direct": "直接",
   "route.via": "{hops} 経由",

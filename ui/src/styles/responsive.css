@@ -156,6 +156,14 @@ button,
   display: none;
 }
 
+/* the access key on a phone has the whole line, with its button under it: the key is long, and a longer word for the button (in another language) would leave it a few letters */
+.size-phone .field-control:has(#set-web-key) {
+  flex-wrap: wrap;
+}
+.size-phone .field-control:has(#set-web-key) #set-web-key {
+  flex: 1 1 100%;
+}
+
 /* phone: the station card is a bottom sheet, part of the screen: folded to its head and the first facts, a tap or a swipe up on its grip opens it, a swipe down folds it (and closes the folded one) */
 .size-phone .cardstack {
   top: auto;

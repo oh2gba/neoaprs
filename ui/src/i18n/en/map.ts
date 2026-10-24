@@ -1,6 +1,8 @@
 // The map: its notes, its credits, the bar that asks for a place on it.
 export const map = {
   "map.label": "Map of the stations",
+  "map.zoom_in": "Zoom in",
+  "map.zoom_out": "Zoom out",
   "map.download": "Download",
   "map.note.no_basemap": "No base map",
   "map.note.no_detail": "No detailed map",

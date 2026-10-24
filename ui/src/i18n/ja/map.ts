@@ -4,6 +4,8 @@ import type { Message } from "@/i18n/message";
 
 export const map: Record<keyof typeof source, Message> = {
   "map.label": "局の地図",
+  "map.zoom_in": "拡大",
+  "map.zoom_out": "縮小",
   "map.download": "ダウンロード",
   "map.note.no_basemap": "ベースマップなし",
   "map.note.no_detail": "詳細地図なし",
