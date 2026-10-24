@@ -120,6 +120,8 @@ describe("draftProblems and draftReady", () => {
   it("reads a path as the settings do: up to eight calls separated by commas, empty for the beacon's", () => {
     expect(draftProblems(ready({ path: "wide1-1, wide2-1" }))).toEqual({});
     expect(draftProblems(ready({ path: "WIDE1-1,,BAD CALL" })).path).toBe("Calls separated by commas, at most 8");
+    expect(draftProblems(ready({ path: "direct" }))).toEqual({});
+    expect(draftProblems(ready({ path: "DIRECT,WIDE1-1" })).path).toBe("Calls separated by commas, at most 8");
   });
 });
 
@@ -143,6 +145,10 @@ describe("objectCommand", () => {
   it("leaves the course, the speed and the path null when they are empty", () => {
     expect(objectCommand(ready())).toMatchObject({ course_deg: null, speed_kmh: null, path: null, comment: "" });
     expect(objectCommand(ready({ course: "0" }))).toMatchObject({ course_deg: 0 });
+  });
+
+  it("says no digipeaters with the word DIRECT, never with an empty path", () => {
+    expect(objectCommand(ready({ path: " direct " }))).toMatchObject({ path: "DIRECT" });
   });
 
   it("is none while the draft is not ready", () => {

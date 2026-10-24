@@ -16,12 +16,17 @@ describe("useHeardIndex", () => {
     expect(stations.value.get("OH2PU-9")?.symbol_code).toBe(">");
   });
 
-  it("has the path the daemon suggests for each station, and the stations that were heard direct", () => {
-    const heard = rows(station("OH2PU-9", { suggested_path: "OH2RCH-2", heard_direct: 2 }), station("OH2RDG", { suggested_path: null }));
-    const { suggestions, heardDirect } = useHeardIndex(heard, shallowRef(null));
-    expect([...suggestions.value]).toEqual([
+  it("has the path lately heard to reach each station, and the stations that were heard direct", () => {
+    const heard = rows(
+      station("OH2PU-9", { heard_path: "OH2RCH-2", heard_direct: 2 }),
+      station("OH2RDG", { heard_path: null }),
+      station("OH2XYZ", { heard_path: "" }),
+    );
+    const { heardPaths, heardDirect } = useHeardIndex(heard, shallowRef(null));
+    expect([...heardPaths.value]).toEqual([
       ["OH2PU-9", "OH2RCH-2"],
       ["OH2RDG", null],
+      ["OH2XYZ", ""],
     ]);
     expect([...heardDirect.value]).toEqual(["OH2PU-9"]);
   });

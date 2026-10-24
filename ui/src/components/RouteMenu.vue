@@ -8,8 +8,8 @@ import { usePopup } from "@/composables/usePopup";
 import { effectivePath } from "@/lib/messages";
 
 const props = withDefaults(
-  defineProps<{ call: string; paths: ReadonlyMap<string, string>; fallbackPath: string; rfOnly?: ReadonlySet<string>; suggested?: string | null }>(),
-  { rfOnly: () => new Set<string>(), suggested: null },
+  defineProps<{ call: string; paths: ReadonlyMap<string, string>; fallbackPath: string; rfOnly?: ReadonlySet<string>; heard?: string | null }>(),
+  { rfOnly: () => new Set<string>(), heard: null },
 );
 const emit = defineEmits<{ path: [call: string, path: string]; clearPath: [call: string]; setRfOnly: [call: string, on: boolean] }>();
 
@@ -45,7 +45,7 @@ watch(
         :paths="paths"
         :fallback-path="fallbackPath"
         :rf-only="rfOnly"
-        :suggested="suggested"
+        :heard="heard"
         @path="(c, p) => emit('path', c, p)"
         @clear-path="emit('clearPath', $event)"
         @set-rf-only="(c, on) => emit('setRfOnly', c, on)"

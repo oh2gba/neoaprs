@@ -2,7 +2,7 @@
 // number from going to the daemon. Every figure is LIMITS (the daemon's own constants); the rules that are code are held to the daemon's by ui/src/protocol/vectors.json. The daemon checks every value again against the settings
 // in force (and the rules between settings: the comment against the power, the status against the rigctld, the port against the radio type); its refusal is shown under the field.
 import { t } from "@/i18n";
-import { baseCall, mayTransmitAs, normalizeCall, parsePath, placeholderCall } from "@/lib/calls";
+import { baseCall, mayTransmitAs, normalizeCall, parsePathSetting, placeholderCall } from "@/lib/calls";
 import { LIMITS, SYMBOL_TABLES } from "@/protocol/lists";
 
 /** The whole numbers the daemon limits, by setting: whether an empty field is a value (none, or the profile's own). */
@@ -77,7 +77,7 @@ export function problemOf(key: string, text: string, quiet = false): string {
     case "tcp/host":
       return (text.trim() === "" && !quiet) || /\s/.test(text.trim()) ? t("settings.check.not_address") : "";
     case "beacon/path":
-      return parsePath(text) === null ? t("settings.check.path", { max: LIMITS.path.maxCalls }) : "";
+      return parsePathSetting(text) === null ? t("settings.check.path", { max: LIMITS.path.maxCalls }) : "";
     default:
       return "";
   }

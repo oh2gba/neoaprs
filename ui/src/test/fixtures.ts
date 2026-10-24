@@ -65,6 +65,7 @@ export function station(call: string, extra: Partial<StationRow> = {}): StationR
     heard_via: [["OH2RCH-2", 3]],
     best_route: "via OH2RCH-2",
     suggested_path: "OH2RCH-2",
+    heard_path: null,
     distance_km: 10,
     bearing_deg: 45,
     is_me: false,

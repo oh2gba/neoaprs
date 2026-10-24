@@ -30,8 +30,10 @@ describe("beaconText", () => {
   it("is the packet of the default settings", () => {
     expect(beaconText(settings())).toBe("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=6010.20N/02456.40E-NeoAPRS");
   });
-  it("follows the form: the call in capitals, no path, the path as typed", () => {
-    expect(beaconText(settings({ "station/call": "oh2gba-9", "beacon/path": "", "station/comment": "" }))).toBe("OH2GBA-9>APZNEO:=6010.20N/02456.40E-");
+  it("follows the form: the call in capitals, no path (DIRECT), the path as typed, the recommended one when it is empty", () => {
+    expect(beaconText(settings({ "station/call": "oh2gba-9", "beacon/path": "direct", "station/comment": "" }))).toBe("OH2GBA-9>APZNEO:=6010.20N/02456.40E-");
+    expect(beaconText(settings({ "beacon/path": "" }))).toBe("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=6010.20N/02456.40E-NeoAPRS");
+    expect(beaconText(settings({ "beacon/path": "DIRECT,WIDE1-1" }))).toBeNull();
     expect(beaconText(settings({ "beacon/path": " wide1-1 , " }))).toBe("OH2GBA>APZNEO,WIDE1-1:=6010.20N/02456.40E-NeoAPRS");
   });
   it("has the PHG after the symbol when there is a power", () => {
@@ -65,7 +67,7 @@ describe("statusText", () => {
   const at = new Date("2026-10-21T12:07:00Z");
   it("is the report of a text of our own: the same header, `>`, the day, hour and minute in UTC with a z, then the text", () => {
     expect(statusText(settings({ "station/status": "On the road, QRV 145.500" }), at)).toBe("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:>211207zOn the road, QRV 145.500");
-    expect(statusText(settings({ "station/status": "x", "station/call": "oh2gba-9", "beacon/path": "" }), new Date("2026-11-03T04:05:00Z"))).toBe(
+    expect(statusText(settings({ "station/status": "x", "station/call": "oh2gba-9", "beacon/path": "DIRECT" }), new Date("2026-11-03T04:05:00Z"))).toBe(
       "OH2GBA-9>APZNEO:>030405zx",
     );
   });

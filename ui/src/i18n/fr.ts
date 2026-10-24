@@ -200,8 +200,12 @@ export const fr: Catalogue = {
   "route.path": "Chemin",
   "route.calls_hint": "Indicatifs séparés par des virgules, {max} au plus",
   "route.default": "(par défaut)",
-  "route.use_default": "Utiliser le chemin par défaut",
-  "route.suggested": "suggéré : {path}",
+  "route.use_auto": "Chemin automatique",
+  "route.automatic": "automatique",
+  "route.auto": "Automatique : {path}",
+  "route.auto_direct": "Automatique : direct, puis {path}",
+  "route.auto_via": "Automatique : via {heard}, puis {path}",
+  "route.own": "Votre chemin : {path}",
   "route.rf_only": "Radio seulement",
   "route.rf_only_title": "Les iGates ne mettent pas ces messages sur internet",
 
@@ -927,11 +931,14 @@ export const fr: Catalogue = {
     "À quelle fréquence votre position est envoyée. Désactivée n'en envoie aucune d'elle-même ; Balise maintenant en envoie quand même une. Chaque balise occupe le canal pour tous les environs, donc 30 minutes est un bon choix pour une station qui reste en place ; {min} est le minimum.",
   "settings.path.name": "Chemin de la balise",
   "settings.path.label": "Chemin",
-  "settings.path.empty": "direct",
+  "settings.path.recommended": "Recommandé ({path})",
+  "settings.path.direct": "Direct seulement (sans digipeater)",
+  "settings.path.custom": "Personnalisé…",
+  "settings.path.custom_label": "Digipeaters",
   "settings.path.tip1":
-    "Les digipeaters, les stations qui répètent votre paquet pour qu'il aille plus loin, dans l'ordre où il doit les utiliser, séparés par des virgules. Vide envoie en direct, sans aide.",
+    "Les digipeaters, les stations qui répètent votre paquet pour qu'il aille plus loin, par lesquels passent votre balise et vos objets. Le choix recommandé convient à la plupart : un petit digipeater proche prend le paquet en premier et un digipeater à grande portée le transmet. Choisissez Direct seulement si tous ceux à qui vous parlez vous entendent directement.",
   "settings.path.tip2":
-    "WIDE1-1,WIDE2-1 est le choix habituel : un petit digipeater proche prend le paquet en premier et un digipeater à grande portée le transmet. WIDE2-2 va droit aux digipeaters à grande portée, pour une station qu'ils entendent directement, par exemple sur une colline.",
+    "Une station fixe que les digipeaters à grande portée entendent directement, par exemple sur une colline, peut utiliser WIDE2-1 ou WIDE2-2 comme chemin personnalisé. Les messages choisissent leur propre chemin, sauf si vous en fixez un pour la station.",
 
   "settings.confirm.label": "Confirmer",
   "settings.confirm.yes": "Oui",

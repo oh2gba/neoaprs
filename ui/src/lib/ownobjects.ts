@@ -1,7 +1,7 @@
 // Our objects and items as the page handles them: the draft of the form (every field as it is typed), what is wrong with it, the command it makes, and how a row of the list is worded. The daemon checks
 // all of it again (neoaprs/ownobject.py); the page only keeps the user from sending what it would refuse, and says what is wrong in the title of the field.
 import { t } from "@/i18n";
-import { parsePath } from "@/lib/calls";
+import { DIRECT, parsePathSetting } from "@/lib/calls";
 import { untilText } from "@/lib/format";
 import { parseNumber, symbolProblem } from "@/lib/fieldcheck";
 import { degreesText } from "@/lib/setup";
@@ -118,7 +118,7 @@ export function draftProblems(draft: ObjectDraft): DraftProblems {
   set("course", draft.course.trim() === "" || wholeIn(draft.course, 0, COURSE_MAX) ? "" : t("objects.problem.course", { max: COURSE_MAX }));
   const speed = parseNumber(draft.speed);
   set("speed", draft.speed.trim() === "" || (speed !== null && speed >= 0 && speed <= SPEED_MAX_KMH) ? "" : t("objects.problem.speed", { max: SPEED_MAX_KMH }));
-  set("path", parsePath(draft.path) === null ? t("route.calls_hint", { max: LIMITS.path.maxCalls }) : "");
+  set("path", parsePathSetting(draft.path) === null ? t("route.calls_hint", { max: LIMITS.path.maxCalls }) : "");
   return found;
 }
 
@@ -138,7 +138,7 @@ export function objectCommand(draft: ObjectDraft): ObjectCommand | null {
   const lat = parseNumber(draft.lat);
   const lon = parseNumber(draft.lon);
   if (!draftReady(draft) || lat === null || lon === null) return null;
-  const path = parsePath(draft.path) ?? [];
+  const setting = parsePathSetting(draft.path);
   const speed = parseNumber(draft.speed);
   return {
     cmd: "object_set",
@@ -151,7 +151,7 @@ export function objectCommand(draft: ObjectDraft): ObjectCommand | null {
     comment: draft.comment.trim(),
     course_deg: draft.course.trim() === "" ? null : Number(draft.course),
     speed_kmh: speed === null ? null : speed,
-    path: path.length === 0 ? null : path.join(","),
+    path: setting === null || setting.kind === "auto" ? null : setting.kind === "direct" ? DIRECT : setting.calls.join(","),
   };
 }
 

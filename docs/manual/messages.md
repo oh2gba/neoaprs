@@ -111,13 +111,39 @@ Its header has the recipients as chips, each taken out by a click (the last one 
 
 Send makes one ordinary message to each recipient, each with its own id, ack, attempts and conversation, exactly as if sent one by one. They leave one after the other at the pace above. The compose then closes and nothing is opened. What you typed in it is kept apart from the drafts of the conversations.
 
+## How the path of a message is chosen
+
+You do not have to choose. Each attempt of a message to a station picks its path when it is sent:
+
+1. If you gave the station a path of its own (below), every attempt goes by it.
+2. Otherwise, if there is a **good heard path** to the station, attempts 1 and 2 go by it and attempts 3 and 4 by the beacon's path.
+3. Otherwise every attempt goes by the beacon's path (`WIDE1-1,WIDE2-1` unless you changed it).
+
+A heard path is **good** when it is recent and repeated, in plain words:
+
+- The station was heard **direct** (no digipeater repeated its packet) at least twice in the last 60 minutes: the path is then no digipeaters at all.
+- Otherwise, take the latest route by which at least two of its packets came within the last 60 minutes, and send by it turned round (heard "via OH2RCH-1 → OH2RCH-3", send by `OH2RCH-3,OH2RCH-1`). A route with a hop that has no call (`WIDE1*`), a packet that came through an iGate from the internet, or more than 3 digipeaters is never used.
+
+One packet is luck, an hour-old route may be gone, so the choice is made again at every attempt: a route learned while the message is being sent counts for the next attempt, one that has gone stale does not. The message to the email gateway `EMAIL-2`, bulletins and groups, and the answers to queries always go by the beacon's path. The path of each attempt is in the delivery chain of the message (the chips of its details). An ack goes by the station's own path, else the beacon's.
+
+The numbers (60 minutes, 2 packets, 3 digipeaters, 2 attempts) are fixed in the program; they are not settings.
+
 ## A path for each station
 
-A station can have a path of its own: the digipeaters that everything you send to it goes by, which means its messages, their repeats and the acks of the messages it sends you. It is up to 8 digipeater calls separated by commas, checked as the beacon's path is. An empty path is a path of its own, direct with no digipeaters, which is not the same as none set.
+A station can have a path of its own, which overrides the automatic choice: the digipeaters that everything you send to it goes by, which means its messages (every attempt), their repeats and the acks of the messages it sends you. It is up to 8 digipeater calls separated by commas, checked as the beacon's path is, or the word `DIRECT` for no digipeaters at all. An empty field is not a path: it is the automatic choice.
 
-A station without a path has the beacon's (the page writes "(default)"). The path belongs to the call as written, so OH2RDG and OH2RDG-7 have one each. A change counts from the next frame, and a message that is being sent goes on by the new path. The paths are yours, kept in the database apart from the station cache, so they survive a rebuilt cache and a restart.
+The path belongs to the call as written, so OH2RDG and OH2RDG-7 have one each. A change counts from the next frame, and a message that is being sent goes on by the new path. The paths are yours, kept in the database apart from the station cache, so they survive a rebuilt cache and a restart.
 
-Set it in the field under **Route** of a conversation. It is saved when you change the field and leave it (Enter does it). The x beside it takes it away; the placeholder of an empty path is "direct". A **suggested** chip beside the field offers the path NeoAPRS works out ([below](#how-a-packet-reached-us)); a click fills the field and saves it.
+Set it in the field under **Route** of a conversation. It is saved when you change the field and leave it (Enter does it). The x beside the field, or emptying it, gives the choice back to the automatic one.
+
+One line under the field says what the messages go by:
+
+- **Automatic: via OH2RDG,OH2RCH-2, then WIDE1-1,WIDE2-1**: the heard path for attempts 1 and 2, then the beacon's.
+- **Automatic: direct, then WIDE1-1,WIDE2-1**: the station is heard direct.
+- **Automatic: WIDE1-1,WIDE2-1**: nothing good was heard.
+- **Your path: ...** when you set one.
+
+The line is worked out when the station's row is sent, so it follows the station's next packet.
 
 ### RF only
 
@@ -140,7 +166,7 @@ The route is worked out when the packet is heard. It is shown in the Packets tab
 For each station NeoAPRS counts how many of its packets came direct and how many by each route, from the packets heard since the start and the latest 2000 that the database kept. It keeps the 8 most frequent routes of a station. When a ninth comes, the one with the fewest packets goes, the one heard longest ago first.
 
 - The **best route** is the one most packets came by, direct included. With equal counts the one with fewer hops wins, then the one heard last.
-- The **suggested path** is that route turned round, because the station that repeated the packet last, nearest to you, is the first digipeater of a packet you send back. Direct suggests an empty path. "via OH2RCH-2" suggests `OH2RCH-2`. "via OH2RCH-1 → OH2RCH-3" suggests `OH2RCH-3,OH2RCH-1`.
+- The **suggested path** (the Stations card says "send by ...") is that route turned round, because the station that repeated the packet last, nearest to you, is the first digipeater of a packet you send back. Direct suggests an empty path. "via OH2RCH-2" suggests `OH2RCH-2`. "via OH2RCH-1 → OH2RCH-3" suggests `OH2RCH-3,OH2RCH-1`.
 - When the best route has an anonymous hop there is no call to name, and the suggestion is the general `WIDE1-1,WIDE2-1`; the card says "unknown repeater".
 - No route is known for an object or an item, for your own station and for a station none of whose packets are left.
 

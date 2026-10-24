@@ -2,7 +2,7 @@
 // (neoaprs/services/beacon.py): `=` for a station with messaging, the plain position (degrees and minutes to the hundredth), the symbol, the PHG extension when a power is set, then the comment; to the
 // tocall of the program; and the status report that goes with the text status: `>`, the day, hour and minute in UTC and `z`, then the text.
 // The daemon checks the settings again; this only shows what they would make, and null while they do not make a packet.
-import { callList, validCall } from "@/lib/calls";
+import { callList, pathCalls, validCall } from "@/lib/calls";
 import { statusSource } from "@/lib/status";
 import { LIMITS, SYMBOL_TABLES, TOCALL } from "@/protocol/lists";
 
@@ -74,8 +74,8 @@ function validSymbol(table: string, code: string): boolean {
 /** "SRC>DEST,PATH:" of our frames for these settings, or null while the call or a digipeater is none. */
 function header(values: Readonly<Record<string, string>>): string | null {
   const [call = ""] = callList(values["station/call"] ?? "");
-  const path = callList(values["beacon/path"] ?? "");
-  return [call, TOCALL, ...path].every(validCall) ? `${call}>${[TOCALL, ...path].join(",")}:` : null;
+  const path = pathCalls(values["beacon/path"] ?? "");
+  return path !== null && [call, TOCALL, ...path].every(validCall) ? `${call}>${[TOCALL, ...path].join(",")}:` : null;
 }
 
 /** DDHHMM and a z: the time of a status report, in UTC. */

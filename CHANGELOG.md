@@ -10,6 +10,13 @@ The Stations table.
 
 - Each row has, at its right end, an envelope that opens the conversation with the station and a trash can that forgets it (it asks twice, like the card's Forget), so that neither needs the card. The envelope is the one picture of "message" on the page: the header's count of messages not seen and the **Message OH2XYZ** button under an empty result have it too.
 
+The path of a message, and the path settings.
+
+- A message chooses its path by itself, attempt by attempt. If you gave the station no path of its own and it has been heard recently by a good path, attempts 1 and 2 go by that path and attempts 3 and 4 by the beacon's. A good path is: heard **direct** at least twice in the last 60 minutes (no digipeaters), else the latest named route that at least two of its packets came by in the last 60 minutes, turned round (not one with an unnamed hop, one from the internet, or more than 3 digipeaters). The choice is made when each attempt is sent, so a route learned meanwhile counts. A path of the station's own is used for every attempt, as before; RF only still adds `RFONLY`; `EMAIL-2`, bulletins and groups go by the beacon's path. The delivery chain of a message shows the path of each attempt.
+- The **Route** box of a conversation no longer offers a suggested path to click. One line says what is used: **Automatic: via OH2RDG,OH2RCH-2, then WIDE1-1,WIDE2-1**, **Automatic: direct, then WIDE1-1,WIDE2-1**, **Automatic: WIDE1-1,WIDE2-1**, or **Your path: ...** when you set one. An empty field is the automatic choice; the x gives it back; the word **DIRECT** is a path of no digipeaters. (An empty path of a station used to mean direct: stored paths are not changed, only typing an empty one now clears it.)
+- An empty path is never "no digipeaters" again. The Beacon tab's Advanced path is one choice, **Recommended (WIDE1-1,WIDE2-1)**, **Direct only (no digipeaters)** or **Custom...** (a field for the calls, applied on Enter or when it is left). A database whose `beacon/path` was cleared (it meant none) is changed once to Direct only, so that nothing starts to digipeat after the update; `WIDE1-1,WIDE2-1` shows as Recommended, any other path as Custom. In the database an empty `beacon/path` is the recommended path and `DIRECT` is none; the path of an object or item may be `DIRECT` too. The fallback of the automatic choice (attempts 3 and 4, `EMAIL-2`, bulletins, answers to queries) follows the setting.
+- The station row of the wire has a new field `heard_path` (the heard path, null for none). The page's words are in all seven languages.
+
 ## 0.6.7
 
 No new features: the page in seven languages.

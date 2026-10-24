@@ -148,14 +148,22 @@ describe("SettingsForm", () => {
       const advanced = folds(wrapper)[1];
       expect(advanced?.findAll(".field > label").map((l) => l.text())).toEqual(["Path"]);
       expect(advanced?.find(".info-toggle").exists()).toBe(true);
-      expect(advanced?.find<HTMLInputElement>("#set-beacon-path").element.value).toBe("WIDE1-1,WIDE2-1");
+      expect(advanced?.find<HTMLSelectElement>("#set-beacon-path").element.value).toBe("recommended");
+      expect(advanced?.findAll("#set-beacon-path option").map((o) => o.text())).toEqual([
+        "Recommended (WIDE1-1,WIDE2-1)",
+        "Direct only (no digipeaters)",
+        "Custom…",
+      ]);
+      expect(advanced?.find("#set-beacon-path-typed").exists()).toBe(false);
     });
 
     it("works the fields in the folds like the others: a typed one when it is left, a choice at once", async () => {
       const { wrapper, send, daemon } = make({ "beacon/power_w": "5" }, "beacon");
-      await wrapper.find("#set-beacon-path").setValue("WIDE2-2");
+      await wrapper.find("#set-beacon-path").setValue("custom");
       expect(send).not.toHaveBeenCalled();
-      await wrapper.find("#set-beacon-path").trigger("blur");
+      await wrapper.find("#set-beacon-path-typed").setValue("WIDE2-2");
+      expect(send).not.toHaveBeenCalled();
+      await wrapper.find("#set-beacon-path-typed").trigger("blur");
       expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "beacon/path": "WIDE2-2" } });
       await wrapper.find("#set-beacon-antenna_direction").setValue("N");
       expect(send).toHaveBeenCalledTimes(1); // (waits for the answer to the first)
@@ -210,7 +218,6 @@ describe("SettingsForm", () => {
     const { wrapper } = make();
     expect(wrapper.find("#set-serial-baud").attributes("placeholder")).toBe("9600");
     const beacon = make({ "status/source": "text" }, "beacon").wrapper;
-    expect(beacon.find("#set-beacon-path").attributes("placeholder")).toBe("direct");
     expect(beacon.find("#set-beacon-power_w").attributes("placeholder")).toBe("none");
     expect(beacon.find("#set-station-status").attributes("placeholder")).toBe("none");
   });
@@ -460,10 +467,11 @@ describe("SettingsForm", () => {
 
     it("are sent when the field is left, and not while they are typed", async () => {
       const { wrapper, send } = make({}, "beacon");
-      await type(wrapper, "set-beacon-path", "WIDE2-2");
+      await type(wrapper, "set-beacon-path", "custom");
+      await type(wrapper, "set-beacon-path-typed", "WIDE2-2");
       await type(wrapper, "set-station-comment", "Hello");
       expect(send).not.toHaveBeenCalled();
-      await wrapper.find("#set-beacon-path").trigger("blur");
+      await wrapper.find("#set-beacon-path-typed").trigger("blur");
       expect(send).toHaveBeenCalledTimes(1);
       expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "beacon/path": "WIDE2-2" } });
     });
@@ -593,7 +601,8 @@ describe("SettingsForm", () => {
       await wrapper.find("#set-station-comment").setValue("mine");
       await tell(daemon, { config: configValues({ "station/comment": "theirs", "beacon/path": "WIDE2-2" }) });
       expect(wrapper.find<HTMLInputElement>("#set-station-comment").element.value).toBe("mine");
-      expect(wrapper.find<HTMLInputElement>("#set-beacon-path").element.value).toBe("WIDE2-2");
+      expect(wrapper.find<HTMLSelectElement>("#set-beacon-path").element.value).toBe("custom");
+      expect(wrapper.find<HTMLInputElement>("#set-beacon-path-typed").element.value).toBe("WIDE2-2");
     });
   });
 

@@ -24,7 +24,7 @@ const emit = defineEmits<{
   retry: [id: number];
   cancel: [id: number];
 }>();
-const { connected, heardDirect, suggestions, fallbackPath, prefs } = useDaemonContext();
+const { connected, heardDirect, heardPaths, fallbackPath, prefs } = useDaemonContext();
 const { paths, rfOnly } = prefs;
 
 const root = ref<HTMLElement | null>(null);
@@ -52,7 +52,7 @@ onMounted(() => {
         :paths="paths"
         :fallback-path="fallbackPath"
         :rf-only="rfOnly"
-        :suggested="suggestions.get(selected) ?? null"
+        :heard="heardPaths.get(selected) ?? null"
         @path="prefs.setPath"
         @clear-path="prefs.clearPath"
         @set-rf-only="prefs.setRfOnly"

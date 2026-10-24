@@ -67,8 +67,9 @@ describe("App: the Settings tab", () => {
     it("has one queue for the Settings tab and the Beacon tab: the second change waits for the answer to the first", async () => {
       const { wrapper, socket } = await open();
       await wrapper.find("#pane-settings #set-digi-enabled").setValue(true);
-      await wrapper.find("#pane-beacon #set-beacon-path").setValue("WIDE2-2");
-      await wrapper.find("#pane-beacon #set-beacon-path").trigger("blur");
+      await wrapper.find("#pane-beacon #set-beacon-path").setValue("custom");
+      await wrapper.find("#pane-beacon #set-beacon-path-typed").setValue("WIDE2-2");
+      await wrapper.find("#pane-beacon #set-beacon-path-typed").trigger("blur");
       expect(sets(socket)).toEqual([{ cmd: "set_config", values: { "digi/enabled": "true" } }]);
       told(socket, { "digi/enabled": "true" });
       await flushPromises();
