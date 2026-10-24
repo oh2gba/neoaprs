@@ -27,6 +27,14 @@ class DecodedWeather(_Model):
     raw: str = Field(description="the weather fields as they were sent")
 
 
+class TelemetryFields(_Model):
+    """A telemetry report as the parser made it."""
+    sequence: int | None = Field(description="the sequence number; null for the `MIC` of a Mic-E unit")
+    analog: list[float] = Field(description="the analog values as sent, 1 to 5 (APRS 1.2: any width, signed, with a decimal point)")
+    bits: str = Field(description="the digital values as a text of 0 and 1, B1 first: up to eight, empty when there were none")
+    comment: str
+
+
 class PositionFields(_Model):
     """A position as the parser made it: decimal degrees, south and west negative, speed in km/h, altitude in metres."""
     lat: float
@@ -45,6 +53,7 @@ class PositionFields(_Model):
     extensions: ExtensionValues | None = Field(description="the PHG, RNG, DFS, DF bearing or area data after the symbol of an uncompressed position; null when there was none")
     timestamp_local: bool = Field(description="the `timestamp` was sent in the sender's local time (`/`): it is the time as it was sent, not UTC")
     locator: LocatorValues | None = Field(description="the Maidenhead locator in the status text of a Mic-E packet; null for any other position")
+    telemetry: TelemetryFields | None = Field(default=None, description="the base-91 telemetry `|ss11|` the comment carried (APRS 1.2), taken out of the `comment`; null when there was none")
 
 
 class DecodedPosition(PositionFields):
@@ -87,13 +96,9 @@ class DecodedStatus(_Model):
     locator: LocatorValues | None = Field(description="a Maidenhead locator with a symbol at the start of the report (a report that has one has no timestamp)")
 
 
-class DecodedTelemetry(_Model):
+class DecodedTelemetry(TelemetryFields):
     """A telemetry report (`T#005,199,000,255,073,123,01101001`). The definitions of the channels are messages of the station, applied by the daemon: see `telemetry` of the station."""
     type: Literal["telemetry"]
-    sequence: int | None = Field(description="the sequence number; null for the `MIC` of a Mic-E unit")
-    analog: list[float] = Field(description="the five analog values as sent (0 to 255)")
-    bits: str = Field(description="the eight digital values as a text of 0 and 1")
-    comment: str
 
 
 class DecodedOther(_Model):

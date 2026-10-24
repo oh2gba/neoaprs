@@ -304,12 +304,13 @@ class StationBook:
             station.position_messaging = decoded.messaging or (info[:1] in MICE_IDENTIFIERS and info[9:10] != MICE_DUMB)
 
     def _note_telemetry(self, packet: Packet) -> Station | None:
-        """Keeps a telemetry report as its sender's latest, or a definition message as its addressee's; returns the station that gained a definition (to be signalled), if it is in the book."""
+        """Keeps a telemetry report (or the base-91 telemetry in the comment of a position) as its sender's latest, or a definition message as its addressee's; returns the station that gained a definition (to be signalled), if it is in the book."""
         decoded = packet.decoded
-        if isinstance(decoded, Telemetry):
+        report = decoded.telemetry if isinstance(decoded, Position) else decoded
+        if isinstance(report, Telemetry):
             station = self._stations.get(packet.sender)
             if station is not None:
-                station.telemetry, station.telemetry_at = decoded, packet.heard_at
+                station.telemetry, station.telemetry_at = report, packet.heard_at
             return None
         if not isinstance(decoded, Message):
             return None

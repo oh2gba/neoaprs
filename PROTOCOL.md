@@ -646,6 +646,7 @@ A position report.
 | `extensions` | ExtensionValues \| null |  | the PHG, RNG, DFS, DF bearing or area data after the symbol of an uncompressed position; null when there was none |
 | `timestamp_local` | boolean |  | the `timestamp` was sent in the sender's local time (`/`): it is the time as it was sent, not UTC |
 | `locator` | LocatorValues \| null |  | the Maidenhead locator in the status text of a Mic-E packet; null for any other position |
+| `telemetry` | TelemetryFields \| null | optional | the base-91 telemetry `\|ss11\|` the comment carried (APRS 1.2), taken out of the `comment`; null when there was none (default `null`) |
 | `type` | "position" |  |  |
 
 ### DecodedMessage
@@ -701,11 +702,11 @@ A telemetry report (`T#005,199,000,255,073,123,01101001`). The definitions of th
 
 | field | type | | description |
 |---|---|---|---|
-| `type` | "telemetry" |  |  |
 | `sequence` | integer \| null |  | the sequence number; null for the `MIC` of a Mic-E unit |
-| `analog` | number[] |  | the five analog values as sent (0 to 255) |
-| `bits` | string |  | the eight digital values as a text of 0 and 1 |
+| `analog` | number[] |  | the analog values as sent, 1 to 5 (APRS 1.2: any width, signed, with a decimal point) |
+| `bits` | string |  | the digital values as a text of 0 and 1, B1 first: up to eight, empty when there were none |
 | `comment` | string |  |  |
+| `type` | "telemetry" |  |  |
 
 ### DecodedOther
 
@@ -772,6 +773,7 @@ A position as the parser made it: decimal degrees, south and west negative, spee
 | `extensions` | ExtensionValues \| null |  | the PHG, RNG, DFS, DF bearing or area data after the symbol of an uncompressed position; null when there was none |
 | `timestamp_local` | boolean |  | the `timestamp` was sent in the sender's local time (`/`): it is the time as it was sent, not UTC |
 | `locator` | LocatorValues \| null |  | the Maidenhead locator in the status text of a Mic-E packet; null for any other position |
+| `telemetry` | TelemetryFields \| null | optional | the base-91 telemetry `\|ss11\|` the comment carried (APRS 1.2), taken out of the `comment`; null when there was none (default `null`) |
 
 ### TncState
 
@@ -1112,6 +1114,17 @@ One analog channel of a station's latest telemetry report.
 | `raw` | number |  | the value as it was sent (0 to 255) |
 | `value` | number |  | `a*raw^2 + b*raw + c` with the coefficients of its `EQNS.` message; the raw value when it sent none |
 
+### TelemetryFields
+
+A telemetry report as the parser made it.
+
+| field | type | | description |
+|---|---|---|---|
+| `sequence` | integer \| null |  | the sequence number; null for the `MIC` of a Mic-E unit |
+| `analog` | number[] |  | the analog values as sent, 1 to 5 (APRS 1.2: any width, signed, with a decimal point) |
+| `bits` | string |  | the digital values as a text of 0 and 1, B1 first: up to eight, empty when there were none |
+| `comment` | string |  |  |
+
 ### TelemetryValues
 
 A station's latest telemetry report with the definitions the station sent as messages (`PARM.`, `UNIT.`, `EQNS.`, `BITS.`) applied.
@@ -1119,8 +1132,8 @@ A station's latest telemetry report with the definitions the station sent as mes
 | field | type | | description |
 |---|---|---|---|
 | `sequence` | integer \| null |  | the sequence number; null for the `MIC` of a Mic-E unit |
-| `channels` | TelemetryChannel[] |  | the five analog channels |
-| `bits` | TelemetryBit[] |  | the eight digital channels |
+| `channels` | TelemetryChannel[] |  | the analog channels, as many as the report had (1 to 5) |
+| `bits` | TelemetryBit[] |  | the digital channels, as many as the report had (up to 8) |
 | `project` | string |  | the project title of the `BITS.` message; empty when there is none |
 | `comment` | string |  |  |
 

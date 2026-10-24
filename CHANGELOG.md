@@ -45,6 +45,7 @@ Closer to the APRS standard.
 - A Mic-E station whose comment starts with the type code `'` (a tracker without messaging) gets no Message button, unless it has sent a message.
 - The type codes of more Mic-E radios no longer show in the comment: the TH-D75's `&` and the two-character codes of current Yaesu, Anytone and other radios and trackers.
 - A snow reading with a decimal point (`s1.5`) is read, and so is the radio range of a compressed position.
+- Telemetry in the forms of APRS 1.2 is read: `T#MIC` without a comma, signed values with a decimal point, fewer than five values or eight bits, and the compact base-91 telemetry `|ss11|` at the end of a position's comment (which no longer shows in the comment).
 - The `!DAO!` precision extension (TH-D74 and TH-D75, APRSdroid) is read: the position is finer and the `!W12!` no longer shows in the comment.
 - The answer to `?APRST` and `?PING?` is the header as the specification's example writes it, `OH2RDG>APZNEO,WIDE1*,OH2RCH-2*:`, without `Path=` in front.
 - The manual and the (i) of the Beacon tab say what PHG means: the antenna height above the average terrain around it, the gain in dBi.

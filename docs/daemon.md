@@ -242,7 +242,10 @@ described in `neoaprs/migrations.py` and `neoaprs/migrations2.py`; how the datab
 - **Raw NMEA** (`$GPGGA`, `$GPGLL`, `$GPRMC`, `$GPWPL`, any talker; the checksum is checked when there is one) is a position with course, speed, altitude and
   time. Its symbol is the one of the destination (`GPSxyz`, `GPSCnn`, `GPSEnn`, `SPCxyz`), else the icon of the source's SSID, else the unknown position.
   `$GPVTG` and a fix that is not valid stay "nmea", and `$ULTW` (an Ultimeter 2000) is "weather" without fields, because its format is not in the specification.
-- **Telemetry** `T#sss,aaa,aaa,aaa,aaa,aaa,bbbbbbbb` is its own decoded type (`Telemetry`, packet kind `other`). The daemon keeps each station's latest report
+- **Telemetry** `T#sss,aaa,aaa,aaa,aaa,aaa,bbbbbbbb` is its own decoded type (`Telemetry`, packet kind `other`), with the forms of APRS 1.2: `T#MIC` with or
+  without a comma, values of any width, signed and with a decimal point (`-7.3`), 1 to 5 values, and 1 to 8 bits after the fifth. The base-91 telemetry
+  `|ss11...|` in the comment of a position or a Mic-E packet (the sequence and 1 to 5 channels of two bytes each, then the bits) is taken out of the comment into
+  `Position.telemetry` and counts as the station's latest report. The daemon keeps each station's latest report
   and the `PARM.`, `UNIT.`, `EQNS.` and `BITS.` messages addressed to it (in memory, the latest 500 stations, read again from the latest 2000 packets at a
   start) and sends the station row `telemetry` with the names, units and values `a*v^2 + b*v + c` applied (raw values when it sent no definition).
 - `,` is test data ("test"), `<` station capabilities (`items`: `IGATE`, `MSG_CNT=2`...), `%` an Agrelo DF report (`bearing`, `quality`), `+` shelter data and

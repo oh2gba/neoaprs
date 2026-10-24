@@ -66,7 +66,7 @@ def test_the_text_of_an_undecoded_field_is_the_field_as_latin_1() -> None:
 
 
 def test_an_other_keeps_the_whole_field_with_its_identifier() -> None:
-    assert parse(b"T#005,199", "A", "B", NOW) == Other("telemetry", "T#005,199")
+    assert parse(b"T#005,x99", "A", "B", NOW) == Other("telemetry", "T#005,x99")
 
 
 @pytest.mark.parametrize("first", range(256))

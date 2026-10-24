@@ -1230,10 +1230,10 @@
   }
  },
  {
-  "name": "telemetry cut short stays an unread telemetry packet",
+  "name": "telemetry with no value stays an unread telemetry packet",
   "source": "OH2XYZ-9",
   "destination": "APRS",
-  "info": "T#005,199",
+  "info": "T#005,",
   "expected": {
    "kind": "other",
    "other_kind": "telemetry"

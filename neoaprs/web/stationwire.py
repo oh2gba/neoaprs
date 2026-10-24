@@ -38,8 +38,8 @@ class TelemetryBit(_Model):
 class TelemetryValues(_Model):
     """A station's latest telemetry report with the definitions the station sent as messages (`PARM.`, `UNIT.`, `EQNS.`, `BITS.`) applied."""
     sequence: int | None = Field(description="the sequence number; null for the `MIC` of a Mic-E unit")
-    channels: list[TelemetryChannel] = Field(description="the five analog channels")
-    bits: list[TelemetryBit] = Field(description="the eight digital channels")
+    channels: list[TelemetryChannel] = Field(description="the analog channels, as many as the report had (1 to 5)")
+    bits: list[TelemetryBit] = Field(description="the digital channels, as many as the report had (up to 8)")
     project: str = Field(description="the project title of the `BITS.` message; empty when there is none")
     comment: str
 

@@ -1,7 +1,7 @@
 """Telemetry: the report, the four definition messages and the scaling."""
 import pytest
 
-from neoaprs.aprstelemetry import Telemetry, TelemetryDefinition, apply_definition, describe, is_definition, parse_telemetry
+from neoaprs.aprstelemetry import Telemetry, TelemetryDefinition, apply_definition, describe, is_definition, parse_telemetry, split_comment_telemetry
 
 REPORT = Telemetry(5, [199, 0, 255, 73, 123], "01101001")
 
@@ -12,8 +12,37 @@ def test_the_specs_report() -> None:
     assert parse_telemetry("T#012,1.5,2,3,4,5,10101010 Balloon ") == Telemetry(12, [1.5, 2, 3, 4, 5], "10101010", "Balloon")
 
 
-@pytest.mark.parametrize("text", ["", "T", "T#005,199", "T#005,199,000,255,073,123", "T#005,199,000,255,073,123,0110100", "T#005,199,000,255,073,123,0110100x", "T#005,a,000,255,073,123,01101001",
-                                  "T#005,1000,000,255,073,123,01101001", "T#,199,000,255,073,123,01101001", "t#005,199,000,255,073,123,01101001", "X#005,199,000,255,073,123,01101001"])
+@pytest.mark.parametrize(("text", "want"), [
+    ("T#MIC199,000,255,073,123,01101001", Telemetry(None, [199, 0, 255, 73, 123], "01101001")),                  # APRS 1.2: MIC without a comma
+    ("T#151,45.7,2.3,190.0,91.0,-7.3,00001100", Telemetry(151, [45.7, 2.3, 190.0, 91.0, -7.3], "00001100")),      # any width, signed, a decimal point
+    ("T#005,1000,000,255,073,123,01101001", Telemetry(5, [1000, 0, 255, 73, 123], "01101001")),
+    ("T#005,199", Telemetry(5, [199], "")),                                                                       # fewer than five values, no bits
+    ("T#005,199,000,255,073,123", Telemetry(5, [199, 0, 255, 73, 123], "")),
+    ("T#005,199,000,255,073,123,0110", Telemetry(5, [199, 0, 255, 73, 123], "0110")),                               # fewer than eight bits
+    ("T#005,199,000,255,073,123,0110100x", Telemetry(5, [199, 0, 255, 73, 123], "0110100", "x")),
+    ("T#7,1,.5,-2 note", Telemetry(7, [1, 0.5], "", "-2 note")),                                                    # a field that is no number ends the values
+])
+def test_the_forms_of_aprs_1_2(text: str, want: Telemetry) -> None:
+    assert parse_telemetry(text) == want
+
+
+@pytest.mark.parametrize(("comment", "rest", "want"), [
+    ("Hi |ss11|", "Hi", Telemetry(7544, [1472], "")),                                                            # the specification's examples
+    ("|ss112233|", "", Telemetry(7544, [1472, 1564, 1656], "")),
+    ("Balloon|ss1122334455!\"|!W12!", "Balloon!W12!", Telemetry(7544, [1472, 1564, 1656, 1748, 1840], "10000000")),   # the bits after the fifth: B1 is the lowest
+    ("|!!!!|", "", Telemetry(0, [0], "")),
+])
+def test_base91_telemetry_in_a_comment(comment: str, rest: str, want: Telemetry) -> None:
+    assert split_comment_telemetry(comment) == (rest, want)
+
+
+@pytest.mark.parametrize("comment", ["", "a|b", "|ss|", "|ss1|", "|ss1122334455667788|", "|s}11|"])
+def test_a_comment_without_base91_telemetry_is_left_alone(comment: str) -> None:
+    assert split_comment_telemetry(comment) == (comment, None)
+
+
+@pytest.mark.parametrize("text", ["", "T", "T#005", "T#005,", "T#005,a,000,255,073,123,01101001", "T#MICx", "T#,199,000,255,073,123,01101001", "t#005,199,000,255,073,123,01101001",
+                                  "X#005,199,000,255,073,123,01101001", "T#123456,1"])
 def test_text_that_is_no_report(text: str) -> None:
     assert parse_telemetry(text) is None
 
