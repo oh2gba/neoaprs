@@ -82,7 +82,7 @@ passband); an `RPRT -n` answer, a refused connection or no answer within 5 secon
 
 ## Messaging
 
-The commands are `send_message`, `message_retry`, `message_cancel`, `message_delete`, `conversation_delete` and `overheard_delete`. Messages to bulletins and
+The commands are `send_message`, `query` (a directed query, once, with no id: `neoaprs/services/asking.py`), `message_retry`, `message_cancel`, `message_delete`, `conversation_delete` and `overheard_delete`. Messages to bulletins and
 groups are the board's. Every message is a row of the table `message`, so a restart goes on where the daemon stopped.
 
 - **The frame.** `OH2GBA>APZNEO,...::OH2RDG   :Hello Pekka{01}` is the source, the tocall, the station's path, then `:`, the addressee padded to nine

@@ -183,7 +183,7 @@ DECODED = [
 COMMAND_EXAMPLES: dict[str, dict[str, Any]] = {
     "ping": {"cmd": "ping"}, "status": {"cmd": "status"}, "subscribe": {"cmd": "subscribe", "topics": ["packets", "tnc"]}, "unsubscribe": {"cmd": "unsubscribe", "topics": ["packets"]},
     "forget_station": {"cmd": "forget_station", "call": "OH2RDG"}, "tnc_reconnect": {"cmd": "tnc_reconnect"}, "list_ports": {"cmd": "list_ports"}, "set_config": {"cmd": "set_config", "values": {"station/lat": "61.5"}},
-    "beacon_now": {"cmd": "beacon_now"}, "status_now": {"cmd": "status_now"}, "send_message": {"cmd": "send_message", "to": "OH2RDG", "text": "hello"}, "message_retry": {"cmd": "message_retry", "id": 3},
+    "beacon_now": {"cmd": "beacon_now"}, "status_now": {"cmd": "status_now"}, "send_message": {"cmd": "send_message", "to": "OH2RDG", "text": "hello"}, "query": {"cmd": "query", "call": "OH2RDG", "kind": "status"}, "message_retry": {"cmd": "message_retry", "id": 3},
     "message_cancel": {"cmd": "message_cancel", "id": 3}, "message_delete": {"cmd": "message_delete", "id": 3}, "conversation_delete": {"cmd": "conversation_delete", "call": "OH2RDG"},
     "overheard_delete": {"cmd": "overheard_delete", "from_call": "OH2AAA", "to_call": "OH2BBB"},
     "set_station_path": {"cmd": "set_station_path", "call": "OH2RDG", "path": "OH2RCH-2,WIDE2-1"},
@@ -302,7 +302,7 @@ def test_the_limits_of_the_commands() -> None:
     with pytest.raises(ValidationError):
         COMMANDS.validate_python({"cmd": "set_config", "values": {f"k{n}": "v" for n in range(65)}})
     for bad in ({"cmd": "send_message", "to": "", "text": "x"}, {"cmd": "send_message", "to": "X" * 65, "text": "x"}, {"cmd": "send_message", "to": "OH2RDG", "text": "x" * 513},
-                {"cmd": "message_retry", "id": 0}, {"cmd": "message_cancel", "id": -1}, {"cmd": "message_delete", "id": 0}, {"cmd": "conversation_delete", "call": ""}, {"cmd": "set_station_path", "call": "", "path": ""}, {"cmd": "set_station_path", "call": "X", "path": "W" * 257},
+                {"cmd": "query", "call": "", "kind": "status"}, {"cmd": "query", "call": "OH2RDG", "kind": "all"}, {"cmd": "query", "call": "OH2RDG"}, {"cmd": "message_retry", "id": 0}, {"cmd": "message_cancel", "id": -1}, {"cmd": "message_delete", "id": 0}, {"cmd": "conversation_delete", "call": ""}, {"cmd": "set_station_path", "call": "", "path": ""}, {"cmd": "set_station_path", "call": "X", "path": "W" * 257},
                 {"cmd": "set_station_path", "call": "OH2RDG", "path": None}, {"cmd": "clear_station_path", "call": ""}, {"cmd": "set_station_timeout", "call": "", "minutes": 5}, {"cmd": "set_station_timeout", "call": "OH2RDG", "minutes": -1},
                 {"cmd": "set_station_timeout", "call": "OH2RDG", "minutes": 10081}, {"cmd": "set_station_timeout", "call": "OH2RDG", "minutes": "5"}, {"cmd": "set_station_timeout", "call": "OH2RDG"},
                 {"cmd": "clear_station_timeout", "call": ""}, {"cmd": "set_station_attempts", "call": "EMAIL-2", "attempts": 2}, {"cmd": "clear_station_attempts", "call": "EMAIL-2"}, {"cmd": "set_station_rf_only", "call": "", "on": True}, {"cmd": "set_station_rf_only", "call": "OH2RDG"}, {"cmd": "set_station_rf_only", "call": "OH2RDG", "on": "yes"},

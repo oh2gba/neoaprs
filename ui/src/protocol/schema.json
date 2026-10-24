@@ -2709,6 +2709,37 @@
       "title": "PositionFields",
       "type": "object"
     },
+    "QueryStation": {
+      "additionalProperties": false,
+      "description": "Asks a station a directed query (APRS 1.0.1 chapter 15): a message to it with the text of the query, `?APRSP` (`kind` `position`: its position packet), `?APRSS` (`status`: its status report), `?APRSD` (`heard`: the stations it\nhears direct, as a message) or `?APRST` (`trace`: the path our query reached it by, as a message). The query is sent once, without a message id: no attempts follow and no ack is expected. It is kept as a row of the topic\n`messages` to the station, in state `sending` until it has been transmitted and then `unconfirmed`, whose `text` is the query; the page shows such a row (an `out` message with no `msg_id` whose text is one of the four) as a note of what was asked. The answer is whatever the\nstation sends: a packet (the station's card changes) or a message (a row `in`). Not more than one query of a kind to a station in 60 seconds. Answered with an `error` when the station is not in the station book\n(`station.unknown`), is no station that takes messages (`query.not_capable`: an object, an item, ourselves, a station whose position says it takes none and that never sent a message), the same query was sent less than 60 seconds ago\n(`query.too_soon`) or the message is refused as `send_message` refuses it (the call is not set, the radio is silent).",
+      "properties": {
+        "cmd": {
+          "const": "query",
+          "type": "string"
+        },
+        "call": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "position",
+            "status",
+            "heard",
+            "trace"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "call",
+        "kind"
+      ],
+      "title": "QueryStationCommand",
+      "type": "object"
+    },
     "ReplaceOp": {
       "additionalProperties": false,
       "description": "The whole value of the topic is `value`.",
@@ -4271,6 +4302,7 @@
           "object_set": "#/$defs/ObjectSet",
           "overheard_delete": "#/$defs/OverheardDelete",
           "ping": "#/$defs/Ping",
+          "query": "#/$defs/QueryStation",
           "send_message": "#/$defs/SendMessage",
           "set_config": "#/$defs/SetConfig",
           "set_station_path": "#/$defs/SetStationPath",
@@ -4322,6 +4354,9 @@
         },
         {
           "$ref": "#/$defs/SendMessage"
+        },
+        {
+          "$ref": "#/$defs/QueryStation"
         },
         {
           "$ref": "#/$defs/MessageRetry"
