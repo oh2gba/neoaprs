@@ -66,6 +66,7 @@ Pages that keep up.
 The log.
 
 - The lines of the database migrations (for the upgrade that put the settings that are not on the page back to their defaults: one line for each, with the value it had) are on stderr too, so that `journalctl --user -u neoaprs` has them, not only `neoaprs.log`. `neoaprs db set` on a database of an older version says them on its stderr. Their logger is `neoaprs.migrations`.
+- When the daemon's stderr is no console (a pipe, a file, the journal) it is written in UTF-8, so that a line with a character the system's code page lacks (the arrow of "14 → 12" on Windows) is not lost.
 
 For developers.
 
