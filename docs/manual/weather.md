@@ -31,7 +31,7 @@ The track of a moving station is kept in memory, so at the start it is made agai
 
 Besides positions, objects, items, messages, statuses and weather, NeoAPRS reads these, and the station card shows each on a line of its own:
 
-- **Data extensions** after the symbol of an uncompressed position: `PHG` (power, height, gain, directivity and the range the specification's formula gives), `RNG` (range in km), `DFS`, the bearing and quality of a direction-finding report, and `Tyy/Cxx` of an area object.
+- **Data extensions** after the symbol of an uncompressed position: `PHG` (power, height, gain, directivity and the range the specification's formula gives), `RNG` (range in km; a compressed position may carry the range too), `DFS`, the bearing and quality of a direction-finding report, and `Tyy/Cxx` of an area object.
 - **Raw NMEA** sentences (`$GPGGA`, `$GPGLL`, `$GPRMC`, `$GPWPL`, from any talker such as `$GN`; the checksum is checked when there is one). They give a position with course, speed, altitude and time. Its symbol comes from the destination, else from the source's SSID.
 - **Telemetry.** NeoAPRS keeps the latest report of each station and the names, units and equations the station sent for it, and shows the values with the equations applied (raw values when it sent no definition).
 - **A Maidenhead locator** at the start of a status report is shown with the station (the grid and the centre of the square). It does not move the station.

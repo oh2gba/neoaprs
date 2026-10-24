@@ -46,11 +46,14 @@ def test_a_position_says_by_its_identifier(identifier: str, expected: bool) -> N
     assert can_message(book) is expected
 
 
-@pytest.mark.parametrize("identifier", [b"`", b"'"])
-def test_a_mic_e_station_does_messages(identifier: bytes) -> None:
+@pytest.mark.parametrize(("identifier", "comment", "expected"), [
+    (b"`", b"", True), (b"'", b"", True), (b"`", b"`hi_%", True), (b"'", b"]hi=", True), (b"`", b">hi&", True),     # (a TM-D700 sends ' and its comment starts with ])
+    (b"`", b"'hi|3", False), (b"'", b"'hi", False),                                                       # the type code ' is a radio without messaging (aprs-deviceid)
+])
+def test_a_mic_e_station_does_messages_unless_its_type_code_is_the_apostrophe(identifier: bytes, comment: bytes, expected: bool) -> None:
     book = StationBook()
-    book.take(heard(identifier + MICE_BODY, destination=MICE))
-    assert book.get("OH2AAA").has_position and can_message(book) is True       # type: ignore[union-attr]
+    book.take(heard(identifier + MICE_BODY + comment, destination=MICE))
+    assert book.get("OH2AAA").has_position and can_message(book) is expected       # type: ignore[union-attr]
 
 
 def test_a_mic_e_position_in_a_third_party_packet_counts_too() -> None:

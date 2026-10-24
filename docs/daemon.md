@@ -156,7 +156,7 @@ only keeps and tells the timeout, except that the daily prune keeps a station wi
 
 **The station book** (`neoaprs/stationbook.py`) counts, for each station, how many packets came direct and by each route, from the packets since the start and
 the latest 2000 that the database kept. The row of the topic `stations` has `last_route`, `heard_direct`, `heard_via` (`[station heard, packets]`, the most
-first, `?` for an anonymous last hop), `heard_gated`, `best_route`, `suggested_path`, `last_direct_at` (null for a station never heard direct, for us and for objects; it is the time of the station's latest packet with no repeated address in its path, not a third-party one), `can_message` and `telemetry`. `can_message` is false for an object or an item and for a station whose positions use the identifiers `!` or `/`, unless it has sent a message or an ack that we heard (overheard ones too) or a Mic-E position. It is found again at the start from the packet log, and a bulletin or a telemetry definition does not count. The route is worked out when the packet is heard (`neoaprs/route.py`) and is `route` on every packet of the topic `packets` (empty for
+first, `?` for an anonymous last hop), `heard_gated`, `best_route`, `suggested_path`, `last_direct_at` (null for a station never heard direct, for us and for objects; it is the time of the station's latest packet with no repeated address in its path, not a third-party one), `can_message` and `telemetry`. `can_message` is false for an object or an item and for a station whose latest position uses the identifier `!` or `/` or is a Mic-E one whose comment starts with the type code `'` (a tracker without messaging, aprs-deviceid), unless it has sent a message or an ack that we heard (overheard ones too). It is found again at the start from the packet log, and a bulletin or a telemetry definition does not count. The route is worked out when the packet is heard (`neoaprs/route.py`) and is `route` on every packet of the topic `packets` (empty for
 the ones we sent) and on every message that came in or was overheard (the column `route` of the table `message`; of two copies by different routes the first is
 the one kept).
 
@@ -222,7 +222,7 @@ described in `neoaprs/migrations.py` and `neoaprs/migrations2.py`; how the datab
 - **Weather fields** (`neoaprs/aprsweather.py`) after the position or the time: `c` or the leading `DIR/SPD` the wind direction (degrees; some stations send two
   digits) and speed (mph), `g` the gust (mph), `t` the temperature (degrees F, `t-05` below zero), `r` rain in the last hour, `p` in the last 24 hours, `P`
   since midnight (hundredths of an inch), `h` humidity (`00` is 100 %), `b` pressure (tenths of a hPa), `L` and `l` luminosity (W/m2, `l` is 1000 and over), `s`
-  snow in the last 24 hours (inches, the `s` that follows the wind speed) and `#` the raw rain counter. A field that is all dots or all spaces is missing. The
+  snow in the last 24 hours (inches, the `s` that follows the wind speed, a decimal point allowed: `s1.5`) and `#` the raw rain counter. A field that is all dots or all spaces is missing. The
   fields end at the first character that is not a field with its digits, and what follows (a software id such as `wRSW`, a comment glued to the data like
   `b10285Inkoo`) is the comment. A compressed weather position's `cs` bytes are the wind (direction `c`*4 degrees, speed 1.08^`s`-1 mph), and its fields after
   the 13 bytes are the rest.
@@ -231,7 +231,8 @@ described in `neoaprs/migrations.py` and `neoaprs/migrations2.py`; how the datab
   only the fields that are there. Wind and gusts are km/h to 0.1, rain mm to 0.1, a direction over 360 is none.
 - **Data extensions** after the symbol of an uncompressed position are taken off the comment into `Position.extensions`: `PHGphgd` (power in W, height in m,
   gain in dB, directivity and the range the specification's formula gives), `RNGrrrr` in km, `DFSshgd`, the `/BRG/NRQ` of a DF report after the course and
-  speed, and the `Tyy/Cxx` of an area object with the symbol `\l`. A compressed position has none.
+  speed, and the `Tyy/Cxx` of an area object with the symbol `\l`. A compressed position has none but the radio range of its cs bytes `{s` (2 x 1.08^s miles,
+  as `range_km`).
 - A `!` position may come after up to 39 characters of text (a digipeater of the X1J kind): the text is the start of the comment.
 - A timestamp with `/` is the sender's local time: kept as sent with `Position.timestamp_local` set. The MMDDhhmm of a positionless weather report is its time (`Other.timestamp`).
 - **Raw NMEA** (`$GPGGA`, `$GPGLL`, `$GPRMC`, `$GPWPL`, any talker; the checksum is checked when there is one) is a position with course, speed, altitude and

@@ -42,6 +42,8 @@ Closer to the APRS standard.
 - The ack of a message numbered `{05}` is `ack05}`, the exact copy of the number, as the reply-ack paper says (was `ack05`).
 - The fill-in digipeater sends the frame it heard byte for byte with only the path changed (it rewrote some address bits of the destination and the source), and a packet whose destination differs only in its SSID is a duplicate.
 - An ack or a message number followed by blanks or a line end (`ack12  `) is understood, and so is a message whose addressee is not padded to nine characters.
+- A Mic-E station whose comment starts with the type code `'` (a tracker without messaging) gets no Message button, unless it has sent a message.
+- A snow reading with a decimal point (`s1.5`) is read, and so is the radio range of a compressed position.
 
 ## 0.6.7
 

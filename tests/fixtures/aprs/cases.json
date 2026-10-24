@@ -290,6 +290,22 @@
   }
  },
  {
+  "name": "compressed with the radio range in cs (the spec's example)",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": "=/5L!!<*e7>{?!",
+  "expected": {
+   "kind": "position",
+   "compressed": true,
+   "course_deg": null,
+   "speed_kmh": null,
+   "altitude_m": null,
+   "extensions": {
+    "range_km": 32.4
+   }
+  }
+ },
+ {
   "name": "DF report: course, speed, bearing and number/range/quality (the spec's example)",
   "source": "OH2XYZ-9",
   "destination": "APRS",

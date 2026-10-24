@@ -36,6 +36,12 @@ def test_snow_is_the_s_that_follows_the_wind_speed() -> None:
     assert only.wind_kmh == pytest.approx(6.4) and only.snow_mm is None
 
 
+@pytest.mark.parametrize(("snow", "mm"), [("s1.5", 38.1), ("s.25", 6.35), ("s12.", 304.8), ("s0.0", 0.0)])
+def test_the_snow_may_have_a_decimal_point(snow: str, mm: float) -> None:
+    w, rest = parse_weather("c220s004g005t077" + snow + "wRSW")
+    assert w is not None and w.snow_mm == pytest.approx(mm, abs=0.05) and w.temp_c == pytest.approx(25.0) and rest == "wRSW"
+
+
 def test_the_wind_of_a_position_takes_two_or_three_digits_of_direction() -> None:
     assert (weather("107/001").wind_dir, weather("96/001").wind_dir, weather("96/001").wind_kmh) == (107, 96, pytest.approx(1.6))
 

@@ -2,7 +2,7 @@
 
 The fields are a letter and a fixed number of digits (APRS101, chapter 12): `c` wind direction (degrees) and `s` its speed (mph), or the same as the leading `DIR/SPD` of a position; `g` gust (mph), `t` temperature (degrees F, three
 characters, `-05` below zero), `r` rain in the last hour, `p` in the last 24 hours and `P` since midnight (hundredths of an inch), `h` humidity (per cent, `00` is 100), `b` pressure (tenths of a hPa), `L` luminosity (W/m2, 0 to 999)
-and `l` (1000 and more, as `l` plus 1000), `s` snow in the last 24 hours (inches) once the wind speed is there already, `#` the raw rain counter. A field that is all dots or all spaces is missing. The fields end at the first
+and `l` (1000 and more, as `l` plus 1000), `s` snow in the last 24 hours (inches, a decimal point allowed: `s1.5`) once the wind speed is there already, `#` the raw rain counter. A field that is all dots or all spaces is missing. The fields end at the first
 character that is not a field of this list with the right digits; what follows (a software id such as `wRSW`, "RX Igate & WX station", a comment glued to the data) is the comment.
 
 Pure code, like the rest of the foundation."""
@@ -16,6 +16,7 @@ _WIND = re.compile(r"(\d{2,3}|\.{2,3}| {2,3})/(\d{3}|\.{3}| {3})")           # t
 _FIELDS = {letter: re.compile(rf"(\d{{{width}}}|\.{{{width}}}| {{{width}}})") for letter, width in
            (("c", 3), ("s", 3), ("g", 3), ("r", 3), ("p", 3), ("P", 3), ("h", 2), ("b", 5), ("L", 3), ("l", 3), ("#", 3))}
 _FIELDS["t"] = re.compile(r"(-\d{2}|\d{3}|\.{3}| {3})")
+_SNOW = re.compile(r"(\d{3}|\d\.\d|\d{2}\.|\.\d{2}|\.{3}| {3})")         # the snow of the last 24 hours, in inches: three characters, a decimal point allowed (`s1.5`)
 _MAX_DIRECTION = 360
 _VALUES = ("wind_dir", "wind_kmh", "gust_kmh", "temp_c", "humidity", "pressure_hpa", "rain_1h_mm", "rain_24h_mm", "rain_today_mm", "luminosity", "snow_mm", "rain_counter")
 
@@ -42,9 +43,15 @@ def _number(text: str) -> int | None:
     return int(text) if text.lstrip("-").isdigit() else None
 
 
-def _scan(text: str) -> tuple[dict[str, int | None], int]:
-    """The fields at the start of `text`, by their letter (`snow` for an `s` that follows the wind speed), with the raw numbers (None for a missing one), and how many characters they took."""
+def _decimal(text: str) -> float | None:
+    return float(text) if any(c.isdigit() for c in text) else None
+
+
+def _scan(text: str) -> tuple[dict[str, int | None], float | None, int]:
+    """The fields at the start of `text`, by their letter, with the raw numbers (None for a missing one), the snow (an `s` that follows the wind speed, in inches), and how many characters they took."""
     fields: dict[str, int | None] = {}
+    snow: float | None = None
+    snowed = False
     pos = 0
     wind = _WIND.match(text)
     if wind:
@@ -52,16 +59,21 @@ def _scan(text: str) -> tuple[dict[str, int | None], int]:
         pos = wind.end()
     while pos < len(text):
         letter = text[pos]
+        if letter == "s" and "s" in fields:
+            found = None if snowed else _SNOW.match(text, pos + 1)
+            if found is None:
+                break
+            snow, snowed, pos = _decimal(found.group(1)), True, found.end()
+            continue
         found = _FIELDS[letter].match(text, pos + 1) if letter in _FIELDS else None
-        key = "snow" if letter == "s" and "s" in fields else letter
-        if found is None or key in fields:
+        if found is None or letter in fields:
             break
-        fields[key] = _number(found.group(1))
+        fields[letter] = _number(found.group(1))
         pos = found.end()
-    return fields, pos
+    return fields, snow, pos
 
 
-def _scaled(value: int | None, factor: float) -> float | None:
+def _scaled(value: float | None, factor: float) -> float | None:
     return None if value is None else round(value * factor, 1)
 
 
@@ -76,7 +88,7 @@ def _luminosity(fields: dict[str, int | None]) -> int | None:
     return low if low is not None else (None if high is None else 1000 + high)
 
 
-def _weather(fields: dict[str, int | None], raw: str) -> Weather | None:
+def _weather(fields: dict[str, int | None], snow: float | None, raw: str) -> Weather | None:
     direction = fields.get("c")
     fahrenheit = fields.get("t")
     pressure = fields.get("b")
@@ -84,17 +96,17 @@ def _weather(fields: dict[str, int | None], raw: str) -> Weather | None:
         wind_dir=direction if direction is not None and direction <= _MAX_DIRECTION else None, wind_kmh=_scaled(fields.get("s"), MPH_KMH), gust_kmh=_scaled(fields.get("g"), MPH_KMH),
         temp_c=None if fahrenheit is None else round((fahrenheit - 32) * 5 / 9, 1), humidity=_humidity(fields.get("h")), pressure_hpa=None if pressure is None else pressure / 10,
         rain_1h_mm=_scaled(fields.get("r"), 0.254), rain_24h_mm=_scaled(fields.get("p"), 0.254), rain_today_mm=_scaled(fields.get("P"), 0.254),
-        luminosity=_luminosity(fields), snow_mm=_scaled(fields.get("snow"), INCH_MM), rain_counter=fields.get("#"), raw=raw)
+        luminosity=_luminosity(fields), snow_mm=_scaled(snow, INCH_MM), rain_counter=fields.get("#"), raw=raw)
     return weather if any(getattr(weather, name) is not None for name in _VALUES) else None
 
 
 
 def parse_weather(text: str) -> tuple[Weather | None, str]:
     """The weather fields at the start of `text` (the part of a position after the symbol, or of a positionless report after its time) and the rest, which is the comment. None when the text has no field, or when every field it has is missing."""
-    fields, taken = _scan(text)
+    fields, snow, taken = _scan(text)
     if not taken:
         return None, text
-    return _weather(fields, text[:taken]), text[taken:]
+    return _weather(fields, snow, text[:taken]), text[taken:]
 
 
 def parse_report(info: bytes) -> Weather | None:
