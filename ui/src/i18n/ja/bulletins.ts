@@ -1,0 +1,35 @@
+// This translation has not yet been reviewed by a native-speaking ham; corrections are welcome.
+import type { bulletins as source } from "@/i18n/en/bulletins";
+import type { Message } from "@/i18n/message";
+
+export const bulletins: Record<keyof typeof source, Message> = {
+  "bulletins.section.announcement": "お知らせ",
+  "bulletins.section.bulletin": "掲示",
+  "bulletins.section.group": "グループ宛て",
+  "bulletins.section.nws": "気象機関",
+
+  "bulletins.empty": "掲示板は空です。",
+  "bulletins.delete_title": "削除(送信を停止)",
+  "bulletins.delete_own": "自局の掲示 {slot} を削除",
+  "bulletins.delete": "{sender}の掲示 {slot} を削除",
+  "bulletins.to": "宛先",
+  "bulletins.ours": "自局",
+  "bulletins.posted": "{time}に掲示",
+  "bulletins.heard_title": "初回受信 {first}、最終受信 {last}",
+  "bulletins.heard": { other: "{n}回受信、最終は{span}前" },
+
+  "bulletins.post_label": "掲示を出す",
+  "bulletins.kind": "種類",
+  "bulletins.kind.bulletin": "掲示",
+  "bulletins.kind.announcement": "お知らせ",
+  "bulletins.kind.group": "グループ宛ての掲示",
+  "bulletins.kinds_help_label": "種類について",
+  "bulletins.kinds_help":
+    "掲示は全員宛てで、応答確認はありません。グループ宛ての掲示は、そのグループ名を受信する局向けです。特定の局に、それぞれの応答確認つきで届けたいときは、メッセージ(「メッセージ」タブ、「局」)を送ってください。",
+  "bulletins.letter": "文字",
+  "bulletins.number": "番号",
+  "bulletins.group": "グループ",
+  "bulletins.group_placeholder": "名前",
+  "bulletins.text": "本文",
+  "bulletins.post": "掲示",
+};
