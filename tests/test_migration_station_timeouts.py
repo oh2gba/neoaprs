@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from neoaprs.migrations import SCHEMA_VERSION
+from neoaprs.migrations2 import MIGRATION_LOG
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
 from tests.support.migrated import opened
@@ -54,7 +55,7 @@ def test_a_cleared_timeout_is_not_read_and_the_preferences_that_say_something_ar
 
 
 def test_one_info_line_for_each_station_that_had_a_timeout(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    with caplog.at_level(logging.INFO, logger="neoaprs.store"):
+    with caplog.at_level(logging.INFO, logger=MIGRATION_LOG):
         migrate(tmp_path).close()
     lines = [r.getMessage() for r in caplog.records if "own timeout" in r.getMessage() and r.levelno == logging.INFO]
     assert lines == ["OH2ATTM: the own timeout of 5 minutes removed, the fixed 180 minutes count", "OH2BOTH: the own timeout of 45 minutes removed, the fixed 180 minutes count",
@@ -66,7 +67,7 @@ def test_a_database_without_timeouts_is_as_it_was_and_a_new_one_has_none(tmp_pat
     fresh = opened(tmp_path / DB_NAME)
     assert fresh.db.execute("SELECT COUNT(*) FROM station_pref").fetchone() == (0,)
     fresh.close()
-    with caplog.at_level(logging.INFO, logger="neoaprs.store"):
+    with caplog.at_level(logging.INFO, logger=MIGRATION_LOG):
         again = opened(tmp_path / DB_NAME)
     assert again.version() == SCHEMA_VERSION and not [r for r in caplog.records if "own timeout" in r.getMessage()]
     again.close()
