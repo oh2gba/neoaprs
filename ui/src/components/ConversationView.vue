@@ -23,6 +23,7 @@ const emit = defineEmits<{
   send: [to: string, text: string];
   retry: [id: number];
   cancel: [id: number];
+  delete: [id: number];
 }>();
 const { connected, heardDirect, heardPaths, fallbackPath, prefs } = useDaemonContext();
 const { paths, rfOnly } = prefs;
@@ -58,7 +59,14 @@ onMounted(() => {
         @set-rf-only="prefs.setRfOnly"
       />
     </header>
-    <ConversationThread :thread="thread" :peer="selected" :heard-direct="heardDirect" @retry="emit('retry', $event)" @cancel="emit('cancel', $event)" />
+    <ConversationThread
+      :thread="thread"
+      :peer="selected"
+      :heard-direct="heardDirect"
+      @retry="emit('retry', $event)"
+      @cancel="emit('cancel', $event)"
+      @delete="emit('delete', $event)"
+    />
     <MessageCompose v-if="!heard" v-model:text="text" :to="[replyTo(selected)]" :connected="connected" @send="(to, body) => emit('send', to, body)" />
   </section>
 </template>

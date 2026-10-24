@@ -13,6 +13,7 @@ export const messages: Readonly<Record<keyof typeof en, Message>> = {
   "messages.asked.trace": "Pediste la ruta",
   "messages.none_yet": "Aún no hay mensajes.",
   "messages.delete_conversation": "Eliminar la conversación con {call}",
+  "messages.delete": "Eliminar el mensaje",
   "messages.delete_overheard": "Eliminar los mensajes escuchados {name}",
   "messages.choose": "Elige una conversación o el botón Mensaje de una estación",
 

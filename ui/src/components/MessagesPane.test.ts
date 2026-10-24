@@ -286,7 +286,7 @@ describe("MessagesPane, the thread", () => {
   it("offers Retry for the message that failed and Cancel for the one being sent, and says which", async () => {
     const wrapper = await pane();
     const messages = wrapper.findAll(".bubble");
-    const names = (i: number) => messages[i]?.findAll("button").map((b) => b.text());
+    const names = (i: number) => messages[i]?.findAll("button:not(.bubble-delete)").map((b) => b.text());
     expect(names(0)).toEqual([]);
     expect(names(2)).toEqual(["Retry"]);
     expect(names(3)).toEqual(["Cancel"]);
@@ -296,15 +296,21 @@ describe("MessagesPane, the thread", () => {
     expect(wrapper.emitted("cancel")).toEqual([[4]]);
   });
 
-  it("has no Delete button on a message of any kind: the trash of the conversation is the one way to delete", async () => {
+  it("has a small trash can on a message of ours that is no longer being sent and was never acked, which deletes it on the second press; none on the others", async () => {
     const wrapper = await pane({
       thread: [
         ...rows.filter((r) => r.to_call === "OH2RDG" || r.from_call === "OH2RDG"),
         message(9, { direction: "in", state: "overheard", from_call: "OH2AAA", to_call: "OH2RDG" }),
       ],
     });
-    expect(wrapper.findAll(".bubble")).toHaveLength(5);
-    expect(wrapper.findAll(".bubble button").filter((b) => b.text().toLowerCase().includes("delete"))).toHaveLength(0);
+    const bubbles = wrapper.findAll(".bubble");
+    const states = bubbles.map((b) => b.find(".bubble-delete").exists());
+    expect(states.filter(Boolean)).toHaveLength(1); // (the failed one; not the acked, the one being sent, or theirs)
+    const failed = bubbles.find((b) => b.find(".bubble-delete").exists());
+    await failed?.find(".bubble-delete").trigger("click");
+    expect(wrapper.emitted("deleteMessage")).toBeUndefined(); // (the first press only arms it)
+    await failed?.find(".bubble-delete").trigger("click");
+    expect(wrapper.emitted("deleteMessage")).toHaveLength(1);
     expect(wrapper.findAll(".conv-delete")).toHaveLength(2);
   });
 

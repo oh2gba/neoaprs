@@ -160,6 +160,11 @@ export function canRetry(row: MessageRow): boolean {
   return row.direction === "out" && (row.state === "failed" || row.state === "unconfirmed" || row.state === "rejected" || row.state === "cancelled");
 }
 
+/** A message of ours that is no longer being sent and was never acked (failed, unconfirmed, refused or cancelled) can be deleted from the conversation. */
+export function canDelete(row: MessageRow): boolean {
+  return canRetry(row);
+}
+
 /** A message of ours that is being sent can be stopped. */
 export function canCancel(row: MessageRow): boolean {
   return row.direction === "out" && row.state === "sending";

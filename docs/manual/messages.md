@@ -26,7 +26,7 @@ The same frame is sent again until the addressee answers: 4 times in all, and 2 
 
 An ack from the addressee that quotes your id makes the message *acked*. A reject makes it *rejected*. Either ends the attempts, and one that comes late still settles a message that has failed, is unconfirmed or was cancelled.
 
-**Cancel** stops a message that is being sent. **Retry** sends a failed, unconfirmed, rejected or cancelled one again from the first attempt, with the same id.
+**Cancel** stops a message that is being sent. **Retry** sends a failed, unconfirmed, rejected or cancelled one again from the first attempt, with the same id. The small trash can beside Retry deletes such a message from the conversation (press it twice).
 
 While the TNC is not connected, an attempt that is due waits for it. None is used up, the waits that were running are moved on by the time the radio was away, and the log says so once. A message written then is kept and its first attempt goes out when the TNC is back. After a restart the schedule goes on from the latest attempt that was made.
 

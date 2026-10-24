@@ -14,6 +14,7 @@ export const messages: Record<keyof typeof source, Message> = {
   "messages.asked.trace": "Você pediu a rota",
   "messages.none_yet": "Nenhuma mensagem ainda.",
   "messages.delete_conversation": "Excluir a conversa com {call}",
+  "messages.delete": "Excluir a mensagem",
   "messages.delete_overheard": "Excluir as mensagens captadas {name}",
   "messages.choose": "Escolha uma conversa ou o botão Mensagem de uma estação",
 

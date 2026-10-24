@@ -36,6 +36,7 @@ const emit = defineEmits<{
   sendMany: [to: string[], text: string];
   retry: [id: number];
   cancel: [id: number];
+  deleteMessage: [id: number];
   deleteConversation: [call: string];
   /** every overheard message of the pair: who sent it, who it was for */
   deleteOverheard: [from: string, to: string];
@@ -115,6 +116,7 @@ function sent(send: () => void): void {
       @send="(to, text) => emit('send', to, text)"
       @retry="emit('retry', $event)"
       @cancel="emit('cancel', $event)"
+      @delete="emit('deleteMessage', $event)"
     />
     <div v-else-if="wide" class="convo-empty">
       <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true">

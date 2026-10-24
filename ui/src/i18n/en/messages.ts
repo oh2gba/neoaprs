@@ -12,6 +12,7 @@ export const messages = {
   "messages.asked.trace": "You asked for the route",
   "messages.none_yet": "No message yet.",
   "messages.delete_conversation": "Delete the conversation with {call}",
+  "messages.delete": "Delete the message",
   "messages.delete_overheard": "Delete the overheard messages {name}",
   "messages.choose": "Choose a conversation, or a station's Message button",
 

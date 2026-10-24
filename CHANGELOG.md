@@ -49,6 +49,10 @@ The map.
 
 - The ALOHA circle of Bob Bruninga, WB4APR, is drawn round your station: a thin dashed circle, under the markers, with its radius as the hover text ("ALOHA circle: 42 km"). It is the distance within which the stations heard on the radio would fill the channel; a packet for a station beyond it is hard to receive reliably. The daemon works it out by WB4APR's method ("The ALOHA Circle", aprs.org, 2011) once a minute from the stations heard in the last hour, nearest first, each by what it sends in half an hour (a moving mobile 15 packets, any other mobile 7, a weather station 6, a digipeater 3, any other station 2, and each digipeater nearer than a station makes the packets of the stations beyond it count once more), until the sum reaches 1800, the packets a 1200 baud channel carries in half an hour. Without a position, or with too few stations heard to fill the channel, there is no circle. The radius is the new field `aloha_km` of the topic `map`.
 
+Messages.
+
+- A message of yours that is no longer being sent and was never acked (failed, unconfirmed, refused or cancelled) has a small trash can beside Retry: pressed twice, it deletes the message from the conversation.
+
 Nothing moves when a button answers.
 
 - The answers of **Check now**, the alert command's **Test**, **New key** and **Test sound** / **Test pop-up** are said in the toast at the bottom, like the other notices, not beside or under the button (where they pushed the (i) aside). When Check now finds a newer version, the update window opens.

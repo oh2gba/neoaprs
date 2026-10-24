@@ -163,6 +163,7 @@ export const de: Catalogue = {
   "messages.asked.trace": "Du hast nach dem Weg gefragt",
   "messages.none_yet": "Noch keine Nachricht.",
   "messages.delete_conversation": "Unterhaltung mit {call} löschen",
+  "messages.delete": "Nachricht löschen",
   "messages.delete_overheard": "Mitgehörte Nachrichten {name} löschen",
   "messages.choose": "Eine Unterhaltung wählen oder die Schaltfläche „Nachricht“ einer Station",
 

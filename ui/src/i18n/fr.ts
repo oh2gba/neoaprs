@@ -160,6 +160,7 @@ export const fr: Catalogue = {
   "messages.asked.trace": "Vous avez demandé la route",
   "messages.none_yet": "Aucun message pour l'instant.",
   "messages.delete_conversation": "Supprimer la conversation avec {call}",
+  "messages.delete": "Supprimer le message",
   "messages.delete_overheard": "Supprimer les messages captés {name}",
   "messages.choose": "Choisissez une conversation ou le bouton Message d'une station",
 

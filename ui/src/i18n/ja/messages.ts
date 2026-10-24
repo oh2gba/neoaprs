@@ -14,6 +14,7 @@ export const messages: Record<keyof typeof source, Message> = {
   "messages.asked.trace": "経路を問い合わせました",
   "messages.none_yet": "メッセージはまだありません。",
   "messages.delete_conversation": "{call}との会話を削除",
+  "messages.delete": "メッセージを削除",
   "messages.delete_overheard": "傍受したメッセージ{name}を削除",
   "messages.choose": "会話、または局の「メッセージ」ボタンを選んでください",
 

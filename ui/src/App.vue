@@ -48,6 +48,7 @@ const { stationPick, pickingTab } = picks;
 const { selected, focus } = cards;
 const retry = (id: number): boolean => send({ cmd: "message_retry", id });
 const cancel = (id: number): boolean => send({ cmd: "message_cancel", id });
+const deleteMessage = (id: number): boolean => send({ cmd: "message_delete", id });
 </script>
 
 <template>
@@ -135,6 +136,7 @@ const cancel = (id: number): boolean => send({ cmd: "message_cancel", id });
             @send-many="talk.sendMessages"
             @retry="retry"
             @cancel="cancel"
+            @delete-message="deleteMessage"
           />
         </template>
         <template #email>
