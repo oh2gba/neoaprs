@@ -3,10 +3,17 @@
 // on a desktop): the oldest closes first when a new one would be one too many, and a window that gets smaller closes the oldest. A row of the table also flies the map to the station (`focus`, which counts up so that the same station picked
 // twice flies twice), unless it is added to the others (the map stays where the user has it). A station the daemon no longer has (forgotten, pruned) is let go of.
 import { computed, ref, watch, type Ref } from "vue";
+import { MOST_OPEN } from "@/lib/cardmove";
 import type { Focus } from "@/lib/mapview";
 import type { Command, StationRow } from "@/protocol/protocol";
 
-export function useSelection(stations: Readonly<Ref<ReadonlyMap<string, StationRow>>>, send: (command: Command) => boolean, capacity?: Readonly<Ref<number>>) {
+export function useSelection(
+  stations: Readonly<Ref<ReadonlyMap<string, StationRow>>>,
+  send: (command: Command) => boolean,
+  capacity?: Readonly<Ref<number>>,
+  /** The calls of the cards the user has moved out of the row (components/StationCards.vue): they do not count against `capacity`. */
+  moved: () => readonly string[] = () => [],
+) {
   const open = ref<string[]>([]); // the calls of the open cards, the oldest first
   const focus = ref<Focus | null>(null);
   let asked = 0;
@@ -21,10 +28,17 @@ export function useSelection(stations: Readonly<Ref<ReadonlyMap<string, StationR
   const rows = computed(() => open.value.flatMap((call) => stations.value.get(call) ?? []));
   const row = computed(() => (selected.value === null ? null : (stations.value.get(selected.value) ?? null)));
 
+  /** The open cards that are in the row: not the ones the user has moved out of it, which have room of their own and stay open until they are closed (but no more than MOST_OPEN cards are open in all). */
+  const inRow = (): string[] => open.value.filter((call) => !moved().includes(call));
   const trim = (): void => {
-    if (open.value.length > most()) open.value = open.value.slice(open.value.length - most());
+    const drop = inRow().length - most();
+    if (drop > 0) {
+      const going = inRow().slice(0, drop);
+      open.value = open.value.filter((call) => !going.includes(call));
+    }
+    if (open.value.length > MOST_OPEN) open.value = open.value.slice(open.value.length - MOST_OPEN);
   };
-  watch(() => most(), trim);
+  watch(() => [most(), moved().length], trim);
   watch(
     () => open.value.filter((call) => !stations.value.has(call)),
     (gone) => {
@@ -60,7 +74,8 @@ export function useSelection(stations: Readonly<Ref<ReadonlyMap<string, StationR
 
   /** The row of cards is wider than the map has room for: the oldest card closes, but never the only one. */
   function closeOldest(): void {
-    if (open.value.length > 1) open.value = open.value.slice(1);
+    const oldest = inRow()[0];
+    if (oldest !== undefined && inRow().length > 1) open.value = open.value.filter((call) => call !== oldest);
   }
 
   /** Esc, and Close all: every card goes, and with them the marking of the markers and the rows; whether there was one. */

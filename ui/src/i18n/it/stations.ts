@@ -12,12 +12,12 @@ export const stations: Readonly<Record<keyof typeof en, Message>> = {
 
   "station.card.label": "Stazione",
   "station.card.qrz_title": "Apri la pagina QRZ di questo nominativo",
+  "station.card.drag_title": "Trascina per spostare la scheda (Alt+frecce spostano la scheda con il focus)",
   "station.card.edit": "Modifica",
   "station.card.kill": "Rimuovi",
   "station.card.kill_sure": "Rimuovere davvero?",
   "station.card.message": "Messaggio",
-  "station.card.forget": "Dimentica",
-  "station.card.forget_sure": "Dimenticare davvero?",
+  "station.card.forget": "Dimentica {call}",
   "station.card.details": "Dettagli",
 
   "station.cards.close_all": "Chiudi tutte",

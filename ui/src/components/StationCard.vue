@@ -2,9 +2,10 @@
 // What the daemon knows of one station, as a card over the map, in the few facts a person asks for: the symbol with its name and a green check mark beside the call for a station that was heard direct (no repeater), when it was last heard ("6 min ago", the full time when the mouse rests on it), the position and how far and in which direction it is from us, how fast it moves (only a station that does),
 // the altitude, the status and the comment, and one line of how its packets reach us ("Reached us via OH2RCH-2", or "direct"). A row with nothing to say is left out. The rest is under "Details", closed (components/StationDetails.vue: the path as it was sent, the counts of the routes, the best route, when it was first heard, the packets, the decoded extras).
 // A weather station (the weather symbol, or one that has sent weather) has its weather panel at the top (components/WeatherPanel.vue). "Message" opens the Messages tab with the station as the addressee, where the path its messages go by and RF only are set; the timeout field, under Details, is how long it stays on the map.
-// Several cards can be open (Ctrl+click, components/StationCards.vue), side by side: each is this whole card, as when it is alone. "Forget" takes it out of the station book (it is back when it is heard again); it asks twice, and forgets the first click after 5 s like the other buttons that ask twice (`useSure`). An object or an item of ours has "Edit" (the Objects tab opens with it) and "Kill" (it asks twice, too) in place of "Message" and "Forget", and none of the fields of a station that is heard.
+// Several cards can be open (Ctrl+click, components/StationCards.vue), side by side: each is this whole card, as when it is alone. Forget (the trash can, "Forget OH2XYZ") takes it out of the station book (it is back when it is heard again); it asks twice ("sure?"), and forgets the first click after 5 s like the other buttons that ask twice (`useSure`). An object or an item of ours has "Edit" (the Objects tab opens with it) and "Kill" (it asks twice, too) in place of "Message" and "Forget", and none of the fields of a station that is heard.
 import { computed, watch } from "vue";
 import IconButton from "@/components/IconButton.vue";
+import MessageGlyph from "@/components/MessageGlyph.vue";
 import DirectMark from "@/components/DirectMark.vue";
 import RouteText from "@/components/RouteText.vue";
 import StationDetails from "@/components/StationDetails.vue";
@@ -16,7 +17,7 @@ import { t } from "@/i18n";
 import { timedOut, type Aging } from "@/lib/aging";
 import { qrzUrl } from "@/lib/calls";
 import { heardDirect, reachedText } from "@/lib/routes";
-import { symbolLabel } from "@/lib/stations";
+import { canForget, canMessage, symbolLabel } from "@/lib/stations";
 import { agoWords, altitudeText, bearingText, dateTimeText, distanceText, positionText, speedText } from "@/lib/format";
 import { isWeatherStation, type Ranges } from "@/lib/weather";
 import type { StationRow, WeatherSeriesMessage } from "@/protocol/protocol";
@@ -29,11 +30,14 @@ const props = withDefaults(
     weatherSeries?: WeatherSeriesMessage | null;
     /** The value axes the open weather cards share. */
     ranges?: Ranges;
+    /** The card can be moved by its head (a tablet and a desktop; the bottom sheet of a phone cannot). */
+    movable?: boolean;
   }>(),
   {
     aging: () => ({ timeouts: new Map<string, number>(), defaultMin: 0 }),
     weatherSeries: null,
     ranges: undefined,
+    movable: false,
   },
 );
 const emit = defineEmits<{
@@ -73,7 +77,7 @@ const reached = computed(() => (props.row.kind === "station" && !props.row.is_me
 
 <template>
   <section class="card" :aria-label="t('station.card.label')">
-    <header class="card-head">
+    <header class="card-head" :title="movable ? t('station.card.drag_title') : undefined">
       <SymbolIcon :table="row.symbol_table" :code="row.symbol_code" :size="32" />
       <div class="card-title">
         <span class="card-call">
@@ -137,13 +141,18 @@ const reached = computed(() => (props.row.kind === "station" && !props.row.is_me
         {{ armed ? t("station.card.kill_sure") : t("station.card.kill") }}
       </button>
     </footer>
-    <footer v-else-if="!row.is_me" class="card-foot">
-      <button v-if="row.kind === 'station' && row.can_message" class="btn primary" type="button" @click="emit('message', row.call)">
-        {{ t("station.card.message") }}
+    <footer v-else-if="canForget(row)" class="card-foot">
+      <button v-if="canMessage(row)" class="btn primary msgbtn card-message" type="button" @click="emit('message', row.call)">
+        <MessageGlyph :size="14" /> {{ t("station.card.message") }}
       </button>
-      <button class="btn forget" :class="{ danger: armed }" type="button" @click="forget">
-        {{ armed ? t("station.card.forget_sure") : t("station.card.forget") }}
-      </button>
+      <IconButton
+        kind="delete"
+        class="card-forget"
+        :armed="armed"
+        :label="t('station.card.forget', { call: row.call })"
+        :title="t('station.card.forget', { call: row.call })"
+        @click="forget"
+      />
     </footer>
   </section>
 </template>

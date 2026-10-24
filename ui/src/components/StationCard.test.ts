@@ -204,12 +204,36 @@ describe("StationCard", () => {
     }
   });
 
+  it("has Forget as the trash can, named for the station, and says 'sure?' after the first press", () => {
+    const wrapper = mount(StationCard, { props: { row, now: NOW } });
+    const button = wrapper.find(".card-foot .card-forget");
+    expect(button.classes()).toContain("xbtn");
+    expect(button.find("svg").exists()).toBe(true);
+    expect(button.attributes("aria-label")).toBe("Forget OH2PU-9");
+    expect(button.attributes("title")).toBe("Forget OH2PU-9");
+    expect(wrapper.find(".card-foot .btn.forget").exists()).toBe(false);
+  });
+
+  it("has the envelope of 'message' beside the word on Message", () => {
+    const wrapper = mount(StationCard, { props: { row, now: NOW } });
+    const button = wrapper.find(".card-foot .card-message");
+    expect(button.find("svg.msgglyph").exists()).toBe(true);
+    expect(button.text()).toBe("Message");
+  });
+
+  it("says 'Drag to move' on its head only when it can be moved", async () => {
+    const wrapper = mount(StationCard, { props: { row, now: NOW } });
+    expect(wrapper.find(".card-head").attributes("title")).toBeUndefined();
+    await wrapper.setProps({ movable: true });
+    expect(wrapper.find(".card-head").attributes("title")).toContain("Drag to move");
+  });
+
   it("forgets the station on the second click, not the first", async () => {
     const wrapper = mount(StationCard, { props: { row, now: NOW } });
-    const button = wrapper.find(".card-foot .forget");
+    const button = wrapper.find(".card-foot .card-forget");
     await button.trigger("click");
     expect(wrapper.emitted("forget")).toBeUndefined();
-    expect(button.text()).toBe("Really forget?");
+    expect(button.text()).toBe("sure?");
     await button.trigger("click");
     expect(wrapper.emitted("forget")).toEqual([["OH2PU-9"]]);
   });
@@ -217,26 +241,27 @@ describe("StationCard", () => {
   it("forgets its first click after 5 s, like the other buttons that ask twice", async () => {
     vi.useFakeTimers();
     const wrapper = mount(StationCard, { props: { row, now: NOW } });
-    const button = wrapper.find(".card-foot .forget");
+    const button = wrapper.find(".card-foot .card-forget");
     await button.trigger("click");
-    expect(button.text()).toBe("Really forget?");
+    expect(button.text()).toBe("sure?");
     vi.advanceTimersByTime(4999);
     await wrapper.vm.$nextTick();
-    expect(button.text()).toBe("Really forget?");
+    expect(button.text()).toBe("sure?");
     vi.advanceTimersByTime(1);
     await wrapper.vm.$nextTick();
-    expect(button.text()).toBe("Forget");
+    expect(button.text()).toBe("");
+    expect(button.attributes("aria-label")).toBe("Forget OH2PU-9");
     await button.trigger("click");
     expect(wrapper.emitted("forget")).toBeUndefined();
-    expect(button.text()).toBe("Really forget?");
+    expect(button.text()).toBe("sure?");
   });
 
   it("lets go of the first click when another station is shown", async () => {
     const wrapper = mount(StationCard, { props: { row, now: NOW } });
-    await wrapper.find(".card-foot .forget").trigger("click");
+    await wrapper.find(".card-foot .card-forget").trigger("click");
     await wrapper.setProps({ row: station("OH2RDG") });
-    expect(wrapper.find(".card-foot .forget").text()).toBe("Forget");
-    await wrapper.find(".card-foot .forget").trigger("click");
+    expect(wrapper.find(".card-foot .card-forget").text()).toBe("");
+    await wrapper.find(".card-foot .card-forget").trigger("click");
     expect(wrapper.emitted("forget")).toBeUndefined();
   });
 
@@ -265,18 +290,18 @@ describe("StationCard", () => {
 
   it("has the Message and Forget buttons of a station, in that order, with Message emitting the call", async () => {
     const wrapper = mount(StationCard, { props: { row: house, now: NOW } });
-    expect(wrapper.findAll(".card-foot button").map((b) => b.text())).toEqual(["Message", "Forget"]);
+    expect(wrapper.findAll(".card-foot button").map((b) => b.text())).toEqual(["Message", ""]);
     await wrapper.find(".card-foot .btn.primary").trigger("click");
     expect(wrapper.emitted("message")).toEqual([["OH2DPN"]]);
   });
 
   it("has no Message button for a station that cannot do messages, and no gap where it was", async () => {
     const wrapper = mount(StationCard, { props: { row: station("OH2TRK", { can_message: false }), now: NOW } });
-    expect(wrapper.findAll(".card-foot button").map((b) => b.text())).toEqual(["Forget"]);
+    expect(wrapper.findAll(".card-foot button").map((b) => b.text())).toEqual([""]);
     expect(wrapper.find(".card-foot .btn.primary").exists()).toBe(false);
-    expect(wrapper.find(".card-foot .btn.forget").exists()).toBe(true);
+    expect(wrapper.find(".card-foot .card-forget").exists()).toBe(true);
     await wrapper.setProps({ row: station("OH2TRK", { can_message: true }) });
-    expect(wrapper.findAll(".card-foot button").map((b) => b.text())).toEqual(["Message", "Forget"]);
+    expect(wrapper.findAll(".card-foot button").map((b) => b.text())).toEqual(["Message", ""]);
   });
 
   it("offers to write to a station, and not to our own station or to an object", async () => {
@@ -354,9 +379,9 @@ describe("StationCard", () => {
 
   it("asks again for another station", async () => {
     const wrapper = mount(StationCard, { props: { row, now: NOW } });
-    await wrapper.find(".card-foot .forget").trigger("click");
+    await wrapper.find(".card-foot .card-forget").trigger("click");
     await wrapper.setProps({ row: station("OH2RDG") });
-    expect(wrapper.find(".card-foot .forget").text()).toBe("Forget");
+    expect(wrapper.find(".card-foot .card-forget").text()).toBe("");
   });
 
   it("does not offer to forget our own station, and closes", async () => {

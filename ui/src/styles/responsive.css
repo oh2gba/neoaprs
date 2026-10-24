@@ -58,6 +58,28 @@ button,
   max-height: 100%;
   min-height: 0;
 }
+/* a card the user has dragged (or moved with Alt and the arrows) is out of the row, where the script has put it (left and top, in the row's pixels); the cards that are left in the row close up. Its head is the handle: not the buttons and links on it.
+   A phone's sheet has none of this (the script gives no place there, and the head is not a handle). */
+.cardstack .card.moved {
+  position: absolute;
+  bottom: auto; /* (not the card's own bottom: 30px, which would stretch it from its top to there) */
+  z-index: 1;
+}
+.cardstack:not(.sheet) .card-head {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.cardstack:not(.sheet) .card-head :is(button, a) {
+  cursor: pointer;
+}
+.card-dragging,
+.card-dragging * {
+  cursor: grabbing !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
 .cards-actions {
   position: absolute;
   top: 10px;

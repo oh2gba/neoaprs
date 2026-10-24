@@ -49,6 +49,7 @@ const cancel = (id: number): boolean => send({ cmd: "message_cancel", id });
         <SetupGuide />
         <MapPickBar v-if="layout.phone.value && pickingTab" @cancel="picks.cancel" />
         <StationCards
+          v-model:places="cards.places.value"
           :rows="cards.rows.value"
           :size="layout.size.value"
           @close="cards.close"

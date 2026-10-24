@@ -70,7 +70,7 @@ A click on a marker opens a card over the map. It is above the markers, clear of
 
 A row with nothing to say is left out: a station that stands still has no speed whatever course it gave, a station that sent no altitude has none, and so on. An altitude of 0 that the station did send is shown.
 
-The buttons are **Message**, which opens the Messages tab on the station, and **Forget**, which asks twice ("Really forget?", taken back after 5 seconds). The station's own timeout, **Hide from map after**, is under Details.
+The buttons are **Message**, which opens the Messages tab on the station, and **Forget**, the trash can at the right ("Forget OH2XYZ" on hover), which asks twice (it says "sure?" after the first press, and takes it back after 5 seconds). The station's own timeout, **Hide from map after**, is under Details.
 
 **Message** is there only for a station that can do messages. There is none for an object or an item, and none for a station that sent its positions with `!` or `/` (the identifiers of a station without messaging), unless it has sent a message or an ack that you heard (overheard ones too) or a Mic-E position. Positions with `=` and `@`, Mic-E positions, and a station of which nothing is known yet all have it. NeoAPRS finds this again at its start from the packet log. The bulletins and telemetry definitions of a station do not count as a message.
 
@@ -94,6 +94,10 @@ A click on a marker or on a row of the Stations table opens that station's card 
 - The cards are side by side in a row over the map, from its left, the oldest at the left and the newest at the right. **Every card is the whole card**, with its graphs when it is a weather station: opening more cards makes none of them smaller.
 - While two or more weather cards are open each graph is on the same value axis and the same time span on all of them. A single card keeps its own axis.
 - When the row is wider than the map has room for, the oldest card closes: up to four on a desktop, two on a tablet, one on a phone (a tap replaces it). Each card has its own cross.
+- **Drag a card by its head** (the symbol and the call, not the buttons and the QRZ link) to move it anywhere over the map, with the mouse, a finger or a pen. The card stays inside the map, and the map does not move while you drag. **Alt** with an arrow key moves the card that has the focus (with **Shift** in bigger steps). The card on a phone is a bottom sheet and cannot be dragged.
+- A moved card is out of the row, so the cards in the row close up, and a newly opened card goes to the next place of the row. Only the cards in the row count against the room above (a moved card is never the one that closes), though no more than eight cards are open in all.
+- A moved card keeps its place as long as it is open, and the place is not remembered: a card that is closed and opened again, **Close all** and **Esc** put it back in the row.
+- When you pick a station whose marker is under a card, wherever the card stands now, the map moves so that the marker is clear of it.
 - With two or more open, **Close all** and **Message these 3** are at the top left of the map beside the zoom buttons. The count is of the open cards that are stations that can be messaged, not yourself. The second button opens the Messages tab with a [group compose](messages.md#one-text-to-several-stations) for those stations.
 - The marker and the row of every open card have the selected look, and the track of every open card is highlighted. The route to your station is drawn for the newest card only.
 - A card added from the table does not fly the map to the station (a plain click does).

@@ -13,12 +13,12 @@ export const stations: Record<keyof typeof source, Message> = {
 
   "station.card.label": "Estação",
   "station.card.qrz_title": "Abrir a página do QRZ deste indicativo",
+  "station.card.drag_title": "Arraste para mover o cartão (Alt+setas movem o cartão em foco)",
   "station.card.edit": "Editar",
   "station.card.kill": "Encerrar",
   "station.card.kill_sure": "Encerrar mesmo?",
   "station.card.message": "Mensagem",
-  "station.card.forget": "Esquecer",
-  "station.card.forget_sure": "Esquecer mesmo?",
+  "station.card.forget": "Esquecer {call}",
   "station.card.details": "Detalhes",
 
   "station.cards.close_all": "Fechar todos",
