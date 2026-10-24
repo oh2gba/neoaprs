@@ -1,7 +1,7 @@
 // The types of the wire protocol between the daemon and the page, written from the models of neoaprs/web/protocol.py by scripts/gen-protocol.py: never edited by hand.
 // `Command` is what the page sends (tagged by `cmd`), `Message` what the daemon sends (tagged by `type`), `TopicValues` the value of each topic the page follows.
 
-export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | TncReconnectCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | QueryStationCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationTimeoutCommand | ClearStationTimeoutCommand | SetStationRfOnlyCommand | WeatherSeriesCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand;
+export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | TncReconnectCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | QueryStationCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | WeatherSeriesCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand;
 
 export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | AlertResultMessage | UpdateResultMessage | RadioSearchMessage;
 
@@ -96,15 +96,9 @@ export interface CheckUpdateCommand {
   cmd: "update_check";
 }
 
-/** Takes a station's own path away, so that it has the path of the setting `beacon/path` again (a station without one is no error). Answered by the `set` of its entry in `station_prefs` with a null `path` (or the `del` of the entry when it had no timeout either), or by an `error`. */
+/** Takes a station's own path away, so that it has the path of the setting `beacon/path` again (a station without one is no error). Answered by the `set` of its entry in `station_prefs` with a null `path` (or the `del` of the entry when it was not RF only either), or by an `error`. */
 export interface ClearStationPathCommand {
   cmd: "clear_station_path";
-  call: string;
-}
-
-/** Takes a station's own timeout away, so that it has the fixed 180 minutes again (a station without one is no error). Answered by the `set` of its entry in `station_prefs` with a null `hide_after_min` (or the `del` of the entry when it had no path either), or by an `error`. */
-export interface ClearStationTimeoutCommand {
-  cmd: "clear_station_timeout";
   call: string;
 }
 
@@ -751,7 +745,7 @@ export interface SetOp {
   value: unknown;
 }
 
-/** Gives a station a path of its own: the digipeaters that a message to it, and the ack of a message from it, go by way of. `path` is up to 8 digipeater calls separated by commas, checked as the setting `beacon/path` is, or `DIRECT` for a path of its own with no digipeaters at all; an empty `path` is no path of its own, as `clear_station_path` makes it. Answered by the `set` of the station's entry in the topic `station_prefs` (its `hide_after_min` is whatever it was), or by an `error` that names the reason. */
+/** Gives a station a path of its own: the digipeaters that a message to it, and the ack of a message from it, go by way of. `path` is up to 8 digipeater calls separated by commas, checked as the setting `beacon/path` is, or `DIRECT` for a path of its own with no digipeaters at all; an empty `path` is no path of its own, as `clear_station_path` makes it. Answered by the `set` of the station's entry in the topic `station_prefs` (its `rf_only` is whatever it was), or by an `error` that names the reason. */
 export interface SetStationPathCommand {
   cmd: "set_station_path";
   call: string;
@@ -765,13 +759,6 @@ export interface SetStationRfOnlyCommand {
   on: boolean;
 }
 
-/** Gives a station a timeout of its own: how long after its last position it stays on the map, in minutes; 0 is never. The page hides a station whose last position is older than that (a station without one of its own is hidden after 180 minutes), and the daily prune does not remove a station with a timeout of 0 from the station book. `call` is a station's call as it is in the topic `stations` (the name of an object or an item too). Answered by the `set` of the station's entry in the topic `station_prefs` (its `path` is whatever it was), or by an `error` that names the reason. */
-export interface SetStationTimeoutCommand {
-  cmd: "set_station_timeout";
-  call: string;
-  minutes: number;
-}
-
 /** A topic as it is now: its revision and its whole `value`, which replaces what the page had. Patches for the changes made meanwhile follow. */
 export interface StateMessage {
   type: "state";
@@ -781,12 +768,10 @@ export interface StateMessage {
   value: unknown;
 }
 
-/** What the operator has set for one station, apart from what its packets say. The entries are the values of the topic `station_prefs`, keyed by call: a station with no path and no timeout of its own, and not RF only, has no entry. A command that sets or changes one part is a `set` of the whole entry, one that clears the last part a `del`. */
+/** What the operator has set for one station, apart from what its packets say. The entries are the values of the topic `station_prefs`, keyed by call: a station with no path of its own, and not RF only, has no entry. A command that sets or changes one part is a `set` of the whole entry, one that clears the last part a `del`. */
 export interface StationPref {
   /** the digipeaters that a message to the station, and the ack of a message from it, go by way of: calls separated by commas, empty for direct (no digipeaters at all); null if none is set, and the setting `beacon/path` counts */
   path: string | null;
-  /** the minutes after the station's last position that it leaves the map (the page does the hiding); 0 is never; null if none is set, and the default of 180 minutes counts */
-  hide_after_min: number | null;
   /** true if everything sent to the station (a message and each attempt of it, an ack, the answer to a query) has `RFONLY` as the last element of its path, which iGates that honour it do not put on the internet */
   rf_only: boolean;
 }
@@ -1031,7 +1016,7 @@ export interface TopicValues {
   tnc: TncState;
   /** the settings; told again after every save, though nothing differs: the settings form waits for it */
   config: ConfigValues;
-  /** what the operator set for each station that has anything set, by call: its own path and its own timeout, each null where none is set, and whether it is RF only. `set_station_path`, `clear_station_path`, `set_station_timeout`, `clear_station_timeout` and `set_station_rf_only` each give a `set` of the entry, or a `del` when nothing is left in it */
+  /** what the operator set for each station that has anything set, by call: its own path (null where none is set) and whether it is RF only. `set_station_path`, `clear_station_path` and `set_station_rf_only` each give a `set` of the entry, or a `del` when nothing is left in it */
   station_prefs: { [key: string]: StationPref };
   /** every message by id (as text), all of them sent with the first `state`: a message that is new or changes is a `set` of its row, one that is deleted a `del`; none leaves on its own */
   messages: { [key: string]: MessageRow };

@@ -39,7 +39,6 @@ const {
   guide,
   panel,
   settings,
-  prefs,
   notice,
   findRadio,
   stationActions,
@@ -80,9 +79,11 @@ const cancel = (id: number): boolean => send({ cmd: "message_cancel", id });
         <StationCards
           v-model:places="cards.places.value"
           :rows="cards.rows.value"
+          :pinned="cards.pinned.value"
           :size="layout.size.value"
           @close="cards.close"
           @close-all="cards.closeAll"
+          @pin="cards.pin"
           @message-all="talk.openGroup"
           @overflow="cards.closeOldest"
           @weather="(call, hours) => send({ cmd: 'weather_series', call, hours })"
@@ -90,8 +91,6 @@ const cancel = (id: number): boolean => send({ cmd: "message_cancel", id });
           @edit="objects.edit"
           @kill="objects.kill"
           @message="talk.writeTo"
-          @timeout="prefs.setTimeoutMin"
-          @clear-timeout="prefs.clearTimeoutMin"
         />
       </div>
       <SidePanel

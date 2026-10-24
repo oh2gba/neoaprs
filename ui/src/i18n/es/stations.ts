@@ -4,6 +4,8 @@ import type { Message } from "@/i18n/message";
 export const stations: Readonly<Record<keyof typeof en, Message>> = {
   "iconbutton.delete": "Eliminar",
   "iconbutton.close": "Cerrar",
+  "iconbutton.pin": "Fijar la ficha",
+  "iconbutton.unpin": "Soltar la ficha",
   "iconbutton.sure": "¿seguro?",
 
   "station.direct.title": "Escuchada en directo",
@@ -104,13 +106,6 @@ export const stations: Readonly<Record<keyof typeof en, Message>> = {
   "station.ask.status": "Estado pedido a {call}",
   "station.ask.heard": "Preguntado a {call} qué oye en directo",
   "station.ask.trace": "Ruta pedida a {call}",
-
-  "station.timeout.label": "Ocultar del mapa tras",
-  "station.timeout.usual": "{timeout} (habitual)",
-  "station.timeout.bad": "Minutos enteros, o nunca",
-  "station.timeout.hint": "Minutos, o nunca; vacío para el tiempo habitual",
-  "station.timeout.use_default": "Usar el tiempo predeterminado",
-  "station.timeout.never": "nunca",
 
   "route.direct": "directa",
   "route.via": "vía {hops}",

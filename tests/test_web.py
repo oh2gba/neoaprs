@@ -21,7 +21,6 @@ from neoaprs.web import server as web_server
 from neoaprs.web.protocol import TOPIC_NAMES, TOPIC_VALUES
 from neoaprs.web.bulletinwire import BulletinRow
 from neoaprs.web.messagewire import MessageRow
-from neoaprs.web.prefwire import StationPref
 from neoaprs.web.stationwire import StationRow
 
 SECURITY = ("Content-Security-Policy", "X-Frame-Options", "Referrer-Policy", "X-Content-Type-Options", "Cross-Origin-Resource-Policy")
@@ -808,68 +807,43 @@ async def test_a_restarted_daemon_opens_with_the_messages_the_database_kept(tmp_
     assert {k: (r["direction"], r["text"], r["state"]) for k, r in again.topics["messages"].items()} == {"1": ("out", "Hello", "sending"), "2": ("in", "Moi!", "received")}
 
 
-def pref(path: str | None, hide_after_min: int | None, rf_only: bool = False) -> dict[str, object]:
-    return {"path": path, "hide_after_min": hide_after_min, "rf_only": rf_only}
+def pref(path: str | None, rf_only: bool = False) -> dict[str, object]:
+    return {"path": path, "rf_only": rf_only}
 
 
 async def test_set_station_path_and_clear_station_path_change_the_entry_of_the_topic_and_the_path_of_the_message(tmp_path: Path) -> None:
     e, page = await with_page(tmp_path)
     other = await e.ws()
     await page.send({"cmd": "set_station_path", "call": "oh2rdg", "path": "oh2rch-2, wide2-1"})
-    await page.until(lambda: page.topics["station_prefs"] == {"OH2RDG": pref("OH2RCH-2,WIDE2-1", None)})
-    await other.until(lambda: other.topics["station_prefs"] == {"OH2RDG": pref("OH2RCH-2,WIDE2-1", None)})
+    await page.until(lambda: page.topics["station_prefs"] == {"OH2RDG": pref("OH2RCH-2,WIDE2-1")})
+    await other.until(lambda: other.topics["station_prefs"] == {"OH2RDG": pref("OH2RCH-2,WIDE2-1")})
     await page.send({"cmd": "send_message", "to": "OH2RDG", "text": "Hello"})
     await page.until(lambda: any("OH2RCH-2,WIDE2-1" in r["tnc2"] for r in page.topics["packets"].values()))
     await page.send({"cmd": "set_station_path", "call": "OH2XYZ", "path": "DIRECT"})
-    await page.until(lambda: page.topics["station_prefs"].get("OH2XYZ") == pref("", None), timeout=5)
+    await page.until(lambda: page.topics["station_prefs"].get("OH2XYZ") == pref(""), timeout=5)
     await page.send({"cmd": "clear_station_path", "call": "OH2RDG"})
     await page.until(lambda: "OH2RDG" not in page.topics["station_prefs"])
-    assert page.topics["station_prefs"] == {"OH2XYZ": pref("", None)} and [op["op"] for op in page.ops("station_prefs")] == ["set", "set", "del"]
+    assert page.topics["station_prefs"] == {"OH2XYZ": pref("")} and [op["op"] for op in page.ops("station_prefs")] == ["set", "set", "del"]
     assert page.of("error") == []
     late = await e.ws()
     await late.until(lambda: len(late.of("state")) == len(TOPIC_NAMES))
-    assert late.topics["station_prefs"] == {"OH2XYZ": pref("", None)}
-
-
-async def test_set_station_timeout_and_clear_station_timeout_change_the_entry_and_keep_the_path_beside_it(tmp_path: Path) -> None:
-    e, page = await with_page(tmp_path)
-    other = await e.ws()
-    await page.send({"cmd": "set_station_timeout", "call": "oh2rdg", "minutes": 45})
-    await page.until(lambda: page.topics["station_prefs"] == {"OH2RDG": pref(None, 45)})
-    await other.until(lambda: other.topics["station_prefs"] == {"OH2RDG": pref(None, 45)})
-    await page.send({"cmd": "set_station_path", "call": "OH2RDG", "path": "WIDE2-1"})
-    await page.until(lambda: page.topics["station_prefs"] == {"OH2RDG": pref("WIDE2-1", 45)})
-    await page.send({"cmd": "set_station_timeout", "call": "OH2RDG", "minutes": 0})                  # never
-    await page.send({"cmd": "set_station_timeout", "call": "STORM", "minutes": 10080})               # (an object has a name, not a call)
-    await page.until(lambda: page.topics["station_prefs"] == {"OH2RDG": pref("WIDE2-1", 0), "STORM": pref(None, 10080)})
-    await page.send({"cmd": "clear_station_path", "call": "OH2RDG"})
-    await page.until(lambda: page.topics["station_prefs"]["OH2RDG"] == pref(None, 0))
-    await page.send({"cmd": "clear_station_timeout", "call": "OH2RDG"})
-    await page.until(lambda: "OH2RDG" not in page.topics["station_prefs"])
-    await page.send({"cmd": "clear_station_timeout", "call": "OH2RDG"})                              # (nothing to clear: no error, no patch)
-    assert page.topics["station_prefs"] == {"STORM": pref(None, 10080)} and page.of("error") == []
-    assert [(op["op"], op["key"]) for op in page.ops("station_prefs")] == [("set", "OH2RDG"), ("set", "OH2RDG"), ("set", "OH2RDG"), ("set", "STORM"), ("set", "OH2RDG"), ("del", "OH2RDG")]
-    late = await e.ws()
-    await late.until(lambda: len(late.of("state")) == len(TOPIC_NAMES))
-    assert late.topics["station_prefs"] == {"STORM": pref(None, 10080)}
-    for value in late.topics["station_prefs"].values():
-        StationPref.model_validate_json(json.dumps(value))
+    assert late.topics["station_prefs"] == {"OH2XYZ": pref("")}
 
 
 async def test_set_station_rf_only_changes_the_entry_keeps_the_rest_and_the_next_message_goes_with_rfonly_and_the_chain_shows_no_such_hop(tmp_path: Path) -> None:
     e, page = await with_page(tmp_path)
     other = await e.ws()
     await page.send({"cmd": "set_station_rf_only", "call": "oh2rdg", "on": True})
-    await page.until(lambda: page.topics["station_prefs"] == {"OH2RDG": pref(None, None, True)})
-    await other.until(lambda: other.topics["station_prefs"] == {"OH2RDG": pref(None, None, True)})
+    await page.until(lambda: page.topics["station_prefs"] == {"OH2RDG": pref(None, True)})
+    await other.until(lambda: other.topics["station_prefs"] == {"OH2RDG": pref(None, True)})
     await page.send({"cmd": "set_station_path", "call": "OH2RDG", "path": "OH2RCH-2,OH2RDG"})
-    await page.until(lambda: page.topics["station_prefs"] == {"OH2RDG": pref("OH2RCH-2,OH2RDG", None, True)})
+    await page.until(lambda: page.topics["station_prefs"] == {"OH2RDG": pref("OH2RCH-2,OH2RDG", True)})
     await page.send({"cmd": "send_message", "to": "OH2RDG", "text": "Hello"})
     await page.until(lambda: any("OH2RCH-2,OH2RDG,RFONLY" in r["tnc2"] for r in page.topics["packets"].values()))
     row = MessageRow.model_validate_json(json.dumps(page.topics["messages"]["1"]))
     assert [h.call for h in row.attempts_detail[0].hops] == ["OH2RCH-2", "OH2RDG"], "RFONLY is no hop of the chain"
     await page.send({"cmd": "set_station_rf_only", "call": "OH2RDG", "on": False})
-    await page.until(lambda: page.topics["station_prefs"] == {"OH2RDG": pref("OH2RCH-2,OH2RDG", None, False)})
+    await page.until(lambda: page.topics["station_prefs"] == {"OH2RDG": pref("OH2RCH-2,OH2RDG", False)})
     await page.send({"cmd": "clear_station_path", "call": "OH2RDG"})
     await page.until(lambda: page.topics["station_prefs"] == {})
     assert [(op["op"], op["key"]) for op in page.ops("station_prefs")] == [("set", "OH2RDG"), ("set", "OH2RDG"), ("set", "OH2RDG"), ("del", "OH2RDG")] and page.of("error") == []
@@ -889,8 +863,9 @@ async def test_set_station_rf_only_for_the_email_gateway_is_an_error_that_says_w
     assert page.topics["station_prefs"] == {} and len(page.of("error")) == 1 and page.ops("station_prefs") == []
 
 
-@pytest.mark.parametrize("command", [{"cmd": "set_station_attempts", "call": "OH2RDG", "attempts": 2}, {"cmd": "clear_station_attempts", "call": "OH2RDG"}])
-async def test_the_commands_for_the_attempts_of_a_station_are_gone(tmp_path: Path, command: dict[str, object]) -> None:
+@pytest.mark.parametrize("command", [{"cmd": "set_station_attempts", "call": "OH2RDG", "attempts": 2}, {"cmd": "clear_station_attempts", "call": "OH2RDG"},
+                                     {"cmd": "set_station_timeout", "call": "OH2RDG", "minutes": 45}, {"cmd": "clear_station_timeout", "call": "OH2RDG"}])
+async def test_the_commands_for_the_attempts_and_the_timeout_of_a_station_are_gone(tmp_path: Path, command: dict[str, object]) -> None:
     e, page = await with_page(tmp_path)
     await page.send(command)
     assert command["cmd"] in (await page.expect("error"))["text"]
@@ -899,23 +874,12 @@ async def test_the_commands_for_the_attempts_of_a_station_are_gone(tmp_path: Pat
 
 @pytest.mark.parametrize("command, reason", [
     ({"cmd": "set_station_path", "call": "TOOLONGCALL", "path": ""}, "call"), ({"cmd": "set_station_path", "call": "OH2RDG", "path": "WIDE 1"}, "call"),
-    ({"cmd": "set_station_path", "call": "OH2RDG", "path": ",".join(["WIDE1-1"] * 9)}, "more than the 8"), ({"cmd": "clear_station_path", "call": "TOOLONGCALL"}, "call"),
-    ({"cmd": "set_station_timeout", "call": "TOOLONGNAMEFORANOBJECT", "minutes": 5}, "not a call or the name of an object"), ({"cmd": "set_station_timeout", "call": "   ", "minutes": 5}, "not a call or the name of an object"),
-    ({"cmd": "clear_station_timeout", "call": "TOOLONGNAMEFORANOBJECT"}, "not a call or the name of an object")])
+    ({"cmd": "set_station_path", "call": "OH2RDG", "path": ",".join(["WIDE1-1"] * 9)}, "more than the 8"), ({"cmd": "clear_station_path", "call": "TOOLONGCALL"}, "call")])
 async def test_a_bad_path_or_call_is_an_error_that_says_why_and_changes_nothing(tmp_path: Path, command: dict[str, str], reason: str) -> None:
     e, page = await with_page(tmp_path)
     await page.send(command)
     error = (await page.expect("error"))["text"]
     assert error.startswith(command["cmd"] + ": ") and reason in error
-    assert page.topics["station_prefs"] == {}
-
-
-@pytest.mark.parametrize("minutes, reason", [(10081, "at most 10080"), (-1, "at least 0"), ("30", "whole number"), (None, "is missing")])
-async def test_a_timeout_out_of_range_is_refused_before_anything_is_done(tmp_path: Path, minutes: object, reason: str) -> None:
-    e, page = await with_page(tmp_path)
-    await page.send({"cmd": "set_station_timeout", "call": "OH2RDG", **({} if minutes is None else {"minutes": minutes})})
-    error = (await page.expect("error"))["text"]
-    assert error.startswith("set_station_timeout: minutes: ") and reason in error
     assert page.topics["station_prefs"] == {}
 
 

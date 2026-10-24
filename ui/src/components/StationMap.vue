@@ -261,7 +261,7 @@ async function create(): Promise<void> {
   syncPin();
 }
 
-watch([() => [...page.stations.value.values()], () => [props.selected, props.others, [...page.aging.value.timeouts], page.aging.value.defaultMin]], () => {
+watch([() => [...page.stations.value.values()], () => [props.selected, props.others, page.aging.value.defaultMin]], () => {
   syncMarkers();
   drawTracks();
   drawRoute();

@@ -65,7 +65,7 @@ A marker for every station that has a position shows the APRS symbol with the ca
 
 A station whose last position is older than its timeout is left off the map, marker and track, and stays in the Stations table. Selecting its row still flies the map to its last position and shows its card, and its marker for as long as it is selected.
 
-The timeout is 3 hours (180 minutes) for every station. A station can have a timeout of its own: under **Details** on its card, **Hide from map after** takes minutes after its last position. The placeholder "3 h (usual)" is the usual time and an empty field means the usual time. "never" or 0 is never, and an x takes the station's own away. Your own station never times out. A station's own timeout can be at most 10080 minutes (a week). The daily clean-up keeps a station with a timeout of 0 whatever its age; its packets and messages are cleaned up as the others are.
+The timeout is 3 hours (180 minutes), the same for every station and not a setting. Your own station and your own objects never time out.
 
 Without a base map the map area says "No base map" with a Download button over a blank background, and the stations are drawn all the same ([The base map](#the-base-map)).
 
@@ -108,17 +108,19 @@ A click on a marker or on a row of the Stations table opens that station's card 
 
 - The cards are side by side in a row over the map, from its left, the oldest at the left and the newest at the right. **Every card is the whole card**, with its graphs when it is a weather station: opening more cards makes none of them smaller.
 - While two or more weather cards are open each graph is on the same value axis and the same time span on all of them. A single card keeps its own axis.
-- When the row is wider than the map has room for, the oldest card closes: up to four on a desktop, two on a tablet, one on a phone (a tap replaces it). Each card has its own cross.
+- When the row is wider than the map has room for, the oldest card closes: up to four on a desktop, two on a tablet, one on a phone (a tap replaces it). Each card has its own cross (a pinned card never closes for that: see below).
 - **Drag a card by its head** (the symbol and the call, not the buttons and the QRZ link) to move it anywhere over the map, with the mouse, a finger or a pen. The card stays inside the map, and the map does not move while you drag. **Alt** with an arrow key moves the card that has the focus (with **Shift** in bigger steps). The card on a phone is a bottom sheet and cannot be dragged.
 - **Moving a card never moves another.** When you start to move one, every other open card stays exactly where it is on the screen, and the place the card left stays empty. Closing a card does not make the others close up either.
 - A card that you open later goes to the first free place in the row, from the left, where it covers no other card (the empty place of a card you moved, or room to the right of the cards); with no free place in the row it goes to a row above. It is never put on top of a card (you can put one there yourself). All the open cards count against the room above, wherever they stand: the oldest closes when there are too many.
-- A card keeps its place as long as it is open, and places are not remembered: **Close all** and **Esc**, and then a new card, start the row again from the left. A card that grows (its **Details** opened, a weather card's graphs) is kept inside the map.
+- A card keeps its place as long as it is open, and places are not remembered: **Close all** and **Esc**, and then a new card, start the row again from the left. A card that grows where it stands (its **Details** opened, a weather card's graphs) moves up as far as it needs to be whole inside the map, and no further; only a card taller than the map is put at the top of it and scrolls. Another card never moves for it.
+- **Pin** (the pin beside the cross, on a tablet and a desktop) keeps a card on the map: it stays where it is past **Esc**, **Close all**, a click on the map or on another station, and a reload of the page, until you click its **cross**, which unpins it and closes it. The pin is filled while it is on; click it again to take the pin away (the card stays open).
+- A pinned card keeps its place, and a card that is opened later never goes on top of it. Which cards are pinned and where they stand are remembered in this browser, not in the daemon; a pinned card of a station that is forgotten is let go of. A phone's sheet has no pin.
 - When you pick a station whose marker is under a card, wherever the card stands now, the map moves so that the marker is clear of it.
-- With two or more open, **Close all** and **Message these 3** are at the top left of the map beside the zoom buttons. The count is of the open cards that are stations that can be messaged, not yourself. The second button opens the Messages tab with a [group compose](messages.md#one-text-to-several-stations) for those stations.
+- With two or more open, **Close all** (it closes the cards that are not pinned, and is not there when all are pinned) and **Message these 3** are at the top left of the map beside the zoom buttons. The count is of the open cards that are stations that can be messaged, not yourself. The second button opens the Messages tab with a [group compose](messages.md#one-text-to-several-stations) for those stations.
 - The marker and the row of every open card have the selected look, and the track of every open card is highlighted. The route to your station is drawn for the newest card only.
 - A card added from the table does not fly the map to the station (a plain click does).
 - A station past its timeout stays in the table, and a click on it, with Ctrl or without, shows its marker and track on the map for as long as its card is open.
-- **Esc** closes all the cards at once and clears the selection. Not while a field has text in it: in the filter box of the Stations table the first Esc clears the text and the next closes the cards. And not while the setup guide or the update panel is open: they take the key.
+- **Esc** closes all the cards that are not pinned at once and clears the selection. Not while a field has text in it: in the filter box of the Stations table the first Esc clears the text and the next closes the cards. And not while the setup guide or the update panel is open: they take the key.
 
 ## The header and the footer
 

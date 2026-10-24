@@ -1,8 +1,6 @@
-"""What the operator says about a station, apart from what its packets say: a path, a timeout of its own and whether it is RF only. Each is optional and independent, and a station with none has no entry.
+"""What the operator says about a station, apart from what its packets say: a path of its own and whether it is RF only. Each is optional and independent, and a station with none has no entry.
 
-The path: the digipeaters a message (and its ack) to the station goes by way of; empty is direct (chosen as DIRECT), which is not the same as none set (then the first attempts of a message go by the path lately heard to reach the station, the rest and everything else by `beacon/path`). The timeout: the minutes after its last
-position that the station leaves the map; 0 is never, none set means the fixed 180 minutes (`HIDE_AFTER_MIN` of policy.py) (the page does the hiding, the daemon only keeps and tells the number; the daily prune never removes a
-station with a timeout of 0). RF only: everything we send to the station (a message and each attempt of it, its acks, the answers to its queries) goes by its path with RFONLY
+The path: the digipeaters a message (and its ack) to the station goes by way of; empty is direct (chosen as DIRECT), which is not the same as none set (then the first attempts of a message go by the path lately heard to reach the station, the rest and everything else by `beacon/path`). RF only: everything we send to the station (a message and each attempt of it, its acks, the answers to its queries) goes by its path with RFONLY
 added at the end, which iGates that honour it do not put on the internet; the email gateway EMAIL-2 is on the internet and can never be RF only. They are operator data, kept in the table `station_pref` of the message log's database, read once at the start and written through; `changed` tells (call, pref) when a station's
 entry is set or changes and (call, None) when its last part is cleared and the entry is gone."""
 import asyncio
@@ -10,29 +8,14 @@ from collections.abc import Callable
 from dataclasses import replace
 
 from neoaprs.ax25 import MAX_PATH
-from neoaprs.callsign import CallsignError, normal_name
+from neoaprs.callsign import normal_name
 from neoaprs.clock import Clock, utcnow
 from neoaprs.config import Config
-from neoaprs.policy import MAX_HIDE_AFTER_MIN
 from neoaprs.message import EMAIL_GATEWAY, MessagingError, normal_path, path_choice
 from neoaprs.messagelog import MessageLog
 from neoaprs.pref import Pref
 from neoaprs.route import Deliveries, automatic_path, rf_only_path
 from neoaprs.signal import Signal
-
-MAX_NAME = 9                          # the longest name that is not a call: an object's
-
-
-def _key(name: str) -> str:
-    """The station the entry is for: a call or a station's name on the internet in its normal form (callsign.normal_name), else (an object or an item has a name that is no call) the name as it is."""
-    try:
-        return normal_name(name)
-    except CallsignError:
-        text = name.strip()
-        if not text or len(text) > MAX_NAME or not text.isprintable():
-            raise MessagingError(f"{name!r} is not a call or the name of an object (1 to {MAX_NAME} printable characters)") from None
-        return text
-
 
 class PrefBook:
     def __init__(self, messagelog: MessageLog, config: Callable[[], Config], heard: Callable[[str], Deliveries | None] = lambda call: None, clock: Clock = utcnow) -> None:
@@ -45,7 +28,7 @@ class PrefBook:
         self.changed: Signal[[str, Pref | None]] = Signal("prefs_changed")
 
     async def load(self) -> None:
-        self._own = {call: Pref(None if path is None else normal_path(path), hide, rf_only) for call, (path, hide, rf_only) in (await self._log.prefs()).items()}
+        self._own = {call: Pref(None if path is None else normal_path(path), rf_only) for call, (path, rf_only) in (await self._log.prefs()).items()}
 
     # ---- what there is
     def all(self) -> dict[str, Pref]:
@@ -76,10 +59,6 @@ class PrefBook:
         if len(added) > MAX_PATH:
             raise MessagingError(f"path too long for RF only: {len(path)} digipeaters and RFONLY make more than the {MAX_PATH} a path may have")
         return added
-
-    def never_hidden(self) -> frozenset[str]:
-        """The stations whose own timeout is 0, which the daily prune keeps in the station book."""
-        return frozenset(call for call, pref in self._own.items() if pref.hide_after_min == 0)
 
     def automatic_path(self, call: str) -> tuple[str, ...] | None:
         """The path that has lately been heard to reach the station, which the first attempts of a message to it go by when the operator has set no path of its own; None when there is none (`beacon/path`)."""
@@ -112,19 +91,6 @@ class PrefBook:
             raise MessagingError(str(e)) from None
         await self._change(key, lambda pref: replace(pref, path=None), "the path could not be removed", quiet=True)
 
-    # ---- the timeout
-    async def set_timeout(self, call: str, minutes: int) -> int:
-        """Gives the station a timeout of its own: minutes (0 to 10080, 0 is never). Raises MessagingError with the reason."""
-        key = _key(call)
-        if not 0 <= minutes <= MAX_HIDE_AFTER_MIN:
-            raise MessagingError(f"{minutes} is not between 0 and {MAX_HIDE_AFTER_MIN} minutes")
-        await self._change(key, lambda pref: replace(pref, hide_after_min=minutes), "the timeout could not be kept", quiet=False)
-        return minutes
-
-    async def clear_timeout(self, call: str) -> None:
-        """Takes the station's own timeout away: it has the fixed 180 minutes again. A station without one is not an error."""
-        await self._change(_key(call), lambda pref: replace(pref, hide_after_min=None), "the timeout could not be removed", quiet=True)
-
     # ---- RF only
     async def set_rf_only(self, call: str, on: bool) -> None:
         """Makes everything we send to the station RF only, or not. Raises MessagingError with the reason: the call is none, or it is the email gateway, which is on the internet."""
@@ -145,7 +111,7 @@ class PrefBook:
             if quiet and after == (before or Pref()):
                 return
             empty = after == Pref()
-            saved = await (self._log.forget_pref(key) if empty else self._log.save_pref(key, None if after.path is None else ",".join(after.path), after.hide_after_min, after.rf_only))
+            saved = await (self._log.forget_pref(key) if empty else self._log.save_pref(key, None if after.path is None else ",".join(after.path), after.rf_only))
             if not saved:
                 raise MessagingError(f"{failure}: the database is not open")
             if empty:

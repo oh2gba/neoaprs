@@ -21,6 +21,23 @@ describe("IconButton", () => {
     expect(more.findAll("circle")).toHaveLength(3);
   });
 
+  it("is a pin that says whether it is on: aria-pressed, the filled pin, and the title Pin card or Unpin card", async () => {
+    const pin = mount(IconButton, { props: { kind: "pin", label: "Pin card" } });
+    expect(pin.attributes("aria-label")).toBe("Pin card");
+    expect(pin.attributes("aria-pressed")).toBe("false");
+    expect(pin.attributes("title")).toBe("Pin card");
+    expect(pin.classes()).not.toContain("pressed");
+    expect(pin.find("path").attributes("fill")).toBe("none");
+    await pin.setProps({ pressed: true });
+    expect(pin.attributes("aria-pressed")).toBe("true");
+    expect(pin.attributes("title")).toBe("Unpin card");
+    expect(pin.classes()).toContain("pressed");
+    expect(pin.find("path").attributes("fill")).toBe("currentColor");
+    const other = mount(IconButton, { props: { kind: "close", label: "Close", pressed: true } });
+    expect(other.attributes("aria-pressed")).toBeUndefined();
+    expect(other.classes()).not.toContain("pressed");
+  });
+
   it("has its own title when it is given one, and says sure? while it is armed", async () => {
     const wrapper = mount(IconButton, { props: { kind: "delete", label: "Delete", title: "Delete (kill on the air)" } });
     expect(wrapper.attributes("title")).toBe("Delete (kill on the air)");

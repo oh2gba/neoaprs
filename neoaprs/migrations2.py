@@ -101,3 +101,14 @@ def _v16(db: sqlite3.Connection) -> None:
             log.info("%s reset to the default: %s → %s", key, str(row[0]) or "(empty)", default or "(empty)")
     for key in removed:
         db.execute("DELETE FROM settings WHERE key = ?", (key,))
+
+
+def _v17(db: sqlite3.Connection) -> None:
+    """The stations' own timeouts are gone from the page: every station leaves the map 180 minutes after its last position, so a timeout stored for a station (`station_pref.hide_after_min`, minutes, 0 for never) cannot
+    be changed back by its operator and is cleared, once, with one INFO line in the log for each station (its call and the old value). A row that said nothing but that timeout is deleted (the table refuses a row that says
+    nothing); a path or RF only of the same station is as it was. The column stays, always null from now on and not read."""
+    rows = db.execute("SELECT call, hide_after_min FROM station_pref WHERE hide_after_min IS NOT NULL ORDER BY call").fetchall()
+    db.execute("DELETE FROM station_pref WHERE hide_after_min IS NOT NULL AND path IS NULL AND attempts IS NULL AND rf_only = 0")
+    db.execute("UPDATE station_pref SET hide_after_min = NULL WHERE hide_after_min IS NOT NULL")
+    for call, minutes in rows:
+        log.info("%s: the own timeout of %s removed, the fixed 180 minutes count", call, "never" if minutes == 0 else f"{minutes} minutes")

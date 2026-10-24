@@ -3,7 +3,7 @@ and the composition root (wiring.py) connects the two.
 
 A packet applies to the book in `take`. The sender of every packet heard counts as heard (a message or a telemetry packet gives no position, but the station is on the air), and the route the packet came by, direct or through which
 digipeaters (route.py), is counted for the sender. A position sets where the sender is; an object or an item is a station of its own, named by the object and marked with who reported it, and removed again when the report says it was killed. A packet from our own call, heard on the air (our beacon repeated or echoed), moves only the time we were last heard: where we are is the settings'."""
-from collections.abc import Collection, Iterable, Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import KW_ONLY, dataclass, field
 from datetime import datetime
 
@@ -182,9 +182,9 @@ class StationBook:
         self.removed.emit(call)
         return True
 
-    def prune(self, older_than: datetime, keep: Collection[str] = ()) -> list[str]:
-        """Removes the stations not heard since `older_than` (ours stays, our objects too, and so do those named in `keep`); their calls."""
-        gone = [s.call for s in self._stations.values() if s.last_heard < older_than and not s.is_me and not s.own and s.call not in keep]
+    def prune(self, older_than: datetime) -> list[str]:
+        """Removes the stations not heard since `older_than` (ours stays, our objects too); their calls."""
+        gone = [s.call for s in self._stations.values() if s.last_heard < older_than and not s.is_me and not s.own]
         for call in gone:
             del self._stations[call]
             self.removed.emit(call)

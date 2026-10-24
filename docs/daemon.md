@@ -1,7 +1,7 @@
 # How the daemon behaves
 
 The details behind the [manual](manual/README.md), with the names the code and the wire use. The wire itself is in [`PROTOCOL.md`](../PROTOCOL.md); the layers
-the parts are in are in [`docs/ARCHITECTURE.md`](ARCHITECTURE.md). The policy numbers (`LOG_KEEP_DAYS`, `HIDE_AFTER_MIN`, `MAX_HIDE_AFTER_MIN`, `TNC_CHECK_SEC`)
+the parts are in are in [`docs/ARCHITECTURE.md`](ARCHITECTURE.md). The policy numbers (`LOG_KEEP_DAYS`, `HIDE_AFTER_MIN`, `TNC_CHECK_SEC`)
 are in `neoaprs/policy.py`.
 
 ## The TNC and its keep-alive
@@ -157,12 +157,12 @@ when the row is made.
 `beacon/path` to `DIRECT`; migration 15 changed the stored `WIDE1-1,WIDE2-1` (the old default, which every save wrote, so it cannot be told from a choice) to empty. A station's own path: the stored `path` null is none (automatic), `''` is direct; `set_station_path` takes calls or `DIRECT`, and an empty
 `path` is `clear_station_path`. An own object's or item's path: null (or empty) is `beacon/path`, `DIRECT` is none.
 
-**The station preferences** (`neoaprs/services/prefbook.py`; the table `station_pref`). The path, the timeout (`hide_after_min`) and the RF-only flag of each
-station, under the call as written, in the row `{path, hide_after_min, rf_only}` of the topic `station_prefs` (the first two null where none is set, a `path` of `""` is
-direct; an entry with neither and `rf_only` false is not kept). The commands are `set_station_path` (calls, or `DIRECT`; an empty `path` clears), `clear_station_path`, `set_station_timeout`,
-`clear_station_timeout` and `set_station_rf_only{call, on}`. `PrefBook.path_for` adds `RFONLY` so every frame to the station takes the same road. The daemon
-only keeps and tells the timeout, except that the daily prune keeps a station with a timeout of 0 in the station book and its cache row. Messaging is given
-`path_for`, the prune its `never_hidden`. `set_station_rf_only` for `EMAIL-2` is an `error`.
+**The station preferences** (`neoaprs/services/prefbook.py`; the table `station_pref`). The path and the RF-only flag of each
+station, under the call as written, in the row `{path, rf_only}` of the topic `station_prefs` (the path null where none is set, a `path` of `""` is
+direct; an entry with no path and `rf_only` false is not kept). The commands are `set_station_path` (calls, or `DIRECT`; an empty `path` clears), `clear_station_path`
+and `set_station_rf_only{call, on}`. `PrefBook.path_for` adds `RFONLY` so every frame to the station takes the same road. Messaging is given
+`path_for`. `set_station_rf_only` for `EMAIL-2` is an `error`. A station has no timeout of its own: every station leaves the map 180 minutes after its last position (the page does that; the daily prune keeps
+packets and stations 7 days). Migration 17 cleared the timeouts that earlier versions stored (the column `station_pref.hide_after_min` is always null and not read).
 
 **The station book** (`neoaprs/stationbook.py`) counts, for each station, how many packets came direct and by each route, from the packets since the start and
 the latest 2000 that the database kept. The row of the topic `stations` has `last_route`, `heard_direct`, `heard_via` (`[station heard, packets]`, the most
@@ -230,6 +230,10 @@ deleted and the defaults count: `map/maxzoom`, `map/source`, `update/url`, `seri
 the default (`map/maxzoom reset to the default: 14 → 12`). The rows of the keys that are no settings (`messages/attempts`, `log/keep_days`, `update/check`, `tnc/check_sec`, `tnc/watchdog_min`,
 `map/hide_after_min`, `beacon/destination`, `beacon/compressed`, `beacon/dao`) are deleted without a line. `web/port`, `web/allowed_hosts`, every setting on the page, the old rows `tnc/enter_kiss` and `web/bind` and the
 daemon's own state rows are not touched. Like every migration, it runs after a copy of the file is made in `backup/`, and a value set after it is kept.
+
+**The station timeouts** (migration 17, `neoaprs/migrations2.py`). The field "Hide from map after" of the station card is gone and every station follows the fixed 180 minutes, so once, at the first start of this version, the own
+timeouts stored in `station_pref.hide_after_min` are cleared, with one INFO line in the log for each station (`OH2RDG: the own timeout of 45 minutes removed, the fixed 180 minutes count`); a row that held nothing else is deleted, and
+the path and RF only of a station are not touched. The commands `set_station_timeout` and `clear_station_timeout` and the field `hide_after_min` of `station_prefs` are gone from the protocol.
 
 ## What the parser reads
 

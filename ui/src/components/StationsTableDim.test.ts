@@ -15,7 +15,7 @@ const stations = table(
   station("OH2OLD", { bearing_deg: 200, last_heard: ago(60), last_position_at: ago(3 * 3600) }),
   station("OH2GONE", { bearing_deg: 10, last_heard: ago(120), last_position_at: ago(5 * 3600) }),
 );
-const aging: Aging = { timeouts: new Map(), defaultMin: 60 };
+const aging: Aging = { defaultMin: 60 };
 const make = () => mount(StationsTable, { props: { selected: "OH2OLD" }, global: withDaemon(fakeDaemon({ stations, aging })) });
 const sheet = readFileSync(resolve(__dirname, "../styles/tables.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
 

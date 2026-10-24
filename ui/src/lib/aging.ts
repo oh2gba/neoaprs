@@ -1,13 +1,11 @@
-// How stations age on the map: the timeout of a station (its own, else the default of 180 minutes; 0 is never), whether a station has passed it, and how faded the marker and
+// How stations age on the map: the timeout of a station (the fixed 180 minutes; our own station and our own objects never time out), whether a station has passed it, and how faded the marker and
 // the trail of a station are on the way there. Plain functions of rows and the time.
-import { t } from "@/i18n";
 import { ageSeconds } from "@/lib/format";
 import { LIMITS } from "@/protocol/lists";
 import type { StationRow } from "@/protocol/protocol";
 
-/** What the page knows of the timeouts: the minutes of the stations that have one of their own (0 is never), and the default for the others (0 is never). */
+/** What the page knows of the timeout: the minutes after which a station has passed it (0 is never; the page's is DEFAULT_TIMEOUT_MIN, the tests pass others). */
 export interface Aging {
-  timeouts: ReadonlyMap<string, number>;
   defaultMin: number;
 }
 
@@ -18,12 +16,12 @@ export const TRAIL_STEPS = 8;
 export const TRAIL_OLDEST = 0.15;
 export const MARKER_STEPS = 4;
 
-/** The timeout of a station that has none of its own, in minutes: three hours (fixed, HIDE_AFTER_MIN of the daemon's policy.py; it is no setting). */
+/** The timeout of every station, in minutes: three hours (fixed, HIDE_AFTER_MIN of the daemon's policy.py; it is no setting). */
 export const DEFAULT_TIMEOUT_MIN = LIMITS.station.hideAfterMin;
 
-/** The timeout of a station in minutes, 0 for never: its own, else the default; our own station and our own objects never time out. */
+/** The timeout of a station in minutes, 0 for never: the same for every station; our own station and our own objects never time out. */
 export function timeoutMin(aging: Aging, row: StationRow): number {
-  return row.is_me || row.own ? 0 : (aging.timeouts.get(row.call) ?? aging.defaultMin);
+  return row.is_me || row.own ? 0 : aging.defaultMin;
 }
 
 /** The age in seconds of the last position (the last packet for a row that has a position and no time for it). */
@@ -56,26 +54,4 @@ export function trailOpacity(ageSec: number, minutes: number): number {
 /** How dim the marker of a station is: 0 fresh up to MARKER_STEPS - 1 just before the timeout. Our own station and our own objects are always 0. */
 export function markerStep(aging: Aging, row: StationRow, nowMs: number): number {
   return row.is_me || row.own ? 0 : stepOf(fadeFraction(positionAge(row, nowMs), timeoutMin(aging, row)), MARKER_STEPS);
-}
-
-const TIMEOUT_MAX_MIN = 1_000_000;
-/** How a timeout of 0 is written: "never" in the page's language. */
-export const neverWord = (): string => t("station.timeout.never");
-
-/** What was typed in a timeout field: `{ minutes: null }` for an empty field (the default), the whole minutes otherwise (0, "never" or the word for it in the page's language is never), null for text that is no timeout. */
-export function parseTimeoutText(text: string): { minutes: number | null } | null {
-  const trimmed = text.trim().toLowerCase();
-  if (trimmed === "") return { minutes: null };
-  if (trimmed === "never" || trimmed === neverWord().toLowerCase()) return { minutes: 0 };
-  if (!/^\d+$/.test(trimmed)) return null;
-  const minutes = Number(trimmed);
-  return minutes <= TIMEOUT_MAX_MIN ? { minutes } : null;
-}
-
-/** A timeout for people: "never", "45 min", "3 h", "2 d". */
-export function timeoutText(minutes: number): string {
-  if (minutes <= 0) return neverWord();
-  if (minutes % 1440 === 0) return t("time.span.d", { n: minutes / 1440 });
-  if (minutes % 60 === 0) return t("time.span.h", { n: minutes / 60 });
-  return t("time.span.min", { n: minutes });
 }

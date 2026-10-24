@@ -290,7 +290,7 @@
     },
     "ClearStationPath": {
       "additionalProperties": false,
-      "description": "Takes a station's own path away, so that it has the path of the setting `beacon/path` again (a station without one is no error). Answered by the `set` of its entry in `station_prefs` with a null `path`\n(or the `del` of the entry when it had no timeout either), or by an `error`.",
+      "description": "Takes a station's own path away, so that it has the path of the setting `beacon/path` again (a station without one is no error). Answered by the `set` of its entry in `station_prefs` with a null `path`\n(or the `del` of the entry when it was not RF only either), or by an `error`.",
       "properties": {
         "cmd": {
           "const": "clear_station_path",
@@ -307,27 +307,6 @@
         "call"
       ],
       "title": "ClearStationPathCommand",
-      "type": "object"
-    },
-    "ClearStationTimeout": {
-      "additionalProperties": false,
-      "description": "Takes a station's own timeout away, so that it has the fixed 180 minutes again (a station without one is no error). Answered by the `set` of its entry in `station_prefs` with a null\n`hide_after_min` (or the `del` of the entry when it had no path either), or by an `error`.",
-      "properties": {
-        "cmd": {
-          "const": "clear_station_timeout",
-          "type": "string"
-        },
-        "call": {
-          "maxLength": 64,
-          "minLength": 1,
-          "type": "string"
-        }
-      },
-      "required": [
-        "cmd",
-        "call"
-      ],
-      "title": "ClearStationTimeoutCommand",
       "type": "object"
     },
     "ConfigValues": {
@@ -2958,7 +2937,7 @@
     },
     "SetStationPath": {
       "additionalProperties": false,
-      "description": "Gives a station a path of its own: the digipeaters that a message to it, and the ack of a message from it, go by way of. `path` is up to 8 digipeater calls separated by commas, checked as the setting\n`beacon/path` is, or `DIRECT` for a path of its own with no digipeaters at all; an empty `path` is no path of its own, as `clear_station_path` makes it. Answered by the `set` of the station's entry in the topic `station_prefs`\n(its `hide_after_min` is whatever it was), or by an `error` that names the reason.",
+      "description": "Gives a station a path of its own: the digipeaters that a message to it, and the ack of a message from it, go by way of. `path` is up to 8 digipeater calls separated by commas, checked as the setting\n`beacon/path` is, or `DIRECT` for a path of its own with no digipeaters at all; an empty `path` is no path of its own, as `clear_station_path` makes it. Answered by the `set` of the station's entry in the topic `station_prefs`\n(its `rf_only` is whatever it was), or by an `error` that names the reason.",
       "properties": {
         "cmd": {
           "const": "set_station_path",
@@ -3007,33 +2986,6 @@
       "title": "SetStationRfOnlyCommand",
       "type": "object"
     },
-    "SetStationTimeout": {
-      "additionalProperties": false,
-      "description": "Gives a station a timeout of its own: how long after its last position it stays on the map, in minutes; 0 is never. The page hides a station whose last position is older than that (a station\nwithout one of its own is hidden after 180 minutes), and the daily prune does not remove a station with a timeout of 0 from the station book. `call` is a station's call as it is in the\ntopic `stations` (the name of an object or an item too). Answered by the `set` of the station's entry in the topic `station_prefs` (its `path` is whatever it was), or by an `error` that names the reason.",
-      "properties": {
-        "cmd": {
-          "const": "set_station_timeout",
-          "type": "string"
-        },
-        "call": {
-          "maxLength": 64,
-          "minLength": 1,
-          "type": "string"
-        },
-        "minutes": {
-          "maximum": 10080,
-          "minimum": 0,
-          "type": "integer"
-        }
-      },
-      "required": [
-        "cmd",
-        "call",
-        "minutes"
-      ],
-      "title": "SetStationTimeoutCommand",
-      "type": "object"
-    },
     "StateMsg": {
       "additionalProperties": false,
       "description": "A topic as it is now: its revision and its whole `value`, which replaces what the page had. Patches for the changes made meanwhile follow.",
@@ -3066,7 +3018,7 @@
     },
     "StationPref": {
       "additionalProperties": false,
-      "description": "What the operator has set for one station, apart from what its packets say. The entries are the values of the topic `station_prefs`, keyed by call: a station with no path and no timeout of its\nown, and not RF only, has no entry. A command that sets or changes one part is a `set` of the whole entry, one that clears the last part a `del`.",
+      "description": "What the operator has set for one station, apart from what its packets say. The entries are the values of the topic `station_prefs`, keyed by call: a station with no path of its\nown, and not RF only, has no entry. A command that sets or changes one part is a `set` of the whole entry, one that clears the last part a `del`.",
       "properties": {
         "path": {
           "anyOf": [
@@ -3079,19 +3031,6 @@
           ],
           "description": "the digipeaters that a message to the station, and the ack of a message from it, go by way of: calls separated by commas, empty for direct (no digipeaters at all); null if none is set, and the setting `beacon/path` counts"
         },
-        "hide_after_min": {
-          "anyOf": [
-            {
-              "maximum": 10080,
-              "minimum": 0,
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "the minutes after the station's last position that it leaves the map (the page does the hiding); 0 is never; null if none is set, and the default of 180 minutes counts"
-        },
         "rf_only": {
           "description": "true if everything sent to the station (a message and each attempt of it, an ack, the answer to a query) has `RFONLY` as the last element of its path, which iGates that honour it do not put on the internet",
           "type": "boolean"
@@ -3099,7 +3038,6 @@
       },
       "required": [
         "path",
-        "hide_after_min",
         "rf_only"
       ],
       "title": "StationPref",
@@ -4042,7 +3980,7 @@
           "additionalProperties": {
             "$ref": "#/$defs/StationPref"
           },
-          "description": "what the operator set for each station that has anything set, by call: its own path and its own timeout, each null where none is set, and whether it is RF only. `set_station_path`, `clear_station_path`, `set_station_timeout`, `clear_station_timeout` and `set_station_rf_only` each give a `set` of the entry, or a `del` when nothing is left in it",
+          "description": "what the operator set for each station that has anything set, by call: its own path (null where none is set) and whether it is RF only. `set_station_path`, `clear_station_path` and `set_station_rf_only` each give a `set` of the entry, or a `del` when nothing is left in it",
           "type": "object"
         },
         "messages": {
@@ -4590,7 +4528,6 @@
           "bulletin_post": "#/$defs/BulletinPost",
           "bulletin_unpost": "#/$defs/BulletinUnpost",
           "clear_station_path": "#/$defs/ClearStationPath",
-          "clear_station_timeout": "#/$defs/ClearStationTimeout",
           "conversation_delete": "#/$defs/ConversationDelete",
           "find_radio": "#/$defs/FindRadio",
           "find_radio_cancel": "#/$defs/FindRadioCancel",
@@ -4611,7 +4548,6 @@
           "set_config": "#/$defs/SetConfig",
           "set_station_path": "#/$defs/SetStationPath",
           "set_station_rf_only": "#/$defs/SetStationRfOnly",
-          "set_station_timeout": "#/$defs/SetStationTimeout",
           "status": "#/$defs/AskStatus",
           "status_now": "#/$defs/StatusNow",
           "subscribe": "#/$defs/Subscribe",
@@ -4690,12 +4626,6 @@
         },
         {
           "$ref": "#/$defs/ClearStationPath"
-        },
-        {
-          "$ref": "#/$defs/SetStationTimeout"
-        },
-        {
-          "$ref": "#/$defs/ClearStationTimeout"
         },
         {
           "$ref": "#/$defs/SetStationRfOnly"

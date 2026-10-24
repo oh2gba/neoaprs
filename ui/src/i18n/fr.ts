@@ -339,6 +339,8 @@ export const fr: Catalogue = {
   // stations
   "iconbutton.delete": "Supprimer",
   "iconbutton.close": "Fermer",
+  "iconbutton.pin": "Épingler la fiche",
+  "iconbutton.unpin": "Désépingler la fiche",
   "iconbutton.sure": "sûr ?",
 
   "station.direct.title": "Entendu en direct",
@@ -439,13 +441,6 @@ export const fr: Catalogue = {
   "station.ask.status": "Statut demandé à {call}",
   "station.ask.heard": "{call} interrogée sur ce qu'elle entend en direct",
   "station.ask.trace": "Route demandée à {call}",
-
-  "station.timeout.label": "Masquer de la carte après",
-  "station.timeout.usual": "{timeout} (habituel)",
-  "station.timeout.bad": "Minutes entières, ou jamais",
-  "station.timeout.hint": "Minutes, ou jamais ; vide pour la durée habituelle",
-  "station.timeout.use_default": "Utiliser le délai par défaut",
-  "station.timeout.never": "jamais",
 
   "route.direct": "direct",
   "route.via": "via {hops}",

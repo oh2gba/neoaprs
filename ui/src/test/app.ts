@@ -38,7 +38,7 @@ export async function open() {
   socket.say({ type: "state", topic: "tnc", rev: 0, value: tncState() });
   socket.say({ type: "state", topic: "config", rev: 0, value: configValues() }); // (the clock stands at the fixtures' time, so nothing times out)
   socket.say({ type: "state", topic: "messages", rev: 0, value: messages });
-  socket.say({ type: "state", topic: "station_prefs", rev: 0, value: { OH2RDG: { path: "OH2RCH-2", hide_after_min: null, rf_only: false } } });
+  socket.say({ type: "state", topic: "station_prefs", rev: 0, value: { OH2RDG: { path: "OH2RCH-2", rf_only: false } } });
   socket.say(status());
   await flushPromises();
   return { wrapper, socket };

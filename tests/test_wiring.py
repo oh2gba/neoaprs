@@ -139,25 +139,21 @@ async def test_prune_keeps_seven_days_whatever_an_earlier_version_stored(tmp_pat
     await e.stop()
 
 
-async def test_prune_keeps_a_station_whose_own_timeout_is_never_in_the_book_and_the_database_though_its_packets_go(tmp_path: Path) -> None:
+async def test_prune_removes_the_stations_not_heard_for_the_days_kept_whatever_the_operator_said_of_them_and_their_preferences_stay(tmp_path: Path) -> None:
     e = Env(tmp_path)
     await e.start()
     await e.play()
-    await e.ctl.prefbook.set_timeout("OH2RDG", 0)                    # never hidden: never forgotten
-    await e.ctl.prefbook.set_timeout("OH2RDK-7", 60)                 # a timeout is not that
-    await e.ctl.prefbook.set_path("OH2RDS", "WIDE2-1")
+    await e.ctl.prefbook.set_path("OH2RDG", "WIDE2-1")
+    await e.ctl.prefbook.set_rf_only("OH2RDK-7", True)
     e.now.advance(5 * 86400)                                       # type: ignore[attr-defined]
     e.feed(frame_bytes("OH2NEW"))
     await until(lambda: e.tnc.stats.packets == 5)
     e.now.advance(4 * 86400)                                       # type: ignore[attr-defined]
     count, stations = await e.ctl.prune()
-    assert count == 4 and sorted(stations) == sorted(["OH2RDK-7", "OH2RDS", "OH2PU-9"])
-    assert [p.source for p in await e.packets()] == ["OH2NEW"], "the packets of OH2RDG are pruned as the others are"
-    assert sorted(s.call for s in await e.stations()) == ["OH2GBA", "OH2NEW", "OH2RDG"] and e.ctl.stationbook.get("OH2RDG") is not None
-    assert sorted(e.ctl.prefbook.all()) == ["OH2RDG", "OH2RDK-7", "OH2RDS"], "what the operator said stays when the station goes"
-    await e.ctl.prefbook.set_timeout("OH2RDG", 180)
-    e.now.advance(1)                                               # type: ignore[attr-defined]
-    assert (await e.ctl.prune())[1] == ["OH2RDG"] and e.ctl.stationbook.get("OH2RDG") is None
+    assert count == 4 and sorted(stations) == sorted(["OH2RDG", "OH2RDK-7", "OH2RDS", "OH2PU-9"])
+    assert [p.source for p in await e.packets()] == ["OH2NEW"]
+    assert sorted(s.call for s in await e.stations()) == ["OH2GBA", "OH2NEW"]
+    assert sorted(e.ctl.prefbook.all()) == ["OH2RDG", "OH2RDK-7"], "what the operator said stays when the station goes"
     await e.stop()
 
 

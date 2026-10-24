@@ -5,6 +5,8 @@ import type { Message } from "@/i18n/message";
 export const stations: Record<keyof typeof source, Message> = {
   "iconbutton.delete": "Excluir",
   "iconbutton.close": "Fechar",
+  "iconbutton.pin": "Fixar o cartão",
+  "iconbutton.unpin": "Desafixar o cartão",
   "iconbutton.sure": "certeza?",
 
   "station.direct.title": "Recebida direto",
@@ -105,13 +107,6 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.ask.status": "Status pedido a {call}",
   "station.ask.heard": "Perguntado a {call} o que ouve direto",
   "station.ask.trace": "Rota pedida a {call}",
-
-  "station.timeout.label": "Ocultar do mapa após",
-  "station.timeout.usual": "{timeout} (padrão)",
-  "station.timeout.bad": "Minutos inteiros, ou nunca",
-  "station.timeout.hint": "Minutos, ou nunca; vazio para o tempo padrão",
-  "station.timeout.use_default": "Usar o tempo limite padrão",
-  "station.timeout.never": "nunca",
 
   "route.direct": "direto",
   "route.via": "via {hops}",

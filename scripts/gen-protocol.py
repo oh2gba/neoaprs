@@ -40,7 +40,7 @@ from neoaprs.configstatus import MAX_STATUS  # noqa: E402
 from neoaprs.message import EMAIL_GATEWAY, check_text, normal_path  # noqa: E402
 from neoaprs.ownbulletin import GROUP_MAX, PostError, make_bulletin, slot_of  # noqa: E402
 from neoaprs.ownobject import COMMENT_MAX, COMMENT_MAX_MOTION, COURSE_MAX, ITEM_NAME, NAME_FORBIDDEN, OBJECT_NAME, SPEED_MAX_KMH, OwnError, make_object  # noqa: E402
-from neoaprs.policy import HIDE_AFTER_MIN, MAX_HIDE_AFTER_MIN  # noqa: E402
+from neoaprs.policy import HIDE_AFTER_MIN  # noqa: E402
 from neoaprs.aprsposition import uncompressed_position  # noqa: E402
 from neoaprs.services.beacon import Beacon, BeaconError, phg_text  # noqa: E402
 from neoaprs.symbols import MOBILE_CODES, SYMBOL_NAMES  # noqa: E402
@@ -227,7 +227,7 @@ def limits() -> dict[str, Any]:
         "object": {"nameMax": OBJECT_NAME[1], "itemNameMin": ITEM_NAME[0], "nameForbidden": NAME_FORBIDDEN, "commentMax": COMMENT_MAX, "commentMaxMotion": COMMENT_MAX_MOTION,
                    "courseMax": COURSE_MAX, "speedMaxKmh": round(SPEED_MAX_KMH)},
         "bulletin": {"groupMax": GROUP_MAX},
-        "station": {"hideAfterMin": HIDE_AFTER_MIN, "maxHideAfterMin": MAX_HIDE_AFTER_MIN},
+        "station": {"hideAfterMin": HIDE_AFTER_MIN},
     }
 
 

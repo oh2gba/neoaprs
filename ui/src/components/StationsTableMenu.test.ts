@@ -17,7 +17,7 @@ const make = () => {
   wrapper = mount(StationsTable, {
     props: { selected: null },
     attachTo: document.body,
-    global: withDaemon(fakeDaemon({ stations: rows, aging: { timeouts: new Map(), defaultMin: 0 } })),
+    global: withDaemon(fakeDaemon({ stations: rows, aging: { defaultMin: 0 } })),
   });
   return wrapper;
 };
@@ -346,7 +346,7 @@ describe("the menu of a row of the Stations table: what its items do", () => {
   });
 
   it("goes when the station is forgotten under it", async () => {
-    const daemon = fakeDaemon({ stations: rows, aging: { timeouts: new Map(), defaultMin: 0 } });
+    const daemon = fakeDaemon({ stations: rows, aging: { defaultMin: 0 } });
     wrapper = mount(StationsTable, { props: { selected: null }, attachTo: document.body, global: withDaemon(daemon) });
     await rightClick("OH2RDG");
     expect(menu().exists()).toBe(true);

@@ -53,6 +53,12 @@ export function useCardPlaces(stack: Readonly<Ref<HTMLElement | null>>, places: 
     return first < 0 ? {} : pins(callsOf(row.slice(first + 1)).filter((call) => staying.includes(call)));
   }
 
+  /** A card is pinned: it gets its place where it stands now (a card that has one keeps it), so that it stays there whatever happens to the cards around it. */
+  function pinHere(call: string): void {
+    const stand = pins([call]);
+    if (Object.keys(stand).length > 0) places.value = { ...places.value, ...stand };
+  }
+
   /** `base` with the card at `place`, kept inside the map; null when the card is not there, or is there already. */
   function putIn(base: Places, call: string, place: Place): Places | null {
     const card = stack.value ? cardOf(stack.value, call) : null;
@@ -101,5 +107,5 @@ export function useCardPlaces(stack: Readonly<Ref<HTMLElement | null>>, places: 
     if (base !== places.value) places.value = base;
   }
 
-  return { current, put, pinAfter, placeNew, keepInside };
+  return { current, put, pinHere, pinAfter, placeNew, keepInside };
 }

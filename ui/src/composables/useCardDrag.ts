@@ -28,7 +28,7 @@ function headPressed(row: HTMLElement | null, event: Event): { call: string; hea
 }
 
 export function useCardDrag(stack: Readonly<Ref<HTMLElement | null>>, places: Ref<Places>, enabled: () => boolean) {
-  const { current, put, pinAfter, placeNew, keepInside } = useCardPlaces(stack, places, enabled);
+  const { current, put, pinHere, pinAfter, placeNew, keepInside } = useCardPlaces(stack, places, enabled);
   let drag: Drag | null = null;
 
   function stop(): void {
@@ -83,5 +83,5 @@ export function useCardDrag(stack: Readonly<Ref<HTMLElement | null>>, places: Re
   }
 
   onBeforeUnmount(stop);
-  return { down, move, up, key, keepInside, pinAfter, placeNew };
+  return { down, move, up, key, keepInside, pinHere, pinAfter, placeNew };
 }

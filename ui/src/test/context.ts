@@ -55,7 +55,7 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     home: part(over.home, null),
     fallbackPath: part(over.fallbackPath, ""),
     stations: part(over.stations, new Map<string, StationRow>()),
-    aging: part(over.aging, { timeouts: new Map<string, number>(), defaultMin: DEFAULT_TIMEOUT_MIN }),
+    aging: part(over.aging, { defaultMin: DEFAULT_TIMEOUT_MIN }),
     heardPaths: part(over.heardPaths, new Map<string, string | null>()),
     heardDirect: part(over.heardDirect, new Set<string>()),
     prefs: over.prefs ?? useStationPrefs(shallowReactive(new Map<string, StationPref>()), sender),

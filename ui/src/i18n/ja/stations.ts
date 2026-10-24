@@ -5,6 +5,8 @@ import type { Message } from "@/i18n/message";
 export const stations: Record<keyof typeof source, Message> = {
   "iconbutton.delete": "削除",
   "iconbutton.close": "閉じる",
+  "iconbutton.pin": "カードを固定",
+  "iconbutton.unpin": "カードの固定を解除",
   "iconbutton.sure": "本当に?",
 
   "station.direct.title": "直接受信",
@@ -105,13 +107,6 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.ask.status": "{call}にステータスを問い合わせました",
   "station.ask.heard": "{call}に直接受信局を問い合わせました",
   "station.ask.trace": "{call}に経路を問い合わせました",
-
-  "station.timeout.label": "地図から隠すまでの時間",
-  "station.timeout.usual": "{timeout}(既定)",
-  "station.timeout.bad": "整数の分、または無期限",
-  "station.timeout.hint": "分、または無期限。空欄は既定の時間",
-  "station.timeout.use_default": "既定のタイムアウトを使う",
-  "station.timeout.never": "無期限",
 
   "route.direct": "直接",
   "route.via": "{hops} 経由",

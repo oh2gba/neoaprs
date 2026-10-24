@@ -126,7 +126,7 @@
   is logged once; a placeholder call gets no ack and no answer to a query; the KISS entry of the TNC goes on; with a call set a waiting beacon, an ack and a
   message go out; no position means no beacon and no own station. Every other `Env` has the operator's station in its settings (`OPERATOR`, and `ON_AIR` as a
   `Config`).
-* `test_prefbook.py`: the preferences of the stations (a path and a timeout for each, any of them, written through to the database and read again by the next
+* `test_prefbook.py`: the preferences of the stations (a path or RF only for each, either of them, written through to the database and read again by the next
   start; `beacon/path` until a station has a path of its own, an empty one that is direct, the checks of a path as `beacon/path` has them; a count of attempts
   that an older version kept is ignored and a row with only that is no entry; what is told, a clearing that removes the entry when the last of the parts goes).
   RF only (`set_rf_only`: kept, read again by the next start and cleared, `RFONLY` added last to the station's own path or to `beacon/path`, none added to a
@@ -164,7 +164,7 @@
 * `test_web.py`, `test_hub.py`: the web server over a real socket (`support/env.py` with `web=True`, `support/wsclient.py`): the hello and the seven topics, the
   capture through the fake radio as patches, `list_ports`, set_config, forget_station, tnc_reconnect, beacon_now, send_message, message_retry, message_cancel,
   message_delete, conversation_delete, overheard_delete (two pages see the dels, a conversation is untouched), the removed set_station_attempts and
-  clear_station_attempts refused, set_station_path, clear_station_path, set_station_timeout and clear_station_timeout (the `messages` and `station_prefs`
+  clear_station_attempts refused, set_station_path and clear_station_path, and the removed set_station_timeout and clear_station_timeout refused (the `messages` and `station_prefs`
   topics, an ack through the line, a bad addressee or path), the `bulletins` topic (a row by sender and slot, heard again, never aged out, a page that comes
   later) and `last_direct_at` of a station row, the files, the byte ranges of the base map, the Host check, the security headers; and the state hub with pages
   that are lists (what a patch holds, the gap of the `tnc` topic, a page that is behind), the window of packets and the publisher with its outgoing check.

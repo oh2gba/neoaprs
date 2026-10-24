@@ -351,6 +351,8 @@ export const de: Catalogue = {
   // stations
   "iconbutton.delete": "Löschen",
   "iconbutton.close": "Schließen",
+  "iconbutton.pin": "Karte anheften",
+  "iconbutton.unpin": "Karte lösen",
   "iconbutton.sure": "sicher?",
 
   "station.direct.title": "Direkt gehört",
@@ -451,13 +453,6 @@ export const de: Catalogue = {
   "station.ask.status": "{call} nach dem Status gefragt",
   "station.ask.heard": "{call} gefragt, wen sie direkt hört",
   "station.ask.trace": "{call} nach dem Weg gefragt",
-
-  "station.timeout.label": "Von der Karte ausblenden nach",
-  "station.timeout.usual": "{timeout} (üblich)",
-  "station.timeout.bad": "Ganze Minuten oder nie",
-  "station.timeout.hint": "Minuten oder nie; leer für die übliche Zeit",
-  "station.timeout.use_default": "Standard-Zeitüberschreitung verwenden",
-  "station.timeout.never": "nie",
 
   "route.direct": "direkt",
   "route.via": "über {hops}",

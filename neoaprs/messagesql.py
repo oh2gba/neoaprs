@@ -59,13 +59,13 @@ def sending_messages(db: sqlite3.Connection) -> list[Row]:
 
 
 def all_prefs(db: sqlite3.Connection) -> list[Row]:
-    """(call, path, hide_after_min, rf_only) of every station the operator has said something about; path and hide_after_min are null where nothing was said, rf_only is 0 or 1. The column `attempts` is not read: a count kept by an older version is ignored, and a row that holds only that says nothing."""
-    return [tuple(r) for r in db.execute("SELECT call, path, hide_after_min, rf_only FROM station_pref WHERE path IS NOT NULL OR hide_after_min IS NOT NULL OR rf_only = 1 ORDER BY call")]
+    """(call, path, rf_only) of every station the operator has said something about; path is null where nothing was said, rf_only is 0 or 1. The columns `attempts` and `hide_after_min` are not read: a value kept by an older version is ignored (migration 17 cleared the timeouts), and a row that holds only that says nothing."""
+    return [tuple(r) for r in db.execute("SELECT call, path, rf_only FROM station_pref WHERE path IS NOT NULL OR rf_only = 1 ORDER BY call")]
 
 
-def save_pref(db: sqlite3.Connection, call: str, path: str | None, hide_after_min: int | None, rf_only: bool, stamp: str) -> None:
-    db.execute("INSERT INTO station_pref (call, path, hide_after_min, rf_only, updated_at) VALUES (?1, ?2, ?3, ?4, ?5) "
-               "ON CONFLICT(call) DO UPDATE SET path = ?2, hide_after_min = ?3, rf_only = ?4, updated_at = ?5", (call, path, hide_after_min, int(rf_only), stamp))
+def save_pref(db: sqlite3.Connection, call: str, path: str | None, rf_only: bool, stamp: str) -> None:
+    db.execute("INSERT INTO station_pref (call, path, rf_only, updated_at) VALUES (?1, ?2, ?3, ?4) "
+               "ON CONFLICT(call) DO UPDATE SET path = ?2, rf_only = ?3, updated_at = ?4", (call, path, int(rf_only), stamp))
 
 
 def delete_pref(db: sqlite3.Connection, call: str) -> int:
