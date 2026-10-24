@@ -114,8 +114,14 @@ def test_a_packet_that_came_from_the_internet_is_not_repeated() -> None:
     rig = Rig()
     rig.hear(frame("TCPIP*,WIDE1-1", info=b">a"))
     rig.hear(frame("WIDE1-1,TCPXX*", info=b">b"))
-    rig.hear(frame("WIDE1-1,WIDE2-1", info=b"}OH2ABC>APRS,TCPIP,OH2GBA*:>c"))
     assert rig.tnc.sent == []
+
+
+def test_a_third_party_packet_an_igate_puts_on_the_air_is_repeated_the_tcpip_inside_it_does_not_count() -> None:
+    rig = Rig()
+    info = b"}OH2XYZ>APRS,TCPIP,OH7JHF-1*::OH2GBA-7 :hi{12"
+    rig.hear(frame("WIDE1-1", source="OH7JHF-1", info=info))
+    assert rig.lines() == [f"OH7JHF-1>APRS,OH2GBA*:{info.decode()}"]
 
 
 def test_nogate_and_rfonly_keep_a_packet_off_the_internet_not_off_the_radio() -> None:
@@ -178,6 +184,30 @@ def test_only_the_path_differs_from_the_frame_that_was_heard() -> None:
     assert out[:14] == raw[:14] and out[-len(heard.info) - 2:] == raw[-len(heard.info) - 2:], "destination, source, control, PID and information field are the bytes that came"
     assert len(out) == len(raw) and out != raw
     assert ax25.decode(out) == sent
+
+
+def _address(call: str, ssid: int, flags: int) -> bytes:
+    return bytes(ord(c) << 1 for c in call.ljust(6)) + bytes([flags | (ssid << 1)])
+
+
+def test_the_address_flag_bits_of_the_destination_and_the_source_go_out_as_they_came() -> None:
+    rig = Rig()
+    info = b">test"
+    raw = _address("APRS", 0, 0x00) + _address("OH2XYZ", 0, 0x80) + _address("WIDE1", 1, 0x01) + b"\x03\xf0" + info     # (C bits of a response, reserved bits clear)
+    heard = ax25.decode(raw)
+    rig.digi.on_packet(packet_of("in", raw, heard, rig.clock()))
+    [out] = rig.tnc.raw
+    assert out[:14] == raw[:14], "the destination and the source are the bytes that came, not those encode() would write"
+    assert out[14:21] == _address("OH2GBA", 0, 0xE1), "only the path is encoded again: our call, used, last"
+    assert out[21:] == raw[21:]
+
+
+def test_the_duplicate_check_counts_the_destination_without_its_ssid() -> None:
+    rig = Rig()
+    rig.hear(frame("WIDE1-1", destination="APRS"))
+    rig.clock.advance(5)
+    rig.hear(frame("WIDE1-1", destination="APRS-1"))
+    assert len(rig.tnc.sent) == 1, "the same source, destination call and information field is the same packet (WB2OSZ's digipeater algorithm)"
 
 
 def test_not_more_than_a_few_frames_go_out_in_a_burst_and_it_goes_on_when_the_window_has_passed() -> None:

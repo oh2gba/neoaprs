@@ -51,28 +51,28 @@ def test_a_text_that_fits_is_taken(text: str) -> None:
 def test_a_message_is_given_4_attempts_and_one_to_the_email_gateway_2() -> None:
     assert (STATION_ATTEMPTS, EMAIL_ATTEMPTS) == (4, 2)
     assert [attempts_for(to) for to in ("OH2RDG", "OH2RDG-7", "EMAIL-2", "EMAIL-1", "EMAIL-22")] == [4, 4, 2, 4, 4]
-    assert schedule_sec(STATION_ATTEMPTS) == (0, 30, 60, 120) and schedule_sec(EMAIL_ATTEMPTS) == (0, 30)
-    assert [wait_after(n).total_seconds() for n in range(1, 5)] == [30, 30, 60, FINAL_WAIT_SEC]
-    assert sum(wait_after(n).total_seconds() for n in range(1, 4)) == 120
+    assert schedule_sec(STATION_ATTEMPTS) == (0, 32, 64, 128) and schedule_sec(EMAIL_ATTEMPTS) == (0, 32)
+    assert [wait_after(n).total_seconds() for n in range(1, 5)] == [32, 32, 64, FINAL_WAIT_SEC], "no retry exactly at the edge of the digipeaters' 30 s duplicate window"
+    assert sum(wait_after(n).total_seconds() for n in range(1, 4)) == 128
 
 
 def test_the_schedule_of_a_message_an_older_version_gave_more_attempts_goes_on_to_960_seconds() -> None:
-    assert schedule_sec(6) == (0, 30, 60, 120, 240, 480) and schedule_sec(10)[-1] == 3840
-    assert [wait_after(n, 6).total_seconds() for n in range(1, 7)] == [30, 30, 60, 120, 240, FINAL_WAIT_SEC]
+    assert schedule_sec(6) == (0, 32, 64, 128, 256, 512) and schedule_sec(10)[-1] == 3904
+    assert [wait_after(n, 6).total_seconds() for n in range(1, 7)] == [32, 32, 64, 128, 256, FINAL_WAIT_SEC]
 
 
 def test_the_schedule_follows_the_number_of_attempts_doubles_and_no_wait_is_over_960_seconds() -> None:
-    assert schedule_sec(1) == (0,) and schedule_sec(3) == (0, 30, 60)
-    assert schedule_sec(10) == (0, 30, 60, 120, 240, 480, 960, 1920, 2880, 3840)
-    assert [wait_after(n, 10).total_seconds() for n in range(1, 11)] == [30, 30, 60, 120, 240, 480, 960, 960, 960, FINAL_WAIT_SEC]
-    assert [wait_after(n, 3).total_seconds() for n in range(1, 4)] == [30, 30, FINAL_WAIT_SEC], "the last attempt of any number is waited for the same time"
+    assert schedule_sec(1) == (0,) and schedule_sec(3) == (0, 32, 64)
+    assert schedule_sec(10) == (0, 32, 64, 128, 256, 512, 1024, 1984, 2944, 3904)
+    assert [wait_after(n, 10).total_seconds() for n in range(1, 11)] == [32, 32, 64, 128, 256, 512, 960, 960, 960, FINAL_WAIT_SEC]
+    assert [wait_after(n, 3).total_seconds() for n in range(1, 4)] == [32, 32, FINAL_WAIT_SEC], "the last attempt of any number is waited for the same time"
     assert wait_after(1, 1).total_seconds() == FINAL_WAIT_SEC
 
 
 def test_a_message_is_due_when_it_was_made_until_it_has_been_sent_and_then_a_wait_after_the_latest_attempt() -> None:
     assert due_at(sending()) == T0
-    assert due_at(sending(1, T0)) == T0 + timedelta(seconds=30)
-    assert due_at(sending(3, T0 + timedelta(seconds=60))) == T0 + timedelta(seconds=120)
+    assert due_at(sending(1, T0)) == T0 + timedelta(seconds=32)
+    assert due_at(sending(3, T0 + timedelta(seconds=64))) == T0 + timedelta(seconds=128)
     assert due_at(sending(6, T0 + timedelta(seconds=480))) == T0 + timedelta(seconds=480 + FINAL_WAIT_SEC)
     assert due_at(replace(sending(3, T0 + timedelta(seconds=60)), attempts_max=3)) == T0 + timedelta(seconds=60 + FINAL_WAIT_SEC), "a message of 3 attempts waits for the answer after its third"
     for state in ("acked", "rejected", "failed", "cancelled", "received"):

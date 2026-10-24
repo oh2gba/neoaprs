@@ -435,6 +435,22 @@ def test_a_telemetry_report_is_the_latest_of_its_sender() -> None:
     assert book.get("N0QBF-11") is station and book.get("OH2AAA") is None
 
 
+def test_the_base91_telemetry_in_the_comment_of_a_position_is_the_latest_report_of_its_sender() -> None:
+    book = StationBook()
+    book.take(packet(REPORT, source="N0QBF-11"))
+    position = aprsparse.parse(b"!4903.50N/07201.75W-Balloon|ss11|!W12!", "N0QBF-11", "APRS", T0)
+    assert isinstance(position, Position) and position.comment == "Balloon" and position.telemetry == Telemetry(7544, [1472], "")
+    station = book.take(packet(position, source="N0QBF-11", at=T0 + timedelta(minutes=1)))
+    assert station is not None and (station.telemetry, station.telemetry_at) == (Telemetry(7544, [1472], ""), T0 + timedelta(minutes=1))
+    book.take(packet(aprsparse.parse(b"!4903.50N/07201.75W-no telemetry", "N0QBF-11", "APRS", T0), source="N0QBF-11", at=T0 + timedelta(minutes=2)))
+    assert station.telemetry == Telemetry(7544, [1472], ""), "a position without it leaves the latest report"
+
+
+def test_the_base91_telemetry_of_a_mic_e_packet_comes_before_its_dao_and_type_code() -> None:
+    position = aprsparse.parse(b'`(_fn"Oj/`Hi|ss1122|!w5L!_%', "OH2AAA", "S32UVT", T0)
+    assert isinstance(position, Position) and position.comment == "Mic-E: Returning - Hi" and position.telemetry == Telemetry(7544, [1472, 1564], "")
+
+
 def test_the_definitions_are_the_addressees_and_a_message_to_another_station_is_not_one() -> None:
     book = StationBook()
     for text in DEFINITIONS:

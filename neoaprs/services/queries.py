@@ -1,12 +1,17 @@
 """Queries: what other stations ask of us in an APRS message, and the answers.
 
-A message to us (our call with its SSID, or our base call when ours has one) whose text is
+A message to us (our call with its SSID exactly: our base call is not ours when ours has an SSID, message.addressed_to) whose text is
 
     ?APRSP   is answered with our position packet (the beacon's frame, `Beacon.frame()`)
     ?APRSS   with our status report as it was last sent (services/rigstatus.py; nothing while none has been sent)
     ?APRSD   with a message to the asker, "Directs= OH2PU-9 OH2RCH-2", the calls heard direct in the last hour (the one heard last first; at most MAX_TEXT bytes, in two messages at the most, "Directs= none"
              when there is none)
-    ?APRST   (and ?PING?) with a message to the asker, "Path= OH2GBA>APZNEO,OH2RCH-2*": the header of the query as we heard it, the digipeaters it went by with their stars
+    ?APRST   (and ?PING?) with a message to the asker, "OH2GBA>APZNEO,OH2RCH-2*:": the header of the query as we heard it, the digipeaters it went by with their stars
+    ?APRSO   with our live objects and items (services/ownobjects.py), each once as it is now, at most ANSWER_FRAMES_MAX of them
+    ?APRSM   with our messages to the asker that no ack has settled (being sent, failed or unconfirmed), each once as it was sent ({MM}), the latest ANSWER_FRAMES_MAX of them; their
+             records do not change (an ack that comes settles them as ever)
+
+The frames of ?APRSO and ?APRSM go out one at a time, SPACING_SEC apart (services/pace.py, the pause between our own frames); the others at once.
 
 The general query ?APRS? is a `?` packet (the information field starts with `?APRS?`), not the text of a message, and a message with that text is not answered. It may carry a target footprint,
 `?APRS?V34.02,-117.15,0200` (latitude and longitude in degrees, the radius in miles; the V stands for a space and may be left out): we answer only when our position is inside it, and a footprint that does not read is
@@ -19,7 +24,7 @@ import logging
 import math
 import random
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from typing import Protocol
@@ -29,10 +34,12 @@ from neoaprs.aprsmessage import MAX_TEXT, MessageError, format_message
 from neoaprs.callsign import CallsignError
 from neoaprs.interlock import Interlock
 from neoaprs.clock import Clock, utcnow
-from neoaprs.message import MessagingError, addressed_to, same_call
+from neoaprs.message import MessageRecord, MessagingError, addressed_to, same_call
+from neoaprs.ownobject import OwnObject, info_of
 from neoaprs.packet import Message, Other, Packet
 from neoaprs.services.beacon import BeaconError
 from neoaprs.services.common import ConfigSource, Radio, our_frame
+from neoaprs.services.pace import SPACING_SEC
 from neoaprs.stationbook import Station
 from neoaprs.tasks import TaskSet
 
@@ -47,7 +54,10 @@ MAX_DIRECT_MESSAGES = 2
 EARTH_MILES = 3958.8
 _NUMBER = r"V?\s*([-+]?\d+(?:\.\d+)?)"                                     # (the V is the specification's mark of a positive value)
 _FOOTPRINT = re.compile(rf"\?APRS\?(?:\s*{_NUMBER}\s*[,\s]\s*{_NUMBER}\s*[,\s]\s*(\d{{1,4}}))?", re.IGNORECASE)
-_DIRECTED = {"?APRSP": "position", "?APRSS": "status", "?APRSD": "directs", "?APRST": "path", "?PING?": "path"}
+_DIRECTED = {"?APRSP": "position", "?APRSS": "status", "?APRSD": "directs", "?APRST": "path", "?PING?": "path", "?APRSO": "objects", "?APRSM": "messages"}
+_PACED = ("objects", "messages")                                          # the answers of several frames, sent SPACING_SEC apart
+ANSWER_FRAMES_MAX = 5
+_UNSETTLED = ("sending", "failed", "unconfirmed")
 
 
 class Frames(Protocol):
@@ -58,6 +68,24 @@ class Frames(Protocol):
 class Stations(Protocol):
     """What the queries need of the station book."""
     def stations(self) -> list[Station]: ...
+
+
+class Objects(Protocol):
+    """What the queries need of our objects and items (services/ownobjects.py)."""
+    def records(self) -> list[OwnObject]: ...
+
+
+class Messages(Protocol):
+    """What the queries need of messaging."""
+    def records(self) -> list[MessageRecord]: ...
+
+
+class _Nothing:
+    def records(self) -> list:                                                  # type: ignore[type-arg]
+        return []
+
+
+_NOTHING = _Nothing()                                                           # (no objects, no messages: a Queries made without them)
 
 
 def directs_messages(calls: list[str]) -> list[str]:
@@ -78,12 +106,13 @@ def directs_messages(calls: list[str]) -> list[str]:
 
 
 def path_text(packet: Packet) -> str:
-    """"Path= OH2GBA>APZNEO,OH2RCH-2*": the header of the packet as heard, its digipeaters with their stars; the last of them go when the text would be over MAX_TEXT bytes."""
-    head = f"Path= {packet.source}>{packet.destination}"
+    """"OH2GBA>APZNEO,OH2RCH-2*:": the header of the packet as heard, its digipeaters with their stars, as the example of APRS 1.0.1 (chapter 15) writes it; the last of them go when the text
+    would be over MAX_TEXT bytes."""
+    head = f"{packet.source}>{packet.destination}"
     hops = list(packet.path)
-    while hops and len(f"{head},{','.join(hops)}".encode()) > MAX_TEXT:
+    while hops and len(f"{head},{','.join(hops)}:".encode()) > MAX_TEXT:
         hops.pop()
-    return f"{head},{','.join(hops)}" if hops else head
+    return f"{head},{','.join(hops)}:" if hops else f"{head}:"
 
 
 @dataclass(frozen=True)
@@ -119,7 +148,8 @@ def footprint_of(text: str) -> Footprint | None:
 
 class Queries:
     def __init__(self, tnc: Radio, config: ConfigSource, beacon: Frames, status: Callable[[], ax25.Frame | None], book: Stations, paths: Callable[[str], tuple[str, ...]],
-                 clock: Clock = utcnow, delay: Callable[[], float] = lambda: random.uniform(0.0, GENERAL_DELAY_MAX_SEC)) -> None:
+                 clock: Clock = utcnow, delay: Callable[[], float] = lambda: random.uniform(0.0, GENERAL_DELAY_MAX_SEC), objects: Objects = _NOTHING, messages: Messages = _NOTHING,
+                 spacing_sec: float = SPACING_SEC) -> None:
         self._tnc = tnc
         self._config = config
         self._interlock = Interlock(config)
@@ -129,6 +159,7 @@ class Queries:
         self._paths = paths                                     # the digipeaters of what we send to a station (PrefBook.path_for)
         self.clock = clock
         self._delay = delay                                     # how long the answer to the general query waits
+        self._objects, self._messages, self._spacing = objects, messages, spacing_sec
         self._answered: dict[tuple[str, str], datetime] = {}    # when each (station, query) was last answered
         self._general_until: datetime | None = None             # no general query is taken before this
         self._tasks = TaskSet(log, "queries")
@@ -158,13 +189,17 @@ class Queries:
             return
         try:
             frames = [frame for frame in self._answer(packet, query) if frame is not None]
-            if frames and all([self._send(asker, frame) for frame in frames]):
+            if frames and query in _PACED and self._send(asker, frames[0]):
+                self._answered[(asker, query)] = packet.heard_at
+                log.info("the %s query of %s is answered with %d frames, %g s apart", query, asker, len(frames), self._spacing)
+                self._tasks.spawn(self._paced(asker, frames[1:]), "query-paced")
+            elif query not in _PACED and frames and all([self._send(asker, frame) for frame in frames]):
                 self._answered[(asker, query)] = packet.heard_at
                 log.info("the %s query of %s is answered", query, asker)
         except (BeaconError, ax25.Ax25Error, CallsignError, MessageError, ValueError) as e:
             log.warning("the %s query of %s was not answered: %s", query, asker, e)
 
-    def _answer(self, packet: Packet, query: str) -> list[ax25.Frame | None]:
+    def _answer(self, packet: Packet, query: str) -> Sequence[ax25.Frame | None]:
         """The frames that answer the query (a None for a status not yet sent); BeaconError when the settings make no frame."""
         asker = packet.sender
         if query == "position":
@@ -173,7 +208,23 @@ class Queries:
             return [self._status()]
         if query == "directs":
             return [self._message(asker, text) for text in directs_messages(self._directs(packet.heard_at))]
+        if query == "objects":
+            return [our_frame(self._config(), (), info_of(o, self.clock())) for o in self._objects.records() if o.alive][:ANSWER_FRAMES_MAX]
+        if query == "messages":
+            return [self._message(asker, r.text, r.msg_id) for r in self._unsettled(asker)]
         return [self._message(asker, path_text(packet))]
+
+    def _unsettled(self, asker: str) -> list[MessageRecord]:
+        """Our messages to the asker that no ack has settled, the latest ANSWER_FRAMES_MAX, oldest first."""
+        ours = [r for r in self._messages.records() if r.direction == "out" and r.msg_id is not None and r.state in _UNSETTLED and same_call(r.to_call, asker)]
+        return sorted(ours, key=lambda r: r.id)[-ANSWER_FRAMES_MAX:]
+
+    async def _paced(self, asker: str, frames: list[ax25.Frame]) -> None:
+        """The rest of an answer of several frames, each SPACING_SEC after the one before (the first went at once)."""
+        for frame in frames:
+            await asyncio.sleep(self._spacing)
+            if not self._send(asker, frame):
+                return
 
     def _general(self, packet: Packet, text: str) -> None:
         """?APRS?: our position and status after a random wait when we are inside its footprint (if it has one), and no second one before GENERAL_EVERY_SEC has passed."""
@@ -219,10 +270,10 @@ class Queries:
         heard = [(s.last_direct_at, s.call) for s in self._book.stations() if s.kind == "station" and not s.is_me and s.last_direct_at is not None and now - s.last_direct_at <= DIRECT_WINDOW]
         return [call for _, call in sorted(heard, reverse=True)]
 
-    def _message(self, asker: str, text: str) -> ax25.Frame:
-        """Our frame carrying a message to the asker, without an id (nothing is waited for)."""
+    def _message(self, asker: str, text: str, msg_id: str | None = None) -> ax25.Frame:
+        """Our frame carrying a message to the asker: without an id (nothing is waited for), or a message of ours sent again with its number `{MM}`."""
         c = self._config()
-        return our_frame(c, (), b":" + format_message(asker, text))
+        return our_frame(c, (), b":" + format_message(asker, text, msg_id, None if msg_id is None else ""))
 
     def _send(self, asker: str, frame: ax25.Frame) -> bool:
         """Sends the frame by the asker's path; whether it went, and a word in the log when it did not."""

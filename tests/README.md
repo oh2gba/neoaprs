@@ -146,7 +146,7 @@
   table refuses); the service (`neoaprs/services/messaging.py`) on a stub Tnc, a real log and a clock the test holds (the exact bytes of a message and of an
   ack, the refusals, the ids and their wrap, the path of each station (`PrefBook.path_for`, which messaging is given) used by the messages, their attempts and a
   retry, and by the acks, the messages that are only overheard, the messages to a bulletin or a group (handed to the board, not overheard, not acked), the
-  attempts at 0, 30, 60 and 120 seconds and the failure after them (and for 1, 3 and 10 attempts of an older message, each message keeping the number it was
+  attempts at 0, 32, 64 and 128 seconds and the failure after them (and for 1, 3 and 10 attempts of an older message, each message keeping the number it was
   sent with, also across a restart; `send` giving 4 attempts and the email gateway 2 whatever a station's stored count or the old setting say, a message with 1
   or 2 attempts and no ack becoming `unconfirmed` and one with 3 `failed`, a late ack or reject settling an unconfirmed message, a retry from it), none dropped
   by count or age and a start that holds them all (with the warning above 10000), the daily care forgetting only the memory of old hearings, delete (any kind of

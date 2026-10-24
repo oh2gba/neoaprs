@@ -690,6 +690,18 @@
           ],
           "description": "the Maidenhead locator in the status text of a Mic-E packet; null for any other position"
         },
+        "telemetry": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TelemetryFields"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the base-91 telemetry `|ss11|` the comment carried (APRS 1.2), taken out of the `comment`; null when there was none"
+        },
         "type": {
           "const": "position",
           "type": "string"
@@ -766,10 +778,6 @@
       "additionalProperties": false,
       "description": "A telemetry report (`T#005,199,000,255,073,123,01101001`). The definitions of the channels are messages of the station, applied by the daemon: see `telemetry` of the station.",
       "properties": {
-        "type": {
-          "const": "telemetry",
-          "type": "string"
-        },
         "sequence": {
           "anyOf": [
             {
@@ -782,26 +790,30 @@
           "description": "the sequence number; null for the `MIC` of a Mic-E unit"
         },
         "analog": {
-          "description": "the five analog values as sent (0 to 255)",
+          "description": "the analog values as sent, 1 to 5 (APRS 1.2: any width, signed, with a decimal point)",
           "items": {
             "type": "number"
           },
           "type": "array"
         },
         "bits": {
-          "description": "the eight digital values as a text of 0 and 1",
+          "description": "the digital values as a text of 0 and 1, B1 first: up to eight, empty when there were none",
           "type": "string"
         },
         "comment": {
           "type": "string"
+        },
+        "type": {
+          "const": "telemetry",
+          "type": "string"
         }
       },
       "required": [
-        "type",
         "sequence",
         "analog",
         "bits",
-        "comment"
+        "comment",
+        "type"
       ],
       "title": "DecodedTelemetry",
       "type": "object"
@@ -1829,7 +1841,7 @@
           "type": "string"
         },
         "attempts": {
-          "description": "how many times it has been transmitted (at most `attempts_max`: 0, 30, 60, 120, 240, 480, 960 ... seconds after the first, no wait longer than 960)",
+          "description": "how many times it has been transmitted (at most `attempts_max`: 0, 32, 64, 128, 256, 512, 1024 ... seconds after the first, no wait longer than 960)",
           "minimum": 0,
           "type": "integer"
         },
@@ -2686,6 +2698,18 @@
             }
           ],
           "description": "the Maidenhead locator in the status text of a Mic-E packet; null for any other position"
+        },
+        "telemetry": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TelemetryFields"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the base-91 telemetry `|ss11|` the comment carried (APRS 1.2), taken out of the `comment`; null when there was none"
         }
       },
       "required": [
@@ -3275,7 +3299,7 @@
           "type": "boolean"
         },
         "can_message": {
-          "description": "a message to the station makes sense, and the card has a Message button: false for an object or an item and for our own station; for a station true when it has sent a message or an ack (heard, overheard too) or its latest position was a Mic-E one or began with `=` or `@`, false when that began with `!` or `/`; true for a station of which nothing of that is known",
+          "description": "a message to the station makes sense, and the card has a Message button: false for an object or an item and for our own station; for a station true when it has sent a message or an ack (heard, overheard too) or its latest position began with `=` or `@` or was a Mic-E one, false when that began with `!` or `/` or was a Mic-E one whose comment begins with the type code `'` (no messaging); true for a station of which nothing of that is known",
           "type": "boolean"
         },
         "track": {
@@ -3582,6 +3606,45 @@
       "title": "TelemetryChannel",
       "type": "object"
     },
+    "TelemetryFields": {
+      "additionalProperties": false,
+      "description": "A telemetry report as the parser made it.",
+      "properties": {
+        "sequence": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the sequence number; null for the `MIC` of a Mic-E unit"
+        },
+        "analog": {
+          "description": "the analog values as sent, 1 to 5 (APRS 1.2: any width, signed, with a decimal point)",
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "bits": {
+          "description": "the digital values as a text of 0 and 1, B1 first: up to eight, empty when there were none",
+          "type": "string"
+        },
+        "comment": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "sequence",
+        "analog",
+        "bits",
+        "comment"
+      ],
+      "title": "TelemetryFields",
+      "type": "object"
+    },
     "TelemetryValues": {
       "additionalProperties": false,
       "description": "A station's latest telemetry report with the definitions the station sent as messages (`PARM.`, `UNIT.`, `EQNS.`, `BITS.`) applied.",
@@ -3598,14 +3661,14 @@
           "description": "the sequence number; null for the `MIC` of a Mic-E unit"
         },
         "channels": {
-          "description": "the five analog channels",
+          "description": "the analog channels, as many as the report had (1 to 5)",
           "items": {
             "$ref": "#/$defs/TelemetryChannel"
           },
           "type": "array"
         },
         "bits": {
-          "description": "the eight digital channels",
+          "description": "the digital channels, as many as the report had (up to 8)",
           "items": {
             "$ref": "#/$defs/TelemetryBit"
           },

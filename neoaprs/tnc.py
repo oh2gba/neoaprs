@@ -333,8 +333,9 @@ class Tnc(TimedSource):
         self.stats.bytes_out += len(data)
         return True
 
-    def send_frame(self, frame: ax25.Frame) -> bool:
-        return self._transmit(ax25.encode(frame), frame)
+    def send_frame(self, frame: ax25.Frame, raw: bytes | None = None) -> bool:
+        """Sends the frame; `raw` is its bytes when they are to go as they are (the digipeater's: what was heard with only the path changed)."""
+        return self._transmit(ax25.encode(frame) if raw is None else raw, frame)
 
     async def send(self, data: bytes) -> bool:
         try:

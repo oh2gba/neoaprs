@@ -6,7 +6,8 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import NamedTuple
 
-from neoaprs.aprsextension import Extensions, split_bearing, split_extension
+from neoaprs.aprsextension import MILE_KM, Extensions, split_bearing, split_dao, split_extension, with_dao
+from neoaprs.aprstelemetry import split_comment_telemetry
 from neoaprs.aprsweather import MPH_KMH, Weather, parse_weather
 from neoaprs.packet import Position, decode_text
 from neoaprs.symbols import table_of
@@ -36,6 +37,7 @@ class _Fix(NamedTuple):
     speed: float | None = None
     altitude: float | None = None
     wind: tuple[int, float] | None = None             # a weather station's cs bytes: the wind direction (degrees) and speed (km/h)
+    extensions: Extensions | None = None              # the radio range of cs bytes that begin with "{"
 
 
 def degrees(whole: int, minutes_hundredths: int, ambiguity: int = 0) -> float:
@@ -148,17 +150,19 @@ def _compressed_wind(cs: bytes) -> tuple[int, float] | None:
     return (cs[0] - 33) * 4, round((1.08 ** (cs[1] - 33) - 1) * MPH_KMH, 1)
 
 
-def _compressed_motion(cs: bytes, t: int) -> tuple[int | None, float | None, float | None]:
-    """Course, speed and altitude from the two cs bytes and the type byte of a compressed position."""
+def _compressed_motion(cs: bytes, t: int) -> tuple[int | None, float | None, float | None, Extensions | None]:
+    """Course, speed, altitude and the radio range from the two cs bytes and the type byte of a compressed position."""
     if cs[0] == 0x20:
-        return None, None, None
+        return None, None, None, None
     c, s = cs[0] - 33, cs[1] - 33
     if ((t - 33) >> 3) & 3 == 2:                        # the fix came from a GGA sentence: cs is the altitude
-        return None, None, 1.002 ** (c * 91 + s) * FOOT_M
+        return None, None, 1.002 ** (c * 91 + s) * FOOT_M, None
     if c <= 89:
         course, speed = motion(c * 4, 1.08 ** s - 1)
-        return course, speed, None
-    return None, None, None                           # "{": the radio range, which nobody here needs
+        return course, speed, None, None
+    if cs[0] == ord("{"):                             # the radio range: 2 * 1.08 ** s miles
+        return None, None, None, Extensions(range_km=round(2 * 1.08 ** s * MILE_KM, 1))
+    return None, None, None, None
 
 
 def _compressed(rest: bytes) -> _Fix:
@@ -171,8 +175,8 @@ def _compressed(rest: bytes) -> _Fix:
         raise PositionError("compressed position out of range")
     if code == "_":                                   # a weather station's cs is the wind
         return _Fix(lat, lon, table, code, rest[_COMPRESSED_LEN:], wind=_compressed_wind(rest[10:12]))
-    course, speed, altitude = _compressed_motion(rest[10:12], rest[12])
-    return _Fix(lat, lon, table, code, rest[_COMPRESSED_LEN:], 0, course, speed, altitude)
+    course, speed, altitude, ranged = _compressed_motion(rest[10:12], rest[12])
+    return _Fix(lat, lon, table, code, rest[_COMPRESSED_LEN:], 0, course, speed, altitude, extensions=ranged)
 
 
 def _uncompressed(rest: bytes) -> _Fix:
@@ -238,8 +242,11 @@ def parse_position(body: bytes, now: datetime, *, messaging: bool = False) -> Po
     text = decode_text(fix.tail)
     weather, text = parse_weather(text) if fix.code == "_" else (None, text)
     tail = _comment_and_extensions(text, fix.table, fix.code, not compressed)
-    return Position(fix.lat, fix.lon, fix.table, fix.code, tail.comment, tail.course if tail.course is not None else fix.course, tail.speed if tail.speed is not None else fix.speed,
-                    tail.altitude if tail.altitude is not None else fix.altitude, timestamp, messaging, compressed, fix.ambiguity, _with_wind(weather, fix.wind), tail.extensions, local)
+    comment, telemetry = split_comment_telemetry(tail.comment)
+    comment, extra = split_dao(comment)
+    lat, lon = (fix.lat, fix.lon) if compressed or fix.ambiguity else with_dao(fix.lat, fix.lon, extra)       # (a compressed position is finer already; an ambiguous one claims no precision)
+    return Position(lat, lon, fix.table, fix.code, comment, tail.course if tail.course is not None else fix.course, tail.speed if tail.speed is not None else fix.speed,
+                    tail.altitude if tail.altitude is not None else fix.altitude, timestamp, messaging, compressed, fix.ambiguity, _with_wind(weather, fix.wind), tail.extensions or fix.extensions, local, telemetry=telemetry)
 
 
 def _coordinate_text(value: float, whole_digits: int, negative: str, positive: str) -> str:

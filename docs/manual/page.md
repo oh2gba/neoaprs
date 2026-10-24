@@ -83,7 +83,9 @@ A row with nothing to say is left out: a station that stands still has no speed 
 
 The buttons are **Message**, which opens the Messages tab on the station, and **Forget**, the trash can at the right ("Forget OH2XYZ" on hover), which asks twice (it says "sure?" after the first press, and takes it back after 5 seconds). The station's own timeout, **Hide from map after**, is under Details.
 
-**Message** is there only for a station that can do messages. There is none for an object or an item, and none for a station that sent its positions with `!` or `/` (the identifiers of a station without messaging), unless it has sent a message or an ack that you heard (overheard ones too) or a Mic-E position. Positions with `=` and `@`, Mic-E positions, and a station of which nothing is known yet all have it. NeoAPRS finds this again at its start from the packet log. The bulletins and telemetry definitions of a station do not count as a message.
+**Message** is there only for a station that can do messages. There is none for an object or an item, and none for a station that sent its positions with `!` or `/` (the identifiers of a station without messaging) or Mic-E positions whose comment starts with `'` (a tracker without messaging), unless it has sent a message or an ack that you heard (overheard ones too). Positions with `=` and `@`, other Mic-E positions, and a station of which nothing is known yet all have it.
+
+NeoAPRS finds this again at its start from the packet log. The bulletins and telemetry definitions of a station do not count as a message.
 
 **Details**, closed, has the rest:
 

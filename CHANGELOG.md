@@ -42,6 +42,24 @@ Updating.
 - The Windows installer, run silently by Update now, starts again the app or the daemon on the same data folder.
 - The wire: the topic `update` and the commands `update_now` and `update_cancel`. `NEOAPRS_INSTALL_KIND` simulates an install kind for development.
 
+Closer to the APRS standard.
+
+- The fill-in digipeater repeats a third-party packet (an iGate putting a message from the internet on the air with `WIDE1-1`): only the path before the `}` counts, as APRS 1.2 says. A packet whose own path has `TCPIP` or `TCPXX` is still not repeated.
+- A message from a station on the internet whose name is no radio call (a D-STAR `-L`, an SSID above 15, a name such as `WINLINK`) is shown and acked, and can be answered. Before, it was not recognised as a message, so the sender tried until it gave up.
+- A repeated copy of a message to you is acked again only 30 seconds or more after the last ack (was 10): the digipeaters drop a second ack within 30 seconds anyway.
+- A message is sent again 32, 64 and 128 seconds after the first attempt (was 30, 60 and 120), so that no retry comes exactly at the end of the digipeaters' 30-second duplicate window.
+- The ack of a message numbered `{05}` is `ack05}`, the exact copy of the number, as the reply-ack paper says (was `ack05`).
+- The fill-in digipeater sends the frame it heard byte for byte with only the path changed (it rewrote some address bits of the destination and the source), and a packet whose destination differs only in its SSID is a duplicate.
+- An ack or a message number followed by blanks or a line end (`ack12  `) is understood, and so is a message whose addressee is not padded to nine characters.
+- A Mic-E station whose comment starts with the type code `'` (a tracker without messaging) gets no Message button, unless it has sent a message.
+- The type codes of more Mic-E radios no longer show in the comment: the TH-D75's `&` and the two-character codes of current Yaesu, Anytone and other radios and trackers.
+- A snow reading with a decimal point (`s1.5`) is read, and so is the radio range of a compressed position.
+- Telemetry in the forms of APRS 1.2 is read: `T#MIC` without a comma, signed values with a decimal point, fewer than five values or eight bits, and the compact base-91 telemetry `|ss11|` at the end of a position's comment (which no longer shows in the comment).
+- The `!DAO!` precision extension (TH-D74 and TH-D75, APRSdroid) is read: the position is finer and the `!W12!` no longer shows in the comment.
+- The answer to `?APRST` and `?PING?` is the header as the specification's example writes it, `OH2RDG>APZNEO,WIDE1*,OH2RCH-2*:`, without `Path=` in front.
+- The queries `?APRSO` (your objects and items) and `?APRSM` (your messages to the asker that are not acked) are answered, at most 5 frames, 10 seconds apart.
+- The manual and the (i) of the Beacon tab say what PHG means: the antenna height above the average terrain around it, the gain in dBi.
+
 ## 0.6.7
 
 No new features: the page in seven languages.

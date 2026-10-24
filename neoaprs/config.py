@@ -169,7 +169,7 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("station_status", "station/status", status_text(MAX_STATUS)),   # free text sent as a status report (at most every status/interval_min, when it changed) and in answer to ?APRSS; empty: none
     Setting("beacon_power_w", "beacon/power_w", optional_int(*RANGES["beacon/power_w"])),    # the transmitter's power for the PHG extension of the beacon; empty: no PHG is sent
     Setting("beacon_antenna_height_m", "beacon/antenna_height_m", int_in(*RANGES["beacon/antenna_height_m"])),   # the antenna above average terrain, for the PHG extension
-    Setting("beacon_antenna_gain_db", "beacon/antenna_gain_db", int_in(*RANGES["beacon/antenna_gain_db"])),        # its gain over a dipole's isotropic figure, for the PHG extension
+    Setting("beacon_antenna_gain_db", "beacon/antenna_gain_db", int_in(*RANGES["beacon/antenna_gain_db"])),        # its gain in dBi, for the PHG extension
     Setting("beacon_antenna_direction", "beacon/antenna_direction", _direction),    # "omni" or the point of the compass it favours, for the PHG extension
     Setting("web_network", "web/network", boolean),                           # true: the page listens on every interface and a device other than this one logs in with web/key
     Setting("web_key", "web/key", access_key),                                # what a device on the network types to log in; made when web/network is first on, empty until then

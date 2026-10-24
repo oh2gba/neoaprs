@@ -290,6 +290,22 @@
   }
  },
  {
+  "name": "compressed with the radio range in cs (the spec's example)",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": "=/5L!!<*e7>{?!",
+  "expected": {
+   "kind": "position",
+   "compressed": true,
+   "course_deg": null,
+   "speed_kmh": null,
+   "altitude_m": null,
+   "extensions": {
+    "range_km": 32.4
+   }
+  }
+ },
+ {
   "name": "DF report: course, speed, bearing and number/range/quality (the spec's example)",
   "source": "OH2XYZ-9",
   "destination": "APRS",
@@ -1214,10 +1230,10 @@
   }
  },
  {
-  "name": "telemetry cut short stays an unread telemetry packet",
+  "name": "telemetry with no value stays an unread telemetry packet",
   "source": "OH2XYZ-9",
   "destination": "APRS",
-  "info": "T#005,199",
+  "info": "T#005,",
   "expected": {
    "kind": "other",
    "other_kind": "telemetry"
@@ -1800,6 +1816,77 @@
   "source": "OH7JHF-1",
   "destination": "APRS",
   "info": "}NOT A CALL>APRS,TCPIP:>x",
+  "expected": {
+   "kind": "other",
+   "other_kind": "third-party"
+  },
+  "third_party": null
+ },
+ {
+  "name": "third-party from a D-STAR gateway's -L",
+  "source": "OH7JHF-1",
+  "destination": "APRS",
+  "info": "}OH2XYZ-L>APDPRS,TCPIP,OH7JHF-1*::OH2GBA   :hi{12",
+  "expected": {
+   "kind": "message",
+   "addressee": "OH2GBA",
+   "text": "hi",
+   "msg_id": "12"
+  },
+  "third_party": {
+   "source": "OH2XYZ-L",
+   "destination": "APDPRS",
+   "path": [
+    "TCPIP",
+    "OH7JHF-1*"
+   ]
+  }
+ },
+ {
+  "name": "third-party from an SSID above 15",
+  "source": "OH7JHF-1",
+  "destination": "APRS",
+  "info": "}OH2XYZ-20>APRS,TCPIP,OH7JHF-1*::OH2GBA   :hi{12",
+  "expected": {
+   "kind": "message",
+   "addressee": "OH2GBA",
+   "text": "hi",
+   "msg_id": "12"
+  },
+  "third_party": {
+   "source": "OH2XYZ-20",
+   "destination": "APRS",
+   "path": [
+    "TCPIP",
+    "OH7JHF-1*"
+   ]
+  }
+ },
+ {
+  "name": "third-party from a name of seven characters",
+  "source": "OH7JHF-1",
+  "destination": "APRS",
+  "info": "}winlink>APWL2K,TCPIP,OH7JHF-1*::OH2GBA   :hi{12",
+  "expected": {
+   "kind": "message",
+   "addressee": "OH2GBA",
+   "text": "hi",
+   "msg_id": "12"
+  },
+  "third_party": {
+   "source": "WINLINK",
+   "destination": "APWL2K",
+   "path": [
+    "TCPIP",
+    "OH7JHF-1*"
+   ]
+  }
+ },
+ {
+  "name": "third-party from a name of ten characters stays other",
+  "source": "OH7JHF-1",
+  "destination": "APRS",
+  "info": "}OH2XYZ-123>APRS,TCPIP:>x",
   "expected": {
    "kind": "other",
    "other_kind": "third-party"

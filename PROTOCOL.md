@@ -578,7 +578,7 @@ row has a new distance and bearing, and the topic is told whole again.
 | `bearing_deg` | number \| null |  | the direction from our position, degrees from north; null as the distance is |
 | `is_me` | boolean |  | our own station: the row of the call in the settings, at the position in the settings |
 | `own` | boolean |  | an object or an item of ours, which we send (the topic `own_objects` has its values and its schedule): the map marks it as ours and the card has Edit and Kill in place of Forget; false for any other row |
-| `can_message` | boolean |  | a message to the station makes sense, and the card has a Message button: false for an object or an item and for our own station; for a station true when it has sent a message or an ack (heard, overheard too) or its latest position was a Mic-E one or began with `=` or `@`, false when that began with `!` or `/`; true for a station of which nothing of that is known |
+| `can_message` | boolean |  | a message to the station makes sense, and the card has a Message button: false for an object or an item and for our own station; for a station true when it has sent a message or an ack (heard, overheard too) or its latest position began with `=` or `@` or was a Mic-E one, false when that began with `!` or `/` or was a Mic-E one whose comment begins with the type code `'` (no messaging); true for a station of which nothing of that is known |
 | `track` | [time, number, number][] |  | the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed (max 50 items) |
 
 ### PacketRow
@@ -617,7 +617,7 @@ of a message that came in, `to_call` of one we sent.
 | `text` | string |  |  |
 | `msg_id` | string \| null |  | the message id the acknowledgement quotes (1 to 5 letters or digits); null for a message that came in without one |
 | `state` | "sending" \| "acked" \| "rejected" \| "failed" \| "unconfirmed" \| "cancelled" \| "received" \| "overheard" |  | `sending`: attempts are being made; `acked`: the addressee acknowledged it; `rejected`: the addressee refused it; `failed`: no answer after the last attempt; `unconfirmed`: no answer after the last attempt of a message that was given 1 or 2 attempts (the station is not expected to ack; a late ack still settles it); `cancelled`: stopped by the page; `received`: it was sent to us; `overheard`: it was sent to another station and we heard it (`from_call` sent it, `to_call` is who it is for) |
-| `attempts` | integer |  | how many times it has been transmitted (at most `attempts_max`: 0, 30, 60, 120, 240, 480, 960 ... seconds after the first, no wait longer than 960) (>= 0) |
+| `attempts` | integer |  | how many times it has been transmitted (at most `attempts_max`: 0, 32, 64, 128, 256, 512, 1024 ... seconds after the first, no wait longer than 960) (>= 0) |
 | `attempts_max` | integer |  | how many attempts the message was given when it was sent: 4, 2 for the email gateway `EMAIL-2`, 1 for a bulletin (messages from before the count was fixed have their own, up to 10) (>= 1, <= 10) |
 | `last_attempt_at` | time \| null |  | when it was transmitted last; null until the first attempt (the TNC may be away) |
 | `acked_at` | time \| null |  | when the acknowledgement was heard |
@@ -646,6 +646,7 @@ A position report.
 | `extensions` | ExtensionValues \| null |  | the PHG, RNG, DFS, DF bearing or area data after the symbol of an uncompressed position; null when there was none |
 | `timestamp_local` | boolean |  | the `timestamp` was sent in the sender's local time (`/`): it is the time as it was sent, not UTC |
 | `locator` | LocatorValues \| null |  | the Maidenhead locator in the status text of a Mic-E packet; null for any other position |
+| `telemetry` | TelemetryFields \| null | optional | the base-91 telemetry `\|ss11\|` the comment carried (APRS 1.2), taken out of the `comment`; null when there was none (default `null`) |
 | `type` | "position" |  |  |
 
 ### DecodedMessage
@@ -701,11 +702,11 @@ A telemetry report (`T#005,199,000,255,073,123,01101001`). The definitions of th
 
 | field | type | | description |
 |---|---|---|---|
-| `type` | "telemetry" |  |  |
 | `sequence` | integer \| null |  | the sequence number; null for the `MIC` of a Mic-E unit |
-| `analog` | number[] |  | the five analog values as sent (0 to 255) |
-| `bits` | string |  | the eight digital values as a text of 0 and 1 |
+| `analog` | number[] |  | the analog values as sent, 1 to 5 (APRS 1.2: any width, signed, with a decimal point) |
+| `bits` | string |  | the digital values as a text of 0 and 1, B1 first: up to eight, empty when there were none |
 | `comment` | string |  |  |
+| `type` | "telemetry" |  |  |
 
 ### DecodedOther
 
@@ -772,6 +773,7 @@ A position as the parser made it: decimal degrees, south and west negative, spee
 | `extensions` | ExtensionValues \| null |  | the PHG, RNG, DFS, DF bearing or area data after the symbol of an uncompressed position; null when there was none |
 | `timestamp_local` | boolean |  | the `timestamp` was sent in the sender's local time (`/`): it is the time as it was sent, not UTC |
 | `locator` | LocatorValues \| null |  | the Maidenhead locator in the status text of a Mic-E packet; null for any other position |
+| `telemetry` | TelemetryFields \| null | optional | the base-91 telemetry `\|ss11\|` the comment carried (APRS 1.2), taken out of the `comment`; null when there was none (default `null`) |
 
 ### TncState
 
@@ -1112,6 +1114,17 @@ One analog channel of a station's latest telemetry report.
 | `raw` | number |  | the value as it was sent (0 to 255) |
 | `value` | number |  | `a*raw^2 + b*raw + c` with the coefficients of its `EQNS.` message; the raw value when it sent none |
 
+### TelemetryFields
+
+A telemetry report as the parser made it.
+
+| field | type | | description |
+|---|---|---|---|
+| `sequence` | integer \| null |  | the sequence number; null for the `MIC` of a Mic-E unit |
+| `analog` | number[] |  | the analog values as sent, 1 to 5 (APRS 1.2: any width, signed, with a decimal point) |
+| `bits` | string |  | the digital values as a text of 0 and 1, B1 first: up to eight, empty when there were none |
+| `comment` | string |  |  |
+
 ### TelemetryValues
 
 A station's latest telemetry report with the definitions the station sent as messages (`PARM.`, `UNIT.`, `EQNS.`, `BITS.`) applied.
@@ -1119,8 +1132,8 @@ A station's latest telemetry report with the definitions the station sent as mes
 | field | type | | description |
 |---|---|---|---|
 | `sequence` | integer \| null |  | the sequence number; null for the `MIC` of a Mic-E unit |
-| `channels` | TelemetryChannel[] |  | the five analog channels |
-| `bits` | TelemetryBit[] |  | the eight digital channels |
+| `channels` | TelemetryChannel[] |  | the analog channels, as many as the report had (1 to 5) |
+| `bits` | TelemetryBit[] |  | the digital channels, as many as the report had (up to 8) |
 | `project` | string |  | the project title of the `BITS.` message; empty when there is none |
 | `comment` | string |  |  |
 

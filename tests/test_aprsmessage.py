@@ -33,12 +33,20 @@ from neoaprs.packet import Message
     (b"WU2Z     :acknowledged", Message("WU2Z", "acknowledged")),
     (b"WU2Z     :ack123456", Message("WU2Z", "ack123456")),
     (b"WU2Z     :ack12{5", Message("WU2Z", "ack12", "5")),         # an ack is "ack" and its id and nothing else
+    (b"WB4APR-14:ack12  ", Message("WB4APR-14", "", ack_id="12")),   # blanks, CR and LF after an ack or a number do not count
+    (b"WB4APR-14:ack12\r", Message("WB4APR-14", "", ack_id="12")),
+    (b"WB4APR-14:rej12 \r\n", Message("WB4APR-14", "", rej_id="12")),
+    (b"OH2GBA   :Hello{12}  ", Message("OH2GBA", "Hello", "12")),
+    (b"OH2GBA   :Hi{12\r\n", Message("OH2GBA", "Hi", "12")),
+    (b"KH2Z:hi", Message("KH2Z", "hi")),                              # an addressee field a little short: the first colon ends it
+    (b"WU2Z    :x{3", Message("WU2Z", "x", "3")),
+    (b"OH2GBA-7:ack05", Message("OH2GBA-7", "", ack_id="05")),
 ])
 def test_parse(body: bytes, want: Message) -> None:
     assert parse_message(body) == want
 
 
-@pytest.mark.parametrize("body", [b"", b"WU2Z", b"WU2Z     ", b"WU2Z     x", b"WU2Z    :x", b"WU2ZABCDEF:x", b"          :x", b":x"])
+@pytest.mark.parametrize("body", [b"", b"WU2Z", b"WU2Z     ", b"WU2Z     x", b"WU2ZABCDEF:x", b"OH2GBA-7 x:y", b"          :x", b":x"])
 def test_bad_bodies(body: bytes) -> None:
     with pytest.raises(MessageError):
         parse_message(body)
@@ -51,7 +59,8 @@ def test_format() -> None:
     assert format_message("WU2Z", "Testing", "05", "") == b"WU2Z     :Testing{05}"
     assert format_message("WU2Z", "Testing", "05", "AB") == b"WU2Z     :Testing{05}AB"
     assert format_ack("N3LTQ-7", "05", "AB") == b"N3LTQ-7  :ack05}AB"
-    assert format_ack("N3LTQ-7", "05", "") == b"N3LTQ-7  :ack05" and format_ack("N3LTQ-7", "05", None) == b"N3LTQ-7  :ack05"
+    assert format_ack("N3LTQ-7", "05", "") == b"N3LTQ-7  :ack05}", "the ack of {05} is the exact copy of the number"
+    assert format_ack("N3LTQ-7", "05", None) == b"N3LTQ-7  :ack05"
     assert format_ack("N3LTQ-7", "003") == b"N3LTQ-7  :ack003"
 
 
@@ -71,13 +80,13 @@ def test_format_refuses_a_reply_ack_without_an_id_or_with_a_bad_one() -> None:
             format_message("A", "x", msg_id, reply)
 
 
-@pytest.mark.parametrize(("line", "want"), [("Hello{05}AB", "AB"), ("Hello{05}", ""), ("Hello{05", None), ("Hello", None), ("{05}AB", "AB"), ("Hello{05}ABCDEF", None), ("a}b", None)])
+@pytest.mark.parametrize(("line", "want"), [("Hello{05}AB", "AB"), ("Hello{05}", ""), ("Hello{05", None), ("Hello", None), ("{05}AB", "AB"), ("Hello{05}ABCDEF", None), ("a}b", None), ("Hello{05}  ", ""), ("Hello{05}AB\r", "AB")])
 def test_the_reply_ack_of_a_text_is_what_follows_the_brace_of_its_number(line: str, want: str | None) -> None:
     assert reply_ack_of(line) == want
 
 
 def test_the_line_of_a_message_is_its_text_with_the_number_and_a_field_that_is_none_has_none() -> None:
-    assert line_of(b":OH2GBA   :Hello{05}AB\r") == "Hello{05}AB" and line_of(b":OH2GBA   :") == ""
+    assert line_of(b":OH2GBA   :Hello{05}AB\r") == "Hello{05}AB" and line_of(b":OH2GBA   :") == "" and line_of(b":KH2Z:hi{3}") == "hi{3}"
     for info in (b"", b">status", b":OH2GBA", b":OH2GBA    x"):
         assert line_of(info) is None
 

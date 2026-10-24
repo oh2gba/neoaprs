@@ -107,12 +107,12 @@ async def test_aprst_and_ping_give_the_path_the_query_came_by(tmp_path: Path) ->
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "?APRST"), destination="APZNEO", path="WIDE1*,OH2RCH-2*,WIDE2-1"))
     await heard(e, 1)
     [frame] = await said(e)
-    assert frame.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :Path= OH2RDG>APZNEO,WIDE1*,OH2RCH-2*,WIDE2-1"
+    assert frame.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :OH2RDG>APZNEO,WIDE1*,OH2RCH-2*,WIDE2-1:"
     e.now.advance(60)                                                       # type: ignore[attr-defined]
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "?PING?"), destination="APRS", path=""))
     await heard(e, 2)
     [ping] = await said(e)
-    assert ping.tnc2().endswith(":Path= OH2RDG>APRS")
+    assert ping.tnc2().endswith(":OH2RDG>APRS:")
     await e.stop()
 
 

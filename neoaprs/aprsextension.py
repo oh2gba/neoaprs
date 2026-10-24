@@ -1,5 +1,6 @@
 """The data extensions that follow the symbol of an uncompressed position (APRS101, chapter 7): the station's power, height, gain and directivity (`PHGphgd`), a pre-calculated radio range (`RNGrrrr`), the
 strength of a signal heard by a direction finder (`DFSshgd`), the bearing and quality of a DF report (`/BRG/NRQ`, after the course and speed) and the shape of an area object (`Tyy/Cxx` after the symbol `\\l`).
+Besides, the precision and datum extension `!DAO!` anywhere in the comment of a position, an object, an item or a Mic-E packet (APRS 1.2): `split_dao` and `with_dao`.
 
 Course and speed (`CSE/SPD`) are read by aprsposition.py, which calls `split_extension` for the rest. Pure code, like the rest of the foundation."""
 import math
@@ -134,3 +135,32 @@ def extension_lines(ext: Extensions) -> list[str]:
         a = ext.area
         lines.append(f"area: {a.colour} {a.shape}, {a.lat_offset_deg:g}° down, {a.lon_offset_deg:g}° right")
     return lines
+
+
+_DAO = re.compile(r"!([A-Z])([\d ])([\d ])!|!([a-z])([!-{ ])([!-{ ])!")
+
+
+def _dao_minutes(char: str, base91: bool) -> float:
+    """The minutes one byte of `!DAO!` adds: a digit of thousandths of a minute, or a base-91 value of 0 to 90 for 0 to 0.0099 minutes (the two digits after the thousandths, divided by 1.1); a blank adds none."""
+    if char == " ":
+        return 0.0
+    return (ord(char) - 33) * 1.1 / 10000 if base91 else int(char) / 1000
+
+
+def split_dao(text: str) -> tuple[str, tuple[float, float] | None]:
+    """The comment without the precision and datum extension `!DAO!` (APRS 1.2, chapter 5) and the minutes it adds to the latitude and the longitude (away from the equator and the meridian): `!W12!` (the
+    datum letter in capitals: a digit each, the thousandths of a minute) or `!wAB!` (in lower case: base-91). None when the text has none; of several, the last counts and every one is taken out."""
+    found = list(_DAO.finditer(text))
+    if not found:
+        return text, None
+    last = found[-1]
+    base91 = last.group(4) is not None
+    lat, lon = (last.group(5), last.group(6)) if base91 else (last.group(2), last.group(3))
+    return _DAO.sub("", text).strip(), (_dao_minutes(lat, base91), _dao_minutes(lon, base91))
+
+
+def with_dao(lat: float, lon: float, extra: tuple[float, float] | None) -> tuple[float, float]:
+    """The latitude and the longitude made finer by the minutes of a `!DAO!` (split_dao), each away from zero."""
+    if extra is None:
+        return lat, lon
+    return max(-90.0, min(90.0, lat + math.copysign(extra[0] / 60, lat))), max(-180.0, min(180.0, lon + math.copysign(extra[1] / 60, lon)))

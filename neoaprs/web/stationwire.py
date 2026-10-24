@@ -38,8 +38,8 @@ class TelemetryBit(_Model):
 class TelemetryValues(_Model):
     """A station's latest telemetry report with the definitions the station sent as messages (`PARM.`, `UNIT.`, `EQNS.`, `BITS.`) applied."""
     sequence: int | None = Field(description="the sequence number; null for the `MIC` of a Mic-E unit")
-    channels: list[TelemetryChannel] = Field(description="the five analog channels")
-    bits: list[TelemetryBit] = Field(description="the eight digital channels")
+    channels: list[TelemetryChannel] = Field(description="the analog channels, as many as the report had (1 to 5)")
+    bits: list[TelemetryBit] = Field(description="the digital channels, as many as the report had (up to 8)")
     project: str = Field(description="the project title of the `BITS.` message; empty when there is none")
     comment: str
 
@@ -88,7 +88,7 @@ class StationRow(_Model):
     is_me: bool = Field(description="our own station: the row of the call in the settings, at the position in the settings")
     own: bool = Field(description="an object or an item of ours, which we send (the topic `own_objects` has its values and its schedule): the map marks it as ours and the card has Edit and Kill in place of Forget; false for any other row")
     can_message: bool = Field(description="a message to the station makes sense, and the card has a Message button: false for an object or an item and for our own station; for a station true when it has sent a message or an ack (heard, overheard too) "
-                                          "or its latest position was a Mic-E one or began with `=` or `@`, false when that began with `!` or `/`; true for a station of which nothing of that is known")
+                                          "or its latest position began with `=` or `@` or was a Mic-E one, false when that began with `!` or `/` or was a Mic-E one whose comment begins with the type code `'` (no messaging); true for a station of which nothing of that is known")
     track: list[tuple[Iso, float, float]] = Field(max_length=50, description="the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed")
 
 

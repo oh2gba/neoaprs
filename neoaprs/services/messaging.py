@@ -1,16 +1,16 @@
 """Messaging: APRS text messages to and from other stations, with acknowledgements and retries, kept in the database.
 
-Outgoing (`send`): the addressee and the text (printable ASCII) are checked, the message is given the next message id (two characters: 01..99, then A0..ZZ, 0A..9Z and 00, 1296 in all, going round and skipping those of messages still being
+Outgoing (`send`): the addressee (a call, or the name of a station on the internet: callsign.normal_name) and the text (printable ASCII) are checked, the message is given the next message id (two characters: 01..99, then A0..ZZ, 0A..9Z and 00, 1296 in all, going round and skipping those of messages still being
 sent) and kept with state "sending", and it is transmitted at once: a UI frame from `station/call` to the tocall by way of the station's path (below) whose information field is `:` and the message
 (aprsmessage.format_message). Every message carries its number as a reply-ack, `{MM}` or, when the station has sent us a message with a reply-ack number that its ack has not reached it with, `{MM}AA`, the
 id of the latest such message (services/heard.py); an attempt is made as it is, so a retry carries the latest. The attempts
-are made 4 times, 2 for the email gateway (message.attempts_for; the record keeps the number: `attempts_max`), 0, 30, 60, 120, 240, 480, 960 ... seconds after the first with no wait
+are made 4 times, 2 for the email gateway (message.attempts_for; the record keeps the number: `attempts_max`), 0, 32, 64, 128, 256, 512, 1024 ... seconds after the first with no wait
 longer than 960 (message.schedule_sec); the answer to the last is waited for FINAL_WAIT_SEC, then the message is "failed", or "unconfirmed" when it was given only 1 or 2 attempts (the station is not expected to ack; an ack that comes later still settles it). An ack from the addressee that quotes our id makes it "acked", a rej "rejected";
 A message to a bulletin or a group (BLN*, ALL, CQ, QST, NWS-*, SKY*, CWA*: neoaprs/bulletin.py) is sent once, without an id, and kept as "unconfirmed" with one attempt; so is a directed query (`ask`: ?APRSP, ?APRSS, ?APRSD, ?APRST to a
 station, once per station and kind in QUERY_EVERY_SEC: services/asking.py, through `send` with `once`), which the conversation shows as a note of what was asked. `cancel` stops a message that is being sent, `retry` sends a failed, unconfirmed, rejected or cancelled one again from the first attempt, `delete` removes a message of any kind (a message being sent is cancelled first).
 While the Tnc is not connected, or the radio is silent, an attempt that is due waits (it is not used up, the waits that were running are moved on by the time the radio was away) and the log says so once.
 
-Incoming (`on_packet`, from the Tnc): the inbox (services/inbox.py) keeps a message to us (state "received"), answers it with an ack when it carries an id (`ackMM`, or `ackMM}AA` for the number `{MM}AA`), and
+Incoming (`on_packet`, from the Tnc): the inbox (services/inbox.py) keeps a message to us (state "received"), answers it with an ack when it carries an id (`ackMM`, or the exact copy of a reply-ack number: `ackMM}` for `{MM}`, `ackMM}AA` for `{MM}AA`), and
 lets an ack, a rej or the reply-ack of a message to us settle the message of ours that it quotes.
 
 Every message is held here as well as in the database (the page's topic is made from them) and none leaves on its own: nothing is evicted and the daily care does not prune them (the operator deletes with
@@ -33,10 +33,10 @@ from datetime import datetime, timedelta
 from neoaprs import ax25
 from neoaprs.bulletin import board_slot
 from neoaprs.aprsmessage import MessageError, format_ack, format_message
-from neoaprs.callsign import CallsignError
+from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.clock import Clock, days, utcnow
 from neoaprs.config import can_transmit
-from neoaprs.message import MESSAGES_HELD_MAX, MSG_IDS, UNCONFIRMED_MAX, MessageRecord, MessagingError, State, addressed_to, attempts_for, check_text, due_at, next_msg_id, normal_call
+from neoaprs.message import MESSAGES_HELD_MAX, MSG_IDS, UNCONFIRMED_MAX, MessageRecord, MessagingError, State, addressed_to, attempts_for, check_text, due_at, next_msg_id
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet
 from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, our_frame
@@ -65,7 +65,7 @@ def _info(to: str, text: str, ident: str | None, reply: str | None) -> bytes:
 def _named(name: str) -> str:
     """A station as the overheard messages name it: a call in its normal form, else (an addressee that is no call) the text as it is."""
     try:
-        return normal_call(name)
+        return normal_name(name)
     except CallsignError:
         return name.strip()
 
@@ -137,7 +137,7 @@ class Messaging:
         board = board_slot(to_call)
         once = once or board is not None
         try:
-            to = to_call.strip().upper() if board is not None else normal_call(to_call)
+            to = to_call.strip().upper() if board is not None else normal_name(to_call)
         except CallsignError as e:
             raise MessagingError(str(e)) from None
         if addressed_to(to, ours):
@@ -192,7 +192,7 @@ class Messaging:
         database in one write, from here and (by `removed`, one for each) from every page; those being sent are cancelled first. The station's path and timeout stay. Returns how many messages the database had.
         Raises MessagingError when the call is none, when there is no message with the station, or when the database would not take the removal (the messages are then kept, those that were being sent cancelled)."""
         try:
-            peer = normal_call(call)
+            peer = normal_name(call)
         except CallsignError as e:
             raise MessagingError(str(e)) from None
         await asyncio.gather(*self.inbox.tasks, return_exceptions=True)          # (a message that is being kept is part of the conversation)
@@ -362,7 +362,7 @@ class Messaging:
             self.changed.emit(found)
 
     def ack(self, to: str, msg_id: str, reply_ack: str | None = None) -> None:
-        """Acknowledges message `msg_id` of the station `to`: `ackMM`, or `ackMM}AA` for a message that came as `{MM}AA` (`reply_ack` is the AA)."""
+        """Acknowledges message `msg_id` of the station `to`: `ackMM`, or the number as it came for a message with a reply-ack number, `ackMM}` for `{MM}` (`reply_ack` "") and `ackMM}AA` for `{MM}AA`."""
         try:
             if not self._tnc.send_frame(self._frame(b":" + format_ack(to, msg_id, reply_ack), to)):
                 log.warning("the ack of message %s from %s was not sent: the TNC would not take it", msg_id, to)

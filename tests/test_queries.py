@@ -9,9 +9,12 @@ from neoaprs import ax25
 from neoaprs.aprsmessage import MAX_TEXT, parse_message
 from neoaprs.packet import Message, Other, Packet, Status
 from neoaprs.services.beacon import Beacon
-from neoaprs.services.queries import GENERAL_DELAY_MAX_SEC, GENERAL_EVERY_SEC, Queries, directs_messages, path_text
+from neoaprs.message import MessageRecord
+from neoaprs.ownobject import make_object
+from neoaprs.services.queries import ANSWER_FRAMES_MAX, GENERAL_DELAY_MAX_SEC, GENERAL_EVERY_SEC, Queries, directs_messages, path_text
 from neoaprs.source import Source
 from neoaprs.stationbook import StationBook
+from tests.support.clock import FixedClock
 from tests.support.rig import ServiceRig
 from tests.support.env import idle_for, remember_stop, until
 
@@ -134,16 +137,16 @@ def test_aprst_and_ping_are_answered_with_the_header_of_the_query_as_we_heard_it
     rig = Rig()
     rig.ask("OH2RDG", query, path=("WIDE1*", "OH2RCH-2*", "WIDE2-1"), destination="APZNEO")
     [frame] = rig.tnc.sent
-    assert rig.message_of(frame) == ("OH2RDG", "Path= OH2RDG>APZNEO,WIDE1*,OH2RCH-2*,WIDE2-1", None)
+    assert rig.message_of(frame) == ("OH2RDG", "OH2RDG>APZNEO,WIDE1*,OH2RCH-2*,WIDE2-1:", None), "the header as the specification's example has it, no Path= in front"
 
 
 def test_the_path_of_a_direct_query_is_just_the_header_and_a_long_one_loses_its_last_digipeaters() -> None:
     rig = Rig()
     rig.ask("OH2RDG", "?APRST", path=())
-    assert rig.message_of(rig.tnc.sent[0])[1] == "Path= OH2RDG>APZNEO"
+    assert rig.message_of(rig.tnc.sent[0])[1] == "OH2RDG>APZNEO:"
     long = rig.packet("OH2RDG-15", Message("OH2GBA", "?APRST"), path=("OH2RCH-12*", "OH2RCH-13*", "OH2RCH-14*", "OH2RCH-15*", "WIDE2-2", "WIDE3-3"))
     text = path_text(long)
-    assert len(text.encode()) <= MAX_TEXT and text.startswith("Path= OH2RDG-15>APZNEO,OH2RCH-12*,OH2RCH-13*") and "WIDE3-3" not in text
+    assert len(text.encode()) <= MAX_TEXT and text.startswith("OH2RDG-15>APZNEO,OH2RCH-12*,OH2RCH-13*") and text.endswith(":") and "WIDE3-3" not in text
 
 
 # ---- what a query carries ------------------------------------------------------------------------------------------------------------------------
@@ -189,7 +192,7 @@ def test_the_asker_of_a_third_party_query_is_the_sender_inside() -> None:
     rig.ask("OH7JHF-1", "?APRSD", third=ThirdParty("OH2DPN", "APRS", ("TCPIP",)), path=("OH2RCH-3*",))
     assert rig.message_of(rig.tnc.sent[0])[0] == "OH2DPN"
     rig.ask("OH7JHF-1", "?APRST", third=ThirdParty("OH2DPN", "APRS", ("TCPIP",)), path=("OH2RCH-3*",))
-    assert rig.message_of(rig.tnc.sent[1]) == ("OH2DPN", "Path= OH7JHF-1>APZNEO,OH2RCH-3*", None), "the path of the frame we heard"
+    assert rig.message_of(rig.tnc.sent[1]) == ("OH2DPN", "OH7JHF-1>APZNEO,OH2RCH-3*:", None), "the path of the frame we heard"
 
 
 def test_nothing_is_sent_while_the_tnc_is_not_connected_and_the_log_says_so(caplog: pytest.LogCaptureFixture) -> None:
@@ -306,3 +309,56 @@ async def test_a_general_query_heard_while_the_tnc_is_away_gives_no_answer_when_
     rig.tnc.state = Source.State.WAITING
     await idle_for(0.1)
     assert rig.tnc.sent == []
+
+
+# ---- ?APRSO and ?APRSM: several frames, one at a time ---------------------------------------------------------------------------------------------
+
+class Held:
+    """A service that holds records (our objects, our messages), for the queries to read."""
+    def __init__(self, records: list[object]) -> None:
+        self.held = records
+
+    def records(self) -> list[object]:
+        return self.held
+
+
+def paced_rig(objects: tuple[object, ...] = (), messages: tuple[object, ...] = ()) -> Rig:
+    rig = Rig()
+    rig.q = Queries(rig.tnc, lambda: rig.config, rig.beacon, lambda: None, rig.book, lambda call: rig.config.beacon_path_calls, rig.clock,
+                    objects=Held(list(objects)), messages=Held(list(messages)), spacing_sec=0.05)                     # type: ignore[arg-type]
+    remember_stop(rig.q.stop)
+    return rig
+
+
+async def test_aprso_is_answered_with_each_live_object_and_item_once_one_at_a_time_and_at_most_five() -> None:
+    now = FixedClock()()
+    live = [make_object(now, f"OBJ{n}", "object", 60.0 + n / 100, 24.0, "/", ">") for n in range(6)]
+    item = make_object(now, "AID", "item", 60.5, 24.5, "\\", "+")
+    rig = paced_rig((live[0].killed(now), item, *live))
+    rig.ask("OH2RDG", "?APRSO")
+    assert len(rig.tnc.sent) == 1, "the first goes at once, the rest are paced"
+    await until(lambda: len(rig.tnc.sent) == ANSWER_FRAMES_MAX)
+    await idle_for(0.2)
+    infos = [f.info for f in rig.tnc.sent]
+    assert len(infos) == ANSWER_FRAMES_MAX and infos[0].startswith(b")AID!") and all(i.startswith(b";OBJ") and i[10:11] == b"*" for i in infos[1:]), "a killed object is not sent"
+    assert {f.path_text for f in rig.tnc.sent} == {"WIDE1-1,WIDE2-1"}
+    rig.ask("OH2RDG", "?APRSO")
+    await idle_for(0.1)
+    assert len(rig.tnc.sent) == ANSWER_FRAMES_MAX, "the same query again at once is answered once"
+
+
+async def test_aprsm_sends_again_our_messages_to_the_asker_that_no_ack_settled_and_changes_nothing() -> None:
+    at = FixedClock()()
+    rows = [("OH2RDG", "one", "01", "sending"), ("OH2RDG", "two", "02", "acked"), ("OH2RDG", "three", "03", "failed"), ("OH2XYZ", "other", "04", "sending"),
+            ("OH2RDG", "four", "05", "unconfirmed"), ("OH2RDG", "?APRSP", None, "unconfirmed"), ("OH2RDG", "five", "06", "rejected")]
+    messages = [MessageRecord(n, at, "out", "OH2GBA", to, text, ident, state) for n, (to, text, ident, state) in enumerate(rows, start=1)]       # type: ignore[arg-type]
+    messages.append(MessageRecord(9, at, "in", "OH2RDG", "OH2GBA", "theirs", "07", "received"))
+    rig = paced_rig(messages=tuple(messages))
+    rig.ask("OH2RDG", "?APRSM")
+    await until(lambda: len(rig.tnc.sent) == 3)
+    await idle_for(0.2)
+    assert [rig.message_of(f) for f in rig.tnc.sent] == [("OH2RDG", "one", "01"), ("OH2RDG", "three", "03"), ("OH2RDG", "four", "05")]
+    assert rig.tnc.sent[0].info == b":OH2RDG   :one{01}" and [m.state for m in messages] == ["sending", "acked", "failed", "sending", "unconfirmed", "unconfirmed", "rejected", "received"]
+    rig.ask("OH2NEW", "?APRSM")
+    await idle_for(0.1)
+    assert len(rig.tnc.sent) == 3, "nothing is owed to a station we never wrote to: no answer"

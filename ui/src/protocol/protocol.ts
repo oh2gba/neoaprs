@@ -195,6 +195,8 @@ export interface DecodedPosition {
   timestamp_local: boolean;
   /** the Maidenhead locator in the status text of a Mic-E packet; null for any other position */
   locator: LocatorValues | null;
+  /** the base-91 telemetry `|ss11|` the comment carried (APRS 1.2), taken out of the `comment`; null when there was none */
+  telemetry?: TelemetryFields | null;
 }
 
 /** A status report. */
@@ -212,9 +214,9 @@ export interface DecodedTelemetry {
   type: "telemetry";
   /** the sequence number; null for the `MIC` of a Mic-E unit */
   sequence: number | null;
-  /** the five analog values as sent (0 to 255) */
+  /** the analog values as sent, 1 to 5 (APRS 1.2: any width, signed, with a decimal point) */
   analog: number[];
-  /** the eight digital values as a text of 0 and 1 */
+  /** the digital values as a text of 0 and 1, B1 first: up to eight, empty when there were none */
   bits: string;
   comment: string;
 }
@@ -484,7 +486,7 @@ export interface MessageRow {
   msg_id: string | null;
   /** `sending`: attempts are being made; `acked`: the addressee acknowledged it; `rejected`: the addressee refused it; `failed`: no answer after the last attempt; `unconfirmed`: no answer after the last attempt of a message that was given 1 or 2 attempts (the station is not expected to ack; a late ack still settles it); `cancelled`: stopped by the page; `received`: it was sent to us; `overheard`: it was sent to another station and we heard it (`from_call` sent it, `to_call` is who it is for) */
   state: "sending" | "acked" | "rejected" | "failed" | "unconfirmed" | "cancelled" | "received" | "overheard";
-  /** how many times it has been transmitted (at most `attempts_max`: 0, 30, 60, 120, 240, 480, 960 ... seconds after the first, no wait longer than 960) */
+  /** how many times it has been transmitted (at most `attempts_max`: 0, 32, 64, 128, 256, 512, 1024 ... seconds after the first, no wait longer than 960) */
   attempts: number;
   /** how many attempts the message was given when it was sent: 4, 2 for the email gateway `EMAIL-2`, 1 for a bulletin (messages from before the count was fixed have their own, up to 10) */
   attempts_max: number;
@@ -681,6 +683,8 @@ export interface PositionFields {
   timestamp_local: boolean;
   /** the Maidenhead locator in the status text of a Mic-E packet; null for any other position */
   locator: LocatorValues | null;
+  /** the base-91 telemetry `|ss11|` the comment carried (APRS 1.2), taken out of the `comment`; null when there was none */
+  telemetry?: TelemetryFields | null;
 }
 
 /** Asks a station a directed query (APRS 1.0.1 chapter 15): a message to it with the text of the query, `?APRSP` (`kind` `position`: its position packet), `?APRSS` (`status`: its status report), `?APRSD` (`heard`: the stations it hears direct, as a message) or `?APRST` (`trace`: the path our query reached it by, as a message). The query is sent once, without a message id: no attempts follow and no ack is expected. It is kept as a row of the topic `messages` to the station, in state `sending` until it has been transmitted and then `unconfirmed`, whose `text` is the query; the page shows such a row (an `out` message with no `msg_id` whose text is one of the four) as a note of what was asked. The answer is whatever the station sends: a packet (the station's card changes) or a message (a row `in`). Not more than one query of a kind to a station in 60 seconds. Answered with an `error` when the station is not in the station book (`station.unknown`), is no station that takes messages (`query.not_capable`: an object, an item, ourselves, a station whose position says it takes none and that never sent a message), the same query was sent less than 60 seconds ago (`query.too_soon`) or the message is refused as `send_message` refuses it (the call is not set, the radio is silent). */
@@ -827,7 +831,7 @@ export interface StationRow {
   is_me: boolean;
   /** an object or an item of ours, which we send (the topic `own_objects` has its values and its schedule): the map marks it as ours and the card has Edit and Kill in place of Forget; false for any other row */
   own: boolean;
-  /** a message to the station makes sense, and the card has a Message button: false for an object or an item and for our own station; for a station true when it has sent a message or an ack (heard, overheard too) or its latest position was a Mic-E one or began with `=` or `@`, false when that began with `!` or `/`; true for a station of which nothing of that is known */
+  /** a message to the station makes sense, and the card has a Message button: false for an object or an item and for our own station; for a station true when it has sent a message or an ack (heard, overheard too) or its latest position began with `=` or `@` or was a Mic-E one, false when that began with `!` or `/` or was a Mic-E one whose comment begins with the type code `'` (no messaging); true for a station of which nothing of that is known */
   can_message: boolean;
   /** the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed */
   track: [string, number, number][];
@@ -901,13 +905,24 @@ export interface TelemetryChannel {
   value: number;
 }
 
+/** A telemetry report as the parser made it. */
+export interface TelemetryFields {
+  /** the sequence number; null for the `MIC` of a Mic-E unit */
+  sequence: number | null;
+  /** the analog values as sent, 1 to 5 (APRS 1.2: any width, signed, with a decimal point) */
+  analog: number[];
+  /** the digital values as a text of 0 and 1, B1 first: up to eight, empty when there were none */
+  bits: string;
+  comment: string;
+}
+
 /** A station's latest telemetry report with the definitions the station sent as messages (`PARM.`, `UNIT.`, `EQNS.`, `BITS.`) applied. */
 export interface TelemetryValues {
   /** the sequence number; null for the `MIC` of a Mic-E unit */
   sequence: number | null;
-  /** the five analog channels */
+  /** the analog channels, as many as the report had (1 to 5) */
   channels: TelemetryChannel[];
-  /** the eight digital channels */
+  /** the digital channels, as many as the report had (up to 8) */
   bits: TelemetryBit[];
   /** the project title of the `BITS.` message; empty when there is none */
   project: string;

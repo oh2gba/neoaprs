@@ -6,8 +6,10 @@ import re
 from datetime import datetime
 from typing import NamedTuple
 
+from neoaprs.aprsextension import split_dao, with_dao
 from neoaprs.aprslocator import Locator, split_locator
 from neoaprs.aprsposition import degrees, motion
+from neoaprs.aprstelemetry import split_comment_telemetry
 from neoaprs.packet import Position, decode_text
 from neoaprs.symbols import table_of
 
@@ -17,6 +19,9 @@ _DEFAULT_MESSAGE = "Off Duty"
 _ALTITUDE_FIRST = re.compile(rb"([\x21-\x7b]{3})\}")                       # right at the start of the status text
 _ALTITUDE_WORD = re.compile(rb"(?<= )([\x21-\x7b]{3})\}(?= |$)")          # or as a word of its own, after a space
 _HEX = re.compile(rb"[0-9A-Fa-f]+$")
+_LEGACY_SUFFIXES = {b">": (b"=", b"^", b"&"), b"]": (b"=",)}            # Kenwood: TH-D72, TH-D74, TH-D75; TM-D710 (aprs-deviceid, micelegacy)
+_SUFFIXES = frozenset(s.encode() for s in (                                # the two-byte suffixes after a leading ` or ' (aprs-deviceid, mice)
+    '_ ', '_"', "_#", "_$", "_(", "_0", "_1", "_2", "_3", "_4", "_5", "_6", "_7", "_)", "_%", "(5", "(8", "|3", "|4", "^A", "^v", "*v", "*9", ":2", " X", "[1"))
 _MIN_BODY = 8
 
 
@@ -104,7 +109,8 @@ def _motion(body: bytes) -> tuple[int | None, float | None]:
 
 def _strip_type(rest: bytes) -> bytes:
     """The status text without the telemetry that may start it (the flag "`" and two values in two hex digits each, the flag "'" and five, the flag 0x1d and five binary values) or the radio's type code
-    (a leading ">", "]", "`" or "'" and the trailing "=", "^" or "_" and a byte of Kenwood and Yaesu)."""
+    (aprs-deviceid's mice and micelegacy tables: a leading ">" with an optional trailing "=", "^" or "&" of Kenwood's handhelds, "]" with an optional "=" of its mobiles, or a leading "`" or "'" and
+    one of the two-byte suffixes of the newer radios and trackers; a suffix that is not in the table stays in the text)."""
     rest = rest.rstrip(b"\r\n")
     lead = rest[:1]
     if lead == b"`" and len(rest) >= 5 and _HEX.match(rest[1:5]):
@@ -116,9 +122,9 @@ def _strip_type(rest: bytes) -> bytes:
     if lead not in (b">", b"]", b"`", b"'"):
         return rest
     rest = rest[1:]
-    if lead in (b">", b"]") and rest[-1:] in (b"=", b"^"):
+    if rest[-1:] in _LEGACY_SUFFIXES.get(lead, ()):
         rest = rest[:-1]
-    elif lead in (b"`", b"'") and rest[-2:-1] == b"_":
+    elif lead in (b"`", b"'") and rest[-2:] in _SUFFIXES:
         rest = rest[:-2]
     return rest
 
@@ -157,7 +163,11 @@ def parse_mice(destination: str, body: bytes, now: datetime) -> Position:
     if table is None or not 33 <= body[6] <= 126:
         raise MicEError("bad symbol")
     altitude, comment, locator = _altitude_and_comment(body[8:])
+    comment, telemetry = split_comment_telemetry(comment)
+    comment, extra = split_dao(comment)
+    if not blanks:
+        lat, lon = with_dao(lat, lon, extra)
     name = _message_name(chars)
     if name is not None and name != _DEFAULT_MESSAGE:
         comment = f"Mic-E: {name} - {comment}" if comment else f"Mic-E: {name}"
-    return Position(lat, lon, table, chr(body[6]), comment, course, speed, altitude, locator=locator)
+    return Position(lat, lon, table, chr(body[6]), comment, course, speed, altitude, locator=locator, telemetry=telemetry)

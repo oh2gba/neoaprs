@@ -37,6 +37,7 @@ class Position:
     extensions: Extensions | None = None          # PHG, RNG, DFS, the bearing of a DF report or an area object, after the symbol of an uncompressed position (removed from the comment)
     timestamp_local: bool = False                 # the timestamp was in the sender's local time (`/`): the time is as it was sent, not UTC
     locator: Locator | None = None                # the Maidenhead locator in the status text of a Mic-E packet (the position is the Mic-E's own)
+    telemetry: Telemetry | None = None            # the base-91 telemetry `|ss11|` the comment carried (APRS 1.2; removed from the comment)
 
 
 @dataclass(frozen=True, slots=True)

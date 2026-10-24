@@ -86,16 +86,18 @@ The commands are `send_message`, `query` (a directed query, once, with no id: `n
 groups are the board's. Every message is a row of the table `message`, so a restart goes on where the daemon stopped.
 
 - **The frame.** `OH2GBA>APZNEO,...::OH2RDG   :Hello Pekka{01}` is the source, the tocall, the path of the attempt (below), then `:`, the addressee padded to nine
-  characters, `:`, the text, `{`, the id and `}`. When the station sent a message with a reply-ack number that its own ack has not reached it with yet, the id
+  characters, `:`, the text, `{`, the id and `}`. Our ack of a message is the exact copy of its number: `ackMM` for `{MM`, `ackMM}` for `{MM}`, `ackMM}AA` for `{MM}AA`. When the station sent a message with a reply-ack number that its own ack has not reached it with yet, the id
   of the latest of them follows the brace.
-- **The attempts.** `STATION_ATTEMPTS` (4) and `EMAIL_ATTEMPTS` (2) of `neoaprs/message.py`. The wait after attempt n is `FIRST_WAIT_SEC` (30) doubled each time
+- **The attempts.** `STATION_ATTEMPTS` (4) and `EMAIL_ATTEMPTS` (2) of `neoaprs/message.py`. The wait after attempt n is `FIRST_WAIT_SEC` (32, not 30: a retry
+  exactly on the edge of the digipeaters' 30-second duplicate window could be dropped as a duplicate) doubled each time
   up to `MAX_WAIT_SEC` (960); the answer to the last is waited for 240 seconds. The count is kept with the message (`attempts_max`, in the database and on the
   wire) from the moment it is sent, so a message goes on with the number it was given. A message with `UNCONFIRMED_MAX` (2) attempts or fewer that has used them
   is `unconfirmed`, not `failed`.
 - **While the TNC is away** an attempt that is due waits, none is used up, and the waits that were running are moved on by the time the radio was away.
 - **The pace** is `SPACING_SEC` (10 s) in `neoaprs/services/pace.py`: our own attempts go out one at a time, at least that far apart. Acks and the answers to queries are not held back.
-- **Receiving.** A message is for us when its addressee is `station/call` with its SSID exactly. `neoaprs/services/inbox.py` takes what the Tnc hears;
-  `neoaprs/services/heard.py` holds the repeats already heard and when each was last acked, in memory. The ack goes by the sender's path.
+- **Receiving.** A message is for us when its addressee is `station/call` with its SSID exactly. Blanks, CR and LF after an ack or a message number do not
+  count (`ack12  `, `Hello{12}  `), and an addressee field shorter than nine characters is ended by its first colon (`:KH2Z:hi`). `neoaprs/services/inbox.py` takes what the Tnc hears;
+  `neoaprs/services/heard.py` holds the repeats already heard and when each was last acked, in memory; a copy is acked again only `ACK_AGAIN_SEC` (30 s, the digipeaters' duplicate window) or more after our last ack of it. The ack goes by the sender's path.
 - **The delivery chain** (`neoaprs/services/delivery.py`). A copy of one of our own messages that the radio hears again (same addressee, id and text from our
   call; also one an iGate gated back as a third-party packet) is linked to the message and to the attempt it belongs to, the latest attempt sent before it was
   heard. Each attempt keeps when it was sent and the digipeaters it went by (the table `message_attempt`), and each hop that a copy was heard with its
@@ -127,8 +129,10 @@ empty command is an `error`.
 `error`.
 
 **Queries** (`neoaprs/services/queries.py`). `GENERAL_DELAY_MAX_SEC` (120), `GENERAL_EVERY_SEC` (600), `ANSWER_AGAIN_SEC` (30), `DIRECT_WINDOW` (one hour),
-`MAX_DIRECT_MESSAGES` (2). For `?APRSD` the stations are those of the station book (not us, not objects), and "heard direct" is a packet with no repeated
-digipeater that was not a third-party packet.
+`MAX_DIRECT_MESSAGES` (2), `ANSWER_FRAMES_MAX` (5). For `?APRSD` the stations are those of the station book (not us, not objects), and "heard direct" is a packet with no repeated
+digipeater that was not a third-party packet. `?APRSO` sends each live object and item of ours once as it is now, `?APRSM` each message of ours to the asker that no
+ack has settled (`sending`, `failed`, `unconfirmed`) once more with its number, at most `ANSWER_FRAMES_MAX` of either; the first frame goes at once and the rest
+`SPACING_SEC` (10 s) apart. The messages' records do not change.
 
 **The path of an attempt.** `Messaging` asks `PrefBook.path_for(call, attempt)` each time it sends an attempt of a message that has an id (the attempt is
 `record.attempts + 1`); acks and answers ask with no attempt. The path is, in order: the station's own path (`station_pref`), else for attempts up to
@@ -155,13 +159,14 @@ only keeps and tells the timeout, except that the daily prune keeps a station wi
 
 **The station book** (`neoaprs/stationbook.py`) counts, for each station, how many packets came direct and by each route, from the packets since the start and
 the latest 2000 that the database kept. The row of the topic `stations` has `last_route`, `heard_direct`, `heard_via` (`[station heard, packets]`, the most
-first, `?` for an anonymous last hop), `heard_gated`, `best_route`, `suggested_path`, `last_direct_at` (null for a station never heard direct, for us and for objects; it is the time of the station's latest packet with no repeated address in its path, not a third-party one), `can_message` and `telemetry`. `can_message` is false for an object or an item and for a station whose positions use the identifiers `!` or `/`, unless it has sent a message or an ack that we heard (overheard ones too) or a Mic-E position. It is found again at the start from the packet log, and a bulletin or a telemetry definition does not count. The route is worked out when the packet is heard (`neoaprs/route.py`) and is `route` on every packet of the topic `packets` (empty for
+first, `?` for an anonymous last hop), `heard_gated`, `best_route`, `suggested_path`, `last_direct_at` (null for a station never heard direct, for us and for objects; it is the time of the station's latest packet with no repeated address in its path, not a third-party one), `can_message` and `telemetry`. `can_message` is false for an object or an item and for a station whose latest position uses the identifier `!` or `/` or is a Mic-E one whose comment starts with the type code `'` (a tracker without messaging, aprs-deviceid), unless it has sent a message or an ack that we heard (overheard ones too). It is found again at the start from the packet log, and a bulletin or a telemetry definition does not count. The route is worked out when the packet is heard (`neoaprs/route.py`) and is `route` on every packet of the topic `packets` (empty for
 the ones we sent) and on every message that came in or was overheard (the column `route` of the table `message`; of two copies by different routes the first is
 the one kept).
 
 **Third-party packets** (`neoaprs/aprsthirdparty.py`). One level only: a wrapper inside a wrapper, or one whose header is not a header, stays "third-party" and
 is not read. The packet keeps the gate as its `source` and the path it was heard by; `raw` and `info` are untouched, `decoded` is what the packet inside says,
-read as from its inner source to its inner destination (which Mic-E needs), and `third_party` holds the inner header. The summary ends "via OH7JHF-1
+read as from its inner source to its inner destination (which Mic-E needs), and `third_party` holds the inner header. The inner source and destination are calls or names APRS-IS allows (1 to 9 letters, digits
+and hyphens: `OH2XYZ-L`, `OH2XYZ-20`, `WINLINK`; `callsign.normal_name`, upper case); messaging, the station book and the station's settings take such a name as the station, and a message to it is sent like one to a call. The summary ends "via OH7JHF-1
 (third-party)". The gate counts as `heard_gated` and never for `suggested_path`.
 
 ## Objects and bulletins of our own
@@ -226,7 +231,7 @@ daemon's own state rows are not touched. Like every migration, it runs after a c
 - **Weather fields** (`neoaprs/aprsweather.py`) after the position or the time: `c` or the leading `DIR/SPD` the wind direction (degrees; some stations send two
   digits) and speed (mph), `g` the gust (mph), `t` the temperature (degrees F, `t-05` below zero), `r` rain in the last hour, `p` in the last 24 hours, `P`
   since midnight (hundredths of an inch), `h` humidity (`00` is 100 %), `b` pressure (tenths of a hPa), `L` and `l` luminosity (W/m2, `l` is 1000 and over), `s`
-  snow in the last 24 hours (inches, the `s` that follows the wind speed) and `#` the raw rain counter. A field that is all dots or all spaces is missing. The
+  snow in the last 24 hours (inches, the `s` that follows the wind speed, a decimal point allowed: `s1.5`) and `#` the raw rain counter. A field that is all dots or all spaces is missing. The
   fields end at the first character that is not a field with its digits, and what follows (a software id such as `wRSW`, a comment glued to the data like
   `b10285Inkoo`) is the comment. A compressed weather position's `cs` bytes are the wind (direction `c`*4 degrees, speed 1.08^`s`-1 mph), and its fields after
   the 13 bytes are the rest.
@@ -235,13 +240,21 @@ daemon's own state rows are not touched. Like every migration, it runs after a c
   only the fields that are there. Wind and gusts are km/h to 0.1, rain mm to 0.1, a direction over 360 is none.
 - **Data extensions** after the symbol of an uncompressed position are taken off the comment into `Position.extensions`: `PHGphgd` (power in W, height in m,
   gain in dB, directivity and the range the specification's formula gives), `RNGrrrr` in km, `DFSshgd`, the `/BRG/NRQ` of a DF report after the course and
-  speed, and the `Tyy/Cxx` of an area object with the symbol `\l`. A compressed position has none.
-- A `!` position may come after up to 39 characters of text (a digipeater of the X1J kind): the text is the start of the comment.
+  speed, and the `Tyy/Cxx` of an area object with the symbol `\l`. A compressed position has none but the radio range of its cs bytes `{s` (2 x 1.08^s miles,
+  as `range_km`).
+- **`!DAO!`** (APRS 1.2, chapter 5) anywhere in the comment of a position, an object, an item or a Mic-E packet is taken out of the comment and makes the
+  latitude and longitude finer: `!W12!` (datum letter in capitals) adds a digit of thousandths of a minute to each, `!w5L!` (lower case) a base-91 value of
+  0 to 0.0099 minutes, a blank nothing; the last one counts. A compressed position (finer already) and an ambiguous one are not moved.
+- A `!` position may come after up to 39 characters of text (a digipeater of the X1J kind): the text is the start of the comment. The specification has deprecated
+  this since 2012; it is still read, for old digipeaters.
 - A timestamp with `/` is the sender's local time: kept as sent with `Position.timestamp_local` set. The MMDDhhmm of a positionless weather report is its time (`Other.timestamp`).
 - **Raw NMEA** (`$GPGGA`, `$GPGLL`, `$GPRMC`, `$GPWPL`, any talker; the checksum is checked when there is one) is a position with course, speed, altitude and
   time. Its symbol is the one of the destination (`GPSxyz`, `GPSCnn`, `GPSEnn`, `SPCxyz`), else the icon of the source's SSID, else the unknown position.
   `$GPVTG` and a fix that is not valid stay "nmea", and `$ULTW` (an Ultimeter 2000) is "weather" without fields, because its format is not in the specification.
-- **Telemetry** `T#sss,aaa,aaa,aaa,aaa,aaa,bbbbbbbb` is its own decoded type (`Telemetry`, packet kind `other`). The daemon keeps each station's latest report
+- **Telemetry** `T#sss,aaa,aaa,aaa,aaa,aaa,bbbbbbbb` is its own decoded type (`Telemetry`, packet kind `other`), with the forms of APRS 1.2: `T#MIC` with or
+  without a comma, values of any width, signed and with a decimal point (`-7.3`), 1 to 5 values, and 1 to 8 bits after the fifth. The base-91 telemetry
+  `|ss11...|` in the comment of a position or a Mic-E packet (the sequence and 1 to 5 channels of two bytes each, then the bits) is taken out of the comment into
+  `Position.telemetry` and counts as the station's latest report. The daemon keeps each station's latest report
   and the `PARM.`, `UNIT.`, `EQNS.` and `BITS.` messages addressed to it (in memory, the latest 500 stations, read again from the latest 2000 packets at a
   start) and sends the station row `telemetry` with the names, units and values `a*v^2 + b*v + c` applied (raw values when it sent no definition).
 - `,` is test data ("test"), `<` station capabilities (`items`: `IGATE`, `MSG_CNT=2`...), `%` an Agrelo DF report (`bearing`, `quality`), `+` shelter data and
@@ -249,7 +262,10 @@ daemon's own state rows are not touched. Like every migration, it runs after a c
 - A **Maidenhead locator** at the start of a status report (`>IO91sx/-` and text after a space) is `Status.locator`, and in the status text of a Mic-E packet
   `Position.locator`. The station row has it as `locator`, and it does not move the station.
 - **Mic-E.** The telemetry flag
-  "`" is followed by two values of two hex digits, "'" by five, and 0x1d by five bytes (all dropped from the comment). The altitude `xxx}` is read at the start of the status text (after the locator) or as a word of its own after a space.
+  "`" is followed by two values of two hex digits, "'" by five, and 0x1d by five bytes (all dropped from the comment). The radio's type code is dropped
+  as aprs-deviceid's tables have it: a leading `>` with an optional trailing `=`, `^` or `&` (Kenwood TH-D72, TH-D74, TH-D75), `]` with an optional `=`
+  (TM-D700, TM-D710), and a leading `` ` `` or `'` with one of the table's two-byte suffixes (`_%` FTM-400DR, `|3` TinyTrak3, `[1` APRSdroid ...); a suffix
+  not in the table stays in the text. The leading `'` says the radio does no messages (`can_message`). The altitude `xxx}` is read at the start of the status text (after the locator) or as a word of its own after a space.
 
 ## The update check
 

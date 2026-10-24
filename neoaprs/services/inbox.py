@@ -1,5 +1,5 @@
 """What messaging does with the packets the Tnc hears: a message to us is kept (state "received") and, when it carries an id, answered at once with an ack; the same id and text from the same station
-within DUPLICATE_WINDOW_SEC is not kept again, and is answered again only when it comes more than ACK_AGAIN_SEC after our last ack of it (the copies of one burst get one ack); a message to another
+within DUPLICATE_WINDOW_SEC is not kept again, and is answered again only when it comes at least ACK_AGAIN_SEC after our last ack of it (the copies of one burst get one ack); a message to another
 station is kept as "overheard"; an ack or a rej to us settles the message of ours that it quotes. A packet from our own call (a digipeater's copy of a message we sent, or an iGate's) is no message to keep: it is
 handed to the host, which links it to the message it is a copy of (services/delivery.py).
 
@@ -7,14 +7,14 @@ A text that reads as an ack or a rej (`ack12`, `rej3`) is one only when it quote
 not acked. A message whose text is a query (neoaprs/message.py `is_query`) is never acked or kept (services/queries.py answers it), and neither is a definition of telemetry channels (`PARM.`, `UNIT.`,
 `EQNS.`, `BITS.`), to us or to another: those stay in the packet log.
 
-Reply-acks (neoaprs/aprsmessage.py): the `AA` of a message `{MM}AA` to us settles our message with that id to the sender as an ack does, and is acked as `ackMM}AA`; a message with a number of that
+Reply-acks (neoaprs/aprsmessage.py): the `AA` of a message `{MM}AA` to us settles our message with that id to the sender as an ack does, and is acked as `ackMM}AA` (`{MM}` as `ackMM}`); a message with a number of that
 form, `{MM}` too, tells us the sender knows reply-acks, and its id is what the next message we send it carries as its `AA` (services/heard.py) until the station answers one of ours.
 
 A message to a bulletin, an announcement, a group bulletin, ALL, CQ or QST, or a weather service bulletin (neoaprs/bulletin.py) is no conversation and is never acked: it goes to the board
 (services/bulletins.py, handed to the inbox as `board`), not to the overheard messages. With no board it is overheard like any other message to another station.
 
 A message is to us when its addressee is our call with its SSID, exactly (no SSID and -0 are the same). A third-party packet (an iGate's copy of what the internet said) counts as its inner sender's: an
-ack from the inner source settles our message, a message from it is received and acked to it. The inbox knows nothing of the schedule or of the radio: it asks its host (messaging) for the
+ack from the inner source settles our message, a message from it is received and acked to it, also when its name is no AX.25 call (`OH2XYZ-L`, `WINLINK`: callsign.normal_name). The inbox knows nothing of the schedule or of the radio: it asks its host (messaging) for the
 messages held, to keep a message and to send an ack.
 
 The first copy of a message to us is also handed to `alert` (services/alerts.py), when there is one: a repeat or another digipeater's copy, an ack, a rej, a bulletin and an overheard message are not."""
@@ -28,8 +28,8 @@ from typing import Literal, Protocol
 from neoaprs.aprsmessage import line_of, reply_ack_of
 from neoaprs.aprsthirdparty import header_of
 from neoaprs.bulletin import board_slot
-from neoaprs.callsign import CallsignError
-from neoaprs.message import MessageRecord, addressed_to, is_query, is_telemetry_definition, normal_call, same_call
+from neoaprs.callsign import CallsignError, normal_name
+from neoaprs.message import MessageRecord, addressed_to, is_query, is_telemetry_definition, same_call
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet
 from neoaprs.route import received_text
@@ -45,7 +45,7 @@ _UNSETTLED = ("sending", "failed", "unconfirmed", "cancelled")           # an ac
 def _station(call: str) -> str:
     """The call as our messages name their addressee, else as it is."""
     try:
-        return normal_call(call)
+        return normal_name(call)
     except CallsignError:
         return call
 

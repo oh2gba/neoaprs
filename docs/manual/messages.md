@@ -22,7 +22,7 @@ A query that you ask from the menu of the Stations table (`?APRSP`, `?APRSS`, `?
 
 ### Attempts
 
-The same frame is sent again until the addressee answers: 4 times in all, and 2 times for the email gateway, because its acks rarely reach you. There is no setting for this. The waits double: the 4 attempts are made 0, 30, 60 and 120 seconds after the first, the 2 to the gateway at 0 and 30. The answer to the last attempt is waited for 240 seconds, then the message has *failed*. A message that was given only 1 or 2 attempts (the gateway's, a bulletin's) is *unconfirmed* instead, since no ack was expected.
+The same frame is sent again until the addressee answers: 4 times in all, and 2 times for the email gateway, because its acks rarely reach you. There is no setting for this. The waits double: the 4 attempts are made 0, 32, 64 and 128 seconds after the first, the 2 to the gateway at 0 and 32 (not 30: the digipeaters drop a copy of the same packet within 30 seconds). The answer to the last attempt is waited for 240 seconds, then the message has *failed*. A message that was given only 1 or 2 attempts (the gateway's, a bulletin's) is *unconfirmed* instead, since no ack was expected.
 
 An ack from the addressee that quotes your id makes the message *acked*. A reject makes it *rejected*. Either ends the attempts, and one that comes late still settles a message that has failed, is unconfirmed or was cancelled.
 
@@ -45,7 +45,7 @@ A message is for you when its addressee is your call with its SSID, exactly. No 
 - A text that is a [query](beacon.md#answers-to-queries), or the definition of the channels of a telemetry station (it begins `PARM.`, `UNIT.`, `EQNS.` or `BITS.`), is neither kept nor acked, whatever id it carries. The Packets tab has it.
 - Any other message is kept (direction in, from the packet's source). When it carries an id it is answered at once with an ack by the sender's path. For message 12 from OH2RDG-7: `OH2GBA>APZNEO,WIDE2-1::OH2RDG-7 :ack12`.
 - A text that reads as an ack or a reject (`ack12`, `rej12`) is one only when it quotes the id of a message of yours to that station. Otherwise it is the words of a person ("rejoin", "ackbar"), kept as a message without an id and not acked.
-- One ack goes out for each burst of copies. The first copy is acked at once. A further copy of the same message (same sender, id and text, such as a digipeater's copy or an iGate's) is acked again only when it arrives more than 10 seconds after your last ack of it, which is a sender that did not hear you and tries again. So three copies in six seconds cost one ack on the air.
+- One ack goes out for each burst of copies. The first copy is acked at once. A further copy of the same message (same sender, id and text, such as a digipeater's copy or an iGate's) is acked again only when it arrives 30 seconds or more after your last ack of it, which is a sender that did not hear you and tries again (the digipeaters drop a copy of the same packet within 30 seconds). So three copies in six seconds cost one ack on the air.
 - The same id and text from the same station within 30 minutes is a repeat and is kept once. After 31 minutes it is a new message and is acked at once, and so is a new text with an id that was used (a sender that began its numbering again).
 - A message without an id is kept and not acked. A repeat of it within 30 minutes (the same sender, addressee and text, which is what two digipeaters' copies of an auto-reply look like) is not kept again.
 - The time of your last ack of a message is held in memory, so after a restart the first copy is acked again.
@@ -57,12 +57,12 @@ An ack that has to cross several hops is the likeliest frame to be lost. So, fol
 Every message you send has the number in that form, and the normal ack frames go out too: the reply-ack is extra. With the defaults, a message 05 from OH2RDG that said `{05}` and your answer to it, message 01:
 
 ```
-OH2GBA>APZNEO,WIDE2-1::OH2RDG   :ack05
+OH2GBA>APZNEO,WIDE2-1::OH2RDG   :ack05}
 OH2GBA>APZNEO,WIDE2-1::OH2RDG   :Moikka{01}05
 ```
 
 - Every attempt of a message to a station carries the id of the latest message that station sent you with such a number, until the station acks or rejects a message of yours.
-- A message that comes as `{MM}AA` is acked with a copy of its number, such as `:ack05}01`, and its `AA` settles your message with that id to that station as an ack does.
+- A message is acked with an exact copy of its number: `{05}` as `:ack05}`, `{05}01` as `:ack05}01`, and the old form `{05` as `:ack05`. The `AA` of `{MM}AA` settles your message with that id to that station as an ack does.
 - An ack of the form `ackMM}AA` acks your message `MM`.
 - A message from a station that sent it as `{MM`, without the closing brace, is owed nothing.
 - The `AA` is not part of the text that is kept, so a repeat with another `AA` is a repeat.
@@ -187,6 +187,8 @@ From then on the sender is the station inside the wrapper:
 - a position or an object report updates its station and not the iGate's;
 - a packet with your own call inside is ignored, as an echo is;
 - a message heard both direct and from a gate is one message.
+
+A station on the internet may have a name that is no radio call: a D-STAR gateway's `OH2XYZ-L`, an SSID above 15 (`OH2XYZ-20`), or more than six characters (`WINLINK`). Its messages are shown and acked like any other, and you can answer them; your answers go out on the radio for an iGate to pass on. Your own call and the stations you hear on the radio are always radio calls.
 
 The route of such a packet starts at the gate: "via OH7JHF-1 (internet)", or "via OH7JHF-1 (internet) → OH2RCH-3" when the gate's frame was repeated. It counts as "from the internet" and **never for the suggested path**: the gate is not a digipeater of the way back, because the sender is on the internet and nothing says it can be reached by RF through that gate.
 

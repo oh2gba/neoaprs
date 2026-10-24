@@ -1,4 +1,5 @@
-"""APRS telemetry (APRS101, chapter 13): the report `T#sss,aaa,aaa,aaa,aaa,aaa,bbbbbbbb` (a sequence number, five analog values 0 to 255 and eight bits, then perhaps a comment), and the four definitions a
+"""APRS telemetry (APRS101 and 1.2, chapter 13): the report `T#sss,aaa,aaa,aaa,aaa,aaa,bbbbbbbb` (a sequence number, up to five analog values and up to eight bits, then perhaps a comment), the base-91
+telemetry `|ss11...|` in the comment of a position (`split_comment_telemetry`), and the four definitions a
 telemetry station sends as messages to itself: `PARM.` the names of the channels, `UNIT.` their units and the labels of the bits, `EQNS.` the coefficients a, b and c of `a*v^2 + b*v + c` for each analog
 channel, `BITS.` the sense of the eight bits and a project title. `describe` puts a report and its definitions together: the scaled values, with names and units.
 
@@ -7,7 +8,10 @@ import re
 from dataclasses import dataclass, replace
 from typing import NamedTuple
 
-_REPORT = re.compile(r"T#(\d{1,5}|MIC),(\d{1,3}(?:\.\d+)?),(\d{1,3}(?:\.\d+)?),(\d{1,3}(?:\.\d+)?),(\d{1,3}(?:\.\d+)?),(\d{1,3}(?:\.\d+)?),([01]{8})(.*)$", re.DOTALL)
+_SEQUENCE = re.compile(r"T#(?:MIC,?|(\d{1,5}),)")
+_VALUE = re.compile(r"-?(?:\d+(?:\.\d*)?|\.\d+)")
+_BITS = re.compile(r"[01]{1,8}")
+_COMMENT_TELEMETRY = re.compile(r"\|((?:[!-{]{2}){2,7})\|")
 _ANALOG, _DIGITAL = 5, 8
 _NUMBER = re.compile(r"[+-]?(\d+\.?\d*|\.\d+)$")
 IDENTITY = (0.0, 1.0, 0.0)                                  # the coefficients of a channel that has no equation: the value as it was sent
@@ -15,7 +19,8 @@ IDENTITY = (0.0, 1.0, 0.0)                                  # the coefficients o
 
 @dataclass(frozen=True, slots=True)
 class Telemetry:
-    """A telemetry report: the sequence number (None for the `MIC` of a Mic-E unit), the five analog values as sent, the eight bits as a text of 0 and 1 and the comment after them."""
+    """A telemetry report: the sequence number (None for the `MIC` of a Mic-E unit), the analog values as sent (1 to 5), the bits as a text of 0 and 1 (B1 first; up to 8, empty for none) and the
+    comment after them."""
     sequence: int | None
     analog: list[float]
     bits: str
@@ -55,12 +60,32 @@ class TelemetryView:
 
 
 def parse_telemetry(info: str) -> Telemetry | None:
-    """The report in an information field (with its `T`); None when it is not one of the form above."""
-    found = _REPORT.match(info)
-    if not found:
+    """The report in an information field (with its `T`); None when it is not one. As APRS 1.2 has it: the sequence number, or `MIC` with or without a comma; 1 to 5 analog values of any width,
+    signed, with a decimal point (`-7.3`); the bits (1 to 8 of them) only after the fifth value; then the comment."""
+    head = _SEQUENCE.match(info)
+    if not head:
         return None
-    sequence = None if found.group(1) == "MIC" else int(found.group(1))
-    return Telemetry(sequence, [float(found.group(i)) for i in range(2, 2 + _ANALOG)], found.group(2 + _ANALOG), found.group(3 + _ANALOG).strip())
+    fields = info[head.end():].split(",")
+    count = 0
+    while count < min(_ANALOG, len(fields)) and _VALUE.fullmatch(fields[count]):
+        count += 1
+    if not count:
+        return None
+    analog, rest = [float(v) for v in fields[:count]], ",".join(fields[count:])
+    bits = _BITS.match(rest) if count == _ANALOG else None
+    return Telemetry(None if head.group(1) is None else int(head.group(1)), analog, bits.group() if bits else "", rest[bits.end() if bits else 0:].strip())
+
+
+def split_comment_telemetry(text: str) -> tuple[str, Telemetry | None]:
+    """The comment of a position without the base-91 telemetry `|ss11223344556677|` that APRS 1.2 lets it carry (after the text, before a `!DAO!` and a Mic-E type code), and the report: the sequence
+    and 1 to 5 channels of two base-91 bytes each (0 to 8280), then, after the fifth, the bits as one more such number (its lowest bit is B1); None when the comment has none."""
+    found = _COMMENT_TELEMETRY.search(text)
+    if not found:
+        return text, None
+    values = [(ord(pair[0]) - 33) * 91 + ord(pair[1]) - 33 for pair in (found.group(1)[i:i + 2] for i in range(0, len(found.group(1)), 2))]
+    sequence, analog = values[0], values[1:1 + _ANALOG]
+    bits = "".join("1" if values[-1] >> i & 1 else "0" for i in range(_DIGITAL)) if len(values) == 2 + _ANALOG else ""
+    return (text[:found.start()] + text[found.end():]).strip(), Telemetry(sequence, [float(v) for v in analog], bits)
 
 
 def _numbers(items: list[str]) -> tuple[tuple[float, float, float], ...]:

@@ -4,7 +4,7 @@
 
 A reply-ack (WB4APR's addendum of December 1999) is a message number of the form `{MM}AA`: `MM` is the number of the message and `AA` the number of a message the sender has received from the addressee and
 not yet acknowledged by a frame of its own, so that the acknowledgement rides on the next message; `{MM}` alone says the sender knows the form. `parse_message` gives the message its `MM` and the text before
-the brace; `reply_ack_of` reads the rest. The ack of such a message is `ackMM}AA` (a copy of the number), and the id of an ack it takes is the `MM` before the brace."""
+the brace; `reply_ack_of` reads the rest. The ack of such a message is the exact copy of its number, `ackMM}AA` or `ackMM}`, and the id of an ack it takes is the `MM` before the brace."""
 import re
 
 from neoaprs.coded import CodedError
@@ -16,6 +16,7 @@ _NUMBER = re.compile(r"\{([A-Za-z0-9]{1,5})(\}[A-Za-z0-9]{0,5})?$")      # the m
 _ACK = re.compile(r"(ack|rej)([A-Za-z0-9]{1,5})(?:\}[A-Za-z0-9]{0,5})?$")
 MAX_TEXT = 67                                        # characters of message text the specification allows
 FORBIDDEN = "|~{"
+_TRAILING = " \r\n"                                   # what some senders put after the text or the number: not part of an id or an ack
 
 
 class MessageError(CodedError):
@@ -31,32 +32,43 @@ def _split_id(text: str) -> tuple[str, str | None]:
 
 
 def reply_ack_of(text: str) -> str | None:
-    """The reply-ack part of the message number a text ends with: None for a text with no number or an old-style `{MM`, "" for `{MM}` (the sender knows reply-acks, nothing to acknowledge), the `AA` of `{MM}AA`."""
-    found = _NUMBER.search(text)
+    """The reply-ack part of the message number a text ends with (blanks after it do not count): None for a text with no number or an old-style `{MM`, "" for `{MM}` (the sender knows reply-acks,
+    nothing to acknowledge), the `AA` of `{MM}AA`."""
+    found = _NUMBER.search(text.rstrip(_TRAILING))
     if found is None or found.group(2) is None:
         return None
     return found.group(2)[1:]
 
 
+def _split(body: bytes) -> tuple[str, str] | None:
+    """The addressee and the text of a message body; None when it has no addressee field. The field is nine characters and a colon; one that is a little short (`KH2Z:hi`, a sender that does not pad
+    it: an addressee of 1 to 9 characters ended by the first colon) is taken too."""
+    end = _ADDRESSEE_LEN if body[_ADDRESSEE_LEN:_ADDRESSEE_LEN + 1] == b":" else body.find(b":", 0, _ADDRESSEE_LEN)
+    if end < 0:
+        return None
+    return decode_text(body[:end]).rstrip(" "), decode_text(body[end + 1:]).rstrip("\r\n")
+
+
 def line_of(info: bytes) -> str | None:
     """The text of the message a packet's information field holds, with its message number (`Hello{12}AB`); None when the field is no message."""
-    if len(info) < _ADDRESSEE_LEN + 2 or info[:1] != b":" or info[_ADDRESSEE_LEN + 1:_ADDRESSEE_LEN + 2] != b":":
-        return None
-    return decode_text(info[_ADDRESSEE_LEN + 2:]).rstrip("\r\n")
+    found = _split(info[1:]) if info[:1] == b":" else None
+    return None if found is None or not found[0] else found[1]
 
 
 def parse_message(body: bytes) -> Message:
-    if len(body) < _ADDRESSEE_LEN + 1 or body[_ADDRESSEE_LEN:_ADDRESSEE_LEN + 1] != b":":
+    """A message body. Blanks, CR and LF at the end of the text do not count when an ack or a message number is looked for (`ack12  `, `Hello{12}  `); a text with no number is kept as it came."""
+    found = _split(body)
+    if found is None:
         raise MessageError("no colon after the nine-character addressee")
-    addressee = decode_text(body[:_ADDRESSEE_LEN]).rstrip(" ")
+    addressee, text = found
     if not addressee:
         raise MessageError("empty addressee")
-    text = decode_text(body[_ADDRESSEE_LEN + 1:]).rstrip("\r\n")
-    ack = _ACK.match(text)
+    bare = text.rstrip(_TRAILING)
+    ack = _ACK.match(bare)
     if ack:
         return Message(addressee, "", ack_id=ack.group(2)) if ack.group(1) == "ack" else Message(addressee, "", rej_id=ack.group(2))
-    text, msg_id = _split_id(text)
-    return Message(addressee, text, msg_id)
+    head, msg_id = _split_id(bare)
+    return Message(addressee, text) if msg_id is None else Message(addressee, head, msg_id)
 
 
 def _check_addressee(addressee: str) -> str:
@@ -88,6 +100,7 @@ def format_message(addressee: str, text: str, msg_id: str | None = None, reply_a
 
 
 def format_ack(addressee: str, msg_id: str, reply_ack: str | None = None) -> bytes:
-    """The body of the ack of message `msg_id`; of a message with a reply-ack `AA` it is `ack` and the number as it came, `msg_id}AA`."""
-    tail = "" if not reply_ack else "}" + _check_id(reply_ack)
+    """The body of the ack of message `msg_id`: `ackMM` for a message numbered `{MM` (`reply_ack` None); for one with a reply-ack number it is `ack` and the number as it came, `ackMM}` for `{MM}`
+    (`reply_ack` "") and `ackMM}AA` for `{MM}AA`."""
+    tail = "" if reply_ack is None else "}" + (_check_id(reply_ack) if reply_ack else "")
     return f"{_check_addressee(addressee)}:ack{_check_id(msg_id)}{tail}".encode("ascii")

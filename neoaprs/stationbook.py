@@ -24,7 +24,8 @@ TRACK_MAX = 50                      # positions kept per station
 TRACK_MOVED_M = 10.0                # a new position goes on the track when the station moved more than this ...
 TRACK_EVERY_SEC = 300.0             # ... or when this long has passed since the last one on it
 DEFINITIONS_MAX = 500               # stations whose telemetry definitions are kept (the oldest goes first)
-MICE_IDENTIFIERS = (b"'", b"`", b"\x1c", b"\x1d")   # the data type identifiers of a Mic-E packet (a radio that sends one does messages)
+MICE_IDENTIFIERS = (b"'", b"`", b"\x1c", b"\x1d")   # the data type identifiers of a Mic-E packet
+MICE_DUMB = b"'"                    # the type-code prefix of a Mic-E radio that does not do messages, the first byte of its comment (aprs-deviceid: ` does, ' does not)
 DETAILS_SEEN = 2000                 # the packets that telemetry, its definitions, locators and data extensions are read from at the start
 
 Track = list[tuple[datetime, float, float]]
@@ -58,7 +59,7 @@ class Station:
     locator: Locator | None = None              # the Maidenhead locator of its latest status report (or Mic-E status text)
     extensions: Extensions | None = None        # PHG, RNG, DF and area data of its latest position
     sent_message: bool = False                  # it has sent a message or an ack to a station (overheard or not): it does messages (not kept in the cache: it is read again from the packet log at the start)
-    position_messaging: bool | None = None      # its latest position says whether it takes messages (`=` and `@`, or Mic-E); None until a position is heard (not kept in the cache either)
+    position_messaging: bool | None = None      # its latest position says whether it takes messages (`=` and `@`, or Mic-E but the type code `'`); None until a position is heard (not kept in the cache either)
     track: Track = field(default_factory=list)  # (time, lat, lon), the latest TRACK_MAX positions, oldest first
     is_me: bool = False
     own: bool = False                           # an object or an item of ours, which we send (services/ownobjects.py): the settings' station is `is_me`, this is `own`; not kept in the cache, the objects of ours have a table of their own
@@ -71,7 +72,7 @@ class Station:
     @property
     def can_message(self) -> bool:
         """Whether a message to it makes sense. Never for an object or an item, and not for us. A station that has sent a message or an ack does messages, whatever its positions say; else its latest
-        position says (`=` and `@` yes, `!` and `/` no, Mic-E yes); a station with neither is not hidden."""
+        position says (`=` and `@` yes, `!` and `/` no, Mic-E yes unless its comment starts with the type code `'` of a radio without messaging); a station with neither is not hidden."""
         if self.kind != "station" or self.is_me:
             return False
         return self.sent_message or self.position_messaging is not False
@@ -299,15 +300,17 @@ class StationBook:
                 station.sent_message = True
         elif isinstance(decoded, Position):
             opened = header_of(packet.info) if packet.third_party is not None else None
-            station.position_messaging = decoded.messaging or (packet.info if opened is None else opened[1])[:1] in MICE_IDENTIFIERS
+            info = packet.info if opened is None else opened[1]
+            station.position_messaging = decoded.messaging or (info[:1] in MICE_IDENTIFIERS and info[9:10] != MICE_DUMB)
 
     def _note_telemetry(self, packet: Packet) -> Station | None:
-        """Keeps a telemetry report as its sender's latest, or a definition message as its addressee's; returns the station that gained a definition (to be signalled), if it is in the book."""
+        """Keeps a telemetry report (or the base-91 telemetry in the comment of a position) as its sender's latest, or a definition message as its addressee's; returns the station that gained a definition (to be signalled), if it is in the book."""
         decoded = packet.decoded
-        if isinstance(decoded, Telemetry):
+        report = decoded.telemetry if isinstance(decoded, Position) else decoded
+        if isinstance(report, Telemetry):
             station = self._stations.get(packet.sender)
             if station is not None:
-                station.telemetry, station.telemetry_at = decoded, packet.heard_at
+                station.telemetry, station.telemetry_at = report, packet.heard_at
             return None
         if not isinstance(decoded, Message):
             return None

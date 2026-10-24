@@ -74,7 +74,7 @@ async def test_a_message_sent_to_us_is_kept_and_the_ack_is_on_the_line_and_in_th
     assert [p.direction for p in reversed(await e.packets())] == ["in", "out"], "the message, then our ack"
     station = e.ctl.stationbook.get("OH2RDG-7")
     assert station is not None and station.packets == 1
-    e.now.advance(11)                                                        # type: ignore[attr-defined]  (it did not hear the ack: it sends it again, and that is more than ten seconds after our ack)
+    e.now.advance(30)                                                        # type: ignore[attr-defined]  (it did not hear the ack: it sends it again, and that is thirty seconds after our ack)
     e.feed(on_air("OH2RDG-7", message_info("OH2GBA", "Moi!", "12")))
     await until(lambda: e.tnc.stats.packets == 2)
     assert len(await said(e)) == 1
@@ -117,7 +117,7 @@ async def test_a_restart_finds_the_messages_and_goes_on_with_the_one_being_sent(
     await second.start()
     assert [(m.direction, m.text, m.state) for m in second.ctl.messaging.records()] == [("out", "Hello Pekka", "sending"), ("in", "Moi!", "received")]
     await second.until_usable()
-    second.now.advance(31)                                                  # type: ignore[attr-defined]
+    second.now.advance(33)                                                  # type: ignore[attr-defined]
     await until(lambda: second.ctl.messaging.records()[0].attempts == 2)
     assert [f.tnc2() for f in await said(second)] == [WORKED]
     assert (await second.ctl.messaging.send("OH2RDG", "second")).msg_id == "02", "the ids go on from the latest we sent"
@@ -188,13 +188,35 @@ async def test_a_message_the_internet_sent_is_received_once_and_acked_to_the_inn
     await until(lambda: len(e.ctl.messaging.records()) == 1)
     e.feed(on_air("OH2BEA-9", message_info("OH2GBA", "Test ok", "06"), path=""))     # (the same message, heard direct as well)
     await until(lambda: e.tnc.stats.packets == 2)
-    assert await said(e, 1, 0.3) == [], "the copy that came direct, within ten seconds of our ack, is not acked again"
+    assert await said(e, 1, 0.3) == [], "the copy that came direct, within thirty seconds of our ack, is not acked again"
     [row] = await kept(e)
     assert (row.from_call, row.to_call, row.text, row.msg_id, row.state) == ("OH2BEA-9", "OH2GBA", "Test ok", "06", "received")
     assert row.route == "via OH7JHF-1 (internet) → OH2RCH-3", "the copy that came first is the one that was kept"
     station = e.ctl.stationbook.get("OH2BEA-9")
     assert station is not None and station.packets == 2 and station.deliveries.gated == 1 and station.deliveries.direct == 1
     assert station.best_route is not None and station.best_route.direct, "only the direct delivery is a route to send by"
+    await e.stop()
+
+
+@pytest.mark.parametrize("sender", ["OH2XYZ-L", "OH2XYZ-20", "WINLINK"])
+async def test_a_message_from_an_internet_station_whose_name_is_no_ax25_call_is_shown_acked_and_answered(tmp_path: Path, sender: str) -> None:
+    e = await started(tmp_path)
+    e.feed(on_air("OH7JHF-1", f"}}{sender}>APRS,TCPIP,OH7JHF-1*::OH2GBA   :Moi!{{12".encode(), path="OH2RCH-3*"))
+    await until(lambda: e.tnc.stats.packets == 1)
+    [ack] = await said(e)
+    assert ack.tnc2() == f"OH2GBA>APZNEO,WIDE1-1,WIDE2-1::{sender:<9}:ack12"
+    await until(lambda: len(e.ctl.messaging.records()) == 1)
+    [row] = await kept(e)
+    assert (row.from_call, row.text, row.msg_id, row.state, row.peer) == (sender, "Moi!", "12", "received", sender)
+    station = e.ctl.stationbook.get(sender)
+    assert station is not None and station.can_message
+    await e.ctl.prefbook.set_rf_only(sender, True)
+    reply = await e.ctl.messaging.send(sender.lower(), "Hi")
+    [frame] = await said(e)
+    assert frame.tnc2() == f"OH2GBA>APZNEO,WIDE1-1,WIDE2-1,RFONLY::{sender:<9}:Hi{{01}}" and reply.to_call == sender
+    e.feed(on_air("OH7JHF-1", f"}}{sender}>APRS,TCPIP,OH7JHF-1*::OH2GBA   :ack01".encode(), path="OH2RCH-3*"))
+    await until(lambda: e.ctl.messaging.get(reply.id) is not None and e.ctl.messaging.get(reply.id).state == "acked")    # type: ignore[union-attr]
+    assert await e.ctl.messaging.delete_conversation(sender) == 2
     await e.stop()
 
 

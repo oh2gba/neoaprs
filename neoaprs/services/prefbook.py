@@ -10,11 +10,11 @@ from collections.abc import Callable
 from dataclasses import replace
 
 from neoaprs.ax25 import MAX_PATH
-from neoaprs.callsign import CallsignError
+from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.clock import Clock, utcnow
 from neoaprs.config import Config
 from neoaprs.policy import MAX_HIDE_AFTER_MIN
-from neoaprs.message import EMAIL_GATEWAY, MessagingError, normal_call, normal_path, path_choice
+from neoaprs.message import EMAIL_GATEWAY, MessagingError, normal_path, path_choice
 from neoaprs.messagelog import MessageLog
 from neoaprs.pref import Pref
 from neoaprs.route import Deliveries, automatic_path, rf_only_path
@@ -24,9 +24,9 @@ MAX_NAME = 9                          # the longest name that is not a call: an 
 
 
 def _key(name: str) -> str:
-    """The station the entry is for: a call in its normal form, else (an object or an item has a name that is no call) the name as it is."""
+    """The station the entry is for: a call or a station's name on the internet in its normal form (callsign.normal_name), else (an object or an item has a name that is no call) the name as it is."""
     try:
-        return normal_call(name)
+        return normal_name(name)
     except CallsignError:
         text = name.strip()
         if not text or len(text) > MAX_NAME or not text.isprintable():
@@ -61,7 +61,7 @@ class PrefBook:
         reach the station for the first attempts (route.automatic_path), else `beacon/path`; with RFONLY at the end when the station is RF only. Raises MessagingError when that would be more than
         8 digipeaters ("path too long for RF only"): nothing is sent then."""
         try:
-            key = normal_call(call)
+            key = normal_name(call)
             own = self._own.get(key)
         except ValueError:
             key, own = "", None
@@ -84,7 +84,7 @@ class PrefBook:
     def automatic_path(self, call: str) -> tuple[str, ...] | None:
         """The path that has lately been heard to reach the station, which the first attempts of a message to it go by when the operator has set no path of its own; None when there is none (`beacon/path`)."""
         try:
-            key = normal_call(call)
+            key = normal_name(call)
         except ValueError:
             return None
         deliveries = self._heard(key)
@@ -95,7 +95,7 @@ class PrefBook:
         """Gives the station a path of its own: 1 to 8 digipeater calls separated by commas, checked as beacon/path is, or DIRECT for no digipeaters at all; an empty path takes the station's own away (it is
         automatic again), as clear_path does. Raises MessagingError with the reason; the path as it is kept (empty for direct)."""
         try:
-            key, calls = normal_call(call), path_choice(path)
+            key, calls = normal_name(call), path_choice(path)
         except ValueError as e:
             raise MessagingError(str(e)) from None
         if calls is None:
@@ -107,7 +107,7 @@ class PrefBook:
     async def clear_path(self, call: str) -> None:
         """Takes the station's own path away: it has `beacon/path` again. A station without one is not an error."""
         try:
-            key = normal_call(call)
+            key = normal_name(call)
         except ValueError as e:
             raise MessagingError(str(e)) from None
         await self._change(key, lambda pref: replace(pref, path=None), "the path could not be removed", quiet=True)
@@ -129,7 +129,7 @@ class PrefBook:
     async def set_rf_only(self, call: str, on: bool) -> None:
         """Makes everything we send to the station RF only, or not. Raises MessagingError with the reason: the call is none, or it is the email gateway, which is on the internet."""
         try:
-            key = normal_call(call)
+            key = normal_name(call)
         except ValueError as e:
             raise MessagingError(str(e)) from None
         if on and key == EMAIL_GATEWAY:

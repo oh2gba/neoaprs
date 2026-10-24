@@ -43,16 +43,16 @@ Your own row on the map is always your settings (position, symbol and comment), 
 
 ## Power, height and gain (PHG)
 
-With a power set (`beacon/power_w`, 0 to 9999 watts) the beacon carries the PHG extension right after the symbol. The Beacon tab asks for the antenna's height (0 to 9999 m), gain (0 to 9 dB) and direction (`omni` or N, NE, E, SE, S, SW, W, NW) only once there is a power. With no power set no PHG is sent.
+With a power set (`beacon/power_w`, 0 to 9999 watts) the beacon carries the PHG extension right after the symbol. The Beacon tab asks for the antenna's height above the average terrain around it (HAAT, not above sea level; 0 to 9999 m), gain (0 to 9 dBi) and direction (`omni` or N, NE, E, SE, S, SW, W, NW) only once there is a power. With no power set no PHG is sent.
 
 PHG is written `PHGphgd`:
 
 - `p` is the square root of the power in watts;
-- `h` is the base-2 logarithm of the antenna height in tens of feet;
-- `g` is the gain in dB;
+- `h` is the base-2 logarithm of the antenna height above average terrain in tens of feet;
+- `g` is the gain in dBi;
 - `d` is the direction: 0 omni, 1 NE, 2 E, 3 SE, 4 S, 5 SW, 6 W, 7 NW, 8 N.
 
-`p` and `h` are rounded and held to 0 to 9. For 2 W, 3 m, 2 dB and omni it is `PHG1020`. For 25 W, 6 m, 3 dB and east it is `PHG5132`, the specification's example.
+`p` and `h` are rounded and held to 0 to 9. For 2 W, 3 m, 2 dBi and omni it is `PHG1020`. For 25 W, 6 m, 3 dBi and east it is `PHG5132`, the specification's example.
 
 The **Preview** under the Beacon tab, closed until you open it, shows the packet the settings make and, for a status that is a text of your own, the status report.
 
@@ -120,7 +120,9 @@ A message to your call whose text is one of these queries is answered by NeoAPRS
 | `?APRSP` | your position packet, the beacon's own frame |
 | `?APRSS` | your status report as it was last sent, with the time of the answer; nothing while none has been sent |
 | `?APRSD` | a message to the asker with the calls heard direct in the last hour, the one heard last first: `Directs= OH2RCH-2 OH2PU-9`, or `Directs= none`. At most 67 bytes; if the calls do not fit it is two messages, each starting `Directs=`, and what does not fit in two is left out |
-| `?APRST`, `?PING?` | a message to the asker with the header of the query as you heard it, with the digipeaters it went by and their stars: `Path= OH2RDG>APZNEO,WIDE1*,OH2RCH-2*,WIDE2-1`. The last digipeaters go when it would be over 67 bytes |
+| `?APRST`, `?PING?` | a message to the asker with the header of the query as you heard it, with the digipeaters it went by and their stars, as the specification's example writes it: `OH2RDG>APZNEO,WIDE1*,OH2RCH-2*,WIDE2-1:`. The last digipeaters go when it would be over 67 bytes |
+| `?APRSO` | your live objects and items, each once as it is now, at most 5, 10 seconds apart |
+| `?APRSM` | your messages to the asker that are not acked (being sent, failed or unconfirmed), each once more, the latest 5, 10 seconds apart. They stay as they were: an ack that comes settles them |
 
 The general query `?APRS?` is a packet and not the text of a message (a message with that text is not answered, whoever it is for). It is answered with your position packet and then your status report, after a random wait of 0 to 120 seconds. Once one is taken, another is not taken for 10 minutes.
 
@@ -144,9 +146,11 @@ Nothing else is repeated:
 
 - not a path whose first unused hop is anything else (`WIDE2-1`, `WIDE2-2` and the like are for the digipeaters on a high site);
 - not a packet from your own call, or one that already shows your call as used;
-- not a duplicate: the same source, destination and information field heard or sent in the last 30 seconds, whatever the path;
-- not a packet from the internet: a third-party packet (`}`) or a path with `TCPIP` or `TCPXX`. `NOGATE` and `RFONLY` ask iGates only and are repeated.
+- not a duplicate: the same source, destination (its SSID does not count) and information field heard or sent in the last 30 seconds, whatever the path;
+- not a packet whose path has `TCPIP` or `TCPXX` (it came from the internet). `NOGATE` and `RFONLY` ask iGates only and are repeated. A third-party packet (`}`, which an iGate sends to put a message from the internet on the air) is repeated like any other: only its own path counts.
 
-The frame is the one that was heard, with only the path changed. It goes through the same checks as every transmission: nothing at all while no call is set or the radio is not usable. A fill-in is of use only at once, so it does not wait for the 10 seconds between your scheduled frames. At most 4 digipeated frames go out in any 10 seconds, and the rest are dropped.
+The frame is the one that was heard, byte for byte, with only the path changed. It goes through the same checks as every transmission: nothing at all while no call is set or the radio is not usable. A fill-in is of use only at once, so it does not wait for the 10 seconds between your scheduled frames. At most 4 digipeated frames go out in any 10 seconds, and the rest are dropped.
+
+A KISS TNC still waits for a free channel by its own rules, a random delay set by its PERSIST and SLOTTIME, before it sends what NeoAPRS hands it. So the repeat comes a moment after the original, not at once as from a digipeater built into a TNC.
 
 Each one is a line in the log (`digipeated OH2XYZ>APRS: the path WIDE1-1,WIDE2-1 is sent as OH2GBA*,WIDE2-1`) and is in the Packets tab as a packet with direction `out`. The radio status of the Settings tab says "digipeated N" once N is more than 0.

@@ -120,6 +120,19 @@ def test_kenwood_and_yaesu_type_codes_are_dropped() -> None:
     assert comment(b">") == ""
 
 
+@pytest.mark.parametrize(("rest", "text"), [
+    (b">Hello&", "Hello"),                                  # TH-D75
+    (b"]Hello^", "Hello^"),                                 # (^ is a handheld's: a mobile's text keeps it)
+    (b"`Hello_%", "Hello"), (b"`Hello_0", "Hello"), (b"`Hello_)", "Hello"),           # FTM-400DR, FT3D, FTM-100D
+    (b"`Hello(8", "Hello"), (b"'Hello|3", "Hello"), (b"'Hello|4", "Hello"),           # Anytone D878UV, TinyTrak3 and 4 (non-messaging trackers)
+    (b"`Hello[1", "Hello"), (b"`Hello^v", "Hello"), (b"'Hello X", "Hello"), (b"`Hello:2", "Hello"), (b"`Hello*9", "Hello"),
+    (b"`Hello!w5L![1", "Hello"),                            # the DAO comes before the type code
+    (b"`Hello_9", "Hello_9"), (b"`Hi ab", "Hi ab"),         # a suffix that is not in aprs-deviceid's table is text
+])
+def test_the_type_codes_of_aprs_deviceid_are_dropped(rest: bytes, text: str) -> None:
+    assert parse_mice("PPPUVT", WORKED + rest, NOW).comment == text
+
+
 def test_old_hex_telemetry_is_dropped() -> None:
     def comment(rest: bytes) -> str:
         return parse_mice("PPPUVT", WORKED + rest, NOW).comment
