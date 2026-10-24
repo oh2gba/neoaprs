@@ -82,6 +82,8 @@ export const stations: Readonly<Record<keyof typeof en, Message>> = {
   "station.table.none_yet": "Aún no se ha escuchado ninguna estación.",
   "station.table.none_match": "Ninguna estación coincide.",
   "station.table.message_call": "Enviar mensaje a {call}",
+  "station.table.forget_call": "Olvidar {call}",
+  "station.table.forget_sure_call": "¿Olvidar {call} de verdad?",
   "station.table.count": { one: "{shown} de {n} estación", other: "{shown} de {n} estaciones" },
 
   "station.timeout.label": "Ocultar del mapa tras",

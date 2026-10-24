@@ -9,6 +9,16 @@ export function hasPosition(row: StationRow): row is Positioned {
   return row.lat !== null && row.lon !== null;
 }
 
+/** Whether a station's Message is offered (on its card and in the table): a station, not ourselves, not one of our objects or items, and not one the daemon says cannot be messaged. */
+export function canMessage(row: Pick<StationRow, "kind" | "can_message" | "is_me" | "own">): boolean {
+  return row.kind === "station" && row.can_message && !row.is_me && !row.own;
+}
+
+/** Whether a station's Forget is offered (on its card and in the table): not ourselves, and not our own object or item, which is killed instead. */
+export function canForget(row: Pick<StationRow, "is_me" | "own">): boolean {
+  return !row.is_me && !row.own;
+}
+
 export type SortKey = "call" | "distance_km" | "bearing_deg" | "last_heard" | "last_position_at" | "last_direct_at" | "packets" | "last_path" | "temp_c";
 export interface Sort {
   key: SortKey;

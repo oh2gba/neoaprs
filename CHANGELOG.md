@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-Nothing yet.
+The Stations table.
+
+- Each row has, at its right end, an envelope that opens the conversation with the station and a trash can that forgets it (it asks twice, like the card's Forget), so that neither needs the card. The envelope is the one picture of "message" on the page: the header's count of messages not seen and the **Message OH2XYZ** button under an empty result have it too.
 
 ## 0.6.7
 

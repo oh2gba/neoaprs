@@ -29,6 +29,7 @@ The table has the symbol, the call, the distance from you, the bearing as a smal
 - A green check mark after a call means the station was heard direct ("Heard direct", also on its card).
 - The filter box has three tickboxes that wrap onto a second line when they do not fit: "with position only", "hide timed out" and "direct only" (stations heard direct at some time). The last two are remembered.
 - A click on a row flies the map to the station and shows its card, with the marker above the card and not under it.
+- At the right end of a row are two small buttons, the same as on the card. The envelope, **Message OH2XYZ**, opens the conversation with the station (on a phone, straight into the conversation); it is there for the stations a message can go to, not for your own station, an object, an item or the email gateway. The trash can, **Forget OH2XYZ**, takes the station out of the station book and asks twice like the card's Forget ("sure?", taken back after 5 seconds); your own station and your own objects have none (an object is killed on its card). A click on either does not select the row.
 - A station past its timeout is dim, listed last, with "timed out" after the time it was heard.
 
 ### Packets

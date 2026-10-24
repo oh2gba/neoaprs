@@ -1,19 +1,22 @@
 <script setup lang="ts">
 // The stations heard, as a short table that fits the panel: the symbol, the call (a green check mark after it for a station heard direct), the distance from us, the bearing as a small arrow (north up; "NE, 47°" is its hover title) and when the station was last heard at all (the newest of anything it sent, with the full time as the hover title); the rest of what is known of a station (when its position was, how its packets reach us, the path, the packets, the weather) is on its card, a click away. A column is sorted by a click on its head (again to
 // reverse), a filter box and the toggles "with position only", "direct only" (the stations heard direct at some time) and "hide timed out" narrow it, our own station is always on top, the selected row is marked and a click on a row selects the station
-// (the map flies to it; with Ctrl it adds a card). When the filter text is a call that no station has been heard under (not ours, not the email gateway), a button "Message OH2XYZ" under the empty result writes to it all the same. A station past its timeout is off the map: its row is dim and says "timed out" after the time it was heard. Every row is one line high.
+// (the map flies to it; with Ctrl it adds a card). When the filter text is a call that no station has been heard under (not ours, not the email gateway), a button "Message OH2XYZ" under the empty result writes to it all the same. A station past its timeout is off the map: its row is dim and says "timed out" after the time it was heard. Every row is one line high. At the right end of a row are two small buttons, as on the card: a speech bubble that opens the conversation with the station ("Message OH2XYZ", where the card has Message) and a trash can that forgets it ("Forget OH2XYZ", where the card has Forget; it asks twice like the card's, "sure?" for 5 s); a click on them does not select the row.
 import { computed, ref } from "vue";
 import DirectMark from "@/components/DirectMark.vue";
+import IconButton from "@/components/IconButton.vue";
+import MessageGlyph from "@/components/MessageGlyph.vue";
 import SymbolIcon from "@/components/SymbolIcon.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { usePersistedFlag } from "@/composables/usePersisted";
+import { useSure } from "@/composables/useSure";
 import { t } from "@/i18n";
 import { timedOut } from "@/lib/aging";
 import { normalizeCall, validCall } from "@/lib/calls";
 import { ageText, bearingTitle, dateTimeText, distanceText } from "@/lib/format";
 import { isGateway } from "@/lib/messages";
 import { heardDirect } from "@/lib/routes";
-import { firstDirection, listStations, symbolName, type Sort, type SortKey } from "@/lib/stations";
+import { canForget, canMessage, firstDirection, listStations, symbolName, type Sort, type SortKey } from "@/lib/stations";
 import type { StationRow } from "@/protocol/protocol";
 
 const props = withDefaults(
@@ -24,7 +27,7 @@ const props = withDefaults(
   { others: () => [] },
 );
 const { stations, now, aging, call: ownCall } = useDaemonContext();
-const emit = defineEmits<{ select: [call: string, multi?: boolean]; message: [call: string] }>();
+const emit = defineEmits<{ select: [call: string, multi?: boolean]; message: [call: string]; forget: [call: string] }>();
 const isOpen = (call: string): boolean => call === props.selected || props.others.includes(call);
 /** Ctrl (Cmd on a Mac) held: the station's card is added to the open ones, or closed when it is open. */
 const withKey = (event: MouseEvent | KeyboardEvent): boolean => event.ctrlKey || event.metaKey;
@@ -37,7 +40,13 @@ const columns = computed<{ key: SortKey | null; title: string; numeric?: boolean
   { key: "distance_km", title: "km", numeric: true },
   { key: null, title: t("station.table.bearing") },
   { key: "last_heard", title: t("station.field.last_heard"), numeric: true },
+  { key: null, title: "" },
 ]);
+
+/** The trash can of a row asks twice, as the card's Forget does: the first press arms it ("sure?"), the second (within 5 s) forgets the station. */
+const sure = useSure<string>();
+const armed = (call: string): boolean => sure.armed.value === call;
+const forget = (call: string): void => sure.press(call, () => emit("forget", call));
 
 const filter = ref("");
 const withPositionOnly = ref(false);
@@ -148,13 +157,32 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
             <td class="num" :title="dateTimeText(row.last_heard)">
               {{ ageText(row.last_heard, now) }}<span v-if="isTimedOut(row)" class="timedword">{{ ` ${t("station.timed_out")}` }}</span>
             </td>
+            <td class="actions" @click.stop @keydown.enter.stop>
+              <IconButton
+                v-if="canMessage(row)"
+                kind="message"
+                :label="t('station.table.message_call', { call: row.call })"
+                :title="t('station.table.message_call', { call: row.call })"
+                @click="emit('message', row.call)"
+              />
+              <IconButton
+                v-if="canForget(row)"
+                kind="delete"
+                class="forgetbtn"
+                :armed="armed(row.call)"
+                :label="armed(row.call) ? t('station.table.forget_sure_call', { call: row.call }) : t('station.table.forget_call', { call: row.call })"
+                :title="t('station.table.forget_call', { call: row.call })"
+                @click="forget(row.call)"
+              />
+            </td>
           </tr>
           <tr v-if="rows.length === 0">
             <td :colspan="columns.length" class="empty">{{ stations.size === 0 ? t("station.table.none_yet") : t("station.table.none_match") }}</td>
           </tr>
           <tr v-if="strangerCall !== null" class="stranger">
             <td :colspan="columns.length" class="empty">
-              <button type="button" class="btn primary" @click="emit('message', strangerCall)">
+              <button type="button" class="btn primary msgbtn" @click="emit('message', strangerCall)">
+                <MessageGlyph :size="14" />
                 {{ t("station.table.message_call", { call: strangerCall }) }}
               </button>
             </td>
