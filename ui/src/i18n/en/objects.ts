@@ -16,10 +16,6 @@ export const objects = {
 
   "objects.form.new": "New object",
   "objects.field.name": "Name",
-  "objects.field.kind": "Kind",
-  "objects.field.kind_title": "Objects are recommended on RF; items are not.",
-  "objects.field.object": "Object (recommended)",
-  "objects.field.item": "Item",
   "objects.field.lat": "Latitude",
   "objects.field.lon": "Longitude",
   "objects.field.comment": "Comment",

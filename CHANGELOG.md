@@ -7,6 +7,10 @@ Weather graphs that bridge the gaps.
 - A weather card's graphs (temperature, pressure, wind and gusts) draw each line as one smooth curve through the readings, across the hours where the station sent none, where a gap used to leave short broken pieces and lone dashes. The curve is a monotone cubic (Fritsch-Carlson): it never rises above or falls below the readings it runs between, so a pressure curve does not invent a peak. It starts at the first reading and ends at the last, and a single reading is still a dot.
 - The lighter band between the wind and its gusts follows the same two curves. The rain stays bars, with no bar for an hour with no reading.
 
+Objects.
+
+- The Objects form no longer has a choice between Object and Item: a new one is always an object, which is what the specification recommends on RF. An item you made before is still in the list, on the map and on the air, and can be changed and killed until you delete it.
+
 ## 0.7.0
 
 The page in seven languages, an update you can start from the page, a menu on the Stations list with APRS queries, messages that choose their own path, station cards you can move, and closer to the APRS standard.

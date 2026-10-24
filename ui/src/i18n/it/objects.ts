@@ -18,10 +18,6 @@ export const objects: Readonly<Record<keyof typeof en, Message>> = {
 
   "objects.form.new": "Nuovo oggetto",
   "objects.field.name": "Nome",
-  "objects.field.kind": "Tipo",
-  "objects.field.kind_title": "In RF si consigliano gli oggetti, non gli item.",
-  "objects.field.object": "Oggetto (consigliato)",
-  "objects.field.item": "Item",
   "objects.field.lat": "Latitudine",
   "objects.field.lon": "Longitudine",
   "objects.field.comment": "Commento",

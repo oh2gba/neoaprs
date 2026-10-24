@@ -1,9 +1,9 @@
 # Objects and items of your own
 
-The Objects tab makes an object or an item, shows it on the map as yours, changes it and kills it. NeoAPRS sends it on the air by a schedule of its own.
+The Objects tab makes an object, shows it on the map as yours, changes it and kills it. NeoAPRS sends it on the air by a schedule of its own.
 
 - An **object** (chapter 11 of the specification) has a name of 1 to 9 characters and a time stamp.
-- An **item** has a name of 3 to 9 characters and no time stamp.
+- An **item** has a name of 3 to 9 characters and no time stamp. The tab no longer makes new ones (objects are recommended on RF; the specification advises against the item format on the air), but an item you made before is still listed, can be changed and killed, and is sent as before.
 
 Objects of other stations that you hear are stations of their own on the map, named by the object and marked with who reported them. A copy of one of yours that comes back is none of them ([below](#heard-back-and-taken-over)).
 
@@ -12,7 +12,6 @@ Objects of other stations that you hear are stations of their own on the map, na
 **New** opens the form at the bottom of the tab, under the list of your objects (oldest first, scrolled to the newest, so that it is next to the form). It is the box that every tab writes in; its fields scroll on a short screen. The line under them has, at the right, "N left" for the comment, **Cancel** and **Save**. **Esc** closes the form without saving, as Cancel does (a field that still has text keeps its first Esc; while the map waits for a click, Esc ends that first).
 
 - **Name.** Printable ASCII, case-sensitive, none of `!`, `_`, `|` and `~`, no blank at either end. It is never your own call, and never the call of a station that was heard.
-- **Object or item.** A new one is an object unless you choose item: objects are recommended on RF (the specification advises against the item format on the air).
 - **Symbol.** A picture and its name, as in the Beacon tab: Change opens the picker.
 - **Location.** As in the Beacon tab: a **Choose on map** button and a click on the map (Cancel while the map waits), the place as one line under it, and the latitude and longitude behind **Enter coordinates**, which is open while the place is missing or wrong. The form shows a pin where it is.
 - **Comment.** 43 characters, 36 behind a course and speed.

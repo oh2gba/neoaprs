@@ -323,10 +323,6 @@ export const de: Catalogue = {
 
   "objects.form.new": "Neues Objekt",
   "objects.field.name": "Name",
-  "objects.field.kind": "Art",
-  "objects.field.kind_title": "Auf Funk werden Objekte empfohlen, Items nicht.",
-  "objects.field.object": "Objekt (empfohlen)",
-  "objects.field.item": "Item",
   "objects.field.lat": "Breite",
   "objects.field.lon": "Länge",
   "objects.field.comment": "Kommentar",
