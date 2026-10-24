@@ -50,8 +50,8 @@ SHOWN_URLS = ["http://192.168.1.20:7303/", "http://neoaprs-pi.local:7303/"]
 class Daemon:
     """`python -m neoaprs` as a child process, its page's port read from its log."""
 
-    def __init__(self, data: Path, *extra: str) -> None:
-        self.data, self.extra = data, extra
+    def __init__(self, data: Path, *extra: str, env: dict[str, str] | None = None) -> None:
+        self.data, self.extra, self.env = data, extra, env or {}
         self.proc: asyncio.subprocess.Process | None = None
         self.url = ""
         self.log: list[str] = []
@@ -59,6 +59,7 @@ class Daemon:
     async def start(self) -> str:
         env = {k: v for k, v in os.environ.items() if not k.startswith("NEOAPRS_")}
         env["NEOAPRS_UPDATE_CHECK"] = "0"                        # (a made-up day: the daemon does not ask the version page)
+        env.update(self.env)
         self.proc = await asyncio.create_subprocess_exec(sys.executable, "-m", "neoaprs", "--data", str(self.data), "--web-port", "0", *self.extra, env=env, cwd=ROOT,
                                                          stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
         asyncio.create_task(self._drain())
@@ -100,6 +101,31 @@ def put_map(source: Path, target: Path) -> None:
         shutil.copyfile(source, target)
 
 
+def copy_data(source: Path, target: Path) -> None:
+    """A copy of the operator's data folder (a daemon is not running on it): the map is linked, not copied."""
+    shutil.copytree(source, target, copy_function=lambda a, b: put_map(Path(a), Path(b)) if str(a).endswith(".pmtiles") else shutil.copy2(a, b))
+
+
+async def serve_version(version: str) -> asyncio.Server:
+    """A version page on a port of the loopback that says `version` is the latest: the daemon of the update shot asks it, and nothing else is ever asked."""
+    body = f'{{"version": "{version}", "url": "https://github.com/oh2gba/neoaprs/releases/tag/v{version}", "message": ""}}'.encode()
+
+    async def answer(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        try:
+            await reader.readuntil(b"\r\n\r\n")
+            writer.write(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nConnection: close\r\nContent-Length: " + str(len(body)).encode() + b"\r\n\r\n" + body)
+            await writer.drain()
+        except (OSError, asyncio.IncompleteReadError):
+            pass
+        finally:
+            writer.close()
+
+    return await asyncio.start_server(answer, demoscene.HOST, 0)
+
+
+UPDATE_TO = "0.7.1"                                                # (made up: the version page of the update shot says this one is out)
+
+
 async def prepare(work: Path, radio: demoscene.DemoRadio, basemap: Path | None) -> Path:
     """The data folder of the operator: a database with the settings, the map, and the day played into it."""
     data = work / "demo"
@@ -127,6 +153,7 @@ class Shots:
     def __init__(self, browser: Any, url: str, out: Path) -> None:
         self.browser, self.url, self.out = browser, url, out
         self.written: dict[str, int] = {}
+        self.update_url = ""                                       # the page of the daemon that has an update on offer (the "update" shot)
         self.scheme = "light"                                      # the colour scheme of the shots being taken; a dark one is saved as NAME-dark.png
         self.started = asyncio.get_running_loop().time()
 
@@ -138,8 +165,8 @@ class Shots:
 
     async def page(self, size: dict[str, int], scheme: str | None = None, tab: str = "stations", view: tuple[float, float, float] | None = None, panel: int | None = None,
                    wx_hours: str | None = None, url: str | None = None, wait_ms: int = 5000, scale: int = 1, headers: dict[str, str] | None = None,
-                   phone_view: str | None = None) -> Any:
-        context = await self.browser.new_context(viewport=size, color_scheme=scheme or self.scheme, device_scale_factor=scale, locale="en-GB", timezone_id="Europe/Helsinki",
+                   phone_view: str | None = None, locale: str = "en-GB") -> Any:
+        context = await self.browser.new_context(viewport=size, color_scheme=scheme or self.scheme, device_scale_factor=scale, locale=locale, timezone_id="Europe/Helsinki",
                                                  extra_http_headers=headers)
         keys = {"tab": tab, "panel": "open"}
         if view:
@@ -224,18 +251,51 @@ async def shot_station(s: Shots, _: str) -> None:
 
 async def shot_weather(s: Shots, _: str) -> None:
     """Two weather stations, their cards side by side over the map: the same graphs, each on the same value axis in both."""
-    page = await s.page(DESKTOP, view=(60.08, 24.62, 9.6))
+    page = await s.page(DESKTOP, view=(60.08, 24.62, 9.6), panel=560)                      # (a map wide enough for two whole cards: the oldest card closes when there is not)
     await pick_station(page, "OH2ZWB", wait=1500)
     await pick_station(page, "OH2ZWA", add=True)
     await s.save(page, "weather")
 
 
 async def shot_cards(s: Shots, _: str) -> None:
-    """Two stations that can be messaged, their cards side by side, with Close all and Message these 2 over the map's top left."""
+    """Two stations that can be messaged, their cards over the map with Close all and Message these 2 at its top left; the second card has been dragged by its head to another place, and the first stays where it was."""
     page = await s.page(DESKTOP, view=(60.20, 24.95, 9.6), panel=560)
     await pick_station(page, "OH2ZMA-9", wait=1500)
     await pick_station(page, "OH2ZPK", add=True)
+    head = await page.locator('.cardstack .card[data-call="OH2ZPK"] .card-head').bounding_box()
+    assert head is not None
+    x, y = head["x"] + head["width"] / 3, head["y"] + head["height"] / 2
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    await page.mouse.move(x, y - 150, steps=8)
+    await page.mouse.move(x + 6, y - 420, steps=8)
+    await page.mouse.up()
+    await settle(page, 600)
     await s.save(page, "cards")
+
+
+async def shot_stations_menu(s: Shots, _: str) -> None:
+    """The menu of a row of the Stations table, opened with a right-click: Message, the four questions, Show on map, Copy call, the QRZ page, Forget."""
+    page = await s.page(DESKTOP, view=OVERVIEW, panel=900)
+    row = page.locator("#pane-stations tbody tr", has_text="OH2ZMA-9").first                  # (a row near the top: its menu then fits the picture the project page crops it to)
+    box = await row.bounding_box()
+    assert box is not None
+    await row.click(button="right", position={"x": min(box["width"] - 60, 330), "y": box["height"] / 2})
+    await settle(page, 600)
+    await s.save(page, "stations-menu")
+
+
+async def shot_update(s: Shots, _: str) -> None:
+    """The window of an update (the daemon of this shot is told by a version page of its own that a newer version is out, and plays a Windows install): what is new, Update now and the steps by hand."""
+    page = await s.page(DESKTOP, tab="settings", view=CITY, panel=WIDE_PANEL, url=s.update_url)
+    await page.locator("#set-update-now").click()
+    await settle(page, 1500)
+    await page.locator("#tab-stations").click()                       # (the Settings tab shows the daemon's own key and addresses: not under this shot)
+    await settle(page, 400)
+    await page.get_by_role("button", name="Update to 0.7.1").click()
+    await page.locator(".updatedialog-hand summary").click()
+    await settle(page, 800)
+    await s.save(page, "update")
 
 
 async def open_thread(s: Shots, call: str, scale: int = 1, size: dict[str, int] = DESKTOP) -> Any:
@@ -314,7 +374,18 @@ async def shot_objects_form(s: Shots, _: str) -> None:
 async def shot_beacon(s: Shots, _: str) -> None:
     await s.since_start(45)
     page = await s.page(DESKTOP, tab="beacon", view=CITY, panel=WIDE_PANEL)
+    await page.locator("#pane-beacon summary", has_text="Advanced").click()                        # (the Path choice: Recommended for the symbol)
+    await settle(page, 400)
     await s.save(page, "beacon")
+
+
+async def shot_beacon_de(s: Shots, _: str) -> None:
+    """The Beacon tab of a browser that speaks German: the page starts in the browser's language (seven are there)."""
+    await s.since_start(45)
+    page = await s.page(DESKTOP, tab="beacon", view=CITY, panel=WIDE_PANEL, locale="de-DE")
+    await page.locator("#pane-beacon summary").filter(has_text="Erweitert").click()
+    await settle(page, 400)
+    await s.save(page, "beacon-de")
 
 
 async def made_up_web(page: Any) -> None:
@@ -464,9 +535,9 @@ EXTRAS = ("thumbs", "og")                                          # what is mad
 SHOTS: dict[str, Shot] = {
     "map": shot_map, "stations": shot_stations, "station": shot_station, "weather": shot_weather, "messages": shot_messages, "email": shot_email, "bulletins": shot_bulletins,
     "objects": shot_objects, "objects-form": shot_objects_form, "beacon": shot_beacon, "settings": shot_settings, "packets": shot_packets, "phone-map": shot_phone_map, "phone-bulletins": shot_phone_bulletins, "phone-weather": shot_phone_weather,
-    "cards": shot_cards, "phone-messages": shot_phone_messages, "tablet": shot_tablet, "setup": shot_setup, "chain": shot_chain, "chain-failed": shot_chain_failed, "settings-web": shot_settings_web, "phone-key": shot_phone_key,
+    "cards": shot_cards, "stations-menu": shot_stations_menu, "update": shot_update, "beacon-de": shot_beacon_de, "phone-messages": shot_phone_messages, "tablet": shot_tablet, "setup": shot_setup, "chain": shot_chain, "chain-failed": shot_chain_failed, "settings-web": shot_settings_web, "phone-key": shot_phone_key,
 }
-DARK_TOO = ("map", "stations", "station", "weather", "messages", "email", "bulletins", "objects", "objects-form", "beacon", "settings", "packets", "phone-map", "phone-bulletins", "phone-weather", "cards", "phone-messages", "tablet", "setup", "chain", "chain-failed", "settings-web", "phone-key")
+DARK_TOO = ("map", "stations", "station", "weather", "messages", "email", "bulletins", "objects", "objects-form", "beacon", "settings", "packets", "phone-map", "phone-bulletins", "phone-weather", "cards", "stations-menu", "update", "beacon-de", "phone-messages", "tablet", "setup", "chain", "chain-failed", "settings-web", "phone-key")
 
 
 def in_the_dark(shot: Shot) -> Shot:
@@ -514,8 +585,17 @@ async def take(args: argparse.Namespace, chosen: list[str]) -> None:
     radio = demoscene.DemoRadio()
     await radio.start()
     daemons: list[Daemon] = []
+    servers: list[asyncio.Server] = []
     try:
         data = await prepare(work, radio, args.basemap if args.basemap.exists() else None)
+        updating: Daemon | None = None
+        if {"update", "update-dark"} & set(chosen):
+            copy_data(data, work / "updating")
+            versions = await serve_version(UPDATE_TO)
+            servers.append(versions)
+            neoaprs_db_set(work / "updating", "update/url", f"http://{demoscene.HOST}:{versions.sockets[0].getsockname()[1]}/version.php")
+            updating = Daemon(work / "updating", env={"NEOAPRS_INSTALL_KIND": "windows-installer"})        # (a simulated install: Update now is offered, and would only rehearse)
+            daemons.append(updating)
         main_daemon = Daemon(data)
         daemons.append(main_daemon)
         url = await main_daemon.start()
@@ -527,12 +607,14 @@ async def take(args: argparse.Namespace, chosen: list[str]) -> None:
         daemons.append(fresh)
         fresh_url = await fresh.start() if {"setup", "setup-dark"} & set(chosen) else ""
         print("the page:", url, " the fresh one:", fresh_url)
+        update_url = await updating.start() if updating else ""
         async with async_playwright() as p:
             options: dict[str, Any] = {"args": ["--no-sandbox"] if args.no_sandbox else []}
             if args.chromium:
                 options["executable_path"] = args.chromium
             browser = await p.chromium.launch(**options)
             shots = Shots(browser, url, args.out)
+            shots.update_url = update_url
             for name in chosen:
                 await SHOTS[name](shots, fresh_url)
             await browser.close()
@@ -544,6 +626,8 @@ async def take(args: argparse.Namespace, chosen: list[str]) -> None:
     finally:
         for daemon in daemons:
             await daemon.stop()
+        for server in servers:
+            server.close()
         await radio.stop()
         if args.keep:
             print("kept:", work)

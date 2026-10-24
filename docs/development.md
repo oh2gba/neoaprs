@@ -370,6 +370,7 @@ at 1440 x 900 and 390 x 844, each in the light and the dark scheme (`NAME-dark.p
 - They go to `site/shots/`, with `thumbs/` for the gallery and `og.png` for the link preview. `map`, `weather`, `messages`, `beacon`, `objects`, `bulletins` and
   `setup` are copied to `docs/screenshots/` for the README.
 - The close-ups of the delivery chain (`chain.png`, `chain-failed.png`) are taken at twice the pixels.
+- `update.png` is taken from a second daemon of its own on a copy of the data folder: a version page on the loopback says a newer version is out and `NEOAPRS_INSTALL_KIND` plays a Windows install, so that **Update now** is offered (and would only rehearse). `beacon-de.png` is the Beacon tab of a browser that speaks German.
 - The network access is on in the demo folder with a key made at random for the run, and the Settings shot shows a made-up key and made-up addresses instead of
   the daemon's own. Nothing touches a radio.
 - The street map is copied from `data/basemap.pmtiles` (or `--basemap`), which is only read.

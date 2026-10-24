@@ -108,10 +108,11 @@
       <ul class="ticks">
         <li>Sort, filter, hide the timed out, keep the stations heard direct.</li>
         <li>Distance and bearing from you (a small arrow), when each station was last heard, and a check mark for the ones heard direct.</li>
+        <li>An envelope to message a station and a trash can to forget it on every row, and a menu (right-click, long press or the <b>...</b> button) with the APRS queries: ask a station for its position, its status, what it hears direct, or trace the route to it.</li>
       </ul>
     </div>
     <figure class="shot">
-      <a class="zoom frame crop table" href="shots/stations.png"><picture><source srcset="shots/stations-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/stations.png" width="1440" height="900" loading="lazy" alt="The Stations table, wide: the symbol and call of each station, the distance, the bearing as a small arrow, a check mark for a station heard direct, and when it was last heard"></picture></a>
+      <a class="zoom frame crop table" href="shots/stations-menu.png"><picture><source srcset="shots/stations-menu-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/stations-menu.png" width="1440" height="900" loading="lazy" alt="The Stations table with the menu of a row open: Message, Ask for position, Ask for status, Ask what it hears direct, Trace the route, Show on map, Copy call, the QRZ page and Forget"></picture></a>
     </figure>
   </div>
   <div class="wrap feature">
@@ -119,11 +120,12 @@
       <h2>Several stations at once</h2>
       <ul class="ticks">
         <li>Ctrl+click (Cmd+click on a Mac) on a marker or a row of the table adds a station's card beside the others: each one is the whole card, up to four on a desktop.</li>
+        <li>Drag a card by its head to put it where you want it over the map; the others stay where they are.</li>
         <li><b>Close all</b>, or <b>Message these 2</b> to send one text to each of them.</li>
       </ul>
     </div>
     <figure class="shot">
-      <a class="zoom frame crop left" href="shots/cards.png"><picture><source srcset="shots/cards-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/cards.png" width="1440" height="900" loading="lazy" alt="The cards of a car and of a house side by side over the map, each with when it was last heard, its position and how it reaches us, and the Close all and Message these 2 buttons at the map's top left"></picture></a>
+      <a class="zoom frame crop left" href="shots/cards.png"><picture><source srcset="shots/cards-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/cards.png" width="1440" height="900" loading="lazy" alt="The cards of a car and of a house over the map, one of them dragged to another place, each with when it was last heard, its position and how it reaches us, and the Close all and Message these 2 buttons at the map's top left"></picture></a>
     </figure>
   </div>
   <div class="wrap feature flip">
@@ -149,7 +151,8 @@
         <li>Acks, reply-acks and retries are done for you.</li>
         <li>The delivery chain of every message: each digipeater you hear repeat it turns green, one you do not hear stays grey with a ?, a copy that came back from the internet is blue.</li>
         <li>The conversations in a list beside the open one, as in a chat app; one text to several stations at once from their cards.</li>
-        <li>A path for each station. Alerts on the desktop and in the browser, bulletins and group messages, and the APRS queries.</li>
+        <li>A message chooses its own path: the way a station was lately heard to be reached, then your beacon's path. A path for each station if you want one.</li>
+        <li>Alerts on the desktop and in the browser, bulletins and group messages, and the APRS queries.</li>
       </ul>
     </div>
     <figure class="shot">
@@ -190,7 +193,8 @@
       <h2>Your position, on your terms</h2>
       <ul class="ticks">
         <li>When the last beacon went out, with Beacon now and Send status now, and the beacon every 30 or 60 minutes or every 3 hours.</li>
-        <li>Your place picked on the map, your symbol picked from pictures, and a preview of the packet it makes.</li>
+        <li>Your place chosen on the map, your symbol picked from pictures, and a preview of the packet it makes.</li>
+        <li>A recommended path that follows your symbol: WIDE1-1,WIDE2-1 for a station that moves, WIDE2-1 for one that stays.</li>
         <li>A status report from your radio through Hamlib rigctld, or a text of your own: one choice, and only the fields it needs.</li>
         <li>A fill-in digipeater for WIDE1-1, one tickbox, off until you switch it on.</li>
         <li>Settings apply as you change them: no Save button, and an Undo for the last change.</li>
@@ -198,7 +202,7 @@
       </ul>
     </div>
     <figure class="shot">
-      <a class="zoom frame crop panel" href="shots/beacon.png"><picture><source srcset="shots/beacon-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/beacon.png" width="1440" height="900" loading="lazy" alt="The Beacon tab in groups: the station with its place and symbol, the beacon with Beacon now, and the status with Send status now"></picture></a>
+      <a class="zoom frame crop panel" href="shots/beacon.png"><picture><source srcset="shots/beacon-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/beacon.png" width="1440" height="900" loading="lazy" alt="The Beacon tab in groups: the station with its place and symbol, the beacon with Beacon now, the path choice set to Recommended, and the status with Send status now"></picture></a>
     </figure>
   </div>
 </section>
@@ -252,6 +256,40 @@
     </div>
     <figure class="shot">
       <a class="zoom frame crop pane" href="shots/objects-form.png"><picture><source srcset="shots/objects-form-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/objects-form.png" width="1440" height="900" loading="lazy" alt="The Objects tab with the form of an object open: name, symbol, position, comment, course, speed and path, and the list of our objects below it"></picture></a>
+    </figure>
+  </div>
+</section>
+
+<section id="languages">
+  <div class="wrap feature">
+    <div class="blurb">
+      <p class="eyebrow">Languages</p>
+      <h2>The page speaks your language</h2>
+      <ul class="ticks">
+        <li>English, Deutsch, Español, Français, Italiano, 日本語 and Português (Brasil).</li>
+        <li>It starts in your browser's language; <b>Language</b> at the top of the Settings tab changes it for that browser.</li>
+        <li>The translations wait for native-speaking hams to read them: corrections are welcome.</li>
+      </ul>
+    </div>
+    <figure class="shot">
+      <a class="zoom frame crop panel" href="shots/beacon-de.png"><picture><source srcset="shots/beacon-de-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/beacon-de.png" width="1440" height="900" loading="lazy" alt="The Beacon tab in German: Rufzeichen, Standort with the Auf Karte wählen button, Bake, Pfad set to Empfohlen, and Status"></picture></a>
+    </figure>
+  </div>
+</section>
+
+<section id="update">
+  <div class="wrap feature flip">
+    <div class="blurb">
+      <p class="eyebrow">Updates</p>
+      <h2>A new version, one click away</h2>
+      <ul class="ticks">
+        <li>When a newer version is out, a window says what is new and what to do for the way you installed NeoAPRS.</li>
+        <li>On Windows and with the AppImage, <b>Update now</b> downloads the release, checks its checksum, installs it and restarts. Nothing happens until you press it.</li>
+        <li>For a .deb, pip or the install line the window has the steps, each file a button and each command with Copy.</li>
+      </ul>
+    </div>
+    <figure class="shot">
+      <a class="zoom frame crop dialog" href="shots/update.png"><picture><source srcset="shots/update-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/update.png" width="1440" height="900" loading="lazy" alt="The update window over the page: NeoAPRS is available, what is new, the Update now button and the steps by hand folded under it"></picture></a>
     </figure>
   </div>
 </section>
@@ -423,8 +461,9 @@
     <ul class="gallery">
       <li><a class="zoom" href="shots/map.png" data-dark="shots/map-dark.png"><picture><source srcset="shots/thumbs/map-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/map.png" width="640" height="400" loading="lazy" alt=""></picture><span>The map: stations and trails</span></a></li>
       <li><a class="zoom" href="shots/stations.png" data-dark="shots/stations-dark.png"><picture><source srcset="shots/thumbs/stations-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/stations.png" width="640" height="400" loading="lazy" alt=""></picture><span>The Stations table</span></a></li>
+      <li><a class="zoom" href="shots/stations-menu.png" data-dark="shots/stations-menu-dark.png"><picture><source srcset="shots/thumbs/stations-menu-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/stations-menu.png" width="640" height="400" loading="lazy" alt=""></picture><span>The menu of a station: the APRS queries</span></a></li>
       <li><a class="zoom" href="shots/station.png" data-dark="shots/station-dark.png"><picture><source srcset="shots/thumbs/station-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/station.png" width="640" height="400" loading="lazy" alt=""></picture><span>A station card</span></a></li>
-      <li><a class="zoom" href="shots/cards.png" data-dark="shots/cards-dark.png"><picture><source srcset="shots/thumbs/cards-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/cards.png" width="640" height="400" loading="lazy" alt=""></picture><span>Several station cards side by side</span></a></li>
+      <li><a class="zoom" href="shots/cards.png" data-dark="shots/cards-dark.png"><picture><source srcset="shots/thumbs/cards-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/cards.png" width="640" height="400" loading="lazy" alt=""></picture><span>Station cards side by side, movable</span></a></li>
       <li><a class="zoom" href="shots/weather.png" data-dark="shots/weather-dark.png"><picture><source srcset="shots/thumbs/weather-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/weather.png" width="640" height="400" loading="lazy" alt=""></picture><span>Weather stations and their graphs</span></a></li>
       <li><a class="zoom" href="shots/messages.png" data-dark="shots/messages-dark.png"><picture><source srcset="shots/thumbs/messages-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/messages.png" width="640" height="400" loading="lazy" alt=""></picture><span>Messages: the list, a conversation and its delivery chain</span></a></li>
       <li class="tall"><a class="zoom" href="shots/chain.png" data-dark="shots/chain-dark.png"><picture><source srcset="shots/thumbs/chain-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/chain.png" width="640" height="681" loading="lazy" alt=""></picture><span>The delivery chain, close up</span></a></li>
@@ -436,6 +475,8 @@
       <li><a class="zoom" href="shots/beacon.png" data-dark="shots/beacon-dark.png"><picture><source srcset="shots/thumbs/beacon-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/beacon.png" width="640" height="400" loading="lazy" alt=""></picture><span>The beacon and the status</span></a></li>
       <li><a class="zoom" href="shots/settings.png" data-dark="shots/settings-dark.png"><picture><source srcset="shots/thumbs/settings-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/settings.png" width="640" height="400" loading="lazy" alt=""></picture><span>The settings: the radio status</span></a></li>
       <li><a class="zoom" href="shots/settings-web.png" data-dark="shots/settings-web-dark.png"><picture><source srcset="shots/thumbs/settings-web-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/settings-web.png" width="640" height="400" loading="lazy" alt=""></picture><span>Network access: the key and the addresses</span></a></li>
+      <li><a class="zoom" href="shots/update.png" data-dark="shots/update-dark.png"><picture><source srcset="shots/thumbs/update-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/update.png" width="640" height="400" loading="lazy" alt=""></picture><span>The update window: Update now</span></a></li>
+      <li><a class="zoom" href="shots/beacon-de.png" data-dark="shots/beacon-de-dark.png"><picture><source srcset="shots/thumbs/beacon-de-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/beacon-de.png" width="640" height="400" loading="lazy" alt=""></picture><span>The page in German</span></a></li>
       <li><a class="zoom" href="shots/setup.png" data-dark="shots/setup-dark.png"><picture><source srcset="shots/thumbs/setup-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/setup.png" width="640" height="400" loading="lazy" alt=""></picture><span>The setup guide</span></a></li>
       <li><a class="zoom" href="shots/packets.png" data-dark="shots/packets-dark.png"><picture><source srcset="shots/thumbs/packets-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/packets.png" width="640" height="400" loading="lazy" alt=""></picture><span>The packet log</span></a></li>
       <li><a class="zoom" href="shots/tablet.png" data-dark="shots/tablet-dark.png"><picture><source srcset="shots/thumbs/tablet-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/tablet.png" width="640" height="480" loading="lazy" alt=""></picture><span>On a tablet: the map and a conversation</span></a></li>

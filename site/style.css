@@ -448,6 +448,16 @@ h2 {
   margin: -4.87% 0 0 -89.47%;
 }
 
+.crop.dialog {
+  max-width: 640px;
+  aspect-ratio: 640 / 480;
+}
+
+.crop.dialog img {
+  width: 225%;
+  margin: -34.38% 0 0 -62.5%;
+}
+
 .crop.guide {
   max-width: 720px;
   aspect-ratio: 720 / 560;
