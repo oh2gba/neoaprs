@@ -85,6 +85,12 @@ that both the daemon and the page are tested against (`ui/src/protocol/vectors.j
 - Wire rows are built from the domain objects through their models in `neoaprs/web/*wire.py`. A field is added to the model and the object only, and the
   golden-file test of `tests/test_wire_rows.py` shows the JSON.
 
+## The page's controls
+
+- One height for every text button, input and select of a form or a toolbar: `--control-h` (32 px, `ui/src/styles/tokens.css`), set once on `.btn` and `.input` in `controls.css`. A button is `.btn` (secondary) or `.btn primary` (filled; `danger` for the second press of
+  a destructive one); only `.btn.small` (`--control-h-small`, 24 px) is lower, and only inside a list row, a bubble or a line of text. An icon-only button is `IconButton` (`.xbtn`, 32 px; 28 px in the rows of the Stations table).
+- No stylesheet but `controls.css` gives a `.btn` a height, padding or font size, and no component gives a button an inline style (`ui/src/styles/buttons.test.ts` holds both); a new kind of button is a class that changes colour or width, never size.
+
 ## Tests
 
 - What tests are built from lives in `tests/support/` (the `Env` daemon, the clock, the guards, the storage helpers), not in test modules. Fixtures are in

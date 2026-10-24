@@ -82,7 +82,7 @@ const cancel = (): boolean => send({ cmd: "update_cancel" });
       <section class="updatedialog-news">
         <h3>{{ t("help.update.news") }}</h3>
         <p v-if="note">{{ note }}</p>
-        <a class="btn small" :href="releaseNotes(version)" target="_blank" rel="noopener noreferrer">{{ t("help.update.news_link", { version }) }}</a>
+        <a class="btn" :href="releaseNotes(version)" target="_blank" rel="noopener noreferrer">{{ t("help.update.news_link", { version }) }}</a>
       </section>
       <section v-if="offered" class="updatedialog-now">
         <template v-if="progress">

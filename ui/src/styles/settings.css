@@ -72,6 +72,16 @@
   gap: 6px;
   min-width: 0;
 }
+.field-control .urls .input {
+  flex: none;
+}
+/* (the button that stands first in the value column of a row, and the ones of the Radio and Map groups, are as wide as the Beacon now of the send rows: Test sound and Test pop-up, one under the other, are one width) */
+.field-control > .btn:first-child,
+.radiofind .btn,
+.mapfetch-actions .btn,
+.location-pick {
+  min-width: var(--action-w);
+}
 .field-control .infotip {
   flex: none;
 }
@@ -243,6 +253,10 @@
 }
 .radiohead .btn {
   flex: none;
+}
+/* (the button of the line is --control-h high: the summary's padding is less, so that the line is as high as it was) */
+.radiostatus > .radiohead {
+  padding: 2px 0;
 }
 .radiofind {
   display: grid;

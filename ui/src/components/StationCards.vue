@@ -161,10 +161,10 @@ function tap(): void {
 
 <template>
   <div v-if="rows.length > 1 && size !== 'phone'" class="cards-actions">
-    <button v-if="rows.some((row) => !isPinned(row.call))" type="button" class="btn small cards-closeall" @click="emit('closeAll')">
+    <button v-if="rows.some((row) => !isPinned(row.call))" type="button" class="btn cards-closeall" @click="emit('closeAll')">
       {{ t("station.cards.close_all") }}
     </button>
-    <button v-if="askable.length > 1" type="button" class="btn small msgbtn cards-message" @click="emit('messageAll', askable)">
+    <button v-if="askable.length > 1" type="button" class="btn msgbtn cards-message" @click="emit('messageAll', askable)">
       <MessageGlyph :size="14" /> {{ t("station.cards.message_all", { n: askable.length }) }}
     </button>
   </div>

@@ -7,6 +7,10 @@ Receive only.
 - A new switch **Transmit** at the top of the Beacon tab, with the choices **On** and **Receive only** (the setting `station/transmit`, `true` by default, also for `neoaprs db set`), for the days you want to listen and not transmit. While it is off nothing at all is transmitted: no beacon, status, message, ack, answer to a query, object, bulletin or digipeated packet. The page shows an amber **Receive only** badge in its header, beside the title, on every screen size; it opens the Beacon tab. The setting is kept in the database.
 - While it is off, **Beacon now**, **Send status now**, a new message (a retry too), an email, an object and a bulletin are refused at once with the coded error `transmit.off` ("Receive only: nothing is sent" in the toast, in all seven languages). The messages already being sent wait: no attempt is used up, none fails, and they go on when it is switched on; the acks of received messages are not sent. A beacon or a status that came due goes out once after it is switched on, never as a burst.
 
+Buttons of one size.
+
+- Every text button, input and select of a form or a toolbar is now the same height (32 px) on every tab, in the setup guide, the update dialog and over the map: Reconnect, Download in the map note, Close all, Message these, Done and Cancel of the map bars, the news link and Update now were smaller or larger, and a select was taller than the inputs beside it. Only Retry, Cancel, Copy, Route and the weather hours stay compact (24 px), and on a touch screen every control is still at least 40 px. The button that is the action of a row (Test sound, Test pop-up, Check now, Find my radio, Download map, Choose on map) has one least width, like Beacon now. The rule is in `CONVENTIONS.md`, and `ui/src/styles/buttons.test.ts` holds it.
+
 Pages that keep up.
 
 - A page left open loads itself again when the daemon it reconnects to serves another build of the page, not only another version: the daemon names its page's build in `hello` (the new field `page`, the name of the page's main script). Once for each build, as for a version.

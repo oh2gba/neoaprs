@@ -64,7 +64,7 @@ function save(): void {
     <button
       v-if="effective.own"
       type="button"
-      class="iconbtn use-default"
+      class="xbtn use-default"
       :aria-label="t('route.use_auto')"
       :title="t('route.use_auto')"
       @click="emit('clear', call)"
