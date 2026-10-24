@@ -8,6 +8,6 @@ const emit = defineEmits<{ cancel: [] }>();
 <template>
   <div class="pickbar" role="status">
     <span>{{ t("map.pick.tap") }}</span>
-    <button type="button" class="btn small" @click="emit('cancel')">{{ t("map.pick.cancel") }}</button>
+    <button type="button" class="btn" @click="emit('cancel')">{{ t("map.pick.cancel") }}</button>
   </div>
 </template>

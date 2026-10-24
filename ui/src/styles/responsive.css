@@ -318,6 +318,7 @@ button,
 /* a finger: every control is at least 40 px high (and wide, for the ones that are only a symbol) */
 @media (pointer: coarse) {
   .btn,
+  .btn.small,
   .tab,
   .tabmenu-item,
   .ctxmenu-item,
@@ -325,7 +326,6 @@ button,
   select,
   .check,
   .headbtn,
-  .iconbtn,
   .xbtn,
   .panel-fold,
   .setup-dot,
@@ -411,7 +411,6 @@ button,
   .headbtn,
   .convo-back,
   .xbtn,
-  .iconbtn,
   .panel-fold,
   .setup-dot {
     min-width: 40px;

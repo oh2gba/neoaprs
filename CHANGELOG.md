@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+Buttons of one size.
+
+- Every text button, input and select of a form or a toolbar is now the same height (32 px) on every tab, in the setup guide, the update dialog and over the map: Reconnect, Download in the map note, Close all, Message these, Done and Cancel of the map bars, the news link and Update now were smaller or larger, and a select was taller than the inputs beside it. Only Retry, Cancel, Copy, Route and the weather hours stay compact (24 px), and on a touch screen every control is still at least 40 px. The button that is the action of a row (Test sound, Test pop-up, Check now, Find my radio, Download map, Choose on map) has one least width, like Beacon now. The rule is in `CONVENTIONS.md`, and `ui/src/styles/buttons.test.ts` holds it.
+
 Pages that keep up.
 
 - A page left open loads itself again when the daemon it reconnects to serves another build of the page, not only another version: the daemon names its page's build in `hello` (the new field `page`, the name of the page's main script). Once for each build, as for a version.

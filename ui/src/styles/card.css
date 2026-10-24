@@ -236,7 +236,7 @@
 }
 .sendrow .btn {
   flex: none;
-  min-width: 11em;
+  min-width: var(--action-w);
 }
 .prefs {
   display: flex;

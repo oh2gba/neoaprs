@@ -42,7 +42,7 @@ async function opened(): Promise<void> {
     <template #summary>
       <span class="statepill" :class="`tnc-${tnc.state}`">{{ stateText(tnc.state) }}</span>
       <span class="tncstatus" role="status" :title="tncCounts(tnc)">{{ status }}</span>
-      <button class="btn small" type="button" @click.stop.prevent="emit('reconnect')">{{ t("settings.tnc.reconnect") }}</button>
+      <button class="btn" type="button" @click.stop.prevent="emit('reconnect')">{{ t("settings.tnc.reconnect") }}</button>
     </template>
     <DisclosureBox v-if="ports" :title="t('settings.tnc.ports')">
       <ul class="tncports mono">

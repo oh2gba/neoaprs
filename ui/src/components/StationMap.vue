@@ -333,7 +333,7 @@ onBeforeUnmount(() => {
     <div v-if="note" class="mapnote" role="status">
       <div class="mapnote-box">
         <span>{{ t(note) }}</span>
-        <button v-if="offerDownload" class="btn small" type="button" @click="emit('download')">{{ t("map.download") }}</button>
+        <button v-if="offerDownload" class="btn" type="button" @click="emit('download')">{{ t("map.download") }}</button>
       </div>
     </div>
     <MapAttribution />

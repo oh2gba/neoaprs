@@ -56,7 +56,7 @@ watch(
             </button>
           </li>
         </ol>
-        <button v-if="guide.peeking" type="button" class="btn small" @click="guide.peek(false)">{{ t("setup.done") }}</button>
+        <button v-if="guide.peeking" type="button" class="btn" @click="guide.peek(false)">{{ t("setup.done") }}</button>
         <IconButton kind="close" class="setup-close" :label="t('setup.close')" @click="guide.close()" />
       </header>
       <div class="setup-body">

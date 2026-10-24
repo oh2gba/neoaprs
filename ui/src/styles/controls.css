@@ -1,6 +1,7 @@
 /* controls */
 .input {
-  padding: 5px 8px;
+  height: var(--control-h);
+  padding: 0 8px;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--input-bg);
@@ -18,13 +19,20 @@ tbody tr:focus-visible {
 .input.invalid {
   border-color: var(--bad);
 }
+/* The one text button: --control-h high like the inputs and selects beside it, filled (.primary, .danger) or not. Only .small is lower, --control-h-small, and only where the button sits in the line of a text or a list row. */
 .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--control-h);
   padding: 5px 12px;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--panel);
   color: var(--text);
   font: inherit;
+  font-size: 14px;
+  line-height: 1.4;
   cursor: pointer;
 }
 /* the envelope that says "message" (components/MessageGlyph.vue), beside a text or alone in a small button */
@@ -33,8 +41,6 @@ tbody tr:focus-visible {
   vertical-align: -0.2em;
 }
 .btn.msgbtn {
-  display: inline-flex;
-  align-items: center;
   gap: 6px;
 }
 .btn:disabled {
@@ -52,25 +58,12 @@ tbody tr:focus-visible {
   color: #fff;
 }
 .btn.small {
+  min-height: var(--control-h-small);
   padding: 0 8px;
   font-size: 12px;
 }
 a.btn {
-  display: inline-block;
   text-decoration: none;
-}
-.iconbtn {
-  width: 24px;
-  height: 24px;
-  border: 0;
-  border-radius: 4px;
-  background: none;
-  color: var(--muted);
-  cursor: pointer;
-  font: inherit;
-}
-.iconbtn:hover {
-  background: var(--row-hover);
 }
 .toolbar {
   display: flex;
