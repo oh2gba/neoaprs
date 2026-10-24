@@ -53,6 +53,13 @@ or a serial device that goes away, is a line that dropped and is opened again af
 be asked a carriage return is sent after 10 s of silence; a port another program holds (`neoaprs/serialholders.py`) is skipped, and so is a development board
 known by its USB ids (`neoaprs/serialboards.py`).
 
+**Find my radio** (`neoaprs/services/radiofinder.py`, `neoaprs/services/radioprobe.py`), on the page's `find_radio` only. It tries the ports of the search (the pattern in force, the
+skip list, the held ports and the boards left out; with the default pattern also the paired Bluetooth devices; a pattern that was narrowed, such as the tests' `NEOAPRS_SERIAL_PATTERN`,
+means no Bluetooth device and no port that does not match it) one at a time, each at 9600, 57600, 19200, 38400, 115200, 4800 and 1200 baud (a socket or Bluetooth port once). A try listens
+1 s, writes one carriage return, listens 1.5 s: a KISS UI frame is the profile `kiss`, command-mode text (`ModeDetector`) is put into KISS by the profiles that can be asked (TNC-2, D710,
+Kantronics, in that order), and the first after which a carriage return gets no text is the answer. The Tnc is stopped while it runs (`hold_tnc`) and started again after it (`release_tnc`), found or not;
+`radio_search` messages tell the page that asked each try and the end, and `find_radio_cancel` ends it (a closed page ends it too).
+
 ## Stopping
 
 `neoaprs stop` writes the file `neoaprs.stop` into the data folder. The daemon looks for it once a second (`neoaprs/stopfile.py`), deletes it and ends cleanly (`NeoAPRS ended` in the log), and the command waits until the instance lock is free. Exit 0 when it ended or none was running, 1 after `--timeout` (30 s). It needs no port and no key; whoever can write to the data folder (private to the user) could end the process as well. SIGTERM, SIGINT and SIGHUP (on Windows Ctrl+C, SIGBREAK and SIGTERM) end the daemon the same way. A detached daemon of `neoaprs open` is started as `neoaprsw.exe run` on Windows and as a child in a session of its own elsewhere, its output going to `neoaprs.log`; `open` waits for the log line `web page at` and for the page to answer.

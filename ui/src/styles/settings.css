@@ -217,15 +217,50 @@
 .disclosure-body {
   padding-bottom: 6px;
 }
-.radiostatus-head {
+/* the one line of the TNC group: the arrow, the state, the words and a small Reconnect at the end */
+.radiohead {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin: 4px 0 6px;
+  gap: 8px;
+  list-style: none;
+  color: var(--text);
+}
+.radiohead::-webkit-details-marker {
+  display: none;
+}
+.radiohead::before {
+  content: "";
+  flex: none;
+  width: 0;
+  height: 0;
+  border-width: 5px 0 5px 8px;
+  border-style: solid;
+  border-color: transparent transparent transparent var(--muted);
+}
+.radiostatus[open] > .radiohead::before {
+  border-width: 8px 5px 0;
+  border-color: var(--muted) transparent transparent;
+}
+.radiohead .statepill {
+  flex: none;
+}
+.radiohead .btn {
+  flex: none;
+}
+.radiofind {
+  display: grid;
+  grid-template-columns: minmax(7em, 36%) 1fr;
+  gap: 2px 8px;
+  margin: 6px 0;
+}
+.radiofind .btn {
+  grid-column: 2;
+  justify-self: start;
 }
 .tncstatus {
-  margin: 0 0 4px;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
   overflow-wrap: anywhere;
 }
 .radiostatus .problem {

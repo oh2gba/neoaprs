@@ -1,6 +1,7 @@
 """The composition root: the parts of the program, made in one place. The data directory, the clock, the settings (`config`), the Store, the Tnc, the station book, the beacon, the status, the message alert, messaging, the message board,
-the objects and the bulletins of our own and their sender, the queries, the digipeater, the base map, the update check and Update now (the services are made here and nowhere else), the station preferences, the packet log, the message log, the bulletin log, the log of our own objects and bulletins, the weather log and the task set. The parts are made here and connected in neoaprs/wiring.py; the start and the stop are neoaprs/controller.py.
+the objects and the bulletins of our own and their sender, the queries, the digipeater, the base map, Find my radio, the update check and Update now (the services are made here and nowhere else), the station preferences, the packet log, the message log, the bulletin log, the log of our own objects and bulletins, the weather log and the task set. The parts are made here and connected in neoaprs/wiring.py; the start and the stop are neoaprs/controller.py.
 """
+import asyncio
 import logging
 import platform
 import sys
@@ -17,6 +18,7 @@ from .messagelog import MessageLog
 from .ownlog import OwnLog
 from .packetlog import PacketLog
 from .route import Deliveries
+from .serialprobe import search_pattern
 from .services.alerts import Alerts
 from .services.aloha import Aloha
 from .services.beacon import Beacon
@@ -28,6 +30,7 @@ from .services.ownbulletins import OwnBulletins
 from .services.ownobjects import OwnObjects
 from .services.prefbook import PrefBook
 from .services.queries import Queries
+from .services.radiofinder import RadioFinder, candidates
 from .services.rigstatus import RigStatus
 from .services.selfinstall import installer_for, release_source
 from .services.selfupdate import SelfUpdate
@@ -81,6 +84,7 @@ class Services:
                                messages=self.messaging)       # the answers to ?APRSP, ?APRSS, ?APRSD, ?APRST, ?PING?, ?APRSO, ?APRSM and ?APRS?, by the asker's path
         self.mapfetch = MapFetch(data_dir, lambda: self.config, clock)  # the base map: the detailed map round our position and the world map under it, made on request from the page; nothing to start
         self.aloha = Aloha(self.stationbook, clock)                      # the ALOHA circle round our station, worked out again every minute and when our position moves; started by the controller
+        self.radiofinder = RadioFinder(self._radio_ports, self.hold_tnc, self.release_tnc)       # Find my radio: on the page's request only; nothing to start
         self.install = install                                           # how this copy was installed, for the page (the steps of an update)
         self.updatecheck = UpdateCheck(lambda: self.config, VERSION, platform_name(sys.platform, platform.machine(), install.kind == "appimage"), fetch_update)   # once a day: which version is the latest (update/check); started by the controller
         self.selfupdate = SelfUpdate(install, installer_for(install, data_dir, self.restart_into), self._announced, release_source(), end=self._end_for_restart)      # Update now: on the page's request only; nothing to start
@@ -97,6 +101,19 @@ class Services:
         """How the packets of the station reached us, for the path of a message to it (None for a station not in the book)."""
         found = self.stationbook.get(call)
         return None if found is None else found.deliveries
+
+    async def _radio_ports(self) -> list[str]:
+        """The ports Find my radio tries: those of the search for the radio, as the search has them now."""
+        pattern = self.pattern_override or search_pattern(self.config.serial_pattern)
+        return await asyncio.to_thread(candidates, pattern, self.config.serial_skip_paths)
+
+    async def hold_tnc(self) -> None:
+        """The radio lets go of its line, for a search that opens the ports."""
+        await self.tnc.stop()
+
+    def release_tnc(self) -> None:
+        """The radio takes its line again (the controller does)."""
+
     def _announced(self) -> str | None:
         latest = self.updatecheck.latest
         return latest.version if latest is not None else None

@@ -13,6 +13,7 @@ import type {
   OwnObjectRow,
   PacketRow,
   PortsMessage,
+  RadioSearchMessage,
   StationPref,
   StationRow,
   StatusMessage,
@@ -38,6 +39,7 @@ export interface Store {
   alertResult(message: AlertResultMessage): void;
   updateResult(message: UpdateResultMessage): void;
   ports(message: PortsMessage): void;
+  radioSearch(message: RadioSearchMessage): void;
   replaceStations(rows: Record<string, StationRow>): void;
   replacePackets(rows: Record<string, PacketRow>): void;
   replaceMessages(rows: Record<string, MessageRow>): void;
@@ -221,6 +223,9 @@ export class Hub {
         break;
       case "ports":
         this.store.ports(message);
+        break;
+      case "radio_search":
+        this.store.radioSearch(message);
         break;
       case "pong":
         break;

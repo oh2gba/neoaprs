@@ -29,6 +29,7 @@ export const settings = {
 
   "settings.name.position": "Position",
   "settings.name.tcp_address": "TCP address",
+  "settings.name.radio": "Radio",
 
   "settings.call.label": "Call",
   "settings.lat.label": "Latitude",
@@ -104,10 +105,6 @@ export const settings = {
   "settings.tcp_port.label": "TCP port",
   "settings.tcp_port.title": "Direwolf 8001, soundmodem 8100",
   "settings.last_port.label": "Last port found",
-  "settings.pattern.label": "Ports to search",
-  "settings.pattern.title": "Device globs, separated by spaces",
-  "settings.skip.label": "Ports to skip",
-  "settings.skip.title": "Device paths, separated by commas",
 
   "settings.network.name": "Network access",
   "settings.network.label": "Allow access from the network",
@@ -288,6 +285,13 @@ export const settings = {
   "settings.tnc.ports": "Ports",
   "settings.tnc.terminal": "Terminal",
   "settings.tnc.terminal_label": "What the TNC saw and did",
+  "settings.find.button": "Find my radio",
+  "settings.find.cancel": "Cancel",
+  "settings.find.searching": "Looking for the radio…",
+  "settings.find.trying": "Looking for the radio: {port} at {baud} ({number} of {total})",
+  "settings.find.trying_port": "Looking for the radio: {port} ({number} of {total})",
+  "settings.find.already": "The radio is on {port}, as it is set",
+  "settings.find.cancelled": "Search cancelled",
 
   "settings.map.step.tool": "Fetching the pmtiles program",
   "settings.map.step.build": "Finding the latest build",

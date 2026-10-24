@@ -178,14 +178,11 @@ describe("the map's fields", () => {
 });
 
 describe("shownFor in the TNC group", () => {
-  const keys = ["serial/port", "serial/baud", "serial/pattern", "serial/skip", "serial/last_port", "tcp/host", "tcp/port"];
-  const shown = (profile: string, search = true) => keys.filter((k) => shownFor(k, profile, true, search));
-  it("shows the port, the speed and the search for a serial TNC, and never the port found", () => {
-    expect(shown("kenwood-tnc2")).toEqual(["serial/port", "serial/baud", "serial/pattern", "serial/skip"]);
-    expect(shown("kiss")).toEqual(["serial/port", "serial/baud", "serial/pattern", "serial/skip"]);
-  });
-  it("leaves the search out where the daemon does not search", () => {
-    expect(shown("kiss", false)).toEqual(["serial/port", "serial/baud"]);
+  const keys = ["serial/port", "serial/baud", "serial/last_port", "tcp/host", "tcp/port"];
+  const shown = (profile: string) => keys.filter((k) => shownFor(k, profile, true));
+  it("shows the port and the speed for a serial TNC, and never the port found", () => {
+    expect(shown("kenwood-tnc2")).toEqual(["serial/port", "serial/baud"]);
+    expect(shown("kiss")).toEqual(["serial/port", "serial/baud"]);
   });
   it("shows only the host and the port for KISS over TCP", () => {
     expect(shown("kiss-tcp")).toEqual(["tcp/host", "tcp/port"]);

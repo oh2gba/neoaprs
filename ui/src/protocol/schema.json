@@ -1209,6 +1209,36 @@
       "title": "ExtensionValues",
       "type": "object"
     },
+    "FindRadio": {
+      "additionalProperties": false,
+      "description": "Find my radio: tries the serial ports and the paired Bluetooth devices that the search for the radio looks at (not a KISS TCP address), one after the other and each at the usual speeds, until a TNC answers in KISS or can be\nput into KISS the way a TNC profile does. The radio's own line is closed while it runs and opened again after it. It writes nothing but a carriage return and, to a TNC that answers with text, the steps of the TNC profiles that\nput it into KISS; nothing is sent to the air. Told to the page that asked with `radio_search` messages (`trying` before each try, then `found` or `cancelled`); the page puts the answer in the settings. An `error` when a search is running\n(`radio.busy`), when there is no port to try (`radio.no_ports`) and when none answered (`radio.not_found`).",
+      "properties": {
+        "cmd": {
+          "const": "find_radio",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd"
+      ],
+      "title": "FindRadioCommand",
+      "type": "object"
+    },
+    "FindRadioCancel": {
+      "additionalProperties": false,
+      "description": "Ends the search of `find_radio`; the page that asked is told `cancelled`. An `error` (`radio.not_running`) when none is running.",
+      "properties": {
+        "cmd": {
+          "const": "find_radio_cancel",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd"
+      ],
+      "title": "FindRadioCancelCommand",
+      "type": "object"
+    },
     "ForgetStation": {
       "additionalProperties": false,
       "description": "Removes a station from the station book (and its cache in the database) until it is heard again. Not our own station. Answered by the `del` of the row, or by an `error`.",
@@ -2775,6 +2805,65 @@
         "kind"
       ],
       "title": "QueryStationCommand",
+      "type": "object"
+    },
+    "RadioSearchMsg": {
+      "additionalProperties": false,
+      "description": "How `find_radio` goes, to the page that asked.",
+      "properties": {
+        "type": {
+          "const": "radio_search",
+          "type": "string"
+        },
+        "state": {
+          "description": "`trying`: about to try `port` at `baud`; `found`: a TNC answered at `port` at `baud` and `profile` fits it, and the search is over; `cancelled`: `find_radio_cancel` ended it",
+          "enum": [
+            "trying",
+            "found",
+            "cancelled"
+          ],
+          "type": "string"
+        },
+        "port": {
+          "description": "the port being tried or found; empty for `cancelled`",
+          "type": "string"
+        },
+        "baud": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the speed; null for a port that has none (a Bluetooth device) and for `cancelled`"
+        },
+        "profile": {
+          "description": "for `found`, the key of the TNC profile (`tnc/profile`); empty otherwise",
+          "type": "string"
+        },
+        "number": {
+          "description": "the try that is under way, from 1; 0 for `found` and `cancelled`",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "total": {
+          "description": "how many tries there are if nothing answers; 0 for `found` and `cancelled`",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type",
+        "state",
+        "port",
+        "baud",
+        "profile",
+        "number",
+        "total"
+      ],
+      "title": "RadioSearchMessage",
       "type": "object"
     },
     "ReplaceOp": {
@@ -4503,6 +4592,8 @@
           "clear_station_path": "#/$defs/ClearStationPath",
           "clear_station_timeout": "#/$defs/ClearStationTimeout",
           "conversation_delete": "#/$defs/ConversationDelete",
+          "find_radio": "#/$defs/FindRadio",
+          "find_radio_cancel": "#/$defs/FindRadioCancel",
           "forget_station": "#/$defs/ForgetStation",
           "list_ports": "#/$defs/ListPorts",
           "map_cancel": "#/$defs/MapCancel",
@@ -4557,6 +4648,12 @@
         },
         {
           "$ref": "#/$defs/ListPorts"
+        },
+        {
+          "$ref": "#/$defs/FindRadio"
+        },
+        {
+          "$ref": "#/$defs/FindRadioCancel"
         },
         {
           "$ref": "#/$defs/SetConfig"
@@ -4651,6 +4748,7 @@
           "patch": "#/$defs/PatchMsg",
           "pong": "#/$defs/Pong",
           "ports": "#/$defs/PortsMsg",
+          "radio_search": "#/$defs/RadioSearchMsg",
           "state": "#/$defs/StateMsg",
           "status": "#/$defs/Status",
           "update_result": "#/$defs/UpdateResultMsg",
@@ -4688,6 +4786,9 @@
         },
         {
           "$ref": "#/$defs/UpdateResultMsg"
+        },
+        {
+          "$ref": "#/$defs/RadioSearchMsg"
         }
       ],
       "title": "Message"

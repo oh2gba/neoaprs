@@ -4,12 +4,14 @@ import { isRef, nextTick, shallowReactive, shallowRef, type Ref } from "vue";
 import { vi, type Mock } from "vitest";
 import { DAEMON_KEY, type DaemonContext } from "@/composables/useDaemonContext";
 import { useBrowserAlerts } from "@/composables/useBrowserAlerts";
+import { useFindRadio } from "@/composables/useFindRadio";
 import { usePanel } from "@/composables/usePanel";
 import { useSettings } from "@/composables/useSettings";
 import { useSetupGuide } from "@/composables/useSetupGuide";
 import { useStationPrefs } from "@/composables/useStationPrefs";
 import { DEFAULT_TIMEOUT_MIN } from "@/lib/aging";
-import type { Command, StationPref, StationRow } from "@/protocol/protocol";
+import type { Connection } from "@/lib/hub";
+import type { Command, RadioSearchMessage, StationPref, StationRow } from "@/protocol/protocol";
 import { NOW, configValues } from "@/test/fixtures";
 
 /** The context as a test changes it: the parts that are refs are writable. */
@@ -27,6 +29,7 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
   const lastError = part(over.lastError, null);
   const ports = part(over.ports, null);
   const sender = (over.send as typeof send | undefined) ?? send;
+  const settings = over.settings ?? useSettings(config, lastError, sender);
   const context = {
     send: sender,
     config,
@@ -35,6 +38,9 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     map: part(over.map, null),
     selfUpdate: part(over.selfUpdate, null),
     ports,
+    findRadio:
+      over.findRadio ??
+      useFindRadio(shallowRef<RadioSearchMessage | null>(null), lastError, shallowRef<Connection>("open"), sender, settings, config, () => undefined),
     alertResult: part(over.alertResult, null),
     updateResult: part(over.updateResult, null),
     lastError,
@@ -53,7 +59,7 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     heardPaths: part(over.heardPaths, new Map<string, string | null>()),
     heardDirect: part(over.heardDirect, new Set<string>()),
     prefs: over.prefs ?? useStationPrefs(shallowReactive(new Map<string, StationPref>()), sender),
-    settings: over.settings ?? useSettings(config, lastError, sender),
+    settings,
     guide: over.guide ?? useSetupGuide(config, lastError, ports, sender),
     panel: over.panel ?? usePanel(),
   };

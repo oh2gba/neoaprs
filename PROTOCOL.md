@@ -100,7 +100,7 @@ TypeScript types for both unions are in `ui/src/protocol/protocol.ts`, the JSON 
 
 ## Client to server
 
-35 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
+37 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
 
 ### `ping`
 
@@ -146,6 +146,17 @@ Opens the radio's line again with the settings as they are now (the port, the sp
 ### `list_ports`
 
 Asks for the serial ports of the machine the daemon runs on, and the Bluetooth devices paired with it. Answered with `ports` to the page that asked. A KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a port of the machine: it is typed.
+
+### `find_radio`
+
+Find my radio: tries the serial ports and the paired Bluetooth devices that the search for the radio looks at (not a KISS TCP address), one after the other and each at the usual speeds, until a TNC answers in KISS or can be
+put into KISS the way a TNC profile does. The radio's own line is closed while it runs and opened again after it. It writes nothing but a carriage return and, to a TNC that answers with text, the steps of the TNC profiles that
+put it into KISS; nothing is sent to the air. Told to the page that asked with `radio_search` messages (`trying` before each try, then `found` or `cancelled`); the page puts the answer in the settings. An `error` when a search is running
+(`radio.busy`), when there is no port to try (`radio.no_ports`) and when none answered (`radio.not_found`).
+
+### `find_radio_cancel`
+
+Ends the search of `find_radio`; the page that asked is told `cancelled`. An `error` (`radio.not_running`) when none is running.
 
 ### `set_config`
 
@@ -396,7 +407,7 @@ Ends the download of Update now; nothing of it is left. An `error` (`update.not_
 
 ## Server to client
 
-10 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
+11 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
 
 ### `hello`
 
@@ -511,6 +522,19 @@ The answer to `update_check`: what the version page said, or why it said nothing
 | `outcome` | "newer" \| "current" \| "no_answer" |  | `newer`: a newer version is out; `current`: this is the latest; `no_answer`: the page could not be reached or did not name a version |
 | `version` | string |  | the latest version for `newer`, this version for `current`; empty for `no_answer` |
 | `text` | string |  | for `no_answer` why, in a sentence; empty otherwise |
+
+### `radio_search`
+
+How `find_radio` goes, to the page that asked.
+
+| field | type | | description |
+|---|---|---|---|
+| `state` | "trying" \| "found" \| "cancelled" |  | `trying`: about to try `port` at `baud`; `found`: a TNC answered at `port` at `baud` and `profile` fits it, and the search is over; `cancelled`: `find_radio_cancel` ended it |
+| `port` | string |  | the port being tried or found; empty for `cancelled` |
+| `baud` | integer \| null |  | the speed; null for a port that has none (a Bluetooth device) and for `cancelled` |
+| `profile` | string |  | for `found`, the key of the TNC profile (`tnc/profile`); empty otherwise |
+| `number` | integer |  | the try that is under way, from 1; 0 for `found` and `cancelled` (>= 0) |
+| `total` | integer |  | how many tries there are if nothing answers; 0 for `found` and `cancelled` (>= 0) |
 
 ## Topics
 

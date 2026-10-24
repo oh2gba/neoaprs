@@ -1,13 +1,15 @@
 <script setup lang="ts">
-// The radio link at the top of the TNC group of the Settings tab: the state as a pill, one plain line (lib/tncstatus.ts: what it is connected to and when a packet last came, that it is searching for the radio with the ports it listens to behind "Ports", or why it is not connected;
-// the counters are its hover title), the problem when the line does not already say it, and Reconnect. "Terminal" is closed until it is wanted: the latest lines of what the TNC saw and did, newest last, in the viewer's time, following the end unless it was scrolled up.
+// The TNC group of the Settings tab: one line in view, the state of the radio link as a pill and plain words (lib/tncstatus.ts: what it is connected to and when a packet last came, that it is searching for the radio, or why it is not connected;
+// the counters are its hover title) with a small Reconnect at its end, and an arrow in front that opens what is behind it: the ports a search listens to, the problem when the line does not already say it, the fields of the radio (the
+// default slot) and "Terminal", which is closed until it is wanted: the latest lines of what the TNC saw and did, newest last, in the viewer's time, following the end unless it was scrolled up.
+// The fold is closed unless the radio is not connected (`open`, which opens it when it turns true later and never closes it). Before the daemon has told the state of the radio the fields are there without the line.
 import { computed, nextTick, ref, watch } from "vue";
 import DisclosureBox from "@/components/DisclosureBox.vue";
 import { t } from "@/i18n";
 import { lineText, searchedPorts, stateText, tncCounts, tncStatus } from "@/lib/tncstatus";
 import type { TncState } from "@/protocol/protocol";
 
-const props = withDefaults(defineProps<{ tnc: TncState | null; now: number; digipeater?: boolean }>(), { digipeater: false });
+const props = withDefaults(defineProps<{ tnc: TncState | null; now: number; digipeater?: boolean; open?: boolean }>(), { digipeater: false, open: false });
 const emit = defineEmits<{ reconnect: [] }>();
 
 const log = ref<HTMLElement | null>(null);
@@ -36,20 +38,22 @@ async function opened(): Promise<void> {
 </script>
 
 <template>
-  <div v-if="tnc" class="radiostatus">
-    <div class="radiostatus-head">
+  <DisclosureBox v-if="tnc" class="radiostatus" :title="status" :open="open" summary-class="radiohead">
+    <template #summary>
       <span class="statepill" :class="`tnc-${tnc.state}`">{{ stateText(tnc.state) }}</span>
-      <button class="btn" type="button" @click="emit('reconnect')">{{ t("settings.tnc.reconnect") }}</button>
-    </div>
-    <p class="tncstatus" role="status" :title="tncCounts(tnc)">{{ status }}</p>
+      <span class="tncstatus" role="status" :title="tncCounts(tnc)">{{ status }}</span>
+      <button class="btn small" type="button" @click.stop.prevent="emit('reconnect')">{{ t("settings.tnc.reconnect") }}</button>
+    </template>
     <DisclosureBox v-if="ports" :title="t('settings.tnc.ports')">
       <ul class="tncports mono">
         <li v-for="port in ports" :key="port">{{ port }}</li>
       </ul>
     </DisclosureBox>
     <p v-if="problem" class="problem" role="status">{{ problem }}</p>
+    <slot></slot>
     <DisclosureBox :title="t('settings.tnc.terminal')" @toggle="opened">
       <pre ref="log" class="tnclines" :aria-label="t('settings.tnc.terminal_label')">{{ lines.join("\n") }}</pre>
     </DisclosureBox>
-  </div>
+  </DisclosureBox>
+  <slot v-else></slot>
 </template>

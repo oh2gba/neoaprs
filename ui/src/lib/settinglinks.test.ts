@@ -59,6 +59,8 @@ describe("settinglinks", () => {
     expect(changeName(["station/lat", "station/lon"])).toBe("Position");
     expect(changeName(["station/lat"])).toBe("Latitude");
     expect(changeName(["tcp/port", "tcp/host"])).toBe("TCP address");
+    expect(changeName(["tnc/profile", "serial/port", "serial/baud"])).toBe("Radio");
+    expect(changeName(["serial/port", "serial/baud"])).toBe("TNC port");
     expect(changeName(["beacon/interval_min"])).toBe("Beacon interval");
     expect(changeName(["station/symbol_code"])).toBe("Symbol");
     expect(changeName(["nothing/known"])).toBe("nothing/known");
