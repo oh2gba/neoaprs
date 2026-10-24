@@ -23,6 +23,7 @@ export const objects: Readonly<Record<keyof typeof en, Message>> = {
   "objects.field.comment": "Commento",
   "objects.field.course": "Rotta",
   "objects.field.speed": "Velocità",
+  "objects.field.moving": "In movimento",
   "objects.field.path": "Percorso",
   "objects.unit.deg": "°",
   "objects.form.cancel": "Annulla",

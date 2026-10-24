@@ -334,6 +334,7 @@ export const de: Catalogue = {
   "objects.field.comment": "Kommentar",
   "objects.field.course": "Kurs",
   "objects.field.speed": "Geschwindigkeit",
+  "objects.field.moving": "In Bewegung",
   "objects.field.path": "Pfad",
   "objects.unit.deg": "Grad",
   "objects.form.cancel": "Abbrechen",

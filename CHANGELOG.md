@@ -53,6 +53,10 @@ The Settings tab's TNC group.
 - A card that was moved low and then grows (**Details** opened, a weather card's graphs loaded) moves up as far as it needs to be whole inside the map, and no further, and does not get a scroll bar for it; only a card taller than the map is put at its top and scrolls. Another card never moves for it.
 - The card's field **Hide from map after** is gone, with its words in all seven languages: every station leaves the map 180 minutes after its last position (a station past it is still dim in the Stations table). A timeout stored for a station has no effect any more, and is cleared once at the first start of this version (migration 17): one line in the log for each station with the old value, a row that held nothing else is deleted, and the path and RF only of the station are not touched. The commands `set_station_timeout` and `clear_station_timeout` and the field `hide_after_min` of `station_prefs` are gone from the protocol, and the daily clean-up no longer keeps a station for a timeout of "never".
 
+The Objects form.
+
+- **Course** and **speed** are behind a closed **Moving** heading, since most objects (a meeting point, a repeater) do not move. It opens by itself for an object that already has either; an empty fold means neither is sent.
+
 ## 0.7.0
 
 The page in seven languages, an update you can start from the page, a menu on the Stations list with APRS queries, messages that choose their own path, station cards you can move, and closer to the APRS standard.

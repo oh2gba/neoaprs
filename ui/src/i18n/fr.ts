@@ -322,6 +322,7 @@ export const fr: Catalogue = {
   "objects.field.comment": "Commentaire",
   "objects.field.course": "Cap",
   "objects.field.speed": "Vitesse",
+  "objects.field.moving": "En mouvement",
   "objects.field.path": "Chemin",
   "objects.unit.deg": "deg",
   "objects.form.cancel": "Annuler",

@@ -21,6 +21,7 @@ export const objects = {
   "objects.field.comment": "Comment",
   "objects.field.course": "Course",
   "objects.field.speed": "Speed",
+  "objects.field.moving": "Moving",
   "objects.field.path": "Path",
   "objects.unit.deg": "deg",
   "objects.form.cancel": "Cancel",

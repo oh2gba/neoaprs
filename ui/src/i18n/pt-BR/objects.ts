@@ -24,6 +24,7 @@ export const objects: Record<keyof typeof source, Message> = {
   "objects.field.comment": "Comentário",
   "objects.field.course": "Rumo",
   "objects.field.speed": "Velocidade",
+  "objects.field.moving": "Em movimento",
   "objects.field.path": "Caminho",
   "objects.unit.deg": "graus",
   "objects.form.cancel": "Cancelar",

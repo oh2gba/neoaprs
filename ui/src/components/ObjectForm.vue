@@ -1,9 +1,10 @@
 <script setup lang="ts">
 // The form of an object or an item of ours, in the Objects tab, in the box at the bottom of the tab (ComposeBar, as everywhere; its fields scroll on a short screen, the line with the counter, Cancel and Save does not): the name (that of an object that is being changed stays; a new one is always an object, an item of ours that is being changed stays an item), the symbol (a picture to change, as in the Beacon tab), the position (the row Location of the Beacon tab, components/LocationField.vue: **Choose on map**, a click on the map, or the
-// coordinates typed), the comment (the characters it has left are the counter beside the buttons), the course and speed, and the path the object goes by (the placeholder is the beacon's). A field with something wrong
+// coordinates typed), the comment (the characters it has left are the counter beside the buttons), the course and speed (behind a closed fold, Moving, which is open for an object that has either), and the path the object goes by (the placeholder is the beacon's). A field with something wrong
 // is red and its title says what. Save is on when there is a name, a place and a symbol and nothing is wrong; the daemon checks it all again.
 import { computed, useId } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
+import DisclosureBox from "@/components/DisclosureBox.vue";
 import LocationField from "@/components/LocationField.vue";
 import SymbolField from "@/components/SymbolField.vue";
 import { t } from "@/i18n";
@@ -24,6 +25,8 @@ const place = computed(() => {
   const lon = parseNumber(draft.lon);
   return lat !== null && lon !== null && onEarth(lat, lon) ? placeLine(lat, lon) : null;
 });
+/** The fold Moving (course and speed) is open while the draft has either: an object being changed that moves, or a value typed. */
+const moving = computed(() => draft.course.trim() !== "" || draft.speed.trim() !== "");
 const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
 </script>
 
@@ -72,20 +75,22 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
         <input :id="`${id}-comment`" v-model="draft.comment" class="input" type="text" autocomplete="off" />
       </div>
     </div>
-    <div class="field" :class="{ invalid: problems.course }" :title="problems.course">
-      <label :for="`${id}-course`">{{ t("objects.field.course") }}</label>
-      <div class="field-control">
-        <input :id="`${id}-course`" v-model="draft.course" class="input mono" type="text" inputmode="numeric" autocomplete="off" />
-        <span class="unit muted">{{ t("objects.unit.deg") }}</span>
+    <DisclosureBox :title="t('objects.field.moving')" :open="moving">
+      <div class="field" :class="{ invalid: problems.course }" :title="problems.course">
+        <label :for="`${id}-course`">{{ t("objects.field.course") }}</label>
+        <div class="field-control">
+          <input :id="`${id}-course`" v-model="draft.course" class="input mono" type="text" inputmode="numeric" autocomplete="off" />
+          <span class="unit muted">{{ t("objects.unit.deg") }}</span>
+        </div>
       </div>
-    </div>
-    <div class="field" :class="{ invalid: problems.speed }" :title="problems.speed">
-      <label :for="`${id}-speed`">{{ t("objects.field.speed") }}</label>
-      <div class="field-control">
-        <input :id="`${id}-speed`" v-model="draft.speed" class="input mono" type="text" inputmode="decimal" autocomplete="off" />
-        <span class="unit muted">km/h</span>
+      <div class="field" :class="{ invalid: problems.speed }" :title="problems.speed">
+        <label :for="`${id}-speed`">{{ t("objects.field.speed") }}</label>
+        <div class="field-control">
+          <input :id="`${id}-speed`" v-model="draft.speed" class="input mono" type="text" inputmode="decimal" autocomplete="off" />
+          <span class="unit muted">km/h</span>
+        </div>
       </div>
-    </div>
+    </DisclosureBox>
     <div class="field" :class="{ invalid: problems.path }" :title="problems.path">
       <label :for="`${id}-path`">{{ t("objects.field.path") }}</label>
       <div class="field-control">
