@@ -21,7 +21,6 @@ interface TimeTick {
 }
 
 const HOUR = 3_600_000;
-const MINUTE = 60_000;
 
 /** The function that maps a value of `domain` to a place in `range` (the range may run backwards: the y axis of a screen); a domain of no width maps everything to the middle. */
 export function linearScale(domain: readonly [number, number], range: readonly [number, number]): (v: number) => number {
@@ -84,56 +83,104 @@ export function usualGap(points: readonly Point[]): number {
   return gaps[Math.floor(gaps.length / 2)] ?? 0;
 }
 
-/** The longest silence that still joins two points of a line: three times the usual spacing, at least 20 minutes. */
-export function gapLimit(points: readonly Point[]): number {
-  return Math.max(3 * usualGap(points), 20 * MINUTE);
-}
-
 const num = (n: number): string => String(Math.round(n * 100) / 100);
 
-/** The runs of the points that have a value and are not further apart than `gap`: a station that went quiet leaves a break in the line, not a straight stretch. */
-function runs(points: readonly Point[], gap: number): { t: number; v: number }[][] {
-  const out: { t: number; v: number }[][] = [];
-  let current: { t: number; v: number }[] = [];
-  let last = -Infinity;
+/** A curve through the readings that have a value, in places of the screen: x strictly increasing, and the slope of the curve at each reading. */
+interface Curve {
+  xs: number[];
+  ys: number[];
+  slopes: number[];
+}
+
+/** The slope at an end of the readings from the secant `d0` of the segment there (width `h0`) and the one next to it (`d1`, `h1`; none when there are only two readings): a parabola's slope, held to the direction of `d0` and to three times it. */
+function endSlope(d0: number, h0: number, d1?: number, h1?: number): number {
+  if (d1 === undefined || h1 === undefined) return d0;
+  const raw = (d0 * (2 * h0 + h1) - d1 * h0) / (h0 + h1);
+  if (raw * d0 <= 0) return 0;
+  return Math.abs(raw) > 3 * Math.abs(d0) ? 3 * d0 : raw;
+}
+
+/** The monotone cubic through the readings (Fritsch-Carlson, the "monotoneX" of d3): the slope is 0 where the data turns or stays level, else the weighted harmonic mean of the two secants, so that between two readings the curve never goes above or below either of them. Readings at the same time: the later one counts. */
+function curveOf(points: readonly Point[], x: (t: number) => number, y: (v: number) => number): Curve {
+  const xs: number[] = [];
+  const ys: number[] = [];
   for (const p of points) {
-    if (p.v === null) {
-      current = [];
-      last = -Infinity;
+    if (p.v === null) continue;
+    const px = x(p.t);
+    if (xs.length > 0 && px <= (xs[xs.length - 1] ?? px)) {
+      ys[ys.length - 1] = y(p.v);
       continue;
     }
-    if (p.t - last > gap) {
-      current = [];
-      out.push(current);
-    }
-    current.push({ t: p.t, v: p.v });
-    last = p.t;
+    xs.push(px);
+    ys.push(y(p.v));
   }
-  return out.filter((r) => r.length > 0);
+  const n = xs.length;
+  const h = xs.slice(1).map((v, i) => v - (xs[i] ?? v));
+  const d = ys.slice(1).map((v, i) => (v - (ys[i] ?? v)) / (h[i] ?? 1));
+  const slopes = ys.map((_, i): number => {
+    if (i === 0 || i === n - 1) return 0;
+    const [d0, d1, h0, h1] = [d[i - 1] ?? 0, d[i] ?? 0, h[i - 1] ?? 1, h[i] ?? 1];
+    return d0 * d1 <= 0 ? 0 : (3 * (h0 + h1)) / ((2 * h1 + h0) / d0 + (h1 + 2 * h0) / d1);
+  });
+  if (n >= 2) {
+    slopes[0] = endSlope(d[0] ?? 0, h[0] ?? 1, d[1], h[1]);
+    slopes[n - 1] = endSlope(d[n - 2] ?? 0, h[n - 2] ?? 1, d[n - 3], h[n - 3]);
+  }
+  return { xs, ys, slopes };
 }
 
-/** The path of a line through the points; a run of one point is a dot of no length (a line cap draws it). */
-export function linePath(points: readonly Point[], x: (t: number) => number, y: (v: number) => number, gap: number): string {
-  return runs(points, gap)
-    .map((run) => run.map((p, i) => `${i === 0 ? "M" : "L"}${num(x(p.t))},${num(y(p.v))}`).join("") + (run.length === 1 ? "h0" : ""))
-    .join("");
+/** The curve's height at a place between its first and last reading. */
+function heightAt(c: Curve, at: number): number {
+  let i = 0;
+  while (i < c.xs.length - 2 && at > (c.xs[i + 1] ?? at)) i++;
+  const [x0, x1, y0, y1] = [c.xs[i] ?? 0, c.xs[i + 1] ?? 1, c.ys[i] ?? 0, c.ys[i + 1] ?? 0];
+  const h = x1 - x0;
+  const s = (at - x0) / h;
+  const [m0, m1] = [(c.slopes[i] ?? 0) * h, (c.slopes[i + 1] ?? 0) * h];
+  return (2 * s ** 3 - 3 * s ** 2 + 1) * y0 + (s ** 3 - 2 * s ** 2 + s) * m0 + (-2 * s ** 3 + 3 * s ** 2) * y1 + (s ** 3 - s ** 2) * m1;
 }
 
-/** The area between two series (the sustained wind and its gusts), closed paths, only where both have a value at the same time. */
-export function bandPath(lower: readonly Point[], upper: readonly Point[], x: (t: number) => number, y: (v: number) => number, gap: number): string {
-  const high = new Map(upper.filter((p) => p.v !== null).map((p) => [p.t, p.v as number]));
-  const both = lower.map((p): Point => ({ t: p.t, v: p.v !== null && high.has(p.t) ? p.v : null }));
-  return runs(both, gap)
-    .filter((run) => run.length > 1)
-    .map((run) => {
-      const top = run.map((p, i) => `${i === 0 ? "M" : "L"}${num(x(p.t))},${num(y(Math.max(p.v, high.get(p.t) ?? p.v)))}`).join("");
-      const bottom = [...run]
-        .reverse()
-        .map((p) => `L${num(x(p.t))},${num(y(Math.min(p.v, high.get(p.t) ?? p.v)))}`)
-        .join("");
-      return `${top}${bottom}Z`;
-    })
+/** The path of one smooth curve through the readings that have a value, across the times where there are none and from the first reading to the last, no further: a cubic Bezier for each stretch between two readings, whose control points lie at a third of its width, on the slopes of the monotone cubic. A single reading is a dot of no length (a line cap draws it). */
+export function linePath(points: readonly Point[], x: (t: number) => number, y: (v: number) => number): string {
+  const { xs, ys, slopes } = curveOf(points, x, y);
+  const first = xs[0];
+  if (first === undefined) return "";
+  if (xs.length === 1) return `M${num(first)},${num(ys[0] ?? 0)}h0`;
+  let path = `M${num(first)},${num(ys[0] ?? 0)}`;
+  for (let i = 1; i < xs.length; i++) {
+    const [x0, x1, y0, y1] = [xs[i - 1] ?? 0, xs[i] ?? 0, ys[i - 1] ?? 0, ys[i] ?? 0];
+    const third = (x1 - x0) / 3;
+    path += `C${num(x0 + third)},${num(y0 + (slopes[i - 1] ?? 0) * third)},${num(x1 - third)},${num(y1 - (slopes[i] ?? 0) * third)},${num(x1)},${num(y1)}`;
+  }
+  return path;
+}
+
+/** The area between two series (the sustained wind and its gusts) that follows their two curves, one closed path from the later of their first readings to the earlier of their last; the edge is taken in small steps of the curves, so that where they cross it stays between them. Nothing for a series with fewer than two readings or no time in common. */
+export function bandPath(lower: readonly Point[], upper: readonly Point[], x: (t: number) => number, y: (v: number) => number): string {
+  const [low, high] = [curveOf(lower, x, y), curveOf(upper, x, y)];
+  const [from, to] = [
+    Math.max(low.xs[0] ?? Infinity, high.xs[0] ?? Infinity),
+    Math.min(low.xs[low.xs.length - 1] ?? -Infinity, high.xs[high.xs.length - 1] ?? -Infinity),
+  ];
+  if (!(to > from)) return "";
+  const places = [...new Set([from, to, ...[...low.xs, ...high.xs].filter((v) => v > from && v < to)])].sort((a, b) => a - b);
+  const steps = places.flatMap((v, i) => {
+    const next = places[i + 1];
+    if (next === undefined) return [v];
+    const pieces = Math.max(1, Math.ceil((next - v) / 2));
+    return Array.from({ length: pieces }, (_, k) => v + ((next - v) * k) / pieces);
+  });
+  const edges = steps.map((v) => {
+    const a = heightAt(low, v);
+    const b = heightAt(high, v);
+    return { v, a: Math.min(a, b), b: Math.max(a, b) };
+  });
+  const top = edges.map((e, i) => `${i === 0 ? "M" : "L"}${num(e.v)},${num(e.a)}`).join("");
+  const bottom = [...edges]
+    .reverse()
+    .map((e) => `L${num(e.v)},${num(e.b)}`)
     .join("");
+  return `${top}${bottom}Z`;
 }
 
 interface Bar {
