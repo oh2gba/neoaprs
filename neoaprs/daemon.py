@@ -9,6 +9,7 @@ After Update now of an AppImage the process, once the daemon has ended, runs the
 """
 import argparse
 import asyncio
+import io
 import logging
 import logging.handlers
 import os
@@ -82,6 +83,8 @@ def setup_logging(data_dir: Path, debug: bool) -> None:
     file_handler.setFormatter(fmt)
     root.addHandler(file_handler)
     if sys.stderr is not None:                               # (a program without a console, pythonw or a windowed build, has none)
+        if not sys.stderr.isatty() and isinstance(sys.stderr, io.TextIOWrapper):
+            sys.stderr.reconfigure(encoding="utf-8", errors="backslashreplace")      # (a pipe, a file or the journal: UTF-8, so that a line with a character the system's code page has not, "14 → 12" on Windows, is not lost)
         err = logging.StreamHandler(sys.stderr)
         err.addFilter(_for_stderr)
         err.setFormatter(fmt)

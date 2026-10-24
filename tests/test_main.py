@@ -63,7 +63,7 @@ def environment() -> dict[str, str]:
 
 def start(data: Path, *extra: str) -> "subprocess.Popen[str]":
     port = () if "--port" in extra else ("--port", radio()[1])
-    return subprocess.Popen([sys.executable, "-m", "neoaprs", "--data", str(data), *port, "--web-port", "0", *extra], cwd=ROOT, env=environment(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, creationflags=NEW_GROUP)
+    return subprocess.Popen([sys.executable, "-m", "neoaprs", "--data", str(data), *port, "--web-port", "0", *extra], cwd=ROOT, env=environment(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace", creationflags=NEW_GROUP)
 
 
 PATIENCE_SEC = 120          # a daemon started or stopped on a machine that is busy with a whole test run takes its time: this is the longest a test waits for it, not how long it takes
@@ -158,7 +158,7 @@ def test_a_data_folder_that_is_there_already_is_made_private_too(tmp_path: Path)
 
 def test_the_data_folder_is_the_one_in_the_environment_when_none_is_given(tmp_path: Path) -> None:
     data = tmp_path / "from-the-environment"
-    proc = subprocess.Popen([sys.executable, "-m", "neoaprs", "--port", radio()[1], "--web-port", "0"], cwd=ROOT, env={**environment(), "NEOAPRS_DATA_DIR": str(data)}, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, creationflags=NEW_GROUP)
+    proc = subprocess.Popen([sys.executable, "-m", "neoaprs", "--port", radio()[1], "--web-port", "0"], cwd=ROOT, env={**environment(), "NEOAPRS_DATA_DIR": str(data)}, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace", creationflags=NEW_GROUP)
     wait_for(data / "neoaprs.log", f"{PROGRAM} is running", proc)
     stop(proc)
     ended(proc, data)

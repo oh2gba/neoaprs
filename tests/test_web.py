@@ -551,8 +551,12 @@ async def test_connections_are_capped_and_a_connection_over_the_cap_is_closed(tm
     held = [await asyncio.open_connection("127.0.0.1", e.port) for _ in range(3)]
     await idle_for(0.1)                                              # (the server has taken them in)
     reader, writer = await asyncio.open_connection("127.0.0.1", e.port)
-    writer.write(b"GET / HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n")
-    assert await asyncio.wait_for(reader.read(100), 5) == b"", "closed without an answer"
+    try:
+        writer.write(b"GET / HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n")
+        answer = await asyncio.wait_for(reader.read(100), 5)
+    except ConnectionResetError:                                      # (Windows may tell a connection the server closed as a reset)
+        answer = b""
+    assert answer == b"", "closed without an answer"
     assert any("too many connections" in r.getMessage() for r in caplog.records)
     writer.close()
     for _, w in held:
