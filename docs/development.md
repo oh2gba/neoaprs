@@ -304,14 +304,14 @@ The update the daemon does itself, on a click of the page only (the command `upd
 3. The file is written as `<name>.part` while its SHA-256 is computed, with the percent in the topic `update` and `update_cancel` seen between two pieces. A
    SHA-256 that is not the one `SHA256SUMS` gives deletes the file and installs nothing.
 4. The installer of the kind puts it in place: on Windows the installer runs silently and detached from the daemon (`installer_argv`: `/VERYSILENT
-   /SUPPRESSMSGBOXES /NORESTART /NOCLOSEAPPLICATIONS`, the log in `update/install.log` of the data folder, `/NEOAPRSRESTART=app` when the app holds its lock
-   of the data folder, else `daemon`, and `/NEOAPRSDATA`); `packaging/windows/neoaprs.iss` ends the app and the daemon of that folder before it replaces a
-   file and starts again what was running. An AppImage is made executable and renamed over the file it runs from (`$APPIMAGE`), the old one kept as `.old` (a
-   hard link, else a copy); the daemon writes `neoaprs.restarting` and `neoaprs.stop` into the data folder, ends, and the process runs the file again with
-   its arguments (`neoaprs/selfreplace.py`: `execv`, after the descriptors above stderr are closed, with `APPIMAGE_EXTRACT_AND_RUN=1` when `$APPDIR` is
-   no mount point, an AppImage started with `--appimage-extract-and-run`, whose runtime takes the flag away; a file that cannot start puts the old one back). The new
-   version deletes the note and the `.old` once it runs; the desktop app, which ends with its daemon, waits for it while the note is fresh. A folder the user
-   cannot write offers no Update now.
+   /SUPPRESSMSGBOXES /NORESTART /NOCLOSEAPPLICATIONS`, from `update/` of the data folder, where the installer of an earlier update is deleted first, the log in
+   `update/install.log`, `/NEOAPRSRESTART=app` when the app holds its lock of the data folder, else `daemon`, and `/NEOAPRSDATA`);
+   `packaging/windows/neoaprs.iss` ends the app and the daemon of that folder before it replaces a file and starts again what was running. An AppImage is made
+   executable and renamed over the file it runs from (`$APPIMAGE`), the old one kept as `.old` (a hard link, else a copy); the daemon writes
+   `neoaprs.restarting` and `neoaprs.stop` into the data folder, ends, and the process runs the file again with its arguments (`neoaprs/selfreplace.py`:
+   `execv`, after the descriptors above stderr are closed, with `APPIMAGE_EXTRACT_AND_RUN=1` when `$APPDIR` is no mount point, an AppImage started with
+   `--appimage-extract-and-run`, whose runtime takes the flag away; a file that cannot start puts the old one back). The new version deletes the note and the
+   `.old` once it runs; the desktop app, which ends with its daemon, waits for it while the note is fresh. A folder the user cannot write offers no Update now.
 5. Still running five minutes later, the update says it did not restart.
 
 The build provenance of the release's files (`gh attestation verify FILE --repo oh2gba/neoaprs`) is not checked, since it needs `gh`: it is a possible later
@@ -336,10 +336,10 @@ patch number plus one and `-e2e` (`0.6.8-e2e` for 0.6.7): on Windows a second Py
    `update_check` finds the new version, `update_now` names it, and the topic `update` is followed until the daemon closes the socket. It must reach
    `restarting` and never `error`, and the fake server must have been asked for `SHA256SUMS` and then the file.
 4. A daemon must come up by itself on the same page port and say the new version in its hello, connect to the same fake TNC (the settings came from the data
-   folder) and have at least the packets the old one had. On Windows the old daemon has ended with exit code 0, the installer's log (`update/install.log` of
-   the data folder) has the silent command line of Update now and `Installation process succeeded`, the installed `neoaprs.exe` and Windows' list of
-   programs say the new version. For the AppImage the same process goes on as the new version, the file in the same place is the new one (its SHA-256),
-   executable, and neither `.old` nor `.part` is left beside it.
+   folder) and have at least the packets the old one had. On Windows the old daemon has ended with exit code 0, the installer's log (`update/install.log` of the
+   data folder) has the silent command line of Update now and `Installation process succeeded`, the installed `neoaprs.exe` and Windows' list of programs say
+   the new version, and `update/` holds that installer and its log alone (an earlier installer the test put there is gone). For the AppImage the same process
+   goes on as the new version, the file in the same place is the new one (its SHA-256), executable, and neither `.old` nor `.part` is left beside it.
 5. After a stop, the log has the start and the end of the old version and then of the new one and ends with `NeoAPRS ended`, every setting is still there,
    and nothing else changed: on Windows the Run key, the Start menu entries, the desktop and `%LOCALAPPDATA%\NeoAPRS`, and no program of NeoAPRS or
    installer is left running; for the AppImage the home folder and the folder of the file.

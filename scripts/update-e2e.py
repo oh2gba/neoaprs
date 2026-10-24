@@ -12,7 +12,7 @@ from the loopback; nothing leaves the loopback and no radio or serial device is 
            itself on the same data folder, says B in its hello, connects to the same fake TNC on the same page port (the settings are read from the data folder), and keeps the packets; the settings are
            still there after it is stopped; the log has A's start, A's end and B's start, and ends with `NeoAPRS ended`
   windows  the installer of B ran silently (its log in `update/` of the data folder: the command line of Update now, `Installation process succeeded`), A's daemon ended with exit code 0, the installed
-           neoaprs.exe is B, Windows' list of programs says B, and the update changed nothing else: the start at sign-in, the Start menu entries, the desktop, the default data folder; no NeoAPRS program
+           neoaprs.exe is B, Windows' list of programs says B, `update/` holds B's installer and its log alone (an earlier one planted there is deleted), and the update changed nothing else: the start at sign-in, the Start menu entries, the desktop, the default data folder; no NeoAPRS program
            or installer is left running at the end
   appimage the file in the same place is now B (its SHA-256), executable, no `.old` or `.part` is left beside it once B runs, the same process (the test's child) went on as B, and nothing was written to
            the home folder; with --extract-and-run the file is started the way a system without FUSE starts it
@@ -239,6 +239,7 @@ class Install:
         self.work, self.old, self.new = work, old, new
 
     def put_old(self) -> None: ...
+    def before_update(self, data: Path) -> None: ...
     def command(self) -> list[str]: return []
     def start(self, data: Path, env: dict[str, str]) -> subprocess.Popen[bytes]: raise NotImplementedError
     def check_hello(self, hello: dict[str, Any]) -> None: ...
@@ -281,6 +282,10 @@ class WindowsInstall(Install):
 
     def command(self) -> list[str]:
         return [str(self.app / "neoaprs.exe")]
+
+    def before_update(self, data: Path) -> None:
+        (data / "update").mkdir(parents=True, exist_ok=True)
+        (data / "update" / "NeoAPRS-Setup-0.0.1.exe").write_bytes(b"MZ the installer of an earlier update")     # (which this update deletes)
 
     def start(self, data: Path, env: dict[str, str]) -> subprocess.Popen[bytes]:
         # what the Start menu's app or the start at sign-in starts on its own: the daemon with no console, on the data folder (the update starts it again the same way: packaging/windows/neoaprs.iss)
@@ -334,6 +339,8 @@ class WindowsInstall(Install):
                 raise Failure(f"the installer of the update was not run with {flag}: {command.strip()!r}")
         if "Installation process succeeded" not in text:
             raise Failure(f"the installer's log does not say 'Installation process succeeded' ({log})")
+        if (kept := sorted(p.name for p in log.parent.iterdir())) != sorted([f"NeoAPRS-Setup-{new_version}.exe", "install.log"]):
+            raise Failure(f"update/ of the data folder holds {kept}: the installer of the earlier update was not deleted, or something else is left")
         say(f"the installer ran silently: {command.split('Setup command line:', 1)[1].strip()}")
         version = self.run("--version").stdout.strip()
         if version != f"NeoAPRS {new_version}":
@@ -513,6 +520,7 @@ def run(args: argparse.Namespace) -> None:
             done = install.run("db", "--data", str(data), "set", key, value)
             if done.returncode != 0:
                 raise Failure(f"db set {key}: {done.stdout.strip()} {done.stderr.strip()}")
+        install.before_update(data)
         before = install.outside()
         daemon = install.start(data, daemon_env(release))
         packets = asyncio.run(update(install, data, web_port, old_version, new_version, release, daemon))

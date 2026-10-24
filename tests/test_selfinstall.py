@@ -28,9 +28,12 @@ def test_the_windows_installer_is_moved_out_of_its_part_file_and_started_for_the
     setup.folder.mkdir()
     part = setup.folder / "NeoAPRS-Setup-0.7.0.exe.part"
     part.write_bytes(b"MZ")
+    (setup.folder / "NeoAPRS-Setup-0.6.9.exe").write_bytes(b"MZ earlier")          # (the installer of the update before)
+    (setup.folder / "install.log").write_text("the log of the update before")
     setup.install(part, "NeoAPRS-Setup-0.7.0.exe", "0.7.0")
     installer = tmp_path / "update" / "NeoAPRS-Setup-0.7.0.exe"
     assert installer.read_bytes() == b"MZ" and not part.exists()
+    assert sorted(p.name for p in setup.folder.iterdir()) == ["NeoAPRS-Setup-0.7.0.exe", "install.log"]
     assert started == [installer_argv(installer, tmp_path, "app", tmp_path / "update" / "install.log")]
     assert WindowsSetup(tmp_path, started.append, app_running=lambda data: False).command(installer)[-2] == "/NEOAPRSRESTART=daemon"
     assert setup.blocked() == ""

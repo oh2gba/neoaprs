@@ -1,6 +1,6 @@
 """How Update now puts a file of the release in place once its SHA-256 has been checked (neoaprs/services/selfupdate.py does the download and the check), for the kinds where the daemon can do it itself:
 
-    windows-installer   the installer is run silently and detached from the daemon (`installer_argv`). Like any update over a running NeoAPRS it ends the app and the daemon first; its `[Run]` entries for a silent update
+    windows-installer   the installer is run silently and detached from the daemon (`installer_argv`), from `update/` of the data folder, where the installer of an earlier update is deleted first. Like any update over a running NeoAPRS it ends the app and the daemon first; its `[Run]` entries for a silent update
                         start again what was running (the app when one held the data folder, else the daemon alone) on the same data folder (packaging/windows/neoaprs.iss)
     appimage            the new file is made executable and renamed over the file this runs from, the old one kept beside it as `<file>.old` (a hard link, else a copy) until the new version has started; then the
                         daemon ends and starts the file again with the arguments it had (neoaprs/selfreplace.py, after the daemon has let go of everything; the process stays the same, so a service manager sees no end)
@@ -82,12 +82,22 @@ class WindowsSetup:
     def blocked(self) -> str:
         return ""
 
+    def remove_earlier(self, name: str) -> None:
+        """The installers of earlier updates go (each is some 50 MB); the one of this update stays beside its log until the next."""
+        for earlier in self._folder.glob("NeoAPRS-Setup-*.exe"):
+            if earlier.name != name:
+                try:
+                    earlier.unlink()
+                except OSError as e:
+                    log.warning("Update now: the installer of an earlier update, %s, could not be deleted: %s", earlier, e)
+
     def command(self, installer: Path) -> list[str]:
         restart: Literal["app", "daemon"] = "app" if self._app_running(self.data_dir) else "daemon"
         return installer_argv(installer, self.data_dir, restart, self._folder / "install.log")
 
     def install(self, file: Path, name: str, version: str) -> None:
         installer = self._folder / name
+        self.remove_earlier(name)
         try:
             os.replace(file, installer)
             argv = self.command(installer)
