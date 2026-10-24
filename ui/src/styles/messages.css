@@ -234,6 +234,12 @@
   gap: 2px 6px;
   font-size: 11px;
 }
+/* the trash can of a message that is no longer being sent: the compact size of Retry beside it */
+.bubble-meta .bubble-delete {
+  min-width: var(--control-h-small);
+  min-height: var(--control-h-small);
+  padding: 0 2px;
+}
 .bubble-route {
   font-size: 11px;
   text-align: right;
