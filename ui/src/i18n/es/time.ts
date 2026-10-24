@@ -8,7 +8,6 @@ export const time: Readonly<Record<keyof typeof en, Message>> = {
   "time.span.d": "{n} d",
   "time.ago": "hace {span}",
   "time.in": "en {span}",
-  "time.up": "activo desde hace {span}",
   "time.now": "ahora",
   "time.nothing_heard": "nada escuchado",
   "time.nothing_heard_since": "nada escuchado desde {time} ({span})",

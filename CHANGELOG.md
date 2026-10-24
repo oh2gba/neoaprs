@@ -6,6 +6,10 @@ The Stations list.
 
 - The tickbox **with position only** is gone: the stations without a position show as they do with it off.
 
+The footer.
+
+- The hover text of the version is a sentence in the page's language, "NeoAPRS uses 0.3 % of one processor core and 56 MB of memory, running for 3 h", not "0.3 % · 56 MB · up 3 h".
+
 The log.
 
 - The lines of the database migrations (for the upgrade that put the settings that are not on the page back to their defaults: one line for each, with the value it had) are on stderr too, so that `journalctl --user -u neoaprs` has them, not only `neoaprs.log`. `neoaprs db set` on a database of an older version says them on its stderr. Their logger is `neoaprs.migrations`.

@@ -31,14 +31,10 @@ export function ageText(iso: string | null, nowMs: number): string {
   return Number.isNaN(then) ? NONE : spanText(Math.max(0, nowMs - then));
 }
 
-/** What the daemon costs the machine, short: "0.3 % · 42 MB" (the share of one core, the resident memory). */
-export function processTextShort(cpuPercent: number, rssMb: number | null): string {
-  return `${formatNumber(cpuPercent, 1)} % · ${rssMb === null ? NONE : Math.round(rssMb)} MB`;
-}
-
-/** The same with the time since it started, for a tooltip: "0.3 % · 42 MB · up 3 h". */
+/** What the daemon costs the machine, in a sentence of the page's language, for a tooltip: "NeoAPRS uses 0.3 % of one processor core and 42 MB of memory, running for 3 h" (without the memory when it is not known). */
 export function processText(cpuPercent: number, rssMb: number | null, uptimeSec: number): string {
-  return `${processTextShort(cpuPercent, rssMb)} · ${t("time.up", { span: spanText(Math.max(0, uptimeSec) * SECOND) })}`;
+  const values = { cpu: formatNumber(cpuPercent, 1), span: spanText(Math.max(0, uptimeSec) * SECOND) };
+  return rssMb === null ? t("footer.cost_no_memory", values) : t("footer.cost", { ...values, mb: formatNumber(Math.round(rssMb), 0) });
 }
 
 /** How long until: "in 12 s", "in 3 min", "in 5 h", "in 2 d"; "now" for a time that has come. */

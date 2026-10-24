@@ -32,7 +32,8 @@ export const shell: Record<keyof typeof source, Message> = {
   "panel.hide": "パネルを隠す",
   "panel.show_unseen": "パネルを表示、{unseen}",
 
-  "footer.cost_title": "NeoAPRSの使用量: {cost}",
+  "footer.cost": "NeoAPRSはプロセッサコア1つの{cpu} %と{mb} MBのメモリを使用しています。稼働時間: {span}",
+  "footer.cost_no_memory": "NeoAPRSはプロセッサコア1つの{cpu} %を使用しています。稼働時間: {span}",
   "footer.update": "{version}に更新",
   "footer.offline": "デーモンに接続できません",
   "footer.connecting": "接続中…",

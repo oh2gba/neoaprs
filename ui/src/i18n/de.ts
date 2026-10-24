@@ -34,7 +34,8 @@ export const de: Catalogue = {
   "panel.hide": "Bereich ausblenden",
   "panel.show_unseen": "Bereich einblenden, {unseen}",
 
-  "footer.cost_title": "NeoAPRS verbraucht {cost}",
+  "footer.cost": "NeoAPRS belegt {cpu} % eines Prozessorkerns und {mb} MB Arbeitsspeicher, in Betrieb seit {span}",
+  "footer.cost_no_memory": "NeoAPRS belegt {cpu} % eines Prozessorkerns, in Betrieb seit {span}",
   "footer.update": "Update auf {version}",
   "footer.offline": "Daemon offline",
   "footer.connecting": "Verbinde…",
@@ -55,7 +56,6 @@ export const de: Catalogue = {
   "time.span.d": "{n} d",
   "time.ago": "vor {span}",
   "time.in": "in {span}",
-  "time.up": "seit {span} in Betrieb",
   "time.now": "jetzt",
   "time.nothing_heard": "nichts gehört",
   "time.nothing_heard_since": "nichts gehört seit {time} ({span})",

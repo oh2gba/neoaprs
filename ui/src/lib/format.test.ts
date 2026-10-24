@@ -13,7 +13,6 @@ import {
   pathText,
   positionText,
   processText,
-  processTextShort,
   silentText,
   speedText,
   untilText,
@@ -105,22 +104,17 @@ describe("times", () => {
   });
 });
 
-describe("processTextShort", () => {
-  it("says the share and the memory only", () => {
-    expect(processTextShort(0.3, 42.4)).toBe("0.3 % · 42 MB");
-    expect(processTextShort(12, 100.6)).toBe("12.0 % · 101 MB");
-  });
-});
-
 describe("processText", () => {
-  it("says the share, the memory and the time up, in the units of the page", () => {
-    expect(processText(0.3, 42.4, 3 * 3600 + 120)).toBe("0.3 % · 42 MB · up 3 h");
-    expect(processText(12, 100.6, 45)).toBe("12.0 % · 101 MB · up 45 s");
-    expect(processText(0, 9, 90)).toBe("0.0 % · 9 MB · up 1 min");
-    expect(processText(1.25, 9, 3 * 86400)).toBe("1.3 % · 9 MB · up 3 d");
+  it("says in a sentence the share of a core, the memory and the time up, in the units of the page", () => {
+    expect(processText(0.3, 42.4, 3 * 3600 + 120)).toBe("NeoAPRS uses 0.3 % of one processor core and 42 MB of memory, running for 3 h");
+    expect(processText(12, 100.6, 45)).toBe("NeoAPRS uses 12.0 % of one processor core and 101 MB of memory, running for 45 s");
+    expect(processText(1.25, 9, 3 * 86400)).toBe("NeoAPRS uses 1.3 % of one processor core and 9 MB of memory, running for 3 d");
   });
   it("does not count a negative time up", () => {
-    expect(processText(0, 9, -5)).toBe("0.0 % · 9 MB · up 0 s");
+    expect(processText(0, 9, -5)).toBe("NeoAPRS uses 0.0 % of one processor core and 9 MB of memory, running for 0 s");
+  });
+  it("leaves the memory out when it is not known", () => {
+    expect(processText(0.3, null, 90)).toBe("NeoAPRS uses 0.3 % of one processor core, running for 1 min");
   });
 });
 
@@ -132,5 +126,20 @@ describe("the numbers and words of another language", () => {
     expect(bytesText(1536)).toBe("1,5 kB");
     expect(agoWords(ago(120), NOW)).toBe("vor 2 min");
     expect(ageText(ago(7200), NOW)).toBe("2 h");
+    expect(processText(0.3, 56.4, 3 * 3600)).toBe("NeoAPRS belegt 0,3 % eines Prozessorkerns und 56 MB Arbeitsspeicher, in Betrieb seit 3 h");
+  });
+  it("says the sentence in every language, with the number written as the language writes it", () => {
+    const said: Record<string, string> = {
+      fr: "NeoAPRS utilise 0,3 % d'un cœur de processeur et 56 MB de mémoire, en marche depuis 3 h",
+      es: "NeoAPRS usa el 0,3 % de un núcleo del procesador y 56 MB de memoria, y lleva 3 h en marcha",
+      it: "NeoAPRS usa il 0,3 % di un core del processore e 56 MB di memoria, in funzione da 3 h",
+      ja: "NeoAPRSはプロセッサコア1つの0.3 %と56 MBのメモリを使用しています。稼働時間: 3時間",
+      "pt-BR": "O NeoAPRS usa 0,3 % de um núcleo do processador e 56 MB de memória, em execução há 3 h",
+    };
+    for (const [language, text] of Object.entries(said)) {
+      setLocale(language);
+      expect(processText(0.3, 56.4, 3 * 3600)).toBe(text);
+      expect(processText(0.3, null, 3 * 3600)).not.toContain("MB");
+    }
   });
 });
