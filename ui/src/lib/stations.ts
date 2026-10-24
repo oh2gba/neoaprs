@@ -111,11 +111,7 @@ function matches(row: StationRow, needle: string): boolean {
 export function listStations(rows: Iterable<StationRow>, options: ListOptions): StationRow[] {
   const needle = options.filter.trim().toLowerCase();
   const gone = options.hideTimedOut === true && options.timedOut ? options.timedOut : () => false;
-  const kept = [...rows].filter(
-    (r) =>
-      r.is_me ||
-      ((options.directOnly !== true || r.last_direct_at !== null) && !gone(r) && matches(r, needle)),
-  );
+  const kept = [...rows].filter((r) => r.is_me || ((options.directOnly !== true || r.last_direct_at !== null) && !gone(r) && matches(r, needle)));
   const { key, dir } = options.sort;
   const out = options.timedOut ?? (() => false); // a station past its timeout sorts after the live ones, whatever the column
   return kept.sort(
