@@ -129,8 +129,10 @@ empty command is an `error`.
 `error`.
 
 **Queries** (`neoaprs/services/queries.py`). `GENERAL_DELAY_MAX_SEC` (120), `GENERAL_EVERY_SEC` (600), `ANSWER_AGAIN_SEC` (30), `DIRECT_WINDOW` (one hour),
-`MAX_DIRECT_MESSAGES` (2). For `?APRSD` the stations are those of the station book (not us, not objects), and "heard direct" is a packet with no repeated
-digipeater that was not a third-party packet.
+`MAX_DIRECT_MESSAGES` (2), `ANSWER_FRAMES_MAX` (5). For `?APRSD` the stations are those of the station book (not us, not objects), and "heard direct" is a packet with no repeated
+digipeater that was not a third-party packet. `?APRSO` sends each live object and item of ours once as it is now, `?APRSM` each message of ours to the asker that no
+ack has settled (`sending`, `failed`, `unconfirmed`) once more with its number, at most `ANSWER_FRAMES_MAX` of either; the first frame goes at once and the rest
+`SPACING_SEC` (10 s) apart. The messages' records do not change.
 
 **The path of an attempt.** `Messaging` asks `PrefBook.path_for(call, attempt)` each time it sends an attempt of a message that has an id (the attempt is
 `record.attempts + 1`); acks and answers ask with no attempt. The path is, in order: the station's own path (`station_pref`), else for attempts up to

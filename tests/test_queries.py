@@ -9,9 +9,12 @@ from neoaprs import ax25
 from neoaprs.aprsmessage import MAX_TEXT, parse_message
 from neoaprs.packet import Message, Other, Packet, Status
 from neoaprs.services.beacon import Beacon
-from neoaprs.services.queries import GENERAL_DELAY_MAX_SEC, GENERAL_EVERY_SEC, Queries, directs_messages, path_text
+from neoaprs.message import MessageRecord
+from neoaprs.ownobject import make_object
+from neoaprs.services.queries import ANSWER_FRAMES_MAX, GENERAL_DELAY_MAX_SEC, GENERAL_EVERY_SEC, Queries, directs_messages, path_text
 from neoaprs.source import Source
 from neoaprs.stationbook import StationBook
+from tests.support.clock import FixedClock
 from tests.support.rig import ServiceRig
 from tests.support.env import idle_for, remember_stop, until
 
@@ -306,3 +309,56 @@ async def test_a_general_query_heard_while_the_tnc_is_away_gives_no_answer_when_
     rig.tnc.state = Source.State.WAITING
     await idle_for(0.1)
     assert rig.tnc.sent == []
+
+
+# ---- ?APRSO and ?APRSM: several frames, one at a time ---------------------------------------------------------------------------------------------
+
+class Held:
+    """A service that holds records (our objects, our messages), for the queries to read."""
+    def __init__(self, records: list[object]) -> None:
+        self.held = records
+
+    def records(self) -> list[object]:
+        return self.held
+
+
+def paced_rig(objects: tuple[object, ...] = (), messages: tuple[object, ...] = ()) -> Rig:
+    rig = Rig()
+    rig.q = Queries(rig.tnc, lambda: rig.config, rig.beacon, lambda: None, rig.book, lambda call: rig.config.beacon_path_calls, rig.clock,
+                    objects=Held(list(objects)), messages=Held(list(messages)), spacing_sec=0.05)                     # type: ignore[arg-type]
+    remember_stop(rig.q.stop)
+    return rig
+
+
+async def test_aprso_is_answered_with_each_live_object_and_item_once_one_at_a_time_and_at_most_five() -> None:
+    now = FixedClock()()
+    live = [make_object(now, f"OBJ{n}", "object", 60.0 + n / 100, 24.0, "/", ">") for n in range(6)]
+    item = make_object(now, "AID", "item", 60.5, 24.5, "\\", "+")
+    rig = paced_rig((live[0].killed(now), item, *live))
+    rig.ask("OH2RDG", "?APRSO")
+    assert len(rig.tnc.sent) == 1, "the first goes at once, the rest are paced"
+    await until(lambda: len(rig.tnc.sent) == ANSWER_FRAMES_MAX)
+    await idle_for(0.2)
+    infos = [f.info for f in rig.tnc.sent]
+    assert len(infos) == ANSWER_FRAMES_MAX and infos[0].startswith(b")AID!") and all(i.startswith(b";OBJ") and i[10:11] == b"*" for i in infos[1:]), "a killed object is not sent"
+    assert {f.path_text for f in rig.tnc.sent} == {"WIDE1-1,WIDE2-1"}
+    rig.ask("OH2RDG", "?APRSO")
+    await idle_for(0.1)
+    assert len(rig.tnc.sent) == ANSWER_FRAMES_MAX, "the same query again at once is answered once"
+
+
+async def test_aprsm_sends_again_our_messages_to_the_asker_that_no_ack_settled_and_changes_nothing() -> None:
+    at = FixedClock()()
+    rows = [("OH2RDG", "one", "01", "sending"), ("OH2RDG", "two", "02", "acked"), ("OH2RDG", "three", "03", "failed"), ("OH2XYZ", "other", "04", "sending"),
+            ("OH2RDG", "four", "05", "unconfirmed"), ("OH2RDG", "?APRSP", None, "unconfirmed"), ("OH2RDG", "five", "06", "rejected")]
+    messages = [MessageRecord(n, at, "out", "OH2GBA", to, text, ident, state) for n, (to, text, ident, state) in enumerate(rows, start=1)]       # type: ignore[arg-type]
+    messages.append(MessageRecord(9, at, "in", "OH2RDG", "OH2GBA", "theirs", "07", "received"))
+    rig = paced_rig(messages=tuple(messages))
+    rig.ask("OH2RDG", "?APRSM")
+    await until(lambda: len(rig.tnc.sent) == 3)
+    await idle_for(0.2)
+    assert [rig.message_of(f) for f in rig.tnc.sent] == [("OH2RDG", "one", "01"), ("OH2RDG", "three", "03"), ("OH2RDG", "four", "05")]
+    assert rig.tnc.sent[0].info == b":OH2RDG   :one{01}" and [m.state for m in messages] == ["sending", "acked", "failed", "sending", "unconfirmed", "unconfirmed", "rejected", "received"]
+    rig.ask("OH2NEW", "?APRSM")
+    await idle_for(0.1)
+    assert len(rig.tnc.sent) == 3, "nothing is owed to a station we never wrote to: no answer"

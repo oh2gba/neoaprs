@@ -89,7 +89,7 @@ What each layer is for:
   * Our own objects and bulletins (`services/ownobjects.py` and `services/ownbulletins.py`): made, changed and killed or posted and deleted by the operator,
     kept in the database and sent on the specification's schedules. Both are `services/repeater.py`'s ticker and send through `services/sender.py`, which holds
     back everything while the call is not set or the radio is not usable and puts a pause between two frames of ours.
-  * The queries (`services/queries.py`): the answers to `?APRSP`, `?APRSS`, `?APRSD`, `?APRST`, `?PING?` and `?APRS?`, through the beacon's frames, by the asker's path.
+  * The queries (`services/queries.py`): the answers to `?APRSP`, `?APRSS`, `?APRSD`, `?APRST`, `?PING?`, `?APRSO`, `?APRSM` and `?APRS?`, through the beacon's frames, our objects and our messages, by the asker's path.
   * The fill-in digipeater (`services/digipeater.py`): a packet whose first unused hop is `WIDE1-1` or our call is sent again with our call as a used hop, when `digi/enabled` is on.
   * The preferences of the stations (`services/prefbook.py`): the path, the timeout and RF only of each station, which messaging is given as its `paths`.
   * What the services that send share (`services/common.py`): the `Radio` they need of the Tnc, `ConfigSource` and `our_frame`, our frame to the tocall.

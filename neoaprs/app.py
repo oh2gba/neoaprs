@@ -76,7 +76,8 @@ class Services:
         self.ownobjects = OwnObjects(self.sender, lambda: self.config, self.ownlog, self._is_station, clock)       # the objects and items of ours, on the decay schedule of the specification; started by the controller after the beacon
         self.ownbulletins = OwnBulletins(self.sender, lambda: self.config, self.ownlog, clock)       # the bulletins and announcements of ours, on their schedule; started by the controller after the beacon
         self.messaging = Messaging(self.tnc, lambda: self.config, self.messagelog, self.prefbook.path_for, clock, board=self.bulletins.heard, alert=self.alerts.alert)       # messages with acks and retries, by each station's path; started by the controller after the beacon
-        self.queries = Queries(self.tnc, lambda: self.config, self.beacon, self.rigstatus.status_frame, self.stationbook, self.prefbook.path_for, clock)       # the answers to ?APRSP, ?APRSS, ?APRSD, ?APRST, ?PING? and ?APRS?, by the asker's path
+        self.queries = Queries(self.tnc, lambda: self.config, self.beacon, self.rigstatus.status_frame, self.stationbook, self.prefbook.path_for, clock, objects=self.ownobjects,
+                               messages=self.messaging)       # the answers to ?APRSP, ?APRSS, ?APRSD, ?APRST, ?PING?, ?APRSO, ?APRSM and ?APRS?, by the asker's path
         self.mapfetch = MapFetch(data_dir, lambda: self.config, clock)  # the base map: the detailed map round our position and the world map under it, made on request from the page; nothing to start
         self.install = install                                           # how this copy was installed, for the page (the steps of an update)
         self.updatecheck = UpdateCheck(lambda: self.config, VERSION, platform_name(sys.platform, platform.machine(), install.kind == "appimage"), fetch_update)   # once a day: which version is the latest (update/check); started by the controller

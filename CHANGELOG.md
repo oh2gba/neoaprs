@@ -48,6 +48,7 @@ Closer to the APRS standard.
 - Telemetry in the forms of APRS 1.2 is read: `T#MIC` without a comma, signed values with a decimal point, fewer than five values or eight bits, and the compact base-91 telemetry `|ss11|` at the end of a position's comment (which no longer shows in the comment).
 - The `!DAO!` precision extension (TH-D74 and TH-D75, APRSdroid) is read: the position is finer and the `!W12!` no longer shows in the comment.
 - The answer to `?APRST` and `?PING?` is the header as the specification's example writes it, `OH2RDG>APZNEO,WIDE1*,OH2RCH-2*:`, without `Path=` in front.
+- The queries `?APRSO` (your objects and items) and `?APRSM` (your messages to the asker that are not acked) are answered, at most 5 frames, 10 seconds apart.
 - The manual and the (i) of the Beacon tab say what PHG means: the antenna height above the average terrain around it, the gain in dBi.
 
 ## 0.6.7
