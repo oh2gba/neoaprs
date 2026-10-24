@@ -66,7 +66,7 @@ async def test_a_port_that_goes_away_ends_the_recording_with_exit_1_and_keeps_wh
     recording = asyncio.ensure_future(capturecmd.record(radio.url, 9600, 30.0, str(out)))
     await radio.connected()
     radio.feed(frame_bytes())
-    await until(lambda: out.exists() and out.stat().st_size >= len(frame_bytes()))
+    await until(lambda: out.exists() and out.stat().st_size >= len(frame_bytes()), 10)   # (a busy Windows runner can be slow)
     radio.drop()
     assert await asyncio.wait_for(recording, 10) == 1
     assert out.read_bytes() == frame_bytes()

@@ -328,11 +328,11 @@ async def test_if_the_certificates_cannot_be_made_the_plain_page_goes_on_and_the
 
 
 @pytest.mark.expects_errors
-async def test_if_no_port_after_the_plain_one_is_free_the_plain_page_goes_on_and_the_page_is_told_why(tmp_path: Path) -> None:
+async def test_if_no_port_after_the_plain_one_is_free_the_plain_page_goes_on_and_the_page_is_told_why(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     e = await served(tmp_path, {"web/network": "true", "web/key": KEY})
     held: list[socket.socket] = []
     try:
-        for port in range(e.port + 1, e.port + 1 + secureside.PORT_TRIES):          # (one that cannot be taken is taken already, which is as good)
+        for port in range(e.port + 1, e.port + 1 + secureside.PORT_TRIES):          # (one that cannot be taken here is skipped: another test may free it meanwhile)
             blocker = socket.socket()
             blocker.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)          # (as Tornado binds: a port that only has connections on it is free)
             try:
@@ -342,6 +342,8 @@ async def test_if_no_port_after_the_plain_one_is_free_the_plain_page_goes_on_and
                 blocker.close()
                 continue
             held.append(blocker)
+        assert held, "no port after the plain one to hold"
+        monkeypatch.setattr(secureside, "ports_after", lambda plain: [b.getsockname()[1] for b in held])
         page = await e.ws()
         await page.until(lambda: "config" in page.topics)
         await page.send({"cmd": "set_config", "values": {"web/https": "true"}})
