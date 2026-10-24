@@ -160,7 +160,8 @@ the one kept).
 
 **Third-party packets** (`neoaprs/aprsthirdparty.py`). One level only: a wrapper inside a wrapper, or one whose header is not a header, stays "third-party" and
 is not read. The packet keeps the gate as its `source` and the path it was heard by; `raw` and `info` are untouched, `decoded` is what the packet inside says,
-read as from its inner source to its inner destination (which Mic-E needs), and `third_party` holds the inner header. The summary ends "via OH7JHF-1
+read as from its inner source to its inner destination (which Mic-E needs), and `third_party` holds the inner header. The inner source and destination are calls or names APRS-IS allows (1 to 9 letters, digits
+and hyphens: `OH2XYZ-L`, `OH2XYZ-20`, `WINLINK`; `callsign.normal_name`, upper case); messaging, the station book and the station's settings take such a name as the station, and a message to it is sent like one to a call. The summary ends "via OH7JHF-1
 (third-party)". The gate counts as `heard_gated` and never for `suggested_path`.
 
 ## Objects and bulletins of our own

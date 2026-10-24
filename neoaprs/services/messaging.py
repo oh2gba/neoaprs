@@ -1,6 +1,6 @@
 """Messaging: APRS text messages to and from other stations, with acknowledgements and retries, kept in the database.
 
-Outgoing (`send`): the addressee and the text (printable ASCII) are checked, the message is given the next message id (two characters: 01..99, then A0..ZZ, 0A..9Z and 00, 1296 in all, going round and skipping those of messages still being
+Outgoing (`send`): the addressee (a call, or the name of a station on the internet: callsign.normal_name) and the text (printable ASCII) are checked, the message is given the next message id (two characters: 01..99, then A0..ZZ, 0A..9Z and 00, 1296 in all, going round and skipping those of messages still being
 sent) and kept with state "sending", and it is transmitted at once: a UI frame from `station/call` to the tocall by way of the station's path (below) whose information field is `:` and the message
 (aprsmessage.format_message). Every message carries its number as a reply-ack, `{MM}` or, when the station has sent us a message with a reply-ack number that its ack has not reached it with, `{MM}AA`, the
 id of the latest such message (services/heard.py); an attempt is made as it is, so a retry carries the latest. The attempts
@@ -33,10 +33,10 @@ from datetime import datetime, timedelta
 from neoaprs import ax25
 from neoaprs.bulletin import board_slot
 from neoaprs.aprsmessage import MessageError, format_ack, format_message
-from neoaprs.callsign import CallsignError
+from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.clock import Clock, days, utcnow
 from neoaprs.config import can_transmit
-from neoaprs.message import MESSAGES_HELD_MAX, MSG_IDS, UNCONFIRMED_MAX, MessageRecord, MessagingError, State, addressed_to, attempts_for, check_text, due_at, next_msg_id, normal_call
+from neoaprs.message import MESSAGES_HELD_MAX, MSG_IDS, UNCONFIRMED_MAX, MessageRecord, MessagingError, State, addressed_to, attempts_for, check_text, due_at, next_msg_id
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet
 from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, our_frame
@@ -65,7 +65,7 @@ def _info(to: str, text: str, ident: str | None, reply: str | None) -> bytes:
 def _named(name: str) -> str:
     """A station as the overheard messages name it: a call in its normal form, else (an addressee that is no call) the text as it is."""
     try:
-        return normal_call(name)
+        return normal_name(name)
     except CallsignError:
         return name.strip()
 
@@ -137,7 +137,7 @@ class Messaging:
         board = board_slot(to_call)
         once = once or board is not None
         try:
-            to = to_call.strip().upper() if board is not None else normal_call(to_call)
+            to = to_call.strip().upper() if board is not None else normal_name(to_call)
         except CallsignError as e:
             raise MessagingError(str(e)) from None
         if addressed_to(to, ours):
@@ -192,7 +192,7 @@ class Messaging:
         database in one write, from here and (by `removed`, one for each) from every page; those being sent are cancelled first. The station's path and timeout stay. Returns how many messages the database had.
         Raises MessagingError when the call is none, when there is no message with the station, or when the database would not take the removal (the messages are then kept, those that were being sent cancelled)."""
         try:
-            peer = normal_call(call)
+            peer = normal_name(call)
         except CallsignError as e:
             raise MessagingError(str(e)) from None
         await asyncio.gather(*self.inbox.tasks, return_exceptions=True)          # (a message that is being kept is part of the conversation)

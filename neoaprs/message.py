@@ -11,7 +11,7 @@ from typing import Literal, get_args
 from neoaprs.aprsmessage import FORBIDDEN, MAX_TEXT, MessageError
 from neoaprs.ax25 import MAX_PATH
 from neoaprs.coded import CodedError
-from neoaprs.callsign import format_call, parse_call
+from neoaprs.callsign import format_call, normal_name, parse_call
 from neoaprs.route import DIRECT_ONLY
 
 State = Literal["sending", "acked", "rejected", "failed", "unconfirmed", "cancelled", "received", "overheard"]
@@ -91,9 +91,9 @@ def path_choice(text: str) -> tuple[str, ...] | None:
 
 
 def same_call(a: str, b: str) -> bool:
-    """Are the two the same call with the same SSID (no SSID and -0 are the same)?"""
+    """Are the two the same call with the same SSID (no SSID and -0 are the same), or the same name of a station on the internet (callsign.normal_name)?"""
     try:
-        return parse_call(a) == parse_call(b)
+        return normal_name(a) == normal_name(b)
     except ValueError:
         return False
 

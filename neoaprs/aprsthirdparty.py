@@ -6,7 +6,7 @@ Pure code, like the parsers it uses."""
 from datetime import datetime
 
 from neoaprs.aprsparse import parse
-from neoaprs.callsign import CallsignError, format_call, parse_call
+from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.packet import Decoded, ThirdParty
 
 MARK = b"}"
@@ -14,7 +14,8 @@ MARK = b"}"
 
 def header_of(info: bytes) -> tuple[ThirdParty, bytes] | None:
     """The header of a third-party information field (`}SRC>DST[,PATH]:`) and the information field inside; None when the field is not one or the header is none (no `>` or `:`, a source or a
-    destination that is no call). The path is kept as text, each piece as it is written (TCPIP, an iGate's call with its star)."""
+    destination that is neither a call nor a name APRS-IS allows: callsign.normal_name, so `OH2XYZ-L`, `OH2XYZ-20` and `WINLINK` are senders). The path is kept as text, each piece as it is written (TCPIP, an
+    iGate's call with its star)."""
     if info[:1] != MARK:
         return None
     head, colon, inner = info[1:].partition(b":")
@@ -23,7 +24,7 @@ def header_of(info: bytes) -> tuple[ThirdParty, bytes] | None:
         return None
     destination, *path = rest.split(",")
     try:
-        names = [format_call(*parse_call(name.strip())) for name in (source, destination)]
+        names = [normal_name(name) for name in (source, destination)]
     except CallsignError:
         return None
     return ThirdParty(names[0], names[1], tuple(piece.strip() for piece in path if piece.strip())), inner

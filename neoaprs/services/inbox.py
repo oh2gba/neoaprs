@@ -14,7 +14,7 @@ A message to a bulletin, an announcement, a group bulletin, ALL, CQ or QST, or a
 (services/bulletins.py, handed to the inbox as `board`), not to the overheard messages. With no board it is overheard like any other message to another station.
 
 A message is to us when its addressee is our call with its SSID, exactly (no SSID and -0 are the same). A third-party packet (an iGate's copy of what the internet said) counts as its inner sender's: an
-ack from the inner source settles our message, a message from it is received and acked to it. The inbox knows nothing of the schedule or of the radio: it asks its host (messaging) for the
+ack from the inner source settles our message, a message from it is received and acked to it, also when its name is no AX.25 call (`OH2XYZ-L`, `WINLINK`: callsign.normal_name). The inbox knows nothing of the schedule or of the radio: it asks its host (messaging) for the
 messages held, to keep a message and to send an ack.
 
 The first copy of a message to us is also handed to `alert` (services/alerts.py), when there is one: a repeat or another digipeater's copy, an ack, a rej, a bulletin and an overheard message are not."""
@@ -28,8 +28,8 @@ from typing import Literal, Protocol
 from neoaprs.aprsmessage import line_of, reply_ack_of
 from neoaprs.aprsthirdparty import header_of
 from neoaprs.bulletin import board_slot
-from neoaprs.callsign import CallsignError
-from neoaprs.message import MessageRecord, addressed_to, is_query, is_telemetry_definition, normal_call, same_call
+from neoaprs.callsign import CallsignError, normal_name
+from neoaprs.message import MessageRecord, addressed_to, is_query, is_telemetry_definition, same_call
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet
 from neoaprs.route import received_text
@@ -45,7 +45,7 @@ _UNSETTLED = ("sending", "failed", "unconfirmed", "cancelled")           # an ac
 def _station(call: str) -> str:
     """The call as our messages name their addressee, else as it is."""
     try:
-        return normal_call(call)
+        return normal_name(call)
     except CallsignError:
         return call
 

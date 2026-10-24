@@ -11,8 +11,8 @@ from neoaprs.clock import iso
 from neoaprs.coded import CodedError
 from neoaprs.config import Config, SettingError
 from neoaprs.mapstate import Job, MapError
-from neoaprs.callsign import CallsignError
-from neoaprs.message import MessagingError, normal_call
+from neoaprs.callsign import CallsignError, normal_name
+from neoaprs.message import MessagingError
 from neoaprs.ownbulletin import PostError
 from neoaprs.ownobject import OwnError
 from neoaprs.serialprobe import available_ports, can_search, paired_bluetooth_ports, with_links
@@ -116,7 +116,7 @@ async def query_station(ctx: Ctx, cmd: QueryStation) -> None:
     """A query goes to a station that is in the book and takes messages (else there is nobody to ask: the station is no object, item or ourselves, and not one whose position says it takes none)."""
     with refused(cmd.cmd):
         try:
-            call = normal_call(cmd.call)
+            call = normal_name(cmd.call)
         except CallsignError as e:
             raise MessagingError(str(e)) from None
         station = ctx.ctl.stationbook.get(call)

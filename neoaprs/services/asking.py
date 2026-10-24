@@ -10,9 +10,9 @@ any other reason (the call is not set, the radio is silent, the call is none) do
 from datetime import datetime
 from typing import Protocol
 
-from neoaprs.callsign import CallsignError
+from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.clock import Clock
-from neoaprs.message import QUERIES, QUERY_EVERY_SEC, MessageRecord, MessagingError, normal_call
+from neoaprs.message import QUERIES, QUERY_EVERY_SEC, MessageRecord, MessagingError
 
 
 class Sender(Protocol):
@@ -30,7 +30,7 @@ class Asking:
         """Sends the query of this kind (a key of `QUERIES`) to the station; the message as `send` gives it back. Raises MessagingError as `send` does, and `query.too_soon` for the same query within QUERY_EVERY_SEC."""
         text = QUERIES[kind]
         try:
-            to = normal_call(to_call)
+            to = normal_name(to_call)
         except CallsignError as e:
             raise MessagingError(str(e)) from None
         now = self._clock()

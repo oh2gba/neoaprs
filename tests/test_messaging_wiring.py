@@ -198,6 +198,28 @@ async def test_a_message_the_internet_sent_is_received_once_and_acked_to_the_inn
     await e.stop()
 
 
+@pytest.mark.parametrize("sender", ["OH2XYZ-L", "OH2XYZ-20", "WINLINK"])
+async def test_a_message_from_an_internet_station_whose_name_is_no_ax25_call_is_shown_acked_and_answered(tmp_path: Path, sender: str) -> None:
+    e = await started(tmp_path)
+    e.feed(on_air("OH7JHF-1", f"}}{sender}>APRS,TCPIP,OH7JHF-1*::OH2GBA   :Moi!{{12".encode(), path="OH2RCH-3*"))
+    await until(lambda: e.tnc.stats.packets == 1)
+    [ack] = await said(e)
+    assert ack.tnc2() == f"OH2GBA>APZNEO,WIDE1-1,WIDE2-1::{sender:<9}:ack12"
+    await until(lambda: len(e.ctl.messaging.records()) == 1)
+    [row] = await kept(e)
+    assert (row.from_call, row.text, row.msg_id, row.state, row.peer) == (sender, "Moi!", "12", "received", sender)
+    station = e.ctl.stationbook.get(sender)
+    assert station is not None and station.can_message
+    await e.ctl.prefbook.set_rf_only(sender, True)
+    reply = await e.ctl.messaging.send(sender.lower(), "Hi")
+    [frame] = await said(e)
+    assert frame.tnc2() == f"OH2GBA>APZNEO,WIDE1-1,WIDE2-1,RFONLY::{sender:<9}:Hi{{01}}" and reply.to_call == sender
+    e.feed(on_air("OH7JHF-1", f"}}{sender}>APRS,TCPIP,OH7JHF-1*::OH2GBA   :ack01".encode(), path="OH2RCH-3*"))
+    await until(lambda: e.ctl.messaging.get(reply.id) is not None and e.ctl.messaging.get(reply.id).state == "acked")    # type: ignore[union-attr]
+    assert await e.ctl.messaging.delete_conversation(sender) == 2
+    await e.stop()
+
+
 async def test_our_own_message_gated_back_to_us_is_ignored_like_an_echo(tmp_path: Path) -> None:
     e = await started(tmp_path)
     e.feed(on_air("OH7JHF-1", b"}OH2GBA>APZNEO,TCPIP,OH7JHF-1*::OH2DPN   :Hello Pekka{1", path="OH2RCH-3*"))

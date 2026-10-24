@@ -186,6 +186,8 @@ From then on the sender is the station inside the wrapper:
 - a packet with your own call inside is ignored, as an echo is;
 - a message heard both direct and from a gate is one message.
 
+A station on the internet may have a name that is no radio call: a D-STAR gateway's `OH2XYZ-L`, an SSID above 15 (`OH2XYZ-20`), or more than six characters (`WINLINK`). Its messages are shown and acked like any other, and you can answer them; your answers go out on the radio for an iGate to pass on. Your own call and the stations you hear on the radio are always radio calls.
+
 The route of such a packet starts at the gate: "via OH7JHF-1 (internet)", or "via OH7JHF-1 (internet) → OH2RCH-3" when the gate's frame was repeated. It counts as "from the internet" and **never for the suggested path**: the gate is not a digipeater of the way back, because the sender is on the internet and nothing says it can be reached by RF through that gate.
 
 ## What is kept

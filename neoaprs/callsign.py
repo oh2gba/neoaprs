@@ -1,7 +1,11 @@
 """The rules of a call sign with its SSID: parsing, the printable form, what is valid on AX.25.
 
 A call here is the base (1 to 6 characters of A-Z and 0-9) and an SSID from 0 to 15, the way an AX.25 address holds them. That is also what the generic APRS destinations
-(APRS, APK102, WIDE1-1, RELAY, TCPIP, BEACON) are, so they are valid; whether a call belongs to a licensed operator is not asked here."""
+(APRS, APK102, WIDE1-1, RELAY, TCPIP, BEACON) are, so they are valid; whether a call belongs to a licensed operator is not asked here.
+
+A station on the internet may have a name that is no AX.25 call: a D-STAR gateway's `OH2XYZ-L`, an SSID above 15, more than six characters (`WINLINK`). APRS-IS allows 1 to 9 letters, digits and
+hyphens, and such a station can send us a message through an iGate (a third-party packet) and be answered: `normal_name` takes those, for the sender of a message and for whom we write to.
+Our own call and every address of a frame on the air stay AX.25 calls."""
 import re
 
 from .coded import CodedError
@@ -11,6 +15,7 @@ BASE_MAX = 6                         # the most characters of a call's base
 AMATEUR_BASE_MIN = 3                 # the fewest characters of an amateur call's base
 _CALL = re.compile(rf"([A-Z0-9]{{1,{BASE_MAX}}})(?:-([0-9]{{1,2}}))?")
 PLACEHOLDER_CALLS = frozenset({"N0CALL", "NOCALL", "MYCALL"})        # what a program's example settings say: not the call of anybody, never transmitted under
+_INTERNET_NAME = re.compile(r"[A-Z0-9][A-Z0-9-]{0,8}")                 # a station's name on APRS-IS: 1 to 9 letters, digits and hyphens
 _AMATEUR_CALL = re.compile(rf"(?=[A-Z0-9]*[0-9])(?=[A-Z0-9]*[A-Z])[A-Z0-9]{{{AMATEUR_BASE_MIN},{BASE_MAX}}}")      # 3 to 6 characters with a digit and a letter; the ITU's rules for a prefix are not asked
 SET_CALL_FIRST = "set your call first"
 
@@ -36,6 +41,17 @@ def parse_call(text: str) -> tuple[str, int]:
 def format_call(call: str, ssid: int) -> str:
     """'OH2GBA-7'; 'OH2GBA' when the SSID is 0."""
     return call if ssid == 0 else f"{call}-{ssid}"
+
+
+def normal_name(text: str) -> str:
+    """A station as a message names it: a call in its normal form (upper case, no SSID of 0), else a name APRS-IS allows (`OH2XYZ-L`, `OH2XYZ-20`, `WINLINK`) in upper case. Raises CallsignError as parse_call does."""
+    try:
+        return format_call(*parse_call(text.strip()))
+    except CallsignError:
+        name = text.strip().upper()
+        if text.isascii() and _INTERNET_NAME.fullmatch(name):
+            return name
+        raise
 
 
 def call_problem(call: str) -> str:

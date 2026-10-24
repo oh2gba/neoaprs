@@ -172,7 +172,7 @@ async def test_a_message_of_a_station_with_a_ssid_goes_to_that_call_and_a_zero_s
 
 
 @pytest.mark.parametrize("to, text, reason", [
-    ("", "x", "call"), ("TOOLONGCALL", "x", "call"), ("OH2RDG-16", "x", "SSID"), ("OH2 RDG", "x", "call"), ("OH2GBA", "x", "our own"), ("oh2gba-0", "x", "our own"),
+    ("", "x", "call"), ("TOOLONGCALL", "x", "call"), ("OH2RDG_7", "x", "call"), ("OH2 RDG", "x", "call"), ("OH2GBA", "x", "our own"), ("oh2gba-0", "x", "our own"),
     ("OH2RDG", "", "empty"), ("OH2RDG", " ", "empty"), ("OH2RDG", "x" * 68, "68 characters"), ("OH2RDG", "Hyvää", "printable ASCII"), ("OH2RDG", "a{b", "{"), ("OH2RDG", "a|b", "|"), ("OH2RDG", "a~b", "~"),
     ("OH2RDG", "a\tb", "control"), ("OH2RDG", "ack12", "ack")])
 async def test_an_addressee_or_a_text_that_is_refused_is_told_why_and_nothing_is_kept_or_sent(rig: Rig, to: str, text: str, reason: str) -> None:

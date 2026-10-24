@@ -1,6 +1,6 @@
 import pytest
 
-from neoaprs.callsign import CallsignError, format_call, parse_call
+from neoaprs.callsign import CallsignError, format_call, normal_name, parse_call
 
 
 @pytest.mark.parametrize("text, expected", [
@@ -55,3 +55,22 @@ def test_a_seventh_character_is_not_valid() -> None:
 def test_parse_and_format_round_trip() -> None:
     for text in ("OH2GBA-7", "OH2GBA", "WIDE2-2"):
         assert format_call(*parse_call(text)) == text
+
+
+@pytest.mark.parametrize("text, expected", [
+    ("oh2gba-0", "OH2GBA"), (" OH2GBA-7 ", "OH2GBA-7"), ("OH2XYZ-L", "OH2XYZ-L"), ("oh2xyz-20", "OH2XYZ-20"), ("WINLINK", "WINLINK"), ("oh2xy-123", "OH2XY-123"), ("A", "A"),
+])
+def test_a_name_of_a_station_on_the_internet_is_a_call_or_1_to_9_letters_digits_and_hyphens(text: str, expected: str) -> None:
+    assert normal_name(text) == expected
+
+
+@pytest.mark.parametrize("text", ["", "-L", "OH2XYZ-1234", "OH2 XYZ", "OH2XYZ*", "OH2_XYZ", "ÅH2GBA", "ßa"])
+def test_a_name_that_aprs_is_does_not_allow_is_refused(text: str) -> None:
+    with pytest.raises(CallsignError):
+        normal_name(text)
+
+
+@pytest.mark.parametrize("text", ["OH2XYZ-L", "OH2XYZ-20", "WINLINK"])
+def test_such_a_name_is_still_no_ax25_call(text: str) -> None:
+    with pytest.raises(CallsignError):
+        parse_call(text)
