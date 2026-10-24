@@ -32,11 +32,11 @@ afterEach(() => {
 let daemon: FakeDaemon;
 const sent = (cmd: string) => daemon.send.mock.calls.map(([command]) => command).filter((command) => command.cmd === cmd);
 
-/** The tab, as wide as the test says, with the conversation with OH2RDG open. The page's part of it is given as `paths`, `rfOnly`, `suggestions`, `heardDirect` and `connected`. */
+/** The tab, as wide as the test says, with the conversation with OH2RDG open. The page's part of it is given as `paths`, `rfOnly`, `heardPaths`, `heardDirect` and `connected`. */
 async function pane({
   paths = new Map<string, string>(),
   rfOnly = new Set<string>(),
-  suggestions,
+  heardPaths,
   heardDirect,
   connected = true,
   ...extra
@@ -53,7 +53,7 @@ async function pane({
   for (const call of rfOnly as Set<string>) book.set(call, { path: book.get(call)?.path ?? null, hide_after_min: null, rf_only: true });
   daemon = fakeDaemon({ connected: connected as boolean, fallbackPath: "WIDE1-1,WIDE2-1" });
   daemon.prefs = useStationPrefs(shallowReactive(book), daemon.send);
-  if (suggestions !== undefined) daemon.suggestions.value = suggestions as Map<string, string | null>;
+  if (heardPaths !== undefined) daemon.heardPaths.value = heardPaths as Map<string, string | null>;
   if (heardDirect !== undefined) daemon.heardDirect.value = heardDirect as Set<string>;
   const wrapper = mount(MessagesPane, { props, global: withDaemon(daemon), attachTo: document.body });
   await flushPromises();
@@ -181,11 +181,12 @@ describe("MessagesPane, the route in the header", () => {
     expect(await dot({ paths: new Map([["OH2XYZ", "OH2RCH-2"]]) })).toBe(false);
   });
 
-  it("has the path in the box: shown, saved when changed, cleared by the x, and the default said when it has none", async () => {
+  it("has the path in the box: shown, saved when changed, cleared by the x, and the automatic choice said when it has none", async () => {
     const wrapper = await pane({ paths: new Map([["OH2RDG", "OH2RCH-2"]]) });
     await wrapper.find(".route-button").trigger("click");
-    const input = () => wrapper.find<HTMLInputElement>(".route-box .pathbox input[placeholder='direct']");
+    const input = () => wrapper.find<HTMLInputElement>(".route-box .pathbox input[placeholder='automatic']");
     expect(input().element.value).toBe("OH2RCH-2");
+    expect(wrapper.find(".route-box .path-line").text()).toBe("Your path: OH2RCH-2");
     await input().setValue("WIDE2-1");
     expect(sent("set_station_path")).toEqual([{ cmd: "set_station_path", call: "OH2RDG", path: "WIDE2-1" }]);
     await wrapper.find(".route-box .use-default").trigger("click");
@@ -193,8 +194,8 @@ describe("MessagesPane, the route in the header", () => {
     expect(wrapper.findAll(".route-box label").map((l) => l.text())).toEqual(["Path", "RF only"]);
     const plain = await pane();
     await plain.find(".route-button").trigger("click");
-    expect(plain.find(".route-box .pathbox").text()).toContain("(default)");
-    expect(plain.find<HTMLInputElement>(".route-box input").element.value).toBe("WIDE1-1,WIDE2-1");
+    expect(plain.find(".route-box .path-line").text()).toBe("Automatic: WIDE1-1,WIDE2-1");
+    expect(plain.find<HTMLInputElement>(".route-box input").element.value).toBe("");
   });
 
   it("has no attempts field and no map timeout: the daemon decides the attempts", async () => {
@@ -214,14 +215,18 @@ describe("MessagesPane, the route in the header", () => {
     expect(sent("set_station_rf_only")).toEqual([{ cmd: "set_station_rf_only", call: "OH2RDG", on: false }]);
   });
 
-  it("puts the suggestion of the open conversation's station on the chip beside the path", async () => {
-    const wrapper = await pane({ suggestions: new Map([["OH2RDG", "OH2RCH-3,OH2RCH-1"]]) });
+  it("says on one line what the automatic path of the open conversation's station is, and has no suggestion to click", async () => {
+    const wrapper = await pane({ heardPaths: new Map([["OH2RDG", "OH2RCH-3,OH2RCH-1"]]) });
     await wrapper.find(".route-button").trigger("click");
-    await wrapper.find(".route-box .use-suggested").trigger("click");
-    expect(sent("set_station_path")).toEqual([{ cmd: "set_station_path", call: "OH2RDG", path: "OH2RCH-3,OH2RCH-1" }]);
-    const none = await pane({ suggestions: new Map([["OH2XYZ", "OH2RCH-2"]]) });
+    expect(wrapper.find(".route-box .path-line").text()).toBe("Automatic: via OH2RCH-3,OH2RCH-1, then WIDE1-1,WIDE2-1");
+    expect(wrapper.find(".route-box .use-suggested").exists()).toBe(false);
+    expect(sent("set_station_path")).toEqual([]);
+    const direct = await pane({ heardPaths: new Map([["OH2RDG", ""]]) });
+    await direct.find(".route-button").trigger("click");
+    expect(direct.find(".route-box .path-line").text()).toBe("Automatic: direct, then WIDE1-1,WIDE2-1");
+    const none = await pane({ heardPaths: new Map([["OH2XYZ", "OH2RCH-2"]]) });
     await none.find(".route-button").trigger("click");
-    expect(none.find(".route-box .use-suggested").exists()).toBe(false);
+    expect(none.find(".route-box .path-line").text()).toBe("Automatic: WIDE1-1,WIDE2-1");
   });
 
   it("closes on Esc without leaving the conversation, on a click outside, and for the next conversation", async () => {

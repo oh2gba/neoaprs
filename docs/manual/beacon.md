@@ -1,6 +1,6 @@
 # Beacon, status and digipeater
 
-The Beacon tab holds what your station says on the air: the **Station** group (call, location, symbol), the **Beacon** group, a closed **Antenna** heading, a closed **Advanced** heading with the path, and the **Status** group. A setting applies as you change it ([start.md](start.md#how-settings-apply)).
+The Beacon tab holds what your station says on the air: the **Station** group (call, location, symbol), the **Beacon** group, a closed **Antenna** heading, a closed **Advanced** heading with the path choice, and the **Status** group. A setting applies as you change it ([start.md](start.md#how-settings-apply)).
 
 A first transmission on the air is not tried by NeoAPRS's tests, which never open the radio. Check it live with **Beacon now**, then look for your call on aprs.fi or on another station's screen, before you leave a timer on.
 
@@ -23,7 +23,15 @@ OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=6010.20N/02456.40E-NeoAPRS
 
 The position is always the plain uncompressed form, which every receiver reads. `APZNEO` is in the experimental range of destination calls. Every frame NeoAPRS sends carries it: the beacon, status, messages and their acks, answers to queries, objects and bulletins.
 
-The **path** is up to 8 calls separated by commas, each a call with an optional SSID. The default is `WIDE1-1,WIDE2-1`. An empty path means no digipeaters at all, which is not the same as the default.
+The **path** (Advanced) is one choice:
+
+- **Recommended (WIDE1-1,WIDE2-1)**, the default and right for most stations: a small digipeater nearby picks the packet up first and a wide-area one carries it on.
+- **Direct only (no digipeaters)**, for a station that everyone you talk to hears directly.
+- **Custom...**, which shows a field for up to 8 calls separated by commas, each a call with an optional SSID: `WIDE2-2`, or `WIDE2-1` for a fixed station that the wide-area digipeaters hear directly, such as one on a hill. A path that is neither of the first two shows as Custom.
+
+Recommended and Direct only apply at once; the custom calls apply on Enter or when the field is left. An empty custom field is the recommended path again. In the database the setting `beacon/path` is the calls, `DIRECT` for direct only, and empty means the recommended path: **an empty path is never "no digipeaters"**, that is always said with the word `DIRECT`. (Older versions took an empty path to mean none; a database that has one is changed once to `DIRECT` by the update, so that nothing starts to digipeat.)
+
+The same path is what status reports, objects without a path of their own, bulletins and the answers to queries use, and what a message goes by for its last two attempts (below, in [messages](messages.md#how-the-path-of-a-message-is-chosen)).
 
 The **comment** is printable ASCII without `|` and `~`, at most 43 characters, and 36 when the PHG extension is sent. A save that breaks this is refused with the reason, and a beacon whose comment is too long is not sent.
 

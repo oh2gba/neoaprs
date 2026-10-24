@@ -230,7 +230,8 @@ async def test_the_deliveries_are_the_routes_of_the_latest_packets_heard_by_send
     for n, p in enumerate([heard("OH2AAA", ("OH2RCH-2*",)), heard("OH2AAA", ("OH2RCH-2*",)), heard("OH2BBB", ()), aprsthirdparty_packet(b"}OH2DPN>APRS,TCPIP:>x"), heard("OH2AAA", ("OH2RCH-3*", "TRACE2-1"))]):
         log.append(Packet(T0 + timedelta(seconds=n), p.direction, p.raw, p.source, p.destination, p.path, p.info, p.decoded, p.third_party))
     log.append(made(POSITION, T0 + timedelta(seconds=9), "out"))
-    assert await log.deliveries() == [("OH2AAA", ("OH2RCH-2*",), "", 2, T0 + timedelta(seconds=1)), ("OH2BBB", (), "", 1, T0 + timedelta(seconds=2)),
-                                      ("OH2DPN", ("OH2RCH-3*",), "OH7JHF-1", 1, T0 + timedelta(seconds=3)), ("OH2AAA", ("OH2RCH-3*", "TRACE2-1"), "", 1, T0 + timedelta(seconds=4))], "with when the latest of each was heard"
-    assert await log.deliveries(2) == [("OH2DPN", ("OH2RCH-3*",), "OH7JHF-1", 1, T0 + timedelta(seconds=3)), ("OH2AAA", ("OH2RCH-3*", "TRACE2-1"), "", 1, T0 + timedelta(seconds=4))], "only the latest packets are looked at"
+    assert await log.deliveries() == [("OH2AAA", ("OH2RCH-2*",), "", 2, T0 + timedelta(seconds=1), T0), ("OH2BBB", (), "", 1, T0 + timedelta(seconds=2), None),
+                                      ("OH2DPN", ("OH2RCH-3*",), "OH7JHF-1", 1, T0 + timedelta(seconds=3), None), ("OH2AAA", ("OH2RCH-3*", "TRACE2-1"), "", 1, T0 + timedelta(seconds=4), None)], \
+        "with when the latest of each was heard, and the one before it"
+    assert await log.deliveries(2) == [("OH2DPN", ("OH2RCH-3*",), "OH7JHF-1", 1, T0 + timedelta(seconds=3), None), ("OH2AAA", ("OH2RCH-3*", "TRACE2-1"), "", 1, T0 + timedelta(seconds=4), None)], "only the latest packets are looked at"
     assert await log.deliveries(0) == []

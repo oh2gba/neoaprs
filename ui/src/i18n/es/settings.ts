@@ -222,11 +222,14 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
     "Cada cuánto se envía tu posición. Desactivada no envía ninguna por sí sola; Enviar baliza ahora sigue enviando una. Cada baliza ocupa el canal para todos los de alrededor, así que 30 minutos es una buena elección para una estación que se queda donde está; {min} es lo mínimo.",
   "settings.path.name": "Ruta de la baliza",
   "settings.path.label": "Ruta",
-  "settings.path.empty": "directa",
+  "settings.path.recommended": "Recomendada ({path})",
+  "settings.path.direct": "Solo directa (sin digipeaters)",
+  "settings.path.custom": "Personalizada…",
+  "settings.path.custom_label": "Digipeaters",
   "settings.path.tip1":
-    "Los digipeaters, las estaciones que repiten tu paquete para que llegue más lejos, en el orden en que debe usarlos, separados por comas. Vacía envía en directo, sin ayuda.",
+    "Los digipeaters, las estaciones que repiten tu paquete para que llegue más lejos, por los que van tu baliza y tus objetos. Lo recomendado sirve para la mayoría: un digipeater pequeño cercano recoge primero el paquete y uno de área amplia lo lleva más lejos. Elige Solo directa si todos con quienes hablas te oyen directamente.",
   "settings.path.tip2":
-    "WIDE1-1,WIDE2-1 es la opción habitual: un digipeater pequeño cercano recoge primero el paquete y uno de área amplia lo lleva más lejos. WIDE2-2 va directo a los digipeaters de área amplia, para una estación que ellos oyen directamente, como una situada en una colina.",
+    "Una estación fija que los digipeaters de área amplia oyen directamente, como una situada en una colina, puede usar WIDE2-1 o WIDE2-2 como ruta personalizada. Los mensajes eligen su propia ruta, salvo que fijes una para la estación.",
 
   "settings.confirm.label": "Confirmar",
   "settings.confirm.yes": "Sí",

@@ -225,11 +225,14 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
     "Ogni quanto viene inviata la tua posizione. Spento non ne invia da solo; Invia beacon ora ne invia comunque uno. Ogni beacon occupa il canale per tutti i vicini, quindi 30 minuti è una buona scelta per una stazione che resta ferma; {min} è il minimo.",
   "settings.path.name": "Percorso del beacon",
   "settings.path.label": "Percorso",
-  "settings.path.empty": "diretto",
+  "settings.path.recommended": "Consigliato ({path})",
+  "settings.path.direct": "Solo diretto (senza digipeater)",
+  "settings.path.custom": "Personalizzato…",
+  "settings.path.custom_label": "Digipeater",
   "settings.path.tip1":
-    "I digipeater, le stazioni che ripetono il tuo pacchetto perché arrivi più lontano, nell’ordine in cui devono essere usati, separati da virgole. Vuoto invia in diretta, senza aiuto.",
+    "I digipeater, le stazioni che ripetono il tuo pacchetto perché arrivi più lontano, attraverso cui passano il tuo beacon e i tuoi oggetti. Il percorso consigliato va bene per la maggior parte: un piccolo digipeater vicino raccoglie prima il pacchetto e uno ad ampia copertura lo porta oltre. Scegli Solo diretto se tutti quelli con cui parli ti sentono direttamente.",
   "settings.path.tip2":
-    "WIDE1-1,WIDE2-1 è la scelta abituale: un piccolo digipeater vicino raccoglie prima il pacchetto e uno ad ampia copertura lo porta oltre. WIDE2-2 va direttamente ai digipeater ad ampia copertura, per una stazione che essi sentono direttamente, come una su una collina.",
+    "Una stazione fissa che i digipeater ad ampia copertura sentono direttamente, come una su una collina, può usare WIDE2-1 o WIDE2-2 come percorso personalizzato. I messaggi scelgono da soli il percorso, a meno che tu non ne imposti uno per la stazione.",
 
   "settings.confirm.label": "Conferma",
   "settings.confirm.yes": "Sì",

@@ -33,6 +33,7 @@ from errorcodes import error_codes  # noqa: E402
 from neoaprs import TOCALL  # noqa: E402
 from neoaprs.aprsmessage import FORBIDDEN, MAX_TEXT  # noqa: E402
 from neoaprs.ax25 import MAX_PATH  # noqa: E402
+from neoaprs.route import DIRECT_ONLY, WIDE_PATH  # noqa: E402
 from neoaprs.callsign import AMATEUR_BASE_MIN, BASE_MAX, MAX_SSID, PLACEHOLDER_CALLS, call_problem, parse_call  # noqa: E402
 from neoaprs.config import ANTENNA_DIRECTIONS, DEFAULTS, KEYS, LATITUDE, LONGITUDE, MAX_COMMENT, MAX_COMMENT_PHG, MIN_INTERVAL_MIN, RANGES, SYMBOL_TABLES, Config  # noqa: E402
 from neoaprs.configstatus import MAX_STATUS  # noqa: E402
@@ -217,7 +218,7 @@ def limits() -> dict[str, Any]:
         "interval": {"minMin": MIN_INTERVAL_MIN},
         "message": {"textMax": MAX_TEXT, "forbidden": FORBIDDEN, "gateway": EMAIL_GATEWAY},
         "call": {"baseMax": BASE_MAX, "amateurBaseMin": AMATEUR_BASE_MIN, "maxSsid": MAX_SSID, "placeholders": sorted(PLACEHOLDER_CALLS)},
-        "path": {"maxCalls": MAX_PATH},
+        "path": {"maxCalls": MAX_PATH, "direct": DIRECT_ONLY, "recommended": WIDE_PATH},
         "object": {"nameMax": OBJECT_NAME[1], "itemNameMin": ITEM_NAME[0], "nameForbidden": NAME_FORBIDDEN, "commentMax": COMMENT_MAX, "commentMaxMotion": COMMENT_MAX_MOTION,
                    "courseMax": COURSE_MAX, "speedMaxKmh": round(SPEED_MAX_KMH)},
         "bulletin": {"groupMax": GROUP_MAX},
@@ -481,7 +482,7 @@ BEACON_BASE = {"station/call": "OH2GBA", "station/lat": "60.17", "station/lon": 
                "beacon/power_w": "", "beacon/antenna_height_m": "0", "beacon/antenna_gain_db": "0", "beacon/antenna_direction": "omni", "beacon/path": "WIDE1-1,WIDE2-1"}
 BEACONS = [{}, {"beacon/power_w": "5", "beacon/antenna_height_m": "10", "beacon/antenna_gain_db": "3", "beacon/antenna_direction": "NE", "station/comment": "Home"}, {"station/comment": ""}, {"station/call": "oh2gba-7"},
            {"station/call": ""}, {"station/lat": ""}, {"station/lat": "91"}, {"station/lon": "181"},
-           {"station/symbol_table": "Z", "station/symbol_code": "~"}, {"station/symbol_table": "a"}, {"station/symbol_code": " "}, {"beacon/path": ""}, {"beacon/path": "WIDE2-2"}, {"beacon/path": "BAD CALL"},
+           {"station/symbol_table": "Z", "station/symbol_code": "~"}, {"station/symbol_table": "a"}, {"station/symbol_code": " "}, {"beacon/path": ""}, {"beacon/path": "DIRECT"}, {"beacon/path": "WIDE2-2"}, {"beacon/path": "BAD CALL"},
            {"station/lat": "0.03125", "station/lon": "0.09375"}, {"station/lat": "-0.00001", "station/lon": "-0.00001"}, {"beacon/power_w": "100", "beacon/antenna_height_m": "9999", "beacon/antenna_gain_db": "9",
             "beacon/antenna_direction": "N", "station/comment": "x" * 36}]
 

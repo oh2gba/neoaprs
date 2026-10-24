@@ -222,11 +222,14 @@ export const settings: Record<keyof typeof source, Message> = {
     "Com que frequência a sua posição é enviada. Desligado não envia nenhuma sozinho; Beacon agora ainda envia uma. Cada beacon ocupa o canal para todos ao redor, então 30 minutos é uma boa escolha para uma estação que fica parada; {min} é o mínimo.",
   "settings.path.name": "Caminho do beacon",
   "settings.path.label": "Caminho",
-  "settings.path.empty": "direto",
+  "settings.path.recommended": "Recomendado ({path})",
+  "settings.path.direct": "Somente direto (sem digipeaters)",
+  "settings.path.custom": "Personalizado…",
+  "settings.path.custom_label": "Digipeaters",
   "settings.path.tip1":
-    "Os digipeaters, as estações que repetem o seu pacote para ele ir mais longe, na ordem em que devem ser usados, separados por vírgulas. Vazio envia direto, sem ajuda.",
+    "Os digipeaters, as estações que repetem o seu pacote para ele ir mais longe, pelos quais passam o seu beacon e os seus objetos. O recomendado serve para a maioria: um digipeater pequeno por perto pega o pacote primeiro e um de área ampla o leva adiante. Escolha Somente direto se todos com quem você fala ouvem você diretamente.",
   "settings.path.tip2":
-    "WIDE1-1,WIDE2-1 é a escolha usual: um digipeater pequeno por perto pega o pacote primeiro e um de área ampla o leva adiante. WIDE2-2 vai direto aos digipeaters de área ampla, para uma estação que eles ouvem diretamente, como uma no alto de um morro.",
+    "Uma estação fixa que os digipeaters de área ampla ouvem diretamente, como uma no alto de um morro, pode usar WIDE2-1 ou WIDE2-2 como caminho personalizado. As mensagens escolhem o próprio caminho, a menos que você defina um para a estação.",
 
   "settings.confirm.label": "Confirmar",
   "settings.confirm.yes": "Sim",

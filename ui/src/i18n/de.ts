@@ -101,6 +101,7 @@ export const de: Catalogue = {
   "error.path.too_long": "{count} Digipeater sind mehr als die {max}, die ein Pfad haben darf",
   "error.query.not_capable": "{call} nimmt keine Nachrichten an: es gibt niemanden zu fragen",
   "error.query.too_soon": "{call} wurde eben erst dasselbe gefragt: {seconds} s warten",
+  "error.path.direct_alone": "{word} ist kein Digipeater: allein geschrieben bedeutet es gar keine Digipeater",
   "error.setting.comment_too_long":
     "{length} Zeichen sind mehr als die {limit}, die mit der PHG-Erweiterung erlaubt sind (beacon/power_w leeren, um keine zu senden)",
   "error.setting.not_access_key": "das ist kein Zugangsschlüssel (drei Gruppen aus vier Ziffern und Buchstaben, etwa k7m2-x9pq-4hrt)",
@@ -212,8 +213,12 @@ export const de: Catalogue = {
   "route.path": "Pfad",
   "route.calls_hint": "Rufzeichen durch Kommas getrennt, höchstens {max}",
   "route.default": "(Standard)",
-  "route.use_default": "Standardpfad verwenden",
-  "route.suggested": "Vorschlag: {path}",
+  "route.use_auto": "Automatischer Pfad",
+  "route.automatic": "automatisch",
+  "route.auto": "Automatisch: {path}",
+  "route.auto_direct": "Automatisch: direkt, dann {path}",
+  "route.auto_via": "Automatisch: über {heard}, dann {path}",
+  "route.own": "Dein Pfad: {path}",
   "route.rf_only": "Nur Funk",
   "route.rf_only_title": "iGates setzen diese Nachrichten nicht ins Internet",
 
@@ -964,11 +969,14 @@ export const de: Catalogue = {
     "Wie oft deine Position gesendet wird. „Aus“ sendet von selbst keine; „Bake jetzt“ sendet trotzdem eine. Jede Bake belegt den Kanal für alle in der Umgebung, daher sind 30 Minuten eine gute Wahl für eine Station, die an ihrem Platz bleibt; {min} ist das Minimum.",
   "settings.path.name": "Bakenpfad",
   "settings.path.label": "Pfad",
-  "settings.path.empty": "direkt",
+  "settings.path.recommended": "Empfohlen ({path})",
+  "settings.path.direct": "Nur direkt (keine Digipeater)",
+  "settings.path.custom": "Eigener…",
+  "settings.path.custom_label": "Digipeater",
   "settings.path.tip1":
-    "Die Digipeater, also die Stationen, die dein Paket wiederholen, damit es weiter kommt, in der Reihenfolge, in der sie es benutzen sollen, durch Kommas getrennt. Leer sendet direkt, ohne Hilfe.",
+    "Die Digipeater, also die Stationen, die dein Paket wiederholen, damit es weiter kommt, über die dein Bake und deine Objekte laufen. Empfohlen passt für die meisten: Ein kleiner Digipeater in der Nähe nimmt das Paket zuerst auf, und ein Weitbereichs-Digipeater trägt es weiter. Wähle Nur direkt, wenn dich alle, mit denen du sprichst, direkt hören.",
   "settings.path.tip2":
-    "WIDE1-1,WIDE2-1 ist die übliche Wahl: Ein kleiner Digipeater in der Nähe nimmt das Paket zuerst auf, und ein Weitbereichs-Digipeater trägt es weiter. WIDE2-2 geht direkt zu den Weitbereichs-Digipeatern, für eine Station, die sie direkt hören, etwa auf einem Berg.",
+    "Eine feste Station, die die Weitbereichs-Digipeater direkt hören, etwa auf einem Berg, kann WIDE2-1 oder WIDE2-2 als eigenen Pfad verwenden. Nachrichten wählen ihren Pfad selbst, außer du legst für die Station einen fest.",
 
   "settings.confirm.label": "Bestätigen",
   "settings.confirm.yes": "Ja",

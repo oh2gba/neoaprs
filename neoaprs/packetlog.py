@@ -73,11 +73,11 @@ class PacketLog(DbLog):
         rows: list[Row] = await self._read(lambda conn: packets_since(conn, text), [])
         return self._packets(rows)
 
-    async def deliveries(self, count: int = DELIVERIES_SEEN) -> list[tuple[str, tuple[str, ...], str, int, datetime]]:
-        """(sender, path, iGate or "", how many, when the latest was heard) over the latest `count` packets heard, the group whose latest packet is the oldest first: how the stations' packets reached us,
-        for the station book to start with. A third-party packet is the sender inside it, with the iGate that put it on the air."""
+    async def deliveries(self, count: int = DELIVERIES_SEEN) -> list[tuple[str, tuple[str, ...], str, int, datetime, datetime | None]]:
+        """(sender, path, iGate or "", how many, when the latest was heard, when the one before it was) over the latest `count` packets heard, the group whose latest packet is the oldest first: how the
+        stations' packets reached us, for the station book to start with. A third-party packet is the sender inside it, with the iGate that put it on the air."""
         rows: list[Row] = await self._read(lambda conn: heard_routes(conn, count), [])
-        groups: dict[tuple[str, tuple[str, ...], str], tuple[int, datetime]] = {}
+        groups: dict[tuple[str, tuple[str, ...], str], tuple[int, datetime, datetime | None]] = {}
         for source, path_text, raw, heard_at in rows:
             at = parse_stamp(str(heard_at))
             try:
@@ -85,8 +85,9 @@ class PacketLog(DbLog):
             except ax25.Ax25Error:
                 continue
             key = (str(source) if opened is None else opened[0].source, tuple(str(path_text).split(",")) if path_text else (), "" if opened is None else str(source))
-            groups[key] = (groups.pop(key, (0, at))[0] + 1, at)       # (a group moves to the end each time: the order is that of the latest packet)
-        return [(sender, path, gate, packets, at) for (sender, path, gate), (packets, at) in groups.items()]
+            packets, earlier, _ = groups.pop(key, (0, at, None))
+            groups[key] = (packets + 1, at, earlier if packets else None)       # (a group moves to the end each time: the order is that of the latest packet)
+        return [(sender, path, gate, packets, at, before) for (sender, path, gate), (packets, at, before) in groups.items()]
 
     async def positions(self, keep_days: int, count: int = TRACKS_SEEN) -> list[tuple[str, datetime, float, float]]:
         """(station, when, lat, lon) of the latest `count` positions heard within `keep_days` days, the oldest first: the station is the sender (the one inside a third-party packet) or the name of a live

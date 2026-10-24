@@ -218,10 +218,14 @@ export const settings: Record<keyof typeof source, Message> = {
     "位置を送る頻度です。「オフ」にすると自動では送りませんが、「今すぐビーコン」では送れます。ビーコンはそのたびに周囲の全員の周波数を使うので、動かない局なら30分が適当です。最短は{min}です。",
   "settings.path.name": "ビーコンのパス",
   "settings.path.label": "パス",
-  "settings.path.empty": "直接",
-  "settings.path.tip1": "パケットを中継してより遠くへ届けるデジピーターを、使う順にカンマで区切って並べます。空欄なら中継なしの直接送信です。",
+  "settings.path.recommended": "推奨({path})",
+  "settings.path.direct": "直接のみ(デジピーターなし)",
+  "settings.path.custom": "カスタム…",
+  "settings.path.custom_label": "デジピーター",
+  "settings.path.tip1":
+    "パケットを中継してより遠くへ届けるデジピーターのうち、ビーコンとオブジェクトが通るものです。推奨は多くの局に向いています。近くの小さなデジピーターがまず拾い、広域のデジピーターがさらに中継します。話す相手の全員があなたの電波を直接受信できるなら「直接のみ」を選びます。",
   "settings.path.tip2":
-    "WIDE1-1,WIDE2-1 が一般的です。近くの小さなデジピーターがまず拾い、広域のデジピーターがさらに中継します。WIDE2-2 は広域デジピーターに直接向かうので、山の上など、広域デジピーターが直接受信できる局向けです。",
+    "山の上など、広域デジピーターが直接受信できる固定局は、カスタムのパスとして WIDE2-1 や WIDE2-2 を使えます。メッセージは、局ごとにパスを設定しない限り、自動でパスを選びます。",
 
   "settings.confirm.label": "確認",
   "settings.confirm.yes": "はい",

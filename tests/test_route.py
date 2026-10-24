@@ -4,7 +4,7 @@ from datetime import timedelta
 import pytest
 
 from neoaprs.clock import utc
-from neoaprs.route import ROUTES_KEPT, WIDE_PATH, Deliveries, Route, digipeaters, is_marker, received_text, rf_only_path, route_of, route_text, suggested_path
+from neoaprs.route import ROUTES_KEPT, WIDE_PATH, Deliveries, Route, automatic_path, digipeaters, heard_path, is_marker, received_text, rf_only_path, route_of, route_text, suggested_path
 
 
 @pytest.mark.parametrize("path, hops, heard_from, direct, anonymous, text", [
@@ -151,3 +151,108 @@ def test_the_digipeaters_of_a_path_leave_out_its_markers_and_keep_the_order() ->
     (("OH2RCH-2", "NOGATE", "WIDE2-1"), ("OH2RCH-2", "NOGATE", "WIDE2-1")), (("RFONLY", "OH2RCH-2"), ("RFONLY", "OH2RCH-2"))])
 def test_rf_only_adds_rfonly_at_the_end_unless_the_path_says_it_already(path: tuple[str, ...], made: tuple[str, ...]) -> None:
     assert rf_only_path(path) == made
+
+
+# ---- the path a message goes by when the operator has set none --------------------------------------------------------------------------------------
+
+NOW = utc(2026, 10, 24, 12, 0)
+
+
+def heard_at(deliveries: Deliveries, minutes_ago: float, *path: str, gate: str = "") -> None:
+    deliveries.note(route_of(path, gate), 1, NOW - timedelta(minutes=minutes_ago))
+
+
+def test_a_station_heard_direct_twice_within_an_hour_is_reached_direct() -> None:
+    d = Deliveries()
+    heard_at(d, 50)
+    assert heard_path(d, NOW) is None, "one packet is luck"
+    heard_at(d, 10)
+    assert heard_path(d, NOW) == ()
+    assert automatic_path(d, NOW, 1) == () and automatic_path(d, NOW, 2) == ()
+
+
+def test_direct_wins_over_a_named_route_that_is_more_recent() -> None:
+    d = Deliveries()
+    heard_at(d, 30)
+    heard_at(d, 20)
+    heard_at(d, 5, "OH2RCH-2*")
+    heard_at(d, 1, "OH2RCH-2*")
+    assert heard_path(d, NOW) == ()
+
+
+def test_a_named_route_that_two_packets_came_by_within_an_hour_is_turned_round() -> None:
+    d = Deliveries()
+    heard_at(d, 40, "OH2RCH-1*", "OH2RCH-3*", "WIDE2-1")
+    assert heard_path(d, NOW) is None
+    heard_at(d, 5, "OH2RCH-1*", "OH2RCH-3*")
+    assert heard_path(d, NOW) == ("OH2RCH-3", "OH2RCH-1")
+
+
+def test_the_most_recent_good_route_wins() -> None:
+    d = Deliveries()
+    heard_at(d, 55, "OH2RCH-2*")
+    heard_at(d, 20, "OH2RCH-2*")
+    heard_at(d, 40, "OH2RCH-3*")
+    heard_at(d, 10, "OH2RCH-3*")
+    heard_at(d, 2, "OH2RCH-4*")
+    assert heard_path(d, NOW) == ("OH2RCH-3",), "OH2RCH-4 came once only; of the other two the one heard last"
+
+
+def test_a_route_with_a_hop_with_no_call_is_none() -> None:
+    d = Deliveries()
+    for minutes in (30, 5):
+        heard_at(d, minutes, "WIDE1*", "OH2RCH-2*")
+    assert heard_path(d, NOW) is None
+
+
+def test_a_packet_that_came_through_a_gate_is_none() -> None:
+    d = Deliveries()
+    for minutes in (30, 5):
+        heard_at(d, minutes, "OH2RCH-3*", gate="OH7JHF-1")
+    assert d.gated == 2 and heard_path(d, NOW) is None
+
+
+def test_a_route_of_four_digipeaters_is_none_and_one_of_three_is_not() -> None:
+    d = Deliveries()
+    for minutes in (30, 5):
+        heard_at(d, minutes, "OH2RCH-1*", "OH2RCH-2*", "OH2RCH-3*", "OH2RCH-4*")
+    assert heard_path(d, NOW) is None
+    for minutes in (30, 5):
+        heard_at(d, minutes, "OH2RCH-1*", "OH2RCH-2*", "OH2RCH-3*")
+    assert heard_path(d, NOW) == ("OH2RCH-3", "OH2RCH-2", "OH2RCH-1")
+
+
+def test_a_path_heard_longer_ago_than_an_hour_is_none() -> None:
+    d = Deliveries()
+    heard_at(d, 61, "OH2RCH-2*")
+    heard_at(d, 5, "OH2RCH-2*")
+    assert heard_path(d, NOW) is None, "one of the two is older than 60 minutes"
+    heard_at(d, 90)
+    heard_at(d, 61)
+    assert heard_path(d, NOW) is None
+    assert heard_path(d, NOW - timedelta(minutes=20)) == ("OH2RCH-2",), "twenty minutes earlier both of them were within the hour"
+
+
+def test_only_the_first_two_attempts_go_by_the_heard_path() -> None:
+    d = Deliveries()
+    heard_at(d, 10, "OH2RCH-2*")
+    heard_at(d, 5, "OH2RCH-2*")
+    assert [automatic_path(d, NOW, n) for n in (1, 2, 3, 4)] == [("OH2RCH-2",), ("OH2RCH-2",), None, None]
+    assert automatic_path(None, NOW, 1) is None, "a station never heard"
+
+
+def test_the_times_kept_of_a_route_are_the_two_latest_and_follow_a_route_that_is_dropped() -> None:
+    d = Deliveries()
+    for minutes in (50, 40, 30, 2):
+        heard_at(d, minutes, "OH2RCH-2*")
+    assert d.times[("OH2RCH-2",)] == [NOW - timedelta(minutes=30), NOW - timedelta(minutes=2)]
+    d.note(route_of(("OH2RCH-9*",)), 1, NOW)
+    for n in range(ROUTES_KEPT):
+        d.note(route_of((f"OH2RCH-{n + 10}*",)), 5, NOW)
+    assert set(d.times) == set(d.by_route), "a route that was dropped has no times left"
+
+
+def test_a_group_seeded_from_the_database_brings_its_two_latest_times() -> None:
+    d = Deliveries()
+    d.note(route_of(("OH2RCH-2*",)), 7, NOW - timedelta(minutes=3), NOW - timedelta(minutes=9))
+    assert heard_path(d, NOW) == ("OH2RCH-2",)

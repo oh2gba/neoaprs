@@ -43,8 +43,9 @@ describe("App: the Beacon tab", () => {
     await tabButton(wrapper, "Beacon")?.trigger("click");
     expect(wrapper.find("#pane-beacon .beacon-preview code").text()).toBe("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=6010.20N/02456.40E-NeoAPRS");
     await wrapper.find("#pane-beacon #set-station-comment").setValue("hello");
-    await wrapper.find("#pane-beacon #set-beacon-path").setValue("");
-    expect(wrapper.find("#pane-beacon .beacon-preview code").text()).toBe("OH2GBA>APZNEO:=6010.20N/02456.40E-hello");
+    await wrapper.find("#pane-beacon #set-beacon-path").setValue("custom");
+    await wrapper.find("#pane-beacon #set-beacon-path-typed").setValue("WIDE2-2");
+    expect(wrapper.find("#pane-beacon .beacon-preview code").text()).toBe("OH2GBA>APZNEO,WIDE2-2:=6010.20N/02456.40E-hello");
     expect(socket.sent.filter((c) => (c as { cmd: string }).cmd === "set_config")).toEqual([]);
     await wrapper.find("#pane-beacon #set-station-comment").trigger("blur");
     expect(socket.sent).toContainEqual({ cmd: "set_config", values: { "station/comment": "hello" } });

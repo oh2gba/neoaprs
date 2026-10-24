@@ -219,11 +219,14 @@ export const settings = {
     "How often your position is sent. Off sends none by itself; Beacon now still sends one. Every beacon uses the channel for everyone around, so 30 minutes is a good choice for a station that stays where it is; {min} is the least.",
   "settings.path.name": "Beacon path",
   "settings.path.label": "Path",
-  "settings.path.empty": "direct",
+  "settings.path.recommended": "Recommended ({path})",
+  "settings.path.direct": "Direct only (no digipeaters)",
+  "settings.path.custom": "Custom…",
+  "settings.path.custom_label": "Digipeaters",
   "settings.path.tip1":
-    "The digipeaters, the stations that repeat your packet so it travels further, in the order it should use them, separated by commas. Empty sends direct, with no help.",
+    "Which digipeaters, the stations that repeat your packet so it travels further, your beacon and your objects go by. Recommended suits most stations: a small digipeater nearby picks the packet up first and a wide-area one carries it on. Choose Direct only if everyone you talk to hears you directly.",
   "settings.path.tip2":
-    "WIDE1-1,WIDE2-1 is the usual choice: a small digipeater nearby picks the packet up first and a wide-area one carries it on. WIDE2-2 goes straight to the wide-area digipeaters, for a station that they hear directly, such as one on a hill.",
+    "A fixed station that the wide-area digipeaters hear directly, such as one on a hill, may use WIDE2-1 or WIDE2-2 as a custom path. Messages choose their own path unless you set one for the station.",
 
   "settings.confirm.label": "Confirm",
   "settings.confirm.yes": "Yes",

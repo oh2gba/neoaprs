@@ -239,7 +239,6 @@ const SPECS: Record<string, FieldSpec> = {
   "beacon/path": {
     name: "settings.path.name",
     label: "settings.path.label",
-    empty: "settings.path.empty",
     tip: ["settings.path.tip1", "settings.path.tip2"],
   },
 };

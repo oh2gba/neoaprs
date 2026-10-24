@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { callList, mayTransmitAs, normalizeCall, parsePath, placeholderCall, qrzUrl, validCall } from "@/lib/calls";
+import { callList, mayTransmitAs, normalizeCall, parsePath, parsePathSetting, pathCalls, placeholderCall, qrzUrl, validCall } from "@/lib/calls";
 
 describe("calls", () => {
   it("takes calls with an SSID up to 15, in any case", () => {
@@ -37,6 +37,7 @@ describe("calls: a path", () => {
     expect(parsePath("A,B,C,D,E,F,G,H,I")).toBeNull();
     expect(parsePath("WIDE 1")).toBeNull();
     expect(parsePath("WIDE1-16")).toBeNull();
+    expect(parsePath("DIRECT")).toBeNull(); // (DIRECT is no digipeater: the word for none, see parsePathSetting)
   });
 });
 
@@ -49,5 +50,28 @@ describe("calls: the QRZ page", () => {
 
   it("is none for a name that is no call", () => {
     for (const name of ["Big Storm", "OH2GBA-16", "TOOLONGCALL", ""]) expect(qrzUrl(name)).toBeNull();
+  });
+});
+
+describe("a path setting", () => {
+  it("is empty (automatic or recommended), the word DIRECT (no digipeaters), or digipeaters", () => {
+    expect(parsePathSetting("")).toEqual({ kind: "auto" });
+    expect(parsePathSetting("  , ")).toEqual({ kind: "auto" });
+    expect(parsePathSetting(" direct ")).toEqual({ kind: "direct" });
+    expect(parsePathSetting("wide1-1, wide2-1")).toEqual({ kind: "calls", calls: ["WIDE1-1", "WIDE2-1"] });
+  });
+
+  it("is none when the word is among calls, a piece is no call or there are too many", () => {
+    expect(parsePathSetting("DIRECT,WIDE1-1")).toBeNull();
+    expect(parsePathSetting("WIDE1-1,direct")).toBeNull();
+    expect(parsePathSetting("WIDE 1")).toBeNull();
+    expect(parsePathSetting("A,B,C,D,E,F,G,H,I")).toBeNull();
+  });
+
+  it("stands for the recommended calls when empty, for none at all as DIRECT, else for the calls", () => {
+    expect(pathCalls("")).toEqual(["WIDE1-1", "WIDE2-1"]);
+    expect(pathCalls("direct")).toEqual([]);
+    expect(pathCalls("wide2-2")).toEqual(["WIDE2-2"]);
+    expect(pathCalls("DIRECT,A1")).toBeNull();
   });
 });

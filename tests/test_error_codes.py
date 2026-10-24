@@ -62,6 +62,7 @@ def test_every_refusal_of_the_domain_that_the_page_shows_has_a_code() -> None:
         (CallsignError, "call.shape", lambda: parse_call("TOOLONGCALL")),
         (CallsignError, "call.ssid", lambda: parse_call("OH2GBA-16")),
         (CodedError, "path.too_long", lambda: normal_path(",".join(["A1"] * 9))),
+        (CodedError, "path.direct_alone", lambda: normal_path("DIRECT")),
         (CodedError, "message.empty", lambda: check_text(" ")),
         (CodedError, "message.too_long", lambda: check_text("x" * 68)),
         (CodedError, "message.forbidden", lambda: check_text("a|b")),

@@ -85,7 +85,7 @@ passband); an `RPRT -n` answer, a refused connection or no answer within 5 secon
 The commands are `send_message`, `query` (a directed query, once, with no id: `neoaprs/services/asking.py`), `message_retry`, `message_cancel`, `message_delete`, `conversation_delete` and `overheard_delete`. Messages to bulletins and
 groups are the board's. Every message is a row of the table `message`, so a restart goes on where the daemon stopped.
 
-- **The frame.** `OH2GBA>APZNEO,...::OH2RDG   :Hello Pekka{01}` is the source, the tocall, the station's path, then `:`, the addressee padded to nine
+- **The frame.** `OH2GBA>APZNEO,...::OH2RDG   :Hello Pekka{01}` is the source, the tocall, the path of the attempt (below), then `:`, the addressee padded to nine
   characters, `:`, the text, `{`, the id and `}`. When the station sent a message with a reply-ack number that its own ack has not reached it with yet, the id
   of the latest of them follows the brace.
 - **The attempts.** `STATION_ATTEMPTS` (4) and `EMAIL_ATTEMPTS` (2) of `neoaprs/message.py`. The wait after attempt n is `FIRST_WAIT_SEC` (30) doubled each time
@@ -130,9 +130,24 @@ empty command is an `error`.
 `MAX_DIRECT_MESSAGES` (2). For `?APRSD` the stations are those of the station book (not us, not objects), and "heard direct" is a packet with no repeated
 digipeater that was not a third-party packet.
 
+**The path of an attempt.** `Messaging` asks `PrefBook.path_for(call, attempt)` each time it sends an attempt of a message that has an id (the attempt is
+`record.attempts + 1`); acks and answers ask with no attempt. The path is, in order: the station's own path (`station_pref`), else for attempts up to
+`HEARD_PATH_ATTEMPTS` (2) of a message to a station other than `EMAIL-2` the heard path, else `beacon/path`; `RFONLY` is added to whichever it is. The heard path
+is the pure function `route.heard_path(deliveries, now)` (`route.automatic_path` adds the attempt rule) over the station book's `Deliveries`, which keeps for
+direct and for each route the times of its latest `TIMES_KEPT` (2) packets (seeded from the database with the two latest of each group,
+`PacketLog.deliveries`): direct if `HEARD_PATH_MIN_PACKETS` (2) of them are within `HEARD_PATH_WINDOW_MIN` (60) minutes, else the route heard last with that many
+within the window, no anonymous hop, no gate (those are counted apart), no marker, at most `HEARD_PATH_MAX_DIGIPEATERS` (3) digipeaters, reversed. The constants
+are in `neoaprs/policy.py`. The delivery chain records the digipeaters of each attempt as it was sent. The station row tells the choice as `heard_path` (null: none, empty: direct), worked out
+when the row is made.
+
+**The path settings.** An empty path never means no digipeaters. `beacon/path` empty is the recommended `WIDE1-1,WIDE2-1`; the word `DIRECT` (`route.DIRECT_ONLY`,
+`message.path_choice`) is no digipeaters, and stands alone (`normal_path` refuses it among calls with `path.direct_alone`). Migration 14 changed a stored empty
+`beacon/path` to `DIRECT`. A station's own path: the stored `path` null is none (automatic), `''` is direct; `set_station_path` takes calls or `DIRECT`, and an empty
+`path` is `clear_station_path`. An own object's or item's path: null (or empty) is `beacon/path`, `DIRECT` is none.
+
 **The station preferences** (`neoaprs/services/prefbook.py`; the table `station_pref`). The path, the timeout (`hide_after_min`) and the RF-only flag of each
-station, under the call as written, in the row `{path, hide_after_min, rf_only}` of the topic `station_prefs` (the first two null where none is set; an entry
-with neither and `rf_only` false is not kept). The commands are `set_station_path` (an empty `path` is direct), `clear_station_path`, `set_station_timeout`,
+station, under the call as written, in the row `{path, hide_after_min, rf_only}` of the topic `station_prefs` (the first two null where none is set, a `path` of `""` is
+direct; an entry with neither and `rf_only` false is not kept). The commands are `set_station_path` (calls, or `DIRECT`; an empty `path` clears), `clear_station_path`, `set_station_timeout`,
 `clear_station_timeout` and `set_station_rf_only{call, on}`. `PrefBook.path_for` adds `RFONLY` so every frame to the station takes the same road. The daemon
 only keeps and tells the timeout, except that the daily prune keeps a station with a timeout of 0 in the station book and its cache row. Messaging is given
 `path_for`, the prune its `never_hidden`. `set_station_rf_only` for `EMAIL-2` is an `error`.

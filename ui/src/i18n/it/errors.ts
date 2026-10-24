@@ -42,6 +42,7 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.path.too_long": "{count} digipeater sono più dei {max} che un percorso può avere",
   "error.query.not_capable": "{call} non riceve messaggi: non c'è nessuno da interrogare",
   "error.query.too_soon": "A {call} è appena stata fatta la stessa domanda: attendi {seconds} s",
+  "error.path.direct_alone": "{word} non è un digipeater: scritto da solo significa nessun digipeater",
   "error.setting.comment_too_long": "{length} caratteri sono più dei {limit} consentiti con l’estensione PHG (svuota beacon/power_w per non inviarla)",
   "error.setting.not_access_key": "non è una chiave di accesso (tre gruppi di quattro cifre e lettere, come k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "ha caratteri che non sono ASCII stampabile",

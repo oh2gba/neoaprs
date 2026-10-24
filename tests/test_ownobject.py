@@ -107,6 +107,13 @@ def test_the_path_is_written_the_way_a_frame_carries_it_and_empty_means_the_beac
     assert made(path=None).path is None and made(path="  ").path is None and made().path_calls is None
 
 
+def test_direct_is_said_with_the_word_and_is_a_path_of_no_digipeaters_not_the_beacons() -> None:
+    assert made(path="direct").path == "DIRECT" and made(path="DIRECT").path_calls == ()
+    with pytest.raises(OwnError) as e:
+        made(path="DIRECT,WIDE1-1")
+    assert e.value.code == "path.direct_alone"
+
+
 def test_a_changed_object_keeps_when_it_was_made_and_last_sent_and_starts_its_count_again() -> None:
     sent = replace(made(comment="one"), sent=4, last_sent_at=NOW)
     later = datetime(2026, 10, 9, 23, 55, tzinfo=UTC)

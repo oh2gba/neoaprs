@@ -48,8 +48,34 @@ export function callList(text: string): string[] {
     .filter((piece) => piece !== "");
 }
 
-/** The calls of a path as the daemon reads it (capitals, no blanks); null when a piece is no call or there are more than the daemon takes. An empty text is a path of no calls: direct. */
+/** The pieces of a list as `callList` has them, written with commas: how the daemon keeps a path. */
+export const callListText = (text: string): string => callList(text).join(",");
+
+/** The word that stands for no digipeaters at all in a path that is typed (the daemon's `DIRECT`); it is no call and stands alone. */
+export const DIRECT = LIMITS.path.direct;
+
+/** The path that is recommended (WIDE1-1,WIDE2-1), which an empty path setting means. */
+export const RECOMMENDED = LIMITS.path.recommended;
+
+/** The calls of a list of digipeaters as the daemon reads it (capitals, no blanks); null when a piece is no call (DIRECT is none) or there are more than the daemon takes. An empty text is a list of no calls. */
 export function parsePath(text: string): string[] | null {
   const calls = callList(text);
-  return calls.length <= LIMITS.path.maxCalls && calls.every(validCall) ? calls : null;
+  return calls.length <= LIMITS.path.maxCalls && calls.every((call) => validCall(call) && call !== DIRECT) ? calls : null;
+}
+
+/** What a path that is typed says: nothing (`auto`: the recommended or automatic path, never no digipeaters), DIRECT alone (`direct`: no digipeaters, explicitly) or digipeaters; null when it is none of them. */
+export type PathSetting = { kind: "auto" } | { kind: "direct" } | { kind: "calls"; calls: string[] };
+
+export function parsePathSetting(text: string): PathSetting | null {
+  const calls = callList(text);
+  if (calls.length === 0) return { kind: "auto" };
+  if (calls.length === 1 && calls[0] === DIRECT) return { kind: "direct" };
+  const parsed = parsePath(text);
+  return parsed === null ? null : { kind: "calls", calls: parsed };
+}
+
+/** The digipeaters a path setting stands for (the beacon's: empty is the recommended path, DIRECT is none); null when the text is no path. */
+export function pathCalls(text: string): string[] | null {
+  const setting = parsePathSetting(text);
+  return setting === null ? null : setting.kind === "direct" ? [] : setting.kind === "auto" ? RECOMMENDED.split(",") : setting.calls;
 }

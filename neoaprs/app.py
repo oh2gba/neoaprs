@@ -16,6 +16,7 @@ from .interlock import Interlock
 from .messagelog import MessageLog
 from .ownlog import OwnLog
 from .packetlog import PacketLog
+from .route import Deliveries
 from .services.alerts import Alerts
 from .services.beacon import Beacon
 from .services.bulletins import Bulletins
@@ -64,7 +65,7 @@ class Services:
         self.alerts = Alerts(lambda: self.config, clock)                # the command run for a message to us; nothing to start
         self.packetlog = PacketLog(clock=clock)                         # every packet and the station cache, in the database
         self.messagelog = MessageLog(clock=clock)                       # every message we sent and every one sent to us, in the database
-        self.prefbook = PrefBook(self.messagelog, lambda: self.config)  # the path, the timeout and RF only of each station, kept with the messages; read by the controller before messaging starts
+        self.prefbook = PrefBook(self.messagelog, lambda: self.config, self._deliveries, clock)  # the path, the timeout and RF only of each station, kept with the messages; read by the controller before messaging starts
         self.weatherlog = WeatherLog(clock=clock)                       # every observation of the weather stations, in the database
         self.bulletinlog = BulletinLog(clock=clock)                     # the message board in the database
         self.bulletins = Bulletins(self.bulletinlog, clock)             # bulletins, announcements and group messages, one for each sender and slot; they stay until deleted; started by the controller before the Tnc
@@ -84,6 +85,11 @@ class Services:
         self.tasks = TaskSet(log)                                             # what the parts start on the loop; the controller's stop ends them
         self.running = False
         self.debug = False
+
+    def _deliveries(self, call: str) -> Deliveries | None:
+        """How the packets of the station reached us, for the path of a message to it (None for a station not in the book)."""
+        found = self.stationbook.get(call)
+        return None if found is None else found.deliveries
 
     def _is_station(self, name: str) -> bool:
         """Is the name that of a station of the book (a call that was heard, not an object)? An object of ours is never made under it."""

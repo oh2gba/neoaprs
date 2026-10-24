@@ -280,7 +280,8 @@ def test_the_routes_of_the_packets_the_database_kept_are_counted_for_the_station
     book = StationBook()
     book.seed([Station("OH2AAA", first_heard=T0, last_heard=T0), Station("OH2BBB", first_heard=T0, last_heard=T0)])
     later = T0 + timedelta(minutes=5)
-    book.seed_deliveries([("OH2AAA", ("OH2RCH-3*",), "", 2, T0), ("OH2GONE", ("OH2RCH-2*",), "", 5, T0), ("OH2AAA", ("OH2RCH-2*",), "", 4, T0), ("OH2BBB", (), "", 1, later), ("OH2BBB", ("OH2RCH-2*",), "OH7JHF-1", 3, later)])
+    book.seed_deliveries([("OH2AAA", ("OH2RCH-3*",), "", 2, T0, None), ("OH2GONE", ("OH2RCH-2*",), "", 5, T0, None), ("OH2AAA", ("OH2RCH-2*",), "", 4, T0, None), ("OH2BBB", (), "", 1, later, None),
+                           ("OH2BBB", ("OH2RCH-2*",), "OH7JHF-1", 3, later, None)])
     a, b = book.get("OH2AAA"), book.get("OH2BBB")
     assert a is not None and b is not None and book.get("OH2GONE") is None
     best = a.best_route

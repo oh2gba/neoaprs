@@ -117,13 +117,13 @@ class StationBook:
                 station.track.append((station.last_position_at, station.lat, station.lon))
             self._stations[station.call] = station
 
-    def seed_deliveries(self, counts: Iterable[tuple[str, tuple[str, ...], str, int, datetime]]) -> None:
-        """The routes of the packets the database kept, as (sender, path, iGate or "", how many, when the latest of them was heard) with the group of the oldest latest packet first; a sender that is not
+    def seed_deliveries(self, counts: Iterable[tuple[str, tuple[str, ...], str, int, datetime, datetime | None]]) -> None:
+        """The routes of the packets the database kept, as (sender, path, iGate or "", how many, when the latest of them was heard, when the one before it was) with the group of the oldest latest packet first; a sender that is not
         in the book is left out. The latest group of a station says how its latest packet came. Nothing is signalled."""
-        for sender, path, gate, count, at in counts:
+        for sender, path, gate, count, at, before in counts:
             station = self._stations.get(sender)
             if station is not None:
-                station.deliveries.note(route_of(path, gate), count, at)
+                station.deliveries.note(route_of(path, gate), count, at, before)
                 station.last_path, station.last_via = path, gate
 
     def seed_tracks(self, positions: Iterable[tuple[str, datetime, float, float]]) -> None:

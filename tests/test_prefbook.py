@@ -59,7 +59,7 @@ async def test_a_path_and_a_timeout_are_kept_by_the_call_and_read_back_by_the_ne
     assert await rig.book.set_path(" oh2rdg ", "oh2rch-2, wide2-1") == ("OH2RCH-2", "WIDE2-1")
     assert await rig.book.set_timeout("oh2rdg", 45) == 45
     assert await rig.book.set_timeout("OH2PU-9", 0) == 0
-    assert await rig.book.set_path("OH2XYZ", "") == ()
+    assert await rig.book.set_path("OH2XYZ", "DIRECT") == ()
     assert rig.book.all() == {"OH2RDG": Pref(("OH2RCH-2", "WIDE2-1"), 45), "OH2PU-9": Pref(None, 0), "OH2XYZ": Pref((), None)}
     assert rig.book.path_for("oh2rdg") == ("OH2RCH-2", "WIDE2-1") and rig.timeout_for("oh2rdg") == 45
     assert rig.book.path_for("OH2PU-9") == ("WIDE1-1", "WIDE2-1") and rig.timeout_for("OH2PU-9") == 0, "a timeout alone leaves the path the default"
@@ -85,11 +85,19 @@ async def test_a_station_has_the_beacon_path_until_it_is_given_one_of_its_own(ri
     await rig.book.clear_path("OH2RDG")                                       # (no path to clear: no error)
 
 
+async def test_an_empty_path_takes_the_stations_own_away_and_direct_is_said_with_the_word(rig: Rig) -> None:
+    await rig.book.set_path("OH2RDG", "WIDE2-2")
+    assert await rig.book.set_path("OH2RDG", "  ") == () and rig.book.all() == {} and rig.told[-1] == ("OH2RDG", None), "empty is automatic again, not no digipeaters"
+    assert await rig.book.set_path("OH2RDG", "direct") == () and rig.book.paths() == {"OH2RDG": ()}
+    with pytest.raises(MessagingError, match="DIRECT"):
+        await rig.book.set_path("OH2RDG", "DIRECT,WIDE1-1")
+
+
 async def test_an_empty_path_is_a_path_of_its_own_direct_and_not_the_default(rig: Rig) -> None:
-    assert await rig.book.set_path("OH2RDG", "") == ()
+    assert await rig.book.set_path("OH2RDG", "DIRECT") == ()
     assert rig.book.path_for("OH2RDG") == () and rig.book.path_for("OH2XYZ") == ("WIDE1-1", "WIDE2-1")
     assert rig.book.paths() == {"OH2RDG": ()}
-    rig.config = replace(rig.config, beacon_path="")
+    rig.config = replace(rig.config, beacon_path="DIRECT")
     await rig.book.set_path("OH2XYZ", "WIDE1-1")
     assert rig.book.path_for("OH2XYZ") == ("WIDE1-1",) and rig.book.path_for("OH2RDG") == ()
 
@@ -121,7 +129,7 @@ async def test_clearing_one_part_keeps_the_other_and_clearing_the_last_removes_t
     await rig.book.clear_path("OH2RDG")
     assert rig.book.all() == {"OH2RDG": Pref(None, 90)} and await rig.log.prefs() == {"OH2RDG": (None, 90, False)}
     assert rig.book.path_for("OH2RDG") == ("WIDE1-1", "WIDE2-1")
-    await rig.book.set_path("OH2RDG", "")
+    await rig.book.set_path("OH2RDG", "DIRECT")
     await rig.book.clear_timeout("OH2RDG")
     assert rig.book.all() == {"OH2RDG": Pref((), None)} and await rig.log.prefs() == {"OH2RDG": ("", None, False)}, "an empty path is something"
     await rig.book.clear_path("OH2RDG")
@@ -216,7 +224,7 @@ async def test_rf_only_goes_after_the_stations_own_path_and_direct_with_rf_only_
     await rig.book.set_path("OH2RDG", "OH2RCH-2,WIDE2-1")
     await rig.book.set_rf_only("OH2RDG", True)
     assert rig.book.path_for("OH2RDG") == ("OH2RCH-2", "WIDE2-1", "RFONLY")
-    await rig.book.set_path("OH2RDG", "")
+    await rig.book.set_path("OH2RDG", "DIRECT")
     assert rig.book.path_for("OH2RDG") == ("RFONLY",)
     await rig.book.set_path("OH2RDG", "OH2RCH-2,NOGATE")
     assert rig.book.path_for("OH2RDG") == ("OH2RCH-2", "NOGATE"), "NOGATE says it already"

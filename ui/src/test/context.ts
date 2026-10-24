@@ -49,7 +49,7 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     fallbackPath: part(over.fallbackPath, ""),
     stations: part(over.stations, new Map<string, StationRow>()),
     aging: part(over.aging, { timeouts: new Map<string, number>(), defaultMin: DEFAULT_TIMEOUT_MIN }),
-    suggestions: part(over.suggestions, new Map<string, string | null>()),
+    heardPaths: part(over.heardPaths, new Map<string, string | null>()),
     heardDirect: part(over.heardDirect, new Set<string>()),
     prefs: over.prefs ?? useStationPrefs(shallowReactive(new Map<string, StationPref>()), sender),
     settings: over.settings ?? useSettings(config, lastError, sender),

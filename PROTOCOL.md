@@ -244,7 +244,7 @@ from the daemon and from every page: each message's row is a `del` of the topic 
 ### `set_station_path`
 
 Gives a station a path of its own: the digipeaters that a message to it, and the ack of a message from it, go by way of. `path` is up to 8 digipeater calls separated by commas, checked as the setting
-`beacon/path` is; an empty `path` is a valid path of its own, direct with no digipeaters at all, which is not the same as none set. Answered by the `set` of the station's entry in the topic `station_prefs`
+`beacon/path` is, or `DIRECT` for a path of its own with no digipeaters at all; an empty `path` is no path of its own, as `clear_station_path` makes it. Answered by the `set` of the station's entry in the topic `station_prefs`
 (its `hide_after_min` is whatever it was), or by an `error` that names the reason.
 
 | field | type | | description |
@@ -323,7 +323,7 @@ the `del`, or by an `error` (no such entry).
 Makes an object or an item of ours, or changes the one of that name (a changed object starts its schedule again, and is sent at once, never sooner than a minute after its last packet). `name` is 1 to 9
 characters for an object and 3 to 9 for an item, printable ASCII without `!`, `_`, `|` and `~` and without a blank at either end, and not our own call or the call of a station; `lat` and `lon` the position in decimal
 degrees; the symbol is a table character and a code character; `comment` at most 43 characters (36 with a course or speed); `course_deg` and `speed_kmh` the course and speed, each or both or none; `path` the digipeaters, calls
-separated by commas (null: `beacon/path`). Nothing is sent while the call is not set. Answered by the `set` of its row in `own_objects` and `stations`, or by an `error` that names the reason.
+separated by commas, or `DIRECT` for none at all (null or empty: `beacon/path`). Nothing is sent while the call is not set. Answered by the `set` of its row in `own_objects` and `stations`, or by an `error` that names the reason.
 
 | field | type | | description |
 |---|---|---|---|
@@ -552,6 +552,7 @@ row has a new distance and bearing, and the topic is told whole again.
 | `heard_via` | [string, integer][] |  | [the station we heard, packets] for each digipeater that repeated its packets, the most first; `?` stands for a hop that was an alias (WIDE1) and gave no call; the 8 most frequent routes are counted |
 | `best_route` | string |  | the route most of its packets came by, as `last_route` writes it, direct included; empty until a packet was counted |
 | `suggested_path` | string \| null |  | the path to send by to reach it, the best route turned round: empty for direct, `OH2RCH-2` for one hop, `OH2RCH-3,OH2RCH-1` for `via OH2RCH-1 → OH2RCH-3`, `WIDE1-1,WIDE2-1` when the best route has a hop with no call; null when no route is known (an object or item, or a station not heard since the packets were pruned) |
+| `heard_path` | string \| null |  | the path that has lately been heard to reach the station, which the first two attempts of a message to it go by when the operator has set no path of its own (the later ones go by `beacon/path`): empty for direct (at least 2 packets heard direct within 60 minutes), else the latest named route that at least 2 packets came by within 60 minutes, turned round, as `suggested_path` writes it (no hop without a call, no iGate, at most 3 digipeaters); null when there is none. Worked out when the row is sent, so a path that goes stale is told with the station's next row |
 | `weather` | WeatherValues \| null |  | the latest weather the station sent (a position with the weather symbol, or a positionless weather report); null for a station that sent none since the weather log began (or was made from the packets kept) |
 | `weather_at` | time \| null |  | when `weather` was heard; null as it is |
 | `telemetry` | TelemetryValues \| null |  | the latest telemetry report of the station, scaled and named by the definitions it sent (read again from the latest packets at the start); null for a station that sent none |
@@ -1033,7 +1034,7 @@ map shows; a killed one leaves that topic at once and stays here, as `killing`, 
 | `comment` | string |  | at most 43 characters, 36 when it follows a course and speed |
 | `course_deg` | integer \| null |  | the course in degrees from north (0 to 359); null for none |
 | `speed_kmh` | number \| null |  | the speed in km/h; null for none |
-| `path` | string \| null |  | the digipeaters it goes by, calls separated by commas; null: the path of the setting `beacon/path` is used |
+| `path` | string \| null |  | the digipeaters it goes by, calls separated by commas, or `DIRECT` for none at all; null: the path of the setting `beacon/path` is used |
 | `state` | "live" \| "killing" |  | `live`: it is being sent on the decay schedule; `killing`: it was killed and its killed form is being sent (three times), then it is forgotten |
 | `created_at` | time |  | when it was first made |
 | `updated_at` | time |  | when it was last changed or killed |

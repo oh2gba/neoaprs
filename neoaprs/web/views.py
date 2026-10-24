@@ -18,7 +18,7 @@ from neoaprs.ownobject import OwnObject
 from neoaprs.packet import Packet
 from neoaprs.packetcodec import encode_decoded, tnc2
 from neoaprs.pref import Pref
-from neoaprs.route import digipeaters, received_text, route_text, suggested_path
+from neoaprs.route import digipeaters, heard_path, received_text, route_text, suggested_path
 from neoaprs.stationbook import Station, StationBook
 from neoaprs.symbols import symbol_name
 from neoaprs.tnc import Tnc
@@ -35,12 +35,13 @@ from .tncwire import TncState, TncStats
 LINES_MAX = 100                     # lines of the TNC told to a page
 
 
-def _routes(station: Station) -> dict[str, Any]:
+def _routes(station: Station, now: datetime) -> dict[str, Any]:
     best = station.best_route
+    heard = heard_path(station.deliveries, now)
     return {
         "last_route": received_text(station.last_path, station.last_via) if station.packets else "", "heard_direct": station.deliveries.direct, "heard_gated": station.deliveries.gated,
         "heard_via": [[call, count] for call, count in station.deliveries.heard_via()], "best_route": "" if best is None else route_text(best),
-        "suggested_path": None if best is None else suggested_path(best),
+        "suggested_path": None if best is None else suggested_path(best), "heard_path": None if heard is None else ",".join(heard),
     }
 
 
@@ -65,7 +66,7 @@ def station_row(book: StationBook, station: Station) -> dict[str, Any]:
     bearing = None if station.is_me else book.bearing_deg(station)
     return StationRow.row(
         station, symbol_name=symbol_name(station.symbol_table, station.symbol_code) if station.symbol_code else "unknown", weather=weather_values(station.weather),
-        telemetry=telemetry_values(book, station), distance_km=None if distance is None else round(distance, 2), bearing_deg=None if bearing is None else round(bearing, 1), **_routes(station),
+        telemetry=telemetry_values(book, station), distance_km=None if distance is None else round(distance, 2), bearing_deg=None if bearing is None else round(bearing, 1), **_routes(station, book.clock()),
     )
 
 

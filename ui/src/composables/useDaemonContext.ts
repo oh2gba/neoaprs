@@ -58,7 +58,7 @@ export interface DaemonContext {
   stations: Read<ReadonlyMap<string, StationRow>>;
   aging: Read<Aging>;
   /** the path to send by that the daemon suggests, for each station that has one */
-  suggestions: Read<ReadonlyMap<string, string | null>>;
+  heardPaths: Read<ReadonlyMap<string, string | null>>;
   /** the stations heard direct */
   heardDirect: Read<ReadonlySet<string>>;
   prefs: StationPrefs;

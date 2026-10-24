@@ -10,10 +10,14 @@ goes on through the digipeaters that repeated the gate's frame. The gate is no d
 Pure code: a path is the strings of `Packet.path`, each with its own star as `Address.__str__` writes it."""
 import re
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
+
+from neoaprs.policy import HEARD_PATH_ATTEMPTS, HEARD_PATH_MAX_DIGIPEATERS, HEARD_PATH_MIN_PACKETS, HEARD_PATH_WINDOW_MIN
 
 UNKNOWN = "?"                                       # a hop whose call is not known, in `Route.hops`
-WIDE_PATH = "WIDE1-1,WIDE2-1"                       # what is suggested for a station that was heard through a hop with no call
+WIDE_PATH = "WIDE1-1,WIDE2-1"                       # the recommended path: what an empty path setting means, and what is suggested for a station that was heard through a hop with no call
+DIRECT_ONLY = "DIRECT"                              # what a path setting says to mean no digipeaters at all, explicitly (an empty one means the recommended path); it stands alone and is no call
+TIMES_KEPT = 2                                      # the times of the latest packets that are kept for each route (and for direct): enough to tell whether HEARD_PATH_MIN_PACKETS of them are recent
 ROUTES_KEPT = 8                                     # the routes counted for one station
 RF_ONLY = "RFONLY"                                  # the path element that an iGate does not gate to the internet a packet with (NOGATE says the same)
 NO_GATE = "NOGATE"
@@ -90,21 +94,40 @@ class Deliveries:
     last_direct_at: datetime | None = None          # when the latest packet that came direct was heard
     gated: int = 0
     by_route: dict[tuple[str, ...], int] = field(default_factory=dict)      # in the order of their latest packet, the oldest first
+    times: dict[tuple[str, ...], list[datetime]] = field(default_factory=dict)      # the times of the latest TIMES_KEPT packets of each route, the oldest first; direct is under the empty route
 
-    def note(self, route: Route, count: int = 1, at: datetime | None = None) -> None:
-        """Counts `count` packets that came by the route, the latest of them heard at `at` (only a direct packet's time is kept)."""
+    def note(self, route: Route, count: int = 1, at: datetime | None = None, before: datetime | None = None) -> None:
+        """Counts `count` packets that came by the route, the latest of them heard at `at` and the one before it at `before` (the time of a direct packet is kept for `last_direct_at`, the times of the latest
+        of any route for `heard_path`)."""
         if route.direct:
             self.direct += count
             if at is not None and (self.last_direct_at is None or at > self.last_direct_at):
                 self.last_direct_at = at
+            self._times(route.hops, at, before)
             return
         if route.gate:
             self.gated += count
             return
         total = self.by_route.pop(route.hops, 0) + count
         if len(self.by_route) >= ROUTES_KEPT:
-            del self.by_route[min(self.by_route, key=lambda hops: self.by_route[hops])]
+            gone = min(self.by_route, key=lambda hops: self.by_route[hops])
+            del self.by_route[gone]
+            self.times.pop(gone, None)
         self.by_route[route.hops] = total
+        self._times(route.hops, at, before)
+
+    def _times(self, hops: tuple[str, ...], at: datetime | None, before: datetime | None) -> None:
+        kept = self.times.setdefault(hops, [])
+        kept.extend(when for when in (before, at) if when is not None)
+        kept.sort()
+        del kept[:-TIMES_KEPT]
+        if not kept:
+            del self.times[hops]
+
+    def recent(self, hops: tuple[str, ...], now: datetime) -> tuple[int, datetime | None]:
+        """(how many of the latest packets by the route were heard within HEARD_PATH_WINDOW_MIN of `now` (at most TIMES_KEPT), when the latest was heard); the empty route is direct."""
+        kept = self.times.get(hops, [])
+        return sum(1 for when in kept if now - when <= timedelta(minutes=HEARD_PATH_WINDOW_MIN)), (kept[-1] if kept else None)
 
     def best(self) -> Route | None:
         """The route most packets came by, direct included; of equal counts the one with fewer hops, then the one heard last. None before any packet."""
@@ -127,3 +150,27 @@ class Deliveries:
 
 def _route_of_hops(hops: tuple[str, ...]) -> Route:
     return Route(hops, None if hops[-1] == UNKNOWN else hops[-1], False, hops.count(UNKNOWN))
+
+
+def heard_path(deliveries: Deliveries, now: datetime) -> tuple[str, ...] | None:
+    """The path that has lately been shown to reach the station, or None when there is none: the empty path (direct) if at least HEARD_PATH_MIN_PACKETS of its packets came direct within
+    HEARD_PATH_WINDOW_MIN of `now`; else its most recent named route (no anonymous hop, no gate, no marker, at most HEARD_PATH_MAX_DIGIPEATERS digipeaters) with that many packets within the window, turned
+    round (heard via A -> B, send by B,A)."""
+    if deliveries.recent((), now)[0] >= HEARD_PATH_MIN_PACKETS:
+        return ()
+    best: tuple[datetime, tuple[str, ...]] | None = None
+    for hops in deliveries.by_route:
+        if not hops or len(hops) > HEARD_PATH_MAX_DIGIPEATERS or UNKNOWN in hops or any(is_marker(hop) for hop in hops):
+            continue
+        recent, latest = deliveries.recent(hops, now)
+        if recent >= HEARD_PATH_MIN_PACKETS and latest is not None and (best is None or latest > best[0]):
+            best = (latest, hops)
+    return None if best is None else tuple(reversed(best[1]))
+
+
+def automatic_path(deliveries: Deliveries | None, now: datetime, attempt: int) -> tuple[str, ...] | None:
+    """The path attempt number `attempt` (1 for the first) of a message to a station goes by when the operator has set none: the heard path for the attempts up to HEARD_PATH_ATTEMPTS, None (the path of the
+    setting `beacon/path`) for the later ones and when no path has lately been heard."""
+    if deliveries is None or attempt > HEARD_PATH_ATTEMPTS:
+        return None
+    return heard_path(deliveries, now)

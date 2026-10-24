@@ -413,3 +413,6 @@
 .mark-cross {
   color: var(--bad);
 }
+.path-line {
+  flex-basis: 100%;
+}

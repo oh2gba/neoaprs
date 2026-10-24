@@ -21,7 +21,7 @@ class StationPref(_Model):
 
 class SetStationPath(_Command):
     """Gives a station a path of its own: the digipeaters that a message to it, and the ack of a message from it, go by way of. `path` is up to 8 digipeater calls separated by commas, checked as the setting
-    `beacon/path` is; an empty `path` is a valid path of its own, direct with no digipeaters at all, which is not the same as none set. Answered by the `set` of the station's entry in the topic `station_prefs`
+    `beacon/path` is, or `DIRECT` for a path of its own with no digipeaters at all; an empty `path` is no path of its own, as `clear_station_path` makes it. Answered by the `set` of the station's entry in the topic `station_prefs`
     (its `hide_after_min` is whatever it was), or by an `error` that names the reason."""
     cmd: Literal["set_station_path"]
     call: str = Field(min_length=1, max_length=64)
