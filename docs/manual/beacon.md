@@ -116,7 +116,7 @@ A message to your call whose text is one of these queries is answered by NeoAPRS
 | `?APRSP` | your position packet, the beacon's own frame |
 | `?APRSS` | your status report as it was last sent, with the time of the answer; nothing while none has been sent |
 | `?APRSD` | a message to the asker with the calls heard direct in the last hour, the one heard last first: `Directs= OH2RCH-2 OH2PU-9`, or `Directs= none`. At most 67 bytes; if the calls do not fit it is two messages, each starting `Directs=`, and what does not fit in two is left out |
-| `?APRST`, `?PING?` | a message to the asker with the header of the query as you heard it, with the digipeaters it went by and their stars: `Path= OH2RDG>APZNEO,WIDE1*,OH2RCH-2*,WIDE2-1`. The last digipeaters go when it would be over 67 bytes |
+| `?APRST`, `?PING?` | a message to the asker with the header of the query as you heard it, with the digipeaters it went by and their stars, as the specification's example writes it: `OH2RDG>APZNEO,WIDE1*,OH2RCH-2*,WIDE2-1:`. The last digipeaters go when it would be over 67 bytes |
 
 The general query `?APRS?` is a packet and not the text of a message (a message with that text is not answered, whoever it is for). It is answered with your position packet and then your status report, after a random wait of 0 to 120 seconds. Once one is taken, another is not taken for 10 minutes.
 

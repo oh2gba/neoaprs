@@ -6,7 +6,7 @@ A message to us (our call with its SSID exactly: our base call is not ours when 
     ?APRSS   with our status report as it was last sent (services/rigstatus.py; nothing while none has been sent)
     ?APRSD   with a message to the asker, "Directs= OH2PU-9 OH2RCH-2", the calls heard direct in the last hour (the one heard last first; at most MAX_TEXT bytes, in two messages at the most, "Directs= none"
              when there is none)
-    ?APRST   (and ?PING?) with a message to the asker, "Path= OH2GBA>APZNEO,OH2RCH-2*": the header of the query as we heard it, the digipeaters it went by with their stars
+    ?APRST   (and ?PING?) with a message to the asker, "OH2GBA>APZNEO,OH2RCH-2*:": the header of the query as we heard it, the digipeaters it went by with their stars
 
 The general query ?APRS? is a `?` packet (the information field starts with `?APRS?`), not the text of a message, and a message with that text is not answered. It may carry a target footprint,
 `?APRS?V34.02,-117.15,0200` (latitude and longitude in degrees, the radius in miles; the V stands for a space and may be left out): we answer only when our position is inside it, and a footprint that does not read is
@@ -78,12 +78,13 @@ def directs_messages(calls: list[str]) -> list[str]:
 
 
 def path_text(packet: Packet) -> str:
-    """"Path= OH2GBA>APZNEO,OH2RCH-2*": the header of the packet as heard, its digipeaters with their stars; the last of them go when the text would be over MAX_TEXT bytes."""
-    head = f"Path= {packet.source}>{packet.destination}"
+    """"OH2GBA>APZNEO,OH2RCH-2*:": the header of the packet as heard, its digipeaters with their stars, as the example of APRS 1.0.1 (chapter 15) writes it; the last of them go when the text
+    would be over MAX_TEXT bytes."""
+    head = f"{packet.source}>{packet.destination}"
     hops = list(packet.path)
-    while hops and len(f"{head},{','.join(hops)}".encode()) > MAX_TEXT:
+    while hops and len(f"{head},{','.join(hops)}:".encode()) > MAX_TEXT:
         hops.pop()
-    return f"{head},{','.join(hops)}" if hops else head
+    return f"{head},{','.join(hops)}:" if hops else f"{head}:"
 
 
 @dataclass(frozen=True)

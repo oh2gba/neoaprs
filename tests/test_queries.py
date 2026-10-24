@@ -134,16 +134,16 @@ def test_aprst_and_ping_are_answered_with_the_header_of_the_query_as_we_heard_it
     rig = Rig()
     rig.ask("OH2RDG", query, path=("WIDE1*", "OH2RCH-2*", "WIDE2-1"), destination="APZNEO")
     [frame] = rig.tnc.sent
-    assert rig.message_of(frame) == ("OH2RDG", "Path= OH2RDG>APZNEO,WIDE1*,OH2RCH-2*,WIDE2-1", None)
+    assert rig.message_of(frame) == ("OH2RDG", "OH2RDG>APZNEO,WIDE1*,OH2RCH-2*,WIDE2-1:", None), "the header as the specification's example has it, no Path= in front"
 
 
 def test_the_path_of_a_direct_query_is_just_the_header_and_a_long_one_loses_its_last_digipeaters() -> None:
     rig = Rig()
     rig.ask("OH2RDG", "?APRST", path=())
-    assert rig.message_of(rig.tnc.sent[0])[1] == "Path= OH2RDG>APZNEO"
+    assert rig.message_of(rig.tnc.sent[0])[1] == "OH2RDG>APZNEO:"
     long = rig.packet("OH2RDG-15", Message("OH2GBA", "?APRST"), path=("OH2RCH-12*", "OH2RCH-13*", "OH2RCH-14*", "OH2RCH-15*", "WIDE2-2", "WIDE3-3"))
     text = path_text(long)
-    assert len(text.encode()) <= MAX_TEXT and text.startswith("Path= OH2RDG-15>APZNEO,OH2RCH-12*,OH2RCH-13*") and "WIDE3-3" not in text
+    assert len(text.encode()) <= MAX_TEXT and text.startswith("OH2RDG-15>APZNEO,OH2RCH-12*,OH2RCH-13*") and text.endswith(":") and "WIDE3-3" not in text
 
 
 # ---- what a query carries ------------------------------------------------------------------------------------------------------------------------
@@ -189,7 +189,7 @@ def test_the_asker_of_a_third_party_query_is_the_sender_inside() -> None:
     rig.ask("OH7JHF-1", "?APRSD", third=ThirdParty("OH2DPN", "APRS", ("TCPIP",)), path=("OH2RCH-3*",))
     assert rig.message_of(rig.tnc.sent[0])[0] == "OH2DPN"
     rig.ask("OH7JHF-1", "?APRST", third=ThirdParty("OH2DPN", "APRS", ("TCPIP",)), path=("OH2RCH-3*",))
-    assert rig.message_of(rig.tnc.sent[1]) == ("OH2DPN", "Path= OH7JHF-1>APZNEO,OH2RCH-3*", None), "the path of the frame we heard"
+    assert rig.message_of(rig.tnc.sent[1]) == ("OH2DPN", "OH7JHF-1>APZNEO,OH2RCH-3*:", None), "the path of the frame we heard"
 
 
 def test_nothing_is_sent_while_the_tnc_is_not_connected_and_the_log_says_so(caplog: pytest.LogCaptureFixture) -> None:
