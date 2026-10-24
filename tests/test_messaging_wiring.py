@@ -117,7 +117,7 @@ async def test_a_restart_finds_the_messages_and_goes_on_with_the_one_being_sent(
     await second.start()
     assert [(m.direction, m.text, m.state) for m in second.ctl.messaging.records()] == [("out", "Hello Pekka", "sending"), ("in", "Moi!", "received")]
     await second.until_usable()
-    second.now.advance(31)                                                  # type: ignore[attr-defined]
+    second.now.advance(33)                                                  # type: ignore[attr-defined]
     await until(lambda: second.ctl.messaging.records()[0].attempts == 2)
     assert [f.tnc2() for f in await said(second)] == [WORKED]
     assert (await second.ctl.messaging.send("OH2RDG", "second")).msg_id == "02", "the ids go on from the latest we sent"

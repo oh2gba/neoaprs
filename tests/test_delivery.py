@@ -69,7 +69,7 @@ async def chain(tmp_path: Path) -> Chain:
 async def test_every_attempt_keeps_the_time_it_was_sent_and_the_path_it_went_by(chain: Chain) -> None:
     first = chain.clock()
     await chain.rig.m.send("OH2RDG", "Hello Pekka")
-    await chain.rig.pass_time(30)
+    await chain.rig.pass_time(32)
     assert [(a.number, a.sent_at, a.path, a.seen) for a in chain.rig.m.delivery.attempts_of(1)] == [(1, first, ("OH2RCH-2", "OH2RDG"), ()), (2, chain.clock(), ("OH2RCH-2", "OH2RDG"), ())]
     assert [row[:2] + row[3:] for row in await chain.rows("message_attempt")] == [(1, 1, "OH2RCH-2,OH2RDG"), (1, 2, "OH2RCH-2,OH2RDG")]
 
@@ -119,7 +119,7 @@ async def test_a_copy_belongs_to_the_latest_attempt_sent_before_it_was_heard(cha
     await chain.rig.m.send("OH2RDG", "Hello Pekka")
     chain.clock.advance(10)
     chain.hear(chain.copy("OH2RCH-2*,OH2RDG"))                          # (attempt 1)
-    await chain.rig.pass_time(20)                                      # (attempt 2 goes out at 30 s)
+    await chain.rig.pass_time(22)                                      # (attempt 2 goes out at 32 s)
     chain.clock.advance(1)
     chain.hear(chain.copy("OH2RCH-2*,OH2RDG*"))
     assert chain.seen() == [[(1, "OH2RCH-2", False)], [(1, "OH2RCH-2", False), (2, "OH2RDG", False)]]
@@ -166,7 +166,7 @@ async def test_a_copy_of_a_message_we_did_not_send_or_before_its_first_attempt_i
 async def test_the_attempts_and_hops_are_kept_across_a_restart(chain: Chain) -> None:
     await chain.rig.m.send("OH2RDG", "Hello Pekka")
     chain.hear(chain.copy("OH2RCH-2*,OH2RDG"))
-    await chain.rig.pass_time(30)
+    await chain.rig.pass_time(32)
     chain.hear(chain.gated("TCPIP,OH7JHF-1*"))
     before = chain.rig.m.delivery.attempts_of(1)
     again = await chain.restarted()

@@ -88,7 +88,8 @@ groups are the board's. Every message is a row of the table `message`, so a rest
 - **The frame.** `OH2GBA>APZNEO,...::OH2RDG   :Hello Pekka{01}` is the source, the tocall, the path of the attempt (below), then `:`, the addressee padded to nine
   characters, `:`, the text, `{`, the id and `}`. When the station sent a message with a reply-ack number that its own ack has not reached it with yet, the id
   of the latest of them follows the brace.
-- **The attempts.** `STATION_ATTEMPTS` (4) and `EMAIL_ATTEMPTS` (2) of `neoaprs/message.py`. The wait after attempt n is `FIRST_WAIT_SEC` (30) doubled each time
+- **The attempts.** `STATION_ATTEMPTS` (4) and `EMAIL_ATTEMPTS` (2) of `neoaprs/message.py`. The wait after attempt n is `FIRST_WAIT_SEC` (32, not 30: a retry
+  exactly on the edge of the digipeaters' 30-second duplicate window could be dropped as a duplicate) doubled each time
   up to `MAX_WAIT_SEC` (960); the answer to the last is waited for 240 seconds. The count is kept with the message (`attempts_max`, in the database and on the
   wire) from the moment it is sent, so a message goes on with the number it was given. A message with `UNCONFIRMED_MAX` (2) attempts or fewer that has used them
   is `unconfirmed`, not `failed`.

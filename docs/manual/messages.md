@@ -22,7 +22,7 @@ A query that you ask from the menu of the Stations table (`?APRSP`, `?APRSS`, `?
 
 ### Attempts
 
-The same frame is sent again until the addressee answers: 4 times in all, and 2 times for the email gateway, because its acks rarely reach you. There is no setting for this. The waits double: the 4 attempts are made 0, 30, 60 and 120 seconds after the first, the 2 to the gateway at 0 and 30. The answer to the last attempt is waited for 240 seconds, then the message has *failed*. A message that was given only 1 or 2 attempts (the gateway's, a bulletin's) is *unconfirmed* instead, since no ack was expected.
+The same frame is sent again until the addressee answers: 4 times in all, and 2 times for the email gateway, because its acks rarely reach you. There is no setting for this. The waits double: the 4 attempts are made 0, 32, 64 and 128 seconds after the first, the 2 to the gateway at 0 and 32 (not 30: the digipeaters drop a copy of the same packet within 30 seconds). The answer to the last attempt is waited for 240 seconds, then the message has *failed*. A message that was given only 1 or 2 attempts (the gateway's, a bulletin's) is *unconfirmed* instead, since no ack was expected.
 
 An ack from the addressee that quotes your id makes the message *acked*. A reject makes it *rejected*. Either ends the attempts, and one that comes late still settles a message that has failed, is unconfirmed or was cancelled.
 

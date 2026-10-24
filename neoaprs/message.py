@@ -20,7 +20,7 @@ STATES: tuple[str, ...] = get_args(State)
 STATION_ATTEMPTS = 4                            # how many times a message to a station is transmitted before it has failed; fixed, the operator does not choose it
 EMAIL_ATTEMPTS = 2                              # the email gateway's acks rarely reach us (they come back through an iGate), so a mail is sent twice and then left `unconfirmed`
 UNCONFIRMED_MAX = 2                             # a message given this many attempts or fewer is not failed when they are used up with no ack: it is `unconfirmed` (the station is not expected to ack)
-FIRST_WAIT_SEC = 30                             # the wait after the first attempt; each wait after that is double the one before, up to MAX_WAIT_SEC
+FIRST_WAIT_SEC = 32                             # the wait after the first attempt (not 30, the digipeaters' duplicate window, on whose edge a retry could be dropped); each wait after that is double the one before, up to MAX_WAIT_SEC
 MAX_WAIT_SEC = 960
 FINAL_WAIT_SEC = 240                            # how long the answer to the last attempt is waited for before the message has failed
 MESSAGES_HELD_MAX = 10000                       # the daemon holds every message; if the database has more, a start takes the latest of these (and every one still being sent) and says so in the log
@@ -147,7 +147,7 @@ def attempts_for(to_call: str) -> int:
 
 
 def wait_after(attempts: int, attempts_max: int = STATION_ATTEMPTS) -> timedelta:
-    """How long after attempt number `attempts` (1 to `attempts_max`) the next one is due; after the last one, how long the answer is waited for. The waits double from 30 seconds (30, 30, 60, 120, ...) and none is
+    """How long after attempt number `attempts` (1 to `attempts_max`) the next one is due; after the last one, how long the answer is waited for. The waits double from 32 seconds (32, 32, 64, 128, ...) and none is
     longer than MAX_WAIT_SEC."""
     if attempts >= attempts_max:
         return timedelta(seconds=FINAL_WAIT_SEC)
@@ -155,7 +155,7 @@ def wait_after(attempts: int, attempts_max: int = STATION_ATTEMPTS) -> timedelta
 
 
 def schedule_sec(attempts_max: int) -> tuple[int, ...]:
-    """When the attempts of a message with `attempts_max` of them are made, in seconds from the first: 0, 30, 60, 120, 240, 480, 960, 1920, 2880, 3840."""
+    """When the attempts of a message with `attempts_max` of them are made, in seconds from the first: 0, 32, 64, 128, 256, 512, 1024, 1984, 2944, 3904."""
     at = [0]
     for n in range(1, attempts_max):
         at.append(at[-1] + int(wait_after(n, attempts_max).total_seconds()))

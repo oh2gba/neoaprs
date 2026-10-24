@@ -1829,7 +1829,7 @@
           "type": "string"
         },
         "attempts": {
-          "description": "how many times it has been transmitted (at most `attempts_max`: 0, 30, 60, 120, 240, 480, 960 ... seconds after the first, no wait longer than 960)",
+          "description": "how many times it has been transmitted (at most `attempts_max`: 0, 32, 64, 128, 256, 512, 1024 ... seconds after the first, no wait longer than 960)",
           "minimum": 0,
           "type": "integer"
         },
