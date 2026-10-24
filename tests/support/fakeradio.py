@@ -63,6 +63,10 @@ class FakeRadio:
         out, self._heard = bytes(self._heard), bytearray()
         return out
 
+    def put_back(self, data: bytes) -> None:
+        """Bytes read with `said` that the test has not looked at yet: the next `said` returns them first."""
+        self._heard[:0] = data
+
     async def connected(self, timeout_sec: float = 2.0) -> None:
         """Waits until a client is connected."""
         loop = asyncio.get_running_loop()

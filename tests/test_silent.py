@@ -245,7 +245,7 @@ async def test_beacon_now_and_send_message_are_refused_over_the_socket_while_the
 
 
 async def test_a_beacon_due_during_the_outage_is_written_only_after_the_settle_as_a_kiss_frame_when_the_radio_comes_back(tmp_path: Path) -> None:
-    e = Env(tmp_path, check_pause_sec=0.02, reply_sec=0.05, answer_sec=0.1, probe_sec=0.3)
+    e = Env(tmp_path, check_pause_sec=0.02, reply_sec=0.6, answer_sec=0.6, probe_sec=0.3)       # (the radio answers the probe within its reply time, before the probe's own KISS ON)
     e.ctl.beacon.tick_sec, e.ctl.beacon.retry_sec = 0.02, 0.05
     await e.start()
     e.tnc.set_check(0.1)                                             # (the settings of an Env have the checks off)
@@ -256,6 +256,7 @@ async def test_a_beacon_due_during_the_outage_is_written_only_after_the_settle_a
     assert e.ctl.beacon.last_sent is None and e.ctl.beacon.next_due is not None and e.ctl.beacon.next_due < e.now()
     assert await hear_until(e.radio, KISS_EXIT + NUDGE_BYTE, 3.0)   # a probe
     e.tnc.set_check(0)                                               # (a 0.1 s check would reset the quiet radio again at once)
+    await e.radio.said(0, 0)                                         # (what earlier probes said is not looked at)
     e.radio.feed(b"\r\ncmd:")                                      # the radio is switched on and answers the probe
     assert await hear_until(e.radio, ENTER_KISS, 1.0)
     entered = asyncio.get_running_loop().time()

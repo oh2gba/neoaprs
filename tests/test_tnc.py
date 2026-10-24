@@ -472,7 +472,9 @@ async def hear_until(radio: FakeRadio, wanted: bytes, timeout_sec: float = 3.0) 
     while wanted not in out:
         assert asyncio.get_running_loop().time() < deadline, f"{wanted!r} did not come, only {out!r}"
         out += await radio.said(1, 0.05)
-    return out[:out.index(wanted) + len(wanted)]
+    end = out.index(wanted) + len(wanted)
+    radio.put_back(out[end:])                       # (what came after it in the same read is for the next look)
+    return out[:end]
 
 
 def nothing_runs(tnc: Tnc) -> None:
