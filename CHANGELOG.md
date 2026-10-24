@@ -27,6 +27,10 @@ The Email tab.
 
 - **Esc** in the box to write a mail closes the list of addresses used before; with none open, it clears the address and the text being written.
 
+The map.
+
+- The ALOHA circle of Bob Bruninga, WB4APR, is drawn round your station: a thin dashed circle, under the markers, with its radius as the hover text ("ALOHA circle: 42 km"). It is the distance within which the stations heard on the radio would fill the channel; a packet for a station beyond it is hard to receive reliably. The daemon works it out by WB4APR's method ("The ALOHA Circle", aprs.org, 2011) once a minute from the stations heard in the last hour, nearest first, each by what it sends in half an hour (a moving mobile 15 packets, any other mobile 7, a weather station 6, a digipeater 3, any other station 2, and each digipeater nearer than a station makes the packets of the stations beyond it count once more), until the sum reaches 1800, the packets a 1200 baud channel carries in half an hour. Without a position, or with too few stations heard to fill the channel, there is no circle. The radius is the new field `aloha_km` of the topic `map`.
+
 ## 0.7.0
 
 The page in seven languages, an update you can start from the page, a menu on the Stations list with APRS queries, messages that choose their own path, station cards you can move, and closer to the APRS standard.

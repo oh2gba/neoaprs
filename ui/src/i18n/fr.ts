@@ -463,6 +463,7 @@ export const fr: Catalogue = {
   "map.note.no_basemap": "Pas de fond de carte",
   "map.note.no_detail": "Pas de carte détaillée",
   "map.note.no_engine": "La carte n'a pas pu être chargée",
+  "map.aloha": "Cercle ALOHA : {km} km",
 
   "map.credits.hide": "Masquer les crédits",
   "map.credits.show": "Crédits de la carte et des symboles",

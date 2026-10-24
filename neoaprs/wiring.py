@@ -64,6 +64,7 @@ def wire(parts: Services) -> None:
     book.changed.connect(packetlog.save_station)
     book.removed.connect(packetlog.delete_station)
     tnc.state_changed.connect(lambda state: _remember_port(parts, state))
+    parts.config_changed.connect(lambda config: parts.aloha.refresh())                  # (our position may have moved)
 
 
 def _log_packet(packet: Packet) -> None:

@@ -18,6 +18,7 @@ from .ownlog import OwnLog
 from .packetlog import PacketLog
 from .route import Deliveries
 from .services.alerts import Alerts
+from .services.aloha import Aloha
 from .services.beacon import Beacon
 from .services.bulletins import Bulletins
 from .services.digipeater import Digipeater
@@ -79,6 +80,7 @@ class Services:
         self.queries = Queries(self.tnc, lambda: self.config, self.beacon, self.rigstatus.status_frame, self.stationbook, self.prefbook.path_for, clock, objects=self.ownobjects,
                                messages=self.messaging)       # the answers to ?APRSP, ?APRSS, ?APRSD, ?APRST, ?PING?, ?APRSO, ?APRSM and ?APRS?, by the asker's path
         self.mapfetch = MapFetch(data_dir, lambda: self.config, clock)  # the base map: the detailed map round our position and the world map under it, made on request from the page; nothing to start
+        self.aloha = Aloha(self.stationbook, clock)                      # the ALOHA circle round our station, worked out again every minute and when our position moves; started by the controller
         self.install = install                                           # how this copy was installed, for the page (the steps of an update)
         self.updatecheck = UpdateCheck(lambda: self.config, VERSION, platform_name(sys.platform, platform.machine(), install.kind == "appimage"), fetch_update)   # once a day: which version is the latest (update/check); started by the controller
         self.selfupdate = SelfUpdate(install, installer_for(install, data_dir, self.restart_into), self._announced, release_source(), end=self._end_for_restart)      # Update now: on the page's request only; nothing to start

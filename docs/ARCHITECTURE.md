@@ -13,7 +13,7 @@ The tables of this document that are that test's data (this one, the rules after
 | layer | modules | may import | may not import |
 | --- | --- | --- | --- |
 | foundation | `clock signal coded policy callsign geo symbols kiss ax25 aprsposition aprsmice aprsmessage aprsparse aprsweather aprsthirdparty aprsextension aprslocator aprstelemetry aprsnmea packet packetcodec message bulletin decay tncmode tncprofile pref route chain mapstate serialboards versions updateasset` | foundation | domain, adapters, persistence, services, app, delivery, and any I/O library |
-| domain | `alertcommand config configlegacy configstatus configtypes interlock stationbook ownobject ownbulletin` | foundation, domain | adapters, persistence, services, app, delivery, and any I/O library |
+| domain | `alertcommand config configlegacy configstatus configtypes interlock stationbook aloha ownobject ownbulletin` | foundation, domain | adapters, persistence, services, app, delivery, and any I/O library |
 | adapters | `source tasks serialport serialholders serialprobe btsdp btserial btpaired tnc tncsearch tncwatchdog tncentry tnclines childenv rigctld pmtilestool updatefetch updatedownload selfreplace` | foundation, domain, adapters | persistence, services, app, delivery |
 | persistence | `store migrations migrations2 backupfolder durable instancelock stopfile walcare dbfile dberror dbstats dbthread db dbopen storesql paths dblog packetsql packetlog messagesql messagelog bulletinsql bulletinlog weathersql weatherlog ownsql ownlog` | foundation, domain, persistence | adapters, services, app, delivery |
 | services | everything in `neoaprs/services/` | foundation, domain, adapters, persistence, services | app, delivery |
@@ -56,6 +56,8 @@ What each layer is for:
 * **domain**:
   * `stationbook`: the stations as the packets tell them (who, where, when last, the track, the latest weather; objects and items, ours marked `own`; us). The
     tracks and the weather the database kept are seeded at the start.
+  * `aloha`: the ALOHA circle of WB4APR, the distance round our position within which the stations heard on RF fill the channel (`policy.py` has the numbers). The service
+    `services/aloha.py` works it out again every minute and when our position moves.
   * `config`: the settings as one immutable value, each key checked.
   * `ownobject` and `ownbulletin`: an object, an item or a bulletin of ours as a value, what it must keep to be sent, and the information field it makes.
 * **adapters**: the world outside, the serial line and the TNC.
@@ -137,6 +139,7 @@ What each layer is for:
 | `messaging` | messages, a service |
 | `queries` | the answers to queries, a service |
 | `digipeater` | the fill-in digipeater, a service: it repeats a packet that asks for WIDE1-1 or for our call, when `digi/enabled` is on |
+| `aloha` | the ALOHA circle, a service: the radius round our position (`radius_km`), told to the page in the topic `map`; started by the controller |
 | `mapfetch` | the base map, a service: the detailed map round our position and the world map under it, made on request from the page with the pmtiles tool |
 | `selfupdate` | Update now, a service: on the page's request it downloads the file of the announced release that updates this copy (`neoaprs/updateasset.py`, `neoaprs/updatedownload.py`), checks its SHA-256 against the release's SHA256SUMS and has the installer of the kind put it in place (`services/selfinstall.py`: the Windows installer run silently, an AppImage renamed over the old one) |
 | `reexec` | the command line that runs in the place of the process once the daemon has ended, set by Update now of an AppImage (`neoaprs/selfreplace.py`) |

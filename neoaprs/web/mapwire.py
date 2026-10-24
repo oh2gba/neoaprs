@@ -46,6 +46,8 @@ class MapState(_Model):
     box: Box | None = Field(min_length=4, max_length=4, description="the area those settings make round our position, [west, south, east, north]; null without a position")
     detail: MapFileInfo | None = Field(description="`basemap.pmtiles`; null if it is not there")
     world: MapFileInfo | None = Field(description="`basemap-world.pmtiles`; null if it is not there")
+    aloha_km: float | None = Field(ge=0, description="the radius of the ALOHA circle round our position, in km to a tenth: the distance within which the stations heard on RF would fill the 1200 baud channel (WB4APR's method, worked out again every minute); "
+                                                     "null without a position and while the stations heard do not fill the channel")
 
 
 class MapEstimate(_Command):

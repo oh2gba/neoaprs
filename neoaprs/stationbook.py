@@ -252,6 +252,11 @@ class StationBook:
     def me(self) -> Station | None:
         return self._stations.get(self._me)
 
+    @property
+    def me_position(self) -> tuple[float, float] | None:
+        """Our position from the settings (latitude, longitude); None while there is none."""
+        return self._me_position
+
     def distance_km(self, station: Station) -> float | None:
         """From our position to the station's; None while either is not known."""
         if self._me_position is None or station.lat is None or station.lon is None:
