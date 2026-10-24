@@ -1,6 +1,7 @@
 """Receive only (`station/transmit` false): the interlock's first reason, and the whole daemon on a fake radio that is never written to while it is off, whatever is due or asked (a beacon, a status, an object, an ack, an answer
 to a query, a digipeatable packet, a message being sent). A new message and a retry are refused with the code `transmit.off`; a message being sent waits with its attempts and goes on when transmitting is switched on; the setting
 is kept in the database, so it holds after a restart."""
+import asyncio
 from dataclasses import replace
 from pathlib import Path
 
@@ -74,7 +75,12 @@ async def test_nothing_reaches_the_radio_while_it_is_off_and_what_waited_goes_wh
     assert len([p for p in await e.packets() if p.direction == "out"]) == out_before, "no frame was even made"
     await switch(e, True)
     await until(lambda: (r := e.ctl.messaging.get(sent.id)) is not None and r.attempts == 2)
-    frames = [f.tnc2() for f in await said(e, 3, 3.0)]
+    frames: list[str] = []
+    wanted = (lambda f: f.startswith("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:="), lambda f: ":Hello{" in f, lambda f: ":>" in f and "QRV again" in f)
+    deadline = asyncio.get_running_loop().time() + 10.0                     # (the object is due too: the frames come in no fixed order, and a busy machine is slow)
+    while not all(any(w(f) for f in frames) for w in wanted) and asyncio.get_running_loop().time() < deadline:
+        frames += [f.tnc2() for f in await said(e, 1, 0.5)]
+    frames += [f.tnc2() for f in await said(e, 99, 0.5)]                   # (and whatever follows at once: a second beacon would be here)
     assert any(f.startswith("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=") for f in frames) and any(":Hello{" in f for f in frames) and any(":>" in f and "QRV again" in f for f in frames)
     assert len([f for f in frames if f.startswith("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=")]) == 1, "one beacon, not one for each interval that passed"
     assert not any("ack12" in f for f in frames), "the ack that was not sent is not made up afterwards"

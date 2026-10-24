@@ -1,6 +1,7 @@
 """The status report (neoaprs/services/rigstatus.py) on a Tnc that is a stub, the real beacon, a fake rigctld on a free port and a clock the test holds: the first report after the first poll, nothing inside the
 interval, nothing when it is the same, nothing while the radio is off (and one line in the log for that), the static text under the same rule, and what ?APRSS answers with."""
 import logging
+import socket
 import sys
 from dataclasses import replace
 from pathlib import Path
@@ -113,12 +114,15 @@ async def test_a_radio_that_is_off_sends_nothing_and_the_log_says_so_once(caplog
 
 async def test_a_refused_connection_is_off_too_and_says_why(caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.INFO, "neoaprs.status")
-    rigd = await FakeRigctld().start()
-    address = rigd.address
-    await rigd.stop()                                                   # (nothing listens on that port now)
+    held = socket.socket()                                              # (bound and not listening: a connection is refused, and the port cannot go to another test meanwhile,
+    held.bind(("127.0.0.1", 0))                                         #  whose own radio or rigctld would then get this test's questions)
+    address = f"127.0.0.1:{held.getsockname()[1]}"
     rig = Rig(None, status_rigctld=address)
-    await rig.status.poll()
-    await rig.status.poll()
+    try:
+        await rig.status.poll()
+        await rig.status.poll()
+    finally:
+        held.close()
     assert rig.tnc.sent == [] and rig.status.rig_state == "off"
     why = "no answer in time" if sys.platform == "win32" else "connection refused"          # (Windows takes about two seconds to refuse a connection: longer than rigctld is given)
     assert [r.getMessage() for r in caplog.records] == [f"rigctld at {address}: {why}: no status while it is away"]

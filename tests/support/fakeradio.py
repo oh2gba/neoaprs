@@ -30,6 +30,20 @@ class FakeRadio:
         self._clients: list[asyncio.Transport] = []
         self._heard = bytearray()
         self._unsent = bytearray()                        # what was fed while nobody was connected
+        self._held: socket.socket | None = None          # the port while it refuses (refuse)
+
+    @staticmethod
+    def _holding(port: int) -> socket.socket | None:
+        """A socket bound to the port and not listening, so that a connection is refused and the port is not given to another program; None when the system will not bind it again at once."""
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        if sys.platform != "win32":
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.bind(("127.0.0.1", port))
+        except OSError:
+            sock.close()
+            return None
+        return sock
 
     @staticmethod
     def _listening(port: int) -> socket.socket:
@@ -93,10 +107,14 @@ class FakeRadio:
             server.close()
         elif sock is not None:
             sock.close()
+        self._held = self._holding(self.port)                # (the port stays ours, bound and not listening: refused, and never another test's radio meanwhile)
 
     async def accept(self) -> None:
         """Listens again on the same port after `refuse`."""
         if self._server is None:
+            if self._held is not None:
+                self._held.close()
+                self._held = None
             self._sock = self._listening(self.port)
             await self.start()
 
@@ -112,6 +130,9 @@ class FakeRadio:
         if self._sock is not None:                         # made but never served
             self._sock.close()
             self._sock = None
+        if self._held is not None:
+            self._held.close()
+            self._held = None
 
 
 class _Tap(asyncio.Protocol):

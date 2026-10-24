@@ -47,6 +47,8 @@ class TncBrain:
         return self.kind == "d710" and text.strip("\r") in ("TC 1", "TN 2,0", "HBAUD 1200", "KISS ON", "RESTART")
 
 
+GREETING_PAUSES = (0.05, 0.1)                       # when a TNC that has something to say says it after a connection, and says it once more
+
 class FakeTncServer:
     """A TNC behind a TCP port of the loopback."""
 
@@ -65,7 +67,9 @@ class FakeTncServer:
     async def _serve(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         self.connections += 1
         if greeting := self.brain.greeting():
-            writer.write(greeting)
+            for pause in GREETING_PAUSES:                   # (not at the instant of the connection: pyserial's open of a socket drops what came before it was done; a real TNC hears its packets at any time)
+                await asyncio.sleep(pause)
+                writer.write(greeting)
         try:
             while data := await reader.read(4096):
                 if answer := self.brain.hear(data):

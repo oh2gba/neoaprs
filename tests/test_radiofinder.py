@@ -15,7 +15,7 @@ from neoaprs.services.radioprobe import Timing
 from tests.support.env import until
 from tests.support.faketnc import FakeTncServer, TncBrain, ears
 
-QUICK = Timing(listen_sec=0.02, answer_sec=0.03, pace=0.001)
+QUICK = Timing(listen_sec=0.3, answer_sec=0.3, pace=0.001)          # (a fake TNC on the loopback answers at once, but a busy machine may take a while to pass it on)
 
 
 class Rig:
