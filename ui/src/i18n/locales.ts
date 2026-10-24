@@ -8,6 +8,8 @@ import { en } from "@/i18n/en";
 import { es } from "@/i18n/es";
 import { fr } from "@/i18n/fr";
 import { it } from "@/i18n/it";
+import { ja } from "@/i18n/ja";
+import { ptBR } from "@/i18n/pt-BR";
 
 export interface LocaleInfo {
   /** A language tag: `de`, `pt-BR`. */
@@ -23,6 +25,8 @@ export const LOCALES: readonly LocaleInfo[] = [
   { code: "es", name: "Español", messages: es },
   { code: "fr", name: "Français", messages: fr },
   { code: "it", name: "Italiano", messages: it },
+  { code: "ja", name: "日本語", messages: ja },
+  { code: "pt-BR", name: "Português (Brasil)", messages: ptBR },
 ];
 
 /** The language every missing message falls back to. */
