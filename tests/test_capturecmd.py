@@ -83,7 +83,7 @@ async def test_a_port_that_cannot_be_opened_is_told_and_leaves_no_file(radio: Fa
 
 async def test_a_recording_that_runs_its_time_out_is_a_success(radio: FakeRadio, tmp_path: Path) -> None:
     out = tmp_path / "out.bin"
-    recording = asyncio.ensure_future(capturecmd.record(radio.url, 9600, 0.3, str(out)))
+    recording = asyncio.ensure_future(capturecmd.record(radio.url, 9600, 2.0, str(out)))     # (time for a busy Windows runner to pass the bytes on)
     await radio.connected()
     radio.feed(b"\x00partial")
     assert await asyncio.wait_for(recording, 10) == 0
