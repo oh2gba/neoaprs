@@ -6,7 +6,8 @@
                         daemon ends and starts the file again with the arguments it had (neoaprs/selfreplace.py, after the daemon has let go of everything; the process stays the same, so a service manager sees no end)
 
 Anything else gets no installer and the page shows the steps instead. `NEOAPRS_INSTALL_KIND` (a simulated kind, for development: neoaprs/cli/installkind.py) gets a rehearsal: every step but the last, the file
-deleted instead of installed; only then is `NEOAPRS_UPDATE_FROM` (a release folder of a fake server) used instead of GitHub."""
+deleted instead of installed. `NEOAPRS_UPDATE_FROM` (the release folder of a fake server on the loopback) is used instead of GitHub only together with a simulated kind, or with `NEOAPRS_UPDATE_TEST=1`, the switch of the
+end-to-end test of the release workflow, which updates a real install from it (scripts/update-e2e.py); an address that is not http(s) on 127.0.0.1 or localhost is never used."""
 import logging
 import os
 import subprocess
@@ -14,6 +15,7 @@ import sys
 from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Literal, Protocol
+from urllib.parse import urlsplit
 
 from neoaprs.instancelock import APP_LOCK_NAME, is_held
 from neoaprs.selfreplace import keep_old
@@ -27,6 +29,8 @@ DETACHED = 0x00000008 | 0x00000200 | 0x08000000      # DETACHED_PROCESS, CREATE_
 BREAKAWAY = 0x01000000                          # CREATE_BREAKAWAY_FROM_JOB: the installer outlives a job the daemon may be part of
 ENV_KIND = "NEOAPRS_INSTALL_KIND"
 ENV_FROM = "NEOAPRS_UPDATE_FROM"
+ENV_TEST = "NEOAPRS_UPDATE_TEST"                 # "1": a real install may be updated from NEOAPRS_UPDATE_FROM (the end-to-end test only)
+LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost"})
 Restart = Callable[[list[str]], None]           # the daemon ends and this command line is run in its place
 
 
@@ -148,9 +152,25 @@ def installer_for(install: InstallInfo, data_dir: Path, restart: Restart, enviro
     return None
 
 
+def loopback_folder(text: str) -> str:
+    """`text` without its trailing slash when it is the address of a folder of a server on this computer: http or https, the host 127.0.0.1 or localhost, no user, query or fragment; else empty."""
+    base = text.strip().rstrip("/")
+    try:
+        parts = urlsplit(base)
+        _ = parts.port                                  # (a port that is not a number raises)
+    except ValueError:
+        return ""
+    if parts.scheme not in ("http", "https") or (parts.hostname or "") not in LOOPBACK_HOSTS or "@" in parts.netloc or parts.query or parts.fragment or any(c.isspace() for c in base):
+        return ""
+    return base
+
+
 def release_source(environ: Mapping[str, str] = os.environ) -> tuple[str, Callable[[str], bool]]:
-    """Where the release's files are (the folder that holds a folder `v<version>` for each release) and the addresses a download may go to: GitHub, or for a simulated kind the folder of `NEOAPRS_UPDATE_FROM` alone."""
-    base = environ.get(ENV_FROM, "").rstrip("/") if environ.get(ENV_KIND) else ""
+    """Where the release's files are (the folder that holds a folder `v<version>` for each release) and the addresses a download may go to: GitHub; or the folder of `NEOAPRS_UPDATE_FROM` alone, for a simulated kind
+    or with `NEOAPRS_UPDATE_TEST=1`, and only when it is on this computer."""
+    wanted = bool(environ.get(ENV_KIND)) or environ.get(ENV_TEST) == "1"
+    base = loopback_folder(environ.get(ENV_FROM, "")) if wanted else ""
     if base:
+        log.warning("Update now downloads from %s, not from GitHub (%s)", base, ENV_TEST if environ.get(ENV_TEST) == "1" else ENV_KIND)
         return base, lambda url: url.startswith(base + "/")
     return RELEASES, url_allowed

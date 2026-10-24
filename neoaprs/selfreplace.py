@@ -1,10 +1,13 @@
 """The file operations of Update now for an AppImage, which the daemon's process does at its end and at its start as well as the update itself (neoaprs/services/selfinstall.py): the old file kept beside the new one
-as `<file>.old` until the new version has started, the old one put back when the new one cannot be started, and the exec of the new file in the place of this process."""
+as `<file>.old` until the new version has started, the old one put back when the new one cannot be started, and the exec of the new file in the place of this process.
+
+An AppImage started with `--appimage-extract-and-run` (a system without FUSE) runs from a folder its runtime unpacked it into, not from a mount; the runtime takes the flag away before the program sees it. The
+file is executed again with `APPIMAGE_EXTRACT_AND_RUN=1` in the environment, which the runtime takes for the flag: without it the new runtime tries to mount the file, cannot, and NeoAPRS is gone."""
 import logging
 import os
 import shutil
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, MutableMapping
 from pathlib import Path
 
 log = logging.getLogger("neoaprs.update")
@@ -46,11 +49,22 @@ def close_inherited() -> None:
         os.closerange(3, 65536)
 
 
-def reexec(argv: list[str], execv: Callable[[str, list[str]], None] = os.execv, close: Callable[[], None] = close_inherited) -> None:
+EXTRACT_AND_RUN = "APPIMAGE_EXTRACT_AND_RUN"
+
+
+def keep_extract_and_run(environ: MutableMapping[str, str], is_mount: Callable[[str], bool] = os.path.ismount) -> None:
+    """Sets `APPIMAGE_EXTRACT_AND_RUN=1` when the AppImage this runs from was unpacked rather than mounted (its `$APPDIR` is no mount point), so that the file executed next runs the same way."""
+    appdir = environ.get("APPDIR")
+    if appdir and environ.get("APPIMAGE") and not is_mount(appdir):
+        environ[EXTRACT_AND_RUN] = "1"
+
+
+def reexec(argv: list[str], execv: Callable[[str, list[str]], None] = os.execv, close: Callable[[], None] = close_inherited, environ: MutableMapping[str, str] = os.environ) -> None:
     """Runs `argv` (the AppImage file and the arguments this process had) in the place of this process, which has let go of everything already: the log, the database, the lock, the radio, the page's port.
     When the new file cannot be started, the kept old one is put back and started. Returns only when neither could be."""
     logging.shutdown()
     close()
+    keep_extract_and_run(environ)
     try:
         execv(argv[0], argv)
     except OSError as e:

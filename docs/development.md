@@ -218,8 +218,9 @@ The words of the page are in a catalogue, so that a language is a file and not a
 | `scripts/screenshots.py` | takes the screenshots of the README and of the project page with Playwright, on a daemon of its own and a made-up day on the air ([the project page](#the-project-page)) |
 | `scripts/demoscene.py` | the day on the air that `screenshots.py` plays: a KISS TNC on a TCP port of the loopback and a daemon on a clock moved back in time, with stations on the move, weather, messages, email, bulletins and objects, items and bulletins of our own |
 | `scripts/smoke.py` | the smoke test of an installed NeoAPRS, on any system: a fake KISS TNC on a TCP port plays the capture, the daemon runs on a temporary data folder, the page, its script and `/ws` are checked, the daemon is stopped as its system stops a program and must end with exit code 0, `NeoAPRS ended` and a database that passes `integrity_check`; `--command` names the installed `neoaprs` |
-| `scripts/build-appimage` | builds `dist-appimage/NeoAPRS-<version>-x86_64.AppImage` from the wheel (`--wheel FILE`, else it builds one; `--out DIR`); the tools it fetches are pinned by version and SHA-256 in the script and cached in `~/.cache/neoaprs-build` ([the AppImage](#the-appimage)) |
+| `scripts/build-appimage` | builds `dist-appimage/NeoAPRS-<version>-x86_64.AppImage` from the wheel (`--wheel FILE`, else it builds one; `--out DIR`), or with `--retag FILE VERSION` the same file saying another version (for the update test); the tools it fetches are pinned by version and SHA-256 in the script and cached in `~/.cache/neoaprs-build` ([the AppImage](#the-appimage)) |
 | `scripts/build-deb` | builds `dist-deb/neoaprs_<version>_<arch>.deb` for `--arch amd64` or `arm64` (this machine's by default; either can be made on either) from the wheel (`--wheel FILE`, else it builds one; `--out DIR`); the CPython it fetches is pinned by version and SHA-256 per architecture in the script and cached in `~/.cache/neoaprs-build` ([the .deb](#the-deb)) |
+| `scripts/update-e2e.py` | the end-to-end test of Update now with the real files of a release (`windows OLD.exe NEW.exe`, `appimage OLD NEW [--extract-and-run]`): installs the old version, updates it from a fake release on the loopback over the page's socket and checks the new daemon, the data and the machine ([Update now end to end](#update-now-end-to-end)); on a CI runner only |
 | `scripts/smoke-appimage` | the smoke test of such a file: `--version`, `smoke.py`, the daemon with no radio, the unit `service install` writes, the app on the offscreen platform; without FUSE it extracts the file and runs its `AppRun` |
 | `scripts/release-notes.py` | prints the section of `CHANGELOG.md` for a version (the newest section without one): the notes of the GitHub release, which the release workflow gives to `gh release create`; exit 1 when there is none |
 | `scripts/replay` | a clone's wrapper of `neoaprs replay`: plays a capture as a KISS TNC on a TCP port (`--pty`: a pseudo-terminal), so that the daemon runs without the radio |
@@ -244,11 +245,12 @@ The steps to take around it are in [`docs/MAINTAINING.md`](MAINTAINING.md#a-rele
 |---|---|---|
 | `verify` | Linux, tags only | the tag without the `v` is `VERSION` in `neoaprs/__init__.py`, and `CHANGELOG.md` has a section for that version |
 | `wheel` | Linux | `uv build` (the sdist, and the wheel built from it); the wheel is installed into a fresh environment and `scripts/smoke.py` runs against it |
-| `windows` | Windows | the wheel and the locked dependencies (`uv export --frozen --no-dev`, with the extra `app`) go into a build environment with PyInstaller (pinned there, not a dependency of the project). `packaging/windows/neoaprs.spec` freezes them into `dist\NeoAPRS` with three programs, `neoaprs.exe` (console), `neoaprsw.exe` (no console: the daemon) and `neoaprs-app.exe` (no console, with the icon: the desktop app), and the page, the icon and the sample capture as data. `bundle_pmtiles.py` puts the pinned `pmtiles.exe` (`neoaprs/pmtilestool.py`: version and SHA-256) in `bin\`, where `pmtilestool.find` looks first. The folder is smoke tested. Inno Setup (`choco install innosetup`) makes the installer from `packaging/windows/neoaprs.iss`; it is run silently (`/VERYSILENT /SUPPRESSMSGBOXES /CURRENTUSER`), and the files, the Start menu entries and the Run key (`neoaprs-app.exe --tray`) are checked. `scripts/smoke.py` runs against `%LOCALAPPDATA%\Programs\NeoAPRS\neoaprs.exe`, `open` and `stop` are tried on a data folder of their own, and `neoaprs-app.exe --tray` is started silently and must start a daemon whose page answers, refuse a second app and end together with its daemon at `neoaprs stop` (started over a daemon that was running, it attaches and leaves it running at `--quit`). The silent uninstall, with the app running, must take the Run key, the files, the app and the daemon away and leave `%LOCALAPPDATA%\NeoAPRS` |
+| `windows` | Windows | the wheel and the locked dependencies (`uv export --frozen --no-dev`, with the extra `app`) go into a build environment with PyInstaller (pinned there, not a dependency of the project). `packaging/windows/neoaprs.spec` freezes them into `dist\NeoAPRS` with three programs, `neoaprs.exe` (console), `neoaprsw.exe` (no console: the daemon) and `neoaprs-app.exe` (no console, with the icon: the desktop app), and the page, the icon and the sample capture as data. `bundle_pmtiles.py` puts the pinned `pmtiles.exe` (`neoaprs/pmtilestool.py`: version and SHA-256) in `bin\`, where `pmtilestool.find` looks first. The folder is smoke tested. Inno Setup (`choco install innosetup`) makes the installer from `packaging/windows/neoaprs.iss`; it is run silently (`/VERYSILENT /SUPPRESSMSGBOXES /CURRENTUSER`), and the files, the Start menu entries and the Run key (`neoaprs-app.exe --tray`) are checked. `scripts/smoke.py` runs against `%LOCALAPPDATA%\Programs\NeoAPRS\neoaprs.exe`, `open` and `stop` are tried on a data folder of their own, and `neoaprs-app.exe --tray` is started silently and must start a daemon whose page answers, refuse a second app and end together with its daemon at `neoaprs stop` (started over a daemon that was running, it attaches and leaves it running at `--quit`). The silent uninstall, with the app running, must take the Run key, the files, the app and the daemon away and leave `%LOCALAPPDATA%\NeoAPRS`. Last, [Update now end to end](#update-now-end-to-end): a second installer of the next version is built from the same environment with only `VERSION` changed, and the installed version updates itself to it |
 | `appimage` | Linux (`ubuntu-22.04`: glibc 2.35, the oldest the Qt wheels run on) | `scripts/build-appimage --wheel` on the wheel of the `wheel` job; then `scripts/smoke-appimage` on the file |
+| `appimage-update` | Linux (`ubuntu-latest`) | [Update now end to end](#update-now-end-to-end) of the file of the `appimage` job, to a copy of it with only `VERSION` changed (`scripts/build-appimage --retag`): once mounted with FUSE, once with `--appimage-extract-and-run` |
 | `deb` | Linux, a runner for each architecture (`ubuntu-latest` for amd64, `ubuntu-24.04-arm` for arm64) | `scripts/build-deb --arch ARCH --wheel` on the wheel of the `wheel` job; then, on that runner, `sudo apt install ./neoaprs_<version>_<arch>.deb`, `neoaprs --version`, the kind the package detects (`deb`, with the right architecture), `scripts/smoke.py` against `/usr/bin/neoaprs` run by the package's own Python, `service install` with a `HOME` and a `systemctl` of the test's own (the unit must start `/opt/neoaprs/bin/python3`), an install over itself (the upgrade message) and `apt remove` (the files go, the data stays) |
 | `install-script` | Linux | `packaging/install.sh.in` with the version and the release's wheel address put in; `shellcheck`; `packaging/test-install.sh` runs it twice (the second is an update) in a fresh `HOME`, with no `uv` on the `PATH`, a `systemctl` that only writes down its calls, and the wheel just built served from the loopback through `NEOAPRS_WHEEL_URL`, and checks `neoaprs --version`, the unit and the calls |
-| `assemble` | Linux | the files of the jobs in one folder, `SHA256SUMS`, and the release notes (`scripts/release-notes.py`: the section of `CHANGELOG.md` for the version) |
+| `assemble` | Linux | after every job above (a failed update test stops the release here): the files of the jobs in one folder, `SHA256SUMS`, and the release notes (`scripts/release-notes.py`: the section of `CHANGELOG.md` for the version) |
 | `release` | Linux, tags only | attests the files (`actions/attest-build-provenance`) and runs `gh release create v<version> --verify-tag` with the notes and the eight files; the only job with `contents: write` |
 
 Started by hand (Actions, release, *Run workflow*, or `gh workflow run release.yml --ref BRANCH`) it is a dry run: the same builds and checks on that branch,
@@ -306,15 +308,44 @@ The update the daemon does itself, on a click of the page only (the command `upd
    of the data folder, else `daemon`, and `/NEOAPRSDATA`); `packaging/windows/neoaprs.iss` ends the app and the daemon of that folder before it replaces a
    file and starts again what was running. An AppImage is made executable and renamed over the file it runs from (`$APPIMAGE`), the old one kept as `.old` (a
    hard link, else a copy); the daemon writes `neoaprs.restarting` and `neoaprs.stop` into the data folder, ends, and the process runs the file again with
-   its arguments (`neoaprs/selfreplace.py`: `execv`, after the descriptors above stderr are closed; a file that cannot start puts the old one back). The new
+   its arguments (`neoaprs/selfreplace.py`: `execv`, after the descriptors above stderr are closed, with `APPIMAGE_EXTRACT_AND_RUN=1` when `$APPDIR` is
+   no mount point, an AppImage started with `--appimage-extract-and-run`, whose runtime takes the flag away; a file that cannot start puts the old one back). The new
    version deletes the note and the `.old` once it runs; the desktop app, which ends with its daemon, waits for it while the note is fresh. A folder the user
    cannot write offers no Update now.
 5. Still running five minutes later, the update says it did not restart.
 
 The build provenance of the release's files (`gh attestation verify FILE --repo oh2gba/neoaprs`) is not checked, since it needs `gh`: it is a possible later
-step. `NEOAPRS_INSTALL_KIND` (a simulated kind, for the screenshots) turns the last step into a rehearsal that deletes the file, and only then does
-`NEOAPRS_UPDATE_FROM` take a fake server's release folder instead of GitHub's. No test reaches the network: the downloads have a stand-in opener and the job a
-fake release (`tests/support/fakerelease.py`).
+step. `NEOAPRS_INSTALL_KIND` (a simulated kind, for the screenshots) turns the last step into a rehearsal that deletes the file. `NEOAPRS_UPDATE_FROM` takes
+the release folder of a fake server on `127.0.0.1` or `localhost` instead of GitHub's, only with a simulated kind or with `NEOAPRS_UPDATE_TEST=1` (the test
+below); any other address is ignored. No unit test reaches the network: the downloads have a stand-in opener and the job a fake release
+(`tests/support/fakerelease.py`).
+
+#### Update now end to end
+
+`scripts/update-e2e.py` is Update now with the real files of a release, on the release workflow's runners only (it installs and replaces files): in every dry
+run and for every tag, so that an updater that does not work stops the release. The newer version is the same build with nothing changed but `VERSION`, the
+patch number plus one and `-e2e` (`0.6.8-e2e` for 0.6.7): on Windows a second PyInstaller folder and installer from the build environment, for the AppImage
+`scripts/build-appimage --retag FILE VERSION`, which unpacks the file, changes `VERSION` and packs it again with the pinned runtime.
+
+1. The old version is put in place: the installer of the `windows` job, run silently with no task (no start at sign-in, no desktop shortcut), or the AppImage
+   copied into a folder of its own, with a home folder of its own.
+2. Its data folder (a temporary one, with a blank in its name) gets the settings a user would have: `serial/port` is a fake KISS TNC on the loopback (the
+   one of `scripts/smoke.py`), `web/port` a fixed port, `update/url` the fake version page. The daemon is started with `NEOAPRS_UPDATE_TEST=1` and
+   `NEOAPRS_UPDATE_FROM` set to the fake release server, which serves `v<version>/<file>` and `v<version>/SHA256SUMS` like GitHub.
+3. Over `/ws`, as the page does: the hello names the old version and the install kind, the TNC is connected and packets came, Update now is offered;
+   `update_check` finds the new version, `update_now` names it, and the topic `update` is followed until the daemon closes the socket. It must reach
+   `restarting` and never `error`, and the fake server must have been asked for `SHA256SUMS` and then the file.
+4. A daemon must come up by itself on the same page port and say the new version in its hello, connect to the same fake TNC (the settings came from the data
+   folder) and have at least the packets the old one had. On Windows the old daemon has ended with exit code 0, the installer's log (`update/install.log` of
+   the data folder) has the silent command line of Update now and `Installation process succeeded`, the installed `neoaprs.exe` and Windows' list of
+   programs say the new version. For the AppImage the same process goes on as the new version, the file in the same place is the new one (its SHA-256),
+   executable, and neither `.old` nor `.part` is left beside it.
+5. After a stop, the log has the start and the end of the old version and then of the new one and ends with `NeoAPRS ended`, every setting is still there,
+   and nothing else changed: on Windows the Run key, the Start menu entries, the desktop and `%LOCALAPPDATA%\NeoAPRS`, and no program of NeoAPRS or
+   installer is left running; for the AppImage the home folder and the folder of the file.
+
+On a failure the work folder (the logs, the data folder, the installer's log; not the installers and AppImages) is an artifact of the run,
+`update-e2e-windows-logs` or `update-e2e-appimage-logs`.
 
 ### The desktop app's tests
 
