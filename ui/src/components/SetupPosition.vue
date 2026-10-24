@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Step 2 of the first-run guide: where the station is, in the look of the Location of the Beacon tab (components/SettingsLocation.vue). The big **Pick on the map** button comes first (it folds the guide to its head so that the whole map is free; the map shows a
+// Step 2 of the first-run guide: where the station is, in the look of the Location of the Beacon tab (components/SettingsLocation.vue). The big **Choose on map** button comes first (it folds the guide to its head so that the whole map is free; the map shows a
 // crosshair while it waits for the click, and a pin that can be dragged shows the place), with the place as one readable line ("60.42945 N, 24.14524 E · KP20le", "Not set"); latitude, longitude and the Maidenhead locator (6 characters: the centre
 // of the square) are behind a closed "Enter coordinates or locator", which opens by itself only when a field is wrong. Next waits for a place.
 import { computed } from "vue";

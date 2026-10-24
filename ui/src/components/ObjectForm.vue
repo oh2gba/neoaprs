@@ -1,13 +1,16 @@
 <script setup lang="ts">
-// The form of an object or an item of ours, in the Objects tab, in the box at the bottom of the tab (ComposeBar, as everywhere; its fields scroll on a short screen, the line with Pick on the map, the counter, Cancel and Save does not): name and kind (the name of an object that is being changed stays), the symbol (a picture to change, as in the Beacon tab), the position (typed, or
-// picked with a click on the map: Pick on the map), the comment (the characters it has left are the counter beside the buttons), the course and speed, and the path the object goes by (the placeholder is the beacon's). A field with something wrong
+// The form of an object or an item of ours, in the Objects tab, in the box at the bottom of the tab (ComposeBar, as everywhere; its fields scroll on a short screen, the line with the counter, Cancel and Save does not): name and kind (the name of an object that is being changed stays), the symbol (a picture to change, as in the Beacon tab), the position (the row Location of the Beacon tab, components/LocationField.vue: **Choose on map**, a click on the map, or the
+// coordinates typed), the comment (the characters it has left are the counter beside the buttons), the course and speed, and the path the object goes by (the placeholder is the beacon's). A field with something wrong
 // is red and its title says what. Save is on when there is a name, a place and a symbol and nothing is wrong; the daemon checks it all again.
 import { computed, useId } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
+import LocationField from "@/components/LocationField.vue";
 import SymbolField from "@/components/SymbolField.vue";
 import { t } from "@/i18n";
 import type { OwnObjectsView } from "@/composables/useOwnObjects";
 import { leftTitle } from "@/lib/compose";
+import { onEarth, parseNumber } from "@/lib/fieldcheck";
+import { placeLine } from "@/lib/locator";
 import { commentLimit, draftProblems, draftReady, NAME_MAX } from "@/lib/ownobjects";
 
 const props = defineProps<{ form: OwnObjectsView; fallbackPath: string }>();
@@ -15,6 +18,12 @@ const id = useId();
 const draft = props.form.draft; // (the form's own state, kept as one object for as long as the page lives)
 const problems = computed(() => draftProblems(draft));
 const ready = computed(() => draftReady(draft));
+/** The place the draft has in words (the line under the button); null while it is no place. */
+const place = computed(() => {
+  const lat = parseNumber(draft.lat);
+  const lon = parseNumber(draft.lon);
+  return lat !== null && lon !== null && onEarth(lat, lon) ? placeLine(lat, lon) : null;
+});
 const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
 </script>
 
@@ -47,18 +56,20 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
       </div>
     </div>
     <SymbolField :id="`${id}-symbol`" v-model:symbol="draft.symbol" />
-    <div class="field" :class="{ invalid: problems.lat }" :title="problems.lat">
-      <label :for="`${id}-lat`">{{ t("objects.field.lat") }}</label>
-      <div class="field-control">
-        <input :id="`${id}-lat`" v-model="draft.lat" class="input mono" type="text" inputmode="decimal" autocomplete="off" />
+    <LocationField :place="place" :picking="form.placing" :open="place === null || !!problems.lat || !!problems.lon" @pick="form.togglePlacing()">
+      <div class="field" :class="{ invalid: problems.lat }" :title="problems.lat">
+        <label :for="`${id}-lat`">{{ t("objects.field.lat") }}</label>
+        <div class="field-control">
+          <input :id="`${id}-lat`" v-model="draft.lat" class="input mono" type="text" inputmode="decimal" autocomplete="off" />
+        </div>
       </div>
-    </div>
-    <div class="field" :class="{ invalid: problems.lon }" :title="problems.lon">
-      <label :for="`${id}-lon`">{{ t("objects.field.lon") }}</label>
-      <div class="field-control">
-        <input :id="`${id}-lon`" v-model="draft.lon" class="input mono" type="text" inputmode="decimal" autocomplete="off" />
+      <div class="field" :class="{ invalid: problems.lon }" :title="problems.lon">
+        <label :for="`${id}-lon`">{{ t("objects.field.lon") }}</label>
+        <div class="field-control">
+          <input :id="`${id}-lon`" v-model="draft.lon" class="input mono" type="text" inputmode="decimal" autocomplete="off" />
+        </div>
       </div>
-    </div>
+    </LocationField>
     <div class="field" :class="{ invalid: problems.comment }" :title="problems.comment">
       <label :for="`${id}-comment`">{{ t("objects.field.comment") }}</label>
       <div class="field-control">
@@ -93,11 +104,6 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
         />
       </div>
     </div>
-    <template #aside>
-      <button type="button" class="btn" :class="{ primary: form.placing }" :aria-pressed="form.placing" @click="form.togglePlacing()">
-        {{ t("objects.form.pick") }}
-      </button>
-    </template>
     <template #buttons>
       <button type="button" class="btn" @click="form.cancel()">{{ t("objects.form.cancel") }}</button>
       <button type="submit" class="btn primary" :disabled="!ready">{{ t("objects.form.save") }}</button>

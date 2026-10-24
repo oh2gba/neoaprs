@@ -399,7 +399,7 @@ async def shot_tablet(s: Shots, _: str) -> None:
 
 
 async def shot_setup(s: Shots, fresh_url: str) -> None:
-    """The guide of a folder with no call, at its Position step: the call typed in, the place one line under the big Pick on the map button, the coordinates unfolded."""
+    """The guide of a folder with no call, at its Position step: the call typed in, the place one line under the big Choose on map button, the coordinates unfolded."""
     page = await s.page(DESKTOP, url=fresh_url, wait_ms=3500)
     await page.locator(".setup input").first.fill("OH2GBA")
     await page.get_by_role("button", name="Next").click()

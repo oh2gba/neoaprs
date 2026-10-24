@@ -26,7 +26,8 @@
   gap: 2px 8px;
   margin: 6px 0;
 }
-.field label {
+.field label,
+.field .field-label {
   font-weight: 600;
 }
 .field-control {
@@ -163,6 +164,33 @@
   .location-pick {
     flex: 1 1 100%;
   }
+}
+/* the row Location of a form (LocationField): the label in the label column of the rows around it, the button, the place and the coordinates in the input column, one under the other, left edges with the input of the Call above */
+.field.location-field {
+  align-items: start;
+}
+.location-field .field-label {
+  padding-top: 5px;
+}
+.location-control {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.location-control .location-pick {
+  flex: none;
+}
+.size-phone .location-control {
+  align-items: stretch;
+}
+.location-control .disclosure {
+  align-self: stretch;
+}
+.location-control .disclosure > summary {
+  padding: 2px 0;
+}
+.location-control .disclosure-body .field {
+  grid-template-columns: minmax(5.5em, 42%) 1fr;
 }
 /* the state of the radio (Settings, Radio) */
 .statepill {

@@ -304,7 +304,6 @@ export const fr: Catalogue = {
   "objects.field.speed": "Vitesse",
   "objects.field.path": "Chemin",
   "objects.unit.deg": "deg",
-  "objects.form.pick": "Choisir sur la carte",
   "objects.form.cancel": "Annuler",
   "objects.form.save": "Enregistrer",
 

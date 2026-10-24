@@ -26,7 +26,6 @@ export const objects = {
   "objects.field.speed": "Speed",
   "objects.field.path": "Path",
   "objects.unit.deg": "deg",
-  "objects.form.pick": "Pick on the map",
   "objects.form.cancel": "Cancel",
   "objects.form.save": "Save",
 

@@ -31,7 +31,7 @@ When a newer version is out, its number appears in the footer under the panel; a
 
 ## First start
 
-The page opens a setup guide in five steps: **call**, **position** (**Pick on the map** and click where you are, or drag the pin; or open **Enter coordinates or locator** and type latitude and longitude in decimal degrees: north and east positive, south and west negative, as Sydney is -33.87, 151.21), **symbol**, **radio**, **map**. Nothing is transmitted until a call is set: until then NeoAPRS only listens. Once, a few minutes of internet are needed to make the map of your area. Once a day NeoAPRS also asks whether a newer version is out; it sends its version number and the kind of system (Windows, Linux, Raspberry Pi...) and nothing else ([Update check](docs/manual/install.md#the-update-check)).
+The page opens a setup guide in five steps: **call**, **position** (**Choose on map** and click where you are, or drag the pin; or open **Enter coordinates or locator** and type latitude and longitude in decimal degrees: north and east positive, south and west negative, as Sydney is -33.87, 151.21), **symbol**, **radio**, **map**. Nothing is transmitted until a call is set: until then NeoAPRS only listens. Once, a few minutes of internet are needed to make the map of your area. Once a day NeoAPRS also asks whether a newer version is out; it sends its version number and the kind of system (Windows, Linux, Raspberry Pi...) and nothing else ([Update check](docs/manual/install.md#the-update-check)).
 
 ![The setup guide](docs/screenshots/setup.png)
 

@@ -4,6 +4,11 @@ import { onBeforeUnmount, onMounted } from "vue";
 
 const isField = (el: HTMLElement): el is HTMLInputElement | HTMLTextAreaElement => el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement;
 
+/** The key is for the field it was pressed in: one that has text keeps its first Esc, and a select (its list) and a rich text box take theirs. */
+export function keepsEsc(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && (target.isContentEditable || target.tagName === "SELECT" || (isField(target) && target.value !== ""));
+}
+
 export function useCardEsc(closeAll: () => boolean, blocked: () => boolean): void {
   let wasBlocked = false;
   const first = (event: KeyboardEvent): void => {
@@ -11,8 +16,7 @@ export function useCardEsc(closeAll: () => boolean, blocked: () => boolean): voi
   };
   const last = (event: KeyboardEvent): void => {
     if (event.key !== "Escape" || event.defaultPrevented || wasBlocked) return;
-    const target = event.target;
-    if (target instanceof HTMLElement && (target.isContentEditable || target.tagName === "SELECT" || (isField(target) && target.value !== ""))) return;
+    if (keepsEsc(event.target)) return;
     if (closeAll()) event.preventDefault();
   };
   onMounted(() => {

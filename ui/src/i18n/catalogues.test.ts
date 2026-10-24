@@ -5,6 +5,16 @@ import { LOCALES } from "@/i18n/locales";
 import { placeholders, texts, type Message } from "@/i18n/message";
 
 const source = en as Record<string, Message>;
+/** The button that chooses the place on the map (the Beacon tab, the Objects form, the setup guide), in each language; nothing says "pick" in it. */
+const CHOOSE_ON_MAP: Record<string, string> = {
+  en: "Choose on map",
+  de: "Auf Karte wählen",
+  es: "Elegir en el mapa",
+  fr: "Choisir sur la carte",
+  it: "Scegli sulla mappa",
+  ja: "地図で選択",
+  "pt-BR": "Escolher no mapa",
+};
 const names = (m: Message): string[] => [...new Set(texts(m).flatMap(placeholders))].sort();
 
 describe("the languages of the page", () => {
@@ -20,6 +30,11 @@ describe("the languages of the page", () => {
 
       it("has every id of the English catalogue and no other", () => {
         expect(Object.keys(messages).sort()).toEqual(Object.keys(source).sort());
+      });
+
+      it("calls the button that chooses a place on the map by its words, once, and has no id of the Objects form for it", () => {
+        expect(messages["settings.location.pick"]).toBe(CHOOSE_ON_MAP[locale.code]);
+        expect(messages["objects.form.pick"]).toBeUndefined();
       });
 
       it("asks for the values the English asks for", () => {
