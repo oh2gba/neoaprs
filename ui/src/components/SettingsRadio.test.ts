@@ -8,7 +8,11 @@ import type { PortsMessage, RadioSearchMessage } from "@/protocol/protocol";
 import { fakeDaemon, tell, withDaemon, type Given } from "@/test/context";
 import { configValues, tncState } from "@/test/fixtures";
 
-const ports = (search = true): PortsMessage => ({ type: "ports", search, ports: [{ device: "/dev/ttyUSB0", description: "FT232R USB UART", hwid: "n/a", vid: null, pid: null }] });
+const ports = (search = true): PortsMessage => ({
+  type: "ports",
+  search,
+  ports: [{ device: "/dev/ttyUSB0", description: "FT232R USB UART", hwid: "n/a", vid: null, pid: null }],
+});
 
 function make(more: Given = {}, extra: Record<string, string> = {}) {
   const daemon = fakeDaemon({ config: configValues(extra), tnc: tncState(), ports: ports(), ...more });
@@ -76,7 +80,11 @@ describe("Find my radio", () => {
   });
 
   it("is not there where the daemon does not look for the radio among the ports", () => {
-    expect(make({ ports: ports(false) }).group.find("#find-radio").exists()).toBe(false);
+    expect(
+      make({ ports: ports(false) })
+        .group.find("#find-radio")
+        .exists(),
+    ).toBe(false);
   });
 
   it("is waiting while a search runs", async () => {

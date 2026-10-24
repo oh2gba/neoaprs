@@ -6,7 +6,16 @@ import type { Connection } from "@/lib/hub";
 import type { RadioSearchMessage } from "@/protocol/protocol";
 import { configValues, toastOf } from "@/test/fixtures";
 
-const step = (extra: Partial<RadioSearchMessage>): RadioSearchMessage => ({ type: "radio_search", state: "trying", port: "/dev/ttyUSB0", baud: 9600, profile: "", number: 1, total: 14, ...extra });
+const step = (extra: Partial<RadioSearchMessage>): RadioSearchMessage => ({
+  type: "radio_search",
+  state: "trying",
+  port: "/dev/ttyUSB0",
+  baud: 9600,
+  profile: "",
+  number: 1,
+  total: 14,
+  ...extra,
+});
 const found = (extra: Partial<RadioSearchMessage> = {}): RadioSearchMessage => step({ state: "found", profile: "kenwood-tnc2", number: 0, total: 0, ...extra });
 
 function setUp(saved: Record<string, string> = {}) {
@@ -20,7 +29,9 @@ function setUp(saved: Record<string, string> = {}) {
   const values = { "tnc/profile": "kiss", "serial/port": "", "serial/baud": "9600", ...saved };
   const config = shallowRef(configValues());
   const scope = effectScope();
-  const find = scope.run(() => useFindRadio(message, error, connection, send, { change, dismissUndo, expected: (key: string) => values[key as keyof typeof values] ?? "" }, config, say));
+  const find = scope.run(() =>
+    useFindRadio(message, error, connection, send, { change, dismissUndo, expected: (key: string) => values[key as keyof typeof values] ?? "" }, config, say),
+  );
   if (!find) throw new Error("no scope");
   return { find, message, error, connection, send, change, dismissUndo, say };
 }
@@ -28,7 +39,10 @@ function setUp(saved: Record<string, string> = {}) {
 describe("foundSettings", () => {
   it("is the profile, the port and, for a port that has a speed, the speed", () => {
     expect(foundSettings(found({ baud: 57600 }))).toEqual({ "tnc/profile": "kenwood-tnc2", "serial/port": "/dev/ttyUSB0", "serial/baud": "57600" });
-    expect(foundSettings(found({ baud: null, port: "bt://AA:BB:CC:DD:EE:FF", profile: "kiss" }))).toEqual({ "tnc/profile": "kiss", "serial/port": "bt://AA:BB:CC:DD:EE:FF" });
+    expect(foundSettings(found({ baud: null, port: "bt://AA:BB:CC:DD:EE:FF", profile: "kiss" }))).toEqual({
+      "tnc/profile": "kiss",
+      "serial/port": "bt://AA:BB:CC:DD:EE:FF",
+    });
   });
 });
 

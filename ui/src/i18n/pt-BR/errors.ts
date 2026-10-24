@@ -21,7 +21,8 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.radio.busy": "já há uma busca do rádio em andamento",
   "error.radio.failed": "a busca do rádio falhou",
   "error.radio.no_ports": "não há porta para tentar: nenhuma das listadas é olhada pela busca",
-  "error.radio.not_found": "nenhum rádio respondeu nas portas tentadas (um TNC KISS não diz nada até ouvir um pacote: tente de novo quando o canal estiver movimentado)",
+  "error.radio.not_found":
+    "nenhum rádio respondeu nas portas tentadas (um TNC KISS não diz nada até ouvir um pacote: tente de novo quando o canal estiver movimentado)",
   "error.radio.not_running": "não há nenhuma busca do rádio em andamento",
   "error.message.control": "o texto tem um caractere de controle",
   "error.message.empty": "a mensagem está vazia",

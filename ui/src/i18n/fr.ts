@@ -79,7 +79,8 @@ export const fr: Catalogue = {
   "error.radio.busy": "une recherche de la radio est déjà en cours",
   "error.radio.failed": "la recherche de la radio a échoué",
   "error.radio.no_ports": "aucun port à essayer : aucun n'est listé parmi ceux que la recherche regarde",
-  "error.radio.not_found": "aucune radio n'a répondu sur les ports essayés (un TNC KISS ne dit rien tant qu'il n'entend pas de paquet : réessayez quand le canal est actif)",
+  "error.radio.not_found":
+    "aucune radio n'a répondu sur les ports essayés (un TNC KISS ne dit rien tant qu'il n'entend pas de paquet : réessayez quand le canal est actif)",
   "error.radio.not_running": "aucune recherche de la radio n'est en cours",
   "error.message.control": "le texte contient un caractère de commande",
   "error.message.empty": "le message est vide",

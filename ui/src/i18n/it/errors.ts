@@ -20,7 +20,8 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.radio.busy": "una ricerca della radio è già in corso",
   "error.radio.failed": "la ricerca della radio è fallita",
   "error.radio.no_ports": "nessuna porta da provare: nessuna tra quelle elencate è guardata dalla ricerca",
-  "error.radio.not_found": "nessuna radio ha risposto sulle porte provate (un TNC KISS non dice nulla finché non sente un pacchetto: riprova quando il canale è attivo)",
+  "error.radio.not_found":
+    "nessuna radio ha risposto sulle porte provate (un TNC KISS non dice nulla finché non sente un pacchetto: riprova quando il canale è attivo)",
   "error.radio.not_running": "nessuna ricerca della radio è in corso",
   "error.message.control": "il testo contiene un carattere di controllo",
   "error.message.empty": "il messaggio è vuoto",

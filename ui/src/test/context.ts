@@ -38,7 +38,9 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     map: part(over.map, null),
     selfUpdate: part(over.selfUpdate, null),
     ports,
-    findRadio: over.findRadio ?? useFindRadio(shallowRef<RadioSearchMessage | null>(null), lastError, shallowRef<Connection>("open"), sender, settings, config, () => undefined),
+    findRadio:
+      over.findRadio ??
+      useFindRadio(shallowRef<RadioSearchMessage | null>(null), lastError, shallowRef<Connection>("open"), sender, settings, config, () => undefined),
     alertResult: part(over.alertResult, null),
     updateResult: part(over.updateResult, null),
     lastError,

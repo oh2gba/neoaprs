@@ -25,7 +25,9 @@ function toggled(event: Event): void {
 
 <template>
   <details :class="{ disclosure: !plain }" :open="shown" @toggle="toggled">
-    <summary :class="summaryClass"><slot name="summary">{{ title }}</slot></summary>
+    <summary :class="summaryClass">
+      <slot name="summary">{{ title }}</slot>
+    </summary>
     <slot v-if="plain" />
     <div v-else class="disclosure-body"><slot /></div>
   </details>

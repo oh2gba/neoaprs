@@ -79,7 +79,8 @@ export const de: Catalogue = {
   "error.radio.busy": "die Suche nach dem Funkgerät läuft bereits",
   "error.radio.failed": "die Suche nach dem Funkgerät ist fehlgeschlagen",
   "error.radio.no_ports": "es gibt keinen Port zum Ausprobieren: keiner ist aufgelistet, den die Suche beachtet",
-  "error.radio.not_found": "an den ausprobierten Ports hat kein Funkgerät geantwortet (ein KISS-TNC sagt nichts, bis er ein Paket hört: versuche es erneut, wenn der Kanal belebt ist)",
+  "error.radio.not_found":
+    "an den ausprobierten Ports hat kein Funkgerät geantwortet (ein KISS-TNC sagt nichts, bis er ein Paket hört: versuche es erneut, wenn der Kanal belebt ist)",
   "error.radio.not_running": "es läuft keine Suche nach dem Funkgerät",
   "error.message.control": "der Text enthält ein Steuerzeichen",
   "error.message.empty": "die Nachricht ist leer",

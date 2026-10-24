@@ -21,7 +21,8 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.radio.busy": "無線機の検索はすでに実行中です",
   "error.radio.failed": "無線機の検索に失敗しました",
   "error.radio.no_ports": "試すポートがありません: 検索の対象になっているポートが一覧にありません",
-  "error.radio.not_found": "試したポートで応答した無線機はありませんでした(KISS TNC はパケットを受信するまで何も出力しません。チャンネルがにぎわっているときにもう一度試してください)",
+  "error.radio.not_found":
+    "試したポートで応答した無線機はありませんでした(KISS TNC はパケットを受信するまで何も出力しません。チャンネルがにぎわっているときにもう一度試してください)",
   "error.radio.not_running": "実行中の無線機の検索はありません",
   "error.message.control": "テキストに制御文字があります",
   "error.message.empty": "メッセージが空です",
