@@ -28,9 +28,12 @@ def test_the_windows_installer_is_moved_out_of_its_part_file_and_started_for_the
     setup.folder.mkdir()
     part = setup.folder / "NeoAPRS-Setup-0.7.0.exe.part"
     part.write_bytes(b"MZ")
+    (setup.folder / "NeoAPRS-Setup-0.6.9.exe").write_bytes(b"MZ earlier")          # (the installer of the update before)
+    (setup.folder / "install.log").write_text("the log of the update before")
     setup.install(part, "NeoAPRS-Setup-0.7.0.exe", "0.7.0")
     installer = tmp_path / "update" / "NeoAPRS-Setup-0.7.0.exe"
     assert installer.read_bytes() == b"MZ" and not part.exists()
+    assert sorted(p.name for p in setup.folder.iterdir()) == ["NeoAPRS-Setup-0.7.0.exe", "install.log"]
     assert started == [installer_argv(installer, tmp_path, "app", tmp_path / "update" / "install.log")]
     assert WindowsSetup(tmp_path, started.append, app_running=lambda data: False).command(installer)[-2] == "/NEOAPRSRESTART=daemon"
     assert setup.blocked() == ""
@@ -123,6 +126,23 @@ def test_the_new_file_is_executed_with_the_arguments_and_the_old_one_is_put_back
     assert not (image.parent / (image.name + ".old")).exists()
 
 
+def test_an_appimage_that_was_unpacked_instead_of_mounted_is_executed_again_the_same_way(tmp_path: Path) -> None:
+    mounted = {"APPIMAGE": "/home/ham/NeoAPRS.AppImage", "APPDIR": "/tmp/.mount_NeoAPRxyz"}
+    selfreplace.keep_extract_and_run(mounted, is_mount=lambda path: True)
+    assert "APPIMAGE_EXTRACT_AND_RUN" not in mounted
+    unpacked = {"APPIMAGE": "/home/ham/NeoAPRS.AppImage", "APPDIR": str(tmp_path / "appimage_extracted_0123")}
+    selfreplace.keep_extract_and_run(unpacked, is_mount=lambda path: False)
+    assert unpacked["APPIMAGE_EXTRACT_AND_RUN"] == "1"
+    outside: dict[str, str] = {}
+    selfreplace.keep_extract_and_run(outside, is_mount=lambda path: False)
+    assert outside == {}
+    environ = dict(unpacked)
+    del environ["APPIMAGE_EXTRACT_AND_RUN"]
+    seen: list[str | None] = []
+    selfreplace.reexec(["/home/ham/NeoAPRS.AppImage", "run"], lambda path, argv: seen.append(environ.get("APPIMAGE_EXTRACT_AND_RUN")), close=lambda: None, environ=environ)
+    assert seen == ["1"]
+
+
 def test_once_the_new_version_runs_the_old_appimage_goes(tmp_path: Path) -> None:
     image = tmp_path / "NeoAPRS.AppImage"
     old = tmp_path / "NeoAPRS.AppImage.old"
@@ -159,12 +179,46 @@ def test_a_simulated_kind_is_rehearsed_the_file_deleted_and_nothing_installed(tm
     assert list(rehearsal.folder.iterdir()) == []
 
 
-def test_the_files_come_from_github_and_from_a_fake_server_only_for_a_simulated_kind() -> None:
-    assert release_source({}) == (RELEASES, url_allowed)
-    assert release_source({"NEOAPRS_UPDATE_FROM": "http://127.0.0.1:9/releases"}) == (RELEASES, url_allowed)
-    base, allowed = release_source({"NEOAPRS_UPDATE_FROM": "http://127.0.0.1:9/releases/", "NEOAPRS_INSTALL_KIND": "appimage"})
+@pytest.mark.parametrize("switch", [{"NEOAPRS_INSTALL_KIND": "appimage"}, {"NEOAPRS_UPDATE_TEST": "1"}])
+def test_the_files_come_from_a_fake_server_on_the_loopback_for_a_simulated_kind_and_for_the_end_to_end_test(switch: dict[str, str]) -> None:
+    base, allowed = release_source({"NEOAPRS_UPDATE_FROM": "http://127.0.0.1:9/releases/", **switch})
     assert base == "http://127.0.0.1:9/releases"
     assert allowed("http://127.0.0.1:9/releases/v9.9.9/SHA256SUMS") and not allowed("https://github.com/x") and not allowed("http://127.0.0.1:9/other")
+    assert release_source({"NEOAPRS_UPDATE_FROM": "https://localhost:8443", **switch})[0] == "https://localhost:8443"
+
+
+@pytest.mark.parametrize("environ", [
+    {},
+    {"NEOAPRS_UPDATE_FROM": "http://127.0.0.1:9/releases"},                                   # no switch: GitHub, whatever the address
+    {"NEOAPRS_UPDATE_FROM": "http://127.0.0.1:9/releases", "NEOAPRS_UPDATE_TEST": "0"},
+    {"NEOAPRS_UPDATE_FROM": "http://127.0.0.1:9/releases", "NEOAPRS_UPDATE_TEST": "yes"},
+    {"NEOAPRS_UPDATE_TEST": "1"},                                                              # the switch alone: GitHub
+    {"NEOAPRS_UPDATE_FROM": "http://example.org/releases", "NEOAPRS_UPDATE_TEST": "1"},        # only this computer
+    {"NEOAPRS_UPDATE_FROM": "https://github.com.evil.example/x", "NEOAPRS_UPDATE_TEST": "1"},
+    {"NEOAPRS_UPDATE_FROM": "http://192.168.1.2:8000", "NEOAPRS_UPDATE_TEST": "1"},
+    {"NEOAPRS_UPDATE_FROM": "http://127.0.0.2:8000", "NEOAPRS_UPDATE_TEST": "1"},
+    {"NEOAPRS_UPDATE_FROM": "http://127.0.0.1:9@example.org/x", "NEOAPRS_UPDATE_TEST": "1"},
+    {"NEOAPRS_UPDATE_FROM": "http://u@127.0.0.1:9/x", "NEOAPRS_UPDATE_TEST": "1"},
+    {"NEOAPRS_UPDATE_FROM": "http://127.0.0.1:x/x", "NEOAPRS_UPDATE_TEST": "1"},
+    {"NEOAPRS_UPDATE_FROM": "http://127.0.0.1:9/x?y=1", "NEOAPRS_UPDATE_TEST": "1"},
+    {"NEOAPRS_UPDATE_FROM": "file:///tmp/releases", "NEOAPRS_UPDATE_TEST": "1"},
+    {"NEOAPRS_UPDATE_FROM": "ftp://127.0.0.1/releases", "NEOAPRS_UPDATE_TEST": "1"},
+    {"NEOAPRS_UPDATE_FROM": "http://example.org/releases", "NEOAPRS_INSTALL_KIND": "appimage"},
+])
+def test_the_files_come_from_github_unless_a_switch_names_a_server_on_this_computer(environ: dict[str, str]) -> None:
+    assert release_source(environ) == (RELEASES, url_allowed)
+
+
+def test_github_takes_https_to_its_own_hosts_only() -> None:
+    assert url_allowed("https://github.com/oh2gba/neoaprs/releases/download/v0.7.0/SHA256SUMS")
+    for url in ("http://github.com/oh2gba/neoaprs/releases/download/v0.7.0/SHA256SUMS", "https://127.0.0.1/v0.7.0/SHA256SUMS", "http://localhost:8000/v0.7.0/SHA256SUMS", "https://github.com:8443/x"):
+        assert not url_allowed(url), url
+
+
+def test_the_test_switch_does_not_turn_a_simulated_kind_into_a_real_install(tmp_path: Path) -> None:
+    environ = {"NEOAPRS_INSTALL_KIND": "appimage", "NEOAPRS_UPDATE_TEST": "1"}
+    assert isinstance(installer_for(InstallInfo("appimage", "/x/NeoAPRS.AppImage"), tmp_path, lambda argv: None, environ, platform="linux"), Rehearsal)
+    assert isinstance(installer_for(InstallInfo("windows-installer"), tmp_path, lambda argv: None, {"NEOAPRS_UPDATE_TEST": "1"}, platform="win32"), WindowsSetup)
 
 
 @pytest.mark.parametrize(("text", "info"), [

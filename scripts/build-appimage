@@ -2,8 +2,10 @@
 # Builds NeoAPRS-<version>-x86_64.AppImage, the Linux download: one file that holds CPython, the wheel with the locked dependencies of its extra `app` (Qt with its web engine) and the icon.
 #
 #   scripts/build-appimage [--wheel FILE] [--out DIR]
+#   scripts/build-appimage --retag FILE VERSION [--out DIR]
 #
-# Without --wheel the wheel is built from this tree (uv build). The file is made in DIR (default dist-appimage/). The tools are fetched once into $NEOAPRS_BUILD_CACHE (default ~/.cache/neoaprs-build), each
+# Without --wheel the wheel is built from this tree (uv build). The file is made in DIR (default dist-appimage/). --retag makes NeoAPRS-VERSION-x86_64.AppImage out of the AppImage FILE with nothing changed
+# but the VERSION it says: the newer file of the end-to-end test of Update now (scripts/update-e2e.py), never a release. The tools are fetched once into $NEOAPRS_BUILD_CACHE (default ~/.cache/neoaprs-build), each
 # pinned by version and SHA-256 below (the digest GitHub shows for each file of the release; the pin is the trust, not the server): the relocatable CPython of python-build-standalone, appimagetool and the
 # AppImage runtime it puts in front of the image. The runtime is static: the computer that runs the file needs FUSE (fusermount and /dev/fuse), not libfuse2. Needs uv, curl and a Linux x86_64 machine;
 # the work folder is build/appimage/. How it behaves and what it holds: docs/manual/install.md, "Linux AppImage", and docs/development.md, "The AppImage". scripts/smoke-appimage tries the file.
@@ -19,10 +21,14 @@ RUNTIME_URL="https://github.com/AppImage/type2-runtime/releases/download/2025110
 RUNTIME_SHA256="2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d"
 
 wheel=""
+retag=""
+retag_version=""
 out="$ROOT/dist-appimage"
 while [ $# -gt 0 ]; do
     case "$1" in
         --wheel) shift; wheel="${1:-}"; [ -f "$wheel" ] || { echo "build-appimage: --wheel needs a wheel file" >&2; exit 2; } ;;
+        --retag) retag="${2:-}"; retag_version="${3:-}"; shift 2
+                 [ -f "$retag" ] && [[ "$retag_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+)?$ ]] || { echo "build-appimage: --retag needs an AppImage and a version" >&2; exit 2; } ;;
         --out) shift; out="${1:-}"; [ -n "$out" ] || { echo "build-appimage: --out needs a folder" >&2; exit 2; } ;;
         *) echo "build-appimage: unknown argument $1" >&2; exit 2 ;;
     esac
@@ -46,6 +52,35 @@ fetch() {
     echo "$file"
 }
 
+# pack APPDIR TARGET: the image of the folder with the pinned runtime in front of it
+pack() {
+    local appimagetool runtime
+    appimagetool="$(fetch "$TOOL_URL" "$TOOL_SHA256")"
+    runtime="$(fetch "$RUNTIME_URL" "$RUNTIME_SHA256")"
+    chmod +x "$appimagetool"
+    rm -f "$2"
+    ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 "$appimagetool" --no-appstream --runtime-file "$runtime" --comp zstd "$1" "$2"
+    chmod +x "$2"
+}
+
+if [ -n "$retag" ]; then
+    retag="$(readlink -f "$retag")"
+    work="$ROOT/build/appimage-retag"
+    rm -rf "$work"
+    mkdir -p "$work" "$out"
+    chmod +x "$retag"
+    (cd "$work" && APPIMAGE_EXTRACT_AND_RUN=1 "$retag" --appimage-extract > /dev/null)
+    init="$(ls "$work"/squashfs-root/usr/lib/python3.*/site-packages/neoaprs/__init__.py)"
+    sed -i "s/^VERSION = \"[^\"]*\"/VERSION = \"$retag_version\"/" "$init"
+    grep -q "^VERSION = \"$retag_version\"" "$init" || { echo "build-appimage: no VERSION in $init" >&2; exit 1; }
+    # (the bytecode is unchecked: the old one would win over the changed source)
+    "$work/squashfs-root/usr/bin/python3" -I -m compileall -q --invalidation-mode unchecked-hash "$init" > /dev/null
+    target="$out/NeoAPRS-$retag_version-x86_64.AppImage"
+    pack "$work/squashfs-root" "$target"
+    echo "build-appimage: $target, $(basename "$retag") as $retag_version"
+    exit 0
+fi
+
 if [ -z "$wheel" ]; then
     rm -rf "$ROOT/dist-wheel"
     uv build --wheel --out-dir "$ROOT/dist-wheel"
@@ -54,9 +89,6 @@ fi
 version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' "$ROOT/neoaprs/__init__.py")"
 case "$(basename "$wheel")" in neoaprs-"$version"-*.whl) ;; *) echo "build-appimage: $wheel is not the wheel of $version" >&2; exit 1 ;; esac
 python_tar="$(fetch "$PYTHON_URL" "$PYTHON_SHA256")"
-appimagetool="$(fetch "$TOOL_URL" "$TOOL_SHA256")"
-runtime="$(fetch "$RUNTIME_URL" "$RUNTIME_SHA256")"
-chmod +x "$appimagetool"
 
 work="$ROOT/build/appimage"
 app="$work/AppDir"
@@ -99,7 +131,5 @@ ln -s neoaprs.png "$app/.DirIcon"
 "$python" -I -m compileall -q --invalidation-mode unchecked-hash "$app/usr/lib/python3.13" >/dev/null
 
 target="$out/NeoAPRS-$version-x86_64.AppImage"
-rm -f "$target"
-ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 "$appimagetool" --no-appstream --runtime-file "$runtime" --comp zstd "$app" "$target"
-chmod +x "$target"
+pack "$app" "$target"
 echo "build-appimage: $target ($(du -h "$target" | cut -f1); the image holds $(du -sh "$app" | cut -f1))"

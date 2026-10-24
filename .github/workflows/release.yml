@@ -1,6 +1,6 @@
 # What a release is made of, built by GitHub: the wheel and the sdist, the Windows installer (PyInstaller and Inno Setup), the Linux AppImage, the Debian packages for amd64 and arm64 (the Raspberry Pi), the Linux and macOS
 # install script, and SHA256SUMS. Pushing a tag `v*` builds all of it, checks it (the wheel, the installed Windows app, the AppImage, the packages installed with apt and the install script are each run against a fake TNC
-# or a fresh home) and creates the release. Run by hand (workflow_dispatch) it is a dry run: the
+# or a fresh home), updates the installed Windows app and the AppImage to a next version with Update now from a fake release (scripts/update-e2e.py), and creates the release. Run by hand (workflow_dispatch) it is a dry run: the
 # same builds and checks, the files kept as the artifacts of the run, and no release. How to make a release: docs/MAINTAINING.md, "A release"; what the jobs do: docs/development.md.
 name: release
 
@@ -201,11 +201,46 @@ jobs:
           if (-not (Test-Path "$env:LOCALAPPDATA\NeoAPRS\neoaprs.sqlite")) { throw "the data folder was touched" }
           if (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\NeoAPRS\NeoAPRS.lnk") { throw "the Start menu entry is still there" }
           "uninstalled; the data folder is still there"
+      # Update now, end to end (scripts/update-e2e.py): a second installer of the next version, made from the same build with nothing changed but its VERSION, is the release a fake server on the loopback
+      # serves; the installer above is installed again, and its daemon updates itself to the second one as a click of the page has it do, the installer of the update run silently by the daemon.
+      - name: "Update now: the installer of the next version (VERSION alone changed)"
+        id: next
+        shell: bash
+        run: |
+          next="$(build-venv/Scripts/python.exe -I -c 'import sys; a, b, c = sys.argv[1].split("-")[0].split("."); print(f"{a}.{b}.{int(c) + 1}-e2e")' "${{ steps.version.outputs.version }}")"
+          echo "version=$next" >> "$GITHUB_OUTPUT"
+          init=build-venv/Lib/site-packages/neoaprs/__init__.py
+          sed -i "s/^VERSION = \"[^\"]*\"/VERSION = \"$next\"/" "$init"
+          grep -q "^VERSION = \"$next\"" "$init"
+          rm -rf build-venv/Lib/site-packages/neoaprs/__pycache__
+          (cd packaging/windows && ../../build-venv/Scripts/pyinstaller.exe --noconfirm --distpath ../../dist-e2e --workpath ../../build-e2e neoaprs.spec)
+          build-venv/Scripts/python.exe packaging/windows/bundle_pmtiles.py dist-e2e/NeoAPRS
+          [ "$(dist-e2e/NeoAPRS/neoaprs.exe --version)" = "NeoAPRS $next" ]
+      - name: "Update now: Inno Setup for the next version"
+        shell: pwsh
+        run: |
+          $iscc = Get-ChildItem "${env:ProgramFiles(x86)}\Inno Setup*\ISCC.exe", "$env:ProgramFiles\Inno Setup*\ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          & $iscc.FullName /Qp "/DAppVersion=${{ steps.next.outputs.version }}" "/DBuildDir=..\..\dist-e2e\NeoAPRS" "/O$PWD\dist-e2e-installer" packaging\windows\neoaprs.iss
+          if ($LASTEXITCODE -ne 0) { throw "iscc failed: $LASTEXITCODE" }
+          Get-ChildItem dist-e2e-installer | Format-Table Name, Length
+      - name: "Update now, end to end: installed, updated by its daemon to the next version, started again on the same data folder"
+        run: >-
+          build-venv/Scripts/python.exe scripts/update-e2e.py windows
+          "dist-installer/NeoAPRS-Setup-${{ steps.version.outputs.version }}.exe" "dist-e2e-installer/NeoAPRS-Setup-${{ steps.next.outputs.version }}.exe" --work "$RUNNER_TEMP/update-e2e"
       - name: The logs of setup and uninstall
         if: failure()
         shell: pwsh
         run: |
           foreach ($f in 'install.log', 'uninstall.log') { if (Test-Path $f) { "--- $f"; Get-Content $f -Tail 60 } }
+      - name: The logs of Update now's test
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: update-e2e-windows-logs
+          path: |
+            ${{ runner.temp }}/update-e2e
+            !${{ runner.temp }}/update-e2e/**/*.exe
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v7
         with:
           name: windows-installer
@@ -248,6 +283,58 @@ jobs:
           name: appimage
           path: dist-appimage/NeoAPRS-*.AppImage
           if-no-files-found: error
+
+  # Update now of the AppImage, end to end (scripts/update-e2e.py), on the newest Ubuntu: the file of the job above in a folder of its own runs as the daemon, and a fake server on the loopback serves a second
+  # one, the same file with nothing changed but its VERSION (scripts/build-appimage --retag), as the next release. The daemon replaces its own file and goes on in the same process as the new version; once
+  # mounted with FUSE, once unpacked (--appimage-extract-and-run, a system without FUSE).
+  appimage-update:
+    needs: [wheel, appimage]
+    if: ${{ !failure() && !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.13"
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
+      - uses: actions/download-artifact@v8
+        with:
+          name: appimage
+          path: dist-appimage
+      - name: FUSE, which the file mounts itself with
+        run: |
+          if ! command -v fusermount3 >/dev/null && ! command -v fusermount >/dev/null; then sudo apt-get update && sudo apt-get install -y --no-install-recommends fuse3; fi
+          ls -l /dev/fuse
+      - name: The AppImage of the next version (VERSION alone changed)
+        id: next
+        run: |
+          version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)"
+          next="$(python3 -I -c 'import sys; a, b, c = sys.argv[1].split("-")[0].split("."); print(f"{a}.{b}.{int(c) + 1}-e2e")' "$version")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "next=$next" >> "$GITHUB_OUTPUT"
+          scripts/build-appimage --retag "dist-appimage/NeoAPRS-$version-x86_64.AppImage" "$next" --out dist-e2e
+          [ "$(APPIMAGE_EXTRACT_AND_RUN=1 "dist-e2e/NeoAPRS-$next-x86_64.AppImage" --version)" = "NeoAPRS $next" ]
+      - name: "Update now, end to end: the file replaced in its place and the same process going on as the next version, mounted with FUSE and unpacked"
+        run: |
+          uv venv "$RUNNER_TEMP/e2e-venv"
+          uv pip install --python "$RUNNER_TEMP/e2e-venv/bin/python" dist/*.whl
+          old="dist-appimage/NeoAPRS-${{ steps.next.outputs.version }}-x86_64.AppImage"
+          new="dist-e2e/NeoAPRS-${{ steps.next.outputs.next }}-x86_64.AppImage"
+          "$RUNNER_TEMP/e2e-venv/bin/python" scripts/update-e2e.py appimage "$old" "$new" --work "$RUNNER_TEMP/update-e2e/fuse"
+          "$RUNNER_TEMP/e2e-venv/bin/python" scripts/update-e2e.py appimage "$old" "$new" --work "$RUNNER_TEMP/update-e2e/extract-and-run" --extract-and-run
+      - name: The logs of Update now's test
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: update-e2e-appimage-logs
+          path: |
+            ${{ runner.temp }}/update-e2e
+            !${{ runner.temp }}/update-e2e/**/*.AppImage*
+            !${{ runner.temp }}/update-e2e/*/tmp
+          if-no-files-found: ignore
 
   # The Debian package for the Raspberry Pi, Debian and Ubuntu (scripts/build-deb, from the wheel of the job above: CPython and the locked dependencies in /opt/neoaprs), one for each architecture, each built and
   # tried on a runner of its own: installed with apt, the command, the daemon against a fake TNC with the Python of the package, the unit a service install writes, an upgrade over itself, and the removal.
@@ -355,7 +442,7 @@ jobs:
 
   # Everything a release carries in one place, with the checksums and the notes: made on a dry run too, so that this half is tried before a tag.
   assemble:
-    needs: [wheel, windows, appimage, deb, install-script]
+    needs: [wheel, windows, appimage, appimage-update, deb, install-script]
     if: ${{ !failure() && !cancelled() }}
     runs-on: ubuntu-latest
     steps:
