@@ -78,4 +78,4 @@ neoaprs --data demo --port socket://127.0.0.1:PORT --web-port 0    # in another 
 - [Architecture](docs/ARCHITECTURE.md), [wire protocol](PROTOCOL.md), [changelog](CHANGELOG.md), [roadmap](ROADMAP.md)
 - [Issues](https://github.com/oh2gba/neoaprs/issues) and the [project page](https://oh2gba.github.io/neoaprs/)
 
-Licence: GPL-3.0-or-later ([LICENSE](LICENSE)). Map data © OpenStreetMap contributors via Protomaps. APRS symbols by Heikki Hannikainen OH7LZB ([hessu/aprs-symbols](https://github.com/hessu/aprs-symbols)).
+Licence: GPL-3.0-or-later ([LICENSE](LICENSE)). Map data © OpenStreetMap contributors via Protomaps. APRS symbols by Heikki Hannikainen OH7LZB ([hessu/aprs-symbols](https://github.com/hessu/aprs-symbols)). Device names from the APRS device identification list by Hessu, OH7LZB ([aprsorg/aprs-deviceid](https://github.com/aprsorg/aprs-deviceid), CC BY-SA 2.0).

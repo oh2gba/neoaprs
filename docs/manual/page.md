@@ -79,6 +79,7 @@ A click on a marker opens a card over the map. It is above the markers, clear of
 - its position, how far and in which direction it is from you;
 - its speed and course (only a station that moves has them) and the altitude;
 - the status and the comment;
+- what the station runs, one line ("Kenwood TH-D74", "APRSdroid"), only when it is known;
 - one line of how its packets reach you ("Reached us via OH2RCH-2", or "direct").
 
 A row with nothing to say is left out: a station that stands still has no speed whatever course it gave, a station that sent no altitude has none, and so on. An altitude of 0 that the station did send is shown.
@@ -91,12 +92,14 @@ NeoAPRS finds this again at its start from the packet log. The bulletins and tel
 
 **Details**, closed, has the rest:
 
-- the data extensions, the locator and the telemetry the station sent;
+- the data extensions, the locator and the telemetry the station sent; the antenna of a PHG report is drawn as a small arrow after the figures (the direction it favours, north up) or as a small circle when it is omni, with the compass point and the degrees as its hover title;
 - when it was first heard;
 - the path of its latest packet as it was sent;
 - how its packets reach you ("Heard: 12 direct, 30 via OH2RCH-2, 4 via OH2RCH-3", "from the internet" for third-party packets);
 - the best route with the path to send by;
-- the number of packets.
+- the number of packets, all of them and those of the last hour ("Packets: 312 · 14 in the last hour"). The total is what NeoAPRS has counted since it first heard the station; the last hour is counted from the packet log at the start and as packets come, and moves on every minute.
+
+What a station runs is read from the destination call of its packets (`APDR15` is APRSdroid) or, for a Mic-E tracker, from the type code at the ends of its comment. A station whose software is not in the list shows nothing.
 
 The path and **RF only** are set in the header of the conversation in the Messages tab, not on the card ([messages.md](messages.md#a-path-for-each-station)).
 
@@ -186,6 +189,6 @@ The names of places and roads are drawn with Noto Sans glyph files (Regular and 
 
 ### Credits
 
-The (i) on the map shows the credits: "© OpenStreetMap contributors, Protomaps" (the base map data is OpenStreetMap's, ODbL, in the Protomaps tile format) and the symbol set. MapLibre GL JS (BSD-3-Clause) and PMTiles (BSD-3-Clause) are in the page.
+The (i) on the map shows the credits: "© OpenStreetMap contributors, Protomaps" (the base map data is OpenStreetMap's, ODbL, in the Protomaps tile format) the symbol set and the list of device names. MapLibre GL JS (BSD-3-Clause) and PMTiles (BSD-3-Clause) are in the page.
 
 The symbols are the aprs.fi high-resolution symbol set by Heikki Hannikainen, OH7LZB (<https://github.com/hessu/aprs-symbols/>). The set is released to the APRS community for use by any APRS application, for free, with a request to give a pointer to the source, which is done in the (i) on the map and in a file beside the sheets. Where each symbol comes from and under what terms (many public domain or CC BY-SA, the old APRS set's originals without licence information, three company logos) is in a file beside the sheets. The sheets are unchanged.

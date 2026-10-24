@@ -1,6 +1,6 @@
 """The topics of the hub (neoaprs/web/hub.py) and what changes them: the table of what the pages follow, and the one place of neoaprs/web/ that connects the daemon's signals.
 
-    stations   the station book by call            changed by StationBook.changed and .removed; our own position in the settings moves every distance, so it is told whole
+    stations   the station book by call            changed by StationBook.changed, .recounted and .removed; our own position in the settings moves every distance, so it is told whole
     packets    the latest 200 packets by id         changed by Tnc.packet; the window is kept here (the daemon's database is the log, this is what a page opens with)
     tnc        the radio                             changed by Tnc.changed and Tnc.state_changed; at most four times a second
     config     the settings                          changed by Controller.config_changed, which every save emits
@@ -28,7 +28,7 @@ from neoaprs.packet import Packet
 from neoaprs.pref import Pref
 from neoaprs.signal import Signal
 from neoaprs.source import Source
-from neoaprs.stationbook import Station
+from neoaprs.station import Station
 
 from .hub import StateHub, Topic
 from .mapview import map_state
@@ -137,7 +137,7 @@ class Topics:
         """Each signal of the daemon a topic follows, with what tells the hub (the table in this module's docstring)."""
         ctl = self.ctl
         return [
-            (ctl.stationbook.changed, self._station_changed), (ctl.stationbook.removed, self._station_removed),
+            (ctl.stationbook.changed, self._station_changed), (ctl.stationbook.recounted, self._station_changed), (ctl.stationbook.removed, self._station_removed),
             (ctl.tnc.packet, self._packet), (ctl.tnc.changed, self._tnc_changed), (ctl.tnc.state_changed, self._tnc_state_changed),
             (ctl.config_changed, self._config_changed),
             (ctl.messaging.changed, self._message_changed), (ctl.messaging.removed, self._message_changed),

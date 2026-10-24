@@ -88,7 +88,7 @@ describe("StationCard", () => {
       telemetry_at: ago(30),
     });
     const fields = fieldsOf(mount(StationCard, { props: { row: detailed, now: NOW } }));
-    expect(fields.PHG).toBe("25 W, 6 m, 3 dB, 90°, range 13 km");
+    expect(fields.PHG).toBe("25 W, 6 m, 3 dB, range 13 km");
     expect(fields.Range).toBe("81 km");
     expect(fields.Locator).toBe("IO91sx, 51.97917 N 0.45833 W");
     expect(fields.Telemetry).toBe("#5: Battery 1034.8 v/100");

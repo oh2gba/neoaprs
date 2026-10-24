@@ -12,7 +12,7 @@ from typing import Literal
 
 from .geo import distance_km
 from .policy import ALOHA_MOVING_KMH, ALOHA_PACKETS, ALOHA_WEIGHT_DIGI, ALOHA_WEIGHT_HOME, ALOHA_WEIGHT_MOBILE, ALOHA_WEIGHT_MOVING, ALOHA_WEIGHT_WEATHER, ALOHA_WINDOW_MIN
-from .stationbook import Station
+from .station import Station
 from .symbols import is_mobile
 
 Kind = Literal["moving", "mobile", "weather", "digi", "home"]

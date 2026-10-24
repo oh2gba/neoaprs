@@ -40,7 +40,7 @@ from neoaprs.packet import Message, Other, Packet
 from neoaprs.services.beacon import BeaconError
 from neoaprs.services.common import ConfigSource, Radio, our_frame
 from neoaprs.services.pace import SPACING_SEC
-from neoaprs.stationbook import Station
+from neoaprs.station import Station
 from neoaprs.tasks import TaskSet
 
 log = logging.getLogger("neoaprs.queries")

@@ -11,7 +11,8 @@ from neoaprs.aprsweather import Weather
 from neoaprs.clock import utc
 from neoaprs.kiss import KissDecoder
 from neoaprs.packet import ItemReport, Message, ObjectReport, Other, Packet, Position, Status, ThirdParty, Undecoded
-from neoaprs.stationbook import DEFINITIONS_MAX, TRACK_MAX, Station, StationBook
+from neoaprs.station import Station
+from neoaprs.stationbook import DEFINITIONS_MAX, TRACK_MAX, StationBook
 from tests.support.files import fixture_bytes
 
 T0 = utc(2026, 10, 21, 12, 0, 0)
