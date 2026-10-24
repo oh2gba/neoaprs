@@ -250,7 +250,10 @@ described in `neoaprs/migrations.py` and `neoaprs/migrations2.py`; how the datab
 - A **Maidenhead locator** at the start of a status report (`>IO91sx/-` and text after a space) is `Status.locator`, and in the status text of a Mic-E packet
   `Position.locator`. The station row has it as `locator`, and it does not move the station.
 - **Mic-E.** The telemetry flag
-  "`" is followed by two values of two hex digits, "'" by five, and 0x1d by five bytes (all dropped from the comment). The altitude `xxx}` is read at the start of the status text (after the locator) or as a word of its own after a space.
+  "`" is followed by two values of two hex digits, "'" by five, and 0x1d by five bytes (all dropped from the comment). The radio's type code is dropped
+  as aprs-deviceid's tables have it: a leading `>` with an optional trailing `=`, `^` or `&` (Kenwood TH-D72, TH-D74, TH-D75), `]` with an optional `=`
+  (TM-D700, TM-D710), and a leading `` ` `` or `'` with one of the table's two-byte suffixes (`_%` FTM-400DR, `|3` TinyTrak3, `[1` APRSdroid ...); a suffix
+  not in the table stays in the text. The leading `'` says the radio does no messages (`can_message`). The altitude `xxx}` is read at the start of the status text (after the locator) or as a word of its own after a space.
 
 ## The update check
 

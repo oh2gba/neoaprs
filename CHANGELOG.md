@@ -43,6 +43,7 @@ Closer to the APRS standard.
 - The fill-in digipeater sends the frame it heard byte for byte with only the path changed (it rewrote some address bits of the destination and the source), and a packet whose destination differs only in its SSID is a duplicate.
 - An ack or a message number followed by blanks or a line end (`ack12  `) is understood, and so is a message whose addressee is not padded to nine characters.
 - A Mic-E station whose comment starts with the type code `'` (a tracker without messaging) gets no Message button, unless it has sent a message.
+- The type codes of more Mic-E radios no longer show in the comment: the TH-D75's `&` and the two-character codes of current Yaesu, Anytone and other radios and trackers.
 - A snow reading with a decimal point (`s1.5`) is read, and so is the radio range of a compressed position.
 - The `!DAO!` precision extension (TH-D74 and TH-D75, APRSdroid) is read: the position is finer and the `!W12!` no longer shows in the comment.
 - The answer to `?APRST` and `?PING?` is the header as the specification's example writes it, `OH2RDG>APZNEO,WIDE1*,OH2RCH-2*:`, without `Path=` in front.
