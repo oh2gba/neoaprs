@@ -9,7 +9,8 @@ before the `}` counts (APRS 1.2, chapter 17), so the TCPIP inside it does not. T
 and reserved bits too), control, PID and information field are the bytes that arrived, and only the path is encoded again.
 
 Nothing goes while the interlock refuses (no call set: config.can_transmit) or the radio is not usable. A fill-in is of use only at once, so it does not wait for the sender's pause (services/sender.py) of
-ten seconds between our scheduled frames; instead at most BURST_MAX digipeated frames go out in any BURST_WINDOW_SEC and the rest are dropped (the TNC's own channel access still decides when a frame is on the air)."""
+ten seconds between our scheduled frames; instead at most BURST_MAX digipeated frames go out in any BURST_WINDOW_SEC and the rest are dropped (the TNC's own channel access, its random
+delay of PERSIST and SLOTTIME, still decides when a frame is on the air: a software fill-in is never as quick as one in the TNC)."""
 import logging
 from collections import deque
 from dataclasses import replace

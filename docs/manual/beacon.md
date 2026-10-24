@@ -145,4 +145,6 @@ Nothing else is repeated:
 
 The frame is the one that was heard, byte for byte, with only the path changed. It goes through the same checks as every transmission: nothing at all while no call is set or the radio is not usable. A fill-in is of use only at once, so it does not wait for the 10 seconds between your scheduled frames. At most 4 digipeated frames go out in any 10 seconds, and the rest are dropped.
 
+A KISS TNC still waits for a free channel by its own rules, a random delay set by its PERSIST and SLOTTIME, before it sends what NeoAPRS hands it. So the repeat comes a moment after the original, not at once as from a digipeater built into a TNC.
+
 Each one is a line in the log (`digipeated OH2XYZ>APRS: the path WIDE1-1,WIDE2-1 is sent as OH2GBA*,WIDE2-1`) and is in the Packets tab as a packet with direction `out`. The radio status of the Settings tab says "digipeated N" once N is more than 0.
