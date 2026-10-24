@@ -8,6 +8,10 @@ The settings are rows of the database, read at the start. Most are on the page, 
 
 The daemon may be running while you use them. A key that is not a setting is refused.
 
+The settings the page does not show (`map/maxzoom`, `map/source`, `update/url`, `serial/pattern`, `serial/skip`, `web/port`, `web/allowed_hosts`) are for the command line only. The first five went back to their defaults once, when this version first started on a database; each reset is a line in the log with the old value, and a value you set afterwards with `neoaprs db set` stays. `web/port` and `web/allowed_hosts` were never reset.
+
+What an earlier version stored for a setting that no longer exists (the number of attempts, the keep-alive, the log's days, the update check's switch, the map's timeout, the destination call, the compressed form, the DAO) was deleted then, and is ignored.
+
 The table below is made from the program, so it lists every setting there is, with its default, and cannot drift. The column "where" says where on the page the setting is.
 
 <!-- doc-settings:settings -->
