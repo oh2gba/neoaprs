@@ -6,7 +6,7 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import NamedTuple
 
-from neoaprs.aprsextension import MILE_KM, Extensions, split_bearing, split_extension
+from neoaprs.aprsextension import MILE_KM, Extensions, split_bearing, split_dao, split_extension, with_dao
 from neoaprs.aprsweather import MPH_KMH, Weather, parse_weather
 from neoaprs.packet import Position, decode_text
 from neoaprs.symbols import table_of
@@ -241,7 +241,9 @@ def parse_position(body: bytes, now: datetime, *, messaging: bool = False) -> Po
     text = decode_text(fix.tail)
     weather, text = parse_weather(text) if fix.code == "_" else (None, text)
     tail = _comment_and_extensions(text, fix.table, fix.code, not compressed)
-    return Position(fix.lat, fix.lon, fix.table, fix.code, tail.comment, tail.course if tail.course is not None else fix.course, tail.speed if tail.speed is not None else fix.speed,
+    comment, extra = split_dao(tail.comment)
+    lat, lon = (fix.lat, fix.lon) if compressed or fix.ambiguity else with_dao(fix.lat, fix.lon, extra)       # (a compressed position is finer already; an ambiguous one claims no precision)
+    return Position(lat, lon, fix.table, fix.code, comment, tail.course if tail.course is not None else fix.course, tail.speed if tail.speed is not None else fix.speed,
                     tail.altitude if tail.altitude is not None else fix.altitude, timestamp, messaging, compressed, fix.ambiguity, _with_wind(weather, fix.wind), tail.extensions or fix.extensions, local)
 
 

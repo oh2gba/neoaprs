@@ -6,6 +6,7 @@ import re
 from datetime import datetime
 from typing import NamedTuple
 
+from neoaprs.aprsextension import split_dao, with_dao
 from neoaprs.aprslocator import Locator, split_locator
 from neoaprs.aprsposition import degrees, motion
 from neoaprs.packet import Position, decode_text
@@ -157,6 +158,9 @@ def parse_mice(destination: str, body: bytes, now: datetime) -> Position:
     if table is None or not 33 <= body[6] <= 126:
         raise MicEError("bad symbol")
     altitude, comment, locator = _altitude_and_comment(body[8:])
+    comment, extra = split_dao(comment)
+    if not blanks:
+        lat, lon = with_dao(lat, lon, extra)
     name = _message_name(chars)
     if name is not None and name != _DEFAULT_MESSAGE:
         comment = f"Mic-E: {name} - {comment}" if comment else f"Mic-E: {name}"

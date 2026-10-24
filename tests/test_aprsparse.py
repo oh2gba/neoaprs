@@ -83,3 +83,32 @@ def test_an_exception_from_inside_is_undecoded_not_raised() -> None:
 def test_messaging_follows_the_identifier() -> None:
     results = {chr(i): parse(i.to_bytes(1) + b"4903.50N/07201.75W-", "A", "B", NOW) for i in b"!=/@"}
     assert {k: isinstance(v, Position) and v.messaging for k, v in results.items()} == {"!": False, "=": True, "/": False, "@": True}
+
+
+LAT, LON = 49 + 3.50 / 60, -(72 + 1.75 / 60)          # 4903.50N/07201.75W
+
+
+@pytest.mark.parametrize(("info", "destination"), [
+    (b"!4903.50N/07201.75W-Comment !W12!", "APRS"),
+    (b"@092345z4903.50N/07201.75W_220/004g005t077!W12!wRSW", "APRS"),
+    (b";LEADER   *092345z4903.50N/07201.75W>088/036!W12!Comment", "APRS"),
+    (b")AID #2!4903.50N/07201.75WA!W12!Comment", "APRS"),
+])
+def test_dao_makes_a_position_an_object_and_an_item_finer_and_leaves_the_comment(info: bytes, destination: str) -> None:
+    decoded = parse(info, "OH2XYZ", destination, NOW)
+    position = decoded if isinstance(decoded, Position) else decoded.position          # type: ignore[union-attr]
+    assert (position.lat, position.lon) == (pytest.approx(LAT + 0.001 / 60, abs=1e-9), pytest.approx(LON - 0.002 / 60, abs=1e-9))
+    assert "!W12!" not in position.comment and "!W12!" not in str(position.weather)
+
+
+def test_dao_in_a_mic_e_comment_before_the_radios_type_code() -> None:
+    position = parse(b'`(_fn"Oj/]"4T}Hi!w5L!=', "OH2XYZ", "S32UVT", NOW)
+    assert isinstance(position, Position) and position.comment == "Mic-E: Returning - Hi"
+    assert (position.lat, position.lon) == (pytest.approx(33 + (25.64 + 20 * 1.1 / 10000) / 60, abs=1e-9), pytest.approx(-(112 + (7.74 + 43 * 1.1 / 10000) / 60), abs=1e-9))
+
+
+def test_dao_is_taken_out_of_a_compressed_or_an_ambiguous_position_without_moving_it() -> None:
+    plain, with_dao = parse(b"=/5L!!<*e7>7P[", "X", "APRS", NOW), parse(b"=/5L!!<*e7>7P[!W12!", "X", "APRS", NOW)
+    assert isinstance(plain, Position) and isinstance(with_dao, Position) and (with_dao.lat, with_dao.lon, with_dao.comment) == (plain.lat, plain.lon, "")
+    vague, vague_dao = parse(b"!4903.5 N/07201.7 W-", "X", "APRS", NOW), parse(b"!4903.5 N/07201.7 W-!W12!", "X", "APRS", NOW)
+    assert isinstance(vague, Position) and isinstance(vague_dao, Position) and vague_dao.ambiguity == 1 and (vague_dao.lat, vague_dao.lon, vague_dao.comment) == (vague.lat, vague.lon, "")

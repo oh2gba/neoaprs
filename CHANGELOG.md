@@ -44,6 +44,7 @@ Closer to the APRS standard.
 - An ack or a message number followed by blanks or a line end (`ack12  `) is understood, and so is a message whose addressee is not padded to nine characters.
 - A Mic-E station whose comment starts with the type code `'` (a tracker without messaging) gets no Message button, unless it has sent a message.
 - A snow reading with a decimal point (`s1.5`) is read, and so is the radio range of a compressed position.
+- The `!DAO!` precision extension (TH-D74 and TH-D75, APRSdroid) is read: the position is finer and the `!W12!` no longer shows in the comment.
 
 ## 0.6.7
 

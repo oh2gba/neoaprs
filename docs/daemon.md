@@ -233,6 +233,9 @@ described in `neoaprs/migrations.py` and `neoaprs/migrations2.py`; how the datab
   gain in dB, directivity and the range the specification's formula gives), `RNGrrrr` in km, `DFSshgd`, the `/BRG/NRQ` of a DF report after the course and
   speed, and the `Tyy/Cxx` of an area object with the symbol `\l`. A compressed position has none but the radio range of its cs bytes `{s` (2 x 1.08^s miles,
   as `range_km`).
+- **`!DAO!`** (APRS 1.2, chapter 5) anywhere in the comment of a position, an object, an item or a Mic-E packet is taken out of the comment and makes the
+  latitude and longitude finer: `!W12!` (datum letter in capitals) adds a digit of thousandths of a minute to each, `!w5L!` (lower case) a base-91 value of
+  0 to 0.0099 minutes, a blank nothing; the last one counts. A compressed position (finer already) and an ambiguous one are not moved.
 - A `!` position may come after up to 39 characters of text (a digipeater of the X1J kind): the text is the start of the comment.
 - A timestamp with `/` is the sender's local time: kept as sent with `Position.timestamp_local` set. The MMDDhhmm of a positionless weather report is its time (`Other.timestamp`).
 - **Raw NMEA** (`$GPGGA`, `$GPGLL`, `$GPRMC`, `$GPWPL`, any talker; the checksum is checked when there is one) is a position with course, speed, altitude and

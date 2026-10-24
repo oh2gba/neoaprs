@@ -1,7 +1,7 @@
 """The data extensions after the symbol of a position: PHG (and the range its formula gives), RNG, DFS, the bearing of a DF report and an area object's descriptor."""
 import pytest
 
-from neoaprs.aprsextension import Extensions, extension_lines, phg_range_km, split_bearing, split_extension
+from neoaprs.aprsextension import Extensions, extension_lines, phg_range_km, split_bearing, split_dao, split_extension, with_dao
 
 
 def test_phg_is_the_specs_example() -> None:
@@ -72,3 +72,30 @@ def test_the_lines_say_each_extension_once() -> None:
     assert omni is not None and extension_lines(omni)[0].count("omni") == 1
     assert extension_lines(Extensions(range_km=80.47)) == ["range 80 km"]
     assert extension_lines(Extensions()) == []
+
+
+# ---- !DAO! (APRS 1.2, chapter 5)
+
+@pytest.mark.parametrize(("text", "rest", "extra"), [
+    ("Comment !W12!", "Comment", (0.001, 0.002)),                    # human readable: thousandths of a minute
+    ("!W12!Comment", "Comment", (0.001, 0.002)),
+    ("!W 5! x", "x", (0.0, 0.005)),                                  # a blank adds nothing
+    ("!w!!!", "", (0.0, 0.0)),                                       # base-91: "!" is 0
+    ("!w5L!", "", (20 * 1.1 / 10000, 43 * 1.1 / 10000)),
+    ("!w{{!", "", (90 * 1.1 / 10000, 90 * 1.1 / 10000)),
+    ("!wAB! then !W34!", "then", (0.003, 0.004)),                    # the last counts
+])
+def test_dao_is_taken_out_of_the_comment_with_the_minutes_it_adds(text: str, rest: str, extra: tuple[float, float]) -> None:
+    left, found = split_dao(text)
+    assert left == rest and found == (pytest.approx(extra[0]), pytest.approx(extra[1]))
+
+
+@pytest.mark.parametrize("text", ["", "Hello!", "!WAB!", "!w12", "!1AB!", "W12!", "!W123!", "a!b!c"])
+def test_a_comment_without_dao_is_left_as_it_is(text: str) -> None:
+    assert split_dao(text) == (text, None)
+
+
+def test_dao_adds_away_from_the_equator_and_the_meridian() -> None:
+    assert with_dao(60.0, 24.0, (0.006, 0.006)) == (pytest.approx(60.0001), pytest.approx(24.0001))
+    assert with_dao(-60.0, -24.0, (0.006, 0.006)) == (pytest.approx(-60.0001), pytest.approx(-24.0001))
+    assert with_dao(60.0, 24.0, None) == (60.0, 24.0)
