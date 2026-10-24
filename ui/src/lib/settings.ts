@@ -99,8 +99,7 @@ const beaconChoices = (): readonly Choice[] => [
 ];
 
 /** How long a station stays on the map: 1 h, 3 h, 6 h, 12 h or 24 h (the Stations tab offers them). */
-export const stationHoursChoices = (): readonly Choice[] =>
-  STATION_HOURS.map((hours) => ({ value: String(hours), label: t("station.table.hours", { n: hours }) }));
+const stationHoursChoices = (): readonly Choice[] => STATION_HOURS.map((hours) => ({ value: String(hours), label: t("station.table.hours", { n: hours }) }));
 
 const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 const directionChoices = (): readonly Choice[] => [
