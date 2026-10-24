@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-Nothing yet.
+The Stations list.
+
+- The tickbox **with position only** is gone: the stations without a position show as they do with it off.
 
 ## 0.7.0
 

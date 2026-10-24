@@ -75,7 +75,6 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.table.filter": "Filtrar",
   "station.table.filter_title": "Indicativo, símbolo, comentário, caminho",
   "station.table.filter_label": "Filtrar as estações",
-  "station.table.with_position": "só com posição",
   "station.table.hide_timed_out": "ocultar expiradas",
   "station.table.direct_only": "só diretas",
   "station.table.call": "Indicativo",

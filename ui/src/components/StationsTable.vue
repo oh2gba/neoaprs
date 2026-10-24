@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // The stations heard, as a short table that fits the panel: the symbol, the call (a green check mark after it for a station heard direct), the distance from us, the bearing as a small arrow (north up; "NE, 47°" is its hover title) and when the station was last heard at all (the newest of anything it sent, with the full time as the hover title); the rest of what is known of a station (when its position was, how its packets reach us, the path, the packets, the weather) is on its card, a click away. A column is sorted by a click on its head (again to
-// reverse), a filter box and the toggles "with position only", "direct only" (the stations heard direct at some time) and "hide timed out" narrow it, our own station is always on top, the selected row is marked and a click on a row selects the station
+// reverse), a filter box and the toggles "direct only" (the stations heard direct at some time) and "hide timed out" narrow it, our own station is always on top, the selected row is marked and a click on a row selects the station
 // (the map flies to it; with Ctrl it adds a card). When the filter text is a call that no station has been heard under (not ours, not the email gateway), a button "Message OH2XYZ" under the empty result writes to it all the same. A station past its timeout is off the map: its row is dim and says "timed out" after the time it was heard. Every row is one line high. At the right end of a row are two small buttons, as on the card: a speech bubble that opens the conversation with the station ("Message OH2XYZ", where the card has Message) and a trash can that forgets it ("Forget OH2XYZ", where the card has Forget; it asks twice like the card's, "sure?" for 5 s); a click on them does not select the row. Between them is a "..." button, and a right-click on a row (a long press on a touch screen) opens the same menu where the pointer is (StationMenu: Message, the directed queries, Show, Copy call, QRZ, Forget).
 import { computed, ref, watch } from "vue";
 import DirectMark from "@/components/DirectMark.vue";
@@ -101,7 +101,6 @@ function onRowClick(event: MouseEvent, call: string): void {
 }
 
 const filter = ref("");
-const withPositionOnly = ref(false);
 const sort = ref<Sort>({ key: "last_heard", dir: -1 });
 const hideTimedOut = usePersistedFlag("hidetimedout", ["on", "off"], false);
 const directOnly = usePersistedFlag("directonly", ["on", "off"], false);
@@ -110,7 +109,6 @@ const isTimedOut = (row: StationRow): boolean => timedOut(aging.value, row, now.
 const rows = computed(() =>
   listStations(stations.value.values(), {
     filter: filter.value,
-    withPositionOnly: withPositionOnly.value,
     directOnly: directOnly.value,
     hideTimedOut: hideTimedOut.value,
     timedOut: isTimedOut,
@@ -156,7 +154,6 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
         @keydown.esc="clearFilter"
       />
       <div class="toolbar-checks">
-        <label class="check"><input v-model="withPositionOnly" type="checkbox" /> {{ t("station.table.with_position") }}</label>
         <label class="check"><input v-model="hideTimedOut" type="checkbox" /> {{ t("station.table.hide_timed_out") }}</label>
         <label class="check"><input v-model="directOnly" type="checkbox" /> {{ t("station.table.direct_only") }}</label>
       </div>

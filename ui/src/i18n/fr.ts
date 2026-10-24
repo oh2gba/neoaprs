@@ -407,7 +407,6 @@ export const fr: Catalogue = {
   "station.table.filter": "Filtre",
   "station.table.filter_title": "Indicatif, symbole, commentaire, chemin",
   "station.table.filter_label": "Filtrer les stations",
-  "station.table.with_position": "avec position seulement",
   "station.table.hide_timed_out": "masquer les expirées",
   "station.table.direct_only": "en direct seulement",
   "station.table.call": "Indicatif",

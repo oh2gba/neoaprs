@@ -419,7 +419,6 @@ export const de: Catalogue = {
   "station.table.filter": "Filter",
   "station.table.filter_title": "Rufzeichen, Symbol, Kommentar, Pfad",
   "station.table.filter_label": "Stationen filtern",
-  "station.table.with_position": "nur mit Position",
   "station.table.hide_timed_out": "abgelaufene ausblenden",
   "station.table.direct_only": "nur direkt",
   "station.table.call": "Rufzeichen",

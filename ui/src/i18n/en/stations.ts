@@ -73,7 +73,6 @@ export const stations = {
   "station.table.filter": "Filter",
   "station.table.filter_title": "Call, symbol, comment, path",
   "station.table.filter_label": "Filter the stations",
-  "station.table.with_position": "with position only",
   "station.table.hide_timed_out": "hide timed out",
   "station.table.direct_only": "direct only",
   "station.table.call": "Call",

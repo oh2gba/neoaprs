@@ -74,7 +74,6 @@ export const stations: Readonly<Record<keyof typeof en, Message>> = {
   "station.table.filter": "Filtro",
   "station.table.filter_title": "Nominativo, simbolo, commento, percorso",
   "station.table.filter_label": "Filtra le stazioni",
-  "station.table.with_position": "solo con posizione",
   "station.table.hide_timed_out": "nascondi scadute",
   "station.table.direct_only": "solo dirette",
   "station.table.call": "Nominativo",

@@ -121,11 +121,10 @@ describe("StationsTable", () => {
     expect(calls(wrapper)).toEqual(["OH2GBA"]);
   });
 
-  it("can show only the stations with a position", async () => {
+  it("has no tickbox for a position, and lists the stations without one", () => {
     const wrapper = make();
-    await wrapper.findAll("input[type='checkbox']")[0]?.setValue(true);
-    expect(calls(wrapper)).not.toContain("OH2NOPOS");
-    expect(wrapper.find(".foot").text()).toBe("3 of 4 stations");
+    expect(wrapper.findAll("input[type='checkbox']").map((c) => c.element.parentElement?.textContent?.trim())).toEqual(["hide timed out", "direct only"]);
+    expect(calls(wrapper)).toContain("OH2NOPOS");
   });
 
   describe("a station past its timeout", () => {
@@ -149,7 +148,7 @@ describe("StationsTable", () => {
 
     it("can be hidden by the toggle, which is remembered", async () => {
       const wrapper = make(null, aging, old);
-      const toggle = wrapper.findAll("input[type='checkbox']")[1];
+      const toggle = wrapper.findAll("input[type='checkbox']")[0];
       expect(toggle?.element.parentElement?.textContent).toContain("hide timed out");
       await toggle?.setValue(true);
       expect(calls(wrapper)).toEqual(["OH2GBA", "OH2FRESH"]);
@@ -174,7 +173,7 @@ describe("StationsTable", () => {
     );
     it("can be narrowed to them by a toggle, which is remembered; our own station stays", async () => {
       const wrapper = make(null, never, heard);
-      const toggle = wrapper.findAll("input[type='checkbox']")[2];
+      const toggle = wrapper.findAll("input[type='checkbox']")[1];
       expect(toggle?.element.parentElement?.textContent).toContain("direct only");
       await toggle?.setValue(true);
       expect(calls(wrapper)).toEqual(["OH2GBA", "OH2NEAR", "OH2ONCE"]);
