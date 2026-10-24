@@ -1,5 +1,4 @@
-// The Test button of the message alert: it asks the daemon to run the alert command as it is saved (`alert_test`) and keeps the answer (`alert_result`, or the `error` of an empty command) to show under the
-// field. The button waits while a test runs (the command has up to 20 s), is disabled while the field differs from what is saved (the daemon runs the saved one), and the answer goes with the next edit.
+// The Test button of the message alert: it asks the daemon to run the alert command as it is saved (`alert_test`) and keeps the answer (`alert_result`, or the `error` of an empty command) for the form to say. The button waits while a test runs (the command has up to 20 s), is disabled while the field differs from what is saved (the daemon runs the saved one), and the answer goes with the next edit.
 import { computed, ref, watch, type Ref } from "vue";
 import type { Toast } from "@/composables/useDaemon";
 import { reasonOf } from "@/lib/settings";

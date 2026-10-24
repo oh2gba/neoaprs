@@ -37,7 +37,7 @@ def test_a_database_of_version_twelve_gets_the_two_empty_tables_and_keeps_everyt
     version_twelve(old, clock)
     before = raw(old)
     messages = before.execute("SELECT id, text, state FROM message ORDER BY id").fetchall()
-    prefs = before.execute("SELECT call, path, rf_only FROM station_pref ORDER BY call").fetchall()
+    prefs = before.execute("SELECT call, path, rf_only FROM station_pref WHERE path IS NOT NULL OR attempts IS NOT NULL OR rf_only = 1 ORDER BY call").fetchall()      # (a row that held only a timeout is deleted by migration 17)
     board = before.execute("SELECT sender, slot, text, times_heard FROM bulletin").fetchall()
     assert {"own_object", "own_bulletin"} & {r[0] for r in before.execute("SELECT name FROM sqlite_master")} == set() and messages and prefs and board
     before.close()
@@ -50,7 +50,7 @@ def test_a_database_of_version_twelve_gets_the_two_empty_tables_and_keeps_everyt
     assert migrated.db.execute("SELECT id, text, state FROM message ORDER BY id").fetchall() == messages
     assert migrated.db.execute("SELECT call, path, rf_only FROM station_pref ORDER BY call").fetchall() == prefs
     assert migrated.db.execute("SELECT sender, slot, text, times_heard FROM bulletin").fetchall() == board
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][12:] == [(13, "_v13", GOLDEN[13]), (14, "_v14", GOLDEN[14]), (15, "_v15", GOLDEN[15]), (16, "_v16", GOLDEN[16])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][12:] == [(13, "_v13", GOLDEN[13]), (14, "_v14", GOLDEN[14]), (15, "_v15", GOLDEN[15]), (16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17])]
     migrated.db.execute(INSERT_OBJECT, OBJECT)
     migrated.db.execute(INSERT_BULLETIN, BULLETIN)
     for opened_ in (migrated, fresh):

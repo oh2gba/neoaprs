@@ -4,7 +4,7 @@ A modern, easy-to-use APRS client: a map of the stations you hear, messages with
 
 | ![The map](docs/screenshots/map.png) | ![Weather](docs/screenshots/weather.png) |
 |---|---|
-| The map: stations, trails, the Stations table with a menu for each station (APRS queries included) | Weather stations, several cards side by side that you can move, each with its 24 h graphs |
+| The map: stations, trails, the ALOHA circle, the Stations table with a menu for each station (APRS queries included) | Weather stations, several cards side by side that you can move, each with its 24 h graphs |
 | ![Messages](docs/screenshots/messages.png) | ![Beacon](docs/screenshots/beacon.png) |
 | Messages: the conversations and the open one, acks, retries, the route of each message; one text can go to several stations | The Beacon tab: last beacon, your symbol, the status; a setting applies as you change it |
 | ![Objects](docs/screenshots/objects.png) | ![The message board](docs/screenshots/bulletins.png) |
@@ -78,4 +78,4 @@ neoaprs --data demo --port socket://127.0.0.1:PORT --web-port 0    # in another 
 - [Architecture](docs/ARCHITECTURE.md), [wire protocol](PROTOCOL.md), [changelog](CHANGELOG.md), [roadmap](ROADMAP.md)
 - [Issues](https://github.com/oh2gba/neoaprs/issues) and the [project page](https://oh2gba.github.io/neoaprs/)
 
-Licence: GPL-3.0-or-later ([LICENSE](LICENSE)). Map data © OpenStreetMap contributors via Protomaps. APRS symbols by Heikki Hannikainen OH7LZB ([hessu/aprs-symbols](https://github.com/hessu/aprs-symbols)).
+Licence: GPL-3.0-or-later ([LICENSE](LICENSE)). Map data © OpenStreetMap contributors via Protomaps. APRS symbols by Heikki Hannikainen OH7LZB ([hessu/aprs-symbols](https://github.com/hessu/aprs-symbols)). Device names from the APRS device identification list by Hessu, OH7LZB ([aprsorg/aprs-deviceid](https://github.com/aprsorg/aprs-deviceid), CC BY-SA 2.0).

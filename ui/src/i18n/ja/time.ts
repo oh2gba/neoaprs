@@ -9,7 +9,6 @@ export const time: Record<keyof typeof source, Message> = {
   "time.span.d": "{n}日",
   "time.ago": "{span}前",
   "time.in": "{span}後",
-  "time.up": "稼働{span}",
   "time.now": "今",
   "time.nothing_heard": "受信なし",
   "time.nothing_heard_since": "{time}から受信なし({span})",

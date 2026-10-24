@@ -95,28 +95,17 @@ describe("App: stations and the map", () => {
     expect(wrapper.find(".card").exists()).toBe(false);
   });
 
-  it("sets and clears the timeout of a station from its card, takes it from the daemon, and keeps it out of the conversation", async () => {
-    const { wrapper, socket } = await open();
+  it("has no timeout field on a station's card or in the conversation: every station follows the fixed timeout", async () => {
+    const { wrapper } = await open();
     await wrapper
       .findAll("#pane-stations tbody tr")
       .find((r) => r.text().includes("OH2PU-9"))
       ?.trigger("click");
-    const field = () => wrapper.find<HTMLInputElement>(".card .timeout-input");
-    await field().setValue("45");
-    expect(socket.sent).toContainEqual({ cmd: "set_station_timeout", call: "OH2PU-9", minutes: 45 });
-    socket.say({
-      type: "patch",
-      topic: "station_prefs",
-      rev: 1,
-      ops: [{ op: "set", key: "OH2PU-9", value: { path: null, hide_after_min: 45, rf_only: false } }],
-    });
-    await flushPromises();
-    expect(field().element.value).toBe("45");
-    await wrapper.find(".card .timeoutbox .use-default").trigger("click");
-    expect(socket.sent).toContainEqual({ cmd: "clear_station_timeout", call: "OH2PU-9" });
+    expect(wrapper.find(".card").exists()).toBe(true);
+    expect(wrapper.find(".card .timeout-input").exists()).toBe(false);
     await tabButton(wrapper, "Messages")?.trigger("click");
     await wrapper.find("#pane-messages .conv").trigger("click");
-    expect(wrapper.find("#pane-messages .timeout-input").exists()).toBe(false); // the map timeout is the station's, not the conversation's
+    expect(wrapper.find("#pane-messages .timeout-input").exists()).toBe(false);
   });
 
   it("offers the download on the map when there is no base map, and the button opens the Settings tab", async () => {

@@ -348,13 +348,22 @@ export function mapState(extra: Partial<MapState> = {}): MapState {
     box: [22.1, 58.8, 27.8, 61.5],
     detail: null,
     world: null,
+    aloha_km: null,
     ...extra,
   };
 }
 
 /** The daemon's `hello` for a page of this build: the same version and protocol, so that the page does not load itself again. */
 export function hello(extra: Partial<HelloMessage> = {}): HelloMessage {
-  return { type: "hello", protocol: PROTOCOL, version: PAGE_VERSION, install: { kind: "pip", appimage: "", service: false, arch: "" }, topics: [], ...extra };
+  return {
+    type: "hello",
+    protocol: PROTOCOL,
+    version: PAGE_VERSION,
+    page: "",
+    install: { kind: "pip", appimage: "", service: false, arch: "" },
+    topics: [],
+    ...extra,
+  };
 }
 
 export function status(extra: Partial<StatusMessage> = {}): StatusMessage {

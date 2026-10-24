@@ -29,8 +29,8 @@ from .mapwire import MapCancel, MapEstimate, MapFetch, MapState
 from .messagewire import AlertResultMsg, AlertTest, ConversationDelete, MessageCancel, MessageDelete, MessageRetry, MessageRow, OverheardDelete, QueryStation, SendMessage
 from .ownwire import BulletinPost, BulletinUnpost, ObjectKill, ObjectSet, OwnBulletinRow, OwnObjectRow
 from .packetwire import PacketRow
-from .portwire import ListPorts, PortsMsg
-from .prefwire import ClearStationPath, ClearStationTimeout, SetStationPath, SetStationRfOnly, SetStationTimeout, StationPref
+from .portwire import FindRadio, FindRadioCancel, ListPorts, PortsMsg, RadioSearchMsg
+from .prefwire import ClearStationPath, SetStationPath, SetStationRfOnly, StationPref
 from .stationwire import ForgetStation, StationRow
 from .tncwire import TncReconnect, TncState
 from .updatewire import UpdateCancel, UpdateNow, UpdateState
@@ -39,7 +39,7 @@ from .wirebase import _Command, _Message, _Model
 
 
 # ---- Client to server
-AnyCommand = Union[Ping, AskStatus, CheckUpdate, Subscribe, Unsubscribe, ForgetStation, TncReconnect, ListPorts, SetConfig, BeaconNow, StatusNow, SendMessage, QueryStation, MessageRetry, MessageCancel, MessageDelete, ConversationDelete, OverheardDelete, SetStationPath, ClearStationPath, SetStationTimeout, ClearStationTimeout, SetStationRfOnly, WeatherSeries, AlertTest, BulletinDelete, ObjectSet, ObjectKill, BulletinPost, BulletinUnpost, MapEstimate, MapFetch, MapCancel, UpdateNow, UpdateCancel]
+AnyCommand = Union[Ping, AskStatus, CheckUpdate, Subscribe, Unsubscribe, ForgetStation, TncReconnect, ListPorts, FindRadio, FindRadioCancel, SetConfig, BeaconNow, StatusNow, SendMessage, QueryStation, MessageRetry, MessageCancel, MessageDelete, ConversationDelete, OverheardDelete, SetStationPath, ClearStationPath, SetStationRfOnly, WeatherSeries, AlertTest, BulletinDelete, ObjectSet, ObjectKill, BulletinPost, BulletinUnpost, MapEstimate, MapFetch, MapCancel, UpdateNow, UpdateCancel]
 Command = Annotated[AnyCommand, Field(discriminator="cmd")]
 """Every command the page may send."""
 
@@ -55,13 +55,13 @@ class TopicValues(_Model):
     packets: dict[str, PacketRow] = Field(description="the latest 200 packets by id (as text): a packet is a `set`, and the one that falls out of the 200 a `del`; the highest id is the newest")
     tnc: TncState = Field(description="the radio; told whole as it changes, at most four times a second")
     config: ConfigValues = Field(description="the settings; told again after every save, though nothing differs: the settings form waits for it")
-    station_prefs: dict[str, StationPref] = Field(description="what the operator set for each station that has anything set, by call: its own path and its own timeout, each null where none is set, and whether it is RF only. "
-                                                   "`set_station_path`, `clear_station_path`, `set_station_timeout`, `clear_station_timeout` and `set_station_rf_only` each give a `set` of the entry, or a `del` when nothing is left in it")
+    station_prefs: dict[str, StationPref] = Field(description="what the operator set for each station that has anything set, by call: its own path (null where none is set) and whether it is RF only. "
+                                                   "`set_station_path`, `clear_station_path` and `set_station_rf_only` each give a `set` of the entry, or a `del` when nothing is left in it")
     messages: dict[str, MessageRow] = Field(description="every message by id (as text), all of them sent with the first `state`: a message that is new or changes is a `set` of its row, one that is deleted a `del`; none leaves on its own")
     bulletins: dict[str, BulletinRow] = Field(description="the message board by `sender/slot` (`OH2XYZ/BLN1`): the bulletins, announcements, group bulletins and group messages heard and not deleted; one that is new or heard again is a `set` of its row, one that is deleted (`bulletin_delete`) a `del`")
     own_objects: dict[str, OwnObjectRow] = Field(description="the objects and items of ours by name: `object_set` makes or changes one (a `set` of its row, each time it is sent too), `object_kill` ends one (its row changes to `killing`, and is a `del` once the kill has been sent); a live one is also a row of `stations`")
     own_bulletins: dict[str, OwnBulletinRow] = Field(description="the bulletins, announcements and group bulletins of ours by slot (`BLN1`): `bulletin_post` posts one (a `set` of its row, each time it is sent too), `bulletin_unpost` deletes one (a `del`)")
-    map: MapState = Field(description="the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps; told whole as it changes, at most four times a second")
+    map: MapState = Field(description="the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps, and the ALOHA circle; told whole as it changes, at most four times a second")
     update: UpdateState = Field(description="Update now: whether this copy can update itself, and the steps of the update it is doing; told whole as it changes, at most four times a second")
 
 
@@ -73,7 +73,7 @@ TOPIC_ITEMS: dict[str, "TypeAdapter[Any]"] = {"stations": TypeAdapter(StationRow
 
 
 # ---- Server to client
-AnyMessage = Union[Hello, Status, Pong, Error, PortsMsg, StateMsg, PatchMsg, WeatherSeriesMsg, AlertResultMsg, UpdateResultMsg]
+AnyMessage = Union[Hello, Status, Pong, Error, PortsMsg, StateMsg, PatchMsg, WeatherSeriesMsg, AlertResultMsg, UpdateResultMsg, RadioSearchMsg]
 Message = Annotated[AnyMessage, Field(discriminator="type")]
 """Every message the daemon sends."""
 

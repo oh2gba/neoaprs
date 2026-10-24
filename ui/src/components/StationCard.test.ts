@@ -88,7 +88,7 @@ describe("StationCard", () => {
       telemetry_at: ago(30),
     });
     const fields = fieldsOf(mount(StationCard, { props: { row: detailed, now: NOW } }));
-    expect(fields.PHG).toBe("25 W, 6 m, 3 dB, 90°, range 13 km");
+    expect(fields.PHG).toBe("25 W, 6 m, 3 dB, range 13 km");
     expect(fields.Range).toBe("81 km");
     expect(fields.Locator).toBe("IO91sx, 51.97917 N 0.45833 W");
     expect(fields.Telemetry).toBe("#5: Battery 1034.8 v/100");
@@ -199,8 +199,7 @@ describe("StationCard", () => {
       const wrapper = mount(StationCard, { props: { row: r, now: NOW } });
       expect(wrapper.find(".use-suggested").exists()).toBe(false);
       expect(wrapper.find(".rfonly").exists()).toBe(false);
-      expect(wrapper.find(".pathbox:not(.timeoutbox)").exists()).toBe(false);
-      expect(wrapper.findAll(".card-path label").map((l) => l.text())).toEqual(["Hide from map after"]);
+      expect(wrapper.find(".pathbox").exists()).toBe(false);
     }
   });
 
@@ -320,30 +319,14 @@ describe("StationCard", () => {
     ).toBe(false);
   });
 
-  const aging = (defaultMin: number, own: [string, number][] = []): Aging => ({ timeouts: new Map(own), defaultMin });
+  const aging = (defaultMin: number): Aging => ({ defaultMin });
 
-  it("has the station's own timeout: saved when changed, cleared when emptied or by the x; for an object too, not for our own station", async () => {
-    const wrapper = mount(StationCard, { props: { row, now: NOW, aging: aging(1440) } });
-    const input = wrapper.find<HTMLInputElement>(".card-path .timeout-input");
-    expect(input.attributes("placeholder")).toBe("1 d (usual)");
-    await input.setValue("90");
-    expect(wrapper.emitted("timeout")).toEqual([["OH2PU-9", 90]]);
-    const own = mount(StationCard, { props: { row, now: NOW, aging: aging(1440, [["OH2PU-9", 0]]) } });
-    expect(own.find<HTMLInputElement>(".timeout-input").element.value).toBe("never");
-    await own.find(".timeoutbox .use-default").trigger("click");
-    expect(own.emitted("clearTimeout")).toEqual([["OH2PU-9"]]);
-    await own.find(".timeout-input").setValue("");
-    expect(own.emitted("clearTimeout")).toHaveLength(2);
-    expect(
-      mount(StationCard, { props: { row: station("OH2GBA", { is_me: true }), now: NOW } })
-        .find(".timeout-input")
-        .exists(),
-    ).toBe(false);
-    expect(
-      mount(StationCard, { props: { row: station("STORM", { kind: "object" }), now: NOW } })
-        .find(".timeout-input")
-        .exists(),
-    ).toBe(true);
+  it("has no timeout field: every station follows the fixed timeout", () => {
+    for (const r of [row, station("OH2GBA", { is_me: true }), station("STORM", { kind: "object" })]) {
+      const wrapper = mount(StationCard, { props: { row: r, now: NOW, aging: aging(1440) } });
+      expect(wrapper.find(".timeoutbox, .timeout-input").exists()).toBe(false);
+      expect(wrapper.text()).not.toContain("Hide from map after");
+    }
   });
 
   it("has a QRZ link next to the call: the base call's page, in a new tab; for our own station too, not for an object or an item", () => {
@@ -400,6 +383,28 @@ describe("StationCard", () => {
     expect(wrapper.find("details").classes()).toContain("more");
   });
 
+  it("has a pin beside the cross where the card can be moved: aria-pressed says whether it is on, a click asks to pin or unpin, the phone's sheet has none", async () => {
+    const wrapper = mount(StationCard, { props: { row, now: NOW, movable: true } });
+    const pin = wrapper.find("button[aria-label='Pin card']");
+    expect(pin.exists()).toBe(true);
+    expect(pin.classes()).toContain("xbtn");
+    expect(pin.attributes("aria-pressed")).toBe("false");
+    expect(pin.attributes("title")).toBe("Pin card");
+    const head = wrapper.find(".card-head").element;
+    expect([...head.querySelectorAll("button")].map((b) => b.getAttribute("aria-label"))).toEqual(["Pin card", "Close"]);
+    await pin.trigger("click");
+    expect(wrapper.emitted("pin")).toHaveLength(1);
+    expect(wrapper.emitted("close")).toBeUndefined();
+    await wrapper.setProps({ pinned: true });
+    expect(pin.attributes("aria-pressed")).toBe("true");
+    expect(pin.attributes("title")).toBe("Unpin card");
+    expect(
+      mount(StationCard, { props: { row, now: NOW } })
+        .find("button[aria-label='Pin card']")
+        .exists(),
+    ).toBe(false);
+  });
+
   it("keeps the card clear of the zoom buttons of the map and, on a phone, leaves room above it for the marker", () => {
     expect(cssRule(".card")).toMatch(/max-height:\s*calc\(100% - 114px\)/);
     expect(cssRule(".size-phone .cardstack")).toMatch(/max-height:\s*88%/);
@@ -453,7 +458,6 @@ describe("StationCard", () => {
     it("has Edit and Kill in place of Message and Forget, and none of the fields of a station that is heard", () => {
       const wrapper = card();
       expect(wrapper.findAll(".card-foot button").map((b) => b.text())).toEqual(["Edit", "Kill"]);
-      expect(wrapper.find(".card-path").exists()).toBe(false);
       expect(wrapper.find(".forget").classes()).not.toContain("danger");
     });
 

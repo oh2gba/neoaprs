@@ -147,6 +147,17 @@ Opens the radio's line again with the settings as they are now (the port, the sp
 
 Asks for the serial ports of the machine the daemon runs on, and the Bluetooth devices paired with it. Answered with `ports` to the page that asked. A KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a port of the machine: it is typed.
 
+### `find_radio`
+
+Find my radio: tries the serial ports and the paired Bluetooth devices that the search for the radio looks at (not a KISS TCP address), one after the other and each at the usual speeds, until a TNC answers in KISS or can be
+put into KISS the way a TNC profile does. The radio's own line is closed while it runs and opened again after it. It writes nothing but a carriage return and, to a TNC that answers with text, the steps of the TNC profiles that
+put it into KISS; nothing is sent to the air. Told to the page that asked with `radio_search` messages (`trying` before each try, then `found` or `cancelled`); the page puts the answer in the settings. An `error` when a search is running
+(`radio.busy`), when there is no port to try (`radio.no_ports`) and when none answered (`radio.not_found`).
+
+### `find_radio_cancel`
+
+Ends the search of `find_radio`; the page that asked is told `cancelled`. An `error` (`radio.not_running`) when none is running.
+
 ### `set_config`
 
 Changes settings. Every key and value is checked before anything is stored: the first that is wrong is answered with an `error` that names the key, and nothing changes. A key that is
@@ -245,7 +256,7 @@ from the daemon and from every page: each message's row is a `del` of the topic 
 
 Gives a station a path of its own: the digipeaters that a message to it, and the ack of a message from it, go by way of. `path` is up to 8 digipeater calls separated by commas, checked as the setting
 `beacon/path` is, or `DIRECT` for a path of its own with no digipeaters at all; an empty `path` is no path of its own, as `clear_station_path` makes it. Answered by the `set` of the station's entry in the topic `station_prefs`
-(its `hide_after_min` is whatever it was), or by an `error` that names the reason.
+(its `rf_only` is whatever it was), or by an `error` that names the reason.
 
 | field | type | | description |
 |---|---|---|---|
@@ -255,27 +266,7 @@ Gives a station a path of its own: the digipeaters that a message to it, and the
 ### `clear_station_path`
 
 Takes a station's own path away, so that it has the path of the setting `beacon/path` again (a station without one is no error). Answered by the `set` of its entry in `station_prefs` with a null `path`
-(or the `del` of the entry when it had no timeout either), or by an `error`.
-
-| field | type | | description |
-|---|---|---|---|
-| `call` | string |  | (max 64 chars, min 1 chars) |
-
-### `set_station_timeout`
-
-Gives a station a timeout of its own: how long after its last position it stays on the map, in minutes; 0 is never. The page hides a station whose last position is older than that (a station
-without one of its own is hidden after 180 minutes), and the daily prune does not remove a station with a timeout of 0 from the station book. `call` is a station's call as it is in the
-topic `stations` (the name of an object or an item too). Answered by the `set` of the station's entry in the topic `station_prefs` (its `path` is whatever it was), or by an `error` that names the reason.
-
-| field | type | | description |
-|---|---|---|---|
-| `call` | string |  | (max 64 chars, min 1 chars) |
-| `minutes` | integer |  | (>= 0, <= 10080) |
-
-### `clear_station_timeout`
-
-Takes a station's own timeout away, so that it has the fixed 180 minutes again (a station without one is no error). Answered by the `set` of its entry in `station_prefs` with a null
-`hide_after_min` (or the `del` of the entry when it had no path either), or by an `error`.
+(or the `del` of the entry when it was not RF only either), or by an `error`.
 
 | field | type | | description |
 |---|---|---|---|
@@ -396,7 +387,7 @@ Ends the download of Update now; nothing of it is left. An `error` (`update.not_
 
 ## Server to client
 
-10 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
+11 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
 
 ### `hello`
 
@@ -406,6 +397,7 @@ The first message of a connection; `status` and the `state` of every topic follo
 |---|---|---|---|
 | `protocol` | integer |  | the version of these messages: a page built for another one says so and loads itself again |
 | `version` | string |  | the version of the daemon: a page built for another one loads itself again, once for each version |
+| `page` | string |  | the build of the page this daemon serves, the name of its main script (`index-<hash>.js` of assets/): a page of another build loads itself again, once for each build, so that a page left open picks up a new one of the same version; empty when the daemon has no built page |
 | `install` | InstallInfo |  | how this daemon was installed, for the steps of an update |
 | `topics` | string[] |  | the topics the page is following from the start: all of them (a page may `unsubscribe` from one) |
 
@@ -512,6 +504,19 @@ The answer to `update_check`: what the version page said, or why it said nothing
 | `version` | string |  | the latest version for `newer`, this version for `current`; empty for `no_answer` |
 | `text` | string |  | for `no_answer` why, in a sentence; empty otherwise |
 
+### `radio_search`
+
+How `find_radio` goes, to the page that asked.
+
+| field | type | | description |
+|---|---|---|---|
+| `state` | "trying" \| "found" \| "cancelled" |  | `trying`: about to try `port` at `baud`; `found`: a TNC answered at `port` at `baud` and `profile` fits it, and the search is over; `cancelled`: `find_radio_cancel` ended it |
+| `port` | string |  | the port being tried or found; empty for `cancelled` |
+| `baud` | integer \| null |  | the speed; null for a port that has none (a Bluetooth device) and for `cancelled` |
+| `profile` | string |  | for `found`, the key of the TNC profile (`tnc/profile`); empty otherwise |
+| `number` | integer |  | the try that is under way, from 1; 0 for `found` and `cancelled` (>= 0) |
+| `total` | integer |  | how many tries there are if nothing answers; 0 for `found` and `cancelled` (>= 0) |
+
 ## Topics
 
 The value of each topic (`state` carries it, a `replace` op brings a new one).
@@ -522,12 +527,12 @@ The value of each topic (`state` carries it, a `replace` op brings a new one).
 | `packets` | { [key: string]: PacketRow } | the latest 200 packets by id (as text): a packet is a `set`, and the one that falls out of the 200 a `del`; the highest id is the newest |
 | `tnc` | TncState | the radio; told whole as it changes, at most four times a second |
 | `config` | ConfigValues | the settings; told again after every save, though nothing differs: the settings form waits for it |
-| `station_prefs` | { [key: string]: StationPref } | what the operator set for each station that has anything set, by call: its own path and its own timeout, each null where none is set, and whether it is RF only. `set_station_path`, `clear_station_path`, `set_station_timeout`, `clear_station_timeout` and `set_station_rf_only` each give a `set` of the entry, or a `del` when nothing is left in it |
+| `station_prefs` | { [key: string]: StationPref } | what the operator set for each station that has anything set, by call: its own path (null where none is set) and whether it is RF only. `set_station_path`, `clear_station_path` and `set_station_rf_only` each give a `set` of the entry, or a `del` when nothing is left in it |
 | `messages` | { [key: string]: MessageRow } | every message by id (as text), all of them sent with the first `state`: a message that is new or changes is a `set` of its row, one that is deleted a `del`; none leaves on its own |
 | `bulletins` | { [key: string]: BulletinRow } | the message board by `sender/slot` (`OH2XYZ/BLN1`): the bulletins, announcements, group bulletins and group messages heard and not deleted; one that is new or heard again is a `set` of its row, one that is deleted (`bulletin_delete`) a `del` |
 | `own_objects` | { [key: string]: OwnObjectRow } | the objects and items of ours by name: `object_set` makes or changes one (a `set` of its row, each time it is sent too), `object_kill` ends one (its row changes to `killing`, and is a `del` once the kill has been sent); a live one is also a row of `stations` |
 | `own_bulletins` | { [key: string]: OwnBulletinRow } | the bulletins, announcements and group bulletins of ours by slot (`BLN1`): `bulletin_post` posts one (a `set` of its row, each time it is sent too), `bulletin_unpost` deletes one (a `del`) |
-| `map` | MapState | the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps; told whole as it changes, at most four times a second |
+| `map` | MapState | the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps, and the ALOHA circle; told whole as it changes, at most four times a second |
 | `update` | UpdateState | Update now: whether this copy can update itself, and the steps of the update it is doing; told whole as it changes, at most four times a second |
 
 ## Objects
@@ -1019,6 +1024,7 @@ The base map: the files, the area and detail the settings ask for, the size esti
 | `box` | number[] \| null |  | the area those settings make round our position, [west, south, east, north]; null without a position (max 4 items) |
 | `detail` | MapFileInfo \| null |  | `basemap.pmtiles`; null if it is not there |
 | `world` | MapFileInfo \| null |  | `basemap-world.pmtiles`; null if it is not there |
+| `aloha_km` | number \| null |  | the radius of the ALOHA circle round our position, in km to a tenth: the distance within which the stations heard on RF would fill the 1200 baud channel (WB4APR's method, worked out again every minute); null without a position and while the stations heard do not fill the channel (>= 0) |
 
 ### OwnBulletinRow
 
@@ -1087,13 +1093,12 @@ A serial port the system lists, or a Bluetooth device paired with it (Linux). No
 
 ### StationPref
 
-What the operator has set for one station, apart from what its packets say. The entries are the values of the topic `station_prefs`, keyed by call: a station with no path and no timeout of its
+What the operator has set for one station, apart from what its packets say. The entries are the values of the topic `station_prefs`, keyed by call: a station with no path of its
 own, and not RF only, has no entry. A command that sets or changes one part is a `set` of the whole entry, one that clears the last part a `del`.
 
 | field | type | | description |
 |---|---|---|---|
 | `path` | string \| null |  | the digipeaters that a message to the station, and the ack of a message from it, go by way of: calls separated by commas, empty for direct (no digipeaters at all); null if none is set, and the setting `beacon/path` counts |
-| `hide_after_min` | integer \| null |  | the minutes after the station's last position that it leaves the map (the page does the hiding); 0 is never; null if none is set, and the default of 180 minutes counts (>= 0, <= 10080) |
 | `rf_only` | boolean |  | true if everything sent to the station (a message and each attempt of it, an ack, the answer to a query) has `RFONLY` as the last element of its path, which iGates that honour it do not put on the internet |
 
 ### TelemetryBit

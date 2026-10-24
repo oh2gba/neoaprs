@@ -50,6 +50,15 @@ HEADER_TIMEOUT_SEC = 60.0                 # a connection that has sent no reques
 BODY_TIMEOUT_SEC = 30.0
 LOOPBACK = "127.0.0.1"
 
+def page_build(page_dir: Path) -> str:
+    """The build of the page in `page_dir`: the name of the main script its index.html loads (Vite puts the hash of the content in it), empty when there is none (the placeholder, a page that cannot be read)."""
+    try:
+        found = re.search(r"assets/(index-[\w-]+\.js)", (page_dir / "index.html").read_text(encoding="utf-8"))
+    except OSError:
+        return ""
+    return found.group(1) if found else ""
+
+
 def default_page_dir() -> Path:
     return PAGE_DIR if (PAGE_DIR / "index.html").is_file() else PLACEHOLDER_DIR
 
@@ -62,7 +71,7 @@ class WebServer:
         self.controller = controller
         self.config = config
         self.page_dir = page_dir or default_page_dir()
-        self.api = Api(controller, reach=self.reach, secure=lambda: self.secure.state.wire())
+        self.api = Api(controller, reach=self.reach, secure=lambda: self.secure.state.wire(), page=page_build(self.page_dir))
         self.access = Access(lambda: controller.config, controller.clock)
         self.address = LOOPBACK                           # what it listens on: "" is every interface
         self.port = 0

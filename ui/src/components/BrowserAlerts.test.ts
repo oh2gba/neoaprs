@@ -11,7 +11,8 @@ function make(host = "192.168.1.20") {
   openedAt(host);
   const alerts = scope.run(() => useBrowserAlerts(vi.fn()));
   if (alerts === undefined) throw new Error("no scope");
-  return { alerts, wrapper: mount(BrowserAlerts, { props: { alerts } }) };
+  const say = vi.fn<(text: string) => void>();
+  return { alerts, say, wrapper: mount(BrowserAlerts, { props: { alerts, say } }) };
 }
 
 const options = (wrapper: ReturnType<typeof make>["wrapper"]) =>
@@ -101,43 +102,45 @@ describe("the browser's part of the Notifications group", () => {
     expect(options(wrapper)[2]?.disabled).toBe(true);
   });
 
-  it("plays the chime from Test sound and says played beside it", async () => {
-    const { wrapper } = make();
-    expect(wrapper.find("#alert-test-sound ~ [role='status']").exists()).toBe(false);
+  it("plays the chime from Test sound and says played, not beside the button", async () => {
+    const { wrapper, say } = make();
+    expect(say).not.toHaveBeenCalled();
     await wrapper.find("#alert-test-sound").trigger("click");
     await flushPromises();
     expect(FakeAudioContext.played()).toBe(2);
-    expect(wrapper.find("#alert-test-sound ~ [role='status']").text()).toBe("played");
+    expect(say).toHaveBeenCalledExactlyOnceWith("played");
+    expect(wrapper.find("#alert-test-sound ~ [role='status']").exists()).toBe(false);
   });
 
   it("says that the sound is locked when the browser will not let the audio run", async () => {
     FakeAudioContext.afterResume = "suspended";
-    const { wrapper } = make();
+    const { wrapper, say } = make();
     await wrapper.find("#alert-test-sound").trigger("click");
     await flushPromises();
-    expect(wrapper.find("#alert-test-sound ~ [role='status']").text()).toBe("sound locked: click the page once");
+    expect(say).toHaveBeenCalledExactlyOnceWith("sound locked: click the page once");
   });
 
-  it("shows a pop-up from Test pop-up and says pop-up sent beside it", async () => {
+  it("shows a pop-up from Test pop-up and says pop-up sent, not beside the button", async () => {
     FakeNotification.permission = "granted";
-    const { wrapper } = make();
+    const { wrapper, say } = make();
     await wrapper.find("#alert-test-popup").trigger("click");
     await flushPromises();
     expect(FakeNotification.shown).toHaveLength(1);
-    expect(wrapper.find("#alert-test-popup ~ [role='status']").text()).toBe("pop-up sent");
+    expect(say).toHaveBeenCalledExactlyOnceWith("pop-up sent");
+    expect(wrapper.find("#alert-test-popup ~ [role='status']").exists()).toBe(false);
   });
 
-  it("says pop-up blocked beside Test pop-up when the browser refuses, and why where it cannot at all", async () => {
+  it("says pop-up blocked after Test pop-up when the browser refuses, and why where it cannot at all", async () => {
     FakeNotification.answer = "denied";
-    const { wrapper } = make();
+    const { wrapper, say } = make();
     await wrapper.find("#alert-test-popup").trigger("click");
     await flushPromises();
-    expect(wrapper.find("#alert-test-popup ~ [role='status']").text()).toBe("pop-up blocked");
+    expect(say).toHaveBeenCalledExactlyOnceWith("pop-up blocked");
     stubBrowser({ secure: false });
     const insecure = make();
     await insecure.wrapper.find("#alert-test-popup").trigger("click");
     await flushPromises();
-    expect(insecure.wrapper.find("#alert-test-popup ~ [role='status']").text()).toBe("pop-ups are off for this address");
+    expect(insecure.say).toHaveBeenCalledExactlyOnceWith("pop-ups are off for this address");
   });
 
   it("has no Enable pop-ups and no steps where the page is a secure context", async () => {
@@ -169,12 +172,12 @@ describe("the browser's part of the Notifications group", () => {
 
   it("says in plain words after Test pop-up that they are off for this address, and offers the same link", async () => {
     stubBrowser({ secure: false });
-    const { wrapper } = make();
+    const { wrapper, say } = make();
     expect(wrapper.find("#alert-test-popup ~ .linkbtn").exists()).toBe(false);
     await wrapper.find("#alert-test-popup").trigger("click");
     await flushPromises();
-    const status = wrapper.find("#alert-test-popup ~ [role='status']").text();
-    expect(status).toBe("pop-ups are off for this address");
+    const status = say.mock.calls[0]?.[0] ?? "";
+    expect(say).toHaveBeenCalledExactlyOnceWith("pop-ups are off for this address");
     expect(status).not.toMatch(/https|localhost|secure|context/i);
     await wrapper.find("#alert-test-popup ~ .linkbtn").trigger("click");
     expect(wrapper.find(".popuphelp").exists()).toBe(true);

@@ -68,6 +68,7 @@ class Controller(Services):
         await self.ownbulletins.start()
         await self.rigstatus.start()
         await self.prefbook.load()
+        await self.aloha.start()
         await self.messaging.start()
         await self._start_web()
         await self.updatecheck.start()
@@ -79,8 +80,10 @@ class Controller(Services):
         try:
             await self._stop_web()
             await self.updatecheck.stop()
+            await self.aloha.stop()
             await self.selfupdate.stop()
             await self.mapfetch.stop()
+            await self.radiofinder.stop()
             await self.queries.stop()
             await self.messaging.stop()
             await self.alerts.stop()
@@ -122,6 +125,13 @@ class Controller(Services):
         self.tnc.set_check(self.check_sec)
         await self.tnc.start()
 
+    async def hold_tnc(self) -> None:
+        await self._stop_tnc()
+
+    def release_tnc(self) -> None:
+        if self.running:
+            self.start_tnc()
+
     async def _stop_tnc(self) -> None:
         task, self._tnc_task = self._tnc_task, None
         if task is not None:
@@ -147,13 +157,12 @@ class Controller(Services):
 
     # ---- the care of the database
     async def prune(self) -> tuple[int, list[str]]:
-        """Removes the packets and the stations not heard for 7 days (and the weather observations that old); how many packets, and which stations. The messages and the bulletins stay: the operator deletes those. A station the operator gave a timeout of 0 (never) is kept in
-        the station book however long ago it was heard; its packets are pruned like the others."""
+        """Removes the packets and the stations not heard for 7 days (and the weather observations that old); how many packets, and which stations. The messages and the bulletins stay: the operator deletes those."""
         keep = LOG_KEEP_DAYS
         packets = await self.packetlog.prune(keep)
         self.messaging.forget_heard(keep)
         await self.weatherlog.prune(keep)
-        stations = self.stationbook.prune(self.clock() - days(keep), self.prefbook.never_hidden())
+        stations = self.stationbook.prune(self.clock() - days(keep))
         if packets or stations:
             log.info("pruned %d packets and %d stations older than %d days", packets, len(stations), keep)
         return packets, stations

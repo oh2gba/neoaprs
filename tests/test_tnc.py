@@ -161,6 +161,24 @@ async def test_a_tnc_in_command_mode_is_switched_to_kiss_once(rig: Rigs) -> None
 
 
 @stops_rigs
+async def test_a_radio_restarted_while_in_kiss_is_switched_to_kiss_again_at_once(rig: Rigs) -> None:
+    r = await rig()
+    r.radio.feed(MONITOR_LINE)
+    assert await r.radio.said(len(ENTER_KISS)) == ENTER_KISS
+    await idle_for(SETTLE + 0.1)
+    r.radio.feed(kiss_of(ui_frame("OH2AAA")))                                # KISS frames flow
+    await until(lambda: r.packets)
+    r.radio.feed(MONITOR_LINE)                                                # the radio was switched off and on: its TNC types text again
+    assert await r.radio.said(len(ENTER_KISS)) == ENTER_KISS, "entered again, not left until the next check"
+    await idle_for(SETTLE + 0.1)
+    r.radio.feed(MONITOR_LINE)                                                # text that goes on with no KISS frame in between: not entered a third time
+    assert await r.radio.said(1, 0.3) == b""
+    r.radio.feed(kiss_of(ui_frame("OH2BBB")))
+    await until(lambda: len(r.packets) == 2)
+    assert sum("restarted" in line for line in r.tnc.lines) == 1
+
+
+@stops_rigs
 async def test_text_that_goes_on_after_kiss_on_is_told_in_the_problem(rig: Rigs) -> None:
     r = await rig()
     r.radio.feed(b"cmd:")

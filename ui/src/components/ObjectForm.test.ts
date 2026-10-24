@@ -51,28 +51,31 @@ describe("ObjectForm", () => {
     expect(wrapper.findAll("button").find((b) => b.text() === "Cancel")).toBeDefined();
   });
 
-  it("takes a name of nine characters at the most, and offers an object or an item", () => {
+  it("takes a name of nine characters at the most, and has no choice of kind", () => {
     const { wrapper, input } = form();
     expect(input("Name")?.attributes("maxlength")).toBe("9");
-    expect(
-      wrapper
-        .find("select[aria-label='Kind']")
-        .findAll("option")
-        .map((o) => o.text()),
-    ).toEqual(["Object (recommended)", "Item"]);
+    expect(wrapper.find("select").exists()).toBe(false);
   });
 
-  it("makes an object unless the Kind is changed to item, and says on the Kind that objects are recommended on RF", async () => {
+  it("makes an object, always, for a new one", async () => {
     const { wrapper, input, sent } = form();
-    const kind = wrapper.find<HTMLSelectElement>("select[aria-label='Kind']");
-    expect(kind.element.value).toBe("object");
-    expect(kind.attributes("title")).toBe("Objects are recommended on RF; items are not.");
     await input("Name")?.setValue("LEADER");
     await wrapper.find("form").trigger("submit");
     expect(sent.map((c) => (c.cmd === "object_set" ? c.kind : null))).toEqual(["object"]);
-    await kind.setValue("item");
+  });
+
+  it("changes an item of ours as an item, and a new one after it is an object again", async () => {
+    const { view, wrapper, input, sent } = form([ownObject("AID", { kind: "item", comment: "First aid" })]);
+    view.edit("AID");
+    await wrapper.vm.$nextTick();
+    await input("Comment")?.setValue("Moved");
     await wrapper.find("form").trigger("submit");
-    expect(sent.map((c) => (c.cmd === "object_set" ? c.kind : null))).toEqual(["object", "item"]);
+    expect(sent).toMatchObject([{ cmd: "object_set", name: "AID", kind: "item", comment: "Moved" }]);
+    view.start();
+    await wrapper.vm.$nextTick();
+    await input("Name")?.setValue("NEWONE");
+    await wrapper.find("form").trigger("submit");
+    expect(sent[1]).toMatchObject({ cmd: "object_set", name: "NEWONE", kind: "object" });
   });
 
   it("marks a field that is wrong, with what is wrong in its title, and has Save off", async () => {
@@ -87,9 +90,6 @@ describe("ObjectForm", () => {
     expect(wrapper.find<HTMLButtonElement>("button[type='submit']").element.disabled).toBe(false);
     await input("Name")?.setValue("A!");
     expect(field("Name")?.classes()).toContain("invalid");
-    await field("Name")?.find("select").setValue("item");
-    await input("Name")?.setValue("AB");
-    expect(field("Name")?.attributes("title")).toBe("An item has 3 to 9 characters");
   });
 
   it("counts the characters the comment has left beside the buttons, fewer behind a course or a speed", async () => {
@@ -186,6 +186,46 @@ describe("ObjectForm", () => {
         path: "WIDE2-1",
       },
     ]);
+  });
+
+  it("keeps Course and Speed behind a closed fold, Moving, for a new object", () => {
+    const { wrapper, field } = form();
+    const moving = wrapper.findAll<HTMLDetailsElement>("details").find((d) => d.find("summary").text() === "Moving");
+    expect(moving?.exists()).toBe(true);
+    expect(moving?.element.open).toBe(false);
+    expect(moving?.findAll("label").map((l) => l.text())).toEqual(["Course", "Speed"]);
+    expect(field("Course")?.element.closest("details")).toBe(moving?.element);
+    expect(field("Path")?.element.closest("details")).toBeNull();
+  });
+
+  it("opens Moving by itself for an object that has a course or a speed, and keeps it closed for one that has neither", async () => {
+    const { view, wrapper } = form([
+      ownObject("LEADER", { course_deg: 88, speed_kmh: null }),
+      ownObject("FAST", { course_deg: null, speed_kmh: 40 }),
+      ownObject("MEET"),
+    ]);
+    const open = () => wrapper.findAll<HTMLDetailsElement>("details").find((d) => d.find("summary").text() === "Moving")?.element.open;
+    view.edit("MEET");
+    await wrapper.vm.$nextTick();
+    expect(open()).toBe(false);
+    view.edit("LEADER");
+    await wrapper.vm.$nextTick();
+    expect(open()).toBe(true);
+    view.cancel();
+    view.start();
+    view.edit("FAST");
+    await wrapper.vm.$nextTick();
+    expect(open()).toBe(true);
+  });
+
+  it("still sends the course and speed of an object that was changed from behind the fold", async () => {
+    const { view, wrapper, sent, input } = form([ownObject("LEADER", { course_deg: 88, speed_kmh: 40 })]);
+    view.edit("LEADER");
+    await wrapper.vm.$nextTick();
+    await input("Comment")?.setValue("Rescue 1");
+    await wrapper.find("form").trigger("submit");
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({ cmd: "object_set", name: "LEADER", comment: "Rescue 1", course_deg: 88, speed_kmh: 40 });
   });
 
   it("keeps the name of an object that is being changed", () => {

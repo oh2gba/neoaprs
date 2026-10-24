@@ -37,6 +37,7 @@ def test_a_database_of_version_eleven_gets_rf_only_off_for_every_preference_and_
     messages = before.execute("SELECT id, text, state FROM message ORDER BY id").fetchall()
     assert "rf_only" not in {r[1] for r in before.execute("PRAGMA table_info(station_pref)")} and len(prefs) >= 5 and {r[0] for r in prefs} >= {'EMAIL-2', 'OH2RDG', 'OH2ATT'}
     before.close()
+    prefs = [(call, path, None, attempts, stamp) for call, path, hide, attempts, stamp in prefs if not (path is None and attempts is None)]       # (migration 17 clears the timeouts and deletes a row that said only that)
     migrated = opened(old, clock)
     fresh = opened(tmp_path / DB_NAME, clock)
     assert migrated.version() == fresh.version() == SCHEMA_VERSION >= 12
@@ -44,7 +45,7 @@ def test_a_database_of_version_eleven_gets_rf_only_off_for_every_preference_and_
     assert migrated.db.execute(f"SELECT {COLUMNS} FROM station_pref ORDER BY call").fetchall() == prefs
     assert migrated.db.execute("SELECT COUNT(*) FROM station_pref WHERE rf_only = 0").fetchone() == (len(prefs),)
     assert migrated.db.execute("SELECT id, text, state FROM message ORDER BY id").fetchall() == messages
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][11:] == [(12, "_v12", GOLDEN[12]), (13, "_v13", GOLDEN[13]), (14, "_v14", GOLDEN[14]), (15, "_v15", GOLDEN[15]), (16, "_v16", GOLDEN[16])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][11:] == [(12, "_v12", GOLDEN[12]), (13, "_v13", GOLDEN[13]), (14, "_v14", GOLDEN[14]), (15, "_v15", GOLDEN[15]), (16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17])]
     migrated.db.execute("UPDATE station_pref SET rf_only = 1 WHERE call = 'OH2RDG'")          # and the new column takes it
     migrated.db.execute("INSERT INTO station_pref (call, rf_only, updated_at) VALUES ('OH2NEWX', 1, ?)", (STAMP,))
     assert migrated.db.execute("SELECT call FROM station_pref WHERE rf_only = 1 ORDER BY call").fetchall() == [("OH2NEWX",), ("OH2RDG",)]

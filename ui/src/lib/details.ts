@@ -14,7 +14,7 @@ import type {
 } from "@/protocol/protocol";
 
 /** Where an antenna favours, to be drawn as an arrow (a circle for omni); `title` says it in words, the compass point and the degrees. */
-export interface Directivity {
+interface Directivity {
   deg: number | null;
   title: string;
 }

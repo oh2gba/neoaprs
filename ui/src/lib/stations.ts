@@ -82,7 +82,6 @@ function compare(a: string | number | null, b: string | number | null, dir: 1 | 
 
 interface ListOptions {
   filter: string;
-  withPositionOnly: boolean;
   /** keep only the stations that were heard direct at some time (`last_direct_at` is set) */
   directOnly?: boolean;
   /** drop the stations `timedOut` says have passed their timeout */
@@ -108,15 +107,11 @@ function matches(row: StationRow, needle: string): boolean {
   return text.includes(needle);
 }
 
-/** The rows of the table: filtered by a text (any part of the call, the symbol name, the comment, the status and the path), by having a position, by having been heard direct and by not having timed out, sorted, our own station first and the timed-out ones last. */
+/** The rows of the table: filtered by a text (any part of the call, the symbol name, the comment, the status and the path), by having been heard direct and by not having timed out, sorted, our own station first and the timed-out ones last. */
 export function listStations(rows: Iterable<StationRow>, options: ListOptions): StationRow[] {
   const needle = options.filter.trim().toLowerCase();
   const gone = options.hideTimedOut === true && options.timedOut ? options.timedOut : () => false;
-  const kept = [...rows].filter(
-    (r) =>
-      r.is_me ||
-      ((!options.withPositionOnly || hasPosition(r)) && (options.directOnly !== true || r.last_direct_at !== null) && !gone(r) && matches(r, needle)),
-  );
+  const kept = [...rows].filter((r) => r.is_me || ((options.directOnly !== true || r.last_direct_at !== null) && !gone(r) && matches(r, needle)));
   const { key, dir } = options.sort;
   const out = options.timedOut ?? (() => false); // a station past its timeout sorts after the live ones, whatever the column
   return kept.sort(

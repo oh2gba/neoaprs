@@ -1,9 +1,9 @@
 // The types of the wire protocol between the daemon and the page, written from the models of neoaprs/web/protocol.py by scripts/gen-protocol.py: never edited by hand.
 // `Command` is what the page sends (tagged by `cmd`), `Message` what the daemon sends (tagged by `type`), `TopicValues` the value of each topic the page follows.
 
-export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | TncReconnectCommand | ListPortsCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | QueryStationCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationTimeoutCommand | ClearStationTimeoutCommand | SetStationRfOnlyCommand | WeatherSeriesCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand;
+export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | TncReconnectCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | QueryStationCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | WeatherSeriesCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand;
 
-export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | AlertResultMessage | UpdateResultMessage;
+export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | AlertResultMessage | UpdateResultMessage | RadioSearchMessage;
 
 /** The answer to `alert_test`, when the command has ended or run out of its 20 s. */
 export interface AlertResultMessage {
@@ -96,15 +96,9 @@ export interface CheckUpdateCommand {
   cmd: "update_check";
 }
 
-/** Takes a station's own path away, so that it has the path of the setting `beacon/path` again (a station without one is no error). Answered by the `set` of its entry in `station_prefs` with a null `path` (or the `del` of the entry when it had no timeout either), or by an `error`. */
+/** Takes a station's own path away, so that it has the path of the setting `beacon/path` again (a station without one is no error). Answered by the `set` of its entry in `station_prefs` with a null `path` (or the `del` of the entry when it was not RF only either), or by an `error`. */
 export interface ClearStationPathCommand {
   cmd: "clear_station_path";
-  call: string;
-}
-
-/** Takes a station's own timeout away, so that it has the fixed 180 minutes again (a station without one is no error). Answered by the `set` of its entry in `station_prefs` with a null `hide_after_min` (or the `del` of the entry when it had no path either), or by an `error`. */
-export interface ClearStationTimeoutCommand {
-  cmd: "clear_station_timeout";
   call: string;
 }
 
@@ -305,6 +299,16 @@ export interface ExtensionValues {
   area: AreaValues | null;
 }
 
+/** Ends the search of `find_radio`; the page that asked is told `cancelled`. An `error` (`radio.not_running`) when none is running. */
+export interface FindRadioCancelCommand {
+  cmd: "find_radio_cancel";
+}
+
+/** Find my radio: tries the serial ports and the paired Bluetooth devices that the search for the radio looks at (not a KISS TCP address), one after the other and each at the usual speeds, until a TNC answers in KISS or can be put into KISS the way a TNC profile does. The radio's own line is closed while it runs and opened again after it. It writes nothing but a carriage return and, to a TNC that answers with text, the steps of the TNC profiles that put it into KISS; nothing is sent to the air. Told to the page that asked with `radio_search` messages (`trying` before each try, then `found` or `cancelled`); the page puts the answer in the settings. An `error` when a search is running (`radio.busy`), when there is no port to try (`radio.no_ports`) and when none answered (`radio.not_found`). */
+export interface FindRadioCommand {
+  cmd: "find_radio";
+}
+
 /** Removes a station from the station book (and its cache in the database) until it is heard again. Not our own station. Answered by the `del` of the row, or by an `error`. */
 export interface ForgetStationCommand {
   cmd: "forget_station";
@@ -318,6 +322,8 @@ export interface HelloMessage {
   protocol: number;
   /** the version of the daemon: a page built for another one loads itself again, once for each version */
   version: string;
+  /** the build of the page this daemon serves, the name of its main script (`index-<hash>.js` of assets/): a page of another build loads itself again, once for each build, so that a page left open picks up a new one of the same version; empty when the daemon has no built page */
+  page: string;
   /** how this daemon was installed, for the steps of an update */
   install: InstallInfo;
   /** the topics the page is following from the start: all of them (a page may `unsubscribe` from one) */
@@ -449,6 +455,8 @@ export interface MapState {
   detail: MapFileInfo | null;
   /** `basemap-world.pmtiles`; null if it is not there */
   world: MapFileInfo | null;
+  /** the radius of the ALOHA circle round our position, in km to a tenth: the distance within which the stations heard on RF would fill the 1200 baud channel (WB4APR's method, worked out again every minute); null without a position and while the stations heard do not fill the channel */
+  aloha_km: number | null;
 }
 
 /** Stops sending a message of ours that is still being sent; its row becomes `cancelled`. Answered by the new state of its row, or by an `error`. */
@@ -694,6 +702,23 @@ export interface QueryStationCommand {
   kind: "position" | "status" | "heard" | "trace";
 }
 
+/** How `find_radio` goes, to the page that asked. */
+export interface RadioSearchMessage {
+  type: "radio_search";
+  /** `trying`: about to try `port` at `baud`; `found`: a TNC answered at `port` at `baud` and `profile` fits it, and the search is over; `cancelled`: `find_radio_cancel` ended it */
+  state: "trying" | "found" | "cancelled";
+  /** the port being tried or found; empty for `cancelled` */
+  port: string;
+  /** the speed; null for a port that has none (a Bluetooth device) and for `cancelled` */
+  baud: number | null;
+  /** for `found`, the key of the TNC profile (`tnc/profile`); empty otherwise */
+  profile: string;
+  /** the try that is under way, from 1; 0 for `found` and `cancelled` */
+  number: number;
+  /** how many tries there are if nothing answers; 0 for `found` and `cancelled` */
+  total: number;
+}
+
 /** The whole value of the topic is `value`. */
 export interface ReplaceOp {
   op: "replace";
@@ -722,7 +747,7 @@ export interface SetOp {
   value: unknown;
 }
 
-/** Gives a station a path of its own: the digipeaters that a message to it, and the ack of a message from it, go by way of. `path` is up to 8 digipeater calls separated by commas, checked as the setting `beacon/path` is, or `DIRECT` for a path of its own with no digipeaters at all; an empty `path` is no path of its own, as `clear_station_path` makes it. Answered by the `set` of the station's entry in the topic `station_prefs` (its `hide_after_min` is whatever it was), or by an `error` that names the reason. */
+/** Gives a station a path of its own: the digipeaters that a message to it, and the ack of a message from it, go by way of. `path` is up to 8 digipeater calls separated by commas, checked as the setting `beacon/path` is, or `DIRECT` for a path of its own with no digipeaters at all; an empty `path` is no path of its own, as `clear_station_path` makes it. Answered by the `set` of the station's entry in the topic `station_prefs` (its `rf_only` is whatever it was), or by an `error` that names the reason. */
 export interface SetStationPathCommand {
   cmd: "set_station_path";
   call: string;
@@ -736,13 +761,6 @@ export interface SetStationRfOnlyCommand {
   on: boolean;
 }
 
-/** Gives a station a timeout of its own: how long after its last position it stays on the map, in minutes; 0 is never. The page hides a station whose last position is older than that (a station without one of its own is hidden after 180 minutes), and the daily prune does not remove a station with a timeout of 0 from the station book. `call` is a station's call as it is in the topic `stations` (the name of an object or an item too). Answered by the `set` of the station's entry in the topic `station_prefs` (its `path` is whatever it was), or by an `error` that names the reason. */
-export interface SetStationTimeoutCommand {
-  cmd: "set_station_timeout";
-  call: string;
-  minutes: number;
-}
-
 /** A topic as it is now: its revision and its whole `value`, which replaces what the page had. Patches for the changes made meanwhile follow. */
 export interface StateMessage {
   type: "state";
@@ -752,12 +770,10 @@ export interface StateMessage {
   value: unknown;
 }
 
-/** What the operator has set for one station, apart from what its packets say. The entries are the values of the topic `station_prefs`, keyed by call: a station with no path and no timeout of its own, and not RF only, has no entry. A command that sets or changes one part is a `set` of the whole entry, one that clears the last part a `del`. */
+/** What the operator has set for one station, apart from what its packets say. The entries are the values of the topic `station_prefs`, keyed by call: a station with no path of its own, and not RF only, has no entry. A command that sets or changes one part is a `set` of the whole entry, one that clears the last part a `del`. */
 export interface StationPref {
   /** the digipeaters that a message to the station, and the ack of a message from it, go by way of: calls separated by commas, empty for direct (no digipeaters at all); null if none is set, and the setting `beacon/path` counts */
   path: string | null;
-  /** the minutes after the station's last position that it leaves the map (the page does the hiding); 0 is never; null if none is set, and the default of 180 minutes counts */
-  hide_after_min: number | null;
   /** true if everything sent to the station (a message and each attempt of it, an ack, the answer to a query) has `RFONLY` as the last element of its path, which iGates that honour it do not put on the internet */
   rf_only: boolean;
 }
@@ -1006,7 +1022,7 @@ export interface TopicValues {
   tnc: TncState;
   /** the settings; told again after every save, though nothing differs: the settings form waits for it */
   config: ConfigValues;
-  /** what the operator set for each station that has anything set, by call: its own path and its own timeout, each null where none is set, and whether it is RF only. `set_station_path`, `clear_station_path`, `set_station_timeout`, `clear_station_timeout` and `set_station_rf_only` each give a `set` of the entry, or a `del` when nothing is left in it */
+  /** what the operator set for each station that has anything set, by call: its own path (null where none is set) and whether it is RF only. `set_station_path`, `clear_station_path` and `set_station_rf_only` each give a `set` of the entry, or a `del` when nothing is left in it */
   station_prefs: { [key: string]: StationPref };
   /** every message by id (as text), all of them sent with the first `state`: a message that is new or changes is a `set` of its row, one that is deleted a `del`; none leaves on its own */
   messages: { [key: string]: MessageRow };
@@ -1016,7 +1032,7 @@ export interface TopicValues {
   own_objects: { [key: string]: OwnObjectRow };
   /** the bulletins, announcements and group bulletins of ours by slot (`BLN1`): `bulletin_post` posts one (a `set` of its row, each time it is sent too), `bulletin_unpost` deletes one (a `del`) */
   own_bulletins: { [key: string]: OwnBulletinRow };
-  /** the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps; told whole as it changes, at most four times a second */
+  /** the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps, and the ALOHA circle; told whole as it changes, at most four times a second */
   map: MapState;
   /** Update now: whether this copy can update itself, and the steps of the update it is doing; told whole as it changes, at most four times a second */
   update: UpdateState;

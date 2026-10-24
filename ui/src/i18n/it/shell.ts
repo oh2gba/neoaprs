@@ -32,7 +32,8 @@ export const shell: Readonly<Record<keyof typeof en, Message>> = {
   "panel.hide": "Nascondi il pannello",
   "panel.show_unseen": "Mostra il pannello, {unseen}",
 
-  "footer.cost_title": "NeoAPRS usa {cost}",
+  "footer.cost": "NeoAPRS usa il {cpu} % di un core del processore e {mb} MB di memoria, in funzione da {span}",
+  "footer.cost_no_memory": "NeoAPRS usa il {cpu} % di un core del processore, in funzione da {span}",
   "footer.update": "Aggiorna a {version}",
   "footer.offline": "Servizio offline",
   "footer.connecting": "Connessione…",

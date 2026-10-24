@@ -19,8 +19,8 @@ import pytest
 from tests.support.codemap import Import, Tree, connect_sites, find_cycle, forbidden_names, import_graph, load_tree, module_name, sql_sites, sql_strings
 
 LAYERS: dict[str, list[str]] = {
-    "foundation": ["neoaprs", "clock", "signal", "coded", "policy", "callsign", "geo", "symbols", "kiss", "ax25", "aprsposition", "aprsmice", "aprsmessage", "aprsparse", "aprsweather", "aprsthirdparty", "aprsextension", "aprslocator", "aprstelemetry", "aprsnmea", "packet", "packetcodec", "message", "bulletin", "decay", "tncmode", "tncprofile", "pref", "route", "chain", "mapstate", "serialboards", "versions", "updateasset", "device", "devicedata", "hourcount"],
-    "domain": ["alertcommand", "config", "configlegacy", "configstatus", "configtypes", "interlock", "station", "stationnotes", "stationbook", "ownobject", "ownbulletin"],
+    "foundation": ["neoaprs", "clock", "signal", "coded", "policy", "callsign", "geo", "symbols", "kiss", "ax25", "aprsposition", "aprsmice", "aprsmessage", "aprsparse", "aprsweather", "aprsthirdparty", "aprsextension", "aprslocator", "aprstelemetry", "aprsnmea", "packet", "packetcodec", "message", "bulletin", "decay", "tncmode", "tncprofile", "pref", "route", "chain", "mapstate", "radiosearch", "serialboards", "versions", "updateasset", "device", "devicedata", "hourcount"],
+    "domain": ["alertcommand", "config", "configlegacy", "configstatus", "configtypes", "interlock", "station", "stationnotes", "stationbook", "aloha", "ownobject", "ownbulletin"],
     "adapters": ["source", "tasks", "serialport", "serialholders", "serialprobe", "btsdp", "btserial", "btpaired", "tnc", "tncsearch", "tncwatchdog", "tncentry", "tnclines", "childenv", "rigctld", "pmtilestool", "updatefetch", "updatedownload", "selfreplace"],
     "persistence": ["store", "migrations", "migrations2", "backupfolder", "durable", "instancelock", "stopfile", "walcare", "dbfile", "dberror", "dbstats", "dbthread", "db", "dbopen", "storesql", "paths", "dblog", "packetsql", "packetlog", "messagesql", "messagelog", "bulletinsql", "bulletinlog", "weathersql", "weatherlog", "ownsql", "ownlog"],
     "services": [],

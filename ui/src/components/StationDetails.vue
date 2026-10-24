@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // The rest of a station's card, closed until "Details" is opened: how its packets reach us (the path of the latest one as it was sent, how many came direct and by which repeaters, the best route and the path to send by),
 // when it was first heard, the number of packets (all of them, and those of the last hour), and what the daemon decodes beyond the position, a line each: the data extensions (PHG, range, DF, area), the Maidenhead locator of its status, and the telemetry channels with the names and units it defined.
-// A row with nothing to say is left out. It is for the few who want to know; the card says the main facts (components/StationCard.vue), and puts the station's own timeout in the slot, last.
+// A row with nothing to say is left out. It is for the few who want to know; the card says the main facts (components/StationCard.vue).
 import { computed } from "vue";
 import BearingArrow from "@/components/BearingArrow.vue";
 import DisclosureBox from "@/components/DisclosureBox.vue";
@@ -59,6 +59,5 @@ const packets = computed(() =>
       <dt>{{ t("station.field.packets") }}</dt>
       <dd>{{ packets }}</dd>
     </dl>
-    <slot></slot>
   </DisclosureBox>
 </template>

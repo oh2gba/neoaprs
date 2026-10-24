@@ -7,16 +7,14 @@ import {
   DEFAULT_TIMEOUT_MIN,
   fadeFraction,
   markerStep,
-  parseTimeoutText,
   timeoutMin,
-  timeoutText,
   timedOut,
   trailOpacity,
   type Aging,
 } from "@/lib/aging";
 import { NOW, ago, station } from "@/test/fixtures";
 
-const aging = (defaultMin: number, own: [string, number][] = []): Aging => ({ timeouts: new Map(own), defaultMin });
+const aging = (defaultMin: number): Aging => ({ defaultMin });
 
 describe("DEFAULT_TIMEOUT_MIN", () => {
   it("is three hours, fixed", () => {
@@ -25,16 +23,12 @@ describe("DEFAULT_TIMEOUT_MIN", () => {
 });
 
 describe("timeoutMin", () => {
-  it("is the station's own, else the default, and never for our own station", () => {
-    const rules = aging(60, [
-      ["OH2PU-9", 5],
-      ["OH2RDG", 0],
-    ]);
-    expect(timeoutMin(rules, station("OH2PU-9"))).toBe(5);
-    expect(timeoutMin(rules, station("OH2RDG"))).toBe(0);
-    expect(timeoutMin(rules, station("OH2XYZ"))).toBe(60);
-    expect(timeoutMin(aging(60, [["ME", 5]]), station("ME", { is_me: true }))).toBe(0);
-    expect(timeoutMin(aging(60, [["MINE", 5]]), station("MINE", { kind: "object", own: true }))).toBe(0);
+  it("is the same for every station, and never for our own station and our own objects", () => {
+    expect(timeoutMin(aging(60), station("OH2PU-9"))).toBe(60);
+    expect(timeoutMin(aging(60), station("OH2XYZ"))).toBe(60);
+    expect(timeoutMin(aging(0), station("OH2XYZ"))).toBe(0);
+    expect(timeoutMin(aging(60), station("ME", { is_me: true }))).toBe(0);
+    expect(timeoutMin(aging(60), station("MINE", { kind: "object", own: true }))).toBe(0);
   });
 });
 
@@ -44,12 +38,10 @@ describe("timedOut", () => {
     expect(timedOut(aging(60), old, NOW)).toBe(true);
     expect(timedOut(aging(60), station("A", { last_position_at: ago(59 * 60) }), NOW)).toBe(false);
     expect(timedOut(aging(120), old, NOW)).toBe(false);
-    expect(timedOut(aging(120, [["A", 30]]), old, NOW)).toBe(true);
   });
   it("is never with timeout 0, for a station without a position, or for our own station", () => {
     const old = station("A", { last_position_at: ago(10 * 86400) });
     expect(timedOut(aging(0), old, NOW)).toBe(false);
-    expect(timedOut(aging(60, [["A", 0]]), old, NOW)).toBe(false);
     expect(timedOut(aging(60), station("A", { lat: null, lon: null, last_position_at: null, last_heard: ago(86400) }), NOW)).toBe(false);
     expect(timedOut(aging(60), station("ME", { is_me: true, last_position_at: ago(86400) }), NOW)).toBe(false);
     expect(timedOut(aging(60), station("MINE", { kind: "object", own: true, last_position_at: ago(86400) }), NOW)).toBe(false);
@@ -103,26 +95,8 @@ describe("markerStep", () => {
     expect(markerStep(rules, station("A", { last_position_at: ago(60 * 99) }), NOW)).toBe(MARKER_STEPS - 1);
     expect(markerStep(rules, station("A", { last_position_at: ago(86400) }), NOW)).toBe(MARKER_STEPS - 1);
   });
-  it("never fades our own station, and follows a station's own timeout", () => {
+  it("never fades our own station", () => {
     expect(markerStep(rules, station("ME", { is_me: true, last_position_at: ago(86400) }), NOW)).toBe(0);
     expect(markerStep(rules, station("MINE", { kind: "object", own: true, last_position_at: ago(86400) }), NOW)).toBe(0);
-    expect(markerStep(aging(100, [["A", 10]]), station("A", { last_position_at: ago(60 * 9) }), NOW)).toBe(MARKER_STEPS - 1);
-  });
-});
-
-describe("parseTimeoutText", () => {
-  it("is the default for an empty field, whole minutes for digits and none for the rest", () => {
-    expect(parseTimeoutText("")).toEqual({ minutes: null });
-    expect(parseTimeoutText("  ")).toEqual({ minutes: null });
-    expect(parseTimeoutText("0")).toEqual({ minutes: 0 });
-    expect(parseTimeoutText(" Never ")).toEqual({ minutes: 0 });
-    expect(parseTimeoutText(" 90 ")).toEqual({ minutes: 90 });
-    for (const bad of ["-5", "1.5", "1e3", "soon", "5 min", "99999999"]) expect(parseTimeoutText(bad), bad).toBeNull();
-  });
-});
-
-describe("timeoutText", () => {
-  it("writes minutes, hours and days, and never for 0", () => {
-    expect([0, 45, 60, 180, 1440, 2880, 90].map(timeoutText)).toEqual(["never", "45 min", "1 h", "3 h", "1 d", "2 d", "90 min"]);
   });
 });

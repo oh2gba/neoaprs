@@ -3,6 +3,7 @@
 import { inject, provide, type InjectionKey, type Ref } from "vue";
 import type { Toast } from "@/composables/useDaemon";
 import type { BrowserAlerts } from "@/composables/useBrowserAlerts";
+import type { FindRadio } from "@/composables/useFindRadio";
 import type { Panel } from "@/composables/usePanel";
 import type { Settings } from "@/composables/useSettings";
 import type { SetupGuide } from "@/composables/useSetupGuide";
@@ -37,6 +38,8 @@ export interface DaemonContext {
   /** Update now: whether this copy can update itself, and how the update it is doing goes */
   selfUpdate: Read<UpdateState | null>;
   ports: Read<PortsMessage | null>;
+  /** Find my radio: the button of the Settings tab, and the search it starts */
+  findRadio: FindRadio;
   alertResult: Read<AlertResultMessage | null>;
   updateResult: Read<UpdateResultMessage | null>;
   lastError: Read<Toast | null>;
@@ -69,6 +72,8 @@ export interface DaemonContext {
   guide: SetupGuide;
   panel: Panel;
   alerts: BrowserAlerts;
+  /** A word in the toast that is no error ("up to date (0.7.0)", "Sound played"): the result of a button goes there, not beside the button, so that nothing moves */
+  say: (text: string) => void;
 }
 
 const KEY: InjectionKey<DaemonContext> = Symbol("daemon");

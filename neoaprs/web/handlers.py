@@ -15,6 +15,7 @@ from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.message import MessagingError
 from neoaprs.ownbulletin import PostError
 from neoaprs.ownobject import OwnError
+from neoaprs.radiosearch import Trying
 from neoaprs.serialprobe import available_ports, can_search, paired_bluetooth_ports, with_links
 
 from .beaconwire import BeaconNow, StatusNow
@@ -25,8 +26,8 @@ from .hubwire import Subscribe, Unsubscribe
 from .mapwire import MapCancel, MapEstimate, MapFetch
 from .ownwire import BulletinPost, BulletinUnpost, ObjectKill, ObjectSet
 from .messagewire import AlertTest, ConversationDelete, MessageCancel, MessageDelete, MessageRetry, OverheardDelete, QueryStation, SendMessage
-from .portwire import ListPorts
-from .prefwire import ClearStationPath, ClearStationTimeout, SetStationPath, SetStationRfOnly, SetStationTimeout
+from .portwire import FindRadio, FindRadioCancel, ListPorts
+from .prefwire import ClearStationPath, SetStationPath, SetStationRfOnly
 from .configwire import SetConfig
 from .stationwire import ForgetStation
 from .tncwire import TncReconnect
@@ -90,6 +91,31 @@ async def tnc_reconnect(ctx: Ctx, cmd: TncReconnect) -> None:
 async def list_ports(ctx: Ctx, cmd: ListPorts) -> None:
     ports = await asyncio.to_thread(lambda: with_links(available_ports()) + paired_bluetooth_ports())   # (the system's lists are read from files, the registry and BlueZ: not on the loop); the by-id names and the user's own links too, then the paired Bluetooth devices
     ctx.conn.send({"type": "ports", "search": can_search(), "ports": [{"device": p.device, "description": p.description, "hwid": p.hwid, "vid": p.vid, "pid": p.pid} for p in ports]})
+
+
+@command(FindRadio)
+async def find_radio(ctx: Ctx, cmd: FindRadio) -> None:
+    finder = ctx.ctl.radiofinder
+
+    def trying(step: Trying) -> None:
+        if ctx.conn.closed:                                          # (the page that asked left: nobody will put the answer in the settings)
+            finder.cancel()
+        ctx.conn.send({"type": "radio_search", "state": "trying", "port": step.port, "baud": step.baud, "profile": "", "number": step.number, "total": step.total})
+
+    try:
+        found = await finder.find(trying)
+    except CodedError as e:
+        raise UserError(f"find_radio: {e}", e.code, params=e.params) from None
+    if found is None:
+        ctx.conn.send({"type": "radio_search", "state": "cancelled", "port": "", "baud": None, "profile": "", "number": 0, "total": 0})
+    else:
+        ctx.conn.send({"type": "radio_search", "state": "found", "port": found.port, "baud": found.baud, "profile": found.profile, "number": 0, "total": 0})
+
+
+@command(FindRadioCancel)
+async def find_radio_cancel(ctx: Ctx, cmd: FindRadioCancel) -> None:
+    if not ctx.ctl.radiofinder.cancel():
+        raise UserError(f"{cmd.cmd}: no search for the radio is running", "radio.not_running")
 
 
 @command(BeaconNow)
@@ -167,18 +193,6 @@ async def set_station_path(ctx: Ctx, cmd: SetStationPath) -> None:
 async def clear_station_path(ctx: Ctx, cmd: ClearStationPath) -> None:
     with refused(cmd.cmd):
         await ctx.ctl.prefbook.clear_path(cmd.call)
-
-
-@command(SetStationTimeout)
-async def set_station_timeout(ctx: Ctx, cmd: SetStationTimeout) -> None:
-    with refused(cmd.cmd):
-        await ctx.ctl.prefbook.set_timeout(cmd.call, cmd.minutes)
-
-
-@command(ClearStationTimeout)
-async def clear_station_timeout(ctx: Ctx, cmd: ClearStationTimeout) -> None:
-    with refused(cmd.cmd):
-        await ctx.ctl.prefbook.clear_timeout(cmd.call)
 
 
 @command(SetStationRfOnly)

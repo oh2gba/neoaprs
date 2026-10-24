@@ -7,6 +7,7 @@ import pytest
 
 from neoaprs.config import DEFAULTS, KEYS, Config
 from neoaprs.migrations import SCHEMA_VERSION
+from neoaprs.migrations2 import MIGRATION_LOG
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
 from tests.support.migrated import opened
@@ -42,7 +43,7 @@ def migrate(folder: Path, stored: dict[str, str]) -> dict[str, tuple[str, int]]:
     version_fifteen(old, clock, stored)
     migrated = opened(old, clock)
     assert migrated.version() == SCHEMA_VERSION >= 16
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][15:] == [(16, "_v16", GOLDEN[16])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][15:] == [(16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17])]
     found = {str(k): (str(v), int(rev)) for k, v, rev in migrated.db.execute("SELECT key, value, rev FROM settings")}
     migrated.close()
     return found
@@ -66,14 +67,14 @@ def test_every_setting_that_is_not_reset_is_kept(tmp_path: Path) -> None:
 
 
 def test_a_value_that_is_already_the_default_is_deleted_without_a_line(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    with caplog.at_level(logging.INFO, logger="neoaprs.store"):
+    with caplog.at_level(logging.INFO, logger=MIGRATION_LOG):
         found = migrate(tmp_path, {"map/maxzoom": "12", "map/source": "", "update/url": "https://oh2gba.eu/neoaprs/version.php", "serial/pattern": "/dev/serial/by-id/*  /dev/ttyUSB* /dev/ttyACM*", "serial/skip": ""})
     assert found == {}
     assert not [r for r in caplog.records if "reset to the default" in r.getMessage()]
 
 
 def test_one_info_line_for_each_key_reset_with_the_old_value(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    with caplog.at_level(logging.INFO, logger="neoaprs.store"):
+    with caplog.at_level(logging.INFO, logger=MIGRATION_LOG):
         migrate(tmp_path, {**RESET, "station/call": "OH2GBA"})
     lines = [r.getMessage() for r in caplog.records if "reset to the default" in r.getMessage() and r.levelno == logging.INFO]
     assert lines == ["map/maxzoom reset to the default: 14 → 12",

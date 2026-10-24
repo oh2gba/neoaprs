@@ -33,7 +33,8 @@ export const shell: Record<keyof typeof source, Message> = {
   "panel.hide": "Ocultar o painel",
   "panel.show_unseen": "Mostrar o painel, {unseen}",
 
-  "footer.cost_title": "O NeoAPRS usa {cost}",
+  "footer.cost": "O NeoAPRS usa {cpu} % de um núcleo do processador e {mb} MB de memória, em execução há {span}",
+  "footer.cost_no_memory": "O NeoAPRS usa {cpu} % de um núcleo do processador, em execução há {span}",
   "footer.update": "Atualizar para {version}",
   "footer.offline": "Daemon offline",
   "footer.connecting": "Conectando…",

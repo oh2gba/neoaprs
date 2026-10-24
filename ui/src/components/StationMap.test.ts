@@ -28,7 +28,7 @@ const stations = () =>
     station("OH2NOPOS", { lat: null, lon: null }),
   );
 
-const aging = (defaultMin: number, own: [string, number][] = []): Aging => ({ timeouts: new Map(own), defaultMin });
+const aging = (defaultMin: number): Aging => ({ defaultMin });
 const props = (extra = {}) => ({
   stations: stations(),
   selected: null,
@@ -149,16 +149,11 @@ describe("StationMap", () => {
   });
 
   it("does not draw a station past its timeout, neither its marker nor its track, until it is selected", async () => {
-    const wrapper = await mounted({
-      aging: aging(0, [
-        ["OH2PU-9", 1],
-        ["OH2OLD", 30],
-      ]),
-    });
+    const wrapper = await mounted({ aging: aging(1) });
     FakeMap.last().fire("style.load");
     expect(markerOf("OH2OLD")).toBeUndefined();
     expect(markerOf("OH2PU-9")).toBeUndefined(); // last position 100 s ago, timeout 1 min
-    expect(markerOf("OH2ANCIENT")).toBeDefined(); // no timeout
+    expect(markerOf("OH2ANCIENT")).toBeUndefined();
     expect(markerOf("OH2GBA")).toBeDefined();
     expect(lastData().features).toHaveLength(0);
     await wrapper.setProps({ selected: "OH2OLD" });
@@ -167,12 +162,12 @@ describe("StationMap", () => {
     expect(markerOf("OH2OLD")).toBeUndefined();
   });
 
-  it("hides a station by the default when it has no timeout of its own, and a change of the rules is drawn at once", async () => {
+  it("hides a station past the timeout, and a change of the timeout is drawn at once", async () => {
     const wrapper = await mounted({ aging: aging(60) });
     expect(markerOf("OH2OLD")).toBeUndefined();
     expect(markerOf("OH2ANCIENT")).toBeUndefined();
     expect(markerOf("OH2PU-9")).toBeDefined();
-    await wrapper.setProps({ aging: aging(60, [["OH2OLD", 0]]) });
+    await wrapper.setProps({ aging: aging(0) });
     expect(markerOf("OH2OLD")).toBeDefined();
   });
 

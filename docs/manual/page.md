@@ -27,7 +27,7 @@ The table has the symbol, the call, the distance from you, the bearing as a smal
 
 - The columns Call, km and Last heard sort on a click. Your own station is on top.
 - A green check mark after a call means the station was heard direct ("Heard direct", also on its card).
-- The filter box has three tickboxes that wrap onto a second line when they do not fit: "with position only", "hide timed out" and "direct only" (stations heard direct at some time). The last two are remembered.
+- The filter box has two tickboxes that wrap onto a second line when they do not fit: "hide timed out" and "direct only" (stations heard direct at some time). Both are remembered.
 - A click on a row flies the map to the station and shows its card, with the marker above the card and not under it.
 - At the right end of a row are three small buttons: two as on the card and a "..." that opens the row's menu (below).
   - The envelope, **Message OH2XYZ**, opens the conversation with the station (on a phone, straight into the conversation); it is there for the stations a message can go to, not for your own station, an object, an item or the email gateway.
@@ -55,6 +55,8 @@ A marker for every station that has a position shows the APRS symbol with the ca
 
 - Your own station is ringed. An object or an item of yours is ringed with a dashed line and can be dragged to another place.
 - The track of a station that moved is a line that fades with age along its length: the newest stretch full, the oldest faint.
+- A thin dashed circle round your own station is the ALOHA circle of Bob Bruninga, WB4APR: the distance within which the stations heard on the radio would fill the channel (1200 baud takes about 60 packets a minute), so a packet meant for a station beyond it is hard to receive reliably. The pointer resting on the line shows its radius.
+- NeoAPRS works the circle out every minute from the stations heard in the last hour, nearest first, each by what it sends in half an hour: a moving car 15 packets, a parked one 7, a weather station 6, a digipeater 3, a home station 2, and each digipeater nearer than a station makes the packets of the stations beyond it count once more. The circle ends at the station where the sum reaches 1800. Stations an iGate put on the air from the internet do not count. There is no circle until your position is set and enough stations are heard to fill the channel.
 - A marker dims in four steps on the way to the station's timeout.
 - A station heard direct within the last hour has a green ring round its marker.
 - A mouse resting on a marker for a quarter of a second shows a small card beside it with the call and the symbol's name, when the station was last heard, its status and comment, the distance and bearing from you, the temperature of a weather station, and how its packets reach you ("heard direct" or "via OH2RCH-2"). Only rows that have something to say are shown, and it is gone when the pointer leaves. A click still opens the full card. A touch screen has no resting pointer, so a tap opens the station as before.
@@ -63,7 +65,7 @@ A marker for every station that has a position shows the APRS symbol with the ca
 
 A station whose last position is older than its timeout is left off the map, marker and track, and stays in the Stations table. Selecting its row still flies the map to its last position and shows its card, and its marker for as long as it is selected.
 
-The timeout is 3 hours (180 minutes) for every station. A station can have a timeout of its own: under **Details** on its card, **Hide from map after** takes minutes after its last position. The placeholder "3 h (usual)" is the usual time and an empty field means the usual time. "never" or 0 is never, and an x takes the station's own away. Your own station never times out. A station's own timeout can be at most 10080 minutes (a week). The daily clean-up keeps a station with a timeout of 0 whatever its age; its packets and messages are cleaned up as the others are.
+The timeout is 3 hours (180 minutes), the same for every station and not a setting. Your own station and your own objects never time out.
 
 Without a base map the map area says "No base map" with a Download button over a blank background, and the stations are drawn all the same ([The base map](#the-base-map)).
 
@@ -77,6 +79,7 @@ A click on a marker opens a card over the map. It is above the markers, clear of
 - its position, how far and in which direction it is from you;
 - its speed and course (only a station that moves has them) and the altitude;
 - the status and the comment;
+- what the station runs, one line ("Kenwood TH-D74", "APRSdroid"), only when it is known;
 - one line of how its packets reach you ("Reached us via OH2RCH-2", or "direct").
 
 A row with nothing to say is left out: a station that stands still has no speed whatever course it gave, a station that sent no altitude has none, and so on. An altitude of 0 that the station did send is shown.
@@ -89,12 +92,14 @@ NeoAPRS finds this again at its start from the packet log. The bulletins and tel
 
 **Details**, closed, has the rest:
 
-- the data extensions, the locator and the telemetry the station sent;
+- the data extensions, the locator and the telemetry the station sent; the antenna of a PHG report is drawn as a small arrow after the figures (the direction it favours, north up) or as a small circle when it is omni, with the compass point and the degrees as its hover title;
 - when it was first heard;
 - the path of its latest packet as it was sent;
 - how its packets reach you ("Heard: 12 direct, 30 via OH2RCH-2, 4 via OH2RCH-3", "from the internet" for third-party packets);
 - the best route with the path to send by;
-- the number of packets.
+- the number of packets, all of them and those of the last hour ("Packets: 312 · 14 in the last hour"). The total is what NeoAPRS has counted since it first heard the station; the last hour is counted from the packet log at the start and as packets come, and moves on every minute.
+
+What a station runs is read from the destination call of its packets (`APDR15` is APRSdroid) or, for a Mic-E tracker, from the type code at the ends of its comment. A station whose software is not in the list shows nothing.
 
 The path and **RF only** are set in the header of the conversation in the Messages tab, not on the card ([messages.md](messages.md#a-path-for-each-station)).
 
@@ -106,17 +111,19 @@ A click on a marker or on a row of the Stations table opens that station's card 
 
 - The cards are side by side in a row over the map, from its left, the oldest at the left and the newest at the right. **Every card is the whole card**, with its graphs when it is a weather station: opening more cards makes none of them smaller.
 - While two or more weather cards are open each graph is on the same value axis and the same time span on all of them. A single card keeps its own axis.
-- When the row is wider than the map has room for, the oldest card closes: up to four on a desktop, two on a tablet, one on a phone (a tap replaces it). Each card has its own cross.
+- When the row is wider than the map has room for, the oldest card closes: up to four on a desktop, two on a tablet, one on a phone (a tap replaces it). Each card has its own cross (a pinned card never closes for that: see below).
 - **Drag a card by its head** (the symbol and the call, not the buttons and the QRZ link) to move it anywhere over the map, with the mouse, a finger or a pen. The card stays inside the map, and the map does not move while you drag. **Alt** with an arrow key moves the card that has the focus (with **Shift** in bigger steps). The card on a phone is a bottom sheet and cannot be dragged.
 - **Moving a card never moves another.** When you start to move one, every other open card stays exactly where it is on the screen, and the place the card left stays empty. Closing a card does not make the others close up either.
 - A card that you open later goes to the first free place in the row, from the left, where it covers no other card (the empty place of a card you moved, or room to the right of the cards); with no free place in the row it goes to a row above. It is never put on top of a card (you can put one there yourself). All the open cards count against the room above, wherever they stand: the oldest closes when there are too many.
-- A card keeps its place as long as it is open, and places are not remembered: **Close all** and **Esc**, and then a new card, start the row again from the left. A card that grows (its **Details** opened, a weather card's graphs) is kept inside the map.
+- A card keeps its place as long as it is open, and places are not remembered: **Close all** and **Esc**, and then a new card, start the row again from the left. A card that grows where it stands (its **Details** opened, a weather card's graphs) moves up as far as it needs to be whole inside the map, and no further; only a card taller than the map is put at the top of it and scrolls. Another card never moves for it.
+- **Pin** (the pin beside the cross, on a tablet and a desktop) keeps a card on the map: it stays where it is past **Esc**, **Close all**, a click on the map or on another station, and a reload of the page, until you click its **cross**, which unpins it and closes it. The pin is filled while it is on; click it again to take the pin away (the card stays open).
+- A pinned card keeps its place, and a card that is opened later never goes on top of it. Which cards are pinned and where they stand are remembered in this browser, not in the daemon; a pinned card of a station that is forgotten is let go of. A phone's sheet has no pin.
 - When you pick a station whose marker is under a card, wherever the card stands now, the map moves so that the marker is clear of it.
-- With two or more open, **Close all** and **Message these 3** are at the top left of the map beside the zoom buttons. The count is of the open cards that are stations that can be messaged, not yourself. The second button opens the Messages tab with a [group compose](messages.md#one-text-to-several-stations) for those stations.
+- With two or more open, **Close all** (it closes the cards that are not pinned, and is not there when all are pinned) and **Message these 3** are at the top left of the map beside the zoom buttons. The count is of the open cards that are stations that can be messaged, not yourself. The second button opens the Messages tab with a [group compose](messages.md#one-text-to-several-stations) for those stations.
 - The marker and the row of every open card have the selected look, and the track of every open card is highlighted. The route to your station is drawn for the newest card only.
 - A card added from the table does not fly the map to the station (a plain click does).
 - A station past its timeout stays in the table, and a click on it, with Ctrl or without, shows its marker and track on the map for as long as its card is open.
-- **Esc** closes all the cards at once and clears the selection. Not while a field has text in it: in the filter box of the Stations table the first Esc clears the text and the next closes the cards. And not while the setup guide or the update panel is open: they take the key.
+- **Esc** closes all the cards that are not pinned at once and clears the selection. Not while a field has text in it: in the filter box of the Stations table the first Esc clears the text and the next closes the cards. And not while the setup guide or the update panel is open: they take the key.
 
 ## The header and the footer
 
@@ -182,6 +189,6 @@ The names of places and roads are drawn with Noto Sans glyph files (Regular and 
 
 ### Credits
 
-The (i) on the map shows the credits: "© OpenStreetMap contributors, Protomaps" (the base map data is OpenStreetMap's, ODbL, in the Protomaps tile format) and the symbol set. MapLibre GL JS (BSD-3-Clause) and PMTiles (BSD-3-Clause) are in the page.
+The (i) on the map shows the credits: "© OpenStreetMap contributors, Protomaps" (the base map data is OpenStreetMap's, ODbL, in the Protomaps tile format) the symbol set and the list of device names. MapLibre GL JS (BSD-3-Clause) and PMTiles (BSD-3-Clause) are in the page.
 
 The symbols are the aprs.fi high-resolution symbol set by Heikki Hannikainen, OH7LZB (<https://github.com/hessu/aprs-symbols/>). The set is released to the APRS community for use by any APRS application, for free, with a request to give a pointer to the source, which is done in the (i) on the map and in a file beside the sheets. Where each symbol comes from and under what terms (many public domain or CC BY-SA, the old APRS set's originals without licence information, three company logos) is in a file beside the sheets. The sheets are unchanged.

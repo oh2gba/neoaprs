@@ -3,21 +3,20 @@
 // picked on the map) applies at once, a typed field on Enter or when it is left (never while it is typed), after the page's own check of it; the daemon checks it again, and a wrong one is shown under its field with what was typed kept. What
 // the person sees of it (the Undo toast, a line for a screen reader) is useSettings, shared with the other tab so that there is one queue. The alert command has a Test button, which runs the saved command and shows how it went under the field; a field
 // left empty shows the default as a placeholder. The Map group ends with the buttons that make the map (MapFetchPanel), which work on the saved settings. On the Settings tab a link at the top opens the first-run guide again; the default slot is
-// for more groups (the page's own, which are not settings of the daemon), the slots `beacon` and `status` for the line with the button that sends it now, which open the Beacon and Status groups. The TNC group opens with the state of the radio link (RadioStatus), and the fields of the page's own alert end the
-// Notifications group (BrowserAlerts). What it works on is the page's (useDaemonContext): the settings, the daemon's answers, `send`. The Update check group (the daily check itself is always on) has a Check now button, which asks the version page at once and shows the answer beside it for a few seconds. While the network is let in, the Web group shows
+// for more groups (the page's own, which are not settings of the daemon), the slots `beacon` and `status` for the line with the button that sends it now, which open the Beacon and Status groups. The TNC group is SettingsRadio: the state of the radio link with Reconnect in view and the fields of the radio behind a fold, and the fields of the page's own alert end the
+// Notifications group (BrowserAlerts). What it works on is the page's (useDaemonContext): the settings, the daemon's answers, `send`. The Update check group (the daily check itself is always on) has a Check now button, which asks the version page at once and says the answer in the toast (a newer version opens the update window). While the network is let in, the Web group shows
 // the access key with a New key button and the addresses to open the page at.
 import BrowserAlerts from "@/components/BrowserAlerts.vue";
 import ConfirmRow from "@/components/ConfirmRow.vue";
 import MapFetchPanel from "@/components/MapFetchPanel.vue";
 import InfoTip from "@/components/InfoTip.vue";
 import LanguageField from "@/components/LanguageField.vue";
-import RadioStatus from "@/components/RadioStatus.vue";
 import SettingsField from "@/components/SettingsField.vue";
 import SettingsFold from "@/components/SettingsFold.vue";
 import SettingsLocation from "@/components/SettingsLocation.vue";
 import SettingsHttps from "@/components/SettingsHttps.vue";
 import SymbolField from "@/components/SymbolField.vue";
-import SettingsPort from "@/components/SettingsPort.vue";
+import SettingsRadio from "@/components/SettingsRadio.vue";
 import { t } from "@/i18n";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { ALERT_KEY, useAlertTest } from "@/composables/useAlertTest";
@@ -26,14 +25,14 @@ import { useUpdateCheck } from "@/composables/useUpdateCheck";
 import { fieldId, useSettingsForm } from "@/composables/useSettingsForm";
 import type { Picked } from "@/composables/usePositionPick";
 import { degreesText } from "@/lib/setup";
-import { BEACON_FOLDS, FIELDS, SUBGROUPS, shownByValues, shownFor, speedFallback, type Scope } from "@/lib/settings";
+import { BEACON_FOLDS, FIELDS, SUBGROUPS, shownByValues, shownFor, type Scope } from "@/lib/settings";
 import { statusSource } from "@/lib/status";
 import { computed, watch } from "vue";
 
 const props = withDefaults(defineProps<{ scope?: Scope; picking?: boolean; picked?: Picked | null }>(), { scope: "settings", picking: false, picked: null });
 const emit = defineEmits<{ setup: []; update: []; pickPosition: [] }>();
 
-const { config, lastError, send, settings, alertResult, updateResult, map, ports, tnc, now, alerts } = useDaemonContext();
+const { config, lastError, send, settings, alertResult, updateResult, map, alerts, say } = useDaemonContext();
 const { draft, errors } = settings;
 const form = useSettingsForm(config, settings, props.scope);
 const { groups, question, defaults } = form;
@@ -51,14 +50,22 @@ const SYMBOL_CODE = "station/symbol_code";
 const info = (key: string) => FIELDS[key] ?? { label: key };
 /** The network is let in and the daemon has made a key (what is in force, not the switch as it is being changed). */
 const network = computed(() => config.value?.values["web/network"] === "true" && (config.value.values[KEY_KEY] ?? "") !== "");
-/** Whether the digipeater is on, as the daemon has it: the radio link says how many packets it repeated. */
-const digipeater = computed(() => config.value?.values["digi/enabled"] === "true");
 const urls = computed(() => config.value?.urls ?? []);
-const resultOf = (key: string) => (key === ALERT_KEY ? alertTest.result.value : key === KEY_KEY ? newKey.result.value : null);
+// the answers of the buttons (Test, New key, Check now) are said in the toast, so that nothing moves; a newer version opens the update window
+watch(
+  () => alertTest.result.value,
+  (result) => result && say(result.text),
+);
+watch(
+  () => newKey.result.value,
+  (result) => result && say(result.text),
+);
+watch(
+  () => updateCheck.outcome.value,
+  (outcome) => (outcome?.newer ? emit("update") : outcome && say(outcome.text)),
+);
 /** The TNC profile as it is being edited: which fields are shown follows it. */
 const profile = computed(() => draft["tnc/profile"]);
-/** Whether the daemon looks for the radio among the ports (Linux); true until it has said. */
-const search = computed(() => ports.value?.search ?? true);
 /** The keys the Beacon group keeps behind closed headings (the antenna, the path): they are not in the group's own list. */
 const folded = new Set(props.scope === "beacon" ? BEACON_FOLDS.flatMap((fold) => fold.keys) : []);
 const shown = (keys: readonly string[], inGroup = true) =>
@@ -67,7 +74,7 @@ const shown = (keys: readonly string[], inGroup = true) =>
       key !== SYMBOL_CODE &&
       !(key === "station/lon" && props.scope === "beacon") &&
       !(inGroup && folded.has(key)) &&
-      shownFor(key, profile.value, network.value, search.value) &&
+      shownFor(key, profile.value, network.value) &&
       (props.scope === "settings" || shownByValues(key, draft)),
   );
 /** The symbol is one field, which sets the table and the code. */
@@ -87,8 +94,7 @@ watch(
     });
   },
 );
-const refreshPorts = () => send({ cmd: "list_ports" }); // (the page asks for the list itself each time the daemon is connected: useAppShell)
-const fallback = (key: string) => (key === "serial/baud" ? speedFallback(profile.value, defaults.value[key] ?? "") : (defaults.value[key] ?? ""));
+const fallback = (key: string) => defaults.value[key] ?? "";
 /** A typed field follows the typing; a choice is made by `choose` (it also says the text it has, which is not typing). */
 function typed(key: string, text: string): void {
   const kind = info(key).kind;
@@ -107,10 +113,10 @@ function typed(key: string, text: string): void {
     >
     <fieldset v-for="group in groups" :key="group.id">
       <legend>{{ group.title }}</legend>
-      <RadioStatus v-if="group.id === 'serial'" :tnc="tnc" :now="now" :digipeater="digipeater" @reconnect="send({ cmd: 'tnc_reconnect' })" />
+      <SettingsRadio v-if="group.id === 'serial'" :keys="shown(group.keys)" :settings="settings" :form="form" :defaults="defaults" />
       <slot v-if="group.id === 'beacon'" name="beacon"></slot>
       <slot v-if="group.id === 'status'" name="status"></slot>
-      <template v-for="key in shown(group.keys)" :key="key">
+      <template v-for="key in group.id === 'serial' ? [] : shown(group.keys)" :key="key">
         <h3 v-if="SUBGROUPS[key]" class="subgroup" :title="SUBGROUPS[key]?.title">
           {{ SUBGROUPS[key]?.text }}
           <InfoTip :label="SUBGROUPS[key]?.tipLabel ?? ''">
@@ -137,21 +143,6 @@ function typed(key: string, text: string): void {
           @update:symbol="editSymbol"
           @commit="settings.commit([SYMBOL_TABLE, SYMBOL_CODE], true)"
         />
-        <SettingsPort
-          v-else-if="key === 'serial/port'"
-          :id="fieldId(key)"
-          :info="info(key)"
-          :model-value="draft[key] ?? ''"
-          :found="config.values['serial/last_port'] ?? ''"
-          :ports="ports"
-          :error="errors[key] ?? ''"
-          :changed="form.changed(key)"
-          @update:model-value="settings.edit(key, $event)"
-          @choose="form.choose({ [key]: $event })"
-          @commit="form.finish(key, $event)"
-          @cancel="settings.cancel(key)"
-          @refresh="refreshPorts"
-        />
         <SettingsField
           v-else
           :id="fieldId(key)"
@@ -160,7 +151,6 @@ function typed(key: string, text: string): void {
           :fallback="fallback(key)"
           :error="errors[key] ?? ''"
           :changed="form.changed(key)"
-          :result="resultOf(key)"
           :apply="true"
           @update:model-value="typed(key, $event)"
           @choose="form.choose({ [key]: $event })"
@@ -204,7 +194,7 @@ function typed(key: string, text: string): void {
           :defaults="defaults"
         />
       </template>
-      <BrowserAlerts v-if="group.id === 'notifications'" :alerts="alerts" :https="config.https" />
+      <BrowserAlerts v-if="group.id === 'notifications'" :alerts="alerts" :https="config.https" :say="say" />
       <MapFetchPanel v-if="group.id === 'map' && map" :map="map" :stale="settings.saving.value" :send="send" />
     </fieldset>
     <fieldset v-if="scope === 'settings'" class="update-check">
@@ -215,12 +205,6 @@ function typed(key: string, text: string): void {
           <button id="set-update-now" class="btn" type="button" :disabled="updateCheck.running.value" @click="updateCheck.check">
             {{ t("settings.update.check") }}
           </button>
-          <template v-if="updateCheck.outcome.value">
-            <button v-if="updateCheck.outcome.value.newer" class="updatecheck-result" type="button" role="status" @click="emit('update')">
-              {{ updateCheck.outcome.value.text }}
-            </button>
-            <span v-else class="updatecheck-result muted" role="status">{{ updateCheck.outcome.value.text }}</span>
-          </template>
           <InfoTip :label="t('settings.update.tip_label')">
             <span class="info-line">{{ t("settings.update.tip") }}</span>
           </InfoTip>

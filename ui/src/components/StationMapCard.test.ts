@@ -31,7 +31,7 @@ const props = (extra = {}) => ({
   home: { lat: 60.17, lon: 24.94 },
   now: NOW,
   dark: false,
-  aging: { timeouts: new Map(), defaultMin: 0 },
+  aging: { defaultMin: 0 },
   ...extra,
 });
 

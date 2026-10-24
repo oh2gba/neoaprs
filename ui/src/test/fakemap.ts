@@ -36,13 +36,16 @@ export class FakeMap {
     return map;
   }
 
-  on(event: string, handler: Handler): this {
-    this.handlers.set(event, [...(this.handlers.get(event) ?? []), handler]);
+  /** `on(event, handler)` or, for a layer, `on(event, layer, handler)`; a test fires the second as `fire(event, payload, layer)`. */
+  on(event: string, ...rest: [Handler] | [string, Handler]): this {
+    const handler = rest[rest.length - 1] as Handler;
+    const key = rest.length === 2 ? `${event}:${rest[0]}` : event;
+    this.handlers.set(key, [...(this.handlers.get(key) ?? []), handler]);
     return this;
   }
 
-  fire(event: string, payload?: unknown): void {
-    for (const handler of this.handlers.get(event) ?? []) handler(payload);
+  fire(event: string, payload?: unknown, layer?: string): void {
+    for (const handler of this.handlers.get(layer === undefined ? event : `${event}:${layer}`) ?? []) handler(payload);
   }
 
   addControl(): void {}

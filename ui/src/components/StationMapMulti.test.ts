@@ -30,7 +30,7 @@ async function mounted(extra = {}) {
     home: { lat: 60.17, lon: 24.94 },
     now: NOW,
     dark: false,
-    aging: { timeouts: new Map(), defaultMin: 60 },
+    aging: { defaultMin: 60 },
     ...extra,
   });
   await flushPromises();

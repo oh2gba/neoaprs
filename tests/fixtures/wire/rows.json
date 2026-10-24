@@ -1012,22 +1012,18 @@
  },
  "station_prefs": [
   {
-   "hide_after_min": null,
    "path": null,
    "rf_only": false
   },
   {
-   "hide_after_min": 60,
    "path": "WIDE1-1,WIDE2-1",
    "rf_only": true
   },
   {
-   "hide_after_min": 0,
    "path": "",
    "rf_only": false
   },
   {
-   "hide_after_min": null,
    "path": null,
    "rf_only": true
   }

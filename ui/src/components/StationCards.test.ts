@@ -9,7 +9,7 @@ import { cssRule } from "@/test/css";
 import { fakeDaemon, tell, withDaemon, type FakeDaemon } from "@/test/context";
 import { ago, series, station, weatherStation } from "@/test/fixtures";
 
-const aging: Aging = { timeouts: new Map(), defaultMin: 0 };
+const aging: Aging = { defaultMin: 0 };
 const car = station("OH2ZMA-9", { symbol_name: "Car", lat: 60.1, lon: 24.8, distance_km: 11, bearing_deg: 126, last_heard: ago(120) });
 const wx = (call: string) => weatherStation(call);
 

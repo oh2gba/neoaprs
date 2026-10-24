@@ -37,7 +37,7 @@ Everything NeoAPRS keeps is in one folder, one daemon to a folder. A second daem
 
 - `neoaprs.sqlite` is everything NeoAPRS keeps: the settings, every packet heard or sent, the messages, the message board, your own objects, items and bulletins, the weather of the weather stations, and the stations (a cache the daemon rebuilds from the packets). It is private to your user and is migrated at the start; a copy of it is made into `backup/` before a migration changes it.
 - Packets, weather observations and stations older than 7 days are removed once a day. The weather graphs reach back 7 days. Messages and bulletins stay until you delete them.
-- `neoaprs.log` is the log, rotated (20 MB, five files), with every packet as the TNC2 line and what it is. Warnings and errors also go to stderr, which `systemctl status` shows.
+- `neoaprs.log` is the log, rotated (20 MB, five files), with every packet as the TNC2 line and what it is. Warnings and errors, and the lines of a database migration (what an upgrade changed), also go to stderr, which `systemctl status` and the journal show.
 - `basemap.pmtiles` and `basemap-world.pmtiles` are the base map; `bin/` holds the `pmtiles` tool; `tls/` holds the certificates of the secure connection.
 - `neoaprs.lock` shows that a daemon holds the folder. The desktop app keeps `neoaprs-app.log`, `neoaprs-app.json`, `neoaprs-app.lock`, `neoaprs-app.port` and `webview/` there too.
 

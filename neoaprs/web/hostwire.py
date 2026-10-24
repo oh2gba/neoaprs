@@ -31,6 +31,7 @@ class Hello(_Message):
     type: Literal["hello"]
     protocol: int = Field(description="the version of these messages: a page built for another one says so and loads itself again")
     version: str = Field(description="the version of the daemon: a page built for another one loads itself again, once for each version")
+    page: str = Field(description="the build of the page this daemon serves, the name of its main script (`index-<hash>.js` of assets/): a page of another build loads itself again, once for each build, so that a page left open picks up a new one of the same version; empty when the daemon has no built page")
     install: InstallInfo = Field(description="how this daemon was installed, for the steps of an update")
     topics: list[str] = Field(description="the topics the page is following from the start: all of them (a page may `unsubscribe` from one)")
 

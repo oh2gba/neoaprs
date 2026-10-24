@@ -96,7 +96,7 @@ def own_bulletins() -> list[tuple[OwnBulletin, datetime | None]]:
 
 
 def prefs() -> list[Pref]:
-    return [Pref(), Pref(("WIDE1-1", "WIDE2-1"), 60, True), Pref((), 0, False), Pref(None, None, True)]
+    return [Pref(), Pref(("WIDE1-1", "WIDE2-1"), True), Pref((), False), Pref(None, True)]
 
 
 def tnc() -> Tnc:

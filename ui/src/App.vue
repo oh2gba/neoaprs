@@ -16,6 +16,7 @@ import SidePanel from "@/components/SidePanel.vue";
 import StationCards from "@/components/StationCards.vue";
 import StationMap from "@/components/StationMap.vue";
 import StationsTable from "@/components/StationsTable.vue";
+import FindRadioToast from "@/components/FindRadioToast.vue";
 import ToastBar from "@/components/ToastBar.vue";
 import UndoToast from "@/components/UndoToast.vue";
 import UpdateDialog from "@/components/UpdateDialog.vue";
@@ -38,8 +39,8 @@ const {
   guide,
   panel,
   settings,
-  prefs,
   notice,
+  findRadio,
   stationActions,
 } = useAppShell();
 const { send, ownObjects, ownBulletins, bulletins, packets, lastError } = daemon;
@@ -63,8 +64,8 @@ const cancel = (id: number): boolean => send({ cmd: "message_cancel", id });
     <main class="main">
       <div class="mapwrap">
         <StationMap
-          :selected="selected"
-          :others="cards.others.value"
+          :selected="cards.mapSelected.value"
+          :others="cards.mapOthers.value"
           :focus="focus"
           :picking="guide.picking || objects.picking || stationPick.picking.value"
           :pin="guide.open ? guide.pin : objects.pin"
@@ -78,9 +79,11 @@ const cancel = (id: number): boolean => send({ cmd: "message_cancel", id });
         <StationCards
           v-model:places="cards.places.value"
           :rows="cards.rows.value"
+          :pinned="cards.pinned.value"
           :size="layout.size.value"
           @close="cards.close"
           @close-all="cards.closeAll"
+          @pin="cards.pin"
           @message-all="talk.openGroup"
           @overflow="cards.closeOldest"
           @weather="(call, hours) => send({ cmd: 'weather_series', call, hours })"
@@ -88,8 +91,6 @@ const cancel = (id: number): boolean => send({ cmd: "message_cancel", id });
           @edit="objects.edit"
           @kill="objects.kill"
           @message="talk.writeTo"
-          @timeout="prefs.setTimeoutMin"
-          @clear-timeout="prefs.clearTimeoutMin"
         />
       </div>
       <SidePanel
@@ -165,5 +166,6 @@ const cancel = (id: number): boolean => send({ cmd: "message_cancel", id });
     </main>
     <UndoToast :undo="settings.undo.value" @undo="settings.undoLast()" @dismiss="settings.dismissUndo()" />
     <ToastBar :toast="lastError" :notice="notice" />
+    <FindRadioToast :find="findRadio" />
   </div>
 </template>

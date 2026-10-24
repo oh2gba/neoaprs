@@ -119,8 +119,8 @@ def test_the_empty_path_is_the_recommended_path_of_the_symbol_and_a_path_that_is
     assert replace(empty, beacon_path="DIRECT").beacon_path_calls == ()
 
 
-def test_the_keep_alive_is_fixed_at_60_seconds_and_what_an_earlier_version_stored_is_ignored() -> None:
-    assert TNC_CHECK_SEC == 60 and "tnc/check_sec" not in KEYS
+def test_the_keep_alive_is_fixed_at_10_minutes_and_what_an_earlier_version_stored_is_ignored() -> None:
+    assert TNC_CHECK_SEC == 600 and "tnc/check_sec" not in KEYS
     with pytest.raises(ValueError, match="tnc/check_sec: no such setting"):
         Config.parse("tnc/check_sec", "90")
     with pytest.raises(ValueError, match="tnc/check_sec: no such setting"):

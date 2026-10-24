@@ -11,7 +11,7 @@ const rows = table(
   station("OH2ZWC", { distance_km: 13, last_heard: ago(180) }),
 );
 const make = (selected: string | null = null, others: string[] = []) =>
-  mount(StationsTable, { props: { selected, others }, global: withDaemon(fakeDaemon({ stations: rows, aging: { timeouts: new Map(), defaultMin: 0 } })) });
+  mount(StationsTable, { props: { selected, others }, global: withDaemon(fakeDaemon({ stations: rows, aging: { defaultMin: 0 } })) });
 const row = (wrapper: ReturnType<typeof make>, call: string) => wrapper.findAll("tbody tr").find((r) => r.text().includes(call));
 
 beforeEach(() => localStorage.clear());
@@ -45,7 +45,7 @@ describe("StationsTable with several cards", () => {
       station("OH2NEW", { last_heard: ago(60) }),
       station("OH2OLD", { lat: 60.4, lon: 25.1, last_position_at: ago(5 * 3600), last_heard: ago(5 * 3600) }),
     );
-    const aging = { timeouts: new Map(), defaultMin: 180 };
+    const aging = { defaultMin: 180 };
     const wrapper = mount(StationsTable, { props: { selected: null, others: [] }, global: withDaemon(fakeDaemon({ stations: old, aging })) });
     expect(wrapper.findAll("tbody td.call").map((td) => td.text())).toEqual(["OH2NEW", "OH2OLD"]);
     expect(row(wrapper, "OH2OLD")?.text()).toContain("timed out");
@@ -84,7 +84,7 @@ describe("StationsTable with several cards", () => {
     expect(cssRule(".toolbar")).toMatch(/flex-wrap:\s*wrap/);
     expect(cssRule(".filterbox")).toMatch(/flex:\s*1 1 12em/);
     expect(cssRule(".filterbox")).toMatch(/min-width:\s*min\(12em, 100%\)/);
-    expect(wrapper.findAll(".toolbar > .toolbar-checks > label.check")).toHaveLength(3);
+    expect(wrapper.findAll(".toolbar > .toolbar-checks > label.check")).toHaveLength(2);
     expect(cssRule(".toolbar-checks")).toMatch(/flex-wrap:\s*wrap/);
     expect(cssRule(".size-phone .toolbar .filterbox")).toMatch(/flex:\s*1 1 100%/);
   });
@@ -98,7 +98,7 @@ describe("StationsTable with several cards", () => {
     const withFilter = async (text: string, ownCall: string | null = "OH2GBA") => {
       const wrapper = mount(StationsTable, {
         props: { selected: null, others: [] },
-        global: withDaemon(fakeDaemon({ stations: rows, aging: { timeouts: new Map(), defaultMin: 0 }, call: ownCall })),
+        global: withDaemon(fakeDaemon({ stations: rows, aging: { defaultMin: 0 }, call: ownCall })),
       });
       await wrapper.find("input[type='search']").setValue(text);
       return wrapper;
@@ -119,7 +119,7 @@ describe("StationsTable with several cards", () => {
       const make = (text: string) => {
         const wrapper = mount(StationsTable, {
           props: { selected: null },
-          global: withDaemon(fakeDaemon({ stations: withUs, aging: { timeouts: new Map(), defaultMin: 0 }, call: "OH2GBA" })),
+          global: withDaemon(fakeDaemon({ stations: withUs, aging: { defaultMin: 0 }, call: "OH2GBA" })),
         });
         return wrapper
           .find("input[type='search']")

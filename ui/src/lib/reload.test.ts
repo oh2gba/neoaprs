@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PAGE_VERSION } from "@/lib/build";
+import { PAGE_VERSION, pageBuild } from "@/lib/build";
 import { reloadForDaemon } from "@/lib/reload";
 import { PROTOCOL } from "@/protocol/lists";
 
@@ -55,6 +55,31 @@ describe("reloadForDaemon", () => {
     reloadForDaemon(hello("0.4.0"), page, reload);
     expect(reloadForDaemon(hello("0.5.0"), page, reload)).toBe("reload");
     expect(reload).toHaveBeenCalledTimes(2);
+  });
+
+  it("loads the page again when the daemon serves another build of the same version, once for each build", () => {
+    const reload = vi.fn();
+    const built = { ...page, page: "index-AAAA.js" };
+    expect(reloadForDaemon({ ...hello("0.3.0"), page: "index-AAAA.js" }, built, reload)).toBe("same");
+    expect(reloadForDaemon({ ...hello("0.3.0"), page: "index-BBBB.js" }, built, reload)).toBe("reload");
+    expect(reloadForDaemon({ ...hello("0.3.0"), page: "index-BBBB.js" }, built, reload)).toBe("stale");
+    expect(reloadForDaemon({ ...hello("0.3.0"), page: "index-CCCC.js" }, built, reload)).toBe("reload");
+    expect(reload).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not compare builds when either side does not know its own (development, a daemon without a built page)", () => {
+    const reload = vi.fn();
+    expect(reloadForDaemon({ ...hello("0.3.0"), page: "index-BBBB.js" }, { ...page, page: "" }, reload)).toBe("same");
+    expect(reloadForDaemon({ ...hello("0.3.0"), page: "" }, { ...page, page: "index-AAAA.js" }, reload)).toBe("same");
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it("knows its build from the main script its document loaded", () => {
+    const doc = document.implementation.createHTMLDocument("t");
+    doc.head.innerHTML =
+      '<script type="module" crossorigin src="./assets/index-DefyaO5x.js"></script><script type="module" src="./assets/other-1.js"></script>';
+    expect(pageBuild(doc)).toBe("index-DefyaO5x.js");
+    expect(pageBuild(document.implementation.createHTMLDocument("none"))).toBe("");
   });
 
   it("carries on when the browser keeps no session storage", () => {

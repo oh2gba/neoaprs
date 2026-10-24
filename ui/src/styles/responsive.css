@@ -63,6 +63,8 @@ button,
 .cardstack .card.moved {
   position: absolute;
   bottom: auto; /* (not the card's own bottom: 30px, which would stretch it from its top to there) */
+  /* it may be as tall as the map (the row is the map less its 84 px above and 30 px below): a card that grows where it stands is moved up by the script until it fits, and only a card taller than the map scrolls */
+  max-height: calc(100% + 114px);
   z-index: 1;
 }
 .cardstack:not(.sheet) .card-head {

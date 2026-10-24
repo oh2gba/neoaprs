@@ -1,5 +1,5 @@
 """What a packet says about its sender that the station book notes in the station: whether it does messages, and the packets of its last hour. Pure code; the book (stationbook.py) calls these."""
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from datetime import datetime
 
 from .aprstelemetry import is_definition
@@ -32,6 +32,7 @@ def seed_hour(stations: Mapping[str, Station], packets: Iterable[Packet]) -> Non
             stations[decoded.name].hour.note(packet.heard_at)
 
 
-def expire_hours(stations: Iterable[Station], now: datetime) -> list[Station]:
-    """Lets the packets that are an hour old at `now` leave the last hour of each station; the stations whose count became smaller."""
-    return [station for station in stations if station.hour.total and station.hour.expire(now)]
+def expire_hours(stations: Iterable[Station], now: datetime, changed: Callable[[Station], None]) -> None:
+    """Lets the packets that are an hour old at `now` leave the last hour of each station, and tells `changed` of each station whose count became smaller."""
+    for station in [s for s in stations if s.hour.total and s.hour.expire(now)]:
+        changed(station)

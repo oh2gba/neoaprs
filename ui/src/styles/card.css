@@ -238,16 +238,10 @@
   flex: none;
   min-width: 11em;
 }
-.card-path {
-  padding: 0 10px 6px;
-}
 .prefs {
   display: flex;
   flex-direction: column;
   gap: 6px;
-}
-.timeout-input {
-  width: 9.5em;
 }
 .timedword {
   color: var(--warn);

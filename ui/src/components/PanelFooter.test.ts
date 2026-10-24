@@ -143,7 +143,7 @@ describe("PanelFooter", () => {
   it("does not show what the daemon costs the machine on the line: only the title of the version has it, with the uptime", () => {
     const wrapper = footer({ status: status({ cpu_percent: 0.3, rss_mb: 42.4, uptime_sec: 3 * 3600 }) });
     expect(wrapper.text()).not.toMatch(/MB|%/);
-    expect(wrapper.find(".version").attributes("title")).toBe("NeoAPRS uses 0.3 % · 42 MB · up 3 h");
+    expect(wrapper.find(".version").attributes("title")).toBe("NeoAPRS uses 0.3 % of one processor core and 42 MB of memory, running for 3 h");
     expect(footer().find(".version").attributes("title")).toBeUndefined();
   });
 });

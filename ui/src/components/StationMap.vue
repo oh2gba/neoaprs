@@ -5,6 +5,7 @@
 // when the daemon makes the files again (`filesKey` changes) the style is set again. One map for the life of the page,
 // opened where we are (zoom 9; on the world while we have no position) or where it was left; the colour scheme follows the system. While the first-run guide asks for the position (`picking`) a click on the map is a place (`pick`), and the place the guide
 // holds (`pin`) has a marker, which the map flies to when it was typed and not clicked. An object or an item of ours (`own`) has a marker that can be dragged: where it is dropped is its new place (`move`).
+// Round our own station runs the ALOHA circle, a thin dashed line under the markers at the radius the daemon worked out (lib/alohacircle.ts); a pointer resting on it gets its radius as the title of the map.
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { GeoJSONSource, Map as MapLibreMap, Marker } from "maplibre-gl";
 import { t } from "@/i18n";
@@ -13,6 +14,7 @@ import MapAttribution from "@/components/MapAttribution.vue";
 import { archiveUrl, archivesPresent, glyphsUrl, loadMapEngine } from "@/lib/basemap";
 import { BASEMAP_FILE, WORLD_FILE, basemapStyle, MAX_ZOOM, OPEN_ZOOM, type Archives } from "@/lib/basemapstyle";
 import { useDaemonContext } from "@/composables/useDaemonContext";
+import { useAlohaCircle } from "@/composables/useAlohaCircle";
 import { useClearOfCard } from "@/composables/useClearOfCard";
 import { useMapFollow } from "@/composables/useMapFollow";
 import { useResized } from "@/composables/useResized";
@@ -61,6 +63,7 @@ interface Placed {
 const root = ref<HTMLElement | null>(null);
 const host = ref<HTMLElement | null>(null);
 const card = useClearOfCard(root, host);
+const aloha = useAlohaCircle(() => map, host);
 useResized(host, () => map?.resize());
 const note = ref<MessageId | "">(""); // what stands over the map when there is no base map (or no map engine): the id of its message
 const offerDownload = ref(false); // ... and whether it has the button that goes to where the map is made
@@ -109,6 +112,7 @@ function drawRoute(): void {
 
 function addLayers(): void {
   if (!map) return;
+  aloha.add(map); // (first: under the tracks and the route)
   addTrackLayers(map, trackLines([], null, page.now.value, page.aging.value));
   drawTracks();
   addRouteLayers(map, routeFeatures(undefined, page.stations.value, null));
@@ -243,6 +247,7 @@ async function create(): Promise<void> {
   map.addControl(new engine.NavigationControl({ showCompass: false }), "top-left");
   labelControls();
   map.on("style.load", addLayers);
+  aloha.listen(map);
   map.on("movestart", () => hover?.hide());
   map.on("click", onClick);
   map.on("zoom", showLabels);
@@ -256,7 +261,7 @@ async function create(): Promise<void> {
   syncPin();
 }
 
-watch([() => [...page.stations.value.values()], () => [props.selected, props.others, [...page.aging.value.timeouts], page.aging.value.defaultMin]], () => {
+watch([() => [...page.stations.value.values()], () => [props.selected, props.others, page.aging.value.defaultMin]], () => {
   syncMarkers();
   drawTracks();
   drawRoute();

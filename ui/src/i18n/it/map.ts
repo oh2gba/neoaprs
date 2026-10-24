@@ -9,10 +9,12 @@ export const map: Readonly<Record<keyof typeof en, Message>> = {
   "map.note.no_basemap": "Nessuna mappa di base",
   "map.note.no_detail": "Nessuna mappa dettagliata",
   "map.note.no_engine": "Impossibile caricare la mappa",
+  "map.aloha": "Cerchio ALOHA: {km} km",
 
   "map.credits.hide": "Nascondi i crediti",
   "map.credits.show": "Crediti di mappa e simboli",
   "map.credits.symbols": "Simboli APRS: set aprs.fi di Heikki Hannikainen, OH7LZB (github.com/hessu/aprs-symbols)",
+  "map.credits.devices": "Nomi dei dispositivi: elenco di identificazione APRS di Hessu, OH7LZB (github.com/aprsorg/aprs-deviceid, CC BY-SA 2.0)",
 
   "map.pick.tap": "Tocca il punto sulla mappa",
   "map.pick.cancel": "Annulla",

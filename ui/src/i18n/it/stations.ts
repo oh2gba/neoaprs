@@ -4,6 +4,8 @@ import type { Message } from "@/i18n/message";
 export const stations: Readonly<Record<keyof typeof en, Message>> = {
   "iconbutton.delete": "Elimina",
   "iconbutton.close": "Chiudi",
+  "iconbutton.pin": "Fissa la scheda",
+  "iconbutton.unpin": "Sblocca la scheda",
   "iconbutton.sure": "sicuro?",
 
   "station.direct.title": "Ricevuta in diretta",
@@ -76,7 +78,6 @@ export const stations: Readonly<Record<keyof typeof en, Message>> = {
   "station.table.filter": "Filtro",
   "station.table.filter_title": "Nominativo, simbolo, commento, percorso",
   "station.table.filter_label": "Filtra le stazioni",
-  "station.table.with_position": "solo con posizione",
   "station.table.hide_timed_out": "nascondi scadute",
   "station.table.direct_only": "solo dirette",
   "station.table.call": "Nominativo",
@@ -107,13 +108,6 @@ export const stations: Readonly<Record<keyof typeof en, Message>> = {
   "station.ask.status": "Stato chiesto a {call}",
   "station.ask.heard": "Chiesto a {call} cosa sente in diretta",
   "station.ask.trace": "Percorso chiesto a {call}",
-
-  "station.timeout.label": "Nascondi dalla mappa dopo",
-  "station.timeout.usual": "{timeout} (abituale)",
-  "station.timeout.bad": "Minuti interi, oppure mai",
-  "station.timeout.hint": "Minuti, oppure mai; vuoto per il tempo abituale",
-  "station.timeout.use_default": "Usa il tempo predefinito",
-  "station.timeout.never": "mai",
 
   "route.direct": "diretta",
   "route.via": "via {hops}",

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// One setting: its label, the input (a checkbox for a yes/no setting, a choice for a short list, read-only for one the daemon writes), the default as the placeholder, a unit after it, the daemon's complaint under it (or the result of a test, in the same place), and a slot after it for a button. What it says of itself: `update:modelValue` with the text as it is typed (and for a choice), `choose`
+// One setting: its label, the input (a checkbox for a yes/no setting, a choice for a short list, read-only for one the daemon writes), the default as the placeholder, a unit after it, the daemon's complaint under it, and a slot after it for a button. What it says of itself: `update:modelValue` with the text as it is typed (and for a choice), `choose`
 // when a choice is made (a list, a switch), `commit` when a typed field is finished with Enter or left (with the element focus went to), `cancel` for Esc in a field that holds a change or a complaint.
 // A field whose meaning a non-developer may not know has a small (i) after it (`info.tip`); nothing else explains it, and the one thing a word cannot say is the `title` of the field.
 import { computed } from "vue";
@@ -14,7 +14,6 @@ const props = defineProps<{
   fallback: string;
   error: string;
   changed: boolean;
-  result?: { ok: boolean; text: string } | null;
   /** the field applies as it is changed (the settings form): Enter and leaving it say `commit`, Esc says `cancel`; else it is a field of a form with a button (the setup guide), where Enter submits */
   apply?: boolean;
 }>();
@@ -101,6 +100,5 @@ function onEscape(event: KeyboardEvent): void {
       </InfoTip>
     </div>
     <p v-if="error" :id="errorId" class="field-error" role="alert">{{ error }}</p>
-    <p v-else-if="result" class="field-error field-result" :class="{ ok: result.ok }" role="status">{{ result.text }}</p>
   </div>
 </template>

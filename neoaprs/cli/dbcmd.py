@@ -10,6 +10,7 @@ seconds for it.
 --data DIR is the data folder (default: the one the daemon uses). Everything but `set` opens the database for reading and changes nothing; `set` is the only write."""
 import argparse
 import asyncio
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -19,6 +20,7 @@ from neoaprs.db import Db
 from neoaprs.dberror import DbClosed, SqlError, StoreError
 from neoaprs.dbopen import open_connection
 from neoaprs.migrations import SCHEMA_VERSION, schema_version
+from neoaprs.migrations2 import MIGRATION_LOG
 from neoaprs.packetcodec import tnc2
 from neoaprs.packetlog import PacketLog
 from neoaprs.paths import default_data_dir
@@ -133,8 +135,17 @@ async def run(args: argparse.Namespace) -> int:
 
 def main(argv: list[str]) -> int:
     args = parse(argv)
+    logger = logging.getLogger(MIGRATION_LOG)
+    said = logging.StreamHandler()                           # `set` may be the first to open a file of an older version: what its migrations did is said here, where nothing else logs
+    said.setFormatter(logging.Formatter("%(message)s"))
+    if args.command == "set":
+        logger.addHandler(said)
+    was = logger.level
+    logger.setLevel(logging.INFO)
     try:
         return asyncio.run(run(args))
     except KeyboardInterrupt:
         return 130
-
+    finally:
+        logger.removeHandler(said)
+        logger.setLevel(was)

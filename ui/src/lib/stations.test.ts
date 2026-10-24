@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { firstDirection, hasPosition, listStations, menuGroup, menuItems, withOwnSymbol, type Sort } from "@/lib/stations";
 import { ago, station, weather } from "@/test/fixtures";
 
-const base: { filter: string; withPositionOnly: boolean; sort: Sort } = { filter: "", withPositionOnly: false, sort: { key: "call", dir: 1 } };
+const base: { filter: string; sort: Sort } = { filter: "", sort: { key: "call", dir: 1 } };
 
 describe("hasPosition", () => {
   it("needs both coordinates", () => {
@@ -55,8 +55,8 @@ describe("listStations", () => {
     expect(listStations(rows, { ...base, filter: "digipeat" }).map((r) => r.call)).toContain("OH2RDG");
     expect(listStations(rows, { ...base, filter: "rch-2" })).toHaveLength(4);
   });
-  it("can keep only the stations with a position, and always keeps us", () => {
-    expect(listStations(rows, { ...base, withPositionOnly: true }).map((r) => r.call)).not.toContain("OH2XYZ");
+  it("lists the stations without a position too, and always keeps us", () => {
+    expect(listStations(rows, base).map((r) => r.call)).toContain("OH2XYZ");
     expect(listStations(rows, { ...base, filter: "nothing like this" }).map((r) => r.call)).toEqual(["OH2GBA"]);
   });
   it("can leave out the stations that timed out, never ours", () => {

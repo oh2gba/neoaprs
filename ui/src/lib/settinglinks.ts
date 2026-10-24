@@ -21,6 +21,7 @@ export const TOGETHER: Record<string, readonly string[]> = {
 const NAMES: { keys: readonly string[]; name: MessageId }[] = [
   { keys: ["station/lat", "station/lon"], name: "settings.name.position" },
   { keys: ["tcp/host", "tcp/port"], name: "settings.name.tcp_address" },
+  { keys: ["tnc/profile", "serial/port"], name: "settings.name.radio" },
   { keys: ["station/symbol_table", "station/symbol_code"], name: "settings.symbol.label" },
 ];
 

@@ -9,7 +9,6 @@ export const time: Record<keyof typeof source, Message> = {
   "time.span.d": "{n} d",
   "time.ago": "há {span}",
   "time.in": "em {span}",
-  "time.up": "ativo há {span}",
   "time.now": "agora",
   "time.nothing_heard": "nada recebido",
   "time.nothing_heard_since": "nada recebido desde {time} ({span})",

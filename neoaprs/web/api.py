@@ -34,8 +34,9 @@ def _no_constant(name: str) -> Any:
 
 
 class Api:
-    def __init__(self, controller: Controller, validate_out: bool | None = None, reach: Callable[[], list[str]] = list, secure: Callable[[], dict[str, Any]] | None = None) -> None:
+    def __init__(self, controller: Controller, validate_out: bool | None = None, reach: Callable[[], list[str]] = list, secure: Callable[[], dict[str, Any]] | None = None, page: str = "") -> None:
         self.ctl = controller
+        self.page = page                                # the build of the page that is served (server.page_build), told in hello
         self.out = Publisher(validate_out)
         self.clients = self.out.connections             # the open pages, by their sockets
         self.hub = StateHub()
@@ -84,7 +85,7 @@ class Api:
     def attach(self, client: Client, ip: str = "127.0.0.1") -> None:
         """A page opened: it is sent `hello`, every topic whole (it follows them from then on) and `status` (which waits for the database to count the packets)."""
         conn = self.out.open(client, ip)
-        conn.send({"type": "hello", "protocol": PROTOCOL, "version": VERSION, "install": asdict(self.ctl.install), "topics": list(self.hub.topics)})
+        conn.send({"type": "hello", "protocol": PROTOCOL, "version": VERSION, "page": self.page, "install": asdict(self.ctl.install), "topics": list(self.hub.topics)})
         self.hub.attach(conn)
         self.tasks.spawn(self._tell_status(conn), "web-status")
 

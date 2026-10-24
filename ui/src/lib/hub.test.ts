@@ -11,6 +11,7 @@ import type {
   OwnObjectRow,
   PacketRow,
   PortsMessage,
+  RadioSearchMessage,
   StationPref,
   StationRow,
   TncState,
@@ -27,6 +28,7 @@ function memory() {
     series: [] as WeatherSeriesMessage[],
     alerts: [] as AlertResultMessage[],
     ports: [] as PortsMessage[],
+    searches: [] as RadioSearchMessage[],
     updates: [] as UpdateResultMessage[],
     stations: new Map<string, StationRow>(),
     packets: new Map<string, PacketRow>(),
@@ -51,6 +53,7 @@ function memory() {
     weatherSeries: (m) => seen.series.push(m),
     alertResult: (m) => seen.alerts.push(m),
     ports: (m) => seen.ports.push(m),
+    radioSearch: (m) => seen.searches.push(m),
     updateResult: (m) => seen.updates.push(m),
     replaceStations: (rows) => (seen.stations = new Map(Object.entries(rows))),
     replacePackets: (rows) => (seen.packets = new Map(Object.entries(rows))),
@@ -190,6 +193,15 @@ describe("Hub", () => {
     expect(seen.ports).toEqual([answer]);
   });
 
+  it("hands the steps and the end of find_radio to the store as they are", () => {
+    const { seen, socket } = opened();
+    const trying = { type: "radio_search", state: "trying", port: "/dev/ttyUSB0", baud: 9600, profile: "", number: 1, total: 14 };
+    const found = { type: "radio_search", state: "found", port: "/dev/ttyUSB0", baud: 9600, profile: "kenwood-tnc2", number: 0, total: 0 };
+    socket.say(trying);
+    socket.say(found);
+    expect(seen.searches).toEqual([trying, found]);
+  });
+
   it("follows the message board by sender and slot: a bulletin heard again is set again, one that was deleted is gone", () => {
     const { seen, socket } = opened();
     socket.say(state("bulletins", 0, { "OH2XYZ/BLN1": bulletin("BLN1"), "OH2ABC/BLNA": bulletin("BLNA", { sender: "OH2ABC", kind: "announcement" }) }));
@@ -238,16 +250,16 @@ describe("Hub", () => {
 
   it("follows what is set for the stations: a path (an empty one is direct) and a timeout, each null where none is set", () => {
     const { seen, socket } = opened();
-    socket.say(state("station_prefs", 0, { OH2RDG: { path: "WIDE2-1", hide_after_min: null } }));
+    socket.say(state("station_prefs", 0, { OH2RDG: { path: "WIDE2-1" } }));
     socket.say(
       patch("station_prefs", 1, [
-        { op: "set", key: "OH2XYZ", value: { path: null, hide_after_min: 0 } },
-        { op: "set", key: "OH2RDG", value: { path: "OH2RCH-2,WIDE2-1", hide_after_min: 90 } },
+        { op: "set", key: "OH2XYZ", value: { path: null } },
+        { op: "set", key: "OH2RDG", value: { path: "OH2RCH-2,WIDE2-1" } },
       ]),
     );
     expect([...seen.prefs.entries()]).toEqual([
-      ["OH2RDG", { path: "OH2RCH-2,WIDE2-1", hide_after_min: 90 }],
-      ["OH2XYZ", { path: null, hide_after_min: 0 }],
+      ["OH2RDG", { path: "OH2RCH-2,WIDE2-1" }],
+      ["OH2XYZ", { path: null }],
     ]);
     socket.say(patch("station_prefs", 2, [{ op: "del", key: "OH2RDG" }]));
     expect([...seen.prefs.keys()]).toEqual(["OH2XYZ"]);

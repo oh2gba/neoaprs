@@ -12,7 +12,7 @@ from neoaprs.configstatus import MAX_STATUS
 from neoaprs.decay import ANNOUNCEMENT, BULLETIN
 from neoaprs.message import EMAIL_ATTEMPTS, STATION_ATTEMPTS
 from neoaprs.ownbulletin import MAX_POSTED
-from neoaprs.policy import HIDE_AFTER_MIN, LOG_KEEP_DAYS, MAX_HIDE_AFTER_MIN, TNC_CHECK_SEC
+from neoaprs.policy import HIDE_AFTER_MIN, LOG_KEEP_DAYS, TNC_CHECK_SEC
 from neoaprs.services.beacon import FIRST_DELAY_SEC
 from neoaprs.services.ownobjects import MAX_OBJECTS
 from neoaprs.services.pace import SPACING_SEC
@@ -60,8 +60,8 @@ DESCRIPTIONS: dict[str, tuple[str, str]] = {
     "tcp/host": ("Settings tab, TNC", "where the `kiss-tcp` type connects when `serial/port` is empty. The serial types ignore it"),
     "tcp/port": ("Settings tab, TNC", "the KISS port of that program ({tcp_port}): Direwolf 8001, UZ7HO SoundModem and QtSoundModem 8100"),
     "serial/last_port": (DAEMON_MEMORY, "the port the search found last time, tried first while `serial/port` is empty. Written by the daemon; the page shows it as `found: PORT` beside an automatic Port"),
-    "serial/pattern": (DB_ONLY, "the device files the search listens to (Linux only): shell globs (`*`, `?`, `[0-3]`), each an absolute path, separated by spaces. A device that several globs match keeps the name of the earliest glob, so a stable `by-id` name comes first. A change restarts the search ([radio.md](radio.md#finding-the-radio))"),
-    "serial/skip": (DB_ONLY, "ports the search never opens, separated by commas (`/dev/brainbox_2`, a rotator's adapter, say)"),
+    "serial/pattern": (DB_ONLY, "the device files the search listens to (Linux only): shell globs (`*`, `?`, `[0-3]`), each an absolute path, separated by spaces. A device that several globs match keeps the name of the earliest glob, so a stable `by-id` name comes first. A change restarts the search, and **Find my radio** tries the same ports ([radio.md](radio.md#finding-the-radio))"),
+    "serial/skip": (DB_ONLY, "ports the search never opens, nor does **Find my radio**, separated by commas (`/dev/brainbox_2`, a rotator's adapter, say)"),
     "web/network": ("Settings tab, Web page", "`true` lets other devices on the network open the page: it then listens on every interface, and a device other than this computer logs in with `web/key` first. It counts at once, with no restart ([network.md](network.md))"),
     "web/key": ("Settings tab, Web page", "the access key a device on the network types to log in: three groups of four lowercase letters and digits without `0 1 i l o` (`k7m2-x9pq-4hrt`). Made by the daemon when `web/network` is first on; a key of your own is accepted in the same form. A new one logs every device out"),
     "web/https": ("Settings tab, Web page", "`true` (with `web/network`) also serves the page over https, on the port after `web/port`, with a certificate NeoAPRS makes itself ([network.md](network.md#the-secure-connection-https))"),
@@ -117,8 +117,8 @@ def fixed() -> str:
     updates = int(UPDATE_EVERY_SEC // 3600)
     items = [
         f"Packets, weather observations and stations are kept {LOG_KEEP_DAYS} days and cleaned up once a day. Messages and bulletins are kept until you delete them.",
-        f"A station leaves the map {HIDE_AFTER_MIN} minutes ({_hours(HIDE_AFTER_MIN)}) after its last position. A station can have a timeout of its own, up to {MAX_HIDE_AFTER_MIN} minutes, or 0 for never.",
-        f"The keep-alive asks a TNC that can be asked after {TNC_CHECK_SEC} seconds of silence on the line.",
+        f"A station leaves the map {HIDE_AFTER_MIN} minutes ({_hours(HIDE_AFTER_MIN)}) after its last position.",
+        f"The keep-alive asks a TNC that can be asked after {TNC_CHECK_SEC // 60} minutes of silence on the line (and a random minute or two more).",
         f"A message to a station is sent {STATION_ATTEMPTS} times, and one to the email gateway {EMAIL_ATTEMPTS} times, before it has failed or is unconfirmed.",
         f"Your own frames go out at least {int(SPACING_SEC)} seconds apart, except acks, answers to queries and digipeated packets.",
         f"The first beacon goes out {int(FIRST_DELAY_SEC)} seconds after the daemon starts.",

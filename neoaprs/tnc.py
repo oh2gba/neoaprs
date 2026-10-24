@@ -32,7 +32,7 @@ from .signal import Signal
 from .source import CHECKING, Backoff, Source, minutes_between, unusable_because
 from .tncentry import KissEntry
 from .tnclines import TimedSource
-from .tncmode import Mode, ModeDetector, looks_valid, packet_of, read_frame
+from .tncmode import Mode, ModeDetector, TextAfterKiss, looks_valid, packet_of, read_frame
 from .tncsearch import PortSearch
 from .tncprofile import KENWOOD_TNC2, KISS_EXIT as KISS_EXIT, Profile
 from .tncwatchdog import ANSWER_SEC, CHECK_PAUSE_SEC, PROBE_SEC, PROMPT, REPLY_SEC, TncStats, Watchdog
@@ -106,6 +106,7 @@ class Tnc(TimedSource):
         self._dropped_seen = 0
         self._entered = False                                            # KISS ON was sent on this open
         self._kiss_seen = False
+        self._typed = TextAfterKiss()                                    # text after KISS frames: the radio was restarted
         self._told_text = False
         self.confirmed = not self._must_confirm()                        # a byte came on this open, or the profile needs none: until then a TNC that can be asked is not `usable`
         self._settle_until = 0.0
@@ -193,6 +194,7 @@ class Tnc(TimedSource):
             return
         loop_now = asyncio.get_running_loop().time()
         self.stats.bytes_in += len(chunk)
+        typed = self._typed.feed(chunk)                                  # (text since the latest FEND: after KISS frames, the radio was restarted)
         self.confirmed = True
         self.watchdog.heard()
         if self.state is Source.State.SILENT:
@@ -202,6 +204,9 @@ class Tnc(TimedSource):
         if loop_now < self._settle_until:
             return
         mode = self._detector.feed(chunk)
+        if typed and mode is Mode.KISS and self._kiss_seen and self.profile.detect_command_mode:
+            self._kiss_seen = self._told_text = False                    # switched to KISS again now, not at the next check: text keeps the line from going quiet
+            return self._enter_kiss(port, "the TNC is in command mode again (the radio was restarted)")
         if mode is Mode.KISS:
             self._kiss_seen = True
         elif mode is Mode.MONITOR:
@@ -365,11 +370,16 @@ class Tnc(TimedSource):
         return list(self._search.listening) if self._port is None else []
 
     def describe(self) -> str:
-        if self.state is Source.State.SILENT and self.last_byte_at is not None:
-            return f"silent since {self.last_byte_at:%H:%M} ({minutes_between(self.last_byte_at, self.now())})"
-        if self.searching:
-            return f"listening on {', '.join(self.searching)} for the radio"
-        if self._port is None:
-            return f"{self.path or self.port or 'no port'}{_speed(self.path or self.port, self.baud)}, {self.state.value}"
-        mode = "KISS" if self._kiss_seen else ("entering KISS" if self._entered else "listening")
-        return f"{self.path}{_speed(self.path, self.baud)}, {mode}, {self.stats.packets} packets"
+        return _describe(self)
+
+
+def _describe(tnc: "Tnc") -> str:
+    """The Tnc in a few words, for the radio's status line."""
+    if tnc.state is Source.State.SILENT and tnc.last_byte_at is not None:
+        return f"silent since {tnc.last_byte_at:%H:%M} ({minutes_between(tnc.last_byte_at, tnc.now())})"
+    if tnc.searching:
+        return f"listening on {', '.join(tnc.searching)} for the radio"
+    if tnc._port is None:
+        return f"{tnc.path or tnc.port or 'no port'}{_speed(tnc.path or tnc.port, tnc.baud)}, {tnc.state.value}"
+    mode = "KISS" if tnc._kiss_seen else ("entering KISS" if tnc._entered else "listening")
+    return f"{tnc.path}{_speed(tnc.path, tnc.baud)}, {mode}, {tnc.stats.packets} packets"

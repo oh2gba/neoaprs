@@ -85,10 +85,13 @@ def test_recount_tells_the_stations_whose_hour_became_shorter_and_only_those() -
     book.take(heard(b"!4903.50N/07201.75W-Test", "OH2AAA", at=clock()))
     book.take(heard(b"!4903.50N/07201.75W-Test", "OH2BBB", at=clock()))
     clock.advance(20 * 60)
-    assert book.recount() == [] and told == []
+    book.recount()
+    assert told == []
     clock.advance(15 * 60)                                      # (the first packet of OH2AAA is an hour old)
-    assert [s.call for s in book.recount()] == ["OH2AAA"] and told == [("OH2AAA", 1)]
-    assert book.recount() == []
+    book.recount()
+    assert told == [("OH2AAA", 1)]
+    book.recount()
+    assert told == [("OH2AAA", 1)]
 
 
 def test_the_book_starts_with_the_packets_of_the_last_hour_the_log_kept() -> None:
