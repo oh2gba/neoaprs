@@ -20,7 +20,7 @@ _OTHER_KINDS = {b"T": "telemetry", b"_": "weather", b"$": "nmea", b"?": "query",
 _MICE = (b"'", b"`", b"\x1c", b"\x1d")
 _OBJECT_HEAD = 9 + 1 + 7                              # name, "*" or "_", timestamp: the position follows
 _ITEM_NAME = range(3, 10)                             # where the "!" or "_" that ends an item's name can be
-_BANG_LIMIT = 40                                      # the "!" of a position may be anywhere up to the 40th character (a digipeater of the X1J kind puts its own text first)
+_BANG_LIMIT = 40                                      # the "!" of a position may be anywhere up to the 40th character (a digipeater of the X1J kind puts its own text first; deprecated since 2012, still read)
 _AGRELO = re.compile(r"%(\d{3})%(\d)")
 _ITEM_SPLIT = re.compile(r"[,\r\n]+")
 
@@ -154,7 +154,8 @@ def _dispatch(first: bytes, info: bytes, source: str, destination: str, now: dat
 
 
 def _bang_position(info: bytes, now: datetime) -> Position | None:
-    """The position of a `!` report that has text in front of it (up to the 40th character), the text kept as the start of the comment; None when there is none."""
+    """The position of a `!` report that has text in front of it (up to the 40th character), the text kept as the start of the comment; None when there is none. The APRS 1.2 corrections call this
+    X1J exception deprecated (2012: the `!` belongs at the start only); old digipeaters still send it, so it is read and never sent."""
     bang = info.find(b"!", 1, _BANG_LIMIT)
     if bang < 0:
         return None

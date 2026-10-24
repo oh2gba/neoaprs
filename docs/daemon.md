@@ -236,7 +236,8 @@ described in `neoaprs/migrations.py` and `neoaprs/migrations2.py`; how the datab
 - **`!DAO!`** (APRS 1.2, chapter 5) anywhere in the comment of a position, an object, an item or a Mic-E packet is taken out of the comment and makes the
   latitude and longitude finer: `!W12!` (datum letter in capitals) adds a digit of thousandths of a minute to each, `!w5L!` (lower case) a base-91 value of
   0 to 0.0099 minutes, a blank nothing; the last one counts. A compressed position (finer already) and an ambiguous one are not moved.
-- A `!` position may come after up to 39 characters of text (a digipeater of the X1J kind): the text is the start of the comment.
+- A `!` position may come after up to 39 characters of text (a digipeater of the X1J kind): the text is the start of the comment. The specification has deprecated
+  this since 2012; it is still read, for old digipeaters.
 - A timestamp with `/` is the sender's local time: kept as sent with `Position.timestamp_local` set. The MMDDhhmm of a positionless weather report is its time (`Other.timestamp`).
 - **Raw NMEA** (`$GPGGA`, `$GPGLL`, `$GPRMC`, `$GPWPL`, any talker; the checksum is checked when there is one) is a position with course, speed, altitude and
   time. Its symbol is the one of the destination (`GPSxyz`, `GPSCnn`, `GPSEnn`, `SPCxyz`), else the icon of the source's SSID, else the unknown position.
