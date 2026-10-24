@@ -72,7 +72,8 @@ def test_the_lists_of_the_page_are_the_daemons_own() -> None:
     for key in KEYS:
         assert json.dumps(key) in lists
     assert "export const LIMITS = {" in lists and "textMax: %d" % MAX_TEXT in lists
-    assert json.dumps(list(TOPIC_NAMES)) in lists
+    topics = lists.split("export const TOPIC_NAMES = ", 1)[1].split(" as const;", 1)[0]
+    assert re.findall(r'"(\w+)"', topics) == list(TOPIC_NAMES)
 
 
 def test_the_reference_documents_every_command_message_and_model() -> None:
@@ -149,6 +150,7 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
               {"type": "error", "cmd": "", "key": None, "code": "not_json", "params": {}, "text": "That is not JSON (Expecting value)"}],
     "state": [{"type": "state", "topic": "stations", "rev": 0, "value": {"OH2RDK-7": STATION}}, {"type": "state", "topic": "packets", "rev": 3, "value": {"7": PACKET}},
               {"type": "state", "topic": "tnc", "rev": 1, "value": TNC}, {"type": "state", "topic": "config", "rev": 0, "value": CONFIG},
+              {"type": "state", "topic": "update", "rev": 4, "value": {"supported": True, "state": "downloading", "version": "0.7.0", "percent": 42, "downloaded": 63_000_000, "total": 150_000_000, "problem": "", "detail": ""}},
               {"type": "state", "topic": "messages", "rev": 2, "value": {"3": MESSAGE_ROW}}, {"type": "state", "topic": "bulletins", "rev": 1, "value": {"OH2XYZ/BLN3HAMS": BULLETIN_ROW}},
               {"type": "state", "topic": "own_objects", "rev": 1, "value": {"LEADER": OWN_OBJECT_ROW}}, {"type": "state", "topic": "own_bulletins", "rev": 1, "value": {"BLN3HAMS": OWN_BULLETIN_ROW}},
               {"type": "state", "topic": "station_prefs", "rev": 1,
@@ -195,6 +197,7 @@ COMMAND_EXAMPLES: dict[str, dict[str, Any]] = {
     "object_kill": {"cmd": "object_kill", "name": "LEADER"},
     "bulletin_post": {"cmd": "bulletin_post", "slot": "BLN3HAMS", "text": "Net tonight at 20:00"}, "bulletin_unpost": {"cmd": "bulletin_unpost", "slot": "BLN3HAMS"},
     "map_estimate": {"cmd": "map_estimate"}, "map_fetch": {"cmd": "map_fetch"}, "map_cancel": {"cmd": "map_cancel"},
+    "update_now": {"cmd": "update_now", "version": "0.7.0"}, "update_cancel": {"cmd": "update_cancel"},
 }
 
 

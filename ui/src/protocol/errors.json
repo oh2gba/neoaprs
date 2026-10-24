@@ -61,5 +61,11 @@
  "status.not_sent": {"params": ["reason"], "text": ["nothing was sent: {reason}"]},
  "too_big": {"params": ["kind", "max", "megabytes"], "text": ["The {kind} answer is {*} MB, too big to send ({max} MB at most)"]},
  "topic.unknown": {"params": ["names"], "text": []},
- "unknown_command": {"params": ["name"], "text": ["unknown command '{name}'"]}
+ "unknown_command": {"params": ["name"], "text": ["unknown command '{name}'"]},
+ "update.blocked": {"params": ["reason"], "text": ["NeoAPRS cannot update itself here: {reason}"]},
+ "update.busy": {"params": [], "text": ["an update is running already"]},
+ "update.no_file": {"params": ["version"], "text": ["the release {version} has no file for this copy of NeoAPRS"]},
+ "update.not_announced": {"params": ["version"], "text": ["{version} is not the version the update check announced"]},
+ "update.not_running": {"params": [], "text": ["no download of an update is running"]},
+ "update.unsupported": {"params": [], "text": ["this copy of NeoAPRS cannot update itself; the page has the steps"]}
 }

@@ -36,15 +36,21 @@
   margin: 0;
   pointer-events: none;
 }
-.headmail {
+.headmail,
+.headupdate {
   padding: 0 6px;
   border: 0;
   font: inherit;
   font-size: 12px;
   cursor: pointer;
 }
-.headmail.badge {
+.headmail.badge,
+.headupdate.badge {
   margin: 0 0 0 auto;
+}
+/* (a phone's newer version, at the right before the mail) */
+.headupdate + .headmail.badge {
+  margin-left: 0;
 }
 .panel-handle {
   flex: none;

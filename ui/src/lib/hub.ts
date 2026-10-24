@@ -28,7 +28,7 @@ export const MAX_DELAY_MS = 30000;
 type TopicName = keyof TopicValues;
 export type Connection = "connecting" | "open" | "closed";
 
-/** Where what the daemon says goes. A keyed topic (stations, packets, messages, bulletins, own_objects, own_bulletins, station_prefs) is told item by item, the others (tnc, config, map) as a whole. */
+/** Where what the daemon says goes. A keyed topic (stations, packets, messages, bulletins, own_objects, own_bulletins, station_prefs) is told item by item, the others (tnc, config, map, update) as a whole. */
 export interface Store {
   connection(state: Connection): void;
   hello(message: HelloMessage): void;
@@ -48,6 +48,7 @@ export interface Store {
   replaceTnc(value: TopicValues["tnc"]): void;
   replaceConfig(value: TopicValues["config"]): void;
   replaceMap(value: TopicValues["map"]): void;
+  replaceUpdate(value: TopicValues["update"]): void;
   setStation(key: string, row: StationRow): void;
   setPacket(key: string, row: PacketRow): void;
   setMessage(key: string, row: MessageRow): void;
@@ -263,6 +264,7 @@ export class Hub {
     else if (topic === "own_bulletins") this.store.replaceOwnBulletins(value as TopicValues["own_bulletins"]);
     else if (topic === "tnc") this.store.replaceTnc(value as TopicValues["tnc"]);
     else if (topic === "map") this.store.replaceMap(value as TopicValues["map"]);
+    else if (topic === "update") this.store.replaceUpdate(value as TopicValues["update"]);
     else this.store.replaceConfig(value as TopicValues["config"]);
   }
 

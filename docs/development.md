@@ -287,6 +287,35 @@ described for the user in [the manual](manual/install.md#windows). The uninstall
 `packaging/install.sh.in` is the template of `install.sh`; the `install-script` job renders it with the version and the wheel's address and tests it.
 `NEOAPRS_WHEEL_URL` takes another wheel address, which is how the workflow tests it.
 
+### Update now
+
+The update the daemon does itself, on a click of the page only (the command `update_now`), for the Windows installer and an AppImage (`neoaprs/services/selfupdate.py`,
+`neoaprs/services/selfinstall.py`). The other kinds have the steps on the page (`ui/src/lib/update.ts`).
+
+1. `update_now` names a version, which must be the one the update check announced (the `update` of `status`); the command goes over the page's socket, which only
+   a page of this computer or one that has logged in with the access key has (`neoaprs/web/access.py`), like every command that changes the daemon.
+2. The file for this copy (`neoaprs/updateasset.py`: `NeoAPRS-Setup-<version>.exe`, `NeoAPRS-<version>-x86_64.AppImage`) and `SHA256SUMS` are fetched from
+   `https://github.com/oh2gba/neoaprs/releases/download/v<version>/`. The address is built from the version alone, which must be digits and dots with an
+   optional `-rc1`; nothing else of the version page's answer is used (its `url` is never downloaded). A download is https only and may be redirected only to
+   `objects.githubusercontent.com` and `release-assets.githubusercontent.com`, where GitHub keeps the files (`neoaprs/updatedownload.py`); TLS is checked by
+   the system's certificates. `SHA256SUMS` comes first: a release that does not name the file installs nothing.
+3. The file is written as `<name>.part` while its SHA-256 is computed, with the percent in the topic `update` and `update_cancel` seen between two pieces. A
+   SHA-256 that is not the one `SHA256SUMS` gives deletes the file and installs nothing.
+4. The installer of the kind puts it in place: on Windows the installer runs silently and detached from the daemon (`installer_argv`: `/VERYSILENT
+   /SUPPRESSMSGBOXES /NORESTART /NOCLOSEAPPLICATIONS`, the log in `update/install.log` of the data folder, `/NEOAPRSRESTART=app` when the app holds its lock
+   of the data folder, else `daemon`, and `/NEOAPRSDATA`); `packaging/windows/neoaprs.iss` ends the app and the daemon of that folder before it replaces a
+   file and starts again what was running. An AppImage is made executable and renamed over the file it runs from (`$APPIMAGE`), the old one kept as `.old` (a
+   hard link, else a copy); the daemon writes `neoaprs.restarting` and `neoaprs.stop` into the data folder, ends, and the process runs the file again with
+   its arguments (`neoaprs/selfreplace.py`: `execv`, after the descriptors above stderr are closed; a file that cannot start puts the old one back). The new
+   version deletes the note and the `.old` once it runs; the desktop app, which ends with its daemon, waits for it while the note is fresh. A folder the user
+   cannot write offers no Update now.
+5. Still running five minutes later, the update says it did not restart.
+
+The build provenance of the release's files (`gh attestation verify FILE --repo oh2gba/neoaprs`) is not checked, since it needs `gh`: it is a possible later
+step. `NEOAPRS_INSTALL_KIND` (a simulated kind, for the screenshots) turns the last step into a rehearsal that deletes the file, and only then does
+`NEOAPRS_UPDATE_FROM` take a fake server's release folder instead of GitHub's. No test reaches the network: the downloads have a stand-in opener and the job a
+fake release (`tests/support/fakerelease.py`).
+
 ### The desktop app's tests
 
 The logic runs with no toolkit (fakes of the window and the tray; `tests/README.md`). The Windows shell is tried against stand-ins for pywebview, pystray and

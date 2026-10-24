@@ -18,7 +18,7 @@ import StationMap from "@/components/StationMap.vue";
 import StationsTable from "@/components/StationsTable.vue";
 import ToastBar from "@/components/ToastBar.vue";
 import UndoToast from "@/components/UndoToast.vue";
-import UpdatePanel from "@/components/UpdatePanel.vue";
+import UpdateDialog from "@/components/UpdateDialog.vue";
 import { useAppShell } from "@/composables/useAppShell";
 
 const {
@@ -51,8 +51,15 @@ const cancel = (id: number): boolean => send({ cmd: "message_cancel", id });
 
 <template>
   <div class="app" :class="layout.rootClass.value">
-    <AppHeader :call="call" :unread="unread" @messages="openUnread" @setup="guide.show()" />
-    <UpdatePanel v-if="updateOpen && newer" :version="newer" @close="updateOpen = false" />
+    <AppHeader
+      :call="call"
+      :unread="unread"
+      :update="layout.phone.value ? newer : null"
+      @messages="openUnread"
+      @setup="guide.show()"
+      @update="updateOpen = true"
+    />
+    <UpdateDialog v-if="updateOpen && newer" :version="newer" @close="updateOpen = false" />
     <main class="main">
       <div class="mapwrap">
         <StationMap

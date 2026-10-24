@@ -1,7 +1,7 @@
 // The types of the wire protocol between the daemon and the page, written from the models of neoaprs/web/protocol.py by scripts/gen-protocol.py: never edited by hand.
 // `Command` is what the page sends (tagged by `cmd`), `Message` what the daemon sends (tagged by `type`), `TopicValues` the value of each topic the page follows.
 
-export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | TncReconnectCommand | ListPortsCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | QueryStationCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationTimeoutCommand | ClearStationTimeoutCommand | SetStationRfOnlyCommand | WeatherSeriesCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapCancelCommand;
+export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | TncReconnectCommand | ListPortsCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | QueryStationCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationTimeoutCommand | ClearStationTimeoutCommand | SetStationRfOnlyCommand | WeatherSeriesCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand;
 
 export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | AlertResultMessage | UpdateResultMessage;
 
@@ -999,12 +999,19 @@ export interface TopicValues {
   own_bulletins: { [key: string]: OwnBulletinRow };
   /** the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps; told whole as it changes, at most four times a second */
   map: MapState;
+  /** Update now: whether this copy can update itself, and the steps of the update it is doing; told whole as it changes, at most four times a second */
+  update: UpdateState;
 }
 
 /** Stop following these topics. A topic that was not followed is ignored. */
 export interface UnsubscribeCommand {
   cmd: "unsubscribe";
   topics: string[];
+}
+
+/** Ends the download of Update now; nothing of it is left. An `error` (`update.not_running`) when no download is running: an install that has begun is not stopped. */
+export interface UpdateCancelCommand {
+  cmd: "update_cancel";
 }
 
 /** A newer version than the daemon's, as the version page named it (services/updatecheck.py). */
@@ -1017,6 +1024,12 @@ export interface UpdateInfo {
   message: string;
 }
 
+/** Starts Update now to `version`, which must be the version the update check announced (the `update` of `status`): the daemon fetches the file for this copy and SHA256SUMS from the GitHub release of exactly that version, checks the file's SHA-256 and installs it, and NeoAPRS restarts. The progress is the topic `update`. An `error` when this copy cannot update itself (`update.unsupported`, `update.blocked`), the version is not the one announced (`update.not_announced`) or an update is running (`update.busy`). */
+export interface UpdateNowCommand {
+  cmd: "update_now";
+  version: string;
+}
+
 /** The answer to `update_check`: what the version page said, or why it said nothing. */
 export interface UpdateResultMessage {
   type: "update_result";
@@ -1026,6 +1039,26 @@ export interface UpdateResultMessage {
   version: string;
   /** for `no_answer` why, in a sentence; empty otherwise */
   text: string;
+}
+
+/** Update now (neoaprs/services/selfupdate.py): whether this copy can update itself, and the steps of the update it is doing. The value of the topic `update`, told whole as it changes, at most four times a second. */
+export interface UpdateState {
+  /** this copy can update itself (the Windows installer, an AppImage in a folder its user can write): the page offers Update now; else it shows the steps */
+  supported: boolean;
+  /** `idle`: no update is running. `downloading`: SHA256SUMS and then the file of the release are fetched (`percent`). `verifying`: the file's SHA-256 is held to SHA256SUMS. `installing`: the file is put in place. `restarting`: NeoAPRS ends and starts again as the new version (the page loses its socket and finds the new daemon). `error`: the update failed, `problem` says how */
+  state: "idle" | "downloading" | "verifying" | "installing" | "restarting" | "error";
+  /** the version being installed; empty while idle */
+  version: string;
+  /** how much of the file has come; null when the server did not say its size */
+  percent: number | null;
+  /** the bytes of the file so far */
+  downloaded: number;
+  /** the size of the file in bytes, when the server said it */
+  total: number | null;
+  /** for `error`: `download` (the file or SHA256SUMS could not be fetched), `no_checksum` (SHA256SUMS does not name the file), `checksum` (the file's SHA-256 is not the one SHA256SUMS gives it: it was deleted), `install` (it could not be put in place, or the installer could not be started), `no_restart` (it was installed but NeoAPRS did not restart); empty otherwise */
+  problem: "" | "download" | "no_checksum" | "checksum" | "install" | "no_restart";
+  /** the English sentence of the problem, for the log and the page's details; empty when all is well */
+  detail: string;
 }
 
 /** Asks for the observations a weather station made in the last `hours` hours. Answered with a `weather_series` message to the page that asked, or an `error` for a call that is empty or hours out of range; a call with no observations is answered with no points. */

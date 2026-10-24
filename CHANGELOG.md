@@ -25,6 +25,13 @@ The path of a message, and the path settings.
 - The **Route** box of a conversation no longer offers a suggested path to click. One line says what is used: **Automatic: via OH2RDG,OH2RCH-2, then WIDE1-1,WIDE2-1**, **Automatic: direct, then WIDE1-1,WIDE2-1**, **Automatic: WIDE1-1,WIDE2-1**, or **Your path: ...** when you set one. An empty field is the automatic choice; the x gives it back; the word **DIRECT** is a path of no digipeaters. (An empty path of a station used to mean direct: stored paths are not changed, only typing an empty one now clears it.)
 - An empty path is never "no digipeaters" again. The Beacon tab's Advanced path is one choice, **Recommended (WIDE1-1,WIDE2-1)**, **Direct only (no digipeaters)** or **Custom...** (a field for the calls, applied on Enter or when it is left). A database whose `beacon/path` was cleared (it meant none) is changed once to Direct only, so that nothing starts to digipeat after the update; `WIDE1-1,WIDE2-1` shows as Recommended, any other path as Custom. In the database an empty `beacon/path` is the recommended path and `DIRECT` is none; the path of an object or item may be `DIRECT` too. The fallback of the automatic choice (attempts 3 and 4, `EMAIL-2`, bulletins, answers to queries) follows the setting.
 - The station row of the wire has a new field `heard_path` (the heard path, null for none). The page's words are in all seven languages.
+Updating.
+
+- **Update now** for the Windows installer and the AppImage: on a click, NeoAPRS downloads the file of exactly the announced version from the GitHub release and its `SHA256SUMS`, checks the file's SHA-256 (a file that does not match is deleted and nothing is installed), installs it and restarts. Windows runs the installer without a window, which starts again what was running; an AppImage is replaced under its own name, the old file kept as `.old` until the new version runs. The progress, a Cancel while it downloads and a failure in plain words are in the window, with the steps by hand.
+- The update is a window in the middle of the page (the whole screen on a phone): "NeoAPRS <version> is available", the version you have, what is new, then the steps for the way this copy was installed, in plain words, each file a button and each command with Copy. The .deb gets the package of the machine's architecture and one `apt` command; pip the release's wheel.
+- A phone shows the newer version in the header too, because its map has no footer.
+- The Windows installer, run silently by Update now, starts again the app or the daemon on the same data folder.
+- The wire: the topic `update` and the commands `update_now` and `update_cancel`. `NEOAPRS_INSTALL_KIND` simulates an install kind for development.
 
 ## 0.6.7
 

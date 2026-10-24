@@ -21,7 +21,7 @@ import SetupSymbol from "@/components/SetupSymbol.vue";
 import SymbolField from "@/components/SymbolField.vue";
 import SymbolPicker from "@/components/SymbolPicker.vue";
 import UndoToast from "@/components/UndoToast.vue";
-import UpdatePanel from "@/components/UpdatePanel.vue";
+import UpdateDialog from "@/components/UpdateDialog.vue";
 import { useSetupGuide } from "@/composables/useSetupGuide";
 import { en } from "@/i18n/en";
 import { texts, type Message } from "@/i18n/message";
@@ -156,7 +156,12 @@ describe("the settings area in the pseudo-locale", () => {
     expect(untranslated(draw(PopupHelp, context, { https }))).toEqual([]);
     expect(untranslated(draw(PopupHelp, context, { https: null }))).toEqual([]);
     expect(untranslated(draw(HttpsGuide, context, { https }))).toEqual([]);
-    expect(untranslated(draw(UpdatePanel, context, { version: "0.7.0" }))).toEqual([]);
+    expect(untranslated(draw(UpdateDialog, context, { version: "0.7.0" }))).toEqual([]);
+    const job = { supported: true, state: "error", version: "0.7.0", percent: null, downloaded: 0, total: null, problem: "checksum", detail: "" } as const;
+    context.selfUpdate.value = job;
+    expect(untranslated(draw(UpdateDialog, context, { version: "0.7.0" }))).toEqual([]);
+    context.selfUpdate.value = { ...job, state: "downloading", percent: 5, problem: "" };
+    expect(untranslated(draw(UpdateDialog, context, { version: "0.7.0" }))).toEqual([]);
   });
 
   it("would notice a text written by hand", () => {

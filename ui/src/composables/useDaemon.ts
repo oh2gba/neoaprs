@@ -1,4 +1,4 @@
-// The daemon as the page sees it: the ten topics as reactive state (the stations' own paths and timeouts are `stationPrefs`), the status, the latest answer to `weather_series`, to `alert_test` and to `list_ports`, the state of the connection, and `send`. Opens the socket when the component that calls it is mounted and
+// The daemon as the page sees it: the eleven topics as reactive state (the stations' own paths and timeouts are `stationPrefs`), the status, the latest answer to `weather_series`, to `alert_test` and to `list_ports`, the state of the connection, and `send`. Opens the socket when the component that calls it is mounted and
 // closes it when it is unmounted. The conversation itself is lib/hub.ts.
 import { onBeforeUnmount, onMounted, ref, shallowReactive, shallowRef, type Ref } from "vue";
 import type {
@@ -13,6 +13,7 @@ import type {
   StationRow,
   StatusMessage,
   TncState,
+  UpdateState,
 } from "@/protocol/protocol";
 import { useAnswers } from "@/composables/useAnswers";
 import { useOwnTables } from "@/composables/useOwnTables";
@@ -40,6 +41,23 @@ function fill<T>(into: Map<string, T>, rows: Record<string, T>, done?: Ref<boole
   if (done) done.value = true;
 }
 
+/** The topics that are told whole: the radio, the settings, the base map and Update now. */
+function useWholeTopics() {
+  const refs = {
+    tnc: shallowRef<TncState | null>(null),
+    config: shallowRef<ConfigValues | null>(null),
+    map: shallowRef<MapState | null>(null),
+    selfUpdate: shallowRef<UpdateState | null>(null),
+  };
+  const handlers: Pick<Store, "replaceTnc" | "replaceConfig" | "replaceMap" | "replaceUpdate"> = {
+    replaceTnc: (value) => (refs.tnc.value = value),
+    replaceConfig: (value) => (refs.config.value = value),
+    replaceMap: (value) => (refs.map.value = value),
+    replaceUpdate: (value) => (refs.selfUpdate.value = value),
+  };
+  return { refs, handlers };
+}
+
 export function useDaemon(url: () => string = socketUrl) {
   const stations = shallowReactive(new Map<string, StationRow>());
   const packets = shallowReactive(new Map<string, PacketRow>());
@@ -49,9 +67,7 @@ export function useDaemon(url: () => string = socketUrl) {
   const stationPrefs = shallowReactive(new Map<string, StationPref>());
   const own = useOwnTables();
   const answers = useAnswers();
-  const tnc = shallowRef<TncState | null>(null);
-  const config = shallowRef<ConfigValues | null>(null);
-  const map = shallowRef<MapState | null>(null);
+  const whole = useWholeTopics();
   const status = shallowRef<StatusMessage | null>(null);
   const connection = ref<Connection>("connecting");
   const lastError = shallowRef<Toast | null>(null);
@@ -74,9 +90,7 @@ export function useDaemon(url: () => string = socketUrl) {
     replaceStationPrefs: (rows) => fill(stationPrefs, rows),
     ...own.handlers,
     ...answers.handlers,
-    replaceTnc: (value) => (tnc.value = value),
-    replaceConfig: (value) => (config.value = value),
-    replaceMap: (value) => (map.value = value),
+    ...whole.handlers,
     setStation: (key, row) => void stations.set(key, row),
     setPacket: (key, row) => void packets.set(key, row),
     setMessage: (key, row) => void messages.set(key, row),
@@ -111,9 +125,7 @@ export function useDaemon(url: () => string = socketUrl) {
     stationPrefs,
     ownObjects: own.ownObjects,
     ownBulletins: own.ownBulletins,
-    tnc,
-    config,
-    map,
+    ...whole.refs,
     status,
     connection,
     lastError,

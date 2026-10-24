@@ -21,6 +21,7 @@ import type {
   StatusMessage,
   TncState,
   UpdateResultMessage,
+  UpdateState,
   WeatherSeriesMessage,
 } from "@/protocol/protocol";
 
@@ -33,6 +34,8 @@ export interface DaemonContext {
   status: Read<StatusMessage | null>;
   tnc: Read<TncState | null>;
   map: Read<MapState | null>;
+  /** Update now: whether this copy can update itself, and how the update it is doing goes */
+  selfUpdate: Read<UpdateState | null>;
   ports: Read<PortsMessage | null>;
   alertResult: Read<AlertResultMessage | null>;
   updateResult: Read<UpdateResultMessage | null>;

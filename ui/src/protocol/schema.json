@@ -3911,6 +3911,10 @@
         "map": {
           "$ref": "#/$defs/MapState",
           "description": "the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps; told whole as it changes, at most four times a second"
+        },
+        "update": {
+          "$ref": "#/$defs/UpdateState",
+          "description": "Update now: whether this copy can update itself, and the steps of the update it is doing; told whole as it changes, at most four times a second"
         }
       },
       "required": [
@@ -3923,7 +3927,8 @@
         "bulletins",
         "own_objects",
         "own_bulletins",
-        "map"
+        "map",
+        "update"
       ],
       "title": "TopicValues",
       "type": "object"
@@ -3953,6 +3958,21 @@
       "title": "UnsubscribeCommand",
       "type": "object"
     },
+    "UpdateCancel": {
+      "additionalProperties": false,
+      "description": "Ends the download of Update now; nothing of it is left. An `error` (`update.not_running`) when no download is running: an install that has begun is not stopped.",
+      "properties": {
+        "cmd": {
+          "const": "update_cancel",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd"
+      ],
+      "title": "UpdateCancelCommand",
+      "type": "object"
+    },
     "UpdateInfo": {
       "additionalProperties": false,
       "description": "A newer version than the daemon's, as the version page named it (services/updatecheck.py).",
@@ -3976,6 +3996,27 @@
         "message"
       ],
       "title": "UpdateInfo",
+      "type": "object"
+    },
+    "UpdateNow": {
+      "additionalProperties": false,
+      "description": "Starts Update now to `version`, which must be the version the update check announced (the `update` of `status`): the daemon fetches the file for this copy and SHA256SUMS from the GitHub release of exactly that\nversion, checks the file's SHA-256 and installs it, and NeoAPRS restarts. The progress is the topic `update`. An `error` when this copy cannot update itself (`update.unsupported`, `update.blocked`), the version\nis not the one announced (`update.not_announced`) or an update is running (`update.busy`).",
+      "properties": {
+        "cmd": {
+          "const": "update_now",
+          "type": "string"
+        },
+        "version": {
+          "maxLength": 40,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "version"
+      ],
+      "title": "UpdateNowCommand",
       "type": "object"
     },
     "UpdateResultMsg": {
@@ -4011,6 +4052,90 @@
         "text"
       ],
       "title": "UpdateResultMessage",
+      "type": "object"
+    },
+    "UpdateState": {
+      "additionalProperties": false,
+      "description": "Update now (neoaprs/services/selfupdate.py): whether this copy can update itself, and the steps of the update it is doing. The value of the topic `update`, told whole as it changes, at most four times a second.",
+      "properties": {
+        "supported": {
+          "description": "this copy can update itself (the Windows installer, an AppImage in a folder its user can write): the page offers Update now; else it shows the steps",
+          "type": "boolean"
+        },
+        "state": {
+          "description": "`idle`: no update is running. `downloading`: SHA256SUMS and then the file of the release are fetched (`percent`). `verifying`: the file's SHA-256 is held to SHA256SUMS. `installing`: the file is put in place. `restarting`: NeoAPRS ends and starts again as the new version (the page loses its socket and finds the new daemon). `error`: the update failed, `problem` says how",
+          "enum": [
+            "idle",
+            "downloading",
+            "verifying",
+            "installing",
+            "restarting",
+            "error"
+          ],
+          "type": "string"
+        },
+        "version": {
+          "description": "the version being installed; empty while idle",
+          "type": "string"
+        },
+        "percent": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "how much of the file has come; null when the server did not say its size"
+        },
+        "downloaded": {
+          "description": "the bytes of the file so far",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "total": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the size of the file in bytes, when the server said it"
+        },
+        "problem": {
+          "description": "for `error`: `download` (the file or SHA256SUMS could not be fetched), `no_checksum` (SHA256SUMS does not name the file), `checksum` (the file's SHA-256 is not the one SHA256SUMS gives it: it was deleted), `install` (it could not be put in place, or the installer could not be started), `no_restart` (it was installed but NeoAPRS did not restart); empty otherwise",
+          "enum": [
+            "",
+            "download",
+            "no_checksum",
+            "checksum",
+            "install",
+            "no_restart"
+          ],
+          "type": "string"
+        },
+        "detail": {
+          "description": "the English sentence of the problem, for the log and the page's details; empty when all is well",
+          "type": "string"
+        }
+      },
+      "required": [
+        "supported",
+        "state",
+        "version",
+        "percent",
+        "downloaded",
+        "total",
+        "problem",
+        "detail"
+      ],
+      "title": "UpdateState",
       "type": "object"
     },
     "WeatherSeries": {
@@ -4325,7 +4450,9 @@
           "subscribe": "#/$defs/Subscribe",
           "tnc_reconnect": "#/$defs/TncReconnect",
           "unsubscribe": "#/$defs/Unsubscribe",
+          "update_cancel": "#/$defs/UpdateCancel",
           "update_check": "#/$defs/CheckUpdate",
+          "update_now": "#/$defs/UpdateNow",
           "weather_series": "#/$defs/WeatherSeries"
         },
         "propertyName": "cmd"
@@ -4429,6 +4556,12 @@
         },
         {
           "$ref": "#/$defs/MapCancel"
+        },
+        {
+          "$ref": "#/$defs/UpdateNow"
+        },
+        {
+          "$ref": "#/$defs/UpdateCancel"
         }
       ],
       "title": "Command"
