@@ -24,7 +24,7 @@
   --wx-rain: #1565c0;
   --control-h: 32px; /* every text button, input and select of a form or a toolbar */
   --control-h-small: 24px; /* .btn.small: the compact button inside a list row, a bubble or a line of text */
-  --action-w: 11em; /* the least width of the button that is the action of a row: Beacon now, Test sound, Check now, Find my radio, Download map, Choose on map */
+  --action-w: 11em; /* the least width of the button that is the action of a row: Beacon now, Test sound, Check now, Find my radio, Choose on map; the button at the end of a row after a field (Test, Download map) is as wide as its words */
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 }
 

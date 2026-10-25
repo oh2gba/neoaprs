@@ -114,7 +114,7 @@
 .field-control .urls .input {
   flex: none;
 }
-/* (the button that stands first in the value column of a row, and the ones of the Radio and Map groups, are as wide as the Beacon now of the send rows: Test sound and Test pop-up, one under the other, are one width) */
+/* (the button that stands first in the value column of a row, and the one of the Radio group, are as wide as the Beacon now of the send rows: Test sound and Test pop-up, one under the other, are one width) */
 .field-control > .btn:first-child,
 .radiofind .btn,
 .location-pick {
