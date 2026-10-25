@@ -1168,7 +1168,7 @@ describe("SettingsForm: the Location of our station (Beacon tab)", () => {
     expect(make({ "station/lat": "", "station/lon": "" }, "beacon").wrapper.find(".location-place").text()).toBe("Not set");
   });
 
-  it("keeps the coordinates and the locator behind the place: closed while there is a place, opened by a click on the place, open from the start while there is none or one is wrong", async () => {
+  it("keeps the coordinates and the locator behind the place: closed while there is a place, opened by a click on the place, closed too while there is none", async () => {
     const { wrapper } = make({}, "beacon");
     expect(wrapper.find(".location-entry").exists()).toBe(false);
     expect(place(wrapper).attributes("aria-expanded")).toBe("false");
@@ -1178,7 +1178,9 @@ describe("SettingsForm: the Location of our station (Beacon tab)", () => {
     expect([lat(wrapper).element.value, lon(wrapper).element.value, locator(wrapper).element.value]).toEqual(["60.17", "24.94", "KP20le"]);
     await open(wrapper);
     expect(wrapper.find(".location-entry").exists()).toBe(false);
-    expect(make({ "station/lat": "", "station/lon": "" }, "beacon").wrapper.find(".location-entry").exists()).toBe(true);
+    const unset = make({ "station/lat": "", "station/lon": "" }, "beacon").wrapper;
+    expect(unset.find(".location-entry").exists()).toBe(false);
+    expect(place(unset).text()).toBe("Not set");
   });
 
   it("opens the entry by itself when the daemon refuses a coordinate, with the reason under it", async () => {
@@ -1206,6 +1208,7 @@ describe("SettingsForm: the Location of our station (Beacon tab)", () => {
 
   it("applies typed coordinates together when focus leaves the pair and both are right, and not before", async () => {
     const { wrapper, send } = make({ "station/lat": "", "station/lon": "" }, "beacon");
+    await open(wrapper);
     await lat(wrapper).setValue("60.5");
     await lat(wrapper).trigger("blur", { relatedTarget: lon(wrapper).element });
     expect(send).not.toHaveBeenCalled();
@@ -1251,6 +1254,7 @@ describe("SettingsForm: the Location of our station (Beacon tab)", () => {
 
   it("sends nothing while only one of the two is given, and says which is missing", async () => {
     const { wrapper, send } = make({ "station/lat": "", "station/lon": "" }, "beacon");
+    await open(wrapper);
     await lat(wrapper).setValue("60.5");
     await lat(wrapper).trigger("blur");
     expect(send).not.toHaveBeenCalled();

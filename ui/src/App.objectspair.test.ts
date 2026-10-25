@@ -10,7 +10,7 @@ useAppHarness();
 describe("App: two objects", () => {
   const field = (wrapper: VueWrapper, label: string) =>
     wrapper
-      .findAll("#pane-objects .field")
+      .findAll("#pane-objects .field:not(.location-field)")
       .find((f) => f.find("label").text() === label)
       ?.find<HTMLInputElement>("input");
   const sentSets = (socket: FakeSocket) => socket.sent.filter((c) => (c as { cmd?: string }).cmd === "object_set") as { name: string }[];

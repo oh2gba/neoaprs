@@ -1,7 +1,11 @@
 <script setup lang="ts">
 // The packets as they arrive, newest first: the time, whether it was heard ("in") or sent by us ("out"), the packet as a TNC2 line, the route it came by ("via OH2RCH-2", "direct", "via OH7JHF-1 (internet)" for a packet an iGate put on the air; empty for one we sent) and what the daemon made of it. A filter box narrows
 // the list; a click on a packet opens it in plain facts (components/PacketDetail.vue), with what the parser decoded of it, as JSON, under "Raw". A route breaks between its words, never inside a callsign.
+// Laid out by the width of the tab itself (not of the window: the panel beside the map can be narrow on a wide screen; PACKETS_TABLE, lib/layout.ts): the table of columns when it is wide enough, else one block for each packet (the time and the direction,
+// the packet line, then the route and the summary in small text) with the header row for a screen reader only; the click, the detail row and the filter are the same in both.
 import { computed, ref } from "vue";
+import { useElementWidth } from "@/composables/useElementWidth";
+import { PACKETS_TABLE } from "@/lib/layout";
 import { t } from "@/i18n";
 import PacketDetail from "@/components/PacketDetail.vue";
 import RouteText from "@/components/RouteText.vue";
@@ -12,6 +16,10 @@ import type { PacketRow } from "@/protocol/protocol";
 
 const props = defineProps<{ packets: ReadonlyMap<string, PacketRow> }>();
 
+const root = ref<HTMLElement | null>(null);
+const width = useElementWidth(root);
+/** The tab is narrower than the table needs (0 until it is measured: the table). */
+const stacked = computed(() => width.value > 0 && width.value < PACKETS_TABLE);
 const filter = ref("");
 const open = ref<number | null>(null);
 
@@ -23,7 +31,7 @@ function toggle(id: number): void {
 </script>
 
 <template>
-  <div class="tablepane">
+  <div ref="root" class="tablepane">
     <div class="toolbar">
       <input
         v-model="filter"
@@ -35,8 +43,8 @@ function toggle(id: number): void {
       />
     </div>
     <div class="scroll">
-      <table class="grid packets">
-        <thead>
+      <table class="grid packets" :class="{ stacked }">
+        <thead :class="{ 'sr-only': stacked }">
           <tr>
             <th>{{ t("packets.col.time") }}</th>
             <th>{{ t("packets.col.dir") }}</th>
@@ -47,12 +55,18 @@ function toggle(id: number): void {
         </thead>
         <tbody>
           <template v-for="row in rows" :key="row.id">
-            <tr :class="{ selected: open === row.id, out: row.direction === 'out' }" tabindex="0" @click="toggle(row.id)" @keydown.enter="toggle(row.id)">
-              <td class="mono nowrap">{{ clockText(row.heard_at) }}</td>
-              <td :class="row.direction">{{ t(`packets.dir.${row.direction}`) }}</td>
-              <td class="mono wrap">{{ row.tnc2 }}</td>
+            <tr
+              class="packet-row"
+              :class="{ selected: open === row.id, out: row.direction === 'out' }"
+              tabindex="0"
+              @click="toggle(row.id)"
+              @keydown.enter="toggle(row.id)"
+            >
+              <td class="mono nowrap time">{{ clockText(row.heard_at) }}</td>
+              <td class="dir" :class="row.direction">{{ t(`packets.dir.${row.direction}`) }}</td>
+              <td class="mono wrap line">{{ row.tnc2 }}</td>
               <td class="muted route-cell"><RouteText :text="routeWords(row.route)" /></td>
-              <td class="wrap">{{ row.summary }}</td>
+              <td class="wrap summary">{{ row.summary }}</td>
             </tr>
             <tr v-if="open === row.id" class="detail">
               <td colspan="5">

@@ -178,7 +178,7 @@ describe("ObjectForm", () => {
     expect(wrapper.find(".location-entry").exists()).toBe(false);
   });
 
-  it("opens the entry by itself while there is no place or a coordinate is wrong, and says Not set", async () => {
+  it("keeps the entry closed while there is no place (Not set is the thing to click), and opens by itself when a coordinate is wrong", async () => {
     const { wrapper, view, coordinate } = form();
     expect(wrapper.find(".location-entry").exists()).toBe(false);
     await (await coordinate("Latitude"))?.find("input").setValue("95");
@@ -191,8 +191,10 @@ describe("ObjectForm", () => {
     blank.view.draft.lat = "";
     blank.view.draft.lon = "";
     await blank.wrapper.vm.$nextTick();
-    expect(blank.wrapper.find(".location-entry").exists()).toBe(true);
+    expect(blank.wrapper.find(".location-entry").exists()).toBe(false);
     expect(blank.wrapper.find(".location-place").text()).toBe("Not set");
+    await blank.wrapper.find(".location-place").trigger("click");
+    expect(blank.wrapper.find(".location-entry").exists()).toBe(true);
   });
 
   it("takes a Maidenhead locator for the place: the centre of its square fills the coordinates, which write the locator again", async () => {

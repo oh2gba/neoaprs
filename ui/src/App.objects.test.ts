@@ -32,7 +32,7 @@ describe("App: the Objects tab", () => {
     const sent = (socket: ReturnType<typeof FakeSocket.last>, cmd: string) => socket.sent.filter((c) => (c as { cmd?: string }).cmd === cmd);
     const field = (wrapper: VueWrapper, label: string) =>
       wrapper
-        .findAll("#pane-objects .field")
+        .findAll("#pane-objects .field:not(.location-field)")
         .find((f) => f.find("label").text() === label)
         ?.find<HTMLInputElement>("input");
     const button = (wrapper: VueWrapper, text: string) => wrapper.findAll("#pane-objects button").find((b) => b.text() === text);

@@ -169,13 +169,13 @@ The place is also a button: a click on it (or Enter with the keyboard on it) ope
 - The **latitude** and **longitude** are decimal degrees, north and east positive, south and west negative.
 - The **locator** is a Maidenhead locator of 6 characters (`KP20ie`; 4 or 8 work too): it takes the centre of its square.
 
-Each follows the other, and the entry is the same in the Objects form and in the setup guide. It is open from the start while there is no position or one of the fields is wrong, else until you open it, and a second click on the place closes it. What you type applies together, when you leave the fields and both are right (Enter does the same, **Esc** puts the place in force back).
+Each follows the other, and the entry is the same in the Objects form and in the setup guide. It is closed until you click the place ("Not set" while there is no position, and it is still the thing to click), except in the setup guide's Position step, where a new station has no position and it is open from the start; it also opens when a coordinate you applied is wrong. A second click on the place closes it. What you type applies together, when you leave the fields and both are right (Enter does the same, **Esc** puts the place in force back).
 
 With no position there is no beacon, no station of your own on the map, and the map opens on the world.
 
 ## The symbol
 
-The symbol is a picture and its name, and a click on it (it has a small arrow, and a frame that lights up when the pointer or the keyboard is on it; its name for a screen reader is "Change symbol") opens a picker with every symbol of both tables, the usual ones first, searchable by name (`house`, `car`, `digi`, `wx`). Your own symbol is the setting pair `station/symbol_table` and `station/symbol_code`. The default is a house.
+The symbol is a picture and its name, and a click on it (it is shown as plain content with no frame or arrow, and lights up when the pointer or the keyboard is on it, as the place of the Location does; its name for a screen reader is "Change symbol") opens a picker with every symbol of both tables, the usual ones first, searchable by name (`house`, `car`, `digi`, `wx`). Your own symbol is the setting pair `station/symbol_table` and `station/symbol_code`. The default is a house.
 
 A symbol made to carry a letter or a digit (a digipeater, a car, a gateway) has a small field "Letter or digit on it", which sets the overlay.
 

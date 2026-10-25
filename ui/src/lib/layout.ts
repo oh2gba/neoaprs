@@ -34,6 +34,12 @@ export const PANEL_STORED_MAX = 20000;
  */
 export const MESSAGES_WIDE = 600;
 
+/**
+ * The Packets tab is a table of five columns while the tab itself (not the window) is at least this wide, and one block for each packet under it: the packet line, then the route and the summary in small text. At the 480 px a panel starts with,
+ * the packet column of the table is squeezed until its line breaks letter by letter.
+ */
+export const PACKETS_TABLE = 520;
+
 /** The widest the panel may be on a page this wide:80 % of it, leaving the map 360 px; never less than the least. */
 export function panelMax(pageWidth: number): number {
   return Math.max(PANEL_MIN, Math.min(Math.floor(pageWidth * PANEL_MAX_SHARE), pageWidth - MAP_MIN));

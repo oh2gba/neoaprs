@@ -125,10 +125,13 @@ describe("the Symbol field", () => {
     expect(wrapper.find("#set-station-symbol_code").exists()).toBe(false);
   });
 
-  it("is readable as clickable: a hover, a keyboard focus and a finger-high box", () => {
+  it("is readable as clickable the way the place of the Location is, with no frame and no arrow (it is no list): a hover, a keyboard focus and a finger-high box", () => {
     expect(cssRule(".symbolbtn")).toMatch(/cursor:\s*pointer/);
-    expect(cssRule(".symbolbtn")).toMatch(/border:\s*1px solid var\(--border\)/);
-    expect(cssRule(".symbolbtn:hover")).toContain("var(--accent)");
+    expect(cssRule(".symbolbtn")).toMatch(/border:\s*0/);
+    expect(cssRule(".symbolbtn")).toMatch(/background:\s*none/);
+    expect(cssRule(".symbolbtn::after")).toBe("");
+    expect(cssRule(".symbolbtn:hover")).toContain("--row-hover");
+    expect(cssRule(".symbolbtn:hover .symbolfield-name")).toContain("underline");
     expect(cssRule(".symbolbtn:focus-visible")).toMatch(/outline:\s*2px solid var\(--accent\)/);
     expect(mediaRule("(pointer: coarse)", ".symbolbtn")).toContain("min-height: 40px");
   });

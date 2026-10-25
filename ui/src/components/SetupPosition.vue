@@ -13,6 +13,7 @@ const { guide } = useDaemonContext();
     id="setup"
     :place="placeOfText(guide.fields.lat, guide.fields.lon)"
     :picking="false"
+    open-when-empty
     :lat="guide.fields.lat"
     :lon="guide.fields.lon"
     :errors="{ lat: guide.problems.lat, lon: guide.problems.lon }"

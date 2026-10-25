@@ -1,8 +1,10 @@
 import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import PacketsLog from "@/components/PacketsLog.vue";
+import { PACKETS_TABLE } from "@/lib/layout";
 import { cssRule } from "@/test/css";
 import { packet } from "@/test/fixtures";
+import { stubWidth } from "@/test/width";
 
 const packets = new Map([
   ["1", packet(1, { source: "OH2RDG", summary: "position one" })],
@@ -107,5 +109,75 @@ describe("PacketsLog", () => {
     await wrapper.setProps({ packets: new Map([...live, ["4", packet(4, { summary: "newer" })]]) });
     expect(wrapper.find("pre").exists()).toBe(true);
     expect(wrapper.findAll("tbody tr")[0]?.text()).toContain("newer");
+  });
+});
+
+describe("PacketsLog on a narrow tab", () => {
+  let width: ReturnType<typeof stubWidth> | undefined;
+  afterEach(() => width?.restore());
+  /** The page with a tab `size` px wide, once it is measured (the width is taken when the tab is mounted). */
+  const narrow = async (size = 380, map = packets) => {
+    width = stubWidth(size);
+    const wrapper = mount(PacketsLog, { props: { packets: map }, attachTo: document.body });
+    await wrapper.vm.$nextTick();
+    return wrapper;
+  };
+
+  it("is the table of columns while the tab is wide enough, and when its width is not known", async () => {
+    const wide = await narrow(PACKETS_TABLE);
+    expect(wide.find("table").classes()).not.toContain("stacked");
+    expect(wide.find("thead").classes()).not.toContain("sr-only");
+    wide.unmount();
+    width?.restore();
+    expect(mount(PacketsLog, { props: { packets } }).find("table").classes()).not.toContain("stacked");
+  });
+
+  it("stacks each packet as one block below that width: the header row for a screen reader only, every cell still there", async () => {
+    const wrapper = await narrow(PACKETS_TABLE - 1);
+    expect(wrapper.find("table").classes()).toContain("stacked");
+    expect(wrapper.find("thead").classes()).toContain("sr-only");
+    expect(wrapper.findAll("thead th").map((th) => th.text())).toEqual(["Time", "Dir", "Packet", "Route", "Summary"]);
+    const row = wrapper.findAll("tbody tr")[2];
+    expect(row?.findAll("td")).toHaveLength(5);
+    expect(row?.find("td.line").text()).toContain("OH2RDG>APN391");
+    expect(row?.find("td.summary").text()).toBe("position one");
+    wrapper.unmount();
+  });
+
+  it("follows the width of the tab when it is dragged", async () => {
+    const wrapper = await narrow(800);
+    expect(wrapper.find("table").classes()).not.toContain("stacked");
+    width?.set(380);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find("table").classes()).toContain("stacked");
+    width?.set(700);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find("table").classes()).not.toContain("stacked");
+    wrapper.unmount();
+  });
+
+  it("keeps the selection, the detail row and the filter working", async () => {
+    const wrapper = await narrow();
+    await wrapper.find("input").setValue("on air");
+    expect(wrapper.findAll("tr.packet-row")).toHaveLength(1);
+    expect(wrapper.find(".foot").text()).toBe("1 of 3 packets");
+    await wrapper.find("tr.packet-row").trigger("click");
+    expect(wrapper.find("tr.packet-row").classes()).toContain("selected");
+    expect(wrapper.find("tr.detail .packet-detail").exists()).toBe(true);
+    await wrapper.find("tr.packet-row").trigger("keydown", { key: "Enter" });
+    expect(wrapper.find("tr.detail").exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("is drawn as a block with the packet line first, then the route and the summary small, and the packet line is not broken letter by letter", () => {
+    const block = cssRule(".grid.packets.stacked tr.packet-row");
+    expect(block).toMatch(/display:\s*grid/);
+    expect(block).toMatch(/"time dir"\s+"line line"\s+"route route"\s+"summary summary"/);
+    expect(cssRule(".grid.packets.stacked td.route-cell")).toMatch(/font-size:\s*12px/);
+    expect(cssRule(".grid.packets.stacked td.summary")).toMatch(/font-size:\s*12px/);
+    const cells = cssRule(".grid.packets.stacked tr.packet-row td");
+    expect(cells).toMatch(/overflow-wrap:\s*anywhere/);
+    expect(cells).toMatch(/word-break:\s*normal/);
+    expect(cssRule(".grid.packets.stacked tr.detail td")).toMatch(/display:\s*block/);
   });
 });

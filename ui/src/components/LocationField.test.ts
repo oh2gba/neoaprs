@@ -51,9 +51,14 @@ describe("LocationField", () => {
     wrapper.unmount();
   });
 
-  it("has the entry open from the start while there is no place or a coordinate is wrong, and not otherwise", () => {
+  it("has the entry closed from the start, with or without a place, open when a coordinate is wrong, and open with no place only when asked (the guide)", async () => {
     expect(make().find(".location-entry").exists()).toBe(false);
-    expect(make({ place: null, lat: "", lon: "" }).find(".location-entry").exists()).toBe(true);
+    expect(make({ place: null, lat: "", lon: "" }).find(".location-entry").exists()).toBe(false);
+    const empty = make({ place: null, lat: "", lon: "" });
+    await empty.find(".location-place").trigger("click");
+    expect(empty.find(".location-entry").exists()).toBe(true);
+    expect(make({ place: null, lat: "", lon: "", openWhenEmpty: true }).find(".location-entry").exists()).toBe(true);
+    expect(make({ openWhenEmpty: true }).find(".location-entry").exists()).toBe(false);
     expect(
       make({ errors: { lon: "Between -180 and 180" } })
         .find(".location-entry")
@@ -63,7 +68,7 @@ describe("LocationField", () => {
   });
 
   it("follows the coordinates with the locator and the locator with the coordinates, 6 characters, the centre of the square", async () => {
-    const wrapper = make({ place: null, lat: "", lon: "" });
+    const wrapper = make({ place: null, lat: "", lon: "", openWhenEmpty: true });
     expect(wrapper.find<HTMLInputElement>("#loc-locator").element.value).toBe("");
     await wrapper.find("#loc-locator").setValue("kp20ie");
     expect(wrapper.emitted("update:lat")).toEqual([["60.1875"]]);
@@ -77,7 +82,7 @@ describe("LocationField", () => {
   });
 
   it("says a locator of 6 characters or more that is none, and nothing while it is still being typed", async () => {
-    const wrapper = make({ place: null, lat: "", lon: "" });
+    const wrapper = make({ place: null, lat: "", lon: "", openWhenEmpty: true });
     await wrapper.find("#loc-locator").setValue("KP20i");
     expect(wrapper.find(".field-error").exists()).toBe(false);
     await wrapper.find("#loc-locator").setValue("SS00aa");

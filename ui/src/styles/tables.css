@@ -162,6 +162,59 @@
 .grid tr.timedout.selected .arrow {
   opacity: 1;
 }
+/* the Packets tab when it is too narrow for its columns (PACKETS_TABLE, lib/layout.ts; the class stacked of PacketsLog, set by the width of the tab): a packet is one block, the time and the direction on the first line, the packet line (monospace, wrapping at its spaces, and
+   inside a word only when a word is longer than the line), then the route and the summary in small text; the header row is for a screen reader only (sr-only), and the detail row is the full width under its packet */
+.grid.packets.stacked,
+.grid.packets.stacked tbody {
+  display: block;
+}
+.grid.packets.stacked tr.packet-row {
+  display: grid;
+  grid-template-areas:
+    "time dir"
+    "line line"
+    "route route"
+    "summary summary";
+  grid-template-columns: auto 1fr;
+  column-gap: 8px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.grid.packets.stacked tr.packet-row td {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+.grid.packets.stacked td.time {
+  grid-area: time;
+  font-size: 12px;
+}
+.grid.packets.stacked td.dir {
+  grid-area: dir;
+  font-size: 12px;
+}
+.grid.packets.stacked td.line {
+  grid-area: line;
+}
+.grid.packets.stacked td.route-cell {
+  grid-area: route;
+  min-width: 0;
+  font-size: 12px;
+}
+.grid.packets.stacked td.summary {
+  grid-area: summary;
+  font-size: 12px;
+}
+.grid.packets.stacked tr.packet-row td:empty,
+.grid.packets.stacked td.route-cell:not(:has(.nowrap)) {
+  display: none;
+}
+.grid.packets.stacked tr.detail,
+.grid.packets.stacked tr.detail td {
+  display: block;
+}
 .grid tr.detail,
 .grid tr.detail:hover {
   cursor: default;

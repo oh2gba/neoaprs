@@ -61,6 +61,8 @@ The tab has no count on it: nothing in it is waiting to be seen.
 
 The log of packets, newest first. A **Route** column says how each packet you heard reached you, and a route breaks between its words, never inside a callsign. A click on a packet tells it in a few facts: who sent it, what kind it is, the position or the text, how it reached you or the path you sent it by, and when. Under **Raw**, closed, is what the parser decoded, as JSON.
 
+The tab is laid out by its own width. When it is narrower than 520 px (a phone, or a panel dragged narrow) each packet is one block instead of a row of columns: the time and the direction, then the packet line, then the route and the summary in small text under it. The click, the detail and the filter work as in the table.
+
 A beacon, message or answer you sent is in the log as a packet with direction `out`.
 
 ## The map
