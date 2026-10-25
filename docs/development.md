@@ -225,6 +225,7 @@ The words of the page are in a catalogue, so that a language is a file and not a
 | `scripts/smoke-appimage` | the smoke test of such a file: `--version`, `smoke.py`, the daemon with no radio, the unit `service install` writes, the app on the offscreen platform; without FUSE it extracts the file and runs its `AppRun` |
 | `scripts/release-notes.py` | prints the section of `CHANGELOG.md` for a version (the newest section without one): the notes of the GitHub release, which the release workflow gives to `gh release create`; exit 1 when there is none |
 | `scripts/replay` | a clone's wrapper of `neoaprs replay`: plays a capture as a KISS TNC on a TCP port (`--pty`: a pseudo-terminal), so that the daemon runs without the radio |
+| `scripts/gps-replay` | a clone's wrapper of `neoaprs gps-replay`: plays a synthetic drive as a gpsd on a TCP port (2948 by default), so that the daemon beacons as a moving station without a car or a GPS ([Trying mobile operation without a vehicle](#trying-mobile-operation-without-a-vehicle)) |
 | `scripts/gen-devices.py` | refreshes `neoaprs/devicedata.py`, the snapshot of the APRS device identification list (`tocalls.yaml` of aprsorg/aprs-deviceid, CC BY-SA 2.0) that names a station's device on its card: fetches the list (or reads `--from FILE`) and writes the module with the credit in its head; the only thing that fetches it, the daemon never does; `--check FILE` exits 1 when the module is not what that file makes |
 | `scripts/gen-protocol.py` | writes `PROTOCOL.md` and the files of `ui/src/protocol/` (`schema.json`, `protocol.ts`, `lists.ts`, `errors.json`, `vectors.json`, and `ui/src/i18n/en/symbols.ts`) from `neoaprs/web/protocol.py` and the program's constants; run it after a change to a wire model or a limit (`tests/test_protocol.py` fails when they are stale) |
 | `scripts/build-page` | builds the page from `ui/` (type check, Vite) into a temporary folder and swaps it in as `neoaprs/page/` with a rename: what the daemon serves and the wheel carries; run it after a change to `ui/` and commit `neoaprs/page/`. `--clean` forces `npm ci` |
@@ -232,8 +233,27 @@ The words of the page are in a catalogue, so that a language is a file and not a
 | `scripts/fetch-basemap` | a clone's wrapper of `neoaprs map` with `--data` set to `./data` unless given: makes the base map as the page's Download button does |
 | `scripts/capture` | a clone's wrapper of `neoaprs capture`: records the radio's serial port into a file byte for byte, to make test fixtures from a real radio |
 
-In a clone, `scripts/replay`, `scripts/neoaprs-db`, `scripts/capture` and `scripts/fetch-basemap` are the commands of the same name with the clone's `.venv` and
+In a clone, `scripts/replay`, `scripts/gps-replay`, `scripts/neoaprs-db`, `scripts/capture` and `scripts/fetch-basemap` are the commands of the same name (`gps-replay` is `neoaprs gps-replay`) with the clone's `.venv` and
 `./data`. `tests/test_service.py` and `tests/test_install.py` run `scripts/install.sh` against a fake HOME and a fake `systemctl`.
+
+### Trying mobile operation without a vehicle
+
+`scripts/gps-replay` (the command `neoaprs gps-replay`) is a gpsd that is not one. It listens on `127.0.0.1:2948`, prints that address as its first line, and tells a client that asks to watch (`?WATCH={"enable":true,"json":true}`,
+as the daemon does) a TPV report a second and a SKY report every fifth, of a synthetic drive (`neoaprs/cli/gpstrip.py`): a car that stands still for 10 seconds, sets off, and goes round a rectangle of 1200 by 800 metres at
+`--kmh` (50 by default), slowing for each corner and stopping for 90 seconds in the middle of the last leg, lap after lap. `--at LAT,LON` moves the start (60.43,24.145 by default), `--port` the port, and `--interval S` the
+seconds between two reports, each a second of driving, so `--interval 0.2` drives five times faster than the clock. The drive begins when the first client asks to watch, and stands still while none does.
+
+```
+scripts/gps-replay                                        # in one terminal: prints 127.0.0.1:2948
+scripts/neoaprs-db set gps/source gpsd                    # in another, on the data folder of the clone, before the daemon starts (it reads the settings at its start) ...
+scripts/neoaprs-db set gps/host 127.0.0.1:2948
+scripts/neoaprs-db set beacon/mobile true
+python -m neoaprs --data data --port socket://127.0.0.1:PORT      # ... with scripts/replay for the radio, or the real one
+```
+
+The same three settings are on the page's Beacon tab. The daemon then reads the fixes as it would a gpsd's, shows them in the topic `gps`, moves its own row on the map, and beacons by SmartBeaconing: the first fix at once, a turn at
+each corner, then by time (about every two minutes at 50 km/h), nothing while the car stands. With the replay stopped the fix is stale after two minutes and nothing is sent. Nothing is transmitted unless a TNC takes the
+frames: use `scripts/replay` as the radio (it takes what the daemon writes) or switch `station/transmit` off to see only the page. `tests/test_gpsreplay.py` runs the same drive through the daemon's feed, the GPS service and the beacon.
 
 ## Packaging and releases
 

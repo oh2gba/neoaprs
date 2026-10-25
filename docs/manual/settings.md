@@ -56,6 +56,18 @@ The table below is made from the program, so it lists every setting there is, wi
 | `map/source` | empty | `neoaprs db set` only | where the map is cut from: empty is the latest daily build of build.protomaps.com; or a web address (`https://...`) or the path of a PMTiles file, such as a planet file of your own |
 | `update/url` | `https://oh2gba.eu/neoaprs/version.php` | `neoaprs db set` only | the address of the version page that the daily update check asks (`http` or `https`; [install.md](install.md#the-update-check)) |
 | `digi/enabled` | `false` | Settings tab, Digipeater | `true` switches the fill-in digipeater on ([beacon.md](beacon.md#the-fill-in-digipeater)) |
+| `beacon/mobile` | `false` | Beacon tab, Mobile | `true` makes the beacon a moving station's: it follows the GPS (position, course, speed and altitude) and goes when SmartBeaconing says, not every `beacon/interval_min`, and the 20-minute floor of the fixed beacon does not apply. With no fresh GPS fix nothing is sent at all, and never your home position ([beacon.md](beacon.md#mobile-operation)) |
+| `gps/source` | `off` | Beacon tab, Mobile (GPS) | where the position of a moving station comes from: `off`, `gpsd` (a gpsd daemon, at `gps/host`) or `serial` (the NMEA sentences of a receiver on `gps/device`). A save of `gpsd` without `gps/host`, or `serial` without `gps/device`, is refused |
+| `gps/host` | `127.0.0.1:2947` | Beacon tab, Mobile (GPS) | `host:port` of the gpsd that `gpsd` reads (gpsd's own port is 2947) |
+| `gps/device` | empty | Beacon tab, Mobile (GPS) | the serial port of the GPS receiver for `serial`, such as `/dev/ttyUSB1` or `COM4`, or `socket://host:port` for a receiver behind a TCP serial server. Keep it apart from the radio's `serial/port` |
+| `gps/baud` | `4800` | Beacon tab, Mobile (GPS) | the receiver's speed on `gps/device` (300 to 921600); NMEA 0183 is 4800, and many USB receivers speak 9600 |
+| `smart/fast_kmh` | `100` | Beacon tab, Mobile (SmartBeaconing) | at this speed or faster (10 to 300 km/h) a beacon goes every `smart/fast_sec`; below it the time grows as the speed falls. Must be above `smart/slow_kmh` |
+| `smart/fast_sec` | `60` | Beacon tab, Mobile (SmartBeaconing) | the shortest time between two beacons by time (10 to 600 seconds). Must be below `smart/slow_sec` |
+| `smart/slow_kmh` | `8` | Beacon tab, Mobile (SmartBeaconing) | at this speed or slower (1 to 50 km/h) a station counts as standing still: a beacon every `smart/slow_sec`, and no turn is beaconed |
+| `smart/slow_sec` | `1800` | Beacon tab, Mobile (SmartBeaconing) | the longest time between two beacons (60 to 3600 seconds), for a station that stands still |
+| `smart/turn_min_deg` | `30` | Beacon tab, Mobile (SmartBeaconing) | a change of course of more than this many degrees (5 to 90), plus `smart/turn_slope` divided by the speed in miles per hour, is a turn and is beaconed at once |
+| `smart/turn_min_sec` | `15` | Beacon tab, Mobile (SmartBeaconing) | but a turn is beaconed no sooner than this after the last beacon (5 to 120 seconds) |
+| `smart/turn_slope` | `255` | Beacon tab, Mobile (SmartBeaconing) | degrees times miles per hour (0 to 1000): the faster the station goes, the smaller a change of course counts as a turn. 0 makes every turn count the same, `smart/turn_min_deg` |
 <!-- /doc-settings -->
 
 ## Values the program decides
@@ -68,7 +80,8 @@ These are not settings. They are fixed by design, and no field or `neoaprs db se
 - A message to a station is sent 4 times, and one to the email gateway 2 times, before it has failed or is unconfirmed.
 - Your own frames go out at least 10 seconds apart, except acks, answers to queries and digipeated packets.
 - The first beacon goes out 30 seconds after the daemon starts.
-- Every frame you send has the tocall `APZNEO`. The beacon is always the plain uncompressed position.
+- Every frame you send has the tocall `APZNEO`. The beacon of a station that stays is the plain uncompressed position; a moving station's (`beacon/mobile`) is a compressed one, with the altitude in its comment.
+- A GPS fix older than 120 seconds is not used: a moving station sends no beacon on it, and never the home position instead.
 - At most 50 objects and items, and 36 bulletins, of your own at once. A bulletin is sent for 4 hours and an announcement for 72 hours.
 - The update check asks the version page every 24 hours.
 <!-- /doc-settings -->

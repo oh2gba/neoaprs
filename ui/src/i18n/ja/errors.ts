@@ -58,6 +58,8 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.query.too_soon": "{call} には先ほど同じ問い合わせをしました。{seconds}秒待ってください",
   "error.path.direct_alone": "{word}はデジピーターではありません。単独で書くとデジピーターなしを意味します",
   "error.setting.comment_too_long": "{length}文字は、PHG拡張を付けるときの上限{limit}文字を超えています(送らない場合は beacon/power_w を空にしてください)",
+  "error.setting.gps_needs_device": "シリアルGPSにはgps/device(受信機のポート、例: /dev/ttyUSB1)が必要です",
+  "error.setting.gps_needs_host": "gpsdにはgps/host(gpsdのホスト:ポート、127.0.0.1:2947)が必要です",
   "error.setting.not_access_key": "アクセスキーではありません(英数字4文字の3つの組、例: k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "表示可能なASCII以外の文字があります",
   "error.setting.not_boolean": "「{value}」は true でも false でもありません",
@@ -79,6 +81,8 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.profile_port":
     "{profile} はTCP(tcp/host と tcp/port)で接続し、シリアルポート{port}は使いません。serial/port を空にするか、シリアルTNCを選んでください",
   "error.setting.range": "{value} は {min}〜{max} の範囲外です",
+  "error.setting.smart_speeds": "smart/fast_kmh({fast})はsmart/slow_kmh({slow})より大きくしてください",
+  "error.setting.smart_times": "smart/fast_sec({fast})はsmart/slow_sec({slow})より小さくしてください",
   "error.setting.status_needs_rigctld": "無線機のステータスには status/rigctld(rigctldの ホスト:ポート、127.0.0.1:4532)が必要です",
   "error.setting.status_source": "「{value}」は off でも text でも rig でもありません(空の場合は status/rigctld と station/status に従います)",
   "error.setting.template_field": "{{{field}}} はテンプレートのフィールドではありません(使えるのは {{freq}} と {{mode}} です)",

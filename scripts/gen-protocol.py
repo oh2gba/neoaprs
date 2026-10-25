@@ -237,6 +237,8 @@ def _object(value: Any, indent: int = 0) -> str:
     """A nested object as TypeScript, one key to a line (a list of words on one line)."""
     if not isinstance(value, dict):
         return json.dumps(value)
+    if value and not any(isinstance(item, dict) for item in value.values()):          # a dict of plain values, such as a range, is one line
+        return "{ " + ", ".join(f"{key if _IDENTIFIER.fullmatch(key) else json.dumps(key)}: {json.dumps(item)}" for key, item in value.items()) + " }"
     pad = "  " * (indent + 1)
     rows = (f"{pad}{key if _IDENTIFIER.fullmatch(key) else json.dumps(key)}: {_object(item, indent + 1)},\n" for key, item in value.items())
     return "{\n" + "".join(rows) + "  " * indent + "}"

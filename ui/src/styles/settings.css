@@ -215,6 +215,40 @@
 .statepill.tnc-silent {
   background: var(--warn);
 }
+.statepill.gps-fix {
+  background: var(--ok);
+}
+.statepill.gps-connecting,
+.statepill.gps-no_fix,
+.statepill.gps-stale {
+  background: var(--warn);
+}
+/* the GPS block of the Mobile group: the label, the state and the words in one line, as the radio's, without the arrow and the button */
+.gpsstatus {
+  margin: 4px 0 8px;
+}
+.gpshead {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+.gpslabel {
+  font-weight: 600;
+}
+.gpshead .statepill {
+  flex: none;
+}
+.gpsstatus .problem {
+  margin: 6px 0 0;
+}
+.mobileline {
+  margin: 0 0 8px;
+  color: var(--muted);
+}
+.location-note {
+  font-size: 12px;
+}
 /* a heading that opens what is under it (DisclosureBox), and the radio status of the Settings tab */
 .disclosure > summary {
   padding: 6px 0;

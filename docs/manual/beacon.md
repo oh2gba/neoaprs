@@ -31,7 +31,7 @@ The beacon is a packet from your call to the tocall `APZNEO`, by the digipeaters
 OH2GBA>APZNEO,WIDE2-1:=6010.20N/02456.40E-NeoAPRS
 ```
 
-The position is always the plain uncompressed form, which every receiver reads. `APZNEO` is in the experimental range of destination calls. Every frame NeoAPRS sends carries it: the beacon, status, messages and their acks, answers to queries, objects and bulletins.
+A station that stays sends the plain uncompressed form, which every receiver reads; a moving station sends a compressed position ([Mobile operation](#mobile-operation)). `APZNEO` is in the experimental range of destination calls. Every frame NeoAPRS sends carries it: the beacon, status, messages and their acks, answers to queries, objects and bulletins.
 
 The **path** (Advanced) is one choice:
 
@@ -49,7 +49,7 @@ The same path is what status reports, objects without a path of their own, bulle
 
 The **comment** is printable ASCII without `|` and `~`, at most 43 characters, and 36 when the PHG extension is sent. A save that breaks this is refused with the reason, and a beacon whose comment is too long is not sent.
 
-Your own row on the map is always your settings (position, symbol and comment), never what a packet says. A packet with your own call that you hear back (the TNC may echo what it sends, a digipeater repeats it) only updates the time you were last heard.
+Your own row on the map is your settings (position, symbol and comment), or the GPS fix for a moving station, never what a packet says. A packet with your own call that you hear back (the TNC may echo what it sends, a digipeater repeats it) only updates the time you were last heard.
 
 ## Power, height and gain (PHG)
 
@@ -71,6 +71,69 @@ The **Preview** under the Beacon tab, closed until you open it, shows the packet
 The Beacon group starts with a row "Last beacon: 2 min ago" (the full time on hover) and the primary button **Beacon now**. It asks twice ("Really send?"). It is off while the TNC is not connected, and while a change of the settings is being saved, so what is sent is what is in force. The next beacon of the timer is then an interval later.
 
 A beacon you send is in the Packets tab as a packet with direction `out`.
+
+## Mobile operation
+
+For a car, a bicycle or a boat the beacon can follow a GPS receiver. With **Mobile** on, the position, course, speed and altitude come from the GPS, and the beacon goes when SmartBeaconing says: often when you move fast or turn a corner, rarely when you stand still.
+
+What to set (the Mobile group of the Beacon tab):
+
+1. **GPS source**: `gpsd` reads a gpsd daemon (on this computer or another one on the network; its address is `gps/host`, `127.0.0.1:2947` by default), `serial` reads the NMEA sentences of a GPS receiver on a serial port (`gps/device`, such as `/dev/ttyUSB1`, at `gps/baud`: 4800 is NMEA's own speed, and many USB receivers speak 9600). Keep the GPS apart from the radio's port. A save of `gpsd` without an address, or `serial` without a port, is refused.
+2. **Mobile** on (`beacon/mobile`).
+3. A symbol of a moving station (a car, say), which also makes the recommended path `WIDE1-1,WIDE2-1`.
+
+The GPS is read as soon as a source is chosen, Mobile or not, so you can see the fix before the beacon follows it.
+
+**What the Beacon tab shows.** The Mobile group starts with the state of the GPS, in the look of the radio's: a coloured word (off, connecting, no fix, fix or stale) and one line in plain words:
+
+- **Off**, while no source is set.
+- **Connecting to gpsd at 127.0.0.1:2947**, or **Opening /dev/ttyUSB1 at 4800 baud** for a receiver on a port. When it cannot, the reason stands under the line, such as Connection refused.
+- **No fix yet**, with the reason the receiver gives.
+- **Fix: 60.4295 N 24.1452 E, 48 km/h, course 215°, 103 m, 9 satellites, 2 s ago.** What the receiver does not tell (the speed of one that stands still, say) is left out.
+- **Fix lost 3 min ago (stale)**, once the latest fix is more than 2 minutes old. Nothing is sent on it.
+
+Under the state come the GPS source, the address of the gpsd (for `gpsd`) or the port and speed of the receiver (for `serial`), and the Mobile switch. Behind the heading **SmartBeaconing**, which is there while Mobile is on, are the seven numbers; a value outside its range is refused under its field, and so is a fast speed that is not above the slow one or a fast time that is not below the slow one. With Mobile on:
+
+- Under the row "Last beacon" a line says when SmartBeaconing sends next, and why the last beacon went: **SmartBeaconing: next by time in 42 s, last sent 12 s ago (turn)**. The reason is first fix, time, turn or Beacon now; a turn goes sooner than the time shown. With no fix the line says **No beacon: no GPS fix**. Beacon now stays as it is, and is refused with the reason while there is no fix.
+- The Location row of the Station group is called **Home position** and says that the GPS position is what is sent, never this one. Its fields stay: it is where your station is whenever it is not moving, and before the first fix.
+- The interval of the fixed beacon is not shown, because a mobile beacon does not use it.
+
+**What is sent.** A packet from your call to `APZNEO` by your path, like the fixed beacon, but with a compressed position, which is shorter and carries the course and speed:
+
+```
+OH2GBA-9>APZNEO,WIDE1-1,WIDE2-1:=//w5#TW?M>eM[/A=000103NeoAPRS mobile
+```
+
+After the position comes the altitude in feet (`/A=000103`) and then your comment. A compressed position and its comment may be 40 characters in all, so a long comment is cut at the end to fit (a station with an altitude has 31 characters of its own). There is no PHG: a compressed position cannot carry it, and it is for a station that stays where it is. A GPS that gives no speed or course sends the position alone.
+
+**When it is sent (SmartBeaconing).** The method is HamHUD's SmartBeaconing, as Dire Wolf and APRSdroid have it:
+
+- The first fix after the daemon starts is sent at once.
+- A station that stands still (at or below the slow speed) sends every slow time, 30 minutes by default. One that goes fast (at or above the fast speed) sends every fast time, 1 minute by default. Between the two the time falls with the speed: at 50 km/h it is 2 minutes.
+- A turn is sent at once: when the course differs from the course of the last beacon by more than the turn angle plus the slope divided by the speed in miles per hour, and the turn time has passed since the last beacon. The faster you go, the smaller a turn counts. A station that is not above the slow speed sends no turns.
+- **Beacon now** sends the position as it is, and the times count from it.
+
+The numbers are settings, with Dire Wolf's values in kilometres per hour:
+
+| setting | default | what it is |
+|---|---|---|
+| `smart/fast_kmh` | 100 | the speed from which the fast time applies (10 to 300) |
+| `smart/fast_sec` | 60 | the fast time, seconds (10 to 600) |
+| `smart/slow_kmh` | 8 | the speed up to which you stand still (1 to 50) |
+| `smart/slow_sec` | 1800 | the slow time, seconds (60 to 3600) |
+| `smart/turn_min_deg` | 30 | the least change of course that is a turn (5 to 90) |
+| `smart/turn_min_sec` | 15 | the least time since the last beacon for a turn (5 to 120) |
+| `smart/turn_slope` | 255 | degrees times miles per hour that are added to the turn angle, divided by the speed (0 to 1000) |
+
+The fast speed must be above the slow one, and the fast time below the slow one; a save that breaks this is refused with the reason. The 20-minute floor of the fixed beacon does not apply to a mobile station, and `beacon/interval_min` is not used while Mobile is on. Keep the fast time long on a busy channel: a beacon a minute from every car makes a busy channel busier.
+
+**No fix, no beacon.** With no fresh GPS fix nothing is sent: not at the start, while the receiver is looking for satellites, not when gpsd or the port is away, and not once the latest fix is more than 2 minutes old. Your home position is never sent in its place, because a station that seems to jump home is worse than a silent one. Beacon now is refused with the reason, and a query for your position (`?APRSP`) is not answered. The page says why in the state of the GPS. A fix lost for less than 2 minutes (a tunnel) is still the latest one, and the beacon goes on by the clock.
+
+**On the map.** While Mobile is on, your own station follows the GPS fix, with its course, speed and altitude, moving every few seconds once you have gone 10 metres, and the distance and bearing of the other stations follow. If the GPS is lost your station stays where it was last seen. With Mobile off it is the location of the settings, as before. A query for your position (`?APRSP`) is answered with the position as it is now.
+
+**Follow me.** While Mobile is on and the GPS has a fix, a **Follow me** button at the top right of the map keeps the map centred on you, at a close zoom at least. Dragging the map lets go, and so does the loss of the fix or switching Mobile off; press the button again to take hold.
+
+To try it without a vehicle, the [development guide](../development.md#trying-mobile-operation-without-a-vehicle) describes a replay of a drive.
 
 ## The location
 
@@ -127,7 +190,7 @@ A message to your call whose text is one of these queries is answered by NeoAPRS
 
 | query | the answer |
 |---|---|
-| `?APRSP` | your position packet, the beacon's own frame |
+| `?APRSP` | your position packet, the beacon's own frame (a moving station's with the position as it is now, and nothing while it has no GPS fix) |
 | `?APRSS` | your status report as it was last sent, with the time of the answer; nothing while none has been sent |
 | `?APRSD` | a message to the asker with the calls heard direct in the last hour, the one heard last first: `Directs= OH2RCH-2 OH2PU-9`, or `Directs= none`. At most 67 bytes; if the calls do not fit it is two messages, each starting `Directs=`, and what does not fit in two is left out |
 | `?APRST`, `?PING?` | a message to the asker with the header of the query as you heard it, with the digipeaters it went by and their stars, as the specification's example writes it: `OH2RDG>APZNEO,WIDE1*,OH2RCH-2*,WIDE2-1:`. The last digipeaters go when it would be over 67 bytes |

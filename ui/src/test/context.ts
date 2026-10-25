@@ -37,6 +37,7 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     config,
     status: part(over.status, null),
     tnc: part(over.tnc, null),
+    gps: part(over.gps, null),
     map: part(over.map, null),
     selfUpdate: part(over.selfUpdate, null),
     ports,

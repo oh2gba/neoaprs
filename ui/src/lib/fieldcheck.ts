@@ -13,6 +13,14 @@ const WHOLE: Record<string, boolean> = {
   "beacon/antenna_height_m": false,
   "beacon/antenna_gain_db": false,
   "map/radius_km": false,
+  "gps/baud": true,
+  "smart/fast_kmh": true,
+  "smart/fast_sec": true,
+  "smart/slow_kmh": true,
+  "smart/slow_sec": true,
+  "smart/turn_min_deg": true,
+  "smart/turn_min_sec": true,
+  "smart/turn_slope": true,
 };
 
 /** A number as typed: a comma is a decimal point; null for text that is no number. */

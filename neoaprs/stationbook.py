@@ -140,9 +140,10 @@ class StationBook:
         return gone
 
     # ---- us
-    def set_me(self, call: str, lat: float, lon: float, symbol_table: str = "", symbol_code: str = "", comment: str = "") -> Station:
+    def set_me(self, call: str, lat: float, lon: float, symbol_table: str = "", symbol_code: str = "", comment: str = "", *, course_deg: int | None = None, speed_kmh: float | None = None,
+               altitude_m: float | None = None, at: datetime | None = None) -> Station:
         """Where we are, what we are called and how we look: our own station is in the book from now on, marked `is_me`, with the position, the symbol and the comment of the settings (the
-        settings are the truth about us, whatever a packet says). The station of a call we had before is an ordinary one again."""
+        settings are the truth about us, whatever a packet says). A moving station gives the course, speed and altitude of its GPS fix as well, and when the fix was taken. The station of a call we had before is an ordinary one again."""
         if self._me != call:
             self.clear_me()
         self._me, self._me_position = call, (lat, lon)
@@ -153,13 +154,13 @@ class StationBook:
         station = self._stations.get(call)
         if station is None:
             station = self._stations[call] = Station(call, first_heard=now, last_heard=now)
-        before = (station.is_me, station.lat, station.lon, station.symbol_table, station.symbol_code, station.last_comment)
+        before = (station.is_me, station.lat, station.lon, station.symbol_table, station.symbol_code, station.last_comment, station.course_deg, station.speed_kmh, station.altitude_m)
         station.is_me, station.lat, station.lon = True, lat, lon
         station.track.clear()                                      # (we have no track: the map shows where we are)
         station.symbol_table, station.symbol_code, station.last_comment = symbol_table, symbol_code, comment
-        if station.last_position_at is None:
-            station.last_position_at = now
-        if before != (True, lat, lon, symbol_table, symbol_code, comment):
+        station.course_deg, station.speed_kmh, station.altitude_m = course_deg, speed_kmh, altitude_m
+        station.last_position_at = at or station.last_position_at or now
+        if before != (True, lat, lon, symbol_table, symbol_code, comment, course_deg, speed_kmh, altitude_m):
             self.changed.emit(station)
         return station
 

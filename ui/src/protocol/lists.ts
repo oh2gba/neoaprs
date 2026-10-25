@@ -16,6 +16,7 @@ export const TOPIC_NAMES = [
   "own_bulletins",
   "map",
   "update",
+  "gps",
 ] as const;
 
 /** Every message the daemon sends (the `type` of the Message union). */
@@ -74,6 +75,18 @@ export const CONFIG_KEYS = [
   "map/source",
   "update/url",
   "digi/enabled",
+  "gps/source",
+  "gps/host",
+  "gps/device",
+  "gps/baud",
+  "beacon/mobile",
+  "smart/fast_kmh",
+  "smart/fast_sec",
+  "smart/slow_kmh",
+  "smart/slow_sec",
+  "smart/turn_min_deg",
+  "smart/turn_min_sec",
+  "smart/turn_slope",
 ] as const;
 
 /** The TNC profiles, in the order the settings form offers them (PROFILES of neoaprs/tncprofile.py): how each is reached (`serial` or `tcp`), its speed and whether the daemon can ask it if it is there. */
@@ -290,97 +303,35 @@ export const TOCALL = "APZNEO";
 /** Every number the page checks a value against, by area, from the daemon's own constants (the ranges of the settings by key: RANGES of neoaprs/config.py; the comment, status and message lengths, the least interval, the calls, the objects and bulletins, the time a station stays on the map). */
 export const LIMITS = {
   range: {
-    "serial/baud": {
-      min: 300,
-      max: 921600,
-    },
-    "tcp/port": {
-      min: 1,
-      max: 65535,
-    },
-    "beacon/power_w": {
-      min: 0,
-      max: 9999,
-    },
-    "beacon/antenna_height_m": {
-      min: 0,
-      max: 9999,
-    },
-    "beacon/antenna_gain_db": {
-      min: 0,
-      max: 9,
-    },
-    "beacon/interval_min": {
-      min: 20,
-      max: 1440,
-    },
-    "status/interval_min": {
-      min: 15,
-      max: 1440,
-    },
-    "map/radius_km": {
-      min: 10,
-      max: 1000,
-    },
-    "map/maxzoom": {
-      min: 6,
-      max: 15,
-    },
-    "station/lat": {
-      min: -90.0,
-      max: 90.0,
-    },
-    "station/lon": {
-      min: -180.0,
-      max: 180.0,
-    },
+    "serial/baud": { min: 300, max: 921600 },
+    "tcp/port": { min: 1, max: 65535 },
+    "beacon/power_w": { min: 0, max: 9999 },
+    "beacon/antenna_height_m": { min: 0, max: 9999 },
+    "beacon/antenna_gain_db": { min: 0, max: 9 },
+    "beacon/interval_min": { min: 20, max: 1440 },
+    "status/interval_min": { min: 15, max: 1440 },
+    "map/radius_km": { min: 10, max: 1000 },
+    "map/maxzoom": { min: 6, max: 15 },
+    "gps/baud": { min: 300, max: 921600 },
+    "smart/fast_kmh": { min: 10, max: 300 },
+    "smart/fast_sec": { min: 10, max: 600 },
+    "smart/slow_kmh": { min: 1, max: 50 },
+    "smart/slow_sec": { min: 60, max: 3600 },
+    "smart/turn_min_deg": { min: 5, max: 90 },
+    "smart/turn_min_sec": { min: 5, max: 120 },
+    "smart/turn_slope": { min: 0, max: 1000 },
+    "station/lat": { min: -90.0, max: 90.0 },
+    "station/lon": { min: -180.0, max: 180.0 },
   },
-  comment: {
-    max: 43,
-    maxWithPhg: 36,
-  },
-  status: {
-    max: 55,
-  },
-  interval: {
-    beaconMinMin: 20,
-    statusMinMin: 15,
-  },
-  message: {
-    textMax: 67,
-    forbidden: "|~{",
-    gateway: "EMAIL-2",
-  },
-  call: {
-    baseMax: 6,
-    amateurBaseMin: 3,
-    maxSsid: 15,
-    placeholders: ["MYCALL", "N0CALL", "NOCALL"],
-  },
-  path: {
-    maxCalls: 8,
-    direct: "DIRECT",
-    recommendedMobile: "WIDE1-1,WIDE2-1",
-    recommendedFixed: "WIDE2-1",
-  },
-  object: {
-    nameMax: 9,
-    itemNameMin: 3,
-    nameForbidden: "!_|~",
-    commentMax: 43,
-    commentMaxMotion: 36,
-    courseMax: 359,
-    speedMaxKmh: 1850,
-    qruGroupMax: 8,
-    qruReserved: ["INFO", "NEXT"],
-  },
-  bulletin: {
-    groupMax: 5,
-  },
-  station: {
-    hours: [1, 3, 6, 12, 24],
-    defaultHours: 3,
-  },
+  comment: { max: 43, maxWithPhg: 36 },
+  status: { max: 55 },
+  interval: { beaconMinMin: 20, statusMinMin: 15 },
+  message: { textMax: 67, forbidden: "|~{", gateway: "EMAIL-2" },
+  call: { baseMax: 6, amateurBaseMin: 3, maxSsid: 15, placeholders: ["MYCALL", "N0CALL", "NOCALL"] },
+  path: { maxCalls: 8, direct: "DIRECT", recommendedMobile: "WIDE1-1,WIDE2-1", recommendedFixed: "WIDE2-1" },
+  object: { nameMax: 9, itemNameMin: 3, nameForbidden: "!_|~", commentMax: 43, commentMaxMotion: 36, courseMax: 359, speedMaxKmh: 1850, qruGroupMax: 8, qruReserved: ["INFO", "NEXT"] },
+  bulletin: { groupMax: 5 },
+  station: { hours: [1, 3, 6, 12, 24], defaultHours: 3 },
 } as const;
 
 /** The characters a symbol table can be: the primary, the alternate and the overlays (SYMBOL_TABLES of neoaprs/config.py). */

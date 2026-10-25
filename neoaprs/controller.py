@@ -1,6 +1,6 @@
 """The program without a window: the database, the settings, the radio and the station book. The Controller is the composition root's object (docs/ARCHITECTURE.md): the parts are made in
 neoaprs/app.py (`Services`) and connected in neoaprs/wiring.py, and this class brings them up and takes them down. The page and the tests call a part as `ctl.<part>.<method>`; the Controller has
-the order of the start (the message board before the Tnc, the beacon, our objects and bulletins, the status and messaging after it, before the page; the stop the other way round), the Tnc's restart when its settings change, and the daily care of the database.
+the order of the start (the message board before the Tnc, the GPS and the beacon, our objects and bulletins, the status and messaging after it, before the page; the stop the other way round), the Tnc's restart when its settings change, and the daily care of the database.
 """
 import asyncio
 import logging
@@ -63,6 +63,7 @@ class Controller(Services):
         self.running = True
         await self.bulletins.start()
         self.start_tnc()
+        await self.gps.start()
         await self.beacon.start()
         await self.ownobjects.start()
         await self.ownbulletins.start()
@@ -92,6 +93,7 @@ class Controller(Services):
             await self.ownbulletins.stop()
             await self.ownobjects.stop()
             await self.beacon.stop()
+            await self.gps.stop()
             await self._stop_tnc()
             await self.tasks.cancel_all()
         finally:
@@ -148,6 +150,7 @@ class Controller(Services):
         before = wiring.tnc_settings(self.config, self.port_override, self.pattern_override)
         self.config = config
         wiring.place_me(self)
+        self.gps.settings_changed()
         self.beacon.settings_changed()
         if wiring.tnc_settings(config, self.port_override, self.pattern_override) != before:
             self.start_tnc()

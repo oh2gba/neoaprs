@@ -12,9 +12,9 @@ The tables of this document that are that test's data (this one, the rules after
 <!-- doc-arch:layers -->
 | layer | modules | may import | may not import |
 | --- | --- | --- | --- |
-| foundation | `clock signal coded policy callsign geo symbols kiss ax25 aprsposition aprsmice aprsmessage aprsparse aprsweather aprsthirdparty aprsextension aprsfreq aprsstorm aprslocator aprstelemetry aprsnmea packet packetcodec message bulletin decay tncmode tncprofile pref route chain mapstate radiosearch serialboards versions updateasset device devicedata hourcount` | foundation | domain, adapters, persistence, services, app, delivery, and any I/O library |
-| domain | `alertcommand config configlegacy configstatus configtypes interlock station stationnotes stationbook aloha ownobject ownbulletin` | foundation, domain | adapters, persistence, services, app, delivery, and any I/O library |
-| adapters | `source tasks serialport serialholders serialprobe btsdp btserial btle btpaired tnc tncsearch tncwatchdog tncentry tnclines childenv rigctld pmtilestool updatefetch updatedownload selfreplace` | foundation, domain, adapters | persistence, services, app, delivery |
+| foundation | `clock signal coded policy callsign geo symbols kiss ax25 aprsposition aprsmice aprsmessage aprsparse aprsweather aprsthirdparty aprsextension aprsfreq aprsstorm aprslocator aprstelemetry aprsnmea gpsfix smartbeacon packet packetcodec message bulletin decay tncmode tncprofile pref route chain mapstate radiosearch serialboards versions updateasset device devicedata hourcount` | foundation | domain, adapters, persistence, services, app, delivery, and any I/O library |
+| domain | `alertcommand config configlegacy configstatus configtypes configvalues interlock station stationnotes stationbook aloha ownobject ownbulletin` | foundation, domain | adapters, persistence, services, app, delivery, and any I/O library |
+| adapters | `source tasks serialport serialholders serialprobe btsdp btserial btle btpaired tnc tncsearch tncwatchdog tncentry tnclines childenv rigctld gpsfeed pmtilestool updatefetch updatedownload selfreplace` | foundation, domain, adapters | persistence, services, app, delivery |
 | persistence | `store migrations migrations2 backupfolder durable instancelock stopfile walcare dbfile dberror dbstats dbthread db dbopen storesql paths dblog packetsql packetlog messagesql messagelog bulletinsql bulletinlog weathersql weatherlog ownsql ownlog` | foundation, domain, persistence | adapters, services, app, delivery |
 | services | everything in `neoaprs/services/` | foundation, domain, adapters, persistence, services | app, delivery |
 | app | `controller app wiring` | foundation, domain, adapters, persistence, services, app | delivery |
@@ -26,10 +26,10 @@ Besides the direction:
 <!-- doc-arch:rules -->
 * The I/O libraries that foundation and domain may not import (pyserial, `serial`, is one of them): `asyncio bleak fcntl http.client http.server os pty select selectors serial shutil socket sqlite3 ssl subprocess tempfile termios tornado urllib.request`.
 * pyserial (`serial`) only in the adapters layer.
-* Among the adapters only the bases every feed shares may be imported: `neoaprs.source`, `neoaprs.tasks`; and the sibling pairs: `neoaprs.btserial` and `neoaprs.btsdp`, `neoaprs.serialholders` and `neoaprs.serialport`, `neoaprs.serialport` and `neoaprs.btle`, `neoaprs.serialport` and `neoaprs.btserial`, `neoaprs.serialprobe` and `neoaprs.btpaired`, `neoaprs.serialprobe` and `neoaprs.serialholders`, `neoaprs.serialprobe` and `neoaprs.serialport`, `neoaprs.tnc` and `neoaprs.serialholders`, `neoaprs.tnc` and `neoaprs.serialport`, `neoaprs.tnc` and `neoaprs.serialprobe`, `neoaprs.tnc` and `neoaprs.tncentry`, `neoaprs.tnc` and `neoaprs.tnclines`, `neoaprs.tnc` and `neoaprs.tncsearch`, `neoaprs.tnc` and `neoaprs.tncwatchdog`, `neoaprs.tncsearch` and `neoaprs.serialport`, `neoaprs.tncsearch` and `neoaprs.serialprobe`.
+* Among the adapters only the bases every feed shares may be imported: `neoaprs.source`, `neoaprs.tasks`; and the sibling pairs: `neoaprs.btserial` and `neoaprs.btsdp`, `neoaprs.gpsfeed` and `neoaprs.serialport`, `neoaprs.serialholders` and `neoaprs.serialport`, `neoaprs.serialport` and `neoaprs.btle`, `neoaprs.serialport` and `neoaprs.btserial`, `neoaprs.serialprobe` and `neoaprs.btpaired`, `neoaprs.serialprobe` and `neoaprs.serialholders`, `neoaprs.serialprobe` and `neoaprs.serialport`, `neoaprs.tnc` and `neoaprs.serialholders`, `neoaprs.tnc` and `neoaprs.serialport`, `neoaprs.tnc` and `neoaprs.serialprobe`, `neoaprs.tnc` and `neoaprs.tncentry`, `neoaprs.tnc` and `neoaprs.tnclines`, `neoaprs.tnc` and `neoaprs.tncsearch`, `neoaprs.tnc` and `neoaprs.tncwatchdog`, `neoaprs.tncsearch` and `neoaprs.serialport`, `neoaprs.tncsearch` and `neoaprs.serialprobe`.
 * bleak (the extra `ble`) only in `neoaprs/btle.py`.
 * Tornado only in `neoaprs/web/`.
-* pydantic only in the wire modules of `neoaprs/web/`: `neoaprs/web/beaconwire.py`, `neoaprs/web/bulletinwire.py`, `neoaprs/web/configwire.py`, `neoaprs/web/dispatch.py`, `neoaprs/web/hostwire.py`, `neoaprs/web/hubwire.py`, `neoaprs/web/mapwire.py`, `neoaprs/web/messagewire.py`, `neoaprs/web/outbound.py`, `neoaprs/web/ownwire.py`, `neoaprs/web/packetwire.py`, `neoaprs/web/portwire.py`, `neoaprs/web/prefwire.py`, `neoaprs/web/protocol.py`, `neoaprs/web/stationwire.py`, `neoaprs/web/tncwire.py`, `neoaprs/web/updatewire.py`, `neoaprs/web/weatherwire.py`, `neoaprs/web/wirebase.py`.
+* pydantic only in the wire modules of `neoaprs/web/`: `neoaprs/web/beaconwire.py`, `neoaprs/web/bulletinwire.py`, `neoaprs/web/configwire.py`, `neoaprs/web/dispatch.py`, `neoaprs/web/gpswire.py`, `neoaprs/web/hostwire.py`, `neoaprs/web/hubwire.py`, `neoaprs/web/mapwire.py`, `neoaprs/web/messagewire.py`, `neoaprs/web/outbound.py`, `neoaprs/web/ownwire.py`, `neoaprs/web/packetwire.py`, `neoaprs/web/portwire.py`, `neoaprs/web/prefwire.py`, `neoaprs/web/protocol.py`, `neoaprs/web/stationwire.py`, `neoaprs/web/tncwire.py`, `neoaprs/web/updatewire.py`, `neoaprs/web/weatherwire.py`, `neoaprs/web/wirebase.py`.
 * The desktop app's toolkits (`PIL PySide6 pystray shiboken6 webview`, the extra `app`) only in the shells: `neoaprs/desktop/qtshell.py`, `neoaprs/desktop/qtwindow.py`, `neoaprs/desktop/winshell.py`.
 <!-- /doc-arch -->
 
@@ -98,6 +98,7 @@ What each layer is for:
   * Our own objects and bulletins (`services/ownobjects.py` and `services/ownbulletins.py`): made, changed and killed or posted and deleted by the operator,
     kept in the database and sent on the specification's schedules. Both are `services/repeater.py`'s ticker and send through `services/sender.py`, which holds
     back everything while the call is not set or the radio is not usable and puts a pause between two frames of ours.
+  * The GPS (`services/gps.py`) and the moving station's part of the beacon (`services/mobilebeacon.py`): the fix of the GPS feed (`neoaprs/gpsfeed.py`, with `neoaprs/gpsfix.py` and `neoaprs/smartbeacon.py` as the pure code under it), its age, and the compressed position and the memory of the last beacon that SmartBeaconing needs.
   * The queries (`services/queries.py`): the answers to `?APRSP`, `?APRSS`, `?APRSD`, `?APRST`, `?PING?`, `?APRSO`, `?APRSM`, `?APRSH` and `?APRS?`, through the beacon's frames, our objects, our messages and the packet log, by the asker's path; `?WX?` and `?IGATE?` are recognised and not answered.
   * The QRU server (`services/qru.py`): our objects of a QRU group, sent to a station that sends the addressee `QRU` the group's name (or `INFO` for the list of groups). The inbox hands it the messages to `QRU`. It and the queries send their answers through `services/answers.py`: the asker's path, the pace between frames and the answer given once.
   * The fill-in digipeater (`services/digipeater.py`): a packet whose first unused hop is `WIDE1-1` or our call is sent again with our call as a used hop, when `digi/enabled` is on.
@@ -136,7 +137,8 @@ What each layer is for:
 | `store` | the `Store`, the settings in the database |
 | `tnc` | the radio |
 | `stationbook` | the stations as the packets tell them |
-| `beacon` | the position packet, a service |
+| `gps_feed`, `gps` | the GPS: `gps_feed` reads a gpsd or a serial receiver (`neoaprs/gpsfeed.py`, an adapter), `gps` is the service that keeps the latest fix and how fresh it is (`services/gps.py`) and tells the station book and the ALOHA circle when we have moved. The beacon is given `gps` |
+| `beacon` | the position packet, a service: on an interval for a station that stays, on SmartBeaconing from the GPS fix for a moving one (`services/mobilebeacon.py`, `neoaprs/smartbeacon.py`) |
 | `rigstatus` | the status report, a service. It reads rigctld through `neoaprs/rigctld.py`, and `queries` is given its `status_frame` |
 | `alerts` | the message alert, a service. Messaging is given its `alert` |
 | `packetlog`, `messagelog`, `weatherlog`, `bulletinlog`, `ownlog` | the logs of the database: the packets and the station cache, the messages, the weather observations, the message board, our own objects and bulletins |
@@ -167,6 +169,7 @@ A part gets what it needs as constructor arguments (objects of a lower layer, Pr
 - What the Tnc hears goes to the packet log, the station book, the weather log, messaging (which answers a message to us with an ack and hands bulletins to the
   board and hands a message to `QRU` to the QRU server), the queries, our objects (which stop when another station reports one) and, last, the digipeater.
 - Our objects go to the station book as stations of their own (`own`).
+- The GPS feed's fixes go to the GPS service; when our position moved far enough the service's `moved` puts our own row at the fix and works the ALOHA circle out again.
 - What the book changes or removes goes to the station cache in the database.
 - The port a search found is stored as `serial/last_port` and tried first next time.
 - `tnc_settings` is how the settings become the Tnc's port, speed and KISS entry, and `seed_station_book` fills the book at the start.
@@ -176,13 +179,13 @@ A part gets what it needs as constructor arguments (objects of a lower layer, Pr
 - **`start()`** makes the data folder, opens the database (the thread opens and migrates the file and gives it to the `Store` and the logs), and reads the
   settings. It seeds the station book from the station cache, puts our own station in it, rebuilds the tracks from the latest position packets, makes the
   weather log from the packets kept if it is empty and gives the stations their latest weather. Then it starts the message board, the Tnc **in a task** (finding
-  the port can take 20 s a port, and nothing waits for it), the beacon (its timer waits 30 s before the first one), our objects and bulletins, the status, the
+  the port can take 20 s a port, and nothing waits for it), the GPS (its feed in a task), the beacon (its timer waits 30 s before the first one), our objects and bulletins, the status, the
   preferences of the stations, messaging (it takes the latest messages from the database and starts its retry ticker), the page's server (a port in use is
   logged and the daemon goes on without the page), the update check and the daily prune task.
 - **The prune** removes packets, weather observations and stations older than `LOG_KEEP_DAYS` (`neoaprs/policy.py`). Messages and bulletins are never pruned.
-- **`stop()`** ends the page's server, the update check, a map job, the queries, the QRU server, messaging, the alert, the status, our bulletins and objects, the beacon, the
+- **`stop()`** ends the page's server, the update check, a map job, the queries, the QRU server, messaging, the alert, the status, our bulletins and objects, the beacon, the GPS, the
   Tnc and the tasks, then closes the database, doing what was asked of its thread first.
-- **`save_config(Config)`** stores the settings, puts them in force, tells the beacon (a changed interval counts at once) and restarts the Tnc when its port, speed or KISS entry changed.
+- **`save_config(Config)`** stores the settings, puts them in force, puts our own row where they say, tells the GPS (a changed source starts its feed afresh) and the beacon (a changed interval counts at once) and restarts the Tnc when its port, speed or KISS entry changed.
 
 ## The database actor
 

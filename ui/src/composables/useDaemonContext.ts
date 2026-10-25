@@ -15,6 +15,7 @@ import type {
   AlertResultMessage,
   Command,
   ConfigValues,
+  GpsState,
   InstallInfo,
   MapState,
   PortsMessage,
@@ -34,6 +35,8 @@ export interface DaemonContext {
   config: Read<ConfigValues | null>;
   status: Read<StatusMessage | null>;
   tnc: Read<TncState | null>;
+  /** the GPS receiver and the moving station's beacon; null until the daemon has told */
+  gps: Read<GpsState | null>;
   map: Read<MapState | null>;
   /** Update now: whether this copy can update itself, and how the update it is doing goes */
   selfUpdate: Read<UpdateState | null>;

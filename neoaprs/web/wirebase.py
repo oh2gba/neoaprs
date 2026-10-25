@@ -35,7 +35,7 @@ class _Model(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, allow_inf_nan=False)
 
     @classmethod
-    def row(cls, source: Any, **given: Any) -> dict[str, Any]:
+    def row(cls, source: Any, /, **given: Any) -> dict[str, Any]:
         """The model's value of a domain object, as the plain dict that goes on the wire: each field is the attribute of the same name of `source` (made plain), except the ones in `given`, which are
         the fields whose value is not an attribute of the object (a distance from us, the next time it is sent). The fields, their order and their names are the model's: a field the object
         has is told by adding it to the model, and one that cannot be found fails loudly (the tests and NEOAPRS_VALIDATE_OUT hold the dict to the model)."""

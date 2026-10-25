@@ -1,5 +1,5 @@
 """The `neoaprs` command: `neoaprs [run] [flags]` runs the daemon (the flags of `python -m neoaprs`), and the subcommands are the tools around it: `service` (set it up to start at login), `map` (make the
-base map), `db` (look at the database), `replay` (play a capture as a TNC), `capture` (record the radio), `doctor` (what is wrong with this computer), `open` (the page in the browser, starting the
+base map), `db` (look at the database), `replay` (play a capture as a TNC), `gps-replay` (play a drive as a gpsd), `capture` (record the radio), `doctor` (what is wrong with this computer), `open` (the page in the browser, starting the
 daemon if needed), `stop` (end the daemon) and `app` (the desktop app: the page in a window and a tray icon; needs the extra `neoaprs[app]`). `neoaprsw` is the daemon without a console
 window, which is how Windows starts it; `neoaprs-app` is the desktop app without one. The subcommands are imported when they are used, so that `neoaprs --version` and `neoaprs doctor` do not load the web server."""
 import argparse
@@ -13,6 +13,7 @@ COMMANDS = {
     "map": "make the base map of your area (what the page's Download button does)",
     "db": "look at and change the database: settings, stations, packets",
     "replay": "play a capture as a KISS TNC on a TCP port, to run without a radio",
+    "gps-replay": "play a drive as a gpsd on a TCP port, to run a moving station without a car or a GPS",
     "capture": "record what the radio sends into a file",
     "doctor": "check this computer: Python, folders, database, call, serial ports, the map, the service",
     "open": "open the page in the browser, starting the daemon first if none is running",
@@ -46,6 +47,11 @@ def _replay(argv: list[str]) -> int:
     return replay(argv)
 
 
+def _gps_replay(argv: list[str]) -> int:
+    from .gpsreplaycmd import main as gps_replay
+    return gps_replay(argv)
+
+
 def _capture(argv: list[str]) -> int:
     from .capturecmd import main as capture
     return capture(argv)
@@ -71,7 +77,7 @@ def _doctor(argv: list[str]) -> int:
     return doctor(argv)
 
 
-HANDLERS: dict[str, Callable[[list[str]], int]] = {"run": _run, "service": _service, "map": _map, "db": _db, "replay": _replay, "capture": _capture, "doctor": _doctor, "open": _open, "stop": _stop, "app": _app}
+HANDLERS: dict[str, Callable[[list[str]], int]] = {"run": _run, "service": _service, "map": _map, "db": _db, "replay": _replay, "gps-replay": _gps_replay, "capture": _capture, "doctor": _doctor, "open": _open, "stop": _stop, "app": _app}
 
 
 def commands_text() -> str:

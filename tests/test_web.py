@@ -43,7 +43,7 @@ async def test_a_page_that_opens_is_sent_hello_the_status_and_every_topic_whole(
     await e.start()
     page = await e.ws()
     hello = await page.expect("hello")
-    assert hello["version"] == VERSION and hello["protocol"] == 1 and hello["topics"] == list(TOPIC_NAMES) == ["stations", "packets", "tnc", "config", "station_prefs", "messages", "bulletins", "own_objects", "own_bulletins", "map", "update"]
+    assert hello["version"] == VERSION and hello["protocol"] == 1 and hello["topics"] == list(TOPIC_NAMES) == ["stations", "packets", "tnc", "config", "station_prefs", "messages", "bulletins", "own_objects", "own_bulletins", "map", "update", "gps"]
     status = await page.expect("status")
     assert status["version"] == VERSION and status["packets"] == 0 and status["stations"] == 1 and (status["call"], status["lat"], status["lon"]) == ("OH2GBA", 60.17, 24.94)
     assert (status["beacon_interval_min"], status["beacon_last_sent"], status["beacon_next_due"]) == (0, None, None)

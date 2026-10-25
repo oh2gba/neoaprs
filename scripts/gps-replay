@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Plays a synthetic drive as a gpsd on a TCP port of the loopback (2948 by default), so that the daemon can beacon as a moving station without a car or a GPS receiver: a thin wrapper that calls `neoaprs gps-replay`
+# of this clone's venv (NEOAPRS_PYTHON, else .venv/bin/python, else python3). It prints 127.0.0.1:PORT, which is what `gps/host` takes. --at LAT,LON, --kmh and --interval change the drive; --help says the rest.
+set -euo pipefail
+here="$(cd "$(dirname "$0")/.." && pwd)"
+PYTHON="${NEOAPRS_PYTHON:-}"
+[ -n "$PYTHON" ] || { PYTHON="$here/.venv/bin/python"; [ -x "$PYTHON" ] || PYTHON=python3; }
+export PYTHONPATH="$here${PYTHONPATH:+:$PYTHONPATH}"
+exec "$PYTHON" -m neoaprs gps-replay "$@"

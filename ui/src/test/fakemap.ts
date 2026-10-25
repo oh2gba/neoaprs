@@ -14,6 +14,7 @@ export class FakeMap {
   zoom: number;
   center: { lng: number; lat: number };
   flights: unknown[] = [];
+  eases: unknown[] = [];
   jumps: unknown[] = [];
   pans: unknown[] = [];
   /** where `project` puts a place, in the pixels of the map; a test sets it */
@@ -70,6 +71,9 @@ export class FakeMap {
   }
   flyTo(options: unknown): void {
     this.flights.push(options);
+  }
+  easeTo(options: unknown): void {
+    this.eases.push(options);
   }
   project(): { x: number; y: number } {
     return this.screen;

@@ -211,8 +211,8 @@ def test_the_network_guard_refuses_and_remembers_even_when_the_error_is_swallowe
     assert network.refused == ["192.0.2.1:80", "2001:db8::1:80", "example.com (name lookup)"]
 
 
-@pytest.mark.parametrize("address", [("127.0.0.1", 4532), ("localhost", 4533), ("::1", 4532, 0, 0), ("0.0.0.0", 4533), ("192.168.1.20", 4532)])
-def test_the_rigctld_and_rotctld_of_this_machine_are_not_fakes(address: tuple[object, ...]) -> None:
+@pytest.mark.parametrize("address", [("127.0.0.1", 4532), ("localhost", 4533), ("::1", 4532, 0, 0), ("0.0.0.0", 4533), ("192.168.1.20", 4532), ("127.0.0.1", 2947), ("localhost", 2947)])
+def test_the_rigctld_rotctld_and_gpsd_of_this_machine_are_not_fakes(address: tuple[object, ...]) -> None:
     network = guards.NetworkGuard()
     family = socket.AF_INET6 if address[0] == "::1" else socket.AF_INET
     with pytest.raises(guards.NonLoopbackConnection):

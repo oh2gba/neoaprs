@@ -190,6 +190,21 @@ def test_set_me_gives_our_row_the_symbol_and_the_comment_of_the_settings_and_tel
     assert len(heard.changed) == 2 and (me.symbol_table, me.symbol_code, me.last_comment) == ("\\", ">", "mobile")
 
 
+def test_set_me_for_a_moving_station_gives_our_row_the_course_speed_altitude_and_time_of_the_fix_and_tells_when_they_change() -> None:
+    book = StationBook(lambda: T0)
+    heard = Heard(book)
+    fixed_at = T0 + timedelta(seconds=7)
+    me = book.set_me("OH2GBA", 60.43, 24.145, "/", ">", "NeoAPRS", course_deg=270, speed_kmh=54.0, altitude_m=31.4, at=fixed_at)
+    assert (me.course_deg, me.speed_kmh, me.altitude_m, me.last_position_at) == (270, 54.0, 31.4, fixed_at) and len(heard.changed) == 1
+    book.set_me("OH2GBA", 60.43, 24.145, "/", ">", "NeoAPRS", course_deg=270, speed_kmh=54.0, altitude_m=31.4, at=fixed_at + timedelta(seconds=1))
+    assert len(heard.changed) == 1, "nothing but the time of the fix changed, nothing told"
+    book.set_me("OH2GBA", 60.43, 24.145, "/", ">", "NeoAPRS", course_deg=180, speed_kmh=54.0, altitude_m=31.4, at=fixed_at)
+    assert len(heard.changed) == 2 and me.course_deg == 180
+    book.set_me("OH2GBA", 60.17, 24.94, "/", "-", "NeoAPRS")
+    assert (me.course_deg, me.speed_kmh, me.altitude_m) == (None, None, None) and (me.lat, me.lon) == (60.17, 24.94), "at home again: no motion"
+    assert book.me_position == (60.17, 24.94)
+
+
 def test_a_packet_from_our_own_call_heard_on_the_air_moves_only_the_time_we_were_last_heard() -> None:
     book = StationBook(lambda: T0)
     heard = Heard(book)

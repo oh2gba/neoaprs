@@ -16,7 +16,7 @@ describe("groupKeys", () => {
   });
   it("gives the Beacon tab the station keys first (the call, the place, the symbol), then how often and what the beacon says, the antenna and the path, and the status keys", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "beacon");
-    expect(groups.map((g) => g.id)).toEqual(["station", "beacon", "status"]);
+    expect(groups.map((g) => g.id)).toEqual(["station", "beacon", "mobile", "status"]);
     expect(groups[0]?.keys).toEqual(["station/transmit", "station/call", "station/lat", "station/lon", "station/symbol_table", "station/symbol_code"]);
     expect(groups[1]?.keys).toEqual([
       "beacon/interval_min",
@@ -27,11 +27,33 @@ describe("groupKeys", () => {
       "beacon/antenna_direction",
       "beacon/path",
     ]);
-    expect(BEACON_FOLDS.map((f) => [f.title, f.keys.length])).toEqual([
-      ["Antenna", 4],
-      ["Advanced", 1],
+    expect(BEACON_FOLDS.map((f) => [f.group, f.title, f.keys.length])).toEqual([
+      ["beacon", "Antenna", 4],
+      ["beacon", "Advanced", 1],
+      ["mobile", "SmartBeaconing", 7],
     ]);
-    expect(groups[2]?.keys).toEqual(["status/source", "station/status", "status/rigctld", "status/template", "status/interval_min"]);
+    expect(groups[3]?.keys).toEqual(["status/source", "station/status", "status/rigctld", "status/template", "status/interval_min"]);
+  });
+  it("gives the Mobile group of the Beacon tab the GPS keys, the switch, then the SmartBeaconing numbers, and keeps the switch out of the Beacon group", () => {
+    const groups = groupKeys([...CONFIG_KEYS].reverse(), "beacon");
+    expect(groups[2]?.title).toBe("Mobile");
+    expect(groups[2]?.keys).toEqual([
+      "gps/source",
+      "gps/host",
+      "gps/device",
+      "gps/baud",
+      "beacon/mobile",
+      "smart/fast_kmh",
+      "smart/fast_sec",
+      "smart/slow_kmh",
+      "smart/slow_sec",
+      "smart/turn_min_deg",
+      "smart/turn_min_sec",
+      "smart/turn_slope",
+    ]);
+    expect(groups[1]?.keys).not.toContain("beacon/mobile");
+    expect(BEACON_FOLDS[2]?.keys).toEqual(groups[2]?.keys.slice(5));
+    expect(groupKeys(CONFIG_KEYS, "settings").flatMap((g) => g.keys)).not.toContain("gps/source");
   });
   it("has every key in one place only", () => {
     const shown = [...groupKeys(CONFIG_KEYS, "settings"), ...groupKeys(CONFIG_KEYS, "beacon")].flatMap((g) => g.keys);
@@ -97,6 +119,18 @@ describe("groupKeys", () => {
       "beacon/antenna_height_m",
       "beacon/antenna_gain_db",
       "beacon/antenna_direction",
+      "gps/source",
+      "gps/host",
+      "gps/device",
+      "gps/baud",
+      "beacon/mobile",
+      "smart/fast_kmh",
+      "smart/fast_sec",
+      "smart/slow_kmh",
+      "smart/slow_sec",
+      "smart/turn_min_deg",
+      "smart/turn_min_sec",
+      "smart/turn_slope",
     ];
     for (const key of keys) {
       const tip = FIELDS[key]?.tip ?? [];
@@ -130,6 +164,36 @@ describe("groupKeys", () => {
       );
     expect(antenna("")).toEqual(["beacon/power_w"]);
     expect(antenna("5")).toHaveLength(4);
+  });
+  it("shows the GPS fields its source needs and the SmartBeaconing numbers once the beacon is mobile, which has no use for the interval", () => {
+    const gps = (values: Record<string, string>) => ["gps/source", "gps/host", "gps/device", "gps/baud"].filter((k) => shownByValues(k, values));
+    expect(gps({ "gps/source": "off" })).toEqual(["gps/source"]);
+    expect(gps({ "gps/source": "gpsd" })).toEqual(["gps/source", "gps/host"]);
+    expect(gps({ "gps/source": "serial" })).toEqual(["gps/source", "gps/device", "gps/baud"]);
+    const smart = ["smart/fast_kmh", "smart/fast_sec", "smart/slow_kmh", "smart/slow_sec", "smart/turn_min_deg", "smart/turn_min_sec", "smart/turn_slope"];
+    expect(smart.filter((k) => shownByValues(k, { "beacon/mobile": "false" }))).toEqual([]);
+    expect(smart.filter((k) => shownByValues(k, { "beacon/mobile": "true" }))).toEqual(smart);
+    expect(shownByValues("beacon/interval_min", { "beacon/mobile": "false" })).toBe(true);
+    expect(shownByValues("beacon/interval_min", { "beacon/mobile": "true" })).toBe(false);
+    expect(shownByValues("beacon/mobile", { "beacon/mobile": "true" })).toBe(true);
+  });
+  it("gives the GPS and SmartBeaconing keys their words: a choice for the source, a switch for Mobile, units and the ranges of the daemon in the (i)", () => {
+    expect(FIELDS["gps/source"]?.kind).toBe("choice");
+    expect(FIELDS["gps/source"]?.choices).toEqual([
+      { value: "off", label: "Off" },
+      { value: "gpsd", label: "gpsd" },
+      { value: "serial", label: "Serial receiver" },
+    ]);
+    expect(FIELDS["beacon/mobile"]).toMatchObject({ label: "Mobile", kind: "bool", name: "Mobile beacon" });
+    expect(FIELDS["gps/baud"]?.unit).toBe("baud");
+    expect(["smart/fast_kmh", "smart/slow_kmh"].map((k) => FIELDS[k]?.unit)).toEqual(["km/h", "km/h"]);
+    expect(["smart/fast_sec", "smart/slow_sec", "smart/turn_min_sec"].map((k) => FIELDS[k]?.unit)).toEqual(["s", "s", "s"]);
+    expect(FIELDS["smart/turn_min_deg"]?.unit).toBe("°");
+    const tip = (key: string) => (FIELDS[key]?.tip ?? []).join(" ");
+    expect(tip("smart/fast_kmh")).toContain("10 to 300 km/h");
+    expect(tip("smart/slow_sec")).toContain("60 to 3600");
+    expect(tip("smart/turn_slope")).toContain("0 to 1000");
+    expect(tip("gps/host")).toContain("2947");
   });
   it("gives a unit to the keys that are counted in one", () => {
     expect(["map/radius_km"].map((k) => FIELDS[k]?.unit)).toEqual(["km"]);

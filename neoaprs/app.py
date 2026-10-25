@@ -1,4 +1,4 @@
-"""The composition root: the parts of the program, made in one place. The data directory, the clock, the settings (`config`), the Store, the Tnc, the station book, the beacon, the status, the message alert, messaging, the message board,
+"""The composition root: the parts of the program, made in one place. The data directory, the clock, the settings (`config`), the Store, the Tnc, the station book, the GPS and its service, the beacon, the status, the message alert, messaging, the message board,
 the objects and the bulletins of our own and their sender, the queries, the QRU server, the digipeater, the base map, Find my radio, the update check and Update now (the services are made here and nowhere else), the station preferences, the packet log, the message log, the bulletin log, the log of our own objects and bulletins, the weather log and the task set. The parts are made here and connected in neoaprs/wiring.py; the start and the stop are neoaprs/controller.py.
 """
 import asyncio
@@ -13,6 +13,7 @@ from .bulletinlog import BulletinLog
 from .clock import Clock, utcnow
 from .config import DEFAULTS, Config
 from .db import Db
+from .gpsfeed import GpsFeed
 from .interlock import Interlock
 from .messagelog import MessageLog
 from .ownlog import OwnLog
@@ -24,6 +25,7 @@ from .services.aloha import Aloha
 from .services.beacon import Beacon
 from .services.bulletins import Bulletins
 from .services.digipeater import Digipeater
+from .services.gps import Gps
 from .services.mapfetch import MapFetch
 from .services.messaging import Messaging
 from .services.ownbulletins import OwnBulletins
@@ -67,7 +69,9 @@ class Services:
         self.tnc = tnc if tnc is not None else Tnc(clock=clock)         # the radio; its port and speed are set from the config when it is started
         self.tnc.interlock = Interlock(lambda: self.config)            # the transmit interlock: nothing goes out under no call, or one that is not a call (config.can_transmit)
         self.stationbook = StationBook(clock)                           # who was heard, where
-        self.beacon = Beacon(self.tnc, lambda: self.config, clock, memory=self.store)       # our position packet, on an interval and on request; started by the controller after the Tnc
+        self.gps_feed = GpsFeed(clock)                                  # the GPS receiver: a gpsd to ask or a serial port to read; configured and started by the gps service
+        self.gps = Gps(self.gps_feed, lambda: self.config, clock)       # the latest GPS fix and how fresh it is, for the moving station's beacon and the page; started by the controller before the beacon
+        self.beacon = Beacon(self.tnc, lambda: self.config, clock, memory=self.store, gps=self.gps)       # our position packet, on an interval, on SmartBeaconing for a moving station, and on request; started by the controller after the Tnc
         self.rigstatus = RigStatus(self.tnc, lambda: self.config, self.beacon, clock, memory=self.store)  # our status report, from the radio or the static text, at most every status/interval_min; started by the controller after the beacon
         self.alerts = Alerts(lambda: self.config, clock)                # the command run for a message to us; nothing to start
         self.packetlog = PacketLog(clock=clock)                         # every packet and the station cache, in the database

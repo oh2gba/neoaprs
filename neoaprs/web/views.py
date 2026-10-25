@@ -4,7 +4,7 @@ from the attribute of the object that has its name: what is written here is only
 is sent, the route as text)."""
 import json
 from datetime import datetime
-from typing import Any
+from typing import Any, Protocol
 
 from neoaprs.aprstelemetry import describe
 from neoaprs.aprsweather import Weather
@@ -12,12 +12,14 @@ from neoaprs.bulletin import BulletinRecord
 from neoaprs.chain import INTERNET, Attempt
 from neoaprs.clock import iso
 from neoaprs.config import DEFAULTS, Config
+from neoaprs.gpsfix import Fix
 from neoaprs.message import MessageRecord
 from neoaprs.ownbulletin import OwnBulletin
 from neoaprs.ownobject import OwnObject
 from neoaprs.packet import Packet
 from neoaprs.packetcodec import encode_decoded, tnc2
 from neoaprs.pref import Pref
+from neoaprs.smartbeacon import Reason, Sent
 from neoaprs.route import digipeaters, heard_path, received_text, route_text, suggested_path
 from neoaprs.station import Station
 from neoaprs.stationbook import StationBook
@@ -26,6 +28,7 @@ from neoaprs.tnc import Tnc
 from neoaprs.weatherlog import Observation
 
 from .bulletinwire import BulletinRow
+from .gpswire import GpsState
 from .messagewire import AttemptRow, MessageRow
 from .ownwire import OwnBulletinRow, OwnObjectRow
 from .packetwire import PacketRow
@@ -121,3 +124,33 @@ def tnc_state(tnc: Tnc) -> dict[str, Any]:
 
 def config_values(config: Config, urls: list[str], https: dict[str, Any] | None = None) -> dict[str, Any]:
     return {"values": config.to_data(), "defaults": DEFAULTS.to_data(), "urls": urls, "https": https or {"on": False, "port": 0, "fingerprint": "", "problem": ""}}
+
+
+class GpsSource(Protocol):
+    """What the `gps` topic needs of the GPS service."""
+    @property
+    def fix(self) -> Fix | None: ...
+    @property
+    def state(self) -> str: ...
+    @property
+    def problem(self) -> str: ...
+    def current(self) -> Fix | None: ...
+
+
+class MobilePlanSource(Protocol):
+    """What the `gps` topic needs of the beacon's memory of its mobile beacons."""
+    @property
+    def last(self) -> Sent | None: ...
+    @property
+    def last_reason(self) -> Reason | None: ...
+
+
+def gps_state(config: Config, gps: GpsSource, plan: MobilePlanSource, next_due: datetime | None) -> dict[str, Any]:
+    """The `gps` topic: the latest fix and its state, and the moving station's beacon. `next_due` is the beacon's time of the next beacon, told only for a mobile station with a fresh fix."""
+    fix, last = gps.fix, plan.last
+    return GpsState.row(
+        None, source=config.gps_source, state=gps.state, problem=gps.problem, lat=None if fix is None else fix.lat, lon=None if fix is None else fix.lon,
+        altitude_m=None if fix is None else fix.altitude_m, speed_kmh=None if fix is None else fix.speed_kmh, course_deg=None if fix is None else fix.course_deg,
+        satellites=None if fix is None else fix.satellites, fix_at=None if fix is None else iso(fix.at), mobile=config.beacon_mobile,
+        next_beacon_at=iso(next_due) if config.beacon_mobile and gps.current() is not None else None,
+        last_beacon_reason=plan.last_reason or "" if last is not None else "", last_beacon_at=None if last is None else iso(last.at))

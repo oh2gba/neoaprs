@@ -18,3 +18,7 @@ ALOHA_WEIGHT_DIGI = 3                # ... of a digipeater
 ALOHA_WEIGHT_HOME = 2                # ... of a home station (any other)
 ALOHA_MOVING_KMH = 5.0               # a mobile station reporting more than this speed is in motion (ours: the text says only "in motion", and a parked GPS drifts a few km/h)
 ALOHA_EVERY_SEC = 60.0               # the circle is worked out again this often (the text: every 30 minutes)
+
+GPS_STALE_SEC = 120                  # a GPS fix older than this is not used: a mobile station sends no beacon on it (never the home position instead), and the page is told the fix is stale
+GPS_PLACE_EVERY_SEC = 5.0            # our own row on the map follows the GPS at most this often ...
+GPS_PLACE_MOVED_M = 10.0             # ... and only after we moved at least this far from where it was put

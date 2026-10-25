@@ -4,6 +4,7 @@ import { PROTOCOL } from "@/protocol/lists";
 import type {
   AlertResultMessage,
   ErrorMessage,
+  GpsState,
   HelloMessage,
   BulletinRow,
   MessageRow,
@@ -19,7 +20,21 @@ import type {
   WeatherSeriesMessage,
 } from "@/protocol/protocol";
 import { FakeSocket } from "@/test/fakesocket";
-import { bulletin, configValues, errorOf, hello, mapFile, mapState, message, ownBulletin, ownObject, packet, station, tncState } from "@/test/fixtures";
+import {
+  bulletin,
+  configValues,
+  errorOf,
+  gpsState,
+  hello,
+  mapFile,
+  mapState,
+  message,
+  ownBulletin,
+  ownObject,
+  packet,
+  station,
+  tncState,
+} from "@/test/fixtures";
 
 function memory() {
   const seen = {
@@ -41,6 +56,7 @@ function memory() {
     config: null as unknown,
     map: null as unknown,
     update: null as unknown,
+    gps: null as unknown,
     hello: 0,
     statuses: 0,
     stale: 0,
@@ -66,6 +82,7 @@ function memory() {
     replaceConfig: (v) => (seen.config = v),
     replaceMap: (v) => (seen.map = v),
     replaceUpdate: (v) => (seen.update = v),
+    replaceGps: (v) => (seen.gps = v),
     setStation: (k, r) => void seen.stations.set(k, r),
     setPacket: (k, r) => void seen.packets.set(k, r),
     setMessage: (k, r) => void seen.messages.set(k, r),
@@ -133,6 +150,15 @@ describe("Hub", () => {
     socket.say(state("map", 3, mapState()));
     socket.say(patch("map", 4, [{ op: "replace", value: mapState({ state: "downloading", step: "world", percent: 42 }) }]));
     expect(seen.map).toEqual(mapState({ state: "downloading", step: "world", percent: 42 }));
+  });
+
+  it("puts the GPS topic in the store of the GPS, not in the settings", () => {
+    const { seen, socket } = opened();
+    socket.say(state("config", 0, configValues()));
+    socket.say(state("gps", 0, gpsState()));
+    socket.say(patch("gps", 1, [{ op: "replace", value: gpsState({ state: "stale" }) }]));
+    expect((seen.gps as GpsState).state).toBe("stale");
+    expect(seen.config).toEqual(configValues());
   });
 
   it("applies set, del and replace ops in order", () => {

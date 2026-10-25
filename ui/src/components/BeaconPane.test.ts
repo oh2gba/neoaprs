@@ -2,15 +2,16 @@ import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import BeaconPane from "@/components/BeaconPane.vue";
 import { fakeDaemon, withDaemon } from "@/test/context";
-import { ago, configValues, status } from "@/test/fixtures";
+import { NOW, ago, configValues, gpsOff, gpsState, status } from "@/test/fixtures";
 
-type Opts = { connected?: boolean; picking?: boolean; status?: ReturnType<typeof status> | null };
+type Opts = { connected?: boolean; picking?: boolean; status?: ReturnType<typeof status> | null; gps?: ReturnType<typeof gpsState> | null };
 
 function pane(extra: Record<string, string> = {}, opts: Opts = {}) {
   const daemon = fakeDaemon({
     status: opts.status === undefined ? status({ beacon_last_sent: ago(125) }) : opts.status,
     connected: opts.connected ?? true,
     config: configValues(extra),
+    gps: opts.gps ?? null,
   });
   const wrapper = mount(BeaconPane, { props: { picking: opts.picking ?? false }, global: withDaemon(daemon) });
   return { wrapper, send: daemon.send, daemon };
@@ -35,7 +36,22 @@ describe("BeaconPane", () => {
 
   it("asks nothing about the destination, the compressed form or the DAO: the program decides", () => {
     const { wrapper } = pane({ "status/source": "text" });
-    expect(labels(wrapper)).toEqual(["Transmit", "Call", "Latitude", "Longitude", "Symbol", "Beacon", "Comment", "Power", "Path", "Status", "Text", "Every"]);
+    expect(labels(wrapper)).toEqual([
+      "Transmit",
+      "Call",
+      "Latitude",
+      "Longitude",
+      "Symbol",
+      "Beacon",
+      "Comment",
+      "Power",
+      "Path",
+      "GPS source",
+      "Mobile",
+      "Status",
+      "Text",
+      "Every",
+    ]);
     for (const id of ["destination", "compressed", "dao", "symbol_table", "symbol_code"])
       expect(wrapper.find(`#set-beacon-${id}, #set-station-${id}`).exists()).toBe(false);
   });
@@ -257,5 +273,62 @@ describe("BeaconPane", () => {
       await wrapper.setProps({ picking: true });
       expect(buttons(wrapper)[0]?.text()).toBe("Beacon now");
     });
+  });
+});
+
+describe("the Mobile group of the Beacon tab", () => {
+  const later = (seconds: number) => new Date(NOW + seconds * 1000).toISOString();
+
+  it("starts with the GPS block, which is there as soon as the daemon has told, whether or not the beacon follows", () => {
+    expect(group(pane().wrapper, "Mobile")?.find(".gpsstatus").exists()).toBe(false);
+    const { wrapper } = pane({ "gps/source": "gpsd" }, { gps: gpsState() });
+    const mobile = group(wrapper, "Mobile");
+    expect(mobile?.element.children[1]?.classList.contains("gpsstatus")).toBe(true);
+    expect(mobile?.find(".tncstatus").text()).toBe("Fix: 60.4295 N 24.1452 E, 48 km/h, course 215°, 103 m, 9 satellites, 2 s ago");
+  });
+
+  it("says Off while there is no source, and what is being connected to from the settings", async () => {
+    const { wrapper, daemon } = pane({}, { gps: gpsOff() });
+    expect(group(wrapper, "Mobile")?.find(".tncstatus").text()).toBe("Off");
+    daemon.gps.value = gpsState({ state: "connecting", lat: null, lon: null, problem: "Connection refused" });
+    await wrapper.vm.$nextTick();
+    expect(group(wrapper, "Mobile")?.find(".tncstatus").text()).toBe("Connecting to gpsd at 127.0.0.1:2947");
+    expect(group(wrapper, "Mobile")?.find(".problem").text()).toBe("Connection refused");
+  });
+
+  it("has no line about SmartBeaconing while the beacon is not mobile", () => {
+    const { wrapper } = pane({}, { gps: gpsState({ mobile: false, next_beacon_at: later(42) }) });
+    expect(wrapper.find(".mobileline").exists()).toBe(false);
+  });
+
+  it("says under Last beacon when SmartBeaconing sends next, and why the last one went", () => {
+    const { wrapper } = pane(
+      { "beacon/mobile": "true" },
+      { gps: gpsState({ mobile: true, next_beacon_at: later(42), last_beacon_at: ago(12), last_beacon_reason: "turn" }) },
+    );
+    const line = group(wrapper, "Beacon")?.find(".mobileline");
+    expect(line?.text()).toBe("SmartBeaconing: next by time in 42 s, last sent 12 s ago (turn)");
+    expect(group(wrapper, "Beacon")?.find(".sendrow + .mobileline").exists()).toBe(true);
+  });
+
+  it("says there is no beacon without a fix, and keeps Beacon now as it is", async () => {
+    const { wrapper, send } = pane(
+      { "beacon/mobile": "true" },
+      { gps: gpsState({ mobile: true, state: "no_fix", lat: null, lon: null, fix_at: null, problem: "the receiver has no position fix yet" }) },
+    );
+    expect(group(wrapper, "Beacon")?.find(".mobileline").text()).toBe("No beacon: no GPS fix");
+    expect(group(wrapper, "Mobile")?.find(".problem").text()).toBe("the receiver has no position fix yet");
+    const button = buttons(wrapper)[0];
+    expect(button?.text()).toBe("Beacon now");
+    await button?.trigger("click");
+    await button?.trigger("click");
+    expect(send).toHaveBeenCalledWith({ cmd: "beacon_now" });
+  });
+
+  it("calls the place of the Station group the home position while Mobile is on", () => {
+    expect(group(pane().wrapper, "Station")?.find(".location-field .field-label").text()).toBe("Location");
+    const { wrapper } = pane({ "beacon/mobile": "true" }, { gps: gpsState({ mobile: true }) });
+    expect(group(wrapper, "Station")?.find(".location-field .field-label").text()).toBe("Home position");
+    expect(group(wrapper, "Station")?.find("#set-station-lat").exists()).toBe(true);
   });
 });

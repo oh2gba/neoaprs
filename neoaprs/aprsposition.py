@@ -1,6 +1,7 @@
-"""APRS positions: the uncompressed and the compressed forms, with the symbol, the course, the speed, the altitude and the timestamp.
+"""APRS positions: the uncompressed and the compressed forms, with the symbol, the course, the speed, the altitude and the timestamp, read and written (the compressed form for a moving station).
 
 `parse_position` takes the bytes that follow the data type identifier ("!", "=", "/" or "@"); a timestamp is recognised by its shape, so the same function reads all four."""
+import math
 import re
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
@@ -160,7 +161,7 @@ def _compressed_motion(cs: bytes, t: int) -> tuple[int | None, float | None, flo
     if ((t - 33) >> 3) & 3 == 2:                        # the fix came from a GGA sentence: cs is the altitude
         return None, None, 1.002 ** (c * 91 + s) * FOOT_M, None
     if c <= 89:
-        course, speed = motion(c * 4, 1.08 ** s - 1)
+        course, speed = motion(c * 4 or (360 if s else 0), 1.08 ** s - 1)         # (course 0 with a speed is north; with none it is no data)
         return course, speed, None, None
     if cs[0] == ord("{"):                             # the radio range: 2 * 1.08 ** s miles
         return None, None, None, Extensions(range_km=round(2 * 1.08 ** s * MILE_KM, 1))
@@ -285,3 +286,63 @@ def _coordinate_text(value: float, whole_digits: int, negative: str, positive: s
 def uncompressed_position(lat: float, lon: float, symbol_table: str, symbol_code: str) -> bytes:
     """The 19 bytes DDMM.mmN/DDDMM.mmE- of an uncompressed position: latitude, symbol table, longitude, symbol code."""
     return f"{_coordinate_text(lat, 2, 'S', 'N')}{symbol_table}{_coordinate_text(lon, 3, 'W', 'E')}{symbol_code}".encode("ascii")
+
+
+COMPRESSED_COMMENT_MAX = 40                           # the longest comment after a compressed position (APRS101, chapter 9); the altitude `/A=aaaaaa` is part of it
+_BLANK_CS_T = b" sT"                                  # no course, speed, range or altitude: a space in c and the fillers `sT` (the specification's example)
+_TYPE_RMC_CURRENT = 0b00111010                        # the T byte: a current GPS fix (bit 5), from an RMC sentence (bits 4 and 3 = 11), compressed by software (bits 2 to 0 = 010)
+_BASE91_DIGITS = 4
+_MAX_SPEED_STEP = 90                                  # the largest s of 1.08**s - 1 knots that c and s can hold (c, s are 0 to 90, and the c byte above 89 means something else)
+
+
+def _base91_text(value: int) -> bytes:
+    """The four base-91 characters (33 to 123) of a whole number."""
+    digits = bytearray()
+    for _ in range(_BASE91_DIGITS):
+        value, digit = divmod(value, 91)
+        digits.append(33 + digit)
+    return bytes(reversed(digits))
+
+
+def _compressed_table(table: str) -> str:
+    """The symbol table character of a compressed position: `/`, `\\`, a capital letter, or a-j for the digit overlays 0-9 (a digit would make the position an uncompressed one)."""
+    if len(table) == 1 and (table in "/\\" or "A" <= table <= "Z"):
+        return table
+    if len(table) == 1 and "0" <= table <= "9":
+        return chr(ord(table) - ord("0") + ord("a"))
+    raise ValueError(f"the symbol table {table!r} is not / or \\ or an overlay character A-Z, 0-9")
+
+
+def _course_speed(course_deg: int | None, speed_kmh: float | None) -> bytes:
+    """The three bytes `csT` of a position with a GPS fix from an RMC sentence: the course in steps of 4 degrees and the speed as 1.08**s - 1 knots; the blank form when either is not known."""
+    if course_deg is None or speed_kmh is None or speed_kmh < 0:
+        return _BLANK_CS_T
+    c = round(course_deg / 4) % 90
+    s = min(_MAX_SPEED_STEP, round(math.log(speed_kmh / KNOT_KMH + 1) / math.log(1.08)))
+    return bytes((33 + c, 33 + s, 33 + _TYPE_RMC_CURRENT))
+
+
+def compressed_position(lat: float, lon: float, symbol_table: str, symbol_code: str, course_deg: int | None = None, speed_kmh: float | None = None) -> bytes:
+    """The 13 bytes `/YYYYXXXX$csT` of a compressed position: the symbol table, 380926 * (90 - latitude) and 190463 * (180 + longitude) in four base-91 characters each (a position to a third of a metre),
+    the symbol code, and the course and speed (APRS101, chapter 9). With a course and a speed `cs` is the course over 4 and the speed as 1.08**s - 1 knots and `T` says a current GPS fix from an RMC
+    sentence, compressed by software; with either missing it is the blank form ` sT`, which readers ignore. Raises ValueError for a position that is not on the earth or a symbol that is not one."""
+    if not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0):
+        raise ValueError(f"the position {lat}, {lon} is not on the earth")
+    if len(symbol_code) != 1 or not "!" <= symbol_code <= "~":
+        raise ValueError(f"the symbol code {symbol_code!r} is not one printable character")
+    top = 91 ** _BASE91_DIGITS - 1
+    y, x = min(top, round(380926 * (90.0 - lat))), min(top, round(190463 * (180.0 + lon)))
+    return _compressed_table(symbol_table).encode("ascii") + _base91_text(y) + _base91_text(x) + symbol_code.encode("ascii") + _course_speed(course_deg, speed_kmh)
+
+
+def altitude_text(altitude_m: float) -> str:
+    """`/A=001234`: the altitude in feet, six digits (`/A=-00012` below sea level), held to what six digits and a sign hold."""
+    feet = max(-99999, min(999999, round(altitude_m / FOOT_M)))
+    return f"/A={feet:06d}" if feet >= 0 else f"/A=-{-feet:05d}"
+
+
+def compressed_comment(altitude_m: float | None, comment: str) -> str:
+    """The comment that follows a compressed position: the altitude `/A=aaaaaa` when there is one, then the station's comment. All of it may be 40 characters (COMPRESSED_COMMENT_MAX), so the
+    station's comment is cut at the end to fit: a beacon with a long comment is sent with it shortened, not refused."""
+    altitude = "" if altitude_m is None else altitude_text(altitude_m)
+    return altitude + comment[:COMPRESSED_COMMENT_MAX - len(altitude)]

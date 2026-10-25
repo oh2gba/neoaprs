@@ -1,8 +1,11 @@
-"""The beacon: our own position packet, built from the settings and sent through the Tnc every `beacon/interval_min` minutes and on request.
+"""The beacon: our own position packet, built from the settings and sent through the Tnc every `beacon/interval_min` minutes and on request, or, for a moving station (`beacon/mobile`), from the GPS fix when SmartBeaconing says.
 
 The frame is `frame()`: the tocall (`neoaprs.TOCALL`, not a setting), the digipeaters and the symbol, the comment and the position (`=`, a station with messaging; always the plain uncompressed form, which every receiver reads, rounded to the
 hundredth of a minute and never ambiguous) come from the settings. Right after the position, before the comment, goes the PHG data extension (`PHGphgd`: power, height, gain and directivity of the antenna) when `beacon/power_w` is
 set; the comment may then be 36 characters, 43 otherwise (`Config.comment_limit`), and the frame is refused when it is longer. The Tnc puts a sent frame in the packet log as a packet with direction "out", so nothing here keeps it.
+A mobile beacon (services/mobilebeacon.py, neoaprs/smartbeacon.py) is the position, course, speed and altitude of the GPS fix (the services/gps.py `current()`, a fix that is not older than GPS_STALE_SEC), a compressed position without PHG; the
+timer asks SmartBeaconing at every tick instead of waiting for an interval (`beacon/interval_min` is not used), `next_due` is the time the speed of the fix says the next beacon by time is due, and `mobile` remembers the last beacon (when, the course, why:
+`start` for the first fix of the run, `time`, `turn`, `request`). With no fix, none yet or none fresh, no beacon is built or sent at all (`NoFix`), and `problem` says why; the home position of the settings is never put in its place.
 The status report (`status_frame(text)`: `>` and the time as `DDHHMMz`, then the text, at most 55 printable ASCII characters without `|` and `~`) is made here, by the same tocall and path, but sent by services/rigstatus.py, not after each beacon.
 
 The timer is a task that looks at the clock once a `tick_sec`, so a test moves the clock and the beacon follows. The first beacon is `first_delay_sec` after the start (the radio and the TNC
@@ -21,10 +24,13 @@ from neoaprs.aprsposition import uncompressed_position
 from neoaprs.clock import Clock, utcnow
 from neoaprs.config import ANTENNA_DIRECTIONS, BEACON_SENT, SYMBOL_TABLES, Config, can_transmit
 from neoaprs.configstatus import MAX_STATUS
-from neoaprs.configtypes import over_the_air_problem
+from neoaprs.configtypes import over_the_air_problem, over_the_air_refusal
+from neoaprs.gpsfix import Fix
 from neoaprs.interlock import Interlock
 from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, our_frame
 from neoaprs.services.memory import Memory, Remembered, stamp
+from neoaprs.services.mobilebeacon import MobilePlan, Positions, mobile_info
+from neoaprs.smartbeacon import Reason
 from neoaprs.source import Source
 from neoaprs.tasks import TaskSet
 
@@ -33,12 +39,17 @@ log = logging.getLogger("neoaprs.beacon")
 FIRST_DELAY_SEC = 30.0
 TICK_SEC = 1.0
 RETRY_SEC = 5.0
+MOBILE_GIVE_UP_SEC = 60.0                                       # a mobile beacon the Tnc refused ATTEMPTS times is tried again this much later, with the fix of then
 ATTEMPTS = 6                                                    # the Tnc refusing the frame this many times in a row skips the interval
 _FEET_PER_METRE = 3.2808
 
 
 class BeaconError(ValueError):
     """The settings do not make a frame."""
+
+
+class NoFix(BeaconError):
+    """A mobile station has no GPS fix to send (none yet, or none fresh): there is no beacon, and the home position is not sent instead."""
 
 
 def _round_half_up(x: float) -> int:
@@ -56,8 +67,9 @@ def phg_text(power_w: int, height_m: float, gain_db: int, direction: str) -> str
 
 class Beacon:
     def __init__(self, tnc: Radio, config: ConfigSource, clock: Clock = utcnow, first_delay_sec: float = FIRST_DELAY_SEC, tick_sec: float = TICK_SEC,
-                 memory: Memory | None = None, retry_sec: float = RETRY_SEC) -> None:
+                 memory: Memory | None = None, retry_sec: float = RETRY_SEC, gps: Positions | None = None) -> None:
         self._tnc = tnc
+        self._gps = gps
         self._config = config
         self._interlock = Interlock(config)
         self.clock = clock
@@ -72,6 +84,9 @@ class Beacon:
         self._earlier: datetime | None = None                   # the beacon of an earlier run, as the row kept it; None if there was none
         self._remembered = Remembered(memory)
         self._planned_min = 0                                   # the interval next_due was planned for
+        self._planned_mobile = False                            # whether it was planned for a mobile station
+        self.mobile = MobilePlan()                              # the last mobile beacon, for SmartBeaconing and the page
+        self._no_fix_told = False
         self._skip_told = False
         self._refused = 0                                       # how many times in a row the Tnc refused the due beacon
         self._retry_at: datetime | None = None                  # when the refused beacon is tried again
@@ -79,23 +94,47 @@ class Beacon:
 
     # ---- the frame
     def frame(self) -> ax25.Frame:
-        """The frame of our beacon for the settings as they are now. Raises BeaconError when they do not make one (a call that is not a call, a comment too long)."""
+        """The frame of our beacon for the settings as they are now (a mobile station's: for the GPS fix as it is now). Raises BeaconError when they do not make one (a call that is not a call, a comment too long),
+        and NoFix, a BeaconError, for a mobile station with no fresh fix."""
+        return self._build()[0]
+
+    def _build(self) -> tuple[ax25.Frame, Fix | None]:
+        """The frame and the fix it was made from (None for a station that stays where it is)."""
         c = self._config()
         if reason := can_transmit(c):
             raise BeaconError(reason)
+        if c.beacon_mobile:
+            return self._mobile_frame(c)
         if problem := c.comment_problem():
             raise BeaconError(problem)
         if c.station_lat is None or c.station_lon is None:
             raise BeaconError("set your position first")
         if not (-90.0 <= c.station_lat <= 90.0 and -180.0 <= c.station_lon <= 180.0):
             raise BeaconError(f"the position {c.station_lat}, {c.station_lon} is not on the earth")
-        if c.station_symbol_table not in SYMBOL_TABLES or len(c.station_symbol_table) != 1 or not "!" <= c.station_symbol_code <= "~" or len(c.station_symbol_code) != 1:
-            raise BeaconError(f"the symbol {c.station_symbol_table!r} {c.station_symbol_code!r} is not a table (/ \\ A-Z 0-9) and one printable character")
+        self._check_symbol(c)
         try:
             position = uncompressed_position(c.station_lat, c.station_lon, c.station_symbol_table, c.station_symbol_code)
         except ValueError as e:
             raise BeaconError(str(e)) from None
-        return self._frame_of(b"=" + position + self._phg(c) + c.station_comment.encode("ascii"))
+        return self._frame_of(b"=" + position + self._phg(c) + c.station_comment.encode("ascii")), None
+
+    @staticmethod
+    def _check_symbol(c: Config) -> None:
+        if c.station_symbol_table not in SYMBOL_TABLES or len(c.station_symbol_table) != 1 or not "!" <= c.station_symbol_code <= "~" or len(c.station_symbol_code) != 1:
+            raise BeaconError(f"the symbol {c.station_symbol_table!r} {c.station_symbol_code!r} is not a table (/ \\ A-Z 0-9) and one printable character")
+
+    def _mobile_frame(self, c: Config) -> tuple[ax25.Frame, Fix]:
+        fix = self._gps.current() if self._gps is not None else None
+        if fix is None:
+            raise NoFix(self._gps.why_none() if self._gps is not None else "no GPS is set up")
+        if refusal := over_the_air_refusal(c.station_comment):
+            raise BeaconError(f"station/comment: {refusal}")
+        self._check_symbol(c)
+        try:
+            info = mobile_info(c, fix)
+        except ValueError as e:
+            raise BeaconError(str(e)) from None
+        return self._frame_of(info), fix
 
     @staticmethod
     def _phg(c: Config) -> bytes:
@@ -128,12 +167,14 @@ class Beacon:
 
     # ---- sending
     def send_now(self, reason: str = "request") -> bool:
-        """Sends the beacon through the Tnc and notes when and why; the interval counts from now. False (and `problem` says why) when the Tnc is not connected or the radio is silent, would not take it, or the
-        settings make no frame. Nothing is sent while the call is not set (the interlock)."""
+        """Sends the beacon through the Tnc and notes when and why; the interval counts from now (a mobile station's SmartBeaconing from this beacon). False (and `problem` says why) when the Tnc is not connected or
+        the radio is silent, would not take it, the settings make no frame, or a mobile station has no fresh fix. Nothing is sent while the call is not set (the interlock)."""
         if refusal := self._interlock.refused("beacon"):
             return self._failed(refusal)
         try:
-            frame = self.frame()
+            frame, fix = self._build()
+        except NoFix as e:
+            return self._failed(f"no beacon: {e}")
         except BeaconError as e:
             return self._failed(f"the settings make no beacon: {e}", warn=True)
         if not self._tnc.usable:
@@ -144,7 +185,9 @@ class Beacon:
         self._refused, self._retry_at = 0, None
         log.info("beacon sent (%s): %s", reason, frame.tnc2())
         self._remembered.put({BEACON_SENT: stamp(self.last_sent)})
-        self._plan_after_send()
+        if fix is not None:
+            self.mobile.sent(fix, self.last_sent, reason)
+        self._plan_after_send(fix)
         return True
 
     def _failed(self, problem: str, warn: bool = False) -> bool:
@@ -169,8 +212,8 @@ class Beacon:
         self._started, self.next_due = None, None
 
     def settings_changed(self) -> None:
-        """The settings were saved: a changed interval is planned from now on, at once; 0 stops the timer. Any other change leaves the time of the next beacon alone."""
-        if self._started is not None and self.interval_min != self._planned_min:
+        """The settings were saved: a changed interval, or a switch between a fixed and a mobile station, is planned from now on, at once; 0 stops the timer of a fixed one. Any other change leaves the time of the next beacon alone."""
+        if self._started is not None and (self.interval_min != self._planned_min or self._config().beacon_mobile != self._planned_mobile):
             self._plan(self.interval_min)
 
     @property
@@ -179,10 +222,11 @@ class Beacon:
 
     def _plan(self, interval_min: int) -> None:
         """The next beacon for this interval: an interval after the latest one sent in this run, else after the one of the earlier run if that is still ahead of the start, else
-        `first_delay_sec` after the start (a time that has passed is due at the next tick)."""
-        self._planned_min = interval_min
+        `first_delay_sec` after the start (a time that has passed is due at the next tick). A mobile station has none planned: SmartBeaconing says at each tick."""
+        mobile = self._config().beacon_mobile
+        self._planned_min, self._planned_mobile = interval_min, mobile
         self._refused, self._retry_at = 0, None
-        if self._started is None or interval_min == 0:
+        if self._started is None or interval_min == 0 or mobile:
             self.next_due = None
         elif self.last_sent is not None:
             self.next_due = self.last_sent + timedelta(minutes=interval_min)
@@ -191,8 +235,10 @@ class Beacon:
         else:
             self.next_due = self._started + timedelta(seconds=self.first_delay_sec)
 
-    def _plan_after_send(self) -> None:
-        if self._started is not None and self._planned_min:
+    def _plan_after_send(self, fix: Fix | None) -> None:
+        if fix is not None:
+            self.next_due = self.mobile.check(self._config().smart, fix, self.clock()).next_due
+        elif self._started is not None and self._planned_min:
             self.next_due = self.clock() + timedelta(minutes=self._planned_min)
 
     async def _run(self) -> None:
@@ -200,13 +246,35 @@ class Beacon:
             await asyncio.sleep(self.tick_sec)
             self._tick()
 
+    def _due_reason(self, now: datetime) -> str | None:
+        """Why a beacon is due now (`interval`, or for a mobile station what SmartBeaconing says), None when none is."""
+        if self._config().beacon_mobile:
+            return self._mobile_reason(now)
+        return "interval" if self.next_due is not None and now >= self.next_due else None
+
+    def _mobile_reason(self, now: datetime) -> Reason | None:
+        fix = self._gps.current() if self._gps is not None else None
+        if fix is None:
+            self.next_due = None
+            self.problem = f"no beacon: {self._gps.why_none() if self._gps is not None else 'no GPS is set up'}"
+            if not self._no_fix_told:
+                self._no_fix_told = True
+                log.warning("%s", self.problem)
+            return None
+        if self._no_fix_told:
+            self._no_fix_told, self.problem = False, ""
+            log.info("the GPS has a fix again: the beacon follows it")
+        decision = self.mobile.check(self._config().smart, fix, now)
+        self.next_due = decision.next_due
+        return decision.reason
+
     def _tick(self) -> None:
         now = self.clock()
-        due = self.next_due
         usable = self._tnc.usable
         if usable:
             self._skip_told = False
-        if due is None or now < due:
+        reason = self._due_reason(now)
+        if reason is None:
             return
         if refusal := self._interlock.refused("beacon"):
             self.problem = refusal
@@ -218,18 +286,22 @@ class Beacon:
             return
         if self._retry_at is not None and now < self._retry_at:
             return
-        if self.send_now("interval"):
+        if self.send_now(reason):
             return
         self._refused += 1
         if self._refused < ATTEMPTS:
             self._retry_at = now + timedelta(seconds=self.retry_sec)
             return
-        log.warning("the beacon was refused %d times (%s): skipped (the next one is an interval on, none is made up)", self._refused, self.problem)
-        self._refused, self._retry_at = 0, None
-        self._skip(due)
+        mobile = self._config().beacon_mobile
+        log.warning("the beacon was refused %d times (%s): %s", self._refused, self.problem, f"tried again in {MOBILE_GIVE_UP_SEC:g} s" if mobile else "skipped (the next one is an interval on, none is made up)")
+        self._refused = 0
+        if mobile:
+            self._retry_at = now + timedelta(seconds=MOBILE_GIVE_UP_SEC)
+        else:
+            self._retry_at = None
+            self._skip(self.next_due or now)
 
     def _skip(self, due: datetime) -> None:
         """The interval that was due passed without a beacon: the next is the first interval boundary after now."""
         step = timedelta(minutes=self._planned_min)
         self.next_due = due + step * ((self.clock() - due) // step + 1)
-

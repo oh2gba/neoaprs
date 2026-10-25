@@ -63,8 +63,8 @@ def empty_home(root: Path, set_env: Callable[[str, str], None]) -> Path:
 
 # ---- no real machine: the network
 
-# The rigctld and rotctld of whoever runs the tests: on this machine, but not a fake. A test that wants a rig starts a fake one on a free port.
-OPERATOR_SERVICE_PORTS = frozenset({4532, 4533})
+# The rigctld, rotctld and gpsd of whoever runs the tests: on this machine, but not a fake. A test that wants a rig or a GPS starts a fake one on a free port.
+OPERATOR_SERVICE_PORTS = frozenset({4532, 4533, 2947})
 
 
 class NonLoopbackConnection(ConnectionRefusedError):

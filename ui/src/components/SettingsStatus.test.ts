@@ -161,6 +161,8 @@ describe("the (i) of a field", () => {
       "Antenna gain",
       "Antenna direction",
       "Path",
+      "GPS source",
+      "Mobile",
       "Status",
       "Rigctld",
       "Text",

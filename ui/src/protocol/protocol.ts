@@ -347,6 +347,38 @@ export interface FrequencyValues {
   rx_mhz: number | null;
 }
 
+/** The GPS receiver and what the beacon does with it: the latest fix, whether it can be used, and the beacon of a moving station. Told whole as it changes, at most once a second. */
+export interface GpsState {
+  /** `gps/source` as in force: where the fixes come from */
+  source: "off" | "gpsd" | "serial";
+  /** `off`: no source is set; `connecting`: the line to gpsd or the receiver is not up and no fix has come; `no_fix`: it is up and the receiver has no fix; `fix`: the latest fix is fresh; `stale`: the latest fix is older than 120 seconds and is not used (a mobile beacon sends nothing on it) */
+  state: "off" | "connecting" | "no_fix" | "fix" | "stale";
+  /** why there is no fix to use: the feed's own line (`Connection refused`, `the receiver has no position fix yet`) or that the latest fix is old; empty while the state is `fix` and for `off` */
+  problem: string;
+  /** the latest fix, degrees north; null before the first fix of the source (a stale fix is still told, with its `fix_at`) */
+  lat: number | null;
+  /** the latest fix, degrees east */
+  lon: number | null;
+  /** metres above mean sea level; null when the fix has none */
+  altitude_m: number | null;
+  /** kilometres per hour; null when the fix has none */
+  speed_kmh: number | null;
+  /** degrees from north, 0 to 359; null when the fix has none */
+  course_deg: number | null;
+  /** the satellites used for the fix; null when the source does not say */
+  satellites: number | null;
+  /** when the latest fix was received, by the daemon's clock */
+  fix_at: string | null;
+  /** `beacon/mobile` is on: the beacon follows the GPS. With no fresh fix nothing is sent at all (never the home position), which `state` and `problem` say */
+  mobile: boolean;
+  /** when the next beacon by time is due, for the speed of the latest fix (a turn sends one sooner); null unless the beacon is mobile and has a fresh fix and has sent its first */
+  next_beacon_at: string | null;
+  /** why the latest mobile beacon of this run went out: `start` (the first fix), `time`, `turn` (a corner), `request` (Beacon now); empty before the first */
+  last_beacon_reason: "" | "start" | "time" | "turn" | "request";
+  /** when it went out; null before the first */
+  last_beacon_at: string | null;
+}
+
 /** The first message of a connection; `status` and the `state` of every topic follow it at once, so a page need not ask for them. */
 export interface HelloMessage {
   type: "hello";
@@ -1107,6 +1139,8 @@ export interface TopicValues {
   map: MapState;
   /** Update now: whether this copy can update itself, and the steps of the update it is doing; told whole as it changes, at most four times a second */
   update: UpdateState;
+  /** the GPS receiver and the moving station's beacon: the latest fix, its state, and when the next beacon by time is due; told whole as it changes, at most once a second */
+  gps: GpsState;
 }
 
 /** Stop following these topics. A topic that was not followed is ignored. */

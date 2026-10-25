@@ -11,7 +11,7 @@ The docstrings and field descriptions are the documentation: `scripts/gen-protoc
 Nothing else in the repository describes the format.
 
 This module holds the two unions, the value of each topic (`TopicValues`) and the validators made from them. The models themselves are in the `neoaprs/web/*wire.py` modules, one for each area
-(the daemon, the hub, the stations, the packets, the TNC, the settings, the beacon, the messages, the message board, the objects and bulletins of ours, the station preferences, the weather, the base map, Update now), which import `neoaprs/web/wirebase.py` and nothing else of neoaprs/web/, never this module.
+(the daemon, the hub, the stations, the packets, the TNC, the settings, the beacon, the messages, the message board, the objects and bulletins of ours, the station preferences, the weather, the base map, the GPS, Update now), which import `neoaprs/web/wirebase.py` and nothing else of neoaprs/web/, never this module.
 
 Conventions: every time is UTC ISO 8601 ending in `Z` (`2026-10-21T12:00:00Z`); a station is referred to by its call and a packet by its id, never by a position in a list; the models are strict
 (no `"5"` for 5, no `1` for true) and reject fields they do not know. pydantic lives in `neoaprs/web/` only: the rest of `neoaprs/` stays free of it.
@@ -23,6 +23,7 @@ from pydantic import Field, TypeAdapter
 from .beaconwire import BeaconNow, StatusNow
 from .bulletinwire import BulletinDelete, BulletinRow
 from .configwire import ConfigValues, SetConfig
+from .gpswire import GpsState
 from .hostwire import AskStatus, CheckUpdate, Error, Hello, Ping, Pong, Status, UpdateResultMsg
 from .hubwire import PatchMsg, StateMsg, Subscribe, Unsubscribe
 from .mapwire import MapCancel, MapEstimate, MapFetch, MapState
@@ -63,6 +64,7 @@ class TopicValues(_Model):
     own_bulletins: dict[str, OwnBulletinRow] = Field(description="the bulletins, announcements and group bulletins of ours by slot (`BLN1`): `bulletin_post` posts one (a `set` of its row, each time it is sent too), `bulletin_unpost` deletes one (a `del`)")
     map: MapState = Field(description="the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps, and the ALOHA circle; told whole as it changes, at most four times a second")
     update: UpdateState = Field(description="Update now: whether this copy can update itself, and the steps of the update it is doing; told whole as it changes, at most four times a second")
+    gps: GpsState = Field(description="the GPS receiver and the moving station's beacon: the latest fix, its state, and when the next beacon by time is due; told whole as it changes, at most once a second")
 
 
 TOPIC_NAMES: tuple[str, ...] = tuple(get_type_hints(TopicValues))

@@ -1,5 +1,5 @@
 """The signals of the program connected, in the one place that does it (`Signal.connect` is for the composition root only): what the radio hears goes to the packet log, the station book, messaging (which hands bulletins to the board), the queries and our objects (one that another station
-reports is theirs and is dropped), our objects go to the station book, what the book changes goes to the database, and the port the search found is remembered.
+reports is theirs and is dropped), our objects go to the station book, what the book changes goes to the database, the port the search found is remembered, and the GPS fix moves our own row on the map and the ALOHA circle.
 
 Also how the settings become the Tnc's: `tnc_settings`, and how the station book is filled from the database at the start: `seed_station_book`."""
 import logging
@@ -66,6 +66,10 @@ def wire(parts: Services) -> None:
     book.removed.connect(packetlog.delete_station)
     tnc.state_changed.connect(lambda state: _remember_port(parts, state))
     parts.config_changed.connect(lambda config: parts.aloha.refresh())                  # (our position may have moved)
+    parts.gps_feed.fixed.connect(parts.gps.take)                                         # the GPS fix, and where it is: the service keeps it, the book and the ALOHA circle follow it
+    parts.gps_feed.changed.connect(parts.gps.feed_changed)
+    parts.gps.moved.connect(lambda: place_me(parts))
+    parts.gps.moved.connect(parts.aloha.refresh)
 
 
 def _log_packet(packet: Packet) -> None:
@@ -88,9 +92,13 @@ async def _store_last_port(parts: Services, path: str) -> None:
 
 
 def place_me(parts: Services) -> None:
-    """Our own station in the book, from the settings."""
-    c = parts.config
-    if c.station_call and c.station_position is not None:
+    """Our own station in the book: at the latest GPS fix, however old, while the beacon is a moving station's and the GPS has given one, else at the position of the settings (and none until there is a call and
+    a position)."""
+    c, fix = parts.config, parts.gps.mobile_fix()
+    if c.station_call and fix is not None:
+        parts.stationbook.set_me(c.station_call, fix.lat, fix.lon, c.station_symbol_table, c.station_symbol_code, c.station_comment,
+                                 course_deg=fix.course_deg, speed_kmh=fix.speed_kmh, altitude_m=fix.altitude_m, at=fix.at)
+    elif c.station_call and c.station_position is not None:
         parts.stationbook.set_me(c.station_call, *c.station_position, c.station_symbol_table, c.station_symbol_code, c.station_comment)
     else:
         parts.stationbook.clear_me()                                 # (no own station until there is a call and a position)

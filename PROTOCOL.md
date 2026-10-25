@@ -537,6 +537,7 @@ The value of each topic (`state` carries it, a `replace` op brings a new one).
 | `own_bulletins` | { [key: string]: OwnBulletinRow } | the bulletins, announcements and group bulletins of ours by slot (`BLN1`): `bulletin_post` posts one (a `set` of its row, each time it is sent too), `bulletin_unpost` deletes one (a `del`) |
 | `map` | MapState | the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps, and the ALOHA circle; told whole as it changes, at most four times a second |
 | `update` | UpdateState | Update now: whether this copy can update itself, and the steps of the update it is doing; told whole as it changes, at most four times a second |
+| `gps` | GpsState | the GPS receiver and the moving station's beacon: the latest fix, its state, and when the next beacon by time is due; told whole as it changes, at most once a second |
 
 ## Objects
 
@@ -964,6 +965,27 @@ A frequency to call on, from the local information at the start of a comment, a 
 | `offset_khz` | integer \| null |  | the offset from the transmit frequency in kHz (`-060` is -600); 0 is simplex; null when the standard offset is meant |
 | `range_km` | number \| null |  | the nominal range (`R25m` is 40.2 km) |
 | `rx_mhz` | number \| null |  | a separate receive frequency (`FFF.FFFrx`), MHz |
+
+### GpsState
+
+The GPS receiver and what the beacon does with it: the latest fix, whether it can be used, and the beacon of a moving station. Told whole as it changes, at most once a second.
+
+| field | type | | description |
+|---|---|---|---|
+| `source` | "off" \| "gpsd" \| "serial" |  | `gps/source` as in force: where the fixes come from |
+| `state` | "off" \| "connecting" \| "no_fix" \| "fix" \| "stale" |  | `off`: no source is set; `connecting`: the line to gpsd or the receiver is not up and no fix has come; `no_fix`: it is up and the receiver has no fix; `fix`: the latest fix is fresh; `stale`: the latest fix is older than 120 seconds and is not used (a mobile beacon sends nothing on it) |
+| `problem` | string |  | why there is no fix to use: the feed's own line (`Connection refused`, `the receiver has no position fix yet`) or that the latest fix is old; empty while the state is `fix` and for `off` |
+| `lat` | number \| null |  | the latest fix, degrees north; null before the first fix of the source (a stale fix is still told, with its `fix_at`) |
+| `lon` | number \| null |  | the latest fix, degrees east |
+| `altitude_m` | number \| null |  | metres above mean sea level; null when the fix has none |
+| `speed_kmh` | number \| null |  | kilometres per hour; null when the fix has none |
+| `course_deg` | integer \| null |  | degrees from north, 0 to 359; null when the fix has none |
+| `satellites` | integer \| null |  | the satellites used for the fix; null when the source does not say |
+| `fix_at` | time \| null |  | when the latest fix was received, by the daemon's clock |
+| `mobile` | boolean |  | `beacon/mobile` is on: the beacon follows the GPS. With no fresh fix nothing is sent at all (never the home position), which `state` and `problem` say |
+| `next_beacon_at` | time \| null |  | when the next beacon by time is due, for the speed of the latest fix (a turn sends one sooner); null unless the beacon is mobile and has a fresh fix and has sent its first |
+| `last_beacon_reason` | "" \| "start" \| "time" \| "turn" \| "request" |  | why the latest mobile beacon of this run went out: `start` (the first fix), `time`, `turn` (a corner), `request` (Beacon now); empty before the first |
+| `last_beacon_at` | time \| null |  | when it went out; null before the first |
 
 ### HopRow
 

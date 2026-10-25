@@ -6,7 +6,7 @@
 // opened where we are (zoom 9; on the world while we have no position) or where it was left; the colour scheme follows the system. While the first-run guide asks for the position (`picking`) a click on the map is a place (`pick`), and the place the guide
 // holds (`pin`) has a marker, which the map flies to when it was typed and not clicked. An object or an item of ours (`own`) has a marker that can be dragged: where it is dropped is its new place (`move`).
 // Round our own station runs the ALOHA circle, a thin dashed line under the markers at the radius the daemon worked out (lib/alohacircle.ts); a pointer resting on it gets its radius as the title of the map. With "Show range" of the Nearby tab on, each digipeater that gave
-// a range (PHG or RNG) has a pale circle of that range under the markers too (lib/rangecircles.ts).
+// a range (PHG or RNG) has a pale circle of that range under the markers too (lib/rangecircles.ts). While the beacon is mobile and the GPS has a fix, a button Follow me keeps the map centred on the fix; dragging the map lets go of it.
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, toRef, watch } from "vue";
 import type { GeoJSONSource, Map as MapLibreMap, Marker } from "maplibre-gl";
 import { t } from "@/i18n";
@@ -18,6 +18,7 @@ import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useMapCircles } from "@/composables/useMapCircles";
 import { useMapControlLabels } from "@/composables/useMapControlLabels";
 import { useClearOfCard } from "@/composables/useClearOfCard";
+import { useFollowMe } from "@/composables/useFollowMe";
 import { useMapFollow } from "@/composables/useMapFollow";
 import { useResized } from "@/composables/useResized";
 import { buildMarkerDom, paintMarker, type MarkerDom } from "@/lib/markerdom";
@@ -70,6 +71,7 @@ const card = useClearOfCard(root, host);
 const circles = useMapCircles(() => map, host, toRef(props, "ranges"));
 const labelControls = useMapControlLabels(host);
 useResized(host, () => map?.resize());
+const { following, canFollow, followAt, release } = useFollowMe(page.gps);
 const note = ref<MessageId | "">(""); // what stands over the map when there is no base map (or no map engine): the id of its message
 const offerDownload = ref(false); // ... and whether it has the button that goes to where the map is made
 const placed = new Map<string, Placed>();
@@ -241,6 +243,7 @@ async function create(): Promise<void> {
   map.on("style.load", addLayers);
   circles.listen(map);
   map.on("movestart", () => hover?.hide());
+  map.on("dragstart", release); // (a drag by the person; the map's own easing is none)
   map.on("click", onClick);
   map.on("zoom", showLabels);
   map.on("moveend", () => {
@@ -265,6 +268,7 @@ useMapFollow(() => map, card, {
   selected: () => props.selected,
   station: (call) => page.stations.value.get(call),
   marker: (call) => placed.get(call),
+  follow: followAt,
 });
 watch(
   () => page.home.value,
@@ -328,6 +332,9 @@ onBeforeUnmount(() => {
         <button v-if="offerDownload" class="btn" type="button" @click="emit('download')">{{ t("map.download") }}</button>
       </div>
     </div>
+    <button v-if="canFollow" class="btn followme" :class="{ primary: following }" type="button" :aria-pressed="following" @click="following = !following">
+      {{ t("map.follow_me") }}
+    </button>
     <MapAttribution />
   </div>
 </template>

@@ -2,6 +2,39 @@
 
 ## Unreleased
 
+A moving station: the beacon follows a GPS and is sent by SmartBeaconing, with a compressed position, course, speed and altitude, and nothing is sent without a fix.
+
+The position comes from a GPS.
+
+- **GPS source** (`gps/source`): `gpsd` reads a gpsd daemon (`gps/host`, `127.0.0.1:2947` by default), `serial` reads the NMEA sentences of a receiver on a serial port (`gps/device`, at `gps/baud`, 4800 by default; `socket://host:port` works for a receiver behind a TCP serial server). The GPS is read as soon as a source is chosen, so the fix can be seen before the beacon follows it. The Beacon tab's Mobile group and the new topic `gps` show the state (not connected, no fix yet, a fix, an old fix), why when there is none, and the fix with its speed, course, altitude and satellites.
+- A save of `gpsd` without an address, or `serial` without a port, is refused with the reason.
+
+The beacon of a moving station.
+
+- **Mobile** (`beacon/mobile`) makes the beacon a moving station's: its position, course, speed and altitude are the GPS fix's, in a compressed position (13 bytes, with `/A=aaaaaa` altitude and your comment after it; a comment is cut to the 40 characters a compressed report may carry, and there is no PHG). The 20-minute floor of the fixed beacon and `beacon/interval_min` do not apply to it.
+- It is sent by **SmartBeaconing** (HamHUD's, as Dire Wolf and APRSdroid have it): the first fix at once, then every 30 minutes when you stand still, every minute at 100 km/h and in between by the speed (every 2 minutes at 50 km/h), and a turn at once when the course changes by more than 30 degrees plus 255 divided by the speed in miles per hour, not sooner than 15 seconds after the last beacon. The seven numbers are the settings `smart/*`, with Dire Wolf's values in kilometres per hour; the fast speed must be above the slow one and the fast time below the slow one, and a save that breaks it is refused.
+- **No fix, no beacon.** With no fix, or one older than 2 minutes, nothing is sent: Beacon now is refused with the reason, `?APRSP` is not answered, and the home position is never sent in its place, because a station that seems to jump home is worse than a silent one. The page is told why.
+- `?APRSP` and Beacon now send the position as it is now.
+
+The map follows you.
+
+- While Mobile is on, your own station on the map is at the GPS fix with its course, speed and altitude, moving every few seconds once you have gone 10 metres, and the distance and bearing of every station and the ALOHA circle follow. A GPS that is lost leaves your station where it was last seen; with Mobile off it is at your location, as before.
+- **Follow me**: a button at the top right of the map, offered while Mobile is on and the GPS has a fix, keeps the map centred on you; a drag of the map, the loss of the fix or switching Mobile off lets go.
+
+The page shows it.
+
+- The Beacon tab has a **Mobile** group: a **GPS** block in the look of the radio's status (a coloured word and one line: Off, Connecting to gpsd at 127.0.0.1:2947, No fix yet, Fix with its place, speed, course, altitude, satellites and age, or Fix lost 3 min ago (stale), with the reason under it when there is no fix), then the GPS source, the gpsd address or the port and speed of the receiver, the Mobile switch and, behind a **SmartBeaconing** heading while Mobile is on, the seven numbers. Each has its words and an (i) in every language of the page.
+- While Mobile is on, a line under the row "Last beacon" says when SmartBeaconing sends next and why the last beacon went (**SmartBeaconing: next by time in 42 s, last sent 12 s ago (turn)**), or **No beacon: no GPS fix**; the Location row is called **Home position**; the interval of the fixed beacon is not shown.
+- A save that breaks a rule between the numbers, or a GPS source without its address or port, is refused under its field in the language of the page.
+
+What is heard decodes as the specification says.
+
+- A compressed position that moves due north (course 0 with a speed) is read as going north, not as having no course.
+
+For development.
+
+- `scripts/gps-replay` (`neoaprs gps-replay`) plays a made-up drive as a gpsd on `127.0.0.1:2948`: a car that sets off, goes round a rectangle of streets at the speed you give, slows for the corners and stops for 90 seconds in the middle of a leg, lap after lap, so that a daemon with `gps/source gpsd`, `gps/host 127.0.0.1:2948` and `beacon/mobile true` beacons as a car would.
+
 ## 0.8.2
 
 What is heard tells more and the station answers more: the voice frequency a station gives, storms and signposts decoded, a Nearby tab with the digipeaters, voice frequencies, iGates and the stations in simplex range, `?APRSH` and the QRU server answered, and a Bluetooth LE TNC as a port.

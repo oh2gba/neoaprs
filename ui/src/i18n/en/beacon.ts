@@ -1,4 +1,4 @@
-// The Beacon tab: the lines that say what was sent last and send it now, and the preview of the packet. The fields of the tab are the settings' (settings.ts).
+// The Beacon tab: the lines that say what was sent last and send it now, the state of the GPS and of the mobile beacon, and the preview of the packet. The fields of the tab are the settings' (settings.ts).
 export const beacon = {
   "beacon.last_beacon": "Last beacon",
   "beacon.not_yet": "not yet",
@@ -13,4 +13,30 @@ export const beacon = {
   "beacon.packet": "Packet",
   "beacon.packet_label": "The beacon as it would be sent",
   "beacon.status_label": "The status as it would be sent",
+
+  "gps.label": "GPS",
+  "gps.state.off": "off",
+  "gps.state.connecting": "connecting",
+  "gps.state.no_fix": "no fix",
+  "gps.state.fix": "fix",
+  "gps.state.stale": "stale",
+  "gps.off": "Off",
+  "gps.connecting": "Connecting…",
+  "gps.connecting_gpsd": "Connecting to gpsd at {host}",
+  "gps.connecting_serial": "Opening {device} at {baud} baud",
+  "gps.no_fix": "No fix yet",
+  "gps.fix": "Fix: {facts}",
+  "gps.separator": ", ",
+  "gps.course": "course {deg}°",
+  "gps.satellites": { one: "{n} satellite", other: "{n} satellites" },
+  "gps.stale": "Fix lost {span} ago (stale)",
+  "gps.reason.start": "first fix",
+  "gps.reason.time": "time",
+  "gps.reason.turn": "turn",
+  "gps.reason.request": "Beacon now",
+  "gps.beacon.no_fix": "No beacon: no GPS fix",
+  "gps.beacon.first": "SmartBeaconing: the first beacon goes now",
+  "gps.beacon.next": "SmartBeaconing: next by time {when}",
+  "gps.beacon.next_last": "SmartBeaconing: next by time {when}, last sent {span} ago ({reason})",
+  "gps.beacon.last": "SmartBeaconing: last sent {span} ago ({reason})",
 } as const;

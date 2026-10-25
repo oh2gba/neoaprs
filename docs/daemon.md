@@ -99,6 +99,53 @@ passband); an `RPRT -n` answer, a refused connection or no answer within 5 secon
 (the last text sent) and `rig_state` (`on`, `off`, or `unused` while the status does not come from a radio), and carries the process's cost every 10 seconds
 (`neoaprs/web/processmeter.py`, from `os.times` and `/proc/self/statm`; the working set on Windows, `neoaprs/web/winmemory.py`).
 
+## The GPS and the moving station
+
+`gps/source` says where the position of a moving station comes from: `off`, `gpsd` or `serial`. The feed (`neoaprs/gpsfeed.py`, a `Source` like the TNC, with a state, a problem line and the back-off of `Backoff`) runs while the
+source is not `off`, whether or not `beacon/mobile` is on, and never raises into the loop.
+
+- **gpsd** (`gps/host`): one TCP connection, opened with a timeout of 5 seconds, over which `?WATCH={"enable":true,"json":true}` is sent. gpsd answers with a JSON object a line: `GpsdFixes` (`neoaprs/gpsfix.py`) makes a
+  fix of each TPV report with mode 2 or 3 (`speed` is metres per second, `track` degrees, the altitude `altMSL`, else `alt`, else `altHAE`: APRS wants it above sea level) and the satellites of the latest SKY report
+  (`uSat`, else the ones marked used). A line that is not JSON is counted in the rejected. A connection that is refused, lost or hung up is opened again after 5, 10, 20, 30 seconds.
+- **serial** (`gps/device`, `gps/baud`): a `SerialPort` (`neoaprs/serialport.py`, so `socket://host:port` works for a receiver behind a TCP serial server) whose bytes are cut into lines for `NmeaFixes`. The RMC gives
+  position, speed and course, the GGA altitude and satellites, in one fix a second; a GGA alone is a fix with no speed when no RMC came in the last 3 seconds. A sentence that says there is no fix (RMC status V, GGA
+  quality 0) clears the stream's fix; a bad checksum is counted and changes nothing. 4096 bytes without a line end are thrown away.
+
+`Fix.at` is the time the daemon received the fix, by its own clock, not the receiver's: a receiver that has just started may not know the date, and the age of a fix is judged by the clock of the program. The feed keeps the
+latest fix even after the receiver says it has none; the service decides what to do with an old one.
+
+`services/gps.py` (`Gps`, made with the feed in `neoaprs/app.py`, started by the controller before the beacon) keeps the fix and its age. `state` is `off`, `connecting` (the line is not up, no fix yet), `no_fix`, `fix` or
+`stale` (older than `GPS_STALE_SEC`, 120 seconds, `neoaprs/policy.py`); `problem` is the feed's line, or that the fix is old. `current()` is the fix to beacon with, and only while it is fresh. A save of `gps/*` stops the
+feed and starts it again with the new numbers in a task, and the old fix is forgotten.
+
+When `beacon/mobile` is on, the service emits `moved` when the fix is the first, or at least 5 seconds and 10 metres from where our row was last put (`GPS_PLACE_EVERY_SEC`, `GPS_PLACE_MOVED_M`). The composition root connects it
+to `wiring.place_me`, which puts our own row in the station book at the fix with its course, speed, altitude and time (`StationBook.set_me`), and to the ALOHA circle, which is worked out again. The page's topic `stations`
+is told whole at most every 30 seconds for it, because every other row's distance and bearing move with us. A GPS that is lost leaves our row at the latest fix, however old; the home position of the settings is for a
+station that is not mobile, and for a mobile one before its first fix. With `beacon/mobile` off the GPS is read and shown, and the row stays at the settings' position.
+
+**The mobile beacon.** `Beacon` (`neoaprs/services/beacon.py`) asks SmartBeaconing at every tick instead of waiting for `beacon/interval_min`, which a mobile station does not use. `neoaprs/smartbeacon.py` is the
+decision, pure code: `decide(settings, last, now, speed_kmh, course_deg, request)` gives a `Decision(reason, next_due)` where `reason` is `request`, `start` (no beacon yet in this run), `time` (the last beacon plus the
+rate of the speed now has passed: `slow_sec` up to `slow_kmh`, `fast_sec` from `fast_kmh`, `fast_sec * fast_kmh / speed` between) or `turn` (above `slow_kmh`, the course differs from the course at the last beacon by
+more than `turn_min_deg + turn_slope / speed_in_mph`, and `turn_min_sec` have passed since it), or None. The algorithm is HamHUD's SmartBeaconing by Tony Arnerich KD7TA and Steve Bragg KA9MVA, in kilometres per hour;
+the numbers are the settings `smart/*` (`Config.smart`), whose rules (fast speed above slow, fast time below slow) `Config.checked` holds. `services/mobilebeacon.py` has `MobilePlan`, the memory of the last mobile beacon
+(when, its course, why; the page reads it), and `mobile_info`, the information field.
+
+The information field is `=` and the compressed position (`compressed_position` in `neoaprs/aprsposition.py`: the 13 bytes `/YYYYXXXX$csT`, the latitude and longitude as base-91 numbers rounded to the nearest of 380926 and
+190463 steps a degree, the course in steps of 4 degrees and the speed as `1.08**s - 1` knots, `T` for a current RMC fix compressed by software; the blank form ` sT` when the speed or the course is missing), then the
+altitude as `/A=aaaaaa` (feet) and the station comment. A compressed report may carry 40 characters of comment in all (`COMPRESSED_COMMENT_MAX`), so the comment is cut at the end to fit, not refused; there is no PHG.
+The frame's other parts (the tocall, the path, the symbol) are those of the fixed beacon.
+
+With no fresh fix there is no frame: `frame()` raises `NoFix`, a `BeaconError`, `send_now` is refused with `problem` "no beacon: ..." and the answers to `?APRSP` and `?APRS?` are not made (the log says why), nothing is
+sent by the timer, `next_due` is None, and the log says once that the beacon waits for the GPS and once when it is back. The home position is never put in the fix's place. When the fix is back the beacon goes on
+by the clock: a gap longer than the rate is a `time` beacon at once, not a `start`. A frame the Tnc refuses is tried again after `RETRY_SEC`, six refusals in all, and then 60 seconds later with the fix of then
+(`MOBILE_GIVE_UP_SEC`); a radio that is away is waited for as with the fixed beacon. `send_now` (the page's Beacon now, reason `request`) builds the frame from the fix as it is and starts the times from it; `?APRSP` is
+answered with the position as it is and does not.
+
+**The page.** The topic `gps` (`GpsState` in `neoaprs/web/gpswire.py`, built by `gps_state` in `neoaprs/web/views.py`) is told whole, at most once a second, when the service's `changed` is emitted (a fix, a state or a
+problem that changed), after every packet of ours and every save of the settings. `next_beacon_at` is the beacon's `next_due`, told only for a mobile station with a fresh fix. The settings are in the topic `config`.
+
+`neoaprs gps-replay` plays a drive as a gpsd ([development.md](development.md#trying-mobile-operation-without-a-vehicle)).
+
 ## Messaging
 
 The commands are `send_message`, `query` (a directed query, once, with no id: `neoaprs/services/asking.py`), `message_retry`, `message_cancel`, `message_delete`, `conversation_delete` and `overheard_delete`. Messages to bulletins and

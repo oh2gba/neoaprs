@@ -7,16 +7,16 @@ import logging
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
-from urllib.parse import urlsplit
 
 from .alertcommand import DEFAULT_ALERT_COMMAND
 from .callsign import call_problem
 from .coded import CodedError, Param
 from .configlegacy import with_legacy
 from .configstatus import DEFAULT_STATUS_TEMPLATE, MAX_STATUS, hostport, status_source, status_template, status_text
-from .configtypes import access_key, boolean, call_or_empty, int_among, int_in, int_or_off, optional_float, optional_int, over_the_air_refusal, text_of, web_address
-from .message import path_choice
+from .configvalues import ANTENNA_DIRECTIONS as ANTENNA_DIRECTIONS, SYMBOL_TABLES as SYMBOL_TABLES, antenna_direction, device_globs, digipeater_path, host_name, map_source, symbol_code, symbol_table, tnc_profile
+from .configtypes import access_key, boolean, call_or_empty, int_among, int_in, int_or_off, optional_float, optional_int, over_the_air_refusal, text_of, web_address, word_among
 from .route import DIRECT_ONLY, recommended_path
+from .smartbeacon import SmartSettings
 from .tncprofile import DEFAULT as DEFAULT_PROFILE, Profile, names_tcp, profile_of
 from .versions import UPDATE_URL
 
@@ -37,7 +37,6 @@ MAX_COMMENT_PHG = 36                 # with the 7-byte PHG data extension (spec 
 MIN_BEACON_INTERVAL_MIN = 20         # the shortest time between two beacons (the net cycle of a 2-hop path is 20 minutes, routine operation 30): the page offers 30 and 60 minutes and 3 hours; a stored lower value is raised to this, with a line in the log
 MIN_STATUS_INTERVAL_MIN = 15         # the shortest time between two status reports: the page offers 30 minutes to 2 hours; a stored lower value is raised to this, with a line in the log
 MAX_ALERT_COMMAND = 1000             # the longest line of messages/alert_command
-MAX_MAP_SOURCE = 500                 # the longest map/source
 MAP_RADIUS_KM = (10, 1000)           # map/radius_km: the area of the detailed map round the station
 MAP_MAXZOOM = (6, 15)                # map/maxzoom: the deepest zoom of the detailed map
 STATION_HOURS = (1, 3, 6, 12, 24)  # map/station_hours: the hours after its last position that a station stays on the map (the page hides it then; the table keeps it): the choices of the Stations tab
@@ -54,78 +53,25 @@ RANGES: dict[str, tuple[int, int]] = {          # the whole numbers of the setti
     "status/interval_min": (MIN_STATUS_INTERVAL_MIN, 1440),
     "map/radius_km": MAP_RADIUS_KM,
     "map/maxzoom": MAP_MAXZOOM,
+    "gps/baud": (300, 921600),
+    "smart/fast_kmh": (10, 300),
+    "smart/fast_sec": (10, 600),
+    "smart/slow_kmh": (1, 50),
+    "smart/slow_sec": (60, 3600),
+    "smart/turn_min_deg": (5, 90),
+    "smart/turn_min_sec": (5, 120),
+    "smart/turn_slope": (0, 1000),
 }
 DEFAULT_SERIAL_PATTERN = "/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*"     # the ports the search listens to: by-id first, so that the stable name of a device is the one kept
-MAX_SERIAL_PATTERN = 500
 STATUS_KEYS = frozenset({"status/source", "status/rigctld"})            # the settings that decide whether the radio can be the status's source
 COMMENT_KEYS = frozenset({"station/comment", "beacon/power_w"})   # the settings that decide how long the comment may be
 PORT_KEYS = frozenset({"tnc/profile", "serial/port"})                   # the settings that decide whether the profile and the port go together
-SYMBOL_TABLES = "/\\" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-ANTENNA_DIRECTIONS = ("omni", "NE", "E", "SE", "S", "SW", "W", "NW", "N")      # in the order of the specification's directivity digit: 0 omni, 1 NE ... 7 NW, 8 N
+GPS_SOURCES = ("off", "gpsd", "serial")                                # where the position of a moving station comes from: nowhere, a gpsd on the network, or a GPS receiver on a serial port
+GPS_KEYS = frozenset({"gps/source", "gps/host", "gps/device"})            # the settings that decide whether the GPS source has what it needs
+SMART_KEYS = frozenset({"smart/fast_kmh", "smart/slow_kmh", "smart/fast_sec", "smart/slow_sec"})     # the settings that the rules between the SmartBeaconing numbers are about
 
 
-# ---- the types a setting can have: text to value (raising ValueError with the reason), value to text
-
-def _globs(text: str) -> str:
-    """One or more device globs, each an absolute path, separated by spaces (written with single spaces)."""
-    parts = text.split()
-    if not parts or any(not part.startswith("/") for part in parts):
-        raise CodedError(f"{text!r} is not one or more absolute patterns separated by spaces, such as /dev/ttyUSB*", "setting.not_globs", value=text)
-    return text_of(MAX_SERIAL_PATTERN)(" ".join(parts))
-
-
-def _path(text: str) -> str:
-    """A list of digipeater calls separated by commas, each checked as a call; written the way the frame carries it (capitals, no blanks). Empty is the recommended path of the station's symbol, DIRECT alone
-    is no digipeaters at all."""
-    calls = path_choice(text)
-    return "" if calls is None else DIRECT_ONLY if not calls else ",".join(calls)
-
-
-def _direction(text: str) -> str:
-    """"omni" or a point of the compass (N NE E SE S SW W NW), written the way the setting keeps it."""
-    word = text.strip()
-    if word.lower() == "omni":
-        return "omni"
-    if word.upper() in ANTENNA_DIRECTIONS:
-        return word.upper()
-    raise CodedError(f"{text!r} is not omni or one of N NE E SE S SW W NW", "setting.not_direction", value=text)
-
-
-def _symbol_table(text: str) -> str:
-    if len(text) != 1 or text not in SYMBOL_TABLES:
-        raise CodedError(f"{text!r} is not / or \\ or an overlay character A-Z, 0-9", "setting.not_symbol_table", value=text)
-    return text
-
-
-def _symbol_code(text: str) -> str:
-    if len(text) != 1 or not "!" <= text <= "~":
-        raise CodedError(f"{text!r} is not one printable ASCII character", "setting.not_symbol_code", value=text)
-    return text
-
-
-def _host(text: str) -> str:
-    value = text.strip()
-    if not value or any(c.isspace() for c in value) or not value.isprintable():
-        raise CodedError(f"{text!r} is not an address or a name", "setting.not_host", value=text)
-    return value
-
-
-def _map_source(text: str) -> str:
-    """Empty (the latest daily build of build.protomaps.com), a web address (http or https) or a path of a PMTiles file; never a word that starts with a dash, which the extract tool would take for an option."""
-    value = text.strip()
-    if value == "":
-        return ""
-    if len(value) > MAX_MAP_SOURCE or any(c.isspace() for c in value) or not value.isprintable() or value.startswith("-"):
-        raise CodedError(f"{text!r} is not a web address or the path of a PMTiles file", "setting.not_map_source", value=text)
-    if "://" in value and urlsplit(value).scheme not in ("http", "https"):
-        raise CodedError(f"{text!r} is not an http or https address", "setting.not_web_address", value=text)
-    return value
-
-
-def _profile(text: str) -> str:
-    """The key of a TNC profile (tncprofile.py), written the way the setting keeps it."""
-    return profile_of(text).key
-
+# ---- the types a setting can have: text to value (raising ValueError with the reason), value to text (the ones that are more than a number or a word are in configvalues.py)
 
 def _show(value: Any) -> str:
     if value is None:
@@ -155,33 +101,33 @@ def _raised(setting: Setting, text: str) -> int | None:
 
 
 SETTINGS: tuple[Setting, ...] = (
-    Setting("tnc_profile", "tnc/profile", _profile),                         # what kind of TNC the radio is: what is said to it to put it in KISS, whether it can be asked if it is there, and how it is reached
+    Setting("tnc_profile", "tnc/profile", tnc_profile),                         # what kind of TNC the radio is: what is said to it to put it in KISS, whether it can be asked if it is there, and how it is reached
     Setting("serial_port", "serial/port", text_of(255)),                     # empty: find the radio by listening to the ports of serial/pattern (a TCP profile connects to tcp/host and tcp/port instead)
     Setting("serial_baud", "serial/baud", optional_int(*RANGES["serial/baud"])),        # empty: the speed of the profile
-    Setting("tcp_host", "tcp/host", _host),                                  # where the TCP KISS server (Direwolf, a sound-card modem) runs
+    Setting("tcp_host", "tcp/host", host_name),                                  # where the TCP KISS server (Direwolf, a sound-card modem) runs
     Setting("tcp_port", "tcp/port", int_in(*RANGES["tcp/port"])),                       # and its KISS port: 8001 for Direwolf, 8100 for the sound-card modems
     Setting("serial_last_port", "serial/last_port", text_of(255)),           # what the search found last time, tried first the next time
-    Setting("serial_pattern", "serial/pattern", _globs),                   # space-separated globs of the device files the search listens to when no port is named
+    Setting("serial_pattern", "serial/pattern", device_globs),                   # space-separated globs of the device files the search listens to when no port is named
     Setting("serial_skip", "serial/skip", text_of(500)),                     # device paths, separated by commas, that the search for the radio never opens (a rotator's port, say)
     Setting("station_call", "station/call", call_or_empty),                 # empty: nothing is transmitted until a call is set (can_transmit)
     Setting("station_transmit", "station/transmit", boolean),               # false: receive only, nothing is transmitted whatever is asked or due (can_transmit); kept in the database, so it holds after a restart
     Setting("station_lat", "station/lat", optional_float(*LATITUDE)),     # empty: no position (no beacon; the map opens on the world)
     Setting("station_lon", "station/lon", optional_float(*LONGITUDE)),
-    Setting("station_symbol_table", "station/symbol_table", _symbol_table),
-    Setting("station_symbol_code", "station/symbol_code", _symbol_code),
+    Setting("station_symbol_table", "station/symbol_table", symbol_table),
+    Setting("station_symbol_code", "station/symbol_code", symbol_code),
     Setting("station_comment", "station/comment", text_of(MAX_COMMENT, ascii_only=True)),
     Setting("station_status", "station/status", status_text(MAX_STATUS)),   # free text sent as a status report (at most every status/interval_min, when it changed) and in answer to ?APRSS; empty: none
     Setting("beacon_power_w", "beacon/power_w", optional_int(*RANGES["beacon/power_w"])),    # the transmitter's power for the PHG extension of the beacon; empty: no PHG is sent
     Setting("beacon_antenna_height_m", "beacon/antenna_height_m", int_in(*RANGES["beacon/antenna_height_m"])),   # the antenna above average terrain, for the PHG extension
     Setting("beacon_antenna_gain_db", "beacon/antenna_gain_db", int_in(*RANGES["beacon/antenna_gain_db"])),        # its gain in dBi, for the PHG extension
-    Setting("beacon_antenna_direction", "beacon/antenna_direction", _direction),    # "omni" or the point of the compass it favours, for the PHG extension
+    Setting("beacon_antenna_direction", "beacon/antenna_direction", antenna_direction),    # "omni" or the point of the compass it favours, for the PHG extension
     Setting("web_network", "web/network", boolean),                           # true: the page listens on every interface and a device other than this one logs in with web/key
     Setting("web_key", "web/key", access_key),                                # what a device on the network types to log in; made when web/network is first on, empty until then
     Setting("web_https", "web/https", boolean),                               # true (with web/network): the page is also served over https, on the port after web/port, with NeoAPRS's own certificate authority (neoaprs/web/tls.py)
     Setting("web_port", "web/port", int_in(0, 65535)),                        # 0: the system picks a free port (the log says which)
     Setting("web_allowed_hosts", "web/allowed_hosts", text_of(500)),         # names besides localhost, 127.0.0.1 and this machine's that a Host header may carry, separated by commas
     Setting("beacon_interval_min", "beacon/interval_min", int_or_off(*RANGES["beacon/interval_min"]), MIN_BEACON_INTERVAL_MIN),   # 0: no beacon
-    Setting("beacon_path", "beacon/path", _path),                           # the digipeaters of our beacon, empty: the recommended path of the station's symbol (route.recommended_path); DIRECT: none
+    Setting("beacon_path", "beacon/path", digipeater_path),                           # the digipeaters of our beacon, empty: the recommended path of the station's symbol (route.recommended_path); DIRECT: none
     Setting("messages_alert", "messages/alert", boolean),                                       # true: a message to us runs messages/alert_command
     Setting("messages_alert_command", "messages/alert_command", text_of(MAX_ALERT_COMMAND)),    # a shell line, run with NEOAPRS_FROM, NEOAPRS_TEXT, NEOAPRS_AT and NEOAPRS_MSG_ID in its environment; empty: none
     Setting("status_source", "status/source", status_source),                                # where the status comes from: off, text (station/status) or rig (status/rigctld, status/template); empty: rig when status/rigctld is set, else text when station/status is, else off
@@ -191,9 +137,21 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("map_radius_km", "map/radius_km", int_in(*RANGES["map/radius_km"])),      # the detailed base map covers a square this far from our position in every direction
     Setting("map_maxzoom", "map/maxzoom", int_in(*RANGES["map/maxzoom"])),            # and goes down to this zoom (10 towns, 12 streets, 14 houses)
     Setting("map_station_hours", "map/station_hours", int_among(STATION_HOURS)),     # how long a station stays on the map after its last position (the Stations tab chooses; our own station and objects stay)
-    Setting("map_source", "map/source", _map_source),                       # where the map is cut from; empty: the latest daily build of build.protomaps.com
+    Setting("map_source", "map/source", map_source),                       # where the map is cut from; empty: the latest daily build of build.protomaps.com
     Setting("update_url", "update/url", web_address),                         # that page: it is sent this program's version and platform and nothing else
     Setting("digi_enabled", "digi/enabled", boolean),                         # true: a packet that asks for WIDE1-1, or for our call, is sent again by our radio (services/digipeater.py)
+    Setting("gps_source", "gps/source", word_among(GPS_SOURCES)),             # where the position of a moving station comes from: off, gpsd (a gpsd daemon, gps/host) or serial (a GPS receiver's NMEA on gps/device)
+    Setting("gps_host", "gps/host", hostport),                                # host:port of the gpsd that gps/source gpsd reads; 2947 is gpsd's port
+    Setting("gps_device", "gps/device", text_of(255)),                        # the serial port of the GPS receiver for gps/source serial, such as /dev/ttyUSB1; a socket://host:port address too
+    Setting("gps_baud", "gps/baud", int_in(*RANGES["gps/baud"])),             # its speed: 4800 is NMEA 0183's
+    Setting("beacon_mobile", "beacon/mobile", boolean),                       # true: the beacon is a moving station's: position, course, speed and altitude from the GPS, sent when SmartBeaconing says; no fix, no beacon
+    Setting("smart_fast_kmh", "smart/fast_kmh", int_in(*RANGES["smart/fast_kmh"])),       # SmartBeaconing: at this speed or faster, a beacon every smart/fast_sec
+    Setting("smart_fast_sec", "smart/fast_sec", int_in(*RANGES["smart/fast_sec"])),       # the shortest time between two beacons by time
+    Setting("smart_slow_kmh", "smart/slow_kmh", int_in(*RANGES["smart/slow_kmh"])),       # at this speed or slower, a beacon every smart/slow_sec
+    Setting("smart_slow_sec", "smart/slow_sec", int_in(*RANGES["smart/slow_sec"])),       # the longest time between two beacons
+    Setting("smart_turn_min_deg", "smart/turn_min_deg", int_in(*RANGES["smart/turn_min_deg"])),      # a turn of more than this many degrees, plus smart/turn_slope over the speed in miles per hour, is beaconed at once
+    Setting("smart_turn_min_sec", "smart/turn_min_sec", int_in(*RANGES["smart/turn_min_sec"])),      # but not sooner than this after the last beacon
+    Setting("smart_turn_slope", "smart/turn_slope", int_in(*RANGES["smart/turn_slope"])),            # degrees times miles per hour: the faster the station, the smaller a turn counts
 )
 BY_KEY = {s.key: s for s in SETTINGS}
 KEYS = tuple(s.key for s in SETTINGS)
@@ -244,6 +202,41 @@ class Config:
     map_source: str = ""
     update_url: str = UPDATE_URL
     digi_enabled: bool = False
+    gps_source: str = "off"
+    gps_host: str = "127.0.0.1:2947"
+    gps_device: str = ""
+    gps_baud: int = 4800
+    beacon_mobile: bool = False
+    smart_fast_kmh: int = 100
+    smart_fast_sec: int = 60
+    smart_slow_kmh: int = 8
+    smart_slow_sec: int = 1800
+    smart_turn_min_deg: int = 30
+    smart_turn_min_sec: int = 15
+    smart_turn_slope: int = 255
+
+    @property
+    def smart(self) -> SmartSettings:
+        """The SmartBeaconing numbers of the settings."""
+        return SmartSettings(self.smart_fast_kmh, self.smart_fast_sec, self.smart_slow_kmh, self.smart_slow_sec, self.smart_turn_min_deg, self.smart_turn_min_sec, self.smart_turn_slope)
+
+    def smart_refusal(self, key: str) -> SettingError | None:
+        """Why the SmartBeaconing numbers do not go together, or None when they do: the fast speed is above the slow one and the fast time below the slow one."""
+        if self.smart_fast_kmh <= self.smart_slow_kmh:
+            return SettingError(key, "setting.smart_speeds", {"fast": self.smart_fast_kmh, "slow": self.smart_slow_kmh},
+                                f"{key}: smart/fast_kmh ({self.smart_fast_kmh}) must be above smart/slow_kmh ({self.smart_slow_kmh})")
+        if self.smart_fast_sec >= self.smart_slow_sec:
+            return SettingError(key, "setting.smart_times", {"fast": self.smart_fast_sec, "slow": self.smart_slow_sec},
+                                f"{key}: smart/fast_sec ({self.smart_fast_sec}) must be below smart/slow_sec ({self.smart_slow_sec})")
+        return None
+
+    def gps_refusal(self, key: str = "gps/source") -> SettingError | None:
+        """Why the GPS source lacks what it reads, or None: gpsd needs gps/host, serial needs gps/device."""
+        if self.gps_source == "gpsd" and not self.gps_host:
+            return SettingError(key, "setting.gps_needs_host", {}, f"{key}: gpsd needs gps/host (host:port of the gpsd, 127.0.0.1:2947)")
+        if self.gps_source == "serial" and not self.gps_device:
+            return SettingError(key, "setting.gps_needs_device", {}, f"{key}: a serial GPS needs gps/device (the port of the receiver, such as /dev/ttyUSB1)")
+        return None
 
     @property
     def station_position(self) -> tuple[float, float] | None:
@@ -331,6 +324,10 @@ class Config:
         if STATUS_KEYS & parsed.keys() and config.status_source == "rig" and not config.status_rigctld:
             raise SettingError("status/source", "setting.status_needs_rigctld", {}, "status/source: the radio needs status/rigctld (host:port of a rigctld, 127.0.0.1:4532)")
         if PORT_KEYS & parsed.keys() and (refusal := config.port_refusal("tnc/profile" if "tnc/profile" in parsed else "serial/port")):
+            raise refusal
+        if SMART_KEYS & parsed.keys() and (refusal := config.smart_refusal(next(k for k in parsed if k in SMART_KEYS))):
+            raise refusal
+        if GPS_KEYS & parsed.keys() and (refusal := config.gps_refusal(next(k for k in parsed if k in GPS_KEYS))):
             raise refusal
         return config
 

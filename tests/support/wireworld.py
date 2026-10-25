@@ -1,15 +1,18 @@
 """A small world of the daemon's objects, one of every kind the page is told about, and every `neoaprs/web/views.py` view of it as JSON: what the golden file tests/fixtures/wire/rows.json holds."""
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from neoaprs.aprsparse import parse
 from neoaprs.bulletin import BulletinRecord
 from neoaprs.chain import INTERNET, Attempt, HopSeen
+from neoaprs.gpsfix import Fix
 from neoaprs.message import MessageRecord
 from neoaprs.ownbulletin import OwnBulletin
 from neoaprs.ownobject import OwnObject
 from neoaprs.packet import Message, Packet, ThirdParty, Undecoded
 from neoaprs.pref import Pref
+from neoaprs.smartbeacon import Reason, Sent
 from neoaprs.stationbook import StationBook
 from neoaprs.tnc import Tnc
 from tests.support.clock import FixedClock
@@ -122,6 +125,36 @@ def tnc_searching() -> Tnc:
     return found
 
 
+@dataclass
+class FakeGps:
+    """The GPS service as the `gps` topic reads it: a fix, a state, a problem, and whether the fix is fresh."""
+    fix: Fix | None = None
+    state: str = "off"
+    problem: str = ""
+    fresh: bool = False
+
+    def current(self) -> Fix | None:
+        return self.fix if self.fresh else None
+
+
+@dataclass
+class FakePlan:
+    last: Sent | None = None
+    last_reason: Reason | None = None
+
+
+def gps_rows(views: Any) -> list[dict[str, Any]]:
+    """The `gps` topic: off, a mobile station with a fresh fix that turned a corner, and a mobile station whose receiver is not up."""
+    from neoaprs.config import DEFAULTS
+    mobile = replace(DEFAULTS, gps_source="gpsd", beacon_mobile=True)
+    fix = Fix(60.17, 24.94, T0, 54.6, 270, 31.0, 9)
+    return [
+        views.gps_state(DEFAULTS, FakeGps(), FakePlan(), None),
+        views.gps_state(mobile, FakeGps(fix, "fix", "", True), FakePlan(Sent(T0 - timedelta(seconds=20), 180), "turn"), T0 + timedelta(seconds=40)),
+        views.gps_state(replace(mobile, gps_source="serial", gps_device="/dev/ttyUSB1"), FakeGps(None, "connecting", "/dev/ttyUSB1: No such file or directory"), FakePlan(), None),
+    ]
+
+
 def rows(views: Any) -> dict[str, Any]:
     """Every row of the world as `views` (neoaprs/web/views.py, or an older copy of it) makes it."""
     from neoaprs.config import DEFAULTS
@@ -135,5 +168,6 @@ def rows(views: Any) -> dict[str, Any]:
         "own_bulletins": {b.slot: views.own_bulletin_row(b, at) for b, at in own_bulletins()},
         "station_prefs": [views.pref_row(p) for p in prefs()],
         "tnc": [views.tnc_state(Tnc(clock=FixedClock(T0))), views.tnc_state(tnc()), views.tnc_state(tnc_searching())],
+        "gps": gps_rows(views),
         "config": [views.config_values(DEFAULTS, []), views.config_values(DEFAULTS, ["http://192.168.1.2:8730"], {"on": True, "port": 8731, "fingerprint": "AB:CD", "problem": ""})],
     }

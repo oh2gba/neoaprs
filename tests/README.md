@@ -61,6 +61,15 @@
   compressed form), the compressed form read back within a metre, the first delay, the interval, the skip while the TNC is not connected, a changed interval,
   `send_now`), and inside the whole daemon on the pseudo-terminal radio (the KISS frame on the line, the `out` packet in the log, the book not taking it, an
   echo moving only `last_heard`, the cable pulled, the controller starting and stopping it).
+* `test_gpsfix.py`, `test_smartbeacon.py`, `test_aprsposition_compressed.py`: the pure code of a moving station. A GPS fix from NMEA sentences (the checksummed RMC and GGA of the NMEA documentation, a stream that
+  puts the GGA's altitude and satellites into the RMC's fix, a sentence without a fix clearing it, a damaged one counted) and from gpsd's TPV and SKY reports; SmartBeaconing (the rate at the speeds on both sides of
+  each limit, the turn threshold, the smaller angle across north, the turn time, no turn at the slow speed, the start and the request, a made-up drive); and the compressed position byte for byte against the
+  specification's worked example, read back by the module's own decoder, with the altitude and the cut comment.
+* `test_gpsfeed.py`, `test_gps_service.py`, `test_beacon_mobile.py`, `test_gps_wiring.py`: the GPS and the mobile beacon. The feed on a fake gpsd and a TCP serial server (`support/gps.py`): the watch request, the fixes
+  and satellites, a receiver without a fix, the reconnection, bytes cut into lines; the service (the states from `off` to `stale`, `moved`, the feed started again when the settings change); the beacon on a stub Tnc, a
+  stand-in for the GPS and a clock the test holds (the exact bytes, the start, the time at three speeds, a turn, no fix and a stale one meaning no beacon, a request, a radio that is away, `?APRSP`); and inside the
+  whole daemon (the book and the distances following, the ALOHA circle, the topic `gps`).
+* `test_gpsreplay.py`: `neoaprs gps-replay`: the drive (the stop, the corners, the laps), the fake gpsd, the daemon's feed, GPS service and beacon on the drive, and the command as a process.
 * `test_weatherlog.py`, `test_weather.py`: the weather log on a real database thread (the row both ways, only weather heard is kept, the series of a station
   from a time, the latest of each, the care, the extremes the fields can say, the log made from the packets kept: a third-party packet is the sender inside,
   what is older than the days kept, what we sent and what is no weather are left out) and the weather through the whole daemon (a report on the air reaches the

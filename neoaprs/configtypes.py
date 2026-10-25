@@ -49,6 +49,18 @@ def int_among(choices: tuple[int, ...]) -> Callable[[str], int]:
     return parse
 
 
+def word_among(words: tuple[str, ...]) -> Callable[[str], str]:
+    """One of a short list of words, in lower case."""
+    listed = ", ".join(words)
+
+    def parse(text: str) -> str:
+        value = text.strip().lower()
+        if value not in words:
+            raise CodedError(f"{text!r} is not one of {listed}", "setting.not_among", value=text, choices=listed)
+        return value
+    return parse
+
+
 def optional_int(low: int, high: int) -> Callable[[str], int | None]:
     """A whole number, or nothing: an empty text is None."""
     whole = int_in(low, high)

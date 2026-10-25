@@ -24,9 +24,11 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.group.digi": "Digipeater",
   "settings.group.beacon": "Beacon",
   "settings.group.status": "Stato",
+  "settings.group.mobile": "Mobile",
   "settings.group.other": "Altro",
   "settings.fold.antenna": "Antenna",
   "settings.fold.advanced": "Avanzate",
+  "settings.fold.smart": "SmartBeaconing",
 
   "settings.name.position": "Posizione",
   "settings.name.tcp_address": "Indirizzo TCP",
@@ -263,6 +265,8 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.location.cancel": "Annulla",
   "settings.location.not_set": "Non impostata",
   "settings.location.enter": "Inserisci le coordinate",
+  "settings.location.home": "Posizione base",
+  "settings.location.home_note": "Dove sta ferma la stazione. Il beacon mobile invia la posizione del GPS, mai questa.",
 
   "settings.picker.title": "Scegli un simbolo",
   "settings.picker.placeholder": "Cerca: casa, auto, digi, wx...",
@@ -319,6 +323,56 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.map.download_again": "Scarica di nuovo la mappa",
   "settings.map.download": "Scarica mappa",
   "settings.map.cancel": "Annulla",
+
+  "settings.gps_source.label": "Sorgente GPS",
+  "settings.gps_source.off": "Spento",
+  "settings.gps_source.gpsd": "gpsd",
+  "settings.gps_source.serial": "Ricevitore seriale",
+  "settings.gps_source.tip1":
+    "Da dove NeoAPRS legge la posizione di una stazione in movimento. gpsd è il servizio GPS di Linux: sceglilo se gpsd gira su questo computer o su un altro della rete. Ricevitore seriale legge un ricevitore GPS su una porta seriale.",
+  "settings.gps_source.tip2": "Il GPS viene letto appena scegli una sorgente, così puoi vedere il fix prima che il beacon lo segua.",
+  "settings.gps_host.label": "Indirizzo di gpsd",
+  "settings.gps_host.tip1":
+    "L'indirizzo di gpsd come host:porta. gpsd ascolta sulla porta 2947, quindi lascialo com'è se gpsd gira su questo computer. Esempio: 192.168.1.20:2947",
+  "settings.gps_device.label": "Porta del GPS",
+  "settings.gps_device.tip1":
+    "La porta del ricevitore GPS, come /dev/ttyUSB1 su Linux o COM4 su Windows. socket://host:porta raggiunge un ricevitore dietro un server seriale della rete.",
+  "settings.gps_device.tip2": "Tienila separata dalla porta della radio: un dispositivo non può essere entrambe.",
+  "settings.gps_baud.label": "Velocità del GPS",
+  "settings.gps_baud.tip1":
+    "La velocità della linea seriale del ricevitore. 4800 è la velocità propria di NMEA e molti ricevitori USB parlano a 9600. Una velocità sbagliata si nota come mancanza di fix.",
+  "settings.mobile.name": "Beacon mobile",
+  "settings.mobile.label": "Mobile",
+  "settings.mobile.tip_label": "A proposito di Mobile",
+  "settings.mobile.tip1":
+    "Attivalo su un'auto, una bicicletta o una barca. Il beacon segue allora il GPS: posizione, rotta, velocità e altitudine vengono dal fix, e viene inviato quando lo dice SmartBeaconing: spesso se vai veloce o giri, di rado se stai fermo.",
+  "settings.mobile.tip2":
+    "Senza un fix recente non viene inviato nulla, e mai la tua posizione base. La posizione del gruppo Stazione è solo la posizione base.",
+  "settings.mobile.tip3": "Scegli il simbolo di una stazione in movimento, come un'auto: rende anche consigliato il percorso WIDE1-1,WIDE2-1.",
+  "settings.smart_fast_speed.label": "Velocità alta",
+  "settings.smart_fast_speed.tip1": "Da questa velocità in su ({min} a {max} km/h) un beacon parte ogni Tempo breve.",
+  "settings.smart_fast_speed.tip2": "Sotto questa velocità il tempo tra i beacon cresce al calare della velocità. Deve essere sopra la Velocità bassa.",
+  "settings.smart_fast_time.label": "Tempo breve",
+  "settings.smart_fast_time.tip1": "Il tempo minimo tra due beacon a tempo, in secondi ({min} a {max}). Deve essere più breve del Tempo lungo.",
+  "settings.smart_fast_time.tip2": "Tienilo lungo su un canale affollato: un beacon al minuto da ogni auto lo affolla di più.",
+  "settings.smart_slow_speed.label": "Velocità bassa",
+  "settings.smart_slow_speed.tip1": "A questa velocità o meno ({min} a {max} km/h) la stazione conta come ferma: un beacon ogni Tempo lungo e nessuna curva.",
+  "settings.smart_slow_speed.tip2": "Deve essere sotto la Velocità alta.",
+  "settings.smart_slow_time.label": "Tempo lungo",
+  "settings.smart_slow_time.tip1": "Il tempo massimo tra due beacon, in secondi ({min} a {max}), per una stazione ferma.",
+  "settings.smart_slow_time.tip2": "Deve essere più lungo del Tempo breve.",
+  "settings.smart_turn_angle.label": "Angolo di curva",
+  "settings.smart_turn_angle.tip1":
+    "Un cambio di rotta di più di questi gradi ({min} a {max}), più la Pendenza della curva divisa per la velocità, è una curva e viene inviato subito.",
+  "settings.smart_turn_angle.tip2": "Più vai veloce, più piccola è la curva che conta.",
+  "settings.smart_turn_time.label": "Tempo di curva",
+  "settings.smart_turn_time.tip1": "Una curva viene inviata non prima di questi secondi ({min} a {max}) dopo l'ultimo beacon.",
+  "settings.smart_turn_time.tip2": "Evita che una strada tortuosa riempia il canale.",
+  "settings.smart_turn_slope.label": "Pendenza della curva",
+  "settings.smart_turn_slope.tip1":
+    "Gradi per miglia orarie ({min} a {max}) che si sommano all'Angolo di curva, divisi per la velocità. 0 fa contare tutte le curve allo stesso modo.",
+  "settings.smart_turn_slope.tip2":
+    "Il valore predefinito va bene per quasi tutte le auto. Cambialo solo se le curve vengono inviate troppo spesso o troppo tardi.",
 
   "settings.update.group": "Controllo aggiornamenti",
   "settings.update.label": "Nuova versione",

@@ -1,4 +1,4 @@
-// The station map mounted for its tests: the props it was given before the page's context existed (`stations`, `home`, `now`, `dark`, `aging` and `filesKey` are the context's now, the others the map's own props), put where they belong,
+// The station map mounted for its tests: the props it was given before the page's context existed (`stations`, `home`, `now`, `dark`, `aging`, `gps` and `filesKey` are the context's now, the others the map's own props), put where they belong,
 // and `setProps` of the wrapper sends each of them to the same place, so that a test changes the map's input the way it did.
 import { mount, type VueWrapper } from "@vue/test-utils";
 import { nextTick } from "vue";
@@ -7,7 +7,7 @@ import type { MapFileInfo } from "@/protocol/protocol";
 import { fakeDaemon, tell, withDaemon, type FakeDaemon } from "@/test/context";
 import { mapFile, mapState } from "@/test/fixtures";
 
-const AMBIENT = ["stations", "home", "now", "dark", "aging"] as const;
+const AMBIENT = ["stations", "home", "now", "dark", "aging", "gps"] as const;
 
 /** The map state that has the `filesKey` of the old tests: "<detail modified> <world modified>", a dash for a file that is not there. */
 function mapOf(key: string | null | undefined) {
@@ -18,8 +18,8 @@ function mapOf(key: string | null | undefined) {
 }
 
 export function mountStationMap(props: Record<string, unknown>, attachTo: HTMLElement = document.body): { wrapper: VueWrapper; daemon: FakeDaemon } {
-  const { stations, home, now, dark, aging, filesKey, ...own } = props;
-  const daemon = fakeDaemon({ stations, home, now, dark, aging, map: mapOf(filesKey as string | null | undefined) } as Parameters<typeof fakeDaemon>[0]);
+  const { stations, home, now, dark, aging, gps, filesKey, ...own } = props;
+  const daemon = fakeDaemon({ stations, home, now, dark, aging, gps, map: mapOf(filesKey as string | null | undefined) } as Parameters<typeof fakeDaemon>[0]);
   const wrapper = mount(StationMap, { props: own as never, global: withDaemon(daemon), attachTo });
   const setProps = wrapper.setProps.bind(wrapper);
   wrapper.setProps = async (next: Record<string, unknown>) => {

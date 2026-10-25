@@ -5,7 +5,7 @@ import { socketUrl, useDaemon } from "@/composables/useDaemon";
 import { FakeFetch } from "@/test/fakefetch";
 import { FakeSocket } from "@/test/fakesocket";
 import { PAGE_VERSION } from "@/lib/build";
-import { bulletin, configValues, errorOf, hello, message, ownBulletin, ownObject, packet, station, tncState } from "@/test/fixtures";
+import { bulletin, configValues, errorOf, gpsState, hello, message, ownBulletin, ownObject, packet, station, tncState } from "@/test/fixtures";
 
 function setUp() {
   let daemon: ReturnType<typeof useDaemon> | undefined;
@@ -44,6 +44,7 @@ describe("useDaemon", () => {
     socket.say({ type: "state", topic: "packets", rev: 0, value: { "1": packet(1) } });
     socket.say({ type: "state", topic: "tnc", rev: 0, value: tncState() });
     socket.say({ type: "state", topic: "config", rev: 0, value: configValues() });
+    socket.say({ type: "state", topic: "gps", rev: 0, value: gpsState({ mobile: true }) });
     socket.say({ type: "state", topic: "messages", rev: 0, value: { "1": message(1) } });
     socket.say({ type: "state", topic: "station_prefs", rev: 0, value: { OH2RDG: { path: "WIDE2-1" } } });
     socket.say({ type: "state", topic: "bulletins", rev: 0, value: { "OH2XYZ/BLN1": bulletin("BLN1") } });
@@ -57,6 +58,7 @@ describe("useDaemon", () => {
     expect(daemon.packets.get("1")?.id).toBe(1);
     expect(daemon.tnc.value?.state).toBe("connected");
     expect(daemon.config.value?.values["station/call"]).toBe("OH2GBA");
+    expect(daemon.gps.value).toEqual(gpsState({ mobile: true }));
     socket.say({
       type: "patch",
       topic: "stations",

@@ -3,6 +3,7 @@ import type {
   BulletinRow,
   ConfigValues,
   ErrorMessage,
+  GpsState,
   MapFileInfo,
   MapState,
   MessageRow,
@@ -283,6 +284,32 @@ export function tncState(extra: Partial<TncState> = {}): TncState {
   };
 }
 
+/** The GPS topic with a fresh fix (60.4295 N 24.1452 E, 48 km/h, course 215, 103 m, 9 satellites, 2 s old) and a beacon that is not mobile; a test gives what it cares about. */
+export function gpsState(extra: Partial<GpsState> = {}): GpsState {
+  return {
+    source: "gpsd",
+    state: "fix",
+    problem: "",
+    lat: 60.4295,
+    lon: 24.1452,
+    altitude_m: 103,
+    speed_kmh: 48,
+    course_deg: 215,
+    satellites: 9,
+    fix_at: ago(2),
+    mobile: false,
+    next_beacon_at: null,
+    last_beacon_reason: "",
+    last_beacon_at: null,
+    ...extra,
+  };
+}
+
+/** The GPS topic of a daemon with no GPS source set. */
+export function gpsOff(): GpsState {
+  return gpsState({ source: "off", state: "off", lat: null, lon: null, altitude_m: null, speed_kmh: null, course_deg: null, satellites: null, fix_at: null });
+}
+
 export function configValues(extra: Record<string, string> = {}): ConfigValues {
   const values: Record<string, string> = {
     "tnc/profile": "kenwood-tnc2",
@@ -325,6 +352,18 @@ export function configValues(extra: Record<string, string> = {}): ConfigValues {
     "map/source": "",
     "update/url": "https://oh2gba.eu/neoaprs/version.php",
     "digi/enabled": "false",
+    "gps/source": "off",
+    "gps/host": "127.0.0.1:2947",
+    "gps/device": "",
+    "gps/baud": "4800",
+    "beacon/mobile": "false",
+    "smart/fast_kmh": "100",
+    "smart/fast_sec": "60",
+    "smart/slow_kmh": "8",
+    "smart/slow_sec": "1800",
+    "smart/turn_min_deg": "30",
+    "smart/turn_min_sec": "15",
+    "smart/turn_slope": "255",
     ...extra,
   };
   return { values, defaults: { ...values }, urls: [], https: { on: false, port: 0, fingerprint: "", problem: "" } };

@@ -4,7 +4,8 @@ from dataclasses import fields, replace
 
 import pytest
 
-from neoaprs.config import BY_KEY, DEFAULT_ALERT_COMMAND, DEFAULTS, KEYS, MAX_COMMENT, MAX_COMMENT_PHG, SETTINGS, Config
+from neoaprs.config import BY_KEY, DEFAULT_ALERT_COMMAND, DEFAULTS, KEYS, MAX_COMMENT, MAX_COMMENT_PHG, RANGES, SETTINGS, Config, SettingError
+from neoaprs.smartbeacon import SmartSettings
 from neoaprs.policy import LOG_KEEP_DAYS, TNC_CHECK_SEC
 from neoaprs.configstatus import MAX_STATUS, fill_template
 
@@ -17,7 +18,9 @@ def test_the_defaults_are_the_ones_of_the_brief() -> None:
         "beacon/path": "",
         "messages/alert": "true", "messages/alert_command": DEFAULT_ALERT_COMMAND, "status/source": "", "status/rigctld": "", "status/interval_min": "30", "status/template": "QRV {freq} {mode}",
         "map/radius_km": "150", "map/maxzoom": "12", "map/station_hours": "3", "map/source": "",
-        "update/url": "https://oh2gba.eu/neoaprs/version.php", "digi/enabled": "false"}
+        "update/url": "https://oh2gba.eu/neoaprs/version.php", "digi/enabled": "false",
+        "gps/source": "off", "gps/host": "127.0.0.1:2947", "gps/device": "", "gps/baud": "4800", "beacon/mobile": "false",
+        "smart/fast_kmh": "100", "smart/fast_sec": "60", "smart/slow_kmh": "8", "smart/slow_sec": "1800", "smart/turn_min_deg": "30", "smart/turn_min_sec": "15", "smart/turn_slope": "255"}
     assert Config() == DEFAULTS
 
 
@@ -329,3 +332,79 @@ def test_the_attempts_setting_of_an_older_version_is_not_a_setting_and_is_left_a
     assert Config.from_data({"messages/attempts": "9"}) == DEFAULTS
     with pytest.raises(ValueError, match="messages/attempts: no such setting"):
         Config.parse("messages/attempts", "3")
+
+
+# ---- a moving station: the GPS and SmartBeaconing
+
+def test_the_gps_and_the_mobile_beacon_are_off_and_smartbeaconing_has_dire_wolfs_numbers() -> None:
+    c = Config()
+    assert (c.gps_source, c.gps_host, c.gps_device, c.gps_baud, c.beacon_mobile) == ("off", "127.0.0.1:2947", "", 4800, False)
+    assert c.smart == SmartSettings(100, 60, 8, 1800, 30, 15, 255) and c.smart == SmartSettings()
+    assert Config.from_data({"smart/fast_kmh": "120", "smart/turn_slope": "0"}).smart == SmartSettings(fast_kmh=120, turn_slope=0)
+
+
+def test_the_gps_source_is_one_of_three_words_written_in_lower_case() -> None:
+    assert Config.check("gps/source", " GPSD ") == "gpsd" and Config.check("gps/source", "serial") == "serial" and Config.check("gps/source", "off") == "off"
+    for bad in ("", "usb", "gps", "nmea"):
+        with pytest.raises(ValueError, match="gps/source") as e:
+            Config.check("gps/source", bad)
+        assert e.value.code == "setting.not_among"                                 # type: ignore[attr-defined]
+    assert Config.from_data({"gps/source": "nonsense"}).gps_source == "off", "a stored value that is no source is the default"
+
+
+def test_the_gpsd_address_is_host_and_port_and_the_device_is_a_text() -> None:
+    assert Config.check("gps/host", " 10.0.0.7:2947 ") == "10.0.0.7:2947" and Config.check("gps/host", "[::1]:2947") == "[::1]:2947"
+    for bad in ("gps", "host:0", "host:70000", "a b:2947"):
+        with pytest.raises(ValueError, match="gps/host"):
+            Config.check("gps/host", bad)
+    assert Config.check("gps/device", " /dev/ttyUSB1 ") == "/dev/ttyUSB1" and Config.check("gps/device", "socket://192.168.1.5:7000") == "socket://192.168.1.5:7000"
+    with pytest.raises(ValueError, match="gps/device"):
+        Config.check("gps/device", "x" * 256)
+
+
+@pytest.mark.parametrize(("key", "low", "high"), [
+    ("gps/baud", 300, 921600), ("smart/fast_kmh", 10, 300), ("smart/fast_sec", 10, 600), ("smart/slow_kmh", 1, 50), ("smart/slow_sec", 60, 3600), ("smart/turn_min_deg", 5, 90), ("smart/turn_min_sec", 5, 120), ("smart/turn_slope", 0, 1000)])
+def test_each_number_has_its_range_and_it_is_the_one_the_page_is_told(key: str, low: int, high: int) -> None:
+    assert RANGES[key] == (low, high)
+    assert Config.check(key, str(low)) == str(low) and Config.check(key, str(high)) == str(high)
+    for bad in (low - 1, high + 1, "x", "1.5", ""):
+        with pytest.raises(ValueError, match=key):
+            Config.check(key, str(bad))
+
+
+def test_the_beacon_is_mobile_by_a_boolean() -> None:
+    assert Config.check("beacon/mobile", "TRUE") == "true" and Config.check("beacon/mobile", "off") == "false"
+    with pytest.raises(ValueError, match="beacon/mobile"):
+        Config.check("beacon/mobile", "maybe")
+
+
+def test_the_fast_speed_must_be_above_the_slow_one_and_the_fast_time_below_the_slow_one() -> None:
+    base = DEFAULTS
+    with pytest.raises(SettingError, match="smart/fast_kmh") as e:
+        Config.checked(base, {"smart/fast_kmh": "10", "smart/slow_kmh": "10"})
+    assert (e.value.key, e.value.code, e.value.params) == ("smart/fast_kmh", "setting.smart_speeds", {"fast": 10, "slow": 10})
+    with pytest.raises(SettingError) as e2:
+        Config.checked(replace(base, smart_fast_kmh=40), {"smart/slow_kmh": "50"})
+    assert e2.value.key == "smart/slow_kmh" and e2.value.code == "setting.smart_speeds" and e2.value.params == {"fast": 40, "slow": 50}
+    with pytest.raises(SettingError) as e3:
+        Config.checked(base, {"smart/slow_sec": "60", "smart/fast_sec": "100"})
+    assert e3.value.code == "setting.smart_times" and e3.value.params == {"fast": 100, "slow": 60}
+    ok = Config.checked(base, {"smart/fast_kmh": "50", "smart/slow_kmh": "5", "smart/fast_sec": "30", "smart/slow_sec": "600"})
+    assert ok.smart == SmartSettings(50, 30, 5, 600, 30, 15, 255)
+    assert Config.checked(base, {"station/comment": "x"}).smart == base.smart, "other saves are not held up by the rule"
+
+
+def test_a_source_needs_what_it_reads() -> None:
+    with pytest.raises(SettingError) as e:
+        Config.checked(DEFAULTS, {"gps/source": "serial"})
+    assert (e.value.key, e.value.code) == ("gps/source", "setting.gps_needs_device")
+    with pytest.raises(SettingError) as e2:
+        Config.checked(replace(DEFAULTS, gps_source="gpsd"), {"gps/host": ""})
+    assert (e2.value.key, e2.value.code) == ("gps/host", "setting.gps_needs_host")
+    assert Config.checked(DEFAULTS, {"gps/source": "serial", "gps/device": "/dev/ttyUSB1"}).gps_device == "/dev/ttyUSB1"
+    assert Config.checked(DEFAULTS, {"gps/source": "gpsd"}).gps_host == "127.0.0.1:2947"
+    assert Config.checked(DEFAULTS, {"gps/source": "off"}).gps_source == "off"
+
+
+def test_the_mobile_settings_come_after_the_others_in_the_order_the_page_lists_them() -> None:
+    assert list(KEYS[-12:]) == ["gps/source", "gps/host", "gps/device", "gps/baud", "beacon/mobile", "smart/fast_kmh", "smart/fast_sec", "smart/slow_kmh", "smart/slow_sec", "smart/turn_min_deg", "smart/turn_min_sec", "smart/turn_slope"]

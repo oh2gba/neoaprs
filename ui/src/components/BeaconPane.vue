@@ -1,8 +1,9 @@
 <script setup lang="ts">
 // The Beacon tab: the settings the beacon and the status are made from (our station, the beacon, the status), which apply as they are changed like the Settings tab's, with a preview, closed until asked for, of the packet those values would make and,
-// for a status that is a text of our own, of the status report. The buttons that send now are in their groups: "Last beacon: 2 min ago" with Beacon now at the top of the Beacon group, and, while there is a status, the status last sent with Send status now at
+// for a status that is a text of our own, of the status report. The buttons that send now are in their groups: "Last beacon: 2 min ago" with Beacon now at the top of the Beacon group (with, while the beacon is mobile, the line that says when SmartBeaconing sends next, or that there is no fix), the GPS block at the top of the Mobile group (GpsStatus), and, while there is a status, the status last sent with Send status now at
 // the top of the Status group (SendRow; useSendNow says when they are on and asks twice).
 import DisclosureBox from "@/components/DisclosureBox.vue";
+import GpsStatus from "@/components/GpsStatus.vue";
 import SendRow from "@/components/SendRow.vue";
 import type { Picked } from "@/composables/usePositionPick";
 import SettingsForm from "@/components/SettingsForm.vue";
@@ -11,16 +12,20 @@ import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useSendNow } from "@/composables/useSendNow";
 import { beaconText, statusText } from "@/lib/beacon";
 import { NONE, agoWords, dateTimeText } from "@/lib/format";
+import { mobileBeaconText } from "@/lib/gpsstatus";
 import { statusSource } from "@/lib/status";
 import { computed, toRef } from "vue";
 
 const props = withDefaults(defineProps<{ picking?: boolean; picked?: Picked | null }>(), { picking: false, picked: null });
 const emit = defineEmits<{ pickPosition: [] }>();
 
-const { status, connected, now, config, send, settings } = useDaemonContext();
+const { status, connected, now, config, send, settings, gps } = useDaemonContext();
 const sending = useSendNow(connected, settings.saving, toRef(props, "picking"), () => emit("pickPosition"));
 /** Whether there is a status to send: what is saved says so, not what is being typed. */
 const statusOn = computed(() => config.value !== null && statusSource(config.value.values) !== "off");
+
+/** While the beacon is mobile: when SmartBeaconing sends next, or that nothing is sent without a fix. */
+const mobileLine = computed(() => mobileBeaconText(gps.value, now.value));
 
 // only when the last beacon went out, in words, the full time on hover; how often is the choice below
 const lastAt = computed(() => status.value?.beacon_last_sent ?? null);
@@ -46,6 +51,10 @@ const current = computed(() => {
           :why="sending.why.value"
           @press="sending.press('beacon', () => send({ cmd: 'beacon_now' }))"
         />
+        <p v-if="mobileLine" class="mobileline" role="status">{{ mobileLine }}</p>
+      </template>
+      <template #mobile>
+        <GpsStatus :gps="gps" :values="config?.values ?? {}" :now="now" />
       </template>
       <template #status>
         <SendRow
