@@ -26,7 +26,7 @@ function email(thread = [message(1, { to_call: "EMAIL-2", text: "jane@example.co
 
 function objects() {
   const table = new Map([["LEADER", ownObject("LEADER", { created_at: ago(900) })]]);
-  const form = useOwnObjects(table, ref({ lat: 60.17, lon: 24.94 }), () => true, { show: vi.fn() } as unknown as Panel);
+  const form = useOwnObjects(table, ref({ lat: 60.17, lon: 24.94 }), () => true, { show: vi.fn(), tab: ref("objects") } as unknown as Panel);
   const wrapper = mount(ObjectsPane, { props: { objects: table, form }, global: withDaemon() });
   return { wrapper, form };
 }
@@ -117,32 +117,26 @@ describe("Email", () => {
 });
 
 describe("Objects", () => {
-  it("has the list and, once New is pressed, the form last in the tab: the counter, Cancel and Save at its right (the map button is in its Location row)", async () => {
-    const { wrapper, form } = objects();
-    expect(barOf(wrapper).exists()).toBe(false);
-    form.start();
-    await wrapper.vm.$nextTick();
+  it("has the list and, always under it, the form last in the tab: the counter, Cancel and Add at its right (the map button is in its Location row)", () => {
+    const { wrapper } = objects();
     expectAtTheBottom(wrapper, ".objectlist");
-    expectTheBar(wrapper, "Save", "Cancel");
+    expectTheBar(wrapper, "Add", "Cancel");
     expect(barOf(wrapper).find(".composebar-aside").findAll("button")).toHaveLength(0);
     expect(barOf(wrapper).find(".location-field button").text()).toBe("Choose on map");
     expect(barOf(wrapper).find(".compose-left").text()).toBe("43 left");
   });
 
-  it("has the toolbar with New on top and the list between it and the form", async () => {
-    const { wrapper, form } = objects();
-    form.start();
-    await wrapper.vm.$nextTick();
-    expect(kids(wrapper).map((c) => c.className.split(" ")[0])).toEqual(["toolbar", "objectlist", "composebar"]);
+  it("has no toolbar: the list and the form are the tab", () => {
+    const { wrapper } = objects();
+    expect(kids(wrapper).map((c) => c.className.split(" ")[0])).toEqual(["objectlist", "composebar"]);
   });
 
-  it("names the form for a new object and for the one being changed", async () => {
+  it("names the form for a new object and for the one being changed, which Save changes", async () => {
     const { wrapper, form } = objects();
-    form.start();
-    await wrapper.vm.$nextTick();
     expect(barOf(wrapper).attributes("aria-label")).toBe("New object");
     form.edit("LEADER");
     await wrapper.vm.$nextTick();
     expect(barOf(wrapper).attributes("aria-label")).toBe("Edit LEADER");
+    expectTheBar(wrapper, "Save", "Cancel");
   });
 });

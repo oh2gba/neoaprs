@@ -24,76 +24,79 @@ const esc = async (target: Element | Document = document.body) => {
   target.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
   await flushPromises();
 };
-const formOf = (wrapper: VueWrapper) => wrapper.find("#pane-objects form.composebar");
+const name = (wrapper: VueWrapper) => field(wrapper, "Name");
 const opened = async () => {
   const harness = await open();
   await tabButton(harness.wrapper, "Objects")?.trigger("click");
-  await harness.wrapper.find("#pane-objects .toolbar .btn").trigger("click");
   return harness;
 };
 
 describe("App: Esc in the Objects form", () => {
-  it("closes a new form without saving, as Cancel does", async () => {
+  it("clears what was typed in the form without saving, as Cancel does, and then leaves the Esc to the cards", async () => {
     const { wrapper, socket } = await opened();
-    await field(wrapper, "Name")?.setValue("");
-    expect(formOf(wrapper).exists()).toBe(true);
+    await name(wrapper)?.setValue("MARK");
     await esc();
-    expect(formOf(wrapper).exists()).toBe(false);
+    expect(name(wrapper)?.element.value).toBe("");
     expect(sent(socket, "object_set")).toEqual([]);
-    await esc(); // (nothing is open: nothing happens)
-    expect(formOf(wrapper).exists()).toBe(false);
+    await esc(); // (nothing is held: nothing happens)
+    expect(name(wrapper)?.element.value).toBe("");
   });
 
-  it("closes the form of an object that is being changed, and the object stays as it was", async () => {
+  it("leaves the selected object and clears the form, and the object stays as it was", async () => {
     const { wrapper, socket } = await open();
     await sayObjects(socket);
     await tabButton(wrapper, "Objects")?.trigger("click");
-    await wrapper.find("#pane-objects .object-edit").trigger("click");
+    await wrapper.find("#pane-objects .ownobject").trigger("click");
     await field(wrapper, "Comment")?.setValue("Changed");
-    expect(formOf(wrapper).exists()).toBe(true);
+    expect(wrapper.find("#pane-objects .ownobject").classes()).toContain("selected");
     await esc();
-    expect(formOf(wrapper).exists()).toBe(false);
+    expect(wrapper.find("#pane-objects .ownobject").classes()).not.toContain("selected");
+    expect(name(wrapper)?.element.value).toBe("");
+    expect(wrapper.find("#pane-objects button[type='submit']").text()).toBe("Add");
     expect(sent(socket, "object_set")).toEqual([]);
     expect(wrapper.find("#pane-objects .ownobject .bulletin-text").text()).toBe("Rescue 1");
   });
 
-  it("leaves a field that has text its first Esc, and closes the form with the next one from an empty field", async () => {
+  it("leaves a field that has text its first Esc, and clears the form with the next one from an empty field", async () => {
     const { wrapper } = await opened();
+    await name(wrapper)?.setValue("MARK");
     const comment = field(wrapper, "Comment");
     await comment?.setValue("Rescue 1");
     await esc(comment?.element);
-    expect(formOf(wrapper).exists()).toBe(true);
+    expect(name(wrapper)?.element.value).toBe("MARK");
     await comment?.setValue("");
     await esc(comment?.element);
-    expect(formOf(wrapper).exists()).toBe(false);
+    expect(name(wrapper)?.element.value).toBe("");
   });
 
-  it("ends the choice on the map first, and then the form", async () => {
+  it("ends the choice on the map first, and then clears the form", async () => {
     const { wrapper } = await opened();
+    await name(wrapper)?.setValue("MARK");
     await wrapper.find("#pane-objects .location-pick").trigger("click");
     expect(wrapper.find("#pane-objects .location-pick").text()).toBe("Cancel");
     await esc();
-    expect(formOf(wrapper).exists()).toBe(true);
+    expect(name(wrapper)?.element.value).toBe("MARK");
     expect(wrapper.find("#pane-objects .location-pick").text()).toBe("Choose on map");
     FakeMap.last().fire("click", { lngLat: { lat: 59.5, lng: 24.5 } }); // (the map no longer waits for a place)
     await flushPromises();
-    expect(field(wrapper, "Latitude")?.element.value).toBe("60.17");
+    expect(wrapper.find("#pane-objects .location-place").text()).toMatch(/^60\.17 N, 24\.94 E · /);
     await esc();
-    expect(formOf(wrapper).exists()).toBe(false);
+    expect(name(wrapper)?.element.value).toBe("");
   });
 
   it("does not touch a form that is not in sight, and leaves the Esc to the first-run guide while it is open", async () => {
     const { wrapper, socket } = await opened();
+    await name(wrapper)?.setValue("MARK");
     await tabButton(wrapper, "Messages")?.trigger("click");
     await esc();
     await tabButton(wrapper, "Objects")?.trigger("click");
-    expect(formOf(wrapper).exists()).toBe(true);
+    expect(name(wrapper)?.element.value).toBe("MARK");
     socket.say({ type: "state", topic: "config", rev: 1, value: configValues({ "station/call": "" }) });
     await flushPromises();
     expect(wrapper.find(".setup").exists()).toBe(true);
     await esc();
     expect(wrapper.find(".setup").exists()).toBe(false);
-    expect(formOf(wrapper).exists()).toBe(true);
+    expect(name(wrapper)?.element.value).toBe("MARK");
   });
 
   it("ends the choice of the Beacon tab's place too", async () => {

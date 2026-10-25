@@ -1,5 +1,7 @@
-// The Maidenhead locator: 2 letters (A-R, fields of 20 x 10 degrees), 2 digits (squares of 2 x 1), 2 letters (a-x, subsquares of 5 x 2.5 minutes), and so on. The first-run guide takes the
-// centre of the square a locator names, and writes the locator of a position that was picked on the map.
+// The Maidenhead locator: 2 letters (A-R, fields of 20 x 10 degrees), 2 digits (squares of 2 x 1), 2 letters (a-x, subsquares of 5 x 2.5 minutes), and so on. The Location of a form (components/LocationField.vue) takes the
+// centre of the square a locator names, and writes the locator of a position that was picked on the map or typed.
+import { t } from "@/i18n";
+import { onEarth, parseNumber } from "@/lib/fieldcheck";
 
 const FIELD_LETTERS = 18; // A-R
 const SUB_LETTERS = 24; // a-x
@@ -55,7 +57,29 @@ export function positionToLocator(lat: number, lon: number): string {
 }
 
 /** A place in words, as the Location lines say it: degrees with N or S, E or W, and the locator ("60.42945 N, 24.14524 E · KP20bk"). */
-export function placeLine(lat: number, lon: number): string {
+function placeLine(lat: number, lon: number): string {
   const shown = (value: number) => String(Math.round(Math.abs(value) * 1e5) / 1e5);
   return `${shown(lat)} ${lat < 0 ? "S" : "N"}, ${shown(lon)} ${lon < 0 ? "W" : "E"} · ${positionToLocator(lat, lon)}`;
+}
+
+/** The place the two texts of a form hold, in words (`placeLine`); null while they are no place (empty, not numbers, off the earth). */
+export function placeOfText(lat: string, lon: string): string | null {
+  const north = parseNumber(lat);
+  const east = parseNumber(lon);
+  return north !== null && east !== null && onEarth(north, east) ? placeLine(north, east) : null;
+}
+
+/** The locator of the two texts of a form, "" while they are no place. */
+export function locatorOfText(lat: string, lon: string): string {
+  const north = parseNumber(lat);
+  const east = parseNumber(lon);
+  return north !== null && east !== null && onEarth(north, east) ? positionToLocator(north, east) : "";
+}
+
+const LOCATOR_FROM = 6; // a locator of fewer characters is still being typed
+
+/** What is wrong with a locator as it is typed: said once there are 6 characters and they are not a locator (7 is a locator of 8 on the way); "" otherwise. */
+export function locatorProblem(text: string): string {
+  const typed = text.trim();
+  return typed.length >= LOCATOR_FROM && typed.length !== 7 && locatorToPosition(typed) === null ? t("settings.locator.invalid") : "";
 }

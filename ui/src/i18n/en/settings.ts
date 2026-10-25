@@ -37,7 +37,7 @@ export const settings = {
   "settings.symbol.label": "Symbol",
   "settings.symbol_code.label": "Symbol code",
   "settings.symbol.none": "No symbol",
-  "settings.symbol.change": "Change",
+  "settings.symbol.change": "Change symbol",
   "settings.symbol.overlay": "Letter or digit on it",
 
   "settings.comment.label": "Comment",
@@ -256,7 +256,10 @@ export const settings = {
   "settings.location.pick": "Choose on map",
   "settings.location.cancel": "Cancel",
   "settings.location.not_set": "Not set",
-  "settings.location.enter": "Enter coordinates",
+  "settings.location.edit": "Type coordinates or a locator",
+  "settings.location.entry": "Coordinates or locator",
+  "settings.locator.label": "Locator",
+  "settings.locator.invalid": "Not a locator",
 
   "settings.picker.title": "Choose a symbol",
   "settings.picker.placeholder": "Search: house, car, digi, wx...",

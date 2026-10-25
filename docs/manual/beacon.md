@@ -4,7 +4,7 @@ The Beacon tab holds what your station says on the air. From top to bottom: the 
 
 **Position** is the one choice that decides what kind of station you are, and the tab shows only what applies to it. **Fixed** is a fixed station: the beacon is the location below, sent at the interval of the Beacon group, with the antenna's PHG. **A GPS via gpsd** and **A GPS on a serial port** make a moving station: the beacon follows the GPS and goes when SmartBeaconing says, with no interval to choose and no PHG ([Mobile operation](#mobile-operation)).
 
-The location (**Choose on map**, the coordinates and the locator) is shown for **Fixed** only; with a GPS chosen it is hidden, and the location you gave stays stored. The choice is the setting `gps/source` (`off`, `gpsd` or `serial`).
+The location (**Choose on map**, the place, the coordinates and the locator) is shown for **Fixed** only; with a GPS chosen it is hidden, and the location you gave stays stored. The choice is the setting `gps/source` (`off`, `gpsd` or `serial`).
 
 A first transmission on the air is not tried by NeoAPRS's tests, which never open the radio. Check it live with **Beacon now**, then look for your call on aprs.fi or on another station's screen, before you leave a timer on.
 
@@ -162,17 +162,20 @@ To try it without a vehicle, the [development guide](../development.md#trying-mo
 
 ## The location
 
-The Location is a row of the Station group under the call, like the call itself: the word Location bold in the label column and, in the input column, a **Choose on map** button (full width on a phone). The next click on the map becomes your position, applied at once as latitude and longitude together. The button says Cancel while the map waits.
+The Location is a row of the Station group under the call, like the call itself: the word Location bold in the label column and, in the input column, a plain **Choose on map** button with the place beside it on the same line, as text ("60.42945 N, 24.14524 E · KP20le", with the Maidenhead locator after the dot; "Not set" while there is none). On a narrow screen the text wraps under the button; it is never cut off. The next click on the map becomes your position, applied at once as latitude and longitude together. The button says Cancel while the map waits.
 
-One line under the button says where you are ("60.42945 N, 24.14524 E · KP20le", with the Maidenhead locator after the dot; "Not set" while there is none).
+The place is also a button: a click on it (or Enter with the keyboard on it) opens the entry under the row, with two ways to give the place.
 
-Under that line the latitude and longitude fields are behind a small **Enter coordinates** heading. It is open while there is no position or one of the fields is wrong, else until you open it. What you type applies together, when you leave the pair and both are right. North and east are positive, south and west negative.
+- The **latitude** and **longitude** are decimal degrees, north and east positive, south and west negative.
+- The **locator** is a Maidenhead locator of 6 characters (`KP20ie`; 4 or 8 work too): it takes the centre of its square.
+
+Each follows the other, and the entry is the same in the Objects form and in the setup guide. It is open from the start while there is no position or one of the fields is wrong, else until you open it, and a second click on the place closes it. What you type applies together, when you leave the fields and both are right (Enter does the same, **Esc** puts the place in force back).
 
 With no position there is no beacon, no station of your own on the map, and the map opens on the world.
 
 ## The symbol
 
-The symbol is a picture and its name with **Change**, which opens a picker with every symbol of both tables, the usual ones first, searchable by name (`house`, `car`, `digi`, `wx`). Your own symbol is the setting pair `station/symbol_table` and `station/symbol_code`. The default is a house.
+The symbol is a picture and its name, and a click on it (it has a small arrow, and a frame that lights up when the pointer or the keyboard is on it; its name for a screen reader is "Change symbol") opens a picker with every symbol of both tables, the usual ones first, searchable by name (`house`, `car`, `digi`, `wx`). Your own symbol is the setting pair `station/symbol_table` and `station/symbol_code`. The default is a house.
 
 A symbol made to carry a letter or a digit (a digipeater, a car, a gateway) has a small field "Letter or digit on it", which sets the overlay.
 

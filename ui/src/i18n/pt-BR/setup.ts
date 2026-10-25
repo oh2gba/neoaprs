@@ -18,12 +18,8 @@ export const setup: Record<keyof typeof source, Message> = {
   "setup.finish": "Concluir",
 
   "setup.call.label": "Seu indicativo",
-  "setup.locator.label": "Locator",
-  "setup.enter_coordinates": "Digite as coordenadas ou o locator",
-  "setup.not_locator": "Não é um locator",
   "setup.port_automatic": "Automática",
   "setup.symbols": "Símbolos",
-  "setup.more": "Mais...",
   "setup.symbol.house": "Casa",
   "setup.symbol.car": "Carro",
   "setup.symbol.truck": "Caminhão",

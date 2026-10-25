@@ -71,18 +71,7 @@ describe("SettingsForm", () => {
       global: withDaemon(),
     });
     expect(wrapper.findAll("fieldset legend").map((l) => l.text())).toEqual(["Station", "Beacon", "Status"]);
-    expect(wrapper.findAll(".field label").map((l) => l.text())).toEqual([
-      "Call",
-      "Position",
-      "Latitude",
-      "Longitude",
-      "Symbol",
-      "Beacon",
-      "Comment",
-      "Power",
-      "Path",
-      "Status",
-    ]);
+    expect(wrapper.findAll(".field label").map((l) => l.text())).toEqual(["Call", "Position", "Symbol", "Beacon", "Comment", "Power", "Path", "Status"]);
     expect(wrapper.find(".sample").exists()).toBe(true);
   });
 
@@ -95,7 +84,7 @@ describe("SettingsForm", () => {
 
     it("is one choice under the call: Fixed, a GPS via gpsd or a GPS on a serial port, and there is no Mobile group, GPS source or Mobile switch", () => {
       const { wrapper } = make({}, "beacon");
-      expect(labels(wrapper)).toEqual(["Call", "Position", "Latitude", "Longitude", "Symbol"]);
+      expect(labels(wrapper)).toEqual(["Call", "Position", "Symbol"]);
       expect(wrapper.find<HTMLSelectElement>("#set-gps-source").element.value).toBe("off");
       expect(wrapper.findAll("#set-gps-source option").map((o) => [o.attributes("value"), o.text()])).toEqual([
         ["off", "Fixed"],
@@ -215,19 +204,22 @@ describe("SettingsForm", () => {
       expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "gps/baud": "9600" } });
     });
 
-    it("shows the Location (Choose on map, the coordinates, the locator) for Fixed and hides it while a GPS is chosen, in both directions", async () => {
+    it("shows the Location (Choose on map, the place, the coordinates and the locator behind it) for Fixed and hides it while a GPS is chosen, in both directions", async () => {
       const { wrapper } = make({ "station/lat": "60.17", "station/lon": "24.94" }, "beacon");
-      const location = () => ["button.location-pick", ".location-line", "#set-station-lat", "#set-station-lon"].map((css) => wrapper.find(css).exists());
+      const location = () =>
+        ["button.location-pick", ".location-place", "#set-station-lat", "#set-station-lon", "#set-station-locator"].map((css) => wrapper.find(css).exists());
       expect(wrapper.find(".location-field .field-label").text()).toBe("Location");
-      expect(location()).toEqual([true, true, true, true]);
+      expect(location()).toEqual([true, true, false, false, false]);
+      await wrapper.find(".location-place").trigger("click");
+      expect(location()).toEqual([true, true, true, true, true]);
       await wrapper.find("#set-gps-source").setValue("gpsd");
       expect(wrapper.find(".location-field").exists()).toBe(false);
-      expect(location()).toEqual([false, false, false, false]);
+      expect(location()).toEqual([false, false, false, false, false]);
       expect(wrapper.text()).not.toContain("Home position");
       await wrapper.find("#set-gps-source").setValue("serial");
       expect(wrapper.find(".location-field").exists()).toBe(false);
       await wrapper.find("#set-gps-source").setValue("off");
-      expect(location()).toEqual([true, true, true, true]);
+      expect(location()[0] && location()[1]).toBe(true);
     });
 
     it("hides the Location of a GPS station without touching the stored place", () => {
@@ -341,7 +333,7 @@ describe("SettingsForm", () => {
         group(wrapper, "Station")
           ?.findAll(".field label, .field .field-label, h3")
           .map((e) => e.text()),
-      ).toEqual(["Call", "Position", "Location", "Latitude", "Longitude", "Symbol"]);
+      ).toEqual(["Call", "Position", "Location", "Symbol"]);
       expect(group(wrapper, "Station")?.find("#set-station-comment").exists()).toBe(false);
       expect(group(wrapper, "Beacon")?.find("#set-station-comment").exists()).toBe(true);
     });
@@ -715,6 +707,7 @@ describe("SettingsForm", () => {
 
   describe("typed fields", () => {
     const type = async (wrapper: ReturnType<typeof make>["wrapper"], id: string, text: string) => {
+      if (id.startsWith("set-station-l") && !wrapper.find(`#${id}`).exists()) await wrapper.find(".location-place").trigger("click"); // (the coordinates are behind the place)
       await wrapper.find(`#${id}`).setValue(text);
     };
 
@@ -775,6 +768,7 @@ describe("SettingsForm", () => {
   describe("fields that belong together", () => {
     it("send the latitude and the longitude in one set_config when focus leaves the pair, not when it moves from one to the other", async () => {
       const { wrapper, send } = make({}, "beacon");
+      await wrapper.find(".location-place").trigger("click");
       await wrapper.find("#set-station-lat").setValue("61.5");
       await wrapper.find("#set-station-lat").trigger("blur", { relatedTarget: wrapper.find("#set-station-lon").element });
       expect(send).not.toHaveBeenCalled();
@@ -795,6 +789,7 @@ describe("SettingsForm", () => {
     it("send a place picked on the map as latitude and longitude together", async () => {
       const { wrapper, send } = make({}, "beacon");
       await wrapper.setProps({ picked: { lat: 60.429449, lon: 24.1452399, n: 1 } });
+      await wrapper.find(".location-place").trigger("click");
       expect(wrapper.find<HTMLInputElement>("#set-station-lat").element.value).toBe("60.42945");
       expect(wrapper.find<HTMLInputElement>("#set-station-lon").element.value).toBe("24.14524");
       expect(send.mock.calls).toEqual([[{ cmd: "set_config", values: { "station/lat": "60.42945", "station/lon": "24.14524" } }]]);
@@ -821,7 +816,7 @@ describe("SettingsForm", () => {
       const field = wrapper.find("#set-station-comment").element.closest(".field");
       expect(field?.querySelector(".field-error")?.textContent).toBe("'é' is not ASCII");
       expect(wrapper.find<HTMLInputElement>("#set-station-comment").element.value).toBe("é is not ascii");
-      expect(wrapper.find("#set-station-lon").element.closest(".field")?.querySelector(".field-error")).toBeNull();
+      expect(wrapper.find(".location-entry").exists()).toBe(false);
     });
 
     it("shows nothing beside the field while a change is on its way or when it is saved, so that nothing moves; a screen reader is told", async () => {
@@ -986,9 +981,9 @@ describe("SettingsForm", () => {
       ]);
       expect(
         make({}, "beacon")
-          .wrapper.findAll(".field button:not(.info-toggle):not(.location-pick)")
+          .wrapper.findAll(".field button:not(.info-toggle):not(.location-pick):not(.location-place):not(.symbolbtn)")
           .map((b) => b.text()),
-      ).toEqual(["Change"]);
+      ).toEqual([]);
     });
 
     it("sends alert_test, waits while it runs, and says ran in the toast", async () => {
@@ -1080,22 +1075,28 @@ describe("SettingsForm", () => {
 });
 
 describe("SettingsForm: the Location of our station (Beacon tab)", () => {
-  const pick = (wrapper: ReturnType<typeof make>["wrapper"]) => wrapper.find<HTMLButtonElement>("button.location-pick");
-  const details = (wrapper: ReturnType<typeof make>["wrapper"]) => wrapper.find<HTMLDetailsElement>("details.disclosure");
+  type Wrapper = ReturnType<typeof make>["wrapper"];
+  const pick = (wrapper: Wrapper) => wrapper.find<HTMLButtonElement>("button.location-pick");
+  const place = (wrapper: Wrapper) => wrapper.find<HTMLButtonElement>("button.location-place");
+  const open = (wrapper: Wrapper) => place(wrapper).trigger("click");
+  const lat = (wrapper: Wrapper) => wrapper.find<HTMLInputElement>("#set-station-lat");
+  const lon = (wrapper: Wrapper) => wrapper.find<HTMLInputElement>("#set-station-lon");
+  const locator = (wrapper: Wrapper) => wrapper.find<HTMLInputElement>("#set-station-locator");
 
-  it("is a row after the call: Location in the label column, a primary Choose on map, Cancel while the map waits, and the place in force as one line", async () => {
+  it("is a row after the call: Location in the label column, a plain Choose on map, Cancel while the map waits, and the place in force as text beside it", async () => {
     const { wrapper } = make({}, "beacon");
     expect(wrapper.find(".location-field > .field-label").text()).toBe("Location");
     expect(wrapper.find(".location-field > .field-control button.location-pick").exists()).toBe(true);
-    expect(pick(wrapper).classes()).toContain("primary");
+    expect(pick(wrapper).classes()).not.toContain("primary");
     expect(pick(wrapper).text()).toBe("Choose on map");
-    expect(wrapper.find(".location-line").text()).toBe("60.17 N, 24.94 E · KP20le");
+    expect(place(wrapper).text()).toBe("60.17 N, 24.94 E · KP20le");
+    expect(place(wrapper).element.previousElementSibling).toBe(pick(wrapper).element);
     await pick(wrapper).trigger("click");
     expect(wrapper.emitted("pickPosition")).toHaveLength(1);
     await wrapper.setProps({ picking: true });
     expect(pick(wrapper).text()).toBe("Cancel");
     const order = wrapper.findAll(".field label, .field .field-label").map((e) => e.text());
-    expect(order.slice(0, 5)).toEqual(["Call", "Position", "Location", "Latitude", "Longitude"]);
+    expect(order.slice(0, 4)).toEqual(["Call", "Position", "Location", "Symbol"]);
   });
 
   it("is only on the Beacon tab", () => {
@@ -1103,19 +1104,36 @@ describe("SettingsForm: the Location of our station (Beacon tab)", () => {
   });
 
   it("writes south and west as S and W, and says Not set while there is no place", () => {
-    expect(make({ "station/lat": "-33.8568", "station/lon": "-70.1" }, "beacon").wrapper.find(".location-line").text()).toMatch(/^33\.8568 S, 70\.1 W · /);
-    expect(make({ "station/lat": "", "station/lon": "" }, "beacon").wrapper.find(".location-line").text()).toBe("Not set");
+    expect(make({ "station/lat": "-33.8568", "station/lon": "-70.1" }, "beacon").wrapper.find(".location-place").text()).toMatch(/^33\.8568 S, 70\.1 W · /);
+    expect(make({ "station/lat": "", "station/lon": "" }, "beacon").wrapper.find(".location-place").text()).toBe("Not set");
   });
 
-  it("keeps the coordinates behind Enter coordinates, closed while there is a place, open while there is none or one is wrong", async () => {
+  it("keeps the coordinates and the locator behind the place: closed while there is a place, opened by a click on the place, open from the start while there is none or one is wrong", async () => {
     const { wrapper } = make({}, "beacon");
-    expect(details(wrapper).element.open).toBe(false);
-    expect(details(wrapper).find("summary").text()).toBe("Enter coordinates");
-    expect(details(wrapper).find("#set-station-lat").exists()).toBe(true);
-    expect(make({ "station/lat": "", "station/lon": "" }, "beacon").wrapper.find<HTMLDetailsElement>("details.disclosure").element.open).toBe(true);
-    await wrapper.find("#set-station-lat").setValue("95");
-    await wrapper.find("#set-station-lat").trigger("blur");
-    expect(details(wrapper).element.open).toBe(true);
+    expect(wrapper.find(".location-entry").exists()).toBe(false);
+    expect(place(wrapper).attributes("aria-expanded")).toBe("false");
+    await open(wrapper);
+    expect(place(wrapper).attributes("aria-expanded")).toBe("true");
+    expect(wrapper.findAll(".location-entry label").map((l) => l.text())).toEqual(["Latitude", "Longitude", "Locator"]);
+    expect([lat(wrapper).element.value, lon(wrapper).element.value, locator(wrapper).element.value]).toEqual(["60.17", "24.94", "KP20le"]);
+    await open(wrapper);
+    expect(wrapper.find(".location-entry").exists()).toBe(false);
+    expect(make({ "station/lat": "", "station/lon": "" }, "beacon").wrapper.find(".location-entry").exists()).toBe(true);
+  });
+
+  it("opens the entry by itself when the daemon refuses a coordinate, with the reason under it", async () => {
+    const { wrapper, daemon } = make({}, "beacon");
+    expect(wrapper.find(".location-entry").exists()).toBe(false);
+    await wrapper.setProps({ picked: { lat: 60.4, lon: 24.1, n: 1 } });
+    await tell(daemon, { lastError: toastOf("set_config: station/lat: 'x' is not a number") });
+    expect(wrapper.find(".location-entry").exists()).toBe(true);
+    expect(lat(wrapper).element.closest(".field")?.querySelector(".field-error")?.textContent).toContain("not a number");
+  });
+
+  it("has no Enter coordinates heading and no disclosure in the row", () => {
+    const { wrapper } = make({}, "beacon");
+    expect(wrapper.text()).not.toContain("Enter coordinates");
+    expect(wrapper.find(".location-field details").exists()).toBe(false);
   });
 
   it("applies a place picked on the map at once, latitude and longitude in one set_config", async () => {
@@ -1123,25 +1141,60 @@ describe("SettingsForm: the Location of our station (Beacon tab)", () => {
     await wrapper.setProps({ picked: { lat: 60.429449, lon: 24.1452399, n: 1 } });
     expect(send.mock.calls).toEqual([[{ cmd: "set_config", values: { "station/lat": "60.42945", "station/lon": "24.14524" } }]]);
     await tell(daemon, { config: configValues({ "station/lat": "60.42945", "station/lon": "24.14524" }) });
-    expect(wrapper.find(".location-line").text()).toContain("60.42945 N, 24.14524 E");
+    expect(place(wrapper).text()).toContain("60.42945 N, 24.14524 E");
   });
 
   it("applies typed coordinates together when focus leaves the pair and both are right, and not before", async () => {
     const { wrapper, send } = make({ "station/lat": "", "station/lon": "" }, "beacon");
-    await wrapper.find("#set-station-lat").setValue("60.5");
-    await wrapper.find("#set-station-lat").trigger("blur", { relatedTarget: wrapper.find("#set-station-lon").element });
+    await lat(wrapper).setValue("60.5");
+    await lat(wrapper).trigger("blur", { relatedTarget: lon(wrapper).element });
     expect(send).not.toHaveBeenCalled();
-    await wrapper.find("#set-station-lon").setValue("24,5");
-    await wrapper.find("#set-station-lon").trigger("blur");
+    await lon(wrapper).setValue("24,5");
+    await lon(wrapper).trigger("blur");
     expect(send.mock.calls).toEqual([[{ cmd: "set_config", values: { "station/lat": "60.5", "station/lon": "24,5" } }]]);
+  });
+
+  it("applies a locator as the centre of its square, latitude and longitude in one set_config, when its field is left or Enter is pressed", async () => {
+    const { wrapper, send } = make({}, "beacon");
+    await open(wrapper);
+    await locator(wrapper).setValue("KP20ie");
+    expect([lat(wrapper).element.value, lon(wrapper).element.value]).toEqual(["60.1875", "24.7083"]);
+    expect(send).not.toHaveBeenCalled(); // (typing sends nothing)
+    await locator(wrapper).trigger("keydown", { key: "Enter" });
+    expect(send.mock.calls).toEqual([[{ cmd: "set_config", values: { "station/lat": "60.1875", "station/lon": "24.7083" } }]]);
+    await locator(wrapper).trigger("blur");
+    expect(send).toHaveBeenCalledTimes(1); // (leaving it afterwards sends nothing more: the pair is what it was sent as)
+  });
+
+  it("puts the place back on Esc in the locator, both coordinates, with the reason gone", async () => {
+    const { wrapper, send } = make({}, "beacon");
+    await open(wrapper);
+    await locator(wrapper).setValue("KP20ie");
+    expect(lat(wrapper).element.closest(".field")?.classList.contains("changed")).toBe(true);
+    await locator(wrapper).trigger("keydown", { key: "Escape" });
+    expect([lat(wrapper).element.value, lon(wrapper).element.value, locator(wrapper).element.value]).toEqual(["60.17", "24.94", "KP20le"]);
+    expect(send).not.toHaveBeenCalled();
+    await locator(wrapper).setValue("SS00aa");
+    expect(locator(wrapper).element.closest(".field")?.querySelector(".field-error")?.textContent).toBe("Not a locator");
+    await locator(wrapper).trigger("keydown", { key: "Escape" });
+    expect(locator(wrapper).element.closest(".field")?.querySelector(".field-error")).toBeNull();
+    expect(locator(wrapper).element.value).toBe("KP20le");
+  });
+
+  it("writes the locator of the coordinates as they are typed", async () => {
+    const { wrapper } = make({}, "beacon");
+    await open(wrapper);
+    await lat(wrapper).setValue("61.5");
+    await lon(wrapper).setValue("25.5");
+    expect(locator(wrapper).element.value).toBe("KP21sm");
   });
 
   it("sends nothing while only one of the two is given, and says which is missing", async () => {
     const { wrapper, send } = make({ "station/lat": "", "station/lon": "" }, "beacon");
-    await wrapper.find("#set-station-lat").setValue("60.5");
-    await wrapper.find("#set-station-lat").trigger("blur");
+    await lat(wrapper).setValue("60.5");
+    await lat(wrapper).trigger("blur");
     expect(send).not.toHaveBeenCalled();
-    expect(wrapper.find("#set-station-lon").element.closest(".field")?.querySelector(".field-error")?.textContent).toBe("Needed with the latitude");
+    expect(lon(wrapper).element.closest(".field")?.querySelector(".field-error")?.textContent).toBe("Needed with the latitude");
   });
 });
 
@@ -1209,7 +1262,7 @@ describe("SettingsForm: the beacon Off (Beacon tab)", () => {
     for (const source of ["off", "gpsd", "serial"]) {
       const { wrapper } = off({ "gps/source": source });
       const present = STATION.filter((id) => control(wrapper, id).exists());
-      expect(present.length, source).toBeGreaterThanOrEqual(4);
+      expect(present.length, source).toBeGreaterThanOrEqual(3);
       expect(
         present.filter((id) => control(wrapper, id).element.disabled),
         source,

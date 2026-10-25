@@ -327,9 +327,8 @@ export const de: Catalogue = {
   },
   "schedule.on_request": "nur auf Anfrage gesendet",
 
-  "objects.new": "Neu",
   "objects.none": "Keine Objekte.",
-  "objects.edit": "Bearbeiten",
+  "objects.list": "Unsere Objekte",
   "objects.edit_label": "{name} bearbeiten",
   "objects.delete_title": "Löschen (per Funk zurückziehen)",
   "objects.delete_label": { select: "kind", object: "Das Objekt {name} löschen", item: "Das Item {name} löschen", other: "Das Objekt {name} löschen" },
@@ -338,8 +337,6 @@ export const de: Catalogue = {
 
   "objects.form.new": "Neues Objekt",
   "objects.field.name": "Name",
-  "objects.field.lat": "Breite",
-  "objects.field.lon": "Länge",
   "objects.field.comment": "Kommentar",
   "objects.field.course": "Kurs",
   "objects.field.speed": "Geschwindigkeit",
@@ -350,6 +347,7 @@ export const de: Catalogue = {
   "objects.unit.deg": "Grad",
   "objects.form.cancel": "Abbrechen",
   "objects.form.save": "Speichern",
+  "objects.form.add": "Hinzufügen",
 
   "objects.problem.name_chars": "Kein Leerzeichen an den Enden, keines von ! _ | ~",
   "objects.problem.at_most": "Höchstens {max} Zeichen",
@@ -829,7 +827,7 @@ export const de: Catalogue = {
   "settings.symbol.label": "Symbol",
   "settings.symbol_code.label": "Symbolcode",
   "settings.symbol.none": "Kein Symbol",
-  "settings.symbol.change": "Ändern",
+  "settings.symbol.change": "Symbol ändern",
   "settings.symbol.overlay": "Buchstabe oder Ziffer darauf",
 
   "settings.comment.label": "Kommentar",
@@ -1054,7 +1052,10 @@ export const de: Catalogue = {
   "settings.location.pick": "Auf Karte wählen",
   "settings.location.cancel": "Abbrechen",
   "settings.location.not_set": "Nicht gesetzt",
-  "settings.location.enter": "Koordinaten eingeben",
+  "settings.location.edit": "Koordinaten oder Locator eingeben",
+  "settings.location.entry": "Koordinaten oder Locator",
+  "settings.locator.label": "Locator",
+  "settings.locator.invalid": "Kein Locator",
 
   "settings.picker.title": "Symbol wählen",
   "settings.picker.placeholder": "Suchen: Haus, Auto, Digi, Wetter…",
@@ -1212,12 +1213,8 @@ export const de: Catalogue = {
   "setup.finish": "Abschließen",
 
   "setup.call.label": "Dein Rufzeichen",
-  "setup.locator.label": "Locator",
-  "setup.enter_coordinates": "Koordinaten oder Locator eingeben",
-  "setup.not_locator": "Kein Locator",
   "setup.port_automatic": "Automatisch",
   "setup.symbols": "Symbole",
-  "setup.more": "Mehr…",
   "setup.symbol.house": "Haus",
   "setup.symbol.car": "Auto",
   "setup.symbol.truck": "LKW",

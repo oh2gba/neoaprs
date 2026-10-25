@@ -175,9 +175,9 @@ The page chooses its layout from the size of the window.
 - On a touch screen every button, tab, field and row is at least 40 px high and a field has a 16 px font, so that a phone does not zoom the page in when one is focused.
 - The installed app uses the same layout.
 
-**One box to write in.** On the tabs Messages, Bulletins, Email and Objects the list or the board fills the tab and scrolls, and the box to write in is fixed at the bottom of it. It has the fields and under them one line with the counter ("67 left") and the buttons at the right: the secondary one (Cancel) left of the primary one (Send, Post, Save), which is the last.
+**One box to write in.** On the tabs Messages, Bulletins, Email and Objects the list or the board fills the tab and scrolls, and the box to write in is fixed at the bottom of it. It has the fields and under them one line with the counter ("67 left") and the buttons at the right: the secondary one (Cancel) left of the primary one (Send, Post, Add or Save), which is the last.
 
-On a phone the box stays above the home bar, and the field being typed in is scrolled into view when the keyboard comes up. The form of an object scrolls inside the box on a short screen, its buttons always in sight. A list of suggestions or the note of an (i) in the box opens upward.
+On a phone the box stays above the home bar, and the field being typed in is scrolled into view when the keyboard comes up. The form of an object is always there under the list; it scrolls inside the box on a short screen, its buttons always in sight, and the list keeps a share of the screen and scrolls on its own. A list of suggestions or the note of an (i) in the box opens upward.
 
 ## The base map
 

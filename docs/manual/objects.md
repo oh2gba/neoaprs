@@ -1,6 +1,6 @@
 # Objects and items of your own
 
-The Objects tab makes an object, shows it on the map as yours, changes it and kills it. NeoAPRS sends it on the air by a schedule of its own.
+The Objects tab makes an object, shows it on the map as yours, changes it and kills it. NeoAPRS sends it on the air by a schedule of its own. The list of your objects is above and the form is always under it: with no object selected the form adds a new one, with one selected it changes that one.
 
 - An **object** (chapter 11 of the specification) has a name of 1 to 9 characters and a time stamp.
 - An **item** has a name of 3 to 9 characters and no time stamp. The tab no longer makes new ones (objects are recommended on RF; the specification advises against the item format on the air), but an item you made before is still listed, can be changed and killed, and is sent as before.
@@ -9,22 +9,26 @@ Objects of other stations that you hear are stations of their own on the map, na
 
 ## Making one
 
-**New** opens the form at the bottom of the tab, under the list of your objects (oldest first, scrolled to the newest, so that it is next to the form). It is the box that every tab writes in; its fields scroll on a short screen. The line under them has, at the right, "N left" for the comment, **Cancel** and **Save**. **Esc** closes the form without saving, as Cancel does (a field that still has text keeps its first Esc; while the map waits for a click, Esc ends that first).
+The form is at the bottom of the tab, under the list of your objects (oldest first, scrolled to the newest, so that it is next to the form), and it is there all the time. It is the box that every tab writes in; its fields scroll on a short screen, and on a phone the list keeps its own share of the screen and scrolls. With no row selected it makes a new object at the place you are. The line under the fields has, at the right, "N left" for the comment, a plain **Cancel** and the main button, **Add**.
+
+**Esc** and **Cancel** give up what is in the form: they leave the selected row, if there is one, and clear the form without saving. A field that still has text keeps its first Esc, and while the map waits for a click Esc ends that first. **Cancel** is there for a screen without a keyboard.
 
 - **Name.** Printable ASCII, case-sensitive, none of `!`, `_`, `|` and `~`, no blank at either end. It is never your own call, and never the call of a station that was heard.
-- **Symbol.** A picture and its name, as in the Beacon tab: Change opens the picker.
-- **Location.** As in the Beacon tab: a **Choose on map** button and a click on the map (Cancel while the map waits), the place as one line under it, and the latitude and longitude behind **Enter coordinates**, which is open while the place is missing or wrong. The form shows a pin where it is.
+- **Symbol.** The picture and its name, as in the Beacon tab: a click on it opens the picker.
+- **Location.** As in the Beacon tab and the setup guide ([beacon.md](beacon.md#the-location)): a plain **Choose on map** button and a click on the map (Cancel while the map waits), the place as text beside the button, and the latitude, longitude and locator behind a click on the place, open while the place is missing or wrong. The map shows a pin where it is while the tab is in front.
 - **Comment.** 43 characters, 36 behind a course and speed.
 - **Moving.** A closed heading with the **course** in degrees and the **speed** in km/h: each, both or neither. It is open when the object you change already has a course or a speed; empty, the object does not move.
 - **Path.** The placeholder is the beacon's path, which an empty field means. Up to 8 digipeaters, or the word `DIRECT` for none at all. `RFONLY` or `NOGATE` in it keeps the iGates from putting it on the internet.
 - **QRU group.** Empty for none. 1 to 8 letters and digits, written in capitals (`FOOD`, `RP70`), and not `INFO` or `NEXT`. A station that asks for the group is sent the object ([below](#objects-sent-only-when-asked)).
 - **Send only when asked.** Off: the object is sent on the schedule as always. On: it is kept and shown, and sent only to a station that asks for it.
 
-A field with something wrong is red and its title says what. Save waits until nothing is wrong. Saving a name that is there changes that object. You can have at most 50 objects and items at once, and nothing is made while the call is not set.
+A field with something wrong is red and says what. The main button waits until nothing is wrong. Adding a name that is there changes that object. You can have at most 50 objects and items at once, and nothing is made while the call is not set.
 
-**On the map** an object of yours has a dashed ring and a marker that you can drag. Where you drop it is its new place (the same as a change in the form, with everything else as it was). It never times out. Its card has **Edit** (the Objects tab opens with it) and **Kill**, in place of Message and Forget, and none of a station's fields.
+**On the map** an object of yours has a dashed ring and a marker that you can drag. Where you drop it is its new place (the same as a change in the form, with everything else as it was). It never times out. Its card has **Edit** (the Objects tab opens with the object selected) and **Kill**, in place of Message and Forget, and none of a station's fields.
 
-**In the Objects tab** each object has **Edit** and an x that asks twice (the second press after "sure?") and kills it. A row says how often the object was sent and when it goes out next ("sent 3 times, next in 12 min"), "waiting" when that time has passed because the radio is away, "killing" for an object whose kill is going out, and "sent only when asked" for one that is never sent on the schedule. An object with a QRU group shows the group after its kind.
+**Changing one.** Click its row, as you would a row of the Nearby tab: the row is highlighted, the object is selected on the map (its card opens and the map goes to it; on a phone the tab stays, the map has it when you go there), and the form under the list has it. The name stays, as it is the object's identity; the main button now reads **Save**. When the daemon has the changed object the selection is let go of and the form is clear for the next one. **Esc** and **Cancel** leave the selection. An object whose kill is going out cannot be selected.
+
+**In the Objects tab** each object has an x that asks twice (the second press after "sure?") and kills it. A row says how often the object was sent and when it goes out next ("sent 3 times, next in 12 min"), "waiting" when that time has passed because the radio is away, "killing" for an object whose kill is going out, and "sent only when asked" for one that is never sent on the schedule. An object with a QRU group shows the group after its kind.
 
 ## The packet
 

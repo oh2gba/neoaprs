@@ -188,7 +188,7 @@ describe("SetupGuide: the position", () => {
     const { wrapper, stand, button } = make();
     await stand(1);
     expect(button("Use this computer's location")).toBeUndefined();
-    expect(wrapper.find(".setup-onmap").text()).toBe("Choose on map");
+    expect(wrapper.find("button.location-pick").text()).toBe("Choose on map");
   });
 
   it("folds to its head for 'Choose on map' and comes back with Done, or with the click that sets the place", async () => {
@@ -206,52 +206,79 @@ describe("SetupGuide: the position", () => {
   });
 });
 
-describe("SetupGuide: the position, in the look of the Location of the Beacon tab", () => {
-  async function onPosition() {
-    const made = make();
+describe("SetupGuide: the position, with the Location control of the Beacon tab", () => {
+  async function onPosition(extra: Record<string, string> = {}) {
+    const made = make({ config: fresh(extra) });
     await made.type("setup-call", "oh2abc");
     await made.next();
     return made;
   }
-  const line = (wrapper: ReturnType<typeof make>["wrapper"]) => wrapper.find(".location-line");
+  const place = (wrapper: ReturnType<typeof make>["wrapper"]) => wrapper.find(".location-place");
 
-  it("has a primary Choose on map first, the place as one line ('Not set' while there is none), and Next waiting for a place", async () => {
+  it("has the row Location first: a plain Choose on map and the place as text ('Not set' while there is none), and Next waiting for a place", async () => {
     const { wrapper } = await onPosition();
     const first = wrapper.find(".setup-body").element.firstElementChild;
-    expect(first?.classList.contains("location")).toBe(true);
+    expect(first?.classList.contains("location-field")).toBe(true);
+    expect(wrapper.find(".location-field .field-label").text()).toBe("Location");
     const pick = wrapper.find("button.location-pick");
     expect(pick.text()).toBe("Choose on map");
-    expect(pick.classes()).toContain("primary");
-    expect([line(wrapper).text(), line(wrapper).classes()]).toEqual(["Not set", expect.arrayContaining(["muted"])]);
+    expect(pick.classes()).not.toContain("primary");
+    expect(wrapper.findAll(".setup .primary").map((b) => b.text())).toEqual(["Next"]); // (the one main action)
+    expect([place(wrapper).text(), place(wrapper).classes()]).toEqual(["Not set", expect.arrayContaining(["muted"])]);
+    expect(place(wrapper).element.previousElementSibling).toBe(pick.element);
     expect(wrapper.find("button[type=submit]").attributes("disabled")).toBeDefined();
   });
 
-  it("keeps the three fields behind a closed 'Enter coordinates or locator', and says the place in words when it is set", async () => {
-    const { wrapper, type } = await onPosition();
-    const fold = wrapper.find("details.disclosure");
-    expect(fold.find("summary").text()).toBe("Enter coordinates or locator");
-    expect(fold.attributes("open")).toBeUndefined();
-    expect(fold.findAll(".field label").map((l) => l.text())).toEqual(["Latitude", "Longitude", "Locator"]);
-    await type("setup-lat", "60.17");
-    await type("setup-lon", "-24.94");
-    expect(line(wrapper).text()).toBe("60.17 N, 24.94 W \u00b7 " + wrapper.find<HTMLInputElement>("#setup-locator").element.value);
-    expect(line(wrapper).classes()).not.toContain("muted");
+  it("has the entry (latitude, longitude, locator) open while there is no place, with the cursor in the latitude, and no 'Enter coordinates or locator' heading", async () => {
+    const { wrapper } = await onPosition();
+    await flushPromises();
+    expect(wrapper.find(".location-entry").exists()).toBe(true);
+    expect(wrapper.findAll(".location-entry label").map((l) => l.text())).toEqual(["Latitude", "Longitude", "Locator"]);
+    expect(document.activeElement).toBe(wrapper.find("#setup-lat").element);
+    expect(wrapper.text()).not.toContain("Enter coordinates");
+    expect(wrapper.find(".setup-body details").exists()).toBe(false);
+  });
+
+  it("says the place in words when it is set, keeps the entry behind a click on the place when the guide starts with one, and closes it with another", async () => {
+    const { wrapper, type } = await onPosition({ "station/lat": "60.17", "station/lon": "-24.94" });
+    expect(wrapper.find(".location-entry").exists()).toBe(false);
+    expect(place(wrapper).text()).toMatch(/^60\.17 N, 24\.94 W · [A-R]{2}\d\d[a-x]{2}$/);
+    expect(place(wrapper).classes()).not.toContain("muted");
+    await place(wrapper).trigger("click");
+    expect(wrapper.find<HTMLInputElement>("#setup-locator").element.value).toBe(place(wrapper).text().slice(-6));
+    await type("setup-lat", "61");
+    expect(place(wrapper).text()).toMatch(/^61 N, 24\.94 W · /);
+    await place(wrapper).trigger("click");
+    expect(wrapper.find(".location-entry").exists()).toBe(false);
     expect(wrapper.find("button[type=submit]").attributes("disabled")).toBeUndefined();
   });
 
-  it("opens the fold by itself when a field is wrong, and not otherwise", async () => {
-    const { wrapper, type } = await onPosition();
+  it("opens the entry by itself when a field is wrong, and not otherwise", async () => {
+    const { wrapper, type } = await onPosition({ "station/lat": "60.17", "station/lon": "24.94" });
+    expect(wrapper.find(".location-entry").exists()).toBe(false);
+    await place(wrapper).trigger("click");
     await type("setup-lat", "95");
-    expect(wrapper.find("details.disclosure").attributes("open")).toBeDefined();
+    expect(wrapper.find(".location-entry").exists()).toBe(true);
     expect(wrapper.find(".field-error").text()).toBe("Between -90 and 90");
   });
 
-  it("is set by a click on the map, which shows in the line", async () => {
+  it("takes a locator in the same entry: the centre of its square fills the others, which the guide's fields hold and save", async () => {
+    const { wrapper, guide, type } = await onPosition();
+    await type("setup-locator", "KP20ie");
+    expect(guide.fields).toMatchObject({ lat: "60.1875", lon: "24.7083" });
+    expect(place(wrapper).text()).toBe("60.1875 N, 24.7083 E · KP20ie");
+    expect(wrapper.find("button[type=submit]").attributes("disabled")).toBeUndefined();
+    await type("setup-locator", "SS00aa");
+    expect(wrapper.find(".location-entry .field-error").text()).toBe("Not a locator");
+    expect(guide.fields).toMatchObject({ lat: "60.1875", lon: "24.7083" });
+  });
+
+  it("is set by a click on the map, which shows in the text", async () => {
     const { wrapper, guide } = await onPosition();
     await wrapper.find("button.location-pick").trigger("click");
     guide.place(60.42945, 24.14524);
     await nextTick();
-    expect(line(wrapper).text()).toMatch(/^60\.42945 N, 24\.14524 E \u00b7 KP\d\d[a-z]{2}$/);
+    expect(place(wrapper).text()).toMatch(/^60\.42945 N, 24\.14524 E \u00b7 KP\d\d[a-z]{2}$/);
   });
 });
 
@@ -265,10 +292,11 @@ describe("SetupGuide: the symbol", () => {
     expect(buttons[0]?.find(".stn-layer").attributes("style")).toContain("symbols/primary.png");
     expect(buttons[0]?.attributes("aria-pressed")).toBe("true");
     expect(wrapper.find("#setup-symbol-change").exists()).toBe(true);
+    expect(wrapper.find("#setup-symbol-change").attributes("aria-label")).toBe("Change symbol");
     expect(wrapper.find(".symbolfield-name").text()).toBe("House");
   });
 
-  it("sets the table and code from a symbol of the 12, and any other from the picker that More... opens", async () => {
+  it("sets the table and code from a symbol of the 12, and any other from the picker that the symbol shown under them opens (no More... button)", async () => {
     const { wrapper, guide, stand } = make();
     await stand(2);
     await wrapper.findAll(".setup-symbol")[1]?.trigger("click");
@@ -277,8 +305,8 @@ describe("SetupGuide: the symbol", () => {
     expect(wrapper.findAll(".setup-symbol")[1]?.attributes("aria-pressed")).toBe("true");
     expect(wrapper.findAll(".setup-symbol")[0]?.attributes("aria-pressed")).toBe("false");
     expect(wrapper.find(".sympick").exists()).toBe(false);
-    const more = wrapper.findAll("button").find((b) => b.text() === "More...");
-    await more?.trigger("click");
+    expect(wrapper.findAll("button").some((b) => b.text() === "More...")).toBe(false);
+    await wrapper.find("#setup-symbol-change").trigger("click");
     expect(wrapper.find(".sympick").exists()).toBe(true);
     await wrapper.find<HTMLInputElement>(".sympick input[type=search]").setValue("lighthouse");
     await wrapper.find(".sympick-symbol").trigger("click");

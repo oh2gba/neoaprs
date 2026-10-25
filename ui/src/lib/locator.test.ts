@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { locatorToPosition, positionToLocator } from "@/lib/locator";
+import { locatorOfText, locatorProblem, locatorToPosition, placeOfText, positionToLocator } from "@/lib/locator";
 
 describe("locatorToPosition", () => {
   it("is the centre of the subsquare of a locator of 6 characters", () => {
@@ -39,5 +39,43 @@ describe("positionToLocator", () => {
     expect(positionToLocator(90, 180)).toBe("RR99xx");
     expect(positionToLocator(91, 0)).toBe("");
     expect(positionToLocator(NaN, 0)).toBe("");
+  });
+});
+
+describe("placeOfText", () => {
+  it("says the place two texts of a form hold in words: degrees with N or S, E or W, and the locator", () => {
+    expect(placeOfText("60.17", "24.94")).toBe("60.17 N, 24.94 E · KP20le");
+    expect(placeOfText("-33.8568", "-70.1")).toMatch(/^33\.8568 S, 70\.1 W · /);
+    expect(placeOfText("60,17", "24,94")).toBe("60.17 N, 24.94 E · KP20le");
+  });
+
+  it("is null for what is no place: empty, not numbers, off the earth, or only one of the two", () => {
+    for (const [lat, lon] of [
+      ["", ""],
+      ["x", "24"],
+      ["60", ""],
+      ["95", "24"],
+      ["60", "181"],
+    ] as const)
+      expect(placeOfText(lat, lon), `${lat} ${lon}`).toBeNull();
+  });
+});
+
+describe("locatorOfText", () => {
+  it("is the locator of the place, and empty when there is none", () => {
+    expect(locatorOfText("60.17", "24.94")).toBe("KP20le");
+    expect(locatorOfText("95", "24")).toBe("");
+    expect(locatorOfText("", "")).toBe("");
+  });
+});
+
+describe("locatorProblem", () => {
+  it("is said once there are 6 characters and they are not a locator, and not while it is being typed (7 is a locator of 8 on the way)", () => {
+    expect(locatorProblem("SS00aa")).toBe("Not a locator");
+    expect(locatorProblem("KP20iezz")).toBe("Not a locator");
+    expect(locatorProblem("KP20i")).toBe("");
+    expect(locatorProblem("KP20ie")).toBe("");
+    expect(locatorProblem("KP20ie5")).toBe("");
+    expect(locatorProblem("")).toBe("");
   });
 });

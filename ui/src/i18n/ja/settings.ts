@@ -39,7 +39,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.symbol.label": "シンボル",
   "settings.symbol_code.label": "シンボルコード",
   "settings.symbol.none": "シンボルなし",
-  "settings.symbol.change": "変更",
+  "settings.symbol.change": "シンボルを変更",
   "settings.symbol.overlay": "重ねる文字または数字",
 
   "settings.comment.label": "コメント",
@@ -256,7 +256,10 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.location.pick": "地図で選択",
   "settings.location.cancel": "キャンセル",
   "settings.location.not_set": "未設定",
-  "settings.location.enter": "座標を入力",
+  "settings.location.edit": "座標またはロケーターを入力",
+  "settings.location.entry": "座標またはロケーター",
+  "settings.locator.label": "ロケーター",
+  "settings.locator.invalid": "ロケーターではありません",
 
   "settings.picker.title": "シンボルを選ぶ",
   "settings.picker.placeholder": "検索: house, car, digi, wx...",

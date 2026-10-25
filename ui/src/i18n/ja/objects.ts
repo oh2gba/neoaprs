@@ -10,9 +10,8 @@ export const objects: Record<keyof typeof source, Message> = {
   "schedule.killing": { "=0": "キル中、未送信", other: "キル中、{n}回送信" },
   "schedule.on_request": "要求があったときだけ送信",
 
-  "objects.new": "新規",
   "objects.none": "オブジェクトはありません。",
-  "objects.edit": "編集",
+  "objects.list": "自局のオブジェクト",
   "objects.edit_label": "{name}を編集",
   "objects.delete_title": "削除(電波でキル)",
   "objects.delete_label": { select: "kind", object: "オブジェクト{name}を削除", item: "アイテム{name}を削除", other: "オブジェクト{name}を削除" },
@@ -21,8 +20,6 @@ export const objects: Record<keyof typeof source, Message> = {
 
   "objects.form.new": "新規オブジェクト",
   "objects.field.name": "名前",
-  "objects.field.lat": "緯度",
-  "objects.field.lon": "経度",
   "objects.field.comment": "コメント",
   "objects.field.course": "進行方向",
   "objects.field.speed": "速度",
@@ -33,6 +30,7 @@ export const objects: Record<keyof typeof source, Message> = {
   "objects.unit.deg": "度",
   "objects.form.cancel": "キャンセル",
   "objects.form.save": "保存",
+  "objects.form.add": "追加",
 
   "objects.problem.name_chars": "両端に空白不可、! _ | ~ は使えません",
   "objects.problem.at_most": "最大{max}文字",

@@ -38,7 +38,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.symbol.label": "Simbolo",
   "settings.symbol_code.label": "Codice del simbolo",
   "settings.symbol.none": "Nessun simbolo",
-  "settings.symbol.change": "Cambia",
+  "settings.symbol.change": "Cambia simbolo",
   "settings.symbol.overlay": "Lettera o cifra sopra",
 
   "settings.comment.label": "Commento",
@@ -263,7 +263,10 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.location.pick": "Scegli sulla mappa",
   "settings.location.cancel": "Annulla",
   "settings.location.not_set": "Non impostata",
-  "settings.location.enter": "Inserisci le coordinate",
+  "settings.location.edit": "Inserisci coordinate o locator",
+  "settings.location.entry": "Coordinate o locator",
+  "settings.locator.label": "Locator",
+  "settings.locator.invalid": "Non è un locator",
 
   "settings.picker.title": "Scegli un simbolo",
   "settings.picker.placeholder": "Cerca: casa, auto, digi, wx...",

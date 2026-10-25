@@ -41,7 +41,7 @@ describe("BeaconPane", () => {
 
   it("asks nothing about the destination, the compressed form or the DAO: the program decides", () => {
     const { wrapper } = pane({ "status/source": "text" });
-    expect(labels(wrapper)).toEqual(["Call", "Position", "Latitude", "Longitude", "Symbol", "Beacon", "Comment", "Power", "Path", "Status", "Text", "Every"]);
+    expect(labels(wrapper)).toEqual(["Call", "Position", "Symbol", "Beacon", "Comment", "Power", "Path", "Status", "Text", "Every"]);
     for (const id of ["destination", "compressed", "dao", "symbol_table", "symbol_code"])
       expect(wrapper.find(`#set-beacon-${id}, #set-station-${id}`).exists()).toBe(false);
   });
@@ -69,6 +69,7 @@ describe("BeaconPane", () => {
 
   it("says so when the values make no packet", async () => {
     const { wrapper } = pane();
+    await wrapper.find(".location-place").trigger("click");
     await wrapper.find("#set-station-lat").setValue("95");
     expect(wrapper.find(".beacon-preview code").exists()).toBe(false);
     expect(wrapper.find(".beacon-preview").text()).toContain("make no packet");
@@ -82,10 +83,10 @@ describe("BeaconPane", () => {
         .findAll("form .field label, form .field .field-label")
         .map((e) => e.text())
         .slice(0, 6),
-    ).toEqual(["Call", "Position", "Location", "Latitude", "Longitude", "Symbol"]);
+    ).toEqual(["Call", "Position", "Location", "Symbol", "Beacon", "Comment"]);
   });
 
-  it("lays the Location out as the Call is: the label in the first column, the button, the place and Enter coordinates in the second", () => {
+  it("lays the Location out as the Call is: the label in the first column, the plain button and the place as text on one line in the second", () => {
     const { wrapper } = pane();
     const row = wrapper.find(".location-field");
     const call = wrapper.find("#set-station-call").element.closest(".field");
@@ -95,8 +96,10 @@ describe("BeaconPane", () => {
     expect(row.find(".field-label").text()).toBe("Location");
     expect(row.find(".field-label").element.nextElementSibling).toBe(row.find(".field-control").element);
     expect(call?.querySelector(".field-control")?.tagName).toBe("DIV");
-    expect([...row.find(".field-control").element.children].map((c) => c.className.split(" ")[0])).toEqual(["btn", "location-line", "disclosure"]);
-    expect(row.find(".disclosure summary").text()).toBe("Enter coordinates");
+    expect([...row.find(".field-control").element.children].map((c) => c.className.split(" ")[0])).toEqual(["btn", "location-place"]);
+    expect(row.find(".btn").classes()).not.toContain("primary");
+    expect(row.find(".location-place").text()).toBe("60.17 N, 24.94 E · KP20le");
+    expect(row.find("details").exists()).toBe(false);
     expect(wrapper.find("h3.subgroup").exists()).toBe(false);
   });
 
@@ -390,7 +393,7 @@ describe("the beacon status of a moving station", () => {
         ?.findAll(".field > label")
         .map((l) => l.text());
     const fixed = pane({ "beacon/power_w": "5" }).wrapper;
-    expect(stationLabels(fixed)).toEqual(["Call", "Position", "Latitude", "Longitude", "Symbol"]);
+    expect(stationLabels(fixed)).toEqual(["Call", "Position", "Symbol"]);
     expect(beaconLabels(fixed)).toEqual(["Beacon", "Comment", "Power", "Antenna height", "Antenna gain", "Antenna direction", "Path"]);
     expect(
       group(fixed, "Beacon")

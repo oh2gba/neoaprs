@@ -10,12 +10,20 @@ import { ownObject } from "@/test/fixtures";
 function form(rows: OwnObjectRow[] = []) {
   const table = new Map(rows.map((r) => [r.name, r]));
   const sent: Command[] = [];
-  const view = useOwnObjects(table, ref({ lat: 60.17, lon: 24.94 }), (command) => (sent.push(command), true), { show: vi.fn() } as unknown as Panel);
-  view.start();
+  const view = useOwnObjects(table, ref({ lat: 60.17, lon: 24.94 }), (command) => (sent.push(command), true), {
+    show: vi.fn(),
+    tab: ref("objects"),
+  } as unknown as Panel);
   const wrapper = mount(ObjectForm, { props: { form: view, fallbackPath: "WIDE1-1,WIDE2-1" } });
   const field = (label: string) => wrapper.findAll(".field:not(.location-field)").find((f) => f.find("label").text() === label);
   const input = (label: string) => field(label)?.find<HTMLInputElement>("input");
-  return { wrapper, view, sent, field, input, table };
+  /** The entry under the place (latitude, longitude, locator), opened by a click on the place. */
+  const entry = async () => {
+    if (!wrapper.find(".location-entry").exists()) await wrapper.find(".location-place").trigger("click");
+    return wrapper.find(".location-entry");
+  };
+  const coordinate = async (label: "Latitude" | "Longitude" | "Locator") => (await entry()).findAll(".field").find((f) => f.find("label").text() === label);
+  return { wrapper, view, sent, field, input, table, entry, coordinate };
 }
 
 describe("ObjectForm", () => {
@@ -24,8 +32,6 @@ describe("ObjectForm", () => {
     expect(wrapper.findAll(".field label").map((l) => l.text())).toEqual([
       "Name",
       "Symbol",
-      "Latitude",
-      "Longitude",
       "Comment",
       "Course",
       "Speed",
@@ -36,30 +42,42 @@ describe("ObjectForm", () => {
     expect(wrapper.find("p").exists()).toBe(false);
   });
 
-  it("starts at the place we are, with the car and the path of the beacon as the placeholder", () => {
-    const { input, field } = form();
-    expect(input("Latitude")?.element.value).toBe("60.17");
-    expect(input("Longitude")?.element.value).toBe("24.94");
+  it("starts at the place we are, with the car and the path of the beacon as the placeholder", async () => {
+    const { wrapper, input, field, coordinate } = form();
+    expect(wrapper.find(".location-place").text()).toBe("60.17 N, 24.94 E · KP20le");
+    expect((await coordinate("Latitude"))?.find("input").element.value).toBe("60.17");
+    expect((await coordinate("Longitude"))?.find("input").element.value).toBe("24.94");
     expect(field("Symbol")?.find(".symbolfield-name").text()).toBe("Car");
     expect(input("Path")?.attributes("placeholder")).toBe("WIDE1-1,WIDE2-1");
     expect(input("Path")?.element.value).toBe("");
   });
 
   it("says (default) in the path when the beacon has none", () => {
-    const view = useOwnObjects(new Map(), ref(null), () => true, { show: vi.fn() } as unknown as Panel);
-    view.start();
+    const view = useOwnObjects(new Map(), ref(null), () => true, { show: vi.fn(), tab: ref("objects") } as unknown as Panel);
     const wrapper = mount(ObjectForm, { props: { form: view, fallbackPath: "" } });
     expect(wrapper.find("input[placeholder='(default)']").exists()).toBe(true);
   });
 
-  it("has Save off until the draft is ready, and Cancel", async () => {
-    const { wrapper, input } = form();
-    const save = wrapper.find<HTMLButtonElement>("button[type='submit']");
-    expect(save.text()).toBe("Save");
-    expect(save.element.disabled).toBe(true);
-    await input("Name")?.setValue("LEADER");
-    expect(save.element.disabled).toBe(false);
-    expect(wrapper.findAll("button").find((b) => b.text() === "Cancel")).toBeDefined();
+  it("has Add, off until the draft is ready, for a new object, and Save for the one that is selected, and a plain Cancel beside it", async () => {
+    const { wrapper, input, view } = form([ownObject("LEADER")]);
+    const main = wrapper.find<HTMLButtonElement>("button[type='submit']");
+    expect(main.text()).toBe("Add");
+    expect(main.classes()).toContain("primary");
+    expect(main.element.disabled).toBe(true);
+    await input("Name")?.setValue("MARK");
+    expect(main.element.disabled).toBe(false);
+    const cancel = wrapper.findAll("button").find((b) => b.text() === "Cancel");
+    expect(cancel?.classes()).not.toContain("primary");
+    expect(cancel?.element.nextElementSibling).toBe(main.element);
+    view.edit("LEADER");
+    await wrapper.vm.$nextTick();
+    expect(main.text()).toBe("Save");
+    expect(main.classes()).toContain("primary");
+    expect(wrapper.find("form").attributes("aria-label")).toBe("Edit LEADER");
+    view.cancel();
+    await wrapper.vm.$nextTick();
+    expect(main.text()).toBe("Add");
+    expect(wrapper.find("form").attributes("aria-label")).toBe("New object");
   });
 
   it("takes a name of nine characters at the most, and has no choice of kind", () => {
@@ -82,22 +100,23 @@ describe("ObjectForm", () => {
     await input("Comment")?.setValue("Moved");
     await wrapper.find("form").trigger("submit");
     expect(sent).toMatchObject([{ cmd: "object_set", name: "AID", kind: "item", comment: "Moved" }]);
-    view.start();
+    view.cancel();
     await wrapper.vm.$nextTick();
     await input("Name")?.setValue("NEWONE");
     await wrapper.find("form").trigger("submit");
     expect(sent[1]).toMatchObject({ cmd: "object_set", name: "NEWONE", kind: "object" });
   });
 
-  it("marks a field that is wrong, with what is wrong in its title, and has Save off", async () => {
-    const { wrapper, input, field } = form();
+  it("marks a field that is wrong, with what is wrong in its title (under it, for a coordinate), and has Add off", async () => {
+    const { wrapper, input, field, coordinate } = form();
     await input("Name")?.setValue("LEADER");
-    await input("Latitude")?.setValue("95");
-    expect(field("Latitude")?.classes()).toContain("invalid");
-    expect(field("Latitude")?.attributes("title")).toBe("Between -90 and 90");
+    const latitude = async () => coordinate("Latitude");
+    await (await latitude())?.find("input").setValue("95");
+    expect((await latitude())?.classes()).toContain("invalid");
+    expect((await latitude())?.find(".field-error").text()).toBe("Between -90 and 90");
     expect(wrapper.find<HTMLButtonElement>("button[type='submit']").element.disabled).toBe(true);
-    await input("Latitude")?.setValue("60.1");
-    expect(field("Latitude")?.classes()).not.toContain("invalid");
+    await (await latitude())?.find("input").setValue("60.1");
+    expect((await latitude())?.classes()).not.toContain("invalid");
     expect(wrapper.find<HTMLButtonElement>("button[type='submit']").element.disabled).toBe(false);
     await input("Name")?.setValue("A!");
     expect(field("Name")?.classes()).toContain("invalid");
@@ -122,6 +141,7 @@ describe("ObjectForm", () => {
     const { wrapper, field, view } = form();
     expect(field("Symbol")?.find("input").exists()).toBe(false);
     expect(field("Symbol")?.find(".symicon .stn-layer").exists()).toBe(true);
+    expect(field("Symbol")?.findAll("button")).toHaveLength(1); // (the picture and its name are the button: there is no Change)
     await field("Symbol")?.find("button").trigger("click");
     const house = wrapper.findAll(".sympick-symbol").find((b) => b.text() === "House");
     await house?.trigger("click");
@@ -130,7 +150,7 @@ describe("ObjectForm", () => {
     expect(wrapper.find(".sympick").exists()).toBe(false);
   });
 
-  it("has the Location row of the Beacon tab: Location in the label column, Choose on map in the input column, the place in one line and Enter coordinates under it", () => {
+  it("has the Location row of the Beacon tab: Location in the label column, Choose on map and the place on one line in the input column", () => {
     const { wrapper } = form();
     const row = wrapper.find(".location-field");
     expect(row.classes()).toContain("field");
@@ -138,27 +158,62 @@ describe("ObjectForm", () => {
     expect(row.element.nextElementSibling?.querySelector("label")?.textContent).toBe("Comment");
     expect([...row.element.children].map((c) => c.className.split(" ")[0])).toEqual(["field-label", "field-control"]);
     expect(row.find(".field-label").text()).toBe("Location");
-    expect([...row.find(".field-control").element.children].map((c) => c.className.split(" ")[0])).toEqual(["btn", "location-line", "disclosure"]);
-    expect(row.find(".location-line").text()).toBe("60.17 N, 24.94 E · KP20le");
-    expect(row.find("summary").text()).toBe("Enter coordinates");
-    expect(row.find<HTMLDetailsElement>("details").element.open).toBe(false);
-    expect(row.findAll("input")).toHaveLength(2);
+    expect([...row.find(".field-control").element.children].map((c) => c.className.split(" ")[0])).toEqual(["btn", "location-place"]);
+    expect(row.find(".btn").classes()).not.toContain("primary");
+    expect(row.find(".location-place").text()).toBe("60.17 N, 24.94 E · KP20le");
+    expect(row.find(".location-entry").exists()).toBe(false);
+    expect(row.find("details").exists()).toBe(false);
     expect(wrapper.find(".composebar-aside button").exists()).toBe(false);
   });
 
-  it("opens Enter coordinates while there is no place or a coordinate is wrong, and says Not set", async () => {
-    const { wrapper, input, view } = form();
-    const details = () => wrapper.find<HTMLDetailsElement>(".location-field details").element;
-    expect(details().open).toBe(false);
-    await input("Latitude")?.setValue("95");
-    expect(details().open).toBe(true);
-    expect(wrapper.find(".location-line").text()).toBe("Not set");
-    expect(wrapper.find(".location-line").classes()).toContain("muted");
+  it("opens the entry (latitude, longitude, locator) by a click on the place, and closes it by another", async () => {
+    const { wrapper, coordinate } = form();
+    const place = wrapper.find(".location-place");
+    expect(place.attributes("aria-expanded")).toBe("false");
+    await place.trigger("click");
+    expect(place.attributes("aria-expanded")).toBe("true");
+    expect(wrapper.findAll(".location-entry label").map((l) => l.text())).toEqual(["Latitude", "Longitude", "Locator"]);
+    expect((await coordinate("Locator"))?.find("input").element.value).toBe("KP20le");
+    await place.trigger("click");
+    expect(wrapper.find(".location-entry").exists()).toBe(false);
+  });
+
+  it("opens the entry by itself while there is no place or a coordinate is wrong, and says Not set", async () => {
+    const { wrapper, view, coordinate } = form();
+    expect(wrapper.find(".location-entry").exists()).toBe(false);
+    await (await coordinate("Latitude"))?.find("input").setValue("95");
+    expect(wrapper.find(".location-place").text()).toBe("Not set");
+    expect(wrapper.find(".location-place").classes()).toContain("muted");
     view.cancel();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find(".location-entry").exists()).toBe(true); // (never closed by the page)
+    const blank = form();
+    blank.view.draft.lat = "";
+    blank.view.draft.lon = "";
+    await blank.wrapper.vm.$nextTick();
+    expect(blank.wrapper.find(".location-entry").exists()).toBe(true);
+    expect(blank.wrapper.find(".location-place").text()).toBe("Not set");
+  });
+
+  it("takes a Maidenhead locator for the place: the centre of its square fills the coordinates, which write the locator again", async () => {
+    const { wrapper, view, coordinate } = form();
+    await (await coordinate("Locator"))?.find("input").setValue("KP20ie");
+    expect(view.draft.lat).toBe("60.1875");
+    expect(view.draft.lon).toBe("24.7083");
+    expect(wrapper.find(".location-place").text()).toBe("60.1875 N, 24.7083 E · KP20ie");
+    expect((await coordinate("Locator"))?.find("input").element.value).toBe("KP20ie"); // (as typed)
+    await (await coordinate("Latitude"))?.find("input").setValue("60.17");
+    await (await coordinate("Longitude"))?.find("input").setValue("24.94");
+    expect((await coordinate("Locator"))?.find("input").element.value).toBe("KP20le");
+    await (await coordinate("Locator"))?.find("input").setValue("SS00aa");
+    expect((await coordinate("Locator"))?.find(".field-error").text()).toBe("Not a locator");
+    expect(view.draft.lat).toBe("60.17"); // (a locator that is none changes nothing)
+    await (await coordinate("Locator"))?.find("input").setValue("KP20i");
+    expect((await coordinate("Locator"))?.find(".field-error").exists()).toBe(false); // (still being typed)
   });
 
   it("has Choose on map, which asks for a click on the map and says Cancel while it waits", async () => {
-    const { wrapper, view } = form();
+    const { wrapper, view, coordinate } = form();
     const place = wrapper.find<HTMLButtonElement>("button.location-pick");
     expect(place.text()).toBe("Choose on map");
     expect(place.attributes("aria-pressed")).toBe("false");
@@ -168,8 +223,8 @@ describe("ObjectForm", () => {
     expect(place.text()).toBe("Cancel");
     view.place(61.5, 25.5);
     await wrapper.vm.$nextTick();
-    expect(wrapper.find<HTMLInputElement>("input[inputmode='decimal']").element.value).toBe("61.5");
-    expect(wrapper.find(".location-line").text()).toMatch(/^61\.5 N, 25\.5 E · [A-R]{2}\d\d[a-x]{2}$/);
+    expect((await coordinate("Latitude"))?.find("input").element.value).toBe("61.5");
+    expect(wrapper.find(".location-place").text()).toMatch(/^61\.5 N, 25\.5 E · [A-R]{2}\d\d[a-x]{2}$/);
     expect(place.attributes("aria-pressed")).toBe("false");
     expect(place.text()).toBe("Choose on map");
   });
@@ -259,7 +314,6 @@ describe("ObjectForm", () => {
     await wrapper.vm.$nextTick();
     expect(open()).toBe(true);
     view.cancel();
-    view.start();
     view.edit("FAST");
     await wrapper.vm.$nextTick();
     expect(open()).toBe(true);
@@ -285,13 +339,23 @@ describe("ObjectForm", () => {
     });
   });
 
-  it("closes with Cancel and sends nothing", async () => {
-    const { wrapper, view, sent } = form();
-    await wrapper
-      .findAll("button")
-      .find((b) => b.text() === "Cancel")
-      ?.trigger("click");
-    expect(view.open).toBe(false);
+  it("has Cancel off while nothing is selected or typed, and with it leaves the selection, clears the form and sends nothing", async () => {
+    const { wrapper, view, sent, input } = form([ownObject("LEADER", { comment: "Rescue 1" })]);
+    const cancel = () => wrapper.findAll<HTMLButtonElement>("button").find((b) => b.text() === "Cancel");
+    expect(cancel()?.element.disabled).toBe(true);
+    view.edit("LEADER");
+    await wrapper.vm.$nextTick();
+    expect(cancel()?.element.disabled).toBe(false);
+    await input("Comment")?.setValue("Changed");
+    await cancel()?.trigger("click");
+    expect(view.editing).toBeNull();
+    expect(view.dirty).toBe(false);
+    expect(input("Name")?.element.value).toBe("");
+    expect(input("Comment")?.element.value).toBe("");
+    expect(input("Name")?.attributes("readonly")).toBeUndefined();
+    expect(cancel()?.element.disabled).toBe(true);
+    await input("Name")?.setValue("NEW");
+    expect(cancel()?.element.disabled).toBe(false);
     expect(sent).toEqual([]);
   });
 });

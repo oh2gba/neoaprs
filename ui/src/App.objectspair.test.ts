@@ -19,7 +19,6 @@ describe("App: two objects", () => {
     const { wrapper, socket } = await open();
     socket.say({ type: "state", topic: "own_objects", rev: 0, value: {} });
     await tabButton(wrapper, "Objects")?.trigger("click");
-    await wrapper.find("#pane-objects .toolbar .btn").trigger("click");
     await field(wrapper, "Name")?.setValue("ALPHA");
     await wrapper.find("#pane-objects form").trigger("submit");
     socket.say({
@@ -29,8 +28,7 @@ describe("App: two objects", () => {
       ops: [{ op: "set", key: "ALPHA", value: ownObject("ALPHA", { lat: 60.17, lon: 24.94, sent: 0, last_sent_at: null }) }],
     });
     await flushPromises();
-    expect(wrapper.find("#pane-objects .objform").exists()).toBe(false);
-    await wrapper.find("#pane-objects .toolbar .btn").trigger("click");
+    expect(field(wrapper, "Name")?.element.value).toBe("");
     await field(wrapper, "Name")?.setValue("BRAVO");
     await wrapper.find("#pane-objects form").trigger("submit");
     expect(sentSets(socket).map((c) => c.name)).toEqual(["ALPHA", "BRAVO"]);
@@ -41,7 +39,7 @@ describe("App: two objects", () => {
       ops: [{ op: "set", key: "BRAVO", value: ownObject("BRAVO", { lat: 60.17, lon: 24.94, sent: 0, last_sent_at: null }) }],
     });
     await flushPromises();
-    expect(wrapper.find("#pane-objects .objform").exists()).toBe(false);
+    expect(field(wrapper, "Name")?.element.value).toBe("");
     expect(wrapper.findAll("#pane-objects .ownobject strong").map((e) => e.text())).toEqual(["ALPHA", "BRAVO"]);
   });
 
@@ -52,7 +50,7 @@ describe("App: two objects", () => {
     await tabButton(wrapper, "Objects")?.trigger("click");
     await flushPromises();
     expect(wrapper.findAll("#pane-objects .ownobject strong").map((e) => e.text())).toEqual(["ALPHA", "BRAVO"]);
-    await wrapper.findAll("#pane-objects .object-edit")[1]?.trigger("click");
+    await wrapper.findAll("#pane-objects .ownobject")[1]?.trigger("click");
     await field(wrapper, "Comment")?.setValue("changed");
     await wrapper.find("#pane-objects form").trigger("submit");
     expect(sentSets(socket).map((c) => c.name)).toEqual(["BRAVO"]);

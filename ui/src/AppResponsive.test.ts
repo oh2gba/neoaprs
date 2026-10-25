@@ -368,16 +368,13 @@ describe("what a phone shows", () => {
     expect(root(wrapper)).toContain("view-panel");
     expect(panelOn(wrapper)).toEqual(["pane-beacon"]);
     expect(wrapper.find(".pickbar").exists()).toBe(false);
+    await wrapper.find("#pane-beacon .location-place").trigger("click");
     expect((wrapper.find("#set-station-lat").element as HTMLInputElement).value).toBe("60.1234");
   });
 
   it("goes to the map to pick a place for an object, and its Cancel brings the tab back", async () => {
     const { wrapper } = await open(390, 844);
     await wrapper.find("#tab-objects").trigger("click");
-    await wrapper
-      .findAll("#pane-objects .btn")
-      .find((b) => b.text() === "New object" || b.text() === "New")
-      ?.trigger("click");
     await wrapper
       .findAll("#pane-objects .btn")
       .find((b) => b.text() === "Choose on map")

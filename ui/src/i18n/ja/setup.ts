@@ -18,12 +18,8 @@ export const setup: Record<keyof typeof source, Message> = {
   "setup.finish": "完了",
 
   "setup.call.label": "あなたのコールサイン",
-  "setup.locator.label": "ロケーター",
-  "setup.enter_coordinates": "座標またはロケーターを入力",
-  "setup.not_locator": "ロケーターではありません",
   "setup.port_automatic": "自動",
   "setup.symbols": "シンボル",
-  "setup.more": "その他...",
   "setup.symbol.house": "住宅",
   "setup.symbol.car": "自動車",
   "setup.symbol.truck": "トラック",

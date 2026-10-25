@@ -332,7 +332,9 @@ button,
   .convo-back,
   summary,
   .mail-body,
-  .linkbutton {
+  .linkbutton,
+  .location-place,
+  .symbolbtn {
     min-height: 40px;
   }
   .appheader {
@@ -442,11 +444,6 @@ button,
     /* a smaller text makes a phone zoom the page in when a field is focused */
     font-size: 16px;
   }
-}
-
-/* the first-run guide's Choose on map is as wide as the guide, as the Location of the Beacon tab's is on a narrow window */
-.setup .location-pick {
-  flex: 1 1 100%;
 }
 
 /* a phone: the button of a line that sends something now is under the line, as wide as the page */

@@ -38,7 +38,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.symbol.label": "Símbolo",
   "settings.symbol_code.label": "Código del símbolo",
   "settings.symbol.none": "Sin símbolo",
-  "settings.symbol.change": "Cambiar",
+  "settings.symbol.change": "Cambiar símbolo",
   "settings.symbol.overlay": "Letra o dígito encima",
 
   "settings.comment.label": "Comentario",
@@ -260,7 +260,10 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.location.pick": "Elegir en el mapa",
   "settings.location.cancel": "Cancelar",
   "settings.location.not_set": "Sin definir",
-  "settings.location.enter": "Introducir coordenadas",
+  "settings.location.edit": "Introducir coordenadas o locator",
+  "settings.location.entry": "Coordenadas o locator",
+  "settings.locator.label": "Locator",
+  "settings.locator.invalid": "No es un locator",
 
   "settings.picker.title": "Elegir un símbolo",
   "settings.picker.placeholder": "Buscar: casa, coche, digi, wx...",

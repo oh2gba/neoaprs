@@ -1,17 +1,12 @@
 <script setup lang="ts">
-// Our station's place in the Station group of the Beacon tab, as the row Location under the Call (components/LocationField.vue): the button **Choose on map** (Cancel while the map waits for the click) with the place in force as one readable line ("60.42945 N, 24.14524 E ·
-// KP20bk", "Not set") under it, and the latitude and longitude, behind a small "Enter coordinates" heading that is open while there is no place or one of them is wrong, else until the person opens it. A pick applies both at once (the form does that);
-// typed coordinates apply together when focus leaves the pair and both are right (the fields say `commit` and the form waits for the pair).
-import LocationField from "@/components/LocationField.vue";
-import SettingsField from "@/components/SettingsField.vue";
-import { placeLine } from "@/lib/locator";
-import { parseNumber } from "@/lib/fieldcheck";
-import { FIELDS } from "@/lib/settings";
-import { computed } from "vue";
+// Our station's place in the Station group of the Beacon tab: the Location control (components/LocationField.vue) with the place in force as its text and the latitude and longitude behind it. A pick applies both at once (the form does that); typed coordinates, or a locator,
+// apply together when focus leaves the pair and both are right (the fields say `commit` and the form waits for the pair).
+import LocationField, { type LocationPart } from "@/components/LocationField.vue";
+import { placeOfText } from "@/lib/locator";
 
 const LAT = "station/lat";
 const LON = "station/lon";
-const props = defineProps<{
+defineProps<{
   /** the fields as typed */
   draft: Record<string, string>;
   /** the place in force, as text */
@@ -22,33 +17,29 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ type: [key: string, text: string]; commit: [key: string, next: EventTarget | null]; cancel: [key: string]; pick: [] }>();
 
-const number = (value: string) => parseNumber(value);
-/** The place in force in words: degrees with N or S, E or W, and the locator; null while there is none. */
-const place = computed(() => {
-  const lat = number(props.current.lat);
-  const lon = number(props.current.lon);
-  if (lat === null || lon === null) return null;
-  return placeLine(lat, lon);
-});
-const open = computed(() => place.value === null || !!props.errors[LAT] || !!props.errors[LON]);
-const id = (key: string) => `set-${key.replace("/", "-")}`;
+/** The key a part of the control is about: the locator is typed as both coordinates, which the form sends together. */
+const keyOf = (part: LocationPart): string => (part === "lon" ? LON : LAT);
+/** Esc in a field puts its value back; in the locator, both coordinates. */
+function cancel(part: LocationPart): void {
+  if (part === "locator") emit("cancel", LON);
+  emit("cancel", keyOf(part));
+}
 </script>
 
 <template>
-  <LocationField :place="place" :picking="picking" :open="open" @pick="emit('pick')">
-    <SettingsField
-      v-for="key in [LAT, LON]"
-      :id="id(key)"
-      :key="key"
-      :info="FIELDS[key] ?? { label: key }"
-      :model-value="draft[key] ?? ''"
-      fallback=""
-      :error="errors[key] ?? ''"
-      :changed="changed(key)"
-      :apply="true"
-      @update:model-value="emit('type', key, $event)"
-      @commit="emit('commit', key, $event)"
-      @cancel="emit('cancel', key)"
-    />
-  </LocationField>
+  <LocationField
+    id="set-station"
+    :place="placeOfText(current.lat, current.lon)"
+    :picking="picking"
+    :lat="draft[LAT] ?? ''"
+    :lon="draft[LON] ?? ''"
+    :errors="{ lat: errors[LAT], lon: errors[LON] }"
+    :changed="{ lat: changed(LAT), lon: changed(LON) }"
+    apply
+    @pick="emit('pick')"
+    @update:lat="emit('type', LAT, $event)"
+    @update:lon="emit('type', LON, $event)"
+    @commit="(part, next) => emit('commit', keyOf(part), next)"
+    @cancel="cancel"
+  />
 </template>

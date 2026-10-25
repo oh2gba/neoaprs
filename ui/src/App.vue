@@ -163,7 +163,7 @@ const deleteMessage = (id: number): boolean => send({ cmd: "message_delete", id 
           <BulletinsPane :bulletins="bulletins" :own-bulletins="ownBulletins" />
         </template>
         <template #objects>
-          <ObjectsPane :objects="ownObjects" :form="objects" />
+          <ObjectsPane :objects="ownObjects" :form="objects" @select="cards.pickFromTable" />
         </template>
         <template #beacon>
           <BeaconPane :picking="stationPick.picking.value" :picked="stationPick.picked.value" @pick-position="stationPick.toggle()" />

@@ -9,9 +9,8 @@ export const objects: Readonly<Record<keyof typeof en, Message>> = {
   "schedule.killing": { "=0": "rimozione, non ancora inviato", "=1": "rimozione, inviato una volta", other: "rimozione, inviato {n} volte" },
   "schedule.on_request": "inviato solo su richiesta",
 
-  "objects.new": "Nuovo",
   "objects.none": "Nessun oggetto.",
-  "objects.edit": "Modifica",
+  "objects.list": "I nostri oggetti",
   "objects.edit_label": "Modifica {name}",
   "objects.delete_title": "Elimina (rimuovi dall’etere)",
   "objects.delete_label": { select: "kind", object: "Elimina l’oggetto {name}", item: "Elimina l’item {name}", other: "Elimina l’oggetto {name}" },
@@ -20,8 +19,6 @@ export const objects: Readonly<Record<keyof typeof en, Message>> = {
 
   "objects.form.new": "Nuovo oggetto",
   "objects.field.name": "Nome",
-  "objects.field.lat": "Latitudine",
-  "objects.field.lon": "Longitudine",
   "objects.field.comment": "Commento",
   "objects.field.course": "Rotta",
   "objects.field.speed": "Velocità",
@@ -32,6 +29,7 @@ export const objects: Readonly<Record<keyof typeof en, Message>> = {
   "objects.unit.deg": "°",
   "objects.form.cancel": "Annulla",
   "objects.form.save": "Salva",
+  "objects.form.add": "Aggiungi",
 
   "objects.problem.name_chars": "Niente spazi alle estremità, né ! _ | ~",
   "objects.problem.at_most": "Al massimo {max} caratteri",

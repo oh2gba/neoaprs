@@ -17,12 +17,8 @@ export const setup: Readonly<Record<keyof typeof en, Message>> = {
   "setup.finish": "Fine",
 
   "setup.call.label": "Il tuo nominativo",
-  "setup.locator.label": "Locator",
-  "setup.enter_coordinates": "Inserisci coordinate o locator",
-  "setup.not_locator": "Non è un locator",
   "setup.port_automatic": "Automatica",
   "setup.symbols": "Simboli",
-  "setup.more": "Altri...",
   "setup.symbol.house": "Casa",
   "setup.symbol.car": "Auto",
   "setup.symbol.truck": "Camion",

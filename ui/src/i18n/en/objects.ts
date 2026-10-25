@@ -7,9 +7,8 @@ export const objects = {
   "schedule.killing": { "=0": "killing, not sent yet", "=1": "killing, sent once", other: "killing, sent {n} times" },
   "schedule.on_request": "sent only when asked",
 
-  "objects.new": "New",
   "objects.none": "No objects.",
-  "objects.edit": "Edit",
+  "objects.list": "Our objects",
   "objects.edit_label": "Edit {name}",
   "objects.delete_title": "Delete (kill on the air)",
   "objects.delete_label": { select: "kind", object: "Delete the object {name}", item: "Delete the item {name}", other: "Delete the object {name}" },
@@ -18,8 +17,6 @@ export const objects = {
 
   "objects.form.new": "New object",
   "objects.field.name": "Name",
-  "objects.field.lat": "Latitude",
-  "objects.field.lon": "Longitude",
   "objects.field.comment": "Comment",
   "objects.field.course": "Course",
   "objects.field.speed": "Speed",
@@ -30,6 +27,7 @@ export const objects = {
   "objects.unit.deg": "deg",
   "objects.form.cancel": "Cancel",
   "objects.form.save": "Save",
+  "objects.form.add": "Add",
 
   "objects.problem.name_chars": "No blank at either end, none of ! _ | ~",
   "objects.problem.at_most": "At most {max} characters",

@@ -39,7 +39,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.symbol.label": "Símbolo",
   "settings.symbol_code.label": "Código do símbolo",
   "settings.symbol.none": "Sem símbolo",
-  "settings.symbol.change": "Mudar",
+  "settings.symbol.change": "Mudar símbolo",
   "settings.symbol.overlay": "Letra ou dígito sobre ele",
 
   "settings.comment.label": "Comentário",
@@ -260,7 +260,10 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.location.pick": "Escolher no mapa",
   "settings.location.cancel": "Cancelar",
   "settings.location.not_set": "Não definida",
-  "settings.location.enter": "Digitar coordenadas",
+  "settings.location.edit": "Digitar as coordenadas ou o locator",
+  "settings.location.entry": "Coordenadas ou locator",
+  "settings.locator.label": "Locator",
+  "settings.locator.invalid": "Não é um locator",
 
   "settings.picker.title": "Escolher um símbolo",
   "settings.picker.placeholder": "Buscar: house, car, digi, wx...",

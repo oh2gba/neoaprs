@@ -1,11 +1,9 @@
 // The answers of the first-run guide (composables/useSetupGuide.ts): the fields as they are typed, what is wrong with each, which steps have what they need, the place on the map they make, and the settings they change. They start as the
-// daemon's settings and follow them until the user answers; the position, the locator and the symbol are one answer written in more than one way, and editing one writes the others.
+// daemon's settings and follow them until the user answers; the position is the latitude and the longitude (the locator of the Location control is only another way to type them).
 import { computed, reactive, ref, type Ref } from "vue";
 import {
   degreesText,
   fieldsFrom,
-  locatorOf,
-  locatorProblem,
   profileOf,
   setupChanges,
   stepOk,
@@ -16,7 +14,6 @@ import {
   type SetupFields,
 } from "@/lib/setup";
 import { onEarth, parseNumber } from "@/lib/fieldcheck";
-import { locatorToPosition } from "@/lib/locator";
 
 export function useSetupAnswers(values: Ref<Record<string, string>>, search: Ref<boolean | null>) {
   const fields = reactive<SetupFields>(fieldsFrom({}));
@@ -29,8 +26,7 @@ export function useSetupAnswers(values: Ref<Record<string, string>>, search: Ref
   const problems = computed<Problems>(() => {
     const found: Problems = {};
     for (let i = 0; i < STEP_COUNT; i++) Object.assign(found, stepProblems(i, fields));
-    const locator = locatorProblem(fields.locator);
-    return { ...found, ...(locator ? { locator } : {}), ...errors };
+    return { ...found, ...errors };
   });
   const pin = computed(() => {
     const lat = parseNumber(fields.lat);
@@ -45,7 +41,6 @@ export function useSetupAnswers(values: Ref<Record<string, string>>, search: Ref
   /** The answers are the daemon's settings. */
   function fill(now: Record<string, string>): void {
     Object.assign(fields, fieldsFrom(now));
-    fields.locator = locatorOf(fields);
   }
 
   /** The answers are the daemon's settings again, nothing answered. */
@@ -60,17 +55,6 @@ export function useSetupAnswers(values: Ref<Record<string, string>>, search: Ref
     touched.value = true;
     fields[field] = text;
     delete errors[field];
-    if (field === "locator") {
-      const at = locatorToPosition(text);
-      if (at) {
-        fields.lat = degreesText(at.lat);
-        fields.lon = degreesText(at.lon);
-        delete errors.lat;
-        delete errors.lon;
-      }
-    } else if (field === "lat" || field === "lon") {
-      fields.locator = locatorOf(fields);
-    }
   }
 
   /** A place from the map or the browser: five decimals (a metre), the longitude brought into -180 to 180. */

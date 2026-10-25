@@ -73,13 +73,29 @@
 .ownobject.killing {
   opacity: 0.6;
 }
-.objectspane .toolbar {
-  flex: none;
-  padding: 8px 10px;
-}
+/* the Objects tab: the list above, the form under it; a row is selectable as a row of the Nearby tab is */
 .objectlist {
   flex: 1;
-  min-height: 0;
-  padding: 0 10px 10px;
+  min-height: 8em;
+  padding: 8px 10px 10px;
   overflow-y: auto;
+}
+.ownobject.selectable {
+  cursor: pointer;
+}
+.ownobject.selectable:hover {
+  background: var(--row-hover);
+}
+.ownobject.selected {
+  border-color: var(--accent);
+  background: var(--row-selected);
+}
+.ownobject.selectable:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+/* (the form keeps the list in sight: on a phone, where the tab is the whole screen, its fields scroll inside it above its buttons, and the list scrolls on its own) */
+.objectspane .composebar.scrolls {
+  max-height: 55vh;
+  max-height: 55dvh;
 }

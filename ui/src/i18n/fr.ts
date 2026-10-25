@@ -315,9 +315,8 @@ export const fr: Catalogue = {
   "schedule.killing": { "=0": "retrait en cours, pas encore envoyé", "=1": "retrait en cours, envoyé une fois", other: "retrait en cours, envoyé {n} fois" },
   "schedule.on_request": "envoyé seulement sur demande",
 
-  "objects.new": "Nouveau",
   "objects.none": "Aucun objet.",
-  "objects.edit": "Modifier",
+  "objects.list": "Nos objets",
   "objects.edit_label": "Modifier {name}",
   "objects.delete_title": "Supprimer (retirer par radio)",
   "objects.delete_label": { select: "kind", object: "Supprimer l'objet {name}", item: "Supprimer l'item {name}", other: "Supprimer l'objet {name}" },
@@ -326,8 +325,6 @@ export const fr: Catalogue = {
 
   "objects.form.new": "Nouvel objet",
   "objects.field.name": "Nom",
-  "objects.field.lat": "Latitude",
-  "objects.field.lon": "Longitude",
   "objects.field.comment": "Commentaire",
   "objects.field.course": "Cap",
   "objects.field.speed": "Vitesse",
@@ -338,6 +335,7 @@ export const fr: Catalogue = {
   "objects.unit.deg": "deg",
   "objects.form.cancel": "Annuler",
   "objects.form.save": "Enregistrer",
+  "objects.form.add": "Ajouter",
 
   "objects.problem.name_chars": "Pas d'espace aux extrémités, aucun de ! _ | ~",
   "objects.problem.at_most": "{max} caractères au plus",
@@ -817,7 +815,7 @@ export const fr: Catalogue = {
   "settings.symbol.label": "Symbole",
   "settings.symbol_code.label": "Code du symbole",
   "settings.symbol.none": "Aucun symbole",
-  "settings.symbol.change": "Changer",
+  "settings.symbol.change": "Changer de symbole",
   "settings.symbol.overlay": "Lettre ou chiffre dessus",
 
   "settings.comment.label": "Commentaire",
@@ -1042,7 +1040,10 @@ export const fr: Catalogue = {
   "settings.location.pick": "Choisir sur la carte",
   "settings.location.cancel": "Annuler",
   "settings.location.not_set": "Non défini",
-  "settings.location.enter": "Saisir les coordonnées",
+  "settings.location.edit": "Saisir les coordonnées ou le locator",
+  "settings.location.entry": "Coordonnées ou locator",
+  "settings.locator.label": "Locator",
+  "settings.locator.invalid": "Pas un locator",
 
   "settings.picker.title": "Choisir un symbole",
   "settings.picker.placeholder": "Chercher : maison, voiture, digi, météo…",
@@ -1200,12 +1201,8 @@ export const fr: Catalogue = {
   "setup.finish": "Terminer",
 
   "setup.call.label": "Votre indicatif",
-  "setup.locator.label": "Locator",
-  "setup.enter_coordinates": "Saisir les coordonnées ou le locator",
-  "setup.not_locator": "Pas un locator",
   "setup.port_automatic": "Automatique",
   "setup.symbols": "Symboles",
-  "setup.more": "Plus...",
   "setup.symbol.house": "Maison",
   "setup.symbol.car": "Voiture",
   "setup.symbol.truck": "Camion",

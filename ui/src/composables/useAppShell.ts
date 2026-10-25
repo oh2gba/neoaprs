@@ -115,7 +115,7 @@ export function useAppShell() {
     computed(() => guide.open),
     picks.pickingTab,
   );
-  // Esc ends a place the map waits for and then closes the Objects form (before the cards, which take the Esc that is left)
+  // Esc ends a place the map waits for and then leaves the object selected in the Objects tab and clears its form (before the cards, which take the Esc that is left)
   const escBlocked = () => guide.open || updateOpen.value;
   useFormEsc({
     cancelPick: () => {
@@ -124,7 +124,7 @@ export function useAppShell() {
       return waiting;
     },
     closeForm: () => {
-      const inSight = objects.open && panel.tab.value === "objects" && !panel.collapsed.value && (!layout.phone.value || layout.showing.value === "panel");
+      const inSight = objects.dirty && panel.tab.value === "objects" && !panel.collapsed.value && (!layout.phone.value || layout.showing.value === "panel");
       if (inSight) objects.cancel();
       return inSight;
     },

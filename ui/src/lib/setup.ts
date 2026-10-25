@@ -5,7 +5,6 @@ import type { MessageId } from "@/i18n/catalogue";
 import { normalizeCall } from "@/lib/calls";
 import { callOk, parseNumber, problemOf, symbolProblem } from "@/lib/fieldcheck";
 import { lazyText } from "@/lib/lazytext";
-import { locatorToPosition, positionToLocator } from "@/lib/locator";
 import { portForProfile, speedFallback, type Choice } from "@/lib/settings";
 import { TNC_PROFILES } from "@/protocol/lists";
 import type { PortsMessage } from "@/protocol/protocol";
@@ -43,7 +42,6 @@ export interface SetupFields {
   call: string;
   lat: string;
   lon: string;
-  locator: string;
   /** the table character and the code character: `/-` */
   symbol: string;
   profile: string;
@@ -62,7 +60,6 @@ export const STEP_OF: Record<FieldName, number> = {
   call: 0,
   lat: 1,
   lon: 1,
-  locator: 1,
   symbol: 2,
   profile: 3,
   port: 3,
@@ -148,7 +145,6 @@ export function fieldsFrom(values: Readonly<Record<string, string>>): SetupField
     call: values["station/call"] ?? "",
     lat: values["station/lat"] ?? "",
     lon: values["station/lon"] ?? "",
-    locator: "",
     symbol: `${values["station/symbol_table"] ?? "/"}${values["station/symbol_code"] ?? "-"}`,
     profile,
     port: values["serial/port"] ?? "",
@@ -206,19 +202,4 @@ export function portChoices(ports: PortsMessage | null): Choice[] {
     label: p.description && p.description !== "n/a" && p.description !== p.device ? `${p.device} - ${p.description}` : p.device,
   }));
   return [first, ...rows];
-}
-
-/** The locator of the position the fields hold, "" while they hold none. */
-export function locatorOf(f: Pick<SetupFields, "lat" | "lon">): string {
-  const lat = parseNumber(f.lat);
-  const lon = parseNumber(f.lon);
-  return lat === null || lon === null ? "" : positionToLocator(lat, lon);
-}
-
-const LOCATOR_FROM = 6; // a locator of fewer characters is still being typed
-
-/** The locator field's own problem: it is said once there are 6 characters and they are not one (7 is a locator of 8 on the way). */
-export function locatorProblem(text: string): string {
-  const typed = text.trim();
-  return typed.length >= LOCATOR_FROM && typed.length !== 7 && locatorToPosition(typed) === null ? t("setup.not_locator") : "";
 }

@@ -2,6 +2,7 @@ import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import SettingsForm from "@/components/SettingsForm.vue";
 import { fakeDaemon, tell, withDaemon } from "@/test/context";
+import { cssRule, mediaRule } from "@/test/css";
 import { configValues, toastOf } from "@/test/fixtures";
 
 function make(extra: Record<string, string> = {}) {
@@ -112,12 +113,24 @@ describe("the Status group", () => {
 describe("the Symbol field", () => {
   it("is one row with the picture and the name, no table or code to read", () => {
     const { wrapper } = make();
-    const field = wrapper.findAll(".field").find((f) => f.find("label").text() === "Symbol");
+    const field = wrapper.findAll(".field:not(.location-field)").find((f) => f.find("label").text() === "Symbol");
     expect(field?.find(".symicon .stn-layer").exists()).toBe(true);
     expect(field?.find(".symbolfield-name").text()).toBe("House");
     expect(field?.find("input").exists()).toBe(false);
+    expect(field?.findAll("button")).toHaveLength(1); // (the symbol is the control: no Change button)
+    expect(field?.find("button").classes()).toContain("symbolbtn");
+    expect(field?.find("button").attributes("aria-label")).toBe("Change symbol");
+    expect(field?.find("button").element.contains(field?.find(".symicon").element ?? null)).toBe(true);
     expect(wrapper.find("#set-station-symbol_table").exists()).toBe(false);
     expect(wrapper.find("#set-station-symbol_code").exists()).toBe(false);
+  });
+
+  it("is readable as clickable: a hover, a keyboard focus and a finger-high box", () => {
+    expect(cssRule(".symbolbtn")).toMatch(/cursor:\s*pointer/);
+    expect(cssRule(".symbolbtn")).toMatch(/border:\s*1px solid var\(--border\)/);
+    expect(cssRule(".symbolbtn:hover")).toContain("var(--accent)");
+    expect(cssRule(".symbolbtn:focus-visible")).toMatch(/outline:\s*2px solid var\(--accent\)/);
+    expect(mediaRule("(pointer: coarse)", ".symbolbtn")).toContain("min-height: 40px");
   });
 
   it("is changed in the picker, which sets the table and the code underneath and applies at once", async () => {
@@ -172,7 +185,7 @@ describe("the (i) of a field", () => {
 
   it("opens beside the field it explains and says what it is, with an example", async () => {
     const { wrapper } = make({ "status/source": "rig" });
-    const field = wrapper.findAll(".field").find((f) => f.find("label").text() === "Text");
+    const field = wrapper.findAll(".field:not(.location-field)").find((f) => f.find("label").text() === "Text");
     await field?.find(".info-toggle").trigger("click");
     expect(field?.find(".info-text").text()).toContain("{freq}");
     expect(field?.find(".info-text").text()).toContain("Example: QRV {freq} {mode} gives QRV 14.074 MHz USB");

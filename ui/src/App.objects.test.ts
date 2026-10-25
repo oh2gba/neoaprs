@@ -36,6 +36,12 @@ describe("App: the Objects tab", () => {
         .find((f) => f.find("label").text() === label)
         ?.find<HTMLInputElement>("input");
     const button = (wrapper: VueWrapper, text: string) => wrapper.findAll("#pane-objects button").find((b) => b.text() === text);
+    /** The place of the form in words (the text beside Choose on map), and a coordinate of the entry behind it, which a click on the place opens. */
+    const placeText = (wrapper: VueWrapper) => wrapper.find("#pane-objects .location-place").text();
+    const coordinate = async (wrapper: VueWrapper, label: string) => {
+      if (!wrapper.find("#pane-objects .location-entry").exists()) await wrapper.find("#pane-objects .location-place").trigger("click");
+      return field(wrapper, label);
+    };
 
     it("comes after Bulletins and lists our objects", async () => {
       const { wrapper, socket } = await open();
@@ -48,12 +54,13 @@ describe("App: the Objects tab", () => {
     it("makes an object from the form with one command, at the place we are unless a click on the map says another", async () => {
       const { wrapper, socket } = await open();
       await tabButton(wrapper, "Objects")?.trigger("click");
-      await wrapper.find("#pane-objects .toolbar .btn").trigger("click");
-      expect(field(wrapper, "Latitude")?.element.value).toBe("60.17");
+      expect((await coordinate(wrapper, "Latitude"))?.element.value).toBe("60.17");
+      expect(wrapper.find("#pane-objects button[type='submit']").text()).toBe("Add");
       await field(wrapper, "Name")?.setValue("MARK");
       await button(wrapper, "Choose on map")?.trigger("click");
       FakeMap.last().fire("click", { lngLat: { lat: 60.5, lng: 25.5 } });
       await flushPromises();
+      expect(placeText(wrapper)).toMatch(/^60\.5 N, 25\.5 E · /);
       expect(field(wrapper, "Latitude")?.element.value).toBe("60.5");
       expect(field(wrapper, "Longitude")?.element.value).toBe("25.5");
       await wrapper.find("#pane-objects form").trigger("submit");
@@ -74,17 +81,16 @@ describe("App: the Objects tab", () => {
           on_request: false,
         },
       ]);
-      expect(wrapper.find("#pane-objects .objform").exists()).toBe(true);
       expect(field(wrapper, "Name")?.element.value).toBe("MARK");
       socket.say({ type: "state", topic: "own_objects", rev: 0, value: { MARK: ownObject("MARK", { lat: 60.5, lon: 25.5 }) } });
       await flushPromises();
-      expect(wrapper.find("#pane-objects .objform").exists()).toBe(false);
+      expect(field(wrapper, "Name")?.element.value).toBe(""); // (the form is blank again, for the next one)
+      expect(wrapper.find("#pane-objects .objform").exists()).toBe(true);
     });
 
     it("keeps the form and what was typed when the daemon refuses the object, and shows its error", async () => {
       const { wrapper, socket } = await open();
       await tabButton(wrapper, "Objects")?.trigger("click");
-      await wrapper.find("#pane-objects .toolbar .btn").trigger("click");
       await field(wrapper, "Name")?.setValue("MARK");
       await field(wrapper, "Comment")?.setValue("kept");
       await wrapper.find("#pane-objects form").trigger("submit");
@@ -95,15 +101,14 @@ describe("App: the Objects tab", () => {
       expect(wrapper.find(".toast").text()).toContain("set your call first");
     });
 
-    it("shows a pin on the map while the form has a place, and a click on the map is not the first-run guide's", async () => {
+    it("shows a pin on the map while the Objects tab is in front and the form has a place, and a click on the map is not the first-run guide's", async () => {
       const { wrapper, socket } = await open();
-      await tabButton(wrapper, "Objects")?.trigger("click");
       const pins = () => FakeMarker.live().filter((m) => m.element.classList.contains("setuppin"));
       expect(pins()).toHaveLength(0);
-      await wrapper.find("#pane-objects .toolbar .btn").trigger("click");
+      await tabButton(wrapper, "Objects")?.trigger("click");
       expect(pins()).toHaveLength(1);
       expect(pins()[0]?.lngLat).toEqual([24.94, 60.17]);
-      await button(wrapper, "Cancel")?.trigger("click");
+      await tabButton(wrapper, "Stations")?.trigger("click");
       expect(pins()).toHaveLength(0);
       expect(wrapper.find(".setup").exists()).toBe(false);
       expect(sent(socket, "set_config")).toEqual([]);
@@ -134,6 +139,42 @@ describe("App: the Objects tab", () => {
       await field(wrapper, "Comment")?.setValue("Moved on");
       await wrapper.find("#pane-objects form").trigger("submit");
       expect(sent(socket, "object_set")).toMatchObject([{ name: "LEADER", comment: "Moved on", lat: 60.2, lon: 24.9 }]);
+    });
+
+    it("selects an object by a click on its row as a click in the Nearby tab does: the row is highlighted, its card opens, the map flies to it and marks it, and the form has it with Save", async () => {
+      const { wrapper, socket } = await open();
+      await sayObjects(socket);
+      await tabButton(wrapper, "Objects")?.trigger("click");
+      await wrapper.find("#pane-objects .ownobject").trigger("click");
+      expect(wrapper.find("#pane-objects .ownobject").classes()).toContain("selected");
+      expect(wrapper.find(".card .card-call").text()).toContain("LEADER");
+      expect(
+        FakeMarker.live()
+          .filter((m) => m.element.classList.contains("stn--selected"))
+          .map((m) => m.element.textContent),
+      ).toEqual(["LEADER"]);
+      expect(field(wrapper, "Name")?.element.value).toBe("LEADER");
+      expect(wrapper.find("#pane-objects button[type='submit']").text()).toBe("Save");
+      await field(wrapper, "Comment")?.setValue("Moved on");
+      await wrapper.find("#pane-objects form").trigger("submit");
+      expect(sent(socket, "object_set")).toMatchObject([{ name: "LEADER", comment: "Moved on" }]);
+      socket.say({ type: "state", topic: "own_objects", rev: 1, value: { LEADER: ownObject("LEADER", { comment: "Moved on", lat: 60.2, lon: 24.9 }) } });
+      await flushPromises();
+      expect(wrapper.find("#pane-objects .ownobject").classes()).not.toContain("selected");
+      expect(wrapper.find("#pane-objects button[type='submit']").text()).toBe("Add");
+    });
+
+    it("leaves the object that is selected when it is killed from its row", async () => {
+      const { wrapper, socket } = await open();
+      await sayObjects(socket);
+      await tabButton(wrapper, "Objects")?.trigger("click");
+      await wrapper.find("#pane-objects .ownobject").trigger("click");
+      const x = () => wrapper.find("#pane-objects .ownobject .bulletin-delete");
+      await x().trigger("click");
+      await x().trigger("click");
+      expect(sent(socket, "object_kill")).toEqual([{ cmd: "object_kill", name: "LEADER" }]);
+      expect(wrapper.find("#pane-objects button[type='submit']").text()).toBe("Add");
+      expect(field(wrapper, "Name")?.element.value).toBe("");
     });
 
     it("kills an object from its card, which asks twice", async () => {
@@ -183,14 +224,14 @@ describe("App: the Objects tab", () => {
       await flushPromises();
       await wrapper.find("#setup-call").setValue("oh2abc");
       await wrapper.find(".setup form").trigger("submit");
+      await wrapper.find(".setup .location-place").trigger("click");
       expect(wrapper.find("#setup-lat").exists()).toBe(true);
       await tabButton(wrapper, "Objects")?.trigger("click");
-      await wrapper.find("#pane-objects .toolbar .btn").trigger("click");
       await button(wrapper, "Choose on map")?.trigger("click");
       FakeMap.last().fire("click", { lngLat: { lat: 59.5, lng: 24.5 } });
       await flushPromises();
       expect(wrapper.find<HTMLInputElement>("#setup-lat").element.value).toBe("59.5");
-      expect(field(wrapper, "Latitude")?.element.value).toBe("60.17");
+      expect(placeText(wrapper)).toMatch(/^60\.17 N, 24\.94 E · /);
     });
   });
 });

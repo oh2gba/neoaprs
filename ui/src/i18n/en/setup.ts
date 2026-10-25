@@ -15,12 +15,8 @@ export const setup = {
   "setup.finish": "Finish",
 
   "setup.call.label": "Your call",
-  "setup.locator.label": "Locator",
-  "setup.enter_coordinates": "Enter coordinates or locator",
-  "setup.not_locator": "Not a locator",
   "setup.port_automatic": "Automatic",
   "setup.symbols": "Symbols",
-  "setup.more": "More...",
   "setup.symbol.house": "House",
   "setup.symbol.car": "Car",
   "setup.symbol.truck": "Truck",

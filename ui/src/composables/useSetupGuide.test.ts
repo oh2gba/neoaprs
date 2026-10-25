@@ -82,31 +82,10 @@ describe("useSetupGuide: the steps", () => {
     expect(guide.step).toBe(2);
   });
 
-  it("takes the centre of a locator of 6 characters, and writes the locator of a position", () => {
-    const { guide } = setUp();
-    guide.edit("locator", "KP20ie");
-    expect(guide.fields.lat).toBe("60.1875");
-    expect(guide.fields.lon).toBe("24.7083");
-    expect(guide.fields.locator).toBe("KP20ie"); // as typed
-    guide.edit("locator", "KP20");
-    expect(guide.fields.lat).toBe("60.5");
-    guide.edit("lat", "60.17");
-    guide.edit("lon", "24.94");
-    expect(guide.fields.locator).toBe("KP20le");
-    guide.edit("locator", "SS00aa");
-    expect(guide.problems.locator).toBe("Not a locator");
-    guide.edit("locator", "KP20iezz");
-    expect(guide.problems.locator).toBe("Not a locator");
-    guide.edit("locator", "KP20i");
-    expect(guide.problems.locator).toBeUndefined(); // still being typed
-    guide.edit("lat", "x");
-    expect(guide.fields.locator).toBe("");
-  });
-
   it("takes a place from the map: five decimals, the longitude within -180 to 180, the marker where it is", () => {
     const { guide } = setUp();
     guide.place(60.1699999, 24.9400001);
-    expect(guide.fields).toMatchObject({ lat: "60.17", lon: "24.94", locator: "KP20le" });
+    expect(guide.fields).toMatchObject({ lat: "60.17", lon: "24.94" });
     expect(guide.pin).toEqual({ lat: 60.17, lon: 24.94 });
     guide.place(-33.123456789, 190.5);
     expect(guide.fields).toMatchObject({ lat: "-33.12346", lon: "-169.5" });
@@ -450,7 +429,7 @@ describe("useSetupGuide: the daemon's settings", () => {
   it("follows the settings while nothing is answered, and keeps the answers once one is", async () => {
     const { guide, told } = setUp();
     await told({ "station/call": "OH2XYZ", "station/lat": "61", "station/lon": "25" });
-    expect(guide.fields).toMatchObject({ call: "OH2XYZ", lat: "61", lon: "25", locator: "KP21ma" });
+    expect(guide.fields).toMatchObject({ call: "OH2XYZ", lat: "61", lon: "25" });
     guide.edit("call", "oh2abc");
     await told({ "station/lat": "62" });
     expect(guide.fields).toMatchObject({ call: "oh2abc", lat: "61" });

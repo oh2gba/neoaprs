@@ -10,9 +10,8 @@ export const objects: Record<keyof typeof source, Message> = {
   "schedule.killing": { "=0": "encerrando, ainda não enviado", "=1": "encerrando, enviado uma vez", other: "encerrando, enviado {n} vezes" },
   "schedule.on_request": "enviado só quando pedido",
 
-  "objects.new": "Novo",
   "objects.none": "Nenhum objeto.",
-  "objects.edit": "Editar",
+  "objects.list": "Nossos objetos",
   "objects.edit_label": "Editar {name}",
   "objects.delete_title": "Excluir (encerrar no ar)",
   "objects.delete_label": { select: "kind", object: "Excluir o objeto {name}", item: "Excluir o item {name}", other: "Excluir o objeto {name}" },
@@ -21,8 +20,6 @@ export const objects: Record<keyof typeof source, Message> = {
 
   "objects.form.new": "Novo objeto",
   "objects.field.name": "Nome",
-  "objects.field.lat": "Latitude",
-  "objects.field.lon": "Longitude",
   "objects.field.comment": "Comentário",
   "objects.field.course": "Rumo",
   "objects.field.speed": "Velocidade",
@@ -33,6 +30,7 @@ export const objects: Record<keyof typeof source, Message> = {
   "objects.unit.deg": "graus",
   "objects.form.cancel": "Cancelar",
   "objects.form.save": "Salvar",
+  "objects.form.add": "Adicionar",
 
   "objects.problem.name_chars": "Sem espaço nas pontas, nem ! _ | ~",
   "objects.problem.at_most": "No máximo {max} caracteres",

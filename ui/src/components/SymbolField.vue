@@ -1,16 +1,15 @@
 <script setup lang="ts">
-// A symbol as a field: its picture and its name, a Change button that opens the symbol picker, and, only for a symbol that can carry one, a small "Letter or digit on it". The symbol is the two characters
+// A symbol as a field: the symbol's picture and its name are the control, a click opens the symbol picker (the accessible name is "Change symbol"), and, only for a symbol that can carry one, a small "Letter or digit on it". The symbol is the two characters
 // the settings write (the table and the code); the user never sees them. Used by the Beacon tab, the first-run guide and the Objects form. `update:symbol` follows the field as it is changed (the letter is typed);
 // `commit` says a symbol is final: one picked from the picker, or the letter when its field is left or Enter is pressed (the Beacon tab applies it then).
-import { computed, nextTick, ref } from "vue";
+import { computed, nextTick, ref, useId } from "vue";
 import SymbolIcon from "@/components/SymbolIcon.vue";
 import { t } from "@/i18n";
 import SymbolPicker from "@/components/SymbolPicker.vue";
 import { overlayOf, symbolName, tableWithOverlay, takesOverlay } from "@/lib/symbolpicker";
 
-const props = withDefaults(defineProps<{ id: string; symbol: string; label?: string; button?: string; changed?: boolean }>(), {
+const props = withDefaults(defineProps<{ id: string; symbol: string; label?: string; changed?: boolean }>(), {
   label: undefined,
-  button: undefined,
   changed: false,
 });
 const emit = defineEmits<{ "update:symbol": [value: string]; commit: [] }>();
@@ -21,6 +20,7 @@ const name = computed(() => symbolName(table.value, code.value) || t("settings.s
 const overlay = computed(() => takesOverlay(table.value, code.value));
 const open = ref(false);
 const change = ref<HTMLButtonElement | null>(null);
+const nameId = useId();
 
 function pick(newTable: string, newCode: string): void {
   // a symbol that takes a letter or a digit keeps the one that was on the symbol before it
@@ -44,9 +44,19 @@ function typed(event: Event): void {
   <div class="field" :class="{ changed }">
     <label :for="`${id}-change`">{{ label ?? t("settings.symbol.label") }}</label>
     <div class="field-control symbolfield">
-      <SymbolIcon :table="table" :code="code" :size="32" />
-      <span class="symbolfield-name">{{ name }}</span>
-      <button :id="`${id}-change`" ref="change" class="btn" type="button" @click="open = true">{{ button ?? t("settings.symbol.change") }}</button>
+      <button
+        :id="`${id}-change`"
+        ref="change"
+        class="symbolbtn"
+        type="button"
+        :aria-label="t('settings.symbol.change')"
+        :aria-describedby="nameId"
+        :title="t('settings.symbol.change')"
+        @click="open = true"
+      >
+        <SymbolIcon :table="table" :code="code" :size="32" />
+        <span :id="nameId" class="symbolfield-name">{{ name }}</span>
+      </button>
       <label v-if="overlay" class="symbolfield-over muted">
         {{ t("settings.symbol.overlay") }}
         <input

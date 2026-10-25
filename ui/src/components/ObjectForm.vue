@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// The form of an object or an item of ours, in the Objects tab, in the box at the bottom of the tab (ComposeBar, as everywhere; its fields scroll on a short screen, the line with the counter, Cancel and Save does not): the name (that of an object that is being changed stays; a new one is always an object, an item of ours that is being changed stays an item), the symbol (a picture to change, as in the Beacon tab), the position (the row Location of the Beacon tab, components/LocationField.vue: **Choose on map**, a click on the map, or the
-// coordinates typed), the comment (the characters it has left are the counter beside the buttons), the course and speed (behind a closed fold, Moving, which is open for an object that has either), and the path the object goes by (the placeholder is the beacon's), its QRU group (a station that asks the addressee QRU for the group is sent the object) and whether it is sent only when asked. A field with something wrong
-// is red and its title says what. Save is on when there is a name, a place and a symbol and nothing is wrong; the daemon checks it all again.
+// The form of an object or an item of ours, in the Objects tab, in the box at the bottom of the tab, always there (ComposeBar, as everywhere; its fields scroll on a short screen, the line with the counter, Cancel and the main button does not). With an object selected in the list it changes that object
+// and the main button reads Save; with none selected it adds a new one and the button reads Add; Cancel (and Esc) leaves the selection and clears the form. The fields: the name (that of an object that is being changed stays; a new one is always an object, an item of ours that is being changed stays an item), the symbol (the picture and its name, a click opens the picker, as in the Beacon tab), the position (the row Location of the Beacon tab, components/LocationField.vue: **Choose on map**, a click on the map, or the
+// coordinates or a locator typed behind the place), the comment (the characters it has left are the counter beside the buttons), the course and speed (behind a closed fold, Moving, which is open for an object that has either), and the path the object goes by (the placeholder is the beacon's), its QRU group (a station that asks the addressee QRU for the group is sent the object) and whether it is sent only when asked. A field with something wrong
+// is red and says what under it. Save is on when there is a name, a place and a symbol and nothing is wrong; the daemon checks it all again.
 import { computed, useId } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
 import DisclosureBox from "@/components/DisclosureBox.vue";
@@ -10,8 +11,7 @@ import SymbolField from "@/components/SymbolField.vue";
 import { t } from "@/i18n";
 import type { OwnObjectsView } from "@/composables/useOwnObjects";
 import { leftTitle } from "@/lib/compose";
-import { onEarth, parseNumber } from "@/lib/fieldcheck";
-import { placeLine } from "@/lib/locator";
+import { placeOfText } from "@/lib/locator";
 import { commentLimit, draftProblems, draftReady, NAME_MAX } from "@/lib/ownobjects";
 import { LIMITS } from "@/protocol/lists";
 
@@ -21,12 +21,8 @@ const qruMax = LIMITS.object.qruGroupMax;
 const draft = props.form.draft; // (the form's own state, kept as one object for as long as the page lives)
 const problems = computed(() => draftProblems(draft));
 const ready = computed(() => draftReady(draft));
-/** The place the draft has in words (the line under the button); null while it is no place. */
-const place = computed(() => {
-  const lat = parseNumber(draft.lat);
-  const lon = parseNumber(draft.lon);
-  return lat !== null && lon !== null && onEarth(lat, lon) ? placeLine(lat, lon) : null;
-});
+/** The place the draft has in words (the text beside the button); null while it is no place. */
+const place = computed(() => placeOfText(draft.lat, draft.lon));
 /** The fold Moving (course and speed) is open while the draft has either: an object being changed that moves, or a value typed. */
 const moving = computed(() => draft.course.trim() !== "" || draft.speed.trim() !== "");
 const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
@@ -57,27 +53,24 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
       </div>
     </div>
     <SymbolField :id="`${id}-symbol`" v-model:symbol="draft.symbol" />
-    <LocationField :place="place" :picking="form.placing" :open="place === null || !!problems.lat || !!problems.lon" @pick="form.togglePlacing()">
-      <div class="field" :class="{ invalid: problems.lat }" :title="problems.lat">
-        <label :for="`${id}-lat`">{{ t("objects.field.lat") }}</label>
-        <div class="field-control">
-          <input :id="`${id}-lat`" v-model="draft.lat" class="input mono" type="text" inputmode="decimal" autocomplete="off" />
-        </div>
-      </div>
-      <div class="field" :class="{ invalid: problems.lon }" :title="problems.lon">
-        <label :for="`${id}-lon`">{{ t("objects.field.lon") }}</label>
-        <div class="field-control">
-          <input :id="`${id}-lon`" v-model="draft.lon" class="input mono" type="text" inputmode="decimal" autocomplete="off" />
-        </div>
-      </div>
-    </LocationField>
+    <LocationField
+      :id="`${id}-place`"
+      :place="place"
+      :picking="form.placing"
+      :lat="draft.lat"
+      :lon="draft.lon"
+      :errors="{ lat: problems.lat, lon: problems.lon }"
+      @pick="form.togglePlacing()"
+      @update:lat="draft.lat = $event"
+      @update:lon="draft.lon = $event"
+    />
     <div class="field" :class="{ invalid: problems.comment }" :title="problems.comment">
       <label :for="`${id}-comment`">{{ t("objects.field.comment") }}</label>
       <div class="field-control">
         <input :id="`${id}-comment`" v-model="draft.comment" class="input" type="text" autocomplete="off" />
       </div>
     </div>
-    <DisclosureBox :title="t('objects.field.moving')" :open="moving">
+    <DisclosureBox :key="form.editing ?? ''" :title="t('objects.field.moving')" :open="moving">
       <div class="field" :class="{ invalid: problems.course }" :title="problems.course">
         <label :for="`${id}-course`">{{ t("objects.field.course") }}</label>
         <div class="field-control">
@@ -129,8 +122,8 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
       </div>
     </div>
     <template #buttons>
-      <button type="button" class="btn" @click="form.cancel()">{{ t("objects.form.cancel") }}</button>
-      <button type="submit" class="btn primary" :disabled="!ready">{{ t("objects.form.save") }}</button>
+      <button type="button" class="btn" :disabled="!form.dirty && !form.placing" @click="form.cancel()">{{ t("objects.form.cancel") }}</button>
+      <button type="submit" class="btn primary" :disabled="!ready">{{ form.editing === null ? t("objects.form.add") : t("objects.form.save") }}</button>
     </template>
   </ComposeBar>
 </template>
