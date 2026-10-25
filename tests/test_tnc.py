@@ -179,6 +179,26 @@ async def test_a_radio_restarted_while_in_kiss_is_switched_to_kiss_again_at_once
 
 
 @stops_rigs
+async def test_a_tnc_that_still_types_text_after_kiss_on_is_sent_nothing_and_kiss_on_again_until_it_takes(rig: Rigs, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("neoaprs.tnc.ENTRY_AGAIN_SEC", 0.3)                   # (10 s in the program)
+    r = await rig()
+    r.radio.feed(MONITOR_LINE)
+    assert await r.radio.said(len(ENTER_KISS)) == ENTER_KISS
+    await idle_for(SETTLE + 0.1)
+    r.radio.feed(MONITOR_LINE)                                                # a radio that was just switched on missed it: it still types text
+    await until(lambda: r.tnc.problem != "")
+    assert not r.tnc.usable and "command mode" in r.tnc.why_unusable(), "no frame is typed into a TNC in command mode"
+    assert await r.radio.said(1, 0.1) == b"", "not again at once"
+    await idle_for(0.3)
+    r.radio.feed(MONITOR_LINE)
+    assert await r.radio.said(len(ENTER_KISS)) == ENTER_KISS, "KISS ON again, a while after the first"
+    await idle_for(SETTLE + 0.1)
+    r.radio.feed(kiss_of(ui_frame("OH2AAA")))
+    await until(lambda: r.packets)
+    assert r.tnc.problem == "" and r.tnc.usable
+
+
+@stops_rigs
 async def test_text_that_goes_on_after_kiss_on_is_told_in_the_problem(rig: Rigs) -> None:
     r = await rig()
     r.radio.feed(b"cmd:")

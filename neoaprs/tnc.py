@@ -39,6 +39,8 @@ from .tncwatchdog import ANSWER_SEC, CHECK_PAUSE_SEC, PROBE_SEC, PROMPT, REPLY_S
 
 log = logging.getLogger("neoaprs.tnc")
 
+COMMAND_MODE = "the TNC is in command mode (KISS ON is sent again)"
+ENTRY_AGAIN_SEC = 10.0                       # a TNC that still types text this long after KISS ON, with no KISS frame since, is sent it again (a radio just switched on can miss the first while it starts)
 ENTER_KISS = KENWOOD_TNC2.enter[0][0]       # what the default profile writes (the Kenwood TNC-2's), for the tests
 NUDGE = PROMPT
 
@@ -208,6 +210,9 @@ class Tnc(TimedSource):
             self._kiss_seen = self._told_text = False                    # switched to KISS again now, not at the next check: text keeps the line from going quiet
             return self._enter_kiss(port, "the TNC is in command mode again (the radio was restarted)")
         if mode is Mode.KISS:
+            if self._told_text and not self._kiss_seen:                  # (KISS at last after text: the problem it made is over)
+                self._told_text = False
+                self._set_problem("")
             self._kiss_seen = True
         elif mode is Mode.MONITOR:
             self._command_mode(port)
@@ -236,8 +241,8 @@ class Tnc(TimedSource):
     def _command_mode(self, port: _TncPort) -> None:
         if self._looking:
             return
-        if self.profile.detect_command_mode and not self._entered:
-            self._enter_kiss(port)
+        if self.profile.detect_command_mode and (not self._entered or (not self._kiss_seen and asyncio.get_running_loop().time() >= self._settle_until + ENTRY_AGAIN_SEC)):
+            self._enter_kiss(port, "the TNC was in command mode" if not self._entered else "the TNC is still in command mode")
         elif not self._told_text:
             self._told_text = True
             self._set_problem("the TNC sends text, not KISS frames: it is in command mode" + (" and the entry did not change that" if self._entered else f" and the profile {self.profile.name!r} does not enter KISS"))
@@ -291,12 +296,10 @@ class Tnc(TimedSource):
 
     @property
     def usable(self) -> bool:
-        return self.state is Source.State.CONNECTED and self.confirmed and not self._looking and asyncio.get_running_loop().time() >= self._settle_until
+        return self.state is Source.State.CONNECTED and self.confirmed and not self._looking and not (self.profile.detect_command_mode and self._told_text and not self._kiss_seen) and asyncio.get_running_loop().time() >= self._settle_until
 
     def why_unusable(self) -> str:
-        if self.state is Source.State.CONNECTED and not self.confirmed:
-            return CHECKING
-        return unusable_because(self.state)
+        return _why_unusable(self)
 
     def look_begin(self) -> bool:
         """A check or probe starts: nothing is sent meanwhile and the TNC is asked afresh. False when there is no line."""
@@ -383,3 +386,12 @@ def _describe(tnc: "Tnc") -> str:
         return f"{tnc.path or tnc.port or 'no port'}{_speed(tnc.path or tnc.port, tnc.baud)}, {tnc.state.value}"
     mode = "KISS" if tnc._kiss_seen else ("entering KISS" if tnc._entered else "listening")
     return f"{tnc.path}{_speed(tnc.path, tnc.baud)}, {mode}, {tnc.stats.packets} packets"
+
+
+def _why_unusable(tnc: "Tnc") -> str:
+    """Why nothing is sent now, as a clause: a fresh line not yet confirmed, a TNC that types text (it is in command mode, KISS ON is sent again), else what the state says."""
+    if tnc.state is Source.State.CONNECTED and not tnc.confirmed:
+        return CHECKING
+    if tnc.state is Source.State.CONNECTED and tnc.profile.detect_command_mode and tnc._told_text and not tnc._kiss_seen:
+        return COMMAND_MODE
+    return unusable_because(tnc.state)

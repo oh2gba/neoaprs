@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-Nothing yet.
+The radio comes back by itself.
+
+- A radio switched on again after hours off, whose TNC was still starting and missed the KISS ON, stayed in command mode until NeoAPRS was restarted, and the beacon that was due was typed into it. Now a TNC that still types text 10 seconds after KISS ON, with no KISS frame since, is sent KISS ON again (every 10 seconds until it takes), and nothing is transmitted while it is in command mode; the radio's status line says so, and the warning goes once KISS frames come.
 
 ## 0.8.0
 
