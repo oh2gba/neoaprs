@@ -1043,8 +1043,6 @@ export const fr: Catalogue = {
   "settings.location.cancel": "Annuler",
   "settings.location.not_set": "Non défini",
   "settings.location.enter": "Saisir les coordonnées",
-  "settings.location.home": "Position de base",
-  "settings.location.home_note": "Là où la station reste. La balise mobile envoie la position du GPS, jamais celle-ci.",
 
   "settings.picker.title": "Choisir un symbole",
   "settings.picker.placeholder": "Chercher : maison, voiture, digi, météo…",
@@ -1104,11 +1102,11 @@ export const fr: Catalogue = {
 
   "settings.position.name": "Source de la position",
   "settings.position.label": "Position",
-  "settings.position.here": "Cet endroit",
+  "settings.position.fixed": "Fixe",
   "settings.position.gpsd": "Un GPS via gpsd",
   "settings.position.serial": "Un GPS sur un port série",
   "settings.position.tip1":
-    "D'où vient la position de la balise. Cet endroit est une station fixe, envoyée à l'intervalle de la balise. Un GPS est une station en mouvement : la balise suit la position GPS et SmartBeaconing décide quand elle part.",
+    "D'où vient la position de la balise. Fixe est une station fixe, envoyée à l'intervalle de la balise. Un GPS est une station en mouvement : la balise suit la position GPS et SmartBeaconing décide quand elle part.",
   "settings.position.tip2":
     "gpsd est le service GPS de Linux : utilisez-le quand gpsd tourne sur cet ordinateur ou sur un autre. Un récepteur sur un port série est lu directement. Sans position GPS récente, rien n'est envoyé, jamais la position de base.",
   "settings.gps_host.label": "Adresse de gpsd",

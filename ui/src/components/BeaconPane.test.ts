@@ -382,11 +382,15 @@ describe("the beacon status of a moving station", () => {
     ).toBe("GPS");
   });
 
-  it("calls the place of the Station group the home position while a GPS is chosen", () => {
+  it("has no place in the Station group while a GPS is chosen: the stored place is kept out of sight", () => {
     expect(group(pane().wrapper, "Station")?.find(".location-field .field-label").text()).toBe("Location");
-    const { wrapper } = pane(moving, { gps: gpsState() });
-    expect(group(wrapper, "Station")?.find(".location-field .field-label").text()).toBe("Home position");
-    expect(group(wrapper, "Station")?.find("#set-station-lat").exists()).toBe(true);
+    for (const source of ["gpsd", "serial"] as const) {
+      const { wrapper } = pane({ "gps/source": source }, { gps: gpsState({ source }) });
+      expect(group(wrapper, "Station")?.find(".location-field").exists(), source).toBe(false);
+      expect(group(wrapper, "Station")?.find("button.location-pick").exists(), source).toBe(false);
+      expect(group(wrapper, "Station")?.find("#set-station-lat").exists(), source).toBe(false);
+      expect(group(wrapper, "Station")?.find("#set-station-lon").exists(), source).toBe(false);
+    }
   });
 
   it("shows what a moving station has, and not what a fixed one has: Travelling for the interval and the antenna", () => {
@@ -407,7 +411,7 @@ describe("the beacon status of a moving station", () => {
         .map((l) => l.text()),
     ).toEqual(["Antenna", "Advanced"]);
     const car = pane({ "gps/source": "serial", "beacon/power_w": "5" }, { gps: gpsState({ source: "serial" }) }).wrapper;
-    expect(stationLabels(car)).toEqual(["Transmit", "Call", "Position", "GPS port", "GPS speed", "Latitude", "Longitude", "Symbol"]);
+    expect(stationLabels(car)).toEqual(["Transmit", "Call", "Position", "GPS port", "GPS speed", "Symbol"]);
     expect(beaconLabels(car)).toEqual(["Travelling", "Comment", "Path"]);
     expect(
       group(car, "Beacon")

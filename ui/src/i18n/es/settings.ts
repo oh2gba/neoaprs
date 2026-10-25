@@ -261,8 +261,6 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.location.cancel": "Cancelar",
   "settings.location.not_set": "Sin definir",
   "settings.location.enter": "Introducir coordenadas",
-  "settings.location.home": "Ubicación base",
-  "settings.location.home_note": "Donde se queda la estación. La baliza móvil envía la posición del GPS, nunca esta.",
 
   "settings.picker.title": "Elegir un símbolo",
   "settings.picker.placeholder": "Buscar: casa, coche, digi, wx...",
@@ -322,11 +320,11 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
 
   "settings.position.name": "Fuente de la posición",
   "settings.position.label": "Posición",
-  "settings.position.here": "Este lugar",
+  "settings.position.fixed": "Fija",
   "settings.position.gpsd": "Un GPS por gpsd",
   "settings.position.serial": "Un GPS en un puerto serie",
   "settings.position.tip1":
-    "De dónde viene la posición de la baliza. Este lugar es una estación fija, enviada con el intervalo de la baliza. Un GPS es una estación en movimiento: la baliza sigue la posición del GPS y SmartBeaconing decide cuándo sale.",
+    "De dónde viene la posición de la baliza. Fija es una estación fija, enviada con el intervalo de la baliza. Un GPS es una estación en movimiento: la baliza sigue la posición del GPS y SmartBeaconing decide cuándo sale.",
   "settings.position.tip2":
     "gpsd es el servicio GPS de Linux: úsalo cuando gpsd se ejecuta en este ordenador o en otro. Un receptor en un puerto serie se lee directamente. Sin una posición GPS reciente no se envía nada, nunca la ubicación base.",
   "settings.gps_host.label": "Dirección de gpsd",

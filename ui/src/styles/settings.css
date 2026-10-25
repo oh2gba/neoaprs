@@ -254,9 +254,6 @@
   margin: 6px 0 0;
   color: var(--muted);
 }
-.location-note {
-  font-size: 12px;
-}
 /* a heading that opens what is under it (DisclosureBox), and the radio status of the Settings tab */
 .disclosure > summary {
   padding: 6px 0;

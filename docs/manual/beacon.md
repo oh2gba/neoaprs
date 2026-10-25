@@ -2,7 +2,9 @@
 
 The Beacon tab holds what your station says on the air. From top to bottom: the **beacon status** with **Beacon now** ([Beacon now](#beacon-now)); the **Station** group (call, **Position**, location, symbol); the **Beacon** group (how often, or what you move as, the comment, a closed **Antenna** heading for a fixed station and a closed **Advanced** heading with the path choice); the **Status** group; and the closed **Preview**. A setting applies as you change it ([start.md](start.md#how-settings-apply)).
 
-**Position** is the one choice that decides what kind of station you are, and the tab shows only what applies to it. **This place** is a fixed station: the beacon is the location below, sent at the interval of the Beacon group, with the antenna's PHG. **A GPS via gpsd** and **A GPS on a serial port** make a moving station: the beacon follows the GPS and goes when SmartBeaconing says, with no interval and no PHG ([Mobile operation](#mobile-operation)). It is the setting `gps/source` (`off`, `gpsd` or `serial`).
+**Position** is the one choice that decides what kind of station you are, and the tab shows only what applies to it. **Fixed** is a fixed station: the beacon is the location below, sent at the interval of the Beacon group, with the antenna's PHG. **A GPS via gpsd** and **A GPS on a serial port** make a moving station: the beacon follows the GPS and goes when SmartBeaconing says, with no interval and no PHG ([Mobile operation](#mobile-operation)).
+
+The location (**Choose on map**, the coordinates and the locator) is shown for **Fixed** only; with a GPS chosen it is hidden, and the location you gave stays stored. The choice is the setting `gps/source` (`off`, `gpsd` or `serial`).
 
 A first transmission on the air is not tried by NeoAPRS's tests, which never open the radio. Check it live with **Beacon now**, then look for your call on aprs.fi or on another station's screen, before you leave a timer on.
 
@@ -18,7 +20,7 @@ The page shows an amber **Receive only** badge beside the title in its header, o
 
 ## The beacon
 
-This is the beacon of a fixed station (**Position** at **This place**); a moving station has no interval, see [Mobile operation](#mobile-operation).
+This is the beacon of a fixed station (**Position** at **Fixed**); a moving station has no interval, see [Mobile operation](#mobile-operation).
 
 Set the beacon to Off, or to every 30 minutes, every 60 minutes or every 3 hours. The setting `beacon/interval_min` takes 0 (off) or 20 to 1440: 20 minutes is the net cycle of the APRS specification for a path of two hops, and 30 is routine operation. A stored value that the page does not offer, such as 20 or 45, is shown as one more choice until you pick another, and one below 20 is raised to 20 (the log says so). The default is off, so an upgrade never starts to transmit. The setup guide gives a new station a beacon every 30 minutes.
 
@@ -82,7 +84,7 @@ A beacon you send is in the Packets tab as a packet with direction `out`.
 
 ## Mobile operation
 
-For a car, a bicycle, a walker or a boat the beacon can follow a GPS receiver. Choose **Position**: **A GPS via gpsd** or **A GPS on a serial port**. The position, course, speed and altitude then come from the GPS, and the beacon goes when SmartBeaconing says: often when you move fast or turn a corner, rarely when you stand still. Nothing else needs switching on: the choice of Position alone makes the station a moving one, and **This place** makes it a fixed one again.
+For a car, a bicycle, a walker or a boat the beacon can follow a GPS receiver. Choose **Position**: **A GPS via gpsd** or **A GPS on a serial port**. The position, course, speed and altitude then come from the GPS, and the beacon goes when SmartBeaconing says: often when you move fast or turn a corner, rarely when you stand still. Nothing else needs switching on: the choice of Position alone makes the station a moving one, and **Fixed** makes it a fixed one again, with the location you gave before shown again.
 
 What to set (the Station and Beacon groups of the Beacon tab):
 
@@ -94,7 +96,7 @@ What to set (the Station and Beacon groups of the Beacon tab):
 
 The GPS is read as soon as a source is chosen, so you can see the fix before the first beacon.
 
-**What the Beacon tab shows.** Under the choice of Position stand only the fields that apply: the gpsd address for gpsd, the port and speed for a serial receiver. The Location row of the Station group is called **Home position** and says that the GPS position is what is sent, never this one; its fields stay, because it is where your station is whenever it is not moving, and before the first fix. In the Beacon group the interval and the Antenna heading are not shown, because a moving beacon has neither, and **Travelling** is, in the place of the interval.
+**What the Beacon tab shows.** Under the choice of Position stand only the fields that apply: the gpsd address for gpsd, the port and speed for a serial receiver. The Location row of the Station group is not shown, because the GPS position is what is sent; the location you gave stays stored, and it is where your station is on the map before the first fix and whenever you choose **Fixed** again. In the Beacon group the interval and the Antenna heading are not shown, because a moving beacon has neither, and **Travelling** is, in the place of the interval.
 
 The beacon status at the top of the tab then reads as the GPS, in the look of the radio's: the label **GPS**, a coloured word (off, connecting, no fix, fix or stale) and one line in plain words, with Beacon now at its end:
 
@@ -136,9 +138,9 @@ The 20-minute floor of the fixed beacon does not apply to a moving station, and 
 
 **No fix, no beacon.** With no fresh GPS fix nothing is sent: not at the start, while the receiver is looking for satellites, not when gpsd or the port is away, and not once the latest fix is more than 2 minutes old. Your home position is never sent in its place, because a station that seems to jump home is worse than a silent one. Beacon now is refused with the reason, and a query for your position (`?APRSP`) is not answered. The page says why in the state of the GPS. A fix lost for less than 2 minutes (a tunnel) is still the latest one, and the beacon goes on by the clock.
 
-**On the map.** While a GPS is chosen, your own station follows the GPS fix, with its course, speed and altitude, moving every few seconds once you have gone 10 metres, and the distance and bearing of the other stations follow. If the GPS is lost your station stays where it was last seen. With **This place** it is the location of the settings, as before. A query for your position (`?APRSP`) is answered with the position as it is now.
+**On the map.** While a GPS is chosen, your own station follows the GPS fix, with its course, speed and altitude, moving every few seconds once you have gone 10 metres, and the distance and bearing of the other stations follow. If the GPS is lost your station stays where it was last seen. With **Fixed** it is the location of the settings, as before. The location is hidden while a GPS is chosen but kept: your station stays there on the map until the first fix. A query for your position (`?APRSP`) is answered with the position as it is now.
 
-**Follow me.** While a GPS is chosen and has a fix, a **Follow me** button at the top right of the map keeps the map centred on you, at a close zoom at least. Dragging the map lets go, and so does the loss of the fix or choosing **This place**; press the button again to take hold.
+**Follow me.** While a GPS is chosen and has a fix, a **Follow me** button at the top right of the map keeps the map centred on you, at a close zoom at least. Dragging the map lets go, and so does the loss of the fix or choosing **Fixed**; press the button again to take hold.
 
 To try it without a vehicle, the [development guide](../development.md#trying-mobile-operation-without-a-vehicle) describes a replay of a drive.
 

@@ -261,8 +261,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.location.cancel": "Cancelar",
   "settings.location.not_set": "Não definida",
   "settings.location.enter": "Digitar coordenadas",
-  "settings.location.home": "Localização base",
-  "settings.location.home_note": "Onde a estação fica parada. O beacon móvel envia a posição do GPS, nunca esta.",
 
   "settings.picker.title": "Escolher um símbolo",
   "settings.picker.placeholder": "Buscar: house, car, digi, wx...",
@@ -322,11 +320,11 @@ export const settings: Record<keyof typeof source, Message> = {
 
   "settings.position.name": "Fonte da posição",
   "settings.position.label": "Posição",
-  "settings.position.here": "Este lugar",
+  "settings.position.fixed": "Fixa",
   "settings.position.gpsd": "Um GPS via gpsd",
   "settings.position.serial": "Um GPS em uma porta serial",
   "settings.position.tip1":
-    "De onde vem a posição do beacon. Este lugar é uma estação fixa, enviada no intervalo do beacon. Um GPS é uma estação em movimento: o beacon segue a posição do GPS e o SmartBeaconing decide quando ele sai.",
+    "De onde vem a posição do beacon. Fixa é uma estação fixa, enviada no intervalo do beacon. Um GPS é uma estação em movimento: o beacon segue a posição do GPS e o SmartBeaconing decide quando ele sai.",
   "settings.position.tip2":
     "gpsd é o serviço de GPS do Linux: use-o quando o gpsd roda neste computador ou em outro. Um receptor em uma porta serial é lido diretamente. Sem uma posição recente nada é enviado, nunca a localização base.",
   "settings.gps_host.label": "Endereço do gpsd",

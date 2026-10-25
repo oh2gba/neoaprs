@@ -1055,8 +1055,6 @@ export const de: Catalogue = {
   "settings.location.cancel": "Abbrechen",
   "settings.location.not_set": "Nicht gesetzt",
   "settings.location.enter": "Koordinaten eingeben",
-  "settings.location.home": "Heimatstandort",
-  "settings.location.home_note": "Wo die Station bleibt. Die mobile Bake sendet die Position des GPS, nie diese.",
 
   "settings.picker.title": "Symbol wählen",
   "settings.picker.placeholder": "Suchen: Haus, Auto, Digi, Wetter…",
@@ -1116,11 +1114,11 @@ export const de: Catalogue = {
 
   "settings.position.name": "Positionsquelle",
   "settings.position.label": "Position",
-  "settings.position.here": "Dieser Ort",
+  "settings.position.fixed": "Fest",
   "settings.position.gpsd": "Ein GPS über gpsd",
   "settings.position.serial": "Ein GPS an einem seriellen Port",
   "settings.position.tip1":
-    "Woher die Position der Bake kommt. Dieser Ort ist eine feste Station, gesendet im Abstand der Bake. Ein GPS ist eine bewegte Station: Die Bake folgt dem Fix, und SmartBeaconing entscheidet, wann sie geht.",
+    "Woher die Position der Bake kommt. Fest ist eine ortsfeste Station, gesendet im Abstand der Bake. Ein GPS ist eine bewegte Station: Die Bake folgt dem Fix, und SmartBeaconing entscheidet, wann sie geht.",
   "settings.position.tip2":
     "gpsd ist der GPS-Dienst von Linux: Nimm ihn, wenn gpsd auf diesem Computer oder einem anderen läuft. Ein Empfänger an einem seriellen Port wird direkt gelesen. Ohne frischen Fix wird nichts gesendet, nie der Heimatstandort.",
   "settings.gps_host.label": "gpsd-Adresse",

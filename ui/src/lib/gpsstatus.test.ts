@@ -62,7 +62,7 @@ describe("gpsProblem", () => {
 });
 
 describe("isMoving", () => {
-  it("is a station whose position is a GPS's: gpsd or a serial port, and not this place", () => {
+  it("is a station whose position is a GPS's: gpsd or a serial port, and not Fixed", () => {
     expect(isMoving({ "gps/source": "gpsd" })).toBe(true);
     expect(isMoving({ "gps/source": "serial" })).toBe(true);
     expect(isMoving({ "gps/source": "off" })).toBe(false);

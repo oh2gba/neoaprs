@@ -161,12 +161,19 @@ describe("groupKeys", () => {
     expect(antenna("")).toEqual(["beacon/power_w"]);
     expect(antenna("5")).toHaveLength(4);
   });
-  it("shows the GPS fields its source needs: the address for gpsd, the port and speed for a serial receiver, nothing for this place", () => {
+  it("shows the GPS fields its source needs: the address for gpsd, the port and speed for a serial receiver, nothing for Fixed", () => {
     const gps = (values: Record<string, string>) => ["gps/source", "gps/host", "gps/device", "gps/baud"].filter((k) => shownByValues(k, values));
     expect(gps({ "gps/source": "off" })).toEqual(["gps/source"]);
     expect(gps({})).toEqual(["gps/source"]);
     expect(gps({ "gps/source": "gpsd" })).toEqual(["gps/source", "gps/host"]);
     expect(gps({ "gps/source": "serial" })).toEqual(["gps/source", "gps/device", "gps/baud"]);
+  });
+  it("shows the station's place (latitude and longitude) for a fixed station only, not while a GPS is chosen", () => {
+    const place = (values: Record<string, string>) => ["station/lat", "station/lon"].filter((k) => shownByValues(k, values));
+    expect(place({ "gps/source": "off" })).toEqual(["station/lat", "station/lon"]);
+    expect(place({})).toEqual(["station/lat", "station/lon"]);
+    expect(place({ "gps/source": "gpsd" })).toEqual([]);
+    expect(place({ "gps/source": "serial", "station/lat": "60.17", "station/lon": "24.94" })).toEqual([]);
   });
   it("shows Travelling only for a moving station, and the interval and the antenna only for a fixed one", () => {
     const antenna = ["beacon/power_w", "beacon/antenna_height_m", "beacon/antenna_gain_db", "beacon/antenna_direction"];
@@ -186,10 +193,10 @@ describe("groupKeys", () => {
     expect(shownByValues("station/comment", { "gps/source": "gpsd" })).toBe(true);
     expect(shownByValues("beacon/path", { "gps/source": "gpsd" })).toBe(true);
   });
-  it("gives the position choice and Travelling their words: this place, a GPS via gpsd, a GPS on a serial port; by car, by bicycle, on foot, by boat", () => {
+  it("gives the position choice and Travelling their words: Fixed, a GPS via gpsd, a GPS on a serial port; by car, by bicycle, on foot, by boat", () => {
     expect(FIELDS["gps/source"]).toMatchObject({ label: "Position", kind: "choice", name: "Position source" });
     expect(FIELDS["gps/source"]?.choices).toEqual([
-      { value: "off", label: "This place" },
+      { value: "off", label: "Fixed" },
       { value: "gpsd", label: "A GPS via gpsd" },
       { value: "serial", label: "A GPS on a serial port" },
     ]);

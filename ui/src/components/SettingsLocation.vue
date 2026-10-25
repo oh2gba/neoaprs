@@ -19,8 +19,6 @@ const props = defineProps<{
   errors: Record<string, string>;
   changed: (key: string) => boolean;
   picking: boolean;
-  /** the beacon follows a GPS: the place is the home position */
-  home?: boolean;
 }>();
 const emit = defineEmits<{ type: [key: string, text: string]; commit: [key: string, next: EventTarget | null]; cancel: [key: string]; pick: [] }>();
 
@@ -37,7 +35,7 @@ const id = (key: string) => `set-${key.replace("/", "-")}`;
 </script>
 
 <template>
-  <LocationField :place="place" :picking="picking" :open="open" :home="home" @pick="emit('pick')">
+  <LocationField :place="place" :picking="picking" :open="open" @pick="emit('pick')">
     <SettingsField
       v-for="key in [LAT, LON]"
       :id="id(key)"

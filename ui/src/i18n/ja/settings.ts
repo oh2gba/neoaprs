@@ -257,8 +257,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.location.cancel": "キャンセル",
   "settings.location.not_set": "未設定",
   "settings.location.enter": "座標を入力",
-  "settings.location.home": "ホーム位置",
-  "settings.location.home_note": "局が普段いる場所です。移動運用のビーコンはGPSの位置を送り、この位置は送りません。",
 
   "settings.picker.title": "シンボルを選ぶ",
   "settings.picker.placeholder": "検索: house, car, digi, wx...",
@@ -317,11 +315,11 @@ export const settings: Record<keyof typeof source, Message> = {
 
   "settings.position.name": "位置の取得元",
   "settings.position.label": "位置",
-  "settings.position.here": "この場所",
+  "settings.position.fixed": "固定",
   "settings.position.gpsd": "gpsd経由のGPS",
   "settings.position.serial": "シリアルポートのGPS",
   "settings.position.tip1":
-    "ビーコンの位置の取得元です。「この場所」は固定局で、ビーコンの間隔で送ります。GPSは移動局で、ビーコンは測位に追従し、SmartBeaconingが送るタイミングを決めます。",
+    "ビーコンの位置の取得元です。「固定」は固定局で、ビーコンの間隔で送ります。GPSは移動局で、ビーコンは測位に追従し、SmartBeaconingが送るタイミングを決めます。",
   "settings.position.tip2":
     "gpsdはLinuxのGPSサービスです。このコンピューターか別のコンピューターでgpsdが動いているときに選びます。シリアルポートの受信機は直接読みます。新しい測位がないと何も送らず、ホーム位置も送りません。",
   "settings.gps_host.label": "gpsdのアドレス",

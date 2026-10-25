@@ -19,7 +19,7 @@ The beacon of a moving station.
 The map follows you.
 
 - While a GPS is chosen, your own station on the map is at the GPS fix with its course, speed and altitude, moving every few seconds once you have gone 10 metres, and the distance and bearing of every station and the ALOHA circle follow. A GPS that is lost leaves your station where it was last seen; with Mobile off it is at your location, as before.
-- **Follow me**: a button at the top right of the map, offered while a GPS is chosen and the GPS has a fix, keeps the map centred on you; a drag of the map, the loss of the fix or choosing This place as the position lets go.
+- **Follow me**: a button at the top right of the map, offered while a GPS is chosen and the GPS has a fix, keeps the map centred on you; a drag of the map, the loss of the fix or choosing Fixed as the position lets go.
 
 The page shows it.
 
@@ -44,7 +44,7 @@ The map shows one range at a time.
 
 The Beacon tab is reworked around one choice of where the position comes from.
 
-- **Position** is one choice at the top of the position part of the Station group, in the place of the GPS source and the Mobile switch: **This place** (a fixed station at the home position), **A GPS via gpsd** or **A GPS on a serial port** (a moving station). Only what applies stands under it: the address of gpsd, or the port picker and the speed of a serial receiver; the Location (called **Home position** while a GPS is chosen) and the symbol follow. The Mobile group is gone.
+- **Position** is one choice at the top of the position part of the Station group, in the place of the GPS source and the Mobile switch: **Fixed** (a station at its location), **A GPS via gpsd** or **A GPS on a serial port** (a moving station). Only what applies stands under it: the address of gpsd, or the port picker and the speed of a serial receiver; the Location (Choose on map, the coordinates and the locator) follows for **Fixed** only, hidden while a GPS is chosen, and the location you gave stays stored and is the station's place on the map until the first fix; the symbol follows. The Mobile group is gone.
 - A **beacon status** stands at the top of the tab, in the look of the radio's status: a label, one coloured pill and plain lines, with **Beacon now** at the end of the first. A fixed station says **Last beacon 4 min ago · next in 56 min (every 60 min)** (the full time of the last beacon on hover; **no timed beacon** with the pill off when the interval is off). A moving station says the GPS (the pill is the state of the GPS, the line the fix, or what it is connecting to, or why there is none) and, under it, what SmartBeaconing does (**SmartBeaconing: next by time in 42 s, last sent 12 s ago (turn)**, or **No beacon: no GPS fix**). It takes the place of the row "Last beacon" of the Beacon group, the GPS block and the line between the fields; Beacon now asks twice and waits for a save as before.
 - **Travelling** (`beacon/travel`: By car, By bicycle, On foot, By boat) is in the Beacon group, with a one-line tip that says it sets how often the beacon goes and at which turns, and only while a GPS is chosen. The **SmartBeaconing** heading with its seven number fields is gone, with their texts and the two sentences of the refusals, from every language. The **interval** and the **Antenna** heading are shown only for a fixed station, and the preview of the packet makes no PHG for a moving one.
 

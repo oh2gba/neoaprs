@@ -94,12 +94,12 @@ describe("SettingsForm", () => {
         ?.findAll(".field > label")
         .map((l) => l.text());
 
-    it("is one choice under the call: this place, a GPS via gpsd or a GPS on a serial port, and there is no Mobile group, GPS source or Mobile switch", () => {
+    it("is one choice under the call: Fixed, a GPS via gpsd or a GPS on a serial port, and there is no Mobile group, GPS source or Mobile switch", () => {
       const { wrapper } = make({}, "beacon");
       expect(labels(wrapper)).toEqual(["Transmit", "Call", "Position", "Latitude", "Longitude", "Symbol"]);
       expect(wrapper.find<HTMLSelectElement>("#set-gps-source").element.value).toBe("off");
       expect(wrapper.findAll("#set-gps-source option").map((o) => [o.attributes("value"), o.text()])).toEqual([
-        ["off", "This place"],
+        ["off", "Fixed"],
         ["gpsd", "A GPS via gpsd"],
         ["serial", "A GPS on a serial port"],
       ]);
@@ -115,19 +115,19 @@ describe("SettingsForm", () => {
       expect(field?.querySelector(".info-toggle")).not.toBeNull();
       (field?.querySelector(".info-toggle") as HTMLElement).click();
       await wrapper.vm.$nextTick();
-      expect(field?.querySelector(".info-text")?.textContent).toContain("This place is a fixed station");
+      expect(field?.querySelector(".info-text")?.textContent).toContain("Fixed is a fixed station");
       expect(field?.querySelector(".info-text")?.textContent).toContain("A GPS is a moving station");
     });
 
-    it("asks for the address of gpsd for gpsd, with the default as the placeholder, between the choice and the home position", () => {
+    it("asks for the address of gpsd for gpsd, with the default as the placeholder, and no place to give while a GPS is chosen", () => {
       const { wrapper } = make({ "gps/source": "gpsd" }, "beacon");
-      expect(labels(wrapper)).toEqual(["Transmit", "Call", "Position", "gpsd address", "Latitude", "Longitude", "Symbol"]);
+      expect(labels(wrapper)).toEqual(["Transmit", "Call", "Position", "gpsd address", "Symbol"]);
       expect(wrapper.find("#set-gps-host").attributes("placeholder")).toBe("127.0.0.1:2947");
     });
 
     it("asks for the port and the speed of the receiver for a serial one", () => {
       const { wrapper } = make({ "gps/source": "serial", "gps/baud": "9600" }, "beacon");
-      expect(labels(wrapper)).toEqual(["Transmit", "Call", "Position", "GPS port", "GPS speed", "Latitude", "Longitude", "Symbol"]);
+      expect(labels(wrapper)).toEqual(["Transmit", "Call", "Position", "GPS port", "GPS speed", "Symbol"]);
       expect(wrapper.find("#set-gps-device").element.tagName).toBe("SELECT");
       expect(wrapper.find<HTMLInputElement>("#set-gps-baud").element.value).toBe("9600");
       expect(wrapper.find("#set-gps-baud").element.parentElement?.textContent).toContain("baud");
@@ -216,16 +216,25 @@ describe("SettingsForm", () => {
       expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "gps/baud": "9600" } });
     });
 
-    it("calls the Location the home position while a GPS is chosen, and says the GPS position is what is sent", async () => {
-      const { wrapper } = make({}, "beacon");
+    it("shows the Location (Choose on map, the coordinates, the locator) for Fixed and hides it while a GPS is chosen, in both directions", async () => {
+      const { wrapper } = make({ "station/lat": "60.17", "station/lon": "24.94" }, "beacon");
+      const location = () => ["button.location-pick", ".location-line", "#set-station-lat", "#set-station-lon"].map((css) => wrapper.find(css).exists());
       expect(wrapper.find(".location-field .field-label").text()).toBe("Location");
-      expect(wrapper.find(".location-note").exists()).toBe(false);
+      expect(location()).toEqual([true, true, true, true]);
       await wrapper.find("#set-gps-source").setValue("gpsd");
-      expect(wrapper.find(".location-field .field-label").text()).toBe("Home position");
-      expect(wrapper.find(".location-note").text()).toContain("never this one");
-      expect(wrapper.find("#set-station-lat").exists()).toBe(true);
+      expect(wrapper.find(".location-field").exists()).toBe(false);
+      expect(location()).toEqual([false, false, false, false]);
+      expect(wrapper.text()).not.toContain("Home position");
+      await wrapper.find("#set-gps-source").setValue("serial");
+      expect(wrapper.find(".location-field").exists()).toBe(false);
       await wrapper.find("#set-gps-source").setValue("off");
-      expect(wrapper.find(".location-field .field-label").text()).toBe("Location");
+      expect(location()).toEqual([true, true, true, true]);
+    });
+
+    it("hides the Location of a GPS station without touching the stored place", () => {
+      const { wrapper, send } = make({ "gps/source": "gpsd", "station/lat": "60.17", "station/lon": "24.94" }, "beacon");
+      expect(wrapper.find(".location-field").exists()).toBe(false);
+      expect(send).not.toHaveBeenCalled();
     });
 
     describe("the Beacon group", () => {

@@ -257,8 +257,6 @@ export const settings = {
   "settings.location.cancel": "Cancel",
   "settings.location.not_set": "Not set",
   "settings.location.enter": "Enter coordinates",
-  "settings.location.home": "Home position",
-  "settings.location.home_note": "Where the station stays. The mobile beacon sends the GPS position, never this one.",
 
   "settings.picker.title": "Choose a symbol",
   "settings.picker.placeholder": "Search: house, car, digi, wx...",
@@ -318,11 +316,11 @@ export const settings = {
 
   "settings.position.name": "Position source",
   "settings.position.label": "Position",
-  "settings.position.here": "This place",
+  "settings.position.fixed": "Fixed",
   "settings.position.gpsd": "A GPS via gpsd",
   "settings.position.serial": "A GPS on a serial port",
   "settings.position.tip1":
-    "Where the beacon's position comes from. This place is a fixed station, sent at the Beacon interval. A GPS is a moving station: the beacon follows the fix and SmartBeaconing decides when it goes.",
+    "Where the beacon's position comes from. Fixed is a fixed station, sent at the Beacon interval. A GPS is a moving station: the beacon follows the fix and SmartBeaconing decides when it goes.",
   "settings.position.tip2":
     "gpsd is the GPS service of Linux: use it when gpsd runs on this computer or another one. A receiver on a serial port is read directly. With no fresh fix nothing is sent, never the home position.",
   "settings.gps_host.label": "gpsd address",

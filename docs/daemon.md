@@ -101,7 +101,7 @@ passband); an `RPRT -n` answer, a refused connection or no answer within 5 secon
 
 ## The GPS and the moving station
 
-`gps/source` says where the position comes from: `off`, `gpsd` or `serial`. It alone decides whether the station moves: `off` is a fixed station at the home position (the beacon on `beacon/interval_min`, with PHG), `gpsd` or `serial` a moving one whose beacon follows the GPS (`Config.mobile`; `GpsState.mobile` on the wire is the same). The feed (`neoaprs/gpsfeed.py`, a `Source` like the TNC, with a state, a problem line and the back-off of `Backoff`) runs while the
+`gps/source` says where the position comes from: `off`, `gpsd` or `serial`. It alone decides whether the station moves: `off` (Fixed on the page) is a fixed station at the stored location (the beacon on `beacon/interval_min`, with PHG), `gpsd` or `serial` a moving one whose beacon follows the GPS (`Config.mobile`; `GpsState.mobile` on the wire is the same). The feed (`neoaprs/gpsfeed.py`, a `Source` like the TNC, with a state, a problem line and the back-off of `Backoff`) runs while the
 source is not `off`, and never raises into the loop.
 
 - **gpsd** (`gps/host`): one TCP connection, opened with a timeout of 5 seconds, over which `?WATCH={"enable":true,"json":true}` is sent. gpsd answers with a JSON object a line: `GpsdFixes` (`neoaprs/gpsfix.py`) makes a
@@ -120,7 +120,7 @@ feed and starts it again with the new numbers in a task, and the old fix is forg
 
 While the station is mobile, the service emits `moved` when the fix is the first, or at least 5 seconds and 10 metres from where our row was last put (`GPS_PLACE_EVERY_SEC`, `GPS_PLACE_MOVED_M`). The composition root connects it
 to `wiring.place_me`, which puts our own row in the station book at the fix with its course, speed, altitude and time (`StationBook.set_me`), and to the ALOHA circle, which is worked out again. The page's topic `stations`
-is told whole at most every 30 seconds for it, because every other row's distance and bearing move with us. A GPS that is lost leaves our row at the latest fix, however old; the home position of the settings is for a
+is told whole at most every 30 seconds for it, because every other row's distance and bearing move with us. A GPS that is lost leaves our row at the latest fix, however old; the stored location of the settings (`station/lat`, `station/lon`, which the page hides while a GPS is chosen and keeps) is for a
 station that is not mobile, and for a mobile one before its first fix. With the source `off` there is no GPS and the row stays at the settings' position.
 
 **The mobile beacon.** `Beacon` (`neoaprs/services/beacon.py`) asks SmartBeaconing at every tick instead of waiting for `beacon/interval_min`, which a mobile station does not use. `neoaprs/smartbeacon.py` is the

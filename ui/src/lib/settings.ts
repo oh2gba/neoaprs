@@ -116,9 +116,9 @@ const directionChoices = (): readonly Choice[] => [
 
 const GAIN = LIMITS.range["beacon/antenna_gain_db"];
 
-/** Where the position of the beacon comes from (gps/source): this place (a fixed station at the home position), a GPS read through gpsd, or a GPS on a serial port (a moving station). */
+/** Where the position of the beacon comes from (gps/source): Fixed (a station at its stored location), a GPS read through gpsd, or a GPS on a serial port (a moving station). */
 const positionChoices = (): readonly Choice[] => [
-  { value: "off", label: t("settings.position.here") },
+  { value: "off", label: t("settings.position.fixed") },
   { value: "gpsd", label: t("settings.position.gpsd") },
   { value: "serial", label: t("settings.position.serial") },
 ];
@@ -348,7 +348,7 @@ const TNC_ORDER = ["tnc/profile", "serial/port", "serial/baud", "tcp/host", "tcp
 const STATUS_ORDER = ["status/source", "station/status", "status/rigctld", "status/template", "status/interval_min"];
 /** The Beacon group: how often (a fixed station) or what it moves as (a moving one), what it says, then the folds (the antenna, the path). */
 const BEACON_ORDER = ["beacon/interval_min", "beacon/travel", "station/comment", ...ANTENNA, "beacon/path"];
-/** The Station group: the call, where the position comes from and what that needs (the gpsd address, or the port and speed of a serial GPS), then the place itself (the home position while a GPS is chosen) and the symbol. */
+/** The Station group: the call, where the position comes from and what that needs (the gpsd address, or the port and speed of a serial GPS), then the place itself (only for a fixed station: with a GPS chosen the stored place is kept and not shown) and the symbol. */
 const STATION_ORDER = [
   "station/transmit",
   "station/call",
@@ -435,11 +435,12 @@ export function portForProfile(profileKey: string, port: string): string {
   return profileOf(profileKey)?.transport === "tcp" && port !== "" && !/^(socket|tcp):\/\//i.test(port.trim()) ? "" : port;
 }
 
-/** Whether a field of the Beacon tab is shown for the values the form holds: the Status group shows what its source needs; the position's own fields follow its choice (the address of gpsd for gpsd, the port and speed for a serial GPS); a station that moves
+/** Whether a field of the Beacon tab is shown for the values the form holds: the Status group shows what its source needs; the position's own fields follow its choice (the address of gpsd for gpsd, the port and speed for a serial GPS; the station's place only for a fixed station, with a GPS the place stays stored and the daemon uses it until the first fix); a station that moves
  * (a GPS is chosen) has the Travelling choice, and no interval and no antenna, which are a fixed station's (the antenna's height, gain and direction come once there is a power: they only make the PHG code with it). */
 export function shownByValues(key: string, values: Readonly<Record<string, string>>): boolean {
   if (key.startsWith("status/") || key === "station/status") return statusShown(key, statusSource(values));
   if (ANTENNA.includes(key)) return !isMoving(values) && (key === "beacon/power_w" || (values["beacon/power_w"] ?? "").trim() !== "");
+  if (key === "station/lat" || key === "station/lon") return !isMoving(values);
   if (key === "gps/host") return values["gps/source"] === "gpsd";
   if (key === "gps/device" || key === "gps/baud") return values["gps/source"] === "serial";
   if (key === "beacon/travel") return isMoving(values);
