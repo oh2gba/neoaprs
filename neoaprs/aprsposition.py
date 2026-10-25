@@ -14,7 +14,7 @@ from neoaprs.symbols import table_of
 
 KNOT_KMH = 1.852
 FOOT_M = 0.3048
-FUTURE_TOLERANCE = timedelta(minutes=5)               # a clock that runs ahead of ours by a few minutes is still "now"
+FUTURE_TOLERANCE = timedelta(hours=1)                 # a clock that runs ahead of ours by up to an hour is still "now" (a station's clock is often minutes fast; a month back would be the other reading)
 _AMBIGUITY_UNIT = (10, 100, 1000, 6000)               # hundredths of a minute that one to four blanked digits leave unknown
 _COURSE_SPEED = re.compile(r"(\d{3})/(\d{3})")
 _ALTITUDE = re.compile(r"/A=(-\d{5}|\d{6})")
@@ -234,7 +234,11 @@ def parse_position(body: bytes, now: datetime, *, messaging: bool = False) -> Po
     """The position in `body` (what follows the data type identifier); `now` resolves a timestamp; `messaging` is true for the identifiers "=" and "@"."""
     timestamp, local = None, False
     if _has_timestamp(body):
-        timestamp, local, body = resolve_timestamp(body[:7], now), body[6:7] == b"/", body[7:]
+        try:
+            timestamp = resolve_timestamp(body[:7], now)
+        except PositionError:
+            timestamp = None                                  # (a time that is none, "/0000z" or the 32nd: the position is still a position, with no time)
+        local, body = timestamp is not None and body[6:7] == b"/", body[7:]
     if not body:
         raise PositionError("no position")
     compressed = not (body[0:1].isdigit() or body[0] == 0x20)

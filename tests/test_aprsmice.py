@@ -84,6 +84,7 @@ def test_latitude_ambiguity_from_trailing_blanks() -> None:
     assert (p.lat, p.lon) == (pytest.approx(33 + 25.65 / 60), pytest.approx(-(112 + 7.75 / 60)))
     p = parse_mice("S3LZZZ", WORKED, NOW)                                    # four blanks: the degree's centre, north
     assert (p.lat, p.lon) == (pytest.approx(33.5), pytest.approx(-(112 + 30 / 60)))
+    assert p.ambiguity == 4 and parse_mice("S32UVZ", WORKED, NOW).ambiguity == 1 and parse_mice("S32UVT", WORKED, NOW).ambiguity == 0        # (the page shows the circle of ambiguity, so the count is told)
 
 
 @pytest.mark.parametrize("dest", ["S3LUVT", "L32UVT", "S32U!T", "S32UV", "", "s32uvt", "S32KVT", "S32UVK", "S32UV?"])
@@ -141,6 +142,10 @@ def test_old_hex_telemetry_is_dropped() -> None:
     assert comment(b"\x1d\x01\x02\x03\x04\x05Hi") == "Hi"      # 0x1d: five binary values
     assert comment(b"'0A1BHi") == "0A1BHi"                  # four hex digits after an apostrophe are not telemetry: only the type code goes
     assert comment(b"`0A1") == "0A1"                        # too short to be telemetry: only the type code goes
+    assert comment(b"`1296 MHz on request_3") == "1296 MHz on request"      # a Yaesu whose text starts with four hex-looking characters: the type code wins over the obsolete telemetry
+    assert comment(b"`CAFE_3") == "CAFE"
+    assert comment(b"'2024 trip|3") == "2024 trip"
+    assert comment(b"`0A1BHi") == "Hi"                      # (no known suffix: the telemetry reading stands)
 
 
 def test_altitude() -> None:
@@ -151,7 +156,8 @@ def test_altitude() -> None:
     assert alt(b'"4{}') == (100.0, "")
     assert alt(b"]!!!}=") == (-10000.0, "")
     assert alt(b">Hi}") == (None, "Hi}")                     # (two characters are not an altitude)
-    assert alt(b'>Hello "4{} bye') == (100.0, "Hello  bye")  # as a word of its own, after a space
+    assert alt(b'>Hello "4{} bye') == (None, 'Hello "4{} bye')  # only at the start: three characters and a brace inside the text are text
+    assert alt(b">see you QRT}") == (None, "see you QRT}")
     assert alt(b'>Hello"4{}') == (None, 'Hello"4{}')         # not glued to a word
     assert alt(b'>Hello "4{}x') == (None, 'Hello "4{}x')     # nor followed by one
     assert alt(b">abc}x") == (pytest.approx(((ord("a") - 33) * 91 * 91 + (ord("b") - 33) * 91 + ord("c") - 33) - 10000.0), "x")

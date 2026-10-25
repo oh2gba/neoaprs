@@ -173,7 +173,7 @@ def parse(info: bytes, source: str, destination: str, now: datetime) -> Decoded:
         return Undecoded("empty information field", "")
     try:
         decoded = _dispatch(info[:1], info, source, destination, now)
-        if isinstance(decoded, Other) and info[:1] not in (b"}", b"{"):
+        if isinstance(decoded, Other) and info[:1] not in (b"}", b"{", b","):          # (test data is never a position)
             return _bang_position(info, now) or decoded
         return decoded
     except (PositionError, MicEError, MessageError, NmeaError) as e:

@@ -28,7 +28,8 @@ def at(*args: int) -> datetime:
 @pytest.mark.parametrize(("raw", "now", "want"), [
     (b"211200z", NOW, at(2026, 10, 21, 12)),
     (b"211204z", NOW, at(2026, 10, 21, 12, 4)),                       # four minutes ahead is allowed
-    (b"211206z", NOW, at(2026, 9, 21, 12, 6)),                        # six is not: it is last month
+    (b"211259z", NOW, at(2026, 10, 21, 12, 59)),                      # so is an hour: a station's clock is often fast
+    (b"211301z", NOW, at(2026, 9, 21, 13, 1)),                        # more than an hour is not: it is last month
     (b"092345z", NOW, at(2026, 10, 9, 23, 45)),
     (b"302345z", NOW, at(2026, 9, 30, 23, 45)),                       # a day that has not come this month
     (b"312345z", NOW, at(2026, 8, 31, 23, 45)),                       # September has no 31st
@@ -38,7 +39,8 @@ def at(*args: int) -> datetime:
     (b"092345/", NOW, at(2026, 10, 9, 23, 45)),
     (b"115900h", NOW, at(2026, 10, 21, 11, 59)),
     (b"120300h", NOW, at(2026, 10, 21, 12, 3)),
-    (b"120600h", NOW, at(2026, 10, 20, 12, 6)),
+    (b"120600h", NOW, at(2026, 10, 21, 12, 6)),
+    (b"130100h", NOW, at(2026, 10, 20, 13, 1)),                       # more than an hour ahead: yesterday
     (b"235959h", at(2026, 10, 21, 0, 1), at(2026, 10, 20, 23, 59, 59)),
 ])
 def test_timestamps(raw: bytes, now: datetime, want: datetime) -> None:
@@ -197,6 +199,13 @@ def test_degrees_helper() -> None:
 def test_an_overlay_digit_is_written_as_a_letter_and_read_back() -> None:
     assert compress_position(0.0, 0.0, "5", "#")[0:1] == b"f"
     assert parse_position(compress_position(0.0, 0.0, "5", "#"), NOW).symbol_table == "5"
+
+
+def test_a_timestamp_that_is_none_leaves_the_position_without_a_time() -> None:
+    p = parse_position(b"322345z4903.50N/07201.75W>x", NOW)             # the 32nd
+    assert (p.timestamp, p.timestamp_local, p.lat, p.comment) == (None, False, pytest.approx(49.058333), "x")
+    p = parse_position(b"092460/4903.50N/07201.75W>x", NOW)             # the 60th minute, local: no time, and not local either
+    assert (p.timestamp, p.timestamp_local, p.comment) == (None, False, "x")
 
 
 def test_a_local_timestamp_is_kept_as_sent_and_flagged() -> None:

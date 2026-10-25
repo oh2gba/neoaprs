@@ -22,7 +22,8 @@ def test_a_locator_with_its_symbol_and_the_text_after_it() -> None:
     assert loc is not None and loc.symbol_table == "\\"
 
 
-@pytest.mark.parametrize("text", ["", "IO91", "IO91s", "IO91sx", "IO91sx/", "IO91sx/GHello", "io91sx/G", "SS91/G", "IO91sx#G", "IO9/G", "Hello", " IO91sx/G"])
+@pytest.mark.parametrize("text", ["", "IO91", "IO91s", "IO91sx", "IO91sx/", "IO91sx/GHello", "io91sx/G", "SS91/G", "IO91sx#G", "IO9/G", "Hello", " IO91sx/G",
+                                  "IO91SX hello", "KP20LE QTH Helsinki"])             # (a bare six-character grid before text is text: its sub-square is not a symbol)
 def test_text_that_is_no_locator(text: str) -> None:
     assert split_locator(text) == (None, text)
 

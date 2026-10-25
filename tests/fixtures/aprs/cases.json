@@ -367,8 +367,8 @@
      "area": {
       "shape": "filled ellipse",
       "colour": "cyan",
-      "lat_offset_deg": 1.0,
-      "lon_offset_deg": 1.0
+      "lat_offset_deg": 0.0666667,
+      "lon_offset_deg": 0.0666667
      }
     }
    }
@@ -615,6 +615,26 @@
   }
  },
  {
+  "name": "Mic-E type code wins over the obsolete hex telemetry: a Yaesu whose text starts with four hex-looking characters",
+  "source": "OH2XYZ-9",
+  "destination": "S32UVT",
+  "info": "`(_fl\"Oj/`1296 MHz on request_3",
+  "expected": {
+   "kind": "position",
+   "comment": "Mic-E: Returning - 1296 MHz on request"
+  }
+ },
+ {
+  "name": "test data with a ! inside is not a position (the X1J fallback is not for it)",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": ",test !4903.50N/07201.75W-x",
+  "expected": {
+   "kind": "other",
+   "other_kind": "test"
+  }
+ },
+ {
   "name": "Mic-E status text with a Maidenhead locator (spec chapter 10, from a TH-D7)",
   "source": "OH2XYZ-9",
   "destination": "S32UVT",
@@ -656,14 +676,14 @@
   }
  },
  {
-  "name": "Mic-E altitude as a word of its own after text",
+  "name": "Mic-E altitude only at the start of the status text: three characters and a brace inside the text are text",
   "source": "OH2XYZ-9",
   "destination": "S32UVT",
   "info": "`(_fl\"Oj/>Hello \"4T} bye",
   "expected": {
    "kind": "position",
-   "altitude_m": 61.0,
-   "comment": "Mic-E: Returning - Hello  bye"
+   "altitude_m": null,
+   "comment": "Mic-E: Returning - Hello \"4T} bye"
   }
  },
  {
@@ -766,7 +786,8 @@
    "lon": 24.9408333,
    "symbol_table": "/",
    "symbol_code": ">",
-   "comment": "Hello"
+   "comment": "Hello",
+   "ambiguity": 1
   }
  },
  {
@@ -1679,23 +1700,27 @@
   }
  },
  {
-  "name": "bad day in the timestamp",
+  "name": "bad day in the timestamp: the position stays, without a time",
   "source": "OH2XYZ-9",
   "destination": "APRS",
   "info": "@322345z4903.50N/07201.75W>x",
   "expected": {
-   "kind": "undecoded",
-   "error_contains": "timestamp"
+   "kind": "position",
+   "timestamp": null,
+   "lat": 49.0583333,
+   "comment": "x"
   }
  },
  {
-  "name": "bad hour in the timestamp",
+  "name": "bad hour in the timestamp: the position stays, without a time",
   "source": "OH2XYZ-9",
   "destination": "APRS",
   "info": "/256000h4903.50N/07201.75W>x",
   "expected": {
-   "kind": "undecoded",
-   "error_contains": "timestamp"
+   "kind": "position",
+   "timestamp": null,
+   "lat": 49.0583333,
+   "comment": "x"
   }
  },
  {

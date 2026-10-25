@@ -43,8 +43,8 @@ async def test_aprsp_goes_by_the_path_the_operator_set_for_the_asker(tmp_path: P
     await e.ctl.prefbook.set_path("OH2RDG", "OH2RCH-2")
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "?APRSP", "7"), path="OH2RCH-2*"))
     await heard(e, 1)
-    [position] = await said(e, 1)
-    assert position.tnc2() == "OH2GBA>APZNEO,OH2RCH-2:=6010.20N/02456.40E-NeoAPRS"
+    frames = await said(e, 2)                                               # (the query carries an id, so it is acked too, by the same path)
+    assert sorted(f.tnc2() for f in frames) == ["OH2GBA>APZNEO,OH2RCH-2::OH2RDG   :ack7", "OH2GBA>APZNEO,OH2RCH-2:=6010.20N/02456.40E-NeoAPRS"]
     await e.stop()
 
 
@@ -53,8 +53,8 @@ async def test_the_answer_to_an_rf_only_asker_ends_with_rfonly_and_one_that_cann
     await e.ctl.prefbook.set_rf_only("OH2RDG", True)
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "?APRSP", "7"), path="OH2RCH-2*"))
     await heard(e, 1)
-    [position] = await said(e, 1)
-    assert position.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1,RFONLY:=6010.20N/02456.40E-NeoAPRS"
+    frames = await said(e, 2)                                               # (the ack of the numbered query goes the same way)
+    assert sorted(f.tnc2() for f in frames) == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1,RFONLY::OH2RDG   :ack7", "OH2GBA>APZNEO,WIDE1-1,WIDE2-1,RFONLY:=6010.20N/02456.40E-NeoAPRS"]
     await e.ctl.prefbook.set_path("OH2RDG", ",".join(f"OH2RC{n}" for n in range(8)))
     e.now.advance(600)                                                      # type: ignore[attr-defined]
     with caplog.at_level(logging.WARNING, "neoaprs.queries"):

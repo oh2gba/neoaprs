@@ -133,10 +133,11 @@ async def test_a_text_that_cannot_be_sent_is_refused_for_a_bulletin_as_for_any_m
 # ---- queries
 
 @pytest.mark.parametrize("text", ["?APRSP", "?APRSS", "?APRSD", "?APRST", "?PING?", "?APRS?", "?APRSM", "?WX", "?aprsp", "?APRSH OH2XYZ"])
-async def test_a_query_to_us_is_not_acked_even_with_an_id_and_is_not_a_conversation_message(rig: Rig, text: str) -> None:
-    rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", text, "7"))
+async def test_a_query_to_us_is_acked_when_it_carries_an_id_and_is_not_a_conversation_message(rig: Rig, text: str) -> None:
+    rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", text, "7"))                # (numbered against the specification: the ack stops the radio's retries)
+    rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", text))
     await rig.settled()
-    assert rig.tnc.sent == [] and rig.m.records() == [] and await rig.log.recent() == [] and await rig.log.recent(overheard=True) == []
+    assert [f.info for f in rig.tnc.sent] == [b":OH2RDG   :ack7"] and rig.m.records() == [] and await rig.log.recent() == [] and await rig.log.recent(overheard=True) == []
 
 
 async def test_a_text_with_a_question_mark_that_is_no_query_is_a_message(rig: Rig) -> None:

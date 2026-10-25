@@ -4,8 +4,9 @@ station is kept as "overheard"; an ack or a rej to us settles the message of our
 handed to the host, which links it to the message it is a copy of (services/delivery.py).
 
 A text that reads as an ack or a rej (`ack12`, `rej3`) is one only when it quotes a message of ours to that station, in any state; otherwise it is an ordinary message without an id ("rejoin"), kept and
-not acked. A message whose text is a query (neoaprs/message.py `is_query`) is never acked or kept (services/queries.py answers it), and neither is a definition of telemetry channels (`PARM.`, `UNIT.`,
-`EQNS.`, `BITS.`), to us or to another: those stay in the packet log.
+not acked. A message whose text is a query (neoaprs/message.py `is_query`) is never kept (services/queries.py answers it); the specification gives a query no id, but a radio that numbers its query
+anyway is acked like any message, so that it does not retry five times. A definition of telemetry channels (`PARM.`, `UNIT.`, `EQNS.`, `BITS.`), to us or to another, is neither kept nor acked: those
+stay in the packet log.
 
 Reply-acks (neoaprs/aprsmessage.py): the `AA` of a message `{MM}AA` to us settles our message with that id to the sender as an ack does, and is acked as `ackMM}AA` (`{MM}` as `ackMM}`); a message with a number of that
 form, `{MM}` too, tells us the sender knows reply-acks, and its id is what the next message we send it carries as its `AA` (services/heard.py) until the station answers one of ours.
@@ -104,10 +105,12 @@ class Inbox:
         self._received(packet, message)
 
     def _received(self, packet: Packet, message: Message) -> None:
-        if is_query(message.text):
-            return                                                   # (a query has no id and is not acknowledged; the queries answer it)
         line = line_of(_info_of(packet))
         reply = None if line is None else reply_ack_of(line)
+        if is_query(message.text):
+            if message.msg_id is not None:                           # (a radio that numbers its query waits for an ack and retries without one: the ack costs one frame, the retries five)
+                self._host.ack(packet.sender, message.msg_id, reply)
+            return                                                   # (the queries answer it; it is not kept)
         if reply:
             self._settle(packet, reply, "acked")
         record = MessageRecord(0, packet.heard_at, "in", packet.sender, message.addressee, message.text, message.msg_id, "received", route=received_text(packet.path, packet.via))

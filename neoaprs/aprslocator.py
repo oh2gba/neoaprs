@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 from neoaprs.symbols import table_of
 
-_LOCATOR = re.compile(r"([A-R]{2}\d\d(?:[A-Xa-x]{2})?)(.)(.)(?= |$)", re.DOTALL)
+_LOCATOR = re.compile(r"([A-R]{2}\d\d(?:[A-Xa-x]{2})?+)(.)(.)(?= |$)", re.DOTALL)         # (the sub-square is possessive: "IO91SX hello" is text, not IO91 with the symbol SX)
 _GRID = re.compile(r"([A-R]{2}\d\d(?:[A-Xa-x]{2})?)\]?(?= |$)", re.DOTALL)
 _FIELD, _SQUARE, _SUB = 20.0, 2.0, 2.0 / 24         # the width of a field, a square and a subsquare in degrees of longitude (the height is half of it)
 

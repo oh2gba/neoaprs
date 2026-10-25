@@ -9,11 +9,12 @@ from dataclasses import dataclass
 
 MILE_KM = 1.609344
 FOOT_M = 0.3048
-_PHG = re.compile(r"PHG(\d)([0-~])(\d)(\d)")
+_PHG = re.compile(r"PHG(\d)([0-~])(\d)(\d)(?:[0-9A-Z]/)?")              # APRS 1.2 adds an optional digit (A = 10) and a mandatory "/" for the beacons an hour of a "probe" (`PHG72604/`): read past, not kept
 _RNG = re.compile(r"RNG(\d{4})")
 _DFS = re.compile(r"DFS(\d)([0-~])(\d)(\d)")
 _BEARING = re.compile(r"/(\d{3})/(\d)(\d)(\d)")
 _AREA = re.compile(r"(\d)(\d\d)([/1])(\d)(\d\d)")
+_AREA_SCALE = 1500                                 # an offset is sent as the square root of the degrees times this (APRS 1.1 areaobjects.txt; the 1.0.1 text said 100, which no program uses)
 _SHAPES = ("open circle", "line", "open ellipse", "open triangle", "open box", "filled circle", "coloured line", "filled ellipse", "filled triangle", "filled box")
 _COLOURS = ("black", "blue", "green", "cyan", "red", "violet", "yellow", "gray", "dim black", "dim blue", "dim green", "dim cyan", "dim red", "dim violet", "dim yellow", "dim gray")
 
@@ -48,7 +49,7 @@ class DfBearing:
 
 @dataclass(frozen=True, slots=True)
 class Area:
-    """An area object (symbol `\\l`): the shape, the colour and the offsets down and to the right (degrees) from the object's position, which is its upper left corner."""
+    """An area object (symbol `\\l`): the shape, the colour and the offsets down and to the right (degrees) from the object's position, which is its upper left corner; `710/310` is 4 minutes each way."""
     shape: str
     colour: str
     lat_offset_deg: float
@@ -86,7 +87,7 @@ def _phg(found: re.Match[str]) -> Phg:
 def _area(found: re.Match[str]) -> Area:
     shape, lat, tens, colour, lon = int(found.group(1)), int(found.group(2)), found.group(3), int(found.group(4)), int(found.group(5))
     index = colour + (10 if tens == "1" else 0)
-    return Area(_SHAPES[shape], _COLOURS[index] if index < len(_COLOURS) else "unknown", lat * lat / 100, lon * lon / 100)
+    return Area(_SHAPES[shape], _COLOURS[index] if index < len(_COLOURS) else "unknown", lat * lat / _AREA_SCALE, lon * lon / _AREA_SCALE)
 
 
 def split_extension(text: str, area: bool) -> tuple[Extensions | None, str]:

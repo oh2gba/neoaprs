@@ -76,7 +76,7 @@ def test_no_first_byte_makes_the_parser_raise(first: int) -> None:
 
 
 def test_an_exception_from_inside_is_undecoded_not_raised() -> None:
-    d = parse(b"@000000z4903.50N/07201.75W-", "A", "B", NOW)          # day 0
+    d = parse(b"@092345z4903.50N/07201", "A", "B", NOW)               # a position cut short after its timestamp
     assert isinstance(d, Undecoded)
 
 
