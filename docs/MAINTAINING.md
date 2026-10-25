@@ -8,7 +8,7 @@ packaged is in [`docs/development.md`](development.md).
 | what | where | how |
 |---|---|---|
 | the front page | `README.md` | the pitch, the downloads table, the radios table, the screenshots |
-| the release notes | `CHANGELOG.md` | a line under `## Unreleased`; the release workflow reads the section of the version (`scripts/release-notes.py`) |
+| the release notes | `CHANGELOG.md` | a line under `## Unreleased`; the release workflow reads the section of the version (`scripts/release-notes.py`) and makes it the notes of the GitHub release, so the section reads as release notes: one sentence that sums the release up, then groups, each with a short intro line and bullets of what the user sees, as the sections of 0.8.1 and 0.8.2 do. Before a release the section is tidied: overlapping bullets merged, and only the final behaviour kept (no bullet for a state that a later change took away) |
 | the manual and the radio guide | `docs/manual/`, `docs/RADIOS.md` | the file of the manual that the change touches, in plain words and short paragraphs; the description of a tab follows the tab |
 | the table of settings | `docs/manual/settings.md` | generated: `scripts/doc-settings --write`; a new setting also needs its words in `tests/support/settingsdoc.py` |
 | how the daemon behaves | `docs/daemon.md` | the technical details behind the manual, with the names the code uses |
@@ -34,8 +34,8 @@ update panel), `install.sh` (always under `releases/latest/download/`), the whee
 
 ## A release
 
-1. The version in `neoaprs/__init__.py` (the one place it is written). Rename `## Unreleased` of `CHANGELOG.md` to `## <version>` (the notes of the release are
-   that section) and add a fresh `## Unreleased` above it. The page has the version built in (open pages load themselves again when the daemon's differs): run
+1. The version in `neoaprs/__init__.py` (the one place it is written). Read `## Unreleased` of `CHANGELOG.md` as release notes (a one-sentence summary line first; `scripts/release-notes.py` prints it as GitHub will show it), rename it to `## <version>` (the notes of the release
+   are that section) and add a fresh `## Unreleased` above it. The page has the version built in (open pages load themselves again when the daemon's differs): run
    `scripts/build-page` after the change and commit `neoaprs/page/`; `tests/test_page_build.py` fails until you do.
 2. `scripts/check` green, commit, push `master` (the tag's workflow waits for this commit's CI run, so the tag may follow at once).
 3. The project page brought up to date (above), and the screenshots retaken only when the page changed since they were last taken: they show no version
@@ -44,7 +44,7 @@ update panel), `install.sh` (always under `releases/latest/download/`), the whee
 4. A tag `v<version>` pushed: `.github/workflows/release.yml` builds, smoke-tests and publishes the release. Its first job, `verify`, stops in seconds a tag
    whose number is not `VERSION`, a changelog with notes still under `## Unreleased`, a page not built with the version (`neoaprs/page/sw.js`), a commit that
    is not on `master`, and a commit whose CI run is red or missing (one still running is waited for, 20 minutes at most). A failed job leaves no release (a
-   draft at most, which the next attempt finishes). Watch the run with `gh run watch`, then open the release and read the notes. A run that failed for a
+   draft at most, which the next attempt finishes). The release is made as a draft and published when every file is on it. Watch the run with `gh run watch`, then open the release and read the notes. A run that failed for a
    reason outside the code (a runner, a download, a flaky test) is run again with *Re-run failed jobs* (`gh run rerun RUN_ID --failed`); one that needs a
    change in the code gets the change and a tag of the next number. **A tag is never moved.** `gh workflow run release.yml --ref v<version>` runs the tag's
    workflow again by hand, which publishes the release (or writes its files over) without a new tag.

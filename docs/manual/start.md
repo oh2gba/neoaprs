@@ -74,6 +74,8 @@ neoaprs db --data data packets
 
 With no file it plays the sample capture inside the package, three minutes of a TH-D7. `neoaprs capture` records a capture from your radio. Nothing is sent while nobody is connected, and the frames go on from where they were when the daemon connects again. `--port` is for this run only; the setting `serial/port` is not changed.
 
+A moving station can be tried without a car in the same way: `neoaprs gps-replay` plays a drive as a gpsd, and the Beacon tab's **A GPS via gpsd** reads it ([beacon.md](beacon.md#mobile-operation)).
+
 ## Stopping NeoAPRS
 
 - Ctrl+C or a termination signal ends the daemon cleanly: it finishes what the database was asked, closes it and exits with code 0. On Windows Ctrl+C, Ctrl+Break and the termination signal do the same.

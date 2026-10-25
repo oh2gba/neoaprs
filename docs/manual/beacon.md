@@ -158,7 +158,7 @@ The 20-minute floor of the fixed beacon does not apply to a moving station. Whil
 
 **Follow me.** While a GPS is chosen and has a fix, a **Follow me** button at the top right of the map keeps the map centred on you, at a close zoom at least. Dragging the map lets go, and so does the loss of the fix or choosing **Fixed**; press the button again to take hold.
 
-To try it without a vehicle, the [development guide](../development.md#trying-mobile-operation-without-a-vehicle) describes a replay of a drive.
+To try it without a vehicle, `neoaprs gps-replay` plays a drive as a gpsd ([commands.md](commands.md#the-tools)); the [development guide](../development.md#trying-mobile-operation-without-a-vehicle) describes it.
 
 ## The location
 

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>NeoAPRS: an APRS client for Windows, Linux and the Raspberry Pi</title>
-<meta name="description" content="A modern, easy-to-use APRS client: a map of the stations you hear, messages with acks and retries, the beacon, weather graphs, objects and bulletins of your own, and email. A standalone app, or a service you open from anywhere on your network.">
+<meta name="description" content="A modern, easy-to-use APRS client: a map of the stations you hear, messages with acks and retries, the beacon (fixed, or from a GPS for a moving station), weather graphs, objects and bulletins of your own, and email. A standalone app, or a service you open from anywhere on your network.">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
@@ -46,7 +46,7 @@
 <div class="hero" id="top">
   <div class="wrap">
     <h1>Neo<span>APRS</span></h1>
-    <p class="lead">A modern, easy-to-use APRS client: the stations you hear on a map, messages that get acked, weather, the beacon. One app, or a service you open from anywhere at home, on a laptop, a tablet or a phone.</p>
+    <p class="lead">A modern, easy-to-use APRS client: the stations you hear on a map, messages that get acked, weather, the beacon, fixed or from a GPS. One app, or a service you open from anywhere at home, on a laptop, a tablet or a phone.</p>
     <div class="actions">
       <a class="btn primary" href="https://github.com/oh2gba/neoaprs/releases/latest">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 20h16"/></svg>
@@ -145,6 +145,21 @@
   </div>
 </section>
 
+<section id="nearby">
+  <div class="wrap feature wide">
+    <div class="blurb">
+      <p class="eyebrow">What is around you</p>
+      <h2>The local APRS, at a glance</h2>
+      <ul class="ticks">
+        <li>The <b>Nearby</b> tab lists the digipeaters, the voice frequencies, the iGates and the stations heard direct, each list nearest first with the distance and bearing; a click flies the map to the station.</li>
+        <li>The digipeater you pick has its range circle on the map, one at a time, and the map is fitted to it.</li>
+        <li>A station that gives its voice frequency (145.775MHz T118 -060) has it on its card as a line: the tone, the offset and the range. Storm data and signposts are decoded too.</li>
+        <li>The APRS queries are answered, ?APRSH included, and objects you keep can wait to be asked for: your own QRU server, as in APRSISCE/32 and YAAC.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <section id="messages">
   <div class="wrap feature flip">
     <div class="blurb">
@@ -195,8 +210,8 @@
       <p class="eyebrow">Beacon and status</p>
       <h2>Your position, on your terms</h2>
       <ul class="ticks">
-        <li>When the last beacon went out, with Beacon now and Send status now, and the beacon every 30 or 60 minutes or every 3 hours.</li>
-        <li>Your place chosen on the map, your symbol picked from pictures, and a preview of the packet it makes.</li>
+        <li>A beacon status at the top: when the last beacon went out and when the next is due, with Beacon now and Send status now, and the beacon every 30 or 60 minutes or every 3 hours.</li>
+        <li>Your place chosen on the map or typed as coordinates or a locator, your symbol picked from pictures, and a preview of the packet it makes.</li>
         <li>A recommended path that follows your symbol: WIDE1-1,WIDE2-1 for a station that moves, WIDE2-1 for one that stays.</li>
         <li>A status report from your radio through Hamlib rigctld, or a text of your own: one choice, and only the fields it needs.</li>
         <li>A fill-in digipeater for WIDE1-1, one tickbox, off until you switch it on.</li>
@@ -205,15 +220,26 @@
       </ul>
     </div>
     <figure class="shot">
-      <a class="zoom frame crop panel" href="shots/beacon.png"><picture><source srcset="shots/beacon-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/beacon.png" width="1440" height="900" loading="lazy" alt="The Beacon tab in groups: the station with its place and symbol, the beacon with Beacon now, the path choice set to Recommended, and the status with Send status now"></picture></a>
+      <a class="zoom frame crop panel" href="shots/beacon.png"><picture><source srcset="shots/beacon-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/beacon.png" width="1440" height="900" loading="lazy" alt="The Beacon tab: the beacon status with Beacon now at the top, the station group with its place and symbol, the beacon group with its choice and the path set to Recommended, and the status with Send status now"></picture></a>
     </figure>
+  </div>
+  <div class="wrap feature wide">
+    <div class="blurb">
+      <h2>A moving station</h2>
+      <ul class="ticks">
+        <li>One choice, <b>Position</b>: <b>Fixed</b>, <b>A GPS via gpsd</b> or <b>A GPS on a serial port</b>. A GPS makes the beacon follow the fix of the receiver.</li>
+        <li>SmartBeaconing decides when it goes: often when you move fast or turn a corner, rarely when you stand still, with a preset for <b>By car</b>, <b>By bicycle</b>, <b>On foot</b> and <b>By boat</b>.</li>
+        <li>A compressed position with course, speed and altitude. With no fix nothing is sent, and never your home position.</li>
+        <li>On the map you move with the fix, and <b>Follow me</b> keeps the map on you. The beacon status shows the GPS and what SmartBeaconing does next.</li>
+      </ul>
+    </div>
   </div>
 </section>
 
 <section id="listen">
   <div class="wrap feature">
     <div class="blurb">
-      <p class="eyebrow">Beacon off</p>
+      <p class="eyebrow">Listening</p>
       <h2>A day to listen, without announcing yourself</h2>
       <ul class="ticks">
         <li>One <b>Beacon</b> choice on the Beacon tab: <b>Off</b> or an interval, and for a moving station <b>Off</b> or <b>On (SmartBeaconing)</b>.</li>
@@ -288,12 +314,12 @@
       <h2>Make one, change it, kill it</h2>
       <ul class="ticks">
         <li>The Objects tab lists them with how often each was sent and when it goes out next.</li>
-        <li>Edit opens the form: symbol, position, comment, a path of its own, and course and speed behind a closed <b>Moving</b> heading.</li>
+        <li>A click on its row selects it on the map and puts it in the form under the list: symbol, position, comment, a path of its own, a QRU group, and course and speed behind a closed <b>Moving</b> heading. Add makes a new one, Save changes the selected one.</li>
         <li>A kill is sent three times and the object is gone from the map and from the air.</li>
       </ul>
     </div>
     <figure class="shot">
-      <a class="zoom frame crop pane" href="shots/objects-form.png"><picture><source srcset="shots/objects-form-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/objects-form.png" width="1440" height="900" loading="lazy" alt="The Objects tab with the form of an object open: name, symbol, position, comment, course, speed and path, and the list of our objects below it"></picture></a>
+      <a class="zoom frame crop pane" href="shots/objects-form.png"><picture><source srcset="shots/objects-form-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/objects-form.png" width="1440" height="900" loading="lazy" alt="The Objects tab: the list of our objects with one selected, and under it the form with the name, symbol, position, comment, course, speed and path, and the Cancel and Save buttons"></picture></a>
     </figure>
   </div>
 </section>
@@ -423,7 +449,7 @@
       </ul>
     </div>
     <figure class="shot">
-      <a class="zoom frame crop guide" href="shots/setup.png"><picture><source srcset="shots/setup-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/setup.png" width="1440" height="900" loading="lazy" alt="The setup guide, at its Position step, over the map of Espoo: a large Choose on map button, the place in one line and the coordinates"></picture></a>
+      <a class="zoom frame crop guide" href="shots/setup.png"><picture><source srcset="shots/setup-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/setup.png" width="1440" height="900" loading="lazy" alt="The setup guide, at its Position step, over the map of Espoo: the Choose on map button, the place as text beside it and the entry for the coordinates and the locator"></picture></a>
     </figure>
   </div>
 </section>
@@ -438,15 +464,17 @@
         <tr><th scope="row">Kenwood TH-D7, TM-D700, TS-2000; TNC-2 clones (MFJ-1270B/1274/1278, TAPR)</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#kenwood-th-d7-and-tm-d700">serial, 9600</a></td></tr>
         <tr><th scope="row">Kenwood TM-D710, TH-D72</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#kenwood-tm-d710-and-th-d72">serial or USB</a></td></tr>
         <tr><th scope="row">Kenwood TH-D74, TH-D75</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#kenwood-th-d74-and-th-d75">USB or Bluetooth</a></td></tr>
-        <tr><th scope="row">Mobilinkd TNC3, TNC4</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#mobilinkd-tnc3-and-tnc4">USB or Bluetooth</a></td></tr>
+        <tr><th scope="row">Mobilinkd TNC3, TNC4</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#mobilinkd-tnc3-and-tnc4">USB, Bluetooth or Bluetooth LE</a></td></tr>
         <tr><th scope="row">BTech UV-PRO, Vero VR-N76, Radioddity GA-5WB (untested)</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#btech-uv-pro-vero-vr-n76-radioddity-ga-5wb">Bluetooth</a></td></tr>
         <tr><th scope="row">PicoAPRS V4 (untested)</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#picoaprs-v4">Bluetooth, USB-C or TCP</a></td></tr>
+        <tr><th scope="row">LoRa APRS iGate and Tracker, CA2RXU firmware (untested)</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#lora-aprs-ca2rxu-firmware">KISS over TCP or Bluetooth LE</a></td></tr>
         <tr><th scope="row">NinoTNC, TNC-Pi, TNC-X, any TNC already in KISS</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#ninotnc">USB or serial</a></td></tr>
         <tr><th scope="row">Kantronics KPC-3+</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#kantronics-kpc-3">RS-232</a></td></tr>
         <tr><th scope="row">Any radio with a sound-card interface (Digirig, SignaLink, USB dongle), through Direwolf or a soundmodem</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#direwolf-sound-card">KISS over TCP</a></td></tr>
+        <tr><th scope="row">A GPS receiver, for a moving station</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#a-gps-receiver">gpsd or a serial port</a></td></tr>
       </tbody>
     </table>
-    <p class="note">On Linux a Bluetooth radio paired with the computer is picked from the Port list by its name, with no extra steps. Yaesu and Icom radios have no KISS TNC for a computer: use a sound-card interface and Direwolf. <a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#which-radio-or-tnc-do-you-have">The radio guide</a> marks which entries are tried on the air and which follow the radios' manuals and users' reports.</p>
+    <p class="note">On Linux a Bluetooth radio paired with the computer is picked from the Port list by its name, with no extra steps; a Bluetooth LE KISS TNC is a port of its own (ble://, with an extra, not yet tried on a radio). Yaesu and Icom radios have no KISS TNC for a computer: use a sound-card interface and Direwolf. <a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#which-radio-or-tnc-do-you-have">The radio guide</a> marks which entries are tried on the air and which follow the radios' manuals and users' reports.</p>
   </div>
 </section>
 

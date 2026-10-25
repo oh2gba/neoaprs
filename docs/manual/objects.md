@@ -15,7 +15,7 @@ The form is at the bottom of the tab, under the list of your objects (oldest fir
 
 - **Name.** Printable ASCII, case-sensitive, none of `!`, `_`, `|` and `~`, no blank at either end. It is never your own call, and never the call of a station that was heard.
 - **Symbol.** The picture and its name, as in the Beacon tab: a click on it opens the picker.
-- **Location.** As in the Beacon tab and the setup guide ([beacon.md](beacon.md#the-location)): a plain **Choose on map** button and a click on the map (Cancel while the map waits), the place as text beside the button, and the latitude, longitude and locator behind a click on the place, open while the place is missing or wrong. The map shows a pin where it is while the tab is in front.
+- **Location.** As in the Beacon tab and the setup guide ([beacon.md](beacon.md#the-location)): a plain **Choose on map** button and a click on the map (Cancel while the map waits), the place as text beside the button, and the latitude, longitude and locator behind a click on the place (closed until you click it, and open by itself when a coordinate is wrong). The map shows a pin where it is while the tab is in front.
 - **Comment.** 43 characters, 36 behind a course and speed.
 - **Moving.** A closed heading with the **course** in degrees and the **speed** in km/h: each, both or neither. It is open when the object you change already has a course or a speed; empty, the object does not move.
 - **Path.** The placeholder is the beacon's path, which an empty field means. Up to 8 digipeaters, or the word `DIRECT` for none at all. `RFONLY` or `NOGATE` in it keeps the iGates from putting it on the internet.

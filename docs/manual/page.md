@@ -18,9 +18,9 @@ The page has a **map** of the area round your station and, at its right, a **pan
 | **Email** | mail through the gateway ([email.md](email.md)) |
 | **Bulletins** | the message board and the box to post to it ([bulletins.md](bulletins.md)) |
 | **Objects** | your objects and items ([objects.md](objects.md)) |
-| **Beacon** | the beacon status with Beacon now, where your position comes from (fixed, or a GPS), and what your station says on the air ([beacon.md](beacon.md)) |
+| **Beacon** | the beacon status with Beacon now, where your position comes from (fixed, or a GPS), the Beacon choice that switches the beacon off, and what your station says on the air ([beacon.md](beacon.md)) |
 | **Packets** | the log, newest first, below |
-| **Settings** | the TNC and everything else ([settings.md](settings.md)) |
+| **Settings** | the TNC and everything else, below ([settings.md](settings.md)) |
 
 ### Stations
 
@@ -65,11 +65,26 @@ The tab is laid out by its own width. When it is narrower than 520 px (a phone, 
 
 A beacon, message or answer you sent is in the log as a packet with direction `out`.
 
+### Settings
+
+The tab has no Save button ([start.md](start.md#how-settings-apply)). From the top it has:
+
+- **Language**, and **Run the setup guide again** ([start.md](start.md#the-setup-guide));
+- **TNC**: the radio's status in one line with **Reconnect**, and behind its arrow the **Radio type**, the **Port** and **Speed** (or the **TCP host** and **TCP port**), **Find my radio** and the **Terminal** ([radio.md](radio.md));
+- **Digipeater**: the tickbox of the fill-in digipeater ([beacon.md](beacon.md#the-fill-in-digipeater));
+- **Web page**: **Allow access from the network**, with the access key and the addresses once it is on, and the secure connection ([network.md](network.md));
+- **Notifications**, in two boxes: **On the NeoAPRS computer** and **In this browser** ([notifications.md](notifications.md));
+- **Map**: the **Radius** and the **Download map** button on the same row ([The base map](#the-base-map));
+- **Update check**: **Check now** ([install.md](install.md#the-update-check)).
+
+What the station says on the air, the call and the position are on the Beacon tab. [settings.md](settings.md) lists every setting and where it is.
+
 ## The map
 
 A marker for every station that has a position shows the APRS symbol with the call under it.
 
 - Your own station is ringed. An object or an item of yours is ringed with a dashed line and can be dragged to another place.
+- While a GPS is chosen ([beacon.md](beacon.md#mobile-operation)) your own station is at the GPS fix and moves with it, and a **Follow me** button at the top right of the map, there while the GPS has a fix, keeps the map centred on you. Dragging the map lets go of it.
 - The track of a station that moved is a line that fades with age along its length: the newest stretch full, the oldest faint.
 - The selected station, when it is a digipeater of the Nearby tab that gave a range, has a pale blue circle of that range round it, under the markers (one at a time; the map is fitted to the circle when the station is picked).
 - A thin dashed circle round your own station is the ALOHA circle of Bob Bruninga, WB4APR: the distance within which the stations heard on the radio would fill the channel (1200 baud takes about 60 packets a minute), so a packet meant for a station beyond it is hard to receive reliably. The pointer resting on the line shows its radius.
@@ -146,7 +161,7 @@ A click on a marker or on a row of the Stations table opens that station's card 
 
 The **header** is one calm line. It holds the title **NeoAPRS**, a link to the project page (https://oh2gba.github.io/neoaprs/, in a new tab; it looks like the title, with an underline on hover), and at its right the number of messages not seen as a small badge with an envelope. That is the messages and the gateway's mail not seen, one count that the handle of the folded panel and the title of the browser tab have too. A click opens the Messages tab, or the Email tab when all of them are the gateway's.
 
-While no call is set an amber **no call set** button is beside the title, which opens the setup guide. While the daemon is set to receive only (`station/transmit` is `false`, a setting that is not on the page) an amber **Receive only** badge is beside it, on every screen size; a click on it opens the Beacon tab ([beacon.md](beacon.md#receive-only)). A beacon that is off ([beacon.md](beacon.md#beacon-off)) is not receive only and shows no badge. Your call is not in the header; it is in the Settings tab and in every message you send.
+While no call is set an amber **no call set** button is beside the title, which opens the setup guide. While the daemon is set to receive only (`station/transmit` is `false`, a setting that is not on the page) an amber **Receive only** badge is beside it, on every screen size. It is only a mark, not a button; its hover text says what it means and where it is set ([beacon.md](beacon.md#receive-only)). A beacon that is off ([beacon.md](beacon.md#beacon-off)) is not receive only and shows no badge. Your call is not in the header; it is in the Settings tab and in every message you send.
 
 The **footer** is one small muted line under the open tab of the panel (under the panel, not under the map; on a phone under the tab; not while the panel is folded). It is always the same height, so nothing moves when a message comes or goes.
 

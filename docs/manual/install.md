@@ -22,7 +22,7 @@ The installer is not signed. Windows SmartScreen may say "Windows protected your
 - The task **Desktop shortcut** is off by default.
 - The task **Start NeoAPRS when I sign in** is on by default. It starts the app in the tray when you sign in.
 - The last page offers **Open NeoAPRS now**.
-- Installing over an older version ends the running app and daemon first. **Open NeoAPRS now** on the last page starts the app again; a silent update leaves that to the next sign-in, except the one of **Update now** ([Updating](#updating)), which starts again what was running.
+- Installing over an older version ends the running app and daemon first, by itself and cleanly (the daemon the way **Stop NeoAPRS** ends it), before Setup looks for files in use, so that you are not asked to close two programs. **Open NeoAPRS now** on the last page starts the app again; a silent update leaves that to the next sign-in, except the one of **Update now** ([Updating](#updating)), which starts again what was running.
 - The uninstaller ends the app and the daemon, removes the program, the start at sign-in and the service entry, and leaves the data folder `%LOCALAPPDATA%\NeoAPRS`.
 
 A silent install: `NeoAPRS-Setup-<version>.exe /VERYSILENT /SUPPRESSMSGBOXES /CURRENTUSER`. Add `/TASKS=""` for no start at sign-in and no desktop shortcut, `/DIR=` for another folder, `/LOG=FILE` for an install log.
