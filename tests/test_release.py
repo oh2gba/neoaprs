@@ -46,10 +46,11 @@ def test_the_notes_are_the_section_of_the_version_or_the_newest_one(tmp_path: Pa
     missing = notes("0.3.0", tmp=tmp_path)
     assert missing.returncode == 1 and "0.3.0" in missing.stderr and missing.stdout == ""
     assert notes("0.2", tmp=tmp_path).returncode == 1, "0.2 is not 0.2.0"
-    assert notes(changelog="# Changelog\n\n## 0.2.0\n\n## 0.1.0\n- x\n", tmp=tmp_path).returncode == 1, "an empty section is no notes"
+    assert notes("0.2.0", changelog="# Changelog\n\n## 0.2.0\n\n## 0.1.0\n- x\n", tmp=tmp_path).returncode == 1, "an empty section is no notes"
+    assert notes(changelog="# Changelog\n\n## Unreleased\n\n## 0.1.0\n- x\n", tmp=tmp_path).stdout == "- x\n", "without a version: the newest section that has notes (the empty Unreleased of a tree just released is passed over)"
 
 
-def test_the_real_changelog_has_notes_for_its_newest_section() -> None:
+def test_the_real_changelog_has_notes_for_its_newest_section_that_is_not_an_empty_unreleased() -> None:
     done = subprocess.run([sys.executable, str(NOTES)], capture_output=True, text=True, encoding="utf-8", timeout=30)
     assert done.returncode == 0 and done.stdout.strip(), done.stderr
 

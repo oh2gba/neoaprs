@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Prints the notes of a release: the text of CHANGELOG.md under the newest `## ` heading, or, with a VERSION, under the heading that names it (`## 0.1.0`); the heading line itself is left out.
+"""Prints the notes of a release: the text of CHANGELOG.md under the newest `## ` heading that has any (an empty `## Unreleased` above the newest release is skipped), or, with a VERSION, under the
+heading that names it (`## 0.1.0`); the heading line itself is left out.
 
   scripts/release-notes.py [VERSION] [--changelog FILE]
 
@@ -14,11 +15,13 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def section(text: str, version: str | None) -> str | None:
-    """The body of the section whose heading names `version` (the first section when there is no version), or None."""
+    """The body of the section whose heading names `version` (the first section that has a body when there is no version: the empty Unreleased of a tree just released is passed over), or None."""
     parts = re.split(r"^## (.*)$", text, flags=re.M)             # [before, heading, body, heading, body, ...]
     for heading, body in zip(parts[1::2], parts[2::2]):
-        if version is None or re.search(rf"(?<![\w.]){re.escape(version)}(?![\w.])", heading):
+        if version is not None and re.search(rf"(?<![\w.]){re.escape(version)}(?![\w.])", heading):
             return body.strip() or None
+        if version is None and body.strip():
+            return body.strip()
     return None
 
 
