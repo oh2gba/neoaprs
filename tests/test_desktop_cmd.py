@@ -1,5 +1,6 @@
 """`neoaprs app` end to end with the shell and the daemon replaced (tests/support/fakeshell.py, a scripted `open_session`): the second app, the fallbacks when no window can be had, a page that does not come up, a shell that
 fails to start, and `--quit`. The real daemon is tests/test_desktop_session.py, the real toolkits are tests/test_desktop_qt.py and tests/test_desktop_winshell.py."""
+import subprocess
 import sys
 import threading
 import types
@@ -10,7 +11,7 @@ import pytest
 from neoaprs.desktop import cmd
 from neoaprs.desktop.session import NoPage, Session
 from neoaprs.desktop.shell import Choice
-from neoaprs.desktop.single import SingleApp
+from neoaprs.desktop.single import PID_NAME, SingleApp
 from tests.support import fakeshell
 
 PAGE = "http://127.0.0.1:7303/"
@@ -148,6 +149,7 @@ def test_quit_tells_the_app_and_waits_until_it_has_let_go_of_the_folder(tmp_path
     app = SingleApp(tmp_path)
     assert app.acquire()
     app.handle(lambda command: threading.Timer(0.3, app.close).start() if command == "quit" else None)
+    (tmp_path / PID_NAME).write_text(f"{_ended_pid()}\n", encoding="ascii")                 # (the app here is this process, which does not end: the id of one that has)
     assert cmd.main(["--quit", "--data", str(tmp_path)]) == 0
     assert "has ended" in capsys.readouterr().err and not app.running()
 
@@ -167,3 +169,24 @@ def test_the_command_is_neoaprs_app_and_neoaprs_app_runs_the_same(capsys: pytest
     with pytest.raises(SystemExit) as stop:
         cli.main(["app", "--help"])
     assert stop.value.code == 0 and "--tray" in capsys.readouterr().out
+
+
+def test_quit_waits_for_the_process_of_the_app_not_only_for_its_lock(tmp_path: Path) -> None:
+    """The lock goes before the process (the window's engine unloads after it): `--quit` says the app has ended only when its process is gone, so that an uninstaller or an update finds no file in use."""
+    app = SingleApp(tmp_path)
+    assert app.acquire()
+    app.handle(lambda command: app.close())
+    try:
+        assert cmd.quit_the_app(tmp_path, 1.0) == 1, "this process, whose id the app wrote, is still here"
+        assert app.acquire()
+        app.handle(lambda command: app.close())
+        (tmp_path / PID_NAME).write_text(f"{_ended_pid()}\n", encoding="ascii")
+        assert cmd.quit_the_app(tmp_path, 5.0) == 0
+    finally:
+        app.close()
+
+
+def _ended_pid() -> int:
+    child = subprocess.Popen([sys.executable, "-c", "pass"])
+    child.wait()
+    return child.pid

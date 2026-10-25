@@ -20,7 +20,7 @@ from . import appstate, shell
 from .autostart import autostart_for
 from .session import NoPage, Session, open_session
 from .shell import Choice, ShellContext
-from .single import SingleApp
+from .single import SingleApp, process_alive
 
 log = logging.getLogger("neoaprs.desktop")
 QUIT_WAIT_SEC = 40.0                              # a little more than the daemon is given to end (session.STOP_TIMEOUT_SEC)
@@ -62,15 +62,16 @@ def run_shell(choice: Choice, ctx: ShellContext) -> int:
 
 
 def quit_the_app(data: Path, wait_sec: float) -> int:
-    """`--quit`: says `quit` to the app that holds the folder and waits until it has let go of it (it stops its own daemon first, which takes a moment). 0 when none runs (any more)."""
+    """`--quit`: says `quit` to the app that holds the folder and waits until it has let go of it (it stops its own daemon first, which takes a moment) and its process is gone. 0 when none runs (any more)."""
     single = SingleApp(data)
     if not single.running():
         say(f"app: NeoAPRS app is not running on {data}")
         return 0
+    pid = single.pid()
     single.tell_the_other("quit")
     deadline = time.monotonic() + wait_sec
     while time.monotonic() < deadline:
-        if not single.running():
+        if not single.running() and (pid is None or not process_alive(pid)):   # (the lock goes before the process: the window's engine unloads after it, and a file of the app is in use until then)
             say("app: NeoAPRS app has ended")
             return 0
         time.sleep(0.2)

@@ -3,6 +3,7 @@ port that it writes into `neoaprs-app.port`; the second finds the lock taken, re
 understood, and the two words only raise the window and end the app, which whoever can write in the data folder can do anyway (it is private to the user), so no key is needed. The lock goes with the process,
 however it ends, so a crash leaves no stale app behind (a stale port file is only a refused connection)."""
 import contextlib
+import os
 import logging
 import socket
 import threading
@@ -16,6 +17,7 @@ log = logging.getLogger("neoaprs.desktop")
 
 LOCK_NAME = APP_LOCK_NAME
 PORT_NAME = "neoaprs-app.port"
+PID_NAME = "neoaprs-app.pid"           # the process id of the app that holds the folder: `--quit` waits for the process itself to be gone, not only for the lock (the window's engine unloads after the lock is let go)
 COMMANDS = ("show", "quit")
 HEAR_SEC = 2.0
 ACCEPT_SEC = 0.25
@@ -78,6 +80,7 @@ class SingleApp:
         server.settimeout(ACCEPT_SEC)                            # (closing a socket does not end an accept that waits in another thread on every system: it looks at the flag between waits)
         self._server = server
         (self.data / PORT_NAME).write_text(f"{server.getsockname()[1]}\n", encoding="ascii")
+        (self.data / PID_NAME).write_text(f"{os.getpid()}\n", encoding="ascii")
         threading.Thread(target=self._serve, args=(server,), name="neoaprs-app-single", daemon=True).start()
 
     def _serve(self, server: socket.socket) -> None:
@@ -113,6 +116,14 @@ class SingleApp:
                     return False
                 time.sleep(0.1)
 
+    def pid(self) -> int | None:
+        """The process id of the app that holds the folder, as it wrote it; None when there is none to read."""
+        try:
+            return int((self.data / PID_NAME).read_text(encoding="ascii").strip())
+        except (OSError, ValueError):
+            return None
+
+
     def close(self) -> None:
         if self._server is not None:
             self._server.close()
@@ -120,3 +131,30 @@ class SingleApp:
             with contextlib.suppress(OSError):
                 (self.data / PORT_NAME).unlink(missing_ok=True)
         self._lock.release()
+
+
+def process_alive(pid: int) -> bool:
+    """Whether a process of this id is still there. Windows is asked for the process object itself (`os.kill` would end the process there); elsewhere a signal of 0 is sent, which only looks."""
+    if os.name == "nt":
+        return _alive_on_windows(pid)
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def _alive_on_windows(pid: int) -> bool:
+    import ctypes
+
+    windll = ctypes.windll  # type: ignore[attr-defined, unused-ignore]        # (only Windows has it)
+    kernel32 = windll.kernel32
+    handle = kernel32.OpenProcess(0x00100000 | 0x1000, False, pid)             # SYNCHRONIZE and PROCESS_QUERY_LIMITED_INFORMATION
+    if not handle:
+        return False
+    try:
+        return bool(kernel32.WaitForSingleObject(handle, 0) == 0x102)           # WAIT_TIMEOUT: the process has not ended
+    finally:
+        kernel32.CloseHandle(handle)

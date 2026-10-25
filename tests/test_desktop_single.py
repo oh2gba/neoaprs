@@ -1,12 +1,15 @@
 """One app to a data folder: the second one finds the lock taken, says `show` (or `quit`) to the first one on the loopback and ends; what is said before the first one has a window is kept until it has."""
 import socket
 import threading
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
 from neoaprs.desktop import single
-from neoaprs.desktop.single import LOCK_NAME, PORT_NAME, SingleApp
+from neoaprs.desktop.single import LOCK_NAME, PORT_NAME, SingleApp, process_alive
 
 
 def wait(event: threading.Event) -> bool:
@@ -67,3 +70,24 @@ def test_a_stale_port_file_is_a_failure_to_say_so_and_not_a_hang(tmp_path: Path,
     assert not SingleApp(tmp_path).tell_the_other("show")
     (tmp_path / PORT_NAME).write_text("not a port\n", encoding="ascii")
     assert not SingleApp(tmp_path).tell_the_other("show")
+
+
+def test_the_app_writes_its_process_id_beside_the_port_and_a_second_app_reads_it(tmp_path: Path) -> None:
+    app = SingleApp(tmp_path)
+    assert app.pid() is None
+    assert app.acquire()
+    try:
+        assert app.pid() == os.getpid() and SingleApp(tmp_path).pid() == os.getpid()
+    finally:
+        app.close()
+
+
+def test_a_process_that_has_ended_is_not_alive_and_this_one_is() -> None:
+    assert process_alive(os.getpid())
+    assert not process_alive(_ended_pid())
+
+
+def _ended_pid() -> int:
+    child = subprocess.Popen([sys.executable, "-c", "pass"])
+    child.wait()
+    return child.pid
