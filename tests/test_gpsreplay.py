@@ -183,7 +183,7 @@ class TripClock:
 async def test_a_mobile_beacon_follows_the_drive_as_a_cars_would_start_corners_and_time() -> None:
     server = await serve(0.004)
     clock = TripClock(server)
-    rig = ServiceRig(clock=clock, station_symbol_code=">", gps_source="gpsd", gps_host=f"127.0.0.1:{server.port}")      # type: ignore[arg-type]
+    rig = ServiceRig(clock=clock, station_symbol_code=">", beacon_interval_min=30, gps_source="gpsd", gps_host=f"127.0.0.1:{server.port}")      # type: ignore[arg-type]
     feed = GpsFeed(clock, Backoff([0.05]))
     gps = Gps(feed, lambda: rig.config, clock)
     feed.fixed.connect(gps.take)

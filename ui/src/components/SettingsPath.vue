@@ -8,7 +8,7 @@ import { t } from "@/i18n";
 import { DIRECT, callListText } from "@/lib/calls";
 import type { Choice, FieldInfo } from "@/lib/settings";
 
-const props = defineProps<{ id: string; info: FieldInfo; modelValue: string; error: string; changed: boolean; recommended: string }>();
+const props = defineProps<{ id: string; info: FieldInfo; modelValue: string; error: string; changed: boolean; recommended: string; disabled?: boolean }>();
 const emit = defineEmits<{ "update:modelValue": [value: string]; choose: [value: string]; commit: [next: EventTarget | null]; cancel: [] }>();
 
 const RECOMMENDED_CHOICE = "recommended";
@@ -96,7 +96,7 @@ watch(
 </script>
 
 <template>
-  <SettingsField :id="id" :info="field" :model-value="shown" fallback="" :error="error" :changed="changed" @update:model-value="pick">
+  <SettingsField :id="id" :info="field" :model-value="shown" fallback="" :error="error" :changed="changed" :disabled="disabled" @update:model-value="pick">
     <template #after>
       <input
         v-if="typing"
@@ -106,6 +106,7 @@ watch(
         autocomplete="off"
         spellcheck="false"
         :value="text"
+        :disabled="disabled"
         :placeholder="recommended"
         :aria-label="t('settings.path.custom_label')"
         @input="type"

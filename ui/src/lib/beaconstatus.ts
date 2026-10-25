@@ -1,7 +1,9 @@
 // What the beacon status at the top of the Beacon tab says (components/BeaconStatus.vue), in the look of the radio status: a label, one coloured pill and plain lines. A fixed station says when the last beacon went and when the timer sends the next
 // ("Last beacon 4 min ago · next in 56 min (every 60 min)"); a moving station says the GPS (the pill is the state of the GPS, the line the fix or why there is none) and, under it, what SmartBeaconing does (lib/gpsstatus.ts has those words).
+// While the beacon is Off (the interval is 0), for either, the label is Beacon, the pill is off and the line says "Beacon off".
 import { t } from "@/i18n";
 import { dateTimeText, agoWords, untilText } from "@/lib/format";
+import { beaconOff } from "@/lib/beaconoff";
 import { gpsProblem, gpsStateText, gpsStatus, isMoving, mobileBeaconText } from "@/lib/gpsstatus";
 import type { GpsState, StatusMessage } from "@/protocol/protocol";
 
@@ -37,6 +39,17 @@ function fixedLine(status: StatusMessage, nowMs: number): string {
 /** The block for the status the daemon last told (`status`), the GPS topic (`gps`), the settings in force (`values`) and the time now. A station moves when the daemon says its beacon follows the GPS, before it has told when the settings say so. */
 export function beaconBlock(status: StatusMessage | null, gps: GpsState | null, values: Readonly<Record<string, string>>, nowMs: number): BeaconBlock {
   const moving = gps === null ? isMoving(values) : gps.mobile;
+  if (beaconOff(values)) {
+    return {
+      moving,
+      label: t("beacon.label"),
+      pill: { text: t("beacon.state.off"), tone: "beacon-off" },
+      line: t("beacon.line.off"),
+      hover: undefined,
+      smart: null,
+      problem: "",
+    };
+  }
   if (moving) {
     return {
       moving,

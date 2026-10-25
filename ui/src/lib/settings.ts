@@ -6,10 +6,14 @@ import type { MessageId } from "@/i18n/catalogue";
 import { errorReason, type Failure } from "@/i18n/errortext";
 import type { Params } from "@/i18n/message";
 import { STATION_HOURS, STATION_HOURS_KEY } from "@/lib/aging";
+import { ANTENNA, beaconOff } from "@/lib/beaconoff";
 import { isMoving } from "@/lib/gpsstatus";
 import { lazyText } from "@/lib/lazytext";
 import { STATUS_CHOICES, statusShown, statusSource } from "@/lib/status";
 import { CONFIG_KEYS, LIMITS, TNC_PROFILES } from "@/protocol/lists";
+
+/** What On stores for a moving station that was Off: the interval a fixed station is offered first (the daemon does not use it there). */
+const MOVING_BEACON_ON = "30";
 
 type FieldKind = "text" | "bool" | "readonly" | "choice";
 
@@ -102,10 +106,10 @@ const beaconChoices = (): readonly Choice[] => [
 /** How long a station stays on the map: 1 h, 3 h, 6 h, 12 h or 24 h (the Stations tab offers them). */
 const stationHoursChoices = (): readonly Choice[] => STATION_HOURS.map((hours) => ({ value: String(hours), label: t("station.table.hours", { n: hours }) }));
 
-/** Whether the station transmits at all: on, or receive only (station/transmit). */
-const transmitChoices = (): readonly Choice[] => [
-  { value: "true", label: t("settings.transmit.on") },
-  { value: "false", label: t("settings.transmit.off") },
+/** The beacon of a station that moves (a GPS is chosen): Off, or On, which SmartBeaconing times. On stores the interval a fixed station is offered first; a moving station does not use it. */
+const movingBeaconChoices = (): readonly Choice[] => [
+  { value: "0", label: t("settings.beacon_interval.off") },
+  { value: MOVING_BEACON_ON, label: t("settings.beacon_interval.on_smart") },
 ];
 
 const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
@@ -133,7 +137,6 @@ const travelChoices = (): readonly Choice[] => [
 
 const SPECS: Record<string, FieldSpec> = {
   "station/call": { label: "settings.call.label" },
-  "station/transmit": { label: "settings.transmit.label", kind: "choice", choices: transmitChoices },
   "station/lat": { label: "settings.lat.label", unit: "°" },
   "station/lon": { label: "settings.lon.label", unit: "°" },
   "station/symbol_table": { name: "settings.symbol.label", label: "settings.symbol.label" },
@@ -284,6 +287,15 @@ const SPECS: Record<string, FieldSpec> = {
   "beacon/travel": { label: "settings.travel.label", kind: "choice", choices: travelChoices, tip: ["settings.travel.tip1"] },
 };
 
+/** The beacon choice of a station that moves, in place of the interval of a fixed one. */
+const MOVING_BEACON = field({
+  name: "settings.beacon_interval.name",
+  label: "settings.beacon_interval.label",
+  kind: "choice",
+  choices: movingBeaconChoices,
+  tip: ["settings.beacon_interval.tip_moving"],
+});
+
 /** What each setting says of itself (words in the language of the page, made when they are read); a key this page does not know has none. */
 export const FIELDS: Record<string, FieldInfo> = Object.fromEntries(Object.entries(SPECS).map(([key, spec]) => [key, field(spec)]));
 
@@ -307,9 +319,6 @@ export const SUBGROUPS: Record<string, { readonly text: string; readonly title: 
     },
   },
 };
-
-/** The antenna's keys belong to the station, though they are the beacon's to send. */
-const ANTENNA = ["beacon/power_w", "beacon/antenna_height_m", "beacon/antenna_gain_db", "beacon/antenna_direction"];
 
 /** What the Beacon tab keeps behind a closed heading in the Beacon group: the antenna (the PHG part of the beacon, which only a fixed station has) and the path. */
 export const BEACON_FOLDS: readonly { readonly group: string; readonly title: string; readonly keys: readonly string[] }[] = [
@@ -346,11 +355,10 @@ const TNC_ORDER = ["tnc/profile", "serial/port", "serial/baud", "tcp/host", "tcp
 
 /** The Status group: the choice first, then what that choice needs. */
 const STATUS_ORDER = ["status/source", "station/status", "status/rigctld", "status/template", "status/interval_min"];
-/** The Beacon group: how often (a fixed station) or what it moves as (a moving one), what it says, then the folds (the antenna, the path). */
+/** The Beacon group: the Beacon choice (the interval of a fixed station, Off or On for a moving one), what it travels as (a moving station), what it says, then the folds (the antenna, the path). */
 const BEACON_ORDER = ["beacon/interval_min", "beacon/travel", "station/comment", ...ANTENNA, "beacon/path"];
 /** The Station group: the call, where the position comes from and what that needs (the gpsd address, or the port and speed of a serial GPS), then the place itself (only for a fixed station: with a GPS chosen the stored place is kept and not shown) and the symbol. */
 const STATION_ORDER = [
-  "station/transmit",
   "station/call",
   "gps/source",
   "gps/host",
@@ -373,9 +381,18 @@ function rank(order: readonly string[], key: string): number {
   return at < 0 ? order.length : at;
 }
 
-/** Settings that stay in the daemon (`neoaprs db set`) and are not on the page: the address the update check asks, which ports the search for the radio looks at and leaves alone, and the port and the host names of the page itself
+/** Settings that stay in the daemon (`neoaprs db set`) and are not on the page: whether the station may transmit at all (`station/transmit`, for an SWL or a test bench; the header still marks a station that is set to receive only), the address the update check asks, which ports the search for the radio looks at and leaves alone, and the port and the host names of the page itself
  * (the defaults suit nearly everyone, and the daemon moves to a free port and says which in the log), and the map's detail (12, streets), source (the latest daily build). The map download uses the stored values, so a custom source or detail still works. */
-const NOT_ON_THE_PAGE: readonly string[] = ["update/url", "serial/pattern", "serial/skip", "web/port", "web/allowed_hosts", "map/maxzoom", "map/source"];
+const NOT_ON_THE_PAGE: readonly string[] = [
+  "station/transmit",
+  "update/url",
+  "serial/pattern",
+  "serial/skip",
+  "web/port",
+  "web/allowed_hosts",
+  "map/maxzoom",
+  "map/source",
+];
 
 /** Settings that are on the page, but in another tab than the Settings tab: the time stations stay on the map (map/station_hours) is chosen in the Stations tab. */
 const IN_ANOTHER_TAB: readonly string[] = [STATION_HOURS_KEY];
@@ -435,8 +452,19 @@ export function portForProfile(profileKey: string, port: string): string {
   return profileOf(profileKey)?.transport === "tcp" && port !== "" && !/^(socket|tcp):\/\//i.test(port.trim()) ? "" : port;
 }
 
+/** What the field of a key says of itself for these settings: the beacon choice of a station that moves is Off or On (SmartBeaconing), else the field's own. */
+export function fieldFor(key: string, values: Readonly<Record<string, string>>): FieldInfo {
+  return key === "beacon/interval_min" && isMoving(values) ? MOVING_BEACON : (FIELDS[key] ?? { label: key });
+}
+
+/** The value a field shows: the beacon of a station that moves is "0" (Off) or the one On, whatever interval is stored. */
+export function valueFor(key: string, values: Readonly<Record<string, string>>): string {
+  const text = values[key] ?? "";
+  return key === "beacon/interval_min" && isMoving(values) && !beaconOff(values) ? MOVING_BEACON_ON : text;
+}
+
 /** Whether a field of the Beacon tab is shown for the values the form holds: the Status group shows what its source needs; the position's own fields follow its choice (the address of gpsd for gpsd, the port and speed for a serial GPS; the station's place only for a fixed station, with a GPS the place stays stored and the daemon uses it until the first fix); a station that moves
- * (a GPS is chosen) has the Travelling choice, and no interval and no antenna, which are a fixed station's (the antenna's height, gain and direction come once there is a power: they only make the PHG code with it). */
+ * (a GPS is chosen) has the Travelling choice, and no antenna, which is a fixed station's (the antenna's height, gain and direction come once there is a power: they only make the PHG code with it); the Beacon choice is shown to both, with other choices (an interval, or Off and On). */
 export function shownByValues(key: string, values: Readonly<Record<string, string>>): boolean {
   if (key.startsWith("status/") || key === "station/status") return statusShown(key, statusSource(values));
   if (ANTENNA.includes(key)) return !isMoving(values) && (key === "beacon/power_w" || (values["beacon/power_w"] ?? "").trim() !== "");
@@ -444,6 +472,5 @@ export function shownByValues(key: string, values: Readonly<Record<string, strin
   if (key === "gps/host") return values["gps/source"] === "gpsd";
   if (key === "gps/device" || key === "gps/baud") return values["gps/source"] === "serial";
   if (key === "beacon/travel") return isMoving(values);
-  if (key === "beacon/interval_min") return !isMoving(values);
   return true;
 }

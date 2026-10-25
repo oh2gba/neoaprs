@@ -25,7 +25,7 @@ class Daemon:
     """One run of the daemon's beacon and status: made again on the same Store and clock after a stop."""
 
     def __init__(self, store: Store, clock: FixedClock, **changes: object) -> None:
-        self.config: Config = replace(ON_AIR, **changes)             # type: ignore[arg-type]
+        self.config: Config = replace(ON_AIR, **{"beacon_interval_min": 30, **changes})             # type: ignore[arg-type]   (on: the defaults are a beacon that is off)
         self.tnc = StubTnc()
         self.beacon = Beacon(self.tnc, lambda: self.config, clock, first_delay_sec=30.0, tick_sec=0.01, memory=store)
         self.status = RigStatus(self.tnc, lambda: self.config, self.beacon, clock, poll_sec=0.01, read=lambda host, port: read_rig(host, port, 0.3), memory=store)

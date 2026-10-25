@@ -337,6 +337,8 @@ async def test_beacon_now_sends_our_position_and_the_pages_are_told_the_packet_a
     other = await e.ws()
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES) and len(page.of("status")) == 1)
     assert page.of("status")[0]["beacon_last_sent"] is None and page.of("status")[0]["beacon_next_due"] is None and page.of("status")[0]["beacon_interval_min"] == 0
+    await page.send({"cmd": "set_config", "values": {"beacon/interval_min": "1440"}})                  # (the beacon is off by default: Beacon now is refused until it is on)
+    await page.until(lambda: page.topics["config"]["values"]["beacon/interval_min"] == "1440")
     await page.send({"cmd": "beacon_now"})
     await page.until(lambda: len(page.topics["packets"]) == 1)
     [row] = page.topics["packets"].values()
@@ -351,7 +353,7 @@ async def test_beacon_now_sends_our_position_and_the_pages_are_told_the_packet_a
 
 
 async def test_beacon_now_while_the_tnc_is_not_connected_is_an_error_and_sends_nothing(tmp_path: Path) -> None:
-    e = Env(tmp_path, web=True, radio=False)
+    e = Env(tmp_path, web=True, radio=False, settings={"beacon/interval_min": "1440"})
     await e.start(connected=False)
     page = await e.ws()
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
@@ -363,7 +365,7 @@ async def test_beacon_now_while_the_tnc_is_not_connected_is_an_error_and_sends_n
 
 
 async def test_beacon_now_with_settings_that_make_no_frame_is_an_error(tmp_path: Path) -> None:
-    e = Env(tmp_path, web=True)
+    e = Env(tmp_path, web=True, settings={"beacon/interval_min": "1440"})
     await e.start()
     await e.until_usable()
     assert await e.ctl.save_config(replace(e.ctl.config, station_comment="x" * 44))                     # (a row somebody edited by hand: the page's save would have refused it)

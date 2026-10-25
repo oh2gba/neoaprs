@@ -8,7 +8,7 @@ import pytest
 from neoaprs import TOCALL, ax25
 from neoaprs.aprsparse import parse
 from neoaprs.aprsposition import parse_position
-from neoaprs.config import Config
+from neoaprs.config import BEACON_OFF, RECEIVE_ONLY, Config
 from neoaprs.packet import Status
 from neoaprs.services.beacon import Beacon, BeaconError, phg_text, uncompressed_position
 from neoaprs.source import Source
@@ -20,7 +20,7 @@ from tests.support.env import idle_for, ON_AIR, until
 
 class Rig(ServiceRig):
     def __init__(self, **changes: object) -> None:
-        super().__init__(**changes)
+        super().__init__(**{"beacon_interval_min": 30, **changes})          # (on: the defaults are a beacon that is off)
         self.beacon = Beacon(self.tnc, lambda: self.config, self.clock, first_delay_sec=30.0, tick_sec=0.01, retry_sec=5.0)
 
 
@@ -385,13 +385,44 @@ async def test_six_refusals_in_a_row_skip_the_interval_and_the_next_is_the_first
 
 
 async def test_with_the_interval_at_zero_nothing_is_sent_and_nothing_is_due() -> None:
-    rig = Rig()
+    rig = Rig(beacon_interval_min=0)
     await rig.beacon.start()
     try:
         assert rig.beacon.next_due is None
         rig.clock.advance(7200)
         await quiet(rig)
         assert rig.tnc.sent == [] and rig.beacon.next_due is None
+    finally:
+        await rig.beacon.stop()
+
+
+async def test_while_the_beacon_is_off_a_request_sends_nothing_and_says_so_and_it_is_not_the_interlock(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.WARNING, "neoaprs.interlock")
+    rig = Rig(beacon_interval_min=0)
+    assert not rig.beacon.send_now() and rig.beacon.problem == BEACON_OFF == "the beacon is off"
+    assert rig.tnc.sent == [] and rig.beacon.last_sent is None and not caplog.records, "the interlock is open, so it says nothing"
+    rig.set(beacon_interval_min=30)
+    assert rig.beacon.send_now() and len(rig.tnc.sent) == 1 and rig.beacon.problem == ""
+
+
+async def test_transmitting_off_is_told_before_the_beacon_being_off() -> None:
+    rig = Rig(beacon_interval_min=0, station_transmit=False)
+    assert not rig.beacon.send_now() and rig.beacon.problem == RECEIVE_ONLY
+
+
+async def test_switching_the_beacon_off_stops_a_due_timer_and_switching_it_on_plans_from_then() -> None:
+    rig = Rig(beacon_interval_min=10)
+    await rig.beacon.start()
+    try:
+        assert rig.beacon.next_due == rig.clock() + timedelta(seconds=30)
+        rig.set(beacon_interval_min=0)
+        rig.beacon.settings_changed()
+        rig.clock.advance(7200)
+        await quiet(rig)
+        assert rig.tnc.sent == [] and rig.beacon.next_due is None
+        rig.set(beacon_interval_min=20)
+        rig.beacon.settings_changed()
+        await until(lambda: len(rig.tnc.sent) == 1)
     finally:
         await rig.beacon.stop()
 

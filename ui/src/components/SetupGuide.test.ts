@@ -11,7 +11,7 @@ import { fakeDaemon, withDaemon } from "@/test/context";
 import { configValues, mapState, toastOf } from "@/test/fixtures";
 
 const fresh = (extra: Record<string, string> = {}) =>
-  configValues({ "station/call": "", "station/lat": "", "station/lon": "", "serial/baud": "", "serial/port": "", ...extra });
+  configValues({ "beacon/interval_min": "0", "station/call": "", "station/lat": "", "station/lon": "", "serial/baud": "", "serial/port": "", ...extra });
 const row = (device: string, description: string) => ({ device, description, hwid: "n/a", vid: null, pid: null });
 const ports = (extra: Partial<PortsMessage> = {}): PortsMessage => ({
   type: "ports",

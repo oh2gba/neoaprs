@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // The one calm line at the top: the title, which is a link to the project's page (it looks like the title, not like a link: only a hover or the keyboard shows it), the amber button "no call set" while the call is empty (it opens the first-run guide: nothing is transmitted
-// until a call is set), the amber "Receive only" badge beside the title while transmitting is switched off (it opens the Beacon tab, where the Transmit switch is), and, at the right, the number of messages not seen, a button that opens them (the Email tab when all of them are the gateway's). Our call is not here, nor the radio state or the version: they are in the footer of the panel (PanelFooter).
+// until a call is set), the amber "Receive only" badge beside the title while transmitting is switched off (`station/transmit` is a setting of the daemon only, not on the page; the badge opens the Beacon tab), and, at the right, the number of messages not seen, a button that opens them (the Email tab when all of them are the gateway's). Our call is not here, nor the radio state or the version: they are in the footer of the panel (PanelFooter).
 // A phone, whose map has no footer, has the newer version here too (`update`): a small badge that opens the dialog of the update.
 import MessageGlyph from "@/components/MessageGlyph.vue";
 import { t } from "@/i18n";

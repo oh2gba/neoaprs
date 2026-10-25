@@ -33,9 +33,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.name.tcp_address": "Endereço TCP",
   "settings.name.radio": "Rádio",
 
-  "settings.transmit.label": "Transmitir",
-  "settings.transmit.on": "Ativado",
-  "settings.transmit.off": "Somente recepção",
   "settings.call.label": "Indicativo",
   "settings.lat.label": "Latitude",
   "settings.lon.label": "Longitude",
@@ -220,8 +217,11 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.beacon_interval.name": "Intervalo do beacon",
   "settings.beacon_interval.label": "Beacon",
   "settings.beacon_interval.off": "Desligado",
+  "settings.beacon_interval.on_smart": "Ligado (SmartBeaconing)",
   "settings.beacon_interval.tip1":
-    "Com que frequência a sua posição é enviada. Desligado não envia nenhuma sozinho; Beacon agora ainda envia uma. Cada beacon ocupa o canal para todos ao redor, então 30 minutos é uma boa escolha para uma estação que fica parada; {min} é o mínimo.",
+    "Com que frequência a sua posição é enviada. Desligado não envia beacon nem status; mensagens, confirmações, respostas, objetos, boletins e o digipeater continuam. Cada beacon ocupa o canal para todos ao redor, então 30 minutos é uma boa escolha para uma estação que fica parada; {min} é o mínimo.",
+  "settings.beacon_interval.tip_moving":
+    "Ligado envia a sua posição quando o SmartBeaconing decide, a partir do GPS: com mais frequência em velocidade e nas curvas. Desligado não envia beacon nem status; mensagens, confirmações, respostas, objetos, boletins e o digipeater continuam.",
   "settings.path.name": "Caminho do beacon",
   "settings.path.label": "Caminho",
   "settings.path.recommended": "Recomendado ({path})",

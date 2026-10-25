@@ -87,6 +87,8 @@ after the last beacon waits for it; with no row, or an older one, the first beac
 
 A frame the Tnc refuses is tried again `RETRY_SEC` (5 s) later, `ATTEMPTS` (6) refusals in all, and then the interval is skipped.
 
+**Beacon off.** `beacon/interval_min` 0 is off, for a fixed and a mobile station alike (`Config.beacon_on`; the page's Beacon choice is Off or an interval, or Off or On for a moving station, where any other value is On and unused). While it is off the beacon's timer and SmartBeaconing send nothing, `send_now` (`beacon_now`) is refused with `BEACON_OFF` ("the beacon is off", the reason of the coded error `beacon.not_sent`), and `RigStatus` sends no status, neither on its poll nor for `status_now` (`status.not_sent` with the same reason). Nothing else changes: messages, acks, answers to queries, own objects and bulletins and the digipeater do not look at it, so it is not receive only. A status held back goes out at the first poll after the beacon is on again if it differs from the last one and the interval has passed. `station/transmit` is the other switch: `can_transmit`'s first reason, which stops every frame and is not on the page (the header still marks it).
+
 The tocall is `TOCALL` in `neoaprs/__init__.py`. `APZ...` is the experimental range. A tocall of your own is registered by opening an issue at
 <https://github.com/aprsorg/aprs-deviceid>; it would then replace the constant.
 
@@ -95,7 +97,7 @@ checked when it is saved, the template with its widest fill, and the frame again
 at the next poll. From the radio, a fresh short connection to rigctld is made every 30 seconds, asking `f` (the frequency in Hz) and `m` (the mode and the
 passband); an `RPRT -n` answer, a refused connection or no answer within 5 seconds means the radio is off or rigctld is away.
 
-`status_now` sends the status at once with the same checks and answers with an `error` that says why when it cannot. The `status` message has `station_status`
+`status_now` sends the status at once with the same checks (and while the beacon is off it sends nothing) and answers with an `error` that says why when it cannot. The `status` message has `station_status`
 (the last text sent) and `rig_state` (`on`, `off`, or `unused` while the status does not come from a radio), and carries the process's cost every 10 seconds
 (`neoaprs/web/processmeter.py`, from `os.times` and `/proc/self/statm`; the working set on Windows, `neoaprs/web/winmemory.py`).
 
@@ -123,7 +125,7 @@ to `wiring.place_me`, which puts our own row in the station book at the fix with
 is told whole at most every 30 seconds for it, because every other row's distance and bearing move with us. A GPS that is lost leaves our row at the latest fix, however old; the stored location of the settings (`station/lat`, `station/lon`, which the page hides while a GPS is chosen and keeps) is for a
 station that is not mobile, and for a mobile one before its first fix. With the source `off` there is no GPS and the row stays at the settings' position.
 
-**The mobile beacon.** `Beacon` (`neoaprs/services/beacon.py`) asks SmartBeaconing at every tick instead of waiting for `beacon/interval_min`, which a mobile station does not use. `neoaprs/smartbeacon.py` is the
+**The mobile beacon.** `Beacon` (`neoaprs/services/beacon.py`) asks SmartBeaconing at every tick instead of waiting for `beacon/interval_min`, which a mobile station uses only as On (not 0) or Off (0): a beacon is asked for only while it is on. `neoaprs/smartbeacon.py` is the
 decision, pure code: `decide(settings, last, now, speed_kmh, course_deg, request)` gives a `Decision(reason, next_due)` where `reason` is `request`, `start` (no beacon yet in this run), `time` (the last beacon plus the
 rate of the speed now has passed: `slow_sec` up to `slow_kmh`, `fast_sec` from `fast_kmh`, `fast_sec * fast_kmh / speed` between) or `turn` (above `slow_kmh`, the course differs from the course at the last beacon by
 more than `turn_min_deg + turn_slope / speed_in_mph`, and `turn_min_sec` have passed since it), or None. The algorithm is HamHUD's SmartBeaconing by Tony Arnerich KD7TA and Steve Bragg KA9MVA, in kilometres per hour;

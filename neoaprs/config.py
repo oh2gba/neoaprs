@@ -34,6 +34,7 @@ class SettingError(CodedError):
 RECEIVE_ONLY = "receive only: transmitting is switched off"      # why can_transmit refuses while station/transmit is false (a refusal to the page has the code "transmit.off" and says "Receive only: nothing is sent")
 MAX_COMMENT = 43                     # what the comment of a position packet may be, with no data extension (spec 1517)
 MAX_COMMENT_PHG = 36                 # with the 7-byte PHG data extension (spec 1546)
+BEACON_OFF = "the beacon is off"                          # why no beacon and no status report is sent while beacon/interval_min is 0 (a refusal to the page says it in the reason of beacon.not_sent and status.not_sent)
 MIN_BEACON_INTERVAL_MIN = 20         # the shortest time between two beacons (the net cycle of a 2-hop path is 20 minutes, routine operation 30): the page offers 30 and 60 minutes and 3 hours; a stored lower value is raised to this, with a line in the log
 MIN_STATUS_INTERVAL_MIN = 15         # the shortest time between two status reports: the page offers 30 minutes to 2 hours; a stored lower value is raised to this, with a line in the log
 MAX_ALERT_COMMAND = 1000             # the longest line of messages/alert_command
@@ -117,7 +118,7 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("web_https", "web/https", boolean),                               # true (with web/network): the page is also served over https, on the port after web/port, with NeoAPRS's own certificate authority (neoaprs/web/tls.py)
     Setting("web_port", "web/port", int_in(0, 65535)),                        # 0: the system picks a free port (the log says which)
     Setting("web_allowed_hosts", "web/allowed_hosts", text_of(500)),         # names besides localhost, 127.0.0.1 and this machine's that a Host header may carry, separated by commas
-    Setting("beacon_interval_min", "beacon/interval_min", int_or_off(*RANGES["beacon/interval_min"]), MIN_BEACON_INTERVAL_MIN),   # 0: no beacon
+    Setting("beacon_interval_min", "beacon/interval_min", int_or_off(*RANGES["beacon/interval_min"]), MIN_BEACON_INTERVAL_MIN),   # 0: the beacon is off, for a moving station too (any other value is On there, and unused)
     Setting("beacon_path", "beacon/path", digipeater_path),                           # the digipeaters of our beacon, empty: the recommended path of the station's symbol (route.recommended_path); DIRECT: none
     Setting("messages_alert", "messages/alert", boolean),                                       # true: a message to us runs messages/alert_command
     Setting("messages_alert_command", "messages/alert_command", text_of(MAX_ALERT_COMMAND)),    # a shell line, run with NEOAPRS_FROM, NEOAPRS_TEXT, NEOAPRS_AT and NEOAPRS_MSG_ID in its environment; empty: none
@@ -196,6 +197,11 @@ class Config:
     def mobile(self) -> bool:
         """True when the beacon follows the GPS (gps/source is gpsd or serial); off is a fixed station at the home position."""
         return self.gps_source != "off"
+
+    @property
+    def beacon_on(self) -> bool:
+        """Whether the beacon is on: `beacon/interval_min` is not 0. Off sends no beacon (the timer, SmartBeaconing, Beacon now) and no status report; it is not receive only, messages, acks, answers, objects, bulletins and the digipeater go on."""
+        return self.beacon_interval_min > 0
 
     @property
     def smart(self) -> SmartSettings:

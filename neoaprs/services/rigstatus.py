@@ -8,7 +8,7 @@ One rule for both: a status report goes out when `status/interval_min` has passe
 the mode for a radio, the text for the static status. So nothing goes inside the interval however the dial moves, nothing when it is the same, nothing while the radio is off, and a static text goes out
 once and again only when it is edited (at the next poll after the interval). The time and the text of the last report are kept in the rows `status/last_sent_at` and `status/last_text` (written after each
 send) and read at the start, so a restart sends nothing inside the interval and, after it, only a status that differs from the one kept. The report is the frame `Beacon.status_frame` makes (`>` and the time as `DDHHMMz`, then the text) sent through the Tnc by the
-beacon's destination and path. `last_text` is what `?APRSS` answers with (`status_frame()`) and what the page shows as the current status. `send_now()` sends one at once, whatever the interval and whether it changed (the page's "Send status now"), by the same checks of the interlock, the length and the Tnc. A report that cannot go (the Tnc is not connected or the radio is silent, would not take it, the
+beacon's destination and path. `last_text` is what `?APRSS` answers with (`status_frame()`) and what the page shows as the current status. `send_now()` sends one at once, whatever the interval and whether it changed (the page's "Send status now"), by the same checks of the interlock, the length and the Tnc. No status report goes while the beacon is off (`beacon/interval_min` is 0: `BEACON_OFF`, quietly, as nothing is due), and one that was held back goes at the first poll after the beacon is on if it differs and the interval has passed. A report that cannot go (the Tnc is not connected or the radio is silent, would not take it, the
 settings make no frame) is told once for each reason and tried again at the next poll.
 """
 import asyncio
@@ -19,7 +19,7 @@ from typing import Literal, Protocol
 
 from neoaprs import ax25
 from neoaprs.clock import Clock, utcnow
-from neoaprs.config import STATUS_SENT, STATUS_TEXT, Config
+from neoaprs.config import BEACON_OFF, STATUS_SENT, STATUS_TEXT, Config
 from neoaprs.configstatus import MAX_STATUS, fill_template
 from neoaprs.configtypes import over_the_air_problem
 from neoaprs.interlock import Interlock
@@ -116,6 +116,8 @@ class RigStatus:
             return "the status is off"
         if reason := self._interlock.refused("status"):
             return reason
+        if not c.beacon_on:
+            return BEACON_OFF
         offer = await self._current(c)
         if offer is None:
             return self._rig_problem or "the status has no radio to come from: set status/rigctld"
@@ -149,6 +151,8 @@ class RigStatus:
 
     def _try(self, key: Key, text: str) -> str:
         """Sends the status through the Tnc; "" when it went out, else the reason (told in the log once, as the poll tells it)."""
+        if not self._config().beacon_on:
+            return BEACON_OFF
         if reason := self._interlock.refused("status"):
             return reason
         try:

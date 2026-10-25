@@ -300,17 +300,17 @@ describe("useSettings: linked rules", () => {
 describe("useSettings: Undo", () => {
   it("offers to undo the change once it is saved, and sends the old values in one set_config", async () => {
     const { settings, answer, sets } = setUp();
-    settings.edit("beacon/interval_min", "30");
+    settings.edit("beacon/interval_min", "60");
     settings.commit(["beacon/interval_min"]);
     expect(settings.undo.value).toBeNull();
-    await answer({ "beacon/interval_min": "30" });
+    await answer({ "beacon/interval_min": "60" });
     expect(settings.undo.value?.label).toBe("Beacon interval");
-    expect(settings.undo.value?.values).toEqual({ "beacon/interval_min": "0" });
+    expect(settings.undo.value?.values).toEqual({ "beacon/interval_min": "30" });
     settings.undoLast();
-    expect(sets()[1]).toEqual({ "beacon/interval_min": "0" });
-    expect(settings.draft["beacon/interval_min"]).toBe("0");
+    expect(sets()[1]).toEqual({ "beacon/interval_min": "30" });
+    expect(settings.draft["beacon/interval_min"]).toBe("30");
     expect(settings.undo.value).toBeNull();
-    await answer({ "beacon/interval_min": "0" });
+    await answer({ "beacon/interval_min": "30" });
     expect(settings.undo.value).toBeNull(); // (an Undo is not undone in its turn)
   });
 

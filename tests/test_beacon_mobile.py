@@ -8,6 +8,7 @@ import pytest
 from neoaprs import ax25
 from neoaprs.aprsposition import parse_position
 from neoaprs.clock import utc
+from neoaprs.config import BEACON_OFF
 from neoaprs.services.beacon import Beacon, BeaconError, NoFix
 from neoaprs.services.queries import Queries
 from neoaprs.source import Source
@@ -22,7 +23,7 @@ KNOWN_INFO = b"=//w5#TW?M>eM[/A=000103NeoAPRS"
 
 class Rig(ServiceRig):
     def __init__(self, fix: bool = True, **changes: object) -> None:
-        super().__init__(**{"gps_source": "gpsd", "station_symbol_code": ">", **changes})
+        super().__init__(**{"gps_source": "gpsd", "station_symbol_code": ">", "beacon_interval_min": 30, **changes})
         self.gps = FakeFixes()
         self.beacon = Beacon(self.tnc, lambda: self.config, self.clock, first_delay_sec=30.0, tick_sec=0.01, retry_sec=5.0, gps=self.gps)
         if fix:
@@ -237,11 +238,46 @@ def test_a_change_of_what_the_station_moves_as_is_in_force_at_the_next_tick() ->
     assert rig.beacon.next_due == rig.clock() + timedelta(seconds=120), "and fast for a walker"
 
 
-def test_the_interval_of_the_fixed_beacon_is_not_used_by_a_moving_station() -> None:
-    for minutes in (0, 20, 1440):
+def test_the_interval_of_the_fixed_beacon_is_only_on_or_off_for_a_moving_station() -> None:
+    for minutes in (20, 30, 1440):
         rig = Rig(beacon_interval_min=minutes)
         rig.tick()
         assert len(rig.tnc.sent) == 1 and rig.beacon.last_reason == "start", minutes
+        rig.clock.advance(112)
+        rig.move(speed=54.0, course=270)
+        rig.tick()
+        assert len(rig.tnc.sent) == 2 and rig.beacon.last_reason == "time", f"{minutes}: SmartBeaconing times it at 54 km/h, not the interval"
+
+
+def test_with_the_interval_at_zero_the_moving_station_sends_nothing_by_the_timer_or_on_request_and_says_the_beacon_is_off() -> None:
+    rig = Rig(beacon_interval_min=0)
+    for _ in range(3):
+        rig.tick()
+        rig.clock.advance(600)
+        rig.move(speed=90.0, course=10)                                                 # (a fast station that turns, with a fix: SmartBeaconing would say send)
+    assert rig.tnc.sent == [] and rig.beacon.last_sent is None and rig.beacon.next_due is None and rig.beacon.mobile.last is None
+    assert not rig.beacon.send_now() and rig.beacon.problem == BEACON_OFF and rig.tnc.sent == []
+
+
+async def test_switching_a_moving_station_off_and_on_stops_and_resumes_smartbeaconing() -> None:
+    rig = Rig()
+    await rig.beacon.start()
+    try:
+        rig.tick()
+        assert len(rig.tnc.sent) == 1
+        rig.set(beacon_interval_min=0)
+        rig.beacon.settings_changed()
+        assert rig.beacon.next_due is None
+        rig.clock.advance(1800)
+        rig.move(speed=90.0, course=100)
+        rig.tick()
+        assert len(rig.tnc.sent) == 1
+        rig.set(beacon_interval_min=30)                                                 # (On from Off stores the first interval, which is not used)
+        rig.beacon.settings_changed()
+        rig.tick()
+        assert len(rig.tnc.sent) == 2 and rig.beacon.last_reason in ("time", "turn")
+    finally:
+        await rig.beacon.stop()
 
 
 def test_a_request_sends_the_live_frame_and_the_times_count_from_it() -> None:

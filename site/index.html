@@ -201,7 +201,7 @@
         <li>A status report from your radio through Hamlib rigctld, or a text of your own: one choice, and only the fields it needs.</li>
         <li>A fill-in digipeater for WIDE1-1, one tickbox, off until you switch it on.</li>
         <li>Settings apply as you change them: no Save button, and an Undo for the last change.</li>
-        <li>Nothing is transmitted until a call is set, and <b>Receive only</b> stops it again whenever you want (below).</li>
+        <li>Nothing is transmitted until a call is set, and the <b>Beacon</b> choice switches the beacon off whenever you want (below).</li>
       </ul>
     </div>
     <figure class="shot">
@@ -213,17 +213,17 @@
 <section id="listen">
   <div class="wrap feature">
     <div class="blurb">
-      <p class="eyebrow">Receive only</p>
-      <h2>A day to listen, and nothing on the air</h2>
+      <p class="eyebrow">Beacon off</p>
+      <h2>A day to listen, without announcing yourself</h2>
       <ul class="ticks">
-        <li>The <b>Transmit</b> switch at the top of the Beacon tab: <b>On</b> or <b>Receive only</b>.</li>
-        <li>While it is off nothing at all is transmitted: no beacon, status, message, ack, answer to a query, object, bulletin or digipeated packet.</li>
-        <li>An amber <b>Receive only</b> badge beside the title says so on every screen, and a click on it opens the switch.</li>
-        <li>The messages being sent wait and go on when you switch it on again; nothing is lost, nothing comes as a burst.</li>
+        <li>One <b>Beacon</b> choice on the Beacon tab: <b>Off</b> or an interval, and for a moving station <b>Off</b> or <b>On (SmartBeaconing)</b>.</li>
+        <li>While it is off there is no beacon and no status report, and what belongs to them is greyed out; messages, acks, answers to queries, objects, bulletins and the digipeater go on.</li>
+        <li>A station that must never key the transmitter at all, a receiver or a test bench, has <b>Receive only</b> as a setting of the daemon: nothing is transmitted, and an amber badge beside the title says so on every screen.</li>
+        <li>The messages being sent wait and go on when transmitting is switched on again; nothing is lost, nothing comes as a burst.</li>
       </ul>
     </div>
     <figure class="shot">
-      <a class="zoom phone" href="shots/phone-beacon-rx.png"><picture><source srcset="shots/phone-beacon-rx-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/phone-beacon-rx.png" width="390" height="844" loading="lazy" alt="On a phone set to Receive only: the amber Receive only badge beside the title and the Beacon tab with Transmit set to Receive only"></picture></a>
+      <a class="zoom phone" href="shots/phone-beacon-rx.png"><picture><source srcset="shots/phone-beacon-rx-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/phone-beacon-rx.png" width="390" height="844" loading="lazy" alt="On a phone set to Receive only: the amber Receive only badge beside the title and the Beacon tab"></picture></a>
     </figure>
   </div>
 </section>

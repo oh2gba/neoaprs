@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from neoaprs import ax25
+from neoaprs.config import BEACON_OFF, RECEIVE_ONLY
 from neoaprs.rigctld import RigError, read_rig
 from neoaprs.services.beacon import Beacon
 from neoaprs.services.rigstatus import RigStatus, clipped, freq_text
@@ -23,7 +24,7 @@ FIRST = "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:>211200zQRV 14.074 MHz USB"
 
 class Rig(ServiceRig):
     def __init__(self, rigd: FakeRigctld | None, **changes: object) -> None:
-        super().__init__(**({"status_rigctld": rigd.address} if rigd else {}), **changes)
+        super().__init__(**{"beacon_interval_min": 30, **({"status_rigctld": rigd.address} if rigd else {}), **changes})          # (the beacon is on: no status goes out while it is off)
         self.rigd = rigd
         self.beacon = Beacon(self.tnc, lambda: self.config, self.clock)
         self.status = RigStatus(self.tnc, lambda: self.config, self.beacon, self.clock, poll_sec=0.01, read=lambda host, port: read_rig(host, port, 0.3))
@@ -207,6 +208,44 @@ async def test_the_radio_is_used_once_the_setting_is_set_and_unused_when_it_is_c
     assert rig.status.rig_state == "unused"
 
 
+# ---- the beacon being off ---------------------------------------------------------------------------------------------------------------------------
+
+async def test_no_status_goes_out_while_the_beacon_is_off_and_the_held_back_one_goes_when_it_is_on(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO)
+    rig = Rig(await rigctld(), beacon_interval_min=0)
+    for _ in range(3):
+        await rig.status.poll()
+        rig.clock.advance(3 * 3600)
+    assert rig.tnc.sent == [] and rig.status.last_text == "" and rig.status.last_sent_at is None and rig.status.rig_state == "on"
+    assert await rig.status.send_now() == BEACON_OFF == "the beacon is off"
+    assert rig.tnc.sent == [] and not [r for r in caplog.records if "no status sent" in r.getMessage()], "it is not a fault, so the log does not say it"
+    rig.set(beacon_interval_min=30)
+    await rig.status.poll()
+    assert rig.tnc.lines() == [FIRST.replace("211200z", rig.clock().strftime("%d%H%M") + "z")] and rig.status.last_text == "QRV 14.074 MHz USB"
+
+
+async def test_send_now_is_refused_while_the_beacon_is_off_for_a_text_too_and_goes_when_it_is_on() -> None:
+    rig = Rig(None, station_status="QRV 145.500", status_source="text", beacon_interval_min=0)
+    assert await rig.status.send_now() == BEACON_OFF and rig.tnc.sent == []
+    await rig.status.poll()
+    assert rig.tnc.sent == []
+    rig.set(beacon_interval_min=60)
+    assert await rig.status.send_now() == "" and len(rig.tnc.sent) == 1
+
+
+async def test_a_status_that_is_off_or_transmitting_off_is_told_before_the_beacon_being_off() -> None:
+    assert await Rig(None, station_status="QRV", status_source="off", beacon_interval_min=0).status.send_now() == "the status is off"
+    assert await Rig(None, station_status="QRV", status_source="text", beacon_interval_min=0, station_transmit=False).status.send_now() == RECEIVE_ONLY
+
+
+async def test_aprss_still_answers_while_the_beacon_is_off() -> None:
+    rig = Rig(None, station_status="QRV 145.500", status_source="text")
+    await rig.status.poll()
+    rig.set(beacon_interval_min=0)
+    frame = rig.status.status_frame()
+    assert frame is not None and frame.tnc2().endswith("QRV 145.500")
+
+
 # ---- the Tnc -------------------------------------------------------------------------------------------------------------------------------------
 
 async def test_a_status_waits_while_the_radio_is_silent_and_is_sent_when_it_answers(caplog: pytest.LogCaptureFixture) -> None:
@@ -286,7 +325,7 @@ async def test_the_daemon_tells_the_page_the_status_and_the_state_of_the_radio(t
     page = await e.ws()
     first = await page.expect("status")
     assert first["station_status"] == "" and first["rig_state"] == "unused"
-    assert await e.ctl.save_config(replace(e.ctl.config, status_rigctld=rigd.address))
+    assert await e.ctl.save_config(replace(e.ctl.config, status_rigctld=rigd.address, beacon_interval_min=30))
     await until(lambda: e.ctl.rigstatus.last_text == "QRV 14.074 MHz USB")
     await page.send({"cmd": "status"})
     await page.until(lambda: page.of("status")[-1]["station_status"] == "QRV 14.074 MHz USB")

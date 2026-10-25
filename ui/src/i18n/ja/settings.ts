@@ -33,9 +33,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.name.tcp_address": "TCPアドレス",
   "settings.name.radio": "無線機",
 
-  "settings.transmit.label": "送信",
-  "settings.transmit.on": "オン",
-  "settings.transmit.off": "受信専用",
   "settings.call.label": "コールサイン",
   "settings.lat.label": "緯度",
   "settings.lon.label": "経度",
@@ -216,8 +213,11 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.beacon_interval.name": "ビーコンの間隔",
   "settings.beacon_interval.label": "ビーコン",
   "settings.beacon_interval.off": "オフ",
+  "settings.beacon_interval.on_smart": "オン（SmartBeaconing）",
   "settings.beacon_interval.tip1":
-    "位置を送る頻度です。「オフ」にすると自動では送りませんが、「今すぐビーコン」では送れます。ビーコンはそのたびに周囲の全員の周波数を使うので、動かない局なら30分が適当です。最短は{min}です。",
+    "位置を送る頻度です。「オフ」にするとビーコンもステータスも送りません。メッセージ、確認応答、問い合わせへの返答、オブジェクト、掲示、デジピーターは動き続けます。ビーコンはそのたびに周囲の全員の周波数を使うので、動かない局なら30分が適当です。最短は{min}です。",
+  "settings.beacon_interval.tip_moving":
+    "「オン」にすると、GPSをもとにSmartBeaconingが決めるタイミングで位置を送ります。速度が高いときやカーブで頻度が上がります。「オフ」にするとビーコンもステータスも送りません。メッセージ、確認応答、問い合わせへの返答、オブジェクト、掲示、デジピーターは動き続けます。",
   "settings.path.name": "ビーコンのパス",
   "settings.path.label": "パス",
   "settings.path.recommended": "推奨({path})",

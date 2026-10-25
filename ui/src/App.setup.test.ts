@@ -17,7 +17,7 @@ describe("App: the first-run guide", () => {
       type: "state",
       topic: "config",
       rev: 1,
-      value: configValues({ "station/call": "", "station/lat": "", "station/lon": "" }),
+      value: configValues({ "beacon/interval_min": "0", "station/call": "", "station/lat": "", "station/lon": "" }),
     });
     socket.say(status({ call: "", lat: null, lon: null }));
     await flushPromises();
@@ -36,7 +36,7 @@ describe("App: the first-run guide", () => {
   it("opens the guide once: not again when the settings are told again, nor when the call is set", async () => {
     const { wrapper, socket } = await open();
     expect(wrapper.find(".setup").exists()).toBe(false);
-    const empty = (rev: number) => socket.say({ type: "state", topic: "config", rev, value: configValues({ "station/call": "" }) });
+    const empty = (rev: number) => socket.say({ type: "state", topic: "config", rev, value: configValues({ "beacon/interval_min": "0", "station/call": "" }) });
     empty(1);
     await flushPromises();
     expect(wrapper.find(".setup").exists()).toBe(true);
@@ -76,7 +76,7 @@ describe("App: the first-run guide", () => {
       type: "state",
       topic: "config",
       rev: 1,
-      value: configValues({ "station/call": "", "station/lat": "", "station/lon": "", "serial/baud": "" }),
+      value: configValues({ "beacon/interval_min": "0", "station/call": "", "station/lat": "", "station/lon": "", "serial/baud": "" }),
     });
     socket.say(status({ call: "", lat: null, lon: null }));
     socket.say({ type: "state", topic: "map", rev: 0, value: mapState({ blocked: "no position", box: null }) });

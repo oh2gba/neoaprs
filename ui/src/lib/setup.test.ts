@@ -18,7 +18,15 @@ import { configValues } from "@/test/fixtures";
 
 /** The settings of a fresh install: no call, no position. */
 const fresh = () =>
-  configValues({ "station/call": "", "station/lat": "", "station/lon": "", "tnc/profile": "kenwood-tnc2", "serial/baud": "", "serial/port": "" }).values;
+  configValues({
+    "beacon/interval_min": "0",
+    "station/call": "",
+    "station/lat": "",
+    "station/lon": "",
+    "tnc/profile": "kenwood-tnc2",
+    "serial/baud": "",
+    "serial/port": "",
+  }).values;
 const answered = (extra: Partial<SetupFields> = {}): SetupFields => ({ ...fieldsFrom(fresh()), call: "oh2abc", lat: "60.17", lon: "24.94", ...extra });
 
 describe("the call step", () => {

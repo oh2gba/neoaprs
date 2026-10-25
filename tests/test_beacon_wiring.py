@@ -15,7 +15,7 @@ INFO = b"=6010.20N/02456.40E-mobile"
 async def started(tmp_path: Path, **changes: object) -> Env:
     """A daemon whose radio is connected and settled, with the settings changed as asked and the beacon's timer ticking quickly."""
     e = await quick_start(tmp_path, beacon=True)
-    assert await e.ctl.save_config(replace(e.ctl.config, station_comment="mobile", **changes))      # type: ignore[arg-type]
+    assert await e.ctl.save_config(replace(e.ctl.config, station_comment="mobile", **{"beacon_interval_min": 1440, **changes}))      # type: ignore[arg-type]   (on, and not due: the defaults are a beacon that is off)
     return e
 
 

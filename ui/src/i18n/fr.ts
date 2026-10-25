@@ -8,7 +8,7 @@ export const fr: Catalogue = {
 
   "header.project_title": "La page du projet NeoAPRS",
   "header.receive_only": "Réception seule",
-  "header.receive_only_title": "Rien n'est émis : ouvrir l'interrupteur Émission",
+  "header.receive_only_title": "Rien n'est émis : cette station est réglée en réception seule",
   "header.no_call": "pas d'indicatif",
   "header.no_call_title": "Rien n'est émis tant qu'un indicatif n'est pas défini : ouvrir la configuration",
   "header.unread_open": {
@@ -811,9 +811,6 @@ export const fr: Catalogue = {
   "settings.name.tcp_address": "Adresse TCP",
   "settings.name.radio": "Radio",
 
-  "settings.transmit.label": "Émission",
-  "settings.transmit.on": "Activée",
-  "settings.transmit.off": "Réception seule",
   "settings.call.label": "Indicatif",
   "settings.lat.label": "Latitude",
   "settings.lon.label": "Longitude",
@@ -1002,8 +999,11 @@ export const fr: Catalogue = {
   "settings.beacon_interval.name": "Intervalle de la balise",
   "settings.beacon_interval.label": "Balise",
   "settings.beacon_interval.off": "Désactivée",
+  "settings.beacon_interval.on_smart": "Activée (SmartBeaconing)",
   "settings.beacon_interval.tip1":
-    "À quelle fréquence votre position est envoyée. Désactivée n'en envoie aucune d'elle-même ; Balise maintenant en envoie quand même une. Chaque balise occupe le canal pour tous les environs, donc 30 minutes est un bon choix pour une station qui reste en place ; {min} est le minimum.",
+    "À quelle fréquence votre position est envoyée. Désactivée n'envoie ni balise ni statut ; les messages, accusés de réception, réponses, objets, bulletins et le digipeater continuent. Chaque balise occupe le canal pour tous les environs, donc 30 minutes est un bon choix pour une station qui reste en place ; {min} est le minimum.",
+  "settings.beacon_interval.tip_moving":
+    "Activée envoie votre position quand SmartBeaconing le décide, d'après le GPS : plus souvent à vitesse élevée et dans les virages. Désactivée n'envoie ni balise ni statut ; les messages, accusés de réception, réponses, objets, bulletins et le digipeater continuent.",
   "settings.path.name": "Chemin de la balise",
   "settings.path.label": "Chemin",
   "settings.path.recommended": "Recommandé ({path})",
@@ -1144,7 +1144,9 @@ export const fr: Catalogue = {
   "beacon.line.timed_none": "Aucune balise envoyée · prochaine {when} (toutes les {minutes} min)",
   "beacon.line.untimed": "Dernière balise {ago} · pas de balise périodique",
   "beacon.line.untimed_none": "Aucune balise envoyée · pas de balise périodique",
+  "beacon.line.off": "Balise désactivée",
   "beacon.beacon_now": "Balise maintenant",
+  "beacon.off_why": "La balise est désactivée : ni balise ni statut n'est envoyé",
   "beacon.status": "Statut",
   "beacon.send_status_now": "Envoyer le statut maintenant",
   "beacon.really_send": "Vraiment envoyer ?",

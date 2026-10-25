@@ -144,7 +144,7 @@ A click on a marker or on a row of the Stations table opens that station's card 
 
 The **header** is one calm line. It holds the title **NeoAPRS**, a link to the project page (https://oh2gba.github.io/neoaprs/, in a new tab; it looks like the title, with an underline on hover), and at its right the number of messages not seen as a small badge with an envelope. That is the messages and the gateway's mail not seen, one count that the handle of the folded panel and the title of the browser tab have too. A click opens the Messages tab, or the Email tab when all of them are the gateway's.
 
-While no call is set an amber **no call set** button is beside the title, which opens the setup guide. While **Transmit** in the Beacon tab is at **Receive only** an amber **Receive only** badge is beside it, on every screen size; a click on it opens the Beacon tab ([beacon.md](beacon.md#receive-only)). Your call is not in the header; it is in the Settings tab and in every message you send.
+While no call is set an amber **no call set** button is beside the title, which opens the setup guide. While the daemon is set to receive only (`station/transmit` is `false`, a setting that is not on the page) an amber **Receive only** badge is beside it, on every screen size; a click on it opens the Beacon tab ([beacon.md](beacon.md#receive-only)). A beacon that is off ([beacon.md](beacon.md#beacon-off)) is not receive only and shows no badge. Your call is not in the header; it is in the Settings tab and in every message you send.
 
 The **footer** is one small muted line under the open tab of the panel (under the panel, not under the map; on a phone under the tab; not while the panel is folded). It is always the same height, so nothing moves when a message comes or goes.
 

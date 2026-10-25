@@ -21,7 +21,7 @@ from tests.support.gps import FakeGpsd, fake_gpsd, tpv
 async def started(tmp_path: Path, gpsd: FakeGpsd, **changes: object) -> Env:
     """A daemon with its radio connected and a GPS read from the fake gpsd, the beacon mobile."""
     e = await quick_start(tmp_path, beacon=True, web=True)
-    values = {"gps_source": "gpsd", "gps_host": gpsd.address, "station_symbol_code": ">", **changes}
+    values = {"gps_source": "gpsd", "gps_host": gpsd.address, "station_symbol_code": ">", "beacon_interval_min": 30, **changes}      # (on: a beacon at interval 0 is off, for a moving station too)
     assert await e.ctl.save_config(replace(e.ctl.config, **values))                 # type: ignore[arg-type]
     await until(lambda: gpsd.watching and e.ctl.gps_feed.state is Source.State.CONNECTED)
     return e

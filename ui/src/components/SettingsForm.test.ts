@@ -72,7 +72,6 @@ describe("SettingsForm", () => {
     });
     expect(wrapper.findAll("fieldset legend").map((l) => l.text())).toEqual(["Station", "Beacon", "Status"]);
     expect(wrapper.findAll(".field label").map((l) => l.text())).toEqual([
-      "Transmit",
       "Call",
       "Position",
       "Latitude",
@@ -96,7 +95,7 @@ describe("SettingsForm", () => {
 
     it("is one choice under the call: Fixed, a GPS via gpsd or a GPS on a serial port, and there is no Mobile group, GPS source or Mobile switch", () => {
       const { wrapper } = make({}, "beacon");
-      expect(labels(wrapper)).toEqual(["Transmit", "Call", "Position", "Latitude", "Longitude", "Symbol"]);
+      expect(labels(wrapper)).toEqual(["Call", "Position", "Latitude", "Longitude", "Symbol"]);
       expect(wrapper.find<HTMLSelectElement>("#set-gps-source").element.value).toBe("off");
       expect(wrapper.findAll("#set-gps-source option").map((o) => [o.attributes("value"), o.text()])).toEqual([
         ["off", "Fixed"],
@@ -121,13 +120,13 @@ describe("SettingsForm", () => {
 
     it("asks for the address of gpsd for gpsd, with the default as the placeholder, and no place to give while a GPS is chosen", () => {
       const { wrapper } = make({ "gps/source": "gpsd" }, "beacon");
-      expect(labels(wrapper)).toEqual(["Transmit", "Call", "Position", "gpsd address", "Symbol"]);
+      expect(labels(wrapper)).toEqual(["Call", "Position", "gpsd address", "Symbol"]);
       expect(wrapper.find("#set-gps-host").attributes("placeholder")).toBe("127.0.0.1:2947");
     });
 
     it("asks for the port and the speed of the receiver for a serial one", () => {
       const { wrapper } = make({ "gps/source": "serial", "gps/baud": "9600" }, "beacon");
-      expect(labels(wrapper)).toEqual(["Transmit", "Call", "Position", "GPS port", "GPS speed", "Symbol"]);
+      expect(labels(wrapper)).toEqual(["Call", "Position", "GPS port", "GPS speed", "Symbol"]);
       expect(wrapper.find("#set-gps-device").element.tagName).toBe("SELECT");
       expect(wrapper.find<HTMLInputElement>("#set-gps-baud").element.value).toBe("9600");
       expect(wrapper.find("#set-gps-baud").element.parentElement?.textContent).toContain("baud");
@@ -251,20 +250,48 @@ describe("SettingsForm", () => {
         expect(wrapper.find("#set-beacon-travel").exists()).toBe(false);
       });
 
-      it("has Travelling in the place of the interval, and no antenna, for a moving station, whichever GPS", () => {
+      it("has the Beacon choice and Travelling, and no antenna, for a moving station, whichever GPS", () => {
         for (const source of ["gpsd", "serial"]) {
           const { wrapper } = make({ "gps/source": source, "beacon/power_w": "5" }, "beacon");
-          expect(beaconLabels(wrapper), source).toEqual(["Travelling", "Comment", "Path"]);
+          expect(beaconLabels(wrapper), source).toEqual(["Beacon", "Travelling", "Comment", "Path"]);
           expect(folds(wrapper), source).toEqual(["Advanced"]);
-          for (const id of ["beacon-interval_min", "beacon-power_w", "beacon-antenna_height_m", "beacon-antenna_gain_db", "beacon-antenna_direction"])
+          for (const id of ["beacon-power_w", "beacon-antenna_height_m", "beacon-antenna_gain_db", "beacon-antenna_direction"])
             expect(wrapper.find(`#set-${id}`).exists(), id).toBe(false);
         }
+      });
+
+      it("offers a moving station Off and On (SmartBeaconing), and a fixed one Off and the three intervals", () => {
+        const options = (wrapper: ReturnType<typeof make>["wrapper"]) =>
+          wrapper.findAll("#set-beacon-interval_min option").map((o) => [o.attributes("value"), o.text()]);
+        expect(options(make({}, "beacon").wrapper)).toEqual([
+          ["0", "Off"],
+          ["30", "Every 30 min"],
+          ["60", "Every 60 min"],
+          ["180", "Every 3 hours"],
+        ]);
+        for (const source of ["gpsd", "serial"]) {
+          expect(options(make({ "gps/source": source }, "beacon").wrapper), source).toEqual([
+            ["0", "Off"],
+            ["30", "On (SmartBeaconing)"],
+          ]);
+        }
+      });
+
+      it("shows a moving station's stored interval as On, and stores the default interval when On is chosen from Off", async () => {
+        const stored = make({ "gps/source": "gpsd", "beacon/interval_min": "180" }, "beacon");
+        expect(stored.wrapper.find<HTMLSelectElement>("#set-beacon-interval_min").element.value).toBe("30");
+        const { wrapper, send } = make({ "gps/source": "gpsd", "beacon/interval_min": "0" }, "beacon");
+        expect(wrapper.find<HTMLSelectElement>("#set-beacon-interval_min").element.value).toBe("0");
+        await wrapper.find("#set-beacon-interval_min").setValue("30");
+        expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "beacon/interval_min": "30" } });
+        await stored.wrapper.find("#set-beacon-interval_min").setValue("0");
+        expect(stored.send).toHaveBeenCalledWith({ cmd: "set_config", values: { "beacon/interval_min": "0" } });
       });
 
       it("follows the choice as it is made, in both directions, with the antenna back as it was", async () => {
         const { wrapper } = make({ "beacon/power_w": "5" }, "beacon");
         await wrapper.find("#set-gps-source").setValue("gpsd");
-        expect(beaconLabels(wrapper)).toEqual(["Travelling", "Comment", "Path"]);
+        expect(beaconLabels(wrapper)).toEqual(["Beacon", "Travelling", "Comment", "Path"]);
         await wrapper.find("#set-gps-source").setValue("off");
         expect(beaconLabels(wrapper)).toEqual(["Beacon", "Comment", "Power", "Antenna height", "Antenna gain", "Antenna direction", "Path"]);
       });
@@ -299,7 +326,7 @@ describe("SettingsForm", () => {
       expect((CONFIG_KEYS as readonly string[]).filter((k) => k === "beacon/mobile" || k.startsWith("smart/"))).toEqual([]);
       expect(wrapper.find("#set-beacon-mobile").exists()).toBe(false);
       expect(wrapper.find("#set-smart-fast_kmh").exists()).toBe(false);
-      expect(wrapper.text()).not.toContain("SmartBeaconing");
+      expect(wrapper.text().replace("On (SmartBeaconing)", "")).not.toContain("SmartBeaconing");
       expect(wrapper.text()).not.toContain("Fast speed");
     });
   });
@@ -314,7 +341,7 @@ describe("SettingsForm", () => {
         group(wrapper, "Station")
           ?.findAll(".field label, .field .field-label, h3")
           .map((e) => e.text()),
-      ).toEqual(["Transmit", "Call", "Position", "Location", "Latitude", "Longitude", "Symbol"]);
+      ).toEqual(["Call", "Position", "Location", "Latitude", "Longitude", "Symbol"]);
       expect(group(wrapper, "Station")?.find("#set-station-comment").exists()).toBe(false);
       expect(group(wrapper, "Beacon")?.find("#set-station-comment").exists()).toBe(true);
     });
@@ -1068,7 +1095,7 @@ describe("SettingsForm: the Location of our station (Beacon tab)", () => {
     await wrapper.setProps({ picking: true });
     expect(pick(wrapper).text()).toBe("Cancel");
     const order = wrapper.findAll(".field label, .field .field-label").map((e) => e.text());
-    expect(order.slice(1, 6)).toEqual(["Call", "Position", "Location", "Latitude", "Longitude"]);
+    expect(order.slice(0, 5)).toEqual(["Call", "Position", "Location", "Latitude", "Longitude"]);
   });
 
   it("is only on the Beacon tab", () => {
@@ -1115,5 +1142,130 @@ describe("SettingsForm: the Location of our station (Beacon tab)", () => {
     await wrapper.find("#set-station-lat").trigger("blur");
     expect(send).not.toHaveBeenCalled();
     expect(wrapper.find("#set-station-lon").element.closest(".field")?.querySelector(".field-error")?.textContent).toBe("Needed with the latitude");
+  });
+});
+
+describe("SettingsForm: the beacon Off (Beacon tab)", () => {
+  const GREYED = [
+    "set-beacon-travel",
+    "set-station-comment",
+    "set-beacon-power_w",
+    "set-beacon-antenna_height_m",
+    "set-beacon-antenna_gain_db",
+    "set-beacon-antenna_direction",
+    "set-beacon-path",
+    "set-status-source",
+    "set-status-rigctld",
+    "set-status-template",
+    "set-status-interval_min",
+    "set-station-status",
+  ];
+  const STATION = [
+    "set-station-call",
+    "set-gps-source",
+    "set-gps-host",
+    "set-gps-device",
+    "set-gps-baud",
+    "set-station-lat",
+    "set-station-lon",
+    "set-beacon-interval_min",
+  ];
+  const off = (extra: Record<string, string> = {}) =>
+    make(
+      { "beacon/interval_min": "0", "beacon/power_w": "5", "status/source": "rig", "status/rigctld": "127.0.0.1:4532", "beacon/path": "WIDE2-2", ...extra },
+      "beacon",
+    );
+  const control = (wrapper: ReturnType<typeof make>["wrapper"], id: string) => wrapper.find<HTMLInputElement | HTMLSelectElement>(`#${id}`);
+
+  it("greys the comment, the antenna, the path and every field of the Status group for a fixed station, and keeps their values", () => {
+    const { wrapper } = off({ "status/source": "text", "station/status": "QRV" });
+    const ids = GREYED.filter((id) => !["set-beacon-travel", "set-status-rigctld", "set-status-template"].includes(id));
+    for (const id of ids) {
+      expect(control(wrapper, id).exists(), id).toBe(true);
+      expect(control(wrapper, id).element.disabled, id).toBe(true);
+      expect(control(wrapper, id).element.closest(".field")?.classList.contains("disabled"), id).toBe(true);
+    }
+    expect(control(wrapper, "set-station-comment").element.value).toBe("NeoAPRS");
+    expect(control(wrapper, "set-beacon-power_w").element.value).toBe("5");
+    expect(control(wrapper, "set-station-status").element.value).toBe("QRV");
+    expect(control(wrapper, "set-status-interval_min").element.value).toBe("30");
+  });
+
+  it("greys the rigctld fields too when the status comes from the radio", () => {
+    const { wrapper } = off();
+    for (const id of ["set-status-rigctld", "set-status-template"]) expect(control(wrapper, id).element.disabled, id).toBe(true);
+    expect(control(wrapper, "set-status-rigctld").element.value).toBe("127.0.0.1:4532");
+  });
+
+  it("greys Travelling, the comment and the path for a moving station, and shows no antenna", () => {
+    const { wrapper } = off({ "gps/source": "gpsd" });
+    for (const id of ["set-beacon-travel", "set-station-comment", "set-beacon-path", "set-status-source"])
+      expect(control(wrapper, id).element.disabled, id).toBe(true);
+    expect(control(wrapper, "set-beacon-power_w").exists()).toBe(false);
+    expect(control(wrapper, "set-beacon-travel").element.value).toBe("car");
+  });
+
+  it("never greys the Station group or the Beacon choice", () => {
+    for (const source of ["off", "gpsd", "serial"]) {
+      const { wrapper } = off({ "gps/source": source });
+      const present = STATION.filter((id) => control(wrapper, id).exists());
+      expect(present.length, source).toBeGreaterThanOrEqual(4);
+      expect(
+        present.filter((id) => control(wrapper, id).element.disabled),
+        source,
+      ).toEqual([]);
+      expect(wrapper.find<HTMLButtonElement>("#set-station-symbol-change").element.disabled, source).toBe(false);
+      expect(wrapper.find("#set-station-symbol-change").element.closest(".field")?.classList.contains("disabled"), source).toBe(false);
+    }
+  });
+
+  it("leaves the folds openable, with their fields greyed inside", async () => {
+    const { wrapper } = off();
+    const antenna = wrapper.findAll("details.disclosure").find((d) => d.find("summary").text() === "Antenna");
+    expect(antenna).toBeDefined();
+    await antenna?.find("summary").trigger("click");
+    (antenna?.element as HTMLDetailsElement).open = true;
+    expect(antenna?.find<HTMLInputElement>("#set-beacon-power_w").element.disabled).toBe(true);
+  });
+
+  it("greys nothing while the beacon is on, for any interval and for a moving station", () => {
+    for (const extra of [{ "beacon/interval_min": "30" }, { "beacon/interval_min": "180" }, { "beacon/interval_min": "30", "gps/source": "serial" }] as Record<
+      string,
+      string
+    >[]) {
+      const { wrapper } = off(extra);
+      expect(wrapper.findAll(".field.disabled"), JSON.stringify(extra)).toHaveLength(0);
+      expect(wrapper.findAll("input:disabled, select:disabled"), JSON.stringify(extra)).toHaveLength(0);
+    }
+  });
+
+  it("greys at once when Off is chosen and ungreys when an interval is chosen, and applies the choice", async () => {
+    const { wrapper, send } = make({}, "beacon");
+    expect(wrapper.findAll(".field.disabled")).toHaveLength(0);
+    await wrapper.find("#set-beacon-interval_min").setValue("0");
+    expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "beacon/interval_min": "0" } });
+    expect(wrapper.find<HTMLInputElement>("#set-station-comment").element.disabled).toBe(true);
+    await wrapper.find("#set-beacon-interval_min").setValue("60");
+    expect(wrapper.find<HTMLInputElement>("#set-station-comment").element.disabled).toBe(false);
+  });
+
+  it("keeps the (i) of a greyed field working", () => {
+    const { wrapper } = off();
+    const field = control(wrapper, "set-station-comment").element.closest(".field");
+    expect(field?.querySelector(".info-toggle")).not.toBeNull();
+    expect((field?.querySelector(".info-toggle") as HTMLButtonElement).disabled).toBe(false);
+  });
+});
+
+describe("SettingsForm: the Transmit switch is gone", () => {
+  it("is on neither tab, and station/transmit is no field whatever its value", () => {
+    for (const scope of ["beacon", "settings"] as const) {
+      for (const value of ["true", "false"]) {
+        const { wrapper } = make({ "station/transmit": value }, scope);
+        expect(wrapper.find("#set-station-transmit").exists(), `${scope} ${value}`).toBe(false);
+        expect(wrapper.text()).not.toContain("Receive only");
+        expect(wrapper.findAll(".field label").map((l) => l.text())).not.toContain("Transmit");
+      }
+    }
   });
 });

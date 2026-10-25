@@ -251,7 +251,7 @@ async def test_stop_while_silent_between_probes_leaves_nothing_running(rig: Rigs
 # ---- the senders over the socket, with the real Tnc
 
 async def test_beacon_now_and_send_message_are_refused_over_the_socket_while_the_radio_is_silent_and_work_when_it_answers(tmp_path: Path) -> None:
-    e = Env(tmp_path, web=True)
+    e = Env(tmp_path, web=True, settings={"beacon/interval_min": "1440"})
     await e.start()
     page = await e.ws()
     await page.until(lambda: len(page.of("state")) >= 7)

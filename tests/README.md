@@ -133,6 +133,7 @@
 * `test_receive_only.py`: Receive only (`station/transmit` false, the first reason of `config.can_transmit`): on the whole daemon with a fake radio nothing reaches the line while it is off
   (a beacon, a status, an object, an ack, a query, a digipeatable packet and a message being sent are all due or asked), a new message, a retry, an object and a bulletin are refused with the
   code `transmit.off`, a message being sent keeps its attempts and does not fail and goes on when it is switched on, one beacon and no ack afterwards, the switch holds after a restart.
+* `test_beacon_off.py`: the beacon Off (`beacon/interval_min` 0, a moving station too): on the whole daemon with a fake radio no beacon and no status go out whatever is due, and `beacon_now` and `status_now` are refused with the reason `the beacon is off`, while a message, its ack, the answer to a query, an object and a digipeated packet go as they do; what was held back goes when it is on. Off is not Receive only.
 * `test_interlock.py`: the transmit interlock (`config.can_transmit`, `neoaprs/interlock.py`): which calls may transmit (N0CALL, NOCALL, MYCALL, a name that is
   no amateur call and the empty call may not), the empty call and position in the settings, and the whole daemon on the pseudo-terminal radio
   (`Env(operator=False)`, a fresh install): with beacon and status due, a message to send, a frame handed to the Tnc, nothing reaches the line and each refusal

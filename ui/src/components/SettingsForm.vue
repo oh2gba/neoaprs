@@ -4,7 +4,7 @@
 // the person sees of it (the Undo toast, a line for a screen reader) is useSettings, shared with the other tab so that there is one queue. The alert command has a Test button, which runs the saved command and shows how it went under the field; a field
 // left empty shows the default as a placeholder. The Map group ends with the buttons that make the map (MapFetchPanel), which work on the saved settings. On the Settings tab a link at the top opens the first-run guide again; the default slot is
 // for more groups (the page's own, which are not settings of the daemon), the slot `top` for the beacon status above the first group, and `status` for the line with the button that sends the status now, which opens the Status group. The Beacon tab's Station group
-// starts with the choice of where the position comes from (gps/source: Fixed, or a GPS) and what that needs; the place (Location) is shown for Fixed only (with a GPS it stays stored and out of sight), and the Beacon group has the Travelling choice instead of the interval and the antenna. The TNC group is SettingsRadio: the state of the radio link with Reconnect in view and the fields of the radio behind a fold, and the fields of the page's own alert end the
+// starts with the choice of where the position comes from (gps/source: Fixed, or a GPS) and what that needs; the place (Location) is shown for Fixed only (with a GPS it stays stored and out of sight), and the Beacon group has the Beacon choice (an interval, or Off and On for a moving station) and, for a moving station, the Travelling choice instead of the antenna. While the beacon is Off the Beacon group's other fields (Travelling, the comment, the antenna, the path) and the whole Status group are shown greyed out (`disabled` of SettingsField), the Station group never. The TNC group is SettingsRadio: the state of the radio link with Reconnect in view and the fields of the radio behind a fold, and the fields of the page's own alert end the
 // Notifications group (BrowserAlerts). What it works on is the page's (useDaemonContext): the settings, the daemon's answers, `send`. The Update check group (the daily check itself is always on) has a Check now button, which asks the version page at once and says the answer in the toast (a newer version opens the update window). While the network is let in, the Web group shows
 // the access key with a New key button and the addresses to open the page at.
 import BrowserAlerts from "@/components/BrowserAlerts.vue";
@@ -26,8 +26,9 @@ import { KEY_KEY, useNewKey } from "@/composables/useNewKey";
 import { useUpdateCheck } from "@/composables/useUpdateCheck";
 import { fieldId, useSettingsForm } from "@/composables/useSettingsForm";
 import type { Picked } from "@/composables/usePositionPick";
+import { disabledByValues } from "@/lib/beaconoff";
 import { degreesText } from "@/lib/setup";
-import { BEACON_FOLDS, FIELDS, SUBGROUPS, shownByValues, shownFor, type Scope } from "@/lib/settings";
+import { BEACON_FOLDS, SUBGROUPS, fieldFor, shownByValues, shownFor, valueFor, type Scope } from "@/lib/settings";
 import { statusSource } from "@/lib/status";
 import { computed, watch } from "vue";
 
@@ -50,7 +51,9 @@ const newKey = useNewKey();
 const SYMBOL_TABLE = "station/symbol_table";
 const SYMBOL_CODE = "station/symbol_code";
 const GPS_DEVICE = "gps/device";
-const info = (key: string) => FIELDS[key] ?? { label: key };
+const info = (key: string) => fieldFor(key, draft);
+/** A field the Beacon tab greys out while the beacon is Off (shown, with its value, and not changeable). */
+const greyed = (key: string): boolean => props.scope === "beacon" && disabledByValues(key, draft);
 /** The network is let in and the daemon has made a key (what is in force, not the switch as it is being changed). */
 const network = computed(() => config.value?.values["web/network"] === "true" && (config.value.values[KEY_KEY] ?? "") !== "");
 const urls = computed(() => config.value?.urls ?? []);
@@ -166,11 +169,12 @@ function typed(key: string, text: string): void {
           v-else
           :id="fieldId(key)"
           :info="info(key)"
-          :model-value="key === 'status/source' ? statusSource(draft) : (draft[key] ?? '')"
+          :model-value="key === 'status/source' ? statusSource(draft) : valueFor(key, draft)"
           :fallback="fallback(key)"
           :error="errors[key] ?? ''"
           :changed="form.changed(key)"
           :apply="true"
+          :disabled="greyed(key)"
           @update:model-value="typed(key, $event)"
           @choose="form.choose({ [key]: $event })"
           @commit="form.finish(key, $event)"
@@ -211,6 +215,7 @@ function typed(key: string, text: string): void {
           :settings="settings"
           :form="form"
           :defaults="defaults"
+          :disabled="greyed"
         />
       </template>
       <BrowserAlerts v-if="group.id === 'notifications'" :alerts="alerts" :https="config.https" :say="say" />

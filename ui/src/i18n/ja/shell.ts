@@ -7,7 +7,7 @@ export const shell: Record<keyof typeof source, Message> = {
 
   "header.project_title": "NeoAPRSプロジェクトのページ",
   "header.receive_only": "受信専用",
-  "header.receive_only_title": "何も送信されません。「送信」スイッチを開く",
+  "header.receive_only_title": "何も送信されません。この局は受信専用に設定されています",
   "header.no_call": "コールサイン未設定",
   "header.no_call_title": "コールサインを設定するまで何も送信されません。設定を開きます",
   "header.unread_open": {

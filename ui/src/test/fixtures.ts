@@ -348,7 +348,7 @@ export function configValues(extra: Record<string, string> = {}): ConfigValues {
     "web/https": "false",
     "web/port": "7303",
     "web/allowed_hosts": "",
-    "beacon/interval_min": "0",
+    "beacon/interval_min": "30",
     "beacon/path": "",
     "messages/alert": "true",
     "messages/alert_command":

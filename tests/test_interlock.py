@@ -124,7 +124,7 @@ async def test_with_a_call_set_the_same_things_go_out_and_a_waiting_beacon_goes_
 
 
 async def test_no_position_means_no_beacon_and_no_own_station_but_messages_go(tmp_path: Path) -> None:
-    e = await started(tmp_path, station_call="OH2GBA")
+    e = await started(tmp_path, station_call="OH2GBA", beacon_interval_min=1440)           # (the beacon is on: the defaults are a beacon that is off)
     assert e.ctl.stationbook.me is None
     assert not e.ctl.beacon.send_now("request") and e.ctl.beacon.problem.endswith("set your position first")
     await quiet(e)

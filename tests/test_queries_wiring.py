@@ -13,8 +13,12 @@ from tests.support.air import message_info, on_air, said
 from tests.support.env import Env, idle_for, quick_start, until
 
 
-async def started(tmp_path: Path, **changes: object) -> Env:
+async def started(tmp_path: Path, beacon_on: bool = False, **changes: object) -> Env:
+    """A daemon with messaging and the status; `beacon_on`: the beacon is on (a status goes out only then; the defaults are a beacon that is off) and its timer stopped, as these tests are about the status and the queries."""
     e = await quick_start(tmp_path, messaging=True, rigstatus=True)
+    if beacon_on:
+        await e.ctl.beacon.stop()
+        changes = {"beacon_interval_min": 1440, **changes}
     if changes:
         assert await e.ctl.save_config(replace(e.ctl.config, **changes))    # type: ignore[arg-type]
     return e
@@ -65,7 +69,7 @@ async def test_the_answer_to_an_rf_only_asker_ends_with_rfonly_and_one_that_cann
 
 
 async def test_aprss_gives_the_status_report_last_sent_and_nothing_before_one_went(tmp_path: Path) -> None:
-    e = await started(tmp_path)
+    e = await started(tmp_path, beacon_on=True)
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "?APRSS")))
     await heard(e, 1)
     assert await said(e, 1, 0.3) == []
@@ -151,7 +155,7 @@ async def test_a_query_to_somebody_else_is_not_answered(tmp_path: Path) -> None:
 # ---- the status is not tied to the beacon -------------------------------------------------------------------------------------------------------
 
 async def test_the_beacon_is_not_followed_by_the_status_report(tmp_path: Path) -> None:
-    e = await started(tmp_path, station_status="On the road")
+    e = await started(tmp_path, beacon_on=True, station_status="On the road")
     e.feed(on_air("OH2ABC", b">hello"))                                     # (a KISS frame heard: the TNC is in KISS mode and takes frames, the status waited for that)
     await heard(e, 1)
     await until(lambda: e.ctl.rigstatus.last_text == "On the road")          # (said() blocks the loop: the status is on the line before it is read)

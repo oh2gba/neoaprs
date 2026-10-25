@@ -67,7 +67,7 @@ describe("AppHeader", () => {
     const wrapper = header({ receiveOnly: true });
     const badge = wrapper.find(".rxonly");
     expect(badge.text()).toBe("Receive only");
-    expect(badge.attributes("title")).toBe("Nothing is transmitted: open the Transmit switch");
+    expect(badge.attributes("title")).toBe("Nothing is transmitted: this station is set to receive only");
     expect(badge.element.previousElementSibling?.tagName).toBe("H1");
     expect(cssRule(".rxonly")).toMatch(/color:\s*var\(--warn\)/);
     await badge.trigger("click");

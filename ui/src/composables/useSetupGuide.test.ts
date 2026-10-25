@@ -6,7 +6,7 @@ import type { Command, ConfigValues, PortsMessage } from "@/protocol/protocol";
 import { configValues, toastOf } from "@/test/fixtures";
 
 const fresh = (extra: Record<string, string> = {}) =>
-  configValues({ "station/call": "", "station/lat": "", "station/lon": "", "serial/baud": "", "serial/port": "", ...extra });
+  configValues({ "beacon/interval_min": "0", "station/call": "", "station/lat": "", "station/lon": "", "serial/baud": "", "serial/port": "", ...extra });
 const ports = (extra: Partial<PortsMessage> = {}): PortsMessage => ({
   type: "ports",
   search: true,

@@ -9,6 +9,10 @@
   font: inherit;
   min-width: 0;
 }
+.input:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
 .input:focus-visible,
 .btn:focus-visible,
 .tab:focus-visible,

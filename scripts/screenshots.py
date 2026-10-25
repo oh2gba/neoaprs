@@ -452,14 +452,14 @@ async def shot_settings_tnc(s: Shots, _: str) -> None:
 
 
 async def shot_beacon_rx(s: Shots, _: str) -> None:
-    """The Beacon tab of a station that is set to Receive only: the Transmit switch at its top and the amber badge in the header, beside the title."""
+    """The Beacon tab of a station that is set to Receive only: the amber badge in the header, beside the title."""
     page = await s.page(DESKTOP, tab="beacon", view=CITY, panel=WIDE_PANEL, url=s.receive_url)
     await settle(page, 400)
     await s.save(page, "beacon-rx")
 
 
 async def shot_phone_beacon_rx(s: Shots, _: str) -> None:
-    """A phone set to Receive only: the amber badge beside the title and, under the tab bar, the Beacon tab with the Transmit switch at the top."""
+    """A phone set to Receive only: the amber badge beside the title and, under the tab bar, the Beacon tab."""
     page = await s.page(PHONE, tab="beacon", view=CITY, phone_view="panel", url=s.receive_url)
     await s.save(page, "phone-beacon-rx")
 
@@ -650,7 +650,7 @@ async def take(args: argparse.Namespace, chosen: list[str]) -> None:
         if {"beacon-rx", "beacon-rx-dark", "phone-beacon-rx", "phone-beacon-rx-dark"} & set(chosen):
             copy_data(data, work / "receiving")
             neoaprs_db_set(work / "receiving", "station/transmit", "false")
-            receiving = Daemon(work / "receiving")                                                   # (the same day on the air, with the Transmit switch at Receive only)
+            receiving = Daemon(work / "receiving")                                                   # (the same day on the air, with station/transmit false: Receive only)
             daemons.append(receiving)
         main_daemon = Daemon(data)
         daemons.append(main_daemon)

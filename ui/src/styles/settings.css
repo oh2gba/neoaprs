@@ -30,6 +30,12 @@
 .field .field-label {
   font-weight: 600;
 }
+/* a field that does not apply now (the beacon is Off): the label and the control are dimmed, the value stays, the (i) is not dimmed */
+.field.disabled label,
+.field.disabled .unit,
+.field.disabled .check {
+  opacity: 0.5;
+}
 .field-control {
   display: flex;
   align-items: center;

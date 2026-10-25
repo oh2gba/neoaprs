@@ -1,35 +1,49 @@
 # Beacon, status and digipeater
 
-The Beacon tab holds what your station says on the air. From top to bottom: the **beacon status** with **Beacon now** ([Beacon now](#beacon-now)); the **Station** group (call, **Position**, location, symbol); the **Beacon** group (how often, or what you move as, the comment, a closed **Antenna** heading for a fixed station and a closed **Advanced** heading with the path choice); the **Status** group; and the closed **Preview**. A setting applies as you change it ([start.md](start.md#how-settings-apply)).
+The Beacon tab holds what your station says on the air. From top to bottom: the **beacon status** with **Beacon now** ([Beacon now](#beacon-now)); the **Station** group (call, **Position**, location, symbol); the **Beacon** group (the **Beacon** choice, what you travel as for a moving station, the comment, a closed **Antenna** heading for a fixed station and a closed **Advanced** heading with the path choice); the **Status** group; and the closed **Preview**. A setting applies as you change it ([start.md](start.md#how-settings-apply)).
 
-**Position** is the one choice that decides what kind of station you are, and the tab shows only what applies to it. **Fixed** is a fixed station: the beacon is the location below, sent at the interval of the Beacon group, with the antenna's PHG. **A GPS via gpsd** and **A GPS on a serial port** make a moving station: the beacon follows the GPS and goes when SmartBeaconing says, with no interval and no PHG ([Mobile operation](#mobile-operation)).
+**Position** is the one choice that decides what kind of station you are, and the tab shows only what applies to it. **Fixed** is a fixed station: the beacon is the location below, sent at the interval of the Beacon group, with the antenna's PHG. **A GPS via gpsd** and **A GPS on a serial port** make a moving station: the beacon follows the GPS and goes when SmartBeaconing says, with no interval to choose and no PHG ([Mobile operation](#mobile-operation)).
 
 The location (**Choose on map**, the coordinates and the locator) is shown for **Fixed** only; with a GPS chosen it is hidden, and the location you gave stays stored. The choice is the setting `gps/source` (`off`, `gpsd` or `serial`).
 
 A first transmission on the air is not tried by NeoAPRS's tests, which never open the radio. Check it live with **Beacon now**, then look for your call on aprs.fi or on another station's screen, before you leave a timer on.
 
+## Beacon off
+
+The **Beacon** choice is the one control that switches the beacon on and off. A fixed station chooses **Off**, **Every 30 min**, **Every 60 min** or **Every 3 hours**; a moving station (a GPS is chosen) chooses **Off** or **On (SmartBeaconing)**. The setting is `beacon/interval_min`, where 0 is off for both kinds of station. The default is off, so an upgrade never starts to transmit, and the setup guide gives a new station a beacon every 30 minutes.
+
+While the beacon is **Off**:
+
+* **No beacon goes out.** There is no timer and no SmartBeaconing, and **Beacon now** is disabled with the tip that the beacon is off.
+* **No status report goes out** either, because the status is the beacon's companion: **Send status now** is disabled in the same way, and a status that came due meanwhile is sent once, if it differs from the last one, at the first poll after you switch the beacon on again.
+* **Everything else goes on as it does.** Messages and emails are sent and acknowledged, queries to your call are answered, your objects and bulletins are sent, and the fill-in digipeater digipeats. Off is not [receive only](#receive-only): your station still takes part, it just does not announce itself.
+* The **beacon status** at the top of the tab reads **Beacon off**, with its pill off.
+* The fields that belong to the beacon and the status are shown **greyed out, with their values kept**, not hidden: **Travelling**, the comment, the fields of the **Antenna** heading, the path in **Advanced**, and everything in the **Status** group. The two headings still open. The **Station** group (call, **Position**, the GPS fields, the location and the symbol) is never greyed.
+
+Choosing an interval, or **On**, turns it all on again. Choosing **On** for a moving station that was off stores the interval of 30 minutes, which a moving station does not use but which keeps the setting valid.
+
 ## Receive only
 
-The first row of the Station group is **Transmit**, with the choices **On** and **Receive only** (the setting `station/transmit`, `true` by default). It is for the days you want the radio to listen and nothing more. While it is **Receive only** nothing at all is transmitted, whoever asks and whatever is due: no beacon, status, message, ack, answer to a query, object, bulletin or digipeated packet.
+Receive only is a setting of the daemon for a station that must never key the transmitter at all, such as a receiving-only station or a test bench. It is `station/transmit`, `true` by default, and it is not on the page: set it with `neoaprs db set station/transmit false`, which the daemon takes at its next start. It is not the same as the beacon being off ([Beacon off](#beacon-off)), which only silences the beacon and the status.
 
-The page shows an amber **Receive only** badge beside the title in its header, on every screen size; a click on it opens this tab. The setting is kept in the database, so it holds after a restart of the daemon.
+While `station/transmit` is `false` nothing at all is transmitted, whoever asks and whatever is due: no beacon, status, message, ack, answer to a query, object, bulletin or digipeated packet. The page shows an amber **Receive only** badge beside the title in its header, on every screen size; a click on it opens the Beacon tab. The setting is kept in the database, so it holds after a restart of the daemon.
 
-* **Beacon now**, **Send status now**, a message, an email, an object or a bulletin you send meanwhile is refused at once with the toast "Receive only: nothing is sent" (`neoaprs db set` and the wire give the code `transmit.off`).
-* A message that was already being sent waits: no attempt is used up and it does not fail, and the waits that were running are moved on by the time transmitting was off. It goes on when you switch back to **On**. A message you receive is kept, but its ack is not sent and not kept for later; the station that sent it will try again.
-* Timers do not catch up. A beacon or a status that came due meanwhile goes out once, at the first moment after you switch to **On**, and the next one an interval after that; objects and bulletins that are due follow one at a time, with the usual pause between frames, so there is never a burst.
+* **Beacon now**, **Send status now**, a message, an email, an object or a bulletin you send meanwhile is refused at once with the toast "Receive only: nothing is sent" (the wire gives the code `transmit.off`).
+* A message that was already being sent waits: no attempt is used up and it does not fail, and the waits that were running are moved on by the time transmitting was off. It goes on when transmitting is switched on again. A message you receive is kept, but its ack is not sent and not kept for later; the station that sent it will try again.
+* Timers do not catch up. A beacon or a status that came due meanwhile goes out once, at the first moment after transmitting is switched on, and the next one an interval after that; objects and bulletins that are due follow one at a time, with the usual pause between frames, so there is never a burst.
 
 ## The beacon
 
-This is the beacon of a fixed station (**Position** at **Fixed**); a moving station has no interval, see [Mobile operation](#mobile-operation).
+This is the timed beacon of a fixed station (**Position** at **Fixed**); a moving station has no interval but On and Off, see [Mobile operation](#mobile-operation).
 
-Set the beacon to Off, or to every 30 minutes, every 60 minutes or every 3 hours. The setting `beacon/interval_min` takes 0 (off) or 20 to 1440: 20 minutes is the net cycle of the APRS specification for a path of two hops, and 30 is routine operation. A stored value that the page does not offer, such as 20 or 45, is shown as one more choice until you pick another, and one below 20 is raised to 20 (the log says so). The default is off, so an upgrade never starts to transmit. The setup guide gives a new station a beacon every 30 minutes.
+Set the beacon to [Off](#beacon-off), or to every 30 minutes, every 60 minutes or every 3 hours. The setting `beacon/interval_min` takes 0 (off) or 20 to 1440: 20 minutes is the net cycle of the APRS specification for a path of two hops, and 30 is routine operation. A stored value that the page does not offer, such as 20 or 45, is shown as one more choice until you pick another, and one below 20 is raised to 20 (the log says so).
 
 The first beacon goes out 30 seconds after the daemon starts, so that the radio and the TNC settle first. After that one goes out every interval, counted from the latest beacon, however it was sent.
 
 - **A restart does not send another.** The time of each beacon is kept. A daemon that starts less than an interval after the last beacon sends its first one an interval after that one, not 30 seconds after the start.
 - **A beacon that falls due while the radio is away is not skipped.** If the TNC is not connected or the radio is silent (switched off at night), the beacon stays due. The log says once `the beacon is due and the radio is silent: it goes out when the radio is back`. The first second the radio is usable again one beacon goes out, however many intervals went by, and the next is an interval after it.
 - **A frame the TNC refuses** (it is settling after entering KISS, or the write failed) is tried again 5 seconds later, six refusals in all. Then that interval is skipped and the next is the first interval boundary after now.
-- **Beacon now** and a changed interval count from the kept time. Saving a new interval takes effect at once, and 0 stops the timer.
+- **Beacon now** and a changed interval count from the kept time. Saving a new interval takes effect at once, and 0 (Off) stops the timer.
 
 The beacon is a packet from your call to the tocall `APZNEO`, by the digipeaters of `beacon/path`. Its information field starts with `=` (a station that takes messages), then your position rounded to the hundredth of a minute, your symbol and your comment. With the defaults (a house, the recommended path of a fixed station) it is:
 
@@ -74,11 +88,11 @@ The **Preview** under the Beacon tab, closed until you open it, shows the packet
 
 ## Beacon now
 
-The **beacon status** at the top of the tab is in the look of the radio's status on the Settings tab: a label, one coloured pill and plain lines, with the primary button **Beacon now** at the end of the first line. Beacon now asks twice ("Really send?"). It is off while the TNC is not connected, and while a change of the settings is being saved, so what is sent is what is in force. The next beacon of the timer is then an interval later.
+The **beacon status** at the top of the tab is in the look of the radio's status on the Settings tab: a label, one coloured pill and plain lines, with the primary button **Beacon now** at the end of the first line. Beacon now asks twice ("Really send?"). It is off while the TNC is not connected, while a change of the settings is being saved (so what is sent is what is in force), and while the beacon is [Off](#beacon-off), with a tip that says so. The next beacon of the timer is then an interval later.
 
-For a fixed station the label is **Beacon**, the pill is **on** (green) while the timer runs and **off** while it does not, and the line says when the last beacon went and when the next is due: **Last beacon 4 min ago · next in 56 min (every 60 min)**. The full time of the last beacon is on hover. With the interval off it reads **Last beacon 2 min ago · no timed beacon**, and before the first beacon of a run **No beacon sent yet · next in 5 min (every 30 min)**.
+For a fixed station the label is **Beacon**, the pill is **on** (green) while the timer runs and **off** while it does not, and the line says when the last beacon went and when the next is due: **Last beacon 4 min ago · next in 56 min (every 60 min)**. The full time of the last beacon is on hover. With the beacon off it reads **Beacon off** and the pill is off. Before the first beacon of a run it reads **No beacon sent yet · next in 5 min (every 30 min)**.
 
-For a moving station the label is **GPS**, the pill is the state of the GPS and there are lines under the first ([Mobile operation](#mobile-operation)).
+For a moving station the label is **GPS**, the pill is the state of the GPS and there are lines under the first ([Mobile operation](#mobile-operation)); with the beacon off it is the same **Beacon off** as for a fixed one.
 
 A beacon you send is in the Packets tab as a packet with direction `out`.
 
@@ -96,7 +110,9 @@ What to set (the Station and Beacon groups of the Beacon tab):
 
 The GPS is read as soon as a source is chosen, so you can see the fix before the first beacon.
 
-**What the Beacon tab shows.** Under the choice of Position stand only the fields that apply: the gpsd address for gpsd, the port and speed for a serial receiver. The Location row of the Station group is not shown, because the GPS position is what is sent; the location you gave stays stored, and it is where your station is on the map before the first fix and whenever you choose **Fixed** again. In the Beacon group the interval and the Antenna heading are not shown, because a moving beacon has neither, and **Travelling** is, in the place of the interval.
+**What the Beacon tab shows.** Under the choice of Position stand only the fields that apply: the gpsd address for gpsd, the port and speed for a serial receiver. The Location row of the Station group is not shown, because the GPS position is what is sent; the location you gave stays stored, and it is where your station is on the map before the first fix and whenever you choose **Fixed** again.
+
+In the Beacon group the **Beacon** choice is **Off** or **On (SmartBeaconing)**, in the place of the intervals; the Antenna heading is not shown, because a moving beacon has no PHG, and **Travelling** is shown below the choice. While the choice is **Off** the GPS is not reported on the status line, which reads **Beacon off** ([Beacon off](#beacon-off)); choose **On** to see the fix.
 
 The beacon status at the top of the tab then reads as the GPS, in the look of the radio's: the label **GPS**, a coloured word (off, connecting, no fix, fix or stale) and one line in plain words, with Beacon now at its end:
 
@@ -134,7 +150,7 @@ After the position comes the altitude in feet (`/A=000103`) and then your commen
 - A turn is sent at once: when the course differs from the course of the last beacon by more than the turn angle plus the slope divided by the speed in miles per hour, and the turn time has passed since the last beacon. A station that is not above the slow speed sends no turns.
 - **Beacon now** sends the position as it is, and the times count from it.
 
-The 20-minute floor of the fixed beacon does not apply to a moving station, and `beacon/interval_min` is not used while a GPS is chosen. Keep the channel in mind: a beacon a minute from every car makes a busy channel busier.
+The 20-minute floor of the fixed beacon does not apply to a moving station. While a GPS is chosen `beacon/interval_min` is only On or Off: 0 is off, and any other value is on and is not used as an interval. Keep the channel in mind: a beacon a minute from every car makes a busy channel busier.
 
 **No fix, no beacon.** With no fresh GPS fix nothing is sent: not at the start, while the receiver is looking for satellites, not when gpsd or the port is away, and not once the latest fix is more than 2 minutes old. Your home position is never sent in its place, because a station that seems to jump home is worse than a silent one. Beacon now is refused with the reason, and a query for your position (`?APRSP`) is not answered. The page says why in the state of the GPS. A fix lost for less than 2 minutes (a tunnel) is still the latest one, and the beacon goes on by the clock.
 
@@ -187,9 +203,11 @@ OH2GBA>APZNEO,WIDE2-1:>211200zQRV 14.074 MHz USB
 - the first status goes out at the first poll after the start;
 - a restart does not send it again: the time and text of the last status are kept, so a daemon started inside the interval sends nothing, and one started after it sends a status only when the frequency and mode (or the text) differ from the kept text.
 
+**The beacon off.** While the beacon is [Off](#beacon-off) no status is sent, whatever its source; the whole Status group is greyed out and keeps its values.
+
 **The radio off.** If rigctld answers with an error (a radio that is switched off), refuses the connection or does not answer within 5 seconds, the radio is off or rigctld is away. Nothing is sent. The log says so once when it begins (`rigctld at 127.0.0.1:4532: connection refused: no status while it is away`) and once when the radio answers again.
 
-**Send status now** is a button at the top of the Status group, beside the status line, there only while the status is not off. It asks twice, acts on the saved settings and sends the status at once, inside the interval and although nothing changed. The interval counts from it. It is refused when the call is not set, when the TNC is not connected, when the text is over 55 characters, when the status is off or the text empty, and with the radio as the source when rigctld is away; it says why.
+**Send status now** is a button at the top of the Status group, beside the status line, there only while the status is not off. It asks twice, acts on the saved settings and sends the status at once, inside the interval and although nothing changed. The interval counts from it. It is disabled, with a tip, while the beacon is [Off](#beacon-off), as no status goes out then. It is refused when the call is not set, when the TNC is not connected, when the text is over 55 characters, when the status is off or the text empty, and with the radio as the source when rigctld is away; it says why.
 
 The status line at the top of the group shows the status last sent and, with the radio as the source, whether rigctld answers. The last text sent is also the answer to the query `?APRSS`.
 

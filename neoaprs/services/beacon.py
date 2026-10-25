@@ -4,8 +4,9 @@ The frame is `frame()`: the tocall (`neoaprs.TOCALL`, not a setting), the digipe
 hundredth of a minute and never ambiguous) come from the settings. Right after the position, before the comment, goes the PHG data extension (`PHGphgd`: power, height, gain and directivity of the antenna) when `beacon/power_w` is
 set; the comment may then be 36 characters, 43 otherwise (`Config.comment_limit`), and the frame is refused when it is longer. The Tnc puts a sent frame in the packet log as a packet with direction "out", so nothing here keeps it.
 A mobile beacon (services/mobilebeacon.py, neoaprs/smartbeacon.py) is the position, course, speed and altitude of the GPS fix (the services/gps.py `current()`, a fix that is not older than GPS_STALE_SEC), a compressed position without PHG; the
-timer asks SmartBeaconing at every tick instead of waiting for an interval (`beacon/interval_min` is not used), `next_due` is the time the speed of the fix says the next beacon by time is due, and `mobile` remembers the last beacon (when, the course, why:
+timer asks SmartBeaconing at every tick instead of waiting for an interval (`beacon/interval_min` is only On or Off there: any value but 0 is On, and it is not used), `next_due` is the time the speed of the fix says the next beacon by time is due, and `mobile` remembers the last beacon (when, the course, why:
 `start` for the first fix of the run, `time`, `turn`, `request`). With no fix, none yet or none fresh, no beacon is built or sent at all (`NoFix`), and `problem` says why; the home position of the settings is never put in its place.
+The beacon is off while `beacon/interval_min` is 0 (`Config.beacon_on`), for a moving station too: no timer, no SmartBeaconing, and `send_now` (Beacon now) sends nothing and says `BEACON_OFF`. Off is not receive only: nothing else changes.
 The status report (`status_frame(text)`: `>` and the time as `DDHHMMz`, then the text, at most 55 printable ASCII characters without `|` and `~`) is made here, by the same tocall and path, but sent by services/rigstatus.py, not after each beacon.
 
 The timer is a task that looks at the clock once a `tick_sec`, so a test moves the clock and the beacon follows. The first beacon is `first_delay_sec` after the start (the radio and the TNC
@@ -22,7 +23,7 @@ from datetime import datetime, timedelta
 from neoaprs import ax25
 from neoaprs.aprsposition import uncompressed_position
 from neoaprs.clock import Clock, utcnow
-from neoaprs.config import ANTENNA_DIRECTIONS, BEACON_SENT, SYMBOL_TABLES, Config, can_transmit
+from neoaprs.config import ANTENNA_DIRECTIONS, BEACON_OFF, BEACON_SENT, SYMBOL_TABLES, Config, can_transmit
 from neoaprs.configstatus import MAX_STATUS
 from neoaprs.configtypes import over_the_air_problem, over_the_air_refusal
 from neoaprs.gpsfix import Fix
@@ -168,9 +169,11 @@ class Beacon:
     # ---- sending
     def send_now(self, reason: str = "request") -> bool:
         """Sends the beacon through the Tnc and notes when and why; the interval counts from now (a mobile station's SmartBeaconing from this beacon). False (and `problem` says why) when the Tnc is not connected or
-        the radio is silent, would not take it, the settings make no frame, or a mobile station has no fresh fix. Nothing is sent while the call is not set (the interlock)."""
+        the radio is silent, would not take it, the settings make no frame, or a mobile station has no fresh fix. Nothing is sent while the call is not set or transmitting is off (the interlock), nor while the beacon is off."""
         if refusal := self._interlock.refused("beacon"):
             return self._failed(refusal)
+        if not self._config().beacon_on:
+            return self._failed(BEACON_OFF)
         try:
             frame, fix = self._build()
         except NoFix as e:
@@ -212,7 +215,7 @@ class Beacon:
         self._started, self.next_due = None, None
 
     def settings_changed(self) -> None:
-        """The settings were saved: a changed interval, or a switch between a fixed and a mobile station, is planned from now on, at once; 0 stops the timer of a fixed one. Any other change leaves the time of the next beacon alone."""
+        """The settings were saved: a changed interval, or a switch between a fixed and a mobile station, is planned from now on, at once; 0 (Off) stops the timer of a fixed one and SmartBeaconing of a mobile one. Any other change leaves the time of the next beacon alone."""
         if self._started is not None and (self.interval_min != self._planned_min or self._config().mobile != self._planned_mobile):
             self._plan(self.interval_min)
 
@@ -248,6 +251,8 @@ class Beacon:
 
     def _due_reason(self, now: datetime) -> str | None:
         """Why a beacon is due now (`interval`, or for a mobile station what SmartBeaconing says), None when none is."""
+        if not self._config().beacon_on:
+            return None
         if self._config().mobile:
             return self._mobile_reason(now)
         return "interval" if self.next_due is not None and now >= self.next_due else None

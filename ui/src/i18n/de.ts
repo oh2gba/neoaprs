@@ -8,7 +8,7 @@ export const de: Catalogue = {
 
   "header.project_title": "Die Projektseite von NeoAPRS",
   "header.receive_only": "Nur Empfang",
-  "header.receive_only_title": "Es wird nichts gesendet: den Schalter „Senden“ öffnen",
+  "header.receive_only_title": "Es wird nichts gesendet: Diese Station ist auf „Nur Empfang“ gestellt",
   "header.no_call": "kein Rufzeichen",
   "header.no_call_title": "Ohne Rufzeichen wird nichts gesendet: Einrichtung öffnen",
   "header.unread_open": {
@@ -823,9 +823,6 @@ export const de: Catalogue = {
   "settings.name.tcp_address": "TCP-Adresse",
   "settings.name.radio": "Funkgerät",
 
-  "settings.transmit.label": "Senden",
-  "settings.transmit.on": "Ein",
-  "settings.transmit.off": "Nur Empfang",
   "settings.call.label": "Rufzeichen",
   "settings.lat.label": "Breite",
   "settings.lon.label": "Länge",
@@ -1014,8 +1011,11 @@ export const de: Catalogue = {
   "settings.beacon_interval.name": "Bakenintervall",
   "settings.beacon_interval.label": "Bake",
   "settings.beacon_interval.off": "Aus",
+  "settings.beacon_interval.on_smart": "Ein (SmartBeaconing)",
   "settings.beacon_interval.tip1":
-    "Wie oft deine Position gesendet wird. „Aus“ sendet von selbst keine; „Bake jetzt“ sendet trotzdem eine. Jede Bake belegt den Kanal für alle in der Umgebung, daher sind 30 Minuten eine gute Wahl für eine Station, die an ihrem Platz bleibt; {min} ist das Minimum.",
+    "Wie oft deine Position gesendet wird. „Aus“ sendet weder Bake noch Status; Nachrichten, Quittungen, Antworten, Objekte, Bulletins und der Digipeater laufen weiter. Jede Bake belegt den Kanal für alle in der Umgebung, daher sind 30 Minuten eine gute Wahl für eine Station, die an ihrem Platz bleibt; {min} ist das Minimum.",
+  "settings.beacon_interval.tip_moving":
+    "„Ein“ sendet deine Position, wann SmartBeaconing es nach dem GPS bestimmt: öfter bei hoher Geschwindigkeit und in Kurven. „Aus“ sendet weder Bake noch Status; Nachrichten, Quittungen, Antworten, Objekte, Bulletins und der Digipeater laufen weiter.",
   "settings.path.name": "Bakenpfad",
   "settings.path.label": "Pfad",
   "settings.path.recommended": "Empfohlen ({path})",
@@ -1156,7 +1156,9 @@ export const de: Catalogue = {
   "beacon.line.timed_none": "Noch keine Bake gesendet · nächste {when} (alle {minutes} min)",
   "beacon.line.untimed": "Letzte Bake {ago} · keine zeitgesteuerte Bake",
   "beacon.line.untimed_none": "Noch keine Bake gesendet · keine zeitgesteuerte Bake",
+  "beacon.line.off": "Bake aus",
   "beacon.beacon_now": "Bake jetzt",
+  "beacon.off_why": "Die Bake ist aus: es werden weder Bake noch Status gesendet",
   "beacon.status": "Status",
   "beacon.send_status_now": "Status jetzt senden",
   "beacon.really_send": "Wirklich senden?",

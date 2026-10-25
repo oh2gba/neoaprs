@@ -123,13 +123,27 @@ async def test_the_command_sends_the_status_and_the_page_is_told_the_text(tmp_pa
     e = Env(tmp_path, web=True)
     e.ctl.rigstatus.poll_sec = 3600
     await e.start()
-    assert await e.ctl.save_config(replace(e.ctl.config, station_status="QRV 145.500", status_source="text"))
+    assert await e.ctl.save_config(replace(e.ctl.config, station_status="QRV 145.500", status_source="text", beacon_interval_min=60))
     page = await e.ws()
     await page.until(lambda: len(page.of("status")) >= 1)
     await page.send({"cmd": "status_now"})
     await page.until(lambda: any(r["tnc2"].endswith("QRV 145.500") and r["direction"] == "out" for r in page.topics["packets"].values()))
     await page.until(lambda: page.of("status")[-1]["station_status"] == "QRV 145.500")
     assert page.of("error") == []
+    await e.stop()
+
+
+async def test_the_command_is_refused_with_the_reason_while_the_beacon_is_off_and_nothing_is_sent(tmp_path: Path) -> None:
+    e = Env(tmp_path, web=True)
+    e.ctl.rigstatus.poll_sec = 3600
+    await e.start()
+    assert await e.ctl.save_config(replace(e.ctl.config, station_status="QRV 145.500", status_source="text", beacon_interval_min=0))
+    page = await e.ws()
+    await page.until(lambda: len(page.of("status")) >= 1)
+    await page.send({"cmd": "status_now"})
+    error = await page.expect("error")
+    assert (error["text"], error["code"], error["params"]) == ("status_now: nothing was sent: the beacon is off", "status.not_sent", {"reason": "the beacon is off"})
+    assert e.tnc.stats.packets == 0 and not any(p.direction == "out" for p in await e.packets())
     await e.stop()
 
 

@@ -32,9 +32,6 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.name.tcp_address": "Indirizzo TCP",
   "settings.name.radio": "Radio",
 
-  "settings.transmit.label": "Trasmetti",
-  "settings.transmit.on": "Attivo",
-  "settings.transmit.off": "Solo ricezione",
   "settings.call.label": "Nominativo",
   "settings.lat.label": "Latitudine",
   "settings.lon.label": "Longitudine",
@@ -223,8 +220,11 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.beacon_interval.name": "Intervallo del beacon",
   "settings.beacon_interval.label": "Beacon",
   "settings.beacon_interval.off": "Spento",
+  "settings.beacon_interval.on_smart": "Attivo (SmartBeaconing)",
   "settings.beacon_interval.tip1":
-    "Ogni quanto viene inviata la tua posizione. Spento non ne invia da solo; Invia beacon ora ne invia comunque uno. Ogni beacon occupa il canale per tutti i vicini, quindi 30 minuti è una buona scelta per una stazione che resta ferma; {min} è il minimo.",
+    "Ogni quanto viene inviata la tua posizione. Spento non invia né beacon né stato; messaggi, conferme, risposte, oggetti, bollettini e il digipeater continuano. Ogni beacon occupa il canale per tutti i vicini, quindi 30 minuti è una buona scelta per una stazione che resta ferma; {min} è il minimo.",
+  "settings.beacon_interval.tip_moving":
+    "Attivo invia la tua posizione quando lo decide SmartBeaconing, in base al GPS: più spesso a velocità elevata e nelle curve. Spento non invia né beacon né stato; messaggi, conferme, risposte, oggetti, bollettini e il digipeater continuano.",
   "settings.path.name": "Percorso del beacon",
   "settings.path.label": "Percorso",
   "settings.path.recommended": "Consigliato ({path})",

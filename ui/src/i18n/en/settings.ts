@@ -31,9 +31,6 @@ export const settings = {
   "settings.name.tcp_address": "TCP address",
   "settings.name.radio": "Radio",
 
-  "settings.transmit.label": "Transmit",
-  "settings.transmit.on": "On",
-  "settings.transmit.off": "Receive only",
   "settings.call.label": "Call",
   "settings.lat.label": "Latitude",
   "settings.lon.label": "Longitude",
@@ -217,8 +214,11 @@ export const settings = {
   "settings.beacon_interval.name": "Beacon interval",
   "settings.beacon_interval.label": "Beacon",
   "settings.beacon_interval.off": "Off",
+  "settings.beacon_interval.on_smart": "On (SmartBeaconing)",
   "settings.beacon_interval.tip1":
-    "How often your position is sent. Off sends none by itself; Beacon now still sends one. Every beacon uses the channel for everyone around, so 30 minutes is a good choice for a station that stays where it is; {min} is the least.",
+    "How often your position is sent. Off sends no beacon and no status report; messages, acknowledgements, answers, objects, bulletins and the digipeater go on. Every beacon uses the channel for everyone around, so 30 minutes is a good choice for a station that stays where it is; {min} is the least.",
+  "settings.beacon_interval.tip_moving":
+    "On sends your position when SmartBeaconing says, from the GPS: more often when you move fast or turn. Off sends no beacon and no status report; messages, acknowledgements, answers, objects, bulletins and the digipeater go on.",
   "settings.path.name": "Beacon path",
   "settings.path.label": "Path",
   "settings.path.recommended": "Recommended ({path})",

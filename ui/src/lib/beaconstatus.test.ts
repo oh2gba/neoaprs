@@ -14,12 +14,29 @@ describe("beaconBlock of a fixed station", () => {
     expect(block.hover).toMatch(/^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$/);
   });
 
-  it("says no timed beacon, with the pill off, when the interval is 0 or the daemon has no next time", () => {
+  it("says no timed beacon, with the pill off, when the daemon has no next time", () => {
     for (const extra of [{ beacon_interval_min: 0, beacon_next_due: null }, { beacon_next_due: null }]) {
       const block = beaconBlock(timed(extra), null, {}, NOW);
       expect(block.pill).toEqual({ text: "off", tone: "beacon-off" });
       expect(block.line).toBe("Last beacon 4 min ago · no timed beacon");
     }
+  });
+
+  it("says Beacon off, with the pill off, while the interval of the settings is 0, whatever the daemon last said", () => {
+    for (const interval of ["0", ""]) {
+      const block = beaconBlock(timed(), gpsOff(), { "beacon/interval_min": interval }, NOW);
+      expect(block).toEqual({
+        moving: false,
+        label: "Beacon",
+        pill: { text: "off", tone: "beacon-off" },
+        line: "Beacon off",
+        hover: undefined,
+        smart: null,
+        problem: "",
+      });
+    }
+    expect(beaconBlock(null, null, { "beacon/interval_min": "0" }, NOW)).toMatchObject({ pill: { text: "off", tone: "beacon-off" }, line: "Beacon off" });
+    expect(beaconBlock(timed(), gpsOff(), { "beacon/interval_min": "60" }, NOW).pill).toEqual({ text: "on", tone: "beacon-on" });
   });
 
   it("says none was sent yet, with the timer or without", () => {
@@ -64,6 +81,22 @@ describe("beaconBlock of a moving station", () => {
     expect(beaconBlock(null, { ...gps, source: "serial" }, { "gps/source": "serial", "gps/device": "/dev/ttyUSB1", "gps/baud": "4800" }, NOW).line).toBe(
       "Opening /dev/ttyUSB1 at 4800 baud",
     );
+  });
+
+  it("says Beacon off, not the GPS, while the interval of the settings is 0", () => {
+    const off = { ...GPSD, "beacon/interval_min": "0" };
+    for (const gps of [gpsState(), null]) {
+      expect(beaconBlock(timed(), gps, off, NOW)).toEqual({
+        moving: true,
+        label: "Beacon",
+        pill: { text: "off", tone: "beacon-off" },
+        line: "Beacon off",
+        hover: undefined,
+        smart: null,
+        problem: "",
+      });
+    }
+    expect(beaconBlock(timed(), gpsState(), { ...GPSD, "beacon/interval_min": "30" }, NOW)).toMatchObject({ label: "GPS", pill: { text: "fix" } });
   });
 
   it("goes by what the daemon says the beacon does, and by the settings before it has said", () => {

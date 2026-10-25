@@ -32,9 +32,6 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.name.tcp_address": "Dirección TCP",
   "settings.name.radio": "Radio",
 
-  "settings.transmit.label": "Transmitir",
-  "settings.transmit.on": "Activado",
-  "settings.transmit.off": "Solo recepción",
   "settings.call.label": "Indicativo",
   "settings.lat.label": "Latitud",
   "settings.lon.label": "Longitud",
@@ -220,8 +217,11 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.beacon_interval.name": "Intervalo de la baliza",
   "settings.beacon_interval.label": "Baliza",
   "settings.beacon_interval.off": "Desactivada",
+  "settings.beacon_interval.on_smart": "Activada (SmartBeaconing)",
   "settings.beacon_interval.tip1":
-    "Cada cuánto se envía tu posición. Desactivada no envía ninguna por sí sola; Enviar baliza ahora sigue enviando una. Cada baliza ocupa el canal para todos los de alrededor, así que 30 minutos es una buena elección para una estación que se queda donde está; {min} es lo mínimo.",
+    "Cada cuánto se envía tu posición. Desactivada no envía ninguna baliza ni estado; los mensajes, acuses, respuestas, objetos, boletines y el digipeater siguen. Cada baliza ocupa el canal para todos los de alrededor, así que 30 minutos es una buena elección para una estación que se queda donde está; {min} es lo mínimo.",
+  "settings.beacon_interval.tip_moving":
+    "Activada envía tu posición cuando SmartBeaconing lo decide, según el GPS: más a menudo a gran velocidad y en las curvas. Desactivada no envía ninguna baliza ni estado; los mensajes, acuses, respuestas, objetos, boletines y el digipeater siguen.",
   "settings.path.name": "Ruta de la baliza",
   "settings.path.label": "Ruta",
   "settings.path.recommended": "Recomendada ({path})",

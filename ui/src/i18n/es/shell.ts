@@ -6,7 +6,7 @@ export const shell: Readonly<Record<keyof typeof en, Message>> = {
 
   "header.project_title": "La página del proyecto NeoAPRS",
   "header.receive_only": "Solo recepción",
-  "header.receive_only_title": "No se transmite nada: abrir el interruptor Transmitir",
+  "header.receive_only_title": "No se transmite nada: esta estación está en solo recepción",
   "header.no_call": "sin indicativo",
   "header.no_call_title": "No se transmite nada hasta que se fije un indicativo: abrir el asistente de configuración",
   "header.unread_open": {

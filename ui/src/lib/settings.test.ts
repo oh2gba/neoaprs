@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CONFIG_KEYS } from "@/protocol/lists";
-import { BEACON_FOLDS, FIELDS, SUBGROUPS, groupKeys, reasonOf, shownByValues, shownFor } from "@/lib/settings";
+import { BEACON_FOLDS, FIELDS, SUBGROUPS, fieldFor, groupKeys, reasonOf, shownByValues, shownFor, valueFor } from "@/lib/settings";
+import { beaconOff, disabledByValues } from "@/lib/beaconoff";
 import { PORT_OTHER, portOptions } from "@/lib/portchoice";
 
 describe("groupKeys", () => {
@@ -18,7 +19,6 @@ describe("groupKeys", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "beacon");
     expect(groups.map((g) => g.id)).toEqual(["station", "beacon", "status"]);
     expect(groups[0]?.keys).toEqual([
-      "station/transmit",
       "station/call",
       "gps/source",
       "gps/host",
@@ -63,9 +63,24 @@ describe("groupKeys", () => {
     expect(shown.sort()).toEqual(
       CONFIG_KEYS.filter(
         (key) =>
-          !["update/url", "serial/pattern", "serial/skip", "web/port", "web/allowed_hosts", "map/maxzoom", "map/source", "map/station_hours"].includes(key),
+          ![
+            "station/transmit",
+            "update/url",
+            "serial/pattern",
+            "serial/skip",
+            "web/port",
+            "web/allowed_hosts",
+            "map/maxzoom",
+            "map/source",
+            "map/station_hours",
+          ].includes(key),
       ).sort(),
     );
+  });
+  it("leaves the Transmit switch off the page: station/transmit is a setting of the daemon only", () => {
+    expect(groupKeys(CONFIG_KEYS, "settings").flatMap((g) => g.keys)).not.toContain("station/transmit");
+    expect(groupKeys(CONFIG_KEYS, "beacon").flatMap((g) => g.keys)).not.toContain("station/transmit");
+    expect(FIELDS["station/transmit"]).toBeUndefined();
   });
   it("leaves the address of the update check off the page: it is set with neoaprs db set", () => {
     expect(groupKeys(CONFIG_KEYS, "settings").flatMap((g) => g.keys)).not.toContain("update/url");
@@ -175,7 +190,7 @@ describe("groupKeys", () => {
     expect(place({ "gps/source": "gpsd" })).toEqual([]);
     expect(place({ "gps/source": "serial", "station/lat": "60.17", "station/lon": "24.94" })).toEqual([]);
   });
-  it("shows Travelling only for a moving station, and the interval and the antenna only for a fixed one", () => {
+  it("shows Travelling only for a moving station, the Beacon choice to both, and the antenna only for a fixed one", () => {
     const antenna = ["beacon/power_w", "beacon/antenna_height_m", "beacon/antenna_gain_db", "beacon/antenna_direction"];
     const fixed = { "gps/source": "off", "beacon/power_w": "5" };
     expect(shownByValues("beacon/travel", fixed)).toBe(false);
@@ -184,7 +199,7 @@ describe("groupKeys", () => {
     for (const source of ["gpsd", "serial"]) {
       const moving = { "gps/source": source, "beacon/power_w": "5" };
       expect(shownByValues("beacon/travel", moving), source).toBe(true);
-      expect(shownByValues("beacon/interval_min", moving), source).toBe(false);
+      expect(shownByValues("beacon/interval_min", moving), source).toBe(true);
       expect(
         antenna.filter((k) => shownByValues(k, moving)),
         source,
@@ -306,5 +321,63 @@ describe("portOptions", () => {
   });
   it("calls the empty port none chosen where the daemon does not search", () => {
     expect(portOptions(ports(false), "", "")[0]).toEqual({ value: "", label: "none chosen" });
+  });
+});
+
+describe("the beacon being Off", () => {
+  const off = { "beacon/interval_min": "0" };
+  const beaconKeys = [
+    "beacon/travel",
+    "station/comment",
+    "beacon/power_w",
+    "beacon/antenna_height_m",
+    "beacon/antenna_gain_db",
+    "beacon/antenna_direction",
+    "beacon/path",
+  ];
+  const statusKeys = ["status/source", "status/rigctld", "status/template", "status/interval_min", "station/status"];
+
+  it("is an interval of 0 or empty, for a fixed and a moving station alike, and not a settings list that lacks the interval", () => {
+    expect([beaconOff(off), beaconOff({ "beacon/interval_min": " 0 " }), beaconOff({ "beacon/interval_min": "" })]).toEqual([true, true, true]);
+    expect([beaconOff({ "beacon/interval_min": "30" }), beaconOff({ "beacon/interval_min": "20" }), beaconOff({})]).toEqual([false, false, false]);
+  });
+  it("greys what belongs to the beacon and the whole Status group, and nothing of the Station group or the Beacon choice", () => {
+    for (const values of [off, { ...off, "gps/source": "gpsd" }]) {
+      expect([...beaconKeys, ...statusKeys].filter((key) => !disabledByValues(key, values))).toEqual([]);
+      const never = CONFIG_KEYS.filter((key) => key.startsWith("station/") && !["station/comment", "station/status"].includes(key)).concat(
+        "gps/source",
+        "gps/host",
+        "gps/device",
+        "gps/baud",
+        "beacon/interval_min",
+      );
+      expect(never.filter((key) => disabledByValues(key, values))).toEqual([]);
+    }
+  });
+  it("greys nothing while the beacon is On", () => {
+    for (const interval of ["30", "60", "180"]) {
+      expect([...beaconKeys, ...statusKeys].filter((key) => disabledByValues(key, { "beacon/interval_min": interval }))).toEqual([]);
+    }
+  });
+  it("gives a fixed station the intervals and a moving one Off and On (SmartBeaconing), with the interval it keeps shown as On", () => {
+    expect(fieldFor("beacon/interval_min", { "gps/source": "off" }).choices).toEqual(FIELDS["beacon/interval_min"]?.choices);
+    expect((fieldFor("beacon/interval_min", { "gps/source": "off" }).choices ?? []).map((c) => (typeof c === "string" ? c : c.label))).toEqual([
+      "Off",
+      "Every 30 min",
+      "Every 60 min",
+      "Every 3 hours",
+    ]);
+    for (const source of ["gpsd", "serial"]) {
+      const moving = fieldFor("beacon/interval_min", { "gps/source": source });
+      expect(moving).toMatchObject({ label: "Beacon", kind: "choice", name: "Beacon interval" });
+      expect(moving.choices).toEqual([
+        { value: "0", label: "Off" },
+        { value: "30", label: "On (SmartBeaconing)" },
+      ]);
+      expect(valueFor("beacon/interval_min", { "gps/source": source, "beacon/interval_min": "180" })).toBe("30");
+      expect(valueFor("beacon/interval_min", { "gps/source": source, "beacon/interval_min": "0" })).toBe("0");
+    }
+    expect(valueFor("beacon/interval_min", { "gps/source": "off", "beacon/interval_min": "180" })).toBe("180");
+    expect(fieldFor("station/comment", { "gps/source": "gpsd" })).toBe(FIELDS["station/comment"]);
   });
 });
