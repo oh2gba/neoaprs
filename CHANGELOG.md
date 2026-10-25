@@ -29,6 +29,10 @@ What is heard decodes as the specification says.
 
 - A compressed position that moves due north (course 0 with a speed) is read as going north, not as having no course.
 
+On Windows.
+
+- The installer, run over a NeoAPRS that is running, no longer asks to close two applications (the tray app and the daemon): it ends both cleanly itself before it looks for files in use, the daemon the way Stop NeoAPRS ends it, and Windows's own check stays as the safety net.
+
 For development.
 
 - `scripts/gps-replay` (`neoaprs gps-replay`) plays a made-up drive as a gpsd on `127.0.0.1:2948`: a car that sets off, goes round a rectangle of streets at the speed you give, slows for the corners and stops for 90 seconds in the middle of a leg, lap after lap, so that a daemon with `gps/source gpsd` and `gps/host 127.0.0.1:2948` beacons as a car would.

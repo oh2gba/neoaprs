@@ -307,7 +307,7 @@ Python is started with `-I`, so that a user's `PYTHONPATH` and user site are not
 
 Inno Setup, `packaging/windows/neoaprs.iss`, per user with no administrator rights and no UAC prompt. The tasks, the Start menu group and the uninstaller are
 described for the user in [the manual](manual/install.md#windows). The uninstaller runs `neoaprs-app.exe --quit`, `neoaprs.exe stop` and
-`neoaprs.exe service remove`, and installing over an older version runs the first two before it replaces anything. The app is `neoaprs-app.exe` and not
+`neoaprs.exe service remove`, and installing over an older version runs the first two before Setup looks for files in use (its `PrepareToInstall`), so that the user is not asked to close the app and the daemon and the daemon ends cleanly; the same runs again right before the files are replaced, as the safety net. The app is `neoaprs-app.exe` and not
 `NeoAPRS.exe`: Windows file names ignore case, and that would be `neoaprs.exe`, the console program.
 
 ### The install script

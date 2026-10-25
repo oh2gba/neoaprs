@@ -131,6 +131,8 @@ def test_the_installer_script_is_per_user_and_does_what_the_manual_says() -> Non
     assert 'Parameters: "--quit"' in uninstall and 'Parameters: "service remove"' in uninstall and 'Parameters: "stop"' in uninstall
     assert uninstall.index("--quit") < uninstall.index('"stop"') < uninstall.index("service remove"), "the app, then the daemon that is left, then the start at sign-in of a service"
     assert "--quit" in INSTALLER.split("[Code]", 1)[1], "an update ends the app too, or its files are in use"
+    code = INSTALLER.split("[Code]", 1)[1]
+    assert "function PrepareToInstall(" in code and code.index("EndRunningNeoAPRS();") < code.index("procedure CurStepChanged"), "the app and the daemon are ended before Setup looks for files in use, and again before the files are replaced"
     assert "UninstallDelete" not in INSTALLER, "the data folder is not the installer's to delete"
 
 

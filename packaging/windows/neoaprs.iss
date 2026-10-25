@@ -4,7 +4,9 @@
 ; is the program's own and is never touched by the installer or the uninstaller. Build, from the repository root, after packaging/windows/neoaprs.spec has made dist\NeoAPRS:
 ;     iscc /DAppVersion=0.1.0 /Qp packaging\windows\neoaprs.iss        (makes dist-installer\NeoAPRS-Setup-0.1.0.exe)
 ; Silent: NeoAPRS-Setup-VERSION.exe /VERYSILENT /SUPPRESSMSGBOXES /CURRENTUSER /NORESTART [/LOG=file] [/DIR=folder] [/TASKS=""]  (the last one: no start at sign-in, no desktop shortcut).
-; Update now (neoaprs/services/selfinstall.py) runs it silently with /NOCLOSEAPPLICATIONS (the code below ends the app and the daemon, in that order, before a file is replaced) and two values of its own:
+; Installing over a NeoAPRS that is running: the code below ends the app and then the daemon cleanly (neoaprs-app.exe --quit, neoaprs.exe stop, each waiting until the process has gone) before Setup looks for files in use, so
+; that the user is not asked to close them and the daemon ends as it does at a stop, not terminated; Setup's own files-in-use check (CloseApplications) stays as the safety net for anything else that holds a file.
+; Update now (neoaprs/services/selfinstall.py) runs it silently with /NOCLOSEAPPLICATIONS (the same clean ending, and no check) and two values of its own:
 ; /NEOAPRSDATA=folder (the data folder of the daemon that runs it) and /NEOAPRSRESTART=app or daemon (what was running, and is started again on that folder once the files are in place).
 #ifndef AppVersion
   #error Give the version: iscc /DAppVersion=0.1.0 packaging\windows\neoaprs.iss
@@ -80,17 +82,28 @@ begin
   Result := WizardSilent and (CompareText(ExpandConstant('{param:NEOAPRSRESTART|}'), What) = 0);
 end;
 
-// An update over a NeoAPRS that is running: the app and the daemon are ended first, or their files cannot be replaced. (The last page's "Open NeoAPRS now" starts the app again; a silent update of Update now
-// starts again what was running, by the [Run] entries above; any other silent update leaves it to the next sign-in.)
-procedure CurStepChanged(CurStep: TSetupStep);
+// Ends the NeoAPRS that is installed and running: the app first (it stops the daemon it started), then whatever daemon is left; each is waited for. Nothing happens when none runs.
+procedure EndRunningNeoAPRS();
 var
   Code: Integer;
 begin
+  if FileExists(ExpandConstant('{app}\neoaprs-app.exe')) then
+    Exec(ExpandConstant('{app}\neoaprs-app.exe'), Trim('--quit ' + DataArgs('')), '', SW_HIDE, ewWaitUntilTerminated, Code);
+  if FileExists(ExpandConstant('{app}\neoaprs.exe')) then
+    Exec(ExpandConstant('{app}\neoaprs.exe'), Trim('stop ' + DataArgs('')), '', SW_HIDE, ewWaitUntilTerminated, Code);
+end;
+
+// An update over a NeoAPRS that is running: Setup calls this before it looks for files in use, so the app and the daemon are ended cleanly here and the user is not asked to close them. (The last page's
+// "Open NeoAPRS now" starts the app again; a silent update of Update now starts again what was running, by the [Run] entries above; any other silent update leaves it to the next sign-in.)
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  EndRunningNeoAPRS();
+  Result := '';
+end;
+
+// The same once more right before the files are replaced: the safety net for an app or a daemon started in between.
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
   if CurStep = ssInstall then
-  begin
-    if FileExists(ExpandConstant('{app}\neoaprs-app.exe')) then
-      Exec(ExpandConstant('{app}\neoaprs-app.exe'), Trim('--quit ' + DataArgs('')), '', SW_HIDE, ewWaitUntilTerminated, Code);
-    if FileExists(ExpandConstant('{app}\neoaprs.exe')) then
-      Exec(ExpandConstant('{app}\neoaprs.exe'), Trim('stop ' + DataArgs('')), '', SW_HIDE, ewWaitUntilTerminated, Code);
-  end;
+    EndRunningNeoAPRS();
 end;
