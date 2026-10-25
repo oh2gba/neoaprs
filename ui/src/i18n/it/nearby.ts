@@ -1,8 +1,8 @@
 // The Nearby tab: the digipeaters, voice frequencies, iGates and stations heard direct around us.
 export const nearby = {
   "nearby.digipeaters": "Digipeater",
-  "nearby.digipeaters_help": "Stazioni che hanno ripetuto pacchetti che abbiamo sentito, e stazioni con il simbolo di digipeater.",
-  "nearby.voice": "Frequenze voce",
+  "nearby.digipeaters_help": "Stazioni che hanno ripetuto pacchetti che abbiamo ricevuto, e stazioni con il simbolo di digipeater.",
+  "nearby.voice": "Frequenze in fonia",
   "nearby.voice_help": "Stazioni, oggetti e item che hanno indicato una frequenza su cui chiamare.",
   "nearby.igates": "iGate",
   "nearby.igates_help": "Stazioni che hanno messo in onda pacchetti da internet, hanno detto di essere un iGate o hanno il simbolo di iGate.",
@@ -12,12 +12,12 @@ export const nearby = {
   "nearby.details": "Dettagli",
   "nearby.repeated": { one: "{n} pacchetto ripetuto", other: "{n} pacchetti ripetuti" },
   "nearby.symbol_only": "simbolo di digipeater",
-  "nearby.not_heard": "nessun pacchetto proprio ricevuto",
+  "nearby.not_heard": "nessun suo pacchetto ricevuto",
   "nearby.range_phg": "portata PHG {km} km",
   "nearby.range": "portata {km} km",
   "nearby.reported_by": "segnalato da {call}",
   "nearby.gated": { one: "{n} pacchetto di terzi messo in onda", other: "{n} pacchetti di terzi messi in onda" },
   "nearby.igate_says": "dice di essere un iGate",
   "nearby.igate_symbol": "simbolo di iGate",
-  "nearby.direct_last": "ultima in diretta {when}",
+  "nearby.direct_last": "ultima ricezione in diretta {when}",
 };

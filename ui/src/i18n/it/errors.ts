@@ -53,7 +53,7 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.object.speed": "la velocità {value} non è compresa tra 0 e {max} km/h",
   "error.object.symbol": "il simbolo “{table}” “{symbol}” non è una tabella (/ \\ A-Z 0-9) e un carattere stampabile",
   "error.path.too_long": "{count} digipeater sono più dei {max} che un percorso può avere",
-  "error.query.not_capable": "{call} non riceve messaggi: non c'è nessuno da interrogare",
+  "error.query.not_capable": "{call} non riceve messaggi: non c’è nessuno da interrogare",
   "error.transmit.off": "Solo ricezione: non viene inviato nulla",
   "error.query.too_soon": "A {call} è appena stata fatta la stessa domanda: attendi {seconds} s",
   "error.path.direct_alone": "{word} non è un digipeater: scritto da solo significa nessun digipeater",

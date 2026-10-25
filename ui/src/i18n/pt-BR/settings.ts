@@ -221,7 +221,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.beacon_interval.tip1":
     "Com que frequência a sua posição é enviada. Desligado não envia beacon nem status; mensagens, confirmações, respostas, objetos, boletins e o digipeater continuam. Cada beacon ocupa o canal para todos ao redor, então 30 minutos é uma boa escolha para uma estação que fica parada; {min} é o mínimo.",
   "settings.beacon_interval.tip_moving":
-    "Ligado envia a sua posição quando o SmartBeaconing decide, a partir do GPS: com mais frequência em velocidade e nas curvas. Desligado não envia beacon nem status; mensagens, confirmações, respostas, objetos, boletins e o digipeater continuam.",
+    "Ligado envia a sua posição nos momentos que o SmartBeaconing decide, a partir do GPS: com mais frequência em alta velocidade e nas curvas. Desligado não envia beacon nem status; mensagens, confirmações, respostas, objetos, boletins e o digipeater continuam.",
   "settings.path.name": "Caminho do beacon",
   "settings.path.label": "Caminho",
   "settings.path.recommended": "Recomendado ({path})",
@@ -327,25 +327,25 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.position.gpsd": "Um GPS via gpsd",
   "settings.position.serial": "Um GPS em uma porta serial",
   "settings.position.tip1":
-    "De onde vem a posição do beacon. Fixa é uma estação fixa, enviada no intervalo do beacon. Um GPS é uma estação em movimento: o beacon segue a posição do GPS e o SmartBeaconing decide quando ele sai.",
+    "De onde vem a posição do beacon. Fixa serve para uma estação parada: o beacon sai no intervalo configurado. Um GPS serve para uma estação em movimento: o beacon segue a posição do GPS e o SmartBeaconing decide quando ele sai.",
   "settings.position.tip2":
-    "gpsd é o serviço de GPS do Linux: use-o quando o gpsd roda neste computador ou em outro. Um receptor em uma porta serial é lido diretamente. Sem uma posição recente nada é enviado, nunca a localização base.",
+    "gpsd é o serviço de GPS do Linux: use-o quando o gpsd estiver rodando neste computador ou em outro. Um receptor em uma porta serial é lido diretamente. Sem uma posição recente, nada é enviado, nem a localização base.",
   "settings.gps_host.label": "Endereço do gpsd",
   "settings.gps_host.tip1":
-    "O endereço do gpsd como host:porta. O gpsd escuta na porta 2947, então deixe como está se o gpsd roda neste computador. Exemplo: 192.168.1.20:2947",
+    "O endereço do gpsd como host:porta. O gpsd escuta na porta 2947, então deixe como está se o gpsd estiver rodando neste computador. Exemplo: 192.168.1.20:2947",
   "settings.gps_device.label": "Porta do GPS",
   "settings.gps_device.tip1":
     "A porta do receptor GPS, como /dev/ttyUSB1 no Linux ou COM4 no Windows. socket://host:porta alcança um receptor atrás de um servidor serial na rede.",
-  "settings.gps_device.tip2": "Mantenha-a separada da porta do rádio: um dispositivo não pode ser os dois.",
+  "settings.gps_device.tip2": "Mantenha-a separada da porta do rádio: um mesmo dispositivo não pode fazer as duas coisas.",
   "settings.gps_baud.label": "Velocidade do GPS",
   "settings.gps_baud.tip1":
-    "A velocidade da linha serial do receptor. 4800 é a velocidade do próprio NMEA, e muitos receptores USB falam a 9600. Uma velocidade errada aparece como falta de posição.",
+    "A velocidade da linha serial do receptor. 4800 é a velocidade do próprio NMEA, e muitos receptores USB falam a 9600. Com a velocidade errada, o GPS não obtém posição.",
   "settings.travel.label": "Deslocamento",
   "settings.travel.car": "De carro",
   "settings.travel.bicycle": "De bicicleta",
   "settings.travel.foot": "A pé",
   "settings.travel.boat": "De barco",
-  "settings.travel.tip1": "Define com que frequência o beacon sai e em quais curvas: um carro envia com mais frequência em velocidade do que quem anda a pé.",
+  "settings.travel.tip1": "Define com que frequência o beacon sai e em quais curvas: em velocidade, um carro envia com mais frequência do que quem anda a pé.",
 
   "settings.update.group": "Verificação de atualização",
   "settings.update.label": "Nova versão",

@@ -10,7 +10,7 @@ export const map: Record<keyof typeof source, Message> = {
   "map.note.no_basemap": "ベースマップなし",
   "map.note.no_detail": "詳細地図なし",
   "map.note.no_engine": "地図を読み込めませんでした",
-  "map.follow_me": "自分を追う",
+  "map.follow_me": "現在地を追従",
   "map.aloha": "ALOHA サークル: {km} km",
 
   "map.credits.hide": "クレジットを隠す",

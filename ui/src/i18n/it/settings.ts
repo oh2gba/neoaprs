@@ -224,7 +224,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.beacon_interval.tip1":
     "Ogni quanto viene inviata la tua posizione. Spento non invia né beacon né stato; messaggi, conferme, risposte, oggetti, bollettini e il digipeater continuano. Ogni beacon occupa il canale per tutti i vicini, quindi 30 minuti è una buona scelta per una stazione che resta ferma; {min} è il minimo.",
   "settings.beacon_interval.tip_moving":
-    "Attivo invia la tua posizione quando lo decide SmartBeaconing, in base al GPS: più spesso a velocità elevata e nelle curve. Spento non invia né beacon né stato; messaggi, conferme, risposte, oggetti, bollettini e il digipeater continuano.",
+    "Attivo invia la tua posizione nei momenti scelti da SmartBeaconing in base al GPS: più spesso a velocità elevata e in curva. Spento non invia né beacon né stato; messaggi, conferme, risposte, oggetti, bollettini e il digipeater continuano.",
   "settings.path.name": "Percorso del beacon",
   "settings.path.label": "Percorso",
   "settings.path.recommended": "Consigliato ({path})",
@@ -259,7 +259,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.check.needs_latitude": "Serve insieme alla latitudine",
   "settings.check.needs_longitude": "Serve insieme alla longitudine",
 
-  "settings.location.heading": "Posizione",
+  "settings.location.heading": "Località",
   "settings.location.pick": "Scegli sulla mappa",
   "settings.location.cancel": "Annulla",
   "settings.location.not_set": "Non impostata",
@@ -330,25 +330,25 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.position.gpsd": "Un GPS tramite gpsd",
   "settings.position.serial": "Un GPS su una porta seriale",
   "settings.position.tip1":
-    "Da dove viene la posizione del beacon. Fissa è una stazione fissa, inviata con l'intervallo del beacon. Un GPS è una stazione in movimento: il beacon segue il fix e SmartBeaconing decide quando parte.",
+    "Da dove viene la posizione del beacon. Fissa è per una stazione che non si muove: il beacon parte con l’intervallo impostato. Un GPS è per una stazione in movimento: il beacon segue il fix e SmartBeaconing decide quando parte.",
   "settings.position.tip2":
-    "gpsd è il servizio GPS di Linux: usalo quando gpsd gira su questo computer o su un altro. Un ricevitore su una porta seriale viene letto direttamente. Senza un fix recente non viene inviato nulla, mai la posizione base.",
+    "gpsd è il servizio GPS di Linux: usalo quando gpsd gira su questo computer o su un altro. Un ricevitore su una porta seriale viene letto direttamente. Senza un fix recente non viene inviato nulla, nemmeno la posizione base.",
   "settings.gps_host.label": "Indirizzo di gpsd",
   "settings.gps_host.tip1":
-    "L'indirizzo di gpsd come host:porta. gpsd ascolta sulla porta 2947, quindi lascialo com'è se gpsd gira su questo computer. Esempio: 192.168.1.20:2947",
+    "L’indirizzo di gpsd come host:porta. gpsd ascolta sulla porta 2947, quindi lascialo com’è se gpsd gira su questo computer. Esempio: 192.168.1.20:2947",
   "settings.gps_device.label": "Porta del GPS",
   "settings.gps_device.tip1":
     "La porta del ricevitore GPS, come /dev/ttyUSB1 su Linux o COM4 su Windows. socket://host:porta raggiunge un ricevitore dietro un server seriale della rete.",
-  "settings.gps_device.tip2": "Tienila separata dalla porta della radio: un dispositivo non può essere entrambe.",
+  "settings.gps_device.tip2": "Tienila separata dalla porta della radio: un dispositivo non può fare entrambe le cose.",
   "settings.gps_baud.label": "Velocità del GPS",
   "settings.gps_baud.tip1":
-    "La velocità della linea seriale del ricevitore. 4800 è la velocità propria di NMEA e molti ricevitori USB parlano a 9600. Una velocità sbagliata si nota come mancanza di fix.",
+    "La velocità della linea seriale del ricevitore. 4800 è la velocità propria di NMEA e molti ricevitori USB parlano a 9600. Con una velocità sbagliata il fix non arriva.",
   "settings.travel.label": "Spostamento",
   "settings.travel.car": "In auto",
   "settings.travel.bicycle": "In bicicletta",
   "settings.travel.foot": "A piedi",
   "settings.travel.boat": "In barca",
-  "settings.travel.tip1": "Stabilisce ogni quanto parte il beacon e a quali curve: un'auto invia più spesso a velocità di chi va a piedi.",
+  "settings.travel.tip1": "Stabilisce ogni quanto parte il beacon e a quali curve: a velocità, un’auto invia più spesso di chi va a piedi.",
 
   "settings.update.group": "Controllo aggiornamenti",
   "settings.update.label": "Nuova versione",

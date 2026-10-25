@@ -60,4 +60,10 @@ describe("the languages of the page", () => {
       });
     });
   }
+
+  it("writes French with a no-break space before : ; ? ! and %, and Italian with the curly apostrophe", () => {
+    const strings = (code: string) => Object.values(LOCALES.find((l) => l.code === code)?.messages ?? {}).flatMap((m) => texts(m));
+    expect(strings("fr").filter((text) => / [:;?!%]/.test(text))).toEqual([]);
+    expect(strings("it").filter((text) => /[A-Za-zÀ-ÿ]'[A-Za-zÀ-ÿ]/.test(text))).toEqual([]);
+  });
 });

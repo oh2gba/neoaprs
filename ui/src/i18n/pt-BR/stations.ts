@@ -93,7 +93,7 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.storm.pressure": "pressão {value}",
   "station.storm.hurricane_radius": "ventos de furacão até {km} km",
   "station.storm.storm_radius": "ventos de tempestade tropical até {km} km",
-  "station.storm.gale_radius": "ventos de vendaval até {km} km",
+  "station.storm.gale_radius": "vendaval até {km} km",
 
   "station.hover.heard": "Recebida",
   "station.hover.route": "Rota",

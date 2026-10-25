@@ -8,7 +8,7 @@ export const shell: Record<keyof typeof source, Message> = {
   "header.project_title": "A página do projeto NeoAPRS",
   "header.receive_only": "Somente recepção",
   "header.receive_only_title":
-    "Nada é transmitido: esta estação está configurada como somente recepção. É a configuração station/transmit do daemon, que não está nesta página; neoaprs db set station/transmit true a altera na próxima inicialização",
+    "Nada é transmitido: esta estação está ajustada para somente recepção. É o ajuste station/transmit do daemon, que não está nesta página; neoaprs db set station/transmit true o altera na próxima inicialização",
   "header.no_call": "indicativo não definido",
   "header.no_call_title": "Nada é transmitido enquanto não houver um indicativo: abra a configuração",
   "header.unread_open": {

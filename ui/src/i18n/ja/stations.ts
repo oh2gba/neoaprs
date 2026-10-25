@@ -78,7 +78,7 @@ export const stations: Record<keyof typeof source, Message> = {
 
   "station.freq.mhz": "{mhz} MHz",
   "station.freq.tone": "トーン {hz} Hz",
-  "station.freq.tone_both": "トーン {hz} Hz（送受信）",
+  "station.freq.tone_both": "トーン {hz} Hz(送受信)",
   "station.freq.dcs": "DCS {code}",
   "station.freq.no_tone": "トーンなし",
   "station.freq.burst": "1750 Hz トーンバースト",

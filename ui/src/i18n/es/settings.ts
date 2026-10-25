@@ -324,28 +324,28 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.position.name": "Fuente de la posición",
   "settings.position.label": "Posición",
   "settings.position.fixed": "Fija",
-  "settings.position.gpsd": "Un GPS por gpsd",
+  "settings.position.gpsd": "Un GPS vía gpsd",
   "settings.position.serial": "Un GPS en un puerto serie",
   "settings.position.tip1":
-    "De dónde viene la posición de la baliza. Fija es una estación fija, enviada con el intervalo de la baliza. Un GPS es una estación en movimiento: la baliza sigue la posición del GPS y SmartBeaconing decide cuándo sale.",
+    "De dónde viene la posición de la baliza. Fija es para una estación que no se mueve: la baliza sale con el intervalo de la baliza. Un GPS es para una estación en movimiento: la baliza sigue la posición del GPS y SmartBeaconing decide cuándo sale.",
   "settings.position.tip2":
-    "gpsd es el servicio GPS de Linux: úsalo cuando gpsd se ejecuta en este ordenador o en otro. Un receptor en un puerto serie se lee directamente. Sin una posición GPS reciente no se envía nada, nunca la ubicación base.",
+    "gpsd es el servicio GPS de Linux: úsalo cuando gpsd se ejecuta en este ordenador o en otro. Un receptor en un puerto serie se lee directamente. Sin una posición GPS reciente no se envía nada, ni siquiera la ubicación base.",
   "settings.gps_host.label": "Dirección de gpsd",
   "settings.gps_host.tip1":
     "La dirección de gpsd como host:puerto. gpsd escucha en el puerto 2947, así que déjala como está si gpsd funciona en este ordenador. Ejemplo: 192.168.1.20:2947",
   "settings.gps_device.label": "Puerto del GPS",
   "settings.gps_device.tip1":
     "El puerto del receptor GPS, como /dev/ttyUSB1 en Linux o COM4 en Windows. socket://host:puerto llega a un receptor detrás de un servidor serie de la red.",
-  "settings.gps_device.tip2": "Mantenlo aparte del puerto de la radio: un mismo dispositivo no puede ser los dos.",
+  "settings.gps_device.tip2": "Mantenlo aparte del puerto de la radio: un mismo dispositivo no puede hacer las dos cosas.",
   "settings.gps_baud.label": "Velocidad del GPS",
   "settings.gps_baud.tip1":
-    "La velocidad de la línea serie del receptor. 4800 es la velocidad propia de NMEA y muchos receptores USB hablan a 9600. Una velocidad equivocada se nota como falta de posición.",
+    "La velocidad de la línea serie del receptor. 4800 es la velocidad propia de NMEA y muchos receptores USB hablan a 9600. Con una velocidad equivocada no habrá posición GPS.",
   "settings.travel.label": "Desplazamiento",
   "settings.travel.car": "En coche",
   "settings.travel.bicycle": "En bicicleta",
   "settings.travel.foot": "A pie",
   "settings.travel.boat": "En barco",
-  "settings.travel.tip1": "Ajusta cada cuánto sale la baliza y en qué giros: un coche envía más a menudo a velocidad que alguien a pie.",
+  "settings.travel.tip1": "Ajusta cada cuánto sale la baliza y en qué giros: a velocidad, un coche envía más a menudo que alguien a pie.",
 
   "settings.update.group": "Búsqueda de actualizaciones",
   "settings.update.label": "Versión nueva",

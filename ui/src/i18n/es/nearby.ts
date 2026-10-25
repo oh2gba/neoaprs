@@ -1,7 +1,7 @@
 // The Nearby tab: the digipeaters, voice frequencies, iGates and stations heard direct around us.
 export const nearby = {
   "nearby.digipeaters": "Digipeaters",
-  "nearby.digipeaters_help": "Estaciones que repitieron paquetes que oímos, y estaciones con símbolo de digipeater.",
+  "nearby.digipeaters_help": "Estaciones que repitieron paquetes que escuchamos, y estaciones con símbolo de digipeater.",
   "nearby.voice": "Frecuencias de voz",
   "nearby.voice_help": "Estaciones, objetos e ítems que dieron una frecuencia para llamar.",
   "nearby.igates": "iGates",
@@ -12,7 +12,7 @@ export const nearby = {
   "nearby.details": "Detalles",
   "nearby.repeated": { one: "{n} paquete repetido", other: "{n} paquetes repetidos" },
   "nearby.symbol_only": "símbolo de digipeater",
-  "nearby.not_heard": "no se ha oído ningún paquete propio",
+  "nearby.not_heard": "no se ha escuchado ningún paquete suyo",
   "nearby.range_phg": "alcance PHG {km} km",
   "nearby.range": "alcance {km} km",
   "nearby.reported_by": "informado por {call}",

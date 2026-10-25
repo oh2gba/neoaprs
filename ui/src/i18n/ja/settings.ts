@@ -213,11 +213,11 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.beacon_interval.name": "ビーコンの間隔",
   "settings.beacon_interval.label": "ビーコン",
   "settings.beacon_interval.off": "オフ",
-  "settings.beacon_interval.on_smart": "オン（SmartBeaconing）",
+  "settings.beacon_interval.on_smart": "オン(SmartBeaconing)",
   "settings.beacon_interval.tip1":
     "位置を送る頻度です。「オフ」にするとビーコンもステータスも送りません。メッセージ、確認応答、問い合わせへの返答、オブジェクト、掲示、デジピーターは動き続けます。ビーコンはそのたびに周囲の全員の周波数を使うので、動かない局なら30分が適当です。最短は{min}です。",
   "settings.beacon_interval.tip_moving":
-    "「オン」にすると、GPSをもとにSmartBeaconingが決めるタイミングで位置を送ります。速度が高いときやカーブで頻度が上がります。「オフ」にするとビーコンもステータスも送りません。メッセージ、確認応答、問い合わせへの返答、オブジェクト、掲示、デジピーターは動き続けます。",
+    "「オン」にすると、GPSをもとにSmartBeaconingが決めるタイミングで位置を送ります。速度が速いときやカーブで頻度が上がります。「オフ」にするとビーコンもステータスも送りません。メッセージ、確認応答、問い合わせへの返答、オブジェクト、掲示、デジピーターは動き続けます。",
   "settings.path.name": "ビーコンのパス",
   "settings.path.label": "パス",
   "settings.path.recommended": "推奨({path})",
@@ -252,7 +252,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.check.needs_latitude": "緯度も必要です",
   "settings.check.needs_longitude": "経度も必要です",
 
-  "settings.location.heading": "位置",
+  "settings.location.heading": "場所",
   "settings.location.pick": "地図で選択",
   "settings.location.cancel": "キャンセル",
   "settings.location.not_set": "未設定",
@@ -322,7 +322,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.position.gpsd": "gpsd経由のGPS",
   "settings.position.serial": "シリアルポートのGPS",
   "settings.position.tip1":
-    "ビーコンの位置の取得元です。「固定」は固定局で、ビーコンの間隔で送ります。GPSは移動局で、ビーコンは測位に追従し、SmartBeaconingが送るタイミングを決めます。",
+    "ビーコンの位置の取得元です。「固定」は動かない局向けで、ビーコンの間隔で送ります。GPSは移動局向けで、ビーコンは測位に追従し、送るタイミングはSmartBeaconingが決めます。",
   "settings.position.tip2":
     "gpsdはLinuxのGPSサービスです。このコンピューターか別のコンピューターでgpsdが動いているときに選びます。シリアルポートの受信機は直接読みます。新しい測位がないと何も送らず、ホーム位置も送りません。",
   "settings.gps_host.label": "gpsdのアドレス",

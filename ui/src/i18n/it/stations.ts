@@ -60,7 +60,7 @@ export const stations: Readonly<Record<keyof typeof en, Message>> = {
   "station.field.frequency": "Frequenza",
   "station.field.storm": "Tempesta",
   "station.field.sign": "Cartello",
-  "station.packets_value": "{total} · {hour} nell'ultima ora",
+  "station.packets_value": "{total} · {hour} nell’ultima ora",
 
   "station.ext.range": "Portata",
   "station.ext.df_signal": "Segnale DF",
@@ -90,7 +90,7 @@ export const stations: Readonly<Record<keyof typeof en, Message>> = {
   "station.storm.wind": "vento {speed}",
   "station.storm.gusts": "raffiche {speed}",
   "station.storm.pressure": "pressione {value}",
-  "station.storm.hurricane_radius": "venti d'uragano fino a {km} km",
+  "station.storm.hurricane_radius": "venti d’uragano fino a {km} km",
   "station.storm.storm_radius": "venti di tempesta tropicale fino a {km} km",
   "station.storm.gale_radius": "venti di burrasca fino a {km} km",
 
