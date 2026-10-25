@@ -23,13 +23,18 @@ PHP = shutil.which("php")
 LIBRARY = "<?php function status_db() { return 'db'; }\nfunction app_start_record($db, $app, $v, $os, $ip) { file_put_contents(__DIR__ . '/calls.txt', \"$app|$v|$os\\n\", FILE_APPEND); return false; }\n"
 
 
+def free_port() -> int:
+    """A port that was free a moment ago."""
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        return int(probe.getsockname()[1])
+
+
 class Page:
     def __init__(self, folder: Path, github: FakeVersionPage) -> None:
         self.folder, self.github = folder, github
         self.process: subprocess.Popen[bytes] | None = None
-        with socket.socket() as probe:
-            probe.bind(("127.0.0.1", 0))
-            self.port = probe.getsockname()[1]
+        self.port = free_port()
 
     def start(self) -> None:
         (self.folder / "site" / "log").mkdir(parents=True)
@@ -38,14 +43,18 @@ class Page:
         (self.folder / "lib" / "starts.php").write_text(LIBRARY, encoding="utf-8")
         env = {"PATH": os.environ["PATH"], "STATUS_LIB": str(self.folder / "lib"), "RELEASES_URL": self.github.url}
         assert PHP is not None
-        self.process = subprocess.Popen([PHP, "-S", f"127.0.0.1:{self.port}", "-t", str(self.folder / "site")], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        deadline = time.monotonic() + 10
-        while time.monotonic() < deadline:
-            try:
-                socket.create_connection(("127.0.0.1", self.port), timeout=0.2).close()
-                return
-            except OSError:
-                time.sleep(0.05)
+        for _ in range(3):                                      # (the port was free when it was probed; a test running beside this one may have taken it since: then php ends at once and another port is tried)
+            self.process = subprocess.Popen([PHP, "-S", f"127.0.0.1:{self.port}", "-t", str(self.folder / "site")], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            deadline = time.monotonic() + 10
+            while time.monotonic() < deadline and self.process.poll() is None:
+                try:
+                    socket.create_connection(("127.0.0.1", self.port), timeout=0.2).close()
+                    return
+                except OSError:
+                    time.sleep(0.05)
+            if self.process.poll() is None:
+                break
+            self.port = free_port()
         raise AssertionError("php did not start")
 
     def stop(self) -> None:
