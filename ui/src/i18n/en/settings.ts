@@ -313,7 +313,7 @@ export const settings = {
   "settings.map.checking": "Checking size…",
   "settings.map.download_size": "Download {size}?",
   "settings.map.downloading": "Downloading…",
-  "settings.map.download_again": "Download map again",
+  "settings.map.download_again": "Download again",
   "settings.map.download": "Download map",
   "settings.map.cancel": "Cancel",
 

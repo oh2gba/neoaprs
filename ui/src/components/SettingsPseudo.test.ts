@@ -8,7 +8,8 @@ import BrowserAlerts from "@/components/BrowserAlerts.vue";
 import ConfirmRow from "@/components/ConfirmRow.vue";
 import HttpsGuide from "@/components/HttpsGuide.vue";
 import KeyScreen from "@/components/KeyScreen.vue";
-import MapFetchPanel from "@/components/MapFetchPanel.vue";
+import MapFetchButton from "@/components/MapFetchButton.vue";
+import MapFetchNotes from "@/components/MapFetchNotes.vue";
 import PopupHelp from "@/components/PopupHelp.vue";
 import RadioStatus from "@/components/RadioStatus.vue";
 import SettingsForm from "@/components/SettingsForm.vue";
@@ -118,7 +119,7 @@ describe("the settings area in the pseudo-locale", () => {
     mounted.push(wrapper);
     setLocale("en-XA");
     await flushPromises();
-    expect(wrapper.findAll("legend").map((l) => l.text())).toHaveLength(6);
+    expect(wrapper.findAll("legend").map((l) => l.text())).toHaveLength(8); // (the six groups and the two boxes of Notifications)
     expect(wrapper.findAll("legend").every((l) => l.text().startsWith("[!! "))).toBe(true);
     expect(wrapper.find("#set-web-key").exists()).toBe(true);
     expect(wrapper.find(".radiostatus").exists()).toBe(true);
@@ -195,7 +196,8 @@ describe("the settings area in the pseudo-locale", () => {
     expect(untranslated(draw(SymbolPicker, undefined, { table: "/", code: "-" }))).toEqual([]);
     expect(untranslated(draw(SymbolField, undefined, { id: "s", symbol: "S#" }))).toEqual([]);
     expect(untranslated(draw(RadioStatus, undefined, { tnc: context.tnc.value, now: Date.now(), digipeater: true }))).toEqual([]);
-    expect(untranslated(draw(MapFetchPanel, undefined, { map: mapState({ detail: mapFile() }), stale: false, send: () => true }))).toEqual([]);
+    expect(untranslated(draw(MapFetchButton, undefined, { map: mapState({ detail: mapFile() }), stale: false, send: () => true }))).toEqual([]);
+    expect(untranslated(draw(MapFetchNotes, undefined, { map: mapState({ detail: mapFile() }) }))).toEqual([]);
     expect(untranslated(draw(BrowserAlerts, context, { alerts: context.alerts, https }))).toEqual([]);
     expect(guide.open).toBeDefined();
   });

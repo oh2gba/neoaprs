@@ -317,7 +317,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.map.checking": "Comprobando el tamaño…",
   "settings.map.download_size": "¿Descargar {size}?",
   "settings.map.downloading": "Descargando…",
-  "settings.map.download_again": "Descargar el mapa otra vez",
+  "settings.map.download_again": "Descargar otra vez",
   "settings.map.download": "Descargar mapa",
   "settings.map.cancel": "Cancelar",
 

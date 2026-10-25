@@ -49,7 +49,7 @@ describe("the (i) of the Settings tab", () => {
 
   it("explains the two alerts under the heading of the NeoAPRS computer: its own command, and the browser's sound and pop-up", async () => {
     const wrapper = make();
-    await wrapper.find<HTMLButtonElement>("h3.subgroup .info-toggle").trigger("click");
+    await wrapper.find<HTMLButtonElement>("fieldset.subbox > legend .info-toggle").trigger("click");
     const text = wrapper.find(".info-text").text();
     expect(text).toMatch(/runs the Command when a message arrives.*runs on another computer, that is where it sounds/s);
     expect(text).toMatch(/a sound, a sound and a pop-up, or a pop-up only/);

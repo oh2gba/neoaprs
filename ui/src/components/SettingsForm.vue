@@ -2,19 +2,21 @@
 // The settings of the daemon, one field for every key it lists in the scope of the form (the Settings tab, or the Beacon tab with the keys the beacon sends), in groups. There is no Save button: a choice (a list, a switch, a symbol, a place
 // picked on the map) applies at once, a typed field on Enter or when it is left (never while it is typed), after the page's own check of it; the daemon checks it again, and a wrong one is shown under its field with what was typed kept. What
 // the person sees of it (the Undo toast, a line for a screen reader) is useSettings, shared with the other tab so that there is one queue. The alert command has a Test button, which runs the saved command and shows how it went under the field; a field
-// left empty shows the default as a placeholder. The Map group ends with the buttons that make the map (MapFetchPanel), which work on the saved settings. On the Settings tab a link at the top opens the first-run guide again; the default slot is
+// left empty shows the default as a placeholder. The Radius row of the Map group has the button that makes the map at its right end (MapFetchButton, plain, as the Test button of the Command row is) and under it the progress, a failure and "Map downloaded 21 Oct" (MapFetchNotes); they work on the saved settings. On the Settings tab a link at the top opens the first-run guide again; the default slot is
 // for more groups (the page's own, which are not settings of the daemon), the slot `top` for the beacon status above the first group, and `status` for the line with the button that sends the status now, which opens the Status group. The Beacon tab's Station group
 // starts with the choice of where the position comes from (gps/source: Fixed, or a GPS) and what that needs; the place (Location) is shown for Fixed only (with a GPS it stays stored and out of sight), and the Beacon group has the Beacon choice (an interval, or Off and On for a moving station) and, for a moving station, the Travelling choice instead of the antenna. While the beacon is Off the Beacon group's other fields (Travelling, the comment, the antenna, the path) and the whole Status group are shown greyed out (`disabled` of SettingsField), the Station group never. The TNC group is SettingsRadio: the state of the radio link with Reconnect in view and the fields of the radio behind a fold, and the fields of the page's own alert end the
 // Notifications group (BrowserAlerts). What it works on is the page's (useDaemonContext): the settings, the daemon's answers, `send`. The Update check group (the daily check itself is always on) has a Check now button, which asks the version page at once and says the answer in the toast (a newer version opens the update window). While the network is let in, the Web group shows
 // the access key with a New key button and the addresses to open the page at.
 import BrowserAlerts from "@/components/BrowserAlerts.vue";
 import ConfirmRow from "@/components/ConfirmRow.vue";
-import MapFetchPanel from "@/components/MapFetchPanel.vue";
+import MapFetchButton from "@/components/MapFetchButton.vue";
+import MapFetchNotes from "@/components/MapFetchNotes.vue";
 import InfoTip from "@/components/InfoTip.vue";
 import LanguageField from "@/components/LanguageField.vue";
 import SettingsField from "@/components/SettingsField.vue";
 import SettingsFold from "@/components/SettingsFold.vue";
 import SettingsLocation from "@/components/SettingsLocation.vue";
+import SettingsBox from "@/components/SettingsBox.vue";
 import SettingsHttps from "@/components/SettingsHttps.vue";
 import SettingsPort from "@/components/SettingsPort.vue";
 import SymbolField from "@/components/SymbolField.vue";
@@ -48,6 +50,7 @@ const alertTest = useAlertTest(
 );
 const updateCheck = useUpdateCheck(updateResult, lastError, send);
 const newKey = useNewKey();
+const RADIUS_KEY = "map/radius_km";
 const SYMBOL_TABLE = "station/symbol_table";
 const SYMBOL_CODE = "station/symbol_code";
 const GPS_DEVICE = "gps/device";
@@ -101,6 +104,16 @@ watch(
   },
 );
 const fallback = (key: string) => defaults.value[key] ?? "";
+/** The keys of a group in boxes: a key with a heading of its own (the daemon's alert) starts a box with its legend that runs to the end of the group; the keys before it are in no box. */
+function boxesOf(keys: readonly string[]) {
+  const boxes: { id: string; sub: (typeof SUBGROUPS)[string] | null; keys: string[] }[] = [];
+  for (const key of keys) {
+    const sub = SUBGROUPS[key] ?? null;
+    if (sub !== null || boxes.length === 0) boxes.push({ id: key, sub, keys: [key] });
+    else boxes[boxes.length - 1]?.keys.push(key);
+  }
+  return boxes;
+}
 /** A typed field follows the typing; a choice is made by `choose` (it also says the text it has, which is not typing). */
 function typed(key: string, text: string): void {
   const kind = info(key).kind;
@@ -122,90 +135,95 @@ function typed(key: string, text: string): void {
       <legend>{{ group.title }}</legend>
       <SettingsRadio v-if="group.id === 'serial'" :keys="shown(group.keys)" :settings="settings" :form="form" :defaults="defaults" />
       <slot v-if="group.id === 'status'" name="status"></slot>
-      <template v-for="key in group.id === 'serial' ? [] : shown(group.keys)" :key="key">
-        <h3 v-if="SUBGROUPS[key]" class="subgroup" :title="SUBGROUPS[key]?.title">
-          {{ SUBGROUPS[key]?.text }}
-          <InfoTip :label="SUBGROUPS[key]?.tipLabel ?? ''">
-            <span v-for="line in SUBGROUPS[key]?.tip" :key="line" class="info-line">{{ line }}</span>
+      <SettingsBox v-for="box in boxesOf(group.id === 'serial' ? [] : shown(group.keys))" :key="box.id" :title="box.sub?.text" :hover="box.sub?.title">
+        <template v-if="box.sub" #legend>
+          <InfoTip :label="box.sub.tipLabel">
+            <span v-for="line in box.sub.tip" :key="line" class="info-line">{{ line }}</span>
           </InfoTip>
-        </h3>
-        <SettingsLocation
-          v-if="key === 'station/lat'"
-          :draft="draft"
-          :current="{ lat: config.values['station/lat'] ?? '', lon: config.values['station/lon'] ?? '' }"
-          :errors="errors"
-          :changed="form.changed"
-          :picking="picking"
-          @type="settings.edit"
-          @commit="form.finish"
-          @cancel="settings.cancel"
-          @pick="emit('pickPosition')"
-        />
-        <SymbolField
-          v-else-if="key === SYMBOL_TABLE"
-          id="set-station-symbol"
-          :symbol="symbol"
-          :changed="form.changed(SYMBOL_TABLE) || form.changed(SYMBOL_CODE)"
-          @update:symbol="editSymbol"
-          @commit="settings.commit([SYMBOL_TABLE, SYMBOL_CODE], true)"
-        />
-        <SettingsPort
-          v-else-if="key === GPS_DEVICE"
-          :id="fieldId(key)"
-          :info="info(key)"
-          :model-value="draft[key] ?? ''"
-          found=""
-          :unset="true"
-          :ports="ports"
-          :error="errors[key] ?? ''"
-          :changed="form.changed(key)"
-          @update:model-value="settings.edit(key, $event)"
-          @choose="form.choose({ [key]: $event })"
-          @commit="form.finish(key, $event)"
-          @cancel="settings.cancel(key)"
-          @refresh="send({ cmd: 'list_ports' })"
-        />
-        <SettingsField
-          v-else
-          :id="fieldId(key)"
-          :info="info(key)"
-          :model-value="key === 'status/source' ? statusSource(draft) : valueFor(key, draft)"
-          :fallback="fallback(key)"
-          :error="errors[key] ?? ''"
-          :changed="form.changed(key)"
-          :apply="true"
-          :disabled="greyed(key)"
-          @update:model-value="typed(key, $event)"
-          @choose="form.choose({ [key]: $event })"
-          @commit="form.finish(key, $event)"
-          @cancel="settings.cancel(key)"
-        >
-          <template v-if="key === ALERT_KEY" #after>
-            <button class="btn" type="button" :disabled="alertTest.running.value || alertTest.stale.value" @click="alertTest.test">
-              {{ t("settings.alert_test") }}
-            </button>
-          </template>
-          <template v-else-if="key === KEY_KEY" #after>
-            <button class="btn" :class="{ danger: newKey.armed.value }" type="button" :disabled="newKey.running.value" @click="newKey.press">
-              {{ newKey.armed.value ? t("settings.new_key_sure") : t("settings.new_key") }}
-            </button>
-          </template>
-        </SettingsField>
-        <ConfirmRow v-if="question?.key === key" :message="question.message" @yes="form.answer(true)" @cancel="form.answer(false)" />
-        <SettingsHttps v-if="key === 'web/https'" :https="config.https" />
-        <div v-if="key === KEY_KEY && urls.length" class="field">
-          <label for="set-web-url-0">{{ t("settings.urls.label") }}</label>
-          <div class="field-control">
-            <div class="urls">
-              <input v-for="(url, i) in urls" :id="`set-web-url-${i}`" :key="url" class="input" type="text" readonly :value="url" />
+        </template>
+        <template v-for="key in box.keys" :key="key">
+          <SettingsLocation
+            v-if="key === 'station/lat'"
+            :draft="draft"
+            :current="{ lat: config.values['station/lat'] ?? '', lon: config.values['station/lon'] ?? '' }"
+            :errors="errors"
+            :changed="form.changed"
+            :picking="picking"
+            @type="settings.edit"
+            @commit="form.finish"
+            @cancel="settings.cancel"
+            @pick="emit('pickPosition')"
+          />
+          <SymbolField
+            v-else-if="key === SYMBOL_TABLE"
+            id="set-station-symbol"
+            :symbol="symbol"
+            :changed="form.changed(SYMBOL_TABLE) || form.changed(SYMBOL_CODE)"
+            @update:symbol="editSymbol"
+            @commit="settings.commit([SYMBOL_TABLE, SYMBOL_CODE], true)"
+          />
+          <SettingsPort
+            v-else-if="key === GPS_DEVICE"
+            :id="fieldId(key)"
+            :info="info(key)"
+            :model-value="draft[key] ?? ''"
+            found=""
+            :unset="true"
+            :ports="ports"
+            :error="errors[key] ?? ''"
+            :changed="form.changed(key)"
+            @update:model-value="settings.edit(key, $event)"
+            @choose="form.choose({ [key]: $event })"
+            @commit="form.finish(key, $event)"
+            @cancel="settings.cancel(key)"
+            @refresh="send({ cmd: 'list_ports' })"
+          />
+          <SettingsField
+            v-else
+            :id="fieldId(key)"
+            :info="info(key)"
+            :model-value="key === 'status/source' ? statusSource(draft) : valueFor(key, draft)"
+            :fallback="fallback(key)"
+            :error="errors[key] ?? ''"
+            :changed="form.changed(key)"
+            :apply="true"
+            :disabled="greyed(key)"
+            @update:model-value="typed(key, $event)"
+            @choose="form.choose({ [key]: $event })"
+            @commit="form.finish(key, $event)"
+            @cancel="settings.cancel(key)"
+          >
+            <template v-if="key === ALERT_KEY" #after>
+              <button class="btn" type="button" :disabled="alertTest.running.value || alertTest.stale.value" @click="alertTest.test">
+                {{ t("settings.alert_test") }}
+              </button>
+            </template>
+            <template v-else-if="key === RADIUS_KEY && map" #after>
+              <MapFetchButton v-if="map" :map="map" :stale="settings.saving.value" :send="send" />
+            </template>
+            <template v-else-if="key === KEY_KEY" #after>
+              <button class="btn" :class="{ danger: newKey.armed.value }" type="button" :disabled="newKey.running.value" @click="newKey.press">
+                {{ newKey.armed.value ? t("settings.new_key_sure") : t("settings.new_key") }}
+              </button>
+            </template>
+          </SettingsField>
+          <MapFetchNotes v-if="key === RADIUS_KEY && map" :map="map" />
+          <ConfirmRow v-if="question?.key === key" :message="question.message" @yes="form.answer(true)" @cancel="form.answer(false)" />
+          <SettingsHttps v-if="key === 'web/https'" :https="config.https" />
+          <div v-if="key === KEY_KEY && urls.length" class="field">
+            <label for="set-web-url-0">{{ t("settings.urls.label") }}</label>
+            <div class="field-control">
+              <div class="urls">
+                <input v-for="(url, i) in urls" :id="`set-web-url-${i}`" :key="url" class="input" type="text" readonly :value="url" />
+              </div>
+              <InfoTip :label="t('settings.urls.tip_label')">
+                <span class="info-line">{{ t("settings.urls.tip1") }}</span>
+                <span class="info-line">{{ t("settings.urls.tip2") }}</span>
+              </InfoTip>
             </div>
-            <InfoTip :label="t('settings.urls.tip_label')">
-              <span class="info-line">{{ t("settings.urls.tip1") }}</span>
-              <span class="info-line">{{ t("settings.urls.tip2") }}</span>
-            </InfoTip>
           </div>
-        </div>
-      </template>
+        </template>
+      </SettingsBox>
       <template v-if="scope === 'beacon'">
         <SettingsFold
           v-for="fold in BEACON_FOLDS.filter((f) => f.group === group.id)"
@@ -219,7 +237,6 @@ function typed(key: string, text: string): void {
         />
       </template>
       <BrowserAlerts v-if="group.id === 'notifications'" :alerts="alerts" :https="config.https" :say="say" />
-      <MapFetchPanel v-if="group.id === 'map' && map" :map="map" :stale="settings.saving.value" :send="send" />
     </fieldset>
     <fieldset v-if="scope === 'settings'" class="update-check">
       <legend>{{ t("settings.update.group") }}</legend>

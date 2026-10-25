@@ -229,29 +229,45 @@
   margin: 2px 0;
 }
 
-/* the map's download in the settings */
-.mapfetch {
-  margin: 8px 0 2px;
+/* the map's download in the settings: the button is at the right end of the Radius row (SettingsField's slot after, wrapping under the field when the row is narrow), and under the row, in the label column's grid, the progress, a failure and the quiet line about the map on disk */
+.field-control:has(.mapfetch-button) {
+  flex-wrap: wrap;
 }
-.mapfetch-actions,
-.mapfetch-progress,
+.field-control:has(.mapfetch-button) .input {
+  flex: 1 1 5em;
+}
+.mapfetch-notes {
+  display: grid;
+  grid-template-columns: minmax(7em, 36%) 1fr;
+  gap: 0 8px;
+  margin: -2px 0 6px;
+}
+.setup .mapfetch-notes {
+  grid-template-columns: 6em 1fr;
+}
+.mapfetch-notes > * {
+  grid-column: 2;
+}
 .mapnote-box {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 .mapfetch-progress {
-  margin: 8px 0 2px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 2px;
 }
 .mapfetch-progress progress {
   flex: 1;
   min-width: 0;
 }
 .mapfetch-error {
-  margin: 6px 0 0;
+  margin: 4px 0 0;
 }
 .mapfetch-file {
-  margin: 4px 0 0;
+  margin: 2px 0 0;
 }
 .mapnote-box .btn {
   pointer-events: auto;

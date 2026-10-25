@@ -4,8 +4,9 @@ import SettingsForm from "@/components/SettingsForm.vue";
 import type { Scope } from "@/lib/settings";
 import { CONFIG_KEYS } from "@/protocol/lists";
 import type { PortsMessage } from "@/protocol/protocol";
+import { cssRule } from "@/test/css";
 import { fakeDaemon, tell, withDaemon, type Given } from "@/test/context";
-import { configValues, mapState, toastOf } from "@/test/fixtures";
+import { configValues, mapFile, mapState, toastOf } from "@/test/fixtures";
 
 /** The form in a page whose settings are the fixtures' with `extra` over them; `more` is what else the context has. */
 function make(extra: Record<string, string> = {}, scope: Scope = "settings", more: Given = {}) {
@@ -25,7 +26,24 @@ const portList = (extra: Partial<PortsMessage> = {}): PortsMessage => ({
 describe("SettingsForm", () => {
   it("has a field for every key of the Settings tab, in groups, and none of the beacon's", () => {
     const { wrapper } = make();
-    expect(wrapper.findAll("fieldset legend").map((l) => l.text())).toEqual(["TNC", "Digipeater", "Web page", "Notifications", "Map", "Update check"]);
+    expect(wrapper.findAll("fieldset legend").map((l) => l.text())).toEqual([
+      "TNC",
+      "Digipeater",
+      "Web page",
+      "Notifications",
+      "On the NeoAPRS computer i",
+      "In this browser",
+      "Map",
+      "Update check",
+    ]);
+    expect(wrapper.findAll("form > fieldset").map((f) => f.find("legend").text())).toEqual([
+      "TNC",
+      "Digipeater",
+      "Web page",
+      "Notifications",
+      "Map",
+      "Update check",
+    ]);
     const beacons = ["beacon/", "station/", "status/", "gps/"]; // (the Beacon tab's)
     const elsewhere = [
       "tcp/host", // (only for a TNC reached over TCP)
@@ -879,18 +897,40 @@ describe("SettingsForm", () => {
   });
 
   describe("the Notifications group", () => {
-    it("has the daemon's own alert under a heading of its own, with no Messaging group beside it, and the browser's fields after it", () => {
+    it("has the daemon's own alert in a box of its own (a fieldset with its legend, in the style of the group's), with no Messaging group beside it, and the browser's fields in a box after it", () => {
       const wrapper = mount(SettingsForm, { global: withDaemon() });
-      const groups = wrapper.findAll("fieldset");
+      const groups = wrapper.findAll("form > fieldset");
       const titles = groups.map((g) => g.find("legend").text());
       expect(titles).toContain("Notifications");
       const group = groups[titles.indexOf("Notifications")];
-      expect(group?.findAll("label").map((l) => l.text())).toEqual(["Alert", "Command", "Alert for a new message", "Sound", "Pop-up"]);
-      expect(group?.find("h3").text()).toBe("On the NeoAPRS computer i");
-      expect(group?.find("h3").attributes("title")).toBeTruthy();
-      expect(group?.find("#alert-mode").exists()).toBe(true);
+      const boxes = group?.findAll("fieldset") ?? [];
+      expect(boxes).toHaveLength(2);
+      expect(boxes.map((b) => b.classes())).toEqual([["subbox"], ["subbox"]]);
+      expect(boxes.map((b) => b.element.parentElement)).toEqual([group?.element, group?.element]);
+      expect(boxes[0]?.find("legend").text()).toBe("On the NeoAPRS computer i");
+      expect(boxes[0]?.find("legend").attributes("title")).toBeTruthy();
+      expect(boxes[0]?.findAll("label").map((l) => l.text())).toEqual(["Alert", "Command"]);
+      expect(boxes[0]?.find("legend .info-toggle").exists()).toBe(true);
+      expect(boxes[1]?.find("legend").text()).toBe("In this browser");
+      expect(boxes[1]?.findAll("label").map((l) => l.text())).toEqual(["Alert for a new message", "Sound", "Pop-up"]);
+      expect(boxes[1]?.find("#alert-mode").exists()).toBe(true);
+      expect(group?.findAll(":scope > .field")).toHaveLength(0); // (every field of the group is in one of the two boxes)
+      expect(group?.find("h3").exists()).toBe(false);
       expect(titles).not.toContain("Messaging");
       expect(wrapper.findAll("#alert-mode")).toHaveLength(1);
+    });
+    it("keeps the Test button of the command and the tests of the browser, with the fields and the tips, each in its box", () => {
+      const wrapper = mount(SettingsForm, { global: withDaemon() });
+      const [computer, browser] = wrapper.findAll("fieldset.subbox");
+      expect(computer?.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(["Test"]);
+      expect(browser?.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(expect.arrayContaining(["Test sound", "Test pop-up"]));
+      expect(computer?.find("#set-messages-alert_command").exists()).toBe(true);
+      expect(browser?.find("#set-messages-alert_command").exists()).toBe(false);
+    });
+    it("has the style of the group boxes for the boxes in it", () => {
+      expect(cssRule(".settings fieldset")).toMatch(/border:\s*1px solid var\(--border\)/);
+      expect(cssRule(".settings legend")).toMatch(/font-weight:\s*600/);
+      expect(cssRule(".settings fieldset.subbox")).toMatch(/margin:/);
     });
     it("is not in the Beacon tab", () => {
       expect(make({}, "beacon").wrapper.text()).not.toContain("On the NeoAPRS computer");
@@ -1033,17 +1073,37 @@ describe("SettingsForm", () => {
   describe("the Map group", () => {
     const mount_ = (map = mapState(), extra: Record<string, string> = {}, scope: Scope = "settings") => make(extra, scope, { map });
 
-    it("ends with the buttons that make the map, in the Map group and nowhere else", () => {
+    it("is one row, Radius with its field and unit and then a plain Download map at the right end of the same row, in the Map group and nowhere else", () => {
       const { wrapper } = mount_();
       const group = wrapper.findAll("fieldset").find((f) => f.find("legend").text() === "Map");
       expect(group?.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(["Download map"]);
-      expect(wrapper.findAll(".mapfetch")).toHaveLength(1);
-      expect(mount_(mapState(), {}, "beacon").wrapper.find(".mapfetch").exists()).toBe(false);
+      expect(wrapper.findAll(".mapfetch-button")).toHaveLength(1);
+      const row = wrapper.find("#set-map-radius_km").element.closest(".field");
+      expect([...(row?.querySelector(".field-control")?.children ?? [])].map((c) => c.tagName + "." + (c.className.split(" ")[0] || "")).slice(0, 3)).toEqual([
+        "INPUT.input",
+        "SPAN.unit",
+        "BUTTON.btn",
+      ]);
+      expect(row?.contains(wrapper.find(".mapfetch-button").element)).toBe(true);
+      expect(wrapper.find(".mapfetch-button").classes()).not.toContain("primary");
+      expect(group?.findAll(".primary")).toHaveLength(0);
+      expect(mount_(mapState(), {}, "beacon").wrapper.find(".mapfetch-button").exists()).toBe(false);
+    });
+
+    it("says the quiet line Map downloaded under the row, in the grid of the label column, and the button reads Download again", () => {
+      const { wrapper } = mount_(mapState({ state: "ready", detail: mapFile() }));
+      const row = wrapper.find("#set-map-radius_km").element.closest(".field");
+      expect(row?.nextElementSibling?.classList.contains("mapfetch-notes")).toBe(true);
+      expect(wrapper.find(".mapfetch-notes .mapfetch-file").text()).toBe("Map downloaded 22 Oct");
+      expect(wrapper.find(".mapfetch-notes .mapfetch-file").classes()).toContain("muted");
+      expect(wrapper.find(".mapfetch-button").text()).toBe("Download again");
+      expect(row?.contains(wrapper.find(".mapfetch-notes").element)).toBe(false);
     });
 
     it("has no buttons until the daemon has told the state of the map", () => {
       const wrapper = mount(SettingsForm, { global: withDaemon() });
-      expect(wrapper.find(".mapfetch").exists()).toBe(false);
+      expect(wrapper.find(".mapfetch-button").exists()).toBe(false);
+      expect(wrapper.find("#set-map-radius_km").exists()).toBe(true); // (the row is the radius alone)
     });
 
     it("has the radius in km, and no detail, no map source and no time for stations to leave the map: those are not on the page", () => {
@@ -1062,7 +1122,7 @@ describe("SettingsForm", () => {
 
     it("turns the buttons off while a map setting is being saved, and on again when it is, and takes the radius when the field is left", async () => {
       const { wrapper, send, daemon } = mount_();
-      const buttons = () => wrapper.findAll(".mapfetch button");
+      const buttons = () => wrapper.findAll(".mapfetch-button");
       await wrapper.find("#set-map-radius_km").setValue("60");
       expect(buttons().every((b) => b.attributes("disabled") === undefined)).toBe(true); // (typing sends nothing)
       await wrapper.find("#set-map-radius_km").trigger("blur");

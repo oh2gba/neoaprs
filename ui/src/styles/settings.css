@@ -12,11 +12,12 @@
   padding: 0 6px;
   font-weight: 600;
 }
-.settings .subgroup {
-  margin: 10px 0 2px;
-  font-size: 0.9em;
-  font-weight: 600;
-  color: var(--muted);
+/* a box inside a group (SettingsBox: the parts of Notifications, one for each device): the same box, a little closer to its group's edge */
+.settings fieldset.subbox {
+  margin: 10px 0 4px;
+}
+.settings .subbox legend {
+  font-size: 0.95em;
 }
 .field {
   position: relative;

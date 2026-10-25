@@ -302,7 +302,7 @@ export const FIELDS: Record<string, FieldInfo> = Object.fromEntries(Object.entri
 /** The settings of the daemon's own alert, which the Notifications group shows (beside the alert of the browser, which is the page's). */
 const ALERT = ["messages/alert", "messages/alert_command"];
 
-/** The heading that goes above a key inside its group: the daemon's own alert, which runs on the computer NeoAPRS runs on, whichever device shows the page. */
+/** The legend of the box that starts at a key inside its group (components/SettingsBox.vue): the daemon's own alert, which runs on the computer NeoAPRS runs on, whichever device shows the page. */
 export const SUBGROUPS: Record<string, { readonly text: string; readonly title: string; readonly tipLabel: string; readonly tip: readonly string[] }> = {
   "messages/alert": {
     get text() {

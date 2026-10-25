@@ -1109,7 +1109,7 @@ export const de: Catalogue = {
   "settings.map.checking": "Prüfe die Größe…",
   "settings.map.download_size": "{size} herunterladen?",
   "settings.map.downloading": "Lade herunter…",
-  "settings.map.download_again": "Karte erneut herunterladen",
+  "settings.map.download_again": "Erneut herunterladen",
   "settings.map.download": "Karte herunterladen",
   "settings.map.cancel": "Abbrechen",
 

@@ -194,7 +194,7 @@ describe("App: the first-run guide", () => {
     await wrapper.find("#setup-lon").setValue("24.94");
     for (let i = 0; i < 3; i++) await wrapper.find("form").trigger("submit");
     const commands = () => socket.sent.map((c) => (c as { cmd: string }).cmd);
-    await wrapper.find(".setup .mapfetch button").trigger("click");
+    await wrapper.find(".setup .mapfetch-button").trigger("click");
     expect(commands().filter((c) => c === "set_config")).toHaveLength(1);
     expect(commands()).not.toContain("map_estimate");
     socket.say({
@@ -212,7 +212,7 @@ describe("App: the first-run guide", () => {
       value: mapState({ estimate: { bytes: 493_000_000, tiles: 41233, radius_km: 150, maxzoom: 12, box: [22.1, 58.8, 27.8, 61.5], build: "20261022" } }),
     });
     await flushPromises();
-    await wrapper.find(".setup .mapfetch button").trigger("click");
+    await wrapper.find(".setup .mapfetch-button").trigger("click");
     expect(commands().at(-1)).toBe("map_fetch");
   });
 });

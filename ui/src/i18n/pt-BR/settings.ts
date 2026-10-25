@@ -317,7 +317,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.map.checking": "Verificando o tamanho…",
   "settings.map.download_size": "Baixar {size}?",
   "settings.map.downloading": "Baixando…",
-  "settings.map.download_again": "Baixar o mapa de novo",
+  "settings.map.download_again": "Baixar de novo",
   "settings.map.download": "Baixar o mapa",
   "settings.map.cancel": "Cancelar",
 

@@ -1,12 +1,12 @@
 <script setup lang="ts">
-// The button of the Map group of the Settings tab: **Download map**. The first press runs the estimate (a dry run) and says "Checking size…"; when the size is known the button asks "Download 493 MB?", and the second press downloads (the world map
-// if it is not there, then the detailed map). Cancel while a job runs, the progress of the job and what it failed with, and one line "Map downloaded 23 Oct" when there is a detailed map (the button then says "Download map again"). The daemon does the
-// work for the radius and the detail it has in force; a setting that is still being saved (`stale`) disables the button for the moment, unless the form saves it before it sends the command (`early`, the first-run guide), in which case the
-// daemon having no position yet does not disable it either. A change of the radius takes the question back.
+// The button at the right end of the Radius row of the Map group (the Settings tab, and the first-run guide's map step), a plain one as the Test button of the Command row is: **Download map**. The first press runs the estimate (a dry run) and says "Checking size…"; when the size is known
+// the button asks "Download 493 MB?", and the second press downloads (the world map if it is not there, then the detailed map). Cancel beside it while a job runs; the progress, what a job failed with and the line "Map downloaded 23 Oct" are under the row (components/MapFetchNotes.vue).
+// With a detailed map the button says "Download again". The daemon does the work for the radius and the detail it has in force; a setting that is still being saved (`stale`) disables the button for the moment, unless the form saves it before it sends the command (`early`,
+// the first-run guide), in which case the daemon having no position yet does not disable it either. A change of the radius takes the question back.
 import { computed, ref, watch } from "vue";
 import { t } from "@/i18n";
 import { useSure } from "@/composables/useSure";
-import { currentEstimate, downloadedLine, formatBytes, isRunning, progressText } from "@/lib/mapfetch";
+import { currentEstimate, formatBytes, isRunning } from "@/lib/mapfetch";
 import type { Command, MapState } from "@/protocol/protocol";
 
 const props = defineProps<{ map: MapState; stale: boolean; send: (command: Command) => boolean; early?: boolean }>();
@@ -74,21 +74,9 @@ const label = computed(() =>
           ? t("settings.map.download_again")
           : t("settings.map.download"),
 );
-const progress = computed(() => progressText(props.map));
-const done = computed(() => downloadedLine(props.map));
 </script>
 
 <template>
-  <div class="mapfetch">
-    <div class="mapfetch-actions">
-      <button class="btn primary" :class="{ danger: asking }" type="button" :disabled="!idle || checking" :title="why" @click="press">{{ label }}</button>
-      <button v-if="running" class="btn" type="button" @click="send({ cmd: 'map_cancel' })">{{ t("settings.map.cancel") }}</button>
-    </div>
-    <div v-if="running" class="mapfetch-progress">
-      <progress max="100" :value="map.percent ?? undefined" :aria-label="progress"></progress>
-      <span class="muted" role="status">{{ progress }}</span>
-    </div>
-    <p v-if="map.state === 'error' && map.problem" class="field-error mapfetch-error" role="alert">{{ map.problem }}</p>
-    <p v-if="done && !running" class="muted mapfetch-file">{{ done }}</p>
-  </div>
+  <button class="btn mapfetch-button" :class="{ danger: asking }" type="button" :disabled="!idle || checking" :title="why" @click="press">{{ label }}</button>
+  <button v-if="running" class="btn" type="button" @click="send({ cmd: 'map_cancel' })">{{ t("settings.map.cancel") }}</button>
 </template>

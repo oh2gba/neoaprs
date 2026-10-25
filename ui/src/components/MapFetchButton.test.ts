@@ -1,36 +1,42 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it, vi } from "vitest";
-import MapFetchPanel from "@/components/MapFetchPanel.vue";
+import MapFetchButton from "@/components/MapFetchButton.vue";
+import MapFetchNotes from "@/components/MapFetchNotes.vue";
 import type { MapState } from "@/protocol/protocol";
+import { cssRule } from "@/test/css";
 import { mapFile, mapState } from "@/test/fixtures";
 
 const ESTIMATE = { bytes: 493_000_000, tiles: 41233, radius_km: 150, maxzoom: 12, box: [22.1, 58.8, 27.8, 61.5], build: "20261022" };
 
 function make(map: MapState, stale = false, early = false) {
   const send = vi.fn(() => true);
-  const wrapper = mount(MapFetchPanel, { props: { map, stale, send, early } });
-  const button = () => wrapper.find<HTMLButtonElement>(".mapfetch-actions button.primary");
-  return { wrapper, send, button };
+  const wrapper = mount(MapFetchButton, { props: { map, stale, send, early } });
+  const notes = mount(MapFetchNotes, { props: { map } });
+  const button = () => wrapper.find<HTMLButtonElement>("button.mapfetch-button");
+  return { wrapper, notes, send, button };
 }
 
-describe("MapFetchPanel", () => {
-  it("is one button, Download map, on, and nothing else while no map is made", () => {
-    const { wrapper, button } = make(mapState());
+describe("MapFetchButton", () => {
+  it("is one plain button, Download map, on, and nothing else while no map is made (the blue is for the one main action of a form)", () => {
+    const { wrapper, notes, button } = make(mapState());
     expect(wrapper.findAll("button").map((b) => b.text())).toEqual(["Download map"]);
+    expect(button().classes()).not.toContain("primary");
     expect(button().attributes("disabled")).toBeUndefined();
-    expect(wrapper.find("progress").exists()).toBe(false);
-    expect(wrapper.find(".mapfetch-file").exists()).toBe(false);
+    expect(notes.find("progress").exists()).toBe(false);
+    expect(notes.find(".mapfetch-file").exists()).toBe(false);
+    expect(notes.html()).toBe("<!--v-if-->");
   });
 
   it("runs the estimate on the first press, and says Checking size… until the size is known", async () => {
-    const { wrapper, send, button } = make(mapState());
+    const { wrapper, notes, send, button } = make(mapState());
     await button().trigger("click");
     expect(send.mock.calls).toEqual([[{ cmd: "map_estimate" }]]);
     expect(button().text()).toBe("Checking size…");
     expect(button().attributes("disabled")).toBeDefined();
     await wrapper.setProps({ map: mapState({ state: "estimating", step: "build", percent: null }) });
     expect(button().text()).toBe("Checking size…");
-    expect(wrapper.find(".mapfetch-progress").exists()).toBe(true);
+    await notes.setProps({ map: mapState({ state: "estimating", step: "build", percent: null }) });
+    expect(notes.find(".mapfetch-progress").exists()).toBe(true);
   });
 
   it("then asks Download 493 MB? whatever the size, and sends the download on the second press", async () => {
@@ -63,24 +69,25 @@ describe("MapFetchPanel", () => {
   });
 
   it("takes the question back, and shows why, when the check fails", async () => {
-    const { wrapper, button } = make(mapState());
+    const { wrapper, notes, button } = make(mapState());
     await button().trigger("click");
     await wrapper.setProps({ map: mapState({ state: "error", problem: "no daily build was found" }) });
     expect(button().text()).toBe("Download map");
-    expect(wrapper.find(".mapfetch-error").text()).toBe("no daily build was found");
+    await notes.setProps({ map: mapState({ state: "error", problem: "no daily build was found" }) });
+    expect(notes.find(".mapfetch-error").text()).toBe("no daily build was found");
   });
 
   it("does not wait for a size when the command could not be sent", async () => {
     const send = vi.fn(() => false);
-    const wrapper = mount(MapFetchPanel, { props: { map: mapState(), stale: false, send } });
+    const wrapper = mount(MapFetchButton, { props: { map: mapState(), stale: false, send } });
     await wrapper.find("button").trigger("click");
     expect(wrapper.find("button").text()).toBe("Download map");
   });
 
-  it("shows a bar with the percent and the step while a job runs, and Cancel", async () => {
-    const { wrapper, send, button } = make(mapState({ state: "downloading", step: "world", percent: 42, blocked: "a map job is running" }));
-    expect(wrapper.find("progress").attributes("value")).toBe("42");
-    expect(wrapper.find(".mapfetch-progress").text()).toBe("World map 42%");
+  it("is off while a job runs, says Downloading…, and has Cancel beside it (the bar and the step are under the row)", async () => {
+    const { wrapper, notes, send, button } = make(mapState({ state: "downloading", step: "world", percent: 42, blocked: "a map job is running" }));
+    expect(notes.find("progress").attributes("value")).toBe("42");
+    expect(notes.find(".mapfetch-progress").text()).toBe("World map 42%");
     expect(button().attributes("disabled")).toBeDefined();
     expect(button().text()).toBe("Downloading…");
     await wrapper
@@ -91,8 +98,8 @@ describe("MapFetchPanel", () => {
   });
 
   it("has a bar without a value when the step cannot say how far it is", () => {
-    const { wrapper } = make(mapState({ state: "estimating", step: "build", percent: null, estimate: ESTIMATE }));
-    expect(wrapper.find("progress").attributes("value")).toBeUndefined();
+    const { notes } = make(mapState({ state: "estimating", step: "build", percent: null, estimate: ESTIMATE }));
+    expect(notes.find("progress").attributes("value")).toBeUndefined();
   });
 
   it("is off, with the reason as the hover, when the daemon says no job can start", () => {
@@ -110,36 +117,45 @@ describe("MapFetchPanel", () => {
   it("shows why the last job failed, and only in the state error", () => {
     expect(
       make(mapState({ state: "error", problem: "no daily build was found" }))
-        .wrapper.find(".mapfetch-error")
+        .notes.find(".mapfetch-error")
         .text(),
     ).toBe("no daily build was found");
     expect(
       make(mapState({ state: "none", problem: "" }))
-        .wrapper.find(".mapfetch-error")
+        .notes.find(".mapfetch-error")
         .exists(),
     ).toBe(false);
   });
 
-  it("says one plain line when there is a detailed map, and then offers Download map again; nothing of the world map or of the details", () => {
-    const { wrapper, button } = make(mapState({ state: "ready", detail: mapFile(), world: mapFile({ bytes: 15_100_000, max_zoom: 5 }) }));
-    expect(wrapper.findAll(".mapfetch-file").map((p) => p.text())).toEqual(["Map downloaded 22 Oct"]);
-    expect(wrapper.text()).not.toContain("World map");
-    expect(wrapper.text()).not.toContain("zoom");
-    expect(button().text()).toBe("Download map again");
+  it("says one quiet line when there is a detailed map, and then offers Download again; nothing of the world map or of the details", () => {
+    const { wrapper, notes, button } = make(mapState({ state: "ready", detail: mapFile(), world: mapFile({ bytes: 15_100_000, max_zoom: 5 }) }));
+    expect(notes.findAll(".mapfetch-file").map((p) => p.text())).toEqual(["Map downloaded 22 Oct"]);
+    expect(notes.find(".mapfetch-file").classes()).toContain("muted");
+    expect(wrapper.text() + notes.text()).not.toContain("World map");
+    expect(wrapper.text() + notes.text()).not.toContain("zoom");
+    expect(button().text()).toBe("Download again");
+    expect(button().classes()).not.toContain("primary");
   });
 
   it("says nothing of the maps for a world map only", () => {
     expect(
       make(mapState({ state: "none", world: mapFile({ max_zoom: 5 }) }))
-        .wrapper.find(".mapfetch-file")
+        .notes.find(".mapfetch-file")
         .exists(),
     ).toBe(false);
   });
 
   it("explains nothing in sentences: no hint under the button", () => {
-    const { wrapper } = make(mapState({ state: "ready", detail: mapFile() }));
+    const { wrapper, notes } = make(mapState({ state: "ready", detail: mapFile() }));
     expect(wrapper.find(".hint").exists()).toBe(false);
-    expect(wrapper.findAll("p").every((p) => p.classes().some((c) => c === "mapfetch-file" || c === "mapfetch-error"))).toBe(true);
+    expect(notes.findAll("p").every((p) => p.classes().some((c) => c === "mapfetch-file" || c === "mapfetch-error"))).toBe(true);
+  });
+
+  it("keeps the notes under the row, in the grid of the label column, and the button wrapping under the field when the row is narrow", () => {
+    expect(cssRule(".mapfetch-notes")).toMatch(/display:\s*grid/);
+    expect(cssRule(".mapfetch-notes")).toContain("minmax(7em, 36%) 1fr");
+    expect(cssRule(".mapfetch-notes > *")).toMatch(/grid-column:\s*2/);
+    expect(cssRule(".field-control:has(.mapfetch-button)")).toMatch(/flex-wrap:\s*wrap/);
   });
 
   it("keeps the button on for an early form (the first-run guide) when the daemon has no position yet, and off for a job that runs or a form that cannot be saved", () => {

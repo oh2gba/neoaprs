@@ -1,6 +1,6 @@
 # Being told of a new message
 
-A new message can alert you in two places, and both are in the **Notifications** group of the Settings tab:
+A new message can alert you in two places, and both are in the **Notifications** group of the Settings tab, each in a box of its own with its name on it, so that it is plain which device it is for:
 
 - **On the NeoAPRS computer:** the daemon runs a command of yours.
 - **In this browser:** the page alerts by itself, in whatever browser has it open.

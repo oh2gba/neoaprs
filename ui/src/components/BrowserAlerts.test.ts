@@ -31,7 +31,9 @@ afterEach(() => {
 describe("the browser's part of the Notifications group", () => {
   it("has one choice, Alert for a new message, and a test for the sound and one for the pop-up", () => {
     const { wrapper } = make();
-    expect(wrapper.find("h3").text()).toBe("In this browser");
+    expect(wrapper.find("fieldset.subbox > legend").text()).toBe("In this browser");
+    expect(wrapper.find("h3").exists()).toBe(false);
+    expect(wrapper.findAll("fieldset")).toHaveLength(1);
     expect(wrapper.findAll("label").map((l) => l.text())).toEqual(["Alert for a new message", "Sound", "Pop-up"]);
     expect(wrapper.findAll("button").map((b) => b.text())).toEqual(["Test sound", "Test pop-up"]);
     expect(wrapper.findAll("select")).toHaveLength(1);

@@ -126,7 +126,7 @@ describe("App: the Settings tab", () => {
     socket.say({ type: "state", topic: "map", rev: 0, value: mapState() });
     await flushPromises();
     await tabButton(wrapper, "Settings")?.trigger("click");
-    const button = () => wrapper.find("#pane-settings .mapfetch-actions button.primary");
+    const button = () => wrapper.find("#pane-settings .mapfetch-button");
     await button().trigger("click");
     expect(socket.sent).toContainEqual({ cmd: "map_estimate" });
     expect(socket.sent).not.toContainEqual({ cmd: "map_fetch" });

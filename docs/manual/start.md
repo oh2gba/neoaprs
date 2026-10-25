@@ -17,7 +17,7 @@ On a fresh install the page opens a guide in five steps. It opens by itself once
 2. **Position.** Press **Choose on map** and click where you are, or drag the pin. Or click the place beside the button ("Not set" at first, which opens by itself) and type latitude and longitude in decimal degrees: north and east positive, south and west negative (Sydney is -33.87, 151.21). A Maidenhead locator works too. It is the same row as the Location of the Beacon tab ([beacon.md](beacon.md#the-location)).
 3. **Symbol.** The twelve usual ones are on top; a click on the symbol under them opens the picker with every symbol.
 4. **Radio.** The type of TNC, and for a serial one the port and speed, for a TCP one the host and port ([radio.md](radio.md)).
-5. **Map.** The radius of the detailed map and its download. A few minutes of internet are needed, once ([page.md](page.md#the-base-map)).
+5. **Map.** The radius of the detailed map and, at the right end of its row, the plain **Download map** button. A few minutes of internet are needed, once ([page.md](page.md#the-base-map)).
 
 **Finish** saves what you set. On a station that has no call and no beacon yet, it also sets the beacon to every 30 minutes, and the last step says "Beacon every 30 min". Run again on a station that already has a call, the guide leaves the beacon alone.
 

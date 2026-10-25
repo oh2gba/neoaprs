@@ -312,7 +312,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.map.checking": "サイズを確認中…",
   "settings.map.download_size": "{size}をダウンロードしますか?",
   "settings.map.downloading": "ダウンロード中…",
-  "settings.map.download_again": "地図をもう一度ダウンロード",
+  "settings.map.download_again": "もう一度ダウンロード",
   "settings.map.download": "地図をダウンロード",
   "settings.map.cancel": "キャンセル",
 

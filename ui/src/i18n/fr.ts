@@ -1097,7 +1097,7 @@ export const fr: Catalogue = {
   "settings.map.checking": "Vérification de la taille…",
   "settings.map.download_size": "Télécharger {size} ?",
   "settings.map.downloading": "Téléchargement…",
-  "settings.map.download_again": "Télécharger la carte à nouveau",
+  "settings.map.download_again": "Télécharger à nouveau",
   "settings.map.download": "Télécharger la carte",
   "settings.map.cancel": "Annuler",
 

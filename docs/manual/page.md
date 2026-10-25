@@ -186,7 +186,7 @@ The base map is two files in the data folder that the daemon serves to the page:
 - `basemap.pmtiles`, the OpenStreetMap map of the area round your station: a square of `map/radius_km` (10 to 1000 km, default 150) in every direction, down to zoom 12.
 - `basemap-world.pmtiles`, the world to zoom 5 (about 15 MB), drawn under it so that there is something to see outside the area and when zoomed out. It ships with NeoAPRS.
 
-You make the detailed map in the Settings tab, in the Map group. It has the **Radius** and one button, **Download map** ("Download map again" when there is a detailed map, with a line such as "Map downloaded 23 Oct" beside it). The same is `neoaprs map` on the command line.
+You make the detailed map in the Settings tab, in the Map group. It is one row: the **Radius** with its field and unit, and at the right end of the same row one plain button, **Download map** ("Download again" when there is a detailed map). Under the row a quiet line such as "Map downloaded 23 Oct" says when the map was made, and the progress and a failure are shown there too. The same is `neoaprs map` on the command line.
 
 1. The first press works out the size ("Checking size…"), and the button then asks "Download 493 MB?" with the real size.
 2. The second press makes the world map, if there is none, and then the detailed map. A bar shows the percent of the step and the size so far ("Map of the area 49% · 340 MB").

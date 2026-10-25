@@ -386,21 +386,24 @@ describe("SetupGuide: the radio", () => {
 });
 
 describe("SetupGuide: the map and Finish", () => {
-  it("has the radius and MapFetchPanel's one Download map button, and Finish in place of Next", async () => {
+  it("has the radius with the one plain Download map button at the right end of its row, and Finish, the one primary, in place of Next", async () => {
     const { wrapper, stand } = make();
     await stand(4);
     expect(wrapper.find(".setup-step-name").text()).toBe("Map");
     expect(wrapper.findAll(".field label").map((l) => l.text())).toEqual(["Radius"]);
     expect(wrapper.find<HTMLInputElement>("#setup-radius").attributes("placeholder")).toBe("150");
     expect(wrapper.find("#setup-maxzoom").exists()).toBe(false);
-    expect(wrapper.findAll(".mapfetch button").map((b) => b.text())).toEqual(["Download map"]);
+    expect(wrapper.findAll(".mapfetch-button").map((b) => b.text())).toEqual(["Download map"]);
+    expect(wrapper.find(".mapfetch-button").classes()).not.toContain("primary");
+    expect(wrapper.find(".mapfetch-button").element.closest(".field")).toBe(wrapper.find("#setup-radius").element.closest(".field"));
+    expect(wrapper.findAll(".setup .primary").map((b) => b.text())).toEqual(["Finish"]);
     expect(wrapper.find("button[type=submit]").text()).toBe("Finish");
   });
 
   it("has Download map on while the daemon has no position yet (the guide saves it first), and off for a wrong radius", async () => {
     const { wrapper, stand, type } = make({ map: mapState({ blocked: "no position", box: null }) });
     await stand(4);
-    const mapButtons = () => wrapper.findAll(".mapfetch button");
+    const mapButtons = () => wrapper.findAll(".mapfetch-button");
     expect(mapButtons().every((b) => b.attributes("disabled") === undefined)).toBe(true);
     await type("setup-radius", "5");
     expect(mapButtons().every((b) => b.attributes("disabled") !== undefined)).toBe(true);
@@ -410,10 +413,10 @@ describe("SetupGuide: the map and Finish", () => {
   it("saves first and then estimates, with one set_config in all, and Finish after it sends nothing more", async () => {
     const { wrapper, guide, config, sent, stand, next } = make({ map: mapState({ blocked: "no position", box: null }) });
     await stand(4);
-    await wrapper.findAll(".mapfetch button")[0]?.trigger("click");
+    await wrapper.findAll(".mapfetch-button")[0]?.trigger("click");
     expect(sent.filter((c) => c.cmd === "set_config")).toHaveLength(1);
     expect(sent.some((c) => c.cmd === "map_estimate")).toBe(false);
-    expect(wrapper.findAll(".mapfetch button").every((b) => b.attributes("disabled") !== undefined)).toBe(true);
+    expect(wrapper.findAll(".mapfetch-button").every((b) => b.attributes("disabled") !== undefined)).toBe(true);
     const now = config.value;
     config.value = now && { ...now, values: { ...now.values, "station/call": "OH2ABC", "station/lat": "60.17", "station/lon": "24.94" } };
     await flushPromises();
@@ -465,7 +468,8 @@ describe("SetupGuide: the map and Finish", () => {
   it("has no map panel while the daemon has not told its map", async () => {
     const { wrapper, stand } = make({ map: null });
     await stand(4);
-    expect(wrapper.find(".mapfetch").exists()).toBe(false);
+    expect(wrapper.find(".mapfetch-button").exists()).toBe(false);
+    expect(wrapper.find(".mapfetch-notes").exists()).toBe(false);
     expect(wrapper.find("button[type=submit]").text()).toBe("Finish");
   });
 });

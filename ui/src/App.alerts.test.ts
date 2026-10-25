@@ -18,9 +18,13 @@ describe("App: the alert of this browser", () => {
     await tabButton(wrapper, "Settings")?.trigger("click");
     const groups = wrapper.findAll("#pane-settings fieldset").filter((g) => g.find("legend").text() === "Notifications");
     expect(groups).toHaveLength(1);
-    expect(groups[0]?.findAll("h3").map((h) => h.text().replace(/ i$/, ""))).toEqual(["On the NeoAPRS computer", "In this browser"]);
-    expect(groups[0]?.findAll("label").map((l) => l.text())).toEqual(["Alert", "Command", "Alert for a new message", "Sound", "Pop-up"]);
-    expect(groups[0]?.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(["Test", "Test sound", "Test pop-up"]);
+    const boxes = groups[0]?.findAll("fieldset.subbox") ?? [];
+    expect(boxes.map((b) => b.find("legend").text().replace(/ i$/, ""))).toEqual(["On the NeoAPRS computer", "In this browser"]);
+    expect(boxes[0]?.findAll("label").map((l) => l.text())).toEqual(["Alert", "Command"]);
+    expect(boxes[1]?.findAll("label").map((l) => l.text())).toEqual(["Alert for a new message", "Sound", "Pop-up"]);
+    expect(boxes[0]?.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(["Test"]);
+    expect(boxes[1]?.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(["Test sound", "Test pop-up"]);
+    expect(groups[0]?.findAll("h3")).toHaveLength(0);
   });
 
   it("is off on the loopback: a message to us makes no sound there", async () => {
