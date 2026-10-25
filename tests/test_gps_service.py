@@ -206,7 +206,7 @@ async def test_a_change_of_another_setting_leaves_the_feed_alone() -> None:
     rig = Rig(gps_source="gpsd", gps_host=gpsd.address)
     await rig.gps.start()
     await until(lambda: gpsd.watching)
-    rig.set(station_comment="x", beacon_moving_as="foot")
+    rig.set(station_comment="x", beacon_travel="foot")
     rig.gps.settings_changed()
     await idle_for(0.1)
     assert gpsd.connections == 1

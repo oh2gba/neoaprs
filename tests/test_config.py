@@ -5,7 +5,7 @@ from dataclasses import fields, replace
 import pytest
 
 from neoaprs.config import BY_KEY, DEFAULT_ALERT_COMMAND, DEFAULTS, KEYS, MAX_COMMENT, MAX_COMMENT_PHG, RANGES, SETTINGS, Config
-from neoaprs.smartbeacon import MOVING_AS, PRESETS, SmartSettings
+from neoaprs.smartbeacon import TRAVEL, PRESETS, SmartSettings
 from neoaprs.policy import LOG_KEEP_DAYS, TNC_CHECK_SEC
 from neoaprs.configstatus import MAX_STATUS, fill_template
 
@@ -19,7 +19,7 @@ def test_the_defaults_are_the_ones_of_the_brief() -> None:
         "messages/alert": "true", "messages/alert_command": DEFAULT_ALERT_COMMAND, "status/source": "", "status/rigctld": "", "status/interval_min": "30", "status/template": "QRV {freq} {mode}",
         "map/radius_km": "150", "map/maxzoom": "12", "map/station_hours": "3", "map/source": "",
         "update/url": "https://oh2gba.eu/neoaprs/version.php", "digi/enabled": "false",
-        "gps/source": "off", "gps/host": "127.0.0.1:2947", "gps/device": "", "gps/baud": "4800", "beacon/moving_as": "car"}
+        "gps/source": "off", "gps/host": "127.0.0.1:2947", "gps/device": "", "gps/baud": "4800", "beacon/travel": "car"}
     assert Config() == DEFAULTS
 
 
@@ -337,7 +337,7 @@ def test_the_attempts_setting_of_an_older_version_is_not_a_setting_and_is_left_a
 
 def test_the_gps_is_off_the_station_is_fixed_and_it_moves_as_a_car_with_dire_wolfs_numbers() -> None:
     c = Config()
-    assert (c.gps_source, c.gps_host, c.gps_device, c.gps_baud, c.beacon_moving_as, c.mobile) == ("off", "127.0.0.1:2947", "", 4800, "car", False)
+    assert (c.gps_source, c.gps_host, c.gps_device, c.gps_baud, c.beacon_travel, c.mobile) == ("off", "127.0.0.1:2947", "", 4800, "car", False)
     assert c.smart == SmartSettings(100, 60, 8, 1800, 30, 15, 255) and c.smart == SmartSettings() and c.smart == PRESETS["car"]
 
 
@@ -348,22 +348,22 @@ def test_the_gps_source_alone_decides_whether_the_station_moves() -> None:
 
 
 def test_the_presets_are_the_four_ways_of_moving_and_the_car_is_dire_wolfs() -> None:
-    assert MOVING_AS == ("car", "bicycle", "foot", "boat") == tuple(PRESETS)
+    assert TRAVEL == ("car", "bicycle", "foot", "boat") == tuple(PRESETS)
     assert PRESETS == {"car": SmartSettings(100, 60, 8, 1800, 30, 15, 255), "bicycle": SmartSettings(30, 60, 4, 1800, 35, 20, 255),
                        "foot": SmartSettings(7, 120, 1.5, 1800, 45, 60, 100), "boat": SmartSettings(40, 60, 3, 1800, 20, 30, 255)}
     for name, preset in PRESETS.items():
         assert preset.fast_kmh > preset.slow_kmh and preset.fast_sec < preset.slow_sec, name
-        assert Config.from_data({"beacon/moving_as": name}).smart == preset
+        assert Config.from_data({"beacon/travel": name}).smart == preset
 
 
 def test_what_the_station_moves_as_is_one_of_four_words_written_in_lower_case() -> None:
-    assert Config.check("beacon/moving_as", " Boat ") == "boat" and Config.check("beacon/moving_as", "foot") == "foot"
+    assert Config.check("beacon/travel", " Boat ") == "boat" and Config.check("beacon/travel", "foot") == "foot"
     for bad in ("", "plane", "walk", "mobile"):
-        with pytest.raises(ValueError, match="beacon/moving_as") as e:
-            Config.check("beacon/moving_as", bad)
+        with pytest.raises(ValueError, match="beacon/travel") as e:
+            Config.check("beacon/travel", bad)
         assert e.value.code == "setting.not_among" and e.value.params == {"value": bad, "choices": "car, bicycle, foot, boat"}     # type: ignore[attr-defined]
-    assert Config.from_data({"beacon/moving_as": "nonsense"}).beacon_moving_as == "car", "a stored value that is no preset is the default"
-    assert Config.checked(DEFAULTS, {"beacon/moving_as": "bicycle"}).smart == PRESETS["bicycle"]
+    assert Config.from_data({"beacon/travel": "nonsense"}).beacon_travel == "car", "a stored value that is no preset is the default"
+    assert Config.checked(DEFAULTS, {"beacon/travel": "bicycle"}).smart == PRESETS["bicycle"]
 
 
 def test_the_settings_of_the_smartbeaconing_numbers_and_the_mobile_flag_are_gone() -> None:
@@ -413,4 +413,4 @@ def test_a_gps_source_without_what_it_reads_is_a_valid_setting() -> None:
 
 
 def test_the_mobile_settings_come_after_the_others_in_the_order_the_page_lists_them() -> None:
-    assert list(KEYS[-5:]) == ["gps/source", "gps/host", "gps/device", "gps/baud", "beacon/moving_as"]
+    assert list(KEYS[-5:]) == ["gps/source", "gps/host", "gps/device", "gps/baud", "beacon/travel"]

@@ -36,7 +36,7 @@ def migrate(folder: Path):  # type: ignore[no-untyped-def]
     version_sixteen(old, clock)
     migrated = opened(old, clock)
     assert migrated.version() == SCHEMA_VERSION >= 17
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][16:] == [(17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][16:] == [(17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20])]
     return migrated
 
 

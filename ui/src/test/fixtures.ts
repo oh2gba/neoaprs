@@ -367,7 +367,7 @@ export function configValues(extra: Record<string, string> = {}): ConfigValues {
     "gps/host": "127.0.0.1:2947",
     "gps/device": "",
     "gps/baud": "4800",
-    "beacon/moving_as": "car",
+    "beacon/travel": "car",
     ...extra,
   };
   return { values, defaults: { ...values }, urls: [], https: { on: false, port: 0, fingerprint: "", problem: "" } };

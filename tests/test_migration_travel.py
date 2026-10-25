@@ -1,5 +1,5 @@
-"""Migration 19 (neoaprs/migrations2.py): the rows of `beacon/mobile` and of the seven `smart/*` numbers are deleted once, with a line in the log for each; every other setting is as it was, and
-`beacon/moving_as` has no row, so the car is in force."""
+"""Migrations 19 and 20 (neoaprs/migrations2.py): the rows of `beacon/mobile` and of the seven `smart/*` numbers are deleted once, with a line in the log for each; every other setting is as it was,
+and `beacon/travel` has no row, so the car is in force. A row `beacon/moving_as`, which an earlier build stored for the setting that is now `beacon/travel`, is renamed once, with a line in the log."""
 import logging
 from pathlib import Path
 
@@ -36,8 +36,8 @@ def migrate(folder: Path, stored: dict[str, str]) -> dict[str, tuple[str, int]]:
     old = folder / DB_NAME
     version_eighteen(old, clock, stored)
     migrated = opened(old, clock)
-    assert migrated.version() == SCHEMA_VERSION >= 19
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][18:] == [(19, "_v19", GOLDEN[19])]
+    assert migrated.version() == SCHEMA_VERSION >= 20
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][18:] == [(19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20])]
     found = {str(k): (str(v), int(rev)) for k, v, rev in migrated.db.execute("SELECT key, value, rev FROM settings")}
     migrated.close()
     return found
@@ -48,10 +48,10 @@ def test_the_rows_of_the_removed_settings_are_deleted_and_every_other_is_as_it_w
     assert found == {key: (value, 1) for key, value in KEPT.items()}
 
 
-def test_a_moving_station_of_the_old_settings_is_a_moving_car_when_the_gps_is_set(tmp_path: Path) -> None:
+def test_a_moving_station_of_the_old_settings_travels_by_car_when_the_gps_is_set(tmp_path: Path) -> None:
     found = migrate(tmp_path, {**GONE, **KEPT})
     config = Config.from_data({key: value for key, (value, _) in found.items()})
-    assert config.mobile and config.beacon_moving_as == "car" and config.smart == PRESETS["car"]
+    assert config.mobile and config.beacon_travel == "car" and config.smart == PRESETS["car"]
 
 
 def test_one_info_line_for_each_row_removed_with_its_old_value(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
@@ -73,3 +73,24 @@ def test_a_removed_setting_that_is_stored_by_hand_is_ignored_and_cannot_be_set()
     for key in GONE:
         with pytest.raises(ValueError, match=f"{key}: no such setting"):
             Config.check(key, "7")
+
+
+def test_a_stored_moving_as_row_is_renamed_to_travel_with_its_value_and_its_revision_and_says_so(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.INFO, logger=MIGRATION_LOG):
+        found = migrate(tmp_path, {**KEPT, "beacon/moving_as": "boat"})
+    assert found == {**{key: (value, 1) for key, value in KEPT.items()}, "beacon/travel": ("boat", 1)}
+    assert [r.getMessage() for r in caplog.records if "beacon/moving_as" in r.getMessage()] == ["beacon/moving_as renamed to beacon/travel (value boat)"]
+    assert Config.from_data({key: value for key, (value, _) in found.items()}).smart == PRESETS["boat"]
+
+
+def test_a_database_with_both_rows_keeps_the_travel_row_and_loses_the_other(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.INFO, logger=MIGRATION_LOG):
+        found = migrate(tmp_path, {**KEPT, "beacon/moving_as": "foot", "beacon/travel": "bicycle"})
+    assert found["beacon/travel"] == ("bicycle", 1) and "beacon/moving_as" not in found
+    assert [r.getMessage() for r in caplog.records if "beacon/moving_as" in r.getMessage()] == ["beacon/moving_as removed (was foot): beacon/travel is set"]
+
+
+def test_a_database_without_a_moving_as_row_gets_no_travel_row_and_no_line(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.INFO, logger=MIGRATION_LOG):
+        found = migrate(tmp_path, KEPT)
+    assert "beacon/travel" not in found and not [r for r in caplog.records if "beacon/moving_as" in r.getMessage()]

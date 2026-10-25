@@ -336,12 +336,12 @@ export const settings = {
   "settings.gps_baud.tip1":
     "The speed of the receiver's serial line. 4800 is the speed of NMEA itself, and many USB receivers speak 9600. A wrong speed shows as no fix.",
 
-  "settings.moving_as.label": "Moving as",
-  "settings.moving_as.car": "Car",
-  "settings.moving_as.bicycle": "Bicycle",
-  "settings.moving_as.foot": "On foot",
-  "settings.moving_as.boat": "Boat",
-  "settings.moving_as.tip1": "Sets how often the beacon goes and at which turns: a car beacons more often at speed than a walker.",
+  "settings.travel.label": "Travelling",
+  "settings.travel.car": "By car",
+  "settings.travel.bicycle": "By bicycle",
+  "settings.travel.foot": "On foot",
+  "settings.travel.boat": "By boat",
+  "settings.travel.tip1": "Sets how often the beacon goes and at which turns: a car beacons more often at speed than a walker.",
 
   "settings.update.group": "Update check",
   "settings.update.label": "New version",

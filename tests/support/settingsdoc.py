@@ -84,7 +84,7 @@ DESCRIPTIONS: dict[str, tuple[str, str]] = {
     "gps/host": ("Beacon tab, Mobile (GPS)", "`host:port` of the gpsd that `gpsd` reads (gpsd's own port is 2947)"),
     "gps/device": ("Beacon tab, Mobile (GPS)", "the serial port of the GPS receiver for `serial`, such as `/dev/ttyUSB1` or `COM4`, or `socket://host:port` for a receiver behind a TCP serial server. Keep it apart from the radio's `serial/port`"),
     "gps/baud": ("Beacon tab, Mobile (GPS)", "the receiver's speed on `gps/device` ({gps_baud}); NMEA 0183 is 4800, and many USB receivers speak 9600"),
-    "beacon/moving_as": ("Beacon tab, Mobile (Moving as)", "what you move as while the beacon follows the GPS: `car`, `bicycle`, `foot` or `boat`. It decides when SmartBeaconing beacons: {moving_presets}. Below the slow speed a station counts as standing still, so there is a beacon only every 30 minutes and no turn is beaconed. The car's numbers are Dire Wolf's; the others are NeoAPRS's own choice"),
+    "beacon/travel": ("Beacon tab, Mobile (Travelling)", "how you travel while the beacon follows the GPS: `car`, `bicycle`, `foot` or `boat`. It decides when SmartBeaconing beacons: {moving_presets}. Below the slow speed a station counts as standing still, so there is a beacon only every 30 minutes and no turn is beaconed. The car's numbers are Dire Wolf's; the others are NeoAPRS's own choice"),
 }
 
 SHOWN = {"messages/alert_command": "a notification and a sound"}       # a default that is too long for a table

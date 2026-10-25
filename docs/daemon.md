@@ -127,9 +127,9 @@ station that is not mobile, and for a mobile one before its first fix. With the 
 decision, pure code: `decide(settings, last, now, speed_kmh, course_deg, request)` gives a `Decision(reason, next_due)` where `reason` is `request`, `start` (no beacon yet in this run), `time` (the last beacon plus the
 rate of the speed now has passed: `slow_sec` up to `slow_kmh`, `fast_sec` from `fast_kmh`, `fast_sec * fast_kmh / speed` between) or `turn` (above `slow_kmh`, the course differs from the course at the last beacon by
 more than `turn_min_deg + turn_slope / speed_in_mph`, and `turn_min_sec` have passed since it), or None. The algorithm is HamHUD's SmartBeaconing by Tony Arnerich KD7TA and Steve Bragg KA9MVA, in kilometres per hour;
-the numbers are not settings but a preset (`PRESETS` in `neoaprs/smartbeacon.py`) that the setting `beacon/moving_as` chooses (`Config.smart`): `car` (the default, Dire Wolf's SmartBeaconing numbers), `bicycle`, `foot` and `boat` (NeoAPRS's own choice):
+the numbers are not settings but a preset (`PRESETS` in `neoaprs/smartbeacon.py`) that the setting `beacon/travel` chooses (`Config.smart`): `car` (the default, Dire Wolf's SmartBeaconing numbers), `bicycle`, `foot` and `boat` (NeoAPRS's own choice):
 
-| `beacon/moving_as` | `fast_kmh` | `fast_sec` | `slow_kmh` | `slow_sec` | `turn_min_deg` | `turn_min_sec` | `turn_slope` |
+| `beacon/travel` | `fast_kmh` | `fast_sec` | `slow_kmh` | `slow_sec` | `turn_min_deg` | `turn_min_sec` | `turn_slope` |
 |---|---|---|---|---|---|---|---|
 | `car` | 100 | 60 | 8 | 1800 | 30 | 15 | 255 |
 | `bicycle` | 30 | 60 | 4 | 1800 | 35 | 20 | 255 |

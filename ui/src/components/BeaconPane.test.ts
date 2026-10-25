@@ -389,7 +389,7 @@ describe("the beacon status of a moving station", () => {
     expect(group(wrapper, "Station")?.find("#set-station-lat").exists()).toBe(true);
   });
 
-  it("shows what a moving station has, and not what a fixed one has: Moving as for the interval and the antenna", () => {
+  it("shows what a moving station has, and not what a fixed one has: Travelling for the interval and the antenna", () => {
     const stationLabels = (wrapper: Wrapper) =>
       group(wrapper, "Station")
         ?.findAll(".field > label")
@@ -408,7 +408,7 @@ describe("the beacon status of a moving station", () => {
     ).toEqual(["Antenna", "Advanced"]);
     const car = pane({ "gps/source": "serial", "beacon/power_w": "5" }, { gps: gpsState({ source: "serial" }) }).wrapper;
     expect(stationLabels(car)).toEqual(["Transmit", "Call", "Position", "GPS port", "GPS speed", "Latitude", "Longitude", "Symbol"]);
-    expect(beaconLabels(car)).toEqual(["Moving as", "Comment", "Path"]);
+    expect(beaconLabels(car)).toEqual(["Travelling", "Comment", "Path"]);
     expect(
       group(car, "Beacon")
         ?.findAll("details > summary")

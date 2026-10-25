@@ -250,7 +250,7 @@ scripts/neoaprs-db set gps/host 127.0.0.1:2948
 python -m neoaprs --data data --port socket://127.0.0.1:PORT      # ... with scripts/replay for the radio, or the real one
 ```
 
-The same two settings are on the page's Beacon tab (the GPS source alone makes the beacon a moving station's; the car preset, `beacon/moving_as`, is the default). The daemon then reads the fixes as it would a gpsd's, shows them in the topic `gps`, moves its own row on the map, and beacons by SmartBeaconing: the first fix at once, a turn at
+The same two settings are on the page's Beacon tab (the GPS source alone makes the beacon a moving station's; the car preset, `beacon/travel`, is the default). The daemon then reads the fixes as it would a gpsd's, shows them in the topic `gps`, moves its own row on the map, and beacons by SmartBeaconing: the first fix at once, a turn at
 each corner, then by time (about every two minutes at 50 km/h), nothing while the car stands. With the replay stopped the fix is stale after two minutes and nothing is sent. Nothing is transmitted unless a TNC takes the
 frames: use `scripts/replay` as the radio (it takes what the daemon writes) or switch `station/transmit` off to see only the page. `tests/test_gpsreplay.py` runs the same drive through the daemon's feed, the GPS service and the beacon.
 

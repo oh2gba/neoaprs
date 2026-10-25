@@ -31,7 +31,7 @@ describe("groupKeys", () => {
     ]);
     expect(groups[1]?.keys).toEqual([
       "beacon/interval_min",
-      "beacon/moving_as",
+      "beacon/travel",
       "station/comment",
       "beacon/power_w",
       "beacon/antenna_height_m",
@@ -45,7 +45,7 @@ describe("groupKeys", () => {
     ]);
     expect(groups[2]?.keys).toEqual(["status/source", "station/status", "status/rigctld", "status/template", "status/interval_min"]);
   });
-  it("has no Mobile group: the position choice and what it needs are in the Station group, Moving as in the Beacon group, and the old keys are gone", () => {
+  it("has no Mobile group: the position choice and what it needs are in the Station group, Travelling in the Beacon group, and the old keys are gone", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "beacon");
     expect(groups.map((g) => g.title)).toEqual(["Station", "Beacon", "Status"]);
     const keys = groups.flatMap((g) => g.keys);
@@ -53,10 +53,10 @@ describe("groupKeys", () => {
     expect(keys.filter((k) => k.startsWith("smart/"))).toEqual([]);
     expect((CONFIG_KEYS as readonly string[]).filter((k) => k === "beacon/mobile" || k.startsWith("smart/"))).toEqual([]);
     expect(groups[0]?.keys.filter((k) => k.startsWith("gps/"))).toEqual(["gps/source", "gps/host", "gps/device", "gps/baud"]);
-    expect(groups[1]?.keys).toContain("beacon/moving_as");
+    expect(groups[1]?.keys).toContain("beacon/travel");
     const settings = groupKeys(CONFIG_KEYS, "settings").flatMap((g) => g.keys);
     expect(settings).not.toContain("gps/source");
-    expect(settings).not.toContain("beacon/moving_as");
+    expect(settings).not.toContain("beacon/travel");
   });
   it("has every key in one place only", () => {
     const shown = [...groupKeys(CONFIG_KEYS, "settings"), ...groupKeys(CONFIG_KEYS, "beacon")].flatMap((g) => g.keys);
@@ -126,7 +126,7 @@ describe("groupKeys", () => {
       "gps/host",
       "gps/device",
       "gps/baud",
-      "beacon/moving_as",
+      "beacon/travel",
     ];
     for (const key of keys) {
       const tip = FIELDS[key]?.tip ?? [];
@@ -168,15 +168,15 @@ describe("groupKeys", () => {
     expect(gps({ "gps/source": "gpsd" })).toEqual(["gps/source", "gps/host"]);
     expect(gps({ "gps/source": "serial" })).toEqual(["gps/source", "gps/device", "gps/baud"]);
   });
-  it("shows Moving as only for a moving station, and the interval and the antenna only for a fixed one", () => {
+  it("shows Travelling only for a moving station, and the interval and the antenna only for a fixed one", () => {
     const antenna = ["beacon/power_w", "beacon/antenna_height_m", "beacon/antenna_gain_db", "beacon/antenna_direction"];
     const fixed = { "gps/source": "off", "beacon/power_w": "5" };
-    expect(shownByValues("beacon/moving_as", fixed)).toBe(false);
+    expect(shownByValues("beacon/travel", fixed)).toBe(false);
     expect(shownByValues("beacon/interval_min", fixed)).toBe(true);
     expect(antenna.filter((k) => shownByValues(k, fixed))).toEqual(antenna);
     for (const source of ["gpsd", "serial"]) {
       const moving = { "gps/source": source, "beacon/power_w": "5" };
-      expect(shownByValues("beacon/moving_as", moving), source).toBe(true);
+      expect(shownByValues("beacon/travel", moving), source).toBe(true);
       expect(shownByValues("beacon/interval_min", moving), source).toBe(false);
       expect(
         antenna.filter((k) => shownByValues(k, moving)),
@@ -186,21 +186,21 @@ describe("groupKeys", () => {
     expect(shownByValues("station/comment", { "gps/source": "gpsd" })).toBe(true);
     expect(shownByValues("beacon/path", { "gps/source": "gpsd" })).toBe(true);
   });
-  it("gives the position choice and Moving as their words: this place, a GPS via gpsd, a GPS on a serial port; car, bicycle, on foot, boat", () => {
+  it("gives the position choice and Travelling their words: this place, a GPS via gpsd, a GPS on a serial port; by car, by bicycle, on foot, by boat", () => {
     expect(FIELDS["gps/source"]).toMatchObject({ label: "Position", kind: "choice", name: "Position source" });
     expect(FIELDS["gps/source"]?.choices).toEqual([
       { value: "off", label: "This place" },
       { value: "gpsd", label: "A GPS via gpsd" },
       { value: "serial", label: "A GPS on a serial port" },
     ]);
-    expect(FIELDS["beacon/moving_as"]).toMatchObject({ label: "Moving as", kind: "choice" });
-    expect(FIELDS["beacon/moving_as"]?.choices).toEqual([
-      { value: "car", label: "Car" },
-      { value: "bicycle", label: "Bicycle" },
+    expect(FIELDS["beacon/travel"]).toMatchObject({ label: "Travelling", kind: "choice" });
+    expect(FIELDS["beacon/travel"]?.choices).toEqual([
+      { value: "car", label: "By car" },
+      { value: "bicycle", label: "By bicycle" },
       { value: "foot", label: "On foot" },
-      { value: "boat", label: "Boat" },
+      { value: "boat", label: "By boat" },
     ]);
-    expect(FIELDS["beacon/moving_as"]?.tip).toHaveLength(1);
+    expect(FIELDS["beacon/travel"]?.tip).toHaveLength(1);
     expect(FIELDS["gps/baud"]?.unit).toBe("baud");
     expect(["beacon/mobile", "smart/fast_kmh", "smart/turn_slope"].map((k) => FIELDS[k])).toEqual([undefined, undefined, undefined]);
     const tip = (key: string) => (FIELDS[key]?.tip ?? []).join(" ");

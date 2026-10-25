@@ -89,12 +89,12 @@ What to set (the Station and Beacon groups of the Beacon tab):
 1. **Position**: **A GPS via gpsd** reads a gpsd daemon (on this computer or another one on the network; its address, **gpsd address**, is `gps/host`, `127.0.0.1:2947` by default). **A GPS on a serial port** reads the NMEA sentences of a GPS receiver (**GPS port**, `gps/device`, such as `/dev/ttyUSB1`, at **GPS speed**, `gps/baud`: 4800 is NMEA's own speed, and many USB receivers speak 9600). Keep the GPS apart from the radio's port.
 
    The port is picked from the serial ports of the computer, as the radio's is: **not set** first, then the ports listed, **Refresh** for a cable just plugged in, and **Other...** to type a path or a `socket://host:port`. Choosing a GPS is never refused for a missing port or address: the GPS state then reads Connecting and says what to give (**no port set** or **no address set**), and nothing is opened until it is given.
-2. **Moving as** in the Beacon group (`beacon/moving_as`), if you are not in a car: see below.
+2. **Travelling** in the Beacon group (`beacon/travel`), if you are not going by car: see below.
 3. A symbol of a moving station (a car, say), which also makes the recommended path `WIDE1-1,WIDE2-1`.
 
 The GPS is read as soon as a source is chosen, so you can see the fix before the first beacon.
 
-**What the Beacon tab shows.** Under the choice of Position stand only the fields that apply: the gpsd address for gpsd, the port and speed for a serial receiver. The Location row of the Station group is called **Home position** and says that the GPS position is what is sent, never this one; its fields stay, because it is where your station is whenever it is not moving, and before the first fix. In the Beacon group the interval and the Antenna heading are not shown, because a moving beacon has neither, and **Moving as** is, in the place of the interval.
+**What the Beacon tab shows.** Under the choice of Position stand only the fields that apply: the gpsd address for gpsd, the port and speed for a serial receiver. The Location row of the Station group is called **Home position** and says that the GPS position is what is sent, never this one; its fields stay, because it is where your station is whenever it is not moving, and before the first fix. In the Beacon group the interval and the Antenna heading are not shown, because a moving beacon has neither, and **Travelling** is, in the place of the interval.
 
 The beacon status at the top of the tab then reads as the GPS, in the look of the radio's: the label **GPS**, a coloured word (off, connecting, no fix, fix or stale) and one line in plain words, with Beacon now at its end:
 
@@ -106,14 +106,14 @@ The beacon status at the top of the tab then reads as the GPS, in the look of th
 
 Under that line a second says what SmartBeaconing does: **SmartBeaconing: next by time in 42 s, last sent 12 s ago (turn)**. The reason is first fix, time, turn or Beacon now; a turn goes sooner than the time shown. With no fix it says **No beacon: no GPS fix**. Beacon now stays as it is, and is refused with the reason while there is no fix.
 
-**Moving as.** The way you move sets the numbers of SmartBeaconing, so that a walker does not beacon like a car. There are four presets, **Car** (the default), **Bicycle**, **On foot** and **Boat**; there are no separate numbers to set. Each says how often the beacon goes and which turns it sends:
+**Travelling.** The way you travel sets the numbers of SmartBeaconing, so that a walker does not beacon like a car. There are four presets, **By car** (the default), **By bicycle**, **On foot** and **By boat**; there are no separate numbers to set. Each says how often the beacon goes and which turns it sends:
 
-| moving as | goes every minute from | stands still (every 30 minutes) at | a turn is more than | and not sooner than |
+| travelling | goes every minute from | stands still (every 30 minutes) at | a turn is more than | and not sooner than |
 |---|---|---|---|---|
-| Car | 100 km/h | 8 km/h or slower | 30° | 15 s after the last beacon |
-| Bicycle | 30 km/h | 4 km/h or slower | 35° | 20 s |
+| By car | 100 km/h | 8 km/h or slower | 30° | 15 s after the last beacon |
+| By bicycle | 30 km/h | 4 km/h or slower | 35° | 20 s |
 | On foot | 7 km/h, every 2 minutes | 1.5 km/h or slower | 45° | 60 s |
-| Boat | 40 km/h | 3 km/h or slower | 20° | 30 s |
+| By boat | 40 km/h | 3 km/h or slower | 20° | 30 s |
 
 The car's are Dire Wolf's numbers; the others are NeoAPRS's own choice for a slower way of moving. Between the two speeds the time falls with the speed: a car at 50 km/h beacons every 2 minutes. The turn is the angle in the table plus a slope divided by the speed in miles per hour (255 for a car, a bicycle and a boat, 100 for a walker, who turns more sharply at a slow pace), so the faster you go, the smaller a turn counts. The presets are in the daemon.
 

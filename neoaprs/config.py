@@ -16,7 +16,7 @@ from .configstatus import DEFAULT_STATUS_TEMPLATE, MAX_STATUS, hostport, status_
 from .configvalues import ANTENNA_DIRECTIONS as ANTENNA_DIRECTIONS, SYMBOL_TABLES as SYMBOL_TABLES, antenna_direction, device_globs, digipeater_path, host_name, map_source, symbol_code, symbol_table, tnc_profile
 from .configtypes import access_key, boolean, call_or_empty, int_among, int_in, int_or_off, optional_float, optional_int, over_the_air_refusal, text_of, web_address, word_among
 from .route import DIRECT_ONLY, recommended_path
-from .smartbeacon import MOVING_AS, PRESETS, SmartSettings
+from .smartbeacon import PRESETS, TRAVEL, SmartSettings
 from .tncprofile import DEFAULT as DEFAULT_PROFILE, Profile, names_tcp, profile_of
 from .versions import UPDATE_URL
 
@@ -135,7 +135,7 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("gps_host", "gps/host", hostport),                                # host:port of the gpsd that gps/source gpsd reads; 2947 is gpsd's port
     Setting("gps_device", "gps/device", text_of(255)),                        # the serial port of the GPS receiver for gps/source serial, such as /dev/ttyUSB1; a socket://host:port address too
     Setting("gps_baud", "gps/baud", int_in(*RANGES["gps/baud"])),             # its speed: 4800 is NMEA 0183's
-    Setting("beacon_moving_as", "beacon/moving_as", word_among(MOVING_AS)),    # what a station that follows the GPS (gps/source is not off) moves as: car, bicycle, foot or boat, which decides how often SmartBeaconing beacons
+    Setting("beacon_travel", "beacon/travel", word_among(TRAVEL)),    # how a station that follows the GPS (gps/source is not off) travels: by car, bicycle, foot or boat, which decides how often SmartBeaconing beacons
 )
 BY_KEY = {s.key: s for s in SETTINGS}
 KEYS = tuple(s.key for s in SETTINGS)
@@ -190,7 +190,7 @@ class Config:
     gps_host: str = "127.0.0.1:2947"
     gps_device: str = ""
     gps_baud: int = 4800
-    beacon_moving_as: str = MOVING_AS[0]
+    beacon_travel: str = TRAVEL[0]
 
     @property
     def mobile(self) -> bool:
@@ -199,8 +199,8 @@ class Config:
 
     @property
     def smart(self) -> SmartSettings:
-        """The SmartBeaconing numbers of the preset that beacon/moving_as names."""
-        return PRESETS[self.beacon_moving_as]
+        """The SmartBeaconing numbers of the preset that beacon/travel names."""
+        return PRESETS[self.beacon_travel]
 
     @property
     def station_position(self) -> tuple[float, float] | None:

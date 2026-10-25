@@ -192,9 +192,9 @@ async def test_the_page_is_told_when_the_gps_source_turns_the_beacon_mobile(tmp_
     page = await e.ws()
     await page.until(lambda: "gps" in page.topics)
     assert page.topics["gps"]["mobile"] is False and page.topics["gps"]["state"] == "off"
-    assert await e.ctl.save_config(replace(e.ctl.config, gps_source="serial", beacon_moving_as="bicycle"))
+    assert await e.ctl.save_config(replace(e.ctl.config, gps_source="serial", beacon_travel="bicycle"))
     await page.until(lambda: page.topics["gps"]["mobile"] is True)
     assert page.topics["config"]["values"]["gps/source"] == "serial" and page.topics["config"]["defaults"]["gps/source"] == "off"
-    assert page.topics["config"]["values"]["beacon/moving_as"] == "bicycle" and page.topics["config"]["defaults"]["beacon/moving_as"] == "car"
+    assert page.topics["config"]["values"]["beacon/travel"] == "bicycle" and page.topics["config"]["defaults"]["beacon/travel"] == "car"
     assert page.topics["config"]["defaults"]["gps/host"] == "127.0.0.1:2947" and "beacon/mobile" not in page.topics["config"]["values"] and "smart/fast_kmh" not in page.topics["config"]["values"]
     await e.stop()

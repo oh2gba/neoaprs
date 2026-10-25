@@ -1121,12 +1121,12 @@ export const fr: Catalogue = {
   "settings.gps_baud.label": "Vitesse du GPS",
   "settings.gps_baud.tip1":
     "La vitesse de la liaison série du récepteur. 4800 est la vitesse propre de NMEA, et beaucoup de récepteurs USB parlent à 9600. Une mauvaise vitesse se traduit par l'absence de position.",
-  "settings.moving_as.label": "Déplacement",
-  "settings.moving_as.car": "Voiture",
-  "settings.moving_as.bicycle": "Vélo",
-  "settings.moving_as.foot": "À pied",
-  "settings.moving_as.boat": "Bateau",
-  "settings.moving_as.tip1": "Règle la fréquence des balises et les virages signalés : une voiture balise plus souvent à vitesse qu'un piéton.",
+  "settings.travel.label": "Déplacement",
+  "settings.travel.car": "En voiture",
+  "settings.travel.bicycle": "À vélo",
+  "settings.travel.foot": "À pied",
+  "settings.travel.boat": "En bateau",
+  "settings.travel.tip1": "Règle la fréquence des balises et les virages signalés : une voiture balise plus souvent à vitesse qu'un piéton.",
 
   "settings.update.group": "Recherche de mise à jour",
   "settings.update.label": "Nouvelle version",

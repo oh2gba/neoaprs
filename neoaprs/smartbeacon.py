@@ -30,7 +30,7 @@ class SmartSettings:
     turn_slope: float = 255.0
 
 
-MOVING_AS = ("car", "bicycle", "foot", "boat")                 # what the station moves as (the setting `beacon/moving_as`); the first is the default
+TRAVEL = ("car", "bicycle", "foot", "boat")                 # how the station travels (the setting `beacon/travel`); the first is the default
 PRESETS: dict[str, SmartSettings] = {                          # the car is Dire Wolf's default SmartBeaconing; the others are NeoAPRS's own choice for a slower way of moving
     "car": SmartSettings(fast_kmh=100, fast_sec=60, slow_kmh=8, slow_sec=1800, turn_min_deg=30, turn_min_sec=15, turn_slope=255),
     "bicycle": SmartSettings(fast_kmh=30, fast_sec=60, slow_kmh=4, slow_sec=1800, turn_min_deg=35, turn_min_sec=20, turn_slope=255),

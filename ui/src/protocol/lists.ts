@@ -79,7 +79,7 @@ export const CONFIG_KEYS = [
   "gps/host",
   "gps/device",
   "gps/baud",
-  "beacon/moving_as",
+  "beacon/travel",
 ] as const;
 
 /** The TNC profiles, in the order the settings form offers them (PROFILES of neoaprs/tncprofile.py): how each is reached (`serial` or `tcp`), its speed and whether the daemon can ask it if it is there. */

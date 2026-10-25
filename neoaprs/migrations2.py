@@ -129,3 +129,17 @@ def _v19(db: sqlite3.Connection) -> None:
     db.execute("DELETE FROM settings WHERE key = 'beacon/mobile' OR key GLOB 'smart/*'")
     for key, value in rows:
         log.info("%s removed (was %s): gps/source decides whether the station moves, beacon/moving_as sets how it beacons", key, str(value) or "(empty)")
+
+
+def _v20(db: sqlite3.Connection) -> None:
+    """The setting that picks the SmartBeaconing preset is `beacon/travel`; the row `beacon/moving_as` that an earlier build of it stored is renamed, once, with one INFO line in the log. A database that has
+    both keeps the row of `beacon/travel` and loses the other."""
+    row = db.execute("SELECT value FROM settings WHERE key = 'beacon/moving_as'").fetchone()
+    if row is None:
+        return
+    if db.execute("SELECT 1 FROM settings WHERE key = 'beacon/travel'").fetchone() is None:
+        db.execute("UPDATE settings SET key = 'beacon/travel' WHERE key = 'beacon/moving_as'")
+        log.info("beacon/moving_as renamed to beacon/travel (value %s)", str(row[0]) or "(empty)")
+    else:
+        db.execute("DELETE FROM settings WHERE key = 'beacon/moving_as'")
+        log.info("beacon/moving_as removed (was %s): beacon/travel is set", str(row[0]) or "(empty)")

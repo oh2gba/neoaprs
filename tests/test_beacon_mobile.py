@@ -154,9 +154,9 @@ RATES = [("car", 0.0, 1800), ("car", 50.0, 120), ("car", 130.0, 60), ("bicycle",
          ("foot", 1.0, 1800), ("foot", 3.5, 240), ("foot", 10.0, 120), ("boat", 2.0, 1800), ("boat", 20.0, 120), ("boat", 50.0, 60)]
 
 
-@pytest.mark.parametrize(("moving_as", "speed", "seconds"), RATES)
-def test_the_time_between_beacons_is_the_rate_of_the_speed_for_the_preset(moving_as: str, speed: float, seconds: int) -> None:
-    rig = Rig(fix=False, beacon_moving_as=moving_as)
+@pytest.mark.parametrize(("travel", "speed", "seconds"), RATES)
+def test_the_time_between_beacons_is_the_rate_of_the_speed_for_the_preset(travel: str, speed: float, seconds: int) -> None:
+    rig = Rig(fix=False, beacon_travel=travel)
     rig.move(speed=speed, course=90)
     rig.tick()
     assert len(rig.tnc.sent) == 1 and rig.beacon.next_due == rig.clock() + timedelta(seconds=seconds)
@@ -175,9 +175,9 @@ def test_the_time_between_beacons_is_the_rate_of_the_speed_for_the_preset(moving
 TURNS = [("car", 48.28, 35, 42, 15), ("bicycle", 24.14, 50, 55, 20), ("foot", 8.05, 60, 70, 60), ("boat", 32.19, 30, 36, 30)]
 
 
-@pytest.mark.parametrize(("moving_as", "speed", "small", "big", "wait"), TURNS)
-def test_a_turn_is_beaconed_from_the_threshold_of_the_preset_and_not_sooner_than_its_turn_time(moving_as: str, speed: float, small: int, big: int, wait: int) -> None:
-    rig = Rig(fix=False, beacon_moving_as=moving_as)
+@pytest.mark.parametrize(("travel", "speed", "small", "big", "wait"), TURNS)
+def test_a_turn_is_beaconed_from_the_threshold_of_the_preset_and_not_sooner_than_its_turn_time(travel: str, speed: float, small: int, big: int, wait: int) -> None:
+    rig = Rig(fix=False, beacon_travel=travel)
     rig.move(speed=speed, course=0)
     rig.tick()
     rig.clock.advance(wait)
@@ -232,7 +232,7 @@ def test_a_change_of_what_the_station_moves_as_is_in_force_at_the_next_tick() ->
     rig.move(speed=7.0, course=90)
     rig.tick()
     assert rig.beacon.next_due == rig.clock() + timedelta(seconds=1800), "7 km/h is slow for a car"
-    rig.set(beacon_moving_as="foot")
+    rig.set(beacon_travel="foot")
     rig.tick()
     assert rig.beacon.next_due == rig.clock() + timedelta(seconds=120), "and fast for a walker"
 

@@ -123,12 +123,12 @@ const positionChoices = (): readonly Choice[] => [
   { value: "serial", label: t("settings.position.serial") },
 ];
 
-/** What a moving station moves as (beacon/moving_as), the way SmartBeaconing is set for it; the car is the daemon's default. */
-const movingAsChoices = (): readonly Choice[] => [
-  { value: "car", label: t("settings.moving_as.car") },
-  { value: "bicycle", label: t("settings.moving_as.bicycle") },
-  { value: "foot", label: t("settings.moving_as.foot") },
-  { value: "boat", label: t("settings.moving_as.boat") },
+/** How a moving station travels (beacon/travel), the way SmartBeaconing is set for it; the car is the daemon's default. */
+const travelChoices = (): readonly Choice[] => [
+  { value: "car", label: t("settings.travel.car") },
+  { value: "bicycle", label: t("settings.travel.bicycle") },
+  { value: "foot", label: t("settings.travel.foot") },
+  { value: "boat", label: t("settings.travel.boat") },
 ];
 
 const SPECS: Record<string, FieldSpec> = {
@@ -281,7 +281,7 @@ const SPECS: Record<string, FieldSpec> = {
     tip: ["settings.gps_device.tip1", "settings.gps_device.tip2"],
   },
   "gps/baud": { label: "settings.gps_baud.label", unit: "baud", tip: ["settings.gps_baud.tip1"] },
-  "beacon/moving_as": { label: "settings.moving_as.label", kind: "choice", choices: movingAsChoices, tip: ["settings.moving_as.tip1"] },
+  "beacon/travel": { label: "settings.travel.label", kind: "choice", choices: travelChoices, tip: ["settings.travel.tip1"] },
 };
 
 /** What each setting says of itself (words in the language of the page, made when they are read); a key this page does not know has none. */
@@ -347,7 +347,7 @@ const TNC_ORDER = ["tnc/profile", "serial/port", "serial/baud", "tcp/host", "tcp
 /** The Status group: the choice first, then what that choice needs. */
 const STATUS_ORDER = ["status/source", "station/status", "status/rigctld", "status/template", "status/interval_min"];
 /** The Beacon group: how often (a fixed station) or what it moves as (a moving one), what it says, then the folds (the antenna, the path). */
-const BEACON_ORDER = ["beacon/interval_min", "beacon/moving_as", "station/comment", ...ANTENNA, "beacon/path"];
+const BEACON_ORDER = ["beacon/interval_min", "beacon/travel", "station/comment", ...ANTENNA, "beacon/path"];
 /** The Station group: the call, where the position comes from and what that needs (the gpsd address, or the port and speed of a serial GPS), then the place itself (the home position while a GPS is chosen) and the symbol. */
 const STATION_ORDER = [
   "station/transmit",
@@ -436,13 +436,13 @@ export function portForProfile(profileKey: string, port: string): string {
 }
 
 /** Whether a field of the Beacon tab is shown for the values the form holds: the Status group shows what its source needs; the position's own fields follow its choice (the address of gpsd for gpsd, the port and speed for a serial GPS); a station that moves
- * (a GPS is chosen) has the Moving as choice, and no interval and no antenna, which are a fixed station's (the antenna's height, gain and direction come once there is a power: they only make the PHG code with it). */
+ * (a GPS is chosen) has the Travelling choice, and no interval and no antenna, which are a fixed station's (the antenna's height, gain and direction come once there is a power: they only make the PHG code with it). */
 export function shownByValues(key: string, values: Readonly<Record<string, string>>): boolean {
   if (key.startsWith("status/") || key === "station/status") return statusShown(key, statusSource(values));
   if (ANTENNA.includes(key)) return !isMoving(values) && (key === "beacon/power_w" || (values["beacon/power_w"] ?? "").trim() !== "");
   if (key === "gps/host") return values["gps/source"] === "gpsd";
   if (key === "gps/device" || key === "gps/baud") return values["gps/source"] === "serial";
-  if (key === "beacon/moving_as") return isMoving(values);
+  if (key === "beacon/travel") return isMoving(values);
   if (key === "beacon/interval_min") return !isMoving(values);
   return true;
 }

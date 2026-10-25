@@ -235,17 +235,17 @@ describe("SettingsForm", () => {
           ?.findAll("details > summary")
           .map((f) => f.text());
 
-      it("has the interval, the comment, the antenna and the path of a fixed station, and no Moving as", () => {
+      it("has the interval, the comment, the antenna and the path of a fixed station, and no Travelling", () => {
         const { wrapper } = make({ "beacon/power_w": "5" }, "beacon");
         expect(beaconLabels(wrapper)).toEqual(["Beacon", "Comment", "Power", "Antenna height", "Antenna gain", "Antenna direction", "Path"]);
         expect(folds(wrapper)).toEqual(["Antenna", "Advanced"]);
-        expect(wrapper.find("#set-beacon-moving_as").exists()).toBe(false);
+        expect(wrapper.find("#set-beacon-travel").exists()).toBe(false);
       });
 
-      it("has Moving as in the place of the interval, and no antenna, for a moving station, whichever GPS", () => {
+      it("has Travelling in the place of the interval, and no antenna, for a moving station, whichever GPS", () => {
         for (const source of ["gpsd", "serial"]) {
           const { wrapper } = make({ "gps/source": source, "beacon/power_w": "5" }, "beacon");
-          expect(beaconLabels(wrapper), source).toEqual(["Moving as", "Comment", "Path"]);
+          expect(beaconLabels(wrapper), source).toEqual(["Travelling", "Comment", "Path"]);
           expect(folds(wrapper), source).toEqual(["Advanced"]);
           for (const id of ["beacon-interval_min", "beacon-power_w", "beacon-antenna_height_m", "beacon-antenna_gain_db", "beacon-antenna_direction"])
             expect(wrapper.find(`#set-${id}`).exists(), id).toBe(false);
@@ -255,20 +255,20 @@ describe("SettingsForm", () => {
       it("follows the choice as it is made, in both directions, with the antenna back as it was", async () => {
         const { wrapper } = make({ "beacon/power_w": "5" }, "beacon");
         await wrapper.find("#set-gps-source").setValue("gpsd");
-        expect(beaconLabels(wrapper)).toEqual(["Moving as", "Comment", "Path"]);
+        expect(beaconLabels(wrapper)).toEqual(["Travelling", "Comment", "Path"]);
         await wrapper.find("#set-gps-source").setValue("off");
         expect(beaconLabels(wrapper)).toEqual(["Beacon", "Comment", "Power", "Antenna height", "Antenna gain", "Antenna direction", "Path"]);
       });
 
-      it("offers the four ways of moving, Car first, with a one-line (i) that says what it changes", async () => {
+      it("offers the four ways of travelling, By car first, with a one-line (i) that says what it changes", async () => {
         const { wrapper } = make({ "gps/source": "gpsd" }, "beacon");
-        const select = wrapper.find<HTMLSelectElement>("#set-beacon-moving_as");
+        const select = wrapper.find<HTMLSelectElement>("#set-beacon-travel");
         expect(select.element.value).toBe("car");
         expect(select.findAll("option").map((o) => [o.attributes("value"), o.text()])).toEqual([
-          ["car", "Car"],
-          ["bicycle", "Bicycle"],
+          ["car", "By car"],
+          ["bicycle", "By bicycle"],
           ["foot", "On foot"],
-          ["boat", "Boat"],
+          ["boat", "By boat"],
         ]);
         const field = select.element.closest(".field");
         (field?.querySelector(".info-toggle") as HTMLElement).click();
@@ -278,10 +278,10 @@ describe("SettingsForm", () => {
       });
 
       it("applies the way of moving at once, and shows the one in force", async () => {
-        const { wrapper, send } = make({ "gps/source": "gpsd", "beacon/moving_as": "foot" }, "beacon");
-        expect(wrapper.find<HTMLSelectElement>("#set-beacon-moving_as").element.value).toBe("foot");
-        await wrapper.find("#set-beacon-moving_as").setValue("boat");
-        expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "beacon/moving_as": "boat" } });
+        const { wrapper, send } = make({ "gps/source": "gpsd", "beacon/travel": "foot" }, "beacon");
+        expect(wrapper.find<HTMLSelectElement>("#set-beacon-travel").element.value).toBe("foot");
+        await wrapper.find("#set-beacon-travel").setValue("boat");
+        expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "beacon/travel": "boat" } });
       });
     });
 

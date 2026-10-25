@@ -1133,12 +1133,12 @@ export const de: Catalogue = {
   "settings.gps_baud.label": "GPS-Geschwindigkeit",
   "settings.gps_baud.tip1":
     "Die Geschwindigkeit der seriellen Leitung des Empfängers. 4800 ist die eigene Geschwindigkeit von NMEA, und viele USB-Empfänger sprechen 9600. Eine falsche Geschwindigkeit zeigt sich als fehlender Fix.",
-  "settings.moving_as.label": "Unterwegs als",
-  "settings.moving_as.car": "Auto",
-  "settings.moving_as.bicycle": "Fahrrad",
-  "settings.moving_as.foot": "Zu Fuß",
-  "settings.moving_as.boat": "Boot",
-  "settings.moving_as.tip1": "Legt fest, wie oft die Bake geht und bei welchen Kurven: Ein Auto sendet bei Tempo öfter als ein Fußgänger.",
+  "settings.travel.label": "Unterwegs",
+  "settings.travel.car": "Mit dem Auto",
+  "settings.travel.bicycle": "Mit dem Fahrrad",
+  "settings.travel.foot": "Zu Fuß",
+  "settings.travel.boat": "Mit dem Boot",
+  "settings.travel.tip1": "Legt fest, wie oft die Bake geht und bei welchen Kurven: Ein Auto sendet bei Tempo öfter als ein Fußgänger.",
 
   "settings.update.group": "Update-Prüfung",
   "settings.update.label": "Neue Version",

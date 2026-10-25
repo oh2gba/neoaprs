@@ -339,12 +339,12 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.gps_baud.label": "Velocidad del GPS",
   "settings.gps_baud.tip1":
     "La velocidad de la línea serie del receptor. 4800 es la velocidad propia de NMEA y muchos receptores USB hablan a 9600. Una velocidad equivocada se nota como falta de posición.",
-  "settings.moving_as.label": "Modo de movimiento",
-  "settings.moving_as.car": "Coche",
-  "settings.moving_as.bicycle": "Bicicleta",
-  "settings.moving_as.foot": "A pie",
-  "settings.moving_as.boat": "Barco",
-  "settings.moving_as.tip1": "Ajusta cada cuánto sale la baliza y en qué giros: un coche envía más a menudo a velocidad que alguien a pie.",
+  "settings.travel.label": "Desplazamiento",
+  "settings.travel.car": "En coche",
+  "settings.travel.bicycle": "En bicicleta",
+  "settings.travel.foot": "A pie",
+  "settings.travel.boat": "En barco",
+  "settings.travel.tip1": "Ajusta cada cuánto sale la baliza y en qué giros: un coche envía más a menudo a velocidad que alguien a pie.",
 
   "settings.update.group": "Búsqueda de actualizaciones",
   "settings.update.label": "Versión nueva",
