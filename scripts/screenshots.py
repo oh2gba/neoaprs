@@ -16,6 +16,7 @@ import re
 import secrets
 import shutil
 import signal
+import socket
 import subprocess
 import sys
 import tempfile
@@ -44,6 +45,7 @@ SETTINGS = {
     "tcp/host": demoscene.HOST,
 }
 AFTER_THE_DAY = {"beacon/interval_min": "30", "station/status": "QRV 144.800 MHz FM", "messages/alert": "true", "web/network": "true"}          # (the day is played without the alert command, the beacon timer and the status: the page's daemon starts them)
+GPSD_PORT = 2947                                                    # (gpsd's usual port: what the fake gpsd of the beacon-gps shot listens on when it is free)
 SHOWN_KEY = "k7m2-x9pq-4hrt"                                       # what the Settings shot shows as the access key, and the addresses: the daemon's own key is made at random for the run and never shown
 SHOWN_URLS = ["http://192.168.1.20:7303/", "http://neoaprs-pi.local:7303/"]
 
@@ -89,6 +91,19 @@ class Daemon:
         except TimeoutError:
             self.proc.kill()
             await self.proc.wait()
+
+
+async def start_gps_replay() -> asyncio.subprocess.Process:
+    """`neoaprs gps-replay`: a gpsd that is not one, on a free port of the loopback, which drives a made-up car round a block that starts at the home of the scene, a little faster than real time (the daemon of the beacon-gps shot reads it)."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith("NEOAPRS_")}
+    with socket.socket() as probe:
+        try:
+            probe.bind((demoscene.HOST, GPSD_PORT))                  # (gpsd's own port when it is free, as the Beacon tab then shows what a gpsd user knows, else any free one)
+            port = GPSD_PORT
+        except OSError:
+            port = 0
+    return await asyncio.create_subprocess_exec(sys.executable, "-m", "neoaprs", "gps-replay", "--port", str(port), "--at", f"{demoscene.HOME[0]},{demoscene.HOME[1]}", "--kmh", "45", "--interval", "0.5",
+                                                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL, env=env, cwd=ROOT)
 
 
 def neoaprs_db_set(data: Path, key: str, value: str) -> None:
@@ -167,6 +182,7 @@ class Shots:
         self.written: dict[str, int] = {}
         self.update_url = ""                                       # the page of the daemon that has an update on offer (the "update" shot)
         self.receive_url = ""                                      # the page of the daemon that is set to Receive only (the "beacon-rx" shot)
+        self.moving_url = ""                                       # the page of the daemon that follows a GPS (the "beacon-gps" shot)
         self.scheme = "light"                                      # the colour scheme of the shots being taken; a dark one is saved as NAME-dark.png
         self.started = asyncio.get_running_loop().time()
 
@@ -227,10 +243,15 @@ async def settle(page: Any, ms: int = 1500) -> None:
 
 
 async def open_stations_tab(page: Any) -> None:
-    """The Stations tab is the one a page opens on; on a narrow tab bar it is a button of the menu, which a phone's page has under its map button."""
+    """The Stations tab is the one a page opens on; on a tab bar too narrow for the nine tabs (a panel of 760 px is) the tabs are one button, "Messages" with a menu of them, which a phone's page has under its map button."""
     tab = page.locator("#tab-stations")
     if await tab.is_visible():
         await tab.click()
+        return
+    button = page.locator("#tabmenu-button")
+    if await button.is_visible() and "Stations" not in await button.inner_text():
+        await button.click()
+        await page.get_by_role("menuitem", name="Stations").click()
 
 
 async def pick_station(page: Any, call: str, wait: int = 4500, add: bool = False) -> None:
@@ -315,7 +336,7 @@ async def shot_update(s: Shots, _: str) -> None:
     await settle(page, 1500)
     await page.keyboard.press("Escape")
     await settle(page, 400)
-    await page.locator("#tab-stations").click()                       # (the Settings tab shows the daemon's own key and addresses: not under this shot)
+    await open_stations_tab(page)                                     # (the Settings tab shows the daemon's own key and addresses: not under this shot)
     await settle(page, 400)
     await page.get_by_role("button", name=f"Update to {UPDATE_TO}").click()
     await page.locator(".updatedialog-hand summary").click()
@@ -379,6 +400,7 @@ async def shot_bulletins(s: Shots, _: str) -> None:
     await s.save(page, "bulletins")
 
 
+GPS_VIEW = (60.2285, 24.7225, 13.6)                                     # (the block of the made-up drive, which starts at HOME)
 OBJECTS = (60.19, 24.749, 11.3)                                         # the view with all of our objects on it
 
 
@@ -389,9 +411,9 @@ async def shot_objects(s: Shots, _: str) -> None:
 
 
 async def shot_objects_form(s: Shots, _: str) -> None:
-    """The form of an object being changed."""
+    """The form under the list of our objects with a row selected: the object NETCTRL in it, the button reading Save (no row selected, the same form adds an object and reads Add)."""
     page = await s.page(DESKTOP, tab="objects", view=OBJECTS, panel=560)
-    await page.get_by_role("button", name="Edit NETCTRL").click()
+    await page.locator('#pane-objects .ownobject[data-name="NETCTRL"]').click()
     await settle(page, 600)
     await s.save(page, "objects-form")
 
@@ -452,16 +474,35 @@ async def shot_settings_tnc(s: Shots, _: str) -> None:
 
 
 async def shot_beacon_rx(s: Shots, _: str) -> None:
-    """The Beacon tab of a station that is set to Receive only: the amber badge in the header, beside the title."""
+    """The Beacon tab of a station that is set to Receive only (the daemon's setting station/transmit: the amber badge in the header, beside the title) and has the Beacon Off: the status block says Beacon off with its pill off, and what belongs to the beacon is grey."""
     page = await s.page(DESKTOP, tab="beacon", view=CITY, panel=WIDE_PANEL, url=s.receive_url)
     await settle(page, 400)
     await s.save(page, "beacon-rx")
 
 
 async def shot_phone_beacon_rx(s: Shots, _: str) -> None:
-    """A phone set to Receive only: the amber badge beside the title and, under the tab bar, the Beacon tab."""
+    """A phone set to Receive only with the Beacon Off: the amber badge beside the title and, under the tab bar, the Beacon tab with its status block saying Beacon off and the fields of the beacon grey."""
     page = await s.page(PHONE, tab="beacon", view=CITY, phone_view="panel", url=s.receive_url)
     await s.save(page, "phone-beacon-rx")
+
+
+NEARBY = (60.19, 24.80, 8.5)                                            # (the map the range circle is fitted on is flown to by the page itself: this is only where it starts)
+
+
+async def shot_nearby(s: Shots, _: str) -> None:
+    """The Nearby tab with a digipeater selected: its row is highlighted and the map has been zoomed so that its whole range circle (from its PHG) is in view; the digipeater is OH2RCH-2 of Kumpula, which repeated most of what we heard."""
+    page = await s.page(DESKTOP, tab="nearby", view=NEARBY, panel=640)                       # (wide enough for the help line of each list to be one line: the four lists end above the foot of the panel)
+    await page.locator('#pane-nearby tr[data-call="OH2RCH-2"]').first.click()
+    await settle(page, 3500)                                              # (the map flies to the circle)
+    await s.save(page, "nearby")
+
+
+async def shot_beacon_gps(s: Shots, _: str) -> None:
+    """The Beacon tab of a moving station: Position is A GPS via gpsd (its address under it), the status block has the GPS with its fix and the line of SmartBeaconing under it, the Beacon choice is On (SmartBeaconing) and Travelling By car; our own station drives round a block on the map (the gpsd is `neoaprs gps-replay`)."""
+    await s.since_start(80)
+    page = await s.page(DESKTOP, tab="beacon", view=GPS_VIEW, panel=WIDE_PANEL, url=s.moving_url)
+    await settle(page, 600)
+    await s.save(page, "beacon-gps")
 
 
 async def shot_phone_key(s: Shots, _: str) -> None:
@@ -519,12 +560,11 @@ async def shot_tablet(s: Shots, _: str) -> None:
 
 
 async def shot_setup(s: Shots, fresh_url: str) -> None:
-    """The guide of a folder with no call, at its Position step: the call typed in, the place one line under the big Choose on map button, the coordinates unfolded."""
+    """The guide of a folder with no call, at its Position step: the call typed in, the Location row (Choose on map and the place at its side) with its entry for the coordinates open from the start, as a station with no place has it."""
     page = await s.page(DESKTOP, url=fresh_url, wait_ms=3500)
     await page.locator(".setup input").first.fill("OH2GBA")
     await page.get_by_role("button", name="Next").click()
     await page.wait_for_timeout(600)
-    await page.get_by_text("Enter coordinates or locator").click()
     await page.fill("#setup-lat", str(demoscene.HOME[0]))
     await page.fill("#setup-lon", str(demoscene.HOME[1]))
     await page.wait_for_timeout(2500)
@@ -586,8 +626,9 @@ SHOTS: dict[str, Shot] = {
     "objects": shot_objects, "objects-form": shot_objects_form, "beacon": shot_beacon, "settings": shot_settings, "packets": shot_packets, "phone-map": shot_phone_map, "phone-bulletins": shot_phone_bulletins, "phone-weather": shot_phone_weather,
     "cards": shot_cards, "stations-menu": shot_stations_menu, "update": shot_update, "beacon-de": shot_beacon_de, "phone-messages": shot_phone_messages, "tablet": shot_tablet, "setup": shot_setup, "chain": shot_chain, "chain-failed": shot_chain_failed, "settings-web": shot_settings_web, "phone-key": shot_phone_key,
     "station-details": shot_station_details, "settings-tnc": shot_settings_tnc, "beacon-rx": shot_beacon_rx, "phone-beacon-rx": shot_phone_beacon_rx,
+    "nearby": shot_nearby, "beacon-gps": shot_beacon_gps,
 }
-DARK_TOO = ("map", "stations", "station", "weather", "messages", "email", "bulletins", "objects", "objects-form", "beacon", "settings", "packets", "phone-map", "phone-bulletins", "phone-weather", "cards", "stations-menu", "update", "beacon-de", "phone-messages", "tablet", "setup", "chain", "chain-failed", "settings-web", "phone-key", "station-details", "settings-tnc", "beacon-rx", "phone-beacon-rx")
+DARK_TOO = ("map", "stations", "station", "weather", "messages", "email", "bulletins", "objects", "objects-form", "beacon", "settings", "packets", "phone-map", "phone-bulletins", "phone-weather", "cards", "stations-menu", "update", "beacon-de", "phone-messages", "tablet", "setup", "chain", "chain-failed", "settings-web", "phone-key", "station-details", "settings-tnc", "beacon-rx", "phone-beacon-rx", "nearby", "beacon-gps")
 
 
 def in_the_dark(shot: Shot) -> Shot:
@@ -636,6 +677,7 @@ async def take(args: argparse.Namespace, chosen: list[str]) -> None:
     await radio.start()
     daemons: list[Daemon] = []
     servers: list[asyncio.Server] = []
+    gpsds: list[asyncio.subprocess.Process] = []
     try:
         data = await prepare(work, radio, args.basemap if args.basemap.exists() else None)
         updating: Daemon | None = None
@@ -650,8 +692,20 @@ async def take(args: argparse.Namespace, chosen: list[str]) -> None:
         if {"beacon-rx", "beacon-rx-dark", "phone-beacon-rx", "phone-beacon-rx-dark"} & set(chosen):
             copy_data(data, work / "receiving")
             neoaprs_db_set(work / "receiving", "station/transmit", "false")
-            receiving = Daemon(work / "receiving")                                                   # (the same day on the air, with station/transmit false: Receive only)
+            neoaprs_db_set(work / "receiving", "beacon/interval_min", "0")
+            receiving = Daemon(work / "receiving")                                                   # (the same day on the air, with station/transmit false: Receive only, and the beacon Off)
             daemons.append(receiving)
+        moving: Daemon | None = None
+        if {"beacon-gps", "beacon-gps-dark"} & set(chosen):
+            gpsd = await start_gps_replay()
+            gpsds.append(gpsd)
+            assert gpsd.stdout is not None
+            address = (await asyncio.wait_for(gpsd.stdout.readline(), 20)).decode().strip()          # (its first line: 127.0.0.1:PORT, a free port of the loopback)
+            copy_data(data, work / "moving")
+            for key, value in {"gps/source": "gpsd", "gps/host": address, "beacon/interval_min": "30"}.items():       # (30 is On for a moving station: SmartBeaconing, travelling by car as it is by default)
+                neoaprs_db_set(work / "moving", key, value)
+            moving = Daemon(work / "moving")
+            daemons.append(moving)
         main_daemon = Daemon(data)
         daemons.append(main_daemon)
         url = await main_daemon.start()
@@ -665,6 +719,7 @@ async def take(args: argparse.Namespace, chosen: list[str]) -> None:
         print("the page:", url, " the fresh one:", fresh_url)
         update_url = await updating.start() if updating else ""
         receive_url = await receiving.start() if receiving else ""
+        moving_url = await moving.start() if moving else ""
         async with async_playwright() as p:
             options: dict[str, Any] = {"args": ["--no-sandbox"] if args.no_sandbox else []}
             if args.chromium:
@@ -673,6 +728,7 @@ async def take(args: argparse.Namespace, chosen: list[str]) -> None:
             shots = Shots(browser, url, args.out)
             shots.update_url = update_url
             shots.receive_url = receive_url
+            shots.moving_url = moving_url
             for name in chosen:
                 await SHOTS[name](shots, fresh_url)
             await browser.close()
@@ -684,6 +740,10 @@ async def take(args: argparse.Namespace, chosen: list[str]) -> None:
     finally:
         for daemon in daemons:
             await daemon.stop()
+        for gpsd in gpsds:
+            if gpsd.returncode is None:
+                gpsd.terminate()
+                await gpsd.wait()
         for server in servers:
             server.close()
         await radio.stop()

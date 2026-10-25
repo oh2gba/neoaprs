@@ -10,7 +10,7 @@ import asyncio
 import math
 import os
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -334,11 +334,11 @@ def events(local_hour_now: float) -> list[Event]:
     day += _fixed("OH2RDG", 25, "N#", 60.1245, 24.4970, "PHG8470/R,W,T,Wn,Tn Kirkkonummi", repeats=6, every=35)
     day += _fixed("OH2RDS", 47, "N#", 60.2777, 25.2543, "PHG8470/R,W,T,Wn,Tn Sipoo", repeats=5, every=40)
     day += _fixed("OH2RCH-2", 9, "/#", 60.2000, 24.9600, "PHG7470/W2 Helsinki Kumpula digi", path="", repeats=8, every=20)
-    day += _fixed("OH2RDK-7", 63, "/&", 60.1650, 24.9467, "432.500 MHz", repeats=4, every=50)
+    day += _fixed("OH2RDK-7", 63, "/&", 60.1650, 24.9467, "432.500MHz T088 -760 Helsinki 70 cm", repeats=4, every=50)
     day += _fixed("OH2ZIG-10", 18, "/&", 60.4030, 25.0970, "RX iGate Tuusula", path="OH2RCH-2*,OH2RDK-7*", repeats=5, every=25)
     day += _fixed("OH2ZPK", 10, "/-", 60.2934, 25.0378, "PHG5362Jari, Vantaa, 2 m net Tue 20:00", path="OH2RCH-2*", repeats=14, every=22, destination="APK004")      # (a Kenwood TH-D74; 25 W, 80 ft, 6 dB, favouring the east: the card's Device row and antenna arrow)
     day += _fixed("OH2ZVT-7", 330, "/>", 60.4160, 24.3220, "Vihti, parked", path="OH2RDG*", repeats=2, every=20)
-    day += _fixed("OH2RDG-3", 41, "/r", 60.1330, 24.5240, "Kirkkonummi 145.650 repeater", path="OH2RDG*", repeats=2, every=60)
+    day += _fixed("OH2RDG-3", 41, "/r", 60.1330, 24.5240, "145.650MHz T088 -060 Kirkkonummi repeater", path="OH2RDG*", repeats=2, every=60)
     # Two weather stations, 24 hours of reports each
     day += _weather_station("OH2ZWA", 60.1840, 24.8280, "Otaniemi WX", 6.4, 1015.0, local_hour_now, "OH2RCH-2*")
     day += _weather_station("OH2ZWB", 59.9770, 24.4210, "Porkkala WX", 7.4, 1014.0, local_hour_now, "")
@@ -391,7 +391,12 @@ def events(local_hour_now: float) -> list[Event]:
 async def _send_beacon(s: Scene) -> None:
     """Our beacon goes out, and the digipeater is heard repeating it a minute later (which is when our own station is last heard)."""
     before = len(s.radio.sent)
-    assert s.ctl.beacon.send_now("timer"), s.ctl.beacon.problem
+    config = s.ctl.config
+    s.ctl.config = replace(config, beacon_interval_min=30)         # (the day is played with the beacon Off, its default, so that no timer fires as the clock moves; for this one send it is On, with no await in between for a tick to run)
+    try:
+        assert s.ctl.beacon.send_now("timer"), s.ctl.beacon.problem
+    finally:
+        s.ctl.config = config
     await _until(lambda: len(s.radio.sent) > before)
     frame = s.radio.sent[-1]
     s.clock.shift += timedelta(minutes=1)
