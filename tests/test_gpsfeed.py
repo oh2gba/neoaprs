@@ -3,6 +3,8 @@ way the TNC reports them, the reconnection after a loss, and a feed that never r
 import asyncio
 import logging
 
+import sys
+
 import pytest
 
 from neoaprs.gpsfeed import GpsFeed, NO_ADDRESS, NO_FIX, NO_PORT, split_address
@@ -128,7 +130,8 @@ async def test_a_gpsd_that_is_not_there_is_a_problem_and_tried_again_until_it_is
     port = await free_port()
     feed, fixes, _ = feed_of("gpsd", f"127.0.0.1:{port}")
     await feed.start()
-    await until(lambda: feed.state is Source.State.WAITING and "refused" in feed.problem.lower())
+    why = "no answer in time" if sys.platform == "win32" else "refused"          # (Windows takes about two seconds to refuse a connection: longer than the feed of a test waits)
+    await until(lambda: feed.state is Source.State.WAITING and why in feed.problem.lower())
     gpsd = await FakeGpsd().start_on(port)                                 # the gpsd is started at last, on the port the feed has been trying
     await until(lambda: feed.state is Source.State.CONNECTED, 3.0)
     assert feed.problem == ""

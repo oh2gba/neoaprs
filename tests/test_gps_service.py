@@ -3,6 +3,8 @@ for the station book and the ALOHA circle, and the feed started again when the s
 import logging
 from datetime import timedelta
 
+import sys
+
 import pytest
 
 from neoaprs.gpsfeed import GpsFeed
@@ -60,7 +62,8 @@ async def test_a_gpsd_that_is_not_there_is_connecting_with_the_reason() -> None:
     rig = Rig(gps_source="gpsd", gps_host=gpsd.address)
     await rig.gps.start()
     await until(lambda: rig.feed.state is Source.State.WAITING)
-    assert rig.gps.state == "connecting" and "refused" in rig.gps.problem.lower() and rig.gps.problem == rig.feed.problem
+    why = "no answer in time" if sys.platform == "win32" else "refused"          # (Windows takes about two seconds to refuse a connection: longer than the feed of a test waits)
+    assert rig.gps.state == "connecting" and why in rig.gps.problem.lower() and rig.gps.problem == rig.feed.problem
 
 
 @pytest.mark.parametrize(("changes", "problem"), [
