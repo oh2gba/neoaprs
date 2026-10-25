@@ -5,7 +5,11 @@ When nothing at all has been heard for `sec` (and a random part of it more, TNC_
 then the profile's entry (KISS ON). Any byte in answer means the radio is there, and the clock starts again from the latest byte; the check costs a few seconds of reception, which is why it runs only after a quiet period. A line that was just opened has not shown yet that the radio is there (the Tnc is not `usable`, `confirmed` is False), so its first check is made at once. No
 byte at all within `answer_sec` of the carriage return and KISS ON makes the radio silent (`Source.went_silent`): then the same sequence is a probe, made every `probe_sec`, and the first byte that comes,
 whatever it is, ends the silence (the Tnc does that, in `_on_data`). Every 5th probe also closes the port and opens it again, for a USB adapter that dropped. Nothing is logged above DEBUG for a check or a probe;
-the Tnc says once when the silence begins and once when it ends. The `Tnc` does each action (its `look_*` methods); this module keeps the clock, the count and the words."""
+the Tnc says once when the silence begins and once when it ends. The `Tnc` does each action (its `look_*` methods); this module keeps the clock, the count and the words.
+
+`EntryAgain` is the other thing a line can need looking after for: a TNC that goes on typing command-mode text after the entry into KISS has settled (a radio switched on a moment ago misses the first KISS ON
+while it starts). It is sent the entry again, `ENTRY_AGAIN_SEC` after the settle, then after twice as long each time up to `ENTRY_AGAIN_MAX_SEC`, so that a TNC that never takes it (the wrong profile) is not
+restarted every ten seconds for ever; the first repeat is told at INFO, the later ones at DEBUG, and each is a line in the terminal. The Tnc does the entry; this keeps the schedule."""
 import asyncio
 import logging
 import random
@@ -26,6 +30,8 @@ REPLY_SEC = 1.0                       # how long the carriage return is given to
 ANSWER_SEC = 2.0                      # how long a check waits for any byte after KISS ON before it calls the radio silent
 PROBE_SEC = 30.0                      # how often a silent radio is probed
 REOPEN_EVERY = 5                      # every this many probes the port is closed and opened again
+ENTRY_AGAIN_SEC = 10.0                # a TNC that still types text this long after the entry settled, with no KISS frame since, is sent the entry again
+ENTRY_AGAIN_MAX_SEC = 60.0            # the wait before each later repeat doubles, up to this
 
 
 @dataclass
@@ -52,6 +58,25 @@ class Watched(Protocol):
     def look_end(self) -> None: ...
     async def reopen_port(self) -> None: ...
     def went_silent(self, then: str = "") -> None: ...
+
+
+class EntryAgain:
+    """The schedule of the repeats of the KISS entry for a TNC that goes on typing text: `due` says whether the wait since the entry settled is over, `repeat` counts one and gives the words and the level
+    for the log, `reset` starts over (the TNC answered anew, or sent a KISS frame at last)."""
+
+    def __init__(self) -> None:
+        self.reset()
+
+    def reset(self) -> None:
+        self.wait_sec, self.count = ENTRY_AGAIN_SEC, 0
+
+    def due(self, loop_now: float, settled_at: float) -> bool:
+        return loop_now >= settled_at + self.wait_sec
+
+    def repeat(self) -> tuple[str, int]:
+        self.count += 1
+        self.wait_sec = min(self.wait_sec * 2, ENTRY_AGAIN_MAX_SEC)
+        return f"the TNC is still in command mode (entry {self.count + 1}; the next not before {self.wait_sec:g} s after this one settles)", logging.INFO if self.count == 1 else logging.DEBUG
 
 
 def how_long(seconds: float) -> str:

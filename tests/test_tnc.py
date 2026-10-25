@@ -14,7 +14,7 @@ from neoaprs import ax25, kiss, serialprobe
 from neoaprs.packet import Message, Other, Packet, Position, ThirdParty
 from neoaprs.source import Backoff, Source
 from neoaprs.tnc import ENTER_KISS, KISS_EXIT, Tnc
-from neoaprs.tncmode import Mode, ModeDetector
+from neoaprs.tncmode import Mode, ModeDetector, looks_valid
 from neoaprs.tncprofile import KENWOOD_TNC2, KISS_TCP
 from tests.support.clock import FixedClock
 from tests.support.env import idle_for, until
@@ -180,7 +180,7 @@ async def test_a_radio_restarted_while_in_kiss_is_switched_to_kiss_again_at_once
 
 @stops_rigs
 async def test_a_tnc_that_still_types_text_after_kiss_on_is_sent_nothing_and_kiss_on_again_until_it_takes(rig: Rigs, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("neoaprs.tnc.ENTRY_AGAIN_SEC", 0.3)                   # (10 s in the program)
+    monkeypatch.setattr("neoaprs.tncwatchdog.ENTRY_AGAIN_SEC", 0.3)           # (10 s in the program)
     r = await rig()
     r.radio.feed(MONITOR_LINE)
     assert await r.radio.said(len(ENTER_KISS)) == ENTER_KISS
@@ -196,6 +196,27 @@ async def test_a_tnc_that_still_types_text_after_kiss_on_is_sent_nothing_and_kis
     r.radio.feed(kiss_of(ui_frame("OH2AAA")))
     await until(lambda: r.packets)
     assert r.tnc.problem == "" and r.tnc.usable
+
+
+@stops_rigs
+async def test_the_repeats_of_the_entry_wait_longer_each_time_and_only_the_first_is_told_above_debug(rig: Rigs, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    monkeypatch.setattr("neoaprs.tncwatchdog.ENTRY_AGAIN_SEC", 0.3)           # (10 s in the program, up to 60)
+    monkeypatch.setattr("neoaprs.tncwatchdog.ENTRY_AGAIN_MAX_SEC", 0.8)
+    caplog.set_level(logging.DEBUG)
+    r = await rig()
+    r.radio.feed(MONITOR_LINE)
+    assert await r.radio.said(len(ENTER_KISS)) == ENTER_KISS
+    for wait in (0.3, 0.6, 0.8, 0.8):                                        # the first repeat, then twice as long each time, up to the cap
+        await idle_for(SETTLE + wait / 2)
+        r.radio.feed(MONITOR_LINE)
+        assert await r.radio.said(1, 0.1) == b"", f"not before {wait} s have passed since the entry settled"
+        await idle_for(wait / 2 + 0.05)
+        r.radio.feed(MONITOR_LINE)
+        assert await r.radio.said(len(ENTER_KISS)) == ENTER_KISS, f"again, {wait} s after the settle"
+    told = [rec.levelno for rec in caplog.records if "still in command mode" in rec.getMessage()]
+    assert told == [logging.INFO, logging.DEBUG, logging.DEBUG, logging.DEBUG]
+    assert sum("still in command mode" in line for line in r.tnc.lines) == 4, "every repeat is a line in the terminal"
+    assert not r.tnc.usable and "command mode" in r.tnc.why_unusable()
 
 
 @stops_rigs
@@ -497,6 +518,30 @@ def test_rearming_the_detector_forgets_kiss_and_what_was_half_read() -> None:
     assert d.feed(KISS_PACKET) is Mode.KISS
 
 
+UTF8_LINE = b"OH2ABC-9>APRS,WIDE1-1:>Gr\xc3\xbc\xc3\x9fe aus Finnland\r\n"            # a comment in UTF-8, as the TH-D7 types it
+MICE_LINE = b"G0ABC-9>T2PQ4R,WIDE1-1:`\x1e/l \x1c-/]\r\n"                              # a Mic-E packet near Greenwich: its longitude bytes are below 0x20
+
+
+def test_a_line_with_a_byte_that_is_not_text_hides_neither_its_own_header_nor_the_lines_around_it() -> None:
+    assert ModeDetector().feed(UTF8_LINE) is Mode.MONITOR and ModeDetector().feed(MICE_LINE) is Mode.MONITOR, "the header is text, whatever the comment is"
+    d = ModeDetector()
+    assert d.feed(b">Gr\xc3\xbc\xc3\x9fe\r\n") is Mode.UNKNOWN
+    assert d.feed(b"\r\ncmd:") is Mode.MONITOR, "a line that is not text does not hide the prompt that follows it"
+    assert looks_valid(MONITOR_LINE + UTF8_LINE + MONITOR_LINE, True) and looks_valid(UTF8_LINE + b"\r\ncmd:", True), "the search takes the port too"
+
+
+def test_the_kantronics_monitor_header_is_command_mode_too() -> None:
+    assert ModeDetector().feed(b"OH2ABC>APRS,WIDE1-1 <UI>:!6010.00N/02456.00E>x\r\n") is Mode.MONITOR
+    assert ModeDetector().feed(b"OH2ABC>APRS,WIDE1-1 <UI pid=F0 Len=20>:x\r\n") is Mode.MONITOR
+
+
+def test_a_frame_with_a_line_break_and_a_header_in_its_text_is_never_command_mode() -> None:
+    frame = kiss_of(ui_frame(info=b"cmd: x\rOH2X>APRS:boo"))
+    d = ModeDetector()
+    assert Mode.MONITOR not in {d.feed(bytes([b])) for b in frame} and d.mode is Mode.KISS
+    assert ModeDetector().feed(frame[:-1]) is Mode.UNKNOWN, "a frame on its way begins with its command byte, which is not text"
+
+
 # ---- the keep-alive
 
 QUICK = {"check_sec": 0.3, "check_pause_sec": 0.05, "reply_sec": 0.2, "answer_sec": 0.3}
@@ -560,6 +605,17 @@ async def test_a_cmd_prompt_in_answer_keeps_the_radio_connected_and_the_clock_re
     await until(lambda: r.tnc.stats.keepalive_checks == 2, 3.0)
     assert asyncio.get_running_loop().time() - answered >= 0.25, "the next check is a period after the answer"
     assert news(caplog) == [] and r.tnc.problem == ""
+
+
+@stops_rigs
+async def test_a_kiss_frame_in_answer_to_the_check_means_the_tnc_is_in_kiss_and_no_entry_is_made(rig: Rigs) -> None:
+    r = await confirmed_rig(rig)
+    assert await hear_until(r.radio, KISS_EXIT + NUDGE_BYTE) == KISS_EXIT + NUDGE_BYTE
+    r.radio.feed(kiss_of(ui_frame("OH2CCC")))                          # the TNC did not leave KISS for the exit frame: a packet comes
+    await until(lambda: len(r.packets) == 2)
+    await until(lambda: r.tnc._looking is False, 2.0)
+    assert await r.radio.said(1, 0.2) == b"", "no KISS ON into a TNC that is in KISS"
+    assert r.tnc.usable and r.tnc.state is Source.State.CONNECTED and r.tnc.describe().endswith("KISS, 2 packets")
 
 
 @stops_rigs

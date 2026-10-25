@@ -101,6 +101,31 @@ async def test_a_kiss_frame_as_the_first_bytes_of_a_silent_radio_is_a_packet_and
 
 
 @stops_rigs
+async def test_a_frame_that_comes_in_two_reads_as_the_first_bytes_of_a_silent_radio_is_a_packet_and_nothing_is_entered(rig: Rigs) -> None:
+    r, _ = await silent_rig(rig)
+    await idle_for(SETTLE + 0.05)                                   # (the check's own entry has settled)
+    wire = kiss_of(ui_frame())
+    r.radio.feed(wire[:12])                                        # a line delivers a frame in several reads: the first holds the FEND and the start of the addresses
+    await until(lambda: r.tnc.state is Source.State.CONNECTED)
+    assert await r.radio.said(1, 0.1) == b"", "a piece of a frame is no reason to type KISS ON into a TNC that is in KISS"
+    r.radio.feed(wire[12:])
+    await until(lambda: len(r.packets) == 1)
+    assert r.tnc.usable and r.tnc.describe().endswith("KISS, 1 packets")
+
+
+@stops_rigs
+async def test_the_tail_of_a_frame_as_the_first_bytes_of_a_silent_radio_is_not_command_mode_text(rig: Rigs) -> None:
+    r, _ = await silent_rig(rig)
+    await idle_for(SETTLE + 0.05)
+    wire = kiss_of(ui_frame("OH7JHF-1", info=b"}OH2DPN>APJYC1,TCPIP,OH7JHF-1*::OH2GBA   :ack10"))
+    r.radio.feed(wire[wire.index(b"}") + 1:])                       # the read began inside the frame: text that looks like a monitored packet, then the closing FEND
+    await until(lambda: r.tnc.state is Source.State.CONNECTED)
+    assert await r.radio.said(1, 0.1) == b""
+    r.radio.feed(kiss_of(ui_frame()))
+    await until(lambda: len(r.packets) == 1)
+
+
+@stops_rigs
 async def test_other_bytes_from_a_silent_radio_enter_kiss_too(rig: Rigs) -> None:
     r, _ = await silent_rig(rig)
     r.radio.feed(b"\x00\x01noise")

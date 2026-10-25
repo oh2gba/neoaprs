@@ -14,7 +14,8 @@ log = logging.getLogger("neoaprs.tnc")
 
 _TAIL_BYTES = 4096                    # the detector looks at this much of the latest bytes
 _TEXT_BYTES = frozenset(range(0x20, 0x7F)) | {0x09, 0x0A, 0x0D, 0x11, 0x13}      # printable ASCII, white space, XON and XOFF
-_TNC2_LINE = re.compile(r"^[A-Za-z0-9]{1,6}(?:-\d{1,2})?>[A-Za-z0-9]{1,6}(?:-\d{1,2})?(?:,[A-Za-z0-9-]+\*?)*:", re.MULTILINE)
+_LINE_BREAKS = re.compile(rb"[\r\n\x11\x13]")                                     # what ends a line of command-mode text (a TH-D7 types XON after its prompt)
+_TNC2_LINE = re.compile(r"[A-Za-z0-9]{1,6}(?:-\d{1,2})?>[A-Za-z0-9]{1,6}(?:-\d{1,2})?(?:,[A-Za-z0-9-]+\*?)*(?: <UI[^>]*>)?:")     # a monitored packet's header: TNC-2 and TH-D7 "A>B,C*:", Kantronics "A>B,C <UI>:" or "<UI pid=F0 Len=20>:"
 
 
 class Mode(Enum):
@@ -25,8 +26,9 @@ class Mode(Enum):
 
 class ModeDetector:
     """Decides from the bytes of one open whether the TNC talks KISS or command-mode text. KISS is a complete frame that decodes as an AX.25 UI frame, and once seen it stays (a later "cmd:" inside a frame
-    means nothing) until `rearm` forgets it. MONITOR is "cmd:" or a TNC2 line (a call, ">", a destination, an optional ",path", ":") in a stretch of bytes between FENDs that is all text: a KISS frame always has
-    bytes that are not (the address bytes are shifted past ASCII, the control byte and PID are 0x03 and 0xF0), so the letters "cmd:" inside a frame are not taken for the prompt. No I/O."""
+    means nothing) until `rearm` forgets it. MONITOR is a line of text with "cmd:" or a TNC2 header (a call, ">", a destination, an optional ",path", ":") in it, in a stretch of bytes between FENDs that begins with
+    text (`typed_text`): each line is judged by itself, so one comment with a letter outside ASCII, or a Mic-E byte, hides nothing, and a KISS frame never qualifies, because its first byte, the command, is not
+    text, whatever the letters inside it say. No I/O."""
 
     def __init__(self) -> None:
         self.mode = Mode.UNKNOWN
@@ -85,11 +87,19 @@ class TextAfterKiss:
 
 
 def typed_text(segment: bytes) -> bool:
-    """Is this stretch of bytes between FENDs the text of command mode: all text, with "cmd:" or a TNC2 line in it? A KISS frame never is: its first byte, the command, is 0x00 for data, and its addresses are shifted past ASCII."""
-    if not segment or not all(b in _TEXT_BYTES for b in segment):
+    """Does this stretch of bytes between FENDs hold a line of command-mode text: one that is all text, with "cmd:" or a TNC2 header in it? Each line is judged by itself, so that a comment with a letter outside
+    ASCII (or a Mic-E byte) does not hide the lines around it. A KISS frame never qualifies: its first byte, the command, is 0x00 for data, so a stretch that begins with a byte that is not text is a frame on its
+    way (or the tail of one), whatever comes after that byte."""
+    if not segment or segment[0] not in _TEXT_BYTES:
         return False
-    text = segment.decode("ascii").replace("\r", "\n").replace("\x11", "\n").replace("\x13", "\n")
-    return "cmd:" in text or bool(_TNC2_LINE.search(text))
+    return any(_text_line(line) for line in _LINE_BREAKS.split(segment))
+
+
+def _text_line(line: bytes) -> bool:
+    """The line up to its first byte that is not text (a monitored packet's header is text even when its comment is not) has "cmd:" or begins with a TNC2 header."""
+    end = next((i for i, b in enumerate(line) if b not in _TEXT_BYTES), len(line))
+    text = line[:end].decode("ascii")
+    return "cmd:" in text or _TNC2_LINE.match(text) is not None
 
 
 def packet_of(direction: Literal["in", "out"], raw: bytes, frame: ax25.Frame, now: datetime) -> Packet:
