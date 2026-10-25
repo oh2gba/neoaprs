@@ -35,7 +35,7 @@ const rows = table(
 
 function make(stations = rows, props: Record<string, unknown> = {}) {
   const daemon = fakeDaemon({ stations });
-  const wrapper = mount(NearbyPane, { props: { selected: null, ranges: false, ...props }, global: withDaemon(daemon) });
+  const wrapper = mount(NearbyPane, { props: { selected: null, ...props }, global: withDaemon(daemon) });
   return { wrapper, daemon };
 }
 const section = (wrapper: ReturnType<typeof mount>, name: string) => wrapper.findAll("section").find((s) => s.find("h3").text().startsWith(name));
@@ -125,20 +125,14 @@ describe("NearbyPane", () => {
   it("dims the row of a station past its timeout", () => {
     const old = table(station("OH7JHF-1", { gated: 1, last_position_at: ago(5 * 3600), last_heard: ago(5 * 3600), heard_via: [] }));
     const daemon = fakeDaemon({ stations: old, aging: { defaultMin: 180 } });
-    const wrapper = mount(NearbyPane, { props: { selected: null, ranges: false }, global: withDaemon(daemon) });
+    const wrapper = mount(NearbyPane, { props: { selected: null }, global: withDaemon(daemon) });
     expect(wrapper.find("tr.timedout").exists()).toBe(true);
   });
 
-  describe("Show range", () => {
-    it("is a tickbox of the digipeaters list, ticked as the page has it, and asks for the change", async () => {
-      const { wrapper } = make(rows, { ranges: true });
-      const box = section(wrapper, "Digipeaters")?.find("input[type='checkbox']");
-      expect(box?.exists()).toBe(true);
-      expect((box?.element as HTMLInputElement).checked).toBe(true);
-      expect(section(wrapper, "Digipeaters")?.text()).toContain("Show range");
-      expect(wrapper.findAll("input[type='checkbox']")).toHaveLength(1);
-      await box?.setValue(false);
-      expect(wrapper.emitted("update:ranges")).toEqual([[false]]);
-    });
+  it("has no tickbox for the range: the circle is the selected digipeater's, on the map", () => {
+    const { wrapper } = make(rows);
+    expect(wrapper.findAll("input[type='checkbox']")).toHaveLength(0);
+    expect(wrapper.text()).not.toContain("Show range");
+    expect(wrapper.find(".nearby-ranges").exists()).toBe(false);
   });
 });

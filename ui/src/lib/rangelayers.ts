@@ -1,4 +1,4 @@
-// The layers of the digipeater range circles (lib/rangecircles.ts): a pale fill and a thin line in the page's accent colour, under the tracks, the route and the markers. The colour is read when the layers are made, which is again whenever the style is set (the colour scheme changed).
+// The layers of the range circle of the selected digipeater (lib/rangecircles.ts): a pale fill and a thin line in the page's accent colour, under the tracks, the route and the markers. The colour is read when the layers are made, which is again whenever the style is set (the colour scheme changed).
 import type { Map as MapLibreMap } from "maplibre-gl";
 import { paletteColor } from "@/lib/alohalayers";
 import type { RangeCollection } from "@/lib/rangecircles";

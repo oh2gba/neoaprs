@@ -8,7 +8,7 @@ import {
   gateRows,
   isDigipeaterSymbol,
   isIgateSymbol,
-  rangeCircles,
+  rangeCircleOf,
   rangeOf,
   repeatedCounts,
   voiceLines,
@@ -116,15 +116,16 @@ describe("the digipeaters", () => {
     expect(digipeaterLines({ call: "X", row: rows[3], repeated: 1, range: null })).toEqual(["1 packet repeated"]);
   });
 
-  it("have a circle on the map when they have a position and a range, and are not off the map", () => {
-    const list = digipeaters(rows);
-    expect(rangeCircles(list, () => false)).toEqual([
-      { call: "OH2RCH-3", lat: 60.2, lon: 24.9, km: 40 },
-      { call: "OH2RCH-2", lat: 60.2, lon: 24.9, km: 21.4 },
-    ]);
-    expect(calls(rangeCircles(list, (row) => row.call === "OH2RCH-3"))).toEqual(["OH2RCH-2"]);
-    expect(rangeCircles([{ call: "X", row: station("X", { lat: null, lon: null }), repeated: 1, range: { km: 5, phg: true } }], () => false)).toEqual([]);
-    expect(rangeCircles([{ call: "X", row: station("X"), repeated: 1, range: { km: 0, phg: true } }], () => false)).toEqual([]);
+  it("have a circle on the map for the selected one when it has a position and a range, else none", () => {
+    expect(rangeCircleOf(rows, "OH2RCH-3")).toEqual({ call: "OH2RCH-3", lat: 60.2, lon: 24.9, km: 40 });
+    expect(rangeCircleOf(rows, "OH2RCH-2")).toEqual({ call: "OH2RCH-2", lat: 60.2, lon: 24.9, km: 21.4 });
+    expect(rangeCircleOf(rows, null)).toBeNull();
+    expect(rangeCircleOf(rows, "OH2FILL")).toBeNull(); // (a digipeater with no range)
+    expect(rangeCircleOf(rows, "OH2CAR")).toBeNull(); // (not a digipeater of the list)
+    expect(rangeCircleOf(rows, "NOBODY")).toBeNull();
+    expect(rangeCircleOf([station("X", { symbol_code: "#", lat: null, lon: null, extensions: extensions({ phg: phg(5) }) })], "X")).toBeNull();
+    expect(rangeCircleOf([station("X", { symbol_code: "#", extensions: extensions({ range_km: 0 }) })], "X")).toBeNull();
+    expect(rangeCircleOf([station("X", { symbol_code: "#", last_position_at: ago(5 * 3600), extensions: extensions({ range_km: 9 }) })], "X")?.km).toBe(9);
   });
 });
 

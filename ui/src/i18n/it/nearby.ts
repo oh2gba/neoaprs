@@ -8,8 +8,6 @@ export const nearby = {
   "nearby.igates_help": "Stazioni che hanno messo in onda pacchetti da internet, hanno detto di essere un iGate o hanno il simbolo di iGate.",
   "nearby.direct": "Ricevute in diretta",
   "nearby.direct_help": "Stazioni ricevute senza alcun digipeater in mezzo: quelle a portata in simplex.",
-  "nearby.show_range": "Mostra portata",
-  "nearby.show_range_title": "Disegna sulla mappa il cerchio di portata di ogni digipeater che ne ha indicata una (PHG o RNG)",
   "nearby.none_yet": "ancora nessuna",
   "nearby.details": "Dettagli",
   "nearby.repeated": { one: "{n} pacchetto ripetuto", other: "{n} pacchetti ripetuti" },

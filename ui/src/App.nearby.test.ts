@@ -40,7 +40,15 @@ describe("App: the Nearby tab", () => {
     expect(wrapper.find("#pane-stations tr.selected").text()).toContain("OH2RDG");
   });
 
-  it("draws the range circles on the map when Show range is ticked, remembers it, and takes them off when it is not", async () => {
+  it("has no Show range tickbox, and keeps nothing of it in the browser", async () => {
+    const { wrapper } = await open();
+    await tabButton(wrapper, "Nearby")?.trigger("click");
+    expect(wrapper.find("#pane-nearby input[type='checkbox']").exists()).toBe(false);
+    expect(wrapper.find("#pane-nearby").text()).not.toContain("Show range");
+    expect(localStorage.getItem("NeoAPRS.ranges")).toBeNull();
+  });
+
+  it("draws the range circle of the digipeater that is selected, fits the map to it, and takes it off with the selection", async () => {
     const { wrapper, socket } = await open();
     socket.say({ type: "patch", topic: "stations", rev: 1, ops: [{ op: "set", key: "OH2RDG", value: withPhg }] });
     await flushPromises();
@@ -48,15 +56,35 @@ describe("App: the Nearby tab", () => {
     await tabButton(wrapper, "Nearby")?.trigger("click");
     const ranges = () =>
       FakeMap.last().getSource("digipeater-ranges")?.setData.mock.calls.at(-1)?.[0] as { features: { properties: { call: string } }[] } | undefined;
-    expect(ranges()).toBeUndefined();
-    await wrapper.find("#pane-nearby input[type='checkbox']").setValue(true);
+    expect(ranges()).toBeUndefined(); // (the digipeaters are listed, none is drawn)
+    await wrapper.find("#pane-nearby tr[data-call='OH2RDG']").trigger("click");
     await flushPromises();
     expect(ranges()?.features.map((f) => f.properties.call)).toEqual(["OH2RDG"]);
-    expect(localStorage.getItem("NeoAPRS.ranges")).toBe("on");
-    await wrapper.find("#pane-nearby input[type='checkbox']").setValue(false);
+    expect(FakeMap.last().fits).toHaveLength(1);
+    expect(FakeMap.last().flights).toEqual([]);
+    FakeMap.last().fire("click"); // (a click on the map lets go of the selection)
     await flushPromises();
     expect(ranges()?.features).toEqual([]);
-    expect(localStorage.getItem("NeoAPRS.ranges")).toBe("off");
+    expect(FakeMap.last().fits).toHaveLength(1);
+    expect(FakeMap.last().flights).toEqual([]);
+  });
+
+  it("draws the circle and fits the map for a digipeater picked in the Stations table too, and draws none for another station", async () => {
+    const { wrapper, socket } = await open();
+    socket.say({ type: "patch", topic: "stations", rev: 1, ops: [{ op: "set", key: "OH2RDG", value: withPhg }] });
+    await flushPromises();
+    FakeMap.last().fire("style.load");
+    const ranges = () =>
+      FakeMap.last().getSource("digipeater-ranges")?.setData.mock.calls.at(-1)?.[0] as { features: { properties: { call: string } }[] } | undefined;
+    await wrapper.find("#pane-stations tr[data-call='OH2RDG']").trigger("click");
+    await flushPromises();
+    expect(ranges()?.features.map((f) => f.properties.call)).toEqual(["OH2RDG"]);
+    expect(FakeMap.last().fits).toHaveLength(1);
+    await wrapper.find("#pane-stations tr[data-call='OH2PU-9']").trigger("click");
+    await flushPromises();
+    expect(ranges()?.features).toEqual([]);
+    expect(FakeMap.last().fits).toHaveLength(1);
+    expect(FakeMap.last().flights).toHaveLength(1);
   });
 
   it("lists an iGate that put third-party packets on the air", async () => {
