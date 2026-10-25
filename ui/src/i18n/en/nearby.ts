@@ -16,7 +16,7 @@ export const nearby = {
   "nearby.range_phg": "PHG range {km} km",
   "nearby.range": "range {km} km",
   "nearby.reported_by": "reported by {call}",
-  "nearby.gated": { one: "{n} third-party packet put on the air", other: "{n} third-party packets put on the air" },
+  "nearby.gated": { one: "{n} packet gated from the internet", other: "{n} packets gated from the internet" },
   "nearby.igate_says": "says it is an iGate",
   "nearby.igate_symbol": "iGate symbol",
   "nearby.direct_last": "last heard direct {when}",

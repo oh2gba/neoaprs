@@ -8,7 +8,7 @@ export const objects = {
   "schedule.on_request": "sent only when asked",
 
   "objects.none": "No objects.",
-  "objects.list": "Our objects",
+  "objects.list": "Objects",
   "objects.edit_label": "Edit {name}",
   "objects.delete_title": "Delete (kill on the air)",
   "objects.delete_label": { select: "kind", object: "Delete the object {name}", item: "Delete the item {name}", other: "Delete the object {name}" },

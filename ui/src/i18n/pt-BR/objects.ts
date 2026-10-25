@@ -11,7 +11,7 @@ export const objects: Record<keyof typeof source, Message> = {
   "schedule.on_request": "enviado só quando pedido",
 
   "objects.none": "Nenhum objeto.",
-  "objects.list": "Nossos objetos",
+  "objects.list": "Objetos",
   "objects.edit_label": "Editar {name}",
   "objects.delete_title": "Excluir (encerrar no ar)",
   "objects.delete_label": { select: "kind", object: "Excluir o objeto {name}", item: "Excluir o item {name}", other: "Excluir o objeto {name}" },

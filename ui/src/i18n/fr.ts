@@ -317,7 +317,7 @@ export const fr: Catalogue = {
   "schedule.on_request": "envoyé seulement sur demande",
 
   "objects.none": "Aucun objet.",
-  "objects.list": "Nos objets",
+  "objects.list": "Objets",
   "objects.edit_label": "Modifier {name}",
   "objects.delete_title": "Supprimer (retirer par radio)",
   "objects.delete_label": { select: "kind", object: "Supprimer l'objet {name}", item: "Supprimer l'item {name}", other: "Supprimer l'objet {name}" },
@@ -502,7 +502,7 @@ export const fr: Catalogue = {
   "map.note.no_basemap": "Pas de fond de carte",
   "map.note.no_detail": "Pas de carte détaillée",
   "map.note.no_engine": "La carte n'a pas pu être chargée",
-  "map.follow_me": "Me suivre",
+  "map.follow_me": "Suivre ma position",
   "map.aloha": "Cercle ALOHA : {km} km",
 
   "map.credits.hide": "Masquer les crédits",
@@ -869,7 +869,7 @@ export const fr: Catalogue = {
     "Une radio USB est /dev/ttyUSB0 sous Linux et COM3 sous Windows. Une radio Bluetooth apparaît dans cette liste une fois appairée avec l'ordinateur.",
   "settings.port.tip3": "Actualiser relit la liste, par exemple après avoir branché le câble.",
   "settings.port.auto": "chercher automatiquement",
-  "settings.port.none": "aucun choisi",
+  "settings.port.none": "non défini",
   "settings.port.unset": "non défini",
   "settings.port.other": "Autre…",
   "settings.port.path_label": "Chemin du port",
@@ -1002,7 +1002,7 @@ export const fr: Catalogue = {
   "settings.beacon_interval.tip1":
     "À quelle fréquence votre position est envoyée. Désactivée n'envoie ni balise ni statut ; les messages, accusés de réception, réponses, objets, bulletins et le digipeater continuent. Chaque balise occupe le canal pour tous les environs, donc 30 minutes est un bon choix pour une station qui reste en place ; {min} est le minimum.",
   "settings.beacon_interval.tip_moving":
-    "Activée envoie votre position quand SmartBeaconing le décide, d'après le GPS : plus souvent à vitesse élevée et dans les virages. Désactivée n'envoie ni balise ni statut ; les messages, accusés de réception, réponses, objets, bulletins et le digipeater continuent.",
+    "Activée : SmartBeaconing envoie la position du GPS, plus souvent plus vous allez vite et à chaque virage. Désactivée : ni balise ni statut.",
   "settings.path.name": "Chemin de la balise",
   "settings.path.label": "Chemin",
   "settings.path.recommended": "Recommandé ({path})",
@@ -1108,7 +1108,7 @@ export const fr: Catalogue = {
   "settings.position.gpsd": "Un GPS via gpsd",
   "settings.position.serial": "Un GPS sur un port série",
   "settings.position.tip1":
-    "D'où vient la position de la balise. « Fixe » convient à une station qui ne bouge pas : la balise part à l'intervalle réglé. Un GPS convient à une station en mouvement : la balise suit la position GPS et SmartBeaconing décide quand elle part.",
+    "« Fixe » : la station reste à l'emplacement ci-dessous et envoie la balise à l'intervalle. Un GPS : la position, le cap et la vitesse viennent du récepteur et SmartBeaconing décide quand envoyer la balise.",
   "settings.position.tip2":
     "gpsd est le service GPS de Linux : utilisez-le quand gpsd tourne sur cet ordinateur ou sur un autre. Un récepteur sur un port série est lu directement. Sans position GPS récente, rien n'est envoyé, pas même la position de base.",
   "settings.gps_host.label": "Adresse de gpsd",
@@ -1165,7 +1165,7 @@ export const fr: Catalogue = {
   "gps.state.connecting": "connexion",
   "gps.state.no_fix": "pas de position",
   "gps.state.fix": "position",
-  "gps.state.stale": "périmée",
+  "gps.state.stale": "position perdue",
   "gps.off": "Désactivé",
   "gps.connecting": "Connexion…",
   "gps.connecting_gpsd": "Connexion à gpsd sur {host}",
@@ -1175,7 +1175,7 @@ export const fr: Catalogue = {
   "gps.separator": ", ",
   "gps.course": "cap {deg}°",
   "gps.satellites": { one: "{n} satellite", other: "{n} satellites" },
-  "gps.stale": "Position GPS perdue il y a {span} (périmée)",
+  "gps.stale": "Position GPS perdue il y a {span}",
   "gps.reason.start": "première position",
   "gps.reason.time": "intervalle",
   "gps.reason.turn": "virage",
@@ -1340,7 +1340,7 @@ export const fr: Catalogue = {
   "nearby.range_phg": "portée PHG {km} km",
   "nearby.range": "portée {km} km",
   "nearby.reported_by": "signalé par {call}",
-  "nearby.gated": { one: "{n} paquet tiers mis sur l'air", other: "{n} paquets tiers mis sur l'air" },
+  "nearby.gated": { one: "{n} paquet passé depuis internet", other: "{n} paquets passés depuis internet" },
   "nearby.igate_says": "se dit iGate",
   "nearby.igate_symbol": "symbole d'iGate",
   "nearby.direct_last": "dernière écoute en direct {when}",

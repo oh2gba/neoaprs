@@ -89,7 +89,7 @@ export const settings: Record<keyof typeof source, Message> = {
     "USB接続の無線機は、Linuxでは /dev/ttyUSB0、Windowsでは COM3 のようになります。Bluetooth接続の無線機は、パソコンとペアリングするとこの一覧に表示されます。",
   "settings.port.tip3": "「更新」は一覧を読み込み直します。たとえばケーブルを挿した後に使います。",
   "settings.port.auto": "自動で検出",
-  "settings.port.none": "未選択",
+  "settings.port.none": "未設定",
   "settings.port.unset": "未設定",
   "settings.port.other": "その他…",
   "settings.port.path_label": "ポートのパス",
@@ -217,7 +217,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.beacon_interval.tip1":
     "位置を送る頻度です。「オフ」にするとビーコンもステータスも送りません。メッセージ、確認応答、問い合わせへの返答、オブジェクト、掲示、デジピーターは動き続けます。ビーコンはそのたびに周囲の全員の周波数を使うので、動かない局なら30分が適当です。最短は{min}です。",
   "settings.beacon_interval.tip_moving":
-    "「オン」にすると、GPSをもとにSmartBeaconingが決めるタイミングで位置を送ります。速度が速いときやカーブで頻度が上がります。「オフ」にするとビーコンもステータスも送りません。メッセージ、確認応答、問い合わせへの返答、オブジェクト、掲示、デジピーターは動き続けます。",
+    "「オン」: SmartBeaconingがGPSの位置を送ります。速いほど、また曲がるたびに頻度が上がります。「オフ」: ビーコンもステータスも送りません。",
   "settings.path.name": "ビーコンのパス",
   "settings.path.label": "パス",
   "settings.path.recommended": "推奨({path})",
@@ -322,7 +322,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.position.gpsd": "gpsd経由のGPS",
   "settings.position.serial": "シリアルポートのGPS",
   "settings.position.tip1":
-    "ビーコンの位置の取得元です。「固定」は動かない局向けで、ビーコンの間隔で送ります。GPSは移動局向けで、ビーコンは測位に追従し、送るタイミングはSmartBeaconingが決めます。",
+    "「固定」: 局は下の場所にとどまり、ビーコンの間隔で送ります。GPS: 位置、進路、速度は受信機から取得し、送るタイミングはSmartBeaconingが決めます。",
   "settings.position.tip2":
     "gpsdはLinuxのGPSサービスです。このコンピューターか別のコンピューターでgpsdが動いているときに選びます。シリアルポートの受信機は直接読みます。新しい測位がないと何も送らず、ホーム位置も送りません。",
   "settings.gps_host.label": "gpsdのアドレス",

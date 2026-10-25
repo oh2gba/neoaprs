@@ -39,11 +39,11 @@ describe("gpsStatus", () => {
 
   it("says a fix that is old was lost, and when", () => {
     const stale = gpsState({ state: "stale", fix_at: ago(180), problem: "the latest fix is 180 s old" });
-    expect(gpsStatus(stale, values, NOW)).toBe("Fix lost 3 min ago (stale)");
+    expect(gpsStatus(stale, values, NOW)).toBe("Fix lost 3 min ago");
   });
 
   it("says the state with a word for the pill", () => {
-    expect(["off", "connecting", "no_fix", "fix", "stale"].map((s) => gpsStateText(s as never))).toEqual(["off", "connecting", "no fix", "fix", "stale"]);
+    expect(["off", "connecting", "no_fix", "fix", "stale"].map((s) => gpsStateText(s as never))).toEqual(["off", "connecting", "no fix", "fix", "fix lost"]);
   });
 
   it("is written in the language of the page", () => {
@@ -82,14 +82,14 @@ describe("mobileBeaconText", () => {
       expect(mobileBeaconText(gpsState({ mobile: true, state }), NOW), state).toBe("No beacon: no GPS fix");
   });
 
-  it("says when SmartBeaconing sends next by time", () => {
-    expect(mobileBeaconText(gpsState({ mobile: true, next_beacon_at: later(42) }), NOW)).toBe("SmartBeaconing: next by time in 42 s");
-    expect(mobileBeaconText(gpsState({ mobile: true, next_beacon_at: ago(1) }), NOW)).toBe("SmartBeaconing: next by time now");
+  it("says when SmartBeaconing sends next timed beacon", () => {
+    expect(mobileBeaconText(gpsState({ mobile: true, next_beacon_at: later(42) }), NOW)).toBe("SmartBeaconing: next timed beacon in 42 s");
+    expect(mobileBeaconText(gpsState({ mobile: true, next_beacon_at: ago(1) }), NOW)).toBe("SmartBeaconing: next timed beacon now");
   });
 
   it("adds when the last one went and why", () => {
     const gps = gpsState({ mobile: true, next_beacon_at: later(42), last_beacon_at: ago(12), last_beacon_reason: "turn" });
-    expect(mobileBeaconText(gps, NOW)).toBe("SmartBeaconing: next by time in 42 s, last sent 12 s ago (turn)");
+    expect(mobileBeaconText(gps, NOW)).toBe("SmartBeaconing: next timed beacon in 42 s, last sent 12 s ago (turn)");
   });
 
   it("says the last one alone when no time is due, and that the first goes with the first fix", () => {
@@ -100,7 +100,7 @@ describe("mobileBeaconText", () => {
   });
 
   it("names the reasons", () => {
-    expect(["start", "time", "turn", "request", ""].map((r) => reasonText(r as never))).toEqual(["first fix", "time", "turn", "Beacon now", "-"]);
+    expect(["start", "time", "turn", "request", ""].map((r) => reasonText(r as never))).toEqual(["first fix", "timer", "turn", "Beacon now", "-"]);
   });
 });
 

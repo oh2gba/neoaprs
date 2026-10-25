@@ -91,7 +91,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
     "Una radio USB è /dev/ttyUSB0 su Linux e COM3 su Windows. Una radio Bluetooth compare in questo elenco dopo averla associata al computer.",
   "settings.port.tip3": "Aggiorna rilegge l’elenco, per esempio dopo aver collegato il cavo.",
   "settings.port.auto": "trova automaticamente",
-  "settings.port.none": "nessuna scelta",
+  "settings.port.none": "non impostata",
   "settings.port.unset": "non impostata",
   "settings.port.other": "Altra...",
   "settings.port.path_label": "Percorso della porta",
@@ -224,7 +224,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.beacon_interval.tip1":
     "Ogni quanto viene inviata la tua posizione. Spento non invia né beacon né stato; messaggi, conferme, risposte, oggetti, bollettini e il digipeater continuano. Ogni beacon occupa il canale per tutti i vicini, quindi 30 minuti è una buona scelta per una stazione che resta ferma; {min} è il minimo.",
   "settings.beacon_interval.tip_moving":
-    "Attivo invia la tua posizione nei momenti scelti da SmartBeaconing in base al GPS: più spesso a velocità elevata e in curva. Spento non invia né beacon né stato; messaggi, conferme, risposte, oggetti, bollettini e il digipeater continuano.",
+    "Attivo: SmartBeaconing invia la posizione del GPS, più spesso quanto più vai veloce e a ogni curva. Spento: né beacon né stato.",
   "settings.path.name": "Percorso del beacon",
   "settings.path.label": "Percorso",
   "settings.path.recommended": "Consigliato ({path})",
@@ -330,7 +330,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.position.gpsd": "Un GPS tramite gpsd",
   "settings.position.serial": "Un GPS su una porta seriale",
   "settings.position.tip1":
-    "Da dove viene la posizione del beacon. Fissa è per una stazione che non si muove: il beacon parte con l’intervallo impostato. Un GPS è per una stazione in movimento: il beacon segue il fix e SmartBeaconing decide quando parte.",
+    "Fissa: la stazione resta nella località qui sotto e invia il beacon con l’intervallo. Un GPS: posizione, rotta e velocità arrivano dal ricevitore e SmartBeaconing decide quando inviare il beacon.",
   "settings.position.tip2":
     "gpsd è il servizio GPS di Linux: usalo quando gpsd gira su questo computer o su un altro. Un ricevitore su una porta seriale viene letto direttamente. Senza un fix recente non viene inviato nulla, nemmeno la posizione base.",
   "settings.gps_host.label": "Indirizzo di gpsd",

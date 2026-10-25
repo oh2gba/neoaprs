@@ -121,8 +121,8 @@ describe("SettingsForm", () => {
       expect(field?.querySelector(".info-toggle")).not.toBeNull();
       (field?.querySelector(".info-toggle") as HTMLElement).click();
       await wrapper.vm.$nextTick();
-      expect(field?.querySelector(".info-text")?.textContent).toContain("Fixed is a fixed station");
-      expect(field?.querySelector(".info-text")?.textContent).toContain("A GPS is a moving station");
+      expect(field?.querySelector(".info-text")?.textContent).toContain("Fixed: the station stays at the location below");
+      expect(field?.querySelector(".info-text")?.textContent).toContain("A GPS: the position, course and speed come from the receiver");
     });
 
     it("asks for the address of gpsd for gpsd, with the default as the placeholder, and no place to give while a GPS is chosen", () => {
@@ -628,12 +628,12 @@ describe("SettingsForm", () => {
       expect(headings(wrapper)).toHaveLength(0);
     });
 
-    it("says 'none chosen' for the empty port where the daemon does not search", () => {
+    it("says not set for the empty port where the daemon does not search", () => {
       expect(labels(withPorts().wrapper)).toEqual(["Radio type", "Port", "Speed"]);
       const { wrapper } = withPorts({}, portList({ search: false }));
       expect(labels(wrapper)).toEqual(["Radio type", "Port", "Speed"]);
       expect(headings(wrapper)).toHaveLength(0);
-      expect(options(wrapper)[0]).toBe("none chosen");
+      expect(options(wrapper)[0]).toBe("not set");
     });
 
     it("shows no search and no port for KISS over TCP", async () => {

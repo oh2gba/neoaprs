@@ -62,7 +62,7 @@ describe("beaconBlock of a moving station", () => {
     const block = beaconBlock(timed(), gps, GPSD, NOW);
     expect(block).toMatchObject({ moving: true, label: "GPS", pill: { text: "fix", tone: "gps-fix" }, problem: "", hover: undefined });
     expect(block.line).toBe("Fix: 60.4295 N 24.1452 E, 48 km/h, course 215°, 103 m, 9 satellites, 2 s ago");
-    expect(block.smart).toBe("SmartBeaconing: next by time in 42 s, last sent 12 s ago (turn)");
+    expect(block.smart).toBe("SmartBeaconing: next timed beacon in 42 s, last sent 12 s ago (turn)");
   });
 
   it("says no beacon without a fix and gives the problem of the daemon", () => {

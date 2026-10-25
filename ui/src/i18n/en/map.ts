@@ -7,7 +7,7 @@ export const map = {
   "map.note.no_basemap": "No base map",
   "map.note.no_detail": "No detailed map",
   "map.note.no_engine": "The map could not be loaded",
-  "map.follow_me": "Follow me",
+  "map.follow_me": "Follow my position",
   "map.aloha": "ALOHA circle: {km} km",
 
   "map.credits.hide": "Hide the credits",

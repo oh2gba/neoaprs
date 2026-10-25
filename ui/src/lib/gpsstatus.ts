@@ -53,7 +53,7 @@ function connectingText(gps: GpsState, values: Readonly<Record<string, string>>)
   return t("gps.connecting");
 }
 
-/** The GPS line of the beacon status: "Off", "Connecting to gpsd at 127.0.0.1:2947", "No fix yet", "Fix: 60.4295 N 24.1452 E, 48 km/h, course 215°, 103 m, 9 satellites, 2 s ago" or "Fix lost 3 min ago (stale)". */
+/** The GPS line of the beacon status: "Off", "Connecting to gpsd at 127.0.0.1:2947", "No fix yet", "Fix: 60.4295 N 24.1452 E, 48 km/h, course 215°, 103 m, 9 satellites, 2 s ago" or "Fix lost 3 min ago". */
 export function gpsStatus(gps: GpsState, values: Readonly<Record<string, string>>, nowMs: number): string {
   if (gps.state === "off") return t("gps.off");
   if (gps.state === "connecting") return connectingText(gps, values);
@@ -73,7 +73,7 @@ export function reasonText(reason: GpsState["last_beacon_reason"]): string {
   return reason === "" ? NONE : t(REASONS[reason]);
 }
 
-/** The SmartBeaconing line of the beacon status of a moving station: that nothing is sent without a fix, or when SmartBeaconing sends next by time and what the last one went for ("SmartBeaconing: next by time in 42 s, last
+/** The SmartBeaconing line of the beacon status of a moving station: that nothing is sent without a fix, or when SmartBeaconing sends the next timed beacon and what the last one went for ("SmartBeaconing: next timed beacon in 42 s, last
  * sent 12 s ago (turn)"); null for a fixed station (the daemon says the beacon follows the GPS in `mobile`). */
 export function mobileBeaconText(gps: GpsState | null, nowMs: number): string | null {
   if (gps === null || !gps.mobile) return null;

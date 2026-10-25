@@ -90,7 +90,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
     "Una radio USB es /dev/ttyUSB0 en Linux y COM3 en Windows. Una radio Bluetooth aparece en esta lista después de emparejarla con el ordenador.",
   "settings.port.tip3": "Actualizar vuelve a leer la lista, por ejemplo después de enchufar el cable.",
   "settings.port.auto": "buscar automáticamente",
-  "settings.port.none": "ninguno elegido",
+  "settings.port.none": "sin definir",
   "settings.port.unset": "sin definir",
   "settings.port.other": "Otro...",
   "settings.port.path_label": "Ruta del puerto",
@@ -221,7 +221,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.beacon_interval.tip1":
     "Cada cuánto se envía tu posición. Desactivada no envía ninguna baliza ni estado; los mensajes, acuses, respuestas, objetos, boletines y el digipeater siguen. Cada baliza ocupa el canal para todos los de alrededor, así que 30 minutos es una buena elección para una estación que se queda donde está; {min} es lo mínimo.",
   "settings.beacon_interval.tip_moving":
-    "Activada envía tu posición cuando SmartBeaconing lo decide, según el GPS: más a menudo a gran velocidad y en las curvas. Desactivada no envía ninguna baliza ni estado; los mensajes, acuses, respuestas, objetos, boletines y el digipeater siguen.",
+    "Activada: SmartBeaconing envía la posición del GPS, más a menudo cuanto más rápido vas y en cada giro. Desactivada: ni baliza ni estado.",
   "settings.path.name": "Ruta de la baliza",
   "settings.path.label": "Ruta",
   "settings.path.recommended": "Recomendada ({path})",
@@ -327,7 +327,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.position.gpsd": "Un GPS vía gpsd",
   "settings.position.serial": "Un GPS en un puerto serie",
   "settings.position.tip1":
-    "De dónde viene la posición de la baliza. Fija es para una estación que no se mueve: la baliza sale con el intervalo de la baliza. Un GPS es para una estación en movimiento: la baliza sigue la posición del GPS y SmartBeaconing decide cuándo sale.",
+    "Fija: la estación se queda en la ubicación de abajo y emite la baliza con el intervalo. Un GPS: la posición, el rumbo y la velocidad vienen del receptor y SmartBeaconing decide cuándo emitir.",
   "settings.position.tip2":
     "gpsd es el servicio GPS de Linux: úsalo cuando gpsd se ejecuta en este ordenador o en otro. Un receptor en un puerto serie se lee directamente. Sin una posición GPS reciente no se envía nada, ni siquiera la ubicación base.",
   "settings.gps_host.label": "Dirección de gpsd",

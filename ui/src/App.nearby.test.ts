@@ -94,6 +94,6 @@ describe("App: the Nearby tab", () => {
     await tabButton(wrapper, "Nearby")?.trigger("click");
     const gates = wrapper.findAll("#pane-nearby section")[2];
     expect(gates?.text()).toContain("OH7JHF-1");
-    expect(gates?.text()).toContain("5 third-party packets put on the air");
+    expect(gates?.text()).toContain("5 packets gated from the internet");
   });
 });

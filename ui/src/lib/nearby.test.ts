@@ -165,8 +165,8 @@ describe("the iGates", () => {
 
   it("say why", () => {
     const [says, symbol, gate] = gateRows(rows);
-    expect(gateLines(gate as never)).toEqual(["12 third-party packets put on the air"]);
-    expect(gateLines(station("X", { gated: 1 }))).toEqual(["1 third-party packet put on the air"]);
+    expect(gateLines(gate as never)).toEqual(["12 packets gated from the internet"]);
+    expect(gateLines(station("X", { gated: 1 }))).toEqual(["1 packet gated from the internet"]);
     expect(gateLines(says as never)).toEqual(["says it is an iGate"]);
     expect(gateLines(symbol as never)).toEqual(["iGate symbol"]);
   });

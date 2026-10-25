@@ -16,7 +16,7 @@ export const nearby = {
   "nearby.range_phg": "alcance PHG {km} km",
   "nearby.range": "alcance {km} km",
   "nearby.reported_by": "informado por {call}",
-  "nearby.gated": { one: "{n} pacote de terceiros posto no ar", other: "{n} pacotes de terceiros postos no ar" },
+  "nearby.gated": { one: "{n} pacote passado da internet", other: "{n} pacotes passados da internet" },
   "nearby.igate_says": "diz ser um iGate",
   "nearby.igate_symbol": "símbolo de iGate",
   "nearby.direct_last": "último recebimento direto {when}",

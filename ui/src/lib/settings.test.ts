@@ -319,8 +319,8 @@ describe("portOptions", () => {
     expect(portOptions(ports(false), "", "", true)[0]).toEqual({ value: "", label: "not set" });
     expect(portOptions(null, "", "", true).map((c) => c.label)).toEqual(["not set", "Other..."]);
   });
-  it("calls the empty port none chosen where the daemon does not search", () => {
-    expect(portOptions(ports(false), "", "")[0]).toEqual({ value: "", label: "none chosen" });
+  it("calls the empty port not set where the daemon does not search", () => {
+    expect(portOptions(ports(false), "", "")[0]).toEqual({ value: "", label: "not set" });
   });
 });
 

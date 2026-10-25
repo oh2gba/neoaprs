@@ -11,7 +11,7 @@ export const objects: Record<keyof typeof source, Message> = {
   "schedule.on_request": "要求があったときだけ送信",
 
   "objects.none": "オブジェクトはありません。",
-  "objects.list": "自局のオブジェクト",
+  "objects.list": "オブジェクト",
   "objects.edit_label": "{name}を編集",
   "objects.delete_title": "削除(電波でキル)",
   "objects.delete_label": { select: "kind", object: "オブジェクト{name}を削除", item: "アイテム{name}を削除", other: "オブジェクト{name}を削除" },

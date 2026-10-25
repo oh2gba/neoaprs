@@ -329,7 +329,7 @@ export const de: Catalogue = {
   "schedule.on_request": "nur auf Anfrage gesendet",
 
   "objects.none": "Keine Objekte.",
-  "objects.list": "Eigene Objekte",
+  "objects.list": "Objekte",
   "objects.edit_label": "{name} bearbeiten",
   "objects.delete_title": "Löschen (per Funk zurückziehen)",
   "objects.delete_label": { select: "kind", object: "Das Objekt {name} löschen", item: "Das Item {name} löschen", other: "Das Objekt {name} löschen" },
@@ -514,7 +514,7 @@ export const de: Catalogue = {
   "map.note.no_basemap": "Keine Basiskarte",
   "map.note.no_detail": "Keine Detailkarte",
   "map.note.no_engine": "Die Karte konnte nicht geladen werden",
-  "map.follow_me": "Mir folgen",
+  "map.follow_me": "Meiner Position folgen",
   "map.aloha": "ALOHA-Kreis: {km} km",
 
   "map.credits.hide": "Quellenangaben ausblenden",
@@ -880,7 +880,7 @@ export const de: Catalogue = {
     "Ein USB-Funkgerät ist unter Linux /dev/ttyUSB0 und unter Windows COM3. Ein Bluetooth-Funkgerät erscheint in dieser Liste, nachdem du es mit dem Computer gekoppelt hast.",
   "settings.port.tip3": "„Aktualisieren“ liest die Liste neu ein, zum Beispiel nach dem Einstecken des Kabels.",
   "settings.port.auto": "automatisch suchen",
-  "settings.port.none": "keiner gewählt",
+  "settings.port.none": "nicht gesetzt",
   "settings.port.unset": "nicht gesetzt",
   "settings.port.other": "Anderer…",
   "settings.port.path_label": "Pfad des Ports",
@@ -1014,7 +1014,7 @@ export const de: Catalogue = {
   "settings.beacon_interval.tip1":
     "Wie oft deine Position gesendet wird. „Aus“ sendet weder Bake noch Status; Nachrichten, Quittungen, Antworten, Objekte, Bulletins und der Digipeater laufen weiter. Jede Bake belegt den Kanal für alle in der Umgebung, daher sind 30 Minuten eine gute Wahl für eine Station, die an ihrem Platz bleibt; {min} ist das Minimum.",
   "settings.beacon_interval.tip_moving":
-    "„Ein“ sendet deine Position, wenn SmartBeaconing es anhand des GPS bestimmt: öfter bei hoher Geschwindigkeit und in Kurven. „Aus“ sendet weder Bake noch Status; Nachrichten, Quittungen, Antworten, Objekte, Bulletins und der Digipeater laufen weiter.",
+    "„Ein“: SmartBeaconing sendet die GPS-Position, öfter je schneller du fährst und bei jeder Kurve. „Aus“: weder Bake noch Status.",
   "settings.path.name": "Bakenpfad",
   "settings.path.label": "Pfad",
   "settings.path.recommended": "Empfohlen ({path})",
@@ -1120,7 +1120,7 @@ export const de: Catalogue = {
   "settings.position.gpsd": "Ein GPS über gpsd",
   "settings.position.serial": "Ein GPS an einem seriellen Port",
   "settings.position.tip1":
-    "Woher die Position der Bake kommt. „Fest“ ist eine ortsfeste Station: Die Bake wird im eingestellten Bakenintervall gesendet. Ein GPS ist eine bewegte Station: Die Bake folgt dem Fix, und SmartBeaconing entscheidet, wann sie gesendet wird.",
+    "„Fest“: Die Station bleibt am Standort unten und sendet die Bake im Intervall. Ein GPS: Position, Kurs und Geschwindigkeit kommen vom Empfänger, und SmartBeaconing entscheidet, wann die Bake gesendet wird.",
   "settings.position.tip2":
     "gpsd ist der GPS-Dienst von Linux: Nimm ihn, wenn gpsd auf diesem oder einem anderen Computer läuft. Ein Empfänger an einem seriellen Port wird direkt gelesen. Ohne frischen Fix wird nichts gesendet, auch nicht der Heimatstandort.",
   "settings.gps_host.label": "gpsd-Adresse",
@@ -1177,7 +1177,7 @@ export const de: Catalogue = {
   "gps.state.connecting": "verbindet sich",
   "gps.state.no_fix": "kein Fix",
   "gps.state.fix": "Fix",
-  "gps.state.stale": "veraltet",
+  "gps.state.stale": "Fix verloren",
   "gps.off": "Aus",
   "gps.connecting": "Verbinde…",
   "gps.connecting_gpsd": "Verbinde mit gpsd unter {host}",
@@ -1187,7 +1187,7 @@ export const de: Catalogue = {
   "gps.separator": ", ",
   "gps.course": "Kurs {deg}°",
   "gps.satellites": { one: "{n} Satellit", other: "{n} Satelliten" },
-  "gps.stale": "Fix verloren vor {span} (veraltet)",
+  "gps.stale": "Fix verloren vor {span}",
   "gps.reason.start": "erster Fix",
   "gps.reason.time": "Intervall",
   "gps.reason.turn": "Kurve",
@@ -1351,7 +1351,7 @@ export const de: Catalogue = {
   "nearby.range_phg": "PHG-Reichweite {km} km",
   "nearby.range": "Reichweite {km} km",
   "nearby.reported_by": "gemeldet von {call}",
-  "nearby.gated": { one: "{n} Third-Party-Paket auf die Funkstrecke gesetzt", other: "{n} Third-Party-Pakete auf die Funkstrecke gesetzt" },
+  "nearby.gated": { one: "{n} Paket aus dem Internet weitergeleitet", other: "{n} Pakete aus dem Internet weitergeleitet" },
   "nearby.igate_says": "meldet sich als iGate",
   "nearby.igate_symbol": "iGate-Symbol",
   "nearby.direct_last": "zuletzt direkt gehört {when}",

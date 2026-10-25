@@ -10,7 +10,7 @@ export const objects: Readonly<Record<keyof typeof en, Message>> = {
   "schedule.on_request": "inviato solo su richiesta",
 
   "objects.none": "Nessun oggetto.",
-  "objects.list": "I nostri oggetti",
+  "objects.list": "Oggetti",
   "objects.edit_label": "Modifica {name}",
   "objects.delete_title": "Elimina (rimuovi dall’etere)",
   "objects.delete_label": { select: "kind", object: "Elimina l’oggetto {name}", item: "Elimina l’item {name}", other: "Elimina l’oggetto {name}" },

@@ -16,7 +16,7 @@ export const nearby = {
   "nearby.range_phg": "PHG到達距離 {km} km",
   "nearby.range": "到達距離 {km} km",
   "nearby.reported_by": "報告: {call}",
-  "nearby.gated": { other: "電波に出したサードパーティパケット{n}件" },
+  "nearby.gated": { other: "インターネットからゲートされたパケット{n}件" },
   "nearby.igate_says": "iGateだと名乗っています",
   "nearby.igate_symbol": "iGateのシンボル",
   "nearby.direct_last": "最後の直接受信: {when}",

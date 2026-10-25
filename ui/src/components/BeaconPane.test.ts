@@ -326,7 +326,7 @@ describe("the beacon status of a moving station", () => {
 
   it("says under the fix when SmartBeaconing sends next, and why the last one went", () => {
     const { wrapper } = pane(moving, { gps: gpsState({ next_beacon_at: later(42), last_beacon_at: ago(12), last_beacon_reason: "turn" }) });
-    expect(block(wrapper).find(".mobileline").text()).toBe("SmartBeaconing: next by time in 42 s, last sent 12 s ago (turn)");
+    expect(block(wrapper).find(".mobileline").text()).toBe("SmartBeaconing: next timed beacon in 42 s, last sent 12 s ago (turn)");
     expect(block(wrapper).find(".tncstatus + button + .mobileline, .beaconhead + .mobileline").exists()).toBe(true);
     expect(block(wrapper).find(".problem").exists()).toBe(false);
   });

@@ -132,7 +132,7 @@ export function voiceLines(row: StationRow): string[] {
   return lines;
 }
 
-/** How a station shows to be an iGate: the third-party packets it put on the air, else that it said so, else its symbol. */
+/** How a station shows to be an iGate: the packets it gated from the internet, else that it said so, else its symbol. */
 export function gateLines(row: StationRow): string[] {
   if (row.gated > 0) return [t("nearby.gated", { n: row.gated })];
   return [t(row.igate ? "nearby.igate_says" : "nearby.igate_symbol")];

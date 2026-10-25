@@ -130,7 +130,7 @@ describe("the numbers and words of another language", () => {
   });
   it("says the sentence in every language, with the number written as the language writes it", () => {
     const said: Record<string, string> = {
-      fr: "NeoAPRS utilise 0,3 % d'un cœur de processeur et 56 MB de mémoire, en marche depuis 3 h",
+      fr: "NeoAPRS utilise 0,3 % d'un cœur de processeur et 56 MB de mémoire, en marche depuis 3 h",
       es: "NeoAPRS usa el 0,3 % de un núcleo del procesador y 56 MB de memoria, y lleva 3 h en marcha",
       it: "NeoAPRS usa il 0,3 % di un core del processore e 56 MB di memoria, in funzione da 3 h",
       ja: "NeoAPRSはプロセッサコア1つの0.3 %と56 MBのメモリを使用しています。稼働時間: 3時間",

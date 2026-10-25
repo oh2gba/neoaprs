@@ -88,7 +88,7 @@ export const settings = {
     "A USB radio is /dev/ttyUSB0 on Linux and COM3 on Windows. A Bluetooth radio appears in this list after you have paired it with the computer.",
   "settings.port.tip3": "Refresh reads the list again, for example after you plug the cable in.",
   "settings.port.auto": "find automatically",
-  "settings.port.none": "none chosen",
+  "settings.port.none": "not set",
   "settings.port.unset": "not set",
   "settings.port.other": "Other...",
   "settings.port.path_label": "Port path",
@@ -218,7 +218,7 @@ export const settings = {
   "settings.beacon_interval.tip1":
     "How often your position is sent. Off sends no beacon and no status report; messages, acknowledgements, answers, objects, bulletins and the digipeater go on. Every beacon uses the channel for everyone around, so 30 minutes is a good choice for a station that stays where it is; {min} is the least.",
   "settings.beacon_interval.tip_moving":
-    "On sends your position when SmartBeaconing says, from the GPS: more often when you move fast or turn. Off sends no beacon and no status report; messages, acknowledgements, answers, objects, bulletins and the digipeater go on.",
+    "On: SmartBeaconing sends the GPS position, more often the faster you go and at every turn. Off: no beacon and no status report.",
   "settings.path.name": "Beacon path",
   "settings.path.label": "Path",
   "settings.path.recommended": "Recommended ({path})",
@@ -323,7 +323,7 @@ export const settings = {
   "settings.position.gpsd": "A GPS via gpsd",
   "settings.position.serial": "A GPS on a serial port",
   "settings.position.tip1":
-    "Where the beacon's position comes from. Fixed is a fixed station, sent at the Beacon interval. A GPS is a moving station: the beacon follows the fix and SmartBeaconing decides when it goes.",
+    "Fixed: the station stays at the location below and beacons at the interval. A GPS: the position, course and speed come from the receiver and SmartBeaconing decides when to beacon.",
   "settings.position.tip2":
     "gpsd is the GPS service of Linux: use it when gpsd runs on this computer or another one. A receiver on a serial port is read directly. With no fresh fix nothing is sent, never the home position.",
   "settings.gps_host.label": "gpsd address",

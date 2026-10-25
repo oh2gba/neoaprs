@@ -32,7 +32,7 @@ afterEach(() => document.body.replaceChildren());
 describe("Follow me on the map", () => {
   it("is offered while the beacon is mobile and the GPS has a fix, and not otherwise", async () => {
     const { wrapper, daemon } = await mounted();
-    expect(button(wrapper).text()).toBe("Follow me");
+    expect(button(wrapper).text()).toBe("Follow my position");
     expect(button(wrapper).attributes("aria-pressed")).toBe("false");
     daemon.gps.value = gpsState({ mobile: false });
     await flushPromises();

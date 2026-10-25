@@ -72,7 +72,7 @@ describe("NearbyPane", () => {
   it("lists the iGate with the third-party packets it put on the air", () => {
     const { wrapper } = make();
     expect(callsIn(wrapper, "iGates")).toEqual(["OH7JHF-1"]);
-    expect(section(wrapper, "iGates")?.text()).toContain("12 third-party packets put on the air");
+    expect(section(wrapper, "iGates")?.text()).toContain("12 packets gated from the internet");
   });
 
   it("lists the station heard direct with when it was last heard direct", () => {

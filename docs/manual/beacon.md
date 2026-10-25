@@ -114,15 +114,15 @@ The GPS is read as soon as a source is chosen, so you can see the fix before the
 
 In the Beacon group the **Beacon** choice is **Off** or **On (SmartBeaconing)**, in the place of the intervals; the Antenna heading is not shown, because a moving beacon has no PHG, and **Travelling** is shown below the choice. While the choice is **Off** nothing is sent, but the beacon status goes on reporting the GPS and its fix, and the line under it reads **Beacon off** ([Beacon off](#beacon-off)); choose **On** to send.
 
-The beacon status at the top of the tab then reads as the GPS, in the look of the radio's: the label **GPS**, a coloured word (off, connecting, no fix, fix or stale) and one line in plain words, with Beacon now at its end:
+The beacon status at the top of the tab then reads as the GPS, in the look of the radio's: the label **GPS**, a coloured word (off, connecting, no fix, fix or fix lost) and one line in plain words, with Beacon now at its end:
 
 - **Off**, while no source is set (a daemon that has not yet caught up with the choice).
 - **Connecting to gpsd at 127.0.0.1:2947**, or **Opening /dev/ttyUSB1 at 4800 baud** for a receiver on a port. When it cannot, the reason stands under the lines, such as Connection refused.
 - **No fix yet**, with the reason the receiver gives.
 - **Fix: 60.4295 N 24.1452 E, 48 km/h, course 215°, 103 m, 9 satellites, 2 s ago.** What the receiver does not tell (the speed of one that stands still, say) is left out.
-- **Fix lost 3 min ago (stale)**, once the latest fix is more than 2 minutes old. Nothing is sent on it.
+- **Fix lost 3 min ago**, once the latest fix is more than 2 minutes old. Nothing is sent on it.
 
-Under that line a second says what SmartBeaconing does: **SmartBeaconing: next by time in 42 s, last sent 12 s ago (turn)**. The reason is first fix, time, turn or Beacon now; a turn goes sooner than the time shown. With no fix it says **No beacon: no GPS fix**. Beacon now stays as it is, and is refused with the reason while there is no fix.
+Under that line a second says what SmartBeaconing does: **SmartBeaconing: next timed beacon in 42 s, last sent 12 s ago (turn)**. The reason is first fix, timer, turn or Beacon now; a turn goes sooner than the timed beacon shown. With no fix it says **No beacon: no GPS fix**. Beacon now stays as it is, and is refused with the reason while there is no fix.
 
 **Travelling.** The way you travel sets the numbers of SmartBeaconing, so that a walker does not beacon like a car. There are four presets, **By car** (the default), **By bicycle**, **On foot** and **By boat**; there are no separate numbers to set. Each says how often the beacon goes and which turns it sends:
 
@@ -156,7 +156,7 @@ The 20-minute floor of the fixed beacon does not apply to a moving station. Whil
 
 **On the map.** While a GPS is chosen, your own station follows the GPS fix, with its course, speed and altitude, moving every few seconds once you have gone 10 metres, and the distance and bearing of the other stations follow. If the GPS is lost your station stays where it was last seen. With **Fixed** it is the location of the settings, as before. The location is hidden while a GPS is chosen but kept: your station stays there on the map until the first fix. A query for your position (`?APRSP`) is answered with the position as it is now.
 
-**Follow me.** While a GPS is chosen and has a fix, a **Follow me** button at the top right of the map keeps the map centred on you, at a close zoom at least. Dragging the map lets go, and so does the loss of the fix or choosing **Fixed**; press the button again to take hold.
+**Follow my position.** While a GPS is chosen and has a fix, a **Follow my position** button at the top right of the map keeps the map centred on you, at a close zoom at least. Dragging the map lets go, and so does the loss of the fix or choosing **Fixed**; press the button again to take hold.
 
 To try it without a vehicle, `neoaprs gps-replay` plays a drive as a gpsd ([commands.md](commands.md#the-tools)); the [development guide](../development.md#trying-mobile-operation-without-a-vehicle) describes it.
 
