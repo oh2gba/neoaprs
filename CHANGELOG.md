@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.8.2
+
+What is heard tells more and the station answers more: the voice frequency a station gives, storms and signposts decoded, a Nearby tab with the digipeaters, voice frequencies, iGates and the stations in simplex range, `?APRSH` and the QRU server answered, and a Bluetooth LE TNC as a port.
+
 What is heard shows the voice frequency, the hurricanes and the signposts.
 
 - A station, repeater or net that gives its voice frequency the way the specification asks (`145.775MHz T118 -060 R40k` at the start of the comment of a position, an object or an item, or of a status text; or an object named by its frequency such as `145.775-A`, with `T079 R25m` as its comment) has it shown on its card as one line, "145.775 MHz, tone 118 Hz, -600 kHz, range 40 km", with the CTCSS tone, the DCS code, the 1750 Hz tone burst, narrow modulation, the offset (or simplex), the range and a separate receive frequency when it sends them, and in the packet's details. It leaves the comment. A frequency that is not at the start of the comment in that form (`QRV 145.500MHz`, `145.500 MHz`) stays text. Nothing is tuned: it is shown, not sent to a radio.
