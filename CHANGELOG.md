@@ -34,6 +34,10 @@ What is heard decodes as the specification says.
 For development.
 
 - `scripts/gps-replay` (`neoaprs gps-replay`) plays a made-up drive as a gpsd on `127.0.0.1:2948`: a car that sets off, goes round a rectangle of streets at the speed you give, slows for the corners and stops for 90 seconds in the middle of a leg, lap after lap, so that a daemon with `gps/source gpsd`, `gps/host 127.0.0.1:2948` and `beacon/mobile true` beacons as a car would.
+The map shows one range at a time.
+
+- The range circle of a digipeater is drawn for the station that is selected, and only for it: **Show range**, the tickbox of the Nearby tab that drew the circles of every digipeater at once (and ran together into a mess with a dozen of them), is gone, with the choice it kept in the browser. When the selected station is a digipeater of the Nearby tab that gave a range (PHG, else RNG) it has its pale circle under the markers; with nothing selected, or a station that is no digipeater or gave no range, there is none. The circle follows the station's row as it changes, and is drawn for a selected digipeater past its timeout, as its marker is.
+- A digipeater that gave a range is not flown to when it is picked: the map zooms in or out so that its whole circle is in view, 40 pixels from the edges and clear of the cards, whether it was picked in the Nearby tab, in the Stations table or by its marker on the map. Any other station is flown to as before. Letting go of the selection takes the circle off and does not move the map.
 
 ## 0.8.2
 

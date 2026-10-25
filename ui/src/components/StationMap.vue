@@ -5,9 +5,9 @@
 // when the daemon makes the files again (`filesKey` changes) the style is set again. One map for the life of the page,
 // opened where we are (zoom 9; on the world while we have no position) or where it was left; the colour scheme follows the system. While the first-run guide asks for the position (`picking`) a click on the map is a place (`pick`), and the place the guide
 // holds (`pin`) has a marker, which the map flies to when it was typed and not clicked. An object or an item of ours (`own`) has a marker that can be dragged: where it is dropped is its new place (`move`).
-// Round our own station runs the ALOHA circle, a thin dashed line under the markers at the radius the daemon worked out (lib/alohacircle.ts); a pointer resting on it gets its radius as the title of the map. With "Show range" of the Nearby tab on, each digipeater that gave
-// a range (PHG or RNG) has a pale circle of that range under the markers too (lib/rangecircles.ts). While the beacon is mobile and the GPS has a fix, a button Follow me keeps the map centred on the fix; dragging the map lets go of it.
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, toRef, watch } from "vue";
+// Round our own station runs the ALOHA circle, a thin dashed line under the markers at the radius the daemon worked out (lib/alohacircle.ts); a pointer resting on it gets its radius as the title of the map. The selected station, when it is a digipeater of the Nearby tab that gave
+// a range (PHG or RNG), has a pale circle of that range under the markers too (lib/rangecircles.ts), one at a time; when such a station is picked the map fits itself to the whole circle instead of flying to the point (composables/useMapFollow.ts). While the beacon is mobile and the GPS has a fix, a button Follow me keeps the map centred on the fix (composables/useFollowMe.ts).
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { GeoJSONSource, Map as MapLibreMap, Marker } from "maplibre-gl";
 import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
@@ -21,11 +21,12 @@ import { useClearOfCard } from "@/composables/useClearOfCard";
 import { useFollowMe } from "@/composables/useFollowMe";
 import { useMapFollow } from "@/composables/useMapFollow";
 import { useResized } from "@/composables/useResized";
-import { buildMarkerDom, paintMarker, type MarkerDom } from "@/lib/markerdom";
-import { readView, writeView, type Focus, type Home } from "@/lib/mapview";
+import { buildMarkerDom, paintMarker } from "@/lib/markerdom";
+import { readView, writeView, type Focus, type Home, type Placed } from "@/lib/mapview";
 import { markerStep, timedOut } from "@/lib/aging";
 import { HoverCard } from "@/lib/hovercard";
 import { filesKey } from "@/lib/mapfetch";
+import { rangeCircleOf } from "@/lib/nearby";
 import { heardDirectRecently } from "@/lib/routes";
 import { routeFeatures } from "@/lib/routeline";
 import { addRouteLayers, ROUTE_SOURCE } from "@/lib/routelayers";
@@ -48,27 +49,19 @@ const props = withDefaults(
     picking?: boolean;
     /** The place the first-run guide holds, shown with a marker. */
     pin?: Home | null;
-    /** The Nearby tab's "Show range": the range circle of each digipeater that gave one is drawn. */
-    ranges?: boolean;
   }>(),
-  { others: () => [], picking: false, pin: null, ranges: false },
+  { others: () => [], picking: false, pin: null },
 );
 const emit = defineEmits<{ select: [call: string | null, multi?: boolean]; download: []; pick: [at: Home]; move: [call: string, lat: number, lon: number] }>();
 const page = useDaemonContext();
 /** Changes when the map files on the daemon are other ones (their dates); null until the daemon has told. */
 const mapFiles = computed(() => filesKey(page.map.value));
 
-interface Placed {
-  marker: Marker;
-  dom: MarkerDom;
-  lat: number;
-  lon: number;
-}
-
 const root = ref<HTMLElement | null>(null);
 const host = ref<HTMLElement | null>(null);
 const card = useClearOfCard(root, host);
-const circles = useMapCircles(() => map, host, toRef(props, "ranges"));
+const selectedCall = (): string | null => props.selected;
+const circles = useMapCircles(() => map, host, selectedCall);
 const labelControls = useMapControlLabels(host);
 useResized(host, () => map?.resize());
 const { following, canFollow, followAt, release } = useFollowMe(page.gps);
@@ -86,6 +79,8 @@ let gone = false;
 let pinMarker: Marker | null = null;
 let hover: HoverCard | null = null;
 let clicked = false; // the pin moved because the map was clicked: the map is where the user is looking already
+let picks = 0;
+const markerPick = ref<Focus | null>(null); // the marker clicked last: the map fits itself to a digipeater's range circle when it is one (composables/useMapFollow.ts)
 
 /** The tracks are drawn again once a minute, and when a station changes; the fading is in steps that wide anyway. */
 const minute = computed(() => Math.floor(page.now.value / 60_000));
@@ -142,6 +137,7 @@ function makePlaced(call: string): Placed | null {
     event.stopPropagation(); // not a click on the map, which lets go of the selection
     hover?.hide();
     emit("select", call, event.ctrlKey || event.metaKey); // (Ctrl, or Cmd on a Mac, adds the card to the open ones)
+    markerPick.value = { call, n: ++picks };
   });
   hover?.attach(dom.root, call);
   const marker = new engine.Marker({ element: dom.root, anchor: "center" }).setLngLat([0, 0]).addTo(map);
@@ -269,6 +265,8 @@ useMapFollow(() => map, card, {
   station: (call) => page.stations.value.get(call),
   marker: (call) => placed.get(call),
   follow: followAt,
+  pick: () => markerPick.value,
+  circle: (call) => rangeCircleOf(page.stations.value.values(), call),
 });
 watch(
   () => page.home.value,

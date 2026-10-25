@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rangeFeatures } from "@/lib/rangecircles";
+import { circleBounds, rangeFeatures } from "@/lib/rangecircles";
 
 const EARTH_RADIUS_KM = 6371.0088;
 
@@ -11,8 +11,8 @@ function km(a: number[], b: number[]): number {
   return 2 * EARTH_RADIUS_KM * Math.asin(Math.sqrt(h));
 }
 
-describe("the range circles of the digipeaters", () => {
-  it("are one closed polygon for each, every point at its range from its station", () => {
+describe("the range circle of a digipeater", () => {
+  it("is one closed polygon for each, every point at its range from its station", () => {
     const { features } = rangeFeatures([
       { call: "OH2RCH-2", lat: 60.2, lon: 24.9, km: 21.4 },
       { call: "OH2RCH-3", lat: 61, lon: 25, km: 40 },
@@ -27,8 +27,26 @@ describe("the range circles of the digipeaters", () => {
     for (const point of ring) expect(km([24.9, 60.2], point)).toBeCloseTo(21.4, 1);
   });
 
-  it("are none for no digipeater and none for a range of nothing", () => {
+  it("is none for no digipeater and none for a range of nothing", () => {
     expect(rangeFeatures([]).features).toEqual([]);
     expect(rangeFeatures([{ call: "X", lat: 60, lon: 24, km: 0 }]).features).toEqual([]);
+  });
+});
+
+describe("the box round a range circle", () => {
+  it("has the circle's ring inside it, touching all four sides", () => {
+    const box = circleBounds({ lat: 60.2, lon: 24.9, km: 21.4 });
+    const [[west = 0, south = 0] = [], [east = 0, north = 0] = []] = box ?? [];
+    expect(north - south).toBeCloseTo((2 * 21.4) / 111.2, 1); // (a degree of latitude is 111.2 km)
+    expect((north + south) / 2).toBeCloseTo(60.2, 2);
+    expect((east + west) / 2).toBeCloseTo(24.9, 2);
+    expect(east - west).toBeGreaterThan(north - south); // (a degree of longitude is shorter at 60 N)
+  });
+
+  it("runs on past the date line instead of wrapping, and is none for a range of nothing", () => {
+    const [[west = 0] = [], [east = 0] = []] = circleBounds({ lat: 0, lon: 179.9, km: 100 }) ?? [];
+    expect(east).toBeGreaterThan(180);
+    expect(east - west).toBeLessThan(2);
+    expect(circleBounds({ lat: 60, lon: 24, km: 0 })).toBeNull();
   });
 });

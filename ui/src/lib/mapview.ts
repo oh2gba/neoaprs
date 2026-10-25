@@ -1,4 +1,6 @@
 // Where the map looks, as it is remembered between visits.
+import type { Marker } from "maplibre-gl";
+import type { MarkerDom } from "@/lib/markerdom";
 import { readStored, writeStored } from "@/lib/storage";
 import { MAX_ZOOM } from "@/lib/basemapstyle";
 
@@ -9,6 +11,14 @@ interface MapView {
 }
 
 /** A request to fly to a station; `n` counts up, so that asking for the same station again flies there again. */
+/** A marker on the map: the MapLibre marker, its DOM and where it stands. */
+export interface Placed {
+  marker: Marker;
+  dom: MarkerDom;
+  lat: number;
+  lon: number;
+}
+
 export interface Focus {
   call: string;
   n: number;

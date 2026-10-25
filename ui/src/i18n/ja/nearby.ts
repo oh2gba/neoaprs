@@ -8,8 +8,6 @@ export const nearby = {
   "nearby.igates_help": "インターネットからのパケットを電波に乗せた局、iGateだと名乗った局、iGateのシンボルを持つ局。",
   "nearby.direct": "直接受信",
   "nearby.direct_help": "デジピーターを介さずに受信した局。シンプレックスで届く局です。",
-  "nearby.show_range": "到達範囲を表示",
-  "nearby.show_range_title": "到達範囲(PHGまたはRNG)を知らせたデジピーターごとに、その範囲の円を地図に描きます",
   "nearby.none_yet": "まだありません",
   "nearby.details": "詳細",
   "nearby.repeated": { other: "{n}パケットを中継" },

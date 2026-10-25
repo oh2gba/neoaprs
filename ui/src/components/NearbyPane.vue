@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // The Nearby tab: what is around us at a glance, in four lists from the stations already heard (lib/nearby.ts has the rules), each nearest first with the distance and bearing as the Stations table shows them, and "none yet" for a list that is empty:
-// the digipeaters (what they repeated for us and the range they gave, with "Show range", which draws the range circle of each on the map), the voice frequencies that stations, objects and items gave and who reported them, the iGates, and the stations
+// the digipeaters (what they repeated for us and the range they gave; the range circle of one is on the map while it is selected), the voice frequencies that stations, objects and items gave and who reported them, the iGates, and the stations
 // heard direct (the ones in simplex range). A click on a row selects the station like a click on the Stations table (NearbyTable.vue).
 import { computed } from "vue";
 import NearbyTable from "@/components/NearbyTable.vue";
@@ -20,8 +20,8 @@ import {
 } from "@/lib/nearby";
 import type { StationRow } from "@/protocol/protocol";
 
-defineProps<{ selected: string | null; others?: readonly string[]; ranges: boolean }>();
-const emit = defineEmits<{ select: [call: string, multi?: boolean]; "update:ranges": [on: boolean] }>();
+defineProps<{ selected: string | null; others?: readonly string[] }>();
+const emit = defineEmits<{ select: [call: string, multi?: boolean] }>();
 const { stations, now } = useDaemonContext();
 
 const rows = computed(() => [...stations.value.values()]);
@@ -49,10 +49,6 @@ const sections = computed(() => [
         {{ section.title }} <span class="muted">{{ section.items.length }}</span>
       </h3>
       <p class="muted nearby-help">{{ section.help }}</p>
-      <label v-if="section.id === 'digipeaters'" class="check nearby-ranges" :title="t('nearby.show_range_title')">
-        <input type="checkbox" :checked="ranges" @change="emit('update:ranges', ($event.target as HTMLInputElement).checked)" />
-        {{ t("nearby.show_range") }}
-      </label>
       <p v-if="section.items.length === 0" class="empty nearby-empty">{{ t("nearby.none_yet") }}</p>
       <NearbyTable
         v-else

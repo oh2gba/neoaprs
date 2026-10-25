@@ -83,13 +83,19 @@ export function digipeaters(source: Iterable<StationRow>): Digipeater[] {
   return found.sort((a, b) => nearer(a.row?.distance_km ?? null, b.row?.distance_km ?? null) || a.call.localeCompare(b.call));
 }
 
-/** What the map draws for the digipeaters: the circle of each one that has a position and a range, unless `hidden` says it is off the map. */
-export function rangeCircles(list: readonly Digipeater[], hidden: (row: StationRow) => boolean): { call: string; lat: number; lon: number; km: number }[] {
-  const circles: { call: string; lat: number; lon: number; km: number }[] = [];
-  for (const { call, row, range } of list) {
-    if (row !== null && range !== null && range.km > 0 && hasPosition(row) && !hidden(row)) circles.push({ call, lat: row.lat, lon: row.lon, km: range.km });
-  }
-  return circles;
+export interface RangeCircle {
+  call: string;
+  lat: number;
+  lon: number;
+  km: number;
+}
+
+/** What the map draws for the selected station: its range circle when it is a digipeater of the list (`digipeaters`) that gave a range and has a position, else null (no selection, another station, no range). The station's own timeout does not hide it: a selected station is drawn whatever its age. */
+export function rangeCircleOf(source: Iterable<StationRow>, call: string | null): RangeCircle | null {
+  if (call === null) return null;
+  const found = digipeaters(source).find((one) => one.call === call);
+  if (found === undefined || found.row === null || found.range === null || !(found.range.km > 0) || !hasPosition(found.row)) return null;
+  return { call, lat: found.row.lat, lon: found.row.lon, km: found.range.km };
 }
 
 /** The voice frequencies given: every row (a station, an object, an item) that has one, nearest first. */

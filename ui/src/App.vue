@@ -44,7 +44,6 @@ const {
   notice,
   findRadio,
   stationActions,
-  ranges,
 } = useAppShell();
 const { send, ownObjects, ownBulletins, bulletins, packets, lastError } = daemon;
 const { stationPick, pickingTab } = picks;
@@ -75,7 +74,6 @@ const deleteMessage = (id: number): boolean => send({ cmd: "message_delete", id 
           :focus="focus"
           :picking="guide.picking || objects.picking || stationPick.picking.value"
           :pin="guide.open ? guide.pin : objects.pin"
-          :ranges="ranges"
           @select="cards.onMarker"
           @pick="picks.onPick"
           @move="objects.move"
@@ -124,7 +122,7 @@ const deleteMessage = (id: number): boolean => send({ cmd: "message_delete", id 
           />
         </template>
         <template #nearby>
-          <NearbyPane v-model:ranges="ranges" :selected="selected" :others="cards.others.value" @select="cards.onRow" />
+          <NearbyPane :selected="selected" :others="cards.others.value" @select="cards.onRow" />
         </template>
         <template #packets>
           <PacketsLog :packets="packets" />

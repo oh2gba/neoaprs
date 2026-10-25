@@ -15,6 +15,8 @@ export class FakeMap {
   center: { lng: number; lat: number };
   flights: unknown[] = [];
   eases: unknown[] = [];
+  /** what `fitBounds` was asked: the corners and the options */
+  fits: { bounds: [[number, number], [number, number]]; options: Record<string, unknown> }[] = [];
   jumps: unknown[] = [];
   pans: unknown[] = [];
   /** where `project` puts a place, in the pixels of the map; a test sets it */
@@ -74,6 +76,9 @@ export class FakeMap {
   }
   easeTo(options: unknown): void {
     this.eases.push(options);
+  }
+  fitBounds(bounds: [[number, number], [number, number]], options: Record<string, unknown> = {}): void {
+    this.fits.push({ bounds, options });
   }
   project(): { x: number; y: number } {
     return this.screen;

@@ -20,7 +20,6 @@ import { useNow } from "@/composables/useNow";
 import { useOwnObjects } from "@/composables/useOwnObjects";
 import { usePageAlerts } from "@/composables/usePageAlerts";
 import { usePanel } from "@/composables/usePanel";
-import { usePersistedFlag } from "@/composables/usePersisted";
 import { useSettings } from "@/composables/useSettings";
 import { useSetupGuide, type SetupGuide } from "@/composables/useSetupGuide";
 import { useStationActions } from "@/composables/useStationActions";
@@ -102,8 +101,6 @@ export function useAppShell() {
   openGuideOnce(config, guide);
   const panel = usePanel();
   const tabs = useTabs(daemon, panel);
-  /** The Nearby tab's "Show range": the map draws the range circles of the digipeaters; remembered in this browser. */
-  const ranges = usePersistedFlag("ranges", ["on", "off"], false);
 
   // the panel with the steps of an update is open on purpose, and goes when the newer version does
   const updateOpen = ref(false);
@@ -150,5 +147,5 @@ export function useAppShell() {
     say,
   });
 
-  return { daemon, updateOpen, newer, objects, picks, layout, cards, guide, panel, ranges, notice, findRadio, stationActions, ...tabs, ...derived };
+  return { daemon, updateOpen, newer, objects, picks, layout, cards, guide, panel, notice, findRadio, stationActions, ...tabs, ...derived };
 }

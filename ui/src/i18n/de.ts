@@ -1369,8 +1369,6 @@ export const de: Catalogue = {
   "nearby.igates_help": "Stationen, die Pakete aus dem Internet auf die Funkstrecke gesetzt haben, sich als iGate gemeldet haben oder das iGate-Symbol tragen.",
   "nearby.direct": "Direkt gehört",
   "nearby.direct_help": "Stationen, die ohne Digipeater dazwischen gehört wurden: die in Simplex-Reichweite.",
-  "nearby.show_range": "Reichweite zeigen",
-  "nearby.show_range_title": "Zeichnet auf der Karte den Reichweitenkreis jedes Digipeaters, der eine Reichweite angegeben hat (PHG oder RNG)",
   "nearby.none_yet": "noch keine",
   "nearby.details": "Einzelheiten",
   "nearby.repeated": { one: "{n} Paket wiederholt", other: "{n} Pakete wiederholt" },

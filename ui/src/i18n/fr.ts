@@ -1359,8 +1359,6 @@ export const fr: Catalogue = {
   "nearby.igates_help": "Stations qui ont mis des paquets d'internet sur l'air, se sont annoncées comme iGate ou ont le symbole d'iGate.",
   "nearby.direct": "Entendues en direct",
   "nearby.direct_help": "Stations entendues sans aucun digipeater entre nous : celles à portée en simplex.",
-  "nearby.show_range": "Afficher la portée",
-  "nearby.show_range_title": "Trace sur la carte le cercle de portée de chaque digipeater qui en a indiqué une (PHG ou RNG)",
   "nearby.none_yet": "aucune pour l'instant",
   "nearby.details": "Détails",
   "nearby.repeated": { one: "{n} paquet répété", other: "{n} paquets répétés" },
