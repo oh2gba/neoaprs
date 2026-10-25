@@ -21,7 +21,7 @@ from tests.support.gps import FakeGpsd, fake_gpsd, tpv
 async def started(tmp_path: Path, gpsd: FakeGpsd, **changes: object) -> Env:
     """A daemon with its radio connected and a GPS read from the fake gpsd, the beacon mobile."""
     e = await quick_start(tmp_path, beacon=True, web=True)
-    values = {"gps_source": "gpsd", "gps_host": gpsd.address, "beacon_mobile": True, "station_symbol_code": ">", **changes}
+    values = {"gps_source": "gpsd", "gps_host": gpsd.address, "station_symbol_code": ">", **changes}
     assert await e.ctl.save_config(replace(e.ctl.config, **values))                 # type: ignore[arg-type]
     await until(lambda: gpsd.watching and e.ctl.gps_feed.state is Source.State.CONNECTED)
     return e
@@ -141,18 +141,9 @@ async def test_the_settings_of_a_station_that_stays_leave_the_home_position_and_
     e = await started(tmp_path, gpsd)
     gpsd.send(tpv(60.43, 24.145, speed=15.0, track=270.0))
     await said(e)
-    assert await e.ctl.save_config(replace(e.ctl.config, beacon_mobile=False))
+    assert await e.ctl.save_config(replace(e.ctl.config, gps_source="off"))
     assert (me(e).lat, me(e).lon, me(e).course_deg) == (60.17, 24.94, None)
     assert e.ctl.beacon.frame().info == b"=6010.20N/02456.40E>NeoAPRS"
-    await e.stop()
-
-
-async def test_a_gps_that_is_not_mobile_is_read_but_the_row_stays_at_home(tmp_path: Path) -> None:
-    gpsd = await fake_gpsd()
-    e = await started(tmp_path, gpsd, beacon_mobile=False)
-    gpsd.send(tpv(60.43, 24.145, speed=15.0, track=270.0))
-    await until(lambda: e.ctl.gps.state == "fix")
-    assert (me(e).lat, me(e).lon) == (60.17, 24.94) and e.ctl.beacon.last_sent is None
     await e.stop()
 
 
@@ -196,13 +187,14 @@ async def test_the_page_is_told_the_gps_the_fix_and_the_beacon(tmp_path: Path) -
     await e.stop()
 
 
-async def test_the_page_is_told_when_the_settings_turn_the_beacon_mobile(tmp_path: Path) -> None:
+async def test_the_page_is_told_when_the_gps_source_turns_the_beacon_mobile(tmp_path: Path) -> None:
     e = await quick_start(tmp_path, beacon=True, web=True)
     page = await e.ws()
     await page.until(lambda: "gps" in page.topics)
     assert page.topics["gps"]["mobile"] is False and page.topics["gps"]["state"] == "off"
-    assert await e.ctl.save_config(replace(e.ctl.config, beacon_mobile=True))
+    assert await e.ctl.save_config(replace(e.ctl.config, gps_source="serial", beacon_moving_as="bicycle"))
     await page.until(lambda: page.topics["gps"]["mobile"] is True)
-    assert page.topics["config"]["values"]["beacon/mobile"] == "true" and page.topics["config"]["defaults"]["beacon/mobile"] == "false"
-    assert page.topics["config"]["defaults"]["gps/host"] == "127.0.0.1:2947" and page.topics["config"]["values"]["smart/fast_kmh"] == "100"
+    assert page.topics["config"]["values"]["gps/source"] == "serial" and page.topics["config"]["defaults"]["gps/source"] == "off"
+    assert page.topics["config"]["values"]["beacon/moving_as"] == "bicycle" and page.topics["config"]["defaults"]["beacon/moving_as"] == "car"
+    assert page.topics["config"]["defaults"]["gps/host"] == "127.0.0.1:2947" and "beacon/mobile" not in page.topics["config"]["values"] and "smart/fast_kmh" not in page.topics["config"]["values"]
     await e.stop()

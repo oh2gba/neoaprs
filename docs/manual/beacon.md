@@ -1,6 +1,8 @@
 # Beacon, status and digipeater
 
-The Beacon tab holds what your station says on the air: the **Station** group (call, location, symbol), the **Beacon** group, a closed **Antenna** heading, a closed **Advanced** heading with the path choice, and the **Status** group. A setting applies as you change it ([start.md](start.md#how-settings-apply)).
+The Beacon tab holds what your station says on the air. From top to bottom: the **beacon status** with **Beacon now** ([Beacon now](#beacon-now)); the **Station** group (call, **Position**, location, symbol); the **Beacon** group (how often, or what you move as, the comment, a closed **Antenna** heading for a fixed station and a closed **Advanced** heading with the path choice); the **Status** group; and the closed **Preview**. A setting applies as you change it ([start.md](start.md#how-settings-apply)).
+
+**Position** is the one choice that decides what kind of station you are, and the tab shows only what applies to it. **This place** is a fixed station: the beacon is the location below, sent at the interval of the Beacon group, with the antenna's PHG. **A GPS via gpsd** and **A GPS on a serial port** make a moving station: the beacon follows the GPS and goes when SmartBeaconing says, with no interval and no PHG ([Mobile operation](#mobile-operation)). It is the setting `gps/source` (`off`, `gpsd` or `serial`).
 
 A first transmission on the air is not tried by NeoAPRS's tests, which never open the radio. Check it live with **Beacon now**, then look for your call on aprs.fi or on another station's screen, before you leave a timer on.
 
@@ -16,7 +18,7 @@ The page shows an amber **Receive only** badge beside the title in its header, o
 
 ## The beacon
 
-Set the beacon to Off, or to every 30 minutes, every 60 minutes or every 3 hours. The setting `beacon/interval_min` takes 0 (off) or 20 to 1440: 20 minutes is the net cycle of the APRS specification for a path of two hops, and 30 is routine operation. A stored value that the page does not offer, such as 20 or 45, is shown as one more choice until you pick another, and one below 20 is raised to 20 (the log says so). The default is off, so an upgrade never starts to transmit. The setup guide gives a new station a beacon every 30 minutes.
+This is the beacon of a fixed station (**Position** at **This place**); a moving station has no interval, see [Mobile operation](#mobile-operation). Set the beacon to Off, or to every 30 minutes, every 60 minutes or every 3 hours. The setting `beacon/interval_min` takes 0 (off) or 20 to 1440: 20 minutes is the net cycle of the APRS specification for a path of two hops, and 30 is routine operation. A stored value that the page does not offer, such as 20 or 45, is shown as one more choice until you pick another, and one below 20 is raised to 20 (the log says so). The default is off, so an upgrade never starts to transmit. The setup guide gives a new station a beacon every 30 minutes.
 
 The first beacon goes out 30 seconds after the daemon starts, so that the radio and the TNC settle first. After that one goes out every interval, counted from the latest beacon, however it was sent.
 
@@ -53,7 +55,7 @@ Your own row on the map is your settings (position, symbol and comment), or the 
 
 ## Power, height and gain (PHG)
 
-With a power set (`beacon/power_w`, 0 to 9999 watts) the beacon carries the PHG extension right after the symbol. The Beacon tab asks for the antenna's height above the average terrain around it (HAAT, not above sea level; 0 to 9999 m), gain (0 to 9 dBi) and direction (`omni` or N, NE, E, SE, S, SW, W, NW) only once there is a power. With no power set no PHG is sent.
+With a power set (`beacon/power_w`, 0 to 9999 watts) the beacon carries the PHG extension right after the symbol. The Beacon tab asks for the antenna's height above the average terrain around it (HAAT, not above sea level; 0 to 9999 m), gain (0 to 9 dBi) and direction (`omni` or N, NE, E, SE, S, SW, W, NW) only once there is a power. With no power set no PHG is sent. The Antenna heading is for a fixed station: **Position** at **A GPS via gpsd** or **A GPS on a serial port** hides it, and a moving station sends no PHG.
 
 PHG is written `PHGphgd`:
 
@@ -68,37 +70,50 @@ The **Preview** under the Beacon tab, closed until you open it, shows the packet
 
 ## Beacon now
 
-The Beacon group starts with a row "Last beacon: 2 min ago" (the full time on hover) and the primary button **Beacon now**. It asks twice ("Really send?"). It is off while the TNC is not connected, and while a change of the settings is being saved, so what is sent is what is in force. The next beacon of the timer is then an interval later.
+The **beacon status** at the top of the tab is in the look of the radio's status on the Settings tab: a label, one coloured pill and plain lines, with the primary button **Beacon now** at the end of the first line. Beacon now asks twice ("Really send?"). It is off while the TNC is not connected, and while a change of the settings is being saved, so what is sent is what is in force. The next beacon of the timer is then an interval later.
+
+For a fixed station the label is **Beacon**, the pill is **on** (green) while the timer runs and **off** while it does not, and the line says when the last beacon went and when the next is due: **Last beacon 4 min ago · next in 56 min (every 60 min)**. The full time of the last beacon is on hover. With the interval off it reads **Last beacon 2 min ago · no timed beacon**, and before the first beacon of a run **No beacon sent yet · next in 5 min (every 30 min)**.
+
+For a moving station the label is **GPS**, the pill is the state of the GPS and there are lines under the first ([Mobile operation](#mobile-operation)).
 
 A beacon you send is in the Packets tab as a packet with direction `out`.
 
 ## Mobile operation
 
-For a car, a bicycle or a boat the beacon can follow a GPS receiver. With **Mobile** on, the position, course, speed and altitude come from the GPS, and the beacon goes when SmartBeaconing says: often when you move fast or turn a corner, rarely when you stand still.
+For a car, a bicycle, a walker or a boat the beacon can follow a GPS receiver. Choose **Position**: **A GPS via gpsd** or **A GPS on a serial port**. The position, course, speed and altitude then come from the GPS, and the beacon goes when SmartBeaconing says: often when you move fast or turn a corner, rarely when you stand still. Nothing else needs switching on: the choice of Position alone makes the station a moving one, and **This place** makes it a fixed one again.
 
-What to set (the Mobile group of the Beacon tab):
+What to set (the Station and Beacon groups of the Beacon tab):
 
-1. **GPS source**: `gpsd` reads a gpsd daemon (on this computer or another one on the network; its address is `gps/host`, `127.0.0.1:2947` by default), `serial` reads the NMEA sentences of a GPS receiver on a serial port (`gps/device`, such as `/dev/ttyUSB1`, at `gps/baud`: 4800 is NMEA's own speed, and many USB receivers speak 9600). Keep the GPS apart from the radio's port.
+1. **Position**: **A GPS via gpsd** reads a gpsd daemon (on this computer or another one on the network; its address, **gpsd address**, is `gps/host`, `127.0.0.1:2947` by default). **A GPS on a serial port** reads the NMEA sentences of a GPS receiver (**GPS port**, `gps/device`, such as `/dev/ttyUSB1`, at **GPS speed**, `gps/baud`: 4800 is NMEA's own speed, and many USB receivers speak 9600). Keep the GPS apart from the radio's port.
 
-   The port is picked from the serial ports of the computer, as the radio's is: **not set** first, then the ports listed, **Refresh** for a cable just plugged in, and **Other...** to type a path or a `socket://host:port`. Choosing `serial` or `gpsd` is never refused for a missing port or address: the GPS state then reads Connecting and says what to give (**no port set** or **no address set**), and nothing is opened until it is given.
-2. **Mobile** on (`beacon/mobile`).
+   The port is picked from the serial ports of the computer, as the radio's is: **not set** first, then the ports listed, **Refresh** for a cable just plugged in, and **Other...** to type a path or a `socket://host:port`. Choosing a GPS is never refused for a missing port or address: the GPS state then reads Connecting and says what to give (**no port set** or **no address set**), and nothing is opened until it is given.
+2. **Moving as** in the Beacon group (`beacon/moving_as`), if you are not in a car: see below.
 3. A symbol of a moving station (a car, say), which also makes the recommended path `WIDE1-1,WIDE2-1`.
 
-The GPS is read as soon as a source is chosen, Mobile or not, so you can see the fix before the beacon follows it.
+The GPS is read as soon as a source is chosen, so you can see the fix before the first beacon.
 
-**What the Beacon tab shows.** The Mobile group starts with the state of the GPS, in the look of the radio's: a coloured word (off, connecting, no fix, fix or stale) and one line in plain words:
+**What the Beacon tab shows.** Under the choice of Position stand only the fields that apply: the gpsd address for gpsd, the port and speed for a serial receiver. The Location row of the Station group is called **Home position** and says that the GPS position is what is sent, never this one; its fields stay, because it is where your station is whenever it is not moving, and before the first fix. In the Beacon group the interval and the Antenna heading are not shown, because a moving beacon has neither, and **Moving as** is, in the place of the interval.
 
-- **Off**, while no source is set.
-- **Connecting to gpsd at 127.0.0.1:2947**, or **Opening /dev/ttyUSB1 at 4800 baud** for a receiver on a port. When it cannot, the reason stands under the line, such as Connection refused.
+The beacon status at the top of the tab then reads as the GPS, in the look of the radio's: the label **GPS**, a coloured word (off, connecting, no fix, fix or stale) and one line in plain words, with Beacon now at its end:
+
+- **Off**, while no source is set (a daemon that has not yet caught up with the choice).
+- **Connecting to gpsd at 127.0.0.1:2947**, or **Opening /dev/ttyUSB1 at 4800 baud** for a receiver on a port. When it cannot, the reason stands under the lines, such as Connection refused.
 - **No fix yet**, with the reason the receiver gives.
 - **Fix: 60.4295 N 24.1452 E, 48 km/h, course 215°, 103 m, 9 satellites, 2 s ago.** What the receiver does not tell (the speed of one that stands still, say) is left out.
 - **Fix lost 3 min ago (stale)**, once the latest fix is more than 2 minutes old. Nothing is sent on it.
 
-Under the state come the GPS source, the address of the gpsd (for `gpsd`) or the port and speed of the receiver (for `serial`), and the Mobile switch. Behind the heading **SmartBeaconing**, which is there while Mobile is on, are the seven numbers; a value outside its range is refused under its field, and so is a fast speed that is not above the slow one or a fast time that is not below the slow one. With Mobile on:
+Under that line a second says what SmartBeaconing does: **SmartBeaconing: next by time in 42 s, last sent 12 s ago (turn)**. The reason is first fix, time, turn or Beacon now; a turn goes sooner than the time shown. With no fix it says **No beacon: no GPS fix**. Beacon now stays as it is, and is refused with the reason while there is no fix.
 
-- Under the row "Last beacon" a line says when SmartBeaconing sends next, and why the last beacon went: **SmartBeaconing: next by time in 42 s, last sent 12 s ago (turn)**. The reason is first fix, time, turn or Beacon now; a turn goes sooner than the time shown. With no fix the line says **No beacon: no GPS fix**. Beacon now stays as it is, and is refused with the reason while there is no fix.
-- The Location row of the Station group is called **Home position** and says that the GPS position is what is sent, never this one. Its fields stay: it is where your station is whenever it is not moving, and before the first fix.
-- The interval of the fixed beacon is not shown, because a mobile beacon does not use it.
+**Moving as.** The way you move sets the numbers of SmartBeaconing, so that a walker does not beacon like a car. There are four presets, **Car** (the default), **Bicycle**, **On foot** and **Boat**; there are no separate numbers to set. Each says how often the beacon goes and which turns it sends:
+
+| moving as | goes every minute from | stands still (every 30 minutes) at | a turn is more than | and not sooner than |
+|---|---|---|---|---|
+| Car | 100 km/h | 8 km/h or slower | 30° | 15 s after the last beacon |
+| Bicycle | 30 km/h | 4 km/h or slower | 35° | 20 s |
+| On foot | 7 km/h, every 2 minutes | 1.5 km/h or slower | 45° | 60 s |
+| Boat | 40 km/h | 3 km/h or slower | 20° | 30 s |
+
+The car's are Dire Wolf's numbers; the others are NeoAPRS's own choice for a slower way of moving. Between the two speeds the time falls with the speed: a car at 50 km/h beacons every 2 minutes. The turn is the angle in the table plus a slope divided by the speed in miles per hour (255 for a car, a bicycle and a boat, 100 for a walker, who turns more sharply at a slow pace), so the faster you go, the smaller a turn counts. The presets are in `neoaprs/smartbeacon.py`.
 
 **What is sent.** A packet from your call to `APZNEO` by your path, like the fixed beacon, but with a compressed position, which is shorter and carries the course and speed:
 
@@ -108,32 +123,20 @@ OH2GBA-9>APZNEO,WIDE1-1,WIDE2-1:=//w5#TW?M>eM[/A=000103NeoAPRS mobile
 
 After the position comes the altitude in feet (`/A=000103`) and then your comment. A compressed position and its comment may be 40 characters in all, so a long comment is cut at the end to fit (a station with an altitude has 31 characters of its own). There is no PHG: a compressed position cannot carry it, and it is for a station that stays where it is. A GPS that gives no speed or course sends the position alone.
 
-**When it is sent (SmartBeaconing).** The method is HamHUD's SmartBeaconing, as Dire Wolf and APRSdroid have it:
+**When it is sent (SmartBeaconing).** The method is HamHUD's SmartBeaconing, as Dire Wolf and APRSdroid have it, with the numbers of what you move as (above):
 
 - The first fix after the daemon starts is sent at once.
-- A station that stands still (at or below the slow speed) sends every slow time, 30 minutes by default. One that goes fast (at or above the fast speed) sends every fast time, 1 minute by default. Between the two the time falls with the speed: at 50 km/h it is 2 minutes.
-- A turn is sent at once: when the course differs from the course of the last beacon by more than the turn angle plus the slope divided by the speed in miles per hour, and the turn time has passed since the last beacon. The faster you go, the smaller a turn counts. A station that is not above the slow speed sends no turns.
+- A station that stands still (at or below the slow speed) sends every 30 minutes. One that goes fast (at or above the fast speed) sends every minute (a walker every 2 minutes). Between the two the time falls with the speed.
+- A turn is sent at once: when the course differs from the course of the last beacon by more than the turn angle plus the slope divided by the speed in miles per hour, and the turn time has passed since the last beacon. A station that is not above the slow speed sends no turns.
 - **Beacon now** sends the position as it is, and the times count from it.
 
-The numbers are settings, with Dire Wolf's values in kilometres per hour:
-
-| setting | default | what it is |
-|---|---|---|
-| `smart/fast_kmh` | 100 | the speed from which the fast time applies (10 to 300) |
-| `smart/fast_sec` | 60 | the fast time, seconds (10 to 600) |
-| `smart/slow_kmh` | 8 | the speed up to which you stand still (1 to 50) |
-| `smart/slow_sec` | 1800 | the slow time, seconds (60 to 3600) |
-| `smart/turn_min_deg` | 30 | the least change of course that is a turn (5 to 90) |
-| `smart/turn_min_sec` | 15 | the least time since the last beacon for a turn (5 to 120) |
-| `smart/turn_slope` | 255 | degrees times miles per hour that are added to the turn angle, divided by the speed (0 to 1000) |
-
-The fast speed must be above the slow one, and the fast time below the slow one; a save that breaks this is refused with the reason. The 20-minute floor of the fixed beacon does not apply to a mobile station, and `beacon/interval_min` is not used while Mobile is on. Keep the fast time long on a busy channel: a beacon a minute from every car makes a busy channel busier.
+The 20-minute floor of the fixed beacon does not apply to a moving station, and `beacon/interval_min` is not used while a GPS is chosen. Keep the channel in mind: a beacon a minute from every car makes a busy channel busier.
 
 **No fix, no beacon.** With no fresh GPS fix nothing is sent: not at the start, while the receiver is looking for satellites, not when gpsd or the port is away, and not once the latest fix is more than 2 minutes old. Your home position is never sent in its place, because a station that seems to jump home is worse than a silent one. Beacon now is refused with the reason, and a query for your position (`?APRSP`) is not answered. The page says why in the state of the GPS. A fix lost for less than 2 minutes (a tunnel) is still the latest one, and the beacon goes on by the clock.
 
-**On the map.** While Mobile is on, your own station follows the GPS fix, with its course, speed and altitude, moving every few seconds once you have gone 10 metres, and the distance and bearing of the other stations follow. If the GPS is lost your station stays where it was last seen. With Mobile off it is the location of the settings, as before. A query for your position (`?APRSP`) is answered with the position as it is now.
+**On the map.** While a GPS is chosen, your own station follows the GPS fix, with its course, speed and altitude, moving every few seconds once you have gone 10 metres, and the distance and bearing of the other stations follow. If the GPS is lost your station stays where it was last seen. With **This place** it is the location of the settings, as before. A query for your position (`?APRSP`) is answered with the position as it is now.
 
-**Follow me.** While Mobile is on and the GPS has a fix, a **Follow me** button at the top right of the map keeps the map centred on you, at a close zoom at least. Dragging the map lets go, and so does the loss of the fix or switching Mobile off; press the button again to take hold.
+**Follow me.** While a GPS is chosen and has a fix, a **Follow me** button at the top right of the map keeps the map centred on you, at a close zoom at least. Dragging the map lets go, and so does the loss of the fix or choosing **This place**; press the button again to take hold.
 
 To try it without a vehicle, the [development guide](../development.md#trying-mobile-operation-without-a-vehicle) describes a replay of a drive.
 

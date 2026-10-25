@@ -450,6 +450,7 @@ button,
 }
 
 /* a phone: the button of a line that sends something now is under the line, as wide as the page */
-.size-phone .sendrow .btn {
+.size-phone .sendrow .btn,
+.size-phone .beaconhead .btn {
   flex: 1 1 100%;
 }

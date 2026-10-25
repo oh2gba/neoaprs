@@ -1,4 +1,4 @@
-"""The beacon: our own position packet, built from the settings and sent through the Tnc every `beacon/interval_min` minutes and on request, or, for a moving station (`beacon/mobile`), from the GPS fix when SmartBeaconing says.
+"""The beacon: our own position packet, built from the settings and sent through the Tnc every `beacon/interval_min` minutes and on request, or, for a moving station (`gps/source` is not `off`), from the GPS fix when SmartBeaconing says.
 
 The frame is `frame()`: the tocall (`neoaprs.TOCALL`, not a setting), the digipeaters and the symbol, the comment and the position (`=`, a station with messaging; always the plain uncompressed form, which every receiver reads, rounded to the
 hundredth of a minute and never ambiguous) come from the settings. Right after the position, before the comment, goes the PHG data extension (`PHGphgd`: power, height, gain and directivity of the antenna) when `beacon/power_w` is
@@ -103,7 +103,7 @@ class Beacon:
         c = self._config()
         if reason := can_transmit(c):
             raise BeaconError(reason)
-        if c.beacon_mobile:
+        if c.mobile:
             return self._mobile_frame(c)
         if problem := c.comment_problem():
             raise BeaconError(problem)
@@ -213,7 +213,7 @@ class Beacon:
 
     def settings_changed(self) -> None:
         """The settings were saved: a changed interval, or a switch between a fixed and a mobile station, is planned from now on, at once; 0 stops the timer of a fixed one. Any other change leaves the time of the next beacon alone."""
-        if self._started is not None and (self.interval_min != self._planned_min or self._config().beacon_mobile != self._planned_mobile):
+        if self._started is not None and (self.interval_min != self._planned_min or self._config().mobile != self._planned_mobile):
             self._plan(self.interval_min)
 
     @property
@@ -223,7 +223,7 @@ class Beacon:
     def _plan(self, interval_min: int) -> None:
         """The next beacon for this interval: an interval after the latest one sent in this run, else after the one of the earlier run if that is still ahead of the start, else
         `first_delay_sec` after the start (a time that has passed is due at the next tick). A mobile station has none planned: SmartBeaconing says at each tick."""
-        mobile = self._config().beacon_mobile
+        mobile = self._config().mobile
         self._planned_min, self._planned_mobile = interval_min, mobile
         self._refused, self._retry_at = 0, None
         if self._started is None or interval_min == 0 or mobile:
@@ -248,7 +248,7 @@ class Beacon:
 
     def _due_reason(self, now: datetime) -> str | None:
         """Why a beacon is due now (`interval`, or for a mobile station what SmartBeaconing says), None when none is."""
-        if self._config().beacon_mobile:
+        if self._config().mobile:
             return self._mobile_reason(now)
         return "interval" if self.next_due is not None and now >= self.next_due else None
 
@@ -292,7 +292,7 @@ class Beacon:
         if self._refused < ATTEMPTS:
             self._retry_at = now + timedelta(seconds=self.retry_sec)
             return
-        mobile = self._config().beacon_mobile
+        mobile = self._config().mobile
         log.warning("the beacon was refused %d times (%s): %s", self._refused, self.problem, f"tried again in {MOBILE_GIVE_UP_SEC:g} s" if mobile else "skipped (the next one is an interval on, none is made up)")
         self._refused = 0
         if mobile:

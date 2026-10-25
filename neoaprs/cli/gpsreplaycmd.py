@@ -1,7 +1,7 @@
 """`neoaprs gps-replay [--at LAT,LON] [--kmh N] [--port P] [--interval S]`: a gpsd that is not one, on a TCP port of the loopback, which reports a synthetic drive, so that the daemon can beacon as a car would without a car or a receiver:
 
     neoaprs gps-replay                                              # prints 127.0.0.1:2948 as its first line
-    neoaprs db set gps/source gpsd; neoaprs db set gps/host 127.0.0.1:2948; neoaprs db set beacon/mobile true      # or the same on the page's Beacon tab
+    neoaprs db set gps/source gpsd; neoaprs db set gps/host 127.0.0.1:2948      # or the same on the page's Beacon tab
 
 The drive (neoaprs/cli/gpstrip.py) starts at `--at` (60.43,24.145 by default) and is a rectangle of straight legs and corners at `--kmh` (50 by default), with a stop in the middle of the last leg, driven round and
 round. A client that sends `?WATCH={"enable":true,"json":true}`, as the daemon does, is sent a TPV report each INTERVAL seconds (a second by default; a smaller number drives faster than real time) and a SKY report every fifth.
@@ -133,7 +133,7 @@ def main(argv: list[str]) -> int:
             task.result()                                           # (the port could not be listened on: the error is raised here)
         port = ready.result()
         print(f"{HOST}:{port}", flush=True)
-        say(f"gps-replay: a drive from {lat:g},{lon:g} at {args.kmh:g} km/h; give the daemon gps/source gpsd, gps/host {HOST}:{port} and beacon/mobile true; Ctrl-C ends it")
+        say(f"gps-replay: a drive from {lat:g},{lon:g} at {args.kmh:g} km/h; give the daemon gps/source gpsd, gps/host {HOST}:{port}; Ctrl-C ends it")
         await task
 
     try:

@@ -215,7 +215,8 @@
 .statepill.tnc-silent {
   background: var(--warn);
 }
-.statepill.gps-fix {
+.statepill.gps-fix,
+.statepill.beacon-on {
   background: var(--ok);
 }
 .statepill.gps-connecting,
@@ -223,27 +224,34 @@
 .statepill.gps-stale {
   background: var(--warn);
 }
-/* the GPS block of the Mobile group: the label, the state and the words in one line, as the radio's, without the arrow and the button */
-.gpsstatus {
-  margin: 4px 0 8px;
+/* the beacon status at the top of the Beacon tab, in the look of the radio's: the label, the state and the words in one line with Beacon now at its end, and the lines of a moving station under it */
+.beaconstatus {
+  margin: 8px 0;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
 }
-.gpshead {
+.beaconhead {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 4px 8px;
 }
-.gpslabel {
+.beaconlabel {
   font-weight: 600;
 }
-.gpshead .statepill {
+.beaconhead .statepill,
+.beaconhead .btn {
   flex: none;
 }
-.gpsstatus .problem {
+.beaconhead .btn {
+  min-width: var(--action-w);
+}
+.beaconstatus .problem {
   margin: 6px 0 0;
 }
 .mobileline {
-  margin: 0 0 8px;
+  margin: 6px 0 0;
   color: var(--muted);
 }
 .location-note {

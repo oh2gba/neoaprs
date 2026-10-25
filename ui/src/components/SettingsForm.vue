@@ -3,7 +3,8 @@
 // picked on the map) applies at once, a typed field on Enter or when it is left (never while it is typed), after the page's own check of it; the daemon checks it again, and a wrong one is shown under its field with what was typed kept. What
 // the person sees of it (the Undo toast, a line for a screen reader) is useSettings, shared with the other tab so that there is one queue. The alert command has a Test button, which runs the saved command and shows how it went under the field; a field
 // left empty shows the default as a placeholder. The Map group ends with the buttons that make the map (MapFetchPanel), which work on the saved settings. On the Settings tab a link at the top opens the first-run guide again; the default slot is
-// for more groups (the page's own, which are not settings of the daemon), the slots `beacon` and `status` for the line with the button that sends it now, which open the Beacon and Status groups, and `mobile` for the state of the GPS, which opens the Mobile group. The TNC group is SettingsRadio: the state of the radio link with Reconnect in view and the fields of the radio behind a fold, and the fields of the page's own alert end the
+// for more groups (the page's own, which are not settings of the daemon), the slot `top` for the beacon status above the first group, and `status` for the line with the button that sends the status now, which opens the Status group. The Beacon tab's Station group
+// starts with the choice of where the position comes from (gps/source: this place, or a GPS) and what that needs; a GPS makes the place the home position, and the Beacon group the Moving as choice instead of the interval and the antenna. The TNC group is SettingsRadio: the state of the radio link with Reconnect in view and the fields of the radio behind a fold, and the fields of the page's own alert end the
 // Notifications group (BrowserAlerts). What it works on is the page's (useDaemonContext): the settings, the daemon's answers, `send`. The Update check group (the daily check itself is always on) has a Check now button, which asks the version page at once and says the answer in the toast (a newer version opens the update window). While the network is let in, the Web group shows
 // the access key with a New key button and the addresses to open the page at.
 import BrowserAlerts from "@/components/BrowserAlerts.vue";
@@ -25,8 +26,9 @@ import { KEY_KEY, useNewKey } from "@/composables/useNewKey";
 import { useUpdateCheck } from "@/composables/useUpdateCheck";
 import { fieldId, useSettingsForm } from "@/composables/useSettingsForm";
 import type { Picked } from "@/composables/usePositionPick";
+import { isMoving } from "@/lib/gpsstatus";
 import { degreesText } from "@/lib/setup";
-import { BEACON_FOLDS, FIELDS, MOBILE, SUBGROUPS, shownByValues, shownFor, type Scope } from "@/lib/settings";
+import { BEACON_FOLDS, FIELDS, SUBGROUPS, shownByValues, shownFor, type Scope } from "@/lib/settings";
 import { statusSource } from "@/lib/status";
 import { computed, watch } from "vue";
 
@@ -79,8 +81,8 @@ const shown = (keys: readonly string[], inGroup = true) =>
       shownFor(key, profile.value, network.value) &&
       (props.scope === "settings" || shownByValues(key, draft)),
   );
-/** The beacon follows a GPS (as the switch is set): the place of the Station group is then the home position. */
-const mobile = computed(() => draft[MOBILE] === "true");
+/** The beacon follows a GPS (as the choice is set): the place of the Station group is then the home position. */
+const moving = computed(() => isMoving(draft));
 /** The symbol is one field, which sets the table and the code. */
 const symbol = computed(() => `${draft[SYMBOL_TABLE] ?? ""}${draft[SYMBOL_CODE] ?? ""}`);
 function editSymbol(text: string): void {
@@ -115,11 +117,10 @@ function typed(key: string, text: string): void {
     <span class="sr-only" role="status" aria-live="polite"
       ><span :key="settings.announcement.value.n">{{ settings.announcement.value.text }}</span></span
     >
+    <slot name="top"></slot>
     <fieldset v-for="group in groups" :key="group.id">
       <legend>{{ group.title }}</legend>
       <SettingsRadio v-if="group.id === 'serial'" :keys="shown(group.keys)" :settings="settings" :form="form" :defaults="defaults" />
-      <slot v-if="group.id === 'beacon'" name="beacon"></slot>
-      <slot v-if="group.id === 'mobile'" name="mobile"></slot>
       <slot v-if="group.id === 'status'" name="status"></slot>
       <template v-for="key in group.id === 'serial' ? [] : shown(group.keys)" :key="key">
         <h3 v-if="SUBGROUPS[key]" class="subgroup" :title="SUBGROUPS[key]?.title">
@@ -135,7 +136,7 @@ function typed(key: string, text: string): void {
           :errors="errors"
           :changed="form.changed"
           :picking="picking"
-          :home="mobile"
+          :home="moving"
           @type="settings.edit"
           @commit="form.finish"
           @cancel="settings.cancel"

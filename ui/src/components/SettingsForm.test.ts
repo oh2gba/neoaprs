@@ -26,7 +26,7 @@ describe("SettingsForm", () => {
   it("has a field for every key of the Settings tab, in groups, and none of the beacon's", () => {
     const { wrapper } = make();
     expect(wrapper.findAll("fieldset legend").map((l) => l.text())).toEqual(["TNC", "Digipeater", "Web page", "Notifications", "Map", "Update check"]);
-    const beacons = ["beacon/", "station/", "status/", "gps/", "smart/"]; // (the Beacon tab's)
+    const beacons = ["beacon/", "station/", "status/", "gps/"]; // (the Beacon tab's)
     const elsewhere = [
       "tcp/host", // (only for a TNC reached over TCP)
       "tcp/port",
@@ -70,10 +70,11 @@ describe("SettingsForm", () => {
       slots: { preview: "<p class='sample'>preview</p>" },
       global: withDaemon(),
     });
-    expect(wrapper.findAll("fieldset legend").map((l) => l.text())).toEqual(["Station", "Beacon", "Mobile", "Status"]);
+    expect(wrapper.findAll("fieldset legend").map((l) => l.text())).toEqual(["Station", "Beacon", "Status"]);
     expect(wrapper.findAll(".field label").map((l) => l.text())).toEqual([
       "Transmit",
       "Call",
+      "Position",
       "Latitude",
       "Longitude",
       "Symbol",
@@ -81,38 +82,52 @@ describe("SettingsForm", () => {
       "Comment",
       "Power",
       "Path",
-      "GPS source",
-      "Mobile",
       "Status",
     ]);
     expect(wrapper.find(".sample").exists()).toBe(true);
   });
 
-  describe("the Mobile group of the Beacon tab", () => {
+  describe("the position choice of the Station group of the Beacon tab", () => {
     const group = (wrapper: ReturnType<typeof make>["wrapper"], title: string) => wrapper.findAll("fieldset").find((f) => f.find("legend").text() === title);
-    const labels = (wrapper: ReturnType<typeof make>["wrapper"]) =>
-      group(wrapper, "Mobile")
+    const labels = (wrapper: ReturnType<typeof make>["wrapper"], title = "Station") =>
+      group(wrapper, title)
         ?.findAll(".field > label")
         .map((l) => l.text());
 
-    it("has the source and the switch, and nothing else while there is no GPS source", () => {
+    it("is one choice under the call: this place, a GPS via gpsd or a GPS on a serial port, and there is no Mobile group, GPS source or Mobile switch", () => {
       const { wrapper } = make({}, "beacon");
-      expect(labels(wrapper)).toEqual(["GPS source", "Mobile"]);
+      expect(labels(wrapper)).toEqual(["Transmit", "Call", "Position", "Latitude", "Longitude", "Symbol"]);
       expect(wrapper.find<HTMLSelectElement>("#set-gps-source").element.value).toBe("off");
-      expect(wrapper.findAll("#set-gps-source option").map((o) => o.text())).toEqual(["Off", "gpsd", "Serial receiver"]);
-      expect(wrapper.find("#set-beacon-mobile").attributes("type")).toBe("checkbox");
-      expect(group(wrapper, "Mobile")?.find("details").exists()).toBe(false);
+      expect(wrapper.findAll("#set-gps-source option").map((o) => [o.attributes("value"), o.text()])).toEqual([
+        ["off", "This place"],
+        ["gpsd", "A GPS via gpsd"],
+        ["serial", "A GPS on a serial port"],
+      ]);
+      expect(group(wrapper, "Mobile")).toBeUndefined();
+      expect(wrapper.text()).not.toContain("GPS source");
+      expect(wrapper.find("#set-beacon-mobile").exists()).toBe(false);
+      expect(wrapper.find(".settings details.disclosure summary").text()).not.toBe("SmartBeaconing");
     });
 
-    it("asks for the address of gpsd for gpsd, with the default as the placeholder", () => {
+    it("has the (i) of the choice, which says what each answer makes the station", async () => {
+      const { wrapper } = make({}, "beacon");
+      const field = wrapper.find("#set-gps-source").element.closest(".field");
+      expect(field?.querySelector(".info-toggle")).not.toBeNull();
+      (field?.querySelector(".info-toggle") as HTMLElement).click();
+      await wrapper.vm.$nextTick();
+      expect(field?.querySelector(".info-text")?.textContent).toContain("This place is a fixed station");
+      expect(field?.querySelector(".info-text")?.textContent).toContain("A GPS is a moving station");
+    });
+
+    it("asks for the address of gpsd for gpsd, with the default as the placeholder, between the choice and the home position", () => {
       const { wrapper } = make({ "gps/source": "gpsd" }, "beacon");
-      expect(labels(wrapper)).toEqual(["GPS source", "gpsd address", "Mobile"]);
+      expect(labels(wrapper)).toEqual(["Transmit", "Call", "Position", "gpsd address", "Latitude", "Longitude", "Symbol"]);
       expect(wrapper.find("#set-gps-host").attributes("placeholder")).toBe("127.0.0.1:2947");
     });
 
     it("asks for the port and the speed of the receiver for a serial one", () => {
       const { wrapper } = make({ "gps/source": "serial", "gps/baud": "9600" }, "beacon");
-      expect(labels(wrapper)).toEqual(["GPS source", "GPS port", "GPS speed", "Mobile"]);
+      expect(labels(wrapper)).toEqual(["Transmit", "Call", "Position", "GPS port", "GPS speed", "Latitude", "Longitude", "Symbol"]);
       expect(wrapper.find("#set-gps-device").element.tagName).toBe("SELECT");
       expect(wrapper.find<HTMLInputElement>("#set-gps-baud").element.value).toBe("9600");
       expect(wrapper.find("#set-gps-baud").element.parentElement?.textContent).toContain("baud");
@@ -130,8 +145,8 @@ describe("SettingsForm", () => {
           ["\u0000other", "Other..."],
         ]);
         expect(wrapper.find<HTMLSelectElement>("#set-gps-device").element.value).toBe("");
-        expect(group(wrapper, "Mobile")?.find(".port-found").exists()).toBe(false);
-        expect(group(wrapper, "Mobile")?.text()).not.toContain("find automatically");
+        expect(group(wrapper, "Station")?.find(".port-found").exists()).toBe(false);
+        expect(group(wrapper, "Station")?.text()).not.toContain("find automatically");
       });
 
       it("is not set where the daemon does not search for the radio either", () => {
@@ -171,7 +186,7 @@ describe("SettingsForm", () => {
         expect(send).toHaveBeenCalledWith({ cmd: "list_ports" });
       });
 
-      it("appears when Serial receiver is chosen, though the port is still empty", async () => {
+      it("appears when A GPS on a serial port is chosen, though the port is still empty", async () => {
         const { wrapper, send } = make({}, "beacon", { ports: portList() });
         expect(wrapper.find("#set-gps-device").exists()).toBe(false);
         await wrapper.find("#set-gps-source").setValue("serial");
@@ -185,68 +200,98 @@ describe("SettingsForm", () => {
       });
     });
 
-    it("applies the source at once, and the port and speed when they are left", async () => {
+    it("applies the choice at once, and the port and speed when they are left", async () => {
       const { wrapper, send } = make({ "gps/source": "serial" }, "beacon");
       await wrapper.find("#set-gps-source").setValue("gpsd");
       expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "gps/source": "gpsd" } });
+      const baud = wrapper.find<HTMLInputElement>("#set-gps-baud");
+      expect(baud.exists()).toBe(false);
     });
 
-    it("keeps the SmartBeaconing numbers behind a closed heading that comes with Mobile", async () => {
-      const { wrapper, send } = make({}, "beacon");
-      expect(group(wrapper, "Mobile")?.text()).not.toContain("SmartBeaconing");
-      await wrapper.find("#set-beacon-mobile").setValue(true);
-      expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "beacon/mobile": "true" } });
-      const on = make({ "beacon/mobile": "true" }, "beacon").wrapper;
-      const fold = group(on, "Mobile")?.find<HTMLDetailsElement>("details.disclosure");
-      expect(fold?.find("summary").text()).toBe("SmartBeaconing");
-      expect(fold?.element.open).toBe(false);
-      expect(fold?.findAll(".field > label").map((l) => l.text())).toEqual([
-        "Fast speed",
-        "Fast time",
-        "Slow speed",
-        "Slow time",
-        "Turn angle",
-        "Turn time",
-        "Turn slope",
-      ]);
-      expect(on.find<HTMLInputElement>("#set-smart-fast_kmh").element.value).toBe("100");
-      expect(on.find("#set-smart-slow_sec").attributes("placeholder")).toBe("1800");
+    it("sends the speed of a serial receiver when it is finished", async () => {
+      const { wrapper, send } = make({ "gps/source": "serial" }, "beacon");
+      const baud = wrapper.find<HTMLInputElement>("#set-gps-baud");
+      await baud.setValue("9600");
+      await baud.trigger("keydown", { key: "Enter" });
+      expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "gps/baud": "9600" } });
     });
 
-    it("checks a SmartBeaconing number against the daemon's range before it sends it", async () => {
-      const { wrapper, send } = make({ "beacon/mobile": "true" }, "beacon");
-      const input = wrapper.find<HTMLInputElement>("#set-smart-fast_kmh");
-      await input.setValue("5");
-      await input.trigger("keydown", { key: "Enter" });
-      expect(send).not.toHaveBeenCalled();
-      expect(wrapper.find("#set-smart-fast_kmh-error").text()).toBe("10 to 300");
-    });
-
-    it("sends a SmartBeaconing number when it is finished, and shows the daemon's refusal under it", async () => {
-      const { wrapper, send, daemon } = make({ "beacon/mobile": "true", "smart/slow_kmh": "30" }, "beacon");
-      const input = wrapper.find<HTMLInputElement>("#set-smart-fast_kmh");
-      await input.setValue("20");
-      await input.trigger("keydown", { key: "Enter" });
-      expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "smart/fast_kmh": "20" } });
-      await tell(daemon, {
-        lastError: toastOf("set_config: smart/fast_kmh: smart/fast_kmh (20) must be above smart/slow_kmh (30)", "setting.smart_speeds", { fast: 20, slow: 30 }),
-      });
-      expect(wrapper.find("#set-smart-fast_kmh-error").text()).toBe("smart/fast_kmh (20) must be above smart/slow_kmh (30)");
-    });
-
-    it("calls the Location the home position while the beacon is mobile, and says the GPS position is what is sent", async () => {
+    it("calls the Location the home position while a GPS is chosen, and says the GPS position is what is sent", async () => {
       const { wrapper } = make({}, "beacon");
       expect(wrapper.find(".location-field .field-label").text()).toBe("Location");
       expect(wrapper.find(".location-note").exists()).toBe(false);
-      await wrapper.find("#set-beacon-mobile").setValue(true);
+      await wrapper.find("#set-gps-source").setValue("gpsd");
       expect(wrapper.find(".location-field .field-label").text()).toBe("Home position");
       expect(wrapper.find(".location-note").text()).toContain("never this one");
       expect(wrapper.find("#set-station-lat").exists()).toBe(true);
+      await wrapper.find("#set-gps-source").setValue("off");
+      expect(wrapper.find(".location-field .field-label").text()).toBe("Location");
     });
 
-    it("has no interval of the fixed beacon while the beacon is mobile", () => {
-      expect(make({}, "beacon").wrapper.find("#set-beacon-interval_min").exists()).toBe(true);
-      expect(make({ "beacon/mobile": "true" }, "beacon").wrapper.find("#set-beacon-interval_min").exists()).toBe(false);
+    describe("the Beacon group", () => {
+      const beaconLabels = (wrapper: ReturnType<typeof make>["wrapper"]) => labels(wrapper, "Beacon");
+      const folds = (wrapper: ReturnType<typeof make>["wrapper"]) =>
+        group(wrapper, "Beacon")
+          ?.findAll("details > summary")
+          .map((f) => f.text());
+
+      it("has the interval, the comment, the antenna and the path of a fixed station, and no Moving as", () => {
+        const { wrapper } = make({ "beacon/power_w": "5" }, "beacon");
+        expect(beaconLabels(wrapper)).toEqual(["Beacon", "Comment", "Power", "Antenna height", "Antenna gain", "Antenna direction", "Path"]);
+        expect(folds(wrapper)).toEqual(["Antenna", "Advanced"]);
+        expect(wrapper.find("#set-beacon-moving_as").exists()).toBe(false);
+      });
+
+      it("has Moving as in the place of the interval, and no antenna, for a moving station, whichever GPS", () => {
+        for (const source of ["gpsd", "serial"]) {
+          const { wrapper } = make({ "gps/source": source, "beacon/power_w": "5" }, "beacon");
+          expect(beaconLabels(wrapper), source).toEqual(["Moving as", "Comment", "Path"]);
+          expect(folds(wrapper), source).toEqual(["Advanced"]);
+          for (const id of ["beacon-interval_min", "beacon-power_w", "beacon-antenna_height_m", "beacon-antenna_gain_db", "beacon-antenna_direction"])
+            expect(wrapper.find(`#set-${id}`).exists(), id).toBe(false);
+        }
+      });
+
+      it("follows the choice as it is made, in both directions, with the antenna back as it was", async () => {
+        const { wrapper } = make({ "beacon/power_w": "5" }, "beacon");
+        await wrapper.find("#set-gps-source").setValue("gpsd");
+        expect(beaconLabels(wrapper)).toEqual(["Moving as", "Comment", "Path"]);
+        await wrapper.find("#set-gps-source").setValue("off");
+        expect(beaconLabels(wrapper)).toEqual(["Beacon", "Comment", "Power", "Antenna height", "Antenna gain", "Antenna direction", "Path"]);
+      });
+
+      it("offers the four ways of moving, Car first, with a one-line (i) that says what it changes", async () => {
+        const { wrapper } = make({ "gps/source": "gpsd" }, "beacon");
+        const select = wrapper.find<HTMLSelectElement>("#set-beacon-moving_as");
+        expect(select.element.value).toBe("car");
+        expect(select.findAll("option").map((o) => [o.attributes("value"), o.text()])).toEqual([
+          ["car", "Car"],
+          ["bicycle", "Bicycle"],
+          ["foot", "On foot"],
+          ["boat", "Boat"],
+        ]);
+        const field = select.element.closest(".field");
+        (field?.querySelector(".info-toggle") as HTMLElement).click();
+        await wrapper.vm.$nextTick();
+        expect(field?.querySelectorAll(".info-text .info-line")).toHaveLength(1);
+        expect(field?.querySelector(".info-text")?.textContent).toMatch(/how often the beacon goes and at which turns/);
+      });
+
+      it("applies the way of moving at once, and shows the one in force", async () => {
+        const { wrapper, send } = make({ "gps/source": "gpsd", "beacon/moving_as": "foot" }, "beacon");
+        expect(wrapper.find<HTMLSelectElement>("#set-beacon-moving_as").element.value).toBe("foot");
+        await wrapper.find("#set-beacon-moving_as").setValue("boat");
+        expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "beacon/moving_as": "boat" } });
+      });
+    });
+
+    it("has none of the old Mobile switch or SmartBeaconing numbers, nor the names of the daemon's old keys in the page", () => {
+      const { wrapper } = make({ "gps/source": "gpsd" }, "beacon");
+      expect((CONFIG_KEYS as readonly string[]).filter((k) => k === "beacon/mobile" || k.startsWith("smart/"))).toEqual([]);
+      expect(wrapper.find("#set-beacon-mobile").exists()).toBe(false);
+      expect(wrapper.find("#set-smart-fast_kmh").exists()).toBe(false);
+      expect(wrapper.text()).not.toContain("SmartBeaconing");
+      expect(wrapper.text()).not.toContain("Fast speed");
     });
   });
 
@@ -260,7 +305,7 @@ describe("SettingsForm", () => {
         group(wrapper, "Station")
           ?.findAll(".field label, .field .field-label, h3")
           .map((e) => e.text()),
-      ).toEqual(["Transmit", "Call", "Location", "Latitude", "Longitude", "Symbol"]);
+      ).toEqual(["Transmit", "Call", "Position", "Location", "Latitude", "Longitude", "Symbol"]);
       expect(group(wrapper, "Station")?.find("#set-station-comment").exists()).toBe(false);
       expect(group(wrapper, "Beacon")?.find("#set-station-comment").exists()).toBe(true);
     });
@@ -1014,7 +1059,7 @@ describe("SettingsForm: the Location of our station (Beacon tab)", () => {
     await wrapper.setProps({ picking: true });
     expect(pick(wrapper).text()).toBe("Cancel");
     const order = wrapper.findAll(".field label, .field .field-label").map((e) => e.text());
-    expect(order.slice(1, 5)).toEqual(["Call", "Location", "Latitude", "Longitude"]);
+    expect(order.slice(1, 6)).toEqual(["Call", "Position", "Location", "Latitude", "Longitude"]);
   });
 
   it("is only on the Beacon tab", () => {

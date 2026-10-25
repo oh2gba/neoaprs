@@ -1490,7 +1490,7 @@
           "description": "when the latest fix was received, by the daemon's clock"
         },
         "mobile": {
-          "description": "`beacon/mobile` is on: the beacon follows the GPS. With no fresh fix nothing is sent at all (never the home position), which `state` and `problem` say",
+          "description": "`gps/source` is not `off`: the beacon follows the GPS. With no fresh fix nothing is sent at all (never the home position), which `state` and `problem` say",
           "type": "boolean"
         },
         "next_beacon_at": {

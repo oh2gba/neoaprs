@@ -23,11 +23,9 @@ export const settings = {
   "settings.group.digi": "Digipeater",
   "settings.group.beacon": "Beacon",
   "settings.group.status": "Status",
-  "settings.group.mobile": "Mobile",
   "settings.group.other": "Other",
   "settings.fold.antenna": "Antenna",
   "settings.fold.advanced": "Advanced",
-  "settings.fold.smart": "SmartBeaconing",
 
   "settings.name.position": "Position",
   "settings.name.tcp_address": "TCP address",
@@ -318,13 +316,15 @@ export const settings = {
   "settings.map.download": "Download map",
   "settings.map.cancel": "Cancel",
 
-  "settings.gps_source.label": "GPS source",
-  "settings.gps_source.off": "Off",
-  "settings.gps_source.gpsd": "gpsd",
-  "settings.gps_source.serial": "Serial receiver",
-  "settings.gps_source.tip1":
-    "Where NeoAPRS reads the position of a moving station from. gpsd is the GPS service of Linux: choose it when gpsd runs on this computer or another one on the network. Serial receiver reads a GPS receiver on a serial port.",
-  "settings.gps_source.tip2": "The GPS is read as soon as a source is chosen, so you can watch the fix before the beacon follows it.",
+  "settings.position.name": "Position source",
+  "settings.position.label": "Position",
+  "settings.position.here": "This place",
+  "settings.position.gpsd": "A GPS via gpsd",
+  "settings.position.serial": "A GPS on a serial port",
+  "settings.position.tip1":
+    "Where the beacon's position comes from. This place is a fixed station, sent at the Beacon interval. A GPS is a moving station: the beacon follows the fix and SmartBeaconing decides when it goes.",
+  "settings.position.tip2":
+    "gpsd is the GPS service of Linux: use it when gpsd runs on this computer or another one. A receiver on a serial port is read directly. With no fresh fix nothing is sent, never the home position.",
   "settings.gps_host.label": "gpsd address",
   "settings.gps_host.tip1":
     "The address of gpsd as host:port. gpsd listens on port 2947, so leave it as it is when gpsd runs on this computer. Example: 192.168.1.20:2947",
@@ -336,37 +336,12 @@ export const settings = {
   "settings.gps_baud.tip1":
     "The speed of the receiver's serial line. 4800 is the speed of NMEA itself, and many USB receivers speak 9600. A wrong speed shows as no fix.",
 
-  "settings.mobile.name": "Mobile beacon",
-  "settings.mobile.label": "Mobile",
-  "settings.mobile.tip_label": "About Mobile",
-  "settings.mobile.tip1":
-    "Turn it on in a car, on a bicycle or on a boat. The beacon then follows the GPS: position, course, speed and altitude come from the fix, and it is sent when SmartBeaconing says, often when you go fast or turn, rarely when you stand still.",
-  "settings.mobile.tip2": "With no fresh fix nothing is sent, and never your home position. The position of the Station group is only the home position.",
-  "settings.mobile.tip3": "Choose the symbol of a moving station, such as a car: it also makes the recommended path WIDE1-1,WIDE2-1.",
-  "settings.smart_fast_speed.label": "Fast speed",
-  "settings.smart_fast_speed.tip1": "From this speed on ({min} to {max} km/h) a beacon goes every Fast time.",
-  "settings.smart_fast_speed.tip2": "Below it the time between beacons grows as the speed falls. It must be above the Slow speed.",
-  "settings.smart_fast_time.label": "Fast time",
-  "settings.smart_fast_time.tip1": "The shortest time between two beacons by time, in seconds ({min} to {max}). It must be shorter than the Slow time.",
-  "settings.smart_fast_time.tip2": "Keep it long on a busy channel: a beacon a minute from every car makes it busier.",
-  "settings.smart_slow_speed.label": "Slow speed",
-  "settings.smart_slow_speed.tip1":
-    "At this speed or slower ({min} to {max} km/h) the station counts as standing still: a beacon every Slow time, and no turns.",
-  "settings.smart_slow_speed.tip2": "It must be below the Fast speed.",
-  "settings.smart_slow_time.label": "Slow time",
-  "settings.smart_slow_time.tip1": "The longest time between two beacons, in seconds ({min} to {max}), for a station that stands still.",
-  "settings.smart_slow_time.tip2": "It must be longer than the Fast time.",
-  "settings.smart_turn_angle.label": "Turn angle",
-  "settings.smart_turn_angle.tip1":
-    "A change of course of more than this many degrees ({min} to {max}), plus the Turn slope divided by the speed, is a turn and is beaconed at once.",
-  "settings.smart_turn_angle.tip2": "The faster you go, the smaller a turn counts.",
-  "settings.smart_turn_time.label": "Turn time",
-  "settings.smart_turn_time.tip1": "A turn is beaconed no sooner than this many seconds ({min} to {max}) after the last beacon.",
-  "settings.smart_turn_time.tip2": "It keeps a winding road from filling the channel.",
-  "settings.smart_turn_slope.label": "Turn slope",
-  "settings.smart_turn_slope.tip1":
-    "Degrees times miles per hour ({min} to {max}) that are added to the Turn angle, divided by the speed. 0 makes every turn count the same.",
-  "settings.smart_turn_slope.tip2": "The default suits most cars. Change it only if turns are beaconed too often or too late.",
+  "settings.moving_as.label": "Moving as",
+  "settings.moving_as.car": "Car",
+  "settings.moving_as.bicycle": "Bicycle",
+  "settings.moving_as.foot": "On foot",
+  "settings.moving_as.boat": "Boat",
+  "settings.moving_as.tip1": "Sets how often the beacon goes and at which turns: a car beacons more often at speed than a walker.",
 
   "settings.update.group": "Update check",
   "settings.update.label": "New version",

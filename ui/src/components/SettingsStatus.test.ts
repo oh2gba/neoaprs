@@ -154,6 +154,7 @@ describe("the (i) of a field", () => {
       .filter((f) => f.find(".info-toggle").exists())
       .map((f) => f.find("label").text());
     expect(withTip).toEqual([
+      "Position",
       "Beacon",
       "Comment",
       "Power",
@@ -161,8 +162,6 @@ describe("the (i) of a field", () => {
       "Antenna gain",
       "Antenna direction",
       "Path",
-      "GPS source",
-      "Mobile",
       "Status",
       "Rigctld",
       "Text",

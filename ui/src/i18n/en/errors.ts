@@ -76,8 +76,6 @@ export const errors = {
   "error.setting.off_or_range": "{value} is not 0 (off) or between {min} and {max}",
   "error.setting.profile_port": "{profile} connects over TCP (tcp/host and tcp/port), not to the serial port {port}: clear serial/port, or choose a serial TNC",
   "error.setting.range": "{value} is not between {min} and {max}",
-  "error.setting.smart_speeds": "smart/fast_kmh ({fast}) must be above smart/slow_kmh ({slow})",
-  "error.setting.smart_times": "smart/fast_sec ({fast}) must be below smart/slow_sec ({slow})",
   "error.setting.status_needs_rigctld": "the radio needs status/rigctld (host:port of a rigctld, 127.0.0.1:4532)",
   "error.setting.status_source": "'{value}' is not off, text or rig (empty: as status/rigctld and station/status say)",
   "error.setting.template_field": "{{{field}}} is not a field of the template (the fields are {{freq}} and {{mode}})",

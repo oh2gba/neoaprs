@@ -21,16 +21,21 @@ type Wrapper = ReturnType<typeof pane>["wrapper"];
 const labels = (wrapper: Wrapper) => wrapper.findAll("form .field label").map((l) => l.text());
 const group = (wrapper: Wrapper, title: string) => wrapper.findAll("fieldset").find((f) => f.find("legend").text() === title);
 const rows = (wrapper: Wrapper) => wrapper.findAll(".sendrow");
-const buttons = (wrapper: Wrapper) => wrapper.findAll(".sendrow button");
+/** The buttons that send now, in the order of the page: Beacon now in the beacon status, then Send status now. */
+const buttons = (wrapper: Wrapper) => wrapper.findAll(".beaconstatus button, .sendrow button");
+const block = (wrapper: Wrapper) => wrapper.find(".beaconstatus");
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 
 describe("BeaconPane", () => {
-  it("has no box on top: it opens with the form, and the packet it would make is in the preview", () => {
+  it("opens with the form, which starts with the beacon status, and the packet it would make is in the preview", () => {
     const { wrapper } = pane();
     expect(wrapper.find(".beaconbox").exists()).toBe(false);
     expect(wrapper.find(".beaconpane").element.firstElementChild?.tagName).toBe("FORM");
+    expect(block(wrapper).element.parentElement?.tagName).toBe("FORM");
+    expect(block(wrapper).element.nextElementSibling?.tagName).toBe("FIELDSET");
+    expect(block(wrapper).element.nextElementSibling?.querySelector("legend")?.textContent).toBe("Station");
     expect(wrapper.find(".beacon-preview code").text()).toBe("OH2GBA>APZNEO,WIDE2-1:=6010.20N/02456.40E-NeoAPRS");
   });
 
@@ -39,6 +44,7 @@ describe("BeaconPane", () => {
     expect(labels(wrapper)).toEqual([
       "Transmit",
       "Call",
+      "Position",
       "Latitude",
       "Longitude",
       "Symbol",
@@ -46,8 +52,6 @@ describe("BeaconPane", () => {
       "Comment",
       "Power",
       "Path",
-      "GPS source",
-      "Mobile",
       "Status",
       "Text",
       "Every",
@@ -84,15 +88,15 @@ describe("BeaconPane", () => {
     expect(wrapper.find(".beacon-preview").text()).toContain("make no packet");
   });
 
-  it("has the Location row, with the Choose on map button, between the call and the symbol", () => {
+  it("has the Location row, with the Choose on map button, under the choice of the position", () => {
     const { wrapper } = pane();
     expect(wrapper.find("button.location-pick").text()).toBe("Choose on map");
     expect(
       wrapper
         .findAll("form .field label, form .field .field-label")
         .map((e) => e.text())
-        .slice(0, 6),
-    ).toEqual(["Transmit", "Call", "Location", "Latitude", "Longitude", "Symbol"]);
+        .slice(0, 7),
+    ).toEqual(["Transmit", "Call", "Position", "Location", "Latitude", "Longitude", "Symbol"]);
   });
 
   it("lays the Location out as the Call is: the label in the first column, the button, the place and Enter coordinates in the second", () => {
@@ -100,7 +104,7 @@ describe("BeaconPane", () => {
     const row = wrapper.find(".location-field");
     const call = wrapper.find("#set-station-call").element.closest(".field");
     expect(row.element.classList.contains("field")).toBe(true);
-    expect(row.element.previousElementSibling).toBe(call);
+    expect(row.element.previousElementSibling).toBe(wrapper.find("#set-gps-source").element.closest(".field"));
     expect([...row.element.children].map((c) => c.className.split(" ")[0])).toEqual(["field-label", "field-control"]);
     expect(row.find(".field-label").text()).toBe("Location");
     expect(row.find(".field-label").element.nextElementSibling).toBe(row.find(".field-control").element);
@@ -110,32 +114,70 @@ describe("BeaconPane", () => {
     expect(wrapper.find("h3.subgroup").exists()).toBe(false);
   });
 
-  describe("Beacon now, in the Beacon group", () => {
-    it("is a row at the top of the group: when the last beacon went out, in words, the full time on hover, and the button beside it", () => {
-      const { wrapper } = pane();
-      const row = group(wrapper, "Beacon")?.find(".sendrow");
-      expect(row?.element.previousElementSibling?.tagName).toBe("LEGEND");
-      expect(row?.find("dt").text()).toBe("Last beacon");
-      expect(row?.find("dd").text()).toBe("2 min ago");
-      expect(row?.find("dd").attributes("title")).toMatch(/^\d{4}-\d\d-\d\d \d\d:\d\d/);
-      expect(row?.find("button").text()).toBe("Beacon now");
-      expect(row?.find("button").classes()).toEqual(expect.arrayContaining(["btn", "primary"]));
-      expect(wrapper.text()).not.toContain("Next due");
-      expect(wrapper.text()).not.toContain("every 30 min");
+  describe("the beacon status of a fixed station, at the top of the tab, with Beacon now", () => {
+    it("is a label, a pill and one line, with the full time of the last beacon on hover and Beacon now at its end", () => {
+      const { wrapper } = pane(
+        {},
+        { status: status({ beacon_interval_min: 60, beacon_last_sent: ago(240), beacon_next_due: new Date(NOW + 56 * 60_000).toISOString() }) },
+      );
+      expect([...block(wrapper).find(".beaconhead").element.children].map((c) => c.className.split(" ")[0])).toEqual([
+        "beaconlabel",
+        "statepill",
+        "tncstatus",
+        "btn",
+      ]);
+      expect(block(wrapper).find(".beaconlabel").text()).toBe("Beacon");
+      expect(block(wrapper).find(".statepill").text()).toBe("on");
+      expect(block(wrapper).find(".statepill").classes()).toContain("beacon-on");
+      expect(block(wrapper).find(".tncstatus").text()).toBe("Last beacon 4 min ago · next in 56 min (every 60 min)");
+      expect(block(wrapper).find(".tncstatus").attributes("role")).toBe("status");
+      expect(block(wrapper).find(".tncstatus").attributes("title")).toMatch(/^\d{4}-\d\d-\d\d \d\d:\d\d/);
+      expect(block(wrapper).find("button").text()).toBe("Beacon now");
+      expect(block(wrapper).find("button").classes()).toEqual(expect.arrayContaining(["btn", "primary"]));
+      expect(block(wrapper).findAll("p")).toHaveLength(0);
+      expect(group(wrapper, "Beacon")?.find(".sendrow").exists()).toBe(false);
     });
 
-    it("says not yet when no beacon was sent, and before the status has come", () => {
+    it("says there is no timed beacon, with the pill off, while the interval is 0", () => {
+      const { wrapper } = pane({}, { status: status({ beacon_last_sent: ago(125) }) });
+      expect(block(wrapper).find(".statepill").text()).toBe("off");
+      expect(block(wrapper).find(".statepill").classes()).toContain("beacon-off");
+      expect(block(wrapper).find(".tncstatus").text()).toBe("Last beacon 2 min ago · no timed beacon");
+    });
+
+    it("says that none was sent yet, with or without a timer", () => {
+      const timed = status({ beacon_interval_min: 30, beacon_next_due: new Date(NOW + 5 * 60_000).toISOString() });
       expect(
-        pane({}, { status: status({ beacon_last_sent: null }) })
-          .wrapper.find(".sendrow")
+        block(pane({}, { status: timed }).wrapper)
+          .find(".tncstatus")
           .text(),
-      ).toMatch(/Last beacon\s*not yet/);
-      expect(pane({}, { status: null }).wrapper.find(".sendrow").text()).toMatch(/Last beacon\s*not yet/);
+      ).toBe("No beacon sent yet · next in 5 min (every 30 min)");
+      expect(
+        block(pane({}, { status: status() }).wrapper)
+          .find(".tncstatus")
+          .text(),
+      ).toBe("No beacon sent yet · no timed beacon");
+    });
+
+    it("says nothing is known before the status has come, with no pill", () => {
+      const { wrapper } = pane({}, { status: null });
+      expect(block(wrapper).find(".statepill").exists()).toBe(false);
+      expect(block(wrapper).find(".tncstatus").text()).toBe("No word from the daemon yet.");
+    });
+
+    it("follows the clock", async () => {
+      const { wrapper, daemon } = pane(
+        {},
+        { status: status({ beacon_interval_min: 60, beacon_last_sent: ago(240), beacon_next_due: new Date(NOW + 56 * 60_000).toISOString() }) },
+      );
+      daemon.now.value = NOW + 60_000;
+      await wrapper.vm.$nextTick();
+      expect(block(wrapper).find(".tncstatus").text()).toBe("Last beacon 5 min ago · next in 55 min (every 60 min)");
     });
 
     it("asks twice, then passes the click on", async () => {
       const { wrapper, send } = pane();
-      const button = wrapper.find(".sendrow button");
+      const button = wrapper.find(".beaconstatus button");
       await button.trigger("click");
       expect(send).not.toHaveBeenCalledWith({ cmd: "beacon_now" });
       expect(button.text()).toBe("Really send?");
@@ -148,7 +190,7 @@ describe("BeaconPane", () => {
 
     it("forgets the first click after a few seconds", async () => {
       const { wrapper, send } = pane();
-      const button = wrapper.find(".sendrow button");
+      const button = wrapper.find(".beaconstatus button");
       await button.trigger("click");
       vi.advanceTimersByTime(5001);
       await wrapper.vm.$nextTick();
@@ -159,15 +201,15 @@ describe("BeaconPane", () => {
 
     it("is off while the TNC is not connected, and the first click is forgotten when it drops", async () => {
       const { wrapper, send, daemon } = pane();
-      await wrapper.find(".sendrow button").trigger("click");
+      await wrapper.find(".beaconstatus button").trigger("click");
       daemon.connected.value = false;
       await wrapper.vm.$nextTick();
-      const button = wrapper.find(".sendrow button");
+      const button = wrapper.find(".beaconstatus button");
       expect(button.attributes("disabled")).toBeDefined();
       expect(button.text()).toBe("Beacon now");
       daemon.connected.value = true;
       await wrapper.vm.$nextTick();
-      await wrapper.find(".sendrow button").trigger("click");
+      await wrapper.find(".beaconstatus button").trigger("click");
       expect(send).not.toHaveBeenCalledWith({ cmd: "beacon_now" });
       expect(buttons(pane({}, { connected: false }).wrapper)[0]?.attributes("disabled")).toBeDefined();
     });
@@ -175,7 +217,7 @@ describe("BeaconPane", () => {
 
   describe("Send status now, in the Status group", () => {
     it("is not there while the status is off", () => {
-      expect(rows(pane().wrapper)).toHaveLength(1);
+      expect(rows(pane().wrapper)).toHaveLength(0);
       expect(buttons(pane().wrapper).map((b) => b.text())).toEqual(["Beacon now"]);
     });
 
@@ -276,48 +318,38 @@ describe("BeaconPane", () => {
   });
 });
 
-describe("the Mobile group of the Beacon tab", () => {
+describe("the beacon status of a moving station", () => {
   const later = (seconds: number) => new Date(NOW + seconds * 1000).toISOString();
+  const moving = { "gps/source": "gpsd" };
 
-  it("starts with the GPS block, which is there as soon as the daemon has told, whether or not the beacon follows", () => {
-    expect(group(pane().wrapper, "Mobile")?.find(".gpsstatus").exists()).toBe(false);
-    const { wrapper } = pane({ "gps/source": "gpsd" }, { gps: gpsState() });
-    const mobile = group(wrapper, "Mobile");
-    expect(mobile?.element.children[1]?.classList.contains("gpsstatus")).toBe(true);
-    expect(mobile?.find(".tncstatus").text()).toBe("Fix: 60.4295 N 24.1452 E, 48 km/h, course 215°, 103 m, 9 satellites, 2 s ago");
+  it("is the GPS and not the timer: the label, the state of the GPS on the pill, the fix, and Beacon now, with no Mobile group", () => {
+    const { wrapper } = pane(moving, { gps: gpsState({ next_beacon_at: later(42) }) });
+    expect(block(wrapper).classes()).toContain("moving");
+    expect(block(wrapper).find(".beaconlabel").text()).toBe("GPS");
+    expect(block(wrapper).find(".statepill").text()).toBe("fix");
+    expect(block(wrapper).find(".statepill").classes()).toContain("gps-fix");
+    expect(block(wrapper).find(".tncstatus").text()).toBe("Fix: 60.4295 N 24.1452 E, 48 km/h, course 215°, 103 m, 9 satellites, 2 s ago");
+    expect(block(wrapper).find("button").text()).toBe("Beacon now");
+    expect(group(wrapper, "Mobile")).toBeUndefined();
+    expect(wrapper.text()).not.toContain("Last beacon");
   });
 
-  it("says Off while there is no source, and what is being connected to from the settings", async () => {
-    const { wrapper, daemon } = pane({}, { gps: gpsOff() });
-    expect(group(wrapper, "Mobile")?.find(".tncstatus").text()).toBe("Off");
-    daemon.gps.value = gpsState({ state: "connecting", lat: null, lon: null, problem: "Connection refused" });
-    await wrapper.vm.$nextTick();
-    expect(group(wrapper, "Mobile")?.find(".tncstatus").text()).toBe("Connecting to gpsd at 127.0.0.1:2947");
-    expect(group(wrapper, "Mobile")?.find(".problem").text()).toBe("Connection refused");
+  it("says under the fix when SmartBeaconing sends next, and why the last one went", () => {
+    const { wrapper } = pane(moving, { gps: gpsState({ next_beacon_at: later(42), last_beacon_at: ago(12), last_beacon_reason: "turn" }) });
+    expect(block(wrapper).find(".mobileline").text()).toBe("SmartBeaconing: next by time in 42 s, last sent 12 s ago (turn)");
+    expect(block(wrapper).find(".tncstatus + button + .mobileline, .beaconhead + .mobileline").exists()).toBe(true);
+    expect(block(wrapper).find(".problem").exists()).toBe(false);
   });
 
-  it("has no line about SmartBeaconing while the beacon is not mobile", () => {
-    const { wrapper } = pane({}, { gps: gpsState({ mobile: false, next_beacon_at: later(42) }) });
-    expect(wrapper.find(".mobileline").exists()).toBe(false);
-  });
-
-  it("says under Last beacon when SmartBeaconing sends next, and why the last one went", () => {
-    const { wrapper } = pane(
-      { "beacon/mobile": "true" },
-      { gps: gpsState({ mobile: true, next_beacon_at: later(42), last_beacon_at: ago(12), last_beacon_reason: "turn" }) },
-    );
-    const line = group(wrapper, "Beacon")?.find(".mobileline");
-    expect(line?.text()).toBe("SmartBeaconing: next by time in 42 s, last sent 12 s ago (turn)");
-    expect(group(wrapper, "Beacon")?.find(".sendrow + .mobileline").exists()).toBe(true);
-  });
-
-  it("says there is no beacon without a fix, and keeps Beacon now as it is", async () => {
-    const { wrapper, send } = pane(
-      { "beacon/mobile": "true" },
-      { gps: gpsState({ mobile: true, state: "no_fix", lat: null, lon: null, fix_at: null, problem: "the receiver has no position fix yet" }) },
-    );
-    expect(group(wrapper, "Beacon")?.find(".mobileline").text()).toBe("No beacon: no GPS fix");
-    expect(group(wrapper, "Mobile")?.find(".problem").text()).toBe("the receiver has no position fix yet");
+  it("says there is no beacon without a fix, why there is none, and keeps Beacon now as it is", async () => {
+    const { wrapper, send } = pane(moving, {
+      gps: gpsState({ state: "no_fix", lat: null, lon: null, fix_at: null, problem: "the receiver has no position fix yet" }),
+    });
+    expect(block(wrapper).find(".statepill").text()).toBe("no fix");
+    expect(block(wrapper).find(".statepill").classes()).toContain("gps-no_fix");
+    expect(block(wrapper).find(".tncstatus").text()).toBe("No fix yet");
+    expect(block(wrapper).find(".mobileline").text()).toBe("No beacon: no GPS fix");
+    expect(block(wrapper).find(".problem").text()).toBe("the receiver has no position fix yet");
     const button = buttons(wrapper)[0];
     expect(button?.text()).toBe("Beacon now");
     await button?.trigger("click");
@@ -325,10 +357,69 @@ describe("the Mobile group of the Beacon tab", () => {
     expect(send).toHaveBeenCalledWith({ cmd: "beacon_now" });
   });
 
-  it("calls the place of the Station group the home position while Mobile is on", () => {
+  it("says what it is connecting to, from the settings, and follows the GPS", async () => {
+    const { wrapper, daemon } = pane(moving, { gps: gpsState({ state: "connecting", lat: null, lon: null, fix_at: null, problem: "Connection refused" }) });
+    expect(block(wrapper).find(".tncstatus").text()).toBe("Connecting to gpsd at 127.0.0.1:2947");
+    expect(block(wrapper).find(".problem").text()).toBe("Connection refused");
+    daemon.gps.value = gpsState();
+    await wrapper.vm.$nextTick();
+    expect(block(wrapper).find(".statepill").text()).toBe("fix");
+    expect(block(wrapper).find(".problem").exists()).toBe(false);
+  });
+
+  it("is a moving station's from what the daemon says, and from the setting before it has said", async () => {
+    const { wrapper, daemon } = pane(moving, { gps: null });
+    expect(block(wrapper).find(".beaconlabel").text()).toBe("GPS");
+    expect(block(wrapper).find(".statepill").exists()).toBe(false);
+    expect(block(wrapper).find(".tncstatus").text()).toBe("No word from the daemon yet.");
+    daemon.gps.value = gpsOff();
+    await wrapper.vm.$nextTick();
+    expect(block(wrapper).find(".beaconlabel").text()).toBe("Beacon");
+    expect(
+      block(pane({}, { gps: gpsState() }).wrapper)
+        .find(".beaconlabel")
+        .text(),
+    ).toBe("GPS");
+  });
+
+  it("calls the place of the Station group the home position while a GPS is chosen", () => {
     expect(group(pane().wrapper, "Station")?.find(".location-field .field-label").text()).toBe("Location");
-    const { wrapper } = pane({ "beacon/mobile": "true" }, { gps: gpsState({ mobile: true }) });
+    const { wrapper } = pane(moving, { gps: gpsState() });
     expect(group(wrapper, "Station")?.find(".location-field .field-label").text()).toBe("Home position");
     expect(group(wrapper, "Station")?.find("#set-station-lat").exists()).toBe(true);
+  });
+
+  it("shows what a moving station has, and not what a fixed one has: Moving as for the interval and the antenna", () => {
+    const stationLabels = (wrapper: Wrapper) =>
+      group(wrapper, "Station")
+        ?.findAll(".field > label")
+        .map((l) => l.text());
+    const beaconLabels = (wrapper: Wrapper) =>
+      group(wrapper, "Beacon")
+        ?.findAll(".field > label")
+        .map((l) => l.text());
+    const fixed = pane({ "beacon/power_w": "5" }).wrapper;
+    expect(stationLabels(fixed)).toEqual(["Transmit", "Call", "Position", "Latitude", "Longitude", "Symbol"]);
+    expect(beaconLabels(fixed)).toEqual(["Beacon", "Comment", "Power", "Antenna height", "Antenna gain", "Antenna direction", "Path"]);
+    expect(
+      group(fixed, "Beacon")
+        ?.findAll("details > summary")
+        .map((l) => l.text()),
+    ).toEqual(["Antenna", "Advanced"]);
+    const car = pane({ "gps/source": "serial", "beacon/power_w": "5" }, { gps: gpsState({ source: "serial" }) }).wrapper;
+    expect(stationLabels(car)).toEqual(["Transmit", "Call", "Position", "GPS port", "GPS speed", "Latitude", "Longitude", "Symbol"]);
+    expect(beaconLabels(car)).toEqual(["Moving as", "Comment", "Path"]);
+    expect(
+      group(car, "Beacon")
+        ?.findAll("details > summary")
+        .map((l) => l.text()),
+    ).toEqual(["Advanced"]);
+    expect(car.find("#set-beacon-interval_min").exists()).toBe(false);
+    expect(car.find("#set-beacon-power_w").exists()).toBe(false);
+  });
+
+  it("makes no PHG in the preview of a moving station", () => {
+    expect(pane({ "beacon/power_w": "5" }).wrapper.find(".beacon-preview code").text()).toContain("PHG");
+    expect(pane({ "beacon/power_w": "5", "gps/source": "gpsd" }).wrapper.find(".beacon-preview code").text()).not.toContain("PHG");
   });
 });

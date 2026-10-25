@@ -142,8 +142,6 @@ export const de: Catalogue = {
   "error.setting.profile_port":
     "{profile} verbindet über TCP (tcp/host und tcp/port), nicht mit dem seriellen Port {port}: serial/port leeren oder ein serielles TNC wählen",
   "error.setting.range": "{value} liegt nicht zwischen {min} und {max}",
-  "error.setting.smart_speeds": "smart/fast_kmh ({fast}) muss über smart/slow_kmh ({slow}) liegen",
-  "error.setting.smart_times": "smart/fast_sec ({fast}) muss unter smart/slow_sec ({slow}) liegen",
   "error.setting.status_needs_rigctld": "das Funkgerät braucht status/rigctld (Host:Port eines rigctld, 127.0.0.1:4532)",
   "error.setting.status_source": "„{value}“ ist weder off noch text noch rig (leer: wie status/rigctld und station/status es sagen)",
   "error.setting.template_field": "{{{field}}} ist kein Feld der Vorlage (die Felder sind {{freq}} und {{mode}})",
@@ -817,11 +815,9 @@ export const de: Catalogue = {
   "settings.group.digi": "Digipeater",
   "settings.group.beacon": "Bake",
   "settings.group.status": "Status",
-  "settings.group.mobile": "Mobil",
   "settings.group.other": "Weitere",
   "settings.fold.antenna": "Antenne",
   "settings.fold.advanced": "Erweitert",
-  "settings.fold.smart": "SmartBeaconing",
 
   "settings.name.position": "Position",
   "settings.name.tcp_address": "TCP-Adresse",
@@ -1118,13 +1114,15 @@ export const de: Catalogue = {
   "settings.map.download": "Karte herunterladen",
   "settings.map.cancel": "Abbrechen",
 
-  "settings.gps_source.label": "GPS-Quelle",
-  "settings.gps_source.off": "Aus",
-  "settings.gps_source.gpsd": "gpsd",
-  "settings.gps_source.serial": "Serieller Empfänger",
-  "settings.gps_source.tip1":
-    "Woher NeoAPRS die Position einer bewegten Station liest. gpsd ist der GPS-Dienst von Linux: wähle ihn, wenn gpsd auf diesem Computer oder einem anderen im Netz läuft. Serieller Empfänger liest einen GPS-Empfänger an einer seriellen Schnittstelle.",
-  "settings.gps_source.tip2": "Das GPS wird gelesen, sobald eine Quelle gewählt ist, sodass du den Fix siehst, bevor die Bake ihm folgt.",
+  "settings.position.name": "Positionsquelle",
+  "settings.position.label": "Position",
+  "settings.position.here": "Dieser Ort",
+  "settings.position.gpsd": "Ein GPS über gpsd",
+  "settings.position.serial": "Ein GPS an einem seriellen Port",
+  "settings.position.tip1":
+    "Woher die Position der Bake kommt. Dieser Ort ist eine feste Station, gesendet im Abstand der Bake. Ein GPS ist eine bewegte Station: Die Bake folgt dem Fix, und SmartBeaconing entscheidet, wann sie geht.",
+  "settings.position.tip2":
+    "gpsd ist der GPS-Dienst von Linux: Nimm ihn, wenn gpsd auf diesem Computer oder einem anderen läuft. Ein Empfänger an einem seriellen Port wird direkt gelesen. Ohne frischen Fix wird nichts gesendet, nie der Heimatstandort.",
   "settings.gps_host.label": "gpsd-Adresse",
   "settings.gps_host.tip1":
     "Die Adresse von gpsd als Host:Port. gpsd hört auf Port 2947, lass sie also so, wenn gpsd auf diesem Computer läuft. Beispiel: 192.168.1.20:2947",
@@ -1135,38 +1133,12 @@ export const de: Catalogue = {
   "settings.gps_baud.label": "GPS-Geschwindigkeit",
   "settings.gps_baud.tip1":
     "Die Geschwindigkeit der seriellen Leitung des Empfängers. 4800 ist die eigene Geschwindigkeit von NMEA, und viele USB-Empfänger sprechen 9600. Eine falsche Geschwindigkeit zeigt sich als fehlender Fix.",
-  "settings.mobile.name": "Mobile Bake",
-  "settings.mobile.label": "Mobil",
-  "settings.mobile.tip_label": "Zu Mobil",
-  "settings.mobile.tip1":
-    "Schalte es in einem Auto, auf einem Fahrrad oder auf einem Boot ein. Die Bake folgt dann dem GPS: Position, Kurs, Geschwindigkeit und Höhe kommen vom Fix, und sie wird gesendet, wenn SmartBeaconing es sagt: oft bei schneller Fahrt oder in Kurven, selten im Stand.",
-  "settings.mobile.tip2": "Ohne frischen Fix wird nichts gesendet, und nie deine Heimatposition. Die Position der Gruppe Station ist nur die Heimatposition.",
-  "settings.mobile.tip3": "Wähle das Symbol einer bewegten Station, etwa eines Autos: Es macht auch WIDE1-1,WIDE2-1 zum empfohlenen Pfad.",
-  "settings.smart_fast_speed.label": "Geschwindigkeit schnell",
-  "settings.smart_fast_speed.tip1": "Ab dieser Geschwindigkeit ({min} bis {max} km/h) geht alle „Zeit schnell“ eine Bake raus.",
-  "settings.smart_fast_speed.tip2":
-    "Darunter wächst die Zeit zwischen den Baken, wenn die Geschwindigkeit sinkt. Sie muss über „Geschwindigkeit langsam“ liegen.",
-  "settings.smart_fast_time.label": "Zeit schnell",
-  "settings.smart_fast_time.tip1": "Die kürzeste Zeit zwischen zwei Baken nach Zeit, in Sekunden ({min} bis {max}). Sie muss kürzer sein als „Zeit langsam“.",
-  "settings.smart_fast_time.tip2": "Halte sie auf einem vollen Kanal lang: eine Bake pro Minute von jedem Auto macht ihn voller.",
-  "settings.smart_slow_speed.label": "Geschwindigkeit langsam",
-  "settings.smart_slow_speed.tip1":
-    "Bei dieser Geschwindigkeit oder darunter ({min} bis {max} km/h) gilt die Station als stehend: eine Bake alle „Zeit langsam“ und keine Kurven.",
-  "settings.smart_slow_speed.tip2": "Sie muss unter „Geschwindigkeit schnell“ liegen.",
-  "settings.smart_slow_time.label": "Zeit langsam",
-  "settings.smart_slow_time.tip1": "Die längste Zeit zwischen zwei Baken, in Sekunden ({min} bis {max}), für eine stehende Station.",
-  "settings.smart_slow_time.tip2": "Sie muss länger sein als „Zeit schnell“.",
-  "settings.smart_turn_angle.label": "Kurvenwinkel",
-  "settings.smart_turn_angle.tip1":
-    "Eine Kursänderung um mehr als so viele Grad ({min} bis {max}), plus die Kurvensteigung geteilt durch die Geschwindigkeit, ist eine Kurve und wird sofort gesendet.",
-  "settings.smart_turn_angle.tip2": "Je schneller du fährst, desto kleiner ist eine Kurve, die zählt.",
-  "settings.smart_turn_time.label": "Kurvenzeit",
-  "settings.smart_turn_time.tip1": "Eine Kurve wird frühestens so viele Sekunden ({min} bis {max}) nach der letzten Bake gesendet.",
-  "settings.smart_turn_time.tip2": "So füllt eine kurvige Straße den Kanal nicht.",
-  "settings.smart_turn_slope.label": "Kurvensteigung",
-  "settings.smart_turn_slope.tip1":
-    "Grad mal Meilen pro Stunde ({min} bis {max}), die zum Kurvenwinkel addiert werden, geteilt durch die Geschwindigkeit. 0 lässt jede Kurve gleich zählen.",
-  "settings.smart_turn_slope.tip2": "Der Standardwert passt für die meisten Autos. Ändere ihn nur, wenn Kurven zu oft oder zu spät gesendet werden.",
+  "settings.moving_as.label": "Unterwegs als",
+  "settings.moving_as.car": "Auto",
+  "settings.moving_as.bicycle": "Fahrrad",
+  "settings.moving_as.foot": "Zu Fuß",
+  "settings.moving_as.boat": "Boot",
+  "settings.moving_as.tip1": "Legt fest, wie oft die Bake geht und bei welchen Kurven: Ein Auto sendet bei Tempo öfter als ein Fußgänger.",
 
   "settings.update.group": "Update-Prüfung",
   "settings.update.label": "Neue Version",
@@ -1179,8 +1151,13 @@ export const de: Catalogue = {
   "settings.update.no_answer": "keine Antwort",
 
   // beacon
-  "beacon.last_beacon": "Letzte Bake",
-  "beacon.not_yet": "noch nicht",
+  "beacon.label": "Bake",
+  "beacon.state.on": "an",
+  "beacon.state.off": "aus",
+  "beacon.line.timed": "Letzte Bake {ago} · nächste {when} (alle {minutes} min)",
+  "beacon.line.timed_none": "Noch keine Bake gesendet · nächste {when} (alle {minutes} min)",
+  "beacon.line.untimed": "Letzte Bake {ago} · keine zeitgesteuerte Bake",
+  "beacon.line.untimed_none": "Noch keine Bake gesendet · keine zeitgesteuerte Bake",
   "beacon.beacon_now": "Bake jetzt",
   "beacon.status": "Status",
   "beacon.send_status_now": "Status jetzt senden",

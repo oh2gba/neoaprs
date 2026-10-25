@@ -1,11 +1,11 @@
 """The GPS service: the latest fix of the feed (neoaprs/gpsfeed.py), how fresh it is, and what follows from our moving.
 
-The feed runs while `gps/source` is `gpsd` or `serial`, whether or not `beacon/mobile` is on, so that the page can show the fix before the beacon follows it. A save of `gps/*` stops it and starts it again with the
+The feed runs while `gps/source` is `gpsd` or `serial`, which is also what makes the beacon follow the GPS (`Config.mobile`). A save of `gps/*` stops it and starts it again with the
 new numbers, in a task (a gpsd that does not answer takes its five seconds, and the save does not wait).
 
 `state` is `off`, `connecting` (the line to the receiver is not up and no fix has come), `no_fix` (it is up, none has come), `fix`, or `stale` (the latest fix is older than `stale_sec`, `GPS_STALE_SEC`). `current()` is the
 fix to beacon with: the latest while it is fresh, else None; a fix older than that is never used, and the home position of the settings is never put in its place. `mobile_fix()` is the latest fix, fresh or not, while
-`beacon/mobile` is on: the place our own row on the map is kept at, so that a lost GPS leaves us where we were last seen, not at home.
+`gps/source` is not `off`: the place our own row on the map is kept at, so that a lost GPS leaves us where we were last seen, not at home.
 
 `moved` is emitted when the fix has taken us far enough from where our row was put (GPS_PLACE_MOVED_M, and not more often than GPS_PLACE_EVERY_SEC) for the station book to follow and the ALOHA circle to be worked out again;
 the composition root connects it. `changed` is emitted when the fix, the state or the problem changes."""
@@ -68,7 +68,7 @@ class Gps:
         await self._feed.stop()
 
     def settings_changed(self) -> None:
-        """The settings were saved: a changed source, address, port or speed starts the feed afresh; turning `beacon/mobile` on or off starts the count of how far we moved from where our row was put afresh."""
+        """The settings were saved: a changed source, address, port or speed starts the feed afresh; turning the GPS on or off starts the count of how far we moved from where our row was put afresh."""
         if self._applied is not None and self._wanted() != self._applied:
             self.apply()
         fix = self.mobile_fix()
@@ -121,7 +121,7 @@ class Gps:
 
     def _follow(self, fix: Fix) -> None:
         """Emits `moved` when our row should follow this fix: the first one, or one far enough and late enough after the last."""
-        if not self._config().beacon_mobile:
+        if not self._config().mobile:
             return
         placed = self._placed
         if placed is not None and ((fix.at - placed[0]).total_seconds() < self.place_every_sec or distance_km(placed[1], placed[2], fix.lat, fix.lon) * 1000.0 < self.place_moved_m):
@@ -146,7 +146,7 @@ class Gps:
 
     def mobile_fix(self) -> Fix | None:
         """The latest fix while the beacon is mobile, else None: where our row on the map is while the station moves."""
-        return self._fix if self._config().beacon_mobile else None
+        return self._fix if self._config().mobile else None
 
     @property
     def state(self) -> GpsStateName:

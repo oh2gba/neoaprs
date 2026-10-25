@@ -139,8 +139,6 @@ export const fr: Catalogue = {
   "error.setting.off_or_range": "{value} n'est ni 0 (désactivé) ni compris entre {min} et {max}",
   "error.setting.profile_port": "{profile} se connecte par TCP (tcp/host et tcp/port), pas au port série {port} : videz serial/port ou choisissez un TNC série",
   "error.setting.range": "{value} n'est pas compris entre {min} et {max}",
-  "error.setting.smart_speeds": "smart/fast_kmh ({fast}) doit être supérieur à smart/slow_kmh ({slow})",
-  "error.setting.smart_times": "smart/fast_sec ({fast}) doit être inférieur à smart/slow_sec ({slow})",
   "error.setting.status_needs_rigctld": "la radio exige status/rigctld (hôte:port d'un rigctld, 127.0.0.1:4532)",
   "error.setting.status_source": "« {value} » n'est ni off, ni text, ni rig (vide : comme le disent status/rigctld et station/status)",
   "error.setting.template_field": "{{{field}}} n'est pas un champ du modèle (les champs sont {{freq}} et {{mode}})",
@@ -805,11 +803,9 @@ export const fr: Catalogue = {
   "settings.group.digi": "Digipeater",
   "settings.group.beacon": "Balise",
   "settings.group.status": "Statut",
-  "settings.group.mobile": "Mobile",
   "settings.group.other": "Autres",
   "settings.fold.antenna": "Antenne",
   "settings.fold.advanced": "Avancé",
-  "settings.fold.smart": "SmartBeaconing",
 
   "settings.name.position": "Position",
   "settings.name.tcp_address": "Adresse TCP",
@@ -1106,13 +1102,15 @@ export const fr: Catalogue = {
   "settings.map.download": "Télécharger la carte",
   "settings.map.cancel": "Annuler",
 
-  "settings.gps_source.label": "Source GPS",
-  "settings.gps_source.off": "Désactivé",
-  "settings.gps_source.gpsd": "gpsd",
-  "settings.gps_source.serial": "Récepteur série",
-  "settings.gps_source.tip1":
-    "D'où NeoAPRS lit la position d'une station en mouvement. gpsd est le service GPS de Linux : choisissez-le quand gpsd tourne sur cet ordinateur ou sur un autre du réseau. Récepteur série lit un récepteur GPS sur un port série.",
-  "settings.gps_source.tip2": "Le GPS est lu dès qu'une source est choisie : vous pouvez donc voir la position avant que la balise la suive.",
+  "settings.position.name": "Source de la position",
+  "settings.position.label": "Position",
+  "settings.position.here": "Cet endroit",
+  "settings.position.gpsd": "Un GPS via gpsd",
+  "settings.position.serial": "Un GPS sur un port série",
+  "settings.position.tip1":
+    "D'où vient la position de la balise. Cet endroit est une station fixe, envoyée à l'intervalle de la balise. Un GPS est une station en mouvement : la balise suit la position GPS et SmartBeaconing décide quand elle part.",
+  "settings.position.tip2":
+    "gpsd est le service GPS de Linux : utilisez-le quand gpsd tourne sur cet ordinateur ou sur un autre. Un récepteur sur un port série est lu directement. Sans position GPS récente, rien n'est envoyé, jamais la position de base.",
   "settings.gps_host.label": "Adresse de gpsd",
   "settings.gps_host.tip1":
     "L'adresse de gpsd sous la forme hôte:port. gpsd écoute sur le port 2947 ; laissez-la telle quelle quand gpsd tourne sur cet ordinateur. Exemple : 192.168.1.20:2947",
@@ -1123,39 +1121,12 @@ export const fr: Catalogue = {
   "settings.gps_baud.label": "Vitesse du GPS",
   "settings.gps_baud.tip1":
     "La vitesse de la liaison série du récepteur. 4800 est la vitesse propre de NMEA, et beaucoup de récepteurs USB parlent à 9600. Une mauvaise vitesse se traduit par l'absence de position.",
-  "settings.mobile.name": "Balise mobile",
-  "settings.mobile.label": "Mobile",
-  "settings.mobile.tip_label": "À propos de Mobile",
-  "settings.mobile.tip1":
-    "Activez-le dans une voiture, sur un vélo ou sur un bateau. La balise suit alors le GPS : position, cap, vitesse et altitude viennent de la position GPS, et elle est envoyée quand SmartBeaconing le décide : souvent quand vous roulez vite ou tournez, rarement à l'arrêt.",
-  "settings.mobile.tip2":
-    "Sans position récente, rien n'est envoyé, et jamais votre position de base. La position du groupe Station n'est que la position de base.",
-  "settings.mobile.tip3": "Choisissez le symbole d'une station en mouvement, comme une voiture : il fait aussi de WIDE1-1,WIDE2-1 le chemin recommandé.",
-  "settings.smart_fast_speed.label": "Vitesse rapide",
-  "settings.smart_fast_speed.tip1": "À partir de cette vitesse ({min} à {max} km/h), une balise part à chaque Durée rapide.",
-  "settings.smart_fast_speed.tip2": "En dessous, le temps entre deux balises s'allonge quand la vitesse baisse. Elle doit être supérieure à la Vitesse lente.",
-  "settings.smart_fast_time.label": "Durée rapide",
-  "settings.smart_fast_time.tip1": "Le plus court temps entre deux balises sur la durée, en secondes ({min} à {max}). Il doit être inférieur à la Durée lente.",
-  "settings.smart_fast_time.tip2": "Gardez-le long sur un canal chargé : une balise par minute de chaque voiture le charge davantage.",
-  "settings.smart_slow_speed.label": "Vitesse lente",
-  "settings.smart_slow_speed.tip1":
-    "À cette vitesse ou en dessous ({min} à {max} km/h), la station compte comme arrêtée : une balise à chaque Durée lente, et aucun virage.",
-  "settings.smart_slow_speed.tip2": "Elle doit être inférieure à la Vitesse rapide.",
-  "settings.smart_slow_time.label": "Durée lente",
-  "settings.smart_slow_time.tip1": "Le plus long temps entre deux balises, en secondes ({min} à {max}), pour une station arrêtée.",
-  "settings.smart_slow_time.tip2": "Il doit être supérieur à la Durée rapide.",
-  "settings.smart_turn_angle.label": "Angle de virage",
-  "settings.smart_turn_angle.tip1":
-    "Un changement de cap de plus de ce nombre de degrés ({min} à {max}), plus la Pente de virage divisée par la vitesse, est un virage et est envoyé tout de suite.",
-  "settings.smart_turn_angle.tip2": "Plus vous roulez vite, plus le virage qui compte est petit.",
-  "settings.smart_turn_time.label": "Durée de virage",
-  "settings.smart_turn_time.tip1": "Un virage est envoyé au plus tôt ce nombre de secondes ({min} à {max}) après la dernière balise.",
-  "settings.smart_turn_time.tip2": "Cela évite qu'une route sinueuse ne sature le canal.",
-  "settings.smart_turn_slope.label": "Pente de virage",
-  "settings.smart_turn_slope.tip1":
-    "Degrés fois miles par heure ({min} à {max}) ajoutés à l'Angle de virage, divisés par la vitesse. 0 fait compter tous les virages de la même façon.",
-  "settings.smart_turn_slope.tip2":
-    "La valeur par défaut convient à la plupart des voitures. Ne la changez que si les virages sont envoyés trop souvent ou trop tard.",
+  "settings.moving_as.label": "Déplacement",
+  "settings.moving_as.car": "Voiture",
+  "settings.moving_as.bicycle": "Vélo",
+  "settings.moving_as.foot": "À pied",
+  "settings.moving_as.boat": "Bateau",
+  "settings.moving_as.tip1": "Règle la fréquence des balises et les virages signalés : une voiture balise plus souvent à vitesse qu'un piéton.",
 
   "settings.update.group": "Recherche de mise à jour",
   "settings.update.label": "Nouvelle version",
@@ -1168,8 +1139,13 @@ export const fr: Catalogue = {
   "settings.update.no_answer": "pas de réponse",
 
   // beacon
-  "beacon.last_beacon": "Dernière balise",
-  "beacon.not_yet": "pas encore",
+  "beacon.label": "Balise",
+  "beacon.state.on": "active",
+  "beacon.state.off": "inactive",
+  "beacon.line.timed": "Dernière balise {ago} · prochaine {when} (toutes les {minutes} min)",
+  "beacon.line.timed_none": "Aucune balise envoyée · prochaine {when} (toutes les {minutes} min)",
+  "beacon.line.untimed": "Dernière balise {ago} · pas de balise périodique",
+  "beacon.line.untimed_none": "Aucune balise envoyée · pas de balise périodique",
   "beacon.beacon_now": "Balise maintenant",
   "beacon.status": "Statut",
   "beacon.send_status_now": "Envoyer le statut maintenant",

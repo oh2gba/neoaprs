@@ -151,6 +151,6 @@ def gps_state(config: Config, gps: GpsSource, plan: MobilePlanSource, next_due: 
     return GpsState.row(
         None, source=config.gps_source, state=gps.state, problem=gps.problem, lat=None if fix is None else fix.lat, lon=None if fix is None else fix.lon,
         altitude_m=None if fix is None else fix.altitude_m, speed_kmh=None if fix is None else fix.speed_kmh, course_deg=None if fix is None else fix.course_deg,
-        satellites=None if fix is None else fix.satellites, fix_at=None if fix is None else iso(fix.at), mobile=config.beacon_mobile,
-        next_beacon_at=iso(next_due) if config.beacon_mobile and gps.current() is not None else None,
+        satellites=None if fix is None else fix.satellites, fix_at=None if fix is None else iso(fix.at), mobile=config.mobile,
+        next_beacon_at=iso(next_due) if config.mobile and gps.current() is not None else None,
         last_beacon_reason=plan.last_reason or "" if last is not None else "", last_beacon_at=None if last is None else iso(last.at))

@@ -22,7 +22,7 @@ KNOWN_INFO = b"=//w5#TW?M>eM[/A=000103NeoAPRS"
 
 class Rig(ServiceRig):
     def __init__(self, fix: bool = True, **changes: object) -> None:
-        super().__init__(**{"beacon_mobile": True, "station_symbol_code": ">", **changes})
+        super().__init__(**{"gps_source": "gpsd", "station_symbol_code": ">", **changes})
         self.gps = FakeFixes()
         self.beacon = Beacon(self.tnc, lambda: self.config, self.clock, first_delay_sec=30.0, tick_sec=0.01, retry_sec=5.0, gps=self.gps)
         if fix:
@@ -82,8 +82,16 @@ def test_the_comment_that_is_not_ascii_or_has_a_switch_character_makes_no_beacon
 
 
 def test_the_beacon_of_a_station_that_stays_is_the_plain_position_whether_or_not_a_gps_is_there() -> None:
-    rig = Rig(beacon_mobile=False)
+    rig = Rig(gps_source="off")
     assert rig.beacon.frame().info == b"=6010.20N/02456.40E>NeoAPRS"
+
+
+@pytest.mark.parametrize("source", ["gpsd", "serial"])
+def test_the_gps_source_alone_makes_the_beacon_a_moving_stations(source: str) -> None:
+    rig = Rig(gps_source=source)
+    assert rig.config.mobile and rig.beacon.frame().info == KNOWN_INFO
+    rig.set(gps_source="off")
+    assert not rig.config.mobile and rig.beacon.frame().info == b"=6010.20N/02456.40E>NeoAPRS"
 
 
 # ---- no fix, no beacon
@@ -141,9 +149,14 @@ def test_the_first_fix_is_beaconed_at_once_as_the_start_and_the_next_by_time_is_
     assert len(rig.tnc.sent) == 1, "once"
 
 
-@pytest.mark.parametrize(("speed", "seconds"), [(0.0, 1800), (50.0, 120), (130.0, 60)])
-def test_the_time_between_beacons_is_the_rate_of_the_speed(speed: float, seconds: int) -> None:
-    rig = Rig(fix=False)
+# (the preset, a speed, the seconds between two beacons by time at that speed: the slow time when still, the fast time at and above the fast speed, fast_sec * fast_kmh / speed between)
+RATES = [("car", 0.0, 1800), ("car", 50.0, 120), ("car", 130.0, 60), ("bicycle", 2.0, 1800), ("bicycle", 15.0, 120), ("bicycle", 40.0, 60),
+         ("foot", 1.0, 1800), ("foot", 3.5, 240), ("foot", 10.0, 120), ("boat", 2.0, 1800), ("boat", 20.0, 120), ("boat", 50.0, 60)]
+
+
+@pytest.mark.parametrize(("moving_as", "speed", "seconds"), RATES)
+def test_the_time_between_beacons_is_the_rate_of_the_speed_for_the_preset(moving_as: str, speed: float, seconds: int) -> None:
+    rig = Rig(fix=False, beacon_moving_as=moving_as)
     rig.move(speed=speed, course=90)
     rig.tick()
     assert len(rig.tnc.sent) == 1 and rig.beacon.next_due == rig.clock() + timedelta(seconds=seconds)
@@ -156,6 +169,29 @@ def test_the_time_between_beacons_is_the_rate_of_the_speed(speed: float, seconds
     rig.tick()
     assert len(rig.tnc.sent) == 2 and rig.beacon.last_reason == "time"
     assert rig.beacon.next_due == rig.clock() + timedelta(seconds=seconds)
+
+
+# (the preset, a speed in km/h that is 30, 15, 20 or 5 miles per hour, the least turn in degrees there that is not beaconed, the least that is, the seconds a turn waits after the last beacon)
+TURNS = [("car", 48.28, 35, 42, 15), ("bicycle", 24.14, 50, 55, 20), ("foot", 8.05, 60, 70, 60), ("boat", 32.19, 30, 36, 30)]
+
+
+@pytest.mark.parametrize(("moving_as", "speed", "small", "big", "wait"), TURNS)
+def test_a_turn_is_beaconed_from_the_threshold_of_the_preset_and_not_sooner_than_its_turn_time(moving_as: str, speed: float, small: int, big: int, wait: int) -> None:
+    rig = Rig(fix=False, beacon_moving_as=moving_as)
+    rig.move(speed=speed, course=0)
+    rig.tick()
+    rig.clock.advance(wait)
+    rig.move(speed=speed, course=small)
+    rig.tick()
+    assert len(rig.tnc.sent) == 1, "a turn below the threshold of the speed is no turn"
+    rig.clock.advance(-1)
+    rig.move(speed=speed, course=big)
+    rig.tick()
+    assert len(rig.tnc.sent) == 1, "a turn one second before the turn time is too soon"
+    rig.clock.advance(1)
+    rig.move(speed=speed, course=big)
+    rig.tick()
+    assert len(rig.tnc.sent) == 2 and rig.beacon.last_reason == "turn"
 
 
 def test_a_corner_is_beaconed_at_once_but_not_sooner_than_the_turn_time() -> None:
@@ -191,14 +227,14 @@ def test_a_station_that_stands_still_sends_no_turns_and_one_beacon_in_half_an_ho
     assert len(rig.tnc.sent) == 2 and rig.beacon.last_reason == "time"
 
 
-def test_the_smartbeaconing_numbers_are_the_settings() -> None:
-    rig = Rig(fix=False, smart_fast_kmh=50, smart_fast_sec=20, smart_slow_kmh=4, smart_slow_sec=120)
-    rig.move(speed=70.0, course=90)
+def test_a_change_of_what_the_station_moves_as_is_in_force_at_the_next_tick() -> None:
+    rig = Rig(fix=False)
+    rig.move(speed=7.0, course=90)
     rig.tick()
-    assert rig.beacon.next_due == rig.clock() + timedelta(seconds=20)
-    rig.set(smart_fast_sec=40)
+    assert rig.beacon.next_due == rig.clock() + timedelta(seconds=1800), "7 km/h is slow for a car"
+    rig.set(beacon_moving_as="foot")
     rig.tick()
-    assert rig.beacon.next_due == rig.clock() + timedelta(seconds=40)
+    assert rig.beacon.next_due == rig.clock() + timedelta(seconds=120), "and fast for a walker"
 
 
 def test_the_interval_of_the_fixed_beacon_is_not_used_by_a_moving_station() -> None:
@@ -284,16 +320,16 @@ def test_receive_only_sends_nothing_and_says_so() -> None:
 # ---- a change of the settings
 
 async def test_the_timer_of_a_fixed_beacon_is_planned_again_when_the_station_turns_mobile_and_back() -> None:
-    rig = Rig(beacon_mobile=False, beacon_interval_min=10)
+    rig = Rig(gps_source="off", beacon_interval_min=10)
     await rig.beacon.start()
     try:
         assert rig.beacon.next_due == rig.clock() + timedelta(seconds=30)
-        rig.set(beacon_mobile=True)
+        rig.set(gps_source="gpsd")
         rig.beacon.settings_changed()
         assert rig.beacon.next_due is None, "SmartBeaconing says when, at the next tick"
         await until(lambda: len(rig.tnc.sent) == 1)
         assert rig.beacon.last_reason == "start" and rig.beacon.next_due is not None
-        rig.set(beacon_mobile=False)
+        rig.set(gps_source="off")
         rig.beacon.settings_changed()
         assert rig.beacon.next_due == rig.beacon.last_sent + timedelta(minutes=10)         # type: ignore[operator]
     finally:

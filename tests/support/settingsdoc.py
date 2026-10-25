@@ -17,6 +17,7 @@ from neoaprs.services.beacon import FIRST_DELAY_SEC
 from neoaprs.services.ownobjects import MAX_OBJECTS
 from neoaprs.services.pace import SPACING_SEC
 from neoaprs.services.updatecheck import EVERY_SEC as UPDATE_EVERY_SEC
+from neoaprs.smartbeacon import PRESETS
 from neoaprs.tncprofile import PROFILES
 
 BLOCK = re.compile(r"(<!-- doc-settings:(\w+)[^>\n]*-->\n)(.*?)(<!-- /doc-settings -->)", re.S)
@@ -31,6 +32,8 @@ def _numbers() -> dict[str, object]:
     fields.update(
         comment=cfg.MAX_COMMENT, comment_phg=cfg.MAX_COMMENT_PHG, status=MAX_STATUS, beacon_min=cfg.MIN_BEACON_INTERVAL_MIN, status_min=cfg.MIN_STATUS_INTERVAL_MIN, alert_command=cfg.MAX_ALERT_COMMAND,
         map_station_hours_choices=", ".join(str(h) for h in cfg.STATION_HOURS),
+        moving_presets="; ".join(
+            f"`{name}` every {p.fast_sec:g} seconds from {p.fast_kmh:g} km/h, a turn of more than {p.turn_min_deg:g} degrees (at least {p.turn_min_sec:g} seconds after the last beacon)" for name, p in PRESETS.items()),
         profiles=", ".join(f"`{p.key}`" for p in PROFILES), directions=" ".join(f"`{d}`" for d in cfg.ANTENNA_DIRECTIONS if d != "omni"), tocall=TOCALL,
     )
     return fields
@@ -77,18 +80,11 @@ DESCRIPTIONS: dict[str, tuple[str, str]] = {
     "map/source": (DB_ONLY, "where the map is cut from: empty is the latest daily build of build.protomaps.com; or a web address (`https://...`) or the path of a PMTiles file, such as a planet file of your own"),
     "update/url": (DB_ONLY, "the address of the version page that the daily update check asks (`http` or `https`; [install.md](install.md#the-update-check))"),
     "digi/enabled": ("Settings tab, Digipeater", "`true` switches the fill-in digipeater on ([beacon.md](beacon.md#the-fill-in-digipeater))"),
-    "beacon/mobile": ("Beacon tab, Mobile", "`true` makes the beacon a moving station's: it follows the GPS (position, course, speed and altitude) and goes when SmartBeaconing says, not every `beacon/interval_min`, and the {beacon_min}-minute floor of the fixed beacon does not apply. With no fresh GPS fix nothing is sent at all, and never your home position ([beacon.md](beacon.md#mobile-operation))"),
-    "gps/source": ("Beacon tab, Mobile (GPS)", "where the position of a moving station comes from: `off`, `gpsd` (a gpsd daemon, at `gps/host`) or `serial` (the NMEA sentences of a receiver on `gps/device`). Without `gps/host` (for `gpsd`) or `gps/device` (for `serial`) the GPS waits and says so, and nothing is opened"),
+    "gps/source": ("Beacon tab, Mobile (GPS)", "where your position comes from, and so whether you are a fixed or a moving station. `off` is a fixed station at your home position: the beacon goes every `beacon/interval_min` and can carry the PHG extension. `gpsd` (a gpsd daemon, at `gps/host`) or `serial` (the NMEA sentences of a receiver on `gps/device`) makes the beacon a moving station's: it follows the GPS (position, course, speed and altitude) and goes when SmartBeaconing says, not every `beacon/interval_min`, with no PHG, and the {beacon_min}-minute floor of the fixed beacon does not apply. With no fresh GPS fix nothing is sent at all, and never your home position ([beacon.md](beacon.md#mobile-operation)). Without `gps/host` (for `gpsd`) or `gps/device` (for `serial`) the GPS waits and says so, and nothing is opened"),
     "gps/host": ("Beacon tab, Mobile (GPS)", "`host:port` of the gpsd that `gpsd` reads (gpsd's own port is 2947)"),
     "gps/device": ("Beacon tab, Mobile (GPS)", "the serial port of the GPS receiver for `serial`, such as `/dev/ttyUSB1` or `COM4`, or `socket://host:port` for a receiver behind a TCP serial server. Keep it apart from the radio's `serial/port`"),
     "gps/baud": ("Beacon tab, Mobile (GPS)", "the receiver's speed on `gps/device` ({gps_baud}); NMEA 0183 is 4800, and many USB receivers speak 9600"),
-    "smart/fast_kmh": ("Beacon tab, Mobile (SmartBeaconing)", "at this speed or faster ({smart_fast_kmh} km/h) a beacon goes every `smart/fast_sec`; below it the time grows as the speed falls. Must be above `smart/slow_kmh`"),
-    "smart/fast_sec": ("Beacon tab, Mobile (SmartBeaconing)", "the shortest time between two beacons by time ({smart_fast_sec} seconds). Must be below `smart/slow_sec`"),
-    "smart/slow_kmh": ("Beacon tab, Mobile (SmartBeaconing)", "at this speed or slower ({smart_slow_kmh} km/h) a station counts as standing still: a beacon every `smart/slow_sec`, and no turn is beaconed"),
-    "smart/slow_sec": ("Beacon tab, Mobile (SmartBeaconing)", "the longest time between two beacons ({smart_slow_sec} seconds), for a station that stands still"),
-    "smart/turn_min_deg": ("Beacon tab, Mobile (SmartBeaconing)", "a change of course of more than this many degrees ({smart_turn_min_deg}), plus `smart/turn_slope` divided by the speed in miles per hour, is a turn and is beaconed at once"),
-    "smart/turn_min_sec": ("Beacon tab, Mobile (SmartBeaconing)", "but a turn is beaconed no sooner than this after the last beacon ({smart_turn_min_sec} seconds)"),
-    "smart/turn_slope": ("Beacon tab, Mobile (SmartBeaconing)", "degrees times miles per hour ({smart_turn_slope}): the faster the station goes, the smaller a change of course counts as a turn. 0 makes every turn count the same, `smart/turn_min_deg`"),
+    "beacon/moving_as": ("Beacon tab, Mobile (Moving as)", "what you move as while the beacon follows the GPS: `car`, `bicycle`, `foot` or `boat`. It decides when SmartBeaconing beacons: {moving_presets}. Below the slow speed a station counts as standing still, so there is a beacon only every 30 minutes and no turn is beaconed. The car's numbers are Dire Wolf's; the others are NeoAPRS's own choice"),
 }
 
 SHOWN = {"messages/alert_command": "a notification and a sound"}       # a default that is too long for a table
@@ -132,7 +128,7 @@ def fixed() -> str:
         f"A message to a station is sent {STATION_ATTEMPTS} times, and one to the email gateway {EMAIL_ATTEMPTS} times, before it has failed or is unconfirmed.",
         f"Your own frames go out at least {int(SPACING_SEC)} seconds apart, except acks, answers to queries and digipeated packets.",
         f"The first beacon goes out {int(FIRST_DELAY_SEC)} seconds after the daemon starts.",
-        f"Every frame you send has the tocall `{TOCALL}`. The beacon of a station that stays is the plain uncompressed position; a moving station's (`beacon/mobile`) is a compressed one, with the altitude in its comment.",
+        f"Every frame you send has the tocall `{TOCALL}`. The beacon of a station that stays is the plain uncompressed position; a moving station's (`gps/source` is not `off`) is a compressed one, with the altitude in its comment.",
         f"A GPS fix older than {GPS_STALE_SEC} seconds is not used: a moving station sends no beacon on it, and never the home position instead.",
         f"At most {MAX_OBJECTS} objects and items, and {MAX_POSTED} bulletins, of your own at once. A bulletin is sent for {BULLETIN.lasts // 3600} hours and an announcement for {ANNOUNCEMENT.lasts // 3600} hours.",
         f"The update check asks the version page every {updates} hours.",

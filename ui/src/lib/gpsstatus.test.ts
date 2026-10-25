@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { setLocale } from "@/i18n";
-import { gpsProblem, gpsStateText, gpsStatus, hasFix, mobileBeaconText, reasonText } from "@/lib/gpsstatus";
+import { gpsProblem, gpsStateText, gpsStatus, hasFix, isMoving, mobileBeaconText, reasonText } from "@/lib/gpsstatus";
 import { NOW, ago, gpsOff, gpsState } from "@/test/fixtures";
 
 const later = (seconds: number): string => new Date(NOW + seconds * 1000).toISOString();
@@ -61,8 +61,18 @@ describe("gpsProblem", () => {
   });
 });
 
+describe("isMoving", () => {
+  it("is a station whose position is a GPS's: gpsd or a serial port, and not this place", () => {
+    expect(isMoving({ "gps/source": "gpsd" })).toBe(true);
+    expect(isMoving({ "gps/source": "serial" })).toBe(true);
+    expect(isMoving({ "gps/source": "off" })).toBe(false);
+    expect(isMoving({ "gps/source": "" })).toBe(false);
+    expect(isMoving({})).toBe(false);
+  });
+});
+
 describe("mobileBeaconText", () => {
-  it("is nothing while the beacon is not mobile, or before the daemon has told", () => {
+  it("is nothing for a fixed station, or before the daemon has told", () => {
     expect(mobileBeaconText(gpsState({ mobile: false, next_beacon_at: later(42) }), NOW)).toBeNull();
     expect(mobileBeaconText(null, NOW)).toBeNull();
   });

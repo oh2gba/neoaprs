@@ -16,7 +16,7 @@ from .configstatus import DEFAULT_STATUS_TEMPLATE, MAX_STATUS, hostport, status_
 from .configvalues import ANTENNA_DIRECTIONS as ANTENNA_DIRECTIONS, SYMBOL_TABLES as SYMBOL_TABLES, antenna_direction, device_globs, digipeater_path, host_name, map_source, symbol_code, symbol_table, tnc_profile
 from .configtypes import access_key, boolean, call_or_empty, int_among, int_in, int_or_off, optional_float, optional_int, over_the_air_refusal, text_of, web_address, word_among
 from .route import DIRECT_ONLY, recommended_path
-from .smartbeacon import SmartSettings
+from .smartbeacon import MOVING_AS, PRESETS, SmartSettings
 from .tncprofile import DEFAULT as DEFAULT_PROFILE, Profile, names_tcp, profile_of
 from .versions import UPDATE_URL
 
@@ -54,20 +54,12 @@ RANGES: dict[str, tuple[int, int]] = {          # the whole numbers of the setti
     "map/radius_km": MAP_RADIUS_KM,
     "map/maxzoom": MAP_MAXZOOM,
     "gps/baud": (300, 921600),
-    "smart/fast_kmh": (10, 300),
-    "smart/fast_sec": (10, 600),
-    "smart/slow_kmh": (1, 50),
-    "smart/slow_sec": (60, 3600),
-    "smart/turn_min_deg": (5, 90),
-    "smart/turn_min_sec": (5, 120),
-    "smart/turn_slope": (0, 1000),
 }
 DEFAULT_SERIAL_PATTERN = "/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*"     # the ports the search listens to: by-id first, so that the stable name of a device is the one kept
 STATUS_KEYS = frozenset({"status/source", "status/rigctld"})            # the settings that decide whether the radio can be the status's source
 COMMENT_KEYS = frozenset({"station/comment", "beacon/power_w"})   # the settings that decide how long the comment may be
 PORT_KEYS = frozenset({"tnc/profile", "serial/port"})                   # the settings that decide whether the profile and the port go together
 GPS_SOURCES = ("off", "gpsd", "serial")                                # where the position of a moving station comes from: nowhere, a gpsd on the network, or a GPS receiver on a serial port
-SMART_KEYS = frozenset({"smart/fast_kmh", "smart/slow_kmh", "smart/fast_sec", "smart/slow_sec"})     # the settings that the rules between the SmartBeaconing numbers are about
 
 
 # ---- the types a setting can have: text to value (raising ValueError with the reason), value to text (the ones that are more than a number or a word are in configvalues.py)
@@ -143,14 +135,7 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("gps_host", "gps/host", hostport),                                # host:port of the gpsd that gps/source gpsd reads; 2947 is gpsd's port
     Setting("gps_device", "gps/device", text_of(255)),                        # the serial port of the GPS receiver for gps/source serial, such as /dev/ttyUSB1; a socket://host:port address too
     Setting("gps_baud", "gps/baud", int_in(*RANGES["gps/baud"])),             # its speed: 4800 is NMEA 0183's
-    Setting("beacon_mobile", "beacon/mobile", boolean),                       # true: the beacon is a moving station's: position, course, speed and altitude from the GPS, sent when SmartBeaconing says; no fix, no beacon
-    Setting("smart_fast_kmh", "smart/fast_kmh", int_in(*RANGES["smart/fast_kmh"])),       # SmartBeaconing: at this speed or faster, a beacon every smart/fast_sec
-    Setting("smart_fast_sec", "smart/fast_sec", int_in(*RANGES["smart/fast_sec"])),       # the shortest time between two beacons by time
-    Setting("smart_slow_kmh", "smart/slow_kmh", int_in(*RANGES["smart/slow_kmh"])),       # at this speed or slower, a beacon every smart/slow_sec
-    Setting("smart_slow_sec", "smart/slow_sec", int_in(*RANGES["smart/slow_sec"])),       # the longest time between two beacons
-    Setting("smart_turn_min_deg", "smart/turn_min_deg", int_in(*RANGES["smart/turn_min_deg"])),      # a turn of more than this many degrees, plus smart/turn_slope over the speed in miles per hour, is beaconed at once
-    Setting("smart_turn_min_sec", "smart/turn_min_sec", int_in(*RANGES["smart/turn_min_sec"])),      # but not sooner than this after the last beacon
-    Setting("smart_turn_slope", "smart/turn_slope", int_in(*RANGES["smart/turn_slope"])),            # degrees times miles per hour: the faster the station, the smaller a turn counts
+    Setting("beacon_moving_as", "beacon/moving_as", word_among(MOVING_AS)),    # what a station that follows the GPS (gps/source is not off) moves as: car, bicycle, foot or boat, which decides how often SmartBeaconing beacons
 )
 BY_KEY = {s.key: s for s in SETTINGS}
 KEYS = tuple(s.key for s in SETTINGS)
@@ -205,29 +190,17 @@ class Config:
     gps_host: str = "127.0.0.1:2947"
     gps_device: str = ""
     gps_baud: int = 4800
-    beacon_mobile: bool = False
-    smart_fast_kmh: int = 100
-    smart_fast_sec: int = 60
-    smart_slow_kmh: int = 8
-    smart_slow_sec: int = 1800
-    smart_turn_min_deg: int = 30
-    smart_turn_min_sec: int = 15
-    smart_turn_slope: int = 255
+    beacon_moving_as: str = MOVING_AS[0]
+
+    @property
+    def mobile(self) -> bool:
+        """True when the beacon follows the GPS (gps/source is gpsd or serial); off is a fixed station at the home position."""
+        return self.gps_source != "off"
 
     @property
     def smart(self) -> SmartSettings:
-        """The SmartBeaconing numbers of the settings."""
-        return SmartSettings(self.smart_fast_kmh, self.smart_fast_sec, self.smart_slow_kmh, self.smart_slow_sec, self.smart_turn_min_deg, self.smart_turn_min_sec, self.smart_turn_slope)
-
-    def smart_refusal(self, key: str) -> SettingError | None:
-        """Why the SmartBeaconing numbers do not go together, or None when they do: the fast speed is above the slow one and the fast time below the slow one."""
-        if self.smart_fast_kmh <= self.smart_slow_kmh:
-            return SettingError(key, "setting.smart_speeds", {"fast": self.smart_fast_kmh, "slow": self.smart_slow_kmh},
-                                f"{key}: smart/fast_kmh ({self.smart_fast_kmh}) must be above smart/slow_kmh ({self.smart_slow_kmh})")
-        if self.smart_fast_sec >= self.smart_slow_sec:
-            return SettingError(key, "setting.smart_times", {"fast": self.smart_fast_sec, "slow": self.smart_slow_sec},
-                                f"{key}: smart/fast_sec ({self.smart_fast_sec}) must be below smart/slow_sec ({self.smart_slow_sec})")
-        return None
+        """The SmartBeaconing numbers of the preset that beacon/moving_as names."""
+        return PRESETS[self.beacon_moving_as]
 
     @property
     def station_position(self) -> tuple[float, float] | None:
@@ -315,8 +288,6 @@ class Config:
         if STATUS_KEYS & parsed.keys() and config.status_source == "rig" and not config.status_rigctld:
             raise SettingError("status/source", "setting.status_needs_rigctld", {}, "status/source: the radio needs status/rigctld (host:port of a rigctld, 127.0.0.1:4532)")
         if PORT_KEYS & parsed.keys() and (refusal := config.port_refusal("tnc/profile" if "tnc/profile" in parsed else "serial/port")):
-            raise refusal
-        if SMART_KEYS & parsed.keys() and (refusal := config.smart_refusal(next(k for k in parsed if k in SMART_KEYS))):
             raise refusal
         return config
 

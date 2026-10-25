@@ -13,7 +13,7 @@ from pathlib import Path
 
 # the start of a class name that code adds a value to (`hop-${chip.kind}`): the file that does it
 PREFIXES = {
-    "gps-": "components/GpsStatus.vue",
+    "gps-": "lib/beaconstatus.ts",
     "hop-": "components/ChainChips.vue",
     "link-": "components/PanelFooter.vue",
     "mark-": "components/MessageMark.vue",

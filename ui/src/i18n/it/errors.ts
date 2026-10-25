@@ -79,8 +79,6 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.setting.profile_port":
     "{profile} si connette via TCP (tcp/host e tcp/port), non alla porta seriale {port}: svuota serial/port o scegli un TNC seriale",
   "error.setting.range": "{value} non è compreso tra {min} e {max}",
-  "error.setting.smart_speeds": "smart/fast_kmh ({fast}) deve essere maggiore di smart/slow_kmh ({slow})",
-  "error.setting.smart_times": "smart/fast_sec ({fast}) deve essere minore di smart/slow_sec ({slow})",
   "error.setting.status_needs_rigctld": "la radio richiede status/rigctld (host:porta di un rigctld, 127.0.0.1:4532)",
   "error.setting.status_source": "“{value}” non è off, text né rig (vuoto: come indicano status/rigctld e station/status)",
   "error.setting.template_field": "{{{field}}} non è un campo del modello (i campi sono {{freq}} e {{mode}})",

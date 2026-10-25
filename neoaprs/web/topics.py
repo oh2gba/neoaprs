@@ -43,7 +43,7 @@ PACKETS_KEPT = 200                      # the packets a page opens with
 TNC_EVERY_SEC = 0.25                    # the TNC changes with every line it sees: told at most four times a second
 GPS_EVERY_SEC = 1.0                     # the GPS gives a fix a second: told at most once a second
 DISTANCES_EVERY_SEC = 30.0              # every station's distance and bearing follow our moving at most this often (our own row follows at every step of the GPS service)
-PLACE_KEYS = ("station/call", "station/lat", "station/lon", "beacon/mobile")      # (a station that turns mobile or stays moves our row between home and the fix)
+PLACE_KEYS = ("station/call", "station/lat", "station/lon", "gps/source")      # (a station that turns mobile or stays moves our row between home and the fix)
 
 
 class PacketWindow:

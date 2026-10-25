@@ -55,8 +55,6 @@
  "setting.off_or_range": {"params": ["max", "min", "value"], "text": ["{value} is not 0 (off) or between {min} and {max}"]},
  "setting.profile_port": {"params": ["port", "profile"], "text": ["{profile} connects over TCP (tcp/host and tcp/port), not to the serial port {port}: clear serial/port, or choose a serial TNC"]},
  "setting.range": {"params": ["max", "min", "value"], "text": ["{value} is not between {min} and {max}"]},
- "setting.smart_speeds": {"params": ["fast", "slow"], "text": ["smart/fast_kmh ({fast}) must be above smart/slow_kmh ({slow})"]},
- "setting.smart_times": {"params": ["fast", "slow"], "text": ["smart/fast_sec ({fast}) must be below smart/slow_sec ({slow})"]},
  "setting.status_needs_rigctld": {"params": [], "text": ["the radio needs status/rigctld (host:port of a rigctld, 127.0.0.1:4532)"]},
  "setting.status_source": {"params": ["value"], "text": ["'{value}' is not off, text or rig (empty: as status/rigctld and station/status say)"]},
  "setting.template_field": {"params": ["field"], "text": ["{{{field}}} is not a field of the template (the fields are {{freq}} and {{mode}})"]},

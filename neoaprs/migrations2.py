@@ -120,3 +120,12 @@ def _v18(db: sqlite3.Connection) -> None:
     db.execute("""ALTER TABLE own_object ADD COLUMN qru_group TEXT NOT NULL DEFAULT '' CONSTRAINT own_object_qru_group_form
         CHECK (qru_group = '' OR (length(qru_group) BETWEEN 1 AND 8 AND qru_group NOT GLOB '*[^A-Z0-9]*'))""")
     db.execute("ALTER TABLE own_object ADD COLUMN on_request INTEGER NOT NULL DEFAULT 0 CONSTRAINT own_object_on_request CHECK (on_request IN (0, 1))")
+
+
+def _v19(db: sqlite3.Connection) -> None:
+    """The beacon has one position source and presets. `gps/source` alone says whether the station moves (`beacon/mobile` is gone), and `beacon/moving_as` (car, bicycle, foot, boat) replaces the seven SmartBeaconing
+    numbers `smart/*`. The rows of the removed settings are deleted, once, with one INFO line in the log for each row (its key and old value); `beacon/moving_as` has no row, so the car is in force."""
+    rows = db.execute("SELECT key, value FROM settings WHERE key = 'beacon/mobile' OR key GLOB 'smart/*' ORDER BY key").fetchall()
+    db.execute("DELETE FROM settings WHERE key = 'beacon/mobile' OR key GLOB 'smart/*'")
+    for key, value in rows:
+        log.info("%s removed (was %s): gps/source decides whether the station moves, beacon/moving_as sets how it beacons", key, str(value) or "(empty)")

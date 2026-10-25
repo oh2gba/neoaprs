@@ -1,8 +1,9 @@
 // The beacon as it would go on the air, for the preview on the Beacon tab: our position packet in TNC2 text, made from the settings the form holds the way the daemon makes it
 // (neoaprs/services/beacon.py): `=` for a station with messaging, the plain position (degrees and minutes to the hundredth), the symbol, the PHG extension when a power is set, then the comment; to the
 // tocall of the program; and the status report that goes with the text status: `>`, the day, hour and minute in UTC and `z`, then the text.
-// The daemon checks the settings again; this only shows what they would make, and null while they do not make a packet.
+// The daemon checks the settings again; this only shows what they would make (for a moving station the packet of the home position, which is not what it sends from a fix), and null while they do not make a packet.
 import { callList, pathCalls, validCall } from "@/lib/calls";
+import { isMoving } from "@/lib/gpsstatus";
 import { statusSource } from "@/lib/status";
 import { recommendedPath } from "@/lib/symbols";
 import { LIMITS, SYMBOL_TABLES, TOCALL } from "@/protocol/lists";
@@ -57,9 +58,9 @@ function whole(text: string | undefined, range: Range): number | null {
   return value !== null && Number.isInteger(value) ? value : null;
 }
 
-/** The PHG of the settings: "" while no power is set, null when the antenna's figures are no figures, else `PHGphgd`. */
+/** The PHG of the settings: "" while no power is set and for a moving station (it has none), null when the antenna's figures are no figures, else `PHGphgd`. */
 function phg(values: Readonly<Record<string, string>>): string | null {
-  if ((values["beacon/power_w"] ?? "").trim() === "") return "";
+  if ((values["beacon/power_w"] ?? "").trim() === "" || isMoving(values)) return "";
   const power = whole(values["beacon/power_w"], LIMITS.range["beacon/power_w"]);
   const height = whole(values["beacon/antenna_height_m"], LIMITS.range["beacon/antenna_height_m"]);
   const gain = whole(values["beacon/antenna_gain_db"], LIMITS.range["beacon/antenna_gain_db"]);

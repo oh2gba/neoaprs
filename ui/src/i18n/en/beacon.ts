@@ -1,7 +1,12 @@
-// The Beacon tab: the lines that say what was sent last and send it now, the state of the GPS and of the mobile beacon, and the preview of the packet. The fields of the tab are the settings' (settings.ts).
+// The Beacon tab: the beacon status at the top (the line of a fixed station, the GPS and SmartBeaconing lines of a moving one), the status line, and the preview of the packet. The fields of the tab are the settings' (settings.ts).
 export const beacon = {
-  "beacon.last_beacon": "Last beacon",
-  "beacon.not_yet": "not yet",
+  "beacon.label": "Beacon",
+  "beacon.state.on": "on",
+  "beacon.state.off": "off",
+  "beacon.line.timed": "Last beacon {ago} · next {when} (every {minutes} min)",
+  "beacon.line.timed_none": "No beacon sent yet · next {when} (every {minutes} min)",
+  "beacon.line.untimed": "Last beacon {ago} · no timed beacon",
+  "beacon.line.untimed_none": "No beacon sent yet · no timed beacon",
   "beacon.beacon_now": "Beacon now",
   "beacon.status": "Status",
   "beacon.send_status_now": "Send status now",

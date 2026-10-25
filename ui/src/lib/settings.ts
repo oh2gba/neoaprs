@@ -6,6 +6,7 @@ import type { MessageId } from "@/i18n/catalogue";
 import { errorReason, type Failure } from "@/i18n/errortext";
 import type { Params } from "@/i18n/message";
 import { STATION_HOURS, STATION_HOURS_KEY } from "@/lib/aging";
+import { isMoving } from "@/lib/gpsstatus";
 import { lazyText } from "@/lib/lazytext";
 import { STATUS_CHOICES, statusShown, statusSource } from "@/lib/status";
 import { CONFIG_KEYS, LIMITS, TNC_PROFILES } from "@/protocol/lists";
@@ -115,21 +116,20 @@ const directionChoices = (): readonly Choice[] => [
 
 const GAIN = LIMITS.range["beacon/antenna_gain_db"];
 
-/** Where the position of a moving station comes from (gps/source). */
-const gpsSourceChoices = (): readonly Choice[] => [
-  { value: "off", label: t("settings.gps_source.off") },
-  { value: "gpsd", label: t("settings.gps_source.gpsd") },
-  { value: "serial", label: t("settings.gps_source.serial") },
+/** Where the position of the beacon comes from (gps/source): this place (a fixed station at the home position), a GPS read through gpsd, or a GPS on a serial port (a moving station). */
+const positionChoices = (): readonly Choice[] => [
+  { value: "off", label: t("settings.position.here") },
+  { value: "gpsd", label: t("settings.position.gpsd") },
+  { value: "serial", label: t("settings.position.serial") },
 ];
 
-/** The SmartBeaconing numbers, in the order of the fold: the speed and time of a station that goes fast, those of one that stands still, then the turn. */
-const SMART = ["smart/fast_kmh", "smart/fast_sec", "smart/slow_kmh", "smart/slow_sec", "smart/turn_min_deg", "smart/turn_min_sec", "smart/turn_slope"];
-
-/** One SmartBeaconing number: its label, its unit, and the two paragraphs of its (i), the first naming the range the daemon takes. */
-function smart(label: MessageId, tip1: MessageId, tip2: MessageId, unit: string | undefined, key: keyof typeof LIMITS.range): FieldSpec {
-  const { min, max } = LIMITS.range[key];
-  return { label, ...(unit === undefined ? {} : { unit }), tip: [[tip1, { min, max }], tip2] };
-}
+/** What a moving station moves as (beacon/moving_as), the way SmartBeaconing is set for it; the car is the daemon's default. */
+const movingAsChoices = (): readonly Choice[] => [
+  { value: "car", label: t("settings.moving_as.car") },
+  { value: "bicycle", label: t("settings.moving_as.bicycle") },
+  { value: "foot", label: t("settings.moving_as.foot") },
+  { value: "boat", label: t("settings.moving_as.boat") },
+];
 
 const SPECS: Record<string, FieldSpec> = {
   "station/call": { label: "settings.call.label" },
@@ -268,10 +268,11 @@ const SPECS: Record<string, FieldSpec> = {
     tip: ["settings.path.tip1", "settings.path.tip2"],
   },
   "gps/source": {
-    label: "settings.gps_source.label",
+    name: "settings.position.name",
+    label: "settings.position.label",
     kind: "choice",
-    choices: gpsSourceChoices,
-    tip: ["settings.gps_source.tip1", "settings.gps_source.tip2"],
+    choices: positionChoices,
+    tip: ["settings.position.tip1", "settings.position.tip2"],
   },
   "gps/host": { label: "settings.gps_host.label", tip: ["settings.gps_host.tip1"] },
   "gps/device": {
@@ -280,26 +281,7 @@ const SPECS: Record<string, FieldSpec> = {
     tip: ["settings.gps_device.tip1", "settings.gps_device.tip2"],
   },
   "gps/baud": { label: "settings.gps_baud.label", unit: "baud", tip: ["settings.gps_baud.tip1"] },
-  "beacon/mobile": {
-    name: "settings.mobile.name",
-    label: "settings.mobile.label",
-    kind: "bool",
-    tipLabel: "settings.mobile.tip_label",
-    tip: ["settings.mobile.tip1", "settings.mobile.tip2", "settings.mobile.tip3"],
-  },
-  "smart/fast_kmh": smart("settings.smart_fast_speed.label", "settings.smart_fast_speed.tip1", "settings.smart_fast_speed.tip2", "km/h", "smart/fast_kmh"),
-  "smart/fast_sec": smart("settings.smart_fast_time.label", "settings.smart_fast_time.tip1", "settings.smart_fast_time.tip2", "s", "smart/fast_sec"),
-  "smart/slow_kmh": smart("settings.smart_slow_speed.label", "settings.smart_slow_speed.tip1", "settings.smart_slow_speed.tip2", "km/h", "smart/slow_kmh"),
-  "smart/slow_sec": smart("settings.smart_slow_time.label", "settings.smart_slow_time.tip1", "settings.smart_slow_time.tip2", "s", "smart/slow_sec"),
-  "smart/turn_min_deg": smart("settings.smart_turn_angle.label", "settings.smart_turn_angle.tip1", "settings.smart_turn_angle.tip2", "°", "smart/turn_min_deg"),
-  "smart/turn_min_sec": smart("settings.smart_turn_time.label", "settings.smart_turn_time.tip1", "settings.smart_turn_time.tip2", "s", "smart/turn_min_sec"),
-  "smart/turn_slope": smart(
-    "settings.smart_turn_slope.label",
-    "settings.smart_turn_slope.tip1",
-    "settings.smart_turn_slope.tip2",
-    undefined,
-    "smart/turn_slope",
-  ),
+  "beacon/moving_as": { label: "settings.moving_as.label", kind: "choice", choices: movingAsChoices, tip: ["settings.moving_as.tip1"] },
 };
 
 /** What each setting says of itself (words in the language of the page, made when they are read); a key this page does not know has none. */
@@ -329,11 +311,10 @@ export const SUBGROUPS: Record<string, { readonly text: string; readonly title: 
 /** The antenna's keys belong to the station, though they are the beacon's to send. */
 const ANTENNA = ["beacon/power_w", "beacon/antenna_height_m", "beacon/antenna_gain_db", "beacon/antenna_direction"];
 
-/** What the Beacon tab keeps behind a closed heading, each in its group: the Beacon group's antenna (the PHG part of the beacon) and path, and the Mobile group's SmartBeaconing numbers. */
+/** What the Beacon tab keeps behind a closed heading in the Beacon group: the antenna (the PHG part of the beacon, which only a fixed station has) and the path. */
 export const BEACON_FOLDS: readonly { readonly group: string; readonly title: string; readonly keys: readonly string[] }[] = [
   lazyText({ group: "beacon", keys: ANTENNA }, { title: () => t("settings.fold.antenna") }),
   lazyText({ group: "beacon", keys: ["beacon/path"] }, { title: () => t("settings.fold.advanced") }),
-  lazyText({ group: "mobile", keys: SMART }, { title: () => t("settings.fold.smart") }),
 ];
 
 interface Group {
@@ -342,25 +323,21 @@ interface Group {
   keys: string[];
 }
 
-/** The switch that makes the beacon a moving station's. */
-export const MOBILE = "beacon/mobile";
-
 const GROUPS: { id: string; title: MessageId; prefixes: string[]; also?: string[]; except?: string[] }[] = [
-  { id: "station", title: "settings.group.station", prefixes: ["station/"], except: ["station/status", "station/comment"] },
+  { id: "station", title: "settings.group.station", prefixes: ["station/", "gps/"], except: ["station/status", "station/comment"] },
   { id: "serial", title: "settings.group.tnc", prefixes: ["tnc/", "serial/", "tcp/"] },
   { id: "web", title: "settings.group.web", prefixes: ["web/"] },
   { id: "notifications", title: "settings.group.notifications", prefixes: [], also: ALERT },
   { id: "map", title: "settings.group.map", prefixes: ["map/"] },
   { id: "digi", title: "settings.group.digi", prefixes: ["digi/"] },
-  { id: "beacon", title: "settings.group.beacon", prefixes: ["beacon/"], also: ["station/comment"], except: [MOBILE] },
-  { id: "mobile", title: "settings.group.mobile", prefixes: ["gps/", "smart/"], also: [MOBILE] },
+  { id: "beacon", title: "settings.group.beacon", prefixes: ["beacon/"], also: ["station/comment"] },
   { id: "status", title: "settings.group.status", prefixes: ["status/"], also: ["station/status"] },
 ];
 
 /** Which settings a form shows: the Beacon tab has what the beacon says and sends, the Settings tab the rest (and any key this file does not know), so that no key is in two places. */
 export type Scope = "settings" | "beacon";
 const SCOPE_GROUPS: Record<Scope, readonly string[]> = {
-  beacon: ["station", "beacon", "mobile", "status"],
+  beacon: ["station", "beacon", "status"],
   settings: ["serial", "digi", "web", "notifications", "map"],
 };
 
@@ -369,16 +346,26 @@ const TNC_ORDER = ["tnc/profile", "serial/port", "serial/baud", "tcp/host", "tcp
 
 /** The Status group: the choice first, then what that choice needs. */
 const STATUS_ORDER = ["status/source", "station/status", "status/rigctld", "status/template", "status/interval_min"];
-/** The Beacon group: how often, what it says, then the folds (the antenna, the path). */
-const BEACON_ORDER = ["beacon/interval_min", "station/comment", ...ANTENNA, "beacon/path"];
-/** The Mobile group: where the GPS is read from and what it needs, then the switch, then the SmartBeaconing numbers (behind their fold). */
-const MOBILE_ORDER = ["gps/source", "gps/host", "gps/device", "gps/baud", MOBILE, ...SMART];
+/** The Beacon group: how often (a fixed station) or what it moves as (a moving one), what it says, then the folds (the antenna, the path). */
+const BEACON_ORDER = ["beacon/interval_min", "beacon/moving_as", "station/comment", ...ANTENNA, "beacon/path"];
+/** The Station group: the call, where the position comes from and what that needs (the gpsd address, or the port and speed of a serial GPS), then the place itself (the home position while a GPS is chosen) and the symbol. */
+const STATION_ORDER = [
+  "station/transmit",
+  "station/call",
+  "gps/source",
+  "gps/host",
+  "gps/device",
+  "gps/baud",
+  "station/lat",
+  "station/lon",
+  "station/symbol_table",
+  "station/symbol_code",
+];
 const GROUP_ORDER: Record<string, readonly string[]> = {
-  station: ["station/transmit"],
+  station: STATION_ORDER,
   serial: TNC_ORDER,
   status: STATUS_ORDER,
   beacon: BEACON_ORDER,
-  mobile: MOBILE_ORDER,
 };
 
 function rank(order: readonly string[], key: string): number {
@@ -448,14 +435,14 @@ export function portForProfile(profileKey: string, port: string): string {
   return profileOf(profileKey)?.transport === "tcp" && port !== "" && !/^(socket|tcp):\/\//i.test(port.trim()) ? "" : port;
 }
 
-/** Whether a field of the Beacon tab is shown for the values the form holds: the Status group shows what its source needs, the antenna's height, gain and direction come once there is a power (they only make the PHG code with it), the GPS's
- * address for gpsd and its port and speed for a serial receiver, and the SmartBeaconing numbers once the beacon is mobile, which also has no use for the interval of the fixed beacon. */
+/** Whether a field of the Beacon tab is shown for the values the form holds: the Status group shows what its source needs; the position's own fields follow its choice (the address of gpsd for gpsd, the port and speed for a serial GPS); a station that moves
+ * (a GPS is chosen) has the Moving as choice, and no interval and no antenna, which are a fixed station's (the antenna's height, gain and direction come once there is a power: they only make the PHG code with it). */
 export function shownByValues(key: string, values: Readonly<Record<string, string>>): boolean {
   if (key.startsWith("status/") || key === "station/status") return statusShown(key, statusSource(values));
-  if (ANTENNA.includes(key) && key !== "beacon/power_w") return (values["beacon/power_w"] ?? "").trim() !== "";
+  if (ANTENNA.includes(key)) return !isMoving(values) && (key === "beacon/power_w" || (values["beacon/power_w"] ?? "").trim() !== "");
   if (key === "gps/host") return values["gps/source"] === "gpsd";
   if (key === "gps/device" || key === "gps/baud") return values["gps/source"] === "serial";
-  if (SMART.includes(key)) return values[MOBILE] === "true";
-  if (key === "beacon/interval_min") return values[MOBILE] !== "true";
+  if (key === "beacon/moving_as") return isMoving(values);
+  if (key === "beacon/interval_min") return !isMoving(values);
   return true;
 }

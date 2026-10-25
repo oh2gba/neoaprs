@@ -2,8 +2,13 @@ import type { beacon as en } from "@/i18n/en/beacon";
 import type { Message } from "@/i18n/message";
 
 export const beacon: Readonly<Record<keyof typeof en, Message>> = {
-  "beacon.last_beacon": "Ultimo beacon",
-  "beacon.not_yet": "non ancora",
+  "beacon.label": "Beacon",
+  "beacon.state.on": "attivo",
+  "beacon.state.off": "spento",
+  "beacon.line.timed": "Ultimo beacon {ago} · prossimo {when} (ogni {minutes} min)",
+  "beacon.line.timed_none": "Nessun beacon inviato · prossimo {when} (ogni {minutes} min)",
+  "beacon.line.untimed": "Ultimo beacon {ago} · nessun beacon periodico",
+  "beacon.line.untimed_none": "Nessun beacon inviato · nessun beacon periodico",
   "beacon.beacon_now": "Invia beacon ora",
   "beacon.status": "Stato",
   "beacon.send_status_now": "Invia stato ora",

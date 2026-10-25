@@ -369,7 +369,7 @@ export interface GpsState {
   satellites: number | null;
   /** when the latest fix was received, by the daemon's clock */
   fix_at: string | null;
-  /** `beacon/mobile` is on: the beacon follows the GPS. With no fresh fix nothing is sent at all (never the home position), which `state` and `problem` say */
+  /** `gps/source` is not `off`: the beacon follows the GPS. With no fresh fix nothing is sent at all (never the home position), which `state` and `problem` say */
   mobile: boolean;
   /** when the next beacon by time is due, for the speed of the latest fix (a turn sends one sooner); null unless the beacon is mobile and has a fresh fix and has sent its first */
   next_beacon_at: string | null;

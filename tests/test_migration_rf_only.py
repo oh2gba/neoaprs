@@ -45,7 +45,7 @@ def test_a_database_of_version_eleven_gets_rf_only_off_for_every_preference_and_
     assert migrated.db.execute(f"SELECT {COLUMNS} FROM station_pref ORDER BY call").fetchall() == prefs
     assert migrated.db.execute("SELECT COUNT(*) FROM station_pref WHERE rf_only = 0").fetchone() == (len(prefs),)
     assert migrated.db.execute("SELECT id, text, state FROM message ORDER BY id").fetchall() == messages
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][11:] == [(12, "_v12", GOLDEN[12]), (13, "_v13", GOLDEN[13]), (14, "_v14", GOLDEN[14]), (15, "_v15", GOLDEN[15]), (16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][11:] == [(12, "_v12", GOLDEN[12]), (13, "_v13", GOLDEN[13]), (14, "_v14", GOLDEN[14]), (15, "_v15", GOLDEN[15]), (16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19])]
     migrated.db.execute("UPDATE station_pref SET rf_only = 1 WHERE call = 'OH2RDG'")          # and the new column takes it
     migrated.db.execute("INSERT INTO station_pref (call, rf_only, updated_at) VALUES ('OH2NEWX', 1, ?)", (STAMP,))
     assert migrated.db.execute("SELECT call FROM station_pref WHERE rf_only = 1 ORDER BY call").fetchall() == [("OH2NEWX",), ("OH2RDG",)]

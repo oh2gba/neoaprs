@@ -45,11 +45,11 @@ describe("App: Receive only", () => {
     await tabButton(wrapper, "Stations")?.trigger("click");
     await wrapper.find(".appheader .rxonly").trigger("click");
     expect(wrapper.find("[aria-selected='true']").text()).toContain("Beacon");
-    expect((wrapper.find("#pane-beacon .sendrow button").element as HTMLButtonElement).disabled).toBe(false);
+    expect((wrapper.find("#pane-beacon .beaconstatus button").element as HTMLButtonElement).disabled).toBe(false);
     expect(wrapper.find(".panelfoot").text()).not.toMatch(/receive only/i);
     expect(wrapper.find("#pane-beacon #set-station-transmit").exists()).toBe(true);
-    await wrapper.find("#pane-beacon .sendrow button").trigger("click");
-    await wrapper.find("#pane-beacon .sendrow button").trigger("click");
+    await wrapper.find("#pane-beacon .beaconstatus button").trigger("click");
+    await wrapper.find("#pane-beacon .beaconstatus button").trigger("click");
     expect(socket.sent).toContainEqual({ cmd: "beacon_now" });
   });
 

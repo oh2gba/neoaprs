@@ -1,4 +1,4 @@
-"""The part of the beacon that is a moving station's (`beacon/mobile`): what it sends and what it remembers of what it sent.
+"""The part of the beacon that is a moving station's (`gps/source` is not `off`): what it sends and what it remembers of what it sent.
 
 The information field is a compressed position (`=` and the 13 bytes of `compressed_position`: position, symbol, course and speed from the GPS fix) followed by the comment: the altitude `/A=aaaaaa` when the fix has one, then the station's
 comment, which is cut to the 40 characters a compressed report may carry. There is no PHG extension: a compressed position cannot hold one, and it belongs to a station that stays where it is.

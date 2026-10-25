@@ -284,7 +284,7 @@ export function tncState(extra: Partial<TncState> = {}): TncState {
   };
 }
 
-/** The GPS topic with a fresh fix (60.4295 N 24.1452 E, 48 km/h, course 215, 103 m, 9 satellites, 2 s old) and a beacon that is not mobile; a test gives what it cares about. */
+/** The GPS topic with a fresh fix (60.4295 N 24.1452 E, 48 km/h, course 215, 103 m, 9 satellites, 2 s old) of a station whose beacon follows it (`mobile`: the source is not off); a test gives what it cares about. */
 export function gpsState(extra: Partial<GpsState> = {}): GpsState {
   return {
     source: "gpsd",
@@ -297,7 +297,7 @@ export function gpsState(extra: Partial<GpsState> = {}): GpsState {
     course_deg: 215,
     satellites: 9,
     fix_at: ago(2),
-    mobile: false,
+    mobile: true,
     next_beacon_at: null,
     last_beacon_reason: "",
     last_beacon_at: null,
@@ -305,9 +305,20 @@ export function gpsState(extra: Partial<GpsState> = {}): GpsState {
   };
 }
 
-/** The GPS topic of a daemon with no GPS source set. */
+/** The GPS topic of a daemon with no GPS source set: a fixed station, whose beacon does not follow the GPS. */
 export function gpsOff(): GpsState {
-  return gpsState({ source: "off", state: "off", lat: null, lon: null, altitude_m: null, speed_kmh: null, course_deg: null, satellites: null, fix_at: null });
+  return gpsState({
+    source: "off",
+    state: "off",
+    mobile: false,
+    lat: null,
+    lon: null,
+    altitude_m: null,
+    speed_kmh: null,
+    course_deg: null,
+    satellites: null,
+    fix_at: null,
+  });
 }
 
 export function configValues(extra: Record<string, string> = {}): ConfigValues {
@@ -356,14 +367,7 @@ export function configValues(extra: Record<string, string> = {}): ConfigValues {
     "gps/host": "127.0.0.1:2947",
     "gps/device": "",
     "gps/baud": "4800",
-    "beacon/mobile": "false",
-    "smart/fast_kmh": "100",
-    "smart/fast_sec": "60",
-    "smart/slow_kmh": "8",
-    "smart/slow_sec": "1800",
-    "smart/turn_min_deg": "30",
-    "smart/turn_min_sec": "15",
-    "smart/turn_slope": "255",
+    "beacon/moving_as": "car",
     ...extra,
   };
   return { values, defaults: { ...values }, urls: [], https: { on: false, port: 0, fingerprint: "", problem: "" } };

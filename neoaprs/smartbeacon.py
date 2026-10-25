@@ -20,7 +20,7 @@ Reason = Literal["start", "time", "turn", "request"]
 
 @dataclass(frozen=True)
 class SmartSettings:
-    """The seven numbers of the algorithm (the settings `smart/*`)."""
+    """The seven numbers of the algorithm. The operator chooses a preset (`PRESETS`), not the numbers."""
     fast_kmh: float = 100.0
     fast_sec: float = 60.0
     slow_kmh: float = 8.0
@@ -28,6 +28,15 @@ class SmartSettings:
     turn_min_deg: float = 30.0
     turn_min_sec: float = 15.0
     turn_slope: float = 255.0
+
+
+MOVING_AS = ("car", "bicycle", "foot", "boat")                 # what the station moves as (the setting `beacon/moving_as`); the first is the default
+PRESETS: dict[str, SmartSettings] = {                          # the car is Dire Wolf's default SmartBeaconing; the others are NeoAPRS's own choice for a slower way of moving
+    "car": SmartSettings(fast_kmh=100, fast_sec=60, slow_kmh=8, slow_sec=1800, turn_min_deg=30, turn_min_sec=15, turn_slope=255),
+    "bicycle": SmartSettings(fast_kmh=30, fast_sec=60, slow_kmh=4, slow_sec=1800, turn_min_deg=35, turn_min_sec=20, turn_slope=255),
+    "foot": SmartSettings(fast_kmh=7, fast_sec=120, slow_kmh=1.5, slow_sec=1800, turn_min_deg=45, turn_min_sec=60, turn_slope=100),
+    "boat": SmartSettings(fast_kmh=40, fast_sec=60, slow_kmh=3, slow_sec=1800, turn_min_deg=20, turn_min_sec=30, turn_slope=255),
+}
 
 
 @dataclass(frozen=True)

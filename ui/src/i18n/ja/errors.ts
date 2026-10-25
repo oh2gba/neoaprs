@@ -79,8 +79,6 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.profile_port":
     "{profile} はTCP(tcp/host と tcp/port)で接続し、シリアルポート{port}は使いません。serial/port を空にするか、シリアルTNCを選んでください",
   "error.setting.range": "{value} は {min}〜{max} の範囲外です",
-  "error.setting.smart_speeds": "smart/fast_kmh({fast})はsmart/slow_kmh({slow})より大きくしてください",
-  "error.setting.smart_times": "smart/fast_sec({fast})はsmart/slow_sec({slow})より小さくしてください",
   "error.setting.status_needs_rigctld": "無線機のステータスには status/rigctld(rigctldの ホスト:ポート、127.0.0.1:4532)が必要です",
   "error.setting.status_source": "「{value}」は off でも text でも rig でもありません(空の場合は status/rigctld と station/status に従います)",
   "error.setting.template_field": "{{{field}}} はテンプレートのフィールドではありません(使えるのは {{freq}} と {{mode}} です)",

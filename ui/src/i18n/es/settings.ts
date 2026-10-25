@@ -24,11 +24,9 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.group.digi": "Digipeater",
   "settings.group.beacon": "Baliza",
   "settings.group.status": "Estado",
-  "settings.group.mobile": "Móvil",
   "settings.group.other": "Otros",
   "settings.fold.antenna": "Antena",
   "settings.fold.advanced": "Avanzado",
-  "settings.fold.smart": "SmartBeaconing",
 
   "settings.name.position": "Posición",
   "settings.name.tcp_address": "Dirección TCP",
@@ -322,13 +320,15 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.map.download": "Descargar mapa",
   "settings.map.cancel": "Cancelar",
 
-  "settings.gps_source.label": "Fuente del GPS",
-  "settings.gps_source.off": "Apagado",
-  "settings.gps_source.gpsd": "gpsd",
-  "settings.gps_source.serial": "Receptor serie",
-  "settings.gps_source.tip1":
-    "De dónde lee NeoAPRS la posición de una estación en movimiento. gpsd es el servicio GPS de Linux: elígelo si gpsd funciona en este ordenador o en otro de la red. Receptor serie lee un receptor GPS conectado a un puerto serie.",
-  "settings.gps_source.tip2": "El GPS se lee en cuanto eliges una fuente, así que puedes ver la posición antes de que la baliza la siga.",
+  "settings.position.name": "Fuente de la posición",
+  "settings.position.label": "Posición",
+  "settings.position.here": "Este lugar",
+  "settings.position.gpsd": "Un GPS por gpsd",
+  "settings.position.serial": "Un GPS en un puerto serie",
+  "settings.position.tip1":
+    "De dónde viene la posición de la baliza. Este lugar es una estación fija, enviada con el intervalo de la baliza. Un GPS es una estación en movimiento: la baliza sigue la posición del GPS y SmartBeaconing decide cuándo sale.",
+  "settings.position.tip2":
+    "gpsd es el servicio GPS de Linux: úsalo cuando gpsd se ejecuta en este ordenador o en otro. Un receptor en un puerto serie se lee directamente. Sin una posición GPS reciente no se envía nada, nunca la ubicación base.",
   "settings.gps_host.label": "Dirección de gpsd",
   "settings.gps_host.tip1":
     "La dirección de gpsd como host:puerto. gpsd escucha en el puerto 2947, así que déjala como está si gpsd funciona en este ordenador. Ejemplo: 192.168.1.20:2947",
@@ -339,37 +339,12 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.gps_baud.label": "Velocidad del GPS",
   "settings.gps_baud.tip1":
     "La velocidad de la línea serie del receptor. 4800 es la velocidad propia de NMEA y muchos receptores USB hablan a 9600. Una velocidad equivocada se nota como falta de posición.",
-  "settings.mobile.name": "Baliza móvil",
-  "settings.mobile.label": "Móvil",
-  "settings.mobile.tip_label": "Sobre Móvil",
-  "settings.mobile.tip1":
-    "Actívalo en un coche, una bicicleta o un barco. La baliza sigue entonces al GPS: la posición, el rumbo, la velocidad y la altitud salen de la posición del GPS, y se envía cuando lo dice SmartBeaconing: a menudo si vas rápido o giras, pocas veces si estás parado.",
-  "settings.mobile.tip2": "Sin una posición reciente no se envía nada, y nunca tu posición base. La posición del grupo Estación es solo la posición base.",
-  "settings.mobile.tip3": "Elige el símbolo de una estación en movimiento, como un coche: también hace que la ruta recomendada sea WIDE1-1,WIDE2-1.",
-  "settings.smart_fast_speed.label": "Velocidad rápida",
-  "settings.smart_fast_speed.tip1": "A partir de esta velocidad ({min} a {max} km/h) se envía una baliza cada Tiempo rápido.",
-  "settings.smart_fast_speed.tip2": "Por debajo, el tiempo entre balizas crece a medida que baja la velocidad. Debe ser mayor que la Velocidad lenta.",
-  "settings.smart_fast_time.label": "Tiempo rápido",
-  "settings.smart_fast_time.tip1": "El menor tiempo entre dos balizas por tiempo, en segundos ({min} a {max}). Debe ser menor que el Tiempo lento.",
-  "settings.smart_fast_time.tip2": "Mantenlo largo en un canal ocupado: una baliza por minuto de cada coche lo satura más.",
-  "settings.smart_slow_speed.label": "Velocidad lenta",
-  "settings.smart_slow_speed.tip1": "A esta velocidad o menos ({min} a {max} km/h) la estación cuenta como parada: una baliza cada Tiempo lento y ningún giro.",
-  "settings.smart_slow_speed.tip2": "Debe ser menor que la Velocidad rápida.",
-  "settings.smart_slow_time.label": "Tiempo lento",
-  "settings.smart_slow_time.tip1": "El mayor tiempo entre dos balizas, en segundos ({min} a {max}), para una estación parada.",
-  "settings.smart_slow_time.tip2": "Debe ser mayor que el Tiempo rápido.",
-  "settings.smart_turn_angle.label": "Ángulo de giro",
-  "settings.smart_turn_angle.tip1":
-    "Un cambio de rumbo de más de estos grados ({min} a {max}), más la Pendiente del giro dividida por la velocidad, es un giro y se envía de inmediato.",
-  "settings.smart_turn_angle.tip2": "Cuanto más rápido vas, menor es el giro que cuenta.",
-  "settings.smart_turn_time.label": "Tiempo de giro",
-  "settings.smart_turn_time.tip1": "Un giro se envía como pronto estos segundos ({min} a {max}) después de la última baliza.",
-  "settings.smart_turn_time.tip2": "Evita que una carretera con curvas sature el canal.",
-  "settings.smart_turn_slope.label": "Pendiente del giro",
-  "settings.smart_turn_slope.tip1":
-    "Grados por millas por hora ({min} a {max}) que se suman al Ángulo de giro, divididos por la velocidad. 0 hace que todos los giros cuenten igual.",
-  "settings.smart_turn_slope.tip2":
-    "El valor por defecto sirve para casi todos los coches. Cámbialo solo si los giros se envían demasiado a menudo o demasiado tarde.",
+  "settings.moving_as.label": "Modo de movimiento",
+  "settings.moving_as.car": "Coche",
+  "settings.moving_as.bicycle": "Bicicleta",
+  "settings.moving_as.foot": "A pie",
+  "settings.moving_as.boat": "Barco",
+  "settings.moving_as.tip1": "Ajusta cada cuánto sale la baliza y en qué giros: un coche envía más a menudo a velocidad que alguien a pie.",
 
   "settings.update.group": "Búsqueda de actualizaciones",
   "settings.update.label": "Versión nueva",

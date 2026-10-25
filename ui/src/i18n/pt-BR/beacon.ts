@@ -3,8 +3,13 @@ import type { beacon as source } from "@/i18n/en/beacon";
 import type { Message } from "@/i18n/message";
 
 export const beacon: Record<keyof typeof source, Message> = {
-  "beacon.last_beacon": "Último beacon",
-  "beacon.not_yet": "ainda não",
+  "beacon.label": "Beacon",
+  "beacon.state.on": "ligado",
+  "beacon.state.off": "desligado",
+  "beacon.line.timed": "Último beacon {ago} · próximo {when} (a cada {minutes} min)",
+  "beacon.line.timed_none": "Nenhum beacon enviado ainda · próximo {when} (a cada {minutes} min)",
+  "beacon.line.untimed": "Último beacon {ago} · sem beacon periódico",
+  "beacon.line.untimed_none": "Nenhum beacon enviado ainda · sem beacon periódico",
   "beacon.beacon_now": "Beacon agora",
   "beacon.status": "Status",
   "beacon.send_status_now": "Enviar status agora",

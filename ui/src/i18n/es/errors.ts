@@ -78,8 +78,6 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.setting.off_or_range": "{value} no es 0 (desactivado) ni está entre {min} y {max}",
   "error.setting.profile_port": "{profile} se conecta por TCP (tcp/host y tcp/port), no al puerto serie {port}: vacía serial/port o elige un TNC serie",
   "error.setting.range": "{value} no está entre {min} y {max}",
-  "error.setting.smart_speeds": "smart/fast_kmh ({fast}) debe ser mayor que smart/slow_kmh ({slow})",
-  "error.setting.smart_times": "smart/fast_sec ({fast}) debe ser menor que smart/slow_sec ({slow})",
   "error.setting.status_needs_rigctld": "la radio necesita status/rigctld (host:puerto de un rigctld, 127.0.0.1:4532)",
   "error.setting.status_source": "“{value}” no es off, text ni rig (vacío: como dicen status/rigctld y station/status)",
   "error.setting.template_field": "{{{field}}} no es un campo de la plantilla (los campos son {{freq}} y {{mode}})",

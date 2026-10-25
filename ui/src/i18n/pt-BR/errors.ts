@@ -79,8 +79,6 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.off_or_range": "{value} não é 0 (desligado) nem está entre {min} e {max}",
   "error.setting.profile_port": "{profile} conecta por TCP (tcp/host e tcp/port), não pela porta serial {port}: apague serial/port ou escolha um TNC serial",
   "error.setting.range": "{value} não está entre {min} e {max}",
-  "error.setting.smart_speeds": "smart/fast_kmh ({fast}) deve ser maior que smart/slow_kmh ({slow})",
-  "error.setting.smart_times": "smart/fast_sec ({fast}) deve ser menor que smart/slow_sec ({slow})",
   "error.setting.status_needs_rigctld": "o rádio precisa de status/rigctld (host:porta de um rigctld, 127.0.0.1:4532)",
   "error.setting.status_source": "'{value}' não é off, text nem rig (vazio: como dizem status/rigctld e station/status)",
   "error.setting.template_field": "{{{field}}} não é um campo do modelo (os campos são {{freq}} e {{mode}})",

@@ -101,8 +101,8 @@ passband); an `RPRT -n` answer, a refused connection or no answer within 5 secon
 
 ## The GPS and the moving station
 
-`gps/source` says where the position of a moving station comes from: `off`, `gpsd` or `serial`. The feed (`neoaprs/gpsfeed.py`, a `Source` like the TNC, with a state, a problem line and the back-off of `Backoff`) runs while the
-source is not `off`, whether or not `beacon/mobile` is on, and never raises into the loop.
+`gps/source` says where the position comes from: `off`, `gpsd` or `serial`. It alone decides whether the station moves: `off` is a fixed station at the home position (the beacon on `beacon/interval_min`, with PHG), `gpsd` or `serial` a moving one whose beacon follows the GPS (`Config.mobile`; `GpsState.mobile` on the wire is the same). The feed (`neoaprs/gpsfeed.py`, a `Source` like the TNC, with a state, a problem line and the back-off of `Backoff`) runs while the
+source is not `off`, and never raises into the loop.
 
 - **gpsd** (`gps/host`): one TCP connection, opened with a timeout of 5 seconds, over which `?WATCH={"enable":true,"json":true}` is sent. gpsd answers with a JSON object a line: `GpsdFixes` (`neoaprs/gpsfix.py`) makes a
   fix of each TPV report with mode 2 or 3 (`speed` is metres per second, `track` degrees, the altitude `altMSL`, else `alt`, else `altHAE`: APRS wants it above sea level) and the satellites of the latest SKY report
@@ -118,16 +118,25 @@ latest fix even after the receiver says it has none; the service decides what to
 `stale` (older than `GPS_STALE_SEC`, 120 seconds, `neoaprs/policy.py`); `problem` is the feed's line, or that the fix is old. `current()` is the fix to beacon with, and only while it is fresh. A save of `gps/*` stops the
 feed and starts it again with the new numbers in a task, and the old fix is forgotten.
 
-When `beacon/mobile` is on, the service emits `moved` when the fix is the first, or at least 5 seconds and 10 metres from where our row was last put (`GPS_PLACE_EVERY_SEC`, `GPS_PLACE_MOVED_M`). The composition root connects it
+While the station is mobile, the service emits `moved` when the fix is the first, or at least 5 seconds and 10 metres from where our row was last put (`GPS_PLACE_EVERY_SEC`, `GPS_PLACE_MOVED_M`). The composition root connects it
 to `wiring.place_me`, which puts our own row in the station book at the fix with its course, speed, altitude and time (`StationBook.set_me`), and to the ALOHA circle, which is worked out again. The page's topic `stations`
 is told whole at most every 30 seconds for it, because every other row's distance and bearing move with us. A GPS that is lost leaves our row at the latest fix, however old; the home position of the settings is for a
-station that is not mobile, and for a mobile one before its first fix. With `beacon/mobile` off the GPS is read and shown, and the row stays at the settings' position.
+station that is not mobile, and for a mobile one before its first fix. With the source `off` there is no GPS and the row stays at the settings' position.
 
 **The mobile beacon.** `Beacon` (`neoaprs/services/beacon.py`) asks SmartBeaconing at every tick instead of waiting for `beacon/interval_min`, which a mobile station does not use. `neoaprs/smartbeacon.py` is the
 decision, pure code: `decide(settings, last, now, speed_kmh, course_deg, request)` gives a `Decision(reason, next_due)` where `reason` is `request`, `start` (no beacon yet in this run), `time` (the last beacon plus the
 rate of the speed now has passed: `slow_sec` up to `slow_kmh`, `fast_sec` from `fast_kmh`, `fast_sec * fast_kmh / speed` between) or `turn` (above `slow_kmh`, the course differs from the course at the last beacon by
 more than `turn_min_deg + turn_slope / speed_in_mph`, and `turn_min_sec` have passed since it), or None. The algorithm is HamHUD's SmartBeaconing by Tony Arnerich KD7TA and Steve Bragg KA9MVA, in kilometres per hour;
-the numbers are the settings `smart/*` (`Config.smart`), whose rules (fast speed above slow, fast time below slow) `Config.checked` holds. `services/mobilebeacon.py` has `MobilePlan`, the memory of the last mobile beacon
+the numbers are not settings but a preset (`PRESETS` in `neoaprs/smartbeacon.py`) that the setting `beacon/moving_as` chooses (`Config.smart`): `car` (the default, Dire Wolf's SmartBeaconing numbers), `bicycle`, `foot` and `boat` (NeoAPRS's own choice):
+
+| `beacon/moving_as` | `fast_kmh` | `fast_sec` | `slow_kmh` | `slow_sec` | `turn_min_deg` | `turn_min_sec` | `turn_slope` |
+|---|---|---|---|---|---|---|---|
+| `car` | 100 | 60 | 8 | 1800 | 30 | 15 | 255 |
+| `bicycle` | 30 | 60 | 4 | 1800 | 35 | 20 | 255 |
+| `foot` | 7 | 120 | 1.5 | 1800 | 45 | 60 | 100 |
+| `boat` | 40 | 60 | 3 | 1800 | 20 | 30 | 255 |
+
+The table is read at each tick, so a changed preset is in force at once. `services/mobilebeacon.py` has `MobilePlan`, the memory of the last mobile beacon
 (when, its course, why; the page reads it), and `mobile_info`, the information field.
 
 The information field is `=` and the compressed position (`compressed_position` in `neoaprs/aprsposition.py`: the 13 bytes `/YYYYXXXX$csT`, the latitude and longitude as base-91 numbers rounded to the nearest of 380926 and

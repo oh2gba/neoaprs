@@ -146,7 +146,7 @@ class FakePlan:
 def gps_rows(views: Any) -> list[dict[str, Any]]:
     """The `gps` topic: off, a mobile station with a fresh fix that turned a corner, and a mobile station whose receiver is not up."""
     from neoaprs.config import DEFAULTS
-    mobile = replace(DEFAULTS, gps_source="gpsd", beacon_mobile=True)
+    mobile = replace(DEFAULTS, gps_source="gpsd")
     fix = Fix(60.17, 24.94, T0, 54.6, 270, 31.0, 9)
     return [
         views.gps_state(DEFAULTS, FakeGps(), FakePlan(), None),

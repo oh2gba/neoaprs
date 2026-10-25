@@ -3,8 +3,13 @@ import type { beacon as source } from "@/i18n/en/beacon";
 import type { Message } from "@/i18n/message";
 
 export const beacon: Record<keyof typeof source, Message> = {
-  "beacon.last_beacon": "最後のビーコン",
-  "beacon.not_yet": "まだ",
+  "beacon.label": "ビーコン",
+  "beacon.state.on": "オン",
+  "beacon.state.off": "オフ",
+  "beacon.line.timed": "最後のビーコン {ago} · 次は {when} ({minutes}分ごと)",
+  "beacon.line.timed_none": "ビーコン未送信 · 次は {when} ({minutes}分ごと)",
+  "beacon.line.untimed": "最後のビーコン {ago} · 定期ビーコンなし",
+  "beacon.line.untimed_none": "ビーコン未送信 · 定期ビーコンなし",
   "beacon.beacon_now": "今すぐビーコン",
   "beacon.status": "ステータス",
   "beacon.send_status_now": "今すぐステータスを送信",

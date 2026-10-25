@@ -32,6 +32,12 @@ describe("the languages of the page", () => {
         expect(Object.keys(messages).sort()).toEqual(Object.keys(source).sort());
       });
 
+      it("has nothing of the Mobile switch, the Mobile group, the SmartBeaconing numbers and the GPS source choice, which the position choice and Moving as replaced", () => {
+        const gone = /^(settings\.(mobile|smart_|gps_source|group\.mobile|fold\.smart)|error\.setting\.smart_|beacon\.(last_beacon|not_yet))/;
+        expect(Object.keys(messages).filter((id) => gone.test(id))).toEqual([]);
+        expect(Object.keys(messages)).toEqual(expect.arrayContaining(["settings.position.label", "settings.moving_as.label", "beacon.line.timed"]));
+      });
+
       it("calls the button that chooses a place on the map by its words, once, and has no id of the Objects form for it", () => {
         expect(messages["settings.location.pick"]).toBe(CHOOSE_ON_MAP[locale.code]);
         expect(messages["objects.form.pick"]).toBeUndefined();

@@ -94,12 +94,6 @@ describe("a refusal on the page", () => {
     expect(errorLine(error)).toBe(error.text);
   });
 
-  it("says the refusals of the SmartBeaconing settings with their values", () => {
-    const refusal = (code: string, params: Record<string, number>) => errorReason({ cmd: "set_config", key: "smart/fast_kmh", code, params, text: "x" });
-    expect(refusal("setting.smart_speeds", { fast: 5, slow: 8 })).toBe("smart/fast_kmh (5) must be above smart/slow_kmh (8)");
-    expect(refusal("setting.smart_times", { fast: 600, slow: 100 })).toBe("smart/fast_sec (600) must be below smart/slow_sec (100)");
-  });
-
   it("is the daemon's English one, without the command and the setting in front, for a code it has none for", () => {
     const text = "send_message: OH2GBA is our own call";
     expect(errorReason({ cmd: "send_message", key: null, code: "other", params: {}, text })).toBe("OH2GBA is our own call");

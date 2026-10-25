@@ -14,7 +14,7 @@ from tests.support.rig import ServiceRig
 
 class Rig(ServiceRig):
     def __init__(self, **changes: object) -> None:
-        super().__init__(**{"beacon_mobile": True, **changes})
+        super().__init__(**{"gps_source": "gpsd", **changes})
         self.feed = GpsFeed(self.clock, Backoff([0.05]), connect_sec=1.0)
         self.gps = Gps(self.feed, lambda: self.config, self.clock, tick_sec=0.01)
         self.feed.fixed.connect(self.gps.take)
@@ -27,7 +27,7 @@ class Rig(ServiceRig):
 
 
 def test_a_gps_that_is_off_is_off_and_has_no_fix_and_no_problem() -> None:
-    rig = Rig()
+    rig = Rig(gps_source="off")
     assert (rig.gps.state, rig.gps.problem, rig.gps.current(), rig.gps.fix, rig.gps.fix_age_sec) == ("off", "", None, None, None)
     assert rig.gps.why_none() == "the GPS is off (gps/source)"
 
@@ -107,7 +107,7 @@ async def test_the_fix_to_put_our_row_at_is_the_latest_even_when_it_is_old_and_o
     await until(lambda: rig.gps.fix is not None)
     rig.clock.advance(3600)
     assert rig.gps.current() is None and rig.gps.mobile_fix() == rig.gps.fix
-    rig.set(beacon_mobile=False)
+    rig.set(gps_source="off")
     assert rig.gps.mobile_fix() is None
 
 
@@ -157,7 +157,7 @@ def test_ten_metres_is_counted_from_where_the_row_was_put_not_from_the_last_fix(
 
 
 def test_our_row_does_not_follow_a_gps_while_the_beacon_is_not_mobile() -> None:
-    rig = Rig(beacon_mobile=False)
+    rig = Rig(gps_source="off")
     rig.gps.take(fix_at(rig.clock()))
     rig.clock.advance(60)
     rig.gps.take(fix_at(rig.clock(), lat=61.0))
@@ -206,7 +206,7 @@ async def test_a_change_of_another_setting_leaves_the_feed_alone() -> None:
     rig = Rig(gps_source="gpsd", gps_host=gpsd.address)
     await rig.gps.start()
     await until(lambda: gpsd.watching)
-    rig.set(station_comment="x", beacon_mobile=False)
+    rig.set(station_comment="x", beacon_moving_as="foot")
     rig.gps.settings_changed()
     await idle_for(0.1)
     assert gpsd.connections == 1

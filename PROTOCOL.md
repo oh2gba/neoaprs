@@ -982,7 +982,7 @@ The GPS receiver and what the beacon does with it: the latest fix, whether it ca
 | `course_deg` | integer \| null |  | degrees from north, 0 to 359; null when the fix has none |
 | `satellites` | integer \| null |  | the satellites used for the fix; null when the source does not say |
 | `fix_at` | time \| null |  | when the latest fix was received, by the daemon's clock |
-| `mobile` | boolean |  | `beacon/mobile` is on: the beacon follows the GPS. With no fresh fix nothing is sent at all (never the home position), which `state` and `problem` say |
+| `mobile` | boolean |  | `gps/source` is not `off`: the beacon follows the GPS. With no fresh fix nothing is sent at all (never the home position), which `state` and `problem` say |
 | `next_beacon_at` | time \| null |  | when the next beacon by time is due, for the speed of the latest fix (a turn sends one sooner); null unless the beacon is mobile and has a fresh fix and has sent its first |
 | `last_beacon_reason` | "" \| "start" \| "time" \| "turn" \| "request" |  | why the latest mobile beacon of this run went out: `start` (the first fix), `time`, `turn` (a corner), `request` (Beacon now); empty before the first |
 | `last_beacon_at` | time \| null |  | when it went out; null before the first |

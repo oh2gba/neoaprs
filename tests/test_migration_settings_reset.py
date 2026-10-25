@@ -22,8 +22,7 @@ KEPT = {"station/call": "OH2GBA", "station/transmit": "false", "station/lat": "6
         "web/network": "true", "web/key": "k7m2-x9pq-4hrt", "web/https": "true", "web/port": "7777", "web/allowed_hosts": "radio.lan,shack",
         "messages/alert": "false", "messages/alert_command": "echo hi", "status/source": "rig", "status/rigctld": "127.0.0.1:4532", "status/interval_min": "60", "status/template": "{freq}",
         "map/radius_km": "300", "map/station_hours": "12", "digi/enabled": "true",
-        "gps/source": "gpsd", "gps/host": "10.0.0.7:2947", "gps/device": "/dev/ttyUSB1", "gps/baud": "9600", "beacon/mobile": "true", "smart/fast_kmh": "90", "smart/fast_sec": "45", "smart/slow_kmh": "5",
-        "smart/slow_sec": "900", "smart/turn_min_deg": "25", "smart/turn_min_sec": "20", "smart/turn_slope": "200",
+        "gps/source": "gpsd", "gps/host": "10.0.0.7:2947", "gps/device": "/dev/ttyUSB1", "gps/baud": "9600", "beacon/moving_as": "boat",
         "tnc/enter_kiss": "true", "web/bind": "0.0.0.0", "beacon/last_sent_at": "2026-10-23T10:00:00Z", "status/last_sent_at": "2026-10-23T10:00:00Z", "status/last_text": "on 145.800"}
 
 
@@ -46,7 +45,7 @@ def migrate(folder: Path, stored: dict[str, str]) -> dict[str, tuple[str, int]]:
     version_fifteen(old, clock, stored)
     migrated = opened(old, clock)
     assert migrated.version() == SCHEMA_VERSION >= 16
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][15:] == [(16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][15:] == [(16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19])]
     found = {str(k): (str(v), int(rev)) for k, v, rev in migrated.db.execute("SELECT key, value, rev FROM settings")}
     migrated.close()
     return found

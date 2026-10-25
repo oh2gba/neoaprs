@@ -18,7 +18,7 @@ The page has a **map** of the area round your station and, at its right, a **pan
 | **Email** | mail through the gateway ([email.md](email.md)) |
 | **Bulletins** | the message board and the box to post to it ([bulletins.md](bulletins.md)) |
 | **Objects** | your objects and items ([objects.md](objects.md)) |
-| **Beacon** | what your station says on the air ([beacon.md](beacon.md)) |
+| **Beacon** | the beacon status with Beacon now, where your position comes from (this place, or a GPS), and what your station says on the air ([beacon.md](beacon.md)) |
 | **Packets** | the log, newest first, below |
 | **Settings** | the TNC and everything else ([settings.md](settings.md)) |
 
