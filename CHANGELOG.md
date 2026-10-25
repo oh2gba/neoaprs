@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.9.0
+
 NeoAPRS can be a moving station: the beacon follows a GPS and is sent by SmartBeaconing, the Beacon tab is rebuilt around one choice of where the position comes from and one Beacon choice that switches the beacon off, a place and a symbol are chosen the same way everywhere, the map shows one range circle at a time, and the Windows installer closes NeoAPRS itself.
 
 A moving station.
