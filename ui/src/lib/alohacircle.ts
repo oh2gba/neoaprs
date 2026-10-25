@@ -4,7 +4,7 @@ import type { Home } from "@/lib/mapview";
 const EARTH_RADIUS_KM = 6371.0088; // the daemon's sphere (neoaprs/geo.py)
 const POINTS = 120;
 
-type LonLat = [number, number];
+export type LonLat = [number, number];
 
 export interface AlohaCollection {
   type: "FeatureCollection";
@@ -21,15 +21,22 @@ function destination(from: Home, km: number, bearing: number): LonLat {
   return [(toLon * 180) / Math.PI, (toLat * 180) / Math.PI];
 }
 
-/** The closed ring of the circle, or no feature at all without a position or a radius. The longitudes run on past the date line instead of wrapping, so that the ring stays one line. */
-export function alohaFeatures(home: Home | null, km: number | null): AlohaCollection {
-  if (home === null || km === null || !(km > 0)) return { type: "FeatureCollection", features: [] };
-  const ring = Array.from({ length: POINTS + 1 }, (_, i) => destination(home, km, (2 * Math.PI * i) / POINTS));
+/** The closed ring of points `km` round `center`, the longitudes running on past the date line instead of wrapping, so that the ring stays one line. */
+export function ringAround(center: Home, km: number): LonLat[] {
+  const ring = Array.from({ length: POINTS + 1 }, (_, i) => destination(center, km, (2 * Math.PI * i) / POINTS));
   let shift = 0;
-  const line = ring.map(([lon, lat], i): LonLat => {
+  return ring.map(([lon, lat], i): LonLat => {
     const before = ring[i - 1];
     if (before !== undefined && Math.abs(lon - before[0]) > 180) shift += lon < before[0] ? 360 : -360; // (a jump of the longitude across the date line)
     return [lon + shift, lat];
   });
-  return { type: "FeatureCollection", features: [{ type: "Feature", properties: { km }, geometry: { type: "LineString", coordinates: line } }] };
+}
+
+/** The closed ring of the circle, or no feature at all without a position or a radius. */
+export function alohaFeatures(home: Home | null, km: number | null): AlohaCollection {
+  if (home === null || km === null || !(km > 0)) return { type: "FeatureCollection", features: [] };
+  return {
+    type: "FeatureCollection",
+    features: [{ type: "Feature", properties: { km }, geometry: { type: "LineString", coordinates: ringAround(home, km) } }],
+  };
 }

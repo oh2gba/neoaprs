@@ -314,7 +314,8 @@ the `del`, or by an `error` (no such entry).
 Makes an object or an item of ours, or changes the one of that name (a changed object starts its schedule again, and is sent at once, never sooner than a minute after its last packet). `name` is 1 to 9
 characters for an object and 3 to 9 for an item, printable ASCII without `!`, `_`, `|` and `~` and without a blank at either end, and not our own call or the call of a station; `lat` and `lon` the position in decimal
 degrees; the symbol is a table character and a code character; `comment` at most 43 characters (36 with a course or speed); `course_deg` and `speed_kmh` the course and speed, each or both or none; `path` the digipeaters, calls
-separated by commas, or `DIRECT` for none at all (null or empty: `beacon/path`). Nothing is sent while the call is not set. Answered by the `set` of its row in `own_objects` and `stations`, or by an `error` that names the reason.
+separated by commas, or `DIRECT` for none at all (null or empty: `beacon/path`); `qru_group` the group of QRU it belongs to (up to 8 letters and digits, not `INFO` or `NEXT`; empty for none) and `on_request` true to send it
+only to a station that asks for it, never on the schedule. Nothing is sent while the call is not set. Answered by the `set` of its row in `own_objects` and `stations`, or by an `error` that names the reason.
 
 | field | type | | description |
 |---|---|---|---|
@@ -328,6 +329,8 @@ separated by commas, or `DIRECT` for none at all (null or empty: `beacon/path`).
 | `course_deg` | integer \| null |  | (>= 0, <= 359) |
 | `speed_kmh` | number \| null |  | (>= 0, <= 1850) |
 | `path` | string \| null |  | (max 256 chars) |
+| `qru_group` | string |  | (max 8 chars) |
+| `on_request` | boolean |  |  |
 
 ### `object_kill`
 
@@ -572,6 +575,8 @@ row has a new distance and bearing, and the topic is told whole again.
 | `last_direct_at` | time \| null |  | when a packet of the station was last heard direct (no digipeater repeated it, it was not a third-party packet), from the packets counted in `heard_direct`; null for a station never heard direct |
 | `heard_gated` | integer |  | how many packets came as third-party packets: an iGate put what it heard on the internet on the air; counted, but never a route to send by (>= 0) |
 | `heard_via` | [string, integer][] |  | [the station we heard, packets] for each digipeater that repeated its packets, the most first; `?` stands for a hop that was an alias (WIDE1) and gave no call; the 8 most frequent routes are counted |
+| `gated` | integer |  | how many third-party packets this station put on the air that we heard (an iGate wrapping what it took from the internet in a frame of its own; counted from the packets heard in this run and the latest 2000 the database kept, and for a station that is in the book); not `heard_gated`, which counts the packets of this station that some iGate put on the air (>= 0) |
+| `igate` | boolean |  | a capabilities packet of the station said `IGATE`: it says it is an iGate |
 | `best_route` | string |  | the route most of its packets came by, as `last_route` writes it, direct included; empty until a packet was counted |
 | `suggested_path` | string \| null |  | the path to send by to reach it, the best route turned round: empty for direct, `OH2RCH-2` for one hop, `OH2RCH-3,OH2RCH-1` for `via OH2RCH-1 → OH2RCH-3`, `WIDE1-1,WIDE2-1` when the best route has a hop with no call; null when no route is known (an object or item, or a station not heard since the packets were pruned) |
 | `heard_path` | string \| null |  | the path that has lately been heard to reach the station, which the first two attempts of a message to it go by when the operator has set no path of its own (the later ones go by `beacon/path`): empty for direct (at least 2 packets heard direct within 60 minutes), else the latest named route that at least 2 packets came by within 60 minutes, turned round, as `suggested_path` writes it (no hop without a call, no iGate, at most 3 digipeaters); null when there is none. Worked out when the row is sent, so a path that goes stale is told with the station's next row |
@@ -581,6 +586,9 @@ row has a new distance and bearing, and the topic is told whole again.
 | `telemetry_at` | time \| null |  | when `telemetry` was heard; null as it is |
 | `locator` | LocatorValues \| null |  | the Maidenhead locator of the station's latest status report (or Mic-E status text): where it says it is, to the square; null when it sent none |
 | `extensions` | ExtensionValues \| null |  | the PHG, RNG, DF or area data of the station's latest position; null when it had none |
+| `frequency` | FrequencyValues \| null |  | the voice frequency the station gave last, in the comment of a position (or the name of an object) or in a status text; null when it gave none (not kept over a restart of the daemon for a station that does not send it again) |
+| `storm` | StormValues \| null |  | the storm data of the latest position of a storm object; null for anything else |
+| `sign` | string \| null |  | what a signpost object says (`55`); null for anything else |
 | `distance_km` | number \| null |  | from our position, null for us and for a station without a position |
 | `bearing_deg` | number \| null |  | the direction from our position, degrees from north; null as the distance is |
 | `is_me` | boolean |  | our own station: the row of the call in the settings, at the position in the settings |
@@ -654,6 +662,9 @@ A position report.
 | `timestamp_local` | boolean |  | the `timestamp` was sent in the sender's local time (`/`): it is the time as it was sent, not UTC |
 | `locator` | LocatorValues \| null |  | the Maidenhead locator in the status text of a Mic-E packet; null for any other position |
 | `telemetry` | TelemetryFields \| null | optional | the base-91 telemetry `\|ss11\|` the comment carried (APRS 1.2), taken out of the `comment`; null when there was none (default `null`) |
+| `frequency` | FrequencyValues \| null |  | the local information the comment began with (`145.775MHz T100 -060 R40k`), or the name of a frequency object with the fields of its comment, taken out of the `comment`; null when there was none |
+| `storm` | StormValues \| null |  | the storm data the comment of a position with the symbol `@` began with (`/HC/150^200/0980>090&030%040`), taken out of the `comment`; null when there was none |
+| `sign` | string \| null |  | the characters of a signpost (symbol `\m`): `55` for a comment that began `{55}`, taken out of the `comment`; null for any other position |
 | `type` | "position" |  |  |
 
 ### DecodedMessage
@@ -702,6 +713,7 @@ A status report.
 | `text` | string |  | the status text; after the locator when there is one |
 | `timestamp` | time \| null |  |  |
 | `locator` | LocatorValues \| null |  | a Maidenhead locator with a symbol at the start of the report (a report that has one has no timestamp) |
+| `frequency` | FrequencyValues \| null |  | the frequency the text began with (`>145.775MHz T100`), taken out of the `text`; null when there was none |
 
 ### DecodedTelemetry
 
@@ -781,6 +793,9 @@ A position as the parser made it: decimal degrees, south and west negative, spee
 | `timestamp_local` | boolean |  | the `timestamp` was sent in the sender's local time (`/`): it is the time as it was sent, not UTC |
 | `locator` | LocatorValues \| null |  | the Maidenhead locator in the status text of a Mic-E packet; null for any other position |
 | `telemetry` | TelemetryFields \| null | optional | the base-91 telemetry `\|ss11\|` the comment carried (APRS 1.2), taken out of the `comment`; null when there was none (default `null`) |
+| `frequency` | FrequencyValues \| null |  | the local information the comment began with (`145.775MHz T100 -060 R40k`), or the name of a frequency object with the fields of its comment, taken out of the `comment`; null when there was none |
+| `storm` | StormValues \| null |  | the storm data the comment of a position with the symbol `@` began with (`/HC/150^200/0980>090&030%040`), taken out of the `comment`; null when there was none |
+| `sign` | string \| null |  | the characters of a signpost (symbol `\m`): `55` for a comment that began `{55}`, taken out of the `comment`; null for any other position |
 
 ### TncState
 
@@ -933,6 +948,23 @@ The data extensions after the symbol of an uncompressed position (taken off the 
 | `df_bearing` | DfBearingValues \| null |  |  |
 | `area` | AreaValues \| null |  |  |
 
+### FrequencyValues
+
+A frequency to call on, from the local information at the start of a comment, a status text or the name of a frequency object (`145.775MHz T100 -060 R40k`); null where the text did not say.
+
+| field | type | | description |
+|---|---|---|---|
+| `mhz` | number |  | the transmit frequency, MHz |
+| `tone_hz` | integer \| null |  | the CTCSS tone of `Tnnn` or `Cnnn`, whole hertz (the tenths are dropped: 107 is 107.2) |
+| `tone_both` | boolean |  | `Cnnn`: the tone is needed to receive as well |
+| `tone_off` | boolean |  | `Toff`: no tone and no DCS code |
+| `dcs` | string \| null |  | the DCS code of `Dnnn`, three digits as sent |
+| `tone_burst` | boolean |  | `1750`: a 1750 Hz tone burst opens the repeater |
+| `narrow` | boolean |  | the first letter of the tone field was lower case: narrow modulation |
+| `offset_khz` | integer \| null |  | the offset from the transmit frequency in kHz (`-060` is -600); 0 is simplex; null when the standard offset is meant |
+| `range_km` | number \| null |  | the nominal range (`R25m` is 40.2 km) |
+| `rx_mhz` | number \| null |  | a separate receive frequency (`FFF.FFFrx`), MHz |
+
 ### HopRow
 
 One digipeater of the path an attempt went by, and whether a copy of our own message was heard back with that hop used.
@@ -1060,12 +1092,14 @@ map shows; a killed one leaves that topic at once and stays here, as `killing`, 
 | `course_deg` | integer \| null |  | the course in degrees from north (0 to 359); null for none |
 | `speed_kmh` | number \| null |  | the speed in km/h; null for none |
 | `path` | string \| null |  | the digipeaters it goes by, calls separated by commas, or `DIRECT` for none at all; null: the path of the setting `beacon/path` is used |
+| `qru_group` | string |  | the group of QRU (1 to 8 upper-case letters and digits) a station that asks the addressee `QRU` for it is answered with this object in; empty for none |
+| `on_request` | boolean |  | true: it is never sent on the decay schedule, only to a station that asks for it (`?APRSO`, or its QRU group); false: it is sent on the schedule |
 | `state` | "live" \| "killing" |  | `live`: it is being sent on the decay schedule; `killing`: it was killed and its killed form is being sent (three times), then it is forgotten |
 | `created_at` | time |  | when it was first made |
 | `updated_at` | time |  | when it was last changed or killed |
 | `sent` | integer |  | how often it was sent since it was last changed or killed (>= 0) |
 | `last_sent_at` | time \| null |  | when it was last sent; null while it has not been sent (the call is not set, or the radio is away) |
-| `next_at` | time \| null |  | when it is sent next: 1, 2, 4 ... minutes after the last packet, never more than the net cycle time of its path apart; a time that has passed means it waits for the radio or for the call |
+| `next_at` | time \| null |  | when it is sent next: 1, 2, 4 ... minutes after the last packet, never more than the net cycle time of its path apart; a time that has passed means it waits for the radio or for the call; null for one that is `on_request` |
 
 ### PhgValues
 
@@ -1100,6 +1134,20 @@ own, and not RF only, has no entry. A command that sets or changes one part is a
 |---|---|---|---|
 | `path` | string \| null |  | the digipeaters that a message to the station, and the ack of a message from it, go by way of: calls separated by commas, empty for direct (no digipeaters at all); null if none is set, and the setting `beacon/path` counts |
 | `rf_only` | boolean |  | true if everything sent to the station (a message and each attempt of it, an ack, the answer to a query) has `RFONLY` as the last element of its path, which iGates that honour it do not put on the internet |
+
+### StormValues
+
+The storm data of a tropical storm, hurricane or tropical depression (APRS101, chapter 12), in metric units; null where the report did not have the field. The movement is the course and speed of the position.
+
+| field | type | | description |
+|---|---|---|---|
+| `storm_type` | "TS" \| "HC" \| "TD" |  | TS tropical storm, HC hurricane, TD tropical depression |
+| `wind_kmh` | number \| null |  | the sustained wind |
+| `gust_kmh` | number \| null |  |  |
+| `pressure_hpa` | integer \| null |  | the central pressure |
+| `hurricane_radius_km` | number \| null |  | the radius of hurricane winds |
+| `storm_radius_km` | number \| null |  | the radius of tropical storm winds |
+| `gale_radius_km` | number \| null |  | the radius of whole gale (50 knot) winds |
 
 ### TelemetryBit
 

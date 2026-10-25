@@ -2312,5 +2312,628 @@
    "other_kind": "weather",
    "weather": null
   }
+ },
+ {
+  "name": "frequency: the first ten bytes of the comment, then the tone, the offset and the range",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": "!4903.50N/07201.75W-145.775MHz T118 -060 R40k Voice",
+  "expected": {
+   "kind": "position",
+   "comment": "Voice",
+   "frequency": {
+    "mhz": 145.775,
+    "tone_hz": 118,
+    "tone_both": false,
+    "offset_khz": -600,
+    "range_km": 40.0,
+    "narrow": false,
+    "rx_mhz": null,
+    "dcs": null
+   }
+  }
+ },
+ {
+  "name": "frequency: to the nearest 10 kHz, with a blank before MHz, and free text after it",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": "!4903.50N/07201.75W-146.52 MHz Enroute Alabama",
+  "expected": {
+   "kind": "position",
+   "comment": "Enroute Alabama",
+   "frequency": {
+    "mhz": 146.52,
+    "tone_hz": null,
+    "offset_khz": null,
+    "range_km": null
+   }
+  }
+ },
+ {
+  "name": "frequency: a CTCSS tone both ways and a range in miles, the spec's example",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": "!4903.50N/07201.75W-146.835MHz C107 R25m AARC",
+  "expected": {
+   "kind": "position",
+   "comment": "AARC",
+   "frequency": {
+    "mhz": 146.835,
+    "tone_hz": 107,
+    "tone_both": true,
+    "range_km": 40.2
+   }
+  }
+ },
+ {
+  "name": "frequency: a DCS code and a range in kilometres, the spec's example",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": "!4903.50N/07201.75W-146.805MHz D256 R25k Repeater",
+  "expected": {
+   "kind": "position",
+   "comment": "Repeater",
+   "frequency": {
+    "mhz": 146.805,
+    "dcs": "256",
+    "tone_hz": null,
+    "range_km": 25.0
+   }
+  }
+ },
+ {
+  "name": "frequency: a tone and an offset of 5 MHz, the spec's example",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": "!4903.50N/07201.75W-442.440MHz T107 -500 Repeater",
+  "expected": {
+   "kind": "position",
+   "comment": "Repeater",
+   "frequency": {
+    "mhz": 442.44,
+    "tone_hz": 107,
+    "offset_khz": -5000
+   }
+  }
+ },
+ {
+  "name": "frequency: a lower-case first letter of the tone is narrow modulation",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": "!4903.50N/07201.75W-145.50 MHz t077 Simplex",
+  "expected": {
+   "kind": "position",
+   "comment": "Simplex",
+   "frequency": {
+    "mhz": 145.5,
+    "tone_hz": 77,
+    "narrow": true
+   }
+  }
+ },
+ {
+  "name": "frequency: no tone and forced simplex",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": "!4903.50N/07201.75W-145.500MHz Toff -000",
+  "expected": {
+   "kind": "position",
+   "comment": "",
+   "frequency": {
+    "mhz": 145.5,
+    "tone_off": true,
+    "tone_hz": null,
+    "offset_khz": 0
+   }
+  }
+ },
+ {
+  "name": "frequency: a 1750 Hz tone burst, narrow with a lower-case l, and a separate receive frequency",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": "!4903.50N/07201.75W-430.150MHz l750 +760 430.225rx net",
+  "expected": {
+   "kind": "position",
+   "comment": "net",
+   "frequency": {
+    "mhz": 430.15,
+    "tone_burst": true,
+    "narrow": true,
+    "offset_khz": 7600,
+    "rx_mhz": 430.225
+   }
+  }
+ },
+ {
+  "name": "frequency: the fields may come in any order and end at the first word that is none",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": "!4903.50N/07201.75W-145.775MHz R10k T088 hello T100",
+  "expected": {
+   "kind": "position",
+   "comment": "hello T100",
+   "frequency": {
+    "mhz": 145.775,
+    "tone_hz": 88,
+    "range_km": 10.0
+   }
+  }
+ },
+ {
+  "name": "frequency: after the PHG extension and its slash",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": "!4903.50N/07201.75W#PHG5132/145.775MHz T100 Digi",
+  "expected": {
+   "kind": "position",
+   "comment": "Digi",
+   "extensions": {
+    "phg": {
+     "power_w": 25
+    }
+   },
+   "frequency": {
+    "mhz": 145.775,
+    "tone_hz": 100
+   }
+  }
+ },
+ {
+  "name": "frequency: after the course and speed and a slash",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": "!4903.50N/07201.75W-088/036/145.775MHz T100",
+  "expected": {
+   "kind": "position",
+   "comment": "",
+   "course_deg": 88,
+   "frequency": {
+    "mhz": 145.775,
+    "tone_hz": 100
+   }
+  }
+ },
+ {
+  "name": "frequency: in the comment of a compressed position",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": "!/5L!!<*e7>{?!145.775MHz T100 R25m",
+  "expected": {
+   "kind": "position",
+   "compressed": true,
+   "comment": "",
+   "frequency": {
+    "mhz": 145.775,
+    "tone_hz": 100,
+    "range_km": 40.2
+   }
+  }
+ },
+ {
+  "name": "frequency: a microwave band in the letter form",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": "!4903.50N/07201.75W-A96.000MHz T107",
+  "expected": {
+   "kind": "position",
+   "comment": "",
+   "frequency": {
+    "mhz": 1296.0,
+    "tone_hz": 107
+   }
+  }
+ },
+ {
+  "name": "frequency: a microwave band in GHz",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": "!4903.50N/07201.75W-1.296GHz",
+  "expected": {
+   "kind": "position",
+   "comment": "",
+   "frequency": {
+    "mhz": 1296.0
+   }
+  }
+ },
+ {
+  "name": "frequency: MHz in any case",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": "!4903.50N/07201.75W-145.775mhz T100",
+  "expected": {
+   "kind": "position",
+   "comment": "",
+   "frequency": {
+    "mhz": 145.775,
+    "tone_hz": 100
+   }
+  }
+ },
+ {
+  "name": "frequency: not at the start of the comment is text",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": "!4903.50N/07201.75W-QRV 145.500MHz",
+  "expected": {
+   "kind": "position",
+   "comment": "QRV 145.500MHz",
+   "frequency": null
+  }
+ },
+ {
+  "name": "frequency: three decimals with a blank before MHz is not the specified form",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": "!4903.50N/07201.75W-145.500 MHz",
+  "expected": {
+   "kind": "position",
+   "comment": "145.500 MHz",
+   "frequency": null
+  }
+ },
+ {
+  "name": "frequency: fields without a frequency are text",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": "!4903.50N/07201.75W-T100 -060 Repeater",
+  "expected": {
+   "kind": "position",
+   "comment": "T100 -060 Repeater",
+   "frequency": null
+  }
+ },
+ {
+  "name": "frequency: no space after MHz is not a frequency",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": "!4903.50N/07201.75W-145.775MHzT100",
+  "expected": {
+   "kind": "position",
+   "comment": "145.775MHzT100",
+   "frequency": null
+  }
+ },
+ {
+  "name": "frequency: an object named by its frequency takes the tone and the range of its comment",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": ";145.775-A*111111z4903.50N/07201.75WrT079 R25m NET Tu9PM",
+  "expected": {
+   "kind": "object",
+   "name": "145.775-A",
+   "position": {
+    "comment": "NET Tu9PM",
+    "frequency": {
+     "mhz": 145.775,
+     "tone_hz": 79,
+     "range_km": 40.2,
+     "offset_khz": null
+    }
+   }
+  }
+ },
+ {
+  "name": "frequency: an object named by its frequency and a comment that has none still has the frequency",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": ";145.7750 *111111z4903.50N/07201.75Wr",
+  "expected": {
+   "kind": "object",
+   "name": "145.7750",
+   "position": {
+    "comment": "",
+    "frequency": {
+     "mhz": 145.775,
+     "tone_hz": null
+    }
+   }
+  }
+ },
+ {
+  "name": "frequency: a name that is a frequency to 10 kHz with three characters after it",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": ";146.94xyz*111111z4903.50N/07201.75WrT088 +060",
+  "expected": {
+   "kind": "object",
+   "name": "146.94xyz",
+   "position": {
+    "comment": "",
+    "frequency": {
+     "mhz": 146.94,
+     "tone_hz": 88,
+     "offset_khz": 600
+    }
+   }
+  }
+ },
+ {
+  "name": "frequency: a name with no character after the frequency is a name",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": ";145.775  *111111z4903.50N/07201.75WrT079",
+  "expected": {
+   "kind": "object",
+   "name": "145.775",
+   "position": {
+    "comment": "T079",
+    "frequency": null
+   }
+  }
+ },
+ {
+  "name": "frequency: the name is the transmit frequency and the one in the comment the receive frequency",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": ";145.775-A*111111z4903.50N/07201.75Wr430.100MHz T100 +050",
+  "expected": {
+   "kind": "object",
+   "position": {
+    "comment": "",
+    "frequency": {
+     "mhz": 145.775,
+     "rx_mhz": 430.1,
+     "tone_hz": 100,
+     "offset_khz": 500
+    }
+   }
+  }
+ },
+ {
+  "name": "frequency: the same frequency in the name and in the comment is one frequency",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": ";145.775-A*111111z4903.50N/07201.75Wr145.775MHz T100",
+  "expected": {
+   "kind": "object",
+   "position": {
+    "comment": "",
+    "frequency": {
+     "mhz": 145.775,
+     "rx_mhz": null,
+     "tone_hz": 100
+    }
+   }
+  }
+ },
+ {
+  "name": "frequency: an item named by its frequency",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": ")145.775-!4903.50N/07201.75Wrt088",
+  "expected": {
+   "kind": "item",
+   "name": "145.775-",
+   "position": {
+    "comment": "",
+    "frequency": {
+     "mhz": 145.775,
+     "tone_hz": 88,
+     "narrow": true
+    }
+   }
+  }
+ },
+ {
+  "name": "frequency: an object with a name that is no frequency and the frequency in its comment",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": ";REPEATER *111111z4903.50N/07201.75Wr145.775MHz T100 -060",
+  "expected": {
+   "kind": "object",
+   "position": {
+    "comment": "",
+    "frequency": {
+     "mhz": 145.775,
+     "tone_hz": 100,
+     "offset_khz": -600
+    }
+   }
+  }
+ },
+ {
+  "name": "frequency: a status text that begins with one, the spec's tracker form",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": ">145.775MHz T100 -060 on the air",
+  "expected": {
+   "kind": "status",
+   "text": "on the air",
+   "frequency": {
+    "mhz": 145.775,
+    "tone_hz": 100,
+    "offset_khz": -600
+   }
+  }
+ },
+ {
+  "name": "frequency: a status with a timestamp",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": ">092345z145.775MHz",
+  "expected": {
+   "kind": "status",
+   "text": "",
+   "timestamp": "2026-10-09T23:45:00Z",
+   "frequency": {
+    "mhz": 145.775
+   }
+  }
+ },
+ {
+  "name": "frequency: a status text with a frequency that is not at the start is text",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": ">on 145.775MHz",
+  "expected": {
+   "kind": "status",
+   "text": "on 145.775MHz",
+   "frequency": null
+  }
+ },
+ {
+  "name": "frequency: the comment of a Mic-E packet, after the type code",
+  "source": "OH2XYZ-9",
+  "destination": "S32UVT",
+  "info": "`(_fn\"Oj/]145.775MHz T100 R25m Echolink node",
+  "expected": {
+   "kind": "position",
+   "frequency": {
+    "mhz": 145.775,
+    "tone_hz": 100,
+    "range_km": 40.2
+   }
+  }
+ },
+ {
+  "name": "storm data: the spec's Hurricane Brenda example, in knots, millibars and nautical miles",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": ";BRENDAVVV*092345z4903.50N\\07202.75W@088/036/HC/150^200/0980>090&030%040",
+  "expected": {
+   "kind": "object",
+   "name": "BRENDAVVV",
+   "position": {
+    "comment": "",
+    "course_deg": 88,
+    "storm": {
+     "storm_type": "HC",
+     "wind_kmh": 277.8,
+     "gust_kmh": 370.4,
+     "pressure_hpa": 980,
+     "hurricane_radius_km": 166.7,
+     "storm_radius_km": 55.6,
+     "gale_radius_km": 74.1
+    }
+   }
+  }
+ },
+ {
+  "name": "storm data: the radius of whole gale winds is optional",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": ";BRENDAVVV*092345z4903.50N\\07202.75W@088/036/TS/050^065/1002>060&020",
+  "expected": {
+   "kind": "object",
+   "position": {
+    "comment": "",
+    "storm": {
+     "storm_type": "TS",
+     "wind_kmh": 92.6,
+     "gust_kmh": 120.4,
+     "pressure_hpa": 1002,
+     "hurricane_radius_km": 111.1,
+     "storm_radius_km": 37.0,
+     "gale_radius_km": null
+    }
+   }
+  }
+ },
+ {
+  "name": "storm data: a predicted hurricane position of the primary table, text after it stays the comment",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": ";BRENDAVVV*092345z4905.50N/07201.75W@101/047/HC/104^123/0980>065&020%040 forecast",
+  "expected": {
+   "kind": "object",
+   "position": {
+    "comment": "forecast",
+    "storm": {
+     "storm_type": "HC",
+     "wind_kmh": 192.6
+    }
+   }
+  }
+ },
+ {
+  "name": "storm data: a tropical depression with the type alone",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": "=4903.50N\\07202.75W@/TD",
+  "expected": {
+   "kind": "position",
+   "comment": "",
+   "storm": {
+    "storm_type": "TD",
+    "wind_kmh": null,
+    "pressure_hpa": null
+   }
+  }
+ },
+ {
+  "name": "storm data: a word that begins like a type is text",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": "=4903.50N\\07202.75W@/TSunami warning",
+  "expected": {
+   "kind": "position",
+   "comment": "/TSunami warning",
+   "storm": null
+  }
+ },
+ {
+  "name": "storm data: another symbol has none",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": "=4903.50N\\07202.75W>088/036/HC/150",
+  "expected": {
+   "kind": "position",
+   "comment": "/HC/150",
+   "storm": null
+  }
+ },
+ {
+  "name": "signpost: the characters in braces are the sign, the rest is the comment",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": ")I91 3N!4903.50N\\07201.75Wm{55} speed",
+  "expected": {
+   "kind": "item",
+   "name": "I91 3N",
+   "position": {
+    "comment": "speed",
+    "sign": "55"
+   }
+  }
+ },
+ {
+  "name": "signpost: an object, three characters",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": ";SIGN     *092345z4903.50N\\07201.75Wm{ABC}",
+  "expected": {
+   "kind": "object",
+   "position": {
+    "comment": "",
+    "sign": "ABC"
+   }
+  }
+ },
+ {
+  "name": "signpost: four characters are not a sign",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": ")I91 3N!4903.50N\\07201.75Wm{ABCD}",
+  "expected": {
+   "kind": "item",
+   "position": {
+    "comment": "{ABCD}",
+    "sign": null
+   }
+  }
+ },
+ {
+  "name": "signpost: the braces of any other symbol are text, the corridor width of an area object among them",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": ";SEARCH   *092345z4903.50N\\07201.75Wl710/310{05}",
+  "expected": {
+   "kind": "object",
+   "position": {
+    "comment": "{05}",
+    "sign": null
+   }
+  }
  }
 ]

@@ -5,6 +5,7 @@ export const objects = {
   "schedule.next": { "=0": "not sent yet, next {when}", "=1": "sent once, next {when}", other: "sent {n} times, next {when}" },
   "schedule.waiting": { "=0": "not sent yet, waiting", "=1": "sent once, waiting", other: "sent {n} times, waiting" },
   "schedule.killing": { "=0": "killing, not sent yet", "=1": "killing, sent once", other: "killing, sent {n} times" },
+  "schedule.on_request": "sent only when asked",
 
   "objects.new": "New",
   "objects.none": "No objects.",
@@ -13,6 +14,7 @@ export const objects = {
   "objects.delete_title": "Delete (kill on the air)",
   "objects.delete_label": { select: "kind", object: "Delete the object {name}", item: "Delete the item {name}", other: "Delete the object {name}" },
   "objects.kind_word": { select: "kind", object: "object", item: "item", other: "object" },
+  "objects.in_group": "QRU group {group}",
 
   "objects.form.new": "New object",
   "objects.field.name": "Name",
@@ -23,6 +25,8 @@ export const objects = {
   "objects.field.speed": "Speed",
   "objects.field.moving": "Moving",
   "objects.field.path": "Path",
+  "objects.field.qru": "QRU group",
+  "objects.field.on_request": "Send only when asked",
   "objects.unit.deg": "deg",
   "objects.form.cancel": "Cancel",
   "objects.form.save": "Save",
@@ -35,4 +39,5 @@ export const objects = {
   "objects.problem.comment_chars": "Printable ASCII, no | or ~",
   "objects.problem.course": "0 to {max} degrees",
   "objects.problem.speed": "0 to {max} km/h",
+  "objects.problem.qru_group": "Up to {max} letters and digits, not INFO or NEXT",
 } as const;

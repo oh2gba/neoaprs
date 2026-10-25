@@ -19,9 +19,9 @@ import pytest
 from tests.support.codemap import Import, Tree, connect_sites, find_cycle, forbidden_names, import_graph, load_tree, module_name, sql_sites, sql_strings
 
 LAYERS: dict[str, list[str]] = {
-    "foundation": ["neoaprs", "clock", "signal", "coded", "policy", "callsign", "geo", "symbols", "kiss", "ax25", "aprsposition", "aprsmice", "aprsmessage", "aprsparse", "aprsweather", "aprsthirdparty", "aprsextension", "aprslocator", "aprstelemetry", "aprsnmea", "packet", "packetcodec", "message", "bulletin", "decay", "tncmode", "tncprofile", "pref", "route", "chain", "mapstate", "radiosearch", "serialboards", "versions", "updateasset", "device", "devicedata", "hourcount"],
+    "foundation": ["neoaprs", "clock", "signal", "coded", "policy", "callsign", "geo", "symbols", "kiss", "ax25", "aprsposition", "aprsmice", "aprsmessage", "aprsparse", "aprsweather", "aprsthirdparty", "aprsextension", "aprsfreq", "aprsstorm", "aprslocator", "aprstelemetry", "aprsnmea", "packet", "packetcodec", "message", "bulletin", "decay", "tncmode", "tncprofile", "pref", "route", "chain", "mapstate", "radiosearch", "serialboards", "versions", "updateasset", "device", "devicedata", "hourcount"],
     "domain": ["alertcommand", "config", "configlegacy", "configstatus", "configtypes", "interlock", "station", "stationnotes", "stationbook", "aloha", "ownobject", "ownbulletin"],
-    "adapters": ["source", "tasks", "serialport", "serialholders", "serialprobe", "btsdp", "btserial", "btpaired", "tnc", "tncsearch", "tncwatchdog", "tncentry", "tnclines", "childenv", "rigctld", "pmtilestool", "updatefetch", "updatedownload", "selfreplace"],
+    "adapters": ["source", "tasks", "serialport", "serialholders", "serialprobe", "btsdp", "btserial", "btle", "btpaired", "tnc", "tncsearch", "tncwatchdog", "tncentry", "tnclines", "childenv", "rigctld", "pmtilestool", "updatefetch", "updatedownload", "selfreplace"],
     "persistence": ["store", "migrations", "migrations2", "backupfolder", "durable", "instancelock", "stopfile", "walcare", "dbfile", "dberror", "dbstats", "dbthread", "db", "dbopen", "storesql", "paths", "dblog", "packetsql", "packetlog", "messagesql", "messagelog", "bulletinsql", "bulletinlog", "weathersql", "weatherlog", "ownsql", "ownlog"],
     "services": [],
     "app": ["controller", "app", "wiring"],
@@ -38,15 +38,16 @@ MAY_IMPORT: dict[str, set[str]] = {
 }
 # Inside the adapters layer a feed may use the base every feed shares, and the few siblings named here; any other adapter-to-adapter import is a violation.
 ADAPTER_BASES = {"neoaprs.source", "neoaprs.tasks"}
-ADAPTER_SIBLINGS: set[tuple[str, str]] = {("neoaprs.tnc", "neoaprs.serialport"), ("neoaprs.tnc", "neoaprs.serialprobe"), ("neoaprs.tnc", "neoaprs.serialholders"), ("neoaprs.tnc", "neoaprs.tncsearch"), ("neoaprs.tnc", "neoaprs.tncwatchdog"), ("neoaprs.tnc", "neoaprs.tncentry"), ("neoaprs.tnc", "neoaprs.tnclines"), ("neoaprs.tncsearch", "neoaprs.serialport"), ("neoaprs.tncsearch", "neoaprs.serialprobe"), ("neoaprs.serialprobe", "neoaprs.serialport"), ("neoaprs.serialprobe", "neoaprs.serialholders"), ("neoaprs.serialholders", "neoaprs.serialport"), ("neoaprs.serialport", "neoaprs.btserial"), ("neoaprs.btserial", "neoaprs.btsdp"), ("neoaprs.serialprobe", "neoaprs.btpaired")}      # (importer, imported): the TNC reads the serial line, and its search and watchdog are parts of it
+ADAPTER_SIBLINGS: set[tuple[str, str]] = {("neoaprs.tnc", "neoaprs.serialport"), ("neoaprs.tnc", "neoaprs.serialprobe"), ("neoaprs.tnc", "neoaprs.serialholders"), ("neoaprs.tnc", "neoaprs.tncsearch"), ("neoaprs.tnc", "neoaprs.tncwatchdog"), ("neoaprs.tnc", "neoaprs.tncentry"), ("neoaprs.tnc", "neoaprs.tnclines"), ("neoaprs.tncsearch", "neoaprs.serialport"), ("neoaprs.tncsearch", "neoaprs.serialprobe"), ("neoaprs.serialprobe", "neoaprs.serialport"), ("neoaprs.serialprobe", "neoaprs.serialholders"), ("neoaprs.serialholders", "neoaprs.serialport"), ("neoaprs.serialport", "neoaprs.btserial"), ("neoaprs.serialport", "neoaprs.btle"), ("neoaprs.btserial", "neoaprs.btsdp"), ("neoaprs.serialprobe", "neoaprs.btpaired")}      # (importer, imported): the TNC reads the serial line, and its search and watchdog are parts of it
 DELIVERY_PACKAGES = ("neoaprs.web", "neoaprs.cli", "neoaprs.desktop")
 WIRE_ASSEMBLERS = {"neoaprs.web.protocol"}
 PURE = {"foundation", "domain"}
 # pyserial ("serial") counts as an I/O library beside the terminal modules it stands on: the protocol modules never see a descriptor.
-IO_LIBRARIES = {"asyncio", "sqlite3", "socket", "subprocess", "tornado", "serial", "termios", "pty", "fcntl", "os", "shutil", "tempfile", "ssl", "select", "selectors", "urllib.request", "http.client", "http.server"}
+IO_LIBRARIES = {"asyncio", "sqlite3", "socket", "subprocess", "tornado", "serial", "bleak", "termios", "pty", "fcntl", "os", "shutil", "tempfile", "ssl", "select", "selectors", "urllib.request", "http.client", "http.server"}
 # The desktop app's toolkits (the extra `app` of pyproject.toml) are imported by the shells and by nothing else: everything else of neoaprs/desktop/ runs without them (and is tested without them).
 TOOLKITS = {"PySide6", "shiboken6", "webview", "pystray", "PIL"}
 TOOLKIT_HOMES: set[str] = {"neoaprs.desktop.qtshell", "neoaprs.desktop.qtwindow", "neoaprs.desktop.winshell"}
+BLEAK_HOMES: set[str] = {"neoaprs.btle"}                        # bleak (the extra `ble` of pyproject.toml) only in the BLE port, which imports it when a ble:// port is opened
 TORNADO_HOMES: set[str] = set()                                # Tornado only in neoaprs/web/ (CONVENTIONS.md)
 PYDANTIC_HOMES: set[str] = {"neoaprs.web.wirebase", "neoaprs.web.hostwire", "neoaprs.web.hubwire", "neoaprs.web.stationwire", "neoaprs.web.packetwire", "neoaprs.web.tncwire", "neoaprs.web.configwire", "neoaprs.web.beaconwire", "neoaprs.web.messagewire", "neoaprs.web.bulletinwire", "neoaprs.web.prefwire", "neoaprs.web.weatherwire", "neoaprs.web.portwire", "neoaprs.web.mapwire", "neoaprs.web.ownwire", "neoaprs.web.updatewire", "neoaprs.web.protocol", "neoaprs.web.dispatch", "neoaprs.web.outbound"}      # the core knows nothing of the wire format; these check or describe what comes in and what goes out
 
@@ -146,6 +147,8 @@ def violations(graph: dict[str, list[Import]]) -> dict[tuple[str, str], str]:
                     found[key] = f"{mine} (pure code) imports the I/O library {imp.target}"
                 elif imp.top == "serial" and mine != "adapters":
                     found[key] = "pyserial outside the adapters layer"
+                elif imp.top == "bleak" and importer not in BLEAK_HOMES:
+                    found[key] = "bleak outside neoaprs/btle.py"
                 elif imp.top == "tornado" and importer not in TORNADO_HOMES and not is_web(importer):
                     found[key] = "Tornado outside neoaprs/web/"
                 elif imp.top == "pydantic" and importer not in PYDANTIC_HOMES:
@@ -301,6 +304,14 @@ def test_adapters_and_persistence_do_not_import_each_other_and_siblings_only_by_
     }
 
 
+def test_bleak_is_kept_to_the_ble_port() -> None:
+    g = graph_of(btle="def import_bleak():\n    import bleak\n", btserial="import bleak\n", clock="from bleak import BleakClient\n")
+    assert violations(g) == {
+        ("neoaprs.btserial", "bleak"): "bleak outside neoaprs/btle.py",
+        ("neoaprs.clock", "bleak"): "foundation (pure code) imports the I/O library bleak",
+    }
+
+
 def test_tornado_and_pydantic_are_kept_to_their_homes() -> None:
     g = graph_of(source="from tornado.httpclient import HTTPRequest\n", store="import pydantic\n")
     g.update(import_graph({"neoaprs/web/server.py": "import tornado.web\n", "neoaprs/web/hub.py": "import pydantic\n", "neoaprs/web/stationwire.py": "import pydantic\n"}))
@@ -357,9 +368,9 @@ def test_a_module_that_builds_a_service_of_its_own_is_found_and_the_root_and_the
     assert services_imported_outside_the_root(g) == [("neoaprs.store", "neoaprs.services.messaging"), ("neoaprs.web.api", "neoaprs.services")]
 
 
-def test_connect_is_counted_per_file_and_sqlite_is_not_a_signal(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_connect_is_counted_per_file_and_sqlite_a_socket_and_an_awaited_connect_are_not_a_signal(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(sys.modules[__name__], "COMPOSITION_ROOTS", {"neoaprs/wiring.py"})
-    tree = {"neoaprs/a.py": "import sqlite3\ndb = sqlite3.connect('x')\nsock.connect(('h', 1))\nsig.connect(f)\nself.client.message.connect(g)\n", "neoaprs/wiring.py": "s.connect(h)\n", "neoaprs/web/api.py": "pass\n"}
+    tree = {"neoaprs/a.py": "import sqlite3\ndb = sqlite3.connect('x')\nsock.connect(('h', 1))\nsig.connect(f)\nself.client.message.connect(g)\nasync def f():\n    await client.connect()\n", "neoaprs/wiring.py": "s.connect(h)\n", "neoaprs/web/api.py": "pass\n"}
     assert connect_sites(tree) == {"neoaprs/a.py": 2, "neoaprs/wiring.py": 1}
     assert wiring_outside_the_root(connect_sites(tree)) == {"neoaprs/a.py": 2}
 

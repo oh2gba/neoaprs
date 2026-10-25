@@ -22,6 +22,9 @@ const position = {
   extensions: null,
   timestamp_local: false,
   locator: null,
+  frequency: null,
+  storm: null,
+  sign: null,
 };
 
 describe("packetFacts", () => {
@@ -64,7 +67,7 @@ describe("packetFacts", () => {
   });
 
   it("tells a status, a telemetry report, a packet not decoded and one of another kind", () => {
-    expect(facts(withDecoded({ kind: "status" }, { type: "status", text: "on air", timestamp: null, locator: null }))).toMatchObject({
+    expect(facts(withDecoded({ kind: "status" }, { type: "status", text: "on air", timestamp: null, locator: null, frequency: null }))).toMatchObject({
       Kind: "Status report",
       Status: "on air",
     });
@@ -124,5 +127,39 @@ describe("kindWords", () => {
     expect(kindWords(withDecoded({ kind: "other" }, { type: "other", kind: "agrelo-df", text: "", weather: null, items: null, timestamp: null }))).toBe(
       "Other packet (agrelo-df)",
     );
+  });
+});
+
+describe("packetFacts of the local information", () => {
+  const frequency = {
+    mhz: 145.775,
+    tone_hz: 118,
+    tone_both: false,
+    tone_off: false,
+    dcs: null,
+    tone_burst: false,
+    narrow: false,
+    offset_khz: -600,
+    range_km: null,
+    rx_mhz: null,
+  };
+  it("tells the frequency, the storm and the sign of a position, and the frequency of a status", () => {
+    const storm = {
+      storm_type: "TS",
+      wind_kmh: 90,
+      gust_kmh: null,
+      pressure_hpa: null,
+      hurricane_radius_km: null,
+      storm_radius_km: 55.6,
+      gale_radius_km: null,
+    };
+    const f = facts(withDecoded({}, { type: "object", name: "BRENDA", alive: true, timestamp: null, position: { ...position, frequency, storm, sign: "55" } }));
+    expect(f["Frequency"]).toBe("145.775 MHz, tone 118 Hz, -600 kHz");
+    expect(f["Storm"]).toBe("Tropical storm, wind 90 km/h, tropical storm winds out to 56 km");
+    expect(f["Sign"]).toBe("55");
+    const status = facts(withDecoded({}, { type: "status", text: "net tonight", timestamp: null, locator: null, frequency }));
+    expect(status["Frequency"]).toBe("145.775 MHz, tone 118 Hz, -600 kHz");
+    expect(status["Status"]).toBe("net tonight");
+    expect(Object.keys(facts(withDecoded({}, { type: "status", text: "", timestamp: null, locator: null, frequency })))).not.toContain("Status");
   });
 });

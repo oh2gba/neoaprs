@@ -4,7 +4,7 @@
   there to be read), and a socket that connects, sends a datagram or looks up a name that is not on this machine fails the test (a test must never post a made-up packet to the real
   internet, and pass);
 * no radio: a test that opens a serial device of the machine (/dev/brainbox_*, /dev/tty*, /dev/serial/*, /dev/rfcomm*, or any device node of the serial drivers, whatever it is called or linked as) through `serial.Serial` or `os.open` fails; the tests use a fake radio on the loopback (tests/support/fakeradio.py) or, for a device file, a pseudo-terminal pair (tests/support/ptyline.py), and the live port is the operator's. A process a test starts inherits NEOAPRS_SERIAL_PATTERN (tests/conftest.py), which makes its search find no port, and NEOAPRS_UPDATE_CHECK=0, which keeps its daily update check from asking the version page on the internet; one that is given an environment of its own must carry both (`ProcessGuard`);
-* no Bluetooth: a test that makes a real Bluetooth socket (AF_BLUETOOTH: an RFCOMM or L2CAP connection to a device, which a radio nearby would answer) fails; the tests use a socket pair (tests/support/fakebluetooth.py), and the list of the devices paired with the machine (BlueZ) is not read;
+* no Bluetooth: a test that makes a real Bluetooth socket (AF_BLUETOOTH: an RFCOMM or L2CAP connection to a device, which a radio nearby would answer) fails; the tests use a socket pair (tests/support/fakebluetooth.py), and the list of the devices paired with the machine (BlueZ) is not read; the same for a Bluetooth LE scan or connection through bleak, which is replaced by a stand-in that refuses (a test of the BLE port gives its own, tests/support/fakeble.py);
 * no leak: a test that ends with an asyncio task still running fails (the daemons of `Env` are stopped for it first, see env.stop_all), and so does one that ends with the thread of
   a Db (neoaprs/db.py) still running (`await db.close()`);
 * no swallowed error: a test that makes the code log an ERROR it did not say it expects fails (`@pytest.mark.expects_errors`, or a test that reads the log
@@ -26,6 +26,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import types
 import threading
 import time
 from collections.abc import AsyncIterator, Callable, Iterator
@@ -217,6 +218,34 @@ class BluetoothGuard:
         patch(socket.socket, "__init__", guarded_init)
 
 
+    def install_ble(self, setitem: Callable[[Any, str, Any], None]) -> None:
+        """Puts a stand-in for the bleak library in `sys.modules`: its scanner and its client refuse, and are remembered. (A test of the BLE port, or of the missing library, sets its own.)"""
+        stand_in = types.ModuleType("bleak")
+
+        class BleakError(Exception):
+            pass
+
+        guard = self
+
+        class Scanner:
+            @staticmethod
+            async def find_device_by_address(*args: Any, **kwargs: Any) -> None:
+                guard.check_ble("a Bluetooth LE scan")
+
+        class Client:
+            def __init__(self, *args: Any, **kwargs: Any) -> None:
+                guard.check_ble("a Bluetooth LE connection")
+
+        stand_in.BleakError = BleakError                # type: ignore[attr-defined]
+        stand_in.BleakScanner = Scanner                 # type: ignore[attr-defined]
+        stand_in.BleakClient = Client                   # type: ignore[attr-defined]
+        setitem(sys.modules, "bleak", stand_in)
+
+    def check_ble(self, what: str) -> None:
+        self.refused.append(what)
+        raise BluetoothTouched(errno.EACCES, f"a test may not make {what} (use tests/support/fakeble.py)")
+
+
 class ProcessGuard:
     """Patches `subprocess.Popen`: the `neoaprs` command (or `python -m neoaprs`) started with an environment of its own, which does not carry NEOAPRS_SERIAL_PATTERN, would search the machine's serial ports, and without NEOAPRS_UPDATE_CHECK=0 would ask the version page on the internet: refused, and remembered."""
 
@@ -366,6 +395,7 @@ def isolated_machine(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
         radio, processes, bluetooth = SerialGuard(), ProcessGuard(), BluetoothGuard()
         radio.install(monkeypatch.setattr)
         bluetooth.install(monkeypatch.setattr)
+        bluetooth.install_ble(monkeypatch.setitem)
         monkeypatch.setattr(btpaired, "_run", lambda command: "")               # BlueZ is not asked which devices this machine is paired with: a test that needs some gives its own answer
         monkeypatch.setattr(serial.tools.list_ports, "comports", lambda: [])    # the machine's USB devices are not read (slow, and not the test's): a test that needs some gives its own list
         processes.install(monkeypatch.setattr)

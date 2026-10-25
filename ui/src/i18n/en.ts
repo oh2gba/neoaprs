@@ -7,6 +7,7 @@ import { errors } from "@/i18n/en/errors";
 import { help } from "@/i18n/en/help";
 import { map } from "@/i18n/en/map";
 import { messages } from "@/i18n/en/messages";
+import { nearby } from "@/i18n/en/nearby";
 import { objects } from "@/i18n/en/objects";
 import { packets } from "@/i18n/en/packets";
 import { settings } from "@/i18n/en/settings";
@@ -27,6 +28,7 @@ export const en = {
   ...bulletins,
   ...objects,
   ...stations,
+  ...nearby,
   ...map,
   ...packets,
   ...weather,

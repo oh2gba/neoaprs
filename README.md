@@ -1,6 +1,6 @@
 # NeoAPRS
 
-A modern, easy-to-use APRS client: a map of the stations you hear, messages with acks and retries (each one chooses its own path), the beacon, weather graphs, objects and bulletins of your own, email through the APRS gateway, and a fill-in digipeater if you want one. It is a standalone app on Windows and Linux (a window with the map and the messages, and a tray icon), or a service you reach over your local network: the radio and NeoAPRS on a Raspberry Pi in the shack, and the page open on your laptop or phone at home. The page fits a phone, a tablet and a desktop, speaks English, German, Spanish, French, Italian, Japanese and Brazilian Portuguese, and a setting applies as you change it; **Language** at the top of the Settings tab changes the page's language. RF only: it talks to your radio or TNC and has no iGate. For the days you only want to listen, **Transmit** in the Beacon tab set to **Receive only** stops all transmitting, and an amber badge in the header says so.
+A modern, easy-to-use APRS client: a map of the stations you hear, a Nearby tab that lists the digipeaters, voice frequencies, iGates and stations in simplex range round you, messages with acks and retries (each one chooses its own path), the beacon, weather graphs, objects and bulletins of your own, email through the APRS gateway, and a fill-in digipeater if you want one. It is a standalone app on Windows and Linux (a window with the map and the messages, and a tray icon), or a service you reach over your local network: the radio and NeoAPRS on a Raspberry Pi in the shack, and the page open on your laptop or phone at home. The page fits a phone, a tablet and a desktop, speaks English, German, Spanish, French, Italian, Japanese and Brazilian Portuguese, and a setting applies as you change it; **Language** at the top of the Settings tab changes the page's language. RF only: it talks to your radio or TNC and has no iGate. For the days you only want to listen, **Transmit** in the Beacon tab set to **Receive only** stops all transmitting, and an amber badge in the header says so.
 
 | ![The map](docs/screenshots/map.png) | ![Weather](docs/screenshots/weather.png) |
 |---|---|
@@ -42,9 +42,10 @@ The page opens a setup guide in five steps: **call**, **position** (**Choose on 
 | Kenwood TH-D7, TM-D700, TS-2000; TNC-2 clones (MFJ-1270B/1274/1278, TAPR) | [serial, 9600](docs/RADIOS.md#kenwood-th-d7-and-tm-d700) |
 | Kenwood TM-D710, TH-D72 | [serial or USB](docs/RADIOS.md#kenwood-tm-d710-and-th-d72) |
 | Kenwood TH-D74, TH-D75 | [USB or Bluetooth](docs/RADIOS.md#kenwood-th-d74-and-th-d75) |
-| Mobilinkd TNC3, TNC4 | [USB or Bluetooth](docs/RADIOS.md#mobilinkd-tnc3-and-tnc4) |
+| Mobilinkd TNC3, TNC4 | [USB, Bluetooth or Bluetooth LE](docs/RADIOS.md#mobilinkd-tnc3-and-tnc4) |
 | BTech UV-PRO, Vero VR-N76, Radioddity GA-5WB (untested) | [Bluetooth](docs/RADIOS.md#btech-uv-pro-vero-vr-n76-radioddity-ga-5wb) |
 | PicoAPRS V4 (untested) | [Bluetooth, USB-C or TCP](docs/RADIOS.md#picoaprs-v4) |
+| LoRa APRS iGate and Tracker (CA2RXU firmware; untested) | [KISS over TCP or Bluetooth LE](docs/RADIOS.md#lora-aprs-ca2rxu-firmware) |
 | NinoTNC, TNC-Pi, TNC-X, any TNC already in KISS | [USB or serial](docs/RADIOS.md#ninotnc) |
 | Kantronics KPC-3+ | [RS-232](docs/RADIOS.md#kantronics-kpc-3) |
 | Any radio with a sound-card interface (Digirig, SignaLink, USB dongle), through Direwolf or a soundmodem | [KISS over TCP](docs/RADIOS.md#direwolf-sound-card) |

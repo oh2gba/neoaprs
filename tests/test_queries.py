@@ -362,3 +362,11 @@ async def test_aprsm_sends_again_our_messages_to_the_asker_that_no_ack_settled_a
     rig.ask("OH2NEW", "?APRSM")
     await idle_for(0.1)
     assert len(rig.tnc.sent) == 3, "nothing is owed to a station we never wrote to: no answer"
+
+
+async def test_aprso_gives_an_object_that_is_sent_only_when_asked_as_well() -> None:
+    now = FixedClock()()
+    held = make_object(now, "PUB", "object", 60.17, 24.94, "/", "r", qru_group="FOOD", on_request=True)
+    rig = paced_rig((held,))
+    rig.ask("OH2RDG", "?APRSO")
+    assert [f.info[:10] for f in rig.tnc.sent] == [b";PUB      "]

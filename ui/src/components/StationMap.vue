@@ -5,8 +5,9 @@
 // when the daemon makes the files again (`filesKey` changes) the style is set again. One map for the life of the page,
 // opened where we are (zoom 9; on the world while we have no position) or where it was left; the colour scheme follows the system. While the first-run guide asks for the position (`picking`) a click on the map is a place (`pick`), and the place the guide
 // holds (`pin`) has a marker, which the map flies to when it was typed and not clicked. An object or an item of ours (`own`) has a marker that can be dragged: where it is dropped is its new place (`move`).
-// Round our own station runs the ALOHA circle, a thin dashed line under the markers at the radius the daemon worked out (lib/alohacircle.ts); a pointer resting on it gets its radius as the title of the map.
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+// Round our own station runs the ALOHA circle, a thin dashed line under the markers at the radius the daemon worked out (lib/alohacircle.ts); a pointer resting on it gets its radius as the title of the map. With "Show range" of the Nearby tab on, each digipeater that gave
+// a range (PHG or RNG) has a pale circle of that range under the markers too (lib/rangecircles.ts).
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, toRef, watch } from "vue";
 import type { GeoJSONSource, Map as MapLibreMap, Marker } from "maplibre-gl";
 import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
@@ -14,7 +15,8 @@ import MapAttribution from "@/components/MapAttribution.vue";
 import { archiveUrl, archivesPresent, glyphsUrl, loadMapEngine } from "@/lib/basemap";
 import { BASEMAP_FILE, WORLD_FILE, basemapStyle, MAX_ZOOM, OPEN_ZOOM, type Archives } from "@/lib/basemapstyle";
 import { useDaemonContext } from "@/composables/useDaemonContext";
-import { useAlohaCircle } from "@/composables/useAlohaCircle";
+import { useMapCircles } from "@/composables/useMapCircles";
+import { useMapControlLabels } from "@/composables/useMapControlLabels";
 import { useClearOfCard } from "@/composables/useClearOfCard";
 import { useMapFollow } from "@/composables/useMapFollow";
 import { useResized } from "@/composables/useResized";
@@ -45,8 +47,10 @@ const props = withDefaults(
     picking?: boolean;
     /** The place the first-run guide holds, shown with a marker. */
     pin?: Home | null;
+    /** The Nearby tab's "Show range": the range circle of each digipeater that gave one is drawn. */
+    ranges?: boolean;
   }>(),
-  { others: () => [], picking: false, pin: null },
+  { others: () => [], picking: false, pin: null, ranges: false },
 );
 const emit = defineEmits<{ select: [call: string | null, multi?: boolean]; download: []; pick: [at: Home]; move: [call: string, lat: number, lon: number] }>();
 const page = useDaemonContext();
@@ -63,7 +67,8 @@ interface Placed {
 const root = ref<HTMLElement | null>(null);
 const host = ref<HTMLElement | null>(null);
 const card = useClearOfCard(root, host);
-const aloha = useAlohaCircle(() => map, host);
+const circles = useMapCircles(() => map, host, toRef(props, "ranges"));
+const labelControls = useMapControlLabels(host);
 useResized(host, () => map?.resize());
 const note = ref<MessageId | "">(""); // what stands over the map when there is no base map (or no map engine): the id of its message
 const offerDownload = ref(false); // ... and whether it has the button that goes to where the map is made
@@ -112,7 +117,7 @@ function drawRoute(): void {
 
 function addLayers(): void {
   if (!map) return;
-  aloha.add(map); // (first: under the tracks and the route)
+  circles.add(map); // (first: under the tracks and the route)
   addTrackLayers(map, trackLines([], null, page.now.value, page.aging.value));
   drawTracks();
   addRouteLayers(map, routeFeatures(undefined, page.stations.value, null));
@@ -195,19 +200,6 @@ function pickAt(lat: number, lon: number): void {
   void nextTick(() => (clicked = false)); // after the update the click causes
 }
 
-/** The words of the map engine's own controls in the page's language (it has English only): the zoom buttons and the label of its canvas. Said again when the language changes. */
-function labelControls(): void {
-  const label = (selector: string, text: string): void => {
-    const el = host.value?.querySelector(selector);
-    el?.setAttribute("aria-label", text);
-    if (el?.hasAttribute("title")) el.setAttribute("title", text);
-  };
-  label(".maplibregl-ctrl-zoom-in", t("map.zoom_in"));
-  label(".maplibregl-ctrl-zoom-out", t("map.zoom_out"));
-  label(".maplibregl-canvas", t("map.label"));
-}
-watch(() => [t("map.zoom_in"), t("map.zoom_out"), t("map.label")], labelControls);
-
 function showLabels(): void {
   host.value?.classList.toggle("labels-off", (map?.getZoom() ?? OPEN_ZOOM) < LABELS_FROM_ZOOM);
 }
@@ -247,7 +239,7 @@ async function create(): Promise<void> {
   map.addControl(new engine.NavigationControl({ showCompass: false }), "top-left");
   labelControls();
   map.on("style.load", addLayers);
-  aloha.listen(map);
+  circles.listen(map);
   map.on("movestart", () => hover?.hide());
   map.on("click", onClick);
   map.on("zoom", showLabels);

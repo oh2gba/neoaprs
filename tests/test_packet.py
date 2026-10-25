@@ -5,7 +5,9 @@ from datetime import UTC, datetime
 import pytest
 
 from neoaprs.aprsextension import Extensions, Phg
+from neoaprs.aprsfreq import Frequency
 from neoaprs.aprslocator import Locator
+from neoaprs.aprsstorm import Storm
 from neoaprs.aprstelemetry import Telemetry
 from neoaprs.packet import ItemReport, Message, ObjectReport, Other, Packet, Position, Status, ThirdParty, Undecoded, decode_text
 
@@ -44,6 +46,14 @@ def test_kind_and_summary(decoded: object, kind: str, summary: str) -> None:
     assert (p.kind, p.summary) == (kind, summary)
 
 
+def test_a_summary_tells_the_frequency_the_storm_and_the_sign() -> None:
+    frequency = Frequency(145.775, tone_hz=118, offset_khz=-600)
+    assert packet(Position(60.17, 24.94, "/", "-", "Voice", frequency=frequency)).summary == "position 60.1700 24.9400 /- [145.775 MHz, tone 118 Hz, -600 kHz] Voice"
+    storm = Position(60.17, 24.94, "\\", "@", storm=Storm("TD", 50.0), sign="55")
+    assert packet(storm).summary == "position 60.1700 24.9400 \\@ [tropical depression, wind 50 km/h] [sign 55]"
+    assert packet(Status("net", frequency=Frequency(145.5))).summary == "status [145.500 MHz] net"
+
+
 def test_a_summary_is_one_line() -> None:
     assert "\n" not in packet(Status("a\nb\r\x00c")).summary
     assert packet(Status("a\nb")).summary == "status a?b"
@@ -60,6 +70,7 @@ def test_position_defaults() -> None:
     p = Position(1.0, 2.0, "/", "-")
     assert (p.comment, p.course_deg, p.speed_kmh, p.altitude_m, p.timestamp, p.messaging, p.compressed, p.ambiguity) == ("", None, None, None, None, False, False, 0)
     assert (p.extensions, p.timestamp_local, p.locator) == (None, False, None)
+    assert (p.frequency, p.storm, p.sign) == (None, None, None)
 
 
 def test_a_naive_time_is_refused() -> None:

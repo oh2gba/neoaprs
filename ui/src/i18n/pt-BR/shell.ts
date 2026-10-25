@@ -20,6 +20,7 @@ export const shell: Record<keyof typeof source, Message> = {
 
   "tab.messages": "Mensagens",
   "tab.stations": "Estações",
+  "tab.nearby": "Por perto",
   "tab.email": "E-mail",
   "tab.bulletins": "Boletins",
   "tab.objects": "Objetos",

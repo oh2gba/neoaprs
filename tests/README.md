@@ -30,7 +30,8 @@
 * `test_kiss.py`, `test_ax25.py`, `test_callsign.py`, `test_geo.py`, `test_symbols.py`, `test_aprsposition.py`, `test_aprsmice.py`, `test_aprsmessage.py`,
   `test_aprsparse.py`, `test_aprsweather.py`, `test_packet.py`: the protocol stack, from the bytes of the line to the `Packet` (the parser against
   `fixtures/aprs/cases.json`, the real weather reports among them; `test_aprsweather.py` the conversions to metric, where the fields end and the comment begins,
-  what is missing, the summary line and whose weather a packet is),
+  what is missing, the summary line and whose weather a packet is; `test_aprsfreq.py` the frequency specification (the fields of a voice frequency at the start of a comment, the object name that is a frequency, what stays text) and `test_aprsstorm.py` the
+  storm data in units of the program; the signpost's braces are in `test_aprsextension.py`),
 * `test_alerts_runner.py`, `test_dbcmd.py`, `test_capturecmd.py`, `test_replaypty.py`, `test_durable.py`, `test_appstate.py`, `test_addresses.py`: the ways a
   run goes wrong that the tests with real commands and processes do not reach, in the test's own process: the alert command's Windows path and its failures,
   kills and timeouts on a fake `subprocess`; `neoaprs db` on a database that is not one, an older or a newer one; `neoaprs capture` choosing a port, losing it,

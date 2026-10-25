@@ -42,6 +42,9 @@ def test_the_rules_of_a_path_a_message_a_bulletin_and_an_object_are_pinned() -> 
     assert slots[("bulletin", "A", "")] is None and slots[("group", "A", "HAMS")] is None and slots[("group", "0", "HAMS12")] is None
     names = {(c["kind"], c["name"]): c["ok"] for c in v["object_names"]}
     assert names[("object", "A")] and names[("item", "ABC")] and not names[("item", "AB")] and not names[("object", "has_under")] and not names[("object", "TENCHARS12")]
+    groups = {c["group"]: (c["ok"], c["kept"]) for c in v["qru_groups"]}
+    assert groups[""] == groups["  "] == (True, "") and groups[" rp70 "] == (True, "RP70") and groups["LIFEBOAT"][0] and not groups["LIFEBOATS"][0] and not groups["INFO"][0]
+    assert not groups["NEXT"][0] and not groups["R P"][0] and not groups["RP-70"][0] and not groups["ÅÄ"][0] and not groups["info"][0]
 
 
 def test_the_beacon_the_settings_make_is_null_where_the_daemon_would_send_none() -> None:
@@ -59,6 +62,6 @@ def test_the_beacon_the_settings_make_is_null_where_the_daemon_would_send_none()
 def test_every_category_has_cases_and_the_phg_and_the_positions_are_the_daemons_figures() -> None:
     v = vectors()
     assert all(v[name] for name in v)
-    assert {"calls", "parse_calls", "paths", "message_texts", "bulletin_texts", "bulletin_slots", "object_names", "object_comments", "settings", "phg", "positions", "beacons"} <= v.keys()
+    assert {"calls", "parse_calls", "paths", "message_texts", "bulletin_texts", "bulletin_slots", "object_names", "object_comments", "qru_groups", "settings", "phg", "positions", "beacons"} <= v.keys()
     assert {(c["power"], c["height"], c["gain"], c["direction"]): c["text"] for c in v["phg"]}[(5, 10, 3, "NE")] == "PHG2231"
     assert {(c["lat"], c["lon"]): c["text"] for c in v["positions"]}[(60.17, 24.94)] == "6010.20N/02456.40E-"

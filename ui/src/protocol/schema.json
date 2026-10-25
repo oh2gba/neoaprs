@@ -681,6 +681,39 @@
           "default": null,
           "description": "the base-91 telemetry `|ss11|` the comment carried (APRS 1.2), taken out of the `comment`; null when there was none"
         },
+        "frequency": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FrequencyValues"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the local information the comment began with (`145.775MHz T100 -060 R40k`), or the name of a frequency object with the fields of its comment, taken out of the `comment`; null when there was none"
+        },
+        "storm": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StormValues"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the storm data the comment of a position with the symbol `@` began with (`/HC/150^200/0980>090&030%040`), taken out of the `comment`; null when there was none"
+        },
+        "sign": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the characters of a signpost (symbol `\\m`): `55` for a comment that began `{55}`, taken out of the `comment`; null for any other position"
+        },
         "type": {
           "const": "position",
           "type": "string"
@@ -703,6 +736,9 @@
         "extensions",
         "timestamp_local",
         "locator",
+        "frequency",
+        "storm",
+        "sign",
         "type"
       ],
       "title": "DecodedPosition",
@@ -742,13 +778,25 @@
             }
           ],
           "description": "a Maidenhead locator with a symbol at the start of the report (a report that has one has no timestamp)"
+        },
+        "frequency": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FrequencyValues"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the frequency the text began with (`>145.775MHz T100`), taken out of the `text`; null when there was none"
         }
       },
       "required": [
         "type",
         "text",
         "timestamp",
-        "locator"
+        "locator",
+        "frequency"
       ],
       "title": "DecodedStatus",
       "type": "object"
@@ -1237,6 +1285,101 @@
         "call"
       ],
       "title": "ForgetStationCommand",
+      "type": "object"
+    },
+    "FrequencyValues": {
+      "additionalProperties": false,
+      "description": "A frequency to call on, from the local information at the start of a comment, a status text or the name of a frequency object (`145.775MHz T100 -060 R40k`); null where the text did not say.",
+      "properties": {
+        "mhz": {
+          "description": "the transmit frequency, MHz",
+          "type": "number"
+        },
+        "tone_hz": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the CTCSS tone of `Tnnn` or `Cnnn`, whole hertz (the tenths are dropped: 107 is 107.2)"
+        },
+        "tone_both": {
+          "description": "`Cnnn`: the tone is needed to receive as well",
+          "type": "boolean"
+        },
+        "tone_off": {
+          "description": "`Toff`: no tone and no DCS code",
+          "type": "boolean"
+        },
+        "dcs": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the DCS code of `Dnnn`, three digits as sent"
+        },
+        "tone_burst": {
+          "description": "`1750`: a 1750 Hz tone burst opens the repeater",
+          "type": "boolean"
+        },
+        "narrow": {
+          "description": "the first letter of the tone field was lower case: narrow modulation",
+          "type": "boolean"
+        },
+        "offset_khz": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the offset from the transmit frequency in kHz (`-060` is -600); 0 is simplex; null when the standard offset is meant"
+        },
+        "range_km": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the nominal range (`R25m` is 40.2 km)"
+        },
+        "rx_mhz": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "a separate receive frequency (`FFF.FFFrx`), MHz"
+        }
+      },
+      "required": [
+        "mhz",
+        "tone_hz",
+        "tone_both",
+        "tone_off",
+        "dcs",
+        "tone_burst",
+        "narrow",
+        "offset_khz",
+        "range_km",
+        "rx_mhz"
+      ],
+      "title": "FrequencyValues",
       "type": "object"
     },
     "Hello": {
@@ -1958,7 +2101,7 @@
     },
     "ObjectSet": {
       "additionalProperties": false,
-      "description": "Makes an object or an item of ours, or changes the one of that name (a changed object starts its schedule again, and is sent at once, never sooner than a minute after its last packet). `name` is 1 to 9\ncharacters for an object and 3 to 9 for an item, printable ASCII without `!`, `_`, `|` and `~` and without a blank at either end, and not our own call or the call of a station; `lat` and `lon` the position in decimal\ndegrees; the symbol is a table character and a code character; `comment` at most 43 characters (36 with a course or speed); `course_deg` and `speed_kmh` the course and speed, each or both or none; `path` the digipeaters, calls\nseparated by commas, or `DIRECT` for none at all (null or empty: `beacon/path`). Nothing is sent while the call is not set. Answered by the `set` of its row in `own_objects` and `stations`, or by an `error` that names the reason.",
+      "description": "Makes an object or an item of ours, or changes the one of that name (a changed object starts its schedule again, and is sent at once, never sooner than a minute after its last packet). `name` is 1 to 9\ncharacters for an object and 3 to 9 for an item, printable ASCII without `!`, `_`, `|` and `~` and without a blank at either end, and not our own call or the call of a station; `lat` and `lon` the position in decimal\ndegrees; the symbol is a table character and a code character; `comment` at most 43 characters (36 with a course or speed); `course_deg` and `speed_kmh` the course and speed, each or both or none; `path` the digipeaters, calls\nseparated by commas, or `DIRECT` for none at all (null or empty: `beacon/path`); `qru_group` the group of QRU it belongs to (up to 8 letters and digits, not `INFO` or `NEXT`; empty for none) and `on_request` true to send it\nonly to a station that asks for it, never on the schedule. Nothing is sent while the call is not set. Answered by the `set` of its row in `own_objects` and `stations`, or by an `error` that names the reason.",
       "properties": {
         "cmd": {
           "const": "object_set",
@@ -2034,6 +2177,13 @@
               "type": "null"
             }
           ]
+        },
+        "qru_group": {
+          "maxLength": 8,
+          "type": "string"
+        },
+        "on_request": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -2047,7 +2197,9 @@
         "comment",
         "course_deg",
         "speed_kmh",
-        "path"
+        "path",
+        "qru_group",
+        "on_request"
       ],
       "title": "ObjectSetCommand",
       "type": "object"
@@ -2217,6 +2369,14 @@
           ],
           "description": "the digipeaters it goes by, calls separated by commas, or `DIRECT` for none at all; null: the path of the setting `beacon/path` is used"
         },
+        "qru_group": {
+          "description": "the group of QRU (1 to 8 upper-case letters and digits) a station that asks the addressee `QRU` for it is answered with this object in; empty for none",
+          "type": "string"
+        },
+        "on_request": {
+          "description": "true: it is never sent on the decay schedule, only to a station that asks for it (`?APRSO`, or its QRU group); false: it is sent on the schedule",
+          "type": "boolean"
+        },
         "state": {
           "description": "`live`: it is being sent on the decay schedule; `killing`: it was killed and its killed form is being sent (three times), then it is forgotten",
           "enum": [
@@ -2264,7 +2424,7 @@
               "type": "null"
             }
           ],
-          "description": "when it is sent next: 1, 2, 4 ... minutes after the last packet, never more than the net cycle time of its path apart; a time that has passed means it waits for the radio or for the call"
+          "description": "when it is sent next: 1, 2, 4 ... minutes after the last packet, never more than the net cycle time of its path apart; a time that has passed means it waits for the radio or for the call; null for one that is `on_request`"
         }
       },
       "required": [
@@ -2278,6 +2438,8 @@
         "course_deg",
         "speed_kmh",
         "path",
+        "qru_group",
+        "on_request",
         "state",
         "created_at",
         "updated_at",
@@ -2737,6 +2899,39 @@
           ],
           "default": null,
           "description": "the base-91 telemetry `|ss11|` the comment carried (APRS 1.2), taken out of the `comment`; null when there was none"
+        },
+        "frequency": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FrequencyValues"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the local information the comment began with (`145.775MHz T100 -060 R40k`), or the name of a frequency object with the fields of its comment, taken out of the `comment`; null when there was none"
+        },
+        "storm": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StormValues"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the storm data the comment of a position with the symbol `@` began with (`/HC/150^200/0980>090&030%040`), taken out of the `comment`; null when there was none"
+        },
+        "sign": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the characters of a signpost (symbol `\\m`): `55` for a comment that began `{55}`, taken out of the `comment`; null for any other position"
         }
       },
       "required": [
@@ -2755,7 +2950,10 @@
         "weather",
         "extensions",
         "timestamp_local",
-        "locator"
+        "locator",
+        "frequency",
+        "storm",
+        "sign"
       ],
       "title": "PositionFields",
       "type": "object"
@@ -3226,6 +3424,15 @@
           },
           "type": "array"
         },
+        "gated": {
+          "description": "how many third-party packets this station put on the air that we heard (an iGate wrapping what it took from the internet in a frame of its own; counted from the packets heard in this run and the latest 2000 the database kept, and for a station that is in the book); not `heard_gated`, which counts the packets of this station that some iGate put on the air",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "igate": {
+          "description": "a capabilities packet of the station said `IGATE`: it says it is an iGate",
+          "type": "boolean"
+        },
         "best_route": {
           "description": "the route most of its packets came by, as `last_route` writes it, direct included; empty until a packet was counted",
           "type": "string"
@@ -3322,6 +3529,39 @@
           ],
           "description": "the PHG, RNG, DF or area data of the station's latest position; null when it had none"
         },
+        "frequency": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FrequencyValues"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the voice frequency the station gave last, in the comment of a position (or the name of an object) or in a status text; null when it gave none (not kept over a restart of the daemon for a station that does not send it again)"
+        },
+        "storm": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StormValues"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the storm data of the latest position of a storm object; null for anything else"
+        },
+        "sign": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "what a signpost object says (`55`); null for anything else"
+        },
         "distance_km": {
           "anyOf": [
             {
@@ -3406,6 +3646,8 @@
         "last_direct_at",
         "heard_gated",
         "heard_via",
+        "gated",
+        "igate",
         "best_route",
         "suggested_path",
         "heard_path",
@@ -3415,6 +3657,9 @@
         "telemetry_at",
         "locator",
         "extensions",
+        "frequency",
+        "storm",
+        "sign",
         "distance_km",
         "bearing_deg",
         "is_me",
@@ -3585,6 +3830,97 @@
         "cmd"
       ],
       "title": "StatusNowCommand",
+      "type": "object"
+    },
+    "StormValues": {
+      "additionalProperties": false,
+      "description": "The storm data of a tropical storm, hurricane or tropical depression (APRS101, chapter 12), in metric units; null where the report did not have the field. The movement is the course and speed of the position.",
+      "properties": {
+        "storm_type": {
+          "description": "TS tropical storm, HC hurricane, TD tropical depression",
+          "enum": [
+            "TS",
+            "HC",
+            "TD"
+          ],
+          "type": "string"
+        },
+        "wind_kmh": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the sustained wind"
+        },
+        "gust_kmh": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pressure_hpa": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the central pressure"
+        },
+        "hurricane_radius_km": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the radius of hurricane winds"
+        },
+        "storm_radius_km": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the radius of tropical storm winds"
+        },
+        "gale_radius_km": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the radius of whole gale (50 knot) winds"
+        }
+      },
+      "required": [
+        "storm_type",
+        "wind_kmh",
+        "gust_kmh",
+        "pressure_hpa",
+        "hurricane_radius_km",
+        "storm_radius_km",
+        "gale_radius_km"
+      ],
+      "title": "StormValues",
       "type": "object"
     },
     "Subscribe": {

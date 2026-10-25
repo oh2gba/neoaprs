@@ -5,6 +5,7 @@ import { cssRule } from "@/test/css";
 
 const slots = {
   stations: "<p>stations pane</p>",
+  nearby: "<p>nearby pane</p>",
   packets: "<p>packets pane</p>",
   messages: "<p>messages pane</p>",
   email: "<p>email pane</p>",
@@ -55,11 +56,12 @@ describe("SidePanel", () => {
     expect(spare.defaultPrevented).toBe(false);
   });
 
-  it("has the eight tabs, the chosen one selected, and shows its pane only", () => {
+  it("has the nine tabs, the chosen one selected, and shows its pane only", () => {
     const wrapper = mount(SidePanel, { props: { tab: "packets", collapsed: false, width: 400 }, slots });
     expect(wrapper.findAll("[role='tab']").map((t) => t.text())).toEqual([
       "Messages",
       "Stations",
+      "Nearby",
       "Email",
       "Bulletins",
       "Objects",
@@ -79,14 +81,14 @@ describe("SidePanel", () => {
 
   it("says which tab was picked", async () => {
     const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400 }, slots });
-    await wrapper.findAll("[role='tab']")[7]?.trigger("click");
+    await wrapper.findAll("[role='tab']")[8]?.trigger("click");
     expect(wrapper.emitted("update:tab")).toEqual([["settings"]]);
   });
 
   it("shows the count of a tab that has one in a badge, and none for zero or for a tab without", () => {
     const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400, badges: { messages: 3, packets: 0 } }, slots });
     const tabs = wrapper.findAll("[role='tab']");
-    expect(tabs.map((t) => t.find(".badge").exists())).toEqual([true, false, false, false, false, false, false, false]);
+    expect(tabs.map((t) => t.find(".badge").exists())).toEqual([true, false, false, false, false, false, false, false, false]);
     expect(tabs[0]?.find(".badge").text()).toBe("3");
     expect(tabs[0]?.text()).toBe("Messages 3");
     expect(tabs[0]?.find(".badge").attributes("title")).toBe("3 messages not seen yet");
@@ -94,13 +96,13 @@ describe("SidePanel", () => {
 
   it("counts the messages of the Email tab as messages not seen", () => {
     const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400, badges: { email: 1 } }, slots });
-    const badge = wrapper.findAll("[role='tab']")[2]?.find(".badge");
+    const badge = wrapper.findAll("[role='tab']")[3]?.find(".badge");
     expect([badge?.text(), badge?.attributes("title")]).toEqual(["1", "1 message not seen yet"]);
   });
 
   it("words the badge of the Bulletins tab as the bulletins that are new", () => {
     const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400, badges: { bulletins: 2 } }, slots });
-    const badge = wrapper.findAll("[role='tab']")[3]?.find(".badge");
+    const badge = wrapper.findAll("[role='tab']")[4]?.find(".badge");
     expect([badge?.text(), badge?.attributes("title")]).toEqual(["2", "2 new bulletins"]);
   });
 

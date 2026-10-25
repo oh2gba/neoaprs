@@ -346,3 +346,35 @@ async def test_a_copy_of_our_own_object_that_comes_back_is_no_takeover_and_neith
     rig.objects.on_packet(reported("OTHER", rig.clock()))
     rig.objects.on_packet(replace(reported("LEADER", rig.clock()), direction="out"))
     assert rig.objects.get("LEADER") is not None and rig.removed == []
+
+
+async def test_an_object_that_is_on_request_is_kept_and_never_sent_on_the_schedule(rig: Rig) -> None:
+    made = rig.make(qru_group="FOOD", on_request=True)
+    assert (made.qru_group, made.on_request) == ("FOOD", True) and rig.objects.next_at("LEADER") is None
+    rig.run(5000)
+    assert rig.tnc.sent == [] and rig.objects.get("LEADER") == made
+    rig.make("BEACONED", qru_group="FOOD")
+    rig.run(10)
+    assert [info[:10] for _, info in rig.sent] == [b";BEACONED "], "a group alone does not stop the schedule"
+
+
+async def test_an_object_that_is_on_request_is_removed_at_once_by_a_kill_and_one_made_on_request_stops_its_schedule(rig: Rig) -> None:
+    rig.make(qru_group="FOOD", on_request=True)
+    assert rig.objects.kill("LEADER") is None and rig.objects.get("LEADER") is None and [o.name for o in rig.removed] == ["LEADER"]
+    rig.make("SENT")
+    rig.run(10)
+    assert len(rig.sent) == 1
+    rig.make("SENT", qru_group="FOOD", on_request=True)
+    rig.run(5000)
+    assert len(rig.sent) == 1 and rig.objects.next_at("SENT") is None
+    rig.make("SENT", qru_group="FOOD")
+    rig.run(10)
+    assert len(rig.sent) == 2, "back on the schedule, it goes out at once"
+
+
+async def test_the_group_and_the_flag_are_kept_in_the_database(tmp_path: Path) -> None:
+    rig = await rig_at(tmp_path)
+    rig.make(qru_group="RP70", on_request=True)
+    assert rig.log.db is not None
+    await rig.log.db.barrier()
+    assert [(o.qru_group, o.on_request) for o in await rig.log.objects()] == [("RP70", True)]

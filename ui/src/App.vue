@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The page: a calm header (the title, a link to the project's page, and the messages not seen), the map filling the page, and at its right a panel with the stations, the packets, the messages, the email, the bulletins, our objects, the beacon and the settings (which open with the state of the radio link), and under the open tab a footer with the version, a newer version if there is one and what is wrong with the radio link, if anything.
+// The page: a calm header (the title, a link to the project's page, and the messages not seen), the map filling the page, and at its right a panel with the stations, what is nearby, the packets, the messages, the email, the bulletins, our objects, the beacon and the settings (which open with the state of the radio link), and under the open tab a footer with the version, a newer version if there is one and what is wrong with the radio link, if anything.
 // The layout only: the page put together, and what the panes share (the daemon's state, `send`, the settings, the guide, the panel), is `useAppShell`; a pane takes from the context what is the page's as a whole, and as props what is its own (the rows it lists, the one that is open).
 import AppHeader from "@/components/AppHeader.vue";
 import BeaconPane from "@/components/BeaconPane.vue";
@@ -7,6 +7,7 @@ import BulletinsPane from "@/components/BulletinsPane.vue";
 import EmailPane from "@/components/EmailPane.vue";
 import MapPickBar from "@/components/MapPickBar.vue";
 import MessagesPane from "@/components/MessagesPane.vue";
+import NearbyPane from "@/components/NearbyPane.vue";
 import ObjectsPane from "@/components/ObjectsPane.vue";
 import PacketsLog from "@/components/PacketsLog.vue";
 import PanelFooter from "@/components/PanelFooter.vue";
@@ -43,6 +44,7 @@ const {
   notice,
   findRadio,
   stationActions,
+  ranges,
 } = useAppShell();
 const { send, ownObjects, ownBulletins, bulletins, packets, lastError } = daemon;
 const { stationPick, pickingTab } = picks;
@@ -73,6 +75,7 @@ const deleteMessage = (id: number): boolean => send({ cmd: "message_delete", id 
           :focus="focus"
           :picking="guide.picking || objects.picking || stationPick.picking.value"
           :pin="guide.open ? guide.pin : objects.pin"
+          :ranges="ranges"
           @select="cards.onMarker"
           @pick="picks.onPick"
           @move="objects.move"
@@ -119,6 +122,9 @@ const deleteMessage = (id: number): boolean => send({ cmd: "message_delete", id 
             @ask="stationActions.ask"
             @copy="stationActions.copy"
           />
+        </template>
+        <template #nearby>
+          <NearbyPane v-model:ranges="ranges" :selected="selected" :others="cards.others.value" @select="cards.onRow" />
         </template>
         <template #packets>
           <PacketsLog :packets="packets" />

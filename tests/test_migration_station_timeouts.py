@@ -9,7 +9,7 @@ from neoaprs.migrations import SCHEMA_VERSION
 from neoaprs.migrations2 import MIGRATION_LOG
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
-from tests.support.migrated import opened
+from tests.support.migrated import opened, step_back
 from tests.test_migrations import GOLDEN, STAMP, raw
 
 #           call       path              hide_after_min  attempts  rf_only
@@ -22,6 +22,7 @@ def version_sixteen(path: Path, clock: FixedClock) -> None:
     opened(path, clock).close()
     db = raw(path)
     db.execute("DELETE FROM schema_history WHERE version >= 17")
+    step_back(db, 16)
     db.execute("PRAGMA user_version = 16")
     for call, pref_path, minutes, attempts, rf_only in ROWS:
         db.execute("INSERT INTO station_pref (call, path, hide_after_min, attempts, rf_only, updated_at) VALUES (?, ?, ?, ?, ?, ?)", (call, pref_path, minutes, attempts, rf_only, STAMP))
@@ -35,7 +36,7 @@ def migrate(folder: Path):  # type: ignore[no-untyped-def]
     version_sixteen(old, clock)
     migrated = opened(old, clock)
     assert migrated.version() == SCHEMA_VERSION >= 17
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][16:] == [(17, "_v17", GOLDEN[17])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][16:] == [(17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18])]
     return migrated
 
 

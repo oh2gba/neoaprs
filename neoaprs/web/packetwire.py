@@ -5,7 +5,7 @@ from typing import Annotated, Literal, Union
 
 from pydantic import Field
 
-from .wirebase import ExtensionValues, Iso, LocatorValues, _Model
+from .wirebase import ExtensionValues, FrequencyValues, Iso, LocatorValues, StormValues, _Model
 
 Stamp = Annotated[str, Field(pattern=r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$", description="UTC, ISO 8601 with a Z, with fractions of a second")]
 
@@ -54,6 +54,9 @@ class PositionFields(_Model):
     timestamp_local: bool = Field(description="the `timestamp` was sent in the sender's local time (`/`): it is the time as it was sent, not UTC")
     locator: LocatorValues | None = Field(description="the Maidenhead locator in the status text of a Mic-E packet; null for any other position")
     telemetry: TelemetryFields | None = Field(default=None, description="the base-91 telemetry `|ss11|` the comment carried (APRS 1.2), taken out of the `comment`; null when there was none")
+    frequency: FrequencyValues | None = Field(description="the local information the comment began with (`145.775MHz T100 -060 R40k`), or the name of a frequency object with the fields of its comment, taken out of the `comment`; null when there was none")
+    storm: StormValues | None = Field(description="the storm data the comment of a position with the symbol `@` began with (`/HC/150^200/0980>090&030%040`), taken out of the `comment`; null when there was none")
+    sign: str | None = Field(description="the characters of a signpost (symbol `\\m`): `55` for a comment that began `{55}`, taken out of the `comment`; null for any other position")
 
 
 class DecodedPosition(PositionFields):
@@ -94,6 +97,7 @@ class DecodedStatus(_Model):
     text: str = Field(description="the status text; after the locator when there is one")
     timestamp: Stamp | None
     locator: LocatorValues | None = Field(description="a Maidenhead locator with a symbol at the start of the report (a report that has one has no timestamp)")
+    frequency: FrequencyValues | None = Field(description="the frequency the text began with (`>145.775MHz T100`), taken out of the `text`; null when there was none")
 
 
 class DecodedTelemetry(TelemetryFields):

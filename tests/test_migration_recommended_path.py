@@ -6,7 +6,7 @@ from neoaprs.config import Config
 from neoaprs.migrations import SCHEMA_VERSION
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
-from tests.support.migrated import opened
+from tests.support.migrated import opened, step_back
 from tests.test_migrations import GOLDEN, raw
 
 
@@ -15,6 +15,7 @@ def version_fourteen(path: Path, clock: FixedClock, stored: dict[str, str]) -> N
     opened(path, clock).close()
     db = raw(path)
     db.execute("DELETE FROM schema_history WHERE version >= 15")
+    step_back(db, 14)
     db.execute("PRAGMA user_version = 14")
     for key, value in stored.items():
         db.execute("INSERT INTO settings (key, value) VALUES (?, ?)", (key, value))
@@ -28,7 +29,7 @@ def migrate(folder: Path, stored: dict[str, str]) -> dict[str, tuple[str, int]]:
     version_fourteen(old, clock, stored)
     migrated = opened(old, clock)
     assert migrated.version() == SCHEMA_VERSION >= 15
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][14:] == [(15, "_v15", GOLDEN[15]), (16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][14:] == [(15, "_v15", GOLDEN[15]), (16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18])]
     found = {str(k): (str(v), int(rev)) for k, v, rev in migrated.db.execute("SELECT key, value, rev FROM settings")}
     migrated.close()
     return found

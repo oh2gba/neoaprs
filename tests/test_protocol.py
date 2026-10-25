@@ -96,9 +96,12 @@ def test_the_reference_documents_every_command_message_and_model() -> None:
 
 NOW = "2026-10-21T12:00:00Z"
 POSITION = {"lat": 60.165, "lon": 24.9467, "symbol_table": "T", "symbol_code": "&", "comment": "432.500 MHz", "course_deg": None, "speed_kmh": None, "altitude_m": None, "timestamp": None,
-            "messaging": False, "compressed": False, "ambiguity": 0, "weather": None, "extensions": None, "timestamp_local": False, "locator": None}
+            "messaging": False, "compressed": False, "ambiguity": 0, "weather": None, "extensions": None, "timestamp_local": False, "locator": None,
+            "frequency": None, "storm": None, "sign": None}
 EXTENSIONS: dict[str, Any] = {"phg": {"power_w": 25, "height_m": 6.1, "gain_db": 3, "direction_deg": 90, "range_km": 12.8}, "range_km": 80.5, "dfs": {"strength": 2, "height_m": 24.4, "gain_db": 6, "direction_deg": None},
                               "df_bearing": {"bearing_deg": 270, "hits": 7, "range_km": 6.4, "quality": 9}, "area": {"shape": "filled ellipse", "colour": "cyan", "lat_offset_deg": 1.0, "lon_offset_deg": 1.0}}
+FREQUENCY: dict[str, Any] = {"mhz": 145.775, "tone_hz": 118, "tone_both": False, "tone_off": False, "dcs": None, "tone_burst": False, "narrow": False, "offset_khz": -600, "range_km": 40.2, "rx_mhz": None}
+STORM: dict[str, Any] = {"storm_type": "HC", "wind_kmh": 277.8, "gust_kmh": 370.4, "pressure_hpa": 980, "hurricane_radius_km": 166.7, "storm_radius_km": 55.6, "gale_radius_km": 74.1}
 LOCATOR: dict[str, Any] = {"grid": "IO91sx", "lat": 51.97917, "lon": -0.45833, "symbol_table": "/", "symbol_code": "-"}
 TELEMETRY: dict[str, Any] = {"sequence": 5, "channels": [{"name": "Battery", "unit": "v/100", "raw": 199.0, "value": 1034.8}, {"name": "A2", "unit": "", "raw": 0.0, "value": 0.0}], "project": "Balloon", "comment": "",
                              "bits": [{"name": "Camra", "on": False}, {"name": "B2", "on": True}]}
@@ -107,11 +110,11 @@ WEATHER_FIELDS: dict[str, Any] = {"wind_dir": 107, "wind_kmh": 1.6, "gust_kmh": 
 STATION: dict[str, Any] = {
     "call": "OH2RDK-7", "kind": "station", "reported_by": "", "symbol_table": "T", "symbol_code": "&", "symbol_name": "unknown", "lat": 60.165, "lon": 24.9467, "altitude_m": None, "course_deg": None,
     "speed_kmh": None, "first_heard": NOW, "last_heard": NOW, "last_position_at": NOW, "last_status": "", "last_comment": "432.500 MHz", "packets": 1, "packets_hour": 1, "device": "Kenwood TH-D74", "last_path": ["OH2RCH-2*", "TRACE2-1"],
-    "last_route": "via OH2RCH-2", "heard_direct": 2, "last_direct_at": NOW, "heard_gated": 1, "heard_via": [["OH2RCH-2", 30], ["OH2RCH-3", 4]], "best_route": "via OH2RCH-2", "suggested_path": "OH2RCH-2", "heard_path": "OH2RCH-2",
-    "distance_km": 1.5, "bearing_deg": 90.0, "is_me": False, "can_message": True, "own": False, "weather": WEATHER_FIELDS, "weather_at": NOW, "telemetry": TELEMETRY, "telemetry_at": NOW, "locator": LOCATOR, "extensions": EXTENSIONS, "track": [[NOW, 60.165, 24.9467]]}
+    "last_route": "via OH2RCH-2", "heard_direct": 2, "last_direct_at": NOW, "heard_gated": 1, "gated": 4, "igate": True, "heard_via": [["OH2RCH-2", 30], ["OH2RCH-3", 4]], "best_route": "via OH2RCH-2", "suggested_path": "OH2RCH-2", "heard_path": "OH2RCH-2",
+    "distance_km": 1.5, "bearing_deg": 90.0, "is_me": False, "can_message": True, "own": False, "weather": WEATHER_FIELDS, "weather_at": NOW, "telemetry": TELEMETRY, "telemetry_at": NOW, "locator": LOCATOR, "extensions": EXTENSIONS, "frequency": FREQUENCY, "storm": STORM, "sign": None, "track": [[NOW, 60.165, 24.9467]]}
 BULLETIN_ROW: dict[str, Any] = {"sender": "OH2XYZ", "slot": "BLN3HAMS", "group": "HAMS", "kind": "group", "text": "Net tonight at 20:00", "first_heard": NOW, "last_heard": "2026-10-21T13:00:00Z", "times_heard": 3}
 OWN_OBJECT_ROW: dict[str, Any] = {"name": "LEADER", "kind": "object", "lat": 60.165, "lon": 24.9467, "symbol_table": "/", "symbol_code": ">", "comment": "Rescue 1", "course_deg": 88, "speed_kmh": 66.7,
-                                  "path": None, "state": "live", "created_at": NOW, "updated_at": NOW, "sent": 2, "last_sent_at": NOW, "next_at": "2026-10-21T12:03:00Z"}
+                                  "path": None, "qru_group": "", "on_request": False, "state": "live", "created_at": NOW, "updated_at": NOW, "sent": 2, "last_sent_at": NOW, "next_at": "2026-10-21T12:03:00Z"}
 OWN_BULLETIN_ROW: dict[str, Any] = {"slot": "BLN3HAMS", "group": "HAMS", "kind": "group", "text": "Net tonight at 20:00", "posted_at": NOW, "sent": 1, "last_sent_at": NOW, "next_at": "2026-10-21T12:02:00Z"}
 MESSAGE_ROW: dict[str, Any] = {"id": 3, "at": NOW, "direction": "out", "from_call": "OH2GBA", "to_call": "OH2RDG", "text": "hello", "msg_id": "12", "state": "sending", "attempts": 1,
                                "attempts_max": 6, "last_attempt_at": NOW, "acked_at": None, "route": "",
@@ -174,14 +177,16 @@ DECODED = [
     {"type": "message", "addressee": "OH2GBA", "text": "hello", "msg_id": "12", "ack_id": None, "rej_id": None},
     {"type": "object", "name": "STORM", "alive": True, "position": POSITION, "timestamp": "2026-10-21T12:00:00.000000Z"},
     {"type": "item", "name": "MARK", "alive": False, "position": POSITION},
-    {"type": "status", "text": "on the air", "timestamp": None, "locator": None},
-    {"type": "status", "text": "my house", "timestamp": None, "locator": LOCATOR},
+    {"type": "status", "text": "on the air", "timestamp": None, "locator": None, "frequency": None},
+    {"type": "status", "text": "my house", "timestamp": None, "locator": LOCATOR, "frequency": None},
+    {"type": "status", "text": "Rescue net", "timestamp": None, "locator": None, "frequency": FREQUENCY},
     {"type": "telemetry", "sequence": 5, "analog": [199.0, 0.0, 255.0, 73.0, 123.0], "bits": "01101001", "comment": ""},
     {"type": "other", "kind": "weather", "text": "_10090000c000s000g000t050", "weather": {**WEATHER_FIELDS, "rain_counter": None, "raw": "c000s000g000t050"}, "items": None, "timestamp": "2026-10-09T00:00:00.000000Z"},
     {"type": "other", "kind": "telemetry", "text": "T#005", "weather": None, "items": None, "timestamp": None},
     {"type": "other", "kind": "capabilities", "text": "<IGATE,MSG_CNT=2", "weather": None, "items": {"IGATE": "", "MSG_CNT": "2"}, "timestamp": None},
     {"type": "position", **POSITION, "weather": {**WEATHER_FIELDS, "rain_counter": 12, "raw": "107/001g001t050"}},
     {"type": "position", **POSITION, "extensions": EXTENSIONS, "timestamp": "2026-10-21T12:00:00.000000Z", "timestamp_local": True, "locator": LOCATOR},
+    {"type": "position", **POSITION, "frequency": FREQUENCY, "storm": STORM, "sign": "55"},
     {"type": "undecoded", "error": "too short", "text": "!60"},
 ]
 
@@ -196,7 +201,7 @@ COMMAND_EXAMPLES: dict[str, dict[str, Any]] = {
     "set_station_rf_only": {"cmd": "set_station_rf_only", "call": "OH2RDG", "on": True},
     "weather_series": {"cmd": "weather_series", "call": "OH2MUI", "hours": 24}, "alert_test": {"cmd": "alert_test"}, "update_check": {"cmd": "update_check"},
     "bulletin_delete": {"cmd": "bulletin_delete", "sender": "OH2XYZ", "slot": "BLN3HAMS"},
-    "object_set": {"cmd": "object_set", "name": "LEADER", "kind": "object", "lat": 60, "lon": 25, "symbol_table": "/", "symbol_code": ">", "comment": "Rescue 1", "course_deg": 88, "speed_kmh": 67, "path": "WIDE1-1"},
+    "object_set": {"cmd": "object_set", "name": "LEADER", "kind": "object", "lat": 60, "lon": 25, "symbol_table": "/", "symbol_code": ">", "comment": "Rescue 1", "course_deg": 88, "speed_kmh": 67, "path": "WIDE1-1", "qru_group": "RP70", "on_request": True},
     "object_kill": {"cmd": "object_kill", "name": "LEADER"},
     "bulletin_post": {"cmd": "bulletin_post", "slot": "BLN3HAMS", "text": "Net tonight at 20:00"}, "bulletin_unpost": {"cmd": "bulletin_unpost", "slot": "BLN3HAMS"},
     "map_estimate": {"cmd": "map_estimate"}, "map_fetch": {"cmd": "map_fetch"}, "map_cancel": {"cmd": "map_cancel"},

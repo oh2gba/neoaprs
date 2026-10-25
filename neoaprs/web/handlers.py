@@ -273,7 +273,7 @@ def start_map_job(ctx: Ctx, job: Job, name: str) -> None:
 @command(ObjectSet)
 async def object_set(ctx: Ctx, cmd: ObjectSet) -> None:
     with refused(cmd.cmd):
-        ctx.ctl.ownobjects.set(cmd.name, cmd.kind, cmd.lat, cmd.lon, cmd.symbol_table, cmd.symbol_code, cmd.comment, cmd.course_deg, cmd.speed_kmh, cmd.path)
+        ctx.ctl.ownobjects.set(cmd.name, cmd.kind, cmd.lat, cmd.lon, cmd.symbol_table, cmd.symbol_code, cmd.comment, cmd.course_deg, cmd.speed_kmh, cmd.path, cmd.qru_group, cmd.on_request)
 
 
 @command(ObjectKill)

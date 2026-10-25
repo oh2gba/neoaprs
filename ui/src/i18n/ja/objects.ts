@@ -8,6 +8,7 @@ export const objects: Record<keyof typeof source, Message> = {
   "schedule.next": { "=0": "未送信、次回 {when}", other: "{n}回送信、次回 {when}" },
   "schedule.waiting": { "=0": "未送信、待機中", other: "{n}回送信、待機中" },
   "schedule.killing": { "=0": "キル中、未送信", other: "キル中、{n}回送信" },
+  "schedule.on_request": "要求があったときだけ送信",
 
   "objects.new": "新規",
   "objects.none": "オブジェクトはありません。",
@@ -16,6 +17,7 @@ export const objects: Record<keyof typeof source, Message> = {
   "objects.delete_title": "削除(電波でキル)",
   "objects.delete_label": { select: "kind", object: "オブジェクト{name}を削除", item: "アイテム{name}を削除", other: "オブジェクト{name}を削除" },
   "objects.kind_word": { select: "kind", object: "オブジェクト", item: "アイテム", other: "オブジェクト" },
+  "objects.in_group": "QRUグループ {group}",
 
   "objects.form.new": "新規オブジェクト",
   "objects.field.name": "名前",
@@ -26,6 +28,8 @@ export const objects: Record<keyof typeof source, Message> = {
   "objects.field.speed": "速度",
   "objects.field.moving": "移動中",
   "objects.field.path": "パス",
+  "objects.field.qru": "QRUグループ",
+  "objects.field.on_request": "要求があったときだけ送る",
   "objects.unit.deg": "度",
   "objects.form.cancel": "キャンセル",
   "objects.form.save": "保存",
@@ -38,4 +42,5 @@ export const objects: Record<keyof typeof source, Message> = {
   "objects.problem.comment_chars": "表示可能なASCII、| と ~ は不可",
   "objects.problem.course": "0〜{max}度",
   "objects.problem.speed": "0〜{max} km/h",
+  "objects.problem.qru_group": "英数字{max}文字まで。INFO と NEXT は不可",
 };

@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from .wirebase import ExtensionValues, Iso, LocatorValues, _Command, _Model
+from .wirebase import ExtensionValues, FrequencyValues, Iso, LocatorValues, StormValues, _Command, _Model
 
 
 class WeatherValues(_Model):
@@ -73,6 +73,9 @@ class StationRow(_Model):
     last_direct_at: Iso | None = Field(description="when a packet of the station was last heard direct (no digipeater repeated it, it was not a third-party packet), from the packets counted in `heard_direct`; null for a station never heard direct")
     heard_gated: int = Field(ge=0, description="how many packets came as third-party packets: an iGate put what it heard on the internet on the air; counted, but never a route to send by")
     heard_via: list[tuple[str, int]] = Field(description="[the station we heard, packets] for each digipeater that repeated its packets, the most first; `?` stands for a hop that was an alias (WIDE1) and gave no call; the 8 most frequent routes are counted")
+    gated: int = Field(ge=0, description="how many third-party packets this station put on the air that we heard (an iGate wrapping what it took from the internet in a frame of its own; counted from the packets heard in this run and the latest 2000 the database kept, "
+                                         "and for a station that is in the book); not `heard_gated`, which counts the packets of this station that some iGate put on the air")
+    igate: bool = Field(description="a capabilities packet of the station said `IGATE`: it says it is an iGate")
     best_route: str = Field(description="the route most of its packets came by, as `last_route` writes it, direct included; empty until a packet was counted")
     suggested_path: str | None = Field(description="the path to send by to reach it, the best route turned round: empty for direct, `OH2RCH-2` for one hop, `OH2RCH-3,OH2RCH-1` for `via OH2RCH-1 → OH2RCH-3`, `WIDE1-1,WIDE2-1` when the best route "
                                                    "has a hop with no call; null when no route is known (an object or item, or a station not heard since the packets were pruned)")
@@ -85,6 +88,9 @@ class StationRow(_Model):
     telemetry_at: Iso | None = Field(description="when `telemetry` was heard; null as it is")
     locator: LocatorValues | None = Field(description="the Maidenhead locator of the station's latest status report (or Mic-E status text): where it says it is, to the square; null when it sent none")
     extensions: ExtensionValues | None = Field(description="the PHG, RNG, DF or area data of the station's latest position; null when it had none")
+    frequency: FrequencyValues | None = Field(description="the voice frequency the station gave last, in the comment of a position (or the name of an object) or in a status text; null when it gave none (not kept over a restart of the daemon for a station that does not send it again)")
+    storm: StormValues | None = Field(description="the storm data of the latest position of a storm object; null for anything else")
+    sign: str | None = Field(description="what a signpost object says (`55`); null for anything else")
     distance_km: float | None = Field(description="from our position, null for us and for a station without a position")
     bearing_deg: float | None = Field(description="the direction from our position, degrees from north; null as the distance is")
     is_me: bool = Field(description="our own station: the row of the call in the settings, at the position in the settings")

@@ -1,5 +1,5 @@
 """The composition root: the parts of the program, made in one place. The data directory, the clock, the settings (`config`), the Store, the Tnc, the station book, the beacon, the status, the message alert, messaging, the message board,
-the objects and the bulletins of our own and their sender, the queries, the digipeater, the base map, Find my radio, the update check and Update now (the services are made here and nowhere else), the station preferences, the packet log, the message log, the bulletin log, the log of our own objects and bulletins, the weather log and the task set. The parts are made here and connected in neoaprs/wiring.py; the start and the stop are neoaprs/controller.py.
+the objects and the bulletins of our own and their sender, the queries, the QRU server, the digipeater, the base map, Find my radio, the update check and Update now (the services are made here and nowhere else), the station preferences, the packet log, the message log, the bulletin log, the log of our own objects and bulletins, the weather log and the task set. The parts are made here and connected in neoaprs/wiring.py; the start and the stop are neoaprs/controller.py.
 """
 import asyncio
 import logging
@@ -29,6 +29,7 @@ from .services.messaging import Messaging
 from .services.ownbulletins import OwnBulletins
 from .services.ownobjects import OwnObjects
 from .services.prefbook import PrefBook
+from .services.qru import Qru
 from .services.queries import Queries
 from .services.radiofinder import RadioFinder, candidates
 from .services.rigstatus import RigStatus
@@ -79,9 +80,10 @@ class Services:
         self.sender = Sender(self.tnc, lambda: self.config, clock)      # our frames that go out by a schedule: one at a time, by the interlock and the state of the radio
         self.ownobjects = OwnObjects(self.sender, lambda: self.config, self.ownlog, self._is_station, clock)       # the objects and items of ours, on the decay schedule of the specification; started by the controller after the beacon
         self.ownbulletins = OwnBulletins(self.sender, lambda: self.config, self.ownlog, clock)       # the bulletins and announcements of ours, on their schedule; started by the controller after the beacon
-        self.messaging = Messaging(self.tnc, lambda: self.config, self.messagelog, self.prefbook.path_for, clock, board=self.bulletins.heard, alert=self.alerts.alert)       # messages with acks and retries, by each station's path; started by the controller after the beacon
+        self.qru = Qru(self.tnc, lambda: self.config, self.ownobjects, self.stationbook, self.prefbook.path_for, clock)       # the QRU server: our objects of a group, sent to the station that asks QRU for the group; messaging hands it the messages to QRU
+        self.messaging = Messaging(self.tnc, lambda: self.config, self.messagelog, self.prefbook.path_for, clock, board=self.bulletins.heard, alert=self.alerts.alert, qru=self.qru.heard)       # messages with acks and retries, by each station's path; started by the controller after the beacon
         self.queries = Queries(self.tnc, lambda: self.config, self.beacon, self.rigstatus.status_frame, self.stationbook, self.prefbook.path_for, clock, objects=self.ownobjects,
-                               messages=self.messaging)       # the answers to ?APRSP, ?APRSS, ?APRSD, ?APRST, ?PING?, ?APRSO, ?APRSM and ?APRS?, by the asker's path
+                               messages=self.messaging, heard=self.packetlog)       # the answers to ?APRSP, ?APRSS, ?APRSD, ?APRST, ?PING?, ?APRSO, ?APRSM, ?APRSH and ?APRS?, by the asker's path
         self.mapfetch = MapFetch(data_dir, lambda: self.config, clock)  # the base map: the detailed map round our position and the world map under it, made on request from the page; nothing to start
         self.aloha = Aloha(self.stationbook, clock)                      # the ALOHA circle round our station, worked out again every minute and when our position moves; started by the controller
         self.radiofinder = RadioFinder(self._radio_ports, self.hold_tnc, self.release_tnc)       # Find my radio: on the page's request only; nothing to start

@@ -954,6 +954,21 @@ async def test_a_third_party_ack_and_message_are_rows_for_the_sender_inside_and_
     await e.stop()
 
 
+async def test_an_igate_row_counts_the_third_party_packets_it_put_on_the_air_and_says_it_is_one(tmp_path: Path) -> None:
+    e, page = await with_page(tmp_path)
+    e.feed(on_air("OH7JHF-1", b"!6010.00N/02456.00E#iGate", path=""))
+    await page.until(lambda: "OH7JHF-1" in page.topics["stations"])
+    e.feed(on_air("OH7JHF-1", b"<IGATE,MSG_CNT=2,LOC_CNT=10", path=""))
+    e.feed(on_air("OH7JHF-1", b"}OH2DPN>APJYC1,TCPIP,OH7JHF-1*::OH2GBA   :ack01", path="OH2RCH-3*"))
+    e.feed(on_air("OH7JHF-1", b"}OH2BEA-9>APY300,TCPIP,OH7JHF-1*::OH2GBA   :Test ok{06", path="OH2RCH-3*"))
+    await page.until(lambda: page.topics["stations"]["OH7JHF-1"]["gated"] == 2)
+    gate = StationRow.model_validate_json(json.dumps(page.topics["stations"]["OH7JHF-1"]))
+    assert (gate.gated, gate.igate, gate.heard_gated, gate.packets) == (2, True, 0, 2)
+    other = StationRow.model_validate_json(json.dumps(page.topics["stations"]["OH2BEA-9"]))
+    assert (other.gated, other.igate, other.heard_gated) == (0, False, 1)
+    await e.stop()
+
+
 # ---- the message board -----------------------------------------------------------------------------------------------------------------------
 
 async def test_a_bulletin_is_a_row_of_the_topic_keyed_by_sender_and_slot_and_never_ages_out(tmp_path: Path) -> None:

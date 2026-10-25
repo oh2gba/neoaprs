@@ -33,6 +33,10 @@ export interface ObjectDraft {
   course: string;
   speed: string;
   path: string;
+  /** The QRU group (as typed: it is sent in capitals), empty for none. */
+  qru: string;
+  /** Send only when a station asks for it. */
+  onRequest: boolean;
 }
 
 type DraftProblems = Partial<Record<keyof ObjectDraft, string>>;
@@ -49,6 +53,8 @@ export function emptyDraft(at: { lat: number; lon: number } | null): ObjectDraft
     course: "",
     speed: "",
     path: "",
+    qru: "",
+    onRequest: false,
   };
 }
 
@@ -64,6 +70,8 @@ export function draftOf(row: OwnObjectRow): ObjectDraft {
     course: row.course_deg === null ? "" : String(row.course_deg),
     speed: row.speed_kmh === null ? "" : String(Math.round(row.speed_kmh * 10) / 10),
     path: row.path ?? "",
+    qru: row.qru_group,
+    onRequest: row.on_request,
   };
 }
 
@@ -73,6 +81,15 @@ export function nameProblem(name: string, kind: Kind): string {
   if (name !== name.trim() || !/^[\x20-\x7e]*$/.test(name) || [...NAME_FORBIDDEN].some((c) => name.includes(c))) return t("objects.problem.name_chars");
   if (name.length > NAME_MAX) return t("objects.problem.at_most", { max: NAME_MAX });
   return kind === "item" && name.length < ITEM_NAME_MIN ? t("objects.problem.item_name", { min: ITEM_NAME_MIN, max: NAME_MAX }) : "";
+}
+
+/** What is wrong with a QRU group, "" when it is fine or empty: 1 to 8 letters and digits, and not one of the words QRU takes for something else. */
+export function qruProblem(group: string): string {
+  const text = group.trim().toUpperCase();
+  if (text === "") return "";
+  return new RegExp(`^[A-Z0-9]{1,${LIMITS.object.qruGroupMax}}$`).test(text) && !(LIMITS.object.qruReserved as readonly string[]).includes(text)
+    ? ""
+    : t("objects.problem.qru_group", { max: LIMITS.object.qruGroupMax });
 }
 
 const wholeIn = (text: string, min: number, max: number): boolean => /^\d+$/.test(text.trim()) && Number(text) >= min && Number(text) <= max;
@@ -119,6 +136,7 @@ export function draftProblems(draft: ObjectDraft): DraftProblems {
   const speed = parseNumber(draft.speed);
   set("speed", draft.speed.trim() === "" || (speed !== null && speed >= 0 && speed <= SPEED_MAX_KMH) ? "" : t("objects.problem.speed", { max: SPEED_MAX_KMH }));
   set("path", parsePathSetting(draft.path) === null ? t("route.calls_hint", { max: LIMITS.path.maxCalls }) : "");
+  set("qru", qruProblem(draft.qru));
   return found;
 }
 
@@ -152,6 +170,8 @@ export function objectCommand(draft: ObjectDraft): ObjectCommand | null {
     course_deg: draft.course.trim() === "" ? null : Number(draft.course),
     speed_kmh: speed === null ? null : speed,
     path: setting === null || setting.kind === "auto" ? null : setting.kind === "direct" ? DIRECT : setting.calls.join(","),
+    qru_group: draft.qru.trim().toUpperCase(),
+    on_request: draft.onRequest,
   };
 }
 
@@ -168,7 +188,9 @@ export function isObjectOf(row: OwnObjectRow, command: ObjectCommand): boolean {
     row.comment === command.comment &&
     row.course_deg === command.course_deg &&
     near(row.speed_kmh, command.speed_kmh) &&
-    row.path === command.path
+    row.path === command.path &&
+    row.qru_group === command.qru_group &&
+    row.on_request === command.on_request
   );
 }
 
@@ -186,6 +208,8 @@ export function moveCommand(row: OwnObjectRow, lat: number, lon: number): Object
     course_deg: row.course_deg,
     speed_kmh: row.speed_kmh,
     path: row.path,
+    qru_group: row.qru_group,
+    on_request: row.on_request,
   };
 }
 
@@ -199,9 +223,10 @@ export function sentText(sent: number): string {
   return t("schedule.sent", { n: sent });
 }
 
-/** What the list says of an object of ours: how often it was sent and when it is sent next, "waiting" when that time has passed (the call is not set or the radio is away), "killing" for one whose kill is going out. */
+/** What the list says of an object of ours: how often it was sent and when it is sent next, "waiting" when that time has passed (the call is not set or the radio is away), "killing" for one whose kill is going out, "sent only when asked" for one that is never sent on the schedule. */
 export function stateText(row: OwnObjectRow, nowMs: number): string {
   if (row.state === "killing") return t("schedule.killing", { n: row.sent });
+  if (row.on_request) return t("schedule.on_request");
   const due = row.next_at === null ? NaN : Date.parse(row.next_at);
   if (Number.isNaN(due)) return sentText(row.sent);
   return nowMs - due > OVERDUE_MS ? t("schedule.waiting", { n: row.sent }) : t("schedule.next", { n: row.sent, when: untilText(row.next_at, nowMs) });

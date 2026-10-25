@@ -1,12 +1,12 @@
 <script setup lang="ts">
 // The rest of a station's card, closed until "Details" is opened: how its packets reach us (the path of the latest one as it was sent, how many came direct and by which repeaters, the best route and the path to send by),
-// when it was first heard, the number of packets (all of them, and those of the last hour), and what the daemon decodes beyond the position, a line each: the data extensions (PHG, range, DF, area), the Maidenhead locator of its status, and the telemetry channels with the names and units it defined.
+// when it was first heard, the number of packets (all of them, and those of the last hour), and what the daemon decodes beyond the position, a line each: the data extensions (PHG, range, DF, area), the storm data of a hurricane object, what a signpost says, the Maidenhead locator of its status, and the telemetry channels with the names and units it defined.
 // A row with nothing to say is left out. It is for the few who want to know; the card says the main facts (components/StationCard.vue).
 import { computed } from "vue";
 import BearingArrow from "@/components/BearingArrow.vue";
 import DisclosureBox from "@/components/DisclosureBox.vue";
 import { t } from "@/i18n";
-import { extensionRows, locatorText, telemetryBitsText, telemetryText } from "@/lib/details";
+import { extensionRows, locatorText, stormText, telemetryBitsText, telemetryText } from "@/lib/details";
 import { dateTimeText, pathText } from "@/lib/format";
 import { bestText, heardText } from "@/lib/routes";
 import type { StationRow } from "@/protocol/protocol";
@@ -31,6 +31,14 @@ const packets = computed(() =>
           {{ ext.text }}
           <span v-if="ext.direction" class="antenna" :title="ext.direction.title"><BearingArrow :deg="ext.direction.deg" :label="ext.direction.title" /></span>
         </dd>
+      </template>
+      <template v-if="row.storm !== null">
+        <dt>{{ t("station.field.storm") }}</dt>
+        <dd>{{ stormText(row.storm) }}</dd>
+      </template>
+      <template v-if="row.sign !== null">
+        <dt>{{ t("station.field.sign") }}</dt>
+        <dd>{{ row.sign }}</dd>
       </template>
       <template v-if="row.locator !== null">
         <dt>{{ t("station.field.locator") }}</dt>

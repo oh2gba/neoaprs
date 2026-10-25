@@ -6,7 +6,7 @@ import { beaconText, phgText, uncompressedPosition } from "@/lib/beacon";
 import { canPost, postCommand, textOk, type PostDraft } from "@/lib/bulletins";
 import { parsePath, validCall } from "@/lib/calls";
 import { callOk, problemOf } from "@/lib/fieldcheck";
-import { draftProblems, emptyDraft, nameProblem } from "@/lib/ownobjects";
+import { draftProblems, emptyDraft, nameProblem, objectCommand, qruProblem } from "@/lib/ownobjects";
 import vectors from "@/protocol/vectors.json";
 
 describe("the vectors of the daemon", () => {
@@ -41,6 +41,13 @@ describe("the vectors of the daemon", () => {
   it("say which names an object or an item may have", () => {
     for (const { name, kind, ok } of vectors.object_names) {
       expect(name !== "" && nameProblem(name, kind as "object" | "item") === "", JSON.stringify([kind, name])).toBe(ok);
+    }
+  });
+
+  it("say which QRU groups an object may be in, and how they are kept", () => {
+    for (const { group, ok, kept } of vectors.qru_groups) {
+      expect(qruProblem(group) === "", JSON.stringify(group)).toBe(ok);
+      if (ok) expect(objectCommand({ ...emptyDraft({ lat: 60.17, lon: 24.94 }), name: "OBJ", qru: group })?.qru_group, JSON.stringify(group)).toBe(kept);
     }
   });
 

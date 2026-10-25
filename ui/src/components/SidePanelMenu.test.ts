@@ -41,7 +41,7 @@ describe("the tabs as one button when they do not fit", () => {
     expect(wrapper.find(".tabmenu").exists()).toBe(false);
     expect(wrapper.find(".tabs").classes()).not.toContain("measuring");
     expect(wrapper.find(".tabs").attributes("aria-hidden")).toBeUndefined();
-    expect(wrapper.findAll("[role='tab']")).toHaveLength(8);
+    expect(wrapper.findAll("[role='tab']")).toHaveLength(9);
   });
 
   it("has one button with the name of the open tab when they do not, and the row is out of the way and not for a screen reader", async () => {
@@ -104,8 +104,19 @@ describe("the tabs as one button when they do not fit", () => {
     expect(button(wrapper).attributes("aria-expanded")).toBe("true");
     const menu = wrapper.find("[role='menu']");
     expect(menu.attributes("id")).toBe(button(wrapper).attributes("aria-controls"));
-    expect(items(wrapper).map((i) => i.text())).toEqual(["Messages 3", "Stations", "Email", "Bulletins 2", "Objects", "Beacon", "Packets", "Settings"]);
+    expect(items(wrapper).map((i) => i.text())).toEqual([
+      "Messages 3",
+      "Stations",
+      "Nearby",
+      "Email",
+      "Bulletins 2",
+      "Objects",
+      "Beacon",
+      "Packets",
+      "Settings",
+    ]);
     expect(items(wrapper).map((i) => i.attributes("aria-current"))).toEqual([
+      undefined,
       undefined,
       undefined,
       "page",
@@ -116,14 +127,14 @@ describe("the tabs as one button when they do not fit", () => {
       undefined,
     ]);
     expect(items(wrapper)[0]?.find(".badge").attributes("title")).toBe("3 messages not seen yet");
-    expect(items(wrapper)[3]?.find(".badge").attributes("title")).toBe("2 new bulletins");
+    expect(items(wrapper)[4]?.find(".badge").attributes("title")).toBe("2 new bulletins");
   });
 
   it("picks a tab from the menu, which closes, and brings the panel on a phone", async () => {
     want = 700;
     const wrapper = await make(360, {}, "phone");
     await button(wrapper).trigger("click");
-    await items(wrapper)[6]?.trigger("click");
+    await items(wrapper)[7]?.trigger("click");
     expect(wrapper.emitted("update:tab")).toEqual([["packets"]]);
     expect(wrapper.emitted("update:view")).toEqual([["panel"]]);
     expect(wrapper.find("[role='menu']").exists()).toBe(false);
@@ -175,11 +186,11 @@ describe("the tabs as one button when they do not fit", () => {
     await key(wrapper, "[role='menu']", "ArrowUp");
     expect(focused()).toBe(0);
     await key(wrapper, "[role='menu']", "ArrowUp");
-    expect(focused()).toBe(7);
+    expect(focused()).toBe(8);
     await key(wrapper, "[role='menu']", "ArrowDown");
     expect(focused()).toBe(0);
     await key(wrapper, "[role='menu']", "End");
-    expect(focused()).toBe(7);
+    expect(focused()).toBe(8);
     await key(wrapper, "[role='menu']", "Home");
     expect(focused()).toBe(0);
   });
@@ -189,7 +200,7 @@ describe("the tabs as one button when they do not fit", () => {
     const wrapper = await make(400, { tab: "email" });
     await button(wrapper).trigger("keydown", { key: "ArrowUp" });
     await wrapper.vm.$nextTick();
-    expect(items(wrapper).findIndex((i) => i.element === document.activeElement)).toBe(7);
+    expect(items(wrapper).findIndex((i) => i.element === document.activeElement)).toBe(8);
   });
 
   it("keeps the Map button of a phone beside the menu button, and it asks for the map", async () => {

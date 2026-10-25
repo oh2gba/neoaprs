@@ -6,6 +6,7 @@ from dataclasses import replace
 from collections.abc import Callable
 from datetime import datetime
 
+from neoaprs.aprsfreq import named_frequency, split_frequency
 from neoaprs.aprslocator import split_beacon, split_locator
 from neoaprs.aprsmessage import MessageError, parse_message
 from neoaprs.aprsmice import MicEError, parse_mice
@@ -25,14 +26,21 @@ _AGRELO = re.compile(r"%(\d{3})%(\d)")
 _ITEM_SPLIT = re.compile(r"[,\r\n]+")
 
 
+def _named(name: str, position: Position) -> Position:
+    """The position of an object or item whose name is a frequency (`145.775-A`, freqspec.txt) with that frequency, and the fields of the comment taken off it."""
+    frequency, comment = named_frequency(name, position.frequency, position.comment)
+    return position if frequency is position.frequency else replace(position, frequency=frequency, comment=comment)
+
+
 def _object(body: bytes, now: datetime) -> ObjectReport:
     if len(body) <= _OBJECT_HEAD:
         raise PositionError("object too short")
     status = body[9:10]
     if status not in (b"*", b"_"):
         raise PositionError("object status is neither * nor _")
-    position = parse_position(body[10:], now)
-    return ObjectReport(decode_text(body[:9]).rstrip(" "), status == b"*", position, position.timestamp)
+    name = decode_text(body[:9]).rstrip(" ")
+    position = _named(name, parse_position(body[10:], now))
+    return ObjectReport(name, status == b"*", position, position.timestamp)
 
 
 def _item(body: bytes, now: datetime) -> ItemReport:
@@ -40,15 +48,18 @@ def _item(body: bytes, now: datetime) -> ItemReport:
     if not ends:
         raise PositionError("item name has no ! or _ after three to nine characters")
     end = ends[0]
-    return ItemReport(decode_text(body[:end]), body[end:end + 1] == b"!", parse_position(body[end + 1:], now))
+    name = decode_text(body[:end])
+    return ItemReport(name, body[end:end + 1] == b"!", _named(name, parse_position(body[end + 1:], now)))
 
 
 def _status(body: bytes, now: datetime) -> Status:
     if len(body) >= 7 and body[:6].isdigit() and body[6:7] == b"z":
-        return Status(decode_text(body[7:]).strip(), resolve_timestamp(body[:7], now))
+        text, frequency = split_frequency(decode_text(body[7:]).strip())
+        return Status(text, resolve_timestamp(body[:7], now), frequency=frequency)
     text = decode_text(body)
     locator, rest = split_locator(text)                  # (a report with a locator has no timestamp)
-    return Status(rest.strip(), None, locator) if locator else Status(text.strip())
+    text, frequency = split_frequency((rest if locator else text).strip())
+    return Status(text, None, locator, frequency)
 
 
 def _capabilities(info: bytes) -> Other:

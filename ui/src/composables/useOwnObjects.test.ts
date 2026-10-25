@@ -125,6 +125,8 @@ describe("useOwnObjects", () => {
         course_deg: null,
         speed_kmh: 40,
         path: null,
+        qru_group: "",
+        on_request: false,
       },
     ]);
     expect(view.open).toBe(true);
@@ -227,6 +229,8 @@ describe("useOwnObjects", () => {
         course_deg: 88,
         speed_kmh: 40,
         path: "WIDE2-1",
+        qru_group: "",
+        on_request: false,
       },
     ]);
     view.move("NOBODY", 1, 2);

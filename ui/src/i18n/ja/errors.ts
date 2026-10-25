@@ -49,6 +49,7 @@ export const errors: Record<keyof typeof source, Message> = {
     other: "アイテムの名前は{min}〜{max}文字です({length}文字ではありません)",
   },
   "error.object.position": "位置 {lat}, {lon} は地球上にありません",
+  "error.object.qru_group": "QRUグループ「{group}」は英数字1〜{max}文字で、INFO と NEXT は使えません",
   "error.object.speed": "速度 {value} は 0〜{max} km/h の範囲外です",
   "error.object.symbol": "シンボル「{table}」「{symbol}」は、テーブル(/ \\ A-Z 0-9)と表示可能な1文字ではありません",
   "error.path.too_long": "デジピーター{count}個は、パスに入れられる最大{max}個を超えています",

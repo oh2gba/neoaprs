@@ -5,7 +5,7 @@ from typing import Literal
 from pydantic import Field
 
 from neoaprs.ownbulletin import GROUP_MAX
-from neoaprs.ownobject import COMMENT_MAX, OBJECT_NAME
+from neoaprs.ownobject import COMMENT_MAX, OBJECT_NAME, QRU_GROUP_MAX
 
 from .wirebase import Iso, _Command, _Model
 
@@ -26,12 +26,14 @@ class OwnObjectRow(_Model):
     course_deg: int | None = Field(description="the course in degrees from north (0 to 359); null for none")
     speed_kmh: float | None = Field(description="the speed in km/h; null for none")
     path: str | None = Field(description="the digipeaters it goes by, calls separated by commas, or `DIRECT` for none at all; null: the path of the setting `beacon/path` is used")
+    qru_group: str = Field(description="the group of QRU (1 to 8 upper-case letters and digits) a station that asks the addressee `QRU` for it is answered with this object in; empty for none")
+    on_request: bool = Field(description="true: it is never sent on the decay schedule, only to a station that asks for it (`?APRSO`, or its QRU group); false: it is sent on the schedule")
     state: Literal["live", "killing"] = Field(description="`live`: it is being sent on the decay schedule; `killing`: it was killed and its killed form is being sent (three times), then it is forgotten")
     created_at: Iso = Field(description="when it was first made")
     updated_at: Iso = Field(description="when it was last changed or killed")
     sent: int = Field(ge=0, description="how often it was sent since it was last changed or killed")
     last_sent_at: Iso | None = Field(description="when it was last sent; null while it has not been sent (the call is not set, or the radio is away)")
-    next_at: Iso | None = Field(description="when it is sent next: 1, 2, 4 ... minutes after the last packet, never more than the net cycle time of its path apart; a time that has passed means it waits for the radio or for the call")
+    next_at: Iso | None = Field(description="when it is sent next: 1, 2, 4 ... minutes after the last packet, never more than the net cycle time of its path apart; a time that has passed means it waits for the radio or for the call; null for one that is `on_request`")
 
 
 class OwnBulletinRow(_Model):
@@ -51,7 +53,8 @@ class ObjectSet(_Command):
     """Makes an object or an item of ours, or changes the one of that name (a changed object starts its schedule again, and is sent at once, never sooner than a minute after its last packet). `name` is 1 to 9
     characters for an object and 3 to 9 for an item, printable ASCII without `!`, `_`, `|` and `~` and without a blank at either end, and not our own call or the call of a station; `lat` and `lon` the position in decimal
     degrees; the symbol is a table character and a code character; `comment` at most 43 characters (36 with a course or speed); `course_deg` and `speed_kmh` the course and speed, each or both or none; `path` the digipeaters, calls
-    separated by commas, or `DIRECT` for none at all (null or empty: `beacon/path`). Nothing is sent while the call is not set. Answered by the `set` of its row in `own_objects` and `stations`, or by an `error` that names the reason."""
+    separated by commas, or `DIRECT` for none at all (null or empty: `beacon/path`); `qru_group` the group of QRU it belongs to (up to 8 letters and digits, not `INFO` or `NEXT`; empty for none) and `on_request` true to send it
+    only to a station that asks for it, never on the schedule. Nothing is sent while the call is not set. Answered by the `set` of its row in `own_objects` and `stations`, or by an `error` that names the reason."""
     cmd: Literal["object_set"]
     name: str = Field(min_length=OBJECT_NAME[0], max_length=OBJECT_NAME[1])
     kind: Literal["object", "item"]
@@ -63,6 +66,8 @@ class ObjectSet(_Command):
     course_deg: int | None = Field(ge=0, le=359)
     speed_kmh: float | None = Field(ge=0, le=1850)
     path: str | None = Field(max_length=256)
+    qru_group: str = Field(max_length=QRU_GROUP_MAX)
+    on_request: bool
 
 
 class ObjectKill(_Command):

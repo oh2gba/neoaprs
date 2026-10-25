@@ -10,7 +10,7 @@ from neoaprs.migrations import SCHEMA_VERSION
 from neoaprs.migrations2 import MIGRATION_LOG
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
-from tests.support.migrated import opened
+from tests.support.migrated import opened, step_back
 from tests.test_migrations import GOLDEN, raw
 
 RESET = {"map/maxzoom": "14", "map/source": "https://example.org/world.pmtiles", "update/url": "http://localhost:9/v.php",
@@ -30,6 +30,7 @@ def version_fifteen(path: Path, clock: FixedClock, stored: dict[str, str]) -> No
     opened(path, clock).close()
     db = raw(path)
     db.execute("DELETE FROM schema_history WHERE version >= 16")
+    step_back(db, 15)
     db.execute("PRAGMA user_version = 15")
     for key, value in stored.items():
         db.execute("INSERT INTO settings (key, value) VALUES (?, ?)", (key, value))
@@ -43,7 +44,7 @@ def migrate(folder: Path, stored: dict[str, str]) -> dict[str, tuple[str, int]]:
     version_fifteen(old, clock, stored)
     migrated = opened(old, clock)
     assert migrated.version() == SCHEMA_VERSION >= 16
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][15:] == [(16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][15:] == [(16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18])]
     found = {str(k): (str(v), int(rev)) for k, v, rev in migrated.db.execute("SELECT key, value, rev FROM settings")}
     migrated.close()
     return found

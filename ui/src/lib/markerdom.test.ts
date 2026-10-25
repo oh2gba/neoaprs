@@ -52,6 +52,16 @@ describe("the marker of a station", () => {
     expect(dom.root.classList.contains("stn--direct")).toBe(false);
     expect(dom.root.getAttribute("aria-label")).toBe("OH2PU-9: Car");
   });
+  it("shows the characters of a signpost over its symbol, as text, and nothing for a station that is none", () => {
+    const dom = buildMarkerDom();
+    paintMarker(dom, station("I91 3N", { kind: "item", symbol_table: "\\", symbol_code: "m", sign: "<55>" }), { fade: 0, selected: false, direct: false });
+    expect(dom.sign.textContent).toBe("<55>");
+    expect(dom.sign.children).toHaveLength(0);
+    expect(dom.root.classList.contains("stn--sign")).toBe(true);
+    paintMarker(dom, station("OH2PU-9"), { fade: 0, selected: false, direct: false });
+    expect(dom.sign.textContent).toBe("");
+    expect(dom.root.classList.contains("stn--sign")).toBe(false);
+  });
   it("keeps the weather symbol of a weather station and puts its temperature in its name", () => {
     const dom = buildMarkerDom();
     paintMarker(dom, weatherStation("OH2MUI"), { fade: 0, selected: false, direct: false });

@@ -3,10 +3,10 @@
 import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
 import { altitudeText, bearingText, dateTimeText, positionText, speedText } from "@/lib/format";
-import { sentTimeText } from "@/lib/details";
+import { frequencyText, sentTimeText, stormText } from "@/lib/details";
 import { routeWords } from "@/lib/routes";
 import { tempText, windSpeedText } from "@/lib/weather";
-import type { DecodedWeather, PacketRow, PositionFields } from "@/protocol/protocol";
+import type { DecodedStatus, DecodedWeather, PacketRow, PositionFields } from "@/protocol/protocol";
 
 export interface Fact {
   label: string;
@@ -53,7 +53,18 @@ function positionFacts(p: PositionFields): Fact[] {
   }
   if (p.altitude_m !== null) facts.push({ label: t("station.field.altitude"), text: altitudeText(p.altitude_m) });
   if (p.weather !== null && weatherText(p.weather) !== "") facts.push({ label: t("packets.fact.weather"), text: weatherText(p.weather) });
+  if (p.frequency !== null) facts.push({ label: t("station.field.frequency"), text: frequencyText(p.frequency) });
+  if (p.storm !== null) facts.push({ label: t("station.field.storm"), text: stormText(p.storm) });
+  if (p.sign !== null) facts.push({ label: t("station.field.sign"), text: p.sign });
   if (p.comment !== "") facts.push({ label: t("station.field.comment"), text: p.comment });
+  return facts;
+}
+
+/** The frequency a status text began with and what follows it. */
+function statusFacts(d: DecodedStatus): Fact[] {
+  const facts: Fact[] = [];
+  if (d.frequency !== null) facts.push({ label: t("station.field.frequency"), text: frequencyText(d.frequency) });
+  if (d.text !== "") facts.push({ label: t("station.field.status"), text: d.text });
   return facts;
 }
 
@@ -82,7 +93,7 @@ function contentFacts(row: PacketRow): Fact[] {
     case "item":
       return [{ label: t("packets.fact.name"), text: d.alive ? d.name : t("packets.object_down", { name: d.name }) }, ...positionFacts(d.position)];
     case "status":
-      return [{ label: t("station.field.status"), text: d.text }];
+      return statusFacts(d);
     case "telemetry":
       return d.sequence === null ? [] : [{ label: t("packets.fact.report"), text: t("packets.report_number", { number: d.sequence }) }];
     case "other":

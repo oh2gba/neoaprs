@@ -1,15 +1,18 @@
-// The details of a position or a station that the daemon decodes beyond where it is: the data extensions (PHG, range, DF, area), the Maidenhead locator, the telemetry channels, and the time a packet
-// carries (which may be the sender's local time).
-import { t } from "@/i18n";
-import { bearingTitle, dateTimeText, positionText } from "@/lib/format";
+// The details of a position or a station that the daemon decodes beyond where it is: the data extensions (PHG, range, DF, area), the Maidenhead locator, the telemetry channels, the voice frequency with its
+// tone, offset and range, the storm data of a hurricane object, and the time a packet carries (which may be the sender's local time).
+import { formatNumber, t } from "@/i18n";
+import { bearingTitle, dateTimeText, distanceText, positionText } from "@/lib/format";
+import { windSpeedText } from "@/lib/weather";
 import type {
   DecodedObject,
   DecodedOther,
   DecodedPosition,
   DecodedStatus,
   ExtensionValues,
+  FrequencyValues,
   LocatorValues,
   PacketRow,
+  StormValues,
   TelemetryValues,
 } from "@/protocol/protocol";
 
@@ -91,6 +94,37 @@ export function telemetryText(telemetry: TelemetryValues | null): string {
 /** "Camera on, Chute off": the digital channels, named as the station defined them (or B1 to B8). */
 export function telemetryBitsText(telemetry: TelemetryValues | null): string {
   return telemetry === null ? "-" : telemetry.bits.map((b) => t("station.telemetry.bit", { name: b.name, state: b.on ? "on" : "off" })).join(", ");
+}
+
+/** The offset with its sign: "-600 kHz", "+1000 kHz". */
+function offsetText(khz: number): string {
+  return t("station.freq.offset", { khz: khz > 0 ? `+${khz}` : String(khz) });
+}
+
+/** A voice frequency with the fields it was sent with: "145.775 MHz, tone 118 Hz, -600 kHz, range 40 km"; only what the sender said. */
+export function frequencyText(f: FrequencyValues): string {
+  const parts = [t("station.freq.mhz", { mhz: formatNumber(f.mhz, 3) })];
+  if (f.tone_hz !== null) parts.push(t(f.tone_both ? "station.freq.tone_both" : "station.freq.tone", { hz: f.tone_hz }));
+  if (f.dcs !== null) parts.push(t("station.freq.dcs", { code: f.dcs }));
+  if (f.tone_off) parts.push(t("station.freq.no_tone"));
+  if (f.tone_burst) parts.push(t("station.freq.burst"));
+  if (f.narrow) parts.push(t("station.freq.narrow"));
+  if (f.offset_khz !== null) parts.push(f.offset_khz === 0 ? t("station.freq.simplex") : offsetText(f.offset_khz));
+  if (f.range_km !== null) parts.push(t("station.freq.range", { km: distanceText(f.range_km) }));
+  if (f.rx_mhz !== null) parts.push(t("station.freq.receive", { mhz: formatNumber(f.rx_mhz, 3) }));
+  return parts.join(", ");
+}
+
+/** The storm data in words: "Hurricane, wind 278 km/h, gusts 370 km/h, pressure 980 hPa, hurricane winds out to 167 km, ..."; only the fields the report had. */
+export function stormText(s: StormValues): string {
+  const parts = [t("station.storm.kind", { kind: s.storm_type })];
+  if (s.wind_kmh !== null) parts.push(t("station.storm.wind", { speed: windSpeedText(s.wind_kmh) }));
+  if (s.gust_kmh !== null) parts.push(t("station.storm.gusts", { speed: windSpeedText(s.gust_kmh) }));
+  if (s.pressure_hpa !== null) parts.push(t("station.storm.pressure", { value: `${s.pressure_hpa} hPa` }));
+  if (s.hurricane_radius_km !== null) parts.push(t("station.storm.hurricane_radius", { km: distanceText(s.hurricane_radius_km) }));
+  if (s.storm_radius_km !== null) parts.push(t("station.storm.storm_radius", { km: distanceText(s.storm_radius_km) }));
+  if (s.gale_radius_km !== null) parts.push(t("station.storm.gale_radius", { km: distanceText(s.gale_radius_km) }));
+  return parts.join(", ");
 }
 
 type Timed = DecodedPosition | DecodedObject | DecodedStatus | DecodedOther;

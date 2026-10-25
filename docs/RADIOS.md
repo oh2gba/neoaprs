@@ -9,17 +9,18 @@ How to connect your radio or TNC to NeoAPRS, on Linux or Windows. In the page, *
 | Kenwood TH-D7 | yes | Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2 | PC cable PG-4W, serial 9600 |
 | Kenwood TM-D700 | yes | same | PC port (DE-9), serial 9600 |
 | Kenwood TM-D710, TH-D72 | yes with notes | Kenwood TM-D710 / TH-D72 | COM socket (D710) or USB (D72), 9600 |
-| Kenwood TH-D74, TH-D75 | yes | KISS TNC (Mobilinkd, NinoTNC, TNC-Pi, TH-D74/D75…) | USB-C or Bluetooth; KISS switched on at the radio |
+| Kenwood TH-D74, TH-D75 | yes | KISS TNC (Mobilinkd, NinoTNC, TNC-Pi, TH-D74/D75…) | USB-C or Bluetooth (classic); KISS switched on at the radio. Bluetooth LE only through a B.B. Link adapter |
 | Kenwood TS-2000 | yes with notes (unverified) | Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2 | COM port, shared with CAT |
 | Kenwood TM-D750E | unknown | – | announced, nothing known |
-| Mobilinkd TNC3, TNC4 | yes | KISS TNC | USB or Bluetooth (the TNC3 is classic Bluetooth; for the TNC4 see its entry) |
+| Mobilinkd TNC3, TNC4 | yes | KISS TNC | USB, Bluetooth (classic) or Bluetooth LE (`ble://`, needs the extra `ble`; LE untested by us) |
 | NinoTNC | yes | KISS TNC | USB, 57600 |
 | TNC-X, TNC-Pi, other TNC already in KISS | yes | KISS TNC | serial or USB; TNC-Pi baud unverified (19200 reported) |
 | MFJ-1270B/1274/1278, TAPR TNC-2 clones | yes with notes | Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2 | RS-232; depends on the firmware |
 | Kantronics KPC-3+ | yes | Kantronics KPC-3+ | RS-232 |
 | Direwolf or soundmodem with a sound card: Digirig, SignaLink, a radio's data port, a USB sound dongle | yes | KISS over TCP (Direwolf, soundmodem) | Direwolf or the soundmodem serves KISS on a TCP port |
-| BTech UV-PRO, Vero VR-N76, Radioddity GA-5WB (one radio under three names) | untested, reports say it works | KISS TNC | Bluetooth (classic); users' reports only. Its Bluetooth LE is not supported by NeoAPRS |
-| PicoAPRS V4 (DB1NTO) | untested, follows the manual | KISS TNC | Bluetooth (classic), USB-C or TCP. Its Bluetooth LE mode is not supported by NeoAPRS |
+| BTech UV-PRO, Vero VR-N76, Radioddity GA-5WB (one radio under three names) | untested, reports say it works | KISS TNC | Bluetooth (classic), users' reports only; the BLE KISS specification also lists the radio for Bluetooth LE (`ble://`), untested |
+| PicoAPRS V4 (DB1NTO) | untested, follows the manual | KISS TNC | Bluetooth (classic), USB-C or TCP; Bluetooth LE (`ble://`) is listed by the BLE KISS specification, untested |
+| LoRa APRS iGate and Tracker (CA2RXU firmware) | untested, follows the firmware's source | KISS over TCP (iGate) or KISS TNC over Bluetooth LE (Tracker) | the iGate serves KISS on TCP port 8001; the Tracker has Bluetooth LE with KISS ([LoRa APRS](#lora-aprs-ca2rxu-firmware)) |
 | Yaesu FTM-*, FT1D/2D/3D/5D | no | – | no KISS TNC for a PC. They send received APRS to the PC, never transmit from it. Use a sound-card interface and Direwolf instead |
 | Icom (D-STAR radios, IC-9700, IC-705) | no | – | D-PRS is not APRS packets. A sound card and Direwolf work as for any radio |
 | Icom ID-5200A | unverified | – | has a KISS TNC (USB, Bluetooth); entry and speed not known, needs a tester |
@@ -56,6 +57,7 @@ KISS only, no command mode. NeoAPRS cannot enter KISS or ask the radio anything,
 2. USB: menu 980 to *COM + AF/IF Output* (not Mass Storage). Connect USB-C. **Windows:** install the Kenwood virtual COM driver *before* the first plugging in. **Linux:** the port is a ttyACM device, under `/dev/serial/by-id` named like `usb-JVCKENWOOD_TH-D75-if00` (D75; the D74's name is unverified). The baud setting is ignored.
    Bluetooth: pair it once with the system as in "Bluetooth" below (radio side: menu 930 on, 932 search; D74: menu 931 on, 934 pairing mode).
 3. TNC setting: *KISS TNC (Mobilinkd, NinoTNC, TNC-Pi, TH-D74/D75…)*. Port: the serial port, the COM port, or on Linux the paired radio in the list (`bt://AA:BB:CC:DD:EE:FF`; NeoAPRS finds its serial channel, which is usually 2, itself).
+   The radio's own Bluetooth is classic only. The B.B. Link adapter (an ESP32 that joins the radio's classic Bluetooth serial to Bluetooth LE, made for iPhones) speaks the BLE KISS service, so it can be reached as `ble://`; untested by us.
 4. On the radio press **[F]** then **[LIST]** until the display shows KISS (D75; D74: **[F]** then **[TNC]**). Menu 505 data speed 1200 or 9600, menu 506 data band A or B, menu 508 TX delay (D75).
 
 - While KISS is on, the radio takes no PC commands and sends no GPS or APRS output.
@@ -69,17 +71,18 @@ KISS only, no command mode. NeoAPRS cannot enter KISS or ask the radio anything,
    Linux: pick the paired TNC in *Port* (`bt://AA:BB:CC:DD:EE:FF`; its channel is usually 1). Windows: the *Outgoing* COM port.
 3. TNC setting: *KISS TNC…*. Baud: any, the default is fine.
 
-The TNC4 guide describes Bluetooth serial as working, but one project calls the TNC4 BLE-only. If it does not show up among the paired devices, or the connection fails, use USB: Bluetooth LE is not supported by NeoAPRS.
+The TNC4 guide describes Bluetooth serial as working, but one project calls the TNC4 BLE-only. If it does not show up among the paired devices as a serial device, or the `bt://` connection fails, use its Bluetooth LE mode (`ble://AA:BB:CC:DD:EE:FF`, see "Bluetooth LE" below) or USB. The TNC3 and TNC4 are the devices the BLE KISS service was made for: NeoAPRS uses the same service as the aprs.fi app does. The TNC3 and TNC4 have one address for both kinds of Bluetooth; use either, one at a time. **Status of LE: untested by us** (no hardware; it follows the Mobilinkd source and the specification).
 
 ## BTech UV-PRO, Vero VR-N76, Radioddity GA-5WB
 
-One radio sold under these names (the GA-5WB too). It has a KISS TNC that is reached over Bluetooth. **Status: untested by us.** Users report it working over classic Bluetooth serial (SPP) with APRSdroid and with Linux software through an RFCOMM port; the radio also has Bluetooth LE, which NeoAPRS does not support, and one project lists it as LE-only for KISS, so what your radio's firmware offers is settled by trying. Please report what you find.
+One radio sold under these names (the GA-5WB too). It has a KISS TNC that is reached over Bluetooth. **Status: untested by us.** Users report it working over classic Bluetooth serial (SPP) with APRSdroid and with Linux software through an RFCOMM port; the radio also has Bluetooth LE. The specification of KISS over Bluetooth LE (see "Bluetooth LE" below) lists it among the devices that implement it, while a RadioMail developer wrote in 2024 that it then did classic Bluetooth only, so what your radio's firmware offers is settled by trying: if `bt://` fails, try `ble://AA:BB:CC:DD:EE:FF`. Please report what you find.
 
 1. **KISS on:** Menu, General Settings, *KISS TNC*: switch it on and save (the UV-PRO's menu; the VR-N76's names may differ slightly).
 2. **Pair:** on the radio Menu, *Pairing*, OK (it stays discoverable about two minutes); then pair it with the computer as in "Bluetooth" below. The device is named `UV-PRO` or `VR-N76`. If a code is asked for, try `0000` or `1234`.
 3. **Disconnect the radio's own app** (the phone app) first. A Bluetooth serial link serves one program at a time; the vendors do not say so, it is the rule for the others.
 4. **NeoAPRS:** TNC setting *KISS TNC (Mobilinkd, NinoTNC, TNC-Pi, TH-D74/D75…)*, *Port*: the radio, `bt://AA:BB:CC:DD:EE:FF`. Reports give RFCOMM channel 1 (a user who bound it by hand says another number did not work); NeoAPRS asks the radio which channel its serial port is on and tries 1 to 3 after it, and the log (`neoaprs.log`) says which channel connected. If it is not the right one, write it: `bt://AA:BB:CC:DD:EE:FF/1` with *Other...*.
 5. The radio shows a small telephone icon beside the power level when the link is up. A silent line is normal until it hears a packet.
+6. Bluetooth LE: address the radio as `ble://AA:BB:CC:DD:EE:FF` (its address is in `bluetoothctl devices` or a scan, "Bluetooth LE" below). Nothing here has been tried with this radio's LE.
 
 - On Linux a desktop that connects the radio as a headset (audio) can get in the way: one report fixes it with `Disable=Headset` in the `[General]` section of `/etc/bluetooth/input.conf`, then restarting Bluetooth. Unverified here.
 - One report says that Direwolf received through the radio's KISS but did not transmit; another saw APRS messages arrive with a `(NOT AX.25)` mark. Whether NeoAPRS is affected is not known.
@@ -87,18 +90,30 @@ One radio sold under these names (the GA-5WB too). It has a KISS TNC that is rea
 
 ## PicoAPRS V4
 
-DB1NTO's pocket APRS device (VHF, 0.5 or 1 W, GPS, a KISS TNC). **Status: untested by us;** this follows the manual of the V4 (November 2023, and later firmware). It offers its KISS TNC over USB-C, TCP, **Bluetooth Classic** and **Bluetooth LE**, as four choices in its menu; NeoAPRS uses the classic one (or USB-C, or KISS over TCP). The manual does not give the RFCOMM channel.
+DB1NTO's pocket APRS device (VHF, 0.5 or 1 W, GPS, a KISS TNC). **Status: untested by us;** this follows the manual of the V4 (November 2023, and later firmware). It offers its KISS TNC over USB-C, TCP, **Bluetooth Classic** and **Bluetooth LE**, as four choices in its menu; NeoAPRS uses the classic one (or USB-C, or KISS over TCP, or LE as `ble://`, which is untested). The manual does not give the RFCOMM channel.
 
 1. **Mode:** device mode *TNC*, then choose *Bluetooth* (not *Bluetooth LE*). Bluetooth works only in TNC mode and switches on with it.
 2. **Pair:** the PicoAPRS is visible for 4 minutes after TNC mode is switched on and then switches Bluetooth off to save power; the Bluetooth icon in its main menu switches it on again. Pair it with the computer as in "Bluetooth" below, in that time: it is named `PicoAPRS`, both sides show a PIN, and the **right-hand button (Confirm)** on the device confirms it.
 3. **NeoAPRS:** TNC setting *KISS TNC (Mobilinkd, NinoTNC, TNC-Pi, TH-D74/D75…)*, *Port*: `bt://AA:BB:CC:DD:EE:FF` as listed under its name. The channel is looked up on the device; if that fails, 1 to 3 are tried, and the log says which one connected (name it with `/1` if need be).
-4. The Bluetooth LE mode needs no pairing and does not appear among the paired devices; NeoAPRS cannot use it. The USB-C port (a virtual COM port, 115200, ignored by the device) is the alternative.
+4. The Bluetooth LE mode needs no pairing and does not appear among the paired devices; it is reached as `ble://AA:BB:CC:DD:EE:FF` ("Bluetooth LE" below; the specification of KISS over LE lists the PicoAPRS V4, the manual does not say which service it uses). The USB-C port (a virtual COM port, 115200, ignored by the device) is the other way.
 
 ## NinoTNC
 
 1. Connect USB. Set the mode on its DIP switches (or by KISS command; see the NinoTNC wiki).
 2. TNC setting: *KISS TNC…*. **Baud: 57600.**
 3. On Linux add the udev rules from the wiki, and see "Permissions on Linux".
+
+## LoRa APRS (CA2RXU firmware)
+
+The firmware of CA2RXU (Ricardo Guzman) for ESP32 LoRa boards (TTGO T-Beam, LoRa32, Heltec and others) comes in two programs: the **LoRa APRS iGate** (`richonguzman/LoRa_APRS_iGate`; iGate, digipeater, and a KISS TNC for the network) and the **LoRa APRS Tracker** (`richonguzman/LoRa_APRS_Tracker`; a tracker with a display, and a KISS TNC for a phone). **Status: untested by us;** this follows the sources of both on GitHub. LoRa APRS is not the 1200 baud AFSK of the other radios here: the frames are the same APRS text, sent by LoRa on 433.775 MHz (Europe) and heard only by LoRa APRS stations; the KISS side of the boards carries ordinary AX.25 frames.
+
+**The iGate: KISS over TCP.** Its web configuration page has a *TNC* group; switch on *Enable TNC server (Port 8001)* and keep *Protocol* at KISS (the default; TNC2 is the other choice and NeoAPRS does not speak it). In the file `igate_conf.json` they are `tnc.enableServer` and `tnc.kissProtocol`. The server needs the board on a network (WiFi or Ethernet) and the eco mode of the digipeater off. The firmware serves up to four clients at once on TCP port **8001** (fixed in the source, not a setting) and announces itself with mDNS as `igate-<callsign>.local` and the DNS-SD service `_kiss-tnc._tcp`. What the board hears on LoRa is sent to the clients, and a frame a client sends is transmitted on LoRa when the board's LoRa transmission is on (and, with *Enable APRS Bridge*, also uploaded to APRS-IS). *Accept own frames* decides whether a frame from the board's own callsign is taken.
+
+1. NeoAPRS: TNC setting *KISS over TCP (Direwolf, soundmodem)*, host: the board's address (the router's list, or `igate-<callsign>.local` where the system resolves mDNS), port `8001`. Or as a port: `socket://<ip>:8001`.
+2. The port is not protected: keep it inside your LAN, and only one program should send to it.
+3. The board is a digipeater or iGate of its own: its callsign, beacons and path are set on its page, not by NeoAPRS.
+
+**The Tracker: Bluetooth LE.** The Tracker has no TCP server. Its Bluetooth LE serves KISS to phones (the aprs.fi iOS app, APRSdroid with the NA7Q modification). On its configuration page (the file `tracker_conf.json`, group `bluetooth`) switch Bluetooth on (`active`), choose BLE (`useBLE`; the boards with only BLE have it fixed) and **KISS** (`useKISS`, true is KISS, false is TNC2 text). The device name is `deviceName` (default `LoRaTracker`). In KISS mode it advertises the BLE KISS service of "Bluetooth LE" above, and NeoAPRS reaches it as `ble://AA:BB:CC:DD:EE:FF` with the extra `ble`; in TNC2 mode it offers the Nordic UART Service with text lines, which NeoAPRS cannot use. A Tracker also has a classic Bluetooth mode on boards that have it (the changelog of the firmware says so); the port is then `bt://`, with the same KISS choice, untested here. The Tracker sends what it hears to the phone in pieces of up to 512 bytes, a frame may arrive in several, and KISS makes no difference to that.
 
 ## Direwolf (sound card)
 
@@ -142,7 +157,7 @@ KISS exit is `C0 FF C0`, or a hard reset.
 
 ## Bluetooth
 
-NeoAPRS uses classic Bluetooth serial (the Serial Port Profile, SPP/RFCOMM): the Kenwood TH-D74/D75, the Mobilinkd TNC3, a TM-D700 with a Bluetooth serial module. **Bluetooth LE** (the Mobilinkd TNC4 in its LE mode, the BTech UV-PRO, the Vero VR-N76) is not supported.
+NeoAPRS uses two kinds of Bluetooth. **Classic Bluetooth serial** (the Serial Port Profile, SPP/RFCOMM, `bt://`, Linux) is for the Kenwood TH-D74/D75, the Mobilinkd TNC3, a TM-D700 with a Bluetooth serial module. **Bluetooth LE** (`ble://`, "Bluetooth LE" at the end of this section) is for the devices that carry KISS over it: the Mobilinkd TNC3/TNC4, the LoRa APRS Tracker and the others the specification lists.
 
 **Linux**
 
@@ -171,6 +186,20 @@ The older way still works as a fallback, when a program of the system has to sha
 3. An older PC may ask for the PIN `0000`.
 
 `bt://` ports are for Linux. **macOS:** pair the radio in System Settings, Bluetooth; the serial port is the `/dev/cu.*` one named after it.
+
+### Bluetooth LE
+
+A Bluetooth LE device offers a *GATT service*, and a KISS TNC has one with two *characteristics*: NeoAPRS writes KISS bytes to one and is notified of KISS bytes on the other, as a serial line. The service the radios and TNCs of this guide use is the **BLE KISS service** of the aprs.fi apps and the Mobilinkd TNC3 and TNC4: service `00000001-ba2a-46c9-ae49-01b0961f68bb`, the TNC takes writes on `00000002-...` and notifies on `00000003-...` (the specification of KISS over BLE, hessu/aprs-specs, lists the Mobilinkd TNC3 and TNC4, the PicoAPRS V4, the RPC Electronics ESP32-APRS tracker, the CA2RXU LoRa APRS Tracker, the B.B. Link adapter for the Kenwood TH-D74/D75, the UV-PRO/VR-N76/GA-5WB and a do-it-yourself ESP32 adapter). NeoAPRS also knows the **Nordic UART Service** (`6e400001-b5a3-f393-e0a9-e50e24dcca9e`, write `6e400002-...`, notify `6e400003-...`), which homebrew BLE-to-serial TNCs use; no device of this guide does for KISS (the LoRa APRS Tracker's Nordic UART Service carries TNC2 text lines, not KISS, and NeoAPRS cannot use it).
+
+1. **Install the extra.** The BLE library (bleak) is not part of the base install: `pip install 'neoaprs[ble]'`, or `uv tool install 'neoaprs[ble]'` for an install made with uv. Without it a `ble://` port does not open and says so. The deb, the AppImage and the Windows installer do not have it.
+2. **Linux** needs BlueZ running (`bluetoothd`, `systemctl status bluetooth`) and a Bluetooth adapter that does LE. NeoAPRS talks to BlueZ over the system's D-Bus as any user: BlueZ's own D-Bus policy lets every user do that, so no root and no `bluetooth` group (an old distribution's policy may differ; then add the user to the `bluetooth` group). **Windows 10/11** and **macOS** use the system's own Bluetooth LE, and macOS asks once whether the program may use Bluetooth.
+3. **Switch the device on, put it in LE mode and close the phone app.** A BLE device is connected to one program at a time and stops advertising meanwhile; a device that is connected to a phone cannot be found.
+4. **Find its address.** Linux: `bluetoothctl`, `scan le`, and note the address of the device by its name (the Mobilinkd TNC3 advertises itself as `TNC3`; the LoRa APRS Tracker as `LoRaTracker` unless renamed). **macOS** does not give the address: the system gives the device an identifier like `6E6C9C1A-0E5D-4A3B-9D6C-0123456789AB`, which is the address of the port there. A device that asks for a PIN is paired once with the system first (`pair AA:BB:CC:DD:EE:FF` in `bluetoothctl`; the Mobilinkd's is `123456`).
+5. **In NeoAPRS**, *Settings*, *TNC*: TNC setting *KISS TNC…*, *Port*, *Other...*, and type `ble://AA:BB:CC:DD:EE:FF`. Or for one run: `neoaprs --port ble://AA:BB:CC:DD:EE:FF`. A Bluetooth LE device is not listed in the Port choice (finding one takes a scan of several seconds), and the search for the radio does not look for them.
+
+The port is opened by finding the device by its address (up to 10 s), connecting, looking at its services and using the first of the Mobilinkd/aprs.fi service and the Nordic UART Service that it has; the log (`neoaprs.log`) says which: `connected, using the BLE KISS service ... (none was named)`. To use one only, or another service, write it after the address: `ble://AA:BB:CC:DD:EE:FF/nus`, `ble://AA:BB:CC:DD:EE:FF/mobilinkd`, or the UUID of a GATT service (`ble://AA:BB:CC:DD:EE:FF/ffe0`, as an HM-10 module has: the characteristic that can be written and the one that notifies are then found by what they can do). Bytes are written without a response where the characteristic allows it, in pieces of what the link takes (20 bytes at least). A device that goes out of range, is switched off or is taken by a phone is a line that dropped, and NeoAPRS opens it again after 5, 10, 20, 30 seconds. Failures say what bleak said, or "the device does not answer (is it switched on, in range and not connected to a phone?)".
+
+Not every radio's Bluetooth LE is KISS. The BTech UV-PRO family also has a Bluetooth LE protocol of the vendor for the radio's own app and for settings; NeoAPRS speaks none of it, only KISS (a UV-PRO needs its KISS TNC switched on). **Status: untested by us.** There was no Bluetooth LE hardware at hand, so the port is tested with a fake device that behaves as the specification says (the profile search, notifications, writes in pieces, a lost link), and the services above are read from the sources listed below.
 
 ## Permissions on Linux
 
@@ -205,6 +234,12 @@ Then `sudo udevadm control --reload` and plug the device in again.
 - [tmd710_tncsetup](https://github.com/fmarier/tmd710_tncsetup)
 - [TH-D74 on Linux (habets.se)](https://blog.habets.se/2020/06/Amateur-packet-radio-walkthrough.html), [K1CHN](https://www.k1chn.com/posts/winlink-on-the-th-d74-with-raspberry-pi/)
 - [kiss-tnc-bridge](https://github.com/kotfu/kiss-tnc-bridge)
+- [Specification of KISS over BLE (hessu/aprs-specs, BLE-KISS-API.md)](https://github.com/hessu/aprs-specs/blob/master/BLE-KISS-API.md), [KISS over TCP with DNS-SD](https://github.com/hessu/aprs-specs/blob/master/TCP-KISS-DNS-SD.md)
+- Mobilinkd's BLE service in its own code: [iosTncConfig, UUIDKey.swift](https://github.com/mobilinkd/iosTncConfig/blob/master/Mobilinkd%20TNC%20Config/UUIDKey.swift), [BLEConfig, BluetoothService.kt](https://github.com/mobilinkd/BLEConfig/blob/master/app/src/main/java/com/mobilinkd/bleconfig/BluetoothService.kt), [tnc3-firmware](https://github.com/mobilinkd/tnc3-firmware)
+- [B.B. Link, the BLE adapter for the Kenwood TH-D74/D75](https://github.com/islandmagic/bb-link), [kiss-ble-uart-tnc](https://github.com/tomasgeci/kiss-ble-uart-tnc)
+- [LoRa APRS iGate (CA2RXU): tnc_utils.cpp, configuration.cpp, data_embed/index.html](https://github.com/richonguzman/LoRa_APRS_iGate), [LoRa APRS Tracker (CA2RXU): ble_utils.cpp, kiss_utils.cpp, configuration.cpp](https://github.com/richonguzman/LoRa_APRS_Tracker)
+- [benlink, a library for the vendor's own Bluetooth protocol of the UV-PRO family](https://pypi.org/project/benlink/)
+- [bleak, the Bluetooth LE library](https://github.com/hbldh/bleak), [BlueZ D-Bus policy](https://github.com/bluez/bluez/blob/master/src/bluetooth.conf)
 - [Mobilinkd TNC4 guide](https://mobilinkd.s3.amazonaws.com/TNC4/MobilinkdTNC4.pdf), [TNC3 guide](https://mobilinkd.s3.amazonaws.com/TNC3/MobilinkdTNC3.pdf)
 - [NinoTNC wiki](https://wiki.oarc.uk/packet:ninotnc)
 - [Direwolf](https://github.com/wb2osz/direwolf), [Direwolf User Guide](https://packet-radio.net/wp-content/uploads/2018/10/Direwolf-User-Guide.pdf)

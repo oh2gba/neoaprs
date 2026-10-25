@@ -6,22 +6,21 @@ digipeaters (route.py), is counted for the sender. A position sets where the sen
 from collections.abc import Iterable, Mapping
 from datetime import datetime
 
-from .aprstelemetry import Telemetry, TelemetryDefinition, apply_definition
+from .aprstelemetry import TelemetryDefinition
 from .aprsweather import Weather
 from .clock import Clock, utcnow
 from .device import packet_device
 from .geo import bearing_deg, distance_km
 from .ownobject import OwnObject
-from .packet import ItemReport, Message, ObjectReport, Other, Packet, Position, Status
+from .packet import ItemReport, ObjectReport, Other, Packet, Position, Status
 from .route import route_of
 from .signal import Signal
 from .station import Station
-from .stationnotes import expire_hours, note_messaging, seed_hour
+from .stationnotes import expire_hours, note_gate, note_igate, note_messaging, note_position, note_telemetry, seed_hour, seed_reported
 
 TRACK_MAX = 50                      # positions kept per station
 TRACK_MOVED_M = 10.0                # a new position goes on the track when the station moved more than this ...
 TRACK_EVERY_SEC = 300.0             # ... or when this long has passed since the last one on it
-DEFINITIONS_MAX = 500               # stations whose telemetry definitions are kept (the oldest goes first)
 DETAILS_SEEN = 2000                 # the packets that telemetry, its definitions, locators, data extensions and the device are read from at the start
 
 
@@ -60,6 +59,7 @@ class StationBook:
         """The routes of the packets the database kept, as (sender, path, iGate or "", how many, when the latest of them was heard, when the one before it was) with the group of the oldest latest packet first; a sender that is not
         in the book is left out. The latest group of a station says how its latest packet came. Nothing is signalled."""
         for sender, path, gate, count, at, before in counts:
+            note_gate(self._stations, gate, count)
             station = self._stations.get(sender)
             if station is not None:
                 station.deliveries.note(route_of(path, gate), count, at, before)
@@ -87,18 +87,20 @@ class StationBook:
                 station.weather, station.weather_at = weather, at
 
     def seed_details(self, packets: Iterable[Packet]) -> None:
-        """What the latest packets kept say that the station cache does not keep, newest first as the log gives them: the latest telemetry report, the locator, the data extensions and the device of each station, and
+        """What the latest packets kept say that the station cache does not keep, newest first as the log gives them: the latest telemetry report, the locator, the data extensions, the frequency and the device of each station (the frequency, storm data and sign of an object or item too), and
         the telemetry definitions (read oldest first, so that a later one wins). A station that is not in the book is left out. Nothing is signalled."""
         for packet in reversed(list(packets)):
             station, decoded = self._stations.get(packet.sender), packet.decoded
+            seed_reported(self._stations, packet)
             if packet.direction != "in" or station is None or station.is_me:
                 continue
             station.device = packet_device(packet) or station.device
-            self._note_telemetry(packet)
+            note_igate(station, decoded)
+            note_telemetry(self._stations, self._definitions, packet)
             if isinstance(decoded, Position):
-                station.extensions, station.locator = decoded.extensions, decoded.locator or station.locator
+                note_position(station, decoded)
             elif isinstance(decoded, Status):
-                station.locator = decoded.locator or station.locator
+                station.locator, station.frequency = decoded.locator or station.locator, decoded.frequency or station.frequency
 
     def seed_recent(self, packets: Iterable[Packet]) -> None:
         """The packets of the last hour that the log kept, oldest first, counted for the stations that sent them. Nothing is signalled."""
@@ -229,40 +231,22 @@ class StationBook:
         about: Station | None = sender
         decoded = packet.decoded
         note_messaging(sender, packet)
+        note_igate(sender, decoded)
+        note_gate(self._stations, packet.via, 1, self.changed.emit)
         if isinstance(decoded, Position):
             self._place(sender, decoded, packet.heard_at)
         elif isinstance(decoded, Status):
             sender.last_status = decoded.text
-            sender.locator = decoded.locator or sender.locator
+            sender.locator, sender.frequency = decoded.locator or sender.locator, decoded.frequency or sender.frequency
         elif isinstance(decoded, Other) and decoded.weather is not None:
             sender.weather, sender.weather_at = decoded.weather, packet.heard_at
-        defined = self._note_telemetry(packet)
+        defined = note_telemetry(self._stations, self._definitions, packet)
         if defined is not None and defined is not sender:
             self.changed.emit(defined)
         self.changed.emit(sender)
         if isinstance(decoded, (ObjectReport, ItemReport)):
             about = self._named(packet, decoded)
         return about
-
-    def _note_telemetry(self, packet: Packet) -> Station | None:
-        """Keeps a telemetry report (or the base-91 telemetry in the comment of a position) as its sender's latest, or a definition message as its addressee's; returns the station that gained a definition (to be signalled), if it is in the book."""
-        decoded = packet.decoded
-        report = decoded.telemetry if isinstance(decoded, Position) else decoded
-        if isinstance(report, Telemetry):
-            station = self._stations.get(packet.sender)
-            if station is not None:
-                station.telemetry, station.telemetry_at = report, packet.heard_at
-            return None
-        if not isinstance(decoded, Message):
-            return None
-        updated = apply_definition(self._definitions.get(decoded.addressee, TelemetryDefinition()), decoded.text)
-        if updated is None:
-            return None
-        self._definitions.pop(decoded.addressee, None)
-        self._definitions[decoded.addressee] = updated
-        while len(self._definitions) > DEFINITIONS_MAX:
-            del self._definitions[next(iter(self._definitions))]
-        return self._stations.get(decoded.addressee)
 
     def _heard_ourselves(self, packet: Packet) -> Station | None:
         """A packet with our call as its source, heard on the air (our beacon repeated by a digipeater, or echoed by the TNC): proof that we are heard, nothing more. Where we are, how we look
@@ -290,8 +274,7 @@ class StationBook:
         station.lat, station.lon = position.lat, position.lon
         station.altitude_m, station.course_deg, station.speed_kmh = position.altitude_m, position.course_deg, position.speed_kmh
         station.last_comment = position.comment
-        station.extensions = position.extensions
-        station.locator = position.locator or station.locator
+        note_position(station, position)
         station.last_position_at = when
         if position.weather is not None:
             station.weather, station.weather_at = position.weather, when

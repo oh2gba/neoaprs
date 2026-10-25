@@ -112,3 +112,11 @@ def _v17(db: sqlite3.Connection) -> None:
     db.execute("UPDATE station_pref SET hide_after_min = NULL WHERE hide_after_min IS NOT NULL")
     for call, minutes in rows:
         log.info("%s: the own timeout of %s removed, the time on the map of the Stations tab counts", call, "never" if minutes == 0 else f"{minutes} minutes")
+
+
+def _v18(db: sqlite3.Connection) -> None:
+    """The QRU group and the on-request flag of an object of ours (services/qru.py): `qru_group` is the group name a station asks the addressee QRU for ("" for none; 1 to 8 upper-case letters and digits),
+    `on_request` is 1 for an object that is sent only to a station that asks for it, never on the schedule. Every object there is keeps its schedule: no group, sent as ever."""
+    db.execute("""ALTER TABLE own_object ADD COLUMN qru_group TEXT NOT NULL DEFAULT '' CONSTRAINT own_object_qru_group_form
+        CHECK (qru_group = '' OR (length(qru_group) BETWEEN 1 AND 8 AND qru_group NOT GLOB '*[^A-Z0-9]*'))""")
+    db.execute("ALTER TABLE own_object ADD COLUMN on_request INTEGER NOT NULL DEFAULT 0 CONSTRAINT own_object_on_request CHECK (on_request IN (0, 1))")

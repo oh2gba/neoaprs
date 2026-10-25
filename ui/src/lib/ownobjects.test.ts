@@ -5,9 +5,11 @@ import {
   draftProblems,
   draftReady,
   emptyDraft,
+  isObjectOf,
   moveCommand,
   nameProblem,
   objectCommand,
+  qruProblem,
   sentText,
   stateText,
   wrapLongitude,
@@ -30,6 +32,8 @@ describe("emptyDraft and draftOf", () => {
       course: "",
       speed: "",
       path: "",
+      qru: "",
+      onRequest: false,
     });
     expect(emptyDraft(null)).toMatchObject({ lat: "", lon: "" });
   });
@@ -54,6 +58,8 @@ describe("emptyDraft and draftOf", () => {
       course: "88",
       speed: "66.7",
       path: "WIDE2-1",
+      qru: "",
+      onRequest: false,
     });
     expect(draftOf(ownObject("AID", { kind: "item" }))).toMatchObject({ kind: "item", course: "", speed: "", path: "" });
   });
@@ -139,6 +145,8 @@ describe("objectCommand", () => {
       course_deg: 90,
       speed_kmh: 12.5,
       path: "WIDE2-1",
+      qru_group: "",
+      on_request: false,
     });
   });
 
@@ -172,6 +180,8 @@ describe("moveCommand", () => {
       course_deg: 88,
       speed_kmh: 40,
       path: "WIDE2-1",
+      qru_group: "",
+      on_request: false,
     });
   });
 
@@ -183,7 +193,34 @@ describe("moveCommand", () => {
   });
 });
 
+describe("the QRU group", () => {
+  it("is empty, or 1 to 8 letters and digits that are not INFO or NEXT, in either case", () => {
+    for (const ok of ["", "  ", "FOOD", "rp70", " lifeboat ", "T2SRV"]) expect(qruProblem(ok), ok).toBe("");
+    for (const bad of ["INFO", "next", "LIFEBOATS", "R P", "RP-70", "ÅÄ"]) expect(qruProblem(bad), bad).toBe("Up to 8 letters and digits, not INFO or NEXT");
+    expect(draftProblems(ready({ qru: "INFO" })).qru).toBe("Up to 8 letters and digits, not INFO or NEXT");
+  });
+
+  it("goes to the daemon in capitals with the choice of sending only when asked, and comes back from a row", () => {
+    expect(objectCommand(ready({ qru: " rp70 ", onRequest: true }))).toMatchObject({ qru_group: "RP70", on_request: true });
+    expect(objectCommand(ready())).toMatchObject({ qru_group: "", on_request: false });
+    expect(draftOf(ownObject("PUB", { qru_group: "FOOD", on_request: true }))).toMatchObject({ qru: "FOOD", onRequest: true });
+    expect(moveCommand(ownObject("PUB", { qru_group: "FOOD", on_request: true }), 60, 24)).toMatchObject({ qru_group: "FOOD", on_request: true });
+  });
+
+  it("is part of what makes an object the one the command asked for", () => {
+    const command = objectCommand(ready({ qru: "FOOD" }));
+    const row = ownObject("LEADER", { comment: "", lat: 60.17, lon: 24.94, qru_group: "FOOD" });
+    expect(command !== null && isObjectOf(row, command)).toBe(true);
+    expect(command !== null && isObjectOf({ ...row, on_request: true }, command)).toBe(false);
+    expect(command !== null && isObjectOf({ ...row, qru_group: "" }, command)).toBe(false);
+  });
+});
+
 describe("stateText", () => {
+  it("says that an object on request is sent only when asked, whatever its count", () => {
+    expect(stateText(ownObject("A", { on_request: true, sent: 0, next_at: null }), NOW)).toBe("sent only when asked");
+  });
+
   it("says how often it was sent and when it is sent next", () => {
     expect(stateText(ownObject("A", { sent: 2 }), NOW)).toBe("sent 2 times, next in 3 min");
     expect(stateText(ownObject("A", { sent: 1, next_at: new Date(NOW + 40_000).toISOString() }), NOW)).toBe("sent once, next in 40 s");

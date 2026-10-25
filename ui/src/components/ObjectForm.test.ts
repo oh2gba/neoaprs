@@ -21,7 +21,18 @@ function form(rows: OwnObjectRow[] = []) {
 describe("ObjectForm", () => {
   it("has the fields a label each and no sentence of help", () => {
     const { wrapper } = form();
-    expect(wrapper.findAll(".field label").map((l) => l.text())).toEqual(["Name", "Symbol", "Latitude", "Longitude", "Comment", "Course", "Speed", "Path"]);
+    expect(wrapper.findAll(".field label").map((l) => l.text())).toEqual([
+      "Name",
+      "Symbol",
+      "Latitude",
+      "Longitude",
+      "Comment",
+      "Course",
+      "Speed",
+      "Path",
+      "QRU group",
+      "Send only when asked",
+    ]);
     expect(wrapper.find("p").exists()).toBe(false);
   });
 
@@ -184,8 +195,44 @@ describe("ObjectForm", () => {
         course_deg: 88,
         speed_kmh: 40,
         path: "WIDE2-1",
+        qru_group: "",
+        on_request: false,
       },
     ]);
+  });
+
+  it("takes a QRU group in capitals and the choice to send only when asked, and sends both", async () => {
+    const { wrapper, input, field, sent } = form();
+    expect(input("QRU group")?.attributes("maxlength")).toBe("8");
+    expect(input("Send only when asked")?.element.checked).toBe(false);
+    await input("Name")?.setValue("PUB");
+    await input("QRU group")?.setValue("food");
+    await input("Send only when asked")?.setValue(true);
+    expect(input("QRU group")?.element.value).toBe("FOOD");
+    expect(field("QRU group")?.classes()).not.toContain("invalid");
+    await wrapper.find("form").trigger("submit");
+    expect(sent).toMatchObject([{ cmd: "object_set", name: "PUB", qru_group: "FOOD", on_request: true }]);
+  });
+
+  it("marks a QRU group that is a word QRU keeps for itself or has a character it cannot, and Save is off", async () => {
+    const { wrapper, input, field } = form();
+    await input("Name")?.setValue("PUB");
+    for (const group of ["INFO", "next", "R P", "LIFEBOATS"]) {
+      await input("QRU group")?.setValue(group);
+      expect(field("QRU group")?.classes(), group).toContain("invalid");
+      expect(field("QRU group")?.attributes("title")).toBe("Up to 8 letters and digits, not INFO or NEXT");
+      expect(wrapper.find<HTMLButtonElement>("button[type='submit']").element.disabled).toBe(true);
+    }
+    await input("QRU group")?.setValue("");
+    expect(wrapper.find<HTMLButtonElement>("button[type='submit']").element.disabled).toBe(false);
+  });
+
+  it("opens an object being changed with its group and its choice", async () => {
+    const { view, input, wrapper } = form([ownObject("PUB", { qru_group: "FOOD", on_request: true })]);
+    view.edit("PUB");
+    await wrapper.vm.$nextTick();
+    expect(input("QRU group")?.element.value).toBe("FOOD");
+    expect(input("Send only when asked")?.element.checked).toBe(true);
   });
 
   it("keeps Course and Speed behind a closed fold, Moving, for a new object", () => {

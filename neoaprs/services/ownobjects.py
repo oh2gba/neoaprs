@@ -4,7 +4,8 @@
 for an object, `)NAME!<position><comment>` for an item, from `station/call` to the tocall by the object's own path, else `beacon/path`. The schedule is the decay algorithm of the specification's Packet
 Timing (neoaprs/decay.py): the new or changed object goes out at once (never sooner than a minute after the last packet of that object), then 1, 2, 4 ... minutes later, never more than the net cycle time of its
 path apart, until it is changed or killed. A kill is sent as the killed form three times (0, 1 and 3 minutes after it is asked for), and then the object is forgotten; an object that was never sent is simply
-removed. The sender (services/sender.py) holds back everything while the call is not set, while the radio is not usable, and between two frames of ours; what is due then goes out when the radio is back, one
+removed. An object that is `on_request` (with or without a QRU group, services/qru.py) is kept and shown on the map but never sent on this schedule, so a kill of it is simply removal too: it goes out only as an answer
+to a station that asks, `?APRSO` or its group (services/queries.py, services/qru.py). The sender (services/sender.py) holds back everything while the call is not set, while the radio is not usable, and between two frames of ours; what is due then goes out when the radio is back, one
 packet however many were missed. The time of each packet and how often it was sent are kept in the database (ownlog.py), so a restart goes on where the schedule stopped.
 
 Another station that reports an object with the name of one of ours takes it over (the specification's "Replacement": the original station ceases to transmit it): ours is dropped, silently, and theirs is
@@ -69,7 +70,7 @@ class OwnObjects(Repeater[str]):
 
     # ---- the operator
     def set(self, name: str, kind: str, lat: float, lon: float, symbol_table: str, symbol_code: str, comment: str = "", course_deg: int | None = None, speed_kmh: float | None = None,
-            path: str | None = None) -> OwnObject:
+            path: str | None = None, qru_group: str = "", on_request: bool = False) -> OwnObject:
         """Makes the object or item, or changes the one of the name: it is sent at once. Raises OwnError, with the reason, when the call is not set, the values make no object (neoaprs/ownobject.py), the
         name is our own call or a station's, or there are already MAX_OBJECTS."""
         if not self._config().station_transmit:
@@ -84,7 +85,7 @@ class OwnObjects(Repeater[str]):
         before = self._objects.get(name)
         if before is None and len(self._objects) >= MAX_OBJECTS:
             raise OwnError(f"{MAX_OBJECTS} objects and items are being sent: kill one first")
-        obj = make_object(self.clock(), name, kind, lat, lon, symbol_table, symbol_code, comment, course_deg, speed_kmh, path, before)
+        obj = make_object(self.clock(), name, kind, lat, lon, symbol_table, symbol_code, comment, course_deg, speed_kmh, path, before, qru_group, on_request)
         if before is not None and before.alive and before.same_content(obj):
             return before
         self._store(obj)
@@ -97,7 +98,7 @@ class OwnObjects(Repeater[str]):
             raise OwnError(f"there is no object or item {name!r} of ours")
         if not obj.alive:
             return obj
-        if obj.last_sent_at is None:
+        if obj.last_sent_at is None or obj.on_request:
             self._drop(obj)
             return None
         killed = obj.killed(self.clock())
@@ -125,7 +126,7 @@ class OwnObjects(Repeater[str]):
 
     def _due(self, key: str) -> datetime | None:
         obj = self._objects.get(key)
-        if obj is None:
+        if obj is None or (obj.on_request and obj.alive):
             return None
         if obj.sent == 0:                                   # new, changed or just killed: as soon as the last packet of it is a minute old
             return obj.updated_at if obj.last_sent_at is None else max(obj.updated_at, obj.last_sent_at + timedelta(seconds=MIN_GAP_SEC))

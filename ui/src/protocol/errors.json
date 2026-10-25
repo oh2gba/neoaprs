@@ -22,6 +22,7 @@
  "object.name_chars": {"params": ["name"], "text": ["the name '{name}' has a blank at an end or a character that cannot be in it ({*} and anything but printable ASCII)"]},
  "object.name_length": {"params": ["kind", "length", "max", "min"], "text": ["the name of {*} is {min} to {max} characters, not {length}"]},
  "object.position": {"params": ["lat", "lon"], "text": ["the position {lat}, {lon} is not on the earth"]},
+ "object.qru_group": {"params": ["group", "max"], "text": ["the QRU group '{group}' is 1 to {max} letters and digits, and not INFO or NEXT"]},
  "object.speed": {"params": ["max", "value"], "text": ["the speed {value} is not between 0 and {max} km/h"]},
  "object.symbol": {"params": ["symbol", "table"], "text": ["the symbol '{table}' '{symbol}' is not a table (/ \\ A-Z 0-9) and one printable character"]},
  "path.direct_alone": {"params": ["word"], "text": ["{word} is no digipeater: written alone it means no digipeaters at all"]},

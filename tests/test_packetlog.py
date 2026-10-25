@@ -10,6 +10,8 @@ import pytest
 
 from neoaprs import aprsparse, ax25
 from neoaprs.aprsextension import Area, DfBearing, Dfs, Extensions, Phg
+from neoaprs.aprsfreq import Frequency
+from neoaprs.aprsstorm import Storm
 from neoaprs.aprslocator import Locator
 from neoaprs.aprstelemetry import Telemetry
 from neoaprs.clock import utc
@@ -44,7 +46,8 @@ def made(decoded: object, at: object = T0, direction: str = "in") -> Packet:
 POSITION = Position(60.1, 24.9, "/", ">", comment="åäö", course_deg=12, speed_kmh=3.5, altitude_m=44.0, timestamp=utc(2026, 10, 21, 11, 59, 0), messaging=True, compressed=True, ambiguity=1)
 DETAILED = Position(60.1, 24.9, "\\", "l", "x", timestamp=utc(2026, 10, 21, 11, 59, 0), timestamp_local=True, locator=Locator("IO91sx", 51.97917, -0.45833, "/", "-"),
                     extensions=Extensions(phg=Phg(25, 6.1, 3, 90, 12.8), range_km=80.5, dfs=Dfs(2, 24.4, 6, None), df_bearing=DfBearing(270, 7, 6.4, 9), area=Area("filled ellipse", "cyan", 1.0, 1.0)))
-DECODED = [POSITION, DETAILED, Telemetry(5, [199.0, 0.0, 255.0, 73.0, 123.5], "01101001", "x"), Telemetry(None, [1.0, 2.0, 3.0, 4.0, 5.0], "00000000"),
+LOCAL = Position(60.1, 24.9, "\\", "@", "x", frequency=Frequency(145.775, tone_hz=118, offset_khz=-600, range_km=40.2), storm=Storm("HC", 277.8, 370.4, 980, 166.7, 55.6, 74.1), sign="55")
+DECODED = [POSITION, DETAILED, LOCAL, Status("on air", frequency=Frequency(145.5)), Telemetry(5, [199.0, 0.0, 255.0, 73.0, 123.5], "01101001", "x"), Telemetry(None, [1.0, 2.0, 3.0, 4.0, 5.0], "00000000"),
            Status("IO91 house", None, Locator("IO91", 51.5, -1.0, "/", "-")), Other("capabilities", "<IGATE,MSG_CNT=2", items={"IGATE": "", "MSG_CNT": "2"}), Other("weather", "_10090556c220", timestamp=utc(2026, 10, 9, 5, 56, 0)), Message("OH2BBB", "hello {7", "7"), Message("OH2BBB", "", ack_id="7"), ObjectReport("FIRE", True, POSITION, utc(2026, 10, 21, 11, 0, 0)), ItemReport("BUOY", False, POSITION),
            Status("on the road", utc(2026, 10, 21, 11, 0, 0)), Status("no time"), Other("telemetry", "T#001,1,2"), Undecoded("too short", "!60\xe4")]
 

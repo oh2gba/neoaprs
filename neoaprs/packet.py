@@ -6,7 +6,9 @@ from datetime import datetime
 from typing import Literal
 
 from .aprsextension import Extensions, extension_lines
+from .aprsfreq import Frequency, frequency_text
 from .aprslocator import Locator
+from .aprsstorm import Storm, storm_text
 from .aprstelemetry import Telemetry
 from .aprsweather import Weather, weather_text
 
@@ -38,6 +40,9 @@ class Position:
     timestamp_local: bool = False                 # the timestamp was in the sender's local time (`/`): the time is as it was sent, not UTC
     locator: Locator | None = None                # the Maidenhead locator in the status text of a Mic-E packet (the position is the Mic-E's own)
     telemetry: Telemetry | None = None            # the base-91 telemetry `|ss11|` the comment carried (APRS 1.2; removed from the comment)
+    frequency: Frequency | None = None            # the local information: the frequency (with its tone, offset and range) that the comment began with, or the name of a frequency object (`145.775-A`); removed from the comment, the name's fields too
+    storm: Storm | None = None                    # the storm data (APRS101, chapter 12) at the start of the comment of a position or object with the symbol `@` (removed from the comment)
+    sign: str | None = None                       # the 1 to 3 characters of a signpost (symbol `\m`), `55` for a comment that began `{55}` (removed from the comment)
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,6 +75,7 @@ class Status:
     text: str
     timestamp: datetime | None = None
     locator: Locator | None = None                # a Maidenhead locator with a symbol at the start of the report (without a timestamp); `text` is what follows it
+    frequency: Frequency | None = None            # the frequency a status text began with (`>145.775MHz T100 -060`): the voice frequency of a tracker that cannot put it in its position; `text` is what follows it
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,7 +113,8 @@ def _where(p: Position) -> str:
     extensions = f" [{', '.join(extension_lines(p.extensions))}]" if p.extensions else ""
     local = f" (time {p.timestamp:%d %H:%M} local)" if p.timestamp and p.timestamp_local else ""
     locator = f" locator {p.locator.grid}" if p.locator else ""
-    return f"{p.lat:.4f} {p.lon:.4f} {p.symbol_table}{p.symbol_code}{local}{locator}{extensions}{weather}{comment}"
+    local_info = "".join(f" [{text}]" for text in (p.frequency and frequency_text(p.frequency), p.storm and storm_text(p.storm), p.sign and f"sign {p.sign}") if text)
+    return f"{p.lat:.4f} {p.lon:.4f} {p.symbol_table}{p.symbol_code}{local}{locator}{extensions}{local_info}{weather}{comment}"
 
 
 def _message_summary(m: Message) -> str:
@@ -130,7 +137,7 @@ def _summary_of(d: Decoded) -> str:
         case ItemReport():
             return f"item {d.name} {'alive' if d.alive else 'killed'} {_where(d.position)}"
         case Status():
-            return f"status {'locator ' + d.locator.grid + ' ' if d.locator else ''}{_line(d.text)}".rstrip()
+            return f"status {'locator ' + d.locator.grid + ' ' if d.locator else ''}{'[' + frequency_text(d.frequency) + '] ' if d.frequency else ''}{_line(d.text)}".rstrip()
         case Telemetry():
             return f"telemetry #{'MIC' if d.sequence is None else d.sequence}: {' '.join(f'{v:g}' for v in d.analog)} {d.bits}{' ' + _line(d.comment) if d.comment else ''}"
         case Other():

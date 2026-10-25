@@ -50,6 +50,7 @@ def rules() -> str:
         f"* The I/O libraries that foundation and domain may not import (pyserial, `serial`, is one of them): `{' '.join(sorted(arch.IO_LIBRARIES))}`.",
         "* pyserial (`serial`) only in the adapters layer.",
         f"* Among the adapters only the bases every feed shares may be imported: {bases}; and the sibling pairs: {pairs}.",
+        f"* bleak (the extra `ble`) only in {', '.join(_path(m) for m in sorted(arch.BLEAK_HOMES))}.",
         f"* Tornado only in {tornado + ' and ' if tornado else ''}`neoaprs/web/`.",
         f"* pydantic only in the wire modules of `neoaprs/web/`: {pydantic}.",
         f"* The desktop app's toolkits (`{' '.join(sorted(arch.TOOLKITS))}`, the extra `app`) only in the shells: {', '.join(_path(m) for m in sorted(arch.TOOLKIT_HOMES))}.",

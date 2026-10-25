@@ -7,6 +7,7 @@ export const objects: Readonly<Record<keyof typeof en, Message>> = {
   "schedule.next": { "=0": "non ancora inviato, prossimo {when}", "=1": "inviato una volta, prossimo {when}", other: "inviato {n} volte, prossimo {when}" },
   "schedule.waiting": { "=0": "non ancora inviato, in attesa", "=1": "inviato una volta, in attesa", other: "inviato {n} volte, in attesa" },
   "schedule.killing": { "=0": "rimozione, non ancora inviato", "=1": "rimozione, inviato una volta", other: "rimozione, inviato {n} volte" },
+  "schedule.on_request": "inviato solo su richiesta",
 
   "objects.new": "Nuovo",
   "objects.none": "Nessun oggetto.",
@@ -15,6 +16,7 @@ export const objects: Readonly<Record<keyof typeof en, Message>> = {
   "objects.delete_title": "Elimina (rimuovi dall’etere)",
   "objects.delete_label": { select: "kind", object: "Elimina l’oggetto {name}", item: "Elimina l’item {name}", other: "Elimina l’oggetto {name}" },
   "objects.kind_word": { select: "kind", object: "oggetto", item: "item", other: "oggetto" },
+  "objects.in_group": "gruppo QRU {group}",
 
   "objects.form.new": "Nuovo oggetto",
   "objects.field.name": "Nome",
@@ -25,6 +27,8 @@ export const objects: Readonly<Record<keyof typeof en, Message>> = {
   "objects.field.speed": "Velocità",
   "objects.field.moving": "In movimento",
   "objects.field.path": "Percorso",
+  "objects.field.qru": "Gruppo QRU",
+  "objects.field.on_request": "Invia solo su richiesta",
   "objects.unit.deg": "°",
   "objects.form.cancel": "Annulla",
   "objects.form.save": "Salva",
@@ -37,4 +41,5 @@ export const objects: Readonly<Record<keyof typeof en, Message>> = {
   "objects.problem.comment_chars": "ASCII stampabile, senza | né ~",
   "objects.problem.course": "Da 0 a {max} gradi",
   "objects.problem.speed": "Da 0 a {max} km/h",
+  "objects.problem.qru_group": "Fino a {max} lettere e cifre, non INFO né NEXT",
 };

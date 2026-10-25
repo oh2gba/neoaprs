@@ -180,7 +180,7 @@ async def test_the_page_makes_changes_and_kills_an_object_and_posts_and_deletes_
     page = await e.ws()
     await page.expect("hello")
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
-    values = {"cmd": "object_set", "name": "LEADER", "kind": "object", "lat": 60.17, "lon": 24.94, "symbol_table": "/", "symbol_code": ">", "comment": "Rescue 1", "course_deg": 88, "speed_kmh": 40, "path": None}
+    values = {"cmd": "object_set", "name": "LEADER", "kind": "object", "lat": 60.17, "lon": 24.94, "symbol_table": "/", "symbol_code": ">", "comment": "Rescue 1", "course_deg": 88, "speed_kmh": 40, "path": None, "qru_group": "", "on_request": False}
     await page.send(values)
     await page.until(lambda: "LEADER" in page.topics["own_objects"] and "LEADER" in page.topics["stations"])
     row = OwnObjectRow.model_validate(page.topics["own_objects"]["LEADER"])
@@ -209,4 +209,28 @@ async def test_the_page_makes_changes_and_kills_an_object_and_posts_and_deletes_
     await page.until(lambda: "BLN3HAMS" not in page.topics["own_bulletins"])
     await page.send({"cmd": "bulletin_unpost", "slot": "BLN3HAMS"})
     assert "no bulletin" in (await page.expect("error"))["text"]
+    await e.stop()
+
+
+async def test_the_page_gives_an_object_a_qru_group_and_the_flag_and_is_told_a_group_that_is_none(tmp_path: Path) -> None:
+    e = Env(tmp_path, web=True)
+    e.ctl.ownobjects.tick_sec = 0.02
+    await e.start()
+    await e.until_usable()
+    page = await e.ws()
+    await page.expect("hello")
+    await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
+    values = {"cmd": "object_set", "name": "PUB", "kind": "object", "lat": 60.17, "lon": 24.94, "symbol_table": "/", "symbol_code": "r", "comment": "Pub", "course_deg": None, "speed_kmh": None, "path": None,
+              "qru_group": "FOOD", "on_request": True}
+    await page.send(values)
+    await page.until(lambda: "PUB" in page.topics["own_objects"])
+    row = OwnObjectRow.model_validate(page.topics["own_objects"]["PUB"])
+    assert (row.qru_group, row.on_request, row.state, row.sent, row.next_at) == ("FOOD", True, "live", 0, None) and page.topics["stations"]["PUB"]["own"] is True
+    await idle_for(0.2)
+    assert page.topics["own_objects"]["PUB"]["sent"] == 0, "nothing is sent on a schedule"
+    await page.send({**values, "qru_group": "INFO"})
+    error = await page.expect("error")
+    assert error["code"] == "object.qru_group" and error["cmd"] == "object_set"
+    await page.send({**values, "qru_group": "", "on_request": False})
+    await page.until(lambda: page.topics["own_objects"]["PUB"]["on_request"] is False and page.topics["own_objects"]["PUB"]["next_at"] is not None)
     await e.stop()

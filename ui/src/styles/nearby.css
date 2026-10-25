@@ -1,0 +1,60 @@
+/* the Nearby tab: four short lists of stations, each a small table of the Stations table's kind */
+.nearbypane {
+  flex: 1;
+  min-height: 0;
+  padding: 4px 10px 10px;
+  overflow-y: auto;
+}
+.nearby-section {
+  width: 100%;
+  max-width: 640px;
+  margin-right: auto;
+  margin-left: auto;
+}
+.nearby-help {
+  margin: 0 0 4px;
+  font-size: 12px;
+}
+.nearby-ranges {
+  margin: 0 0 4px;
+}
+.nearby-empty {
+  padding: 6px 0 8px;
+  text-align: left;
+}
+/* a row has the call and, under it, the words of what makes the station belong to the list */
+.grid.nearby td {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+.grid.nearby td.what {
+  white-space: normal;
+}
+.grid.nearby td.what .line {
+  display: block;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.grid.nearby td.symbol,
+.grid.nearby td.num,
+.grid.nearby td.bearing {
+  width: 1%;
+}
+.grid.nearby td.symbol {
+  padding-right: 0;
+}
+.grid.nearby td.bearing {
+  padding-left: 0;
+  padding-right: 4px;
+  text-align: center;
+}
+.grid.nearby .arrow {
+  display: inline-block;
+  vertical-align: middle;
+}
+/* a call that was only heard repeating has nothing to open */
+.grid.nearby tbody tr.inert,
+.grid.nearby tbody tr.inert:hover {
+  cursor: default;
+  background: none;
+}

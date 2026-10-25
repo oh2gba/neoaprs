@@ -44,6 +44,10 @@ def packets() -> list[Packet]:
         Packet(T0, "in", b"", "OH7JHF-1", "APRS", ("OH2RCH-3*",), b"info", Message("OH2GBA", "", ack_id="10"), ThirdParty("OH2DPN", "APJYC1", ("TCPIP", "OH7JHF-1*"))),
         Packet(T0 + timedelta(seconds=7), "out", b"", ME, "APNEO0", ("WIDE1-1", "WIDE2-1"), b"!6010.00N/02450.00E-", parse(b"!6010.00N/02450.00E-", ME, "APNEO0", T0)),
         Packet(T0, "in", b"", "N0MSG", "APRS", (), b":OH2GBA   :hello{7", Message("OH2GBA", "hello", "7")),
+        heard("!4903.50N/07201.75W-145.775MHz T118 -060 R40k Voice", "N0FRQ"),
+        heard(";145.775-A*111111z4903.50N/07201.75WrT079 R25m NET Tu9PM", "N0RPT"),
+        heard(";BRENDA   *092345z4903.50N\\07202.75W@088/036/HC/150^200/0980>090&030%040", "N0STM"),
+        heard(")I91 3N!4903.50N\\07201.75Wm{55}", "N0SGN"),
     ]
 
 
@@ -86,7 +90,7 @@ def bulletins() -> list[BulletinRecord]:
 def own_objects() -> list[tuple[OwnObject, datetime | None]]:
     return [
         (OwnObject("LEADER", "object", 60.2, 24.9, "/", ">", T0, T0 + timedelta(minutes=1), "Moved", 90, 20.5, "WIDE1-1", True, 2, T0 + timedelta(minutes=2)), T0 + timedelta(minutes=4)),
-        (OwnObject("AID", "item", 60.3, 24.8, "/", "+", T0, T0), None),
+        (OwnObject("AID", "item", 60.3, 24.8, "/", "+", T0, T0, qru_group="FOOD", on_request=True), None),
         (OwnObject("GONE", "object", 60.1, 24.7, "\\", "k", T0, T0, "", None, None, None, False, 1, T0), T0 + timedelta(minutes=1)),
     ]
 

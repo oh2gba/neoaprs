@@ -2,7 +2,7 @@
 the scalar types and the models that several of those modules share (a time, the details of a position)."""
 from dataclasses import fields, is_dataclass
 from datetime import datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -121,3 +121,28 @@ class LocatorValues(_Model):
     lon: float
     symbol_table: str
     symbol_code: str
+
+
+class FrequencyValues(_Model):
+    """A frequency to call on, from the local information at the start of a comment, a status text or the name of a frequency object (`145.775MHz T100 -060 R40k`); null where the text did not say."""
+    mhz: float = Field(description="the transmit frequency, MHz")
+    tone_hz: int | None = Field(description="the CTCSS tone of `Tnnn` or `Cnnn`, whole hertz (the tenths are dropped: 107 is 107.2)")
+    tone_both: bool = Field(description="`Cnnn`: the tone is needed to receive as well")
+    tone_off: bool = Field(description="`Toff`: no tone and no DCS code")
+    dcs: str | None = Field(description="the DCS code of `Dnnn`, three digits as sent")
+    tone_burst: bool = Field(description="`1750`: a 1750 Hz tone burst opens the repeater")
+    narrow: bool = Field(description="the first letter of the tone field was lower case: narrow modulation")
+    offset_khz: int | None = Field(description="the offset from the transmit frequency in kHz (`-060` is -600); 0 is simplex; null when the standard offset is meant")
+    range_km: float | None = Field(description="the nominal range (`R25m` is 40.2 km)")
+    rx_mhz: float | None = Field(description="a separate receive frequency (`FFF.FFFrx`), MHz")
+
+
+class StormValues(_Model):
+    """The storm data of a tropical storm, hurricane or tropical depression (APRS101, chapter 12), in metric units; null where the report did not have the field. The movement is the course and speed of the position."""
+    storm_type: Literal["TS", "HC", "TD"] = Field(description="TS tropical storm, HC hurricane, TD tropical depression")
+    wind_kmh: float | None = Field(description="the sustained wind")
+    gust_kmh: float | None
+    pressure_hpa: int | None = Field(description="the central pressure")
+    hurricane_radius_km: float | None = Field(description="the radius of hurricane winds")
+    storm_radius_km: float | None = Field(description="the radius of tropical storm winds")
+    gale_radius_km: float | None = Field(description="the radius of whole gale (50 knot) winds")

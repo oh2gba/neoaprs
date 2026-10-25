@@ -24,6 +24,7 @@ describe("App: the Bulletins tab", () => {
       expect(wrapper.findAll("[role='tab']").map((t) => t.text().replace(/\s*\d+$/, ""))).toEqual([
         "Messages",
         "Stations",
+        "Nearby",
         "Email",
         "Bulletins",
         "Objects",

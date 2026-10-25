@@ -17,6 +17,7 @@ export const shell = {
 
   "tab.messages": "Messages",
   "tab.stations": "Stations",
+  "tab.nearby": "Nearby",
   "tab.email": "Email",
   "tab.bulletins": "Bulletins",
   "tab.objects": "Objects",

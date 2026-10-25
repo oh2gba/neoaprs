@@ -19,6 +19,7 @@ export const shell: Record<keyof typeof source, Message> = {
 
   "tab.messages": "メッセージ",
   "tab.stations": "局",
+  "tab.nearby": "周辺",
   "tab.email": "メール",
   "tab.bulletins": "掲示",
   "tab.objects": "オブジェクト",

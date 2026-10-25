@@ -50,6 +50,7 @@ export const errors: Record<keyof typeof source, Message> = {
     other: "o nome de um item tem de {min} a {max} caracteres, não {length}",
   },
   "error.object.position": "a posição {lat}, {lon} não está na Terra",
+  "error.object.qru_group": "o grupo QRU '{group}' tem de 1 a {max} letras e dígitos e não é INFO nem NEXT",
   "error.object.speed": "a velocidade {value} não está entre 0 e {max} km/h",
   "error.object.symbol": "o símbolo '{table}' '{symbol}' não é uma tabela (/ \\ A-Z 0-9) e um caractere imprimível",
   "error.path.too_long": "{count} digipeaters são mais que os {max} que um caminho pode ter",

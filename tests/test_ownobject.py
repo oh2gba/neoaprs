@@ -120,3 +120,19 @@ def test_a_changed_object_keeps_when_it_was_made_and_last_sent_and_starts_its_co
     changed = make_object(later, "LEADER", "object", LAT, LON, "/", ">", "two", before=sent)
     assert (changed.created_at, changed.updated_at, changed.last_sent_at, changed.sent, changed.comment) == (NOW, later, NOW, 0, "two")
     assert sent.same_content(made(comment="one")) and not sent.same_content(changed)
+
+
+def test_a_qru_group_is_upper_case_letters_and_digits_and_none_by_default() -> None:
+    assert made().qru_group == "" and not made().on_request
+    assert made(qru_group=" rp70 ").qru_group == "RP70" and made(qru_group="LIFEBOAT", on_request=True).on_request
+
+
+@pytest.mark.parametrize("group", ["LIFEBOATS", "R P", "RP-70", "ÅÄÖ", "INFO", "next"])
+def test_a_qru_group_that_is_too_long_has_another_character_or_is_a_word_qru_takes_for_something_else_is_refused(group: str) -> None:
+    with pytest.raises(OwnError) as e:
+        made(qru_group=group)
+    assert e.value.code == "object.qru_group" and e.value.params["max"] == 8
+
+
+def test_a_changed_object_that_becomes_on_request_is_a_different_object() -> None:
+    assert not made(qru_group="FOOD").same_content(made(qru_group="FOOD", on_request=True)) and not made().same_content(made(qru_group="FOOD"))

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The Objects tab: the objects and items of ours, oldest first, each with its symbol, its name, what kind it is, how often it was sent and when it goes out next, and its comment; Edit opens the form with
+// The Objects tab: the objects and items of ours, oldest first, each with its symbol, its name, what kind it is, its QRU group if it has one, how often it was sent and when it goes out next (or that it is sent only when asked), and its comment; Edit opens the form with
 // what the daemon has of it, and the delete button at its corner kills it (two presses, the second after "sure?": the killed form goes out three times and it is forgotten). An object whose kill is going out has
 // neither. New opens the form for a new object at the place we are (components/ObjectForm.vue), in the box at the bottom of the tab; the list fills the tab above it and is scrolled to the newest.
 import { computed, nextTick, ref, watch } from "vue";
@@ -55,6 +55,7 @@ watch(
             <SymbolIcon :table="row.symbol_table" :code="row.symbol_code" :size="22" />
             <strong class="mono">{{ row.name }}</strong>
             <span class="muted"> {{ t("objects.kind_word", { kind: row.kind }) }}</span>
+            <span v-if="row.qru_group" class="muted mono"> {{ t("objects.in_group", { group: row.qru_group }) }}</span>
           </p>
           <p v-if="row.comment" class="bulletin-text">{{ row.comment }}</p>
           <p class="bulletin-meta muted">{{ stateText(row, now) }}</p>

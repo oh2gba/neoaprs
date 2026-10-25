@@ -39,7 +39,7 @@ from neoaprs.config import ANTENNA_DIRECTIONS, DEFAULT_STATION_HOURS, DEFAULTS, 
 from neoaprs.configstatus import MAX_STATUS  # noqa: E402
 from neoaprs.message import EMAIL_GATEWAY, check_text, normal_path  # noqa: E402
 from neoaprs.ownbulletin import GROUP_MAX, PostError, make_bulletin, slot_of  # noqa: E402
-from neoaprs.ownobject import COMMENT_MAX, COMMENT_MAX_MOTION, COURSE_MAX, ITEM_NAME, NAME_FORBIDDEN, OBJECT_NAME, SPEED_MAX_KMH, OwnError, make_object  # noqa: E402
+from neoaprs.ownobject import COMMENT_MAX, COMMENT_MAX_MOTION, COURSE_MAX, ITEM_NAME, NAME_FORBIDDEN, OBJECT_NAME, QRU_GROUP_MAX, QRU_RESERVED, SPEED_MAX_KMH, OwnError, make_object  # noqa: E402
 from neoaprs.aprsposition import uncompressed_position  # noqa: E402
 from neoaprs.services.beacon import Beacon, BeaconError, phg_text  # noqa: E402
 from neoaprs.symbols import MOBILE_CODES, SYMBOL_NAMES  # noqa: E402
@@ -224,7 +224,7 @@ def limits() -> dict[str, Any]:
         "call": {"baseMax": BASE_MAX, "amateurBaseMin": AMATEUR_BASE_MIN, "maxSsid": MAX_SSID, "placeholders": sorted(PLACEHOLDER_CALLS)},
         "path": {"maxCalls": MAX_PATH, "direct": DIRECT_ONLY, "recommendedMobile": WIDE_PATH, "recommendedFixed": FIXED_PATH},
         "object": {"nameMax": OBJECT_NAME[1], "itemNameMin": ITEM_NAME[0], "nameForbidden": NAME_FORBIDDEN, "commentMax": COMMENT_MAX, "commentMaxMotion": COMMENT_MAX_MOTION,
-                   "courseMax": COURSE_MAX, "speedMaxKmh": round(SPEED_MAX_KMH)},
+                   "courseMax": COURSE_MAX, "speedMaxKmh": round(SPEED_MAX_KMH), "qruGroupMax": QRU_GROUP_MAX, "qruReserved": list(QRU_RESERVED)},
         "bulletin": {"groupMax": GROUP_MAX},
         "station": {"hours": list(STATION_HOURS), "defaultHours": DEFAULT_STATION_HOURS},
     }
@@ -477,6 +477,7 @@ BULLETIN_TEXTS = ["Snow expected", "", "   ", " padded ", "x" * 67, "x" * 68, "w
 BULLETIN_SLOTS = [("bulletin", i, "") for i in "0189AZ"] + [("announcement", i, "") for i in "09AZ"] + [("group", i, g) for i in "09A" for g in ("", "HAMS", "HAMS1", "HAMS12", "HA-MS", "ha ms", "ham", "H")]
 OBJECT_NAMES = [("object", n) for n in ("A", "OH2GBA", "NINECHARS", "TENCHARS12", "", " X", "X ", "A B", "has!bang", "has_under", "has|bar", "has~tilde", "caf\u00e9", "lower", "UPPER 1")] + \
     [("item", n) for n in ("AB", "ABC", "NINECHARS", "TENCHARS12", "", "A_B", "A!")]
+QRU_GROUPS = ["", "  ", "RP70", "rp70", " rp70 ", "LIFEBOAT", "LIFEBOATS", "R P", "RP-70", "INFO", "info", "NEXT", "T2SRV", "A", "0", "\u00c5\u00c4", "RP70!"]
 OBJECT_COMMENTS = [("", False), ("x" * 43, False), ("x" * 44, False), ("x" * 36, True), ("x" * 37, True), ("x" * 43, True), ("with | bar", False), ("with ~ tilde", False), ("caf\u00e9", False), ("tab\there", False), (" padded ", False)]
 SETTING_VALUES = [(key, text) for key in ("station/lat", "station/lon") for text in ("0", "60.17", "-90", "90", "-180", "180", "90.0001", "-90.1", "180.5", "", " 45 ", "abc")] + \
     [(key, text) for key in ("serial/baud", "tcp/port", "beacon/power_w", "beacon/antenna_height_m", "beacon/antenna_gain_db", "map/radius_km")
@@ -554,6 +555,14 @@ def _object_vector(kind: str, name: str) -> dict[str, Any]:
     return {"name": name, "kind": kind, "ok": True, "code": ""}
 
 
+def _qru_group_vector(group: str) -> dict[str, Any]:
+    try:
+        made = make_object(datetime(2026, 10, 21, tzinfo=UTC), "OBJ", "object", 60.0, 24.0, "/", ">", qru_group=group)
+    except OwnError as e:
+        return {"group": group, "ok": False, "code": e.code, "kept": ""}
+    return {"group": group, "ok": True, "code": "", "kept": made.qru_group}
+
+
 def _comment_vector(comment: str, moving: bool) -> dict[str, Any]:
     try:
         make_object(datetime(2026, 10, 21, tzinfo=UTC), "OBJ", "object", 60.0, 24.0, "/", ">", comment, 90 if moving else None, None)
@@ -591,6 +600,7 @@ def vectors() -> dict[str, list[dict[str, Any]]]:
         "bulletin_slots": [_bulletin_slot_vector(*row) for row in BULLETIN_SLOTS],
         "object_names": [_object_vector(*row) for row in OBJECT_NAMES],
         "object_comments": [_comment_vector(*row) for row in OBJECT_COMMENTS],
+        "qru_groups": [_qru_group_vector(group) for group in QRU_GROUPS],
         "settings": [_setting_vector(*row) for row in SETTING_VALUES],
         "phg": [{"power": p, "height": h, "gain": g, "direction": d, "text": phg_text(p, h, g, d)} for p, h, g, d in PHG_CASES],
         "positions": [{"lat": lat, "lon": lon, "table": "/", "code": "-", "text": uncompressed_position(lat, lon, "/", "-").decode("ascii")} for lat, lon in POSITIONS],

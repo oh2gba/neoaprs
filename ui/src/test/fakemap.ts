@@ -9,7 +9,7 @@ type Handler = (event?: unknown) => void;
 export class FakeMap {
   static all: FakeMap[] = [];
   handlers = new Map<string, Handler[]>();
-  sources = new Map<string, { setData: ReturnType<typeof vi.fn> }>();
+  sources = new Map<string, { setData: ReturnType<typeof vi.fn>; data?: unknown }>();
   layers: string[] = [];
   zoom: number;
   center: { lng: number; lat: number };
@@ -53,13 +53,13 @@ export class FakeMap {
   resize(): void {
     this.resizes += 1;
   }
-  addSource(id: string): void {
-    this.sources.set(id, { setData: vi.fn() });
+  addSource(id: string, source?: { data?: unknown }): void {
+    this.sources.set(id, { setData: vi.fn(), data: source?.data });
   }
   addLayer(layer: { id: string }): void {
     this.layers.push(layer.id);
   }
-  getSource(id: string): { setData: ReturnType<typeof vi.fn> } | undefined {
+  getSource(id: string): { setData: ReturnType<typeof vi.fn>; data?: unknown } | undefined {
     return this.sources.get(id);
   }
   getZoom(): number {

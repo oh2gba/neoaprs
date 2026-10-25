@@ -6,7 +6,9 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import NamedTuple
 
-from neoaprs.aprsextension import MILE_KM, Extensions, split_bearing, split_dao, split_extension, with_dao
+from neoaprs.aprsextension import MILE_KM, Extensions, split_bearing, split_dao, split_extension, split_sign, with_dao
+from neoaprs.aprsfreq import Frequency, split_frequency
+from neoaprs.aprsstorm import Storm, split_storm
 from neoaprs.aprstelemetry import split_comment_telemetry
 from neoaprs.aprsweather import MPH_KMH, Weather, parse_weather
 from neoaprs.packet import Position, decode_text
@@ -223,6 +225,25 @@ def _comment_and_extensions(text: str, table: str, code: str, extensions: bool) 
     return _Tail(text.strip(), course, speed, altitude, ext)
 
 
+class _Local(NamedTuple):
+    comment: str
+    frequency: Frequency | None
+    storm: Storm | None
+    sign: str | None
+
+
+def _local_information(text: str, table: str, code: str) -> _Local:
+    """The frequency at the start of the comment, then the storm data of the symbol `@` or the characters of a signpost (`\\m`), taken off the front of it."""
+    text, frequency = split_frequency(text)
+    if code == "@" and table in "/\\":
+        text, storm = split_storm(text)
+        return _Local(text, frequency, storm, None)
+    if code == "m" and table == "\\":
+        text, sign = split_sign(text)
+        return _Local(text, frequency, None, sign)
+    return _Local(text, frequency, None, None)
+
+
 def _with_wind(weather: Weather | None, wind: tuple[int, float] | None) -> Weather | None:
     """The weather with the wind of a compressed position's cs bytes."""
     if wind is None:
@@ -246,11 +267,12 @@ def parse_position(body: bytes, now: datetime, *, messaging: bool = False) -> Po
     text = decode_text(fix.tail)
     weather, text = parse_weather(text) if fix.code == "_" else (None, text)
     tail = _comment_and_extensions(text, fix.table, fix.code, not compressed)
-    comment, telemetry = split_comment_telemetry(tail.comment)
+    comment, frequency, storm, sign = _local_information(tail.comment, fix.table, fix.code)
+    comment, telemetry = split_comment_telemetry(comment)
     comment, extra = split_dao(comment)
     lat, lon = (fix.lat, fix.lon) if compressed or fix.ambiguity else with_dao(fix.lat, fix.lon, extra)       # (a compressed position is finer already; an ambiguous one claims no precision)
     return Position(lat, lon, fix.table, fix.code, comment, tail.course if tail.course is not None else fix.course, tail.speed if tail.speed is not None else fix.speed,
-                    tail.altitude if tail.altitude is not None else fix.altitude, timestamp, messaging, compressed, fix.ambiguity, _with_wind(weather, fix.wind), tail.extensions or fix.extensions, local, telemetry=telemetry)
+                    tail.altitude if tail.altitude is not None else fix.altitude, timestamp, messaging, compressed, fix.ambiguity, _with_wind(weather, fix.wind), tail.extensions or fix.extensions, local, telemetry=telemetry, frequency=frequency, storm=storm, sign=sign)
 
 
 def _coordinate_text(value: float, whole_digits: int, negative: str, positive: str) -> str:

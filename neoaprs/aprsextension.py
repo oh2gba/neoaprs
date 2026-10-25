@@ -1,6 +1,6 @@
 """The data extensions that follow the symbol of an uncompressed position (APRS101, chapter 7): the station's power, height, gain and directivity (`PHGphgd`), a pre-calculated radio range (`RNGrrrr`), the
 strength of a signal heard by a direction finder (`DFSshgd`), the bearing and quality of a DF report (`/BRG/NRQ`, after the course and speed) and the shape of an area object (`Tyy/Cxx` after the symbol `\\l`).
-Besides, the precision and datum extension `!DAO!` anywhere in the comment of a position, an object, an item or a Mic-E packet (APRS 1.2): `split_dao` and `with_dao`.
+The signpost's characters `{55}` at the start of the comment of an object or item with the symbol `\\m` (`split_sign`). Besides, the precision and datum extension `!DAO!` anywhere in the comment of a position, an object, an item or a Mic-E packet (APRS 1.2): `split_dao` and `with_dao`.
 
 Course and speed (`CSE/SPD`) are read by aprsposition.py, which calls `split_extension` for the rest. Pure code, like the rest of the foundation."""
 import math
@@ -14,6 +14,7 @@ _RNG = re.compile(r"RNG(\d{4})")
 _DFS = re.compile(r"DFS(\d)([0-~])(\d)(\d)")
 _BEARING = re.compile(r"/(\d{3})/(\d)(\d)(\d)")
 _AREA = re.compile(r"(\d)(\d\d)([/1])(\d)(\d\d)")
+_SIGN = re.compile(r"\{([^{}]{1,3})\}")
 _AREA_SCALE = 1500                                 # an offset is sent as the square root of the degrees times this (APRS 1.1 areaobjects.txt; the 1.0.1 text said 100, which no program uses)
 _SHAPES = ("open circle", "line", "open ellipse", "open triangle", "open box", "filled circle", "coloured line", "filled ellipse", "filled triangle", "filled box")
 _COLOURS = ("black", "blue", "green", "cyan", "red", "violet", "yellow", "gray", "dim black", "dim blue", "dim green", "dim cyan", "dim red", "dim violet", "dim yellow", "dim gray")
@@ -103,6 +104,12 @@ def split_extension(text: str, area: bool) -> tuple[Extensions | None, str]:
     if found := _DFS.match(text):
         return Extensions(dfs=Dfs(int(found.group(1)), round(_height_m(found.group(2)), 1), int(found.group(3)), _direction(found.group(4)))), text[found.end():]
     return None, text
+
+
+def split_sign(text: str) -> tuple[str, str | None]:
+    """The 1 to 3 characters in braces at the start of the comment of a signpost (`{55}`, shown on the sign) and the rest of the comment; None, and the text as it is, when there are none."""
+    found = _SIGN.match(text)
+    return (text[found.end():].strip(), found.group(1)) if found else (text, None)
 
 
 def split_bearing(text: str) -> tuple[DfBearing | None, str]:

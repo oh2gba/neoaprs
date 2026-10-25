@@ -56,7 +56,9 @@ latest 100 as `{at, text}`). The page shows the packet and byte counts as the ho
 **A TCP profile.** It connects to `tcp/host` and `tcp/port`, or to the address in `serial/port`, which is then used as it stands. A TCP connection that closes,
 or a serial device that goes away, is a line that dropped and is opened again after the back-off (5, 10, 20, 30 seconds). A `bt://` port is opened by
 `neoaprs/btserial.py` (the RFCOMM link by itself, with the channel looked up through `neoaprs/btsdp.py`); the paired devices are listed by
-`neoaprs/btpaired.py`.
+`neoaprs/btpaired.py`. A `ble://` port is opened by `neoaprs/btle.py`: bleak on a thread and event loop of its own looks for the device by its address, connects, picks the GATT service
+(the Mobilinkd/aprs.fi BLE KISS service, else the Nordic UART Service, or the one the URL names), listens to its notify characteristic and queues what it notifies for `read`; `write` goes
+out in pieces of what the link takes. A lost link is the exception of the next read or write, so the TNC opens the port again as for a dead socket.
 
 **The search** (`neoaprs/tncsearch.py`, `neoaprs/serialprobe.py`). On Linux the globs of `serial/pattern` are all listened to at once, and the ports that match are listed again every
 `RELIST_SEC` (10 s) while the search listens: one that appeared (a radio plugged back in; the named port the search stands in for, listened to even when it does not match the pattern) is opened, one
@@ -146,8 +148,10 @@ empty command is an `error`.
 (migration 7) has one row for a sender and slot, strict, with named CHECKs. `bulletin_delete{sender, slot}` removes the row; an entry that is not there is an
 `error`.
 
-**Queries** (`neoaprs/services/queries.py`). `GENERAL_DELAY_MAX_SEC` (120), `GENERAL_EVERY_SEC` (600), `ANSWER_AGAIN_SEC` (30), `DIRECT_WINDOW` (one hour),
-`MAX_DIRECT_MESSAGES` (2), `ANSWER_FRAMES_MAX` (5). For `?APRSD` the stations are those of the station book (not us, not objects), and "heard direct" is a packet with no repeated
+**Queries** (`neoaprs/services/queries.py`; how an answer is sent is `neoaprs/services/answers.py`, which the QRU server uses as well). `GENERAL_DELAY_MAX_SEC` (120), `GENERAL_EVERY_SEC` (600), `ANSWER_AGAIN_SEC` (30), `DIRECT_WINDOW` (one hour),
+`MAX_DIRECT_MESSAGES` (2), `ANSWER_FRAMES_MAX` (5), `HEARD_HOURS` (8). `?APRSH CALL` reads the times the station was heard in the last 8 hours from the packet log on the database thread
+(`PacketLog.heard_since`, a packet of direction `in` whose source is the call) and answers with a message `CALL HEARD: 1 3 2 . . 4 5 6`, the last 60 minutes first, `CALL NOT HEARD` for a station that is neither in the log of those
+hours nor in the station book; the object with the station's position that APRS 1.0.1 adds is left out. `?WX?` and `?IGATE?` are `Other` of kind `query` like `?APRS?`; they are logged at DEBUG and never answered. For `?APRSD` the stations are those of the station book (not us, not objects), and "heard direct" is a packet with no repeated
 digipeater that was not a third-party packet. `?APRSO` sends each live object and item of ours once as it is now, `?APRSM` each message of ours to the asker that no
 ack has settled (`sending`, `failed`, `unconfirmed`) once more with its number, at most `ANSWER_FRAMES_MAX` of either; the first frame goes at once and the rest
 `SPACING_SEC` (10 s) apart. The messages' records do not change.
@@ -185,7 +189,7 @@ the one kept).
 is not read. The packet keeps the gate as its `source` and the path it was heard by; `raw` and `info` are untouched, `decoded` is what the packet inside says,
 read as from its inner source to its inner destination (which Mic-E needs), and `third_party` holds the inner header. The inner source and destination are calls or names APRS-IS allows (1 to 9 letters, digits
 and hyphens: `OH2XYZ-L`, `OH2XYZ-20`, `WINLINK`; `callsign.normal_name`, upper case); messaging, the station book and the station's settings take such a name as the station, and a message to it is sent like one to a call. The summary ends "via OH7JHF-1
-(third-party)". The gate counts as `heard_gated` and never for `suggested_path`.
+(third-party)". The packets of the station inside count as `heard_gated` and never for `suggested_path`; the gate itself, when the book has it as a station, counts each such packet it put on the air as `gated` (a gate that is only ever heard wrapping other stations' packets is no row and is not counted), and a capabilities packet of its own that holds the token `IGATE` sets `igate`. The page's Nearby tab lists a station with either as an iGate.
 
 ## Objects and bulletins of our own
 
@@ -197,13 +201,18 @@ usable, and puts a pause between two frames of ours.
   digipeaters, 20 for 2 and 30 from 3 on. `BULLETIN` is early waits of 120 and 240 s, then every 20 minutes, for 4 hours; `ANNOUNCEMENT` the same, then every
   hour, for 72 hours.
 - **The interlock** is `config.can_transmit`, with the Tnc's own check. The log says `no object sent: set your call first` once.
-- **Limits** are in `neoaprs/ownobject.py` (`OBJECT_NAME`, `ITEM_NAME`, `NAME_FORBIDDEN`, `COMMENT_MAX`, `COMMENT_MAX_MOTION`, `COURSE_MAX`, `SPEED_MAX_KMH`)
+- **Limits** are in `neoaprs/ownobject.py` (`OBJECT_NAME`, `ITEM_NAME`, `NAME_FORBIDDEN`, `COMMENT_MAX`, `COMMENT_MAX_MOTION`, `COURSE_MAX`, `SPEED_MAX_KMH`, `QRU_GROUP_MAX`, `QRU_RESERVED`)
   and `neoaprs/ownbulletin.py` (`GROUP_MAX`, `MAX_POSTED`); the page takes them from the daemon (`LIMITS` of `ui/src/protocol/lists.ts`).
 - **Tables.** `own_object` (migration 13): name, kind, position, symbol, comment, course, speed, path, whether it is alive or being killed, when it was made and
   last changed, how often it was sent since then, when last; strict, with named CHECKs. `own_bulletin`: slot, group, text, when posted, how often sent, when
   first and last. Both are written after every change and every packet.
 - **On the wire** the topic `own_objects` has the values and the schedule of each (`state` `live` or `killing`, `sent`, `last_sent_at`, `next_at`) and the topic
-  `stations` a row with `own` true for each live one.
+  `stations` a row with `own` true for each live one. A row also has `qru_group` and `on_request` (below).
+- **The QRU server** (`neoaprs/services/qru.py`). `own_object` has `qru_group` (migration 18: `''` or 1 to 8 upper-case letters and digits, not `INFO` or `NEXT`) and `on_request` (0 or 1). An object with
+  `on_request` is never due on the schedule (`next_at` is null), is not sent when made or changed, and a kill of it removes it at once. The inbox hands a message to the addressee `QRU` that is not an ack or a rej
+  to `Qru.heard` (given by the composition root to messaging); `heard` returns False, and the message is kept as overheard, unless some live object has a group and the text reads as a request (`INFO [km]`, `?`, `NEXT`
+  or a group name with an optional distance in km); when it takes the message it acks the id, as for a query to us. `RANGE_KM` (50), `MAX_INFO_MESSAGES` (2), `NEXT_KEEP` (1 hour), and `ANSWER_FRAMES_MAX` and
+  `ANSWER_AGAIN_SEC` of the queries. The asker's position is the station book's.
 - **Heard back.** The station book counts a packet from our own call as proof that we are heard and does nothing else. Replacement: when another station reports
   a live object with the name of one of ours, ours is dropped without a kill.
 - **A bulletin of ours that comes back** is taken by the inbox for a copy of what we sent, so `times_heard` of nobody changes.
@@ -264,6 +273,17 @@ the path and RF only of a station are not touched. The commands `set_station_tim
   gain in dB, directivity and the range the specification's formula gives), `RNGrrrr` in km, `DFSshgd`, the `/BRG/NRQ` of a DF report after the course and
   speed, and the `Tyy/Cxx` of an area object with the symbol `\l`. A compressed position has none but the radio range of its cs bytes `{s` (2 x 1.08^s miles,
   as `range_km`).
+- **Local information** (the frequency specification, `neoaprs/aprsfreq.py`): the free text of a position, an object, an item, a Mic-E packet or a status begins with `FFF.FFFMHz` (or
+  `FFF.FF MHz`, any case, one `/` or blank in front of it; `A96.000MHz` and `1.296GHz` for the microwave bands), optionally followed by fields of four bytes in any order, each once: a tone
+  `Tnnn` (CTCSS to transmit), `Cnnn` (both ways), `Dnnn` (DCS), `Toff` or `1750`, where a lower-case first letter (`t`, `c`, `d`, `l750`) is narrow modulation; an offset `+nnn` / `-nnn` in
+  10 kHz (`-000` is simplex); `Rnnm` / `Rnnk`; `FFF.FFFrx`. The fields end at the first word that is none. It is `Position.frequency` / `Status.frequency` (a `Frequency`, the range in km, the
+  tone in whole hertz as sent: `T107` is 107.2) and leaves the comment. A frequency anywhere else (`QRV 145.500MHz`) or with three decimals and a blank (`145.500 MHz`) is text. An object or
+  item named `FFF.FFxyz`, `FFF.FFF-z` or `FFF.FFFyz` (a name with at least one character after the frequency) is the frequency itself, and its comment begins with the fields; a frequency in
+  such an object's comment too is then its receive frequency. The station keeps the frequency it gave last (`Station.frequency`): a position without one leaves it, a status text with one
+  replaces it, and an object or item has what its latest report says.
+- **Storm data** (APRS101, chapter 12) at the start of the comment of a position or object with the symbol `\@` or `/@` (after the course and speed of the storm, which are the position's):
+  `/TS`, `/HC` or `/TD`, then `/www` and `^GGG` (knots), `/pppp` (hPa), `>RRR`, `&rrr` and `%ggg` (nautical miles), each optional but in this order, as `Position.storm` (km/h, hPa, km).
+- **A signpost** (`\m`, an object or an item) has `{xxx}`, one to three characters, at the start of its comment: `Position.sign`. The `{nn}` of an area object (`\l`) is not read.
 - **`!DAO!`** (APRS 1.2, chapter 5) anywhere in the comment of a position, an object, an item or a Mic-E packet is taken out of the comment and makes the
   latitude and longitude finer: `!W12!` (datum letter in capitals) adds a digit of thousandths of a minute to each, `!w5L!` (lower case) a base-91 value of
   0 to 0.0099 minutes, a blank nothing; the last one counts. A compressed position (finer already) and an ambiguous one are not moved.

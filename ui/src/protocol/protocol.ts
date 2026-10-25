@@ -191,6 +191,12 @@ export interface DecodedPosition {
   locator: LocatorValues | null;
   /** the base-91 telemetry `|ss11|` the comment carried (APRS 1.2), taken out of the `comment`; null when there was none */
   telemetry?: TelemetryFields | null;
+  /** the local information the comment began with (`145.775MHz T100 -060 R40k`), or the name of a frequency object with the fields of its comment, taken out of the `comment`; null when there was none */
+  frequency: FrequencyValues | null;
+  /** the storm data the comment of a position with the symbol `@` began with (`/HC/150^200/0980>090&030%040`), taken out of the `comment`; null when there was none */
+  storm: StormValues | null;
+  /** the characters of a signpost (symbol `\m`): `55` for a comment that began `{55}`, taken out of the `comment`; null for any other position */
+  sign: string | null;
 }
 
 /** A status report. */
@@ -201,6 +207,8 @@ export interface DecodedStatus {
   timestamp: string | null;
   /** a Maidenhead locator with a symbol at the start of the report (a report that has one has no timestamp) */
   locator: LocatorValues | null;
+  /** the frequency the text began with (`>145.775MHz T100`), taken out of the `text`; null when there was none */
+  frequency: FrequencyValues | null;
 }
 
 /** A telemetry report (`T#005,199,000,255,073,123,01101001`). The definitions of the channels are messages of the station, applied by the daemon: see `telemetry` of the station. */
@@ -313,6 +321,30 @@ export interface FindRadioCommand {
 export interface ForgetStationCommand {
   cmd: "forget_station";
   call: string;
+}
+
+/** A frequency to call on, from the local information at the start of a comment, a status text or the name of a frequency object (`145.775MHz T100 -060 R40k`); null where the text did not say. */
+export interface FrequencyValues {
+  /** the transmit frequency, MHz */
+  mhz: number;
+  /** the CTCSS tone of `Tnnn` or `Cnnn`, whole hertz (the tenths are dropped: 107 is 107.2) */
+  tone_hz: number | null;
+  /** `Cnnn`: the tone is needed to receive as well */
+  tone_both: boolean;
+  /** `Toff`: no tone and no DCS code */
+  tone_off: boolean;
+  /** the DCS code of `Dnnn`, three digits as sent */
+  dcs: string | null;
+  /** `1750`: a 1750 Hz tone burst opens the repeater */
+  tone_burst: boolean;
+  /** the first letter of the tone field was lower case: narrow modulation */
+  narrow: boolean;
+  /** the offset from the transmit frequency in kHz (`-060` is -600); 0 is simplex; null when the standard offset is meant */
+  offset_khz: number | null;
+  /** the nominal range (`R25m` is 40.2 km) */
+  range_km: number | null;
+  /** a separate receive frequency (`FFF.FFFrx`), MHz */
+  rx_mhz: number | null;
 }
 
 /** The first message of a connection; `status` and the `state` of every topic follow it at once, so a page need not ask for them. */
@@ -514,7 +546,7 @@ export interface ObjectKillCommand {
   name: string;
 }
 
-/** Makes an object or an item of ours, or changes the one of that name (a changed object starts its schedule again, and is sent at once, never sooner than a minute after its last packet). `name` is 1 to 9 characters for an object and 3 to 9 for an item, printable ASCII without `!`, `_`, `|` and `~` and without a blank at either end, and not our own call or the call of a station; `lat` and `lon` the position in decimal degrees; the symbol is a table character and a code character; `comment` at most 43 characters (36 with a course or speed); `course_deg` and `speed_kmh` the course and speed, each or both or none; `path` the digipeaters, calls separated by commas, or `DIRECT` for none at all (null or empty: `beacon/path`). Nothing is sent while the call is not set. Answered by the `set` of its row in `own_objects` and `stations`, or by an `error` that names the reason. */
+/** Makes an object or an item of ours, or changes the one of that name (a changed object starts its schedule again, and is sent at once, never sooner than a minute after its last packet). `name` is 1 to 9 characters for an object and 3 to 9 for an item, printable ASCII without `!`, `_`, `|` and `~` and without a blank at either end, and not our own call or the call of a station; `lat` and `lon` the position in decimal degrees; the symbol is a table character and a code character; `comment` at most 43 characters (36 with a course or speed); `course_deg` and `speed_kmh` the course and speed, each or both or none; `path` the digipeaters, calls separated by commas, or `DIRECT` for none at all (null or empty: `beacon/path`); `qru_group` the group of QRU it belongs to (up to 8 letters and digits, not `INFO` or `NEXT`; empty for none) and `on_request` true to send it only to a station that asks for it, never on the schedule. Nothing is sent while the call is not set. Answered by the `set` of its row in `own_objects` and `stations`, or by an `error` that names the reason. */
 export interface ObjectSetCommand {
   cmd: "object_set";
   name: string;
@@ -527,6 +559,8 @@ export interface ObjectSetCommand {
   course_deg: number | null;
   speed_kmh: number | null;
   path: string | null;
+  qru_group: string;
+  on_request: boolean;
 }
 
 /** Removes every message we only overheard `from_call` sending to `to_call` (the state `overheard`, that sender, that addressee: one pair of the Messages list's overheard rows) from the database in one write, from the daemon and from every page: each message's row is a `del` of the topic `messages`. The conversations are not touched: a message we sent or one sent to us is never removed by this. Answered by the `del`s, or by an `error` (no overheard message of that pair). */
@@ -572,6 +606,10 @@ export interface OwnObjectRow {
   speed_kmh: number | null;
   /** the digipeaters it goes by, calls separated by commas, or `DIRECT` for none at all; null: the path of the setting `beacon/path` is used */
   path: string | null;
+  /** the group of QRU (1 to 8 upper-case letters and digits) a station that asks the addressee `QRU` for it is answered with this object in; empty for none */
+  qru_group: string;
+  /** true: it is never sent on the decay schedule, only to a station that asks for it (`?APRSO`, or its QRU group); false: it is sent on the schedule */
+  on_request: boolean;
   /** `live`: it is being sent on the decay schedule; `killing`: it was killed and its killed form is being sent (three times), then it is forgotten */
   state: "live" | "killing";
   /** when it was first made */
@@ -582,7 +620,7 @@ export interface OwnObjectRow {
   sent: number;
   /** when it was last sent; null while it has not been sent (the call is not set, or the radio is away) */
   last_sent_at: string | null;
-  /** when it is sent next: 1, 2, 4 ... minutes after the last packet, never more than the net cycle time of its path apart; a time that has passed means it waits for the radio or for the call */
+  /** when it is sent next: 1, 2, 4 ... minutes after the last packet, never more than the net cycle time of its path apart; a time that has passed means it waits for the radio or for the call; null for one that is `on_request` */
   next_at: string | null;
 }
 
@@ -693,6 +731,12 @@ export interface PositionFields {
   locator: LocatorValues | null;
   /** the base-91 telemetry `|ss11|` the comment carried (APRS 1.2), taken out of the `comment`; null when there was none */
   telemetry?: TelemetryFields | null;
+  /** the local information the comment began with (`145.775MHz T100 -060 R40k`), or the name of a frequency object with the fields of its comment, taken out of the `comment`; null when there was none */
+  frequency: FrequencyValues | null;
+  /** the storm data the comment of a position with the symbol `@` began with (`/HC/150^200/0980>090&030%040`), taken out of the `comment`; null when there was none */
+  storm: StormValues | null;
+  /** the characters of a signpost (symbol `\m`): `55` for a comment that began `{55}`, taken out of the `comment`; null for any other position */
+  sign: string | null;
 }
 
 /** Asks a station a directed query (APRS 1.0.1 chapter 15): a message to it with the text of the query, `?APRSP` (`kind` `position`: its position packet), `?APRSS` (`status`: its status report), `?APRSD` (`heard`: the stations it hears direct, as a message) or `?APRST` (`trace`: the path our query reached it by, as a message). The query is sent once, without a message id: no attempts follow and no ack is expected. It is kept as a row of the topic `messages` to the station, in state `sending` until it has been transmitted and then `unconfirmed`, whose `text` is the query; the page shows such a row (an `out` message with no `msg_id` whose text is one of the four) as a note of what was asked. The answer is whatever the station sends: a packet (the station's card changes) or a message (a row `in`). Not more than one query of a kind to a station in 60 seconds. Answered with an `error` when the station is not in the station book (`station.unknown`), is no station that takes messages (`query.not_capable`: an object, an item, ourselves, a station whose position says it takes none and that never sent a message), the same query was sent less than 60 seconds ago (`query.too_soon`) or the message is refused as `send_message` refuses it (the call is not set, the radio is silent). */
@@ -825,6 +869,10 @@ export interface StationRow {
   heard_gated: number;
   /** [the station we heard, packets] for each digipeater that repeated its packets, the most first; `?` stands for a hop that was an alias (WIDE1) and gave no call; the 8 most frequent routes are counted */
   heard_via: [string, number][];
+  /** how many third-party packets this station put on the air that we heard (an iGate wrapping what it took from the internet in a frame of its own; counted from the packets heard in this run and the latest 2000 the database kept, and for a station that is in the book); not `heard_gated`, which counts the packets of this station that some iGate put on the air */
+  gated: number;
+  /** a capabilities packet of the station said `IGATE`: it says it is an iGate */
+  igate: boolean;
   /** the route most of its packets came by, as `last_route` writes it, direct included; empty until a packet was counted */
   best_route: string;
   /** the path to send by to reach it, the best route turned round: empty for direct, `OH2RCH-2` for one hop, `OH2RCH-3,OH2RCH-1` for `via OH2RCH-1 → OH2RCH-3`, `WIDE1-1,WIDE2-1` when the best route has a hop with no call; null when no route is known (an object or item, or a station not heard since the packets were pruned) */
@@ -843,6 +891,12 @@ export interface StationRow {
   locator: LocatorValues | null;
   /** the PHG, RNG, DF or area data of the station's latest position; null when it had none */
   extensions: ExtensionValues | null;
+  /** the voice frequency the station gave last, in the comment of a position (or the name of an object) or in a status text; null when it gave none (not kept over a restart of the daemon for a station that does not send it again) */
+  frequency: FrequencyValues | null;
+  /** the storm data of the latest position of a storm object; null for anything else */
+  storm: StormValues | null;
+  /** what a signpost object says (`55`); null for anything else */
+  sign: string | null;
   /** from our position, null for us and for a station without a position */
   distance_km: number | null;
   /** the direction from our position, degrees from north; null as the distance is */
@@ -897,6 +951,23 @@ export interface StatusMessage {
 /** Sends our status report now, with the settings as they are (from the text or from the radio, as `status/source` says), whether it changed and inside the interval; the next one of the timer is an interval later. It goes out through the TNC, so it is not answered: it arrives as the new `packets` row with direction `out`, and `status` follows with the text. Answered with an `error` when it could not be sent: the status is off or has no text, the radio is away, the call is not set, the TNC is not connected or the settings make no frame. */
 export interface StatusNowCommand {
   cmd: "status_now";
+}
+
+/** The storm data of a tropical storm, hurricane or tropical depression (APRS101, chapter 12), in metric units; null where the report did not have the field. The movement is the course and speed of the position. */
+export interface StormValues {
+  /** TS tropical storm, HC hurricane, TD tropical depression */
+  storm_type: "TS" | "HC" | "TD";
+  /** the sustained wind */
+  wind_kmh: number | null;
+  gust_kmh: number | null;
+  /** the central pressure */
+  pressure_hpa: number | null;
+  /** the radius of hurricane winds */
+  hurricane_radius_km: number | null;
+  /** the radius of tropical storm winds */
+  storm_radius_km: number | null;
+  /** the radius of whole gale (50 knot) winds */
+  gale_radius_km: number | null;
 }
 
 /** Follow these topics (all are followed from the start): each is answered with `state`, then with `patch` as it changes. A topic that is followed already is sent whole again. A topic that is not there is refused with an `error` that names it; the others in the command are not affected. */

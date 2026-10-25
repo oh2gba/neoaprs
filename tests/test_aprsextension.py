@@ -1,7 +1,7 @@
 """The data extensions after the symbol of a position: PHG (and the range its formula gives), RNG, DFS, the bearing of a DF report and an area object's descriptor."""
 import pytest
 
-from neoaprs.aprsextension import Extensions, extension_lines, phg_range_km, split_bearing, split_dao, split_extension, with_dao
+from neoaprs.aprsextension import Extensions, extension_lines, phg_range_km, split_bearing, split_dao, split_extension, split_sign, with_dao
 
 
 def test_phg_is_the_specs_example() -> None:
@@ -108,3 +108,15 @@ def test_dao_adds_away_from_the_equator_and_the_meridian() -> None:
     assert with_dao(60.0, 24.0, (0.006, 0.006)) == (pytest.approx(60.0001), pytest.approx(24.0001))
     assert with_dao(-60.0, -24.0, (0.006, 0.006)) == (pytest.approx(-60.0001), pytest.approx(-24.0001))
     assert with_dao(60.0, 24.0, None) == (60.0, 24.0)
+
+
+def test_the_characters_of_a_signpost_are_the_braces_at_the_start() -> None:
+    assert split_sign("{55}") == ("", "55")
+    assert split_sign("{55} speed limit") == ("speed limit", "55")
+    assert split_sign("{A}") == ("", "A")
+    assert split_sign("{ABC}x") == ("x", "ABC")
+
+
+@pytest.mark.parametrize("text", ["", "{}", "{ABCD}", "{55", "text {55}", " {55}", "55}"])
+def test_text_that_is_no_sign_is_left_alone(text: str) -> None:
+    assert split_sign(text) == (text, None)

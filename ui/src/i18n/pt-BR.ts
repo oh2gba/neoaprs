@@ -7,6 +7,7 @@ import { errors } from "@/i18n/pt-BR/errors";
 import { help } from "@/i18n/pt-BR/help";
 import { map } from "@/i18n/pt-BR/map";
 import { messages } from "@/i18n/pt-BR/messages";
+import { nearby } from "@/i18n/pt-BR/nearby";
 import { objects } from "@/i18n/pt-BR/objects";
 import { packets } from "@/i18n/pt-BR/packets";
 import { settings } from "@/i18n/pt-BR/settings";
@@ -26,6 +27,7 @@ export const ptBR: Catalogue = {
   ...bulletins,
   ...objects,
   ...stations,
+  ...nearby,
   ...map,
   ...packets,
   ...weather,

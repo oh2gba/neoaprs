@@ -3,8 +3,10 @@ from dataclasses import KW_ONLY, dataclass, field
 from datetime import datetime
 
 from .aprsextension import Extensions
+from .aprsfreq import Frequency
 from .aprslocator import Locator
 from .aprstelemetry import Telemetry
+from .aprsstorm import Storm
 from .aprsweather import Weather
 from .hourcount import HourCount
 from .route import Deliveries, Route
@@ -39,6 +41,9 @@ class Station:
     telemetry_at: datetime | None = None
     locator: Locator | None = None              # the Maidenhead locator of its latest status report (or Mic-E status text)
     extensions: Extensions | None = None        # PHG, RNG, DF and area data of its latest position
+    frequency: Frequency | None = None          # the voice frequency it gave last, in the comment of a position or an object, or in a status text (a position without one leaves it; an object or an item that says none has none); not kept in the cache: read again from the latest packets at the start
+    storm: Storm | None = None                  # the storm data of its latest position (a storm object); not kept in the cache either
+    sign: str | None = None                     # what the signpost it is says, from the comment of its latest position (`55`); not kept in the cache either
     device: str = ""                            # what it runs ("Kenwood TH-D74", "APRSdroid"), from the destination call or the Mic-E type code of its packets (device.py); empty when unknown (not kept in the cache: it is read again from the latest packets at the start)
     hour: HourCount = field(default_factory=HourCount, repr=False, compare=False)    # its packets of the last hour (not kept in the cache: counted from the packet log at the start and as packets come)
     sent_message: bool = False                  # it has sent a message or an ack to a station (overheard or not): it does messages (not kept in the cache: it is read again from the packet log at the start)
@@ -46,6 +51,8 @@ class Station:
     track: Track = field(default_factory=list)  # (time, lat, lon), the latest TRACK_MAX positions, oldest first
     is_me: bool = False
     own: bool = False                           # an object or an item of ours, which we send (services/ownobjects.py): the settings' station is `is_me`, this is `own`; not kept in the cache, the objects of ours have a table of their own
+    gated: int = 0                              # how many third-party packets it put on the air that we heard (it is an iGate): counted from the packets heard in this run and the latest the database kept, and only while it is in the book; not the same as `deliveries.gated`, the packets of this station that a gate put on the air
+    igate: bool = False                         # a capabilities packet of its own said `IGATE` (not kept in the cache: it is read again from the latest packets at the start)
     deliveries: Deliveries = field(default_factory=Deliveries)     # how the packets we heard from it reached us (neoaprs/route.py)
 
     @property

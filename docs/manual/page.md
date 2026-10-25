@@ -2,7 +2,7 @@
 
 NeoAPRS serves a page at `http://127.0.0.1:7303/` (the port is `web/port`). The [desktop app](desktop.md) shows the same page in a window. The colours follow the system's light or dark scheme.
 
-The page has a **map** of the area round your station and, at its right, a **panel** with eight tabs: Messages, Stations, Email, Bulletins, Objects, Beacon, Packets and Settings. A new page opens on Messages.
+The page has a **map** of the area round your station and, at its right, a **panel** with nine tabs: Messages, Stations, Nearby, Email, Bulletins, Objects, Beacon, Packets and Settings. A new page opens on Messages.
 
 ## The panel and its tabs
 
@@ -14,6 +14,7 @@ The page has a **map** of the area round your station and, at its right, a **pan
 |---|---|
 | **Messages** | the conversations with other stations ([messages.md](messages.md)) |
 | **Stations** | the table of stations, below |
+| **Nearby** | what is around you: the digipeaters, voice frequencies, iGates and stations heard direct, below |
 | **Email** | mail through the gateway ([email.md](email.md)) |
 | **Bulletins** | the message board and the box to post to it ([bulletins.md](bulletins.md)) |
 | **Objects** | your objects and items ([objects.md](objects.md)) |
@@ -43,6 +44,18 @@ The table has the symbol, the call, the distance from you, the bearing as a smal
   - Your own station has Show, Copy call and the QRZ page, an object or an item of yours Show and Copy call, and an object of someone else's Show, Copy call and Forget; none has the questions.
 - A station past its timeout is dim, listed last, with "timed out" after the time it was heard.
 
+### Nearby
+
+What the local APRS infrastructure is, at a glance. The tab has four lists made from the stations you have heard. Each is in the order of the distance from you, the nearest first and a station with no position last, and each row has the distance and the bearing as the Stations table shows them. A list with nothing in it says "none yet". A click on a row does what a click on a row of the Stations table does: the station's card opens and the map flies to it (with Ctrl it adds a card). A station past its timeout is dim.
+
+- **Digipeaters** are the stations that repeated packets you heard, and the stations whose symbol is a digipeater's. A row says how many packets it repeated (the packets whose last hop it was), and the range it gave when its position carried a PHG or a range. A call that was heard repeating but never sent a packet of its own is listed too, with "no packet of its own heard", and has nothing to open.
+- **Show range**, a tickbox above the digipeaters, draws on the map a pale circle of that range round each digipeater that gave one. The range of a PHG report is the one the APRS specification works out from the power, the height and the gain (the Details of a station's card shows it). A digipeater past its timeout has no circle. The choice is remembered by your browser.
+- **Voice frequencies** are the stations, objects and items that gave a frequency to call on, with the line the card shows ("145.775 MHz, tone 118 Hz, -600 kHz") and, for an object or an item, "reported by" the station that sent it. Nothing is tuned.
+- **iGates** are the stations that put packets from the internet on the air (the third-party packets: the row says how many), the stations that said they are an iGate in a capabilities packet, and the stations that have the iGate symbol. The count is of the packets NeoAPRS heard since it started and in the latest 2000 it kept, for a station that is in the station book. A station that is only ever heard wrapping other stations' packets is not counted.
+- **Heard direct** are the stations heard with no digipeater between you, the ones in simplex range, with when each was last heard direct. Stations at the same distance (and those with none) are listed with the newest first.
+
+The tab has no count on it: nothing in it is waiting to be seen.
+
 ### Packets
 
 The log of packets, newest first. A **Route** column says how each packet you heard reached you, and a route breaks between its words, never inside a callsign. A click on a packet tells it in a few facts: who sent it, what kind it is, the position or the text, how it reached you or the path you sent it by, and when. Under **Raw**, closed, is what the parser decoded, as JSON.
@@ -55,6 +68,7 @@ A marker for every station that has a position shows the APRS symbol with the ca
 
 - Your own station is ringed. An object or an item of yours is ringed with a dashed line and can be dragged to another place.
 - The track of a station that moved is a line that fades with age along its length: the newest stretch full, the oldest faint.
+- With **Show range** on in the Nearby tab, each digipeater that gave a range has a pale blue circle of that range round it, under the markers.
 - A thin dashed circle round your own station is the ALOHA circle of Bob Bruninga, WB4APR: the distance within which the stations heard on the radio would fill the channel (1200 baud takes about 60 packets a minute), so a packet meant for a station beyond it is hard to receive reliably. The pointer resting on the line shows its radius.
 - NeoAPRS works the circle out every minute from the stations heard in the last hour, nearest first, each by what it sends in half an hour: a moving car 15 packets, a parked one 7, a weather station 6, a digipeater 3, a home station 2, and each digipeater nearer than a station makes the packets of the stations beyond it count once more. The circle ends at the station where the sum reaches 1800. Stations an iGate put on the air from the internet do not count. There is no circle until your position is set and enough stations are heard to fill the channel.
 - A marker dims in four steps on the way to the station's timeout.
@@ -144,7 +158,7 @@ The page speaks English, Deutsch, Español, Français, Italiano, 日本語 and P
 
 ## What the page remembers
 
-The panel's width and tab, the map's view, the table's "hide timed out" and "direct only", the pinned station cards and where they stand, which messages and bulletins were seen, the addresses used for mail, the choice of browser alert and the language are kept in your browser's local storage, and nothing else is. Each device keeps its own.
+The panel's width and tab, the map's view, the table's "hide timed out" and "direct only", the Nearby tab's "Show range", the pinned station cards and where they stand, which messages and bulletins were seen, the addresses used for mail, the choice of browser alert and the language are kept in your browser's local storage, and nothing else is. Each device keeps its own.
 
 ## A phone, a tablet and a desktop
 
@@ -154,7 +168,7 @@ The page chooses its layout from the size of the window.
 |---|---|---|
 | **phone** | under 700 px wide, or shorter than 500 px and under 1000 px wide (a phone held sideways) | One view at a time. A compact header, the tab bar under it (the tabs as one **☰** button when they do not fit), and the rest of the screen is the open tab with the footer under it, or the map. The first button of the tab bar is **Map**: it shows the map on the whole screen, and a tab of the bar brings its tab back (the view is remembered). A station's card is a bottom sheet: folded to its head and the first facts, a tap or a swipe up on its grip opens it, a swipe down folds it and a swipe down on the folded sheet closes it. It has a close button too (held sideways it is a sheet at the left). A tap on a row of the Stations tab shows the map with the card; **Message** and **Edit** on the card and the mail count of the header bring the tab. **Choose on map** shows the map with a bar ("Tap the place on the map", **Cancel**), and the tab comes back with the place filled in. The setup guide is the whole screen. One card at a time |
 | **tablet** | 700 to 1100 px | The map and the panel side by side, the panel 380 to 420 px wide (40 % of the window between those; no handle, a finger cannot drag it), with the fold button. Both orientations are side by side: a portrait tablet (768 by 1024) keeps a map 388 px wide, which is enough for a pinch and a card, and the panel keeps its full height. Up to two cards |
-| **desktop** | from 1100 px | The map and, at its right, the panel with the handle you drag. A panel you have not dragged is 760 px wide from a window of 1280 px (wide enough for the two columns of the Messages tab and the eight tabs with their badges), 480 px below that; a width you dragged is kept. Up to four cards side by side, as many as the width of the map has room for |
+| **desktop** | from 1100 px | The map and, at its right, the panel with the handle you drag. A panel you have not dragged is 760 px wide from a window of 1280 px (wide enough for the two columns of the Messages tab and the nine tabs with their badges), 480 px below that; a width you dragged is kept. Up to four cards side by side, as many as the width of the map has room for |
 
 - On every size the page is the height of the window (it follows the toolbars of a phone), does not scroll sideways, and keeps clear of the notch and the home bar.
 - On a touch screen every button, tab, field and row is at least 40 px high and a field has a 16 px font, so that a phone does not zoom the page in when one is focused.

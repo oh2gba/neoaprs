@@ -194,7 +194,7 @@ async def _serve(controller: Controller, stop: asyncio.Event, log: logging.Logge
 def build_parser(prog: str = "neoaprs") -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog=prog, description="An APRS client: reads the KISS port of a radio and shows the stations it hears.")
     parser.add_argument("--data", default=str(default_data_dir()), help="the data directory: neoaprs.sqlite (everything NeoAPRS keeps) and the log; default %(default)s")
-    parser.add_argument("--port", default="", metavar="PATH", help="the radio's port for this run only (the setting serial/port is not changed): /dev/ttyUSB0, COM3, socket://host:port for KISS over TCP (Direwolf: socket://127.0.0.1:8001), bt://AA:BB:CC:DD:EE:FF for a paired Bluetooth device (Linux), a replay's pseudo-terminal")
+    parser.add_argument("--port", default="", metavar="PATH", help="the radio's port for this run only (the setting serial/port is not changed): /dev/ttyUSB0, COM3, socket://host:port for KISS over TCP (Direwolf: socket://127.0.0.1:8001), bt://AA:BB:CC:DD:EE:FF for a paired Bluetooth device (Linux), ble://AA:BB:CC:DD:EE:FF for a Bluetooth LE KISS TNC (needs the extra ble), a replay's pseudo-terminal")
     parser.add_argument("--web-port", type=_port, default=None, metavar="N", help="the page's port for this run only (the setting web/port is not changed); 0 is a free port, which the log tells")
     parser.add_argument("--debug", action="store_true", help="log more (also NEOAPRS_DEBUG=1)")
     parser.add_argument("--version", action="version", version=f"{PROGRAM} {VERSION}")

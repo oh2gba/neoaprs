@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { extensionRows, locatorText, sentTimeText, telemetryBitsText, telemetryText } from "@/lib/details";
+import { extensionRows, frequencyText, locatorText, sentTimeText, stormText, telemetryBitsText, telemetryText } from "@/lib/details";
 import { packet } from "@/test/fixtures";
-import type { ExtensionValues, PacketRow, TelemetryValues } from "@/protocol/protocol";
+import type { ExtensionValues, FrequencyValues, PacketRow, StormValues, TelemetryValues } from "@/protocol/protocol";
 
 const none: ExtensionValues = { phg: null, range_km: null, dfs: null, df_bearing: null, area: null };
 
@@ -23,6 +23,57 @@ describe("extensionRows", () => {
       { label: "DF bearing", text: "270°, range 6 km, quality 9, hits 7" },
       { label: "Area", text: "cyan filled ellipse, 1° down, 0.25° right" },
     ]);
+  });
+});
+
+const frequency = (extra: Partial<FrequencyValues> = {}): FrequencyValues => ({
+  mhz: 145.775,
+  tone_hz: null,
+  tone_both: false,
+  tone_off: false,
+  dcs: null,
+  tone_burst: false,
+  narrow: false,
+  offset_khz: null,
+  range_km: null,
+  rx_mhz: null,
+  ...extra,
+});
+
+describe("frequencyText", () => {
+  it("is the frequency alone when that is all the sender said", () => {
+    expect(frequencyText(frequency({ mhz: 146.52 }))).toBe("146.520 MHz");
+  });
+  it("adds the tone, the offset and the range in the order they are heard", () => {
+    expect(frequencyText(frequency({ tone_hz: 118, offset_khz: -600, range_km: 40.2 }))).toBe("145.775 MHz, tone 118 Hz, -600 kHz, range 40 km");
+    expect(frequencyText(frequency({ tone_hz: 107, tone_both: true, offset_khz: 5000, narrow: true }))).toBe(
+      "145.775 MHz, tone 107 Hz both ways, narrow FM, +5000 kHz",
+    );
+  });
+  it("says simplex for an offset of nothing and tells a DCS code, no tone, a tone burst and a receive frequency", () => {
+    expect(frequencyText(frequency({ dcs: "023", offset_khz: 0, rx_mhz: 430.1 }))).toBe("145.775 MHz, DCS 023, simplex, receive 430.100 MHz");
+    expect(frequencyText(frequency({ tone_off: true }))).toBe("145.775 MHz, no tone");
+    expect(frequencyText(frequency({ tone_burst: true }))).toBe("145.775 MHz, 1750 Hz tone burst");
+  });
+});
+
+describe("stormText", () => {
+  const storm: StormValues = {
+    storm_type: "HC",
+    wind_kmh: 277.8,
+    gust_kmh: 370.4,
+    pressure_hpa: 980,
+    hurricane_radius_km: 166.7,
+    storm_radius_km: 55.6,
+    gale_radius_km: null,
+  };
+  it("says the type, the winds, the pressure and the radii of the winds in kilometres, and leaves out what was not sent", () => {
+    expect(stormText(storm)).toBe(
+      "Hurricane, wind 278 km/h, gusts 370 km/h, pressure 980 hPa, hurricane winds out to 167 km, tropical storm winds out to 56 km",
+    );
+    expect(
+      stormText({ ...storm, storm_type: "TD", wind_kmh: null, gust_kmh: null, pressure_hpa: null, hurricane_radius_km: null, storm_radius_km: null }),
+    ).toBe("Tropical depression");
   });
 });
 

@@ -30,6 +30,11 @@ def packets_since(db: sqlite3.Connection, stamp: str) -> list[Row]:
     return [tuple(r) for r in db.execute(f"SELECT {_PACKET_LIST} FROM packet WHERE heard_at >= ? ORDER BY id", (stamp,))]
 
 
+def heard_times(db: sqlite3.Connection, source: str, stamp: str) -> list[str]:
+    """When the packets of the source were heard (not sent by us) at `stamp` or later, the oldest first."""
+    return [str(r[0]) for r in db.execute("SELECT heard_at FROM packet WHERE source = ? AND direction = 'in' AND heard_at >= ? ORDER BY heard_at", (source, stamp))]
+
+
 def heard_routes(db: sqlite3.Connection, count: int) -> list[Row]:
     """(source, path, raw, heard_at) of the latest `count` packets that were heard, the oldest first."""
     return [tuple(r) for r in db.execute("SELECT source, path, raw, heard_at FROM (SELECT id, source, path, raw, heard_at FROM packet WHERE direction = 'in' ORDER BY id DESC LIMIT ?) ORDER BY id", (max(0, count),))]

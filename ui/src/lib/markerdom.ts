@@ -1,4 +1,4 @@
-// The marker of a station on the map as DOM nodes (the call is text, never markup): the APRS symbol as sprite layers, the call under it, classes for our own station and our own objects, the selected one and
+// The marker of a station on the map as DOM nodes (the call is text, never markup): the APRS symbol as sprite layers, the call under it, the characters a signpost shows on its sign, classes for our own station and our own objects, the selected one and
 // how dim it is and a ring for a station heard direct within the hour. The map (components/StationMap.vue) puts the element at the station's position; styles are in ui/src/styles/map.css.
 import { t } from "@/i18n";
 import type { StationRow } from "@/protocol/protocol";
@@ -12,6 +12,8 @@ const MARKER_PX = 26;
 export interface MarkerDom {
   root: HTMLElement;
   icon: HTMLElement;
+  /** the 1 to 3 characters a signpost shows over its symbol; empty (and so not shown) for any other station */
+  sign: HTMLElement;
   label: HTMLElement;
   /** the symbol the icon shows now (null before the first paint), so that its layers are made again only when it changes */
   symbol: string | null;
@@ -23,10 +25,12 @@ export function buildMarkerDom(): MarkerDom {
   root.setAttribute("role", "button"); // the hover card (lib/hovercard.ts) is the tooltip, so the name is for a screen reader
   const icon = document.createElement("div");
   icon.className = "stn-icon";
+  const sign = document.createElement("span");
+  sign.className = "stn-sign";
   const label = document.createElement("span");
   label.className = "stn-label";
-  root.append(icon, label);
-  return { root, icon, label, symbol: null };
+  root.append(icon, sign, label);
+  return { root, icon, sign, label, symbol: null };
 }
 
 interface MarkerState {
@@ -53,6 +57,9 @@ export function paintMarker(dom: MarkerDom, row: StationRow, state: MarkerState)
     dom.icon.classList.toggle("stn-plain", dom.icon.childElementCount === 0);
   }
   if (dom.label.textContent !== row.call) dom.label.textContent = row.call;
+  const sign = row.sign ?? "";
+  if (dom.sign.textContent !== sign) dom.sign.textContent = sign;
+  dom.root.classList.toggle("stn--sign", sign !== "");
   const details = [symbolLabel(row), markerWeather(row), state.direct ? t("station.heard_direct") : ""].filter((part) => part !== "");
   dom.root.setAttribute("aria-label", t("station.marker_label", { call: row.call, details: details.join(", ") }));
   dom.root.classList.toggle("stn--me", row.is_me);

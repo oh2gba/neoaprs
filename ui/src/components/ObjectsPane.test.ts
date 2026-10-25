@@ -42,6 +42,20 @@ describe("ObjectsPane", () => {
     expect(wrapper.find(".empty").exists()).toBe(false);
   });
 
+  it("names the QRU group of an object and says that one that is on request is sent only when asked", () => {
+    const { wrapper } = pane([
+      ownObject("PUB", { qru_group: "FOOD", on_request: true, sent: 0, last_sent_at: null, next_at: null, created_at: ago(900) }),
+      ownObject("PUMP", { qru_group: "FUEL", created_at: ago(300) }),
+      ownObject("PLAIN", { created_at: ago(100) }),
+    ]);
+    const items = wrapper.findAll(".ownobject");
+    const heads = items.map((i) => i.find(".bulletin-head").text());
+    expect(heads[0]).toContain("QRU group FOOD");
+    expect(heads[1]).toContain("QRU group FUEL");
+    expect(heads[2]).not.toContain("QRU");
+    expect(items.map((i) => i.find(".bulletin-meta").text())).toEqual(["sent only when asked", "sent 2 times, next in 3 min", "sent 2 times, next in 3 min"]);
+  });
+
   it("has a symbol for each, from its table and code", () => {
     const { wrapper } = pane(rows);
     expect(wrapper.findAll(".ownobject .symicon")).toHaveLength(2);

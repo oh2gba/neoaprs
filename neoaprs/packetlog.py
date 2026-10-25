@@ -12,7 +12,7 @@ from .db import Db
 from .dblog import DbLog
 from .packet import ItemReport, ObjectReport, Packet, Position
 from .packetcodec import PacketRow, packet_of, packet_row, parse_stamp, stamp
-from .packetsql import (Row, all_stations, count_packets, delete_station, heard_routes, insert_packet, message_packets, packets_since, position_packets, prune_packets_before, recent_packets, upsert_station)
+from .packetsql import (Row, all_stations, count_packets, delete_station, heard_routes, heard_times, insert_packet, message_packets, packets_since, position_packets, prune_packets_before, recent_packets, upsert_station)
 from .station import Station
 
 log = logging.getLogger("neoaprs.packetlog")
@@ -72,6 +72,12 @@ class PacketLog(DbLog):
         text = stamp(when)
         rows: list[Row] = await self._read(lambda conn: packets_since(conn, text), [])
         return self._packets(rows)
+
+    async def heard_since(self, call: str, when: datetime) -> list[datetime]:
+        """When the packets from the call were heard at or after the time, the oldest first."""
+        text = stamp(when)
+        rows: list[str] = await self._read(lambda conn: heard_times(conn, call, text), [])
+        return [parse_stamp(row) for row in rows]
 
     async def deliveries(self, count: int = DELIVERIES_SEEN) -> list[tuple[str, tuple[str, ...], str, int, datetime, datetime | None]]:
         """(sender, path, iGate or "", how many, when the latest was heard, when the one before it was) over the latest `count` packets heard, the group whose latest packet is the oldest first: how the

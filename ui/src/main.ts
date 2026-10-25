@@ -5,6 +5,7 @@ import "./styles/controls.css";
 import "./styles/tables.css";
 import "./styles/card.css";
 import "./styles/bulletins.css";
+import "./styles/nearby.css";
 import "./styles/messages.css";
 import "./styles/compose.css";
 import "./styles/email.css";

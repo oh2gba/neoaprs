@@ -47,6 +47,7 @@ export const errors = {
     other: "the name of an item is {min} to {max} characters, not {length}",
   },
   "error.object.position": "the position {lat}, {lon} is not on the earth",
+  "error.object.qru_group": "the QRU group '{group}' is 1 to {max} letters and digits, and not INFO or NEXT",
   "error.object.speed": "the speed {value} is not between 0 and {max} km/h",
   "error.object.symbol": "the symbol '{table}' '{symbol}' is not a table (/ \\ A-Z 0-9) and one printable character",
   "error.path.too_long": "{count} digipeaters is more than the {max} a path may have",

@@ -5,14 +5,17 @@ import pytest
 
 from neoaprs import aprsparse, ax25
 from neoaprs.aprsextension import Extensions
+from neoaprs.aprsfreq import Frequency
 from neoaprs.aprslocator import Locator
+from neoaprs.aprsstorm import Storm
 from neoaprs.aprstelemetry import Telemetry
 from neoaprs.aprsweather import Weather
 from neoaprs.clock import utc
 from neoaprs.kiss import KissDecoder
 from neoaprs.packet import ItemReport, Message, ObjectReport, Other, Packet, Position, Status, ThirdParty, Undecoded
 from neoaprs.station import Station
-from neoaprs.stationbook import DEFINITIONS_MAX, TRACK_MAX, StationBook
+from neoaprs.stationbook import TRACK_MAX, StationBook
+from neoaprs.stationnotes import DEFINITIONS_MAX
 from tests.support.files import fixture_bytes
 
 T0 = utc(2026, 10, 21, 12, 0, 0)
@@ -333,6 +336,52 @@ def test_our_own_packet_gated_back_to_us_moves_only_our_last_heard() -> None:
     assert (me.lat, me.lon, me.packets, me.last_heard) == (60.0, 24.0, 0, T0 + timedelta(hours=1)) and me.last_heard != before and book.get("OH7JHF-1") is None
 
 
+# ---- iGates: the third-party packets a station put on the air, and a capabilities packet that says it is one
+
+def test_an_igate_in_the_book_counts_the_third_party_packets_it_put_on_the_air_and_is_signalled() -> None:
+    book = StationBook()
+    book.take(packet(position(), source="OH7JHF-1", path=()))
+    heard = Heard(book)
+    book.take(gated(Status("one")))
+    book.take(gated(Status("two"), inner="OH2XYZ", at=T0 + timedelta(seconds=5)))
+    gate, inner = book.get("OH7JHF-1"), book.get("OH2DPN")
+    assert gate is not None and inner is not None
+    assert (gate.gated, gate.packets, gate.deliveries.gated) == (2, 1, 0), "its own packets are one, the ones it wrapped are two"
+    assert (inner.gated, inner.deliveries.gated) == (0, 1), "the station inside was gated, it did not gate"
+    assert [call for call, _ in heard.changed].count("OH7JHF-1") == 2, "each wrapped packet tells the page the gate's new count"
+
+
+def test_an_igate_that_is_not_in_the_book_and_ourselves_are_not_counted_and_not_made_a_station() -> None:
+    book = StationBook()
+    book.set_me("OH7JHF-1", 60.0, 24.0)
+    book.take(gated(Status("x")))
+    book.take(gated(Status("y"), gate="OH2GATE"))
+    me = book.get("OH7JHF-1")
+    assert me is not None and me.gated == 0 and book.get("OH2GATE") is None
+
+
+def test_the_third_party_packets_the_database_kept_are_counted_for_the_igates_in_the_book() -> None:
+    book = StationBook()
+    book.seed([Station("OH7JHF-1", first_heard=T0, last_heard=T0), Station("OH2DPN", first_heard=T0, last_heard=T0)])
+    book.seed_deliveries([("OH2DPN", ("OH2RCH-3*",), "OH7JHF-1", 3, T0, None), ("OH2XYZ", (), "OH7JHF-1", 2, T0, None), ("OH2DPN", (), "OH2GONE", 4, T0, None), ("OH2DPN", (), "", 1, T0, None)])
+    gate, inner = book.get("OH7JHF-1"), book.get("OH2DPN")
+    assert gate is not None and inner is not None and (gate.gated, inner.gated) == (5, 0), "a sender that is not in the book still counts for its gate; a gate that is not in the book counts for nobody"
+
+
+def test_a_capabilities_packet_with_the_igate_token_says_the_station_is_an_igate_live_and_from_the_packets_kept() -> None:
+    book = StationBook()
+    caps = Other("capabilities", "<IGATE,MSG_CNT=2,LOC_CNT=10", items={"IGATE": "", "MSG_CNT": "2", "LOC_CNT": "10"})
+    book.take(packet(caps, source="OH7JHF-1", path=()))
+    book.take(packet(Other("capabilities", "<MSG_CNT=2", items={"MSG_CNT": "2"}), source="OH2AAA", path=()))
+    book.take(packet(Status("hello"), source="OH2BBB", path=()))
+    flags = {call: book.get(call).igate for call in ("OH7JHF-1", "OH2AAA", "OH2BBB")}  # type: ignore[union-attr]
+    assert flags == {"OH7JHF-1": True, "OH2AAA": False, "OH2BBB": False}
+    again = StationBook()
+    again.seed([Station("OH7JHF-1", first_heard=T0, last_heard=T0), Station("OH2AAA", first_heard=T0, last_heard=T0)])
+    again.seed_details([packet(caps, source="OH7JHF-1", path=()), packet(Status("x"), source="OH2AAA", path=())])
+    assert [again.get(call).igate for call in ("OH7JHF-1", "OH2AAA")] == [True, False]  # type: ignore[union-attr]
+
+
 # ---- weather
 
 WX = Weather(wind_dir=107, wind_kmh=1.6, temp_c=10.0, humidity=85, pressure_hpa=1028.4)
@@ -508,3 +557,46 @@ def test_the_details_are_read_again_from_the_latest_packets_at_the_start() -> No
     station = book.get("OH2AAA")
     assert station is not None and station.extensions == Extensions(range_km=10.0) and station.locator is not None and station.locator.grid == "IO91"
     assert book.get("NOBODY") is None and heard.changed == []
+
+
+def test_a_station_keeps_the_frequency_it_gave_last_and_an_object_has_what_its_latest_report_says() -> None:
+    book = StationBook()
+    voice = Frequency(145.775, tone_hz=100)
+    book.take(packet(position(frequency=voice)))
+    station = book.get("OH2AAA")
+    assert station is not None and station.frequency == voice
+    book.take(packet(position(), at=T0 + timedelta(minutes=1)))
+    assert station.frequency == voice                                                  # (a beacon with none leaves the frequency)
+    book.take(packet(Status("net", frequency=Frequency(145.5)), at=T0 + timedelta(minutes=2)))
+    assert station.frequency == Frequency(145.5)                                       # (a status text with one is the latest)
+    book.take(packet(Status("no frequency"), at=T0 + timedelta(minutes=3)))
+    assert station.frequency == Frequency(145.5)
+    book.take(packet(ObjectReport("145.775-A", True, position(frequency=voice))))
+    book.take(packet(ObjectReport("145.775-A", True, position()), at=T0 + timedelta(minutes=5)))
+    repeater = book.get("145.775-A")
+    assert repeater is not None and repeater.frequency is None                         # (an object that says none has none)
+
+
+def test_a_storm_and_a_signpost_are_the_station_of_the_object() -> None:
+    book = StationBook()
+    storm = Storm("HC", 277.8, pressure_hpa=980)
+    book.take(packet(ObjectReport("BRENDA", True, position(symbol_table="\\", symbol_code="@", storm=storm))))
+    book.take(packet(ItemReport("I91 3N", True, position(symbol_table="\\", symbol_code="m", sign="55"))))
+    brenda, sign = book.get("BRENDA"), book.get("I91 3N")
+    assert brenda is not None and brenda.storm == storm and brenda.sign is None
+    assert sign is not None and sign.sign == "55" and sign.storm is None
+    book.take(packet(ItemReport("I91 3N", True, position(symbol_table="\\", symbol_code="m", sign="40")), at=T0 + timedelta(minutes=1)))
+    assert sign.sign == "40"
+
+
+def test_the_frequency_of_a_station_and_the_local_data_of_an_object_are_read_again_at_the_start() -> None:
+    book = StationBook()
+    book.seed([Station("OH2AAA", first_heard=T0, last_heard=T0), Station("BRENDA", first_heard=T0, last_heard=T0, kind="object", reported_by="OH2AAA")])
+    storm = Storm("TS", 92.6)
+    newest_first = [packet(Status("later", frequency=Frequency(145.5)), at=T0 + timedelta(minutes=2)),
+                    packet(ObjectReport("BRENDA", True, position(storm=storm, sign="1")), at=T0 + timedelta(minutes=1)),
+                    packet(position(frequency=Frequency(145.775)))]
+    book.seed_details(newest_first)
+    station, brenda = book.get("OH2AAA"), book.get("BRENDA")
+    assert station is not None and station.frequency == Frequency(145.5)
+    assert brenda is not None and brenda.storm == storm and brenda.sign == "1"

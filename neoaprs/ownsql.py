@@ -5,7 +5,7 @@ import sqlite3
 from collections.abc import Sequence
 from typing import Any
 
-OBJECT_COLUMNS = ("name", "kind", "lat", "lon", "symbol_table", "symbol_code", "comment", "course_deg", "speed_kmh", "path", "alive", "created_at", "updated_at", "sent", "last_sent_at")
+OBJECT_COLUMNS = ("name", "kind", "lat", "lon", "symbol_table", "symbol_code", "comment", "course_deg", "speed_kmh", "path", "alive", "created_at", "updated_at", "sent", "last_sent_at", "qru_group", "on_request")
 BULLETIN_COLUMNS = ("slot", "group_name", "text", "created_at", "sent", "first_sent_at", "last_sent_at")
 
 Row = tuple[Any, ...]

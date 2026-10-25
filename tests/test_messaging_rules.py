@@ -175,3 +175,34 @@ async def test_a_message_is_ours_to_the_call_with_its_ssid_and_not_to_the_base_c
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "base", "2"))
     await rig.settled()
     assert received(rig) == [("ours", "1")] and [f.info for f in rig.tnc.sent] == [b":OH2RDG   :ack1"]
+
+
+# ---- requests to QRU
+
+async def test_a_request_to_qru_that_the_qru_server_takes_is_acked_when_it_has_an_id_and_is_neither_kept_nor_overheard(rig: Rig) -> None:
+    taken: list[tuple[str, str]] = []
+    rig.m.inbox._qru = lambda packet, message: taken.append((packet.sender, message.text)) is None
+    rig.m.on_packet(rig.heard("OH2RDG", "QRU", "RP70", "7"))
+    rig.m.on_packet(rig.heard("OH2RDG", "qru", "INFO"))
+    await rig.settled()
+    assert taken == [("OH2RDG", "RP70"), ("OH2RDG", "INFO")] and [f.info for f in rig.tnc.sent] == [b":OH2RDG   :ack7"]
+    assert rig.m.records() == [] and await rig.log.recent() == [] and await rig.log.recent(overheard=True) == []
+
+
+async def test_a_request_to_qru_that_is_not_taken_or_has_no_server_is_a_message_overheard_like_any_other(rig: Rig) -> None:
+    rig.m.on_packet(rig.heard("OH2RDG", "QRU", "INFO", "7"))
+    rig.m.inbox._qru = lambda packet, message: False
+    rig.m.on_packet(rig.heard("OH2ABC", "QRU", "FOOD", "8"))
+    await rig.settled()
+    assert [(m.from_call, m.text, m.state) for m in await rig.log.recent(overheard=True)] == [("OH2ABC", "FOOD", "overheard"), ("OH2RDG", "INFO", "overheard")] and rig.tnc.sent == []
+
+
+async def test_an_ack_or_a_reject_to_qru_and_a_message_to_another_station_are_not_given_to_the_qru_server(rig: Rig) -> None:
+    taken: list[str] = []
+    rig.m.inbox._qru = lambda packet, message: taken.append(message.text) is None
+    rig.m.on_packet(rig.heard("OH2RDG", "QRU", ack="01"))
+    rig.m.on_packet(rig.heard("OH2RDG", "QRU", rej="01"))
+    rig.m.on_packet(rig.heard("OH2RDG", "QRUX", "INFO"))
+    rig.m.on_packet(rig.heard("OH2RDG", "OH2XYZ", "INFO"))
+    await rig.settled()
+    assert taken == []

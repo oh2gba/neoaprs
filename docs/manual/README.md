@@ -14,7 +14,7 @@ This is the manual for the person who runs it. How NeoAPRS is built and released
 |---|---|
 | [`install.md`](install.md) | installing on Windows, Linux (AppImage, .deb, install line, pip), the desktop app, starting at login, updating |
 | [`start.md`](start.md) | the first start, the setup guide, the data folder, how settings apply, trying it without a radio |
-| [`page.md`](page.md) | the page: the map, the cards you can move, the tabs, the Stations table and its menu, the language, a phone, a tablet and a desktop, the base map |
+| [`page.md`](page.md) | the page: the map, the cards you can move, the tabs, the Stations table and its menu, the Nearby tab, the language, a phone, a tablet and a desktop, the base map |
 | [`desktop.md`](desktop.md) | the desktop app: a window and a tray icon |
 | [`radio.md`](radio.md) | connecting the radio: ports, Bluetooth, the TNC types, the keep-alive and a silent radio |
 | [`beacon.md`](beacon.md) | the Beacon tab: the beacon, the status, answers to queries, the fill-in digipeater |

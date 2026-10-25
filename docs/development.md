@@ -22,7 +22,8 @@ Dependencies are in `pyproject.toml` and `uv.lock` only.
 
 - **At run time:** tornado, pydantic, pyserial and cryptography. The extra `app` is the desktop app: pywebview, pystray and Pillow on Windows, PySide6 with its
   web engine elsewhere. `uv sync --frozen --extra app` installs it, which CI does; a plain `uv sync` takes it out again, and the tests of the Qt shell are
-  skipped without it.
+  skipped without it. The extra `ble` is bleak, for a Bluetooth LE KISS TNC as a port (`ble://`, `neoaprs/btle.py`); CI installs it too (`--extra app --extra ble`), and the tests of the port use a fake
+  bleak (`tests/support/fakeble.py`) and need it only for the one test that looks at the real library's interface. Neither extra is in the deb, the AppImage or the Windows installer.
 - **For development:** pytest, pytest-asyncio, pytest-xdist, mypy, ruff, hypothesis and coverage.
 - **The build backend** is hatchling. `uv build` makes the sdist and the wheel, about 1.3 MB with the page in it. `tests/test_package.py` installs the wheel
   into a fresh venv and runs `neoaprs --version`, `neoaprs doctor` and the daemon from it.

@@ -49,6 +49,7 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
     other: "il nome di un item è di {min}-{max} caratteri, non {length}",
   },
   "error.object.position": "la posizione {lat}, {lon} non è sulla Terra",
+  "error.object.qru_group": "il gruppo QRU “{group}” ha da 1 a {max} lettere e cifre e non è INFO né NEXT",
   "error.object.speed": "la velocità {value} non è compresa tra 0 e {max} km/h",
   "error.object.symbol": "il simbolo “{table}” “{symbol}” non è una tabella (/ \\ A-Z 0-9) e un carattere stampabile",
   "error.path.too_long": "{count} digipeater sono più dei {max} che un percorso può avere",

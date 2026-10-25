@@ -34,11 +34,12 @@ async def opened_with_store(tmp_path: Path) -> tuple[OwnLog, Store]:
 
 
 def test_an_object_gives_its_row_and_the_row_gives_the_object_back() -> None:
-    full = obj(comment="Rescue 1 åäö"[:12], course_deg=0, speed_kmh=12.5, path="WIDE2-1", alive=False, sent=3, last_sent_at=T0 + timedelta(minutes=2))
-    assert object_row(full) == ("LEADER", "object", 60.17, 24.94, "/", ">", "Rescue 1 åäö", 0, 12.5, "WIDE2-1", 0, "2026-10-21T12:00:00.000000Z", "2026-10-21T12:01:00.000000Z", 3, "2026-10-21T12:02:00.000000Z")
+    full = obj(comment="Rescue 1 åäö"[:12], course_deg=0, speed_kmh=12.5, path="WIDE2-1", alive=False, sent=3, last_sent_at=T0 + timedelta(minutes=2), qru_group="RP70", on_request=True)
+    assert object_row(full) == ("LEADER", "object", 60.17, 24.94, "/", ">", "Rescue 1 åäö", 0, 12.5, "WIDE2-1", 0, "2026-10-21T12:00:00.000000Z", "2026-10-21T12:01:00.000000Z", 3, "2026-10-21T12:02:00.000000Z", "RP70", 1)
     assert object_of(object_row(full)) == full
     plain = obj("AID", kind="item")
     assert object_of(object_row(plain)) == plain and object_row(plain)[7:10] == (None, None, None) and object_row(plain)[14] is None
+    assert object_row(plain)[15:] == ("", 0) and not object_of(object_row(plain)).on_request
 
 
 def test_a_bulletin_gives_its_row_and_the_row_gives_the_bulletin_back() -> None:

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // What the daemon knows of one station, as a card over the map, in the few facts a person asks for: the symbol with its name and a green check mark beside the call for a station that was heard direct (no repeater), when it was last heard ("6 min ago", the full time when the mouse rests on it), the position and how far and in which direction it is from us, how fast it moves (only a station that does),
-// the altitude, the status and the comment, what it runs ("Kenwood TH-D74", "APRSdroid"; only when the device list knows it), and one line of how its packets reach us ("Reached us via OH2RCH-2", or "direct"). A row with nothing to say is left out. The rest is under "Details", closed (components/StationDetails.vue: the path as it was sent, the counts of the routes, the best route, when it was first heard, the packets, the decoded extras).
+// the altitude, the voice frequency with its tone, offset and range (when it gave one), the status and the comment, what it runs ("Kenwood TH-D74", "APRSdroid"; only when the device list knows it), and one line of how its packets reach us ("Reached us via OH2RCH-2", or "direct"). A row with nothing to say is left out. The rest is under "Details", closed (components/StationDetails.vue: the path as it was sent, the counts of the routes, the best route, when it was first heard, the packets, the decoded extras).
 // A weather station (the weather symbol, or one that has sent weather) has its weather panel at the top (components/WeatherPanel.vue). "Message" opens the Messages tab with the station as the addressee, where the path its messages go by and RF only are set.
 // The pin beside the cross (a tablet and a desktop) keeps the card on the map past Esc and Close all and past a reload, until its cross is clicked (the cross unpins and closes it).
 // Several cards can be open (Ctrl+click, components/StationCards.vue), side by side: each is this whole card, as when it is alone. Forget (the trash can, "Forget OH2XYZ") takes it out of the station book (it is back when it is heard again); it asks twice ("sure?"), and forgets the first click after 5 s like the other buttons that ask twice (`useSure`). An object or an item of ours has "Edit" (the Objects tab opens with it) and "Kill" (it asks twice, too) in place of "Message" and "Forget", and none of the fields of a station that is heard.
@@ -16,6 +16,7 @@ import { useSure } from "@/composables/useSure";
 import { t } from "@/i18n";
 import { timedOut, type Aging } from "@/lib/aging";
 import { qrzUrl } from "@/lib/calls";
+import { frequencyText } from "@/lib/details";
 import { heardDirect, reachedText } from "@/lib/routes";
 import { canForget, canMessage, symbolLabel } from "@/lib/stations";
 import { agoWords, altitudeText, bearingText, dateTimeText, distanceText, positionText, speedText } from "@/lib/format";
@@ -118,6 +119,10 @@ const reached = computed(() => (props.row.kind === "station" && !props.row.is_me
         <template v-if="row.altitude_m !== null">
           <dt>{{ t("station.field.altitude") }}</dt>
           <dd>{{ altitudeText(row.altitude_m) }}</dd>
+        </template>
+        <template v-if="row.frequency !== null">
+          <dt>{{ t("station.field.frequency") }}</dt>
+          <dd>{{ frequencyText(row.frequency) }}</dd>
         </template>
         <template v-if="row.last_status">
           <dt>{{ t("station.field.status") }}</dt>

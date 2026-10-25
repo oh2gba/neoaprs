@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // The form of an object or an item of ours, in the Objects tab, in the box at the bottom of the tab (ComposeBar, as everywhere; its fields scroll on a short screen, the line with the counter, Cancel and Save does not): the name (that of an object that is being changed stays; a new one is always an object, an item of ours that is being changed stays an item), the symbol (a picture to change, as in the Beacon tab), the position (the row Location of the Beacon tab, components/LocationField.vue: **Choose on map**, a click on the map, or the
-// coordinates typed), the comment (the characters it has left are the counter beside the buttons), the course and speed (behind a closed fold, Moving, which is open for an object that has either), and the path the object goes by (the placeholder is the beacon's). A field with something wrong
+// coordinates typed), the comment (the characters it has left are the counter beside the buttons), the course and speed (behind a closed fold, Moving, which is open for an object that has either), and the path the object goes by (the placeholder is the beacon's), its QRU group (a station that asks the addressee QRU for the group is sent the object) and whether it is sent only when asked. A field with something wrong
 // is red and its title says what. Save is on when there is a name, a place and a symbol and nothing is wrong; the daemon checks it all again.
 import { computed, useId } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
@@ -13,9 +13,11 @@ import { leftTitle } from "@/lib/compose";
 import { onEarth, parseNumber } from "@/lib/fieldcheck";
 import { placeLine } from "@/lib/locator";
 import { commentLimit, draftProblems, draftReady, NAME_MAX } from "@/lib/ownobjects";
+import { LIMITS } from "@/protocol/lists";
 
 const props = defineProps<{ form: OwnObjectsView; fallbackPath: string }>();
 const id = useId();
+const qruMax = LIMITS.object.qruGroupMax;
 const draft = props.form.draft; // (the form's own state, kept as one object for as long as the page lives)
 const problems = computed(() => draftProblems(draft));
 const ready = computed(() => draftReady(draft));
@@ -103,6 +105,27 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
           autocomplete="off"
           spellcheck="false"
         />
+      </div>
+    </div>
+    <div class="field" :class="{ invalid: problems.qru }" :title="problems.qru">
+      <label :for="`${id}-qru`">{{ t("objects.field.qru") }}</label>
+      <div class="field-control">
+        <input
+          :id="`${id}-qru`"
+          v-model="draft.qru"
+          class="input mono"
+          type="text"
+          :maxlength="qruMax"
+          autocomplete="off"
+          spellcheck="false"
+          @input="draft.qru = draft.qru.toUpperCase()"
+        />
+      </div>
+    </div>
+    <div class="field">
+      <label :for="`${id}-asked`">{{ t("objects.field.on_request") }}</label>
+      <div class="field-control">
+        <input :id="`${id}-asked`" v-model="draft.onRequest" class="check" type="checkbox" />
       </div>
     </div>
     <template #buttons>

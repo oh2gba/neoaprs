@@ -65,3 +65,49 @@ describe("the packets on the card", () => {
     expect(me["Packets"]?.textContent?.trim()).toBe("0");
   });
 });
+
+describe("the voice frequency on the card", () => {
+  it("is one line with the tone, the offset and the range the station sent", () => {
+    const frequency = {
+      mhz: 145.775,
+      tone_hz: 118,
+      tone_both: false,
+      tone_off: false,
+      dcs: null,
+      tone_burst: false,
+      narrow: false,
+      offset_khz: -600,
+      range_km: 40.2,
+      rx_mhz: null,
+    };
+    const fields = fieldsOf(mount(StationCard, { props: { row: station("OH2PU-9", { frequency }), now: NOW } }));
+    expect(fields["Frequency"]?.textContent?.trim()).toBe("145.775 MHz, tone 118 Hz, -600 kHz, range 40 km");
+  });
+
+  it("is left out when the station gave none", () => {
+    expect(
+      mount(StationCard, { props: { row: station("OH2PU-9"), now: NOW } })
+        .findAll("dt")
+        .map((dt) => dt.text()),
+    ).not.toContain("Frequency");
+  });
+});
+
+describe("the storm data and the sign in the details", () => {
+  it("tell a storm object in words and a signpost by what it shows", () => {
+    const storm = {
+      storm_type: "HC",
+      wind_kmh: 277.8,
+      gust_kmh: null,
+      pressure_hpa: 980,
+      hurricane_radius_km: null,
+      storm_radius_km: null,
+      gale_radius_km: null,
+    } as const;
+    const fields = fieldsOf(mount(StationCard, { props: { row: station("BRENDA", { kind: "object", storm }), now: NOW } }));
+    expect(fields["Storm"]?.textContent?.trim()).toBe("Hurricane, wind 278 km/h, pressure 980 hPa");
+    const sign = fieldsOf(mount(StationCard, { props: { row: station("I91 3N", { kind: "item", sign: "55" }), now: NOW } }));
+    expect(sign["Sign"]?.textContent?.trim()).toBe("55");
+    expect(Object.keys(fieldsOf(mount(StationCard, { props: { row: station("OH2PU-9"), now: NOW } })))).not.toEqual(expect.arrayContaining(["Storm", "Sign"]));
+  });
+});

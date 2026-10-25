@@ -19,6 +19,7 @@ export const shell: Readonly<Record<keyof typeof en, Message>> = {
 
   "tab.messages": "Mensajes",
   "tab.stations": "Estaciones",
+  "tab.nearby": "Cerca",
   "tab.email": "Correo",
   "tab.bulletins": "Boletines",
   "tab.objects": "Objetos",

@@ -7,7 +7,7 @@ export const ALOHA_SOURCE = "aloha";
 export const ALOHA_HIT = "aloha-hit";
 
 /** A colour of the page's palette (`--map-label`), else the one given where the style sheet is not there. */
-function paletteColor(name: string, fallback: string): string {
+export function paletteColor(name: string, fallback: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 }
 

@@ -285,3 +285,15 @@ def test_the_bluetooth_guard_refuses_and_remembers_even_when_the_error_is_swallo
             assert len(bluetooth.refused) == (2 if l2cap is not None else 1)
         else:
             assert bluetooth.refused == []
+
+
+async def test_the_bluetooth_guard_stands_in_for_bleak_and_remembers_a_scan_and_a_connection() -> None:
+    bluetooth = guards.BluetoothGuard()
+    with pytest.MonkeyPatch.context() as mp:
+        bluetooth.install_ble(mp.setitem)
+        import bleak
+        with pytest.raises(guards.BluetoothTouched):
+            await bleak.BleakScanner.find_device_by_address("AA:BB:CC:DD:EE:FF")
+        with pytest.raises(guards.BluetoothTouched):
+            bleak.BleakClient("AA:BB:CC:DD:EE:FF")
+    assert bluetooth.refused == ["a Bluetooth LE scan", "a Bluetooth LE connection"]

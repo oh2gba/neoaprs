@@ -7,13 +7,15 @@ Read this before writing a module. `docs/ARCHITECTURE.md` has the layers, `docs/
 - Python 3.13, the venv in `.venv` of a development clone, made by `uv sync --frozen` (`docs/development.md`, "Set up and run"). `pyproject.toml` and `uv.lock`
   are the only list of dependencies. Standard library first.
 - A mature library is fine where the standard library would mean writing a driver. These are the exceptions, and where each lives (`tests/test_architecture.py`
-  holds the first four to it; the list is in `docs/ARCHITECTURE.md`):
+  holds the first four, bleak and the toolkits to it; the list is in `docs/ARCHITECTURE.md`):
   - **pyserial** (`serial`) for the radio's serial port, only in the adapters layer (`neoaprs/serialport.py`);
   - **Tornado** for the page's server, only in `neoaprs/web/`;
   - **pydantic** v2 (with its `pydantic_core`, `annotated-types` and `typing-inspection`) in the wire modules of `neoaprs/web/` and nowhere else; the rest of
     `neoaprs/` stays pydantic-free, because the core knows nothing of the wire format. Why: a model for every command and message gives validation with an error
     that names the field, one place where the format is written down, and the JSON Schema and TypeScript types for the page, generated;
   - **cryptography** for the certificates of the secure connection, only in `neoaprs/web/tls.py`;
+  - **bleak** (the extra `ble` of `pyproject.toml`) for a Bluetooth LE KISS TNC as a port, only in `neoaprs/btle.py`, imported when such a port is opened, so that everything
+    else runs and is tested without it (`tests/test_architecture.py` holds it to that module);
   - the desktop app's toolkits (the extra `app` of `pyproject.toml`: PySide6 with its web engine on Linux and macOS, pywebview, pystray and Pillow on Windows),
     only in the shells of `neoaprs/desktop/`, so that everything else of the app runs and is tested without them.
 - No `aprslib`, no `pyserial-asyncio`. The APRS parser is ours (`neoaprs/ax25.py`, `neoaprs/aprs*.py`, tested against captured frames). The serial line is read

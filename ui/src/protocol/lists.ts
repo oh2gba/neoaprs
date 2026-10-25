@@ -371,6 +371,8 @@ export const LIMITS = {
     commentMaxMotion: 36,
     courseMax: 359,
     speedMaxKmh: 1850,
+    qruGroupMax: 8,
+    qruReserved: ["INFO", "NEXT"],
   },
   bulletin: {
     groupMax: 5,

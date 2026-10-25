@@ -3,7 +3,7 @@
 
 import { t } from "@/i18n";
 
-export const TAB_IDS = ["messages", "stations", "email", "bulletins", "objects", "beacon", "packets", "settings"] as const; // by importance: what a person comes for first, the raw packets and the settings last
+export const TAB_IDS = ["messages", "stations", "nearby", "email", "bulletins", "objects", "beacon", "packets", "settings"] as const; // by importance: what a person comes for first, the raw packets and the settings last
 export type TabId = (typeof TAB_IDS)[number];
 
 /** The name of a tab, in the language of the page. */
@@ -13,7 +13,7 @@ export function tabTitle(id: TabId): string {
 
 export const PANEL_MIN = 280;
 export const PANEL_DEFAULT = 480;
-/** From this window width on, a panel the user has not dragged is `PANEL_DEFAULT_WIDE` wide: wide enough for the two columns of the Messages tab and for the eight tabs with their badges (the tab bar turns into a menu when they do not fit). */
+/** From this window width on, a panel the user has not dragged is `PANEL_DEFAULT_WIDE` wide: wide enough for the two columns of the Messages tab and for the nine tabs with their badges (the tab bar turns into a menu when they do not fit). */
 const WIDE_WINDOW = 1280;
 export const PANEL_DEFAULT_WIDE = 760;
 

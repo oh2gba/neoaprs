@@ -70,6 +70,8 @@ describe("App: the Objects tab", () => {
           course_deg: null,
           speed_kmh: null,
           path: null,
+          qru_group: "",
+          on_request: false,
         },
       ]);
       expect(wrapper.find("#pane-objects .objform").exists()).toBe(true);
@@ -169,6 +171,8 @@ describe("App: the Objects tab", () => {
           course_deg: null,
           speed_kmh: null,
           path: null,
+          qru_group: "",
+          on_request: false,
         },
       ]);
     });

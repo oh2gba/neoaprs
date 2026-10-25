@@ -3,6 +3,7 @@ gives, on this thread, as a test reads it back.
 
     s = opened(path)                 # asserts that it opened; s.db is the connection, s.version() and s.history() what the file says
     ok, error = try_open(path)       # the answer of a file that is refused, the connection closed
+    step_back(db, 17)                # a database made by every migration, put back to the schema of version 17, for a test that runs the later migrations on it
 """
 import sqlite3
 from datetime import datetime
@@ -40,3 +41,10 @@ def try_open(path: str | Path, clock: Clock = utcnow) -> tuple[bool, str]:
     if db is not None:
         db.close()
     return db is not None, error
+
+
+def step_back(db: sqlite3.Connection, version: int) -> None:
+    """Takes out of a fully migrated database what the migrations after `version` added to the schema, so that they can run again on it (the history and `user_version` are the test's to set)."""
+    if version < 18:
+        db.execute("ALTER TABLE own_object DROP COLUMN qru_group")
+        db.execute("ALTER TABLE own_object DROP COLUMN on_request")

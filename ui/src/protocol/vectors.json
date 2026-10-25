@@ -193,6 +193,25 @@
   {"comment": "tab\there", "moving": false, "ok": false, "code": "setting.not_ascii"},
   {"comment": " padded ", "moving": false, "ok": true, "code": ""}
  ],
+ "qru_groups": [
+  {"group": "", "ok": true, "code": "", "kept": ""},
+  {"group": "  ", "ok": true, "code": "", "kept": ""},
+  {"group": "RP70", "ok": true, "code": "", "kept": "RP70"},
+  {"group": "rp70", "ok": true, "code": "", "kept": "RP70"},
+  {"group": " rp70 ", "ok": true, "code": "", "kept": "RP70"},
+  {"group": "LIFEBOAT", "ok": true, "code": "", "kept": "LIFEBOAT"},
+  {"group": "LIFEBOATS", "ok": false, "code": "object.qru_group", "kept": ""},
+  {"group": "R P", "ok": false, "code": "object.qru_group", "kept": ""},
+  {"group": "RP-70", "ok": false, "code": "object.qru_group", "kept": ""},
+  {"group": "INFO", "ok": false, "code": "object.qru_group", "kept": ""},
+  {"group": "info", "ok": false, "code": "object.qru_group", "kept": ""},
+  {"group": "NEXT", "ok": false, "code": "object.qru_group", "kept": ""},
+  {"group": "T2SRV", "ok": true, "code": "", "kept": "T2SRV"},
+  {"group": "A", "ok": true, "code": "", "kept": "A"},
+  {"group": "0", "ok": true, "code": "", "kept": "0"},
+  {"group": "\u00c5\u00c4", "ok": false, "code": "object.qru_group", "kept": ""},
+  {"group": "RP70!", "ok": false, "code": "object.qru_group", "kept": ""}
+ ],
  "settings": [
   {"key": "station/lat", "input": "0", "ok": true},
   {"key": "station/lat", "input": "60.17", "ok": true},

@@ -7,7 +7,7 @@ from tests.support.env import Env
 
 
 def values(name: str, kind: str = "object", **changes: object) -> dict[str, object]:
-    return {"cmd": "object_set", "name": name, "kind": kind, "lat": 60.17, "lon": 24.94, "symbol_table": "/", "symbol_code": ">", "comment": f"{name} here", "course_deg": None, "speed_kmh": None, "path": None, **changes}
+    return {"cmd": "object_set", "name": name, "kind": kind, "lat": 60.17, "lon": 24.94, "symbol_table": "/", "symbol_code": ">", "comment": f"{name} here", "course_deg": None, "speed_kmh": None, "path": None, "qru_group": "", "on_request": False, **changes}
 
 
 async def page_of(e: Env):  # type: ignore[no-untyped-def]
