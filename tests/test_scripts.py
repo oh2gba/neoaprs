@@ -1,6 +1,7 @@
 """`neoaprs replay` and `neoaprs db` as processes, and the scripts that wrap them: the replay of the live capture as a TNC on a TCP port fills the database of a daemon that has no radio, and the tool shows what is
 in it; the replay on a pseudo-terminal (`--pty`, POSIX only) is the same through a device file."""
 import os
+import re
 import select
 import shutil
 import signal
@@ -29,6 +30,26 @@ def tool(data: Path, *args: str) -> subprocess.CompletedProcess[str]:
 def script(name: str, *args: str) -> subprocess.CompletedProcess[str]:
     """A wrapper of scripts/ as it is run in a clone, with the test's python for NEOAPRS_PYTHON."""
     return subprocess.run([str(ROOT / "scripts" / name), *args], cwd=ROOT, env={**env(), "NEOAPRS_PYTHON": sys.executable}, capture_output=True, text=True, timeout=60)
+
+
+def test_the_screenshots_show_no_version_and_make_the_update_shots_next_number_from_the_tree() -> None:
+    """A release by itself makes no shot old: the footer's version is hidden in every page the script opens (before the first shot is taken), and the newer version its update shot announces is one past VERSION,
+    not a number kept by hand."""
+    import importlib.util
+
+    from neoaprs import VERSION
+    path = ROOT / "scripts" / "screenshots.py"
+    spec = importlib.util.spec_from_file_location("screenshots", path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    assert module.next_version("0.8.0") == "0.8.1" and module.next_version("1.0.0-rc1") == "1.0.1" and module.next_version("2.10.99") == "2.10.100"
+    assert module.UPDATE_TO == module.next_version(VERSION) and module.UPDATE_TO != VERSION
+    assert ".panelfoot .version" in module.HIDE_VERSION and "visibility: hidden" in module.HIDE_VERSION, "hidden, not removed: the footer keeps its place"
+    source = path.read_text(encoding="utf-8")
+    opened = source.split("async def page(", 1)[1].split("async def save(", 1)[0]
+    assert opened.index("page.goto(") < opened.index("add_style_tag(content=HIDE_VERSION)") < opened.index("wait_for_timeout(wait_ms)"), "the sheet goes in as soon as the page is open, before any shot"
+    assert not re.search(r'UPDATE_TO = "\d', source), "no version number kept by hand"
 
 
 def wait_until(condition: object, seconds: float = 30.0) -> None:

@@ -90,6 +90,31 @@ def test_every_action_of_the_workflow_is_pinned_by_major_version_and_only_the_re
     assert "pyinstaller==" in WORKFLOW and "pyinstaller" not in (ROOT / "pyproject.toml").read_text(encoding="utf-8").lower()
 
 
+def test_a_failed_tag_run_is_run_again_and_never_retagged() -> None:
+    """Every artifact may be written over by a later attempt, assemble takes the release's files alone (not the logs of a failed update test), the release is a draft until every file is on it, a run on a tag
+    whose release exists writes over its files, and a version with a dash (1.0.0-rc1) is a pre-release, which is never `latest`."""
+    uploads = [re.split(r"\n      - |\n  \w[\w-]*:\n", block, maxsplit=1)[0] for block in re.split(r"uses: actions/upload-artifact@v\d+\n", WORKFLOW)[1:]]       # each upload's `with:` up to the next step or job
+    assert len(uploads) == 8 and all("overwrite: true" in block for block in uploads), f"an attempt that is run again uploads the same names: {uploads}"
+    assemble = WORKFLOW.split("\n  assemble:\n", 1)[1].split("\n  release:\n", 1)[0]
+    pattern = re.search(r'pattern: "\{([^}]+)\}"', assemble)
+    assert pattern and set(pattern.group(1).split(",")) == {"dist", "windows-installer", "appimage", "deb-amd64", "deb-arm64", "install-script"}, "the release's six artifacts and no other"
+    release_job = WORKFLOW.split("\n  release:\n", 1)[1]
+    assert "--draft " in release_job and "--draft=false" in release_job, "a draft until every file is on it"
+    assert "gh release view" in release_job and "--clobber" in release_job, "a release that is there is written over, not refused"
+    assert 'case "$version" in *-*) prerelease=true' in release_job and '--prerelease="$prerelease"' in release_job
+    assert "github.ref_type == 'tag'" in WORKFLOW.split("\n  verify:\n", 1)[1].split("\n  wheel:\n", 1)[0], "a tag run by hand is verified and published like a pushed one"
+
+
+def test_verify_fails_early_on_an_unfinished_changelog_a_stale_page_a_commit_off_master_and_a_red_ci() -> None:
+    verify = WORKFLOW.split("\n  verify:\n", 1)[1].split("\n  wheel:\n", 1)[0]
+    assert "actions: read" in verify and "contents: write" not in verify
+    assert "fetch-depth: 0" in verify and "git merge-base --is-ancestor" in verify and "origin/master" in verify
+    assert "## Unreleased" in verify and "neoaprs/page/sw.js" in verify
+    assert "gh run list" in verify and "--workflow ci.yml" in verify and '--commit "$GITHUB_SHA"' in verify and "seq 1 40" in verify and "sleep 30" in verify, "a CI run still going is waited for, 20 minutes at most"
+    ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    assert "cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}" in ci, "a push to master is checked to the end: the tag's verify asks for that run"
+
+
 def test_the_installer_script_is_per_user_and_does_what_the_manual_says() -> None:
     assert "PrivilegesRequired=lowest" in INSTALLER and r"DefaultDirName={localappdata}\Programs\NeoAPRS" in INSTALLER
     assert "OutputBaseFilename=NeoAPRS-Setup-{#AppVersion}" in INSTALLER

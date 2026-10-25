@@ -12,13 +12,15 @@ are in `neoaprs/policy.py`.
 
 **The check.** While the port is open and the profile can be asked, the Tnc counts the time since anything at all arrived; a damaged frame or noise counts.
 After a quiet `TNC_CHECK_SEC` (600 seconds, longer by a random share of up to `TNC_CHECK_JITTER`, 20 %) it makes a check: the profile's exit (`C0 FF C0`), half a second (`CHECK_PAUSE_SEC`), a bare carriage return
-(`PROMPT`), and then the profile's entry with its settling time. A TH-D7 that is on answers with text (`cmd:`) within about a second. Any byte in answer means
+(`PROMPT`), and then the profile's entry with its settling time, unless a KISS frame answered the carriage return (the TNC did not leave KISS for the exit frame, so it is in KISS already and the
+entry would only cost reception). A TH-D7 that is on answers with text (`cmd:`) within about a second. Any byte in answer means
 the radio is there: the state stays `connected` and the clock starts again from the latest byte.
 
 **A line that has just been opened** (the daemon starts, or the line dropped and was opened again) has not shown yet that the radio is there. For a profile that
 can be asked the Tnc makes the same check at once. Until a byte arrives it is `connected` but not `usable`, with the reason "the TNC is checking that the radio
 is there". The beacon, the status, the messages, the acks and the answers to queries wait exactly as they wait while the radio is silent. A byte heard before
-the check runs confirms the line and the check is skipped, and so does a port that the search chose, which has just been heard from. Nothing is sent while a
+the check runs confirms the line and the check is skipped, and so does a port that the search chose, which has just been heard from; when what the search heard was command-mode text (the `cmd:` prompt
+or a monitored packet), KISS is entered right at the open, the entry the TNC's next line would have made, so that a frame due at the start waits for the settling time instead of being typed into the TNC. Nothing is sent while a
 check is under way or settles (`Tnc.usable` is False), so no frame is ever typed into a TNC in command mode.
 
 **Silent.** When no byte at all comes within `ANSWER_SEC` (2 seconds) of the carriage return and the entry, the state is `silent` (`Source.State.SILENT`). A
@@ -33,8 +35,15 @@ and opens it again; the radio stays silent across that. The first byte that arri
 - the Tnc is `connected`;
 - the allowance to enter KISS (once for every answer: a fresh open, each return from silence, each check or probe) is given back;
 - the mode detector (`neoaprs/tncmode.py`) starts over;
-- KISS is entered (the profile's entry) unless the bytes are a KISS frame already;
+- KISS is entered (the profile's entry) unless the bytes are a KISS frame already, or a piece of one (a FEND among them and no whole frame: a line delivers a frame in several reads, and command-mode
+  text never has a FEND), when what follows decides;
 - the Tnc is not `usable` until the settling time after that has passed, and a beacon that fell due in the night goes out then, as a KISS frame.
+
+**Text after the entry.** A TNC that goes on typing command-mode text after the entry has settled (a radio switched on a moment ago misses the first `KISS ON` while it starts) is not `usable`, with
+the reason "the TNC is in command mode", and is sent the entry again: `ENTRY_AGAIN_SEC` (10 s) after the settle, then after twice as long each time up to `ENTRY_AGAIN_MAX_SEC` (60 s), so that a TNC that never
+takes it (the wrong profile) is not restarted every ten seconds for ever. The first repeat is INFO, the later ones DEBUG, and each is a line in the terminal; the schedule is `EntryAgain` in
+`neoaprs/tncwatchdog.py` and starts over with every new answer (an open, a return from silence, a check) and when a KISS frame comes at last. The mode detector judges each line of text by itself, so a
+comment with a letter outside ASCII or a Mic-E byte hides neither its own header nor the lines around it; a KISS frame never counts as text, because its first byte, the command, is not text.
 
 **The log.** A check that finds the radio, each probe and each KISS entry made by a check or a probe are DEBUG only. At WARNING, once, when the silence begins:
 `the radio is silent: nothing heard since 18:43 UTC, no answer to a check; probing every 30 s`. At INFO, once, when it ends:
@@ -49,8 +58,9 @@ or a serial device that goes away, is a line that dropped and is opened again af
 `neoaprs/btserial.py` (the RFCOMM link by itself, with the channel looked up through `neoaprs/btsdp.py`); the paired devices are listed by
 `neoaprs/btpaired.py`.
 
-**The search** (`neoaprs/tncsearch.py`, `neoaprs/serialprobe.py`). On Linux the globs of `serial/pattern` are all listened to at once. With a profile that can
-be asked a carriage return is sent after 10 s of silence; a port another program holds (`neoaprs/serialholders.py`) is skipped, and so is a development board
+**The search** (`neoaprs/tncsearch.py`, `neoaprs/serialprobe.py`). On Linux the globs of `serial/pattern` are all listened to at once, and the ports that match are listed again every
+`RELIST_SEC` (10 s) while the search listens: one that appeared (a radio plugged back in; the named port the search stands in for, listened to even when it does not match the pattern) is opened, one
+that vanished is closed. With a profile that can be asked a carriage return is sent to a port after 10 s of silence; a port another program holds (`neoaprs/serialholders.py`) is skipped, and so is a development board
 known by its USB ids (`neoaprs/serialboards.py`).
 
 **Find my radio** (`neoaprs/services/radiofinder.py`, `neoaprs/services/radioprobe.py`), on the page's `find_radio` only. It tries the ports of the search (the pattern in force, the
@@ -121,7 +131,8 @@ groups are the board's. Every message is a row of the table `message`, so a rest
   with no message is an `error`. `overheard_delete{from_call, to_call}` does the same for the overheard pair (`messagesql.delete_overheard`).
 - **Reply-acks.** The page and the daemon follow WB4APR's addendum of 1999 (`aprs.org/aprs11/replyacks.txt`). The `AA` of a message is not part of the text that
   is kept, so a repeat with another `AA` is a repeat.
-- **Telemetry and queries** are recognised before anything is kept: a query, and the definition of a telemetry station's channels (`PARM.`, `UNIT.`, `EQNS.`, `BITS.`), are in the packet log only.
+- **Telemetry and queries** are recognised before anything is kept: a query, and the definition of a telemetry station's channels (`PARM.`, `UNIT.`, `EQNS.`, `BITS.`), are in the packet log only. A
+  query that carries a message id (the specification gives it none; some radios number it) is acked, so that the radio does not retry it; the answer is the queries' as ever.
 
 **Alerts** (`neoaprs/services/alerts.py`). The shell line is run by `asyncio.create_subprocess_shell`. Its environment is made by `neoaprs/childenv.py`.
 `TIMEOUT_SEC` is 20 s (60 on Windows), `MAX_RUNNING` is 5, and a failure is told at WARNING once an hour (`TOLD_EVERY`). On Windows the line is a PowerShell
@@ -258,7 +269,8 @@ the path and RF only of a station are not touched. The commands `set_station_tim
   0 to 0.0099 minutes, a blank nothing; the last one counts. A compressed position (finer already) and an ambiguous one are not moved.
 - A `!` position may come after up to 39 characters of text (a digipeater of the X1J kind): the text is the start of the comment. The specification has deprecated
   this since 2012; it is still read, for old digipeaters.
-- A timestamp with `/` is the sender's local time: kept as sent with `Position.timestamp_local` set. The MMDDhhmm of a positionless weather report is its time (`Other.timestamp`).
+- A timestamp with `/` is the sender's local time: kept as sent with `Position.timestamp_local` set. The MMDDhhmm of a positionless weather report is its time (`Other.timestamp`). A timestamp is the
+  latest instant that is not more than an hour ahead of our clock (`FUTURE_TOLERANCE`); one that is no time at all (the 32nd, the 60th minute) leaves the position without a time instead of losing it.
 - **Raw NMEA** (`$GPGGA`, `$GPGLL`, `$GPRMC`, `$GPWPL`, any talker; the checksum is checked when there is one) is a position with course, speed, altitude and
   time. Its symbol is the one of the destination (`GPSxyz`, `GPSCnn`, `GPSEnn`, `SPCxyz`), else the icon of the source's SSID, else the unknown position.
   `$GPVTG` and a fix that is not valid stay "nmea", and `$ULTW` (an Ultimeter 2000) is "weather" without fields, because its format is not in the specification.

@@ -3,8 +3,8 @@
 //   version.php?v=<its version>&os=<platform>
 // and gets back the latest released version, the address of the project page
 // and an optional short message, as JSON. The latest version is read from the
-// GitHub releases of the project and kept in log/latest.json for an hour, so a
-// new release needs nothing done here; while GitHub does not answer, the last
+// GitHub releases of the project and kept in log/latest.json for ten minutes, so
+// a new release needs nothing done here; while GitHub does not answer, the last
 // good answer is served. message.txt beside this file, when it exists, is the
 // message (its first line, 200 characters at most).
 //
@@ -17,7 +17,7 @@ header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
 const PROJECT_URL  = 'https://oh2gba.github.io/neoaprs/';
-const MAX_AGE_SEC  = 3600;    // how long the latest version is believed
+const MAX_AGE_SEC  = 600;     // how long the latest version is believed: a release is noticed within ten minutes (GitHub is asked at most six times an hour)
 const RETRY_SEC    = 300;     // how soon GitHub is asked again after it did not answer
 const VERSION_RE   = '/^\d+(\.\d+){0,3}([-+][0-9A-Za-z.]+)?$/';
 

@@ -17,7 +17,7 @@ packaged is in [`docs/development.md`](development.md).
 | the wire protocol | `PROTOCOL.md`, `ui/src/protocol/` | generated: `scripts/gen-protocol.py` |
 | the architecture tables | `docs/ARCHITECTURE.md` | generated: `scripts/doc-arch --write` |
 | the page | `neoaprs/page/` | built: `scripts/build-page` |
-| the screenshots | `docs/screenshots/`, `site/shots/` | `scripts/screenshots.py` (a made-up day from `scripts/demoscene.py`; nothing reaches a real radio); the page's footer shows the version, so a new version makes every shot old |
+| the screenshots | `docs/screenshots/`, `site/shots/` | `scripts/screenshots.py` (a made-up day from `scripts/demoscene.py`; nothing reaches a real radio) when the page changed in a way a shot shows; the footer's version is hidden in the shots and the update shot's newer number is made from `VERSION`, so a new version by itself makes no shot old |
 | the project page | `site/` | <https://oh2gba.github.io/neoaprs/>, deployed by `.github/workflows/pages.yml` on a push to master; the features, the shots, the download names |
 | the version page | `server/` | <https://oh2gba.eu/neoaprs/version.php>: the update check of every installed copy asks it and it names the latest GitHub release by itself, so a release needs nothing done there; a change to `server/version.php` is uploaded with `server/deploy.sh`, and `server/usage-report.sh` counts the starts. A note for every user: a line in `message.txt` beside `version.php` on the server, removed again to clear it |
 | the announcement | the NeoAPRS post on <https://oh2gba.eu/> | everything it says must stay true; a large release gets a post of its own |
@@ -37,12 +37,19 @@ update panel), `install.sh` (always under `releases/latest/download/`), the whee
 1. The version in `neoaprs/__init__.py` (the one place it is written). Rename `## Unreleased` of `CHANGELOG.md` to `## <version>` (the notes of the release are
    that section) and add a fresh `## Unreleased` above it. The page has the version built in (open pages load themselves again when the daemon's differs): run
    `scripts/build-page` after the change and commit `neoaprs/page/`; `tests/test_page_build.py` fails until you do.
-2. `scripts/check` green, commit, push `master`, CI green.
-3. The screenshots and the project page brought up to date (above).
-4. A tag `v<version>` pushed: `.github/workflows/release.yml` builds, smoke-tests and publishes the release. A tag whose number is not `VERSION` stops at the
-   job `verify`, and a failed job leaves no release. Watch the run with `gh run watch`, then open the release and read the notes.
+2. `scripts/check` green, commit, push `master` (the tag's workflow waits for this commit's CI run, so the tag may follow at once).
+3. The project page brought up to date (above), and the screenshots retaken only when the page changed since they were last taken: they show no version
+   (`update.png` alone names one, the made-up next version and the installed one in its dialog), so a release with no change to the page leaves them as
+   they are.
+4. A tag `v<version>` pushed: `.github/workflows/release.yml` builds, smoke-tests and publishes the release. Its first job, `verify`, stops in seconds a tag
+   whose number is not `VERSION`, a changelog with notes still under `## Unreleased`, a page not built with the version (`neoaprs/page/sw.js`), a commit that
+   is not on `master`, and a commit whose CI run is red or missing (one still running is waited for, 20 minutes at most). A failed job leaves no release (a
+   draft at most, which the next attempt finishes). Watch the run with `gh run watch`, then open the release and read the notes. A run that failed for a
+   reason outside the code (a runner, a download, a flaky test) is run again with *Re-run failed jobs* (`gh run rerun RUN_ID --failed`); one that needs a
+   change in the code gets the change and a tag of the next number. **A tag is never moved.** `gh workflow run release.yml --ref v<version>` runs the tag's
+   workflow again by hand, which publishes the release (or writes its files over) without a new tag.
 5. Every download link of the README, the project page and the announcement tried once.
-6. The version page names the new release: `curl 'https://oh2gba.eu/neoaprs/version.php?v=0.0.1&os=linux'` says the new version (GitHub is asked once an hour,
-   so it may take that long), and a copy of the new version does not offer itself.
+6. The version page names the new release: `curl 'https://oh2gba.eu/neoaprs/version.php?v=0.0.1&os=linux'` says the new version (it believes GitHub's answer
+   for ten minutes, so it notices within that long), and a copy of the new version does not offer itself.
 
 The jobs of the release workflow are in [`docs/development.md`](development.md#packaging-and-releases).

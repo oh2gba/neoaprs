@@ -5,7 +5,7 @@
     python scripts/screenshots.py --chromium /path/to/chrome --no-sandbox                  # a browser Playwright did not install, or one that cannot make its sandbox
 
 Nothing touches a radio: the daemon's TNC is a KISS server on a TCP port of the loopback that this script serves (the `kiss-tcp` profile), and the fresh folder of the setup guide is given that port on the
-command line. The map for street level is linked or copied from a PMTiles file you name (`--basemap`, default `data/basemap.pmtiles` of this clone; it is only read). Needs Playwright and, to
+command line. The footer's version is hidden in every shot and the newer version of the update shot is made from VERSION, so the shots do not go old with a release: they are retaken when the page changes. The map for street level is linked or copied from a PMTiles file you name (`--basemap`, default `data/basemap.pmtiles` of this clone; it is only read). Needs Playwright and, to
 make the PNG files small, Pillow; `playwright install chromium` fetches the browser. Needs `uv sync` first (or `uv run`, which does it) so that `neoaprs` is importable."""
 import argparse
 import asyncio
@@ -30,6 +30,7 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(ROOT))
 
 import demoscene                                                  # noqa: E402  (the scene needs the path above)
+from neoaprs import VERSION                                       # noqa: E402
 from neoaprs.controller import Controller                         # noqa: E402
 
 DESKTOP = {"width": 1440, "height": 900}
@@ -124,7 +125,17 @@ async def serve_version(version: str) -> asyncio.Server:
     return await asyncio.start_server(answer, demoscene.HOST, 0)
 
 
-UPDATE_TO = "0.8.1"                                                # (made up: the version page of the update shot says this one is out)
+def next_version(version: str) -> str:
+    """The made-up newer version the update shot's version page announces: the patch number of `version` plus one (0.8.0 is followed by 0.8.1; 1.0.0-rc1 by 1.0.1), so that no number is kept by hand here."""
+    major, minor, patch = version.split("-")[0].split(".")
+    return f"{major}.{minor}.{int(patch) + 1}"
+
+
+UPDATE_TO = next_version(VERSION)                                  # (the version page of the update shot says this one is out: always one past the version of this tree)
+# The footer's "NeoAPRS <version>" is hidden in every shot (the space stays, so nothing moves), so that a new version makes no shot old: the shots are retaken when the page changes, not at each
+# release. The one shot that still names versions is update.png: UPDATE_TO, and the installed one in the dialog's "You have NeoAPRS ...". (The page allows an inline style sheet: style-src
+# 'unsafe-inline' of neoaprs/web/headers.py.)
+HIDE_VERSION = ".panelfoot .version { visibility: hidden; }"
 
 
 async def prepare(work: Path, radio: demoscene.DemoRadio, basemap: Path | None) -> Path:
@@ -183,6 +194,7 @@ class Shots:
         await context.add_init_script(script)
         page = await context.new_page()
         await page.goto(url or self.url)
+        await page.add_style_tag(content=HIDE_VERSION)
         await page.wait_for_timeout(wait_ms)
         return page
 

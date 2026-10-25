@@ -17,7 +17,7 @@ env:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}          # a branch keeps only its newest run; every push to master is checked to the end (the release workflow asks for that commit's run)
 
 jobs:
   python:

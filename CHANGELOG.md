@@ -5,6 +5,29 @@
 The radio comes back by itself.
 
 - A radio switched on again after hours off, whose TNC was still starting and missed the KISS ON, stayed in command mode until NeoAPRS was restarted, and the beacon that was due was typed into it. Now a TNC that still types text 10 seconds after KISS ON, with no KISS frame since, is sent KISS ON again (every 10 seconds until it takes), and nothing is transmitted while it is in command mode; the radio's status line says so, and the warning goes once KISS frames come.
+- A radio the search for the radio found by its `cmd:` prompt was taken for ready at once, and the first frame (the beacon that was due at the start) was typed into its TNC in command mode and never went on the air. The TNC that the search finds typing text is put into KISS right at the open, and nothing is sent to it before that has settled.
+- A line of monitor text with one letter outside ASCII (an `ä` in a comment, a byte of a Mic-E position) blinded the detection of command mode for the next 4 KB of text, so a TNC that had fallen back into command mode was not put into KISS again. Each line is judged by itself now.
+- A radio that came back from silence with a KISS frame split over two reads was sent `KISS ON` into KISS mode: the packet that woke it and the next seconds were lost, and the log said "entering KISS" wrongly. A piece of a frame is waited out; the next bytes decide.
+- The keep-alive no longer types the KISS entry into a TNC whose answer to the check was a KISS frame (it is in KISS already); a Kantronics TNC's monitor lines (`<UI>:`) count as command-mode text too; and a TNC that keeps typing text after `KISS ON` (the wrong TNC type chosen) is sent it again after 10, 20, 40 s and then every minute, told in the log once, not every 10 seconds for ever.
+- The search for the radio (and the search that stands in for a named port that cannot be opened) looks at the ports again every 10 seconds while it listens: a radio plugged back in, or a port another program has let go of, is opened and heard, and a port that went away is dropped. Before, a port that appeared after the search had started was never heard while another one kept talking.
+
+The release.
+
+- A tag run that failed is run again with "Re-run failed jobs" and never by moving the tag: every artifact may be written over, the release is made as a draft and published only when every file is on it, and a run on a tag whose release exists writes the files and the notes over again. A version with a dash (`1.0.0-rc1`) is a pre-release, never "latest". `gh workflow run release.yml --ref v<version>` publishes an existing tag again.
+- The `verify` job stops a release in its first seconds when the changelog still has notes under Unreleased, when the committed page was not built with the version, when the tagged commit is not on master, or when CI has not passed for it (a run still going is waited for, up to 20 minutes). The build tools and the uv cache are kept between runs, and a push to master is no longer cancelled by the next one.
+- The screenshots no longer show the version in the footer, and the update shot takes its "next version" from the code, so a release re-shoots them only when the page changed; the version page notices a new release within ten minutes instead of an hour.
+
+What is heard decodes as the specification says.
+
+- A Mic-E packet from a Yaesu or another radio of the newer kind whose text began with four characters that could be hexadecimal (`1296 MHz on request`, `CAFE`, `2024 trip`) lost those characters, and kept the radio's type code: the obsolete telemetry of the first Mic-E units took them. A text that ends with a known type code is the radio's whatever it begins with. The device of such a station is identified again.
+- An area object (a circle, a line, a box drawn by a station) was fifteen times too large: its offsets were read by the scale of the original specification, which the 1.1 addendum corrected to 1500. The specification's own example, 4 minutes of arc each way, now reads as that.
+- A Mic-E position with ambiguity (its latitude digits blanked) said it was exact; it now carries its ambiguity like an uncompressed one, and the page can show the circle.
+- A status, or a Mic-E text, that began with a six-character grid and a space (`IO91SX hello`, `KP20LE QTH Helsinki`) was read as the four-character grid with a symbol made of the sub-square letters, and placed the station 100 km wide; it is text now, as the specification has a grid followed by its symbol only.
+- A Mic-E altitude is read right after the type code (and the grid) only, as the specification places it; three characters and a brace inside the text (`see you QRT}`) are text, not an altitude of 392 km.
+- The probes form of PHG of APRS 1.2 (`PHG72604/`, the beacons an hour then a slash) is read as the PHG it is, and the digit and the slash no longer start the comment.
+- Test data (the `,` kind) with a `!` inside is no longer taken for a position.
+- A position whose timestamp was no time (the 32nd of the month, the 60th minute) was dropped whole; it is kept now, without a time. A station whose clock runs up to an hour ahead of yours is read as now, not as last month (it was five minutes).
+- A query that carries a message id (`?APRSP{25`: the specification gives a query no id, but some radios number it) is acked, so that the radio does not send it five times; the answer is sent as before.
 
 ## 0.8.0
 
