@@ -46,6 +46,15 @@ describe("BeaconStatus", () => {
     expect(wrapper.find(".beaconhead + .mobileline + .problem").exists()).toBe(true);
   });
 
+  it("shows the GPS state and the fix line with Beacon off under them while the beacon is Off, and the button off", () => {
+    const wrapper = block({ gps: gpsState(), values: { "gps/source": "gpsd", "beacon/interval_min": "0" }, disabled: true, why: "The beacon is off" });
+    expect(wrapper.find(".beaconlabel").text()).toBe("GPS");
+    expect(wrapper.find(".statepill").text()).toBe("fix");
+    expect(wrapper.find(".tncstatus").text()).toContain("Fix: 60.4295 N 24.1452 E");
+    expect(wrapper.find(".mobileline").text()).toBe("Beacon off");
+    expect(wrapper.find("button").attributes("disabled")).toBeDefined();
+  });
+
   it("follows the clock", async () => {
     const wrapper = block({ gps: gpsState() });
     await wrapper.setProps({ now: NOW + 58_000 });

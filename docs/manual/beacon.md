@@ -17,7 +17,7 @@ While the beacon is **Off**:
 * **No beacon goes out.** There is no timer and no SmartBeaconing, and **Beacon now** is disabled with the tip that the beacon is off.
 * **No status report goes out** either, because the status is the beacon's companion: **Send status now** is disabled in the same way, and a status that came due meanwhile is sent once, if it differs from the last one, at the first poll after you switch the beacon on again.
 * **Everything else goes on as it does.** Messages and emails are sent and acknowledged, queries to your call are answered, your objects and bulletins are sent, and the fill-in digipeater digipeats. Off is not [receive only](#receive-only): your station still takes part, it just does not announce itself.
-* The **beacon status** at the top of the tab reads **Beacon off**, with its pill off.
+* The **beacon status** at the top of the tab reads **Beacon off**, with its pill off, for a fixed station. For a station that follows a GPS it keeps showing the GPS (its pill and the fix line) and says **Beacon off** on the line under it, so that you can watch the fix while nothing is sent.
 * The fields that belong to the beacon and the status are shown **greyed out, with their values kept**, not hidden: **Travelling**, the comment, the fields of the **Antenna** heading, the path in **Advanced**, and everything in the **Status** group. The two headings still open. The **Station** group (call, **Position**, the GPS fields, the location and the symbol) is never greyed.
 
 Choosing an interval, or **On**, turns it all on again. Choosing **On** for a moving station that was off stores the interval of 30 minutes, which a moving station does not use but which keeps the setting valid.
@@ -26,7 +26,7 @@ Choosing an interval, or **On**, turns it all on again. Choosing **On** for a mo
 
 Receive only is a setting of the daemon for a station that must never key the transmitter at all, such as a receiving-only station or a test bench. It is `station/transmit`, `true` by default, and it is not on the page: set it with `neoaprs db set station/transmit false`, which the daemon takes at its next start. It is not the same as the beacon being off ([Beacon off](#beacon-off)), which only silences the beacon and the status.
 
-While `station/transmit` is `false` nothing at all is transmitted, whoever asks and whatever is due: no beacon, status, message, ack, answer to a query, object, bulletin or digipeated packet. The page shows an amber **Receive only** badge beside the title in its header, on every screen size; a click on it opens the Beacon tab. The setting is kept in the database, so it holds after a restart of the daemon.
+While `station/transmit` is `false` nothing at all is transmitted, whoever asks and whatever is due: no beacon, status, message, ack, answer to a query, object, bulletin or digipeated packet. The page shows an amber **Receive only** badge beside the title in its header, on every screen size; it is only a mark, not a button, and its hover title says what it means and where it is set. The setting is kept in the database, so it holds after a restart of the daemon.
 
 * **Beacon now**, **Send status now**, a message, an email, an object or a bulletin you send meanwhile is refused at once with the toast "Receive only: nothing is sent" (the wire gives the code `transmit.off`).
 * A message that was already being sent waits: no attempt is used up and it does not fail, and the waits that were running are moved on by the time transmitting was off. It goes on when transmitting is switched on again. A message you receive is kept, but its ack is not sent and not kept for later; the station that sent it will try again.
@@ -92,7 +92,7 @@ The **beacon status** at the top of the tab is in the look of the radio's status
 
 For a fixed station the label is **Beacon**, the pill is **on** (green) while the timer runs and **off** while it does not, and the line says when the last beacon went and when the next is due: **Last beacon 4 min ago · next in 56 min (every 60 min)**. The full time of the last beacon is on hover. With the beacon off it reads **Beacon off** and the pill is off. Before the first beacon of a run it reads **No beacon sent yet · next in 5 min (every 30 min)**.
 
-For a moving station the label is **GPS**, the pill is the state of the GPS and there are lines under the first ([Mobile operation](#mobile-operation)); with the beacon off it is the same **Beacon off** as for a fixed one.
+For a moving station the label is **GPS**, the pill is the state of the GPS and there are lines under the first ([Mobile operation](#mobile-operation)); with the beacon off the GPS is still shown, and the line under the first reads **Beacon off** in place of what SmartBeaconing does.
 
 A beacon you send is in the Packets tab as a packet with direction `out`.
 
@@ -108,11 +108,11 @@ What to set (the Station and Beacon groups of the Beacon tab):
 2. **Travelling** in the Beacon group (`beacon/travel`), if you are not going by car: see below.
 3. A symbol of a moving station (a car, say), which also makes the recommended path `WIDE1-1,WIDE2-1`.
 
-The GPS is read as soon as a source is chosen, so you can see the fix before the first beacon.
+The GPS is read as soon as a source is chosen, so you can see the fix before the first beacon, and also while the beacon is Off. The log says `gps: reading` and the address or port when the GPS is read, and `gps: off` when you choose Fixed again.
 
 **What the Beacon tab shows.** Under the choice of Position stand only the fields that apply: the gpsd address for gpsd, the port and speed for a serial receiver. The Location row of the Station group is not shown, because the GPS position is what is sent; the location you gave stays stored, and it is where your station is on the map before the first fix and whenever you choose **Fixed** again.
 
-In the Beacon group the **Beacon** choice is **Off** or **On (SmartBeaconing)**, in the place of the intervals; the Antenna heading is not shown, because a moving beacon has no PHG, and **Travelling** is shown below the choice. While the choice is **Off** the GPS is not reported on the status line, which reads **Beacon off** ([Beacon off](#beacon-off)); choose **On** to see the fix.
+In the Beacon group the **Beacon** choice is **Off** or **On (SmartBeaconing)**, in the place of the intervals; the Antenna heading is not shown, because a moving beacon has no PHG, and **Travelling** is shown below the choice. While the choice is **Off** nothing is sent, but the beacon status goes on reporting the GPS and its fix, and the line under it reads **Beacon off** ([Beacon off](#beacon-off)); choose **On** to send.
 
 The beacon status at the top of the tab then reads as the GPS, in the look of the radio's: the label **GPS**, a coloured word (off, connecting, no fix, fix or stale) and one line in plain words, with Beacon now at its end:
 

@@ -1,7 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import AppHeader from "@/components/AppHeader.vue";
-import { cssRule } from "@/test/css";
+import { cssRule, mediaRule } from "@/test/css";
 
 const header = (props: Partial<InstanceType<typeof AppHeader>["$props"]> = {}) => mount(AppHeader, { props: { call: "OH2GBA", unread: 0, ...props } });
 
@@ -63,17 +63,35 @@ describe("AppHeader", () => {
     expect(header({ call: null }).find(".nocall").exists()).toBe(false);
   });
 
-  it("shows the amber Receive only badge beside the title while transmitting is off, and a click asks for the Beacon tab", async () => {
+  it("shows the amber Receive only badge beside the title while transmitting is off, a plain badge and not a button", async () => {
     const wrapper = header({ receiveOnly: true });
     const badge = wrapper.find(".rxonly");
     expect(badge.text()).toBe("Receive only");
-    expect(badge.attributes("title")).toBe("Nothing is transmitted: this station is set to receive only");
+    expect(badge.element.tagName).toBe("SPAN");
     expect(badge.element.previousElementSibling?.tagName).toBe("H1");
     expect(cssRule(".rxonly")).toMatch(/color:\s*var\(--warn\)/);
+    expect(cssRule(".rxonly")).not.toMatch(/cursor:\s*pointer/);
+    expect(wrapper.findAll("button").some((b) => b.text() === "Receive only")).toBe(false);
+    expect(badge.attributes("tabindex")).toBeUndefined();
     await badge.trigger("click");
-    expect(wrapper.emitted("receive")).toHaveLength(1);
+    expect(wrapper.emitted()).not.toHaveProperty("receive");
+    expect(wrapper.emitted("setup")).toBeUndefined();
     expect(header().find(".rxonly").exists()).toBe(false);
     expect(header({ receiveOnly: false }).find(".rxonly").exists()).toBe(false);
+  });
+
+  it("says in the hover title of the badge what it means and where it is set: the daemon's setting station/transmit, not on the page", () => {
+    const title = header({ receiveOnly: true }).find(".rxonly").attributes("title");
+    expect(title).toContain("Nothing is transmitted: this station is set to receive only");
+    expect(title).toContain("station/transmit");
+    expect(title).toContain("not on this page");
+    expect(title).toContain("neoaprs db set station/transmit true");
+    expect(title).toContain("next start");
+  });
+
+  it("has no hit area of a finger around the badge, which does nothing", () => {
+    expect(mediaRule("(pointer: coarse)", ".rxonly::after")).toBe("");
+    expect(mediaRule("(pointer: coarse)", ".nocall::after")).toContain("inset");
   });
 
   it("is as high with a badge and a button as without them", () => {

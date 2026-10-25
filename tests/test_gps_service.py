@@ -1,5 +1,6 @@
 """The GPS service (neoaprs/services/gps.py) on the real feed and a fake gpsd, with a clock the test holds: the state of the GPS from `off` to `stale`, the fix to beacon with and the one to put our row at, `moved`
 for the station book and the ALOHA circle, and the feed started again when the settings change."""
+import logging
 from datetime import timedelta
 
 import pytest
@@ -191,6 +192,56 @@ async def test_a_gps_switched_off_stops_the_feed() -> None:
     rig.gps.settings_changed()
     await until(lambda: rig.feed.state is Source.State.STOPPED)
     assert rig.gps.state == "off" and rig.gps.fix is None
+
+
+async def test_switching_the_source_to_off_while_a_feed_runs_logs_gps_off_once(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO, "neoaprs.gps")
+    gpsd = await fake_gpsd()
+    rig = Rig(gps_source="gpsd", gps_host=gpsd.address)
+    await rig.gps.start()
+    await until(lambda: gpsd.watching)
+    texts = lambda: [m for m in (r.getMessage() for r in caplog.records if r.name == "neoaprs.gps") if m == "gps: off" or m.startswith("gps: reading")]       # noqa: E731
+    assert texts() == [f"gps: reading gpsd at {gpsd.address}"]
+    rig.set(gps_source="off")
+    rig.gps.settings_changed()
+    await until(lambda: rig.feed.state is Source.State.STOPPED and "gps: off" in texts())
+    assert texts() == [f"gps: reading gpsd at {gpsd.address}", "gps: off"]
+    assert all(r.levelno == logging.INFO for r in caplog.records if r.name == "neoaprs.gps")
+    rig.gps.settings_changed()                                                          # (nothing changed: nothing is said again)
+    rig.set(station_comment="x")
+    rig.gps.settings_changed()
+    await idle_for(0.05)
+    assert texts().count("gps: off") == 1
+
+
+async def test_a_gps_that_was_never_on_logs_nothing_when_it_stays_off_or_the_program_ends(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO, "neoaprs.gps")
+    off = Rig(gps_source="off")
+    await off.gps.start()
+    off.gps.settings_changed()
+    await idle_for(0.05)
+    await off.gps.stop()
+    assert [r.getMessage() for r in caplog.records if r.name == "neoaprs.gps"] == []
+    gpsd = await fake_gpsd()
+    rig = Rig(gps_source="gpsd", gps_host=gpsd.address)
+    await rig.gps.start()
+    await until(lambda: gpsd.watching)
+    await rig.gps.stop()                                                                # (the program ends: that is not a switch to off)
+    assert "gps: off" not in [r.getMessage() for r in caplog.records if r.name == "neoaprs.gps"]
+
+
+async def test_turning_the_gps_on_again_after_off_reads_again_and_a_second_off_is_logged_again(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO, "neoaprs.gps")
+    gpsd = await fake_gpsd()
+    rig = Rig(gps_source="gpsd", gps_host=gpsd.address)
+    await rig.gps.start()
+    await until(lambda: gpsd.watching)
+    for source in ("off", "gpsd", "off"):
+        rig.set(gps_source=source, gps_host=gpsd.address)
+        rig.gps.settings_changed()
+        await idle_for(0.1)
+    said = [m for m in (r.getMessage() for r in caplog.records if r.name == "neoaprs.gps") if m == "gps: off" or m.startswith("gps: reading")]
+    assert said == [f"gps: reading gpsd at {gpsd.address}", "gps: off", f"gps: reading gpsd at {gpsd.address}", "gps: off"]
 
 
 async def test_the_serial_settings_are_what_the_feed_is_given() -> None:

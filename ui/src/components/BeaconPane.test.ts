@@ -441,11 +441,35 @@ describe("BeaconPane with the beacon Off", () => {
       [true, OFF],
       [true, OFF],
     ]);
-    expect(block(wrapper).find(".beaconlabel").text()).toBe("Beacon");
-    expect(block(wrapper).find(".statepill").text()).toBe("off");
-    expect(block(wrapper).find(".statepill").classes()).toContain("beacon-off");
-    expect(block(wrapper).find(".tncstatus").text()).toBe("Beacon off");
-    expect(block(wrapper).findAll("p")).toHaveLength(0);
+    expect(block(wrapper).find(".beaconlabel").text()).toBe("GPS");
+    expect(block(wrapper).find(".statepill").text()).toBe("fix");
+    expect(block(wrapper).find(".statepill").classes()).toContain("gps-fix");
+    expect(block(wrapper).find(".tncstatus").text()).toMatch(/^Fix: 60\.4295 N 24\.1452 E/);
+    expect(
+      block(wrapper)
+        .findAll("p")
+        .map((p) => p.text()),
+    ).toEqual(["Beacon off"]);
+    expect(block(wrapper).find(".beaconhead + .mobileline").exists()).toBe(true);
+  });
+
+  it("shows a moving station's missing fix and its reason while the beacon is Off, and the fixed station's block as it was", () => {
+    const { wrapper } = off(
+      { "gps/source": "gpsd" },
+      { gps: gpsState({ state: "no_fix", lat: null, lon: null, fix_at: null, problem: "the receiver has no position fix yet" }) },
+    );
+    expect(block(wrapper).find(".statepill").text()).toBe("no fix");
+    expect(block(wrapper).find(".tncstatus").text()).toBe("No fix yet");
+    expect(
+      block(wrapper)
+        .findAll("p")
+        .map((p) => p.text()),
+    ).toEqual(["Beacon off", "the receiver has no position fix yet"]);
+    const fixed = off();
+    expect(block(fixed.wrapper).find(".beaconlabel").text()).toBe("Beacon");
+    expect(block(fixed.wrapper).find(".statepill").text()).toBe("off");
+    expect(block(fixed.wrapper).find(".tncstatus").text()).toBe("Beacon off");
+    expect(block(fixed.wrapper).findAll("p")).toHaveLength(0);
   });
 
   it("keeps the status row, the greyed Status group and the preview in view", () => {

@@ -33,19 +33,22 @@ describe("App: Receive only", () => {
     const badge = wrapper.find(".appheader .rxonly");
     expect(badge.text()).toBe("Receive only");
     expect(badge.element.previousElementSibling?.tagName).toBe("H1");
-    expect(badge.attributes("title")).toBe("Nothing is transmitted: this station is set to receive only");
+    expect(badge.element.tagName).toBe("SPAN");
+    expect(badge.attributes("title")).toContain("this station is set to receive only");
+    expect(badge.attributes("title")).toContain("station/transmit");
     socket.say({ type: "state", topic: "config", rev: 2, value: configValues({ [KEY]: "true" }) });
     await flushPromises();
     expect(wrapper.find(".appheader .rxonly").exists()).toBe(false);
   });
 
-  it("opens the Beacon tab from the badge, and leaves the buttons and the footer as they are (the beacon being on)", async () => {
+  it("does nothing from the badge, which is a mark: the tab stays, and the buttons and the footer are as they are (the beacon being on)", async () => {
     const { wrapper, socket } = await open();
     socket.say({ type: "state", topic: "config", rev: 1, value: configValues({ [KEY]: "false" }) });
     await flushPromises();
     await tabButton(wrapper, "Stations")?.trigger("click");
     await wrapper.find(".appheader .rxonly").trigger("click");
-    expect(wrapper.find("[aria-selected='true']").text()).toContain("Beacon");
+    expect(wrapper.find("[aria-selected='true']").text()).toContain("Stations");
+    await tabButton(wrapper, "Beacon")?.trigger("click");
     expect((wrapper.find("#pane-beacon .beaconstatus button").element as HTMLButtonElement).disabled).toBe(false);
     expect(wrapper.find(".panelfoot").text()).not.toMatch(/receive only/i);
     expect(wrapper.find("#pane-beacon #set-station-transmit").exists()).toBe(false);

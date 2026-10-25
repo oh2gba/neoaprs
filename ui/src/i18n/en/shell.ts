@@ -4,7 +4,8 @@ export const shell = {
 
   "header.project_title": "The NeoAPRS project page",
   "header.receive_only": "Receive only",
-  "header.receive_only_title": "Nothing is transmitted: this station is set to receive only",
+  "header.receive_only_title":
+    "Nothing is transmitted: this station is set to receive only. It is the daemon's setting station/transmit, which is not on this page; neoaprs db set station/transmit true changes it at the next start",
   "header.no_call": "no call set",
   "header.no_call_title": "Nothing is transmitted until a call is set: open the setup",
   "header.unread_open": {

@@ -63,7 +63,6 @@ const deleteMessage = (id: number): boolean => send({ cmd: "message_delete", id 
       @messages="openUnread"
       @setup="guide.show()"
       @update="updateOpen = true"
-      @receive="panel.show('beacon')"
     />
     <UpdateDialog v-if="updateOpen && newer" :version="newer" @close="updateOpen = false" />
     <main class="main">

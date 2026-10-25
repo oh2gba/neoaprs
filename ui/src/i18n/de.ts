@@ -8,7 +8,8 @@ export const de: Catalogue = {
 
   "header.project_title": "Die Projektseite von NeoAPRS",
   "header.receive_only": "Nur Empfang",
-  "header.receive_only_title": "Es wird nichts gesendet: Diese Station ist auf „Nur Empfang“ gestellt",
+  "header.receive_only_title":
+    "Es wird nichts gesendet: Diese Station ist auf „Nur Empfang“ gestellt. Das ist die Einstellung station/transmit des Daemons, die nicht auf dieser Seite steht; neoaprs db set station/transmit true ändert sie beim nächsten Start",
   "header.no_call": "kein Rufzeichen",
   "header.no_call_title": "Ohne Rufzeichen wird nichts gesendet: Einrichtung öffnen",
   "header.unread_open": {

@@ -8,7 +8,8 @@ export const fr: Catalogue = {
 
   "header.project_title": "La page du projet NeoAPRS",
   "header.receive_only": "Réception seule",
-  "header.receive_only_title": "Rien n'est émis : cette station est réglée en réception seule",
+  "header.receive_only_title":
+    "Rien n'est émis : cette station est réglée en réception seule. C'est le réglage station/transmit du démon, qui n'est pas sur cette page ; neoaprs db set station/transmit true le change au prochain démarrage",
   "header.no_call": "pas d'indicatif",
   "header.no_call_title": "Rien n'est émis tant qu'un indicatif n'est pas défini : ouvrir la configuration",
   "header.unread_open": {

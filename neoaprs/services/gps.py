@@ -51,6 +51,7 @@ class Gps:
         self._fix: Fix | None = None
         self._placed: tuple[datetime, float, float] | None = None       # when and where our row was last put
         self._applied: FeedSettings | None = None
+        self._reading = False                                           # a feed has been started and not ended by a switch to `off` (the log says that switch once)
         self._apply_task: asyncio.Task[None] | None = None
         self._last_summary: tuple[str, str] = ("off", "")
         self._tasks = TaskSet(log, "gps")
@@ -65,6 +66,7 @@ class Gps:
     async def stop(self) -> None:
         await self._tasks.cancel_all()
         self._apply_task = None
+        self._reading = False
         await self._feed.stop()
 
     def settings_changed(self) -> None:
@@ -92,7 +94,11 @@ class Gps:
         self._feed.configure(*wanted)
         if wanted.kind != "off":
             log.info("gps: reading %s", self._feed.describe() or "nothing yet (no port or address set)")
+            self._reading = True
             await self._feed.start()
+        elif self._reading:
+            self._reading = False
+            log.info("gps: off")
         self._announce()
 
     async def _run(self) -> None:

@@ -6,7 +6,8 @@ export const shell: Readonly<Record<keyof typeof en, Message>> = {
 
   "header.project_title": "La pagina del progetto NeoAPRS",
   "header.receive_only": "Solo ricezione",
-  "header.receive_only_title": "Non si trasmette nulla: questa stazione è impostata in sola ricezione",
+  "header.receive_only_title":
+    "Non si trasmette nulla: questa stazione è impostata in sola ricezione. È l'impostazione station/transmit del daemon, che non è in questa pagina; neoaprs db set station/transmit true la cambia al prossimo avvio",
   "header.no_call": "nessun nominativo",
   "header.no_call_title": "Non si trasmette nulla finché non è impostato un nominativo: apri la configurazione guidata",
   "header.unread_open": {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // The one calm line at the top: the title, which is a link to the project's page (it looks like the title, not like a link: only a hover or the keyboard shows it), the amber button "no call set" while the call is empty (it opens the first-run guide: nothing is transmitted
-// until a call is set), the amber "Receive only" badge beside the title while transmitting is switched off (`station/transmit` is a setting of the daemon only, not on the page; the badge opens the Beacon tab), and, at the right, the number of messages not seen, a button that opens them (the Email tab when all of them are the gateway's). Our call is not here, nor the radio state or the version: they are in the footer of the panel (PanelFooter).
+// until a call is set), the amber "Receive only" badge beside the title while transmitting is switched off (`station/transmit` is a setting of the daemon only, not on the page: the badge is only a mark, not a button, and its hover title says what it means and where it is set), and, at the right, the number of messages not seen, a button that opens them (the Email tab when all of them are the gateway's). Our call is not here, nor the radio state or the version: they are in the footer of the panel (PanelFooter).
 // A phone, whose map has no footer, has the newer version here too (`update`): a small badge that opens the dialog of the update.
 import MessageGlyph from "@/components/MessageGlyph.vue";
 import { t } from "@/i18n";
@@ -15,7 +15,7 @@ defineProps<{
   /** Transmitting is switched off (station/transmit): the badge beside the title. */
   receiveOnly?: boolean;
 }>();
-const emit = defineEmits<{ messages: []; setup: []; update: []; receive: [] }>();
+const emit = defineEmits<{ messages: []; setup: []; update: [] }>();
 
 /** The project's page. */
 const PROJECT_URL = "https://oh2gba.github.io/neoaprs/";
@@ -26,9 +26,7 @@ const PROJECT_URL = "https://oh2gba.github.io/neoaprs/";
     <h1>
       <a class="brand" :href="PROJECT_URL" target="_blank" rel="noopener" :title="t('header.project_title')">NeoAPRS</a>
     </h1>
-    <button v-if="receiveOnly" type="button" class="rxonly" :title="t('header.receive_only_title')" @click="emit('receive')">
-      {{ t("header.receive_only") }}
-    </button>
+    <span v-if="receiveOnly" class="rxonly" :title="t('header.receive_only_title')">{{ t("header.receive_only") }}</span>
     <button v-if="call === ''" type="button" class="nocall" :title="t('header.no_call_title')" @click="emit('setup')">
       {{ t("header.no_call") }}
     </button>
