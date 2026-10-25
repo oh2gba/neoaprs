@@ -281,6 +281,11 @@ describe("portOptions", () => {
     expect(options.map((c) => c.value)).toEqual(["", "/dev/ttyUSB0", "bt://AA:BB:CC:DD:EE:01", "bt://AA:BB:CC:DD:EE:01/2", PORT_OTHER]);
     expect(options[2].label).toBe("bt://AA:BB:CC:DD:EE:01 - Bluetooth: TH-D74");
   });
+  it("calls the empty port not set for a port that is never searched for, whether the daemon searches or not", () => {
+    expect(portOptions(ports(), "", "", true)[0]).toEqual({ value: "", label: "not set" });
+    expect(portOptions(ports(false), "", "", true)[0]).toEqual({ value: "", label: "not set" });
+    expect(portOptions(null, "", "", true).map((c) => c.label)).toEqual(["not set", "Other..."]);
+  });
   it("calls the empty port none chosen where the daemon does not search", () => {
     expect(portOptions(ports(false), "", "")[0]).toEqual({ value: "", label: "none chosen" });
   });

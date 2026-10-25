@@ -58,8 +58,6 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.query.too_soon": "A {call} è appena stata fatta la stessa domanda: attendi {seconds} s",
   "error.path.direct_alone": "{word} non è un digipeater: scritto da solo significa nessun digipeater",
   "error.setting.comment_too_long": "{length} caratteri sono più dei {limit} consentiti con l’estensione PHG (svuota beacon/power_w per non inviarla)",
-  "error.setting.gps_needs_device": "un GPS seriale richiede gps/device (la porta del ricevitore, come /dev/ttyUSB1)",
-  "error.setting.gps_needs_host": "gpsd richiede gps/host (host:porta di gpsd, 127.0.0.1:2947)",
   "error.setting.not_access_key": "non è una chiave di accesso (tre gruppi di quattro cifre e lettere, come k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "ha caratteri che non sono ASCII stampabile",
   "error.setting.not_boolean": "“{value}” non è true né false",

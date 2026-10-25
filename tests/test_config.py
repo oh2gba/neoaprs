@@ -394,13 +394,10 @@ def test_the_fast_speed_must_be_above_the_slow_one_and_the_fast_time_below_the_s
     assert Config.checked(base, {"station/comment": "x"}).smart == base.smart, "other saves are not held up by the rule"
 
 
-def test_a_source_needs_what_it_reads() -> None:
-    with pytest.raises(SettingError) as e:
-        Config.checked(DEFAULTS, {"gps/source": "serial"})
-    assert (e.value.key, e.value.code) == ("gps/source", "setting.gps_needs_device")
-    with pytest.raises(SettingError) as e2:
-        Config.checked(replace(DEFAULTS, gps_source="gpsd"), {"gps/host": ""})
-    assert (e2.value.key, e2.value.code) == ("gps/host", "setting.gps_needs_host")
+def test_a_gps_source_without_what_it_reads_is_a_valid_setting() -> None:
+    serial = Config.checked(DEFAULTS, {"gps/source": "serial"})
+    assert (serial.gps_source, serial.gps_device) == ("serial", "")
+    assert Config.checked(replace(DEFAULTS, gps_source="gpsd"), {"gps/host": ""}).gps_host == ""
     assert Config.checked(DEFAULTS, {"gps/source": "serial", "gps/device": "/dev/ttyUSB1"}).gps_device == "/dev/ttyUSB1"
     assert Config.checked(DEFAULTS, {"gps/source": "gpsd"}).gps_host == "127.0.0.1:2947"
     assert Config.checked(DEFAULTS, {"gps/source": "off"}).gps_source == "off"

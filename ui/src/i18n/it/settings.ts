@@ -97,6 +97,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.port.tip3": "Aggiorna rilegge l’elenco, per esempio dopo aver collegato il cavo.",
   "settings.port.auto": "trova automaticamente",
   "settings.port.none": "nessuna scelta",
+  "settings.port.unset": "non impostata",
   "settings.port.other": "Altra...",
   "settings.port.path_label": "Percorso della porta",
   "settings.port.found": "trovata: {port}",

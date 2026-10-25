@@ -2,6 +2,7 @@
 for the station book and the ALOHA circle, and the feed started again when the settings change."""
 from datetime import timedelta
 
+import pytest
 
 from neoaprs.gpsfeed import GpsFeed
 from neoaprs.services.gps import Gps
@@ -59,6 +60,29 @@ async def test_a_gpsd_that_is_not_there_is_connecting_with_the_reason() -> None:
     await rig.gps.start()
     await until(lambda: rig.feed.state is Source.State.WAITING)
     assert rig.gps.state == "connecting" and "refused" in rig.gps.problem.lower() and rig.gps.problem == rig.feed.problem
+
+
+@pytest.mark.parametrize(("changes", "problem"), [
+    ({"gps_source": "serial", "gps_device": ""}, "no port set: give gps/device the receiver's port"),
+    ({"gps_source": "gpsd", "gps_host": ""}, "no address set: give gps/host the gpsd's host:port"),
+])
+async def test_a_source_without_its_port_or_address_is_connecting_and_says_what_to_give(changes: dict[str, str], problem: str) -> None:
+    rig = Rig(**changes)
+    await rig.gps.start()
+    await until(lambda: rig.gps.problem == problem)
+    assert rig.gps.state == "connecting" and rig.gps.why_none() == problem and rig.gps.current() is None
+    assert rig.feed.state is Source.State.CONNECTING and not rig.feed._tasks
+
+
+async def test_giving_the_port_after_the_source_starts_the_feed() -> None:
+    rig = Rig(gps_source="serial", gps_device="")
+    await rig.gps.start()
+    await until(lambda: rig.gps.problem != "")
+    gpsd = await fake_gpsd()
+    rig.set(gps_source="gpsd", gps_host=gpsd.address)
+    rig.gps.settings_changed()
+    await until(lambda: rig.feed.state is Source.State.CONNECTED and gpsd.watching)
+    assert rig.gps.state == "no_fix" and rig.feed.describe() == f"gpsd at {gpsd.address}"
 
 
 async def test_a_stale_fix_tells_the_feeds_problem_too() -> None:

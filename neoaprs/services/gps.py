@@ -91,7 +91,7 @@ class Gps:
         self._fix, self._placed = None, None
         self._feed.configure(*wanted)
         if wanted.kind != "off":
-            log.info("gps: reading %s", self._feed.describe())
+            log.info("gps: reading %s", self._feed.describe() or "nothing yet (no port or address set)")
             await self._feed.start()
         self._announce()
 

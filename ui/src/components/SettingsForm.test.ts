@@ -113,9 +113,76 @@ describe("SettingsForm", () => {
     it("asks for the port and the speed of the receiver for a serial one", () => {
       const { wrapper } = make({ "gps/source": "serial", "gps/baud": "9600" }, "beacon");
       expect(labels(wrapper)).toEqual(["GPS source", "GPS port", "GPS speed", "Mobile"]);
-      expect(wrapper.find("#set-gps-device").attributes("placeholder")).toBe("/dev/ttyUSB1");
+      expect(wrapper.find("#set-gps-device").element.tagName).toBe("SELECT");
       expect(wrapper.find<HTMLInputElement>("#set-gps-baud").element.value).toBe("9600");
       expect(wrapper.find("#set-gps-baud").element.parentElement?.textContent).toContain("baud");
+    });
+
+    describe("the port of a serial receiver", () => {
+      const options = (wrapper: ReturnType<typeof make>["wrapper"]) => wrapper.findAll("#set-gps-device option").map((o) => [o.attributes("value"), o.text()]);
+
+      it("is picked from the ports of the system, with not set first and Other... last, and never says find automatically or found", () => {
+        const { wrapper } = make({ "gps/source": "serial" }, "beacon", { ports: portList() });
+        expect(options(wrapper)).toEqual([
+          ["", "not set"],
+          ["/dev/ttyUSB0", "/dev/ttyUSB0 - FT232R USB UART"],
+          ["/dev/ttyS0", "/dev/ttyS0"],
+          ["\u0000other", "Other..."],
+        ]);
+        expect(wrapper.find<HTMLSelectElement>("#set-gps-device").element.value).toBe("");
+        expect(group(wrapper, "Mobile")?.find(".port-found").exists()).toBe(false);
+        expect(group(wrapper, "Mobile")?.text()).not.toContain("find automatically");
+      });
+
+      it("is not set where the daemon does not search for the radio either", () => {
+        const { wrapper } = make({ "gps/source": "serial" }, "beacon", { ports: portList({ search: false }) });
+        expect(options(wrapper)[0]).toEqual(["", "not set"]);
+      });
+
+      it("keeps a port that is set and the system does not list among the options", () => {
+        const { wrapper } = make({ "gps/source": "serial", "gps/device": "socket://10.0.0.5:4001" }, "beacon", { ports: portList() });
+        expect(options(wrapper).map(([value]) => value)).toContain("socket://10.0.0.5:4001");
+        expect(wrapper.find<HTMLSelectElement>("#set-gps-device").element.value).toBe("socket://10.0.0.5:4001");
+      });
+
+      it("applies a port picked at once", async () => {
+        const { wrapper, send } = make({ "gps/source": "serial" }, "beacon", { ports: portList() });
+        await wrapper.find("#set-gps-device").setValue("/dev/ttyUSB0");
+        expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "gps/device": "/dev/ttyUSB0" } });
+      });
+
+      it("lets a path or a socket address be typed under Other..., sent when the field is left", async () => {
+        const { wrapper, send } = make({ "gps/source": "serial" }, "beacon", { ports: portList() });
+        await wrapper.find("#set-gps-device").setValue("\u0000other");
+        const typed = wrapper.find<HTMLInputElement>("#set-gps-device-typed");
+        expect(typed.attributes("placeholder")).toBe("/dev/ttyUSB1");
+        expect(send).not.toHaveBeenCalled();
+        await typed.setValue("socket://10.0.0.5:4001");
+        await typed.trigger("keydown.enter");
+        expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "gps/device": "socket://10.0.0.5:4001" } });
+      });
+
+      it("asks the system for its ports again on Refresh", async () => {
+        const { wrapper, send } = make({ "gps/source": "serial" }, "beacon", { ports: portList() });
+        await wrapper
+          .findAll("button")
+          .find((b) => b.text() === "Refresh")
+          ?.trigger("click");
+        expect(send).toHaveBeenCalledWith({ cmd: "list_ports" });
+      });
+
+      it("appears when Serial receiver is chosen, though the port is still empty", async () => {
+        const { wrapper, send } = make({}, "beacon", { ports: portList() });
+        expect(wrapper.find("#set-gps-device").exists()).toBe(false);
+        await wrapper.find("#set-gps-source").setValue("serial");
+        expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "gps/source": "serial" } });
+        expect(wrapper.find("#set-gps-device").exists()).toBe(true);
+      });
+
+      it("is not there for gpsd or for no source", () => {
+        expect(make({ "gps/source": "gpsd" }, "beacon").wrapper.find("#set-gps-device").exists()).toBe(false);
+        expect(make({}, "beacon").wrapper.find("#set-gps-device").exists()).toBe(false);
+      });
     });
 
     it("applies the source at once, and the port and speed when they are left", async () => {

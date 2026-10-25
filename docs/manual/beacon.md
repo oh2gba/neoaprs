@@ -78,7 +78,9 @@ For a car, a bicycle or a boat the beacon can follow a GPS receiver. With **Mobi
 
 What to set (the Mobile group of the Beacon tab):
 
-1. **GPS source**: `gpsd` reads a gpsd daemon (on this computer or another one on the network; its address is `gps/host`, `127.0.0.1:2947` by default), `serial` reads the NMEA sentences of a GPS receiver on a serial port (`gps/device`, such as `/dev/ttyUSB1`, at `gps/baud`: 4800 is NMEA's own speed, and many USB receivers speak 9600). Keep the GPS apart from the radio's port. A save of `gpsd` without an address, or `serial` without a port, is refused.
+1. **GPS source**: `gpsd` reads a gpsd daemon (on this computer or another one on the network; its address is `gps/host`, `127.0.0.1:2947` by default), `serial` reads the NMEA sentences of a GPS receiver on a serial port (`gps/device`, such as `/dev/ttyUSB1`, at `gps/baud`: 4800 is NMEA's own speed, and many USB receivers speak 9600). Keep the GPS apart from the radio's port.
+
+   The port is picked from the serial ports of the computer, as the radio's is: **not set** first, then the ports listed, **Refresh** for a cable just plugged in, and **Other...** to type a path or a `socket://host:port`. Choosing `serial` or `gpsd` is never refused for a missing port or address: the GPS state then reads Connecting and says what to give (**no port set** or **no address set**), and nothing is opened until it is given.
 2. **Mobile** on (`beacon/mobile`).
 3. A symbol of a moving station (a car, say), which also makes the recommended path `WIDE1-1,WIDE2-1`.
 

@@ -121,8 +121,6 @@ export const de: Catalogue = {
   "error.path.direct_alone": "{word} ist kein Digipeater: allein geschrieben bedeutet es gar keine Digipeater",
   "error.setting.comment_too_long":
     "{length} Zeichen sind mehr als die {limit}, die mit der PHG-Erweiterung erlaubt sind (beacon/power_w leeren, um keine zu senden)",
-  "error.setting.gps_needs_device": "ein serielles GPS braucht gps/device (den Port des Empfängers, etwa /dev/ttyUSB1)",
-  "error.setting.gps_needs_host": "gpsd braucht gps/host (Host:Port von gpsd, 127.0.0.1:2947)",
   "error.setting.not_access_key": "das ist kein Zugangsschlüssel (drei Gruppen aus vier Ziffern und Buchstaben, etwa k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "es enthält Zeichen, die kein druckbares ASCII sind",
   "error.setting.not_boolean": "„{value}“ ist weder true noch false",
@@ -891,6 +889,7 @@ export const de: Catalogue = {
   "settings.port.tip3": "„Aktualisieren“ liest die Liste neu ein, zum Beispiel nach dem Einstecken des Kabels.",
   "settings.port.auto": "automatisch suchen",
   "settings.port.none": "keiner gewählt",
+  "settings.port.unset": "nicht gesetzt",
   "settings.port.other": "Anderer…",
   "settings.port.path_label": "Pfad des Ports",
   "settings.port.found": "gefunden: {port}",

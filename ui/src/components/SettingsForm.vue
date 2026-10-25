@@ -15,6 +15,7 @@ import SettingsField from "@/components/SettingsField.vue";
 import SettingsFold from "@/components/SettingsFold.vue";
 import SettingsLocation from "@/components/SettingsLocation.vue";
 import SettingsHttps from "@/components/SettingsHttps.vue";
+import SettingsPort from "@/components/SettingsPort.vue";
 import SymbolField from "@/components/SymbolField.vue";
 import SettingsRadio from "@/components/SettingsRadio.vue";
 import { t } from "@/i18n";
@@ -32,7 +33,7 @@ import { computed, watch } from "vue";
 const props = withDefaults(defineProps<{ scope?: Scope; picking?: boolean; picked?: Picked | null }>(), { scope: "settings", picking: false, picked: null });
 const emit = defineEmits<{ setup: []; update: []; pickPosition: [] }>();
 
-const { config, lastError, send, settings, alertResult, updateResult, map, alerts, say } = useDaemonContext();
+const { config, lastError, send, settings, alertResult, updateResult, map, alerts, ports, say } = useDaemonContext();
 const { draft, errors } = settings;
 const form = useSettingsForm(config, settings, props.scope);
 const { groups, question, defaults } = form;
@@ -47,6 +48,7 @@ const updateCheck = useUpdateCheck(updateResult, lastError, send);
 const newKey = useNewKey();
 const SYMBOL_TABLE = "station/symbol_table";
 const SYMBOL_CODE = "station/symbol_code";
+const GPS_DEVICE = "gps/device";
 const info = (key: string) => FIELDS[key] ?? { label: key };
 /** The network is let in and the daemon has made a key (what is in force, not the switch as it is being changed). */
 const network = computed(() => config.value?.values["web/network"] === "true" && (config.value.values[KEY_KEY] ?? "") !== "");
@@ -146,6 +148,22 @@ function typed(key: string, text: string): void {
           :changed="form.changed(SYMBOL_TABLE) || form.changed(SYMBOL_CODE)"
           @update:symbol="editSymbol"
           @commit="settings.commit([SYMBOL_TABLE, SYMBOL_CODE], true)"
+        />
+        <SettingsPort
+          v-else-if="key === GPS_DEVICE"
+          :id="fieldId(key)"
+          :info="info(key)"
+          :model-value="draft[key] ?? ''"
+          found=""
+          :unset="true"
+          :ports="ports"
+          :error="errors[key] ?? ''"
+          :changed="form.changed(key)"
+          @update:model-value="settings.edit(key, $event)"
+          @choose="form.choose({ [key]: $event })"
+          @commit="form.finish(key, $event)"
+          @cancel="settings.cancel(key)"
+          @refresh="send({ cmd: 'list_ports' })"
         />
         <SettingsField
           v-else

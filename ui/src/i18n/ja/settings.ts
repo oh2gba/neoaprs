@@ -95,6 +95,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.port.tip3": "「更新」は一覧を読み込み直します。たとえばケーブルを挿した後に使います。",
   "settings.port.auto": "自動で検出",
   "settings.port.none": "未選択",
+  "settings.port.unset": "未設定",
   "settings.port.other": "その他…",
   "settings.port.path_label": "ポートのパス",
   "settings.port.found": "検出: {port}",

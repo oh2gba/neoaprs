@@ -35,8 +35,6 @@
  "radio.not_found": {"params": [], "text": ["no radio answered on the ports tried (a KISS TNC says nothing until it hears a packet: try again when the channel is busy)"]},
  "radio.not_running": {"params": [], "text": ["no search for the radio is running"]},
  "setting.comment_too_long": {"params": ["length", "limit"], "text": ["{length} characters is more than the {limit} allowed with the PHG extension (clear beacon/power_w to send none)"]},
- "setting.gps_needs_device": {"params": [], "text": ["a serial GPS needs gps/device (the port of the receiver, such as /dev/ttyUSB1)"]},
- "setting.gps_needs_host": {"params": [], "text": ["gpsd needs gps/host (host:port of the gpsd, 127.0.0.1:2947)"]},
  "setting.not_access_key": {"params": [], "text": ["it is not an access key (three groups of four digits and letters, such as k7m2-x9pq-4hrt)"]},
  "setting.not_among": {"params": ["choices", "value"], "text": ["'{value}' is not one of {choices}", "{value} is not one of {choices}"]},
  "setting.not_ascii": {"params": [], "text": ["it has characters that are not printable ASCII"]},

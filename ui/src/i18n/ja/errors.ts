@@ -58,8 +58,6 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.query.too_soon": "{call} には先ほど同じ問い合わせをしました。{seconds}秒待ってください",
   "error.path.direct_alone": "{word}はデジピーターではありません。単独で書くとデジピーターなしを意味します",
   "error.setting.comment_too_long": "{length}文字は、PHG拡張を付けるときの上限{limit}文字を超えています(送らない場合は beacon/power_w を空にしてください)",
-  "error.setting.gps_needs_device": "シリアルGPSにはgps/device(受信機のポート、例: /dev/ttyUSB1)が必要です",
-  "error.setting.gps_needs_host": "gpsdにはgps/host(gpsdのホスト:ポート、127.0.0.1:2947)が必要です",
   "error.setting.not_access_key": "アクセスキーではありません(英数字4文字の3つの組、例: k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "表示可能なASCII以外の文字があります",
   "error.setting.not_boolean": "「{value}」は true でも false でもありません",

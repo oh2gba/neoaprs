@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The TNC's port as one control: a choice of "find automatically" (the empty port), the ports the system lists and "Other..." for a path or a socket address typed. When the port is automatic and the daemon has found the radio before, that
+// A serial port as one control (the TNC's, and the GPS receiver's): a choice of "find automatically" (the empty port; "not set" for the GPS, which is never searched for), the ports the system lists and "Other..." for a path or a socket address typed. When the port is automatic and the daemon has found the radio before, that
 // port is told beside the control (it is the daemon's own memory, `serial/last_port`, and not a field). Refresh asks the system for its ports again. A port picked from the list is a choice (`choose`, at once); a path typed applies on Enter or when
 // the field is left (`commit`), and Esc (`cancel`) puts the port in force back.
 import { computed, ref, watch } from "vue";
@@ -15,6 +15,8 @@ const props = defineProps<{
   modelValue: string;
   /** serial/last_port as the daemon has it */
   found: string;
+  /** the empty port is "not set", not "find automatically": the port of the GPS receiver */
+  unset?: boolean;
   ports: PortsMessage | null;
   error: string;
   changed: boolean;
@@ -22,7 +24,7 @@ const props = defineProps<{
 const emit = defineEmits<{ "update:modelValue": [value: string]; choose: [value: string]; commit: [next: EventTarget | null]; cancel: []; refresh: [] }>();
 
 const typing = ref(false);
-const options = computed(() => portOptions(props.ports, props.modelValue, props.found));
+const options = computed(() => portOptions(props.ports, props.modelValue, props.found, props.unset));
 const field = computed<FieldInfo>(() => ({ ...props.info, kind: "choice", choices: options.value }));
 
 function pick(value: string): void {

@@ -5,7 +5,7 @@ import logging
 
 import pytest
 
-from neoaprs.gpsfeed import GpsFeed, NO_FIX, split_address
+from neoaprs.gpsfeed import GpsFeed, NO_ADDRESS, NO_FIX, NO_PORT, split_address
 from neoaprs.gpsfix import Fix
 from neoaprs.source import Backoff, Source
 from tests.support.clock import FixedClock
@@ -40,6 +40,29 @@ def test_the_address_of_a_gpsd_is_host_and_port(text: str, want: tuple[str, int]
 def test_an_address_that_is_not_host_and_port_is_refused(text: str) -> None:
     with pytest.raises(ValueError):
         split_address(text)
+
+
+@pytest.mark.parametrize(("kind", "problem"), [("serial", NO_PORT), ("gpsd", NO_ADDRESS)])
+async def test_a_source_without_its_port_or_address_opens_nothing_and_says_what_to_give(kind: str, problem: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    opened: list[object] = []
+
+    async def no_connection(*args: object, **kwargs: object) -> None:
+        opened.append(args)
+        raise AssertionError("nothing may be connected to")
+
+    async def no_open(self: object) -> None:
+        opened.append(self)
+        raise AssertionError("nothing may be opened")
+
+    monkeypatch.setattr(asyncio, "open_connection", no_connection)
+    monkeypatch.setattr("neoaprs.gpsfeed._GpsPort.open", no_open)
+    feed, fixes, _ = feed_of(kind, "")
+    await feed.start()
+    assert feed.state is Source.State.CONNECTING and feed.problem == problem and feed.describe() == ""
+    assert not feed._tasks and not opened and not fixes
+    feed.configure(kind, "  ", 4800)
+    await feed.start()
+    assert feed.state is Source.State.CONNECTING and feed.problem == problem and not opened
 
 
 # ---- gpsd

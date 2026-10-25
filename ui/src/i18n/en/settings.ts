@@ -94,6 +94,7 @@ export const settings = {
   "settings.port.tip3": "Refresh reads the list again, for example after you plug the cable in.",
   "settings.port.auto": "find automatically",
   "settings.port.none": "none chosen",
+  "settings.port.unset": "not set",
   "settings.port.other": "Other...",
   "settings.port.path_label": "Port path",
   "settings.port.found": "found: {port}",

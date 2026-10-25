@@ -67,7 +67,6 @@ STATUS_KEYS = frozenset({"status/source", "status/rigctld"})            # the se
 COMMENT_KEYS = frozenset({"station/comment", "beacon/power_w"})   # the settings that decide how long the comment may be
 PORT_KEYS = frozenset({"tnc/profile", "serial/port"})                   # the settings that decide whether the profile and the port go together
 GPS_SOURCES = ("off", "gpsd", "serial")                                # where the position of a moving station comes from: nowhere, a gpsd on the network, or a GPS receiver on a serial port
-GPS_KEYS = frozenset({"gps/source", "gps/host", "gps/device"})            # the settings that decide whether the GPS source has what it needs
 SMART_KEYS = frozenset({"smart/fast_kmh", "smart/slow_kmh", "smart/fast_sec", "smart/slow_sec"})     # the settings that the rules between the SmartBeaconing numbers are about
 
 
@@ -230,14 +229,6 @@ class Config:
                                 f"{key}: smart/fast_sec ({self.smart_fast_sec}) must be below smart/slow_sec ({self.smart_slow_sec})")
         return None
 
-    def gps_refusal(self, key: str = "gps/source") -> SettingError | None:
-        """Why the GPS source lacks what it reads, or None: gpsd needs gps/host, serial needs gps/device."""
-        if self.gps_source == "gpsd" and not self.gps_host:
-            return SettingError(key, "setting.gps_needs_host", {}, f"{key}: gpsd needs gps/host (host:port of the gpsd, 127.0.0.1:2947)")
-        if self.gps_source == "serial" and not self.gps_device:
-            return SettingError(key, "setting.gps_needs_device", {}, f"{key}: a serial GPS needs gps/device (the port of the receiver, such as /dev/ttyUSB1)")
-        return None
-
     @property
     def station_position(self) -> tuple[float, float] | None:
         """Where we are as latitude and longitude, None while either is empty."""
@@ -326,8 +317,6 @@ class Config:
         if PORT_KEYS & parsed.keys() and (refusal := config.port_refusal("tnc/profile" if "tnc/profile" in parsed else "serial/port")):
             raise refusal
         if SMART_KEYS & parsed.keys() and (refusal := config.smart_refusal(next(k for k in parsed if k in SMART_KEYS))):
-            raise refusal
-        if GPS_KEYS & parsed.keys() and (refusal := config.gps_refusal(next(k for k in parsed if k in GPS_KEYS))):
             raise refusal
         return config
 

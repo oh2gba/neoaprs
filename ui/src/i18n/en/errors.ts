@@ -56,8 +56,6 @@ export const errors = {
   "error.query.too_soon": "{call} was asked the same a moment ago: wait {seconds} s",
   "error.path.direct_alone": "{word} is no digipeater: written alone it means no digipeaters at all",
   "error.setting.comment_too_long": "{length} characters is more than the {limit} allowed with the PHG extension (clear beacon/power_w to send none)",
-  "error.setting.gps_needs_device": "a serial GPS needs gps/device (the port of the receiver, such as /dev/ttyUSB1)",
-  "error.setting.gps_needs_host": "gpsd needs gps/host (host:port of the gpsd, 127.0.0.1:2947)",
   "error.setting.not_access_key": "it is not an access key (three groups of four digits and letters, such as k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "it has characters that are not printable ASCII",
   "error.setting.not_boolean": "'{value}' is not true or false",

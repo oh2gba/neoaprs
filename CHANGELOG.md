@@ -7,7 +7,7 @@ A moving station: the beacon follows a GPS and is sent by SmartBeaconing, with a
 The position comes from a GPS.
 
 - **GPS source** (`gps/source`): `gpsd` reads a gpsd daemon (`gps/host`, `127.0.0.1:2947` by default), `serial` reads the NMEA sentences of a receiver on a serial port (`gps/device`, at `gps/baud`, 4800 by default; `socket://host:port` works for a receiver behind a TCP serial server). The GPS is read as soon as a source is chosen, so the fix can be seen before the beacon follows it. The Beacon tab's Mobile group and the new topic `gps` show the state (not connected, no fix yet, a fix, an old fix), why when there is none, and the fix with its speed, course, altitude and satellites.
-- A save of `gpsd` without an address, or `serial` without a port, is refused with the reason.
+- A source without what it reads (`serial` with no `gps/device`, `gpsd` with no `gps/host`) is a valid setting that cannot work yet, not a refusal: the GPS then waits as Connecting and says **no port set: give gps/device the receiver's port** (or **no address set: give gps/host the gpsd's host:port**), and nothing is opened until it is given.
 
 The beacon of a moving station.
 
@@ -25,7 +25,8 @@ The page shows it.
 
 - The Beacon tab has a **Mobile** group: a **GPS** block in the look of the radio's status (a coloured word and one line: Off, Connecting to gpsd at 127.0.0.1:2947, No fix yet, Fix with its place, speed, course, altitude, satellites and age, or Fix lost 3 min ago (stale), with the reason under it when there is no fix), then the GPS source, the gpsd address or the port and speed of the receiver, the Mobile switch and, behind a **SmartBeaconing** heading while Mobile is on, the seven numbers. Each has its words and an (i) in every language of the page.
 - While Mobile is on, a line under the row "Last beacon" says when SmartBeaconing sends next and why the last beacon went (**SmartBeaconing: next by time in 42 s, last sent 12 s ago (turn)**), or **No beacon: no GPS fix**; the Location row is called **Home position**; the interval of the fixed beacon is not shown.
-- A save that breaks a rule between the numbers, or a GPS source without its address or port, is refused under its field in the language of the page.
+- A save that breaks a rule between the numbers is refused under its field in the language of the page.
+- The GPS port is picked from the serial ports of the system, as the radio's port is: **not set** first (the GPS is never searched for), the ports listed, **Other...** for a path or a `socket://host:port` typed, and Refresh for a cable just plugged in. It appears as soon as **Serial receiver** is chosen, before any port is given.
 
 What is heard decodes as the specification says.
 

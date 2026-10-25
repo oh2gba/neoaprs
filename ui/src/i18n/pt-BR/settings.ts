@@ -96,6 +96,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.port.tip3": "Atualizar lê a lista de novo, por exemplo depois de conectar o cabo.",
   "settings.port.auto": "procurar automaticamente",
   "settings.port.none": "nenhuma escolhida",
+  "settings.port.unset": "não definida",
   "settings.port.other": "Outra...",
   "settings.port.path_label": "Caminho da porta",
   "settings.port.found": "encontrada: {port}",

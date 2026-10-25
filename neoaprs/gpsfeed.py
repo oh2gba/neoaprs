@@ -23,6 +23,8 @@ log = logging.getLogger("neoaprs.gps")
 CONNECT_SEC = 5.0                                              # how long the connection to gpsd may take
 WATCH = b'?WATCH={"enable":true,"json":true}\n'
 NO_FIX = "the receiver has no position fix yet"
+NO_PORT = "no port set: give gps/device the receiver's port"
+NO_ADDRESS = "no address set: give gps/host the gpsd's host:port"
 MAX_LINE_BYTES = 4096                                          # a piece of serial data this long without a line end is not NMEA: it is thrown away
 
 
@@ -77,6 +79,8 @@ class GpsFeed(Source):
 
     def describe(self) -> str:
         """What is read, for the log: "gpsd at 127.0.0.1:2947", "GPS on /dev/ttyUSB1 at 4800" (a TCP port has no speed)."""
+        if not self.target.strip():
+            return ""
         if self.kind == "gpsd":
             return f"gpsd at {self.target}"
         if self.kind == "serial":
@@ -90,6 +94,10 @@ class GpsFeed(Source):
         if self.kind == "off":
             return
         self.backoff.reset()
+        if not self.target.strip():                            # (a source without what it reads is a valid setting that cannot work yet: nothing is opened, and the problem says what to give)
+            self._set_state(Source.State.CONNECTING)
+            self._set_problem(NO_ADDRESS if self.kind == "gpsd" else NO_PORT)
+            return
         await self._connect()
 
     async def stop(self) -> None:
