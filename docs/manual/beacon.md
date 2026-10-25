@@ -18,7 +18,9 @@ The page shows an amber **Receive only** badge beside the title in its header, o
 
 ## The beacon
 
-This is the beacon of a fixed station (**Position** at **This place**); a moving station has no interval, see [Mobile operation](#mobile-operation). Set the beacon to Off, or to every 30 minutes, every 60 minutes or every 3 hours. The setting `beacon/interval_min` takes 0 (off) or 20 to 1440: 20 minutes is the net cycle of the APRS specification for a path of two hops, and 30 is routine operation. A stored value that the page does not offer, such as 20 or 45, is shown as one more choice until you pick another, and one below 20 is raised to 20 (the log says so). The default is off, so an upgrade never starts to transmit. The setup guide gives a new station a beacon every 30 minutes.
+This is the beacon of a fixed station (**Position** at **This place**); a moving station has no interval, see [Mobile operation](#mobile-operation).
+
+Set the beacon to Off, or to every 30 minutes, every 60 minutes or every 3 hours. The setting `beacon/interval_min` takes 0 (off) or 20 to 1440: 20 minutes is the net cycle of the APRS specification for a path of two hops, and 30 is routine operation. A stored value that the page does not offer, such as 20 or 45, is shown as one more choice until you pick another, and one below 20 is raised to 20 (the log says so). The default is off, so an upgrade never starts to transmit. The setup guide gives a new station a beacon every 30 minutes.
 
 The first beacon goes out 30 seconds after the daemon starts, so that the radio and the TNC settle first. After that one goes out every interval, counted from the latest beacon, however it was sent.
 
@@ -113,7 +115,7 @@ Under that line a second says what SmartBeaconing does: **SmartBeaconing: next b
 | On foot | 7 km/h, every 2 minutes | 1.5 km/h or slower | 45° | 60 s |
 | Boat | 40 km/h | 3 km/h or slower | 20° | 30 s |
 
-The car's are Dire Wolf's numbers; the others are NeoAPRS's own choice for a slower way of moving. Between the two speeds the time falls with the speed: a car at 50 km/h beacons every 2 minutes. The turn is the angle in the table plus a slope divided by the speed in miles per hour (255 for a car, a bicycle and a boat, 100 for a walker, who turns more sharply at a slow pace), so the faster you go, the smaller a turn counts. The presets are in `neoaprs/smartbeacon.py`.
+The car's are Dire Wolf's numbers; the others are NeoAPRS's own choice for a slower way of moving. Between the two speeds the time falls with the speed: a car at 50 km/h beacons every 2 minutes. The turn is the angle in the table plus a slope divided by the speed in miles per hour (255 for a car, a bicycle and a boat, 100 for a walker, who turns more sharply at a slow pace), so the faster you go, the smaller a turn counts. The presets are in the daemon.
 
 **What is sent.** A packet from your call to `APZNEO` by your path, like the fixed beacon, but with a compressed position, which is shorter and carries the course and speed:
 
