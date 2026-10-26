@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // The one calm line at the top: the title, which is a link to the project's page (it looks like the title, not like a link: only a hover or the keyboard shows it), the amber button "no call set" while the call is empty (it opens the first-run guide: nothing is transmitted
-// until a call is set), the marks that say what is out of the ordinary at the right (RX only, Beacon off, Internet, GPS: lib/pills.ts, each a button that opens the place where it is set, with a hover title that says what it means), and the number of messages not seen, a button that opens them (the Email tab when all of them are the gateway's). Our call is not here, nor the radio state or the version: they are in the footer of the panel (PanelFooter).
-// A newer version is the first mark, Update, which opens Settings → New version.
+// until a call is set), the marks that say how things stand at the right (Daemon in a browser, Radio, RX only, Beacon off, Internet, GPS: lib/pills.ts, each a button that opens the place where it is set, with a hover title that says what it means; the Daemon mark has nothing to open), and the number of messages not seen, a button that opens them (the Email tab when all of them are the gateway's).
+// Our call is not here, nor the version: the call is in the Settings tab, the version in Settings → Update check. A newer version is the first mark, Update, which opens Settings → New version.
 import TagMark from "@/components/TagMark.vue";
 import MessageGlyph from "@/components/MessageGlyph.vue";
 import { t } from "@/i18n";
@@ -12,7 +12,7 @@ defineProps<{
   /** Our call from the settings; only an empty one matters here (the button), null while the daemon has not said. */
   call: string | null;
   unread: number;
-  /** The marks before the count (RX only, Beacon off, Internet, GPS). */
+  /** The marks before the count (Update, Daemon, Radio, RX only, Beacon off, GPS, Internet). */
   pills?: readonly HeaderPill[];
 }>();
 const emit = defineEmits<{ messages: []; setup: []; open: [target: PillTarget, focus: string] }>();
@@ -33,11 +33,12 @@ const PROJECT_URL = "https://oh2gba.github.io/neoaprs/";
       <TagMark
         v-for="pill in pills"
         :key="pill.id"
-        as="button"
+        :as="pill.target === null ? 'span' : 'button'"
         :tone="pill.tone"
         :class="['headpill', `pill-${pill.id}`, { rxonly: pill.id === 'rx' }]"
         :title="t(pill.title, pill.titleValues)"
-        @click="emit('open', pill.target, pill.focus)"
+        :role="pill.target === null ? 'status' : undefined"
+        @click="pill.target !== null && emit('open', pill.target, pill.focus)"
         >{{ t(pill.text) }}</TagMark
       >
     </span>

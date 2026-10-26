@@ -27,11 +27,12 @@ describe("AppHeader", () => {
     expect(cssRule(".brand:focus-visible")).toMatch(/outline:\s*2px solid var\(--accent\)/);
   });
 
-  it("does not show our call, the radio, the version or an update: those are in the footer of the panel", () => {
+  it("does not show our call or the version, and no mark of its own: the marks are given to it", () => {
     const wrapper = header({ unread: 3 });
     expect(wrapper.find(".call").exists()).toBe(false);
     expect(wrapper.text()).not.toContain("OH2GBA");
     expect(wrapper.text()).not.toMatch(/radio|daemon|update|v\d/i);
+    expect(wrapper.find(".headpills").exists()).toBe(false);
     expect(wrapper.find(".status").exists()).toBe(false);
     expect(wrapper.find(".version").exists()).toBe(false);
     expect(wrapper.find(".update").exists()).toBe(false);
@@ -77,6 +78,23 @@ describe("AppHeader", () => {
     expect(marks.every((m) => (m.attributes("title") ?? "") !== "")).toBe(true);
     expect(wrapper.find(".headpills").element.nextElementSibling?.classList.contains("headmail")).toBe(true);
     expect(wrapper.find(".headpills").element.previousElementSibling?.tagName).toBe("H1");
+  });
+
+  it("shows the Daemon mark as a mark that says and does not open, and the Radio mark as a button that opens Settings → Radio with its group flashed", async () => {
+    const link = { connection: "closed", tnc: null, now: 0, inApp: false } as const;
+    const wrapper = header({ pills: headerPills({}, null, null, null, link) });
+    const [daemon, radio] = wrapper.findAll(".headpills .tag");
+    expect([daemon?.element.tagName, daemon?.text(), daemon?.classes().includes("tag-bad"), daemon?.attributes("role")]).toEqual([
+      "SPAN",
+      "Daemon: offline",
+      true,
+      "status",
+    ]);
+    expect([radio?.element.tagName, radio?.text()]).toEqual(["BUTTON", "Radio: waiting…"]);
+    await daemon?.trigger("click");
+    expect(wrapper.emitted("open")).toBeUndefined();
+    await radio?.trigger("click");
+    expect(wrapper.emitted("open")).toEqual([["settings", "set-tnc-profile"]]);
   });
 
   it("has RX only in warn while transmitting is off, and the others as they are: Beacon off neutral only while transmitting is on, Internet info, GPS ok with a fix and warn without", () => {

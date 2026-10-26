@@ -59,7 +59,10 @@ describe("the page in the pseudo-locale", () => {
       expect(wrapper.findAll("[role='tab']").length).toBe(TAB_IDS.length);
       expect(wrapper.findAll("[role='tab']").every((b) => b.text().startsWith("[!!"))).toBe(true);
       expect(wrapper.find(".appheader button.nocall").text()).toMatch(/^\[!! /);
-      expect(wrapper.find(".panelfoot button.status").text()).toMatch(/^\[!! /);
+      for (const mark of ["daemon", "radio"]) {
+        expect(wrapper.find(`.appheader .pill-${mark}`).text()).toMatch(/^\[!! /);
+        expect(wrapper.find(`.appheader .pill-${mark}`).attributes("title")).toMatch(/^\[!! /);
+      }
       expect(wrapper.find(".appheader .pill-update").text()).toMatch(/^\[!! /);
       expect(wrapper.find(".appheader .pill-update").attributes("title")).toMatch(/^\[!! .*9\.9\.9/);
       expect(tabButton(wrapper, "[!!")).toBeDefined();

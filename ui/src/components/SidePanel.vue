@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The panel at the right of the map (on a phone it is the whole screen under the header, in turns with the map): the tabs Messages, Stations, Nearby, Email, Bulletins, Objects, Beacon, Packets and Settings, in one row (the tab on show is not bold or wider: the others do not move) as many as fit in the width of the panel, measured, in that order, and the rest under one "More" button at the end of the row with a menu of them (TabMenu), which carries their badges added up; the tab on show is always in the row, in the place of the last one if it would not be (lib/tabsplit.ts) (a tab can carry a badge with a count; the folded panel shows the messages not seen, those of the Messages and the Email tab, on its handle: the same count as the header), a button that folds it away, under the open tab a footer (the slot `footer`: the version and what is wrong with the radio; not on a phone's map turn, nor on a folded panel), and a handle
+// The panel at the right of the map (on a phone it is the whole screen under the header, in turns with the map): the tabs Messages, Stations, Nearby, Email, Bulletins, Objects, Beacon, Packets and Settings, in one row (the tab on show is not bold or wider: the others do not move) as many as fit in the width of the panel, measured, in that order, and the rest under one "More" button at the end of the row with a menu of them (TabMenu), which carries their badges added up; the tab on show is always in the row, in the place of the last one if it would not be (lib/tabsplit.ts) (a tab can carry a badge with a count; the folded panel shows the messages not seen, those of the Messages and the Email tab, on its handle: the same count as the header), a button that folds it away, and a handle
 // to drag its width (up to 80 % of the window, the map keeping 360 px). The tab and the width are the page's to remember; a remembered width that is too much for the window is shown clamped, and is whole again when the window is wide again. The contents of every tab stay mounted, so that a filter or a scroll position is there when the tab is back.
 // By the size of the page (lib/layout.ts): a desktop has the handle and the user's width; a tablet has a width of its own (CSS) and the fold button; a phone has neither, and its tab bar starts with a Map button: the map and the open tab take turns (`view`),
 // a tab picked in the bar brings the panel, the Map button the map, and the contents of the tab are the whole area under the bar.
@@ -167,7 +167,6 @@ function nudge(event: KeyboardEvent): void {
         <div v-for="id in TAB_IDS" v-show="id === tab && paneOn" :id="`pane-${id}`" :key="id" class="pane" role="tabpanel" :aria-labelledby="`tab-${id}`">
           <slot :name="id"></slot>
         </div>
-        <slot v-if="paneOn" name="footer"></slot>
       </div>
     </template>
   </aside>

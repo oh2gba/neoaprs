@@ -183,7 +183,7 @@ The words of the page are in a catalogue, so that a language is a file and not a
   `formatNumber(n, decimals)` and `weekdayShort(date)`; `en/` is the English catalogue by area, `en.ts` joins them (the type of every id comes from it), `locales.ts` lists the languages, `message.ts` reads a message,
   `pseudo.ts` is the pseudo-locale and `errortext.ts` says the daemon's refusals. `t` reads `locale`, so whatever shows its result is drawn again when the language changes; a text kept in a module constant stays in the
   language it was made in, so a function makes the text when it is asked for.
-- **An id** is `area.thing.detail` in lower case (`footer.radio.silent`, `error.setting.range`); the area is the part of the page, not the file. A message is a string with `{value}`s; a plural `{ one: "{n} message", other:
+- **An id** is `area.thing.detail` in lower case (`pill.radio_silent`, `error.setting.range`); the area is the part of the page, not the file. A message is a string with `{value}`s; a plural `{ one: "{n} message", other:
   "{n} messages" }`, chosen by the value `n` and the plural rules of the language (a language with more forms has them, `"=0"` is an exact number); or a choice by the text of a value `{ select: "kind", object: "...",
   other: "..." }`. `{{` and `}}` are a literal brace. A number is given as a number and is written with the language's decimal point and no thousands separator; one with a fixed number of decimals goes through
   `formatNumber` first. A message is a whole sentence with its values: never two messages put together (word order and agreement differ), never `n === 1` in the code, never a unit or a word taken from the middle of a sentence.

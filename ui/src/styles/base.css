@@ -74,8 +74,7 @@ a {
 .brand:hover {
   text-decoration: underline;
 }
-.brand:focus-visible,
-.panelfoot button:focus-visible {
+.brand:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -88,49 +87,6 @@ a {
   padding: 0;
   cursor: pointer;
   text-decoration: underline;
-}
-button.status {
-  padding: 0;
-  border: 0;
-  background: none;
-  font: inherit;
-  cursor: pointer;
-}
-button.status:hover {
-  text-decoration: underline;
-}
-.status {
-  color: inherit;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.link-warn {
-  color: var(--warn);
-}
-.link-bad {
-  color: var(--bad);
-  font-weight: 600;
-}
-
-/* the footer of the panel: one small line, always the same height, so that the radio message coming and going moves nothing */
-.panelfoot {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 10px;
-  height: 26px;
-  padding: 0 12px;
-  border-top: 1px solid var(--border);
-  font-size: 12px;
-  white-space: nowrap;
-  overflow: hidden;
-}
-.footradio {
-  display: flex;
-  flex: 0 1 auto;
-  min-width: 0;
-  margin-left: auto;
 }
 .main {
   display: flex;

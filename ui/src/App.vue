@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The page: a calm header (the title, a link to the project's page, and the messages not seen), the map filling the page, and at its right a panel with the stations, what is nearby, the packets, the messages, the email, the bulletins, our objects, the beacon and the settings (which open with the state of the radio link), and under the open tab a footer with what is wrong with the radio link, if anything.
+// The page: a calm header (the title, a link to the project's page, and the messages not seen), the map filling the page, and at its right a panel with the stations, what is nearby, the packets, the messages, the email, the bulletins, our objects, the beacon and the settings (which open with the state of the radio link). The state of the daemon and the radio is in the header, as marks.
 // A daemon of another protocol or another build of the page makes it a notice (`VersionMismatch`) instead of the page.
 // The layout only: the page put together, and what the panes share (the daemon's state, `send`, the settings, the guide, the panel), is `useAppShell`; a pane takes from the context what is the page's as a whole, and as props what is its own (the rows it lists, the one that is open).
 import AppHeader from "@/components/AppHeader.vue";
@@ -11,7 +11,6 @@ import MessagesPane from "@/components/MessagesPane.vue";
 import NearbyPane from "@/components/NearbyPane.vue";
 import ObjectsPane from "@/components/ObjectsPane.vue";
 import PacketsLog from "@/components/PacketsLog.vue";
-import PanelFooter from "@/components/PanelFooter.vue";
 import SettingsForm from "@/components/SettingsForm.vue";
 import SetupGuide from "@/components/SetupGuide.vue";
 import SidePanel from "@/components/SidePanel.vue";
@@ -20,7 +19,7 @@ import StationMap from "@/components/StationMap.vue";
 import StationsTable from "@/components/StationsTable.vue";
 import FindRadioToast from "@/components/FindRadioToast.vue";
 import ToastBar from "@/components/ToastBar.vue";
-import { attend } from "@/lib/attention";
+import { openSetting } from "@/composables/useOpenSetting";
 import type { PillTarget } from "@/lib/pills";
 import { refusedAtField } from "@/lib/settinglinks";
 import UpdateDialog from "@/components/UpdateDialog.vue";
@@ -50,10 +49,7 @@ const {
 } = useAppShell();
 
 /** A mark of the header: its tab, and the group of the control it leads to brought into view and flashed. */
-function openSetting(target: PillTarget, control: string): void {
-  panel.show(target);
-  void attend(control);
-}
+const goTo = (target: PillTarget, control: string): void => openSetting(panel, target, control);
 const { send, ownObjects, ownBulletins, bulletins, packets, lastError, mismatch } = daemon;
 const { stationPick, pickingTab } = picks;
 const { selected, focus } = cards;
@@ -65,7 +61,7 @@ const deleteMessage = (id: number): boolean => send({ cmd: "message_delete", id 
 <template>
   <VersionMismatch v-if="mismatch" :mismatch="mismatch" />
   <div v-else class="app" :class="layout.rootClass.value">
-    <AppHeader :call="call" :unread="unread" :pills="pills" @messages="openUnread" @setup="guide.show()" @open="openSetting" />
+    <AppHeader :call="call" :unread="unread" :pills="pills" @messages="openUnread" @setup="guide.show()" @open="goTo" />
     <UpdateDialog v-if="updateOpen && newer" :version="newer" @close="updateOpen = false" />
     <main class="main">
       <div class="mapwrap">
@@ -108,9 +104,6 @@ const deleteMessage = (id: number): boolean => send({ cmd: "message_delete", id 
         :badges="{ messages: talk.unread.value, email: mail.unread.value, bulletins: board.fresh.value }"
         @update:view="layout.view.value = $event"
       >
-        <template #footer>
-          <PanelFooter @radio="panel.show('settings')" />
-        </template>
         <template #stations>
           <StationsTable
             :selected="selected"

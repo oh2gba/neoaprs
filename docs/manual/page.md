@@ -169,28 +169,38 @@ A click on a marker or on a row of the Stations table opens that station's card 
 - A station past its timeout stays in the table, and a click on it, with Ctrl or without, shows its marker and track on the map for as long as its card is open.
 - **Esc** closes all the cards that are not pinned at once and clears the selection. Not while a field has text in it: in the filter box of the Stations table the first Esc clears the text and the next closes the cards. And not while the setup guide or the update panel is open: they take the key.
 
-## The header and the footer
+## The header
 
 The **header** is one calm line. It holds the title **NeoAPRS**, a link to the project page (https://oh2gba.github.io/neoaprs/, in a new tab; it looks like the title, with an underline on hover), and at its right the number of messages not seen as a small badge with an envelope. That is the messages and the gateway's mail not seen, one count that the handle of the folded panel and the title of the browser tab have too. A click opens the Messages tab, or the Email tab when all of them are the gateway's.
 
 While no call is set an amber **no call set** button is beside the title, which opens the setup guide.
 
-At the right, before the count of messages, are small marks that say what is out of the ordinary. Each has a hover text and opens the place where it is set:
+At the right, before the count of messages, are small marks that say how things stand. Each has a hover text, and all but **Daemon** open the place where they are set:
 
 - **Update** (blue) while a newer version is out;
+- **Daemon** (green, amber while the page connects, red when NeoAPRS does not answer), in a browser only. In the desktop app page and daemon are one, so it is not there. The page connects again by itself;
+- **Radio**, always: green while the radio is connected, grey and dashed for the Dummy radio, amber with the state in words otherwise. It opens Settings → Radio;
 - **RX only** (amber) while Settings → Radio → RX only is ticked ([beacon.md](beacon.md#rx-only));
 - **Beacon off** (grey) while the Beacon choice is Off and the station transmits ([beacon.md](beacon.md#beacon-off));
-- **Internet** (blue) while Settings → Internet stations is enabled and connected ([igate.md](igate.md));
-- **GPS**, only when a GPS is the position source: blue with a fix, amber without.
+- **GPS**, only when a GPS is the position source: green with a fix, amber without;
+- **Internet** (blue) while Settings → Internet stations is enabled and connected ([igate.md](igate.md)).
 
-On a narrow screen the marks give way and the count stays. Your call is not in the header; it is in the Settings tab and in every message you send.
+On a narrow screen the marks give way, the last first, and the count stays. Your call is not in the header; it is in the Settings tab and in every message you send.
 
-The **footer** is one small muted line under the open tab of the panel (under the panel, not under the map; on a phone under the tab; not while the panel is folded). It is always the same height, so nothing moves when a message comes or goes.
+The state of the radio in words, when it is not connected:
 
-- The name and version of the program are in Settings → Update check, next to **Check now**. Its hover text says what the daemon costs the machine, every 10 seconds: its share of one CPU core in percent, its memory and the uptime (a sentence in the page's language: "NeoAPRS uses 0.3 % of one processor core and 42 MB of memory, running for 3 h").
-- When the update check has found a newer version, an **Update** mark is the first of the marks of the header; it opens Settings → Update check, where **Update** beside the version opens the window of the update: what is new, **Update now** where NeoAPRS can update itself, and the steps by hand ([install.md](install.md#updating)).
-- At the right is the state of the radio, only when it is not ok, in the warning colour, as a button that opens the Settings tab where the radio is. "Radio: searching…" (looking for the port), "Radio: entering KISS…", "Radio: not connected" (it waits between two tries, or is stopped; the TNC's problem is the tooltip), "Radio: waiting…" (no word from the TNC yet), "Radio: silent" (the line is open and the radio does not answer; the tooltip says "nothing heard since 18:43 (5 h)" in the browser's time), "Connecting…" (the page's connection is being opened) and, in red, "Daemon offline".
-- When the radio is connected the footer says nothing of it. The port and when a packet was last heard are in the radio status at the top of the Radio group of the Settings tab.
+- **Radio: searching…** while it looks for the port, and **Radio: entering KISS…** while the TNC is put into KISS.
+- **Radio: not connected** while it waits between two tries or is stopped. The hover text says why.
+- **Radio: waiting…** while there is no word from the TNC yet, or the page is not connected to NeoAPRS.
+- **Radio: silent** while the line is open and the radio does not answer. The hover text says "nothing heard since 18:43 (5 h)" in the browser's time.
+
+NeoAPRS finds the radio again by itself: there is nothing to press. The port and when a packet was last heard are in the radio status at the top of the Radio group of the Settings tab.
+
+Where a status row or a message says "RX only: nothing is sent", the words are a link to the RX only tickbox: it opens Settings → Radio and flashes the group.
+
+The name and version of the program are in Settings → Update check, next to **Check now**. Its hover text says what the daemon costs the machine, every 10 seconds: its share of one CPU core in percent, its memory and the uptime (a sentence in the page's language: "NeoAPRS uses 0.3 % of one processor core and 42 MB of memory, running for 3 h").
+
+When the update check has found a newer version, an **Update** mark is the first of the marks; it opens Settings → Update check, where **Update** beside the version opens the window of the update: what is new, **Update now** where NeoAPRS can update itself, and the steps by hand ([install.md](install.md#updating)).
 
 ## The page's language
 
@@ -206,7 +216,7 @@ The page chooses its layout from the size of the window.
 
 | size | window | what it looks like |
 |---|---|---|
-| **phone** | under 700 px wide, or shorter than 500 px and under 1000 px wide (a phone held sideways) | One view at a time. A compact header, the tab bar under it (the tabs that fit, and **More** for the rest), and the rest of the screen is the open tab with the footer under it, or the map. The first button of the tab bar is **Map**: it shows the map on the whole screen, and a tab of the bar brings its tab back (the view is remembered). A station's card is a bottom sheet: folded to its head and the first facts, a tap or a swipe up on its grip opens it, a swipe down folds it and a swipe down on the folded sheet closes it. It has a close button too (held sideways it is a sheet at the left). A tap on a row of the Stations tab shows the map with the card; **Message** and **Edit** on the card and the mail count of the header bring the tab. **Choose on map** shows the map with a bar ("Tap the place on the map", **Cancel**), and the tab comes back with the place filled in. The setup guide is the whole screen. One card at a time |
+| **phone** | under 700 px wide, or shorter than 500 px and under 1000 px wide (a phone held sideways) | One view at a time. A compact header, the tab bar under it (the tabs that fit, and **More** for the rest), and the rest of the screen is the open tab, or the map. The first button of the tab bar is **Map**: it shows the map on the whole screen, and a tab of the bar brings its tab back (the view is remembered). A station's card is a bottom sheet: folded to its head and the first facts, a tap or a swipe up on its grip opens it, a swipe down folds it and a swipe down on the folded sheet closes it. It has a close button too (held sideways it is a sheet at the left). A tap on a row of the Stations tab shows the map with the card; **Message** and **Edit** on the card and the mail count of the header bring the tab. **Choose on map** shows the map with a bar ("Tap the place on the map", **Cancel**), and the tab comes back with the place filled in. The setup guide is the whole screen. One card at a time |
 | **tablet** | 700 to 1100 px | The map and the panel side by side, the panel 380 to 420 px wide (40 % of the window between those; no handle, a finger cannot drag it), with the fold button. Both orientations are side by side: a portrait tablet (768 by 1024) keeps a map 388 px wide, which is enough for a pinch and a card, and the panel keeps its full height. Up to two cards |
 | **desktop** | from 1100 px | The map and, at its right, the panel with the handle you drag. A panel you have not dragged is 760 px wide from a window of 1280 px (wide enough for the two columns of the Messages tab and the nine tabs with their badges), 480 px below that; a width you dragged is kept. Up to four cards side by side, as many as the width of the map has room for |
 
