@@ -119,6 +119,16 @@ def test_the_connection_to_aprs_is_has_one_outlet_for_what_it_reads_and_it_is_th
     assert "aprsis" not in taken, "(no method of the connection takes a packet: it only makes them, from the lines of the server)"
 
 
+def test_a_packet_from_the_internet_is_one_line_of_the_log_at_debug_and_one_of_the_radio_at_info(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    e = Env(tmp_path, radio=False)
+    with caplog.at_level(logging.DEBUG, logger="neoaprs.packets"):
+        packet = from_internet("OH2ABC", POSITION, e.now())
+        e.ctl.hear_internet(packet)
+        e.ctl.tnc.packet.emit(replace(packet, via="rf"))
+    levels = [(r.levelno, r.getMessage().startswith("internet ")) for r in caplog.records if r.name == "neoaprs.packets"]
+    assert levels == [(logging.DEBUG, True), (logging.INFO, False)]
+
+
 def test_hear_internet_takes_a_packet_from_the_internet_only(tmp_path: Path) -> None:
     e = Env(tmp_path, radio=False)
     taken: list[Packet] = []

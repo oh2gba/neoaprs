@@ -53,7 +53,7 @@ A packet heard is not put on APRS-IS when:
 
 Since the program started, the page and the log tell how many packets were **gated**, and the pointer on the status line tells how many were not and why: *already via the internet*, *NOGATE or RFONLY*, *query*, *not a station*, *our own*, *line break*, *too long*, *duplicate*, *heard while offline*, *not from the air*.
 
-The log has the login at the info level ("logged in as OH2GBA, verified, server T2FINLAND"), each packet gated at the debug level (`neoaprs --debug`), and every hour two lines: "igate: 812 packets gated in the last hour, 40 not gated: 31 TCPIP, 6 duplicate, 3 query" and "igate: 3512 packets read from APRS-IS in the last hour, 2 were no packet". The passcode is in no line of the log.
+The log has the login at the info level ("logged in as OH2GBA, verified, server T2FINLAND"), each packet gated and each packet read from the internet at the debug level (`neoaprs --debug`; those from the radio are at the info level), and every hour two lines: "igate: 812 packets gated in the last hour, 40 not gated: 31 TCPIP, 6 duplicate, 3 query" and "igate: 3512 packets read from APRS-IS in the last hour, 2 were no packet". The passcode is in no line of the log.
 
 ## Receive only
 
