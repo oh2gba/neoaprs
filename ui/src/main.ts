@@ -2,6 +2,7 @@ import "./styles/tokens.css";
 import "./styles/base.css";
 import "./styles/panel.css";
 import "./styles/controls.css";
+import "./styles/tag.css";
 import "./styles/tables.css";
 import "./styles/card.css";
 import "./styles/bulletins.css";

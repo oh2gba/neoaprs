@@ -41,7 +41,7 @@ function make(stations = rows, props: Record<string, unknown> = {}) {
 const section = (wrapper: ReturnType<typeof mount>, name: string) => wrapper.findAll("section").find((s) => s.find("h3").text().startsWith(name));
 const callsIn = (wrapper: ReturnType<typeof mount>, name: string) =>
   section(wrapper, name)
-    ?.findAll("td .call")
+    ?.findAll("td.call")
     .map((c) => c.text());
 
 beforeEach(() => localStorage.clear());
@@ -68,7 +68,7 @@ describe("NearbyPane", () => {
   it("lists the digipeater with what it repeated and the range it gave, and its distance and bearing", () => {
     const { wrapper } = make();
     const row = section(wrapper, "Digipeaters")?.find("tbody tr");
-    expect(row?.find(".call").text()).toBe("OH2RCH-2");
+    expect(row?.find("td.call").text()).toBe("OH2RCH-2");
     expect(row?.find(".what").text()).toContain("30 packets repeated, PHG range 21 km");
     expect(row?.find(".num").text()).toBe("12");
     expect(row?.find(".bearing").attributes("title")).toBe("E, 90°");

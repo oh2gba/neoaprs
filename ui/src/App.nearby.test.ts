@@ -26,7 +26,7 @@ describe("App: the Nearby tab", () => {
     expect(names.indexOf("Nearby")).toBe(names.indexOf("Stations") + 1);
     await tabButton(wrapper, "Nearby")?.trigger("click");
     const section = wrapper.findAll("#pane-nearby section")[0];
-    expect(section?.findAll("td .call").map((c) => c.text())).toEqual(["OH2RDG", "OH2RCH-2"]);
+    expect(section?.findAll("td.call").map((c) => c.text())).toEqual(["OH2RDG", "OH2RCH-2"]);
   });
 
   it("selects a station when its row is clicked: the card opens and the map flies to it", async () => {

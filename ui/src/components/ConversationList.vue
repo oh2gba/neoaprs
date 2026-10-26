@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // The list of conversations of the Messages tab, the one with the newest message first: the call (or the pair of an overheard one), the age, the last text on one line ("You: " before one of ours) and the number of messages not seen. "Show overheard" (with an (i)) is at its top; the open conversation is the filled row, one with something not seen that is not the open one has its call in bold and a bar at its left. A row is a button that opens the conversation; the trash at the right end of it deletes the whole conversation
 // (or the overheard pair) after "sure?": the one way to delete, a single message has no button.
+import TagMark from "@/components/TagMark.vue";
 import IconButton from "@/components/IconButton.vue";
 import InfoTip from "@/components/InfoTip.vue";
 import TabHelp from "@/components/TabHelp.vue";
@@ -64,7 +65,7 @@ function remove(call: string): void {
           <span class="conv-call">{{ conversationName(c.call) }}</span>
           <span class="conv-age muted">{{ ageText(c.last.at, now) }}</span>
           <span class="conv-text muted">{{ preview(c.last) }}</span>
-          <span v-if="c.unread > 0" class="badge" :title="unreadText(c.unread)">{{ c.unread }}</span>
+          <TagMark v-if="c.unread > 0" class="badge" :title="unreadText(c.unread)">{{ c.unread }}</TagMark>
         </button>
         <IconButton
           kind="delete"

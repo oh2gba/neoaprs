@@ -89,16 +89,9 @@ a {
   cursor: pointer;
   text-decoration: underline;
 }
-/* the badge of a station that transmits nothing: the warning colour, a small outlined pill of the height of the other things of the header; it is a mark with a hover title, not a button */
+/* the mark of a station that transmits nothing (a tag in the warning colour, outlined); it is a mark with a hover title, not a button */
 .rxonly {
   flex: none;
-  padding: 0 8px;
-  border: 1px solid var(--warn);
-  border-radius: 9px;
-  color: var(--warn);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 18px;
   cursor: help;
 }
 button.status {

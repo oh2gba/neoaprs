@@ -2,6 +2,7 @@
 // The beacon status at the top of the Beacon tab, in the look of the radio status of the Settings tab (components/RadioStatus.vue): a label, one coloured pill and plain lines, with Beacon now at the end of the first line. A fixed station says when
 // the last beacon went and when the timer sends the next; a moving station says the GPS (the pill is its state, the line the fix) and under it what SmartBeaconing does, or "Beacon off" while the beacon is Off (the GPS is shown all the same, so that the fix can be watched), and, when there is no fix, why (the daemon's own line). The words are
 // lib/beaconstatus.ts's; what Beacon now does when it is pressed, and when it is on, is the tab's (useSendNow).
+import TagMark from "@/components/TagMark.vue";
 import { computed } from "vue";
 import SendButton from "@/components/SendButton.vue";
 import { t } from "@/i18n";
@@ -26,7 +27,7 @@ const block = computed(() => beaconBlock(props.status, props.gps, props.values, 
   <div class="beaconstatus" :class="{ moving: block.moving }">
     <div class="beaconhead">
       <span class="beaconlabel">{{ block.label }}</span>
-      <span v-if="block.pill" class="statepill" :class="block.pill.tone">{{ block.pill.text }}</span>
+      <TagMark v-if="block.pill" tone="muted" class="statepill" :class="block.pill.tone">{{ block.pill.text }}</TagMark>
       <span class="tncstatus" role="status" :title="block.hover">{{ block.line }}</span>
       <SendButton :label="t('beacon.beacon_now')" :armed="armed" :disabled="disabled" :why="why" @press="emit('press')" />
     </div>

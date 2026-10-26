@@ -69,7 +69,8 @@ describe("AppHeader", () => {
     expect(badge.text()).toBe("Receive only");
     expect(badge.element.tagName).toBe("SPAN");
     expect(badge.element.previousElementSibling?.tagName).toBe("H1");
-    expect(cssRule(".rxonly")).toMatch(/color:\s*var\(--warn\)/);
+    expect(badge.classes()).toEqual(expect.arrayContaining(["tag", "tag-warn-outline"]));
+    expect(cssRule(".tag-warn-outline")).toMatch(/color:\s*var\(--warn\)/);
     expect(cssRule(".rxonly")).not.toMatch(/cursor:\s*pointer/);
     expect(wrapper.findAll("button").some((b) => b.text() === "Receive only")).toBe(false);
     expect(badge.attributes("tabindex")).toBeUndefined();

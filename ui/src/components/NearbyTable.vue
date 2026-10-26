@@ -24,10 +24,13 @@ const withKey = (event: MouseEvent | KeyboardEvent): boolean => event.ctrlKey ||
   <table class="grid nearby" :aria-label="label">
     <thead>
       <tr>
-        <th class="sr-only">{{ t("station.table.call") }}</th>
-        <th class="sr-only">{{ t("nearby.details") }}</th>
-        <th class="sr-only">km</th>
-        <th class="sr-only">{{ t("station.table.bearing") }}</th>
+        <th></th>
+        <th>{{ t("station.table.call") }}</th>
+        <th>{{ t("nearby.details") }}</th>
+        <th class="num">km</th>
+        <th>
+          <span class="sr-only">{{ t("station.table.bearing") }}</span>
+        </th>
       </tr>
     </thead>
     <tbody>
@@ -44,8 +47,8 @@ const withKey = (event: MouseEvent | KeyboardEvent): boolean => event.ctrlKey ||
         <td class="symbol" :title="item.row === null ? undefined : symbolName(item.row)">
           <SymbolIcon v-if="item.row !== null" :table="item.row.symbol_table" :code="item.row.symbol_code" :size="18" />
         </td>
+        <td class="mono strong call">{{ item.call }}</td>
         <td class="what">
-          <span class="mono strong call">{{ item.call }}</span>
           <span v-for="(line, i) in item.lines" :key="i" class="muted line">{{ line }}</span>
         </td>
         <td class="num">{{ distanceText(item.row?.distance_km ?? null) }}</td>

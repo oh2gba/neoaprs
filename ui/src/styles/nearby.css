@@ -7,9 +7,6 @@
 }
 .nearby-section {
   width: 100%;
-  max-width: 640px;
-  margin-right: auto;
-  margin-left: auto;
 }
 .nearby-head {
   display: flex;
@@ -24,12 +21,18 @@
   padding: 6px 0 8px;
   text-align: left;
 }
-/* a row has the call and, under it, the words of what makes the station belong to the list */
+/* a row has the columns of the Stations table: the symbol, the call, then what makes the station belong to the list (it takes the free width and is one line when it can be), the distance and the bearing */
 .grid.nearby td {
-  padding-top: 4px;
-  padding-bottom: 4px;
+  width: 1%;
+  height: 30px;
+  padding-top: 0;
+  padding-bottom: 0;
+  white-space: nowrap;
 }
 .grid.nearby td.what {
+  width: auto;
+  padding-top: 3px;
+  padding-bottom: 3px;
   white-space: normal;
 }
 .grid.nearby td.what .line {
@@ -37,10 +40,9 @@
   font-size: 12px;
   overflow-wrap: anywhere;
 }
-.grid.nearby td.symbol,
-.grid.nearby td.num,
-.grid.nearby td.bearing {
-  width: 1%;
+/* (the same width in the four lists, so that the details start at one place) */
+.grid.nearby td.call {
+  min-width: 12ch;
 }
 .grid.nearby td.symbol {
   padding-right: 0;

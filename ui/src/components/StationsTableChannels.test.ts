@@ -56,11 +56,16 @@ describe("how a station was heard, in the Stations table", () => {
     expect(wrapper.findAll("tbody tr.internetonly").map((tr) => tr.attributes("data-call"))).toEqual(["OH2NET"]);
   });
 
-  it("keeps a row one line high: the label is small, quiet letters in the height of the row, in italics for a station of the internet alone", () => {
+  it("keeps a row one line high: the label is a quiet tag after the call on the call's line, in italics for a station of the internet alone", () => {
+    const wrapper = make(rf, net, both);
+    for (const tr of wrapper.findAll("tbody tr[data-call]")) {
+      const cell = tr.get("td.call").element;
+      expect([...cell.children].map((c) => c.className.split(" ")[0])).toEqual(["callname", "tag"]);
+      expect(tr.get(".via").classes()).toContain("tag-quiet");
+    }
     expect(cssRule(".grid.stations td")).toMatch(/height:\s*30px/);
-    const label = cssRule(".grid.stations td.call .via");
-    expect(label).toMatch(/10\.5px/);
-    expect(label).toMatch(/color:\s*var\(--muted\)/);
+    expect(cssRule(".grid.stations td.call")).toMatch(/white-space:\s*nowrap/);
+    expect(cssRule(".grid.stations td.call .via")).not.toMatch(/display:\s*block/);
     expect(cssRule(".grid.stations tr.internetonly td.call .via")).toMatch(/font-style:\s*italic/);
   });
 });

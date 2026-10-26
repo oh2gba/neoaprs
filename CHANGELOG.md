@@ -6,7 +6,8 @@ An iGate with internet stations on the map, a world map and a Dummy radio to try
 
 - **Settings → iGate** puts what your radio hears on APRS-IS. It needs your call and a passcode. Nothing from the internet goes on the air.
 - Internet stations show on the map, with a dotted outline, when the iGate is on. They cannot be messaged.
-- Every station and packet says how it was heard: RF, iGate, Internet or Dummy.
+- Every station and packet says how it was heard: RF, iGate, Internet or Dummy, as a small tag after the call.
+- One look for every small tag of the page (counts, states, channels, Receive only), and the Stations and Nearby tables fill the panel with one line to a row.
 - **Heard on RF only** in the Stations tab hides the stations known only from the internet.
 - A world map comes with NeoAPRS, so the map is never empty, even offline.
 - A map of about 50 km round your station downloads by itself after the setup's Position step.

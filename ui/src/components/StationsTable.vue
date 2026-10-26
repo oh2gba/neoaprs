@@ -2,6 +2,7 @@
 // The stations heard, as a short table that fits the panel: the symbol, the call (a green check mark after it for a station heard direct, and under it in small quiet letters how it was heard: RF, iGate, Internet, or two joined; lib/channels.ts), the distance from us, the bearing as a small arrow (north up; "NE, 47°" is its hover title) and when the station was last heard at all (the newest of anything it sent, with the full time as the hover title); the rest of what is known of a station (when its position was, how its packets reach us, the path, the packets, the weather) is on its card, a click away. A column is sorted by a click on its head (again to
 // reverse), a filter box and the toggles "direct only" (the stations heard direct at some time), "heard on RF only" (leaves out the stations known from the internet alone; it is there only once a station has been received over the internet) and "hide timed out" narrow it, our own station is always on top, the selected row is marked and a click on a row selects the station
 // (the map flies to it; with Ctrl it adds a card). When the filter text is a call that no station has been heard under (not ours, not the email gateway), a button "Message OH2XYZ" under the empty result writes to it all the same. A station past its timeout is off the map: its row is dim and says "timed out" after the time it was heard. Every row is one line high. At the right end of a row are two small buttons, as on the card: a speech bubble that opens the conversation with the station ("Message OH2XYZ", where the card has Message) and a trash can that forgets it ("Forget OH2XYZ", where the card has Forget; it asks twice like the card's, "sure?" for 5 s); a click on them does not select the row. Between them is a "..." button, and a right-click on a row (a long press on a touch screen) opens the same menu where the pointer is (StationMenu: Message, the directed queries, Show, Copy call, QRZ, Forget).
+import TagMark from "@/components/TagMark.vue";
 import { computed, ref, watch } from "vue";
 import BearingArrow from "@/components/BearingArrow.vue";
 import DirectMark from "@/components/DirectMark.vue";
@@ -48,7 +49,6 @@ const withKey = (event: MouseEvent | KeyboardEvent): boolean => event.ctrlKey ||
 const columns = computed<{ key: SortKey | null; title: string; numeric?: boolean }[]>(() => [
   { key: null, title: "" },
   { key: "call", title: t("station.table.call") },
-  { key: null, title: t("station.heard_direct") },
   { key: "distance_km", title: "km", numeric: true },
   { key: null, title: t("station.table.bearing") },
   { key: "last_heard", title: t("station.field.last_heard"), numeric: true },
@@ -159,7 +159,7 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
 </script>
 
 <template>
-  <div class="tablepane capped">
+  <div class="tablepane">
     <TabHelp :label="t('station.table.about_label')">
       <span class="info-line">{{ t("station.table.about1") }}</span>
       <span class="info-line">{{ t("station.table.about2") }}</span>
@@ -219,9 +219,10 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
             <td class="symbol" :title="symbolName(row)"><SymbolIcon :table="row.symbol_table" :code="row.symbol_code" :size="18" /></td>
             <td class="mono strong call">
               <span class="callname">{{ row.call }}</span
-              ><span v-if="channelLabel(row) !== ''" class="via" :title="channelTitle(row)">{{ channelLabel(row) }}</span>
+              ><DirectMark v-if="heardDirect(row)" /><TagMark v-if="channelLabel(row) !== ''" tone="quiet" class="via" :title="channelTitle(row)">{{
+                channelLabel(row)
+              }}</TagMark>
             </td>
-            <td class="direct"><DirectMark v-if="heardDirect(row)" /></td>
             <td class="num">{{ distanceText(row.distance_km) }}</td>
             <td class="bearing" :title="bearingTitle(row.bearing_deg)">
               <BearingArrow v-if="row.bearing_deg !== null" :deg="row.bearing_deg" />

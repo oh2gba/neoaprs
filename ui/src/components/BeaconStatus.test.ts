@@ -12,7 +12,9 @@ const block = (props: Props = {}) =>
 describe("BeaconStatus", () => {
   it("has the label, the state on a pill, one plain line and the button, as the radio's", () => {
     const wrapper = block();
-    expect([...wrapper.find(".beaconhead").element.children].map((c) => c.className.split(" ")[0])).toEqual(["beaconlabel", "statepill", "tncstatus", "btn"]);
+    expect(
+      [...wrapper.find(".beaconhead").element.children].map((c) => (c.classList.contains("statepill") ? "statepill" : (c.className.split(" ")[0] ?? ""))),
+    ).toEqual(["beaconlabel", "statepill", "tncstatus", "btn"]);
     expect(wrapper.find(".tncstatus").text()).toBe("Last beacon 4 min ago · no timed beacon");
     expect(wrapper.find(".mobileline").exists()).toBe(false);
     expect(wrapper.find(".problem").exists()).toBe(false);

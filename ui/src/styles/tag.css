@@ -1,0 +1,51 @@
+/* THE tag (components/TagMark.vue): the one small mark of the page, the same height, font and padding wherever it stands (the count in the header and on a tab, the state of the radio, the channel of a station, Receive only, the hops of a chain); the tone only says what it is.
+   The classes a place adds to it (badge, statepill, via, rxonly...) place it and never change its size. */
+.tag {
+  display: inline-block;
+  box-sizing: border-box;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.tag-count {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+.tag-quiet {
+  border-color: var(--border);
+  background: none;
+  color: var(--muted);
+}
+.tag-muted {
+  background: var(--muted);
+  color: var(--panel);
+}
+.tag-ok {
+  background: var(--ok);
+  color: var(--panel);
+}
+.tag-warn {
+  background: var(--warn);
+  color: var(--panel);
+}
+.tag-outline {
+  border-color: currentcolor;
+  background: none;
+}
+.tag-warn-outline {
+  border-color: var(--warn);
+  background: none;
+  color: var(--warn);
+}
+button.tag {
+  cursor: pointer;
+}

@@ -65,7 +65,8 @@ describe("PacketsLog", () => {
       "Heard on the radio",
     ]);
     expect(cells.map((td) => td.classes().includes("internet"))).toEqual([false, false, true, false, false]);
-    expect(cssRule(".grid.packets td.via.internet")).toMatch(/font-style:\s*italic/);
+    expect(cssRule(".grid.packets td.via.internet .tag")).toMatch(/font-style:\s*italic/);
+    expect(wrapper.findAll("td.via .tag.tag-quiet")).toHaveLength(5);
   });
 
   it("filters by the channel too: Internet finds the packets of the internet", async () => {

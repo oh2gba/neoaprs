@@ -3,6 +3,7 @@
 // the list; a click on a packet opens it in plain facts (components/PacketDetail.vue), with what the parser decoded of it, as JSON, under "Raw". A route breaks between its words, never inside a callsign.
 // Laid out by the width of the tab itself (not of the window: the panel beside the map can be narrow on a wide screen; PACKETS_TABLE, lib/layout.ts): the table of columns when it is wide enough, else one block for each packet (the time, the direction and the channel,
 // the packet line, then the route and the summary in small text) with the header row for a screen reader only; the click, the detail row and the filter are the same in both.
+import TagMark from "@/components/TagMark.vue";
 import { computed, ref } from "vue";
 import { useElementWidth } from "@/composables/useElementWidth";
 import { PACKETS_TABLE } from "@/lib/layout";
@@ -71,7 +72,9 @@ function toggle(id: number): void {
             >
               <td class="mono nowrap time">{{ clockText(row.heard_at) }}</td>
               <td class="dir" :class="row.direction">{{ t(`packets.dir.${row.direction}`) }}</td>
-              <td class="via" :class="{ internet: row.via === 'is' }" :title="packetTitle(row.via)">{{ packetLabel(row.via) }}</td>
+              <td class="via" :class="{ internet: row.via === 'is' }" :title="packetTitle(row.via)">
+                <TagMark tone="quiet">{{ packetLabel(row.via) }}</TagMark>
+              </td>
               <td class="mono wrap line">{{ row.tnc2 }}</td>
               <td class="muted route-cell"><RouteText :text="routeWords(row.route)" /></td>
               <td class="wrap summary">{{ row.summary }}</td>

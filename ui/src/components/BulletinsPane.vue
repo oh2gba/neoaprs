@@ -4,6 +4,7 @@
 // nothing ages out: a row stays until the delete button at its corner is pressed twice ("sure?"), which deletes it on the daemon. A bulletin of ours is on the board too, marked "ours" (the call is ours), with how often it was sent
 // and when it goes out next; its delete stops it and takes it off the board. An (i) at the top (TabHelp) says what a bulletin is. The box to post to the board is fixed at the bottom of the tab (components/BulletinCompose.vue), as the box of every tab. The board stays newest first
 // in each section, as a board is read from the top: the sections and their headings keep their places (a stream oldest first, scrolled to the end, would open on the weather service).
+import TagMark from "@/components/TagMark.vue";
 import { computed } from "vue";
 import BulletinCompose from "@/components/BulletinCompose.vue";
 import IconButton from "@/components/IconButton.vue";
@@ -52,7 +53,7 @@ const remove = (b: BoardEntry): void =>
               <strong class="mono">{{ b.sender }}</strong>
               <span class="muted">{{ ` ${t("bulletins.to")} ` }}</span>
               <span class="mono bulletin-target" :title="b.slot">{{ targetOf(b) }}</span>
-              <span v-if="b.own" class="own-mark">{{ t("bulletins.ours") }}</span>
+              <TagMark v-if="b.own" tone="outline" class="own-mark">{{ t("bulletins.ours") }}</TagMark>
             </p>
             <p class="bulletin-text">{{ b.text }}</p>
             <p v-if="b.own" class="bulletin-meta muted" :title="t('bulletins.posted', { time: dateTimeText(b.first_heard) })">{{ ownMeta(b.own, now) }}</p>

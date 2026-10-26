@@ -2,6 +2,7 @@
 // The tabs that do not fit in the row of the panel (SidePanel measures that), under one "More" button at the end of the row: it carries the count of everything that has a badge among them (the messages and the mail not seen, the new bulletins) when there is any.
 // It opens a menu of those tabs in their order, each with its badge; a click on one picks it and closes the menu (the tab then takes its place in the row, so the open tab is never under More), Esc and a click outside close it, Up and Down, Home and End move in it
 // (Down on the button opens it on the first, Up on the last).
+import TagMark from "@/components/TagMark.vue";
 import { computed, nextTick, ref } from "vue";
 import TabBadge from "@/components/TabBadge.vue";
 import { usePopup } from "@/composables/usePopup";
@@ -79,7 +80,7 @@ function menuKey(event: KeyboardEvent): void {
       @keydown="buttonKey"
     >
       {{ t("tab.more") }} <span aria-hidden="true">&#9662;</span>
-      <span v-if="total > 0" class="badge" aria-hidden="true">{{ total }}</span>
+      <TagMark v-if="total > 0" class="badge" aria-hidden="true">{{ total }}</TagMark>
       <span v-if="total > 0" class="sr-only">{{ t("tab.menu_new", { n: total }) }}</span>
     </button>
     <ul v-if="open" id="tabmenu-list" class="tabmenu-list" role="menu" aria-labelledby="tabmenu-button" @keydown="menuKey">

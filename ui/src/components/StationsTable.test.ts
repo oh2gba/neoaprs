@@ -46,8 +46,8 @@ describe("StationsTable", () => {
 
   it("has the columns symbol, Call, a check mark, km, the bearing as an arrow and Last heard, and nothing else: the rest is on the card", () => {
     const wrapper = make();
-    expect(wrapper.findAll("thead th").map((th) => th.text())).toEqual(["", "Call", "heard direct", "km", "bearing", "Last heard ▼", ""]);
-    for (const tr of wrapper.findAll("tbody tr")) expect(tr.findAll("td")).toHaveLength(7);
+    expect(wrapper.findAll("thead th").map((th) => th.text())).toEqual(["", "Call", "km", "bearing", "Last heard ▼", ""]);
+    for (const tr of wrapper.findAll("tbody tr")) expect(tr.findAll("td")).toHaveLength(6);
     const text = wrapper.findAll("tbody tr")[2]?.text() ?? "";
     expect(text).toContain("OH2PU-9");
     expect(text).toContain("16");
@@ -71,12 +71,12 @@ describe("StationsTable", () => {
 
   it("is sorted by the other columns, not by the arrow", () => {
     const heads = make().findAll("thead th");
-    expect(heads[4]?.find("button").exists()).toBe(false);
-    expect(heads[3]?.find("button").exists()).toBe(true);
+    expect(heads[3]?.find("button").exists()).toBe(false);
+    expect(heads[2]?.find("button").exists()).toBe(true);
   });
 
   it("says when a station was last heard, anything it sent, with the full time as the hover title", () => {
-    const cell = make().findAll("tbody tr")[2]?.findAll("td")[5];
+    const cell = make().findAll("tbody tr")[2]?.findAll("td")[4];
     expect(cell?.text()).toBe("3 min");
     expect(cell?.attributes("title")).toMatch(/^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$/);
   });
@@ -88,7 +88,7 @@ describe("StationsTable", () => {
       station("OH2FAR", { last_direct_at: null }),
     );
     const wrapper = make(null, never, stations);
-    const marks = Object.fromEntries(wrapper.findAll("tbody tr").map((tr) => [tr.find("td.call .callname").text(), tr.find("td.direct .direct-mark")]));
+    const marks = Object.fromEntries(wrapper.findAll("tbody tr").map((tr) => [tr.find("td.call .callname").text(), tr.find("td.call .direct-mark")]));
     expect(marks.OH2NEAR?.exists()).toBe(true);
     expect(marks.OH2NEAR?.attributes("aria-label")).toBe("Heard direct");
     expect(marks.OH2NEAR?.attributes("title")).toBe("Heard direct");
@@ -149,7 +149,7 @@ describe("StationsTable", () => {
       expect(calls(wrapper)).toEqual(["OH2GBA", "OH2FRESH", "OH2OLD"]);
       const [mine, fresh, gone] = lines(wrapper);
       expect(gone?.classes()).toContain("timedout");
-      expect(gone?.findAll("td")[5]?.text()).toBe("1 min timed out");
+      expect(gone?.findAll("td")[4]?.text()).toBe("1 min timed out");
       expect(mine?.classes()).not.toContain("timedout");
       expect(fresh?.text()).not.toContain("timed out");
     });

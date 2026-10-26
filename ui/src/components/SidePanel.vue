@@ -3,6 +3,7 @@
 // to drag its width (up to 80 % of the window, the map keeping 360 px). The tab and the width are the page's to remember; a remembered width that is too much for the window is shown clamped, and is whole again when the window is wide again. The contents of every tab stay mounted, so that a filter or a scroll position is there when the tab is back.
 // By the size of the page (lib/layout.ts): a desktop has the handle and the user's width; a tablet has a width of its own (CSS) and the fold button; a phone has neither, and its tab bar starts with a Map button: the map and the open tab take turns (`view`),
 // a tab picked in the bar brings the panel, the Map button the map, and the contents of the tab are the whole area under the bar.
+import TagMark from "@/components/TagMark.vue";
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import TabBadge from "@/components/TabBadge.vue";
 import TabMenu from "@/components/TabMenu.vue";
@@ -108,7 +109,7 @@ function nudge(event: KeyboardEvent): void {
       <span aria-hidden="true">{{ folded ? "‹" : "›" }}</span>
       <span class="sr-only">{{ folded ? (unseen > 0 ? t("panel.show_unseen", { unseen: unseenTitle }) : t("panel.show")) : t("panel.hide") }}</span>
     </button>
-    <span v-if="folded && unseen > 0" class="badge fold-badge" :title="unseenTitle" aria-hidden="true">{{ unseen }}</span>
+    <TagMark v-if="folded && unseen > 0" class="badge fold-badge" :title="unseenTitle" aria-hidden="true">{{ unseen }}</TagMark>
     <template v-if="!folded">
       <div
         v-if="size === 'desktop'"
@@ -159,7 +160,7 @@ function nudge(event: KeyboardEvent): void {
             </span>
             <span class="tab" data-more>{{ t("tab.more") }} <span aria-hidden="true">&#9662;</span></span>
             <span class="tab" data-more-count
-              >{{ t("tab.more") }} <span aria-hidden="true">&#9662;</span> <span class="badge">{{ countDigits }}</span></span
+              >{{ t("tab.more") }} <span aria-hidden="true">&#9662;</span> <TagMark class="badge">{{ countDigits }}</TagMark></span
             >
           </div>
         </div>

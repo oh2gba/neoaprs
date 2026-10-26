@@ -96,11 +96,16 @@ describe("BeaconPane", () => {
     const call = wrapper.find("#set-station-call").element.closest(".field");
     expect(row.element.classList.contains("field")).toBe(true);
     expect(row.element.previousElementSibling).toBe(wrapper.find("#set-gps-source").element.closest(".field"));
-    expect([...row.element.children].map((c) => c.className.split(" ")[0])).toEqual(["field-label", "field-control"]);
+    expect([...row.element.children].map((c) => (c.classList.contains("statepill") ? "statepill" : (c.className.split(" ")[0] ?? "")))).toEqual([
+      "field-label",
+      "field-control",
+    ]);
     expect(row.find(".field-label").text()).toBe("Location");
     expect(row.find(".field-label").element.nextElementSibling).toBe(row.find(".field-control").element);
     expect(call?.querySelector(".field-control")?.tagName).toBe("DIV");
-    expect([...row.find(".field-control").element.children].map((c) => c.className.split(" ")[0])).toEqual(["btn", "location-place"]);
+    expect(
+      [...row.find(".field-control").element.children].map((c) => (c.classList.contains("statepill") ? "statepill" : (c.className.split(" ")[0] ?? ""))),
+    ).toEqual(["btn", "location-place"]);
     expect(row.find(".btn").classes()).not.toContain("primary");
     expect(row.find(".location-place").text()).toBe("60.17 N, 24.94 E · KP20le");
     expect(row.find("details").exists()).toBe(false);
@@ -113,12 +118,11 @@ describe("BeaconPane", () => {
         {},
         { status: status({ beacon_interval_min: 60, beacon_last_sent: ago(240), beacon_next_due: new Date(NOW + 56 * 60_000).toISOString() }) },
       );
-      expect([...block(wrapper).find(".beaconhead").element.children].map((c) => c.className.split(" ")[0])).toEqual([
-        "beaconlabel",
-        "statepill",
-        "tncstatus",
-        "btn",
-      ]);
+      expect(
+        [...block(wrapper).find(".beaconhead").element.children].map((c) =>
+          c.classList.contains("statepill") ? "statepill" : (c.className.split(" ")[0] ?? ""),
+        ),
+      ).toEqual(["beaconlabel", "statepill", "tncstatus", "btn"]);
       expect(block(wrapper).find(".beaconlabel").text()).toBe("Beacon");
       expect(block(wrapper).find(".statepill").text()).toBe("on");
       expect(block(wrapper).find(".statepill").classes()).toContain("beacon-on");

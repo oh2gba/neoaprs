@@ -61,11 +61,7 @@
 }
 .own-mark {
   margin-left: 6px;
-  padding: 0 6px;
-  border: 1px solid var(--accent);
-  border-radius: 10px;
   color: var(--accent);
-  font-size: 11px;
 }
 .bulletin.mine {
   border-color: var(--accent);
