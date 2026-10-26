@@ -4,7 +4,7 @@ import { ageSeconds } from "@/lib/format";
 import { routeHops } from "@/lib/routeline";
 import type { StationRow } from "@/protocol/protocol";
 
-type Counts = Pick<StationRow, "heard_direct" | "heard_via" | "heard_gated">;
+type Counts = Pick<StationRow, "heard_direct" | "heard_via" | "heard_rf_gated" | "heard_is">;
 
 /** A station heard direct within this long has a ring on its marker. */
 const DIRECT_RECENT_SEC = 3600;
@@ -24,12 +24,13 @@ export function routeWords(text: string, unnamed = "?"): string {
   return t("route.via", { hops: [...gate, ...route.hops.map((hop) => (hop === "?" ? unnamed : hop))].join(" → ") });
 }
 
-/** "12 direct, 30 via OH2RCH-2, 4 via OH2RCH-3, 2 from the internet"; "-" before any packet is counted. */
+/** "12 direct, 30 via OH2RCH-2, 4 via OH2RCH-3, 2 via an iGate, 5 over the internet"; "-" before any packet is counted. */
 export function heardText(row: Counts): string {
   const parts: string[] = [];
   if (row.heard_direct > 0) parts.push(t("route.heard.direct", { n: row.heard_direct }));
   for (const [call, count] of row.heard_via) parts.push(t("route.heard.via", { n: count, name: viaName(call) }));
-  if (row.heard_gated > 0) parts.push(t("route.heard.gated", { n: row.heard_gated }));
+  if (row.heard_rf_gated > 0) parts.push(t("route.heard.gated", { n: row.heard_rf_gated }));
+  if (row.heard_is > 0) parts.push(t("route.heard.internet", { n: row.heard_is }));
   return parts.length === 0 ? "-" : parts.join(", ");
 }
 
@@ -58,11 +59,11 @@ export function heardDirect(row: Pick<StationRow, "kind" | "is_me" | "last_direc
   return row.kind === "station" && !row.is_me && row.last_direct_at !== null;
 }
 
-/** The way of the latest packet written for a person: "direct", "via OH2RCH-2", "via a repeater → OH2RCH-2" (a repeater that put no call in the packet), "via OH7JHF-1 (internet)"; before a route is known, the way most of its packets came by; null when none is known. */
-export function reachedText(row: Pick<StationRow, "last_route" | "heard_direct" | "heard_via" | "heard_gated">): string | null {
+/** The way of the latest packet written for a person: "direct", "via OH2RCH-2", "via a repeater → OH2RCH-2" (a repeater that put no call in the packet), "via OH7JHF-1 (internet)"; before a route is known, the way most of its packets came by; null when none is known (a station known from the internet alone has no route). */
+export function reachedText(row: Pick<StationRow, "last_route" | "heard_direct" | "heard_via" | "heard_rf_gated">): string | null {
   if (row.last_route !== "") return routeWords(row.last_route, t("route.hop.repeater"));
   if (row.heard_direct > 0) return t("route.direct");
   const first = row.heard_via[0];
   if (first !== undefined) return t("route.via", { hops: first[0] === "?" ? t("route.hop.repeater") : first[0] });
-  return row.heard_gated > 0 ? t("route.via_internet") : null;
+  return row.heard_rf_gated > 0 ? t("route.via_internet") : null;
 }

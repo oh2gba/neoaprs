@@ -4,8 +4,10 @@
 //   voice frequencies: every station, object and item that gave one, as the card words it, and who reported it;
 //   iGates: the stations that put third-party packets on the air (`gated`), that said so in a capabilities packet (`igate`) or whose symbol is the iGate's;
 //   heard direct: the stations heard with no digipeater between us, newest direct packet first among equals: the stations in simplex range.
+// Only what was on the air near us is listed: a station known from the internet alone (lib/channels.ts) is in none of the four lists, whatever its symbol or its frequency says.
 // These are plain functions of rows; the page's words are the ones of the `nearby.*` messages.
 import { t } from "@/i18n";
+import { onAir } from "@/lib/channels";
 import { frequencyText } from "@/lib/details";
 import { ageText } from "@/lib/format";
 import { hasPosition } from "@/lib/stations";
@@ -34,8 +36,10 @@ export function isIgateSymbol(row: Pick<StationRow, "symbol_table" | "symbol_cod
   return row.symbol_table === IGATE_TABLE && row.symbol_code === IGATE_CODE;
 }
 
-/** A station of the air (not an object or an item, not ourselves): the kind of row the digipeater, iGate and direct lists are made of. */
-const isOther = (row: StationRow): boolean => row.kind === "station" && !row.is_me;
+/** A station (not an object or an item, not ourselves). */
+const isStation = (row: StationRow): boolean => row.kind === "station" && !row.is_me;
+/** A station of the air (not known from the internet alone): the kind of row the digipeater symbol, iGate and direct lists are made of. */
+const isOther = (row: StationRow): boolean => isStation(row) && onAir(row);
 
 /** The nearest first, a missing distance last. */
 const nearer = (x: number | null, y: number | null): number => (x === y ? 0 : x === null ? 1 : y === null ? -1 : x - y);
@@ -77,7 +81,7 @@ export function digipeaters(source: Iterable<StationRow>): Digipeater[] {
   const found: Digipeater[] = [];
   for (const call of calls) {
     const row = byCall.get(call) ?? null;
-    if (row !== null && !isOther(row)) continue;
+    if (row !== null && !isStation(row)) continue; // (a call that repeated packets for us is a digipeater whatever its own packets came by; an object, an item and ourselves are none)
     found.push({ call, row, repeated: counts.get(call) ?? 0, range: row === null ? null : rangeOf(row.extensions) });
   }
   return found.sort((a, b) => nearer(a.row?.distance_km ?? null, b.row?.distance_km ?? null) || a.call.localeCompare(b.call));
@@ -100,7 +104,7 @@ export function rangeCircleOf(source: Iterable<StationRow>, call: string | null)
 
 /** The voice frequencies given: every row (a station, an object, an item) that has one, nearest first. */
 export function voiceRows(rows: Iterable<StationRow>): StationRow[] {
-  return nearestFirst([...rows].filter((row) => row.frequency !== null));
+  return nearestFirst([...rows].filter((row) => row.frequency !== null && onAir(row)));
 }
 
 /** The stations that put third-party packets on the air, said they are an iGate, or look like one, nearest first. */

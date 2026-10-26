@@ -40,8 +40,8 @@ def kind_of(station: Station) -> Kind:
 
 
 def counted(station: Station, since: datetime) -> bool:
-    """A station of the air, not an object or an item, with a position, heard on RF since `since`. One whose latest packet an iGate put on the air from the internet is not on the channel from where it is."""
-    return station.kind == "station" and not station.is_me and station.has_position and station.last_heard >= since and not station.last_via
+    """A station of the air, not an object or an item, with a position, heard on RF since `since`. A packet that an iGate put on the air from the internet, or that came from APRS-IS, does not show that the station is on the channel from where it is."""
+    return station.kind == "station" and not station.is_me and station.has_position and station.last_on_air_at is not None and station.last_on_air_at >= since
 
 
 def circle(position: tuple[float, float] | None, stations: list[Station], now: datetime) -> Circle | None:

@@ -17,6 +17,7 @@ from .gpsfeed import GpsFeed
 from .interlock import Interlock
 from .messagelog import MessageLog
 from .ownlog import OwnLog
+from .packet import IS, Packet
 from .packetlog import PacketLog
 from .route import Deliveries
 from .serialprobe import search_pattern
@@ -96,12 +97,20 @@ class Services:
         self.selfupdate = SelfUpdate(install, installer_for(install, data_dir, self.restart_into), self._announced, release_source(), end=self._end_for_restart)      # Update now: on the page's request only; nothing to start
         self.reexec: list[str] | None = None                            # the command line that is to run in the place of this process when it has ended (Update now of an AppImage)
         self.digipeater = Digipeater(self.tnc, lambda: self.config, clock, self.tnc.stats)     # the fill-in digipeater (digi/enabled): a packet that asks for WIDE1-1 or for our call is sent again; nothing to start
+        self.internet_packet: Signal[[Packet]] = Signal("internet.packet")   # a packet received from APRS-IS (Packet.via `is`): the packet log, the station book and the weather log take it, the page's topics follow it, nothing else (neoaprs/wiring.py)
         self.config_changed: Signal[[Config]] = Signal("config_changed")   # every save of the settings, though nothing differs: the page's settings form waits for it
         self.web: Frontend | None = None                                # the page's server, made by the controller from the factory the process gave it, once the settings are read
         self.db: Db | None = None                                       # its thread, once the controller has opened it
         self.tasks = TaskSet(log)                                             # what the parts start on the loop; the controller's stop ends them
         self.running = False
         self.debug = False
+
+    def hear_internet(self, packet: Packet) -> None:
+        """The one way a packet received from APRS-IS enters the program (`aprsisline.parse_is_line` makes it): it is handed to `internet_packet`, a signal that no part which answers, acknowledges, repeats, sends or
+        gates is connected to. Anything but an `is` packet is refused: a packet of the radio has its own signal, the Tnc's."""
+        if packet.via != IS or packet.direction != "in":
+            raise ValueError("only a packet received from the internet (Packet.via is) enters here")
+        self.internet_packet.emit(packet)
 
     def _deliveries(self, call: str) -> Deliveries | None:
         """How the packets of the station reached us, for the path of a message to it (None for a station not in the book)."""

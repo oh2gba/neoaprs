@@ -40,7 +40,7 @@ async function open(width: number, height: number, call = "OH2GBA") {
   return { wrapper, socket };
 }
 
-const row = (wrapper: VueWrapper, call: string) => wrapper.findAll("#pane-stations tbody tr").find((r) => r.find("td.call").text() === call);
+const row = (wrapper: VueWrapper, call: string) => wrapper.findAll("#pane-stations tbody tr").find((r) => r.find("td.call .callname").text() === call);
 const cards = (wrapper: VueWrapper) => wrapper.findAll(".cardstack .card").map((card) => card.find("strong").text());
 const marker = (call: string) => FakeMarker.live().find((m) => m.element.textContent === call);
 const marked = () =>

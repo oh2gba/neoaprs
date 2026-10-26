@@ -9,6 +9,7 @@ from .aprstelemetry import Telemetry
 from .aprsstorm import Storm
 from .aprsweather import Weather
 from .hourcount import HourCount
+from .packet import Via
 from .route import Deliveries, Route
 
 Track = list[tuple[datetime, float, float]]
@@ -32,8 +33,17 @@ class Station:
     last_position_at: datetime | None = None
     last_status: str = ""
     last_comment: str = ""
-    packets: int = 0
-    last_path: tuple[str, ...] = ()
+    packets: int = 0                            # all its packets, whatever the channel: heard_rf + heard_rf_gated + heard_is + heard_dummy
+    heard_rf: int = 0                           # how many of them were heard on the radio, direct or by digipeaters (Packet.via `rf`)
+    heard_rf_gated: int = 0                     # ... as third-party packets that an iGate put on the air (`rf-gated`)
+    heard_is: int = 0                           # ... received from APRS-IS over the internet (`is`)
+    last_rf_at: datetime | None = None          # when the latest of each kind was heard
+    last_rf_gated_at: datetime | None = None
+    last_is_at: datetime | None = None
+    heard_dummy: int = 0                        # ... made up by the Dummy radio (`dummy`; they count as the air for everything but the internet)
+    last_dummy_at: datetime | None = None
+    position_via: Via | None = None             # the channel of the packet that gave the position (the latest one wins); None without a position and for our own station
+    last_path: tuple[str, ...] = ()             # the digipeaters of the latest packet heard on the radio (an `is` packet came by no route)
     last_via: str = ""                          # the iGate, when the latest packet came as a third-party packet (not kept in the cache: it is read again from the packets at the start)
     weather: Weather | None = None              # the latest observation of a weather station (not kept in the cache: it is read again from the weather log at the start)
     weather_at: datetime | None = None          # when it was heard
@@ -60,10 +70,21 @@ class Station:
         return self.lat is not None and self.lon is not None
 
     @property
+    def last_on_air_at(self) -> datetime | None:
+        """When a packet of the station was last on the radio's channel, the Dummy radio's too (not a third-party packet, not one from the internet); None when none was."""
+        times = [at for at in (self.last_rf_at, self.last_dummy_at) if at is not None]
+        return max(times) if times else None
+
+    @property
+    def internet_only(self) -> bool:
+        """Known from APRS-IS alone: packets were received over the internet and none was ever heard on the radio, not even as a third-party packet. Nothing that means "on the air near us" counts it."""
+        return self.heard_is > 0 and self.heard_rf == 0 and self.heard_rf_gated == 0 and self.heard_dummy == 0
+
+    @property
     def can_message(self) -> bool:
-        """Whether a message to it makes sense. Never for an object or an item, and not for us. A station that has sent a message or an ack does messages, whatever its positions say; else its latest
+        """Whether a message to it makes sense. Never for an object or an item, not for us, and not for a station known only from the internet (this program sends nothing but by radio). A station that has sent a message or an ack does messages, whatever its positions say; else its latest
         position says (`=` and `@` yes, `!` and `/` no, Mic-E yes unless its comment starts with the type code `'` of a radio without messaging); a station with neither is not hidden."""
-        if self.kind != "station" or self.is_me:
+        if self.kind != "station" or self.is_me or self.internet_only:
             return False
         return self.sent_message or self.position_messaging is not False
 

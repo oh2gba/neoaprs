@@ -7,6 +7,18 @@ The tab bar.
 - When the nine tabs do not fit the panel, the bar no longer folds into one **☰** button with every tab behind a click: the first tabs that fit, in their order of importance (Messages, Stations, Nearby, Email, Bulletins, Objects, Beacon, Packets, Settings), stay in the row and the rest are under a **More** button at the end of it. **More** carries the badges of the tabs under it added up, opens a menu of them (Up, Down, Home, End, Enter and Esc work in it), and a tab picked from it takes the place of the last tab in the row, so the tab on show is always seen. The same on a phone, after the **Map** button.
 - The tabs are 4 px narrower (8 px of padding at each side of a name instead of 10), so that all nine fit the 760 px of the default panel of a wide screen, also with the badges of a busy day.
 
+How a packet reached you is known everywhere.
+
+- Every packet is marked with the channel it came by, once, where it is made, and the mark is kept with it in the database and told to the page: `rf` (heard on the radio), `rf-gated` (heard on the radio from an iGate that took it from the internet), `is` (received from APRS-IS over the internet; the connection that reads it is not part of this version) and `dummy` (made up by the Dummy radio). Packets already in the database are `rf`, or `rf-gated` where the stored frame holds a third-party packet; the station cache is counted by channel from what it knew (the database is migrated to version 21 at the first start, after a copy into `backup/`).
+- One gate for packets from the internet: they go only to the packet log, the station book, the weather log and the page. No message from the internet is kept or acknowledged, no query is answered, nothing is repeated or sent for it, and none of it touches your objects; the daemon's tests prove it by walking every part that takes a packet. `packet.GATEABLE` names the channels that may be sent to the internet (not `is`, not `dummy`).
+- Each station is counted by channel (how many packets and when the latest, for RF, iGate, Internet and Dummy) and its position is marked with the channel that gave it last. Routes, heard direct, the suggested path, Nearby, the ALOHA circle and who can be messaged use the radio only: a station known from the internet alone cannot be messaged, and its card says so.
+- **The Stations tab** has a small label under every call: RF, iGate, Internet or two joined (RF · Internet), and a tickbox "heard on RF only" that appears once a station has been received over the internet. The station card says when it was last heard for each channel; the Packets tab has a Via column; on the map a station known from the internet alone has a dotted outline and an italic call; the Nearby tab lists only what was on the air. The labels are in all seven languages.
+- The wire: the station rows have `heard_rf`, `heard_rf_gated` (it was `heard_gated`), `heard_is`, `heard_dummy`, the matching `last_*_at` and `position_via`; the packet rows have `via` (the channel; it was the iGate's call, which is now `gate`).
+
+For development.
+
+- A line of APRS-IS (`OH2ABC>APRS,TCPIP*,qAC,T2FINLAND:...`) is read into a packet by `neoaprs/aprsisline.py`, the one way an internet packet is made, and handed to the program with `Services.hear_internet`.
+
 On Windows.
 
 For the page and the daemon.

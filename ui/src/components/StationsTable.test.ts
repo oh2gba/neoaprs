@@ -14,7 +14,7 @@ const rows = table(
 );
 
 function calls(wrapper: ReturnType<typeof mount>): string[] {
-  return wrapper.findAll("tbody tr td.call").map((td) => td.text());
+  return wrapper.findAll("tbody tr td.call .callname").map((td) => td.text());
 }
 
 const never: Aging = { defaultMin: 0 };
@@ -31,7 +31,7 @@ describe("StationsTable", () => {
   });
 
   it("keeps a call with an SSID on one line: the call cell has the class whose rule forbids wrapping", () => {
-    const cells = make().findAll("tbody tr td.call");
+    const cells = make().findAll("tbody tr td.call .callname");
     expect(cells.length).toBeGreaterThan(0);
     expect(cssRule(".grid .call")).toMatch(/white-space:\s*nowrap/);
   });
@@ -80,7 +80,7 @@ describe("StationsTable", () => {
       station("OH2FAR", { last_direct_at: null }),
     );
     const wrapper = make(null, never, stations);
-    const marks = Object.fromEntries(wrapper.findAll("tbody tr").map((tr) => [tr.find("td.call").text(), tr.find("td.direct .direct-mark")]));
+    const marks = Object.fromEntries(wrapper.findAll("tbody tr").map((tr) => [tr.find("td.call .callname").text(), tr.find("td.direct .direct-mark")]));
     expect(marks.OH2NEAR?.exists()).toBe(true);
     expect(marks.OH2NEAR?.attributes("aria-label")).toBe("Heard direct");
     expect(marks.OH2NEAR?.attributes("title")).toBe("Heard direct");

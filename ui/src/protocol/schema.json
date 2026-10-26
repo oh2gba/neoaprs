@@ -2641,14 +2641,14 @@
           "type": "string"
         },
         "source": {
-          "description": "who sent the frame we heard; for a third-party packet the iGate (see `via`)",
+          "description": "who sent the frame we heard; for a third-party packet the iGate (see `gate`); for a packet from the internet the station that sent it",
           "type": "string"
         },
         "destination": {
           "type": "string"
         },
         "path": {
-          "description": "the digipeaters, the one that repeated it marked with `*`",
+          "description": "the digipeaters, the one that repeated it marked with `*`; for a packet from the internet everything between the destination and the colon of the line (`TCPIP*`, the q-construct `qAC`, the server `T2FINLAND`)",
           "items": {
             "type": "string"
           },
@@ -2668,11 +2668,21 @@
           "type": "string"
         },
         "route": {
-          "description": "how a packet that was heard reached us: `direct`, `via OH2RCH-2`, `via ? \u2192 OH2RCH-2`, `via OH7JHF-1 (internet)` for a third-party packet; empty for a packet of ours",
+          "description": "how a packet that was heard on the radio reached us: `direct`, `via OH2RCH-2`, `via ? \u2192 OH2RCH-2`, `via OH7JHF-1 (internet)` for a third-party packet; empty for a packet of ours and for one from the internet",
           "type": "string"
         },
         "via": {
-          "description": "the iGate, for a third-party packet: `source` and `path` are those of the frame we heard (the iGate's), `decoded` is the packet inside it; empty for any other packet",
+          "description": "the channel the packet came by, set once where it was made: `rf` heard on the radio (direct or by digipeaters; every packet of ours too), `rf-gated` heard on the radio as a third-party packet that an iGate put on the air, `is` received from APRS-IS over the internet (never on the air), `dummy` made up by the Dummy radio (it works as `rf` does and never goes to the internet)",
+          "enum": [
+            "rf",
+            "rf-gated",
+            "is",
+            "dummy"
+          ],
+          "type": "string"
+        },
+        "gate": {
+          "description": "the iGate, for a third-party packet (`via` is `rf-gated`): `source` and `path` are those of the frame we heard (the iGate's), `decoded` is the packet inside it; empty for any other packet",
           "type": "string"
         },
         "summary": {
@@ -2735,6 +2745,7 @@
         "kind",
         "route",
         "via",
+        "gate",
         "summary",
         "tnc2",
         "decoded"
@@ -3578,8 +3589,97 @@
           "type": "string"
         },
         "packets": {
-          "description": "how many packets of this station were heard",
+          "description": "how many packets of this station were received, whatever the channel (`heard_rf` + `heard_rf_gated` + `heard_is` + `heard_dummy`)",
           "type": "integer"
+        },
+        "heard_rf": {
+          "description": "how many of them were heard on the radio, direct or by digipeaters (`rf`)",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "heard_rf_gated": {
+          "description": "how many came on the radio as third-party packets: an iGate put what it heard on the internet on the air (`rf-gated`); counted, but never a route to send by",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "heard_is": {
+          "description": "how many were received from APRS-IS over the internet (`is`); they were never on the air",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "heard_dummy": {
+          "description": "how many were made up by the Dummy radio (`dummy`), the radio for trying the program with no radio; they work as the radio's do, and never go to the internet",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "last_rf_at": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when a packet of the station was last heard on the radio (`rf`); null when none was"
+        },
+        "last_rf_gated_at": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when a third-party packet of the station was last heard on the radio (`rf-gated`); null when none was"
+        },
+        "last_is_at": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when a packet of the station was last received from the internet (`is`); null when none was"
+        },
+        "last_dummy_at": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when a packet of the station was last made up by the Dummy radio (`dummy`); null when none was"
+        },
+        "position_via": {
+          "anyOf": [
+            {
+              "enum": [
+                "rf",
+                "rf-gated",
+                "is",
+                "dummy"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the channel of the packet that gave its position (the latest one wins); null for a station without a position and for our own"
         },
         "packets_hour": {
           "description": "how many of them were heard in the last hour (counted from the packets of the hour at the start and as they come; the row is told again each minute that it becomes fewer)",
@@ -3591,14 +3691,14 @@
           "type": "string"
         },
         "last_path": {
-          "description": "the digipeaters of the latest packet, the one that repeated it marked with `*`",
+          "description": "the digipeaters of the latest packet heard on the radio, the one that repeated it marked with `*`",
           "items": {
             "type": "string"
           },
           "type": "array"
         },
         "last_route": {
-          "description": "how the latest packet reached us: `direct`, `via OH2RCH-2`, `via OH2RCH-1 \u2192 OH2RCH-3` (the digipeaters that repeated it, in order, `?` for one that did not put its call in)",
+          "description": "how the latest packet heard on the radio reached us (empty for a station known from the internet only): `direct`, `via OH2RCH-2`, `via OH2RCH-1 \u2192 OH2RCH-3` (the digipeaters that repeated it, in order, `?` for one that did not put its call in)",
           "type": "string"
         },
         "heard_direct": {
@@ -3619,11 +3719,6 @@
           ],
           "description": "when a packet of the station was last heard direct (no digipeater repeated it, it was not a third-party packet), from the packets counted in `heard_direct`; null for a station never heard direct"
         },
-        "heard_gated": {
-          "description": "how many packets came as third-party packets: an iGate put what it heard on the internet on the air; counted, but never a route to send by",
-          "minimum": 0,
-          "type": "integer"
-        },
         "heard_via": {
           "description": "[the station we heard, packets] for each digipeater that repeated its packets, the most first; `?` stands for a hop that was an alias (WIDE1) and gave no call; the 8 most frequent routes are counted",
           "items": {
@@ -3642,7 +3737,7 @@
           "type": "array"
         },
         "gated": {
-          "description": "how many third-party packets this station put on the air that we heard (an iGate wrapping what it took from the internet in a frame of its own; counted from the packets heard in this run and the latest 2000 the database kept, and for a station that is in the book); not `heard_gated`, which counts the packets of this station that some iGate put on the air",
+          "description": "how many third-party packets this station put on the air that we heard (an iGate wrapping what it took from the internet in a frame of its own; counted from the packets heard in this run and the latest 2000 the database kept, and for a station that is in the book); not `heard_rf_gated`, which counts the packets of this station that some iGate put on the air",
           "minimum": 0,
           "type": "integer"
         },
@@ -3810,7 +3905,7 @@
           "type": "boolean"
         },
         "can_message": {
-          "description": "a message to the station makes sense, and the card has a Message button: false for an object or an item and for our own station; for a station true when it has sent a message or an ack (heard, overheard too) or its latest position began with `=` or `@` or was a Mic-E one, false when that began with `!` or `/` or was a Mic-E one whose comment begins with the type code `'` (no messaging); true for a station of which nothing of that is known",
+          "description": "a message to the station makes sense, and the card has a Message button: false for an object or an item and for our own station; for a station true when it has sent a message or an ack (heard, overheard too) or its latest position began with `=` or `@` or was a Mic-E one, false when that began with `!` or `/` or was a Mic-E one whose comment begins with the type code `'` (no messaging); true for a station of which nothing of that is known; false for a station known only from the internet (`heard_is` > 0 and nothing on the radio): a message goes out by radio only",
           "type": "boolean"
         },
         "track": {
@@ -3855,13 +3950,21 @@
         "last_status",
         "last_comment",
         "packets",
+        "heard_rf",
+        "heard_rf_gated",
+        "heard_is",
+        "heard_dummy",
+        "last_rf_at",
+        "last_rf_gated_at",
+        "last_is_at",
+        "last_dummy_at",
+        "position_via",
         "packets_hour",
         "device",
         "last_path",
         "last_route",
         "heard_direct",
         "last_direct_at",
-        "heard_gated",
         "heard_via",
         "gated",
         "igate",

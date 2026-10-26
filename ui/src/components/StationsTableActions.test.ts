@@ -14,7 +14,7 @@ const rows = table(
   station("FOREIGN", { kind: "object", can_message: true, reported_by: "OH2RDG", last_heard: ago(60) }),
 );
 const make = () => mount(StationsTable, { props: { selected: null }, global: withDaemon(fakeDaemon({ stations: rows, aging: { defaultMin: 0 } })) });
-const row = (wrapper: ReturnType<typeof make>, call: string) => wrapper.findAll("tbody tr").find((r) => r.find("td.call").text() === call)!;
+const row = (wrapper: ReturnType<typeof make>, call: string) => wrapper.findAll("tbody tr").find((r) => r.find("td.call .callname").text() === call)!;
 const message = (wrapper: ReturnType<typeof make>, call: string) => row(wrapper, call).find("td.actions button[aria-label^='Message']");
 const forget = (wrapper: ReturnType<typeof make>, call: string) => row(wrapper, call).find("td.actions button.forgetbtn");
 

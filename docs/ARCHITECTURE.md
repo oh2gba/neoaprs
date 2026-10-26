@@ -12,7 +12,7 @@ The tables of this document that are that test's data (this one, the rules after
 <!-- doc-arch:layers -->
 | layer | modules | may import | may not import |
 | --- | --- | --- | --- |
-| foundation | `clock signal coded policy callsign geo symbols kiss ax25 aprsposition aprsmice aprsmessage aprsparse aprsweather aprsthirdparty aprsextension aprsfreq aprsstorm aprslocator aprstelemetry aprsnmea gpsfix smartbeacon packet packetcodec message bulletin decay tncmode tncprofile pref route chain mapstate radiosearch serialboards versions updateasset device devicedata hourcount` | foundation | domain, adapters, persistence, services, app, delivery, and any I/O library |
+| foundation | `clock signal coded policy callsign geo symbols kiss ax25 aprsposition aprsmice aprsmessage aprsparse aprsweather aprsthirdparty aprsisline aprsextension aprsfreq aprsstorm aprslocator aprstelemetry aprsnmea gpsfix smartbeacon packet packetcodec message bulletin decay tncmode tncprofile pref route chain mapstate radiosearch serialboards versions updateasset device devicedata hourcount` | foundation | domain, adapters, persistence, services, app, delivery, and any I/O library |
 | domain | `alertcommand config configlegacy configstatus configtypes configvalues interlock station stationnotes stationbook aloha ownobject ownbulletin` | foundation, domain | adapters, persistence, services, app, delivery, and any I/O library |
 | adapters | `source tasks serialport serialholders serialprobe btsdp btserial btle btpaired tnc tncsearch tncwatchdog tncentry tnclines childenv rigctld gpsfeed pmtilestool updatefetch updatedownload selfreplace` | foundation, domain, adapters | persistence, services, app, delivery |
 | persistence | `store migrations migrations2 backupfolder durable instancelock stopfile walcare dbfile dberror dbstats dbthread db dbopen storesql paths dblog packetsql packetlog messagesql messagelog bulletinsql bulletinlog weathersql weatherlog ownsql ownlog supportsql` | foundation, domain, persistence | adapters, services, app, delivery |
@@ -43,8 +43,8 @@ What each layer is for:
 * **foundation**: pure code, no I/O library.
   * Time and signals: `clock`, `signal`.
   * Rules and coding: the call and SSID rules (`callsign`), geometry (`geo`), the symbol tables (`symbols`), KISS framing (`kiss`), AX.25 frame coding (`ax25`).
-  * The APRS decoders (`aprs*`) and the `Packet` they produce. `aprsweather` reads the weather fields of a weather station's position or a positionless report
-    into metric values, and `aprsthirdparty` the packet inside a third-party frame an iGate sent.
+  * The APRS decoders (`aprs*`) and the `Packet` they produce, which carries how it reached us (`via`: `rf`, `rf-gated` or `is`). `aprsweather` reads the weather fields of a weather station's position or a positionless report
+    into metric values, `aprsthirdparty` the packet inside a third-party frame an iGate sent, and `aprsisline` a line of APRS-IS (TNC2 text with its q-construct) into a packet that came `via="is"`.
   * `packetcodec`: a packet as a row of the packet table, a time as text, the JSON of what the parser made.
   * `message`: a message as a value, who a message is for, what text may be sent, when the next attempt is due. `bulletin`: which addressees are the message
     board's, and a bulletin as the board keeps it.
@@ -157,6 +157,7 @@ What each layer is for:
 | `reexec` | the command line that runs in the place of the process once the daemon has ended, set by Update now of an AppImage (`neoaprs/selfreplace.py`) |
 | `updatecheck` | the update check, a service: once a day it asks the version page, through `neoaprs/updatefetch.py`, which version is the latest, and keeps it only if it is newer than ours. `neoaprs/versions.py` has the comparison. `check_now` is the same question on request |
 | `install` | how this copy was installed, worked out by the process in `neoaprs/cli/installkind.py` and given to the controller. The page's `hello` carries it, so that the page can say how to update |
+| `internet_packet` | the signal of the packets received from APRS-IS (`Packet.via` is `is`), entered through `hear_internet`; only the packet log, the station book and the weather log are connected to it (and the page's topics) |
 | `config_changed` | the signal that every save of the settings emits |
 | `web` | the page's server, which the controller makes, once the settings are read, from the factory the process gave it (`Controller(web=WebServer)`: this layer does not import `neoaprs/web/`, it knows a `Frontend` that starts and stops) |
 | `db` | the `Db`, once it is open |
@@ -168,6 +169,10 @@ A part gets what it needs as constructor arguments (objects of a lower layer, Pr
 
 - What the Tnc hears goes to the packet log, the station book, the weather log, messaging (which answers a message to us with an ack and hands bulletins to the
   board and hands a message to `QRU` to the QRU server), the queries, our objects (which stop when another station reports one) and, last, the digipeater.
+  A packet received from APRS-IS enters through `Services.hear_internet` and goes to `internet_packet`, a signal of its own: the packet log, the station book and the weather log (`SEEN_BY_ALL`)
+  are connected to both, and what answers, acknowledges, repeats or sends (`ON_AIR_ONLY`: messaging, the queries, our objects, the digipeater) only to the Tnc's, each behind `AirOnly`, which drops an `is` packet
+  handed to it by mistake; every entry of those services refuses one as well (`Packet.on_air`). `tests/test_internet_gate.py` walks the signals and holds them to the two lists.
+  The Dummy radio's packets (`via` is `dummy`) go through the radio's signal like any other, and `packet.GATEABLE` (`rf`, `rf-gated`) is the set a consumer that sends to the internet may take.
 - Our objects go to the station book as stations of their own (`own`).
 - The GPS feed's fixes go to the GPS service; when our position moved far enough the service's `moved` puts our own row at the fix and works the ALOHA circle out again.
 - What the book changes or removes goes to the station cache in the database.

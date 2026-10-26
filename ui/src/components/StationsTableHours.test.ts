@@ -43,7 +43,7 @@ describe("the select 'On map for' of the Stations tab", () => {
   it("dims the rows that are past the hours: 1 h dims the one heard 2 h ago, 3 h only the one heard 5 h ago, 6 h none", () => {
     const dim = (hours: string) =>
       make(hours)
-        .wrapper.findAll("tbody tr.timedout td.call")
+        .wrapper.findAll("tbody tr.timedout td.call .callname")
         .map((td) => td.text());
     expect(dim("1")).toEqual(["OH2TWO", "OH2FIVE"]);
     expect(dim("3")).toEqual(["OH2FIVE"]);

@@ -13,7 +13,7 @@ WORKED = b'(_fn"Oj/'                                      # a Mic-E body (the lo
 
 def heard(info: bytes, destination: str, source: str = "N0CALL", third_party: ThirdParty | None = None) -> Packet:
     decoded = parse(info, source, destination, NOW) if third_party is None else Message("OH2GBA", "x")
-    return Packet(NOW, "in", b"", source, destination, (), info, decoded, third_party)
+    return Packet(NOW, "in", b"", source, destination, (), info, decoded, third_party, "rf-gated" if third_party else "rf")
 
 
 @pytest.mark.parametrize(("destination", "device"), [

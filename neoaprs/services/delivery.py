@@ -43,7 +43,7 @@ class Delivery:
 
     def heard(self, records: Iterable[MessageRecord], packet: Packet, message: Message) -> MessageRecord | None:
         """A packet from our own call was heard: the message of ours it is a copy of, when it brings a hop that was not known; else None."""
-        if message.ack_id is not None or message.rej_id is not None:
+        if not packet.on_air or message.ack_id is not None or message.rej_id is not None:
             return None
         for record in records:
             if record.direction == "out" and record.msg_id == message.msg_id and record.text == message.text and same_call(record.to_call, message.addressee):
@@ -54,7 +54,7 @@ class Delivery:
 
     def _keep(self, record: MessageRecord, attempt: Attempt, packet: Packet) -> bool:
         """Notes what the copy shows for the attempt; whether any of it was new."""
-        gate = packet.via
+        gate = packet.gate
         if gate:
             inner = () if packet.third_party is None else packet.third_party.path
             found = [HopSeen(INTERNET, gate, packet.heard_at, True)] + [HopSeen(p, c, packet.heard_at, True) for p, c in internet_hops(attempt.path, inner, gate)]

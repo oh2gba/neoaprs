@@ -197,8 +197,8 @@ class Queries:
     # ---- what is asked
     def on_packet(self, packet: Packet) -> None:
         """The Tnc heard a packet: a query to us, or the general query, is answered."""
-        if packet.direction != "in" or same_call(packet.sender, self._config().station_call):
-            return
+        if packet.direction != "in" or not packet.on_air or same_call(packet.sender, self._config().station_call):
+            return                                                   # (a query that came over the internet is not answered: the answer would go out by radio to a station that is not here)
         decoded = packet.decoded
         if isinstance(decoded, Message):
             if decoded.ack_id is None and decoded.rej_id is None and addressed_to(decoded.addressee, self._config().station_call):
@@ -267,7 +267,8 @@ class Queries:
         assert self._heard is not None and call is not None
         times = await self._heard.heard_since(call, packet.heard_at - timedelta(hours=HEARD_HOURS))
         counts = hourly_counts(times, packet.heard_at)
-        known = any(counts) or self._book.get(call) is not None
+        found = self._book.get(call)
+        known = any(counts) or (found is not None and not found.internet_only)           # (a station known from the internet alone was never heard on the air)
         try:
             self._answers.deliver(packet.sender, key, [self._answers.message(packet.sender, heard_text(call, counts if known else None))], packet.heard_at, False)
         except (ax25.Ax25Error, CallsignError, MessageError, ValueError) as e:

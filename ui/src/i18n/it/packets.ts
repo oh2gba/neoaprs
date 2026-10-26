@@ -10,6 +10,7 @@ export const packets: Readonly<Record<keyof typeof en, Message>> = {
   "packets.col.packet": "Pacchetto",
   "packets.col.route": "Percorso",
   "packets.col.summary": "Riepilogo",
+  "packets.col.via": "Via",
   "packets.dir.in": "rx",
   "packets.dir.out": "tx",
   "packets.none_yet": "Ancora nessun pacchetto.",
@@ -45,6 +46,8 @@ export const packets: Readonly<Record<keyof typeof en, Message>> = {
   "packets.fact.sent_via": "Inviato via",
   "packets.fact.sent": "Inviato",
   "packets.fact.heard": "Ricevuto",
+  "packets.fact.came": "Arrivata da",
+  "packets.fact.came_value": "{channel} - {what}",
   "packets.fact.time_in_packet": "Ora nel pacchetto",
 
   "packets.position_approximate": "{position} (approssimata)",

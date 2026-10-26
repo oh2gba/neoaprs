@@ -111,6 +111,16 @@
   outline: 2px dashed var(--accent);
   background: var(--map-halo);
 }
+/* a station known from the internet alone (lib/channels.ts): a dotted outline round the symbol and an italic call, in the muted colour of both themes; the selected one is drawn as any other */
+.stn--net .stn-icon {
+  border-radius: 50%;
+  outline: 2px dotted var(--muted);
+  outline-offset: 1px;
+  background: var(--map-halo);
+}
+.stn--net .stn-label {
+  font-style: italic;
+}
 .stn--selected {
   z-index: 5;
 }

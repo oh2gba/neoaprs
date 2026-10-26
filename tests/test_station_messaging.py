@@ -9,7 +9,7 @@ import pytest
 from neoaprs import ax25
 from neoaprs.aprsthirdparty import parse_packet
 from neoaprs.clock import utc
-from neoaprs.packet import Packet
+from neoaprs.packet import Packet, channel_of
 from neoaprs.packetlog import PacketLog
 from neoaprs.stationbook import StationBook
 from neoaprs.store import DB_NAME
@@ -28,7 +28,7 @@ def heard(info: str | bytes, source: str = "OH2AAA", destination: str = "APRS", 
     data = info.encode("latin-1") if isinstance(info, str) else info
     frame = ax25.Frame(ax25.Address.parse(destination), ax25.Address.parse(source), (), info=data)
     decoded, third_party = parse_packet(data, source, destination, T0)
-    return Packet(at, direction, ax25.encode(frame), source, destination, (), data, decoded, third_party)  # type: ignore[arg-type]
+    return Packet(at, direction, ax25.encode(frame), source, destination, (), data, decoded, third_party, channel_of(third_party))  # type: ignore[arg-type]
 
 
 def can_message(book: StationBook, call: str = "OH2AAA") -> bool:

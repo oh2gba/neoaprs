@@ -28,7 +28,7 @@ class Rig:
     def hear(self, sender: str, addressee: str, text: str, via: str = "") -> None:
         third = ThirdParty(sender, "APRS", ("TCPIP",)) if via else None
         message = Message(addressee, text)
-        self.board.heard(Packet(self.clock(), "in", b"", via or sender, "APRS", (), b"", message, third), message)
+        self.board.heard(Packet(self.clock(), "in", b"", via or sender, "APRS", (), b"", message, third, "rf-gated" if third else "rf"), message)
 
     async def tick(self, seconds: float = 0.0) -> None:
         self.clock.advance(seconds)

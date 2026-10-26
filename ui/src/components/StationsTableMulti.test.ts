@@ -35,7 +35,7 @@ describe("StationsTable with several cards", () => {
 
   it("marks the rows of all the open cards", () => {
     const wrapper = make("OH2ZWC", ["OH2ZWA"]);
-    expect(wrapper.findAll("tr.selected").map((r) => r.find("td.call").text())).toEqual(["OH2ZWA", "OH2ZWC"]);
+    expect(wrapper.findAll("tr.selected").map((r) => r.find("td.call .callname").text())).toEqual(["OH2ZWA", "OH2ZWC"]);
     expect(row(wrapper, "OH2ZWB")?.attributes("aria-selected")).toBe("false");
     expect(row(wrapper, "OH2ZWA")?.attributes("aria-selected")).toBe("true");
   });
@@ -47,7 +47,7 @@ describe("StationsTable with several cards", () => {
     );
     const aging = { defaultMin: 180 };
     const wrapper = mount(StationsTable, { props: { selected: null, others: [] }, global: withDaemon(fakeDaemon({ stations: old, aging })) });
-    expect(wrapper.findAll("tbody td.call").map((td) => td.text())).toEqual(["OH2NEW", "OH2OLD"]);
+    expect(wrapper.findAll("tbody td.call .callname").map((td) => td.text())).toEqual(["OH2NEW", "OH2OLD"]);
     expect(row(wrapper, "OH2OLD")?.text()).toContain("timed out");
     await row(wrapper, "OH2OLD")?.trigger("click", { ctrlKey: true });
     expect(wrapper.emitted("select")).toEqual([["OH2OLD", true]]);

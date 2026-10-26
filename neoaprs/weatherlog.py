@@ -6,14 +6,13 @@ each one again."""
 import logging
 from datetime import datetime
 
-from . import ax25
 from .aprsthirdparty import parse_packet
 from .aprsweather import Weather
 from .clock import Clock, days, utcnow
 from .db import Db
 from .dblog import DbLog
-from .packet import Packet
-from .packetcodec import parse_stamp, stamp
+from .packet import Packet, channel_of
+from .packetcodec import info_of, parse_stamp, stamp
 from .weathersql import (Row, count_weather, insert_weather, insert_weather_many, latest_weather, latest_weather_all, prune_weather_before, weather_packets, weather_since)
 
 log = logging.getLogger("neoaprs.weatherlog")
@@ -33,18 +32,19 @@ def weather_of(row: Row) -> tuple[str, datetime, Weather]:
     return str(station), parse_stamp(str(at)), Weather(**dict(zip(_VALUES, values, strict=True)), raw=str(raw))
 
 
-def report_of(source: str, destination: str, raw: bytes, heard_at: datetime) -> tuple[str, Weather] | None:
-    """The weather in a packet that was kept, read again with the parser as it is now: whose it is and what it says; None for a packet that has none."""
-    info = ax25.decode(raw).info
+def report_of(source: str, destination: str, raw: bytes, heard_at: datetime, via: str = "rf") -> tuple[str, Weather] | None:
+    """The weather in a packet that was kept, read again with the parser as it is now: whose it is and what it says; None for a packet that has none. `via` is the packet's channel (a packet from the
+    internet has no AX.25 frame to read the information field from)."""
+    info = info_of(raw, via)
     decoded, third_party = parse_packet(info, source, destination, heard_at)
-    return Packet(heard_at, "in", raw, source, destination, (), info, decoded, third_party).weather_report
+    return Packet(heard_at, "in", raw, source, destination, (), info, decoded, third_party, channel_of(third_party, via == "is", via == "dummy")).weather_report
 
 
 def _kept_report(row: Row) -> tuple[datetime, tuple[str, Weather] | None]:
     """When a kept weather packet was heard and what it says."""
-    source, destination, raw, heard_at = row
+    source, destination, raw, heard_at, via = row
     at = parse_stamp(str(heard_at))
-    return at, report_of(str(source), str(destination), bytes(raw), at)
+    return at, report_of(str(source), str(destination), bytes(raw), at, str(via))
 
 
 class WeatherLog(DbLog):

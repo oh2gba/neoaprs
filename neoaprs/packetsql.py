@@ -5,9 +5,9 @@ import sqlite3
 from collections.abc import Sequence
 from typing import Any
 
-PACKET_COLUMNS = ("heard_at", "direction", "raw", "source", "destination", "path", "kind", "summary", "decoded", "error")
+PACKET_COLUMNS = ("heard_at", "direction", "raw", "source", "destination", "path", "kind", "summary", "decoded", "error", "via")
 STATION_COLUMNS = ("call", "kind", "reported_by", "symbol_table", "symbol_code", "lat", "lon", "altitude_m", "course_deg", "speed_kmh", "first_heard", "last_heard",
-                   "last_position_at", "last_status", "last_comment", "packets", "last_path")
+                   "last_position_at", "last_status", "last_comment", "packets", "last_path", "heard_rf", "heard_rf_gated", "heard_is", "last_rf_at", "last_rf_gated_at", "last_is_at", "position_via", "heard_dummy", "last_dummy_at")
 _PACKET_LIST = ", ".join(PACKET_COLUMNS)
 _STATION_LIST = ", ".join(STATION_COLUMNS)
 _PLACES = {n: ", ".join("?" * n) for n in (len(PACKET_COLUMNS), len(STATION_COLUMNS))}
@@ -31,13 +31,13 @@ def packets_since(db: sqlite3.Connection, stamp: str) -> list[Row]:
 
 
 def heard_times(db: sqlite3.Connection, source: str, stamp: str) -> list[str]:
-    """When the packets of the source were heard (not sent by us) at `stamp` or later, the oldest first."""
-    return [str(r[0]) for r in db.execute("SELECT heard_at FROM packet WHERE source = ? AND direction = 'in' AND heard_at >= ? ORDER BY heard_at", (source, stamp))]
+    """When the packets of the source were heard on the radio (not sent by us, not from the internet) at `stamp` or later, the oldest first."""
+    return [str(r[0]) for r in db.execute("SELECT heard_at FROM packet WHERE source = ? AND direction = 'in' AND via != 'is' AND heard_at >= ? ORDER BY heard_at", (source, stamp))]
 
 
 def heard_routes(db: sqlite3.Connection, count: int) -> list[Row]:
-    """(source, path, raw, heard_at) of the latest `count` packets that were heard, the oldest first."""
-    return [tuple(r) for r in db.execute("SELECT source, path, raw, heard_at FROM (SELECT id, source, path, raw, heard_at FROM packet WHERE direction = 'in' ORDER BY id DESC LIMIT ?) ORDER BY id", (max(0, count),))]
+    """(source, path, raw, heard_at) of the latest `count` packets that were heard on the radio (not those from the internet: they came by no route), the oldest first."""
+    return [tuple(r) for r in db.execute("SELECT source, path, raw, heard_at FROM (SELECT id, source, path, raw, heard_at FROM packet WHERE direction = 'in' AND via != 'is' ORDER BY id DESC LIMIT ?) ORDER BY id", (max(0, count),))]
 
 
 def position_packets(db: sqlite3.Connection, stamp: str, count: int) -> list[Row]:

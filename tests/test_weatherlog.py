@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from neoaprs.aprsisline import parse_is_line
 from neoaprs.aprsweather import Weather
 from neoaprs.packetlog import PacketLog
 from neoaprs.store import DB_NAME
@@ -137,3 +138,20 @@ async def test_the_table_is_the_weather_table_of_the_schema(tmp_path: Path) -> N
     store = await store_at(tmp_path / DB_NAME, clock)
     names = [r[1] for r in await sql(store, "PRAGMA table_info(weather)")]
     assert names == ["station", "at", "wind_dir", "wind_kmh", "gust_kmh", "temp_c", "humidity", "pressure_hpa", "rain_1h_mm", "rain_24h_mm", "rain_today_mm", "luminosity", "raw"]
+
+
+async def test_an_observation_from_the_internet_is_taken_kept_and_made_again_from_the_packets_like_one_from_the_radio(tmp_path: Path) -> None:
+    clock = FixedClock()
+    store = await store_at(tmp_path / DB_NAME, clock)
+    assert store.db is not None
+    log, packets = WeatherLog(store.db, clock), PacketLog(store.db, clock)
+    cwop = parse_is_line("CW1234>APRS,TCPXX*,qAX,CWOP-5:@092345z4903.50N/07201.75W_220/004g005t077r000p000P000h50b09720", T0)
+    assert cwop.via == "is" and log.take(cwop), "the weather log takes the weather of the internet"
+    assert not log.take(parse_is_line("OH2ABC>APRS,TCPIP*,qAC,T2FINLAND:>no weather in this", T0))
+    packets.append(cwop)
+    packets.append(report(at=T0 + timedelta(minutes=1)))
+    await settled(log)
+    await sql(store, "DELETE FROM weather")
+    assert await log.backfill(30) == 2, "the packets of the internet are read again too: they have no AX.25 frame, the line is their information field after the colon"
+    assert [w.temp_c for _, w in await log.series("CW1234", T0 - timedelta(days=100))] == [25.0]
+    assert report_of("CW1234", "APRS", cwop.raw, T0, "is") == ("CW1234", (await log.series("CW1234", T0 - timedelta(days=100)))[0][1])

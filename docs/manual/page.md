@@ -29,7 +29,8 @@ The table has the symbol, the call, the distance from you, the bearing as a smal
 
 - The columns Call, km and Last heard sort on a click. Your own station is on top.
 - A green check mark after a call means the station was heard direct ("Heard direct", also on its card).
-- The filter box has two tickboxes and a choice that wrap onto a second line when they do not fit: "hide timed out", "direct only" (stations heard direct at some time) and **On map for** (1, 3, 6, 12 or 24 hours, [below](#the-map)). The tickboxes are remembered by your browser; the hours are a setting of the daemon.
+- Under every call, in small quiet letters, is how the station was heard: **RF** (on the radio, direct or by digipeaters), **iGate** (on the radio, from an iGate that took it from the internet), **Internet** (received over the internet, not on the radio) or two joined, such as **RF · Internet** for a station heard both ways. **Dummy** is a station made up by the Dummy radio. Your own station and your own objects have none. Hover text says what the word means. A station known from the internet alone has its label in italics.
+- The filter box has up to three tickboxes and a choice that wrap onto a second line when they do not fit: "hide timed out", "direct only" (stations heard direct at some time), "heard on RF only" (leaves out the stations known only from the internet; it is there once a station has been received over it, and off until you tick it) and **On map for** (1, 3, 6, 12 or 24 hours, [below](#the-map)). The tickboxes are remembered by your browser; the hours are a setting of the daemon. A station that was heard on the radio as well as over the internet stays when "heard on RF only" is ticked.
 - A click on a row flies the map to the station and shows its card, with the marker above the card and not under it.
 - At the right end of a row are three small buttons: two as on the card and a "..." that opens the row's menu (below).
   - The envelope, **Message OH2XYZ**, opens the conversation with the station (on a phone, straight into the conversation); it is there for the stations a message can go to, not for your own station, an object, an item or the email gateway.
@@ -44,10 +45,15 @@ The table has the symbol, the call, the distance from you, the bearing as a smal
   - **Forget**, which asks twice like the trash can: the first press says "Really forget?".
   - Your own station has Show, Copy call and the QRZ page, an object or an item of yours Show and Copy call, and an object of someone else's Show, Copy call and Forget; none has the questions.
 - A station past its timeout is dim, listed last, with "timed out" after the time it was heard.
+- On the map a station known from the internet alone has a dotted outline round its symbol and its call in italics, in the light and the dark theme alike (its screen-reader name says "heard over the internet"; the hover card says how it was heard). A station heard on the radio, an iGate's too, is drawn as ever.
+- **The card** says when the station was last heard for each way it was heard ("RF 3 min ago · Internet 40 s ago"), counts the packets of each under Details, and for a station known from the internet alone says that a message to it is not possible (messages go out by radio only) and has no Message button and no route.
+- **The Packets tab** has a **Via** column with the channel of each packet (RF, iGate, Internet; the packets you sent are RF), and a packet's detail says how it came; a packet from the internet shows the path of its line (`TCPIP*,qAC,T2FINLAND`). The filter finds "internet" or "igate" too.
 
 ### Nearby
 
 What the local APRS infrastructure is, at a glance. The tab has four lists made from the stations you have heard. Each is in the order of the distance from you, the nearest first and a station with no position last, and each row has the distance and the bearing as the Stations table shows them. A list with nothing in it says "none yet". A click on a row does what a click on a row of the Stations table does: the station's card opens and the map flies to it (with Ctrl it adds a card). A station past its timeout is dim.
+
+The tab lists only what was on the air near you: a station known from the internet alone is in none of the four lists, whatever its symbol or its frequency say.
 
 - **Digipeaters** are the stations that repeated packets you heard, and the stations whose symbol is a digipeater's. A row says how many packets it repeated (the packets whose last hop it was), and the range it gave when its position carried a PHG or a range. A call that was heard repeating but never sent a packet of its own is listed too, with "no packet of its own heard", and has nothing to open.
 - The **range circle** of a digipeater is drawn on the map while its card is the selected one, whether you picked it in this tab, in the Stations table or by its marker on the map. The map then zooms in or out to show all of it instead of flying to the point. The range of a PHG report is the one the APRS specification works out from the power, the height and the gain (the Details of a station's card shows it).
@@ -179,7 +185,7 @@ The page speaks English, Deutsch, Español, Français, Italiano, 日本語 and P
 
 ## What the page remembers
 
-The panel's width and tab, the map's view, the table's "hide timed out" and "direct only", the pinned station cards and where they stand, which messages and bulletins were seen, the addresses used for mail, the choice of browser alert and the language are kept in your browser's local storage, and nothing else is. Each device keeps its own.
+The panel's width and tab, the map's view, the table's "hide timed out", "direct only" and "heard on RF only", the pinned station cards and where they stand, which messages and bulletins were seen, the addresses used for mail, the choice of browser alert and the language are kept in your browser's local storage, and nothing else is. Each device keeps its own.
 
 ## A phone, a tablet and a desktop
 

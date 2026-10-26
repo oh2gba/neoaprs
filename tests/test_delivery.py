@@ -36,7 +36,7 @@ class Chain:
 
     def gated(self, inner: str, gate: str = "OH7JHF-1", text: str = "Hello Pekka", msg_id: str | None = "01", to: str = "OH2RDG") -> Packet:
         """The same message wrapped by an iGate: the frame heard is the gate's, the packet inside is ours with `inner` as its path."""
-        return Packet(self.clock(), "in", b"", gate, "APRS", ("OH2RCH-3*",), b"", Message(to, text, msg_id), ThirdParty("OH2GBA", "APZNEO", tuple(p for p in inner.split(",") if p)))
+        return Packet(self.clock(), "in", b"", gate, "APRS", ("OH2RCH-3*",), b"", Message(to, text, msg_id), ThirdParty("OH2GBA", "APZNEO", tuple(p for p in inner.split(",") if p)), "rf-gated")
 
     def hear(self, packet: Packet) -> None:
         self.rig.m.on_packet(packet)

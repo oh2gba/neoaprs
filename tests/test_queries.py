@@ -31,7 +31,7 @@ class Rig(ServiceRig):
         remember_stop(self.q.stop)
 
     def packet(self, source: str, decoded: object, path: tuple[str, ...] = ("OH2RCH-2*",), direction: str = "in", destination: str = "APZNEO", third: object = None) -> Packet:
-        return Packet(self.clock(), direction, b"", source, destination, path, b"", decoded, third)    # type: ignore[arg-type]
+        return Packet(self.clock(), direction, b"", source, destination, path, b"", decoded, third, "rf-gated" if third else "rf")    # type: ignore[arg-type]
 
     def ask(self, source: str, text: str, to: str = "OH2GBA", msg_id: str | None = None, **kwargs: object) -> None:
         self.q.on_packet(self.packet(source, Message(to, text, msg_id), **kwargs))      # type: ignore[arg-type]

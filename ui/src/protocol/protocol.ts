@@ -664,17 +664,19 @@ export interface PacketRow {
   heard_at: string;
   /** heard on the air, or sent by us */
   direction: "in" | "out";
-  /** who sent the frame we heard; for a third-party packet the iGate (see `via`) */
+  /** who sent the frame we heard; for a third-party packet the iGate (see `gate`); for a packet from the internet the station that sent it */
   source: string;
   destination: string;
-  /** the digipeaters, the one that repeated it marked with `*` */
+  /** the digipeaters, the one that repeated it marked with `*`; for a packet from the internet everything between the destination and the colon of the line (`TCPIP*`, the q-construct `qAC`, the server `T2FINLAND`) */
   path: string[];
   /** a telemetry report is `other`; its `decoded.type` is `telemetry` */
   kind: "position" | "message" | "object" | "item" | "status" | "other" | "undecoded";
-  /** how a packet that was heard reached us: `direct`, `via OH2RCH-2`, `via ? → OH2RCH-2`, `via OH7JHF-1 (internet)` for a third-party packet; empty for a packet of ours */
+  /** how a packet that was heard on the radio reached us: `direct`, `via OH2RCH-2`, `via ? → OH2RCH-2`, `via OH7JHF-1 (internet)` for a third-party packet; empty for a packet of ours and for one from the internet */
   route: string;
-  /** the iGate, for a third-party packet: `source` and `path` are those of the frame we heard (the iGate's), `decoded` is the packet inside it; empty for any other packet */
-  via: string;
+  /** the channel the packet came by, set once where it was made: `rf` heard on the radio (direct or by digipeaters; every packet of ours too), `rf-gated` heard on the radio as a third-party packet that an iGate put on the air, `is` received from APRS-IS over the internet (never on the air), `dummy` made up by the Dummy radio (it works as `rf` does and never goes to the internet) */
+  via: "rf" | "rf-gated" | "is" | "dummy";
+  /** the iGate, for a third-party packet (`via` is `rf-gated`): `source` and `path` are those of the frame we heard (the iGate's), `decoded` is the packet inside it; empty for any other packet */
+  gate: string;
   /** one line, as the log has it */
   summary: string;
   /** the packet as a line of TNC2 monitor text */
@@ -898,25 +900,41 @@ export interface StationRow {
   last_status: string;
   /** the comment of the latest position */
   last_comment: string;
-  /** how many packets of this station were heard */
+  /** how many packets of this station were received, whatever the channel (`heard_rf` + `heard_rf_gated` + `heard_is` + `heard_dummy`) */
   packets: number;
+  /** how many of them were heard on the radio, direct or by digipeaters (`rf`) */
+  heard_rf: number;
+  /** how many came on the radio as third-party packets: an iGate put what it heard on the internet on the air (`rf-gated`); counted, but never a route to send by */
+  heard_rf_gated: number;
+  /** how many were received from APRS-IS over the internet (`is`); they were never on the air */
+  heard_is: number;
+  /** how many were made up by the Dummy radio (`dummy`), the radio for trying the program with no radio; they work as the radio's do, and never go to the internet */
+  heard_dummy: number;
+  /** when a packet of the station was last heard on the radio (`rf`); null when none was */
+  last_rf_at: string | null;
+  /** when a third-party packet of the station was last heard on the radio (`rf-gated`); null when none was */
+  last_rf_gated_at: string | null;
+  /** when a packet of the station was last received from the internet (`is`); null when none was */
+  last_is_at: string | null;
+  /** when a packet of the station was last made up by the Dummy radio (`dummy`); null when none was */
+  last_dummy_at: string | null;
+  /** the channel of the packet that gave its position (the latest one wins); null for a station without a position and for our own */
+  position_via: "rf" | "rf-gated" | "is" | "dummy" | null;
   /** how many of them were heard in the last hour (counted from the packets of the hour at the start and as they come; the row is told again each minute that it becomes fewer) */
   packets_hour: number;
   /** what the station runs, as the APRS device identification list names it ("Kenwood TH-D74", "APRSdroid"): by the destination call of its packets, or by the type code of a Mic-E packet; empty when unknown */
   device: string;
-  /** the digipeaters of the latest packet, the one that repeated it marked with `*` */
+  /** the digipeaters of the latest packet heard on the radio, the one that repeated it marked with `*` */
   last_path: string[];
-  /** how the latest packet reached us: `direct`, `via OH2RCH-2`, `via OH2RCH-1 → OH2RCH-3` (the digipeaters that repeated it, in order, `?` for one that did not put its call in) */
+  /** how the latest packet heard on the radio reached us (empty for a station known from the internet only): `direct`, `via OH2RCH-2`, `via OH2RCH-1 → OH2RCH-3` (the digipeaters that repeated it, in order, `?` for one that did not put its call in) */
   last_route: string;
   /** how many packets came straight from the station (counted from the packets heard in this run and the latest 2000 the database kept) */
   heard_direct: number;
   /** when a packet of the station was last heard direct (no digipeater repeated it, it was not a third-party packet), from the packets counted in `heard_direct`; null for a station never heard direct */
   last_direct_at: string | null;
-  /** how many packets came as third-party packets: an iGate put what it heard on the internet on the air; counted, but never a route to send by */
-  heard_gated: number;
   /** [the station we heard, packets] for each digipeater that repeated its packets, the most first; `?` stands for a hop that was an alias (WIDE1) and gave no call; the 8 most frequent routes are counted */
   heard_via: [string, number][];
-  /** how many third-party packets this station put on the air that we heard (an iGate wrapping what it took from the internet in a frame of its own; counted from the packets heard in this run and the latest 2000 the database kept, and for a station that is in the book); not `heard_gated`, which counts the packets of this station that some iGate put on the air */
+  /** how many third-party packets this station put on the air that we heard (an iGate wrapping what it took from the internet in a frame of its own; counted from the packets heard in this run and the latest 2000 the database kept, and for a station that is in the book); not `heard_rf_gated`, which counts the packets of this station that some iGate put on the air */
   gated: number;
   /** a capabilities packet of the station said `IGATE`: it says it is an iGate */
   igate: boolean;
@@ -952,7 +970,7 @@ export interface StationRow {
   is_me: boolean;
   /** an object or an item of ours, which we send (the topic `own_objects` has its values and its schedule): the map marks it as ours and the card has Edit and Kill in place of Forget; false for any other row */
   own: boolean;
-  /** a message to the station makes sense, and the card has a Message button: false for an object or an item and for our own station; for a station true when it has sent a message or an ack (heard, overheard too) or its latest position began with `=` or `@` or was a Mic-E one, false when that began with `!` or `/` or was a Mic-E one whose comment begins with the type code `'` (no messaging); true for a station of which nothing of that is known */
+  /** a message to the station makes sense, and the card has a Message button: false for an object or an item and for our own station; for a station true when it has sent a message or an ack (heard, overheard too) or its latest position began with `=` or `@` or was a Mic-E one, false when that began with `!` or `/` or was a Mic-E one whose comment begins with the type code `'` (no messaging); true for a station of which nothing of that is known; false for a station known only from the internet (`heard_is` > 0 and nothing on the radio): a message goes out by radio only */
   can_message: boolean;
   /** the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed */
   track: [string, number, number][];

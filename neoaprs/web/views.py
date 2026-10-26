@@ -43,7 +43,7 @@ def _routes(station: Station, now: datetime) -> dict[str, Any]:
     best = station.best_route
     heard = heard_path(station.deliveries, now)
     return {
-        "last_route": received_text(station.last_path, station.last_via) if station.packets else "", "heard_direct": station.deliveries.direct, "heard_gated": station.deliveries.gated,
+        "last_route": received_text(station.last_path, station.last_via) if station.heard_rf or station.heard_rf_gated else "", "heard_direct": station.deliveries.direct,
         "heard_via": [[call, count] for call, count in station.deliveries.heard_via()], "best_route": "" if best is None else route_text(best),
         "suggested_path": None if best is None else suggested_path(best), "heard_path": None if heard is None else ",".join(heard),
     }
@@ -75,7 +75,7 @@ def station_row(book: StationBook, station: Station) -> dict[str, Any]:
 
 
 def packet_row(number: int, packet: Packet) -> dict[str, Any]:
-    route = received_text(packet.path, packet.via) if packet.direction == "in" else ""
+    route = received_text(packet.path, packet.gate) if packet.direction == "in" and packet.on_air else ""
     return PacketRow.row(packet, id=number, route=route, tnc2=tnc2(packet), decoded=json.loads(encode_decoded(packet.decoded)))
 
 

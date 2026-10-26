@@ -115,7 +115,7 @@ def test_an_object_or_item_with_weather_is_the_weather_of_its_own_name_and_a_kil
 
 def test_the_weather_of_a_third_party_packet_is_the_sender_inside() -> None:
     position = Position(60.0, 24.0, "/", "_", weather=weather("t050"))
-    packet = Packet(NOW, "in", b"", "OH7JHF-1", "APRS", ("TCPIP",), b"", position, ThirdParty("OH2MUI", "APRS"))
+    packet = Packet(NOW, "in", b"", "OH7JHF-1", "APRS", ("TCPIP",), b"", position, ThirdParty("OH2MUI", "APRS"), "rf-gated")
     assert packet.weather_report == ("OH2MUI", weather("t050"))
 
 

@@ -1,7 +1,7 @@
 """The topics of the hub (neoaprs/web/hub.py) and what changes them: the table of what the pages follow, and the one place of neoaprs/web/ that connects the daemon's signals.
 
     stations   the station book by call            changed by StationBook.changed, .recounted and .removed; our own position in the settings moves every distance, so it is told whole
-    packets    the latest 200 packets by id         changed by Tnc.packet; the window is kept here (the daemon's database is the log, this is what a page opens with)
+    packets    the latest 200 packets by id         changed by Tnc.packet and by the packets of APRS-IS (Services.internet_packet); the window is kept here (the daemon's database is the log, this is what a page opens with)
     tnc        the radio                             changed by Tnc.changed and Tnc.state_changed; at most four times a second
     config     the settings                          changed by Controller.config_changed, which every save emits
     messages   every message by id                   changed by Messaging.changed (a new or changed message) and .removed (one that was deleted)
@@ -144,7 +144,7 @@ class Topics:
         ctl = self.ctl
         return [
             (ctl.stationbook.changed, self._station_changed), (ctl.stationbook.recounted, self._station_changed), (ctl.stationbook.removed, self._station_removed),
-            (ctl.tnc.packet, self._packet), (ctl.tnc.changed, self._tnc_changed), (ctl.tnc.state_changed, self._tnc_state_changed),
+            (ctl.tnc.packet, self._packet), (ctl.internet_packet, self._packet), (ctl.tnc.changed, self._tnc_changed), (ctl.tnc.state_changed, self._tnc_state_changed),
             (ctl.config_changed, self._config_changed), (ctl.gps.changed, self._gps_changed), (ctl.gps.moved, self._gps_moved),
             (ctl.messaging.changed, self._message_changed), (ctl.messaging.removed, self._message_changed),
             (ctl.bulletins.changed, self._bulletin_changed), (ctl.bulletins.removed, self._bulletin_changed),

@@ -12,6 +12,14 @@ describe("hoverRows", () => {
     ]);
   });
 
+  it("says how a station was heard when that is more than the radio alone: the internet, an iGate, or both", () => {
+    const labelled = (extra: Parameters<typeof station>[1]) => hoverRows(station("OH2PU-9", extra), NOW).find((r) => r.label === "Heard on")?.text;
+    expect(labelled({})).toBeUndefined();
+    expect(labelled({ heard_is: 2 })).toBe("RF · Internet");
+    expect(labelled({ heard_rf: 0, heard_rf_gated: 1 })).toBe("iGate");
+    expect(labelled({ heard_rf: 0, heard_is: 2, last_rf_at: null })).toBe("Received over the internet (APRS-IS), not on the radio");
+  });
+
   it("adds the status, the comment and the temperature of a weather station when there are any", () => {
     const rows = hoverRows(station("OH2MUI", { last_status: "On the roof", last_comment: "Davis", weather: weather({ temp_c: 10 }) }), NOW);
     expect(rows.map((r) => r.label)).toEqual(["Heard", "Status", "Comment", "From us", "Temperature", "Route"]);

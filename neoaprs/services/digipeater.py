@@ -73,8 +73,8 @@ class Digipeater:
     def on_packet(self, packet: Packet) -> None:
         """The Tnc heard a packet, or sent one (it is remembered for the duplicate check, and ours is never repeated)."""
         config = self._config()
-        if not config.digi_enabled:
-            return
+        if not config.digi_enabled or not packet.on_air:
+            return                                                   # (a packet from the internet was never on the air: there is nothing to repeat)
         now = self.clock()
         key = (packet.source, packet.destination.partition("-")[0], packet.info)
         duplicate = self._heard_lately(key, now)

@@ -64,17 +64,25 @@ class StationRow(_Model):
     last_position_at: Iso | None
     last_status: str = Field(description="the text of the latest status report")
     last_comment: str = Field(description="the comment of the latest position")
-    packets: int = Field(description="how many packets of this station were heard")
+    packets: int = Field(description="how many packets of this station were received, whatever the channel (`heard_rf` + `heard_rf_gated` + `heard_is` + `heard_dummy`)")
+    heard_rf: int = Field(ge=0, description="how many of them were heard on the radio, direct or by digipeaters (`rf`)")
+    heard_rf_gated: int = Field(ge=0, description="how many came on the radio as third-party packets: an iGate put what it heard on the internet on the air (`rf-gated`); counted, but never a route to send by")
+    heard_is: int = Field(ge=0, description="how many were received from APRS-IS over the internet (`is`); they were never on the air")
+    heard_dummy: int = Field(ge=0, description="how many were made up by the Dummy radio (`dummy`), the radio for trying the program with no radio; they work as the radio's do, and never go to the internet")
+    last_rf_at: Iso | None = Field(description="when a packet of the station was last heard on the radio (`rf`); null when none was")
+    last_rf_gated_at: Iso | None = Field(description="when a third-party packet of the station was last heard on the radio (`rf-gated`); null when none was")
+    last_is_at: Iso | None = Field(description="when a packet of the station was last received from the internet (`is`); null when none was")
+    last_dummy_at: Iso | None = Field(description="when a packet of the station was last made up by the Dummy radio (`dummy`); null when none was")
+    position_via: Literal["rf", "rf-gated", "is", "dummy"] | None = Field(description="the channel of the packet that gave its position (the latest one wins); null for a station without a position and for our own")
     packets_hour: int = Field(ge=0, description="how many of them were heard in the last hour (counted from the packets of the hour at the start and as they come; the row is told again each minute that it becomes fewer)")
     device: str = Field(description="what the station runs, as the APRS device identification list names it (\"Kenwood TH-D74\", \"APRSdroid\"): by the destination call of its packets, or by the type code of a Mic-E packet; empty when unknown")
-    last_path: list[str] = Field(description="the digipeaters of the latest packet, the one that repeated it marked with `*`")
-    last_route: str = Field(description="how the latest packet reached us: `direct`, `via OH2RCH-2`, `via OH2RCH-1 → OH2RCH-3` (the digipeaters that repeated it, in order, `?` for one that did not put its call in)")
+    last_path: list[str] = Field(description="the digipeaters of the latest packet heard on the radio, the one that repeated it marked with `*`")
+    last_route: str = Field(description="how the latest packet heard on the radio reached us (empty for a station known from the internet only): `direct`, `via OH2RCH-2`, `via OH2RCH-1 → OH2RCH-3` (the digipeaters that repeated it, in order, `?` for one that did not put its call in)")
     heard_direct: int = Field(ge=0, description="how many packets came straight from the station (counted from the packets heard in this run and the latest 2000 the database kept)")
     last_direct_at: Iso | None = Field(description="when a packet of the station was last heard direct (no digipeater repeated it, it was not a third-party packet), from the packets counted in `heard_direct`; null for a station never heard direct")
-    heard_gated: int = Field(ge=0, description="how many packets came as third-party packets: an iGate put what it heard on the internet on the air; counted, but never a route to send by")
     heard_via: list[tuple[str, int]] = Field(description="[the station we heard, packets] for each digipeater that repeated its packets, the most first; `?` stands for a hop that was an alias (WIDE1) and gave no call; the 8 most frequent routes are counted")
     gated: int = Field(ge=0, description="how many third-party packets this station put on the air that we heard (an iGate wrapping what it took from the internet in a frame of its own; counted from the packets heard in this run and the latest 2000 the database kept, "
-                                         "and for a station that is in the book); not `heard_gated`, which counts the packets of this station that some iGate put on the air")
+                                         "and for a station that is in the book); not `heard_rf_gated`, which counts the packets of this station that some iGate put on the air")
     igate: bool = Field(description="a capabilities packet of the station said `IGATE`: it says it is an iGate")
     best_route: str = Field(description="the route most of its packets came by, as `last_route` writes it, direct included; empty until a packet was counted")
     suggested_path: str | None = Field(description="the path to send by to reach it, the best route turned round: empty for direct, `OH2RCH-2` for one hop, `OH2RCH-3,OH2RCH-1` for `via OH2RCH-1 → OH2RCH-3`, `WIDE1-1,WIDE2-1` when the best route "
@@ -96,7 +104,8 @@ class StationRow(_Model):
     is_me: bool = Field(description="our own station: the row of the call in the settings, at the position in the settings")
     own: bool = Field(description="an object or an item of ours, which we send (the topic `own_objects` has its values and its schedule): the map marks it as ours and the card has Edit and Kill in place of Forget; false for any other row")
     can_message: bool = Field(description="a message to the station makes sense, and the card has a Message button: false for an object or an item and for our own station; for a station true when it has sent a message or an ack (heard, overheard too) "
-                                          "or its latest position began with `=` or `@` or was a Mic-E one, false when that began with `!` or `/` or was a Mic-E one whose comment begins with the type code `'` (no messaging); true for a station of which nothing of that is known")
+                                          "or its latest position began with `=` or `@` or was a Mic-E one, false when that began with `!` or `/` or was a Mic-E one whose comment begins with the type code `'` (no messaging); true for a station of which nothing of that is known; "
+                                          "false for a station known only from the internet (`heard_is` > 0 and nothing on the radio): a message goes out by radio only")
     track: list[tuple[Iso, float, float]] = Field(max_length=50, description="the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed")
 
 

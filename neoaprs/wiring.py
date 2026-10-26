@@ -1,15 +1,17 @@
-"""The signals of the program connected, in the one place that does it (`Signal.connect` is for the composition root only): what the radio hears goes to the packet log, the station book, messaging (which hands bulletins to the board), the queries and our objects (one that another station
-reports is theirs and is dropped), our objects go to the station book, what the book changes goes to the database, the port the search found is remembered, and the GPS fix moves our own row on the map and the ALOHA circle.
+"""The signals of the program connected, in the one place that does it (`Signal.connect` is for the composition root only): what the radio hears goes to the packet log, the station book, the weather log, messaging (which hands bulletins to the board and messages to
+QRU to the QRU server), the queries and our objects (one that another station reports is theirs and is dropped) and, last, the digipeater. A packet received from APRS-IS (`Packet.via` is `is`) is handed through a signal of its own, `Services.internet_packet`, and
+goes only to the packet log, the station book and the weather log (and, from `neoaprs/web/topics.py`, to the page): the one gate for packets from the internet is the pair of lists `SEEN_BY_ALL` and `ON_AIR_ONLY` below. Our objects go to the station book, what the book changes goes to the database, the port the search found is remembered, and the GPS fix moves our own row on the map and the ALOHA circle.
 
 Also how the settings become the Tnc's: `tnc_settings`, and how the station book is filled from the database at the start: `seed_station_book`."""
 import logging
+from collections.abc import Callable
 from dataclasses import replace
 from datetime import timedelta
 from typing import NamedTuple
 
 from .app import Services
 from .config import Config
-from .packet import Packet
+from .packet import IS, Packet
 from .packetcodec import tnc2
 from .policy import LOG_KEEP_DAYS
 from .serialprobe import search_pattern
@@ -20,6 +22,9 @@ from .tncprofile import Profile, names_tcp, tcp_url
 
 log = logging.getLogger("neoaprs.wiring")
 packets_log = logging.getLogger("neoaprs.packets")
+# Who sees a packet, by its channel (Packet.via), as names of the parts in `Services`; no other part is handed a packet (tests/test_internet_gate.py walks the signals and holds them to these two lists).
+SEEN_BY_ALL = ("packetlog", "stationbook", "weatherlog")                              # the log, the book of stations and the weather trends take a packet whatever the channel
+ON_AIR_ONLY = ("messaging", "queries", "ownobjects", "digipeater")                    # what answers, acknowledges, repeats or sends: only what was on the radio
 start_log = logging.getLogger("neoaprs.controller")          # what the start of the daemon says is the controller's, whoever does it
 
 
@@ -50,16 +55,32 @@ def apply_tnc_settings(tnc: Tnc, settings: TncSettings) -> None:
     tnc.port, tnc.baud, tnc.profile, tnc.fallback_probe, tnc.skip, tnc.pattern = settings
 
 
+class AirOnly:
+    """A handler of the packets of the radio that does not take a packet from the internet, though it were handed one: it is dropped, counted and said once in the log. The signal of the radio carries none, so this is the second
+    lock on the door the first one keeps shut."""
+
+    def __init__(self, handler: Callable[[Packet], object]) -> None:
+        self.handler = handler
+        self.refused = 0
+
+    def __call__(self, packet: Packet) -> None:
+        if packet.via == IS:
+            self.refused += 1
+            if self.refused == 1:
+                log.warning("a packet from the internet was handed to %s, which takes packets from the air only: dropped", getattr(self.handler, "__qualname__", "a handler"))
+            return
+        self.handler(packet)
+
+
 def wire(parts: Services) -> None:
     tnc, book, packetlog = parts.tnc, parts.stationbook, parts.packetlog
     tnc.packet.connect(_log_packet)
-    tnc.packet.connect(packetlog.append)
-    tnc.packet.connect(book.take)
-    tnc.packet.connect(parts.weatherlog.take)
-    tnc.packet.connect(parts.messaging.on_packet)
-    tnc.packet.connect(parts.queries.on_packet)
-    tnc.packet.connect(parts.ownobjects.on_packet)
-    tnc.packet.connect(parts.digipeater.on_packet)               # (after the rest: what was heard is logged and handled before the copy that is sent)
+    parts.internet_packet.connect(_log_packet)
+    for handler in (packetlog.append, book.take, parts.weatherlog.take):                       # SEEN_BY_ALL
+        tnc.packet.connect(handler)
+        parts.internet_packet.connect(handler)
+    for on_air in (parts.messaging.on_packet, parts.queries.on_packet, parts.ownobjects.on_packet, parts.digipeater.on_packet):          # ON_AIR_ONLY
+        tnc.packet.connect(AirOnly(on_air))                       # (the digipeater last: what was heard is logged and handled before the copy that is sent)
     parts.ownobjects.changed.connect(book.own_object)
     parts.ownobjects.removed.connect(book.forget_own)
     book.changed.connect(packetlog.save_station)
@@ -73,7 +94,7 @@ def wire(parts: Services) -> None:
 
 
 def _log_packet(packet: Packet) -> None:
-    packets_log.info("%s%s -> %s", "sent " if packet.direction == "out" else "", tnc2(packet), packet.summary)
+    packets_log.info("%s%s -> %s", "sent " if packet.direction == "out" else "internet " if packet.via == IS else "", tnc2(packet), packet.summary)
 
 
 def _remember_port(parts: Services, state: Source.State) -> None:

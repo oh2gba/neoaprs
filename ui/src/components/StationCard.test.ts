@@ -38,7 +38,7 @@ describe("StationCard", () => {
       "16 km, 282° WNW",
       "42 km/h, course 356° N",
       "31 m",
-      "2 min ago",
+      "RF 2 min ago",
       "on air",
       "QRV D-STAR",
     ]) {
@@ -63,7 +63,7 @@ describe("StationCard", () => {
   it("says when it was heard as a time ago, the full time on hover", () => {
     const wrapper = mount(StationCard, { props: { row, now: NOW } });
     const heard = wrapper.findAll("dt").find((dt) => dt.text() === "Last heard")?.element.nextElementSibling;
-    expect(heard?.textContent?.trim()).toBe("2 min ago");
+    expect(heard?.textContent?.trim()).toBe("RF 2 min ago");
     expect(heard?.getAttribute("title")).toMatch(/^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$/);
   });
   it("shows the data extensions, the locator and the telemetry of a station, a line each, and nothing for one that has none", () => {
@@ -103,7 +103,7 @@ describe("StationCard", () => {
         ["OH2RCH-2", 30],
         ["OH2RCH-3", 4],
       ],
-      heard_gated: 2,
+      heard_rf_gated: 2,
       best_route: "via OH2RCH-2",
       suggested_path: "OH2RCH-2",
     });
@@ -117,7 +117,7 @@ describe("StationCard", () => {
         .findAll("dt")
         .map((dt) => dt.text()),
     ).not.toEqual(expect.arrayContaining(["Route", "Heard", "Best route"]));
-    expect(fields["Heard"]).toBe("12 direct, 30 via OH2RCH-2, 4 via OH2RCH-3, 2 from the internet");
+    expect(fields["Heard"]).toBe("12 direct, 30 via OH2RCH-2, 4 via OH2RCH-3, 2 via an iGate");
     expect(fields["Best route"]).toBe("via OH2RCH-2; send by OH2RCH-2");
     expect(wrapper.find("details").text()).toContain("Best route");
   });

@@ -131,12 +131,14 @@ class PacketRow(_Model):
     id: int = Field(ge=0, description="counts up in the order the packets came in this run of the daemon; not kept in the database")
     heard_at: Iso
     direction: Literal["in", "out"] = Field(description="heard on the air, or sent by us")
-    source: str = Field(description="who sent the frame we heard; for a third-party packet the iGate (see `via`)")
+    source: str = Field(description="who sent the frame we heard; for a third-party packet the iGate (see `gate`); for a packet from the internet the station that sent it")
     destination: str
-    path: list[str] = Field(description="the digipeaters, the one that repeated it marked with `*`")
+    path: list[str] = Field(description="the digipeaters, the one that repeated it marked with `*`; for a packet from the internet everything between the destination and the colon of the line (`TCPIP*`, the q-construct `qAC`, the server `T2FINLAND`)")
     kind: Literal["position", "message", "object", "item", "status", "other", "undecoded"] = Field(description="a telemetry report is `other`; its `decoded.type` is `telemetry`")
-    route: str = Field(description="how a packet that was heard reached us: `direct`, `via OH2RCH-2`, `via ? → OH2RCH-2`, `via OH7JHF-1 (internet)` for a third-party packet; empty for a packet of ours")
-    via: str = Field(description="the iGate, for a third-party packet: `source` and `path` are those of the frame we heard (the iGate's), `decoded` is the packet inside it; empty for any other packet")
+    route: str = Field(description="how a packet that was heard on the radio reached us: `direct`, `via OH2RCH-2`, `via ? → OH2RCH-2`, `via OH7JHF-1 (internet)` for a third-party packet; empty for a packet of ours and for one from the internet")
+    via: Literal["rf", "rf-gated", "is", "dummy"] = Field(description="the channel the packet came by, set once where it was made: `rf` heard on the radio (direct or by digipeaters; every packet of ours too), `rf-gated` heard on the radio as a third-party packet that an iGate put on "
+                                                             "the air, `is` received from APRS-IS over the internet (never on the air), `dummy` made up by the Dummy radio (it works as `rf` does and never goes to the internet)")
+    gate: str = Field(description="the iGate, for a third-party packet (`via` is `rf-gated`): `source` and `path` are those of the frame we heard (the iGate's), `decoded` is the packet inside it; empty for any other packet")
     summary: str = Field(description="one line, as the log has it")
     tnc2: str = Field(description="the packet as a line of TNC2 monitor text")
     decoded: Decoded

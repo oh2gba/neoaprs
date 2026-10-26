@@ -150,7 +150,7 @@ class OwnObjects(Repeater[str]):
     def on_packet(self, packet: Packet) -> None:
         """Another station reports an object of ours as alive: it has taken it over, and we stop."""
         report = packet.decoded
-        if packet.direction != "in" or not isinstance(report, (ObjectReport, ItemReport)) or not report.alive:
+        if packet.direction != "in" or not packet.on_air or not isinstance(report, (ObjectReport, ItemReport)) or not report.alive:
             return
         obj = self._objects.get(report.name)
         if obj is None or not obj.alive or same_call(packet.sender, self._config().station_call):
