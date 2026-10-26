@@ -1,10 +1,10 @@
 // "Go to this setting": after a tab is opened, bring the group a control is in into view, flash it once and move the keyboard to the control. One helper for every link that leads to a setting (the marks of the header, a hint that
-// says "Settings → Radio → RX only"). The tab is there first; PAUSE_MS later the group flashes: a soft yellow (`.attend` in styles/settings.css) that fades in and out in ATTEND_MS; with reduced motion it is the same colour held
-// for that long, with no animation.
+// says "Settings → Radio → RX only"). The tab is there first; PAUSE_MS later the group flashes: a soft yellow (`.attend` in styles/settings.css) that fades in and out in ATTEND_MS, also with reduced motion (a fade of a colour is no
+// movement).
 import { nextTick } from "vue";
 
 /** How long the flash lasts, in and out. */
-export const ATTEND_MS = 1000;
+export const ATTEND_MS = 1200;
 /** How long after the tab is shown the flash starts, so that the eye is on the tab first. */
 export const PAUSE_MS = 300;
 /** How long the helper waits for the control to be on the page (the tab may need a moment to be drawn). */

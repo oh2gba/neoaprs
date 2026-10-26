@@ -52,4 +52,12 @@ describe("the sizes of the buttons", () => {
     const found = files(SRC, ".vue").filter((file) => inline.test(readFileSync(file, "utf8").replaceAll("=>", "")));
     expect(found).toEqual([]);
   });
+
+  it("are small only inside a line of text or a list row: the components listed here; every other button is the normal height", () => {
+    const allowed = new Set(["ConversationThread", "EmailRow", "CopyField", "PopupHelp", "UpdateSteps", "RouteMenu"]); // (message rows, a copy beside a command, the route in a conversation's header line)
+    const small = files(resolve(SRC, "components"), ".vue")
+      .filter((file) => /class="btn small/.test(readFileSync(file, "utf8")))
+      .map((file) => file.replace(/^.*\//, "").replace(/\.vue$/, ""));
+    expect(small.filter((name) => !allowed.has(name))).toEqual([]);
+  });
 });

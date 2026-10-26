@@ -96,7 +96,7 @@ const windNote = computed(() => {
         v-for="s in spans"
         :key="s.hours"
         type="button"
-        class="btn small"
+        class="btn"
         :class="{ primary: span === s.hours }"
         :aria-pressed="span === s.hours"
         @click="span = s.hours"

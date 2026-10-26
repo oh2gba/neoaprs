@@ -350,25 +350,20 @@
 .statetext.update-failed {
   color: var(--warn);
 }
-/* the group a link to a setting has brought into view (lib/attention.ts): a soft yellow that fades in and out once, quickly, after the tab is drawn; with reduced motion it is held for the same time instead */
+/* the group a link to a setting has brought into view (lib/attention.ts): a soft yellow that fades in and out once, after the tab is drawn. A fade of a colour is no movement,
+   so it is the same with reduced motion (a static highlight read as "on and off") */
 .attend {
-  animation: attend 1s ease-in-out;
+  animation: attend 1.2s ease-in-out;
   border-radius: 6px;
 }
 @keyframes attend {
   0% {
     background: transparent;
   }
-  30% {
+  40% {
     background: var(--attention-bg);
   }
   100% {
     background: transparent;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .attend {
-    animation: none;
-    background: var(--attention-bg);
   }
 }

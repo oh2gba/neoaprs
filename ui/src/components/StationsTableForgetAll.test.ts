@@ -52,9 +52,10 @@ describe("Forget all at the foot of the Stations table", () => {
     expect(bare.wrapper.find(".foot .infotip").exists()).toBe(true);
   });
 
-  it("is a small button with the count beside it, and no inline style", () => {
+  it("is a button of the normal height (not small: it is in no row) with the count beside it, and no inline style", () => {
     const { wrapper, button } = make();
-    expect(button().classes()).toEqual(expect.arrayContaining(["btn", "small"]));
+    expect(button().classes()).toContain("btn");
+    expect(button().classes()).not.toContain("small");
     expect(button().attributes("style")).toBeUndefined();
     expect(wrapper.find(".foot .footcount").text()).toContain("of 3 stations");
   });

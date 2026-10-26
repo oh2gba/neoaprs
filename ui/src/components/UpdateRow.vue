@@ -33,7 +33,7 @@ const offered = computed(() => known.value !== null && !props.running && (props.
       <template v-if="word">
         <span aria-hidden="true">·</span> <span class="statetext" :class="word.tone">{{ word.text }}</span>
       </template>
-      <button v-if="offered" type="button" class="btn small" @click="emit('update')">{{ t("pill.update") }}</button>
+      <button v-if="offered" type="button" class="btn" @click="emit('update')">{{ t("pill.update") }}</button>
     </span>
     <template #tip
       ><span class="info-line">{{ t("settings.update.tip") }}</span></template
