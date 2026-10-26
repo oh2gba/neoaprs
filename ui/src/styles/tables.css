@@ -303,6 +303,9 @@
 .grid.stations td.call {
   white-space: nowrap;
 }
+.grid.stations td.heard .via + .via {
+  margin-left: 4px;
+}
 .grid.stations tr.internetonly td.heard .via {
   font-style: italic;
 }

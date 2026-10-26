@@ -18,7 +18,7 @@ import { useSure } from "@/composables/useSure";
 import { t } from "@/i18n";
 import { STATION_HOURS_KEY, stationHours, timedOut } from "@/lib/aging";
 import { normalizeCall, validCall } from "@/lib/calls";
-import { anyInternet, channelLabel, channelTitle, channelTone, internetOnly } from "@/lib/channels";
+import { anyInternet, channelTags, internetOnly } from "@/lib/channels";
 import { ageText, bearingTitle, dateTimeText, distanceText } from "@/lib/format";
 import { isGateway } from "@/lib/messages";
 import { heardDirect } from "@/lib/routes";
@@ -223,7 +223,7 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
               ><DirectMark v-if="heardDirect(row)" />
             </td>
             <td class="heard">
-              <TagMark v-if="channelLabel(row) !== ''" :tone="channelTone(row)" class="via" :title="channelTitle(row)">{{ channelLabel(row) }}</TagMark>
+              <TagMark v-for="tag in channelTags(row)" :key="tag.channel" :tone="tag.tone" class="via" :title="tag.title">{{ tag.label }}</TagMark>
             </td>
             <td class="num">{{ distanceText(row.distance_km) }}</td>
             <td class="bearing" :title="bearingTitle(row.bearing_deg)">

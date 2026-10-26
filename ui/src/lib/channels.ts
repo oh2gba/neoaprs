@@ -49,10 +49,14 @@ export function channelLabel(row: Heard): string {
   return parts.length === 0 ? "" : joined(parts);
 }
 
-/** The tone of the label's tag: the internet alone is info, what the Dummy radio made up is dummy, anything heard on the radio is neutral. */
-export function channelTone(row: Heard): "neutral" | "info" | "dummy" {
-  const channels = channelsOf(row);
-  return channels.length === 1 && channels[0] === "is" ? "info" : channels.length === 1 && channels[0] === "dummy" ? "dummy" : "neutral";
+/** One tag for each way a station was heard (RF, iGate, Internet, Dummy), so that a station heard in two ways has two small tags and not one long one that a narrow table would cut: the word, what it means for the hover title, and the tone. */
+export function channelTags(row: Heard): { channel: Channel; label: string; title: string; tone: "neutral" | "info" | "dummy" }[] {
+  return channelsOf(row).map((channel) => ({
+    channel,
+    label: name(channel),
+    title: t(`channel.title.${channel}`),
+    tone: channel === "is" ? "info" : channel === "dummy" ? "dummy" : "neutral",
+  }));
 }
 
 /** The tone of the tag of a packet's channel. */

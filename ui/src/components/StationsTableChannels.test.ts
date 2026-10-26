@@ -24,12 +24,18 @@ const object = station("LEADER", { kind: "object", own: true, last_heard: ago(20
 const make = (...rows: ReturnType<typeof station>[]) =>
   mount(StationsTable, { props: { selected: null }, global: withDaemon(fakeDaemon({ stations: table(...rows) })) });
 const labels = (wrapper: ReturnType<typeof make>): [string, string][] =>
-  wrapper.findAll("tbody tr[data-call]").map((tr): [string, string] => [tr.find(".callname").text(), tr.find(".via").exists() ? tr.find(".via").text() : ""]);
+  wrapper.findAll("tbody tr[data-call]").map((tr): [string, string] => [
+    tr.find(".callname").text(),
+    tr
+      .findAll(".via")
+      .map((v) => v.text())
+      .join(" · "),
+  ]);
 
 beforeEach(() => localStorage.clear());
 
 describe("how a station was heard, in the Stations table", () => {
-  it("is a small label under the call of every row: RF, iGate, Internet or two joined; none for our own station and our objects", () => {
+  it("is a small tag in its own column after the call of every row: RF, iGate, Internet or two tags, one for each way; none for our own station and our objects", () => {
     expect(labels(make(me, rf, gated, net, both, object))).toEqual([
       ["OH2GBA", ""],
       ["OH2BOTH", "RF · Internet"],
@@ -43,7 +49,11 @@ describe("how a station was heard, in the Stations table", () => {
   it("says in a title what the label means", () => {
     const wrapper = make(rf, net, both);
     const titles: Record<string, string | undefined> = {};
-    for (const tr of wrapper.findAll("tbody tr[data-call]")) titles[tr.attributes("data-call") ?? ""] = tr.find(".via").attributes("title");
+    for (const tr of wrapper.findAll("tbody tr[data-call]"))
+      titles[tr.attributes("data-call") ?? ""] = tr
+        .findAll(".via")
+        .map((v) => v.attributes("title"))
+        .join("; ");
     expect(titles).toEqual({
       OH2RF: "Heard on the radio",
       OH2NET: "Received over the internet (APRS-IS), not on the radio",
@@ -74,6 +84,8 @@ describe("how a station was heard, in the Stations table", () => {
     expect(cssRule(".grid.stations td.call")).toMatch(/white-space:\s*nowrap/);
     expect(cssRule(".grid.stations td")).toMatch(/width:\s*1%/);
     expect(cssRule(".grid.stations td.heard")).toMatch(/width:\s*auto/);
+    expect(cssRule(".size-phone .grid.stations td")).toMatch(/padding-left:\s*4px/); // (on a phone the extra column still leaves the actions in view: no cell is wider than it needs)
+    expect(cssRule(".scroll")).toMatch(/overflow:\s*auto/); // (a table wider than the panel scrolls, a tag is never cut)
     expect(cssRule(".grid.stations tr.internetonly td.heard .via")).toMatch(/font-style:\s*italic/);
   });
 });

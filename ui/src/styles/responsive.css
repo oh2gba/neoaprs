@@ -148,6 +148,11 @@ button,
   flex: 1 1 100%;
 }
 /* the Stations table on a phone: the row has room for two buttons, Message and the "..." of the menu (which has Forget too), so that the table does not scroll sideways */
+.size-phone .grid.stations th,
+.size-phone .grid.stations td {
+  padding-right: 4px;
+  padding-left: 4px;
+}
 .size-phone .grid.stations td.actions {
   padding-right: 0;
 }
