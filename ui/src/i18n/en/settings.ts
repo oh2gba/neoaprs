@@ -113,8 +113,6 @@ export const settings = {
   "settings.network.tip1":
     "Lets other devices on your network open this page: a laptop, a phone or a tablet. Without it, only the computer NeoAPRS runs on can open the page.",
   "settings.network.tip2": "Set it to yes and Save: an access key appears with the addresses to open. Type the key once on each device.",
-  "settings.network.tip3":
-    "The connection is plain http on your home network: fine at home, not for the internet. Do not open a port to NeoAPRS in your router.",
 
   "settings.access_key.label": "Access key",
   "settings.access_key.tip_label": "About the access key",

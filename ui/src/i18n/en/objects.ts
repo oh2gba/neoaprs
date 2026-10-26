@@ -29,6 +29,14 @@ export const objects = {
   "objects.form.save": "Save",
   "objects.form.add": "Add",
 
+  "objects.tip.name": "What other stations see on the map: up to {max} characters, none of ! _ | ~.",
+  "objects.tip.comment": "Shown beside the object on the map. Printable characters, no | or ~.",
+  "objects.tip.course": "The direction it moves in, in degrees from north: 90 is east.",
+  "objects.tip.speed": "How fast it moves, in km/h. Leave both empty for an object that stays.",
+  "objects.tip.path": "The digipeaters its packets ask for. Empty uses the path of your beacon.",
+  "objects.tip.qru": "A word (1–{max} letters or digits) a station sends to QRU to get the objects of this group.",
+  "objects.tip.on_request": "Not beaconed; sent only to a station that asks with ?APRSO or QRU.",
+
   "objects.problem.name_chars": "No blank at either end, none of ! _ | ~",
   "objects.problem.at_most": "At most {max} characters",
   "objects.problem.item_name": "An item has {min} to {max} characters",

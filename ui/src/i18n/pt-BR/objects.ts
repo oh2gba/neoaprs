@@ -32,6 +32,14 @@ export const objects: Record<keyof typeof source, Message> = {
   "objects.form.save": "Salvar",
   "objects.form.add": "Adicionar",
 
+  "objects.tip.name": "O que as outras estações veem no mapa: até {max} caracteres, nenhum de ! _ | ~.",
+  "objects.tip.comment": "Mostrado ao lado do objeto no mapa. Caracteres imprimíveis, sem | nem ~.",
+  "objects.tip.course": "A direção em que ele se move, em graus a partir do norte: 90 é leste.",
+  "objects.tip.speed": "A velocidade com que ele se move, em km/h. Deixe os dois vazios para um objeto parado.",
+  "objects.tip.path": "Os digipeaters que seus pacotes pedem. Vazio usa o caminho da sua baliza.",
+  "objects.tip.qru": "Uma palavra (de 1 a {max} letras ou dígitos) que uma estação envia a QRU para receber os objetos deste grupo.",
+  "objects.tip.on_request": "Não é enviado em baliza; só vai para a estação que pede com ?APRSO ou QRU.",
+
   "objects.problem.name_chars": "Sem espaço nas pontas, nem ! _ | ~",
   "objects.problem.at_most": "No máximo {max} caracteres",
   "objects.problem.item_name": "Um item tem de {min} a {max} caracteres",

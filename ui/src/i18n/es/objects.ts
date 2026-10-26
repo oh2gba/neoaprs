@@ -31,6 +31,14 @@ export const objects: Readonly<Record<keyof typeof en, Message>> = {
   "objects.form.save": "Guardar",
   "objects.form.add": "Añadir",
 
+  "objects.tip.name": "Lo que otras estaciones ven en el mapa: hasta {max} caracteres, ninguno de ! _ | ~.",
+  "objects.tip.comment": "Se muestra junto al objeto en el mapa. Caracteres imprimibles, sin | ni ~.",
+  "objects.tip.course": "La dirección en que se mueve, en grados desde el norte: 90 es el este.",
+  "objects.tip.speed": "A qué velocidad se mueve, en km/h. Deja ambos vacíos para un objeto que no se mueve.",
+  "objects.tip.path": "Los digipeaters que piden sus paquetes. Vacío usa la ruta de tu baliza.",
+  "objects.tip.qru": "Una palabra (de 1 a {max} letras o dígitos) que una estación envía a QRU para recibir los objetos de este grupo.",
+  "objects.tip.on_request": "No se emite en baliza; se envía solo a una estación que lo pide con ?APRSO o QRU.",
+
   "objects.problem.name_chars": "Sin espacios en los extremos ni ! _ | ~",
   "objects.problem.at_most": "Máximo {max} caracteres",
   "objects.problem.item_name": "Un ítem tiene de {min} a {max} caracteres",

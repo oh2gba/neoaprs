@@ -113,8 +113,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.network.tip1":
     "同じネットワーク上のほかの機器(ノートPC、スマートフォン、タブレット)からこのページを開けるようにします。オフの間は、NeoAPRSが動いているパソコンだけがページを開けます。",
   "settings.network.tip2": "「はい」にして保存すると、アクセスキーと開くためのアドレスが表示されます。機器ごとにキーを1回入力してください。",
-  "settings.network.tip3":
-    "接続は家庭内ネットワーク上の通常のhttpです。家の中では問題ありませんが、インターネットでは使えません。ルーターでNeoAPRS用のポートを開放しないでください。",
 
   "settings.access_key.label": "アクセスキー",
   "settings.access_key.tip_label": "アクセスキーについて",

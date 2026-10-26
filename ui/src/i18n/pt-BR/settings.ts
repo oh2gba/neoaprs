@@ -115,8 +115,6 @@ export const settings: Record<keyof typeof source, Message> = {
     "Deixa outros dispositivos da sua rede abrirem esta página: um notebook, um celular ou um tablet. Sem isso, só o computador em que o NeoAPRS roda consegue abrir a página.",
   "settings.network.tip2":
     "Marque sim e clique em Salvar: aparece uma chave de acesso com os endereços para abrir. Digite a chave uma vez em cada dispositivo.",
-  "settings.network.tip3":
-    "A conexão é http simples na sua rede doméstica: serve em casa, não para a internet. Não abra uma porta para o NeoAPRS no seu roteador.",
 
   "settings.access_key.label": "Chave de acesso",
   "settings.access_key.tip_label": "Sobre a chave de acesso",

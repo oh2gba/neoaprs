@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The Objects form keeps Path and QRU under Advanced, as the Beacon tab does.
+
 ## 0.9.1
 
 Logs for support in one file, an About, a shorter project page with one-click downloads.

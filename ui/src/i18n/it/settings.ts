@@ -118,8 +118,6 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
     "Permette ad altri dispositivi della tua rete di aprire questa pagina: un portatile, un telefono o un tablet. Senza, solo il computer su cui gira NeoAPRS può aprirla.",
   "settings.network.tip2":
     "Impostalo su sì e premi Salva: compare una chiave di accesso con gli indirizzi da aprire. Digita la chiave una volta su ogni dispositivo.",
-  "settings.network.tip3":
-    "La connessione è http in chiaro sulla tua rete di casa: va bene in casa, non per internet. Non aprire nel router una porta verso NeoAPRS.",
 
   "settings.access_key.label": "Chiave di accesso",
   "settings.access_key.tip_label": "Informazioni sulla chiave di accesso",

@@ -202,7 +202,7 @@ const SPECS: Record<string, FieldSpec> = {
     label: "settings.network.label",
     kind: "bool",
     tipLabel: "settings.network.tip_label",
-    tip: ["settings.network.tip1", "settings.network.tip2", "settings.network.tip3"],
+    tip: ["settings.network.tip1", "settings.network.tip2"],
   },
   "web/key": {
     label: "settings.access_key.label",

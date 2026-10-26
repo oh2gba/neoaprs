@@ -31,6 +31,14 @@ export const objects: Readonly<Record<keyof typeof en, Message>> = {
   "objects.form.save": "Salva",
   "objects.form.add": "Aggiungi",
 
+  "objects.tip.name": "Ciò che le altre stazioni vedono sulla mappa: fino a {max} caratteri, nessuno di ! _ | ~.",
+  "objects.tip.comment": "Mostrato accanto all’oggetto sulla mappa. Caratteri stampabili, niente | né ~.",
+  "objects.tip.course": "La direzione in cui si muove, in gradi dal nord: 90 è est.",
+  "objects.tip.speed": "A che velocità si muove, in km/h. Lascia vuoti entrambi per un oggetto fermo.",
+  "objects.tip.path": "I digipeater richiesti dai suoi pacchetti. Vuoto usa il percorso del tuo beacon.",
+  "objects.tip.qru": "Una parola (da 1 a {max} lettere o cifre) che una stazione invia a QRU per ottenere gli oggetti di questo gruppo.",
+  "objects.tip.on_request": "Non inviato in beacon; inviato solo a una stazione che lo chiede con ?APRSO o QRU.",
+
   "objects.problem.name_chars": "Niente spazi alle estremità, né ! _ | ~",
   "objects.problem.at_most": "Al massimo {max} caratteri",
   "objects.problem.item_name": "Un item ha da {min} a {max} caratteri",

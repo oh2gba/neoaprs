@@ -299,7 +299,56 @@ describe("ObjectForm", () => {
     expect(moving?.element.open).toBe(false);
     expect(moving?.findAll("label").map((l) => l.text())).toEqual(["Course", "Speed"]);
     expect(field("Course")?.element.closest("details")).toBe(moving?.element);
-    expect(field("Path")?.element.closest("details")).toBeNull();
+    expect(field("Path")?.element.closest("details")).not.toBe(moving?.element);
+  });
+
+  it("keeps Path, QRU group and Send only when asked behind a closed fold, Advanced, as the Beacon tab does, for a new object", () => {
+    const { wrapper, field } = form();
+    const folds = wrapper.findAll<HTMLDetailsElement>("details");
+    expect(folds.map((d) => d.find("summary").text())).toEqual(["Moving", "Advanced"]);
+    const advanced = folds[1];
+    expect(advanced.element.open).toBe(false);
+    expect(advanced.findAll("label").map((l) => l.text())).toEqual(["Path", "QRU group", "Send only when asked"]);
+    for (const label of ["Path", "QRU group", "Send only when asked"]) expect(field(label)?.element.closest("details")).toBe(advanced.element);
+    expect(folds.every((d) => d.classes().includes("disclosure") && d.classes().includes("settings-fold"))).toBe(true);
+  });
+
+  it("opens Advanced by itself for an object that has a path, a group or the tick, and keeps it closed for one that has none", async () => {
+    const { view, wrapper } = form([
+      ownObject("PLAIN"),
+      ownObject("ROUTED", { path: "WIDE2-1" }),
+      ownObject("GROUP", { qru_group: "FOOD" }),
+      ownObject("ASKED", { on_request: true }),
+    ]);
+    const open = () => wrapper.findAll<HTMLDetailsElement>("details").find((d) => d.find("summary").text() === "Advanced")?.element.open;
+    for (const [name, expected] of [
+      ["PLAIN", false],
+      ["ROUTED", true],
+      ["PLAIN", false],
+      ["GROUP", true],
+      ["PLAIN", false],
+      ["ASKED", true],
+    ] as const) {
+      view.cancel();
+      view.edit(name);
+      await wrapper.vm.$nextTick();
+      expect(open(), name).toBe(expected);
+    }
+  });
+
+  it("has an (i) after every field that is ours, each of one short line, named About and the field", async () => {
+    const { wrapper, field } = form();
+    for (const label of ["Name", "Comment", "Course", "Speed", "Path", "QRU group", "Send only when asked"]) {
+      const tip = field(label)?.find(".info-toggle");
+      expect(tip?.attributes("aria-label"), label).toBe(`About ${label}`);
+      await tip?.trigger("click");
+      expect(wrapper.findAll(".info-text .info-line"), label).toHaveLength(1);
+      if (label === "QRU group")
+        expect(wrapper.find(".info-text").text()).toBe("A word (1–8 letters or digits) a station sends to QRU to get the objects of this group.");
+      if (label === "Send only when asked")
+        expect(wrapper.find(".info-text").text()).toBe("Not beaconed; sent only to a station that asks with ?APRSO or QRU.");
+      await tip?.trigger("click");
+    }
   });
 
   it("opens Moving by itself for an object that has a course or a speed, and keeps it closed for one that has neither", async () => {

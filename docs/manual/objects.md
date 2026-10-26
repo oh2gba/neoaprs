@@ -18,9 +18,12 @@ The form is at the bottom of the tab, under the list of your objects (oldest fir
 - **Location.** As in the Beacon tab and the setup guide ([beacon.md](beacon.md#the-location)): a plain **Choose on map** button and a click on the map (Cancel while the map waits), the place as text beside the button, and the latitude, longitude and locator behind a click on the place (closed until you click it, and open by itself when a coordinate is wrong). The map shows a pin where it is while the tab is in front.
 - **Comment.** 43 characters, 36 behind a course and speed.
 - **Moving.** A closed heading with the **course** in degrees and the **speed** in km/h: each, both or neither. It is open when the object you change already has a course or a speed; empty, the object does not move.
-- **Path.** The placeholder is the beacon's path, which an empty field means. Up to 8 digipeaters, or the word `DIRECT` for none at all. `RFONLY` or `NOGATE` in it keeps the iGates from putting it on the internet.
-- **QRU group.** Empty for none. 1 to 8 letters and digits, written in capitals (`FOOD`, `RP70`), and not `INFO` or `NEXT`. A station that asks for the group is sent the object ([below](#objects-sent-only-when-asked)).
-- **Send only when asked.** Off: the object is sent on the schedule as always. On: it is kept and shown, and sent only to a station that asks for it.
+- **Advanced.** A closed heading, as in the Beacon tab, with the rarely needed fields under it. It is open by itself when the object you change has a path of its own, a QRU group or the tick, and closed for a new object.
+  - **Path.** The placeholder is the beacon's path, which an empty field means. Up to 8 digipeaters, or the word `DIRECT` for none at all. `RFONLY` or `NOGATE` in it keeps the iGates from putting it on the internet.
+  - **QRU group.** Empty for none. 1 to 8 letters and digits, written in capitals (`FOOD`, `RP70`), and not `INFO` or `NEXT`. A station that asks for the group is sent the object ([below](#objects-sent-only-when-asked)).
+  - **Send only when asked.** Off: the object is sent on the schedule as always. On: it is kept and shown, and sent only to a station that asks for it.
+
+Each field has a small **i** after it that says in one line what it is for.
 
 A field with something wrong is red and says what. The main button waits until nothing is wrong. Adding a name that is there changes that object. You can have at most 50 objects and items at once, and nothing is made while the call is not set.
 
