@@ -30,7 +30,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.fold.antenna": "アンテナ",
   "settings.fold.advanced": "詳細設定",
 
-
   "settings.call.label": "コールサイン",
   "settings.call.tip1": "あなたのコールサインです。これがないと何も送信されません。",
   "settings.call.tip2": "後ろに -9 を付けると車、-10 なら iGate です。1つのコールサインで複数の局を区別できます。",
@@ -229,7 +228,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.confirm.https_on": "この機器はページが開けなくなります。オンにしますか?",
   "settings.confirm.https_off": "この機器はページが開けなくなります。オフにしますか?",
 
-
   "settings.check.range": "{min}〜{max}",
   "settings.check.placeholder_call": "{call}はコールサインではありません",
   "settings.check.not_call": "コールサインではありません",
@@ -342,9 +340,11 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.update.label": "新しいバージョン",
   "settings.update.check": "今すぐ確認",
   "settings.update.tip_label": "更新の確認について",
-  "settings.update.tip": "1日に1回、新しいバージョンが出ているか確認し、あれば下部に表示します。",
+  "settings.update.tip": "1日に1回、新しいバージョンが出ているか確認し、あれば上部に「更新」マークを表示します。",
   "settings.update.available": "{version}が利用可能",
-  "settings.update.current": "最新です({version})",
+  "settings.update.current": "最新です",
+  "settings.update.checking": "確認中…",
+  "settings.update.version": "NeoAPRS {version}",
   "settings.update.no_answer": "応答なし",
 
   "settings.help.group": "ヘルプ",

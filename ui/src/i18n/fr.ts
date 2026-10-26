@@ -13,6 +13,8 @@ export const fr: Catalogue = {
   "pill.beacon_off_title": "Ni balise ni statut automatiques. Onglet Balise",
   "pill.internet": "Internet",
   "pill.internet_title": "Internet : stations d'APRS-IS sur la carte. Réglages → Stations Internet",
+  "pill.update": "Mise à jour",
+  "pill.update_title": "Mise à jour vers {version}",
   "pill.gps": "GPS",
   "pill.gps_fix_title": "GPS : fix. Onglet Balise",
   "pill.gps_nofix_title": "GPS : pas encore de fix. Onglet Balise",
@@ -48,7 +50,6 @@ export const fr: Catalogue = {
 
   "footer.cost": "NeoAPRS utilise {cpu} % d'un cœur de processeur et {mb} MB de mémoire, en marche depuis {span}",
   "footer.cost_no_memory": "NeoAPRS utilise {cpu} % d'un cœur de processeur, en marche depuis {span}",
-  "footer.update": "Mise à jour vers {version}",
   "footer.offline": "Démon hors ligne",
   "footer.connecting": "Connexion…",
   "footer.radio.waiting": "Radio : en attente…",
@@ -360,8 +361,8 @@ export const fr: Catalogue = {
   "objects.form.cancel": "Annuler",
   "objects.form.save": "Enregistrer",
   "objects.form.add": "Ajouter",
-
   "objects.form.need_place": "Choisissez d’abord un lieu",
+
   "objects.tip.name": "Ce que les autres stations voient sur la carte : {max} caractères au plus, aucun de ! _ | ~.",
   "objects.tip.comment": "Affiché à côté de l'objet sur la carte. Caractères imprimables, ni | ni ~.",
   "objects.tip.course": "La direction de son déplacement, en degrés depuis le nord : 90 est l'est.",
@@ -867,7 +868,6 @@ export const fr: Catalogue = {
   "settings.fold.antenna": "Antenne",
   "settings.fold.advanced": "Avancé",
 
-
   "settings.call.label": "Indicatif",
   "settings.call.tip1": "Votre indicatif. Sans lui, rien n'est envoyé.",
   "settings.call.tip2": "-9 derrière est pour une voiture, -10 pour un iGate : un indicatif, plusieurs stations.",
@@ -1074,7 +1074,6 @@ export const fr: Catalogue = {
   "settings.confirm.https_on": "Cet appareil perdra la page. Activer ?",
   "settings.confirm.https_off": "Cet appareil perdra la page. Désactiver ?",
 
-
   "settings.check.range": "{min} à {max}",
   "settings.check.placeholder_call": "{call} n'est pas un indicatif",
   "settings.check.not_call": "Pas un indicatif",
@@ -1188,9 +1187,11 @@ export const fr: Catalogue = {
   "settings.update.label": "Nouvelle version",
   "settings.update.check": "Vérifier maintenant",
   "settings.update.tip_label": "À propos de la recherche de mise à jour",
-  "settings.update.tip": "Une fois par jour, NeoAPRS demande si une version plus récente est sortie et le dit en bas de page.",
+  "settings.update.tip": "Une fois par jour, NeoAPRS demande si une version plus récente est sortie et affiche en haut la pastille Mise à jour.",
   "settings.update.available": "{version} disponible",
-  "settings.update.current": "à jour ({version})",
+  "settings.update.current": "à jour",
+  "settings.update.checking": "vérification…",
+  "settings.update.version": "NeoAPRS {version}",
   "settings.update.no_answer": "pas de réponse",
 
   "settings.help.group": "Aide",
@@ -1337,12 +1338,12 @@ export const fr: Catalogue = {
   "help.picture.dummy":
     "Des stations inventées dans un cadre en pointillés répondent à votre station, et ce qu'elle envoie ne sort pas : les ondes sont barrées.",
   "help.picture.notifications": "Un message d'une station arrive, et cet appareil joue un son, le haut-parleur, et montre une fenêtre, la carte.",
+  "help.picture.qru":
+    "Votre station interroge QRU, et une station serveur répond avec des objets, un relais et un événement, qui apparaissent sur votre carte.",
   "help.not_copied": "Non copié",
 
   "help.install.label": "Application",
   "help.install.title": "Ouvrir NeoAPRS dans une fenêtre à part, avec une icône",
-  "help.picture.qru":
-    "Votre station interroge QRU, et une station serveur répond avec des objets, un relais et un événement, qui apparaissent sur votre carte.",
   "help.install.button": "Installer l'application",
 
   "help.https.label": "Installer le certificat",
@@ -1461,7 +1462,6 @@ export const fr: Catalogue = {
   "nearby.igate_says": "se dit iGate",
   "nearby.igate_symbol": "symbole d'iGate",
   "nearby.direct_last": "dernière écoute en direct {when}",
-};
   "nearby.qru": "Infos locales (QRU)",
   "nearby.qru_tip_label": "À propos des infos locales",
   "nearby.qru_tip": "Demande aux stations proches des infos locales : relais, événements, lieux. Envoyé par radio uniquement.",
@@ -1471,3 +1471,4 @@ export const fr: Catalogue = {
   "nearby.qru_km_tip": "Jusqu'où chercher. Vide : celle des serveurs, en général 50 km.",
   "nearby.qru_none": "Pas encore de réponse",
   "nearby.qru_group": "Demander {group} à {server}",
+};

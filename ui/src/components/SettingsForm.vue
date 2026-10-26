@@ -14,6 +14,7 @@ import MapFetchNotes from "@/components/MapFetchNotes.vue";
 import ActionRow from "@/components/ActionRow.vue";
 import DigipeaterStatus from "@/components/DigipeaterStatus.vue";
 import IgateStatus from "@/components/IgateStatus.vue";
+import UpdateRow from "@/components/UpdateRow.vue";
 import { internetStations } from "@/lib/igatestatus";
 import InfoTip from "@/components/InfoTip.vue";
 import LanguageField from "@/components/LanguageField.vue";
@@ -68,7 +69,7 @@ const network = computed(() => config.value?.values["web/network"] === "true" &&
 const urls = computed(() => config.value?.urls ?? []);
 /** Our call in force (the iGate logs in as it, and the page where a passcode is requested is told it); the iGate group asks for it first. */
 const call = computed(() => (config.value?.values["station/call"] ?? "").trim());
-// the answers of the buttons (Test, New key, Check now) are said in the toast, so that nothing moves; a newer version opens the update window
+// the answers of the buttons (Test, New key) are said in the toast, so that nothing moves; the answer of Check now is in its row
 watch(
   () => alertTest.result.value,
   (result) => result && say(result.text),
@@ -76,10 +77,6 @@ watch(
 watch(
   () => newKey.result.value,
   (result) => result && say(result.text),
-);
-watch(
-  () => updateCheck.outcome.value,
-  (outcome) => (outcome?.newer ? emit("update") : outcome && say(outcome.text)),
 );
 /** The TNC profile as it is being edited: which fields are shown follows it. */
 const profile = computed(() => draft["tnc/profile"]);
@@ -270,14 +267,7 @@ function typed(key: string, text: string): void {
     </fieldset>
     <fieldset v-if="scope === 'settings'" class="update-check">
       <legend>{{ t("settings.update.group") }}</legend>
-      <ActionRow id="set-update-now" :label="t('settings.update.label')" :tip-label="t('settings.update.tip_label')">
-        <button id="set-update-now" class="btn" type="button" :disabled="updateCheck.running.value" @click="updateCheck.check">
-          {{ t("settings.update.check") }}
-        </button>
-        <template #tip
-          ><span class="info-line">{{ t("settings.update.tip") }}</span></template
-        >
-      </ActionRow>
+      <UpdateRow :running="updateCheck.running.value" :outcome="updateCheck.outcome.value" @check="updateCheck.check" @update="emit('update')" />
     </fieldset>
     <SettingsHelp v-if="scope === 'settings'" />
     <SettingsAbout v-if="scope === 'settings'" />

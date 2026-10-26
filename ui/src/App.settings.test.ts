@@ -138,13 +138,15 @@ describe("App: the Settings tab", () => {
     expect(wrapper.find("#pane-settings .mapfetch-progress").text()).toBe("World map 42%");
   });
 
-  it("opens the steps of the update for the way this copy was installed from the new version under the panel, and closes them when it is gone", async () => {
+  it("opens the steps of the update for the way this copy was installed from the Update button of the row New version, and closes them when the new version is gone", async () => {
     const { wrapper, socket } = await open();
     expect(wrapper.find(".updatedialog").exists()).toBe(false);
     socket.say(hello({ install: { kind: "uv-tool", appimage: "", service: true, arch: "" } }));
     socket.say(status({ update: { version: "0.4.0", url: "", message: "" } }));
     await flushPromises();
-    await wrapper.find("button.update").trigger("click");
+    await tabButton(wrapper, "Settings")?.trigger("click");
+    expect(wrapper.find("#pane-settings .updateline").text()).toContain("0.4.0 available");
+    await wrapper.find("#pane-settings .updateline button").trigger("click");
     const panel = wrapper.find(".updatedialog");
     expect(panel.find("h2").text()).toBe("NeoAPRS 0.4.0 is available");
     expect(panel.find("code").text()).toContain("install.sh | sh");
@@ -153,21 +155,23 @@ describe("App: the Settings tab", () => {
     expect(wrapper.find(".updatedialog").exists()).toBe(false);
   });
 
-  it("asks the daemon to check at once from the Settings tab and opens the steps from the answer", async () => {
+  it("asks the daemon to check at once from the Settings tab and says the answer next to the button: checking, then the newer version with its Update button; no toast, nothing opens by itself", async () => {
     const { wrapper, socket } = await open();
     await tabButton(wrapper, "Settings")?.trigger("click");
     const button = wrapper.findAll("#pane-settings button").find((b) => b.text() === "Check now");
     await button?.trigger("click");
     expect(socket.sent.filter((c) => (c as { cmd: string }).cmd === "update_check")).toHaveLength(1);
+    expect(wrapper.find("#pane-settings .updateline").text()).toContain("checking…");
     socket.say({ type: "update_result", outcome: "newer", version: "0.4.0", text: "" });
     socket.say(status({ update: { version: "0.4.0", url: "", message: "" } }));
     await flushPromises();
-    expect(wrapper.find("button.update").text()).toBe("Update to 0.4.0");
-    expect(wrapper.find(".updatedialog h2").text()).toBe("NeoAPRS 0.4.0 is available");
+    expect(wrapper.find("#pane-settings .updateline").text()).toContain("0.4.0 available");
+    expect(wrapper.find("#pane-settings .updateline button").text()).toBe("Update");
+    expect(wrapper.find(".updatedialog").exists()).toBe(false);
     expect(wrapper.find(".toast").exists()).toBe(false);
   });
 
-  it("says in the toast, and opens nothing, when the check from the Settings tab finds the version up to date", async () => {
+  it("says up to date next to the button, in the ok colour and not in a toast, when the check finds the version up to date", async () => {
     const { wrapper, socket } = await open();
     await tabButton(wrapper, "Settings")?.trigger("click");
     await wrapper
@@ -176,7 +180,9 @@ describe("App: the Settings tab", () => {
       ?.trigger("click");
     socket.say({ type: "update_result", outcome: "current", version: "0.3.0", text: "" });
     await flushPromises();
-    expect(wrapper.find(".toast").text()).toContain("up to date (0.3.0)");
+    expect(wrapper.find("#pane-settings .updateline").text()).toMatch(/^NeoAPRS .*up to date$/);
+    expect(wrapper.find("#pane-settings .updateline .statetext").classes()).toContain("update-current");
+    expect(wrapper.find(".toast").exists()).toBe(false);
     expect(wrapper.find(".updatedialog").exists()).toBe(false);
   });
 });

@@ -177,6 +177,7 @@ While no call is set an amber **no call set** button is beside the title, which 
 
 At the right, before the count of messages, are small marks that say what is out of the ordinary. Each has a hover text and opens the place where it is set:
 
+- **Update** (blue) while a newer version is out;
 - **RX only** (amber) while Settings → Radio → RX only is ticked ([beacon.md](beacon.md#rx-only));
 - **Beacon off** (grey) while the Beacon choice is Off and the station transmits ([beacon.md](beacon.md#beacon-off));
 - **Internet** (blue) while Settings → Internet stations is enabled and connected ([igate.md](igate.md));
@@ -186,8 +187,8 @@ On a narrow screen the marks give way and the count stays. Your call is not in t
 
 The **footer** is one small muted line under the open tab of the panel (under the panel, not under the map; on a phone under the tab; not while the panel is folded). It is always the same height, so nothing moves when a message comes or goes.
 
-- At the left is the name and version of the program. Its hover text says what the daemon costs the machine, every 10 seconds: its share of one CPU core in percent, its memory and the uptime (a sentence in the page's language: "NeoAPRS uses 0.3 % of one processor core and 42 MB of memory, running for 3 h").
-- When the update check has found a newer version, an **Update to** button follows it, which opens the window of the update: what is new, **Update now** where NeoAPRS can update itself, and the steps by hand ([install.md](install.md#updating)). On a phone the map has no footer, and the header has a small badge with the new number instead.
+- The name and version of the program are in Settings → Update check, next to **Check now**. Its hover text says what the daemon costs the machine, every 10 seconds: its share of one CPU core in percent, its memory and the uptime (a sentence in the page's language: "NeoAPRS uses 0.3 % of one processor core and 42 MB of memory, running for 3 h").
+- When the update check has found a newer version, an **Update** mark is the first of the marks of the header; it opens Settings → Update check, where **Update** beside the version opens the window of the update: what is new, **Update now** where NeoAPRS can update itself, and the steps by hand ([install.md](install.md#updating)).
 - At the right is the state of the radio, only when it is not ok, in the warning colour, as a button that opens the Settings tab where the radio is. "Radio: searching…" (looking for the port), "Radio: entering KISS…", "Radio: not connected" (it waits between two tries, or is stopped; the TNC's problem is the tooltip), "Radio: waiting…" (no word from the TNC yet), "Radio: silent" (the line is open and the radio does not answer; the tooltip says "nothing heard since 18:43 (5 h)" in the browser's time), "Connecting…" (the page's connection is being opened) and, in red, "Daemon offline".
 - When the radio is connected the footer says nothing of it. The port and when a packet was last heard are in the radio status at the top of the Radio group of the Settings tab.
 

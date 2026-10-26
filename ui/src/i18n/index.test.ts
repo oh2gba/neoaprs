@@ -78,7 +78,7 @@ describe("the language of the page", () => {
 describe("t", () => {
   it("gives the English of the catalogue, with the values", () => {
     expect(t("tab.stations")).toBe("Stations");
-    expect(t("footer.update", { version: "0.7.0" })).toBe("Update to 0.7.0");
+    expect(t("pill.update_title", { version: "0.7.0" })).toBe("Update to 0.7.0");
   });
 
   it("gives the language's own message, and English for an id that language does not have", () => {

@@ -29,7 +29,6 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.fold.antenna": "Antena",
   "settings.fold.advanced": "Avanzado",
 
-
   "settings.call.label": "Indicativo",
   "settings.call.tip1": "Tu indicativo. Sin él no se envía nada.",
   "settings.call.tip2": "-9 detrás es para un coche, -10 para un iGate: un indicativo, varias estaciones.",
@@ -234,7 +233,6 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.confirm.https_on": "Este dispositivo perderá la página. ¿Activar?",
   "settings.confirm.https_off": "Este dispositivo perderá la página. ¿Desactivar?",
 
-
   "settings.check.range": "{min} a {max}",
   "settings.check.placeholder_call": "{call} no es un indicativo",
   "settings.check.not_call": "No es un indicativo",
@@ -348,9 +346,11 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.update.label": "Versión nueva",
   "settings.update.check": "Buscar ahora",
   "settings.update.tip_label": "Acerca de la búsqueda de actualizaciones",
-  "settings.update.tip": "Una vez al día NeoAPRS pregunta si hay una versión más nueva y lo avisa en el pie de la página.",
+  "settings.update.tip": "Una vez al día NeoAPRS pregunta si hay una versión más nueva y muestra arriba la marca Actualizar.",
   "settings.update.available": "{version} disponible",
-  "settings.update.current": "al día ({version})",
+  "settings.update.current": "al día",
+  "settings.update.checking": "comprobando…",
+  "settings.update.version": "NeoAPRS {version}",
   "settings.update.no_answer": "sin respuesta",
 
   "settings.help.group": "Ayuda",

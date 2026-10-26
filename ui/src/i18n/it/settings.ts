@@ -29,7 +29,6 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.fold.antenna": "Antenna",
   "settings.fold.advanced": "Avanzate",
 
-
   "settings.call.label": "Nominativo",
   "settings.call.tip1": "Il tuo nominativo. Senza, non viene inviato nulla.",
   "settings.call.tip2": "-9 dopo il nominativo è per un’auto, -10 per un iGate: un nominativo, più stazioni.",
@@ -234,7 +233,6 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.confirm.https_on": "Questo dispositivo perderà la pagina. Attivare?",
   "settings.confirm.https_off": "Questo dispositivo perderà la pagina. Disattivare?",
 
-
   "settings.check.range": "Da {min} a {max}",
   "settings.check.placeholder_call": "{call} non è un nominativo",
   "settings.check.not_call": "Non è un nominativo",
@@ -348,9 +346,11 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.update.label": "Nuova versione",
   "settings.update.check": "Controlla ora",
   "settings.update.tip_label": "Informazioni sul controllo aggiornamenti",
-  "settings.update.tip": "Una volta al giorno NeoAPRS chiede se è uscita una versione più recente e lo dice nel piè di pagina.",
+  "settings.update.tip": "Una volta al giorno NeoAPRS chiede se è uscita una versione più recente e mostra in alto il contrassegno Aggiorna.",
   "settings.update.available": "{version} disponibile",
-  "settings.update.current": "aggiornato ({version})",
+  "settings.update.current": "aggiornato",
+  "settings.update.checking": "controllo…",
+  "settings.update.version": "NeoAPRS {version}",
   "settings.update.no_answer": "nessuna risposta",
 
   "settings.help.group": "Aiuto",

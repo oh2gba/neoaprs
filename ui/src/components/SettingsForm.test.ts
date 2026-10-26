@@ -6,7 +6,7 @@ import { CONFIG_KEYS } from "@/protocol/lists";
 import type { PortsMessage } from "@/protocol/protocol";
 import { cssRule } from "@/test/css";
 import { fakeDaemon, tell, withDaemon, type Given } from "@/test/context";
-import { configValues, mapFile, mapState, toastOf } from "@/test/fixtures";
+import { configValues, mapFile, mapState, status, toastOf } from "@/test/fixtures";
 
 /** The form in a page whose settings are the fixtures' with `extra` over them; `more` is what else the context has. */
 function make(extra: Record<string, string> = {}, scope: Scope = "settings", more: Given = {}) {
@@ -1034,33 +1034,51 @@ describe("SettingsForm", () => {
       expect(wrapper.find("#set-update-url").exists()).toBe(false);
     });
 
-    it("sends update_check, waits for the answer and says up to date with the version in the toast", async () => {
+    const line = (wrapper: ReturnType<typeof make>["wrapper"]) => wrapper.find(".updateline");
+
+    it("sends update_check, says checking next to the button while it waits, and then up to date there, in no toast", async () => {
       const { wrapper, send, daemon } = make();
       await check(wrapper)?.trigger("click");
       expect(send).toHaveBeenCalledWith({ cmd: "update_check" });
       expect(check(wrapper)?.attributes("disabled")).toBeDefined();
+      expect(line(wrapper).text()).toContain("checking…");
       await check(wrapper)?.trigger("click");
       expect(send).toHaveBeenCalledTimes(1);
       await tell(daemon, { updateResult: answer({}) });
       expect(check(wrapper)?.attributes("disabled")).toBeUndefined();
-      expect(daemon.say).toHaveBeenCalledExactlyOnceWith("up to date (0.3.0)");
-      expect(wrapper.find(".field-control").text()).not.toContain("up to date");
+      expect(line(wrapper).find(".statetext").text()).toBe("up to date");
+      expect(line(wrapper).find(".statetext").classes()).toContain("update-current");
+      expect(daemon.say).not.toHaveBeenCalled();
       expect(wrapper.emitted("update")).toBeUndefined();
     });
 
-    it("asks for the panel with the steps, and says nothing, when a newer version is available", async () => {
-      const { wrapper, daemon } = make();
+    it("has the button, with the version beside it and its cost as the title, in one row", () => {
+      const { wrapper } = make({}, "settings", { version: "0.10.0-rc1", status: status({ cpu_percent: 0.3, rss_mb: 42.4, uptime_sec: 3 * 3600 }) });
+      const control = wrapper.find(".action-row .field-control");
+      expect(control.element.firstElementChild).toBe(check(wrapper)?.element);
+      expect(line(wrapper).element.previousElementSibling).toBe(check(wrapper)?.element);
+      expect(line(wrapper).text()).toBe("NeoAPRS 0.10.0-rc1");
+      expect(line(wrapper).find(".updateversion").attributes("title")).toBe("NeoAPRS uses 0.3 % of one processor core and 42 MB of memory, running for 3 h");
+    });
+
+    it("says the newer version next to the button, with an Update button that asks for the panel with the steps, and opens nothing by itself", async () => {
+      const { wrapper, daemon } = make({}, "settings", { status: status({ update: { version: "0.4.0", url: "", message: "" } }) });
       await check(wrapper)?.trigger("click");
       await tell(daemon, { updateResult: answer({ outcome: "newer", version: "0.4.0" }) });
+      expect(wrapper.emitted("update")).toBeUndefined();
+      expect(line(wrapper).text()).toContain("0.4.0 available");
+      await line(wrapper).find("button").trigger("click");
       expect(wrapper.emitted("update")).toHaveLength(1);
       expect(daemon.say).not.toHaveBeenCalled();
     });
 
-    it("says no answer, with the reason when the daemon gave one", async () => {
+    it("says no answer, with the reason when the daemon gave one, in the warn colour", async () => {
       const { wrapper, daemon } = make();
       await check(wrapper)?.trigger("click");
       await tell(daemon, { updateResult: answer({ outcome: "no_answer", version: "", text: "the version page could not be reached" }) });
-      expect(daemon.say).toHaveBeenCalledExactlyOnceWith("the version page could not be reached");
+      expect(line(wrapper).find(".statetext").text()).toBe("the version page could not be reached");
+      expect(line(wrapper).find(".statetext").classes()).toContain("update-failed");
+      expect(daemon.say).not.toHaveBeenCalled();
     });
   });
 

@@ -9,6 +9,8 @@ export const shell = {
   "pill.beacon_off_title": "No automatic beacon or status. Beacon tab",
   "pill.internet": "Internet",
   "pill.internet_title": "Internet: APRS-IS stations on the map. Settings → Internet stations",
+  "pill.update": "Update",
+  "pill.update_title": "Update to {version}",
   "pill.gps": "GPS",
   "pill.gps_fix_title": "GPS: fix. Beacon tab",
   "pill.gps_nofix_title": "GPS: no fix yet. Beacon tab",
@@ -44,7 +46,6 @@ export const shell = {
 
   "footer.cost": "NeoAPRS uses {cpu} % of one processor core and {mb} MB of memory, running for {span}",
   "footer.cost_no_memory": "NeoAPRS uses {cpu} % of one processor core, running for {span}",
-  "footer.update": "Update to {version}",
   "footer.offline": "Daemon offline",
   "footer.connecting": "Connecting…",
   "footer.radio.waiting": "Radio: waiting…",

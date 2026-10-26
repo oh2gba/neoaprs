@@ -11,6 +11,8 @@ export const shell: Readonly<Record<keyof typeof en, Message>> = {
   "pill.beacon_off_title": "Nessun beacon né stato automatici. Scheda Beacon",
   "pill.internet": "Internet",
   "pill.internet_title": "Internet: stazioni di APRS-IS sulla mappa. Impostazioni → Stazioni Internet",
+  "pill.update": "Aggiorna",
+  "pill.update_title": "Aggiorna a {version}",
   "pill.gps": "GPS",
   "pill.gps_fix_title": "GPS: fix. Scheda Beacon",
   "pill.gps_nofix_title": "GPS: ancora nessun fix. Scheda Beacon",
@@ -46,7 +48,6 @@ export const shell: Readonly<Record<keyof typeof en, Message>> = {
 
   "footer.cost": "NeoAPRS usa il {cpu} % di un core del processore e {mb} MB di memoria, in funzione da {span}",
   "footer.cost_no_memory": "NeoAPRS usa il {cpu} % di un core del processore, in funzione da {span}",
-  "footer.update": "Aggiorna a {version}",
   "footer.offline": "Servizio offline",
   "footer.connecting": "Connessione…",
   "footer.radio.waiting": "Radio: in attesa…",

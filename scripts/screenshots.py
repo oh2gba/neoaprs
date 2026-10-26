@@ -5,7 +5,7 @@
     python scripts/screenshots.py --chromium /path/to/chrome --no-sandbox                  # a browser Playwright did not install, or one that cannot make its sandbox
 
 Nothing touches a radio: the daemon's TNC is a KISS server on a TCP port of the loopback that this script serves (the `kiss-tcp` profile), and the fresh folder of the setup guide is given that port on the
-command line. The footer's version is hidden in every shot and the newer version of the update shot is made from VERSION, so the shots do not go old with a release: they are retaken when the page changes. The map for street level is linked or copied from a PMTiles file you name (`--basemap`, default `data/basemap.pmtiles` of this clone; it is only read). Needs Playwright and, to
+command line. The version beside Check now is hidden in every shot and the newer version of the update shot is made from VERSION, so the shots do not go old with a release: they are retaken when the page changes. The map for street level is linked or copied from a PMTiles file you name (`--basemap`, default `data/basemap.pmtiles` of this clone; it is only read). Needs Playwright and, to
 make the PNG files small, Pillow; `playwright install chromium` fetches the browser. Needs `uv sync` first (or `uv run`, which does it) so that `neoaprs` is importable."""
 import argparse
 import asyncio
@@ -147,10 +147,10 @@ def next_version(version: str) -> str:
 
 
 UPDATE_TO = next_version(VERSION)                                  # (the version page of the update shot says this one is out: always one past the version of this tree)
-# The footer's "NeoAPRS <version>" is hidden in every shot (the space stays, so nothing moves), so that a new version makes no shot old: the shots are retaken when the page changes, not at each
+# The "NeoAPRS <version>" beside Check now is hidden in every shot (the space stays, so nothing moves), so that a new version makes no shot old: the shots are retaken when the page changes, not at each
 # release. The one shot that still names versions is update.png: UPDATE_TO, and the installed one in the dialog's "You have NeoAPRS ...". (The page allows an inline style sheet: style-src
 # 'unsafe-inline' of neoaprs/web/headers.py.)
-HIDE_VERSION = ".panelfoot .version { visibility: hidden; }"
+HIDE_VERSION = ".updateversion { visibility: hidden; }"
 
 
 async def prepare(work: Path, radio: demoscene.DemoRadio, basemap: Path | None) -> Path:
@@ -330,13 +330,9 @@ async def shot_stations_menu(s: Shots, _: str) -> None:
 async def shot_update(s: Shots, _: str) -> None:
     """The window of an update (the daemon of this shot is told by a version page of its own that a newer version is out, and plays a Windows install): what is new, Update now and the steps by hand."""
     page = await s.page(DESKTOP, tab="settings", view=CITY, panel=WIDE_PANEL, url=s.update_url)
-    await page.locator("#set-update-now").click()                     # (Check now finds the newer version and opens the window by itself: closed again, so that it is not drawn over the Settings tab)
+    await page.locator("#set-update-now").click()                     # (Check now finds the newer version: the Update mark of the header and the Update button of the row say so)
     await settle(page, 1500)
-    await page.keyboard.press("Escape")
-    await settle(page, 400)
-    await open_stations_tab(page)                                     # (the Settings tab shows the daemon's own key and addresses: not under this shot)
-    await settle(page, 400)
-    await page.get_by_role("button", name=f"Update to {UPDATE_TO}").click()
+    await page.locator(".updateline .btn").click()                    # (the button of the row opens the window of the update)
     await page.locator(".updatedialog-hand summary").click()
     await settle(page, 800)
     await s.save(page, "update")

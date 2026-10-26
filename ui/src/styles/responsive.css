@@ -363,21 +363,17 @@ button,
     height: calc(36px + env(safe-area-inset-bottom));
   }
   .headmail,
-  .headupdate,
   button.status,
   .nocall,
-  .brand,
-  .update {
+  .brand {
     /* the small things of the header are as high as the header, which is the height of a finger and a bit */
     position: relative;
     overflow: visible;
   }
   .headmail::after,
-  .headupdate::after,
   button.status::after,
   .nocall::after,
   .brand::after,
-  .update::after,
   .qrz::after,
   .sheet-grip::before {
     content: "";

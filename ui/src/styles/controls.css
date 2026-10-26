@@ -142,8 +142,7 @@ a.btn {
   font-weight: 400;
   line-height: 1.4;
 }
-/* buttons that look like a link: the new version in the header, a link in a sentence */
-button.update,
+/* buttons that look like a link: a link in a sentence */
 button.linkbtn {
   font: inherit;
   font-size: 11px;

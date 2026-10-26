@@ -36,12 +36,10 @@
   margin: 0;
   pointer-events: none;
 }
-.headmail,
-.headupdate {
+.headmail {
   flex: none;
 }
-.headmail.badge,
-.headupdate.badge {
+.headmail.badge {
   margin: 0 0 0 auto;
 }
 /* the marks before the count (lib/pills.ts): they are pushed to the right with the count, and when the row is too narrow they fold as whole marks, never half of one and never the count: the row is one mark high and wraps, so what does not fit goes to a line that is clipped.
@@ -62,13 +60,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.headpills + .headmail.badge,
-.headpills + .headupdate.badge {
+.headpills + .headmail.badge {
   margin-left: 6px;
-}
-/* (a phone's newer version, at the right before the mail) */
-.headupdate + .headmail.badge {
-  margin-left: 0;
 }
 .panel-handle {
   flex: none;

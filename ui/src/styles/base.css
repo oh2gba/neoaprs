@@ -126,13 +126,6 @@ button.status:hover {
   white-space: nowrap;
   overflow: hidden;
 }
-.panelfoot .update {
-  flex: none;
-  font-size: 12px;
-}
-.panelfoot .version {
-  flex: none;
-}
 .footradio {
   display: flex;
   flex: 0 1 auto;

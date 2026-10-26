@@ -13,6 +13,8 @@ export const de: Catalogue = {
   "pill.beacon_off_title": "Keine automatische Bake und kein Status. Reiter Bake",
   "pill.internet": "Internet",
   "pill.internet_title": "Internet: APRS-IS-Stationen auf der Karte. Einstellungen → Internet-Stationen",
+  "pill.update": "Update",
+  "pill.update_title": "Update auf {version}",
   "pill.gps": "GPS",
   "pill.gps_fix_title": "GPS: Fix. Reiter Bake",
   "pill.gps_nofix_title": "GPS: noch kein Fix. Reiter Bake",
@@ -48,7 +50,6 @@ export const de: Catalogue = {
 
   "footer.cost": "NeoAPRS belegt {cpu} % eines Prozessorkerns und {mb} MB Arbeitsspeicher, in Betrieb seit {span}",
   "footer.cost_no_memory": "NeoAPRS belegt {cpu} % eines Prozessorkerns, in Betrieb seit {span}",
-  "footer.update": "Update auf {version}",
   "footer.offline": "Daemon offline",
   "footer.connecting": "Verbinde…",
   "footer.radio.waiting": "Funkgerät: warte…",
@@ -374,8 +375,8 @@ export const de: Catalogue = {
   "objects.form.cancel": "Abbrechen",
   "objects.form.save": "Speichern",
   "objects.form.add": "Hinzufügen",
-
   "objects.form.need_place": "Zuerst einen Ort wählen",
+
   "objects.tip.name": "Was andere Stationen auf der Karte sehen: bis zu {max} Zeichen, keines von ! _ | ~.",
   "objects.tip.comment": "Wird auf der Karte neben dem Objekt angezeigt. Druckbare Zeichen, kein | und kein ~.",
   "objects.tip.course": "Die Richtung der Bewegung in Grad von Nord: 90 ist Ost.",
@@ -881,7 +882,6 @@ export const de: Catalogue = {
   "settings.fold.antenna": "Antenne",
   "settings.fold.advanced": "Erweitert",
 
-
   "settings.call.label": "Rufzeichen",
   "settings.call.tip1": "Dein Rufzeichen. Ohne es wird nichts gesendet.",
   "settings.call.tip2": "-9 dahinter steht für ein Auto, -10 für ein iGate: ein Rufzeichen, mehrere Stationen.",
@@ -1087,7 +1087,6 @@ export const de: Catalogue = {
   "settings.confirm.https_on": "Dieses Gerät verliert die Seite. Einschalten?",
   "settings.confirm.https_off": "Dieses Gerät verliert die Seite. Ausschalten?",
 
-
   "settings.check.range": "{min} bis {max}",
   "settings.check.placeholder_call": "{call} ist kein Rufzeichen",
   "settings.check.not_call": "Kein Rufzeichen",
@@ -1201,9 +1200,11 @@ export const de: Catalogue = {
   "settings.update.label": "Neue Version",
   "settings.update.check": "Jetzt prüfen",
   "settings.update.tip_label": "Über die Update-Prüfung",
-  "settings.update.tip": "Einmal am Tag fragt NeoAPRS, ob eine neuere Version erschienen ist, und sagt es in der Fußzeile.",
+  "settings.update.tip": "Einmal am Tag fragt NeoAPRS, ob eine neuere Version erschienen ist, und zeigt oben die Markierung Update.",
   "settings.update.available": "{version} verfügbar",
-  "settings.update.current": "aktuell ({version})",
+  "settings.update.current": "aktuell",
+  "settings.update.checking": "prüfe…",
+  "settings.update.version": "NeoAPRS {version}",
   "settings.update.no_answer": "keine Antwort",
 
   "settings.help.group": "Hilfe",
@@ -1349,12 +1350,12 @@ export const de: Catalogue = {
   "help.picture.dummy":
     "Erfundene Stationen im gestrichelten Rahmen antworten deiner Station, und was sie sendet, geht nicht hinaus: Die Wellen sind durchgestrichen.",
   "help.picture.notifications": "Eine Nachricht einer Station kommt an, und dieses Gerät spielt einen Ton, der Lautsprecher, und zeigt ein Pop-up, die Karte.",
+  "help.picture.qru":
+    "Deine Station fragt QRU, und eine Server-Station antwortet mit Objekten, einem Relais und einem Termin, die auf deiner Karte erscheinen.",
   "help.not_copied": "Nicht kopiert",
 
   "help.install.label": "App",
   "help.install.title": "NeoAPRS in einem eigenen Fenster mit Symbol öffnen",
-  "help.picture.qru":
-    "Deine Station fragt QRU, und eine Server-Station antwortet mit Objekten, einem Relais und einem Termin, die auf deiner Karte erscheinen.",
   "help.install.button": "App installieren",
 
   "help.https.label": "Zertifikat installieren",
@@ -1472,7 +1473,6 @@ export const de: Catalogue = {
   "nearby.igate_says": "meldet sich als iGate",
   "nearby.igate_symbol": "iGate-Symbol",
   "nearby.direct_last": "zuletzt direkt gehört {when}",
-};
   "nearby.qru": "Ortsinfo (QRU)",
   "nearby.qru_tip_label": "Über Ortsinfo",
   "nearby.qru_tip": "Fragt Stationen in deiner Nähe nach Ortsinfo: Relais, Termine, Orte. Nur per Funk gesendet.",
@@ -1482,3 +1482,4 @@ export const de: Catalogue = {
   "nearby.qru_km_tip": "Wie weit gesucht wird. Leer: der Standard der Server, meist 50 km.",
   "nearby.qru_none": "Noch keine Antwort",
   "nearby.qru_group": "{server} nach {group} fragen",
+};

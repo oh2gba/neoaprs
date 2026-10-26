@@ -13,47 +13,11 @@ const radio = (parts: Parts = {}) => footer(parts).find("button.status");
 const connecting = (describe: string) => radio({ tnc: tncState({ state: "connecting", problem: "", describe }) });
 
 describe("PanelFooter", () => {
-  it("is one line with the version", () => {
-    const wrapper = footer();
+  it("is one line that says nothing but the radio's trouble: no version, no update button", () => {
+    const wrapper = footer({ status: status({ update: { version: "0.6.1", url: "", message: "" } }) });
     expect(wrapper.html()).toMatch(/^<footer/);
-    expect(wrapper.find(".version").text()).toBe("NeoAPRS 0.6.0");
-    expect(wrapper.find(".version").classes()).toContain("muted");
-    expect(wrapper.text()).toBe("NeoAPRS 0.6.0");
-  });
-
-  it("says nothing of the version before the daemon has said it", () => {
-    expect(footer({ version: "" }).find(".version").exists()).toBe(false);
-  });
-
-  it("shows a newer version as a button that asks for the panel with the steps, the project's note as the title", async () => {
-    const update = { version: "0.6.1", url: "https://oh2gba.github.io/neoaprs/", message: "Fixes the map download" };
-    const wrapper = footer({ status: status({ update }) });
-    const button = wrapper.find("button.update");
-    expect(button.text()).toBe("Update to 0.6.1");
-    expect(button.attributes("title")).toBe("Fixes the map download");
-    expect(button.element.previousElementSibling).toBe(wrapper.find(".version").element);
-    await button.trigger("click");
-    expect(wrapper.emitted("update")).toHaveLength(1);
-  });
-
-  it("titles the button Update to the version when the project sent no note", () => {
-    const update = { version: "0.6.1", url: "", message: "" };
-    expect(
-      footer({ status: status({ update }) })
-        .find("button.update")
-        .attributes("title"),
-    ).toBe("Update to 0.6.1");
-  });
-
-  it("shows the whole Update to 0.6.1 on a phone too: no style rule cuts it short", () => {
-    expect(cssRule(".size-phone .update-to")).toBe("");
-    expect(cssRule(".size-phone .update")).not.toMatch(/display:\s*none/);
-    expect(cssRule(".size-phone .version")).not.toMatch(/display:\s*none/);
-  });
-
-  it("shows no button while there is no newer version", () => {
-    expect(footer({ status: status() }).find(".update").exists()).toBe(false);
-    expect(footer().find(".update").exists()).toBe(false);
+    expect(wrapper.text()).toBe("");
+    for (const gone of [".version", ".update", "button.update"]) expect(wrapper.find(gone).exists(), gone).toBe(false);
   });
 
   it("says nothing of the radio while it is connected", () => {
@@ -138,12 +102,5 @@ describe("PanelFooter", () => {
     expect(cssRule(".panelfoot")).toMatch(/flex:\s*none/);
     expect(mediaRule("(pointer: coarse)", ".panelfoot")).toMatch(/height:\s*36px/);
     expect(cssRule(".size-phone .panelfoot")).toMatch(/height:\s*calc\(28px \+ env\(safe-area-inset-bottom\)\)/);
-  });
-
-  it("does not show what the daemon costs the machine on the line: only the title of the version has it, with the uptime", () => {
-    const wrapper = footer({ status: status({ cpu_percent: 0.3, rss_mb: 42.4, uptime_sec: 3 * 3600 }) });
-    expect(wrapper.text()).not.toMatch(/MB|%/);
-    expect(wrapper.find(".version").attributes("title")).toBe("NeoAPRS uses 0.3 % of one processor core and 42 MB of memory, running for 3 h");
-    expect(footer().find(".version").attributes("title")).toBeUndefined();
   });
 });

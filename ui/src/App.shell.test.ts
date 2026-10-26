@@ -34,7 +34,7 @@ describe("App", () => {
     expect(header).toBe("NeoAPRS");
     expect(wrapper.find(".appheader a").attributes("href")).toBe("https://oh2gba.github.io/neoaprs/");
     const foot = wrapper.find(".panelfoot").text();
-    expect(foot).toBe(`NeoAPRS ${hello().version}`);
+    expect(foot).toBe("");
     expect(wrapper.find("#pane-settings").element.parentElement?.lastElementChild).toBe(wrapper.find(".panelfoot").element);
     expect(wrapper.find(".mapwrap .panelfoot").exists()).toBe(false);
   });

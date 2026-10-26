@@ -342,6 +342,25 @@
   overflow-wrap: anywhere;
 }
 
+/* the line next to Check now: the version, and the outcome of the check in the colour of its meaning */
+.updateline {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+  min-width: 0;
+  margin-left: 8px;
+  color: var(--muted);
+}
+.statetext.update-current {
+  color: var(--ok);
+}
+.statetext.update-available {
+  color: var(--accent-text);
+}
+.statetext.update-failed {
+  color: var(--warn);
+}
 /* the group a link to a setting has brought into view (lib/attention.ts): the soft accent, fading out; with reduced motion it is held for the same time instead */
 .attend {
   animation: attend 1.5s ease-out;

@@ -431,7 +431,6 @@ describe("the footer under the panel", () => {
     await wrapper.find("#tab-stations").trigger("click");
     expect(root(wrapper)).toContain("view-panel");
     expect(foot(wrapper).exists()).toBe(true);
-    expect(foot(wrapper).text()).toContain("NeoAPRS");
     expect(wrapper.find(".panel-body").element.lastElementChild).toBe(foot(wrapper).element);
     await wrapper.find(".tab-map").trigger("click");
     expect(root(wrapper)).toContain("view-map");
@@ -463,35 +462,28 @@ describe("the footer under the panel", () => {
     expect(foot(wrapper).exists()).toBe(true);
   });
 
-  it("has the whole Update to 0.6.1 on a phone, which opens the steps of the update", async () => {
-    const { wrapper, socket } = await open(390, 844);
-    await wrapper.find("#tab-stations").trigger("click");
-    socket.say(status({ update: { version: "0.6.1", url: "", message: "" } }));
-    await flushPromises();
-    expect(foot(wrapper).find("button.update").text()).toBe("Update to 0.6.1");
-    await foot(wrapper).find("button.update").trigger("click");
-    expect(wrapper.find(".updatedialog h2").text()).toBe("NeoAPRS 0.6.1 is available");
-  });
-
-  it("shows a newer version on a phone's map, which has no footer, as a badge of the header that opens the dialog", async () => {
-    const { wrapper, socket } = await open(390, 844);
-    expect(wrapper.find(".headupdate").exists()).toBe(false);
-    socket.say(status({ update: { version: "0.6.1", url: "", message: "" } }));
-    await flushPromises();
-    expect(foot(wrapper).exists()).toBe(false);
-    const badge = wrapper.find(".appheader button.headupdate");
-    expect(badge.text()).toContain("0.6.1");
-    expect(badge.attributes("title")).toBe("NeoAPRS 0.6.1 is available");
-    await badge.trigger("click");
-    expect(wrapper.find(".updatedialog h2").text()).toBe("NeoAPRS 0.6.1 is available");
-  });
-
-  it("has no badge of the update in the header of a desktop, whose footer shows it", async () => {
-    const { wrapper, socket } = await open(1440, 900);
-    socket.say(status({ update: { version: "0.6.1", url: "", message: "" } }));
-    await flushPromises();
-    expect(wrapper.find(".headupdate").exists()).toBe(false);
-    expect(foot(wrapper).find("button.update").text()).toBe("Update to 0.6.1");
+  it("has no version and no update button, on a phone as on a desktop: a newer version is the mark Update, the first of the header, which opens Settings → New version", async () => {
+    for (const [width, height] of [
+      [390, 844],
+      [1440, 900],
+    ] as const) {
+      const { wrapper, socket } = await open(width, height);
+      expect(wrapper.find(".pill-update").exists()).toBe(false);
+      socket.say(status({ update: { version: "0.6.1", url: "", message: "" } }));
+      await flushPromises();
+      if (width > 800) expect(foot(wrapper).text()).toBe("");
+      const mark = wrapper.find(".appheader .headpills").element.firstElementChild;
+      expect(mark?.classList.contains("pill-update")).toBe(true);
+      expect(mark?.textContent).toBe("Update");
+      expect(mark?.getAttribute("title")).toBe("Update to 0.6.1");
+      expect(wrapper.find(".headupdate").exists()).toBe(false);
+      await wrapper.find(".appheader .pill-update").trigger("click");
+      await flushPromises();
+      expect(wrapper.find("[aria-selected='true']").text()).toContain("Settings");
+      await vi.waitFor(() => expect(document.getElementById("set-update-now")?.closest("fieldset")?.classList.contains("attend")).toBe(true));
+      wrapper.unmount();
+      FakeSocket.all = [];
+    }
   });
 
   it("has the radio message on a phone that opens the Settings tab", async () => {

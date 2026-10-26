@@ -28,7 +28,6 @@ export const settings = {
   "settings.fold.antenna": "Antenna",
   "settings.fold.advanced": "Advanced",
 
-
   "settings.call.label": "Call",
   "settings.call.tip1": "Your call sign. Nothing is sent without it.",
   "settings.call.tip2": "-9 after it is for a car, -10 for an iGate: one call, several stations.",
@@ -230,7 +229,6 @@ export const settings = {
   "settings.confirm.https_on": "This device will lose the page. Turn on?",
   "settings.confirm.https_off": "This device will lose the page. Turn off?",
 
-
   "settings.check.range": "{min} to {max}",
   "settings.check.placeholder_call": "{call} is not a call",
   "settings.check.not_call": "Not a call",
@@ -345,9 +343,11 @@ export const settings = {
   "settings.update.label": "New version",
   "settings.update.check": "Check now",
   "settings.update.tip_label": "About the update check",
-  "settings.update.tip": "Once a day NeoAPRS asks if a newer version is out, and says so in the footer.",
+  "settings.update.tip": "Once a day NeoAPRS asks if a newer version is out, and shows an Update mark at the top.",
   "settings.update.available": "{version} available",
-  "settings.update.current": "up to date ({version})",
+  "settings.update.current": "up to date",
+  "settings.update.checking": "checking…",
+  "settings.update.version": "NeoAPRS {version}",
   "settings.update.no_answer": "no answer",
 
   "settings.help.group": "Help",

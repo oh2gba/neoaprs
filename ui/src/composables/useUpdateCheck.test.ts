@@ -28,10 +28,11 @@ afterEach(() => vi.useRealTimers());
 
 describe("outcomeOf", () => {
   it("has a few words for each answer", () => {
-    expect(outcomeOf(answer({}))).toEqual({ text: "up to date (0.3.0)", newer: false });
-    expect(outcomeOf(answer({ outcome: "newer", version: "0.4.0" }))).toEqual({ text: "0.4.0 available", newer: true });
+    expect(outcomeOf(answer({}))).toEqual({ text: "up to date", tone: "update-current", newer: false });
+    expect(outcomeOf(answer({ outcome: "newer", version: "0.4.0" }))).toEqual({ text: "0.4.0 available", tone: "update-available", newer: true });
     expect(outcomeOf(answer({ outcome: "no_answer", version: "", text: "the version page could not be reached" }))).toEqual({
       text: "the version page could not be reached",
+      tone: "update-failed",
       newer: false,
     });
     expect(outcomeOf(answer({ outcome: "no_answer", version: "" })).text).toBe("no answer");
@@ -49,7 +50,7 @@ describe("useUpdateCheck", () => {
     result.value = answer({});
     await vi.advanceTimersByTimeAsync(0);
     expect(check.running.value).toBe(false);
-    expect(check.outcome.value?.text).toBe("up to date (0.3.0)");
+    expect(check.outcome.value?.text).toBe("up to date");
   });
 
   it("shows the answer for a few seconds and then nothing", async () => {

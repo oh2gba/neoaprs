@@ -463,7 +463,7 @@ the path and RF only of a station are not touched. The commands `set_station_tim
 the number of the installation as `id`: 16 random bytes as 32 lowercase hex characters, made the first time a question is asked and kept in the row `update/install_id` (state of the daemon, not a setting),
 so that the project can count installations; nothing derived from the machine goes into it. The kind of
 system sent is worked out by the process in `neoaprs/cli/installkind.py` and given to the controller; the `hello` message carries it so the page can say how to
-update. The page has no version of NeoAPRS built in: it learns the daemon's from `hello` (the footer, the update check) and compares only the protocol and its build (the field `page` of `hello`, the name of the page's
+update. The page has no version of NeoAPRS built in: it learns the daemon's from `hello` (the Update check row, the update check) and compares only the protocol and its build (the field `page` of `hello`, the name of the page's
 main script). When either differs it loads itself again once; when that does not help it shows a notice in its language ("This page and NeoAPRS do not match ...", with a Reload button), keeps the socket closed and does not run
 (`ui/src/lib/reload.ts`). A new version of NeoAPRS that changed nothing in `ui/` therefore changes nothing in the page.
 

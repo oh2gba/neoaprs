@@ -1,18 +1,21 @@
-// The marks at the top right of the header, before the count of messages: only what is out of the ordinary or running, each with a short hover title and the place where it is set. In this order, which is the order they fold in on a narrow screen (the last first): RX only (warn, while transmitting is off), Beacon off (neutral, only while transmitting is on),
+// The marks at the top right of the header, before the count of messages: only what is out of the ordinary or running, each with a short hover title and the place where it is set. In this order (Update first, when a newer version is known), which is the order they fold in on a narrow screen (the last first): RX only (warn, while transmitting is off), Beacon off (neutral, only while transmitting is on),
 // GPS (only when a GPS is the position source: ok with a fix, warn without), Internet (info, while Internet stations is connected and receiving). Plain functions of the settings and the states the daemon told; the marks are the TagMark of the page: RX only is warn, Beacon off neutral, Internet info, GPS ok with a fix and warn without.
 import type { MessageId } from "@/i18n/catalogue";
+import type { Params } from "@/i18n/message";
 import { beaconOff } from "@/lib/beaconoff";
 import { isMoving } from "@/lib/gpsstatus";
-import type { GpsState, IgateState } from "@/protocol/protocol";
+import type { GpsState, IgateState, UpdateInfo } from "@/protocol/protocol";
 import type { TagTone } from "@/components/TagMark.vue";
 
 /** Where a mark leads: the Settings tab (the Radio and Internet groups) or the Beacon tab (the beacon and the GPS). */
 export type PillTarget = "settings" | "beacon";
 
 export interface HeaderPill {
-  id: "rx" | "beacon_off" | "internet" | "gps";
+  id: "update" | "rx" | "beacon_off" | "internet" | "gps";
   text: MessageId;
   title: MessageId;
+  /** the values of the title (the newer version) */
+  titleValues?: Params;
   tone: TagTone;
   target: PillTarget;
   /** the id of the control the mark leads to: its group is brought into view and flashed (lib/attention.ts) */
@@ -20,8 +23,23 @@ export interface HeaderPill {
 }
 
 /** The marks for these settings (key to text) and states; the states are null until the daemon has told. */
-export function headerPills(values: Readonly<Record<string, string>>, gps: GpsState | null, igate: IgateState | null): HeaderPill[] {
+export function headerPills(
+  values: Readonly<Record<string, string>>,
+  gps: GpsState | null,
+  igate: IgateState | null,
+  update: UpdateInfo | null = null,
+): HeaderPill[] {
   const pills: HeaderPill[] = [];
+  if (update !== null)
+    pills.push({
+      id: "update",
+      text: "pill.update",
+      title: "pill.update_title",
+      titleValues: { version: update.version },
+      tone: "accent",
+      target: "settings",
+      focus: "set-update-now",
+    });
   const rxOnly = values["station/transmit"] === "false";
   if (rxOnly) pills.push({ id: "rx", text: "pill.rx", title: "pill.rx_title", tone: "warn", target: "settings", focus: "set-station-transmit" });
   else if (beaconOff(values))

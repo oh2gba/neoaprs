@@ -60,7 +60,8 @@ describe("the page in the pseudo-locale", () => {
       expect(wrapper.findAll("[role='tab']").every((b) => b.text().startsWith("[!!"))).toBe(true);
       expect(wrapper.find(".appheader button.nocall").text()).toMatch(/^\[!! /);
       expect(wrapper.find(".panelfoot button.status").text()).toMatch(/^\[!! /);
-      expect(wrapper.find(".panelfoot button.update").text()).toMatch(/^\[!! .*9\.9\.9/);
+      expect(wrapper.find(".appheader .pill-update").text()).toMatch(/^\[!! /);
+      expect(wrapper.find(".appheader .pill-update").attributes("title")).toMatch(/^\[!! .*9\.9\.9/);
       expect(tabButton(wrapper, "[!!")).toBeDefined();
       const english = untranslated(document.body);
       for (const text of english) shown.add(text);

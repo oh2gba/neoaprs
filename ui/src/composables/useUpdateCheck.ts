@@ -10,15 +10,17 @@ export const SHOWN_MS = 8000;
 
 export interface Outcome {
   text: string;
+  /** the class that colours the words: the page's ok, warn or accent */
+  tone: string;
   /** a newer version is out: the words open the panel with the steps */
   newer: boolean;
 }
 
 /** The answer in a few words. */
 export function outcomeOf(message: UpdateResultMessage): Outcome {
-  if (message.outcome === "newer") return { text: t("settings.update.available", { version: message.version }), newer: true };
-  if (message.outcome === "current") return { text: t("settings.update.current", { version: message.version }), newer: false };
-  return { text: message.text || t("settings.update.no_answer"), newer: false };
+  if (message.outcome === "newer") return { text: t("settings.update.available", { version: message.version }), tone: "update-available", newer: true };
+  if (message.outcome === "current") return { text: t("settings.update.current"), tone: "update-current", newer: false };
+  return { text: message.text || t("settings.update.no_answer"), tone: "update-failed", newer: false };
 }
 
 export function useUpdateCheck(updateResult: Ref<UpdateResultMessage | null>, lastError: Ref<Toast | null>, send: (command: Command) => boolean) {
@@ -37,7 +39,7 @@ export function useUpdateCheck(updateResult: Ref<UpdateResultMessage | null>, la
     if (message && running.value) show(outcomeOf(message));
   });
   watch(lastError, (toast) => {
-    if (toast && running.value && toast.cmd === "update_check") show({ text: reasonOf(toast), newer: false });
+    if (toast && running.value && toast.cmd === "update_check") show({ text: reasonOf(toast), tone: "update-failed", newer: false });
   });
 
   function check(): void {
