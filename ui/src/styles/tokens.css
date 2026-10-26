@@ -1,23 +1,53 @@
-/* The page's colours and layout. The colour scheme follows the system (prefers-color-scheme); everything is drawn from the variables below. The markers of the map are made in code
-   (lib/markerdom.ts) and styled here as well. */
+/* THE PALETTE: the only place in ui/src where a colour is written (ui/src/styles/palette.test.ts fails for a colour literal anywhere else, but for the map's style, lib/basemapstyle.ts, and the map layers that read these tokens, lib/*layers.ts). The colour scheme follows the system (prefers-color-scheme);
+   every token has a value for light and one for dark. What each is for, and the swatches, are in CONVENTIONS.md ("The palette") and docs/palette.md.
+
+   - Neutrals: --bg (the page behind), --panel (a surface), --raised (what stands over a surface: a note, a menu), --text, --muted (quiet text), --border, --row-hover, --row-selected, --input-bg.
+   - One accent, the blue: --accent and the --accent-text that is read on it (a primary button, the selected tab).
+   - Four meanings, ok (green), warn (amber), bad (red) and info (teal), each in a STRONG form (--ok, --warn, --bad, --info: a line, a word, a loud fill with --on-strong on it, as Daemon offline) and a SOFT pair for a tag
+     (--ok-soft-bg with --ok-soft-fg, and so on, low in saturation and AA-readable at 11 px), and the accent and the neutral have a soft pair too (--accent-soft-*, --neutral-soft-*).
+   - What the map draws with: --map-* and --wx-*. */
 :root {
   color-scheme: light dark;
   --bg: #f4f5f3;
   --panel: #ffffff;
+  --raised: #ffffff;
   --text: #1d2125;
   --muted: #5d6670;
   --border: #d3d7da;
+  --row-hover: #eef3f9;
+  --row-selected: #d9e7f8;
+  --input-bg: #ffffff;
   --accent: #1565c0;
   --accent-text: #ffffff;
   --ok: #2e7d32;
   --warn: #b26a00;
   --bad: #c62828;
-  --row-hover: #eef3f9;
-  --row-selected: #d9e7f8;
-  --input-bg: #ffffff;
+  --info: #00697f;
+  --on-strong: #ffffff;
+  --on-strong-wash: rgb(255 255 255 / 20%);
+  --accent-soft-bg: #dce8f8;
+  --accent-soft-fg: #0d4a94;
+  --ok-soft-bg: #e2f0e3;
+  --ok-soft-fg: #1b5e20;
+  --warn-soft-bg: #fbe9c8;
+  --warn-soft-fg: #764600;
+  --bad-soft-bg: #fbe0e0;
+  --bad-soft-fg: #9b1c1c;
+  --info-soft-bg: #dcedf5;
+  --info-soft-fg: #0b5570;
+  --neutral-soft-bg: #e9ecee;
+  --neutral-soft-fg: #454f58;
+  --scrim: rgba(0, 0, 0, 0.45);
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   --map-label: #1d2125;
   --map-halo: rgba(255, 255, 255, 0.9);
-  --shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  --map-ring: #ffffff;
+  --map-sign-bg: #ffd600;
+  --map-sign-ink: #000000;
+  --map-select: #ff6d00;
+  --map-select-wash: rgba(255, 109, 0, 0.18);
+  --map-plate: rgba(255, 255, 255, 0.88);
+  --map-track: #2f80ed;
   --wx-temp: #d84315;
   --wx-pressure: #7b1fa2;
   --wx-wind: #00838f;
@@ -32,20 +62,34 @@
   :root {
     --bg: #14171a;
     --panel: #1c2024;
+    --raised: #232930;
     --text: #e3e6e8;
     --muted: #98a2ab;
     --border: #343a40;
+    --row-hover: #252b31;
+    --row-selected: #24395a;
+    --input-bg: #14171a;
     --accent: #6aa9ee;
     --accent-text: #0b1a2b;
     --ok: #66bb6a;
     --warn: #ffb74d;
     --bad: #ef5350;
-    --row-hover: #252b31;
-    --row-selected: #24395a;
-    --input-bg: #14171a;
+    --info: #4dc4de;
+    --accent-soft-bg: #1c3555;
+    --accent-soft-fg: #aacdf6;
+    --ok-soft-bg: #1f3a24;
+    --ok-soft-fg: #a5d6a7;
+    --warn-soft-bg: #41310f;
+    --warn-soft-fg: #ffcc80;
+    --bad-soft-bg: #4a2323;
+    --bad-soft-fg: #f2a5a5;
+    --info-soft-bg: #163744;
+    --info-soft-fg: #86d6ea;
+    --neutral-soft-bg: #2a3036;
+    --neutral-soft-fg: #b6c0c9;
+    --shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
     --map-label: #e3e6e8;
     --map-halo: rgba(20, 23, 26, 0.9);
-    --shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
     --wx-temp: #ff8a65;
     --wx-pressure: #ce93d8;
     --wx-wind: #4dd0e1;

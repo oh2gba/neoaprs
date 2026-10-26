@@ -15,7 +15,6 @@ import {
   directionChoices,
   every,
   MOVING_BEACON_ON,
-  movingBeaconChoices,
   positionChoices,
   statusIntervalChoices,
   stationHoursChoices,
@@ -267,12 +266,11 @@ const SPECS: Record<string, FieldSpec> = {
   "beacon/travel": { label: "settings.travel.label", kind: "choice", choices: travelChoices, tip: ["settings.travel.tip1"] },
 };
 
-/** The beacon choice of a station that moves, in place of the interval of a fixed one. */
+/** The beacon of a station that moves, in place of the interval of a fixed one: a tickbox (ticked is On, SmartBeaconing, which stores the interval 30 that a moving station does not use; unticked is Off). */
 const MOVING_BEACON = field({
   name: "settings.beacon_interval.name",
   label: "settings.beacon_interval.label",
-  kind: "choice",
-  choices: movingBeaconChoices,
+  kind: "bool",
   tip: ["settings.beacon_interval.tip_moving"],
 });
 
@@ -438,7 +436,12 @@ export function fieldFor(key: string, values: Readonly<Record<string, string>>):
 /** The value a field shows: the beacon of a station that moves is "0" (Off) or the one On, whatever interval is stored. */
 export function valueFor(key: string, values: Readonly<Record<string, string>>): string {
   const text = values[key] ?? "";
-  return key === "beacon/interval_min" && isMoving(values) && !beaconOff(values) ? MOVING_BEACON_ON : text;
+  return key === "beacon/interval_min" && isMoving(values) ? String(!beaconOff(values)) : text;
+}
+
+/** What is stored for what the field says: the tickbox of a moving station's beacon says true or false, which is the interval On stores, or 0; any other field is as it says. */
+export function storedFor(key: string, values: Readonly<Record<string, string>>, said: string): string {
+  return key === "beacon/interval_min" && isMoving(values) ? (said === "true" ? MOVING_BEACON_ON : "0") : said;
 }
 
 /** Whether a field of the Beacon tab is shown for the values the form holds: the Status group shows what its source needs; the position's own fields follow its choice (the address of gpsd for gpsd, the port and speed for a serial GPS; the station's place only for a fixed station, with a GPS the place stays stored and the daemon uses it until the first fix); a station that moves

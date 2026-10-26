@@ -1047,7 +1047,6 @@ export const fr: Catalogue = {
   "settings.beacon_interval.name": "Intervalle de la balise",
   "settings.beacon_interval.label": "Balise",
   "settings.beacon_interval.off": "Désactivée",
-  "settings.beacon_interval.on_smart": "Activée (SmartBeaconing)",
   "settings.beacon_interval.tip1":
     "Chaque combien part votre position (au moins {min} min). Désactivé : pas de balise automatique ; Balise maintenant envoie quand même.",
   "settings.beacon_interval.tip2": "30 minutes conviennent à une station qui reste en place.",

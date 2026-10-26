@@ -48,7 +48,7 @@ describe("App: RX only", () => {
     expect(wrapper.find("[aria-selected='true']").text()).toContain("Settings");
     await say(socket, 2, { [KEY]: "true", "beacon/interval_min": "0" });
     expect(wrapper.find(".appheader .pill-beacon_off").text()).toBe("Beacon off");
-    expect(wrapper.find(".appheader .pill-beacon_off").classes()).toContain("tag-muted");
+    expect(wrapper.find(".appheader .pill-beacon_off").classes()).toContain("tag-neutral");
     await wrapper.find(".appheader .pill-beacon_off").trigger("click");
     expect(wrapper.find("[aria-selected='true']").text()).toContain("Beacon");
   });
@@ -64,7 +64,7 @@ describe("App: RX only", () => {
     expect(marks[1]?.classes()).toContain("tag-warn");
     socket.say({ type: "state", topic: "gps", rev: 2, value: gpsState({ state: "fix" }) });
     await flushPromises();
-    expect(wrapper.find(".appheader .pill-gps").classes()).toContain("tag-count");
+    expect(wrapper.find(".appheader .pill-gps").classes()).toContain("tag-ok");
     expect(wrapper.find(".appheader .headpills").element.nextElementSibling?.classList.contains("headmail")).toBe(true);
   });
 

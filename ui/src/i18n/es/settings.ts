@@ -209,7 +209,6 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.beacon_interval.name": "Intervalo de la baliza",
   "settings.beacon_interval.label": "Baliza",
   "settings.beacon_interval.off": "Desactivada",
-  "settings.beacon_interval.on_smart": "Activada (SmartBeaconing)",
   "settings.beacon_interval.tip1":
     "Cada cuánto sale tu posición: no más a menudo que cada {min} min. Desactivada: sin baliza automática; Enviar baliza ahora sigue enviando.",
   "settings.beacon_interval.tip2": "30 minutos van bien para una estación que no se mueve.",

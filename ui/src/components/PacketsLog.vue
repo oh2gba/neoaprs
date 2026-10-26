@@ -11,7 +11,7 @@ import { t } from "@/i18n";
 import PacketDetail from "@/components/PacketDetail.vue";
 import TabHelp from "@/components/TabHelp.vue";
 import RouteText from "@/components/RouteText.vue";
-import { packetLabel, packetTitle } from "@/lib/channels";
+import { packetLabel, packetTitle, packetTone } from "@/lib/channels";
 import { clockText } from "@/lib/format";
 import { filterPackets, newestFirst } from "@/lib/packets";
 import { routeWords } from "@/lib/routes";
@@ -73,7 +73,7 @@ function toggle(id: number): void {
               <td class="mono nowrap time">{{ clockText(row.heard_at) }}</td>
               <td class="dir" :class="row.direction">{{ t(`packets.dir.${row.direction}`) }}</td>
               <td class="via" :class="{ internet: row.via === 'is' }" :title="packetTitle(row.via)">
-                <TagMark tone="quiet">{{ packetLabel(row.via) }}</TagMark>
+                <TagMark :tone="packetTone(row.via)">{{ packetLabel(row.via) }}</TagMark>
               </td>
               <td class="mono wrap line">{{ row.tnc2 }}</td>
               <td class="muted route-cell"><RouteText :text="routeWords(row.route)" /></td>

@@ -34,7 +34,7 @@ import { fieldId, useSettingsForm } from "@/composables/useSettingsForm";
 import type { Picked } from "@/composables/usePositionPick";
 import { disabledByValues } from "@/lib/beaconoff";
 import { degreesText } from "@/lib/setup";
-import { BEACON_FOLDS, SUBGROUPS, fieldFor, igateOn, shownByValues, shownFor, valueFor, type Scope } from "@/lib/settings";
+import { BEACON_FOLDS, SUBGROUPS, fieldFor, igateOn, shownByValues, shownFor, storedFor, valueFor, type Scope } from "@/lib/settings";
 import { statusSource } from "@/lib/status";
 import { computed, watch } from "vue";
 
@@ -202,7 +202,7 @@ function typed(key: string, text: string): void {
             :apply="true"
             :disabled="greyed(key)"
             @update:model-value="typed(key, $event)"
-            @choose="form.choose({ [key]: $event })"
+            @choose="form.choose({ [key]: storedFor(key, draft, $event) })"
             @commit="form.finish(key, $event)"
             @cancel="settings.cancel(key)"
           >

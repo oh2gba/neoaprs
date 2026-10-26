@@ -94,6 +94,23 @@ that both the daemon and the page are tested against (`ui/src/protocol/vectors.j
 - No stylesheet but `controls.css` gives a `.btn` a height, padding or font size, and no component gives a button an inline style (`ui/src/styles/buttons.test.ts` holds both); a new kind of button is a class that changes colour or width, never size.
 - An action that is a row of its own in the Settings tab or the setup guide (Download map, Check now, Download logs) is an `ActionRow` (`ui/src/components/ActionRow.vue`): its own label, the button first in the control column with the left edge of the fields and at least `--action-w` wide, the (i) after it, and the quiet lines of its outcome (progress, "Map downloaded 21 Oct", "Saved FILE.") under it in the same column; on a phone the button fills the column. A button that belongs to a field (the Test of the command, Refresh of the port, the new access key, Request a passcode) stays beside that field and is not a row (`ui/src/components/ActionRow.test.ts`).
 
+## The palette
+
+`ui/src/styles/tokens.css` is the only place a colour is written in `ui/src` (the map's own style, `lib/basemapstyle.ts`, and the map layers that read the tokens, `lib/*layers.ts`, are the listed exceptions; `ui/src/styles/palette.test.ts` fails for a literal anywhere else, for a token without a dark value, for a tag pair under 4.5:1 and for a variable that is not defined). `docs/palette.md` has the swatches. The set:
+
+- **Neutrals:** `--bg` (behind), `--panel` (a surface), `--raised` (what stands over one), `--text`, `--muted`, `--border`, `--row-hover`, `--row-selected`, `--input-bg`.
+- **One accent**, the blue: `--accent` with `--accent-text`.
+- **Four meanings**, `ok` (green), `warn` (amber), `bad` (red), `info` (teal): the strong `--ok`, `--warn`, `--bad`, `--info` (a line, a word, the rare loud fill with `--on-strong`), and for a tag the soft pair `--NAME-soft-bg` with `--NAME-soft-fg`, which the accent and the neutral have as well.
+- **Tags** (`TagMark`) are soft pairs by meaning: a count is `accent`, a label (RF, Beacon off) `neutral`, the internet `info`, a made-up thing (Dummy) `dummy` (neutral, dashed), RX only `warn`, a GPS fix `ok`. Never a hue chosen for itself.
+- `--map-*` and `--wx-*` are what the map and the weather graphs draw with.
+
+## On/off and state controls on the page
+
+- Every on/off is a **tickbox**, on the first row of its group, labelled with the feature's name, with its (i) after it; ticked shows the rest of the group and unticked hides it (the Beacon choice greying what it does not time is the one exception). No On/Off dropdown, no switch drawn as a pill, no word "Off" as a control.
+- A dropdown is a real choice of three values or more (or a list of what is found, a port or a path).
+- A **state** is quiet text in a group (a line under the tickbox); the marks of state are the tags in the top bar of the page (RX only, Beacon off, Internet, GPS). `ui/src/components/ControlsGuard.test.ts` holds this.
+- An action that is a row of its own is an `ActionRow` (above).
+
 ## Removing a control from the page
 
 Removing a control from the page: add a migration that resets the stored value to its default, or keep a control. Never leave a user with a state the page cannot change. A setting that can block a feature the page offers (transmit, the beacon, messaging, the Internet switch, the digipeater) stays on the page; `tests/test_settings_reachable.py` lists what the page leaves out, each with its reason, and fails for one that can block something.

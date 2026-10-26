@@ -207,7 +207,6 @@ export const settings = {
   "settings.beacon_interval.name": "Beacon interval",
   "settings.beacon_interval.label": "Beacon",
   "settings.beacon_interval.off": "Off",
-  "settings.beacon_interval.on_smart": "On (SmartBeaconing)",
   "settings.beacon_interval.tip1": "How often your position goes out: not more often than every {min} min. Off: no automatic beacon; Beacon now still sends.",
   "settings.beacon_interval.tip2": "30 minutes suits a station that stays where it is.",
   "settings.beacon_interval.tip_moving": "On: SmartBeaconing sends the GPS position, more often the faster you go and at every turn. Off: no automatic beacon.",

@@ -90,7 +90,7 @@
 .grid.stations td {
   width: 1%;
 }
-.grid.stations td.call {
+.grid.stations td.heard {
   width: auto;
 }
 /* the buttons at the right end of a row (Message, Forget): they sit in the height of the row (a finger gets 40 px on a touch screen, in the row's 40), and the trash can has room for "sure?" so that the table does not move when it is pressed */
@@ -283,7 +283,7 @@
 }
 .ctxmenu-item.armed {
   background: var(--bad);
-  color: #fff;
+  color: var(--on-strong);
   font-weight: 600;
 }
 .ctxmenu-line {
@@ -299,14 +299,11 @@
 .onmap {
   gap: 6px;
 }
-/* how a station was heard (lib/channels.ts): a quiet tag after its call on the same line, so that a row is one line high; a station known from the internet alone has it in italics */
+/* how a station was heard (lib/channels.ts): a quiet tag in a column of its own after the call, so that the tags start at one place whatever the length of the calls, and a row stays one line high; a station known from the internet alone has it in italics */
 .grid.stations td.call {
   white-space: nowrap;
 }
-.grid.stations td.call .via {
-  margin-left: 6px;
-}
-.grid.stations tr.internetonly td.call .via {
+.grid.stations tr.internetonly td.heard .via {
   font-style: italic;
 }
 /* the channel of a packet (lib/channels.ts) in the Packets tab: a quiet tag, and the packets that came over the internet in italics */

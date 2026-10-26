@@ -18,7 +18,7 @@ import { useSure } from "@/composables/useSure";
 import { t } from "@/i18n";
 import { STATION_HOURS_KEY, stationHours, timedOut } from "@/lib/aging";
 import { normalizeCall, validCall } from "@/lib/calls";
-import { anyInternet, channelLabel, channelTitle, internetOnly } from "@/lib/channels";
+import { anyInternet, channelLabel, channelTitle, channelTone, internetOnly } from "@/lib/channels";
 import { ageText, bearingTitle, dateTimeText, distanceText } from "@/lib/format";
 import { isGateway } from "@/lib/messages";
 import { heardDirect } from "@/lib/routes";
@@ -49,6 +49,7 @@ const withKey = (event: MouseEvent | KeyboardEvent): boolean => event.ctrlKey ||
 const columns = computed<{ key: SortKey | null; title: string; numeric?: boolean }[]>(() => [
   { key: null, title: "" },
   { key: "call", title: t("station.table.call") },
+  { key: null, title: t("station.hover.via") },
   { key: "distance_km", title: "km", numeric: true },
   { key: null, title: t("station.table.bearing") },
   { key: "last_heard", title: t("station.field.last_heard"), numeric: true },
@@ -219,9 +220,10 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
             <td class="symbol" :title="symbolName(row)"><SymbolIcon :table="row.symbol_table" :code="row.symbol_code" :size="18" /></td>
             <td class="mono strong call">
               <span class="callname">{{ row.call }}</span
-              ><DirectMark v-if="heardDirect(row)" /><TagMark v-if="channelLabel(row) !== ''" tone="quiet" class="via" :title="channelTitle(row)">{{
-                channelLabel(row)
-              }}</TagMark>
+              ><DirectMark v-if="heardDirect(row)" />
+            </td>
+            <td class="heard">
+              <TagMark v-if="channelLabel(row) !== ''" :tone="channelTone(row)" class="via" :title="channelTitle(row)">{{ channelLabel(row) }}</TagMark>
             </td>
             <td class="num">{{ distanceText(row.distance_km) }}</td>
             <td class="bearing" :title="bearingTitle(row.bearing_deg)">

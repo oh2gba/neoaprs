@@ -49,6 +49,15 @@ export function channelLabel(row: Heard): string {
   return parts.length === 0 ? "" : joined(parts);
 }
 
+/** The tone of the label's tag: the internet alone is info, what the Dummy radio made up is dummy, anything heard on the radio is neutral. */
+export function channelTone(row: Heard): "neutral" | "info" | "dummy" {
+  const channels = channelsOf(row);
+  return channels.length === 1 && channels[0] === "is" ? "info" : channels.length === 1 && channels[0] === "dummy" ? "dummy" : "neutral";
+}
+
+/** The tone of the tag of a packet's channel. */
+export const packetTone = (via: PacketRow["via"]): "neutral" | "info" | "dummy" => (via === "is" ? "info" : via === "dummy" ? "dummy" : "neutral");
+
 /** What the label means, for its hover title. */
 export function channelTitle(row: Heard): string {
   const parts = channelsOf(row).map((channel) => t(`channel.title.${channel}`));

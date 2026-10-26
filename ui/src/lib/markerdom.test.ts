@@ -72,7 +72,7 @@ describe("the marker of a station", () => {
     expect(icon).toMatch(/outline:\s*2px dotted var\(--muted\)/);
     expect(icon).toMatch(/background:\s*var\(--map-halo\)/);
     expect(cssRule(".stn--net .stn-label")).toMatch(/font-style:\s*italic/);
-    expect(cssRule(".stn--selected .stn-icon")).toMatch(/outline:\s*2px solid #ff6d00/);
+    expect(cssRule(".stn--selected .stn-icon")).toMatch(/outline:\s*2px solid var\(--map-select\)/);
     const tokens = readFileSync(resolve(__dirname, "../styles/tokens.css"), "utf8");
     const dark = tokens.slice(tokens.indexOf("prefers-color-scheme: dark"));
     expect(tokens.slice(0, tokens.indexOf("prefers-color-scheme: dark"))).toMatch(/--muted:/);

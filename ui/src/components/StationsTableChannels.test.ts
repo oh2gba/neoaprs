@@ -56,17 +56,25 @@ describe("how a station was heard, in the Stations table", () => {
     expect(wrapper.findAll("tbody tr.internetonly").map((tr) => tr.attributes("data-call"))).toEqual(["OH2NET"]);
   });
 
-  it("keeps a row one line high: the label is a quiet tag after the call on the call's line, in italics for a station of the internet alone", () => {
+  it("keeps a row one line high and the tags in a column of their own after the call: they start at one place, whatever the length of the call", () => {
     const wrapper = make(rf, net, both);
     for (const tr of wrapper.findAll("tbody tr[data-call]")) {
-      const cell = tr.get("td.call").element;
-      expect([...cell.children].map((c) => c.className.split(" ")[0])).toEqual(["callname", "tag"]);
-      expect(tr.get(".via").classes()).toContain("tag-quiet");
+      const cells = tr.findAll("td").map((td) => td.classes()[0]);
+      expect(cells.slice(0, 3)).toEqual(["symbol", "mono", "heard"]);
+      expect([...tr.get("td.call").element.children].map((c) => c.className.split(" ")[0])).toEqual(["callname"]);
+      expect(
+        tr
+          .get("td.heard .via")
+          .classes()
+          .some((c) => ["tag-neutral", "tag-info", "tag-dummy"].includes(c)),
+      ).toBe(true);
     }
+    expect(wrapper.findAll("thead th").map((th) => th.text())).toContain("Heard on");
     expect(cssRule(".grid.stations td")).toMatch(/height:\s*30px/);
     expect(cssRule(".grid.stations td.call")).toMatch(/white-space:\s*nowrap/);
-    expect(cssRule(".grid.stations td.call .via")).not.toMatch(/display:\s*block/);
-    expect(cssRule(".grid.stations tr.internetonly td.call .via")).toMatch(/font-style:\s*italic/);
+    expect(cssRule(".grid.stations td")).toMatch(/width:\s*1%/);
+    expect(cssRule(".grid.stations td.heard")).toMatch(/width:\s*auto/);
+    expect(cssRule(".grid.stations tr.internetonly td.heard .via")).toMatch(/font-style:\s*italic/);
   });
 });
 

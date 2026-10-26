@@ -6,8 +6,8 @@ import { cssRule } from "@/test/css";
 
 describe("TagMark", () => {
   it("is a span of the class tag with the tone's class, and a button when it is pressed", () => {
-    expect(mount(TagMark, { slots: { default: "24" } }).html()).toBe('<span class="tag tag-count">24</span>');
-    expect(mount(TagMark, { props: { tone: "quiet" }, slots: { default: "RF" } }).classes()).toEqual(["tag", "tag-quiet"]);
+    expect(mount(TagMark, { slots: { default: "24" } }).html()).toBe('<span class="tag tag-accent">24</span>');
+    expect(mount(TagMark, { props: { tone: "neutral" }, slots: { default: "RF" } }).classes()).toEqual(["tag", "tag-neutral"]);
     const button = mount(TagMark, { props: { as: "button", tone: "outline" }, slots: { default: "OH2ABC ×" } });
     expect(button.html().startsWith("<button")).toBe(true);
     expect(button.attributes("type")).toBe("button");
@@ -27,7 +27,7 @@ describe("TagMark", () => {
     ".fold-badge",
     ".conv .badge",
     ".statetext",
-    ".grid.stations td.call .via",
+    ".grid.stations tr.internetonly td.heard .via",
     ".rxonly",
     ".chip",
     ".chip-hop .hop-call",

@@ -66,7 +66,7 @@ describe("PacketsLog", () => {
     ]);
     expect(cells.map((td) => td.classes().includes("internet"))).toEqual([false, false, true, false, false]);
     expect(cssRule(".grid.packets td.via.internet .tag")).toMatch(/font-style:\s*italic/);
-    expect(wrapper.findAll("td.via .tag.tag-quiet")).toHaveLength(5);
+    expect(wrapper.findAll("td.via .tag").map((t) => t.classes()[1])).toEqual(["tag-dummy", "tag-neutral", "tag-info", "tag-neutral", "tag-neutral"]);
   });
 
   it("filters by the channel too: Internet finds the packets of the internet", async () => {

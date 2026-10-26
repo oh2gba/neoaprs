@@ -12,7 +12,7 @@ Every Markdown file of the repository. `tests/test_hygiene.py` fails when a docu
 | `docs/manual/page.md` | the page: the panel and its tabs (the Stations table, the Nearby tab, the Packets tab, the Settings tab), the map, the station cards, the header and footer, phone, tablet and desktop, the base map |
 | `docs/manual/desktop.md` | the desktop app: the window, the tray, start at sign-in |
 | `docs/manual/radio.md` | the radio's port (serial, TCP, Bluetooth, Bluetooth LE), finding the radio, the TNC type, the keep-alive and the silent radio |
-| `docs/manual/beacon.md` | the Beacon tab: the beacon status, Position (fixed or a GPS), the Beacon choice and Off, receive only, mobile operation with SmartBeaconing, PHG, the location and the symbol, the status, answers to queries, the fill-in digipeater |
+| `docs/manual/beacon.md` | the Beacon tab: the beacon status, Position (fixed or a GPS), the Beacon choice and Off, RX only, mobile operation with SmartBeaconing, PHG, the location and the symbol, the status, answers to queries, the fill-in digipeater |
 | `docs/manual/messages.md` | sending and receiving messages, acks, retries, routes, paths, deleting |
 | `docs/manual/igate.md` | the Internet group: stations of APRS-IS on the map, receive only, the radius and the server, and advanced use as an iGate |
 | `docs/manual/email.md` | email through the APRS gateway |
@@ -27,6 +27,7 @@ Every Markdown file of the repository. `tests/test_hygiene.py` fails when a docu
 | `docs/RADIOS.md` | which radios and TNCs work with NeoAPRS, and how to connect each (serial, USB, Bluetooth, Bluetooth LE, Direwolf and soundmodems), a GPS receiver for a moving station, Linux and Windows |
 | `docs/development.md` | for developers: set up, the stages of `scripts/check`, CI, the wire and its generation, the page's source, the scripts, packaging and releases, the folder map |
 | `docs/daemon.md` | for developers: how the daemon behaves, with the names the code and the wire use |
+| `docs/palette.md` | the palette of the page: every colour token with its light and dark value and what it is for, held to `tokens.css` by a test |
 | `docs/ARCHITECTURE.md` | the layers and their import rules, the composition root, the database actor, the size and duplication ratchets |
 | `docs/MAINTAINING.md` | what to keep up to date after a change, the download names, the steps of a release |
 | `CONVENTIONS.md` | how the code, the tests, the documents and the schema are written; the words; the one table of environment variables |

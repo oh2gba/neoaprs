@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CONFIG_KEYS } from "@/protocol/lists";
-import { BEACON_FOLDS, FIELDS, SUBGROUPS, fieldFor, groupKeys, reasonOf, shownByValues, shownFor, valueFor } from "@/lib/settings";
+import { BEACON_FOLDS, FIELDS, SUBGROUPS, fieldFor, groupKeys, reasonOf, shownByValues, shownFor, storedFor, valueFor } from "@/lib/settings";
 import { beaconOff, disabledByValues } from "@/lib/beaconoff";
 import { PORT_OTHER, portOptions } from "@/lib/portchoice";
 
@@ -394,15 +394,15 @@ describe("the beacon being Off", () => {
     ]);
     for (const source of ["gpsd", "serial"]) {
       const moving = fieldFor("beacon/interval_min", { "gps/source": source });
-      expect(moving).toMatchObject({ label: "Beacon", kind: "choice", name: "Beacon interval" });
-      expect(moving.choices).toEqual([
-        { value: "0", label: "Off" },
-        { value: "30", label: "On (SmartBeaconing)" },
-      ]);
-      expect(valueFor("beacon/interval_min", { "gps/source": source, "beacon/interval_min": "180" })).toBe("30");
-      expect(valueFor("beacon/interval_min", { "gps/source": source, "beacon/interval_min": "0" })).toBe("0");
+      expect(moving).toMatchObject({ label: "Beacon", kind: "bool", name: "Beacon interval" });
+      expect(valueFor("beacon/interval_min", { "gps/source": source, "beacon/interval_min": "180" })).toBe("true");
+      expect(valueFor("beacon/interval_min", { "gps/source": source, "beacon/interval_min": "0" })).toBe("false");
+      expect([storedFor("beacon/interval_min", { "gps/source": source }, "true"), storedFor("beacon/interval_min", { "gps/source": source }, "false")]).toEqual(
+        ["30", "0"],
+      );
     }
     expect(valueFor("beacon/interval_min", { "gps/source": "off", "beacon/interval_min": "180" })).toBe("180");
+    expect(storedFor("beacon/interval_min", { "gps/source": "off" }, "60")).toBe("60");
     expect(fieldFor("station/comment", { "gps/source": "gpsd" })).toBe(FIELDS["station/comment"]);
   });
 });

@@ -16,35 +16,41 @@
   white-space: nowrap;
   vertical-align: middle;
 }
-.tag-count {
-  background: var(--accent);
-  color: var(--accent-text);
+/* the colour of a tag is its meaning, and always a soft pair of the palette (styles/tokens.css): quiet, never loud */
+.tag-accent {
+  background: var(--accent-soft-bg);
+  color: var(--accent-soft-fg);
 }
-.tag-quiet {
-  border-color: var(--border);
-  background: none;
-  color: var(--muted);
-}
-.tag-muted {
-  background: var(--muted);
-  color: var(--panel);
+.tag-neutral {
+  background: var(--neutral-soft-bg);
+  color: var(--neutral-soft-fg);
 }
 .tag-ok {
-  background: var(--ok);
-  color: var(--panel);
+  background: var(--ok-soft-bg);
+  color: var(--ok-soft-fg);
 }
 .tag-warn {
-  background: var(--warn);
-  color: var(--panel);
+  background: var(--warn-soft-bg);
+  color: var(--warn-soft-fg);
+}
+.tag-bad {
+  background: var(--bad-soft-bg);
+  color: var(--bad-soft-fg);
+}
+.tag-info {
+  background: var(--info-soft-bg);
+  color: var(--info-soft-fg);
+}
+/* what is made up (the Dummy radio): neutral, with a dashed border, as the stations of the internet have a dotted outline on the map */
+.tag-dummy {
+  border-style: dashed;
+  border-color: var(--muted);
+  background: none;
+  color: var(--neutral-soft-fg);
 }
 .tag-outline {
   border-color: currentcolor;
   background: none;
-}
-.tag-warn-outline {
-  border-color: var(--warn);
-  background: none;
-  color: var(--warn);
 }
 button.tag {
   cursor: pointer;

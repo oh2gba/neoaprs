@@ -12,7 +12,7 @@
   transform: translateX(-50%);
   border-radius: 6px;
   background: var(--bad);
-  color: #fff;
+  color: var(--on-strong);
   box-shadow: var(--shadow);
 }
 .toast.undo {
@@ -30,12 +30,12 @@
   background: none;
 }
 .toast .xbtn {
-  color: #fff;
+  color: var(--on-strong);
 }
 .toast .xbtn:hover,
 .toast .xbtn:focus-visible {
-  color: #fff;
-  background: rgb(255 255 255 / 20%);
+  color: var(--on-strong);
+  background: var(--on-strong-wash);
 }
 .toast.notice {
   background: var(--text);

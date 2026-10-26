@@ -79,18 +79,18 @@ describe("AppHeader", () => {
     expect(wrapper.find(".headpills").element.previousElementSibling?.tagName).toBe("H1");
   });
 
-  it("has RX only in amber while transmitting is off, and the others as they are: Beacon off grey only while transmitting is on, Internet blue, GPS blue with a fix and amber without", () => {
+  it("has RX only in warn while transmitting is off, and the others as they are: Beacon off neutral only while transmitting is on, Internet info, GPS ok with a fix and warn without", () => {
     const rx = header({ pills: pills({ "station/transmit": "false", "beacon/interval_min": "0" }) }).findAll(".headpills .tag");
     expect(rx.map((m) => m.text())).toEqual(["RX only"]);
     expect(rx[0]?.classes()).toContain("tag-warn");
     expect(rx[0]?.classes()).toContain("rxonly");
     const off = header({ pills: pills({ "station/transmit": "true", "beacon/interval_min": "0" }) }).findAll(".headpills .tag");
     expect(off.map((m) => m.text())).toEqual(["Beacon off"]);
-    expect(off[0]?.classes()).toContain("tag-muted");
+    expect(off[0]?.classes()).toContain("tag-neutral");
     const net = header({ pills: pills({}, null, igateState()) }).findAll(".headpills .tag");
-    expect(net.map((m) => [m.text(), m.classes().includes("tag-count")])).toEqual([["Internet", true]]);
+    expect(net.map((m) => [m.text(), m.classes().includes("tag-info")])).toEqual([["Internet", true]]);
     const fix = header({ pills: pills({ "gps/source": "gpsd" }, gpsState({ state: "fix" })) }).find(".headpills .pill-gps");
-    expect(fix.classes()).toContain("tag-count");
+    expect(fix.classes()).toContain("tag-ok");
     const none = header({ pills: pills({ "gps/source": "gpsd" }, gpsState({ state: "no_fix" })) }).find(".headpills .pill-gps");
     expect(none.classes()).toContain("tag-warn");
     expect(header({ pills: [] }).find(".headpills").exists()).toBe(false);

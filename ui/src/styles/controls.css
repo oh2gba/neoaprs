@@ -59,7 +59,7 @@ tbody tr:focus-visible {
 .btn.danger {
   background: var(--bad);
   border-color: var(--bad);
-  color: #fff;
+  color: var(--on-strong);
 }
 .btn.small {
   min-height: var(--control-h-small);

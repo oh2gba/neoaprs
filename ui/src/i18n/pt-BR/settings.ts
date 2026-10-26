@@ -210,7 +210,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.beacon_interval.name": "Intervalo do beacon",
   "settings.beacon_interval.label": "Beacon",
   "settings.beacon_interval.off": "Desligado",
-  "settings.beacon_interval.on_smart": "Ligado (SmartBeaconing)",
   "settings.beacon_interval.tip1":
     "Com que frequência sua posição sai: não mais que a cada {min} min. Desligado: sem beacon automático; Beacon agora ainda envia.",
   "settings.beacon_interval.tip2": "30 minutos servem para uma estação que fica parada.",

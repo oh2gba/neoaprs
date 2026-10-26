@@ -209,7 +209,6 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.beacon_interval.name": "Intervallo del beacon",
   "settings.beacon_interval.label": "Beacon",
   "settings.beacon_interval.off": "Spento",
-  "settings.beacon_interval.on_smart": "Attivo (SmartBeaconing)",
   "settings.beacon_interval.tip1":
     "Ogni quanto parte la tua posizione: non più spesso di ogni {min} min. Off: nessun beacon automatico; Invia beacon ora invia comunque.",
   "settings.beacon_interval.tip2": "30 minuti vanno bene per una stazione che resta ferma.",

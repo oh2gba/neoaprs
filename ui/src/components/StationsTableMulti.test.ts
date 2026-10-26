@@ -67,13 +67,13 @@ describe("StationsTable with several cards", () => {
     expect(second.defaultPrevented).toBe(false);
   });
 
-  it("fills the panel as the Email tab does: no cap and no centring, the call takes the free width and the other columns fit their content", () => {
+  it("fills the panel as the Email tab does: no cap and no centring, the tags column takes the free width and the other columns fit their content", () => {
     const wrapper = make();
     expect(wrapper.find(".tablepane").classes()).not.toContain("capped");
     for (const selector of [".tablepane > .toolbar", ".grid.stations", ".nearby-section"])
       expect(cssRule(selector), selector).not.toMatch(/max-width|margin-left:\s*auto/);
     expect(cssRule(".grid.stations td")).toMatch(/width:\s*1%/);
-    expect(cssRule(".grid.stations td.call")).toMatch(/width:\s*auto/);
+    expect(cssRule(".grid.stations td.heard")).toMatch(/width:\s*auto/);
   });
 
   it("wraps the filter row instead of cutting it off: the box has a width to keep, the tickboxes and the select of the hours are one group that wraps itself, and a phone puts them under the box", () => {

@@ -210,7 +210,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.beacon_interval.name": "ビーコンの間隔",
   "settings.beacon_interval.label": "ビーコン",
   "settings.beacon_interval.off": "オフ",
-  "settings.beacon_interval.on_smart": "オン(SmartBeaconing)",
   "settings.beacon_interval.tip1": "位置を送る間隔:{min}分より短くはなりません。オフ:自動のビーコンは送りません。「今すぐビーコン」は送ります。",
   "settings.beacon_interval.tip2": "動かない局なら30分が適当です。",
   "settings.beacon_interval.tip_moving": "オン:SmartBeaconingがGPS位置を送ります。速いほど、曲がるたびに多く送ります。オフ:自動のビーコンは送りません。",

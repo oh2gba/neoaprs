@@ -283,7 +283,7 @@ describe("SettingsForm", () => {
         }
       });
 
-      it("offers a moving station Off and On (SmartBeaconing), and a fixed one Off and the three intervals", () => {
+      it("offers a moving station the one tickbox Beacon, and a fixed one Off and the three intervals", () => {
         const options = (wrapper: ReturnType<typeof make>["wrapper"]) =>
           wrapper.findAll("#set-beacon-interval_min option").map((o) => [o.attributes("value"), o.text()]);
         expect(options(make({}, "beacon").wrapper)).toEqual([
@@ -293,21 +293,20 @@ describe("SettingsForm", () => {
           ["180", "Every 3 hours"],
         ]);
         for (const source of ["gpsd", "serial"]) {
-          expect(options(make({ "gps/source": source }, "beacon").wrapper), source).toEqual([
-            ["0", "Off"],
-            ["30", "On (SmartBeaconing)"],
-          ]);
+          const moving = make({ "gps/source": source }, "beacon").wrapper;
+          expect(moving.find("#set-beacon-interval_min").attributes("type"), source).toBe("checkbox"); // (Off and On are one tickbox, Beacon)
+          expect(options(moving), source).toEqual([]);
         }
       });
 
-      it("shows a moving station's stored interval as On, and stores the default interval when On is chosen from Off", async () => {
+      it("shows a moving station's stored interval as ticked, and stores the default interval when it is ticked from Off", async () => {
         const stored = make({ "gps/source": "gpsd", "beacon/interval_min": "180" }, "beacon");
-        expect(stored.wrapper.find<HTMLSelectElement>("#set-beacon-interval_min").element.value).toBe("30");
+        expect(stored.wrapper.find<HTMLInputElement>("#set-beacon-interval_min").element.checked).toBe(true);
         const { wrapper, send } = make({ "gps/source": "gpsd", "beacon/interval_min": "0" }, "beacon");
-        expect(wrapper.find<HTMLSelectElement>("#set-beacon-interval_min").element.value).toBe("0");
-        await wrapper.find("#set-beacon-interval_min").setValue("30");
+        expect(wrapper.find<HTMLInputElement>("#set-beacon-interval_min").element.checked).toBe(false);
+        await wrapper.find("#set-beacon-interval_min").setValue(true);
         expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "beacon/interval_min": "30" } });
-        await stored.wrapper.find("#set-beacon-interval_min").setValue("0");
+        await stored.wrapper.find("#set-beacon-interval_min").setValue(false);
         expect(stored.send).toHaveBeenCalledWith({ cmd: "set_config", values: { "beacon/interval_min": "0" } });
       });
 

@@ -31,12 +31,6 @@ export const beaconChoices = (): readonly Choice[] => [
 export const stationHoursChoices = (): readonly Choice[] =>
   STATION_HOURS.map((hours) => ({ value: String(hours), label: t("station.table.hours", { n: hours }) }));
 
-/** The beacon of a station that moves (a GPS is chosen): Off, or On, which SmartBeaconing times. On stores the interval a fixed station is offered first; a moving station does not use it. */
-export const movingBeaconChoices = (): readonly Choice[] => [
-  { value: "0", label: t("settings.beacon_interval.off") },
-  { value: MOVING_BEACON_ON, label: t("settings.beacon_interval.on_smart") },
-];
-
 const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 export const directionChoices = (): readonly Choice[] => [
   { value: "omni", label: t("settings.antenna_direction.omni") },

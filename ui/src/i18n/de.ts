@@ -1060,7 +1060,6 @@ export const de: Catalogue = {
   "settings.beacon_interval.name": "Bakenintervall",
   "settings.beacon_interval.label": "Bake",
   "settings.beacon_interval.off": "Aus",
-  "settings.beacon_interval.on_smart": "Ein (SmartBeaconing)",
   "settings.beacon_interval.tip1":
     "Wie oft deine Position gesendet wird: nicht öfter als alle {min} Min. Aus: keine automatische Bake; Bake jetzt sendet trotzdem.",
   "settings.beacon_interval.tip2": "30 Minuten passen für eine Station, die an ihrem Platz bleibt.",
