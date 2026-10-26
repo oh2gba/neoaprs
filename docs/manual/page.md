@@ -76,7 +76,7 @@ The tab has no Save button ([start.md](start.md#how-settings-apply)). From the t
 - **Notifications**, in two boxes: **On the NeoAPRS computer** and **In this browser** ([notifications.md](notifications.md));
 - **Map**: the **Radius** and the **Download map** button on the same row ([The base map](#the-base-map));
 - **Update check**: **Check now** ([install.md](install.md#the-update-check));
-- **Help**: **Download logs**, which makes a file to e-mail to the project when something does not work ([support.md](support.md)).;
+- **Help**: one line with the address to send the logs to, and **Download logs** with an (i) beside it, which makes a file to e-mail to the project when something does not work ([support.md](support.md));
 - **About**: what NeoAPRS is, the version, who made it, the licence and the source code as links, and a thanks. It has nothing to press.
 
 What the station says on the air, the call and the position are on the Beacon tab. [settings.md](settings.md) lists every setting and where it is.

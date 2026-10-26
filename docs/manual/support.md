@@ -11,9 +11,9 @@ Send it to **neoaprs@oh2gba.eu**. It helps most to say:
 
 ## From the page
 
-Open the **Settings** tab and scroll to its last group, **Help**. Press **Download logs**. The button reads "Collecting…" while the file is made, and your browser then saves a zip like any download, in its download folder.
+Open the **Settings** tab and scroll down to the group **Help**, above About. Press **Download logs**. The button reads "Collecting…" while the file is made, and your browser then saves a zip like any download, in its download folder. The (i) beside the button says what the file holds.
 
-Under the button the page says "Saved" and the name of the file, which holds your call and the time in UTC, and offers **Write to neoaprs@oh2gba.eu**. That opens your mail program with a subject that starts with "NeoAPRS" and its version, and a form to fill in: what you did, what you expected, what happened and when. Attach the file yourself; a page cannot do that for you. Without a mail program, send the file from any other.
+Under the button the page says "Saved" and the name of the file, which holds your call and the time in UTC. The address **neoaprs@oh2gba.eu** in the line above the button is a link that opens your mail program with a subject that starts with "NeoAPRS" and its version, and a form to fill in: what you did, what you expected, what happened and when; once the file is saved, the form also reminds you to attach it. Attach the file yourself; a page cannot do that for you. Without a mail program, send the file from any other.
 
 If the button cannot make the file, it says why:
 

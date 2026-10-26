@@ -358,15 +358,12 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.update.no_answer": "sin respuesta",
 
   "settings.help.group": "Ayuda",
-  "settings.help.text":
-    "¿Algo no funciona? Descarga los registros y envíalos por correo a {address} con unas palabras: qué hiciste, qué esperabas, qué pasó y más o menos cuándo.",
+  "settings.help.text": "¿Problemas? Envía los registros a {address}.",
   "settings.help.download": "Descargar registros",
   "settings.help.collecting": "Recopilando…",
-  "settings.help.contents":
-    "El archivo contiene el registro, los ajustes sin la clave de acceso y los paquetes oídos y enviados. NeoAPRS no envía nada por sí mismo.",
-  "settings.help.contents_link": "Qué hay en el archivo",
+  "settings.help.tip_label": "Sobre los registros",
+  "settings.help.tip": "El registro, los ajustes sin la clave de acceso, los paquetes oídos y enviados. NeoAPRS no envía nada por sí mismo.",
   "settings.help.saved": "Guardado {file}.",
-  "settings.help.write": "Escribir a {address}",
   "settings.help.mail.did": "Qué hice:",
   "settings.help.mail.expected": "Qué esperaba:",
   "settings.help.mail.happened": "Qué pasó:",

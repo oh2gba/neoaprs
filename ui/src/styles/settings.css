@@ -139,10 +139,6 @@
 .help-logs .help-result:empty {
   display: none;
 }
-.help-link {
-  display: inline-flex;
-  align-items: center;
-}
 .field-control .port-found {
   min-width: 0;
   overflow: hidden;

@@ -1,6 +1,7 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import SettingsForm from "@/components/SettingsForm.vue";
+import InfoTip from "@/components/InfoTip.vue";
 import SettingsHelp from "@/components/SettingsHelp.vue";
 import { en } from "@/i18n/en";
 import { LOCALES } from "@/i18n/locales";
@@ -36,26 +37,32 @@ function make(over = {}) {
 }
 
 describe("the Help group", () => {
-  it("has the short text, one plain button, one quiet line about the file and the link to the manual", () => {
+  it("is one line with the address as the e-mail link, one plain button with its (i), and nothing else", () => {
     const wrapper = make();
     expect(wrapper.find("legend").text()).toBe("Help");
-    expect(wrapper.text()).toContain(
-      "Something not working? Download the logs and e-mail them to neoaprs@oh2gba.eu with a few words: what you did, what you expected, what happened, and roughly when.",
-    );
-    const button = wrapper.get("button");
-    expect(wrapper.findAll("button")).toHaveLength(1);
+    expect(wrapper.get("p").text()).toBe("Problem? Send the logs to neoaprs@oh2gba.eu.");
+    const link = wrapper.get("p a");
+    expect(link.text()).toBe("neoaprs@oh2gba.eu");
+    const url = new URL(link.attributes("href") ?? "");
+    expect(url.protocol).toBe("mailto:");
+    expect(url.pathname).toBe("neoaprs@oh2gba.eu");
+    expect(url.searchParams.get("subject")).toBe(`NeoAPRS ${PAGE_VERSION}: `);
+    expect(url.searchParams.get("body")).toBe(["What I did:", "", "What I expected:", "", "What happened:", "", "When (roughly):", ""].join("\r\n").trimEnd());
+    expect(wrapper.findAll("a")).toHaveLength(1);
+    const button = wrapper.get("button.btn");
     expect(button.text()).toBe("Download logs");
     expect(button.classes()).toEqual(["btn"]);
     expect(button.attributes("disabled")).toBeUndefined();
-    expect(wrapper.get(".muted").text()).toBe(
-      "The file holds the log, the settings without the access key, and the packets heard and sent. NeoAPRS sends nothing by itself.",
-    );
-    const manual = wrapper.get("a");
-    expect(manual.text()).toBe("What is in the file");
-    expect(manual.attributes("href")).toBe("https://github.com/oh2gba/neoaprs/blob/master/docs/manual/support.md");
-    expect(manual.attributes("target")).toBe("_blank");
-    expect(manual.attributes("rel")).toContain("noopener");
+    const tip = wrapper.getComponent(InfoTip);
+    expect(tip.props("label")).toBe("About the logs");
+    expect(wrapper.findAll("p")).toHaveLength(1);
     expect(wrapper.find(".help-result").text()).toBe("");
+  });
+
+  it("tells in the (i) what the file holds", async () => {
+    const wrapper = make();
+    await wrapper.get(".infotip button").trigger("click");
+    expect(wrapper.get(".info-line").text()).toBe("The log, the settings without the access key, the packets heard and sent. NeoAPRS sends nothing by itself.");
   });
 
   it("reads Collecting… and is disabled while the file is made, and asks only once", async () => {
@@ -110,15 +117,17 @@ describe("the Help group", () => {
     expect(String(body.page["time"])).toMatch(/Z$/);
   });
 
-  it("saves the zip under the daemon's name, says so quietly and offers the e-mail with the version and a form", async () => {
+  it("saves the zip under the daemon's name, says so quietly and adds the reminder to attach it to the e-mail", async () => {
     daemonSays(() => Promise.resolve(new Response("PK", { status: 200, headers: ZIP })));
     const wrapper = make();
     await wrapper.get("button").trigger("click");
     await flushPromises();
     expect(downloads).toEqual([{ href: "blob:support", download: "neoaprs-support-OH2GBA-20261021-123456Z.zip" }]);
     expect(wrapper.get(".help-result .muted").text()).toBe("Saved neoaprs-support-OH2GBA-20261021-123456Z.zip.");
-    const write = wrapper.get(".help-result a");
-    expect(write.text()).toBe("Write to neoaprs@oh2gba.eu");
+    expect(wrapper.find(".help-result a").exists()).toBe(false);
+    expect(wrapper.findAll("a")).toHaveLength(1);
+    const write = wrapper.get("p a");
+    expect(write.text()).toBe("neoaprs@oh2gba.eu");
     const url = new URL(write.attributes("href") ?? "");
     expect(url.protocol).toBe("mailto:");
     expect(url.pathname).toBe("neoaprs@oh2gba.eu");
@@ -152,13 +161,13 @@ describe("the Help group", () => {
     [401, "No access: reload the page, enter the access key and try again."],
     [429, "Another file is being made. Try again in a minute."],
     [500, "The file could not be made (error 500)."],
-  ])("says in plain words what a %i means, and offers no e-mail", async (status, text) => {
+  ])("says in plain words what a %i means, and no file is named", async (status, text) => {
     daemonSays(() => Promise.resolve(new Response(null, { status })));
     const wrapper = make();
     await wrapper.get("button").trigger("click");
     await flushPromises();
     expect(wrapper.get(".help-result .field-error").text()).toBe(text);
-    expect(wrapper.find(".help-result a").exists()).toBe(false);
+    expect(wrapper.find(".help-result .muted").exists()).toBe(false);
     expect(downloads).toEqual([]);
     expect(wrapper.get("button").attributes("disabled")).toBeUndefined();
   });
@@ -192,7 +201,8 @@ describe("the words of the group in every language", () => {
   const ids = Object.keys(english).filter((id) => id.startsWith("settings.help."));
 
   it("has the ids of the group in English", () => {
-    expect(ids.length).toBeGreaterThanOrEqual(17);
+    expect(ids.length).toBeGreaterThanOrEqual(15);
+    for (const gone of ["contents", "contents_link", "write"]) expect(ids).not.toContain(`settings.help.${gone}`);
   });
 
   for (const locale of LOCALES.filter((l) => l.code !== "en")) {

@@ -1139,15 +1139,12 @@ export const fr: Catalogue = {
   "settings.update.no_answer": "pas de réponse",
 
   "settings.help.group": "Aide",
-  "settings.help.text":
-    "Quelque chose ne marche pas ? Téléchargez les journaux et envoyez-les par e-mail à {address} avec quelques mots : ce que vous avez fait, ce que vous attendiez, ce qui s'est passé, et à peu près quand.",
+  "settings.help.text": "Un problème ? Envoyez les journaux à {address}.",
   "settings.help.download": "Télécharger les journaux",
   "settings.help.collecting": "Collecte…",
-  "settings.help.contents":
-    "Le fichier contient le journal, les réglages sans la clé d'accès, et les paquets entendus et émis. NeoAPRS n'envoie rien de lui-même.",
-  "settings.help.contents_link": "Ce que contient le fichier",
+  "settings.help.tip_label": "À propos des journaux",
+  "settings.help.tip": "Le journal, les réglages sans la clé d'accès, les paquets entendus et émis. NeoAPRS n'envoie rien de lui-même.",
   "settings.help.saved": "Enregistré : {file}.",
-  "settings.help.write": "Écrire à {address}",
   "settings.help.mail.did": "Ce que j'ai fait :",
   "settings.help.mail.expected": "Ce que j'attendais :",
   "settings.help.mail.happened": "Ce qui s'est passé :",

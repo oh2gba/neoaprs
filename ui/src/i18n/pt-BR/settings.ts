@@ -358,15 +358,12 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.update.no_answer": "sem resposta",
 
   "settings.help.group": "Ajuda",
-  "settings.help.text":
-    "Algo não está funcionando? Baixe os logs e envie por e-mail para {address} com algumas palavras: o que você fez, o que esperava, o que aconteceu e mais ou menos quando.",
+  "settings.help.text": "Problema? Envie os logs para {address}.",
   "settings.help.download": "Baixar logs",
   "settings.help.collecting": "Coletando…",
-  "settings.help.contents":
-    "O arquivo contém o log, os ajustes sem a chave de acesso e os pacotes ouvidos e enviados. O NeoAPRS não envia nada por conta própria.",
-  "settings.help.contents_link": "O que há no arquivo",
+  "settings.help.tip_label": "Sobre os logs",
+  "settings.help.tip": "O log, os ajustes sem a chave de acesso, os pacotes ouvidos e enviados. O NeoAPRS não envia nada por conta própria.",
   "settings.help.saved": "Salvo: {file}.",
-  "settings.help.write": "Escrever para {address}",
   "settings.help.mail.did": "O que eu fiz:",
   "settings.help.mail.expected": "O que eu esperava:",
   "settings.help.mail.happened": "O que aconteceu:",

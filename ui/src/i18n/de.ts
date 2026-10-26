@@ -1151,15 +1151,12 @@ export const de: Catalogue = {
   "settings.update.no_answer": "keine Antwort",
 
   "settings.help.group": "Hilfe",
-  "settings.help.text":
-    "Etwas funktioniert nicht? Lade die Protokolle herunter und schicke sie per E-Mail an {address}, mit ein paar Worten: was du getan hast, was du erwartet hast, was passiert ist und ungefähr wann.",
+  "settings.help.text": "Problem? Schicke die Protokolle an {address}.",
   "settings.help.download": "Protokolle herunterladen",
   "settings.help.collecting": "Sammle…",
-  "settings.help.contents":
-    "Die Datei enthält das Protokoll, die Einstellungen ohne den Zugangsschlüssel und die empfangenen und gesendeten Pakete. NeoAPRS sendet von selbst nichts.",
-  "settings.help.contents_link": "Was in der Datei steht",
+  "settings.help.tip_label": "Zu den Protokollen",
+  "settings.help.tip": "Das Protokoll, die Einstellungen ohne den Zugangsschlüssel, die empfangenen und gesendeten Pakete. NeoAPRS sendet von selbst nichts.",
   "settings.help.saved": "Gespeichert: {file}.",
-  "settings.help.write": "An {address} schreiben",
   "settings.help.mail.did": "Was ich getan habe:",
   "settings.help.mail.expected": "Was ich erwartet habe:",
   "settings.help.mail.happened": "Was passiert ist:",
