@@ -1048,7 +1048,7 @@ started. Told whole as it changes, at most once a second.
 | `server` | string |  | the name the server gave at the login (`T2FINLAND`); empty until it has answered |
 | `problem` | string |  | why it is not connected: what is missing (the call, the password, the server) or the connection's own words (`Connection refused`, `the server did not accept the password`); empty while `connected` and `off` |
 | `gated` | integer |  | packets put on APRS-IS since the daemon started (>= 0) |
-| `dropped` | { [key: string]: integer } |  | packets heard and not put on APRS-IS since the daemon started, by the reason: `tcpip` (TCPIP or TCPXX in the path), `nogate` (NOGATE or RFONLY), `query` (a generic query), `source` (the source is not a station), `own` (our own call), `duplicate` (gated in the last 30 seconds), `newline` (a CR or LF inside), `long` (more than 512 bytes), `frame` (not a UI frame, or a third-party header that is none), `offline` (heard while not connected). A reason that has not happened is not a key |
+| `dropped` | { [key: string]: integer } |  | packets heard and not put on APRS-IS since the daemon started, by the reason: `tcpip` (TCPIP or TCPXX in the path), `nogate` (NOGATE or RFONLY), `query` (a generic query), `source` (the source is not a station), `own` (our own call), `duplicate` (gated in the last 30 seconds), `newline` (a CR or LF inside), `long` (more than 512 bytes), `frame` (not a UI frame, or a third-party header that is none), `offline` (heard while not connected), `not_air` (not heard on the radio: a packet from the internet or one the Dummy radio made up). A reason that has not happened is not a key |
 | `last_gated_at` | time \| null |  | when the latest packet was gated; null before the first |
 
 ### InstallInfo

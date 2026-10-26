@@ -3,7 +3,7 @@
 That is built in, not promised. This service has no radio: its constructor takes the connection (neoaprs/aprsis.py, which writes lines to a server and throws away what the server sends back), the settings and a function that
 gives the bytes of our position, and nothing else; it imports neither the Tnc nor `Radio` nor the sender. The one place a packet comes from is `on_packet`, which the composition root connects to the packets heard on the radio.
 
-Each packet heard (direction in) goes through the rules of neoaprs/igaterules.py (the specification's, with where each comes from): it is gated as `SOURCE>DEST,PATH,qAO,OURCALL:INFO`, or counted as not gated with the reason.
+Each packet heard (direction in, `Packet.via` in `packet.GATEABLE`: not one from the internet or made up by the Dummy radio, which are counted as not gated, "not from the air") goes through the rules of neoaprs/igaterules.py (the specification's, with where each comes from): it is gated as `SOURCE>DEST,PATH,qAO,OURCALL:INFO`, or counted as not gated with the reason.
 Besides those a packet is not gated when the connection is not logged in and verified (`offline`), and when the same source, destination (without its SSID) and information field was gated in the last DUPLICATE_SEC seconds
 (`duplicate`: the digipeaters repeat a packet and it is heard more than once; servers also drop a copy within 30 seconds, so the copy would be wasted; the specification asks for nothing of the kind, and WB2OSZ's
 "Successful APRS IGate Operation" says Dire Wolf stopped doing it at the request of a server author, so the window is a constant to set to 0).
@@ -24,8 +24,8 @@ from typing import Literal, NamedTuple
 from neoaprs import TOCALL, ax25
 from neoaprs.aprsis import AprsIs
 from neoaprs.clock import Clock, utcnow
-from neoaprs.igaterules import DUPLICATE, FRAME, OFFLINE, REASON_WORDS, Dropped, gate_of
-from neoaprs.packet import Packet
+from neoaprs.igaterules import DUPLICATE, FRAME, NOT_AIR, OFFLINE, REASON_WORDS, Dropped, gate_of
+from neoaprs.packet import GATEABLE, Packet
 from neoaprs.services.common import ConfigSource
 from neoaprs.signal import Signal
 from neoaprs.tasks import TaskSet, cancel_all
@@ -174,9 +174,11 @@ class Igate:
 
     # ---- what the radio hears
     def on_packet(self, packet: Packet) -> None:
-        """A packet was heard on the radio, or sent by it (only a heard one is gated)."""
+        """A packet was heard on the radio, or sent by it (only a heard one is gated, and only one whose channel is in `packet.GATEABLE`)."""
         if packet.direction != "in" or not self._config().igate_enabled:
             return
+        if packet.via not in GATEABLE:
+            return self._drop(NOT_AIR)                           # (a packet from the internet would go round in a circle, a made-up one of the Dummy radio must never reach the network)
         if not self._link.verified:
             return self._drop(OFFLINE)
         try:

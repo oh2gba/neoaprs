@@ -1016,6 +1016,7 @@ export const de: Catalogue = {
   "settings.igate.reason.frame": "kein Paket",
   "settings.igate.reason.duplicate": "Doppel",
   "settings.igate.reason.offline": "offline gehört",
+  "settings.igate.reason.not_air": "nicht über Funk",
 
   "settings.alert.label": "Alarm",
   "settings.alert_command.name": "Alarmbefehl",

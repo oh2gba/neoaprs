@@ -67,6 +67,7 @@ const REASONS: Record<string, MessageId> = {
   frame: "settings.igate.reason.frame",
   duplicate: "settings.igate.reason.duplicate",
   offline: "settings.igate.reason.offline",
+  not_air: "settings.igate.reason.not_air",
 };
 
 const reasonText = (reason: string): string => {

@@ -194,6 +194,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.igate.reason.frame": "não é um pacote",
   "settings.igate.reason.duplicate": "duplicado",
   "settings.igate.reason.offline": "ouvido offline",
+  "settings.igate.reason.not_air": "não recebido por rádio",
 
   "settings.alert.label": "Alerta",
   "settings.alert_command.name": "Comando de alerta",

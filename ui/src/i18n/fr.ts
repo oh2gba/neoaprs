@@ -1003,6 +1003,7 @@ export const fr: Catalogue = {
   "settings.igate.reason.frame": "pas un paquet",
   "settings.igate.reason.duplicate": "doublon",
   "settings.igate.reason.offline": "entendu hors ligne",
+  "settings.igate.reason.not_air": "pas reçu par radio",
 
   "settings.alert.label": "Alerte",
   "settings.alert_command.name": "Commande d'alerte",

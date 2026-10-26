@@ -187,6 +187,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.igate.reason.frame": "パケットではない",
   "settings.igate.reason.duplicate": "重複",
   "settings.igate.reason.offline": "オフライン中に受信",
+  "settings.igate.reason.not_air": "無線で受信したものではない",
 
   "settings.alert.label": "アラート",
   "settings.alert_command.name": "アラートのコマンド",

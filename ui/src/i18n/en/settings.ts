@@ -191,6 +191,7 @@ export const settings = {
   "settings.igate.reason.frame": "not a packet",
   "settings.igate.reason.duplicate": "duplicate",
   "settings.igate.reason.offline": "heard while offline",
+  "settings.igate.reason.not_air": "not from the air",
 
   "settings.alert.label": "Alert",
   "settings.alert_command.name": "Alert command",

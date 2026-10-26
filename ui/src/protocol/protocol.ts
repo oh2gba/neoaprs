@@ -430,7 +430,7 @@ export interface IgateState {
   problem: string;
   /** packets put on APRS-IS since the daemon started */
   gated: number;
-  /** packets heard and not put on APRS-IS since the daemon started, by the reason: `tcpip` (TCPIP or TCPXX in the path), `nogate` (NOGATE or RFONLY), `query` (a generic query), `source` (the source is not a station), `own` (our own call), `duplicate` (gated in the last 30 seconds), `newline` (a CR or LF inside), `long` (more than 512 bytes), `frame` (not a UI frame, or a third-party header that is none), `offline` (heard while not connected). A reason that has not happened is not a key */
+  /** packets heard and not put on APRS-IS since the daemon started, by the reason: `tcpip` (TCPIP or TCPXX in the path), `nogate` (NOGATE or RFONLY), `query` (a generic query), `source` (the source is not a station), `own` (our own call), `duplicate` (gated in the last 30 seconds), `newline` (a CR or LF inside), `long` (more than 512 bytes), `frame` (not a UI frame, or a third-party header that is none), `offline` (heard while not connected), `not_air` (not heard on the radio: a packet from the internet or one the Dummy radio made up). A reason that has not happened is not a key */
   dropped: { [key: string]: number };
   /** when the latest packet was gated; null before the first */
   last_gated_at: string | null;

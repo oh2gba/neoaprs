@@ -13,6 +13,8 @@ from neoaprs.store import DB_NAME
 from neoaprs.tncmode import packet_of
 from tests.support.clock import FixedClock
 from tests.support.env import idle_for
+from tests.support.fakeaprsis import fake_aprsis
+from tests.support.igateworld import iworld
 from tests.support.storedb import store_at
 from tests.test_delivery import Chain
 from tests.test_digipeater import INFO, Rig as DigiRig, frame
@@ -35,6 +37,18 @@ def test_the_digipeater_repeats_a_packet_of_the_radio_and_not_the_same_packet_fr
     assert rig.tnc.sent == [] and rig.digi._seen == {}, "nothing sent, and not remembered as heard either"
     rig.digi.on_packet(on_the_radio)
     assert rig.lines() == [f"OH2XYZ>APRS,OH2GBA*:{INFO.decode()}"], "the radio's copy is repeated, which an earlier internet copy did not prevent"
+
+
+async def test_the_igate_puts_a_packet_of_the_radio_on_the_server_and_not_the_same_packet_from_the_internet_or_the_dummy_radio() -> None:
+    server = await fake_aprsis()
+    w = await iworld(server)
+    heard = w.hear()
+    w.igate.on_packet(internet(heard))
+    w.igate.on_packet(replace(heard, via="dummy"))
+    assert w.igate.gated == 1 and w.igate.dropped["not_air"] == 2, "only the radio's copy was gated, and the other two are counted"
+    await w.until_sent(2)
+    await idle_for(0.1)
+    assert [line for line in server.packets if line.startswith("OH2XYZ-9>")] == ["OH2XYZ-9>APZ123,WIDE1-1*,WIDE2-1,qAO,OH2GBA-10:!6010.00N/02456.00E>Test"]
 
 
 def test_the_queries_answer_a_query_from_the_radio_and_none_from_the_internet() -> None:

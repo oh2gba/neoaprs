@@ -34,10 +34,10 @@ ALIASES = ("WIDE", "TRACE", "RELAY", "TCP", "NOGATE", "RFONLY", "SERVER", "BEACO
 _PATH_ELEMENT = re.compile(r"[A-Za-z0-9]{1,9}(?:-[A-Za-z0-9]{1,2})?\*?")
 _Q_ELEMENT = re.compile(r"q[A-Za-z]{2}|I", re.IGNORECASE)
 
-TCPIP, NOGATE, QUERY, SOURCE, OWN, NEWLINE, LONG, FRAME, DUPLICATE, OFFLINE = "tcpip", "nogate", "query", "source", "own", "newline", "long", "frame", "duplicate", "offline"
-REASON_WORDS = {TCPIP: "TCPIP", NOGATE: "NOGATE", QUERY: "query", SOURCE: "bad source", OWN: "own", NEWLINE: "line break", LONG: "too long", FRAME: "bad frame", DUPLICATE: "duplicate", OFFLINE: "offline"}
+TCPIP, NOGATE, QUERY, SOURCE, OWN, NEWLINE, LONG, FRAME, DUPLICATE, OFFLINE, NOT_AIR = "tcpip", "nogate", "query", "source", "own", "newline", "long", "frame", "duplicate", "offline", "not_air"
+REASON_WORDS = {TCPIP: "TCPIP", NOGATE: "NOGATE", QUERY: "query", SOURCE: "bad source", OWN: "own", NEWLINE: "line break", LONG: "too long", FRAME: "bad frame", DUPLICATE: "duplicate", OFFLINE: "offline", NOT_AIR: "not from the air"}
 """Why a packet was not gated, in the words of the log and the page. `tcpip` also covers TCPXX, `nogate` also RFONLY, `source` a source that is no station and `frame` a frame that is no UI frame or whose
-header is not one, `offline` the packets heard while the connection was down."""
+header is not one, `offline` the packets heard while the connection was down, `not_air` a packet that was not heard on the radio (from the internet, or made up by the Dummy radio: `Packet.via` is not in `packet.GATEABLE`)."""
 
 
 @dataclass(frozen=True, slots=True)

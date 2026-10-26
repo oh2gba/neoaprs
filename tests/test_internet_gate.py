@@ -81,7 +81,7 @@ def packet_takers(e: Env) -> dict[str, set[str]]:
 TAKERS = {
     "packetlog": {"append"}, "stationbook": {"take"}, "weatherlog": {"take"},                                   # SEEN_BY_ALL
     "messaging": {"on_packet", "echoed"}, "messaging.inbox": {"on_packet"}, "messaging.delivery": {"heard"},     # ON_AIR_ONLY: messaging and what it hands the packet to
-    "queries": {"on_packet"}, "ownobjects": {"on_packet"}, "digipeater": {"on_packet"},
+    "queries": {"on_packet"}, "ownobjects": {"on_packet"}, "igate": {"on_packet"}, "digipeater": {"on_packet"},
     "qru": {"heard"}, "bulletins": {"heard"},                                                                    # (handed a message by the inbox)
 }
 
@@ -96,7 +96,7 @@ def test_every_part_that_takes_a_packet_is_known_and_the_ones_that_act_refuse_wh
             if part in SEEN_BY_ALL:
                 continue
             source = inspect.getsource(getattr(_resolve(e, part), method))
-            assert "on_air" in source or "inbox.on_packet" in source or "self.delivery.heard" in source, f"{part}.{method} does not look at Packet.on_air"
+            assert "on_air" in source or "GATEABLE" in source or "inbox.on_packet" in source or "self.delivery.heard" in source, f"{part}.{method} does not look at Packet.on_air or GATEABLE"
 
 
 def _resolve(e: Env, label: str) -> Any:

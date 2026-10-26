@@ -1,12 +1,13 @@
 """The receive-only iGate service (neoaprs/services/igate.py) on a fake APRS-IS: what the radio hears becomes lines on the server, each not gated is counted by its reason, a copy within 30 seconds is gated once, nothing is
 gated while it is not logged in, our own position goes to the server, the log has the packets and the hour and never the password, and nothing the server says goes anywhere."""
 import logging
+from dataclasses import replace
 
 import pytest
 
 from neoaprs import TOCALL
 from neoaprs.aprsis import NO_PASSWORD, UNVERIFIED
-from neoaprs.igaterules import DUPLICATE, NOGATE, OFFLINE, OWN, QUERY, SOURCE, TCPIP
+from neoaprs.igaterules import DUPLICATE, NOGATE, NOT_AIR, OFFLINE, OWN, QUERY, SOURCE, TCPIP
 from tests.support.env import idle_for, until
 from tests.support.fakeaprsis import fake_aprsis
 from tests.support.igateworld import POSITION, frame_of, iworld
@@ -35,6 +36,26 @@ async def test_every_rule_counts_what_it_kept_off_the_server_by_its_reason() -> 
     assert dict(w.igate.dropped) == {TCPIP: 3, NOGATE: 2, QUERY: 1, SOURCE: 1, OWN: 1} and w.igate.gated == 0
     await w.until_sent(1)
     assert server.packets == [OWN_LINE], "(only our own position: none of the nine packets)"
+
+
+async def test_a_packet_from_the_internet_or_made_up_by_the_dummy_radio_is_never_gated_and_is_counted_as_not_from_the_air() -> None:
+    server = await fake_aprsis()
+    w = await iworld(server)
+    heard = w.hear()                                                      # (a real one, gated: the control)
+    w.igate.on_packet(replace(heard, via="is"))
+    w.igate.on_packet(replace(heard, via="dummy"))
+    w.igate.on_packet(replace(heard, via="dummy", info=b"!6011.00N/02456.00E>Other"))
+    assert w.igate.gated == 1 and w.igate.dropped[NOT_AIR] == 3 and dict(w.igate.dropped) == {NOT_AIR: 3}
+    await w.until_sent(2)
+    await idle_for(0.1)
+    assert sorted(server.packets) == sorted([LINE, OWN_LINE]), "(only the real packet and our own position reached the server)"
+
+
+async def test_a_packet_that_was_not_on_the_air_is_not_from_the_air_even_when_the_igate_is_not_logged_in() -> None:
+    server = await fake_aprsis(answer=False)
+    w = await iworld(server, wait=False)
+    w.igate.on_packet(replace(w.hear(), via="is"))
+    assert dict(w.igate.dropped) == {OFFLINE: 1, NOT_AIR: 1}
 
 
 async def test_a_third_party_packet_without_the_internet_in_it_is_gated_as_the_packet_inside() -> None:

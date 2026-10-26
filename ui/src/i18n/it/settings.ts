@@ -198,6 +198,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.igate.reason.frame": "non è un pacchetto",
   "settings.igate.reason.duplicate": "duplicato",
   "settings.igate.reason.offline": "sentito offline",
+  "settings.igate.reason.not_air": "non ricevuto via radio",
 
   "settings.alert.label": "Avviso",
   "settings.alert_command.name": "Comando di avviso",

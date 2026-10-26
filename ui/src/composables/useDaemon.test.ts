@@ -6,7 +6,21 @@ import { FakeFetch } from "@/test/fakefetch";
 import { FakeSocket } from "@/test/fakesocket";
 import { pageErrors } from "@/lib/pageerrors";
 import { PROTOCOL } from "@/protocol/lists";
-import { DAEMON_VERSION, bulletin, configValues, errorOf, gpsState, hello, igateState, message, ownBulletin, ownObject, packet, station, tncState } from "@/test/fixtures";
+import {
+  DAEMON_VERSION,
+  bulletin,
+  configValues,
+  errorOf,
+  gpsState,
+  hello,
+  igateState,
+  message,
+  ownBulletin,
+  ownObject,
+  packet,
+  station,
+  tncState,
+} from "@/test/fixtures";
 
 function setUp() {
   let daemon: ReturnType<typeof useDaemon> | undefined;
