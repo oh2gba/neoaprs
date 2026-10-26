@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.10.2
+
 Bug fixes on the air and in the station book, and a tidier code base; nothing new to set up.
 
 - **Fixed:** an object or item that another station posts under the call of a station you hear (the club's object of the local digipeater, say) no longer replaces that station on the map, and its kill no longer removes the station; a station that transmits under the name of an object heard before is the station from then on. An object or kill under your own call leaves your station alone.
