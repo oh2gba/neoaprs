@@ -31,7 +31,20 @@ describe("BeaconStatus", () => {
     const wrapper = block({ gps: gpsState(), values: { "gps/source": "gpsd", "beacon/interval_min": "0" } });
     expect(wrapper.find(".statetext").text()).toBe("fix");
     expect(wrapper.find(".tncstatus").text()).toContain("Fix: 60.4295 N 24.1452 E");
-    expect(wrapper.find(".igatefold").text()).toBe("Beacon off");
+    expect(wrapper.find(".igatefold").text()).toBe("No automatic beacon · Beacon now still sends");
+  });
+
+  it("says off with a detail that adds to it, never the word again, while the beacon is Off", () => {
+    const wrapper = block({ values: { "beacon/interval_min": "0" } });
+    expect(wrapper.find(".statetext").text()).toBe("off");
+    expect(wrapper.find(".tncstatus").text()).toBe("No automatic beacon · Beacon now still sends");
+  });
+
+  it("says off in the warn colour and RX only: nothing is sent, with no timer, in RX only", () => {
+    const wrapper = block({ values: { "station/transmit": "false" }, status: status({ beacon_interval_min: 60, beacon_last_sent: ago(240) }) });
+    expect(wrapper.find(".statetext").text()).toBe("off");
+    expect(wrapper.find(".statetext").classes()).toContain("tnc-waiting");
+    expect(wrapper.find(".tncstatus").text()).toBe("RX only: nothing is sent");
   });
 
   it("shows nothing before the daemon has told", () => {

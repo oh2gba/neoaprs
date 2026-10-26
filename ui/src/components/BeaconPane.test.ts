@@ -130,13 +130,31 @@ describe("BeaconPane", () => {
       expect(row?.querySelector("label")?.textContent).toBe("Send now");
       expect(row?.querySelector(".infotip")).not.toBeNull();
       expect(wrapper.find("#beacon-now").text()).toBe("Beacon now");
-      expect(wrapper.find("#beacon-now").classes()).toEqual(expect.arrayContaining(["btn", "primary"]));
+      expect(wrapper.find("#beacon-now").classes()).toEqual(["btn"]);
+      expect(wrapper.find("#status-now").exists()).toBe(false);
     });
 
-    it("says Beacon off, with the state off, while the interval is 0", () => {
+    it("says off, and in the detail what that means without the word again, while the interval is 0", () => {
       const { wrapper } = pane({ "beacon/interval_min": "0" }, { status: status({ beacon_last_sent: ago(125) }) });
       expect(block(wrapper).find(".statetext").text()).toBe("off");
-      expect(block(wrapper).find(".tncstatus").text()).toBe("Beacon off");
+      expect(block(wrapper).find(".tncstatus").text()).toBe("No automatic beacon · Beacon now still sends");
+    });
+
+    it("says off in the warn colour and that nothing is sent in RX only, and has the buttons that send secondary", () => {
+      const { wrapper } = pane(
+        { "station/transmit": "false", "status/source": "text" },
+        { status: status({ beacon_interval_min: 60, beacon_last_sent: ago(240) }) },
+      );
+      expect(block(wrapper).find(".statetext").text()).toBe("off");
+      expect(block(wrapper).find(".statetext").classes()).toContain("tnc-waiting");
+      expect(block(wrapper).find(".tncstatus").text()).toBe("RX only: nothing is sent");
+      const report = group(wrapper, "Status")?.find(".beaconstatus");
+      expect([report?.find(".statetext").text(), report?.find(".statetext").classes(), report?.find(".tncstatus").text()]).toEqual([
+        "off",
+        expect.arrayContaining(["tnc-waiting"]),
+        "RX only: nothing is sent",
+      ]);
+      expect(wrapper.findAll(".tncstatus").every((l) => l.text() !== "-" && l.text() !== "")).toBe(true);
     });
 
     it("says that none was sent yet, with or without a timer", () => {
@@ -214,7 +232,7 @@ describe("BeaconPane", () => {
       expect(buttons(pane().wrapper).map((b) => b.text())).toEqual(["Beacon now"]);
     });
 
-    it("is the status report as a row under the Status choice with the status that is sent as its line, and the radio's state behind the arrow when a radio makes it", () => {
+    it("is the status report as a row under the Status choice with when it last went and when it may next, and the radio's state behind the arrow when a radio makes it", () => {
       const line = (extra: Record<string, string>, st: Partial<ReturnType<typeof status>>) => {
         const { wrapper } = pane(extra, { status: status(st) });
         const row = group(wrapper, "Status")?.find(".beaconstatus");
@@ -226,11 +244,18 @@ describe("BeaconPane", () => {
           wrapper.find("#status-now").text(),
         ];
       };
-      const text = { "status/source": "text" };
-      expect(line(text, {})).toEqual(["on", "-", ["Every 30 min"], "Send status now"]);
-      expect(line(text, { station_status: "QRV 14.074 MHz USB" })[1]).toBe("QRV 14.074 MHz USB");
-      expect(line(text, { station_status: "QRV 14.074 MHz USB", rig_state: "on" })[2]).toEqual(["Every 30 min", "rigctld on"]);
-      expect(line(text, { station_status: "", rig_state: "off" })).toEqual(["on", "-", ["Every 30 min", "rigctld off"], "Send status now"]);
+      const text = { "status/source": "text", "station/status": "QRV 144.800 MHz FM" };
+      expect(line(text, {})).toEqual(["on", "Not sent yet", ["Every 30 min"], "Send status now"]);
+      expect(line(text, { station_status: "QRV 144.800 MHz FM", station_status_last_sent: ago(240) })).toEqual([
+        "on",
+        "Last sent 4 min ago · next in 26 min if changed",
+        ["Every 30 min"],
+        "Send status now",
+      ]);
+      expect(line(text, { station_status_last_sent: ago(31 * 60) })[1]).toBe("Last sent 31 min ago · next as soon as it changes");
+      expect(line({ ...text, "beacon/interval_min": "0" }, { station_status_last_sent: ago(240) })[1]).toBe("Last sent 4 min ago · no timed status");
+      expect(line(text, { station_status: "QRV 14.074 MHz USB", rig_state: "on" })[2]).toEqual(["QRV 14.074 MHz USB", "Every 30 min", "rigctld on"]);
+      expect(line(text, { station_status: "", rig_state: "off" })).toEqual(["on", "Not sent yet", ["Every 30 min", "rigctld off"], "Send status now"]);
     });
 
     it("is there for a text, and for a radio that was set before the choice existed, and asks twice before it passes the click on", async () => {
@@ -448,7 +473,7 @@ describe("BeaconPane with the beacon Off", () => {
       block(wrapper)
         .findAll("p")
         .map((p) => p.text()),
-    ).toEqual(["Beacon off"]);
+    ).toEqual(["No automatic beacon · Beacon now still sends"]);
   });
 
   it("shows a moving station's missing fix and its reason while the beacon is Off, and the fixed station's block as it was", () => {
@@ -462,10 +487,10 @@ describe("BeaconPane with the beacon Off", () => {
       block(wrapper)
         .findAll("p")
         .map((p) => p.text()),
-    ).toEqual(["Beacon off", "the receiver has no position fix yet"]);
+    ).toEqual(["No automatic beacon · Beacon now still sends", "the receiver has no position fix yet"]);
     const fixed = off();
     expect(block(fixed.wrapper).find(".statetext").text()).toBe("off");
-    expect(block(fixed.wrapper).find(".tncstatus").text()).toBe("Beacon off");
+    expect(block(fixed.wrapper).find(".tncstatus").text()).toBe("No automatic beacon · Beacon now still sends");
     expect(block(fixed.wrapper).findAll("p")).toHaveLength(0);
   });
 

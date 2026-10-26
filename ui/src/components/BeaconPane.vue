@@ -12,7 +12,7 @@ import { t } from "@/i18n";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useSendNow } from "@/composables/useSendNow";
 import { rxOnlyReason } from "@/lib/compose";
-import { NONE } from "@/lib/format";
+import { beaconOff } from "@/lib/beaconoff";
 import { statusSource } from "@/lib/status";
 import { computed, toRef } from "vue";
 
@@ -24,8 +24,6 @@ const sending = useSendNow(connected, settings.saving, toRef(props, "picking"), 
 /** Beacon now and Send status now send while the beacon is Off (that is only no automatic beacon); RX only (transmitting switched off) is what turns them off, and the title says so. */
 const ready = computed(() => sending.ready.value && !receiveOnly.value);
 const why = computed(() => (receiveOnly.value ? rxOnlyReason() : sending.why.value));
-
-const current = computed(() => status.value?.station_status || NONE);
 </script>
 
 <template>
@@ -51,7 +49,15 @@ const current = computed(() => status.value?.station_status || NONE);
           />
         </template>
         <template v-else-if="fieldKey === 'status/source' && statusSource(draft) !== 'off'">
-          <StatusReportRow :text="current" :minutes="config?.values['status/interval_min'] ?? ''" :rig="status?.rig_state ?? 'unused'" />
+          <StatusReportRow
+            :text="status?.station_status ?? ''"
+            :last-sent="status?.station_status_last_sent ?? null"
+            :minutes="config?.values['status/interval_min'] ?? ''"
+            :rig="status?.rig_state ?? 'unused'"
+            :beacon-off="beaconOff(config?.values ?? {})"
+            :rx-only="receiveOnly"
+            :now="now"
+          />
         </template>
         <template v-else-if="(fieldKey === 'station/status' || fieldKey === 'status/template') && statusSource(draft) !== 'off'">
           <SendRow

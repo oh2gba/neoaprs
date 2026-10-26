@@ -29,14 +29,28 @@ describe("beaconBlock of a fixed station", () => {
         moving: false,
         label: "Beacon",
         pill: { text: "off", tone: "beacon-off" },
-        line: "Beacon off",
+        line: "No automatic beacon · Beacon now still sends",
         hover: undefined,
         smart: null,
         problem: "",
       });
     }
-    expect(beaconBlock(null, null, { "beacon/interval_min": "0" }, NOW)).toMatchObject({ pill: { text: "off" }, line: "Beacon off" });
+    expect(beaconBlock(null, null, { "beacon/interval_min": "0" }, NOW)).toMatchObject({
+      pill: { text: "off" },
+      line: "No automatic beacon · Beacon now still sends",
+    });
     expect(beaconBlock(timed(), gpsOff(), { "beacon/interval_min": "60" }, NOW).pill).toEqual({ text: "on", tone: "beacon-on" });
+  });
+
+  it("is off in the warn colour with RX only: nothing is sent in RX only, with or without a timer or a GPS", () => {
+    const rx = { "station/transmit": "false" };
+    expect(beaconBlock(timed(), gpsOff(), rx, NOW)).toMatchObject({
+      pill: { text: "off", tone: "tnc-waiting" },
+      line: "RX only: nothing is sent",
+      smart: null,
+    });
+    expect(beaconBlock(timed(), gpsOff(), { ...rx, "beacon/interval_min": "0" }, NOW).line).toBe("RX only: nothing is sent");
+    expect(beaconBlock(timed(), gpsState(), { ...rx, ...GPSD }, NOW)).toMatchObject({ pill: { tone: "gps-fix" }, smart: "RX only: nothing is sent" });
   });
 
   it("says none was sent yet, with the timer or without", () => {
@@ -91,13 +105,13 @@ describe("beaconBlock of a moving station", () => {
       pill: { text: "fix", tone: "gps-fix" },
       line: "Fix: 60.4295 N 24.1452 E, 48 km/h, course 215°, 103 m, 9 satellites, 2 s ago",
       hover: undefined,
-      smart: "Beacon off",
+      smart: "No automatic beacon · Beacon now still sends",
       problem: "",
     });
     expect(beaconBlock(timed(), gpsState({ state: "no_fix", lat: null, lon: null, fix_at: null, problem: "no satellites" }), off, NOW)).toMatchObject({
       pill: { text: "no fix", tone: "gps-no_fix" },
       line: "No fix yet",
-      smart: "Beacon off",
+      smart: "No automatic beacon · Beacon now still sends",
       problem: "no satellites",
     });
     expect(beaconBlock(null, null, off, NOW)).toMatchObject({
@@ -105,11 +119,11 @@ describe("beaconBlock of a moving station", () => {
       label: "GPS",
       pill: null,
       line: "No word from the daemon yet.",
-      smart: "Beacon off",
+      smart: "No automatic beacon · Beacon now still sends",
     });
     const on = beaconBlock(timed(), gpsState(), { ...GPSD, "beacon/interval_min": "30" }, NOW);
     expect(on).toMatchObject({ label: "GPS", pill: { text: "fix" } });
-    expect(on.smart).not.toBe("Beacon off");
+    expect(on.smart).not.toBe("No automatic beacon · Beacon now still sends");
   });
 
   it("is the same block as it was for a fixed station that is Off", () => {
@@ -117,7 +131,7 @@ describe("beaconBlock of a moving station", () => {
       moving: false,
       label: "Beacon",
       pill: { text: "off", tone: "beacon-off" },
-      line: "Beacon off",
+      line: "No automatic beacon · Beacon now still sends",
       hover: undefined,
       smart: null,
       problem: "",

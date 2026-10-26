@@ -1,6 +1,7 @@
 // What the beacon status at the top of the Beacon tab says (components/BeaconStatus.vue), in the look of the radio status: a label, one coloured pill and plain lines. A fixed station says when the last beacon went and when the timer sends the next
 // ("Last beacon 4 min ago · next in 56 min (every 60 min)"); a moving station says the GPS (the pill is the state of the GPS, the line the fix or why there is none) and, under it, what SmartBeaconing does (lib/gpsstatus.ts has those words).
-// While the beacon is Off (the interval is 0) a fixed station has the label Beacon, the pill off and the line "Beacon off"; a moving station keeps showing the GPS (the pill and the fix line, so that the fix can be watched) and says "Beacon off" on the line under it, where SmartBeaconing's words would be.
+// While the beacon is Off (the interval is 0) a fixed station has the label Beacon, the pill off and the line "no automatic beacon · Beacon now still sends"; a moving station keeps showing the GPS (the pill and the fix line, so that the fix can be watched) and says the same on the line under it, where SmartBeaconing's words would be.
+// In RX only (nothing is sent) the pill is off in the warn colour and the line "RX only: nothing is sent", as the Digipeater's; a moving station keeps the GPS and says it under it.
 import { t } from "@/i18n";
 import { dateTimeText, agoWords, untilText } from "@/lib/format";
 import { beaconOff } from "@/lib/beaconoff";
@@ -36,27 +37,31 @@ function fixedLine(status: StatusMessage, nowMs: number): string {
   return never ? t("beacon.line.timed_none", values) : t("beacon.line.timed", { ago, ...values });
 }
 
+/** The block of a moving station: the GPS, and under it SmartBeaconing's words, or why nothing is sent (`quiet`, empty when something is). */
+function movingBlock(gps: GpsState | null, values: Readonly<Record<string, string>>, nowMs: number, quiet: string): BeaconBlock {
+  return {
+    moving: true,
+    label: t("gps.label"),
+    pill: gps === null ? null : { text: gpsStateText(gps.state), tone: `gps-${gps.state}` },
+    line: gps === null ? t("settings.no_word") : gpsStatus(gps, values, nowMs),
+    hover: undefined,
+    smart: quiet || mobileBeaconText(gps, nowMs),
+    problem: gps === null ? "" : gpsProblem(gps),
+  };
+}
+
 /** The block for the status the daemon last told (`status`), the GPS topic (`gps`), the settings in force (`values`) and the time now. A station moves when the daemon says its beacon follows the GPS, before it has told when the settings say so. */
 export function beaconBlock(status: StatusMessage | null, gps: GpsState | null, values: Readonly<Record<string, string>>, nowMs: number): BeaconBlock {
   const moving = gps === null ? isMoving(values) : gps.mobile;
-  const off = beaconOff(values);
-  if (moving) {
-    return {
-      moving,
-      label: t("gps.label"),
-      pill: gps === null ? null : { text: gpsStateText(gps.state), tone: `gps-${gps.state}` },
-      line: gps === null ? t("settings.no_word") : gpsStatus(gps, values, nowMs),
-      hover: undefined,
-      smart: off ? t("beacon.line.off") : mobileBeaconText(gps, nowMs),
-      problem: gps === null ? "" : gpsProblem(gps),
-    };
-  }
-  if (off) {
+  const rxOnly = values["station/transmit"] === "false";
+  const quiet = rxOnly ? t("beacon.line.rx_only") : beaconOff(values) ? t("beacon.line.off") : "";
+  if (moving) return movingBlock(gps, values, nowMs, quiet);
+  if (quiet) {
     return {
       moving,
       label: t("beacon.label"),
-      pill: { text: t("beacon.state.off"), tone: "beacon-off" },
-      line: t("beacon.line.off"),
+      pill: { text: t("beacon.state.off"), tone: rxOnly ? "tnc-waiting" : "beacon-off" },
+      line: quiet,
       hover: undefined,
       smart: null,
       problem: "",

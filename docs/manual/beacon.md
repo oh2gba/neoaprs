@@ -21,7 +21,7 @@ While the beacon is **Off**:
 * **No automatic beacon goes out.** There is no timer and no SmartBeaconing. **Beacon now** still sends, and so does **Send status now**, each with its usual second press: Off is no automatic beacon, not a lock.
 * **No automatic status report goes out** either, because the status is the beacon's companion; a status that came due meanwhile is sent once, if it differs from the last one, at the first poll after you switch the beacon on again.
 * **Everything else goes on as it does.** Messages and emails are sent and acknowledged, queries to your call are answered, your objects and bulletins are sent, and the fill-in digipeater digipeats. Off is not [RX only](#rx-only): your station still takes part, it just does not announce itself by the clock.
-* The **state of the beacon** under the Beacon choice reads **off: Beacon off** for a fixed station. For a station that follows a GPS it keeps showing the GPS (its state and the fix line) and says **Beacon off** behind its arrow, so that you can watch the fix while nothing is sent.
+* The **state of the beacon** under the Beacon choice reads **off: No automatic beacon · Beacon now still sends** for a fixed station. For a station that follows a GPS it keeps showing the GPS (its state and the fix line) and says the same behind its arrow, so that you can watch the fix while nothing is sent.
 * Only the **timing** is shown **greyed out, with its value kept**: **Travelling** and the status's **Every**. What is sent (the location, the symbol, the comment, the antenna, the path, the status text) stays editable, for **Beacon now** sends it. A header mark **Beacon off** (grey) says so, and opens this tab.
 
 Choosing an interval, or **On**, turns it all on again. Choosing **On** for a moving station that was off stores the interval of 30 minutes, which a moving station does not use but which keeps the setting valid.
@@ -89,11 +89,11 @@ PHG is written `PHGphgd`:
 
 ## Beacon now
 
-The **state of the beacon** is one row under the Beacon choice, the same row as the radio's on the Settings tab: the state in its colour, one quiet line, and an arrow that opens the details. **Beacon now** is the row under it, **Send now**: the primary button, which asks twice ("Really send?"). It is off while the TNC is not connected, while a change of the settings is being saved (so what is sent is what is in force), and while the beacon is [Off](#beacon-off), with a tip that says so. The next beacon of the timer is then an interval later.
+The **state of the beacon** is one row under the Beacon choice, the same row as the radio's on the Settings tab: the state in its colour, one quiet line, and an arrow that opens the details. **Beacon now** is the row under it, **Send now**: a button like the others, not the main action of the tab, which asks twice ("Really send?"). It is off while the TNC is not connected, while a change of the settings is being saved (so what is sent is what is in force), and while the beacon is [Off](#beacon-off), with a tip that says so. The next beacon of the timer is then an interval later.
 
-For a fixed station the state is **on** (green) while the timer runs and **off** while it does not, and the line says when the last beacon went and when the next is due: **Last beacon 4 min ago · next in 56 min (every 60 min)**. The full time of the last beacon is behind the arrow. With the beacon off it reads **Beacon off**. Before the first beacon of a run it reads **No beacon sent yet · next in 5 min (every 30 min)**.
+For a fixed station the state is **on** (green) while the timer runs and **off** while it does not, and the line says when the last beacon went and when the next is due: **Last beacon 4 min ago · next in 56 min (every 60 min)**. The full time of the last beacon is behind the arrow. With the beacon off it reads **No automatic beacon · Beacon now still sends**; in RX only the state is **off** in the warn colour and the line reads **RX only: nothing is sent**. Before the first beacon of a run it reads **No beacon sent yet · next in 5 min (every 30 min)**.
 
-For a moving station the state is the state of the GPS (fix, no fix) and the line is the fix; what SmartBeaconing does and why there is no fix are behind the arrow ([Mobile operation](#mobile-operation)); with the beacon off the GPS is still shown, and **Beacon off** is there in place of what SmartBeaconing does.
+For a moving station the state is the state of the GPS (fix, no fix) and the line is the fix; what SmartBeaconing does and why there is no fix are behind the arrow ([Mobile operation](#mobile-operation)); with the beacon off the GPS is still shown, and **No automatic beacon · Beacon now still sends** is there in place of what SmartBeaconing does.
 
 A beacon you send is in the Packets tab as a packet with direction `out`.
 
@@ -113,7 +113,7 @@ The GPS is read as soon as a source is chosen, so you can see the fix before the
 
 **What the Beacon tab shows.** Under the choice of Position stand only the fields that apply: the gpsd address for gpsd, the port and speed for a serial receiver. The Location row of the Station group is not shown, because the GPS position is what is sent; the location you gave stays stored, and it is where your station is on the map before the first fix and whenever you choose **Fixed** again.
 
-In the Beacon group the **Beacon** choice is **Off** or **On (SmartBeaconing)**, in the place of the intervals; the Antenna heading is not shown, because a moving beacon has no PHG, and **Travelling** is shown below the choice. While the choice is **Off** nothing is sent, but the beacon status goes on reporting the GPS and its fix, and the line under it reads **Beacon off** ([Beacon off](#beacon-off)); choose **On** to send.
+In the Beacon group the **Beacon** choice is **Off** or **On (SmartBeaconing)**, in the place of the intervals; the Antenna heading is not shown, because a moving beacon has no PHG, and **Travelling** is shown below the choice. While the choice is **Off** nothing is sent, but the beacon status goes on reporting the GPS and its fix, and the line under it says that no automatic beacon goes ([Beacon off](#beacon-off)); choose **On** to send.
 
 The beacon status at the top of the tab then reads as the GPS, in the look of the radio's: the label **GPS**, a coloured word (off, connecting, no fix, fix or fix lost) and one line in plain words, with Beacon now at its end:
 
@@ -210,6 +210,8 @@ OH2GBA>APZNEO,WIDE2-1:>211200zQRV 14.074 MHz USB
 **The beacon off.** While the beacon is [Off](#beacon-off) no status is sent, whatever its source; the whole Status group is greyed out and keeps its values.
 
 **The radio off.** If rigctld answers with an error (a radio that is switched off), refuses the connection or does not answer within 5 seconds, the radio is off or rigctld is away. Nothing is sent. The log says so once when it begins (`rigctld at 127.0.0.1:4532: connection refused: no status while it is away`) and once when the radio answers again.
+
+The status row says when the last status went and when the next may, if what it says has changed (**Last sent 4 min ago · next in 26 min if changed**, or **Not sent yet**); in RX only it is **off: RX only: nothing is sent**.
 
 **Send status now** is a button at the top of the Status group, beside the status line, there only while the status is not off. It asks twice, acts on the saved settings and sends the status at once, inside the interval and although nothing changed. The interval counts from it. It is disabled, with a tip, while the beacon is [Off](#beacon-off), as no status goes out then. It is refused when the call is not set, when the TNC is not connected, when the text is over 55 characters, when the status is off or the text empty, and with the radio as the source when rigctld is away; it says why.
 
