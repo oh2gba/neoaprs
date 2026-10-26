@@ -113,7 +113,8 @@ class Rig:
         self.bin = tmp / "bin"
         self.env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
         self.env.update(PATH=f"{self.bin}{os.pathsep}{os.environ['PATH']}", HOME=str(tmp / "home"), GIT_AUTHOR_NAME="John", GIT_AUTHOR_EMAIL="john@example.invalid", GIT_COMMITTER_NAME="John", GIT_COMMITTER_EMAIL="john@example.invalid",
-                        GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_SYSTEM=os.devnull, LC_ALL="C.UTF-8")
+                        GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_SYSTEM=os.devnull, LC_ALL="C.UTF-8",
+                        PYTHONDONTWRITEBYTECODE="1")        # the clone has no .gitignore: a __pycache__ the script's import of neoaprs/ would leave is no stray file of the tree
         (tmp / "home").mkdir()
         self.state: dict[str, Any] = {"auth": True, "appear_after": 1, "looks": {}, "runs": [], "rate_limited": 0, "base": base, "log": "python (ubuntu-latest)\tpytest\t2026-10-26T08:00:00Z FAILED tests/test_flaky.py::test_it - assert 1 == 2\n"
                                       "python (ubuntu-latest)\tpytest\t2026-10-26T08:00:01Z 1 failed, 3000 passed\npython (ubuntu-latest)\tpytest\t2026-10-26T08:00:02Z uploading cache",
