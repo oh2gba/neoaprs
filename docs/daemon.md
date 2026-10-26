@@ -301,6 +301,8 @@ first, `?` for an anonymous last hop), `heard_rf_gated`, `best_route`, `suggeste
 the ones we sent) and on every message that came in or was overheard (the column `route` of the table `message`; of two copies by different routes the first is
 the one kept).
 
+The routes the map draws are not the counted ones. A station keeps the route of its latest packet of any channel and the one before it that came another way (`route_marks` of the row, at most two, the newest first; `neoaprs/reach.py`), each with where the station was when the packet was heard (the position it reported, else the one it had), and the way of its latest packet from the internet (`internet_reach`): the q-construct of the APRS-IS path says whether an iGate heard it on the radio (`qAR`, `qAO`, and the indirect `qAr`, `qAo`; the starred addresses before it are the digipeaters) or a client sent it into the network (`qAC`, `qAS`, `qAX`, `qAU`, or `TCPIP*` without a q-construct), which never was on the air. A path that says neither is not read. Both are read again from the latest packets at the start; the counted routes (`heard_via`, `best_route`, `suggested_path`) are unchanged and still serve the automatic path of a message.
+
 **Third-party packets** (`neoaprs/aprsthirdparty.py`). One level only: a wrapper inside a wrapper, or one whose header is not a header, stays "third-party" and
 is not read. The packet keeps the gate as its `source` and the path it was heard by; `raw` and `info` are untouched, `decoded` is what the packet inside says,
 read as from its inner source to its inner destination (which Mic-E needs), and `third_party` holds the inner header. The inner source and destination are calls or names APRS-IS allows (1 to 9 letters, digits

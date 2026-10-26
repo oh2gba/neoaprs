@@ -11,6 +11,7 @@ from .aprsweather import Weather
 from .geo import distance_km
 from .hourcount import HourCount
 from .packet import IS, Via
+from .reach import Reach, RouteMark
 from .route import Deliveries, Route
 
 Track = list[tuple[datetime, float, float]]
@@ -97,6 +98,8 @@ class Station:
     gated: int = 0                              # how many third-party packets it put on the air that we heard (it is an iGate): counted from the packets heard in this run and the latest the database kept, and only while it is in the book; not the same as `deliveries.gated`, the packets of this station that a gate put on the air
     igate: bool = False                         # a capabilities packet of its own said `IGATE` (not kept in the cache: it is read again from the latest packets at the start)
     deliveries: Deliveries = field(default_factory=Deliveries)     # how the packets we heard from it reached us (neoaprs/route.py)
+    internet_reach: Reach | None = None         # how its latest internet packet got there: heard by an iGate, or sent from an app (neoaprs/reach.py; not kept in the cache: it is read again from the latest packets at the start)
+    route_marks: tuple[RouteMark, ...] = ()     # the route of its latest packet and the one before it that came another way, any channel, newest first, for the map (not kept in the cache either)
 
     @property
     def has_position(self) -> bool:

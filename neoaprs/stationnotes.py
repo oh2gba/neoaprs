@@ -7,6 +7,7 @@ from .aprstelemetry import Telemetry, TelemetryDefinition, apply_definition, is_
 from .bulletin import board_slot
 from .device import MICE_BODY, MICE_DUMB, MICE_IDENTIFIERS, inner
 from .packet import DUMMY, IS, RF_GATED, ItemReport, Message, ObjectReport, Other, Packet, Position
+from .reach import mark_of, pushed, reach_of
 from .route import route_of
 from .station import RadioPlace, Station, add_track_point
 
@@ -20,6 +21,7 @@ def note_heard(station: Station, packet: Packet, route: bool = True) -> None:
     station.packets += 1
     station.last_heard = packet.heard_at
     station.hour.note(packet.heard_at)
+    note_route_mark(station, packet)
     if packet.via == IS:
         station.hour_is.note(packet.heard_at)
         station.heard_is, station.last_is_at = station.heard_is + 1, packet.heard_at
@@ -33,6 +35,38 @@ def note_heard(station: Station, packet: Packet, route: bool = True) -> None:
     station.last_path, station.last_via = packet.path, packet.gate
     if route:
         station.deliveries.note(route_of(packet.path, packet.gate), 1, packet.heard_at)
+
+
+def note_route_mark(station: Station, packet: Packet, place: tuple[float, float] | None = None) -> None:
+    """The route a packet came by joins the two the station keeps for the map (reach.py), with where the station was when it was heard: the position the packet reported, else `place`, else where the station is now;
+    the way of an internet packet is kept for the card."""
+    if place is None:
+        place = _reported_place(packet.decoded) or (None if station.lat is None or station.lon is None else (station.lat, station.lon))
+    reach = reach_of(packet)
+    if reach is not None:
+        station.internet_reach = reach
+    mark = mark_of(packet, *(place or (None, None)))
+    if mark is not None:
+        station.route_marks = pushed(station.route_marks, mark)
+
+
+def _reported_place(decoded: object) -> tuple[float, float] | None:
+    if isinstance(decoded, (ObjectReport, ItemReport)):
+        decoded = decoded.position
+    return (decoded.lat, decoded.lon) if isinstance(decoded, Position) else None
+
+
+def seed_routes(stations: Mapping[str, Station], packets: Iterable[Packet]) -> None:
+    """The routes of the packets the log kept, oldest first, for the station that sent each (the book as it was before them: a station's place is the latest position seen so far in the packets, else where it is now)."""
+    places: dict[str, tuple[float, float]] = {}
+    for packet in packets:
+        station = stations.get(packet.sender)
+        if packet.direction != "in" or station is None or station.is_me:
+            continue
+        place = _reported_place(packet.decoded)
+        if place is not None:
+            places[station.call] = place
+        note_route_mark(station, packet, places.get(station.call))
 
 
 def note_messaging(station: Station, packet: Packet) -> None:

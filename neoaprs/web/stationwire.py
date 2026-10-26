@@ -44,6 +44,24 @@ class TelemetryValues(_Model):
     comment: str
 
 
+class ReachValues(_Model):
+    """How a station's latest packet from the internet got there, read from the q-construct of its APRS-IS path."""
+    kind: Literal["igate", "app"] = Field(description="`igate`: an iGate heard it on the radio and put it on the internet (`qAR`, `qAO`); `app`: it was sent from the internet by an app or a program and never was on the air (`TCPIP*`, `qAC`, `qAS`, `qAX`)")
+    igate: str = Field(description="the call of the iGate that heard it; empty for `app`")
+    hops: list[str] = Field(description="the digipeaters that repeated it on the radio before the iGate heard it, in order (`?` for one that put no call in); empty for a packet the iGate heard direct, and for `app`")
+
+
+class RouteMarkValues(_Model):
+    """One route a packet of a station came by, which the map draws (a line, or none for `app` and for a packet heard direct)."""
+    kind: Literal["rf", "gated", "igate", "app"] = Field(description="`rf`: heard on the radio, direct when `hops` is empty; `gated`: heard on the radio as a third-party packet that the iGate `gate` put on the air, `hops` the digipeaters that repeated the iGate's frame; "
+                                                                      "`igate`: heard on the radio by the iGate `gate`, which put it on the internet, `hops` the digipeaters before it; `app`: sent from the internet, never on the air")
+    hops: list[str] = Field(description="the digipeaters in order, `?` for one that put no call in")
+    gate: str = Field(description="the iGate of `gated` and `igate`; empty for the others")
+    at: Iso = Field(description="when the packet was heard")
+    lat: float | None = Field(description="where the station was when the packet was heard (the position it reported, else the one it had before); null when that is not known: the map takes its position now")
+    lon: float | None
+
+
 class StationRow(_Model):
     """One station of the station book: who it is, where it was heard and how often. An object or an item is a row of its own, named by the object. The rows are the values of the topic `stations`
     (keyed by `call`): a station heard again is a `set` of its row, a station that is forgotten or pruned (or an object that was killed) a `del`. When our own position changes in the settings every
@@ -90,6 +108,9 @@ class StationRow(_Model):
     heard_path: str | None = Field(description="the path that has lately been heard to reach the station, which the first two attempts of a message to it go by when the operator has set no path of its own (the later ones go by `beacon/path`): "
                                                "empty for direct (at least 2 packets heard direct within 60 minutes), else the latest named route that at least 2 packets came by within 60 minutes, turned round, as `suggested_path` writes it "
                                                "(no hop without a call, no iGate, at most 3 digipeaters); null when there is none. Worked out when the row is sent, so a path that goes stale is told with the station's next row")
+    internet_reach: ReachValues | None = Field(description="how the latest packet of the station that came from the internet got there; null for a station none came from, and for one whose path does not say")
+    route_marks: list[RouteMarkValues] = Field(max_length=2, description="the route of the station's latest packet and the one before it that came another way (any channel, the newest first): what the map draws of its routes, and no others; "
+                                                                             "empty for a station nothing is known of (our own, our objects)")
     weather: WeatherValues | None = Field(description="the latest weather the station sent (a position with the weather symbol, or a positionless weather report); null for a station that sent none since the weather log began (or was made from the packets kept)")
     weather_at: Iso | None = Field(description="when `weather` was heard; null as it is")
     telemetry: TelemetryValues | None = Field(description="the latest telemetry report of the station, scaled and named by the definitions it sent (read again from the latest packets at the start); null for a station that sent none")

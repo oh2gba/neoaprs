@@ -51,6 +51,7 @@ What each layer is for:
     board's, and a bulletin as the board keeps it.
   * `route`: how a packet reached us (the route out of the starred addresses of a path, its text, the path to send by, the count of a station's routes).
     `chain`: the delivery chain of a message we sent (its attempts, the hops of a path that a copy heard back shows used).
+  * `reach`: how a packet from the internet got there in plain words (the iGate that heard it on the radio and the digipeaters before it, or an app that sent it, read from the q-construct of its path) and the two latest routes of a station that the map draws.
   * `device`: what a station runs, from the destination call of its packets or the type code of a Mic-E packet, by the APRS device identification list
     (`devicedata`, a snapshot made by `scripts/gen-devices.py`: CC BY-SA 2.0, from aprsorg/aprs-deviceid, which the daemon never fetches).
   * `pref`: what the operator set for a station, as a value. `mapstate`: the base map's files, estimate and job as plain values.
