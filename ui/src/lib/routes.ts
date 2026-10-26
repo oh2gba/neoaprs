@@ -2,6 +2,7 @@
 import { t } from "@/i18n";
 import { ageSeconds } from "@/lib/format";
 import { routeHops } from "@/lib/routeline";
+import { hasPosition } from "@/lib/stations";
 import type { StationRow } from "@/protocol/protocol";
 
 type Counts = Pick<StationRow, "heard_direct" | "heard_via" | "heard_rf_gated" | "heard_is">;
@@ -66,4 +67,17 @@ export function reachedText(row: Pick<StationRow, "last_route" | "heard_direct" 
   const first = row.heard_via[0];
   if (first !== undefined) return t("route.via", { hops: first[0] === "?" ? t("route.hop.repeater") : first[0] });
   return row.heard_rf_gated > 0 ? t("route.via_internet") : null;
+}
+
+/** How the latest packet that came over the internet got there, in one plain line: "Heard by iGate OH2GW-10 via OH2RCH-2", "Heard by iGate OH2GW-10 directly", "Sent from an internet app, never on the air"; an iGate whose place is not known says so (the map's line ends at the last hop that has one). Null when it is not known. */
+export function internetText(row: Pick<StationRow, "internet_reach">, stations: ReadonlyMap<string, StationRow>): string | null {
+  const reach = row.internet_reach;
+  if (reach === null) return null;
+  if (reach.kind === "app") return t("route.reach.app");
+  const found = stations.get(reach.igate);
+  const placed = found !== undefined && hasPosition(found);
+  const igate = reach.igate;
+  if (reach.hops.length === 0) return t(placed ? "route.reach.igate_direct" : "route.reach.igate_direct_unplaced", { igate });
+  const hops = reach.hops.map((hop) => (hop === "?" ? t("route.hop.repeater") : hop)).join(" → ");
+  return t(placed ? "route.reach.igate_via" : "route.reach.igate_via_unplaced", { igate, hops });
 }

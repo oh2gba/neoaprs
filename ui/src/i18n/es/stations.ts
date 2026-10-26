@@ -172,4 +172,11 @@ export const stations: Readonly<Record<keyof typeof en, Message>> = {
   "station.hover.via": "Escuchada por",
   "station.marker.internet": "escuchada por internet",
   "route.heard.internet": "{n} por internet",
+  "station.field.internet": "Internet",
+  "route.reach.app": "Enviado desde una app de internet, nunca por radio",
+  "route.reach.igate_direct": "Oído por el iGate {igate} directamente",
+  "route.reach.igate_via": "Oído por el iGate {igate} vía {hops}",
+  "route.reach.igate_direct_unplaced": "Oído por el iGate {igate} directamente (posición del iGate desconocida)",
+  "route.reach.igate_via_unplaced": "Oído por el iGate {igate} vía {hops} (posición del iGate desconocida)",
+  "route.igate_label": "{call} → internet",
 };

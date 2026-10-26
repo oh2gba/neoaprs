@@ -173,4 +173,11 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.hover.via": "受信経路",
   "station.marker.internet": "インターネットで受信",
   "route.heard.internet": "インターネットから {n}",
+  "station.field.internet": "インターネット",
+  "route.reach.app": "インターネットのアプリから送信、無線には出ていません",
+  "route.reach.igate_direct": "iGate {igate} が直接受信",
+  "route.reach.igate_via": "iGate {igate} が {hops} 経由で受信",
+  "route.reach.igate_direct_unplaced": "iGate {igate} が直接受信（iGateの位置は不明）",
+  "route.reach.igate_via_unplaced": "iGate {igate} が {hops} 経由で受信（iGateの位置は不明）",
+  "route.igate_label": "{call} → インターネット",
 };

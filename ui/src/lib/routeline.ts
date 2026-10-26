@@ -1,21 +1,25 @@
-// How a station's packets reach us, drawn on the map: a line from the station through each digipeater of its latest route that has a position to our own station, and, when the route most of its
-// packets came by is another one, that route too. The routes come from the station row as the daemon words them (`last_route`, `best_route`: "direct", "via OH2RCH-2", "via OH2RCH-1 → OH2RCH-3",
-// "via OH7JHF-1 (internet) → OH2RCH-3"); a hop with no position (`?` or a station we have not placed) is left out and the line goes on to the next. A latest packet that was a copy an iGate gated
-// back from the internet says nothing of how the station reaches us by radio: then the best route (which counts no such copies), when there is one, is the line, drawn as the latest one is.
+// How a station's packets reach us, drawn on the map, and no more than two routes: the route of its latest packet, solid, and the route of the latest packet before it that came another way, greyed. The daemon keeps just these two
+// (`route_marks`, newest first, each with where the station was when the packet was heard, so that a moving station's routes start where it was). A packet heard on the radio runs from the station through each digipeater that has a position to
+// our own station; a third-party packet starts at the iGate that put it on the air; a packet that an iGate heard on the radio and put on the internet runs from the station through its digipeaters to the iGate, which ends the line with its call and a
+// small internet mark, and when the iGate has no position the line ends at the last digipeater that has one. A packet heard direct, and one that never was on the air (an app), have no line. A hop with no position (`?` or a station we have
+// not placed) is left out and the line goes on to the next. `routeHops` reads the text of a route as the daemon words it (`last_route`: "via OH2RCH-1 → OH2RCH-3", "via OH7JHF-1 (internet) → OH2RCH-3").
+import { t } from "@/i18n";
 import { hasPosition } from "@/lib/stations";
 import type { StationRow } from "@/protocol/protocol";
 
 type LonLat = [number, number];
+type Mark = StationRow["route_marks"][number];
 
 interface RouteLine {
   type: "Feature";
-  properties: { call: string; best: number };
+  properties: { call: string; previous: number };
   geometry: { type: "LineString"; coordinates: LonLat[] };
 }
 
 interface RouteDot {
   type: "Feature";
-  properties: { call: string; best: number };
+  /** `label` is what is written beside the dot, `end` is 1 for the iGate that ends a line */
+  properties: { call: string; label: string; previous: number; end: number };
   geometry: { type: "Point"; coordinates: LonLat };
 }
 
@@ -46,22 +50,39 @@ function placeOf(stations: ReadonlyMap<string, StationRow>, call: string): LonLa
   return row && hasPosition(row) ? [row.lon, row.lat] : null;
 }
 
-/** The line of one route and the digipeaters on it that have a position; null when it would not reach us. */
-function oneRoute(row: StationRow, text: string, stations: ReadonlyMap<string, StationRow>, us: LonLat, best: number): RouteCollection["features"] | null {
-  const route = routeHops(text);
-  if (route === null) return null;
-  const through = (route.gate === null ? route.hops : [route.gate, ...route.hops]).flatMap((call) => {
+/** Where the station was when the packet was heard; where it is now when that was not known; null when it has no place at all. */
+function startOf(row: StationRow, mark: Mark): LonLat | null {
+  if (mark.lat !== null && mark.lon !== null) return [mark.lon, mark.lat];
+  return hasPosition(row) ? [row.lon, row.lat] : null;
+}
+
+/** The line of one route and the dots on it; null when it has no line to draw. */
+function oneRoute(row: StationRow, mark: Mark, stations: ReadonlyMap<string, StationRow>, us: LonLat, previous: number): RouteCollection["features"] | null {
+  if (mark.kind === "app") return null;
+  const gated = mark.kind === "gated";
+  const named = (gated ? [mark.gate, ...mark.hops] : mark.hops).flatMap((call) => {
     const at = placeOf(stations, call);
     return at ? [{ call, at }] : [];
   });
-  const start: LonLat[] = route.gate === null && hasPosition(row) ? [[row.lon, row.lat]] : [];
-  const line = [...start, ...through.map((hop) => hop.at), us];
-  if (line.length < 2 || (route.gate === null && start.length === 0)) return null;
-  const dots: RouteDot[] = through.map(({ call, at }) => ({ type: "Feature", properties: { call, best }, geometry: { type: "Point", coordinates: at } }));
-  return [{ type: "Feature", properties: { call: row.call, best }, geometry: { type: "LineString", coordinates: line } }, ...dots];
+  const start = gated ? null : startOf(row, mark);
+  if (!gated && start === null) return null;
+  if (mark.kind === "rf" && mark.hops.length === 0) return null;
+  const end = mark.kind === "igate" ? placeOf(stations, mark.gate) : us;
+  const line = [...(start ? [start] : []), ...named.map((hop) => hop.at), ...(end ? [end] : [])];
+  if (line.length < 2) return null;
+  const dots: RouteDot[] = named.map(({ call, at }) => ({
+    type: "Feature",
+    properties: { call, label: call, previous, end: 0 },
+    geometry: { type: "Point", coordinates: at },
+  }));
+  if (mark.kind === "igate" && end) {
+    const label = t("route.igate_label", { call: mark.gate });
+    dots.push({ type: "Feature", properties: { call: mark.gate, label, previous, end: 1 }, geometry: { type: "Point", coordinates: end } });
+  }
+  return [{ type: "Feature", properties: { call: row.call, previous }, geometry: { type: "LineString", coordinates: line } }, ...dots];
 }
 
-/** The latest route of the station and, when it differs, the best one (marked `best`, drawn fainter); empty with no station, no place of ours or no route to draw. */
+/** The line of the route of the station's latest packet and, apart, the one before it that came another way (`previous`, greyed); empty with no station, no place of ours or no route to draw. */
 export function routeFeatures(
   row: StationRow | undefined,
   stations: ReadonlyMap<string, StationRow>,
@@ -70,15 +91,16 @@ export function routeFeatures(
   const features: RouteCollection["features"] = [];
   if (row && home && !row.is_me) {
     const us: LonLat = [home.lon, home.lat];
-    const gated = routeHops(row.last_route)?.gate != null;
-    const latest = gated && routeHops(row.best_route) !== null ? row.best_route : row.last_route; // (with no radio route known, the gate's is all there is)
-    features.push(...(oneRoute(row, latest, stations, us, 0) ?? []));
-    if (row.best_route !== latest) {
-      const seen = new Set(features.filter((f) => f.geometry.type === "Point").map((f) => f.properties.call));
-      for (const f of oneRoute(row, row.best_route, stations, us, 1) ?? []) {
-        if (f.geometry.type === "LineString" || !seen.has(f.properties.call)) features.push(f);
+    const drawn = new Set<string>();
+    row.route_marks.slice(0, 2).forEach((mark, index) => {
+      for (const f of oneRoute(row, mark, stations, us, index) ?? []) {
+        if (f.geometry.type === "LineString") features.push(f);
+        else if (!drawn.has(f.properties.call)) {
+          drawn.add(f.properties.call);
+          features.push(f);
+        }
       }
-    }
+    });
   }
   return { type: "FeatureCollection", features };
 }

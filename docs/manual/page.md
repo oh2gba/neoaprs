@@ -109,7 +109,8 @@ A marker for every station that has a position shows the APRS symbol with the ca
 - A marker dims in four steps on the way to the station's timeout.
 - A station heard direct within the last hour has a green ring round its marker.
 - A mouse resting on a marker for a quarter of a second shows a small card beside it with the call and the symbol's name, when the station was last heard, its status and comment, the distance and bearing from you, the temperature of a weather station, and how its packets reach you ("heard direct" or "via OH2RCH-2"). Only rows that have something to say are shown, and it is gone when the pointer leaves. A click still opens the full card. A touch screen has no resting pointer, so a tap opens the station as before.
-- The station you pick, on the map or in a table, has the route its packets come by drawn in the page's blue. A line runs from the station through each digipeater of its latest route that has a position, to your own station, with a dot and the call on each of those digipeaters. A hop with no position is left out, so the line goes straight on. The drawing goes when the selection does.
+- The station you pick has its latest route drawn as a solid blue line from the station through each digipeater that has a position to your own station, with a dot and the call on each digipeater, and the route of the packet before it, if that came another way, as a thinner grey dashed line; no others. A moving station's routes start where it was when each packet was heard.
+- A packet that an iGate heard on the radio and put on the internet runs through its digipeaters to the iGate, which ends the line with its call and "→ internet". If the iGate's position is not known the line ends at the last digipeater that has one, and the card says so. A packet heard direct, or sent from the internet and never on the air, has no line. The drawing goes when the selection does.
 - When the route most of its packets came by is another one, that is drawn too, dashed and fainter. Nothing is drawn for a station heard direct. When its latest packet was a copy an iGate gated back from the internet, the line is its best route by radio instead (from the iGate only when no radio route is known).
 
 A station whose last position is older than its timeout is left off the map, marker and track, and stays in the Stations table. Selecting its row still flies the map to its last position and shows its card, and its marker for as long as it is selected.
@@ -129,7 +130,7 @@ A click on a marker opens a card over the map. It is above the markers, clear of
 - its speed and course (only a station that moves has them) and the altitude;
 - the status and the comment;
 - what the station runs, one line ("Kenwood TH-D74", "APRSdroid"), only when it is known;
-- one line of how its packets reach you ("Reached us via OH2RCH-2", or "direct").
+- one line of how its packets reach you ("Reached us via OH2RCH-2", or "direct"), and, for a station that was heard over the internet, one line for that, read from the packet's APRS-IS path: "Heard by iGate OH2GW-10 via OH2RCH-2", "Heard by iGate OH2GW-10 directly", or "Sent from an internet app, never on the air". A station heard both ways has both lines.
 
 A row with nothing to say is left out: a station that stands still has no speed whatever course it gave, a station that sent no altitude has none, and so on. An altitude of 0 that the station did send is shown.
 

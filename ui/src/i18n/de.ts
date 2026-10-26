@@ -574,6 +574,13 @@ export const de: Catalogue = {
   "station.hover.via": "Gehört über",
   "station.marker.internet": "über das Internet gehört",
   "route.heard.internet": "{n} über das Internet",
+  "station.field.internet": "Internet",
+  "route.reach.app": "Aus dem Internet gesendet (App), nie über Funk",
+  "route.reach.igate_direct": "Von iGate {igate} direkt gehört",
+  "route.reach.igate_via": "Von iGate {igate} über {hops} gehört",
+  "route.reach.igate_direct_unplaced": "Von iGate {igate} direkt gehört (Position des iGates unbekannt)",
+  "route.reach.igate_via_unplaced": "Von iGate {igate} über {hops} gehört (Position des iGates unbekannt)",
+  "route.igate_label": "{call} → Internet",
 
   // map
   "map.label": "Karte der Stationen",
