@@ -1,6 +1,10 @@
 # Beacon, status and digipeater
 
-The Beacon tab holds what your station says on the air. From top to bottom: the **Station** group (call, **Position**, location, symbol); the **Beacon** group (the **Beacon** choice, under it the state of the beacon and the row **Send now** with **Beacon now** ([Beacon now](#beacon-now)), what you travel as for a moving station, the comment, a closed **Antenna** heading for a fixed station and a closed **Advanced** heading with the path choice); and the **Status** group (the choice, under it the status as a row, and **Send now** with **Send status now** at its end). A setting applies as you change it ([start.md](start.md#how-settings-apply)).
+The Beacon tab holds what your station says on the air. A setting applies as you change it ([start.md](start.md#how-settings-apply)). From top to bottom:
+
+- the **Station** group (call, **Position**, location, symbol);
+- the **Beacon** group (the **Beacon** choice, under it the state of the beacon and the row **Send now** with **Beacon now** ([Beacon now](#beacon-now)), what you travel as for a moving station, the comment, a closed **Antenna** heading for a fixed station and a closed **Advanced** heading with the path choice);
+- the **Status** group (the choice, under it the status as a row, and **Send now** with **Send status now** at its end).
 
 **Position** is the one choice that decides what kind of station you are, and the tab shows only what applies to it. **Fixed** is a fixed station: the beacon is the location below, sent at the interval of the Beacon group, with the antenna's PHG. **A GPS via gpsd** and **A GPS on a serial port** make a moving station: the beacon follows the GPS and goes when SmartBeaconing says, with no interval to choose and no PHG ([Mobile operation](#mobile-operation)).
 

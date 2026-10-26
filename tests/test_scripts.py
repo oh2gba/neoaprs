@@ -33,7 +33,7 @@ def script(name: str, *args: str) -> subprocess.CompletedProcess[str]:
 
 
 def test_the_screenshots_show_no_version_and_make_the_update_shots_next_number_from_the_tree() -> None:
-    """A release by itself makes no shot old: the footer's version is hidden in every page the script opens (before the first shot is taken), and the newer version its update shot announces is one past VERSION,
+    """A release by itself makes no shot old: the version beside Check now is hidden in every page the script opens (before the first shot is taken), and the newer version its update shot announces is one past VERSION,
     not a number kept by hand."""
     import importlib.util
 
@@ -45,7 +45,7 @@ def test_the_screenshots_show_no_version_and_make_the_update_shots_next_number_f
     spec.loader.exec_module(module)
     assert module.next_version("0.8.0") == "0.8.1" and module.next_version("1.0.0-rc1") == "1.0.1" and module.next_version("2.10.99") == "2.10.100"
     assert module.UPDATE_TO == module.next_version(VERSION) and module.UPDATE_TO != VERSION
-    assert ".panelfoot .version" in module.HIDE_VERSION and "visibility: hidden" in module.HIDE_VERSION, "hidden, not removed: the footer keeps its place"
+    assert ".updateversion" in module.HIDE_VERSION and "visibility: hidden" in module.HIDE_VERSION, "hidden, not removed: the row keeps its place"
     source = path.read_text(encoding="utf-8")
     opened = source.split("async def page(", 1)[1].split("async def save(", 1)[0]
     assert opened.index("page.goto(") < opened.index("add_style_tag(content=HIDE_VERSION)") < opened.index("wait_for_timeout(wait_ms)"), "the sheet goes in as soon as the page is open, before any shot"
