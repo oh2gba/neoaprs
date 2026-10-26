@@ -4,20 +4,19 @@ import logging
 import sys
 import threading
 import time
-from typing import Any
 
 import pytest
 from serial.tools.list_ports_common import ListPortInfo  # type: ignore[import-untyped]
 
 from neoaprs import ax25, kiss, serialport, serialprobe
-from neoaprs.radiosearch import Found, Trying
+from neoaprs.radiosearch import Found
 from neoaprs.serialprobe import PortInfo
 from neoaprs.services import radiofinder
-from neoaprs.services.radiofinder import SPEEDS, RadioFinder, speeds_for
-from neoaprs.services.radioprobe import Timing
+from neoaprs.services.radiofinder import SPEEDS, speeds_for
 from tests.support.faketnc import TncBrain, ears
+from tests.support.finderrig import Rig
+from tests.support.virtualtime import virtual_time
 
-QUICK = Timing(listen_sec=0.3, answer_sec=0.3, pace=0.001)
 ESP32 = (0x303A, 0x1001)
 
 
@@ -95,37 +94,26 @@ def test_where_find_my_radio_is_not_made_there_is_no_port_to_try(monkeypatch: py
 
 # ---- the search itself
 
-class Rig:
-    def __init__(self, ports: list[str], **finder: Any) -> None:
-        self.tried: list[Trying] = []
-
-        async def listed_() -> list[str]:
-            return ports
-
-        async def hold() -> None:
-            pass
-
-        self.finder = RadioFinder(listed_, hold, lambda: None, QUICK, **finder)
-
-
 async def test_a_bluetooth_com_port_is_tried_once_and_found_without_a_speed(windows: None) -> None:
-    ear = ears({("COM9", 9600): TncBrain("kiss")})
-    rig = Rig(["COM5", "COM9"], line=ear)
-    found = await rig.finder.find(rig.tried.append)
-    assert found == Found("COM9", None, "kiss")
-    assert [(t.port, t.baud) for t in rig.tried][-1] == ("COM9", None)
-    assert [(t.port, t.baud) for t in rig.tried if t.port == "COM5"] == [("COM5", s) for s in SPEEDS]
-    assert rig.tried[-1].total == len(SPEEDS) + 1
+    async with virtual_time():
+        ear = ears({("COM9", 9600): TncBrain("kiss")})
+        rig = Rig(["COM5", "COM9"], line=ear)
+        found = await rig.finder.find(rig.tried.append)
+        assert found == Found("COM9", None, "kiss")
+        assert [(t.port, t.baud) for t in rig.tried][-1] == ("COM9", None)
+        assert [(t.port, t.baud) for t in rig.tried if t.port == "COM5"] == [("COM5", s) for s in SPEEDS]
+        assert rig.tried[-1].total == len(SPEEDS) + 1
 
 
 async def test_the_com_ports_are_tried_in_order_each_at_the_usual_speeds_and_the_first_tnc_that_answers_is_found(windows: None) -> None:
-    brains = {("COM5", 57600): TncBrain("tnc2")}
-    ear = ears(brains)
-    rig = Rig(serialprobe_devices(), line=ear)
-    found = await rig.finder.find(rig.tried.append)
-    assert found == Found("COM5", 57600, "kenwood-tnc2")
-    assert list(dict.fromkeys(port for port, _ in ear.opened)) == ["COM3", "COM4", "COM5"]            # one at a time: COM7 and the rest are not touched once COM5 answers
-    assert ear.closed == ear.opened
+    async with virtual_time():
+        brains = {("COM5", 57600): TncBrain("tnc2")}
+        ear = ears(brains)
+        rig = Rig(serialprobe_devices(), line=ear)
+        found = await rig.finder.find(rig.tried.append)
+        assert found == Found("COM5", 57600, "kenwood-tnc2")
+        assert list(dict.fromkeys(port for port, _ in ear.opened)) == ["COM3", "COM4", "COM5"]            # one at a time: COM7 and the rest are not touched once COM5 answers
+        assert ear.closed == ear.opened
 
 
 def serialprobe_devices() -> list[str]:

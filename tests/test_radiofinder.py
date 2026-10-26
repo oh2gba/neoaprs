@@ -7,31 +7,15 @@ import pytest
 
 from neoaprs import serialprobe
 from neoaprs.coded import CodedError
-from neoaprs.radiosearch import Found, Trying
+from neoaprs.radiosearch import Found
 from neoaprs.serialprobe import PortInfo
 from neoaprs.services import radiofinder
-from neoaprs.services.radiofinder import SPEEDS, RadioFinder
+from neoaprs.services.radiofinder import SPEEDS
 from neoaprs.services.radioprobe import Timing
 from tests.support.env import until
 from tests.support.faketnc import FakeTncServer, TncBrain, ears
-
-QUICK = Timing(listen_sec=0.3, answer_sec=0.3, pace=0.001)          # (a fake TNC on the loopback answers at once, but a busy machine may take a while to pass it on)
-
-
-class Rig:
-    """A finder over a fixed list of ports, with a record of what it did to the radio's own line."""
-
-    def __init__(self, ports: list[str], **finder: object) -> None:
-        self.events: list[str] = []
-        self.tried: list[Trying] = []
-
-        async def listed() -> list[str]:
-            return ports
-
-        async def hold() -> None:
-            self.events.append("hold")
-
-        self.finder = RadioFinder(listed, hold, lambda: self.events.append("release"), QUICK, **finder)  # type: ignore[arg-type]
+from tests.support.finderrig import Rig
+from tests.support.virtualtime import virtual_time
 
 
 async def serve(*kinds: str) -> list[FakeTncServer]:
@@ -70,33 +54,36 @@ async def test_the_profiles_are_tried_in_turn_until_one_puts_the_tnc_in_kiss(kin
 
 
 async def test_a_port_is_tried_at_each_speed_in_order_and_the_search_stops_at_the_first_that_answers() -> None:
-    brains = {("A", 1200): TncBrain("silent"), ("B", 57600): TncBrain("tnc2"), ("C", 9600): TncBrain("kiss")}
-    ear = ears(brains)
-    rig = Rig(["A", "B", "C"], line=ear)
-    found = await rig.finder.find(rig.tried.append)
-    assert found == Found("B", 57600, "kenwood-tnc2")
-    assert ear.opened == [("A", s) for s in SPEEDS] + [("B", 9600), ("B", 57600)]
-    assert ear.closed == ear.opened                                  # every port that was opened is closed again
-    assert [(t.port, t.baud, t.number, t.total) for t in rig.tried][-1] == ("B", 57600, 9, 21)
-    assert rig.events == ["hold", "release"]
+    async with virtual_time():
+        brains = {("A", 1200): TncBrain("silent"), ("B", 57600): TncBrain("tnc2"), ("C", 9600): TncBrain("kiss")}
+        ear = ears(brains)
+        rig = Rig(["A", "B", "C"], line=ear)
+        found = await rig.finder.find(rig.tried.append)
+        assert found == Found("B", 57600, "kenwood-tnc2")
+        assert ear.opened == [("A", s) for s in SPEEDS] + [("B", 9600), ("B", 57600)]
+        assert ear.closed == ear.opened                                  # every port that was opened is closed again
+        assert [(t.port, t.baud, t.number, t.total) for t in rig.tried][-1] == ("B", 57600, 9, 21)
+        assert rig.events == ["hold", "release"]
 
 
 async def test_a_socket_or_bluetooth_port_has_no_speed_and_is_tried_once() -> None:
-    ear = ears({("bt://AA:BB:CC:DD:EE:FF", 9600): TncBrain("kiss")})
-    rig = Rig(["/dev/ttyUSB0", "bt://AA:BB:CC:DD:EE:FF"], line=ear)
-    found = await rig.finder.find(rig.tried.append)
-    assert found == Found("bt://AA:BB:CC:DD:EE:FF", None, "kiss")
-    assert [(t.port, t.baud) for t in rig.tried][-1] == ("bt://AA:BB:CC:DD:EE:FF", None)
-    assert ear.opened[-1] == ("bt://AA:BB:CC:DD:EE:FF", 9600)
-    assert rig.tried[-1].total == len(SPEEDS) + 1
+    async with virtual_time():
+        ear = ears({("bt://AA:BB:CC:DD:EE:FF", 9600): TncBrain("kiss")})
+        rig = Rig(["/dev/ttyUSB0", "bt://AA:BB:CC:DD:EE:FF"], line=ear)
+        found = await rig.finder.find(rig.tried.append)
+        assert found == Found("bt://AA:BB:CC:DD:EE:FF", None, "kiss")
+        assert [(t.port, t.baud) for t in rig.tried][-1] == ("bt://AA:BB:CC:DD:EE:FF", None)
+        assert ear.opened[-1] == ("bt://AA:BB:CC:DD:EE:FF", 9600)
+        assert rig.tried[-1].total == len(SPEEDS) + 1
 
 
 async def test_a_port_that_cannot_be_opened_is_passed_over_at_once_for_every_speed() -> None:
-    ear = ears({("B", 9600): TncBrain("kiss")}, refused={"A"})
-    rig = Rig(["A", "B"], line=ear)
-    assert await rig.finder.find(rig.tried.append) == Found("B", 9600, "kiss")
-    assert [t.port for t in rig.tried] == ["A", "B"]
-    assert rig.tried[1].number == len(SPEEDS) + 1                    # (the speeds of A are counted, though they were not tried)
+    async with virtual_time():
+        ear = ears({("B", 9600): TncBrain("kiss")}, refused={"A"})
+        rig = Rig(["A", "B"], line=ear)
+        assert await rig.finder.find(rig.tried.append) == Found("B", 9600, "kiss")
+        assert [t.port for t in rig.tried] == ["A", "B"]
+        assert rig.tried[1].number == len(SPEEDS) + 1                    # (the speeds of A are counted, though they were not tried)
 
 
 async def test_nothing_that_answers_is_not_found_and_the_radios_line_is_given_back() -> None:

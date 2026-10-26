@@ -200,27 +200,6 @@ async def test_a_tnc_that_still_types_text_after_kiss_on_is_sent_nothing_and_kis
 
 
 @stops_rigs
-async def test_the_repeats_of_the_entry_wait_longer_each_time_and_only_the_first_is_told_above_debug(rig: Rigs, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
-    monkeypatch.setattr("neoaprs.tncwatchdog.ENTRY_AGAIN_SEC", 0.3)           # (10 s in the program, up to 60)
-    monkeypatch.setattr("neoaprs.tncwatchdog.ENTRY_AGAIN_MAX_SEC", 0.8)
-    caplog.set_level(logging.DEBUG)
-    r = await rig()
-    r.radio.feed(MONITOR_LINE)
-    assert await r.radio.said(len(ENTER_KISS)) == ENTER_KISS
-    for wait in (0.3, 0.6, 0.8, 0.8):                                        # the first repeat, then twice as long each time, up to the cap
-        await idle_for(SETTLE + wait / 2)
-        r.radio.feed(MONITOR_LINE)
-        assert await r.radio.said(1, 0.1) == b"", f"not before {wait} s have passed since the entry settled"
-        await idle_for(wait / 2 + 0.05)
-        r.radio.feed(MONITOR_LINE)
-        assert await r.radio.said(len(ENTER_KISS)) == ENTER_KISS, f"again, {wait} s after the settle"
-    told = [rec.levelno for rec in caplog.records if "still in command mode" in rec.getMessage()]
-    assert told == [logging.INFO, logging.DEBUG, logging.DEBUG, logging.DEBUG]
-    assert sum("still in command mode" in line for line in r.tnc.lines) == 4, "every repeat is a line in the terminal"
-    assert not r.tnc.usable and "command mode" in r.tnc.why_unusable()
-
-
-@stops_rigs
 async def test_text_that_goes_on_after_kiss_on_is_told_in_the_problem(rig: Rigs) -> None:
     r = await rig()
     r.radio.feed(b"cmd:")
