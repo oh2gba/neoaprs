@@ -56,7 +56,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.query.not_capable": "{call} はメッセージを受け付けません。問い合わせる相手がいません",
   "error.transmit.off": "RX only:何も送信しません",
   "error.query.too_soon": "{call} には先ほど同じ問い合わせをしました。{seconds}秒待ってください",
-  "error.qru.too_soon": "同じ要求を先ほど送信しました。{seconds}秒待ってください",
+  "error.qru.too_soon": "QRU への要求は1分に1回までです。{seconds}秒待ってください",
   "error.path.direct_alone": "{word}はデジピーターではありません。単独で書くとデジピーターなしを意味します",
   "error.setting.comment_too_long": "{length}文字は、PHG拡張を付けるときの上限{limit}文字を超えています(送らない場合は beacon/power_w を空にしてください)",
   "error.setting.not_access_key": "アクセスキーではありません(英数字4文字の3つの組、例: k7m2-x9pq-4hrt)",

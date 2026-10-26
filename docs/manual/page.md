@@ -51,7 +51,7 @@ The table has the symbol, the call, the distance from you, the bearing as a smal
 
 ### Nearby
 
-What the local APRS infrastructure is, at a glance. The tab has four lists made from the stations you have heard, and under them Local info (QRU). Each is in the order of the distance from you, the nearest first and a station with no position last, and each row has the distance and the bearing as the Stations table shows them. A list with nothing in it says "none yet". A click on a row does what a click on a row of the Stations table does: the station's card opens and the map flies to it (with Ctrl it adds a card). A station past its timeout is dim.
+What the local APRS infrastructure is, at a glance. The tab has four lists made from the stations you have heard, and under them Local info (QRU), each in a group box. Each is in the order of the distance from you, the nearest first and a station with no position last, and each row has the distance and the bearing as the Stations table shows them. A list with nothing in it says "none yet". A click on a row does what a click on a row of the Stations table does: the station's card opens and the map flies to it (with Ctrl it adds a card). A station past its timeout is dim.
 
 The tab lists only what was on the air near you: a station known from the internet alone is in none of the four lists, whatever its symbol or its frequency say.
 
@@ -62,7 +62,11 @@ The tab lists only what was on the air near you: a station known from the intern
 - **iGates** are the stations that put packets from the internet on the air (the row says how many packets it gated from the internet), the stations that said they are an iGate in a capabilities packet, and the stations that have the iGate symbol. The count is of the packets NeoAPRS heard since it started and in the latest 2000 it kept, for a station that is in the station book. A station that is only ever heard wrapping other stations' packets is not counted.
 - **Heard direct** are the stations heard with no digipeater between you, the ones in simplex range, with when each was last heard direct. Stations at the same distance (and those with none) are listed with the newest first.
 
-- **Local info (QRU)** asks the stations near you for repeaters, events and places, by radio only. **Ask** sends `INFO`; the field after it is a distance in km (empty: the servers' own, usually 50). Each server that answered is a row: its call, its groups as tags with the number of objects in each (a press asks for that group, with the same distance) and, in quiet text, the line it ended its last objects with. "No answer yet" shows after an ask that nobody has answered. The button and the tags are off in RX only. [More](objects.md#asking-for-local-info).
+- **Local info (QRU)** asks the stations near you for repeaters, events and places, by radio only. [More](objects.md#asking-for-local-info).
+  - **Ask** sends `INFO`. The field after it is a distance in km that starts at the map radius of the Settings tab; change it for an ask, or empty it for the servers' own (usually 50).
+  - A row under it says when you asked and that it waits for answers, then after a minute how many servers answered or that none did, or why the request was refused. Ask is off for that minute, with the time left in its title: one request goes on the air per minute.
+  - Each server that answered is a row: its call, its groups as tags with the number of objects in each (a press asks for that group, with the same distance) and, in quiet text, the line it ended its last objects with.
+  - The button and the tags are off in RX only. To offer your own objects, give them a QRU group in [Objects](objects.md#objects-sent-only-when-asked).
 
 The tab has no count on it: nothing in it is waiting to be seen.
 

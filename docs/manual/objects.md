@@ -22,7 +22,7 @@ The form is at the bottom of the tab, under the list of your objects (oldest fir
 - **Moving.** A closed heading with the **course** in degrees and the **speed** in km/h: each, both or neither. It is open when the object you change already has a course or a speed; empty, the object does not move.
 - **Advanced.** A closed heading, as in the Beacon tab, with the rarely needed fields under it. It is open by itself when the object you change has a path of its own, a QRU group or the tick, and closed for a new object.
   - **Path.** The placeholder is the beacon's path, which an empty field means. Up to 8 digipeaters, or the word `DIRECT` for none at all. `RFONLY` or `NOGATE` in it keeps the iGates from putting it on the internet.
-  - **QRU group.** Empty for none. 1 to 8 letters and digits, written in capitals (`FOOD`, `RP70`), and not `INFO` or `NEXT`. A station that asks for the group is sent the object ([below](#objects-sent-only-when-asked)).
+  - **QRU group.** Empty for none. 1 to 8 letters and digits, written in capitals (`FOOD`, `RP70`), and not `INFO` or `NEXT`. A station that asks for the group is sent the object ([below](#objects-sent-only-when-asked)); others ask from Nearby → Local info (QRU).
   - **Send only when asked.** Off: the object is sent on the schedule as always. On: it is kept and shown, and sent only to a station that asks for it.
 
 Each field has a small **i** after it that says in one line what it is for.
@@ -113,11 +113,11 @@ A station asks by sending a **message to the addressee `QRU`** (not to your call
 
 ## Asking for local info
 
-The **Nearby** tab can ask the QRU servers round you for repeaters, events and places ([the tab](page.md#nearby)). **Ask** sends `INFO`, with the distance in km if you typed one; each server that answers is listed with its groups, and a press on a group asks for it. The objects arrive as ordinary objects on the map and in the Stations tab, and the servers' messages are in Messages like any message.
+The **Nearby** tab can ask the QRU servers round you for repeaters, events and places ([the tab](page.md#nearby)). **Ask** sends `INFO`, with the distance in km of the field (it starts at the map radius); each server that answers is listed with its groups, and a press on a group asks for it. The objects arrive as ordinary objects on the map and in the Stations tab, and the servers' messages are in Messages like any message.
 
 - A request is one message to `QRU`, sent once by radio only (`RFONLY` after your message path), with no id. It is not kept as a message of yours and not sent again.
-- Nothing is sent while **RX only** is ticked or your call is not set. The same request again within 30 seconds is refused.
-- A server with nothing within its range (50 km unless you named a distance) stays silent: "No answer yet" means that, or that none is in radio range.
+- Nothing is sent while **RX only** is ticked or your call is not set. One request goes on the air per minute, whatever it says: Ask waits for the minute, and the daemon refuses another sooner (the status row says why).
+- A server with nothing within its range (50 km unless you named a distance) stays silent: "no answer" in the status row means that, or that none is in radio range.
 - The servers are forgotten an hour after they answered.
 - With the **Dummy** radio the made-up club station Q1CLB is a QRU server (groups `RP70` and `FOOD`), so that you can try it without a radio.
 

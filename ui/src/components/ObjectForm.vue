@@ -138,9 +138,10 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
             spellcheck="false"
             @input="draft.qru = draft.qru.toUpperCase()"
           />
-          <InfoTip :label="about('objects.field.qru')"
-            ><span class="info-line">{{ t("objects.tip.qru", { max: qruMax }) }}</span></InfoTip
-          >
+          <InfoTip :label="about('objects.field.qru')">
+            <span class="info-line">{{ t("objects.tip.qru", { max: qruMax }) }}</span>
+            <span class="info-line">{{ t("objects.tip.qru_ask") }}</span>
+          </InfoTip>
         </div>
       </div>
       <div class="field">

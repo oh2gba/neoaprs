@@ -2,13 +2,15 @@
 .settings {
   padding: 4px 10px 16px;
 }
-.settings fieldset {
+.settings fieldset,
+.nearbypane fieldset {
   margin: 8px 0;
   padding: 4px 10px 8px;
   border: 1px solid var(--border);
   border-radius: 6px;
 }
-.settings legend {
+.settings legend,
+.nearbypane legend {
   padding: 0 6px;
   font-weight: 600;
 }

@@ -42,6 +42,7 @@ export const objects: Record<keyof typeof source, Message> = {
   "objects.tip.speed": "移動の速さを km/h で指定します。動かないオブジェクトは両方とも空欄のままにします。",
   "objects.tip.path": "そのパケットが要求するデジピーターです。空欄ならビーコンのパスを使います。",
   "objects.tip.qru": "局が QRU に送ると、このグループのオブジェクトが返ってくる単語です(英数字1〜{max}文字)。",
+  "objects.tip.qru_ask": "他の局は 周辺 → ローカル情報 (QRU) から問い合わせます。",
   "objects.tip.on_request": "ビーコンでは送らず、?APRSO または QRU で要求した局にだけ送ります。",
 
   "objects.problem.name_chars": "両端に空白不可、! _ | ~ は使えません",
