@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+A receive-only iGate.
+
+- An **iGate** group in the Settings tab, after the TNC group, puts what the radio hears on APRS-IS: the switch **Gate to APRS-IS** (`igate/enabled`, off by default), the **Passcode** (`igate/password`, a secret, shown as dots) with a link **Request a passcode** that opens the request page of the NeoAPRS author in a new tab with your call filled in (NeoAPRS does not work a passcode out), one status line in the look of the radio's ("Connected to T2FINLAND, 1234 packets gated, last 12 s ago") and one quiet line: receive only. Without a call the group says **Set your call first**. The server (`igate/server`, `rotate.aprs2.net:14580`) is a setting that is not on the page.
+- **Nothing from the internet is ever sent on the air.** The service that gates has no radio and the connection to APRS-IS has no way to hand anything on; what the server sends is read to see that the connection is alive and thrown away.
+- A packet is gated as the specification says: not with `TCPIP`, `TCPXX`, `NOGATE` or `RFONLY` in the path, not a general query, a third-party packet as the packet inside unless that came from the internet, the path as heard and `qAO,` and your call after it (`qAO` is what a receive-only iGate writes), the information field byte for byte. The same packet is not put on APRS-IS twice within 30 seconds. Your own position goes to APRS-IS when the login is verified and every 30 minutes (a moving station: with each beacon that goes on the radio, at most one a minute).
+- A login the server does not verify is not repeated until the settings change. A connection that says nothing for 3 minutes is opened again; one that is quiet from our side for 2 minutes gets a comment line. The log has the login, each packet gated (debug) and an hour line ("igate: 812 packets gated in the last hour, 40 not gated: 31 TCPIP, 6 duplicate, 3 query"); the passcode is in no line.
+- The page's topic `igate` (state, the server's name, the problem, the packets gated and not gated by reason, the time of the last) and the manual page [igate.md](docs/manual/igate.md).
+
 On Windows.
 
 - `neoaprs-app.exe --quit`, which the uninstaller and an update run to end the app, now waits for the app's process to be gone, not only for the lock it holds: the window's engine unloads after the lock is let go, and the uninstaller of 0.9.0 could find a file of the app still in use and leave it behind.

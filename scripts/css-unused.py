@@ -15,6 +15,7 @@ from pathlib import Path
 PREFIXES = {
     "gps-": "lib/beaconstatus.ts",
     "hop-": "components/ChainChips.vue",
+    "igate-": "components/IgateStatus.vue",
     "link-": "components/PanelFooter.vue",
     "mark-": "components/MessageMark.vue",
     "size-": "composables/useLayout.ts",

@@ -12,6 +12,7 @@
     map        the base map: files, estimate, the job, and the radius of the ALOHA circle   changed by MapFetch.changed and Aloha.changed, and by every save of the settings (the area follows our position); at most four times a second
     update     Update now: whether it can, its steps    changed by SelfUpdate.changed; at most four times a second
     gps        the GPS fix, its state, and the moving station's beacon    changed by Gps.changed (a fix, a state or a problem) and by every packet of ours (the beacon went out) and every save of the settings; at most once a second
+    igate      the receive-only iGate: connected or not, the packets gated and not gated    changed by Igate.changed (a connection state, a packet gated or not) and every save of the settings; at most once a second
 
 Each row's values are built in neoaprs/web/views.py and typed in `TopicValues` of neoaprs/web/protocol.py. Nothing is built for a topic nobody follows, and a patch holds the items that changed, as they are when it is made.
 """
@@ -35,13 +36,14 @@ from neoaprs.station import Station
 from .hub import StateHub, Topic
 from .mapview import map_state
 from .updatewire import UpdateState
-from .views import bulletin_row, config_values, gps_state, message_row, own_bulletin_row, own_object_row, packet_row, pref_row, station_row, tnc_state
+from .views import bulletin_row, config_values, gps_state, igate_state, message_row, own_bulletin_row, own_object_row, packet_row, pref_row, station_row, tnc_state
 
 log = logging.getLogger("neoaprs.web")
 
 PACKETS_KEPT = 200                      # the packets a page opens with
 TNC_EVERY_SEC = 0.25                    # the TNC changes with every line it sees: told at most four times a second
 GPS_EVERY_SEC = 1.0                     # the GPS gives a fix a second: told at most once a second
+IGATE_EVERY_SEC = 1.0                   # the iGate counts every packet it hears: told at most once a second
 DISTANCES_EVERY_SEC = 30.0              # every station's distance and bearing follow our moving at most this often (our own row follows at every step of the GPS service)
 PLACE_KEYS = ("station/call", "station/lat", "station/lon", "gps/source")      # (a station that turns mobile or stays moves our row between home and the fix)
 
@@ -98,6 +100,7 @@ class Topics:
         hub.add(Topic("map", lambda: map_state(ctl.mapfetch.status(), ctl.aloha.radius_km), interval=TNC_EVERY_SEC))
         hub.add(Topic("update", lambda: UpdateState.row(ctl.selfupdate.status()), interval=TNC_EVERY_SEC))
         hub.add(Topic("gps", lambda: gps_state(ctl.config, ctl.gps, ctl.beacon.mobile, ctl.beacon.next_due), interval=GPS_EVERY_SEC))
+        hub.add(Topic("igate", lambda: igate_state(ctl.config, ctl.igate), interval=IGATE_EVERY_SEC))
         self.connected = False
 
     def _station(self, call: str) -> dict[str, Any] | None:
@@ -145,7 +148,7 @@ class Topics:
         return [
             (ctl.stationbook.changed, self._station_changed), (ctl.stationbook.recounted, self._station_changed), (ctl.stationbook.removed, self._station_removed),
             (ctl.tnc.packet, self._packet), (ctl.tnc.changed, self._tnc_changed), (ctl.tnc.state_changed, self._tnc_state_changed),
-            (ctl.config_changed, self._config_changed), (ctl.gps.changed, self._gps_changed), (ctl.gps.moved, self._gps_moved),
+            (ctl.config_changed, self._config_changed), (ctl.gps.changed, self._gps_changed), (ctl.gps.moved, self._gps_moved), (ctl.igate.changed, self._igate_changed),
             (ctl.messaging.changed, self._message_changed), (ctl.messaging.removed, self._message_changed),
             (ctl.bulletins.changed, self._bulletin_changed), (ctl.bulletins.removed, self._bulletin_changed),
             (ctl.ownobjects.changed, self._own_object_changed), (ctl.ownobjects.removed, self._own_object_changed),
@@ -208,6 +211,9 @@ class Topics:
     def _gps_changed(self) -> None:
         self.hub.changed("gps")
 
+    def _igate_changed(self) -> None:
+        self.hub.changed("igate")
+
     def _gps_moved(self) -> None:
         """Our row follows the GPS at once (the book tells it); the distance and bearing of every other station are told whole now and then."""
         now = time.monotonic()
@@ -223,6 +229,7 @@ class Topics:
         self._config = config
         self.hub.changed("config")
         self.hub.changed("gps")
+        self.hub.changed("igate")
         self.hub.changed("map")                     # (the area and the zoom it asks for, and whether there is a position)
         if moved:
             self.hub.changed("stations")            # (every row has a new distance and bearing)

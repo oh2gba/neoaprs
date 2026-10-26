@@ -5,6 +5,7 @@ import type {
   AlertResultMessage,
   ErrorMessage,
   GpsState,
+  IgateState,
   HelloMessage,
   BulletinRow,
   MessageRow,
@@ -25,6 +26,7 @@ import {
   configValues,
   errorOf,
   gpsState,
+  igateState,
   hello,
   mapFile,
   mapState,
@@ -57,6 +59,7 @@ function memory() {
     map: null as unknown,
     update: null as unknown,
     gps: null as unknown,
+    igate: null as unknown,
     hello: 0,
     statuses: 0,
     stale: 0,
@@ -83,6 +86,7 @@ function memory() {
     replaceMap: (v) => (seen.map = v),
     replaceUpdate: (v) => (seen.update = v),
     replaceGps: (v) => (seen.gps = v),
+    replaceIgate: (v) => (seen.igate = v),
     setStation: (k, r) => void seen.stations.set(k, r),
     setPacket: (k, r) => void seen.packets.set(k, r),
     setMessage: (k, r) => void seen.messages.set(k, r),
@@ -159,6 +163,14 @@ describe("Hub", () => {
     socket.say(patch("gps", 1, [{ op: "replace", value: gpsState({ state: "stale" }) }]));
     expect((seen.gps as GpsState).state).toBe("stale");
     expect(seen.config).toEqual(configValues());
+  });
+
+  it("puts the iGate topic in the store of the iGate, told whole", () => {
+    const { seen, socket } = opened();
+    socket.say(state("igate", 0, igateState()));
+    socket.say(patch("igate", 1, [{ op: "replace", value: igateState({ state: "unverified", gated: 0 }) }]));
+    expect((seen.igate as IgateState).state).toBe("unverified");
+    expect(seen.gps).toBeNull();
   });
 
   it("applies set, del and replace ops in order", () => {

@@ -12,9 +12,9 @@ The tables of this document that are that test's data (this one, the rules after
 <!-- doc-arch:layers -->
 | layer | modules | may import | may not import |
 | --- | --- | --- | --- |
-| foundation | `clock signal coded policy callsign geo symbols kiss ax25 aprsposition aprsmice aprsmessage aprsparse aprsweather aprsthirdparty aprsextension aprsfreq aprsstorm aprslocator aprstelemetry aprsnmea gpsfix smartbeacon packet packetcodec message bulletin decay tncmode tncprofile pref route chain mapstate radiosearch serialboards versions updateasset device devicedata hourcount` | foundation | domain, adapters, persistence, services, app, delivery, and any I/O library |
+| foundation | `clock signal coded policy callsign geo symbols kiss ax25 aprsposition aprsmice aprsmessage aprsparse aprsweather aprsthirdparty aprsextension aprsfreq aprsstorm aprslocator aprstelemetry aprsnmea gpsfix smartbeacon packet packetcodec message bulletin decay tncmode tncprofile pref route chain mapstate radiosearch serialboards versions updateasset device devicedata hourcount igaterules` | foundation | domain, adapters, persistence, services, app, delivery, and any I/O library |
 | domain | `alertcommand config configlegacy configstatus configtypes configvalues interlock station stationnotes stationbook aloha ownobject ownbulletin` | foundation, domain | adapters, persistence, services, app, delivery, and any I/O library |
-| adapters | `source tasks serialport serialholders serialprobe btsdp btserial btle btpaired tnc tncsearch tncwatchdog tncentry tnclines childenv rigctld gpsfeed pmtilestool updatefetch updatedownload selfreplace` | foundation, domain, adapters | persistence, services, app, delivery |
+| adapters | `source tasks serialport serialholders serialprobe btsdp btserial btle btpaired tnc tncsearch tncwatchdog tncentry tnclines childenv rigctld gpsfeed aprsis pmtilestool updatefetch updatedownload selfreplace` | foundation, domain, adapters | persistence, services, app, delivery |
 | persistence | `store migrations migrations2 backupfolder durable instancelock stopfile walcare dbfile dberror dbstats dbthread db dbopen storesql paths dblog packetsql packetlog messagesql messagelog bulletinsql bulletinlog weathersql weatherlog ownsql ownlog` | foundation, domain, persistence | adapters, services, app, delivery |
 | services | everything in `neoaprs/services/` | foundation, domain, adapters, persistence, services | app, delivery |
 | app | `controller app wiring` | foundation, domain, adapters, persistence, services, app | delivery |
@@ -29,7 +29,7 @@ Besides the direction:
 * Among the adapters only the bases every feed shares may be imported: `neoaprs.source`, `neoaprs.tasks`; and the sibling pairs: `neoaprs.btserial` and `neoaprs.btsdp`, `neoaprs.gpsfeed` and `neoaprs.serialport`, `neoaprs.serialholders` and `neoaprs.serialport`, `neoaprs.serialport` and `neoaprs.btle`, `neoaprs.serialport` and `neoaprs.btserial`, `neoaprs.serialprobe` and `neoaprs.btpaired`, `neoaprs.serialprobe` and `neoaprs.serialholders`, `neoaprs.serialprobe` and `neoaprs.serialport`, `neoaprs.tnc` and `neoaprs.serialholders`, `neoaprs.tnc` and `neoaprs.serialport`, `neoaprs.tnc` and `neoaprs.serialprobe`, `neoaprs.tnc` and `neoaprs.tncentry`, `neoaprs.tnc` and `neoaprs.tnclines`, `neoaprs.tnc` and `neoaprs.tncsearch`, `neoaprs.tnc` and `neoaprs.tncwatchdog`, `neoaprs.tncsearch` and `neoaprs.serialport`, `neoaprs.tncsearch` and `neoaprs.serialprobe`.
 * bleak (the extra `ble`) only in `neoaprs/btle.py`.
 * Tornado only in `neoaprs/web/`.
-* pydantic only in the wire modules of `neoaprs/web/`: `neoaprs/web/beaconwire.py`, `neoaprs/web/bulletinwire.py`, `neoaprs/web/configwire.py`, `neoaprs/web/dispatch.py`, `neoaprs/web/gpswire.py`, `neoaprs/web/hostwire.py`, `neoaprs/web/hubwire.py`, `neoaprs/web/mapwire.py`, `neoaprs/web/messagewire.py`, `neoaprs/web/outbound.py`, `neoaprs/web/ownwire.py`, `neoaprs/web/packetwire.py`, `neoaprs/web/portwire.py`, `neoaprs/web/prefwire.py`, `neoaprs/web/protocol.py`, `neoaprs/web/stationwire.py`, `neoaprs/web/tncwire.py`, `neoaprs/web/updatewire.py`, `neoaprs/web/weatherwire.py`, `neoaprs/web/wirebase.py`.
+* pydantic only in the wire modules of `neoaprs/web/`: `neoaprs/web/beaconwire.py`, `neoaprs/web/bulletinwire.py`, `neoaprs/web/configwire.py`, `neoaprs/web/dispatch.py`, `neoaprs/web/gpswire.py`, `neoaprs/web/hostwire.py`, `neoaprs/web/hubwire.py`, `neoaprs/web/igatewire.py`, `neoaprs/web/mapwire.py`, `neoaprs/web/messagewire.py`, `neoaprs/web/outbound.py`, `neoaprs/web/ownwire.py`, `neoaprs/web/packetwire.py`, `neoaprs/web/portwire.py`, `neoaprs/web/prefwire.py`, `neoaprs/web/protocol.py`, `neoaprs/web/stationwire.py`, `neoaprs/web/tncwire.py`, `neoaprs/web/updatewire.py`, `neoaprs/web/weatherwire.py`, `neoaprs/web/wirebase.py`.
 * The desktop app's toolkits (`PIL PySide6 pystray shiboken6 webview`, the extra `app`) only in the shells: `neoaprs/desktop/qtshell.py`, `neoaprs/desktop/qtwindow.py`, `neoaprs/desktop/winshell.py`.
 <!-- /doc-arch -->
 
@@ -45,6 +45,7 @@ What each layer is for:
   * Rules and coding: the call and SSID rules (`callsign`), geometry (`geo`), the symbol tables (`symbols`), KISS framing (`kiss`), AX.25 frame coding (`ax25`).
   * The APRS decoders (`aprs*`) and the `Packet` they produce. `aprsweather` reads the weather fields of a weather station's position or a positionless report
     into metric values, and `aprsthirdparty` the packet inside a third-party frame an iGate sent.
+  * `igaterules`: which of the frames heard on the radio a receive-only iGate puts on APRS-IS, and the line each becomes (the specification's rules, the path as heard, `qAO` and the iGate's call, a third-party packet opened and judged again).
   * `packetcodec`: a packet as a row of the packet table, a time as text, the JSON of what the parser made.
   * `message`: a message as a value, who a message is for, what text may be sent, when the next attempt is due. `bulletin`: which addressees are the message
     board's, and a bulletin as the board keeps it.
@@ -72,6 +73,7 @@ What each layer is for:
     (`ble://`): the small pyserial interface that `serialport` uses, over bleak running on a thread and event loop of its own, which notifies into a queue that `read` drains and takes `write` in pieces of the link's MTU.
     bleak is an optional extra (`ble`) and `btle` is the only module that imports it, when such a port is opened.
   * `serialholders` says which program has a device open (Linux, through /proc). `serialprobe` lists the ports of the machine and, on Linux only, searches the globs of `serial/pattern` for the radio.
+  * `aprsis` is the connection to an APRS-IS server for the receive-only iGate: the greeting, the login line, `# logresp` (verified or not), the keep-alive both ways, a bounded write queue that drops the oldest line when the server is slow, the back-off. It only writes: what the server sends is read to keep the connection honest and thrown away, and nothing hands it to anything.
   * `source` is the base every feed shares (state, problem, counts, the latest lines, the back-off). `tasks` is the set of tasks one owner starts.
   * The TNC has two parts of its own: `tncsearch` (the search for the radio among the ports) and `tncwatchdog` (the keep-alive: when an open line goes quiet,
     check that the radio is there; probe it while it is silent; reopen the port now and then).
@@ -102,6 +104,7 @@ What each layer is for:
   * The queries (`services/queries.py`): the answers to `?APRSP`, `?APRSS`, `?APRSD`, `?APRST`, `?PING?`, `?APRSO`, `?APRSM`, `?APRSH` and `?APRS?`, through the beacon's frames, our objects, our messages and the packet log, by the asker's path; `?WX?` and `?IGATE?` are recognised and not answered.
   * The QRU server (`services/qru.py`): our objects of a QRU group, sent to a station that sends the addressee `QRU` the group's name (or `INFO` for the list of groups). The inbox hands it the messages to `QRU`. It and the queries send their answers through `services/answers.py`: the asker's path, the pace between frames and the answer given once.
   * The fill-in digipeater (`services/digipeater.py`): a packet whose first unused hop is `WIDE1-1` or our call is sent again with our call as a used hop, when `digi/enabled` is on.
+  * The receive-only iGate (`services/igate.py`): every packet heard on the radio goes through the rules of `igaterules` to APRS-IS (`qAO`), duplicates within 30 seconds once, the counts for the page and the log, and our own position to APRS-IS. It is given the connection (`aprsis`), the settings and a function for the position, and has no Tnc, no `Radio` and no sender: nothing from APRS-IS can reach the radio.
   * The preferences of the stations (`services/prefbook.py`): the path and RF only of each station, which messaging is given as its `paths`.
   * What the services that send share (`services/common.py`): the `Radio` they need of the Tnc, `ConfigSource` and `our_frame`, our frame to the tocall.
   * The alert (`services/alerts.py`), the base map (`services/mapfetch.py`, `services/mapcli.py`), the update check (`services/updatecheck.py`) Update now (`services/selfupdate.py`, `services/selfinstall.py`) and Find my radio (`services/radiofinder.py`, `services/radioprobe.py`).
@@ -150,6 +153,7 @@ What each layer is for:
 | `queries` | the answers to queries, a service |
 | `qru` | the QRU server, a service: given `ownobjects`, the station book and the paths; messaging is given its `heard` |
 | `digipeater` | the fill-in digipeater, a service: it repeats a packet that asks for WIDE1-1 or for our call, when `digi/enabled` is on |
+| `aprsis`, `igate` | the receive-only iGate: `aprsis` is the connection to an APRS-IS server (an adapter, `neoaprs/aprsis.py`), `igate` the service that gates what the radio hears and sends our position (`services/igate.py`); started by the controller after the beacon, given `beacon.position_info` for the position; the page's topic `igate` follows it |
 | `aloha` | the ALOHA circle, a service: the radius round our position (`radius_km`), told to the page in the topic `map`; started by the controller |
 | `mapfetch` | the base map, a service: the detailed map round our position and the world map under it, made on request from the page with the pmtiles tool |
 | `radiofinder` | Find my radio, a service: on the page's request it tries the ports of the search for the radio one after the other, each at the usual speeds, and stops at the first TNC that talks KISS or can be put into KISS by a TNC profile; the radio's own line is let go meanwhile |
@@ -168,6 +172,7 @@ A part gets what it needs as constructor arguments (objects of a lower layer, Pr
 
 - What the Tnc hears goes to the packet log, the station book, the weather log, messaging (which answers a message to us with an ack and hands bulletins to the
   board and hands a message to `QRU` to the QRU server), the queries, our objects (which stop when another station reports one) and, last, the digipeater.
+- What the Tnc hears also goes to the iGate (`igate.on_packet`); the connection's changes go to `igate.link_changed` and the beacons that went out to `igate.beacon_sent`. Nothing connects the connection to the Tnc, and the iGate has no reference to it.
 - Our objects go to the station book as stations of their own (`own`).
 - The GPS feed's fixes go to the GPS service; when our position moved far enough the service's `moved` puts our own row at the fix and works the ALOHA circle out again.
 - What the book changes or removes goes to the station cache in the database.

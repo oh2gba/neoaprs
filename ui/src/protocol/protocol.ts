@@ -418,6 +418,24 @@ export interface HttpsState {
   problem: string;
 }
 
+/** The receive-only iGate (neoaprs/services/igate.py): what the radio hears is put on APRS-IS, and nothing from APRS-IS is ever sent on the air. Whether it is connected, to which server, and what it has done since the daemon started. Told whole as it changes, at most once a second. */
+export interface IgateState {
+  /** `igate/enabled` as in force */
+  enabled: boolean;
+  /** `off`: the switch is off; `connecting`: not logged in (yet, or again after a loss, or waiting for what `problem` says is missing); `connected`: logged in and verified, packets are gated; `unverified`: the server did not accept the password, nothing is sent and the login is not tried again until the settings change */
+  state: "off" | "connecting" | "connected" | "unverified";
+  /** the name the server gave at the login (`T2FINLAND`); empty until it has answered */
+  server: string;
+  /** why it is not connected: what is missing (the call, the password, the server) or the connection's own words (`Connection refused`, `the server did not accept the password`); empty while `connected` and `off` */
+  problem: string;
+  /** packets put on APRS-IS since the daemon started */
+  gated: number;
+  /** packets heard and not put on APRS-IS since the daemon started, by the reason: `tcpip` (TCPIP or TCPXX in the path), `nogate` (NOGATE or RFONLY), `query` (a generic query), `source` (the source is not a station), `own` (our own call), `duplicate` (gated in the last 30 seconds), `newline` (a CR or LF inside), `long` (more than 512 bytes), `frame` (not a UI frame, or a third-party header that is none), `offline` (heard while not connected). A reason that has not happened is not a key */
+  dropped: { [key: string]: number };
+  /** when the latest packet was gated; null before the first */
+  last_gated_at: string | null;
+}
+
 /** How this copy of the daemon was installed, which is what the steps of an update depend on (neoaprs/versions.py, neoaprs/cli/installkind.py). */
 export interface InstallInfo {
   /** `windows-installer` (the frozen program of the installer), `appimage`, `deb` (the Debian package, in /opt/neoaprs), `uv-tool` (the install script, or `uv tool install`), `pip` (a plain environment) or `source` (a clone of the repository) */
@@ -1141,6 +1159,8 @@ export interface TopicValues {
   update: UpdateState;
   /** the GPS receiver and the moving station's beacon: the latest fix, its state, and when the next beacon by time is due; told whole as it changes, at most once a second */
   gps: GpsState;
+  /** the receive-only iGate: whether it is connected to APRS-IS, the server's name, the packets gated and not gated; told whole as it changes, at most once a second */
+  igate: IgateState;
 }
 
 /** Stop following these topics. A topic that was not followed is ignored. */

@@ -1,5 +1,5 @@
 """A small world of the daemon's objects, one of every kind the page is told about, and every `neoaprs/web/views.py` view of it as JSON: what the golden file tests/fixtures/wire/rows.json holds."""
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -155,6 +155,29 @@ def gps_rows(views: Any) -> list[dict[str, Any]]:
     ]
 
 
+@dataclass
+class FakeIgate:
+    """The iGate service as the `igate` topic reads it."""
+    state: str = "off"
+    problem: str = ""
+    server_name: str = ""
+    gated: int = 0
+    dropped: dict[str, int] = field(default_factory=dict)
+    last_gated_at: datetime | None = None
+
+
+def igate_rows(views: Any) -> list[dict[str, Any]]:
+    """The `igate` topic: off, connected with packets gated and not gated, waiting for the password, and a password the server did not accept."""
+    from neoaprs.config import DEFAULTS
+    on = replace(DEFAULTS, igate_enabled=True, station_call="OH2GBA")
+    return [
+        views.igate_state(DEFAULTS, FakeIgate()),
+        views.igate_state(on, FakeIgate("connected", "", "T2FINLAND", 1234, {"tcpip": 31, "duplicate": 6, "query": 3}, T0 - timedelta(seconds=12))),
+        views.igate_state(on, FakeIgate("connecting", "no password set: give igate/password the APRS-IS passcode of your call")),
+        views.igate_state(on, FakeIgate("unverified", "the server did not accept the password", "T2FINLAND")),
+    ]
+
+
 def rows(views: Any) -> dict[str, Any]:
     """Every row of the world as `views` (neoaprs/web/views.py, or an older copy of it) makes it."""
     from neoaprs.config import DEFAULTS
@@ -169,5 +192,6 @@ def rows(views: Any) -> dict[str, Any]:
         "station_prefs": [views.pref_row(p) for p in prefs()],
         "tnc": [views.tnc_state(Tnc(clock=FixedClock(T0))), views.tnc_state(tnc()), views.tnc_state(tnc_searching())],
         "gps": gps_rows(views),
+        "igate": igate_rows(views),
         "config": [views.config_values(DEFAULTS, []), views.config_values(DEFAULTS, ["http://192.168.1.2:8730"], {"on": True, "port": 8731, "fingerprint": "AB:CD", "problem": ""})],
     }

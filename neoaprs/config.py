@@ -13,7 +13,7 @@ from .callsign import call_problem
 from .coded import CodedError, Param
 from .configlegacy import with_legacy
 from .configstatus import DEFAULT_STATUS_TEMPLATE, MAX_STATUS, hostport, status_source, status_template, status_text
-from .configvalues import ANTENNA_DIRECTIONS as ANTENNA_DIRECTIONS, SYMBOL_TABLES as SYMBOL_TABLES, antenna_direction, device_globs, digipeater_path, host_name, map_source, symbol_code, symbol_table, tnc_profile
+from .configvalues import ANTENNA_DIRECTIONS as ANTENNA_DIRECTIONS, SYMBOL_TABLES as SYMBOL_TABLES, antenna_direction, aprsis_server, device_globs, digipeater_path, host_name, map_source, passcode, symbol_code, symbol_table, tnc_profile
 from .configtypes import access_key, boolean, call_or_empty, int_among, int_in, int_or_off, optional_float, optional_int, over_the_air_refusal, text_of, web_address, word_among
 from .route import DIRECT_ONLY, recommended_path
 from .smartbeacon import PRESETS, TRAVEL, SmartSettings
@@ -132,6 +132,9 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("map_source", "map/source", map_source),                       # where the map is cut from; empty: the latest daily build of build.protomaps.com
     Setting("update_url", "update/url", web_address),                         # that page: it is sent this program's version and platform and nothing else
     Setting("digi_enabled", "digi/enabled", boolean),                         # true: a packet that asks for WIDE1-1, or for our call, is sent again by our radio (services/digipeater.py)
+    Setting("igate_enabled", "igate/enabled", boolean),                       # true: what the radio hears is put on APRS-IS by a receive-only iGate (services/igate.py); nothing from the internet is ever sent on the air
+    Setting("igate_server", "igate/server", aprsis_server),                   # host:port of the APRS-IS server the iGate logs in to (the filtered port 14580 of the round-robin name)
+    Setting("igate_password", "igate/password", passcode),                    # the APRS-IS passcode of station/call (digits; a secret; -1, the read-only login, is refused). NeoAPRS does not work it out: the operator types it
     Setting("gps_source", "gps/source", word_among(GPS_SOURCES)),             # where the position of a moving station comes from: off, gpsd (a gpsd daemon, gps/host) or serial (a GPS receiver's NMEA on gps/device)
     Setting("gps_host", "gps/host", hostport),                                # host:port of the gpsd that gps/source gpsd reads; 2947 is gpsd's port
     Setting("gps_device", "gps/device", text_of(255)),                        # the serial port of the GPS receiver for gps/source serial, such as /dev/ttyUSB1; a socket://host:port address too
@@ -187,6 +190,9 @@ class Config:
     map_source: str = ""
     update_url: str = UPDATE_URL
     digi_enabled: bool = False
+    igate_enabled: bool = False
+    igate_server: str = "rotate.aprs2.net:14580"
+    igate_password: str = ""
     gps_source: str = "off"
     gps_host: str = "127.0.0.1:2947"
     gps_device: str = ""
@@ -250,6 +256,14 @@ class Config:
         if not self.status_rigctld or self.status_choice != "rig":
             return None
         host, _, port = self.status_rigctld.rpartition(":")
+        return host.strip("[]"), int(port)
+
+    @property
+    def igate_address(self) -> tuple[str, int] | None:
+        """igate/server as host and port, None while it is empty."""
+        if not self.igate_server:
+            return None
+        host, _, port = self.igate_server.rpartition(":")
         return host.strip("[]"), int(port)
 
     @property

@@ -2,7 +2,7 @@
 
 NeoAPRS is an APRS client for a radio or a TNC. It reads your radio, keeps every packet and station in a database on your computer, and shows them in a page: a map, a table of stations, the packets as they arrive, your messages as conversations, the state of the radio link and the settings.
 
-It sends your position (the beacon: of a fixed station at its place, or of a moving one that follows a GPS) and your messages, email through the APRS gateway, objects and bulletins of your own, and a status text. It answers messages and queries sent to you, and can repeat packets as a fill-in digipeater. A Nearby tab lists the digipeaters, voice frequencies, iGates and stations in simplex range that you have heard.
+It sends your position (the beacon: of a fixed station at its place, or of a moving one that follows a GPS) and your messages, email through the APRS gateway, objects and bulletins of your own, and a status text. It answers messages and queries sent to you, and can repeat packets as a fill-in digipeater. A receive-only iGate, if you switch it on, puts what your radio hears on APRS-IS. A Nearby tab lists the digipeaters, voice frequencies, iGates and stations in simplex range that you have heard.
 
 The program is a daemon with a web page. You can use it as a desktop app (a window and a tray icon) or as a service on a Raspberry Pi that you reach from a laptop or a phone.
 
@@ -19,6 +19,7 @@ This is the manual for the person who runs it. How NeoAPRS is built and released
 | [`radio.md`](radio.md) | connecting the radio: ports (serial, TCP, Bluetooth, Bluetooth LE), finding the radio, the TNC types, the keep-alive and a silent radio |
 | [`beacon.md`](beacon.md) | the Beacon tab: the beacon status, where the position comes from (fixed, or a GPS), the Beacon choice and Off, receive only, mobile operation with SmartBeaconing, the location and the symbol, the status, answers to queries (and the QRU server), the fill-in digipeater |
 | [`messages.md`](messages.md) | the Messages tab: sending, acks and retries, the path each message chooses, deleting |
+| [`igate.md`](igate.md) | the receive-only iGate: what it puts on APRS-IS, the passcode, the server, which packets it leaves out, the counts |
 | [`email.md`](email.md) | email through the APRS gateway |
 | [`bulletins.md`](bulletins.md) | the message board and posting to it |
 | [`objects.md`](objects.md) | objects and items of your own, and the QRU server that sends them to a station that asks |

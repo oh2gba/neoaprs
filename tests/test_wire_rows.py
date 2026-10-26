@@ -13,6 +13,7 @@ from pydantic import TypeAdapter
 from neoaprs.web import views
 from neoaprs.web.bulletinwire import BulletinRow
 from neoaprs.web.gpswire import GpsState
+from neoaprs.web.igatewire import IgateState
 from neoaprs.web.messagewire import MessageRow
 from neoaprs.web.ownwire import OwnBulletinRow, OwnObjectRow
 from neoaprs.web.packetwire import PacketRow
@@ -25,7 +26,7 @@ from tests.support.files import FIXTURES
 
 GOLDEN = FIXTURES / "wire" / "rows.json"
 MODELS = {
-    "stations": StationRow, "packets": PacketRow, "messages": MessageRow, "bulletins": BulletinRow, "own_objects": OwnObjectRow, "own_bulletins": OwnBulletinRow, "station_prefs": StationPref, "tnc": TncState, "gps": GpsState,
+    "stations": StationRow, "packets": PacketRow, "messages": MessageRow, "bulletins": BulletinRow, "own_objects": OwnObjectRow, "own_bulletins": OwnBulletinRow, "station_prefs": StationPref, "tnc": TncState, "gps": GpsState, "igate": IgateState,
 }
 
 

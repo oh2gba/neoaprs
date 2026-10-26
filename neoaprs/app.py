@@ -1,5 +1,5 @@
 """The composition root: the parts of the program, made in one place. The data directory, the clock, the settings (`config`), the Store, the Tnc, the station book, the GPS and its service, the beacon, the status, the message alert, messaging, the message board,
-the objects and the bulletins of our own and their sender, the queries, the QRU server, the digipeater, the base map, Find my radio, the update check and Update now (the services are made here and nowhere else), the station preferences, the packet log, the message log, the bulletin log, the log of our own objects and bulletins, the weather log and the task set. The parts are made here and connected in neoaprs/wiring.py; the start and the stop are neoaprs/controller.py.
+the objects and the bulletins of our own and their sender, the queries, the QRU server, the digipeater, the receive-only iGate and its connection to APRS-IS, the base map, Find my radio, the update check and Update now (the services are made here and nowhere else), the station preferences, the packet log, the message log, the bulletin log, the log of our own objects and bulletins, the weather log and the task set. The parts are made here and connected in neoaprs/wiring.py; the start and the stop are neoaprs/controller.py.
 """
 import asyncio
 import logging
@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Protocol
 
 from . import VERSION, stopfile
+from .aprsis import AprsIs
 from .bulletinlog import BulletinLog
 from .clock import Clock, utcnow
 from .config import DEFAULTS, Config
@@ -26,6 +27,7 @@ from .services.beacon import Beacon
 from .services.bulletins import Bulletins
 from .services.digipeater import Digipeater
 from .services.gps import Gps
+from .services.igate import Igate
 from .services.mapfetch import MapFetch
 from .services.messaging import Messaging
 from .services.ownbulletins import OwnBulletins
@@ -96,6 +98,8 @@ class Services:
         self.selfupdate = SelfUpdate(install, installer_for(install, data_dir, self.restart_into), self._announced, release_source(), end=self._end_for_restart)      # Update now: on the page's request only; nothing to start
         self.reexec: list[str] | None = None                            # the command line that is to run in the place of this process when it has ended (Update now of an AppImage)
         self.digipeater = Digipeater(self.tnc, lambda: self.config, clock, self.tnc.stats)     # the fill-in digipeater (digi/enabled): a packet that asks for WIDE1-1 or for our call is sent again; nothing to start
+        self.aprsis = AprsIs(clock)                                      # the connection to an APRS-IS server: it writes the lines it is given and throws away what the server sends; configured and started by the iGate
+        self.igate = Igate(self.aprsis, lambda: self.config, self.beacon.position_info, clock)       # the receive-only iGate (igate/enabled): what the radio hears is put on APRS-IS, nothing of APRS-IS goes to the radio, which this service does not have; started by the controller after the beacon
         self.config_changed: Signal[[Config]] = Signal("config_changed")   # every save of the settings, though nothing differs: the page's settings form waits for it
         self.web: Frontend | None = None                                # the page's server, made by the controller from the factory the process gave it, once the settings are read
         self.db: Db | None = None                                       # its thread, once the controller has opened it

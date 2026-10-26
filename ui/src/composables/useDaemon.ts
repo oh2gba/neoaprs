@@ -1,4 +1,4 @@
-// The daemon as the page sees it: the twelve topics as reactive state (the stations' own paths and timeouts are `stationPrefs`), the status, the latest answer to `weather_series`, to `alert_test` and to `list_ports`, the state of the connection, and `send`. Opens the socket when the component that calls it is mounted and
+// The daemon as the page sees it: the thirteen topics as reactive state (the stations' own paths and timeouts are `stationPrefs`), the status, the latest answer to `weather_series`, to `alert_test` and to `list_ports`, the state of the connection, and `send`. Opens the socket when the component that calls it is mounted and
 // closes it when it is unmounted. The conversation itself is lib/hub.ts.
 import { onBeforeUnmount, onMounted, ref, shallowReactive, shallowRef, type Ref } from "vue";
 import type {
@@ -6,6 +6,7 @@ import type {
   ConfigValues,
   ErrorMessage,
   GpsState,
+  IgateState,
   InstallInfo,
   MapState,
   MessageRow,
@@ -42,7 +43,7 @@ function fill<T>(into: Map<string, T>, rows: Record<string, T>, done?: Ref<boole
   if (done) done.value = true;
 }
 
-/** The topics that are told whole: the radio, the settings, the base map, Update now and the GPS. */
+/** The topics that are told whole: the radio, the settings, the base map, Update now, the GPS and the iGate. */
 function useWholeTopics() {
   const refs = {
     tnc: shallowRef<TncState | null>(null),
@@ -50,13 +51,15 @@ function useWholeTopics() {
     map: shallowRef<MapState | null>(null),
     selfUpdate: shallowRef<UpdateState | null>(null),
     gps: shallowRef<GpsState | null>(null),
+    igate: shallowRef<IgateState | null>(null),
   };
-  const handlers: Pick<Store, "replaceTnc" | "replaceConfig" | "replaceMap" | "replaceUpdate" | "replaceGps"> = {
+  const handlers: Pick<Store, "replaceTnc" | "replaceConfig" | "replaceMap" | "replaceUpdate" | "replaceGps" | "replaceIgate"> = {
     replaceTnc: (value) => (refs.tnc.value = value),
     replaceConfig: (value) => (refs.config.value = value),
     replaceMap: (value) => (refs.map.value = value),
     replaceUpdate: (value) => (refs.selfUpdate.value = value),
     replaceGps: (value) => (refs.gps.value = value),
+    replaceIgate: (value) => (refs.igate.value = value),
   };
   return { refs, handlers };
 }

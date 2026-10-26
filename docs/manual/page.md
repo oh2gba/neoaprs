@@ -71,6 +71,7 @@ The tab has no Save button ([start.md](start.md#how-settings-apply)). From the t
 
 - **Language**, and **Run the setup guide again** ([start.md](start.md#the-setup-guide));
 - **TNC**: the radio's status in one line with **Reconnect**, and behind its arrow the **Radio type**, the **Port** and **Speed** (or the **TCP host** and **TCP port**), **Find my radio** and the **Terminal** ([radio.md](radio.md));
+- **iGate**: the tickbox of the receive-only iGate, the **Passcode** with **Request a passcode** beside it, and the iGate's status in one line ([igate.md](igate.md)); without a call it says **Set your call first**;
 - **Digipeater**: the tickbox of the fill-in digipeater ([beacon.md](beacon.md#the-fill-in-digipeater));
 - **Web page**: **Allow access from the network**, with the access key and the addresses once it is on, and the secure connection ([network.md](network.md));
 - **Notifications**, in two boxes: **On the NeoAPRS computer** and **In this browser** ([notifications.md](notifications.md));

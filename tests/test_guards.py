@@ -220,6 +220,25 @@ def test_the_rigctld_rotctld_and_gpsd_of_this_machine_are_not_fakes(address: tup
     assert len(network.refused) == 1
 
 
+@pytest.mark.parametrize("address", [("127.0.0.1", 14580), ("localhost", 10152), ("::1", 14580, 0, 0), ("rotate.aprs2.net", 14580), ("185.1.2.3", 14580)])
+def test_the_real_aprs_is_is_not_reached_by_a_test(address: tuple[object, ...]) -> None:
+    network = guards.NetworkGuard()
+    family = socket.AF_INET6 if address[0] == "::1" else socket.AF_INET
+    with pytest.raises(guards.NonLoopbackConnection, match="APRS-IS"):
+        network.check(address, family)
+    assert len(network.refused) == 1 and "APRS-IS" in network.refused[0]
+
+
+def test_the_names_of_the_aprs_is_servers_are_not_looked_up_and_say_so() -> None:
+    network = guards.NetworkGuard()
+    with pytest.MonkeyPatch.context() as mp:
+        network.install(mp.setattr)
+        for name in ("rotate.aprs2.net", "euro.aprs2.net", "first.aprs.net", "ROTATE.APRS2.NET."):
+            with pytest.raises(socket.gaierror):
+                socket.getaddrinfo(name, 14580)
+    assert network.refused == [f"{name} (name lookup of an APRS-IS server)" for name in ("rotate.aprs2.net", "euro.aprs2.net", "first.aprs.net", "ROTATE.APRS2.NET.")]
+
+
 @pytest.mark.parametrize("address", [("127.0.0.1", 7303), ("::1", 7303, 0, 0), ("localhost", 80), ("0.0.0.0", 8080), ("127.0.0.1", 0)])
 def test_any_port_of_this_machine_may_be_reached(address: tuple[object, ...]) -> None:
     network = guards.NetworkGuard()

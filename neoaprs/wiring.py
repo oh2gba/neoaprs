@@ -1,5 +1,5 @@
 """The signals of the program connected, in the one place that does it (`Signal.connect` is for the composition root only): what the radio hears goes to the packet log, the station book, messaging (which hands bulletins to the board), the queries and our objects (one that another station
-reports is theirs and is dropped), our objects go to the station book, what the book changes goes to the database, the port the search found is remembered, and the GPS fix moves our own row on the map and the ALOHA circle.
+reports is theirs and is dropped), the digipeater and the receive-only iGate, our objects go to the station book, what the book changes goes to the database, the port the search found is remembered, and the GPS fix moves our own row on the map and the ALOHA circle.
 
 Also how the settings become the Tnc's: `tnc_settings`, and how the station book is filled from the database at the start: `seed_station_book`."""
 import logging
@@ -60,6 +60,9 @@ def wire(parts: Services) -> None:
     tnc.packet.connect(parts.queries.on_packet)
     tnc.packet.connect(parts.ownobjects.on_packet)
     tnc.packet.connect(parts.digipeater.on_packet)               # (after the rest: what was heard is logged and handled before the copy that is sent)
+    tnc.packet.connect(parts.igate.on_packet)                    # what the radio hears goes to APRS-IS; nothing comes the other way, and nothing connects APRS-IS to the radio
+    parts.aprsis.changed.connect(parts.igate.link_changed)
+    parts.beacon.sent.connect(parts.igate.beacon_sent)           # (a moving station's beacon is also put on APRS-IS)
     parts.ownobjects.changed.connect(book.own_object)
     parts.ownobjects.removed.connect(book.forget_own)
     book.changed.connect(packetlog.save_station)

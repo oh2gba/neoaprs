@@ -232,7 +232,7 @@ The general query `?APRS?` is a packet and not the text of a message (a message 
 
 It may carry the specification's target footprint, `?APRS?V34.02,-117.15,0200`: latitude and longitude in degrees (the `V` stands for a space and may be left out; a west or south value has its minus) and the radius in miles. Then you answer only when your position is inside the circle, and a footprint that does not read is not answered.
 
-The general queries `?WX?` (asking the weather stations for a weather report) and `?IGATE?` (asking the iGates for their capabilities) are recognised and never answered: NeoAPRS has no weather report of its own to send and is no iGate, and a station that has nothing relevant need not answer. The log notes them at the debug level and the packet is an ordinary packet in the packet log.
+The general queries `?WX?` (asking the weather stations for a weather report) and `?IGATE?` (asking the iGates for their capabilities) are recognised and never answered: NeoAPRS has no weather report of its own to send, its iGate is receive only and answers no query ([igate.md](igate.md)), and a station that has nothing relevant need not answer. The log notes them at the debug level and the packet is an ordinary packet in the packet log.
 
 A message to the addressee `QRU` is not a query to you; if you keep objects for it, NeoAPRS answers it as a QRU server ([Objects](objects.md#objects-sent-only-when-asked)).
 

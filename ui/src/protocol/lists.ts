@@ -17,6 +17,7 @@ export const TOPIC_NAMES = [
   "map",
   "update",
   "gps",
+  "igate",
 ] as const;
 
 /** Every message the daemon sends (the `type` of the Message union). */
@@ -75,6 +76,9 @@ export const CONFIG_KEYS = [
   "map/source",
   "update/url",
   "digi/enabled",
+  "igate/enabled",
+  "igate/server",
+  "igate/password",
   "gps/source",
   "gps/host",
   "gps/device",
