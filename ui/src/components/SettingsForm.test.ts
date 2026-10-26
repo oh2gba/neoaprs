@@ -774,7 +774,7 @@ describe("SettingsForm", () => {
 
     it("are never sent when the page finds them wrong: the reason is under the field and the text stays", async () => {
       const { wrapper, send } = make({}, "beacon");
-      await type(wrapper, "set-station-call", "OH2 GBA");
+      await type(wrapper, "set-station-call", "ABCD");
       await wrapper.find("#set-station-call").trigger("blur");
       await type(wrapper, "set-station-lat", "95");
       await wrapper.find("#set-station-lat").trigger("blur");

@@ -1,5 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { callList, mayTransmitAs, normalizeCall, parsePath, parsePathSetting, pathCalls, placeholderCall, qrzUrl, validCall } from "@/lib/calls";
+import {
+  callInput,
+  callList,
+  joinCall,
+  mayTransmitAs,
+  normalizeCall,
+  parsePath,
+  parsePathSetting,
+  pathCalls,
+  placeholderCall,
+  qrzUrl,
+  splitCall,
+  SSIDS,
+  validCall,
+} from "@/lib/calls";
 
 describe("calls", () => {
   it("takes calls with an SSID up to 15, in any case", () => {
@@ -74,5 +88,66 @@ describe("a path setting", () => {
     expect(pathCalls("direct", "WIDE2-1")).toEqual([]);
     expect(pathCalls("wide2-2", "WIDE2-1")).toEqual(["WIDE2-2"]);
     expect(pathCalls("DIRECT,A1", "WIDE2-1")).toBeNull();
+  });
+});
+
+describe("calls: the SSID taken apart from the call and put together again", () => {
+  it("splits the call the settings keep: the SSID after the dash, none for no SSID and for -0", () => {
+    expect(splitCall("OH2GBA-9")).toEqual({ base: "OH2GBA", ssid: "9" });
+    expect(splitCall("oh2gba-15")).toEqual({ base: "OH2GBA", ssid: "15" });
+    expect(splitCall("OH2GBA-07")).toEqual({ base: "OH2GBA", ssid: "7" });
+    expect(splitCall("OH2GBA")).toEqual({ base: "OH2GBA", ssid: "" });
+    expect(splitCall("OH2GBA-0")).toEqual({ base: "OH2GBA", ssid: "" });
+    expect(splitCall("")).toEqual({ base: "", ssid: "" });
+  });
+
+  it("leaves a text that has no SSID of the daemon's kind as it is, all call", () => {
+    expect(splitCall("OH2GBA-16")).toEqual({ base: "OH2GBA-16", ssid: "" });
+    expect(splitCall("OH2GBA-")).toEqual({ base: "OH2GBA-", ssid: "" });
+  });
+
+  it("joins them the way the settings keep a call, and a call that is not there has no SSID", () => {
+    expect(joinCall("OH2GBA", "9")).toBe("OH2GBA-9");
+    expect(joinCall("OH2GBA", "")).toBe("OH2GBA");
+    expect(joinCall("OH2GBA", "0")).toBe("OH2GBA");
+    expect(joinCall("", "9")).toBe("");
+  });
+
+  it("is the same call after a split and a join, and the SSIDs are 1 to 15", () => {
+    for (const call of ["OH2GBA", "OH2GBA-1", "OH2GBA-15", "W1AW-9"]) {
+      const { base, ssid } = splitCall(call);
+      expect(joinCall(base, ssid), call).toBe(call);
+    }
+    expect(SSIDS).toHaveLength(15);
+    expect(SSIDS[0]).toBe("1");
+    expect(SSIDS[14]).toBe("15");
+  });
+});
+
+describe("calls: what is typed into the field of the call", () => {
+  it("is letters and digits in capitals, and nothing else is let in", () => {
+    expect(callInput("oh2gba")).toEqual({ base: "OH2GBA", ssid: null, text: "OH2GBA" });
+    expect(callInput(" oh2 gba! ")).toEqual({ base: "OH2GBA", ssid: null, text: "OH2GBA" });
+    expect(callInput("OH2/GBA")).toEqual({ base: "OH2GBA", ssid: null, text: "OH2GBA" });
+    expect(callInput("ÅÄÖ1")).toEqual({ base: "1", ssid: null, text: "1" });
+    expect(callInput("")).toEqual({ base: "", ssid: null, text: "" });
+  });
+
+  it("takes a dash with a number of 0 to 15 after it as the SSID, and a -0 as none", () => {
+    expect(callInput("OH2GBA-9")).toEqual({ base: "OH2GBA", ssid: "9", text: "OH2GBA-9" });
+    expect(callInput("oh2gba-15")).toEqual({ base: "OH2GBA", ssid: "15", text: "OH2GBA-15" });
+    expect(callInput("OH2GBA-09")).toEqual({ base: "OH2GBA", ssid: "9", text: "OH2GBA-09" });
+    expect(callInput("OH2GBA-0")).toEqual({ base: "OH2GBA", ssid: "", text: "OH2GBA-0" });
+  });
+
+  it("keeps a dash that is being typed, and a number the dropdown does not have is no SSID", () => {
+    expect(callInput("OH2GBA-")).toEqual({ base: "OH2GBA", ssid: null, text: "OH2GBA-" });
+    expect(callInput("OH2GBA-16")).toEqual({ base: "OH2GBA", ssid: null, text: "OH2GBA-16" });
+    expect(callInput("-9")).toEqual({ base: "", ssid: "9", text: "" });
+  });
+
+  it("has no more than one dash and one number: anything else is cleaned to letters and digits", () => {
+    expect(callInput("OH2-GBA-9")).toEqual({ base: "OH2GBA9", ssid: null, text: "OH2GBA9" });
+    expect(callInput("OH2GBA-9x")).toEqual({ base: "OH2GBA9X", ssid: null, text: "OH2GBA9X" });
   });
 });

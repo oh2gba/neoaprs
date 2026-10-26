@@ -50,6 +50,23 @@
 .field-control .input {
   flex: 1;
 }
+/* the call field: the call (at most six characters, so a width of its own) and the dropdown of its SSID, side by side where there is room and one under the other where there is not (a phone), the dropdown with the rest of its line */
+.field-control .callrow {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+.field-control .input.callbase {
+  flex: 0 0 6.5em;
+  min-width: 0;
+}
+.field-control .input.ssid {
+  flex: 1 1 11em;
+  min-width: 0;
+  text-overflow: ellipsis;
+}
 .field-control .check {
   margin: 0;
 }

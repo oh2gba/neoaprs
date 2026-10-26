@@ -2,7 +2,7 @@
 
 The Beacon tab holds what your station says on the air. A setting applies as you change it ([start.md](start.md#how-settings-apply)). From top to bottom:
 
-- the **Station** group (call, **Position**, location, symbol);
+- the **Station** group (call with its SSID, **Position**, location, symbol);
 - the **Beacon** group (the **Beacon** choice, under it the state of the beacon and the row **Send now** with **Beacon now** ([Beacon now](#beacon-now)), what you travel as for a moving station, the comment, a closed **Antenna** heading for a fixed station and a closed **Advanced** heading with the path choice);
 - the **Status** group (the choice, under it the status as a row, and **Send now** with **Send status now** at its end).
 
@@ -160,6 +160,30 @@ The 20-minute floor of the fixed beacon does not apply to a moving station. Whil
 **Follow my position.** While a GPS is chosen and has a fix, a **Follow my position** button at the top right of the map keeps the map centred on you, at a close zoom at least. Dragging the map lets go, and so does the loss of the fix or choosing **Fixed**; press the button again to take hold.
 
 To try it without a vehicle, `neoaprs gps-replay` plays a drive as a gpsd ([commands.md](commands.md#the-tools)); the [development guide](../development.md#trying-mobile-operation-without-a-vehicle) describes it.
+
+## The call and its SSID
+
+The Call row of the Station group has the call in its field and, beside it, a dropdown **SSID**, so that nobody has to look up the number. The field takes the call only, letters and digits in capitals; on a narrow screen the dropdown stands under it. The setting stays one text, `station/call`, such as `OH2GBA-9`: the page puts the two together when it saves and takes them apart when it shows. Typing or pasting `OH2GBA-9` into the field moves the 9 into the dropdown.
+
+One call may be several stations, and the number tells the others what kind. The choices are the recommendations of the APRS specification:
+
+| SSID | for |
+|---|---|
+| none | your main station (home) |
+| -1 to -4 | another station: a digipeater, a second home |
+| -5 | other networks (D-STAR, a phone app) |
+| -6 | special activity, satellite, camping |
+| -7 | a handheld radio |
+| -8 | a boat, a motorhome, a second car |
+| -9 | a car (mobile) |
+| -10 | the internet: an iGate, EchoLink |
+| -11 | a balloon, an aircraft, a spacecraft |
+| -12 | a one-way tracker |
+| -13 | a weather station |
+| -14 | a truck |
+| -15 | another station |
+
+Nothing is chosen for you: with a GPS as the position and no SSID, the station stays as it is. Each SSID is a station of its own; a message to `OH2GBA` is not one to `OH2GBA-9` ([messages.md](messages.md)).
 
 ## The location
 
