@@ -22,7 +22,7 @@ from neoaprs.supportsql import file_facts, latest_packets, latest_undecoded, ope
 
 from . import doctor
 from .supportbundle import rotated_logs, tail_text
-from .supportsummary import DbFacts, last_problems, megabytes, stamp
+from .supportsummary import DbFacts, megabytes, stamp
 
 PACKETS_SHOWN = 1000
 UNDECODED_SHOWN = 200
@@ -94,7 +94,7 @@ def log_files(data: Path) -> tuple[list[Path], list[Path]]:
 
 
 def log_lines(files: list[Path]) -> list[str]:
-    """The end of the daemon's logs as lines, the oldest first: as many of the newest files as it takes to find the last warnings and errors."""
+    """The end of the daemon's logs as lines, the oldest first: all the files that are kept (the end of each, within PROBLEM_SCAN_BYTES), for the summary to group the warnings and errors of the whole log."""
     lines: list[str] = []
     for path in files:
         try:
@@ -102,8 +102,6 @@ def log_lines(files: list[Path]) -> list[str]:
         except OSError:
             continue
         lines = text.splitlines() + lines
-        if sum(not line.startswith("    ") for line in last_problems(lines)) >= 30:
-            break
     return lines
 
 

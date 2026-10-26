@@ -10,10 +10,23 @@ from neoaprs.config import Config
 from neoaprs.versions import InstallInfo
 
 Section = tuple[str, list[tuple[str, str]]]
-LOG_LINE = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}Z?  (DEBUG|INFO|WARNING|ERROR|CRITICAL)  ")
-LAST_PROBLEMS = 30
+LOG_LINE = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}Z?)  (DEBUG|INFO|WARNING|ERROR|CRITICAL)  (.*)$")
+MAX_GROUPS = 25
+MAX_MESSAGE = 240
+# the web server's lines for the optional files that are not there (the base map before it is installed, the icon, the map fonts): left out of the list of problems, not of the log
+OPTIONAL_FILE_REQUEST = re.compile(r"^(?:(?:403|404) (?:HEAD|GET) /basemap\S*\.pmtiles|404 (?:HEAD|GET) (?:/favicon\.ico|/fonts/\S*\.pbf))(?:\s|$)")
+ADDRESS = re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?\b|\[[0-9a-fA-F:]{3,}\](?::\d+)?")
+NUMBER = re.compile(r"0x[0-9a-fA-F]+|\d+(?:\.\d+)*")
 MAX_CHECKS = 8
 NO_DAEMON = "not known: the daemon was not asked (see the log below)"
+
+
+@dataclass(frozen=True)
+class Problems:
+    """The warnings and errors of a log as `summary_text` lists them: the lines of the groups, how many request lines for optional files were left out, and how many groups did not fit."""
+    lines: list[str]
+    left_out: int
+    more: int
 
 
 @dataclass(frozen=True)
@@ -44,7 +57,7 @@ class Facts:
     live: dict[str, Any] | None = None             # state.json, when the running daemon made the bundle
     page_url: str = ""
     database: DbFacts | None = None
-    problems: list[str] = field(default_factory=list)
+    problems: Problems = field(default_factory=lambda: Problems([], 0, 0))
     checks: str = ""                               # doctor.txt, when it could be made
 
 
@@ -181,25 +194,43 @@ def summary_text(f: Facts) -> str:
         width = max(len(label) for label, _ in rows)
         lines.extend(f"  {label + ':':<{width + 1}} {value}" for label, value in rows)
         lines.append("")
-    lines.append(f"The last {LAST_PROBLEMS} warnings and errors of the log (logs/neoaprs.log has the rest):")
-    lines.extend(f"  {line}" for line in f.problems or ["none"])
+    lines.append("The warnings and errors of the log, each message once (COUNT× LAST-TIME LEVEL MESSAGE; errors first, then the newest; logs/neoaprs.log has every line):")
+    lines.extend(f"  {line}" for line in f.problems.lines or ["none"])
+    if f.problems.more:
+        lines.append(f"  ... and {f.problems.more} more messages, older ones")
+    lines.append(f"Left out of this list: {f.problems.left_out} web server request lines for optional files that are not there (the base map, favicon.ico, the map fonts).")
     return "\n".join(lines) + "\n"
 
 
-def last_problems(log_lines: list[str], count: int = LAST_PROBLEMS) -> list[str]:
-    """The last `count` WARNING, ERROR and CRITICAL lines of a log, oldest first; for one that is followed by a traceback, the last line of it (the exception) too, on a line of its own."""
-    found: list[str] = []
-    current: list[str] | None = None
-    for line in log_lines:
+def message_key(level: str, message: str) -> str:
+    """What makes two messages the same one: the level and the words, with the addresses, the numbers and the durations taken out."""
+    return f"{level} {NUMBER.sub('#', ADDRESS.sub('<address>', message))}"
+
+
+def problem_groups(log_lines: list[str]) -> Problems:
+    """The WARNING, ERROR and CRITICAL records of a log in groups of the same message (`message_key`), each as `COUNT× LAST-TIME LEVEL MESSAGE` with the message as last seen (for one that was followed by a traceback, the exception line too, on a line of its own):
+    ERROR and CRITICAL first, then WARNING, the newest first in each, at most MAX_GROUPS. The requests for optional files are counted in `left_out` and are in no group."""
+    groups: dict[str, list[Any]] = {}                      # key -> [count, order of the last, time, level, message, exception line]
+    left_out = 0
+    last: list[Any] | None = None
+    for order, line in enumerate(log_lines):
         match = LOG_LINE.match(line)
         if match:
-            if current is not None:
-                found.extend(current)
-            current = [line] if match.group(1) in ("WARNING", "ERROR", "CRITICAL") else None
-        elif current is not None and line.strip():
-            current[1:] = [f"    {line.strip()}"]                      # (only the last line of the lines that follow)
-    if current is not None:
-        found.extend(current)
-    records = [i for i, line in enumerate(found) if not line.startswith("    ")]
-    start = records[-count] if len(records) > count else 0
-    return found[start:]
+            last = None
+            when, level, message = match.groups()
+            if level not in ("WARNING", "ERROR", "CRITICAL"):
+                continue
+            if OPTIONAL_FILE_REQUEST.match(message):
+                left_out += 1
+                continue
+            last = groups.setdefault(message_key(level, message), [0, 0, "", "", "", ""])
+            last[:] = [last[0] + 1, order, when, level, message if len(message) <= MAX_MESSAGE else message[:MAX_MESSAGE - 1] + "…", ""]
+        elif last is not None and line.strip():
+            last[5] = f"    {line.strip()}"                   # (only the last line of the lines that follow)
+    ranked = sorted(groups.values(), key=lambda g: (g[3] == "WARNING", -g[1]))
+    lines: list[str] = []
+    for count, _, when, level, message, exception in ranked[:MAX_GROUPS]:
+        lines.append(f"{count}× {when} {level:<8} {message}")
+        if exception:
+            lines.append(exception)
+    return Problems(lines, left_out, max(0, len(ranked) - MAX_GROUPS))

@@ -9,7 +9,7 @@ SEND_WORDS = "what you did, what you expected, what happened instead, and roughl
 
 FILE_HELP: dict[str, str] = {
     "README.txt": "this file",
-    "summary.txt": "the one screen to read first: version, system, station, radio, GPS, web page, database, and the last warnings and errors",
+    "summary.txt": "the one screen to read first: version, system, station, radio, GPS, web page, database, and the warnings and errors of the log, each message once",
     "logs/neoaprs.log": "the log of the program (and neoaprs.log.1 and so on, the rotated ones, newest first); the newest lines are kept within a size budget",
     "logs/neoaprs-app.log": "the log of the desktop app (its window and tray icon), when there is one",
     "logs/journal.txt": "the last 3000 lines of what the system's journal has of the NeoAPRS service (Linux)",

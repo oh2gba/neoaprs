@@ -14,7 +14,7 @@ from neoaprs.cli import supportbundle, supportgather
 from neoaprs.cli.supportbundle import Member, bundle_name, log_members, rotated_logs, scrubbed, secret_pattern, write_zip
 from neoaprs.cli.supportmake import desktop_dir, make_bundle, show_command, show_file
 from neoaprs.cli.supportreadme import MAIL
-from neoaprs.cli.supportsummary import last_problems
+from neoaprs.cli.supportsummary import problem_groups
 from neoaprs.migrations import SCHEMA_VERSION
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
@@ -63,7 +63,8 @@ def test_the_summary_answers_what_version_what_system_what_is_wrong_on_one_scree
     assert "not running" in summary, "nothing holds the data folder"
     assert f"schema version {SCHEMA_VERSION}" in summary
     assert "the daemon was not asked" in summary, "a bundle made without the daemon says which facts it does not have"
-    assert "WARNING  line 7 of the log" in summary and summary.count("WARNING") <= 30 + 2
+    assert "5× 2026-10-21 12:00:35Z WARNING  line 35 of the log" in summary, "the lines of one kind are one group, with the count and the last time"
+    assert "Left out of this list: 0 web server request lines" in summary
     assert len(summary.splitlines()) < 90
 
 
@@ -216,16 +217,79 @@ def test_a_log_that_cannot_be_read_is_a_member_that_says_so(tmp_path: Path) -> N
     assert log_members([gone])[0].text.startswith("[neoaprs.log could not be read")
 
 
-def test_the_last_warnings_and_errors_are_the_last_thirty_with_the_line_of_a_traceback_that_names_the_exception() -> None:
-    lines = ["2026-10-21 12:00:00Z  INFO  fine"]
-    for n in range(40):
-        lines.append(f"2026-10-21 12:01:{n:02d}Z  WARNING  problem {n}")
-    lines += ["2026-10-21 12:02:00Z  ERROR  it failed", "Traceback (most recent call last):", '  File "x.py", line 1, in f', "ValueError: bad value", "2026-10-21 12:02:01Z  INFO  fine again"]
-    found = last_problems(lines)
-    records = [line for line in found if not line.startswith("    ")]
-    assert len(records) == 30 and records[-1].endswith("ERROR  it failed") and records[0].endswith("problem 11")
-    assert found[-1] == "    ValueError: bad value"
-    assert last_problems(["2026-10-21 12:00:00Z  INFO  fine"]) == []
+def log(*records: tuple[str, str, str]) -> list[str]:
+    return [f"2026-10-21 {when}Z  {level}  {text}" for when, level, text in records]
+
+
+def test_the_warnings_and_errors_are_grouped_by_their_message_without_numbers_times_addresses_and_durations_and_the_errors_come_first() -> None:
+    found = problem_groups(log(
+        ("12:00:01", "INFO", "fine"),
+        ("12:00:02", "WARNING", "rigctld at 127.0.0.1:4532: rigctld answered RPRT -20: no status"),
+        ("12:00:03", "ERROR", "it failed after 12.5 s"),
+        ("12:00:04", "WARNING", "rigctld at 192.168.1.20:4533: rigctld answered RPRT -20: no status"),
+        ("12:00:05", "WARNING", "/data/x.sqlite: migration 17 (_v17) is not the code that was applied"),
+        ("12:00:06", "ERROR", "it failed after 3.1 s"),
+        ("12:00:07", "WARNING", "/data/x.sqlite: migration 18 (_v18) is not the code that was applied"),
+        ("12:00:08", "WARNING", "a lone warning"),
+        ("12:00:09", "CRITICAL", "it failed after 3.1 s"),
+        ("12:00:10", "DEBUG", "it failed after 3.1 s"),
+    ))
+    assert found.lines == [
+        "1× 2026-10-21 12:00:09Z CRITICAL it failed after 3.1 s",
+        "2× 2026-10-21 12:00:06Z ERROR    it failed after 3.1 s",
+        "1× 2026-10-21 12:00:08Z WARNING  a lone warning",
+        "2× 2026-10-21 12:00:07Z WARNING  /data/x.sqlite: migration 18 (_v18) is not the code that was applied",
+        "2× 2026-10-21 12:00:04Z WARNING  rigctld at 192.168.1.20:4533: rigctld answered RPRT -20: no status",
+    ], "a group is shown as last seen; the errors are first, then the newest"
+    assert found.left_out == 0 and found.more == 0
+
+
+def test_a_group_is_shown_with_the_exception_line_of_its_last_traceback() -> None:
+    lines = log(("12:00:00", "ERROR", "it failed"), ("12:00:01", "ERROR", "it failed"))
+    lines[0:1] = [lines[0], "Traceback (most recent call last):", '  File "x.py", line 1, in f', "ValueError: first"]
+    lines += ["Traceback (most recent call last):", '  File "x.py", line 1, in f', "ValueError: bad value", *log(("12:00:02", "INFO", "fine again"))]
+    assert problem_groups(lines).lines == ["2× 2026-10-21 12:00:01Z ERROR    it failed", "    ValueError: bad value"]
+    assert problem_groups(log(("12:00:00", "INFO", "fine"))).lines == []
+
+
+def test_the_requests_for_optional_files_that_are_not_there_are_counted_and_left_out_of_the_list_but_other_requests_are_not() -> None:
+    noise = [
+        ("12:00:01", "WARNING", "403 HEAD /basemap.pmtiles (127.0.0.1): basemap.pmtiles is not in root static directory"),
+        ("12:00:01", "WARNING", "403 HEAD /basemap.pmtiles (127.0.0.1) 0.78ms"),
+        ("12:00:02", "WARNING", "403 HEAD /basemap-world.pmtiles (127.0.0.1) 0.35ms"),
+        ("12:00:03", "WARNING", "404 GET /basemap.pmtiles (127.0.0.1) 0.35ms"),
+        ("12:00:04", "WARNING", "404 GET /favicon.ico (127.0.0.1) 0.42ms"),
+        ("12:00:05", "WARNING", "404 GET /fonts/Noto%20Sans%20Regular/0-255.pbf (127.0.0.1) 1.20ms"),
+    ]
+    real = [
+        ("12:00:06", "WARNING", "404 GET /api/qso/7 (127.0.0.1) 0.50ms"),
+        ("12:00:07", "WARNING", "500 GET /basemap.pmtiles (127.0.0.1) 0.50ms"),
+        ("12:00:08", "ERROR", "403 GET /favicon.ico denied"),
+        ("12:00:08", "WARNING", "403 GET /favicon.ico (127.0.0.1) 0.50ms"),
+        ("12:00:09", "WARNING", "rigctld at 127.0.0.1:4532: rigctld answered RPRT -20: no status"),
+    ]
+    found = problem_groups(log(*noise, *real))
+    assert found.left_out == len(noise)
+    assert [re.sub(r"^\S+ \S+ \S+ \S+\s+", "", line) for line in found.lines] == ["403 GET /favicon.ico denied", "rigctld at 127.0.0.1:4532: rigctld answered RPRT -20: no status", "403 GET /favicon.ico (127.0.0.1) 0.50ms", "500 GET /basemap.pmtiles (127.0.0.1) 0.50ms", "404 GET /api/qso/7 (127.0.0.1) 0.50ms"]
+
+
+def test_at_most_twenty_five_groups_are_listed_the_newest_first_and_the_others_are_counted() -> None:
+    found = problem_groups(log(*(("12:00:00", "WARNING", f"kind {chr(97 + n // 6)}{chr(97 + n % 6)}") for n in range(30))))
+    assert len(found.lines) == 25 and found.more == 5
+    assert found.lines[0].endswith("kind ef") and found.lines[-1].endswith("kind af"), "the 30th is first, the 6th last"
+
+
+def test_the_summary_lists_the_groups_and_says_how_many_request_lines_it_left_out(tmp_path: Path) -> None:
+    data = fake_folder(tmp_path, log_lines=2)
+    junk = log(*(("12:05:00", "WARNING", f"403 HEAD /basemap.pmtiles (127.0.0.1) {n}.5ms") for n in range(7)), ("12:05:01", "WARNING", "404 GET /favicon.ico (127.0.0.1) 0.4ms"))
+    older = "".join(f"{line}\n" for line in log(("11:00:00", "ERROR", "old trouble 1"), ("11:00:05", "ERROR", "old trouble 2")))
+    (data / "neoaprs.log.1").write_text(older, encoding="utf-8")
+    with (data / "neoaprs.log").open("a", encoding="utf-8") as f:
+        f.write("".join(f"{line}\n" for line in junk))
+    summary = made(tmp_path, data)[1]["summary.txt"]
+    assert "2× 2026-10-21 11:00:05Z ERROR    old trouble 2" in summary, "the older log file is read too"
+    assert "Left out of this list: 8 web server request lines" in summary
+    assert "pmtiles" not in summary.split("The warnings and errors of the log")[1].split("Left out")[0]
 
 
 # ---- a part that fails

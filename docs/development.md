@@ -416,7 +416,7 @@ A user with a problem sends one zip ([the log and the support bundle](daemon.md#
 |---|---|
 | `neoaprs/cli/supportbundle.py` | the zip as a file: the name, the deflate writing under a temporary name, the secrets taken out of every member, the log files and their budget |
 | `neoaprs/cli/supportgather.py` | the gatherers, each a function that returns the text of a member: settings, logs, the doctor, the database, the packets, the journal |
-| `neoaprs/cli/supportsummary.py` | `summary.txt`: `Facts` (what was found; any part may be missing) and its layout, and the last warnings and errors of a log |
+| `neoaprs/cli/supportsummary.py` | `summary.txt`: `Facts` (what was found; any part may be missing) and its layout, and the warnings and errors of a log in groups of the same message |
 | `neoaprs/cli/supportreadme.py` | `README.txt`, with the one line for each file (`FILE_HELP`) and what is left out |
 | `neoaprs/cli/supportmake.py` | `make_bundle` runs the gatherers (a failed one is `<name>.error.txt`), finds the Desktop and starts the file manager; the daemon, the command and the tray all call it |
 | `neoaprs/cli/supportcmd.py` | `neoaprs support` |

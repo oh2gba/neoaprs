@@ -31,7 +31,7 @@ If the page does not open, or the daemon does not run, the file can be made with
 - On Windows, the Start menu has an entry **NeoAPRS support logs**, which does the same.
 - In the desktop app, the tray icon's menu has **Collect support logs**.
 
-A file made this way has everything but what only the page knows (the facts of the browser and its errors).
+A file made this way is made from the data folder alone, so it lacks what only the page and the running daemon can tell: `page.json` and `page-errors.json` (the facts of the browser and its errors) and `state.json` (the live state). The page's download, which the daemon makes, has them.
 
 ## What is in the file
 
@@ -40,7 +40,7 @@ The zip holds plain text files. `README.txt` inside it says the same as here. Op
 | file | what it has |
 |---|---|
 | `README.txt` | what the file is and what to do with it |
-| `summary.txt` | one screen: the version, the system, the station, the radio, the GPS, the web page, the database, and the last warnings and errors |
+| `summary.txt` | one screen: the version, the system, the station, the radio, the GPS, the web page, the database, and the warnings and errors of the log, each message once with how many times and when last |
 | `logs/` | the log of the program, the rotated ones too, the log of the desktop app when there is one, and on Linux what the system's journal has of the service |
 | `settings.json` | every setting with its value; the access key is only said to be set |
 | `state.json` | what the running daemon knows now: the radio, the GPS, the beacon, the base map, the update, the serial ports and who holds them |
