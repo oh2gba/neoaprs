@@ -17,6 +17,7 @@ import asyncio
 from dataclasses import dataclass, field
 
 from tests.support.env import remember_stop
+from tests.support.loopbackserver import LoopbackServer
 
 
 @dataclass
@@ -30,28 +31,16 @@ class Route:
     hang: bool = False
 
 
-class FakeHttp:
+class FakeHttp(LoopbackServer):
     def __init__(self) -> None:
         self.routes: dict[str, Route] = {}
         self.requests: list[str] = []
-        self.port = 0
-        self._server: asyncio.Server | None = None
 
     def url(self, path: str = "/") -> str:
         return f"http://127.0.0.1:{self.port}{path}"
 
     def route(self, path: str, **options: object) -> None:
         self.routes[path] = Route(**options)  # type: ignore[arg-type]
-
-    async def start(self) -> "FakeHttp":
-        self._server = await asyncio.start_server(self._handle, "127.0.0.1", 0)
-        self.port = self._server.sockets[0].getsockname()[1]
-        return self
-
-    async def stop(self) -> None:
-        if self._server is not None:
-            self._server.close()
-            await self._server.wait_closed()
 
     async def _handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         try:
