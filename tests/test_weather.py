@@ -9,7 +9,7 @@ import pytest
 
 from neoaprs.clock import iso
 from neoaprs.station import Station
-from neoaprs.stationbook import TRACK_MAX
+from neoaprs.station import TRACK_MAX
 from tests.support.air import on_air
 from tests.support.env import Env
 from tests.support.weather import REAL, WX, heard, report

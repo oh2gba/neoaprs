@@ -1,7 +1,9 @@
 """The topics of the hub (neoaprs/web/hub.py) and what changes them: the table of what the pages follow, and the one place of neoaprs/web/ that connects the daemon's signals.
 
-    stations   the station book by call            changed by StationBook.changed, .recounted and .removed; our own position in the settings moves every distance, so it is told whole
-    packets    the latest 200 packets by id         changed by Tnc.packet and by the packets of APRS-IS (Services.internet_packet); the window is kept here (the daemon's database is the log, this is what a page opens with)
+    stations   the station book by call            changed by StationBook.changed, .recounted and .removed; our own position in the settings moves every distance, so it is told whole. While `igate/enabled` is off the
+                                                   internet is hidden (nothing is deleted): a station known only from APRS-IS is not in it, one heard both ways has its radio side only (Station.radio_view), and a change of the setting tells it whole
+    packets    the latest 200 packets by id         changed by Tnc.packet and by the packets of APRS-IS (Services.internet_packet); the window is kept here (neoaprs/web/packetwindow.py; the daemon's database is the log, this is what a page opens
+                                                   with), and shows the latest 200 that were not from the internet while `igate/enabled` is off
     tnc        the radio                             changed by Tnc.changed and Tnc.state_changed; at most four times a second
     config     the settings                          changed by Controller.config_changed, which every save emits
     messages   every message by id                   changed by Messaging.changed (a new or changed message) and .removed (one that was deleted)
@@ -36,48 +38,17 @@ from neoaprs.station import Station
 
 from .hub import StateHub, Topic
 from .mapview import map_state
+from .packetwindow import PACKETS_KEPT, PacketWindow
 from .updatewire import UpdateState
-from .views import bulletin_row, config_values, gps_state, igate_state, message_row, own_bulletin_row, own_object_row, packet_row, pref_row, qru_state, station_row, tnc_state
+from .views import bulletin_row, config_values, gps_state, igate_state, message_row, own_bulletin_row, own_object_row, pref_row, qru_state, station_row, tnc_state
 
 log = logging.getLogger("neoaprs.web")
 
-PACKETS_KEPT = 200                      # the packets a page opens with
 TNC_EVERY_SEC = 0.25                    # the TNC changes with every line it sees: told at most four times a second
 GPS_EVERY_SEC = 1.0                     # the GPS gives a fix a second: told at most once a second
 IGATE_EVERY_SEC = 1.0                   # the iGate counts every packet it hears: told at most once a second
 DISTANCES_EVERY_SEC = 30.0              # every station's distance and bearing follow our moving at most this often (our own row follows at every step of the GPS service)
 PLACE_KEYS = ("station/call", "station/lat", "station/lon", "gps/source")      # (a station that turns mobile or stays moves our row between home and the fix)
-
-
-class PacketWindow:
-    """The latest packets as the rows a page is told, by id. The ids count up in this run of the daemon, in the order the packets came."""
-
-    def __init__(self, size: int = PACKETS_KEPT) -> None:
-        self.size = size
-        self.rows: dict[int, dict[str, Any]] = {}          # in the order of their ids
-        self._next = 1
-
-    def load(self, packets: list[Packet]) -> None:
-        """The packets the database holds, the newest first: they are the oldest rows of the window."""
-        for packet in reversed(packets[: self.size]):
-            self.add(packet)
-
-    def add(self, packet: Packet) -> list[int]:
-        """Adds the packet; the ids that changed: its own, and the one that fell out of the window."""
-        number, self._next = self._next, self._next + 1
-        self.rows[number] = packet_row(number, packet)
-        changed = [number]
-        while len(self.rows) > self.size:
-            gone = next(iter(self.rows))
-            del self.rows[gone]
-            changed.append(gone)
-        return changed
-
-    def whole(self) -> dict[str, Any]:
-        return {str(number): row for number, row in self.rows.items()}
-
-    def item(self, key: str) -> dict[str, Any] | None:
-        return self.rows.get(int(key)) if key.isdigit() else None
 
 
 class Topics:
@@ -88,8 +59,8 @@ class Topics:
         self.window = PacketWindow()
         self._distances_at = float("-inf")          # when every station was last told whole because we moved (the monotonic clock)
         self._config = ctl.config                   # the settings the stations were last told with
-        book = ctl.stationbook
-        hub.add(Topic("stations", lambda: {s.call: station_row(book, s) for s in book.stations()}, lambda call: self._station(call)))
+        self.window.internet = ctl.config.igate_enabled
+        hub.add(Topic("stations", self._stations, lambda call: self._station(call)))
         hub.add(Topic("packets", self.window.whole, self.window.item))
         hub.add(Topic("tnc", lambda: tnc_state(ctl.tnc), interval=TNC_EVERY_SEC))
         hub.add(Topic("config", lambda: config_values(ctl.config, reach(), None if secure is None else secure())))
@@ -105,9 +76,18 @@ class Topics:
         hub.add(Topic("qru", lambda: qru_state(ctl.qruask)))
         self.connected = False
 
+    def _stations(self) -> dict[str, Any]:
+        rows = ((s.call, self._row(s)) for s in self.ctl.stationbook.stations())
+        return {call: row for call, row in rows if row is not None}
+
     def _station(self, call: str) -> dict[str, Any] | None:
         station = self.ctl.stationbook.get(call)
-        return None if station is None else station_row(self.ctl.stationbook, station)
+        return None if station is None else self._row(station)
+
+    def _row(self, station: Station) -> dict[str, Any] | None:
+        """The station's row as the page is shown it: with the internet hidden (`igate/enabled` off) none for a station known only from there, and the radio's side of one heard both ways."""
+        shown = station if self.ctl.config.igate_enabled else station.radio_view()
+        return None if shown is None else station_row(self.ctl.stationbook, shown)
 
     def _station_pref(self, call: str) -> dict[str, Any] | None:
         pref = self.ctl.prefbook.all().get(call)
@@ -140,8 +120,9 @@ class Topics:
 
     async def start(self) -> None:
         """The window starts with the packets the database holds, and from then on the signals tell the hub."""
-        self.window.load(await self.ctl.packetlog.recent(PACKETS_KEPT))
+        self.window.load(await self.ctl.packetlog.window(PACKETS_KEPT))
         self._config = self.ctl.config
+        self.window.internet = self._config.igate_enabled
         self.connect()
 
     def _followed(self) -> list[tuple[Signal[...], Callable[..., None]]]:
@@ -149,6 +130,7 @@ class Topics:
         ctl = self.ctl
         return [
             (ctl.stationbook.changed, self._station_changed), (ctl.stationbook.recounted, self._station_changed), (ctl.stationbook.removed, self._station_removed),
+            (ctl.stationbook.cleared, self._stations_cleared),
             (ctl.tnc.packet, self._packet), (ctl.internet_packet, self._packet), (ctl.tnc.changed, self._tnc_changed), (ctl.tnc.state_changed, self._tnc_state_changed),
             (ctl.config_changed, self._config_changed), (ctl.gps.changed, self._gps_changed), (ctl.gps.moved, self._gps_moved), (ctl.igate.changed, self._igate_changed),
             (ctl.messaging.changed, self._message_changed), (ctl.messaging.removed, self._message_changed),
@@ -177,6 +159,12 @@ class Topics:
 
     def _station_removed(self, call: str) -> None:
         self.hub.changed("stations", call)
+
+    def _stations_cleared(self) -> None:
+        """Every station but ours was forgotten, with the packets heard: the window forgets them too."""
+        self.window.drop_heard()
+        self.hub.changed("stations")
+        self.hub.changed("packets")
 
     def _tnc_changed(self) -> None:
         self.hub.changed("tnc")
@@ -230,8 +218,13 @@ class Topics:
         self.hub.changed("station_prefs", call)
 
     def _config_changed(self, config: Config) -> None:
-        moved = any(key in PLACE_KEYS for key in self._config.changed(config))
+        keys = self._config.changed(config)
+        moved = any(key in PLACE_KEYS for key in keys)
         self._config = config
+        if "igate/enabled" in keys:
+            self.window.internet = config.igate_enabled
+            self.hub.changed("packets")
+            moved = True                            # (the stations are told whole: the internet ones appear or go)
         self.hub.changed("config")
         self.hub.changed("gps")
         self.hub.changed("igate")

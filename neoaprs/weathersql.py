@@ -49,6 +49,11 @@ def prune_weather_before(db: sqlite3.Connection, stamp: str) -> int:
     return db.execute("DELETE FROM weather WHERE at < ?", (stamp,)).rowcount
 
 
+def delete_weather(db: sqlite3.Connection) -> int:
+    """Deletes every observation; how many."""
+    return db.execute("DELETE FROM weather").rowcount
+
+
 def weather_packets(db: sqlite3.Connection, stamp: str) -> list[Row]:
     """(source, destination, raw, heard_at, via) of the packets heard at or after `stamp` that may carry weather, the oldest first: a position whose symbol code is `_`, an object or item whose position's is, or
     a packet of the kind other that the parser read as weather (or called weather). The decoded JSON says it, not the summary. A few more than there are weather reports: the parser decides."""

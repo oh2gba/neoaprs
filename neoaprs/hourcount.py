@@ -40,3 +40,14 @@ class HourCount:
         """The packets of the last hour at `now`."""
         self.expire(now)
         return self.total
+
+    def without(self, other: "HourCount") -> "HourCount":
+        """A count of this one's packets less the other's, which are among them (those that came by one channel)."""
+        less = dict(zip(other._minutes, other._counts, strict=True))
+        left = HourCount()
+        for minute, count in zip(self._minutes, self._counts, strict=True):
+            if count > less.get(minute, 0):
+                left._minutes.append(minute)
+                left._counts.append(count - less.get(minute, 0))
+                left.total += count - less.get(minute, 0)
+        return left

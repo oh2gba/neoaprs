@@ -114,6 +114,11 @@ export const stations: Readonly<Record<keyof typeof en, Message>> = {
   "station.table.message_call": "Enviar mensaje a {call}",
   "station.table.forget_call": "Olvidar {call}",
   "station.table.forget_sure_call": "¿Olvidar {call} de verdad?",
+  "station.table.forget_all": "Olvidar todas",
+  "station.table.forget_all_sure": "¿Olvidar todas de verdad?",
+  "station.table.forget_all_label": "Sobre Olvidar todas",
+  "station.table.forget_tip":
+    "Quita todas las estaciones oídas y sus paquetes, para empezar de cero. Tu estación, objetos, boletines, mensajes, ajustes y mapas se quedan.",
   "station.table.count": { one: "{shown} de {n} estación", other: "{shown} de {n} estaciones" },
 
   "station.menu.label": "Acciones para {call}",

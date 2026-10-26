@@ -171,6 +171,8 @@ problem that changed), after every packet of ours and every save of the settings
 
 One connection to APRS-IS does both: with a passcode the iGate gates what the radio hears, and with or without one it reads the stations of the internet round us and shows them. The group of the Settings tab has the switch and the passcode only.
 
+While `igate/enabled` is off the internet is hidden, not deleted: the topics `stations` and `packets` (`neoaprs/web/topics.py`) leave out a station known only from APRS-IS (`Station.internet_only`) and every packet that came by `is`, and show a station heard both ways by `Station.radio_view`: no internet count, time or hour, and the place and track the packets that were not from the internet gave (`Station.radio`, kept for a station once it is heard from the internet too, and made again from the packets at the start). The status, weather, telemetry and the like are whatever the latest packet of any channel said. A change of the setting tells both topics whole, so the pages follow without a restart.
+
 `igate/enabled` (off by default), `igate/server` (`rotate.aprs2.net:14580`, not on the page) and `igate/password` (the APRS-IS passcode of `station/call`, digits, a secret; `-1` is refused because it only reads; empty is the read-only login, which the page does not mention) set it up. NeoAPRS never works a
 passcode out: the page links to the request page of the author, `PASSCODE_URL` in `ui/src/lib/igatestatus.ts`, which is told the base call.
 

@@ -115,6 +115,11 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.table.message_call": "Enviar mensagem a {call}",
   "station.table.forget_call": "Esquecer {call}",
   "station.table.forget_sure_call": "Esquecer {call} mesmo?",
+  "station.table.forget_all": "Esquecer todas",
+  "station.table.forget_all_sure": "Esquecer todas mesmo?",
+  "station.table.forget_all_label": "Sobre Esquecer todas",
+  "station.table.forget_tip":
+    "Remove todas as estações ouvidas e seus pacotes, para recomeçar do zero. Sua estação, objetos, boletins, mensagens, configurações e mapas ficam.",
   "station.table.count": { one: "{shown} de {n} estação", other: "{shown} de {n} estações" },
 
   "station.menu.label": "Ações para {call}",

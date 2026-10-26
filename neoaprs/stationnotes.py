@@ -8,7 +8,7 @@ from .bulletin import board_slot
 from .device import MICE_BODY, MICE_DUMB, MICE_IDENTIFIERS, inner
 from .packet import DUMMY, IS, RF_GATED, ItemReport, Message, ObjectReport, Other, Packet, Position
 from .route import route_of
-from .station import Station
+from .station import RadioPlace, Station, add_track_point
 
 DEFINITIONS_MAX = 500               # stations whose telemetry definitions are kept (the oldest goes first)
 IGATE = "IGATE"                     # the token of a capabilities packet (`<IGATE,MSG_CNT=2,LOC_CNT=10`) with which a station says it is an iGate
@@ -21,6 +21,7 @@ def note_heard(station: Station, packet: Packet, route: bool = True) -> None:
     station.last_heard = packet.heard_at
     station.hour.note(packet.heard_at)
     if packet.via == IS:
+        station.hour_is.note(packet.heard_at)
         station.heard_is, station.last_is_at = station.heard_is + 1, packet.heard_at
         return
     if packet.via == RF_GATED:
@@ -75,9 +76,15 @@ def seed_hour(stations: Mapping[str, Station], packets: Iterable[Packet]) -> Non
             continue
         station, decoded = stations.get(packet.sender), packet.decoded
         if station is not None and not station.is_me:
-            station.hour.note(packet.heard_at)
+            _note_hour(station, packet)
         if isinstance(decoded, (ObjectReport, ItemReport)) and decoded.alive and decoded.name in stations:
-            stations[decoded.name].hour.note(packet.heard_at)
+            _note_hour(stations[decoded.name], packet)
+
+
+def _note_hour(station: Station, packet: Packet) -> None:
+    station.hour.note(packet.heard_at)
+    if packet.via == IS:
+        station.hour_is.note(packet.heard_at)
 
 
 def expire_hours(stations: Iterable[Station], now: datetime, changed: Callable[[Station], None]) -> None:
@@ -122,3 +129,36 @@ def note_telemetry(stations: Mapping[str, Station], definitions: dict[str, Telem
     while len(definitions) > DEFINITIONS_MAX:
         del definitions[next(iter(definitions))]
     return stations.get(decoded.addressee)
+
+
+def note_radio_place(station: Station, packet: Packet, position: Position) -> None:
+    """A packet is about to give the station its position. A station that is heard from the internet keeps the place the radio gave it apart (`Station.radio`), so that the internet can be hidden: the first packet from the
+    internet takes a copy of the place the station has (when the radio gave it), and a packet that is not from the internet moves the radio's place. A station never heard from the internet has none."""
+    place = station.radio
+    if packet.via == IS:
+        if place is None and station.position_via not in (None, IS) and station.lat is not None and station.lon is not None and station.last_position_at is not None:
+            assert station.position_via is not None
+            station.radio = RadioPlace(station.lat, station.lon, station.last_position_at, station.position_via, station.symbol_table, station.symbol_code, station.altitude_m, station.course_deg,
+                                       station.speed_kmh, station.last_comment, list(station.track))
+        return
+    if place is None and station.heard_is == 0:
+        return
+    track = [] if place is None else place.track
+    station.radio = place = RadioPlace(position.lat, position.lon, packet.heard_at, packet.via, position.symbol_table, position.symbol_code, position.altitude_m, position.course_deg, position.speed_kmh,
+                                       position.comment, track)
+    add_track_point(track, packet.heard_at, position.lat, position.lon)
+
+
+def seed_radio(stations: Mapping[str, Station], packets: Iterable[Packet]) -> None:
+    """The position packets that were not from the internet, oldest first, noted as the book notes a packet it takes: the place the radio gave each station that has been heard from the internet."""
+    for packet in packets:
+        decoded = packet.decoded
+        if isinstance(decoded, Position):
+            name, position = packet.sender, decoded
+        elif isinstance(decoded, (ObjectReport, ItemReport)) and decoded.alive:
+            name, position = decoded.name, decoded.position
+        else:
+            continue
+        station = stations.get(name)
+        if packet.direction == "in" and packet.via != IS and station is not None and not station.is_me and not station.own and station.heard_is > 0:
+            note_radio_place(station, packet, position)

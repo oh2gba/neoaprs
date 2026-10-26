@@ -12,7 +12,8 @@ from .db import Db
 from .dblog import DbLog
 from .packet import ItemReport, ObjectReport, Packet, Position, via_of
 from .packetcodec import PacketRow, packet_of, packet_row, parse_stamp, stamp
-from .packetsql import (Row, all_stations, count_packets, delete_station, heard_routes, heard_times, insert_packet, message_packets, packets_since, position_packets, prune_packets_before, recent_packets, upsert_station)
+from .packetsql import (Row, all_stations, count_packets, delete_heard, delete_station, heard_routes, heard_times, insert_packet, message_packets, packets_since, position_packets, prune_packets_before, radio_position_packets,
+                        recent_packets, upsert_station, window_packets)
 from .station import Station
 
 log = logging.getLogger("neoaprs.packetlog")
@@ -77,6 +78,11 @@ class PacketLog(DbLog):
         rows: list[Row] = await self._read(lambda conn: recent_packets(conn, count), [])
         return self._packets(rows)
 
+    async def window(self, count: int) -> list[Packet]:
+        """The latest `count` packets and the latest `count` that were not from the internet, together, the newest first: what the window of the page's Packets tab is made of."""
+        rows: list[Row] = await self._read(lambda conn: window_packets(conn, count), [])
+        return self._packets(rows)
+
     async def since(self, when: datetime) -> list[Packet]:
         """The packets heard at or after the time, the oldest first."""
         text = stamp(when)
@@ -119,6 +125,12 @@ class PacketLog(DbLog):
                 found.append((d.name, packet.heard_at, d.position.lat, d.position.lon))
         return found
 
+    async def radio_positions(self, keep_days: int, count: int = TRACKS_SEEN) -> list[Packet]:
+        """The latest `count` packets heard within `keep_days` days that carry a position and were not from the internet, the oldest first: the station book makes the radio's side of the stations that were heard from the internet from them."""
+        since = stamp(self.clock() - days(keep_days))
+        rows: list[Row] = await self._read(lambda conn: radio_position_packets(conn, since, count), [])
+        return self._packets(rows)
+
     async def messaging_evidence(self, keep_days: int, count: int = TRACKS_SEEN) -> list[Packet]:
         """The packets that say who does messages, for the station book to start with: the latest `count` messages heard, then the latest `count` positions heard within `keep_days` days (each part oldest first)."""
         since = stamp(self.clock() - days(keep_days))
@@ -135,6 +147,10 @@ class PacketLog(DbLog):
         return self._decoded(rows, station_of, "station")
 
     # ---- care
+    async def forget_heard(self, keep_call: str) -> int:
+        """Deletes every packet that was heard (those we sent stay) and every cached station but `keep_call`, ours; how many packets. -1 when the database would not."""
+        return await self._write(lambda conn: delete_heard(conn, keep_call), -1, "the heard packets could not be forgotten")
+
     async def prune(self, keep_days: int) -> int:
         """Deletes the packets heard more than `keep_days` days ago; how many. The stations are the station book's to prune (the cache follows through `delete_station`)."""
         cutoff = stamp(self.clock() - days(keep_days))

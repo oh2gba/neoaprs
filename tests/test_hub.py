@@ -11,7 +11,7 @@ from neoaprs.web import outbound
 from neoaprs.web.hub import BEHIND, StateHub, Topic
 from neoaprs.web.outbound import MAX_MESSAGE, ProtocolViolation, Publisher
 from neoaprs.web.session import Connection, error_message
-from neoaprs.web.topics import PacketWindow
+from neoaprs.web.packetwindow import PacketWindow
 from tests.support.env import idle_for, until
 
 
@@ -223,8 +223,38 @@ def test_the_window_counts_the_packets_up_and_forgets_the_oldest() -> None:
 def test_the_window_starts_with_the_packets_the_database_kept_oldest_first() -> None:
     window = PacketWindow(size=3)
     window.load([packet(n) for n in (9, 8, 7, 6, 5)])                       # (the newest first, as the log gives them; two fall out)
-    assert [r["source"] for r in window.whole().values()] == ["OH2T7", "OH2T8", "OH2T9"] and list(window.whole()) == ["1", "2", "3"]
-    assert window.add(packet(10)) == [4, 1]
+    assert [r["source"] for r in window.whole().values()] == ["OH2T7", "OH2T8", "OH2T9"] and list(window.whole()) == ["3", "4", "5"]
+    assert window.add(packet(10)) == [6, 3]
+
+
+def from_net(n: int) -> Packet:
+    return Packet(heard_at=utc(2026, 10, 21, 12, 0, n % 60), direction="in", raw=b"", source=f"OH2N{n}", destination="APRS", path=(), info=b"", decoded=Position(60.0, 24.0, "/", ">"), via="is")
+
+
+def test_the_window_shows_the_latest_of_all_or_the_latest_that_were_not_from_the_internet_and_keeps_both() -> None:
+    window = PacketWindow(size=3)
+    window.add(packet(1))
+    for n in range(2, 7):
+        window.add(from_net(n))
+    assert list(window.whole()) == ["4", "5", "6"] and window.item("1") is None and window.item("5") == window.rows[5]
+    window.internet = False
+    assert list(window.whole()) == ["1"] and window.item("1") == window.rows[1] and window.item("5") is None, "the radio's packet the internet pushed out is shown again"
+    assert window.add(from_net(7)) == [7, 4] and list(window.whole()) == ["1"]
+    window.add(packet(8))
+    assert list(window.whole()) == ["1", "8"]
+    window.internet = True
+    assert list(window.whole()) == ["6", "7", "8"]
+
+
+def test_the_window_forgets_the_packets_heard_and_keeps_the_ones_we_sent() -> None:
+    window = PacketWindow(size=5)
+    window.add(packet(1))
+    window.add(Packet(heard_at=utc(2026, 10, 21, 12, 0, 2), direction="out", raw=b"", source="OH2GBA", destination="APRS", path=(), info=b"", decoded=Position(60.0, 24.0, "/", ">")))
+    window.add(from_net(3))
+    window.drop_heard()
+    assert [r["direction"] for r in window.whole().values()] == ["out"] and list(window.whole()) == ["2"]
+    window.internet = False
+    assert list(window.whole()) == ["2"]
 
 
 # ---- the publisher -------------------------------------------------------------------------------------------------------------------------------

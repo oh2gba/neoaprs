@@ -2,6 +2,8 @@
 
 **Settings → Internet stations → Enable** shows the stations that APRS-IS, the internet side of APRS, has within the radius of your map. They are on the map, in the Stations tab and in the Packets tab, marked as heard over the internet ([the page](page.md#stations)). Nothing is sent. It is off until you switch it on.
 
+Switching it off hides them again, as if it had never been on: no station known only from the internet, no packet from it, and a station heard both ways shows only what the radio heard (no Internet tag or time, the place the radio gave). Nothing is deleted: switch it on and they are back at once.
+
 ## What it does
 
 - It logs in to APRS-IS with your call, read only, and asks for the stations within the **Radius** of the Map group of the Settings tab, round your position. The circle is asked for again when you change the radius and when your position has moved more than 10 km.

@@ -115,6 +115,11 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.table.message_call": "{call}にメッセージ",
   "station.table.forget_call": "{call}を消去",
   "station.table.forget_sure_call": "本当に{call}を消去しますか?",
+  "station.table.forget_all": "すべて消去",
+  "station.table.forget_all_sure": "本当にすべて消去しますか?",
+  "station.table.forget_all_label": "「すべて消去」について",
+  "station.table.forget_tip":
+    "受信したすべての局とそのパケットを削除し、最初からやり直します。自局、オブジェクト、ブレティン、メッセージ、設定、地図は残ります。",
   "station.table.count": { other: "{n}局中{shown}局" },
 
   "station.menu.label": "{call}の操作",

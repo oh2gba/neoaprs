@@ -1,12 +1,13 @@
 <script setup lang="ts">
 // The stations heard, as a short table that fits the panel: the symbol, the call (a green check mark after it for a station heard direct, and under it in small quiet letters how it was heard: RF, iGate, Internet, or two joined; lib/channels.ts), the distance from us, the bearing as a small arrow (north up; "NE, 47°" is its hover title) and when the station was last heard at all (the newest of anything it sent, with the full time as the hover title); the rest of what is known of a station (when its position was, how its packets reach us, the path, the packets, the weather) is on its card, a click away. A column is sorted by a click on its head (again to
 // reverse), a filter box and the toggles "direct only" (the stations heard direct at some time), "heard on RF only" (leaves out the stations known from the internet alone; it is there only once a station has been received over the internet) and "hide timed out" narrow it, our own station is always on top, the selected row is marked and a click on a row selects the station
-// (the map flies to it; with Ctrl it adds a card). When the filter text is a call that no station has been heard under (not ours, not the email gateway), a button "Message OH2XYZ" under the empty result writes to it all the same. A station past its timeout is off the map: its row is dim and says "timed out" after the time it was heard. Every row is one line high. At the right end of a row are two small buttons, as on the card: a speech bubble that opens the conversation with the station ("Message OH2XYZ", where the card has Message) and a trash can that forgets it ("Forget OH2XYZ", where the card has Forget; it asks twice like the card's, "sure?" for 5 s); a click on them does not select the row. Between them is a "..." button, and a right-click on a row (a long press on a touch screen) opens the same menu where the pointer is (StationMenu: Message, the directed queries, Show, Copy call, QRZ, Forget).
+// (the map flies to it; with Ctrl it adds a card). When the filter text is a call that no station has been heard under (not ours, not the email gateway), a button "Message OH2XYZ" under the empty result writes to it all the same. A station past its timeout is off the map: its row is dim and says "timed out" after the time it was heard. At the foot are the count and Forget all, which asks twice ("Really forget all?", 5 s) and has its (i): it removes every station heard with its packets and keeps ours. Every row is one line high. At the right end of a row are two small buttons, as on the card: a speech bubble that opens the conversation with the station ("Message OH2XYZ", where the card has Message) and a trash can that forgets it ("Forget OH2XYZ", where the card has Forget; it asks twice like the card's, "sure?" for 5 s); a click on them does not select the row. Between them is a "..." button, and a right-click on a row (a long press on a touch screen) opens the same menu where the pointer is (StationMenu: Message, the directed queries, Show, Copy call, QRZ, Forget).
 import TagMark from "@/components/TagMark.vue";
 import { computed, ref, watch } from "vue";
 import BearingArrow from "@/components/BearingArrow.vue";
 import DirectMark from "@/components/DirectMark.vue";
 import IconButton from "@/components/IconButton.vue";
+import InfoTip from "@/components/InfoTip.vue";
 import MessageGlyph from "@/components/MessageGlyph.vue";
 import StationMenu from "@/components/StationMenu.vue";
 import TabHelp from "@/components/TabHelp.vue";
@@ -33,7 +34,7 @@ const props = withDefaults(
   }>(),
   { others: () => [] },
 );
-const { stations, now, aging, call: ownCall, settings } = useDaemonContext();
+const { stations, now, aging, call: ownCall, settings, send } = useDaemonContext();
 const emit = defineEmits<{
   select: [call: string, multi?: boolean];
   message: [call: string];
@@ -60,6 +61,11 @@ const columns = computed<{ key: SortKey | null; title: string; numeric?: boolean
 const sure = useSure<string>();
 const armed = (call: string): boolean => sure.armed.value === call;
 const forget = (call: string): void => sure.press(call, () => emit("forget", call));
+
+/** Forget all (at the foot) asks twice as well: the first press arms it ("Really forget all?"), the second (within 5 s) sends the command. It is there to press while some station is heard (ours and our objects are not forgotten). */
+const sureAll = useSure<"all">();
+const anyHeard = computed(() => [...stations.value.values()].some((row) => !row.is_me && !row.own));
+const forgetAll = (): void => sureAll.press("all", () => send({ cmd: "forget_all_stations" }));
 
 /** The menu of a row (StationMenu): opened by a right-click on the row, a long press on a touch screen or the "..." button at its end, where the pointer is (under the button for that). `n` makes a menu opened again a new one, in its new place. */
 const menu = ref<{ call: string; x: number; y: number; trigger: HTMLElement; n: number } | null>(null);
@@ -290,6 +296,16 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
       @copy="emit('copy', $event)"
       @forget="forget"
     />
-    <div class="foot muted">{{ t("station.table.count", { shown: rows.length, n: stations.size }) }}</div>
+    <div class="foot footbar muted">
+      <span class="footcount">{{ t("station.table.count", { shown: rows.length, n: stations.size }) }}</span>
+      <span class="footaction">
+        <button type="button" class="btn small forgetall" :class="{ danger: sureAll.armed.value !== null }" :disabled="!anyHeard" @click="forgetAll">
+          {{ sureAll.armed.value !== null ? t("station.table.forget_all_sure") : t("station.table.forget_all") }}
+        </button>
+        <InfoTip :label="t('station.table.forget_all_label')">
+          <span class="info-line">{{ t("station.table.forget_tip") }}</span>
+        </InfoTip>
+      </span>
+    </div>
   </div>
 </template>

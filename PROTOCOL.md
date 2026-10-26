@@ -104,7 +104,7 @@ TypeScript types for both unions are in `ui/src/protocol/protocol.ts`, the JSON 
 
 ## Client to server
 
-37 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
+38 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
 
 ### `ping`
 
@@ -142,6 +142,11 @@ Removes a station from the station book (and its cache in the database) until it
 | field | type | | description |
 |---|---|---|---|
 | `call` | string |  | (max 64 chars, min 1 chars) |
+
+### `forget_all_stations`
+
+A fresh start for what was heard: removes every station and every packet heard (and the weather of the stations), in the daemon and in its database. The station we are, the objects and bulletins we send, the messages, the
+settings and the maps stay, and so do the packets we sent. Answered by the stations' topic told whole, or by an `error`.
 
 ### `tnc_reconnect`
 

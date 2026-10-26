@@ -140,6 +140,7 @@ async def seed_station_book(parts: Services) -> None:
     book.seed_deliveries(await packetlog.deliveries())
     place_me(parts)
     book.seed_tracks(await packetlog.positions(LOG_KEEP_DAYS))      # (after our own station is in the book: it gets no track)
+    book.seed_radio(await packetlog.radio_positions(LOG_KEEP_DAYS))     # (the radio's side of the stations that were heard from the internet too)
     await _seed_weather(parts)
     book.seed_details(await packetlog.recent(DETAILS_SEEN))
     book.seed_messaging(await packetlog.messaging_evidence(LOG_KEEP_DAYS))

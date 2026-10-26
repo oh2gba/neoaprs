@@ -11,6 +11,19 @@
   border-top: 1px solid var(--border);
   font-size: 12px;
 }
+/* the foot of the Stations tab: the count, and Forget all with its (i) at the other end */
+.footbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+}
+.footaction {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
 /* the filter box and the three tickboxes of the Stations tab wrap onto a second line when they do not fit, the tickboxes together; every tab's content fills the panel, as the Email tab's does */
 .filterbox {
   flex: 1 1 12em;

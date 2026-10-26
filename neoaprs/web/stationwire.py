@@ -113,3 +113,9 @@ class ForgetStation(_Command):
     """Removes a station from the station book (and its cache in the database) until it is heard again. Not our own station. Answered by the `del` of the row, or by an `error`."""
     cmd: Literal["forget_station"]
     call: str = Field(min_length=1, max_length=64)
+
+
+class ForgetAllStations(_Command):
+    """A fresh start for what was heard: removes every station and every packet heard (and the weather of the stations), in the daemon and in its database. The station we are, the objects and bulletins we send, the messages, the
+    settings and the maps stay, and so do the packets we sent. Answered by the stations' topic told whole, or by an `error`."""
+    cmd: Literal["forget_all_stations"]
