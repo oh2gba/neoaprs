@@ -36,6 +36,7 @@ describe("SettingsForm", () => {
       "Map",
       "Update check",
       "Help",
+      "About",
     ]);
     expect(wrapper.findAll("form > fieldset").map((f) => f.find("legend").text())).toEqual([
       "TNC",
@@ -45,6 +46,7 @@ describe("SettingsForm", () => {
       "Map",
       "Update check",
       "Help",
+      "About",
     ]);
     const beacons = ["beacon/", "station/", "status/", "gps/"]; // (the Beacon tab's)
     const elsewhere = [

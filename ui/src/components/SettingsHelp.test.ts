@@ -178,10 +178,10 @@ describe("the Help group", () => {
 });
 
 describe("the Help group in the Settings tab", () => {
-  it("is the last group, after Update check, and the Beacon tab has none", () => {
+  it("is the group before About, after Update check, and the Beacon tab has none", () => {
     const settings = mount(SettingsForm, { props: { scope: "settings" }, global: withDaemon() });
     const titles = settings.findAll("form > fieldset").map((f) => f.find("legend").text());
-    expect(titles.slice(-2)).toEqual(["Update check", "Help"]);
+    expect(titles.slice(-3)).toEqual(["Update check", "Help", "About"]);
     const beacon = mount(SettingsForm, { props: { scope: "beacon" }, global: withDaemon() });
     expect(beacon.find(".help-logs").exists()).toBe(false);
   });

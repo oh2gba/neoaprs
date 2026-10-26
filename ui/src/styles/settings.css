@@ -131,8 +131,9 @@
   text-decoration: underline;
   cursor: pointer;
 }
-/* the Help group: a text, one plain button, quiet lines and links, one under the other; the result of a download stands last, so that nothing above it moves */
-.help-logs p {
+/* the Help and About groups: a text, one plain button, quiet lines and links, one under the other; the result of a download stands last, so that nothing above it moves */
+.help-logs p,
+.about p {
   margin: 6px 0;
 }
 .help-logs .help-result:empty {

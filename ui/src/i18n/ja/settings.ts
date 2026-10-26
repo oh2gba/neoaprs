@@ -368,4 +368,10 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.help.problem.busy": "別のファイルを作成中です。1分ほどしてからもう一度お試しください。",
   "settings.help.problem.unreachable": "デーモンに接続できませんでした。",
   "settings.help.problem.failed": "ファイルを作成できませんでした(エラー {status})。",
+  "settings.about.group": "このアプリについて",
+  "settings.about.intro": "NeoAPRS {version}: TNC付きの無線機用のAPRSクライアントで、このページがそのウィンドウです。制作: {call}。",
+  "settings.about.license": "{license} バージョン3以降に基づくフリーソフトウェアです。",
+  "settings.about.license_link": "GNU一般公衆利用許諾書",
+  "settings.about.source": "ソースコード",
+  "settings.about.thanks": "{first}、{second}、{third} の各局のご意見に感謝します。",
 };

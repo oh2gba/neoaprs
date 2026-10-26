@@ -376,4 +376,10 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.help.problem.busy": "Se está creando otro archivo. Inténtalo de nuevo en un minuto.",
   "settings.help.problem.unreachable": "No se pudo contactar con el servicio.",
   "settings.help.problem.failed": "No se pudo crear el archivo (error {status}).",
+  "settings.about.group": "Acerca de",
+  "settings.about.intro": "NeoAPRS {version}: un cliente APRS para una radio con TNC, con esta página como ventana. Hecho por {call}.",
+  "settings.about.license": "Software libre bajo la {license}, versión 3 o posterior.",
+  "settings.about.license_link": "Licencia Pública General de GNU",
+  "settings.about.source": "Código fuente",
+  "settings.about.thanks": "Gracias a {first}, {second} y {third} por sus comentarios.",
 };

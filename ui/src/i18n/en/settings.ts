@@ -371,4 +371,10 @@ export const settings = {
   "settings.help.problem.busy": "Another file is being made. Try again in a minute.",
   "settings.help.problem.unreachable": "The daemon could not be reached.",
   "settings.help.problem.failed": "The file could not be made (error {status}).",
+  "settings.about.group": "About",
+  "settings.about.intro": "NeoAPRS {version}: an APRS client for a radio with a TNC, with this page as its window. Made by {call}.",
+  "settings.about.license": "Free software under the {license}, version 3 or later.",
+  "settings.about.license_link": "GNU General Public License",
+  "settings.about.source": "Source code",
+  "settings.about.thanks": "Thanks to {first}, {second} and {third} for their feedback.",
 } as const;
