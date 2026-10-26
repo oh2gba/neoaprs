@@ -40,6 +40,8 @@ class TncStats(Stats):
     watchdog_probes: int = 0
     port_reopens: int = 0
     digipeated: int = 0        # frames the fill-in digipeater (services/digipeater.py) sent again
+    digipeated_at: datetime | None = None      # when the latest of them went out
+    digipeat_held: int = 0     # frames it left unsent because the burst limit was reached
 
 
 class Watched(Protocol):

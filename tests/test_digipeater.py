@@ -42,7 +42,7 @@ def test_wide1_1_becomes_our_call_marked_as_used_and_the_rest_of_the_path_stays(
     assert rig.lines() == [f"OH2XYZ>APRS,OH2GBA*,WIDE2-1:{INFO.decode()}"]
     [sent] = rig.tnc.sent
     assert [(a.call, a.ssid, a.repeated) for a in sent.path] == [("OH2GBA", 0, True), ("WIDE2", 1, False)]
-    assert rig.stats.digipeated == 1
+    assert rig.stats.digipeated == 1 and rig.stats.digipeated_at == rig.clock()
 
 
 def test_wide1_1_alone_and_after_a_used_hop_is_the_first_unused_hop() -> None:
@@ -214,7 +214,7 @@ def test_not_more_than_a_few_frames_go_out_in_a_burst_and_it_goes_on_when_the_wi
     rig = Rig()
     for n in range(BURST_MAX + 3):
         rig.hear(frame(info=f">{n}".encode()))
-    assert len(rig.tnc.sent) == BURST_MAX
+    assert len(rig.tnc.sent) == BURST_MAX and rig.stats.digipeat_held == 3
     rig.clock.advance(BURST_WINDOW_SEC)
     rig.hear(frame(info=b">later"))
     assert len(rig.tnc.sent) == BURST_MAX + 1 and rig.stats.digipeated == BURST_MAX + 1

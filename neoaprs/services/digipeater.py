@@ -108,6 +108,8 @@ class Digipeater:
             self._sent.popleft()
         if len(self._sent) >= BURST_MAX:
             log.debug("not digipeating %s: %d frames went out in the last %g s", heard.tnc2(), BURST_MAX, BURST_WINDOW_SEC)
+            if self._stats is not None:
+                self._stats.digipeat_held += 1
             return
         if not self._tnc.send_frame(frame, raw):
             log.warning("the digipeated frame of %s was not sent: the TNC would not take it", heard.source)
@@ -115,6 +117,7 @@ class Digipeater:
         self._sent.append(now)
         if self._stats is not None:
             self._stats.digipeated += 1
+            self._stats.digipeated_at = now
         log.info("digipeated %s>%s: the path %s is sent as %s", heard.source, heard.destination, heard.path_text, frame.path_text)
 
 

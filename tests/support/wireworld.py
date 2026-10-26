@@ -131,6 +131,7 @@ def tnc() -> Tnc:
     tnc._saw("OH2XYZ>APRS:>hello  ->  status hello")
     tnc.stats.opens, tnc.stats.bytes_in, tnc.stats.frames_in, tnc.stats.packets, tnc.stats.last_packet = 2, 1234, 7, 6, T0 + timedelta(seconds=3)
     tnc.stats.keepalive_checks, tnc.stats.watchdog_probes, tnc.stats.port_reopens, tnc.stats.digipeated = 1, 2, 3, 4
+    tnc.stats.digipeated_at, tnc.stats.digipeat_held = T0 + timedelta(seconds=2), 1
     tnc.last_watchdog_action, tnc.last_watchdog_at = "probe", T0 + timedelta(seconds=2)
     return tnc
 

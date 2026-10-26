@@ -49,7 +49,7 @@ comment with a letter outside ASCII or a Mic-E byte hides neither its own header
 `the radio is silent: nothing heard since 18:43 UTC, no answer to a check; probing every 30 s`. At INFO, once, when it ends:
 `the radio answers again after 17 min; entering KISS`. A KISS entry on a fresh open stays INFO.
 
-**On the wire.** `TncState` (the topic `tnc`) counts in `stats`: `keepalive_checks`, `watchdog_probes`, `port_reopens`, `digipeated`, and has
+**On the wire.** `TncState` (the topic `tnc`) counts in `stats`: `keepalive_checks`, `watchdog_probes`, `port_reopens`, `digipeated` (with `digipeated_at`, when the latest went out, and `digipeat_held`, the frames the burst limit left unsent), and has
 `last_watchdog_action` (`check`, `probe`, `reopen` or empty) with `last_watchdog_at`. It also has `searching` (the ports being listened to) and `lines` (the
 latest 100 as `{at, text}`). The page shows the packet and byte counts as the hover title of the radio status.
 

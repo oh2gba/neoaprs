@@ -19,6 +19,8 @@ class TncStats(_Model):
     watchdog_probes: int = Field(ge=0, description="times the watchdog probed a silent radio (the same sequence as a check, every 30 seconds)")
     port_reopens: int = Field(ge=0, description="times the port was closed and opened again (every 5th probe of a silent radio)")
     digipeated: int = Field(ge=0, description="frames the digipeater (`digi/enabled`) sent again for other stations")
+    digipeated_at: Iso | None = Field(description="when the latest of them went out; null for none yet")
+    digipeat_held: int = Field(ge=0, description="frames the digipeater left unsent because it had already sent the most it sends in a burst (`BURST_MAX` in 10 seconds)")
 
 
 class TncLine(_Model):

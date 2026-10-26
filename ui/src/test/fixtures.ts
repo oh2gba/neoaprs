@@ -286,6 +286,8 @@ export function tncState(extra: Partial<TncState> = {}): TncState {
       watchdog_probes: 0,
       port_reopens: 0,
       digipeated: 0,
+      digipeated_at: null,
+      digipeat_held: 0,
     },
     lines: [
       { at: "2026-10-21T12:00:00Z", text: "NeoAPRS: opened /dev/brainbox_3 at 9600" },
