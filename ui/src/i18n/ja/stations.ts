@@ -163,6 +163,7 @@ export const stations: Record<keyof typeof source, Message> = {
   "channel.title.rf": "無線で受信",
   "channel.title.gated": "無線で受信（iGateがインターネットから取得）",
   "channel.title.is": "インターネット（APRS-IS）で受信、無線ではない",
+  "channel.title.local_info": "ローカル情報を問い合わせたときに {server} から届きました",
   "channel.title.dummy": "ダミー無線機が作った模擬データ（本物の無線機ではない）",
   "channel.title_join": "{first}、{second}",
   "channel.ago": "{channel} {when}",

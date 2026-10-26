@@ -131,7 +131,7 @@ describe("ObjectForm", () => {
     view.cancel();
     await wrapper.vm.$nextTick();
     expect(main.text()).toBe("Add");
-    expect(wrapper.find("form").attributes("aria-label")).toBe("New object");
+    expect(wrapper.find("form").attributes("aria-label")).toBe("Add an object");
   });
 
   it("takes a name of nine characters at the most, and has no choice of kind", () => {

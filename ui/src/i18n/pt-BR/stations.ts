@@ -163,6 +163,7 @@ export const stations: Record<keyof typeof source, Message> = {
   "channel.title.rf": "Ouvida no rádio",
   "channel.title.gated": "Ouvida no rádio, vinda de um iGate que a pegou da internet",
   "channel.title.is": "Recebida pela internet (APRS-IS), não pelo rádio",
+  "channel.title.local_info": "Enviado por {server} quando pedimos a info local",
   "channel.title.dummy": "Inventada pelo rádio Dummy, que não é um rádio de verdade",
   "channel.title_join": "{first}; {second}",
   "channel.ago": "{channel} {when}",

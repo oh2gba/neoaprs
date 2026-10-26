@@ -18,12 +18,26 @@ beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 
 describe("ComposeBar", () => {
-  it("is a form with the fields, and under them one line: what is aside, the counter, the buttons", () => {
+  it("is no box and has no legend as the chat line under a conversation (inline): the field, the counter and the button directly in the form", () => {
+    const wrapper = bar({ inline: true, left: 5 });
+    expect(wrapper.classes()).not.toContain("boxed");
+    expect(wrapper.find("fieldset").exists()).toBe(false);
+    expect(wrapper.find("legend").exists()).toBe(false);
+    expect(wrapper.find(".composebar-aside").exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("is a form with a group box (fieldset and legend) around the fields, and under them one line: what is aside, the counter, the buttons", () => {
     const wrapper = bar({ left: 12 });
     const form = wrapper.find("form");
     expect(form.element).toBe(wrapper.element);
     expect(wrapper.attributes("aria-label")).toBe("Write");
-    expect(form.element.firstElementChild?.className).toBe("composebar-fields");
+    expect([...wrapper.find("fieldset.composebox").element.children].map((c) => c.className || c.tagName.toLowerCase())).toEqual([
+      "legend",
+      "composebar-fields",
+      "composebar-foot",
+    ]);
+    expect(wrapper.find("fieldset > legend").text()).toBe("Write");
     expect(wrapper.find(".composebar-fields #field").exists()).toBe(true);
     expect([...wrapper.find(".composebar-foot").element.children].map((c) => c.id || c.className)).toEqual([
       "composebar-aside",
@@ -46,13 +60,10 @@ describe("ComposeBar", () => {
     wrapper.unmount();
   });
 
-  it("sends submit when the form is submitted, and scrolls only when it is told to", async () => {
+  it("sends submit when the form is submitted", async () => {
     const wrapper = bar();
     await wrapper.trigger("submit");
     expect(wrapper.emitted("submit")).toEqual([[]]);
-    expect(wrapper.classes()).not.toContain("scrolls");
-    await wrapper.setProps({ scrolls: true });
-    expect(wrapper.classes()).toContain("scrolls");
     wrapper.unmount();
   });
 

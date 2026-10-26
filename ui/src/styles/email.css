@@ -11,15 +11,6 @@
   flex: none;
   white-space: nowrap;
 }
-.mailfields {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 6px 10px;
-  align-items: center;
-}
-.mailfields > label {
-  font-weight: 600;
-}
 .mail-address {
   position: relative;
   display: flex;

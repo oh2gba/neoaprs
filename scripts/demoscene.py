@@ -244,9 +244,9 @@ class Scene:
         due = [self.ctl.ownobjects.next_at(o.name) for o in self.ctl.ownobjects.records()] + [self.ctl.ownbulletins.next_at(b.slot) for b in self.ctl.ownbulletins.records()]
         return any(when is not None and when <= now for when in due)
 
-    async def own_object(self, name: str, kind: str, lat: float, lon: float, symbol: str, comment: str, path: str | None = None) -> None:
-        """We make an object or an item (the Objects tab's `object_set`); it is on the air once this returns."""
-        self.ctl.ownobjects.set(name, kind, lat, lon, symbol[0], symbol[1], comment, path=path)
+    async def own_object(self, name: str, kind: str, lat: float, lon: float, symbol: str, comment: str, path: str | None = None, qru_group: str = "") -> None:
+        """We make an object or an item (the Objects tab's `object_set`, with its category when it has one); it is on the air once this returns."""
+        self.ctl.ownobjects.set(name, kind, lat, lon, symbol[0], symbol[1], comment, path=path, qru_group=qru_group)
         await _until(lambda: (held := self.ctl.ownobjects.get(name)) is not None and held.sent >= 1)
 
     async def own_bulletin(self, slot: str, text: str) -> None:
@@ -381,8 +381,8 @@ def events(local_hour_now: float) -> list[Event]:
     day.append(Event(40, lambda s: _send_beacon(s)))
     # Objects, items and bulletins of our own: a net-control point, a meeting place for Saturday and an item for the hamfest, and two on the board
     day.append(Event(171, lambda s: s.own_bulletin("BLN2", "2 m net tonight 20:00 on 144.800 MHz, net control OH2GBA")))
-    day.append(Event(92, lambda s: s.own_object("NETCTRL", "object", 60.2208, 24.8085, "/-", "2 m net Tue 20:00, 144.800 MHz")))
-    day.append(Event(68, lambda s: s.own_object("HAMFEST", "item", 60.2052, 24.6720, "/K", "Hamfest Sat 10:00, talk-in 145.500")))
+    day.append(Event(92, lambda s: s.own_object("NETCTRL", "object", 60.2208, 24.8085, "/-", "2 m net Tue 20:00, 144.800 MHz", qru_group="CLUB")))
+    day.append(Event(68, lambda s: s.own_object("HAMFEST", "item", 60.2052, 24.6720, "/K", "Hamfest Sat 10:00, talk-in 145.500", qru_group="CLUB")))
     day.append(Event(53, lambda s: s.own_bulletin("BLNL", "Field day at the lake on Saturday 10:00, see item MEETSPOT")))
     day.append(Event(27, lambda s: s.own_object("MEETSPOT", "item", 60.1585, 24.7110, "/;", "Meeting place, car park by the shore")))
     return sorted(day, key=lambda e: -e.ago)

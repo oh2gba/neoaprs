@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The box to post to the message board, at the bottom of the Bulletins tab (ComposeBar, as everywhere): the kind (a bulletin, an announcement, a bulletin to a group) with an (i) that says what they are, the number it has (a capital letter for an announcement), the group
+// The group box to post to the message board, at the bottom of the Bulletins tab (ComposeBar, as everywhere; the fields are rows like those of the Objects form, each with its (i)): the kind (a bulletin, an announcement, a bulletin to a group) (the (i) says what they are), the number it has (a capital letter for an announcement), the group
 // of a group bulletin, and the text, with the characters it has left. Post is on when the text can be sent (printable ASCII without | ~ {) and, for a group, the group is one to five letters and digits. The text is
 // cleared when the daemon has the bulletin (the topic `own_bulletins` tells it); one it refused stays for the user to correct. A slot that already holds a text of ours gets the new one in its place.
 import { useReceiveOnly } from "@/composables/useReceiveOnly";
@@ -8,6 +8,7 @@ import { computed, reactive, ref, watch } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
 import InfoTip from "@/components/InfoTip.vue";
 import { t } from "@/i18n";
+import type { MessageId } from "@/i18n/catalogue";
 import { leftTitle } from "@/lib/compose";
 import { LIMITS } from "@/protocol/lists";
 import type { OwnBulletinRow } from "@/protocol/protocol";
@@ -18,6 +19,8 @@ const emit = defineEmits<{ post: [slot: string, text: string] }>();
 const draft = reactive<PostDraft>({ kind: "bulletin", id: "1", group: "", text: "" });
 
 const left = computed(() => charsLeft(draft.text));
+/** The name of an (i) for a screen reader: "About Group". */
+const about = (field: MessageId) => t("settings.about", { label: t(field) });
 const rxOnly = useReceiveOnly();
 const ready = computed(() => canPost(draft));
 const badGroup = computed(() => draft.group.trim() !== "" && !groupOk(draft.group));
@@ -58,26 +61,31 @@ function submit(): void {
     :left-title="leftTitle(left, 'characters', LIMITS.message.textMax)"
     @submit="submit"
   >
-    <div class="compose-row labelled">
-      <div class="stack">
-        <label for="post-kind">{{ t("bulletins.kind") }}</label>
+    <div class="field">
+      <label for="post-kind">{{ t("bulletins.kind") }}</label>
+      <div class="field-control">
         <select id="post-kind" v-model="draft.kind" class="input">
           <option v-for="k in POST_KINDS" :key="k.kind" :value="k.kind">{{ kindTitle(k.kind) }}</option>
         </select>
+        <InfoTip :label="t('bulletins.kinds_help_label')">{{ t("bulletins.kinds_help") }}</InfoTip>
       </div>
-      <InfoTip :label="t('bulletins.kinds_help_label')">{{ t("bulletins.kinds_help") }}</InfoTip>
-      <div class="stack">
-        <label for="post-id">{{ t(draft.kind === "announcement" ? "bulletins.letter" : "bulletins.number") }}</label>
+    </div>
+    <div class="field">
+      <label for="post-id">{{ t(draft.kind === "announcement" ? "bulletins.letter" : "bulletins.number") }}</label>
+      <div class="field-control">
         <select id="post-id" v-model="draft.id" class="input mono">
           <option v-for="c in idsOf(draft.kind)" :key="c" :value="c">{{ c }}</option>
         </select>
+        <InfoTip :label="about(draft.kind === 'announcement' ? 'bulletins.letter' : 'bulletins.number')">{{ t("bulletins.slot_tip") }}</InfoTip>
       </div>
-      <div v-if="draft.kind === 'group'" class="stack">
-        <label for="post-group">{{ t("bulletins.group") }}</label>
+    </div>
+    <div v-if="draft.kind === 'group'" class="field" :class="{ invalid: badGroup }">
+      <label for="post-group">{{ t("bulletins.group") }}</label>
+      <div class="field-control">
         <input
           id="post-group"
           v-model="draft.group"
-          class="input mono compose-group"
+          class="input mono"
           :class="{ invalid: badGroup }"
           type="text"
           :placeholder="t('bulletins.group_placeholder')"
@@ -85,10 +93,16 @@ function submit(): void {
           autocomplete="off"
           spellcheck="false"
         />
+        <InfoTip :label="about('bulletins.group')">{{ t("bulletins.group_tip", { max: GROUP_MAX }) }}</InfoTip>
       </div>
     </div>
-    <label class="sr-only" for="post-text">{{ t("bulletins.text") }}</label>
-    <input id="post-text" v-model="draft.text" class="input compose-text" type="text" :placeholder="t('bulletins.text')" autocomplete="off" />
+    <div class="field">
+      <label for="post-text">{{ t("bulletins.text") }}</label>
+      <div class="field-control">
+        <input id="post-text" v-model="draft.text" class="input" type="text" autocomplete="off" />
+        <InfoTip :label="about('bulletins.text')">{{ t("bulletins.text_tip") }}</InfoTip>
+      </div>
+    </div>
     <template #buttons>
       <button type="submit" class="btn primary" :disabled="!ready || rxOnly" :title="rxOnly ? rxOnlyReason() : undefined">{{ t("bulletins.post") }}</button>
     </template>

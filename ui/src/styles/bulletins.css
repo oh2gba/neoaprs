@@ -43,7 +43,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding-right: 100px;
+  padding-right: 0;
 }
 .bulletin-target {
   color: var(--accent);
@@ -55,10 +55,6 @@
 .bulletin-meta {
   font-size: 12px;
 }
-.compose-group {
-  width: 6em;
-  text-transform: uppercase;
-}
 .own-mark {
   margin-left: 6px;
   color: var(--accent);
@@ -69,12 +65,32 @@
 .ownobject.killing {
   opacity: 0.6;
 }
-/* the Objects tab: the list above, the form under it; a row is selectable as a row of the Nearby tab is */
+/* the Objects tab: three group boxes in a column, the tab scrolling as a whole; a row of My objects is selectable as a row of the Nearby tab is, its category a tag in a column of its own (the same left edge in every row), left of the delete button */
 .objectlist {
   flex: 1;
-  min-height: 8em;
-  padding: 8px 10px 10px;
+  min-height: 0;
+  padding: 0 10px 10px;
   overflow-y: auto;
+}
+.objectlist .composebar.boxed {
+  padding: 0;
+}
+.board.ownobjects {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 6px 8px;
+}
+.ownobject {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: start;
+}
+.own-main {
+  min-width: 0;
+}
+.own-tags {
+  padding: 3px 34px 0 0;
 }
 .ownobject.selectable {
   cursor: pointer;
@@ -90,18 +106,12 @@
   outline: 2px solid var(--accent);
   outline-offset: -1px;
 }
-/* (the form keeps the list in sight: on a phone, where the tab is the whole screen, its fields scroll inside it above its buttons, and the list scrolls on its own) */
-.objectspane .composebar.scrolls {
-  max-height: 55vh;
-  max-height: 55dvh;
-}
-
 .qru-head {
   display: flex;
   align-items: center;
   gap: 8px;
 }
-/* Local info (QRU) in the Objects tab, a group box of the Settings groups' look under the list of our objects: the legend, the Ask button with the distance field in one row, then a row for each server that answered: its call, its groups as tags in a column of their own (the same left edge in every row), and under them the line it closed its last objects with */
+/* Local info (QRU) in the Objects tab, the last group box of it, of the Settings groups' look: the legend, the Ask button with the distance field in one row, then a row for each server that answered: its call, its groups as tags in a column of their own (the same left edge in every row), and under them how many objects it sent and how many arrived (in the warn colour with Ask again when fewer) */
 .qru-ask {
   display: flex;
   flex-wrap: wrap;
@@ -134,9 +144,16 @@
   min-width: 0;
 }
 .qru-sent {
+  display: flex;
+  flex-wrap: wrap;
   grid-column: 2;
+  align-items: center;
+  gap: 2px 8px;
   font-size: 12px;
   overflow-wrap: anywhere;
+}
+.qru-sent.warn {
+  color: var(--warn);
 }
 .qru-group:disabled {
   cursor: default;

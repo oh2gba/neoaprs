@@ -161,6 +161,7 @@ export const stations = {
   "channel.title.rf": "Heard on the radio",
   "channel.title.gated": "Heard on the radio from an iGate, which took it from the internet",
   "channel.title.is": "Received over the internet (APRS-IS), not on the radio",
+  "channel.title.local_info": "Sent to us by {server} when we asked for local info",
   "channel.title.dummy": "Made up by the Dummy radio, which is no real radio",
   "channel.title_join": "{first}; {second}",
   "channel.ago": "{channel} {when}",

@@ -4,7 +4,9 @@
 }
 .settings fieldset,
 .nearbypane fieldset,
-.objectlist fieldset {
+.objectspane fieldset,
+.tablepane fieldset,
+fieldset.composebox {
   margin: 8px 0;
   padding: 4px 10px 8px;
   border: 1px solid var(--border);
@@ -12,7 +14,9 @@
 }
 .settings legend,
 .nearbypane legend,
-.objectlist legend {
+.objectspane legend,
+.tablepane legend,
+fieldset.composebox > legend {
   padding: 0 6px;
   font-weight: 600;
 }

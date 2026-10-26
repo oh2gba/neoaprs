@@ -32,5 +32,8 @@ export const bulletins: Readonly<Record<keyof typeof en, Message>> = {
   "bulletins.group": "Grupo",
   "bulletins.group_placeholder": "Nombre",
   "bulletins.text": "Texto",
+  "bulletins.slot_tip": "El lugar en el tablón. Publicar de nuevo en el mismo lo sustituye.",
+  "bulletins.group_tip": "El grupo al que va dirigido, hasta {max} letras y dígitos. Las estaciones que siguen ese nombre lo muestran.",
+  "bulletins.text_tip": "El texto del boletín. El contador muestra cuántos caracteres quedan.",
   "bulletins.post": "Publicar",
 };

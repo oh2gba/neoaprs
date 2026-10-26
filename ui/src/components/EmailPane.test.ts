@@ -60,7 +60,7 @@ describe("EmailPane: the box to write in", () => {
     const wrapper = pane();
     expect(wrapper.find("form.composebar").element.nextElementSibling).toBeNull();
     expect(wrapper.find("form.composebar").element.parentElement).toBe(wrapper.find(".mailpane").element);
-    expect(wrapper.find("form[aria-label='Email']").exists()).toBe(true);
+    expect(wrapper.find("form[aria-label='Write an email']").exists()).toBe(true);
     expect(wrapper.find("#mail-to").exists() && wrapper.find("#mail-text").exists()).toBe(true);
     expect(wrapper.find("form.composebar button[type='submit']").text()).toBe("Send");
     wrapper.unmount();

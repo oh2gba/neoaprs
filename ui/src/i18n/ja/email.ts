@@ -3,7 +3,7 @@ import type { email as source } from "@/i18n/en/email";
 import type { Message } from "@/i18n/message";
 
 export const email: Record<keyof typeof source, Message> = {
-  "email.compose": "メール",
+  "email.compose": "メールを書く",
   "email.to": "宛先 {address}",
   "email.from": "差出人 {address}",
   "email.checked": "メールを確認しました",
@@ -21,6 +21,8 @@ export const email: Record<keyof typeof source, Message> = {
   "email.field.to": "宛先",
   "email.field.address": "メールアドレス",
   "email.field.text": "本文",
+  "email.to_tip": "メールの宛先です。以前使ったアドレスは入力中に候補に出ます。",
+  "email.text_tip": "メールの本文です。カウンターにメッセージの残りの文字数が出ます。",
   "email.used_before": "過去に使用",
   "email.forget": "{address}を削除",
   "email.send": "送信",

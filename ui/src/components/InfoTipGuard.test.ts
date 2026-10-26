@@ -3,6 +3,8 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
+import BulletinCompose from "@/components/BulletinCompose.vue";
+import EmailCompose from "@/components/EmailCompose.vue";
 import ObjectForm from "@/components/ObjectForm.vue";
 import SettingsForm from "@/components/SettingsForm.vue";
 import { useOwnObjects } from "@/composables/useOwnObjects";
@@ -49,6 +51,15 @@ function settingsTab(scope: Scope, extra: Record<string, string>) {
 }
 
 describe("every field has an (i)", () => {
+  it("in the Bulletins box (the group field too) and the Email box", async () => {
+    const post = mount(BulletinCompose, { props: { ownBulletins: new Map() }, global: withDaemon() });
+    await post.find("#post-kind").setValue("group");
+    expect(post.find("#post-group").exists()).toBe(true);
+    expect(untipped(post.element as HTMLElement)).toEqual([]);
+    const mail = mount(EmailCompose, { props: { connected: true, addresses: [] } });
+    expect(untipped(mail.element as HTMLElement)).toEqual([]);
+  });
+
   it("in the Objects form, with the entry of the place and the folds opened", async () => {
     const wrapper = objectsForm();
     await wrapper.find(".location-place").trigger("click");

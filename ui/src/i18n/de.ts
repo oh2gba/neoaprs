@@ -279,7 +279,7 @@ export const de: Catalogue = {
   "compose.left_title.comment": "noch {left} Zeichen im Kommentar",
 
   // email
-  "email.compose": "E-Mail",
+  "email.compose": "E-Mail schreiben",
   "email.to": "An {address}",
   "email.from": "Von {address}",
   "email.checked": "E-Mails abgefragt",
@@ -297,6 +297,8 @@ export const de: Catalogue = {
   "email.field.to": "An",
   "email.field.address": "E-Mail-Adresse",
   "email.field.text": "Text",
+  "email.to_tip": "Die Adresse, an die die Mail geht. Früher benutzte Adressen erscheinen beim Tippen.",
+  "email.text_tip": "Der Text der Mail. Der Zähler zeigt, wie viele Zeichen der Nachricht noch frei sind.",
   "email.used_before": "Schon benutzt",
   "email.forget": "{address} vergessen",
   "email.send": "Senden",
@@ -343,6 +345,9 @@ export const de: Catalogue = {
   "bulletins.group": "Gruppe",
   "bulletins.group_placeholder": "Name",
   "bulletins.text": "Text",
+  "bulletins.slot_tip": "Der Platz auf der Tafel. Wer erneut an denselben Platz sendet, ersetzt den alten Eintrag.",
+  "bulletins.group_tip": "Die Gruppe, für die das Bulletin gilt, bis zu {max} Buchstaben und Ziffern. Stationen, die dem Namen folgen, zeigen es an.",
+  "bulletins.text_tip": "Der Text des Bulletins. Der Zähler zeigt, wie viele Zeichen noch frei sind.",
   "bulletins.post": "Senden",
 
   // objects
@@ -359,6 +364,7 @@ export const de: Catalogue = {
 
   "objects.none": "Keine Objekte.",
   "objects.list": "Objekte",
+  "objects.mine": "Meine Objekte",
   "objects.about_label": "Über Objekte",
   "objects.about1":
     "Ein Objekt ist eine Markierung, die du für etwas auf die Karte setzt, das keine Station ist: ein Relais, ein Treffpunkt, eine Veranstaltung.",
@@ -413,9 +419,15 @@ export const de: Catalogue = {
   "objects.qru_refused": "Nicht gesendet",
   "objects.qru_request": "Letzte Anfrage: {text}",
   "objects.qru_wait": "Nächste Anfrage in {seconds} s",
+  "objects.qru_arrived": "gesendet {sent} · angekommen {arrived}",
+  "objects.qru_got": "angekommen {arrived}",
+  "objects.qru_again": "Nochmal fragen",
+  "objects.qru_again_title": "{server} nochmal fragen: {request}",
+  "objects.qru_lost_title": "Weniger angekommen, als der Server gesendet hat",
+  "objects.qru_in_stations": "in {tab}",
   "objects.qru_group": "{server} nach {group} fragen",
 
-  "objects.form.new": "Neues Objekt",
+  "objects.form.new": "Objekt hinzufügen",
   "objects.field.name": "Name",
   "objects.field.comment": "Kommentar",
   "objects.field.course": "Kurs",
@@ -612,6 +624,7 @@ export const de: Catalogue = {
   "channel.title.rf": "Über Funk gehört",
   "channel.title.gated": "Über Funk von einem iGate gehört, der es aus dem Internet geholt hat",
   "channel.title.is": "Über das Internet empfangen (APRS-IS), nicht über Funk",
+  "channel.title.local_info": "Von {server} auf unsere Anfrage nach Ortsinfo gesendet",
   "channel.title.dummy": "Vom Dummy-Funkgerät erfunden, das kein echtes Funkgerät ist",
   "channel.title_join": "{first}; {second}",
   "channel.ago": "{channel} {when}",

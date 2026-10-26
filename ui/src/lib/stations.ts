@@ -141,3 +141,6 @@ export function withOwnSymbol(rows: ReadonlyMap<string, StationRow>, settings: R
   }
   return changed ?? rows;
 }
+
+/** The id of the row of a station in the Stations table, which a link from another tab brings into view and flashes (lib/attention.ts). */
+export const stationRowId = (call: string): string => `station-${call}`;

@@ -398,3 +398,16 @@ async def test_the_dummy_radio_has_a_qru_server_and_nothing_of_it_reaches_the_in
     await idle_for(0.2)
     assert server.packets == [], f"nothing of the Dummy radio reached APRS-IS: {server.packets}"
     await e.stop()
+
+
+async def test_an_object_that_arrives_after_the_request_is_counted_through_the_daemon_and_told_in_the_topic(tmp_path: Path) -> None:
+    e, page = await with_page(tmp_path)
+    await page.send({"cmd": "qru_ask", "text": "TEST 150"})
+    await page.until(lambda: page.topics["qru"]["asked"] is not None)
+    e.feed(on_air("OH2DPN", b";TESTOBJ  *111111z6010.00N/02450.00E-Test object", path="OH2RCH-2*"))
+    await until(lambda: "TESTOBJ" in [s["call"] for s in page.topics["stations"].values()])
+    e.feed(on_air("OH2DPN", message_info("OH2GBA", "Sent 1 TEST Objects Max 5@150km de OH2DPN"), path="OH2RCH-2*"))
+    await page.until(lambda: len(page.topics["qru"]["servers"]) == 1)
+    [server] = page.topics["qru"]["servers"]
+    assert (server["sent_objects"], server["request"], server["received"]) == (1, "TEST 150", ["TESTOBJ"])
+    assert [m for m in page.topics["messages"].values()] == [], "the closing line is no message"

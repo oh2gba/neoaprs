@@ -2,7 +2,7 @@ import type { email as en } from "@/i18n/en/email";
 import type { Message } from "@/i18n/message";
 
 export const email: Readonly<Record<keyof typeof en, Message>> = {
-  "email.compose": "Email",
+  "email.compose": "Scrivi un’email",
   "email.to": "A {address}",
   "email.from": "Da {address}",
   "email.checked": "Email controllata",
@@ -20,6 +20,8 @@ export const email: Readonly<Record<keyof typeof en, Message>> = {
   "email.field.to": "A",
   "email.field.address": "Indirizzo email",
   "email.field.text": "Testo",
+  "email.to_tip": "L’indirizzo a cui va l’email. Quelli usati prima compaiono mentre scrivi.",
+  "email.text_tip": "Il testo dell’email. Il contatore mostra quanti caratteri restano nel messaggio.",
   "email.used_before": "Usati in precedenza",
   "email.forget": "Dimentica {address}",
   "email.send": "Invia",

@@ -5,6 +5,7 @@
 import { computed, ref } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
 import IconButton from "@/components/IconButton.vue";
+import InfoTip from "@/components/InfoTip.vue";
 import { t } from "@/i18n";
 import { useReceiveOnly } from "@/composables/useReceiveOnly";
 import { leftTitle, sendBlockedReason } from "@/lib/compose";
@@ -67,29 +68,37 @@ function submit(): void {
     @submit="submit"
     @keydown.esc.stop="escape"
   >
-    <div class="mailfields">
+    <div class="field">
       <label for="mail-to">{{ t("email.field.to") }}</label>
-      <div class="mail-address" @focusout="leave">
-        <input
-          id="mail-to"
-          v-model="to"
-          class="input mono"
-          type="text"
-          :placeholder="t('email.field.address')"
-          autocomplete="off"
-          spellcheck="false"
-          @focus="listed = true"
-          @input="listed = true"
-        />
-        <ul v-if="shown" class="suggestions" :aria-label="t('email.used_before')" @mousedown.prevent>
-          <li v-for="a in suggestions" :key="a" class="suggestion">
-            <button type="button" class="suggestion-pick mono" @click="pick(a)">{{ a }}</button>
-            <IconButton kind="delete" :label="t('email.forget', { address: a })" :title="t('email.forget', { address: a })" @click="emit('forget', a)" />
-          </li>
-        </ul>
+      <div class="field-control">
+        <div class="mail-address" @focusout="leave">
+          <input
+            id="mail-to"
+            v-model="to"
+            class="input mono"
+            type="text"
+            :placeholder="t('email.field.address')"
+            autocomplete="off"
+            spellcheck="false"
+            @focus="listed = true"
+            @input="listed = true"
+          />
+          <ul v-if="shown" class="suggestions" :aria-label="t('email.used_before')" @mousedown.prevent>
+            <li v-for="a in suggestions" :key="a" class="suggestion">
+              <button type="button" class="suggestion-pick mono" @click="pick(a)">{{ a }}</button>
+              <IconButton kind="delete" :label="t('email.forget', { address: a })" :title="t('email.forget', { address: a })" @click="emit('forget', a)" />
+            </li>
+          </ul>
+        </div>
+        <InfoTip :label="t('settings.about', { label: t('email.field.to') })">{{ t("email.to_tip") }}</InfoTip>
       </div>
+    </div>
+    <div class="field">
       <label for="mail-text">{{ t("email.field.text") }}</label>
-      <input id="mail-text" ref="textBox" v-model="text" class="input" type="text" :placeholder="t('email.field.text')" autocomplete="off" />
+      <div class="field-control">
+        <input id="mail-text" ref="textBox" v-model="text" class="input" type="text" autocomplete="off" />
+        <InfoTip :label="t('settings.about', { label: t('email.field.text') })">{{ t("email.text_tip") }}</InfoTip>
+      </div>
     </div>
     <template #buttons>
       <button type="submit" class="btn primary" :disabled="!ready || rxOnly" :title="sendBlockedReason(connected, rxOnly)">{{ t("email.send") }}</button>

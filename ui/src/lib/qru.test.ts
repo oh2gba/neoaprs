@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { answeredSince, askWait, kmOf, kmWrong, qruLook, requestText } from "@/lib/qru";
+import { answeredSince, askWait, kmOf, kmWrong, qruLook, receivedFrom, requestText, sentLine } from "@/lib/qru";
 import { LIMITS } from "@/protocol/lists";
 import { NOW, ago, qruState } from "@/test/fixtures";
 
@@ -55,5 +55,39 @@ describe("what the row of the section says", () => {
     expect([answered?.tone, answered?.line]).toEqual(["tnc-connected", expect.stringMatching(/ · 1 server answered$/) as string]);
     const silent = qruLook({ text: "INFO", at: ago(70) }, [], "", NOW);
     expect([silent?.tone, silent?.line]).toEqual(["tnc-stopped", expect.stringMatching(/ · no answer$/) as string]);
+  });
+});
+
+describe("what a server's row says of the objects", () => {
+  const server = (over: Partial<ReturnType<typeof qruState>["servers"][number]>) => ({ ...qruState().servers[0], ...over });
+
+  it("names the objects that arrived by the server that sent them", () => {
+    const found = receivedFrom([server({ call: "OH2DPN", received: ["A", "B"] }), server({ call: "W1AW", received: ["C"] })]);
+    expect([...found]).toEqual([
+      ["A", "OH2DPN"],
+      ["B", "OH2DPN"],
+      ["C", "W1AW"],
+    ]);
+  });
+
+  it("counts them against the closing line, warns only for fewer once the time for late ones is over, and offers the request to ask again then", () => {
+    expect(sentLine(server({ received: ["A", "B", "C", "D", "E"] }), NOW)).toEqual({ text: "sent 5 · 5 arrived", warn: false, again: null });
+    expect(sentLine(server({ sent_objects: 1, received: [], settles_at: ago(1), request: "TEST 150" }), NOW)).toEqual({
+      text: "sent 1 · 0 arrived",
+      warn: true,
+      again: "TEST 150",
+    });
+    expect(sentLine(server({ sent_objects: 1, received: [], settles_at: ago(-5), request: "TEST 150" }), NOW)).toEqual({
+      text: "sent 1 · 0 arrived",
+      warn: false,
+      again: null,
+    });
+    expect(sentLine(server({ sent_objects: 1, received: [], settles_at: ago(1), request: "" }), NOW)?.again).toBeNull();
+  });
+
+  it("is none before a closing line when nothing arrived, and counts what arrived when there was none", () => {
+    const bare = { sent_objects: null, request: "", settles_at: null, sent: "", sent_at: null, received: [] as string[] };
+    expect(sentLine(server(bare), NOW)).toBeNull();
+    expect(sentLine(server({ ...bare, received: ["A"] }), NOW)).toEqual({ text: "1 arrived", warn: false, again: null });
   });
 });

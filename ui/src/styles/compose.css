@@ -7,8 +7,9 @@
   padding: 8px;
   border-top: 1px solid var(--border);
 }
-/* the box to write in on the tabs Bulletins, Email and Objects (ComposeBar.vue): fixed at the bottom of the tab, the list above it scrolling; the fields, and under them the counter and the buttons at the right, the
-   secondary one (Cancel) left of the primary one. The tab (.pane) leaves the notch alone on a phone, and the page is 100dvh high, so the keyboard does not cover it. */
+/* the box of a form on the tabs Bulletins, Email and Objects (ComposeBar.vue): a group box, the look of the Settings groups (a fieldset with its legend, styles/settings.css); the fields, and under them the counter and the buttons at the
+   right, the secondary one (Cancel) left of the primary one. On Bulletins and Email it is fixed at the bottom of the tab, the list above it scrolling; on Objects it is the first box of the tab. The chat line under a conversation
+   (`inline`: Messages) is no box: a line over the bottom edge, the field, the counter and the button in a row. The tab (.pane) leaves the notch alone on a phone, and the page is 100dvh high, so the keyboard does not cover it. */
 .composebar {
   display: flex;
   flex: none;
@@ -18,18 +19,26 @@
   border-top: 1px solid var(--border);
   background: var(--panel);
 }
+.composebar.boxed {
+  padding: 0 10px;
+  border-top: 0;
+  background: none;
+}
+.composebar:not(.boxed) .composebox {
+  display: contents;
+}
+fieldset.composebox {
+  min-width: 0;
+}
 .composebar-fields {
   display: flex;
   flex-direction: column;
   gap: 6px;
   min-height: 0;
+  margin-bottom: 6px;
 }
-.composebar.scrolls {
-  max-height: 70vh;
-  max-height: 70dvh;
-}
-.composebar.scrolls .composebar-fields {
-  overflow-y: auto;
+.composebar:not(.boxed) .composebar-fields {
+  margin-bottom: 0;
 }
 .composebar .field {
   margin: 0;
@@ -62,24 +71,8 @@
   bottom: 100%;
   margin: 0 0 2px;
 }
-.compose-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-/* a field with its label over it, in a row of controls */
-.compose-row.labelled {
-  flex-wrap: wrap;
-  align-items: flex-end;
-}
-.stack {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.stack > label {
-  color: var(--muted);
-  font-size: 12px;
+.field-control .mail-address {
+  flex: 1;
 }
 .compose-left {
   margin-left: auto;

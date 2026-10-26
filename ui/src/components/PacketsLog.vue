@@ -39,16 +39,19 @@ function toggle(id: number): void {
       <span class="info-line">{{ t("packets.about1") }}</span>
       <span class="info-line">{{ t("packets.about2") }}</span>
     </TabHelp>
-    <div class="toolbar">
-      <input
-        v-model="filter"
-        class="input grow"
-        type="search"
-        :placeholder="t('packets.filter')"
-        :title="t('packets.filter_title')"
-        :aria-label="t('packets.filter_label')"
-      />
-    </div>
+    <fieldset class="filters">
+      <legend>{{ t("packets.filter") }}</legend>
+      <div class="toolbar">
+        <input
+          v-model="filter"
+          class="input grow"
+          type="search"
+          :placeholder="t('packets.filter_title')"
+          :title="t('packets.filter_title')"
+          :aria-label="t('packets.filter_label')"
+        />
+      </div>
+    </fieldset>
     <div class="scroll">
       <table class="grid packets" :class="{ stacked }">
         <thead :class="{ 'sr-only': stacked }">

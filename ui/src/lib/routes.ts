@@ -70,10 +70,14 @@ export function reachedText(row: Pick<StationRow, "last_route" | "heard_direct" 
 }
 
 /** How the latest packet that came over the internet got there, in one plain line: "Heard by iGate OH2GW-10 via OH2RCH-2", "Heard by iGate OH2GW-10 directly", "Sent over the internet, not heard on the air" (for an object or item, "... by OH2HCY", the station that reported it); an iGate whose place is not known says so (the map's line ends at the last hop that has one). Null when it is not known. */
-export function internetText(row: Pick<StationRow, "internet_reach"> & Partial<Pick<StationRow, "kind" | "reported_by">>, stations: ReadonlyMap<string, StationRow>): string | null {
+export function internetText(
+  row: Pick<StationRow, "internet_reach"> & Partial<Pick<StationRow, "kind" | "reported_by">>,
+  stations: ReadonlyMap<string, StationRow>,
+): string | null {
   const reach = row.internet_reach;
   if (reach === null) return null;
-  if (reach.kind === "app") return row.kind !== undefined && row.kind !== "station" && row.reported_by ? t("route.reach.app_by", { call: row.reported_by }) : t("route.reach.app");
+  if (reach.kind === "app")
+    return row.kind !== undefined && row.kind !== "station" && row.reported_by ? t("route.reach.app_by", { call: row.reported_by }) : t("route.reach.app");
   const found = stations.get(reach.igate);
   const placed = found !== undefined && hasPosition(found);
   const igate = reach.igate;

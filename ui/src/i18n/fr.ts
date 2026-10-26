@@ -271,7 +271,7 @@ export const fr: Catalogue = {
   "compose.left_title.comment": "{left} caractères restants dans le commentaire",
 
   // email
-  "email.compose": "E-mail",
+  "email.compose": "Écrire un e-mail",
   "email.to": "À {address}",
   "email.from": "De {address}",
   "email.checked": "E-mails relevés",
@@ -289,6 +289,8 @@ export const fr: Catalogue = {
   "email.field.to": "À",
   "email.field.address": "Adresse e-mail",
   "email.field.text": "Texte",
+  "email.to_tip": "L’adresse du destinataire. Les adresses déjà utilisées s’affichent pendant la saisie.",
+  "email.text_tip": "Le texte du courriel. Le compteur indique combien de caractères restent dans le message.",
   "email.used_before": "Déjà utilisées",
   "email.forget": "Oublier {address}",
   "email.send": "Envoyer",
@@ -334,6 +336,9 @@ export const fr: Catalogue = {
   "bulletins.group": "Groupe",
   "bulletins.group_placeholder": "Nom",
   "bulletins.text": "Texte",
+  "bulletins.slot_tip": "La place sur le tableau. Publier de nouveau à la même place remplace l’ancien message.",
+  "bulletins.group_tip": "Le groupe visé, jusqu’à {max} lettres et chiffres. Les stations qui suivent ce nom l’affichent.",
+  "bulletins.text_tip": "Le texte du bulletin. Le compteur indique combien de caractères restent.",
   "bulletins.post": "Publier",
 
   // objects
@@ -346,6 +351,7 @@ export const fr: Catalogue = {
 
   "objects.none": "Aucun objet.",
   "objects.list": "Objets",
+  "objects.mine": "Mes objets",
   "objects.about_label": "À propos des objets",
   "objects.about1": "Un objet est un repère que vous posez sur la carte pour ce qui n'est pas une station : un relais, un point de rendez-vous, un événement.",
   "objects.about2": "Tous ceux qui sont près de vous le voient, tant que vous l'émettez.",
@@ -399,9 +405,15 @@ export const fr: Catalogue = {
   "objects.qru_refused": "Non envoyé",
   "objects.qru_request": "Dernière demande : {text}",
   "objects.qru_wait": "Prochaine demande dans {seconds} s",
+  "objects.qru_arrived": "envoyés {sent} · arrivés {arrived}",
+  "objects.qru_got": "arrivés {arrived}",
+  "objects.qru_again": "Redemander",
+  "objects.qru_again_title": "Redemander à {server} : {request}",
+  "objects.qru_lost_title": "Moins d’objets sont arrivés que le serveur n’en a envoyé",
+  "objects.qru_in_stations": "dans {tab}",
   "objects.qru_group": "Demander {group} à {server}",
 
-  "objects.form.new": "Nouvel objet",
+  "objects.form.new": "Ajouter un objet",
   "objects.field.name": "Nom",
   "objects.field.comment": "Commentaire",
   "objects.field.course": "Cap",
@@ -597,6 +609,7 @@ export const fr: Catalogue = {
   "channel.title.rf": "Entendue sur la radio",
   "channel.title.gated": "Entendue sur la radio depuis une iGate, qui l’a prise sur internet",
   "channel.title.is": "Reçue par internet (APRS-IS), pas sur la radio",
+  "channel.title.local_info": "Envoyé par {server} quand nous avons demandé les infos locales",
   "channel.title.dummy": "Inventée par la radio Dummy, qui n’est pas une vraie radio",
   "channel.title_join": "{first} ; {second}",
   "channel.ago": "{channel} {when}",

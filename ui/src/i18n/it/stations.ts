@@ -162,6 +162,7 @@ export const stations: Readonly<Record<keyof typeof en, Message>> = {
   "channel.title.rf": "Ricevuta via radio",
   "channel.title.gated": "Ricevuta via radio da un iGate, che l’ha presa da internet",
   "channel.title.is": "Ricevuta da internet (APRS-IS), non via radio",
+  "channel.title.local_info": "Inviato da {server} quando abbiamo chiesto le info locali",
   "channel.title.dummy": "Inventata dalla radio Dummy, che non è una vera radio",
   "channel.title_join": "{first}; {second}",
   "channel.ago": "{channel} {when}",

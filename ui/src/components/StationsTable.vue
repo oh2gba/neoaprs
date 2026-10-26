@@ -22,9 +22,10 @@ import { normalizeCall, validCall } from "@/lib/calls";
 import { anyInternet, channelTags, internetOnly } from "@/lib/channels";
 import { ageText, bearingTitle, dateTimeText, distanceText } from "@/lib/format";
 import { isGateway } from "@/lib/messages";
+import { receivedFrom } from "@/lib/qru";
 import { heardDirect } from "@/lib/routes";
 import { FIELDS } from "@/lib/settings";
-import { canForget, canMessage, firstDirection, listStations, symbolName, type QueryKind, type Sort, type SortKey } from "@/lib/stations";
+import { canForget, canMessage, firstDirection, listStations, stationRowId, symbolName, type QueryKind, type Sort, type SortKey } from "@/lib/stations";
 import type { StationRow } from "@/protocol/protocol";
 
 const props = withDefaults(
@@ -34,7 +35,9 @@ const props = withDefaults(
   }>(),
   { others: () => [] },
 );
-const { stations, now, aging, call: ownCall, settings, send } = useDaemonContext();
+const { stations, now, aging, call: ownCall, settings, send, qru } = useDaemonContext();
+/** The objects that came in answer to a request for local info, with the server that sent each (the Local info tag). */
+const localInfo = computed(() => receivedFrom(qru.value?.servers ?? []));
 const emit = defineEmits<{
   select: [call: string, multi?: boolean];
   message: [call: string];
@@ -171,30 +174,33 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
       <span class="info-line">{{ t("station.table.about1") }}</span>
       <span class="info-line">{{ t("station.table.about2") }}</span>
     </TabHelp>
-    <div class="toolbar">
-      <input
-        v-model="filter"
-        class="input filterbox"
-        type="search"
-        :placeholder="t('station.table.filter')"
-        :title="t('station.table.filter_title')"
-        :aria-label="t('station.table.filter_label')"
-        @keydown.esc="clearFilter"
-      />
-      <div class="toolbar-checks">
-        <label class="check"><input v-model="hideTimedOut" type="checkbox" /> {{ t("station.table.hide_timed_out") }}</label>
-        <label class="check"><input v-model="directOnly" type="checkbox" /> {{ t("station.table.direct_only") }}</label>
-        <label v-if="internetKnown" class="check" :title="t('station.table.rf_only_title')"
-          ><input v-model="rfOnly" type="checkbox" /> {{ t("station.table.rf_only") }}</label
-        >
-        <label class="check onmap"
-          >{{ t("station.table.on_map") }}
-          <select id="stations-on-map" class="input" :value="hours" @change="chooseHours">
-            <option v-for="choice in hourChoices" :key="choice.value" :value="choice.value">{{ choice.label }}</option>
-          </select></label
-        >
+    <fieldset class="filters">
+      <legend>{{ t("station.table.filter") }}</legend>
+      <div class="toolbar">
+        <input
+          v-model="filter"
+          class="input filterbox"
+          type="search"
+          :placeholder="t('station.table.filter_title')"
+          :title="t('station.table.filter_title')"
+          :aria-label="t('station.table.filter_label')"
+          @keydown.esc="clearFilter"
+        />
+        <div class="toolbar-checks">
+          <label class="check"><input v-model="hideTimedOut" type="checkbox" /> {{ t("station.table.hide_timed_out") }}</label>
+          <label class="check"><input v-model="directOnly" type="checkbox" /> {{ t("station.table.direct_only") }}</label>
+          <label v-if="internetKnown" class="check" :title="t('station.table.rf_only_title')"
+            ><input v-model="rfOnly" type="checkbox" /> {{ t("station.table.rf_only") }}</label
+          >
+          <label class="check onmap"
+            >{{ t("station.table.on_map") }}
+            <select id="stations-on-map" class="input" :value="hours" @change="chooseHours">
+              <option v-for="choice in hourChoices" :key="choice.value" :value="choice.value">{{ choice.label }}</option>
+            </select></label
+          >
+        </div>
       </div>
-    </div>
+    </fieldset>
     <div class="scroll">
       <table class="grid stations">
         <thead>
@@ -210,6 +216,7 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
         <tbody>
           <tr
             v-for="row in rows"
+            :id="stationRowId(row.call)"
             :key="row.call"
             :class="{ selected: isOpen(row.call), me: row.is_me, own: row.own, timedout: isTimedOut(row), internetonly: internetOnly(row) }"
             :aria-selected="isOpen(row.call)"
@@ -230,6 +237,13 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
             </td>
             <td class="heard">
               <TagMark v-for="tag in channelTags(row)" :key="tag.channel" :tone="tag.tone" class="via" :title="tag.title">{{ tag.label }}</TagMark>
+              <TagMark
+                v-if="localInfo.has(row.call)"
+                tone="neutral"
+                class="via"
+                :title="t('channel.title.local_info', { server: localInfo.get(row.call) ?? '' })"
+                >{{ t("objects.qru") }}</TagMark
+              >
             </td>
             <td class="num">{{ distanceText(row.distance_km) }}</td>
             <td class="bearing" :title="bearingTitle(row.bearing_deg)">
