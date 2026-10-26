@@ -29,23 +29,23 @@ import asyncio
 import logging
 from collections.abc import Callable
 from dataclasses import replace
-from datetime import datetime, timedelta
 
 from neoaprs import ax25
 from neoaprs.bulletin import board_slot
-from neoaprs.aprsmessage import MessageError, format_ack, format_message
+from neoaprs.aprsmessage import MessageError, format_message
 from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.clock import Clock, days, utcnow
-from neoaprs.config import can_transmit
 from neoaprs.interlock import Interlock
-from neoaprs.message import MESSAGES_HELD_MAX, MSG_IDS, UNCONFIRMED_MAX, MessageRecord, MessagingError, State, addressed_to, attempts_for, check_text, due_at, next_msg_id
+from neoaprs.message import MESSAGES_HELD_MAX, MSG_IDS, MessageRecord, MessagingError, addressed_to, attempts_for, check_text
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet
 from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, our_call, our_frame
+from neoaprs.services.acks import Acks
 from neoaprs.services.asking import Asking
 from neoaprs.services.delivery import Delivery
 from neoaprs.services.inbox import Inbox
 from neoaprs.services.pace import SPACING_SEC, Pace
+from neoaprs.services.retries import Retries
 from neoaprs.signal import Signal
 from neoaprs.source import Source
 from neoaprs.tasks import TaskSet
@@ -78,7 +78,7 @@ class Messaging:
                  spacing_sec: float = SPACING_SEC, qru: Callable[[Packet, Message], bool] | None = None) -> None:
         self._tnc = tnc
         self._config = config
-        self._interlock = Interlock(config)
+        interlock = Interlock(config)
         self._log = messagelog
         self._paths = paths                                     # the digipeaters of what we send to a station, for attempt n of a message (PrefBook.path_for)
         self.clock, self.tick_sec = clock, tick_sec
@@ -86,12 +86,9 @@ class Messaging:
         self.changed: Signal[[MessageRecord]] = Signal("messaging_changed")
         self.removed: Signal[[MessageRecord]] = Signal("messaging_removed")
         self._records: dict[int, MessageRecord] = {}            # every message by id
-        self._due: dict[int, datetime] = {}                     # the messages being sent, and when each needs attention
-        self._last_id: str | None = None                        # the id the latest message of ours was given; the next is the one after
-        self._down_since: datetime | None = None
-        self._told_down = False
+        self.retries = Retries(self, tnc, config, interlock, clock, lambda: self.tick_sec)         # when each message being sent needs attention, and the ticker (services/retries.py)
+        self.acks = Acks(tnc, interlock, self._frame)                                  # the ids we give and the acks we send (services/acks.py)
         self._refused: dict[int, str] = {}                      # the messages whose attempt cannot be made, with why: told once, not at every tick
-        self._ticker: asyncio.Task[None] | None = None
         self.delivery = Delivery(messagelog)                    # the attempts of every message and the hops heard back (services/delivery.py)
         self.asking = Asking(self, clock)                       # the directed queries we send (services/asking.py)
         self.inbox = Inbox(self, config, messagelog, TaskSet(log, "messaging"), board, alert, qru)       # what the Tnc hears (services/inbox.py); `board` takes the messages to bulletins and groups, `alert` the first copy of each message to us, `qru` a request to QRU
@@ -106,7 +103,7 @@ class Messaging:
     # ---- life
     async def start(self) -> None:
         """Takes the messages from the database, picks up the schedule of those still being sent, and starts the ticker."""
-        if self._ticker is not None:
+        if self.retries.running:
             return
         latest = await self._log.held(MESSAGES_HELD_MAX)
         if len(latest) >= MESSAGES_HELD_MAX:
@@ -118,15 +115,12 @@ class Messaging:
             self.inbox.heard.note(record, record.at)
         await self.delivery.load(self._records)
         for record in self._records.values():
-            self._plan(record)
-        self._last_id = next((r.msg_id for r in reversed(self.records()) if r.direction == "out" and r.msg_id in MSG_IDS), None)
-        self._ticker = asyncio.get_running_loop().create_task(self._run(), name="messaging")
+            self.retries.plan(record)
+        self.acks.resume(self.records())
+        self.retries.start()
 
     async def stop(self) -> None:
-        ticker, self._ticker = self._ticker, None
-        if ticker is not None:
-            ticker.cancel()
-            await asyncio.gather(ticker, return_exceptions=True)
+        await self.retries.stop()
         await self.inbox.stop()
 
     # ---- sending
@@ -150,12 +144,12 @@ class Messaging:
         if self._tnc.state is Source.State.SILENT:
             raise MessagingError(self._tnc.why_unusable())
         self._frame(_info(to, text, None if once else MSG_IDS[0], None if once else ""), to)          # (the settings make a frame, and the text one)
-        ident = None if once else self._allocate()
+        ident = None if once else self.acks.allocate(self._records.values())
         record = await self._log.insert(MessageRecord(0, self.clock(), "out", ours, to, text, ident, "sending", attempts_max=1 if once else attempts_for(to)))
         if record is None:
             raise MessagingError("the message could not be kept: the database is not open")
         self.put(record)
-        return self._attempt(record)
+        return self.attempt(record)
 
     def retry(self, number: int) -> MessageRecord:
         """Sends a failed, unconfirmed, rejected or cancelled message again, from the first attempt of the schedule."""
@@ -166,7 +160,7 @@ class Messaging:
         record = replace(record, state="sending", attempts=0, last_attempt_at=None, acked_at=None)
         self.delivery.restart(number)
         self.put(record)
-        return self._attempt(record)
+        return self.attempt(record)
 
     def cancel(self, number: int) -> MessageRecord:
         """Stops sending a message; it is kept, as "cancelled"."""
@@ -230,7 +224,7 @@ class Messaging:
     def _drop(self, number: int) -> None:
         """A message the database has removed: gone from here, from its schedule and chain, and told."""
         gone = self._records.pop(number, None)
-        self._due.pop(number, None)
+        self.retries.forget(number)
         self._refused.pop(number, None)
         self.delivery.drop(number)
         if gone is not None:
@@ -242,14 +236,6 @@ class Messaging:
             raise MessagingError(f"there is no message {number} that we sent")
         return record
 
-    def _allocate(self) -> str:
-        """The next message id: not one that a message still being sent has."""
-        ident = next_msg_id(self._last_id, {r.msg_id for r in self._records.values() if r.state == "sending" and r.msg_id is not None})
-        if ident is None:
-            raise MessagingError(f"{len(MSG_IDS)} messages are being sent at once: no message id is free")
-        self._last_id = ident
-        return ident
-
     def _frame(self, info: bytes, to: str, attempt: int | None = None) -> ax25.Frame:
         """Our frame to the station for this information field: from `station/call` to the tocall by way of the station's path (for attempt number `attempt` of a message to it, when it is given)."""
         c = self._config()
@@ -260,17 +246,9 @@ class Messaging:
         except FRAME_ERRORS as e:
             raise MessagingError(f"the settings make no frame: {e}") from None
 
-    def _radio_up(self) -> bool:
-        if self._tnc.usable:
-            return True
-        if not self._told_down:
-            self._told_down = True
-            log.warning("a message is waiting and %s: its attempts wait for the radio (none is used up)", self._tnc.why_unusable())
-        return False
-
-    def _attempt(self, record: MessageRecord) -> MessageRecord:
+    def attempt(self, record: MessageRecord) -> MessageRecord:
         """Transmits the message once, when the radio can; the message as it is after that."""
-        if not self._radio_up() or self.pace.too_soon():
+        if not self.retries.radio_up() or self.pace.too_soon():
             return record                                            # (what waits is due at the next tick)
         reply = None if record.msg_id is None else self.inbox.heard.reply_for(record.to_call, self.clock()) or ""
         try:
@@ -293,57 +271,12 @@ class Messaging:
         self.put(record)
         return record
 
-    # ---- the ticker
-    async def _run(self) -> None:
-        while True:
-            await asyncio.sleep(self.tick_sec)
-            try:
-                self._tick()
-            except Exception:
-                log.exception("the messaging tick failed")
-
-    def _tick(self) -> None:
-        now = self.clock()
-        if not self._tnc.usable or can_transmit(self._config()) is not None:      # (the radio is away, or the interlock is shut: receive only, no call)
-            self._down_since = self._down_since or now
-            if any(now >= due for due in self._due.values()) and self._radio_up():
-                self._interlock.refused("message")                   # (tells once)
-            return
-        self._told_down = False
-        if self._down_since is not None:
-            self._move_on(now - self._down_since)
-            self._down_since = None
-        for number, due in list(self._due.items()):
-            record = self._records.get(number)
-            if record is None or now < due:
-                continue
-            if record.attempts >= record.attempts_max:
-                state: State = "unconfirmed" if record.attempts_max <= UNCONFIRMED_MAX else "failed"
-                log.log(logging.INFO if state == "unconfirmed" else logging.WARNING, "message %d to %s is %s: no answer after %d attempts", record.id, record.to_call, state, record.attempts)
-                self.put(replace(record, state=state))
-            else:
-                self._attempt(record)
-
-    def _move_on(self, away: timedelta) -> None:
-        """The radio was away for this long: the waits that were running did not run."""
-        for number, due in self._due.items():
-            record = self._records.get(number)
-            if record is not None and record.attempts > 0:
-                self._due[number] = due + away
-
     # ---- keeping
-    def _plan(self, record: MessageRecord) -> None:
-        due = due_at(record)
-        if due is None:
-            self._due.pop(record.id, None)
-        else:
-            self._due[record.id] = due
-
     def put(self, record: MessageRecord) -> None:
         """A new or changed message: held, planned, kept in the database and told."""
         known = record.id in self._records
         self._records[record.id] = record
-        self._plan(record)
+        self.retries.plan(record)
         if known:
             self._log.update_state(record)
         self.changed.emit(record)
@@ -365,10 +298,4 @@ class Messaging:
 
     def ack(self, to: str, msg_id: str, reply_ack: str | None = None) -> None:
         """Acknowledges message `msg_id` of the station `to`: `ackMM`, or the number as it came for a message with a reply-ack number, `ackMM}` for `{MM}` (`reply_ack` "") and `ackMM}AA` for `{MM}AA`."""
-        if self._interlock.refused("ack"):
-            return                                                  # (no ack is kept for later: the sender sends again)
-        try:
-            if not self._tnc.send_frame(self._frame(b":" + format_ack(to, msg_id, reply_ack), to)):
-                log.warning("the ack of message %s from %s was not sent: the TNC would not take it", msg_id, to)
-        except (MessageError, MessagingError) as e:
-            log.warning("no ack for message %s from %s: %s", msg_id, to, e)
+        self.acks.send(to, msg_id, reply_ack)

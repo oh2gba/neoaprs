@@ -95,8 +95,9 @@ What each layer is for:
     (`services/rigstatus.py`). They keep when they last sent in rows of the settings table (`services/memory.py`), so that a restart keeps the schedule.
   * Messaging (`services/messaging.py`): messages to and from other stations through the Tnc, acks, the retry schedule, the messages kept in the database. Its
     parts are `services/inbox.py` (what the Tnc hears: a message to us kept and acked, an ack or a rej settling a message, a message to another station
-    overheard), `services/heard.py` (the repeats of a message already heard and when each was last acked) and `services/delivery.py` (the attempts of each
-    message and the hops heard back).
+    overheard), `services/heard.py` (the repeats of a message already heard and when each was last acked), `services/delivery.py` (the attempts of each
+    message and the hops heard back), `services/retries.py` (when each message being sent needs attention, and the ticker that makes the attempt that is due)
+    and `services/acks.py` (the message ids we give and the acks we send).
   * The message board (`services/bulletins.py`): the bulletins, announcements, group bulletins and group messages the inbox hands over, one for each sender and
     slot, kept until the operator deletes it.
   * Our own objects and bulletins (`services/ownobjects.py` and `services/ownbulletins.py`): made, changed and killed or posted and deleted by the operator,
