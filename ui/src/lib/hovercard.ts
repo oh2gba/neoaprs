@@ -2,6 +2,7 @@
 // temperature of a weather station, how the packets reach us) and goes when the pointer leaves. One element serves every marker. A touch screen has no pointer to rest on a marker, so only a mouse
 // shows it, and a tap opens the full card as ever.
 import { t } from "@/i18n";
+import { channelLabel, channelsOf, channelTitle, internetOnly } from "@/lib/channels";
 import { agoWords, bearingText, distanceText } from "@/lib/format";
 import { routeWords } from "@/lib/routes";
 import { symbolLabel } from "@/lib/stations";
@@ -21,6 +22,8 @@ export interface HoverRow {
 /** The rows the card has for a station: only those that have something to say. */
 export function hoverRows(row: StationRow, nowMs: number): HoverRow[] {
   const rows: HoverRow[] = [{ label: t("station.hover.heard"), text: agoWords(row.last_heard, nowMs) }];
+  if (channelsOf(row).some((channel) => channel !== "rf"))
+    rows.push({ label: t("station.hover.via"), text: internetOnly(row) ? channelTitle(row) : channelLabel(row) }); // (a station heard on the radio alone needs no word for it)
   if (row.last_status !== "") rows.push({ label: t("station.field.status"), text: row.last_status });
   if (row.last_comment !== "") rows.push({ label: t("station.field.comment"), text: row.last_comment });
   if (row.distance_km !== null) {

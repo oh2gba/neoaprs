@@ -192,3 +192,37 @@ describe("the stations heard direct", () => {
     expect(directLines(station("X", { last_direct_at: null }), NOW)).toEqual([]);
   });
 });
+
+describe("a station known from the internet alone", () => {
+  const net = { heard_rf: 0, heard_is: 4, last_rf_at: null, last_is_at: ago(60), heard_via: [], heard_direct: 0, last_direct_at: null };
+  const rows = [
+    station("OH2GBA", { is_me: true, distance_km: null, heard_via: [] }),
+    station("OH2RCH-2", { symbol_code: "#", distance_km: 12, heard_via: [], extensions: extensions({ phg: phg(21.4) }) }),
+    station("OH2NETDIGI", { ...net, symbol_code: "#", distance_km: 3, extensions: extensions({ phg: phg(30) }) }),
+    station("OH2NETGATE", { ...net, symbol_table: "I", symbol_code: "&", distance_km: 4, gated: 7, igate: true }),
+    station("OH2NETVOICE", { ...net, distance_km: 5, frequency: frequency() }),
+    station("NETOBJ", { ...net, kind: "object", reported_by: "OH2XYZ", distance_km: 6, frequency: frequency({ mhz: 145.6 }) }),
+    station("OH2NETDIRECT", { ...net, distance_km: 7, heard_direct: 2, last_direct_at: ago(30) }),
+    station("OH2BOTHDIGI", { symbol_code: "#", distance_km: 8, heard_via: [], heard_is: 3 }),
+    station("OH2GATEONLY", { distance_km: 9, heard_rf: 0, heard_rf_gated: 2, heard_via: [], symbol_table: "I", symbol_code: "&" }),
+  ];
+
+  it("is in none of the four lists, whatever its symbol, its frequency or its counts say; one also heard on the radio is, and so is an iGate's", () => {
+    expect(
+      calls(
+        digipeaters(rows)
+          .map((d) => d.row)
+          .filter((r): r is NonNullable<typeof r> => r !== null),
+      ),
+    ).toEqual(["OH2BOTHDIGI", "OH2RCH-2"]);
+    expect(calls(voiceRows(rows))).toEqual([]);
+    expect(calls(gateRows(rows))).toEqual(["OH2GATEONLY"]);
+    expect(calls(directRows(rows))).toEqual([]);
+  });
+
+  it("is still a digipeater when other stations' packets were repeated by it on the radio, whatever its own packets came by", () => {
+    const repeated = [station("OH2AAA", { heard_via: [["OH2NETDIGI", 6]] }), ...rows];
+    const found = digipeaters(repeated).find((d) => d.call === "OH2NETDIGI");
+    expect(found?.repeated).toBe(6);
+  });
+});

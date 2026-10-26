@@ -50,10 +50,10 @@ def prune_weather_before(db: sqlite3.Connection, stamp: str) -> int:
 
 
 def weather_packets(db: sqlite3.Connection, stamp: str) -> list[Row]:
-    """(source, destination, raw, heard_at) of the packets heard at or after `stamp` that may carry weather, the oldest first: a position whose symbol code is `_`, an object or item whose position's is, or
+    """(source, destination, raw, heard_at, via) of the packets heard at or after `stamp` that may carry weather, the oldest first: a position whose symbol code is `_`, an object or item whose position's is, or
     a packet of the kind other that the parser read as weather (or called weather). The decoded JSON says it, not the summary. A few more than there are weather reports: the parser decides."""
     return [tuple(r) for r in db.execute(
-        "SELECT source, destination, raw, heard_at FROM packet WHERE direction = 'in' AND heard_at >= ? AND ("
+        "SELECT source, destination, raw, heard_at, via FROM packet WHERE direction = 'in' AND heard_at >= ? AND ("
         "(kind = 'position' AND json_extract(decoded, '$.symbol_code') = '_') OR "
         "(kind IN ('object', 'item') AND json_extract(decoded, '$.position.symbol_code') = '_') OR "
         "(kind = 'other' AND (json_extract(decoded, '$.weather') IS NOT NULL OR json_extract(decoded, '$.kind') = 'weather'))) ORDER BY id", (stamp,))]

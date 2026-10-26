@@ -89,8 +89,8 @@ class Inbox:
     def on_packet(self, packet: Packet) -> None:
         """The Tnc heard (or sent) a packet: a message to us is kept and acked, an ack or a rej to us settles the message it quotes."""
         message = packet.decoded
-        if packet.direction != "in" or not isinstance(message, Message):
-            return
+        if packet.direction != "in" or not packet.on_air or not isinstance(message, Message):
+            return                                                   # (nothing from the internet is kept as a message, acked or settled: this program sends by radio only)
         ours = self._config().station_call
         if is_telemetry_definition(message.text):
             return                                                   # (the packet log has it)
@@ -117,7 +117,7 @@ class Inbox:
             return                                                   # (the queries answer it; it is not kept)
         if reply:
             self._settle(packet, reply, "acked")
-        record = MessageRecord(0, packet.heard_at, "in", packet.sender, message.addressee, message.text, message.msg_id, "received", route=received_text(packet.path, packet.via))
+        record = MessageRecord(0, packet.heard_at, "in", packet.sender, message.addressee, message.text, message.msg_id, "received", route=received_text(packet.path, packet.gate))
         fresh = self.heard.note(record, packet.heard_at)
         if message.msg_id is not None:
             if self.heard.ack_due(record, packet.heard_at):
@@ -153,7 +153,7 @@ class Inbox:
         """A message to another station: kept apart from the conversations (once for a repeat or a digipeater's copy). An ack or a reject of other stations is not a message and is not kept."""
         if message.ack_id is not None or message.rej_id is not None:
             return
-        record = MessageRecord(0, packet.heard_at, "in", packet.sender, message.addressee, message.text, message.msg_id, "overheard", route=received_text(packet.path, packet.via))
+        record = MessageRecord(0, packet.heard_at, "in", packet.sender, message.addressee, message.text, message.msg_id, "overheard", route=received_text(packet.path, packet.gate))
         if self.heard.note(record, packet.heard_at):
             self.tasks.spawn(self._keep(record), "message-keep")
 

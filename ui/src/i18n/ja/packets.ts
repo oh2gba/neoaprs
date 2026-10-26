@@ -11,6 +11,7 @@ export const packets: Record<keyof typeof source, Message> = {
   "packets.col.packet": "パケット",
   "packets.col.route": "経路",
   "packets.col.summary": "概要",
+  "packets.col.via": "経路",
   "packets.dir.in": "受信",
   "packets.dir.out": "送信",
   "packets.none_yet": "パケットはまだありません。",
@@ -46,6 +47,8 @@ export const packets: Record<keyof typeof source, Message> = {
   "packets.fact.sent_via": "経由",
   "packets.fact.sent": "送信",
   "packets.fact.heard": "受信",
+  "packets.fact.came": "受信経路",
+  "packets.fact.came_value": "{channel} - {what}",
   "packets.fact.time_in_packet": "パケット内の時刻",
 
   "packets.position_approximate": "{position}(概略)",

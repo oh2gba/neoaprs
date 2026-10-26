@@ -10,7 +10,7 @@ from .aprsthirdparty import header_of
 from .clock import Clock, days, utcnow
 from .db import Db
 from .dblog import DbLog
-from .packet import ItemReport, ObjectReport, Packet, Position
+from .packet import ItemReport, ObjectReport, Packet, Position, via_of
 from .packetcodec import PacketRow, packet_of, packet_row, parse_stamp, stamp
 from .packetsql import (Row, all_stations, count_packets, delete_station, heard_routes, heard_times, insert_packet, message_packets, packets_since, position_packets, prune_packets_before, recent_packets, upsert_station)
 from .station import Station
@@ -25,17 +25,27 @@ def station_row(station: Station) -> Row:
     """The columns of the station table, in order (the track and `is_me` are not kept)."""
     return (station.call, station.kind, station.reported_by, station.symbol_table, station.symbol_code, station.lat, station.lon, station.altitude_m, station.course_deg,
             station.speed_kmh, stamp(station.first_heard), stamp(station.last_heard), None if station.last_position_at is None else stamp(station.last_position_at),
-            station.last_status, station.last_comment, station.packets, ",".join(station.last_path))
+            station.last_status, station.last_comment, station.packets, ",".join(station.last_path), station.heard_rf, station.heard_rf_gated, station.heard_is,
+            _stamped(station.last_rf_at), _stamped(station.last_rf_gated_at), _stamped(station.last_is_at), station.position_via, station.heard_dummy, _stamped(station.last_dummy_at))
+
+
+def _stamped(at: datetime | None) -> str | None:
+    return None if at is None else stamp(at)
+
+
+def _parsed(text: object) -> datetime | None:
+    return None if text is None else parse_stamp(str(text))
 
 
 def station_of(row: Row) -> Station:
     """The station from its row. Raises ValueError (or TypeError) for a row this program did not write."""
-    (call, kind, reported_by, table, code, lat, lon, altitude, course, speed, first, last, position_at, status, comment, packets, path) = row
+    (call, kind, reported_by, table, code, lat, lon, altitude, course, speed, first, last, position_at, status, comment, packets, path, heard_rf, heard_rf_gated, heard_is, rf_at, gated_at, is_at, position_via, heard_dummy, dummy_at) = row
     return Station(str(call), first_heard=parse_stamp(str(first)), last_heard=parse_stamp(str(last)), kind=str(kind), reported_by=str(reported_by), symbol_table=str(table),
                    symbol_code=str(code), lat=None if lat is None else float(lat), lon=None if lon is None else float(lon), altitude_m=None if altitude is None else float(altitude),
                    course_deg=None if course is None else int(course), speed_kmh=None if speed is None else float(speed),
                    last_position_at=None if position_at is None else parse_stamp(str(position_at)), last_status=str(status), last_comment=str(comment),
-                   packets=int(packets), last_path=tuple(str(path).split(",")) if path else ())
+                   packets=int(packets), last_path=tuple(str(path).split(",")) if path else (), heard_rf=int(heard_rf), heard_rf_gated=int(heard_rf_gated), heard_is=int(heard_is),
+                   last_rf_at=_parsed(rf_at), last_rf_gated_at=_parsed(gated_at), last_is_at=_parsed(is_at), position_via=None if position_via is None else via_of(str(position_via)), heard_dummy=int(heard_dummy), last_dummy_at=_parsed(dummy_at))
 
 
 class PacketLog(DbLog):

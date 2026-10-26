@@ -3,6 +3,7 @@
 import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
 import { altitudeText, bearingText, dateTimeText, positionText, speedText } from "@/lib/format";
+import { packetLabel, packetTitle } from "@/lib/channels";
 import { frequencyText, sentTimeText, stormText } from "@/lib/details";
 import { routeWords } from "@/lib/routes";
 import { tempText, windSpeedText } from "@/lib/weather";
@@ -110,7 +111,11 @@ function contentFacts(row: PacketRow): Fact[] {
 export function packetFacts(row: PacketRow): Fact[] {
   const facts: Fact[] = [{ label: t("packets.fact.from"), text: row.source }, { label: t("packets.fact.kind"), text: kindWords(row) }, ...contentFacts(row)];
   if (row.direction === "out") facts.push({ label: t("packets.fact.sent_via"), text: row.path.length === 0 ? t("route.direct") : row.path.join(",") });
-  else if (row.route !== "") facts.push({ label: t("station.field.reached"), text: routeWords(row.route), route: true });
+  else {
+    facts.push({ label: t("packets.fact.came"), text: t("packets.fact.came_value", { channel: packetLabel(row.via), what: packetTitle(row.via) }) });
+    if (row.route !== "") facts.push({ label: t("station.field.reached"), text: routeWords(row.route), route: true });
+    else if (row.via === "is" && row.path.length > 0) facts.push({ label: t("station.field.path"), text: row.path.join(",") });
+  }
   facts.push({ label: row.direction === "out" ? t("packets.fact.sent") : t("packets.fact.heard"), text: dateTimeText(row.heard_at) });
   const carried = sentTimeText(row);
   if (carried !== null) facts.push({ label: t("packets.fact.time_in_packet"), text: carried });

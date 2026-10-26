@@ -11,7 +11,7 @@ from typing import Any, Literal, NamedTuple
 from . import ax25
 from .aprsthirdparty import header_of
 from .aprstelemetry import Telemetry
-from .packet import Decoded, ItemReport, Message, ObjectReport, Other, Packet, Position, Status, Undecoded
+from .packet import DUMMY, IS, Decoded, ItemReport, Message, ObjectReport, Other, Packet, Position, Status, Undecoded, channel_of, via_of
 
 STAMP_FORM = "%Y-%m-%dT%H:%M:%S.%fZ"
 _BY_KIND: dict[str, type] = {"position": Position, "message": Message, "object": ObjectReport, "item": ItemReport, "status": Status, "other": Other, "undecoded": Undecoded}
@@ -31,6 +31,7 @@ class PacketRow(NamedTuple):
     summary: str
     decoded: str                    # JSON
     error: str | None               # why a field did not decode, for kind "undecoded"
+    via: str                        # the channel: rf, rf-gated or is (Packet.via)
 
 
 def stamp(t: datetime) -> str:
@@ -88,9 +89,9 @@ def decode_decoded(text: str) -> Decoded:
 
 
 def tnc2(packet: Packet) -> str:
-    """The packet as a line of TNC2 monitor text ("OH2RDG>APN391,OH2RCH-2*:!6007.47N...") with anything unprintable shown as a question mark."""
+    """The packet as a line of TNC2 monitor text ("OH2RDG>APN391,OH2RCH-2*:!6007.47N...") with anything unprintable shown as a question mark. A packet from the internet is the line it came as."""
     try:
-        line = ax25.decode(packet.raw).tnc2()
+        line = packet.raw.decode("latin-1") if packet.via == IS else ax25.decode(packet.raw).tnc2()
     except ax25.Ax25Error:
         path = "".join("," + p for p in packet.path)
         line = f"{packet.source}>{packet.destination}{path}:{packet.info.decode('latin-1')}"
@@ -101,15 +102,23 @@ def packet_row(packet: Packet) -> PacketRow:
     decoded = packet.decoded
     error = decoded.error if isinstance(decoded, Undecoded) else None
     return PacketRow(stamp(packet.heard_at), packet.direction, packet.raw, packet.source, packet.destination, ",".join(packet.path), packet.kind, packet.summary,
-                     encode_decoded(decoded), error)
+                     encode_decoded(decoded), error, packet.via)
+
+
+def info_of(raw: bytes, via: str) -> bytes:
+    """The information field of a kept packet: after the first colon of the line for a packet from the internet (it has no AX.25 frame), else the frame's. Raises Ax25Error for a frame that is none."""
+    return raw.partition(b":")[2] if via == IS else ax25.decode(raw).info
 
 
 def packet_of(row: PacketRow) -> Packet:
-    """The packet from its row. Raises ValueError (or KeyError, TypeError, Ax25Error) for a row that is not one this program wrote."""
+    """The packet from its row. Raises ValueError (or KeyError, TypeError, Ax25Error) for a row that is not one this program wrote. The channel of a packet on the radio is read from the frame again, like the header of
+    a third-party packet: rf-gated exactly when the information field holds one (the column is for the statements; a row the migration marked before the header was checked is made right here)."""
     if row.direction not in ("in", "out"):
         raise ValueError(f"direction {row.direction!r}")
+    via_of(row.via)
     direction: Literal["in", "out"] = "in" if row.direction == "in" else "out"
-    info = ax25.decode(bytes(row.raw)).info
+    info = info_of(bytes(row.raw), row.via)
     opened = header_of(info)                  # (the header of a third-party packet is in the information field; `decoded` holds what is inside it)
+    via = channel_of(None if opened is None else opened[0], row.via == IS, row.via == DUMMY)
     return Packet(heard_at=parse_stamp(row.heard_at), direction=direction, raw=bytes(row.raw), source=row.source, destination=row.destination,
-                  path=tuple(row.path.split(",")) if row.path else (), info=info, decoded=decode_decoded(row.decoded), third_party=None if opened is None else opened[0])
+                  path=tuple(row.path.split(",")) if row.path else (), info=info, decoded=decode_decoded(row.decoded), third_party=None if opened is None else opened[0], via=via)

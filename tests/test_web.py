@@ -908,9 +908,9 @@ async def test_the_capture_rows_say_how_each_packet_and_each_station_was_reached
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
     await e.play()
     await page.until(lambda: len(page.topics["packets"]) == 4 and len(page.topics["stations"]) >= 5)
-    assert {r["route"] for r in page.topics["packets"].values()} == {"via OH2RCH-2"} and {r["via"] for r in page.topics["packets"].values()} == {""}
+    assert {r["route"] for r in page.topics["packets"].values()} == {"via OH2RCH-2"} and {r["gate"] for r in page.topics["packets"].values()} == {""} and {r["via"] for r in page.topics["packets"].values()} == {"rf"}
     rdk = StationRow.model_validate_json(json.dumps(page.topics["stations"]["OH2RDK-7"]))
-    assert (rdk.last_route, rdk.heard_direct, rdk.heard_gated, rdk.heard_via, rdk.best_route, rdk.suggested_path) == ("via OH2RCH-2", 0, 0, [("OH2RCH-2", 1)], "via OH2RCH-2", "OH2RCH-2")
+    assert (rdk.last_route, rdk.heard_direct, rdk.heard_rf_gated, rdk.heard_via, rdk.best_route, rdk.suggested_path) == ("via OH2RCH-2", 0, 0, [("OH2RCH-2", 1)], "via OH2RCH-2", "OH2RCH-2")
     me = StationRow.model_validate_json(json.dumps(page.topics["stations"]["OH2GBA"]))
     assert (me.last_route, me.heard_via, me.best_route, me.suggested_path) == ("", [], "", None), "nothing is known of how we are reached"
     await e.stop()
@@ -946,12 +946,12 @@ async def test_a_third_party_ack_and_message_are_rows_for_the_sender_inside_and_
     await page.until(lambda: page.topics["messages"]["1"]["state"] == "acked" and "2" in page.topics["messages"])
     received = MessageRow.model_validate_json(json.dumps(page.topics["messages"]["2"]))
     assert (received.from_call, received.text, received.route) == ("OH2BEA-9", "Test ok", "via OH7JHF-1 (internet) → OH2RCH-3")
-    third = [r for r in page.topics["packets"].values() if r["via"]]
+    third = [r for r in page.topics["packets"].values() if r["gate"]]
     assert [r["source"] for r in third] == ["OH7JHF-1", "OH7JHF-1"] and {r["route"] for r in third} == {"via OH7JHF-1 (internet) → OH2RCH-3"}
     assert all(r["summary"].endswith(" via OH7JHF-1 (third-party)") and r["path"] == ["OH2RCH-3*"] for r in third)
     assert "OH7JHF-1" not in page.topics["stations"]
     sender = StationRow.model_validate_json(json.dumps(page.topics["stations"]["OH2BEA-9"]))
-    assert (sender.heard_gated, sender.heard_direct, sender.heard_via, sender.best_route, sender.suggested_path) == (1, 0, [], "", None)
+    assert (sender.heard_rf_gated, sender.heard_direct, sender.heard_via, sender.best_route, sender.suggested_path) == (1, 0, [], "", None)
     assert sender.last_route == "via OH7JHF-1 (internet) → OH2RCH-3"
     await e.stop()
 
@@ -965,9 +965,9 @@ async def test_an_igate_row_counts_the_third_party_packets_it_put_on_the_air_and
     e.feed(on_air("OH7JHF-1", b"}OH2BEA-9>APY300,TCPIP,OH7JHF-1*::OH2GBA   :Test ok{06", path="OH2RCH-3*"))
     await page.until(lambda: page.topics["stations"]["OH7JHF-1"]["gated"] == 2)
     gate = StationRow.model_validate_json(json.dumps(page.topics["stations"]["OH7JHF-1"]))
-    assert (gate.gated, gate.igate, gate.heard_gated, gate.packets) == (2, True, 0, 2)
+    assert (gate.gated, gate.igate, gate.heard_rf_gated, gate.packets) == (2, True, 0, 2)
     other = StationRow.model_validate_json(json.dumps(page.topics["stations"]["OH2BEA-9"]))
-    assert (other.gated, other.igate, other.heard_gated) == (0, False, 1)
+    assert (other.gated, other.igate, other.heard_rf_gated) == (0, False, 1)
     await e.stop()
 
 

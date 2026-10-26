@@ -1,8 +1,9 @@
 // The marker of a station on the map as DOM nodes (the call is text, never markup): the APRS symbol as sprite layers, the call under it, the characters a signpost shows on its sign, classes for our own station and our own objects, the selected one and
-// how dim it is and a ring for a station heard direct within the hour. The map (components/StationMap.vue) puts the element at the station's position; styles are in ui/src/styles/map.css.
+// how dim it is, a ring for a station heard direct within the hour and a dotted outline with an italic call for a station known from the internet alone. The map (components/StationMap.vue) puts the element at the station's position; styles are in ui/src/styles/map.css.
 import { t } from "@/i18n";
 import type { StationRow } from "@/protocol/protocol";
 import { MARKER_STEPS } from "@/lib/aging";
+import { internetOnly } from "@/lib/channels";
 import { symbolLabel } from "@/lib/stations";
 import { layerStyle, symbolLayers } from "@/lib/symbols";
 import { markerWeather } from "@/lib/weather";
@@ -60,11 +61,15 @@ export function paintMarker(dom: MarkerDom, row: StationRow, state: MarkerState)
   const sign = row.sign ?? "";
   if (dom.sign.textContent !== sign) dom.sign.textContent = sign;
   dom.root.classList.toggle("stn--sign", sign !== "");
-  const details = [symbolLabel(row), markerWeather(row), state.direct ? t("station.heard_direct") : ""].filter((part) => part !== "");
+  const net = internetOnly(row);
+  const details = [symbolLabel(row), markerWeather(row), state.direct ? t("station.heard_direct") : "", net ? t("station.marker.internet") : ""].filter(
+    (part) => part !== "",
+  );
   dom.root.setAttribute("aria-label", t("station.marker_label", { call: row.call, details: details.join(", ") }));
   dom.root.classList.toggle("stn--me", row.is_me);
   dom.root.classList.toggle("stn--own", row.own);
   dom.root.classList.toggle("stn--selected", state.selected);
   dom.root.classList.toggle("stn--direct", state.direct);
+  dom.root.classList.toggle("stn--net", net);
   for (let step = 1; step < MARKER_STEPS; step++) dom.root.classList.toggle(`stn--fade-${step}`, state.fade === step);
 }

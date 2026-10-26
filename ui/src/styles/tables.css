@@ -171,11 +171,11 @@
 .grid.packets.stacked tr.packet-row {
   display: grid;
   grid-template-areas:
-    "time dir"
-    "line line"
-    "route route"
-    "summary summary";
-  grid-template-columns: auto 1fr;
+    "time dir via"
+    "line line line"
+    "route route route"
+    "summary summary summary";
+  grid-template-columns: auto auto 1fr;
   column-gap: 8px;
   padding: 4px 8px;
   border-bottom: 1px solid var(--border);
@@ -193,6 +193,10 @@
 }
 .grid.packets.stacked td.dir {
   grid-area: dir;
+  font-size: 12px;
+}
+.grid.packets.stacked td.via {
+  grid-area: via;
   font-size: 12px;
 }
 .grid.packets.stacked td.line {
@@ -301,4 +305,29 @@
 /* "On map for" [3 h]: the label and a select as narrow as its longest choice, in the line of the tickboxes */
 .onmap {
   gap: 6px;
+}
+/* how a station was heard (lib/channels.ts): small, quiet letters under its call in the Stations table, in a row that stays one line high; a station known from the internet alone has them in italics */
+.grid.stations td.call {
+  line-height: 1.1;
+}
+.grid.stations td.call .callname,
+.grid.stations td.call .via {
+  display: block;
+}
+.grid.stations td.call .via {
+  font:
+    400 10.5px/1.15 system-ui,
+    sans-serif;
+  color: var(--muted);
+}
+.grid.stations tr.internetonly td.call .via {
+  font-style: italic;
+}
+/* the channel of a packet (lib/channels.ts) in the Packets tab: quiet, and the packets that came over the internet in italics */
+.grid.packets td.via {
+  color: var(--muted);
+  white-space: nowrap;
+}
+.grid.packets td.via.internet {
+  font-style: italic;
 }

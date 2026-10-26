@@ -37,7 +37,7 @@ def migrate(folder: Path, stored: dict[str, str]) -> dict[str, tuple[str, int]]:
     version_eighteen(old, clock, stored)
     migrated = opened(old, clock)
     assert migrated.version() == SCHEMA_VERSION >= 20
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][18:] == [(19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][18:] == [(19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21])]
     found = {str(k): (str(v), int(rev)) for k, v, rev in migrated.db.execute("SELECT key, value, rev FROM settings")}
     migrated.close()
     return found

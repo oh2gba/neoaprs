@@ -3,6 +3,7 @@ from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from neoaprs.aprsisline import parse_is_line
 from neoaprs.aprsparse import parse
 from neoaprs.bulletin import BulletinRecord
 from neoaprs.chain import INTERNET, Attempt, HopSeen
@@ -25,9 +26,19 @@ def heard(info: str, source: str, path: tuple[str, ...] = (), at: datetime = T0,
     return Packet(at, "in", b"", source, destination, path, info.encode("latin-1"), parse(info.encode("latin-1"), source, destination, at))
 
 
+def internet(line: str, at: datetime = T0) -> Packet:
+    """A packet received from APRS-IS, from the line the server sent."""
+    return parse_is_line(line, at)
+
+
+def made_up(info: str, source: str, at: datetime = T0) -> Packet:
+    """A packet of the Dummy radio, which makes up traffic to try the program with."""
+    return replace(heard(info, source, ("WIDE1*",), at), via="dummy")
+
+
 def packets() -> list[Packet]:
     """A packet of every kind the page tells: positions (plain, with course and speed, with PHG, Mic-E), objects, items, status with a locator, telemetry, weather, a message, a third-party
-    packet, one of ours."""
+    packet, one received from the internet, one of ours."""
     return [
         heard("!4903.50N/07201.75W-Test", "N0AAA", ("OH2RCH-2*", "WIDE2-1")),
         heard("=4903.50N/07201.75W>088/036/A=000123 mobile", "N0BBB-9", ("WIDE1*", "OH2RDG-1*"), destination="APK004"),
@@ -44,13 +55,15 @@ def packets() -> list[Packet]:
         heard("{junk", "N0BAD"),
         Packet(T0, "in", b"", "N0MIC", "S32UVT", ("WIDE1*",), b'(_fn"Oj/', parse(b'(_fn"Oj/', "N0MIC", "S32UVT", T0)),
         Packet(T0, "in", b"", "N0UND", "APRS", (), b"!4903", Undecoded("too short", "!4903")),
-        Packet(T0, "in", b"", "OH7JHF-1", "APRS", ("OH2RCH-3*",), b"info", Message("OH2GBA", "", ack_id="10"), ThirdParty("OH2DPN", "APJYC1", ("TCPIP", "OH7JHF-1*"))),
+        Packet(T0, "in", b"", "OH7JHF-1", "APRS", ("OH2RCH-3*",), b"info", Message("OH2GBA", "", ack_id="10"), ThirdParty("OH2DPN", "APJYC1", ("TCPIP", "OH7JHF-1*")), "rf-gated"),
         Packet(T0 + timedelta(seconds=7), "out", b"", ME, "APNEO0", ("WIDE1-1", "WIDE2-1"), b"!6010.00N/02450.00E-", parse(b"!6010.00N/02450.00E-", ME, "APNEO0", T0)),
         Packet(T0, "in", b"", "N0MSG", "APRS", (), b":OH2GBA   :hello{7", Message("OH2GBA", "hello", "7")),
         heard("!4903.50N/07201.75W-145.775MHz T118 -060 R40k Voice", "N0FRQ"),
         heard(";145.775-A*111111z4903.50N/07201.75WrT079 R25m NET Tu9PM", "N0RPT"),
         heard(";BRENDA   *092345z4903.50N\\07202.75W@088/036/HC/150^200/0980>090&030%040", "N0STM"),
         heard(")I91 3N!4903.50N\\07201.75Wm{55}", "N0SGN"),
+        internet("N0ISX-9>APRS,TCPIP*,qAC,T2FINLAND:=6012.34N/02456.78E-from the internet"),
+        made_up("=6015.00N/02500.00E-made up", "QDUMMY-1"),
     ]
 
 
@@ -64,6 +77,7 @@ def book() -> StationBook:
     book.take(heard("!4905.50N/07202.00W-moved again", "N0AAA", (), T0 + timedelta(minutes=20)))
     for text in ("PARM.Battery,Btemp", "UNIT.v/100,deg.F", "EQNS.0,5.2,0,0,.53,-32", "BITS.10110000,Big Balloon"):
         book.take(Packet(T0, "in", b"", "N0TEL", "APRS", (), b"", Message("N0TEL", text)))
+    book.take(internet("N0AAA>APRS,WIDE1-1,qAR,OH2RDK-1:!4905.60N/07202.10W-over the internet too", T0 + timedelta(minutes=25)))
     book.take(heard(">no position", "N0NONE"))
     book.own_object(OwnObject("MYOBJ", "object", 60.3, 24.8, "/", "O", T0, T0 + timedelta(minutes=1), "Mine", 90, 20.5, "WIDE1-1", True, 3, T0 + timedelta(minutes=2)))
     book.own_object(OwnObject("MYITEM", "item", 60.4, 24.7, "/", "-", T0, T0, sent=0))

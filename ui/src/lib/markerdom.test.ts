@@ -1,5 +1,8 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildMarkerDom, paintMarker } from "@/lib/markerdom";
+import { cssRule } from "@/test/css";
 import { station, weatherStation } from "@/test/fixtures";
 
 describe("the marker of a station", () => {
@@ -51,6 +54,30 @@ describe("the marker of a station", () => {
     paintMarker(dom, station("OH2PU-9"), { fade: 0, selected: false, direct: false });
     expect(dom.root.classList.contains("stn--direct")).toBe(false);
     expect(dom.root.getAttribute("aria-label")).toBe("OH2PU-9: Car");
+  });
+  it("draws a station known from the internet alone with its own class, and says so in its name; one also heard on the radio is drawn as any other", () => {
+    const dom = buildMarkerDom();
+    const net = station("OH2NET", { heard_rf: 0, heard_is: 3, last_rf_at: null, last_is_at: "2026-10-21T11:59:00Z" });
+    paintMarker(dom, net, { fade: 0, selected: false, direct: false });
+    expect(dom.root.classList.contains("stn--net")).toBe(true);
+    expect(dom.root.getAttribute("aria-label")).toBe("OH2NET: Car, heard over the internet");
+    paintMarker(dom, { ...net, heard_rf: 1 }, { fade: 0, selected: false, direct: false });
+    expect(dom.root.classList.contains("stn--net")).toBe(false);
+    expect(dom.root.getAttribute("aria-label")).toBe("OH2NET: Car");
+    paintMarker(dom, { ...net, heard_rf: 0, heard_rf_gated: 1, heard_is: 0 }, { fade: 0, selected: false, direct: false });
+    expect(dom.root.classList.contains("stn--net")).toBe(false);
+  });
+  it("has a dotted outline and an italic call for the class of the internet, in colours of both themes, and lets the selected marker be drawn as any other", () => {
+    const icon = cssRule(".stn--net .stn-icon");
+    expect(icon).toMatch(/outline:\s*2px dotted var\(--muted\)/);
+    expect(icon).toMatch(/background:\s*var\(--map-halo\)/);
+    expect(cssRule(".stn--net .stn-label")).toMatch(/font-style:\s*italic/);
+    expect(cssRule(".stn--selected .stn-icon")).toMatch(/outline:\s*2px solid #ff6d00/);
+    const tokens = readFileSync(resolve(__dirname, "../styles/tokens.css"), "utf8");
+    const dark = tokens.slice(tokens.indexOf("prefers-color-scheme: dark"));
+    expect(tokens.slice(0, tokens.indexOf("prefers-color-scheme: dark"))).toMatch(/--muted:/);
+    expect(dark).toMatch(/--muted:/);
+    expect(dark).toMatch(/--map-halo:/);
   });
   it("shows the characters of a signpost over its symbol, as text, and nothing for a station that is none", () => {
     const dom = buildMarkerDom();

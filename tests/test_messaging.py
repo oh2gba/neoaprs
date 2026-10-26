@@ -825,7 +825,7 @@ async def test_a_copy_after_half_an_hour_is_a_new_message_and_is_acked(rig: Rig)
 
 
 async def test_a_copy_an_igate_put_on_the_air_within_thirty_seconds_of_our_ack_is_not_acked_and_one_after_them_is(rig: Rig) -> None:
-    gated = replace(rig.heard("OH7JHF-1", "OH2GBA", "Moi!", "12"), source="OH7JHF-1", third_party=ThirdParty("OH2RDG", "APRS", ("TCPIP", "OH7JHF-1*")))
+    gated = replace(rig.heard("OH7JHF-1", "OH2GBA", "Moi!", "12"), source="OH7JHF-1", third_party=ThirdParty("OH2RDG", "APRS", ("TCPIP", "OH7JHF-1*")), via="rf-gated")
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "Moi!", "12"))
     rig.clock.advance(4)
     rig.m.on_packet(replace(gated, heard_at=rig.clock()))

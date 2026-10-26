@@ -1,5 +1,6 @@
 """The migrations from the twelfth on, frozen here beside neoaprs/migrations.py (which lists them in MIGRATIONS and runs them): the same rules, a step is never edited once it has been released."""
 import logging
+import re
 import sqlite3
 
 from .dberror import StoreError
@@ -143,3 +144,58 @@ def _v20(db: sqlite3.Connection) -> None:
     else:
         db.execute("DELETE FROM settings WHERE key = 'beacon/moving_as'")
         log.info("beacon/moving_as removed (was %s): beacon/travel is set", str(row[0]) or "(empty)")
+
+
+def _third_party_sender(raw: bytes) -> str | None:
+    """Who sent the packet inside a stored AX.25 frame that is a third-party one (`}SRC>DST,PATH:info`), as the station book names a station; None for a frame that is none. The addresses are 7 octets each up to the
+    one whose last octet ends the list, then the control and the protocol id, then the information field."""
+    at = 0
+    while at + 7 <= len(raw):
+        ends = raw[at + 6] & 1
+        at += 7
+        if ends:
+            break
+    else:
+        return None
+    info = raw[at + 2:]
+    if info[:1] != b"}":
+        return None
+    head, colon, inner = info[1:].partition(b":")
+    source, arrow, rest = head.decode("latin-1").partition(">")
+    names = [name.strip() for name in (source, rest.split(",")[0])]
+    if not colon or not arrow or not inner or any(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9-]{0,8}", name) is None for name in names):
+        return None
+    return names[0].upper().removesuffix("-0")
+
+
+def _v21(db: sqlite3.Connection) -> None:
+    """How a packet reached us, kept for the packet and counted for the station. `packet.via` is `rf` (heard on the radio, direct or by digipeaters), `rf-gated` (heard on the radio as a third-party packet that an
+    iGate put on the air) or `is` (received from APRS-IS over the internet; none is kept yet) or `dummy` (made up by the Dummy radio; none is kept yet). Every stored packet was heard on the radio, so `rf`, except one whose AX.25 frame holds a third-party packet
+    (an information field that begins `}SRC>DST:`, with names that are calls or names APRS-IS allows), which is `rf-gated`; that is told from the stored `raw` alone. The station cache gets, for each channel, the count
+    of packets and the time of the latest (`heard_rf`, `heard_rf_gated`, `heard_is`, `heard_dummy`, `last_rf_at`, `last_rf_gated_at`, `last_is_at`, `last_dummy_at`) and the channel of its position (`position_via`, null without a position). A cached
+    station has been heard on the radio: its `packets` are `heard_rf` and its `last_heard` is `last_rf_at`, except for the packets of it that are stored as rf-gated, which move to `heard_rf_gated` (at most as many as it
+    has) with the time of the latest of them; the latest time on the radio is kept as the latest heard, which is the nearest the cache knows."""
+    form = "'[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9][0-9][0-9][0-9]Z'"
+    channels = "('rf', 'rf-gated', 'is', 'dummy')"
+    db.execute(f"ALTER TABLE packet ADD COLUMN via TEXT NOT NULL DEFAULT 'rf' CONSTRAINT packet_via CHECK (via IN {channels})")
+    for column in ("heard_rf", "heard_rf_gated", "heard_is", "heard_dummy"):
+        db.execute(f"ALTER TABLE station ADD COLUMN {column} INTEGER NOT NULL DEFAULT 0 CONSTRAINT station_{column}_count CHECK ({column} >= 0)")
+    for column in ("last_rf_at", "last_rf_gated_at", "last_is_at", "last_dummy_at"):
+        db.execute(f"ALTER TABLE station ADD COLUMN {column} TEXT CONSTRAINT station_{column}_form CHECK ({column} GLOB {form})")
+    db.execute(f"ALTER TABLE station ADD COLUMN position_via TEXT CONSTRAINT station_position_via CHECK (position_via IN {channels})")
+    gated: dict[str, tuple[int, str]] = {}
+    for number, raw, heard_at in db.execute("SELECT id, raw, heard_at FROM packet WHERE direction = 'in' AND instr(raw, X'7D') > 0").fetchall():
+        sender = _third_party_sender(bytes(raw))
+        if sender is not None:
+            db.execute("UPDATE packet SET via = 'rf-gated' WHERE id = ?", (number,))
+            count, latest = gated.get(sender, (0, ""))
+            gated[sender] = (count + 1, max(latest, str(heard_at)))
+    db.execute("UPDATE station SET heard_rf = packets, last_rf_at = last_heard, position_via = CASE WHEN lat IS NULL THEN NULL ELSE 'rf' END")
+    for sender, (count, latest) in gated.items():
+        db.execute("UPDATE station SET heard_rf_gated = MIN(?, packets), last_rf_gated_at = ?, heard_rf = packets - MIN(?, packets), "
+                   "last_rf_at = CASE WHEN packets - MIN(?, packets) > 0 THEN last_heard END, "
+                   "position_via = CASE WHEN lat IS NULL THEN NULL WHEN packets - MIN(?, packets) > 0 THEN 'rf' ELSE 'rf-gated' END WHERE call = ?", (count, latest, count, count, count, sender))
+    stray = int(db.execute(f"SELECT COUNT(*) FROM packet WHERE via NOT IN {channels}").fetchone()[0])
+    wrong = int(db.execute("SELECT COUNT(*) FROM station WHERE heard_rf + heard_rf_gated <> packets").fetchone()[0])
+    if stray or wrong:
+        raise StoreError(f"{stray} packets have no channel and {wrong} stations do not add up; nothing was changed")

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// What the daemon knows of one station, as a card over the map, in the few facts a person asks for: the symbol with its name and a green check mark beside the call for a station that was heard direct (no repeater), when it was last heard ("6 min ago", the full time when the mouse rests on it), the position and how far and in which direction it is from us, how fast it moves (only a station that does),
-// the altitude, the voice frequency with its tone, offset and range (when it gave one), the status and the comment, what it runs ("Kenwood TH-D74", "APRSdroid"; only when the device list knows it), and one line of how its packets reach us ("Reached us via OH2RCH-2", or "direct"). A row with nothing to say is left out. The rest is under "Details", closed (components/StationDetails.vue: the path as it was sent, the counts of the routes, the best route, when it was first heard, the packets, the decoded extras).
+// What the daemon knows of one station, as a card over the map, in the few facts a person asks for: the symbol with its name and a green check mark beside the call for a station that was heard direct (no repeater), when it was last heard, for each way it was heard ("RF 3 min ago · Internet 40 s ago"; lib/channels.ts; the full time of the latest when the mouse rests on it), the position and how far and in which direction it is from us, how fast it moves (only a station that does),
+// the altitude, the voice frequency with its tone, offset and range (when it gave one), the status and the comment, what it runs ("Kenwood TH-D74", "APRSdroid"; only when the device list knows it), one line of how its packets reach us ("Reached us via OH2RCH-2", or "direct"; none for a station known from the internet alone) and, for such a station, that a message to it is not possible. A row with nothing to say is left out. The rest is under "Details", closed (components/StationDetails.vue: the path as it was sent, the counts of the routes, the best route, when it was first heard, the packets, the decoded extras).
 // A weather station (the weather symbol, or one that has sent weather) has its weather panel at the top (components/WeatherPanel.vue). "Message" opens the Messages tab with the station as the addressee, where the path its messages go by and RF only are set.
 // The pin beside the cross (a tablet and a desktop) keeps the card on the map past Esc and Close all and past a reload, until its cross is clicked (the cross unpins and closes it).
 // Several cards can be open (Ctrl+click, components/StationCards.vue), side by side: each is this whole card, as when it is alone. Forget (the trash can, "Forget OH2XYZ") takes it out of the station book (it is back when it is heard again); it asks twice ("sure?"), and forgets the first click after 5 s like the other buttons that ask twice (`useSure`). An object or an item of ours has "Edit" (the Objects tab opens with it) and "Kill" (it asks twice, too) in place of "Message" and "Forget", and none of the fields of a station that is heard.
@@ -16,6 +16,7 @@ import { useSure } from "@/composables/useSure";
 import { t } from "@/i18n";
 import { timedOut, type Aging } from "@/lib/aging";
 import { qrzUrl } from "@/lib/calls";
+import { heardByChannel, internetOnly } from "@/lib/channels";
 import { frequencyText } from "@/lib/details";
 import { heardDirect, reachedText } from "@/lib/routes";
 import { canForget, canMessage, symbolLabel } from "@/lib/stations";
@@ -74,6 +75,8 @@ const moving = computed(() => {
   if (speed === null || speed <= 0) return null;
   return course === null ? speedText(speed) : t("station.speed_course", { speed: speedText(speed), course: bearingText(course) });
 });
+/** When it was last heard by each channel: "RF 3 min ago · Internet 40 s ago"; the plain age for a row nothing was counted for. */
+const heardOn = computed(() => heardByChannel(props.row, props.now) || agoWords(props.row.last_heard, props.now));
 const weather = computed(() => isWeatherStation(props.row));
 const reached = computed(() => (props.row.kind === "station" && !props.row.is_me && !props.row.own ? reachedText(props.row) : null));
 </script>
@@ -101,7 +104,7 @@ const reached = computed(() => (props.row.kind === "station" && !props.row.is_me
           <dd>{{ t("station.kind_reported", { kind: t(`station.kind.${row.kind}`), by: row.reported_by || "-" }) }}</dd>
         </template>
         <dt>{{ t("station.field.last_heard") }}</dt>
-        <dd :title="dateTimeText(row.last_heard)">{{ agoWords(row.last_heard, now) }}</dd>
+        <dd :title="dateTimeText(row.last_heard)">{{ heardOn }}</dd>
         <template v-if="position !== null">
           <dt>{{ t("station.field.position") }}</dt>
           <dd>
@@ -139,6 +142,10 @@ const reached = computed(() => (props.row.kind === "station" && !props.row.is_me
         <template v-if="reached !== null">
           <dt>{{ t("station.field.reached") }}</dt>
           <dd><RouteText :text="reached" /></dd>
+        </template>
+        <template v-if="row.kind === 'station' && internetOnly(row)">
+          <dt>{{ t("station.field.messages") }}</dt>
+          <dd>{{ t("station.messages_internet_only") }}</dd>
         </template>
       </dl>
       <StationDetails :row="row" />

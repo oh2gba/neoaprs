@@ -24,11 +24,11 @@ beforeEach(() => localStorage.clear());
 describe("the rows of the Stations table", () => {
   it("are one row for each call, none twice, and a timed-out row is a row like the others (no extra element, no position of its own)", () => {
     const wrapper = make();
-    const calls = wrapper.findAll("tbody tr td.call").map((td) => td.text());
+    const calls = wrapper.findAll("tbody tr td.call .callname").map((td) => td.text());
     expect(calls).toEqual(["OH2GBA", "OH2FRESH", "OH2OLD", "OH2GONE"]);
     expect(new Set(calls).size).toBe(calls.length);
     const timedOut = wrapper.findAll("tbody tr.timedout");
-    expect(timedOut.map((r) => r.find("td.call").text())).toEqual(["OH2OLD", "OH2GONE"]);
+    expect(timedOut.map((r) => r.find("td.call .callname").text())).toEqual(["OH2OLD", "OH2GONE"]);
     for (const tr of wrapper.findAll("tbody tr")) expect(tr.element.getAttribute("style")).toBeNull();
   });
 
@@ -67,6 +67,6 @@ describe("the rows of the Stations table", () => {
       for (const selector of ofTheGrid) expect(selector).toMatch(/^\.grid th$/);
     }
     const selected = wrapper.find("tbody tr.timedout.selected");
-    expect(selected.find("td.call").text()).toBe("OH2OLD");
+    expect(selected.find("td.call .callname").text()).toBe("OH2OLD");
   });
 });

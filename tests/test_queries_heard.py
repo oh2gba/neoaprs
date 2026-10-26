@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from neoaprs.aprsisline import parse_is_line
 from neoaprs import aprsparse
 from neoaprs.packet import Message, Other, Packet, Status, Undecoded
 from neoaprs.packetlog import PacketLog
@@ -75,6 +76,16 @@ async def test_aprsh_for_a_station_heard_before_but_not_in_these_hours_gives_dot
     rig.ask("OH2RDG", "?APRSH OH2NEW")
     await until(lambda: len(rig.tnc.sent) == 2)
     assert sorted(rig.message_of(f)[1] for f in rig.tnc.sent) == ["OH2NEW NOT HEARD", "OH2OLD HEARD: . . . . . . . ."]
+
+
+async def test_aprsh_for_a_station_known_from_the_internet_alone_says_it_was_not_heard() -> None:
+    rig, _ = rig_with()
+    rig.book.take(parse_is_line("OH2NET>APRS,TCPIP*,qAC,T2FINLAND:>on the net", rig.clock()))
+    rig.book.take(rig.packet("OH2OLD", Status("hello")))
+    rig.ask("OH2RDG", "?APRSH OH2NET")
+    rig.ask("OH2RDG", "?APRSH OH2OLD")
+    await until(lambda: len(rig.tnc.sent) == 2)
+    assert sorted(rig.message_of(f)[1] for f in rig.tnc.sent) == ["OH2NET NOT HEARD", "OH2OLD HEARD: . . . . . . . ."], "the internet is not the air: ?APRSH is about what was heard on the radio"
 
 
 async def test_the_same_aprsh_is_answered_once_and_another_call_is_a_query_of_its_own() -> None:

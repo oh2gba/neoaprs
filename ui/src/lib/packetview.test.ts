@@ -42,6 +42,23 @@ describe("packetFacts", () => {
     expect(packetFacts(row).find((x) => x.label === "Reached us")?.route).toBe(true);
   });
 
+  it("says the channel a packet that was heard came by: RF, iGate or Internet, with what it means, and for the internet the path of the line", () => {
+    const radio = facts(withDecoded({}, { type: "position", ...position }));
+    expect(radio["Came by"]).toBe("RF - Heard on the radio");
+    const gated = facts(withDecoded({ via: "rf-gated", gate: "OH7JHF-1", route: "via OH7JHF-1 (internet) → OH2RCH-3" }, { type: "position", ...position }));
+    expect(gated["Came by"]).toBe("iGate - Heard on the radio from an iGate, which took it from the internet");
+    const net = facts(withDecoded({ via: "is", route: "", path: ["TCPIP*", "qAC", "T2FINLAND"], source: "OH2ABC" }, { type: "position", ...position }));
+    expect(net["Came by"]).toBe("Internet - Received over the internet (APRS-IS), not on the radio");
+    expect(net["Path"]).toBe("TCPIP*,qAC,T2FINLAND");
+    expect(net).not.toHaveProperty("Reached us");
+  });
+
+  it("does not say it for a packet we sent: that is the path we sent it by", () => {
+    const sent = facts(withDecoded({ direction: "out", route: "", path: ["WIDE1-1"] }, { type: "position", ...position }));
+    expect(sent).not.toHaveProperty("Came by");
+    expect(sent["Sent via"]).toBe("WIDE1-1");
+  });
+
   it("leaves out the speed of a station that stands still, an empty comment and a route that is none", () => {
     const f = facts(withDecoded({ route: "" }, { type: "position", ...position, speed_kmh: 0, comment: "" }));
     expect(f).not.toHaveProperty("Speed");

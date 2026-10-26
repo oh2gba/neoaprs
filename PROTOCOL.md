@@ -567,16 +567,24 @@ row has a new distance and bearing, and the topic is told whole again.
 | `last_position_at` | time \| null |  |  |
 | `last_status` | string |  | the text of the latest status report |
 | `last_comment` | string |  | the comment of the latest position |
-| `packets` | integer |  | how many packets of this station were heard |
+| `packets` | integer |  | how many packets of this station were received, whatever the channel (`heard_rf` + `heard_rf_gated` + `heard_is` + `heard_dummy`) |
+| `heard_rf` | integer |  | how many of them were heard on the radio, direct or by digipeaters (`rf`) (>= 0) |
+| `heard_rf_gated` | integer |  | how many came on the radio as third-party packets: an iGate put what it heard on the internet on the air (`rf-gated`); counted, but never a route to send by (>= 0) |
+| `heard_is` | integer |  | how many were received from APRS-IS over the internet (`is`); they were never on the air (>= 0) |
+| `heard_dummy` | integer |  | how many were made up by the Dummy radio (`dummy`), the radio for trying the program with no radio; they work as the radio's do, and never go to the internet (>= 0) |
+| `last_rf_at` | time \| null |  | when a packet of the station was last heard on the radio (`rf`); null when none was |
+| `last_rf_gated_at` | time \| null |  | when a third-party packet of the station was last heard on the radio (`rf-gated`); null when none was |
+| `last_is_at` | time \| null |  | when a packet of the station was last received from the internet (`is`); null when none was |
+| `last_dummy_at` | time \| null |  | when a packet of the station was last made up by the Dummy radio (`dummy`); null when none was |
+| `position_via` | "rf" \| "rf-gated" \| "is" \| "dummy" \| null |  | the channel of the packet that gave its position (the latest one wins); null for a station without a position and for our own |
 | `packets_hour` | integer |  | how many of them were heard in the last hour (counted from the packets of the hour at the start and as they come; the row is told again each minute that it becomes fewer) (>= 0) |
 | `device` | string |  | what the station runs, as the APRS device identification list names it ("Kenwood TH-D74", "APRSdroid"): by the destination call of its packets, or by the type code of a Mic-E packet; empty when unknown |
-| `last_path` | string[] |  | the digipeaters of the latest packet, the one that repeated it marked with `*` |
-| `last_route` | string |  | how the latest packet reached us: `direct`, `via OH2RCH-2`, `via OH2RCH-1 → OH2RCH-3` (the digipeaters that repeated it, in order, `?` for one that did not put its call in) |
+| `last_path` | string[] |  | the digipeaters of the latest packet heard on the radio, the one that repeated it marked with `*` |
+| `last_route` | string |  | how the latest packet heard on the radio reached us (empty for a station known from the internet only): `direct`, `via OH2RCH-2`, `via OH2RCH-1 → OH2RCH-3` (the digipeaters that repeated it, in order, `?` for one that did not put its call in) |
 | `heard_direct` | integer |  | how many packets came straight from the station (counted from the packets heard in this run and the latest 2000 the database kept) (>= 0) |
 | `last_direct_at` | time \| null |  | when a packet of the station was last heard direct (no digipeater repeated it, it was not a third-party packet), from the packets counted in `heard_direct`; null for a station never heard direct |
-| `heard_gated` | integer |  | how many packets came as third-party packets: an iGate put what it heard on the internet on the air; counted, but never a route to send by (>= 0) |
 | `heard_via` | [string, integer][] |  | [the station we heard, packets] for each digipeater that repeated its packets, the most first; `?` stands for a hop that was an alias (WIDE1) and gave no call; the 8 most frequent routes are counted |
-| `gated` | integer |  | how many third-party packets this station put on the air that we heard (an iGate wrapping what it took from the internet in a frame of its own; counted from the packets heard in this run and the latest 2000 the database kept, and for a station that is in the book); not `heard_gated`, which counts the packets of this station that some iGate put on the air (>= 0) |
+| `gated` | integer |  | how many third-party packets this station put on the air that we heard (an iGate wrapping what it took from the internet in a frame of its own; counted from the packets heard in this run and the latest 2000 the database kept, and for a station that is in the book); not `heard_rf_gated`, which counts the packets of this station that some iGate put on the air (>= 0) |
 | `igate` | boolean |  | a capabilities packet of the station said `IGATE`: it says it is an iGate |
 | `best_route` | string |  | the route most of its packets came by, as `last_route` writes it, direct included; empty until a packet was counted |
 | `suggested_path` | string \| null |  | the path to send by to reach it, the best route turned round: empty for direct, `OH2RCH-2` for one hop, `OH2RCH-3,OH2RCH-1` for `via OH2RCH-1 → OH2RCH-3`, `WIDE1-1,WIDE2-1` when the best route has a hop with no call; null when no route is known (an object or item, or a station not heard since the packets were pruned) |
@@ -594,7 +602,7 @@ row has a new distance and bearing, and the topic is told whole again.
 | `bearing_deg` | number \| null |  | the direction from our position, degrees from north; null as the distance is |
 | `is_me` | boolean |  | our own station: the row of the call in the settings, at the position in the settings |
 | `own` | boolean |  | an object or an item of ours, which we send (the topic `own_objects` has its values and its schedule): the map marks it as ours and the card has Edit and Kill in place of Forget; false for any other row |
-| `can_message` | boolean |  | a message to the station makes sense, and the card has a Message button: false for an object or an item and for our own station; for a station true when it has sent a message or an ack (heard, overheard too) or its latest position began with `=` or `@` or was a Mic-E one, false when that began with `!` or `/` or was a Mic-E one whose comment begins with the type code `'` (no messaging); true for a station of which nothing of that is known |
+| `can_message` | boolean |  | a message to the station makes sense, and the card has a Message button: false for an object or an item and for our own station; for a station true when it has sent a message or an ack (heard, overheard too) or its latest position began with `=` or `@` or was a Mic-E one, false when that began with `!` or `/` or was a Mic-E one whose comment begins with the type code `'` (no messaging); true for a station of which nothing of that is known; false for a station known only from the internet (`heard_is` > 0 and nothing on the radio): a message goes out by radio only |
 | `track` | [time, number, number][] |  | the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed (max 50 items) |
 
 ### PacketRow
@@ -607,12 +615,13 @@ One packet heard or sent. The rows are the values of the topic `packets`, keyed 
 | `id` | integer |  | counts up in the order the packets came in this run of the daemon; not kept in the database (>= 0) |
 | `heard_at` | time |  | UTC, ISO 8601 with a Z |
 | `direction` | "in" \| "out" |  | heard on the air, or sent by us |
-| `source` | string |  | who sent the frame we heard; for a third-party packet the iGate (see `via`) |
+| `source` | string |  | who sent the frame we heard; for a third-party packet the iGate (see `gate`); for a packet from the internet the station that sent it |
 | `destination` | string |  |  |
-| `path` | string[] |  | the digipeaters, the one that repeated it marked with `*` |
+| `path` | string[] |  | the digipeaters, the one that repeated it marked with `*`; for a packet from the internet everything between the destination and the colon of the line (`TCPIP*`, the q-construct `qAC`, the server `T2FINLAND`) |
 | `kind` | "position" \| "message" \| "object" \| "item" \| "status" \| "other" \| "undecoded" |  | a telemetry report is `other`; its `decoded.type` is `telemetry` |
-| `route` | string |  | how a packet that was heard reached us: `direct`, `via OH2RCH-2`, `via ? → OH2RCH-2`, `via OH7JHF-1 (internet)` for a third-party packet; empty for a packet of ours |
-| `via` | string |  | the iGate, for a third-party packet: `source` and `path` are those of the frame we heard (the iGate's), `decoded` is the packet inside it; empty for any other packet |
+| `route` | string |  | how a packet that was heard on the radio reached us: `direct`, `via OH2RCH-2`, `via ? → OH2RCH-2`, `via OH7JHF-1 (internet)` for a third-party packet; empty for a packet of ours and for one from the internet |
+| `via` | "rf" \| "rf-gated" \| "is" \| "dummy" |  | the channel the packet came by, set once where it was made: `rf` heard on the radio (direct or by digipeaters; every packet of ours too), `rf-gated` heard on the radio as a third-party packet that an iGate put on the air, `is` received from APRS-IS over the internet (never on the air), `dummy` made up by the Dummy radio (it works as `rf` does and never goes to the internet) |
+| `gate` | string |  | the iGate, for a third-party packet (`via` is `rf-gated`): `source` and `path` are those of the frame we heard (the iGate's), `decoded` is the packet inside it; empty for any other packet |
 | `summary` | string |  | one line, as the log has it |
 | `tnc2` | string |  | the packet as a line of TNC2 monitor text |
 | `decoded` | DecodedPosition \| DecodedMessage \| DecodedObject \| DecodedItem \| DecodedStatus \| DecodedTelemetry \| DecodedOther \| DecodedUndecoded |  |  |

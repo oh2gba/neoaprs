@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from neoaprs import aprsparse, ax25
+from neoaprs.aprsisline import parse_is_line
 from neoaprs.aprsextension import Area, DfBearing, Dfs, Extensions, Phg
 from neoaprs.aprsfreq import Frequency
 from neoaprs.aprsstorm import Storm
@@ -211,30 +212,93 @@ def heard(source: str, path: tuple[str, ...], at: object = T0, info: bytes = b"!
 def test_a_third_party_packet_comes_back_from_its_row_with_its_header_and_what_is_inside() -> None:
     p = aprsthirdparty_packet(b"}OH2DPN>APJYC1,TCPIP,OH7JHF-1*::OH2GBA   :ack10")
     again = packet_of(packet_row(p))
-    assert again == p and again.third_party == ThirdParty("OH2DPN", "APJYC1", ("TCPIP", "OH7JHF-1*")) and again.sender == "OH2DPN" and again.via == "OH7JHF-1"
+    assert again == p and again.third_party == ThirdParty("OH2DPN", "APJYC1", ("TCPIP", "OH7JHF-1*")) and again.sender == "OH2DPN" and again.gate == "OH7JHF-1"
     assert packet_row(p).summary == "ack 10 to OH2GBA via OH7JHF-1 (third-party)" and again.decoded == Message("OH2GBA", "", ack_id="10")
 
 
 def test_a_row_written_before_third_party_packets_were_opened_reads_back_as_the_wrapper_it_was() -> None:
     old = packet_row(aprsthirdparty_packet(b"}N0CALL>APRS,TCPIP:!4903.50N/07201.75W-"))._replace(decoded=encode_decoded(Other("third-party", "}N0CALL>APRS,TCPIP:!4903.50N/07201.75W-")))
     again = packet_of(old)
-    assert again.decoded == Other("third-party", "}N0CALL>APRS,TCPIP:!4903.50N/07201.75W-") and again.sender == "N0CALL" and again.via == "OH7JHF-1"
+    assert again.decoded == Other("third-party", "}N0CALL>APRS,TCPIP:!4903.50N/07201.75W-") and again.sender == "N0CALL" and again.gate == "OH7JHF-1"
 
 
 def aprsthirdparty_packet(info: bytes) -> Packet:
     frame = ax25.Frame(ax25.Address("APRS"), ax25.Address.parse("OH7JHF-1"), (ax25.Address.parse("OH2RCH-3*"),), info=info)
     decoded, third = parse_packet(info, "OH7JHF-1", "APRS", T0)
-    return Packet(T0, "in", ax25.encode(frame), "OH7JHF-1", "APRS", ("OH2RCH-3*",), info, decoded, third)
+    return Packet(T0, "in", ax25.encode(frame), "OH7JHF-1", "APRS", ("OH2RCH-3*",), info, decoded, third, "rf-gated" if third else "rf")
 
 
 async def test_the_deliveries_are_the_routes_of_the_latest_packets_heard_by_sender_and_a_third_party_packet_is_its_inner_sender_with_the_gate(tmp_path: Path) -> None:
     store = await store_at(tmp_path / DB_NAME)
     log = PacketLog(store.db, FixedClock())
     for n, p in enumerate([heard("OH2AAA", ("OH2RCH-2*",)), heard("OH2AAA", ("OH2RCH-2*",)), heard("OH2BBB", ()), aprsthirdparty_packet(b"}OH2DPN>APRS,TCPIP:>x"), heard("OH2AAA", ("OH2RCH-3*", "TRACE2-1"))]):
-        log.append(Packet(T0 + timedelta(seconds=n), p.direction, p.raw, p.source, p.destination, p.path, p.info, p.decoded, p.third_party))
+        log.append(Packet(T0 + timedelta(seconds=n), p.direction, p.raw, p.source, p.destination, p.path, p.info, p.decoded, p.third_party, p.via))
     log.append(made(POSITION, T0 + timedelta(seconds=9), "out"))
     assert await log.deliveries() == [("OH2AAA", ("OH2RCH-2*",), "", 2, T0 + timedelta(seconds=1), T0), ("OH2BBB", (), "", 1, T0 + timedelta(seconds=2), None),
                                       ("OH2DPN", ("OH2RCH-3*",), "OH7JHF-1", 1, T0 + timedelta(seconds=3), None), ("OH2AAA", ("OH2RCH-3*", "TRACE2-1"), "", 1, T0 + timedelta(seconds=4), None)], \
         "with when the latest of each was heard, and the one before it"
     assert await log.deliveries(2) == [("OH2DPN", ("OH2RCH-3*",), "OH7JHF-1", 1, T0 + timedelta(seconds=3), None), ("OH2AAA", ("OH2RCH-3*", "TRACE2-1"), "", 1, T0 + timedelta(seconds=4), None)], "only the latest packets are looked at"
     assert await log.deliveries(0) == []
+
+
+# ---- the channel of a packet
+
+def from_the_internet(info: bytes = b"=6012.34N/02456.78E-hi", source: str = "OH2AAA", at: object = T0) -> Packet:
+    return parse_is_line(f"{source}>APRS,TCPIP*,qAC,T2FINLAND:".encode() + info, at)  # type: ignore[arg-type]
+
+
+def test_a_packet_from_the_internet_is_a_row_with_its_channel_the_line_as_raw_and_comes_back_equal() -> None:
+    packet = from_the_internet()
+    row = packet_row(packet)
+    assert (row.via, row.raw, row.path, row.source, row.kind) == ("is", b"OH2AAA>APRS,TCPIP*,qAC,T2FINLAND:=6012.34N/02456.78E-hi", "TCPIP*,qAC,T2FINLAND", "OH2AAA", "position")
+    assert packet_of(row) == packet and packet_of(row).via == "is" and packet_of(row).info == packet.info
+    assert tnc2(packet) == "OH2AAA>APRS,TCPIP*,qAC,T2FINLAND:=6012.34N/02456.78E-hi"
+    wrapped = parse_is_line("OH7JHF-1>APRS,TCPIP*,qAC,T2FINLAND:}OH2DPN>APJYC1,TCPIP,OH7JHF-1*::OH2GBA   :ack10", T0)
+    assert packet_of(packet_row(wrapped)) == wrapped and packet_of(packet_row(wrapped)).via == "is"
+
+
+def test_a_packet_of_the_dummy_radio_is_kept_as_such_and_comes_back_equal() -> None:
+    from dataclasses import replace
+    made_up = replace(heard("QDUMMY-1", ("WIDE1*",)), via="dummy")
+    assert packet_row(made_up).via == "dummy" and packet_of(packet_row(made_up)) == made_up
+    gated = replace(aprsthirdparty_packet(b"}OH2DPN>APJYC1,TCPIP,OH7JHF-1*::OH2GBA   :ack10"), via="dummy")
+    assert packet_of(packet_row(gated)).via == "dummy" and packet_of(packet_row(gated)).third_party is not None
+
+
+def test_the_channel_of_a_packet_of_the_radio_is_kept_and_a_row_that_says_otherwise_is_made_right_from_the_frame() -> None:
+    plain, gated = heard("OH2AAA", ("OH2RCH-2*",)), aprsthirdparty_packet(b"}OH2DPN>APJYC1,TCPIP,OH7JHF-1*::OH2GBA   :ack10")
+    assert (packet_row(plain).via, packet_row(gated).via) == ("rf", "rf-gated")
+    assert packet_of(packet_row(plain)).via == "rf" and packet_of(packet_row(gated)).via == "rf-gated"
+    assert packet_of(packet_row(gated)._replace(via="rf")) == gated, "a row from before the channel was kept, or marked by the migration with less care"
+    assert packet_of(packet_row(plain)._replace(via="rf-gated")) == plain
+    with pytest.raises(ValueError, match="no channel"):
+        packet_of(packet_row(plain)._replace(via="tcp"))
+
+
+async def test_the_log_keeps_packets_from_the_internet_with_the_others_and_the_statements_of_the_radio_leave_them_out(tmp_path: Path) -> None:
+    store = await store_at(tmp_path / DB_NAME)
+    log = PacketLog(store.db, FixedClock())
+    log.append(heard("OH2AAA", ("OH2RCH-2*",), T0))
+    log.append(from_the_internet(source="OH2AAA", at=T0 + timedelta(seconds=1)))
+    log.append(from_the_internet(source="OH2NET", at=T0 + timedelta(seconds=2)))
+    log.append(from_the_internet(b">just a status", "OH2AAA", T0 + timedelta(seconds=3)))
+    assert [(p.source, p.via) for p in await log.recent()] == [("OH2AAA", "is"), ("OH2NET", "is"), ("OH2AAA", "is"), ("OH2AAA", "rf")]
+    assert [p.via for p in await log.since(T0)] == ["rf", "is", "is", "is"]
+    assert await log.heard_since("OH2AAA", T0) == [T0], "heard on the radio: the internet is not the air (?APRSH)"
+    assert await log.heard_since("OH2NET", T0) == []
+    assert await log.deliveries() == [("OH2AAA", ("OH2RCH-2*",), "", 1, T0, None)], "the routes are those of the radio"
+    assert [w[0] for w in await log.positions(30)] == ["OH2AAA", "OH2NET"], "the tracks take the positions of the internet too"
+    assert await log.count() == 4
+    assert (await sql(store, "SELECT via, COUNT(*) FROM packet GROUP BY via ORDER BY via")) == [("is", 3), ("rf", 1)]
+
+
+async def test_a_station_keeps_its_channels_in_the_cache(tmp_path: Path) -> None:
+    store = await store_at(tmp_path / DB_NAME)
+    log = PacketLog(store.db, FixedClock())
+    station = Station("OH2AAA", first_heard=T0, last_heard=T0 + timedelta(minutes=5), lat=60.1, lon=24.9, packets=6, heard_rf=3, heard_rf_gated=1, heard_is=2, last_rf_at=T0 + timedelta(minutes=1),
+                      last_rf_gated_at=T0 + timedelta(minutes=2), last_is_at=T0 + timedelta(minutes=5), position_via="is", last_position_at=T0)
+    log.save_station(station)
+    log.save_station(Station("OH2NONE", first_heard=T0, last_heard=T0))
+    [first, second] = sorted(await log.stations(), key=lambda s: s.call)
+    assert first == station
+    assert (second.heard_rf, second.heard_rf_gated, second.heard_is, second.last_rf_at, second.last_rf_gated_at, second.last_is_at, second.position_via) == (0, 0, 0, None, None, None, None)

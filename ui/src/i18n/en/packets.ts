@@ -8,6 +8,7 @@ export const packets = {
   "packets.col.packet": "Packet",
   "packets.col.route": "Route",
   "packets.col.summary": "Summary",
+  "packets.col.via": "Via",
   "packets.dir.in": "in",
   "packets.dir.out": "out",
   "packets.none_yet": "No packet yet.",
@@ -43,6 +44,8 @@ export const packets = {
   "packets.fact.sent_via": "Sent via",
   "packets.fact.sent": "Sent",
   "packets.fact.heard": "Heard",
+  "packets.fact.came": "Came by",
+  "packets.fact.came_value": "{channel} - {what}",
   "packets.fact.time_in_packet": "Time in the packet",
 
   "packets.position_approximate": "{position} (approximate)",

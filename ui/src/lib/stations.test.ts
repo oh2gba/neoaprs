@@ -25,6 +25,17 @@ describe("listStations", () => {
     expect(listStations(direct, { ...base, directOnly: true }).map((r) => r.call)).toEqual(["OH2GBA", "OH2PU-9"]);
     expect(listStations(direct, { ...base, directOnly: false }).map((r) => r.call)).toEqual(["OH2GBA", "OH2PU-9", "OH2RDG"]);
   });
+  it("keeps only the stations heard on the radio when asked: those known from the internet alone go, an iGate's and ours stay", () => {
+    const heard = [
+      station("OH2RF", { heard_rf: 2 }),
+      station("OH2BOTH", { heard_rf: 1, heard_is: 3 }),
+      station("OH2GATED", { heard_rf: 0, heard_rf_gated: 1 }),
+      station("OH2NET", { heard_rf: 0, heard_is: 2 }),
+      station("OH2GBA", { is_me: true, heard_rf: 0 }),
+    ];
+    expect(listStations(heard, { ...base, rfOnly: true }).map((r) => r.call)).toEqual(["OH2GBA", "OH2BOTH", "OH2GATED", "OH2RF"]);
+    expect(listStations(heard, { ...base, rfOnly: false }).map((r) => r.call)).toEqual(["OH2GBA", "OH2BOTH", "OH2GATED", "OH2NET", "OH2RF"]);
+  });
   it("sorts by when the station was last heard direct, the latest first, a station never heard direct last either way", () => {
     const direct = [station("A", { last_direct_at: ago(600) }), station("B", { last_direct_at: null }), station("C", { last_direct_at: ago(60) })];
     expect(firstDirection("last_direct_at")).toBe(-1);

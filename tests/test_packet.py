@@ -9,7 +9,7 @@ from neoaprs.aprsfreq import Frequency
 from neoaprs.aprslocator import Locator
 from neoaprs.aprsstorm import Storm
 from neoaprs.aprstelemetry import Telemetry
-from neoaprs.packet import ItemReport, Message, ObjectReport, Other, Packet, Position, Status, ThirdParty, Undecoded, decode_text
+from neoaprs.packet import ItemReport, Message, ObjectReport, Other, Packet, Position, Status, ThirdParty, Undecoded, channel_of, decode_text, via_of
 
 T = datetime(2026, 10, 21, 12, 0, tzinfo=UTC)
 POS = Position(60.17, 24.94, "/", "-", "comment")
@@ -86,6 +86,58 @@ def test_text_is_utf_8_when_it_is_and_latin_1_when_not() -> None:
 
 def test_a_third_party_packet_is_from_the_sender_inside_and_its_summary_says_who_put_it_on_the_air() -> None:
     plain = packet(Status("Net on"))
-    assert (plain.sender, plain.via, plain.summary) == ("OH2XYZ-9", "", "status Net on")
-    third = Packet(T, "in", b"raw", "OH7JHF-1", "APRS", ("OH2RCH-3*",), b"info", Message("OH2GBA", "", ack_id="10"), ThirdParty("OH2DPN", "APJYC1", ("TCPIP", "OH7JHF-1*")))
-    assert (third.source, third.sender, third.via, third.summary) == ("OH7JHF-1", "OH2DPN", "OH7JHF-1", "ack 10 to OH2GBA via OH7JHF-1 (third-party)")
+    assert (plain.sender, plain.gate, plain.summary) == ("OH2XYZ-9", "", "status Net on")
+    third = Packet(T, "in", b"raw", "OH7JHF-1", "APRS", ("OH2RCH-3*",), b"info", Message("OH2GBA", "", ack_id="10"), ThirdParty("OH2DPN", "APJYC1", ("TCPIP", "OH7JHF-1*")), "rf-gated")
+    assert (third.source, third.sender, third.gate, third.summary) == ("OH7JHF-1", "OH2DPN", "OH7JHF-1", "ack 10 to OH2GBA via OH7JHF-1 (third-party)")
+
+
+# ---- how the packet reached us
+
+def test_a_packet_comes_by_the_radio_unless_it_is_made_otherwise_and_the_channel_is_frozen_with_it() -> None:
+    made = packet(Status("x"))
+    assert (made.via, made.on_air, made.gate) == ("rf", True, "")
+    with pytest.raises(FrozenInstanceError):
+        made.via = "is"  # type: ignore[misc]
+
+
+def test_the_channels_are_three_words_and_a_text_that_is_none_of_them_is_refused() -> None:
+    assert [via_of(text) for text in ("rf", "rf-gated", "is")] == ["rf", "rf-gated", "is"]
+    for bad in ("", "RF", "tcp", "rf_gated"):
+        with pytest.raises(ValueError, match="no channel"):
+            via_of(bad)
+    with pytest.raises(ValueError, match="no channel"):
+        Packet(T, "in", b"", "A", "B", (), b"", POS, None, "wifi")  # type: ignore[arg-type]
+
+
+def test_a_packet_is_rf_gated_exactly_when_it_came_on_the_radio_as_a_third_party_packet() -> None:
+    third = ThirdParty("OH2DPN", "APJYC1", ("TCPIP", "OH7JHF-1*"))
+    assert channel_of(None) == "rf" and channel_of(third) == "rf-gated" and channel_of(third, internet=True) == "is" and channel_of(None, internet=True) == "is"
+    with pytest.raises(ValueError, match="rf-gated exactly when"):
+        Packet(T, "in", b"", "OH7JHF-1", "APRS", (), b"", POS, third, "rf")
+    with pytest.raises(ValueError, match="rf-gated exactly when"):
+        Packet(T, "in", b"", "OH7JHF-1", "APRS", (), b"", POS, None, "rf-gated")
+    gated = Packet(T, "in", b"", "OH7JHF-1", "APRS", (), b"", POS, third, "rf-gated")
+    assert (gated.via, gated.on_air, gated.gate) == ("rf-gated", True, "OH7JHF-1"), "an iGate put it on the air: it is on the radio's channel"
+
+
+def test_a_packet_from_the_internet_was_never_on_the_air_has_no_gate_and_is_never_one_of_ours() -> None:
+    internet = Packet(T, "in", b"", "OH2ABC", "APRS", ("TCPIP*", "qAC", "T2FINLAND"), b"", Status("x"), None, "is")
+    assert (internet.via, internet.on_air, internet.gate, internet.summary) == ("is", False, "", "status x (APRS-IS)")
+    wrapped = Packet(T, "in", b"", "OH7JHF-1", "APRS", ("TCPIP*", "qAC", "T2FINLAND"), b"", Status("x"), ThirdParty("OH2DPN", "APJYC1"), "is")
+    assert (wrapped.sender, wrapped.gate, wrapped.on_air) == ("OH2DPN", "", False), "a wrapper in a line of APRS-IS is opened, and nobody put it on the air"
+    with pytest.raises(ValueError, match="never goes by the internet"):
+        Packet(T, "out", b"", "OH2GBA", "APRS", (), b"", Status("x"), None, "is")
+
+
+# ---- the Dummy radio
+
+def test_a_packet_of_the_dummy_radio_is_on_the_air_for_every_service_but_is_never_gateable() -> None:
+    from neoaprs.packet import GATEABLE, VIAS
+    made_up = Packet(T, "in", b"", "QDUMMY-1", "APRS", ("WIDE1*",), b"", Status("x"), None, "dummy")
+    assert (made_up.via, made_up.on_air, made_up.gate, made_up.summary) == ("dummy", True, "", "status x")
+    assert GATEABLE == frozenset({"rf", "rf-gated"}) and isinstance(GATEABLE, frozenset)
+    assert "dummy" not in GATEABLE and "is" not in GATEABLE, "what the Dummy radio makes up never reaches APRS-IS, and what came from APRS-IS never goes back"
+    assert set(VIAS) - GATEABLE == {"is", "dummy"}, "a new channel is not gateable until it is put in GATEABLE on purpose"
+    assert channel_of(None, dummy=True) == "dummy" and channel_of(ThirdParty("A", "B"), dummy=True) == "dummy" and channel_of(None, internet=True, dummy=True) == "is"
+    wrapped = Packet(T, "in", b"", "QDUMMY-1", "APRS", (), b"", Status("x"), ThirdParty("QDUMMY-2", "APRS"), "dummy")
+    assert (wrapped.sender, wrapped.gate) == ("QDUMMY-2", "")

@@ -8,7 +8,7 @@ import { open, tabButton, useAppHarness } from "@/test/app";
 useAppHarness();
 afterEach(() => setLocale("en"));
 
-const row = (wrapper: VueWrapper, call: string) => wrapper.findAll("#pane-stations tbody tr").find((r) => r.find("td.call").text() === call)!;
+const row = (wrapper: VueWrapper, call: string) => wrapper.findAll("#pane-stations tbody tr").find((r) => r.find("td.call .callname").text() === call)!;
 const choose = async (wrapper: VueWrapper, name: string) => {
   await wrapper.find(`[role='menuitem'][data-item='${name}']`).trigger("click");
   await flushPromises();

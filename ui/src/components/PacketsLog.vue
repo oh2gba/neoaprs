@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// The packets as they arrive, newest first: the time, whether it was heard ("in") or sent by us ("out"), the packet as a TNC2 line, the route it came by ("via OH2RCH-2", "direct", "via OH7JHF-1 (internet)" for a packet an iGate put on the air; empty for one we sent) and what the daemon made of it. A filter box narrows
+// The packets as they arrive, newest first: the time, whether it was heard ("in") or sent by us ("out"), the channel it came by (RF, iGate, Internet: lib/channels.ts; ours go by RF), the packet as a TNC2 line, the route it came by ("via OH2RCH-2", "direct", "via OH7JHF-1 (internet)" for a packet an iGate put on the air; empty for one we sent) and what the daemon made of it. A filter box narrows
 // the list; a click on a packet opens it in plain facts (components/PacketDetail.vue), with what the parser decoded of it, as JSON, under "Raw". A route breaks between its words, never inside a callsign.
-// Laid out by the width of the tab itself (not of the window: the panel beside the map can be narrow on a wide screen; PACKETS_TABLE, lib/layout.ts): the table of columns when it is wide enough, else one block for each packet (the time and the direction,
+// Laid out by the width of the tab itself (not of the window: the panel beside the map can be narrow on a wide screen; PACKETS_TABLE, lib/layout.ts): the table of columns when it is wide enough, else one block for each packet (the time, the direction and the channel,
 // the packet line, then the route and the summary in small text) with the header row for a screen reader only; the click, the detail row and the filter are the same in both.
 import { computed, ref } from "vue";
 import { useElementWidth } from "@/composables/useElementWidth";
@@ -9,6 +9,7 @@ import { PACKETS_TABLE } from "@/lib/layout";
 import { t } from "@/i18n";
 import PacketDetail from "@/components/PacketDetail.vue";
 import RouteText from "@/components/RouteText.vue";
+import { packetLabel, packetTitle } from "@/lib/channels";
 import { clockText } from "@/lib/format";
 import { filterPackets, newestFirst } from "@/lib/packets";
 import { routeWords } from "@/lib/routes";
@@ -48,6 +49,7 @@ function toggle(id: number): void {
           <tr>
             <th>{{ t("packets.col.time") }}</th>
             <th>{{ t("packets.col.dir") }}</th>
+            <th>{{ t("packets.col.via") }}</th>
             <th>{{ t("packets.col.packet") }}</th>
             <th>{{ t("packets.col.route") }}</th>
             <th>{{ t("packets.col.summary") }}</th>
@@ -64,18 +66,19 @@ function toggle(id: number): void {
             >
               <td class="mono nowrap time">{{ clockText(row.heard_at) }}</td>
               <td class="dir" :class="row.direction">{{ t(`packets.dir.${row.direction}`) }}</td>
+              <td class="via" :class="{ internet: row.via === 'is' }" :title="packetTitle(row.via)">{{ packetLabel(row.via) }}</td>
               <td class="mono wrap line">{{ row.tnc2 }}</td>
               <td class="muted route-cell"><RouteText :text="routeWords(row.route)" /></td>
               <td class="wrap summary">{{ row.summary }}</td>
             </tr>
             <tr v-if="open === row.id" class="detail">
-              <td colspan="5">
+              <td colspan="6">
                 <PacketDetail :row="row" />
               </td>
             </tr>
           </template>
           <tr v-if="rows.length === 0">
-            <td colspan="5" class="empty">{{ packets.size === 0 ? t("packets.none_yet") : t("packets.none_match") }}</td>
+            <td colspan="6" class="empty">{{ packets.size === 0 ? t("packets.none_yet") : t("packets.none_match") }}</td>
           </tr>
         </tbody>
       </table>

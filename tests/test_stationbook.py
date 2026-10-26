@@ -316,7 +316,7 @@ def test_an_object_has_no_direct_time_and_neither_has_a_packet_from_an_igate() -
     book.take(packet(ObjectReport("FIRE", True, position()), source="OH2REP", path=()))
     thing, reporter = book.get("FIRE"), book.get("OH2REP")
     assert thing is not None and reporter is not None and thing.last_direct_at is None and reporter.last_direct_at == T0
-    book.take(Packet(heard_at=T0, direction="in", raw=b"", source="OH7JHF-1", destination="APRS", path=(), info=b"", decoded=Status("x"), third_party=ThirdParty("OH2DPN", "APRS", ("TCPIP",))))
+    book.take(Packet(heard_at=T0, direction="in", raw=b"", source="OH7JHF-1", destination="APRS", path=(), info=b"", decoded=Status("x"), third_party=ThirdParty("OH2DPN", "APRS", ("TCPIP",)), via="rf-gated"))
     gated = book.get("OH2DPN")
     assert gated is not None and gated.last_direct_at is None and gated.deliveries.gated == 1
 
@@ -324,7 +324,7 @@ def test_an_object_has_no_direct_time_and_neither_has_a_packet_from_an_igate() -
 # ---- third-party packets: the station is the sender inside
 
 def gated(decoded: object, inner: str = "OH2DPN", gate: str = "OH7JHF-1", at: datetime = T0, path: tuple[str, ...] = ("OH2RCH-3*",)) -> Packet:
-    return Packet(heard_at=at, direction="in", raw=b"", source=gate, destination="APRS", path=path, info=b"", decoded=decoded, third_party=ThirdParty(inner, "APJYC1", ("TCPIP", gate + "*")))  # type: ignore[arg-type]
+    return Packet(heard_at=at, direction="in", raw=b"", source=gate, destination="APRS", path=path, info=b"", decoded=decoded, third_party=ThirdParty(inner, "APJYC1", ("TCPIP", gate + "*")), via="rf-gated")  # type: ignore[arg-type]
 
 
 def test_a_third_party_position_moves_the_station_inside_and_not_the_igate() -> None:

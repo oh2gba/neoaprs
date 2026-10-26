@@ -1,13 +1,17 @@
 """What the radio says and what is said to it, for the tests that put messages through the radio of an `Env`: `on_air` is a KISS frame the TNC would hand over, `said` the frames the daemon has written.
 
     e.feed(on_air("OH2RDG-7", message_info("OH2GBA", "Moi!", "12")))       # a station sends us a message
+    from_internet("OH2RDG-7", message_info("OH2GBA", "Moi!", "12"), at)    # the same, as APRS-IS hands it on
     frames = await said(e)                                                  # what the daemon put on the line in answer: the ack
 """
 import asyncio
+from datetime import datetime
 from typing import Protocol
 
 from neoaprs import ax25, kiss
+from neoaprs.aprsisline import parse_is_line
 from neoaprs.aprsmessage import format_ack, format_message
+from neoaprs.packet import Packet
 
 
 def on_air(source: str, info: bytes, destination: str = "APRS", path: str = "WIDE1-1") -> bytes:
@@ -26,6 +30,11 @@ def ack_info(addressee: str, msg_id: str, reply: str | None = None) -> bytes:
 
 def reject_info(addressee: str, msg_id: str) -> bytes:
     return f":{addressee:<9}:rej{msg_id}".encode()
+
+
+def from_internet(source: str, info: bytes, at: datetime, destination: str = "APRS", path: str = "TCPIP*,qAC,T2FINLAND") -> Packet:
+    """A packet as APRS-IS hands it on, parsed the way the connection to it does (`parse_is_line`): `via` is `is`."""
+    return parse_is_line(f"{source}>{destination},{path}:".encode() + info, at)
 
 
 class Hears(Protocol):

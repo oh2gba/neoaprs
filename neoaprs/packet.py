@@ -155,8 +155,35 @@ class ThirdParty:
     path: tuple[str, ...] = ()
 
 
+Via = Literal["rf", "rf-gated", "is", "dummy"]
+VIAS: tuple[Via, ...] = ("rf", "rf-gated", "is", "dummy")
+RF: Via = "rf"                         # heard on the radio, direct or by digipeaters (and every packet of ours that went out)
+RF_GATED: Via = "rf-gated"             # heard on the radio as a third-party packet: an iGate took it from the internet and put it on the air
+IS: Via = "is"                         # received from APRS-IS directly over the internet; it was never on the air
+DUMMY: Via = "dummy"                   # made up by the Dummy radio, which lets a person try the program with no radio: it goes everywhere a packet of the radio goes, and nowhere beyond this computer
+
+GATEABLE: frozenset[str] = frozenset({RF, RF_GATED})
+"""The channels whose packets a consumer that sends to the internet may take. An iGate (or anything else that puts a packet on APRS-IS) MUST check `packet.via in GATEABLE` before it sends: a packet from the internet (`is`)
+would go round in a circle, and the made-up traffic of the Dummy radio (`dummy`) must never reach the real network. A new channel is not gateable until it is put here on purpose."""
+
+
+def via_of(text: str) -> Via:
+    """The channel a text names (as the database and the wire write it); raises ValueError for any other."""
+    for one in VIAS:
+        if one == text:
+            return one
+    raise ValueError(f"via {text!r} is no channel")
+
+
+def channel_of(third_party: "ThirdParty | None", internet: bool = False, dummy: bool = False) -> Via:
+    """The channel of a packet: `is` for one from APRS-IS, `dummy` for one the Dummy radio made up, else `rf-gated` when it came on the radio as a third-party packet, else `rf`."""
+    return IS if internet else DUMMY if dummy else (RF if third_party is None else RF_GATED)
+
+
 @dataclass(frozen=True, slots=True)
 class Packet:
+    """A packet that reached us, and how: `via` is the channel and is set once, where the packet is made (the Tnc's frame reader makes `rf`, `rf-gated` and, for the Dummy radio, `dummy`; `aprsisline.parse_is_line` makes `is`) and never
+    changes. An `is` packet has no AX.25 frame: its `raw` is the line of APRS-IS as it came (TNC2 text), `path` holds everything between the destination and the colon (the q-construct and the server too)."""
     heard_at: datetime
     direction: Literal["in", "out"]
     raw: bytes
@@ -166,10 +193,17 @@ class Packet:
     info: bytes
     decoded: Decoded                  # what the information field says; for a third-party packet, what the wrapped packet says
     third_party: ThirdParty | None = None
+    via: Via = RF
 
     def __post_init__(self) -> None:
         if self.heard_at.tzinfo is None:
             raise ValueError("heard_at must be timezone-aware UTC")
+        if self.via not in VIAS:
+            raise ValueError(f"via {self.via!r} is no channel")
+        if self.via == IS and self.direction != "in":
+            raise ValueError("a packet sent by us never goes by the internet")
+        if (self.via == RF_GATED) != (self.third_party is not None and self.via not in (IS, DUMMY)):
+            raise ValueError("a packet is rf-gated exactly when it came on the radio as a third-party packet")
 
     @property
     def kind(self) -> str:
@@ -182,9 +216,14 @@ class Packet:
         return self.source if self.third_party is None else self.third_party.source
 
     @property
-    def via(self) -> str:
-        """The iGate that put a third-party packet on the air (the call of the frame we heard); empty for any other packet."""
-        return "" if self.third_party is None else self.source
+    def gate(self) -> str:
+        """The iGate that put a third-party packet on the air (the call of the frame we heard); empty for any other packet, an `is` packet too: it was never on the air."""
+        return self.source if self.via == RF_GATED else ""
+
+    @property
+    def on_air(self) -> bool:
+        """Whether the packet was on the radio channel (heard, or sent by us; the Dummy radio's too). The services that answer, acknowledge, repeat or send take only these."""
+        return self.via != IS
 
     @property
     def weather_report(self) -> tuple[str, Weather] | None:
@@ -198,6 +237,8 @@ class Packet:
 
     @property
     def summary(self) -> str:
-        """One line for a log; a third-party packet ends with who put it on the air."""
+        """One line for a log; a third-party packet ends with who put it on the air, one from the internet with where it came from."""
         text = _summary_of(self.decoded)
+        if self.via == IS:
+            return f"{text} (APRS-IS)"
         return text if self.third_party is None else f"{text} via {self.source} (third-party)"

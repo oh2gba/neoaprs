@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// The stations heard, as a short table that fits the panel: the symbol, the call (a green check mark after it for a station heard direct), the distance from us, the bearing as a small arrow (north up; "NE, 47°" is its hover title) and when the station was last heard at all (the newest of anything it sent, with the full time as the hover title); the rest of what is known of a station (when its position was, how its packets reach us, the path, the packets, the weather) is on its card, a click away. A column is sorted by a click on its head (again to
-// reverse), a filter box and the toggles "direct only" (the stations heard direct at some time) and "hide timed out" narrow it, our own station is always on top, the selected row is marked and a click on a row selects the station
+// The stations heard, as a short table that fits the panel: the symbol, the call (a green check mark after it for a station heard direct, and under it in small quiet letters how it was heard: RF, iGate, Internet, or two joined; lib/channels.ts), the distance from us, the bearing as a small arrow (north up; "NE, 47°" is its hover title) and when the station was last heard at all (the newest of anything it sent, with the full time as the hover title); the rest of what is known of a station (when its position was, how its packets reach us, the path, the packets, the weather) is on its card, a click away. A column is sorted by a click on its head (again to
+// reverse), a filter box and the toggles "direct only" (the stations heard direct at some time), "heard on RF only" (leaves out the stations known from the internet alone; it is there only once a station has been received over the internet) and "hide timed out" narrow it, our own station is always on top, the selected row is marked and a click on a row selects the station
 // (the map flies to it; with Ctrl it adds a card). When the filter text is a call that no station has been heard under (not ours, not the email gateway), a button "Message OH2XYZ" under the empty result writes to it all the same. A station past its timeout is off the map: its row is dim and says "timed out" after the time it was heard. Every row is one line high. At the right end of a row are two small buttons, as on the card: a speech bubble that opens the conversation with the station ("Message OH2XYZ", where the card has Message) and a trash can that forgets it ("Forget OH2XYZ", where the card has Forget; it asks twice like the card's, "sure?" for 5 s); a click on them does not select the row. Between them is a "..." button, and a right-click on a row (a long press on a touch screen) opens the same menu where the pointer is (StationMenu: Message, the directed queries, Show, Copy call, QRZ, Forget).
 import { computed, ref, watch } from "vue";
 import BearingArrow from "@/components/BearingArrow.vue";
@@ -16,6 +16,7 @@ import { useSure } from "@/composables/useSure";
 import { t } from "@/i18n";
 import { STATION_HOURS_KEY, stationHours, timedOut } from "@/lib/aging";
 import { normalizeCall, validCall } from "@/lib/calls";
+import { anyInternet, channelLabel, channelTitle, internetOnly } from "@/lib/channels";
 import { ageText, bearingTitle, dateTimeText, distanceText } from "@/lib/format";
 import { isGateway } from "@/lib/messages";
 import { heardDirect } from "@/lib/routes";
@@ -106,6 +107,9 @@ const filter = ref("");
 const sort = ref<Sort>({ key: "last_heard", dir: -1 });
 const hideTimedOut = usePersistedFlag("hidetimedout", ["on", "off"], false);
 const directOnly = usePersistedFlag("directonly", ["on", "off"], false);
+const rfOnly = usePersistedFlag("rfonly", ["on", "off"], false);
+/** The tickbox "heard on RF only" is there once a station has been received over the internet; until then there is nothing for it to leave out. */
+const internetKnown = computed(() => anyInternet(stations.value.values()));
 
 /** How long a station stays on the map: the setting of the daemon (the same in every browser), changed at once with an Undo. */
 const hours = computed(() =>
@@ -121,6 +125,7 @@ const rows = computed(() =>
   listStations(stations.value.values(), {
     filter: filter.value,
     directOnly: directOnly.value,
+    rfOnly: rfOnly.value,
     hideTimedOut: hideTimedOut.value,
     timedOut: isTimedOut,
     sort: sort.value,
@@ -167,6 +172,9 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
       <div class="toolbar-checks">
         <label class="check"><input v-model="hideTimedOut" type="checkbox" /> {{ t("station.table.hide_timed_out") }}</label>
         <label class="check"><input v-model="directOnly" type="checkbox" /> {{ t("station.table.direct_only") }}</label>
+        <label v-if="internetKnown" class="check" :title="t('station.table.rf_only_title')"
+          ><input v-model="rfOnly" type="checkbox" /> {{ t("station.table.rf_only") }}</label
+        >
         <label class="check onmap"
           >{{ t("station.table.on_map") }}
           <select id="stations-on-map" class="input" :value="hours" @change="chooseHours">
@@ -191,7 +199,7 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
           <tr
             v-for="row in rows"
             :key="row.call"
-            :class="{ selected: isOpen(row.call), me: row.is_me, own: row.own, timedout: isTimedOut(row) }"
+            :class="{ selected: isOpen(row.call), me: row.is_me, own: row.own, timedout: isTimedOut(row), internetonly: internetOnly(row) }"
             :aria-selected="isOpen(row.call)"
             tabindex="0"
             :data-call="row.call"
@@ -204,7 +212,10 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
             @pointercancel="press.cancel"
           >
             <td class="symbol" :title="symbolName(row)"><SymbolIcon :table="row.symbol_table" :code="row.symbol_code" :size="18" /></td>
-            <td class="mono strong call">{{ row.call }}</td>
+            <td class="mono strong call">
+              <span class="callname">{{ row.call }}</span
+              ><span v-if="channelLabel(row) !== ''" class="via" :title="channelTitle(row)">{{ channelLabel(row) }}</span>
+            </td>
             <td class="direct"><DirectMark v-if="heardDirect(row)" /></td>
             <td class="num">{{ distanceText(row.distance_km) }}</td>
             <td class="bearing" :title="bearingTitle(row.bearing_deg)">

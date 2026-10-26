@@ -133,9 +133,10 @@ async def test_the_third_party_frames_an_igate_put_on_the_air_come_out_as_the_pa
         r.radio.feed(kiss.encode(ax25.encode(frame)))
     await until(lambda: len(r.packets) == 3)
     first, second, third = r.packets
-    assert (first.source, first.path, first.sender, first.via) == ("OH7JHF-1", ("OH2RCH-3*",), "OH2DPN", "OH7JHF-1")
+    assert (first.source, first.path, first.sender, first.gate) == ("OH7JHF-1", ("OH2RCH-3*",), "OH2DPN", "OH7JHF-1")
     assert first.third_party == ThirdParty("OH2DPN", "APJYC1", ("TCPIP", "OH7JHF-1*")) and first.info == ack.info and first.raw == ax25.encode(ack)
     assert first.decoded == Message("OH2GBA", "", ack_id="10") and first.summary == "ack 10 to OH2GBA via OH7JHF-1 (third-party)"
+    assert (first.via, second.via, third.via) == ("rf-gated", "rf-gated", "rf-gated"), "heard on the radio as third-party packets"
     assert second.decoded == Message("OH2GBA", "Test ok", "06") and second.sender == "OH2BEA-9"
     assert third.decoded == Other("third-party", "}OH2BEA-9>APRS:>x") and third.sender == "OH2DPN", "a third-party packet inside a third-party packet is not opened again"
     assert any("OH7JHF-1>APRS,OH2RCH-3*:}OH2DPN>APJYC1,TCPIP,OH7JHF-1*::OH2GBA   :ack10  ->  ack 10 to OH2GBA via OH7JHF-1 (third-party)" in line for line in r.tnc.lines)

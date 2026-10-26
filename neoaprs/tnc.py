@@ -91,7 +91,7 @@ class Tnc(TimedSource):
         self.fallback_probe, self._probe_next = fallback_probe, False    # a port that was named and cannot be opened: the next attempt listens to the ports that match the pattern instead
         self.backoff = backoff or Backoff()
         self.packet: Signal[[Packet]] = Signal("tnc.packet")             # every packet in and out
-        self.path = ""                                                   # the port in use
+        self.path, self.dummy = "", False                                # the port in use; whether the radio is the Dummy one (it makes up traffic to try the program with): its packets are marked `dummy` and are never gated to the internet (packet.GATEABLE)
         self._search = PortSearch(self._spawn, self._note, PROMPT)
         self._entry = KissEntry(self._spawn, lambda data: self._port is not None and self._write(self._port, data), settle_sec, pace)    # the wait after the last step (None: the profile's), the factor on the others
         self._port: _TncPort | None = None
@@ -271,7 +271,7 @@ class Tnc(TimedSource):
             self._detector, self._decoder, self._dropped_seen = ModeDetector(), kiss.KissDecoder(), 0
 
     def _handle(self, kiss_frame: kiss.KissFrame) -> None:
-        read = read_frame(kiss_frame, self.now())
+        read = read_frame(kiss_frame, self.now(), self.dummy)
         if isinstance(read, str):
             self._saw(f"rejected, {read}: {kiss_frame.payload[:40].hex()}")
             return self._reject()
@@ -364,7 +364,7 @@ class Tnc(TimedSource):
             return False
         if not self._write(port, kiss.encode(raw)):
             return False
-        packet = packet_of("out", raw, frame, self.now())
+        packet = packet_of("out", raw, frame, self.now(), self.dummy)
         self._note(_printable(f"sent {frame.tnc2()}"))
         self.packet.emit(packet)
         return True

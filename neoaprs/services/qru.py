@@ -111,7 +111,7 @@ class Qru:
     def heard(self, packet: Packet, message: Message) -> bool:
         """A message to QRU: answered, and True, when we serve some group and the text is a request; False for anything else (the inbox keeps it as a message overheard)."""
         request = request_of(message.text)
-        if request is None or not any(o.alive and o.qru_group for o in self._objects.records()):
+        if not packet.on_air or request is None or not any(o.alive and o.qru_group for o in self._objects.records()):
             return False
         asker, key = packet.sender, f"QRU {request.word} {request.km or ''}".strip()
         if self._answers.refused():

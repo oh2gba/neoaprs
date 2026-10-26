@@ -21,7 +21,7 @@ const make = () => {
   });
   return wrapper;
 };
-const row = (call: string) => wrapper.findAll("tbody tr").find((r) => r.find("td.call").text() === call)!;
+const row = (call: string) => wrapper.findAll("tbody tr").find((r) => r.find("td.call .callname").text() === call)!;
 const menu = () => wrapper.find("[role='menu']");
 const items = () => wrapper.findAll("[role='menuitem']");
 const labels = () => items().map((i) => i.text());

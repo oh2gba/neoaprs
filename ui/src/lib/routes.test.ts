@@ -11,18 +11,18 @@ describe("heardText", () => {
         ["OH2RCH-2", 30],
         ["OH2RCH-3", 4],
       ],
-      heard_gated: 0,
+      heard_rf_gated: 0,
     });
     expect(heardText(row)).toBe("12 direct, 30 via OH2RCH-2, 4 via OH2RCH-3");
   });
 
   it("leaves out what is zero, names an unnamed repeater and counts the packets from the internet", () => {
-    expect(heardText(station("A", { heard_direct: 0, heard_via: [["?", 3]], heard_gated: 2 }))).toBe("3 via an unnamed repeater, 2 from the internet");
-    expect(heardText(station("A", { heard_direct: 1, heard_via: [], heard_gated: 0 }))).toBe("1 direct");
+    expect(heardText(station("A", { heard_direct: 0, heard_via: [["?", 3]], heard_rf_gated: 2 }))).toBe("3 via an unnamed repeater, 2 via an iGate");
+    expect(heardText(station("A", { heard_direct: 1, heard_via: [], heard_rf_gated: 0 }))).toBe("1 direct");
   });
 
   it("is a dash before any packet is counted", () => {
-    expect(heardText(station("A", { heard_direct: 0, heard_via: [], heard_gated: 0 }))).toBe("-");
+    expect(heardText(station("A", { heard_direct: 0, heard_via: [], heard_rf_gated: 0 }))).toBe("-");
   });
 });
 
@@ -81,7 +81,7 @@ describe("what is direct", () => {
 });
 
 describe("reachedText", () => {
-  const none = { last_route: "", heard_direct: 0, heard_via: [] as [string, number][], heard_gated: 0 };
+  const none = { last_route: "", heard_direct: 0, heard_via: [] as [string, number][], heard_rf_gated: 0 };
 
   it("is the way of the latest packet, in words", () => {
     expect(reachedText({ ...none, last_route: "direct" })).toBe("direct");
@@ -97,7 +97,7 @@ describe("reachedText", () => {
     expect(reachedText({ ...none, heard_direct: 2, heard_via: [["OH2RCH-2", 9]] })).toBe("direct");
     expect(reachedText({ ...none, heard_via: [["OH2RCH-2", 9]] })).toBe("via OH2RCH-2");
     expect(reachedText({ ...none, heard_via: [["?", 9]] })).toBe("via a repeater");
-    expect(reachedText({ ...none, heard_gated: 1 })).toBe("via the internet");
+    expect(reachedText({ ...none, heard_rf_gated: 1 })).toBe("via an iGate");
   });
 
   it("is null before any packet is counted", () => {

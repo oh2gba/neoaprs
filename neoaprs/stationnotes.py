@@ -6,11 +6,32 @@ from datetime import datetime
 from .aprstelemetry import Telemetry, TelemetryDefinition, apply_definition, is_definition
 from .bulletin import board_slot
 from .device import MICE_BODY, MICE_DUMB, MICE_IDENTIFIERS, inner
-from .packet import ItemReport, Message, ObjectReport, Other, Packet, Position
+from .packet import DUMMY, IS, RF_GATED, ItemReport, Message, ObjectReport, Other, Packet, Position
+from .route import route_of
 from .station import Station
 
 DEFINITIONS_MAX = 500               # stations whose telemetry definitions are kept (the oldest goes first)
 IGATE = "IGATE"                     # the token of a capabilities packet (`<IGATE,MSG_CNT=2,LOC_CNT=10`) with which a station says it is an iGate
+
+
+def note_heard(station: Station, packet: Packet, route: bool = True) -> None:
+    """A packet of the station was received: it is counted, with the time, for the channel it came by (`heard_rf`, `heard_rf_gated`, `heard_is`, `heard_dummy` and the time of the latest of each) and in `packets`, and the station
+    was last heard now. One heard on the radio (the Dummy radio's too) sets the path it came by and, with `route`, is counted for its route; one from the internet came by no route and leaves them as they were."""
+    station.packets += 1
+    station.last_heard = packet.heard_at
+    station.hour.note(packet.heard_at)
+    if packet.via == IS:
+        station.heard_is, station.last_is_at = station.heard_is + 1, packet.heard_at
+        return
+    if packet.via == RF_GATED:
+        station.heard_rf_gated, station.last_rf_gated_at = station.heard_rf_gated + 1, packet.heard_at
+    elif packet.via == DUMMY:
+        station.heard_dummy, station.last_dummy_at = station.heard_dummy + 1, packet.heard_at
+    else:
+        station.heard_rf, station.last_rf_at = station.heard_rf + 1, packet.heard_at
+    station.last_path, station.last_via = packet.path, packet.gate
+    if route:
+        station.deliveries.note(route_of(packet.path, packet.gate), 1, packet.heard_at)
 
 
 def note_messaging(station: Station, packet: Packet) -> None:

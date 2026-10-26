@@ -27,13 +27,53 @@ describe("PacketsLog", () => {
       props: {
         packets: new Map([
           ["1", packet(1, { route: "via OH2RCH-2" })],
-          ["2", packet(2, { route: "via OH7JHF-1 (internet) → OH2RCH-3", via: "OH7JHF-1", source: "OH7JHF-1" })],
+          ["2", packet(2, { route: "via OH7JHF-1 (internet) → OH2RCH-3", via: "rf-gated", gate: "OH7JHF-1", source: "OH7JHF-1" })],
           ["3", packet(3, { direction: "out", route: "" })],
         ]),
       },
     });
-    expect(wrapper.findAll("thead th").map((th) => th.text())).toEqual(["Time", "Dir", "Packet", "Route", "Summary"]);
-    expect(wrapper.findAll("tbody tr").map((tr) => tr.findAll("td")[3]?.text())).toEqual(["", "via OH7JHF-1 (internet) → OH2RCH-3", "via OH2RCH-2"]);
+    expect(wrapper.findAll("thead th").map((th) => th.text())).toEqual(["Time", "Dir", "Via", "Packet", "Route", "Summary"]);
+    expect(wrapper.findAll("tbody tr").map((tr) => tr.findAll("td")[4]?.text())).toEqual(["", "via OH7JHF-1 (internet) → OH2RCH-3", "via OH2RCH-2"]);
+  });
+
+  it("has a Via column with the channel of every packet: RF for the radio and for ours, iGate, Internet; with what it means as the title", () => {
+    const wrapper = mount(PacketsLog, {
+      props: {
+        packets: new Map([
+          ["1", packet(1)],
+          ["2", packet(2, { via: "rf-gated", gate: "OH7JHF-1", source: "OH7JHF-1", route: "via OH7JHF-1 (internet) → OH2RCH-3" })],
+          ["3", packet(3, { via: "is", route: "", path: ["TCPIP*", "qAC", "T2FINLAND"], source: "OH2ABC", tnc2: "OH2ABC>APRS,TCPIP*,qAC,T2FINLAND:>x" })],
+          ["4", packet(4, { direction: "out", route: "" })],
+          ["5", packet(5, { via: "dummy", source: "QDUMMY-1" })],
+        ]),
+      },
+    });
+    const cells = wrapper.findAll("tbody tr").map((tr) => tr.find("td.via"));
+    expect(cells.map((td) => td.text())).toEqual(["Dummy", "RF", "Internet", "iGate", "RF"]);
+    expect(cells.map((td) => td.attributes("title"))).toEqual([
+      "Made up by the Dummy radio, which is no real radio",
+      "Heard on the radio",
+      "Received over the internet (APRS-IS), not on the radio",
+      "Heard on the radio from an iGate, which took it from the internet",
+      "Heard on the radio",
+    ]);
+    expect(cells.map((td) => td.classes().includes("internet"))).toEqual([false, false, true, false, false]);
+    expect(cssRule(".grid.packets td.via.internet")).toMatch(/font-style:\s*italic/);
+  });
+
+  it("filters by the channel too: Internet finds the packets of the internet", async () => {
+    const wrapper = mount(PacketsLog, {
+      props: {
+        packets: new Map([
+          ["1", packet(1)],
+          ["2", packet(2, { via: "is", route: "" })],
+        ]),
+      },
+    });
+    await wrapper.find("input[type='search']").setValue("Internet");
+    expect(wrapper.findAll("tbody tr.packet-row")).toHaveLength(1);
+    await wrapper.find("input[type='search']").setValue("igate");
+    expect(wrapper.findAll("tbody tr.packet-row")).toHaveLength(0);
   });
 
   it("filters by the route too", async () => {
@@ -136,9 +176,9 @@ describe("PacketsLog on a narrow tab", () => {
     const wrapper = await narrow(PACKETS_TABLE - 1);
     expect(wrapper.find("table").classes()).toContain("stacked");
     expect(wrapper.find("thead").classes()).toContain("sr-only");
-    expect(wrapper.findAll("thead th").map((th) => th.text())).toEqual(["Time", "Dir", "Packet", "Route", "Summary"]);
+    expect(wrapper.findAll("thead th").map((th) => th.text())).toEqual(["Time", "Dir", "Via", "Packet", "Route", "Summary"]);
     const row = wrapper.findAll("tbody tr")[2];
-    expect(row?.findAll("td")).toHaveLength(5);
+    expect(row?.findAll("td")).toHaveLength(6);
     expect(row?.find("td.line").text()).toContain("OH2RDG>APN391");
     expect(row?.find("td.summary").text()).toBe("position one");
     wrapper.unmount();
@@ -172,7 +212,7 @@ describe("PacketsLog on a narrow tab", () => {
   it("is drawn as a block with the packet line first, then the route and the summary small, and the packet line is not broken letter by letter", () => {
     const block = cssRule(".grid.packets.stacked tr.packet-row");
     expect(block).toMatch(/display:\s*grid/);
-    expect(block).toMatch(/"time dir"\s+"line line"\s+"route route"\s+"summary summary"/);
+    expect(block).toMatch(/"time dir via"\s+"line line line"\s+"route route route"\s+"summary summary summary"/);
     expect(cssRule(".grid.packets.stacked td.route-cell")).toMatch(/font-size:\s*12px/);
     expect(cssRule(".grid.packets.stacked td.summary")).toMatch(/font-size:\s*12px/);
     const cells = cssRule(".grid.packets.stacked tr.packet-row td");

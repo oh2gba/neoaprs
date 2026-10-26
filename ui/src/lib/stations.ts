@@ -1,6 +1,7 @@
 // The station rows as the page lists and draws them: which have a position, the filter and the order of the table. Plain functions of rows and the time.
 import { t } from "@/i18n";
 import { qrzUrl } from "@/lib/calls";
+import { onAir } from "@/lib/channels";
 import { symbolText } from "@/lib/symbols";
 import type { StationRow } from "@/protocol/protocol";
 
@@ -84,6 +85,8 @@ interface ListOptions {
   filter: string;
   /** keep only the stations that were heard direct at some time (`last_direct_at` is set) */
   directOnly?: boolean;
+  /** keep only the stations that were heard on the radio (an iGate's too): leave out those known from the internet alone */
+  rfOnly?: boolean;
   /** drop the stations `timedOut` says have passed their timeout */
   hideTimedOut?: boolean;
   timedOut?: (row: StationRow) => boolean;
@@ -107,11 +110,13 @@ function matches(row: StationRow, needle: string): boolean {
   return text.includes(needle);
 }
 
-/** The rows of the table: filtered by a text (any part of the call, the symbol name, the comment, the status and the path), by having been heard direct and by not having timed out, sorted, our own station first and the timed-out ones last. */
+/** The rows of the table: filtered by a text (any part of the call, the symbol name, the comment, the status and the path), by having been heard direct, by having been heard on the radio and by not having timed out, sorted, our own station first and the timed-out ones last. */
 export function listStations(rows: Iterable<StationRow>, options: ListOptions): StationRow[] {
   const needle = options.filter.trim().toLowerCase();
   const gone = options.hideTimedOut === true && options.timedOut ? options.timedOut : () => false;
-  const kept = [...rows].filter((r) => r.is_me || ((options.directOnly !== true || r.last_direct_at !== null) && !gone(r) && matches(r, needle)));
+  const kept = [...rows].filter(
+    (r) => r.is_me || ((options.directOnly !== true || r.last_direct_at !== null) && (options.rfOnly !== true || onAir(r)) && !gone(r) && matches(r, needle)),
+  );
   const { key, dir } = options.sort;
   const out = options.timedOut ?? (() => false); // a station past its timeout sorts after the live ones, whatever the column
   return kept.sort(

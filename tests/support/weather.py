@@ -9,7 +9,7 @@ from neoaprs import ax25
 from neoaprs.aprsthirdparty import parse_packet
 from neoaprs.aprsweather import Weather
 from neoaprs.clock import utc
-from neoaprs.packet import Other, Packet, Position
+from neoaprs.packet import Other, Packet, Position, channel_of
 
 T0 = utc(2026, 10, 21, 12, 0, 0)
 REAL = "107/001g001t050r001p016P013h85b10284"
@@ -24,7 +24,7 @@ def heard(info: bytes, source: str = "OH2MUI", at: datetime = T0, direction: str
         decoded = Position(decoded.lat, decoded.lon, decoded.symbol_table, decoded.symbol_code, decoded.weather.raw + decoded.comment, timestamp=decoded.timestamp, messaging=decoded.messaging)
     if old and isinstance(decoded, Other):
         decoded = Other(decoded.kind, decoded.text)
-    return Packet(at, direction, ax25.encode(frame), source, "APRX29", ("OH2RCH-2",), info, decoded, third)  # type: ignore[arg-type]
+    return Packet(at, direction, ax25.encode(frame), source, "APRX29", ("OH2RCH-2",), info, decoded, third, channel_of(third))  # type: ignore[arg-type]
 
 
 def report(fields: str = REAL, source: str = "OH2MUI", at: datetime = T0, **more: object) -> Packet:

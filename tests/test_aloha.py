@@ -21,7 +21,8 @@ HOME = (60.0, 24.0)
 
 def at_km(call: str, km: float, code: str = "-", table: str = "/", **kw: object) -> Station:
     """A station `km` north of HOME, heard just now."""
-    return Station(call, first_heard=NOW, last_heard=kw.pop("last_heard", NOW), lat=HOME[0] + km / KM_PER_DEGREE, lon=HOME[1], symbol_table=table, symbol_code=code, last_position_at=NOW, **kw)  # type: ignore[arg-type]
+    heard = kw.pop("last_heard", NOW)
+    return Station(call, first_heard=NOW, last_heard=heard, last_rf_at=heard, heard_rf=1, lat=HOME[0] + km / KM_PER_DEGREE, lon=HOME[1], symbol_table=table, symbol_code=code, last_position_at=NOW, **kw)  # type: ignore[arg-type]
 
 
 def homes(count: int, first_km: float = 1.0, step_km: float = 1.0) -> list[Station]:
@@ -94,7 +95,13 @@ def test_a_station_that_is_not_on_the_channel_is_left_out() -> None:
     just = utc(2026, 10, 21, 11, 0, 0)                                                       # exactly the window ago: still counted
     assert ALOHA_WINDOW_MIN == 60 and circle(HOME, [replace_heard(s, just) for s in stations], NOW) is not None
     assert circle(HOME, [replace_heard(s, NOW, kind="object") for s in stations], NOW) is None
-    assert circle(HOME, [replace_heard(s, NOW, via="OH7JHF-1") for s in stations], NOW) is None
+    gated = [replace_heard(s, NOW, last_rf_at=None, heard_rf=0, heard_rf_gated=1, last_rf_gated_at=NOW) for s in stations]
+    assert circle(HOME, gated, NOW) is None                                                     # (an iGate put them on the air: they are not on the channel from where they are)
+    internet = [replace_heard(s, NOW, last_rf_at=None, heard_rf=0, heard_is=1, last_is_at=NOW) for s in stations]
+    assert circle(HOME, internet, NOW) is None                                                  # (nor are those received from the internet)
+    assert circle(HOME, [replace_heard(s, NOW, last_is_at=NOW, heard_is=5) for s in stations], NOW) is not None       # (heard on the radio as well: they count)
+    made_up = [replace_heard(s, NOW, last_rf_at=None, heard_rf=0, heard_dummy=1, last_dummy_at=NOW) for s in stations]
+    assert circle(HOME, made_up, NOW) is not None                                               # (the Dummy radio's stations are on its channel: the program can be tried)
     me = [replace_heard(s, NOW, is_me=True) for s in stations]
     assert circle(HOME, me, NOW) is None
     nopos = [Station(s.call, first_heard=NOW, last_heard=NOW) for s in stations]
@@ -102,9 +109,9 @@ def test_a_station_that_is_not_on_the_channel_is_left_out() -> None:
 
 
 def replace_heard(s: Station, heard: datetime, **kw: object) -> Station:
-    out = Station(s.call, first_heard=NOW, last_heard=heard, lat=s.lat, lon=s.lon, symbol_table=s.symbol_table, symbol_code=s.symbol_code)
+    out = Station(s.call, first_heard=NOW, last_heard=heard, last_rf_at=heard, heard_rf=1, lat=s.lat, lon=s.lon, symbol_table=s.symbol_table, symbol_code=s.symbol_code)
     for key, value in kw.items():
-        setattr(out, {"via": "last_via"}.get(key, key), value)
+        setattr(out, key, value)
     return out
 
 
@@ -166,7 +173,7 @@ async def test_the_page_is_told_the_radius_in_the_topic_map_and_when_our_positio
     assert page.topics["map"]["aloha_km"] is None
     lat, lon = e.ctl.config.station_position or (0.0, 0.0)
     now = e.ctl.clock()
-    stations = [Station(f"OH2H{n:03d}", first_heard=now, last_heard=now, lat=lat + (1.0 + n) / KM_PER_DEGREE, lon=lon, symbol_code="-", symbol_table="/", last_position_at=now) for n in range(900)]
+    stations = [Station(f"OH2H{n:03d}", first_heard=now, last_heard=now, last_rf_at=now, heard_rf=1, lat=lat + (1.0 + n) / KM_PER_DEGREE, lon=lon, symbol_code="-", symbol_table="/", last_position_at=now) for n in range(900)]
     e.ctl.stationbook.seed(stations)
     e.ctl.aloha.refresh()
     await page.until(lambda: page.topics["map"]["aloha_km"] is not None)

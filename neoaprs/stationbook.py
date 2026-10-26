@@ -12,11 +12,11 @@ from .clock import Clock, utcnow
 from .device import packet_device
 from .geo import bearing_deg, distance_km
 from .ownobject import OwnObject
-from .packet import ItemReport, ObjectReport, Other, Packet, Position, Status
+from .packet import IS, ItemReport, ObjectReport, Other, Packet, Position, Status
 from .route import route_of
 from .signal import Signal
 from .station import Station
-from .stationnotes import expire_hours, note_gate, note_igate, note_messaging, note_position, note_telemetry, seed_hour, seed_reported
+from .stationnotes import expire_hours, note_gate, note_heard, note_igate, note_messaging, note_position, note_telemetry, seed_hour, seed_reported
 
 TRACK_MAX = 50                      # positions kept per station
 TRACK_MOVED_M = 10.0                # a new position goes on the track when the station moved more than this ...
@@ -226,16 +226,16 @@ class StationBook:
         if packet.direction != "in":
             return None
         if packet.sender == self._me:
-            return self._heard_ourselves(packet)
+            return None if packet.via == IS else self._heard_ourselves(packet)         # (our own call over the internet is not proof that the radio was heard)
         sender = self._heard(packet.sender, packet)
         sender.device = packet_device(packet) or sender.device
         about: Station | None = sender
         decoded = packet.decoded
         note_messaging(sender, packet)
         note_igate(sender, decoded)
-        note_gate(self._stations, packet.via, 1, self.changed.emit)
+        note_gate(self._stations, packet.gate, 1, self.changed.emit)
         if isinstance(decoded, Position):
-            self._place(sender, decoded, packet.heard_at)
+            self._place(sender, decoded, packet)
         elif isinstance(decoded, Status):
             sender.last_status = decoded.text
             sender.locator, sender.frequency = decoded.locator or sender.locator, decoded.frequency or sender.frequency
@@ -263,14 +263,12 @@ class StationBook:
         station = self._stations.get(call)
         if station is None:
             station = self._stations[call] = Station(call, first_heard=packet.heard_at, last_heard=packet.heard_at, is_me=call == self._me)
-        station.packets += 1
-        station.last_heard = packet.heard_at
-        station.last_path, station.last_via = packet.path, packet.via
-        station.deliveries.note(route_of(packet.path, packet.via), 1, packet.heard_at)
-        station.hour.note(packet.heard_at)
+        note_heard(station, packet)
         return station
 
-    def _place(self, station: Station, position: Position, when: datetime) -> None:
+    def _place(self, station: Station, position: Position, packet: Packet) -> None:
+        when = packet.heard_at
+        station.position_via = packet.via
         station.symbol_table, station.symbol_code = position.symbol_table, position.symbol_code
         station.lat, station.lon = position.lat, position.lon
         station.altitude_m, station.course_deg, station.speed_kmh = position.altitude_m, position.course_deg, position.speed_kmh
@@ -302,10 +300,7 @@ class StationBook:
         if station is None or station.kind != kind or station.own:                   # (an object of ours that another station reports is theirs now)
             station = self._stations[report.name] = Station(report.name, first_heard=packet.heard_at, last_heard=packet.heard_at, kind=kind)
         station.reported_by = packet.sender
-        station.packets += 1
-        station.hour.note(packet.heard_at)
-        station.last_heard = packet.heard_at
-        station.last_path, station.last_via = packet.path, packet.via
-        self._place(station, report.position, packet.heard_at)
+        note_heard(station, packet, route=False)
+        self._place(station, report.position, packet)
         self.changed.emit(station)
         return station
