@@ -107,7 +107,7 @@ that both the daemon and the page are tested against (`ui/src/protocol/vectors.j
 ## Documents, scripts, units
 
 - A document gets a row in `docs/README.md` and is changed in the same commit as the code it describes. A release gets a section in `CHANGELOG.md`, newest
-  first, grouped by area, with no commit hashes; what is planned is in `ROADMAP.md` and nowhere else.
+  first, short and to the point (a summary line, then one line per change that says what the user gets), with no commit hashes; what is planned is in `ROADMAP.md` and nowhere else.
 - The manual for the person who runs NeoAPRS (`docs/manual/`) is written in short paragraphs, headings and lists, in plain words. It names no component,
   function or source file, and no version number (`<version>` stands for it). The table of settings in it is made from the code (`scripts/doc-settings`). How
   things work inside goes to `docs/daemon.md` and `docs/development.md`. `tests/test_docs.py` holds all of this.

@@ -4,26 +4,15 @@
 
 ## 0.9.1
 
-Logs for support in one file, an About, a shorter project page, and the Windows uninstaller that waits for the app to end.
+Logs for support in one file, an About, a shorter project page with one-click downloads.
 
-On Windows.
-
-- `neoaprs-app.exe --quit`, which the uninstaller and an update run to end the app, now waits for the app's process to be gone, not only for the lock it holds: the window's engine unloads after the lock is let go, and the uninstaller of 0.9.0 could find a file of the app still in use and leave it behind.
-- The Start menu has a new entry, **NeoAPRS support logs**: it runs `neoaprs support --show` in a console, which makes the support file on the Desktop, shows it in Explorer and waits for Enter so that the window can be read. The tray menu of the app has **Collect support logs**, which does the same in the background and says where the file is.
-
-Getting help.
-
-- The Settings tab has a last group, **Help**, with a plain **Download logs** button (it reads "Collecting…" while the file is made) that saves the support file the daemon makes, and under it a quiet line saying what the file holds and a link to the manual. After a download the group says "Saved" and the file's name and offers **Write to neoaprs@oh2gba.eu**, which opens the mail program with the version in the subject and a form to fill in (what you did, what you expected, what happened, when); the page cannot attach the file, so you do. A refusal is said in plain words: no access, another file being made, the daemon not reachable. The page sends its own facts with the request (the version and build, the browser, the language and time zone, the size of the window and of the panel, whether it is installed as an app, and the state of the connection) and the manual has a page, [Getting help](docs/manual/support.md).
-- The page reports its own errors to the daemon, which logs them with the rest: an error in a component, an error on the window and a promise nobody handled. The last 50 are kept in the page and go into the support file; the same message within a minute is counted, not sent again, and no more than 10 are sent in a minute.
-- The support file is made by the daemon, and by the new command `neoaprs support [--data DIR] [--out FOLDER] [--show]` from the data folder alone, so that it also works when the daemon will not start. It is one zip, `neoaprs-support-CALL-YYYYmmdd-HHMMSSZ.zip`, of plain text files: `README.txt` (what it is and who to send it to), `summary.txt` (one screen: the version, the install kind, the system, the daemon and how long it has run, the station, the radio and the GPS and their problems, the web page, the database, and the warnings and errors of the whole log, each message once with how many times and when last, errors first, 25 at most, without the web server's lines for the base map, favicon and fonts that are not there), the logs (the newest lines within 12 MB, and on Linux the service's journal), `settings.json`, `state.json` (from a running daemon), `doctor.txt`, `database.txt`, `packets.txt` and what the page told. The access key is never in it, in a setting or anywhere else; neither are the key of the secure connection, your messages as the program keeps them, the database file and the base map. A part that cannot be made becomes a file that says why, and the rest is made. Nothing in the data folder is changed.
-- The daemon's page asks for it with `POST /support/bundle`, behind the same login as the page, one at a time, in a thread. `page_error` is a new command: the daemon logs each error a page reports as a warning and keeps the last 100 for the file, 20 a minute at most for a page.
-- The log tells more of what a reader needs: the start has a second line (`running on <system>, <machine>, Python X.Y.Z, installed as <kind>, pid N`), a page that connects says which browser it is (`page connected from 127.0.0.1: Firefox 140 on Linux`), a setting saved from the page is a line with its old value (`settings: station/comment = new (was old)`, a secret only as `(set, 14 characters)`), and what nothing caught, in a thread, in the event loop or ending the daemon, is logged with its traceback, in the app's log too.
-- The Settings tab has a new last group after Help, **About**: one line with what NeoAPRS is, its version (the daemon's, as the footer says it) and who made it, the licence (GNU General Public License, version 3 or later) and the source code as links that open in a new tab, and a thanks to OH2GAX, OH2DPN and OH7NFC for their feedback. It is text and links only, in every language of the page.
-
-The project page.
-
-- The project page (`site/`) is rewritten to be short: a header with one screenshot, nine feature cards (Map, Stations, Messages, Weather, Nearby, Mobile, Objects, Beacon, Network), the install commands, the radios, the screenshots and a footer with the support address; about 780 words where it had 2,600. The anchors `#map`, `#nearby`, `#messages`, `#weather`, `#beacon`, `#radios` and `#gallery` stay; `#get` is now `#install`.
-- The download buttons start the download in one click. The release files carry the version in their names, so GitHub's `releases/latest/download/NAME` cannot name them; `https://oh2gba.eu/neoaprs/download.php?f=windows` (also `appimage`, `deb-amd64`, `deb-arm64`, `wheel`) answers with a redirect to that file of the latest release (found the way the version page finds it, which now shares `server/latest.php`) and to the release page for anything else, and the Windows installer and Linux AppImage buttons of the project page use it instead of opening the release page. The release and its file names are unchanged. A download is logged on the server as time, the file asked for and the version, nothing else.
+- **Settings → Help → Download logs** saves one file to send to neoaprs@oh2gba.eu when something does not work.
+- Without a working page: `neoaprs support`, the Start menu entry **NeoAPRS support logs** (Windows) or **Collect support logs** in the tray.
+- The access key and other secrets are never in the file.
+- Errors in the page are now written to the log.
+- **Settings → About**: version, licence, source, thanks.
+- The project page is short and its download buttons download at once.
+- Windows: uninstalling or updating no longer finds the app's files in use.
 
 ## 0.9.0
 
