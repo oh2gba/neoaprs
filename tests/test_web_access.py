@@ -144,6 +144,7 @@ async def test_a_session_is_kept_across_a_restart_and_ends_after_a_year_or_with_
     assert again.allowed(Request(token)) is True, "a session is not stored: another Access with the same key knows it"
     assert again.allowed(Request(token[:-1] + ("0" if token[-1] != "0" else "1"))) is False
     assert again.allowed(Request("x" + token)) is False and again.allowed(Request("")) is False
+    assert again.allowed(Request("\u00b2.a.b")) is False and again.allowed(Request("9" * 5000 + ".a.b")) is False, "a crafted cookie is refused quietly, not an error"
     assert Access(lambda: replace(config, web_key="aaaa-bbbb-cccc"), clock).allowed(Request(token)) is False, "a new key ends it"
     assert Access(lambda: replace(config, web_network=False), clock).allowed(Request(token)) is False, "and so does switching the network off"
     clock.advance(SESSION_DAYS * 86400 + 1)

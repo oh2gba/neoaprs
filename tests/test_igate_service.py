@@ -2,6 +2,7 @@
 gated while it is not logged in, our own position goes to the server, the filter of the connection follows our position, without a passcode (or with one the server refuses) it only listens, the log has the packets and the hour
 and never the password, and what the server says is read by the connection and goes nowhere through the service."""
 import logging
+from datetime import timedelta
 from dataclasses import replace
 
 import pytest
@@ -85,7 +86,7 @@ async def test_the_same_packet_heard_again_within_30_seconds_is_gated_once_and_a
 async def test_the_duplicate_window_is_a_number_that_can_be_set_to_nothing() -> None:
     server = await fake_aprsis()
     w = await iworld(server)
-    w.igate.duplicate_sec = 0.0
+    w.igate._seen.window = timedelta(0)                                    # (the window is a constant to set to nothing: nothing is a duplicate then)
     w.hear()
     w.hear()
     assert w.igate.gated == 2 and DUPLICATE not in w.igate.dropped
@@ -419,10 +420,10 @@ async def test_a_line_the_connection_will_not_take_is_counted_as_not_gated_when_
     assert w.igate.gated == 0 and dict(w.igate.dropped) == {OFFLINE: 1} and w.igate.last_gated_at is None
 
 
-async def test_the_table_of_what_was_gated_is_cleared_of_the_old_when_it_grows_too_large(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("neoaprs.services.igate._SEEN_MAX", 3)
+async def test_the_table_of_what_was_gated_is_cleared_of_the_old_when_it_grows_too_large() -> None:
     server = await fake_aprsis()
     w = await iworld(server)
+    w.igate._seen.keep_max = 3
     for n in range(5):
         w.hear(info=b">%d" % n)
     w.clock.advance(31)

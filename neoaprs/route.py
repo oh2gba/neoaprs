@@ -25,6 +25,7 @@ RF_ONLY = "RFONLY"                                  # the path element that an i
 NO_GATE = "NOGATE"
 _MARKERS = ("TCPIP", "TCPXX", NO_GATE, RF_ONLY, "NOTCP", "qA")
 _ALIAS = re.compile(r"^(WIDE|TRACE|RELAY|ECHO|GATE|TEMP|TRACK|SAR)\d?(-\d{1,2})?$")
+_Q_CONSTRUCT = re.compile(r"q[A-Za-z]{2}")              # how an APRS-IS server marks the way a packet entered the network (`qAR`, `qAO`, `qAC` ...; aprsisline.py reads which)
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,6 +40,11 @@ class Route:
 
 def is_alias(address: str) -> bool:
     return _ALIAS.match(address) is not None
+
+
+def is_q_construct(element: str) -> bool:
+    """Whether a path element is a q-construct of APRS-IS (`qAR`, `qAO`, `qAC` ...), which never belongs on the air."""
+    return _Q_CONSTRUCT.fullmatch(element) is not None
 
 
 def is_marker(address: str) -> bool:

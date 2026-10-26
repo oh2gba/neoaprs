@@ -12,6 +12,7 @@ from neoaprs import ax25
 from neoaprs.aprsmessage import format_message
 from neoaprs.interlock import Interlock
 from neoaprs.message import MessagingError
+from neoaprs.recent import Recent
 from neoaprs.route import rf_only_path
 from neoaprs.services.common import ConfigSource, Radio, our_frame
 from neoaprs.services.pace import SPACING_SEC
@@ -30,7 +31,7 @@ class Answers:
         self._paths = paths                                     # the digipeaters of what we send to a station (PrefBook.path_for)
         self._spacing = spacing_sec
         self.interlock = Interlock(config)
-        self._answered: dict[tuple[str, str], datetime] = {}    # when each (station, query) was last answered
+        self._answered: Recent[tuple[str, str]] = Recent(ANSWER_AGAIN_SEC)     # the (station, query) answered lately
         self.tasks = TaskSet(log, "queries")
 
     async def stop(self) -> None:
@@ -43,12 +44,11 @@ class Answers:
 
     def lately(self, asker: str, query: str, at: datetime) -> bool:
         """Whether the same station asked the same and was answered less than ANSWER_AGAIN_SEC ago."""
-        self._answered = {key: when for key, when in self._answered.items() if (at - when).total_seconds() < ANSWER_AGAIN_SEC}
-        return (asker, query) in self._answered
+        return self._answered.lately((asker, query), at)
 
     def note(self, asker: str, query: str, at: datetime) -> None:
         """The station is being answered for this query: the same one again within ANSWER_AGAIN_SEC is not."""
-        self._answered[(asker, query)] = at
+        self._answered.note((asker, query), at)
 
     def message(self, asker: str, text: str, msg_id: str | None = None) -> ax25.Frame:
         """Our frame carrying a message to the asker: without an id (nothing is waited for), or a message of ours sent again with its number `{MM}`."""

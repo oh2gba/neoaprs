@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Literal
 
-MPH_KMH = 1.609344                                             # kilometres per statute mile
+from neoaprs.units import MILE_KM
 
 Reason = Literal["start", "time", "turn", "request"]
 
@@ -64,7 +64,7 @@ def rate_sec(settings: SmartSettings, speed_kmh: float) -> float:
 
 def turn_threshold_deg(settings: SmartSettings, speed_kmh: float) -> float:
     """The change of course in degrees that is a turn at this speed (above `slow_kmh`; the speed is never 0 there)."""
-    return settings.turn_min_deg + settings.turn_slope / (speed_kmh / MPH_KMH)
+    return settings.turn_min_deg + settings.turn_slope / (speed_kmh / MILE_KM)
 
 
 def heading_change_deg(now_deg: int, then_deg: int) -> int:

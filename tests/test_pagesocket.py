@@ -28,17 +28,6 @@ async def test_a_text_frame_is_a_command_and_a_binary_frame_that_is_no_text_is_i
     ws.close()
 
 
-async def test_a_command_that_nests_deeper_than_the_parser_can_follow_is_ignored_and_the_socket_stays_open() -> None:
-    host = await page_host()
-    ws, _ = await connected(host)
-    host.api.fail = ("[", RecursionError())
-    await ws.write_message("[" * 3000)
-    await ws.write_message('{"cmd": "ping"}')
-    await until(lambda: len(host.api.commands) == 1)
-    assert host.api.sockets and host.api.detached == []
-    ws.close()
-
-
 async def test_a_push_to_a_socket_that_is_closing_is_dropped_and_the_page_is_forgotten_at_once(caplog: pytest.LogCaptureFixture) -> None:
     host = await page_host()
     ws, socket = await connected(host)

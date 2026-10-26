@@ -6,8 +6,8 @@ and `%ggg` the radius of whole gale winds (nautical miles; the last is optional)
 import re
 from dataclasses import dataclass
 
-KNOT_KMH = 1.852
-NAUTICAL_MILE_KM = 1.852
+from neoaprs.units import KNOT_KMH, NAUTICAL_MILE_KM
+
 _STORM = re.compile(r"/(TS|HC|TD)(?![A-Za-z])(?:/(\d{3})(?!\d))?(?:\^(\d{3})(?!\d))?(?:/(\d{4})(?!\d))?(?:>(\d{3})(?!\d))?(?:&(\d{3})(?!\d))?(?:%(\d{3})(?!\d))?")
 
 

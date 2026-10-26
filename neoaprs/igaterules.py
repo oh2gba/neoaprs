@@ -32,7 +32,7 @@ INTERNET = frozenset({"TCPIP", "TCPXX"})             # a packet with one in its 
 NOT_TO_BE_GATED = frozenset({"NOGATE", "RFONLY"})    # a packet that asks to stay off the internet
 ALIASES = ("WIDE", "TRACE", "RELAY", "TCP", "NOGATE", "RFONLY", "SERVER", "BEACON")        # sources that are no station: the names of paths and of the internet
 _PATH_ELEMENT = re.compile(r"[A-Za-z0-9]{1,9}(?:-[A-Za-z0-9]{1,2})?\*?")
-_Q_ELEMENT = re.compile(r"q[A-Za-z]{2}|I", re.IGNORECASE)
+_Q_ELEMENT = re.compile(r"q[A-Za-z]{2}|I", re.IGNORECASE)       # a q construct or the `,I` construct in any case: an AX.25 address is written in capitals, and neither belongs on the air
 
 TCPIP, NOGATE, QUERY, SOURCE, OWN, NEWLINE, LONG, FRAME, DUPLICATE, OFFLINE, NOT_AIR = "tcpip", "nogate", "query", "source", "own", "newline", "long", "frame", "duplicate", "offline", "not_air"
 REASON_WORDS = {TCPIP: "TCPIP", NOGATE: "NOGATE", QUERY: "query", SOURCE: "bad source", OWN: "own", NEWLINE: "line break", LONG: "too long", FRAME: "bad frame", DUPLICATE: "duplicate", OFFLINE: "offline", NOT_AIR: "not from the air"}

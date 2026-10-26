@@ -7,8 +7,8 @@ import math
 import re
 from dataclasses import dataclass
 
-MILE_KM = 1.609344
-FOOT_M = 0.3048
+from neoaprs.units import FOOT_M, MILE_KM
+
 _PHG = re.compile(r"PHG(\d)([0-~])(\d)(\d)(?:[0-9A-Z]/)?")              # APRS 1.2 adds an optional digit (A = 10) and a mandatory "/" for the beacons an hour of a "probe" (`PHG72604/`): read past, not kept
 _RNG = re.compile(r"RNG(\d{4})")
 _DFS = re.compile(r"DFS(\d)([0-~])(\d)(\d)")

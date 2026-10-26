@@ -77,6 +77,11 @@ class Topic:
         self.rev += 1
         return ops
 
+    def discard(self) -> None:
+        """What changed is dropped without being built: nobody follows the topic (a page that attaches later is sent the whole, as it is then)."""
+        self._whole = False
+        self._keys.clear()
+
     def state(self) -> dict[str, Any]:
         return {"type": "state", "topic": self.name, "rev": self.rev, "value": self.build()}
 
@@ -165,6 +170,9 @@ class StateHub:
         behind: dict[Peer, bool] = {}
         for topic in self.topics.values():
             if not topic.pending:
+                continue
+            if not self.following(topic.name):
+                topic.discard()                                          # (a daemon with no page open builds nothing)
                 continue
             due = topic.last + topic.interval - now
             if due > 0:

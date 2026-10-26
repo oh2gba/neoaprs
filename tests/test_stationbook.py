@@ -629,3 +629,37 @@ def test_the_frequency_of_a_station_and_the_local_data_of_an_object_are_read_aga
     station, brenda = book.get("OH2AAA"), book.get("BRENDA")
     assert station is not None and station.frequency == Frequency(145.5)
     assert brenda is not None and brenda.storm == storm and brenda.sign == "1"
+
+
+# ---- a name is one entry: the station that transmits wins it ------------------------------------------------------------------------------------
+
+def test_an_object_under_the_call_of_a_station_in_the_book_leaves_the_station_alone_and_its_kill_does_not_take_it_out() -> None:
+    book = StationBook(lambda: T0)
+    heard = Heard(book)
+    book.take(packet(position(), source="OH2RCH-2"))
+    assert book.take(packet(ObjectReport("OH2RCH-2", True, position(60.3, 25.0)), source="OH2CLB")) is None, "the club's object of the digipeater does not stand in for the digipeater"
+    digi = book.get("OH2RCH-2")
+    assert digi is not None and digi.kind == "station" and digi.reported_by == "" and (digi.lat, digi.lon) == (60.17, 24.94) and digi.packets == 1
+    assert book.take(packet(ObjectReport("OH2RCH-2", False, position()), source="OH2CLB", at=T0 + timedelta(minutes=1))) is None
+    assert book.get("OH2RCH-2") is digi and heard.removed == [] and book.get("OH2CLB") is not None, "the kill of the object does not take the station out; the sender is heard"
+
+
+def test_a_station_that_transmits_under_the_name_of_an_object_heard_is_the_station_from_then_on() -> None:
+    book = StationBook(lambda: T0)
+    book.take(packet(ObjectReport("OH2RCH-2", True, position(60.3, 25.0)), source="OH2CLB"))
+    before = book.get("OH2RCH-2")
+    assert before is not None and before.kind == "object"
+    station = book.take(packet(position(messaging=True), source="OH2RCH-2", at=T0 + timedelta(minutes=1)))
+    assert station is not None and station is not before and station.kind == "station" and station.reported_by == "" and station.packets == 1 and (station.lat, station.lon) == (60.17, 24.94)
+    assert station.can_message, "a station, not somebody's object: it can be written to"
+    assert book.take(packet(ObjectReport("OH2RCH-2", True, position(60.3, 25.0)), source="OH2CLB", at=T0 + timedelta(minutes=2))) is None and book.get("OH2RCH-2") is station
+
+
+def test_an_object_or_a_kill_under_our_own_call_leaves_our_station_alone() -> None:
+    book = StationBook(lambda: T0)
+    heard = Heard(book)
+    me = book.set_me("OH2GBA", 60.17, 24.94)
+    assert book.take(packet(ObjectReport("OH2GBA", True, position(60.3, 25.0)), source="OH2AAA")) is None
+    assert book.me is me and me.is_me and (me.lat, me.lon) == (60.17, 24.94) and me.kind == "station"
+    assert book.take(packet(ItemReport("OH2GBA", False, position()), source="OH2AAA")) is None
+    assert book.me is me and heard.removed == []

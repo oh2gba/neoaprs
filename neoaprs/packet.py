@@ -216,6 +216,11 @@ class Packet:
         return self.source if self.third_party is None else self.third_party.source
 
     @property
+    def inner_info(self) -> bytes:
+        """The information field `decoded` was read from: the packet's own, or for a third-party packet the one inside its header (`}SRC>DST,PATH:`, which ends at the first colon)."""
+        return self.info if self.third_party is None else self.info.partition(b":")[2]
+
+    @property
     def gate(self) -> str:
         """The iGate that put a third-party packet on the air (the call of the frame we heard); empty for any other packet, an `is` packet too: it was never on the air."""
         return self.source if self.via == RF_GATED else ""

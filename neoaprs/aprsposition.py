@@ -7,16 +7,15 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import NamedTuple
 
-from neoaprs.aprsextension import MILE_KM, Extensions, split_bearing, split_dao, split_extension, split_sign, with_dao
+from neoaprs.aprsextension import Extensions, split_bearing, split_dao, split_extension, split_sign, with_dao
 from neoaprs.aprsfreq import Frequency, split_frequency
 from neoaprs.aprsstorm import Storm, split_storm
 from neoaprs.aprstelemetry import split_comment_telemetry
-from neoaprs.aprsweather import MPH_KMH, Weather, parse_weather
+from neoaprs.aprsweather import Weather, parse_weather
 from neoaprs.packet import Position, decode_text
 from neoaprs.symbols import table_of
+from neoaprs.units import FOOT_M, KNOT_KMH, MILE_KM
 
-KNOT_KMH = 1.852
-FOOT_M = 0.3048
 FUTURE_TOLERANCE = timedelta(hours=1)                 # a clock that runs ahead of ours by up to an hour is still "now" (a station's clock is often minutes fast; a month back would be the other reading)
 _AMBIGUITY_UNIT = (10, 100, 1000, 6000)               # hundredths of a minute that one to four blanked digits leave unknown
 _COURSE_SPEED = re.compile(r"(\d{3})/(\d{3})")
@@ -150,7 +149,7 @@ def _compressed_wind(cs: bytes) -> tuple[int, float] | None:
     """The wind direction and speed in the cs bytes of a weather station's compressed position (the same coding as course and speed; the speed is in miles per hour, like the other wind speeds of a weather report)."""
     if cs[0] == 0x20 or cs[0] - 33 > 89:
         return None
-    return (cs[0] - 33) * 4, round((1.08 ** (cs[1] - 33) - 1) * MPH_KMH, 1)
+    return (cs[0] - 33) * 4, round((1.08 ** (cs[1] - 33) - 1) * MILE_KM, 1)
 
 
 def _compressed_motion(cs: bytes, t: int) -> tuple[int | None, float | None, float | None, Extensions | None]:

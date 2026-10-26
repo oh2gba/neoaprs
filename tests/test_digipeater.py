@@ -261,9 +261,9 @@ def test_bytes_that_do_not_decode_as_a_frame_are_not_repeated_and_not_an_error()
     assert rig.tnc.sent == []
 
 
-def test_the_table_of_what_was_heard_is_cleared_of_the_old_when_it_grows_too_large(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("neoaprs.services.digipeater._SEEN_MAX", 5)
+def test_the_table_of_what_was_heard_is_cleared_of_the_old_when_it_grows_too_large() -> None:
     rig = Rig()
+    rig.digi._seen.keep_max = 5
     for n in range(6):                                                       # (six packets that are not ours to repeat, heard at the same minute)
         rig.hear(frame("WIDE2-1", info=b">%d" % n))
     rig.clock.advance(DUPLICATE_SEC + 1)

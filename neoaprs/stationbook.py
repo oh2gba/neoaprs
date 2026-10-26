@@ -2,7 +2,10 @@
 and the composition root (wiring.py) connects the two.
 
 A packet applies to the book in `take`. The sender of every packet heard counts as heard (a message or a telemetry packet gives no position, but the station is on the air), and the route the packet came by, direct or through which
-digipeaters (route.py), is counted for the sender. A position sets where the sender is; an object or an item is a station of its own, named by the object and marked with who reported it, and removed again when the report says it was killed. A packet from our own call, heard on the air (our beacon repeated or echoed), moves only the time we were last heard: where we are is the settings'."""
+digipeaters (route.py), is counted for the sender. A position sets where the sender is; an object or an item is a station of its own, named by the object and marked with who reported it, and removed again when the report says it was killed. A packet from our own call, heard on the air (our beacon repeated or echoed), moves only the time we were last heard: where we are is the settings'.
+
+A name is one entry, and a station that transmits wins it: an object or item reported under the call of a station in the book (a club posting the object of the local digipeater, which beacons itself) is not taken, and its
+kill does not take the station out; a station that transmits under the name of an object heard before is the station from then on, and the object is forgotten. Our own station and our own objects are never replaced by a report."""
 from collections.abc import Iterable, Mapping
 from datetime import datetime
 
@@ -75,7 +78,7 @@ class StationBook:
             if call not in started:
                 started.add(call)
                 station.track.clear()
-            self._track(station, when, lat, lon)
+            add_track_point(station.track, when, lat, lon)
 
     def seed_weather(self, latest: Mapping[str, tuple[datetime, Weather]]) -> None:
         """The newest observation of each station the weather log kept, as (when, what); a station that is not in the book is left out. Nothing is signalled."""
@@ -276,8 +279,8 @@ class StationBook:
 
     def _heard(self, call: str, packet: Packet) -> Station:
         station = self._stations.get(call)
-        if station is None:
-            station = self._stations[call] = Station(call, first_heard=packet.heard_at, last_heard=packet.heard_at, is_me=call == self._me)
+        if station is None or (station.kind != "station" and not station.own):      # (an object heard under this call before gives way to the station that transmits under it)
+            station = self._stations[call] = Station(call, first_heard=packet.heard_at, last_heard=packet.heard_at)
         note_heard(station, packet)
         return station
 
@@ -293,15 +296,13 @@ class StationBook:
         station.last_position_at = when
         if position.weather is not None:
             station.weather, station.weather_at = position.weather, when
-        self._track(station, when, position.lat, position.lon)
-
-    @staticmethod
-    def _track(station: Station, when: datetime, lat: float, lon: float) -> None:
-        add_track_point(station.track, when, lat, lon)
+        add_track_point(station.track, when, position.lat, position.lon)
 
     def _named(self, packet: Packet, report: ObjectReport | ItemReport) -> Station | None:
-        """The station an object or item report is about."""
+        """The station an object or item report is about; None for a kill, and for a report under the call of a station in the book (ours too), which it leaves alone."""
         station = self._stations.get(report.name)
+        if station is not None and (station.is_me or station.kind == "station"):
+            return None
         if not report.alive:
             if station is not None and not station.own:         # (another station's kill does not end an object of ours)
                 del self._stations[report.name]

@@ -174,7 +174,7 @@ class AprsIs(Source):
     async def _run(self, generation: int) -> None:
         while generation == self._generation:
             problem = await self._attempt()
-            if problem is None or generation != self._generation:
+            if generation != self._generation:
                 return
             delay = self.backoff.next_delay_sec()
             log.warning("aprsis: %s; trying again in %g s", problem, delay)
@@ -183,8 +183,8 @@ class AprsIs(Source):
             self._note(f"{problem}; trying again in {delay:g} s")
             await asyncio.sleep(delay)
 
-    async def _attempt(self) -> str | None:
-        """One connection, from opening to its end: why it ended."""
+    async def _attempt(self) -> str:
+        """One connection, from opening to its end: why it ended (the serving of a connection ends only by raising)."""
         self._set_state(Source.State.CONNECTING)
         writer: asyncio.StreamWriter | None = None
         try:

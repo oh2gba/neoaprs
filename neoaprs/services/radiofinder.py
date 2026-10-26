@@ -110,8 +110,8 @@ class RadioFinder:
         self._speedless = await asyncio.to_thread(serialprobe.bluetooth_com_keys)
         total = sum(len(speeds_for(p, self._speedless)) for p in paths)
         number = 0
-        await self._hold()
         try:
+            await self._hold()
             for path in paths:
                 found = await self._try_port(path, number, total, trying)
                 number += len(speeds_for(path, self._speedless))

@@ -24,6 +24,7 @@ from neoaprs.coded import CodedError
 from neoaprs.configtypes import over_the_air_refusal
 from neoaprs.message import path_choice
 from neoaprs.route import DIRECT_ONLY
+from neoaprs.units import KNOT_KMH
 
 Kind = Literal["object", "item"]
 KINDS: tuple[str, ...] = get_args(Kind)
@@ -34,7 +35,6 @@ NAME_FORBIDDEN = "!_|~"
 COMMENT_MAX = MAX_COMMENT                    # without a data extension
 COMMENT_MAX_MOTION = MAX_COMMENT_PHG         # behind the course and speed
 COURSE_MAX = 359                             # degrees from north; the course 360 is how north is written on the air
-KNOT_KMH = 1.852
 SPEED_MAX_KMH = 999 * KNOT_KMH               # three digits of knots
 QRU_GROUP_MAX = 8                            # the longest group name of the list of QRU servers (LIFEBOAT)
 QRU_RESERVED = ("INFO", "NEXT")              # what a station says to QRU that is not a group: the list of groups, the next objects of the last group

@@ -21,6 +21,7 @@ def test_the_specs_report() -> None:
     ("T#005,199,000,255,073,123,0110", Telemetry(5, [199, 0, 255, 73, 123], "0110")),                               # fewer than eight bits
     ("T#005,199,000,255,073,123,0110100x", Telemetry(5, [199, 0, 255, 73, 123], "0110100", "x")),
     ("T#7,1,.5,-2 note", Telemetry(7, [1, 0.5], "", "-2 note")),                                                    # a field that is no number ends the values
+    ("T#005,199,000,255,073,123,01101001,Balloon 3", Telemetry(5, [199, 0, 255, 73, 123], "01101001", "Balloon 3")),  # a comma between the bits and the comment, as most senders write it
 ])
 def test_the_forms_of_aprs_1_2(text: str, want: Telemetry) -> None:
     assert parse_telemetry(text) == want

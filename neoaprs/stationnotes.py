@@ -5,7 +5,7 @@ from datetime import datetime
 
 from .aprstelemetry import Telemetry, TelemetryDefinition, apply_definition, is_definition
 from .bulletin import board_slot
-from .device import MICE_BODY, MICE_DUMB, MICE_IDENTIFIERS, inner
+from .device import MICE_BODY, MICE_DUMB, MICE_IDENTIFIERS
 from .packet import DUMMY, IS, RF_GATED, ItemReport, Message, ObjectReport, Other, Packet, Position
 from .reach import mark_of, pushed, reach_of
 from .route import route_of
@@ -83,7 +83,7 @@ def note_messaging(station: Station, packet: Packet) -> None:
         if board_slot(decoded.addressee) is None and not is_definition(decoded.text):
             station.sent_message = True
     elif isinstance(decoded, Position):
-        info = inner(packet)[1]
+        info = packet.inner_info
         station.position_messaging = decoded.messaging or (info[:1] in MICE_IDENTIFIERS and info[MICE_BODY:MICE_BODY + 1] != MICE_DUMB)
 
 

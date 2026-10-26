@@ -192,6 +192,9 @@ async def _serve(controller: Controller, stop: asyncio.Event, log: logging.Logge
         log.error("the database could not be used: %s", e)
         await controller.stop()
         return DATABASE_UNUSABLE
+    except BaseException:
+        await controller.stop()                                 # (whatever failed, the port, the page's listener and the database thread are not left behind)
+        raise
     log.info("%s is running", PROGRAM)
     stopfile.clear_restart(controller.data_dir)              # (a restart as a new version is over)
     selfreplace.remove_old(appimage_file())

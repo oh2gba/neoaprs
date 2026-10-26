@@ -34,6 +34,7 @@ class DummyPort(TncPort):
     async def open(self) -> None:
         self.scene = Scene(self._where(), self._clock(), self._seed)
         self._task = asyncio.get_running_loop().create_task(self._play(self.scene), name="dummy-radio")
+        self._task.add_done_callback(self._ended)
         log.info("tnc: the dummy radio makes traffic round %.4f, %.4f", *self.scene.centre)
 
     def close(self) -> None:
@@ -51,6 +52,12 @@ class DummyPort(TncPort):
             except ax25.Ax25Error:
                 continue
         return len(data)
+
+    def _ended(self, task: "asyncio.Task[None]") -> None:
+        """The scene's task ended by itself (a fault in the scene): the line is lost, as a serial line that dies is, so that the Tnc does not stay CONNECTED on a line that plays nothing."""
+        if self._task is task and not task.cancelled() and task.exception() is not None:
+            self._task = None
+            self._lost(f"the dummy radio stopped: {task.exception()!r}")
 
     async def _play(self, scene: Scene) -> None:
         while True:

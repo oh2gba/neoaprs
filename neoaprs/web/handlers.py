@@ -229,17 +229,24 @@ async def set_station_rf_only(ctx: Ctx, cmd: SetStationRfOnly) -> None:
 @command(SetConfig)
 async def set_config(ctx: Ctx, cmd: SetConfig) -> None:
     """Every value is checked before anything is stored (the first wrong one is the answer, with its key), and the settings in force are the base: a key that is left out keeps its value."""
+    before = after = ctx.ctl.config
+
+    def checked(base: Config) -> Config:
+        nonlocal before, after
+        before = base
+        after = Config.checked(base, cmd.values)
+        return after
+
     try:
-        config = Config.checked(ctx.ctl.config, cmd.values)
+        stored = await ctx.ctl.change_config(checked)
     except SettingError as e:
         raise UserError(f"set_config: {e}", e.code, e.key, e.params) from None
     except ValueError as e:
         raise UserError(f"set_config: {e}") from None
-    before = ctx.ctl.config
-    if not await ctx.ctl.save_config(config):
+    if not stored:
         raise UserError("set_config: the settings could not be stored (the database would not take them); nothing changed", "setting.not_stored")
-    old, new = before.to_data(), config.to_data()
-    for key in before.changed(config):
+    old, new = before.to_data(), after.to_data()
+    for key in before.changed(after):
         log.info("settings: %s = %s (was %s)", key, shown(key, new[key]), shown(key, old[key]))
 
 

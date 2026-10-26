@@ -128,6 +128,7 @@ class Tnc(TimedSource):
         if self.state is not Source.State.STOPPED:
             await self.stop()
         self._probe_next = False
+        self.backoff.reset()                                    # (a start is a fresh try: the waits of the opens that failed before do not count)
         await self._connect()
 
     async def stop(self) -> None:

@@ -9,8 +9,7 @@ Pure code, like the rest of the foundation."""
 import re
 from dataclasses import dataclass
 
-MPH_KMH = 1.609344
-INCH_MM = 25.4
+from neoaprs.units import INCH_MM, MILE_KM, fahrenheit_to_celsius
 
 _WIND = re.compile(r"(\d{2,3}|\.{2,3}| {2,3})/(\d{3}|\.{3}| {3})")           # the wind of a position: direction (2 or 3 digits, some stations send two) and speed
 _FIELDS = {letter: re.compile(rf"(\d{{{width}}}|\.{{{width}}}| {{{width}}})") for letter, width in
@@ -93,8 +92,8 @@ def _weather(fields: dict[str, int | None], snow: float | None, raw: str) -> Wea
     fahrenheit = fields.get("t")
     pressure = fields.get("b")
     weather = Weather(
-        wind_dir=direction if direction is not None and direction <= _MAX_DIRECTION else None, wind_kmh=_scaled(fields.get("s"), MPH_KMH), gust_kmh=_scaled(fields.get("g"), MPH_KMH),
-        temp_c=None if fahrenheit is None else round((fahrenheit - 32) * 5 / 9, 1), humidity=_humidity(fields.get("h")), pressure_hpa=None if pressure is None else pressure / 10,
+        wind_dir=direction if direction is not None and direction <= _MAX_DIRECTION else None, wind_kmh=_scaled(fields.get("s"), MILE_KM), gust_kmh=_scaled(fields.get("g"), MILE_KM),
+        temp_c=None if fahrenheit is None else round(fahrenheit_to_celsius(fahrenheit), 1), humidity=_humidity(fields.get("h")), pressure_hpa=None if pressure is None else pressure / 10,
         rain_1h_mm=_scaled(fields.get("r"), 0.254), rain_24h_mm=_scaled(fields.get("p"), 0.254), rain_today_mm=_scaled(fields.get("P"), 0.254),
         luminosity=_luminosity(fields), snow_mm=_scaled(snow, INCH_MM), rain_counter=fields.get("#"), raw=raw)
     return weather if any(getattr(weather, name) is not None for name in _VALUES) else None

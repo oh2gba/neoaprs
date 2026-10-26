@@ -34,7 +34,7 @@ def test_the_digipeater_repeats_a_packet_of_the_radio_and_not_the_same_packet_fr
     f = frame("WIDE1-1", info=INFO)
     on_the_radio = packet_of("in", ax25.encode(f), f, rig.clock())
     rig.digi.on_packet(internet(on_the_radio))
-    assert rig.tnc.sent == [] and rig.digi._seen == {}, "nothing sent, and not remembered as heard either"
+    assert rig.tnc.sent == [] and len(rig.digi._seen) == 0, "nothing sent, and not remembered as heard either"
     rig.digi.on_packet(on_the_radio)
     assert rig.lines() == [f"OH2XYZ>APRS,OH2GBA*:{INFO.decode()}"], "the radio's copy is repeated, which an earlier internet copy did not prevent"
 

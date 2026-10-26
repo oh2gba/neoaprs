@@ -36,6 +36,7 @@ from neoaprs.signal import Signal
 from neoaprs.smartbeacon import Reason
 from neoaprs.source import Source
 from neoaprs.tasks import TaskSet
+from neoaprs.units import FOOT_M
 
 log = logging.getLogger("neoaprs.beacon")
 
@@ -44,7 +45,6 @@ TICK_SEC = 1.0
 RETRY_SEC = 5.0
 MOBILE_GIVE_UP_SEC = 60.0                                       # a mobile beacon the Tnc refused ATTEMPTS times is tried again this much later, with the fix of then
 ATTEMPTS = 6                                                    # the Tnc refusing the frame this many times in a row skips the interval
-_FEET_PER_METRE = 3.2808
 
 
 class BeaconError(ValueError):
@@ -63,7 +63,7 @@ def phg_text(power_w: int, height_m: float, gain_db: int, direction: str) -> str
     """The PHG data extension `PHGphgd`: p is the square root of the power in watts, h the base-2 logarithm of the height in tens of feet, g the gain in dB and d the directivity (0 omni, 1 NE,
     2 E ... 7 NW, 8 N, the specification's order); p and h rounded and held to 0 to 9."""
     p = min(9, _round_half_up(math.sqrt(power_w)))
-    feet = height_m * _FEET_PER_METRE
+    feet = height_m / FOOT_M
     h = 0 if feet <= 10 else min(9, _round_half_up(math.log2(feet / 10)))
     return f"PHG{p}{h}{min(9, max(0, gain_db))}{ANTENNA_DIRECTIONS.index(direction)}"
 

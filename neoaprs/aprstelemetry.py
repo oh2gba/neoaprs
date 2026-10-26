@@ -61,7 +61,7 @@ class TelemetryView:
 
 def parse_telemetry(info: str) -> Telemetry | None:
     """The report in an information field (with its `T`); None when it is not one. As APRS 1.2 has it: the sequence number, or `MIC` with or without a comma; 1 to 5 analog values of any width,
-    signed, with a decimal point (`-7.3`); the bits (1 to 8 of them) only after the fifth value; then the comment."""
+    signed, with a decimal point (`-7.3`); the bits (1 to 8 of them) only after the fifth value; then the comment (after a comma, when the sender put one)."""
     head = _SEQUENCE.match(info)
     if not head:
         return None
@@ -73,7 +73,7 @@ def parse_telemetry(info: str) -> Telemetry | None:
         return None
     analog, rest = [float(v) for v in fields[:count]], ",".join(fields[count:])
     bits = _BITS.match(rest) if count == _ANALOG else None
-    return Telemetry(None if head.group(1) is None else int(head.group(1)), analog, bits.group() if bits else "", rest[bits.end() if bits else 0:].strip())
+    return Telemetry(None if head.group(1) is None else int(head.group(1)), analog, bits.group() if bits else "", rest[bits.end() if bits else 0:].lstrip(",").strip())
 
 
 def split_comment_telemetry(text: str) -> tuple[str, Telemetry | None]:

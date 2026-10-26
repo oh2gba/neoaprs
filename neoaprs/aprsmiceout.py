@@ -1,6 +1,7 @@
 """A position as a Mic-E packet (the other direction of aprsmice.py): the destination address that carries the latitude, and the information field that carries the longitude, speed, course and symbol. Used by the
 Dummy radio (dummyscene.py) to make traffic that the parser reads like a car's tracker."""
-from neoaprs.aprsposition import HUNDREDTHS_PER_DEGREE, KNOT_KMH
+from neoaprs.aprsposition import HUNDREDTHS_PER_DEGREE
+from neoaprs.units import KNOT_KMH
 
 OFF_DUTY = (1, 1, 1)                 # the standard message bits of "Off Duty", which trackers send as a rule (index 7 of aprsmice's list); the three bits of the first three destination characters
 

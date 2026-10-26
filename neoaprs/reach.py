@@ -7,16 +7,14 @@ program, and it was never on the air. A path that says neither (`qAZ`, a trace, 
 A station keeps the way of its latest internet packet (`Reach`) and the two latest different routes of its packets of any channel (`RouteMark`): the map draws the latest and the one before it, and no others.
 
 Pure code: a path is the strings of `Packet.path`, each with its own star."""
-import re
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
 
 from .packet import IS, Packet
-from .route import digipeaters, route_of
+from .route import digipeaters, is_q_construct, route_of
 
 MARKS_KEPT = 2                                      # the routes of a station that are kept: the latest and the one before it that was another
-_Q = re.compile(r"q[A-Za-z]{2}")
 _IGATE_QS = frozenset({"qAR", "qAr", "qAO", "qAo"})     # an iGate heard it on the radio (qAO: one that only listens)
 _CLIENT_QS = frozenset({"qAC", "qAS", "qAX", "qAU"})    # a client sent it into the network
 _CLIENT_MARKERS = ("TCPIP", "TCPXX")
@@ -35,7 +33,7 @@ class Reach:
 
 def reach_of_path(path: tuple[str, ...]) -> Reach | None:
     """The way an APRS-IS path says the packet got into the network; None when it says neither (no q-construct and no TCPIP, a trace, an iGate q-construct with no call after it)."""
-    at = next((i for i, element in enumerate(path) if _Q.fullmatch(element)), None)
+    at = next((i for i, element in enumerate(path) if is_q_construct(element)), None)
     if at is None:
         return Reach("app") if any(element.rstrip("*").startswith(_CLIENT_MARKERS) for element in path) else None
     code, after = path[at], path[at + 1].rstrip("*") if at + 1 < len(path) else ""

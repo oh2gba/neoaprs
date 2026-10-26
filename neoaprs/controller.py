@@ -149,7 +149,16 @@ class Controller(Services):
     # ---- the settings
     async def save_config(self, config: Config) -> bool:
         """Stores every setting, puts them in force, and restarts the Tnc when the port, the speed or entering KISS changed. False when the
-        database would not take them (nothing changed)."""
+        database would not take them (nothing changed). The settings are a whole: a change made of the settings in force goes through `change_config`, so that two that overlap keep each other's keys."""
+        async with self.config_lock:
+            return await self._save(config)
+
+    async def change_config(self, change: Callable[[Config], Config]) -> bool:
+        """Stores the settings that `change` makes of the ones in force, read under the lock, and puts them in force as save_config does; what `change` raises (a SettingError) is raised, and nothing is stored."""
+        async with self.config_lock:
+            return await self._save(change(self.config))
+
+    async def _save(self, config: Config) -> bool:
         if not await self.store.put_settings(config.to_data()):
             return False
         before = wiring.tnc_settings(self.config, self.port_override, self.pattern_override)

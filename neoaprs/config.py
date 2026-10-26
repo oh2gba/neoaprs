@@ -75,6 +75,14 @@ def _show(value: Any) -> str:
     return str(value)
 
 
+def _host_port(text: str) -> tuple[str, int] | None:
+    """A `host:port` as the pair (the name may be an IPv6 address in brackets); None for an empty text."""
+    if not text:
+        return None
+    host, _, port = text.rpartition(":")
+    return host.strip("[]"), int(port)
+
+
 @dataclass(frozen=True)
 class Setting:
     attr: str                        # the field of Config
@@ -255,18 +263,12 @@ class Config:
     @property
     def status_rig_address(self) -> tuple[str, int] | None:
         """status/rigctld as host and port, None while it is empty or the status does not come from the radio."""
-        if not self.status_rigctld or self.status_choice != "rig":
-            return None
-        host, _, port = self.status_rigctld.rpartition(":")
-        return host.strip("[]"), int(port)
+        return _host_port(self.status_rigctld) if self.status_choice == "rig" else None
 
     @property
     def igate_address(self) -> tuple[str, int] | None:
         """igate/server as host and port, None while it is empty."""
-        if not self.igate_server:
-            return None
-        host, _, port = self.igate_server.rpartition(":")
-        return host.strip("[]"), int(port)
+        return _host_port(self.igate_server)
 
     @property
     def beacon_path_calls(self) -> tuple[str, ...]:

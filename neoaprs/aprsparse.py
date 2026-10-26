@@ -16,8 +16,7 @@ from neoaprs.aprstelemetry import parse_telemetry
 from neoaprs.aprsweather import parse_report
 from neoaprs.packet import Decoded, ItemReport, ObjectReport, Other, Position, Status, Undecoded, decode_text
 
-_OTHER_KINDS = {b"T": "telemetry", b"_": "weather", b"$": "nmea", b"?": "query", b"}": "third-party", b"{": "user-defined", b"#": "weather", b"*": "weather", b",": "test", b"<": "capabilities",
-                b"%": "agrelo-df", b"+": "shelter", b".": "space-weather"}
+_OTHER_KINDS = {b"?": "query", b"}": "third-party", b"{": "user-defined", b"#": "weather", b"*": "weather", b",": "test", b"+": "shelter", b".": "space-weather"}      # the data types that are only named (the decoded ones are in _HANDLERS)
 _MICE = (b"'", b"`", b"\x1c", b"\x1d")
 _OBJECT_HEAD = 9 + 1 + 7                              # name, "*" or "_", timestamp: the position follows
 _ITEM_NAME = range(3, 10)                             # where the "!" or "_" that ends an item's name can be
@@ -32,7 +31,10 @@ def _named(name: str, position: Position) -> Position:
     return position if frequency is position.frequency else replace(position, frequency=frequency, comment=comment)
 
 
-def _object(body: bytes, now: datetime) -> ObjectReport:
+# Every decoder takes the whole information field (its data type identifier first), the source and destination calls and `now`, whether it needs them or not: one shape, so that _HANDLERS can hold them all.
+
+def _object(info: bytes, source: str, destination: str, now: datetime) -> Decoded:
+    body = info[1:]
     if len(body) <= _OBJECT_HEAD:
         raise PositionError("object too short")
     status = body[9:10]
@@ -43,7 +45,8 @@ def _object(body: bytes, now: datetime) -> ObjectReport:
     return ObjectReport(name, status == b"*", position, position.timestamp)
 
 
-def _item(body: bytes, now: datetime) -> ItemReport:
+def _item(info: bytes, source: str, destination: str, now: datetime) -> Decoded:
+    body = info[1:]
     ends = [i for i in _ITEM_NAME if body[i:i + 1] in (b"!", b"_")]
     if not ends:
         raise PositionError("item name has no ! or _ after three to nine characters")
@@ -52,7 +55,8 @@ def _item(body: bytes, now: datetime) -> ItemReport:
     return ItemReport(name, body[end:end + 1] == b"!", _named(name, parse_position(body[end + 1:], now)))
 
 
-def _status(body: bytes, now: datetime) -> Status:
+def _status(info: bytes, source: str, destination: str, now: datetime) -> Decoded:
+    body = info[1:]
     if len(body) >= 7 and body[:6].isdigit() and body[6:7] == b"z":
         text, frequency = split_frequency(decode_text(body[7:]).strip())
         return Status(text, resolve_timestamp(body[:7], now), frequency=frequency)
@@ -62,7 +66,7 @@ def _status(body: bytes, now: datetime) -> Status:
     return Status(text, None, locator, frequency)
 
 
-def _capabilities(info: bytes) -> Other:
+def _capabilities(info: bytes, source: str, destination: str, now: datetime) -> Decoded:
     """The items of a station's capabilities, TOKEN or TOKEN=VALUE separated by commas."""
     text = decode_text(info)
     items: dict[str, str] = {}
@@ -73,13 +77,13 @@ def _capabilities(info: bytes) -> Other:
     return Other("capabilities", text, items=items)
 
 
-def _agrelo(info: bytes) -> Other:
+def _agrelo(info: bytes, source: str, destination: str, now: datetime) -> Decoded:
     text = decode_text(info)
     found = _AGRELO.match(text)
     return Other("agrelo-df", text, items=None if found is None else {"bearing": found.group(1), "quality": found.group(2)})
 
 
-def _weather_report(info: bytes, now: datetime) -> Other:
+def _weather_report(info: bytes, source: str, destination: str, now: datetime) -> Decoded:
     """A positionless weather report: the observation, and the time of its MMDDhhmm when that is a date."""
     text = decode_text(info)
     try:
@@ -89,8 +93,8 @@ def _weather_report(info: bytes, now: datetime) -> Other:
     return Other("weather", text, parse_report(info), timestamp=at)
 
 
-def _locator_beacon(body: bytes) -> Position:
-    found = split_beacon(decode_text(body))
+def _locator_beacon(info: bytes, source: str, destination: str, now: datetime) -> Decoded:
+    found = split_beacon(decode_text(info[1:]))
     if found is None:
         raise PositionError("no Maidenhead locator")
     locator, comment = found
@@ -122,39 +126,11 @@ def _message(info: bytes, source: str, destination: str, now: datetime) -> Decod
     return parse_message(info[1:])
 
 
-def _object_of(info: bytes, source: str, destination: str, now: datetime) -> Decoded:
-    return _object(info[1:], now)
-
-
-def _item_of(info: bytes, source: str, destination: str, now: datetime) -> Decoded:
-    return _item(info[1:], now)
-
-
-def _status_of(info: bytes, source: str, destination: str, now: datetime) -> Decoded:
-    return _status(info[1:], now)
-
-
-def _beacon_of(info: bytes, source: str, destination: str, now: datetime) -> Decoded:
-    return _locator_beacon(info[1:])
-
-
-def _weather_of(info: bytes, source: str, destination: str, now: datetime) -> Decoded:
-    return _weather_report(info, now)
-
-
-def _capabilities_of(info: bytes, source: str, destination: str, now: datetime) -> Decoded:
-    return _capabilities(info)
-
-
-def _agrelo_of(info: bytes, source: str, destination: str, now: datetime) -> Decoded:
-    return _agrelo(info)
-
-
 _Handler = Callable[[bytes, str, str, datetime], Decoded]
 # The decoder of each data type identifier that has one; the others are `Other` with the word of `_OTHER_KINDS`.
 _HANDLERS: dict[bytes, _Handler] = {
-    **dict.fromkeys((b"!", b"=", b"/", b"@"), _position), **dict.fromkeys(_MICE, _mice), b":": _message, b";": _object_of, b")": _item_of, b">": _status_of, b"[": _beacon_of, b"_": _weather_of,
-    b"$": _nmea, b"T": _telemetry, b"<": _capabilities_of, b"%": _agrelo_of}
+    **dict.fromkeys((b"!", b"=", b"/", b"@"), _position), **dict.fromkeys(_MICE, _mice), b":": _message, b";": _object, b")": _item, b">": _status, b"[": _locator_beacon, b"_": _weather_report,
+    b"$": _nmea, b"T": _telemetry, b"<": _capabilities, b"%": _agrelo}
 
 
 def _dispatch(first: bytes, info: bytes, source: str, destination: str, now: datetime) -> Decoded:

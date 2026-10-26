@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+Bug fixes on the air and in the station book, and a tidier code base; nothing new to set up.
+
+- **Fixed:** an object or item that another station posts under the call of a station you hear (the club's object of the local digipeater, say) no longer replaces that station on the map, and its kill no longer removes the station; a station that transmits under the name of an object heard before is the station from then on. An object or kill under your own call leaves your station alone.
+- **Fixed:** a TNC that still types command-mode text after the KISS entry is not written to between two repeats of the entry; the first text is told at once.
+- **Fixed:** a directed query written with a `?` at its end (`?APRSP?`) is answered like the plain one.
+- **Fixed:** the comment after the bits of a telemetry report no longer starts with the comma that most senders put there.
+- **Fixed:** a save of the settings from the page and the access key the daemon makes when the network is switched on can no longer overwrite each other; the port the radio was found on shows in the settings at once.
+- **Fixed:** a daemon with no page open no longer builds the page's rows for nobody.
+- **Fixed:** the Dummy radio's made-up stations cannot take over an object of yours; Find my radio gives the radio's line back when it is cancelled during the hold; a start that fails for any reason takes the parts down; a crafted session cookie is refused quietly.
+- Under the hood: the unit factors in one module, one duplicate-window class for the digipeater, the iGate and the answers, one decoder shape in the parser, the inner field of a third-party packet once, and smaller cleanups.
+
 ## 0.10.1
 
 Local info from stations near you, a clearer top bar, the call with an SSID list, and a calmer page; under the hood, more tests and tidier code.

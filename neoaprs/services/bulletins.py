@@ -45,7 +45,7 @@ class Bulletins:
         text = message.text.strip()
         if not packet.on_air or found is None or not text:
             return                                                   # (the board is what was heard on the radio)
-        key = f"{packet.sender}/{found.slot}"
+        key = key_of(packet.sender, found.slot)
         before = self._board.get(key)
         at = packet.heard_at
         if before is None or before.text != text:

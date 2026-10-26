@@ -12,6 +12,7 @@ The net cycle time follows the path (the spec's chapter 2, point 4): 10 minutes 
 No packet of one thing goes out less than MIN_GAP_SEC after the one before it, whatever the change."""
 import re
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 
 from neoaprs.route import digipeaters
 
@@ -43,6 +44,11 @@ def net_cycle_sec(path: tuple[str, ...]) -> int:
 def object_wait_sec(sent: int, path: tuple[str, ...]) -> int:
     """How long after the `sent`-th transmission (1 or more) of a live object or item the next is due: 60, 120, 240 ... seconds, never more than the net cycle time of the path."""
     return min(FIRST_WAIT_SEC << (max(sent, 1) - 1), net_cycle_sec(path))
+
+
+def first_due(changed_at: datetime, last_sent_at: datetime | None) -> datetime:
+    """When the first packet of a thing that is new, changed or just killed is due: at once, but no sooner than MIN_GAP_SEC after the last packet of it (`last_sent_at`, None when there was none)."""
+    return changed_at if last_sent_at is None else max(changed_at, last_sent_at + timedelta(seconds=MIN_GAP_SEC))
 
 
 def kill_wait_sec(sent: int) -> int | None:

@@ -28,6 +28,7 @@ log = logging.getLogger("neoaprs.web")
 
 COOKIE = "neoaprs_session"
 SESSION_DAYS = 365
+_EXPIRES_DIGITS = 12                    # the most digits the expiry of a session token has (a Unix time has 10 until the year 2286)
 MAX_WRONG = 5                              # wrong keys from one address in WRONG_WINDOW_SEC, then it is shut out for BLOCK_SEC
 WRONG_WINDOW_SEC = 60.0
 BLOCK_SEC = 300.0
@@ -84,7 +85,9 @@ class Access:
     def _session_valid(self, token: str, key: str) -> bool:
         body, _, mac = token.rpartition(".")
         expires = body.split(".", 1)[0]
-        return expires.isdigit() and int(expires) > self._clock().timestamp() and hmac.compare_digest(mac.encode(), _mac(key, body).encode())
+        if not (expires.isascii() and expires.isdigit() and len(expires) <= _EXPIRES_DIGITS):          # (a crafted cookie with other digits, or thousands of them, is no session, not an error)
+            return False
+        return int(expires) > self._clock().timestamp() and hmac.compare_digest(mac.encode(), _mac(key, body).encode())
 
     def allowed(self, request: tornado.httputil.HTTPServerRequest) -> bool:
         """May this request have what carries data? Anything from this computer; from elsewhere only with a session of the key in force, and only while the network is on."""

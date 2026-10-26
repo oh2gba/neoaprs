@@ -2,8 +2,9 @@
 the layout of chapter 9: 13 bytes `/YYYYXXXX$csT`."""
 import pytest
 
-from neoaprs.aprsposition import COMPRESSED_COMMENT_MAX, KNOT_KMH, FOOT_M, altitude_text, compressed_comment, compressed_position, parse_position
+from neoaprs.aprsposition import COMPRESSED_COMMENT_MAX, altitude_text, compressed_comment, compressed_position, parse_position
 from neoaprs.clock import utc
+from neoaprs.units import FOOT_M, KNOT_KMH
 
 NOW = utc(2026, 10, 25, 12, 0, 0)
 

@@ -5,7 +5,6 @@ of the loopback, for the tests of the socket on its own (the daemon's Api and th
     ws = await websocket_connect(host.url)         # a real WebSocket client
     host.api.sockets                               # the Socket handlers that were attached, in order
     host.api.commands                              # (the handler, the text) of every command
-    host.api.fail = ("[", RecursionError())        # what on_command raises for a command that begins so
 """
 import asyncio
 from typing import Any
@@ -25,14 +24,11 @@ class FakeApi:
         self.sockets: list[Socket] = []
         self.commands: list[tuple[Socket, str]] = []
         self.detached: list[Socket] = []
-        self.fail: tuple[str, BaseException] | None = None
 
     def attach(self, socket: Socket, ip: str = "") -> None:
         self.sockets.append(socket)
 
     def on_command(self, socket: Socket, text: str) -> None:
-        if self.fail is not None and text.startswith(self.fail[0]):
-            raise self.fail[1]
         self.commands.append((socket, text))
 
     def detach(self, socket: Socket) -> None:

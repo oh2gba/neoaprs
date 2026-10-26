@@ -7,7 +7,6 @@ import re
 from collections.abc import Iterable
 from functools import cache
 
-from .aprsthirdparty import header_of
 from .devicedata import MICE, MICE_LEGACY, TOCALLS
 from .packet import Packet, Position
 
@@ -56,16 +55,10 @@ def table() -> DeviceTable:
     return DeviceTable(TOCALLS, MICE, MICE_LEGACY)
 
 
-def inner(packet: Packet) -> tuple[str, bytes]:
-    """The destination call and the information field of the packet that is meant: for a third-party packet the one inside, else the packet's own."""
-    opened = header_of(packet.info) if packet.third_party is not None else None
-    return (packet.destination, packet.info) if opened is None else (opened[0].destination, opened[1])
-
-
 def packet_device(packet: Packet, devices: DeviceTable | None = None) -> str:
     """What the sender of a packet runs; empty when its destination is no tocall of the list and it is no Mic-E packet of a device the list knows. For a third-party packet that is the packet inside."""
     devices = devices or table()
-    destination, info = inner(packet)
+    info = packet.inner_info
     if info[:1] in MICE_IDENTIFIERS and isinstance(packet.decoded, Position):
         return devices.by_mice(info[MICE_BODY:].decode("latin-1"))
-    return devices.by_tocall(destination)
+    return devices.by_tocall(packet.destination if packet.third_party is None else packet.third_party.destination)

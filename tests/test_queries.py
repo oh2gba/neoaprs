@@ -151,6 +151,14 @@ def test_the_path_of_a_direct_query_is_just_the_header_and_a_long_one_loses_its_
 
 # ---- what a query carries ------------------------------------------------------------------------------------------------------------------------
 
+@pytest.mark.parametrize("query", ["?APRSD?", "?APRSP?"])
+def test_a_directed_query_with_a_question_mark_at_its_end_is_answered_like_the_plain_one(query: str) -> None:
+    """A radio may write every query with the `?` of ?PING? and ?APRS?; message.is_query takes it, so the message is not kept, and the answer must come all the same."""
+    rig = Rig()
+    rig.ask("OH2RDG", query)
+    assert len(rig.tnc.sent) == 1
+
+
 def test_a_query_with_a_message_id_is_answered_all_the_same_and_the_answer_has_no_id() -> None:
     rig = Rig()
     rig.ask("OH2RDG", "?APRSD", msg_id="12")
@@ -170,7 +178,7 @@ def test_the_same_query_from_the_same_station_within_half_a_minute_is_answered_o
     assert len(rig.tnc.sent) == 3
 
 
-@pytest.mark.parametrize("text, to", [("?APRSP", "OH2XYZ"), ("?APRSPX", "OH2GBA"), ("hello ?APRSP", "OH2GBA"), ("APRSP", "OH2GBA"), ("", "OH2GBA"), ("?APRS", "OH2GBA"), ("?APRSD?", "OH2GBA")])
+@pytest.mark.parametrize("text, to", [("?APRSP", "OH2XYZ"), ("?APRSPX", "OH2GBA"), ("hello ?APRSP", "OH2GBA"), ("APRSP", "OH2GBA"), ("", "OH2GBA"), ("?APRS", "OH2GBA"), ("?APRSD??", "OH2GBA"), ("?APRSH?", "OH2GBA")])
 def test_what_is_not_a_query_to_us_is_left_alone(text: str, to: str) -> None:
     rig = Rig()
     rig.ask("OH2RDG", text, to=to)

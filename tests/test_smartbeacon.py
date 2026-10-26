@@ -4,7 +4,8 @@ from datetime import timedelta
 import pytest
 
 from neoaprs.clock import utc
-from neoaprs.smartbeacon import MPH_KMH, Decision, Sent, SmartSettings, decide, heading_change_deg, rate_sec, turn_threshold_deg
+from neoaprs.units import MILE_KM
+from neoaprs.smartbeacon import Decision, Sent, SmartSettings, decide, heading_change_deg, rate_sec, turn_threshold_deg
 
 S = SmartSettings()
 T0 = utc(2026, 10, 25, 12, 0, 0)
@@ -33,7 +34,7 @@ def test_the_heading_change_is_the_smaller_angle_between_the_courses(now: int, t
 
 
 @pytest.mark.parametrize(("kmh", "degrees"), [
-    (10.0, 30 + 255 / (10.0 / MPH_KMH)), (30.0, 30 + 255 / (30.0 / MPH_KMH)), (60.0, 30 + 255 / (60.0 / MPH_KMH)), (100.0, 30 + 255 / (100.0 / MPH_KMH))])
+    (10.0, 30 + 255 / (10.0 / MILE_KM)), (30.0, 30 + 255 / (30.0 / MILE_KM)), (60.0, 30 + 255 / (60.0 / MILE_KM)), (100.0, 30 + 255 / (100.0 / MILE_KM))])
 def test_the_turn_threshold_is_the_minimum_plus_the_slope_over_the_speed_in_miles_per_hour(kmh: float, degrees: float) -> None:
     assert turn_threshold_deg(S, kmh) == pytest.approx(degrees)
 

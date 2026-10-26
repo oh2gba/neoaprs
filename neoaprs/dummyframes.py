@@ -6,7 +6,8 @@ from datetime import datetime
 from neoaprs import ax25
 from neoaprs.aprsmessage import format_ack, format_message
 from neoaprs.aprsmiceout import mice_packet
-from neoaprs.aprsposition import KNOT_KMH, compressed_position, uncompressed_position
+from neoaprs.aprsposition import compressed_position, uncompressed_position
+from neoaprs.units import KNOT_KMH
 
 PATH = "WIDE1-1,WIDE2-1"                    # what a mobile asks for: the nearest fill-in digipeater, then a wide one
 

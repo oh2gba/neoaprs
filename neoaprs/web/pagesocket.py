@@ -65,10 +65,7 @@ class Socket(SecurityHeaders, tornado.websocket.WebSocketHandler):
             text = message.decode() if isinstance(message, bytes) else message
         except UnicodeDecodeError:
             return                                   # a binary frame that is no text: the page sends none, so it is ignored
-        try:
-            self.server.api.on_command(self, text)
-        except RecursionError:
-            return                                   # JSON nested deeper than the parser can follow
+        self.server.api.on_command(self, text)                 # (a text that is no command is answered with an error by the Api, which raises nothing)
 
     def on_close(self) -> None:
         self.server.api.detach(self)

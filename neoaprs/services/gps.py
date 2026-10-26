@@ -104,7 +104,10 @@ class Gps:
     async def _run(self) -> None:
         while True:
             await asyncio.sleep(self.tick_sec)
-            self._announce()
+            try:
+                self._announce()
+            except Exception:
+                log.exception("the GPS state could not be announced")                    # (the timer goes on)
 
     # ---- what the feed says (connected by the composition root)
     def take(self, fix: Fix) -> None:

@@ -348,6 +348,12 @@ async def test_a_copy_of_our_own_object_that_comes_back_is_no_takeover_and_neith
     assert rig.objects.get("LEADER") is not None and rig.removed == []
 
 
+async def test_a_made_up_station_of_the_dummy_radio_takes_nothing_over(rig: Rig) -> None:
+    rig.make()
+    rig.objects.on_packet(replace(reported("LEADER", rig.clock()), via="dummy"))
+    assert rig.objects.get("LEADER") is not None and rig.removed == [], "an object of the operator's is not lost to a station that is not there"
+
+
 async def test_an_object_that_is_on_request_is_kept_and_never_sent_on_the_schedule(rig: Rig) -> None:
     made = rig.make(qru_group="FOOD", on_request=True)
     assert (made.qru_group, made.on_request) == ("FOOD", True) and rig.objects.next_at("LEADER") is None

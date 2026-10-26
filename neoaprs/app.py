@@ -68,6 +68,7 @@ class Services:
         self.data_dir = data_dir
         self.clock = clock
         self.config: Config = DEFAULTS                                  # the settings; the controller reads them from the database at its start
+        self.config_lock = asyncio.Lock()                               # held while the settings are stored and put in force (Controller.save_config, change_config): a change is made of the settings as they are then
         self.port_override = port                                       # a serial port for this run only (--port): used instead of serial/port, never stored
         self.pattern_override = pattern                                 # the globs the search listens to for this run only, instead of serial/pattern (the tests: a folder of their own)
         self.store = store if store is not None else Store(clock)       # the one database: everything is kept in it

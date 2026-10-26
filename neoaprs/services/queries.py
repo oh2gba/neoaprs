@@ -28,7 +28,6 @@ The general queries `?WX?` (the weather report of a weather station) and `?IGATE
 "a queried station that has no relevant information need not respond" (APRS 1.0.1, chapter 15). Each is a line in the log at DEBUG, and the packet is an ordinary `?` packet of the packet log, not an undecoded one."""
 import asyncio
 import logging
-import math
 import random
 import re
 from collections.abc import Callable, Sequence
@@ -40,6 +39,7 @@ from neoaprs import ax25
 from neoaprs.aprsmessage import MAX_TEXT, MessageError
 from neoaprs.callsign import CallsignError
 from neoaprs.clock import Clock, utcnow
+from neoaprs.geo import distance_km
 from neoaprs.message import MessageRecord, addressed_to, same_call
 from neoaprs.ownobject import OwnObject, info_of
 from neoaprs.packet import Message, Other, Packet
@@ -48,6 +48,7 @@ from neoaprs.services.answers import ANSWER_FRAMES_MAX, Answers
 from neoaprs.services.common import ConfigSource, Radio, our_frame
 from neoaprs.services.pace import SPACING_SEC
 from neoaprs.station import Station
+from neoaprs.units import MILE_KM
 
 log = logging.getLogger("neoaprs.queries")
 
@@ -56,10 +57,9 @@ GENERAL_DELAY_MAX_SEC = 120.0
 GENERAL_EVERY_SEC = 600.0
 DIRECT_WINDOW = timedelta(hours=1)
 MAX_DIRECT_MESSAGES = 2
-EARTH_MILES = 3958.8
 _NUMBER = r"V?\s*([-+]?\d+(?:\.\d+)?)"                                     # (the V is the specification's mark of a positive value)
 _FOOTPRINT = re.compile(rf"\?APRS\?(?:\s*{_NUMBER}\s*[,\s]\s*{_NUMBER}\s*[,\s]\s*(\d{{1,4}}))?", re.IGNORECASE)
-_DIRECTED = {"?APRSP": "position", "?APRSS": "status", "?APRSD": "directs", "?APRST": "path", "?PING?": "path", "?APRSO": "objects", "?APRSM": "messages"}
+_DIRECTED = {"?APRSP": "position", "?APRSS": "status", "?APRSD": "directs", "?APRST": "path", "?PING": "path", "?APRSO": "objects", "?APRSM": "messages"}     # by the text without a trailing "?" (?PING? is written with one; a radio may add one to the others)
 _PACED = ("objects", "messages")                                          # the answers of several frames, sent SPACING_SEC apart
 HEARD_HOURS = 8
 _HEARD = re.compile(r"\?APRSH\s*([A-Z0-9-]{1,9})?")
@@ -136,10 +136,8 @@ class Footprint:
     miles: int
 
     def contains(self, lat: float, lon: float) -> bool:
-        """Whether the point is inside the circle (the great-circle distance on a sphere of radius EARTH_MILES)."""
-        p1, p2 = math.radians(self.lat), math.radians(lat)
-        a = math.sin((p2 - p1) / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(math.radians(lon - self.lon) / 2) ** 2
-        return 2 * EARTH_MILES * math.asin(min(1.0, math.sqrt(a))) <= self.miles
+        """Whether the point is inside the circle (the great-circle distance of neoaprs.geo)."""
+        return distance_km(self.lat, self.lon, lat, lon) / MILE_KM <= self.miles
 
 
 def _is_general(text: str) -> bool:
@@ -210,7 +208,8 @@ class Queries:
                 log.debug("the general query %s of %s has nothing to be answered with here", decoded.text.strip(), packet.sender)
 
     def _to_us(self, packet: Packet, text: str) -> None:
-        """The text of a message to us, upper case: a directed query is answered, any other text is a message."""
+        """The text of a message to us, upper case: a directed query is answered (with or without a `?` at its end), any other text is a message."""
+        text = text.removesuffix("?")
         if text in _DIRECTED:
             self._directed(packet, _DIRECTED[text])
         elif (found := _HEARD.fullmatch(text)) is not None:

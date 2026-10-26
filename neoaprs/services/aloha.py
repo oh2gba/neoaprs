@@ -33,7 +33,10 @@ class Aloha:
     async def _run(self) -> None:
         while True:
             await asyncio.sleep(self.every_sec)
-            self.refresh()
+            try:
+                self.refresh()
+            except Exception:
+                log.exception("the ALOHA circle could not be worked out")                 # (the timer goes on: the circle is worked out again at the next tick)
 
     def refresh(self) -> None:
         """Works the circle out from the stations as they are now."""

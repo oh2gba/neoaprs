@@ -3706,7 +3706,7 @@
    "call": "OH2DPN",
    "can_message": true,
    "course_deg": null,
-   "device": "",
+   "device": "YAAC",
    "distance_km": null,
    "extensions": null,
    "first_heard": "2026-10-21T12:00:00Z",

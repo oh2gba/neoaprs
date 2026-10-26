@@ -14,13 +14,14 @@ delay of PERSIST and SLOTTIME, still decides when a frame is on the air: a softw
 import logging
 from collections import deque
 from dataclasses import replace
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from neoaprs import ax25
 from neoaprs.callsign import parse_call
 from neoaprs.clock import Clock, utcnow
 from neoaprs.interlock import Interlock
 from neoaprs.packet import Packet
+from neoaprs.recent import Recent
 from neoaprs.services.common import ConfigSource, Radio
 from neoaprs.tncwatchdog import TncStats
 
@@ -32,9 +33,8 @@ BURST_WINDOW_SEC = 10.0
 FILL_IN = ("WIDE1", 1)
 INTERNET = frozenset({"TCPIP", "TCPXX"})
 ADDRESS_LEN = 7
-_SEEN_MAX = 2000                                    # the most (source, destination, information field) kept for the duplicate check: a channel does not carry more than this in 30 seconds
 
-Key = tuple[str, str, bytes]
+Key = tuple[str, str, bytes]                        # the source, the destination without its SSID and the information field: what makes two copies of a packet the same one
 
 
 def repeat(frame: ax25.Frame, ours: tuple[str, int]) -> ax25.Frame | None:
@@ -67,7 +67,7 @@ class Digipeater:
         self._interlock = Interlock(config)
         self.clock = clock
         self._stats = stats                                          # the Tnc's counters: `digipeated` counts what went out
-        self._seen: dict[Key, datetime] = {}                         # when each was last heard or sent
+        self._seen: Recent[Key] = Recent(DUPLICATE_SEC)              # the packets heard or sent lately, for the duplicate check
         self._sent: deque[datetime] = deque(maxlen=BURST_MAX)        # when the latest digipeated frames went out
 
     def on_packet(self, packet: Packet) -> None:
@@ -76,9 +76,7 @@ class Digipeater:
         if not config.digi_enabled or not packet.on_air:
             return                                                   # (a packet from the internet was never on the air: there is nothing to repeat)
         now = self.clock()
-        key = (packet.source, packet.destination.partition("-")[0], packet.info)
-        duplicate = self._heard_lately(key, now)
-        self._seen[key] = now
+        duplicate = self._seen.seen((packet.source, packet.destination.partition("-")[0], packet.info), now)
         if packet.direction != "in" or duplicate:
             return
         ours = _own(config.station_call)
@@ -92,13 +90,6 @@ class Digipeater:
         if (frame := repeat(heard, ours)) is None or self._interlock.refused("digipeat"):
             return
         self._send(heard, frame, spliced(packet.raw, heard, frame), now)
-
-    def _heard_lately(self, key: Key, now: datetime) -> bool:
-        window = timedelta(seconds=DUPLICATE_SEC)
-        if len(self._seen) > _SEEN_MAX:
-            self._seen = {k: t for k, t in self._seen.items() if now - t < window}
-        before = self._seen.get(key)
-        return before is not None and now - before < window
 
     def _send(self, heard: ax25.Frame, frame: ax25.Frame, raw: bytes, now: datetime) -> None:
         if not self._tnc.usable:

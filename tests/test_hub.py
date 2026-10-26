@@ -49,6 +49,19 @@ def hub_of() -> tuple[StateHub, dict[str, dict[str, Any]], Seconds]:
 
 # ---- what a patch holds --------------------------------------------------------------------------------------------------------------------------
 
+def test_nothing_is_built_for_a_topic_nobody_follows() -> None:
+    built: list[str] = []
+    hub = StateHub(clock=Seconds())
+    hub.add(Topic("rows", lambda: built.append("whole") or {}, lambda key: built.append(key) or {"k": key}))
+    hub.changed("rows", "a")
+    hub.changed("rows")
+    assert hub.flush() is None and built == [], "a daemon with no page open builds nothing"
+    page = Page()
+    hub.attach(page)
+    hub.changed("rows", "b")
+    hub.flush()
+    assert built == ["whole", "b"] and page.frames[-1]["ops"] == [{"op": "set", "key": "b", "value": {"k": "b"}}]
+
 def test_a_page_that_opens_is_sent_every_topic_whole() -> None:
     hub, rows, _ = hub_of()
     rows["a"] = {"x": 1}

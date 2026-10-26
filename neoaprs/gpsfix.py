@@ -13,9 +13,8 @@ from datetime import datetime
 from typing import Any
 
 from neoaprs.aprsnmea import NmeaError, parse_nmea
-from neoaprs.aprsposition import KNOT_KMH
+from neoaprs.units import KNOT_KMH, MS_KMH
 
-MS_KMH = 3.6                                                   # km/h in a metre per second
 _SENTENCE = re.compile(r"\$[A-Z]{2}(RMC|GGA),")
 RMC_FRESH_SEC = 3.0                                            # a GGA gives a fix of its own only when no RMC came this recently (a receiver that sends both gives one fix a second, from the RMC)
 GGA_FRESH_SEC = 5.0                                            # the altitude and the satellites of a GGA go with an RMC that comes this soon after it

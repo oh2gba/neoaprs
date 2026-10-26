@@ -122,13 +122,14 @@ class Reader:
             return
         if tnc.profile.detect_command_mode and not self.entered:
             self.enter_kiss(port, "the TNC was in command mode")
-        elif tnc.profile.detect_command_mode and not self.kiss_seen and self.again.due(asyncio.get_running_loop().time(), self.settle_until):
-            why, level = self.again.repeat()
-            self.enter_kiss(port, why, level)
-        elif not self.told_text:
+            return
+        if not self.told_text:                                           # (told first, whenever the text comes: a repeat of the entry that is due does not make the Tnc usable meanwhile)
             self.told_text = True
             tnc._set_problem("the TNC sends text, not KISS frames: it is in command mode" + (" and the entry did not change that" if self.entered else f" and the profile {tnc.profile.name!r} does not enter KISS"))
             tnc._note(tnc.problem)
+        if tnc.profile.detect_command_mode and not self.kiss_seen and self.again.due(asyncio.get_running_loop().time(), self.settle_until):
+            why, level = self.again.repeat()
+            self.enter_kiss(port, why, level)
 
     def enter_kiss(self, port: TncPort, why: str = "the TNC was in command mode", level: int = logging.INFO, note: bool = True) -> None:
         """The profile's steps (KISS ON and RESTART for a TNC-2), then the settle time of throwing away what the TNC says. `level` is the log's (DEBUG for a check or a return from SILENT, which have told their

@@ -12,7 +12,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 from typing import Any
 
-from .aprsextension import MILE_KM
+from .units import MILE_KM
 
 _MHZ = re.compile(r"(?:(\d{3}\.\d{3}|\d{3}\.\d{2} )|([A-O])(\d{2}\.\d{3}))MHz(?= |$)|(\d{1,2}\.\d{3})GHz(?= |$)", re.IGNORECASE)
 _NAME = re.compile(r"(\d{3}\.\d{2}\d?+)(?=.)")                  # the frequency of an object name: two or three decimals, then at least one character that makes the name unique

@@ -13,11 +13,10 @@ from dataclasses import replace
 from datetime import datetime, timedelta
 
 from neoaprs.clock import Clock, utcnow
-from neoaprs.config import can_transmit
-from neoaprs.decay import MIN_GAP_SEC, bulletin_wait_sec
+from neoaprs.decay import bulletin_wait_sec, first_due
 from neoaprs.ownbulletin import MAX_POSTED, OwnBulletin, PostError, info_of, make_bulletin, slot_of
 from neoaprs.ownlog import OwnLog
-from neoaprs.services.common import ConfigSource
+from neoaprs.services.common import ConfigSource, transmit_refusal
 from neoaprs.services.repeater import TICK_SEC, Repeater
 from neoaprs.services.sender import Sender
 from neoaprs.signal import Signal
@@ -60,10 +59,8 @@ class OwnBulletins(Repeater[str]):
     # ---- the operator
     def post(self, slot: str, text: str) -> OwnBulletin:
         """Puts the text in the slot and sends it at once. Raises PostError, with the reason, when the call is not set, the slot or the text is wrong, or MAX_POSTED are already posted."""
-        if not self._config().station_transmit:
-            raise PostError("RX only: nothing is sent", "transmit.off")
-        if reason := can_transmit(self._config()):
-            raise PostError(reason)
+        if refusal := transmit_refusal(self._config(), PostError):
+            raise refusal
         name, _, _ = slot_of(slot)
         before = self._posted.get(name)
         if before is None and len(self._posted) >= MAX_POSTED:
@@ -96,7 +93,7 @@ class OwnBulletins(Repeater[str]):
         if bulletin is None:
             return None
         if bulletin.sent == 0:                              # new, or a new text: as soon as the last packet of the slot is a minute old
-            return bulletin.created_at if bulletin.last_sent_at is None else max(bulletin.created_at, bulletin.last_sent_at + timedelta(seconds=MIN_GAP_SEC))
+            return first_due(bulletin.created_at, bulletin.last_sent_at)
         assert bulletin.first_sent_at is not None and bulletin.last_sent_at is not None
         wait = bulletin_wait_sec(bulletin.plan, bulletin.sent, (bulletin.last_sent_at - bulletin.first_sent_at).total_seconds())
         return None if wait is None else bulletin.last_sent_at + timedelta(seconds=wait)

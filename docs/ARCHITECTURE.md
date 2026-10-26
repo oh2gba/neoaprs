@@ -12,7 +12,7 @@ The tables of this document that are that test's data (this one, the rules after
 <!-- doc-arch:layers -->
 | layer | modules | may import | may not import |
 | --- | --- | --- | --- |
-| foundation | `clock signal coded policy callsign geo symbols kiss ax25 aprsposition aprsmice aprsmiceout aprsmessage aprsparse aprsweather aprsthirdparty aprsisline aprsextension aprsfreq aprsstorm aprslocator aprstelemetry aprsnmea gpsfix smartbeacon packet packetcodec message bulletin decay tncmode tncprofile pref route reach chain mapstate radiosearch serialboards versions updateasset device devicedata hourcount dummyroutes dummyframes dummyscene dummyqru igaterules` | foundation | domain, adapters, persistence, services, app, delivery, and any I/O library |
+| foundation | `clock signal coded policy units recent callsign geo symbols kiss ax25 aprsposition aprsmice aprsmiceout aprsmessage aprsparse aprsweather aprsthirdparty aprsisline aprsextension aprsfreq aprsstorm aprslocator aprstelemetry aprsnmea gpsfix smartbeacon packet packetcodec message bulletin decay tncmode tncprofile pref route reach chain mapstate radiosearch serialboards versions updateasset device devicedata hourcount dummyroutes dummyframes dummyscene dummyqru igaterules` | foundation | domain, adapters, persistence, services, app, delivery, and any I/O library |
 | domain | `alertcommand config configlegacy configstatus configtypes configvalues interlock station stationnotes stationbook aloha ownobject ownbulletin qrutext` | foundation, domain | adapters, persistence, services, app, delivery, and any I/O library |
 | adapters | `source tasks serialport serialholders serialprobe btsdp btserial btle btpaired tnc tncport callbackport dummyline tncsearch tncwatchdog tncentry tncfollow tnclines tncreader childenv rigctld gpsfeed aprsis pmtilestool worldmap updatefetch updatedownload selfreplace` | foundation, domain, adapters | persistence, services, app, delivery |
 | persistence | `store migrations migrationlog migrationsteps1to11 migrationsteps12to21 backupfolder durable instancelock stopfile walcare dbfile dberror dbstats dbthread db dbopen storesql paths dblog packetsql packetlog messagesql messagelog bulletinsql bulletinlog weathersql weatherlog ownsql ownlog supportsql` | foundation, domain, persistence | adapters, services, app, delivery |
@@ -42,7 +42,7 @@ What each layer is for:
 
 * **foundation**: pure code, no I/O library.
   * Time and signals: `clock`, `signal`.
-  * Rules and coding: the call and SSID rules (`callsign`), geometry (`geo`), the symbol tables (`symbols`), KISS framing (`kiss`), AX.25 frame coding (`ax25`).
+  * Rules and coding: the call and SSID rules (`callsign`), geometry (`geo`), the units of the air against the metric ones (`units`), the keys seen lately for a duplicate check (`recent`), the symbol tables (`symbols`), KISS framing (`kiss`), AX.25 frame coding (`ax25`).
   * The APRS decoders (`aprs*`) and the `Packet` they produce, which carries how it reached us (`via`: `rf`, `rf-gated` or `is`). `aprsweather` reads the weather fields of a weather station's position or a positionless report
     into metric values, `aprsthirdparty` the packet inside a third-party frame an iGate sent, and `aprsisline` a line of APRS-IS (TNC2 text with its q-construct) into a packet that came `via="is"`.
   * `igaterules`: which of the frames heard on the radio a receive-only iGate puts on APRS-IS, and the line each becomes (the specification's rules, the path as heard, `qAO` and the iGate's call, a third-party packet opened and judged again).
@@ -171,6 +171,7 @@ What each layer is for:
 | `install` | how this copy was installed, worked out by the process in `neoaprs/cli/installkind.py` and given to the controller. The page's `hello` carries it, so that the page can say how to update |
 | `internet_packet` | the signal of the packets received from APRS-IS (`Packet.via` is `is`), entered through `hear_internet`; only the packet log, the station book and the weather log are connected to it (and the page's topics) |
 | `config_changed` | the signal that every save of the settings emits |
+| `config_lock` | the lock held while the settings are stored and put in force (`save_config`, `change_config`, the port the search found as `serial/last_port`): a change is made of the settings as they are then, so two that overlap keep each other's keys |
 | `web` | the page's server, which the controller makes, once the settings are read, from the factory the process gave it (`Controller(web=WebServer)`: this layer does not import `neoaprs/web/`, it knows a `Frontend` that starts and stops) |
 | `db` | the `Db`, once it is open |
 | `tasks` | the `TaskSet` of what the parts start on the loop |
@@ -203,7 +204,7 @@ A part gets what it needs as constructor arguments (objects of a lower layer, Pr
 - **The prune** removes packets, weather observations and stations older than `LOG_KEEP_DAYS` (`neoaprs/policy.py`). Messages and bulletins are never pruned.
 - **`stop()`** ends the page's server, the update check, a map job, the queries, the QRU server, asking QRU, messaging, the alert, the status, our bulletins and objects, the beacon, the GPS, the
   Tnc and the tasks, then closes the database, doing what was asked of its thread first.
-- **`save_config(Config)`** stores the settings, puts them in force, puts our own row where they say, tells the GPS (a changed source starts its feed afresh) and the beacon (a changed interval counts at once) and restarts the Tnc when its port, speed or KISS entry changed.
+- **`save_config(Config)`** stores the settings, puts them in force, puts our own row where they say, tells the GPS (a changed source starts its feed afresh) and the beacon (a changed interval counts at once) and restarts the Tnc when its port, speed or KISS entry changed. **`change_config(change)`** does the same for the settings that `change` makes of the ones in force, read under the one lock of the settings (`Services.config_lock`), so that two changes that overlap (the page's save and the access key the server makes) never lose each other's keys; the port the search found is stored under the same lock.
 
 ## The database actor
 

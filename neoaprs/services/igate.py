@@ -31,6 +31,7 @@ from neoaprs.clock import Clock, utcnow
 from neoaprs.geo import distance_km
 from neoaprs.igaterules import DUPLICATE, FRAME, NOT_AIR, OFFLINE, REASON_WORDS, Dropped, gate_of
 from neoaprs.packet import GATEABLE, Packet
+from neoaprs.recent import Recent
 from neoaprs.services.common import ConfigSource
 from neoaprs.signal import Signal
 from neoaprs.tasks import TaskSet, cancel_all
@@ -42,7 +43,6 @@ POSITION_SEC = 1800.0
 MOBILE_EVERY_SEC = 60.0
 SUMMARY_SEC = 3600.0
 TICK_SEC = 1.0
-_SEEN_MAX = 2000                                    # the most (source, destination, information field) kept for the duplicate check
 IgateStateName = Literal["off", "connecting", "connected", "listening", "unverified"]
 Key = tuple[str, str, bytes]
 
@@ -66,7 +66,7 @@ class Igate:
         self._filter_km = 0                                          # the radius of the filter that was sent
         self._read_mark = (0, 0)
         self.clock = clock
-        self.duplicate_sec, self.position_sec, self.mobile_every_sec, self.summary_sec, self.tick_sec = duplicate_sec, position_sec, mobile_every_sec, summary_sec, tick_sec
+        self.position_sec, self.mobile_every_sec, self.summary_sec, self.tick_sec = position_sec, mobile_every_sec, summary_sec, tick_sec
         self.changed: Signal[[]] = Signal("igate.changed")
         self.gated = 0
         self.dropped: Counter[str] = Counter()
@@ -74,7 +74,7 @@ class Igate:
         self._hour_gated = 0
         self._hour_dropped: Counter[str] = Counter()
         self._summary_due: datetime | None = None
-        self._seen: dict[Key, datetime] = {}
+        self._seen: Recent[Key] = Recent(duplicate_sec)              # what was gated lately, for the duplicate check
         self.made_up: Callable[[], bool] = lambda: False             # whether the radio only makes up its traffic (the Dummy radio): then nothing of ours goes to APRS-IS, for the position would say a station is on the air that is not (set by app.py)
         self._position_due: datetime | None = None
         self._position_sent: datetime | None = None
@@ -226,8 +226,9 @@ class Igate:
         if isinstance(gate, Dropped):
             return self._drop(gate.reason)
         now = self.clock()
-        if self._duplicate(gate.key, now):
+        if self._seen.lately(gate.key, now):
             return self._drop(DUPLICATE)
+        self._seen.note(gate.key, now)
         line = gate.line(self._link.call)
         if not self._link.send_line(line):
             return self._drop(OFFLINE)                          # (the connection went down between the check and the write)
@@ -246,17 +247,6 @@ class Igate:
         self.dropped[reason] += 1
         self._hour_dropped[reason] += 1
         self.changed.emit()
-
-    def _duplicate(self, key: Key, now: datetime) -> bool:
-        """Whether this packet was gated a moment ago; remembers it as gated now."""
-        window = timedelta(seconds=self.duplicate_sec)
-        if len(self._seen) > _SEEN_MAX:
-            self._seen = {k: t for k, t in self._seen.items() if now - t < window}
-        before = self._seen.get(key)
-        if before is not None and now - before < window:
-            return True
-        self._seen[key] = now
-        return False
 
     # ---- our own position
     def beacon_sent(self, frame: ax25.Frame) -> None:

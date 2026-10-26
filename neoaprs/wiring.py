@@ -115,9 +115,12 @@ def _remember_port(parts: Services, state: Source.State) -> None:
 
 
 async def _store_last_port(parts: Services, path: str) -> None:
-    if await parts.store.put_setting("serial/last_port", path):
-        parts.config = replace(parts.config, serial_last_port=path)
-        log.info("the radio was found on %s; it is tried first next time", path)
+    """The port the search found, as `serial/last_port`: stored and put in force under the lock of the settings (not through save_config, which would restart the Tnc that was just found), and told to the page."""
+    async with parts.config_lock:
+        if await parts.store.put_setting("serial/last_port", path):
+            parts.config = replace(parts.config, serial_last_port=path)
+            log.info("the radio was found on %s; it is tried first next time", path)
+            parts.config_changed.emit(parts.config)
 
 
 def place_me(parts: Services) -> None:

@@ -17,13 +17,12 @@ from dataclasses import replace
 from datetime import datetime, timedelta
 
 from neoaprs.clock import Clock, utcnow
-from neoaprs.config import can_transmit
-from neoaprs.decay import KILL_SENDS, MIN_GAP_SEC, kill_wait_sec, object_wait_sec
+from neoaprs.decay import KILL_SENDS, first_due, kill_wait_sec, object_wait_sec
 from neoaprs.message import same_call
 from neoaprs.ownlog import OwnLog
 from neoaprs.ownobject import OwnError, OwnObject, info_of, make_object
-from neoaprs.packet import ItemReport, ObjectReport, Packet
-from neoaprs.services.common import ConfigSource
+from neoaprs.packet import DUMMY, ItemReport, ObjectReport, Packet
+from neoaprs.services.common import ConfigSource, transmit_refusal
 from neoaprs.services.repeater import TICK_SEC, Repeater
 from neoaprs.services.sender import Sender
 from neoaprs.signal import Signal
@@ -73,10 +72,8 @@ class OwnObjects(Repeater[str]):
             path: str | None = None, qru_group: str = "", on_request: bool = False) -> OwnObject:
         """Makes the object or item, or changes the one of the name: it is sent at once. Raises OwnError, with the reason, when the call is not set, the values make no object (neoaprs/ownobject.py), the
         name is our own call or a station's, or there are already MAX_OBJECTS."""
-        if not self._config().station_transmit:
-            raise OwnError("RX only: nothing is sent", "transmit.off")
-        if reason := can_transmit(self._config()):
-            raise OwnError(reason)
+        if refusal := transmit_refusal(self._config(), OwnError):
+            raise refusal
         ours = self._config().station_call
         if same_call(name, ours):
             raise OwnError(f"{name} is our own call")
@@ -129,7 +126,7 @@ class OwnObjects(Repeater[str]):
         if obj is None or (obj.on_request and obj.alive):
             return None
         if obj.sent == 0:                                   # new, changed or just killed: as soon as the last packet of it is a minute old
-            return obj.updated_at if obj.last_sent_at is None else max(obj.updated_at, obj.last_sent_at + timedelta(seconds=MIN_GAP_SEC))
+            return first_due(obj.updated_at, obj.last_sent_at)
         assert obj.last_sent_at is not None
         wait = object_wait_sec(obj.sent, self.path_of(obj)) if obj.alive else kill_wait_sec(obj.sent)
         return None if wait is None else obj.last_sent_at + timedelta(seconds=wait)
@@ -148,9 +145,9 @@ class OwnObjects(Repeater[str]):
 
     # ---- incoming
     def on_packet(self, packet: Packet) -> None:
-        """Another station reports an object of ours as alive: it has taken it over, and we stop."""
+        """Another station reports an object of ours as alive: it has taken it over, and we stop. The made-up stations of the Dummy radio take nothing over: an object of the operator's is not lost to a station that is not there."""
         report = packet.decoded
-        if packet.direction != "in" or not packet.on_air or not isinstance(report, (ObjectReport, ItemReport)) or not report.alive:
+        if packet.direction != "in" or not packet.on_air or packet.via == DUMMY or not isinstance(report, (ObjectReport, ItemReport)) or not report.alive:
             return
         obj = self._objects.get(report.name)
         if obj is None or not obj.alive or same_call(packet.sender, self._config().station_call):

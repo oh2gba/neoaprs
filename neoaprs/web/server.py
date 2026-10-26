@@ -214,13 +214,13 @@ class WebServer:
     async def _ensure_key(self) -> None:
         """The network is on and there is no key (turned on, or on in a database made without one): a key is made."""
         c = self.controller.config
-        if c.web_network and not c.web_key and not await self.controller.save_config(replace(c, web_key=new_key())):
+        if c.web_network and not c.web_key and not await self.controller.change_config(lambda base: replace(base, web_key=new_key()) if base.web_network and not base.web_key else base):
             log.error("the access key could not be stored; devices on the network cannot log in")
 
     async def renew_key(self) -> bool:
         """A new access key: every session of the old one ends. False when the settings could not be stored."""
         async with self._switch:
-            return await self.controller.save_config(replace(self.controller.config, web_key=new_key()))
+            return await self.controller.change_config(lambda base: replace(base, web_key=new_key()))
 
     def _relisten(self, address: str) -> None:
         """Listens on the address instead of the one before, on the port the page is on. If it cannot, the old one is listened on again."""

@@ -33,7 +33,6 @@ from datetime import datetime
 from typing import Literal, Protocol
 
 from neoaprs.aprsmessage import line_of, reply_ack_of
-from neoaprs.aprsthirdparty import header_of
 from neoaprs.bulletin import board_slot
 from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.message import MessageRecord, addressed_to, is_query, is_telemetry_definition, same_call
@@ -57,15 +56,9 @@ def _station(call: str) -> str:
         return call
 
 
-def _info_of(packet: Packet) -> bytes:
-    """The information field of the message: the packet's, or for a third-party packet the wrapped one's."""
-    found = None if packet.third_party is None else header_of(packet.info)
-    return packet.info if found is None else found[1]
-
-
 def _plain_text(packet: Packet, message: Message) -> str:
     """The text of an ack or a reject that settled nothing, as it was written."""
-    line = line_of(_info_of(packet))
+    line = line_of(packet.inner_info)
     return line if line is not None else ("ack" + message.ack_id if message.ack_id is not None else "rej" + str(message.rej_id))
 
 
@@ -116,7 +109,7 @@ class Inbox:
     def _received(self, packet: Packet, message: Message) -> None:
         if self._qru_answer is not None and message.msg_id is None and self._qru_answer(packet, message):
             return                                                   # (a server's answer to our request: shown with the servers, no conversation; the packet log has it)
-        line = line_of(_info_of(packet))
+        line = line_of(packet.inner_info)
         reply = None if line is None else reply_ack_of(line)
         if is_query(message.text):
             if message.msg_id is not None:                           # (a radio that numbers its query waits for an ack and retries without one: the ack costs one frame, the retries five)

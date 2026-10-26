@@ -15,9 +15,9 @@ from typing import NamedTuple
 from .aprsthirdparty import parse_packet
 from .callsign import CallsignError, normal_name
 from .packet import IS, Packet
+from .route import is_q_construct
 
 PATH_MAX = 32                                      # elements between the destination and the colon (a server adds a few to the 8 an AX.25 path may have)
-_Q = re.compile(r"q[A-Za-z]{2}")
 _ELEMENT = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]{0,8}\*?")
 
 
@@ -37,7 +37,7 @@ class QConstruct(NamedTuple):
 def q_construct(path: tuple[str, ...]) -> QConstruct | None:
     """The q-construct of a path and the call after it; None for a path with none."""
     for i, element in enumerate(path):
-        if _Q.fullmatch(element):
+        if is_q_construct(element):
             return QConstruct(element, path[i + 1].rstrip("*") if i + 1 < len(path) else "")
     return None
 

@@ -687,3 +687,19 @@ async def test_a_line_that_is_lost_and_opened_again_starts_the_quiet_period_over
         await tnc.stop()
         await radio.aclose()
     nothing_runs(tnc)
+
+
+@stops_rigs
+async def test_text_that_comes_only_after_the_repeat_is_due_leaves_the_tnc_unusable_until_a_frame_comes(rig: Rigs, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("neoaprs.tncwatchdog.ENTRY_AGAIN_SEC", 0.3)           # (10 s in the program)
+    r = await rig()
+    r.radio.feed(MONITOR_LINE)
+    assert await r.radio.said(len(ENTER_KISS)) == ENTER_KISS
+    await idle_for(SETTLE + 0.4)                                               # (the TNC says nothing until well after the repeat is due)
+    r.radio.feed(MONITOR_LINE)
+    assert await r.radio.said(len(ENTER_KISS)) == ENTER_KISS, "KISS ON again at once: the repeat was due"
+    await idle_for(SETTLE + 0.1)
+    assert not r.tnc.usable and "command mode" in r.tnc.why_unusable(), "nothing is typed into it between the repeat and a frame"
+    r.radio.feed(kiss_of(ui_frame("OH2AAA")))
+    await until(lambda: r.packets)
+    assert r.tnc.problem == "" and r.tnc.usable
