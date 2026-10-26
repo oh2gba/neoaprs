@@ -37,11 +37,12 @@ from .source import CHECKING, Backoff, Source, minutes_between, unusable_because
 from .tncentry import KissEntry
 from .tncfollow import AdapterFollow
 from .tnclines import TimedSource
-from .tncmode import Mode, ModeDetector, TextAfterKiss, looks_valid, packet_of, read_frame
+from .tncmode import Mode, ModeDetector, looks_valid, packet_of, read_frame
 from .tncport import TncPort
+from .tncreader import Reader
 from .tncsearch import PortSearch
 from .tncprofile import KENWOOD_TNC2, KISS_EXIT as KISS_EXIT, Profile
-from .tncwatchdog import ANSWER_SEC, CHECK_PAUSE_SEC, PROBE_SEC, PROMPT, REPLY_SEC, EntryAgain, TncStats, Watchdog
+from .tncwatchdog import ANSWER_SEC, CHECK_PAUSE_SEC, PROBE_SEC, PROMPT, REPLY_SEC, TncStats, Watchdog
 
 log = logging.getLogger("neoaprs.tnc")
 
@@ -75,7 +76,7 @@ def _describe(tnc: "Tnc") -> str:
         return f"listening on {', '.join(tnc.searching)} for the radio"
     if tnc._port is None:
         return f"{tnc.path or tnc.port or 'no port'}{_speed(tnc.path or tnc.port, tnc.baud)}, {tnc.state.value}"
-    mode = "KISS" if tnc._kiss_seen else ("entering KISS" if tnc._entered else "listening")
+    mode = "KISS" if tnc._reader.kiss_seen else ("entering KISS" if tnc._reader.entered else "listening")
     return f"{tnc.path}{_speed(tnc.path, tnc.baud)}, {mode}, {tnc.stats.packets} packets"
 
 
@@ -83,7 +84,7 @@ def _why_unusable(tnc: "Tnc") -> str:
     """Why nothing is sent now, as a clause: a fresh line not yet confirmed, a TNC that types text (it is in command mode, KISS ON is sent again), else what the state says."""
     if tnc.state is Source.State.CONNECTED and not tnc.confirmed:
         return CHECKING
-    if tnc.state is Source.State.CONNECTED and tnc.profile.detect_command_mode and tnc._told_text and not tnc._kiss_seen:
+    if tnc.state is Source.State.CONNECTED and tnc._reader.command_mode_unanswered():
         return COMMAND_MODE
     return unusable_because(tnc.state)
 
@@ -114,19 +115,13 @@ class Tnc(TimedSource):
         self.watchdog = Watchdog(self, check_sec, check_pause_sec, reply_sec, answer_sec, probe_sec)    # check_sec 0: no checks
         self.last_watchdog_action = ""                                   # "check", "probe" or "reopen"; empty until the watchdog has done anything
         self.last_watchdog_at: datetime | None = None
+        self._reader = Reader(self)                                      # what the bytes of the open line say: the mode, the entry into KISS, the frames (tncreader.py)
         self._open_reset()
 
     def _open_reset(self) -> None:
         """What belongs to one open of the line."""
-        self._detector = ModeDetector()
-        self._decoder = kiss.KissDecoder()
-        self._dropped_seen = 0
-        self._entered = self._kiss_seen = self._told_text = False        # KISS ON was sent on this open; a KISS frame came since; the text that came after the entry has been told
-        self._again = EntryAgain()                                       # when the entry is repeated for a TNC that still types text
-        self._typed = TextAfterKiss()                                    # text after KISS frames: the radio was restarted
+        self._reader.reset()
         self.confirmed = not (self.profile.can_probe and self.profile.detect_command_mode and self.watchdog.sec > 0)     # a byte came on this open, or nothing is asked (the checks off, a profile that cannot be asked): until then a TNC that can be asked is not `usable`
-        self._settle_until = 0.0
-        self._looking = False                                            # a check or probe is under way: nothing is sent, and the keep-alive itself enters KISS
 
     # ---- life
     async def start(self) -> None:
@@ -152,12 +147,7 @@ class Tnc(TimedSource):
         named = bool(reopen or self.port) and not self._probe_next       # (a probe attempt is followed by one at the named port again)
         self._probe_next = False
         try:
-            path, heard = (reopen or self.port, b"") if named else await self._search.find(self.pattern, self.baud, self.probe_seconds, lambda heard: looks_valid(heard, self.profile.detect_command_mode), self.profile.can_probe, self.probe_nudge_sec, self.skip, lambda: generation == self._generation, self.port)     # (`heard`: what the search heard from the port it chose; the named port is listened to as well)
-            if generation != self._generation:
-                return
-            if named and not self.is_dummy and (held := held_by(path)):
-                raise SerialError(f"{path}: {held}")
-            port, path = await self._follow.open(path, named and not self.is_dummy, lambda where: open_port(self, where), self._note)
+            found = await self._find_line(reopen, named, generation)
         except SerialError as e:
             self._probe_next = named and self.fallback_probe and self._search.possible
             self._wait(str(e))
@@ -166,6 +156,21 @@ class Tnc(TimedSource):
             log.exception("tnc: connecting failed")
             self._wait(f"{type(e).__name__}: {e}")
             return
+        if found is not None:
+            self._opened(*found, named, reopen, silent)
+
+    async def _find_line(self, reopen: str, named: bool, generation: int) -> tuple[TncPort | DummyPort, str, bytes] | None:
+        """The line, open, with its path and what the search heard on it; None when `stop` came meanwhile. Raises SerialError."""
+        path, heard = (reopen or self.port, b"") if named else await self._search.find(self.pattern, self.baud, self.probe_seconds, lambda heard: looks_valid(heard, self.profile.detect_command_mode), self.profile.can_probe, self.probe_nudge_sec, self.skip, lambda: generation == self._generation, self.port)     # (`heard`: what the search heard from the port it chose; the named port is listened to as well)
+        if generation != self._generation:
+            return None
+        if named and not self.is_dummy and (held := held_by(path)):
+            raise SerialError(f"{path}: {held}")
+        port, path = await self._follow.open(path, named and not self.is_dummy, lambda where: open_port(self, where), self._note)
+        return port, path, heard
+
+    def _opened(self, port: TncPort | DummyPort, path: str, heard: bytes, named: bool, reopen: str, silent: bool) -> None:
+        """The line is open: its state starts over, and a TNC that the search found in command mode is put into KISS at once."""
         self._port, self.path = port, path
         self._open_reset()
         self.confirmed = self.confirmed or not named                     # (a port the search chose has just been heard from)
@@ -177,7 +182,7 @@ class Tnc(TimedSource):
             self._note(f"opened {path}{_speed(path, self.baud)}")
         log.log(logging.DEBUG if reopen else logging.INFO, "tnc: opened %s%s", path, _speed(path, self.baud))
         if heard and self.profile.detect_command_mode and ModeDetector().feed(heard) is Mode.MONITOR:
-            self._enter_kiss(port, "the search found the TNC in command mode")
+            self._reader.enter_kiss(port, "the search found the TNC in command mode")
         self._start_watchdog()
 
     def _wait(self, problem: str) -> None:
@@ -207,81 +212,8 @@ class Tnc(TimedSource):
 
     # ---- reading
     def _on_data(self, port: TncPort, chunk: bytes) -> None:
-        if port is not self._port:
-            return
-        loop_now = asyncio.get_running_loop().time()
-        self.stats.bytes_in += len(chunk)
-        typed = self._typed.feed(chunk)                                  # (text since the latest FEND: after KISS frames, the radio was restarted)
-        self.confirmed = True
-        self.watchdog.heard()
-        mode = self._heard(port, chunk, loop_now)
-        if loop_now < self._settle_until:
-            return
-        if typed and mode is Mode.KISS and self._kiss_seen and self.profile.detect_command_mode:
-            self._kiss_seen = self._told_text = False                    # switched to KISS again now, not at the next check: text keeps the line from going quiet
-            return self._enter_kiss(port, "the TNC is in command mode again (the radio was restarted)")
-        if mode is Mode.KISS:
-            if self._told_text and not self._kiss_seen:                  # (KISS at last after text: the problem it made is over)
-                self._told_text = False
-                self._set_problem("")
-            self._kiss_seen = True
-            self._again.reset()
-        elif mode is Mode.MONITOR:
-            self._command_mode(port)
-            if loop_now < self._settle_until or self._port is not port:
-                return
-        for frame in self._decoder.feed(chunk):
-            self._handle(frame)
-        if self._decoder.dropped > self._dropped_seen:
-            self.stats.rejected += self._decoder.dropped - self._dropped_seen
-            self._note(f"{self._decoder.dropped - self._dropped_seen} damaged KISS frame(s) dropped")
-            self._dropped_seen = self._decoder.dropped
-
-    def _heard(self, port: TncPort, chunk: bytes, loop_now: float) -> Mode | None:
-        """Bytes came: what the detector makes of them, None while an entry settles (they are thrown away). From a silent radio, which may have been switched on (a TH-D7 starts with its TNC in command mode),
-        the allowance to enter KISS is given back and the detector starts over; KISS is entered unless the bytes are a KISS frame already, or a piece of one (a FEND among them and no whole frame: a line
-        delivers a frame in several reads, and command-mode text never has a FEND), when what follows decides, or an entry of the keep-alive's own is settling."""
-        if self.state is not Source.State.SILENT:
-            self._hear()
-            return None if loop_now < self._settle_until else self._detector.feed(chunk)
-        if loop_now < self._settle_until:
-            self._hear("; entering KISS")
-            return None
-        self._entered = self._kiss_seen = self._told_text = False
-        self._again.reset()
-        self._detector.rearm()
-        piece = kiss.FEND in chunk
-        mode = self._detector.feed(chunk[chunk.index(kiss.FEND):] if piece else chunk)      # (what is before the first FEND is the tail of a frame, never text)
-        enter = self.profile.detect_command_mode and mode is not Mode.KISS and not piece
-        self._hear("; entering KISS" if enter else "")
-        if enter:
-            self._enter_kiss(port, "the radio answers again", logging.DEBUG, note=False)
-        return mode
-
-    def _command_mode(self, port: TncPort) -> None:
-        if self._looking:
-            return
-        if self.profile.detect_command_mode and not self._entered:
-            self._enter_kiss(port, "the TNC was in command mode")
-        elif self.profile.detect_command_mode and not self._kiss_seen and self._again.due(asyncio.get_running_loop().time(), self._settle_until):
-            why, level = self._again.repeat()
-            self._enter_kiss(port, why, level)
-        elif not self._told_text:
-            self._told_text = True
-            self._set_problem("the TNC sends text, not KISS frames: it is in command mode" + (" and the entry did not change that" if self._entered else f" and the profile {self.profile.name!r} does not enter KISS"))
-            self._note(self.problem)
-
-    def _enter_kiss(self, port: TncPort, why: str = "the TNC was in command mode", level: int = logging.INFO, note: bool = True) -> None:
-        """The profile's steps (KISS ON and RESTART for a TNC-2), then the settle time of throwing away what the TNC says. `level` is the log's (DEBUG for a check or a return from SILENT, which have told their
-        own news, and for the later repeats of the entry); `note`: whether the terminal gets a line too (not for the check and the return from SILENT)."""
-        self._entered = True
-        log.log(level, "entering KISS mode on %s: %s", port.path, why)
-        if note:
-            self._note(f"entering KISS mode: {why}")
-        took = self._entry.begin(self.profile, lambda: port is self._port)
-        if took is not None:
-            self._settle_until = asyncio.get_running_loop().time() + took
-            self._detector, self._decoder, self._dropped_seen = ModeDetector(), kiss.KissDecoder(), 0
+        if port is self._port:
+            self._reader.read(port, chunk)
 
     def _handle(self, kiss_frame: kiss.KissFrame) -> None:
         read = read_frame(kiss_frame, self.now(), self.is_dummy)
@@ -310,19 +242,17 @@ class Tnc(TimedSource):
 
     @property
     def usable(self) -> bool:
-        return self.state is Source.State.CONNECTED and self.confirmed and not self._looking and not (self.profile.detect_command_mode and self._told_text and not self._kiss_seen) and asyncio.get_running_loop().time() >= self._settle_until
+        return self.state is Source.State.CONNECTED and self.confirmed and not self._reader.looking and not self._reader.command_mode_unanswered() and asyncio.get_running_loop().time() >= self._reader.settle_until
 
     describe, why_unusable = _describe, _why_unusable
+    _looking, _entered = property(lambda self: self._reader.looking), property(lambda self: self._reader.entered)      # (what a test looks at)
     is_dummy = property(lambda self: self.profile.transport == "dummy")      # the Dummy profile: it makes up traffic to try the program with, and every packet it hears or sends is marked `dummy` (packet.DUMMY), which never goes to the internet (packet.GATEABLE)
 
     def look_begin(self) -> bool:
         """A check or probe starts: nothing is sent meanwhile and the TNC is asked afresh. False when there is no line."""
         if self._port is None:
             return False
-        self._looking = True
-        self._entered = self._kiss_seen = self._told_text = False
-        self._again.reset()
-        self._detector.rearm()
+        self._reader.asked_afresh()
         return True
 
     def look_send(self, data: bytes) -> bool:
@@ -330,11 +260,11 @@ class Tnc(TimedSource):
 
     def look_enter_kiss(self) -> None:
         """KISS ON, unless an answer already made the Tnc enter it, or the answer was a KISS frame (the TNC did not leave KISS for the exit frame: it is in KISS already, and the entry would only cost reception)."""
-        if self._port is not None and not self._entered and not self._kiss_seen:
-            self._enter_kiss(self._port, "the keep-alive asked the TNC", logging.DEBUG, note=False)
+        if self._port is not None and not self._reader.entered and not self._reader.kiss_seen:
+            self._reader.enter_kiss(self._port, "the keep-alive asked the TNC", logging.DEBUG, note=False)
 
     def look_end(self) -> None:
-        self._looking = False
+        self._reader.looking = False
 
     async def reopen_port(self) -> None:
         """The line is closed and the same path opened again (a USB adapter that dropped); a radio that was silent stays silent. A path that cannot be opened is a failed open, which is followed by the search for the radio."""
