@@ -75,6 +75,13 @@ The daemon, when a test starts it as a process, is stopped on Windows with Ctrl+
 `NEOAPRS_TEST_WORKERS` and `NEOAPRS_TEST_WORKERS_MAX` set how many tests the `pytest` stage runs side by side; 0 runs them one after the other, which is what to
 do to read the output of one failing test in order. The table "Environment variables" of `CONVENTIONS.md` lists every variable.
 
+### Coverage
+
+`scripts/coverage` runs the Python suite under coverage.py, side by side like the `pytest` stage, and prints the table of every module of `neoaprs/` (lines, branches, the missing line numbers) and the total.
+The rules are `[tool.coverage]` in `pyproject.toml`: branches count, and the daemons and commands that tests start as processes are measured too (`patch = subprocess`). `scripts/coverage -- tests/test_db.py` runs only
+the tests after the `--`; `scripts/coverage --ui` is the page's vitest coverage (`src/lib`, `composables`, `components`, `help`, `protocol`, `App.vue`, `AccessGate.vue`, `main.ts`). It is slower than the tests
+alone, so it is not a stage of `scripts/check`; nothing is excluded, and there is no floor yet.
+
 ### The smoke test
 
 `scripts/smoke.py` is the check an installer or a package must pass.
@@ -211,6 +218,7 @@ The words of the page are in a catalogue, so that a language is a file and not a
 | script | what it is for |
 |---|---|
 | `scripts/check` | the one gate: every stage in order, stopping at the first failure; `--stage NAME`, `--list` |
+| `scripts/coverage` | the Python suite under coverage.py with the table of every module and the total (`-- ARGS` for pytest); `--ui` is the page's vitest coverage ([Coverage](#coverage)) |
 | `scripts/worktree-setup` | makes a fresh git worktree ready for `scripts/check`: `uv sync --frozen --all-extras` and a real `ui/node_modules` (`npm ci`, from the cache when it can), no symlinks |
 | `scripts/install.sh` | a clone's wrapper of `neoaprs service install --data ./data --linger` (`--remove` is `service remove`): installs the daemon as a user service that starts at boot; the code is `neoaprs/cli/servicesystemd.py` |
 | `scripts/doc-arch` | prints, writes (`--write`) or checks (`--check`) the tables of `docs/ARCHITECTURE.md` that are the data of the architecture test |

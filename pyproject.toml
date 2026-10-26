@@ -87,6 +87,19 @@ markers = [
 ]
 filterwarnings = ["error::DeprecationWarning:neoaprs.*"]
 
+# scripts/coverage runs the suite under coverage.py. Branches count; the daemons and commands the tests start as processes are measured too (patch = subprocess), and every process writes its own data file (parallel),
+# which the script combines. Nothing is excluded: a line that is not covered shows in the table.
+[tool.coverage.run]
+branch = true
+source = ["neoaprs"]
+parallel = true
+patch = ["subprocess"]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+precision = 1
+
 [tool.mypy]
 python_version = "3.13"
 strict = true

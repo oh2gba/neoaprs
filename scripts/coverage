@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# What the tests cover: runs the Python suite under coverage.py (branches, and the daemons and commands the tests start as processes too; the rules are in [tool.coverage] of pyproject.toml) side by side on the cores
+# and prints the table of every module of neoaprs/ with its lines, branches and missing line numbers, and the total; or, with --ui, the page's vitest coverage. Slower than the tests alone, so not a stage of scripts/check.
+#
+#   scripts/coverage                    the Python half, the whole suite
+#   scripts/coverage -- tests/test_db.py -k busy   the same for the tests pytest is given after the --
+#   scripts/coverage --ui               the page: vitest with v8 coverage over ui/src
+#
+# The data is kept in a temporary folder and taken away. NEOAPRS_PYTHON and NEOAPRS_TEST_WORKERS(_MAX) are read as scripts/check reads them. Node is the one on the PATH, else the newest in ~/.nvm.
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$root"
+
+mode=py
+case "${1:-}" in
+    -h|--help) sed -n '2,9p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --ui) mode=ui; shift ;;
+    --) shift ;;
+    "") ;;
+    *) echo "coverage: unknown argument $1 (tests for pytest go after --)" >&2; exit 2 ;;
+esac
+
+if [ "$mode" = ui ]; then
+    node_ok() { command -v node >/dev/null && node -e 'const [a, b] = process.versions.node.split(".").map(Number); process.exit(a > 22 || (a === 22 && b >= 12) ? 0 : 1)'; }
+    if ! node_ok; then
+        newest="$(ls -d "$HOME"/.nvm/versions/node/v*/bin 2>/dev/null | sort -V | tail -n 1 || true)"
+        [ -n "$newest" ] && PATH="$newest:$PATH"
+    fi
+    node_ok || { echo "coverage: node 22.12 or newer is needed (on the PATH or in ~/.nvm)" >&2; exit 2; }
+    [ -d ui/node_modules ] || { echo "coverage: no ui/node_modules: run scripts/worktree-setup" >&2; exit 2; }
+    cd ui
+    exec npx vitest run --coverage --coverage.reportsDirectory="$(mktemp -d)"
+fi
+
+python="${NEOAPRS_PYTHON:-$root/.venv/bin/python}"
+[ -x "$python" ] || { echo "coverage: no Python environment: run 'uv sync --frozen' in $root" >&2; exit 2; }
+
+data="$(mktemp -d)"
+trap 'rm -rf "$data"' EXIT
+export COVERAGE_FILE="$data/.coverage"
+workers="${NEOAPRS_TEST_WORKERS:-auto}" cap=()
+if [ "$workers" = auto ]; then cap=(--maxprocesses="${NEOAPRS_TEST_WORKERS_MAX:-12}"); fi
+if [ "$workers" = 0 ]; then par=(); else par=(-n "$workers" --dist worksteal ${cap[@]+"${cap[@]}"}); fi
+
+status=0
+"$python" -m coverage run -m pytest ${par[@]+"${par[@]}"} "$@" || status=$?
+"$python" -m coverage combine --quiet
+"$python" -m coverage report
+exit "$status"
