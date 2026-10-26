@@ -51,7 +51,7 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: ui/package-lock.json
-      - name: The committed page is what ui/ builds (it has no version in it: a release that changed nothing in ui/ leaves it as it is)
+      - name: "The committed page is what ui/ builds (it has no version in it: a release that changed nothing in ui/ leaves it as it is)"
         run: |
           (cd ui && npm ci --no-audit --no-fund)
           scripts/build-page
