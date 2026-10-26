@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.10.0
+
 Internet stations, local info (QRU), RX only, a world map and a Dummy radio to try it all, and a calmer, more consistent page.
 
 - **Internet stations:** Settings → Internet stations → Enable shows APRS-IS stations within your map's radius; nothing is sent.
