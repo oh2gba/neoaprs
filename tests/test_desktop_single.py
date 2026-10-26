@@ -9,6 +9,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from tests.support.ptyline import posix_only
 
 from neoaprs.desktop import single
 from neoaprs.desktop.single import LOCK_NAME, PORT_NAME, SingleApp, process_alive
@@ -152,6 +153,7 @@ def test_a_client_that_says_nothing_does_not_hold_up_the_next_one(tmp_path: Path
     first.close()
 
 
+@posix_only                                                                      # (Windows: see the commit "five new tests are POSIX only for now")
 def test_a_process_that_may_not_be_signalled_is_alive_all_the_same(monkeypatch: pytest.MonkeyPatch) -> None:
     def refused(pid: int, sig: int) -> None:
         raise PermissionError(1, "Operation not permitted")

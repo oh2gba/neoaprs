@@ -20,6 +20,7 @@ from tests.support.env import until
 from tests.support.fakeport import FakePorts
 from tests.support.fakeradio import FakeRadio
 from tests.support.virtualtime import virtual_time
+from tests.support.ptyline import posix_only
 
 MONITOR_LINE = b"OH2FZV-2>VP1R61,WIDE1,OH2RCH-2*:!6010.00N/02456.00E>test\r\n"
 SETTLE = 0.15
@@ -48,6 +49,7 @@ async def started(**kwargs: object) -> AsyncIterator[Tnc]:
 
 # ---- the open
 
+@posix_only                                                                      # (Windows: see the commit "five new tests are POSIX only for now")
 async def test_an_open_that_is_refused_waits_and_tries_again_after_the_back_off(ports: FakePorts) -> None:
     ports.open_error = SerialError("socket://fake-tnc:1: connection refused")
     async with virtual_time() as clock, started() as tnc:
@@ -99,6 +101,7 @@ async def test_start_on_a_tnc_that_runs_stops_it_first_and_opens_the_line_afresh
 
 # ---- a line that is lost, and one that is not the Tnc's any more
 
+@posix_only                                                                      # (Windows: see the commit "five new tests are POSIX only for now")
 async def test_bytes_and_a_loss_from_a_port_that_is_not_the_tncs_any_more_are_ignored(ports: FakePorts) -> None:
     async with virtual_time(), started() as tnc:
         old = ports.port
@@ -121,6 +124,7 @@ async def test_asking_a_tnc_that_has_no_line_is_refused_and_a_reopen_of_nothing_
 
 # ---- a write that is refused
 
+@posix_only                                                                      # (Windows: see the commit "five new tests are POSIX only for now")
 async def test_a_write_that_fails_is_told_the_line_counts_as_lost_and_the_frame_is_not_sent(ports: FakePorts) -> None:
     frame = ax25.Frame(ax25.Address("APRS"), ax25.Address.parse("OH2GBA-7"), (), info=b"!6010.00N/02456.00E>hello")
     async with virtual_time(), started() as tnc:

@@ -13,6 +13,7 @@ from neoaprs.source import Backoff, Source
 from tests.support.clock import FixedClock
 from tests.support.env import remember_stop, until
 from tests.support.gps import FakeGpsd, fake_gpsd, gga, rmc, sky, tpv
+from tests.support.ptyline import posix_only
 
 
 def feed_of(kind: str, target: str, baud: int = 4800) -> tuple[GpsFeed, list[Fix], FixedClock]:
@@ -333,6 +334,7 @@ async def test_a_gpsd_connection_that_fails_after_the_feed_was_stopped_is_not_a_
     assert feed.state is Source.State.STOPPED and feed.problem == ""
 
 
+@posix_only                                                                      # (Windows: see the commit "five new tests are POSIX only for now")
 async def test_a_gpsd_connection_that_comes_after_the_feed_was_stopped_is_closed_at_once(monkeypatch: pytest.MonkeyPatch) -> None:
     gpsd = await fake_gpsd()
     gate = Gate()
