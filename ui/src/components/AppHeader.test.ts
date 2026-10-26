@@ -109,10 +109,13 @@ describe("AppHeader", () => {
     expect(titles.gps).toContain("Beacon tab");
   });
 
-  it("lets the marks give way and never pushes the count off: they clip from the end, the count does not shrink", () => {
+  it("lets the marks fold as whole marks and never pushes the count off: the row is one mark high and wraps, Internet is the first to fold, the count does not shrink", () => {
     expect(cssRule(".headpills")).toMatch(/overflow:\s*hidden/);
     expect(cssRule(".headpills")).toMatch(/min-width:\s*0/);
+    expect(cssRule(".headpills")).toMatch(/flex-wrap:\s*wrap/);
+    expect(cssRule(".headpills")).toMatch(/height:\s*18px/);
     expect(cssRule(".headpill")).toMatch(/flex:\s*none/);
+    expect(cssRule(".headpill.pill-internet")).toMatch(/order:\s*1/);
     expect(cssRule(".headmail")).toMatch(/flex:\s*none/);
   });
 

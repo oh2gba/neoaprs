@@ -1,5 +1,5 @@
 // The marks at the top right of the header, before the count of messages: only what is out of the ordinary or running, each with a short hover title and the place where it is set. In this order: RX only (warn, while transmitting is off), Beacon off (neutral, only while transmitting is on),
-// Internet (info, while the Internet switch is connected and receiving), GPS (only when a GPS is the position source: ok with a fix, warn without). Plain functions of the settings and the states the daemon told; the marks are the TagMark of the page: RX only is warn, Beacon off neutral, Internet info, GPS ok with a fix and warn without.
+// Internet (info, while the Internet switch is connected and receiving), GPS (only when a GPS is the position source: ok with a fix, warn without). On a narrow screen the marks fold as whole marks, Internet first (styles/panel.css). Plain functions of the settings and the states the daemon told; the marks are the TagMark of the page: RX only is warn, Beacon off neutral, Internet info, GPS ok with a fix and warn without.
 import type { MessageId } from "@/i18n/catalogue";
 import { beaconOff } from "@/lib/beaconoff";
 import { isMoving } from "@/lib/gpsstatus";
