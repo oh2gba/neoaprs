@@ -15,7 +15,7 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
   "help.picture.status": "Il tuo breve testo di stato, QRV 145.500, compare sulla mappa delle altre stazioni sotto il tuo nominativo.",
   "help.picture.range": "Un digipeater con il suo cerchio di copertura: le stazioni dentro il cerchio si sentono tramite esso, quelle fuori no.",
   "help.picture.request": "Una stazione chiede QRU e la tua stazione risponde con l’oggetto, che altrimenti non viene inviato.",
-  "help.picture.ssid": "Un nominativo, N0CALL, per tre stazioni: quello semplice è una casa, -9 un’auto, -10 un iGate.",
+  "help.picture.ssid": "Un nominativo, YOURCALL, per tre stazioni: quello semplice è una casa, -9 un’auto, -10 un iGate.",
   "help.picture.symbol": "Una scelta di simboli con l’auto selezionata, e l’auto sulla mappa di un’altra stazione sotto il tuo nominativo.",
   "help.picture.network": "Il computer su cui gira NeoAPRS, collegato in rete a un telefono, un tablet e un portatile che aprono la sua pagina.",
   "help.picture.accesskey": "Una chiave digitata una volta su un telefono, che poi resta collegato.",

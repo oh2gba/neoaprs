@@ -14,7 +14,7 @@ export const help = {
   "help.picture.status": "Your short status text, QRV 145.500, appears on the map of the other stations under your call.",
   "help.picture.range": "A digipeater with its range circle: the stations inside the circle are heard through it, the stations outside it are not.",
   "help.picture.request": "A station asks QRU, and your station answers with the object, which is otherwise not sent.",
-  "help.picture.ssid": "One call sign, N0CALL, for three stations: the plain call is a house, -9 a car, -10 an iGate.",
+  "help.picture.ssid": "One call sign, YOURCALL, for three stations: the plain call is a house, -9 a car, -10 an iGate.",
   "help.picture.symbol": "A choice of symbols with the car picked, and the car on the map of another station under your call.",
   "help.picture.network": "The computer that runs NeoAPRS, connected over the network to a phone, a tablet and a laptop that open its page.",
   "help.picture.accesskey": "A key typed once on a phone, which then stays logged in.",

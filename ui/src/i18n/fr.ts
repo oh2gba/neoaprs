@@ -1329,7 +1329,7 @@ export const fr: Catalogue = {
   "help.picture.status": "Votre court texte de statut, QRV 145.500, apparaît sur la carte des autres stations sous votre indicatif.",
   "help.picture.range": "Un digipeater avec son cercle de portée : les stations dans le cercle sont entendues par lui, celles à l'extérieur ne le sont pas.",
   "help.picture.request": "Une station demande QRU et votre station répond avec l'objet, qui n'est sinon pas émis.",
-  "help.picture.ssid": "Un indicatif, N0CALL, pour trois stations : l'indicatif seul est une maison, -9 une voiture, -10 un iGate.",
+  "help.picture.ssid": "Un indicatif, YOURCALL, pour trois stations : l'indicatif seul est une maison, -9 une voiture, -10 un iGate.",
   "help.picture.symbol": "Un choix de symboles avec la voiture retenue, et la voiture sur la carte d'une autre station sous votre indicatif.",
   "help.picture.network": "L'ordinateur qui exécute NeoAPRS, relié par le réseau à un téléphone, une tablette et un portable qui ouvrent sa page.",
   "help.picture.accesskey": "Une clé saisie une fois sur un téléphone, qui reste ensuite connecté.",

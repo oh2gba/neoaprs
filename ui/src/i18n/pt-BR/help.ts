@@ -16,7 +16,7 @@ export const help: Record<keyof typeof source, Message> = {
   "help.picture.status": "O seu texto de status curto, QRV 145.500, aparece no mapa das outras estações abaixo do seu indicativo.",
   "help.picture.range": "Um digipeater com o seu círculo de alcance: as estações dentro do círculo são ouvidas por meio dele, as de fora não.",
   "help.picture.request": "Uma estação pergunta QRU e a sua estação responde com o objeto, que de outra forma não é enviado.",
-  "help.picture.ssid": "Um indicativo, N0CALL, para três estações: o simples é uma casa, -9 um carro, -10 um iGate.",
+  "help.picture.ssid": "Um indicativo, YOURCALL, para três estações: o simples é uma casa, -9 um carro, -10 um iGate.",
   "help.picture.symbol": "Uma escolha de símbolos com o carro selecionado, e o carro no mapa de outra estação sob o seu indicativo.",
   "help.picture.network": "O computador que roda o NeoAPRS, ligado pela rede a um celular, um tablet e um notebook que abrem a sua página.",
   "help.picture.accesskey": "Uma chave digitada uma vez em um celular, que depois continua conectado.",
