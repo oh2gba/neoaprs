@@ -94,7 +94,7 @@ describe("StationsTable with several cards", () => {
     expect(box.find("legend").text()).toBe("Filter");
     expect(box.find("input.filterbox").attributes("placeholder")).toBe("Call, symbol, comment, path");
     expect(box.findAll("label.check")).toHaveLength(3);
-    expect(wrapper.find(".tablepane").element.children[2]).toBe(box.element);
+    expect(wrapper.find(".tablepane").element.children[1]).toBe(box.element);
   });
 
   it("keeps the sticky head from covering a row that is scrolled to, such as the first one", () => {
