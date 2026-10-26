@@ -14,6 +14,9 @@ form, `{MM}` too, tells us the sender knows reply-acks, and its id is what the n
 A message to the addressee QRU is a request to a QRU server (services/qru.py), handed to `qru` when there is one: when it takes the message (we serve a group and the text is a request) it is answered there, never acked (a request is a
 broadcast: an ack from our call would match nothing at the asker, even for a request that carries an id), and not kept; otherwise it is overheard like any message to another station.
 
+A message to us that is the answer of a QRU server to a request of ours (its list of groups, its closing line; services/qruask.py says so) is neither kept nor acked: the page shows it with the servers (Local info) and the
+packet log has it. A message of the same station that is anything else is kept as usual.
+
 A message to a bulletin, an announcement, a group bulletin, ALL, CQ or QST, or a weather service bulletin (neoaprs/bulletin.py) is no conversation and is never acked: it goes to the board
 (services/bulletins.py, handed to the inbox as `board`), not to the overheard messages. With no board it is overheard like any other message to another station.
 
@@ -76,8 +79,10 @@ class Host(Protocol):
 
 class Inbox:
     def __init__(self, host: Host, config: ConfigSource, messagelog: MessageLog, tasks: TaskSet, board: Callable[[Packet, Message], None] | None = None,
-                 alert: Callable[[MessageRecord], None] | None = None, qru: Callable[[Packet, Message], bool] | None = None) -> None:
+                 alert: Callable[[MessageRecord], None] | None = None, qru: Callable[[Packet, Message], bool] | None = None,
+                 qru_answer: Callable[[Packet, Message], bool] | None = None) -> None:
         self._host = host
+        self._qru_answer = qru_answer                           # says whether a message to us is a QRU server's answer to our request (services/qruask.py)
         self._qru = qru                                         # the QRU server: takes a message to QRU and says whether it did (services/qru.py)
         self._alert = alert                                     # told of a message to us the first time it is heard (services/alerts.py)
         self._board = board                                     # where a message to a bulletin or a group goes (services/bulletins.py)
@@ -109,6 +114,8 @@ class Inbox:
         self._received(packet, message)
 
     def _received(self, packet: Packet, message: Message) -> None:
+        if self._qru_answer is not None and message.msg_id is None and self._qru_answer(packet, message):
+            return                                                   # (a server's answer to our request: shown with the servers, no conversation; the packet log has it)
         line = line_of(_info_of(packet))
         reply = None if line is None else reply_ack_of(line)
         if is_query(message.text):

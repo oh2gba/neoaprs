@@ -1,6 +1,6 @@
 // The Email tab: the list of mail with the state of each, Check email and its note, and the box to write a mail in.
 export const email = {
-  "email.compose": "Email",
+  "email.compose": "Write an email",
   "email.to": "To {address}",
   "email.from": "From {address}",
   "email.checked": "Checked email",
@@ -18,6 +18,8 @@ export const email = {
   "email.field.to": "To",
   "email.field.address": "Email address",
   "email.field.text": "Text",
+  "email.to_tip": "The address the mail goes to. Addresses used before are listed as you type.",
+  "email.text_tip": "What the mail says. The counter shows how many characters are left in the message.",
   "email.used_before": "Used before",
   "email.forget": "Forget {address}",
   "email.send": "Send",

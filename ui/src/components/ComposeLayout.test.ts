@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 import BulletinsPane from "@/components/BulletinsPane.vue";
 import EmailPane from "@/components/EmailPane.vue";
+import MessageCompose from "@/components/MessageCompose.vue";
 import ObjectsPane from "@/components/ObjectsPane.vue";
 import { useOwnObjects } from "@/composables/useOwnObjects";
 import type { Panel } from "@/composables/usePanel";
@@ -117,26 +118,56 @@ describe("Email", () => {
 });
 
 describe("Objects", () => {
-  it("has the list and, always under it, the form last in the tab: the counter, Cancel and Add at its right (the map button is in its Location row)", () => {
+  it("has the form first in the tab, in its own box, with the counter, Cancel and Add at its right (the map button is in its Location row)", () => {
     const { wrapper } = objects();
-    expectAtTheBottom(wrapper, ".objectlist");
+    const list = wrapper.find(".objectlist").element;
+    expect(list.firstElementChild).toBe(barOf(wrapper).element);
     expectTheBar(wrapper, "Add", "Cancel");
     expect(barOf(wrapper).find(".composebar-aside").findAll("button")).toHaveLength(0);
     expect(barOf(wrapper).find(".location-field button").text()).toBe("Choose on map");
     expect(barOf(wrapper).find(".compose-left").text()).toBe("43 left");
   });
 
-  it("has no toolbar: the list and the form are the tab", () => {
+  it("has no toolbar: the three boxes are the tab", () => {
     const { wrapper } = objects();
-    expect(kids(wrapper).map((c) => c.className.split(" ")[0])).toEqual(["tab-help", "objectlist", "composebar"]);
+    expect(kids(wrapper).map((c) => c.className.split(" ")[0])).toEqual(["tab-help", "objectlist"]);
+    expect([...wrapper.find(".objectlist").element.children].map((c) => c.className.split(" ")[0])).toEqual(["composebar", "myobjects", "objects-qru"]);
   });
 
-  it("names the form for a new object and for the one being changed, which Save changes", async () => {
+  it("names the form's box for a new object and for the one being changed, which Save changes", async () => {
     const { wrapper, form } = objects();
-    expect(barOf(wrapper).attributes("aria-label")).toBe("New object");
+    expect(barOf(wrapper).attributes("aria-label")).toBe("Add an object");
+    expect(barOf(wrapper).find("fieldset > legend").text()).toBe("Add an object");
     form.edit("LEADER");
     await wrapper.vm.$nextTick();
     expect(barOf(wrapper).attributes("aria-label")).toBe("Edit LEADER");
+    expect(barOf(wrapper).find("fieldset > legend").text()).toBe("Edit LEADER");
     expectTheBar(wrapper, "Save", "Cancel");
+  });
+});
+
+describe("every form of fields is a group box, a chat line is not", () => {
+  it("boxes the forms of Bulletins, Email and Objects in a fieldset with a legend; the chat line under a conversation is none", () => {
+    const bulletinsTab = bulletins();
+    expect(barOf(bulletinsTab).find("fieldset.composebox > legend").text()).toBe("Post a bulletin");
+    const mail = email();
+    expect(barOf(mail).find("fieldset.composebox > legend").text()).toBe("Write an email");
+    mail.unmount();
+    const { wrapper } = objects();
+    expect(barOf(wrapper).find("fieldset.composebox").exists()).toBe(true);
+    const chat = mount(MessageCompose, { props: { to: ["OH2ABC"], connected: true }, global: withDaemon() });
+    expect(chat.find("fieldset").exists()).toBe(false);
+    expect(chat.classes()).not.toContain("boxed");
+  });
+
+  it("gives every field of the Bulletins and Email boxes the row of the Settings fields: a label, the control and its (i)", () => {
+    const rows = [...barOf(bulletins()).findAll(".field")];
+    expect(rows.map((r) => r.find("label").text())).toEqual(["Kind", "Number", "Text"]);
+    for (const row of rows) expect(row.find(".field-control .infotip").exists()).toBe(true);
+    const mail = email();
+    const mailRows = [...barOf(mail).findAll(".field")];
+    expect(mailRows.map((r) => r.find("label").text())).toEqual(["To", "Text"]);
+    for (const row of mailRows) expect(row.find(".field-control .infotip").exists()).toBe(true);
+    mail.unmount();
   });
 });

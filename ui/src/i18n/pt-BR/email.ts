@@ -3,7 +3,7 @@ import type { email as source } from "@/i18n/en/email";
 import type { Message } from "@/i18n/message";
 
 export const email: Record<keyof typeof source, Message> = {
-  "email.compose": "E-mail",
+  "email.compose": "Escrever um e-mail",
   "email.to": "Para {address}",
   "email.from": "De {address}",
   "email.checked": "E-mail verificado",
@@ -21,6 +21,8 @@ export const email: Record<keyof typeof source, Message> = {
   "email.field.to": "Para",
   "email.field.address": "Endereço de e-mail",
   "email.field.text": "Texto",
+  "email.to_tip": "O endereço para onde vai o e-mail. Os usados antes aparecem enquanto você digita.",
+  "email.text_tip": "O texto do e-mail. O contador mostra quantos caracteres restam na mensagem.",
   "email.used_before": "Já usados",
   "email.forget": "Esquecer {address}",
   "email.send": "Enviar",

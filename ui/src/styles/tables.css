@@ -29,6 +29,15 @@
   flex: 1 1 12em;
   min-width: min(12em, 100%);
 }
+.tablepane fieldset.filters {
+  flex: none;
+  margin: 8px 10px 0;
+  padding-top: 0;
+  padding-bottom: 4px;
+}
+.filters .toolbar {
+  padding: 4px 0;
+}
 .toolbar-checks {
   display: flex;
   flex-wrap: wrap;

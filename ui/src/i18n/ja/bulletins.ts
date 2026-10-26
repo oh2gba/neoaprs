@@ -33,5 +33,8 @@ export const bulletins: Record<keyof typeof source, Message> = {
   "bulletins.group": "グループ",
   "bulletins.group_placeholder": "名前",
   "bulletins.text": "本文",
+  "bulletins.slot_tip": "掲示板での位置です。同じ位置にもう一度投稿すると置き換わります。",
+  "bulletins.group_tip": "宛先のグループです（英数字{max}文字まで）。その名前を受信する局に表示されます。",
+  "bulletins.text_tip": "ブレティンの本文です。カウンターに残りの文字数が出ます。",
   "bulletins.post": "掲示",
 };

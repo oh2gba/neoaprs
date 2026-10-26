@@ -192,5 +192,5 @@ class QruSource(Protocol):
 def qru_state(qru: QruSource) -> dict[str, Any]:
     """The `qru` topic: the last request and the servers that answered it."""
     asked = qru.asked
-    servers = [QruServer.row(s, groups=[QruGroup.row(None, name=name, count=count) for name, count in s.groups], sent_at=iso(s.sent_at)) for s in qru.servers()]
+    servers = [QruServer.row(s, groups=[QruGroup.row(None, name=name, count=count) for name, count in s.groups], sent_at=iso(s.sent_at), received=list(s.received), settles_at=iso(s.settles_at)) for s in qru.servers()]
     return QruState.row(None, asked=None if asked is None else QruAsked.row(asked), servers=servers)

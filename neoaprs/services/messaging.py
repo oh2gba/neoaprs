@@ -75,7 +75,8 @@ def _named(name: str) -> str:
 class Messaging:
     def __init__(self, tnc: Radio, config: ConfigSource, messagelog: MessageLog, paths: Callable[[str, int | None], tuple[str, ...]], clock: Clock = utcnow, tick_sec: float = TICK_SEC,
                  board: Callable[[Packet, Message], None] | None = None, alert: Callable[[MessageRecord], None] | None = None,
-                 spacing_sec: float = SPACING_SEC, qru: Callable[[Packet, Message], bool] | None = None) -> None:
+                 spacing_sec: float = SPACING_SEC, qru: Callable[[Packet, Message], bool] | None = None,
+                 qru_answer: Callable[[Packet, Message], bool] | None = None) -> None:
         self._tnc = tnc
         self._config = config
         interlock = Interlock(config)
@@ -91,7 +92,7 @@ class Messaging:
         self._refused: dict[int, str] = {}                      # the messages whose attempt cannot be made, with why: told once, not at every tick
         self.delivery = Delivery(messagelog)                    # the attempts of every message and the hops heard back (services/delivery.py)
         self.asking = Asking(self, clock)                       # the directed queries we send (services/asking.py)
-        self.inbox = Inbox(self, config, messagelog, TaskSet(log, "messaging"), board, alert, qru)       # what the Tnc hears (services/inbox.py); `board` takes the messages to bulletins and groups, `alert` the first copy of each message to us, `qru` a request to QRU
+        self.inbox = Inbox(self, config, messagelog, TaskSet(log, "messaging"), board, alert, qru, qru_answer)       # what the Tnc hears (services/inbox.py); `board` takes the messages to bulletins and groups, `alert` the first copy of each message to us, `qru` a request to QRU, `qru_answer` whether a message to us is a QRU server's answer (not kept)
 
     def records(self) -> list[MessageRecord]:
         """The messages held, the oldest first."""

@@ -33,5 +33,8 @@ export const bulletins: Record<keyof typeof source, Message> = {
   "bulletins.group": "Grupo",
   "bulletins.group_placeholder": "Nome",
   "bulletins.text": "Texto",
+  "bulletins.slot_tip": "O lugar no quadro. Publicar de novo no mesmo o substitui.",
+  "bulletins.group_tip": "O grupo a que se destina, até {max} letras e dígitos. As estações que seguem o nome o mostram.",
+  "bulletins.text_tip": "O texto do boletim. O contador mostra quantos caracteres restam.",
   "bulletins.post": "Publicar",
 };

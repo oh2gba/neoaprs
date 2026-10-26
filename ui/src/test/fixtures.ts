@@ -334,7 +334,7 @@ export function igateState(extra: Partial<IgateState> = {}): IgateState {
   };
 }
 
-/** The topic `qru`: a request for INFO 20 s ago, and the server DF8LS-10 that answered it with two groups and has sent the closing line of one; a test gives what it cares about. */
+/** The topic `qru`: a request for INFO 20 s ago, and the server DF8LS-10 that answered it with two groups and has sent the closing line of one (five objects, all of which arrived); a test gives what it cares about. */
 export function qruState(extra: Partial<QruState> = {}): QruState {
   return {
     asked: { text: "INFO", at: ago(20) },
@@ -351,6 +351,10 @@ export function qruState(extra: Partial<QruState> = {}): QruState {
         at: ago(15),
         sent: "Sent 5 RP70 Objects Max 5@50km de DF8LS-10",
         sent_at: ago(8),
+        sent_objects: 5,
+        request: "RP70 150",
+        received: ["RPKUM", "RPOTA", "RPTAP", "RPVAN", "RPESP"],
+        settles_at: ago(-22),
       },
     ],
     ...extra,

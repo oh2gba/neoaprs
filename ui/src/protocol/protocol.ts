@@ -855,6 +855,14 @@ export interface QruServer {
   sent: string;
   /** when the closing line was heard; null before one */
   sent_at: string | null;
+  /** how many objects its last closing line says it sent; null before one */
+  sent_objects: number | null;
+  /** the request its closing line answers, which Ask again sends once more (`TEST 150`); empty before a closing line, and when the request is not known */
+  request: string;
+  /** the names of the objects heard on the radio from the server since that request, until `settles_at` (or the last answer, before a closing line); each is an ordinary object of the stations and the map */
+  received: string[];
+  /** when the counting of `received` ends, 30 seconds after the closing line (a late object may still come); null before a closing line. Fewer `received` than `sent_objects` after it means objects were lost */
+  settles_at: string | null;
 }
 
 /** The servers that answered a request for local info, and the last request. What is older than an hour is forgotten, with the daemon's restart. Told whole as it changes. */

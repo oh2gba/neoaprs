@@ -21,7 +21,7 @@ The tab is a mail list, not a conversation. It has one row for each message to o
 - Check email asks the gateway to send again the mail it kept for you. The list shows a row "Checked email" with its state.
 - It is off while the TNC is not connected, and it says "Already checking" while an earlier question is still being sent, so the gateway is not asked twice.
 
-**At the bottom**, always there, is the box for a mail:
+**At the bottom**, always there, is the group box **Write an email**, a row for each field with an (i) after it:
 
 - **To** is an email address. While the box has the focus, the addresses used before that match what you typed are listed under it, opening upward over the list, newest first. A click picks one, and the trash can beside it forgets it. The addresses are kept in your browser. **Esc** closes that list; with none open, it clears the address and the text being written.
 - **Text** and "N left", the characters left of the 67 over the address, the space and the text.

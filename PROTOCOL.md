@@ -1243,6 +1243,10 @@ A QRU server that answered, as it last said.
 | `at` | time |  | when it answered last |
 | `sent` | string |  | its last closing line as it was heard (`Sent 5 RP70 Objects Max 5@50km de DF8LS-10`); empty before one |
 | `sent_at` | time \| null |  | when the closing line was heard; null before one |
+| `sent_objects` | integer \| null |  | how many objects its last closing line says it sent; null before one |
+| `request` | string |  | the request its closing line answers, which Ask again sends once more (`TEST 150`); empty before a closing line, and when the request is not known |
+| `received` | string[] |  | the names of the objects heard on the radio from the server since that request, until `settles_at` (or the last answer, before a closing line); each is an ordinary object of the stations and the map |
+| `settles_at` | time \| null |  | when the counting of `received` ends, 30 seconds after the closing line (a late object may still come); null before a closing line. Fewer `received` than `sent_objects` after it means objects were lost |
 
 ### QruState
 

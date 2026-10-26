@@ -20,6 +20,13 @@ describe("PacketsLog", () => {
     expect(wrapper.find(".tab-help .info-text").text()).toContain("Every packet heard (in) or sent by you (out), newest first");
   });
 
+  it("has the filter in a group box with the legend Filter, as the Stations tab has its filters", () => {
+    const wrapper = mount(PacketsLog, { props: { packets } });
+    const box = wrapper.find(".tablepane > fieldset.filters");
+    expect(box.find("legend").text()).toBe("Filter");
+    expect(box.find("input[type='search']").attributes("placeholder")).toBe("Call, text, kind");
+  });
+
   it("lists the newest packet first, with the direction, the line and the summary", () => {
     const rows = mount(PacketsLog, { props: { packets } }).findAll("tbody tr");
     expect(rows).toHaveLength(3);

@@ -15,12 +15,12 @@ function compose() {
 
 describe("BulletinCompose", () => {
   it("has a kind, an identifier, the text and Post, and no sentence of help", () => {
-    const { wrapper, kind, id, text, post } = compose();
+    const { wrapper, kind, id, post } = compose();
     expect(kind.findAll("option").map((o) => o.text())).toEqual(["Bulletin", "Announcement", "Bulletin to a group"]);
     expect(kind.element.value).toBe("bulletin");
     expect(id.findAll("option").map((o) => o.text())).toEqual([..."0123456789"]);
     expect(id.element.value).toBe("1");
-    expect(text.attributes("placeholder")).toBe("Text");
+    expect(wrapper.find("label[for='post-text']").text()).toBe("Text");
     expect(post.text()).toBe("Post");
     expect(wrapper.find("#post-group").exists()).toBe(false);
     expect(wrapper.find("p").exists()).toBe(false);

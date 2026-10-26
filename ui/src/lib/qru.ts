@@ -58,3 +58,29 @@ export function qruLook(asked: QruAsked | null, servers: readonly QruServer[], r
     ? { state, tone: "tnc-connected", line: t("objects.qru_answered", { time, n }) }
     : { state, tone: "tnc-stopped", line: t("objects.qru_no_answer", { time }) };
 }
+
+/** The objects that came in answer to our requests, by name: the call of the server that sent each (the Stations tab marks them, with the server in the hover). */
+export function receivedFrom(servers: readonly QruServer[]): Map<string, string> {
+  const found = new Map<string, string>();
+  for (const server of servers) for (const name of server.received) found.set(name, server.call);
+  return found;
+}
+
+export interface QruSentLine {
+  /** "sent 1 · 1 arrived", or "1 arrived" when no closing line was heard */
+  text: string;
+  /** fewer arrived than the closing line says, and the time to wait for late ones is over */
+  warn: boolean;
+  /** the request that Ask again sends; null unless `warn` */
+  again: string | null;
+}
+
+/** What a server's row says of its last request: how many objects its closing line says it sent and how many arrived. Fewer than sent, once the daemon's time for late ones is over, is the warn colour with the request to ask again;
+ * null when there is nothing to say (no closing line and nothing arrived). */
+export function sentLine(server: QruServer, nowMs: number): QruSentLine | null {
+  const arrived = server.received.length;
+  if (server.sent_objects === null) return arrived > 0 ? { text: t("objects.qru_got", { arrived }), warn: false, again: null } : null;
+  const settled = server.settles_at !== null && Date.parse(server.settles_at) <= nowMs;
+  const warn = settled && arrived < server.sent_objects;
+  return { text: t("objects.qru_arrived", { sent: server.sent_objects, arrived }), warn, again: warn && server.request !== "" ? server.request : null };
+}

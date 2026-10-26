@@ -57,16 +57,23 @@ def _reported_place(decoded: object) -> tuple[float, float] | None:
 
 
 def seed_routes(stations: Mapping[str, Station], packets: Iterable[Packet]) -> None:
-    """The routes of the packets the log kept, oldest first, for the station that sent each (the book as it was before them: a station's place is the latest position seen so far in the packets, else where it is now)."""
+    """The routes of the packets the log kept, oldest first, for the station that sent each and, for an object or item report, for the object or item it names too (the book as it was before them: a station's place is the
+    latest position seen so far in the packets, else where it is now)."""
     places: dict[str, tuple[float, float]] = {}
     for packet in packets:
-        station = stations.get(packet.sender)
-        if packet.direction != "in" or station is None or station.is_me:
+        if packet.direction != "in":
             continue
-        place = _reported_place(packet.decoded)
-        if place is not None:
-            places[station.call] = place
-        note_route_mark(station, packet, places.get(station.call))
+        station = stations.get(packet.sender)
+        if station is not None and not station.is_me:
+            place = _reported_place(packet.decoded)
+            if place is not None:
+                places[station.call] = place
+            note_route_mark(station, packet, places.get(station.call))
+        decoded = packet.decoded
+        if isinstance(decoded, (ObjectReport, ItemReport)) and decoded.alive:
+            named = stations.get(decoded.name)
+            if named is not None and named.kind == ("object" if isinstance(decoded, ObjectReport) else "item") and not named.own and not named.is_me:
+                note_route_mark(named, packet, (decoded.position.lat, decoded.position.lon))
 
 
 def note_messaging(station: Station, packet: Packet) -> None:

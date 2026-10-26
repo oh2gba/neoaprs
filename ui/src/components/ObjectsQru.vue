@@ -1,19 +1,21 @@
 <script setup lang="ts">
-// Local info (QRU), the group box of the Objects tab under the list of our objects (the stations that ask are answered with the objects that have a QRU group, the form's field; here we ask): **Ask** sends INFO to the stations near us (one request by radio only: the daemon sends it once, with RFONLY, at most one in a minute, and refuses it in RX only) with a distance in km that starts at the
+// Local info (QRU), the last group box of the Objects tab (the stations that ask are answered with the objects that have a QRU group, the form's field; here we ask): **Ask** sends INFO to the stations near us (one request by radio only: the daemon sends it once, with RFONLY, at most one in a minute, and refuses it in RX only) with a distance in km that starts at the
 // map's radius (empty: the servers' own); under it the one status row of the groups (StatusFold): when the last request was sent and waiting for answers, then how many servers answered or that none did, or why it was refused. Ask is held for the minute,
-// with the time left in its title. The servers that answered are a row each: its call, its groups as tags, by their plain names (the number of objects in each; a press asks that group, with the same distance) and under them, quiet, the line it closed its last objects with.
-// The objects themselves arrive as ordinary objects (the map, the Stations tab).
+// with the time left in its title. The servers that answered are a row each: its call, its groups as tags, by their plain names (the number of objects in each; a press asks that group, with the same distance) and under them, quiet, how many objects its closing line says it sent and how many arrived ("sent 1 · 1 arrived"; its closing line is the hover). Fewer than it sent, once the daemon has waited for late ones, is the warn colour with Ask again
+// (the same request; it obeys the same waits as Ask). The objects themselves arrive as ordinary objects (the map, the Stations tab, where they carry the Local info tag); "in Stations" opens that tab and flashes the first of them.
 import { computed, ref, watch } from "vue";
 import InfoTip from "@/components/InfoTip.vue";
 import StatusFold from "@/components/StatusFold.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { t } from "@/i18n";
 import { errorReason } from "@/i18n/errortext";
-import { askWait, kmWrong, qruLook, requestText } from "@/lib/qru";
-import { categoryLabel, isStandardCategory } from "@/lib/qrucategories";
+import { attend } from "@/lib/attention";
+import { askWait, kmWrong, qruLook, requestText, sentLine } from "@/lib/qru";
+import { categoryLabel, groupName } from "@/lib/qrucategories";
+import { stationRowId } from "@/lib/stations";
 import { LIMITS } from "@/protocol/lists";
 
-const { qru, receiveOnly, send, config, lastError, now } = useDaemonContext();
+const { qru, receiveOnly, send, config, lastError, now, panel } = useDaemonContext();
 const typed = ref<string | null>(null); // (what the person typed; null until then, and the field is the map's radius)
 const km = computed({
   get: () => typed.value ?? config.value?.values["map/radius_km"] ?? "",
@@ -21,6 +23,8 @@ const km = computed({
 });
 const wrong = computed(() => kmWrong(km.value));
 const servers = computed(() => qru.value?.servers ?? []);
+/** Each server with what its row says of the objects it sent. */
+const rows = computed(() => servers.value.map((server) => ({ server, line: sentLine(server, now.value) })));
 const asked = computed(() => qru.value?.asked ?? null);
 const waitFor = (word: string): number => askWait(asked.value, now.value, requestText(word, km.value));
 const wait = computed(() => waitFor("INFO"));
@@ -42,15 +46,32 @@ watch(
   () => (refusal.value = ""),
 );
 
-/** A group in words, with its code when it has a plain name (the hover text of a tag): "2 m repeater (RP2M)"; any other code is itself. */
-const groupName = (code: string): string => (isStandardCategory(code) ? `${categoryLabel(code)} (${code})` : code);
-
-/** Sends the request for the word (INFO or a group) with the distance of the field. */
+/** Sends the request for the word (INFO or a group) with the distance of the field, unless that request is held (RX only, or its own wait: a group may go ten seconds after INFO, whose minute is not its own). */
 function ask(word: string): void {
   const text = requestText(word, km.value);
-  if (off.value || text === null) return;
+  if (text === null || receiveOnly.value || waitFor(word) > 0) return;
   refusal.value = "";
   send({ cmd: "qru_ask", text });
+}
+
+/** Why Ask again is off (RX only, or the wait for that request), or undefined when it may be pressed. */
+function againWhy(request: string): string | undefined {
+  const seconds = askWait(asked.value, now.value, request);
+  return receiveOnly.value ? t("pill.rx_send") : seconds > 0 ? t("objects.qru_wait", { seconds }) : undefined;
+}
+
+/** The same request once more, as it went (its own distance, not the field's). */
+function again(request: string): void {
+  if (againWhy(request) !== undefined) return;
+  refusal.value = "";
+  send({ cmd: "qru_ask", text: request });
+}
+
+/** The Stations tab, with the row of the first of the objects that arrived flashed. */
+function inStations(names: readonly string[]): void {
+  panel.show("stations");
+  const [first] = names;
+  if (first !== undefined) void attend(stationRowId(first));
 }
 </script>
 
@@ -84,7 +105,7 @@ function ask(word: string): void {
       </template>
     </StatusFold>
     <ul v-if="servers.length > 0" class="qru-servers" :aria-label="t('objects.qru')">
-      <li v-for="server in servers" :key="server.call" class="qru-server">
+      <li v-for="{ server, line } in rows" :key="server.call" class="qru-server">
         <span class="mono strong qru-call">{{ server.call }}</span>
         <span class="qru-groups">
           <button
@@ -99,7 +120,22 @@ function ask(word: string): void {
             {{ categoryLabel(group.name) }}{{ " " }}<span class="qru-count">{{ group.count }}</span>
           </button>
         </span>
-        <span v-if="server.sent !== ''" class="muted qru-sent">{{ server.sent }}</span>
+        <span v-if="line" class="qru-sent" :class="line.warn ? 'warn' : 'muted'" :title="line.warn ? t('objects.qru_lost_title') : server.sent">
+          {{ line.text }}
+          <button
+            v-if="line.again"
+            type="button"
+            class="btn small qru-again"
+            :disabled="againWhy(line.again) !== undefined"
+            :title="againWhy(line.again) ?? t('objects.qru_again_title', { server: server.call, request: line.again })"
+            @click="again(line.again)"
+          >
+            {{ t("objects.qru_again") }}
+          </button>
+          <button v-if="server.received.length > 0" type="button" class="linkbutton qru-stations" @click="inStations(server.received)">
+            {{ t("objects.qru_in_stations", { tab: t("tab.stations") }) }}
+          </button>
+        </span>
       </li>
     </ul>
   </fieldset>

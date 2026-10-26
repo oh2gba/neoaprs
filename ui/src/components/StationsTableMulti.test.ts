@@ -87,6 +87,16 @@ describe("StationsTable with several cards", () => {
     expect(cssRule(".size-phone .toolbar .filterbox")).toMatch(/flex:\s*1 1 100%/);
   });
 
+  it("has the filters in a group box of their own, as the other tabs have their fields: a legend, and the filter field, the tickboxes and the hours inside it", () => {
+    const wrapper = make();
+    const box = wrapper.find(".tablepane > fieldset.filters");
+    expect(box.exists()).toBe(true);
+    expect(box.find("legend").text()).toBe("Filter");
+    expect(box.find("input.filterbox").attributes("placeholder")).toBe("Call, symbol, comment, path");
+    expect(box.findAll("label.check")).toHaveLength(3);
+    expect(wrapper.find(".tablepane").element.children[1]).toBe(box.element);
+  });
+
   it("keeps the sticky head from covering a row that is scrolled to, such as the first one", () => {
     expect(cssRule(".scroll")).toMatch(/scroll-padding-top:\s*36px/);
     expect(cssRule(".grid th")).toMatch(/position:\s*sticky/);

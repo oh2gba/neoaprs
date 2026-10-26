@@ -30,5 +30,8 @@ export const bulletins = {
   "bulletins.group": "Group",
   "bulletins.group_placeholder": "Name",
   "bulletins.text": "Text",
+  "bulletins.slot_tip": "The place on the board. Posting again to the same one replaces it.",
+  "bulletins.group_tip": "The group the bulletin is for, up to {max} letters and digits. Stations that follow the name show it.",
+  "bulletins.text_tip": "What the bulletin says. The counter shows how many characters are left.",
   "bulletins.post": "Post",
 } as const;

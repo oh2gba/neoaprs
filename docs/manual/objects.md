@@ -2,7 +2,7 @@
 
 An object is a marker you put on the map for something that is not a station: a repeater, a meeting point, an event. Everyone near you sees it, as long as you send it. The (i) at the top of the tab says so with a picture.
 
-The Objects tab makes an object, shows it on the map as yours, changes it and kills it. NeoAPRS sends it on the air by a schedule of its own. The list of your objects is above, then the group box **Local info** ([below](#asking-for-local-info)), and the form is always at the bottom: with no object selected the form adds a new one, with one selected it changes that one.
+The Objects tab makes an object, shows it on the map as yours, changes it and kills it. NeoAPRS sends it on the air by a schedule of its own. The tab is three group boxes one under the other: **Add an object**, the form, always first (with no object selected it adds a new one, with one selected it is **Edit NAME** and changes that one; a click on a row scrolls up to it), **My objects**, the list, and **Local info** ([below](#asking-for-local-info)), last. An object's category is the tag at the right of its row.
 
 - An **object** (chapter 11 of the specification) has a name of 1 to 9 characters and a time stamp.
 - An **item** has a name of 3 to 9 characters and no time stamp. The tab no longer makes new ones (objects are recommended on RF; the specification advises against the item format on the air), but an item you made before is still listed, can be changed and killed, and is sent as before.
@@ -107,16 +107,17 @@ Every station that keeps objects in a category answers, if it is in range. The o
 - The answers go by the path of the station that asked with `RFONLY` added, so that iGates keep them off the internet, are not retried and have no message id. A request is a broadcast and is **never acked**, also when it carries an id: an ack from your call would match nothing at the asker. Nothing is sent while the TNC is not connected or the call is not set.
 - Only a request heard on the radio is answered. One that came over the internet is not (the asker is not in your radio range).
 - The same request from the same station within 30 seconds is answered once.
-- A request for local info is not kept in Messages. While you have no object with a category it is a message to another station like any, and is kept as one you overheard.
+- A request for local info is not kept in Messages. While you have no object with a category it is a message to another station like any, and is kept as one you overheard. Your own server waits about 5 seconds before its first answer, so that the digipeaters have finished repeating the request.
 - `?APRSO` also gives these objects.
 - You can have 50 objects and items at once, these among them.
 
 ## Asking for local info
 
-The group box **Local info** of this tab, under the list of your objects, asks the stations round you for their objects: repeaters, events and places. **Ask** sends `INFO`, with the distance in km of the field (it starts at the map radius); each station that answers is listed with its categories in plain words and the number of objects in each, and a press on one asks for it (the code is in its hover text). The objects arrive as ordinary objects on the map and in the Stations tab, and the answering stations' messages are in Messages like any message.
+The group box **Local info**, the last of this tab, asks the stations round you for their objects: repeaters, events and places. **Ask** sends `INFO`, with the distance in km of the field (it starts at the map radius); each station that answers is listed with its categories in plain words and the number of objects in each, and a press on one asks for it (the code is in its hover text). The objects arrive as ordinary objects on the map and in the Stations tab, with the tag **Local info**. The answers of the stations are shown here only, not in Messages.
 
 - A request is one message, sent once by radio only (`RFONLY` after your message path), with no id. It is not kept as a message of yours and not sent again.
 - Nothing is sent while **RX only** is ticked or your call is not set. One request goes on the air per minute, whatever it says: Ask waits for the minute, and the daemon refuses another sooner (the status row says why).
+- Under a station's categories its row says **sent 1 · 1 arrived**: how many objects its closing line says it sent and how many were heard. When fewer arrived, once 30 seconds have passed since that line, the row is amber and **Ask again** asks for the same once more (the same waits as Ask: the same request once a minute, any two ten seconds apart). A request can lose an object to a collision with the stations still repeating it. **in Stations** opens the Stations tab and flashes the first of them.
 - A station with nothing within its range (50 km unless you named a distance) stays silent: "no answer" in the status row means that, or that none is in radio range.
 - The stations that answered are forgotten an hour after they answered.
 - With the **Dummy** radio the made-up club station Q1CLB answers with local info (the categories 70 cm repeater and Food), so that you can try it without a radio.

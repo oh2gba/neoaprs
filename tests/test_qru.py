@@ -1,5 +1,6 @@
 """The QRU server (neoaprs/services/qru.py) on a Tnc that is a stub, a real station book and a clock the test holds: the list of groups, the objects of a group near the asker, the limit and `NEXT`, the range, the
 answers that are never given, and the pace and the path of the frames."""
+import asyncio
 import logging
 from datetime import datetime
 
@@ -10,10 +11,11 @@ from neoaprs.ownobject import OwnObject, make_object
 from neoaprs.packet import Message, Packet, Position, ThirdParty, Via
 from neoaprs.stationbook import StationBook
 from neoaprs.source import Source
-from neoaprs.services.qru import ANSWER_FRAMES_MAX, RANGE_KM, Qru, Request, info_texts, request_of
+from neoaprs.services.qru import ANSWER_FRAMES_MAX, FIRST_WAIT_SEC, RANGE_KM, Qru, Request, info_texts, request_of
 from tests.support.env import idle_for, remember_stop, until
 from tests.support.rig import ServiceRig
 from tests.support.stubtnc import StubTnc
+from tests.support.virtualtime import virtual_time
 
 HELSINKI = (60.17, 24.94)
 
@@ -27,12 +29,12 @@ class Held:
 
 
 class Rig(ServiceRig):
-    def __init__(self, tnc: StubTnc | None = None, **changes: object) -> None:
+    def __init__(self, tnc: StubTnc | None = None, first_wait_sec: float = 0.0, **changes: object) -> None:
         super().__init__(None, tnc, **changes)
         self.book = StationBook(self.clock)
         self.objects = Held()
         self.paths: dict[str, tuple[str, ...]] = {}
-        self.qru = Qru(self.tnc, lambda: self.config, self.objects, self.book, lambda call: self.paths.get(call, self.config.beacon_path_calls), self.clock, spacing_sec=0.02)
+        self.qru = Qru(self.tnc, lambda: self.config, self.objects, self.book, lambda call: self.paths.get(call, self.config.beacon_path_calls), self.clock, spacing_sec=0.02, first_wait_sec=first_wait_sec)
         remember_stop(self.qru.stop)
 
     def add(self, name: str, group: str, lat: float = 60.2, lon: float = 24.9, on_request: bool = False, kind: str = "object", comment: str = "") -> OwnObject:
@@ -296,3 +298,50 @@ async def test_the_clock_of_the_server_stamps_the_objects() -> None:
     rig.clock.set(datetime(2026, 11, 2, 7, 5, tzinfo=rig.clock().tzinfo))
     rig.ask("OH2RDG", "FOOD")
     assert RANGE_KM == 50 and rig.tnc.sent[0].info.startswith(b";PUB      *020705z")
+
+
+# ---- the first frame waits for the digipeaters ---------------------------------------------------------------------------------------------------
+
+async def test_the_first_frame_of_an_answer_waits_about_five_seconds_for_the_digipeaters_to_finish_repeating_the_request_then_the_frames_are_spaced() -> None:
+    rig = Rig(first_wait_sec=FIRST_WAIT_SEC)
+    rig.add("PUMP", "FUEL")
+    rig.add("WELL", "FUEL", 60.21)
+    assert FIRST_WAIT_SEC == 5.0
+    async with virtual_time() as time:
+        rig.ask("OH2RDG", "FUEL")
+        await idle_for(0)
+        assert rig.tnc.sent == [], "nothing at once"
+        await asyncio.sleep(FIRST_WAIT_SEC - 0.5)
+        assert rig.tnc.sent == [], "not before the wait is over"
+        await asyncio.sleep(0.51)
+        assert len(rig.tnc.sent) == 1, "then the first object"
+        await asyncio.sleep(0.05)
+        assert len(rig.tnc.sent) == 3 and rig.texts() == ["Sent 2 FUEL Objects Max 5@50km de OH2GBA"], "the rest, spaced as before"
+        assert FIRST_WAIT_SEC <= time.skipped < FIRST_WAIT_SEC + 1
+
+
+async def test_the_list_of_groups_waits_too() -> None:
+    rig = Rig(first_wait_sec=FIRST_WAIT_SEC)
+    rig.add("PUMP", "FUEL")
+    async with virtual_time():
+        rig.ask("OH2RDG", "INFO")
+        await asyncio.sleep(FIRST_WAIT_SEC - 0.5)
+        assert rig.tnc.sent == []
+        await asyncio.sleep(0.6)
+        assert rig.texts() == ["de OH2GBA:FUEL(1) Max 5@50km"]
+
+
+async def test_the_copies_of_the_request_that_come_while_the_answer_waits_are_not_answered_again_and_a_stop_ends_the_wait() -> None:
+    rig = Rig(first_wait_sec=FIRST_WAIT_SEC)
+    rig.add("PUMP", "FUEL")
+    async with virtual_time():
+        rig.ask("OH2RDG", "INFO")
+        await asyncio.sleep(2)
+        rig.ask("OH2RDG", "INFO")
+        await asyncio.sleep(FIRST_WAIT_SEC)
+        assert len(rig.tnc.sent) == 1
+        rig.clock.advance(60)
+        rig.ask("OH2RDG", "INFO")
+        await rig.qru.stop()
+        await asyncio.sleep(FIRST_WAIT_SEC * 2)
+        assert len(rig.tnc.sent) == 1, "an answer that is waiting is not sent when the server stops"

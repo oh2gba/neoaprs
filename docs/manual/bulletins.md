@@ -2,7 +2,7 @@
 
 A bulletin is a message to everyone, shown on every station's board. Use it for net times, events, warnings. The (i) at the top of the tab says so with a picture.
 
-The Bulletins tab shows the message board and has a box at its bottom to post to it.
+The Bulletins tab shows the message board and has a group box at its bottom, **Post a bulletin**, to post to it.
 
 ## The board
 
@@ -31,7 +31,7 @@ A badge on the tab counts the entries whose text was first heard since the tab w
 
 ## Posting
 
-The box at the bottom has:
+The box has a row for each field, with an (i) after it:
 
 - the **kind**: a bulletin, an announcement or a bulletin to a group;
 - the **identifier**;

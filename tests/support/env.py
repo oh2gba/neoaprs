@@ -110,7 +110,7 @@ async def idle_for(seconds: float) -> None:
 
 async def quick_start(tmp_path: Path, *, beacon: bool = False, messaging: bool = False, rigstatus: bool = False, own: bool = False, unpaced: bool = False, **options: Any) -> "Env":
     """A started Env whose Tnc is connected and settled and whose named services tick every 20 ms (the beacon, messaging, the status poll, the own objects and bulletins); `unpaced`: and send one frame after the other with no
-    pause (the messaging pace, the own sender). The other options are the Env's."""
+    pause (the messaging pace, the own sender, and the QRU server's wait before its first frame). The other options are the Env's."""
     e = Env(tmp_path, **options)
     if beacon:
         e.ctl.beacon.tick_sec, e.ctl.beacon.retry_sec = 0.02, 0.05
@@ -124,6 +124,7 @@ async def quick_start(tmp_path: Path, *, beacon: bool = False, messaging: bool =
         e.ctl.ownobjects.tick_sec = e.ctl.ownbulletins.tick_sec = 0.02
         if unpaced:
             e.ctl.sender.spacing_sec = 0.0
+            e.ctl.qru.first_wait_sec = 0.0
     await e.start()
     await e.until_usable()
     return e

@@ -50,3 +50,8 @@ export function isStandardCategory(code: string): boolean {
 export function categoryLabel(code: string): string {
   return isStandardCategory(code) ? t(categoryMessage(code)) : code;
 }
+
+/** A group in words, with its code when it has a plain name (the hover text of a tag): "2 m repeater (RP2M)"; any other code is itself. */
+export function groupName(code: string): string {
+  return isStandardCategory(code) ? `${categoryLabel(code)} (${code})` : code;
+}

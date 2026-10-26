@@ -56,8 +56,34 @@ describe("the card of a station, by channel", () => {
 
   it("says of a station that only an app sent from the internet that it never was on the air, and has no radio line for it", () => {
     const fields = fieldsOf(card({ ...net, internet_reach: { kind: "app", igate: "", hops: [] } }));
-    expect(fields["Internet"]).toBe("Sent from an internet app, never on the air");
+    expect(fields["Internet"]).toBe("Sent over the internet, not heard on the air");
     expect(fields).not.toHaveProperty("Reached us");
+  });
+
+  it("gives an object that came over the internet its internet line, with the station that reported it when an app sent it, and no radio line", () => {
+    const object = station("OH2FTJ", {
+      kind: "object",
+      reported_by: "OH2HCY",
+      heard_rf: 0,
+      heard_is: 1,
+      last_rf_at: null,
+      last_is_at: ago(540),
+      last_route: "",
+      internet_reach: { kind: "app", igate: "", hops: [] },
+    });
+    const fields = fieldsOf(card(object));
+    expect(fields["Internet"]).toBe("Sent over the internet by OH2HCY, not heard on the air");
+    expect(fields).not.toHaveProperty("Reached us");
+    const heard = station("WELL", {
+      kind: "item",
+      reported_by: "OH2HCY",
+      heard_rf: 0,
+      heard_is: 1,
+      last_rf_at: null,
+      last_route: "",
+      internet_reach: { kind: "igate", igate: "OH2GW-10", hops: [] },
+    });
+    expect(fieldsOf(card(heard))["Internet"]).toBe("Heard by iGate OH2GW-10 directly (iGate position unknown)");
   });
 
   it("has no internet line for a station nothing came from the internet of, and none for our own station", () => {

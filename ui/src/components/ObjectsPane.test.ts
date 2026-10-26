@@ -58,17 +58,19 @@ describe("ObjectsPane", () => {
     expect(wrapper.find(".empty").exists()).toBe(false);
   });
 
-  it("names the category of an object in plain words and says that one that is on request is sent only when asked", () => {
+  it("shows the category of an object in plain words as a tag in a column of its own, with its code in the hover, and says that one that is on request is sent only when asked", () => {
     const { wrapper } = pane([
       ownObject("PUB", { qru_group: "FOOD", on_request: true, sent: 0, last_sent_at: null, next_at: null, created_at: ago(900) }),
       ownObject("PUMP", { qru_group: "FUEL", created_at: ago(300) }),
       ownObject("PLAIN", { created_at: ago(100) }),
     ]);
     const items = wrapper.findAll(".ownobject");
-    const heads = items.map((i) => i.find(".bulletin-head").text());
-    expect(heads[0]).toContain("Category: Food");
-    expect(heads[1]).toContain("Category: Fuel station");
-    expect(heads[2]).not.toContain("Category");
+    const tags = items.map((i) => i.find(".own-tags .tag"));
+    expect(tags.map((tag) => (tag.exists() ? tag.text() : null))).toEqual(["Food", "Fuel station", null]);
+    expect(tags[0]?.attributes("title")).toBe("Category: Food (FOOD)");
+    expect(tags[0]?.classes()).toContain("tag-neutral");
+    expect(items[0]?.find(".bulletin-head").text()).not.toContain("Category");
+    expect(cssRule(".own-tags")).toMatch(/padding:/);
     expect(items.map((i) => i.find(".bulletin-meta").text())).toEqual(["sent only when asked", "sent 2 times, next in 3 min", "sent 2 times, next in 3 min"]);
   });
 
@@ -152,19 +154,36 @@ describe("ObjectsPane", () => {
     expect(wrapper.find<HTMLInputElement>("input[maxlength='9']").element.value).toBe("");
   });
 
-  it("keeps the list scrolling on its own above the form, which keeps its height and scrolls its fields", () => {
+  it("is three group boxes in a column that scrolls as a whole: Add an object first, My objects, and Local info last", () => {
     const { wrapper } = pane(rows);
-    expect([...wrapper.find(".objectspane").element.children].map((c) => c.className.split(" ")[0])).toEqual(["tab-help", "objectlist", "composebar"]);
+    expect([...wrapper.find(".objectspane").element.children].map((c) => c.className.split(" ")[0])).toEqual(["tab-help", "objectlist"]);
+    const list = wrapper.find(".objectlist");
+    expect([...list.element.children].map((c) => c.tagName.toLowerCase())).toEqual(["form", "fieldset", "fieldset"]);
+    expect(
+      [...list.element.querySelectorAll(":scope > form > fieldset > legend, :scope > fieldset > legend")].map((l) =>
+        l.textContent?.replace(/\s+/g, " ").replace(/ ?i$/, "").trim(),
+      ),
+    ).toEqual(["Add an object", "My objects 2", "Local info"]);
     expect(cssRule(".objectlist")).toMatch(/overflow-y:\s*auto/);
-    expect(cssRule(".objectlist")).toMatch(/min-height:\s*8em/);
-    expect(cssRule(".objectspane .composebar.scrolls")).toMatch(/max-height:\s*55dvh/);
-    expect(wrapper.find("form.composebar").classes()).toContain("scrolls");
+    expect(wrapper.find("form.composebar").classes()).toContain("boxed");
+    expect(wrapper.find("form.composebar").classes()).not.toContain("scrolls");
   });
 
-  it("has Local info as the group box under the list of objects, in the list's scroll", async () => {
+  it("brings the form into view when a row is selected, which is above the list", async () => {
+    const { wrapper, form } = pane(rows);
+    const into = vi.fn();
+    wrapper.find<HTMLElement>("form.composebar").element.scrollIntoView = into;
+    form.edit("LEADER");
+    await nextTick();
+    await nextTick();
+    expect(into).toHaveBeenCalled();
+    expect(wrapper.find("fieldset.composebox > legend").text()).toBe("Edit LEADER");
+  });
+
+  it("has Local info as the last group box, in the tab's scroll", async () => {
     const { wrapper } = pane(rows);
     const list = wrapper.find(".objectlist");
-    expect([...list.element.children].map((c) => c.tagName.toLowerCase())).toEqual(["ul", "fieldset"]);
+    expect(list.element.lastElementChild).toBe(list.find("fieldset.objects-qru").element);
     expect(list.find("fieldset.objects-qru > legend").text().replace(/ ?i$/, "")).toBe("Local info");
     await list.find("fieldset.objects-qru legend button.info-toggle").trigger("click");
     expect(list.find("fieldset.objects-qru legend .info-text .info-line").text()).toBe(

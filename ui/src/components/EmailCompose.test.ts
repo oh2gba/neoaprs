@@ -12,11 +12,12 @@ const value = (wrapper: ReturnType<typeof box>, id: string) => wrapper.find<HTML
 describe("EmailCompose", () => {
   it("is the box to write an email in, with To, Text, the count and Send only, and no hint under it", () => {
     const wrapper = box();
-    expect(wrapper.attributes("aria-label")).toBe("Email");
+    expect(wrapper.attributes("aria-label")).toBe("Write an email");
+    expect(wrapper.find("fieldset > legend").text()).toBe("Write an email");
     expect(wrapper.find("label[for='mail-to']").text()).toBe("To");
     expect(wrapper.find("#mail-to").attributes("placeholder")).toBe("Email address");
-    expect(wrapper.find("#mail-text").attributes("placeholder")).toBe("Text");
-    expect(wrapper.findAll("button").map((b) => b.text())).toEqual(["Send"]);
+    expect(wrapper.find("label[for='mail-text']").text()).toBe("Text");
+    expect(wrapper.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(["Send"]);
     expect(send(wrapper).classes()).toContain("primary");
     expect(wrapper.findAll("p")).toHaveLength(0);
     wrapper.unmount();

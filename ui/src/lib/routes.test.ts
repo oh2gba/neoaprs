@@ -125,7 +125,10 @@ describe("internetText", () => {
   });
 
   it("says that a packet from an app never was on the air, and nothing when the way is not known", () => {
-    expect(internetText({ internet_reach: { kind: "app", igate: "", hops: [] } }, book)).toBe("Sent from an internet app, never on the air");
+    expect(internetText({ internet_reach: { kind: "app", igate: "", hops: [] } }, book)).toBe("Sent over the internet, not heard on the air");
     expect(internetText({ internet_reach: null }, book)).toBeNull();
+    const app = { internet_reach: { kind: "app" as const, igate: "", hops: [] } };
+    expect(internetText({ ...app, kind: "object", reported_by: "OH2HCY" }, book)).toBe("Sent over the internet by OH2HCY, not heard on the air");
+    expect(internetText({ ...app, kind: "item", reported_by: "" }, book)).toBe("Sent over the internet, not heard on the air");
   });
 });

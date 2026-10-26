@@ -104,6 +104,14 @@ describe("Local info in the Objects tab", () => {
     expect(daemon.send).toHaveBeenCalledWith({ cmd: "qru_ask", text: "RP2M 150" });
   });
 
+  it("asks for a group ten seconds after the INFO that listed it, though INFO itself is held for its minute", async () => {
+    const { wrapper, daemon } = make({ qru: qruState({ asked: { text: "INFO 150", at: ago(12) } }) });
+    expect(ask(wrapper).attributes("disabled")).toBeDefined();
+    expect(pills(wrapper)[0]?.attributes("disabled")).toBeUndefined();
+    await pills(wrapper)[0]?.trigger("click");
+    expect(daemon.send).toHaveBeenCalledWith({ cmd: "qru_ask", text: "RP70 150" });
+  });
+
   it("shows the daemon's refusal of a request in the row, in the words of its code, and takes it away when the next request has been sent", async () => {
     const { wrapper, daemon } = make();
     await tell(daemon, { lastError: toastOf("qru_ask: the same request was sent a moment ago: wait 12 s", "qru.too_soon", { seconds: 12 }) });
@@ -117,12 +125,25 @@ describe("Local info in the Objects tab", () => {
     expect(row(wrapper).find(".statetext").text()).toBe("Asked");
   });
 
-  it("lists each server that answered: its call, its groups as tags with the number of objects, and the line it closed with, quietly", () => {
+  it("lists each server that answered: its call, its groups as tags with the number of objects, and how many it sent and how many arrived, quietly", () => {
     const { wrapper } = make({
       qru: qruState({
         servers: [
           ...qruState().servers,
-          { call: "W1AW", groups: [{ name: "FOOD", count: 2 }], max_objects: 5, range: 30, unit: "mi", at: ago(5), sent: "", sent_at: null },
+          {
+            call: "W1AW",
+            groups: [{ name: "FOOD", count: 2 }],
+            max_objects: 5,
+            range: 30,
+            unit: "mi",
+            at: ago(5),
+            sent: "",
+            sent_at: null,
+            sent_objects: null,
+            request: "",
+            received: [],
+            settles_at: null,
+          },
         ],
       }),
     });
@@ -131,7 +152,8 @@ describe("Local info in the Objects tab", () => {
     expect(rows.map((r) => r.find(".qru-call").text())).toEqual(["DF8LS-10", "W1AW"]);
     expect(rows[0]?.findAll("button.qru-group").map((b) => b.text())).toEqual(["70 cm repeater 10", "2 m repeater 3"]);
     expect(rows[0]?.findAll("button.btn.small").length).toBe(2); // (real buttons in the server's row)
-    expect(rows[0]?.find(".qru-sent").text()).toBe("Sent 5 RP70 Objects Max 5@50km de DF8LS-10");
+    expect(rows[0]?.find(".qru-sent").text()).toContain("sent 5 · 5 arrived");
+    expect(rows[0]?.find(".qru-sent").attributes("title")).toBe("Sent 5 RP70 Objects Max 5@50km de DF8LS-10");
     expect(rows[1]?.find(".qru-sent").exists()).toBe(false);
   });
 
@@ -148,7 +170,22 @@ describe("Local info in the Objects tab", () => {
     const { wrapper, daemon } = make({
       qru: qruState({
         asked: { text: "INFO", at: ago(90) },
-        servers: [{ call: "W1AW", groups: [{ name: "MYNET", count: 4 }], max_objects: 5, range: 50, unit: "km", at: ago(5), sent: "", sent_at: null }],
+        servers: [
+          {
+            call: "W1AW",
+            groups: [{ name: "MYNET", count: 4 }],
+            max_objects: 5,
+            range: 50,
+            unit: "km",
+            at: ago(5),
+            sent: "",
+            sent_at: null,
+            sent_objects: null,
+            request: "",
+            received: [],
+            settles_at: null,
+          },
+        ],
       }),
     });
     expect(pills(wrapper).map((b) => b.text())).toEqual(["MYNET 4"]);
