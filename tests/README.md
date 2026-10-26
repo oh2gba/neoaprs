@@ -178,8 +178,9 @@
 * `test_messaging_pacing.py`: the pace of messaging (`spacing_sec`): the first message goes at once and the ones written with it follow 10 seconds apart, in the
   order written, with no attempt used while they wait; a message after the pause is not delayed; messages that waited for the radio leave spaced when it is
   back. The other messaging tests set the pause to 0.
+* `test_internet_hidden.py`, `test_station_radio.py`, `test_forget_all.py`: the internet hidden while `igate/enabled` is off (a page told no station and no packet from it, the station heard both ways with its radio side only, everything still in the database, switched on again without a restart, a restart with it off; `Station.radio_view`, the radio's place and the hour less the internet's) and Forget all stations (the stations, packets and weather heard go; ours, the objects and bulletins, messages, preferences and settings stay).
 * `test_web.py`, `test_hub.py`: the web server over a real socket (`support/env.py` with `web=True`, `support/wsclient.py`): the hello and the seven topics, the
-  capture through the fake radio as patches, `list_ports`, set_config, forget_station, tnc_reconnect, beacon_now, send_message, message_retry, message_cancel,
+  capture through the fake radio as patches, `list_ports`, set_config, forget_station, forget_all_stations, tnc_reconnect, beacon_now, send_message, message_retry, message_cancel,
   message_delete, conversation_delete, overheard_delete (two pages see the dels, a conversation is untouched), the removed set_station_attempts and
   clear_station_attempts refused, set_station_path and clear_station_path, and the removed set_station_timeout and clear_station_timeout refused (the `messages` and `station_prefs`
   topics, an ack through the line, a bad addressee or path), the `bulletins` topic (a row by sender and slot, heard again, never aged out, a page that comes

@@ -113,6 +113,11 @@ export const stations = {
   "station.table.message_call": "Message {call}",
   "station.table.forget_call": "Forget {call}",
   "station.table.forget_sure_call": "Really forget {call}?",
+  "station.table.forget_all": "Forget all",
+  "station.table.forget_all_sure": "Really forget all?",
+  "station.table.forget_all_label": "About Forget all",
+  "station.table.forget_tip":
+    "Removes every station heard and its packets, for a fresh start. Your own station, objects, bulletins, messages, settings and maps stay.",
   "station.table.count": { one: "{shown} of {n} stations", other: "{shown} of {n} stations" },
 
   "station.menu.label": "Actions for {call}",

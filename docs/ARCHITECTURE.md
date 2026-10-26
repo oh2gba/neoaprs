@@ -115,7 +115,7 @@ What each layer is for:
 * **delivery**: one package each.
   * `neoaprs/web/`: Tornado, the pydantic wire models (`*wire.py`), the state hub and its topics, the commands. `server.py` is the coordinator (routes, Host
     names, the switch and the key), with `pagesocket.py` (the socket of a tab) and `listen.py` (the choice of the port). `processmeter.py` is what the daemon
-    costs the machine, for the status. `topics.py` is the one place that connects the daemon's signals to the page, so it is a composition root too. `supporthandler.py` is `POST /support/bundle` and `pageerrors.py` what the pages report of their own errors. The wire
+    costs the machine, for the status. `topics.py` is the one place that connects the daemon's signals to the page, so it is a composition root too (`packetwindow.py` is the latest packets it holds for the page, and the internet's packets are shown or left out there and in the station rows by `igate/enabled`). `supporthandler.py` is `POST /support/bundle` and `pageerrors.py` what the pages report of their own errors. The wire
     format is `PROTOCOL.md`.
   * `neoaprs/cli/`: the `neoaprs` command. `service` sets the daemon up to start at login with the system's own means, `doctor` checks the computer, `support` makes the support bundle (`supportmake` is what the daemon, the command and the tray all call; `supportgather` reads, `supportbundle` writes the zip; `uncaught` logs what escapes), and `db`,
     `map`, `replay` and `capture` are tools of the command. `neoaprs/cli/neoaprs.service` is the unit's template, package data. The one command that builds a

@@ -508,6 +508,11 @@ export const de: Catalogue = {
   "station.table.message_call": "Nachricht an {call}",
   "station.table.forget_call": "{call} vergessen",
   "station.table.forget_sure_call": "{call} wirklich vergessen?",
+  "station.table.forget_all": "Alle vergessen",
+  "station.table.forget_all_sure": "Wirklich alle vergessen?",
+  "station.table.forget_all_label": "Über „Alle vergessen“",
+  "station.table.forget_tip":
+    "Entfernt alle Stationen samt Paketen für einen Neustart. Eigene Station, Objekte, Bulletins, Nachrichten, Einstellungen und Karten bleiben.",
   "station.table.count": { one: "{shown} von {n} Station", other: "{shown} von {n} Stationen" },
 
   "station.menu.label": "Aktionen für {call}",

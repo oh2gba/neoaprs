@@ -494,6 +494,11 @@ export const fr: Catalogue = {
   "station.table.message_call": "Écrire à {call}",
   "station.table.forget_call": "Oublier {call}",
   "station.table.forget_sure_call": "Vraiment oublier {call} ?",
+  "station.table.forget_all": "Tout oublier",
+  "station.table.forget_all_sure": "Vraiment tout oublier ?",
+  "station.table.forget_all_label": "À propos de « Tout oublier »",
+  "station.table.forget_tip":
+    "Supprime toutes les stations entendues et leurs paquets, à zéro. Votre station, objets, bulletins, messages, réglages et cartes restent.",
   "station.table.count": { one: "{shown} sur {n} station", other: "{shown} sur {n} stations" },
 
   "station.menu.label": "Actions pour {call}",

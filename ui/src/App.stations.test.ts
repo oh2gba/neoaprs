@@ -73,6 +73,25 @@ describe("App: stations and the map", () => {
     expect(wrapper.find(".card").exists()).toBe(false);
   });
 
+  it("forgets all the stations from the foot of the table, and the card and the markers go when the daemon has", async () => {
+    const { wrapper, socket } = await open();
+    await wrapper
+      .findAll("#pane-stations tbody tr")
+      .find((r) => r.text().includes("OH2PU-9"))
+      ?.trigger("click");
+    await flushPromises();
+    expect(wrapper.find(".card").exists()).toBe(true);
+    await wrapper.find("#pane-stations .foot button.forgetall").trigger("click");
+    await wrapper.find("#pane-stations .foot button.forgetall").trigger("click");
+    expect(socket.sent).toContainEqual({ cmd: "forget_all_stations" });
+    socket.say({ type: "patch", topic: "stations", rev: 1, ops: [{ op: "replace", value: { OH2GBA: stations.OH2GBA } }] });
+    await flushPromises();
+    expect(wrapper.findAll("#pane-stations tbody tr")).toHaveLength(1);
+    expect(wrapper.find(".card").exists()).toBe(false);
+    expect(FakeMarker.live().map((m) => m.element.textContent)).toEqual(["OH2GBA"]);
+    expect(wrapper.find("#pane-stations .foot button.forgetall").attributes("disabled")).toBeDefined();
+  });
+
   it("flies the map to a station picked in the table", async () => {
     const { wrapper } = await open();
     await wrapper
