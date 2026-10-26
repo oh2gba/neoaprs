@@ -25,7 +25,7 @@ describe("emptyDraft and draftOf", () => {
     expect(emptyDraft({ lat: 60.17, lon: 24.94 })).toEqual({
       name: "",
       kind: "object",
-      symbol: "/>",
+      symbol: "/r",
       lat: "60.17",
       lon: "24.94",
       comment: "",
@@ -209,7 +209,7 @@ describe("the QRU group", () => {
 
   it("is part of what makes an object the one the command asked for", () => {
     const command = objectCommand(ready({ qru: "FOOD" }));
-    const row = ownObject("LEADER", { comment: "", lat: 60.17, lon: 24.94, qru_group: "FOOD" });
+    const row = ownObject("LEADER", { comment: "", lat: 60.17, lon: 24.94, qru_group: "FOOD", symbol_code: "r" });
     expect(command !== null && isObjectOf(row, command)).toBe(true);
     expect(command !== null && isObjectOf({ ...row, on_request: true }, command)).toBe(false);
     expect(command !== null && isObjectOf({ ...row, qru_group: "" }, command)).toBe(false);

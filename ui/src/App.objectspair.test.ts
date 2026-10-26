@@ -25,7 +25,7 @@ describe("App: two objects", () => {
       type: "patch",
       topic: "own_objects",
       rev: 1,
-      ops: [{ op: "set", key: "ALPHA", value: ownObject("ALPHA", { lat: 60.17, lon: 24.94, sent: 0, last_sent_at: null }) }],
+      ops: [{ op: "set", key: "ALPHA", value: ownObject("ALPHA", { lat: 60.17, lon: 24.94, sent: 0, last_sent_at: null, symbol_code: "r" }) }],
     });
     await flushPromises();
     expect(field(wrapper, "Name")?.element.value).toBe("");
@@ -36,7 +36,7 @@ describe("App: two objects", () => {
       type: "patch",
       topic: "own_objects",
       rev: 2,
-      ops: [{ op: "set", key: "BRAVO", value: ownObject("BRAVO", { lat: 60.17, lon: 24.94, sent: 0, last_sent_at: null }) }],
+      ops: [{ op: "set", key: "BRAVO", value: ownObject("BRAVO", { lat: 60.17, lon: 24.94, sent: 0, last_sent_at: null, symbol_code: "r" }) }],
     });
     await flushPromises();
     expect(field(wrapper, "Name")?.element.value).toBe("");

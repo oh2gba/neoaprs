@@ -25,7 +25,7 @@ describe("useOwnObjects", () => {
     expect(view.editing).toBeNull();
     expect(view.dirty).toBe(false);
     expect(view.picking).toBe(false);
-    expect(view.draft).toMatchObject({ name: "", lat: "60.17", lon: "24.94", symbol: "/>" });
+    expect(view.draft).toMatchObject({ name: "", lat: "60.17", lon: "24.94", symbol: "/r" });
     expect(view.pin).toEqual({ lat: 60.17, lon: 24.94 });
     tab.value = "stations";
     expect(view.pin).toBeNull();
@@ -139,7 +139,7 @@ describe("useOwnObjects", () => {
         lat: 60.17,
         lon: 24.94,
         symbol_table: "/",
-        symbol_code: ">",
+        symbol_code: "r",
         comment: "Rescue 1",
         course_deg: null,
         speed_kmh: 40,
@@ -150,7 +150,7 @@ describe("useOwnObjects", () => {
     ]);
     expect(view.dirty).toBe(true);
     expect(view.draft).toMatchObject({ name: "LEADER", comment: "Rescue 1", speed: "40" });
-    table.set("LEADER", ownObject("LEADER", { lat: 60.17, lon: 24.94, comment: "Rescue 1", speed_kmh: 40 }));
+    table.set("LEADER", ownObject("LEADER", { lat: 60.17, lon: 24.94, comment: "Rescue 1", speed_kmh: 40, symbol_code: "r" }));
     await nextTick();
     expect(view.dirty).toBe(false);
     expect(view.draft.name).toBe("");
@@ -170,7 +170,7 @@ describe("useOwnObjects", () => {
     table.set("LEADER", ownObject("LEADER", { lat: 60.17, lon: 24.94, comment: "Rescue 1" }));
     await nextTick();
     expect(view.dirty).toBe(true);
-    table.set("LEADER", ownObject("LEADER", { lat: 60.17, lon: 24.94, comment: "Rescue 2" }));
+    table.set("LEADER", ownObject("LEADER", { lat: 60.17, lon: 24.94, comment: "Rescue 2", symbol_code: "r" }));
     await nextTick();
     expect(view.dirty).toBe(false);
   });

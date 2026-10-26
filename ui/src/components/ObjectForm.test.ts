@@ -42,12 +42,12 @@ describe("ObjectForm", () => {
     expect(wrapper.find("p").exists()).toBe(false);
   });
 
-  it("starts at the place we are, with the car and the path of the beacon as the placeholder", async () => {
+  it("starts at the place we are, with the repeater and the path of the beacon as the placeholder", async () => {
     const { wrapper, input, field, coordinate } = form();
     expect(wrapper.find(".location-place").text()).toBe("60.17 N, 24.94 E · KP20le");
     expect((await coordinate("Latitude"))?.find("input").element.value).toBe("60.17");
     expect((await coordinate("Longitude"))?.find("input").element.value).toBe("24.94");
-    expect(field("Symbol")?.find(".symbolfield-name").text()).toBe("Car");
+    expect(field("Symbol")?.find(".symbolfield-name").text()).toBe("Antenna");
     expect(input("Path")?.attributes("placeholder")).toBe("WIDE1-1,WIDE2-1");
     expect(input("Path")?.element.value).toBe("");
   });
@@ -247,7 +247,7 @@ describe("ObjectForm", () => {
         lat: 60.17,
         lon: 24.94,
         symbol_table: "/",
-        symbol_code: ">",
+        symbol_code: "r",
         comment: "Rescue 1",
         course_deg: 88,
         speed_kmh: 40,

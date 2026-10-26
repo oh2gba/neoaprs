@@ -72,7 +72,7 @@ describe("App: the Objects tab", () => {
           lat: 60.5,
           lon: 25.5,
           symbol_table: "/",
-          symbol_code: ">",
+          symbol_code: "r",
           comment: "",
           course_deg: null,
           speed_kmh: null,
@@ -82,7 +82,7 @@ describe("App: the Objects tab", () => {
         },
       ]);
       expect(field(wrapper, "Name")?.element.value).toBe("MARK");
-      socket.say({ type: "state", topic: "own_objects", rev: 0, value: { MARK: ownObject("MARK", { lat: 60.5, lon: 25.5 }) } });
+      socket.say({ type: "state", topic: "own_objects", rev: 0, value: { MARK: ownObject("MARK", { lat: 60.5, lon: 25.5, symbol_code: "r" }) } });
       await flushPromises();
       expect(field(wrapper, "Name")?.element.value).toBe(""); // (the form is blank again, for the next one)
       expect(wrapper.find("#pane-objects .objform").exists()).toBe(true);

@@ -17,8 +17,8 @@ const ITEM_NAME_MIN = LIMITS.object.itemNameMin;
 const NAME_FORBIDDEN = LIMITS.object.nameForbidden;
 const SPEED_MAX_KMH = LIMITS.object.speedMaxKmh;
 const COURSE_MAX = LIMITS.object.courseMax;
-/** The symbol a new object has: the car, which is what the map shows for something that moves. */
-const DEFAULT_SYMBOL = "/>";
+/** The symbol a new object has: the repeater (the antenna tower), for what objects are mostly used for: a local repeater or frequency, an event, a node or a net. */
+const DEFAULT_SYMBOL = "/r";
 /** How long past its time an object waits for the radio before the list says so. */
 const OVERDUE_MS = 5000;
 
