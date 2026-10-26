@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.10.1
+
 Local info from stations near you, a clearer top bar, the call with an SSID list, and a calmer page; under the hood, more tests and tidier code.
 
 - **Local info** (APRS QRU) is in the Objects tab: Ask, then a server's categories; it says what was sent and what arrived, with **Ask again**.
