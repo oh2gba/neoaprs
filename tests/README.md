@@ -22,7 +22,12 @@
   return, ends with a stop, the fall back from a named port, a device file that vanishes and comes back, and the settings' pattern, the remembered port and the
   search after a remembered port is gone with the whole daemon.
 * `test_tnc_failures.py`: the Tnc on a line in memory and a skipped clock: an open that is refused or raises what nobody listed, the retry after the back-off, a stop while the retry opens, bytes and a loss from a port that is
-  no longer the Tnc's, a write that fails, and the repeats of the KISS entry that wait 10, 20, 40 and 60 s.
+  no longer the Tnc's, a write that fails, the KISS entry's steps and the port's failed write, and the repeats of the KISS entry that wait 10, 20, 40 and 60 s.
+* `test_tncwatchdog.py`: the keep-alive's schedule (`neoaprs/tncwatchdog.py`) on a Tnc that is a record of what it was asked and a skipped clock: the quiet period, the check's steps, every exit of a check (no line, a write refused, a line replaced between two steps), the silent
+  radio's probes and the reopen of every fifth, a Tnc that is not connected.
+* `test_worldcmd.py`: `neoaprs map --world` on the pmtiles stand-in: the build, source and zoom, the 8 MB refusal, a file that is no archive, a tool that is not the pinned one, a failed run. `test_selfreplace.py`, `test_servicelaunchd.py`, `test_opencmd_platforms.py`,
+  `test_rigctld.py`, `test_aprsmiceout.py`, `test_support_gather.py`, `test_cli_small.py`: the branches of the small pieces that the larger tests do not reach (the Windows and macOS paths with the platform said and the system's calls faked, a server that answers badly, the
+  system named on each system, the hooks for what nothing caught).
 * `test_silent.py`: the silent radio: a check that nothing answers makes the Tnc silent (the describe text, the lines, the log), command-mode text, a KISS frame
   or other bytes while silent end it cleanly (KISS entered afresh once for every answer, `usable` False until the settle has passed, one INFO line), the probes
   (answered at the return, answered after KISS ON, a hundred unanswered ones with one WARNING and no INFO, every 5th reopening the port and the silence kept

@@ -280,3 +280,35 @@ def test_started_in_the_tray_without_a_window_it_opens_nothing(tmp_path: Path, m
 
 def test_the_menu_item_constants_are_the_keys_the_actions_know() -> None:
     assert (OPEN, AUTOSTART, QUIT) == ("open", "autostart", "quit")
+
+
+# ---- the edges: a frame before it has a window or an icon, a message to the tray, a window that cannot start when the app starts hidden
+
+def test_a_frame_that_has_no_window_and_no_icon_yet_has_nothing_to_show_or_to_refresh_and_a_message_goes_to_the_log(caplog: pytest.LogCaptureFixture) -> None:
+    frame = winshell.WinFrame(True)
+    frame.show_window()
+    frame.refresh()
+    with caplog.at_level("WARNING", "neoaprs.desktop"):
+        frame.tell("the daemon was started")
+    assert [r.getMessage() for r in caplog.records] == ["the daemon was started"]
+
+
+def test_a_message_is_a_notification_of_the_icon_where_there_is_one_and_quit_with_no_window_only_ends_the_wait() -> None:
+    frame = winshell.WinFrame(False)
+    notes: list[tuple[str, str]] = []
+    updates: list[bool] = []
+    frame.icon = types.SimpleNamespace(notify=lambda text, title: notes.append((text, title)), update_menu=lambda: updates.append(True))
+    frame.tell("the daemon was started")
+    frame.refresh()
+    frame.quit()
+    assert notes == [("the daemon was started", "NeoAPRS")] and updates == [True] and frame.quitting.is_set() and frame.done.is_set()
+
+
+@pytest.mark.expects_errors
+def test_a_window_that_cannot_start_when_the_app_starts_hidden_opens_no_browser(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    rig = Rig(tmp_path, monkeypatch, start_fails=True, hidden=True)
+    thread = threading.Thread(target=rig.run, daemon=True)
+    thread.start()
+    until(lambda: rig.ctx.watch is not None and rig.toolkits.icons)
+    assert rig.browser == []
+    quit_through_the_menu(rig, thread)

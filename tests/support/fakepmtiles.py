@@ -2,7 +2,7 @@
 bar redrawn with a carriage return) and writes a file that has a PMTiles header. Nothing is fetched from anywhere.
 
     fake = install_fake(tmp_path / "bin")          # the program, `fake.path`
-    fake.mode("fail")                              # ok (default), fail (a part of the file, then an error), slow (a bar at 10% and then waits to be killed), stall-once (slow for the first run, ok after), grow (a bar at 10% that never moves again while the file grows for a second, then done), linger (a bar at 75% for a second, then done), nosize (a dry run that says nothing of the size)
+    fake.mode("fail")                              # ok (default), fail (a part of the file, then an error), slow (a bar at 10% and then waits to be killed), stall-once (slow for the first run, ok after), grow (a bar at 10% that never moves again while the file grows for a second, then done), linger (a bar at 75% for a second, then done), nosize (a dry run that says nothing of the size), wrongversion (`version` says another version than the pinned one)
     fake.calls()                                   # one list of the arguments for each run, in order
     fake.pid()                                     # the process id of the latest run"""
 import json
@@ -14,10 +14,19 @@ from pathlib import Path
 
 import pytest
 
+from neoaprs.pmtilestool import VERSION
+
 SCRIPT = r'''#!{python}
 import json, os, struct, sys, time
 here = os.path.dirname(os.path.abspath(__file__))
 args = sys.argv[1:]
+if args[:1] == ["version"]:
+    try:
+        mode = open(os.path.join(here, "mode")).read().strip()
+    except OSError:
+        mode = "ok"
+    print("Pmtiles version: " + ("0.0.1" if mode == "wrongversion" else "__VERSION__") + "\ncommit: 0\nbuilt at: now")
+    sys.exit(0)
 with open(os.path.join(here, "calls.jsonl"), "a") as f:
     f.write(json.dumps(args) + "\n")
 with open(os.path.join(here, "pid"), "w") as f:
@@ -106,7 +115,7 @@ def install_fake(bin_dir: Path, name: str = "pmtiles") -> FakePmtiles:
         pytest.skip("the pmtiles stand-in is a script with a shebang: POSIX only")
     bin_dir.mkdir(parents=True, exist_ok=True)
     program = bin_dir / name
-    program.write_text(SCRIPT.replace("#!{python}", "#!" + sys.executable, 1))
+    program.write_text(SCRIPT.replace("#!{python}", "#!" + sys.executable, 1).replace("__VERSION__", VERSION))
     program.chmod(program.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
     return FakePmtiles(program)
 
