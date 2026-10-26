@@ -223,6 +223,7 @@ The words of the page are in a catalogue, so that a language is a file and not a
 | `scripts/build-deb` | builds `dist-deb/neoaprs_<version>_<arch>.deb` for `--arch amd64` or `arm64` (this machine's by default; either can be made on either) from the wheel (`--wheel FILE`, else it builds one; `--out DIR`); the CPython it fetches is pinned by version and SHA-256 per architecture in the script and cached in `~/.cache/neoaprs-build` ([the .deb](#the-deb)) |
 | `scripts/update-e2e.py` | the end-to-end test of Update now with the real files of a release (`windows OLD.exe NEW.exe`, `appimage OLD NEW [--extract-and-run]`): installs the old version, updates it from a fake release on the loopback over the page's socket and checks the new daemon, the data and the machine ([Update now end to end](#update-now-end-to-end)); on a CI runner only |
 | `scripts/smoke-appimage` | the smoke test of such a file: `--version`, `smoke.py`, the daemon with no radio, the unit `service install` writes, the app on the offscreen platform; without FUSE it extracts the file and runs its `AppRun` |
+| `scripts/release` | makes a release in one command (`scripts/release 0.9.2 [--dry-run] [--rerun] [--deploy]`): checks master, writes the version and the changelog section, builds the page only when `ui/` changed since the last tag, runs `scripts/check`, commits, pushes, waits for the CI run, tags and pushes the tag, waits for the release run, checks the published release and its links, and with `--deploy` uploads the version page; run again after a failure it skips what is done ([A release](MAINTAINING.md#a-release)) |
 | `scripts/release-notes.py` | prints the section of `CHANGELOG.md` for a version (the newest section without one): the notes of the GitHub release, which the release workflow gives to `gh release create`; exit 1 when there is none |
 | `scripts/replay` | a clone's wrapper of `neoaprs replay`: plays a capture as a KISS TNC on a TCP port (`--pty`: a pseudo-terminal), so that the daemon runs without the radio |
 | `scripts/gps-replay` | a clone's wrapper of `neoaprs gps-replay`: plays a synthetic drive as a gpsd on a TCP port (2948 by default), so that the daemon beacons as a moving station without a car or a GPS ([Trying mobile operation without a vehicle](#trying-mobile-operation-without-a-vehicle)) |
@@ -260,7 +261,7 @@ What a release holds, on <https://github.com/oh2gba/neoaprs/releases>: `NeoAPRS-
 `NeoAPRS-<version>-x86_64.AppImage`, `neoaprs_<version>_arm64.deb` and `neoaprs_<version>_amd64.deb`, `neoaprs-<version>-py3-none-any.whl` and
 `neoaprs-<version>.tar.gz` (the wheel and the sdist), `install.sh` and `SHA256SUMS`, with build provenance attached to each file
 (`gh attestation verify FILE --repo oh2gba/neoaprs`). `.github/workflows/release.yml` makes all of it when a tag `v*` is pushed, and nothing is built by hand.
-The steps to take around it are in [`docs/MAINTAINING.md`](MAINTAINING.md#a-release).
+The steps to take around it are in [`docs/MAINTAINING.md`](MAINTAINING.md#a-release); `scripts/release` takes them in one command.
 
 | job | where | what |
 |---|---|---|

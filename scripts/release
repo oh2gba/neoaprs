@@ -1,0 +1,451 @@
+#!/usr/bin/env python3
+"""Makes a release in one command, and can be run again after any failure: what is done is seen and skipped, what is not is done. Read docs/MAINTAINING.md, "A release", for what each step is and for the manual way.
+
+  scripts/release VERSION [--dry-run] [--rerun] [--deploy] [--interval SECONDS]
+
+On master, with a clean tree that is up to date with origin and has notes under `## Unreleased` in CHANGELOG.md, it: writes VERSION and the changelog section, builds the page to compare it with the committed one only when ui/
+changed since the last tag, runs scripts/check, commits, pushes, waits for the CI run of that commit, tags v<VERSION> on that commit and pushes the tag, waits for the release run, checks that the release is published (not a
+draft, its 8 files, every download link answering), and with --deploy uploads the version page (server/deploy.sh, which needs the operator's Bitwarden session; without it the command is printed).
+
+  --dry-run   print the steps, what is done already and what would refuse, and change nothing (nothing is asked of GitHub; origin is asked with `git ls-remote`)
+  --rerun     a run of CI or of the release that failed gets its failed jobs run again, once (a flaky test); the tag is never moved or made again
+  --deploy    upload the version page at the end
+  --interval  seconds between two looks at GitHub (default 15), and the first wait after an answer of GitHub's rate limit, which doubles at each of five tries
+
+The script uses the operator's own `gh` (gh auth login): the anonymous API of a sandbox hits GitHub's rate limit at once. A failed CI or release run is shown with its failed jobs and the lines of its failed tests, and the script
+stops; fix it and run the same command again.
+"""
+import argparse
+import json
+import re
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+from pathlib import Path
+from typing import Any, Callable
+
+ROOT = Path(__file__).resolve().parent.parent
+INIT = ROOT / "neoaprs" / "__init__.py"
+CHANGELOG = ROOT / "CHANGELOG.md"
+SEMVER = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.]+))?$")
+VERSION_LINE = re.compile(r'^VERSION = "([^"]+)"', re.M)
+RATE_LIMIT = re.compile(r"rate limit|HTTP 403|\b403\b", re.I)
+FAILED_LINE = re.compile(r"\bFAILED\b|\bFAIL\b|\bERROR\b|AssertionError|error TS\d+|✖|×|\bpanic\b|Error:", re.I)
+BACKOFF_TRIES = 5
+WAIT_FOR_RUN_TRIES = 40                                                # looks for a run that has not been started yet: 40 intervals
+FAILED_LINES_SHOWN = 30
+COMMAND = "scripts/release"
+
+
+class Refusal(Exception):
+    """A reason to stop: said in one line, with what to do about it."""
+
+
+def assets_of(version: str) -> list[str]:
+    """The 8 files of a release (.github/workflows/release.yml, "SHA256SUMS and the notes")."""
+    return sorted([f"neoaprs-{version}-py3-none-any.whl", f"neoaprs-{version}.tar.gz", f"NeoAPRS-Setup-{version}.exe", f"NeoAPRS-{version}-x86_64.AppImage",
+                   f"neoaprs_{version}_amd64.deb", f"neoaprs_{version}_arm64.deb", "install.sh", "SHA256SUMS"])
+
+
+def parse(version: str) -> tuple[int, int, int, tuple[int, str]]:
+    """Sorts as versions do: 1.0.0-rc1 before 1.0.0."""
+    found = SEMVER.match(version)
+    if not found:
+        raise Refusal(f"{version!r} is not a version (1.2.3, or 1.2.3-rc1)")
+    pre = found.group(4)
+    return int(found.group(1)), int(found.group(2)), int(found.group(3)), (0, pre) if pre else (1, "")
+
+
+def changelog_parts(text: str) -> tuple[str, dict[str, str]]:
+    """The text before the first `## ` heading, and the body of each section by its heading."""
+    parts = re.split(r"^## (.*)$", text, flags=re.M)
+    return parts[0], {heading.strip(): body for heading, body in zip(parts[1::2], parts[2::2])}
+
+
+class Release:
+    def __init__(self, version: str, dry_run: bool, rerun: bool, deploy: bool, interval: float) -> None:
+        self.version, self.dry_run, self.rerun, self.deploy, self.interval = version, dry_run, rerun, deploy, interval
+        self.tag = f"v{version}"
+        self.commit: str | None = None                                 # the commit that sets VERSION, once there is one
+        self.last_tag = ""                                             # the newest release before this one
+        self.refusals: list[str] = []                                  # what a dry run would stop for
+
+    # ---- the tools: git, gh, the shell
+    def run(self, *args: str, check: bool = True, capture: bool = True, **kw: Any) -> subprocess.CompletedProcess[str]:
+        try:
+            done = subprocess.run(list(args), cwd=ROOT, text=True, capture_output=capture, **kw)
+        except FileNotFoundError:
+            raise Refusal(f"{args[0]} is not installed") from None
+        if check and done.returncode != 0:
+            raise Refusal(f"`{' '.join(args)}` failed ({done.returncode}): {(done.stderr or done.stdout).strip()[:400]}")
+        return done
+
+    def git(self, *args: str, check: bool = True) -> str:
+        return self.run("git", *args, check=check).stdout.strip()
+
+    def gh(self, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
+        """gh, asked again after a wait that doubles when GitHub answers with its rate limit."""
+        delay = self.interval
+        for attempt in range(BACKOFF_TRIES + 1):
+            done = self.run("gh", *args, check=False)
+            if done.returncode == 0 or not RATE_LIMIT.search(done.stderr + done.stdout) or attempt == BACKOFF_TRIES:
+                break
+            say(f"  GitHub's rate limit; waiting {delay:g} s ({attempt + 1}/{BACKOFF_TRIES})")
+            time.sleep(delay)
+            delay *= 2
+        if check and done.returncode != 0:
+            hint = " Is gh logged in (gh auth status)? Wait for the limit to pass and run the same command again." if RATE_LIMIT.search(done.stderr) else ""
+            raise Refusal(f"`gh {' '.join(args)}` failed: {(done.stderr or done.stdout).strip()[:400]}.{hint}")
+        return done
+
+    def ghjson(self, *args: str) -> Any:
+        return json.loads(self.gh(*args).stdout or "null")
+
+    def pause(self) -> None:
+        time.sleep(self.interval)
+
+    # ---- what the tree is
+    def current(self) -> str:
+        found = VERSION_LINE.search(INIT.read_text(encoding="utf-8"))
+        if not found:
+            raise Refusal("no VERSION in neoaprs/__init__.py")
+        return found.group(1)
+
+    def sections(self) -> tuple[str, dict[str, str]]:
+        return changelog_parts(CHANGELOG.read_text(encoding="utf-8"))
+
+    def refuse(self, reason: str) -> None:
+        """A dry run collects the reasons and goes on; the real run stops at the first."""
+        if not self.dry_run:
+            raise Refusal(reason)
+        self.refusals.append(reason)
+        say(f"  WOULD REFUSE: {reason}")
+
+    def find_commit(self) -> str | None:
+        """The oldest commit that wrote `VERSION = "<version>"` (the release commit), whatever its message."""
+        found = self.git("log", "-S" + f'VERSION = "{self.version}"', "--format=%H", "--", "neoaprs/__init__.py", check=False).split()
+        return found[-1] if found else None
+
+    def started(self) -> bool:
+        """Has the release been started in this tree: VERSION is the new one in the file, or in a commit?"""
+        return self.current() == self.version or self.commit is not None
+
+    # ---- the steps
+    def step_checks(self) -> None:
+        branch = self.git("rev-parse", "--abbrev-ref", "HEAD")
+        if branch != "master":
+            self.refuse(f"not on master (on {branch}): git switch master")
+        self.commit = self.find_commit()
+        tags = sorted((t[1:] for t in self.git("tag", "--list", "v*").split() if t != self.tag and SEMVER.match(t[1:])), key=parse)
+        self.last_tag = f"v{tags[-1]}" if tags else ""
+        if tags and parse(self.version) <= parse(tags[-1]):
+            self.refuse(f"{self.version} is not greater than {tags[-1]}, the newest release")
+        elif not tags:
+            say("  (no release before this one)")
+        self.check_tree()
+        self.check_origin()
+        self.check_notes()
+        self.check_tag()
+        if not self.dry_run:
+            auth = self.run("gh", "auth", "status", check=False)
+            if auth.returncode != 0:
+                raise Refusal("gh is not logged in: gh auth login (the script uses your own gh; the anonymous API hits GitHub's rate limit)")
+
+    def check_tree(self) -> None:
+        mine = {"neoaprs/__init__.py", "CHANGELOG.md"} if self.current() == self.version else set()      # a run that stopped after the bump leaves exactly these
+        dirty = []
+        for line in self.run("git", "status", "--porcelain", "--untracked-files=all").stdout.splitlines():
+            path = line[3:].split(" -> ")[-1]
+            if line.startswith("??") and not path.startswith(("neoaprs/", "ui/")):
+                continue                                               # (a stray file of the operator's, such as .mcp.json, goes into no commit of this script)
+            if path not in mine:
+                dirty.append(path)
+        if dirty:
+            self.refuse(f"the tree is not clean: {', '.join(dirty[:6])}{' ...' if len(dirty) > 6 else ''}")
+
+    def check_origin(self) -> None:
+        if self.dry_run:
+            asked = self.run("git", "ls-remote", "origin", "refs/heads/master", check=False)
+            if asked.returncode != 0 or not asked.stdout.strip():
+                say("  (origin could not be asked: not compared)")
+                return
+            theirs = asked.stdout.split()[0]
+            if self.git("rev-parse", "HEAD") != theirs and self.run("git", "cat-file", "-e", theirs, check=False).returncode == 0 and self.run("git", "merge-base", "--is-ancestor", "HEAD", theirs, check=False).returncode == 0:
+                self.refuse("master is behind origin/master: git pull")
+            return
+        self.git("fetch", "origin", "master")
+        behind = self.git("rev-list", "--count", "HEAD..origin/master")
+        ahead = self.git("rev-list", "origin/master..HEAD").split()
+        if behind != "0":
+            self.refuse(f"master is {behind} commit(s) behind origin/master: git pull")
+        elif ahead and ahead != [self.commit]:
+            self.refuse(f"master has {len(ahead)} commit(s) that origin/master has not, and they are not just the release commit: push or review them first")
+
+    def check_notes(self) -> None:
+        _, sections = self.sections()
+        if "Unreleased" not in sections:
+            self.refuse("CHANGELOG.md has no `## Unreleased` heading")
+        elif self.commit:
+            if f"\n## {self.version}\n" not in "\n" + self.git("show", f"{self.commit}:CHANGELOG.md"):
+                self.refuse(f"the commit {self.commit[:9]} sets the version but CHANGELOG.md has no section {self.version} in it")
+            say(f"  (the release commit {self.commit[:9]} is made already)")
+        elif self.version in sections:
+            say(f"  (the section {self.version} is written already)")
+        elif not sections["Unreleased"].strip():
+            self.refuse("`## Unreleased` of CHANGELOG.md has no notes: write what the release brings")
+
+    def check_tag(self) -> None:
+        local = self.git("rev-parse", "--verify", "--quiet", f"{self.tag}^{{commit}}", check=False)
+        remote = self.run("git", "ls-remote", "origin", f"refs/tags/{self.tag}^{{}}", f"refs/tags/{self.tag}", check=False).stdout.split()[:1]
+        for where, sha in (("here", local), ("on origin", remote[0] if remote else "")):
+            if sha and sha != self.commit:
+                self.refuse(f"the tag {self.tag} exists {where} at {sha[:9]}, which is not the release commit: a tag is never moved; take the next version")
+
+    def step_bump(self) -> str:
+        if self.current() == self.version:
+            return "skipped: VERSION is written already"
+        if self.dry_run:
+            return f'would write VERSION = "{self.version}"'
+        INIT.write_text(VERSION_LINE.sub(f'VERSION = "{self.version}"', INIT.read_text(encoding="utf-8"), count=1), encoding="utf-8")
+        return "done"
+
+    def step_changelog(self) -> str:
+        if self.version in self.sections()[1]:
+            return f"skipped: the section {self.version} is written already"
+        if self.dry_run:
+            return f"would rename `## Unreleased` to `## {self.version}` and add an empty one above it"
+        text = CHANGELOG.read_text(encoding="utf-8")
+        CHANGELOG.write_text(re.sub(r"^## Unreleased[ \t]*\n", f"## Unreleased\n\n## {self.version}\n", text, count=1, flags=re.M), encoding="utf-8")
+        first = next((line for line in self.sections()[1][self.version].splitlines() if line.strip()), "")
+        return f"done; the notes begin: {first[:100]}"
+
+    def step_page(self) -> str:
+        if not self.last_tag:
+            return "skipped: no earlier release to compare ui/ with"
+        if self.run("git", "diff", "--quiet", self.last_tag, "HEAD", "--", "ui", check=False).returncode == 0:
+            return f"skipped: ui/ has not changed since {self.last_tag}, so the page is as it was"
+        if self.dry_run:
+            return f"would build it: ui/ changed since {self.last_tag}"
+        self.run(str(ROOT / "scripts" / "build-page"), capture=False)
+        changed = self.run("git", "status", "--porcelain", "--", "neoaprs/page").stdout.strip()
+        if changed:
+            self.git("restore", "--source=HEAD", "--staged", "--worktree", "--", "neoaprs/page")
+            self.git("clean", "-fdq", "--", "neoaprs/page")
+            raise Refusal("the committed page is not what ui/ builds (" + "; ".join(changed.splitlines()[:4]) + "): run scripts/build-page, commit neoaprs/page/ and run the same command again; the tree is as it was")
+        return "done: the committed page is what ui/ builds"
+
+    def step_check(self) -> str:
+        if self.commit:
+            return "skipped: the release commit is made already"
+        if self.dry_run:
+            return "would run scripts/check"
+        if self.run(str(ROOT / "scripts" / "check"), check=False, capture=False).returncode != 0:
+            raise Refusal(f"scripts/check failed: nothing is committed; fix it and run `{COMMAND} {self.version}` again (the version and the changelog stay as written)")
+        return "done"
+
+    def step_commit(self) -> str:
+        if self.commit:
+            return f"skipped: {self.commit[:9]} sets the version already"
+        if self.dry_run:
+            return f"would commit neoaprs/__init__.py and CHANGELOG.md as \"{self.version}: the changelog section and the version\""
+        self.git("add", "neoaprs/__init__.py", "CHANGELOG.md")
+        self.git("commit", "-q", "-m", f"{self.version}: the changelog section and the version")
+        self.commit = self.git("rev-parse", "HEAD")
+        return f"done: {self.commit[:9]}"
+
+    def on_origin(self) -> bool:
+        if self.commit is None:
+            return False
+        if not self.dry_run:
+            self.git("fetch", "-q", "origin", "master")
+        return self.run("git", "merge-base", "--is-ancestor", self.commit, "origin/master", check=False).returncode == 0
+
+    def step_push(self) -> str:
+        if self.on_origin():
+            return f"skipped: {str(self.commit)[:9]} is on origin/master"
+        if self.dry_run:
+            return "would push master"
+        self.git("push", "origin", "master")
+        return "done"
+
+    def step_tag(self) -> str:
+        have_local = self.git("rev-parse", "--verify", "--quiet", f"{self.tag}^{{commit}}", check=False) == self.commit and self.commit is not None
+        remote = self.run("git", "ls-remote", "--tags", "origin", self.tag, check=False).stdout.strip() != ""
+        if have_local and remote:
+            return f"skipped: {self.tag} is on {str(self.commit)[:9]} here and on origin"
+        if self.dry_run:
+            return f"would tag {self.tag} on the release commit and push the tag"
+        if not have_local:
+            self.git("tag", self.tag, str(self.commit))
+        self.git("push", "origin", self.tag)
+        return "done"
+
+    # ---- GitHub: the runs and the release
+    def runs(self, workflow: str, **find: str) -> list[dict[str, Any]]:
+        args = ["run", "list", "--workflow", workflow, "--json", "databaseId,status,conclusion,headSha,url,attempt", "--limit", "20"]
+        for key, value in find.items():
+            args += [f"--{key}", value]
+        return sorted(self.ghjson(*args) or [], key=lambda r: r["databaseId"])
+
+    def wait_for(self, workflow: str, what: str, **find: str) -> str:
+        """Watches the newest run of the workflow for the commit or tag until it ends; a failed one is shown, rerun once with --rerun, and stops the script."""
+        run: dict[str, Any] | None = None
+        for _ in range(WAIT_FOR_RUN_TRIES):
+            found = self.runs(workflow, **find)
+            if found:
+                run = found[-1]
+                break
+            say(f"  no {workflow} run for {what} yet")
+            self.pause()
+        if run is None:
+            raise Refusal(f"no {workflow} run for {what} was started: look at the Actions tab, then run the same command again")
+        rerun_done = False
+        while True:
+            run = self.settle(run["databaseId"])
+            if run["conclusion"] == "success":
+                return f"done: {workflow} run {run['databaseId']} passed"
+            self.show_failure(run)
+            if not self.rerun or rerun_done or run.get("attempt", 1) > 1:
+                again = "it has been run again already" if self.rerun or run.get("attempt", 1) > 1 else f"for a flaky test or a runner that failed run `{COMMAND} {self.version} --rerun`"
+                raise Refusal(f"the {workflow} run {run['databaseId']} failed ({run['url']}); {again}; a failure of the code needs a fix on master and the next version (a tag is never moved)")
+            say(f"  --rerun: running the failed jobs of run {run['databaseId']} again, once")
+            self.gh("run", "rerun", str(run["databaseId"]), "--failed")
+            rerun_done = True
+            self.pause()
+
+    def settle(self, run_id: int) -> dict[str, Any]:
+        """Watches a run until it is completed (gh run watch may end early on a network fault: the state is asked again)."""
+        while True:
+            run = self.ghjson("run", "view", str(run_id), "--json", "databaseId,status,conclusion,url,attempt,jobs")
+            if run["status"] == "completed":
+                return run  # type: ignore[no-any-return]
+            self.run("gh", "run", "watch", str(run_id), "--exit-status", "--interval", str(max(int(self.interval), 1)), check=False, capture=False)
+            self.pause()
+
+    def show_failure(self, run: dict[str, Any]) -> None:
+        failed = [j for j in run.get("jobs", []) if j.get("conclusion") not in ("success", "skipped", None)]
+        say(f"  FAILED: run {run['databaseId']} {run['url']}")
+        for job in failed:
+            steps = [s["name"] for s in job.get("steps", []) if s.get("conclusion") == "failure"]
+            say(f"    job {job['name']}: {job.get('conclusion')}" + (f" (step: {', '.join(steps)})" if steps else ""))
+        log = self.gh("run", "view", str(run["databaseId"]), "--log-failed", check=False).stdout
+        lines = [re.sub(r"^\S+\t[^\t]*\t(\d{4}-\S+Z )?", "", line).rstrip() for line in log.splitlines()]
+        wanted = [line for line in lines if FAILED_LINE.search(line)]
+        for line in wanted[:FAILED_LINES_SHOWN]:
+            say(f"    {line[:200]}")
+        if len(wanted) > FAILED_LINES_SHOWN:
+            say(f"    ... {len(wanted) - FAILED_LINES_SHOWN} more lines: gh run view {run['databaseId']} --log-failed")
+
+    def published(self) -> dict[str, Any] | None:
+        done = self.gh("release", "view", self.tag, "--json", "tagName,isDraft,isPrerelease,url,assets", check=False)
+        return json.loads(done.stdout) if done.returncode == 0 and done.stdout.strip() else None
+
+    def step_ci(self) -> str:
+        if self.dry_run:
+            return "would wait for the ci.yml run of the release commit (gh run watch)"
+        if any(r["conclusion"] == "success" for r in self.runs("ci.yml", commit=str(self.commit))):
+            return "skipped: ci.yml has passed for this commit"
+        return self.wait_for("ci.yml", f"{str(self.commit)[:9]}", commit=str(self.commit))
+
+    def step_release_run(self) -> str:
+        if self.dry_run:
+            return f"would wait for the release.yml run of {self.tag}"
+        release = self.published()
+        if release and not release["isDraft"]:
+            return f"skipped: the release {self.tag} is published"
+        return self.wait_for("release.yml", self.tag, branch=self.tag)
+
+    def step_verify(self) -> str:
+        if self.dry_run:
+            return f"would check that {self.tag} is published, not a draft, has {len(assets_of(self.version))} files and that every download link answers"
+        release = self.published()
+        if release is None:
+            raise Refusal(f"the release {self.tag} does not exist: the release run did not make it; look at its jobs and run the same command again (with --rerun for a failed job)")
+        if release["isDraft"]:
+            raise Refusal(f"the release {self.tag} is still a draft: the last job of the release run did not publish it")
+        names = sorted(a["name"] for a in release["assets"])
+        if names != assets_of(self.version):
+            raise Refusal(f"the release has the files {names}, not {assets_of(self.version)}: missing {sorted(set(assets_of(self.version)) - set(names))}, extra {sorted(set(names) - set(assets_of(self.version)))}")
+        for asset in release["assets"]:
+            problem = link_problem(asset["url"])
+            if problem:
+                raise Refusal(f"the download link of {asset['name']} does not answer: {asset['url']} ({problem})")
+        return f"done: {release['url']}, {len(names)} files, every link answers"
+
+    def step_deploy(self) -> str:
+        if not self.deploy:
+            return "not asked (--deploy): the version page names the new release by itself; to upload version.php run server/deploy.sh (it needs the Bitwarden session)"
+        if self.dry_run:
+            return "would run server/deploy.sh"
+        if self.run(str(ROOT / "server" / "deploy.sh"), check=False, capture=False).returncode != 0:
+            raise Refusal("server/deploy.sh failed (is the Bitwarden session open?): run it by hand")
+        return "done; check: curl 'https://oh2gba.eu/neoaprs/version.php?v=0.0.1&os=linux' (it believes GitHub for ten minutes)"
+
+
+def link_problem(url: str) -> str:
+    """Why a download link does not answer, or empty when it does (a HEAD request that follows the redirect to the file)."""
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, method="HEAD"), timeout=30) as answer:
+            return "" if answer.status == 200 else f"status {answer.status}"
+    except urllib.error.HTTPError as e:
+        return f"status {e.code}"
+    except (urllib.error.URLError, OSError) as e:
+        return str(e)
+
+
+def say(text: str) -> None:
+    print(text, flush=True)
+
+
+def steps(r: Release) -> list[tuple[str, str, Callable[[], str]]]:
+    def checks() -> str:
+        r.step_checks()
+        return ""
+    return [
+        ("checks", "on master, clean, up to date with origin, notes under Unreleased, the version new and greater, no tag elsewhere", checks),
+        ("version", f'neoaprs/__init__.py: VERSION = "{r.version}"', r.step_bump),
+        ("changelog", f"CHANGELOG.md: `## Unreleased` becomes `## {r.version}`, with an empty one above", r.step_changelog),
+        ("page", "build the page only if ui/ changed since the last tag, and fail if the committed one is not what ui/ builds", r.step_page),
+        ("check", "scripts/check", r.step_check),
+        ("commit", f'commit "{r.version}: the changelog section and the version"', r.step_commit),
+        ("push", "push master", r.step_push),
+        ("ci", "wait for the CI run of the release commit", r.step_ci),
+        ("tag", f"tag {r.tag} on the release commit and push the tag (a tag is never moved)", r.step_tag),
+        ("release", f"wait for the release run of {r.tag}", r.step_release_run),
+        ("verify", "the release is published, not a draft, has its 8 files, every download link answers", r.step_verify),
+        ("deploy", "deploy the version page (server/deploy.sh), with --deploy", r.step_deploy),
+    ]
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Make a release in one command; run it again after a failure and it goes on where it stopped.", epilog="docs/MAINTAINING.md, 'A release'")
+    parser.add_argument("version", help="the new version, such as 0.9.2 (or 1.0.0-rc1)")
+    parser.add_argument("--dry-run", action="store_true", help="print the steps and change nothing")
+    parser.add_argument("--rerun", action="store_true", help="run the failed jobs of a failed CI or release run again, once")
+    parser.add_argument("--deploy", action="store_true", help="upload the version page at the end (server/deploy.sh)")
+    parser.add_argument("--interval", type=float, default=15.0, metavar="SECONDS", help="seconds between two looks at GitHub (default %(default)s)")
+    args = parser.parse_args(argv)
+    r = Release(args.version, args.dry_run, args.rerun, args.deploy, args.interval)
+    try:
+        parse(r.version)
+        table = steps(r)
+        say(f"{'dry run of the release' if r.dry_run else 'release'} {r.version} ({r.tag})")
+        for number, (name, what, do) in enumerate(table, 1):
+            say(f"[{number}/{len(table)}] {name}: {what}")
+            result = do()
+            if result:
+                say(f"  {result}")
+    except Refusal as e:
+        say(f"stopped: {e}")
+        return 1
+    if r.refusals:
+        say(f"the dry run found {len(r.refusals)} reason(s) to refuse")
+        return 1
+    say("dry run: nothing was changed" if r.dry_run else f"release {r.version} is done")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -34,22 +34,47 @@ update panel), `install.sh` (always under `releases/latest/download/`), the whee
 
 ## A release
 
-1. The version in `neoaprs/__init__.py` (the one place it is written). Read `## Unreleased` of `CHANGELOG.md` as release notes (a one-sentence summary line first; `scripts/release-notes.py` prints it as GitHub will show it), rename it to `## <version>` (the notes of the release
-   are that section) and add a fresh `## Unreleased` above it. The page has the version built in (open pages load themselves again when the daemon's differs): run
-   `scripts/build-page` after the change and commit `neoaprs/page/`; `tests/test_page_build.py` fails until you do.
+**The way** is one command, on `master` with a clean tree that is up to date with origin and has the notes of the release under `## Unreleased` in `CHANGELOG.md` (a one-sentence summary line first, then the groups;
+`scripts/release-notes.py` prints it as GitHub will show it; overlapping bullets merged and only the final behaviour kept):
+
+    scripts/release 0.9.2 [--dry-run] [--rerun] [--deploy]
+
+It uses your own `gh` (`gh auth login` once): the anonymous API of a sandbox hit GitHub's rate limit, so the script refuses to start without a login and waits and asks again when GitHub answers with 403 and its rate limit.
+Each step says in one line what it does, and every one is skipped when it is done already, so after any failure the same command goes on where it stopped:
+
+1. **checks**: on `master`, the tree clean (only the files of an earlier stop of this same release may be changed), up to date with origin, notes under `## Unreleased`, the version new and greater than the newest release,
+   and no tag `v<version>` on another commit.
+2. **version**, **changelog**: `VERSION` in `neoaprs/__init__.py` (the one place it is written), and `## Unreleased` renamed to `## <version>` (the notes of the release are that section) with a fresh empty one above.
+3. **page**: only when `ui/` changed since the last tag, the page is built and must be what is committed. A version bump changes nothing in `neoaprs/page/` (the page has no version in it, `ui/` is what it is built from),
+   so the release commit holds no page; a committed page that is not what `ui/` builds stops the release, with the tree as it was: run `scripts/build-page`, commit `neoaprs/page/`, run the command again.
+4. **check**: `scripts/check`.
+5. **commit** `<version>: the changelog section and the version`, **push** `master`.
+6. **ci**: waits for the CI run of that commit (`gh run watch`). A failure prints the failed jobs and the lines of the failed tests and stops; `--rerun` runs the failed jobs of that run again once, for a flaky test.
+7. **tag** `v<version>` on that commit and **push the tag**. A tag is never moved: one that names another commit stops the script, and a failure of the release run is never answered with a new tag of the same number.
+8. **release**: waits for the release run the same way (`--rerun` for its failed jobs). `.github/workflows/release.yml` builds, smoke-tests and publishes; its first job, `verify`, stops in seconds a tag whose number is not `VERSION`,
+   a changelog with notes still under `## Unreleased`, a committed page that is not what `ui/` builds, a commit that is not on `master`, and a commit whose CI run is red or missing. The release is made as a draft and published
+   when every file is on it.
+9. **verify**: the release is published, not a draft, has its 8 files (the wheel, the sdist, the Windows installer, the AppImage, the two packages, `install.sh` and `SHA256SUMS`) and every download link answers.
+10. **deploy**: with `--deploy`, `server/deploy.sh` uploads the version page (it needs the operator's Bitwarden session; without the flag the command is printed). The version page names the new release by itself within
+    ten minutes (`curl 'https://oh2gba.eu/neoaprs/version.php?v=0.0.1&os=linux'` says the new version), and a copy of the new version does not offer itself.
+
+`--dry-run` prints the steps and what is done already, names what a real run would refuse, and changes nothing (it does not ask GitHub). `scripts/release` has tests with a fake `gh` and a fake origin
+(`tests/test_release_script.py`): the order of the steps, the dry run, the resume after a failure at each step and the refusals.
+
+Around the script, by hand: the project page and the screenshots brought up to date (above), the screenshots retaken only when the page changed since they were last taken (they show no version: `update.png` alone names
+one, the made-up next version and the installed one in its dialog, so a release with no change to the page leaves them as they are), the download links of the README, the project page and the announcement tried once, and
+the announcement post.
+
+**The manual way**, when the script cannot be used (the same steps by hand):
+
+1. The version in `neoaprs/__init__.py` (the one place it is written). Read `## Unreleased` of `CHANGELOG.md` as release notes (a one-sentence summary line first; `scripts/release-notes.py` prints it as GitHub will show it),
+   rename it to `## <version>` (the notes of the release are that section) and add a fresh `## Unreleased` above it. The page has no version in it, so nothing is rebuilt for the number; if `ui/` changed since the last tag,
+   `scripts/build-page` must leave `neoaprs/page/` as it is committed (`tests/test_page_build.py` fails otherwise).
 2. `scripts/check` green, commit, push `master` (the tag's workflow waits for this commit's CI run, so the tag may follow at once).
-3. The project page brought up to date (above), and the screenshots retaken only when the page changed since they were last taken: they show no version
-   (`update.png` alone names one, the made-up next version and the installed one in its dialog), so a release with no change to the page leaves them as
-   they are.
-4. A tag `v<version>` pushed: `.github/workflows/release.yml` builds, smoke-tests and publishes the release. Its first job, `verify`, stops in seconds a tag
-   whose number is not `VERSION`, a changelog with notes still under `## Unreleased`, a page not built with the version (`neoaprs/page/sw.js`), a commit that
-   is not on `master`, and a commit whose CI run is red or missing (one still running is waited for, 20 minutes at most). A failed job leaves no release (a
-   draft at most, which the next attempt finishes). The release is made as a draft and published when every file is on it. Watch the run with `gh run watch`, then open the release and read the notes. A run that failed for a
-   reason outside the code (a runner, a download, a flaky test) is run again with *Re-run failed jobs* (`gh run rerun RUN_ID --failed`); one that needs a
-   change in the code gets the change and a tag of the next number. **A tag is never moved.** `gh workflow run release.yml --ref v<version>` runs the tag's
-   workflow again by hand, which publishes the release (or writes its files over) without a new tag.
-5. Every download link of the README, the project page and the announcement tried once.
-6. The version page names the new release: `curl 'https://oh2gba.eu/neoaprs/version.php?v=0.0.1&os=linux'` says the new version (it believes GitHub's answer
-   for ten minutes, so it notices within that long), and a copy of the new version does not offer itself.
+3. A tag `v<version>` on that commit, pushed. Watch the run with `gh run watch`, then open the release and read the notes. A run that failed for a reason outside the code (a runner, a download, a flaky test) is run
+   again with *Re-run failed jobs* (`gh run rerun RUN_ID --failed`); one that needs a change in the code gets the change and a tag of the next number. **A tag is never moved.**
+   `gh workflow run release.yml --ref v<version>` runs the tag's workflow again by hand, which publishes the release (or writes its files over) without a new tag.
+4. Every download link of the README, the project page and the announcement tried once.
+5. `server/deploy.sh` if `server/version.php` changed; the version page names the new release (curl as above).
 
 The jobs of the release workflow are in [`docs/development.md`](development.md#packaging-and-releases).

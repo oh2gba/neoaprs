@@ -12,6 +12,10 @@ For the page and the daemon.
 - **A page that does not go with its daemon says so.** The page compares its protocol and its build with the daemon's; when they differ it loads itself again once, and when that does not help it shows "This page and NeoAPRS do not match (page ..., NeoAPRS ...). Reload the page; if this stays, restart NeoAPRS." with a **Reload** button, in the language of the page, and keeps its socket closed. It is meant to be seen only when a browser holds an old copy of the page against an upgraded NeoAPRS.
 - **The page has no version of NeoAPRS in it.** It learns the version from the daemon (the footer, the update check), and the service worker names its caches by the build of the page, so a new version of NeoAPRS that changed nothing of the page leaves `neoaprs/page/` as it is.
 
+For development.
+
+- **`scripts/release VERSION`** makes a release in one command: it checks that master is clean, up to date and has notes under `## Unreleased`, writes the version and the changelog section, builds the page only if `ui/` changed since the last tag, runs `scripts/check`, commits, pushes, waits for the CI run, tags and pushes the tag, waits for the release run, checks the published release (its eight files and its download links) and deploys the version page with `--deploy`. It can be run again after any failure and skips what is done; `--rerun` runs the failed jobs of a run once, `--dry-run` prints the steps. `docs/MAINTAINING.md` describes it, with the manual steps as the fallback.
+
 ## 0.9.0
 
 NeoAPRS can be a moving station: the beacon follows a GPS and is sent by SmartBeaconing, the Beacon tab is rebuilt around one choice of where the position comes from and one Beacon choice that switches the beacon off, a place and a symbol are chosen the same way everywhere, the map shows one range circle at a time, and the Windows installer closes NeoAPRS itself.
