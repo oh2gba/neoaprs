@@ -104,7 +104,7 @@ TypeScript types for both unions are in `ui/src/protocol/protocol.ts`, the JSON 
 
 ## Client to server
 
-37 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
+36 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
 
 ### `ping`
 
@@ -142,10 +142,6 @@ Removes a station from the station book (and its cache in the database) until it
 | field | type | | description |
 |---|---|---|---|
 | `call` | string |  | (max 64 chars, min 1 chars) |
-
-### `tnc_reconnect`
-
-Opens the radio's line again with the settings as they are now (the port, the speed, entering KISS): the TNC is stopped and started in the background. The new state is told in `tnc`.
 
 ### `list_ports`
 
@@ -428,7 +424,7 @@ The first message of a connection; `status` and the `state` of every topic follo
 | field | type | | description |
 |---|---|---|---|
 | `protocol` | integer |  | the version of these messages: a page built for another one loads itself again, and when that does not help it does not run (it shows a notice and keeps the socket closed) |
-| `version` | string |  | the version of the daemon, which the page shows (the footer, the update check); the page has no version of its own and does not compare this one |
+| `version` | string |  | the version of the daemon, which the page shows (Settings → Update check); the page has no version of its own and does not compare this one |
 | `page` | string |  | the build of the page this daemon serves, the name of its main script (`index-<hash>.js` of assets/); the daemon serves the page it took when it started, so this is the build a browser gets from it. A page of another build loads itself again, once for each build, and shows a notice when that does not help; empty when the daemon has no built page |
 | `install` | InstallInfo |  | how this daemon was installed, for the steps of an update |
 | `topics` | string[] |  | the topics the page is following from the start: all of them (a page may `unsubscribe` from one) |

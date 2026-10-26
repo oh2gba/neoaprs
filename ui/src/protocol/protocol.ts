@@ -1,7 +1,7 @@
 // The types of the wire protocol between the daemon and the page, written from the models of neoaprs/web/protocol.py by scripts/gen-protocol.py: never edited by hand.
 // `Command` is what the page sends (tagged by `cmd`), `Message` what the daemon sends (tagged by `type`), `TopicValues` the value of each topic the page follows.
 
-export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | TncReconnectCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | QueryStationCommand | AskQruCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | WeatherSeriesCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | PageErrorCommand;
+export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | QueryStationCommand | AskQruCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | WeatherSeriesCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | PageErrorCommand;
 
 export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | AlertResultMessage | UpdateResultMessage | RadioSearchMessage;
 
@@ -390,7 +390,7 @@ export interface HelloMessage {
   type: "hello";
   /** the version of these messages: a page built for another one loads itself again, and when that does not help it does not run (it shows a notice and keeps the socket closed) */
   protocol: number;
-  /** the version of the daemon, which the page shows (the footer, the update check); the page has no version of its own and does not compare this one */
+  /** the version of the daemon, which the page shows (Settings → Update check); the page has no version of its own and does not compare this one */
   version: string;
   /** the build of the page this daemon serves, the name of its main script (`index-<hash>.js` of assets/); the daemon serves the page it took when it started, so this is the build a browser gets from it. A page of another build loads itself again, once for each build, and shows a notice when that does not help; empty when the daemon has no built page */
   page: string;
@@ -1165,11 +1165,6 @@ export interface TncLine {
   at: string;
   /** what the TNC saw (TNC2 text and what it understood of it) or did (`NeoAPRS: ...`), without the time */
   text: string;
-}
-
-/** Opens the radio's line again with the settings as they are now (the port, the speed, entering KISS): the TNC is stopped and started in the background. The new state is told in `tnc`. */
-export interface TncReconnectCommand {
-  cmd: "tnc_reconnect";
 }
 
 /** The TNC, the one feed of packets: its state and why it is not connected, the port, and the latest lines of what it saw and did. The value of the topic `tnc`. */
