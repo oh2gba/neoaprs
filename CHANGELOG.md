@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+Local info from stations near you, a clearer top bar, the call with an SSID list, and a calmer page; under the hood, more tests and tidier code.
+
+- **Local info** (APRS QRU) is in the Objects tab: Ask, then a server's categories; it says what was sent and what arrived, with **Ask again**.
+- An object's **Category** is a list in plain words (2 m repeater, fuel station…); received objects show in Stations with a Local info tag.
+- The top bar always shows the **Radio**, and in a browser the **Server**; the footer is gone.
+- A click on a top mark opens its setting and flashes it softly in yellow.
+- **Call and SSID**: the call without -9, and an SSID list beside it (car, handheld, iGate…). Your stored call is kept.
+- Station cards say how an internet packet got here: "Heard by iGate … via …" or "Sent over the internet, not heard on the air".
+- The map shows a station's latest route and the one before it; a route through an iGate ends at the iGate.
+- With **Internet stations** off, nothing from the internet shows.
+- Stations → **Forget all** for a fresh start.
+- Every form is a box, the Objects tab reads top to bottom, and buttons have one height.
+- Status rows have an arrow only when there is more behind it; Reconnect is gone, the radio is found again by itself (also on a new COM port).
+- Beacon tab: the status text hints at the frequency form radios tune to (145.500MHz).
+- Help pictures say YOURCALL.
+- **Fixed:** a QRU server no longer answers on top of the digipeaters, and its answers stay out of Messages.
+
 ## 0.10.0
 
 Internet stations, local info (QRU), RX only, a world map and a Dummy radio to try it all, and a calmer, more consistent page.
