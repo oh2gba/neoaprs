@@ -230,7 +230,7 @@ async def test_aprsh_tells_from_the_packet_log_when_the_station_was_heard(tmp_pa
     await e.stop()
 
 
-async def test_a_message_to_qru_is_answered_acked_and_not_kept_while_we_serve_a_group_and_is_overheard_otherwise(tmp_path: Path) -> None:
+async def test_a_message_to_qru_is_answered_not_acked_and_not_kept_while_we_serve_a_group_and_is_overheard_otherwise(tmp_path: Path) -> None:
     e = await quick_start(tmp_path, messaging=True, own=True, unpaced=True)
     e.feed(on_air("OH2RDG", message_info("QRU", "INFO", "5"), path="OH2RCH-2*"))
     await heard(e, 1)
@@ -242,7 +242,7 @@ async def test_a_message_to_qru_is_answered_acked_and_not_kept_while_we_serve_a_
     e.feed(on_air("OH2RDG", message_info("QRU", "INFO", "6"), path="OH2RCH-2*"))
     await heard(e, 2)
     frames = await said(e, 2)
-    assert sorted(f.tnc2() for f in frames) == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :ack6", "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :de OH2GBA:FOOD(1) Max 5@50km"]
+    assert [f.tnc2() for f in frames] == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1,RFONLY::OH2RDG   :de OH2GBA:FOOD(1) Max 5@50km"], "no ack, and RFONLY"
     await idle_for(0.1)
     assert len(e.ctl.messaging.records()) == 1 and await said(e, 1, 0.3) == [], "the object is on request: it is never beaconed"
     await e.stop()

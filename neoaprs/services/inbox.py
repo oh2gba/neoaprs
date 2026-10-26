@@ -11,8 +11,8 @@ stay in the packet log.
 Reply-acks (neoaprs/aprsmessage.py): the `AA` of a message `{MM}AA` to us settles our message with that id to the sender as an ack does, and is acked as `ackMM}AA` (`{MM}` as `ackMM}`); a message with a number of that
 form, `{MM}` too, tells us the sender knows reply-acks, and its id is what the next message we send it carries as its `AA` (services/heard.py) until the station answers one of ours.
 
-A message to the addressee QRU is a request to a QRU server (services/qru.py), handed to `qru` when there is one: when it takes the message (we serve a group and the text is a request) it is answered there, acked when it
-carries an id like a query to us, and not kept; otherwise it is overheard like any message to another station.
+A message to the addressee QRU is a request to a QRU server (services/qru.py), handed to `qru` when there is one: when it takes the message (we serve a group and the text is a request) it is answered there, never acked (a request is a
+broadcast: an ack from our call would match nothing at the asker, even for a request that carries an id), and not kept; otherwise it is overheard like any message to another station.
 
 A message to a bulletin, an announcement, a group bulletin, ALL, CQ or QST, or a weather service bulletin (neoaprs/bulletin.py) is no conversation and is never acked: it goes to the board
 (services/bulletins.py, handed to the inbox as `board`), not to the overheard messages. With no board it is overheard like any other message to another station.
@@ -132,7 +132,7 @@ class Inbox:
                 self._alert(record)
 
     def _elsewhere(self, packet: Packet, message: Message) -> None:
-        """A message to another station: a request to QRU that the QRU server takes (acked when it has an id), the board's when it is for a bulletin or a group (an ack or a reject of those is nothing), else overheard."""
+        """A message to another station: a request to QRU that the QRU server takes (never acked), the board's when it is for a bulletin or a group (an ack or a reject of those is nothing), else overheard."""
         if self._to_qru(packet, message):
             return
         if self._board is None or board_slot(message.addressee) is None:
@@ -141,13 +141,8 @@ class Inbox:
             self._board(packet, message)
 
     def _to_qru(self, packet: Packet, message: Message) -> bool:
-        """Whether the message is a request to QRU that the QRU server took; its id, if it has one, is acked."""
-        if self._qru is None or message.addressee.strip().upper() != "QRU" or message.ack_id is not None or message.rej_id is not None or not self._qru(packet, message):
-            return False
-        if message.msg_id is not None:
-            line = line_of(_info_of(packet))
-            self._host.ack(packet.sender, message.msg_id, None if line is None else reply_ack_of(line))
-        return True
+        """Whether the message is a request to QRU that the QRU server took. A request is a broadcast and is never acked, whatever id it carries: an ack from our call would match nothing at the asker."""
+        return self._qru is not None and message.addressee.strip().upper() == "QRU" and message.ack_id is None and message.rej_id is None and self._qru(packet, message)
 
     def _overheard(self, packet: Packet, message: Message) -> None:
         """A message to another station: kept apart from the conversations (once for a repeat or a digipeater's copy). An ack or a reject of other stations is not a message and is not kept."""

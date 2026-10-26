@@ -2,18 +2,19 @@
 
 QRU is the Morse code abbreviation for "have you anything for me?". A station sends a message to the addressee `QRU` (not to a station: any server in range answers) whose text is
 
-    INFO          which groups of objects are served near me? (`?` asks the same)
+    INFO          which groups of objects are served near me? (`?` asks the same; the older APRSISCE spelling puts `?` before a word, `?INFO`, `?RP70 100`)
     INFO 250      the same within 250 km instead of the usual RANGE_KM
     RP70          the objects of the group RP70 near me
     RP70 250      the same within 250 km
     NEXT          the next objects of the group last asked for
 
-and the server answers by the asker's path, as frames of its own with no message id (services/answers.py). To `INFO` it answers with a message "de OH2GBA-10:RP70(3) FOOD(1) Max 5@50km": the groups with the number of
+and the server answers by the asker's path with RFONLY added, as frames of its own with no message id (services/answers.py). To `INFO` it answers with a message "de OH2GBA-10:RP70(3) FOOD(1) Max 5@50km": the groups with the number of
 objects in range, the objects it sends at most (ANSWER_FRAMES_MAX, the limit of the answers of the queries as well) and the range; a long list goes over two messages, the first ending in `+`. To a group it answers
 with the objects of the group in range, the nearest first, at most ANSWER_FRAMES_MAX of them as object packets one at a time (SPACING_SEC apart), then a message "Sent 3 RP70 Objects Max 5@50km de OH2GBA-10"; when
 more are in range the message says "Sent 5 of 12 RP70 Objects, NEXT for more. de OH2GBA-10" and `NEXT` sends the following ones. Nothing is answered where nothing is in range: a server with nothing for the asker stays quiet.
-The same request from the same station within ANSWER_AGAIN_SEC is answered once. A message to QRU is not a message to us: the inbox hands it here (services/inbox.py), it is acked when it carries an id, and it is never
-kept as ours. It is handed over only while we serve some group; without one it is an overheard message to another station as any other.
+The same request from the same station within ANSWER_AGAIN_SEC is answered once. A message to QRU is not a message to us: the inbox hands it here (services/inbox.py), it is a broadcast and is never acked (also when it carries an id: an
+ack from our call matches nothing at the asker), and it is never kept as ours. It is handed over only while we serve some group; without one it is an overheard message to another station as any other. Only a request heard on the radio is
+answered: one that came over the internet, or as a third-party packet that an iGate took from it, is not (the asker is not in our radio range, and the answer would have no way back).
 
 Our objects and items (services/ownobjects.py) belong to a group by the `qru_group` the operator gives them (1 to 8 upper-case letters and digits; `INFO` and `NEXT` are the words above and no group), and may be `on_request`:
 never sent on the decay schedule, only to a station that asks, here or by `?APRSO`. An object with a group that is not `on_request` is beaconed as ever and answers a request as well. "In range" is the distance from the asker's
@@ -39,7 +40,7 @@ from neoaprs.callsign import CallsignError
 from neoaprs.clock import Clock, utcnow
 from neoaprs.geo import distance_km
 from neoaprs.ownobject import OwnObject, info_of
-from neoaprs.packet import Message, Packet
+from neoaprs.packet import DUMMY, RF, Message, Packet
 from neoaprs.services.answers import ANSWER_FRAMES_MAX, Answers
 from neoaprs.services.common import ConfigSource, Radio, our_frame
 from neoaprs.services.pace import SPACING_SEC
@@ -51,7 +52,8 @@ ADDRESSEE = "QRU"
 RANGE_KM = 50                                                       # how far from the asker an object is offered, when the request names no distance
 MAX_INFO_MESSAGES = 2                                               # the messages the list of groups goes over at most
 NEXT_KEEP = timedelta(hours=1)                                      # how long the place in a group is kept for `NEXT`
-_REQUEST = re.compile(r"(?P<word>\?|[A-Z0-9]{1,8})(?:\s+(?P<km>\d{1,5}))?")
+_REQUEST = re.compile(r"(?P<mark>\?)?(?P<word>[A-Z0-9]{1,8})?(?:\s+(?P<km>\d{1,5}))?")
+HEARD_ON_RADIO = (RF, DUMMY)                                        # the channels a request may come by
 
 
 class Objects(Protocol):
@@ -74,9 +76,13 @@ class Request:
 def request_of(text: str) -> Request | None:
     """The request the text of a message to QRU makes; None for a text that is none (it is no business of a QRU server)."""
     found = _REQUEST.fullmatch(text.strip().upper())
-    if found is None:
+    if found is None or (found["word"] is None and found["mark"] is None):
         return None
-    word = "INFO" if found["word"] == "?" else found["word"]
+    word = found["word"]
+    if word is None:
+        word = "INFO"
+    elif found["mark"] and word.startswith("APRS"):
+        return None                                                 # (a query of the specification, `?APRSP`: not a request for a group)
     return Request(word, None if found["km"] is None else int(found["km"]))
 
 
@@ -111,7 +117,7 @@ class Qru:
     def heard(self, packet: Packet, message: Message) -> bool:
         """A message to QRU: answered, and True, when we serve some group and the text is a request; False for anything else (the inbox keeps it as a message overheard)."""
         request = request_of(message.text)
-        if not packet.on_air or request is None or not any(o.alive and o.qru_group for o in self._objects.records()):
+        if packet.via not in HEARD_ON_RADIO or request is None or not any(o.alive and o.qru_group for o in self._objects.records()):
             return False
         asker, key = packet.sender, f"QRU {request.word} {request.km or ''}".strip()
         if self._answers.refused():
@@ -122,7 +128,7 @@ class Qru:
         try:
             frames = self._frames(asker, request, packet.heard_at)
             if frames:
-                self._answers.deliver(asker, key, frames, packet.heard_at, True)
+                self._answers.deliver(asker, key, frames, packet.heard_at, True, rf_only=True)
             else:
                 log.debug("the request %r of %s to QRU: nothing to answer with", key, asker)
         except (ax25.Ax25Error, CallsignError, MessageError, ValueError) as e:

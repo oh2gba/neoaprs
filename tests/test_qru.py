@@ -7,7 +7,7 @@ import pytest
 
 from neoaprs.aprsmessage import MAX_TEXT, parse_message
 from neoaprs.ownobject import OwnObject, make_object
-from neoaprs.packet import Message, Packet, Position
+from neoaprs.packet import Message, Packet, Position, ThirdParty, Via
 from neoaprs.stationbook import StationBook
 from neoaprs.source import Source
 from neoaprs.services.qru import ANSWER_FRAMES_MAX, RANGE_KM, Qru, Request, info_texts, request_of
@@ -43,8 +43,10 @@ class Rig(ServiceRig):
     def hear_at(self, call: str, lat: float, lon: float) -> None:
         self.book.take(Packet(self.clock(), "in", b"", call, "APRS", (), b"", Position(lat, lon, "/", ">")))
 
-    def ask(self, source: str, text: str, to: str = "QRU", msg_id: str | None = None) -> bool:
-        return self.qru.heard(Packet(self.clock(), "in", b"", source, "APRS", ("OH2RCH-2*",), b"", Message(to, text, msg_id)), Message(to, text, msg_id))
+    def ask(self, source: str, text: str, to: str = "QRU", msg_id: str | None = None, via: Via = "rf") -> bool:
+        third = ThirdParty(source, "APRS") if via == "rf-gated" else None
+        packet = Packet(self.clock(), "in", b"", "OH2GATE" if third else source, "APRS", ("OH2RCH-2*",), b"", Message(to, text, msg_id), third, via)
+        return self.qru.heard(packet, Message(to, text, msg_id))
 
     def texts(self) -> list[str]:
         return [parse_message(f.info[1:]).text for f in self.tnc.sent if f.info[:1] == b":"]
@@ -56,12 +58,13 @@ class Rig(ServiceRig):
 # ---- reading a request ---------------------------------------------------------------------------------------------------------------------------
 
 @pytest.mark.parametrize("text, expected", [("INFO", Request("INFO", None)), ("info 250", Request("INFO", 250)), ("?", Request("INFO", None)), ("? 20", Request("INFO", 20)), (" rp70 ", Request("RP70", None)),
-                                            ("RP70 150", Request("RP70", 150)), ("next", Request("NEXT", None)), ("LIFEBOAT", Request("LIFEBOAT", None)), ("T2SRV 99999", Request("T2SRV", 99999))])
+                                            ("RP70 150", Request("RP70", 150)), ("?INFO", Request("INFO", None)), ("?test", Request("TEST", None)), ("?POST 20000", Request("POST", 20000)), ("?RP70 150", Request("RP70", 150)),
+                                            ("next", Request("NEXT", None)), ("LIFEBOAT", Request("LIFEBOAT", None)), ("T2SRV 99999", Request("T2SRV", 99999))])
 def test_a_request_is_a_word_and_a_distance_in_kilometres(text: str, expected: Request) -> None:
     assert request_of(text) == expected
 
 
-@pytest.mark.parametrize("text", ["", "hello there", "RP70 far", "RP70 150 3", "LIFEBOATS", "RP-70", "T2SRV 100000", "INFO?", "?APRSP", "Are you there?"])
+@pytest.mark.parametrize("text", ["", "hello there", "RP70 far", "RP70 150 3", "LIFEBOATS", "RP-70", "T2SRV 100000", "INFO?", "?APRSP", "?aprsd 5", "?PING?", "?RP-70", "??", "Are you there?"])
 def test_a_text_that_is_no_request_is_none(text: str) -> None:
     assert request_of(text) is None
 
@@ -92,7 +95,7 @@ def test_info_answers_with_the_groups_near_the_asker_and_how_many_objects_each_h
     rig.objects.held[-1] = killed.killed(rig.clock())
     assert rig.ask("OH2RDG", "INFO") is True
     assert rig.texts() == ["de OH2GBA:FOOD(2) FUEL(1) RP70(1) Max 5@50km"], "an object that is on request is a member of its group; a killed one and one with no group are not"
-    assert rig.tnc.sent[0].path_text == "WIDE1-1,WIDE2-1" and rig.names() == []
+    assert rig.tnc.sent[0].path_text == "WIDE1-1,WIDE2-1,RFONLY" and rig.names() == []
 
 
 def test_info_with_a_distance_names_the_range_and_a_question_mark_asks_the_same() -> None:
@@ -114,12 +117,36 @@ def test_a_station_whose_position_we_do_not_know_is_offered_every_object() -> No
     assert rig.texts() == ["de OH2GBA:FUEL(2) Max 5@50km"]
 
 
-def test_the_answer_goes_by_the_path_of_the_asker() -> None:
+def test_the_answer_goes_by_the_path_of_the_asker_with_rfonly_added_so_that_the_igates_keep_it_off_the_internet() -> None:
     rig = Rig()
     rig.paths["OH2RDG"] = ("OH2RCH-2", "WIDE2-1")
     rig.add("PUMP", "FUEL")
     rig.ask("OH2RDG", "INFO")
-    assert [f.path_text for f in rig.tnc.sent] == ["OH2RCH-2,WIDE2-1"]
+    assert [f.path_text for f in rig.tnc.sent] == ["OH2RCH-2,WIDE2-1,RFONLY"]
+
+
+def test_an_answer_with_a_path_too_long_for_rfonly_is_not_sent(caplog: pytest.LogCaptureFixture) -> None:
+    rig = Rig()
+    rig.paths["OH2RDG"] = ("A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8")
+    rig.add("PUMP", "FUEL")
+    with caplog.at_level(logging.WARNING, logger="neoaprs.queries"):
+        rig.ask("OH2RDG", "INFO")
+    assert rig.tnc.sent == [] and "path too long" in caplog.text
+
+
+@pytest.mark.parametrize("via, taken", [("rf", True), ("dummy", True), ("is", False), ("rf-gated", False)])
+def test_only_a_request_heard_on_the_radio_is_answered_never_one_that_came_by_the_internet(via: Via, taken: bool) -> None:
+    rig = Rig()
+    rig.add("PUMP", "FUEL")
+    assert rig.ask("OH2RDG", "INFO", via=via) is taken
+    assert (len(rig.tnc.sent) == 1) is taken
+
+
+def test_a_request_with_a_message_id_is_answered_and_sends_no_ack() -> None:
+    rig = Rig()
+    rig.add("PUMP", "FUEL")
+    assert rig.ask("OH2RDG", "?INFO", msg_id="B3") is True
+    assert rig.texts() == ["de OH2GBA:FUEL(1) Max 5@50km"], "no ack: a message to QRU is a broadcast"
 
 
 # ---- a group -------------------------------------------------------------------------------------------------------------------------------------
@@ -137,7 +164,7 @@ async def test_a_group_is_answered_with_its_objects_the_nearest_first_one_at_a_t
     await idle_for(0.1)
     assert rig.names() == ["RPNEAR", "RPFAR"] and rig.texts() == ["Sent 2 RP70 Objects Max 5@50km de OH2GBA"]
     assert rig.tnc.sent[0].info == b";RPNEAR   *211200z6010.80N/02457.00Er438.925MHz Toff -760"
-    assert {f.path_text for f in rig.tnc.sent} == {"WIDE1-1,WIDE2-1"} and [parse_message(f.info[1:]).msg_id for f in rig.tnc.sent if f.info[:1] == b":"] == [None]
+    assert {f.path_text for f in rig.tnc.sent} == {"WIDE1-1,WIDE2-1,RFONLY"} and [parse_message(f.info[1:]).msg_id for f in rig.tnc.sent if f.info[:1] == b":"] == [None]
 
 
 async def test_an_item_of_the_group_is_sent_as_an_item() -> None:
