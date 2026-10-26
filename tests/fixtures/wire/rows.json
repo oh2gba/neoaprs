@@ -1475,6 +1475,56 @@
    "via": "rf"
   }
  },
+ "qru": [
+  {
+   "asked": null,
+   "servers": []
+  },
+  {
+   "asked": {
+    "at": "2026-10-21T12:00:00Z",
+    "text": "INFO"
+   },
+   "servers": []
+  },
+  {
+   "asked": {
+    "at": "2026-10-21T12:00:30Z",
+    "text": "RP70 150"
+   },
+   "servers": [
+    {
+     "at": "2026-10-21T12:00:00Z",
+     "call": "DF8LS-10",
+     "groups": [
+      {
+       "count": 10,
+       "name": "RP70"
+      },
+      {
+       "count": 3,
+       "name": "RP2M"
+      }
+     ],
+     "max_objects": 5,
+     "range": 50,
+     "sent": "Sent 5 RP70 Objects Max 5@50km de DF8LS-10",
+     "sent_at": "2026-10-21T12:00:40Z",
+     "unit": "km"
+    },
+    {
+     "at": "2026-10-21T12:02:00Z",
+     "call": "W1AW",
+     "groups": [],
+     "max_objects": null,
+     "range": null,
+     "sent": "Sent 2 of 7 FOOD Objects, NEXT for more. de W1AW",
+     "sent_at": "2026-10-21T12:02:00Z",
+     "unit": ""
+    }
+   ]
+  }
+ ],
  "station_prefs": [
   {
    "path": null,
@@ -3584,7 +3634,9 @@
    "stats": {
     "bytes_in": 0,
     "bytes_out": 0,
+    "digipeat_held": 0,
     "digipeated": 0,
+    "digipeated_at": null,
     "frames_in": 0,
     "keepalive_checks": 0,
     "last_packet": null,
@@ -3620,7 +3672,9 @@
    "stats": {
     "bytes_in": 1234,
     "bytes_out": 0,
+    "digipeat_held": 1,
     "digipeated": 4,
+    "digipeated_at": "2026-10-21T12:00:02Z",
     "frames_in": 7,
     "keepalive_checks": 1,
     "last_packet": "2026-10-21T12:00:03Z",
@@ -3659,7 +3713,9 @@
    "stats": {
     "bytes_in": 1234,
     "bytes_out": 0,
+    "digipeat_held": 1,
     "digipeated": 4,
+    "digipeated_at": "2026-10-21T12:00:02Z",
     "frames_in": 7,
     "keepalive_checks": 1,
     "last_packet": "2026-10-21T12:00:03Z",
@@ -3686,7 +3742,9 @@
    "stats": {
     "bytes_in": 0,
     "bytes_out": 0,
+    "digipeat_held": 0,
     "digipeated": 0,
+    "digipeated_at": null,
     "frames_in": 0,
     "keepalive_checks": 0,
     "last_packet": null,

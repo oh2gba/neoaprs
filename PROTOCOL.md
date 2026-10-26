@@ -104,7 +104,7 @@ TypeScript types for both unions are in `ui/src/protocol/protocol.ts`, the JSON 
 
 ## Client to server
 
-36 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
+37 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
 
 ### `ping`
 
@@ -208,6 +208,18 @@ station sends: a packet (the station's card changes) or a message (a row `in`). 
 |---|---|---|---|
 | `call` | string |  | (max 64 chars, min 1 chars) |
 | `kind` | "position" \| "status" \| "heard" \| "trace" |  |  |
+
+### `qru_ask`
+
+Asks the stations near us for local info (repeaters, events, places): one message to the addressee `QRU` (the services/qruask.py of the daemon), whose `text` is `INFO` (which groups are served near
+us?), `NEXT` (the next objects of the group asked for last) or a group of 1 to 8 upper-case letters and digits (`RP70`), with a distance in kilometres, 1 to 20000, after it (`INFO 250`). A request to QRU is a
+broadcast: it is sent once, with no message id, is not kept as a message and is not sent again; it goes by the path of messages with RFONLY after it, by radio only. The answers come as messages to us (they are
+rows of the topic `messages` like any message) and as the topic `qru`; the objects arrive as objects. Answered with an `error` when the text is none, RX only is ticked or no call is set (`transmit.off`, or the
+interlock's reason), the radio is away, or the same request was sent less than 30 seconds ago (`qru.too_soon`, with the `seconds` that are left).
+
+| field | type | | description |
+|---|---|---|---|
+| `text` | string |  | (max 32 chars, min 1 chars) |
 
 ### `message_retry`
 
@@ -557,6 +569,7 @@ The value of each topic (`state` carries it, a `replace` op brings a new one).
 | `update` | UpdateState | Update now: whether this copy can update itself, and the steps of the update it is doing; told whole as it changes, at most four times a second |
 | `gps` | GpsState | the GPS receiver and the moving station's beacon: the latest fix, its state, and when the next beacon by time is due; told whole as it changes, at most once a second |
 | `igate` | IgateState | the receive-only iGate: whether it is connected to APRS-IS, the server's name, the packets gated and not gated; told whole as it changes, at most once a second |
+| `qru` | QruState | local info (QRU): the last request sent from here and the servers that answered it, forgotten an hour after; told whole as it changes |
 
 ## Objects
 
@@ -863,6 +876,8 @@ What the TNC has counted since the daemon started.
 | `watchdog_probes` | integer |  | times the watchdog probed a silent radio (the same sequence as a check, every 30 seconds) (>= 0) |
 | `port_reopens` | integer |  | times the port was closed and opened again (every 5th probe of a silent radio) (>= 0) |
 | `digipeated` | integer |  | frames the digipeater (`digi/enabled`) sent again for other stations (>= 0) |
+| `digipeated_at` | time \| null |  | when the latest of them went out; null for none yet |
+| `digipeat_held` | integer |  | frames the digipeater left unsent because it had already sent the most it sends in a burst (`BURST_MAX` in 10 seconds) (>= 0) |
 
 ### ConfigValues
 
@@ -1191,6 +1206,48 @@ A serial port the system lists, or a Bluetooth device paired with it (Linux; on 
 | `hwid` | string |  | the hardware id the system gives, such as `USB VID:PID=0403:6001 SER=A1`; `n/a` where it does not say |
 | `vid` | integer \| null |  | the USB vendor id of an adapter; null for a port that is not USB |
 | `pid` | integer \| null |  | the USB product id of an adapter; null for a port that is not USB |
+
+### QruAsked
+
+The request we sent last.
+
+| field | type | | description |
+|---|---|---|---|
+| `text` | string |  | what was asked (`INFO`, `RP70 150`) |
+| `at` | time |  | when it was sent |
+
+### QruGroup
+
+A group of objects a server serves near us.
+
+| field | type | | description |
+|---|---|---|---|
+| `name` | string |  | the group, 1 to 8 upper-case letters and digits (`RP70`, `FOOD`) |
+| `count` | integer |  | how many objects the group has in the server's range (>= 0) |
+
+### QruServer
+
+A QRU server that answered, as it last said.
+
+| field | type | | description |
+|---|---|---|---|
+| `call` | string |  | the server's call |
+| `groups` | QruGroup[] |  | the groups it serves near us, in the order it listed them; empty when it has only sent the closing line of a group |
+| `max_objects` | integer \| null |  | the most objects it sends for one request; null when its list did not say |
+| `range` | integer \| null |  | the range round us it serves, in `unit`; null when its list did not say |
+| `unit` | "km" \| "mi" \| "" |  | the unit of `range` (kilometres or miles, as the server counts); empty when the list did not say |
+| `at` | time |  | when it answered last |
+| `sent` | string |  | its last closing line as it was heard (`Sent 5 RP70 Objects Max 5@50km de DF8LS-10`); empty before one |
+| `sent_at` | time \| null |  | when the closing line was heard; null before one |
+
+### QruState
+
+The servers that answered a request for local info, and the last request. What is older than an hour is forgotten, with the daemon's restart. Told whole as it changes.
+
+| field | type | | description |
+|---|---|---|---|
+| `asked` | QruAsked \| null |  | the last request sent from here; null before one, and an hour after it |
+| `servers` | QruServer[] |  | the servers that answered in the last hour, by call |
 
 ### StationPref
 

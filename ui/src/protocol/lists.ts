@@ -18,6 +18,7 @@ export const TOPIC_NAMES = [
   "update",
   "gps",
   "igate",
+  "qru",
 ] as const;
 
 /** Every message the daemon sends (the `type` of the Message union). */
@@ -319,6 +320,7 @@ export const LIMITS = {
   path: { maxCalls: 8, direct: "DIRECT", recommendedMobile: "WIDE1-1,WIDE2-1", recommendedFixed: "WIDE2-1" },
   object: { nameMax: 9, itemNameMin: 3, nameForbidden: "!_|~", commentMax: 43, commentMaxMotion: 36, courseMax: 359, speedMaxKmh: 1850, qruGroupMax: 8, qruReserved: ["INFO", "NEXT"] },
   bulletin: { groupMax: 5 },
+  qru: { kmMax: 20000 },
   station: { hours: [1, 3, 6, 12, 24], defaultHours: 3 },
 } as const;
 

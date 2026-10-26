@@ -1,7 +1,7 @@
 // The types of the wire protocol between the daemon and the page, written from the models of neoaprs/web/protocol.py by scripts/gen-protocol.py: never edited by hand.
 // `Command` is what the page sends (tagged by `cmd`), `Message` what the daemon sends (tagged by `type`), `TopicValues` the value of each topic the page follows.
 
-export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | TncReconnectCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | QueryStationCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | WeatherSeriesCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | PageErrorCommand;
+export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | TncReconnectCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | QueryStationCommand | AskQruCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | WeatherSeriesCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | PageErrorCommand;
 
 export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | AlertResultMessage | UpdateResultMessage | RadioSearchMessage;
 
@@ -26,6 +26,12 @@ export interface AreaValues {
   colour: string;
   lat_offset_deg: number;
   lon_offset_deg: number;
+}
+
+/** Asks the stations near us for local info (repeaters, events, places): one message to the addressee `QRU` (the services/qruask.py of the daemon), whose `text` is `INFO` (which groups are served near us?), `NEXT` (the next objects of the group asked for last) or a group of 1 to 8 upper-case letters and digits (`RP70`), with a distance in kilometres, 1 to 20000, after it (`INFO 250`). A request to QRU is a broadcast: it is sent once, with no message id, is not kept as a message and is not sent again; it goes by the path of messages with RFONLY after it, by radio only. The answers come as messages to us (they are rows of the topic `messages` like any message) and as the topic `qru`; the objects arrive as objects. Answered with an `error` when the text is none, RX only is ticked or no call is set (`transmit.off`, or the interlock's reason), the radio is away, or the same request was sent less than 30 seconds ago (`qru.too_soon`, with the `seconds` that are left). */
+export interface AskQruCommand {
+  cmd: "qru_ask";
+  text: string;
 }
 
 /** Answered with `status` at once (the daemon also sends one every 10 s). */
@@ -810,6 +816,50 @@ export interface PositionFields {
   sign: string | null;
 }
 
+/** The request we sent last. */
+export interface QruAsked {
+  /** what was asked (`INFO`, `RP70 150`) */
+  text: string;
+  /** when it was sent */
+  at: string;
+}
+
+/** A group of objects a server serves near us. */
+export interface QruGroup {
+  /** the group, 1 to 8 upper-case letters and digits (`RP70`, `FOOD`) */
+  name: string;
+  /** how many objects the group has in the server's range */
+  count: number;
+}
+
+/** A QRU server that answered, as it last said. */
+export interface QruServer {
+  /** the server's call */
+  call: string;
+  /** the groups it serves near us, in the order it listed them; empty when it has only sent the closing line of a group */
+  groups: QruGroup[];
+  /** the most objects it sends for one request; null when its list did not say */
+  max_objects: number | null;
+  /** the range round us it serves, in `unit`; null when its list did not say */
+  range: number | null;
+  /** the unit of `range` (kilometres or miles, as the server counts); empty when the list did not say */
+  unit: "km" | "mi" | "";
+  /** when it answered last */
+  at: string;
+  /** its last closing line as it was heard (`Sent 5 RP70 Objects Max 5@50km de DF8LS-10`); empty before one */
+  sent: string;
+  /** when the closing line was heard; null before one */
+  sent_at: string | null;
+}
+
+/** The servers that answered a request for local info, and the last request. What is older than an hour is forgotten, with the daemon's restart. Told whole as it changes. */
+export interface QruState {
+  /** the last request sent from here; null before one, and an hour after it */
+  asked: QruAsked | null;
+  /** the servers that answered in the last hour, by call */
+  servers: QruServer[];
+}
+
 /** Asks a station a directed query (APRS 1.0.1 chapter 15): a message to it with the text of the query, `?APRSP` (`kind` `position`: its position packet), `?APRSS` (`status`: its status report), `?APRSD` (`heard`: the stations it hears direct, as a message) or `?APRST` (`trace`: the path our query reached it by, as a message). The query is sent once, without a message id: no attempts follow and no ack is expected. It is kept as a row of the topic `messages` to the station, in state `sending` until it has been transmitted and then `unconfirmed`, whose `text` is the query; the page shows such a row (an `out` message with no `msg_id` whose text is one of the four) as a note of what was asked. The answer is whatever the station sends: a packet (the station's card changes) or a message (a row `in`). Not more than one query of a kind to a station in 60 seconds. Answered with an `error` when the station is not in the station book (`station.unknown`), is no station that takes messages (`query.not_capable`: an object, an item, ourselves, a station whose position says it takes none and that never sent a message), the same query was sent less than 60 seconds ago (`query.too_soon`) or the message is refused as `send_message` refuses it (the call is not set, the radio is silent). */
 export interface QueryStationCommand {
   cmd: "query";
@@ -1170,6 +1220,10 @@ export interface TncStats {
   port_reopens: number;
   /** frames the digipeater (`digi/enabled`) sent again for other stations */
   digipeated: number;
+  /** when the latest of them went out; null for none yet */
+  digipeated_at: string | null;
+  /** frames the digipeater left unsent because it had already sent the most it sends in a burst (`BURST_MAX` in 10 seconds) */
+  digipeat_held: number;
 }
 
 /** The value of each topic a page follows (neoaprs/web/topics.py): what `state` carries as `value`, and what `patch` replaces. */
@@ -1200,6 +1254,8 @@ export interface TopicValues {
   gps: GpsState;
   /** the receive-only iGate: whether it is connected to APRS-IS, the server's name, the packets gated and not gated; told whole as it changes, at most once a second */
   igate: IgateState;
+  /** local info (QRU): the last request sent from here and the servers that answered it, forgotten an hour after; told whole as it changes */
+  qru: QruState;
 }
 
 /** Stop following these topics. A topic that was not followed is ignored. */
