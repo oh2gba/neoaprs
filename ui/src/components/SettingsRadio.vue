@@ -20,7 +20,6 @@ const { config, send, ports, tnc, now } = useDaemonContext();
 const TRANSMIT_KEY = RX_ONLY_KEY;
 const info = (key: string) => FIELDS[key] ?? { label: key };
 const profile = computed(() => props.settings.draft["tnc/profile"]);
-const digipeater = computed(() => config.value?.values["digi/enabled"] === "true");
 /** The fold is open while the radio is not connected: that is when the fields are wanted. */
 const unconnected = computed(() => tnc.value !== null && tnc.value.state !== "connected");
 const fallback = (key: string) => (key === "serial/baud" ? speedFallback(profile.value, props.defaults[key] ?? "") : (props.defaults[key] ?? ""));
@@ -44,7 +43,7 @@ function typed(key: string, text: string): void {
     @update:model-value="typed(TRANSMIT_KEY, $event)"
     @choose="form.choose({ [TRANSMIT_KEY]: storedFor(TRANSMIT_KEY, settings.draft, $event) })"
   />
-  <RadioStatus :tnc="tnc" :now="now" :digipeater="digipeater" :open="unconnected" @reconnect="send({ cmd: 'tnc_reconnect' })">
+  <RadioStatus :tnc="tnc" :now="now" :open="unconnected" @reconnect="send({ cmd: 'tnc_reconnect' })">
     <template v-for="key in keys.filter((k) => k !== TRANSMIT_KEY)" :key="key">
       <SettingsPort
         v-if="key === 'serial/port'"

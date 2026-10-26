@@ -12,6 +12,7 @@ import ConfirmRow from "@/components/ConfirmRow.vue";
 import MapFetchButton from "@/components/MapFetchButton.vue";
 import MapFetchNotes from "@/components/MapFetchNotes.vue";
 import ActionRow from "@/components/ActionRow.vue";
+import DigipeaterStatus from "@/components/DigipeaterStatus.vue";
 import IgateStatus from "@/components/IgateStatus.vue";
 import { internetStations } from "@/lib/igatestatus";
 import InfoTip from "@/components/InfoTip.vue";
@@ -42,7 +43,7 @@ import { computed, watch } from "vue";
 const props = withDefaults(defineProps<{ scope?: Scope; picking?: boolean; picked?: Picked | null }>(), { scope: "settings", picking: false, picked: null });
 const emit = defineEmits<{ setup: []; update: []; pickPosition: [] }>();
 
-const { config, lastError, send, settings, alertResult, updateResult, map, alerts, ports, say, igate, stations } = useDaemonContext();
+const { config, lastError, send, settings, alertResult, updateResult, map, alerts, ports, say, igate, stations, tnc, status, now } = useDaemonContext();
 const { draft, errors } = settings;
 const form = useSettingsForm(config, settings, props.scope);
 const { groups, question, defaults } = form;
@@ -245,6 +246,13 @@ function typed(key: string, text: string): void {
         :igate="igate"
         :values="config.values"
         :stations="internetStations(stations.values())"
+      />
+      <DigipeaterStatus
+        v-if="group.id === 'digi' && tnc && draft['digi/enabled'] === 'true'"
+        :tnc="tnc"
+        :started-at="status?.started_at ?? null"
+        :now="now"
+        :rx-only="draft['station/transmit'] === 'false'"
       />
       <template v-if="scope === 'beacon'">
         <SettingsFold

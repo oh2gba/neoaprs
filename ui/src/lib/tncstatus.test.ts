@@ -20,13 +20,6 @@ describe("tncStatus", () => {
     expect(tncStatus(tnc, NOW)).toBe("Last packet 2 min ago");
   });
 
-  it("adds how many packets the digipeater repeated, only while it is on and only when there were some", () => {
-    const tnc = tncState({ stats: { ...tncState().stats, digipeated: 3 } });
-    expect(tncStatus(tnc, NOW, true)).toBe("Last packet 30 s ago, digipeated 3");
-    expect(tncStatus(tnc, NOW, false)).not.toContain("digipeated");
-    expect(tncStatus(tncState(), NOW, true)).not.toContain("digipeated");
-  });
-
   it("says so when no packet has been heard", () => {
     expect(tncStatus(tncState({ stats: { ...tncState().stats, packets: 0, last_packet: null } }), NOW)).toBe("No packet yet");
   });

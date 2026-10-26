@@ -26,22 +26,18 @@ const dummyShown = (tnc: TncState): boolean => tnc.dummy && tnc.state === "conne
 export const pillText = (tnc: TncState): string => (dummyShown(tnc) ? t("settings.tnc.dummy_pill") : stateText(tnc.state));
 export const pillClass = (tnc: TncState): string => (dummyShown(tnc) ? "tnc-dummy" : `tnc-${tnc.state}`);
 
-/** "Last packet 2 min ago" (with how many packets the digipeater repeated, while it is on: ", digipeated 3"), "No packet yet". */
-function lastPacketText(tnc: TncState, nowMs: number, digipeated: number): string {
+/** "Last packet 2 min ago", "No packet yet". */
+function lastPacketText(tnc: TncState, nowMs: number): string {
   const last = tnc.stats.last_packet;
-  if (digipeated > 0)
-    return last === null
-      ? t("settings.tnc.no_packet_digipeated", { count: digipeated })
-      : t("settings.tnc.last_packet_digipeated", { span: ageText(last, nowMs), count: digipeated });
   return last === null ? t("settings.tnc.no_packet") : t("settings.tnc.last_packet", { span: ageText(last, nowMs) });
 }
 
-/** The one line (with how many packets the digipeater repeated, while it is on): "Last packet 2 min ago" when connected (the pill says connected and the Port field below names the port), "Searching for the radio…", "Not connected: no KISS frames on the port", "nothing heard since 02:43 (5 h)"; for the Dummy radio that its traffic is made up and nothing goes on the air. */
-export function tncStatus(tnc: TncState, nowMs: number, digipeater = false): string {
+/** The one line: "Last packet 2 min ago" when connected (the pill says connected and the Port field below names the port), "Searching for the radio…", "Not connected: no KISS frames on the port", "nothing heard since 02:43 (5 h)"; for the Dummy radio that its traffic is made up and nothing goes on the air. */
+export function tncStatus(tnc: TncState, nowMs: number): string {
   if (dummyShown(tnc)) return t("settings.tnc.dummy");
   if (tnc.state === "silent") return silentText(tnc.silent_since, nowMs);
   if (searchedPorts(tnc) !== null) return t("settings.tnc.searching");
-  if (tnc.state === "connected") return lastPacketText(tnc, nowMs, digipeater ? tnc.stats.digipeated : 0);
+  if (tnc.state === "connected") return lastPacketText(tnc, nowMs);
   if (tnc.state === "connecting") return tnc.path === "" ? t("settings.tnc.connecting") : t("settings.tnc.connecting_to", { path: tnc.path });
   const why = tnc.problem || tnc.last_error;
   return why === "" ? t("settings.tnc.not_connected") : t("settings.tnc.not_connected_why", { why });

@@ -11,10 +11,10 @@ import { t } from "@/i18n";
 import { pillClass, pillText, searchedPorts, tncCounts, tncStatus } from "@/lib/tncstatus";
 import type { TncState } from "@/protocol/protocol";
 
-const props = withDefaults(defineProps<{ tnc: TncState | null; now: number; digipeater?: boolean; open?: boolean }>(), { digipeater: false, open: false });
+const props = withDefaults(defineProps<{ tnc: TncState | null; now: number; open?: boolean }>(), { open: false });
 const emit = defineEmits<{ reconnect: [] }>();
 
-const status = computed(() => (props.tnc === null ? "" : tncStatus(props.tnc, props.now, props.digipeater)));
+const status = computed(() => (props.tnc === null ? "" : tncStatus(props.tnc, props.now)));
 const ports = computed(() => (props.tnc === null ? null : searchedPorts(props.tnc)));
 const problem = computed(() => (props.tnc !== null && props.tnc.problem !== "" && !status.value.includes(props.tnc.problem) ? props.tnc.problem : ""));
 </script>

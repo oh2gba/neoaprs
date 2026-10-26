@@ -202,7 +202,7 @@ describe("the settings area in the pseudo-locale", () => {
     expect(untranslated(draw(UndoToast, undefined, { undo: { label: "Position", values: {}, n: 1 } }))).toEqual([]);
     expect(untranslated(draw(SymbolPicker, undefined, { table: "/", code: "-" }))).toEqual([]);
     expect(untranslated(draw(SymbolField, undefined, { id: "s", symbol: "S#" }))).toEqual([]);
-    expect(untranslated(draw(RadioStatus, undefined, { tnc: context.tnc.value, now: Date.now(), digipeater: true }))).toEqual([]);
+    expect(untranslated(draw(RadioStatus, undefined, { tnc: context.tnc.value, now: Date.now() }))).toEqual([]);
     expect(untranslated(draw(MapFetchButton, undefined, { map: mapState({ detail: mapFile() }), stale: false, send: () => true }))).toEqual([]);
     expect(untranslated(draw(MapFetchNotes, undefined, { map: mapState({ detail: mapFile() }) }))).toEqual([]);
     expect(untranslated(draw(BrowserAlerts, context, { alerts: context.alerts, https }))).toEqual([]);

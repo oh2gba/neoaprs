@@ -71,16 +71,6 @@ describe("RadioStatus", () => {
     ).toEqual(["Terminal"]);
   });
 
-  it("tells how many packets the digipeater repeated, while it is on", () => {
-    const tnc = tncState({ stats: { ...tncState().stats, digipeated: 5 } });
-    expect(radio(tnc).find(".tncstatus").text()).not.toContain("digipeated");
-    expect(
-      mount(RadioStatus, { props: { tnc, now: NOW, digipeater: true } })
-        .find(".tncstatus")
-        .text(),
-    ).toMatch(/, digipeated 5$/);
-  });
-
   it("asks for a reconnect without opening or closing the fold", async () => {
     const wrapper = radio(tncState());
     await wrapper.find("button").trigger("click");
