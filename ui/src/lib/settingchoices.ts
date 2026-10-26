@@ -51,3 +51,26 @@ export const travelChoices = (): readonly Choice[] => [
   { value: "foot", label: t("settings.travel.foot") },
   { value: "boat", label: t("settings.travel.boat") },
 ];
+
+/** What each SSID is for, the recommendation of aprs.org (SSIDs.txt), in a few words that begin with the number as it is written after the call. */
+const SSID_LABELS = [
+  "settings.ssid.s0",
+  "settings.ssid.s1",
+  "settings.ssid.s2",
+  "settings.ssid.s3",
+  "settings.ssid.s4",
+  "settings.ssid.s5",
+  "settings.ssid.s6",
+  "settings.ssid.s7",
+  "settings.ssid.s8",
+  "settings.ssid.s9",
+  "settings.ssid.s10",
+  "settings.ssid.s11",
+  "settings.ssid.s12",
+  "settings.ssid.s13",
+  "settings.ssid.s14",
+  "settings.ssid.s15",
+] as const;
+
+/** The dropdown of the call's SSID: none first (the value is the empty text), then 1 to 15; the value is the number. */
+export const ssidChoices = (): readonly Choice[] => SSID_LABELS.map((id, n) => ({ value: n === 0 ? "" : String(n), label: t(id) }));

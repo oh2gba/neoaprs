@@ -25,7 +25,7 @@ import { STATUS_CHOICES, statusShown, statusSource } from "@/lib/status";
 import { profileOf } from "@/lib/tncprofile";
 import { CONFIG_KEYS, LIMITS, TNC_PROFILES } from "@/protocol/lists";
 
-type FieldKind = "text" | "bool" | "readonly" | "choice" | "password";
+type FieldKind = "text" | "bool" | "readonly" | "choice" | "password" | "call";
 
 export interface FieldInfo {
   label: string;
@@ -106,7 +106,7 @@ const SPECS: Record<string, FieldSpec> = {
     tip: ["settings.transmit.tip1"],
     picture: "transmit",
   },
-  "station/call": { label: "settings.call.label", tip: ["settings.call.tip1", "settings.call.tip2"], picture: "ssid" },
+  "station/call": { label: "settings.call.label", kind: "call", tip: ["settings.call.tip1", "settings.call.tip2"], picture: "ssid" },
   "station/lat": { label: "settings.lat.label", unit: "°" },
   "station/lon": { label: "settings.lon.label", unit: "°" },
   "station/symbol_table": { name: "settings.symbol.label", label: "settings.symbol.label" },

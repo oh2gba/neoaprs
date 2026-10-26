@@ -11,6 +11,35 @@ export function normalizeCall(text: string): string {
   return text.trim().toUpperCase();
 }
 
+/** The SSIDs a call may carry, as the text of the number: "1" to "15" (no SSID, and `-0`, is the empty text). */
+export const SSIDS: readonly string[] = Array.from({ length: LIMITS.call.maxSsid }, (_, i) => String(i + 1));
+
+/** A call as the settings keep it, taken apart for the call field: the call and its SSID ("" for none, else "1" to "15"; a `-0` is none). A text that has no SSID of this kind is all call. */
+export function splitCall(text: string): { base: string; ssid: string } {
+  const call = normalizeCall(text);
+  const found = /^(.*)-(\d{1,2})$/.exec(call);
+  const number = found === null ? NaN : Number(found[2]);
+  return found !== null && number <= LIMITS.call.maxSsid ? { base: found[1] ?? "", ssid: number === 0 ? "" : String(number) } : { base: call, ssid: "" };
+}
+
+/** The call and its SSID put together as the settings keep them: the SSID after a dash, none for "" (and a call that is not there has no SSID). */
+export function joinCall(base: string, ssid: string): string {
+  return base === "" || ssid === "" || ssid === "0" ? base : `${base}-${ssid}`;
+}
+
+/** What is typed or pasted into the field of the call: the call is the letters and digits in capitals; a dash with a number from 0 to 15 after it (`OH2GBA-9`) is the SSID, which the field moves to its dropdown (`ssid`, "" for none, null when
+ * there is none or it is not a number the dropdown has); a dash alone, or one with a number still being typed, is kept in `text` for the moment, the rest of what is typed is not a call's and goes. */
+export function callInput(raw: string): { base: string; ssid: string | null; text: string } {
+  const typed = raw.toUpperCase().trim();
+  const found = /^([^-]*)-(\d{0,2})$/.exec(typed);
+  const clean = (part: string): string => part.replace(/[^A-Z0-9]/g, "");
+  if (found === null) return { base: clean(typed), ssid: null, text: clean(typed) };
+  const base = clean(found[1] ?? "");
+  const digits = found[2] ?? "";
+  const ssid = digits !== "" && Number(digits) <= LIMITS.call.maxSsid ? (Number(digits) === 0 ? "" : String(Number(digits))) : null;
+  return { base, ssid, text: base === "" ? "" : `${base}-${digits}` };
+}
+
 /** The base of a call as it is typed, in capitals: the call without its SSID. */
 export function baseCall(text: string): string {
   return normalizeCall(text).split("-")[0] ?? "";

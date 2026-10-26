@@ -113,7 +113,7 @@ describe("SetupGuide: the frame", () => {
     expect(guide.open).toBe(false);
     guide.show();
     await nextTick();
-    expect(wrapper.find<HTMLInputElement>("#setup-call").element.value).toBe("oh2abc");
+    expect(wrapper.find<HTMLInputElement>("#setup-call").element.value).toBe("OH2ABC");
     document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     await nextTick();
     expect(guide.open).toBe(false);
@@ -165,13 +165,39 @@ describe("SetupGuide: the call", () => {
     expect(nextButton().attributes("disabled")).toBeDefined();
     await next();
     expect(guide.step).toBe(0);
-    await type("setup-call", "oh2abc-16");
+    await type("setup-call", "ab");
     expect(wrapper.find(".field-error").text()).toBe("Not a call");
     await type("setup-call", "oh2abc-9");
     expect(wrapper.find(".field-error").exists()).toBe(false);
+    expect(guide.fields.call).toBe("OH2ABC-9");
+    expect(wrapper.find<HTMLSelectElement>("#setup-call-ssid").element.value).toBe("9");
     expect(nextButton().attributes("disabled")).toBeUndefined();
     await next(); // Enter in the field submits the form
     expect(wrapper.find(".setup-step-name").text()).toBe("Position");
+  });
+});
+
+describe("SetupGuide: the SSID of the call", () => {
+  it("is a dropdown beside the call, with the (i) of the row; the call field takes the call without a dash", async () => {
+    const { wrapper, type, guide } = make();
+    const select = () => wrapper.find<HTMLSelectElement>("#setup-call-ssid");
+    expect(select().element.closest(".field-control")).toBe(wrapper.find("#setup-call").element.closest(".field-control"));
+    expect(select().findAll("option")).toHaveLength(16);
+    expect(select().element.value).toBe("");
+    expect(wrapper.find("#setup-call").element.closest(".field")?.querySelectorAll(".infotip")).toHaveLength(1);
+    await type("setup-call", "oh2 abc!");
+    expect(wrapper.find<HTMLInputElement>("#setup-call").element.value).toBe("OH2ABC");
+    await select().setValue("10");
+    expect(guide.fields.call).toBe("OH2ABC-10");
+    expect(guide.changes["station/call"]).toBe("OH2ABC-10");
+  });
+
+  it("shows the call of the daemon apart, and sends it as it was", () => {
+    const config = configValues({ "station/call": "OH2ABC-9" });
+    const { wrapper, guide } = make({ config });
+    expect(wrapper.find<HTMLInputElement>("#setup-call").element.value).toBe("OH2ABC");
+    expect(wrapper.find<HTMLSelectElement>("#setup-call-ssid").element.value).toBe("9");
+    expect(guide.changes["station/call"]).toBeUndefined();
   });
 });
 

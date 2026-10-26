@@ -1,8 +1,9 @@
 <script setup lang="ts">
-// One setting: its label, the input (a checkbox for a yes/no setting, a choice for a short list, read-only for one the daemon writes), the default as the placeholder, a unit after it, the daemon's complaint under it, and a slot after it for a button. What it says of itself: `update:modelValue` with the text as it is typed (and for a choice), `choose`
+// One setting: its label, the input (a checkbox for a yes/no setting, a choice for a short list, the call with its SSID dropdown, read-only for one the daemon writes), the default as the placeholder, a unit after it, the daemon's complaint under it, and a slot after it for a button. What it says of itself: `update:modelValue` with the text as it is typed (and for a choice), `choose`
 // when a choice is made (a list, a switch), `commit` when a typed field is finished with Enter or left (with the element focus went to), `cancel` for Esc in a field that holds a change or a complaint.
 // A `hint` is a quiet line under the field (advice, never a block). A `disabled` field is shown greyed with its value, as the Beacon tab shows what belongs to a beacon that is Off. A field whose meaning a non-developer may not know has a small (i) after it (`info.tip`); nothing else explains it, and the one thing a word cannot say is the `title` of the field.
 import { computed } from "vue";
+import CallInput from "@/components/CallInput.vue";
 import InfoTip from "@/components/InfoTip.vue";
 import { t } from "@/i18n";
 import type { Choice } from "@/lib/settingchoices";
@@ -90,6 +91,20 @@ function onEscape(event: KeyboardEvent): void {
       >
         <option v-for="choice in options" :key="choice.value" :value="choice.value">{{ choice.label }}</option>
       </select>
+      <CallInput
+        v-else-if="info.kind === 'call'"
+        :id="id"
+        :model-value="modelValue"
+        :placeholder="placeholder"
+        :disabled="disabled"
+        :invalid="error !== ''"
+        :describedby="describedBy"
+        @update:model-value="emit('update:modelValue', $event)"
+        @choose="emit('choose', $event)"
+        @blur="apply && emit('commit', $event.relatedTarget)"
+        @enter="onEnter"
+        @escape="onEscape"
+      />
       <input
         v-else
         :id="id"
