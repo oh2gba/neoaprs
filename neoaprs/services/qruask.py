@@ -2,7 +2,7 @@
 
 `ask` sends one message to the addressee `QRU`, as APRSISCE and YAAC do: a broadcast, so with no message id, once, not kept as a message of ours and never sent again, by the path of messages (`beacon/path`, or the one set
 for the station QRU) with RFONLY after it, so that the iGates keep it off APRS-IS and only the servers in radio range answer. It is refused under the transmit interlock (RX only, no call) and while the radio is away;
-the same request again within ASK_EVERY_SEC is refused (a server answers the same request from the same station once in that time anyway).
+one request to QRU goes on the air per ASK_EVERY_SEC, whatever it says: another within that time is refused with the seconds that are left (the servers answer one station once in that time anyway, and the channel is shared).
 
 The servers answer with messages to us (the objects they send are objects like any other): the list of the groups they serve near us with the number of objects in each, and after the objects the line that says how
 many went. Those messages are kept in Messages as every message to us is; here the servers that answered are noted for the page's topic `qru`: for each its call, its groups, the limit and range it gave, when it answered
@@ -18,7 +18,7 @@ from neoaprs.aprsmessage import MessageError, format_message
 from neoaprs.clock import Clock, utcnow
 from neoaprs.message import MessagingError, addressed_to, same_call
 from neoaprs.packet import Message, Packet
-from neoaprs.qrutext import Asked, Closing, Listing, Server, ask_text, closing_of, listing_of
+from neoaprs.qrutext import ASK_EVERY_SEC, Asked, Closing, Listing, Server, ask_text, closing_of, listing_of
 from neoaprs.route import rf_only_path
 from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, our_call, our_frame
 from neoaprs.signal import Signal
@@ -27,7 +27,6 @@ from neoaprs.tasks import TaskSet
 log = logging.getLogger("neoaprs.qru")
 
 ADDRESSEE = "QRU"
-ASK_EVERY_SEC = 30                      # the same request again sooner is refused
 CONTINUE_SEC = 120                      # a list that ends in `+` is continued by the next message of the server within this time
 KEEP_FOR = timedelta(hours=1)           # how long a server and the last request are remembered
 
@@ -41,7 +40,6 @@ class QruAsk:
         self.changed: Signal[[]] = Signal("qru_changed")
         self.asked: Asked | None = None
         self._servers: dict[str, Server] = {}
-        self._asked_at: dict[str, datetime] = {}                    # when each request was last sent
         self.tasks = TaskSet(log, "qru")
         self._timer: asyncio.Task[None] | None = None
 
@@ -51,18 +49,17 @@ class QruAsk:
 
     # ---- asking
     def ask(self, text: str) -> None:
-        """Sends the request (INFO, NEXT or a group, and a distance: neoaprs/qrutext.py). Raises MessagingError when it is none, nothing may be transmitted (RX only, no call), the radio is away, the same request went less than
-        ASK_EVERY_SEC ago (`qru.too_soon`, with the seconds that are left) or the frame is not taken."""
+        """Sends the request (INFO, NEXT or a group, and a distance: neoaprs/qrutext.py). Raises MessagingError when it is none, nothing may be transmitted (RX only, no call), the radio is away, a request went less than
+        ASK_EVERY_SEC ago, whatever it said (`qru.too_soon`, with the seconds that are left) or the frame is not taken."""
         config = self._config()
         our_call(config)
         request = ask_text(text)
         if not self._tnc.usable:
             raise MessagingError(self._tnc.why_unusable())
         now = self.clock()
-        last = self._asked_at.get(request)
-        if last is not None and (wait := ASK_EVERY_SEC - (now - last).total_seconds()) > 0:
+        if self.asked is not None and (wait := ASK_EVERY_SEC - (now - self.asked.at).total_seconds()) > 0:
             seconds = max(1, round(wait))
-            raise MessagingError(f"the same request was sent a moment ago: wait {seconds} s", "qru.too_soon", seconds=seconds)
+            raise MessagingError(f"only one request to QRU per minute: wait {seconds} s", "qru.too_soon", seconds=seconds)
         try:
             path = rf_only_path(self._paths(ADDRESSEE))
             if len(path) > ax25.MAX_PATH:
@@ -74,8 +71,6 @@ class QruAsk:
             raise MessagingError(f"the request to QRU makes no frame: {e}") from None
         if not self._tnc.send_frame(frame):
             raise MessagingError("the TNC would not take the frame")
-        self._asked_at = {key: when for key, when in self._asked_at.items() if (now - when).total_seconds() < ASK_EVERY_SEC}
-        self._asked_at[request] = now
         self.asked = Asked(request, now)
         log.info("asked QRU: %s", request)
         self._told()
