@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from neoaprs.cli import dbcmd
-from neoaprs.config import BEACON_SENT
+from neoaprs.config import BEACON_SENT, INSTALL_ID
 from neoaprs.dberror import SqlError
 from neoaprs.migrations import SCHEMA_VERSION
 from neoaprs.store import DB_NAME
@@ -34,7 +34,7 @@ def user_version(data: Path, version: int) -> None:
 
 def test_list_tells_for_each_setting_whether_it_is_stored_and_names_the_rows_that_are_not_settings(data: Path, capsys: pytest.CaptureFixture[str]) -> None:
     connection = sqlite3.connect(data / DB_NAME)
-    connection.executemany("INSERT INTO settings (key, value) VALUES (?, ?)", [(BEACON_SENT, "2026-10-21T12:00:00Z"), ("old/setting", "x")])
+    connection.executemany("INSERT INTO settings (key, value) VALUES (?, ?)", [(BEACON_SENT, "2026-10-21T12:00:00Z"), (INSTALL_ID, "0123456789abcdef0123456789abcdef"), ("old/setting", "x")])
     connection.commit()
     connection.close()
     capsys.readouterr()
@@ -43,6 +43,7 @@ def test_list_tells_for_each_setting_whether_it_is_stored_and_names_the_rows_tha
     assert any(line.startswith("station/call") and "OH2GBA" in line and line.endswith("stored") for line in lines)
     assert any(line.startswith("web/port") and line.endswith("default") for line in lines)
     assert any(line.startswith(BEACON_SENT) and line.endswith("kept by the daemon (when it last sent), not a setting") for line in lines)
+    assert any(line.startswith(INSTALL_ID) and line.endswith("kept by the daemon (the number of this installation), not a setting") for line in lines)
     assert any(line.startswith("old/setting") and line.endswith("stored, not a setting of this NeoAPRS") for line in lines)
 
 

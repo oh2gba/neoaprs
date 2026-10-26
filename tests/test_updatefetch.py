@@ -1,4 +1,4 @@
-"""The request of the update check (neoaprs/updatefetch.py) against a fake version page on the loopback: the query carries the version and the platform and nothing else, the User-Agent says the same, and a page that
+"""The request of the update check (neoaprs/updatefetch.py) against a fake version page on the loopback: the query carries the version, the platform and the number of the installation and nothing else, the User-Agent says the same, and a page that
 is not there, says no or sends too much is None."""
 import asyncio
 import urllib.error
@@ -17,6 +17,11 @@ def test_the_query_has_the_version_and_the_platform_after_what_the_address_has()
     assert request_url("https://example.org/v.php?x=1", "0.1.0", "linux-arm") == "https://example.org/v.php?x=1&v=0.1.0&os=linux-arm"
 
 
+def test_the_number_of_the_installation_is_the_last_of_the_query_when_there_is_one() -> None:
+    number = "0123456789abcdef0123456789abcdef"
+    assert request_url("https://oh2gba.eu/neoaprs/version.php", "0.1.0", "linux", number) == f"https://oh2gba.eu/neoaprs/version.php?v=0.1.0&os=linux&id={number}"
+
+
 async def test_the_page_is_asked_with_the_version_and_the_platform_and_nothing_else() -> None:
     page = await version_page({"version": "0.2.0", "url": "https://example.org/", "message": ""})
     body = await fetch(page.url, "0.1.0", "linux-appimage")
@@ -25,6 +30,13 @@ async def test_the_page_is_asked_with_the_version_and_the_platform_and_nothing_e
     assert path == "/version.php?v=0.1.0&os=linux-appimage"
     assert headers["user-agent"] == "NeoAPRS/0.1.0 (linux-appimage)"
     assert set(headers) <= {"user-agent", "host", "accept-encoding", "connection"}, "no cookie, no identity, nothing else is sent"
+
+
+async def test_the_number_is_sent_as_id_and_the_user_agent_does_not_carry_it() -> None:
+    page = await version_page({"version": "0.2.0", "url": "", "message": ""})
+    await fetch(page.url, "0.1.0", "linux", "0123456789abcdef0123456789abcdef")
+    (path, headers), = page.requests
+    assert path == "/version.php?v=0.1.0&os=linux&id=0123456789abcdef0123456789abcdef" and headers["user-agent"] == "NeoAPRS/0.1.0 (linux)"
 
 
 async def test_a_page_that_says_no_or_is_not_there_is_none() -> None:
@@ -38,7 +50,7 @@ async def test_a_page_that_says_no_or_is_not_there_is_none() -> None:
 async def test_a_page_that_hangs_is_none_after_the_timeout() -> None:
     page = await version_page({})
     page.hang = True
-    assert await asyncio.to_thread(get, page.url, "0.1.0", "linux", 0.3) is None
+    assert await asyncio.to_thread(get, page.url, "0.1.0", "linux", "", 0.3) is None
 
 
 async def test_only_the_first_bytes_of_a_long_answer_are_read() -> None:
