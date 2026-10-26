@@ -6,7 +6,6 @@
 import { computed, ref, watch } from "vue";
 import InfoTip from "@/components/InfoTip.vue";
 import StatusFold from "@/components/StatusFold.vue";
-import TagMark from "@/components/TagMark.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { t } from "@/i18n";
 import { errorReason } from "@/i18n/errortext";
@@ -23,11 +22,17 @@ const km = computed({
 const wrong = computed(() => kmWrong(km.value));
 const servers = computed(() => qru.value?.servers ?? []);
 const asked = computed(() => qru.value?.asked ?? null);
-const wait = computed(() => askWait(asked.value, now.value));
+const waitFor = (word: string): number => askWait(asked.value, now.value, requestText(word, km.value));
+const wait = computed(() => waitFor("INFO"));
 const refusal = ref(""); // (why the daemon refused the last request, until the next one)
 const look = computed(() => qruLook(asked.value, servers.value, refusal.value, now.value));
 const off = computed(() => receiveOnly.value || wait.value > 0);
 const why = computed(() => (receiveOnly.value ? t("pill.rx_send") : wait.value > 0 ? t("objects.qru_wait", { seconds: wait.value }) : undefined));
+/** Why a group's button is off, or undefined when it may be pressed (RX only, or its own wait). */
+const groupWhy = (word: string): string | undefined => {
+  const seconds = waitFor(word);
+  return receiveOnly.value ? t("pill.rx_send") : seconds > 0 ? t("objects.qru_wait", { seconds }) : undefined;
+};
 
 watch(lastError, (toast) => {
   if (toast?.cmd === "qru_ask") refusal.value = errorReason(toast);
@@ -82,17 +87,17 @@ function ask(word: string): void {
       <li v-for="server in servers" :key="server.call" class="qru-server">
         <span class="mono strong qru-call">{{ server.call }}</span>
         <span class="qru-groups">
-          <TagMark
+          <button
             v-for="group in server.groups"
             :key="group.name"
-            as="button"
-            tone="accent"
-            class="qru-group"
-            :disabled="off || wrong"
-            :title="why ?? t('objects.qru_group', { server: server.call, group: groupName(group.name) })"
+            type="button"
+            class="btn small qru-group"
+            :disabled="groupWhy(group.name) !== undefined || wrong"
+            :title="groupWhy(group.name) ?? t('objects.qru_group', { server: server.call, group: groupName(group.name) })"
             @click="ask(group.name)"
-            >{{ categoryLabel(group.name) }}{{ " " }}<span class="qru-count">{{ group.count }}</span></TagMark
           >
+            {{ categoryLabel(group.name) }}{{ " " }}<span class="qru-count">{{ group.count }}</span>
+          </button>
         </span>
         <span v-if="server.sent !== ''" class="muted qru-sent">{{ server.sent }}</span>
       </li>

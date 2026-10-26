@@ -11,7 +11,7 @@ from neoaprs import dummyline
 from neoaprs.aprsmessage import format_message
 from neoaprs.message import MessagingError
 from neoaprs.packet import GATEABLE, Message, Packet, ThirdParty, Via
-from neoaprs.qrutext import ASK_EVERY_SEC, ASK_KM_MAX, Closing, Listing, ask_text, closing_of, listing_of
+from neoaprs.qrutext import ASK_EVERY_SEC, ASK_GAP_SEC, ASK_KM_MAX, Closing, Listing, ask_text, closing_of, listing_of
 from neoaprs.services.qruask import CONTINUE_SEC, KEEP_FOR, QruAsk
 from neoaprs.source import Source
 from tests.support.air import message_info, on_air
@@ -122,22 +122,25 @@ async def test_a_text_that_is_no_request_is_not_sent() -> None:
     assert rig.tnc.asked == 0
 
 
-async def test_one_request_goes_on_the_air_per_minute_whatever_it_says_and_a_refused_one_changes_nothing() -> None:
+async def test_the_same_request_goes_once_a_minute_any_two_are_ten_seconds_apart_and_a_refused_one_changes_nothing() -> None:
     rig = Rig()
     rig.qru.ask("INFO")
-    rig.clock.advance(ASK_EVERY_SEC - 11)
-    for other in ("info", "INFO 100", "RP70", "NEXT"):
+    rig.clock.advance(ASK_GAP_SEC - 3)
+    for other in ("RP70", "NEXT", "INFO 100"):                                                   # anything within the gap
         with pytest.raises(MessagingError) as refused:
             rig.qru.ask(other)
-        assert (refused.value.code, refused.value.params) == ("qru.too_soon", {"seconds": 11}), other
-    assert len(rig.tnc.sent) == 1 and rig.qru.asked is not None and rig.qru.asked.text == "INFO" and rig.told == 1
-    rig.clock.advance(11)
-    rig.qru.ask("RP70")
-    assert len(rig.tnc.sent) == 2 and rig.qru.asked.text == "RP70"
-    rig.clock.advance(ASK_EVERY_SEC - 1)
+        assert (refused.value.code, refused.value.params) == ("qru.too_soon", {"seconds": 3}), other
+    rig.clock.advance(3)
+    rig.qru.ask("RP70")                                                                          # a group right after the list came
+    assert len(rig.tnc.sent) == 2 and rig.qru.asked is not None and rig.qru.asked.text == "RP70"
+    rig.clock.advance(ASK_GAP_SEC)
     with pytest.raises(MessagingError) as refused:
-        rig.qru.ask("INFO")
-    assert refused.value.params == {"seconds": 1}
+        rig.qru.ask("info")                                                                      # the same text again within the minute
+    assert refused.value.params == {"seconds": ASK_EVERY_SEC - 2 * ASK_GAP_SEC}
+    assert len(rig.tnc.sent) == 2 and rig.qru.asked.text == "RP70" and rig.told == 2
+    rig.clock.advance(ASK_EVERY_SEC - 2 * ASK_GAP_SEC)
+    rig.qru.ask("INFO")
+    assert len(rig.tnc.sent) == 3
 
 
 async def test_a_server_that_lists_its_groups_is_noted_with_its_limit_and_range() -> None:

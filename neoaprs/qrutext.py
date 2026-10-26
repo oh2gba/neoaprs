@@ -17,7 +17,8 @@ from neoaprs.message import MessagingError
 from neoaprs.ownobject import QRU_GROUP_MAX
 
 ASK_KM_MAX = 20000                                  # the farthest a request names (APRSISCE's own example is `POST 20000`)
-ASK_EVERY_SEC = 60                                  # one request to QRU goes on the air in this time, whatever it says (the page greys Ask for it)
+ASK_EVERY_SEC = 60                                  # the same request to QRU goes on the air once in this time (the servers answer one station once in it anyway)
+ASK_GAP_SEC = 10                                    # and any two requests are this far apart, so that a group can be asked for right after the list of groups came
 _ASK = re.compile(rf"(?P<word>INFO|NEXT|[A-Z0-9]{{1,{QRU_GROUP_MAX}}})(?: (?P<km>\d{{1,5}}))?")
 _CALL = r"[A-Z0-9]{1,6}(?:-\d{1,2})?"
 _GROUP = rf"[A-Z0-9]{{1,{QRU_GROUP_MAX}}}"

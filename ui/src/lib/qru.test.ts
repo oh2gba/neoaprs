@@ -22,14 +22,16 @@ describe("the distance of a request for local info", () => {
 });
 
 describe("the minute between two requests", () => {
-  it("is the daemon's number, counted from the request that was sent, rounded up to whole seconds, and none before a request or after the minute", () => {
-    expect(LIMITS.qru.askEverySec).toBe(60);
-    expect(askWait(null, NOW)).toBe(0);
-    expect(askWait({ text: "INFO", at: ago(0) }, NOW)).toBe(60);
-    expect(askWait({ text: "INFO", at: ago(20.4) }, NOW)).toBe(40);
-    expect(askWait({ text: "INFO", at: ago(59) }, NOW)).toBe(1);
-    expect(askWait({ text: "INFO", at: ago(60) }, NOW)).toBe(0);
-    expect(askWait({ text: "INFO", at: ago(600) }, NOW)).toBe(0);
+  it("is the daemon's rule: the same request a minute apart, any two ten seconds apart, rounded up to whole seconds", () => {
+    expect([LIMITS.qru.askEverySec, LIMITS.qru.askGapSec]).toEqual([60, 10]);
+    expect(askWait(null, NOW, "INFO")).toBe(0);
+    expect(askWait({ text: "INFO", at: ago(0) }, NOW, "INFO")).toBe(60);
+    expect(askWait({ text: "INFO", at: ago(20.4) }, NOW, "INFO")).toBe(40);
+    expect(askWait({ text: "INFO", at: ago(60) }, NOW, "INFO")).toBe(0);
+    expect(askWait({ text: "INFO", at: ago(0) }, NOW, "RP70")).toBe(10); // (a group right after the list: only the gap)
+    expect(askWait({ text: "INFO", at: ago(9.5) }, NOW, "RP70")).toBe(1);
+    expect(askWait({ text: "INFO", at: ago(10) }, NOW, "RP70")).toBe(0);
+    expect(askWait({ text: "INFO", at: ago(3) }, NOW)).toBe(7);
   });
 
   it("counts the servers that answered since the request, not those of an earlier one", () => {

@@ -25,10 +25,12 @@ export function requestText(word: string, km: string): string | null {
   return distance === null ? word : `${word} ${distance}`;
 }
 
-/** The seconds Ask is still held for, 0 when it is free: a request is on the air at most once in LIMITS.qru.askEverySec, whatever it says. */
-export function askWait(asked: QruAsked | null, nowMs: number): number {
+/** The seconds a request is still held for, 0 when it may go: the same text once in LIMITS.qru.askEverySec, any two LIMITS.qru.askGapSec apart (the daemon's rule), so a group can be asked for right after
+ * a server listed it. `text` is the request that would go (requestText); null counts only the gap. */
+export function askWait(asked: QruAsked | null, nowMs: number, text: string | null = null): number {
   if (asked === null) return 0;
-  return Math.max(0, Math.ceil((Date.parse(asked.at) + LIMITS.qru.askEverySec * 1000 - nowMs) / 1000));
+  const hold = text !== null && text === asked.text ? LIMITS.qru.askEverySec : LIMITS.qru.askGapSec;
+  return Math.max(0, Math.ceil((Date.parse(asked.at) + hold * 1000 - nowMs) / 1000));
 }
 
 /** How many servers have answered since the request was sent (a server that listed its groups for an earlier one does not count). */
@@ -50,7 +52,7 @@ export function qruLook(asked: QruAsked | null, servers: readonly QruServer[], r
   if (asked === null) return null;
   const time = clockText(asked.at).slice(0, 5);
   const state = t("objects.qru_state");
-  if (askWait(asked, nowMs) > 0) return { state, tone: "tnc-waiting", line: t("objects.qru_waiting", { time }) };
+  if (askWait(asked, nowMs, asked.text) > 0) return { state, tone: "tnc-waiting", line: t("objects.qru_waiting", { time }) };
   const n = answeredSince(asked, servers);
   return n > 0
     ? { state, tone: "tnc-connected", line: t("objects.qru_answered", { time, n }) }

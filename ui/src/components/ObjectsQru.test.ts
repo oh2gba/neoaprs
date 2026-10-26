@@ -88,21 +88,20 @@ describe("Local info in the Objects tab", () => {
     expect(row(wrapper).find(".statetext").classes()).not.toContain("tnc-connected");
   });
 
-  it("opens the row on the request that was sent, and holds Ask for the minute with the time left in its title (the tags too), and frees it after", async () => {
-    const { wrapper, daemon } = make({ qru: qruState({ asked: { text: "RP70 150", at: ago(20) } }) });
+  it("opens the row on the request that was sent; holds that same request for the minute with the time left in its title, and any other for ten seconds", async () => {
+    const { wrapper, daemon } = make({ qru: qruState({ asked: { text: "RP70 150", at: ago(5) } }) });
     await row(wrapper).find("summary").trigger("click");
     expect(row(wrapper).text()).toContain("Last request: RP70 150");
-    expect(ask(wrapper).attributes("disabled")).toBeDefined();
-    expect(ask(wrapper).attributes("title")).toBe("Next request in 40 s");
-    expect(pills(wrapper).every((p) => p.attributes("disabled") !== undefined && p.attributes("title") === "Next request in 40 s")).toBe(true);
-    await ask(wrapper).trigger("click");
-    await wrapper.find("input.qru-km").trigger("keydown", { key: "Enter" });
-    await pills(wrapper)[0]?.trigger("click");
+    expect(ask(wrapper).attributes("title")).toBe("Next request in 5 s");
+    expect(pills(wrapper).map((p) => p.attributes("title"))).toEqual(["Next request in 55 s", "Next request in 5 s"]); // (RP70 again, RP2M)
+    await pills(wrapper)[1]?.trigger("click");
     expect(daemon.send).not.toHaveBeenCalled();
-    await tell(daemon, { now: NOW + 41_000 });
+    await tell(daemon, { now: NOW + 6_000 });
     expect(ask(wrapper).attributes("disabled")).toBeUndefined();
-    expect(ask(wrapper).attributes("title")).toBeUndefined();
-    expect(pills(wrapper)[0]?.attributes("disabled")).toBeUndefined();
+    expect(pills(wrapper)[1]?.attributes("disabled")).toBeUndefined(); // (a group right after the list came)
+    expect(pills(wrapper)[0]?.attributes("disabled")).toBeDefined(); // (the same request, not yet)
+    await pills(wrapper)[1]?.trigger("click");
+    expect(daemon.send).toHaveBeenCalledWith({ cmd: "qru_ask", text: "RP2M 150" });
   });
 
   it("shows the daemon's refusal of a request in the row, in the words of its code, and takes it away when the next request has been sent", async () => {
@@ -131,7 +130,7 @@ describe("Local info in the Objects tab", () => {
     const rows = wrapper.findAll("li.qru-server");
     expect(rows.map((r) => r.find(".qru-call").text())).toEqual(["DF8LS-10", "W1AW"]);
     expect(rows[0]?.findAll("button.qru-group").map((b) => b.text())).toEqual(["70 cm repeater 10", "2 m repeater 3"]);
-    expect(rows[0]?.findAll("button.tag.tag-accent").length).toBe(2);
+    expect(rows[0]?.findAll("button.btn.small").length).toBe(2); // (real buttons in the server's row)
     expect(rows[0]?.find(".qru-sent").text()).toBe("Sent 5 RP70 Objects Max 5@50km de DF8LS-10");
     expect(rows[1]?.find(".qru-sent").exists()).toBe(false);
   });
