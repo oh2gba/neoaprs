@@ -65,7 +65,16 @@ export default defineConfig({
     setupFiles: ["src/test/setup.ts"],
     coverage: {
       provider: "v8",
-      include: ["src/lib/**/*.ts", "src/composables/**/*.ts", "src/components/**/*.vue", "src/help/**/*.{ts,vue}", "src/protocol/**/*.ts", "src/App.vue", "src/AccessGate.vue", "src/main.ts"],
+      include: [
+        "src/lib/**/*.ts",
+        "src/composables/**/*.ts",
+        "src/components/**/*.vue",
+        "src/help/**/*.{ts,vue}",
+        "src/protocol/**/*.ts",
+        "src/App.vue",
+        "src/AccessGate.vue",
+        "src/main.ts",
+      ],
       exclude: ["**/*.test.ts", "src/test/**"],
       reporter: ["text"],
     },
