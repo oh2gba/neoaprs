@@ -104,7 +104,7 @@ TypeScript types for both unions are in `ui/src/protocol/protocol.ts`, the JSON 
 
 ## Client to server
 
-36 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
+37 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
 
 ### `ping`
 
@@ -142,6 +142,11 @@ Removes a station from the station book (and its cache in the database) until it
 | field | type | | description |
 |---|---|---|---|
 | `call` | string |  | (max 64 chars, min 1 chars) |
+
+### `forget_all_stations`
+
+A fresh start for what was heard: removes every station and every packet heard (and the weather of the stations), in the daemon and in its database. The station we are, the objects and bulletins we send, the messages, the
+settings and the maps stay, and so do the packets we sent. Answered by the stations' topic told whole, or by an `error`.
 
 ### `list_ports`
 
@@ -211,7 +216,7 @@ Asks the stations near us for local info (repeaters, events, places): one messag
 us?), `NEXT` (the next objects of the group asked for last) or a group of 1 to 8 upper-case letters and digits (`RP70`), with a distance in kilometres, 1 to 20000, after it (`INFO 250`). A request to QRU is a
 broadcast: it is sent once, with no message id, is not kept as a message and is not sent again; it goes by the path of messages with RFONLY after it, by radio only. The answers come as messages to us (they are
 rows of the topic `messages` like any message) and as the topic `qru`; the objects arrive as objects. Answered with an `error` when the text is none, RX only is ticked or no call is set (`transmit.off`, or the
-interlock's reason), the radio is away, or the same request was sent less than 30 seconds ago (`qru.too_soon`, with the `seconds` that are left).
+interlock's reason), the radio is away, or a request to QRU was sent less than 60 seconds ago, whatever it said (`qru.too_soon`, with the `seconds` that are left).
 
 | field | type | | description |
 |---|---|---|---|
