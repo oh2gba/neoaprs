@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Help with pictures: what an object is, a bulletin, the beacon, the path.
 - The Objects form keeps Path and QRU under Advanced, as the Beacon tab does.
 
 ## 0.9.1

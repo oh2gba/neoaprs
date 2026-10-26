@@ -11,6 +11,9 @@ export const objects: Readonly<Record<keyof typeof en, Message>> = {
 
   "objects.none": "Nessun oggetto.",
   "objects.list": "Oggetti",
+  "objects.about_label": "Sugli oggetti",
+  "objects.about1": "Un oggetto è un segnaposto che metti sulla mappa per qualcosa che non è una stazione: un ripetitore, un punto di ritrovo, un evento.",
+  "objects.about2": "Tutti quelli vicino a te lo vedono, finché lo invii.",
   "objects.edit_label": "Modifica {name}",
   "objects.delete_title": "Elimina (rimuovi dall’etere)",
   "objects.delete_label": { select: "kind", object: "Elimina l’oggetto {name}", item: "Elimina l’item {name}", other: "Elimina l’oggetto {name}" },

@@ -6,6 +6,15 @@ export const help: Record<keyof typeof source, Message> = {
   "help.close": "Fechar",
   "help.copy": "Copiar",
   "help.copied": "Copiado",
+  "help.picture.object":
+    "Um mapa com a sua estação no carro e dois objetos que você envia, um repetidor com a sua frequência e um ponto de encontro; os dois aparecem nos mapas de outras duas estações.",
+  "help.picture.bulletin": "Uma estação envia um boletim, BLN1, e a mesma mensagem aparece no mural de outras três estações.",
+  "help.picture.beacon": "A sua estação envia a posição repetidamente, com um relógio entre as balizas, e aparece no mapa dos outros.",
+  "help.picture.path":
+    "O seu pacote vai do seu carro até um digipeater de preenchimento, WIDE1-1, e depois a um de área ampla, WIDE2-1: dois saltos antes de as outras estações o receberem.",
+  "help.picture.status": "O seu texto de status curto, QRV 145.500, aparece no mapa das outras estações abaixo do seu indicativo.",
+  "help.picture.range": "Um digipeater com o seu círculo de alcance: as estações dentro do círculo são ouvidas por meio dele, as de fora não.",
+  "help.picture.request": "Uma estação pergunta QRU e a sua estação responde com o objeto, que de outra forma não é enviado.",
   "help.not_copied": "Não copiado",
 
   "help.install.label": "Aplicativo",

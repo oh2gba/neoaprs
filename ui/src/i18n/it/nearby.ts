@@ -2,6 +2,8 @@
 export const nearby = {
   "nearby.digipeaters": "Digipeater",
   "nearby.digipeaters_help": "Stazioni che hanno ripetuto pacchetti che abbiamo ricevuto, e stazioni con il simbolo di digipeater.",
+  "nearby.digipeaters_tip_label": "Sulla copertura",
+  "nearby.digipeaters_tip": "Un digipeater ripete ciò che sente. Le stazioni dentro il suo cerchio lo raggiungono; quelle fuori no.",
   "nearby.voice": "Frequenze in fonia",
   "nearby.voice_help": "Stazioni, oggetti e item che hanno indicato una frequenza su cui chiamare.",
   "nearby.igates": "iGate",

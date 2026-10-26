@@ -9,6 +9,9 @@ export const bulletins: Record<keyof typeof source, Message> = {
   "bulletins.section.nws": "気象機関",
 
   "bulletins.empty": "掲示板は空です。",
+  "bulletins.about_label": "掲示について",
+  "bulletins.about1": "掲示は全員宛てのメッセージで、すべての局の掲示板に表示されます。",
+  "bulletins.about2": "ネットの時間、イベント、警告などに使います。",
   "bulletins.delete_title": "削除(送信を停止)",
   "bulletins.delete_own": "自局の掲示 {slot} を削除",
   "bulletins.delete": "{sender}の掲示 {slot} を削除",

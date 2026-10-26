@@ -2,6 +2,8 @@
 export const nearby = {
   "nearby.digipeaters": "デジピーター",
   "nearby.digipeaters_help": "受信したパケットを中継した局と、デジピーターのシンボルを持つ局。",
+  "nearby.digipeaters_tip_label": "到達範囲について",
+  "nearby.digipeaters_tip": "デジピーターは聞こえたものを中継します。円の内側の局は届き、外側の局は届きません。",
   "nearby.voice": "音声周波数",
   "nearby.voice_help": "呼び出し用の周波数を知らせた局、オブジェクト、アイテム。",
   "nearby.igates": "iGate",

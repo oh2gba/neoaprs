@@ -3,6 +3,7 @@ import { DOMWrapper, mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import SettingsForm from "@/components/SettingsForm.vue";
 import { FIELDS } from "@/lib/settings";
+import SettingsField from "@/components/SettingsField.vue";
 import { fakeDaemon, withDaemon } from "@/test/context";
 import { configValues, mapState } from "@/test/fixtures";
 
@@ -78,5 +79,34 @@ describe("the (i) of the Settings tab", () => {
     await box.setValue(false);
     await wrapper.find("form").trigger("submit");
     expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "messages/alert": "false" } });
+  });
+});
+
+describe("the pictures in the notes of the Settings fields", () => {
+  const withPicture: [string, string][] = [
+    ["beacon/interval_min", "beacon"],
+    ["beacon/path", "path"],
+    ["status/source", "status"],
+  ];
+
+  it.each(withPicture)("%s shows the picture %s under its text", async (key, picture) => {
+    const info = FIELDS[key];
+    expect(info?.picture).toBe(picture);
+    const wrapper = mount(SettingsField, {
+      props: { id: "f", info, modelValue: "", fallback: "", error: "", changed: false },
+      attachTo: document.body,
+    });
+    await wrapper.find(".info-toggle").trigger("click");
+    expect(wrapper.find(".info-text svg").attributes("data-picture")).toBe(picture);
+    wrapper.unmount();
+  });
+
+  it("no other field of the settings has one yet", () => {
+    expect(
+      Object.entries(FIELDS)
+        .filter(([, info]) => info.picture !== undefined)
+        .map(([key]) => key)
+        .sort(),
+    ).toEqual(withPicture.map(([key]) => key).sort());
   });
 });

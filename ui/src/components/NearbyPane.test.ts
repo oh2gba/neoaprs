@@ -52,6 +52,15 @@ describe("NearbyPane", () => {
     expect(wrapper.findAll("h3").map((h) => h.text())).toEqual(["Digipeaters 1", "Voice frequencies 2", "iGates 1", "Heard direct 1"]);
   });
 
+  it("has an (i) beside the Digipeaters heading that says what the range is, with a picture of a digipeater and its circle", async () => {
+    const { wrapper } = make();
+    const head = section(wrapper, "Digipeaters")?.find(".nearby-head");
+    await head?.find("button.info-toggle").trigger("click");
+    expect(head?.find(".info-text").text()).toContain("Stations inside its circle reach it; stations outside do not.");
+    expect(head?.find("svg[data-picture='range']").exists()).toBe(true);
+    expect(section(wrapper, "iGates")?.find(".info-toggle").exists()).toBe(false);
+  });
+
   it("lists the digipeater with what it repeated and the range it gave, and its distance and bearing", () => {
     const { wrapper } = make();
     const row = section(wrapper, "Digipeaters")?.find("tbody tr");

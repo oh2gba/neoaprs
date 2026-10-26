@@ -7,6 +7,7 @@ import { errorReason, type Failure } from "@/i18n/errortext";
 import type { Params } from "@/i18n/message";
 import { STATION_HOURS, STATION_HOURS_KEY } from "@/lib/aging";
 import { ANTENNA, beaconOff } from "@/lib/beaconoff";
+import type { PictureName } from "@/help/names";
 import { isMoving } from "@/lib/gpsstatus";
 import { lazyText } from "@/lib/lazytext";
 import { STATUS_CHOICES, statusShown, statusSource } from "@/lib/status";
@@ -31,6 +32,8 @@ export interface FieldInfo {
   tip?: readonly string[];
   /** What the (i) is called for a screen reader and on hover; else "About" and the label. */
   tipLabel?: string;
+  /** The picture the note of the (i) shows under its text (help/), when a picture says it better. */
+  picture?: PictureName;
   kind?: FieldKind;
   /** The values a `choice` offers: the text of the setting, or the text with the words it is shown as. */
   choices?: readonly (string | Choice)[];
@@ -61,6 +64,7 @@ interface FieldSpec {
   title?: Say;
   tip?: readonly Say[];
   tipLabel?: Say;
+  picture?: PictureName;
   kind?: FieldKind;
   choices?: () => readonly (string | Choice)[];
   other?: (value: string) => string;
@@ -82,6 +86,7 @@ function field(spec: FieldSpec): FieldInfo {
   if (spec.choices !== undefined) Object.defineProperty(info, "choices", { enumerable: true, get: spec.choices });
   if (spec.unit !== undefined) info.unit = spec.unit;
   if (spec.kind !== undefined) info.kind = spec.kind;
+  if (spec.picture !== undefined) info.picture = spec.picture;
   if (spec.other !== undefined) info.other = spec.other;
   return info;
 }
@@ -238,6 +243,7 @@ const SPECS: Record<string, FieldSpec> = {
     kind: "choice",
     choices: () => STATUS_CHOICES,
     tip: ["settings.status_source.tip1"],
+    picture: "status",
   },
   "status/rigctld": {
     label: "settings.status_rigctld.label",
@@ -264,11 +270,13 @@ const SPECS: Record<string, FieldSpec> = {
     choices: beaconChoices,
     other: every,
     tip: [["settings.beacon_interval.tip1", { min: LIMITS.interval.beaconMinMin }]],
+    picture: "beacon",
   },
   "beacon/path": {
     name: "settings.path.name",
     label: "settings.path.label",
     tip: ["settings.path.tip1", "settings.path.tip2"],
+    picture: "path",
   },
   "gps/source": {
     name: "settings.position.name",

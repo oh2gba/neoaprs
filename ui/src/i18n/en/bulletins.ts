@@ -6,6 +6,9 @@ export const bulletins = {
   "bulletins.section.nws": "Weather service",
 
   "bulletins.empty": "Nothing on the board.",
+  "bulletins.about_label": "About bulletins",
+  "bulletins.about1": "A bulletin is a message to everyone, shown on every station's board.",
+  "bulletins.about2": "Use it for net times, events, warnings.",
   "bulletins.delete_title": "Delete (stop sending)",
   "bulletins.delete_own": "Delete our bulletin {slot}",
   "bulletins.delete": "Delete the bulletin {slot} from {sender}",

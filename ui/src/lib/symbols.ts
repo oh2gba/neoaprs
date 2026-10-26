@@ -7,7 +7,7 @@ import { LIMITS, MOBILE_SYMBOLS } from "@/protocol/lists";
 
 export const SPRITE_PX = 48;
 export const SPRITE_COLUMNS = 16;
-const SPRITE_ROWS = 6;
+export const SPRITE_ROWS = 6;
 const SYMBOL_DIR = "symbols";
 
 type Sheet = "primary" | "alternate" | "overlay";
@@ -47,10 +47,15 @@ export function symbolLayers(table: string, code: string): SpriteLayer[] {
       ];
 }
 
+/** The address of a sheet. */
+export function sheetUrl(sheet: Sheet): string {
+  return `${SYMBOL_DIR}/${sheet}.png`;
+}
+
 /** The CSS of one layer drawn `size` pixels wide: the sheet as the background, moved to the cell. */
 export function layerStyle(layer: SpriteLayer, size: number): Record<string, string> {
   return {
-    backgroundImage: `url(${SYMBOL_DIR}/${layer.sheet}.png)`,
+    backgroundImage: `url(${sheetUrl(layer.sheet)})`,
     backgroundSize: `${SPRITE_COLUMNS * size}px ${SPRITE_ROWS * size}px`,
     backgroundPosition: `${-layer.column * size}px ${-layer.row * size}px`,
   };

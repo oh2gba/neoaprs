@@ -344,9 +344,9 @@ describe("ObjectForm", () => {
       await tip?.trigger("click");
       expect(wrapper.findAll(".info-text .info-line"), label).toHaveLength(1);
       if (label === "QRU group")
-        expect(wrapper.find(".info-text").text()).toBe("A word (1–8 letters or digits) a station sends to QRU to get the objects of this group.");
+        expect(wrapper.find(".info-text .info-line").text()).toBe("A word (1–8 letters or digits) a station sends to QRU to get the objects of this group.");
       if (label === "Send only when asked")
-        expect(wrapper.find(".info-text").text()).toBe("Not beaconed; sent only to a station that asks with ?APRSO or QRU.");
+        expect(wrapper.find(".info-text .info-line").text()).toBe("Not beaconed; sent only to a station that asks with ?APRSO or QRU.");
       await tip?.trigger("click");
     }
   });

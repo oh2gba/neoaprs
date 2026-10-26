@@ -8,6 +8,9 @@ export const bulletins: Readonly<Record<keyof typeof en, Message>> = {
   "bulletins.section.nws": "Servizio meteo",
 
   "bulletins.empty": "Niente in bacheca.",
+  "bulletins.about_label": "Sui bollettini",
+  "bulletins.about1": "Un bollettino è un messaggio per tutti, mostrato nella bacheca di ogni stazione.",
+  "bulletins.about2": "Usalo per gli orari del net, gli eventi, gli avvisi.",
   "bulletins.delete_title": "Elimina (smetti di inviare)",
   "bulletins.delete_own": "Elimina il nostro bollettino {slot}",
   "bulletins.delete": "Elimina il bollettino {slot} di {sender}",

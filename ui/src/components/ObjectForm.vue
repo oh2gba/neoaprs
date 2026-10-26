@@ -144,7 +144,7 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
         <label :for="`${id}-asked`">{{ t("objects.field.on_request") }}</label>
         <div class="field-control">
           <input :id="`${id}-asked`" v-model="draft.onRequest" class="check" type="checkbox" />
-          <InfoTip :label="about('objects.field.on_request')"
+          <InfoTip :label="about('objects.field.on_request')" picture="request"
             ><span class="info-line">{{ t("objects.tip.on_request") }}</span></InfoTip
           >
         </div>

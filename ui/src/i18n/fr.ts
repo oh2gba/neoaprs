@@ -284,6 +284,9 @@ export const fr: Catalogue = {
   "bulletins.section.nws": "Service météo",
 
   "bulletins.empty": "Rien sur le tableau.",
+  "bulletins.about_label": "À propos des bulletins",
+  "bulletins.about1": "Un bulletin est un message pour tout le monde, affiché sur le tableau de chaque station.",
+  "bulletins.about2": "Servez-vous-en pour les horaires du réseau, les événements, les alertes.",
   "bulletins.delete_title": "Supprimer (cesser l'envoi)",
   "bulletins.delete_own": "Supprimer notre bulletin {slot}",
   "bulletins.delete": "Supprimer le bulletin {slot} de {sender}",
@@ -318,6 +321,9 @@ export const fr: Catalogue = {
 
   "objects.none": "Aucun objet.",
   "objects.list": "Objets",
+  "objects.about_label": "À propos des objets",
+  "objects.about1": "Un objet est un repère que vous posez sur la carte pour ce qui n'est pas une station : un relais, un point de rendez-vous, un événement.",
+  "objects.about2": "Tous ceux qui sont près de vous le voient, tant que vous l'émettez.",
   "objects.edit_label": "Modifier {name}",
   "objects.delete_title": "Supprimer (retirer par radio)",
   "objects.delete_label": { select: "kind", object: "Supprimer l'objet {name}", item: "Supprimer l'item {name}", other: "Supprimer l'objet {name}" },
@@ -1255,6 +1261,15 @@ export const fr: Catalogue = {
   "help.close": "Fermer",
   "help.copy": "Copier",
   "help.copied": "Copié",
+  "help.picture.object":
+    "Une carte avec votre station en voiture et deux objets que vous émettez, un relais avec sa fréquence et un point de rendez-vous ; tous deux apparaissent sur les cartes de deux autres stations.",
+  "help.picture.bulletin": "Une station émet un bulletin, BLN1, et le même message apparaît sur le tableau de trois autres stations.",
+  "help.picture.beacon": "Votre station envoie sa position encore et encore, avec une horloge entre les balises, et apparaît sur la carte des autres.",
+  "help.picture.path":
+    "Votre paquet va de votre voiture à un digipeater de proximité, WIDE1-1, puis à un digipeater à grande couverture, WIDE2-1 : deux sauts avant que les autres stations l'entendent.",
+  "help.picture.status": "Votre court texte de statut, QRV 145.500, apparaît sur la carte des autres stations sous votre indicatif.",
+  "help.picture.range": "Un digipeater avec son cercle de portée : les stations dans le cercle sont entendues par lui, celles à l'extérieur ne le sont pas.",
+  "help.picture.request": "Une station demande QRU et votre station répond avec l'objet, qui n'est sinon pas émis.",
   "help.not_copied": "Non copié",
 
   "help.install.label": "Application",
@@ -1355,6 +1370,8 @@ export const fr: Catalogue = {
   // nearby
   "nearby.digipeaters": "Digipeaters",
   "nearby.digipeaters_help": "Stations qui ont répété des paquets que nous avons entendus, et stations avec un symbole de digipeater.",
+  "nearby.digipeaters_tip_label": "À propos de la portée",
+  "nearby.digipeaters_tip": "Un digipeater répète ce qu'il entend. Les stations dans son cercle l'atteignent ; celles à l'extérieur non.",
   "nearby.voice": "Fréquences en phonie",
   "nearby.voice_help": "Stations, objets et items qui ont donné une fréquence d'appel.",
   "nearby.igates": "iGates",

@@ -292,6 +292,9 @@ export const de: Catalogue = {
   "bulletins.section.nws": "Wetterdienst",
 
   "bulletins.empty": "Nichts auf der Tafel.",
+  "bulletins.about_label": "Über Bulletins",
+  "bulletins.about1": "Ein Bulletin ist eine Nachricht an alle und steht auf der Tafel jeder Station.",
+  "bulletins.about2": "Nutze es für Netzzeiten, Veranstaltungen, Warnungen.",
   "bulletins.delete_title": "Löschen (nicht mehr senden)",
   "bulletins.delete_own": "Unser Bulletin {slot} löschen",
   "bulletins.delete": "Das Bulletin {slot} von {sender} löschen",
@@ -330,6 +333,10 @@ export const de: Catalogue = {
 
   "objects.none": "Keine Objekte.",
   "objects.list": "Objekte",
+  "objects.about_label": "Über Objekte",
+  "objects.about1":
+    "Ein Objekt ist eine Markierung, die du für etwas auf die Karte setzt, das keine Station ist: ein Relais, ein Treffpunkt, eine Veranstaltung.",
+  "objects.about2": "Alle in deiner Nähe sehen es, solange du es sendest.",
   "objects.edit_label": "{name} bearbeiten",
   "objects.delete_title": "Löschen (per Funk zurückziehen)",
   "objects.delete_label": { select: "kind", object: "Das Objekt {name} löschen", item: "Das Item {name} löschen", other: "Das Objekt {name} löschen" },
@@ -1268,6 +1275,15 @@ export const de: Catalogue = {
   "help.close": "Schließen",
   "help.copy": "Kopieren",
   "help.copied": "Kopiert",
+  "help.picture.object":
+    "Eine Karte mit deiner Auto-Station und zwei Objekten, die du sendest, einem Relais mit seiner Frequenz und einem Treffpunkt; beide erscheinen auf den Karten zweier anderer Stationen.",
+  "help.picture.bulletin": "Eine Station sendet ein Bulletin, BLN1, und dieselbe Nachricht erscheint auf der Tafel von drei anderen Stationen.",
+  "help.picture.beacon": "Deine Station sendet ihre Position immer wieder, mit einer Uhr zwischen den Baken, und erscheint auf der Karte der anderen.",
+  "help.picture.path":
+    "Dein Paket geht von deinem Auto zu einem Fill-in-Digipeater, WIDE1-1, dann zu einem Weitbereichs-Digipeater, WIDE2-1: zwei Hops, bevor die anderen Stationen es hören.",
+  "help.picture.status": "Dein kurzer Statustext, QRV 145.500, erscheint auf der Karte der anderen Stationen unter deinem Rufzeichen.",
+  "help.picture.range": "Ein Digipeater mit seinem Reichweitenkreis: Die Stationen im Kreis werden über ihn gehört, die außerhalb nicht.",
+  "help.picture.request": "Eine Station fragt QRU, und deine Station antwortet mit dem Objekt, das sonst nicht gesendet wird.",
   "help.not_copied": "Nicht kopiert",
 
   "help.install.label": "App",
@@ -1367,6 +1383,8 @@ export const de: Catalogue = {
   // nearby
   "nearby.digipeaters": "Digipeater",
   "nearby.digipeaters_help": "Stationen, die von uns gehörte Pakete wiederholt haben, und Stationen mit Digipeater-Symbol.",
+  "nearby.digipeaters_tip_label": "Über die Reichweite",
+  "nearby.digipeaters_tip": "Ein Digipeater wiederholt, was er hört. Stationen im Kreis erreichen ihn, Stationen außerhalb nicht.",
   "nearby.voice": "Sprechfunk-Frequenzen",
   "nearby.voice_help": "Stationen, Objekte und Items, die eine Frequenz zum Anrufen angegeben haben.",
   "nearby.igates": "iGates",

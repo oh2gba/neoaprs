@@ -5,6 +5,15 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
   "help.close": "Cerrar",
   "help.copy": "Copiar",
   "help.copied": "Copiado",
+  "help.picture.object":
+    "Un mapa con tu estación en el coche y dos objetos que envías, un repetidor con su frecuencia y un punto de encuentro; ambos aparecen en los mapas de otras dos estaciones.",
+  "help.picture.bulletin": "Una estación envía un boletín, BLN1, y el mismo mensaje aparece en el tablón de otras tres estaciones.",
+  "help.picture.beacon": "Tu estación envía su posición una y otra vez, con un reloj entre las balizas, y aparece en el mapa de los demás.",
+  "help.picture.path":
+    "Tu paquete va de tu coche a un digipeater de relleno, WIDE1-1, y luego a uno de área amplia, WIDE2-1: dos saltos antes de que las demás estaciones lo escuchen.",
+  "help.picture.status": "Tu texto de estado corto, QRV 145.500, aparece en el mapa de las demás estaciones bajo tu indicativo.",
+  "help.picture.range": "Un digipeater con su círculo de alcance: las estaciones dentro del círculo se escuchan a través de él, las de fuera no.",
+  "help.picture.request": "Una estación pregunta QRU y tu estación responde con el objeto, que de otro modo no se envía.",
   "help.not_copied": "No copiado",
 
   "help.install.label": "Aplicación",

@@ -33,7 +33,7 @@ const minutes = computed(() => Number(guide.changes["beacon/interval_min"] ?? co
   <MapFetchNotes v-if="map" :map="map" />
   <p v-if="minutes > 0" class="setup-beacon muted">
     {{ t("setup.beacon_every", { minutes }) }}
-    <InfoTip :label="t('setup.beacon_tip_label')">
+    <InfoTip :label="t('setup.beacon_tip_label')" picture="beacon">
       <span class="info-line">{{ t("setup.beacon_tip1") }}</span>
       <span class="info-line">{{ t("setup.beacon_tip2") }}</span>
     </InfoTip>

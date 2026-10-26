@@ -1,5 +1,7 @@
 # Objects and items of your own
 
+An object is a marker you put on the map for something that is not a station: a repeater, a meeting point, an event. Everyone near you sees it, as long as you send it. The (i) at the top of the tab says so with a picture.
+
 The Objects tab makes an object, shows it on the map as yours, changes it and kills it. NeoAPRS sends it on the air by a schedule of its own. The list of your objects is above and the form is always under it: with no object selected the form adds a new one, with one selected it changes that one.
 
 - An **object** (chapter 11 of the specification) has a name of 1 to 9 characters and a time stamp.

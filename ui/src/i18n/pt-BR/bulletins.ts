@@ -9,6 +9,9 @@ export const bulletins: Record<keyof typeof source, Message> = {
   "bulletins.section.nws": "Serviço meteorológico",
 
   "bulletins.empty": "Nada no mural.",
+  "bulletins.about_label": "Sobre boletins",
+  "bulletins.about1": "Um boletim é uma mensagem para todos, exibida no mural de cada estação.",
+  "bulletins.about2": "Use para horários de rede, eventos, avisos.",
   "bulletins.delete_title": "Excluir (parar de enviar)",
   "bulletins.delete_own": "Excluir o nosso boletim {slot}",
   "bulletins.delete": "Excluir o boletim {slot} de {sender}",

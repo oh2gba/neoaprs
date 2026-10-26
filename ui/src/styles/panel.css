@@ -185,6 +185,18 @@
   min-height: 0;
   overflow: auto;
 }
+/* the (i) of a tab (TabHelp): a thin bar at the top with the (i) at its right end, the note opening leftward as the Email tab's does */
+.tab-help {
+  display: flex;
+  flex: none;
+  justify-content: flex-end;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.tab-help .info-text {
+  right: 0;
+  left: auto;
+}
 /* what fills the pane of a tab: a column that takes its height */
 .tablepane,
 .boardwrap,

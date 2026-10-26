@@ -66,6 +66,32 @@ describe("InfoTip", () => {
     expect(wrapper.find("b").exists()).toBe(true);
   });
 
+  it("shows a picture under the text when it is given one, with its description for a screen reader, in a wider note", async () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const wrapper = mount(InfoTip, {
+      props: { label: "About the path", picture: "path" },
+      slots: { default: '<span class="info-line">Two hops.</span>' },
+      attachTo: host,
+    });
+    mounted.push(wrapper);
+    await wrapper.find("button").trigger("click");
+    const note = wrapper.find(".info-text");
+    expect(note.classes()).toContain("with-picture");
+    expect(note.find(".info-line").text()).toBe("Two hops.");
+    const picture = note.find("svg[role='img']");
+    expect(picture.attributes("data-picture")).toBe("path");
+    expect(picture.attributes("aria-label")).toMatch(/WIDE1-1/);
+    expect(note.element.lastElementChild).toBe(picture.element);
+  });
+
+  it("has no picture and the plain width without one", async () => {
+    const wrapper = tip();
+    await wrapper.find("button").trigger("click");
+    expect(wrapper.find(".info-text").classes()).not.toContain("with-picture");
+    expect(wrapper.find("svg").exists()).toBe(false);
+  });
+
   it("closes on Esc and gives the focus back to the button", async () => {
     const wrapper = tip();
     await wrapper.find("button").trigger("click");

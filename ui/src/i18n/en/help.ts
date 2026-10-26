@@ -4,6 +4,15 @@ export const help = {
   "help.close": "Close",
   "help.copy": "Copy",
   "help.copied": "Copied",
+  "help.picture.object":
+    "A map with your car station and two objects you send, a repeater with its frequency and a meeting point; both appear on the maps of two other stations.",
+  "help.picture.bulletin": "One station sends a bulletin, BLN1, and the same message appears on the board of three other stations.",
+  "help.picture.beacon": "Your station sends its position again and again, with a clock between the beacons, and appears on the map of the others.",
+  "help.picture.path":
+    "Your packet goes from your car to a fill-in digipeater, WIDE1-1, then to a wide-area one, WIDE2-1: two hops before the other stations hear it.",
+  "help.picture.status": "Your short status text, QRV 145.500, appears on the map of the other stations under your call.",
+  "help.picture.range": "A digipeater with its range circle: the stations inside the circle are heard through it, the stations outside it are not.",
+  "help.picture.request": "A station asks QRU, and your station answers with the object, which is otherwise not sent.",
   "help.not_copied": "Not copied",
 
   "help.install.label": "App",

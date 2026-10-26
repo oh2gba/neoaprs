@@ -6,6 +6,13 @@ export const help: Record<keyof typeof source, Message> = {
   "help.close": "閉じる",
   "help.copy": "コピー",
   "help.copied": "コピーしました",
+  "help.picture.object": "自分の車の局と、送信する2つのオブジェクト(周波数つきのリピーターと集合場所)を示す地図。どちらも他の2局の地図に表示されます。",
+  "help.picture.bulletin": "1つの局が掲示 BLN1 を送ると、同じメッセージが他の3局の掲示板に表示されます。",
+  "help.picture.beacon": "自局は位置を繰り返し送信し(ビーコンの間に時計)、他の局の地図に表示されます。",
+  "help.picture.path": "パケットは車からフィルインのデジピーター(WIDE1-1)、次に広域のデジピーター(WIDE2-1)へと、2ホップして他の局に届きます。",
+  "help.picture.status": "短いステータス文(QRV 145.500)が、他の局の地図でコールサインの下に表示されます。",
+  "help.picture.range": "デジピーターとその到達範囲の円。円の内側の局はデジピーター経由で聞こえ、外側の局は聞こえません。",
+  "help.picture.request": "ある局が QRU で問い合わせると、自局がオブジェクトで答えます。それ以外のときはこのオブジェクトは送られません。",
   "help.not_copied": "コピーできませんでした",
 
   "help.install.label": "アプリ",

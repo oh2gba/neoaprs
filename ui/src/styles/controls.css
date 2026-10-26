@@ -119,6 +119,9 @@ a.btn {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+.info-text.with-picture {
+  width: min(298px, calc(100vw - 16px));
+}
 .info-line {
   display: block;
 }

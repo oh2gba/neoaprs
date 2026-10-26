@@ -12,6 +12,9 @@ export const objects: Record<keyof typeof source, Message> = {
 
   "objects.none": "オブジェクトはありません。",
   "objects.list": "オブジェクト",
+  "objects.about_label": "オブジェクトについて",
+  "objects.about1": "オブジェクトは、局ではないもの(リピーター、集合場所、イベントなど)を示すために地図に置く目印です。",
+  "objects.about2": "送信している間は、近くにいる全員に見えます。",
   "objects.edit_label": "{name}を編集",
   "objects.delete_title": "削除(電波でキル)",
   "objects.delete_label": { select: "kind", object: "オブジェクト{name}を削除", item: "アイテム{name}を削除", other: "オブジェクト{name}を削除" },
