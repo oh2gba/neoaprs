@@ -276,7 +276,12 @@ class DbThread(threading.Thread):
                 ender = nxt
                 break
             batch.append(nxt)
-        self._commit_batch(conn, batch)
+        try:
+            self._commit_batch(conn, batch)
+        except BaseException:
+            if ender is not None:
+                self._reply(ender, None, DbClosed("the database thread has stopped"))          # (taken off the queue already: the thread's end would not find it there)
+            raise
         with self._lock:
             self._appends -= len(batch)
         return ender
