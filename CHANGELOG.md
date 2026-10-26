@@ -2,41 +2,16 @@
 
 ## Unreleased
 
-The tab bar.
+An iGate, internet stations on the map, and a tab bar that fits.
 
-- When the nine tabs do not fit the panel, the bar no longer folds into one **☰** button with every tab behind a click: the first tabs that fit, in their order of importance (Messages, Stations, Nearby, Email, Bulletins, Objects, Beacon, Packets, Settings), stay in the row and the rest are under a **More** button at the end of it. **More** carries the badges of the tabs under it added up, opens a menu of them (Up, Down, Home, End, Enter and Esc work in it), and a tab picked from it takes the place of the last tab in the row, so the tab on show is always seen. The same on a phone, after the **Map** button.
-- The tabs are 4 px narrower (8 px of padding at each side of a name instead of 10), so that all nine fit the 760 px of the default panel of a wide screen, also with the badges of a busy day.
-
-How a packet reached you is known everywhere.
-
-- Every packet is marked with the channel it came by, once, where it is made, and the mark is kept with it in the database and told to the page: `rf` (heard on the radio), `rf-gated` (heard on the radio from an iGate that took it from the internet), `is` (received from APRS-IS over the internet; the connection that reads it is not part of this version) and `dummy` (made up by the Dummy radio). Packets already in the database are `rf`, or `rf-gated` where the stored frame holds a third-party packet; the station cache is counted by channel from what it knew (the database is migrated to version 21 at the first start, after a copy into `backup/`).
-- One gate for packets from the internet: they go only to the packet log, the station book, the weather log and the page. No message from the internet is kept or acknowledged, no query is answered, nothing is repeated or sent for it, and none of it touches your objects; the daemon's tests prove it by walking every part that takes a packet. `packet.GATEABLE` names the channels that may be sent to the internet (not `is`, not `dummy`).
-- Each station is counted by channel (how many packets and when the latest, for RF, iGate, Internet and Dummy) and its position is marked with the channel that gave it last. Routes, heard direct, the suggested path, Nearby, the ALOHA circle and who can be messaged use the radio only: a station known from the internet alone cannot be messaged, and its card says so.
-- **The Stations tab** has a small label under every call: RF, iGate, Internet or two joined (RF · Internet), and a tickbox "heard on RF only" that appears once a station has been received over the internet. The station card says when it was last heard for each channel; the Packets tab has a Via column; on the map a station known from the internet alone has a dotted outline and an italic call; the Nearby tab lists only what was on the air. The labels are in all seven languages.
-- The wire: the station rows have `heard_rf`, `heard_rf_gated` (it was `heard_gated`), `heard_is`, `heard_dummy`, the matching `last_*_at` and `position_via`; the packet rows have `via` (the channel; it was the iGate's call, which is now `gate`).
-
-For development.
-
-- A line of APRS-IS (`OH2ABC>APRS,TCPIP*,qAC,T2FINLAND:...`) is read into a packet by `neoaprs/aprsisline.py`, the one way an internet packet is made, and handed to the program with `Services.hear_internet`.
-A receive-only iGate.
-
-- An **iGate** group in the Settings tab, after the TNC group, puts what the radio hears on APRS-IS: the switch **Gate to APRS-IS** (`igate/enabled`, off by default), the **Passcode** (`igate/password`, a secret, shown as dots) with a link **Request a passcode** that opens the request page of the NeoAPRS author in a new tab with your call filled in (NeoAPRS does not work a passcode out), one status line in the look of the radio's ("Connected to T2FINLAND, 1234 packets gated, last 12 s ago") and one quiet line: receive only. Without a call the group says **Set your call first**. The server (`igate/server`, `rotate.aprs2.net:14580`) is a setting that is not on the page.
-- **Nothing from the internet is ever sent on the air.** The service that gates has no radio and the connection to APRS-IS has no way to hand anything on; what the server sends is read to see that the connection is alive and thrown away.
-- A packet is gated as the specification says: not with `TCPIP`, `TCPXX`, `NOGATE` or `RFONLY` in the path, not a general query, a third-party packet as the packet inside unless that came from the internet, the path as heard and `qAO,` and your call after it (`qAO` is what a receive-only iGate writes), the information field byte for byte. The same packet is not put on APRS-IS twice within 30 seconds. Your own position goes to APRS-IS when the login is verified and every 30 minutes (a moving station: with each beacon that goes on the radio, at most one a minute).
-- A login the server does not verify is not repeated until the settings change. A connection that says nothing for 3 minutes is opened again; one that is quiet from our side for 2 minutes gets a comment line. The log has the login, each packet gated (debug) and an hour line ("igate: 812 packets gated in the last hour, 40 not gated: 31 TCPIP, 6 duplicate, 3 query"); the passcode is in no line.
-- The page's topic `igate` (state, the server's name, the problem, the packets gated and not gated by reason, the time of the last) and the manual page [igate.md](docs/manual/igate.md).
-
-On Windows.
-
-For the page and the daemon.
-
-- **The page and the daemon are always a pair.** NeoAPRS reads the page into memory when it starts (3.4 MB, 26 files) and serves that; a page rebuilt on disk, a branch switched or a package upgraded while it runs changes nothing until it is started again. Before, the files were read at each request, so the browser could load a new page against an old daemon, which showed a blank Nearby tab and no station card.
-- **A page that does not go with its daemon says so.** The page compares its protocol and its build with the daemon's; when they differ it loads itself again once, and when that does not help it shows "This page and NeoAPRS do not match (page ..., NeoAPRS ...). Reload the page; if this stays, restart NeoAPRS." with a **Reload** button, in the language of the page, and keeps its socket closed. It is meant to be seen only when a browser holds an old copy of the page against an upgraded NeoAPRS.
-- **The page has no version of NeoAPRS in it.** It learns the version from the daemon (the footer, the update check), and the service worker names its caches by the build of the page, so a new version of NeoAPRS that changed nothing of the page leaves `neoaprs/page/` as it is.
-
-For development.
-
-- **`scripts/release VERSION`** makes a release in one command: it checks that master is clean, up to date and has notes under `## Unreleased`, writes the version and the changelog section, builds the page only if `ui/` changed since the last tag, runs `scripts/check`, commits, pushes, waits for the CI run, tags and pushes the tag, waits for the release run, checks the published release (its eight files and its download links) and deploys the version page with `--deploy`. It can be run again after any failure and skips what is done; `--rerun` runs the failed jobs of a run once, `--dry-run` prints the steps. `docs/MAINTAINING.md` describes it, with the manual steps as the fallback.
+- **Settings → iGate** puts what your radio hears on APRS-IS. It needs your call and a passcode.
+- Nothing from the internet is ever sent on the air.
+- Internet stations on the map, marked as such, when the iGate is on.
+- Every station and packet says how it was heard: RF, iGate or Internet.
+- A station known only from the internet has a dotted outline and cannot be messaged.
+- **Heard on RF only** in the Stations tab hides the stations known only from the internet.
+- Tabs that do not fit sit under a **More** tab instead of one menu button.
+- A page that does not match NeoAPRS says so and offers **Reload**.
 
 ## 0.9.1
 
