@@ -52,7 +52,7 @@ def test_the_screenshots_show_no_version_and_make_the_update_shots_next_number_f
     assert not re.search(r'UPDATE_TO = "\d', source), "no version number kept by hand"
 
 
-def wait_until(condition: object, seconds: float = 30.0) -> None:
+def wait_until(condition: object, seconds: float = 90.0) -> None:                    # (real processes on a loaded runner: the Windows one took 14 min for the suite and needed more than 30 s here; it returns as soon as the condition holds)
     deadline = time.monotonic() + seconds
     while time.monotonic() < deadline:
         if condition():  # type: ignore[operator]
