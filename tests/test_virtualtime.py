@@ -52,3 +52,23 @@ async def test_a_thread_that_delivers_is_waited_for_not_skipped() -> None:
         threading.Thread(target=work).start()
         assert await done == "bytes"
         assert clock.skipped == 0, "no timer was waiting, so nothing was brought forward"
+
+
+async def test_work_handed_to_a_thread_holds_the_clock_so_a_wait_cannot_jump_past_its_answer() -> None:
+    order: list[str] = []
+
+    def slow() -> str:                                                                      # (a question the program asks the system on a thread, as about a serial adapter: slow on a slow machine)
+        time.sleep(0.3)
+        order.append("thread")
+        return "adapter"
+
+    async def waiter() -> None:
+        await asyncio.sleep(5)
+        order.append("timer")
+
+    async with virtual_time() as clock:
+        timer = asyncio.create_task(waiter())
+        assert await asyncio.to_thread(slow) == "adapter"
+        await timer
+        assert order == ["thread", "timer"], "the 5 s timer waited for the thread instead of being brought forward past it"
+        assert clock.in_threads == 0 and 4 < clock.skipped <= 5

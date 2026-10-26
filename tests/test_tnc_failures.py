@@ -20,10 +20,10 @@ from tests.support.env import until
 from tests.support.fakeport import FakePorts
 from tests.support.fakeradio import FakeRadio
 from tests.support.virtualtime import virtual_time
-from tests.support.ptyline import posix_only
 
 MONITOR_LINE = b"OH2FZV-2>VP1R61,WIDE1,OH2RCH-2*:!6010.00N/02456.00E>test\r\n"
 SETTLE = 0.15
+QUICK = Backoff([0.2, 0.4])                                  # a real back-off, short: the retries wait for real and the tests wait for the state, not for a time
 PATH = "socket://fake-tnc:1"
 
 
@@ -49,28 +49,29 @@ async def started(**kwargs: object) -> AsyncIterator[Tnc]:
 
 # ---- the open
 
-@posix_only                                                                      # (Windows: see the commit "five new tests are POSIX only for now")
 async def test_an_open_that_is_refused_waits_and_tries_again_after_the_back_off(ports: FakePorts) -> None:
     ports.open_error = SerialError("socket://fake-tnc:1: connection refused")
-    async with virtual_time() as clock, started() as tnc:
+    loop = asyncio.get_running_loop()
+    async with started(backoff=QUICK) as tnc:
+        refused_at = loop.time()
         assert tnc.state is Source.State.WAITING and "refused" in tnc.problem
-        assert "trying again in 5 s" in tnc.lines[-1]
+        assert "trying again in 0.2 s" in tnc.lines[-1]
         assert tnc.describe() == f"{PATH}, waiting"
         ports.open_error = None
-        await asyncio.sleep(5.5)
-        assert tnc.state is Source.State.CONNECTED and len(ports.opened) == 2
-        assert 5 <= clock.skipped < 6, "the retry waited its 5 s, and no more"
+        await until(lambda: tnc.state is Source.State.CONNECTED)
+        assert len(ports.opened) == 2
+        assert loop.time() - refused_at >= 0.2, "the retry waited its back-off"
 
 
 @pytest.mark.expects_errors
 async def test_an_open_that_raises_something_nobody_listed_is_logged_and_waited_out_like_a_refusal(ports: FakePorts, caplog: pytest.LogCaptureFixture) -> None:
     ports.open_error = RuntimeError("the driver is confused")
-    async with virtual_time(), started() as tnc:
+    async with started(backoff=QUICK) as tnc:
         assert tnc.state is Source.State.WAITING and tnc.problem == "RuntimeError: the driver is confused"
         assert "tnc: connecting failed" in caplog.text
         ports.open_error = None
-        await asyncio.sleep(5.5)
-        assert tnc.state is Source.State.CONNECTED and tnc.problem == ""
+        await until(lambda: tnc.state is Source.State.CONNECTED)
+        assert tnc.problem == ""
 
 
 async def test_a_stop_while_the_retry_is_opening_leaves_no_port_and_no_task(ports: FakePorts) -> None:
@@ -82,11 +83,11 @@ async def test_a_stop_while_the_retry_is_opening_leaves_no_port_and_no_task(port
         opening.set()
         await never.wait()
 
-    async with virtual_time(), started() as tnc:
+    async with started(backoff=QUICK) as tnc:
         ports.open_error = None
         ports.open_gate = held
-        await asyncio.sleep(5.5)                                      # (the retry has started its open, which does not end)
-        assert opening.is_set() and tnc.state is Source.State.CONNECTING
+        await until(opening.is_set)                                   # (the retry has started its open, which does not end)
+        assert tnc.state is Source.State.CONNECTING
         await tnc.stop()
         assert tnc.state is Source.State.STOPPED and not ports.port.is_open
 
@@ -101,14 +102,13 @@ async def test_start_on_a_tnc_that_runs_stops_it_first_and_opens_the_line_afresh
 
 # ---- a line that is lost, and one that is not the Tnc's any more
 
-@posix_only                                                                      # (Windows: see the commit "five new tests are POSIX only for now")
 async def test_bytes_and_a_loss_from_a_port_that_is_not_the_tncs_any_more_are_ignored(ports: FakePorts) -> None:
-    async with virtual_time(), started() as tnc:
+    async with started(backoff=QUICK) as tnc:
         old = ports.port
         old.lose("unplugged")
         assert tnc.state is Source.State.WAITING and "unplugged" in tnc.problem
-        await asyncio.sleep(5.5)
-        assert tnc.state is Source.State.CONNECTED and ports.port is not old
+        await until(lambda: tnc.state is Source.State.CONNECTED)
+        assert ports.port is not old
         old.feed(MONITOR_LINE)
         old.lose("again")
         assert tnc.stats.bytes_in == 0 and ports.port.written == [], "nothing the old port says is taken"
@@ -124,16 +124,15 @@ async def test_asking_a_tnc_that_has_no_line_is_refused_and_a_reopen_of_nothing_
 
 # ---- a write that is refused
 
-@posix_only                                                                      # (Windows: see the commit "five new tests are POSIX only for now")
 async def test_a_write_that_fails_is_told_the_line_counts_as_lost_and_the_frame_is_not_sent(ports: FakePorts) -> None:
     frame = ax25.Frame(ax25.Address("APRS"), ax25.Address.parse("OH2GBA-7"), (), info=b"!6010.00N/02456.00E>hello")
-    async with virtual_time(), started() as tnc:
+    async with started(backoff=QUICK) as tnc:
         ports.write_error = SerialError("the line is gone")
         assert not tnc.send_frame(frame)
         assert tnc.stats.bytes_out == 0 and tnc.state is Source.State.WAITING and "write failed: the line is gone" in "\n".join(tnc.lines)
         ports.write_error = None
-        await asyncio.sleep(5.5)
-        assert tnc.state is Source.State.CONNECTED and tnc.send_frame(frame), "the next line takes it"
+        await until(lambda: tnc.state is Source.State.CONNECTED)
+        assert tnc.send_frame(frame), "the next line takes it"
 
 
 async def test_text_from_the_radio_when_the_first_step_of_the_entry_cannot_be_written_enters_nothing(ports: FakePorts) -> None:

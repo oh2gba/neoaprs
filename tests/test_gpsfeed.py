@@ -13,7 +13,6 @@ from neoaprs.source import Backoff, Source
 from tests.support.clock import FixedClock
 from tests.support.env import remember_stop, until
 from tests.support.gps import FakeGpsd, fake_gpsd, gga, rmc, sky, tpv
-from tests.support.ptyline import posix_only
 
 
 def feed_of(kind: str, target: str, baud: int = 4800) -> tuple[GpsFeed, list[Fix], FixedClock]:
@@ -334,15 +333,18 @@ async def test_a_gpsd_connection_that_fails_after_the_feed_was_stopped_is_not_a_
     assert feed.state is Source.State.STOPPED and feed.problem == ""
 
 
-@posix_only                                                                      # (Windows: see the commit "five new tests are POSIX only for now")
 async def test_a_gpsd_connection_that_comes_after_the_feed_was_stopped_is_closed_at_once(monkeypatch: pytest.MonkeyPatch) -> None:
     gpsd = await fake_gpsd()
     gate = Gate()
     real = asyncio.open_connection
 
+    made: list[asyncio.StreamWriter] = []
+
     async def late(host: str, port: int) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
         await gate.wait()
-        return await real(host, port)
+        reader, writer = await real(host, port)
+        made.append(writer)
+        return reader, writer
 
     monkeypatch.setattr(asyncio, "open_connection", late)
     feed, _, _ = feed_of("gpsd", gpsd.address)
@@ -352,7 +354,7 @@ async def test_a_gpsd_connection_that_comes_after_the_feed_was_stopped_is_closed
     gate.let.set()
     await starting
     assert feed.state is Source.State.STOPPED and feed._writer is None
-    await until(lambda: gpsd.clients and gpsd.clients[0].is_closing() or not gpsd.clients, 3.0)
+    assert len(made) == 1 and made[0].is_closing(), "the connection that came late was closed at once, on our side (Windows tells the other end of it later)"
     assert not gpsd.watching, "(it was never asked to watch)"
 
 
