@@ -33,6 +33,9 @@ export const setup: Record<keyof typeof source, Message> = {
   "setup.symbol.portable": "ポータブル",
   "setup.symbol.antenna": "アンテナ",
 
+  "setup.map_auto": "周辺地図をダウンロードしています…",
+  "setup.map_later": "詳細地図はオンラインになったときにダウンロードされます。",
+
   "setup.beacon_every": "ビーコンは{minutes}分ごと",
   "setup.beacon_tip_label": "ビーコンについて",
   "setup.beacon_tip1": "NeoAPRSはこの間隔で位置を送信し、ほかの局の地図にあなたが表示されます。",

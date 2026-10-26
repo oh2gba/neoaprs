@@ -21,6 +21,8 @@
   display: grid;
   place-items: start center;
   padding-top: 14px;
+  /* above the first-run guide (z-index 4) */
+  z-index: 5;
   pointer-events: none;
   color: var(--muted);
   font-size: 15px;
@@ -262,6 +264,13 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  max-width: calc(100% - 24px);
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: var(--shadow);
 }
 .mapfetch-progress {
   display: flex;

@@ -29,6 +29,7 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
   const config = part(over.config, configValues());
   const lastError = part(over.lastError, null);
   const ports = part(over.ports, null);
+  const map = part(over.map, null);
   const sender = (over.send as typeof send | undefined) ?? send;
   const settings = over.settings ?? useSettings(config, lastError, sender);
   const context = {
@@ -39,7 +40,7 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     tnc: part(over.tnc, null),
     gps: part(over.gps, null),
     igate: part(over.igate, null),
-    map: part(over.map, null),
+    map,
     selfUpdate: part(over.selfUpdate, null),
     ports,
     findRadio:
@@ -64,7 +65,7 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     heardDirect: part(over.heardDirect, new Set<string>()),
     prefs: over.prefs ?? useStationPrefs(shallowReactive(new Map<string, StationPref>()), sender),
     settings,
-    guide: over.guide ?? useSetupGuide(config, lastError, ports, sender),
+    guide: over.guide ?? useSetupGuide(config, lastError, ports, sender, map),
     panel: over.panel ?? usePanel(),
   };
   // the alert of the browser listens to the window: it is made when a pane asks for it

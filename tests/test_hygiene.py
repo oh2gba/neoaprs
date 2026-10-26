@@ -177,7 +177,7 @@ def ignored(path: str) -> bool:
 
 @pytest.mark.parametrize("path", [
     "data/neoaprs.sqlite", "data/backup/premigrate-v1-to-v2.sqlite", "neoaprs.sqlite", "copy.sqlite-wal", "key.pem", "tls.key", ".env",                                # the data, and anything that holds a secret
-    "data/basemap.pmtiles", "basemap.pmtiles.part",                                                                                                        # the base map
+    "data/basemap.pmtiles", "basemap.pmtiles.part", "neoaprs/maps/other.pmtiles",                                                                                                        # the base map
     ".venv/bin/python", ".venv-20261011T124153820Z-orig/bin/python", "ui/node_modules/vue/index.js", "ui/dist/index.html", "ui/dist.prev-1/index.html",     # environments and builds
     "neoaprs/__pycache__/x.pyc", "scripts/__pycache__/x.pyc", ".pytest_cache/x", ".mypy_cache/x", ".ruff_cache/x", ".hypothesis/x", ".coverage", "test-results/x",
 ])
@@ -185,7 +185,7 @@ def test_gitignore_keeps_out_the_data_the_environments_and_the_caches(path: str)
     assert ignored(path), f"{path} would be committed by `git add .`"
 
 
-@pytest.mark.parametrize("path", ["neoaprs/page/index.html", "neoaprs/page/assets/index-x.js", "neoaprs/data/x.py", "tests/fixtures/capture.kiss", "docs/README.md", "neoaprs/cli/neoaprs.service", "ui/src/main.ts", "uv.lock"])
+@pytest.mark.parametrize("path", ["neoaprs/page/index.html", "neoaprs/page/assets/index-x.js", "neoaprs/data/x.py", "neoaprs/maps/basemap-world.pmtiles", "tests/fixtures/capture.kiss", "docs/README.md", "neoaprs/cli/neoaprs.service", "ui/src/main.ts", "uv.lock"])
 def test_gitignore_does_not_hide_what_belongs_in_the_repository(path: str) -> None:
     assert not ignored(path), f"{path} is ignored"
 

@@ -42,7 +42,7 @@ def test_list_tells_for_each_setting_whether_it_is_stored_and_names_the_rows_tha
     lines = capsys.readouterr().out.splitlines()
     assert any(line.startswith("station/call") and "OH2GBA" in line and line.endswith("stored") for line in lines)
     assert any(line.startswith("web/port") and line.endswith("default") for line in lines)
-    assert any(line.startswith(BEACON_SENT) and line.endswith("kept by the daemon (when it last sent), not a setting") for line in lines)
+    assert any(line.startswith(BEACON_SENT) and line.endswith("kept by the daemon (when it last sent, how the map stands), not a setting") for line in lines)
     assert any(line.startswith(INSTALL_ID) and line.endswith("kept by the daemon (the number of this installation), not a setting") for line in lines)
     assert any(line.startswith("old/setting") and line.endswith("stored, not a setting of this NeoAPRS") for line in lines)
 

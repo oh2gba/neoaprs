@@ -30,8 +30,8 @@ WebFactory = Callable[["Controller", Config], Frontend]
 
 
 class Controller(Services):
-    def __init__(self, data_directory: str | Path, clock: Clock = utcnow, store: Store | None = None, busy_ms: int = DEFAULT_BUSY_MS, tnc: Tnc | None = None, port: str = "", web: WebFactory | None = None, pattern: str = "", install: InstallInfo = PLAIN_INSTALL, check_sec: float = TNC_CHECK_SEC) -> None:
-        super().__init__(Path(data_directory), clock, store, tnc, port, pattern, install)
+    def __init__(self, data_directory: str | Path, clock: Clock = utcnow, store: Store | None = None, busy_ms: int = DEFAULT_BUSY_MS, tnc: Tnc | None = None, port: str = "", web: WebFactory | None = None, pattern: str = "", install: InstallInfo = PLAIN_INSTALL, check_sec: float = TNC_CHECK_SEC, auto_map: bool = False) -> None:
+        super().__init__(Path(data_directory), clock, store, tnc, port, pattern, install, auto_map)
         self._web_factory = web
         self.check_sec = check_sec              # the keep-alive's quiet period in seconds (TNC_CHECK_SEC; the tests make it shorter, or 0 for none)
         self.busy_ms = busy_ms                  # how long the thread's connection waits for another writer: the daemon asks for a few seconds
@@ -73,6 +73,7 @@ class Controller(Services):
         await self.aloha.start()
         await self.messaging.start()
         await self._start_web()
+        await self.mapauto.start()
         await self.updatecheck.start()
         self.tasks.spawn(self._prune_daily(), "prune")
         self.tasks.spawn(self._recount_minutely(), "recount")
@@ -84,6 +85,7 @@ class Controller(Services):
             await self.updatecheck.stop()
             await self.aloha.stop()
             await self.selfupdate.stop()
+            await self.mapauto.stop()
             await self.mapfetch.stop()
             await self.radiofinder.stop()
             await self.queries.stop()
@@ -150,7 +152,7 @@ class Controller(Services):
         if not await self.store.put_settings(config.to_data()):
             return False
         before = wiring.tnc_settings(self.config, self.port_override, self.pattern_override)
-        self.config = config
+        previous, self.config = self.config, config
         wiring.place_me(self)
         self.gps.settings_changed()
         self.beacon.settings_changed()
@@ -158,6 +160,7 @@ class Controller(Services):
         if wiring.tnc_settings(config, self.port_override, self.pattern_override) != before:
             self.start_tnc()
         self.config_changed.emit(config)
+        self.mapauto.settings_changed(previous)
         if self.web is not None:
             self.web.settings_changed(config)
         return True

@@ -27,6 +27,7 @@ from tornado.iostream import IOStream
 
 from neoaprs.config import Config
 from neoaprs.controller import Controller
+from neoaprs.worldmap import world_file
 
 from .access import Access, Login, NewKey, new_key
 from .addresses import lan_addresses
@@ -142,7 +143,7 @@ class WebServer:
             (r"/access/new", NewKey),
             (r"/support/bundle", SupportBundle, {"server": self}),
             (re.escape(CA_PATH), CaCertificate, {"server": self}),
-            (r"/(basemap\.pmtiles|basemap-world\.pmtiles)", Basemap, {"path": str(self.controller.data_dir)}),
+            (r"/(basemap\.pmtiles|basemap-world\.pmtiles)", Basemap, {"path": str(self.controller.data_dir), "world": lambda: world_file(self.controller.data_dir)}),
             (r"/()", Page, {"path": str(self.page_dir), "snapshot": self.page, "default_filename": "index.html"}),
             (r"/(.*)", Page, {"path": str(self.page_dir), "snapshot": self.page}),
         ], websocket_ping_interval=30, websocket_ping_timeout=20, websocket_max_message_size=MAX_COMMAND, compress_response=True, log_function=self._log_request, neoaprs_server=self)

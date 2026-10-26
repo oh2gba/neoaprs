@@ -54,7 +54,7 @@ def stamp(t: datetime) -> str:
 
 def kept_note(key: str) -> str:
     if key in STATE_KEYS:
-        return "kept by the daemon (when it last sent), not a setting"
+        return "kept by the daemon (when it last sent, how the map stands), not a setting"
     return "kept by the daemon (the number of this installation), not a setting" if key == INSTALL_ID else "stored, not a setting of this NeoAPRS"
 
 

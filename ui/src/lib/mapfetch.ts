@@ -66,3 +66,11 @@ export function progressText(map: MapState): string {
 export function filesKey(map: MapState | null): string | null {
   return map === null ? null : `${map.detail?.modified ?? "-"} ${map.world?.modified ?? "-"}`;
 }
+
+/** The one quiet line of the first-run guide about the map, or none: the detailed map is being made without a click (`setup.map_auto`; the Map step shows the progress itself, so `onMapStep` leaves it out), or it could not be fetched yet and will be when
+ * the computer is online (`setup.map_later`). */
+export function setupMapLine(map: MapState | null, onMapStep: boolean): MessageId | "" {
+  if (map === null || map.detail !== null) return "";
+  if (map.state === "downloading") return onMapStep ? "" : "setup.map_auto";
+  return map.later && !isRunning(map) ? "setup.map_later" : "";
+}

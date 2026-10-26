@@ -1,7 +1,8 @@
 """The base map, made by the daemon: a detailed map of the area round our station and a small map of the world under it.
 
 `data/basemap.pmtiles` is cut out of the Protomaps daily build (or of `map/source`) with the pmtiles tool (neoaprs/pmtilestool.py) for the box that `map/radius_km` makes round the station's position, down to
-`map/maxzoom`. `data/basemap-world.pmtiles` is the world to zoom 5 (about 15 MB), fetched first when it is not there, so that the page has something under the detailed area and outside it.
+`map/maxzoom`. The world under it and outside it is the one that ships with the program (neoaprs/worldmap.py, zoom 4); only when there is none (a clone that has not got the file) or the data folder's own is no good,
+`data/basemap-world.pmtiles` is made first, the world to zoom 5 (about 15 MB). A world map the data folder has of its own is the one that is served.
 
 A download that has stood still for `Patience.stall_sec` (neither the tool's percent nor the size of the `.part` file moved) is ended and tried again from the start, up to `Patience.tries` times in all, saying so in the
 status (`note`); after the last try the job fails with a text that says the server is too slow, and the map that was there stays. The status also tells the size of the `.part` file, so that a slow download is seen to move.
@@ -17,24 +18,23 @@ import re
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 
 from neoaprs.clock import Clock, utcnow
 from neoaprs.geo import box_around
 from neoaprs.mapstate import Box, Estimate, Job, MapError, MapFile, MapStatus, State, Step
-from neoaprs.pmtilestool import ToolError, ensure, extract, find, read_header, replace_file, url_exists
+from neoaprs.pmtilestool import ToolError, ensure, extract, find, latest_build, read_header, replace_file, url_exists
 from neoaprs.services.common import ConfigSource
 from neoaprs.signal import Signal
 from neoaprs.tasks import TaskSet
+from neoaprs.worldmap import WORLD_FILE, world_file
 
 log = logging.getLogger("neoaprs.mapfetch")
 
 DETAIL = "basemap.pmtiles"
-WORLD = "basemap-world.pmtiles"
+WORLD = WORLD_FILE
 WORLD_MAXZOOM = 5
-BUILDS = "https://build.protomaps.com"
-BUILD_DAYS = 8                                  # today's build and the seven before it: a day's build is not always published yet
 SLOW = "the map server is too slow now; try again later"
 
 
@@ -69,19 +69,9 @@ def describe_file(path: Path) -> MapFile | None:
                    header.min_zoom if header else None, header.max_zoom if header else None, build)
 
 
-async def latest_build(now: datetime, probe: Callable[[str], bool] = url_exists) -> tuple[str, str]:
-    """The newest daily build of build.protomaps.com (its address and its day), looking back a week from today; MapError if there is none."""
-    for back in range(BUILD_DAYS):
-        day = (now - timedelta(days=back)).strftime("%Y%m%d")
-        url = f"{BUILDS}/{day}.pmtiles"
-        if await asyncio.to_thread(probe, url):
-            return url, day
-    raise MapError(f"no daily build was found at {BUILDS} in the last {BUILD_DAYS} days (is there a connection?)")
-
-
 class MapFetch:
     def __init__(self, data_dir: Path, config: ConfigSource, clock: Clock = utcnow, installer: Callable[[Path], Awaitable[Path]] = ensure,
-                 probe: Callable[[str], bool] = url_exists, patience: Patience = PATIENCE) -> None:
+                 probe: Callable[[str], bool] = url_exists, patience: Patience = PATIENCE, world: Callable[[Path], Path | None] = world_file) -> None:
         self.data_dir = data_dir
         self.config = config
         self.clock = clock
@@ -89,7 +79,11 @@ class MapFetch:
         self._installer = installer
         self._probe = probe
         self.patience = patience
+        self._world = world
+        self._radius = 0                            # the radius of the job that was begun with one of its own (neoaprs/services/mapauto.py); 0: the setting's
         self._tasks = TaskSet(self._task_failed)
+        self.later = False                          # set by neoaprs/services/mapauto.py: the map it began could not be fetched yet
+        self.cancelled_by_user = False              # `cancel()` was called for the latest job (a stop of the daemon does not)
         self._busy: Job | None = None
         self._current: "asyncio.Task[object] | None" = None
         self._step: Step = ""
@@ -108,12 +102,13 @@ class MapFetch:
 
     # ---- what the page is told
     def _plan(self) -> tuple[Box, int, int]:
-        """The box, radius and zoom the settings make; MapError without a position."""
+        """The box, radius and zoom the settings make (the radius of the job that is running when it was given one); MapError without a position."""
         config = self.config()
         place = config.station_position
         if place is None:
             raise MapError("the station has no position yet: set Latitude and Longitude (the map is cut round them)")
-        return box_around(*place, config.map_radius_km), config.map_radius_km, config.map_maxzoom
+        radius = self._radius or config.map_radius_km
+        return box_around(*place, radius), radius, config.map_maxzoom
 
     def status(self) -> MapStatus:
         config = self.config()
@@ -125,7 +120,15 @@ class MapFetch:
             box, blocked = None, str(e)
         state: State = "estimating" if self._busy == "estimate" else "downloading" if self._busy == "fetch" else "error" if self._problem else "ready" if detail else "none"
         return MapStatus(state, self._step, self._percent, self._downloaded, self._note, blocked, self._problem if self._busy is None else "", self._estimate, config.map_radius_km, config.map_maxzoom, box,
-                         detail, describe_file(self.data_dir / WORLD))
+                         detail, self._describe_world(), self.later and detail is None)
+
+    def _describe_world(self) -> MapFile | None:
+        found = self._world(self.data_dir)
+        return None if found is None else describe_file(found)
+
+    @property
+    def busy(self) -> bool:
+        return self._busy is not None
 
     def _set(self, step: Step) -> None:
         self._step, self._percent, self._downloaded, self._note = step, None, None, ""
@@ -146,12 +149,13 @@ class MapFetch:
         if self._busy is not None:
             raise MapError("a map job is running already")
         self._plan()
-        self._busy, self._problem = job, ""
+        self._busy, self._problem, self.later, self.cancelled_by_user = job, "", False, False
         self._step, self._percent, self._downloaded, self._note = "", None, None, ""
 
-    def begin(self, job: Job) -> None:
-        """Starts the job in the background; MapError (nothing started) if one is running or there is no position. Its end is told by `changed`."""
+    def begin(self, job: Job, radius_km: int = 0) -> None:
+        """Starts the job in the background, for `radius_km` round the station when given (else `map/radius_km`, which it never changes); MapError (nothing started) if one is running or there is no position. Its end is told by `changed`."""
         self._claim(job)
+        self._radius = radius_km
         self._current = self._tasks.spawn(self._run(job), "map-" + job)
         self.changed.emit()
 
@@ -170,8 +174,16 @@ class MapFetch:
         task = self._current
         if self._busy is None or task is None or task.done():
             return False
+        self.cancelled_by_user = True
         task.cancel()
         return True
+
+    async def end(self) -> None:
+        """Ends the job that is running, if one is, and waits until it is over (not by the user: `cancelled_by_user` stays as it was)."""
+        task = self._current
+        if self._busy is not None and task is not None and not task.done():
+            task.cancel()
+            await asyncio.wait([task])
 
     async def _run(self, job: Job, raising: bool = False) -> None:
         self._current = asyncio.current_task()
@@ -195,6 +207,7 @@ class MapFetch:
             if raising:
                 raise
         finally:
+            self._radius = 0
             for part in parts:
                 part.unlink(missing_ok=True)
             self._busy, self._current, self._step, self._percent, self._downloaded, self._note = None, None, "", None, None, ""
@@ -230,7 +243,7 @@ class MapFetch:
         box, radius, zoom = self._plan()
         program = await self._program()
         source, build = await self._source()
-        if not (self.data_dir / WORLD).exists():
+        if self._world(self.data_dir) is None:
             self._set("world")
             await self._make(program, source, build, WORLD, None, WORLD_MAXZOOM)
         self._set("area")

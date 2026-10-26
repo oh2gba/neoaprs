@@ -18,7 +18,7 @@ from tests.support.env import Env, idle_for, ON_AIR, remember_stop, until
 from tests.support.fakes import FakeRigctld, rigctld
 from tests.support.storedb import store_at
 
-BEACON_ROW, STATUS_ROW, TEXT_ROW = STATE_KEYS
+BEACON_ROW, STATUS_ROW, TEXT_ROW = STATE_KEYS[:3]
 
 
 class Daemon:

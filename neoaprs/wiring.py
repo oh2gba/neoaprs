@@ -94,6 +94,7 @@ def wire(parts: Services) -> None:
     parts.gps_feed.changed.connect(parts.gps.feed_changed)
     parts.gps.moved.connect(lambda: place_me(parts))
     parts.gps.moved.connect(parts.aloha.refresh)
+    parts.mapfetch.changed.connect(parts.mapauto.fetch_changed)                         # (a job it began has ended: done, or to be tried again at the next start)
 
 
 def _log_packet(packet: Packet) -> None:

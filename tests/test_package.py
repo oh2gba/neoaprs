@@ -77,12 +77,12 @@ def test_the_wheel_holds_the_package_the_page_and_the_unit_and_nothing_of_the_re
     assert built["wheel"].name == f"neoaprs-{VERSION}-py3-none-any.whl"
     for needed in ("neoaprs/__init__.py", "neoaprs/__main__.py", "neoaprs/daemon.py", "neoaprs/cli/__init__.py", "neoaprs/cli/neoaprs.service", "neoaprs/desktop/cmd.py", "neoaprs/desktop/icon.png", "neoaprs/desktop/icon.ico", "neoaprs/samples/thd7.kiss", "neoaprs/web/server.py", "neoaprs/web/placeholder/index.html",
                    "neoaprs/page/index.html", "neoaprs/page/symbols/primary.png", "neoaprs/page/symbols/alternate.png", "neoaprs/page/symbols/overlay.png", "neoaprs/page/symbols/SOURCE.txt", "neoaprs/page/symbols/COPYRIGHT.txt",
-                   "neoaprs/page/fonts/NotoSans-Regular/0-255.pbf", "neoaprs/page/fonts/NotoSans-Medium/0-255.pbf", "neoaprs/page/fonts/OFL.txt", f"neoaprs-{VERSION}.dist-info/licenses/LICENSE"):
+                   "neoaprs/maps/basemap-world.pmtiles", "neoaprs/maps/basemap-world.json", "neoaprs/page/fonts/NotoSans-Regular/0-255.pbf", "neoaprs/page/fonts/NotoSans-Medium/0-255.pbf", "neoaprs/page/fonts/OFL.txt", f"neoaprs-{VERSION}.dist-info/licenses/LICENSE"):
         assert needed in names, f"{needed} is not in the wheel"
     assets = [n for n in names if n.startswith("neoaprs/page/assets/")]
     assert any(n.endswith(".js") for n in assets) and any(n.endswith(".css") for n in assets) and any("maplibre-gl-worker" in n for n in assets)
     assert not [n for n in names if n.split("/")[0] not in ("neoaprs", f"neoaprs-{VERSION}.dist-info")], "only the package and its metadata"
-    assert not [n for n in names if "__pycache__" in n or n.endswith((".pyc", ".sqlite", ".pmtiles", ".map")) or "/tests/" in n or "node_modules" in n]
+    assert not [n for n in names if "__pycache__" in n or n.endswith((".pyc", ".sqlite", ".map")) or (n.endswith(".pmtiles") and n != "neoaprs/maps/basemap-world.pmtiles") or "/tests/" in n or "node_modules" in n]
     html = zipfile.ZipFile(built["wheel"]).read("neoaprs/page/index.html").decode()
     assert "./assets/" in html
     entry = zipfile.ZipFile(built["wheel"]).read(f"neoaprs-{VERSION}.dist-info/entry_points.txt").decode()

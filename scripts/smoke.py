@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The smoke test of an installed NeoAPRS, on any system: a fake KISS TNC on a TCP port plays the capture of a radio, the daemon is started on a data folder of its own with that port, and what a user would see is checked.
 
-The page and one script of it are fetched, the WebSocket of the page tells that the TNC is connected and that packets came, then the daemon is stopped the way its system stops a program (SIGTERM; Ctrl+Break on
+The page and one script of it are fetched, the world map that ships with the program is asked for a range, the WebSocket of the page tells that the TNC is connected and that packets came, then the daemon is stopped the way its system stops a program (SIGTERM; Ctrl+Break on
 Windows) and must end with exit code 0, a log whose last line is `NeoAPRS ended`, and a database that passes `PRAGMA integrity_check`. Nothing is sent to a radio and nothing leaves the loopback.
 
   scripts/smoke.py                                  the daemon of this interpreter: python -m neoaprs
@@ -149,6 +149,19 @@ def check_the_page(base: str) -> None:
     say(f"the page and /{scripts[0]} ({len(script)} bytes) are served")
 
 
+def check_the_world_map(base: str) -> None:
+    """The world map that ships with the program is served from a data folder that has none (a wheel, the Windows app's frozen folder, an AppImage, a .deb: each has it in its own place)."""
+    request = urllib.request.Request(base + "basemap-world.pmtiles", headers={"Range": "bytes=0-126"})
+    try:
+        with urllib.request.urlopen(request, timeout=15) as answer:
+            status, head = answer.status, answer.read()
+    except OSError as e:
+        raise Failure(f"GET /basemap-world.pmtiles: {e} (the world map is not in the package?)") from None
+    if status != 206 or head[:7] != b"PMTiles" or len(head) != 127 or head[101] < 4:
+        raise Failure(f"GET /basemap-world.pmtiles answered {status} with {len(head)} bytes that are no PMTiles header to zoom 4")
+    say(f"the world map is served (to zoom {head[101]})")
+
+
 async def watch_the_socket(base: str, seconds: float) -> tuple[str, int]:
     """Opens /ws as the page does and waits until the TNC is `connected` and a packet is there; returns the state and the number of packets."""
     from tornado.websocket import websocket_connect
@@ -227,6 +240,7 @@ def run(args: argparse.Namespace) -> None:
         base = wait_for_page(daemon, data, args.timeout)
         say(f"the page is at {base}")
         check_the_page(base)
+        check_the_world_map(base)
         state, packets = asyncio.run(watch_the_socket(base, args.timeout))
         say(f"over /ws the TNC is {state} and {packets} packets came")
         code = stop_gracefully(daemon, args.timeout)

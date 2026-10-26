@@ -19,4 +19,4 @@ def _estimate(estimate: Estimate | None) -> dict[str, Any] | None:
 
 def map_state(status: MapStatus, aloha_km: float | None = None) -> dict[str, Any]:
     return {"state": status.state, "step": status.step, "percent": status.percent, "downloaded": status.downloaded, "note": status.note, "blocked": status.blocked, "problem": status.problem, "estimate": _estimate(status.estimate),
-            "radius_km": status.radius_km, "maxzoom": status.maxzoom, "box": list(status.box) if status.box else None, "detail": _file(status.detail), "world": _file(status.world), "aloha_km": aloha_km}
+            "radius_km": status.radius_km, "maxzoom": status.maxzoom, "box": list(status.box) if status.box else None, "detail": _file(status.detail), "world": _file(status.world), "later": status.later, "aloha_km": aloha_km}

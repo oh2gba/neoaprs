@@ -1,6 +1,7 @@
 """The base map service (neoaprs/services/mapfetch.py) with the fake pmtiles program of tests/support/fakepmtiles.py: the states and what the page is told, the box round the position, no position, the world map
 first, a file moved into place only when the program has finished, a cancel, one job at a time, the program fetched when it is missing, the latest daily build."""
 import json
+import sys
 from dataclasses import replace
 from pathlib import Path
 
@@ -10,10 +11,11 @@ from neoaprs.config import Config
 from neoaprs.geo import box_around
 from neoaprs.mapstate import Job, MapError
 from neoaprs.pmtilestool import ToolError
-from neoaprs.services.mapfetch import DETAIL, WORLD, MapFetch, latest_build
+from neoaprs.pmtilestool import latest_build
+from neoaprs.services.mapfetch import DETAIL, WORLD, MapFetch
 from tests.support.clock import FixedClock
 from tests.support.env import ON_AIR, remember_stop, until
-from tests.support.maprig import MapRig
+from tests.support.maprig import MapRig, own_world
 from tests.support.fakepmtiles import FakePmtiles, alive, install_fake
 
 SOURCE = "https://build.example/20261020.pmtiles"
@@ -99,7 +101,7 @@ async def test_an_estimate_is_a_dry_run_that_leaves_the_size_and_the_files_alone
 
 async def test_the_state_is_estimating_while_it_runs_and_the_steps_are_told(rig: Rig) -> None:
     rig.config = replace(CONFIG, map_source="")
-    rig.service = MapFetch(rig.data, lambda: rig.config, FixedClock(), probe=lambda url: url.endswith("20261019.pmtiles"))
+    rig.service = MapFetch(rig.data, lambda: rig.config, FixedClock(), probe=lambda url: url.endswith("20261019.pmtiles"), world=own_world)
     steps: list[tuple[str, str]] = []
     rig.service.changed.connect(lambda: steps.append((rig.service.status().state, rig.service.status().step)))
     remember_stop(rig.service.stop)
@@ -124,7 +126,7 @@ async def test_the_latest_build_is_found_back_to_a_week_and_no_build_is_an_error
 
 async def test_a_job_with_no_daily_build_fails_with_the_reason_and_the_program_is_not_run(rig: Rig) -> None:
     rig.config = replace(CONFIG, map_source="")
-    rig.service = MapFetch(rig.data, lambda: rig.config, FixedClock(), probe=lambda url: False)
+    rig.service = MapFetch(rig.data, lambda: rig.config, FixedClock(), probe=lambda url: False, world=own_world)
     remember_stop(rig.service.stop)
     rig.service.begin("fetch")
     await rig.idle()
@@ -266,7 +268,7 @@ async def test_a_missing_program_is_fetched_first_and_the_step_says_so(rig: Rig,
     async def installer(bin_dir: Path) -> Path:
         asked.append(bin_dir)
         return install_fake(bin_dir).path
-    rig.service = MapFetch(rig.data, lambda: rig.config, FixedClock(), installer)
+    rig.service = MapFetch(rig.data, lambda: rig.config, FixedClock(), installer, world=own_world)
     steps: list[str] = []
     rig.service.changed.connect(lambda: steps.append(rig.service.status().step))
     remember_stop(rig.service.stop)
@@ -274,12 +276,29 @@ async def test_a_missing_program_is_fetched_first_and_the_step_says_so(rig: Rig,
     assert asked == [rig.data / "bin"] and steps[0] == "tool" and rig.status().estimate is not None
 
 
+async def test_the_installed_windows_app_makes_the_map_with_the_tool_beside_it_and_fetches_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The frozen layout of the Windows installer: neoaprsw.exe (the daemon) in the app folder, the pinned tool in its bin/, the data folder elsewhere (%LOCALAPPDATA%\\NeoAPRS), nothing on the PATH."""
+    app, data = tmp_path / "Programs" / "NeoAPRS", tmp_path / "Local" / "NeoAPRS"
+    install_fake(app / "bin")
+    monkeypatch.setenv("PATH", "")
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", str(app / "neoaprsw.exe"))
+
+    async def installer(bin_dir: Path) -> Path:
+        raise AssertionError("nothing is fetched: the app has the tool")
+    service = MapFetch(data, lambda: CONFIG, FixedClock(), installer, world=own_world)
+    remember_stop(service.stop)
+    await service.fetch()
+    assert service.status().state == "ready" and not (data / "bin").exists()
+    assert [c[0] for c in FakePmtiles(app / "bin" / "pmtiles").calls()] == ["extract", "extract"], "the world (none ships in this test) and the area"
+
+
 async def test_a_program_that_cannot_be_had_is_the_error_of_the_job(rig: Rig) -> None:
     (rig.data / "bin" / "pmtiles").unlink()
 
     async def installer(bin_dir: Path) -> Path:
         raise ToolError("could not download https://github.com/x: boom")
-    rig.service = MapFetch(rig.data, lambda: rig.config, FixedClock(), installer)
+    rig.service = MapFetch(rig.data, lambda: rig.config, FixedClock(), installer, world=own_world)
     remember_stop(rig.service.stop)
     rig.service.begin("fetch")
     await rig.idle()

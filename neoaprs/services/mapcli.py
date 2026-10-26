@@ -1,7 +1,8 @@
 """The command line of the base map: `neoaprs map [--data DIR] [--radius KM] [--maxzoom Z] [--source SRC] [--lat DEG --lon DEG] [--dry-run]` (also `python -m neoaprs.services.mapfetch` and `scripts/fetch-basemap`).
 
 It does what the page's Estimate and Download buttons do (neoaprs/services/mapfetch.py): the settings of the data folder (the station's position, `map/radius_km`, `map/maxzoom`, `map/source`) unless a flag says
-otherwise, then the world map if it is not there and the detailed map, or with --dry-run only the size. The daemon may be running; the settings are read, not changed."""
+otherwise, then the world map if the program has none (it ships with one) and the detailed map, or with --dry-run only the size. The daemon may be running; the settings are read, not changed.
+`neoaprs map --world --help` is the command that makes the world map the program ships with (developers)."""
 import argparse
 import asyncio
 import logging

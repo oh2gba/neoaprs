@@ -7,8 +7,8 @@ import { useSetupGuide } from "@/composables/useSetupGuide";
 import { SYMBOL_CHOICES } from "@/lib/setup";
 import { TNC_PROFILES } from "@/protocol/lists";
 import type { Command, ConfigValues, MapState, PortsMessage } from "@/protocol/protocol";
-import { fakeDaemon, withDaemon } from "@/test/context";
-import { configValues, mapState, toastOf } from "@/test/fixtures";
+import { fakeDaemon, tell, withDaemon } from "@/test/context";
+import { configValues, mapFile, mapState, toastOf } from "@/test/fixtures";
 
 const fresh = (extra: Record<string, string> = {}) =>
   configValues({ "beacon/interval_min": "0", "station/call": "", "station/lat": "", "station/lon": "", "serial/baud": "", "serial/port": "", ...extra });
@@ -29,7 +29,8 @@ function make(opts: { config?: ConfigValues; map?: MapState | null } = {}) {
   const guide = useSetupGuide(config, lastError, portList, send);
   guide.show();
   const map = opts.map === undefined ? mapState() : opts.map;
-  const wrapper = mount(SetupGuide, { global: withDaemon(fakeDaemon({ config, lastError, ports: portList, guide, map, send })), attachTo: document.body });
+  const daemon = fakeDaemon({ config, lastError, ports: portList, guide, map, send });
+  const wrapper = mount(SetupGuide, { global: withDaemon(daemon), attachTo: document.body });
   const type = (id: string, text: string) => wrapper.find<HTMLInputElement>(`#${id}`).setValue(text);
   const next = () => wrapper.find("form").trigger("submit");
   const button = (label: string) => wrapper.findAll("button").find((b) => b.text() === label);
@@ -41,7 +42,7 @@ function make(opts: { config?: ConfigValues; map?: MapState | null } = {}) {
     await type("setup-lon", "24.94");
     for (let i = 1; i < step; i++) await next();
   };
-  return { wrapper, guide, config, lastError, portList, sent, type, next, button, stand };
+  return { wrapper, guide, config, lastError, portList, sent, type, next, button, stand, daemon };
 }
 
 afterEach(() => {
@@ -471,5 +472,36 @@ describe("SetupGuide: the map and Finish", () => {
     expect(wrapper.find(".mapfetch-button").exists()).toBe(false);
     expect(wrapper.find(".mapfetch-notes").exists()).toBe(false);
     expect(wrapper.find("button[type=submit]").text()).toBe("Finish");
+  });
+});
+
+describe("SetupGuide: the map is made without a click", () => {
+  it("says so in one quiet line on the steps while the daemon downloads the map of the area, and says nothing on the Map step, which shows the bar", async () => {
+    const { wrapper, daemon, guide, stand } = make();
+    await stand(2);
+    expect(wrapper.find(".setup-mapline").exists()).toBe(false);
+    await tell(daemon, { map: mapState({ state: "downloading", step: "area", percent: 20 }) });
+    expect(wrapper.find(".setup-mapline").text()).toBe("Downloading the map of your area…");
+    expect(wrapper.find(".setup-mapline").attributes("role")).toBe("status");
+    guide.go(4);
+    await nextTick();
+    expect(wrapper.find(".setup-mapline").exists()).toBe(false);
+    expect(wrapper.find(".mapfetch-progress").exists()).toBe(true);
+  });
+
+  it("says the detailed map will download when the computer is online, when the daemon could not fetch it yet", async () => {
+    const { wrapper, daemon, stand } = make();
+    await stand(2);
+    await tell(daemon, { map: mapState({ state: "error", problem: "no daily build was found (is there a connection?)", later: true }) });
+    expect(wrapper.find(".setup-mapline").text()).toBe("The detailed map will download when you are online.");
+  });
+
+  it("is gone when the detailed map is there", async () => {
+    const { wrapper, daemon, stand } = make();
+    await stand(2);
+    await tell(daemon, { map: mapState({ state: "downloading" }) });
+    expect(wrapper.find(".setup-mapline").exists()).toBe(true);
+    await tell(daemon, { map: mapState({ state: "ready", detail: mapFile() }) });
+    expect(wrapper.find(".setup-mapline").exists()).toBe(false);
   });
 });

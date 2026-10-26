@@ -32,6 +32,9 @@ export const setup: Readonly<Record<keyof typeof en, Message>> = {
   "setup.symbol.portable": "Portatile",
   "setup.symbol.antenna": "Antenna",
 
+  "setup.map_auto": "Download della mappa della tua zona…",
+  "setup.map_later": "La mappa dettagliata verrà scaricata quando sarai online.",
+
   "setup.beacon_every": "Beacon ogni {minutes} min",
   "setup.beacon_tip_label": "Informazioni sul beacon",
   "setup.beacon_tip1": "NeoAPRS invia la tua posizione con questo intervallo, così le altre stazioni ti vedono sulla loro mappa.",

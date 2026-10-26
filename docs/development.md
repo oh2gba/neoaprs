@@ -231,10 +231,11 @@ The words of the page are in a catalogue, so that a language is a file and not a
 | `scripts/gen-protocol.py` | writes `PROTOCOL.md` and the files of `ui/src/protocol/` (`schema.json`, `protocol.ts`, `lists.ts`, `errors.json`, `vectors.json`, and `ui/src/i18n/en/symbols.ts`) from `neoaprs/web/protocol.py` and the program's constants; run it after a change to a wire model or a limit (`tests/test_protocol.py` fails when they are stale) |
 | `scripts/build-page` | builds the page from `ui/` (type check, Vite) into a temporary folder and swaps it in as `neoaprs/page/` with a rename: what the daemon serves and the wheel carries; run it after a change to `ui/` and commit `neoaprs/page/`. `--clean` forces `npm ci` |
 | `scripts/node-modules-current.mjs` | the question `build-page` and `worktree-setup` ask: is `ui/node_modules` what `ui/package-lock.json` says (exit 0), or not (exit 1) |
+| `scripts/fetch-worldmap` | a clone's wrapper of `neoaprs map --world`: makes the world map that ships with the program ([The world map](#the-world-map)) with the pinned pmtiles tool into `neoaprs/maps/`; run it to refresh the map, commit the two files |
 | `scripts/fetch-basemap` | a clone's wrapper of `neoaprs map` with `--data` set to `./data` unless given: makes the base map as the page's Download button does |
 | `scripts/capture` | a clone's wrapper of `neoaprs capture`: records the radio's serial port into a file byte for byte, to make test fixtures from a real radio |
 
-In a clone, `scripts/replay`, `scripts/gps-replay`, `scripts/neoaprs-db`, `scripts/capture` and `scripts/fetch-basemap` are the commands of the same name (`gps-replay` is `neoaprs gps-replay`) with the clone's `.venv` and
+In a clone, `scripts/replay`, `scripts/gps-replay`, `scripts/neoaprs-db`, `scripts/capture`, `scripts/fetch-basemap` and `scripts/fetch-worldmap` are the commands of the same name (`gps-replay` is `neoaprs gps-replay`) with the clone's `.venv` and
 `./data`. `tests/test_service.py` and `tests/test_install.py` run `scripts/install.sh` against a fake HOME and a fake `systemctl`.
 
 ### Trying mobile operation without a vehicle
@@ -284,6 +285,20 @@ is uploaded with `overwrite`, and `assemble` picks the release's artifacts by na
 code gets the change on `master` and a tag of the next number. The tag of a release stays on the commit it was made for, and the same tag never names two commits.
 
 Nothing signs the installer: Windows SmartScreen says "Windows protected your PC" for an unsigned file the first times, which the README says.
+
+### The world map
+
+The page has a map from the first second, with no download: `neoaprs/maps/basemap-world.pmtiles` is the world to zoom 4 (6 MB: coastlines, borders, forests, the names of countries and cities), with `neoaprs/maps/basemap-world.json` beside it saying which Protomaps daily build it was cut from. It is
+package data, so every package has it where the code is: the wheel (and with it the AppImage's and the .deb's site-packages) as `neoaprs/maps/`, and the Windows app, where PyInstaller puts the package's data files (`collect_data_files("neoaprs")` in `packaging/windows/neoaprs.spec`), as
+`_internal\neoaprs\maps\`. `neoaprs/worldmap.py` looks in the package beside the code first, then (for a frozen program) in `sys._MEIPASS` and in `_internal` next to the executable. Nothing is copied to the data folder: the daemon serves the shipped file as
+`/basemap-world.pmtiles` when the data folder has no good file of that name (one that an older NeoAPRS made, to zoom 5, wins), and the job of Settings, Map, Download makes no world map where one ships. `.gitignore` lets this one `.pmtiles` file in, and `tests/test_package.py` holds that the wheel carries it.
+
+The file is committed, and is not made by the release workflow. Why: a daily build is kept for a short while on build.protomaps.com, so a pinned build cannot be fetched again for a rebuild of an old tag, and a release that depends on that server being up (and on a map that is still there) could not be repeated;
+a wheel built from a clone or from the sdist would have no map; and the map changes slowly (continents do not move), so the 6 MB are in history once a year at the most. To refresh it run `scripts/fetch-worldmap` (the latest build, or `--build YYYYMMDD`): it fetches the go-pmtiles that `neoaprs/pmtilestool.py` pins (SHA-256 checked, and never one that
+happens to be on the PATH), cuts the whole world to zoom 4, refuses a file over 8 MB, and writes the two files. Check the result on the page at the world's zoom and at a city's, then commit both. Zoom 5 is 15 MB, so zoom 4 it is; the page draws the file magnified beyond its zoom until the detailed map is there.
+
+The detailed map is made without a click once a place is set (`neoaprs/services/mapauto.py`): the setup guide sends the place as its Position step is left, the daemon saves it, and the first time that happens while there is no detailed map it begins the job of the Download button, for `AUTO_RADIUS_KM` (50 km, not `map/radius_km`) at `map/maxzoom`, once for an installation (the row `map/auto` of the settings table: `wanted`, then `done`).
+Only the daemon switches it on (`Controller(auto_map=True)` in `neoaprs/daemon.py`), so no test or script starts a download of its own accord. A job that fails (no connection) stays `wanted`, the page is told (`later` of the topic `map`) and the next start of the daemon tries again; the operator's Cancel makes it `done`.
 
 ### The AppImage
 
