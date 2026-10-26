@@ -24,4 +24,13 @@ export const nearby = {
   "nearby.igate_says": "says it is an iGate",
   "nearby.igate_symbol": "iGate symbol",
   "nearby.direct_last": "last heard direct {when}",
+  "nearby.qru": "Local info (QRU)",
+  "nearby.qru_tip_label": "About local info",
+  "nearby.qru_tip": "Asks stations near you for local info: repeaters, events, places. Sent by radio only.",
+  "nearby.qru_ask": "Ask",
+  "nearby.qru_km": "km",
+  "nearby.qru_km_label": "Distance in km",
+  "nearby.qru_km_tip": "How far to look. Empty: the servers' own, usually 50 km.",
+  "nearby.qru_none": "No answer yet",
+  "nearby.qru_group": "Ask {server} for {group}",
 } as const;

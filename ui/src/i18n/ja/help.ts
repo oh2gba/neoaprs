@@ -29,6 +29,7 @@ export const help: Record<keyof typeof source, Message> = {
   "help.picture.channels": "無線で受信した局は電波で表され、RFの札が付きます。雲(APRS-IS)から来た局は点線の輪郭と専用の札が付きます。",
   "help.picture.dummy": "破線の枠の中の作り物の局が自局に応答しますが、自局が送るものは出ません。電波に×が付いています。",
   "help.picture.notifications": "局からメッセージが届くと、この端末がスピーカーで音を鳴らし、カードでポップアップを表示します。",
+  "help.picture.qru": "自局が QRU に問い合わせると、サーバー局がオブジェクト(レピータとイベント)で答え、地図に表示されます。",
   "help.not_copied": "コピーできませんでした",
 
   "help.install.label": "アプリ",

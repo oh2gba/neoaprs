@@ -35,6 +35,7 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
   "help.picture.dummy": "Stazioni inventate in una cornice tratteggiata rispondono alla tua stazione, e ciò che invia non esce: le onde sono barrate.",
   "help.picture.notifications":
     "Arriva un messaggio di una stazione, e questo dispositivo riproduce un suono, l’altoparlante, e mostra una notifica, la scheda.",
+  "help.picture.qru": "La tua stazione interroga QRU, e una stazione server risponde con oggetti, un ripetitore e un evento, che compaiono sulla tua mappa.",
   "help.not_copied": "Non copiato",
 
   "help.install.label": "App",

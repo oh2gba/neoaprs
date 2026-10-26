@@ -132,6 +132,7 @@ export const de: Catalogue = {
   "error.query.not_capable": "{call} nimmt keine Nachrichten an: es gibt niemanden zu fragen",
   "error.transmit.off": "RX only: Es wird nichts gesendet",
   "error.query.too_soon": "{call} wurde eben erst dasselbe gefragt: {seconds} s warten",
+  "error.qru.too_soon": "dieselbe Anfrage wurde eben erst gesendet: {seconds} s warten",
   "error.path.direct_alone": "{word} ist kein Digipeater: allein geschrieben bedeutet es gar keine Digipeater",
   "error.setting.comment_too_long":
     "{length} Zeichen sind mehr als die {limit}, die mit der PHG-Erweiterung erlaubt sind (beacon/power_w leeren, um keine zu senden)",
@@ -1344,6 +1345,8 @@ export const de: Catalogue = {
 
   "help.install.label": "App",
   "help.install.title": "NeoAPRS in einem eigenen Fenster mit Symbol öffnen",
+  "help.picture.qru":
+    "Deine Station fragt QRU, und eine Server-Station antwortet mit Objekten, einem Relais und einem Termin, die auf deiner Karte erscheinen.",
   "help.install.button": "App installieren",
 
   "help.https.label": "Zertifikat installieren",
@@ -1462,3 +1465,12 @@ export const de: Catalogue = {
   "nearby.igate_symbol": "iGate-Symbol",
   "nearby.direct_last": "zuletzt direkt gehört {when}",
 };
+  "nearby.qru": "Ortsinfo (QRU)",
+  "nearby.qru_tip_label": "Über Ortsinfo",
+  "nearby.qru_tip": "Fragt Stationen in deiner Nähe nach Ortsinfo: Relais, Termine, Orte. Nur per Funk gesendet.",
+  "nearby.qru_ask": "Fragen",
+  "nearby.qru_km": "km",
+  "nearby.qru_km_label": "Entfernung in km",
+  "nearby.qru_km_tip": "Wie weit gesucht wird. Leer: der Standard der Server, meist 50 km.",
+  "nearby.qru_none": "Noch keine Antwort",
+  "nearby.qru_group": "{server} nach {group} fragen",

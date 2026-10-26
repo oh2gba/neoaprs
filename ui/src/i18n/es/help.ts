@@ -32,6 +32,7 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
     "Una estación oída por radio, con ondas, lleva RF; una que llegó de la nube, APRS-IS, tiene un contorno punteado y su propia etiqueta.",
   "help.picture.dummy": "Estaciones inventadas en un marco discontinuo responden a tu estación, y lo que esta envía no sale: las ondas están tachadas.",
   "help.picture.notifications": "Llega un mensaje de una estación y este dispositivo reproduce un sonido, el altavoz, y muestra una notificación, la tarjeta.",
+  "help.picture.qru": "Tu estación pregunta QRU, y una estación servidora responde con objetos, un repetidor y un evento, que aparecen en tu mapa.",
   "help.not_copied": "No copiado",
 
   "help.install.label": "Aplicación",

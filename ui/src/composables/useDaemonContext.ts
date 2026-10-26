@@ -20,6 +20,7 @@ import type {
   IgateState,
   MapState,
   PortsMessage,
+  QruState,
   StationRow,
   StatusMessage,
   TncState,
@@ -40,6 +41,8 @@ export interface DaemonContext {
   gps: Read<GpsState | null>;
   /** the receive-only iGate: connected or not, what it gated; null until the daemon has told */
   igate: Read<IgateState | null>;
+  /** local info (QRU): the last request sent from here and the servers that answered it; null until the daemon has told */
+  qru: Read<QruState | null>;
   map: Read<MapState | null>;
   /** Update now: whether this copy can update itself, and how the update it is doing goes */
   selfUpdate: Read<UpdateState | null>;

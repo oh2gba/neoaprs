@@ -11,5 +11,6 @@ export const CALLS = {
   repeater: "145.600",
   iGateCall: "N0CALL-10",
   igate: "Q7IGT-1",
+  server: "Q1CLB",
   aprsIs: "APRS-IS",
 } as const;

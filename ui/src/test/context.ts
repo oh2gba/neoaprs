@@ -40,6 +40,7 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     tnc: part(over.tnc, null),
     gps: part(over.gps, null),
     igate: part(over.igate, null),
+    qru: part(over.qru, null),
     map,
     selfUpdate: part(over.selfUpdate, null),
     ports,

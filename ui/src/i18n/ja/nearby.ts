@@ -24,4 +24,13 @@ export const nearby = {
   "nearby.igate_says": "iGateだと名乗っています",
   "nearby.igate_symbol": "iGateのシンボル",
   "nearby.direct_last": "最後の直接受信: {when}",
+  "nearby.qru": "ローカル情報 (QRU)",
+  "nearby.qru_tip_label": "ローカル情報について",
+  "nearby.qru_tip": "近くの局にローカル情報(レピータ、イベント、場所)を問い合わせます。無線でのみ送信します。",
+  "nearby.qru_ask": "問い合わせ",
+  "nearby.qru_km": "km",
+  "nearby.qru_km_label": "距離 (km)",
+  "nearby.qru_km_tip": "どこまで探すか。空欄ならサーバー側の設定(通常 50 km)です。",
+  "nearby.qru_none": "まだ応答がありません",
+  "nearby.qru_group": "{server} に {group} を問い合わせ",
 };

@@ -47,9 +47,9 @@ const callsIn = (wrapper: ReturnType<typeof mount>, name: string) =>
 beforeEach(() => localStorage.clear());
 
 describe("NearbyPane", () => {
-  it("has the four lists, each with its count, in the order digipeaters, voice frequencies, iGates, heard direct", () => {
+  it("has the four lists, each with its count, in the order digipeaters, voice frequencies, iGates, heard direct, and Local info (QRU) after them", () => {
     const { wrapper } = make();
-    expect(wrapper.findAll("h3").map((h) => h.text())).toEqual(["Digipeaters 1", "Voice frequencies 2", "iGates 1", "Heard direct 1"]);
+    expect(wrapper.findAll("h3").map((h) => h.text())).toEqual(["Digipeaters 1", "Voice frequencies 2", "iGates 1", "Heard direct 1", "Local info (QRU)"]);
   });
 
   it("has an (i) beside the Digipeaters heading that says what the range is, with a picture of a digipeater and its circle", async () => {

@@ -22,6 +22,7 @@ import InternetPicture from "@/help/InternetPicture.vue";
 import ChannelsPicture from "@/help/ChannelsPicture.vue";
 import DummyPicture from "@/help/DummyPicture.vue";
 import NotificationsPicture from "@/help/NotificationsPicture.vue";
+import QruPicture from "@/help/QruPicture.vue";
 import type { PictureName } from "@/help/names";
 
 export const PICTURES: Record<PictureName, Component> = {
@@ -47,4 +48,5 @@ export const PICTURES: Record<PictureName, Component> = {
   channels: ChannelsPicture,
   dummy: DummyPicture,
   notifications: NotificationsPicture,
+  qru: QruPicture,
 };

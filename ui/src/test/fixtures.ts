@@ -11,6 +11,7 @@ import type {
   OwnBulletinRow,
   OwnObjectRow,
   PacketRow,
+  QruState,
   StationRow,
   HelloMessage,
   StatusMessage,
@@ -325,6 +326,29 @@ export function igateState(extra: Partial<IgateState> = {}): IgateState {
     gated: 1234,
     dropped: { tcpip: 31, duplicate: 6, query: 3 },
     last_gated_at: ago(12),
+    ...extra,
+  };
+}
+
+/** The topic `qru`: a request for INFO 20 s ago, and the server DF8LS-10 that answered it with two groups and has sent the closing line of one; a test gives what it cares about. */
+export function qruState(extra: Partial<QruState> = {}): QruState {
+  return {
+    asked: { text: "INFO", at: ago(20) },
+    servers: [
+      {
+        call: "DF8LS-10",
+        groups: [
+          { name: "RP70", count: 10 },
+          { name: "RP2M", count: 3 },
+        ],
+        max_objects: 5,
+        range: 50,
+        unit: "km",
+        at: ago(15),
+        sent: "Sent 5 RP70 Objects Max 5@50km de DF8LS-10",
+        sent_at: ago(8),
+      },
+    ],
     ...extra,
   };
 }

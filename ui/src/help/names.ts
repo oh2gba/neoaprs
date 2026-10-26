@@ -22,6 +22,7 @@ export const PICTURE_NAMES = [
   "channels",
   "dummy",
   "notifications",
+  "qru",
 ] as const;
 
 export type PictureName = (typeof PICTURE_NAMES)[number];

@@ -130,6 +130,7 @@ export const fr: Catalogue = {
   "error.query.not_capable": "{call} ne reçoit pas de messages : il n'y a personne à interroger",
   "error.transmit.off": "RX only : rien n'est envoyé",
   "error.query.too_soon": "La même question vient d'être posée à {call} : attendez {seconds} s",
+  "error.qru.too_soon": "la même demande vient d'être envoyée : attendez {seconds} s",
   "error.path.direct_alone": "{word} n'est pas un digipeater : écrit seul, il veut dire aucun digipeater",
   "error.setting.comment_too_long": "{length} caractères, c'est plus que les {limit} permis avec l'extension PHG (videz beacon/power_w pour ne pas en émettre)",
   "error.setting.not_access_key": "ce n'est pas une clé d'accès (trois groupes de quatre chiffres et lettres, comme k7m2-x9pq-4hrt)",
@@ -1332,6 +1333,8 @@ export const fr: Catalogue = {
 
   "help.install.label": "Application",
   "help.install.title": "Ouvrir NeoAPRS dans une fenêtre à part, avec une icône",
+  "help.picture.qru":
+    "Votre station interroge QRU, et une station serveur répond avec des objets, un relais et un événement, qui apparaissent sur votre carte.",
   "help.install.button": "Installer l'application",
 
   "help.https.label": "Installer le certificat",
@@ -1451,3 +1454,12 @@ export const fr: Catalogue = {
   "nearby.igate_symbol": "symbole d'iGate",
   "nearby.direct_last": "dernière écoute en direct {when}",
 };
+  "nearby.qru": "Infos locales (QRU)",
+  "nearby.qru_tip_label": "À propos des infos locales",
+  "nearby.qru_tip": "Demande aux stations proches des infos locales : relais, événements, lieux. Envoyé par radio uniquement.",
+  "nearby.qru_ask": "Demander",
+  "nearby.qru_km": "km",
+  "nearby.qru_km_label": "Distance en km",
+  "nearby.qru_km_tip": "Jusqu'où chercher. Vide : celle des serveurs, en général 50 km.",
+  "nearby.qru_none": "Pas encore de réponse",
+  "nearby.qru_group": "Demander {group} à {server}",

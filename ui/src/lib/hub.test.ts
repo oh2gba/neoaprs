@@ -6,6 +6,7 @@ import type {
   ErrorMessage,
   GpsState,
   IgateState,
+  QruState,
   HelloMessage,
   BulletinRow,
   MessageRow,
@@ -27,6 +28,7 @@ import {
   errorOf,
   gpsState,
   igateState,
+  qruState,
   hello,
   mapFile,
   mapState,
@@ -60,6 +62,7 @@ function memory() {
     update: null as unknown,
     gps: null as unknown,
     igate: null as unknown,
+    qru: null as unknown,
     hello: 0,
     statuses: 0,
     stale: 0,
@@ -87,6 +90,7 @@ function memory() {
     replaceUpdate: (v) => (seen.update = v),
     replaceGps: (v) => (seen.gps = v),
     replaceIgate: (v) => (seen.igate = v),
+    replaceQru: (v) => (seen.qru = v),
     setStation: (k, r) => void seen.stations.set(k, r),
     setPacket: (k, r) => void seen.packets.set(k, r),
     setMessage: (k, r) => void seen.messages.set(k, r),
@@ -171,6 +175,15 @@ describe("Hub", () => {
     socket.say(patch("igate", 1, [{ op: "replace", value: igateState({ state: "unverified", gated: 0 }) }]));
     expect((seen.igate as IgateState).state).toBe("unverified");
     expect(seen.gps).toBeNull();
+  });
+
+  it("puts the QRU topic in its own store, told whole", () => {
+    const { seen, socket } = opened();
+    socket.say(state("qru", 0, qruState({ asked: null, servers: [] })));
+    expect(seen.qru).toEqual(qruState({ asked: null, servers: [] }));
+    socket.say(patch("qru", 1, [{ op: "replace", value: qruState() }]));
+    expect((seen.qru as QruState).servers[0]?.call).toBe("DF8LS-10");
+    expect(seen.igate).toBeNull();
   });
 
   it("applies set, del and replace ops in order", () => {

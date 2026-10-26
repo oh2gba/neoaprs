@@ -31,6 +31,7 @@ export const help: Record<keyof typeof source, Message> = {
   "help.picture.channels": "Uma estação ouvida pelo rádio, com ondas, leva RF; uma que veio da nuvem, APRS-IS, tem contorno pontilhado e etiqueta própria.",
   "help.picture.dummy": "Estações inventadas num quadro tracejado respondem à sua estação, e o que ela envia não sai: as ondas estão riscadas.",
   "help.picture.notifications": "Chega uma mensagem de uma estação, e este dispositivo toca um som, o alto-falante, e mostra um pop-up, o cartão.",
+  "help.picture.qru": "Sua estação pergunta QRU, e uma estação servidora responde com objetos, uma repetidora e um evento, que aparecem no seu mapa.",
   "help.not_copied": "Não copiado",
 
   "help.install.label": "Aplicativo",
