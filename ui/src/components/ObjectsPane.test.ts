@@ -189,7 +189,9 @@ describe("ObjectsPane", () => {
     expect(list.find("fieldset.objects-qru legend .info-text .info-line").text()).toBe(
       "Asks stations near you for their objects (APRS QRU): repeaters, events, places. Sent by radio only.",
     );
-    expect(list.find("fieldset.objects-qru .qru-ask button.btn.primary").text()).toBe("Ask");
+    const ask = list.find("fieldset.objects-qru .qru-ask button.btn");
+    expect(ask.text()).toBe("Ask");
+    expect(ask.classes()).not.toContain("primary"); // (the one main action of the tab is Add)
   });
 
   it("marks a selectable row as one: a hand, a hover, a highlight and a focus ring", () => {
