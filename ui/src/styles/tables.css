@@ -14,9 +14,10 @@
 /* the foot of the Stations tab: the count, and Forget all with its (i) at the other end */
 .footbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 4px 8px;
 }
 .footaction {
   display: inline-flex;

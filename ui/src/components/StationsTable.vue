@@ -297,7 +297,7 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
       @forget="forget"
     />
     <div class="foot footbar muted">
-      <span>{{ t("station.table.count", { shown: rows.length, n: stations.size }) }}</span>
+      <span class="footcount">{{ t("station.table.count", { shown: rows.length, n: stations.size }) }}</span>
       <span class="footaction">
         <button type="button" class="btn small forgetall" :class="{ danger: sureAll.armed.value !== null }" :disabled="!anyHeard" @click="forgetAll">
           {{ sureAll.armed.value !== null ? t("station.table.forget_all_sure") : t("station.table.forget_all") }}

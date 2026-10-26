@@ -56,6 +56,6 @@ describe("Forget all at the foot of the Stations table", () => {
     const { wrapper, button } = make();
     expect(button().classes()).toEqual(expect.arrayContaining(["btn", "small"]));
     expect(button().attributes("style")).toBeUndefined();
-    expect(wrapper.find(".foot").text()).toContain("of 3 stations");
+    expect(wrapper.find(".foot .footcount").text()).toContain("of 3 stations");
   });
 });

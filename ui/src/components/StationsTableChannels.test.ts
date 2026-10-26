@@ -109,7 +109,7 @@ describe("the tickbox heard on RF only", () => {
     const wrapper = make(me, rf, gated, net, both, object);
     await wrapper.findAll("input[type='checkbox']")[2]?.setValue(true);
     expect(labels(wrapper).map(([call]) => call)).toEqual(["OH2GBA", "OH2BOTH", "OH2RF", "OH2GATED", "LEADER"]);
-    expect(wrapper.find(".foot").text()).toBe("5 of 6 stations");
+    expect(wrapper.find(".foot .footcount").text()).toBe("5 of 6 stations");
     await wrapper.findAll("input[type='checkbox']")[2]?.setValue(false);
     expect(labels(wrapper)).toHaveLength(6);
   });

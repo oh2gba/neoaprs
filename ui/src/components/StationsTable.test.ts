@@ -160,7 +160,7 @@ describe("StationsTable", () => {
       expect(toggle?.element.parentElement?.textContent).toContain("hide timed out");
       await toggle?.setValue(true);
       expect(calls(wrapper)).toEqual(["OH2GBA", "OH2FRESH"]);
-      expect(wrapper.find(".foot").text()).toBe("2 of 3 stations");
+      expect(wrapper.find(".foot .footcount").text()).toBe("2 of 3 stations");
       expect(localStorage.getItem("NeoAPRS.hidetimedout")).toBe("on");
       expect(make(null, aging, old).findAll("tbody tr")).toHaveLength(2);
       await toggle?.setValue(false);
@@ -185,7 +185,7 @@ describe("StationsTable", () => {
       expect(toggle?.element.parentElement?.textContent).toContain("direct only");
       await toggle?.setValue(true);
       expect(calls(wrapper)).toEqual(["OH2GBA", "OH2NEAR", "OH2ONCE"]);
-      expect(wrapper.find(".foot").text()).toBe("3 of 4 stations");
+      expect(wrapper.find(".foot .footcount").text()).toBe("3 of 4 stations");
       expect(localStorage.getItem("NeoAPRS.directonly")).toBe("on");
       expect(calls(make(null, never, heard))).toEqual(["OH2GBA", "OH2NEAR", "OH2ONCE"]);
       await toggle?.setValue(false);
