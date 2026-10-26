@@ -6,6 +6,7 @@ import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import { PICTURE_NAMES } from "@/help/names";
 import { PICTURES } from "@/help/pictures";
+import { t } from "@/i18n";
 import { en } from "@/i18n/en";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -50,7 +51,7 @@ describe("the pictures of the (i) notes", () => {
       const words = mount(PICTURES[name])
         .findAll("text")
         .map((text) => text.text());
-      expect(words.filter((word) => !/^[A-Z0-9][A-Z0-9 .,-]*$/.test(word))).toEqual([]);
+      expect(words.filter((word) => word !== t("help.me") && !/^[A-Z0-9][A-Z0-9 .,-]*$/.test(word))).toEqual([]); // (the one word is what our own station is called, in the language of the page)
     }
   });
 

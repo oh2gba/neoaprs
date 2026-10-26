@@ -5,6 +5,7 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
   "help.close": "Chiudi",
   "help.copy": "Copia",
   "help.copied": "Copiato",
+  "help.me": "Mia stazione",
   "help.picture.object":
     "Una mappa con la tua stazione in auto e due oggetti che invii, un ripetitore con la sua frequenza e un punto di ritrovo; entrambi compaiono sulle mappe di altre due stazioni.",
   "help.picture.bulletin": "Una stazione invia un bollettino, BLN1, e lo stesso messaggio compare nella bacheca di altre tre stazioni.",

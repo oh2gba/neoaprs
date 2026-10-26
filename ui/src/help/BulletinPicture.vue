@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // What a bulletin is: one station sends, and the same message is on the board of every station that hears it.
-import { CALLS } from "@/help/calls";
+import { t } from "@/i18n";
 import HelpFrame from "@/help/HelpFrame.vue";
 import HelpLabel from "@/help/HelpLabel.vue";
 import HelpStation from "@/help/HelpStation.vue";
@@ -11,8 +11,8 @@ const boards = [8, 56, 104];
 
 <template>
   <HelpFrame name="bulletin">
-    <HelpStation table="/" code="-" :x="36" :y="56" :size="30" :label="CALLS.me" />
-    <path class="hp-flow" :d="waves(54, 56, 0, 2, 8, 5)" />
+    <HelpStation table="/" code="-" :x="44" :y="56" :size="30" :label="t('help.me')" />
+    <path class="hp-flow" :d="waves(62, 56, 0, 2, 8, 5)" />
     <rect class="hp-card hp-lit" x="9" y="92" width="54" height="40" rx="5" />
     <HelpLabel :x="36" :y="105" text="BLN1" />
     <path class="hp-dim" d="M16 114h40M16 124h28" />

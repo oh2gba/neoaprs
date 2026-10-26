@@ -1298,6 +1298,7 @@ export const fr: Catalogue = {
   "help.close": "Fermer",
   "help.copy": "Copier",
   "help.copied": "Copié",
+  "help.me": "Cette station",
   "help.picture.object":
     "Une carte avec votre station en voiture et deux objets que vous émettez, un relais avec sa fréquence et un point de rendez-vous ; tous deux apparaissent sur les cartes de deux autres stations.",
   "help.picture.bulletin": "Une station émet un bulletin, BLN1, et le même message apparaît sur le tableau de trois autres stations.",

@@ -6,6 +6,7 @@ export const help: Record<keyof typeof source, Message> = {
   "help.close": "Fechar",
   "help.copy": "Copiar",
   "help.copied": "Copiado",
+  "help.me": "Esta estação",
   "help.picture.object":
     "Um mapa com a sua estação no carro e dois objetos que você envia, um repetidor com a sua frequência e um ponto de encontro; os dois aparecem nos mapas de outras duas estações.",
   "help.picture.bulletin": "Uma estação envia um boletim, BLN1, e a mesma mensagem aparece no mural de outras três estações.",

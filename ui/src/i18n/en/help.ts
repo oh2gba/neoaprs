@@ -4,6 +4,7 @@ export const help = {
   "help.close": "Close",
   "help.copy": "Copy",
   "help.copied": "Copied",
+  "help.me": "This station",
   "help.picture.object":
     "A map with your car station and two objects you send, a repeater with its frequency and a meeting point; both appear on the maps of two other stations.",
   "help.picture.bulletin": "One station sends a bulletin, BLN1, and the same message appears on the board of three other stations.",

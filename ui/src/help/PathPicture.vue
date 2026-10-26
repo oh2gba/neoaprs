@@ -1,24 +1,25 @@
 <script setup lang="ts">
 // The path: our packet is repeated by the fill-in digipeater (WIDE1-1) and then by a wide-area one (WIDE2-1), two hops, before the other stations hear it; the path as it is written is under the chain.
 import { CALLS } from "@/help/calls";
+import { t } from "@/i18n";
 import HelpFrame from "@/help/HelpFrame.vue";
 import HelpLabel from "@/help/HelpLabel.vue";
 import HelpStation from "@/help/HelpStation.vue";
 import { arrow } from "@/help/draw";
 
 const hops = [
-  { from: 48, to: 84, n: "1" },
-  { from: 118, to: 154, n: "2" },
-  { from: 188, to: 224, n: "" },
+  { from: 64, to: 100, n: "1" },
+  { from: 134, to: 168, n: "2" },
+  { from: 200, to: 228, n: "" },
 ];
 </script>
 
 <template>
   <HelpFrame name="path">
-    <HelpStation table="/" code=">" :x="30" :y="44" :label="CALLS.car" />
-    <HelpStation table="1" code="#" :x="100" :y="44" :label="CALLS.fillIn" />
-    <HelpStation table="2" code="#" :x="170" :y="44" :label="CALLS.wide" />
-    <HelpStation table="/" code="-" :x="244" :y="44" :label="CALLS.other" />
+    <HelpStation table="/" code=">" :x="44" :y="44" :label="t('help.me')" />
+    <HelpStation table="1" code="#" :x="118" :y="44" :label="CALLS.fillIn" />
+    <HelpStation table="2" code="#" :x="184" :y="44" :label="CALLS.wide" />
+    <HelpStation table="/" code="-" :x="246" :y="44" :label="CALLS.other" />
     <template v-for="hop in hops" :key="hop.from">
       <path class="hp-flow" :d="arrow(hop.from, 44, hop.to, 44)" />
       <template v-if="hop.n">

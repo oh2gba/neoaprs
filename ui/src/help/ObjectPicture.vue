@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // What an object is: our map with a car station (us) and two objects that we send, a repeater with its frequency and a meeting point; the arrows take them to the maps of two other stations.
 import { CALLS } from "@/help/calls";
+import { t } from "@/i18n";
 import HelpFrame from "@/help/HelpFrame.vue";
 import HelpMap from "@/help/HelpMap.vue";
 import HelpStation from "@/help/HelpStation.vue";
@@ -13,8 +14,8 @@ const others = [14, 82];
 <template>
   <HelpFrame name="object">
     <HelpMap :x="3" :y="12" :w="170" :h="126">
-      <HelpStation table="/" code=">" :x="38" :y="96" :label="CALLS.car" />
-      <path class="hp-flow" :d="waves(54, 96, -20, 2, 8, 5)" />
+      <HelpStation table="/" code=">" :x="44" :y="96" :label="t('help.me')" />
+      <path class="hp-flow" :d="waves(60, 96, -20, 2, 8, 5)" />
       <HelpStation table="/" code="r" :x="112" :y="48" :label="CALLS.repeater" />
       <HelpStation table="\" code=";" :x="140" :y="102" />
     </HelpMap>

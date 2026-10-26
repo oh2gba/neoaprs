@@ -6,6 +6,7 @@ export const help: Record<keyof typeof source, Message> = {
   "help.close": "閉じる",
   "help.copy": "コピー",
   "help.copied": "コピーしました",
+  "help.me": "この局",
   "help.picture.object": "自分の車の局と、送信する2つのオブジェクト(周波数つきのリピーターと集合場所)を示す地図。どちらも他の2局の地図に表示されます。",
   "help.picture.bulletin": "1つの局が掲示 BLN1 を送ると、同じメッセージが他の3局の掲示板に表示されます。",
   "help.picture.beacon": "自局は位置を繰り返し送信し(ビーコンの間に時計)、他の局の地図に表示されます。",
