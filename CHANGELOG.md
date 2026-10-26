@@ -22,6 +22,7 @@ Internet stations on the map, a world map and a Dummy radio to try it all, Find 
 - The Beacon tab no longer has the Preview of the packet. Beacon Off is no automatic beacon: Beacon now and Send status now still send.
 - **Fixed:** a station left in receive only by 0.9 can transmit again: Settings → Radio → RX only, unticked.
 - A changed setting shows no toast and no Undo any more; a refusal is shown under its field.
+- A mark at the top (RX only, Beacon off, GPS, Internet) opens its tab, scrolls to the group it belongs to, flashes it once and puts the cursor on its control.
 - Every group's tickbox that switches a feature on is called **Enable** (Internet stations, Digipeater), and its state is one row under it, the radio's: the state in its colour, a quiet line, and the details behind the arrow.
 - **RX only:** Settings → Radio → RX only, ticked, sends nothing and switches every send button off; an RX only mark shows at the top.
 - Marks at the top right say what is on: RX only, Beacon off, Internet, GPS; each opens where it is set.

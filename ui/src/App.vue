@@ -20,6 +20,8 @@ import StationMap from "@/components/StationMap.vue";
 import StationsTable from "@/components/StationsTable.vue";
 import FindRadioToast from "@/components/FindRadioToast.vue";
 import ToastBar from "@/components/ToastBar.vue";
+import { attend } from "@/lib/attention";
+import type { PillTarget } from "@/lib/pills";
 import { refusedAtField } from "@/lib/settinglinks";
 import UpdateDialog from "@/components/UpdateDialog.vue";
 import VersionMismatch from "@/components/VersionMismatch.vue";
@@ -46,6 +48,12 @@ const {
   findRadio,
   stationActions,
 } = useAppShell();
+
+/** A mark of the header: its tab, and the group of the control it leads to brought into view and flashed. */
+function openSetting(target: PillTarget, control: string): void {
+  panel.show(target);
+  void attend(control);
+}
 const { send, ownObjects, ownBulletins, bulletins, packets, lastError, mismatch } = daemon;
 const { stationPick, pickingTab } = picks;
 const { selected, focus } = cards;
@@ -65,7 +73,7 @@ const deleteMessage = (id: number): boolean => send({ cmd: "message_delete", id 
       @messages="openUnread"
       @setup="guide.show()"
       @update="updateOpen = true"
-      @open="(target) => panel.show(target)"
+      @open="openSetting"
     />
     <UpdateDialog v-if="updateOpen && newer" :version="newer" @close="updateOpen = false" />
     <main class="main">

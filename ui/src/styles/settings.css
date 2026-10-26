@@ -341,3 +341,23 @@
   font-size: 12px;
   overflow-wrap: anywhere;
 }
+
+/* the group a link to a setting has brought into view (lib/attention.ts): the soft accent, fading out; with reduced motion it is held for the same time instead */
+.attend {
+  animation: attend 1.5s ease-out;
+  border-radius: 6px;
+}
+@keyframes attend {
+  from {
+    background: var(--accent-soft-bg);
+  }
+  to {
+    background: transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .attend {
+    animation: none;
+    background: var(--accent-soft-bg);
+  }
+}

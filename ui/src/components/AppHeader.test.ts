@@ -96,10 +96,14 @@ describe("AppHeader", () => {
     expect(header({ pills: [] }).find(".headpills").exists()).toBe(false);
   });
 
-  it("opens the place where a mark is set when it is clicked: Settings for RX only and Internet, the Beacon tab for Beacon off and GPS", async () => {
+  it("opens the place where a mark is set when it is clicked, and says the control to flash: Settings for RX only and Internet, the Beacon tab for Beacon off and GPS", async () => {
     const wrapper = header({ pills: pills({ "station/transmit": "false", "gps/source": "gpsd" }, null, igateState()) });
     for (const mark of wrapper.findAll(".headpills .tag")) await mark.trigger("click");
-    expect(wrapper.emitted("open")).toEqual([["settings"], ["beacon"], ["settings"]]);
+    expect(wrapper.emitted("open")).toEqual([
+      ["settings", "set-station-transmit"],
+      ["beacon", "set-gps-source"],
+      ["settings", "set-igate-enabled"],
+    ]);
   });
 
   it("says in the hover title what a mark means and where it is set, in a few words", () => {

@@ -1,5 +1,5 @@
 import "@/test/mockmap";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { configValues, igateState, gpsState } from "@/test/fixtures";
 import { open, tabButton, useAppHarness } from "@/test/app";
@@ -51,6 +51,28 @@ describe("App: RX only", () => {
     expect(wrapper.find(".appheader .pill-beacon_off").classes()).toContain("tag-neutral");
     await wrapper.find(".appheader .pill-beacon_off").trigger("click");
     expect(wrapper.find("[aria-selected='true']").text()).toContain("Beacon");
+  });
+
+  it("brings the group of the control a mark leads to into view, flashes it and focuses the control: RX only, Beacon off, GPS and Internet", async () => {
+    const scrolled = vi.fn();
+    Element.prototype.scrollIntoView = scrolled;
+    const { wrapper, socket } = await open();
+    socket.say({ type: "state", topic: "igate", rev: 1, value: igateState() });
+    await say(socket, 1, { [KEY]: "false", "gps/source": "gpsd", "igate/enabled": "true" });
+    const marks: [string, string, string][] = [
+      [".rxonly", "set-station-transmit", "Radio"],
+      [".pill-gps", "set-gps-source", "Station"],
+      [".pill-internet", "set-igate-enabled", "Internet stations"],
+    ];
+    for (const [mark, control, legend] of marks) {
+      scrolled.mockClear();
+      await wrapper.find(`.appheader ${mark}`).trigger("click");
+      await vi.waitFor(() => expect(document.getElementById(control)?.closest("fieldset")?.classList.contains("attend"), mark).toBe(true));
+      const group = document.getElementById(control)?.closest("fieldset");
+      expect(group?.querySelector("legend")?.textContent?.replace(/\s*i$/, "").trim(), mark).toBe(legend);
+      expect(scrolled.mock.contexts, mark).toContain(group);
+      expect(document.activeElement?.id, mark).toBe(control);
+    }
   });
 
   it("has the Internet mark while the Internet group is connected, and the GPS mark green with a fix and amber without, all before the count", async () => {

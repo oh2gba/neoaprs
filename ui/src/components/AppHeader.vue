@@ -17,7 +17,7 @@ defineProps<{
   /** The marks before the count (RX only, Beacon off, Internet, GPS). */
   pills?: readonly HeaderPill[];
 }>();
-const emit = defineEmits<{ messages: []; setup: []; update: []; open: [target: PillTarget] }>();
+const emit = defineEmits<{ messages: []; setup: []; update: []; open: [target: PillTarget, focus: string] }>();
 
 /** The project's page. */
 const PROJECT_URL = "https://oh2gba.github.io/neoaprs/";
@@ -39,7 +39,7 @@ const PROJECT_URL = "https://oh2gba.github.io/neoaprs/";
         :tone="pill.tone"
         :class="['headpill', `pill-${pill.id}`, { rxonly: pill.id === 'rx' }]"
         :title="t(pill.title)"
-        @click="emit('open', pill.target)"
+        @click="emit('open', pill.target, pill.focus)"
         >{{ t(pill.text) }}</TagMark
       >
     </span>
