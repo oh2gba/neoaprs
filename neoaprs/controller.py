@@ -178,6 +178,17 @@ class Controller(Services):
             log.info("pruned %d packets and %d stations older than %d days", packets, len(stations), keep)
         return packets, stations
 
+    async def forget_stations(self) -> int:
+        """A fresh start for what was heard: every station but ours is forgotten with its packets, its weather and its telemetry definitions; how many stations. The station we are, the objects and bulletins we send,
+        the messages, the preferences of the stations and the settings stay (so does every packet we sent). The book is cleared and the database asked in one step, so that a packet heard meanwhile is kept with its station."""
+        me = self.stationbook.me
+        count = self.stationbook.forget_all()
+        await self.packetlog.forget_heard("" if me is None else me.call)
+        await self.weatherlog.forget_all()
+        self.aloha.refresh()
+        log.info("forgot %d stations with the packets heard", count)
+        return count
+
     async def _prune_daily(self) -> None:
         while True:
             await self.prune()

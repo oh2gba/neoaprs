@@ -1,5 +1,5 @@
 """A station as the station book keeps it: who it is, where it was heard, what it sent last and how its packets reached us (stationbook.py is the book of them)."""
-from dataclasses import KW_ONLY, dataclass, field
+from dataclasses import KW_ONLY, dataclass, field, replace
 from datetime import datetime
 
 from .aprsextension import Extensions
@@ -8,11 +8,42 @@ from .aprslocator import Locator
 from .aprstelemetry import Telemetry
 from .aprsstorm import Storm
 from .aprsweather import Weather
+from .geo import distance_km
 from .hourcount import HourCount
-from .packet import Via
+from .packet import IS, Via
 from .route import Deliveries, Route
 
 Track = list[tuple[datetime, float, float]]
+TRACK_MAX = 50                      # positions kept per station
+TRACK_MOVED_M = 10.0                # a new position goes on the track when the station moved more than this ...
+TRACK_EVERY_SEC = 300.0             # ... or when this long has passed since the last one on it
+
+
+def add_track_point(track: Track, when: datetime, lat: float, lon: float) -> None:
+    """A position joins the track when the station moved more than TRACK_MOVED_M or TRACK_EVERY_SEC passed since the last one on it; the track keeps the latest TRACK_MAX."""
+    if track:
+        last_time, last_lat, last_lon = track[-1]
+        if distance_km(last_lat, last_lon, lat, lon) * 1000.0 <= TRACK_MOVED_M and (when - last_time).total_seconds() < TRACK_EVERY_SEC:
+            return
+    track.append((when, lat, lon))
+    del track[:-TRACK_MAX]
+
+
+@dataclass
+class RadioPlace:
+    """Where a station was put by the latest packets that did not come from the internet, with the track of those: what its row shows while the internet stations are hidden. Only a station that has been heard
+    from the internet too has one (for any other the station's own place is the radio's)."""
+    lat: float
+    lon: float
+    at: datetime
+    via: Via
+    symbol_table: str = ""
+    symbol_code: str = ""
+    altitude_m: float | None = None
+    course_deg: int | None = None
+    speed_kmh: float | None = None
+    comment: str = ""
+    track: Track = field(default_factory=list)
 
 
 @dataclass
@@ -56,6 +87,8 @@ class Station:
     sign: str | None = None                     # what the signpost it is says, from the comment of its latest position (`55`); not kept in the cache either
     device: str = ""                            # what it runs ("Kenwood TH-D74", "APRSdroid"), from the destination call or the Mic-E type code of its packets (device.py); empty when unknown (not kept in the cache: it is read again from the latest packets at the start)
     hour: HourCount = field(default_factory=HourCount, repr=False, compare=False)    # its packets of the last hour (not kept in the cache: counted from the packet log at the start and as packets come)
+    hour_is: HourCount = field(default_factory=HourCount, repr=False, compare=False)    # ... those of them that came from the internet
+    radio: RadioPlace | None = field(default=None, repr=False, compare=False)    # where the packets that were not from the internet put it, once it has been heard from the internet too (not kept in the cache: read again from the packets at the start)
     sent_message: bool = False                  # it has sent a message or an ack to a station (overheard or not): it does messages (not kept in the cache: it is read again from the packet log at the start)
     position_messaging: bool | None = None      # its latest position says whether it takes messages (`=` and `@`, or Mic-E but the type code `'`); None until a position is heard (not kept in the cache either)
     track: Track = field(default_factory=list)  # (time, lat, lon), the latest TRACK_MAX positions, oldest first
@@ -97,3 +130,20 @@ class Station:
     def best_route(self) -> Route | None:
         """The route most of its packets came by (direct included); None until a packet is counted."""
         return self.deliveries.best()
+
+    def radio_view(self) -> "Station | None":
+        """The station as it is without the internet: None for one known only from there; for one heard both ways a copy that has only the radio's side (no packets, times, hour or position from the internet);
+        a station never heard from the internet is itself. The status, the weather, the telemetry and the like are whatever the latest packet of any channel said."""
+        if self.internet_only:
+            return None
+        if self.heard_is == 0:
+            return self
+        heard = [at for at in (self.last_rf_at, self.last_rf_gated_at, self.last_dummy_at) if at is not None]
+        view = replace(self, packets=self.packets - self.heard_is, heard_is=0, last_is_at=None, last_heard=max(heard) if heard else self.last_heard, hour=self.hour.without(self.hour_is), hour_is=HourCount())
+        place = self.radio
+        if place is not None:
+            return replace(view, lat=place.lat, lon=place.lon, last_position_at=place.at, position_via=place.via, symbol_table=place.symbol_table, symbol_code=place.symbol_code,
+                           altitude_m=place.altitude_m, course_deg=place.course_deg, speed_kmh=place.speed_kmh, last_comment=place.comment, track=place.track)
+        if self.position_via == IS or self.position_via is None:
+            return replace(view, lat=None, lon=None, last_position_at=None, position_via=None, altitude_m=None, course_deg=None, speed_kmh=None, track=[])
+        return view

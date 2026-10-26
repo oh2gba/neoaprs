@@ -15,12 +15,8 @@ from .ownobject import OwnObject
 from .packet import IS, ItemReport, ObjectReport, Other, Packet, Position, Status
 from .route import route_of
 from .signal import Signal
-from .station import Station
-from .stationnotes import expire_hours, note_gate, note_heard, note_igate, note_messaging, note_position, note_telemetry, seed_hour, seed_reported
-
-TRACK_MAX = 50                      # positions kept per station
-TRACK_MOVED_M = 10.0                # a new position goes on the track when the station moved more than this ...
-TRACK_EVERY_SEC = 300.0             # ... or when this long has passed since the last one on it
+from .station import Station, add_track_point
+from .stationnotes import expire_hours, note_gate, note_heard, note_igate, note_messaging, note_position, note_radio_place, note_telemetry, seed_hour, seed_radio, seed_reported
 DETAILS_SEEN = 2000                 # the packets that telemetry, its definitions, locators, data extensions and the device are read from at the start
 
 
@@ -30,6 +26,7 @@ class StationBook:
         self.changed: Signal[[Station]] = Signal("stationbook.changed")       # a station was added or changed (the live object: read it, do not keep it)
         self.removed: Signal[[str]] = Signal("stationbook.removed")           # its call
         self.recounted: Signal[[Station]] = Signal("stationbook.recounted")   # the packets of its last hour became fewer (minute by minute, as old ones leave the hour): not saved, told to the page
+        self.cleared: Signal[[]] = Signal("stationbook.cleared")              # every station but ours was forgotten at once (the database is cleared by the caller, not station by station)
         self._stations: dict[str, Station] = {}
         self._me = ""
         self._me_position: tuple[float, float] | None = None
@@ -102,6 +99,10 @@ class StationBook:
             elif isinstance(decoded, Status):
                 station.locator, station.frequency = decoded.locator or station.locator, decoded.frequency or station.frequency
 
+    def seed_radio(self, packets: Iterable[Packet]) -> None:
+        """The latest position packets that did not come from the internet, oldest first: where the radio put each station that has been heard from the internet too (Station.radio). Nothing is signalled."""
+        seed_radio(self._stations, packets)
+
     def seed_recent(self, packets: Iterable[Packet]) -> None:
         """The packets of the last hour that the log kept, oldest first, counted for the stations that sent them. Nothing is signalled."""
         seed_hour(self._stations, packets)
@@ -130,6 +131,15 @@ class StationBook:
         del self._stations[call]
         self.removed.emit(call)
         return True
+
+    def forget_all(self) -> int:
+        """Removes every station but ours (the settings' station and the objects we send), with what the book kept of their telemetry definitions; how many. Signals `cleared`, not `removed` for each."""
+        gone = [call for call, s in self._stations.items() if not s.is_me and not s.own]
+        for call in gone:
+            del self._stations[call]
+        self._definitions.clear()
+        self.cleared.emit()
+        return len(gone)
 
     def prune(self, older_than: datetime) -> list[str]:
         """Removes the stations not heard since `older_than` (ours stays, our objects too); their calls."""
@@ -268,6 +278,7 @@ class StationBook:
 
     def _place(self, station: Station, position: Position, packet: Packet) -> None:
         when = packet.heard_at
+        note_radio_place(station, packet, position)
         station.position_via = packet.via
         station.symbol_table, station.symbol_code = position.symbol_table, position.symbol_code
         station.lat, station.lon = position.lat, position.lon
@@ -281,12 +292,7 @@ class StationBook:
 
     @staticmethod
     def _track(station: Station, when: datetime, lat: float, lon: float) -> None:
-        if station.track:
-            last_time, last_lat, last_lon = station.track[-1]
-            if distance_km(last_lat, last_lon, lat, lon) * 1000.0 <= TRACK_MOVED_M and (when - last_time).total_seconds() < TRACK_EVERY_SEC:
-                return
-        station.track.append((when, lat, lon))
-        del station.track[:-TRACK_MAX]
+        add_track_point(station.track, when, lat, lon)
 
     def _named(self, packet: Packet, report: ObjectReport | ItemReport) -> Station | None:
         """The station an object or item report is about."""

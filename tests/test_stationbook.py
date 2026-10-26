@@ -12,9 +12,10 @@ from neoaprs.aprstelemetry import Telemetry
 from neoaprs.aprsweather import Weather
 from neoaprs.clock import utc
 from neoaprs.kiss import KissDecoder
+from neoaprs.ownobject import OwnObject
 from neoaprs.packet import ItemReport, Message, ObjectReport, Other, Packet, Position, Status, ThirdParty, Undecoded
-from neoaprs.station import Station
-from neoaprs.stationbook import TRACK_MAX, StationBook
+from neoaprs.station import TRACK_MAX, Station
+from neoaprs.stationbook import StationBook
 from neoaprs.stationnotes import DEFINITIONS_MAX
 from tests.support.files import fixture_bytes
 
@@ -225,6 +226,19 @@ def test_forget_removes_a_station_and_tells_but_not_ours() -> None:
     book.take(packet(position()))
     assert book.forget("OH2AAA") and not book.forget("OH2AAA") and not book.forget("OH2GBA") and book.get("OH2GBA") is not None
     assert heard.removed == ["OH2AAA"]
+
+
+def test_forget_all_removes_every_station_but_ours_and_tells_once() -> None:
+    book = StationBook()
+    heard, cleared = Heard(book), []
+    book.cleared.connect(lambda: cleared.append(True))
+    book.set_me("OH2GBA", 60.17, 24.94)
+    book.take(packet(position(), "OH2AAA"))
+    book.take(packet(position(), "OH2BBB"))
+    book.own_object(OwnObject("LEADER", "object", 60.0, 24.0, "/", ">", created_at=T0, updated_at=T0, comment="x"))
+    assert book.forget_all() == 2
+    assert sorted(s.call for s in book.stations()) == ["LEADER", "OH2GBA"] and cleared == [True] and heard.removed == [] and book.get("OH2GBA") is not None
+    assert book.forget_all() == 0
 
 
 def test_prune_removes_the_stations_not_heard_since_and_not_ours() -> None:

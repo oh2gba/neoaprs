@@ -13,7 +13,7 @@ from .db import Db
 from .dblog import DbLog
 from .packet import Packet, channel_of
 from .packetcodec import info_of, parse_stamp, stamp
-from .weathersql import (Row, count_weather, insert_weather, insert_weather_many, latest_weather, latest_weather_all, prune_weather_before, weather_packets, weather_since)
+from .weathersql import (Row, count_weather, delete_weather, insert_weather, insert_weather_many, latest_weather, latest_weather_all, prune_weather_before, weather_packets, weather_since)
 
 log = logging.getLogger("neoaprs.weatherlog")
 
@@ -94,3 +94,7 @@ class WeatherLog(DbLog):
         """Deletes the observations made more than `keep_days` days ago; how many."""
         cutoff = stamp(self.clock() - days(keep_days))
         return await self._write(lambda conn: prune_weather_before(conn, cutoff), 0, "the weather could not be pruned")
+
+    async def forget_all(self) -> int:
+        """Deletes every observation of every station; how many."""
+        return await self._write(delete_weather, 0, "the weather could not be forgotten")

@@ -232,7 +232,8 @@ async def test_a_whole_daemon_whose_connection_reads_packets_that_ask_for_everyt
 
 
 async def test_the_page_is_told_the_packets_from_the_internet_and_the_stations_they_make(tmp_path: Path) -> None:
-    e = Env(tmp_path, web=True)
+    server = await fake_aprsis()
+    e = Env(tmp_path, web=True, settings={"igate/enabled": "true", "igate/server": server.address, "igate/password": "19628"})
     await e.start()
     page = await e.ws()
     await page.until(lambda: "packets" in page.topics and "stations" in page.topics)

@@ -25,6 +25,12 @@ def recent_packets(db: sqlite3.Connection, count: int) -> list[Row]:
     return [tuple(r) for r in db.execute(f"SELECT {_PACKET_LIST} FROM packet ORDER BY id DESC LIMIT ?", (max(0, count),))]
 
 
+def window_packets(db: sqlite3.Connection, count: int) -> list[Row]:
+    """The latest `count` packets and the latest `count` that were not from the internet, together, the newest first."""
+    return [tuple(r) for r in db.execute(f"SELECT {_PACKET_LIST} FROM packet WHERE id IN (SELECT id FROM packet ORDER BY id DESC LIMIT ?) "
+                                          "OR id IN (SELECT id FROM packet WHERE via != 'is' ORDER BY id DESC LIMIT ?) ORDER BY id DESC", (max(0, count), max(0, count)))]
+
+
 def packets_since(db: sqlite3.Connection, stamp: str) -> list[Row]:
     """The packets heard at `stamp` or later, the oldest first."""
     return [tuple(r) for r in db.execute(f"SELECT {_PACKET_LIST} FROM packet WHERE heard_at >= ? ORDER BY id", (stamp,))]
@@ -46,6 +52,12 @@ def position_packets(db: sqlite3.Connection, stamp: str, count: int) -> list[Row
                                           "ORDER BY id DESC LIMIT ?) ORDER BY id", (stamp, max(0, count)))]
 
 
+def radio_position_packets(db: sqlite3.Connection, stamp: str, count: int) -> list[Row]:
+    """The latest `count` packets heard at or after `stamp` that carry a position (a position, an object or an item) and were not from the internet, the oldest first."""
+    return [tuple(r) for r in db.execute(f"SELECT {_PACKET_LIST} FROM (SELECT id, {_PACKET_LIST} FROM packet WHERE direction = 'in' AND via != 'is' AND kind IN ('position', 'object', 'item') AND heard_at >= ? "
+                                          "ORDER BY id DESC LIMIT ?) ORDER BY id", (stamp, max(0, count)))]
+
+
 def message_packets(db: sqlite3.Connection, count: int) -> list[Row]:
     """The latest `count` packets that were heard and are messages (or acks), the oldest first."""
     return [tuple(r) for r in db.execute(f"SELECT {_PACKET_LIST} FROM (SELECT id, {_PACKET_LIST} FROM packet WHERE direction = 'in' AND kind = 'message' ORDER BY id DESC LIMIT ?) ORDER BY id", (max(0, count),))]
@@ -58,6 +70,13 @@ def count_packets(db: sqlite3.Connection) -> int:
 def prune_packets_before(db: sqlite3.Connection, stamp: str) -> int:
     """Deletes the packets heard before `stamp`; how many."""
     return db.execute("DELETE FROM packet WHERE heard_at < ?", (stamp,)).rowcount
+
+
+def delete_heard(db: sqlite3.Connection, keep_call: str) -> int:
+    """Deletes the packets that were heard and the cached stations but `keep_call`; how many packets."""
+    gone = db.execute("DELETE FROM packet WHERE direction = 'in'").rowcount
+    db.execute("DELETE FROM station WHERE call != ?", (keep_call,))
+    return gone
 
 
 def upsert_station(db: sqlite3.Connection, row: Sequence[object]) -> None:
