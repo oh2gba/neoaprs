@@ -8,7 +8,7 @@ import pytest
 
 from neoaprs import migrations as migrations_module
 from neoaprs.migrations import MIGRATIONS, SCHEMA_VERSION, source_hash
-from neoaprs.migrations2 import MIGRATION_LOG
+from neoaprs.migrationlog import MIGRATION_LOG
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
 from tests.support.migrated import opened, try_open

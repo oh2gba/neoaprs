@@ -9,12 +9,12 @@ that cannot be opened or is lost is opened again after the back-off. A receiver 
 import asyncio
 import json
 import logging
-from collections.abc import Callable
 from typing import Any
 
+from .callbackport import CallbackPort
 from .clock import Clock, utcnow
 from .gpsfix import Fix, GpsdFixes, NmeaFixes
-from .serialport import SerialError, SerialPort, is_socket
+from .serialport import SerialError, is_socket
 from .signal import Signal
 from .source import Backoff, Source, os_error_text
 
@@ -28,20 +28,8 @@ NO_ADDRESS = "no address set: give gps/host the gpsd's host:port"
 MAX_LINE_BYTES = 4096                                          # a piece of serial data this long without a line end is not NMEA: it is thrown away
 
 
-class _GpsPort(SerialPort):
-    """A serial port that hands its bytes and its death to the feed by plain callbacks, not signals."""
-
-    def __init__(self, path: str, baud: int, on_data: Callable[["_GpsPort", bytes], None], on_lost: Callable[["_GpsPort", str], None]) -> None:
-        super().__init__(path, baud)
-        self._on_data = on_data
-        self._on_lost = on_lost
-
-    def _deliver(self, chunk: bytes) -> None:
-        self._on_data(self, chunk)
-
-    def _lost(self, reason: str) -> None:
-        super()._lost(reason)
-        self._on_lost(self, reason)
+class _GpsPort(CallbackPort):
+    """The GPS receiver's line: a port that tells the feed of its bytes and its death."""
 
 
 def split_address(target: str) -> tuple[str, int]:

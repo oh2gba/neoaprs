@@ -265,7 +265,7 @@
   table, with its named checks) and 7 to 8 (the `weather` table: every named check shown to refuse, the index, nothing made by the migration), 8 to 9
   (`station_pref.attempts`, null for every station, the table rebuilt with every row and the new CHECKs) and 9 to 10 (the state `unconfirmed` in the CHECK of
   `message`, every message and the index carried over, a doubt rolling back) against a fresh file), the settings. `test_migration_rf_only.py` has migration 12
-  (`neoaprs/migrations2.py`): a database of version 11 keeps every preference with `rf_only` off, the table refuses a bad `rf_only`, a doubt changes nothing.
+  (`neoaprs/migrationsteps12to21.py`): a database of version 11 keeps every preference with `rf_only` off, the table refuses a bad `rf_only`, a doubt changes nothing.
 * `test_cli.py`: the `neoaprs` command: no command and `run` are the daemon with the flags of `python -m neoaprs` (the daemon's parser decides them), each
   command is dispatched with the rest of the line, an unknown one is refused, the one version (`pyproject.toml` reads `VERSION`, the two scripts), the
   windowless entry that has no streams, the parser of each command, `capture` recording a TCP TNC into a file, and `map`, `db` and `doctor` as processes.

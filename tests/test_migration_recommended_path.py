@@ -1,4 +1,4 @@
-"""Migration 15 (neoaprs/migrations2.py): the recommended path follows the station's type. A save stores every setting, so the old default `WIDE1-1,WIDE2-1` of `beacon/path` is in the database of nearly every install
+"""Migration 15 (neoaprs/migrationsteps12to21.py): the recommended path follows the station's type. A save stores every setting, so the old default `WIDE1-1,WIDE2-1` of `beacon/path` is in the database of nearly every install
 whether its operator chose it or not; it becomes empty (the recommended path). Any other stored path is as it was."""
 from pathlib import Path
 

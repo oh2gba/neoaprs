@@ -1,4 +1,4 @@
-"""Migration 17 (neoaprs/migrations2.py): the own timeouts of the stations (`station_pref.hide_after_min`) are cleared once, with a line in the log for each; a row that said nothing else is deleted, and the path and RF only
+"""Migration 17 (neoaprs/migrationsteps12to21.py): the own timeouts of the stations (`station_pref.hide_after_min`) are cleared once, with a line in the log for each; a row that said nothing else is deleted, and the path and RF only
 of a station are as they were."""
 import logging
 from pathlib import Path
@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from neoaprs.migrations import SCHEMA_VERSION
-from neoaprs.migrations2 import MIGRATION_LOG
+from neoaprs.migrationlog import MIGRATION_LOG
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
 from tests.support.migrated import opened, step_back

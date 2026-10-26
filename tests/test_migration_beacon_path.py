@@ -1,4 +1,4 @@
-"""Migration 14 (neoaprs/migrations2.py): an empty `beacon/path` meant no digipeaters, and now means the recommended path; the stored empty one becomes DIRECT so that nobody starts to digipeat on an upgrade."""
+"""Migration 14 (neoaprs/migrationsteps12to21.py): an empty `beacon/path` meant no digipeaters, and now means the recommended path; the stored empty one becomes DIRECT so that nobody starts to digipeat on an upgrade."""
 from pathlib import Path
 
 from neoaprs.migrations import SCHEMA_VERSION

@@ -1,4 +1,4 @@
-"""Migration 16 (neoaprs/migrations2.py): the settings that are no longer on the page (`map/maxzoom`, `map/source`, `update/url`, `serial/pattern`, `serial/skip`) go back to their defaults once, the rows of the
+"""Migration 16 (neoaprs/migrationsteps12to21.py): the settings that are no longer on the page (`map/maxzoom`, `map/source`, `update/url`, `serial/pattern`, `serial/skip`) go back to their defaults once, the rows of the
 settings that no longer exist are deleted, and everything else (the page's settings, `web/port`, `web/allowed_hosts`, the state of the daemon) is as it was."""
 import logging
 from pathlib import Path
@@ -7,7 +7,7 @@ import pytest
 
 from neoaprs.config import DEFAULTS, KEYS, Config
 from neoaprs.migrations import SCHEMA_VERSION
-from neoaprs.migrations2 import MIGRATION_LOG
+from neoaprs.migrationlog import MIGRATION_LOG
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
 from tests.support.migrated import opened, step_back

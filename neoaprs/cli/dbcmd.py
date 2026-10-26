@@ -20,7 +20,7 @@ from neoaprs.db import Db
 from neoaprs.dberror import DbClosed, SqlError, StoreError
 from neoaprs.dbopen import open_connection
 from neoaprs.migrations import SCHEMA_VERSION, schema_version
-from neoaprs.migrations2 import MIGRATION_LOG
+from neoaprs.migrationlog import MIGRATION_LOG
 from neoaprs.packetcodec import tnc2
 from neoaprs.packetlog import PacketLog
 from neoaprs.paths import default_data_dir

@@ -27,7 +27,7 @@ from .config import Config
 from .controller import Controller
 from .dberror import SqlError, StoreError
 from .instancelock import AlreadyRunning, InstanceLock
-from .migrations2 import MIGRATION_LOG
+from .migrationlog import MIGRATION_LOG
 from .paths import default_data_dir
 from .cli import uncaught
 from .cli.installkind import detect_here

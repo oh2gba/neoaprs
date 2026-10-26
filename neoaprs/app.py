@@ -74,35 +74,10 @@ class Services:
         self.tnc = tnc if tnc is not None else Tnc(clock=clock)         # the radio; its port and speed are set from the config when it is started
         self.tnc.where = lambda: self.config.station_position          # the Dummy radio's traffic is made round it
         self.tnc.interlock = Interlock(lambda: self.config)            # the transmit interlock: nothing goes out under no call, or one that is not a call (config.can_transmit)
-        self.stationbook = StationBook(clock)                           # who was heard, where
-        self.gps_feed = GpsFeed(clock)                                  # the GPS receiver: a gpsd to ask or a serial port to read; configured and started by the gps service
-        self.gps = Gps(self.gps_feed, lambda: self.config, clock)       # the latest GPS fix and how fresh it is, for the moving station's beacon and the page; started by the controller before the beacon
-        self.beacon = Beacon(self.tnc, lambda: self.config, clock, memory=self.store, gps=self.gps)       # our position packet, on an interval, on SmartBeaconing for a moving station, and on request; started by the controller after the Tnc
-        self.rigstatus = RigStatus(self.tnc, lambda: self.config, self.beacon, clock, memory=self.store)  # our status report, from the radio or the static text, at most every status/interval_min; started by the controller after the beacon
-        self.alerts = Alerts(lambda: self.config, clock)                # the command run for a message to us; nothing to start
-        self.packetlog = PacketLog(clock=clock)                         # every packet and the station cache, in the database
-        self.messagelog = MessageLog(clock=clock)                       # every message we sent and every one sent to us, in the database
-        self.prefbook = PrefBook(self.messagelog, lambda: self.config, self._deliveries, clock)  # the path, the timeout and RF only of each station, kept with the messages; read by the controller before messaging starts
-        self.weatherlog = WeatherLog(clock=clock)                       # every observation of the weather stations, in the database
-        self.bulletinlog = BulletinLog(clock=clock)                     # the message board in the database
-        self.bulletins = Bulletins(self.bulletinlog, clock)             # bulletins, announcements and group messages, one for each sender and slot; they stay until deleted; started by the controller before the Tnc
-        self.ownlog = OwnLog(clock=clock)                               # the objects, items and bulletins of our own, in the database
-        self.sender = Sender(self.tnc, lambda: self.config, clock)      # our frames that go out by a schedule: one at a time, by the interlock and the state of the radio
-        self.ownobjects = OwnObjects(self.sender, lambda: self.config, self.ownlog, self._is_station, clock)       # the objects and items of ours, on the decay schedule of the specification; started by the controller after the beacon
-        self.ownbulletins = OwnBulletins(self.sender, lambda: self.config, self.ownlog, clock)       # the bulletins and announcements of ours, on their schedule; started by the controller after the beacon
-        self.qru = Qru(self.tnc, lambda: self.config, self.ownobjects, self.stationbook, self.prefbook.path_for, clock)       # the QRU server: our objects of a group, sent to the station that asks QRU for the group; messaging hands it the messages to QRU
-        self.qruask = QruAsk(self.tnc, lambda: self.config, self.prefbook.path_for, clock)       # asking QRU for local info, and the servers that answered; the Tnc's packets go to it (neoaprs/wiring.py)
-        self.messaging = Messaging(self.tnc, lambda: self.config, self.messagelog, self.prefbook.path_for, clock, board=self.bulletins.heard, alert=self.alerts.alert, qru=self.qru.heard)       # messages with acks and retries, by each station's path; started by the controller after the beacon
-        self.queries = Queries(self.tnc, lambda: self.config, self.beacon, self.rigstatus.status_frame, self.stationbook, self.prefbook.path_for, clock, objects=self.ownobjects,
-                               messages=self.messaging, heard=self.packetlog)       # the answers to ?APRSP, ?APRSS, ?APRSD, ?APRST, ?PING?, ?APRSO, ?APRSM, ?APRSH and ?APRS?, by the asker's path
-        self.mapfetch = MapFetch(data_dir, lambda: self.config, clock)  # the base map: the detailed map round our position and the world map under it, made on request from the page; nothing to start
-        self.mapauto = MapAuto(self.mapfetch, lambda: self.config, self.store, auto_map)    # the detailed map made once without a click, when a place is first set (only where the process asks for it: the daemon); started by the controller
-        self.aloha = Aloha(self.stationbook, clock)                      # the ALOHA circle round our station, worked out again every minute and when our position moves; started by the controller
-        self.radiofinder = RadioFinder(self._radio_ports, self.hold_tnc, self.release_tnc)       # Find my radio: on the page's request only; nothing to start
-        self.install = install                                           # how this copy was installed, for the page (the steps of an update)
-        self.updatecheck = UpdateCheck(lambda: self.config, VERSION, platform_name(sys.platform, platform.machine(), install.kind == "appimage"), fetch_update, memory=self.store)   # once a day: which version is the latest (update/check); started by the controller
-        self.selfupdate = SelfUpdate(install, installer_for(install, data_dir, self.restart_into), self._announced, release_source(), end=self._end_for_restart)      # Update now: on the page's request only; nothing to start
-        self.reexec: list[str] | None = None                            # the command line that is to run in the place of this process when it has ended (Update now of an AppImage)
+        self._make_radio_parts(clock)
+        self._make_logs(clock)
+        self._make_messaging(clock)
+        self._make_map_and_update(data_dir, install, auto_map, clock)
         self.digipeater = Digipeater(self.tnc, lambda: self.config, clock, self.tnc.stats)     # the fill-in digipeater (digi/enabled): a packet that asks for WIDE1-1 or for our call is sent again; nothing to start
         self.internet_packet: Signal[[Packet]] = Signal("internet.packet")   # a packet received from APRS-IS (Packet.via `is`): the packet log, the station book and the weather log take it, the page's topics follow it, nothing else (neoaprs/wiring.py)
         self.aprsis = AprsIs(clock)                                      # the connection to an APRS-IS server: it writes the lines it is given and reads the packets of the internet, which wiring.py hands to `hear_internet`; configured and started by the iGate
@@ -114,6 +89,47 @@ class Services:
         self.tasks = TaskSet(log)                                             # what the parts start on the loop; the controller's stop ends them
         self.running = False
         self.debug = False
+
+    def _make_radio_parts(self, clock: Clock) -> None:
+        """The beacon and what it needs: the book of stations, the GPS and the status report."""
+        self.stationbook = StationBook(clock)                           # who was heard, where
+        self.gps_feed = GpsFeed(clock)                                  # the GPS receiver: a gpsd to ask or a serial port to read; configured and started by the gps service
+        self.gps = Gps(self.gps_feed, lambda: self.config, clock)       # the latest GPS fix and how fresh it is, for the moving station's beacon and the page; started by the controller before the beacon
+        self.beacon = Beacon(self.tnc, lambda: self.config, clock, memory=self.store, gps=self.gps)       # our position packet, on an interval, on SmartBeaconing for a moving station, and on request; started by the controller after the Tnc
+        self.rigstatus = RigStatus(self.tnc, lambda: self.config, self.beacon, clock, memory=self.store)  # our status report, from the radio or the static text, at most every status/interval_min; started by the controller after the beacon
+        self.alerts = Alerts(lambda: self.config, clock)                # the command run for a message to us; nothing to start
+
+    def _make_logs(self, clock: Clock) -> None:
+        """The parts that keep rows in the database, and the board and the preferences kept with them."""
+        self.packetlog = PacketLog(clock=clock)                         # every packet and the station cache, in the database
+        self.messagelog = MessageLog(clock=clock)                       # every message we sent and every one sent to us, in the database
+        self.prefbook = PrefBook(self.messagelog, lambda: self.config, self._deliveries, clock)  # the path, the timeout and RF only of each station, kept with the messages; read by the controller before messaging starts
+        self.weatherlog = WeatherLog(clock=clock)                       # every observation of the weather stations, in the database
+        self.bulletinlog = BulletinLog(clock=clock)                     # the message board in the database
+        self.bulletins = Bulletins(self.bulletinlog, clock)             # bulletins, announcements and group messages, one for each sender and slot; they stay until deleted; started by the controller before the Tnc
+        self.ownlog = OwnLog(clock=clock)                               # the objects, items and bulletins of our own, in the database
+
+    def _make_messaging(self, clock: Clock) -> None:
+        """What sends by a schedule, the QRU parts, messaging and the answers to queries."""
+        self.sender = Sender(self.tnc, lambda: self.config, clock)      # our frames that go out by a schedule: one at a time, by the interlock and the state of the radio
+        self.ownobjects = OwnObjects(self.sender, lambda: self.config, self.ownlog, self._is_station, clock)       # the objects and items of ours, on the decay schedule of the specification; started by the controller after the beacon
+        self.ownbulletins = OwnBulletins(self.sender, lambda: self.config, self.ownlog, clock)       # the bulletins and announcements of ours, on their schedule; started by the controller after the beacon
+        self.qru = Qru(self.tnc, lambda: self.config, self.ownobjects, self.stationbook, self.prefbook.path_for, clock)       # the QRU server: our objects of a group, sent to the station that asks QRU for the group; messaging hands it the messages to QRU
+        self.qruask = QruAsk(self.tnc, lambda: self.config, self.prefbook.path_for, clock)       # asking QRU for local info, and the servers that answered; the Tnc's packets go to it (neoaprs/wiring.py)
+        self.messaging = Messaging(self.tnc, lambda: self.config, self.messagelog, self.prefbook.path_for, clock, board=self.bulletins.heard, alert=self.alerts.alert, qru=self.qru.heard)       # messages with acks and retries, by each station's path; started by the controller after the beacon
+        self.queries = Queries(self.tnc, lambda: self.config, self.beacon, self.rigstatus.status_frame, self.stationbook, self.prefbook.path_for, clock, objects=self.ownobjects,
+                               messages=self.messaging, heard=self.packetlog)       # the answers to ?APRSP, ?APRSS, ?APRSD, ?APRST, ?PING?, ?APRSO, ?APRSM, ?APRSH and ?APRS?, by the asker's path
+
+    def _make_map_and_update(self, data_dir: Path, install: InstallInfo, auto_map: bool, clock: Clock) -> None:
+        """The base map, the ALOHA circle, Find my radio and the update parts."""
+        self.mapfetch = MapFetch(data_dir, lambda: self.config, clock)  # the base map: the detailed map round our position and the world map under it, made on request from the page; nothing to start
+        self.mapauto = MapAuto(self.mapfetch, lambda: self.config, self.store, auto_map)    # the detailed map made once without a click, when a place is first set (only where the process asks for it: the daemon); started by the controller
+        self.aloha = Aloha(self.stationbook, clock)                      # the ALOHA circle round our station, worked out again every minute and when our position moves; started by the controller
+        self.radiofinder = RadioFinder(self._radio_ports, self.hold_tnc, self.release_tnc)       # Find my radio: on the page's request only; nothing to start
+        self.install = install                                           # how this copy was installed, for the page (the steps of an update)
+        self.updatecheck = UpdateCheck(lambda: self.config, VERSION, platform_name(sys.platform, platform.machine(), install.kind == "appimage"), fetch_update, memory=self.store)   # once a day: which version is the latest (update/check); started by the controller
+        self.selfupdate = SelfUpdate(install, installer_for(install, data_dir, self.restart_into), self._announced, release_source(), end=self._end_for_restart)      # Update now: on the page's request only; nothing to start
+        self.reexec: list[str] | None = None                            # the command line that is to run in the place of this process when it has ended (Update now of an AppImage)
 
     def hear_internet(self, packet: Packet) -> None:
         """The one way a packet received from APRS-IS enters the program (`aprsisline.parse_is_line` makes it): it is handed to `internet_packet`, a signal that no part which answers, acknowledges, repeats, sends or
