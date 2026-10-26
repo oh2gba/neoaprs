@@ -77,6 +77,7 @@ What each layer is for:
   * `source` is the base every feed shares (state, problem, counts, the latest lines, the back-off). `tasks` is the set of tasks one owner starts.
   * The TNC has two parts of its own: `tncsearch` (the search for the radio among the ports) and `tncwatchdog` (the keep-alive: when an open line goes quiet,
     check that the radio is there; probe it while it is silent; reopen the port now and then).
+    A third, `tncfollow`, is for where the radio is not searched for (Windows, macOS): the USB adapter of the named port is remembered, and a COM port that comes back with another number is opened.
   * `worldmap` finds the world map that ships with the program (`neoaprs/maps/basemap-world.pmtiles`, package data: in a clone, a wheel, an AppImage's or a .deb's site-packages, the Windows app's `_internal`) and picks the one to serve: the data folder's own if it is a good PMTiles file, else the shipped one.
   * `pmtilestool` is the pmtiles program that cuts the base map out of a big archive. It is found on the PATH or in the data folder's `bin/`, fetched from the
     pinned release of go-pmtiles (SHA-256 checked) when it is not there, and run in a thread so that it works on every event loop.
