@@ -1265,7 +1265,7 @@ export const de: Catalogue = {
   "help.picture.status": "Dein kurzer Statustext, QRV 145.500, erscheint auf der Karte der anderen Stationen unter deinem Rufzeichen.",
   "help.picture.range": "Ein Digipeater mit seinem Reichweitenkreis: Die Stationen im Kreis werden über ihn gehört, die außerhalb nicht.",
   "help.picture.request": "Eine Station fragt QRU, und deine Station antwortet mit dem Objekt, das sonst nicht gesendet wird.",
-  "help.picture.ssid": "Ein Rufzeichen, OH2GBA, für drei Stationen: das einfache ein Haus, -9 ein Auto, -10 ein iGate.",
+  "help.picture.ssid": "Ein Rufzeichen, N0CALL, für drei Stationen: das einfache ein Haus, -9 ein Auto, -10 ein iGate.",
   "help.picture.symbol": "Eine Auswahl von Symbolen, das Auto ist gewählt, und das Auto auf der Karte einer anderen Station unter deinem Rufzeichen.",
   "help.picture.network":
     "Der Computer, auf dem NeoAPRS läuft, ist über das Netzwerk mit einem Telefon, einem Tablet und einem Laptop verbunden, die seine Seite öffnen.",
