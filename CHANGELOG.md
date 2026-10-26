@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.9.1
+
+Logs for support in one file, an About, a shorter project page, and the Windows uninstaller that waits for the app to end.
+
 On Windows.
 
 - `neoaprs-app.exe --quit`, which the uninstaller and an update run to end the app, now waits for the app's process to be gone, not only for the lock it holds: the window's engine unloads after the lock is let go, and the uninstaller of 0.9.0 could find a file of the app still in use and leave it behind.
