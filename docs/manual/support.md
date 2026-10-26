@@ -47,7 +47,7 @@ The zip holds plain text files. `README.txt` inside it says the same as here. Op
 | `doctor.txt` | the checks of `neoaprs doctor` ([commands.md](commands.md#neoaprs-doctor)) |
 | `database.txt` | the version of the database, the number of rows in each table, the sizes of the files and whether the file is sound |
 | `packets.txt` | the last packets heard and sent, and the last ones that could not be decoded |
-| `page.json` | what the page told about itself: its version, the browser, the language, the size of the window, whether it is installed as an app, and whether the connection to the daemon is up |
+| `page.json` | what the page told about itself: its build, the browser, the language, the size of the window, whether it is installed as an app, and whether the connection to the daemon is up |
 | `page-errors.json` | the errors the page met and told the daemon about |
 
 ## What is not in the file

@@ -2,7 +2,7 @@
 // and the support file carries as page-errors.json), and to the daemon as `page_error`, which logs it with the rest. Two limits keep a fault in a loop from flooding the daemon: the same message within a minute is counted, not sent again,
 // and no more than 10 are sent in a minute. An error raised while the capture is reporting is dropped, and nothing here ever throws.
 import type { App } from "vue";
-import { PAGE_VERSION, pageBuild } from "@/lib/build";
+import { pageBuild } from "@/lib/build";
 import type { PageErrorCommand } from "@/protocol/protocol";
 
 export type ErrorSource = PageErrorCommand["source"];
@@ -51,7 +51,7 @@ export class PageErrors {
 
   constructor(
     private readonly now: () => number = Date.now,
-    private readonly build: () => string = () => pageBuild() || PAGE_VERSION,
+    private readonly build: () => string = () => pageBuild(),
   ) {}
 
   /** The ring, oldest first. */

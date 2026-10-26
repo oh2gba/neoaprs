@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PAGE_VERSION } from "@/lib/build";
 import type { PageErrorEntry } from "@/lib/pageerrors";
 import {
   BODY_MAX_BYTES,
@@ -42,7 +41,6 @@ const entry = (n: number, stack = "s"): PageErrorEntry => ({
 describe("pageInfo", () => {
   it("has the facts of the page and the browser", () => {
     expect(pageInfo({ ...given, errors: [entry(1)] }, host(), NOW)).toEqual({
-      version: PAGE_VERSION,
       build: "",
       daemonVersion: "0.9.0",
       userAgent: "Mozilla/5.0 (X11; Linux) Test",
@@ -170,12 +168,12 @@ describe("saveFile", () => {
 });
 
 describe("mailtoLink", () => {
-  it("is to the project, with the version in the subject and a form in the body", () => {
-    const link = mailtoLink(["What I did:", "What I expected:"], "Remember to attach f.zip.");
+  it("is to the project, with the daemon's version in the subject and a form in the body", () => {
+    const link = mailtoLink(["What I did:", "What I expected:"], "Remember to attach f.zip.", "0.9.0");
     const url = new URL(link);
     expect(url.protocol).toBe("mailto:");
     expect(url.pathname).toBe("neoaprs@oh2gba.eu");
-    expect(url.searchParams.get("subject")).toBe(`NeoAPRS ${PAGE_VERSION}: `);
+    expect(url.searchParams.get("subject")).toBe("NeoAPRS 0.9.0: ");
     expect(url.searchParams.get("body")).toBe("What I did:\r\n\r\nWhat I expected:\r\n\r\nRemember to attach f.zip.");
   });
 });

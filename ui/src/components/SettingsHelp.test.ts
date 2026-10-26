@@ -4,7 +4,6 @@ import SettingsForm from "@/components/SettingsForm.vue";
 import SettingsHelp from "@/components/SettingsHelp.vue";
 import { en } from "@/i18n/en";
 import { LOCALES } from "@/i18n/locales";
-import { PAGE_VERSION } from "@/lib/build";
 import { pageErrors } from "@/lib/pageerrors";
 import { fakeDaemon, withDaemon } from "@/test/context";
 
@@ -100,11 +99,10 @@ describe("the Help group", () => {
         "timeMs",
         "timeZone",
         "userAgent",
-        "version",
         "viewport",
       ].sort(),
     );
-    expect(body.page).toMatchObject({ version: PAGE_VERSION, daemonVersion: "0.9.0", connection: "open" });
+    expect(body.page).toMatchObject({ daemonVersion: "0.9.0", connection: "open" });
     expect(JSON.stringify(body.page["errors"])).toContain("seen before the press");
     expect(typeof body.page["timeMs"]).toBe("number");
     expect(String(body.page["time"])).toMatch(/Z$/);
@@ -122,7 +120,7 @@ describe("the Help group", () => {
     const url = new URL(write.attributes("href") ?? "");
     expect(url.protocol).toBe("mailto:");
     expect(url.pathname).toBe("neoaprs@oh2gba.eu");
-    expect(url.searchParams.get("subject")).toBe(`NeoAPRS ${PAGE_VERSION}: `);
+    expect(url.searchParams.get("subject")).toBe("NeoAPRS 0.9.0: ");
     expect(url.searchParams.get("body")).toBe(
       [
         "What I did:",

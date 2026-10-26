@@ -59,6 +59,7 @@ export function useSupportLogs(given: SupportGiven, fetcher: typeof fetch = (...
       : mailtoLink(
           [t("settings.help.mail.did"), t("settings.help.mail.expected"), t("settings.help.mail.happened"), t("settings.help.mail.when")],
           t("settings.help.mail.attach", { file: saved.value }),
+          given.daemonVersion.value,
         ),
   );
 

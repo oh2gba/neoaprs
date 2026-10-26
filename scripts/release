@@ -5,7 +5,7 @@
 
 On master, with a clean tree that is up to date with origin and has notes under `## Unreleased` in CHANGELOG.md, it: writes VERSION and the changelog section, builds the page to compare it with the committed one only when ui/
 changed since the last tag, runs scripts/check, commits, pushes, waits for the CI run of that commit, tags v<VERSION> on that commit and pushes the tag, waits for the release run, checks that the release is published (not a
-draft, its 8 files, every download link answering), and with --deploy uploads the version page (server/deploy.sh, which needs the operator's Bitwarden session; without it the command is printed).
+draft, its 10 files, every download link answering), and with --deploy uploads the version page (server/deploy.sh, which needs the operator's Bitwarden session; without it the command is printed).
 
   --dry-run   print the steps, what is done already and what would refuse, and change nothing (nothing is asked of GitHub; origin is asked with `git ls-remote`)
   --rerun     a run of CI or of the release that failed gets its failed jobs run again, once (a flaky test); the tag is never moved or made again
@@ -44,9 +44,9 @@ class Refusal(Exception):
 
 
 def assets_of(version: str) -> list[str]:
-    """The 8 files of a release (.github/workflows/release.yml, "SHA256SUMS and the notes")."""
+    """The 10 files of a release: the versioned ones and the installer and the AppImage again under fixed names (.github/workflows/release.yml, "SHA256SUMS and the notes")."""
     return sorted([f"neoaprs-{version}-py3-none-any.whl", f"neoaprs-{version}.tar.gz", f"NeoAPRS-Setup-{version}.exe", f"NeoAPRS-{version}-x86_64.AppImage",
-                   f"neoaprs_{version}_amd64.deb", f"neoaprs_{version}_arm64.deb", "install.sh", "SHA256SUMS"])
+                   f"neoaprs_{version}_amd64.deb", f"neoaprs_{version}_arm64.deb", "install.sh", "NeoAPRS-Setup.exe", "NeoAPRS-x86_64.AppImage", "SHA256SUMS"])
 
 
 def parse(version: str) -> tuple[int, int, int, tuple[int, str]]:
@@ -414,7 +414,7 @@ def steps(r: Release) -> list[tuple[str, str, Callable[[], str]]]:
         ("ci", "wait for the CI run of the release commit", r.step_ci),
         ("tag", f"tag {r.tag} on the release commit and push the tag (a tag is never moved)", r.step_tag),
         ("release", f"wait for the release run of {r.tag}", r.step_release_run),
-        ("verify", "the release is published, not a draft, has its 8 files, every download link answers", r.step_verify),
+        ("verify", "the release is published, not a draft, has its 10 files, every download link answers", r.step_verify),
         ("deploy", "deploy the version page (server/deploy.sh), with --deploy", r.step_deploy),
     ]
 

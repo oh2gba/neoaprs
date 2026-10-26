@@ -1,7 +1,7 @@
 // What the Help group of the Settings tab needs to ask the daemon for the support file: the facts of this page that the daemon cannot know (`pageInfo`), the request (`requestBundle`: `POST support/bundle` with the same cookie as the page), the name of
 // the file it answers with, the saving of it as a download and the e-mail that goes with it. The daemon makes the zip (the log, the settings without the access key, the packets); the page adds page.json and page-errors.json to it by sending `page`.
 import { endpoint } from "@/lib/access";
-import { PAGE_VERSION, pageBuild } from "@/lib/build";
+import { pageBuild } from "@/lib/build";
 import { sizeOf, type SizeClass } from "@/lib/layout";
 import type { Connection } from "@/lib/hub";
 import type { PageErrorEntry } from "@/lib/pageerrors";
@@ -12,7 +12,6 @@ export const SUPPORT_MANUAL = "https://github.com/oh2gba/neoaprs/blob/master/doc
 export const BODY_MAX_BYTES = 240_000;
 
 export interface PageInfo {
-  version: string;
   build: string;
   daemonVersion: string;
   userAgent: string;
@@ -59,7 +58,6 @@ function timeZone(): string {
 export function pageInfo(given: InfoGiven, host: InfoHost = window, now: number = Date.now()): PageInfo {
   const matches = (query: string): boolean => host.matchMedia?.(query).matches ?? false;
   return {
-    version: PAGE_VERSION,
     build: pageBuild(host.document),
     daemonVersion: given.daemonVersion,
     userAgent: host.navigator.userAgent,
@@ -154,11 +152,11 @@ export function saveFile(blob: Blob, filename: string, doc: Document = document,
   setTimeout(() => urls.revokeObjectURL(url), 1000);
 }
 
-/** The e-mail to the project: the subject starts with the version, for the person to finish, and the body is a form to fill in. `labels` are the words of the page's language, in the order of the form. */
-export function mailtoLink(labels: readonly string[], attach: string): string {
+/** The e-mail to the project: the subject starts with the daemon's version (the page has none of its own), for the person to finish, and the body is a form to fill in. `labels` are the words of the page's language, in the order of the form. */
+export function mailtoLink(labels: readonly string[], attach: string, version: string): string {
   const body = labels
     .flatMap((label) => [label, ""])
     .concat(attach)
     .join("\r\n");
-  return `mailto:${SUPPORT_ADDRESS}?subject=${encodeURIComponent(`NeoAPRS ${PAGE_VERSION}: `)}&body=${encodeURIComponent(body)}`;
+  return `mailto:${SUPPORT_ADDRESS}?subject=${encodeURIComponent(`NeoAPRS ${version}: `)}&body=${encodeURIComponent(body)}`;
 }

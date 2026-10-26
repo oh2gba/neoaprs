@@ -54,7 +54,7 @@ Each step says in one line what it does, and every one is skipped when it is don
 8. **release**: waits for the release run the same way (`--rerun` for its failed jobs). `.github/workflows/release.yml` builds, smoke-tests and publishes; its first job, `verify`, stops in seconds a tag whose number is not `VERSION`,
    a changelog with notes still under `## Unreleased`, a committed page that is not what `ui/` builds, a commit that is not on `master`, and a commit whose CI run is red or missing. The release is made as a draft and published
    when every file is on it.
-9. **verify**: the release is published, not a draft, has its 8 files (the wheel, the sdist, the Windows installer, the AppImage, the two packages, `install.sh` and `SHA256SUMS`) and every download link answers.
+9. **verify**: the release is published, not a draft, has its 10 files (the wheel, the sdist, the Windows installer, the AppImage, the two packages, `install.sh`, the installer and the AppImage again under the names `NeoAPRS-Setup.exe` and `NeoAPRS-x86_64.AppImage`, and `SHA256SUMS`) and every download link answers.
 10. **deploy**: with `--deploy`, `server/deploy.sh` uploads the version page (it needs the operator's Bitwarden session; without the flag the command is printed). The version page names the new release by itself within
     ten minutes (`curl 'https://oh2gba.eu/neoaprs/version.php?v=0.0.1&os=linux'` says the new version), and a copy of the new version does not offer itself.
 

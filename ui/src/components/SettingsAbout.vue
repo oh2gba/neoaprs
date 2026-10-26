@@ -3,7 +3,6 @@
 import { t } from "@/i18n";
 import RichMessage from "@/components/RichMessage.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
-import { PAGE_VERSION } from "@/lib/build";
 import { ABOUT_AUTHOR, ABOUT_LICENSE_URL, ABOUT_SOURCE_URL, ABOUT_THANKS } from "@/lib/about";
 
 const { version } = useDaemonContext();
@@ -14,7 +13,7 @@ const [first, second, third] = ABOUT_THANKS;
   <fieldset class="about">
     <legend>{{ t("settings.about.group") }}</legend>
     <p>
-      <RichMessage id="settings.about.intro" :params="{ version: version || PAGE_VERSION }"
+      <RichMessage id="settings.about.intro" :params="{ version: version }"
         ><template #call
           ><span class="mono">{{ ABOUT_AUTHOR }}</span></template
         ></RichMessage
