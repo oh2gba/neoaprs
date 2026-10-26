@@ -167,7 +167,7 @@ def test_the_tray_has_an_item_that_makes_the_bundle_in_a_thread_and_says_where_i
     assert actions.support_thread is not None
     actions.support_thread.join(10)
     assert seen == [(Path("somewhere"), "neoaprs-app-support")], "in a thread of its own, for the folder of the session"
-    assert frame.told == ["Support file saved: /home/ham/Desktop/neoaprs-support-OH2GBA-1.zip"]
+    assert frame.told == [f"Support file saved: {Path('/home/ham/Desktop/neoaprs-support-OH2GBA-1.zip')}"]                # (the path as the system writes it: backslashes on Windows)
 
 
 @pytest.mark.expects_errors
@@ -209,7 +209,10 @@ def test_the_start_has_a_second_line_that_says_where_it_runs(tmp_path: Path) -> 
     out, err = ended(proc, data)
     first = next(i for i, line in enumerate(log) if " starting, data in " in line)
     second = log[first + 1]
-    assert re.fullmatch(rf"\S+ \S+Z  INFO  running on .+, \S+, Python \d+\.\d+\.\d+, installed as (source|pip|uv-tool|deb|appimage|windows-installer), pid {pid}", second), second
+    found = re.fullmatch(r"\S+ \S+Z  INFO  running on .+, \S+, Python \d+\.\d+\.\d+, installed as (source|pip|uv-tool|deb|appimage|windows-installer), pid (\d+)", second)
+    assert found, second
+    if sys.platform != "win32":                                     # (on Windows the venv's python.exe is a launcher that starts the real interpreter: another process id)
+        assert int(found.group(2)) == pid
     assert "running on " + entry.system_description() in second
     assert "running on" not in err, "the rest of the INFO lines stay in the log file"
 

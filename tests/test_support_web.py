@@ -123,7 +123,11 @@ async def test_a_body_that_is_not_the_page_is_refused(tmp_path: Path) -> None:
 async def test_a_body_over_256_kilobytes_is_refused_and_one_a_little_under_it_is_taken(tmp_path: Path) -> None:
     e = await served(tmp_path)
     big = json.dumps({"page": {"errors": "x" * (supporthandler.MAX_BODY + 100)}})
-    assert (await bundle(e, big))[0] in (400, 413, 599), "the server cuts the connection"
+    try:
+        cut = (await bundle(e, big))[0] in (400, 413, 599)
+    except (ConnectionResetError, ConnectionAbortedError):                    # (Windows reports the cut connection as a reset)
+        cut = True
+    assert cut, "the server cuts the connection"
     fits = json.dumps({"page": {"errors": "x" * (200 * 1024)}})
     code, _, members = await bundle(e, fits)
     assert code == 200 and len(json.loads(members["page.json"])["errors"]) == 200 * 1024
