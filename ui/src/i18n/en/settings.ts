@@ -337,6 +337,9 @@ export const settings = {
   "settings.map.download_again": "Download again",
   "settings.map.download": "Download map",
   "settings.map.cancel": "Cancel",
+  "settings.map.detail_label": "Detailed map",
+  "settings.map.tip_label": "About the map download",
+  "settings.map.tip1": "Downloads the streets and names for the radius above, once. The map stays on this computer.",
 
   "settings.position.name": "Position source",
   "settings.position.label": "Position",
@@ -371,6 +374,7 @@ export const settings = {
 
   "settings.help.group": "Help",
   "settings.help.text": "Problem? Send the logs to {address}.",
+  "settings.help.label": "Logs",
   "settings.help.download": "Download logs",
   "settings.help.collecting": "Collecting…",
   "settings.help.tip_label": "About the logs",

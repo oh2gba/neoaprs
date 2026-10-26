@@ -82,9 +82,9 @@ The tab has no Save button ([start.md](start.md#how-settings-apply)). From the t
 - **Digipeater**: the tickbox of the fill-in digipeater ([beacon.md](beacon.md#the-fill-in-digipeater));
 - **Web page**: **Allow access from the network**, with the access key and the addresses once it is on, and the secure connection ([network.md](network.md));
 - **Notifications**, in two boxes: **On the NeoAPRS computer** and **In this browser** ([notifications.md](notifications.md));
-- **Map**: the **Radius** and the **Download map** button on the same row ([The base map](#the-base-map));
+- **Map**: the **Radius**, and on the row under it **Detailed map** with the **Download map** button ([The base map](#the-base-map));
 - **Update check**: **Check now** ([install.md](install.md#the-update-check));
-- **Help**: one line with the address to send the logs to, and **Download logs** with an (i) beside it, which makes a file to e-mail to the project when something does not work ([support.md](support.md));
+- **Help**: one line with the address to send the logs to, and the row **Logs** with **Download logs** and an (i) beside it, which makes a file to e-mail to the project when something does not work ([support.md](support.md));
 - **About**: what NeoAPRS is, the version, who made it, the licence and the source code as links, and a thanks. It has nothing to press.
 
 What the station says on the air, the call and the position are on the Beacon tab. [settings.md](settings.md) lists every setting and where it is.
@@ -217,7 +217,7 @@ The base map is two maps that the daemon serves to the page:
 
 It needs the internet; without it the world map stays, the guide says "The detailed map will download when you are online.", and NeoAPRS tries again each time it starts. It is done once for an installation: **Cancel** ends it for good. The Radius below is not changed; the button makes the bigger map it says.
 
-You make the detailed map again in the Settings tab, in the Map group. It is one row: the **Radius** with its field and unit, and at the right end of the same row one plain button, **Download map** ("Download again" when there is a detailed map). Under the row a quiet line such as "Map downloaded 23 Oct" says when the map was made, and the progress and a failure are shown there too. The same is `neoaprs map` on the command line.
+You make the detailed map again in the Settings tab, in the Map group. It has two rows: the **Radius** with its field and unit, and **Detailed map** with one plain button, **Download map** ("Download again" only when there is a detailed map; the world map that comes with NeoAPRS does not count). Under the button a quiet line such as "Map downloaded 23 Oct" says when the map was made, and the progress and a failure are shown there too. The same is `neoaprs map` on the command line.
 
 1. The first press works out the size ("Checking size…"), and the button then asks "Download 493 MB?" with the real size.
 2. The second press makes the detailed map. A bar shows the percent of the step and the size so far ("Map of the area 49% · 340 MB").

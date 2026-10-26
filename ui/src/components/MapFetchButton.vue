@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// The button at the right end of the Radius row of the Map group (the Settings tab, and the first-run guide's map step), a plain one as the Test button of the Command row is: **Download map**. The first press runs the estimate (a dry run) and says "Checking size…"; when the size is known
+// The button of the Detailed map row of the Map group (the Settings tab, and the first-run guide's map step; components/ActionRow.vue), a plain one: **Download map**. The first press runs the estimate (a dry run) and says "Checking size…"; when the size is known
 // the button asks "Download 493 MB?", and the second press downloads (the world map if it is not there, then the detailed map). Cancel beside it while a job runs; the progress, what a job failed with and the line "Map downloaded 23 Oct" are under the row (components/MapFetchNotes.vue).
-// With a detailed map the button says "Download again". The daemon does the work for the radius and the detail it has in force; a setting that is still being saved (`stale`) disables the button for the moment, unless the form saves it before it sends the command (`early`,
+// With a detailed map (basemap.pmtiles; the world map that ships with the program does not count) the button says "Download again". The daemon does the work for the radius and the detail it has in force; a setting that is still being saved (`stale`) disables the button for the moment, unless the form saves it before it sends the command (`early`,
 // the first-run guide), in which case the daemon having no position yet does not disable it either. A change of the radius takes the question back.
 import { computed, ref, watch } from "vue";
 import { t } from "@/i18n";
@@ -9,7 +9,7 @@ import { useSure } from "@/composables/useSure";
 import { currentEstimate, formatBytes, isRunning } from "@/lib/mapfetch";
 import type { Command, MapState } from "@/protocol/protocol";
 
-const props = defineProps<{ map: MapState; stale: boolean; send: (command: Command) => boolean; early?: boolean }>();
+const props = defineProps<{ map: MapState; stale: boolean; send: (command: Command) => boolean; early?: boolean; id?: string }>();
 
 const running = computed(() => isRunning(props.map));
 const estimate = computed(() => currentEstimate(props.map));
@@ -77,6 +77,8 @@ const label = computed(() =>
 </script>
 
 <template>
-  <button class="btn mapfetch-button" :class="{ danger: asking }" type="button" :disabled="!idle || checking" :title="why" @click="press">{{ label }}</button>
+  <button :id="id" class="btn mapfetch-button" :class="{ danger: asking }" type="button" :disabled="!idle || checking" :title="why" @click="press">
+    {{ label }}
+  </button>
   <button v-if="running" class="btn" type="button" @click="send({ cmd: 'map_cancel' })">{{ t("settings.map.cancel") }}</button>
 </template>

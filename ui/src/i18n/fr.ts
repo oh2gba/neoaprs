@@ -1172,6 +1172,9 @@ export const fr: Catalogue = {
   "settings.map.download_again": "Télécharger à nouveau",
   "settings.map.download": "Télécharger la carte",
   "settings.map.cancel": "Annuler",
+  "settings.map.detail_label": "Carte détaillée",
+  "settings.map.tip_label": "À propos du téléchargement de la carte",
+  "settings.map.tip1": "Télécharge les rues et les noms pour le rayon ci-dessus, une seule fois. La carte reste sur cet ordinateur.",
 
   "settings.position.name": "Source de la position",
   "settings.position.label": "Position",
@@ -1205,6 +1208,7 @@ export const fr: Catalogue = {
 
   "settings.help.group": "Aide",
   "settings.help.text": "Un problème ? Envoyez les journaux à {address}.",
+  "settings.help.label": "Journaux",
   "settings.help.download": "Télécharger les journaux",
   "settings.help.collecting": "Collecte…",
   "settings.help.tip_label": "À propos des journaux",

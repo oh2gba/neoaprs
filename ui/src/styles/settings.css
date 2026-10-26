@@ -136,7 +136,12 @@
 .about p {
   margin: 6px 0;
 }
-.help-logs .help-result:empty {
+/* an action row (ActionRow: Detailed map, New version, Logs): the button stands first in the control column, as wide as the other action buttons (above), the (i) after it, and the notes of the outcome under it in the same column; no notes, no gap */
+.action-row > .action-notes {
+  grid-column: 2;
+}
+.action-row > .action-notes:not(:has(*)),
+.action-row > .action-notes:has(> .help-result:empty) {
   display: none;
 }
 .field-control .port-found {

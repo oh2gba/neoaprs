@@ -2,7 +2,7 @@
 // The settings of the daemon, one field for every key it lists in the scope of the form (the Settings tab, or the Beacon tab with the keys the beacon sends), in groups. There is no Save button: a choice (a list, a switch, a symbol, a place
 // picked on the map) applies at once, a typed field on Enter or when it is left (never while it is typed), after the page's own check of it; the daemon checks it again, and a wrong one is shown under its field with what was typed kept. What
 // the person sees of it (the Undo toast, a line for a screen reader) is useSettings, shared with the other tab so that there is one queue. The alert command has a Test button, which runs the saved command and shows how it went under the field; a field
-// left empty shows the default as a placeholder. The Radius row of the Map group has the button that makes the map at its right end (MapFetchButton, plain, as the Test button of the Command row is) and under it the progress, a failure and "Map downloaded 21 Oct" (MapFetchNotes); they work on the saved settings. On the Settings tab a link at the top opens the first-run guide again; the default slot is
+// left empty shows the default as a placeholder. The Map group has the Radius row and, under it, the Detailed map row with the button that makes the map (MapFetchButton, plain) and under the button the progress, a failure and "Map downloaded 21 Oct" (MapFetchNotes); they work on the saved settings. Every action that is a row of its own (this one, Check now, Download logs) is an ActionRow. On the Settings tab a link at the top opens the first-run guide again; the default slot is
 // for more groups (the page's own, which are not settings of the daemon), the slot `top` for the beacon status above the first group, and `status` for the line with the button that sends the status now, which opens the Status group. The Beacon tab's Station group
 // starts with the choice of where the position comes from (gps/source: Fixed, or a GPS) and what that needs; the place (Location) is shown for Fixed only (with a GPS it stays stored and out of sight), and the Beacon group has the Beacon choice (an interval, or Off and On for a moving station) and, for a moving station, the Travelling choice instead of the antenna. While the beacon is Off the Beacon group's other fields (Travelling, the comment, the antenna, the path) and the whole Status group are shown greyed out (`disabled` of SettingsField), the Station group never. The TNC group is SettingsRadio: the state of the radio link with Reconnect in view and the fields of the radio behind a fold, and the fields of the page's own alert end the
 // Notifications group (BrowserAlerts). What it works on is the page's (useDaemonContext): the settings, the daemon's answers, `send`. The iGate group (the switch; while it is on, the passcode with a link to the page where one is requested, the status line, and what it never does; igate/server is not on the page) says Set your call first and shows nothing else while the call is not set. The Update check group (the daily check itself is always on) has a Check now button, which asks the version page at once and says the answer in the toast (a newer version opens the update window). While the network is let in, the Web group shows
@@ -11,6 +11,7 @@ import BrowserAlerts from "@/components/BrowserAlerts.vue";
 import ConfirmRow from "@/components/ConfirmRow.vue";
 import MapFetchButton from "@/components/MapFetchButton.vue";
 import MapFetchNotes from "@/components/MapFetchNotes.vue";
+import ActionRow from "@/components/ActionRow.vue";
 import IgateStatus from "@/components/IgateStatus.vue";
 import InfoTip from "@/components/InfoTip.vue";
 import LanguageField from "@/components/LanguageField.vue";
@@ -211,9 +212,6 @@ function typed(key: string, text: string): void {
                 {{ t("settings.alert_test") }}
               </button>
             </template>
-            <template v-else-if="key === RADIUS_KEY && map" #after>
-              <MapFetchButton v-if="map" :map="map" :stale="settings.saving.value" :send="send" />
-            </template>
             <template v-else-if="key === 'igate/password'" #after>
               <a class="btn igate-request" :href="passcodeLink(call)" target="_blank" rel="noopener">{{ t("settings.igate.request") }}</a>
             </template>
@@ -223,7 +221,13 @@ function typed(key: string, text: string): void {
               </button>
             </template>
           </SettingsField>
-          <MapFetchNotes v-if="key === RADIUS_KEY && map" :map="map" />
+          <ActionRow v-if="key === RADIUS_KEY && map" id="set-map-fetch" :label="t('settings.map.detail_label')" :tip-label="t('settings.map.tip_label')">
+            <MapFetchButton id="set-map-fetch" :map="map" :stale="settings.saving.value" :send="send" />
+            <template #tip
+              ><span class="info-line">{{ t("settings.map.tip1") }}</span></template
+            >
+            <template #notes><MapFetchNotes :map="map" /></template>
+          </ActionRow>
           <ConfirmRow v-if="question?.key === key" :message="question.message" @yes="form.answer(true)" @cancel="form.answer(false)" />
           <SettingsHttps v-if="key === 'web/https'" :https="config.https" />
           <div v-if="key === KEY_KEY && urls.length" class="field">
@@ -257,17 +261,14 @@ function typed(key: string, text: string): void {
     </fieldset>
     <fieldset v-if="scope === 'settings'" class="update-check">
       <legend>{{ t("settings.update.group") }}</legend>
-      <div class="field">
-        <label for="set-update-now">{{ t("settings.update.label") }}</label>
-        <div class="field-control">
-          <button id="set-update-now" class="btn" type="button" :disabled="updateCheck.running.value" @click="updateCheck.check">
-            {{ t("settings.update.check") }}
-          </button>
-          <InfoTip :label="t('settings.update.tip_label')">
-            <span class="info-line">{{ t("settings.update.tip") }}</span>
-          </InfoTip>
-        </div>
-      </div>
+      <ActionRow id="set-update-now" :label="t('settings.update.label')" :tip-label="t('settings.update.tip_label')">
+        <button id="set-update-now" class="btn" type="button" :disabled="updateCheck.running.value" @click="updateCheck.check">
+          {{ t("settings.update.check") }}
+        </button>
+        <template #tip
+          ><span class="info-line">{{ t("settings.update.tip") }}</span></template
+        >
+      </ActionRow>
     </fieldset>
     <SettingsHelp v-if="scope === 'settings'" />
     <SettingsAbout v-if="scope === 'settings'" />

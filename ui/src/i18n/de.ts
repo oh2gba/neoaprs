@@ -1183,6 +1183,9 @@ export const de: Catalogue = {
   "settings.map.download_again": "Erneut herunterladen",
   "settings.map.download": "Karte herunterladen",
   "settings.map.cancel": "Abbrechen",
+  "settings.map.detail_label": "Detailkarte",
+  "settings.map.tip_label": "Zum Herunterladen der Karte",
+  "settings.map.tip1": "Lädt Straßen und Namen für den Radius oben herunter, einmalig. Die Karte bleibt auf diesem Computer.",
 
   "settings.position.name": "Positionsquelle",
   "settings.position.label": "Position",
@@ -1216,6 +1219,7 @@ export const de: Catalogue = {
 
   "settings.help.group": "Hilfe",
   "settings.help.text": "Problem? Schicke die Protokolle an {address}.",
+  "settings.help.label": "Protokolle",
   "settings.help.download": "Protokolle herunterladen",
   "settings.help.collecting": "Sammle…",
   "settings.help.tip_label": "Zu den Protokollen",

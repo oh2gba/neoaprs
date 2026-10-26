@@ -1,6 +1,7 @@
 <script setup lang="ts">
-// Step 5 of the first-run guide: the radius of the base map with the button that downloads it at the right end of the row (MapFetchButton, plain: the guide's one main action is Finish; the notes are under the row, MapFetchNotes; the guide saves the answers first when they differ from the settings). Finish without
+// Step 5 of the first-run guide: the radius of the base map and, in the row under it, the button that downloads it (MapFetchButton, plain: the guide's one main action is Finish; the notes are under the button, MapFetchNotes; the guide saves the answers first when they differ from the settings). Finish without
 // downloading leaves the map for later.
+import ActionRow from "@/components/ActionRow.vue";
 import InfoTip from "@/components/InfoTip.vue";
 import MapFetchButton from "@/components/MapFetchButton.vue";
 import MapFetchNotes from "@/components/MapFetchNotes.vue";
@@ -25,12 +26,14 @@ const minutes = computed(() => Number(guide.changes["beacon/interval_min"] ?? co
     :error="guide.problems.radius ?? ''"
     :changed="false"
     @update:model-value="guide.edit('radius', $event)"
-  >
-    <template v-if="map" #after>
-      <MapFetchButton :map="map" :stale="guide.saving || !guide.valid[3] || !guide.valid[4]" early :send="guide.sendMap" />
-    </template>
-  </SettingsField>
-  <MapFetchNotes v-if="map" :map="map" />
+  />
+  <ActionRow v-if="map" id="setup-map-fetch" :label="t('settings.map.detail_label')" :tip-label="t('settings.map.tip_label')">
+    <MapFetchButton id="setup-map-fetch" :map="map" :stale="guide.saving || !guide.valid[3] || !guide.valid[4]" early :send="guide.sendMap" />
+    <template #tip
+      ><span class="info-line">{{ t("settings.map.tip1") }}</span></template
+    >
+    <template #notes><MapFetchNotes :map="map" /></template>
+  </ActionRow>
   <p v-if="minutes > 0" class="setup-beacon muted">
     {{ t("setup.beacon_every", { minutes }) }}
     <InfoTip :label="t('setup.beacon_tip_label')" picture="beacon">

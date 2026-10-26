@@ -507,16 +507,17 @@ describe("SetupGuide: the radio, Find my radio and the Terminal", () => {
 });
 
 describe("SetupGuide: the map and Finish", () => {
-  it("has the radius with the one plain Download map button at the right end of its row, and Finish, the one primary, in place of Next", async () => {
+  it("has the radius with the one plain Download map button on its own row under it, and Finish, the one primary, in place of Next", async () => {
     const { wrapper, stand } = make();
     await stand(4);
     expect(wrapper.find(".setup-step-name").text()).toBe("Map");
-    expect(wrapper.findAll(".field label").map((l) => l.text())).toEqual(["Radius"]);
+    expect(wrapper.findAll(".field label").map((l) => l.text())).toEqual(["Radius", "Detailed map"]);
     expect(wrapper.find<HTMLInputElement>("#setup-radius").attributes("placeholder")).toBe("150");
     expect(wrapper.find("#setup-maxzoom").exists()).toBe(false);
     expect(wrapper.findAll(".mapfetch-button").map((b) => b.text())).toEqual(["Download map"]);
     expect(wrapper.find(".mapfetch-button").classes()).not.toContain("primary");
-    expect(wrapper.find(".mapfetch-button").element.closest(".field")).toBe(wrapper.find("#setup-radius").element.closest(".field"));
+    expect(wrapper.find(".mapfetch-button").element.closest(".field")?.classList.contains("action-row")).toBe(true);
+    expect(wrapper.find(".mapfetch-button").element.parentElement?.firstElementChild).toBe(wrapper.find(".mapfetch-button").element);
     expect(wrapper.findAll(".setup .primary").map((b) => b.text())).toEqual(["Finish"]);
     expect(wrapper.find("button[type=submit]").text()).toBe("Finish");
   });

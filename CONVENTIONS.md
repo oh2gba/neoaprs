@@ -92,6 +92,7 @@ that both the daemon and the page are tested against (`ui/src/protocol/vectors.j
 - One height for every text button, input and select of a form or a toolbar: `--control-h` (32 px, `ui/src/styles/tokens.css`), set once on `.btn` and `.input` in `controls.css`. A button is `.btn` (secondary) or `.btn primary` (filled; `danger` for the second press of
   a destructive one); only `.btn.small` (`--control-h-small`, 24 px) is lower, and only inside a list row, a bubble or a line of text. An icon-only button is `IconButton` (`.xbtn`, 32 px; 28 px in the rows of the Stations table).
 - No stylesheet but `controls.css` gives a `.btn` a height, padding or font size, and no component gives a button an inline style (`ui/src/styles/buttons.test.ts` holds both); a new kind of button is a class that changes colour or width, never size.
+- An action that is a row of its own in the Settings tab or the setup guide (Download map, Check now, Download logs) is an `ActionRow` (`ui/src/components/ActionRow.vue`): its own label, the button first in the control column with the left edge of the fields and at least `--action-w` wide, the (i) after it, and the quiet lines of its outcome (progress, "Map downloaded 21 Oct", "Saved FILE.") under it in the same column; on a phone the button fills the column. A button that belongs to a field (the Test of the command, Refresh of the port, the new access key, Request a passcode) stays beside that field and is not a row (`ui/src/components/ActionRow.test.ts`).
 
 ## Tests
 

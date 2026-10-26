@@ -340,6 +340,9 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.map.download_again": "Descargar otra vez",
   "settings.map.download": "Descargar mapa",
   "settings.map.cancel": "Cancelar",
+  "settings.map.detail_label": "Mapa detallado",
+  "settings.map.tip_label": "Sobre la descarga del mapa",
+  "settings.map.tip1": "Descarga las calles y los nombres para el radio de arriba, una sola vez. El mapa se queda en este ordenador.",
 
   "settings.position.name": "Fuente de la posición",
   "settings.position.label": "Posición",
@@ -373,6 +376,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
 
   "settings.help.group": "Ayuda",
   "settings.help.text": "¿Problemas? Envía los registros a {address}.",
+  "settings.help.label": "Registros",
   "settings.help.download": "Descargar registros",
   "settings.help.collecting": "Recopilando…",
   "settings.help.tip_label": "Sobre los registros",

@@ -339,6 +339,9 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.map.download_again": "Scarica di nuovo",
   "settings.map.download": "Scarica mappa",
   "settings.map.cancel": "Annulla",
+  "settings.map.detail_label": "Mappa dettagliata",
+  "settings.map.tip_label": "Informazioni sul download della mappa",
+  "settings.map.tip1": "Scarica le strade e i nomi per il raggio qui sopra, una sola volta. La mappa resta su questo computer.",
 
   "settings.position.name": "Sorgente della posizione",
   "settings.position.label": "Posizione",
@@ -372,6 +375,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
 
   "settings.help.group": "Aiuto",
   "settings.help.text": "Problemi? Invia i log a {address}.",
+  "settings.help.label": "Log",
   "settings.help.download": "Scarica i log",
   "settings.help.collecting": "Raccolta in corso…",
   "settings.help.tip_label": "Informazioni sui log",

@@ -341,6 +341,9 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.map.download_again": "Baixar de novo",
   "settings.map.download": "Baixar o mapa",
   "settings.map.cancel": "Cancelar",
+  "settings.map.detail_label": "Mapa detalhado",
+  "settings.map.tip_label": "Sobre o download do mapa",
+  "settings.map.tip1": "Baixa as ruas e os nomes para o raio acima, uma só vez. O mapa fica neste computador.",
 
   "settings.position.name": "Fonte da posição",
   "settings.position.label": "Posição",
@@ -374,6 +377,7 @@ export const settings: Record<keyof typeof source, Message> = {
 
   "settings.help.group": "Ajuda",
   "settings.help.text": "Problema? Envie os logs para {address}.",
+  "settings.help.label": "Arquivos de log",
   "settings.help.download": "Baixar logs",
   "settings.help.collecting": "Coletando…",
   "settings.help.tip_label": "Sobre os logs",

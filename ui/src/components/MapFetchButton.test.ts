@@ -151,11 +151,10 @@ describe("MapFetchButton", () => {
     expect(notes.findAll("p").every((p) => p.classes().some((c) => c === "mapfetch-file" || c === "mapfetch-error"))).toBe(true);
   });
 
-  it("keeps the notes under the row, in the grid of the label column, and the button wrapping under the field when the row is narrow", () => {
-    expect(cssRule(".mapfetch-notes")).toMatch(/display:\s*grid/);
-    expect(cssRule(".mapfetch-notes")).toContain("minmax(7em, 36%) 1fr");
-    expect(cssRule(".mapfetch-notes > *")).toMatch(/grid-column:\s*2/);
-    expect(cssRule(".field-control:has(.mapfetch-button)")).toMatch(/flex-wrap:\s*wrap/);
+  it("keeps the notes under the button, in the control column of its row, and the button first in that column, as wide as the other actions", () => {
+    expect(cssRule(".action-row > .action-notes")).toMatch(/grid-column:\s*2/);
+    expect(cssRule(".field-control > .btn:first-child")).toContain("--action-w");
+    expect(cssRule(".size-phone .action-row .field-control > .btn:first-child")).toMatch(/flex:\s*1/);
   });
 
   it("keeps the button on for an early form (the first-run guide) when the daemon has no position yet, and off for a job that runs or a form that cannot be saved", () => {

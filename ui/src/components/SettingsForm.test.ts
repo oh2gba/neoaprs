@@ -76,7 +76,7 @@ describe("SettingsForm", () => {
     ];
     expect(wrapper.findAll(".field")).toHaveLength(
       CONFIG_KEYS.filter((k) => !beacons.some((prefix) => k.startsWith(prefix)) && !elsewhere.includes(k)).length +
-        1 + // (the New version row of the Update check group, which is no setting)
+        2 + // (the New version row of the Update check group and the Logs row of the Help group, which are no settings)
         3 + // (the browser's own: Alert for a new message, Sound, Pop-up)
         1, // (Language)
     );
@@ -1080,6 +1080,7 @@ describe("SettingsForm", () => {
         "Test sound",
         "Test pop-up",
         "Check now",
+        "Download logs",
       ]);
       expect(
         make({}, "beacon")
@@ -1135,7 +1136,7 @@ describe("SettingsForm", () => {
   describe("the Map group", () => {
     const mount_ = (map = mapState(), extra: Record<string, string> = {}, scope: Scope = "settings") => make(extra, scope, { map });
 
-    it("is one row, Radius with its field and unit and then a plain Download map at the right end of the same row, in the Map group and nowhere else", () => {
+    it("is two rows, Radius with its field and unit and then the row Detailed map with a plain Download map first in its control column, in the Map group and nowhere else", () => {
       const { wrapper } = mount_();
       const group = wrapper.findAll("fieldset").find((f) => f.find("legend").text() === "Map");
       expect(group?.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(["Download map"]);
@@ -1144,22 +1145,36 @@ describe("SettingsForm", () => {
       expect([...(row?.querySelector(".field-control")?.children ?? [])].map((c) => c.tagName + "." + (c.className.split(" ")[0] || "")).slice(0, 3)).toEqual([
         "INPUT.input",
         "SPAN.unit",
-        "BUTTON.btn",
+        "SPAN.infotip",
       ]);
-      expect(row?.contains(wrapper.find(".mapfetch-button").element)).toBe(true);
+      const action = wrapper.find(".mapfetch-button").element.closest(".field");
+      expect(row?.nextElementSibling).toBe(action);
+      expect(action?.classList.contains("action-row")).toBe(true);
+      expect(action?.querySelector("label")?.textContent).toBe("Detailed map");
+      expect(action?.querySelector("label")?.getAttribute("for")).toBe("set-map-fetch");
+      expect(action?.querySelector(".field-control")?.firstElementChild).toBe(wrapper.find(".mapfetch-button").element);
+      expect(action?.querySelector(".field-control .infotip")).not.toBeNull();
       expect(wrapper.find(".mapfetch-button").classes()).not.toContain("primary");
       expect(group?.findAll(".primary")).toHaveLength(0);
       expect(mount_(mapState(), {}, "beacon").wrapper.find(".mapfetch-button").exists()).toBe(false);
     });
 
-    it("says the quiet line Map downloaded under the row, in the grid of the label column, and the button reads Download again", () => {
+    it("says the quiet line Map downloaded under the button, in the notes of its row, and the button reads Download again", () => {
       const { wrapper } = mount_(mapState({ state: "ready", detail: mapFile() }));
       const row = wrapper.find("#set-map-radius_km").element.closest(".field");
-      expect(row?.nextElementSibling?.classList.contains("mapfetch-notes")).toBe(true);
+      const action = wrapper.find(".mapfetch-button").element.closest(".field");
+      expect(action?.querySelector(":scope > .action-notes .mapfetch-notes")).not.toBeNull();
       expect(wrapper.find(".mapfetch-notes .mapfetch-file").text()).toBe("Map downloaded 22 Oct");
       expect(wrapper.find(".mapfetch-notes .mapfetch-file").classes()).toContain("muted");
       expect(wrapper.find(".mapfetch-button").text()).toBe("Download again");
       expect(row?.contains(wrapper.find(".mapfetch-notes").element)).toBe(false);
+    });
+
+    it("reads Download map, and says nothing of a map downloaded, while there is a world map and no detailed one", () => {
+      const { wrapper } = mount_(mapState({ state: "none", detail: null, world: mapFile({ name: "basemap-world.pmtiles", max_zoom: 4 }) }));
+      expect(wrapper.find(".mapfetch-button").text()).toBe("Download map");
+      expect(wrapper.find(".mapfetch-file").exists()).toBe(false);
+      expect(wrapper.text()).not.toContain("Download again");
     });
 
     it("has no buttons until the daemon has told the state of the map", () => {
@@ -1179,7 +1194,7 @@ describe("SettingsForm", () => {
           .find("fieldset:has(#set-map-radius_km)")
           .findAll(".field label")
           .map((l) => l.text()),
-      ).toEqual(["Radius"]);
+      ).toEqual(["Radius", "Detailed map"]);
     });
 
     it("turns the buttons off while a map setting is being saved, and on again when it is, and takes the radius when the field is left", async () => {

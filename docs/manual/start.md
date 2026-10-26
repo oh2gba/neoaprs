@@ -17,7 +17,7 @@ On a fresh install the page opens a guide in five steps. It opens by itself once
 2. **Position.** Press **Choose on map** and click where you are, or drag the pin. Or click the place beside the button ("Not set" at first, which opens by itself) and type latitude and longitude in decimal degrees: north and east positive, south and west negative (Sydney is -33.87, 151.21). A Maidenhead locator works too. It is the same row as the Location of the Beacon tab ([beacon.md](beacon.md#the-location)).
 3. **Symbol.** The twelve usual ones are on top; a click on the symbol under them opens the picker with every symbol.
 4. **Radio.** The type of TNC, and for a serial one the port and speed, for a TCP one the host and port ([radio.md](radio.md)).
-5. **Map.** A map of about 50 km is already being downloaded, with its progress; the **Radius** and the plain **Download map** button at the right end of its row make a bigger one ([page.md](page.md#the-base-map)).
+5. **Map.** A map of about 50 km is already being downloaded, with its progress; the **Radius** and the **Download map** button on the row under it make a bigger one ([page.md](page.md#the-base-map)).
 
 The map under the guide is the world, from the first second. When you press **Next** on the Position step, NeoAPRS saves the place and starts downloading a map of about 50 km round your station, so that it is there at the end of the guide; a quiet line says "Downloading the map of your area…" ([page.md](page.md#the-base-map)).
 

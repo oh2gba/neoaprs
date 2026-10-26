@@ -336,6 +336,9 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.map.download_again": "もう一度ダウンロード",
   "settings.map.download": "地図をダウンロード",
   "settings.map.cancel": "キャンセル",
+  "settings.map.detail_label": "詳細地図",
+  "settings.map.tip_label": "地図のダウンロードについて",
+  "settings.map.tip1": "上の半径の範囲の道路と地名を一度だけダウンロードします。地図はこのコンピュータに保存されます。",
 
   "settings.position.name": "位置の取得元",
   "settings.position.label": "位置",
@@ -369,6 +372,7 @@ export const settings: Record<keyof typeof source, Message> = {
 
   "settings.help.group": "ヘルプ",
   "settings.help.text": "困ったときは、ログを {address} に送ってください。",
+  "settings.help.label": "ログ",
   "settings.help.download": "ログをダウンロード",
   "settings.help.collecting": "収集中…",
   "settings.help.tip_label": "ログについて",

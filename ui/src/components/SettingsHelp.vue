@@ -1,9 +1,9 @@
 <script setup lang="ts">
-// The Help group, the last of the Settings tab but About: what to do when something does not work, in one line and one button. The line names the address to send the logs to, as the link that opens the person's mail program; **Download logs** asks the daemon for the support file
+// The Help group, the last of the Settings tab but About: what to do when something does not work, in one line and one row with a button. The line names the address to send the logs to, as the link that opens the person's mail program; **Download logs** asks the daemon for the support file
 // and saves it (composables/useSupportLogs.ts); the (i) beside it says what the file holds. After a download the group says the file's name, or why there is no file. The page sends nothing by itself: the e-mail is the person's own.
 import { computed } from "vue";
 import { t } from "@/i18n";
-import InfoTip from "@/components/InfoTip.vue";
+import ActionRow from "@/components/ActionRow.vue";
 import RichMessage from "@/components/RichMessage.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useSupportLogs } from "@/composables/useSupportLogs";
@@ -24,15 +24,17 @@ const label = computed(() => (logs.running.value ? t("settings.help.collecting")
         ></RichMessage
       >
     </p>
-    <div class="field-control">
-      <button class="btn" type="button" :disabled="logs.running.value" @click="logs.collect">{{ label }}</button>
-      <InfoTip :label="t('settings.help.tip_label')" picture="logs">
-        <span class="info-line">{{ t("settings.help.tip") }}</span>
-      </InfoTip>
-    </div>
-    <div class="help-result" role="status">
-      <p v-if="logs.saved.value !== null" class="muted">{{ t("settings.help.saved", { file: logs.saved.value }) }}</p>
-      <p v-else-if="logs.problem.value" class="field-error">{{ logs.problem.value }}</p>
-    </div>
+    <ActionRow id="set-help-logs" :label="t('settings.help.label')" :tip-label="t('settings.help.tip_label')" picture="logs">
+      <button id="set-help-logs" class="btn" type="button" :disabled="logs.running.value" @click="logs.collect">{{ label }}</button>
+      <template #tip
+        ><span class="info-line">{{ t("settings.help.tip") }}</span></template
+      >
+      <template #notes>
+        <div class="help-result" role="status">
+          <p v-if="logs.saved.value !== null" class="muted">{{ t("settings.help.saved", { file: logs.saved.value }) }}</p>
+          <p v-else-if="logs.problem.value" class="field-error">{{ logs.problem.value }}</p>
+        </div>
+      </template>
+    </ActionRow>
   </fieldset>
 </template>

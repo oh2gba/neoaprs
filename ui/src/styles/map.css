@@ -241,25 +241,6 @@
   margin: 2px 0;
 }
 
-/* the map's download in the settings: the button is at the right end of the Radius row (SettingsField's slot after, wrapping under the field when the row is narrow), and under the row, in the label column's grid, the progress, a failure and the quiet line about the map on disk */
-.field-control:has(.mapfetch-button) {
-  flex-wrap: wrap;
-}
-.field-control:has(.mapfetch-button) .input {
-  flex: 1 1 5em;
-}
-.mapfetch-notes {
-  display: grid;
-  grid-template-columns: minmax(7em, 36%) 1fr;
-  gap: 0 8px;
-  margin: -2px 0 6px;
-}
-.setup .mapfetch-notes {
-  grid-template-columns: 6em 1fr;
-}
-.mapfetch-notes > * {
-  grid-column: 2;
-}
 .mapnote-box {
   display: flex;
   align-items: center;
@@ -272,6 +253,7 @@
   color: var(--text);
   box-shadow: var(--shadow);
 }
+/* the map's download in the settings: the button is on the row Detailed map (an action row), and under it, in the notes of that row, the progress, a failure and the quiet line about the map on disk */
 .mapfetch-progress {
   display: flex;
   align-items: center;
