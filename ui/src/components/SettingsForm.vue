@@ -39,6 +39,7 @@ import { disabledByValues } from "@/lib/beaconoff";
 import { degreesText } from "@/lib/setup";
 import { BEACON_FOLDS, SUBGROUPS, fieldFor, igateOn, shownByValues, shownFor, storedFor, valueFor, type Scope } from "@/lib/settings";
 import { statusSource } from "@/lib/status";
+import { statusFrequencyHint } from "@/lib/statusfrequency";
 import { computed, watch } from "vue";
 
 const props = withDefaults(defineProps<{ scope?: Scope; picking?: boolean; picked?: Picked | null }>(), { scope: "settings", picking: false, picked: null });
@@ -58,10 +59,16 @@ const alertTest = useAlertTest(
 const updateCheck = useUpdateCheck(updateResult, lastError, send);
 const newKey = useNewKey();
 const RADIUS_KEY = "map/radius_km";
+const STATUS_TEXT_KEY = "station/status";
 const SYMBOL_TABLE = "station/symbol_table";
 const SYMBOL_CODE = "station/symbol_code";
 const GPS_DEVICE = "gps/device";
 const info = (key: string) => fieldFor(key, draft);
+/** The quiet line under the status text when it has a frequency that radios would not tune to (the way to write it), else empty. */
+function frequencyHint(text: string): string {
+  const form = statusFrequencyHint(text);
+  return form === null ? "" : t("settings.station_status.hint", { freq: form });
+}
 /** A field the Beacon tab greys out while the beacon is Off (shown, with its value, and not changeable). */
 const greyed = (key: string): boolean => props.scope === "beacon" && disabledByValues(key, draft);
 /** The network is let in and the daemon has made a key (what is in force, not the switch as it is being changed). */
@@ -197,6 +204,7 @@ function typed(key: string, text: string): void {
             :changed="form.changed(key)"
             :apply="true"
             :disabled="greyed(key)"
+            :hint="key === STATUS_TEXT_KEY ? frequencyHint(draft[key] ?? '') : ''"
             @update:model-value="typed(key, $event)"
             @choose="form.choose({ [key]: storedFor(key, draft, $event) })"
             @commit="form.finish(key, $event)"

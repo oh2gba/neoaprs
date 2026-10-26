@@ -164,6 +164,11 @@
   color: var(--bad);
   font-weight: 600;
 }
+.field-hint {
+  grid-column: 2;
+  margin: 0;
+  font-size: 12px;
+}
 .confirm-row {
   display: flex;
   flex-wrap: wrap;

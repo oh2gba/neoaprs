@@ -44,7 +44,7 @@ SETTINGS = {
     "station/comment": "NeoAPRS in Espoo", "beacon/power_w": "5", "beacon/antenna_height_m": "10", "beacon/antenna_gain_db": "3", "messages/alert": "false", "tnc/profile": "kiss-tcp",
     "tcp/host": demoscene.HOST,
 }
-AFTER_THE_DAY = {"beacon/interval_min": "30", "station/status": "QRV 144.800 MHz FM", "messages/alert": "true", "web/network": "true"}          # (the day is played without the alert command, the beacon timer and the status: the page's daemon starts them)
+AFTER_THE_DAY = {"beacon/interval_min": "30", "station/status": "145.500MHz QRV", "messages/alert": "true", "web/network": "true"}          # (the day is played without the alert command, the beacon timer and the status: the page's daemon starts them)
 GPSD_PORT = 2947                                                    # (gpsd's usual port: what the fake gpsd of the beacon-gps shot listens on when it is free)
 SHOWN_KEY = "k7m2-x9pq-4hrt"                                       # what the Settings shot shows as the access key, and the addresses: the daemon's own key is made at random for the run and never shown
 SHOWN_URLS = ["http://192.168.1.20:7303/", "http://neoaprs-pi.local:7303/"]

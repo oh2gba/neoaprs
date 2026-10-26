@@ -887,8 +887,9 @@ export const fr: Catalogue = {
 
   "settings.station_status.name": "Texte de statut",
   "settings.station_status.label": "Texte",
-  "settings.station_status.tip1": "Une ligne sur ce que vous faites, envoyée de temps en temps, pas avec chaque balise. Jusqu'à {max} caractères.",
-  "settings.station_status.tip2": "Exemple : À la maison de campagne, QRV 145.500 FM",
+  "settings.station_status.tip1": "Commencez par la fréquence vocale d'écoute, sous la forme 145.500MHz, pour que les radios puissent s'y régler.",
+  "settings.station_status.tip2": "Jusqu'à {max} caractères, p. ex. 145.500MHz T088 QRV",
+  "settings.station_status.hint": "Les radios s'y règlent quand elle commence le texte sous la forme {freq}",
 
   "settings.power.label": "Puissance",
   "settings.power.tip1": "La puissance de l'émetteur en watts. Avec les champs de l'antenne, elle envoie un code PHG : jusqu'où on vous entend.",

@@ -115,8 +115,8 @@ const SPECS: Record<string, FieldSpec> = {
   "station/status": {
     name: "settings.station_status.name",
     label: "settings.station_status.label",
-    empty: "settings.none",
-    tip: [["settings.station_status.tip1", { max: LIMITS.status.max }], "settings.station_status.tip2"],
+    empty: plain("145.500MHz QRV"),
+    tip: ["settings.station_status.tip1", ["settings.station_status.tip2", { max: LIMITS.status.max }]],
   },
   "beacon/power_w": {
     label: "settings.power.label",

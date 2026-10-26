@@ -48,8 +48,9 @@ export const settings: Record<keyof typeof source, Message> = {
 
   "settings.station_status.name": "ステータステキスト",
   "settings.station_status.label": "テキスト",
-  "settings.station_status.tip1": "今していることを伝える1行で、ビーコンごとではなく時々送られます。最大{max}文字。",
-  "settings.station_status.tip2": "例: At the summer cottage, QRV 145.500 FM",
+  "settings.station_status.tip1": "聞いている音声周波数を 145.500MHz の形で先頭に書くと、無線機が合わせられます。",
+  "settings.station_status.tip2": "{max}文字まで。例: 145.500MHz T088 QRV",
+  "settings.station_status.hint": "{freq} の形でテキストの先頭に置くと、無線機が合わせられます",
 
   "settings.power.label": "出力",
   "settings.power.tip1": "送信出力(W)です。アンテナの項目と合わせて PHG コード(どこまで聞こえるか)を送ります。",

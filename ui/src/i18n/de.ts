@@ -901,8 +901,9 @@ export const de: Catalogue = {
 
   "settings.station_status.name": "Statustext",
   "settings.station_status.label": "Text",
-  "settings.station_status.tip1": "Eine Zeile darüber, was du gerade tust, die hin und wieder gesendet wird, nicht mit jeder Bake. Bis zu {max} Zeichen.",
-  "settings.station_status.tip2": "Beispiel: Im Ferienhaus, QRV 145.500 FM",
+  "settings.station_status.tip1": "Beginne mit der Sprechfunk-Frequenz, auf der du mithörst, als 145.500MHz, damit Funkgeräte sie einstellen können.",
+  "settings.station_status.tip2": "Bis zu {max} Zeichen, z. B. 145.500MHz T088 QRV",
+  "settings.station_status.hint": "Funkgeräte stellen sie ein, wenn sie als {freq} am Anfang des Textes steht",
 
   "settings.power.label": "Leistung",
   "settings.power.tip1": "Die Sendeleistung in Watt. Mit den Antennenfeldern ergibt sie einen PHG-Code: wie weit du zu hören bist.",
