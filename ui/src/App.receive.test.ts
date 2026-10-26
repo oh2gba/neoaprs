@@ -27,7 +27,7 @@ describe("App: RX only", () => {
     expect(socket.sent).toContainEqual({ cmd: "set_config", values: { [KEY]: "false" } }); // (ticked: RX only, which is station/transmit false)
   });
 
-  it("shows the amber RX only mark first among the marks, in place of the old badge, while transmitting is off, and none while it is on", async () => {
+  it("shows the amber RX only mark after the Daemon and Radio marks, in place of the old badge, while transmitting is off, and none while it is on", async () => {
     const { wrapper, socket } = await open();
     expect(wrapper.find(".appheader .rxonly").exists()).toBe(false);
     await say(socket, 1, { [KEY]: "false" });
@@ -35,7 +35,7 @@ describe("App: RX only", () => {
     expect(mark.text()).toBe("RX only");
     expect(mark.classes()).toContain("tag-warn");
     expect(mark.attributes("title")).toBe("Nothing is sent. Settings → Radio → RX only");
-    expect(wrapper.find(".appheader .headpills").element.firstElementChild).toBe(mark.element);
+    expect(mark.element.previousElementSibling?.classList.contains("pill-radio")).toBe(true);
     await say(socket, 2, { [KEY]: "true" });
     expect(wrapper.find(".appheader .rxonly").exists()).toBe(false);
   });
@@ -82,8 +82,8 @@ describe("App: RX only", () => {
     socket.say({ type: "state", topic: "gps", rev: 1, value: gpsState({ state: "no_fix" }) });
     await flushPromises();
     const marks = wrapper.findAll(".appheader .headpills .tag");
-    expect(marks.map((m) => m.text())).toEqual(["GPS", "Internet"]);
-    expect(marks[0]?.classes()).toContain("tag-warn");
+    expect(marks.map((m) => m.text())).toEqual(["Daemon", "Radio", "GPS", "Internet"]);
+    expect(marks[2]?.classes()).toContain("tag-warn");
     socket.say({ type: "state", topic: "gps", rev: 2, value: gpsState({ state: "fix" }) });
     await flushPromises();
     expect(wrapper.find(".appheader .pill-gps").classes()).toContain("tag-ok");

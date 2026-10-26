@@ -4,6 +4,7 @@
 import { computed } from "vue";
 import StatusFold from "@/components/StatusFold.vue";
 import { beaconBlock } from "@/lib/beaconstatus";
+import { rxOnlyLink } from "@/lib/settinglink";
 import type { GpsState, StatusMessage } from "@/protocol/protocol";
 
 const props = defineProps<{
@@ -17,7 +18,15 @@ const block = computed(() => beaconBlock(props.status, props.gps, props.values, 
 </script>
 
 <template>
-  <StatusFold v-if="block.pill" class="beaconstatus" :state="block.pill.text" :tone="block.pill.tone" :line="block.line" :hover="block.hover">
+  <StatusFold
+    v-if="block.pill"
+    class="beaconstatus"
+    :state="block.pill.text"
+    :tone="block.pill.tone"
+    :line="block.line"
+    :hover="block.hover"
+    :link="block.rxOnly ? rxOnlyLink() : undefined"
+  >
     <p v-if="block.smart" class="igatefold" role="status">{{ block.smart }}</p>
     <p v-if="block.problem" class="problem" role="status">{{ block.problem }}</p>
     <p v-if="block.hover" class="igatefold">{{ block.hover }}</p>

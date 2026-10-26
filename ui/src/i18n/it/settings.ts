@@ -291,7 +291,6 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
     one: "{n} pacchetto ricevuto, {bytes_in} rx, {bytes_out} tx, {digipeated} ripetuti",
     other: "{n} pacchetti ricevuti, {bytes_in} rx, {bytes_out} tx, {digipeated} ripetuti",
   },
-  "settings.tnc.reconnect": "Riconnetti",
   "settings.tnc.ports": "Porte",
   "settings.tnc.terminal": "Terminale",
   "settings.tnc.terminal_label": "Cosa il TNC ha visto e fatto",

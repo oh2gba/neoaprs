@@ -5,6 +5,7 @@ import { computed } from "vue";
 import StatusFold from "@/components/StatusFold.vue";
 import { t } from "@/i18n";
 import { dateTimeText } from "@/lib/format";
+import { rxOnlyLink } from "@/lib/settinglink";
 import { reportLook } from "@/lib/statusreport";
 import { every } from "@/lib/settingchoices";
 
@@ -22,7 +23,14 @@ const look = computed(() => reportLook(props.lastSent, props.minutes, props.beac
 </script>
 
 <template>
-  <StatusFold class="beaconstatus" :state="look.state" :tone="look.tone" :line="look.line" :hover="lastSent === null ? undefined : dateTimeText(lastSent)">
+  <StatusFold
+    class="beaconstatus"
+    :state="look.state"
+    :tone="look.tone"
+    :line="look.line"
+    :hover="lastSent === null ? undefined : dateTimeText(lastSent)"
+    :link="rxOnly ? rxOnlyLink() : undefined"
+  >
     <p v-if="rig !== 'unused' && text !== ''" class="igatefold">{{ text }}</p>
     <p v-if="minutes !== ''" class="igatefold">{{ every(minutes) }}</p>
     <p v-if="rig !== 'unused'" class="igatefold">{{ t(rig === "on" ? "beacon.rigctld_on" : "beacon.rigctld_off") }}</p>

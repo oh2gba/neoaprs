@@ -29,6 +29,7 @@ import { useTitle } from "@/composables/useTitle";
 import { agingOf, type Aging } from "@/lib/aging";
 import { pathCalls } from "@/lib/calls";
 import { headerPills } from "@/lib/pills";
+import { inApp } from "@/lib/shell";
 import { recommendedPath } from "@/lib/symbols";
 import type { ConfigValues } from "@/protocol/protocol";
 
@@ -53,15 +54,24 @@ function useDerived(daemon: ReturnType<typeof useDaemon>) {
   const settings = useSettings(config, lastError, send);
   const prefs = useStationPrefs(daemon.stationPrefs, send);
   const heard = useHeardIndex(daemon.stations, config);
+  const now = useNow();
+  const app = inApp();
   return {
     ...heard,
     settings,
     prefs,
-    now: useNow(),
+    now,
     dark: useDark(),
     aging: computed<Aging>(() => agingOf(config.value?.values)),
     receiveOnly: computed(() => config.value?.values["station/transmit"] === "false"),
-    pills: computed(() => headerPills(config.value?.values ?? {}, daemon.gps.value, daemon.igate.value, daemon.status.value?.update ?? null)),
+    pills: computed(() =>
+      headerPills(config.value?.values ?? {}, daemon.gps.value, daemon.igate.value, daemon.status.value?.update ?? null, {
+        connection: daemon.connection.value,
+        tnc: tnc.value,
+        now: now.value,
+        inApp: app,
+      }),
+    ),
     call: computed<string | null>(() => config.value?.values["station/call"] ?? status.value?.call ?? null),
     home: useHome(config, status),
     fallbackPath: computed(() => {

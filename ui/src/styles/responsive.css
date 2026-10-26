@@ -126,6 +126,8 @@ button,
 }
 .size-phone .panel-body {
   min-height: 0;
+  /* (the bottom of the tab keeps clear of the home bar) */
+  padding-bottom: env(safe-area-inset-bottom);
 }
 .size-phone .tabbar {
   padding-right: 6px;
@@ -137,11 +139,6 @@ button,
   padding-left: 14px;
   border-right: 1px solid var(--border);
   font-weight: 600;
-}
-/* (the footer is the bottom of the tab: it keeps clear of the home bar, and has the same height on every screen) */
-.size-phone .panelfoot {
-  height: calc(28px + env(safe-area-inset-bottom));
-  padding-bottom: env(safe-area-inset-bottom);
 }
 .size-phone .toolbar .input.grow,
 .size-phone .toolbar .filterbox {
@@ -361,14 +358,7 @@ button,
     -webkit-user-select: none;
     user-select: none;
   }
-  .panelfoot {
-    height: 36px;
-  }
-  .size-phone .panelfoot {
-    height: calc(36px + env(safe-area-inset-bottom));
-  }
   .headmail,
-  button.status,
   .nocall,
   .brand {
     /* the small things of the header are as high as the header, which is the height of a finger and a bit */
@@ -376,7 +366,6 @@ button,
     overflow: visible;
   }
   .headmail::after,
-  button.status::after,
   .nocall::after,
   .brand::after,
   .qrz::after,

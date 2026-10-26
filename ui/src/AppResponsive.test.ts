@@ -418,48 +418,27 @@ describe("what a phone shows", () => {
   });
 });
 
-describe("the footer under the panel", () => {
-  const foot = (wrapper: VueWrapper) => wrapper.find(".panelfoot");
+describe("the header marks and no footer under the panel", () => {
   const panelOn = (wrapper: VueWrapper) =>
     wrapper
       .findAll("[role='tabpanel']")
       .filter((p) => (p.element as HTMLElement).style.display !== "none")
       .map((p) => p.attributes("id"));
 
-  it("is under the open tab on a phone, and not on the map's turn", async () => {
-    const { wrapper } = await open(390, 844);
-    await wrapper.find("#tab-stations").trigger("click");
-    expect(root(wrapper)).toContain("view-panel");
-    expect(foot(wrapper).exists()).toBe(true);
-    expect(wrapper.find(".panel-body").element.lastElementChild).toBe(foot(wrapper).element);
-    await wrapper.find(".tab-map").trigger("click");
-    expect(root(wrapper)).toContain("view-map");
-    expect(foot(wrapper).exists()).toBe(false);
-    expect(wrapper.find(".mapwrap .panelfoot").exists()).toBe(false);
-    await wrapper.find("#tab-stations").trigger("click");
-    expect(foot(wrapper).exists()).toBe(true);
-  });
-
-  it("is under the panel and not under the map on a tablet and a desktop", async () => {
+  it("has no footer on a phone, a tablet or a desktop: the bottom of the open tab is the tab, kept clear of the home bar", async () => {
     for (const [width, height] of [
+      [390, 844],
       [768, 1024],
       [1440, 900],
     ] as const) {
       const { wrapper } = await open(width, height);
-      expect(wrapper.find(".panel .panelfoot").exists()).toBe(true);
-      expect(wrapper.findAll(".panelfoot")).toHaveLength(1);
-      expect(wrapper.find(".mapwrap .panelfoot").exists()).toBe(false);
+      await wrapper.find("#tab-stations").trigger("click");
+      expect(wrapper.find(".panelfoot").exists()).toBe(false);
+      expect(wrapper.find(".panel-body").element.lastElementChild?.classList.contains("pane")).toBe(true);
+      expect(wrapper.find(".panel-body").element.lastElementChild?.getAttribute("role")).toBe("tabpanel");
       wrapper.unmount();
       FakeSocket.all = [];
     }
-  });
-
-  it("goes with a folded panel (nothing but its handle is left) and is back with it", async () => {
-    const { wrapper } = await open(1440, 900);
-    await wrapper.find(".panel-fold").trigger("click");
-    expect(foot(wrapper).exists()).toBe(false);
-    await wrapper.find(".panel-fold").trigger("click");
-    expect(foot(wrapper).exists()).toBe(true);
   });
 
   it("has no version and no update button, on a phone as on a desktop: a newer version is the mark Update, the first of the header, which opens Settings → New version", async () => {
@@ -471,7 +450,6 @@ describe("the footer under the panel", () => {
       expect(wrapper.find(".pill-update").exists()).toBe(false);
       socket.say(status({ update: { version: "0.6.1", url: "", message: "" } }));
       await flushPromises();
-      if (width > 800) expect(foot(wrapper).text()).toBe("");
       const mark = wrapper.find(".appheader .headpills").element.firstElementChild;
       expect(mark?.classList.contains("pill-update")).toBe(true);
       expect(mark?.textContent).toBe("Update");
@@ -486,14 +464,17 @@ describe("the footer under the panel", () => {
     }
   });
 
-  it("has the radio message on a phone that opens the Settings tab", async () => {
+  it("has the Radio mark on a phone, which opens the Settings tab with the radio group flashed", async () => {
     const { wrapper, socket } = await open(390, 844);
     await wrapper.find("#tab-stations").trigger("click");
     socket.say({ type: "state", topic: "tnc", rev: 1, value: tncState({ state: "silent", problem: "", describe: "silent", silent_since: ago(600) }) });
     await flushPromises();
-    expect(foot(wrapper).find("button.status").text()).toBe("Radio: silent");
-    await foot(wrapper).find("button.status").trigger("click");
+    const mark = wrapper.find(".appheader .pill-radio");
+    expect(mark.text()).toBe("Radio: silent");
+    expect(mark.attributes("title")).toMatch(/^nothing heard since \d\d:\d\d \(10 min\)\. Settings → Radio$/);
+    await mark.trigger("click");
     expect(panelOn(wrapper)).toEqual(["pane-settings"]);
+    await vi.waitFor(() => expect(document.getElementById("set-tnc-profile")?.closest("fieldset")?.classList.contains("attend")).toBe(true));
   });
 });
 

@@ -69,7 +69,7 @@
     },
     "AskQru": {
       "additionalProperties": false,
-      "description": "Asks the stations near us for local info (repeaters, events, places): one message to the addressee `QRU` (the services/qruask.py of the daemon), whose `text` is `INFO` (which groups are served near\nus?), `NEXT` (the next objects of the group asked for last) or a group of 1 to 8 upper-case letters and digits (`RP70`), with a distance in kilometres, 1 to 20000, after it (`INFO 250`). A request to QRU is a\nbroadcast: it is sent once, with no message id, is not kept as a message and is not sent again; it goes by the path of messages with RFONLY after it, by radio only. The answers come as messages to us (they are\nrows of the topic `messages` like any message) and as the topic `qru`; the objects arrive as objects. Answered with an `error` when the text is none, RX only is ticked or no call is set (`transmit.off`, or the\ninterlock's reason), the radio is away, or a request to QRU was sent less than 60 seconds ago, whatever it said (`qru.too_soon`, with the `seconds` that are left).",
+      "description": "Asks the stations near us for local info (repeaters, events, places): one message to the addressee `QRU` (the services/qruask.py of the daemon), whose `text` is `INFO` (which groups are served near\nus?), `NEXT` (the next objects of the group asked for last) or a group of 1 to 8 upper-case letters and digits (`RP70`), with a distance in kilometres, 1 to 20000, after it (`INFO 250`). A request to QRU is a\nbroadcast: it is sent once, with no message id, is not kept as a message and is not sent again; it goes by the path of messages with RFONLY after it, by radio only. The answers come as messages to us (they are\nrows of the topic `messages` like any message) and as the topic `qru`; the objects arrive as objects. Answered with an `error` when the text is none, RX only is ticked or no call is set (`transmit.off`, or the\ninterlock's reason), the radio is away, or the same request was sent less than 30 seconds ago (`qru.too_soon`, with the `seconds` that are left).",
       "properties": {
         "cmd": {
           "const": "qru_ask",
@@ -1288,21 +1288,6 @@
       "title": "FindRadioCancelCommand",
       "type": "object"
     },
-    "ForgetAllStations": {
-      "additionalProperties": false,
-      "description": "A fresh start for what was heard: removes every station and every packet heard (and the weather of the stations), in the daemon and in its database. The station we are, the objects and bulletins we send, the messages, the\nsettings and the maps stay, and so do the packets we sent. Answered by the stations' topic told whole, or by an `error`.",
-      "properties": {
-        "cmd": {
-          "const": "forget_all_stations",
-          "type": "string"
-        }
-      },
-      "required": [
-        "cmd"
-      ],
-      "title": "ForgetAllStationsCommand",
-      "type": "object"
-    },
     "ForgetStation": {
       "additionalProperties": false,
       "description": "Removes a station from the station book (and its cache in the database) until it is heard again. Not our own station. Answered by the `del` of the row, or by an `error`.",
@@ -1600,7 +1585,7 @@
           "type": "integer"
         },
         "version": {
-          "description": "the version of the daemon, which the page shows (the footer, the update check); the page has no version of its own and does not compare this one",
+          "description": "the version of the daemon, which the page shows (Settings \u2192 Update check); the page has no version of its own and does not compare this one",
           "type": "string"
         },
         "page": {
@@ -4705,21 +4690,6 @@
       "title": "TncLine",
       "type": "object"
     },
-    "TncReconnect": {
-      "additionalProperties": false,
-      "description": "Opens the radio's line again with the settings as they are now (the port, the speed, entering KISS): the TNC is stopped and started in the background. The new state is told in `tnc`.",
-      "properties": {
-        "cmd": {
-          "const": "tnc_reconnect",
-          "type": "string"
-        }
-      },
-      "required": [
-        "cmd"
-      ],
-      "title": "TncReconnectCommand",
-      "type": "object"
-    },
     "TncState": {
       "additionalProperties": false,
       "description": "The TNC, the one feed of packets: its state and why it is not connected, the port, and the latest lines of what it saw and did. The value of the topic `tnc`.",
@@ -5523,7 +5493,6 @@
           "conversation_delete": "#/$defs/ConversationDelete",
           "find_radio": "#/$defs/FindRadio",
           "find_radio_cancel": "#/$defs/FindRadioCancel",
-          "forget_all_stations": "#/$defs/ForgetAllStations",
           "forget_station": "#/$defs/ForgetStation",
           "list_ports": "#/$defs/ListPorts",
           "map_cancel": "#/$defs/MapCancel",
@@ -5546,7 +5515,6 @@
           "status": "#/$defs/AskStatus",
           "status_now": "#/$defs/StatusNow",
           "subscribe": "#/$defs/Subscribe",
-          "tnc_reconnect": "#/$defs/TncReconnect",
           "unsubscribe": "#/$defs/Unsubscribe",
           "update_cancel": "#/$defs/UpdateCancel",
           "update_check": "#/$defs/CheckUpdate",
@@ -5573,12 +5541,6 @@
         },
         {
           "$ref": "#/$defs/ForgetStation"
-        },
-        {
-          "$ref": "#/$defs/ForgetAllStations"
-        },
-        {
-          "$ref": "#/$defs/TncReconnect"
         },
         {
           "$ref": "#/$defs/ListPorts"

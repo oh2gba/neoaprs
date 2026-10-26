@@ -23,6 +23,8 @@ export interface BeaconBlock {
   smart: string | null;
   /** why there is no fix, when the line does not say it */
   problem: string;
+  /** set when the line is "RX only: nothing is sent", which leads to the setting */
+  rxOnly?: true;
 }
 
 /** Whether the timer will send a beacon: the interval is not 0 and the daemon has a time for the next. */
@@ -65,6 +67,7 @@ export function beaconBlock(status: StatusMessage | null, gps: GpsState | null, 
       hover: undefined,
       smart: null,
       problem: "",
+      ...(rxOnly ? { rxOnly: true as const } : {}),
     };
   }
   const on = status !== null && timed(status);

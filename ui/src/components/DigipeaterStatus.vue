@@ -3,6 +3,7 @@
 import { computed } from "vue";
 import StatusFold from "@/components/StatusFold.vue";
 import { digiLook } from "@/lib/digistatus";
+import { rxOnlyLink } from "@/lib/settinglink";
 import type { TncState } from "@/protocol/protocol";
 
 const props = defineProps<{ tnc: TncState; startedAt: string | null; now: number; rxOnly: boolean }>();
@@ -10,7 +11,7 @@ const look = computed(() => digiLook(props.tnc, props.startedAt, props.now, prop
 </script>
 
 <template>
-  <StatusFold class="digistatus" :state="look.state" :tone="look.tone" :line="look.line">
+  <StatusFold class="digistatus" :state="look.state" :tone="look.tone" :line="look.line" :link="rxOnly ? rxOnlyLink() : undefined">
     <p v-if="look.since" class="igatefold">{{ look.since }}</p>
     <p v-if="look.held" class="igatefold">{{ look.held }}</p>
   </StatusFold>

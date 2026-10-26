@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// "NeoAPRS 0.7.0 is available": the dialog in the middle of the page, over a dimmed page (the whole screen on a phone), opened by the footer's "Update to 0.7.0", the header's badge of a phone and the Settings tab's answer
+// "NeoAPRS 0.7.0 is available": the dialog in the middle of the page, over a dimmed page (the whole screen on a phone), opened by the header's Update mark, the header's badge of a phone and the Settings tab's answer
 // to Check now. The version this copy is, what is new (the project's note of the version page, and the release's notes on GitHub as a button), then the update itself: **Update now** where the daemon can
 // do it (the topic `update` says so: the Windows installer, an AppImage), with its progress, a Cancel while it downloads and the problem in words when it fails; and the steps by hand for the way this copy
 // was installed (lib/update.ts, UpdateSteps), folded under Update now and open when it failed. The focus goes into the dialog and stays in it; Escape, the cross and a click beside it close it, which

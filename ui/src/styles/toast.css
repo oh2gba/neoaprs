@@ -31,10 +31,11 @@
   width: min(560px, calc(100% - 24px));
   justify-content: space-between;
 }
-.toast.findradio .linkbutton {
-  flex: none;
+.toast .linkbutton {
+  flex: 0 1 auto;
   color: inherit;
   font-weight: 600;
+  text-align: left;
 }
 .toast.notice .xbtn,
 .toast.notice .xbtn:hover,

@@ -53,6 +53,12 @@ comment with a letter outside ASCII or a Mic-E byte hides neither its own header
 `last_watchdog_action` (`check`, `probe`, `reopen` or empty) with `last_watchdog_at`. It also has `searching` (the ports being listened to) and `lines` (the
 latest 100 as `{at, text}`). The page shows the packet and byte counts as the hover title of the radio status.
 
+**Recovery without a click.** There is no Reconnect command: every way the line can fail ends in an attempt to open it again. A silent radio is probed, and the first byte ends the silence (above). A port that goes away (a USB adapter pulled out, a COM port that disappears)
+is a line lost: the Tnc is `waiting` and tries again after the back-off, and on Linux, where the radio is searched for, the next attempt after a failed open listens to the ports that match the pattern, so an adapter that comes back as another device file is found. Where the radio is not
+searched for (Windows, macOS) `neoaprs/tncfollow.py` remembers which USB adapter the named port was (`serialprobe.identity_of`: vendor and product ids, and the serial number when there is one) and, when the port cannot be opened and the system no longer lists it, opens the port that adapter is on now
+(`serialprobe.moved_to`: the one port with its serial number, or, for an adapter with none, the only port with its ids; two that look alike are left to the operator). The setting is not changed; the memory lasts as long as the process (a daemon started while the adapter is already renumbered
+needs the port chosen once). `tests/test_tnc_recovery.py` holds these cases.
+
 **A TCP profile.** It connects to `tcp/host` and `tcp/port`, or to the address in `serial/port`, which is then used as it stands. A TCP connection that closes,
 or a serial device that goes away, is a line that dropped and is opened again after the back-off (5, 10, 20, 30 seconds). A `bt://` port is opened by
 `neoaprs/btserial.py` (the RFCOMM link by itself, with the channel looked up through `neoaprs/btsdp.py`); the paired devices are listed by

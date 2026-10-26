@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from . import appstate
-from .links import open_external
+from .links import open_external, window_url
 from .menu import OPEN, AppActions
 from .shell import ShellContext
 
@@ -124,7 +124,7 @@ def make_window(frame: WinFrame, ctx: ShellContext) -> Any:
     webview = importlib.import_module("webview")
     width, height = appstate.load_size(ctx.session.data)
     webview.settings["OPEN_EXTERNAL_LINKS_IN_BROWSER"] = True
-    window = webview.create_window("NeoAPRS", ctx.session.url, width=width, height=height, hidden=ctx.hidden, text_select=True, js_api=LinkApi(ctx.session.url))
+    window = webview.create_window("NeoAPRS", window_url(ctx.session.url), width=width, height=height, hidden=ctx.hidden, text_select=True, js_api=LinkApi(ctx.session.url))
     frame.window = window
     saver = SizeSaver(ctx.session.data)
 

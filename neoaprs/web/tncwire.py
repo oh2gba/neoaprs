@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from .wirebase import Iso, _Command, _Model
+from .wirebase import Iso, _Model
 
 
 class TncStats(_Model):
@@ -46,8 +46,3 @@ class TncState(_Model):
         description="what the watchdog did last: `check` (the radio asked whether it is there, after a quiet period), `probe` (the same, while the radio is silent) or `reopen` (the port closed and opened again); empty if it has done nothing since the daemon started")
     last_watchdog_at: Iso | None = Field(description="when the watchdog did that; null if it has done nothing since the daemon started")
     lines: list[TncLine] = Field(max_length=100, description="the latest 100 lines of what the TNC saw and did, oldest first")
-
-
-class TncReconnect(_Command):
-    """Opens the radio's line again with the settings as they are now (the port, the speed, entering KISS): the TNC is stopped and started in the background. The new state is told in `tnc`."""
-    cmd: Literal["tnc_reconnect"]

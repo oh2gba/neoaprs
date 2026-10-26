@@ -63,6 +63,6 @@ describe("a page that does not go with its daemon", () => {
     await flushPromises();
     expect(wrapper.find(".mismatch").exists()).toBe(false);
     expect(wrapper.find(".app").exists()).toBe(true);
-    expect(wrapper.find(".panelfoot").exists()).toBe(true);
+    expect(wrapper.find(".panelfoot").exists()).toBe(false);
   });
 });

@@ -9,7 +9,7 @@ Every Markdown file of the repository. `tests/test_hygiene.py` fails when a docu
 | `docs/manual/README.md` | the manual for the person who runs NeoAPRS: what it is, the contents, a few words |
 | `docs/manual/install.md` | installing on Windows, Linux and the Raspberry Pi, starting at login, updating, the update check |
 | `docs/manual/start.md` | the first start, the setup guide, the data folder, how settings apply, trying it without a radio, stopping |
-| `docs/manual/page.md` | the page: the panel and its tabs (the Stations table, the Nearby tab, the Packets tab, the Settings tab), the map, the station cards, the header and footer, phone, tablet and desktop, the base map |
+| `docs/manual/page.md` | the page: the panel and its tabs (the Stations table, the Nearby tab, the Packets tab, the Settings tab), the map, the station cards, the header, phone, tablet and desktop, the base map |
 | `docs/manual/desktop.md` | the desktop app: the window, the tray, start at sign-in |
 | `docs/manual/radio.md` | the radio's port (serial, TCP, Bluetooth, Bluetooth LE), finding the radio, the TNC type, the keep-alive and the silent radio |
 | `docs/manual/beacon.md` | the Beacon tab: the beacon status, Position (fixed or a GPS), the Beacon choice and Off, RX only, mobile operation with SmartBeaconing, PHG, the location and the symbol, the status, answers to queries, the fill-in digipeater |

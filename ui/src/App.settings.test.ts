@@ -9,18 +9,18 @@ import { open, tabButton, useAppHarness } from "@/test/app";
 useAppHarness();
 
 describe("App: the Settings tab", () => {
-  it("shows the radio link at the top of the TNC group of the Settings tab and asks for a reconnect", async () => {
+  it("shows the radio link at the top of the TNC group of the Settings tab, with no Reconnect: the radio is found again by itself", async () => {
     const { wrapper, socket } = await open();
     expect(tabButton(wrapper, "TNC")).toBeUndefined();
     await tabButton(wrapper, "Settings")?.trigger("click");
     const group = wrapper.find("#pane-settings fieldset");
     expect(group.find("legend").text()).toBe("Radio");
     expect(group.find(".radiostatus .tncstatus").text()).toMatch(/^Last packet /);
-    await group.find(".radiostatus button").trigger("click");
-    expect(socket.sent).toContainEqual({ cmd: "tnc_reconnect" });
+    expect(group.find(".radiostatus summary button").exists()).toBe(false);
+    expect(socket.sent.filter((c) => (c as { cmd: string }).cmd.includes("reconnect"))).toEqual([]);
   });
 
-  it("opens the Settings tab, where the radio is, from the radio state under the panel", async () => {
+  it("opens the Settings tab, where the radio is, from the Radio mark of the header", async () => {
     const { wrapper, socket } = await open();
     socket.say({
       type: "state",
@@ -30,7 +30,7 @@ describe("App: the Settings tab", () => {
     });
     await flushPromises();
     await tabButton(wrapper, "Stations")?.trigger("click");
-    await wrapper.find(".panelfoot button.status").trigger("click");
+    await wrapper.find(".appheader .pill-radio").trigger("click");
     expect(wrapper.find("[aria-selected='true']").text()).toContain("Settings");
   });
 

@@ -173,8 +173,8 @@ describe("the settings area in the pseudo-locale", () => {
 
   it("would notice a text written by hand", () => {
     const page = draw(ConfirmRow, undefined, { message: "x" });
-    page.insertAdjacentHTML("beforeend", "<button>Reconnect</button><p title='Test sound'>x</p>");
-    expect(untranslated(page)).toEqual(["Reconnect", "Test sound"]);
+    page.insertAdjacentHTML("beforeend", "<button>Check now</button><p title='Test sound'>x</p>");
+    expect(untranslated(page)).toEqual(["Check now", "Test sound"]);
   });
 
   it("draws the steps of each browser", () => {

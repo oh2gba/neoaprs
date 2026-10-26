@@ -74,7 +74,7 @@ def spin(condition: Any, seconds: float = 20.0) -> None:
 def reload(window: Any) -> None:
     loaded: list[bool] = []
     window.view.loadFinished.connect(loaded.append)
-    window.load()
+    window.view.reload()                                  # (the address is the same, with its fragment: a load() would be no navigation)
     spin(lambda: loaded)
     window.view.loadFinished.disconnect(loaded.append)
 
@@ -125,6 +125,10 @@ def test_the_page_keeps_what_it_stores_in_a_folder_of_the_data_folder(rig: Rig) 
     profile = rig.window.profile
     assert profile.persistentStoragePath() == str(rig.data / "webview") and not profile.isOffTheRecord()
     assert (rig.data / "webview").is_dir()
+
+
+def test_the_page_in_the_window_can_tell_it_is_the_app(rig: Rig) -> None:
+    assert evaluate(rig.window, "location.hash") == "#app"
 
 
 def test_a_navigation_to_the_page_stays_and_one_to_another_site_goes_to_the_browser(rig: Rig, page_url: str, monkeypatch: pytest.MonkeyPatch) -> None:

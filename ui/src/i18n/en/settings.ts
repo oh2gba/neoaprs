@@ -287,7 +287,6 @@ export const settings = {
     one: "{n} packet heard, {bytes_in} in, {bytes_out} out, {digipeated} digipeated",
     other: "{n} packets heard, {bytes_in} in, {bytes_out} out, {digipeated} digipeated",
   },
-  "settings.tnc.reconnect": "Reconnect",
   "settings.tnc.ports": "Ports",
   "settings.tnc.terminal": "Terminal",
   "settings.tnc.terminal_label": "What the TNC saw and did",

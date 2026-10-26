@@ -36,14 +36,14 @@ from .qruwire import AskQru, QruState
 from .prefwire import ClearStationPath, SetStationPath, SetStationRfOnly, StationPref
 from .stationwire import ForgetAllStations, ForgetStation, StationRow
 from .supportwire import PageError
-from .tncwire import TncReconnect, TncState
+from .tncwire import TncState
 from .updatewire import UpdateCancel, UpdateNow, UpdateState
 from .weatherwire import WeatherSeries, WeatherSeriesMsg
 from .wirebase import _Command, _Message, _Model
 
 
 # ---- Client to server
-AnyCommand = Union[Ping, AskStatus, CheckUpdate, Subscribe, Unsubscribe, ForgetStation, ForgetAllStations, TncReconnect, ListPorts, FindRadio, FindRadioCancel, SetConfig, BeaconNow, StatusNow, SendMessage, QueryStation, AskQru, MessageRetry, MessageCancel, MessageDelete, ConversationDelete, OverheardDelete, SetStationPath, ClearStationPath, SetStationRfOnly, WeatherSeries, AlertTest, BulletinDelete, ObjectSet, ObjectKill, BulletinPost, BulletinUnpost, MapEstimate, MapFetch, MapCancel, UpdateNow, UpdateCancel, PageError]
+AnyCommand = Union[Ping, AskStatus, CheckUpdate, Subscribe, Unsubscribe, ForgetStation, ForgetAllStations, ListPorts, FindRadio, FindRadioCancel, SetConfig, BeaconNow, StatusNow, SendMessage, QueryStation, AskQru, MessageRetry, MessageCancel, MessageDelete, ConversationDelete, OverheardDelete, SetStationPath, ClearStationPath, SetStationRfOnly, WeatherSeries, AlertTest, BulletinDelete, ObjectSet, ObjectKill, BulletinPost, BulletinUnpost, MapEstimate, MapFetch, MapCancel, UpdateNow, UpdateCancel, PageError]
 Command = Annotated[AnyCommand, Field(discriminator="cmd")]
 """Every command the page may send."""
 

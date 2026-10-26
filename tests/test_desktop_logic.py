@@ -31,6 +31,12 @@ def test_links_stay_in_the_window_only_when_they_are_the_daemons_page(url: str, 
     assert links.route(url, PAGE) == where
 
 
+def test_the_window_loads_the_page_with_the_mark_that_says_it_is_the_app_and_it_still_stays_in_the_window() -> None:
+    assert links.window_url(PAGE) == PAGE + "#app"
+    assert links.window_url(PAGE + "#old") == PAGE + "#app", "one fragment, ours"
+    assert links.route(links.window_url(PAGE), PAGE) == "window"
+
+
 def test_the_port_the_page_was_found_on_is_the_one_that_counts() -> None:
     assert links.route("http://127.0.0.1:7304/", "http://127.0.0.1:7304/") == "window"
     assert links.route("http://127.0.0.1:7303/", "http://127.0.0.1:7304/") == "browser"

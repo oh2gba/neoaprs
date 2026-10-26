@@ -35,7 +35,6 @@ from .prefwire import ClearStationPath, SetStationPath, SetStationRfOnly
 from .configwire import SetConfig
 from .stationwire import ForgetAllStations, ForgetStation
 from .supportwire import PageError
-from .tncwire import TncReconnect
 from .updatewire import UpdateCancel, UpdateNow
 from .views import weather_points
 from .weatherwire import WeatherSeries
@@ -100,11 +99,6 @@ async def forget_station(ctx: Ctx, cmd: ForgetStation) -> None:
 @command(ForgetAllStations)
 async def forget_all_stations(ctx: Ctx, cmd: ForgetAllStations) -> None:
     await ctx.ctl.forget_stations()
-
-
-@command(TncReconnect)
-async def tnc_reconnect(ctx: Ctx, cmd: TncReconnect) -> None:
-    ctx.ctl.start_tnc()
 
 
 @command(ListPorts)

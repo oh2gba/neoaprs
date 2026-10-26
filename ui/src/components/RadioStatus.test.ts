@@ -8,13 +8,14 @@ const lines = (...texts: string[]) => texts.map((text, i) => ({ at: new Date(NOW
 const radio = (tnc: ReturnType<typeof tncState> | null) => mount(RadioStatus, { props: { tnc, now: NOW } });
 
 describe("RadioStatus", () => {
-  it("has the state, one plain line and Reconnect in the heading of a fold, and none of the counters", () => {
+  it("has the state and one plain line in the heading of a fold, and none of the counters, and no Reconnect", () => {
     const wrapper = radio(tncState());
     const head = wrapper.find("summary.statushead");
     expect(head.find(".statetext").text()).toBe("connected");
     expect(head.find(".tncstatus").text()).toBe("Last packet 30 s ago");
     expect(head.find(".tncstatus").attributes("title")).toBe("11 packets heard, 2.0 kB in, 0 B out, 0 digipeated");
-    expect(head.find("button").text()).toBe("Reconnect");
+    expect(head.find("button").exists()).toBe(false);
+    expect(wrapper.text()).not.toContain("Reconnect");
     for (const word of ["Opened", "Bytes", "Frames", "Keep-alive", "Speed", "Last error", "Details"]) expect(wrapper.text()).not.toContain(word);
   });
 
@@ -23,7 +24,8 @@ describe("RadioStatus", () => {
     const fold = wrapper.find<HTMLDetailsElement>("details.radiostatus");
     expect(fold.element.open).toBe(false);
     expect(fold.find(".fields").exists()).toBe(true);
-    expect(wrapper.findAll("summary").map((s) => s.find("button").exists() || s.text())).toEqual([true, "Terminal"]);
+    expect(wrapper.findAll("summary").map((s) => s.find("button").exists())).toEqual([false, false]);
+    expect(wrapper.findAll("summary")[1]?.text()).toBe("Terminal");
     expect(wrapper.findAll<HTMLDetailsElement>("details").map((d) => d.element.open)).toEqual([false, false]);
     await wrapper.setProps({ open: true });
     expect(fold.element.open).toBe(true);
@@ -69,13 +71,6 @@ describe("RadioStatus", () => {
         .findAll("details details")
         .map((d) => d.find("summary").text()),
     ).toEqual(["Terminal"]);
-  });
-
-  it("asks for a reconnect without opening or closing the fold", async () => {
-    const wrapper = radio(tncState());
-    await wrapper.find("button").trigger("click");
-    expect(wrapper.emitted("reconnect")).toHaveLength(1);
-    expect(wrapper.find<HTMLDetailsElement>("details").element.open).toBe(false);
   });
 
   it("shows the lines of the terminal with their time in the viewer's time", () => {

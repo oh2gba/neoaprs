@@ -21,44 +21,49 @@ describe("App", () => {
     expect(wrapper.text()).not.toContain("Not connected to the daemon");
   });
 
-  it("says Connecting… under the panel, then nothing of the radio; the header has the title and not our call", async () => {
+  it("says Daemon: connecting… in the header while the socket opens, then Daemon and Radio; the header has the title and not our call, and the panel has no footer", async () => {
     const wrapper = mountApp();
     await flushPromises();
-    expect(wrapper.find(".panelfoot").text()).toContain("Connecting…");
+    expect(wrapper.find(".appheader .pill-daemon").text()).toBe("Daemon: connecting…");
+    expect(wrapper.find(".appheader .pill-daemon").classes()).toContain("tag-warn");
     const socket = FakeSocket.last();
     socket.say(hello());
     socket.say({ type: "state", topic: "tnc", rev: 0, value: tncState() });
     socket.say({ type: "state", topic: "config", rev: 0, value: configValues() });
     await flushPromises();
-    const header = wrapper.find(".appheader").text();
-    expect(header).toBe("NeoAPRS");
+    expect(wrapper.find(".appheader h1").text()).toBe("NeoAPRS");
+    expect(wrapper.findAll(".appheader .headpills .tag").map((m) => m.text())).toEqual(["Daemon", "Radio"]);
+    expect(wrapper.find(".appheader").text()).not.toContain("OH2GBA");
     expect(wrapper.find(".appheader a").attributes("href")).toBe("https://oh2gba.github.io/neoaprs/");
-    const foot = wrapper.find(".panelfoot").text();
-    expect(foot).toBe("");
-    expect(wrapper.find("#pane-settings").element.parentElement?.lastElementChild).toBe(wrapper.find(".panelfoot").element);
-    expect(wrapper.find(".mapwrap .panelfoot").exists()).toBe(false);
+    expect(wrapper.find(".panelfoot").exists()).toBe(false);
+    expect(wrapper.find("footer").exists()).toBe(false);
   });
 
-  it("shows the radio under the panel only while it is not connected, and the line does not change", async () => {
+  it("shows the radio in the header all the time, in the colour of its state, and the mark does not move", async () => {
     const { wrapper, socket } = await open();
-    const foot = wrapper.find(".panelfoot");
-    expect(foot.find("button.status").exists()).toBe(false);
+    const mark = () => wrapper.find(".appheader .pill-radio");
+    expect([mark().text(), mark().classes().includes("tag-ok")]).toEqual(["Radio", true]);
     socket.say({ type: "state", topic: "tnc", rev: 1, value: tncState({ state: "waiting", problem: "no radio found", describe: "waiting" }) });
     await flushPromises();
-    expect(wrapper.find(".panelfoot").element).toBe(foot.element);
-    expect(foot.find("button.status").text()).toBe("Radio: not connected");
+    expect([mark().text(), mark().classes().includes("tag-warn"), mark().attributes("title")]).toEqual([
+      "Radio: not connected",
+      true,
+      "no radio found. Settings → Radio",
+    ]);
     socket.say({ type: "state", topic: "tnc", rev: 2, value: tncState() });
     await flushPromises();
-    expect(foot.find("button.status").exists()).toBe(false);
-    expect(wrapper.find(".appheader").text()).not.toMatch(/radio/i);
+    expect(mark().text()).toBe("Radio");
+    expect(wrapper.findAll(".appheader .headpills .tag").map((m) => m.text())).toEqual(["Daemon", "Radio"]);
   });
 
-  it("says daemon offline when the socket closes, and connects again", async () => {
+  it("says Daemon: offline in red when the socket closes, with the radio unknown meanwhile, and connects again", async () => {
     const { wrapper, socket } = await open();
     vi.useFakeTimers();
     socket.hangUp();
     await flushPromises();
-    expect(wrapper.find(".panelfoot .link-bad").text()).toBe("Daemon offline");
+    const daemon = wrapper.find(".appheader .pill-daemon");
+    expect([daemon.text(), daemon.classes().includes("tag-bad")]).toEqual(["Daemon: offline", true]);
+    expect(wrapper.find(".appheader .pill-radio").text()).toBe("Radio: waiting…");
     vi.advanceTimersByTime(1000);
     vi.useRealTimers();
     expect(FakeSocket.all).toHaveLength(2);
