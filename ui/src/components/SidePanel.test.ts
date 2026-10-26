@@ -1,5 +1,5 @@
 import { mount } from "@vue/test-utils";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import SidePanel from "@/components/SidePanel.vue";
 import { cssRule } from "@/test/css";
 
@@ -20,40 +20,14 @@ afterEach(() => {
 });
 
 describe("SidePanel", () => {
-  it("keeps the tab bar to one row that scrolls sideways when the tabs do not fit, and no tab changes its width when it is picked", () => {
+  it("keeps the tab bar to one row that never scrolls, and no tab changes its width when it is picked", () => {
     const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400 }, slots });
     expect(wrapper.find("[role='tablist']").classes()).toContain("tabs");
     expect(cssRule(".tabs")).toMatch(/flex-wrap:\s*nowrap/);
-    expect(cssRule(".tabs")).toMatch(/overflow-x:\s*auto/);
+    expect(cssRule(".tabs")).toMatch(/overflow:\s*hidden/);
     expect(cssRule(".tab")).toMatch(/flex:\s*none/);
     expect(cssRule(".tab")).toMatch(/white-space:\s*nowrap/);
     expect(cssRule(".tab.active")).not.toMatch(/font-weight|padding|width/);
-  });
-
-  it("scrolls the tab that was picked into view, also when the page picked it", async () => {
-    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400 }, slots, attachTo: document.body });
-    const into = vi.fn();
-    for (const tab of wrapper.findAll("[role='tab']")) tab.element.scrollIntoView = into;
-    await wrapper.setProps({ tab: "settings" });
-    await wrapper.vm.$nextTick();
-    expect(into).toHaveBeenCalledExactlyOnceWith({ block: "nearest", inline: "nearest" });
-    expect(into.mock.contexts[0]).toBe(wrapper.find("#tab-settings").element);
-    wrapper.unmount();
-  });
-
-  it("turns the wheel of a mouse over the tab bar into a sideways scroll while the tabs do not fit", () => {
-    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400 }, slots });
-    const bar = wrapper.find("[role='tablist']").element;
-    Object.defineProperty(bar, "scrollWidth", { value: 700, configurable: true });
-    Object.defineProperty(bar, "clientWidth", { value: 400, configurable: true });
-    const event = new WheelEvent("wheel", { deltaY: 90, cancelable: true });
-    bar.dispatchEvent(event);
-    expect(bar.scrollLeft).toBe(90);
-    expect(event.defaultPrevented).toBe(true);
-    Object.defineProperty(bar, "scrollWidth", { value: 300, configurable: true });
-    const spare = new WheelEvent("wheel", { deltaY: 90, cancelable: true });
-    bar.dispatchEvent(spare);
-    expect(spare.defaultPrevented).toBe(false);
   });
 
   it("has the nine tabs, the chosen one selected, and shows its pane only", () => {

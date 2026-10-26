@@ -75,44 +75,37 @@
   position: relative;
   display: flex;
   flex: none;
+  /* at the right the fold button (26 px and its 6 px) keeps its place; the tabs and the More button start 6 px from the left */
+  padding: 4px 38px 0 6px;
   border-bottom: 1px solid var(--border);
 }
+/* the tabs that fit, in one row: SidePanel splits them by what the width of the panel allows (the rest are under the More button), so none is cut off and none scrolls; the clip only covers what the browser rounds */
 .tabs {
   display: flex;
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
-  /* one row; one that does not fit is replaced by the menu button (SidePanel measures it), the sideways scroll is only a safety net */
   flex-wrap: nowrap;
-  overflow-x: auto;
-  scrollbar-width: thin;
+  overflow: hidden;
   gap: 0;
-  padding: 4px 38px 0 6px;
 }
-/* the tabs do not fit the panel: the row is drawn out of the way, as wide as it wants (it is measured), and the button with the menu of the tabs is in its place; it has the height of a tab, so the bar is as high in both forms */
-.tabs.measuring {
+/* the tabs and the More button again, out of the way and as wide as they want: SidePanel measures them (the widths are the ones of the real ones, which have the same classes) */
+.tabs-probe {
   position: absolute;
   top: 0;
   left: 0;
+  display: flex;
   width: max-content;
-  overflow: visible;
   visibility: hidden;
   pointer-events: none;
 }
 .tabmenu {
   position: relative;
-  flex: 0 1 auto;
-  min-width: 0;
-  padding: 4px 0 0 6px;
-}
-.tabmenu-button {
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  flex: none;
 }
 .tabmenu-list {
   position: absolute;
   top: 100%;
-  left: 6px;
+  right: 0;
   z-index: 20;
   min-width: 200px;
   max-width: calc(100vw - 12px);
@@ -150,10 +143,11 @@
   outline-offset: -2px;
   background: var(--row-hover);
 }
+/* 8 px at each side of a name: the nine English names with the counts of a busy day (three badges) take 700 px, which the 760 px of the default panel holds with the fold button's room; at 10 px they were 5 px too many */
 .tab {
   flex: none;
   white-space: nowrap;
-  padding: 6px 10px;
+  padding: 6px 8px;
   border: 0;
   border-bottom: 2px solid transparent;
   background: none;

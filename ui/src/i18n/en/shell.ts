@@ -25,6 +25,7 @@ export const shell = {
   "tab.beacon": "Beacon",
   "tab.packets": "Packets",
   "tab.settings": "Settings",
+  "tab.more": "More",
   "tab.menu_new": ", {n} new",
 
   "panel.label": "Details",

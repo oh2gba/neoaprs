@@ -127,12 +127,12 @@ button,
 .size-phone .panel-body {
   min-height: 0;
 }
-.size-phone .tabs {
+.size-phone .tabbar {
   padding-right: 6px;
 }
 .size-phone .tab-map {
   flex: none;
-  margin: 4px 0 0 6px;
+  margin: 0 6px 0 0;
   padding-right: 14px;
   padding-left: 14px;
   border-right: 1px solid var(--border);

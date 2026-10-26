@@ -29,6 +29,7 @@ export const de: Catalogue = {
   "tab.beacon": "Bake",
   "tab.packets": "Pakete",
   "tab.settings": "Einstellungen",
+  "tab.more": "Mehr",
   "tab.menu_new": ", {n} neu",
 
   "panel.label": "Details",

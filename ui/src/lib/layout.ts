@@ -13,7 +13,7 @@ export function tabTitle(id: TabId): string {
 
 export const PANEL_MIN = 280;
 export const PANEL_DEFAULT = 480;
-/** From this window width on, a panel the user has not dragged is `PANEL_DEFAULT_WIDE` wide: wide enough for the two columns of the Messages tab and for the nine tabs with their badges (the tab bar turns into a menu when they do not fit). */
+/** From this window width on, a panel the user has not dragged is `PANEL_DEFAULT_WIDE` wide: wide enough for the two columns of the Messages tab and for the nine tabs with their badges (the tabs that do not fit go under a More button). */
 const WIDE_WINDOW = 1280;
 export const PANEL_DEFAULT_WIDE = 760;
 

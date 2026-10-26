@@ -1,25 +1,27 @@
 <script setup lang="ts">
-// The tabs of the panel as one button, for a panel too narrow for the row of tabs (SidePanel measures that): "☰ Messages", the name of the open tab, with the count of everything that has a badge (the messages and the mail not seen, the new bulletins) when there is any.
-// It opens a menu with all the tabs in their order, each with its badge, the open one marked (aria-current); a click on one picks it and closes the menu, Esc and a click outside close it, Up and Down, Home and End move in it (Down or Up on the button opens it on the open tab or the last).
+// The tabs that do not fit in the row of the panel (SidePanel measures that), under one "More" button at the end of the row: it carries the count of everything that has a badge among them (the messages and the mail not seen, the new bulletins) when there is any.
+// It opens a menu of those tabs in their order, each with its badge; a click on one picks it and closes the menu (the tab then takes its place in the row, so the open tab is never under More), Esc and a click outside close it, Up and Down, Home and End move in it
+// (Down on the button opens it on the first, Up on the last).
 import { computed, nextTick, ref } from "vue";
 import TabBadge from "@/components/TabBadge.vue";
 import { usePopup } from "@/composables/usePopup";
 import { t } from "@/i18n";
-import { TAB_IDS, tabTitle, type TabId } from "@/lib/layout";
+import { tabTitle, type TabId } from "@/lib/layout";
 
-const props = defineProps<{ tab: TabId; badges: Partial<Record<TabId, number>>; on: boolean }>();
+const props = defineProps<{ tabs: readonly TabId[]; badges: Partial<Record<TabId, number>> }>();
 const emit = defineEmits<{ pick: [tab: TabId] }>();
 
 const open = ref(false);
 const root = ref<HTMLElement | null>(null);
 const button = ref<HTMLElement | null>(null);
 const items = ref<HTMLElement[]>([]);
-const total = computed(() => TAB_IDS.reduce((sum, id) => sum + (props.badges[id] ?? 0), 0));
+const total = computed(() => props.tabs.reduce((sum, id) => sum + (props.badges[id] ?? 0), 0));
 
 function focusItem(index: number): void {
-  items.value[(index + TAB_IDS.length) % TAB_IDS.length]?.focus();
+  const count = props.tabs.length;
+  items.value[(index + count) % count]?.focus();
 }
-async function show(index = TAB_IDS.indexOf(props.tab)): Promise<void> {
+async function show(index: number): Promise<void> {
   open.value = true;
   await nextTick();
   focusItem(index);
@@ -40,7 +42,7 @@ function pick(id: TabId): void {
 function buttonKey(event: KeyboardEvent): void {
   if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
   event.preventDefault();
-  void show(event.key === "ArrowDown" ? TAB_IDS.indexOf(props.tab) : TAB_IDS.length - 1);
+  void show(event.key === "ArrowDown" ? 0 : props.tabs.length - 1);
 }
 const popup = usePopup({ open, root, trigger: button, close: () => close(false), focusAway: false, stopEscape: true });
 function menuKey(event: KeyboardEvent): void {
@@ -49,7 +51,7 @@ function menuKey(event: KeyboardEvent): void {
     ArrowDown: () => focusItem(at + 1),
     ArrowUp: () => focusItem(at - 1),
     Home: () => focusItem(0),
-    End: () => focusItem(TAB_IDS.length - 1),
+    End: () => focusItem(props.tabs.length - 1),
   };
   if (event.key === "Escape") {
     event.preventDefault();
@@ -70,28 +72,19 @@ function menuKey(event: KeyboardEvent): void {
       ref="button"
       type="button"
       class="tab tabmenu-button"
-      :class="{ active: on }"
       aria-haspopup="menu"
       :aria-expanded="open"
       aria-controls="tabmenu-list"
       @click="toggle"
       @keydown="buttonKey"
     >
-      <span aria-hidden="true">&#9776;</span> {{ tabTitle(tab) }}
+      {{ t("tab.more") }} <span aria-hidden="true">&#9662;</span>
       <span v-if="total > 0" class="badge" aria-hidden="true">{{ total }}</span>
       <span v-if="total > 0" class="sr-only">{{ t("tab.menu_new", { n: total }) }}</span>
     </button>
     <ul v-if="open" id="tabmenu-list" class="tabmenu-list" role="menu" aria-labelledby="tabmenu-button" @keydown="menuKey">
-      <li v-for="(id, index) in TAB_IDS" :key="id" role="none">
-        <button
-          :ref="(el) => (items[index] = el as HTMLElement)"
-          type="button"
-          role="menuitem"
-          class="tabmenu-item"
-          tabindex="-1"
-          :aria-current="id === tab ? 'page' : undefined"
-          @click="pick(id)"
-        >
+      <li v-for="(id, index) in tabs" :key="id" role="none">
+        <button :ref="(el) => (items[index] = el as HTMLElement)" type="button" role="menuitem" class="tabmenu-item" tabindex="-1" @click="pick(id)">
           {{ tabTitle(id) }}
           <TabBadge :tab="id" :count="badges[id]" />
         </button>
