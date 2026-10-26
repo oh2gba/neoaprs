@@ -1,14 +1,16 @@
-"""The files the daemon serves over HTTP: the page's own (`Page`) and the base map from the data folder (`Basemap`). All answer only for a Host name of ours and carry the security headers; the
+"""The files the daemon serves over HTTP: the page's own (`Page`, from the snapshot of neoaprs/web/pagesnapshot.py) and the base map from the data folder (`Basemap`). All answer only for a Host name of ours and carry the security headers; the
 files handler of Tornado does the byte ranges. A path that does not exist is a 404 with a line of text."""
+import datetime
 import logging
 import os
 from pathlib import Path, PurePath
-from typing import Any, Protocol
+from typing import Any, Iterator, Protocol
 
 import tornado.httputil
 import tornado.web
 
 from .headers import host_name, security_headers
+from .pagesnapshot import PageFile, PageSnapshot, is_hidden
 
 log = logging.getLogger("neoaprs.web")
 
@@ -69,11 +71,6 @@ def refuse_unless_logged_in(handler: tornado.web.RequestHandler, server: HostGat
     return True
 
 
-def is_hidden(relative: PurePath) -> bool:
-    """Is the name, or a folder's above it, one that starts with a dot, or a source map? Decided on the parts of the path, so that the separator of the system does not matter."""
-    return any(part.startswith(".") for part in relative.parts) or relative.name.endswith(".map")
-
-
 def is_hashed_asset(relative: PurePath) -> bool:
     """A file under assets/, whose name has the hash of its content."""
     return len(relative.parts) > 1 and relative.parts[0] == "assets"
@@ -113,33 +110,62 @@ class Secured(SecurityHeaders):
             refuse_plain(self, server)
 
 
-class Page(Secured, tornado.web.StaticFileHandler):
-    """The page's files: the shell and what is copied from ui/public are asked about at every load (an edit shows at the next reload), the hashed files of assets/ are kept for good."""
-
-    def set_extra_headers(self, path: str) -> None:
-        self.set_header("Cache-Control", "public, max-age=31536000, immutable" if is_hashed_asset(PurePath(path)) else "no-cache")      # (the hash in a name of assets/ is that of its content)
-        self.set_header("X-Content-Type-Options", "nosniff")
+class Files(Secured, tornado.web.StaticFileHandler):
+    """What the page's two kinds of file routes have: the manifest has its own type, whatever the system's table says (the registry of Windows may not know the suffix), and sw.js is JavaScript on every system, which a
+    worker needs."""
 
     def get_content_type(self) -> str:
-        """The manifest has its own type, whatever the system's table says (the registry of Windows may not know the suffix); sw.js is JavaScript on every system, which a worker needs."""
         name = self.absolute_path.rsplit(os.sep, 1)[-1] if self.absolute_path else ""
         if name.endswith(".webmanifest"):
             return "application/manifest+json"
         return "text/javascript; charset=UTF-8" if name == "sw.js" else super().get_content_type()
 
+
+class Page(Files):
+    """The page's files, answered from the snapshot the daemon took at its start (neoaprs/web/pagesnapshot.py), never from the folder: the shell and what is copied from ui/public are asked about at every load (the ETag
+    answers with a 304 while they are the same), the hashed files of assets/ are kept for good. Byte ranges, HEAD and the ETag are the file handler's own; what it reads from the disk (the size, the time, the content) is read from the snapshot."""
+
+    def initialize(self, path: str, snapshot: PageSnapshot, default_filename: str | None = None) -> None:  # type: ignore[override]
+        super().initialize(path, default_filename)
+        self.snapshot = snapshot
+        self._file: PageFile | None = None
+
     def validate_absolute_path(self, root: str, absolute_path: str) -> str | None:
-        """Nothing whose name (or a folder's above it) starts with a dot is served, and no source map: a build that leaves a .env, a .git or a .map in page/ publishes it. 404, as for a file
-        that is not there."""
+        """Nothing whose name (or a folder's above it) starts with a dot is served, and no source map (the snapshot does not hold them either); 404, as for a file that is not there. The folder itself is its default file."""
         try:
             relative = Path(absolute_path).relative_to(root)
         except ValueError:
-            relative = None                                    # outside the root: the handler says 403
-        if relative is not None and is_hidden(relative):
+            raise tornado.web.HTTPError(403, "%s is not in root static directory", self.path) from None
+        if is_hidden(relative):
             raise tornado.web.HTTPError(404)
-        return super().validate_absolute_path(root, absolute_path)
+        name = self.default_filename or "" if relative == Path() else relative.as_posix()
+        self._file = self.snapshot.get(name)
+        if self._file is None:
+            raise tornado.web.HTTPError(404)
+        return os.path.join(root, name)
+
+    def get_content_size(self) -> int:
+        assert self._file is not None
+        return len(self._file.data)
+
+    def get_modified_time(self) -> datetime.datetime | None:
+        assert self._file is not None
+        return self._file.modified
+
+    def compute_etag(self) -> str | None:
+        assert self._file is not None
+        return self._file.etag
+
+    def get_content(self, abspath: str, start: int | None = None, end: int | None = None) -> Iterator[bytes]:  # type: ignore[override]
+        assert self._file is not None
+        yield self._file.data[start:end]
+
+    def set_extra_headers(self, path: str) -> None:
+        self.set_header("Cache-Control", "public, max-age=31536000, immutable" if is_hashed_asset(PurePath(path)) else "no-cache")      # (the hash in a name of assets/ is that of its content)
+        self.set_header("X-Content-Type-Options", "nosniff")
 
 
-class Basemap(Page):
+class Basemap(Files):
     """data/basemap.pmtiles (the detailed map) and data/basemap-world.pmtiles (the world under it), OpenStreetMap extracts made by the daemon (neoaprs/services/mapfetch.py): the route names the two files, so
     nothing else of the data folder is reachable. A file that is not there is a 404 with a line that says what to do. A PMTiles reader asks for pieces of the file, which is what the handler's byte ranges are for; it is an octet stream, which Tornado does not
     compress, so a range is a range of the file. It is behind the login: the page's files are free, the map is data."""

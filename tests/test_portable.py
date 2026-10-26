@@ -9,7 +9,8 @@ import pytest
 
 from neoaprs import durable, instancelock
 from neoaprs.instancelock import LOCK_NAME, AlreadyRunning, InstanceLock
-from neoaprs.web.pagefiles import is_hashed_asset, is_hidden
+from neoaprs.web.pagefiles import is_hashed_asset
+from neoaprs.web.pagesnapshot import is_hidden
 
 
 # ---- the lock of the data folder

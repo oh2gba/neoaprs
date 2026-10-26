@@ -51,6 +51,10 @@ export const de: Catalogue = {
   "footer.radio.not_connected": "Funkgerät: nicht verbunden",
   "footer.radio.open_settings": "Funkeinstellungen öffnen",
 
+  "mismatch.notice":
+    "Diese Seite und NeoAPRS passen nicht zusammen (Seite {page}, NeoAPRS {neoaprs}). Lade die Seite neu; bleibt es dabei, starte NeoAPRS neu.",
+  "mismatch.reload": "Neu laden",
+
   "settings.language.label": "Sprache",
 
   // time

@@ -34,7 +34,7 @@ Every request, the socket's too, must carry a `Host` header that is an IP addres
 any other is answered `403` with a line that says what to do (a page of another site whose name was moved to this address cannot talk to the daemon). A socket from a page of another site (an
 `Origin` that is not the `Host`) is refused too.
 
-The files: `/` and what is under it come from `page/` (`scripts/build-page` makes it; while there is none, a line says so), `/basemap.pmtiles` and `/basemap-world.pmtiles` are the files of those names in the data folder
+The files: `/` and what is under it come from `page/` (`scripts/build-page` makes it; while there is none, a line says so), as it was when the daemon started (the daemon reads it into memory once, so a page rebuilt on disk is served after the next start, and the `page` of `hello` is the build it serves), `/basemap.pmtiles` and `/basemap-world.pmtiles` are the files of those names in the data folder
 (the detailed map and the world under it), served with byte ranges (a `404` with a line of text while one is not there: the `map_fetch` command makes them), `/ws` is the socket. Nothing whose name begins with a dot is served, and no source map. Every answer
 carries the security headers: a Content-Security-Policy that allows the page's own scripts, workers, styles and its own socket and nothing else, `X-Frame-Options: DENY`, `Referrer-Policy:
 no-referrer`, `X-Content-Type-Options: nosniff` and `Cross-Origin-Resource-Policy: same-origin`. An error is a line of text. The shell `index.html` is sent `Cache-Control: no-cache`, the hashed
@@ -415,9 +415,9 @@ The first message of a connection; `status` and the `state` of every topic follo
 
 | field | type | | description |
 |---|---|---|---|
-| `protocol` | integer |  | the version of these messages: a page built for another one says so and loads itself again |
-| `version` | string |  | the version of the daemon: a page built for another one loads itself again, once for each version |
-| `page` | string |  | the build of the page this daemon serves, the name of its main script (`index-<hash>.js` of assets/): a page of another build loads itself again, once for each build, so that a page left open picks up a new one of the same version; empty when the daemon has no built page |
+| `protocol` | integer |  | the version of these messages: a page built for another one loads itself again, and when that does not help it does not run (it shows a notice and keeps the socket closed) |
+| `version` | string |  | the version of the daemon, which the page shows (the footer, the update check); the page has no version of its own and does not compare this one |
+| `page` | string |  | the build of the page this daemon serves, the name of its main script (`index-<hash>.js` of assets/); the daemon serves the page it took when it started, so this is the build a browser gets from it. A page of another build loads itself again, once for each build, and shows a notice when that does not help; empty when the daemon has no built page |
 | `install` | InstallInfo |  | how this daemon was installed, for the steps of an update |
 | `topics` | string[] |  | the topics the page is following from the start: all of them (a page may `unsubscribe` from one) |
 

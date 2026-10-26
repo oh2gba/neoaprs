@@ -47,5 +47,8 @@ export const shell = {
   "footer.radio.not_connected": "Radio: not connected",
   "footer.radio.open_settings": "Open the radio settings",
 
+  "mismatch.notice": "This page and NeoAPRS do not match (page {page}, NeoAPRS {neoaprs}). Reload the page; if this stays, restart NeoAPRS.",
+  "mismatch.reload": "Reload",
+
   "settings.language.label": "Language",
 } as const;

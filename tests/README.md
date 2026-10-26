@@ -224,7 +224,11 @@
   `ui/src/protocol/`) are current, every message has an example that validates, every command round-trips, every command has one handler.
 * `test_page_build.py`: `neoaprs/page/` (the committed build of `ui/`) is current (it builds `ui/` into a temporary folder and compares every file; skipped, and
   says so, without node or `ui/node_modules`), works from any path, lives under the daemon's Content-Security-Policy (no inline script, the map's worker is a
-  file) and ships the symbol sheets and glyph files.
+  file) and ships the symbol sheets and glyph files; its worker names its caches by a hash of the page's files and nothing of the page or its build reads the version of NeoAPRS.
+* `test_page_snapshot.py`: the daemon serves the page it started with (`neoaprs/web/pagesnapshot.py`): the files read into memory without the hidden ones and the source maps, a folder swapped in the middle of a read read
+  again, a page rebuilt on disk while the daemon runs changing nothing until it is started again, the ETag, `304`, `HEAD` and byte ranges of the snapshot, and the shipped page small enough to keep in memory.
+* `test_release_script.py`: `scripts/release` run for real on a clone of a made-up repository with a bare origin, a fake `gh`, a fake `scripts/check` and a loopback server for the download links: the order of the steps, the
+  dry run, the resume after a failure at each step (check, push, CI, tag, release run, the published release), `--rerun` once, the rate limit, and the refusals (branch, dirty tree, origin ahead, no notes, the version, a tag on another commit).
 * `ui/src/**/*.test.ts`: the page's own tests, run by vitest (`scripts/check --stage ui-tests`, or `cd ui && npx vitest run`): the socket client against a fake
   socket (state, patches, a missed revision, the reconnect backoff), the symbol sprites, the table's sorting and filtering, the map style, the settings form
   logic, the view composables of `App.vue` (the panel, the station picked, the Messages tab, the Email tab and its list of addressees, the Bulletins tab), the

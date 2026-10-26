@@ -51,6 +51,9 @@ export const fr: Catalogue = {
   "footer.radio.not_connected": "Radio : non connectée",
   "footer.radio.open_settings": "Ouvrir les réglages de la radio",
 
+  "mismatch.notice": "Cette page et NeoAPRS ne correspondent pas (page {page}, NeoAPRS {neoaprs}). Rechargez la page ; si cela persiste, redémarrez NeoAPRS.",
+  "mismatch.reload": "Recharger",
+
   "settings.language.label": "Langue",
 
   // time

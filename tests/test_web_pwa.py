@@ -1,5 +1,5 @@
 """The page as an installable app: the manifest and the service worker are served with the headers a browser needs of them (and the checks of every other file of the page), and the built page carries them, with the icons the
-manifest names, the version of the package in the worker, and the links in the shell."""
+manifest names, the build of the page in the worker, and the links in the shell."""
 import json
 import re
 import struct
@@ -75,8 +75,9 @@ def test_the_built_page_is_an_installable_app() -> None:
         assert f'name="{meta}"' in html, meta
 
 
-def test_the_built_worker_is_of_this_version_and_keeps_to_what_it_may_cache() -> None:
+def test_the_built_worker_names_its_caches_by_the_build_of_the_page_and_keeps_to_what_it_may_cache() -> None:
     worker = (PAGE / "sw.js").read_text(encoding="utf-8")
-    assert f'const VERSION = "{VERSION}"' in worker and "__PAGE_VERSION__" not in worker
+    assert re.search(r'const BUILD = "[0-9a-f]{10}";', worker) and "__PAGE_BUILD__" not in worker
+    assert VERSION not in re.sub(r"//.*", "", worker) and "__PAGE_VERSION__" not in worker, "the worker has no version of NeoAPRS: a release that changes nothing of the page leaves it as it is"
     for forbidden in ("/ws", "pmtiles", "/access"):
         assert forbidden not in re.sub(r"//.*", "", worker), f"the worker names {forbidden}: it handles a short list of the page's own files and nothing else"

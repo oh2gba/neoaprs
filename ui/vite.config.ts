@@ -1,33 +1,43 @@
 import { defineConfig, type Plugin } from "vite";
 import vue from "@vitejs/plugin-vue";
-import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { join, relative, sep } from "node:path";
 import { fileURLToPath, URL } from "node:url";
 
-/** The version of the package the page is built with: VERSION of neoaprs/__init__.py, the one place it is written. The page compares it with the daemon's. */
-function packageVersion(): string {
-  const text = readFileSync(fileURLToPath(new URL("../neoaprs/__init__.py", import.meta.url)), "utf-8");
-  const found = /^VERSION\s*=\s*"([^"]+)"/m.exec(text);
-  if (!found?.[1]) throw new Error("no VERSION in neoaprs/__init__.py");
-  return found[1];
+/** The build of the page as the service worker names its caches by: a hash of every file the build wrote (not sw.js itself), so that it changes when any file the page ships does and by nothing else, not by the version of NeoAPRS. */
+function buildOf(folder: string): string {
+  const files = readdirSync(folder, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => relative(folder, join(entry.parentPath, entry.name)).split(sep).join("/"))
+    .filter((name) => name !== "sw.js")
+    .sort();
+  const hash = createHash("sha256");
+  for (const name of files)
+    hash
+      .update(name)
+      .update("\0")
+      .update(readFileSync(join(folder, name)))
+      .update("\0");
+  return hash.digest("hex").slice(0, 10);
 }
 
-/** sw/sw.js, the service worker, is written out as sw.js at the root of the page (its scope is all of it), with the version of the package in it: a new release is a different file, which the browser takes as an update. */
-function serviceWorker(version: string): Plugin {
+/** sw/sw.js, the service worker, is written out as sw.js at the root of the page (its scope is all of it), once everything else is written, with the build of the page in it: a changed page is a different worker file, which the browser takes as an update, and a version of NeoAPRS that changed no file of the page is not. */
+function serviceWorker(): Plugin {
   return {
     name: "neoaprs-service-worker",
-    generateBundle() {
+    apply: "build",
+    writeBundle(options) {
+      const folder = options.dir ?? "";
       const source = readFileSync(fileURLToPath(new URL("./sw/sw.js", import.meta.url)), "utf-8");
-      this.emitFile({ type: "asset", fileName: "sw.js", source: source.replaceAll("__PAGE_VERSION__", version) });
+      writeFileSync(join(folder, "sw.js"), source.replaceAll("__PAGE_BUILD__", buildOf(folder)));
     },
   };
 }
 
-const VERSION = packageVersion();
-
 // The page is built into ../neoaprs/page (scripts/build-page sets NEOAPRS_OUT to it), package data that the daemon serves as it is and the wheel carries; the built files are kept in git, so the machine that runs NeoAPRS needs no node.
 export default defineConfig({
-  plugins: [vue(), serviceWorker(VERSION)],
-  define: { __PAGE_VERSION__: JSON.stringify(VERSION) },
+  plugins: [vue(), serviceWorker()],
   base: "./",
   resolve: {
     alias: {

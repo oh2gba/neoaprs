@@ -18,6 +18,7 @@ from tests.support.env import Env, idle_for, ON_AIR, OPERATOR, until
 from tests.support.wsclient import WsClient
 from neoaprs.web import handlers as web_handlers
 from neoaprs.web import server as web_server
+from neoaprs.web.pagesnapshot import PageSnapshot
 from neoaprs.web.protocol import TOPIC_NAMES, TOPIC_VALUES
 from neoaprs.web.bulletinwire import BulletinRow
 from neoaprs.web.messagewire import MessageRow
@@ -1006,9 +1007,13 @@ async def test_a_station_row_says_when_the_station_was_last_heard_direct(tmp_pat
     await e.stop()
 
 
-def test_the_page_build_is_the_main_script_of_the_page_served(tmp_path: Path) -> None:
-    from neoaprs.web.server import PAGE_DIR, page_build
+def test_the_page_build_is_the_main_script_of_the_page_served(tmp_path: Path, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("neoaprs.web.pagesnapshot.RETRY_SEC", 0.0)
+    from neoaprs.web.server import PAGE_DIR
+    (tmp_path / "assets").mkdir()
+    (tmp_path / "assets" / "index-DefyaO5x.js").write_text("1", encoding="utf-8")
     (tmp_path / "index.html").write_text('<script type="module" crossorigin src="./assets/index-DefyaO5x.js"></script>', encoding="utf-8")
-    assert page_build(tmp_path) == "index-DefyaO5x.js"
-    assert page_build(tmp_path / "nothing") == ""
-    assert page_build(PAGE_DIR).startswith("index-") and (PAGE_DIR / "assets" / page_build(PAGE_DIR)).is_file()
+    assert PageSnapshot.take(tmp_path).build == "index-DefyaO5x.js"
+    assert PageSnapshot.take(tmp_path / "nothing").build == "" and "not whole" in caplog.text
+    built = PageSnapshot.take(PAGE_DIR).build
+    assert built.startswith("index-") and (PAGE_DIR / "assets" / built).is_file()

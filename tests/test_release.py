@@ -106,11 +106,12 @@ def test_a_failed_tag_run_is_run_again_and_never_retagged() -> None:
     assert "github.ref_type == 'tag'" in WORKFLOW.split("\n  verify:\n", 1)[1].split("\n  wheel:\n", 1)[0], "a tag run by hand is verified and published like a pushed one"
 
 
-def test_verify_fails_early_on_an_unfinished_changelog_a_stale_page_a_commit_off_master_and_a_red_ci() -> None:
+def test_verify_fails_early_on_an_unfinished_changelog_a_page_that_is_not_the_source_a_commit_off_master_and_a_red_ci() -> None:
     verify = WORKFLOW.split("\n  verify:\n", 1)[1].split("\n  wheel:\n", 1)[0]
     assert "actions: read" in verify and "contents: write" not in verify
     assert "fetch-depth: 0" in verify and "git merge-base --is-ancestor" in verify and "origin/master" in verify
-    assert "## Unreleased" in verify and "neoaprs/page/sw.js" in verify
+    assert "## Unreleased" in verify and "scripts/build-page" in verify and "git diff --exit-code -- neoaprs/page" in verify, "the committed page is what ui/ builds"
+    assert "neoaprs/page/sw.js" not in verify and "const VERSION" not in verify, "the page has no version in it: a release that changed nothing in ui/ leaves it as it is"
     assert "gh run list" in verify and "--workflow ci.yml" in verify and '--commit "$GITHUB_SHA"' in verify and "seq 1 40" in verify and "sleep 30" in verify, "a CI run still going is waited for, 20 minutes at most"
     ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     assert "cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}" in ci, "a push to master is checked to the end: the tag's verify asks for that run"

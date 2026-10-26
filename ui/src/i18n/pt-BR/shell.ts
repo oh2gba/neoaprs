@@ -50,5 +50,9 @@ export const shell: Record<keyof typeof source, Message> = {
   "footer.radio.not_connected": "Rádio: não conectado",
   "footer.radio.open_settings": "Abrir os ajustes do rádio",
 
+  "mismatch.notice":
+    "Esta página e o NeoAPRS não correspondem (página {page}, NeoAPRS {neoaprs}). Recarregue a página; se continuar assim, reinicie o NeoAPRS.",
+  "mismatch.reload": "Recarregar",
+
   "settings.language.label": "Idioma",
 };

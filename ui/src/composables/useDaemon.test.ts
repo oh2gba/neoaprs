@@ -4,9 +4,9 @@ import { defineComponent } from "vue";
 import { socketUrl, useDaemon } from "@/composables/useDaemon";
 import { FakeFetch } from "@/test/fakefetch";
 import { FakeSocket } from "@/test/fakesocket";
-import { PAGE_VERSION } from "@/lib/build";
 import { pageErrors } from "@/lib/pageerrors";
-import { bulletin, configValues, errorOf, gpsState, hello, message, ownBulletin, ownObject, packet, station, tncState } from "@/test/fixtures";
+import { PROTOCOL } from "@/protocol/lists";
+import { DAEMON_VERSION, bulletin, configValues, errorOf, gpsState, hello, message, ownBulletin, ownObject, packet, station, tncState } from "@/test/fixtures";
 
 function setUp() {
   let daemon: ReturnType<typeof useDaemon> | undefined;
@@ -68,7 +68,7 @@ describe("useDaemon", () => {
     expect(daemon.bulletins.get("OH2XYZ/BLN1")?.text).toBe("text of BLN1");
     expect(daemon.messages.get("1")?.text).toBe("message 1");
     expect(daemon.stationPrefs.get("OH2RDG")).toEqual({ path: "WIDE2-1" });
-    expect(daemon.version.value).toBe(PAGE_VERSION);
+    expect(daemon.version.value).toBe(DAEMON_VERSION);
     expect(daemon.install.value).toEqual({ kind: "pip", appimage: "", service: false, arch: "" });
     expect([...daemon.stations.keys()]).toEqual(["A"]);
     expect(daemon.packets.get("1")?.id).toBe(1);
@@ -182,22 +182,52 @@ describe("useDaemon", () => {
     reload.mockRestore();
   });
 
-  it("loads the page again when the daemon it meets is of another version, once, and again for a later update after a match", () => {
+  it("loads the page again when the daemon it meets speaks another protocol, once, and again for a later update after a match", () => {
     const reload = vi.spyOn(location, "reload").mockImplementation(() => undefined);
     sessionStorage.clear();
     const { socket } = setUp();
-    socket.say(hello({ version: "99.0.0" }));
-    socket.say(hello({ version: "99.0.0" }));
+    socket.say(hello({ protocol: PROTOCOL + 1 }));
     expect(reload).toHaveBeenCalledTimes(1);
     socket.say(hello());
-    expect(reload).toHaveBeenCalledTimes(1);
-    socket.say(hello({ version: "99.0.0" }));
+    socket.say(hello({ protocol: PROTOCOL + 1 }));
     expect(reload).toHaveBeenCalledTimes(2);
     sessionStorage.clear();
     reload.mockRestore();
   });
 
-  it("does not load the page again for a daemon of its own version", () => {
+  it("does not load the page again, nor refuse it, for a daemon of another version of NeoAPRS with the protocol and the build of the page", () => {
+    const reload = vi.spyOn(location, "reload").mockImplementation(() => undefined);
+    const { daemon, socket } = setUp();
+    socket.say(hello({ version: "99.0.0" }));
+    expect(reload).not.toHaveBeenCalled();
+    expect(daemon.mismatch.value).toBeNull();
+    expect(daemon.version.value).toBe("99.0.0");
+    reload.mockRestore();
+  });
+
+  it("does not run against a daemon that still does not match after the load: it says so, closes the socket for good, and takes nothing the daemon sends", () => {
+    const reload = vi.spyOn(location, "reload").mockImplementation(() => undefined);
+    sessionStorage.clear();
+    const wrong = { version: "9.9.9", protocol: PROTOCOL + 1, page: "index-Daemon01.js" };
+    const { daemon, socket } = setUp();
+    socket.say(hello(wrong));
+    expect(reload).toHaveBeenCalledTimes(1);
+    expect(daemon.mismatch.value).toBeNull();
+    FakeSocket.all = [];
+    const { daemon: second, socket: again } = setUp(); // the page after the load: the guard in the session storage is what the first load was made for
+    again.say(hello(wrong));
+    expect(reload).toHaveBeenCalledTimes(1);
+    expect(second.mismatch.value).toEqual({ page: `-/${PROTOCOL}`, neoaprs: `9.9.9, index-Daemon01.js/${PROTOCOL + 1}` });
+    expect(again.closed).toBe(true);
+    expect(second.connection.value).toBe("closed");
+    again.say({ type: "state", topic: "stations", rev: 0, value: { A: station("A") } });
+    expect(second.stations.size).toBe(0);
+    expect(FakeSocket.all).toHaveLength(1); // and it is not opened again
+    sessionStorage.clear();
+    reload.mockRestore();
+  });
+
+  it("does not load the page again for a daemon of its own protocol and build", () => {
     const reload = vi.spyOn(location, "reload").mockImplementation(() => undefined);
     const { socket } = setUp();
     socket.say(hello());

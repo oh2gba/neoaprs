@@ -1,5 +1,6 @@
-"""The page is built: neoaprs/page/ (kept in git, served as it is, no node needed to run NeoAPRS) is what ui/ builds. The first tests look at page/ alone and always run; the last builds ui/
-into a temporary folder and compares every file with page/, and is skipped, and says so, when there is no node or no `npm ci` in ui/. When it fails: scripts/build-page, commit page/."""
+"""The page is built: neoaprs/page/ (kept in git, served as it is, no node needed to run NeoAPRS) is what ui/ builds, and nothing but ui/: it has no version of NeoAPRS in it, so a release changes none of its files. The first
+tests look at page/ alone and always run; the last builds ui/ into a temporary folder and compares every file with page/, and is skipped, and says so, when there is no node or no `npm ci` in ui/. When it fails:
+scripts/build-page, commit page/."""
 import hashlib
 import os
 import re
@@ -81,6 +82,24 @@ def test_the_files_the_page_reads_at_run_time_are_shipped() -> None:
         assert name in files, f"{name} is read by the page at run time (ui/public/): {HINT}"
     for gone in ("js", "vendor", "style.css", "package.json"):
         assert not (PAGE / gone).exists(), f"page/{gone} is of the page before the build: {HINT}"
+
+
+def test_the_worker_is_named_by_the_files_of_the_page_it_belongs_to() -> None:
+    """vite.config.ts puts a hash of every file but sw.js into sw.js (the names of its caches), so a changed file is a changed worker and nothing else is: this makes the same hash from the committed files, which finds a page/ that was edited by hand or built from another ui/ without node."""
+    hash_ = hashlib.sha256()
+    for path in sorted((p for p in PAGE.rglob("*") if p.is_file() and p.relative_to(PAGE).as_posix() != "sw.js"), key=lambda p: p.relative_to(PAGE).as_posix().encode()):
+        hash_.update(path.relative_to(PAGE).as_posix().encode() + b"\0" + path.read_bytes() + b"\0")
+    worker = (PAGE / "sw.js").read_text(encoding="utf-8")
+    assert f'const BUILD = "{hash_.hexdigest()[:10]}";' in worker, f"sw.js does not name the files of page/: {HINT}"
+
+
+def test_nothing_of_the_page_reads_the_version_of_neoaprs() -> None:
+    """The version is written in neoaprs/__init__.py and the daemon tells it to the page in hello; the page's build and its worker never read it, which is why a version bump does not rebuild the page."""
+    build = [UI / "vite.config.ts", UI / "env.d.ts", *(p for p in (UI / "sw").rglob("*") if p.is_file())]
+    for source in build:
+        assert "__init__.py" not in source.read_text(encoding="utf-8"), f"{source.relative_to(ROOT)} reads the version of NeoAPRS: the page learns it from hello"
+    for source in (p for p in (UI / "src").rglob("*") if p.suffix in (".ts", ".vue") and ".test." not in p.name):
+        assert "PAGE_VERSION" not in source.read_text(encoding="utf-8"), f"{source.relative_to(ROOT)} has the version of NeoAPRS built in: the page learns it from hello"
 
 
 @pytest.mark.skipif(node_dir() is None, reason="no node 22.12 or newer (on the PATH or in ~/.nvm): the page is not rebuilt to compare")

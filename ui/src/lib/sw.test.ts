@@ -20,7 +20,7 @@ interface Rig {
   install: () => void;
 }
 
-function rig(version = "1.2.3"): Rig {
+function rig(build = "1.2.3"): Rig {
   const listeners = new Map<string, Listener>();
   const stores = new Map<string, Map<string, Response>>();
   const key = (request: string | { url: string }): string => (typeof request === "string" ? request : request.url);
@@ -46,7 +46,7 @@ function rig(version = "1.2.3"): Rig {
     addEventListener: (type: string, listener: Listener) => listeners.set(type, listener),
   };
   // eslint-disable-next-line @typescript-eslint/no-implied-eval, @typescript-eslint/no-unsafe-call -- the worker is a script that is run here with the globals of a worker, which are fakes
-  new Function("self", "caches", "fetch", SOURCE.replaceAll("__PAGE_VERSION__", version))(self, caches, fetcher);
+  new Function("self", "caches", "fetch", SOURCE.replaceAll("__PAGE_BUILD__", build))(self, caches, fetcher);
   return {
     fetch: fetcher,
     stores,
@@ -181,14 +181,50 @@ describe("the shell and the other files of the page: network first", () => {
   });
 });
 
-describe("a new version", () => {
+describe("a reload after the daemon was upgraded", () => {
+  const OLD_HTML = '<script type="module" src="./assets/index-OldOld11.js"></script>';
+  const NEW_HTML = '<script type="module" src="./assets/index-NewNew22.js"></script>';
+
+  it("gets the new shell and the new files from the daemon, though the old ones are kept and the worker has not been replaced yet", async () => {
+    const r = rig("old-build");
+    const daemon = (html: string) => (request: string | { url: string }) => {
+      const url = typeof request === "string" ? request : request.url;
+      return Promise.resolve(reply(url === SCOPE ? html : `code of ${url}`));
+    };
+    r.fetch.mockImplementation(daemon(OLD_HTML));
+    await (await r.ask(SCOPE, { mode: "navigate" })).settle();
+    expect(await (await r.ask(`${SCOPE}assets/index-OldOld11.js`)).answer?.text()).toBe(`code of ${SCOPE}assets/index-OldOld11.js`);
+    r.fetch.mockImplementation(daemon(NEW_HTML)); // NeoAPRS is upgraded and restarted; the page left open reloads
+    const navigation = await r.ask(SCOPE, { mode: "navigate" });
+    expect(await navigation.answer?.text()).toBe(NEW_HTML);
+    await navigation.settle();
+    expect(await (await r.ask(`${SCOPE}assets/index-NewNew22.js`)).answer?.text()).toBe(`code of ${SCOPE}assets/index-NewNew22.js`);
+    const kept = r.stores.get("neoaprs-old-build-assets");
+    expect(kept?.has(`${SCOPE}assets/index-NewNew22.js`)).toBe(true);
+  });
+
+  it("is a worker of its own for a new build, whose caches take the place of the old build's, whatever the version of NeoAPRS", async () => {
+    const r = rig("new-build");
+    r.fetch.mockImplementation(() => Promise.resolve(reply(NEW_HTML)));
+    for (const name of ["neoaprs-old-build-page", "neoaprs-old-build-assets", "neoaprs-0.9.0-page"]) r.stores.set(name, new Map());
+    await r.activate();
+    expect([...r.stores.keys()].sort()).toEqual(["neoaprs-new-build-assets", "neoaprs-new-build-page"]);
+  });
+
+  it("does not have the version of NeoAPRS in it, and has the build of the page where its caches are named", () => {
+    expect(SOURCE).not.toMatch(/__PAGE_VERSION__|VERSION/);
+    expect(SOURCE.match(/"__PAGE_BUILD__"/g)).toHaveLength(1);
+  });
+});
+
+describe("a new build", () => {
   it("takes over at once", () => {
     const r = rig();
     r.install();
     expect(r.skip).toHaveBeenCalled();
   });
 
-  it("deletes the caches of the old versions, and only NeoAPRS's own, and fills its own", async () => {
+  it("deletes the caches of the old builds, and only NeoAPRS's own, and fills its own", async () => {
     const r = rig("2.0.0");
     r.fetch.mockImplementation(() => Promise.resolve(reply(HTML)));
     for (const name of ["neoaprs-1.9.0-page", "neoaprs-1.9.0-assets", "neoaprs-2.0.0-page", "someone-elses"]) r.stores.set(name, new Map());

@@ -37,7 +37,7 @@ def _no_constant(name: str) -> Any:
 class Api:
     def __init__(self, controller: Controller, validate_out: bool | None = None, reach: Callable[[], list[str]] = list, secure: Callable[[], dict[str, Any]] | None = None, page: str = "") -> None:
         self.ctl = controller
-        self.page = page                                # the build of the page that is served (server.page_build), told in hello
+        self.page = page                                # the build of the page that is served (PageSnapshot.build of neoaprs/web/pagesnapshot.py), told in hello
         self.out = Publisher(validate_out)
         self.clients = self.out.connections             # the open pages, by their sockets
         self.hub = StateHub()

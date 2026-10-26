@@ -376,8 +376,15 @@ the path and RF only of a station are not touched. The commands `set_station_tim
 `neoaprs/versions.py` compares the versions and reads the answer. It keeps the answer only if it is newer than ours, and the `status` message carries it.
 `check_now` is the same question on request (`update_check`, answered by `update_result`). `NEOAPRS_UPDATE_CHECK=0` switches it off for the run. The kind of
 system sent is worked out by the process in `neoaprs/cli/installkind.py` and given to the controller; the `hello` message carries it so the page can say how to
-update. The page loads itself again when its built-in version or its build (the field `page` of `hello`, the name of the page's main script) differs from the one in `hello`; the daemon serves `index.html` with `no-cache` and the other
-files by the hash of their content.
+update. The page has no version of NeoAPRS built in: it learns the daemon's from `hello` (the footer, the update check) and compares only the protocol and its build (the field `page` of `hello`, the name of the page's
+main script). When either differs it loads itself again once; when that does not help it shows a notice in its language ("This page and NeoAPRS do not match ...", with a Reload button), keeps the socket closed and does not run
+(`ui/src/lib/reload.ts`). A new version of NeoAPRS that changed nothing in `ui/` therefore changes nothing in the page.
+
+**The page is the one the daemon started with** (`neoaprs/web/pagesnapshot.py`, `neoaprs/web/pagefiles.py`). At its start the daemon reads every file of `neoaprs/page/` (not a hidden one or a source map) into memory, 26 files and 3.4 MB
+(`tests/test_page_snapshot.py` holds it under 16 MB; beyond that the page would be copied to a folder named by the build under the data folder and served from there), and answers every request from that, with the ETag (a hash of the content) and `Last-Modified` of
+the file, `HEAD`, byte ranges and `Cache-Control` as before: `index.html` and the files copied from `ui/public` with `no-cache`, the hashed files of `assets/` for good. A page rebuilt on disk, a branch switched or a
+package upgraded while the daemon runs changes nothing until the daemon is started again, so the page a browser gets and the daemon it talks to are always a pair, and `hello`'s `page` is the build of that pair. A folder swapped
+by a build in the middle of the read (the build renames two folders) is read again, up to three times. What a browser may still hold of an older pair is its service worker's copy of the page, which a reload replaces: the worker asks the daemon for the shell first.
 
 **Update now** (`neoaprs/services/selfupdate.py`) is the update the daemon does itself on the page's `update_now`, for the Windows installer and an AppImage:
 the release's file and `SHA256SUMS` of the announced version from GitHub, the SHA-256 checked, then the installer of the kind (`neoaprs/services/selfinstall.py`)
