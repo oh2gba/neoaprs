@@ -9,6 +9,16 @@ The tab bar.
 
 On Windows.
 
+For the page and the daemon.
+
+- **The page and the daemon are always a pair.** NeoAPRS reads the page into memory when it starts (3.4 MB, 26 files) and serves that; a page rebuilt on disk, a branch switched or a package upgraded while it runs changes nothing until it is started again. Before, the files were read at each request, so the browser could load a new page against an old daemon, which showed a blank Nearby tab and no station card.
+- **A page that does not go with its daemon says so.** The page compares its protocol and its build with the daemon's; when they differ it loads itself again once, and when that does not help it shows "This page and NeoAPRS do not match (page ..., NeoAPRS ...). Reload the page; if this stays, restart NeoAPRS." with a **Reload** button, in the language of the page, and keeps its socket closed. It is meant to be seen only when a browser holds an old copy of the page against an upgraded NeoAPRS.
+- **The page has no version of NeoAPRS in it.** It learns the version from the daemon (the footer, the update check), and the service worker names its caches by the build of the page, so a new version of NeoAPRS that changed nothing of the page leaves `neoaprs/page/` as it is.
+
+For development.
+
+- **`scripts/release VERSION`** makes a release in one command: it checks that master is clean, up to date and has notes under `## Unreleased`, writes the version and the changelog section, builds the page only if `ui/` changed since the last tag, runs `scripts/check`, commits, pushes, waits for the CI run, tags and pushes the tag, waits for the release run, checks the published release (its eight files and its download links) and deploys the version page with `--deploy`. It can be run again after any failure and skips what is done; `--rerun` runs the failed jobs of a run once, `--dry-run` prints the steps. `docs/MAINTAINING.md` describes it, with the manual steps as the fallback.
+
 ## 0.9.1
 
 Logs for support in one file, an About, a shorter project page with one-click downloads.
@@ -21,16 +31,6 @@ Logs for support in one file, an About, a shorter project page with one-click do
 - The project page is short.
 - The release also has `NeoAPRS-Setup.exe` and `NeoAPRS-x86_64.AppImage`, so a link to the latest one downloads at once.
 - Windows: uninstalling or updating no longer finds the app's files in use.
-
-For the page and the daemon.
-
-- **The page and the daemon are always a pair.** NeoAPRS reads the page into memory when it starts (3.4 MB, 26 files) and serves that; a page rebuilt on disk, a branch switched or a package upgraded while it runs changes nothing until it is started again. Before, the files were read at each request, so the browser could load a new page against an old daemon, which showed a blank Nearby tab and no station card.
-- **A page that does not go with its daemon says so.** The page compares its protocol and its build with the daemon's; when they differ it loads itself again once, and when that does not help it shows "This page and NeoAPRS do not match (page ..., NeoAPRS ...). Reload the page; if this stays, restart NeoAPRS." with a **Reload** button, in the language of the page, and keeps its socket closed. It is meant to be seen only when a browser holds an old copy of the page against an upgraded NeoAPRS.
-- **The page has no version of NeoAPRS in it.** It learns the version from the daemon (the footer, the update check), and the service worker names its caches by the build of the page, so a new version of NeoAPRS that changed nothing of the page leaves `neoaprs/page/` as it is.
-
-For development.
-
-- **`scripts/release VERSION`** makes a release in one command: it checks that master is clean, up to date and has notes under `## Unreleased`, writes the version and the changelog section, builds the page only if `ui/` changed since the last tag, runs `scripts/check`, commits, pushes, waits for the CI run, tags and pushes the tag, waits for the release run, checks the published release (its eight files and its download links) and deploys the version page with `--deploy`. It can be run again after any failure and skips what is done; `--rerun` runs the failed jobs of a run once, `--dry-run` prints the steps. `docs/MAINTAINING.md` describes it, with the manual steps as the fallback.
 
 ## 0.9.0
 
