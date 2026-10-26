@@ -492,6 +492,7 @@ export function status(extra: Partial<StatusMessage> = {}): StatusMessage {
     beacon_last_sent: null,
     beacon_next_due: null,
     station_status: "",
+    station_status_last_sent: null,
     rig_state: "unused",
     cpu_percent: 0.3,
     rss_mb: 42.4,

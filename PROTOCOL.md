@@ -450,6 +450,7 @@ What the daemon is, for the status bar: sent after `hello`, every 10 s, when ask
 | `beacon_last_sent` | time \| null |  | when the latest beacon was sent, by the timer or on request; null for none since the daemon started |
 | `beacon_next_due` | time \| null |  | when the timer sends the next one; null while the interval is 0 |
 | `station_status` | string |  | the text of the status report last sent in this run (services/rigstatus.py); empty until one has gone |
+| `station_status_last_sent` | time \| null |  | when the latest status report was sent (kept over a restart); null for none yet |
 | `rig_state` | "off" \| "on" \| "unused" |  | whether the radio the status is made from answers: `on`, `off` (rigctld is away or the radio is off, nothing is sent), or `unused` while the status does not come from a radio (`status/source` is `text` or `off`) |
 | `cpu_percent` | number |  | the daemon's CPU time (user and system) as a share of one core, in percent to a tenth, since the previous status that was at least a second before; the first counts from the start |
 | `rss_mb` | number \| null |  | the daemon's resident memory in megabytes, to a tenth; null where the system does not say |

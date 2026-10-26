@@ -1073,6 +1073,8 @@ export interface StatusMessage {
   beacon_next_due: string | null;
   /** the text of the status report last sent in this run (services/rigstatus.py); empty until one has gone */
   station_status: string;
+  /** when the latest status report was sent (kept over a restart); null for none yet */
+  station_status_last_sent: string | null;
   /** whether the radio the status is made from answers: `on`, `off` (rigctld is away or the radio is off, nothing is sent), or `unused` while the status does not come from a radio (`status/source` is `text` or `off`) */
   rig_state: "off" | "on" | "unused";
   /** the daemon's CPU time (user and system) as a share of one core, in percent to a tenth, since the previous status that was at least a second before; the first counts from the start */

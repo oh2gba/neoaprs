@@ -49,6 +49,7 @@ async def test_a_page_that_opens_is_sent_hello_the_status_and_every_topic_whole(
     status = await page.expect("status")
     assert status["version"] == VERSION and status["packets"] == 0 and status["stations"] == 1 and (status["call"], status["lat"], status["lon"]) == ("OH2GBA", 60.17, 24.94)
     assert (status["beacon_interval_min"], status["beacon_last_sent"], status["beacon_next_due"]) == (0, None, None)
+    assert status["station_status_last_sent"] is None
     states = {m["topic"]: m for m in page.of("state")}
     if len(states) < len(TOPIC_NAMES):
         await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))

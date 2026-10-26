@@ -4326,6 +4326,19 @@
           "description": "the text of the status report last sent in this run (services/rigstatus.py); empty until one has gone",
           "type": "string"
         },
+        "station_status_last_sent": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when the latest status report was sent (kept over a restart); null for none yet"
+        },
         "rig_state": {
           "description": "whether the radio the status is made from answers: `on`, `off` (rigctld is away or the radio is off, nothing is sent), or `unused` while the status does not come from a radio (`status/source` is `text` or `off`)",
           "enum": [
@@ -4379,6 +4392,7 @@
         "beacon_last_sent",
         "beacon_next_due",
         "station_status",
+        "station_status_last_sent",
         "rig_state",
         "cpu_percent",
         "rss_mb",
