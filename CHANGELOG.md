@@ -6,6 +6,11 @@ On Windows.
 
 - `neoaprs-app.exe --quit`, which the uninstaller and an update run to end the app, now waits for the app's process to be gone, not only for the lock it holds: the window's engine unloads after the lock is let go, and the uninstaller of 0.9.0 could find a file of the app still in use and leave it behind.
 
+Getting help.
+
+- The Settings tab has a last group, **Help**, with a plain **Download logs** button (it reads "Collecting…" while the file is made) that saves the support file the daemon makes, and under it a quiet line saying what the file holds and a link to the manual. After a download the group says "Saved" and the file's name and offers **Write to neoaprs@oh2gba.eu**, which opens the mail program with the version in the subject and a form to fill in (what you did, what you expected, what happened, when); the page cannot attach the file, so you do. A refusal is said in plain words: no access, another file being made, the daemon not reachable. The page sends its own facts with the request (the version and build, the browser, the language and time zone, the size of the window and of the panel, whether it is installed as an app, and the state of the connection) and the manual has a page, [Getting help](docs/manual/support.md).
+- The page reports its own errors to the daemon, which logs them with the rest: an error in a component, an error on the window and a promise nobody handled. The last 50 are kept in the page and go into the support file; the same message within a minute is counted, not sent again, and no more than 10 are sent in a minute.
+
 ## 0.9.0
 
 NeoAPRS can be a moving station: the beacon follows a GPS and is sent by SmartBeaconing, the Beacon tab is rebuilt around one choice of where the position comes from and one Beacon choice that switches the beacon off, a place and a symbol are chosen the same way everywhere, the map shows one range circle at a time, and the Windows installer closes NeoAPRS itself.

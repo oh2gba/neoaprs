@@ -72,10 +72,14 @@ neoaprs replay                                                     # prints sock
 neoaprs --data demo --port socket://127.0.0.1:PORT --web-port 0    # in another terminal; its log says the page's port
 ```
 
+## Getting help
+
+Something not working? In the page, *Settings*, *Help*, **Download logs** makes one file of the logs, the settings without the access key and the packets heard and sent; e-mail it to neoaprs@oh2gba.eu with a few words on what you did, what you expected, what happened and roughly when. Nothing is sent by itself. When the page does not open, `neoaprs support` makes the same file: [Getting help](docs/manual/support.md).
+
 ## More
 
 - [Radios and TNCs](docs/RADIOS.md): the setup of each, Bluetooth, permissions, troubleshooting
-- [Manual](docs/manual/README.md): installing, the first start, the page, the radio, the beacon, messages, email, bulletins, objects, weather, notifications, network access, the settings, the command line
+- [Manual](docs/manual/README.md): installing, the first start, the page, the radio, the beacon, messages, email, bulletins, objects, weather, notifications, network access, the settings, the command line, getting help
 - [Development](docs/development.md): building, the checks, the wire, packaging and releases; [how the daemon behaves](docs/daemon.md)
 - [Architecture](docs/ARCHITECTURE.md), [wire protocol](PROTOCOL.md), [changelog](CHANGELOG.md), [roadmap](ROADMAP.md)
 - [Issues](https://github.com/oh2gba/neoaprs/issues) and the [project page](https://oh2gba.github.io/neoaprs/)

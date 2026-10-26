@@ -1150,6 +1150,26 @@ export const de: Catalogue = {
   "settings.update.current": "aktuell ({version})",
   "settings.update.no_answer": "keine Antwort",
 
+  "settings.help.group": "Hilfe",
+  "settings.help.text":
+    "Etwas funktioniert nicht? Lade die Protokolle herunter und schicke sie per E-Mail an {address}, mit ein paar Worten: was du getan hast, was du erwartet hast, was passiert ist und ungefähr wann.",
+  "settings.help.download": "Protokolle herunterladen",
+  "settings.help.collecting": "Sammle…",
+  "settings.help.contents":
+    "Die Datei enthält das Protokoll, die Einstellungen ohne den Zugangsschlüssel und die empfangenen und gesendeten Pakete. NeoAPRS sendet von selbst nichts.",
+  "settings.help.contents_link": "Was in der Datei steht",
+  "settings.help.saved": "Gespeichert: {file}.",
+  "settings.help.write": "An {address} schreiben",
+  "settings.help.mail.did": "Was ich getan habe:",
+  "settings.help.mail.expected": "Was ich erwartet habe:",
+  "settings.help.mail.happened": "Was passiert ist:",
+  "settings.help.mail.when": "Wann (ungefähr):",
+  "settings.help.mail.attach": "Bitte {file} anhängen.",
+  "settings.help.problem.access": "Kein Zugriff: Lade die Seite neu, gib den Zugangsschlüssel ein und versuche es noch einmal.",
+  "settings.help.problem.busy": "Es wird gerade eine andere Datei erstellt. Versuche es in einer Minute noch einmal.",
+  "settings.help.problem.unreachable": "Der Daemon ist nicht erreichbar.",
+  "settings.help.problem.failed": "Die Datei konnte nicht erstellt werden (Fehler {status}).",
+
   // beacon
   "beacon.label": "Bake",
   "beacon.state.on": "an",

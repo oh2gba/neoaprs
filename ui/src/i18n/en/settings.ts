@@ -352,4 +352,23 @@ export const settings = {
   "settings.update.available": "{version} available",
   "settings.update.current": "up to date ({version})",
   "settings.update.no_answer": "no answer",
+
+  "settings.help.group": "Help",
+  "settings.help.text":
+    "Something not working? Download the logs and e-mail them to {address} with a few words: what you did, what you expected, what happened, and roughly when.",
+  "settings.help.download": "Download logs",
+  "settings.help.collecting": "Collecting…",
+  "settings.help.contents": "The file holds the log, the settings without the access key, and the packets heard and sent. NeoAPRS sends nothing by itself.",
+  "settings.help.contents_link": "What is in the file",
+  "settings.help.saved": "Saved {file}.",
+  "settings.help.write": "Write to {address}",
+  "settings.help.mail.did": "What I did:",
+  "settings.help.mail.expected": "What I expected:",
+  "settings.help.mail.happened": "What happened:",
+  "settings.help.mail.when": "When (roughly):",
+  "settings.help.mail.attach": "Remember to attach {file}.",
+  "settings.help.problem.access": "No access: reload the page, enter the access key and try again.",
+  "settings.help.problem.busy": "Another file is being made. Try again in a minute.",
+  "settings.help.problem.unreachable": "The daemon could not be reached.",
+  "settings.help.problem.failed": "The file could not be made (error {status}).",
 } as const;

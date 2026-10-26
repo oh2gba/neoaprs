@@ -26,6 +26,7 @@ This is the manual for the person who runs it. How NeoAPRS is built and released
 | [`notifications.md`](notifications.md) | being told of a new message |
 | [`network.md`](network.md) | opening the page from another device, the access key, https, installing the page as an app |
 | [`settings.md`](settings.md) | every setting with its default |
+| [`support.md`](support.md) | getting help: the Download logs button, `neoaprs support` for when the page does not open, what is in the file you e-mail and what is left out |
 | [`commands.md`](commands.md) | the `neoaprs` command line (the daemon, `service`, `map`, `db`, `open`, `stop`, `replay`, `gps-replay`, `capture`, `app`), troubleshooting with `neoaprs doctor` |
 
 The radios and how to connect each (and a GPS receiver for a moving station) are in [`docs/RADIOS.md`](../RADIOS.md).

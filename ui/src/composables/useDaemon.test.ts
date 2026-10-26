@@ -5,6 +5,7 @@ import { socketUrl, useDaemon } from "@/composables/useDaemon";
 import { FakeFetch } from "@/test/fakefetch";
 import { FakeSocket } from "@/test/fakesocket";
 import { PAGE_VERSION } from "@/lib/build";
+import { pageErrors } from "@/lib/pageerrors";
 import { bulletin, configValues, errorOf, gpsState, hello, message, ownBulletin, ownObject, packet, station, tncState } from "@/test/fixtures";
 
 function setUp() {
@@ -26,6 +27,21 @@ beforeEach(() => {
   vi.stubGlobal("WebSocket", FakeSocket);
 });
 afterEach(() => vi.unstubAllGlobals());
+
+describe("useDaemon and the errors of the page", () => {
+  it("sends an error of the page as page_error once the connection is open, and holds it until then", () => {
+    const { socket, wrapper } = setUp();
+    pageErrors.record(new Error("before the daemon spoke"), "window");
+    expect(socket.sent).toEqual([]);
+    socket.say(hello());
+    expect(socket.sent).toEqual([expect.objectContaining({ cmd: "page_error", message: "before the daemon spoke", source: "window" })]);
+    pageErrors.record(new Error("after"), "window");
+    expect(socket.sent).toHaveLength(2);
+    wrapper.unmount();
+    pageErrors.record(new Error("after the page is gone"), "window");
+    expect(socket.sent).toHaveLength(2);
+  });
+});
 
 describe("useDaemon", () => {
   it("opens the socket when mounted and closes it when unmounted", () => {

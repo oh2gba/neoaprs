@@ -18,6 +18,7 @@ import type {
 } from "@/protocol/protocol";
 import { useAnswers } from "@/composables/useAnswers";
 import { useOwnTables } from "@/composables/useOwnTables";
+import { usePageErrorReport } from "@/composables/usePageErrorReport";
 import { probe } from "@/lib/access";
 import { Hub, type Connection, type Store } from "@/lib/hub";
 import { reloadForDaemon } from "@/lib/reload";
@@ -119,6 +120,7 @@ export function useDaemon(url: () => string = socketUrl) {
 
   onMounted(() => hub.open());
   onBeforeUnmount(() => hub.close());
+  usePageErrorReport(hub, connection);
 
   return {
     stations,

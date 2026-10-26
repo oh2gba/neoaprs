@@ -18,8 +18,11 @@ import "./styles/responsive.css";
 import { createApp } from "vue";
 import AccessGate from "./AccessGate.vue";
 import { listenForInstall } from "./composables/useInstall";
+import { installErrorCapture } from "./lib/pageerrors";
 import { registerWorker } from "./lib/worker";
 
 listenForInstall();
 registerWorker();
-createApp(AccessGate).mount("#app");
+const app = createApp(AccessGate);
+installErrorCapture(app);
+app.mount("#app");

@@ -356,4 +356,24 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.update.available": "{version} disponible",
   "settings.update.current": "al día ({version})",
   "settings.update.no_answer": "sin respuesta",
+
+  "settings.help.group": "Ayuda",
+  "settings.help.text":
+    "¿Algo no funciona? Descarga los registros y envíalos por correo a {address} con unas palabras: qué hiciste, qué esperabas, qué pasó y más o menos cuándo.",
+  "settings.help.download": "Descargar registros",
+  "settings.help.collecting": "Recopilando…",
+  "settings.help.contents":
+    "El archivo contiene el registro, los ajustes sin la clave de acceso y los paquetes oídos y enviados. NeoAPRS no envía nada por sí mismo.",
+  "settings.help.contents_link": "Qué hay en el archivo",
+  "settings.help.saved": "Guardado {file}.",
+  "settings.help.write": "Escribir a {address}",
+  "settings.help.mail.did": "Qué hice:",
+  "settings.help.mail.expected": "Qué esperaba:",
+  "settings.help.mail.happened": "Qué pasó:",
+  "settings.help.mail.when": "Cuándo (más o menos):",
+  "settings.help.mail.attach": "Recuerda adjuntar {file}.",
+  "settings.help.problem.access": "Sin acceso: recarga la página, introduce la clave de acceso e inténtalo de nuevo.",
+  "settings.help.problem.busy": "Se está creando otro archivo. Inténtalo de nuevo en un minuto.",
+  "settings.help.problem.unreachable": "No se pudo contactar con el servicio.",
+  "settings.help.problem.failed": "No se pudo crear el archivo (error {status}).",
 };

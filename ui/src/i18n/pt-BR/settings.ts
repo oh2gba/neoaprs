@@ -356,4 +356,24 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.update.available": "{version} disponível",
   "settings.update.current": "atualizado ({version})",
   "settings.update.no_answer": "sem resposta",
+
+  "settings.help.group": "Ajuda",
+  "settings.help.text":
+    "Algo não está funcionando? Baixe os logs e envie por e-mail para {address} com algumas palavras: o que você fez, o que esperava, o que aconteceu e mais ou menos quando.",
+  "settings.help.download": "Baixar logs",
+  "settings.help.collecting": "Coletando…",
+  "settings.help.contents":
+    "O arquivo contém o log, os ajustes sem a chave de acesso e os pacotes ouvidos e enviados. O NeoAPRS não envia nada por conta própria.",
+  "settings.help.contents_link": "O que há no arquivo",
+  "settings.help.saved": "Salvo: {file}.",
+  "settings.help.write": "Escrever para {address}",
+  "settings.help.mail.did": "O que eu fiz:",
+  "settings.help.mail.expected": "O que eu esperava:",
+  "settings.help.mail.happened": "O que aconteceu:",
+  "settings.help.mail.when": "Quando (mais ou menos):",
+  "settings.help.mail.attach": "Lembre-se de anexar {file}.",
+  "settings.help.problem.access": "Sem acesso: recarregue a página, digite a chave de acesso e tente de novo.",
+  "settings.help.problem.busy": "Outro arquivo está sendo criado. Tente de novo em um minuto.",
+  "settings.help.problem.unreachable": "Não foi possível alcançar o daemon.",
+  "settings.help.problem.failed": "Não foi possível criar o arquivo (erro {status}).",
 };

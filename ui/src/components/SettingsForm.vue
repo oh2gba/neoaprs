@@ -6,7 +6,7 @@
 // for more groups (the page's own, which are not settings of the daemon), the slot `top` for the beacon status above the first group, and `status` for the line with the button that sends the status now, which opens the Status group. The Beacon tab's Station group
 // starts with the choice of where the position comes from (gps/source: Fixed, or a GPS) and what that needs; the place (Location) is shown for Fixed only (with a GPS it stays stored and out of sight), and the Beacon group has the Beacon choice (an interval, or Off and On for a moving station) and, for a moving station, the Travelling choice instead of the antenna. While the beacon is Off the Beacon group's other fields (Travelling, the comment, the antenna, the path) and the whole Status group are shown greyed out (`disabled` of SettingsField), the Station group never. The TNC group is SettingsRadio: the state of the radio link with Reconnect in view and the fields of the radio behind a fold, and the fields of the page's own alert end the
 // Notifications group (BrowserAlerts). What it works on is the page's (useDaemonContext): the settings, the daemon's answers, `send`. The Update check group (the daily check itself is always on) has a Check now button, which asks the version page at once and says the answer in the toast (a newer version opens the update window). While the network is let in, the Web group shows
-// the access key with a New key button and the addresses to open the page at.
+// the access key with a New key button and the addresses to open the page at. The Help group (SettingsHelp) is the last, after the Update check group.
 import BrowserAlerts from "@/components/BrowserAlerts.vue";
 import ConfirmRow from "@/components/ConfirmRow.vue";
 import MapFetchButton from "@/components/MapFetchButton.vue";
@@ -17,6 +17,7 @@ import SettingsField from "@/components/SettingsField.vue";
 import SettingsFold from "@/components/SettingsFold.vue";
 import SettingsLocation from "@/components/SettingsLocation.vue";
 import SettingsBox from "@/components/SettingsBox.vue";
+import SettingsHelp from "@/components/SettingsHelp.vue";
 import SettingsHttps from "@/components/SettingsHttps.vue";
 import SettingsPort from "@/components/SettingsPort.vue";
 import SymbolField from "@/components/SymbolField.vue";
@@ -252,6 +253,7 @@ function typed(key: string, text: string): void {
         </div>
       </div>
     </fieldset>
+    <SettingsHelp v-if="scope === 'settings'" />
     <slot></slot>
     <slot name="preview" :draft="draft"></slot>
   </form>

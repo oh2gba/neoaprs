@@ -349,4 +349,23 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.update.available": "{version}が利用可能",
   "settings.update.current": "最新です({version})",
   "settings.update.no_answer": "応答なし",
+
+  "settings.help.group": "ヘルプ",
+  "settings.help.text":
+    "うまく動きませんか?ログをダウンロードし、{address} にメールで送ってください。何をしたか、何を期待したか、何が起きたか、おおよそいつ起きたかを添えてください。",
+  "settings.help.download": "ログをダウンロード",
+  "settings.help.collecting": "収集中…",
+  "settings.help.contents": "ファイルには、ログ、アクセスキーを除いた設定、受信・送信したパケットが入っています。NeoAPRSが自分から何かを送ることはありません。",
+  "settings.help.contents_link": "ファイルの内容",
+  "settings.help.saved": "{file} を保存しました。",
+  "settings.help.write": "{address} にメールを書く",
+  "settings.help.mail.did": "したこと:",
+  "settings.help.mail.expected": "期待したこと:",
+  "settings.help.mail.happened": "起きたこと:",
+  "settings.help.mail.when": "いつ頃:",
+  "settings.help.mail.attach": "{file} を添付してください。",
+  "settings.help.problem.access": "アクセスできません。ページを再読み込みし、アクセスキーを入力してもう一度お試しください。",
+  "settings.help.problem.busy": "別のファイルを作成中です。1分ほどしてからもう一度お試しください。",
+  "settings.help.problem.unreachable": "デーモンに接続できませんでした。",
+  "settings.help.problem.failed": "ファイルを作成できませんでした(エラー {status})。",
 };

@@ -4,7 +4,7 @@ import { t } from "@/i18n";
 
 type Access = "open" | "locked";
 
-function endpoint(path: string): string {
+export function endpoint(path: string): string {
   return new URL(path, document.baseURI).toString();
 }
 
