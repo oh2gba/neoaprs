@@ -5,7 +5,7 @@
 A map from the first second.
 
 - There is a world map in every package, so the setup's map is never empty: coastlines, borders and the names of countries and big cities, with no download.
-- The map of your area now downloads by itself when you leave the setup's Position step, with one quiet line saying so; the Settings button stays for later.
+- A map of about 50 km round your station now downloads by itself when you leave the setup's Position step, with one quiet line saying so; Settings → Map → Download makes a bigger one.
 - Without internet the world map stays, and the setup says the detailed map will download when you are online; it is tried again at each start.
 - A missing or unreadable map file is now said above the setup, where it was hidden before.
 

@@ -80,6 +80,7 @@ class MapFetch:
         self._probe = probe
         self.patience = patience
         self._world = world
+        self._radius = 0                            # the radius of the job that was begun with one of its own (neoaprs/services/mapauto.py); 0: the setting's
         self._tasks = TaskSet(self._task_failed)
         self.later = False                          # set by neoaprs/services/mapauto.py: the map it began could not be fetched yet
         self.cancelled_by_user = False              # `cancel()` was called for the latest job (a stop of the daemon does not)
@@ -101,12 +102,13 @@ class MapFetch:
 
     # ---- what the page is told
     def _plan(self) -> tuple[Box, int, int]:
-        """The box, radius and zoom the settings make; MapError without a position."""
+        """The box, radius and zoom the settings make (the radius of the job that is running when it was given one); MapError without a position."""
         config = self.config()
         place = config.station_position
         if place is None:
             raise MapError("the station has no position yet: set Latitude and Longitude (the map is cut round them)")
-        return box_around(*place, config.map_radius_km), config.map_radius_km, config.map_maxzoom
+        radius = self._radius or config.map_radius_km
+        return box_around(*place, radius), radius, config.map_maxzoom
 
     def status(self) -> MapStatus:
         config = self.config()
@@ -150,9 +152,10 @@ class MapFetch:
         self._busy, self._problem, self.later, self.cancelled_by_user = job, "", False, False
         self._step, self._percent, self._downloaded, self._note = "", None, None, ""
 
-    def begin(self, job: Job) -> None:
-        """Starts the job in the background; MapError (nothing started) if one is running or there is no position. Its end is told by `changed`."""
+    def begin(self, job: Job, radius_km: int = 0) -> None:
+        """Starts the job in the background, for `radius_km` round the station when given (else `map/radius_km`, which it never changes); MapError (nothing started) if one is running or there is no position. Its end is told by `changed`."""
         self._claim(job)
+        self._radius = radius_km
         self._current = self._tasks.spawn(self._run(job), "map-" + job)
         self.changed.emit()
 
@@ -204,6 +207,7 @@ class MapFetch:
             if raising:
                 raise
         finally:
+            self._radius = 0
             for part in parts:
                 part.unlink(missing_ok=True)
             self._busy, self._current, self._step, self._percent, self._downloaded, self._note = None, None, "", None, None, ""
