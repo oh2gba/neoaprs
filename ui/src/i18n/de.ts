@@ -960,7 +960,7 @@ export const de: Catalogue = {
   "settings.network.label": "Zugriff aus dem Netzwerk erlauben",
   "settings.network.tip_label": "Über den Netzwerkzugriff",
   "settings.network.tip1": "Lässt ein Telefon, Tablet oder einen Laptop in deinem Netzwerk diese Seite öffnen. Ohne das kann es nur dieser Computer.",
-  "settings.network.tip2": "Einschalten und Speichern: Ein Zugangsschlüssel und die Adressen zum Öffnen erscheinen.",
+  "settings.network.tip2": "Einschalten: Ein Zugangsschlüssel und die Adressen zum Öffnen erscheinen.",
 
   "settings.access_key.label": "Zugangsschlüssel",
   "settings.access_key.tip_label": "Über den Zugangsschlüssel",

@@ -948,7 +948,7 @@ export const fr: Catalogue = {
   "settings.network.label": "Autoriser l'accès depuis le réseau",
   "settings.network.tip_label": "À propos de l'accès réseau",
   "settings.network.tip1": "Permet à un téléphone, une tablette ou un portable de votre réseau d'ouvrir cette page. Sans cela, seul cet ordinateur le peut.",
-  "settings.network.tip2": "Activez et enregistrez : une clé d'accès et les adresses à ouvrir apparaissent.",
+  "settings.network.tip2": "Activez-le : une clé d'accès et les adresses à ouvrir apparaissent.",
 
   "settings.access_key.label": "Clé d'accès",
   "settings.access_key.tip_label": "À propos de la clé d'accès",

@@ -111,7 +111,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.network.label": "Permitir acesso pela rede",
   "settings.network.tip_label": "Sobre o acesso pela rede",
   "settings.network.tip1": "Permite que um celular, um tablet ou um notebook da sua rede abra esta página. Sem isso, só este computador abre.",
-  "settings.network.tip2": "Ligue e salve: aparecem uma chave de acesso e os endereços para abrir.",
+  "settings.network.tip2": "Ligue: aparecem uma chave de acesso e os endereços para abrir.",
 
   "settings.access_key.label": "Chave de acesso",
   "settings.access_key.tip_label": "Sobre a chave de acesso",

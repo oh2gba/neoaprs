@@ -109,7 +109,7 @@ export const settings = {
   "settings.network.label": "Allow access from the network",
   "settings.network.tip_label": "About network access",
   "settings.network.tip1": "Lets a phone, a tablet or a laptop on your network open this page. Without it, only this computer can.",
-  "settings.network.tip2": "Switch it on and Save: an access key and the addresses to open appear.",
+  "settings.network.tip2": "Switch it on: an access key and the addresses to open appear.",
 
   "settings.access_key.label": "Access key",
   "settings.access_key.tip_label": "About the access key",

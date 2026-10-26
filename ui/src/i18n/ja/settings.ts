@@ -112,7 +112,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.network.label": "ネットワークからのアクセスを許可",
   "settings.network.tip_label": "ネットワークアクセスについて",
   "settings.network.tip1": "ネットワーク上のスマートフォン、タブレット、ノートパソコンからこのページを開けるようにします。オフならこのコンピューターだけです。",
-  "settings.network.tip2": "オンにして保存すると、アクセスキーと開くアドレスが表示されます。",
+  "settings.network.tip2": "オンにすると、アクセスキーと開くアドレスが表示されます。",
 
   "settings.access_key.label": "アクセスキー",
   "settings.access_key.tip_label": "アクセスキーについて",

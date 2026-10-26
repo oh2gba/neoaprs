@@ -110,7 +110,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.network.label": "Consenti l’accesso dalla rete",
   "settings.network.tip_label": "Informazioni sull’accesso dalla rete",
   "settings.network.tip1": "Permette a un telefono, un tablet o un portatile della tua rete di aprire questa pagina. Senza, può solo questo computer.",
-  "settings.network.tip2": "Attivalo e salva: compaiono una chiave di accesso e gli indirizzi da aprire.",
+  "settings.network.tip2": "Attivalo: compaiono una chiave di accesso e gli indirizzi da aprire.",
 
   "settings.access_key.label": "Chiave di accesso",
   "settings.access_key.tip_label": "Informazioni sulla chiave di accesso",

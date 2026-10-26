@@ -11,7 +11,7 @@ export function beaconOff(values: Readonly<Record<string, string>>): boolean {
 }
 
 /** Whether transmitting is switched off (`station/transmit` is false: RX only): nothing is sent, so the beacon's fields are greyed as when the beacon is Off. */
-export const rxOnly = (values: Readonly<Record<string, string>>): boolean => values["station/transmit"] === "false";
+const rxOnly = (values: Readonly<Record<string, string>>): boolean => values["station/transmit"] === "false";
 
 /** Whether a field is greyed out (shown, with its value, and not changeable) for these settings: while the beacon is Off only its timing (Travelling and the status's Every: there is no automatic beacon), for what is sent (the place, the symbol, the comment, the path, the antenna, the status text) is still what Beacon now sends; while transmitting is switched off (RX only) all of what the beacon says. */
 export function disabledByValues(key: string, values: Readonly<Record<string, string>>): boolean {

@@ -23,6 +23,9 @@ Internet stations on the map, a world map and a Dummy radio to try it all, Find 
 - **Fixed:** a station left in receive only by 0.9 can transmit again: Settings → Radio → RX only, unticked.
 - **RX only:** Settings → Radio → RX only, ticked, sends nothing and switches every send button off; an RX only mark shows at the top.
 - Marks at the top right say what is on: RX only, Beacon off, Internet, GPS; each opens where it is set.
+- One palette, soft and quiet in light and dark; every tag is the same size; the tags of how a station was heard are in a column of their own.
+- Every on/off in Settings is a tickbox (the browser's alert too: Alert, Sound, Pop-up); the notes of the (i) stay inside the window, with pictures for RX only, Beacon off, Internet, the channels, the Dummy radio and the alert.
+- A new object starts as a repeater. Feedback: GitHub issues or e-mail, at the end of Settings → About.
 - Help with pictures, and an (i) on every tab and setting.
 
 ## 0.9.1
