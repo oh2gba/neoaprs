@@ -34,7 +34,7 @@ describe("SettingsForm", () => {
     const { wrapper } = make();
     expect(wrapper.findAll("fieldset legend").map((l) => l.text())).toEqual([
       "Radio",
-      "Internet",
+      "Internet stations",
       "Digipeater",
       "Web page",
       "Notifications",
@@ -47,7 +47,7 @@ describe("SettingsForm", () => {
     ]);
     expect(wrapper.findAll("form > fieldset").map((f) => f.find("legend").text())).toEqual([
       "Radio",
-      "Internet",
+      "Internet stations",
       "Digipeater",
       "Web page",
       "Notifications",
@@ -1006,7 +1006,7 @@ describe("SettingsForm", () => {
       const { wrapper } = make();
       expect(group(wrapper)?.findAll(".field")).toHaveLength(1);
       const switch_ = wrapper.find<HTMLInputElement>("#set-digi-enabled");
-      expect(wrapper.find("label[for='set-digi-enabled']").text()).toBe("Digipeater");
+      expect(wrapper.find("label[for='set-digi-enabled']").text()).toBe("Enable");
       expect(switch_.attributes("type")).toBe("checkbox");
       expect(switch_.element.checked).toBe(false);
       expect(group(wrapper)?.find(".info-text").exists()).toBe(false);
