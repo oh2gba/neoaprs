@@ -180,10 +180,10 @@ The **header** is one calm line. It holds the title **NeoAPRS**, a link to the p
 
 While no call is set an amber **no call set** button is beside the title, which opens the setup guide.
 
-At the right, before the count of messages, are small marks that say how things stand. Each has a hover text, and all but **Daemon** open the place where they are set:
+At the right, before the count of messages, are small marks that say how things stand. Each has a hover text, and all but **Server** open the place where they are set:
 
 - **Update** (blue) while a newer version is out;
-- **Daemon** (green, amber while the page connects, red when NeoAPRS does not answer), in a browser only. In the desktop app page and daemon are one, so it is not there. The page connects again by itself;
+- **Server** (green, amber while the page connects, red when NeoAPRS does not answer), in a browser only. In the desktop app page and daemon are one, so it is not there. The page connects again by itself;
 - **Radio**, always: green while the radio is connected, grey and dashed for the Dummy radio, amber with the state in words otherwise. It opens Settings → Radio;
 - **RX only** (amber) while Settings → Radio → RX only is ticked ([beacon.md](beacon.md#rx-only));
 - **Beacon off** (grey) while the Beacon choice is Off and the station transmits ([beacon.md](beacon.md#beacon-off));

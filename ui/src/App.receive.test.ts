@@ -82,7 +82,7 @@ describe("App: RX only", () => {
     socket.say({ type: "state", topic: "gps", rev: 1, value: gpsState({ state: "no_fix" }) });
     await flushPromises();
     const marks = wrapper.findAll(".appheader .headpills .tag");
-    expect(marks.map((m) => m.text())).toEqual(["Daemon", "Radio", "GPS", "Internet"]);
+    expect(marks.map((m) => m.text())).toEqual(["Server", "Radio", "GPS", "Internet"]);
     expect(marks[2]?.classes()).toContain("tag-warn");
     socket.say({ type: "state", topic: "gps", rev: 2, value: gpsState({ state: "fix" }) });
     await flushPromises();

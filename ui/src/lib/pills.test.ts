@@ -12,9 +12,9 @@ const radio = (tnc: Partial<ReturnType<typeof tncState>>, extra: Partial<Link> =
 describe("the Daemon mark", () => {
   it("is in a browser only, ok while the page is connected, warn while it connects and bad when the daemon is offline, with nothing to open", () => {
     const states = [
-      ["open", "Daemon", "ok"],
-      ["connecting", "Daemon: connecting…", "warn"],
-      ["closed", "Daemon: offline", "bad"],
+      ["open", "Server", "ok"],
+      ["connecting", "Server: connecting…", "warn"],
+      ["closed", "Server: offline", "bad"],
     ] as const;
     for (const [connection, text, tone] of states) {
       const mark = marks({ connection }).find((p) => p.id === "daemon");
@@ -28,8 +28,25 @@ describe("the Daemon mark", () => {
   });
 
   it("is told by the fragment of the app's window", () => {
-    expect(inApp("#app")).toBe(true);
-    expect([inApp(""), inApp("#"), inApp("#application"), inApp("#/app")]).toEqual([false, false, false, false]);
+    expect(inApp("#app", null)).toBe(true);
+    expect([inApp("", null), inApp("#", null), inApp("#application", null), inApp("#/app", null)]).toEqual([false, false, false, false]);
+  });
+
+  it("is remembered by the app's window, so a reload or a load without the fragment there is still the app; a browser tab never saw it", () => {
+    const window = new Map<string, string>();
+    const memory = { getItem: (k: string) => window.get(k) ?? null, setItem: (k: string, v: string) => void window.set(k, v) } as unknown as Storage;
+    expect(inApp("", memory)).toBe(false);
+    expect(inApp("#app", memory)).toBe(true);
+    expect(inApp("", memory)).toBe(true);
+    const broken = {
+      getItem: () => {
+        throw new Error("blocked");
+      },
+      setItem: () => {
+        throw new Error("blocked");
+      },
+    } as unknown as Storage;
+    expect([inApp("#app", broken), inApp("", broken)]).toEqual([true, false]);
   });
 });
 

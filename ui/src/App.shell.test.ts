@@ -24,7 +24,7 @@ describe("App", () => {
   it("says Daemon: connecting… in the header while the socket opens, then Daemon and Radio; the header has the title and not our call, and the panel has no footer", async () => {
     const wrapper = mountApp();
     await flushPromises();
-    expect(wrapper.find(".appheader .pill-daemon").text()).toBe("Daemon: connecting…");
+    expect(wrapper.find(".appheader .pill-daemon").text()).toBe("Server: connecting…");
     expect(wrapper.find(".appheader .pill-daemon").classes()).toContain("tag-warn");
     const socket = FakeSocket.last();
     socket.say(hello());
@@ -32,7 +32,7 @@ describe("App", () => {
     socket.say({ type: "state", topic: "config", rev: 0, value: configValues() });
     await flushPromises();
     expect(wrapper.find(".appheader h1").text()).toBe("NeoAPRS");
-    expect(wrapper.findAll(".appheader .headpills .tag").map((m) => m.text())).toEqual(["Daemon", "Radio"]);
+    expect(wrapper.findAll(".appheader .headpills .tag").map((m) => m.text())).toEqual(["Server", "Radio"]);
     expect(wrapper.find(".appheader").text()).not.toContain("OH2GBA");
     expect(wrapper.find(".appheader a").attributes("href")).toBe("https://oh2gba.github.io/neoaprs/");
     expect(wrapper.find(".panelfoot").exists()).toBe(false);
@@ -53,7 +53,7 @@ describe("App", () => {
     socket.say({ type: "state", topic: "tnc", rev: 2, value: tncState() });
     await flushPromises();
     expect(mark().text()).toBe("Radio");
-    expect(wrapper.findAll(".appheader .headpills .tag").map((m) => m.text())).toEqual(["Daemon", "Radio"]);
+    expect(wrapper.findAll(".appheader .headpills .tag").map((m) => m.text())).toEqual(["Server", "Radio"]);
   });
 
   it("says Daemon: offline in red when the socket closes, with the radio unknown meanwhile, and connects again", async () => {
@@ -62,7 +62,7 @@ describe("App", () => {
     socket.hangUp();
     await flushPromises();
     const daemon = wrapper.find(".appheader .pill-daemon");
-    expect([daemon.text(), daemon.classes().includes("tag-bad")]).toEqual(["Daemon: offline", true]);
+    expect([daemon.text(), daemon.classes().includes("tag-bad")]).toEqual(["Server: offline", true]);
     expect(wrapper.find(".appheader .pill-radio").text()).toBe("Radio: waiting…");
     vi.advanceTimersByTime(1000);
     vi.useRealTimers();

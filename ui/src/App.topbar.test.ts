@@ -21,7 +21,7 @@ const flashed = (control: string) => document.getElementById(control)?.closest("
 describe("the Daemon mark", () => {
   it("is in a browser, between Update and Radio", async () => {
     const { wrapper } = await open();
-    expect(wrapper.findAll(".appheader .headpills .tag").map((m) => m.text())).toEqual(["Daemon", "Radio"]);
+    expect(wrapper.findAll(".appheader .headpills .tag").map((m) => m.text())).toEqual(["Server", "Radio"]);
   });
 
   it("is not in the desktop app, whose window loads the page with the fragment #app; the Radio mark is", async () => {

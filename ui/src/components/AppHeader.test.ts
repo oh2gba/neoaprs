@@ -86,7 +86,7 @@ describe("AppHeader", () => {
     const [daemon, radio] = wrapper.findAll(".headpills .tag");
     expect([daemon?.element.tagName, daemon?.text(), daemon?.classes().includes("tag-bad"), daemon?.attributes("role")]).toEqual([
       "SPAN",
-      "Daemon: offline",
+      "Server: offline",
       true,
       "status",
     ]);
