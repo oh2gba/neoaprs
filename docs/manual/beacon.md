@@ -241,7 +241,7 @@ It may carry the specification's target footprint, `?APRS?V34.02,-117.15,0200`: 
 
 The general queries `?WX?` (asking the weather stations for a weather report) and `?IGATE?` (asking the iGates for their capabilities) are recognised and never answered: NeoAPRS has no weather report of its own to send, its iGate is receive only and answers no query ([igate.md](igate.md)), and a station that has nothing relevant need not answer. The log notes them at the debug level and the packet is an ordinary packet in the packet log.
 
-A message to the addressee `QRU` is not a query to you; if you keep objects for it, NeoAPRS answers it as a QRU server ([Objects](objects.md#objects-sent-only-when-asked)).
+A request for local info is not a query to you; if you keep objects in a category, NeoAPRS answers it ([Objects](objects.md#objects-sent-only-when-asked)).
 
 - The answers are not retried and not sent while the TNC is not connected (the log says so). They have no message id.
 - The same query from the same station within 30 seconds (copies of one transmission by different digipeaters, an impatient asker) is answered once.

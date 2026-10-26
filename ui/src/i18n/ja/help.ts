@@ -13,7 +13,7 @@ export const help: Record<keyof typeof source, Message> = {
   "help.picture.path": "パケットは車からフィルインのデジピーター(WIDE1-1)、次に広域のデジピーター(WIDE2-1)へと、2ホップして他の局に届きます。",
   "help.picture.status": "短いステータス文(QRV 145.500)が、他の局の地図でコールサインの下に表示されます。",
   "help.picture.range": "デジピーターとその到達範囲の円。円の内側の局はデジピーター経由で聞こえ、外側の局は聞こえません。",
-  "help.picture.request": "ある局が QRU で問い合わせると、自局がオブジェクトで答えます。それ以外のときはこのオブジェクトは送られません。",
+  "help.picture.request": "ある局がローカル情報を問い合わせると、自局がオブジェクトで答えます。それ以外のときはこのオブジェクトは送られません。",
   "help.picture.ssid": "1つのコールサイン YOURCALL で3つの局: そのままなら自宅、-9 は車、-10 は iGate です。",
   "help.picture.symbol": "シンボルの一覧から車を選ぶと、他の局の地図でコールサインの下に車が表示されます。",
   "help.picture.network": "NeoAPRS が動くコンピューターが、ネットワークを通じてスマートフォン、タブレット、ノートパソコンにページを見せます。",
@@ -29,7 +29,7 @@ export const help: Record<keyof typeof source, Message> = {
   "help.picture.channels": "無線で受信した局は電波で表され、RFの札が付きます。雲(APRS-IS)から来た局は点線の輪郭と専用の札が付きます。",
   "help.picture.dummy": "破線の枠の中の作り物の局が自局に応答しますが、自局が送るものは出ません。電波に×が付いています。",
   "help.picture.notifications": "局からメッセージが届くと、この端末がスピーカーで音を鳴らし、カードでポップアップを表示します。",
-  "help.picture.qru": "自局が QRU に問い合わせると、サーバー局がオブジェクト(レピータとイベント)で答え、地図に表示されます。",
+  "help.picture.qru": "自局がローカル情報を問い合わせると、サーバー局がオブジェクト(レピータとイベント)で答え、地図に表示されます。",
   "help.not_copied": "コピーできませんでした",
 
   "help.install.label": "アプリ",

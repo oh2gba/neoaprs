@@ -14,7 +14,7 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
     "Tu paquete va de tu coche a un digipeater de relleno, WIDE1-1, y luego a uno de área amplia, WIDE2-1: dos saltos antes de que las demás estaciones lo escuchen.",
   "help.picture.status": "Tu texto de estado corto, QRV 145.500, aparece en el mapa de las demás estaciones bajo tu indicativo.",
   "help.picture.range": "Un digipeater con su círculo de alcance: las estaciones dentro del círculo se escuchan a través de él, las de fuera no.",
-  "help.picture.request": "Una estación pregunta QRU y tu estación responde con el objeto, que de otro modo no se envía.",
+  "help.picture.request": "Una estación pide info local y tu estación responde con el objeto, que de otro modo no se envía.",
   "help.picture.ssid": "Un indicativo, YOURCALL, para tres estaciones: el simple es una casa, -9 un coche, -10 un iGate.",
   "help.picture.symbol": "Una selección de símbolos con el coche elegido, y el coche en el mapa de otra estación bajo tu indicativo.",
   "help.picture.network": "El ordenador que ejecuta NeoAPRS, conectado por la red a un teléfono, una tableta y un portátil que abren su página.",
@@ -32,7 +32,7 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
     "Una estación oída por radio, con ondas, lleva RF; una que llegó de la nube, APRS-IS, tiene un contorno punteado y su propia etiqueta.",
   "help.picture.dummy": "Estaciones inventadas en un marco discontinuo responden a tu estación, y lo que esta envía no sale: las ondas están tachadas.",
   "help.picture.notifications": "Llega un mensaje de una estación y este dispositivo reproduce un sonido, el altavoz, y muestra una notificación, la tarjeta.",
-  "help.picture.qru": "Tu estación pregunta QRU, y una estación servidora responde con objetos, un repetidor y un evento, que aparecen en tu mapa.",
+  "help.picture.qru": "Tu estación pide info local, y una estación servidora responde con objetos, un repetidor y un evento, que aparecen en tu mapa.",
   "help.not_copied": "No copiado",
 
   "help.install.label": "Aplicación",

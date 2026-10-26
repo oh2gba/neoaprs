@@ -15,7 +15,7 @@ export const help: Record<keyof typeof source, Message> = {
     "O seu pacote vai do seu carro até um digipeater de preenchimento, WIDE1-1, e depois a um de área ampla, WIDE2-1: dois saltos antes de as outras estações o receberem.",
   "help.picture.status": "O seu texto de status curto, QRV 145.500, aparece no mapa das outras estações abaixo do seu indicativo.",
   "help.picture.range": "Um digipeater com o seu círculo de alcance: as estações dentro do círculo são ouvidas por meio dele, as de fora não.",
-  "help.picture.request": "Uma estação pergunta QRU e a sua estação responde com o objeto, que de outra forma não é enviado.",
+  "help.picture.request": "Uma estação pede info local e a sua estação responde com o objeto, que de outra forma não é enviado.",
   "help.picture.ssid": "Um indicativo, YOURCALL, para três estações: o simples é uma casa, -9 um carro, -10 um iGate.",
   "help.picture.symbol": "Uma escolha de símbolos com o carro selecionado, e o carro no mapa de outra estação sob o seu indicativo.",
   "help.picture.network": "O computador que roda o NeoAPRS, ligado pela rede a um celular, um tablet e um notebook que abrem a sua página.",
@@ -31,7 +31,7 @@ export const help: Record<keyof typeof source, Message> = {
   "help.picture.channels": "Uma estação ouvida pelo rádio, com ondas, leva RF; uma que veio da nuvem, APRS-IS, tem contorno pontilhado e etiqueta própria.",
   "help.picture.dummy": "Estações inventadas num quadro tracejado respondem à sua estação, e o que ela envia não sai: as ondas estão riscadas.",
   "help.picture.notifications": "Chega uma mensagem de uma estação, e este dispositivo toca um som, o alto-falante, e mostra um pop-up, o cartão.",
-  "help.picture.qru": "Sua estação pergunta QRU, e uma estação servidora responde com objetos, uma repetidora e um evento, que aparecem no seu mapa.",
+  "help.picture.qru": "Sua estação pede info local, e uma estação servidora responde com objetos, uma repetidora e um evento, que aparecem no seu mapa.",
   "help.not_copied": "Não copiado",
 
   "help.install.label": "Aplicativo",

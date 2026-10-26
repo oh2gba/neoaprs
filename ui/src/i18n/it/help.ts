@@ -14,7 +14,7 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
     "Il tuo pacchetto va dalla tua auto a un digipeater di riempimento, WIDE1-1, poi a uno ad ampia copertura, WIDE2-1: due salti prima che le altre stazioni lo ricevano.",
   "help.picture.status": "Il tuo breve testo di stato, QRV 145.500, compare sulla mappa delle altre stazioni sotto il tuo nominativo.",
   "help.picture.range": "Un digipeater con il suo cerchio di copertura: le stazioni dentro il cerchio si sentono tramite esso, quelle fuori no.",
-  "help.picture.request": "Una stazione chiede QRU e la tua stazione risponde con l’oggetto, che altrimenti non viene inviato.",
+  "help.picture.request": "Una stazione chiede info locali e la tua stazione risponde con l’oggetto, che altrimenti non viene inviato.",
   "help.picture.ssid": "Un nominativo, YOURCALL, per tre stazioni: quello semplice è una casa, -9 un’auto, -10 un iGate.",
   "help.picture.symbol": "Una scelta di simboli con l’auto selezionata, e l’auto sulla mappa di un’altra stazione sotto il tuo nominativo.",
   "help.picture.network": "Il computer su cui gira NeoAPRS, collegato in rete a un telefono, un tablet e un portatile che aprono la sua pagina.",
@@ -35,7 +35,8 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
   "help.picture.dummy": "Stazioni inventate in una cornice tratteggiata rispondono alla tua stazione, e ciò che invia non esce: le onde sono barrate.",
   "help.picture.notifications":
     "Arriva un messaggio di una stazione, e questo dispositivo riproduce un suono, l’altoparlante, e mostra una notifica, la scheda.",
-  "help.picture.qru": "La tua stazione interroga QRU, e una stazione server risponde con oggetti, un ripetitore e un evento, che compaiono sulla tua mappa.",
+  "help.picture.qru":
+    "La tua stazione chiede info locali, e una stazione server risponde con oggetti, un ripetitore e un evento, che compaiono sulla tua mappa.",
   "help.not_copied": "Non copiato",
 
   "help.install.label": "App",

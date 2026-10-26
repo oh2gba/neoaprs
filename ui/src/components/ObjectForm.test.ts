@@ -31,16 +31,7 @@ function form(rows: OwnObjectRow[] = [], placed = true) {
 describe("ObjectForm", () => {
   it("has the fields a label each and no sentence of help", () => {
     const { wrapper } = form();
-    expect(wrapper.findAll(".field label").map((l) => l.text())).toEqual([
-      "Name",
-      "Symbol",
-      "Comment",
-      "Course",
-      "Speed",
-      "Path",
-      "QRU group",
-      "Send only when asked",
-    ]);
+    expect(wrapper.findAll(".field label").map((l) => l.text())).toEqual(["Name", "Symbol", "Comment", "Course", "Speed", "Path", "Category"]);
     expect(wrapper.find("p").exists()).toBe(false);
   });
 
@@ -146,7 +137,7 @@ describe("ObjectForm", () => {
   it("takes a name of nine characters at the most, and has no choice of kind", () => {
     const { wrapper, input } = form();
     expect(input("Name")?.attributes("maxlength")).toBe("9");
-    expect(wrapper.find("select").exists()).toBe(false);
+    expect(wrapper.findAll("select").map((s) => s.attributes("id")?.endsWith("-category"))).toEqual([true]); // (the Category is the only choice; none of the kind)
   });
 
   it("makes an object, always, for a new one", async () => {
@@ -322,38 +313,80 @@ describe("ObjectForm", () => {
     ]);
   });
 
-  it("takes a QRU group in capitals and the choice to send only when asked, and sends both", async () => {
-    const { wrapper, input, field, sent } = form();
-    expect(input("QRU group")?.attributes("maxlength")).toBe("8");
-    expect(input("Send only when asked")?.element.checked).toBe(false);
-    await input("Name")?.setValue("PUB");
-    await input("QRU group")?.setValue("food");
-    await input("Send only when asked")?.setValue(true);
-    expect(input("QRU group")?.element.value).toBe("FOOD");
-    expect(field("QRU group")?.classes()).not.toContain("invalid");
+  it("offers the standard categories by their plain names with the code as the value, none first and Other last, and sends the code", async () => {
+    const { wrapper, field, sent } = form();
+    const select = () => field("Category")?.find<HTMLSelectElement>("select");
+    const options = select()?.findAll("option");
+    expect(options?.map((o) => o.text()).slice(0, 4)).toEqual(["None", "2 m repeater", "70 cm repeater", "6 m repeater"]);
+    expect(options?.at(-1)?.text()).toBe("Other…");
+    expect(options?.map((o) => o.element.value).slice(0, 3)).toEqual(["", "RP2M", "RP70"]);
+    expect(select()?.element.value).toBe("");
+    await wrapper.find<HTMLInputElement>("input[maxlength='9']").setValue("PUB");
+    await select()?.setValue("FOOD");
     await wrapper.find("form").trigger("submit");
-    expect(sent).toMatchObject([{ cmd: "object_set", name: "PUB", qru_group: "FOOD", on_request: true }]);
+    expect(sent).toMatchObject([{ cmd: "object_set", name: "PUB", qru_group: "FOOD", on_request: false }]);
   });
 
-  it("marks a QRU group that is a word QRU keeps for itself or has a character it cannot, and Save is off", async () => {
+  it("shows Send only when asked only with a category, and drops its tick with the category", async () => {
+    const { wrapper, field, input, sent } = form();
+    const select = () => field("Category")?.find<HTMLSelectElement>("select");
+    expect(field("Send only when asked")).toBeUndefined();
+    await select()?.setValue("RP70");
+    expect(input("Send only when asked")?.element.checked).toBe(false);
+    await input("Send only when asked")?.setValue(true);
+    await select()?.setValue("");
+    expect(field("Send only when asked")).toBeUndefined();
+    await wrapper.find<HTMLInputElement>("input[maxlength='9']").setValue("PUB");
+    await wrapper.find("form").trigger("submit");
+    expect(sent).toMatchObject([{ cmd: "object_set", qru_group: "", on_request: false }]);
+  });
+
+  it("takes a word of our own with Other…, in capitals, in a field with its (i), and sends it", async () => {
+    const { wrapper, input, field, sent } = form();
+    const select = () => field("Category")?.find<HTMLSelectElement>("select");
+    expect(field("Code")).toBeUndefined();
+    await select()?.setValue("other");
+    expect(select()?.element.value).toBe("other");
+    expect(input("Code")?.attributes("maxlength")).toBe("8");
+    await field("Code")?.find(".info-toggle").trigger("click");
+    expect(wrapper.find(".info-text .info-line").text()).toBe(
+      "Your own category: 8 letters or digits at most, not INFO or NEXT. Stations ask for it by this word.",
+    );
+    await input("Code")?.setValue("mynet");
+    expect(input("Code")?.element.value).toBe("MYNET");
+    expect(field("Code")?.classes()).not.toContain("invalid");
+    await input("Send only when asked")?.setValue(true);
+    await wrapper.find<HTMLInputElement>("input[maxlength='9']").setValue("PUB");
+    await wrapper.find("form").trigger("submit");
+    expect(sent).toMatchObject([{ cmd: "object_set", name: "PUB", qru_group: "MYNET", on_request: true }]);
+  });
+
+  it("marks an own category that is a word the protocol keeps for itself or has a character it cannot, and Save is off", async () => {
     const { wrapper, input, field } = form();
     await input("Name")?.setValue("PUB");
+    await field("Category")?.find("select").setValue("other");
     for (const group of ["INFO", "next", "R P", "LIFEBOATS"]) {
-      await input("QRU group")?.setValue(group);
-      expect(field("QRU group")?.classes(), group).toContain("invalid");
-      expect(field("QRU group")?.attributes("title")).toBe("Up to 8 letters and digits, not INFO or NEXT");
+      await input("Code")?.setValue(group);
+      expect(field("Code")?.classes(), group).toContain("invalid");
+      expect(field("Code")?.attributes("title")).toBe("Up to 8 letters and digits, not INFO or NEXT");
       expect(wrapper.find<HTMLButtonElement>("button[type='submit']").element.disabled).toBe(true);
     }
-    await input("QRU group")?.setValue("");
+    await input("Code")?.setValue("");
     expect(wrapper.find<HTMLButtonElement>("button[type='submit']").element.disabled).toBe(false);
   });
 
-  it("opens an object being changed with its group and its choice", async () => {
-    const { view, input, wrapper } = form([ownObject("PUB", { qru_group: "FOOD", on_request: true })]);
+  it("opens an object being changed with its category and its choice, and one with a code of our own as Other… with the code", async () => {
+    const { view, input, field, wrapper } = form([ownObject("PUB", { qru_group: "FOOD", on_request: true }), ownObject("NET", { qru_group: "MYNET" })]);
     view.edit("PUB");
     await wrapper.vm.$nextTick();
-    expect(input("QRU group")?.element.value).toBe("FOOD");
+    expect(field("Category")?.find<HTMLSelectElement>("select").element.value).toBe("FOOD");
+    expect(field("Code")).toBeUndefined();
     expect(input("Send only when asked")?.element.checked).toBe(true);
+    view.cancel();
+    view.edit("NET");
+    await wrapper.vm.$nextTick();
+    expect(field("Category")?.find<HTMLSelectElement>("select").element.value).toBe("other");
+    expect(input("Code")?.element.value).toBe("MYNET");
   });
 
   it("keeps Course and Speed behind a closed fold, Moving, for a new object", () => {
@@ -366,14 +399,14 @@ describe("ObjectForm", () => {
     expect(field("Path")?.element.closest("details")).not.toBe(moving?.element);
   });
 
-  it("keeps Path, QRU group and Send only when asked behind a closed fold, Advanced, as the Beacon tab does, for a new object", () => {
+  it("keeps Path and Category behind a closed fold, Advanced, as the Beacon tab does, for a new object", () => {
     const { wrapper, field } = form();
     const folds = wrapper.findAll<HTMLDetailsElement>("details");
     expect(folds.map((d) => d.find("summary").text())).toEqual(["Moving", "Advanced"]);
     const advanced = folds[1];
     expect(advanced.element.open).toBe(false);
-    expect(advanced.findAll("label").map((l) => l.text())).toEqual(["Path", "QRU group", "Send only when asked"]);
-    for (const label of ["Path", "QRU group", "Send only when asked"]) expect(field(label)?.element.closest("details")).toBe(advanced.element);
+    expect(advanced.findAll("label").map((l) => l.text())).toEqual(["Path", "Category"]);
+    for (const label of ["Path", "Category"]) expect(field(label)?.element.closest("details")).toBe(advanced.element);
     expect(folds.every((d) => d.classes().includes("disclosure") && d.classes().includes("settings-fold"))).toBe(true);
   });
 
@@ -400,18 +433,15 @@ describe("ObjectForm", () => {
     }
   });
 
-  it("has an (i) after every field that is ours, each of one short line (the QRU group's has a second, that points to where others ask), named About and the field", async () => {
+  it("has an (i) after every field that is ours, each of one short line, named About and the field", async () => {
     const { wrapper, field } = form();
-    for (const label of ["Name", "Comment", "Course", "Speed", "Path", "QRU group", "Send only when asked"]) {
+    for (const label of ["Name", "Comment", "Course", "Speed", "Path", "Category"]) {
       const tip = field(label)?.find(".info-toggle");
       expect(tip?.attributes("aria-label"), label).toBe(`About ${label}`);
       await tip?.trigger("click");
-      expect(wrapper.findAll(".info-text .info-line"), label).toHaveLength(label === "QRU group" ? 2 : 1);
-      if (label === "QRU group")
-        expect(wrapper.findAll(".info-text .info-line").map((l) => l.text())).toEqual([
-          "A word (1–8 letters or digits) a station sends to QRU to get the objects of this group.",
-          "Others ask from Nearby → Local info (QRU).",
-        ]);
+      expect(wrapper.findAll(".info-text .info-line"), label).toHaveLength(1);
+      if (label === "Category")
+        expect(wrapper.find(".info-text .info-line").text()).toBe("Give an object a category to offer it to stations that ask for local info.");
       if (label === "Send only when asked")
         expect(wrapper.find(".info-text .info-line").text()).toBe("Not beaconed; sent only to a station that asks with ?APRSO or QRU.");
       await tip?.trigger("click");

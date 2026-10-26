@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// "Send only when asked": the object is kept and not beaconed (the dashed box); a station asks with QRU and our station answers with the object.
+// "Send only when asked": the object is kept and not beaconed (the dashed box); a station asks for local info and our station answers with the object.
 import { CALLS } from "@/help/calls";
 import HelpBubble from "@/help/HelpBubble.vue";
 import { t } from "@/i18n";
@@ -12,7 +12,7 @@ import { arrow } from "@/help/draw";
 <template>
   <HelpFrame name="request">
     <HelpStation table="/" code=">" :x="34" :y="62" :label="CALLS.otherCar" />
-    <HelpBubble :x="113" :y="8" :w="46" text="QRU" />
+    <HelpBubble :x="113" :y="8" :w="46" text="INFO" />
     <path class="hp-flow" :d="arrow(68, 44, 206, 44)" />
     <path class="hp-flow" :d="arrow(206, 74, 68, 74)" />
     <rect class="hp-card" x="122" y="60" width="28" height="28" rx="6" />

@@ -95,3 +95,53 @@
   max-height: 55vh;
   max-height: 55dvh;
 }
+
+.qru-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* Local info (QRU) in the Objects tab, a group box of the Settings groups' look under the list of our objects: the legend, the Ask button with the distance field in one row, then a row for each server that answered: its call, its groups as tags in a column of their own (the same left edge in every row), and under them the line it closed its last objects with */
+.qru-ask {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0 6px;
+}
+.qru-km {
+  flex: none;
+  width: 6.5em;
+}
+.qru-servers {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 10px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+.qru-server {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+}
+.qru-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+.qru-sent {
+  grid-column: 2;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.qru-group:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+.qru-count {
+  opacity: 0.75;
+}

@@ -58,7 +58,7 @@ describe("ObjectsPane", () => {
     expect(wrapper.find(".empty").exists()).toBe(false);
   });
 
-  it("names the QRU group of an object and says that one that is on request is sent only when asked", () => {
+  it("names the category of an object in plain words and says that one that is on request is sent only when asked", () => {
     const { wrapper } = pane([
       ownObject("PUB", { qru_group: "FOOD", on_request: true, sent: 0, last_sent_at: null, next_at: null, created_at: ago(900) }),
       ownObject("PUMP", { qru_group: "FUEL", created_at: ago(300) }),
@@ -66,9 +66,9 @@ describe("ObjectsPane", () => {
     ]);
     const items = wrapper.findAll(".ownobject");
     const heads = items.map((i) => i.find(".bulletin-head").text());
-    expect(heads[0]).toContain("QRU group FOOD");
-    expect(heads[1]).toContain("QRU group FUEL");
-    expect(heads[2]).not.toContain("QRU");
+    expect(heads[0]).toContain("Category: Food");
+    expect(heads[1]).toContain("Category: Fuel station");
+    expect(heads[2]).not.toContain("Category");
     expect(items.map((i) => i.find(".bulletin-meta").text())).toEqual(["sent only when asked", "sent 2 times, next in 3 min", "sent 2 times, next in 3 min"]);
   });
 
@@ -159,6 +159,18 @@ describe("ObjectsPane", () => {
     expect(cssRule(".objectlist")).toMatch(/min-height:\s*8em/);
     expect(cssRule(".objectspane .composebar.scrolls")).toMatch(/max-height:\s*55dvh/);
     expect(wrapper.find("form.composebar").classes()).toContain("scrolls");
+  });
+
+  it("has Local info as the group box under the list of objects, in the list's scroll", async () => {
+    const { wrapper } = pane(rows);
+    const list = wrapper.find(".objectlist");
+    expect([...list.element.children].map((c) => c.tagName.toLowerCase())).toEqual(["ul", "fieldset"]);
+    expect(list.find("fieldset.objects-qru > legend").text().replace(/ ?i$/, "")).toBe("Local info");
+    await list.find("fieldset.objects-qru legend button.info-toggle").trigger("click");
+    expect(list.find("fieldset.objects-qru legend .info-text .info-line").text()).toBe(
+      "Asks stations near you for their objects (APRS QRU): repeaters, events, places. Sent by radio only.",
+    );
+    expect(list.find("fieldset.objects-qru .qru-ask button.btn.primary").text()).toBe("Ask");
   });
 
   it("marks a selectable row as one: a hand, a hover, a highlight and a focus ring", () => {

@@ -46,13 +46,13 @@ export interface QruLook {
 
 /** The row of the section: a refusal (the reason, as the daemon's code has it) while there is one; else the last request with the time it was sent, waiting for answers while the minute runs, then how many servers answered or that none did; null before a request. */
 export function qruLook(asked: QruAsked | null, servers: readonly QruServer[], refusal: string, nowMs: number): QruLook | null {
-  if (refusal !== "") return { state: t("nearby.qru_refused"), tone: "tnc-waiting", line: refusal };
+  if (refusal !== "") return { state: t("objects.qru_refused"), tone: "tnc-waiting", line: refusal };
   if (asked === null) return null;
   const time = clockText(asked.at).slice(0, 5);
-  const state = t("nearby.qru_state");
-  if (askWait(asked, nowMs) > 0) return { state, tone: "tnc-waiting", line: t("nearby.qru_waiting", { time }) };
+  const state = t("objects.qru_state");
+  if (askWait(asked, nowMs) > 0) return { state, tone: "tnc-waiting", line: t("objects.qru_waiting", { time }) };
   const n = answeredSince(asked, servers);
   return n > 0
-    ? { state, tone: "tnc-connected", line: t("nearby.qru_answered", { time, n }) }
-    : { state, tone: "tnc-stopped", line: t("nearby.qru_no_answer", { time }) };
+    ? { state, tone: "tnc-connected", line: t("objects.qru_answered", { time, n }) }
+    : { state, tone: "tnc-stopped", line: t("objects.qru_no_answer", { time }) };
 }
