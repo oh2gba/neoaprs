@@ -285,7 +285,8 @@ async def test_the_dummy_radio_with_the_igate_on_marks_everything_dummy_works_fo
     assert sent is not None and sent.acked_at is not None, "the dummy station acknowledged the message"
     assert [r.text for r in answered] == ["Hello from the dummy radio"], "and answered it"
     stations = [s for s in e.ctl.stationbook.stations() if s.call != ours]
-    assert len(stations) >= 8 and all(s.call.startswith("Q") and s.heard_dummy > 0 and (s.heard_rf, s.heard_rf_gated, s.heard_is) == (0, 0, 0) and not s.internet_only for s in stations)
+    sender = lambda s: s.reported_by if s.kind != "station" else s.call                     # noqa: E731  (an object or item has a name of its own; its sender is a made-up Q-call, and on a slow runner the club's objects arrive too)
+    assert len(stations) >= 8 and all(sender(s).startswith("Q") and s.heard_dummy > 0 and (s.heard_rf, s.heard_rf_gated, s.heard_is) == (0, 0, 0) and not s.internet_only for s in stations)
     assert all(s.position_via in (None, "dummy") for s in stations)
     packets = await e.packets()
     assert {p.via for p in packets} == {"dummy"} and {p.direction for p in packets} == {"in", "out"}, "what the Dummy radio hears and what is sent to it are all its own"
