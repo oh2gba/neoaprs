@@ -56,6 +56,7 @@ Each step says in one line what it does, and every one is skipped when it is don
 5. **commit** `<version>: the changelog section and the version`, **push** `master`.
 6. **ci**: waits for the CI run of that commit (`gh run watch`). A failure prints the failed jobs and the lines of the failed tests and stops; `--rerun` runs the failed jobs of that run again once, for a flaky test.
 7. **tag** `v<version>` on that commit and **push the tag**. A tag is never moved: one that names another commit stops the script, and a failure of the release run is never answered with a new tag of the same number.
+   **A fix after the release commit** (its CI run failed, the fix is on `master` and pushed, no tag yet): run the same command; when `HEAD` has the same `VERSION` and the same section of the changelog (nothing under `Unreleased`), `HEAD` is the release, and steps 6 and 7 are about it (the output says "the release is HEAD"; `--dry-run` shows it). A `HEAD` that changed either is refused, and a tag that exists is never moved.
 8. **release**: waits for the release run the same way (`--rerun` for its failed jobs). `.github/workflows/release.yml` builds, smoke-tests and publishes; its first job, `verify`, stops in seconds a tag whose number is not `VERSION`,
    a changelog with notes still under `## Unreleased`, a committed page that is not what `ui/` builds, a commit that is not on `master`, and a commit whose CI run is red or missing. The release is made as a draft and published
    when every file is on it.
