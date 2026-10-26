@@ -114,8 +114,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.network.tip1":
     "同じネットワーク上のほかの機器(ノートPC、スマートフォン、タブレット)からこのページを開けるようにします。オフの間は、NeoAPRSが動いているパソコンだけがページを開けます。",
   "settings.network.tip2": "「はい」にして保存すると、アクセスキーと開くためのアドレスが表示されます。機器ごとにキーを1回入力してください。",
-  "settings.network.tip3":
-    "接続は家庭内ネットワーク上の通常のhttpです。家の中では問題ありませんが、インターネットでは使えません。ルーターでNeoAPRS用のポートを開放しないでください。",
 
   "settings.access_key.label": "アクセスキー",
   "settings.access_key.tip_label": "アクセスキーについて",
@@ -388,14 +386,12 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.update.no_answer": "応答なし",
 
   "settings.help.group": "ヘルプ",
-  "settings.help.text":
-    "うまく動きませんか?ログをダウンロードし、{address} にメールで送ってください。何をしたか、何を期待したか、何が起きたか、おおよそいつ起きたかを添えてください。",
+  "settings.help.text": "困ったときは、ログを {address} に送ってください。",
   "settings.help.download": "ログをダウンロード",
   "settings.help.collecting": "収集中…",
-  "settings.help.contents": "ファイルには、ログ、アクセスキーを除いた設定、受信・送信したパケットが入っています。NeoAPRSが自分から何かを送ることはありません。",
-  "settings.help.contents_link": "ファイルの内容",
+  "settings.help.tip_label": "ログについて",
+  "settings.help.tip": "ログ、アクセスキーを除いた設定、受信・送信したパケット。NeoAPRSが自分から何かを送ることはありません。",
   "settings.help.saved": "{file} を保存しました。",
-  "settings.help.write": "{address} にメールを書く",
   "settings.help.mail.did": "したこと:",
   "settings.help.mail.expected": "期待したこと:",
   "settings.help.mail.happened": "起きたこと:",

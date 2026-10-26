@@ -2,7 +2,6 @@
 // (tests/test_vectors.py holds the file to the daemon), and every case is asserted here against the page's own function. A rule changed on one side alone fails a test on that side.
 import { describe, expect, it } from "vitest";
 import { bytesLeft } from "@/lib/messages";
-import { beaconText, phgText, uncompressedPosition } from "@/lib/beacon";
 import { canPost, postCommand, textOk, type PostDraft } from "@/lib/bulletins";
 import { parsePath, validCall } from "@/lib/calls";
 import { callOk, problemOf } from "@/lib/fieldcheck";
@@ -60,18 +59,5 @@ describe("the vectors of the daemon", () => {
 
   it("say which values of the settings the daemon takes, for the settings the page checks", () => {
     for (const { key, input, ok } of vectors.settings) expect(problemOf(key, input) === "", JSON.stringify([key, input])).toBe(ok);
-  });
-
-  it("give the PHG text of an antenna", () => {
-    for (const { power, height, gain, direction, text } of vectors.phg)
-      expect(phgText(power, height, gain, direction), JSON.stringify([power, height, gain, direction])).toBe(text);
-  });
-
-  it("give the position of a packet to the hundredth of a minute", () => {
-    for (const { lat, lon, table, code, text } of vectors.positions) expect(uncompressedPosition(lat, lon, table, code), JSON.stringify([lat, lon])).toBe(text);
-  });
-
-  it("give the beacon that settings make, none where the daemon makes none", () => {
-    for (const { values, text } of vectors.beacons) expect(beaconText(values), JSON.stringify(values)).toBe(text);
   });
 });

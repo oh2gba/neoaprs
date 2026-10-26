@@ -345,6 +345,14 @@ export const fr: Catalogue = {
   "objects.form.save": "Enregistrer",
   "objects.form.add": "Ajouter",
 
+  "objects.tip.name": "Ce que les autres stations voient sur la carte : {max} caractères au plus, aucun de ! _ | ~.",
+  "objects.tip.comment": "Affiché à côté de l'objet sur la carte. Caractères imprimables, ni | ni ~.",
+  "objects.tip.course": "La direction de son déplacement, en degrés depuis le nord : 90 est l'est.",
+  "objects.tip.speed": "La vitesse de son déplacement, en km/h. Laissez les deux vides pour un objet immobile.",
+  "objects.tip.path": "Les digipeaters que demandent ses paquets. Vide : le chemin de votre balise.",
+  "objects.tip.qru": "Un mot (de 1 à {max} lettres ou chiffres) qu'une station envoie à QRU pour obtenir les objets de ce groupe.",
+  "objects.tip.on_request": "Pas émis en balise ; envoyé seulement à une station qui le demande avec ?APRSO ou QRU.",
+
   "objects.problem.name_chars": "Pas d'espace aux extrémités, aucun de ! _ | ~",
   "objects.problem.at_most": "{max} caractères au plus",
   "objects.problem.item_name": "Un item fait de {min} à {max} caractères",
@@ -924,8 +932,6 @@ export const fr: Catalogue = {
     "Permet aux autres appareils de votre réseau d'ouvrir cette page : un portable, un téléphone ou une tablette. Sans cela, seul l'ordinateur sur lequel tourne NeoAPRS peut ouvrir la page.",
   "settings.network.tip2":
     "Mettez sur oui et enregistrez : une clé d'accès apparaît avec les adresses à ouvrir. Saisissez la clé une fois sur chaque appareil.",
-  "settings.network.tip3":
-    "La connexion est du simple http sur votre réseau domestique : très bien chez vous, pas pour internet. N'ouvrez pas de port vers NeoAPRS dans votre box.",
 
   "settings.access_key.label": "Clé d'accès",
   "settings.access_key.tip_label": "À propos de la clé d'accès",
@@ -1208,15 +1214,12 @@ export const fr: Catalogue = {
   "settings.update.no_answer": "pas de réponse",
 
   "settings.help.group": "Aide",
-  "settings.help.text":
-    "Quelque chose ne marche pas ? Téléchargez les journaux et envoyez-les par e-mail à {address} avec quelques mots : ce que vous avez fait, ce que vous attendiez, ce qui s'est passé, et à peu près quand.",
+  "settings.help.text": "Un problème ? Envoyez les journaux à {address}.",
   "settings.help.download": "Télécharger les journaux",
   "settings.help.collecting": "Collecte…",
-  "settings.help.contents":
-    "Le fichier contient le journal, les réglages sans la clé d'accès, et les paquets entendus et émis. NeoAPRS n'envoie rien de lui-même.",
-  "settings.help.contents_link": "Ce que contient le fichier",
+  "settings.help.tip_label": "À propos des journaux",
+  "settings.help.tip": "Le journal, les réglages sans la clé d'accès, les paquets entendus et émis. NeoAPRS n'envoie rien de lui-même.",
   "settings.help.saved": "Enregistré : {file}.",
-  "settings.help.write": "Écrire à {address}",
   "settings.help.mail.did": "Ce que j'ai fait :",
   "settings.help.mail.expected": "Ce que j'attendais :",
   "settings.help.mail.happened": "Ce qui s'est passé :",
@@ -1249,11 +1252,6 @@ export const fr: Catalogue = {
   "beacon.really_send": "Vraiment envoyer ?",
   "beacon.rigctld_on": "rigctld actif",
   "beacon.rigctld_off": "rigctld inactif",
-  "beacon.preview": "Aperçu",
-  "beacon.preview_empty": "Aperçu : ces valeurs ne font pas encore de paquet",
-  "beacon.packet": "Paquet",
-  "beacon.packet_label": "La balise telle qu'elle serait envoyée",
-  "beacon.status_label": "Le statut tel qu'il serait envoyé",
 
   "gps.label": "GPS",
   "gps.state.off": "désactivé",

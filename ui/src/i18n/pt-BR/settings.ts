@@ -116,8 +116,6 @@ export const settings: Record<keyof typeof source, Message> = {
     "Deixa outros dispositivos da sua rede abrirem esta página: um notebook, um celular ou um tablet. Sem isso, só o computador em que o NeoAPRS roda consegue abrir a página.",
   "settings.network.tip2":
     "Marque sim e clique em Salvar: aparece uma chave de acesso com os endereços para abrir. Digite a chave uma vez em cada dispositivo.",
-  "settings.network.tip3":
-    "A conexão é http simples na sua rede doméstica: serve em casa, não para a internet. Não abra uma porta para o NeoAPRS no seu roteador.",
 
   "settings.access_key.label": "Chave de acesso",
   "settings.access_key.tip_label": "Sobre a chave de acesso",
@@ -398,15 +396,12 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.update.no_answer": "sem resposta",
 
   "settings.help.group": "Ajuda",
-  "settings.help.text":
-    "Algo não está funcionando? Baixe os logs e envie por e-mail para {address} com algumas palavras: o que você fez, o que esperava, o que aconteceu e mais ou menos quando.",
+  "settings.help.text": "Problema? Envie os logs para {address}.",
   "settings.help.download": "Baixar logs",
   "settings.help.collecting": "Coletando…",
-  "settings.help.contents":
-    "O arquivo contém o log, os ajustes sem a chave de acesso e os pacotes ouvidos e enviados. O NeoAPRS não envia nada por conta própria.",
-  "settings.help.contents_link": "O que há no arquivo",
+  "settings.help.tip_label": "Sobre os logs",
+  "settings.help.tip": "O log, os ajustes sem a chave de acesso, os pacotes ouvidos e enviados. O NeoAPRS não envia nada por conta própria.",
   "settings.help.saved": "Salvo: {file}.",
-  "settings.help.write": "Escrever para {address}",
   "settings.help.mail.did": "O que eu fiz:",
   "settings.help.mail.expected": "O que eu esperava:",
   "settings.help.mail.happened": "O que aconteceu:",

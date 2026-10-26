@@ -33,7 +33,7 @@ import { fieldId, useSettingsForm } from "@/composables/useSettingsForm";
 import type { Picked } from "@/composables/usePositionPick";
 import { disabledByValues } from "@/lib/beaconoff";
 import { degreesText } from "@/lib/setup";
-import { BEACON_FOLDS, SUBGROUPS, fieldFor, shownByValues, shownFor, valueFor, type Scope } from "@/lib/settings";
+import { BEACON_FOLDS, SUBGROUPS, fieldFor, shownByAlert, shownByValues, shownFor, valueFor, type Scope } from "@/lib/settings";
 import { passcodeLink } from "@/lib/igatestatus";
 import { statusSource } from "@/lib/status";
 import { computed, watch } from "vue";
@@ -90,7 +90,7 @@ const shown = (keys: readonly string[], inGroup = true) =>
       !(key === "station/lon" && props.scope === "beacon") &&
       !(inGroup && folded.has(key)) &&
       shownFor(key, profile.value, network.value) &&
-      (props.scope === "settings" || shownByValues(key, draft)),
+      (props.scope === "settings" ? shownByAlert(key, draft) : shownByValues(key, draft)),
   );
 /** The symbol is one field, which sets the table and the code. */
 const symbol = computed(() => `${draft[SYMBOL_TABLE] ?? ""}${draft[SYMBOL_CODE] ?? ""}`);
@@ -140,7 +140,7 @@ function typed(key: string, text: string): void {
     <fieldset v-for="group in groups" :key="group.id">
       <legend>{{ group.title }}</legend>
       <SettingsRadio v-if="group.id === 'serial'" :keys="shown(group.keys)" :settings="settings" :form="form" :defaults="defaults" />
-      <slot v-if="group.id === 'status'" name="status"></slot>
+      <slot v-if="group.id === 'status'" name="status" :draft="draft"></slot>
       <p v-if="group.id === 'igate' && call === ''" class="problem" role="status">{{ t("settings.igate.set_call") }}</p>
       <IgateStatus v-else-if="group.id === 'igate' && igate" :igate="igate" :values="config.values" :now="now" />
       <SettingsBox
@@ -272,7 +272,6 @@ function typed(key: string, text: string): void {
     <SettingsHelp v-if="scope === 'settings'" />
     <SettingsAbout v-if="scope === 'settings'" />
     <slot></slot>
-    <slot name="preview" :draft="draft"></slot>
   </form>
   <p v-else class="empty">{{ t("settings.no_word") }}</p>
 </template>

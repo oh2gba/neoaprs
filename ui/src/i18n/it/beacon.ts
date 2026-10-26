@@ -17,11 +17,6 @@ export const beacon: Readonly<Record<keyof typeof en, Message>> = {
   "beacon.really_send": "Inviare davvero?",
   "beacon.rigctld_on": "rigctld attivo",
   "beacon.rigctld_off": "rigctld spento",
-  "beacon.preview": "Anteprima",
-  "beacon.preview_empty": "Anteprima: con questi valori non c’è ancora alcun pacchetto",
-  "beacon.packet": "Pacchetto",
-  "beacon.packet_label": "Il beacon così come verrebbe inviato",
-  "beacon.status_label": "Lo stato così come verrebbe inviato",
 
   "gps.label": "GPS",
   "gps.state.off": "spento",

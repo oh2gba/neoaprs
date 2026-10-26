@@ -45,7 +45,7 @@ describe("groupKeys", () => {
       ["beacon", "Antenna", 4],
       ["beacon", "Advanced", 1],
     ]);
-    expect(groups[2]?.keys).toEqual(["status/source", "station/status", "status/rigctld", "status/template", "status/interval_min"]);
+    expect(groups[2]?.keys).toEqual(["status/source", "status/interval_min", "station/status", "status/rigctld", "status/template"]);
   });
   it("has no Mobile group: the position choice and what it needs are in the Station group, Travelling in the Beacon group, and the old keys are gone", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "beacon");
@@ -153,6 +153,12 @@ describe("groupKeys", () => {
       expect(FIELDS[key]?.title, key).toBeUndefined();
     }
   });
+  it("shows the alert command only while the alert is on (an alert the values do not mention is on)", () => {
+    expect(shownByValues("messages/alert_command", { "messages/alert": "true" })).toBe(true);
+    expect(shownByValues("messages/alert_command", {})).toBe(true);
+    expect(shownByValues("messages/alert_command", { "messages/alert": "false" })).toBe(false);
+    expect(shownByValues("messages/alert", { "messages/alert": "false" })).toBe(true);
+  });
   it("gives the numbers and the examples in the (i) of the fields that have them", () => {
     const tip = (key: string) => (FIELDS[key]?.tip ?? []).join(" ");
     expect(tip("station/comment")).toContain("43");
@@ -165,12 +171,12 @@ describe("groupKeys", () => {
   });
   it("shows the status fields its source needs and the antenna's figures once there is a power", () => {
     const shown = (values: Record<string, string>) =>
-      ["status/source", "station/status", "status/rigctld", "status/template", "status/interval_min"].filter((k) => shownByValues(k, values));
+      ["status/source", "status/interval_min", "station/status", "status/rigctld", "status/template"].filter((k) => shownByValues(k, values));
     expect(shown({})).toEqual(["status/source"]);
-    expect(shown({ "status/source": "text" })).toEqual(["status/source", "station/status", "status/interval_min"]);
-    expect(shown({ "status/source": "rig" })).toEqual(["status/source", "status/rigctld", "status/template", "status/interval_min"]);
-    expect(shown({ "status/rigctld": "127.0.0.1:4532" })).toEqual(["status/source", "status/rigctld", "status/template", "status/interval_min"]);
-    expect(shown({ "station/status": "QRV" })).toEqual(["status/source", "station/status", "status/interval_min"]);
+    expect(shown({ "status/source": "text" })).toEqual(["status/source", "status/interval_min", "station/status"]);
+    expect(shown({ "status/source": "rig" })).toEqual(["status/source", "status/interval_min", "status/rigctld", "status/template"]);
+    expect(shown({ "status/rigctld": "127.0.0.1:4532" })).toEqual(["status/source", "status/interval_min", "status/rigctld", "status/template"]);
+    expect(shown({ "station/status": "QRV" })).toEqual(["status/source", "status/interval_min", "station/status"]);
     expect(shown({ "status/source": "off", "station/status": "QRV", "status/rigctld": "127.0.0.1:4532" })).toEqual(["status/source"]);
     const antenna = (power: string) =>
       ["beacon/power_w", "beacon/antenna_height_m", "beacon/antenna_gain_db", "beacon/antenna_direction"].filter((k) =>

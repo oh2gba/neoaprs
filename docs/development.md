@@ -113,8 +113,8 @@ them seldom conflict; after a merge, regenerate rather than resolve by hand.
   interval, the object and bulletin limits. It is written from the daemon's own constants (`neoaprs/config.py`, `neoaprs/policy.py`, `neoaprs/ownobject.py`,
   `neoaprs/ownbulletin.py` ...). The page types none of them again.
 - **`vectors.json`** holds the rules that are code and not numbers: whether this is a call, the PHG text of this antenna, the beacon these settings make, the
-  object and bulletin text rules. Python makes it, and `tests/test_vectors.py` and `ui/src/protocol/vectors.test.ts` hold the daemon and the page to it. The
-  page keeps its instant preview, and a drift between the two is a test failure.
+  object and bulletin text rules. Python makes it, and `tests/test_vectors.py` and `ui/src/protocol/vectors.test.ts` hold the daemon and the page to it (the page to the rules
+  it has of its own: the PHG text and the beacon are the daemon's alone), and a drift is a test failure.
 - **Errors.** An `error` message carries `cmd` (the command it answers; empty for a frame that was no command), `key` (the setting it is about, or null), `code`
   (a stable word such as `setting.range`, `call.ssid` or `message.too_long`; `other` for one without a code yet), `params` (the values the sentence is made of,
   by name) and `text` (the English sentence, for a log and for a code the page has no sentence for). The page goes by `cmd`, `key` and `code`, never by the

@@ -30,7 +30,6 @@ from pydantic import BaseModel  # noqa: E402
 
 import neoaprs.web.protocol as protocol  # noqa: E402
 from errorcodes import error_codes  # noqa: E402
-from neoaprs import TOCALL  # noqa: E402
 from neoaprs.aprsmessage import FORBIDDEN, MAX_TEXT  # noqa: E402
 from neoaprs.ax25 import MAX_PATH  # noqa: E402
 from neoaprs.route import DIRECT_ONLY, FIXED_PATH, WIDE_PATH  # noqa: E402
@@ -260,7 +259,6 @@ def lists_text() -> str:
         _profiles(),
         _symbol_names(),
         _mobile_symbols(),
-        f"/** The destination call of every frame we send; the beacon's preview shows it (TOCALL of neoaprs/__init__.py). */\nexport const TOCALL = {json.dumps(TOCALL)};\n",
         _limits_block(),
         f"/** The characters a symbol table can be: the primary, the alternate and the overlays (SYMBOL_TABLES of neoaprs/config.py). */\nexport const SYMBOL_TABLES = {json.dumps(SYMBOL_TABLES)};\n",
     ]

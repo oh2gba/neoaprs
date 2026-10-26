@@ -32,6 +32,14 @@ export const objects: Record<keyof typeof source, Message> = {
   "objects.form.save": "保存",
   "objects.form.add": "追加",
 
+  "objects.tip.name": "他の局が地図で見る名前です。{max}文字まで、! _ | ~ は使えません。",
+  "objects.tip.comment": "地図上でオブジェクトの横に表示されます。印字可能な文字のみ、| と ~ は不可。",
+  "objects.tip.course": "進む方向を、北からの度数で指定します。90 は東です。",
+  "objects.tip.speed": "移動の速さを km/h で指定します。動かないオブジェクトは両方とも空欄のままにします。",
+  "objects.tip.path": "そのパケットが要求するデジピーターです。空欄ならビーコンのパスを使います。",
+  "objects.tip.qru": "局が QRU に送ると、このグループのオブジェクトが返ってくる単語です(英数字1〜{max}文字)。",
+  "objects.tip.on_request": "ビーコンでは送らず、?APRSO または QRU で要求した局にだけ送ります。",
+
   "objects.problem.name_chars": "両端に空白不可、! _ | ~ は使えません",
   "objects.problem.at_most": "最大{max}文字",
   "objects.problem.item_name": "アイテムは{min}〜{max}文字です",

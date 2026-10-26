@@ -117,7 +117,6 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
     "Permite que otros dispositivos de tu red abran esta página: un portátil, un teléfono o una tableta. Sin esto, solo el ordenador donde funciona NeoAPRS puede abrirla.",
   "settings.network.tip2":
     "Ponlo en sí y pulsa Guardar: aparece una clave de acceso con las direcciones que abrir. Escribe la clave una vez en cada dispositivo.",
-  "settings.network.tip3": "La conexión es http sin cifrar en tu red doméstica: bien en casa, no para internet. No abras en tu router un puerto hacia NeoAPRS.",
 
   "settings.access_key.label": "Clave de acceso",
   "settings.access_key.tip_label": "Acerca de la clave de acceso",
@@ -398,15 +397,12 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.update.no_answer": "sin respuesta",
 
   "settings.help.group": "Ayuda",
-  "settings.help.text":
-    "¿Algo no funciona? Descarga los registros y envíalos por correo a {address} con unas palabras: qué hiciste, qué esperabas, qué pasó y más o menos cuándo.",
+  "settings.help.text": "¿Problemas? Envía los registros a {address}.",
   "settings.help.download": "Descargar registros",
   "settings.help.collecting": "Recopilando…",
-  "settings.help.contents":
-    "El archivo contiene el registro, los ajustes sin la clave de acceso y los paquetes oídos y enviados. NeoAPRS no envía nada por sí mismo.",
-  "settings.help.contents_link": "Qué hay en el archivo",
+  "settings.help.tip_label": "Sobre los registros",
+  "settings.help.tip": "El registro, los ajustes sin la clave de acceso, los paquetes oídos y enviados. NeoAPRS no envía nada por sí mismo.",
   "settings.help.saved": "Guardado {file}.",
-  "settings.help.write": "Escribir a {address}",
   "settings.help.mail.did": "Qué hice:",
   "settings.help.mail.expected": "Qué esperaba:",
   "settings.help.mail.happened": "Qué pasó:",

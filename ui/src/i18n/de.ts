@@ -358,6 +358,14 @@ export const de: Catalogue = {
   "objects.form.save": "Speichern",
   "objects.form.add": "Hinzufügen",
 
+  "objects.tip.name": "Was andere Stationen auf der Karte sehen: bis zu {max} Zeichen, keines von ! _ | ~.",
+  "objects.tip.comment": "Wird auf der Karte neben dem Objekt angezeigt. Druckbare Zeichen, kein | und kein ~.",
+  "objects.tip.course": "Die Richtung der Bewegung in Grad von Nord: 90 ist Ost.",
+  "objects.tip.speed": "Wie schnell es sich bewegt, in km/h. Beide leer lassen für ein Objekt, das stillsteht.",
+  "objects.tip.path": "Die Digipeater, die seine Pakete anfordern. Leer nutzt den Pfad deiner Bake.",
+  "objects.tip.qru": "Ein Wort (1–{max} Buchstaben oder Ziffern), das eine Station an QRU sendet, um die Objekte dieser Gruppe zu erhalten.",
+  "objects.tip.on_request": "Nicht als Bake gesendet; nur an eine Station, die mit ?APRSO oder QRU fragt.",
+
   "objects.problem.name_chars": "Kein Leerzeichen an den Enden, keines von ! _ | ~",
   "objects.problem.at_most": "Höchstens {max} Zeichen",
   "objects.problem.item_name": "Ein Item hat {min} bis {max} Zeichen",
@@ -937,7 +945,6 @@ export const de: Catalogue = {
     "Lässt andere Geräte in deinem Netzwerk diese Seite öffnen: einen Laptop, ein Handy oder ein Tablet. Ohne ihn kann nur der Computer, auf dem NeoAPRS läuft, die Seite öffnen.",
   "settings.network.tip2":
     "Auf ja stellen und speichern: Es erscheinen ein Zugangsschlüssel und die Adressen zum Öffnen. Den Schlüssel einmal an jedem Gerät eingeben.",
-  "settings.network.tip3": "Die Verbindung ist einfaches http im Heimnetz: zu Hause in Ordnung, nicht fürs Internet. Öffne im Router keinen Port zu NeoAPRS.",
 
   "settings.access_key.label": "Zugangsschlüssel",
   "settings.access_key.tip_label": "Über den Zugangsschlüssel",
@@ -1221,15 +1228,12 @@ export const de: Catalogue = {
   "settings.update.no_answer": "keine Antwort",
 
   "settings.help.group": "Hilfe",
-  "settings.help.text":
-    "Etwas funktioniert nicht? Lade die Protokolle herunter und schicke sie per E-Mail an {address}, mit ein paar Worten: was du getan hast, was du erwartet hast, was passiert ist und ungefähr wann.",
+  "settings.help.text": "Problem? Schicke die Protokolle an {address}.",
   "settings.help.download": "Protokolle herunterladen",
   "settings.help.collecting": "Sammle…",
-  "settings.help.contents":
-    "Die Datei enthält das Protokoll, die Einstellungen ohne den Zugangsschlüssel und die empfangenen und gesendeten Pakete. NeoAPRS sendet von selbst nichts.",
-  "settings.help.contents_link": "Was in der Datei steht",
+  "settings.help.tip_label": "Zu den Protokollen",
+  "settings.help.tip": "Das Protokoll, die Einstellungen ohne den Zugangsschlüssel, die empfangenen und gesendeten Pakete. NeoAPRS sendet von selbst nichts.",
   "settings.help.saved": "Gespeichert: {file}.",
-  "settings.help.write": "An {address} schreiben",
   "settings.help.mail.did": "Was ich getan habe:",
   "settings.help.mail.expected": "Was ich erwartet habe:",
   "settings.help.mail.happened": "Was passiert ist:",
@@ -1262,11 +1266,6 @@ export const de: Catalogue = {
   "beacon.really_send": "Wirklich senden?",
   "beacon.rigctld_on": "rigctld ein",
   "beacon.rigctld_off": "rigctld aus",
-  "beacon.preview": "Vorschau",
-  "beacon.preview_empty": "Vorschau: aus diesen Werten entsteht noch kein Paket",
-  "beacon.packet": "Paket",
-  "beacon.packet_label": "Die Bake, wie sie gesendet würde",
-  "beacon.status_label": "Der Status, wie er gesendet würde",
 
   "gps.label": "GPS",
   "gps.state.off": "aus",

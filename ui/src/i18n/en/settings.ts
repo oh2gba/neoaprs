@@ -114,8 +114,6 @@ export const settings = {
   "settings.network.tip1":
     "Lets other devices on your network open this page: a laptop, a phone or a tablet. Without it, only the computer NeoAPRS runs on can open the page.",
   "settings.network.tip2": "Set it to yes and Save: an access key appears with the addresses to open. Type the key once on each device.",
-  "settings.network.tip3":
-    "The connection is plain http on your home network: fine at home, not for the internet. Do not open a port to NeoAPRS in your router.",
 
   "settings.access_key.label": "Access key",
   "settings.access_key.tip_label": "About the access key",
@@ -394,14 +392,12 @@ export const settings = {
   "settings.update.no_answer": "no answer",
 
   "settings.help.group": "Help",
-  "settings.help.text":
-    "Something not working? Download the logs and e-mail them to {address} with a few words: what you did, what you expected, what happened, and roughly when.",
+  "settings.help.text": "Problem? Send the logs to {address}.",
   "settings.help.download": "Download logs",
   "settings.help.collecting": "Collecting…",
-  "settings.help.contents": "The file holds the log, the settings without the access key, and the packets heard and sent. NeoAPRS sends nothing by itself.",
-  "settings.help.contents_link": "What is in the file",
+  "settings.help.tip_label": "About the logs",
+  "settings.help.tip": "The log, the settings without the access key, the packets heard and sent. NeoAPRS sends nothing by itself.",
   "settings.help.saved": "Saved {file}.",
-  "settings.help.write": "Write to {address}",
   "settings.help.mail.did": "What I did:",
   "settings.help.mail.expected": "What I expected:",
   "settings.help.mail.happened": "What happened:",

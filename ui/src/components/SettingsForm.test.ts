@@ -1,5 +1,5 @@
 import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import SettingsForm from "@/components/SettingsForm.vue";
 import type { Scope } from "@/lib/settings";
 import { CONFIG_KEYS } from "@/protocol/lists";
@@ -15,6 +15,10 @@ function make(extra: Record<string, string> = {}, scope: Scope = "settings", mor
   return { wrapper, send: daemon.send, daemon };
 }
 
+/** This browser alerts with the sound and a pop-up, so that the page shows both tests (a page on the loopback starts at off, which shows none). */
+const alertWithBoth = () => localStorage.setItem("NeoAPRS.alert.mode", "both");
+afterEach(() => localStorage.clear());
+
 const row = (device: string, description: string) => ({ device, description, hwid: "n/a", vid: null, pid: null });
 const portList = (extra: Partial<PortsMessage> = {}): PortsMessage => ({
   type: "ports",
@@ -25,6 +29,7 @@ const portList = (extra: Partial<PortsMessage> = {}): PortsMessage => ({
 
 describe("SettingsForm", () => {
   it("has a field for every key of the Settings tab, in groups, and none of the beacon's", () => {
+    alertWithBoth();
     const { wrapper } = make();
     expect(wrapper.findAll("fieldset legend").map((l) => l.text())).toEqual([
       "TNC",
@@ -89,15 +94,13 @@ describe("SettingsForm", () => {
     for (const label of wrapper.findAll("label")) expect(label.text()).not.toMatch(/\//);
   });
 
-  it("has our station's keys, then the beacon's, in the Beacon scope, and a place for the preview", () => {
+  it("has our station's keys, then the beacon's, in the Beacon scope", () => {
     const wrapper = mount(SettingsForm, {
       props: { scope: "beacon" },
-      slots: { preview: "<p class='sample'>preview</p>" },
       global: withDaemon(),
     });
     expect(wrapper.findAll("fieldset legend").map((l) => l.text())).toEqual(["Station", "Beacon", "Status"]);
     expect(wrapper.findAll(".field label").map((l) => l.text())).toEqual(["Call", "Position", "Symbol", "Beacon", "Comment", "Power", "Path", "Status"]);
-    expect(wrapper.find(".sample").exists()).toBe(true);
   });
 
   describe("the position choice of the Station group of the Beacon tab", () => {
@@ -905,6 +908,7 @@ describe("SettingsForm", () => {
 
   describe("the Notifications group", () => {
     it("has the daemon's own alert in a box of its own (a fieldset with its legend, in the style of the group's), with no Messaging group beside it, and the browser's fields in a box after it", () => {
+      alertWithBoth();
       const wrapper = mount(SettingsForm, { global: withDaemon() });
       const groups = wrapper.findAll("form > fieldset");
       const titles = groups.map((g) => g.find("legend").text());
@@ -927,12 +931,49 @@ describe("SettingsForm", () => {
       expect(wrapper.findAll("#alert-mode")).toHaveLength(1);
     });
     it("keeps the Test button of the command and the tests of the browser, with the fields and the tips, each in its box", () => {
+      alertWithBoth();
       const wrapper = mount(SettingsForm, { global: withDaemon() });
       const [computer, browser] = wrapper.findAll("fieldset.subbox");
       expect(computer?.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(["Test"]);
       expect(browser?.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(expect.arrayContaining(["Test sound", "Test pop-up"]));
       expect(computer?.find("#set-messages-alert_command").exists()).toBe(true);
       expect(browser?.find("#set-messages-alert_command").exists()).toBe(false);
+    });
+    it("hides the Command and its Test button while the Alert is off, and shows them the moment it is ticked", async () => {
+      const { wrapper } = make({ "messages/alert": "false" });
+      const box = () => wrapper.findAll("fieldset.subbox")[0];
+      expect(box()?.find("legend").text()).toBe("On the NeoAPRS computer i");
+      expect(
+        box()
+          ?.findAll("label")
+          .map((l) => l.text()),
+      ).toEqual(["Alert"]);
+      expect(box()?.find("legend .info-toggle").exists()).toBe(true);
+      expect(wrapper.find("#set-messages-alert_command").exists()).toBe(false);
+      expect(box()?.findAll("button:not(.info-toggle)")).toHaveLength(0);
+      await wrapper.find("#set-messages-alert").setValue(true);
+      expect(
+        box()
+          ?.findAll("label")
+          .map((l) => l.text()),
+      ).toEqual(["Alert", "Command"]);
+      expect(
+        box()
+          ?.findAll("button:not(.info-toggle)")
+          .map((b) => b.text()),
+      ).toEqual(["Test"]);
+      await wrapper.find("#set-messages-alert").setValue(false);
+      expect(wrapper.find("#set-messages-alert_command").exists()).toBe(false);
+    });
+    it("shows the Command and its Test button while the Alert is on", () => {
+      const { wrapper } = make({ "messages/alert": "true" });
+      expect(wrapper.find("#set-messages-alert_command").exists()).toBe(true);
+      expect(
+        wrapper
+          .findAll("fieldset.subbox")[0]
+          ?.findAll("button:not(.info-toggle)")
+          .map((b) => b.text()),
+      ).toEqual(["Test"]);
     });
     it("has the style of the group boxes for the boxes in it", () => {
       expect(cssRule(".settings fieldset")).toMatch(/border:\s*1px solid var\(--border\)/);
@@ -1016,6 +1057,7 @@ describe("SettingsForm", () => {
       wrapper.find("#set-messages-alert_command").element.closest(".field")?.querySelector("[role='status']");
 
     it("is right of the alert command, and of no other field but the update check's and the (i) of the digipeater, and not in the Beacon tab", () => {
+      alertWithBoth();
       const { wrapper } = make();
       expect(button(wrapper)?.textContent?.trim()).toBe("Test");
       expect(wrapper.findAll(".field button:not(.info-toggle)").map((b) => b.text())).toEqual([

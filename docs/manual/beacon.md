@@ -1,6 +1,6 @@
 # Beacon, status and digipeater
 
-The Beacon tab holds what your station says on the air. From top to bottom: the **beacon status** with **Beacon now** ([Beacon now](#beacon-now)); the **Station** group (call, **Position**, location, symbol); the **Beacon** group (the **Beacon** choice, what you travel as for a moving station, the comment, a closed **Antenna** heading for a fixed station and a closed **Advanced** heading with the path choice); the **Status** group; and the closed **Preview**. A setting applies as you change it ([start.md](start.md#how-settings-apply)).
+The Beacon tab holds what your station says on the air. From top to bottom: the **beacon status** with **Beacon now** ([Beacon now](#beacon-now)); the **Station** group (call, **Position**, location, symbol); the **Beacon** group (the **Beacon** choice, what you travel as for a moving station, the comment, a closed **Antenna** heading for a fixed station and a closed **Advanced** heading with the path choice); and the **Status** group. A setting applies as you change it ([start.md](start.md#how-settings-apply)).
 
 **Position** is the one choice that decides what kind of station you are, and the tab shows only what applies to it. **Fixed** is a fixed station: the beacon is the location below, sent at the interval of the Beacon group, with the antenna's PHG. **A GPS via gpsd** and **A GPS on a serial port** make a moving station: the beacon follows the GPS and goes when SmartBeaconing says, with no interval to choose and no PHG ([Mobile operation](#mobile-operation)).
 
@@ -83,8 +83,6 @@ PHG is written `PHGphgd`:
 - `d` is the direction: 0 omni, 1 NE, 2 E, 3 SE, 4 S, 5 SW, 6 W, 7 NW, 8 N.
 
 `p` and `h` are rounded and held to 0 to 9. For 2 W, 3 m, 2 dBi and omni it is `PHG1020`. For 25 W, 6 m, 3 dBi and east it is `PHG5132`, the specification's example.
-
-The **Preview** under the Beacon tab, closed until you open it, shows the packet the settings make and, for a status that is a text of your own, the status report.
 
 ## Beacon now
 
@@ -191,7 +189,7 @@ A status report is a text line that tells what you are doing. It goes out as one
 | **a text of my own** | the text of `station/status`: printable ASCII without `\|` and `~`, at most 55 characters (the time takes the rest of the specification's 62) |
 | **the frequency from my radio (rigctld)** | the frequency and mode of a radio that a [Hamlib rigctld](https://hamlib.github.io/) can read, made into text by a template |
 
-The tab shows only the fields the choice needs. For a text: **Text** and **Every**. For the radio: **Rigctld**, **Text** (the template) and **Every**. Left empty, the setting follows the others: the radio while `status/rigctld` is set, else the text while there is one, else off. Choosing the radio without a rigctld address is refused with the reason.
+The tab shows only the fields the choice needs, with **Every** directly under the choice. For a text: **Every** and **Text**. For the radio: **Every**, **Rigctld** and **Text** (the template). While the choice is off only the choice is shown: **Every**, the fields of the sources and the status line with **Send status now** appear as soon as another choice is made. Left empty, the setting follows the others: the radio while `status/rigctld` is set, else the text while there is one, else off. Choosing the radio without a rigctld address is refused with the reason.
 
 **From the radio.** NeoAPRS connects to `host:port` of the rigctld (Hamlib's default is `127.0.0.1:4532`) every 30 seconds, asks the frequency and the mode, and fills in the template. The default template is `QRV {freq} {mode}`. `{freq}` is megahertz with three decimals (`14.074 MHz`), `{mode}` is the mode as rigctld names it (`USB`, `LSB`, `CW`, `FM`). No other field in braces, and at most 55 characters with the widest values (`1296.000 MHz`, `PKTUSB`). With `14074000` Hz and `USB` the frame at 12:00 UTC on the 21st is:
 

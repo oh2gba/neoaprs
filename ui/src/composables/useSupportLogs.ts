@@ -1,4 +1,4 @@
-// The Download logs button of the Help group: it asks the daemon for the support file with the facts of this page in the request (lib/support.ts), saves the answer as a download and keeps what the group says after it: the name of the file, or why there is none.
+// The Download logs button of the Help group: it asks the daemon for the support file with the facts of this page in the request (lib/support.ts), saves the answer as a download and keeps what the group says after it: the name of the file, or why there is none. It also makes the e-mail the address of the group opens.
 // The button waits while the file is made; the daemon makes one file at a time.
 import { computed, ref, shallowRef, type Ref } from "vue";
 import { pageErrors } from "@/lib/pageerrors";
@@ -52,15 +52,13 @@ export function useSupportLogs(given: SupportGiven, fetcher: typeof fetch = (...
     }
   }
 
-  /** The e-mail to the project, once there is a file to attach to it. */
+  /** The e-mail to the project: with the line to attach the file once there is one. */
   const mail = computed(() =>
-    saved.value === null
-      ? ""
-      : mailtoLink(
-          [t("settings.help.mail.did"), t("settings.help.mail.expected"), t("settings.help.mail.happened"), t("settings.help.mail.when")],
-          t("settings.help.mail.attach", { file: saved.value }),
-          given.daemonVersion.value,
-        ),
+    mailtoLink(
+      [t("settings.help.mail.did"), t("settings.help.mail.expected"), t("settings.help.mail.happened"), t("settings.help.mail.when")],
+      saved.value === null ? null : t("settings.help.mail.attach", { file: saved.value }),
+      given.daemonVersion.value,
+    ),
   );
 
   return { running, saved, problem, mail, collect };

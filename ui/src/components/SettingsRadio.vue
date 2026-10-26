@@ -10,7 +10,8 @@ import type { Settings } from "@/composables/useSettings";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { fieldId, type SettingsFormState } from "@/composables/useSettingsForm";
 import { t } from "@/i18n";
-import { FIELDS, speedFallback } from "@/lib/settings";
+import { FIELDS } from "@/lib/settings";
+import { speedFallback } from "@/lib/tncprofile";
 
 const props = defineProps<{ keys: readonly string[]; settings: Settings; form: SettingsFormState; defaults: Record<string, string> }>();
 const { config, send, ports, tnc, now, findRadio } = useDaemonContext();

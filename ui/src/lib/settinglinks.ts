@@ -3,7 +3,8 @@
 import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
 import { isLoopbackHost } from "@/lib/pagealert";
-import { FIELDS, portForProfile, reasonOf } from "@/lib/settings";
+import { FIELDS, reasonOf } from "@/lib/settings";
+import { portForProfile } from "@/lib/tncprofile";
 import type { ErrorMessage } from "@/protocol/protocol";
 
 /** Where rigctld listens when nobody says otherwise (the placeholder of its field). */

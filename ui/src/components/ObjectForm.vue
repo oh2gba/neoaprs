@@ -1,14 +1,16 @@
 <script setup lang="ts">
 // The form of an object or an item of ours, in the Objects tab, in the box at the bottom of the tab, always there (ComposeBar, as everywhere; its fields scroll on a short screen, the line with the counter, Cancel and the main button does not). With an object selected in the list it changes that object
 // and the main button reads Save; with none selected it adds a new one and the button reads Add; Cancel (and Esc) leaves the selection and clears the form. The fields: the name (that of an object that is being changed stays; a new one is always an object, an item of ours that is being changed stays an item), the symbol (the picture and its name, a click opens the picker, as in the Beacon tab), the position (the row Location of the Beacon tab, components/LocationField.vue: **Choose on map**, a click on the map, or the
-// coordinates or a locator typed behind the place), the comment (the characters it has left are the counter beside the buttons), the course and speed (behind a closed fold, Moving, which is open for an object that has either), and the path the object goes by (the placeholder is the beacon's), its QRU group (a station that asks the addressee QRU for the group is sent the object) and whether it is sent only when asked. A field with something wrong
-// is red and says what under it. Save is on when there is a name, a place and a symbol and nothing is wrong; the daemon checks it all again.
+// coordinates or a locator typed behind the place), the comment (the characters it has left are the counter beside the buttons), the course and speed (behind a closed fold, Moving, which is open for an object that has either), and behind a second closed fold, Advanced, as in the Beacon tab: the path the object goes by (the placeholder is the beacon's), its QRU group (a station that asks the addressee QRU for the group is sent the object) and whether it is sent only when asked; Advanced
+// is open for an object being changed that has a path, a group or the tick. Every field of ours has its (i) after it, as the settings have (InfoTip); the symbol and the place are the controls of the Beacon tab, which have none. A field with something wrong is red and says what under it. Save is on when there is a name, a place and a symbol and nothing is wrong; the daemon checks it all again.
 import { computed, useId } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
 import DisclosureBox from "@/components/DisclosureBox.vue";
+import InfoTip from "@/components/InfoTip.vue";
 import LocationField from "@/components/LocationField.vue";
 import SymbolField from "@/components/SymbolField.vue";
 import { t } from "@/i18n";
+import type { MessageId } from "@/i18n/catalogue";
 import type { OwnObjectsView } from "@/composables/useOwnObjects";
 import { leftTitle } from "@/lib/compose";
 import { placeOfText } from "@/lib/locator";
@@ -25,6 +27,10 @@ const ready = computed(() => draftReady(draft));
 const place = computed(() => placeOfText(draft.lat, draft.lon));
 /** The fold Moving (course and speed) is open while the draft has either: an object being changed that moves, or a value typed. */
 const moving = computed(() => draft.course.trim() !== "" || draft.speed.trim() !== "");
+/** The fold Advanced (path, QRU group, sent only when asked) is open while the draft has any of them. */
+const advanced = computed(() => draft.path.trim() !== "" || draft.qru.trim() !== "" || draft.onRequest);
+/** The name of an (i) for a screen reader: "About Path". */
+const about = (field: MessageId) => t("settings.about", { label: t(field) });
 const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
 </script>
 
@@ -50,6 +56,9 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
           autocomplete="off"
           spellcheck="false"
         />
+        <InfoTip :label="about('objects.field.name')"
+          ><span class="info-line">{{ t("objects.tip.name", { max: NAME_MAX }) }}</span></InfoTip
+        >
       </div>
     </div>
     <SymbolField :id="`${id}-symbol`" v-model:symbol="draft.symbol" />
@@ -68,14 +77,20 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
       <label :for="`${id}-comment`">{{ t("objects.field.comment") }}</label>
       <div class="field-control">
         <input :id="`${id}-comment`" v-model="draft.comment" class="input" type="text" autocomplete="off" />
+        <InfoTip :label="about('objects.field.comment')"
+          ><span class="info-line">{{ t("objects.tip.comment") }}</span></InfoTip
+        >
       </div>
     </div>
-    <DisclosureBox :key="form.editing ?? ''" :title="t('objects.field.moving')" :open="moving">
+    <DisclosureBox :key="`${form.editing ?? ''}-moving`" class="settings-fold" :title="t('objects.field.moving')" :open="moving">
       <div class="field" :class="{ invalid: problems.course }" :title="problems.course">
         <label :for="`${id}-course`">{{ t("objects.field.course") }}</label>
         <div class="field-control">
           <input :id="`${id}-course`" v-model="draft.course" class="input mono" type="text" inputmode="numeric" autocomplete="off" />
           <span class="unit muted">{{ t("objects.unit.deg") }}</span>
+          <InfoTip :label="about('objects.field.course')"
+            ><span class="info-line">{{ t("objects.tip.course") }}</span></InfoTip
+          >
         </div>
       </div>
       <div class="field" :class="{ invalid: problems.speed }" :title="problems.speed">
@@ -83,44 +98,58 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
         <div class="field-control">
           <input :id="`${id}-speed`" v-model="draft.speed" class="input mono" type="text" inputmode="decimal" autocomplete="off" />
           <span class="unit muted">km/h</span>
+          <InfoTip :label="about('objects.field.speed')"
+            ><span class="info-line">{{ t("objects.tip.speed") }}</span></InfoTip
+          >
         </div>
       </div>
     </DisclosureBox>
-    <div class="field" :class="{ invalid: problems.path }" :title="problems.path">
-      <label :for="`${id}-path`">{{ t("objects.field.path") }}</label>
-      <div class="field-control">
-        <input
-          :id="`${id}-path`"
-          v-model="draft.path"
-          class="input mono"
-          type="text"
-          :placeholder="fallbackPath || t('route.default')"
-          autocomplete="off"
-          spellcheck="false"
-        />
+    <DisclosureBox :key="`${form.editing ?? ''}-advanced`" class="settings-fold" :title="t('settings.fold.advanced')" :open="advanced">
+      <div class="field" :class="{ invalid: problems.path }" :title="problems.path">
+        <label :for="`${id}-path`">{{ t("objects.field.path") }}</label>
+        <div class="field-control">
+          <input
+            :id="`${id}-path`"
+            v-model="draft.path"
+            class="input mono"
+            type="text"
+            :placeholder="fallbackPath || t('route.default')"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <InfoTip :label="about('objects.field.path')"
+            ><span class="info-line">{{ t("objects.tip.path") }}</span></InfoTip
+          >
+        </div>
       </div>
-    </div>
-    <div class="field" :class="{ invalid: problems.qru }" :title="problems.qru">
-      <label :for="`${id}-qru`">{{ t("objects.field.qru") }}</label>
-      <div class="field-control">
-        <input
-          :id="`${id}-qru`"
-          v-model="draft.qru"
-          class="input mono"
-          type="text"
-          :maxlength="qruMax"
-          autocomplete="off"
-          spellcheck="false"
-          @input="draft.qru = draft.qru.toUpperCase()"
-        />
+      <div class="field" :class="{ invalid: problems.qru }" :title="problems.qru">
+        <label :for="`${id}-qru`">{{ t("objects.field.qru") }}</label>
+        <div class="field-control">
+          <input
+            :id="`${id}-qru`"
+            v-model="draft.qru"
+            class="input mono"
+            type="text"
+            :maxlength="qruMax"
+            autocomplete="off"
+            spellcheck="false"
+            @input="draft.qru = draft.qru.toUpperCase()"
+          />
+          <InfoTip :label="about('objects.field.qru')"
+            ><span class="info-line">{{ t("objects.tip.qru", { max: qruMax }) }}</span></InfoTip
+          >
+        </div>
       </div>
-    </div>
-    <div class="field">
-      <label :for="`${id}-asked`">{{ t("objects.field.on_request") }}</label>
-      <div class="field-control">
-        <input :id="`${id}-asked`" v-model="draft.onRequest" class="check" type="checkbox" />
+      <div class="field">
+        <label :for="`${id}-asked`">{{ t("objects.field.on_request") }}</label>
+        <div class="field-control">
+          <input :id="`${id}-asked`" v-model="draft.onRequest" class="check" type="checkbox" />
+          <InfoTip :label="about('objects.field.on_request')"
+            ><span class="info-line">{{ t("objects.tip.on_request") }}</span></InfoTip
+          >
+        </div>
       </div>
-    </div>
+    </DisclosureBox>
     <template #buttons>
       <button type="button" class="btn" :disabled="!form.dirty && !form.placing" @click="form.cancel()">{{ t("objects.form.cancel") }}</button>
       <button type="submit" class="btn primary" :disabled="!ready">{{ form.editing === null ? t("objects.form.add") : t("objects.form.save") }}</button>

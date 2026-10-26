@@ -20,11 +20,7 @@ const tipOf = (wrapper: ReturnType<typeof make>, id: string) =>
 
 describe("the (i) of the Settings tab", () => {
   const cases: [string, string, RegExp][] = [
-    [
-      "set-web-network",
-      "About network access",
-      /other devices on your network.*access key appears.*Type the key once on each device.*plain http.*not for the internet/s,
-    ],
+    ["set-web-network", "About network access", /other devices on your network.*access key appears.*Type the key once on each device/s],
     ["set-web-key", "About the access key", /type this key once.*New key.*logs every other device out/s],
     ["set-web-url-0", "About the addresses", /same network as NeoAPRS.*\.local/s],
     ["set-tnc-profile", "Which radio type to pick", /KISS TNC: Mobilinkd.*KISS over TCP: Direwolf.*Kenwood TH-D7.*radio guide/s],

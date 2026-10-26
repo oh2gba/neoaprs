@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // A heading that opens and closes what is under it, for what most people never need. It starts closed, or open when `open` is true, and opens when `open` turns true later; it is never closed by the page, only by the person.
-// The look is the page's heading that opens (`disclosure`); `plain` leaves the look to the class the caller gives it (a card's Details, the Raw of a packet, the preview of the beacon), and `summaryClass` is a class of the heading line.
+// The look is the page's heading that opens (`disclosure`); `plain` leaves the look to the class the caller gives it (a card's Details, the Raw of a packet), and `summaryClass` is a class of the heading line.
 // The slot `summary` is the heading line when it is more than the title (the radio status with its Reconnect).
 import { ref, watch } from "vue";
 

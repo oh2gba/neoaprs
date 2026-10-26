@@ -5,7 +5,8 @@ import { computed } from "vue";
 import SettingsField from "@/components/SettingsField.vue";
 import { t } from "@/i18n";
 import { useDaemonContext } from "@/composables/useDaemonContext";
-import { FIELDS, speedFallback, type FieldInfo } from "@/lib/settings";
+import { FIELDS, type FieldInfo } from "@/lib/settings";
+import { speedFallback } from "@/lib/tncprofile";
 import { portChoices } from "@/lib/setup";
 
 const { guide, config } = useDaemonContext();

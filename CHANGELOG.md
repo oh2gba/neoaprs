@@ -12,6 +12,7 @@ An iGate, internet stations on the map, and a tab bar that fits.
 - **Heard on RF only** in the Stations tab hides the stations known only from the internet.
 - Tabs that do not fit sit under a **More** tab instead of one menu button.
 - A page that does not match NeoAPRS says so and offers **Reload**.
+- The Objects form keeps Path and QRU under Advanced, as the Beacon tab does.
 
 ## 0.9.1
 

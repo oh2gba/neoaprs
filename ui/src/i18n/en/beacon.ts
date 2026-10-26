@@ -1,4 +1,4 @@
-// The Beacon tab: the beacon status at the top (the line of a fixed station, the GPS and SmartBeaconing lines of a moving one), the status line, and the preview of the packet. The fields of the tab are the settings' (settings.ts).
+// The Beacon tab: the beacon status at the top (the line of a fixed station, the GPS and SmartBeaconing lines of a moving one), the status line. The fields of the tab are the settings' (settings.ts).
 export const beacon = {
   "beacon.label": "Beacon",
   "beacon.state.on": "on",
@@ -15,11 +15,6 @@ export const beacon = {
   "beacon.really_send": "Really send?",
   "beacon.rigctld_on": "rigctld on",
   "beacon.rigctld_off": "rigctld off",
-  "beacon.preview": "Preview",
-  "beacon.preview_empty": "Preview: these values make no packet yet",
-  "beacon.packet": "Packet",
-  "beacon.packet_label": "The beacon as it would be sent",
-  "beacon.status_label": "The status as it would be sent",
 
   "gps.label": "GPS",
   "gps.state.off": "off",

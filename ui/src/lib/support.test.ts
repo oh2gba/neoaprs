@@ -176,4 +176,9 @@ describe("mailtoLink", () => {
     expect(url.searchParams.get("subject")).toBe("NeoAPRS 0.9.0: ");
     expect(url.searchParams.get("body")).toBe("What I did:\r\n\r\nWhat I expected:\r\n\r\nRemember to attach f.zip.");
   });
+
+  it("leaves the reminder out before there is a file", () => {
+    const url = new URL(mailtoLink(["What I did:", "What I expected:"], null, "0.9.0"));
+    expect(url.searchParams.get("body")).toBe("What I did:\r\n\r\nWhat I expected:");
+  });
 });
