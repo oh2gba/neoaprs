@@ -190,3 +190,36 @@ def _ended_pid() -> int:
     child = subprocess.Popen([sys.executable, "-c", "pass"])
     child.wait()
     return child.pid
+
+
+# ---- the edges: no browser to open the page in, the whole command line, and the program with no console
+
+def test_with_no_shell_and_no_browser_the_address_is_printed_and_the_person_is_told_to_open_it(world: World, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    world.choice = Choice(None, False)
+    monkeypatch.setattr(cmd.webbrowser, "open", lambda url: False)
+    assert world.run() == 0
+    assert capsys.readouterr().out == PAGE + "\n" and any("no browser could be started" in text and PAGE in text for text in world.said)
+
+
+def test_the_command_line_makes_the_data_folder_sets_up_the_log_and_the_hook_for_what_nothing_caught_and_runs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: dict[str, object] = {}
+    monkeypatch.setattr(cmd.appstate, "setup_logging", lambda data, debug: seen.update(logging=(data, debug)))
+    monkeypatch.setattr(cmd.uncaught, "install", lambda log, chain=False: seen.update(hook=chain))
+    monkeypatch.setattr(cmd, "run", lambda args: seen.update(run=(args.tray, args.debug)) or 5)
+    data = tmp_path / "new" / "data"
+    assert cmd.main(["--data", str(data), "--tray", "--debug"]) == 5
+    assert data.is_dir() and seen == {"logging": (data.resolve(), True), "hook": True, "run": (True, True)}
+
+
+def test_the_program_with_no_console_gets_streams_that_swallow_what_is_printed_and_runs_the_same_command(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys, "stdout", None)
+    monkeypatch.setattr(sys, "stderr", None)
+    monkeypatch.setattr(cmd, "main", lambda: 3)
+    try:
+        assert cmd.gui_main() == 3
+        print("nowhere", file=sys.stderr)                                        # (neither stream is there to fail)
+        print("nothing")
+    finally:
+        for stream in (sys.stdout, sys.stderr):
+            if stream is not None:
+                stream.close()

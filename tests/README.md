@@ -21,6 +21,13 @@
   that sends KISS frames, skips one it cannot open or that another program holds or that is on the skip list, takes a TNC in command mode, sends the carriage
   return, ends with a stop, the fall back from a named port, a device file that vanishes and comes back, and the settings' pattern, the remembered port and the
   search after a remembered port is gone with the whole daemon.
+* `test_tnc_failures.py`: the Tnc on a line in memory and a skipped clock: an open that is refused or raises what nobody listed, the retry after the back-off, a stop while the retry opens, bytes and a loss from a port that is
+  no longer the Tnc's, a write that fails, the KISS entry's steps and the port's failed write, and the repeats of the KISS entry that wait 10, 20, 40 and 60 s.
+* `test_tncwatchdog.py`: the keep-alive's schedule (`neoaprs/tncwatchdog.py`) on a Tnc that is a record of what it was asked and a skipped clock: the quiet period, the check's steps, every exit of a check (no line, a write refused, a line replaced between two steps), the silent
+  radio's probes and the reopen of every fifth, a Tnc that is not connected.
+* `test_worldcmd.py`: `neoaprs map --world` on the pmtiles stand-in: the build, source and zoom, the 8 MB refusal, a file that is no archive, a tool that is not the pinned one, a failed run. `test_selfreplace.py`, `test_servicelaunchd.py`, `test_opencmd_platforms.py`,
+  `test_rigctld.py`, `test_aprsmiceout.py`, `test_support_gather.py`, `test_cli_small.py`: the branches of the small pieces that the larger tests do not reach (the Windows and macOS paths with the platform said and the system's calls faked, a server that answers badly, the
+  system named on each system, the hooks for what nothing caught).
 * `test_silent.py`: the silent radio: a check that nothing answers makes the Tnc silent (the describe text, the lines, the log), command-mode text, a KISS frame
   or other bytes while silent end it cleanly (KISS entered afresh once for every answer, `usable` False until the settle has passed, one INFO line), the probes
   (answered at the return, answered after KISS ON, a hundred unanswered ones with one WARNING and no INFO, every 5th reopening the port and the silence kept
@@ -401,6 +408,11 @@ which a timer has had its chance to do something that the test then asserts it d
 takes time (a talker, a slow open, a probe that is half way to its nudge), with a comment. `quick_start(...)` (`support/env.py`) starts an `Env` whose services
 tick every 20 ms and waits until the Tnc is usable. The tests that start the daemon as a process wait `PATIENCE_SEC` for it (`test_main.py`) and print its log
 when it does not end.
+
+A test of code that waits on timers (a pause between steps, a back-off, a quiet period) does not sit through them: `async with virtual_time() as clock:` (`support/virtualtime.py`) brings the loop's clock
+forward to the next timer whenever nothing else is ready, so a 60 s wait takes no time and `clock.skipped` says how long it was. It is for fakes in memory (`support/fakeport.py`: the Tnc's line, which a test
+can fail at the open or at a write, `support/faketnc.py`'s `ears`); a test with a thread or a socket that has to deliver keeps real time (`test_virtualtime.py` shows both). The Find my radio tests share their rig
+in `support/finderrig.py`.
 
 ## Properties
 

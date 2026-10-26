@@ -7,6 +7,7 @@
     ble.writes                                        # [(bytes, with_response), ...] what the code wrote, one entry per write of the link
     ble.drop()                                        # the device goes away: bleak calls the disconnected callback
     ble.connect_error = FakeBleakError("...")        # the next connections fail (None: they work again)
+    ble.disconnect_error = FakeBleakError("...")     # the next disconnects fail
     ble.seen = False                                  # the scan does not find the device"""
 import asyncio
 from collections.abc import Callable
@@ -50,6 +51,7 @@ class FakeBle:
         self.seen = True                                             # the scan finds the device
         self.connect_error: Exception | None = None
         self.write_error: Exception | None = None                    # the next write fails with it
+        self.disconnect_error: Exception | None = None               # a disconnect fails with it
         self.hold_writes = False                                     # a write does not come back (the link is stuck)
         self.scans: list[str] = []
         self.connects, self.disconnects = 0, 0
@@ -106,6 +108,8 @@ class FakeClient:
         self._ble.client = self
 
     async def disconnect(self) -> None:
+        if self._ble.disconnect_error is not None:
+            raise self._ble.disconnect_error
         if self.is_connected:
             self.is_connected = False
             self._ble.disconnects += 1

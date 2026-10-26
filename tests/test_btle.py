@@ -1,8 +1,10 @@
 """The Bluetooth LE KISS port (neoaprs/btle.py) on a fake bleak and a fake device (tests/support/fakeble.py): the address and profile of a `ble://` port, the search of the device's services, reading with the timeout, writing in pieces,
 a link that is lost, the library that is not installed, and the TNC that uses the port. No scan is made and no radio is touched."""
+import asyncio
 import sys
 import threading
 import time
+from collections.abc import Callable
 
 import pytest
 
@@ -399,3 +401,97 @@ async def test_the_tnc_opens_a_ble_port_again_when_the_radio_comes_back(monkeypa
         await tnc.stop()
     assert tnc.state is Source.State.STOPPED
     await until(lambda: ble_threads() == [])
+
+
+# ---- the edges: a device that does not let go, a write that is cancelled, the calls of a serial port that a BLE link has nothing to do for
+
+def wait_for(condition: Callable[[], object], seconds: float = 5.0) -> None:
+    deadline = time.monotonic() + seconds
+    while not condition():
+        assert time.monotonic() < deadline, "the condition did not come true"
+        time.sleep(0.005)
+
+
+def test_the_library_that_is_there_is_what_the_open_uses(monkeypatch: pytest.MonkeyPatch) -> None:
+    stand_in = object()
+    monkeypatch.setitem(sys.modules, "bleak", stand_in)
+    assert btle.import_bleak() is stand_in
+
+
+def test_a_loop_that_is_stopped_twice_says_nothing_and_what_it_still_ran_is_cancelled() -> None:
+    loop = btle._Loop("ble test")
+    never = loop.submit(asyncio.sleep(3600))
+    loop.call(asyncio.sleep(0), 2.0)                                # (the loop has taken the first coroutine up by the time it runs the second)
+    loop.stop()
+    loop.stop()
+    assert never.cancelled()
+
+
+def test_a_device_that_cannot_be_disconnected_after_a_failed_open_is_told_and_the_open_fails_with_the_first_reason(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level("INFO", logger="neoaprs.btle")
+    ble = FakeBle(monkeypatch, {})                                  # (a device with no service at all)
+    ble.disconnect_error = FakeBleakError("already gone")
+    with pytest.raises(Exception, match="no BLE KISS service"):
+        opened()
+    assert "disconnecting: already gone" in caplog.text and ble_threads() == []
+
+
+def test_an_open_that_fails_with_something_nobody_listed_leaves_no_thread(monkeypatch: pytest.MonkeyPatch) -> None:
+    ble = FakeBle(monkeypatch)
+    ble.connect_error = RuntimeError("the adapter is confused")
+    with pytest.raises(RuntimeError, match="confused"):
+        opened()
+    assert ble_threads() == []
+
+
+def test_a_write_that_is_cancelled_is_an_error_and_the_next_write_works(monkeypatch: pytest.MonkeyPatch) -> None:
+    ble = FakeBle(monkeypatch)
+    ble.hold_writes = True
+    ser = opened()
+    failed: list[Exception] = []
+
+    def write() -> None:
+        try:
+            ser.write(b"x")
+        except Exception as e:
+            failed.append(e)
+
+    thread = threading.Thread(target=write)
+    try:
+        thread.start()
+        wait_for(lambda: ser._writing is not None)
+        ser.cancel_write()
+        thread.join(5)
+        assert len(failed) == 1 and "the write was cancelled" in str(failed[0])
+        ble.hold_writes = False
+        assert ser.write(b"y") == 1 and ble.writes[-1][0] == b"y"
+        ser.cancel_write()                                       # (nothing is being written: nothing to cancel)
+    finally:
+        ble.hold_writes = False
+        ser.close()
+
+
+def test_the_calls_a_serial_port_has_and_a_ble_link_does_not_need_do_nothing_or_clear_what_they_can(monkeypatch: pytest.MonkeyPatch) -> None:
+    FakeBle(monkeypatch)
+    ser = opened()
+    try:
+        ser._received(b"stale")
+        assert ser.in_waiting == 5
+        ser.reset_input_buffer()
+        assert ser.in_waiting == 0
+        ser.reset_output_buffer()
+        ser.flush()
+        ser.dtr, ser.rts = True, True                            # (no control lines to hold)
+        ser.baudrate = 115200
+        assert ser.is_open
+    finally:
+        ser.close()
+
+
+def test_a_device_that_does_not_let_go_at_the_close_is_told_and_the_port_is_closed_all_the_same(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level("INFO", logger="neoaprs.btle")
+    ble = FakeBle(monkeypatch)
+    ser = opened()
+    ble.disconnect_error = FakeBleakError("stuck")
+    ser.close()
+    assert not ser.is_open and "closing: stuck" in caplog.text and ble_threads() == []

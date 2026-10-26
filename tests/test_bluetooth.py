@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs import ax25, btpaired, btsdp, serialprobe
+from neoaprs import ax25, btpaired, btsdp, btserial, serialprobe
 from neoaprs.btserial import BluetoothSerial, is_bluetooth, parse_url
 from neoaprs.kiss import KissDecoder, encode
 from neoaprs.serialholders import held_by, port_key
@@ -372,3 +372,103 @@ def test_listing_never_makes_a_socket(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(btpaired, "_run", lambda command: busctl_output())
     monkeypatch.setattr(socket, "socket", lambda *a, **k: pytest.fail("a socket was made to list the devices"))
     assert len(serialprobe.paired_bluetooth_ports()) == 4
+
+
+# ---- the edges: elements of every kind, a directory that never ends, the sockets, a port opened twice
+
+def test_a_nil_and_a_text_are_elements_like_the_numbers() -> None:
+    assert btsdp.parse_elements(b"\x00") == [None]
+    assert btsdp.parse_elements(b"\x25\x03abc") == [b"abc"]
+    with pytest.raises(btsdp.SdpError, match="cut off"):
+        btsdp._take(b"", 0, 0)
+
+
+def test_sequences_nested_deeper_than_a_device_has_reason_to_are_refused() -> None:
+    data = b"\x08\x01"
+    for _ in range(btsdp.MAX_DEPTH + 2):
+        data = sequence(data)
+    with pytest.raises(btsdp.SdpError, match="nest too deep"):
+        btsdp.parse_elements(data)
+
+
+def test_a_directory_that_goes_on_asking_to_be_continued_is_given_up() -> None:
+    class Endless:
+        def __init__(self) -> None:
+            self.transaction = 0
+
+        def send(self, data: bytes) -> int:
+            self.transaction = struct.unpack(">H", data[1:3])[0]
+            return len(data)
+
+        def recv(self, size: int) -> bytes:
+            return answer(self.transaction, b"", b"\x01")
+
+    with pytest.raises(btsdp.SdpError, match="does not end"):
+        btsdp.ask(Endless())                                          # type: ignore[arg-type]
+
+
+def test_the_sockets_of_the_directory_and_of_the_port_are_made_of_the_kinds_bluetooth_has(monkeypatch: pytest.MonkeyPatch) -> None:
+    made: list[tuple[int, int, int]] = []
+    monkeypatch.setattr(socket, "AF_BLUETOOTH", 32, raising=False)
+    monkeypatch.setattr(socket, "BTPROTO_L2CAP", 0, raising=False)
+    monkeypatch.setattr(socket, "BTPROTO_RFCOMM", 3, raising=False)
+    monkeypatch.setattr(socket, "socket", lambda family, kind, proto: made.append((family, kind, proto)) or object())
+    btsdp.new_l2cap_socket()
+    btserial.new_rfcomm_socket()
+    assert made == [(32, socket.SOCK_SEQPACKET, 0), (32, socket.SOCK_STREAM, 3)]
+
+
+def test_the_directory_is_not_read_where_the_system_has_no_l2cap(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delattr(socket, "BTPROTO_L2CAP", raising=False)
+    with pytest.raises(OSError, match="Linux only"):
+        btsdp.new_l2cap_socket()
+
+
+def test_bluetooth_sockets_are_made_on_linux_builds_that_have_them_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(socket, "AF_BLUETOOTH", 32, raising=False)
+    monkeypatch.setattr(socket, "BTPROTO_RFCOMM", 3, raising=False)
+    for platform, want in (("linux", True), ("win32", False), ("darwin", False)):
+        monkeypatch.setattr(sys, "platform", platform)
+        assert btserial.available() is want
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.delattr(socket, "BTPROTO_RFCOMM")
+    assert btserial.available() is False
+
+
+def test_a_connect_that_fails_with_something_that_is_no_os_error_closes_the_socket_and_raises_it(monkeypatch: pytest.MonkeyPatch) -> None:
+    closed: list[bool] = []
+
+    class Odd:
+        def settimeout(self, seconds: float) -> None:
+            pass
+
+        def connect(self, address: tuple[str, int]) -> None:
+            raise RuntimeError("the stack is confused")
+
+        def close(self) -> None:
+            closed.append(True)
+
+    monkeypatch.setattr(btserial, "new_rfcomm_socket", Odd)
+    with pytest.raises(RuntimeError, match="confused"):
+        btserial.connect(ADDRESS, 2)
+    assert closed == [True]
+
+
+def test_no_channel_to_try_is_a_refusal(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(btserial, "channels_for", lambda address: [])
+    with pytest.raises(OSError, match="Connection refused"):
+        btserial.connect(ADDRESS, None)
+
+
+async def test_a_port_needs_a_name_and_is_opened_once(device: FakeBluetooth) -> None:
+    nameless = BluetoothSerial(None)
+    with pytest.raises(Exception, match="must be configured"):
+        nameless.open()
+    port = BluetoothSerial(None, timeout=0.1)
+    port.port = f"{URL}/2"
+    port.open()
+    try:
+        with pytest.raises(Exception, match="already open"):
+            port.open()
+    finally:
+        port.close()

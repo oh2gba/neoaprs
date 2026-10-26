@@ -336,3 +336,97 @@ async def test_the_password_is_in_the_login_line_and_in_no_log_line_note_or_erro
         assert secret not in caplog.text
         assert all(secret not in line for line in (*link.lines, *other.lines, link.problem, link.last_error, other.problem, other.last_error, link.describe()))
     assert any("31415" in login for login in server.logins)
+
+
+# ---- the edges: an open that never ends, a socket that cannot be set, a login answer after other lines, a line too long, a run that is not the current one
+
+class OtherSocket:
+    """What a stream's writer says its socket is, when it is not the usual one: nothing, or one whose options cannot be set."""
+
+    def __init__(self, sock: object) -> None:
+        self.sock = sock
+
+    def wrap(self, writer: asyncio.StreamWriter) -> object:
+        sock = self.sock
+
+        class Proxy:
+            transport = writer.transport
+
+            def get_extra_info(self, name: str, default: object = None) -> object:
+                return sock if name == "socket" else writer.get_extra_info(name, default)
+
+            def __getattr__(self, name: str) -> object:
+                return getattr(writer, name)
+
+        return Proxy()
+
+
+class RefusingSocket:
+    def setsockopt(self, *args: object) -> None:
+        raise OSError("option not supported")
+
+
+@pytest.mark.parametrize("sock", [None, RefusingSocket()], ids=["no socket to set", "a socket that refuses the options"])
+async def test_a_connection_whose_socket_cannot_be_set_is_still_a_connection(monkeypatch: pytest.MonkeyPatch, sock: object) -> None:
+    server = await fake_aprsis()
+    real = asyncio.open_connection
+
+    async def open_connection(host: str, port: int, **options: int) -> tuple[asyncio.StreamReader, object]:
+        reader, writer = await real(host, port, **options)
+        return reader, OtherSocket(sock).wrap(writer)
+
+    monkeypatch.setattr(asyncio, "open_connection", open_connection)
+    link = link_to(server)
+    await link.start()
+    await until(lambda: link.verified)
+    assert link.send_line(b"OH2XYZ>APRS:>x")
+    await until(lambda: server.packets == ["OH2XYZ>APRS:>x"])
+
+
+async def test_an_open_that_does_not_end_in_time_is_a_problem_and_a_retry(monkeypatch: pytest.MonkeyPatch) -> None:
+    opened: list[int] = []
+
+    async def hangs(host: str, port: int, **options: int) -> None:
+        opened.append(port)
+        await asyncio.sleep(3600)
+
+    monkeypatch.setattr(asyncio, "open_connection", hangs)
+    link = link_to(await fake_aprsis(), connect_sec=0.1)
+    await link.start()
+    await until(lambda: len(opened) >= 2)
+    assert "no answer in time" in link.last_error
+
+
+async def test_lines_before_the_answer_to_the_login_are_passed_over() -> None:
+    server = await fake_aprsis()
+    server.responder = lambda line: b"# some news of the server\r\nOH2XYZ>APRS:>not the answer\r\n# logresp OH2GBA-10 verified, server LATE\r\n" if line.startswith("user ") else b""
+    link = link_to(server)
+    await link.start()
+    await until(lambda: link.verified)
+    assert link.server_name == "LATE" and link.read == 0, "(a packet in front of the answer is not a packet of the internet either: the login is not served yet)"
+
+
+async def test_a_line_longer_than_the_reader_takes_is_a_lost_connection_and_the_next_login_works() -> None:
+    server = await fake_aprsis()
+    link = link_to(server)
+    await link.start()
+    await until(lambda: link.verified)
+    server.send(b"x" * 9000)
+    await until(lambda: "too long" in link.last_error)
+    await until(lambda: link.verified and server.connections == 2)
+
+
+async def test_a_run_that_is_not_the_current_one_ends_without_touching_the_state() -> None:
+    link = link_to(await fake_aprsis())
+    link._generation = 5
+    await link._run(4)                                                   # (a task of a start that a stop has replaced since: it must not connect)
+    assert link.state is Source.State.STOPPED and link.stats.opens == 0
+
+    class Replaced(AprsIs):
+        async def _attempt(self) -> str | None:
+            self._generation += 1                                        # (stopped and started again while the attempt failed)
+            return "the connection ended"
+
+    other = Replaced(FixedClock(), Backoff([0.05]))
+    await other._run(0)
+    assert other.state is Source.State.STOPPED and other.last_error == ""
