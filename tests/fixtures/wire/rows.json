@@ -1508,8 +1508,12 @@
      ],
      "max_objects": 5,
      "range": 50,
+     "received": [],
+     "request": "",
      "sent": "Sent 5 RP70 Objects Max 5@50km de DF8LS-10",
      "sent_at": "2026-10-21T12:00:40Z",
+     "sent_objects": null,
+     "settles_at": null,
      "unit": "km"
     },
     {
@@ -1518,8 +1522,12 @@
      "groups": [],
      "max_objects": null,
      "range": null,
+     "received": [],
+     "request": "",
      "sent": "Sent 2 of 7 FOOD Objects, NEXT for more. de W1AW",
      "sent_at": "2026-10-21T12:02:00Z",
+     "sent_objects": null,
+     "settles_at": null,
      "unit": ""
     }
    ]
