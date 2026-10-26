@@ -8,9 +8,9 @@ const values = { "station/call": "OH2GBA-10", "igate/server": "rotate.aprs2.net:
 afterEach(() => setLocale("en"));
 
 describe("igateStatus", () => {
-  it("says Connected, receiving for a login that is up, whatever the daemon says of the login: verified, listening or not accepted", () => {
+  it("says Connected for a login that is up, whatever the daemon says of the login: verified, listening or not accepted", () => {
     for (const state of ["connected", "listening", "unverified"] as const) {
-      expect(igateStatus(igateState({ state }), values), state).toBe("Connected, receiving");
+      expect(igateStatus(igateState({ state }), values), state).toBe("Connected");
     }
   });
 

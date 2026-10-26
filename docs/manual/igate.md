@@ -5,7 +5,7 @@
 ## What it does
 
 - It logs in to APRS-IS with your call, read only, and asks for the stations within the **Radius** of the Map group of the Settings tab, round your position. The circle is asked for again when you change the radius and when your position has moved more than 10 km.
-- The status line under the switch says "Connected, receiving", that it is connecting, or why it is not connected. The switch needs your call: until it is set the group says **Set your call first**.
+- The status line under the switch says "Connected", that it is connecting, or why it is not connected. The switch needs your call: until it is set the group says **Set your call first**.
 - If the connection is lost it is opened again after 5, 10, 20 and then 30 seconds. A server that says nothing for three minutes counts as lost.
 
 **Nothing from the internet is ever sent on the air.** What the server sends goes to the map and the logs and nowhere else: a message for you that was sent from the internet is not kept or answered, no query from it is answered, no packet of APRS-IS is repeated by your radio, and a station known only from the internet cannot be messaged. This is how NeoAPRS is built, not a setting.

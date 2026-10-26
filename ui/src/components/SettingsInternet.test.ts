@@ -24,7 +24,7 @@ describe("the Internet group of the Settings tab", () => {
       expect(box?.find(gone).exists(), gone).toBe(false);
     expect(box?.find(".statetext").exists()).toBe(false);
     expect(box?.find(".tag").exists()).toBe(false);
-    expect(box?.find(".tncstatus").text()).toBe("Connected, receiving");
+    expect(box?.find(".tncstatus").text()).toBe("Connected");
     expect(box?.text()).not.toMatch(/gate|passcode|iGate/i);
   });
 
@@ -35,7 +35,7 @@ describe("the Internet group of the Settings tab", () => {
       group()
         ?.findAll(".info-line")
         .map((l) => l.text()),
-    ).toEqual(["Shows stations from APRS-IS within the map's radius. Nothing is sent."]);
+    ).toEqual(["Shows APRS-IS stations within your map's radius."]);
   });
 
   it("shows only the switch while it is off, and the status line the moment it is on", async () => {
