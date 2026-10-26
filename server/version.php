@@ -37,16 +37,16 @@ if (!is_string($id) || !preg_match('/\A[0-9a-f]{32}\z/', $id)) {
 $line = gmdate('Y-m-d\TH:i') . "Z\t" . ($version ?: '-') . "\t" . ($os ?: '-') . "\t" . ($id ?: '-') . "\n";
 @file_put_contents(__DIR__ . '/log/starts-' . gmdate('Y-m') . '.log', $line, FILE_APPEND | LOCK_EX);
 
-// The same three values also go to the status application on this account,
+// The version, the platform and the number also go to the status application on this account,
 // which shows them on status.oh2gba.eu. Its library connects with its own
 // credentials; a missing or failing library must never change the answer.
 $lib = getenv('STATUS_LIB') ?: (getenv('HOME') ?: '/usr/home/ohjgba') . '/public_html/status/private/lib';
 if (is_readable("$lib/starts.php")) {
     try {
         require_once "$lib/starts.php";
-        // the address goes in only to be hashed with the platform into a
-        // per-installation key on the status side; it is not stored anywhere
-        app_start_record(status_db(), 'neoaprs', $version, $os, $_SERVER['REMOTE_ADDR'] ?? '');
+        // the installation's random number is the per-installation key on the
+        // status side; the caller's address is not used at all
+        app_start_record(status_db(), 'neoaprs', $version, $os, $id);
     } catch (Throwable $e) {
         // nothing: the file log above already has the line
     }

@@ -20,7 +20,7 @@ pytestmark = posix_only
 
 ROOT = Path(__file__).resolve().parent.parent
 PHP = shutil.which("php")
-LIBRARY = "<?php function status_db() { return 'db'; }\nfunction app_start_record($db, $app, $v, $os, $ip) { file_put_contents(__DIR__ . '/calls.txt', \"$app|$v|$os\\n\", FILE_APPEND); return false; }\n"
+LIBRARY = "<?php function status_db() { return 'db'; }\nfunction app_start_record($db, $app, $v, $os, $key) { file_put_contents(__DIR__ . '/calls.txt', \"$app|$v|$os|$key\\n\", FILE_APPEND); return false; }\n"
 
 
 ID = "0123456789abcdef0123456789abcdef"
@@ -99,13 +99,13 @@ async def test_the_call_is_logged_as_time_version_platform_and_id_and_handed_to_
     (when, version, os_name, number), second = page.log()
     assert when.endswith("Z") and len(when) == len("2026-10-23T08:45Z") and (version, os_name, number) == ("0.1.0", "linux-arm", "-")
     assert second[1:] == ["0.1.0b", "-", "-"], "what is not a letter, a digit or . _ - is dropped, nothing at all is -"
-    assert (page.folder / "lib" / "calls.txt").read_text(encoding="utf-8").splitlines() == ["neoaprs|0.1.0|linux-arm", "neoaprs|0.1.0b|"]
+    assert (page.folder / "lib" / "calls.txt").read_text(encoding="utf-8").splitlines() == ["neoaprs|0.1.0|linux-arm|", "neoaprs|0.1.0b||"]
 
 
 async def test_an_id_of_32_lowercase_hex_characters_is_the_fourth_column(page: Page) -> None:
     await page.ask(f"v=0.1.0&os=linux&id={ID}")
     assert page.log() == [[page.log()[0][0], "0.1.0", "linux", ID]]
-    assert (page.folder / "lib" / "calls.txt").read_text(encoding="utf-8").splitlines() == ["neoaprs|0.1.0|linux"], "the status application is handed what it was"
+    assert (page.folder / "lib" / "calls.txt").read_text(encoding="utf-8").splitlines() == [f"neoaprs|0.1.0|linux|{ID}"], "the status application is handed the number as its key"
 
 
 @pytest.mark.parametrize("bad", ["", ID.upper(), ID[:-1], ID + "0", "g" * 32, ID[:-1] + "%0A", ID + "%0A", "%20" + ID[1:], "<b>" + ID[3:], "x%09y" + ID[3:]])
@@ -148,3 +148,12 @@ async def test_a_note_in_message_txt_is_the_message_its_first_line_cut_to_200_ch
     assert (await page.ask())["message"] == "Fixes the map download"
     (page.folder / "site" / "message.txt").write_text("x" * 300, encoding="utf-8")
     assert (await page.ask())["message"] == "x" * 200
+
+
+
+async def test_the_status_application_is_never_handed_the_address(page: Page) -> None:
+    """The per-installation key of the count is the installation's random number; the caller's address (127.0.0.1 here) goes nowhere."""
+    await page.ask(f"v=0.9.2&os=windows&id={ID}")
+    await page.ask("v=0.9.2&os=windows")
+    calls = (page.folder / "lib" / "calls.txt").read_text(encoding="utf-8")
+    assert calls.splitlines() == [f"neoaprs|0.9.2|windows|{ID}", "neoaprs|0.9.2|windows|"] and "127.0.0.1" not in calls
