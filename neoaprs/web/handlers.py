@@ -29,6 +29,7 @@ from .mapwire import MapCancel, MapEstimate, MapFetch
 from .ownwire import BulletinPost, BulletinUnpost, ObjectKill, ObjectSet
 from .pageerrors import one_line
 from .messagewire import AlertTest, ConversationDelete, MessageCancel, MessageDelete, MessageRetry, OverheardDelete, QueryStation, SendMessage
+from .qruwire import AskQru
 from .portwire import FindRadio, FindRadioCancel, ListPorts
 from .prefwire import ClearStationPath, SetStationPath, SetStationRfOnly
 from .configwire import SetConfig
@@ -169,6 +170,13 @@ async def query_station(ctx: Ctx, cmd: QueryStation) -> None:
         if not station.can_message:
             raise UserError(f"{cmd.cmd}: {call} does not take messages: there is nobody to ask", "query.not_capable", params={"call": call})
         await ctx.ctl.messaging.asking.ask(call, cmd.kind)
+
+
+@command(AskQru)
+async def qru_ask(ctx: Ctx, cmd: AskQru) -> None:
+    """Local info is asked of the stations near us: one request to QRU, once, by radio only."""
+    with refused(cmd.cmd):
+        ctx.ctl.qruask.ask(cmd.text)
 
 
 @command(MessageRetry)

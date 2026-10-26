@@ -36,12 +36,12 @@ from neoaprs.bulletin import board_slot
 from neoaprs.aprsmessage import MessageError, format_ack, format_message
 from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.clock import Clock, days, utcnow
-from neoaprs.config import Config, can_transmit
+from neoaprs.config import can_transmit
 from neoaprs.interlock import Interlock
 from neoaprs.message import MESSAGES_HELD_MAX, MSG_IDS, UNCONFIRMED_MAX, MessageRecord, MessagingError, State, addressed_to, attempts_for, check_text, due_at, next_msg_id
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet
-from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, our_frame
+from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, our_call, our_frame
 from neoaprs.services.asking import Asking
 from neoaprs.services.delivery import Delivery
 from neoaprs.services.inbox import Inbox
@@ -62,15 +62,6 @@ def _info(to: str, text: str, ident: str | None, reply: str | None) -> bytes:
         return b":" + format_message(to, text, ident, reply)
     except MessageError as e:
         raise MessagingError(str(e)) from None
-
-
-def _our_call(config: Config) -> str:
-    """The call we send under; raises MessagingError when nothing may be transmitted: receive only (the code `transmit.off`), or the interlock's reason (no call)."""
-    if not config.station_transmit:
-        raise MessagingError("RX only: nothing is sent", "transmit.off")
-    if reason := can_transmit(config):
-        raise MessagingError(reason)
-    return config.station_call
 
 
 def _named(name: str) -> str:
@@ -143,7 +134,7 @@ class Messaging:
         """Keeps a new message to `to_call` and transmits it. Raises MessagingError, with the reason, when the addressee or the text is not right, the radio is silent, or the message cannot be kept. The message is given back
         as it is after the first attempt; when the Tnc is not connected it has had none yet and the attempt waits. While the call is not set (the interlock) it is refused with "set your call first". With `once` (what a
         directed query is, services/asking.py) it goes out as a message to a bulletin does: without an id, with one attempt."""
-        ours = _our_call(self._config())
+        ours = our_call(self._config())
         board = board_slot(to_call)
         once = once or board is not None
         try:
@@ -168,7 +159,7 @@ class Messaging:
 
     def retry(self, number: int) -> MessageRecord:
         """Sends a failed, unconfirmed, rejected or cancelled message again, from the first attempt of the schedule."""
-        _our_call(self._config())
+        our_call(self._config())
         record = self._ours(number)
         if record.state not in _RETRYABLE:
             raise MessagingError(f"message {number} is {record.state}: only a failed, unconfirmed, rejected or cancelled message is sent again")

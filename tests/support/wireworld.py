@@ -13,6 +13,7 @@ from neoaprs.ownbulletin import OwnBulletin
 from neoaprs.ownobject import OwnObject
 from neoaprs.packet import Message, Packet, ThirdParty, Undecoded
 from neoaprs.pref import Pref
+from neoaprs.qrutext import Asked, Server
 from neoaprs.smartbeacon import Reason, Sent
 from neoaprs.stationbook import StationBook
 from neoaprs.dummyline import DUMMY_PATH
@@ -201,6 +202,23 @@ def igate_rows(views: Any) -> list[dict[str, Any]]:
     ]
 
 
+@dataclass
+class FakeQru:
+    """The QRU client as the `qru` topic reads it."""
+    asked: Asked | None = None
+    held: list[Server] = field(default_factory=list)
+
+    def servers(self) -> list[Server]:
+        return self.held
+
+
+def qru_rows(views: Any) -> list[dict[str, Any]]:
+    """The `qru` topic: nothing yet, a request nobody answered, and two servers (one with its closing line, one in miles that has only sent the closing line of a group)."""
+    first = Server("DF8LS-10", (("RP70", 10), ("RP2M", 3)), 5, 50, "km", T0, False, "Sent 5 RP70 Objects Max 5@50km de DF8LS-10", T0 + timedelta(seconds=40))
+    second = Server("W1AW", (), None, None, "", T0 + timedelta(minutes=2), False, "Sent 2 of 7 FOOD Objects, NEXT for more. de W1AW", T0 + timedelta(minutes=2))
+    return [views.qru_state(FakeQru()), views.qru_state(FakeQru(Asked("INFO", T0))), views.qru_state(FakeQru(Asked("RP70 150", T0 + timedelta(seconds=30)), [first, second]))]
+
+
 def rows(views: Any) -> dict[str, Any]:
     """Every row of the world as `views` (neoaprs/web/views.py, or an older copy of it) makes it."""
     from neoaprs.config import DEFAULTS
@@ -216,5 +234,6 @@ def rows(views: Any) -> dict[str, Any]:
         "tnc": [views.tnc_state(Tnc(clock=FixedClock(T0))), views.tnc_state(tnc()), views.tnc_state(tnc_searching()), views.tnc_state(tnc_dummy())],
         "gps": gps_rows(views),
         "igate": igate_rows(views),
+        "qru": qru_rows(views),
         "config": [views.config_values(DEFAULTS, []), views.config_values(DEFAULTS, ["http://192.168.1.2:8730"], {"on": True, "port": 8731, "fingerprint": "AB:CD", "problem": ""})],
     }

@@ -81,7 +81,7 @@ def bulletin(slot: str, text: str) -> bytes:
     return b":" + format_message(slot, text)
 
 
-def message(to: str, text: str, msg_id: str) -> bytes:
+def message(to: str, text: str, msg_id: str | None = None) -> bytes:
     return b":" + format_message(to, text, msg_id)
 
 

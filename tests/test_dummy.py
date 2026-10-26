@@ -191,6 +191,24 @@ def test_a_message_without_a_number_is_answered_but_not_acked() -> None:
     assert [m.text for m in got] == [HELLO] and got[0].ack_id is None
 
 
+def test_the_club_station_is_a_qru_server_that_lists_its_groups_and_sends_the_objects_of_a_group_with_a_closing_line() -> None:
+    scene = quiet()
+    scene.react(air_from_us(b":QRU      :INFO"), START)
+    [(after, listing)] = play(scene, 30)
+    assert after <= 4 and str(listing.source) == "Q1CLB" and parse_message(listing.info[1:]).text == "de Q1CLB:FOOD(2) RP70(1) Max 5@50km" and parse_message(listing.info[1:]).msg_id is None
+    scene.react(air_from_us(b":QRU      :?food 20"), START + timedelta(seconds=60))
+    got = [f for second, f in play(scene, 90) if second >= 60]
+    assert [f.info[:1] for f in got] == [b";", b";", b":"] and [f.info[1:10].decode().strip() for f in got[:2]] == ["CAFE", "KIOSK"]
+    assert parse_message(got[2].info[1:]).text == "Sent 2 FOOD Objects Max 5@50km de Q1CLB" and all(str(f.source) == "Q1CLB" for f in got)
+
+
+def test_a_request_to_qru_for_a_group_it_does_not_serve_or_that_is_none_gets_no_answer() -> None:
+    scene = quiet()
+    for body in (b":QRU      :HOSP", b":QRU      :hello there", b":QRU      :ack1"):
+        scene.react(air_from_us(body), START)
+    assert play(scene, 30) == []
+
+
 def test_a_position_of_ours_is_repeated_by_a_digipeater_now_and_then_the_first_always() -> None:
     scene = quiet()
     beacon = air_from_us(b"=6010.00N/02456.00E-test")

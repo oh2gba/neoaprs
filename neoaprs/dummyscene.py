@@ -4,7 +4,7 @@ it gives the frames that have come due, and told what we sent (`react`) it queue
 Every call here is made up on the ITU's Q prefix: the series QAA to QZZ is never allocated to any country, so none of these calls is, or can ever be, a real station's. A packet with such a source is never anyone's.
 The scene has fixed stations (a house, a club shack, a cottage), three cars and a walker on routes round the station, a weather station that reports every five minutes, two digipeaters with PHG that repeat the
 others (a path with `*`), two objects, a bulletin now and then, and a status. The stations that take messages (`=` positions) answer one: an ack after a moment and the text "Hello from the dummy radio" a few seconds
-later. What we send is not carried anywhere; a position of ours is played back as a digipeater repeating it, now and then. The first transmissions come within half a minute of the start, and then a few packets a minute."""
+later. The club station is a QRU server (dummyqru.py): a request to QRU is answered with its groups and objects. What we send is not carried anywhere; a position of ours is played back as a digipeater repeating it, now and then. The first transmissions come within half a minute of the start, and then a few packets a minute."""
 import heapq
 import math
 import random
@@ -15,6 +15,7 @@ from datetime import datetime, timedelta
 from neoaprs import ax25
 from neoaprs.aprsmessage import MessageError, parse_message
 
+from .dummyqru import answer as qru_answer
 from .dummyframes import PATH, ack, air, bulletin, compressed, cosine_day, fixed, is_position, mice, message, object_report, repeated, status, walking, weather
 from .dummyroutes import DELIVERY_ROUND, PARK_PATH, RING_ROAD, TOWN_LOOP, Route, around
 
@@ -95,6 +96,10 @@ class Scene:
         try:
             read = parse_message(frame.info[1:])
         except MessageError:
+            return
+        if read.addressee == "QRU":
+            for after, reply in qru_answer(read.text, str(frame.source), now, self.where):
+                self._put(now + timedelta(seconds=after), reply)
             return
         talker = next((a for a in self.actors if a.answers and a.call == read.addressee), None)
         if talker is None or read.ack_id or read.rej_id:

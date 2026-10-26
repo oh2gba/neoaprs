@@ -18,6 +18,7 @@ from neoaprs.web.messagewire import MessageRow
 from neoaprs.web.ownwire import OwnBulletinRow, OwnObjectRow
 from neoaprs.web.packetwire import PacketRow
 from neoaprs.web.prefwire import StationPref
+from neoaprs.web.qruwire import QruState
 from neoaprs.web.stationwire import StationRow, WeatherValues
 from neoaprs.web.tncwire import TncState
 from neoaprs.web.wirebase import _Model
@@ -26,7 +27,7 @@ from tests.support.files import FIXTURES
 
 GOLDEN = FIXTURES / "wire" / "rows.json"
 MODELS = {
-    "stations": StationRow, "packets": PacketRow, "messages": MessageRow, "bulletins": BulletinRow, "own_objects": OwnObjectRow, "own_bulletins": OwnBulletinRow, "station_prefs": StationPref, "tnc": TncState, "gps": GpsState, "igate": IgateState,
+    "stations": StationRow, "packets": PacketRow, "messages": MessageRow, "bulletins": BulletinRow, "own_objects": OwnObjectRow, "own_bulletins": OwnBulletinRow, "station_prefs": StationPref, "tnc": TncState, "gps": GpsState, "igate": IgateState, "qru": QruState,
 }
 
 

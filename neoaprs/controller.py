@@ -90,6 +90,7 @@ class Controller(Services):
             await self.radiofinder.stop()
             await self.queries.stop()
             await self.qru.stop()
+            await self.qruask.stop()
             await self.messaging.stop()
             await self.alerts.stop()
             await self.rigstatus.stop()

@@ -20,6 +20,7 @@ from neoaprs.ownobject import OwnObject
 from neoaprs.packet import Packet
 from neoaprs.packetcodec import encode_decoded, tnc2
 from neoaprs.pref import Pref
+from neoaprs.qrutext import Asked, Server
 from neoaprs.smartbeacon import Reason, Sent
 from neoaprs.route import digipeaters, heard_path, received_text, route_text, suggested_path
 from neoaprs.station import Station
@@ -35,6 +36,7 @@ from .messagewire import AttemptRow, MessageRow
 from .ownwire import OwnBulletinRow, OwnObjectRow
 from .packetwire import PacketRow
 from .prefwire import StationPref
+from .qruwire import QruAsked, QruGroup, QruServer, QruState
 from .stationwire import StationRow, TelemetryValues, WeatherValues
 from .tncwire import TncState, TncStats
 
@@ -178,3 +180,17 @@ def gps_state(config: Config, gps: GpsSource, plan: MobilePlanSource, next_due: 
         satellites=None if fix is None else fix.satellites, fix_at=None if fix is None else iso(fix.at), mobile=config.mobile,
         next_beacon_at=iso(next_due) if config.mobile and gps.current() is not None else None,
         last_beacon_reason=plan.last_reason or "" if last is not None else "", last_beacon_at=None if last is None else iso(last.at))
+
+
+class QruSource(Protocol):
+    """What the `qru` topic needs of the QRU client (neoaprs/services/qruask.py)."""
+    @property
+    def asked(self) -> Asked | None: ...
+    def servers(self) -> list[Server]: ...
+
+
+def qru_state(qru: QruSource) -> dict[str, Any]:
+    """The `qru` topic: the last request and the servers that answered it."""
+    asked = qru.asked
+    servers = [QruServer.row(s, groups=[QruGroup.row(None, name=name, count=count) for name, count in s.groups], sent_at=iso(s.sent_at)) for s in qru.servers()]
+    return QruState.row(None, asked=None if asked is None else QruAsked.row(asked), servers=servers)
