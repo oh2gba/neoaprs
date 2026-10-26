@@ -8,7 +8,7 @@ QRU is the Morse code abbreviation for "have you anything for me?". A station se
     RP70 250      the same within 250 km
     NEXT          the next objects of the group last asked for
 
-and the server answers by the asker's path with RFONLY added, as frames of its own with no message id (services/answers.py). To `INFO` it answers with a message "de OH2GBA-10:RP70(3) FOOD(1) Max 5@50km": the groups with the number of
+and the server answers by the asker's path with RFONLY added, as frames of its own with no message id (services/answers.py), the first FIRST_WAIT_SEC after the request, so that the digipeaters have finished repeating it. To `INFO` it answers with a message "de OH2GBA-10:RP70(3) FOOD(1) Max 5@50km": the groups with the number of
 objects in range, the objects it sends at most (ANSWER_FRAMES_MAX, the limit of the answers of the queries as well) and the range; a long list goes over two messages, the first ending in `+`. To a group it answers
 with the objects of the group in range, the nearest first, at most ANSWER_FRAMES_MAX of them as object packets one at a time (SPACING_SEC apart), then a message "Sent 3 RP70 Objects Max 5@50km de OH2GBA-10"; when
 more are in range the message says "Sent 5 of 12 RP70 Objects, NEXT for more. de OH2GBA-10" and `NEXT` sends the following ones. Nothing is answered where nothing is in range: a server with nothing for the asker stays quiet.
@@ -50,6 +50,7 @@ log = logging.getLogger("neoaprs.qru")
 
 ADDRESSEE = "QRU"
 RANGE_KM = 50                                                       # how far from the asker an object is offered, when the request names no distance
+FIRST_WAIT_SEC = 5.0                                                # how long the first frame of an answer is held back: the digipeaters are still repeating the request (two of them took 5 s on air), and an answer sent at once collides with them at the asker
 MAX_INFO_MESSAGES = 2                                               # the messages the list of groups goes over at most
 NEXT_KEEP = timedelta(hours=1)                                      # how long the place in a group is kept for `NEXT`
 _REQUEST = re.compile(r"(?P<mark>\?)?(?P<word>[A-Z0-9]{1,8})?(?:\s+(?P<km>\d{1,5}))?")
@@ -101,8 +102,10 @@ def info_texts(call: str, groups: Sequence[tuple[str, int]], km: int) -> list[st
 
 
 class Qru:
-    def __init__(self, tnc: Radio, config: ConfigSource, objects: Objects, book: Stations, paths: Callable[[str], tuple[str, ...]], clock: Clock = utcnow, spacing_sec: float = SPACING_SEC) -> None:
+    def __init__(self, tnc: Radio, config: ConfigSource, objects: Objects, book: Stations, paths: Callable[[str], tuple[str, ...]], clock: Clock = utcnow, spacing_sec: float = SPACING_SEC,
+                 first_wait_sec: float = FIRST_WAIT_SEC) -> None:
         self._config = config
+        self.first_wait_sec = first_wait_sec
         self._answers = Answers(tnc, config, paths, spacing_sec)
         self._objects = objects
         self._book = book
@@ -127,7 +130,7 @@ class Qru:
         try:
             frames = self._frames(asker, request, packet.heard_at)
             if frames:
-                self._answers.deliver(asker, key, frames, packet.heard_at, True, rf_only=True)
+                self._answers.deliver(asker, key, frames, packet.heard_at, True, rf_only=True, first_after_sec=self.first_wait_sec)
             else:
                 log.debug("the request %r of %s to QRU: nothing to answer with", key, asker)
         except (ax25.Ax25Error, CallsignError, MessageError, ValueError) as e:

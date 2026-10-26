@@ -19,6 +19,8 @@ from neoaprs.ownobject import QRU_GROUP_MAX
 ASK_KM_MAX = 20000                                  # the farthest a request names (APRSISCE's own example is `POST 20000`)
 ASK_EVERY_SEC = 60                                  # the same request to QRU goes on the air once in this time (the servers answer one station once in it anyway)
 ASK_GAP_SEC = 10                                    # and any two requests are this far apart, so that a group can be asked for right after the list of groups came
+ARRIVAL_GRACE_SEC = 30                              # the objects of a group are counted until this long after the server's closing line (a late one may still be on its way, or repeated)
+ANSWER_WINDOW_SEC = 300                             # a list or a closing line that comes within this time of a request of ours is its answer (the server waits, then spaces its frames)
 _ASK = re.compile(rf"(?P<word>INFO|NEXT|[A-Z0-9]{{1,{QRU_GROUP_MAX}}})(?: (?P<km>\d{{1,5}}))?")
 _CALL = r"[A-Z0-9]{1,6}(?:-\d{1,2})?"
 _GROUP = rf"[A-Z0-9]{{1,{QRU_GROUP_MAX}}}"
@@ -80,7 +82,9 @@ class Asked:
 @dataclass(frozen=True, slots=True)
 class Server:
     """A QRU server that answered: `groups` with the number of objects each has near us, the `max_objects` it sends at most and its `range` in `unit` (km or mi; empty until the end of the list came), `at` when it answered last,
-    `sent` its last closing line (empty before one) and `sent_at` when. `more` is set while the list ends in `+`."""
+    `sent` its last closing line (empty before one) and `sent_at` when. `more` is set while the list ends in `+`. `sent_objects` is the number the closing line says went, `request` the request it answers (what Ask again sends)
+    and `since` when that went; `received` (the names of the objects heard from the server between `since` and `settles_at`) and `settles_at` (when the counting ends: ARRIVAL_GRACE_SEC after the closing line) are made when the
+    page is told."""
     call: str
     groups: tuple[tuple[str, int], ...]
     max_objects: int | None
@@ -90,3 +94,8 @@ class Server:
     more: bool = False
     sent: str = ""
     sent_at: datetime | None = None
+    sent_objects: int | None = None
+    request: str = ""
+    since: datetime | None = None
+    received: tuple[str, ...] = ()
+    settles_at: datetime | None = None

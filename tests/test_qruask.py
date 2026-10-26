@@ -11,7 +11,8 @@ from neoaprs import dummyline
 from neoaprs.aprsmessage import format_message
 from neoaprs.message import MessagingError
 from neoaprs.packet import GATEABLE, Message, Packet, ThirdParty, Via
-from neoaprs.qrutext import ASK_EVERY_SEC, ASK_GAP_SEC, ASK_KM_MAX, Closing, Listing, ask_text, closing_of, listing_of
+from neoaprs.aprsparse import parse
+from neoaprs.qrutext import ANSWER_WINDOW_SEC, ARRIVAL_GRACE_SEC, ASK_EVERY_SEC, ASK_GAP_SEC, ASK_KM_MAX, Closing, Listing, ask_text, closing_of, listing_of
 from neoaprs.services.qruask import CONTINUE_SEC, KEEP_FOR, QruAsk
 from neoaprs.source import Source
 from tests.support.air import message_info, on_air
@@ -226,6 +227,93 @@ async def test_the_timer_forgets_by_itself_and_tells_the_page(caplog: pytest.Log
 
 # ---- through the daemon and the socket
 
+def object_report(call: str, name: str, at: object, kind: str = ";") -> Packet:
+    info = f"{kind}{name:<9}*111111z6020.08N/02503.76E-x".encode() if kind == ";" else f"){name}!6020.08N/02503.76E-x".encode()
+    return Packet(at, "in", b"", call, "APRS", ("OH2RCH-2*",), info, parse(info, call, "APRS", at))  # type: ignore[arg-type]
+
+
+def arrived(rig: "Rig", call: str) -> tuple[str, ...]:
+    return next(s for s in rig.qru.servers() if s.call == call).received
+
+
+async def test_a_closing_line_says_how_many_went_and_the_objects_heard_from_the_server_since_the_request_are_counted_by_name() -> None:
+    rig = Rig()
+    rig.qru.ask("TEST 150")
+    rig.clock.advance(6)
+    rig.qru.on_packet(object_report("OH2DPN", "TESTOBJ", rig.clock()))
+    rig.qru.on_packet(object_report("OH2DPN", "TESTOBJ", rig.clock()))                    # (a digipeater's copy, or the object again: once)
+    rig.qru.on_packet(object_report("OH2XYZ", "OTHER", rig.clock()))                      # (another station's object is no answer)
+    rig.hear("OH2DPN", "Sent 1 TEST Objects Max 5@150km de OH2DPN")
+    [server] = rig.qru.servers()
+    assert (server.sent_objects, server.request, server.received) == (1, "TEST 150", ("TESTOBJ",))
+    assert server.settles_at == rig.clock() + timedelta(seconds=ARRIVAL_GRACE_SEC)
+
+
+async def test_an_object_that_was_lost_is_not_counted_and_one_that_comes_late_is_until_the_grace_time_has_gone() -> None:
+    rig = Rig()
+    rig.qru.ask("INFO 150")
+    rig.hear("OH2DPN", "de OH2DPN:TEST(1) Max 5@150km")
+    rig.clock.advance(ASK_EVERY_SEC)
+    rig.qru.ask("TEST 150")
+    rig.clock.advance(5)
+    rig.hear("OH2DPN", "Sent 1 TEST Objects Max 5@150km de OH2DPN")
+    server = rig.qru.servers()[0]
+    assert (server.sent_objects, server.request, server.received, server.groups) == (1, "TEST 150", (), (("TEST", 1),)), "sent 1, none arrived: the page offers to ask again"
+    told = rig.told
+    rig.clock.advance(ARRIVAL_GRACE_SEC - 1)
+    rig.qru.on_packet(object_report("OH2DPN", "TESTOBJ", rig.clock()))
+    assert arrived(rig, "OH2DPN") == ("TESTOBJ",) and rig.told == told + 1, "a late one still counts, and the page is told"
+    rig.clock.advance(2)
+    rig.qru.on_packet(object_report("OH2DPN", "AGAIN", rig.clock(), ")"))
+    assert arrived(rig, "OH2DPN") == ("TESTOBJ",) and rig.told == told + 1, "after the grace time nothing is counted"
+
+
+async def test_objects_heard_before_the_request_or_killed_ones_are_not_counted_and_an_item_is() -> None:
+    rig = Rig()
+    rig.qru.on_packet(object_report("OH2DPN", "BEFORE", rig.clock()))
+    rig.clock.advance(5)
+    rig.qru.ask("FOOD")
+    rig.clock.advance(5)
+    killed = object_report("OH2DPN", "KILLED", rig.clock())
+    rig.qru.on_packet(replace(killed, info=b";KILLED   _111111z6020.08N/02503.76E-x", decoded=parse(b";KILLED   _111111z6020.08N/02503.76E-x", "OH2DPN", "APRS", rig.clock())))
+    rig.qru.on_packet(object_report("OH2DPN", "WELL", rig.clock(), ")"))
+    rig.hear("OH2DPN", "Sent 1 FOOD Objects Max 5@50km de OH2DPN")
+    assert arrived(rig, "OH2DPN") == ("WELL",)
+
+
+async def test_a_next_closing_is_asked_again_as_the_group_with_the_distance_of_its_last_request() -> None:
+    rig = Rig()
+    rig.qru.ask("FOOD 200")
+    rig.hear("OH2DPN", "Sent 5 of 12 FOOD Objects, NEXT for more. de OH2DPN")
+    assert rig.qru.servers()[0].request == "FOOD 200"
+    rig.clock.advance(ASK_EVERY_SEC)
+    rig.qru.ask("NEXT")
+    rig.clock.advance(3)
+    rig.hear("OH2DPN", "Sent 5 of 12 FOOD Objects, NEXT for more. de OH2DPN")
+    server = rig.qru.servers()[0]
+    assert (server.request, server.since) == ("FOOD 200", rig.clock() - timedelta(seconds=3)), "the objects are counted from the NEXT, the request to ask again is the group's"
+
+
+async def test_a_closing_line_with_no_request_of_ours_known_has_no_request_and_counts_nothing() -> None:
+    rig = Rig()
+    rig.qru.on_packet(object_report("OH2DPN", "TESTOBJ", rig.clock()))
+    rig.hear("OH2DPN", "Sent 1 TEST Objects Max 5@150km de OH2DPN")
+    assert (rig.qru.servers()[0].request, rig.qru.servers()[0].received) == ("", ())
+
+
+async def test_an_answer_is_a_list_or_a_closing_line_from_the_server_it_names_within_five_minutes_of_a_request_and_with_no_id() -> None:
+    rig = Rig()
+    packet = lambda call, text, msg_id=None: (Packet(rig.clock(), "in", b"", call, "APRS", (), b"", Message("OH2GBA", text, msg_id)), Message("OH2GBA", text, msg_id))  # noqa: E731
+    assert rig.qru.answers(*packet("OH2DPN", "de OH2DPN:TEST(1) Max 5@150km")) is False, "no request yet: a message like any other"
+    rig.qru.ask("INFO")
+    rig.clock.advance(ANSWER_WINDOW_SEC)
+    assert rig.qru.answers(*packet("OH2DPN", "de OH2DPN:TEST(1)+")) and rig.qru.answers(*packet("OH2DPN", "Sent 1 TEST Objects Max 5@150km de OH2DPN"))
+    assert not rig.qru.answers(*packet("OH2DPN", "Sent 1 TEST Objects Max 5@150km de OH2DPN", "3")) and not rig.qru.answers(*packet("OH2ABC", "de OH2DPN:TEST(1)"))
+    assert not rig.qru.answers(*packet("OH2DPN", "hello"))
+    rig.clock.advance(1)
+    assert not rig.qru.answers(*packet("OH2DPN", "de OH2DPN:TEST(1) Max 5@150km")), "too long after the request"
+
+
 async def test_qru_ask_over_the_socket_sends_one_request_by_radio_only_and_keeps_no_message(tmp_path: Path) -> None:
     e, page = await with_page(tmp_path)
     await page.send({"cmd": "qru_ask", "text": "rp70 150"})
@@ -252,7 +340,7 @@ async def test_qru_ask_is_refused_in_rx_only_and_with_a_text_that_is_none(tmp_pa
     assert page.topics["qru"] == {"asked": None, "servers": []} and [p for p in page.topics["packets"].values() if p["direction"] == "out"] == []
 
 
-async def test_the_answers_of_a_server_are_told_in_the_topic_and_stay_ordinary_messages(tmp_path: Path) -> None:
+async def test_the_answers_of_a_server_are_told_in_the_topic_and_are_no_messages_but_stay_in_the_packet_log(tmp_path: Path) -> None:
     e, page = await with_page(tmp_path)
     await page.send({"cmd": "qru_ask", "text": "INFO"})
     await page.until(lambda: page.topics["qru"]["asked"] is not None)
@@ -263,9 +351,23 @@ async def test_the_answers_of_a_server_are_told_in_the_topic_and_stay_ordinary_m
     [server] = page.topics["qru"]["servers"]
     assert (server["call"], server["groups"], server["max_objects"], server["range"], server["unit"]) == ("DF8LS-10", [{"name": "RP70", "count": 10}, {"name": "RP2M", "count": 3}], 5, 50, "km")
     assert server["sent"] == "Sent 5 RP70 Objects Max 5@50km de DF8LS-10" and server["sent_at"] is not None
+    assert (server["sent_objects"], server["request"], server["received"]) == (5, "", []) and server["settles_at"] is not None
+    e.feed(on_air("DF8LS-10", message_info("OH2GBA", "see you at the club"), path="OH2RCH-2*"))
+    await until(lambda: len(page.topics["messages"]) == 1)
+    assert [m["text"] for m in page.topics["messages"].values()] == ["see you at the club"], "a normal message of the same station is a message; its answers are not"
+    texts = [p["decoded"].get("text") for p in page.topics["packets"].values() if p["direction"] == "in"]
+    assert "de DF8LS-10:RP70(10) RP2M(3) Max 5@50km" in texts and "Sent 5 RP70 Objects Max 5@50km de DF8LS-10" in texts, "the packet log has them"
+
+
+async def test_an_answer_with_no_request_of_ours_before_it_or_with_an_id_is_a_message_like_any_other(tmp_path: Path) -> None:
+    e, page = await with_page(tmp_path)
+    e.feed(on_air("DF8LS-10", message_info("OH2GBA", "de DF8LS-10:RP70(10) Max 5@50km"), path="OH2RCH-2*"))
+    await until(lambda: len(page.topics["messages"]) == 1)
+    await page.send({"cmd": "qru_ask", "text": "INFO"})
+    await page.until(lambda: page.topics["qru"]["asked"] is not None)
+    e.feed(on_air("DF8LS-10", message_info("OH2GBA", "Sent 5 RP70 Objects Max 5@50km de DF8LS-10", "7"), path="OH2RCH-2*"))
     await until(lambda: len(page.topics["messages"]) == 2)
-    assert sorted(m["text"] for m in page.topics["messages"].values()) == ["Sent 5 RP70 Objects Max 5@50km de DF8LS-10", "de DF8LS-10:RP70(10) RP2M(3) Max 5@50km"]
-    assert all(m["state"] == "received" and m["from_call"] == "DF8LS-10" for m in page.topics["messages"].values())
+    assert sorted(m["text"] for m in page.topics["messages"].values()) == ["Sent 5 RP70 Objects Max 5@50km de DF8LS-10", "de DF8LS-10:RP70(10) Max 5@50km"]
 
 
 async def test_the_dummy_radio_has_a_qru_server_and_nothing_of_it_reaches_the_internet(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

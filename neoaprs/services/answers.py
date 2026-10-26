@@ -1,5 +1,6 @@
 """How a service answers a station that asked (the queries, services/queries.py, and the QRU server, services/qru.py): the frames of an answer go out by the asker's path as frames of our own, the first at once and, for an answer of
-several frames, the others one at a time SPACING_SEC apart (services/pace.py); a message of an answer carries no id, is not retried and is not a message of messaging. The same station asking the same within ANSWER_AGAIN_SEC (the
+several frames, the others one at a time SPACING_SEC apart (services/pace.py); a server may hold the first back (`first_after_sec`: the QRU server waits for the digipeaters to finish repeating the request, or its answer
+collides with them at the asker); a message of an answer carries no id, is not retried and is not a message of messaging. The same station asking the same within ANSWER_AGAIN_SEC (the
 copies of one transmission by different digipeaters, an impatient asker) is answered once. Nothing is sent under the transmit interlock or while the radio is not usable."""
 import asyncio
 import logging
@@ -53,11 +54,17 @@ class Answers:
         """Our frame carrying a message to the asker: without an id (nothing is waited for), or a message of ours sent again with its number `{MM}`."""
         return our_frame(self._config(), (), b":" + format_message(asker, text, msg_id, None if msg_id is None else ""))
 
-    def deliver(self, asker: str, query: str, frames: Sequence[ax25.Frame], at: datetime, paced: bool, rf_only: bool = False) -> bool:
+    def deliver(self, asker: str, query: str, frames: Sequence[ax25.Frame], at: datetime, paced: bool, rf_only: bool = False, first_after_sec: float = 0.0) -> bool:
         """Sends the frames of the answer to `query`. Paced, the first goes at once and the others follow one at a time, SPACING_SEC apart (the answer counts as given once the first has gone); not paced, they all go
-        at once, and the answer counts as given when every one has. With `rf_only` the frames go by the asker's path with RFONLY added, which keeps the iGates from putting them on APRS-IS. Whether it was given."""
+        at once, and the answer counts as given when every one has. With `rf_only` the frames go by the asker's path with RFONLY added, which keeps the iGates from putting them on APRS-IS. With `first_after_sec` (paced
+        only) the first frame goes that long after the request, and the answer counts as given at once, so that the copies of the request that come meanwhile are not answered again. Whether it was given."""
         if not frames:
             return False
+        if paced and first_after_sec > 0:
+            self.note(asker, query, at)
+            log.info("the %s query of %s is answered with %d frames, the first in %g s, %g s apart", query, asker, len(frames), first_after_sec, self._spacing)
+            self.tasks.spawn(self._rest(asker, list(frames), rf_only, first_after_sec), "query-paced")
+            return True
         if paced:
             if not self.send(asker, frames[0], rf_only):
                 return False
@@ -72,10 +79,10 @@ class Answers:
         log.info("the %s query of %s is answered", query, asker)
         return True
 
-    async def _rest(self, asker: str, frames: list[ax25.Frame], rf_only: bool) -> None:
-        """The rest of an answer of several frames, each SPACING_SEC after the one before (the first went at once)."""
-        for frame in frames:
-            await asyncio.sleep(self._spacing)
+    async def _rest(self, asker: str, frames: list[ax25.Frame], rf_only: bool, first_after_sec: float | None = None) -> None:
+        """The frames of an answer that are still to go, each SPACING_SEC after the one before (the first of them `first_after_sec` after the request when that is given, else it went at once)."""
+        for number, frame in enumerate(frames):
+            await asyncio.sleep(first_after_sec if number == 0 and first_after_sec is not None else self._spacing)
             if not self.send(asker, frame, rf_only):
                 return
 
