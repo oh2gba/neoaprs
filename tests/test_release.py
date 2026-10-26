@@ -198,3 +198,15 @@ def test_the_release_has_the_installer_and_the_appimage_under_fixed_names_too() 
     assert 'cp -- "NeoAPRS-Setup-$version.exe" NeoAPRS-Setup.exe' in assemble and 'cp -- "NeoAPRS-$version-x86_64.AppImage" NeoAPRS-x86_64.AppImage' in assemble
     assert assemble.index("NeoAPRS-Setup.exe") < assemble.index("sha256sum"), "the copies are in SHA256SUMS"
     assert '[ "$(ls | wc -l)" = 9 ]' in assemble
+
+
+def test_no_workflow_step_name_breaks_the_yaml() -> None:
+    """An unquoted value with ": " in it is a mapping in YAML, and GitHub then reads the whole workflow as having no triggers (a tag would start nothing):
+    the names of jobs and steps that say something with a colon are quoted."""
+    bad = []
+    for path in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            found = re.match(r"^\s*(?:- )?name: (.*)$", line)
+            if found and not found.group(1).startswith(("'", '"')) and ": " in found.group(1):
+                bad.append(f"{path.name}:{number}: {line.strip()}")
+    assert not bad, "quote these names:\n" + "\n".join(bad)
