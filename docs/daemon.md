@@ -374,7 +374,9 @@ the path and RF only of a station are not touched. The commands `set_station_tim
 
 `neoaprs/services/updatecheck.py` asks `update/url` through `neoaprs/updatefetch.py`, `FIRST_SEC` (60) after the start and every `EVERY_SEC` (24 hours);
 `neoaprs/versions.py` compares the versions and reads the answer. It keeps the answer only if it is newer than ours, and the `status` message carries it.
-`check_now` is the same question on request (`update_check`, answered by `update_result`). `NEOAPRS_UPDATE_CHECK=0` switches it off for the run. The kind of
+`check_now` is the same question on request (`update_check`, answered by `update_result`). `NEOAPRS_UPDATE_CHECK=0` switches it off for the run. The question carries
+the number of the installation as `id`: 16 random bytes as 32 lowercase hex characters, made the first time a question is asked and kept in the row `update/install_id` (state of the daemon, not a setting),
+so that the project can count installations; nothing derived from the machine goes into it. The kind of
 system sent is worked out by the process in `neoaprs/cli/installkind.py` and given to the controller; the `hello` message carries it so the page can say how to
 update. The page loads itself again when its built-in version or its build (the field `page` of `hello`, the name of the page's main script) differs from the one in `hello`; the daemon serves `index.html` with `no-cache` and the other
 files by the hash of their content.

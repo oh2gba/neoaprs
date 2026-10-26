@@ -15,7 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from neoaprs.config import BY_KEY, DEFAULTS, STATE_KEYS, Config
+from neoaprs.config import BY_KEY, DEFAULTS, INSTALL_ID, STATE_KEYS, Config
 from neoaprs.db import Db
 from neoaprs.dberror import DbClosed, SqlError, StoreError
 from neoaprs.dbopen import open_connection
@@ -52,6 +52,12 @@ def stamp(t: datetime) -> str:
     return t.strftime("%Y-%m-%d %H:%M:%SZ")
 
 
+def kept_note(key: str) -> str:
+    if key in STATE_KEYS:
+        return "kept by the daemon (when it last sent), not a setting"
+    return "kept by the daemon (the number of this installation), not a setting" if key == INSTALL_ID else "stored, not a setting of this NeoAPRS"
+
+
 async def show_settings(store: Any, only: str | None) -> int:
     rows = await store.settings()
     defaults = DEFAULTS.to_data()
@@ -68,7 +74,7 @@ async def show_settings(store: Any, only: str | None) -> int:
     for key in defaults:
         print(f"{key:<{width}}  {shown[key]:<18}  {'stored' if key in rows else 'default'}")
     for key in sorted(set(rows) - set(defaults)):
-        print(f"{key:<{width}}  {rows[key]:<18}  {'kept by the daemon (when it last sent), not a setting' if key in STATE_KEYS else 'stored, not a setting of this NeoAPRS'}")
+        print(f"{key:<{width}}  {rows[key]:<18}  {kept_note(key)}")
     return 0
 
 

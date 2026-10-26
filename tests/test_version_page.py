@@ -1,5 +1,5 @@
-"""The version page (server/version.php) under PHP's own web server on the loopback, with a fake GitHub (tests/support/fakeversionpage.py) for the releases and a stand-in status library: the answer names the latest release, the call is logged as time, version
-and platform only, the status application is handed the call, GitHub is asked once an hour and the last good answer is kept while it fails. Skipped without `php`."""
+"""The version page (server/version.php) under PHP's own web server on the loopback, with a fake GitHub (tests/support/fakeversionpage.py) for the releases and a stand-in status library: the answer names the latest release, the call is logged as time, version, platform
+and the installation's id (32 lowercase hex characters, else -), the status application is handed the call, GitHub is asked once an hour and the last good answer is kept while it fails. Skipped without `php`."""
 import asyncio
 import json
 import os
@@ -21,6 +21,9 @@ pytestmark = posix_only
 ROOT = Path(__file__).resolve().parent.parent
 PHP = shutil.which("php")
 LIBRARY = "<?php function status_db() { return 'db'; }\nfunction app_start_record($db, $app, $v, $os, $ip) { file_put_contents(__DIR__ . '/calls.txt', \"$app|$v|$os\\n\", FILE_APPEND); return false; }\n"
+
+
+ID = "0123456789abcdef0123456789abcdef"
 
 
 def free_port() -> int:
@@ -90,13 +93,36 @@ async def test_the_answer_names_the_latest_release_the_project_page_and_no_messa
     assert page.github.requests[0][1]["user-agent"] == "neoaprs-version-page"
 
 
-async def test_the_call_is_logged_as_time_version_and_platform_and_handed_to_the_status_application(page: Page) -> None:
+async def test_the_call_is_logged_as_time_version_platform_and_id_and_handed_to_the_status_application(page: Page) -> None:
     await page.ask("v=0.1.0&os=linux-arm")
     await page.ask("v=0.1.0%3Cb%3E&os=")
-    (when, version, os_name), second = page.log()
-    assert when.endswith("Z") and len(when) == len("2026-10-23T08:45Z") and (version, os_name) == ("0.1.0", "linux-arm")
-    assert second[1:] == ["0.1.0b", "-"], "what is not a letter, a digit or . _ - is dropped, nothing at all is -"
+    (when, version, os_name, number), second = page.log()
+    assert when.endswith("Z") and len(when) == len("2026-10-23T08:45Z") and (version, os_name, number) == ("0.1.0", "linux-arm", "-")
+    assert second[1:] == ["0.1.0b", "-", "-"], "what is not a letter, a digit or . _ - is dropped, nothing at all is -"
     assert (page.folder / "lib" / "calls.txt").read_text(encoding="utf-8").splitlines() == ["neoaprs|0.1.0|linux-arm", "neoaprs|0.1.0b|"]
+
+
+async def test_an_id_of_32_lowercase_hex_characters_is_the_fourth_column(page: Page) -> None:
+    await page.ask(f"v=0.1.0&os=linux&id={ID}")
+    assert page.log() == [[page.log()[0][0], "0.1.0", "linux", ID]]
+    assert (page.folder / "lib" / "calls.txt").read_text(encoding="utf-8").splitlines() == ["neoaprs|0.1.0|linux"], "the status application is handed what it was"
+
+
+@pytest.mark.parametrize("bad", ["", ID.upper(), ID[:-1], ID + "0", "g" * 32, ID[:-1] + "%0A", ID + "%0A", "%20" + ID[1:], "<b>" + ID[3:], "x%09y" + ID[3:]])
+async def test_an_id_that_is_not_exactly_that_is_ignored_and_the_call_still_answers_and_is_logged(page: Page, bad: str) -> None:
+    assert (await page.ask(f"v=0.1.0&os=linux&id={bad}"))["version"] == "0.2.0"
+    assert [row[1:] for row in page.log()] == [["0.1.0", "linux", "-"]]
+
+
+async def test_an_id_given_twice_or_as_a_list_is_ignored(page: Page) -> None:
+    await page.ask(f"v=0.1.0&os=linux&id[]={ID}")
+    await page.ask(f"v=0.1.0&os=linux&id={ID}&id=zz")
+    assert [row[3] for row in page.log()] == ["-", "-"]
+
+
+async def test_an_old_client_without_an_id_is_answered_and_logged_with_a_dash(page: Page) -> None:
+    assert (await page.ask("v=0.9.0&os=windows"))["version"] == "0.2.0"
+    assert [row[1:] for row in page.log()] == [["0.9.0", "windows", "-"]]
 
 
 async def test_github_is_asked_once_an_hour_and_the_last_good_answer_stands_while_it_fails(page: Page) -> None:

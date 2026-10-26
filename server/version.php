@@ -10,9 +10,11 @@
 // characters at most).
 //
 // Each call is appended to a monthly log file in log/ (not web-readable, see
-// log/.htaccess) as time, version and platform only, and handed to the status
-// application the same way. No IP address or anything else about the caller is
-// kept.
+// log/.htaccess) as time, version, platform and id, tab-separated: the id is the
+// random number the installation made once for itself (32 lowercase hex
+// characters; anything else is ignored and logged as -), so that installations
+// can be counted. The call is handed to the status application as version and
+// platform. No IP address or anything else about the caller is kept.
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
@@ -27,7 +29,12 @@ $clean = static function (string $value, int $max): string {
 $version = $clean((string)($_GET['v'] ?? ''), 20);
 $os      = $clean((string)($_GET['os'] ?? ''), 40);
 
-$line = gmdate('Y-m-d\TH:i') . "Z\t" . ($version ?: '-') . "\t" . ($os ?: '-') . "\n";
+$id      = $_GET['id'] ?? '';
+if (!is_string($id) || !preg_match('/\A[0-9a-f]{32}\z/', $id)) {
+    $id = '';
+}
+
+$line = gmdate('Y-m-d\TH:i') . "Z\t" . ($version ?: '-') . "\t" . ($os ?: '-') . "\t" . ($id ?: '-') . "\n";
 @file_put_contents(__DIR__ . '/log/starts-' . gmdate('Y-m') . '.log', $line, FILE_APPEND | LOCK_EX);
 
 // The same three values also go to the status application on this account,
