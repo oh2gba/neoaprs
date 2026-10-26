@@ -143,3 +143,15 @@ async def test_the_snapshot_is_served_with_the_headers_of_a_file_from_the_disk(t
     for path in ("/assets/", "/assets", "/nothing", "/../neoaprs/__init__.py", "/%2e%2e/neoaprs/__init__.py"):
         assert (await e.fetch(path)).code in (403, 404), path
     assert (await e.fetch("/", headers={"Host": "evil.example"})).code == 403
+
+
+async def test_the_page_has_the_same_types_whatever_the_system_table_says(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import mimetypes
+    page = tmp_path / "page"
+    build_page(page, OLD)
+    monkeypatch.setattr(web_server, "PAGE_DIR", page)
+    monkeypatch.setattr(mimetypes, "guess_type", lambda *a, **k: ("text/plain", None))      # a registry of Windows that names .js text/plain
+    e = Env(tmp_path / "data", web=True)
+    await e.start()
+    assert (await e.fetch("/assets/index-OLDOLD11.js")).headers["Content-Type"] == "text/javascript; charset=UTF-8"
+    assert (await e.fetch("/")).headers["Content-Type"].startswith("text/html")

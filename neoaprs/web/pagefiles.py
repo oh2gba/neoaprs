@@ -113,15 +113,29 @@ class Secured(SecurityHeaders):
             refuse_plain(self, server)
 
 
+PAGE_TYPES = {                                                # the types of the page's own kinds of file, the same on every system: the registry of Windows
+    "js": "text/javascript; charset=UTF-8",                    # may say application/javascript, or text/plain, under which (with nosniff) a browser runs no script
+    "mjs": "text/javascript; charset=UTF-8",
+    "css": "text/css; charset=UTF-8",
+    "html": "text/html; charset=UTF-8",
+    "json": "application/json",
+    "webmanifest": "application/manifest+json",
+    "svg": "image/svg+xml",
+    "png": "image/png",
+    "ico": "image/x-icon",
+    "woff2": "font/woff2",
+    "pmtiles": "application/octet-stream",
+}
+
+
 class Files(Secured, tornado.web.StaticFileHandler):
-    """What the page's two kinds of file routes have: the manifest has its own type, whatever the system's table says (the registry of Windows may not know the suffix), and sw.js is JavaScript on every system, which a
-    worker needs."""
+    """What the page's two kinds of file routes have: the page's own kinds of file have the types of PAGE_TYPES on every system, whatever the system's table says (the registry of Windows may not know a suffix, or
+    name JavaScript text/plain); anything else is what the system's table says."""
 
     def get_content_type(self) -> str:
-        name = self.absolute_path.rsplit(os.sep, 1)[-1] if self.absolute_path else ""
-        if name.endswith(".webmanifest"):
-            return "application/manifest+json"
-        return "text/javascript; charset=UTF-8" if name == "sw.js" else super().get_content_type()
+        name = self.absolute_path.replace("\\", "/").rsplit("/", 1)[-1] if self.absolute_path else ""
+        known = PAGE_TYPES.get(name.rsplit(".", 1)[-1].lower()) if "." in name else None
+        return known or super().get_content_type()
 
 
 class Page(Files):
