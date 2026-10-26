@@ -49,7 +49,13 @@ beforeEach(() => localStorage.clear());
 describe("NearbyPane", () => {
   it("has the four lists, each with its count, in the order digipeaters, voice frequencies, iGates, heard direct, and Local info (QRU) after them", () => {
     const { wrapper } = make();
-    expect(wrapper.findAll("fieldset > legend").map((h) => h.text().replace(/ ?i$/, ""))).toEqual(["Digipeaters 1", "Voice frequencies 2", "iGates 1", "Heard direct 1", "Local info (QRU)"]);
+    expect(wrapper.findAll("fieldset > legend").map((h) => h.text().replace(/ ?i$/, ""))).toEqual([
+      "Digipeaters 1",
+      "Voice frequencies 2",
+      "iGates 1",
+      "Heard direct 1",
+      "Local info (QRU)",
+    ]);
   });
 
   it("puts every list in a group box with its title as the legend, like the groups of the Settings tab, and the box of Local info is one of them", () => {

@@ -33,19 +33,25 @@ describe("the minute between two requests", () => {
   });
 
   it("counts the servers that answered since the request, not those of an earlier one", () => {
-    const [server] = qruState().servers;
-    expect(answeredSince({ text: "INFO", at: ago(20) }, [server!, { ...server!, call: "W1AW", at: ago(30) }])).toBe(1);
-    expect(answeredSince({ text: "INFO", at: ago(10) }, [server!])).toBe(0);
+    const server = qruState().servers[0];
+    expect(answeredSince({ text: "INFO", at: ago(20) }, [server, { ...server, call: "W1AW", at: ago(30) }])).toBe(1);
+    expect(answeredSince({ text: "INFO", at: ago(10) }, [server])).toBe(0);
   });
 });
 
 describe("what the row of the section says", () => {
-  const [server] = qruState().servers;
+  const server = qruState().servers[0];
   it("is nothing before a request, a refusal over everything, then waiting, then the count or no answer", () => {
     expect(qruLook(null, [], "", NOW)).toBeNull();
-    expect(qruLook({ text: "INFO", at: ago(5) }, [], "RX only: nothing is sent", NOW)).toMatchObject({ state: "Not sent", tone: "tnc-waiting", line: "RX only: nothing is sent" });
+    expect(qruLook({ text: "INFO", at: ago(5) }, [], "RX only: nothing is sent", NOW)).toMatchObject({
+      state: "Not sent",
+      tone: "tnc-waiting",
+      line: "RX only: nothing is sent",
+    });
     expect(qruLook({ text: "INFO", at: ago(5) }, [], "", NOW)?.line).toMatch(/^\d\d:\d\d · waiting for answers…$/);
-    expect(qruLook({ text: "INFO", at: ago(70) }, [server!], "", NOW)).toMatchObject({ tone: "tnc-connected", line: expect.stringMatching(/ · 1 server answered$/) });
-    expect(qruLook({ text: "INFO", at: ago(70) }, [], "", NOW)).toMatchObject({ tone: "tnc-stopped", line: expect.stringMatching(/ · no answer$/) });
+    const answered = qruLook({ text: "INFO", at: ago(70) }, [server], "", NOW);
+    expect([answered?.tone, answered?.line]).toEqual(["tnc-connected", expect.stringMatching(/ · 1 server answered$/) as string]);
+    const silent = qruLook({ text: "INFO", at: ago(70) }, [], "", NOW);
+    expect([silent?.tone, silent?.line]).toEqual(["tnc-stopped", expect.stringMatching(/ · no answer$/) as string]);
   });
 });

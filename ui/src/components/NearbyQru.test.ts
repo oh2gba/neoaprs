@@ -80,7 +80,7 @@ describe("Local info (QRU) in the Nearby tab", () => {
     const { wrapper, daemon } = make({ qru: qruState({ asked: { text: "INFO", at: ago(90) } }) });
     expect(line(wrapper)).toMatch(/^\d\d:\d\d · 1 server answered$/);
     expect(row(wrapper).find(".statetext").classes()).toContain("tnc-connected");
-    const other = { ...qruState().servers[0]!, call: "W1AW", at: ago(40) };
+    const other = { ...qruState().servers[0], call: "W1AW", at: ago(40) };
     await tell(daemon, { qru: qruState({ asked: { text: "INFO", at: ago(90) }, servers: [...qruState().servers, other] }) });
     expect(line(wrapper)).toMatch(/2 servers answered$/);
     await tell(daemon, { qru: qruState({ asked: { text: "INFO", at: ago(30) }, servers: qruState().servers.map((s) => ({ ...s, at: ago(600) })) }) });

@@ -3,7 +3,8 @@ import { statusFrequencyHint } from "@/lib/statusfrequency";
 
 describe("the frequency in the status text", () => {
   it("says nothing for a text that starts with the frequency as radios tune to it, with or without what follows", () => {
-    for (const text of ["145.500MHz", "145.500MHz QRV", "145.500MHz T088 QRV", "438.925MHz T088 -760 Hello", "145.500MHz, QRV"]) expect(statusFrequencyHint(text), text).toBeNull();
+    for (const text of ["145.500MHz", "145.500MHz QRV", "145.500MHz T088 QRV", "438.925MHz T088 -760 Hello", "145.500MHz, QRV"])
+      expect(statusFrequencyHint(text), text).toBeNull();
   });
 
   it("says how to write the first frequency that is written some other way, or not at the start", () => {
