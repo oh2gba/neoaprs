@@ -7,7 +7,7 @@ packaged is in [`docs/development.md`](development.md).
 
 | what | where | how |
 |---|---|---|
-| the front page | `README.md` | the pitch, the downloads table, the radios table, the screenshots |
+| the front page | `README.md` | the pointer to the project page, the downloads, a short feature list, the radios in a line, two screenshots |
 | the release notes | `CHANGELOG.md` | a line under `## Unreleased`; the release workflow reads the section of the version (`scripts/release-notes.py`) and makes it the notes of the GitHub release, so the section reads as release notes, and they are short and to the point: one sentence that sums the release up, then one line per change that says what the user gets (under about 20 words; no how, no internal names, no setting keys unless the user types them), as the section of 0.9.1 does. Before a release the section is tidied: overlapping bullets merged, and only the final behaviour kept (no bullet for a state that a later change took away) |
 | the manual and the radio guide | `docs/manual/`, `docs/RADIOS.md` | the file of the manual that the change touches, in plain words and short paragraphs; the description of a tab follows the tab |
 | the table of settings | `docs/manual/settings.md` | generated: `scripts/doc-settings --write`; a new setting also needs its words in `tests/support/settingsdoc.py` |

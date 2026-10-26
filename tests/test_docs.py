@@ -115,7 +115,7 @@ def test_the_commands_of_the_readme_and_the_manuals_run_scripts_that_exist() -> 
 def test_the_pictures_and_links_of_the_readme_are_files_that_are_there() -> None:
     targets = re.findall(r"\]\(([^)\s]+)\)", README)
     local = [t.split("#", 1)[0] for t in targets if not t.startswith(("http://", "https://", "#"))]
-    assert len([t for t in local if t.endswith(".png")]) >= 4, "the README shows the page in at least four pictures"
+    assert len([t for t in local if t.endswith(".png")]) >= 2, "the README shows the page in at least two pictures"
     gone = sorted(t for t in local if not (ROOT / t).is_file())
     assert not gone, f"README.md points to files that are not there: {gone}"
 
