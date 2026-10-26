@@ -889,10 +889,35 @@ export interface RadioSearchMessage {
   total: number;
 }
 
+/** How a station's latest packet from the internet got there, read from the q-construct of its APRS-IS path. */
+export interface ReachValues {
+  /** `igate`: an iGate heard it on the radio and put it on the internet (`qAR`, `qAO`); `app`: it was sent from the internet by an app or a program and never was on the air (`TCPIP*`, `qAC`, `qAS`, `qAX`) */
+  kind: "igate" | "app";
+  /** the call of the iGate that heard it; empty for `app` */
+  igate: string;
+  /** the digipeaters that repeated it on the radio before the iGate heard it, in order (`?` for one that put no call in); empty for a packet the iGate heard direct, and for `app` */
+  hops: string[];
+}
+
 /** The whole value of the topic is `value`. */
 export interface ReplaceOp {
   op: "replace";
   value: unknown;
+}
+
+/** One route a packet of a station came by, which the map draws (a line, or none for `app` and for a packet heard direct). */
+export interface RouteMarkValues {
+  /** `rf`: heard on the radio, direct when `hops` is empty; `gated`: heard on the radio as a third-party packet that the iGate `gate` put on the air, `hops` the digipeaters that repeated the iGate's frame; `igate`: heard on the radio by the iGate `gate`, which put it on the internet, `hops` the digipeaters before it; `app`: sent from the internet, never on the air */
+  kind: "rf" | "gated" | "igate" | "app";
+  /** the digipeaters in order, `?` for one that put no call in */
+  hops: string[];
+  /** the iGate of `gated` and `igate`; empty for the others */
+  gate: string;
+  /** when the packet was heard */
+  at: string;
+  /** where the station was when the packet was heard (the position it reported, else the one it had before); null when that is not known: the map takes its position now */
+  lat: number | null;
+  lon: number | null;
 }
 
 /** Sends a message to a station: the addressee is a call with an optional SSID, the text at most 67 bytes of UTF-8 without `|`, `~`, `{` or a control character. The message is kept and transmitted at once with the next message id; it arrives as a new row of the topic `messages` (state `sending`) and as the `out` packet, and its row changes when the acknowledgement comes or the attempts run out. It is transmitted at most 4 times, 2 for `EMAIL-2`. When the TNC is not connected the message is kept and its first attempt waits for the radio. Answered with an `error` that names the reason when the addressee or the text is refused. */
@@ -1021,6 +1046,10 @@ export interface StationRow {
   suggested_path: string | null;
   /** the path that has lately been heard to reach the station, which the first two attempts of a message to it go by when the operator has set no path of its own (the later ones go by `beacon/path`): empty for direct (at least 2 packets heard direct within 60 minutes), else the latest named route that at least 2 packets came by within 60 minutes, turned round, as `suggested_path` writes it (no hop without a call, no iGate, at most 3 digipeaters); null when there is none. Worked out when the row is sent, so a path that goes stale is told with the station's next row */
   heard_path: string | null;
+  /** how the latest packet of the station that came from the internet got there; null for a station none came from, and for one whose path does not say */
+  internet_reach: ReachValues | null;
+  /** the route of the station's latest packet and the one before it that came another way (any channel, the newest first): what the map draws of its routes, and no others; empty for a station nothing is known of (our own, our objects) */
+  route_marks: RouteMarkValues[];
   /** the latest weather the station sent (a position with the weather symbol, or a positionless weather report); null for a station that sent none since the weather log began (or was made from the packets kept) */
   weather: WeatherValues | null;
   /** when `weather` was heard; null as it is */
