@@ -49,9 +49,9 @@ async def test_the_status_report_is_refused_while_the_station_only_receives_and_
 
 async def test_a_query_for_something_that_is_not_a_call_is_refused_with_the_reason_and_nothing_is_asked(tmp_path: Path) -> None:
     e, page = await with_page(tmp_path)
-    await page.send({"cmd": "query", "call": "not a call!", "kind": "version"})
+    await page.send({"cmd": "query", "call": "not a call!", "kind": "position"})
     error = await page.expect("error")
-    assert error["cmd"] == "query" and error["text"].startswith("query: ")
+    assert error["cmd"] == "query" and error["text"].startswith("query: ") and "no station" not in error["text"]
     assert await e.heard(1, 0.2) == b""
 
 
