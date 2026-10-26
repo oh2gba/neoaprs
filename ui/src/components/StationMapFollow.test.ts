@@ -2,6 +2,7 @@ import "@/test/mockmap";
 import { flushPromises } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { FakeMap, resetFakes } from "@/test/fakemap";
+import { cssRule } from "@/test/css";
 import { mountStationMap } from "@/test/stationmap";
 import { NOW, gpsOff, gpsState, station, table } from "@/test/fixtures";
 
@@ -106,5 +107,10 @@ describe("Follow me on the map", () => {
     await flushPromises();
     expect(button(wrapper).attributes("aria-pressed")).toBe("false");
     expect(FakeMap.last().eases).toHaveLength(1);
+  });
+
+  it("stays inside the map whatever the language: never wider than the map less the zoom buttons, shortened with an ellipsis", () => {
+    expect(cssRule(".followme")).toMatch(/max-width:\s*calc\(100% - 64px\)/);
+    expect(cssRule(".followme")).toMatch(/text-overflow:\s*ellipsis/);
   });
 });

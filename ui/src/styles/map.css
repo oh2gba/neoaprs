@@ -218,6 +218,11 @@
   top: 10px;
   right: 10px;
   z-index: 3;
+  /* never wider than the map, nor over the zoom buttons at the left, whatever the language */
+  max-width: calc(100% - 64px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .attrib {
   position: absolute;

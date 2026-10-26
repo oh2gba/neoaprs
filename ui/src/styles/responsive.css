@@ -168,6 +168,11 @@ button,
   flex: 1;
 }
 
+/* the button of the update check keeps its size on a phone: the version and the answer are beside it, or under it when they do not fit */
+.size-phone .action-row .field-control:has(.updateline) > .btn:first-child {
+  flex: none;
+}
+
 /* the access key on a phone has the whole line, with its button under it: the key is long, and a longer word for the button (in another language) would leave it a few letters */
 .size-phone .field-control:has(#set-web-key) {
   flex-wrap: wrap;

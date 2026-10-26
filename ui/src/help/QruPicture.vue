@@ -11,11 +11,11 @@ import { arrow, waves } from "@/help/draw";
 
 <template>
   <HelpFrame name="qru">
-    <HelpStation table="/" code=">" :x="34" :y="62" :label="t('help.me')" />
+    <HelpStation table="/" code=">" :x="46" :y="62" :label="t('help.me')" />
     <HelpBubble :x="113" :y="8" :w="46" text="QRU" />
-    <path class="hp-flow" :d="waves(62, 40, 0, 2, 8, 5)" />
-    <path class="hp-flow" :d="arrow(78, 44, 206, 44)" />
-    <path class="hp-flow" :d="arrow(206, 74, 78, 74)" />
+    <path class="hp-flow" :d="waves(74, 40, 0, 2, 8, 5)" />
+    <path class="hp-flow" :d="arrow(90, 44, 206, 44)" />
+    <path class="hp-flow" :d="arrow(206, 74, 90, 74)" />
     <rect class="hp-card" x="104" y="60" width="28" height="28" rx="6" />
     <HelpSymbol table="/" code="r" :x="118" :y="74" :size="22" />
     <rect class="hp-card" x="146" y="60" width="28" height="28" rx="6" />
