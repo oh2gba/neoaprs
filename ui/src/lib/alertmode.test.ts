@@ -1,25 +1,18 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { MODES, defaultMode, popupWhy, storedMode, wantsPopup, wantsSound } from "@/lib/alertmode";
+import { defaultMode, modeOf, popupWhy, storedMode, wantsPopup, wantsSound } from "@/lib/alertmode";
 import { readStored, writeStored } from "@/lib/storage";
 
 beforeEach(() => localStorage.clear());
 
 describe("the choices", () => {
-  it("are off, sound, sound and pop-up, and pop-up only, in that order", () => {
-    expect(MODES.map((m) => [m.value, m.label])).toEqual([
-      ["off", "off"],
-      ["sound", "sound"],
-      ["both", "sound and pop-up"],
-      ["popup", "pop-up only"],
-    ]);
-  });
-  it("say which of the sound and the pop-up they have", () => {
-    expect(MODES.map((m) => [wantsSound(m.value), wantsPopup(m.value)])).toEqual([
+  it("say which of the sound and the pop-up they have, and the tickboxes make the choice back: neither is the sound", () => {
+    expect((["off", "sound", "both", "popup"] as const).map((m) => [wantsSound(m), wantsPopup(m)])).toEqual([
       [false, false],
       [true, false],
       [true, true],
       [false, true],
     ]);
+    expect([modeOf(true, true), modeOf(true, false), modeOf(false, true), modeOf(false, false)]).toEqual(["both", "sound", "popup", "sound"]);
   });
 });
 

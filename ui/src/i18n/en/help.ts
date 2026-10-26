@@ -22,6 +22,12 @@ export const help = {
   "help.picture.position": "A fixed station that stays at its place, and a station with a GPS that moves, with its beacons along the track.",
   "help.picture.digipeater": "A car that cannot reach the wide-area digipeater directly is repeated by your station, which passes its packet on.",
   "help.picture.logs": "A log file that goes, attached, in an e-mail.",
+  "help.picture.transmit": "Our station hears the others (the arrow in) while what it would send goes nowhere: the dashed arrow is crossed out.",
+  "help.picture.beaconoff": "With the beacon off the clock sends nothing, the beacons on the time line are empty; a press of the button still sends one.",
+  "help.picture.internet": "Stations that APRS-IS has within the map's radius come from the cloud to your map, one way only; nothing goes back.",
+  "help.picture.channels": "A station heard on the radio, by waves, is tagged RF; one that came from the cloud, APRS-IS, has a dotted outline and its own tag.",
+  "help.picture.dummy": "Made-up stations in a dashed frame answer your station, and what your station sends does not go out: the waves are crossed out.",
+  "help.picture.notifications": "A message from a station arrives, and this device plays a sound, the speaker, and shows a pop-up, the card.",
   "help.not_copied": "Not copied",
 
   "help.install.label": "App",

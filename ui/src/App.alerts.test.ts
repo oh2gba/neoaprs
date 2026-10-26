@@ -21,12 +21,12 @@ describe("App: the alert of this browser", () => {
     const boxes = groups[0]?.findAll("fieldset.subbox") ?? [];
     expect(boxes.map((b) => b.find("legend").text().replace(/ i$/, ""))).toEqual(["On the NeoAPRS computer", "In this browser"]);
     expect(boxes[0]?.findAll("label").map((l) => l.text())).toEqual(["Alert", "Command"]);
-    expect(boxes[1]?.findAll("label").map((l) => l.text())).toEqual(["Alert for a new message"]); // (the loopback starts at off: no tests)
+    expect(boxes[1]?.findAll("label").map((l) => l.text())).toEqual(["Alert"]); // (the loopback starts unticked: no tests)
     expect(boxes[0]?.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(["Test"]);
     expect(boxes[1]?.findAll("button:not(.info-toggle)")).toHaveLength(0);
-    await boxes[1]?.find("#alert-mode").setValue("both");
+    await boxes[1]?.find("#alert-mode").setValue(true);
     await flushPromises();
-    expect(boxes[1]?.findAll("label").map((l) => l.text())).toEqual(["Alert for a new message", "Sound", "Pop-up"]);
+    expect(boxes[1]?.findAll("label").map((l) => l.text())).toEqual(["Alert", "Sound", "Pop-up"]);
     expect(boxes[1]?.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(["Test sound", "Test pop-up"]);
     expect(groups[0]?.findAll("h3")).toHaveLength(0);
   });

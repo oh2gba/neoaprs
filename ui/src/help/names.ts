@@ -16,6 +16,12 @@ export const PICTURE_NAMES = [
   "position",
   "digipeater",
   "logs",
+  "transmit",
+  "beaconoff",
+  "internet",
+  "channels",
+  "dummy",
+  "notifications",
 ] as const;
 
 export type PictureName = (typeof PICTURE_NAMES)[number];

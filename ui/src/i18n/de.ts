@@ -1019,17 +1019,13 @@ export const de: Catalogue = {
   "settings.alerts.tip2": "Die nächste Gruppe ist dieser Browser. Nimm eines von beiden, oder beide, um doppelt gewarnt zu werden.",
 
   "settings.browser.heading": "In diesem Browser",
-  "settings.browser.mode": "Alarm bei neuer Nachricht",
-  "settings.browser.mode_tip": "Kein Alarm, ein Ton, ein Ton mit Pop-up oder nur ein Pop-up. Jedes Gerät wählt für sich.",
+  "settings.browser.mode": "Alarm",
+  "settings.browser.mode_tip": "Meldet eine neue Nachricht in diesem Browser, mit Ton oder Pop-up. Jedes Gerät wählt für sich.",
   "settings.browser.enable_popups": "Pop-ups aktivieren…",
   "settings.browser.sound": "Ton",
   "settings.browser.test_sound": "Ton testen",
   "settings.browser.popup": "Pop-up",
   "settings.browser.test_popup": "Pop-up testen",
-  "settings.alert_mode.off": "aus",
-  "settings.alert_mode.sound": "Ton",
-  "settings.alert_mode.both": "Ton und Pop-up",
-  "settings.alert_mode.popup": "nur Pop-up",
   "settings.alert_mode.why_off": "Pop-ups sind in diesem Browser für diese Adresse aus",
   "settings.alert_mode.why_blocked": "Pop-ups sind für diese Seite im Browser blockiert",
   "settings.alert.notification_title": "APRS-Nachricht von {call}",
@@ -1333,6 +1329,15 @@ export const de: Catalogue = {
   "help.picture.position": "Eine feste Station, die an ihrem Platz bleibt, und eine Station mit GPS, die sich bewegt, mit ihren Baken entlang der Strecke.",
   "help.picture.digipeater": "Ein Auto, das den Weitbereichs-Digipeater nicht direkt erreicht, wird von deiner Station wiederholt, die sein Paket weitergibt.",
   "help.picture.logs": "Eine Protokolldatei, die als Anhang in einer E-Mail verschickt wird.",
+  "help.picture.transmit": "Die eigene Station hört die anderen (Pfeil hinein), während nichts hinausgeht: Der gestrichelte Pfeil ist durchgestrichen.",
+  "help.picture.beaconoff":
+    "Bei ausgeschalteter Bake sendet die Uhr nichts, die Baken auf der Zeitleiste sind leer; ein Druck auf die Taste sendet trotzdem eine.",
+  "help.picture.internet": "Stationen, die APRS-IS im Radius der Karte hat, kommen aus der Wolke auf deine Karte, nur in eine Richtung; nichts geht zurück.",
+  "help.picture.channels":
+    "Eine über Funk gehörte Station, mit Wellen, trägt RF; eine aus der Wolke, APRS-IS, hat einen gepunkteten Rand und ein eigenes Schild.",
+  "help.picture.dummy":
+    "Erfundene Stationen im gestrichelten Rahmen antworten deiner Station, und was sie sendet, geht nicht hinaus: Die Wellen sind durchgestrichen.",
+  "help.picture.notifications": "Eine Nachricht einer Station kommt an, und dieses Gerät spielt einen Ton, der Lautsprecher, und zeigt ein Pop-up, die Karte.",
   "help.not_copied": "Nicht kopiert",
 
   "help.install.label": "App",

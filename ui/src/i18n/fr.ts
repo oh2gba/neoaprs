@@ -1007,17 +1007,13 @@ export const fr: Catalogue = {
   "settings.alerts.tip2": "Le groupe suivant est ce navigateur. Utilisez l'un des deux, ou les deux pour être prévenu deux fois.",
 
   "settings.browser.heading": "Dans ce navigateur",
-  "settings.browser.mode": "Alerte pour un nouveau message",
-  "settings.browser.mode_tip": "Pas d'alerte, un son, un son avec fenêtre contextuelle, ou la fenêtre seule. Chaque appareil choisit pour lui.",
+  "settings.browser.mode": "Alerte",
+  "settings.browser.mode_tip": "Signale un nouveau message dans ce navigateur, par un son ou une fenêtre. Chaque appareil choisit pour lui.",
   "settings.browser.enable_popups": "Activer les fenêtres…",
   "settings.browser.sound": "Son",
   "settings.browser.test_sound": "Tester le son",
   "settings.browser.popup": "Fenêtre",
   "settings.browser.test_popup": "Tester la fenêtre",
-  "settings.alert_mode.off": "aucune",
-  "settings.alert_mode.sound": "son",
-  "settings.alert_mode.both": "son et fenêtre",
-  "settings.alert_mode.popup": "fenêtre seule",
   "settings.alert_mode.why_off": "Les fenêtres sont désactivées dans ce navigateur pour cette adresse",
   "settings.alert_mode.why_blocked": "Les fenêtres sont bloquées pour cette page dans le navigateur",
   "settings.alert.notification_title": "Message APRS de {call}",
@@ -1320,6 +1316,16 @@ export const fr: Catalogue = {
   "help.picture.digipeater":
     "Une voiture qui n'atteint pas directement le digipeater à grande couverture est répétée par votre station, qui fait suivre son paquet.",
   "help.picture.logs": "Un fichier de journal qui part en pièce jointe d'un e-mail.",
+  "help.picture.transmit":
+    "Notre station entend les autres (la flèche entrante) alors que ce qu'elle enverrait ne part pas : la flèche en pointillés est barrée.",
+  "help.picture.beaconoff":
+    "Balise coupée, l'horloge n'envoie rien, les balises de la ligne de temps sont vides ; un appui sur le bouton en envoie quand même une.",
+  "help.picture.internet": "Les stations qu'APRS-IS a dans le rayon de la carte viennent du nuage sur votre carte, dans un seul sens ; rien ne revient.",
+  "help.picture.channels":
+    "Une station entendue à la radio, par des ondes, porte RF ; une venue du nuage, APRS-IS, a un contour en pointillés et sa propre étiquette.",
+  "help.picture.dummy":
+    "Des stations inventées dans un cadre en pointillés répondent à votre station, et ce qu'elle envoie ne sort pas : les ondes sont barrées.",
+  "help.picture.notifications": "Un message d'une station arrive, et cet appareil joue un son, le haut-parleur, et montre une fenêtre, la carte.",
   "help.not_copied": "Non copié",
 
   "help.install.label": "Application",

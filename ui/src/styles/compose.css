@@ -56,12 +56,7 @@
 .composebar-foot .compose-left {
   margin-left: 0;
 }
-/* the suggestions of an address and the note of an (i) open upward: the box is at the bottom of the tab */
-.composebar .info-text {
-  top: auto;
-  bottom: 100%;
-  margin: 0 0 4px;
-}
+/* the suggestions of an address open upward: the box is at the bottom of the tab */
 .composebar .suggestions {
   top: auto;
   bottom: 100%;

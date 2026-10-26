@@ -200,3 +200,24 @@ async def test_the_tickbox_of_the_page_takes_effect_at_once_with_no_restart_and_
     assert any(":Hello again{" in f for f in frames) and any(f.startswith("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=") for f in frames), frames
     assert not any(":Hello{" in f for f in frames), "the refused message was not kept and sent later"
     await e.stop()
+
+
+async def test_a_database_left_in_rx_only_by_an_earlier_version_opens_rx_only_and_the_tickbox_of_the_page_sets_it_free_at_once(tmp_path: Path) -> None:
+    """0.9 took the switch off the page while `station/transmit` went on acting: a station that had been switched off stayed RX only with no way back. The page has the switch again, and nothing is changed behind it."""
+    e = await quick_start(tmp_path, beacon=True, messaging=True, unpaced=True, web=True, settings={"station/transmit": "false"})
+    await e.until_connected()
+    assert e.ctl.config.station_transmit is False
+    page = await e.ws()
+    await page.until(lambda: len(page.of("state")) >= 7)
+    assert page.topics["config"]["values"]["station/transmit"] == "false"
+    await page.send({"cmd": "beacon_now"})
+    assert (await page.expect("error"))["code"] == "transmit.off"
+    await page.send({"cmd": "set_config", "values": {"station/transmit": "true"}})
+    await page.until(lambda: page.topics["config"]["values"]["station/transmit"] == "true")
+    await page.send({"cmd": "beacon_now"})
+    frames: list[str] = []
+    deadline = asyncio.get_running_loop().time() + 10.0
+    while not any(f.startswith("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=") for f in frames) and asyncio.get_running_loop().time() < deadline:
+        frames += [f.tnc2() for f in await said(e, 1, 0.5)]
+    assert any(f.startswith("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=") for f in frames), frames
+    await e.stop()

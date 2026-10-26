@@ -130,6 +130,8 @@ describe("the settings area in the pseudo-locale", () => {
     expect(wrapper.find(".radiostatus").exists()).toBe(true);
     expect(untranslated(document.body)).toEqual([]);
     // the question under a switch, the Undo toast and the panel of the pop-ups open
+    await wrapper.find("#alert-mode").setValue(true);
+    expect(untranslated(document.body)).toEqual([]);
     await wrapper.find("#alert-enable-popups").trigger("click");
     expect(untranslated(document.body)).toEqual([]);
   });

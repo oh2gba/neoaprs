@@ -94,6 +94,10 @@ that both the daemon and the page are tested against (`ui/src/protocol/vectors.j
 - No stylesheet but `controls.css` gives a `.btn` a height, padding or font size, and no component gives a button an inline style (`ui/src/styles/buttons.test.ts` holds both); a new kind of button is a class that changes colour or width, never size.
 - An action that is a row of its own in the Settings tab or the setup guide (Download map, Check now, Download logs) is an `ActionRow` (`ui/src/components/ActionRow.vue`): its own label, the button first in the control column with the left edge of the fields and at least `--action-w` wide, the (i) after it, and the quiet lines of its outcome (progress, "Map downloaded 21 Oct", "Saved FILE.") under it in the same column; on a phone the button fills the column. A button that belongs to a field (the Test of the command, Refresh of the port, the new access key, Request a passcode) stays beside that field and is not a row (`ui/src/components/ActionRow.test.ts`).
 
+## Removing a control from the page
+
+Removing a control from the page: add a migration that resets the stored value to its default, or keep a control. Never leave a user with a state the page cannot change. A setting that can block a feature the page offers (transmit, the beacon, messaging, the Internet switch, the digipeater) stays on the page; `tests/test_settings_reachable.py` lists what the page leaves out, each with its reason, and fails for one that can block something.
+
 ## Tests
 
 - What tests are built from lives in `tests/support/` (the `Env` daemon, the clock, the guards, the storage helpers), not in test modules. Fixtures are in

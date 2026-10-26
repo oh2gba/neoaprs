@@ -23,6 +23,6 @@ describe("TabHelp", () => {
   it("is a thin bar with the (i) at the right whose note opens leftward, as the Email tab's bar is", () => {
     expect(cssRule(".tab-help")).toMatch(/justify-content:\s*flex-end/);
     expect(cssRule(".tab-help")).toMatch(/flex:\s*none/);
-    expect(cssRule(".tab-help .info-text")).toMatch(/right:\s*0/);
+    expect(cssRule(".info-text")).toMatch(/position:\s*fixed/); // (the note is fixed in the window and placed by the (i), so that it opens leftward from the corner and no edge clips it)
   });
 });

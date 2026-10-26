@@ -24,6 +24,12 @@ export const help: Record<keyof typeof source, Message> = {
   "help.picture.position": "Uma estação fixa que fica no lugar, e uma estação com GPS que se move, com seus beacons ao longo do trajeto.",
   "help.picture.digipeater": "Um carro que não alcança diretamente o digipeater de área ampla é repetido pela sua estação, que passa o pacote adiante.",
   "help.picture.logs": "Um arquivo de log que vai anexado a um e-mail.",
+  "help.picture.transmit": "Nossa estação ouve as outras (a seta de entrada) enquanto o que enviaria não sai: a seta tracejada está riscada.",
+  "help.picture.beaconoff": "Com o beacon desligado o relógio não envia nada, os beacons da linha do tempo estão vazios; apertar o botão ainda envia um.",
+  "help.picture.internet": "As estações que o APRS-IS tem dentro do raio do mapa chegam da nuvem ao seu mapa, em um só sentido; nada volta.",
+  "help.picture.channels": "Uma estação ouvida pelo rádio, com ondas, leva RF; uma que veio da nuvem, APRS-IS, tem contorno pontilhado e etiqueta própria.",
+  "help.picture.dummy": "Estações inventadas num quadro tracejado respondem à sua estação, e o que ela envia não sai: as ondas estão riscadas.",
+  "help.picture.notifications": "Chega uma mensagem de uma estação, e este dispositivo toca um som, o alto-falante, e mostra um pop-up, o cartão.",
   "help.not_copied": "Não copiado",
 
   "help.install.label": "Aplicativo",

@@ -129,12 +129,10 @@ a.btn {
   margin-top: 4px;
 }
 .info-text {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  z-index: 5;
+  position: fixed;
+  z-index: 20;
   width: min(280px, calc(100vw - 16px));
-  margin-top: 4px;
+  margin: 0;
   padding: 6px 8px;
   border: 1px solid var(--border);
   border-radius: 4px;

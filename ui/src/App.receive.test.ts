@@ -101,3 +101,20 @@ describe("App: RX only", () => {
     expect(wrapper.text()).toContain("RX only: nothing is sent");
   });
 });
+
+describe("App: a station that an earlier version left in RX only", () => {
+  it("opens with the RX only mark and the Transmit tickbox unticked in Settings → Radio, and ticking it sends the setting at once", async () => {
+    const { wrapper, socket } = await open();
+    await say(socket, 1, { [KEY]: "false", "beacon/interval_min": "30" });
+    expect(wrapper.find(".appheader .rxonly").text()).toBe("RX only");
+    await tabButton(wrapper, "Settings")?.trigger("click");
+    const tick = wrapper.find<HTMLInputElement>("#set-station-transmit");
+    expect(tick.element.checked).toBe(false);
+    await tick.setValue(true);
+    expect(socket.sent).toContainEqual({ cmd: "set_config", values: { [KEY]: "true" } });
+    await say(socket, 2, { [KEY]: "true", "beacon/interval_min": "30" });
+    expect(wrapper.find(".appheader .rxonly").exists()).toBe(false);
+    await tabButton(wrapper, "Beacon")?.trigger("click");
+    expect((wrapper.find("#pane-beacon .beaconstatus button").element as HTMLButtonElement).disabled).toBe(false);
+  });
+});

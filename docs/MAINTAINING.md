@@ -34,6 +34,9 @@ update panel), `install.sh` (always under `releases/latest/download/`), the whee
 
 ## A release
 
+**Before the notes:** a control that was taken off the page since the last release has a migration that reset its stored value to the default, or a control on the page still. Never leave a user with a state the page cannot change (`CONVENTIONS.md`, "Removing a control from the page"; `tests/test_settings_reachable.py` holds the list of what the page leaves out).
+
+
 **The way** is one command, on `master` with a clean tree that is up to date with origin and has the notes of the release under `## Unreleased` in `CHANGELOG.md` (a one-sentence summary line first, then the groups;
 `scripts/release-notes.py` prints it as GitHub will show it; overlapping bullets merged and only the final behaviour kept):
 

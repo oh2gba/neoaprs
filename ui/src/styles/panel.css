@@ -189,10 +189,6 @@
   padding: 4px 10px;
   border-bottom: 1px solid var(--border);
 }
-.tab-help .info-text {
-  right: 0;
-  left: auto;
-}
 /* what fills the pane of a tab: a column that takes its height */
 .tablepane,
 .boardwrap,

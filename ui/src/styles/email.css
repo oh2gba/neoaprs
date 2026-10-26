@@ -11,10 +11,6 @@
   flex: none;
   white-space: nowrap;
 }
-.mail-bar .info-text {
-  right: 0;
-  left: auto;
-}
 .mailfields {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);

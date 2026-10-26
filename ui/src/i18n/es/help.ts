@@ -23,6 +23,14 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
   "help.picture.position": "Una estación fija que se queda en su sitio, y una estación con GPS que se mueve, con sus balizas a lo largo del recorrido.",
   "help.picture.digipeater": "Un coche que no alcanza directamente el digipeater de área amplia es repetido por tu estación, que pasa su paquete.",
   "help.picture.logs": "Un archivo de registro que va adjunto en un correo.",
+  "help.picture.transmit": "Nuestra estación oye a las demás (la flecha de entrada) mientras lo que enviaría no sale: la flecha discontinua está tachada.",
+  "help.picture.beaconoff":
+    "Con la baliza apagada el reloj no envía nada, las balizas de la línea de tiempo están vacías; pulsar el botón envía una de todos modos.",
+  "help.picture.internet": "Las estaciones que APRS-IS tiene dentro del radio del mapa llegan de la nube a tu mapa, en un solo sentido; nada vuelve.",
+  "help.picture.channels":
+    "Una estación oída por radio, con ondas, lleva RF; una que llegó de la nube, APRS-IS, tiene un contorno punteado y su propia etiqueta.",
+  "help.picture.dummy": "Estaciones inventadas en un marco discontinuo responden a tu estación, y lo que esta envía no sale: las ondas están tachadas.",
+  "help.picture.notifications": "Llega un mensaje de una estación y este dispositivo reproduce un sonido, el altavoz, y muestra una notificación, la tarjeta.",
   "help.not_copied": "No copiado",
 
   "help.install.label": "Aplicación",

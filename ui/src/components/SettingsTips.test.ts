@@ -86,7 +86,7 @@ describe("the (i) of the Settings tab", () => {
 
 describe("the pictures in the notes of the Settings fields", () => {
   const withPicture: [string, string][] = [
-    ["beacon/interval_min", "beacon"],
+    ["beacon/interval_min", "beaconoff"],
     ["beacon/path", "path"],
     ["status/source", "status"],
     ["station/call", "ssid"],
@@ -94,6 +94,9 @@ describe("the pictures in the notes of the Settings fields", () => {
     ["web/key", "accesskey"],
     ["map/radius_km", "radius"],
     ["digi/enabled", "digipeater"],
+    ["igate/enabled", "internet"],
+    ["station/transmit", "transmit"],
+    ["tnc/profile", "dummy"],
     ["gps/source", "position"],
   ];
 

@@ -1,18 +1,15 @@
-// What this browser does for a message to us, as one choice (the Settings tab, "Notifications", "In this browser"): nothing, the chime, the chime and a pop-up, or a pop-up only. A pop-up is a notification of the browser.
+// What this browser does for a message to us (the Settings tab, "Notifications", "In this browser": an Alert tickbox and the tickboxes Sound and Pop-up), kept as one choice: nothing, the chime, the chime and a pop-up, or a pop-up only, so that what an earlier page kept still reads. A pop-up is a notification of the browser.
 import { t } from "@/i18n";
-import { lazyText } from "@/lib/lazytext";
 import { readStored, removeStored, writeStored } from "@/lib/storage";
 
 export type AlertMode = "off" | "sound" | "both" | "popup";
 
 export const MODE_KEY = "alert.mode";
 
-export const MODES: readonly { value: AlertMode; readonly label: string }[] = [
-  lazyText({ value: "off" as const }, { label: () => t("settings.alert_mode.off") }),
-  lazyText({ value: "sound" as const }, { label: () => t("settings.alert_mode.sound") }),
-  lazyText({ value: "both" as const }, { label: () => t("settings.alert_mode.both") }),
-  lazyText({ value: "popup" as const }, { label: () => t("settings.alert_mode.popup") }),
-];
+const MODES: readonly AlertMode[] = ["off", "sound", "both", "popup"];
+
+/** The choice that has these parts: Alert is ticked, so neither part is the sound. */
+export const modeOf = (sound: boolean, popup: boolean): AlertMode => (sound && popup ? "both" : popup ? "popup" : "sound");
 
 export const wantsSound = (mode: AlertMode): boolean => mode === "sound" || mode === "both";
 export const wantsPopup = (mode: AlertMode): boolean => mode === "both" || mode === "popup";
@@ -45,8 +42,8 @@ function fromSwitches(here: boolean): AlertMode | null {
 /** The mode this browser kept; else the one its older switches make (kept under the new key, the old ones removed, so nobody's choice is lost); else the default. A pop-up that this address cannot show is dropped from a migrated choice. */
 export function storedMode(here: boolean, why: string | undefined): AlertMode {
   const stored = readStored(MODE_KEY);
-  const found = MODES.find((m) => m.value === stored);
-  if (found) return found.value;
+  const found = MODES.find((m) => m === stored);
+  if (found) return found;
   const old = fromSwitches(here);
   if (old === null) return defaultMode(here, why);
   const mode = why !== undefined && wantsPopup(old) ? (wantsSound(old) ? "sound" : "off") : old;

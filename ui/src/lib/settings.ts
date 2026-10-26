@@ -105,6 +105,7 @@ const SPECS: Record<string, FieldSpec> = {
     kind: "bool",
     tipLabel: "settings.transmit.tip_label",
     tip: ["settings.transmit.tip1"],
+    picture: "transmit",
   },
   "station/call": { label: "settings.call.label", tip: ["settings.call.tip1", "settings.call.tip2"], picture: "ssid" },
   "station/lat": { label: "settings.lat.label", unit: "°" },
@@ -146,6 +147,7 @@ const SPECS: Record<string, FieldSpec> = {
     choices: () => TNC_PROFILES.map((p) => ({ value: p.key, label: p.name })),
     tipLabel: "settings.profile.tip_label",
     tip: ["settings.profile.tip1", "settings.profile.tip2"],
+    picture: "dummy",
   },
   "serial/port": {
     name: "settings.port.name",
@@ -208,6 +210,7 @@ const SPECS: Record<string, FieldSpec> = {
     kind: "bool",
     tipLabel: "settings.igate.tip_label",
     tip: ["settings.igate.tip1"],
+    picture: "internet",
   },
   "messages/alert": { name: "settings.alert.label", label: "settings.alert.label", kind: "bool", tip: ["settings.alert.tip1"] },
   "messages/alert_command": { name: "settings.alert_command.name", label: "settings.alert_command.label", tip: ["settings.alert_command.tip1"] },
@@ -243,7 +246,7 @@ const SPECS: Record<string, FieldSpec> = {
     choices: beaconChoices,
     other: every,
     tip: [["settings.beacon_interval.tip1", { min: LIMITS.interval.beaconMinMin }], "settings.beacon_interval.tip2"],
-    picture: "beacon",
+    picture: "beaconoff",
   },
   "beacon/path": { name: "settings.path.name", label: "settings.path.label", tip: ["settings.path.tip1", "settings.path.tip2"], picture: "path" },
   "gps/source": {
@@ -288,7 +291,10 @@ function shownBySwitch(key: string, values: Readonly<Record<string, string>>): b
 }
 
 /** The legend of the box that starts at a key inside its group (components/SettingsBox.vue): the daemon's own alert, which runs on the computer NeoAPRS runs on, whichever device shows the page. */
-export const SUBGROUPS: Record<string, { readonly text: string; readonly title: string; readonly tipLabel: string; readonly tip: readonly string[] }> = {
+export const SUBGROUPS: Record<
+  string,
+  { readonly text: string; readonly title: string; readonly tipLabel: string; readonly tip: readonly string[]; readonly picture?: PictureName }
+> = {
   "messages/alert": {
     get text() {
       return t("settings.alerts.text");
@@ -302,6 +308,7 @@ export const SUBGROUPS: Record<string, { readonly text: string; readonly title: 
     get tip() {
       return [t("settings.alerts.tip1"), t("settings.alerts.tip2")];
     },
+    picture: "notifications",
   },
 };
 

@@ -22,6 +22,12 @@ export const help: Record<keyof typeof source, Message> = {
   "help.picture.position": "動かない固定局と、GPS を使って移動する局(経路に沿ってビーコンを送る)。",
   "help.picture.digipeater": "広域のデジピーターに直接届かない車のパケットを、あなたの局が中継して先へ渡します。",
   "help.picture.logs": "ログファイルをメールに添付して送ります。",
+  "help.picture.transmit": "自局は他局を受信しますが(入る矢印)、送るはずのものは出ていきません。破線の矢印に×が付いています。",
+  "help.picture.beaconoff": "ビーコンがオフだと時計は何も送らず、時間軸のビーコンは空です。ボタンを押せば、それでも1つ送ります。",
+  "help.picture.internet": "APRS-ISにある地図の半径内の局が、雲からあなたの地図へ、一方向にだけ届きます。何も戻りません。",
+  "help.picture.channels": "無線で受信した局は電波で表され、RFの札が付きます。雲(APRS-IS)から来た局は点線の輪郭と専用の札が付きます。",
+  "help.picture.dummy": "破線の枠の中の作り物の局が自局に応答しますが、自局が送るものは出ません。電波に×が付いています。",
+  "help.picture.notifications": "局からメッセージが届くと、この端末がスピーカーで音を鳴らし、カードでポップアップを表示します。",
   "help.not_copied": "コピーできませんでした",
 
   "help.install.label": "アプリ",

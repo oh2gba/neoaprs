@@ -160,7 +160,7 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
 
 <template>
   <div class="tablepane">
-    <TabHelp :label="t('station.table.about_label')">
+    <TabHelp :label="t('station.table.about_label')" picture="channels">
       <span class="info-line">{{ t("station.table.about1") }}</span>
       <span class="info-line">{{ t("station.table.about2") }}</span>
     </TabHelp>

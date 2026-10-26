@@ -46,10 +46,6 @@
 .field-control .input {
   flex: 1;
 }
-.field-control .info-text {
-  right: 0;
-  left: auto;
-}
 .field-control .check {
   margin: 0;
 }

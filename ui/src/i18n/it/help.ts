@@ -24,6 +24,16 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
   "help.picture.digipeater":
     "Un’auto che non raggiunge direttamente il digipeater ad ampia copertura viene ripetuta dalla tua stazione, che inoltra il suo pacchetto.",
   "help.picture.logs": "Un file di log che parte allegato a una mail.",
+  "help.picture.transmit": "La nostra stazione sente le altre (la freccia in entrata) mentre ciò che manderebbe non esce: la freccia tratteggiata è barrata.",
+  "help.picture.beaconoff":
+    "Con il beacon spento l’orologio non invia nulla, i beacon sulla linea del tempo sono vuoti; premere il pulsante ne invia comunque uno.",
+  "help.picture.internet":
+    "Le stazioni che APRS-IS ha entro il raggio della mappa arrivano dalla nuvola alla tua mappa, in un solo senso; nulla torna indietro.",
+  "help.picture.channels":
+    "Una stazione sentita via radio, con le onde, porta RF; una arrivata dalla nuvola, APRS-IS, ha un contorno punteggiato e una sua etichetta.",
+  "help.picture.dummy": "Stazioni inventate in una cornice tratteggiata rispondono alla tua stazione, e ciò che invia non esce: le onde sono barrate.",
+  "help.picture.notifications":
+    "Arriva un messaggio di una stazione, e questo dispositivo riproduce un suono, l’altoparlante, e mostra una notifica, la scheda.",
   "help.not_copied": "Non copiato",
 
   "help.install.label": "App",

@@ -150,7 +150,7 @@ function typed(key: string, text: string): void {
         :hover="box.sub?.title"
       >
         <template v-if="box.sub" #legend>
-          <InfoTip :label="box.sub.tipLabel">
+          <InfoTip :label="box.sub.tipLabel" :picture="box.sub.picture">
             <span v-for="line in box.sub.tip" :key="line" class="info-line">{{ line }}</span>
           </InfoTip>
         </template>

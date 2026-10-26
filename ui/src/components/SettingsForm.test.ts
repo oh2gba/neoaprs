@@ -938,7 +938,7 @@ describe("SettingsForm", () => {
       expect(boxes[0]?.findAll("label").map((l) => l.text())).toEqual(["Alert", "Command"]);
       expect(boxes[0]?.find("legend .info-toggle").exists()).toBe(true);
       expect(boxes[1]?.find("legend").text()).toBe("In this browser");
-      expect(boxes[1]?.findAll("label").map((l) => l.text())).toEqual(["Alert for a new message", "Sound", "Pop-up"]);
+      expect(boxes[1]?.findAll("label").map((l) => l.text())).toEqual(["Alert", "Sound", "Pop-up"]);
       expect(boxes[1]?.find("#alert-mode").exists()).toBe(true);
       expect(group?.findAll(":scope > .field")).toHaveLength(0); // (every field of the group is in one of the two boxes)
       expect(group?.find("h3").exists()).toBe(false);
@@ -1078,9 +1078,9 @@ describe("SettingsForm", () => {
       expect(wrapper.findAll(".field button:not(.info-toggle)").map((b) => b.text())).toEqual([
         "Refresh",
         "Test",
-        "Enable pop-ups…",
         "Test sound",
         "Test pop-up",
+        "Enable pop-ups…",
         "Check now",
         "Download logs",
       ]);
@@ -1480,6 +1480,6 @@ describe("SettingsForm: the Transmit tickbox", () => {
     expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "station/transmit": "false" } });
     wrapper.find("#set-station-transmit").element.closest(".field")?.querySelector<HTMLButtonElement>(".info-toggle")?.click();
     await wrapper.vm.$nextTick();
-    expect(wrapper.find(".info-text").text()).toBe("Off: RX only. Nothing is sent: no beacon, message, ack or digipeat.");
+    expect(wrapper.find(".info-line").text()).toBe("Off: RX only. Nothing is sent: no beacon, message, ack or digipeat.");
   });
 });

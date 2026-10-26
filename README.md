@@ -4,7 +4,7 @@ A modern, easy-to-use APRS client for a radio with a TNC.
 
 **The project page is at https://oh2gba.github.io/neoaprs/** — screenshots, downloads and what NeoAPRS does.
 
-NeoAPRS is a map, your messages and your beacon in one page. It runs as an app on Windows and Linux, or as a service on a Raspberry Pi that you open from your laptop or phone. It is RF first: it talks to your radio or TNC, and an optional receive-only iGate puts what the radio hears on APRS-IS. Nothing from the internet is ever sent on the air.
+NeoAPRS is a map, your messages and your beacon in one page. It runs as an app on Windows and Linux, or as a service on a Raspberry Pi that you open from your laptop or phone. It is RF first: it talks to your radio or TNC, and an optional receive-only switch shows the stations of APRS-IS round you on the map. Nothing from the internet is ever sent on the air.
 
 | ![The map](docs/screenshots/map.png) | ![Messages](docs/screenshots/messages.png) |
 |---|---|
@@ -24,7 +24,7 @@ Then run `neoaprs open`, or open <http://127.0.0.1:7303/>; a setup guide of five
 - messages with acks and retries, bulletins, and email through the APRS gateway
 - your beacon: fixed, or following a GPS with SmartBeaconing for a car, a bicycle, a walker or a boat
 - objects and items of your own, on the map and on the air
-- an optional fill-in digipeater and an optional receive-only iGate
+- an optional fill-in digipeater, and stations from the internet on the map, receive only
 - a page for a phone, a tablet and a desktop, in English, German, Spanish, French, Italian, Japanese and Brazilian Portuguese
 - alerts for a new message, and access from your home network with an access key
 
