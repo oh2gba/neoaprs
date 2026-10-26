@@ -443,7 +443,7 @@ in `supportgather.py`, a step in `collect` of `supportmake.py` and a line in `FI
   file, `docs/daemon.md`, `docs/ARCHITECTURE.md`, `docs/MAINTAINING.md`, and `docs/screenshots/` the pictures of the front page.
 - `.github/`: the workflows `ci.yml`, `release.yml` and `pages.yml`.
 - `site/`: the project page.
-- `server/`: the version page that the update check asks and the download page that the project page's buttons use, on the project's web host: `version.php`, `download.php`, `latest.php` (the latest release, shared by the two), `log/.htaccess` (the logs and the cache are not served),
+- `server/`: the version page that the update check asks, on the project's web host: `version.php`, `latest.php` (the latest release), `log/.htaccess` (the logs and the cache are not served),
   `deploy.sh` (uploads those files and nothing else) and `usage-report.sh` (fetches the logs and counts the starts per day, version and system).
 - `packaging/`: what the release is made from besides the package: `install.sh.in` and its test `test-install.sh`, and `windows/`, `appimage/` and `deb/`.
 - `systemd/`: the notes on the unit (`systemd/README.md`); the unit itself is the template `neoaprs/cli/neoaprs.service`.

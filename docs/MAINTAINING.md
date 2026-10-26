@@ -19,7 +19,7 @@ packaged is in [`docs/development.md`](development.md).
 | the page | `neoaprs/page/` | built: `scripts/build-page` |
 | the screenshots | `docs/screenshots/`, `site/shots/` | `scripts/screenshots.py` (a made-up day from `scripts/demoscene.py`; nothing reaches a real radio) when the page changed in a way a shot shows; the footer's version is hidden in the shots and the update shot's newer number is made from `VERSION`, so a new version by itself makes no shot old |
 | the project page | `site/` | <https://oh2gba.github.io/neoaprs/>, deployed by `.github/workflows/pages.yml` on a push to master; the features, the shots, the download names |
-| the version page and the download page | `server/` | <https://oh2gba.eu/neoaprs/version.php>: the update check of every installed copy asks it and it names the latest GitHub release by itself, so a release needs nothing done there; <https://oh2gba.eu/neoaprs/download.php?f=windows> (also `appimage`, `deb-amd64`, `deb-arm64`, `wheel`) is what the download buttons of the project page link to: a 302 to that file of the latest release, found from the same cache (`server/latest.php`), and to the release page for anything else; its calls are counted in `log/downloads-YYYY-MM.log` on the server (time, f, version). A change to a file of `server/` is uploaded with `server/deploy.sh`, and `server/usage-report.sh` counts the starts. A note for every user: a line in `message.txt` beside `version.php` on the server, removed again to clear it |
+| the version page | `server/` | <https://oh2gba.eu/neoaprs/version.php>: the update check of every installed copy asks it and it names the latest GitHub release by itself, so a release needs nothing done there; the project page's download buttons go straight to GitHub (`releases/latest/download/NeoAPRS-Setup.exe` and `NeoAPRS-x86_64.AppImage`, the copies under fixed names that every release carries) |
 | the announcement | the NeoAPRS post on <https://oh2gba.eu/> | everything it says must stay true; a large release gets a post of its own |
 
 The manual's files name the version only as `<version>`, so a release changes none of them. `tests/test_docs.py` holds that, the length of the manual's
@@ -30,7 +30,7 @@ paragraphs, and the paths and names the documents put in backticks.
 The README, the project page, the announcement and `packaging/install.sh.in` name the files of a release: `NeoAPRS-Setup-<version>.exe`,
 `NeoAPRS-<version>-x86_64.AppImage`, `neoaprs_<version>_arm64.deb` and `neoaprs_<version>_amd64.deb` (also in `ui/src/lib/update.ts`, which links them in the
 update panel), `install.sh` (always under `releases/latest/download/`), the wheel and `SHA256SUMS`. A new name is changed in all of them and in
-`.github/workflows/release.yml`, and in the table of `server/download.php`, which the download buttons of the project page go through.
+`.github/workflows/release.yml`; the installer and the AppImage are also attached as `NeoAPRS-Setup.exe` and `NeoAPRS-x86_64.AppImage`, which the project page's buttons link to.
 
 ## A release
 
@@ -49,7 +49,7 @@ update panel), `install.sh` (always under `releases/latest/download/`), the whee
    change in the code gets the change and a tag of the next number. **A tag is never moved.** `gh workflow run release.yml --ref v<version>` runs the tag's
    workflow again by hand, which publishes the release (or writes its files over) without a new tag.
 5. Every download link of the README, the project page and the announcement tried once.
-6. The download page too: `curl -sI 'https://oh2gba.eu/neoaprs/download.php?f=windows'` has a `Location:` with the new version (within the same ten minutes). The version page names the new release: `curl 'https://oh2gba.eu/neoaprs/version.php?v=0.0.1&os=linux'` says the new version (it believes GitHub's answer
+6. The version page names the new release: `curl 'https://oh2gba.eu/neoaprs/version.php?v=0.0.1&os=linux'` says the new version (it believes GitHub's answer
    for ten minutes, so it notices within that long), and a copy of the new version does not offer itself.
 
 The jobs of the release workflow are in [`docs/development.md`](development.md#packaging-and-releases).
