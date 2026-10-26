@@ -319,20 +319,6 @@ async def test_subscribe_and_unsubscribe(tmp_path: Path) -> None:
     assert len(page.of("state", "packets")) == 2
 
 
-async def test_tnc_reconnect_opens_the_line_again(tmp_path: Path) -> None:
-    e = Env(tmp_path, web=True)
-    await e.start()
-    page = await e.ws()
-    await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
-    assert e.tnc.stats.opens == 1
-    await page.send({"cmd": "tnc_reconnect"})
-    await until(lambda: e.tnc.stats.opens == 2 and e.tnc.state is Source.State.CONNECTED)
-    await page.until(lambda: page.topics["tnc"]["stats"]["opens"] == 2 and page.topics["tnc"]["state"] == "connected")
-    assert any("opened" in line["text"] for line in page.topics["tnc"]["lines"])
-    frames = await e.play()
-    assert frames == 4, "the line works after it"
-
-
 async def test_beacon_now_sends_our_position_and_the_pages_are_told_the_packet_and_the_status(tmp_path: Path) -> None:
     e = Env(tmp_path, web=True)
     await e.start()

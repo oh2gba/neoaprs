@@ -35,7 +35,6 @@ from .prefwire import ClearStationPath, SetStationPath, SetStationRfOnly
 from .configwire import SetConfig
 from .stationwire import ForgetStation
 from .supportwire import PageError
-from .tncwire import TncReconnect
 from .updatewire import UpdateCancel, UpdateNow
 from .views import weather_points
 from .weatherwire import WeatherSeries
@@ -95,11 +94,6 @@ async def forget_station(ctx: Ctx, cmd: ForgetStation) -> None:
         raise UserError(f"forget_station: {cmd.call} is an object of ours: kill it (object_kill)", "station.is_object", params={"call": cmd.call})
     if not book.forget(cmd.call):
         raise UserError(f"forget_station: {cmd.call} is our own station, which stays", "station.is_own", params={"call": cmd.call})
-
-
-@command(TncReconnect)
-async def tnc_reconnect(ctx: Ctx, cmd: TncReconnect) -> None:
-    ctx.ctl.start_tnc()
 
 
 @command(ListPorts)

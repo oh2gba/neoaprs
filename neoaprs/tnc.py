@@ -35,6 +35,7 @@ from .serialport import SerialError, is_socket
 from .signal import Signal
 from .source import CHECKING, Backoff, Source, minutes_between, unusable_because
 from .tncentry import KissEntry
+from .tncfollow import AdapterFollow
 from .tnclines import TimedSource
 from .tncmode import Mode, ModeDetector, TextAfterKiss, looks_valid, packet_of, read_frame
 from .tncport import TncPort
@@ -51,6 +52,13 @@ ENTER_KISS = KENWOOD_TNC2.enter[0][0]       # what the default profile writes (t
 def _speed(path: str, baud: int) -> str:
     """" at 9600" for a serial line; a TCP line and the dummy radio have no speed."""
     return "" if is_socket(path) or path == DUMMY_PATH else f" at {baud}"
+
+
+async def open_port(tnc: "Tnc", path: str) -> TncPort | DummyPort:
+    """The line at `path`, open: the Dummy radio's, or a serial port (a socket) of the Tnc's speed. Raises SerialError."""
+    port = DummyPort(tnc._on_data, tnc._on_lost, tnc.where, tnc.clock) if tnc.is_dummy else TncPort(path, tnc.baud, tnc._on_data, tnc._on_lost)
+    await port.open()
+    return port
 
 
 def _printable(text: str) -> str:
@@ -100,6 +108,7 @@ class Tnc(TimedSource):
         self._search = PortSearch(self._spawn, self._note, PROMPT)
         self._entry = KissEntry(self._spawn, lambda data: self._port is not None and self._write(self._port, data), settle_sec, pace)    # the wait after the last step (None: the profile's), the factor on the others
         self._port: TncPort | None = None
+        self._follow = AdapterFollow()                                   # the USB adapter of the named port, found again when the system gives it another name
         self._generation = 0                                             # changes at stop(), so that an attempt that was under way knows it is over
         self._watchdog_task: asyncio.Task[None] | None = None
         self.watchdog = Watchdog(self, check_sec, check_pause_sec, reply_sec, answer_sec, probe_sec)    # check_sec 0: no checks
@@ -148,8 +157,7 @@ class Tnc(TimedSource):
                 return
             if named and not self.is_dummy and (held := held_by(path)):
                 raise SerialError(f"{path}: {held}")
-            port = DummyPort(self._on_data, self._on_lost, self.where, self.clock) if self.is_dummy else TncPort(path, self.baud, self._on_data, self._on_lost)
-            await port.open()
+            port, path = await self._follow.open(path, named and not self.is_dummy, lambda where: open_port(self, where), self._note)
         except SerialError as e:
             self._probe_next = named and self.fallback_probe and self._search.possible
             self._wait(str(e))

@@ -8,6 +8,7 @@ import asyncio
 import glob
 import logging
 import os
+import re
 import sys
 from collections.abc import Awaitable, Callable, Collection
 from dataclasses import dataclass
@@ -46,6 +47,37 @@ def available_ports() -> list[PortInfo]:
         log.info("listing the ports failed: %s", e)
         return []
     return [PortInfo(p.device, p.description or "", p.hwid or "", p.vid, p.pid) for p in found]
+
+
+@dataclass(frozen=True)
+class AdapterId:
+    """Which USB adapter a port is: its vendor and product ids and its serial number, empty when it has none (then every adapter of the kind looks alike)."""
+    vid: int
+    pid: int
+    serial: str
+
+
+def _adapter_of(port: PortInfo) -> AdapterId | None:
+    if port.vid is None or port.pid is None:
+        return None
+    found = re.search(r"\bSER=(\S+)", port.hwid)
+    return AdapterId(port.vid, port.pid, found.group(1) if found else "")
+
+
+def identity_of(path: str) -> AdapterId | None:
+    """The USB adapter behind the port `path`, as the system lists it now; None for a port that is none (a socket, a Bluetooth port, an old serial port)."""
+    key = port_key(path)
+    return next((a for p in available_ports() if port_key(p.device) == key and (a := _adapter_of(p)) is not None), None)
+
+
+def moved_to(adapter: AdapterId | None, gone: str) -> str | None:
+    """Where the adapter is when the system no longer lists `gone` (a COM port that came back as another number): the one port with its serial number, or, for an adapter with none, the only port with its vendor and product ids.
+    None when `gone` is listed (something else keeps it), or no port or more than one qualifies: then it is the operator's to choose."""
+    ports = available_ports()
+    if adapter is None or any(port_key(p.device) == port_key(gone) for p in ports):
+        return None
+    same = [p.device for p in ports if _adapter_of(p) == adapter]
+    return same[0] if len(same) == 1 else None
 
 
 def paired_bluetooth_ports() -> list[PortInfo]:

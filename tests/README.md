@@ -179,7 +179,7 @@
   order written, with no attempt used while they wait; a message after the pause is not delayed; messages that waited for the radio leave spaced when it is
   back. The other messaging tests set the pause to 0.
 * `test_web.py`, `test_hub.py`: the web server over a real socket (`support/env.py` with `web=True`, `support/wsclient.py`): the hello and the seven topics, the
-  capture through the fake radio as patches, `list_ports`, set_config, forget_station, tnc_reconnect, beacon_now, send_message, message_retry, message_cancel,
+  capture through the fake radio as patches, `list_ports`, set_config, forget_station, beacon_now, send_message, message_retry, message_cancel,
   message_delete, conversation_delete, overheard_delete (two pages see the dels, a conversation is untouched), the removed set_station_attempts and
   clear_station_attempts refused, set_station_path and clear_station_path, and the removed set_station_timeout and clear_station_timeout refused (the `messages` and `station_prefs`
   topics, an ack through the line, a bad addressee or path), the `bulletins` topic (a row by sender and slot, heard again, never aged out, a page that comes
