@@ -1,4 +1,4 @@
-"""Migrations 19 and 20 (neoaprs/migrations2.py): the rows of `beacon/mobile` and of the seven `smart/*` numbers are deleted once, with a line in the log for each; every other setting is as it was,
+"""Migrations 19 and 20 (neoaprs/migrationsteps12to21.py): the rows of `beacon/mobile` and of the seven `smart/*` numbers are deleted once, with a line in the log for each; every other setting is as it was,
 and `beacon/travel` has no row, so the car is in force. A row `beacon/moving_as`, which an earlier build stored for the setting that is now `beacon/travel`, is renamed once, with a line in the log."""
 import logging
 from pathlib import Path
@@ -7,7 +7,7 @@ import pytest
 
 from neoaprs.config import DEFAULTS, Config
 from neoaprs.migrations import SCHEMA_VERSION
-from neoaprs.migrations2 import MIGRATION_LOG
+from neoaprs.migrationlog import MIGRATION_LOG
 from neoaprs.smartbeacon import PRESETS
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock

@@ -22,7 +22,7 @@ LAYERS: dict[str, list[str]] = {
     "foundation": ["neoaprs", "clock", "signal", "coded", "policy", "callsign", "geo", "symbols", "kiss", "ax25", "aprsposition", "aprsmice", "aprsmiceout", "aprsmessage", "aprsparse", "aprsweather", "aprsthirdparty", "aprsisline", "aprsextension", "aprsfreq", "aprsstorm", "aprslocator", "aprstelemetry", "aprsnmea", "gpsfix", "smartbeacon", "packet", "packetcodec", "message", "bulletin", "decay", "tncmode", "tncprofile", "pref", "route", "chain", "mapstate", "radiosearch", "serialboards", "versions", "updateasset", "device", "devicedata", "hourcount", "dummyroutes", "dummyframes", "dummyscene", "dummyqru", "igaterules"],
     "domain": ["alertcommand", "config", "configlegacy", "configstatus", "configtypes", "configvalues", "interlock", "station", "stationnotes", "stationbook", "aloha", "ownobject", "ownbulletin", "qrutext"],
     "adapters": ["source", "tasks", "serialport", "serialholders", "serialprobe", "btsdp", "btserial", "btle", "btpaired", "tnc", "tncport", "dummyline", "tncsearch", "tncwatchdog", "tncentry", "tncfollow", "tnclines", "childenv", "rigctld", "gpsfeed", "aprsis", "pmtilestool", "worldmap", "updatefetch", "updatedownload", "selfreplace"],
-    "persistence": ["store", "migrations", "migrations2", "backupfolder", "durable", "instancelock", "stopfile", "walcare", "dbfile", "dberror", "dbstats", "dbthread", "db", "dbopen", "storesql", "paths", "dblog", "packetsql", "packetlog", "messagesql", "messagelog", "bulletinsql", "bulletinlog", "weathersql", "weatherlog", "ownsql", "ownlog", "supportsql"],
+    "persistence": ["store", "migrations", "migrationlog", "migrationsteps1to11", "migrationsteps12to21", "backupfolder", "durable", "instancelock", "stopfile", "walcare", "dbfile", "dberror", "dbstats", "dbthread", "db", "dbopen", "storesql", "paths", "dblog", "packetsql", "packetlog", "messagesql", "messagelog", "bulletinsql", "bulletinlog", "weathersql", "weatherlog", "ownsql", "ownlog", "supportsql"],
     "services": [],
     "app": ["controller", "app", "wiring"],
     "delivery": ["__main__", "daemon"],
@@ -75,8 +75,9 @@ SQL_HOMES: dict[str, str] = {              # the permanent homes of SQL: no coun
     "neoaprs/weathersql.py": "the statements of the weather table (every observation of every weather station) and the read of the packets it is made from: functions of a connection that the thread runs",
     "neoaprs/supportsql.py": "the statements of the support bundle: functions of a read-only connection that the bundle's own thread runs (the file's version and sizes, the rows of each table, the latest packets)",
     "neoaprs/walcare.py": "the limits of the write-ahead log (journal_size_limit and the automatic checkpoint): a function of the connection, run by the thread",
-    "neoaprs/migrations2.py": "the migrations from the twelfth on, frozen beside migrations.py: migration code",
-    "neoaprs/migrations.py": "the migrations and the opening of the file, before the thread opens it, and in the tools: migration code, exempt from the size limits of the steps it pins",
+    "neoaprs/migrationsteps12to21.py": "the migrations 12 to 21, frozen beside migrations.py: migration code",
+    "neoaprs/migrationsteps1to11.py": "the migrations 1 to 11, frozen beside migrations.py: migration code",
+    "neoaprs/migrations.py": "the opening of the file, before the thread opens it, and in the tools, and the runner of the migrations (their history, the copy taken before them)",
 }
 # Everything else that still imports sqlite3 or calls execute, with how many calls: (imports sqlite3, calls of execute, why). The numbers are exact: a file that does less than its entry says
 # fails until the entry is lowered or deleted, so the list only shrinks. A new entry is not the way to get a change through: the statement belongs in a function of storesql.py or a module beside it.

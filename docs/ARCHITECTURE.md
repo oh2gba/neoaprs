@@ -15,7 +15,7 @@ The tables of this document that are that test's data (this one, the rules after
 | foundation | `clock signal coded policy callsign geo symbols kiss ax25 aprsposition aprsmice aprsmiceout aprsmessage aprsparse aprsweather aprsthirdparty aprsisline aprsextension aprsfreq aprsstorm aprslocator aprstelemetry aprsnmea gpsfix smartbeacon packet packetcodec message bulletin decay tncmode tncprofile pref route chain mapstate radiosearch serialboards versions updateasset device devicedata hourcount dummyroutes dummyframes dummyscene dummyqru igaterules` | foundation | domain, adapters, persistence, services, app, delivery, and any I/O library |
 | domain | `alertcommand config configlegacy configstatus configtypes configvalues interlock station stationnotes stationbook aloha ownobject ownbulletin qrutext` | foundation, domain | adapters, persistence, services, app, delivery, and any I/O library |
 | adapters | `source tasks serialport serialholders serialprobe btsdp btserial btle btpaired tnc tncport dummyline tncsearch tncwatchdog tncentry tncfollow tnclines childenv rigctld gpsfeed aprsis pmtilestool worldmap updatefetch updatedownload selfreplace` | foundation, domain, adapters | persistence, services, app, delivery |
-| persistence | `store migrations migrations2 backupfolder durable instancelock stopfile walcare dbfile dberror dbstats dbthread db dbopen storesql paths dblog packetsql packetlog messagesql messagelog bulletinsql bulletinlog weathersql weatherlog ownsql ownlog supportsql` | foundation, domain, persistence | adapters, services, app, delivery |
+| persistence | `store migrations migrationlog migrationsteps1to11 migrationsteps12to21 backupfolder durable instancelock stopfile walcare dbfile dberror dbstats dbthread db dbopen storesql paths dblog packetsql packetlog messagesql messagelog bulletinsql bulletinlog weathersql weatherlog ownsql ownlog supportsql` | foundation, domain, persistence | adapters, services, app, delivery |
 | services | everything in `neoaprs/services/` | foundation, domain, adapters, persistence, services | app, delivery |
 | app | `controller app wiring` | foundation, domain, adapters, persistence, services, app | delivery |
 | delivery | `neoaprs/web/*`, `neoaprs/cli/*`, `neoaprs/desktop/*`, `neoaprs/daemon`, `neoaprs/__main__` | foundation, domain, adapters, persistence, services, app, delivery | - |
@@ -230,8 +230,9 @@ The homes of SQL (`SQL_HOMES` in the test): every file that imports `sqlite3` or
 | `neoaprs/dbfile.py` | how a connection is set up (WAL, synchronous=FULL, the busy time) and the whole checked copy |
 | `neoaprs/dbthread.py` | the thread of the actor: BEGIN, COMMIT, SAVEPOINT and the settings of its connection |
 | `neoaprs/messagesql.py` | the statements of the message table: functions of a connection that the thread runs |
-| `neoaprs/migrations.py` | the migrations and the opening of the file, before the thread opens it, and in the tools: migration code, exempt from the size limits of the steps it pins |
-| `neoaprs/migrations2.py` | the migrations from the twelfth on, frozen beside migrations.py: migration code |
+| `neoaprs/migrations.py` | the opening of the file, before the thread opens it, and in the tools, and the runner of the migrations (their history, the copy taken before them) |
+| `neoaprs/migrationsteps12to21.py` | the migrations 12 to 21, frozen beside migrations.py: migration code |
+| `neoaprs/migrationsteps1to11.py` | the migrations 1 to 11, frozen beside migrations.py: migration code |
 | `neoaprs/ownsql.py` | the statements of the tables of our own objects and bulletins (what we send of our own accord): functions of a connection that the thread runs |
 | `neoaprs/packetsql.py` | the statements of the packet log and the station cache: functions of a connection that the thread runs |
 | `neoaprs/storesql.py` | the statements of the settings: functions of a connection that the thread runs |

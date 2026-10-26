@@ -1,10 +1,10 @@
-"""Migration 12 (neoaprs/migrations2.py): `rf_only` joins the path, the timeout and the attempts in `station_pref`; a database of the version before keeps every preference, and the table refuses what the program cannot produce."""
+"""Migration 12 (neoaprs/migrationsteps12to21.py): `rf_only` joins the path, the timeout and the attempts in `station_pref`; a database of the version before keeps every preference, and the table refuses what the program cannot produce."""
 import sqlite3
 from pathlib import Path
 
 import pytest
 
-from neoaprs import migrations2
+from neoaprs import migrationsteps12to21
 from neoaprs.store import DB_NAME
 from neoaprs.migrations import SCHEMA_VERSION
 from tests.support.clock import FixedClock
@@ -87,4 +87,4 @@ def test_a_migration_12_that_doubts_changes_nothing_and_leaves_the_preferences_w
 
 def test_the_step_is_the_one_in_migrations2() -> None:
     from neoaprs.migrations import MIGRATIONS
-    assert MIGRATIONS[11] is migrations2._v12
+    assert MIGRATIONS[11] is migrationsteps12to21._v12

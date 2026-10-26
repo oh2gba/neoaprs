@@ -1,4 +1,4 @@
-"""Migration 21 (neoaprs/migrations2.py): the channel of a packet (`packet.via`: rf, rf-gated, is) and, in the station cache, the count and the latest time for each channel and the channel of the position.
+"""Migration 21 (neoaprs/migrationsteps12to21.py): the channel of a packet (`packet.via`: rf, rf-gated, is) and, in the station cache, the count and the latest time for each channel and the channel of the position.
 A stored frame that holds a third-party packet becomes `rf-gated` (told from the stored `raw` alone), every other packet `rf`; a cached station has been heard on the radio, except for the packets of
 it that are stored as rf-gated; a step that doubts changes nothing; the tables refuse a channel the program cannot produce."""
 import sqlite3
@@ -8,7 +8,7 @@ import pytest
 
 from neoaprs import ax25
 from neoaprs.migrations import MIGRATIONS, SCHEMA_VERSION
-from neoaprs.migrations2 import _third_party_sender
+from neoaprs.migrationsteps12to21 import _third_party_sender
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
 from tests.support.migrated import opened, step_back

@@ -1,12 +1,10 @@
-"""The migrations from the twelfth on, frozen here beside neoaprs/migrations.py (which lists them in MIGRATIONS and runs them): the same rules, a step is never edited once it has been released."""
-import logging
+"""The migrations 12 to 21, frozen here beside migrations.py (which lists them in MIGRATIONS and runs them): the same rules as for the first eleven (migrationsteps1to11.py), a step is
+never edited once it has been released. The next steps go to a module of their own (migrationsteps22on.py when there is one), so that this one does not grow."""
 import re
 import sqlite3
 
 from .dberror import StoreError
-
-MIGRATION_LOG = "neoaprs.migrations"                      # the logger of the migrations (migrations.py has them all); its lines go to stderr too, and so to the journal (daemon.py)
-log = logging.getLogger(MIGRATION_LOG)
+from .migrationlog import log
 
 
 def _v12(db: sqlite3.Connection) -> None:

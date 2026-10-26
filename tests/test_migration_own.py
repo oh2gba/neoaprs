@@ -1,11 +1,11 @@
-"""Migration 13 (neoaprs/migrations2.py): the tables `own_object` and `own_bulletin`, where the objects, items and bulletins of our own are kept; a database of the version before keeps everything and gets
+"""Migration 13 (neoaprs/migrationsteps12to21.py): the tables `own_object` and `own_bulletin`, where the objects, items and bulletins of our own are kept; a database of the version before keeps everything and gets
 the two tables empty, a step that doubts changes nothing, and the tables refuse what the program cannot produce."""
 import sqlite3
 from pathlib import Path
 
 import pytest
 
-from neoaprs import migrations as migrations_module, migrations2
+from neoaprs import migrations as migrations_module, migrationsteps12to21
 from neoaprs.migrations import MIGRATIONS, SCHEMA_VERSION
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
@@ -131,4 +131,4 @@ def test_a_migration_13_that_doubts_changes_nothing(tmp_path: Path) -> None:
 
 
 def test_the_step_is_the_one_in_migrations2() -> None:
-    assert MIGRATIONS[12] is migrations2._v13
+    assert MIGRATIONS[12] is migrationsteps12to21._v13

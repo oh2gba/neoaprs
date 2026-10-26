@@ -1,4 +1,4 @@
-"""The migrations under failure (neoaprs/migrations.py, migrations2.py): a step that doubts its own copy of a table, a step that raises what is not an SQLite error, a rollback that fails, a disk that is
+"""The migrations under failure (neoaprs/migrations.py, migrationsteps12to21.py): a step that doubts its own copy of a table, a step that raises what is not an SQLite error, a rollback that fails, a disk that is
 full at the commit, a file another writer holds, another process that migrated first, a history that cannot be read or a source that cannot be hashed. In each the file is as it was or at the step before,
 the copy taken before the first step is in backup/, and the next start with the cause gone migrates it."""
 import logging
@@ -10,7 +10,7 @@ import pytest
 
 from neoaprs import migrations as migrations_module
 from neoaprs.migrations import MIGRATIONS, SCHEMA_VERSION, _history_problems, history, open_database, source_hash
-from neoaprs.migrations2 import MIGRATION_LOG
+from neoaprs.migrationlog import MIGRATION_LOG
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
 from tests.support.migrated import opened, try_open
