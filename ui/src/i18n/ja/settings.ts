@@ -284,7 +284,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tnc.counts": {
     other: "受信{n}パケット、入力 {bytes_in}、出力 {bytes_out}、中継 {digipeated}",
   },
-  "settings.tnc.reconnect": "再接続",
   "settings.tnc.ports": "ポート",
   "settings.tnc.terminal": "ターミナル",
   "settings.tnc.terminal_label": "TNCが見たものと行ったこと",

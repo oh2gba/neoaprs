@@ -175,8 +175,8 @@ describe("useDaemon", () => {
     expect(daemon.send({ cmd: "ping" })).toBe(false);
     expect(daemon.lastError.value).toMatchObject({ cmd: "", key: null, code: "not_connected", text: "Not connected to the daemon." });
     socket.say(hello());
-    expect(daemon.send({ cmd: "tnc_reconnect" })).toBe(true);
-    expect(socket.sent).toEqual([{ cmd: "tnc_reconnect" }]);
+    expect(daemon.send({ cmd: "list_ports" })).toBe(true);
+    expect(socket.sent).toEqual([{ cmd: "list_ports" }]);
   });
 
   it("shows the connection as closed when the socket drops", () => {

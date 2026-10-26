@@ -291,7 +291,6 @@ export const settings: Record<keyof typeof source, Message> = {
     one: "{n} pacote recebido, {bytes_in} entrada, {bytes_out} saída, {digipeated} repetidos",
     other: "{n} pacotes recebidos, {bytes_in} entrada, {bytes_out} saída, {digipeated} repetidos",
   },
-  "settings.tnc.reconnect": "Reconectar",
   "settings.tnc.ports": "Portas",
   "settings.tnc.terminal": "Terminal",
   "settings.tnc.terminal_label": "O que o TNC viu e fez",

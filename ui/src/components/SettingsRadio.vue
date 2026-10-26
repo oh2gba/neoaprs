@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The Radio group of the Settings tab: the RX only tickbox first (ticked is `station/transmit` false), then the radio's status line with Reconnect in view, and behind its arrow the fields of the radio (the type of TNC, the port, the speed, or the host and port of a TNC reached over TCP), the Find my radio button
+// The Radio group of the Settings tab: the RX only tickbox first (ticked is `station/transmit` false), then the radio's status line, and behind its arrow the fields of the radio (the type of TNC, the port, the speed, or the host and port of a TNC reached over TCP), the Find my radio button
 // and the terminal (RadioStatus). The fold is open when the radio is not connected. The fields are worked as in the form: a typed one is sent when it is left or Enter is pressed, a choice at once (the form's `settings` and `form`). Find my radio
 // (FindRadioRow.vue) asks the daemon to try the ports and puts what it finds in the settings (composables/useFindRadio.ts).
 import { computed } from "vue";
@@ -43,7 +43,7 @@ function typed(key: string, text: string): void {
     @update:model-value="typed(TRANSMIT_KEY, $event)"
     @choose="form.choose({ [TRANSMIT_KEY]: storedFor(TRANSMIT_KEY, settings.draft, $event) })"
   />
-  <RadioStatus :tnc="tnc" :now="now" :open="unconnected" @reconnect="send({ cmd: 'tnc_reconnect' })">
+  <RadioStatus :tnc="tnc" :now="now" :open="unconnected">
     <template v-for="key in keys.filter((k) => k !== TRANSMIT_KEY)" :key="key">
       <SettingsPort
         v-if="key === 'serial/port'"

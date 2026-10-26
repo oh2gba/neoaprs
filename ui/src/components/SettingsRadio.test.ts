@@ -26,13 +26,13 @@ function make(more: Given = {}, extra: Record<string, string> = {}) {
 const fold = (group: ReturnType<typeof make>["group"]) => group.find<HTMLDetailsElement>("details.radiostatus");
 
 describe("the TNC group of the Settings tab", () => {
-  it("shows the state, the status line and Reconnect, and keeps the fields and the Terminal behind a fold that is closed while the radio is connected", () => {
+  it("shows the state and the status line, and keeps the fields and the Terminal behind a fold that is closed while the radio is connected", () => {
     const { group } = make();
     expect(fold(group).element.open).toBe(false);
     const head = fold(group).find("summary.statushead");
     expect(head.find(".statetext").text()).toBe("connected");
     expect(head.find(".tncstatus").text()).toBe("Last packet 30 s ago");
-    expect(head.find("button").text()).toBe("Reconnect");
+    expect(head.find("button").exists()).toBe(false);
     // everything else of the group is inside the fold
     for (const id of ["#set-tnc-profile", "#set-serial-port", "#set-serial-baud", "#find-radio"]) expect(fold(group).find(id).exists(), id).toBe(true);
     expect(
@@ -48,13 +48,6 @@ describe("the TNC group of the Settings tab", () => {
     expect(fold(group).element.open).toBe(false);
     await tell(daemon, { tnc: tncState({ state: "silent", silent_since: null }) });
     expect(fold(group).element.open).toBe(true);
-  });
-
-  it("reconnects from the line without opening the fold", async () => {
-    const { group, send } = make();
-    await fold(group).find("summary button").trigger("click");
-    expect(send).toHaveBeenCalledWith({ cmd: "tnc_reconnect" });
-    expect(fold(group).element.open).toBe(false);
   });
 
   it("has the pattern and skip settings nowhere on the page", () => {
