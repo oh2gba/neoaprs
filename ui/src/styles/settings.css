@@ -350,22 +350,25 @@
 .statetext.update-failed {
   color: var(--warn);
 }
-/* the group a link to a setting has brought into view (lib/attention.ts): the soft accent, fading out; with reduced motion it is held for the same time instead */
+/* the group a link to a setting has brought into view (lib/attention.ts): a soft yellow that fades in and out once, quickly, after the tab is drawn; with reduced motion it is held for the same time instead */
 .attend {
-  animation: attend 1.5s ease-out;
+  animation: attend 1s ease-in-out;
   border-radius: 6px;
 }
 @keyframes attend {
-  from {
-    background: var(--accent-soft-bg);
+  0% {
+    background: transparent;
   }
-  to {
+  30% {
+    background: var(--attention-bg);
+  }
+  100% {
     background: transparent;
   }
 }
 @media (prefers-reduced-motion: reduce) {
   .attend {
     animation: none;
-    background: var(--accent-soft-bg);
+    background: var(--attention-bg);
   }
 }

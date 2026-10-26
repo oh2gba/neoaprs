@@ -29,6 +29,7 @@ Tags (`TagMark`) use only the soft pairs, by meaning: a count is **accent**, a l
 | `--ok-soft-fg` | `#1b5e20` | `#a5d6a7` | the ok tag: the text (AA at 11 px) |
 | `--warn-soft-bg` | `#fbe9c8` | `#41310f` | the warn tag: the background |
 | `--warn-soft-fg` | `#764600` | `#ffcc80` | the warn tag: the text (AA at 11 px) |
+| `--attention-bg` | `#fff0a3` | `#574b12` | the flash of a group that a link to a setting brought into view |
 | `--bad-soft-bg` | `#fbe0e0` | `#4a2323` | the bad tag: the background |
 | `--bad-soft-fg` | `#9b1c1c` | `#f2a5a5` | the bad tag: the text (AA at 11 px) |
 | `--info-soft-bg` | `#dcedf5` | `#163744` | the info tag: the background |

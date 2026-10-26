@@ -31,6 +31,7 @@
   --ok-soft-fg: #1b5e20;
   --warn-soft-bg: #fbe9c8;
   --warn-soft-fg: #764600;
+  --attention-bg: #fff0a3; /* the flash of a group a link brought into view (lib/attention.ts): a soft yellow */
   --bad-soft-bg: #fbe0e0;
   --bad-soft-fg: #9b1c1c;
   --info-soft-bg: #dcedf5;
@@ -81,6 +82,7 @@
     --ok-soft-fg: #a5d6a7;
     --warn-soft-bg: #41310f;
     --warn-soft-fg: #ffcc80;
+    --attention-bg: #574b12;
     --bad-soft-bg: #4a2323;
     --bad-soft-fg: #f2a5a5;
     --info-soft-bg: #163744;

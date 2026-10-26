@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ATTEND_MS, attend } from "@/lib/attention";
+import { ATTEND_MS, PAUSE_MS, attend } from "@/lib/attention";
 import { cssRule } from "@/test/css";
 
 beforeEach(() => {
@@ -15,9 +15,11 @@ describe("attend", () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(await done).toBe(true);
     const group = document.getElementById("g");
-    expect(group?.classList.contains("attend")).toBe(true);
     expect((Element.prototype.scrollIntoView as ReturnType<typeof vi.fn>).mock.contexts).toContain(group);
     expect(document.activeElement?.id).toBe("control");
+    expect(group?.classList.contains("attend")).toBe(false); // (the tab first, the flash a moment later)
+    vi.advanceTimersByTime(PAUSE_MS);
+    expect(group?.classList.contains("attend")).toBe(true);
     vi.advanceTimersByTime(ATTEND_MS + 1);
     expect(group?.classList.contains("attend")).toBe(false);
   });
@@ -33,8 +35,8 @@ describe("attend", () => {
     expect(await never).toBe(false);
   });
 
-  it("is the soft accent of the palette, fading out, and a static one with reduced motion", () => {
-    expect(cssRule(".attend")).toMatch(/animation:\s*attend/);
-    expect(ATTEND_MS).toBe(1500);
+  it("is a soft yellow of the palette that fades in and out quickly, after a short pause", () => {
+    expect(cssRule(".attend")).toMatch(/animation:\s*attend 1s/);
+    expect([PAUSE_MS, ATTEND_MS]).toEqual([300, 1000]);
   });
 });
