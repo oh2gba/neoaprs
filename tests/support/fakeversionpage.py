@@ -11,31 +11,20 @@ import json
 from typing import Any
 
 from tests.support.env import remember_stop
+from tests.support.loopbackserver import LoopbackServer
 
 
-class FakeVersionPage:
+class FakeVersionPage(LoopbackServer):
     def __init__(self, answer: dict[str, Any] | None = None) -> None:
         self.answer = answer
         self.status = 200
         self.body: bytes | None = None                 # sent instead of the JSON of `answer` when set
         self.hang = False                              # accepts and says nothing
         self.requests: list[tuple[str, dict[str, str]]] = []
-        self._server: asyncio.Server | None = None
-        self.port = 0
 
     @property
     def url(self) -> str:
         return f"http://127.0.0.1:{self.port}/version.php"
-
-    async def start(self) -> "FakeVersionPage":
-        self._server = await asyncio.start_server(self._handle, "127.0.0.1", 0)
-        self.port = self._server.sockets[0].getsockname()[1]
-        return self
-
-    async def stop(self) -> None:
-        if self._server is not None:
-            self._server.close()
-            await self._server.wait_closed()
 
     async def _handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         try:
