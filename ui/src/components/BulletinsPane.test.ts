@@ -25,6 +25,16 @@ const rows = [
 ];
 
 describe("BulletinsPane", () => {
+  it("has an (i) at the top that says what a bulletin is, with a picture", async () => {
+    const wrapper = pane();
+    const bar = wrapper.find(".tab-help");
+    expect((wrapper.element as HTMLElement).firstElementChild).toBe(bar.element);
+    await bar.find("button.info-toggle").trigger("click");
+    expect(bar.find(".info-text").text()).toContain("A bulletin is a message to everyone, shown on every station's board.");
+    expect(bar.find(".info-text").text()).toContain("net times, events, warnings");
+    expect(bar.find("svg[data-picture='bulletin']").attributes("aria-label")).toMatch(/BLN1/);
+  });
+
   it("has the three sections in their order, each row newest first", () => {
     const wrapper = pane(...rows);
     expect(wrapper.findAll(".board-title").map((t) => t.text())).toEqual(["Announcements 1", "Bulletins 1", "Group messages 2"]);

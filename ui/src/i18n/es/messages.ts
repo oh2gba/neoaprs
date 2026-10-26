@@ -3,6 +3,9 @@ import type { Message } from "@/i18n/message";
 
 export const messages: Readonly<Record<keyof typeof en, Message>> = {
   "messages.conversations": "Conversaciones",
+  "messages.about_label": "Sobre los mensajes",
+  "messages.about1": "Un mensaje es un texto corto para una estación, que acusa recibo.",
+  "messages.about2": "Empieza una con Mensaje en la ficha de una estación o en la pestaña Estaciones.",
   "messages.show_overheard": "Mostrar escuchados",
   "messages.overheard_help_label": "Qué significa escuchados",
   "messages.overheard_help": "Mensajes que otras estaciones se enviaron entre sí y que escuchamos por radio.",

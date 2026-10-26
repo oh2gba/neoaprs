@@ -52,4 +52,5 @@ export const shell = {
   "mismatch.reload": "Reload",
 
   "settings.language.label": "Language",
+  "settings.language.tip1": "The language of this page. Each browser and device remembers its own choice.",
 } as const;

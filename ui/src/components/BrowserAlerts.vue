@@ -3,6 +3,7 @@
 // the few words of what happened, said (`say`) in the page's toast. The choice is kept in the browser, not on the daemon, so each device decides. The options with a pop-up are disabled, with the reason as their title, where the browser cannot show one; where the
 // page is not a secure context (plain http from another computer) "Enable pop-ups…" opens the steps for the person's browser (PopupHelp), which start with the secure page while the daemon serves https (`https`).
 import { ref, watch } from "vue";
+import InfoTip from "@/components/InfoTip.vue";
 import InstallApp from "@/components/InstallApp.vue";
 import PopupHelp from "@/components/PopupHelp.vue";
 import SettingsBox from "@/components/SettingsBox.vue";
@@ -45,6 +46,9 @@ async function onChoose(event: Event): Promise<void> {
             {{ mode.label }}
           </option>
         </select>
+        <InfoTip :label="t('settings.about', { label: t('settings.browser.mode') })">
+          <span class="info-line">{{ t("settings.browser.mode_tip") }}</span>
+        </InfoTip>
         <span v-if="alerts.note.value" class="muted" role="status">{{ alerts.note.value }}</span>
         <button v-if="!alerts.secure" id="alert-enable-popups" class="linkbtn" type="button" :aria-expanded="helpOpen" @click="helpOpen = !helpOpen">
           {{ t("settings.browser.enable_popups") }}

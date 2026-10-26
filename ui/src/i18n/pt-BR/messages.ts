@@ -4,6 +4,9 @@ import type { Message } from "@/i18n/message";
 
 export const messages: Record<keyof typeof source, Message> = {
   "messages.conversations": "Conversas",
+  "messages.about_label": "Sobre mensagens",
+  "messages.about1": "Uma mensagem é um texto curto para uma estação, que a confirma.",
+  "messages.about2": "Comece uma com Mensagem no cartão de uma estação ou na aba Estações.",
   "messages.show_overheard": "Mostrar captadas",
   "messages.overheard_help_label": "O que são mensagens captadas",
   "messages.overheard_help": "Mensagens que outras estações enviaram entre si e que recebemos pelo rádio.",

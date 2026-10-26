@@ -14,6 +14,7 @@ import "./styles/toast.css";
 import "./styles/map.css";
 import "./styles/setup.css";
 import "./styles/help.css";
+import "./styles/helppictures.css";
 import "./styles/responsive.css";
 import { createApp } from "vue";
 import AccessGate from "./AccessGate.vue";

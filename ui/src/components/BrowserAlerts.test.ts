@@ -35,7 +35,7 @@ describe("the browser's part of the Notifications group", () => {
     expect(wrapper.find("h3").exists()).toBe(false);
     expect(wrapper.findAll("fieldset")).toHaveLength(1);
     expect(wrapper.findAll("label").map((l) => l.text())).toEqual(["Alert for a new message", "Sound", "Pop-up"]);
-    expect(wrapper.findAll("button").map((b) => b.text())).toEqual(["Test sound", "Test pop-up"]);
+    expect(wrapper.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(["Test sound", "Test pop-up"]);
     expect(wrapper.findAll("select")).toHaveLength(1);
     expect(wrapper.find("p").exists()).toBe(false); // (no hint sentences)
   });
@@ -193,18 +193,18 @@ describe("the browser's part of the Notifications group", () => {
     expect(rows()).toEqual(["Alert for a new message", "Sound", "Pop-up"]);
     await wrapper.find("#alert-mode").setValue("off");
     expect(rows()).toEqual(["Alert for a new message"]);
-    expect(wrapper.findAll("button")).toHaveLength(0);
+    expect(wrapper.findAll("button:not(.info-toggle)")).toHaveLength(0);
     expect(wrapper.find("fieldset.subbox > legend").text()).toBe("In this browser");
     await wrapper.find("#alert-mode").setValue("sound");
     expect(rows()).toEqual(["Alert for a new message", "Sound"]);
-    expect(wrapper.findAll("button").map((b) => b.text())).toEqual(["Test sound"]);
+    expect(wrapper.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(["Test sound"]);
     await wrapper.find("#alert-mode").setValue("popup");
     await flushPromises();
     expect(rows()).toEqual(["Alert for a new message", "Pop-up"]);
-    expect(wrapper.findAll("button").map((b) => b.text())).toEqual(["Test pop-up"]);
+    expect(wrapper.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(["Test pop-up"]);
     await wrapper.find("#alert-mode").setValue("both");
     await flushPromises();
     expect(rows()).toEqual(["Alert for a new message", "Sound", "Pop-up"]);
-    expect(wrapper.findAll("button").map((b) => b.attributes("disabled"))).toEqual([undefined, undefined]);
+    expect(wrapper.findAll("button:not(.info-toggle)").map((b) => b.attributes("disabled"))).toEqual([undefined, undefined]);
   });
 });

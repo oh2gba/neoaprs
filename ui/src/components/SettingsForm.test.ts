@@ -69,6 +69,7 @@ describe("SettingsForm", () => {
       "web/port",
       "web/allowed_hosts",
       "igate/server", // (left to the shell: the default suits everyone)
+      "igate/password", // (only while the iGate is on)
       "map/maxzoom",
       "map/source",
       "map/station_hours", // (the Stations tab has it)
@@ -79,6 +80,7 @@ describe("SettingsForm", () => {
         3 + // (the browser's own: Alert for a new message, Sound, Pop-up)
         1, // (Language)
     );
+    expect(wrapper.find("#set-igate-password").exists()).toBe(false);
     expect(wrapper.find("#set-station-lat").exists()).toBe(false);
   });
 
@@ -133,7 +135,7 @@ describe("SettingsForm", () => {
       (field?.querySelector(".info-toggle") as HTMLElement).click();
       await wrapper.vm.$nextTick();
       expect(field?.querySelector(".info-text")?.textContent).toContain("Fixed: the station stays at the location below");
-      expect(field?.querySelector(".info-text")?.textContent).toContain("A GPS: the position, course and speed come from the receiver");
+      expect(field?.querySelector(".info-text")?.textContent).toContain("A GPS: position, course and speed come from the receiver");
     });
 
     it("asks for the address of gpsd for gpsd, with the default as the placeholder, and no place to give while a GPS is chosen", () => {

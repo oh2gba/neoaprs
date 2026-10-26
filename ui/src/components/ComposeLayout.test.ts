@@ -128,7 +128,7 @@ describe("Objects", () => {
 
   it("has no toolbar: the list and the form are the tab", () => {
     const { wrapper } = objects();
-    expect(kids(wrapper).map((c) => c.className.split(" ")[0])).toEqual(["objectlist", "composebar"]);
+    expect(kids(wrapper).map((c) => c.className.split(" ")[0])).toEqual(["tab-help", "objectlist", "composebar"]);
   });
 
   it("names the form for a new object and for the one being changed, which Save changes", async () => {

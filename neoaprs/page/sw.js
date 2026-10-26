@@ -1,9 +1,9 @@
-// The page's service worker (registered by lib/worker.ts, built into neoaprs/page/sw.js by vite.config.ts, which puts the build of the page in for b640f234a8: a hash of the files, not the version of NeoAPRS). It is what lets a browser install the page as an app and
+// The page's service worker (registered by lib/worker.ts, built into neoaprs/page/sw.js by vite.config.ts, which puts the build of the page in for 553a6e388a: a hash of the files, not the version of NeoAPRS). It is what lets a browser install the page as an app and
 // open its shell while the daemon is away; it never stands between the page and the daemon:
 //  - assets/ (the files whose names carry the hash of their content): cache first, kept on first use, and the ones the shell names are fetched once the shell has come; the caches of the old build are deleted when a new worker activates.
 //  - the shell (index.html), the manifest, the icons, the symbol sheets and the glyph files: network first, the cache only when the daemon cannot be reached (a connection that fails, or a 5xx), so that an update is never hidden behind an old page.
 //  - everything else is left to the browser as if there were no worker: the access routes, the base map's tiles and their byte ranges, any request that is not a GET or has a query, any other host, sw.js itself. (The socket is not a fetch.)
-const BUILD = "b640f234a8";
+const BUILD = "553a6e388a";
 const PAGE = `neoaprs-${BUILD}-page`;
 const ASSETS = `neoaprs-${BUILD}-assets`;
 const SHELL = /^(?:|index\.html|manifest\.webmanifest|(?:icons|symbols|fonts)\/.+)$/;

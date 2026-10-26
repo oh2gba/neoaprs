@@ -5,7 +5,8 @@
 import { computed } from "vue";
 import InfoTip from "@/components/InfoTip.vue";
 import { t } from "@/i18n";
-import type { Choice, FieldInfo } from "@/lib/settings";
+import type { Choice } from "@/lib/settingchoices";
+import type { FieldInfo } from "@/lib/settings";
 
 const props = defineProps<{
   id: string;
@@ -107,7 +108,7 @@ function onEscape(event: KeyboardEvent): void {
       />
       <span v-if="info.unit" class="unit muted">{{ info.unit }}</span>
       <slot name="after"></slot>
-      <InfoTip v-if="info.tip" :label="info.tipLabel ?? t('settings.about', { label: info.label })">
+      <InfoTip v-if="info.tip" :label="info.tipLabel ?? t('settings.about', { label: info.label })" :picture="info.picture">
         <span v-for="line in info.tip" :key="line" class="info-line">{{ line }}</span>
       </InfoTip>
     </div>

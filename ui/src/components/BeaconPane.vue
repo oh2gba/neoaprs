@@ -4,6 +4,7 @@
 // Status group (SendRow). useSendNow says when they are on and asks twice; both are off, with a tip that says the beacon is off, while the beacon is Off.
 import BeaconStatus from "@/components/BeaconStatus.vue";
 import SendRow from "@/components/SendRow.vue";
+import TabHelp from "@/components/TabHelp.vue";
 import type { Picked } from "@/composables/usePositionPick";
 import SettingsForm from "@/components/SettingsForm.vue";
 import { t } from "@/i18n";
@@ -33,6 +34,10 @@ const current = computed(() => {
 
 <template>
   <div class="beaconpane">
+    <TabHelp :label="t('beacon.about_label')" picture="beacon">
+      <span class="info-line">{{ t("beacon.about1") }}</span>
+      <span class="info-line">{{ t("beacon.about2") }}</span>
+    </TabHelp>
     <SettingsForm scope="beacon" :picking="picking" :picked="picked" @pick-position="emit('pickPosition')">
       <template #top>
         <BeaconStatus

@@ -37,7 +37,7 @@ describe("the iGate group of the Settings tab", () => {
   });
 
   it("has a password field, which shows dots and is not offered to a password manager", () => {
-    const { group } = make({ "igate/password": "19628" });
+    const { group } = make({ "igate/enabled": "true", "igate/password": "19628" });
     const input = group()?.find("#set-igate-password");
     expect(input?.attributes("type")).toBe("password");
     expect(input?.attributes("autocomplete")).toBe("new-password");
@@ -45,7 +45,7 @@ describe("the iGate group of the Settings tab", () => {
   });
 
   it("has a link next to the passcode that opens the request page in a new tab, with our call", () => {
-    const { group } = make({ "station/call": "OH2GBA-10" });
+    const { group } = make({ "igate/enabled": "true", "station/call": "OH2GBA-10" });
     const link = group()?.find("a.igate-request");
     expect(link?.text()).toBe("Request a passcode");
     expect(link?.attributes("href")).toBe("https://oh2gba.eu/neoaprs/passcode?call=OH2GBA");
@@ -53,8 +53,20 @@ describe("the iGate group of the Settings tab", () => {
     expect(link?.attributes("rel")).toContain("noopener");
   });
 
+  it("shows only the switch while the iGate is off, and the passcode, its link, the status line and the quiet line the moment it is on", async () => {
+    const { group, wrapper } = make({ "igate/enabled": "false", "igate/password": "19628" }, { igate: igateState() });
+    expect(group()?.findAll(".field").map((f) => f.find("label").text())).toEqual(["Gate to APRS-IS"]);
+    expect(group()?.find(".info-toggle").exists()).toBe(true);
+    for (const gone of ["#set-igate-password", "a.igate-request", ".statepill", ".tncstatus", ".igate-note"]) expect(group()?.find(gone).exists(), gone).toBe(false);
+    await group()?.find("#set-igate-enabled").setValue(true);
+    expect(group()?.findAll(".field").map((f) => f.find("label").text())).toEqual(["Gate to APRS-IS", "Passcode"]);
+    for (const shown of ["a.igate-request", ".statepill", ".tncstatus", ".igate-note"]) expect(group()?.find(shown).exists(), shown).toBe(true);
+    await group()?.find("#set-igate-enabled").setValue(false);
+    expect(wrapper.find("#set-igate-password").exists()).toBe(false);
+  });
+
   it("says in one line what the passcode is for", () => {
-    const { group } = make();
+    const { group } = make({ "igate/enabled": "true" });
     expect(group()?.find(".info-line").exists()).toBe(false);
     expect(group()?.text()).not.toContain("comes by e-mail");
   });
@@ -67,9 +79,9 @@ describe("the iGate group of the Settings tab", () => {
   });
 
   it("shows the fields as soon as the call is set", async () => {
-    const { daemon, group } = make({ "station/call": "" });
+    const { daemon, group } = make({ "igate/enabled": "true", "station/call": "" });
     expect(group()?.findAll(".field")).toHaveLength(0);
-    await tell(daemon, { config: configValues({ "station/call": "OH2GBA" }) });
+    await tell(daemon, { config: configValues({ "igate/enabled": "true", "station/call": "OH2GBA" }) });
     expect(group()?.findAll(".field")).toHaveLength(2);
   });
 
@@ -80,7 +92,7 @@ describe("the iGate group of the Settings tab", () => {
   });
 
   it("sends the passcode when it is typed and Enter is pressed", async () => {
-    const { group, daemon } = make({ "igate/password": "" });
+    const { group, daemon } = make({ "igate/enabled": "true", "igate/password": "" });
     const input = group()?.find("#set-igate-password");
     await input?.setValue("19628");
     await input?.trigger("keydown.enter");

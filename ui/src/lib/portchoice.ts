@@ -1,7 +1,7 @@
 // The options of a serial port in the Settings and Beacon tabs (the TNC's, the GPS receiver's): find automatically (the empty port; "not set" for a port that has no search), the ports the system lists, the port the settings name or the search found when the system does not list it (a udev link such as /dev/brainbox_3,
 // a by-id name), and "Other..." to type a path or a socket address.
 import { t } from "@/i18n";
-import type { Choice } from "@/lib/settings";
+import type { Choice } from "@/lib/settingchoices";
 import { portChoices } from "@/lib/setup";
 import type { PortsMessage } from "@/protocol/protocol";
 

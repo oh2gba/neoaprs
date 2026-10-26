@@ -137,12 +137,12 @@ describe("MapFetchButton", () => {
     expect(button().classes()).not.toContain("primary");
   });
 
-  it("says nothing of the maps for a world map only", () => {
-    expect(
-      make(mapState({ state: "none", world: mapFile({ max_zoom: 5 }) }))
-        .notes.find(".mapfetch-file")
-        .exists(),
-    ).toBe(false);
+  it("says nothing of the maps for a world map only, and the button still says Download map: Download again is for a detailed map", () => {
+    const { wrapper, notes, button } = make(mapState({ state: "none", detail: null, world: mapFile({ name: "basemap-world.pmtiles", max_zoom: 5 }) }));
+    expect(notes.find(".mapfetch-file").exists()).toBe(false);
+    expect(notes.text()).toBe("");
+    expect(button().text()).toBe("Download map");
+    expect(wrapper.text()).not.toContain("again");
   });
 
   it("explains nothing in sentences: no hint under the button", () => {

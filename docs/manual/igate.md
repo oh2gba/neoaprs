@@ -16,8 +16,8 @@ An iGate puts what a radio hears on APRS-IS, the internet side of APRS, so that 
 ## Switching it on
 
 1. Set your call first (the Beacon tab). Until then the iGate group says **Set your call first**.
-2. **Request a passcode** (below), and type it into **Passcode**.
-3. Tick **Gate to APRS-IS**.
+2. Tick **Gate to APRS-IS**. The **Passcode** field and the status line appear as soon as it is ticked.
+3. **Request a passcode** (below), and type it into **Passcode**.
 
 The status line says what it is waiting for, or that it is connected. Without a passcode nothing is gated, and the internet stations still show. If the server does not accept the passcode, the pill says **not verified**, nothing is gated, the stations of the internet still show, and the iGate does not log in again with it until you change a setting.
 

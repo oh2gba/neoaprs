@@ -9,6 +9,9 @@ export const objects = {
 
   "objects.none": "No objects.",
   "objects.list": "Objects",
+  "objects.about_label": "About objects",
+  "objects.about1": "An object is a marker you put on the map for something that is not a station: a repeater, a meeting point, an event.",
+  "objects.about2": "Everyone near you sees it, as long as you send it.",
   "objects.edit_label": "Edit {name}",
   "objects.delete_title": "Delete (kill on the air)",
   "objects.delete_label": { select: "kind", object: "Delete the object {name}", item: "Delete the item {name}", other: "Delete the object {name}" },

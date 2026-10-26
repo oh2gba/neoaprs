@@ -3,6 +3,7 @@
 // (or the overheard pair) after "sure?": the one way to delete, a single message has no button.
 import IconButton from "@/components/IconButton.vue";
 import InfoTip from "@/components/InfoTip.vue";
+import TabHelp from "@/components/TabHelp.vue";
 import { t } from "@/i18n";
 import { useSure } from "@/composables/useSure";
 import { ageText } from "@/lib/format";
@@ -37,6 +38,10 @@ function remove(call: string): void {
 
 <template>
   <section class="convlist" :aria-label="t('messages.conversations')">
+    <TabHelp :label="t('messages.about_label')">
+      <span class="info-line">{{ t("messages.about1") }}</span>
+      <span class="info-line">{{ t("messages.about2") }}</span>
+    </TabHelp>
     <div class="convlist-head">
       <div class="convlist-overheard">
         <label class="check"

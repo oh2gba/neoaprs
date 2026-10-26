@@ -29,10 +29,18 @@ beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 
 describe("BeaconPane", () => {
+  it("has the (i) of the tab at the top, which says what the beacon is, with its picture", async () => {
+    const { wrapper } = pane();
+    await wrapper.find(".tab-help .info-toggle").trigger("click");
+    expect(wrapper.find(".tab-help .info-text").text()).toContain("The beacon is your position, sent every so often");
+    expect(wrapper.find(".tab-help svg[data-picture='beacon']").exists()).toBe(true);
+  });
+
   it("opens with the form, which starts with the beacon status", () => {
     const { wrapper } = pane();
     expect(wrapper.find(".beaconbox").exists()).toBe(false);
-    expect(wrapper.find(".beaconpane").element.firstElementChild?.tagName).toBe("FORM");
+    expect(wrapper.find(".beaconpane").element.firstElementChild?.className).toBe("tab-help");
+    expect(wrapper.find(".beaconpane").element.children[1]?.tagName).toBe("FORM");
     expect(block(wrapper).element.parentElement?.tagName).toBe("FORM");
     expect(block(wrapper).element.nextElementSibling?.tagName).toBe("FIELDSET");
     expect(block(wrapper).element.nextElementSibling?.querySelector("legend")?.textContent).toBe("Station");

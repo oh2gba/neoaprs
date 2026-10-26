@@ -47,8 +47,8 @@ describe("EmailPane: the top", () => {
     expect(wrapper.find(".info-text").exists()).toBe(false);
     await wrapper.find(".info-toggle").trigger("click");
     expect(wrapper.findAll(".info-text .info-line").map((l) => l.text())).toEqual([
-      "Mail goes through the internet gateway EMAIL-2 via an iGate, so a mail can show Not confirmed although it arrived.",
-      "Check email asks the gateway for mail it kept for you (it keeps mail for 24 hours).",
+      "Mail goes through the internet gateway EMAIL-2, so a mail can show Not confirmed although it arrived.",
+      "Check email asks the gateway for the mail it kept for you (24 hours).",
     ]);
     expect(wrapper.findAll("p.mail-meta")[0]?.text()).not.toContain("iGate");
     wrapper.unmount();

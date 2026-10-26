@@ -26,6 +26,14 @@ function make(selected: string | null = null, aging: Aging = never, stations = r
 beforeEach(() => localStorage.clear());
 
 describe("StationsTable", () => {
+  it("has the (i) of the tab at the top, which says what the list is and what the tick means", async () => {
+    const wrapper = make();
+    expect(wrapper.find(".tablepane").element.firstElementChild?.className).toBe("tab-help");
+    await wrapper.find(".tab-help .info-toggle").trigger("click");
+    expect(wrapper.find(".tab-help .info-text").text()).toContain("Every station heard, with its distance and direction from you.");
+    expect(wrapper.find(".tab-help .info-text").text()).toContain("heard direct, with no digipeater");
+  });
+
   it("lists our station first and the others by how recently they were heard", () => {
     expect(calls(make())).toEqual(["OH2GBA", "OH2RDG", "OH2PU-9", "OH2NOPOS"]);
   });

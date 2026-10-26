@@ -2,11 +2,12 @@
 // The Objects tab: the objects and items of ours, oldest first, each with its symbol, its name, what kind it is, its QRU group if it has one, how often it was sent and when it goes out next (or that it is sent only when asked), and its comment; the delete button
 // at its corner kills it (two presses, the second after "sure?": the killed form goes out three times and it is forgotten). The rows are selectable like the rows of the Nearby tab (a click or Enter highlights the row and says `select`, which selects the object on the map as
 // a click there does), and the form under the list (components/ObjectForm.vue, always there) changes the selected object: Save; with none selected it adds a new object: Add. An object whose kill is going out is not selectable and has no delete. The list fills the tab above
-// the form and is scrolled to the newest object; it scrolls on its own and the form keeps its height (its fields scroll), so that on a phone both are within reach.
+// the form and is scrolled to the newest object (an (i) at the top, TabHelp, says what an object is); it scrolls on its own and the form keeps its height (its fields scroll), so that on a phone both are within reach.
 import { computed, nextTick, ref, watch } from "vue";
 import IconButton from "@/components/IconButton.vue";
 import ObjectForm from "@/components/ObjectForm.vue";
 import SymbolIcon from "@/components/SymbolIcon.vue";
+import TabHelp from "@/components/TabHelp.vue";
 import { t } from "@/i18n";
 import type { OwnObjectsView } from "@/composables/useOwnObjects";
 import { useDaemonContext } from "@/composables/useDaemonContext";
@@ -43,6 +44,10 @@ watch(
 
 <template>
   <div class="objectspane">
+    <TabHelp :label="t('objects.about_label')" picture="object">
+      <span class="info-line">{{ t("objects.about1") }}</span>
+      <span class="info-line">{{ t("objects.about2") }}</span>
+    </TabHelp>
     <div ref="log" class="objectlist">
       <p v-if="rows.length === 0" class="empty">{{ t("objects.none") }}</p>
       <ul class="board ownobjects" :aria-label="t('objects.list')">

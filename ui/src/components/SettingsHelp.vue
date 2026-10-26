@@ -26,7 +26,7 @@ const label = computed(() => (logs.running.value ? t("settings.help.collecting")
     </p>
     <div class="field-control">
       <button class="btn" type="button" :disabled="logs.running.value" @click="logs.collect">{{ label }}</button>
-      <InfoTip :label="t('settings.help.tip_label')">
+      <InfoTip :label="t('settings.help.tip_label')" picture="logs">
         <span class="info-line">{{ t("settings.help.tip") }}</span>
       </InfoTip>
     </div>

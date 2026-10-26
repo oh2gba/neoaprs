@@ -9,6 +9,9 @@ export const bulletins: Record<keyof typeof source, Message> = {
   "bulletins.section.nws": "気象機関",
 
   "bulletins.empty": "掲示板は空です。",
+  "bulletins.about_label": "掲示について",
+  "bulletins.about1": "掲示は全員宛てのメッセージで、すべての局の掲示板に表示されます。",
+  "bulletins.about2": "ネットの時間、イベント、警告などに使います。",
   "bulletins.delete_title": "削除(送信を停止)",
   "bulletins.delete_own": "自局の掲示 {slot} を削除",
   "bulletins.delete": "{sender}の掲示 {slot} を削除",
@@ -24,8 +27,7 @@ export const bulletins: Record<keyof typeof source, Message> = {
   "bulletins.kind.announcement": "お知らせ",
   "bulletins.kind.group": "グループ宛ての掲示",
   "bulletins.kinds_help_label": "種類について",
-  "bulletins.kinds_help":
-    "掲示は全員宛てで、応答確認はありません。グループ宛ての掲示は、そのグループ名を受信する局向けです。特定の局に、それぞれの応答確認つきで届けたいときは、メッセージ(「メッセージ」タブ、「局」)を送ってください。",
+  "bulletins.kinds_help": "掲示は全員に見え、応答確認はありません。グループ掲示は、そのグループ名を受信する局向けです。",
   "bulletins.letter": "文字",
   "bulletins.number": "番号",
   "bulletins.group": "グループ",

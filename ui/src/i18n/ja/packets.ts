@@ -5,6 +5,9 @@ import type { Message } from "@/i18n/message";
 export const packets: Record<keyof typeof source, Message> = {
   "packets.filter": "絞り込み",
   "packets.filter_title": "コールサイン、テキスト、種類",
+  "packets.about_label": "パケットについて",
+  "packets.about1": "受信した(in)または送信した(out)すべてのパケットを、新しい順に、電波に載ったままの形で表示します。",
+  "packets.about2": "パケットをクリックすると、NeoAPRS が何と解釈したかが分かります。",
   "packets.filter_label": "パケットを絞り込む",
   "packets.col.time": "時刻",
   "packets.col.dir": "方向",

@@ -1,0 +1,74 @@
+/* The pictures of the (i) notes (help/): one flat style, drawn with the page's own colours so that they follow light and dark: lines in the text colour, the roads and frames in the border colour, what is sent in the accent colour. */
+.hp {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: 6px;
+  color: var(--text);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.hp-map {
+  fill: var(--bg);
+  stroke: none;
+}
+.hp-road {
+  stroke: var(--border);
+  stroke-width: 4;
+}
+.hp-frame {
+  stroke: var(--border);
+}
+.hp-card {
+  fill: var(--panel);
+  stroke: var(--border);
+}
+.hp-solid {
+  fill: var(--panel);
+  stroke: var(--muted);
+}
+.hp-lit {
+  stroke: var(--accent);
+}
+.hp-flow {
+  stroke: var(--accent);
+}
+.hp-dim {
+  stroke: var(--muted);
+}
+.hp-dash {
+  stroke-dasharray: 4 3;
+}
+.hp-ok {
+  stroke: var(--ok);
+}
+.hp-bad {
+  stroke: var(--bad);
+}
+.hp-wash {
+  fill: var(--accent);
+  fill-opacity: 0.12;
+  stroke: var(--accent);
+}
+.hp-fill {
+  fill: var(--accent);
+  stroke: none;
+}
+.hp-faded {
+  opacity: 0.5;
+}
+.hp-label {
+  fill: currentColor;
+  stroke: none;
+  font: 600 10px var(--mono);
+  text-anchor: middle;
+}
+.hp-label-start {
+  text-anchor: start;
+}
+.hp-on-accent {
+  fill: var(--accent-text);
+}

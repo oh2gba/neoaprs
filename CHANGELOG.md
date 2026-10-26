@@ -15,10 +15,11 @@ An iGate with internet stations on the map, a world map and a Dummy radio to try
 - **Find my radio** works on Windows and macOS, and in the setup's Radio step, which also has the **Terminal**.
 - Tabs that do not fit sit under a **More** tab.
 - A page that does not match NeoAPRS says so and offers **Reload**.
-- Settings hide what a switched-off choice does not need: the alert's command, the browser's sounds, the Status fields.
+- Settings hide what a switched-off choice does not need: the alert's command, the browser's sounds, the Status fields, the iGate's passcode.
 - The Objects form keeps Path and QRU under Advanced, and every field has an (i).
 - **Settings → Help** is one line and a **Download logs** button.
 - The Beacon tab no longer has the Preview of the packet.
+- Help with pictures, and an (i) on every tab and setting.
 
 ## 0.9.1
 

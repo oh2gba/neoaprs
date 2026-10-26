@@ -15,6 +15,9 @@ export const beacon = {
   "beacon.really_send": "Really send?",
   "beacon.rigctld_on": "rigctld on",
   "beacon.rigctld_off": "rigctld off",
+  "beacon.about_label": "About the Beacon tab",
+  "beacon.about1": "The beacon is your position, sent every so often so that other stations see you on the map.",
+  "beacon.about2": "Here you set who you are, where, and what the beacon says.",
 
   "gps.label": "GPS",
   "gps.state.off": "off",

@@ -12,6 +12,9 @@ export const objects: Record<keyof typeof source, Message> = {
 
   "objects.none": "Nenhum objeto.",
   "objects.list": "Objetos",
+  "objects.about_label": "Sobre objetos",
+  "objects.about1": "Um objeto é um marcador que você coloca no mapa para algo que não é uma estação: um repetidor, um ponto de encontro, um evento.",
+  "objects.about2": "Todos perto de você o veem, enquanto você o enviar.",
   "objects.edit_label": "Editar {name}",
   "objects.delete_title": "Excluir (encerrar no ar)",
   "objects.delete_label": { select: "kind", object: "Excluir o objeto {name}", item: "Excluir o item {name}", other: "Excluir o objeto {name}" },

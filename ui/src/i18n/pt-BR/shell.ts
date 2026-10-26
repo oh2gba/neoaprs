@@ -56,4 +56,5 @@ export const shell: Record<keyof typeof source, Message> = {
   "mismatch.reload": "Recarregar",
 
   "settings.language.label": "Idioma",
+  "settings.language.tip1": "O idioma desta página. Cada navegador e dispositivo lembra o seu.",
 };

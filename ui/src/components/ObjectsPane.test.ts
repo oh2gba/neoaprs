@@ -26,6 +26,16 @@ const rows = [
 ];
 
 describe("ObjectsPane", () => {
+  it("has an (i) at the top that says what an object is, with a picture", async () => {
+    const { wrapper } = pane();
+    const bar = wrapper.find(".tab-help");
+    expect((wrapper.element as HTMLElement).firstElementChild).toBe(bar.element);
+    await bar.find("button.info-toggle").trigger("click");
+    expect(bar.find(".info-text").text()).toContain("An object is a marker you put on the map for something that is not a station");
+    expect(bar.find(".info-text").text()).toContain("Everyone near you sees it, as long as you send it.");
+    expect(bar.find("svg[data-picture='object']").exists()).toBe(true);
+  });
+
   it("says so when there are none, and has the form for a new object under it, with no New button", () => {
     const { wrapper } = pane();
     expect(wrapper.find(".empty").text()).toBe("No objects.");
@@ -143,7 +153,7 @@ describe("ObjectsPane", () => {
 
   it("keeps the list scrolling on its own above the form, which keeps its height and scrolls its fields", () => {
     const { wrapper } = pane(rows);
-    expect([...wrapper.find(".objectspane").element.children].map((c) => c.className.split(" ")[0])).toEqual(["objectlist", "composebar"]);
+    expect([...wrapper.find(".objectspane").element.children].map((c) => c.className.split(" ")[0])).toEqual(["tab-help", "objectlist", "composebar"]);
     expect(cssRule(".objectlist")).toMatch(/overflow-y:\s*auto/);
     expect(cssRule(".objectlist")).toMatch(/min-height:\s*8em/);
     expect(cssRule(".objectspane .composebar.scrolls")).toMatch(/max-height:\s*55dvh/);

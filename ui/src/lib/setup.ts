@@ -5,7 +5,7 @@ import type { MessageId } from "@/i18n/catalogue";
 import { normalizeCall } from "@/lib/calls";
 import { callOk, parseNumber, problemOf, symbolProblem } from "@/lib/fieldcheck";
 import { lazyText } from "@/lib/lazytext";
-import type { Choice } from "@/lib/settings";
+import type { Choice } from "@/lib/settingchoices";
 import { portForProfile, speedFallback } from "@/lib/tncprofile";
 import { TNC_PROFILES } from "@/protocol/lists";
 import type { PortsMessage } from "@/protocol/protocol";

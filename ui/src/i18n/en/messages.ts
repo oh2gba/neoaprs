@@ -2,6 +2,9 @@
 // the boxes to write in say about their limits (every tab with one).
 export const messages = {
   "messages.conversations": "Conversations",
+  "messages.about_label": "About messages",
+  "messages.about1": "A message is a short text to one station, which acknowledges it.",
+  "messages.about2": "Start one with Message on a station's card or in the Stations tab.",
   "messages.show_overheard": "Show overheard",
   "messages.overheard_help_label": "What overheard means",
   "messages.overheard_help": "Messages that other stations sent to each other and that we heard on the radio.",

@@ -61,6 +61,15 @@ async function pane({
 }
 
 describe("MessagesPane, wide", () => {
+  it("has the (i) of the tab at the top of the list, which says what a message is and where one starts", async () => {
+    const wrapper = await pane();
+    expect(wrapper.find(".convlist").element.firstElementChild?.className).toBe("tab-help");
+    await wrapper.find(".tab-help .info-toggle").trigger("click");
+    expect(wrapper.find(".tab-help .info-text").text()).toContain("A message is a short text to one station, which acknowledges it.");
+    expect(wrapper.find(".tab-help .info-text").text()).toContain("Message on a station's card");
+    wrapper.unmount();
+  });
+
   it("lists the conversations with the count of unread messages and the newest text", async () => {
     const items = (await pane()).findAll(".conv");
     expect(items.map((i) => i.find(".conv-call").text())).toEqual(["OH2XYZ", "OH2RDG"]);

@@ -18,15 +18,8 @@ const ALLOWED_OBJECTS: Record<string, string> = {
   Longitude: "part of the Location control: a coordinate, in degrees",
   Locator: "part of the Location control: a Maidenhead locator, which the field shows",
 };
-const ALLOWED_SETTINGS: Record<string, string> = {
-  Call: "a call sign is what it says",
-  Language: "the choice is the languages' own names",
-  "TCP host": "an address, which the placeholder shows",
-  "TCP port": "a number, with the programs' usual ports in its title",
-  Alert: "the (i) of its group, On the NeoAPRS computer, explains the alert and its command",
-  Command: "the (i) of its group, On the NeoAPRS computer, explains the alert and its command",
-  "Alert for a new message": "the choice names what each answer does (off, sound, pop-up)",
-};
+// (the Settings tab has none: every field has its (i))
+const ALLOWED_SETTINGS: Record<string, string> = {};
 
 /** The labelled controls of a mounted surface with no (i) in their own field, by the text of their label. */
 function untipped(root: Element): string[] {
@@ -69,6 +62,7 @@ describe("every field has an (i)", () => {
     // (a radio on the network, a GPS on a serial port and the rest that only some settings show)
     const scenes: [Scope, Record<string, string>][] = [
       ["settings", {}],
+      ["settings", { "igate/enabled": "true", "messages/alert": "true" }],
       ["settings", { "tnc/profile": "network", "tcp/host": "192.168.1.5", "tcp/port": "8001" }],
       ["beacon", { "gps/source": "serial", "gps/baud": "9600" }],
       ["beacon", { "gps/source": "gpsd" }],

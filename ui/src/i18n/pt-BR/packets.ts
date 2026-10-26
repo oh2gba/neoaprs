@@ -5,6 +5,9 @@ import type { Message } from "@/i18n/message";
 export const packets: Record<keyof typeof source, Message> = {
   "packets.filter": "Filtrar",
   "packets.filter_title": "Indicativo, texto, tipo",
+  "packets.about_label": "Sobre os pacotes",
+  "packets.about1": "Cada pacote ouvido (in) ou enviado por você (out), o mais novo primeiro, como passou pelo ar.",
+  "packets.about2": "Clique em um pacote para ver o que o NeoAPRS fez dele.",
   "packets.filter_label": "Filtrar os pacotes",
   "packets.col.time": "Hora",
   "packets.col.dir": "Dir",

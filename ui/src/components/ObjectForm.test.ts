@@ -141,8 +141,8 @@ describe("ObjectForm", () => {
     const { wrapper, field, view } = form();
     expect(field("Symbol")?.find("input").exists()).toBe(false);
     expect(field("Symbol")?.find(".symicon .stn-layer").exists()).toBe(true);
-    expect(field("Symbol")?.findAll("button")).toHaveLength(1); // (the picture and its name are the button: there is no Change)
-    await field("Symbol")?.find("button").trigger("click");
+    expect(field("Symbol")?.findAll("button:not(.info-toggle)")).toHaveLength(1); // (the picture and its name are the button: there is no Change)
+    await field("Symbol")?.find("button.symbolbtn").trigger("click");
     const house = wrapper.findAll(".sympick-symbol").find((b) => b.text() === "House");
     await house?.trigger("click");
     expect(view.draft.symbol).toBe("/-");
@@ -344,9 +344,9 @@ describe("ObjectForm", () => {
       await tip?.trigger("click");
       expect(wrapper.findAll(".info-text .info-line"), label).toHaveLength(1);
       if (label === "QRU group")
-        expect(wrapper.find(".info-text").text()).toBe("A word (1–8 letters or digits) a station sends to QRU to get the objects of this group.");
+        expect(wrapper.find(".info-text .info-line").text()).toBe("A word (1–8 letters or digits) a station sends to QRU to get the objects of this group.");
       if (label === "Send only when asked")
-        expect(wrapper.find(".info-text").text()).toBe("Not beaconed; sent only to a station that asks with ?APRSO or QRU.");
+        expect(wrapper.find(".info-text .info-line").text()).toBe("Not beaconed; sent only to a station that asks with ?APRSO or QRU.");
       await tip?.trigger("click");
     }
   });

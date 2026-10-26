@@ -54,4 +54,5 @@ export const shell: Readonly<Record<keyof typeof en, Message>> = {
   "mismatch.reload": "Ricarica",
 
   "settings.language.label": "Lingua",
+  "settings.language.tip1": "La lingua di questa pagina. Ogni browser e dispositivo ricorda la propria scelta.",
 };

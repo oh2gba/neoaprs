@@ -6,7 +6,8 @@ import { computed, ref, watch } from "vue";
 import SettingsField from "@/components/SettingsField.vue";
 import { t } from "@/i18n";
 import { DIRECT, callListText } from "@/lib/calls";
-import type { Choice, FieldInfo } from "@/lib/settings";
+import type { Choice } from "@/lib/settingchoices";
+import type { FieldInfo } from "@/lib/settings";
 
 const props = defineProps<{ id: string; info: FieldInfo; modelValue: string; error: string; changed: boolean; recommended: string; disabled?: boolean }>();
 const emit = defineEmits<{ "update:modelValue": [value: string]; choose: [value: string]; commit: [next: EventTarget | null]; cancel: [] }>();

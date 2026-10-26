@@ -1,5 +1,7 @@
 # Bulletins: the message board
 
+A bulletin is a message to everyone, shown on every station's board. Use it for net times, events, warnings. The (i) at the top of the tab says so with a picture.
+
 The Bulletins tab shows the message board and has a box at its bottom to post to it.
 
 ## The board

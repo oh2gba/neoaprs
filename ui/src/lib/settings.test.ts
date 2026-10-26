@@ -235,7 +235,7 @@ describe("groupKeys", () => {
     expect(FIELDS["gps/baud"]?.unit).toBe("baud");
     expect(["beacon/mobile", "smart/fast_kmh", "smart/turn_slope"].map((k) => FIELDS[k])).toEqual([undefined, undefined, undefined]);
     const tip = (key: string) => (FIELDS[key]?.tip ?? []).join(" ");
-    expect(tip("gps/host")).toContain("2947");
+    expect(tip("gps/host")).toContain("host:port");
   });
   it("gives a unit to the keys that are counted in one", () => {
     expect(["map/radius_km"].map((k) => FIELDS[k]?.unit)).toEqual(["km"]);

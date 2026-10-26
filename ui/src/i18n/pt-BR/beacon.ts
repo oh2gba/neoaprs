@@ -18,6 +18,9 @@ export const beacon: Record<keyof typeof source, Message> = {
   "beacon.really_send": "Enviar mesmo?",
   "beacon.rigctld_on": "rigctld ligado",
   "beacon.rigctld_off": "rigctld desligado",
+  "beacon.about_label": "Sobre a aba Beacon",
+  "beacon.about1": "O beacon é a sua posição, enviada de tempos em tempos para que as outras estações vejam você no mapa.",
+  "beacon.about2": "Aqui você define quem é, onde, e o que o beacon diz.",
 
   "gps.label": "GPS",
   "gps.state.off": "desligado",

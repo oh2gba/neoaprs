@@ -106,9 +106,10 @@ describe("the Web page group", () => {
     expect(box.attributes("type")).toBe("checkbox");
     expect(box.element.checked).toBe(false);
     await wrapper.find("button[aria-label='About the secure connection']").trigger("click");
-    expect(wrapper.find(".info-text").text()).toBe(
-      "Needed for pop-ups on phones and for installing NeoAPRS as an app. Browsers show a warning the first time; you can continue past it, or install NeoAPRS's certificate on each device to make the warning go away.",
-    );
+    expect(wrapper.findAll(".info-text .info-line").map((l) => l.text())).toEqual([
+      "Needed for pop-ups on phones and to install NeoAPRS as an app.",
+      "The browser warns about the certificate the first time: you can continue past it.",
+    ]);
     expect(settings(OFF, {}).find("#set-web-https").exists()).toBe(false);
   });
 

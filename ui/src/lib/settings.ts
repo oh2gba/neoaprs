@@ -5,16 +5,26 @@ import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
 import { errorReason, type Failure } from "@/i18n/errortext";
 import type { Params } from "@/i18n/message";
-import { STATION_HOURS, STATION_HOURS_KEY } from "@/lib/aging";
+import { STATION_HOURS_KEY } from "@/lib/aging";
 import { ANTENNA, beaconOff } from "@/lib/beaconoff";
+import type { PictureName } from "@/help/names";
 import { isMoving } from "@/lib/gpsstatus";
 import { lazyText } from "@/lib/lazytext";
+import {
+  beaconChoices,
+  directionChoices,
+  every,
+  MOVING_BEACON_ON,
+  movingBeaconChoices,
+  positionChoices,
+  statusIntervalChoices,
+  stationHoursChoices,
+  travelChoices,
+  type Choice,
+} from "@/lib/settingchoices";
 import { STATUS_CHOICES, statusShown, statusSource } from "@/lib/status";
 import { profileOf } from "@/lib/tncprofile";
 import { CONFIG_KEYS, LIMITS, TNC_PROFILES } from "@/protocol/lists";
-
-/** What On stores for a moving station that was Off: the interval a fixed station is offered first (the daemon does not use it there). */
-const MOVING_BEACON_ON = "30";
 
 type FieldKind = "text" | "bool" | "readonly" | "choice" | "password";
 
@@ -32,16 +42,13 @@ export interface FieldInfo {
   tip?: readonly string[];
   /** What the (i) is called for a screen reader and on hover; else "About" and the label. */
   tipLabel?: string;
+  /** The picture the note of the (i) shows under its text (help/), when a picture says it better. */
+  picture?: PictureName;
   kind?: FieldKind;
   /** The values a `choice` offers: the text of the setting, or the text with the words it is shown as. */
   choices?: readonly (string | Choice)[];
   /** The words for a value that is none of the choices (a setting stored from the shell): "Every 20 min"; else the value itself. */
   other?: (value: string) => string;
-}
-
-export interface Choice {
-  value: string;
-  label: string;
 }
 
 /** A text of the page: the id of a message, the id with its values, or a function that makes the words (for what is no message: a port, an address). */
@@ -62,6 +69,7 @@ interface FieldSpec {
   title?: Say;
   tip?: readonly Say[];
   tipLabel?: Say;
+  picture?: PictureName;
   kind?: FieldKind;
   choices?: () => readonly (string | Choice)[];
   other?: (value: string) => string;
@@ -83,69 +91,20 @@ function field(spec: FieldSpec): FieldInfo {
   if (spec.choices !== undefined) Object.defineProperty(info, "choices", { enumerable: true, get: spec.choices });
   if (spec.unit !== undefined) info.unit = spec.unit;
   if (spec.kind !== undefined) info.kind = spec.kind;
+  if (spec.picture !== undefined) info.picture = spec.picture;
   if (spec.other !== undefined) info.other = spec.other;
   return info;
 }
 
-const every = (minutes: number | string): string => t("settings.every_min", { minutes });
-
-/** The status's choices: every 30 or 60 minutes or every 2 hours (15 is the least the daemon takes). */
-const statusIntervalChoices = (): readonly Choice[] => [
-  { value: "30", label: every(30) },
-  { value: "60", label: every(60) },
-  { value: "120", label: t("settings.every_hours", { n: 2 }) },
-];
-
-/** The beacon's choices: off, or every 30 or 60 minutes or every 3 hours (20 is the least the daemon takes; a stored 20 shows as one more choice). */
-const beaconChoices = (): readonly Choice[] => [
-  { value: "0", label: t("settings.beacon_interval.off") },
-  { value: "30", label: every(30) },
-  { value: "60", label: every(60) },
-  { value: "180", label: t("settings.every_hours", { n: 3 }) },
-];
-
-/** How long a station stays on the map: 1 h, 3 h, 6 h, 12 h or 24 h (the Stations tab offers them). */
-const stationHoursChoices = (): readonly Choice[] => STATION_HOURS.map((hours) => ({ value: String(hours), label: t("station.table.hours", { n: hours }) }));
-
-/** The beacon of a station that moves (a GPS is chosen): Off, or On, which SmartBeaconing times. On stores the interval a fixed station is offered first; a moving station does not use it. */
-const movingBeaconChoices = (): readonly Choice[] => [
-  { value: "0", label: t("settings.beacon_interval.off") },
-  { value: MOVING_BEACON_ON, label: t("settings.beacon_interval.on_smart") },
-];
-
-const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
-const directionChoices = (): readonly Choice[] => [
-  { value: "omni", label: t("settings.antenna_direction.omni") },
-  ...COMPASS.map((point) => ({ value: point, label: point })),
-];
-
 const GAIN = LIMITS.range["beacon/antenna_gain_db"];
 
-/** Where the position of the beacon comes from (gps/source): Fixed (a station at its stored location), a GPS read through gpsd, or a GPS on a serial port (a moving station). */
-const positionChoices = (): readonly Choice[] => [
-  { value: "off", label: t("settings.position.fixed") },
-  { value: "gpsd", label: t("settings.position.gpsd") },
-  { value: "serial", label: t("settings.position.serial") },
-];
-
-/** How a moving station travels (beacon/travel), the way SmartBeaconing is set for it; the car is the daemon's default. */
-const travelChoices = (): readonly Choice[] => [
-  { value: "car", label: t("settings.travel.car") },
-  { value: "bicycle", label: t("settings.travel.bicycle") },
-  { value: "foot", label: t("settings.travel.foot") },
-  { value: "boat", label: t("settings.travel.boat") },
-];
-
 const SPECS: Record<string, FieldSpec> = {
-  "station/call": { label: "settings.call.label" },
+  "station/call": { label: "settings.call.label", tip: ["settings.call.tip1", "settings.call.tip2"], picture: "ssid" },
   "station/lat": { label: "settings.lat.label", unit: "°" },
   "station/lon": { label: "settings.lon.label", unit: "°" },
   "station/symbol_table": { name: "settings.symbol.label", label: "settings.symbol.label" },
   "station/symbol_code": { name: "settings.symbol.label", label: "settings.symbol_code.label" },
-  "station/comment": {
-    label: "settings.comment.label",
-    tip: [["settings.comment.tip1", { max: LIMITS.comment.max, with_phg: LIMITS.comment.maxWithPhg }], "settings.comment.tip2"],
-  },
+  "station/comment": { label: "settings.comment.label", tip: [["settings.comment.tip1", { max: LIMITS.comment.max }], "settings.comment.tip2"] },
   "station/status": {
     name: "settings.station_status.name",
     label: "settings.station_status.label",
@@ -179,14 +138,14 @@ const SPECS: Record<string, FieldSpec> = {
     kind: "choice",
     choices: () => TNC_PROFILES.map((p) => ({ value: p.key, label: p.name })),
     tipLabel: "settings.profile.tip_label",
-    tip: ["settings.profile.tip1", "settings.profile.tip2", "settings.profile.tip3", "settings.profile.tip4", "settings.profile.tip5"],
+    tip: ["settings.profile.tip1", "settings.profile.tip2"],
   },
   "serial/port": {
     name: "settings.port.name",
     label: "settings.port.label",
     empty: plain("/dev/ttyUSB0"),
     tipLabel: "settings.port.tip_label",
-    tip: ["settings.port.tip1", "settings.port.tip2", "settings.port.tip3"],
+    tip: ["settings.port.tip1", "settings.port.tip2"],
   },
   "serial/baud": {
     name: "settings.baud.name",
@@ -195,8 +154,8 @@ const SPECS: Record<string, FieldSpec> = {
     tipLabel: "settings.baud.tip_label",
     tip: ["settings.baud.tip1", "settings.baud.tip2"],
   },
-  "tcp/host": { label: "settings.tcp_host.label" },
-  "tcp/port": { label: "settings.tcp_port.label", title: "settings.tcp_port.title" },
+  "tcp/host": { label: "settings.tcp_host.label", tip: ["settings.tcp_host.tip1"] },
+  "tcp/port": { label: "settings.tcp_port.label", title: "settings.tcp_port.title", tip: ["settings.tcp_port.tip1"] },
   "serial/last_port": { label: "settings.last_port.label", kind: "readonly", empty: plain("-") },
   "web/network": {
     name: "settings.network.name",
@@ -204,19 +163,21 @@ const SPECS: Record<string, FieldSpec> = {
     kind: "bool",
     tipLabel: "settings.network.tip_label",
     tip: ["settings.network.tip1", "settings.network.tip2"],
+    picture: "network",
   },
   "web/key": {
     label: "settings.access_key.label",
     kind: "readonly",
     tipLabel: "settings.access_key.tip_label",
     tip: ["settings.access_key.tip1", "settings.access_key.tip2"],
+    picture: "accesskey",
   },
   "web/https": {
     name: "settings.https.name",
     label: "settings.https.label",
     kind: "bool",
     tipLabel: "settings.https.tip_label",
-    tip: ["settings.https.tip1"],
+    tip: ["settings.https.tip1", "settings.https.tip2"],
   },
   "map/radius_km": {
     name: "settings.radius.name",
@@ -224,6 +185,7 @@ const SPECS: Record<string, FieldSpec> = {
     unit: "km",
     tipLabel: "settings.radius.tip_label",
     tip: ["settings.radius.tip1", "settings.radius.tip2"],
+    picture: "radius",
   },
   [STATION_HOURS_KEY]: { name: "settings.station_hours.name", label: "station.table.on_map", kind: "choice", choices: stationHoursChoices },
   "digi/enabled": {
@@ -231,6 +193,7 @@ const SPECS: Record<string, FieldSpec> = {
     kind: "bool",
     tipLabel: "settings.digipeater.tip_label",
     tip: ["settings.digipeater.tip1", "settings.digipeater.tip2"],
+    picture: "digipeater",
   },
   "igate/enabled": {
     name: "settings.igate.name",
@@ -238,15 +201,17 @@ const SPECS: Record<string, FieldSpec> = {
     kind: "bool",
     tipLabel: "settings.igate.tip_label",
     tip: ["settings.igate.tip1", "settings.igate.tip2"],
+    picture: "igate",
   },
   "igate/password": { label: "settings.igate_password.label", kind: "password", empty: "settings.none", tip: ["settings.igate_password.tip1"] },
-  "messages/alert": { name: "settings.alert.label", label: "settings.alert.label", kind: "bool" },
-  "messages/alert_command": { name: "settings.alert_command.name", label: "settings.alert_command.label" },
+  "messages/alert": { name: "settings.alert.label", label: "settings.alert.label", kind: "bool", tip: ["settings.alert.tip1"] },
+  "messages/alert_command": { name: "settings.alert_command.name", label: "settings.alert_command.label", tip: ["settings.alert_command.tip1"] },
   "status/source": {
     label: "settings.status_source.label",
     kind: "choice",
     choices: () => STATUS_CHOICES,
     tip: ["settings.status_source.tip1"],
+    picture: "status",
   },
   "status/rigctld": {
     label: "settings.status_rigctld.label",
@@ -272,19 +237,17 @@ const SPECS: Record<string, FieldSpec> = {
     kind: "choice",
     choices: beaconChoices,
     other: every,
-    tip: [["settings.beacon_interval.tip1", { min: LIMITS.interval.beaconMinMin }]],
+    tip: [["settings.beacon_interval.tip1", { min: LIMITS.interval.beaconMinMin }], "settings.beacon_interval.tip2"],
+    picture: "beacon",
   },
-  "beacon/path": {
-    name: "settings.path.name",
-    label: "settings.path.label",
-    tip: ["settings.path.tip1", "settings.path.tip2"],
-  },
+  "beacon/path": { name: "settings.path.name", label: "settings.path.label", tip: ["settings.path.tip1", "settings.path.tip2"], picture: "path" },
   "gps/source": {
     name: "settings.position.name",
     label: "settings.position.label",
     kind: "choice",
     choices: positionChoices,
     tip: ["settings.position.tip1", "settings.position.tip2"],
+    picture: "position",
   },
   "gps/host": { label: "settings.gps_host.label", tip: ["settings.gps_host.tip1"] },
   "gps/device": {
@@ -311,9 +274,13 @@ export const FIELDS: Record<string, FieldInfo> = Object.fromEntries(Object.entri
 /** The settings of the daemon's own alert, which the Notifications group shows (beside the alert of the browser, which is the page's). */
 const ALERT = ["messages/alert", "messages/alert_command"];
 
-/** Whether a setting of the daemon's own alert is shown for these values: the command (and its Test button) only while the alert is on; an alert the values do not mention is the daemon's default, on. */
-export function shownByAlert(key: string, values: Readonly<Record<string, string>>): boolean {
-  return key !== "messages/alert_command" || values["messages/alert"] !== "false";
+/** Whether the iGate is switched on in these values (it is off unless the values say so). */
+export const igateOn = (values: Readonly<Record<string, string>>): boolean => values["igate/enabled"] === "true";
+
+/** Whether a setting that depends on a switch is shown: the alert's command (and its Test button) only while the alert is on (an alert the values do not mention is the daemon's default, on), the iGate's passcode only while the iGate is on. */
+function shownBySwitch(key: string, values: Readonly<Record<string, string>>): boolean {
+  if (key === "messages/alert_command") return values["messages/alert"] !== "false";
+  return key !== "igate/password" || igateOn(values);
 }
 
 /** The legend of the box that starts at a key inside its group (components/SettingsBox.vue): the daemon's own alert, which runs on the computer NeoAPRS runs on, whichever device shows the page. */
@@ -329,7 +296,7 @@ export const SUBGROUPS: Record<string, { readonly text: string; readonly title: 
       return t("settings.alerts.tip_label");
     },
     get tip() {
-      return [t("settings.alerts.tip1"), t("settings.alerts.tip2"), t("settings.alerts.tip3")];
+      return [t("settings.alerts.tip1"), t("settings.alerts.tip2")];
     },
   },
 };
@@ -466,7 +433,7 @@ export function valueFor(key: string, values: Readonly<Record<string, string>>):
 /** Whether a field of the Beacon tab is shown for the values the form holds: the Status group shows what its source needs; the position's own fields follow its choice (the address of gpsd for gpsd, the port and speed for a serial GPS; the station's place only for a fixed station, with a GPS the place stays stored and the daemon uses it until the first fix); a station that moves
  * (a GPS is chosen) has the Travelling choice, and no antenna, which is a fixed station's (the antenna's height, gain and direction come once there is a power: they only make the PHG code with it); the Beacon choice is shown to both, with other choices (an interval, or Off and On). */
 export function shownByValues(key: string, values: Readonly<Record<string, string>>): boolean {
-  if (!shownByAlert(key, values)) return false;
+  if (!shownBySwitch(key, values)) return false;
   if (key.startsWith("status/") || key === "station/status") return statusShown(key, statusSource(values));
   if (ANTENNA.includes(key)) return !isMoving(values) && (key === "beacon/power_w" || (values["beacon/power_w"] ?? "").trim() !== "");
   if (key === "station/lat" || key === "station/lon") return !isMoving(values);

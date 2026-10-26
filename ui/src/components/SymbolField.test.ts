@@ -14,7 +14,7 @@ import { configValues } from "@/test/fixtures";
 describe("SymbolField", () => {
   it("is the symbol's picture and name as one button, named Change symbol, and no other button", () => {
     const wrapper = mount(SymbolField, { props: { id: "s", symbol: "/-" } });
-    const buttons = wrapper.findAll("button");
+    const buttons = wrapper.findAll("button:not(.info-toggle)");
     expect(buttons).toHaveLength(1);
     expect(buttons[0]?.attributes("aria-label")).toBe("Change symbol");
     expect(buttons[0]?.attributes("title")).toBe("Change symbol");
@@ -58,7 +58,7 @@ describe("SymbolField", () => {
     for (const wrapper of [beacon, objects, setup]) {
       const button = wrapper.find(".symbolfield button.symbolbtn");
       expect(button.attributes("aria-label")).toBe("Change symbol");
-      expect(wrapper.findAll(".symbolfield button:not(.symbolbtn)")).toHaveLength(0);
+      expect(wrapper.findAll(".symbolfield button:not(.symbolbtn):not(.info-toggle)")).toHaveLength(0);
       await button.trigger("click");
       expect(wrapper.find(".sympick").exists()).toBe(true);
       await wrapper.find(".sympick-symbol").trigger("click");
