@@ -34,6 +34,7 @@ export const objects: Record<keyof typeof source, Message> = {
   "objects.form.cancel": "キャンセル",
   "objects.form.save": "保存",
   "objects.form.add": "追加",
+  "objects.form.need_place": "先に場所を選んでください",
 
   "objects.tip.name": "他の局が地図で見る名前です。{max}文字まで、! _ | ~ は使えません。",
   "objects.tip.comment": "地図上でオブジェクトの横に表示されます。印字可能な文字のみ、| と ~ は不可。",

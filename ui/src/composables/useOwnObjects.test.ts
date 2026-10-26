@@ -13,47 +13,65 @@ function setUp(rows: OwnObjectRow[] = [], sends = true) {
     return sends;
   });
   const show = vi.fn();
-  const home = ref<{ lat: number; lon: number } | null>({ lat: 60.17, lon: 24.94 });
   const tab = ref("objects");
-  const view = useOwnObjects(table, home, send, { show, tab } as unknown as Panel);
-  return { view, sent, show, home, table, tab };
+  const view = useOwnObjects(table, send, { show, tab } as unknown as Panel);
+  return { view, sent, show, table, tab };
 }
 
 describe("useOwnObjects", () => {
-  it("has a form for a new object where we are from the start, which the map shows with a pin while the Objects tab is in front", () => {
+  it("has a form for a new object with no place from the start, and so no pin on the map even with the Objects tab in front", () => {
     const { view, tab } = setUp();
     expect(view.editing).toBeNull();
     expect(view.dirty).toBe(false);
     expect(view.picking).toBe(false);
-    expect(view.draft).toMatchObject({ name: "", lat: "60.17", lon: "24.94", symbol: "/r" });
-    expect(view.pin).toEqual({ lat: 60.17, lon: 24.94 });
+    expect(view.draft).toMatchObject({ name: "", lat: "", lon: "", symbol: "/r" });
+    expect(view.pin).toBeNull();
     tab.value = "stations";
     expect(view.pin).toBeNull();
   });
 
-  it("has no place, and no pin, while we do not know where we are, and takes the place when it is told, until something is typed", async () => {
-    const { view, home } = setUp();
-    home.value = null;
-    await nextTick();
-    expect(view.draft).toMatchObject({ lat: "", lon: "" });
-    expect(view.pin).toBeNull();
-    home.value = { lat: 61, lon: 25 };
-    await nextTick();
-    expect(view.draft).toMatchObject({ lat: "61", lon: "25" });
-    view.draft.name = "MINE";
-    home.value = { lat: 62, lon: 26 };
-    await nextTick();
-    expect(view.draft).toMatchObject({ name: "MINE", lat: "61", lon: "25" });
-  });
-
-  it("is dirty once something is typed, and Cancel clears it, with nothing of the last draft left", () => {
+  it("is dirty once something is typed, and Cancel clears all of it: name, place, symbol, comment, Moving and Advanced", () => {
     const { view } = setUp();
-    view.draft.name = "OLD";
-    view.draft.comment = "typed";
+    Object.assign(view.draft, { name: "OLD", comment: "typed", symbol: "/>", course: "90", speed: "5", path: "WIDE1-1", qru: "NET", onRequest: true });
+    view.place(60.1, 24.9);
     expect(view.dirty).toBe(true);
+    expect(view.pin).toEqual({ lat: 60.1, lon: 24.9 });
     view.cancel();
     expect(view.dirty).toBe(false);
-    expect(view.draft).toMatchObject({ name: "", comment: "", lat: "60.17", lon: "24.94" });
+    expect(view.draft).toEqual({
+      name: "",
+      kind: "object",
+      symbol: "/r",
+      lat: "",
+      lon: "",
+      comment: "",
+      course: "",
+      speed: "",
+      path: "",
+      qru: "",
+      onRequest: false,
+    });
+    expect(view.pin).toBeNull();
+  });
+
+  it("drops the unsaved changes of an object being edited on Cancel: the row is no longer selected, the form is the empty draft and the pin is gone", () => {
+    const { view } = setUp([ownObject("LEADER", { comment: "Rescue 1" })]);
+    view.edit("LEADER");
+    expect(view.pin).not.toBeNull();
+    view.draft.comment = "changed, not saved";
+    view.draft.lat = "61";
+    view.cancel();
+    expect(view.editing).toBeNull();
+    expect(view.dirty).toBe(false);
+    expect(view.draft).toMatchObject({ name: "", comment: "", lat: "", lon: "", symbol: "/r" });
+    expect(view.pin).toBeNull();
+  });
+
+  it("sends nothing for a new object that has no place, however complete the rest is", () => {
+    const { view, sent } = setUp();
+    view.draft.name = "NOPLACE";
+    view.save();
+    expect(sent).toEqual([]);
   });
 
   it("selects an object: the form has what the daemon has of it and the Objects tab is put in front", () => {
@@ -71,7 +89,8 @@ describe("useOwnObjects", () => {
     view.cancel();
     expect(view.editing).toBeNull();
     expect(view.dirty).toBe(false);
-    expect(view.draft).toMatchObject({ name: "", comment: "", lat: "60.17" });
+    expect(view.draft).toMatchObject({ name: "", comment: "", lat: "", lon: "", symbol: "/r" });
+    expect(view.pin).toBeNull();
   });
 
   it("does nothing for an object it does not have", () => {
@@ -117,17 +136,20 @@ describe("useOwnObjects", () => {
 
   it("has no pin while the position typed is not a position", () => {
     const { view } = setUp();
+    view.draft.lon = "24.94";
     view.draft.lat = "91";
     expect(view.pin).toBeNull();
     view.draft.lat = "x";
     expect(view.pin).toBeNull();
     view.draft.lat = "60";
+    view.draft.lon = "24.94";
     expect(view.pin).toEqual({ lat: 60, lon: 24.94 });
   });
 
   it("saves the object as the form has it, and keeps it as typed until the daemon has it", async () => {
     const { view, sent, table } = setUp();
     view.draft.name = "LEADER";
+    view.place(60.17, 24.94);
     view.draft.comment = "Rescue 1";
     view.draft.speed = "40";
     view.save();
@@ -159,6 +181,7 @@ describe("useOwnObjects", () => {
   it("keeps what was typed when the daemon refuses, for another try", async () => {
     const { view, sent, table } = setUp();
     view.draft.name = "LEADER";
+    view.place(60.17, 24.94);
     view.draft.comment = "Rescue 1";
     view.save();
     await nextTick();
@@ -201,6 +224,7 @@ describe("useOwnObjects", () => {
   it("does not clear a form that was cancelled and typed in again when the first object is confirmed", async () => {
     const { view, table } = setUp();
     view.draft.name = "ONE";
+    view.place(60.17, 24.94);
     view.save();
     view.cancel();
     view.draft.name = "TWO";
@@ -215,6 +239,7 @@ describe("useOwnObjects", () => {
     expect(sent).toEqual([]);
     const down = setUp([], false);
     down.view.draft.name = "LEADER";
+    down.view.place(60.17, 24.94);
     down.view.save();
     expect(down.sent).toHaveLength(1);
     expect(down.view.dirty).toBe(true);

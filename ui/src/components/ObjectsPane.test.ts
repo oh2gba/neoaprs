@@ -12,7 +12,7 @@ import { cssRule } from "@/test/css";
 function pane(rows: OwnObjectRow[] = []) {
   const table = new Map(rows.map((r) => [r.name, r]));
   const sent: Command[] = [];
-  const form = useOwnObjects(table, ref({ lat: 60.17, lon: 24.94 }), (command) => (sent.push(command), true), {
+  const form = useOwnObjects(table, (command) => (sent.push(command), true), {
     show: vi.fn(),
     tab: ref("objects"),
   } as unknown as Panel);
@@ -133,6 +133,7 @@ describe("ObjectsPane", () => {
     form.cancel();
     await nextTick();
     expect(wrapper.findAll(".ownobject.selected")).toHaveLength(0);
+    form.place(60.17, 24.94);
     await wrapper.find<HTMLInputElement>("input[maxlength='9']").setValue("NEWONE");
     expect(wrapper.find("button[type='submit']").text()).toBe("Add");
     await wrapper.find("form").trigger("submit");

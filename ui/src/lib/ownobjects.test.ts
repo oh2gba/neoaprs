@@ -18,16 +18,16 @@ import {
 import { LIMITS } from "@/protocol/lists";
 import { NOW, ownObject } from "@/test/fixtures";
 
-const ready = (extra: Partial<ObjectDraft> = {}): ObjectDraft => ({ ...emptyDraft({ lat: 60.17, lon: 24.94 }), name: "LEADER", ...extra });
+const ready = (extra: Partial<ObjectDraft> = {}): ObjectDraft => ({ ...emptyDraft(), name: "LEADER", lat: "60.17", lon: "24.94", ...extra });
 
 describe("emptyDraft and draftOf", () => {
-  it("starts a new object where we are, as a car, with no name", () => {
-    expect(emptyDraft({ lat: 60.17, lon: 24.94 })).toEqual({
+  it("starts a new object as a repeater, with no name and no place", () => {
+    expect(emptyDraft()).toEqual({
       name: "",
       kind: "object",
       symbol: "/r",
-      lat: "60.17",
-      lon: "24.94",
+      lat: "",
+      lon: "",
       comment: "",
       course: "",
       speed: "",
@@ -35,7 +35,7 @@ describe("emptyDraft and draftOf", () => {
       qru: "",
       onRequest: false,
     });
-    expect(emptyDraft(null)).toMatchObject({ lat: "", lon: "" });
+    expect(objectCommand(emptyDraft())).toBeNull();
   });
 
   it("is what the daemon has of an object, written as it is typed", () => {
@@ -85,9 +85,9 @@ describe("nameProblem", () => {
 describe("draftProblems and draftReady", () => {
   it("says nothing of a draft that is right, and of one whose fields are still empty", () => {
     expect(draftProblems(ready())).toEqual({});
-    expect(draftProblems(emptyDraft(null))).toEqual({});
+    expect(draftProblems(emptyDraft())).toEqual({});
     expect(draftReady(ready())).toBe(true);
-    expect(draftReady(emptyDraft(null))).toBe(false);
+    expect(draftReady(emptyDraft())).toBe(false);
   });
 
   it("needs a name, a symbol of two characters and a position", () => {

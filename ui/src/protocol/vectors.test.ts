@@ -46,13 +46,13 @@ describe("the vectors of the daemon", () => {
   it("say which QRU groups an object may be in, and how they are kept", () => {
     for (const { group, ok, kept } of vectors.qru_groups) {
       expect(qruProblem(group) === "", JSON.stringify(group)).toBe(ok);
-      if (ok) expect(objectCommand({ ...emptyDraft({ lat: 60.17, lon: 24.94 }), name: "OBJ", qru: group })?.qru_group, JSON.stringify(group)).toBe(kept);
+      if (ok) expect(objectCommand({ ...emptyDraft(), name: "OBJ", lat: "60.17", lon: "24.94", qru: group })?.qru_group, JSON.stringify(group)).toBe(kept);
     }
   });
 
   it("say which comments fit an object, alone and behind a course", () => {
     for (const { comment, moving, ok } of vectors.object_comments) {
-      const draft = { ...emptyDraft({ lat: 60.17, lon: 24.94 }), name: "OBJ", comment, course: moving ? "90" : "" };
+      const draft = { ...emptyDraft(), name: "OBJ", comment, course: moving ? "90" : "" };
       expect(draftProblems(draft).comment === undefined, JSON.stringify([comment, moving])).toBe(ok);
     }
   });

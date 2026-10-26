@@ -46,7 +46,7 @@ describe("SymbolField", () => {
     const beacon = mount(SettingsForm, { props: { scope: "beacon" }, global: withDaemon(fakeDaemon({ config: configValues() })) });
     const objects = mount(ObjectForm, {
       props: {
-        form: useOwnObjects(new Map(), ref({ lat: 60.17, lon: 24.94 }), () => true, { show: vi.fn(), tab: ref("objects") } as unknown as Panel),
+        form: useOwnObjects(new Map(), () => true, { show: vi.fn(), tab: ref("objects") } as unknown as Panel),
         fallbackPath: "",
       },
     });

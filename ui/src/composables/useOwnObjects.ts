@@ -1,23 +1,22 @@
-// The Objects tab as the page runs it: the form under the list, always there, which adds a new object (nothing selected, the place we are) or changes the one that is selected (`editing`: a click on its row, or Edit on its card), the draft as it is typed,
+// The Objects tab as the page runs it: the form under the list, always there, which adds a new object (nothing selected, no place until one is picked) or changes the one that is selected (`editing`: a click on its row, or Edit on its card), the draft as it is typed,
 // the place on the map that the form asks for (`placing`: a click on the map is the place, which `pin` shows meanwhile while the Objects tab is in front), and the commands that make, move and kill an object. The daemon holds the objects (the topic `own_objects`);
 // the page only sends what the user did. The form keeps what was typed until the daemon has the object as it was saved (the topic tells it, and the form is blank again): an error of the daemon leaves it for the user to correct. `cancel` (Esc, the Cancel button)
-// leaves the selection and clears the form. A blank form follows the place we are, until something is typed. A change from a card opens the Objects tab, wherever it is asked for.
-import { computed, reactive, ref, watch, type Ref } from "vue";
+// leaves the selection and clears the form. The map moves only for a place the user picks or an object that is selected, never for a blank form. A change from a card opens the Objects tab, wherever it is asked for.
+import { computed, reactive, ref, watch } from "vue";
 import type { Panel } from "@/composables/usePanel";
 import { draftOf, emptyDraft, isObjectOf, moveCommand, objectCommand, wrapLongitude, type ObjectDraft } from "@/lib/ownobjects";
-import type { Home } from "@/lib/mapview";
 import { onEarth, parseNumber } from "@/lib/fieldcheck";
 import { degreesText } from "@/lib/setup";
 import type { Command, OwnObjectRow } from "@/protocol/protocol";
 
-export function useOwnObjects(rows: ReadonlyMap<string, OwnObjectRow>, home: Ref<Home | null>, send: (command: Command) => boolean, panel: Panel) {
+export function useOwnObjects(rows: ReadonlyMap<string, OwnObjectRow>, send: (command: Command) => boolean, panel: Panel) {
   const editing = ref<string | null>(null); // the name of the object that is selected and being changed; null for a new one
   const placing = ref(false); // a click on the map is the place of the object
-  const draft = reactive<ObjectDraft>(emptyDraft(home.value));
+  const draft = reactive<ObjectDraft>(emptyDraft());
   const blank = ref(JSON.stringify(draft)); // the draft of a new object as it stood when the form was last cleared
   const asked = ref<ReturnType<typeof objectCommand>>(null); // what Save sent, until the daemon has it
 
-  /** There is something to leave: an object is selected, or the form holds more than a new object at the place we are. */
+  /** There is something to leave: an object is selected, or the form holds more than a new, empty object. */
   const dirty = computed(() => editing.value !== null || JSON.stringify(draft) !== blank.value);
   const picking = computed(() => placing.value);
   const pin = computed(() => {
@@ -26,18 +25,14 @@ export function useOwnObjects(rows: ReadonlyMap<string, OwnObjectRow>, home: Ref
     return panel.tab.value === "objects" && lat !== null && lon !== null && onEarth(lat, lon) ? { lat, lon } : null;
   });
 
-  /** The form as a new object: the place we are, the car, no name. */
+  /** The form as a new object: no name, no place, the default symbol, nothing else; no object selected, no place awaited. */
   function clear(): void {
-    Object.assign(draft, emptyDraft(home.value));
+    Object.assign(draft, emptyDraft());
     blank.value = JSON.stringify(draft);
     editing.value = null;
     placing.value = false;
     asked.value = null;
   }
-  // a form nothing was typed in follows the place we are
-  watch(home, () => {
-    if (!dirty.value) clear();
-  });
 
   /** The object of this name is selected: the form has what the daemon has of it; the Objects tab in front. */
   function edit(name: string): void {

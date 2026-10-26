@@ -28,7 +28,7 @@ Internet stations on the map, a world map and a Dummy radio to try it all, Find 
 - Marks at the top right say what is on: RX only, Beacon off, Internet, GPS; each opens where it is set.
 - One palette, soft and quiet in light and dark; every tag is the same size; the tags of how a station was heard are in a column of their own.
 - Every on/off in Settings is a tickbox (the browser's alert too: Alert, Sound, Pop-up); the notes of the (i) stay inside the window, with pictures for RX only, Beacon off, Internet, the channels, the Dummy radio and the alert.
-- A new object starts as a repeater. Feedback: GitHub issues or e-mail, at the end of Settings → About.
+- A new object starts as a repeater with no place: the map stays put until you choose one, Add waits for it, and Esc or Cancel empties the form. Feedback: GitHub issues or e-mail, at the end of Settings → About.
 - Help with pictures, and an (i) on every tab and setting.
 - **Local info (QRU):** Nearby → Ask asks stations near you for repeaters, events and places, by radio only; the servers that answered are listed, and a tag asks for a group.
 - **Fixed:** a QRU server no longer acks a request, answers by radio only (RFONLY), and understands `?INFO` and `?GROUP`.

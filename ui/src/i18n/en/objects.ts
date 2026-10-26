@@ -31,6 +31,7 @@ export const objects = {
   "objects.form.cancel": "Cancel",
   "objects.form.save": "Save",
   "objects.form.add": "Add",
+  "objects.form.need_place": "Choose a place first",
 
   "objects.tip.name": "What other stations see on the map: up to {max} characters, none of ! _ | ~.",
   "objects.tip.comment": "Shown beside the object on the map. Printable characters, no | or ~.",

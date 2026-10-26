@@ -37,7 +37,7 @@ function untipped(root: Element): string[] {
 }
 
 function objectsForm(rows = [ownObject("LEADER")]) {
-  const view = useOwnObjects(new Map(rows.map((r) => [r.name, r])), ref({ lat: 60.17, lon: 24.94 }), () => true, {
+  const view = useOwnObjects(new Map(rows.map((r) => [r.name, r])), () => true, {
     show: vi.fn(),
     tab: ref("objects"),
   } as unknown as Panel);

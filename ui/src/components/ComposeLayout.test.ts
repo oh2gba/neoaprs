@@ -26,7 +26,7 @@ function email(thread = [message(1, { to_call: "EMAIL-2", text: "jane@example.co
 
 function objects() {
   const table = new Map([["LEADER", ownObject("LEADER", { created_at: ago(900) })]]);
-  const form = useOwnObjects(table, ref({ lat: 60.17, lon: 24.94 }), () => true, { show: vi.fn(), tab: ref("objects") } as unknown as Panel);
+  const form = useOwnObjects(table, () => true, { show: vi.fn(), tab: ref("objects") } as unknown as Panel);
   const wrapper = mount(ObjectsPane, { props: { objects: table, form }, global: withDaemon() });
   return { wrapper, form };
 }

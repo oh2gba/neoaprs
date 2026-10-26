@@ -41,14 +41,14 @@ export interface ObjectDraft {
 
 type DraftProblems = Partial<Record<keyof ObjectDraft, string>>;
 
-/** A new object: where we are (when we are anywhere), the car, no name. */
-export function emptyDraft(at: { lat: number; lon: number } | null): ObjectDraft {
+/** A new object: no name and no place (the user picks one), the repeater as its symbol. */
+export function emptyDraft(): ObjectDraft {
   return {
     name: "",
     kind: "object",
     symbol: DEFAULT_SYMBOL,
-    lat: at === null ? "" : degreesText(at.lat),
-    lon: at === null ? "" : degreesText(at.lon),
+    lat: "",
+    lon: "",
     comment: "",
     course: "",
     speed: "",

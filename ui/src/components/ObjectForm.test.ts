@@ -7,13 +7,15 @@ import type { Panel } from "@/composables/usePanel";
 import type { Command, OwnObjectRow } from "@/protocol/protocol";
 import { ownObject } from "@/test/fixtures";
 
-function form(rows: OwnObjectRow[] = []) {
+/** The form with a place picked (60.17, 24.94), unless `placed` is false: a new object has none to start with. */
+function form(rows: OwnObjectRow[] = [], placed = true) {
   const table = new Map(rows.map((r) => [r.name, r]));
   const sent: Command[] = [];
-  const view = useOwnObjects(table, ref({ lat: 60.17, lon: 24.94 }), (command) => (sent.push(command), true), {
+  const view = useOwnObjects(table, (command) => (sent.push(command), true), {
     show: vi.fn(),
     tab: ref("objects"),
   } as unknown as Panel);
+  if (placed) view.place(60.17, 24.94);
   const wrapper = mount(ObjectForm, { props: { form: view, fallbackPath: "WIDE1-1,WIDE2-1" } });
   const field = (label: string) => wrapper.findAll(".field:not(.location-field)").find((f) => f.find("label").text() === label);
   const input = (label: string) => field(label)?.find<HTMLInputElement>("input");
@@ -42,18 +44,79 @@ describe("ObjectForm", () => {
     expect(wrapper.find("p").exists()).toBe(false);
   });
 
-  it("starts at the place we are, with the repeater and the path of the beacon as the placeholder", async () => {
-    const { wrapper, input, field, coordinate } = form();
-    expect(wrapper.find(".location-place").text()).toBe("60.17 N, 24.94 E · KP20le");
-    expect((await coordinate("Latitude"))?.find("input").element.value).toBe("60.17");
-    expect((await coordinate("Longitude"))?.find("input").element.value).toBe("24.94");
+  it("starts with no place, with the repeater and the path of the beacon as the placeholder", async () => {
+    const { wrapper, input, field, coordinate, view } = form([], false);
+    expect(wrapper.find(".location-place").text()).toBe("Not set");
+    expect(view.draft).toMatchObject({ lat: "", lon: "" });
+    expect((await coordinate("Latitude"))?.find("input").element.value).toBe("");
+    expect((await coordinate("Longitude"))?.find("input").element.value).toBe("");
+    expect((await coordinate("Locator"))?.find("input").element.value).toBe("");
     expect(field("Symbol")?.find(".symbolfield-name").text()).toBe("Antenna");
     expect(input("Path")?.attributes("placeholder")).toBe("WIDE1-1,WIDE2-1");
     expect(input("Path")?.element.value).toBe("");
   });
 
+  it("has Add off, with Choose a place first as its title, while there is no place or it is wrong, however much else is filled in", async () => {
+    const { wrapper, input, coordinate } = form([], false);
+    const main = wrapper.find<HTMLButtonElement>("button[type='submit']");
+    await input("Name")?.setValue("MARK");
+    expect(main.element.disabled).toBe(true);
+    expect(main.attributes("title")).toBe("Choose a place first");
+    await (await coordinate("Latitude"))?.find("input").setValue("60.1");
+    expect(main.element.disabled).toBe(true); // (a latitude alone is no place)
+    expect(main.attributes("title")).toBe("Choose a place first");
+    await (await coordinate("Longitude"))?.find("input").setValue("24.9");
+    expect(main.element.disabled).toBe(false);
+    expect(main.attributes("title")).toBeUndefined();
+    await (await coordinate("Longitude"))?.find("input").setValue("240");
+    expect(main.element.disabled).toBe(true);
+    expect(main.attributes("title")).toBe("Choose a place first");
+    await wrapper.find("form").trigger("submit");
+  });
+
+  it("clears the whole form of a new object with Cancel, and puts the symbol back", async () => {
+    const { wrapper, input, field, view } = form([], false);
+    const cancel = () => wrapper.findAll("button").find((b) => b.text() === "Cancel");
+    expect(cancel()?.attributes("disabled")).toBeDefined();
+    await input("Name")?.setValue("MARK");
+    await input("Comment")?.setValue("typed");
+    await input("Speed")?.setValue("40");
+    await input("Path")?.setValue("WIDE1-1");
+    await field("Symbol")?.find("button.symbolbtn").trigger("click");
+    await wrapper
+      .findAll(".sympick-symbol")
+      .find((b) => b.text() === "House")
+      ?.trigger("click");
+    view.place(61, 25);
+    await wrapper.vm.$nextTick();
+    expect(cancel()?.attributes("disabled")).toBeUndefined();
+    await cancel()?.trigger("click");
+    expect(view.draft).toMatchObject({ name: "", comment: "", speed: "", path: "", lat: "", lon: "", symbol: "/r" });
+    expect(["Name", "Comment", "Speed", "Path"].map((label) => input(label)?.element.value)).toEqual(["", "", "", ""]);
+    expect(wrapper.find(".location-place").text()).toBe("Not set");
+    expect(field("Symbol")?.find(".symbolfield-name").text()).toBe("Antenna");
+    expect(cancel()?.attributes("disabled")).toBeDefined();
+  });
+
+  it("drops the unsaved changes of an object being changed with Cancel, and leaves the form as a new one", async () => {
+    const { wrapper, input, view, sent } = form([ownObject("LEADER", { comment: "Rescue 1", path: "WIDE2-1", qru_group: "NET" })], false);
+    const cancel = () => wrapper.findAll("button").find((b) => b.text() === "Cancel");
+    view.edit("LEADER");
+    await wrapper.vm.$nextTick();
+    expect(input("Name")?.element.value).toBe("LEADER");
+    await input("Comment")?.setValue("changed");
+    await cancel()?.trigger("click");
+    expect(view.editing).toBeNull();
+    expect(input("Name")?.element.value).toBe("");
+    expect(input("Comment")?.element.value).toBe("");
+    expect(input("Path")?.element.value).toBe("");
+    expect(wrapper.find(".location-place").text()).toBe("Not set");
+    expect(wrapper.find("button[type='submit']").text()).toBe("Add");
+    expect(sent).toEqual([]);
+  });
+
   it("says (default) in the path when the beacon has none", () => {
-    const view = useOwnObjects(new Map(), ref(null), () => true, { show: vi.fn(), tab: ref("objects") } as unknown as Panel);
+    const view = useOwnObjects(new Map(), () => true, { show: vi.fn(), tab: ref("objects") } as unknown as Panel);
     const wrapper = mount(ObjectForm, { props: { form: view, fallbackPath: "" } });
     expect(wrapper.find("input[placeholder='(default)']").exists()).toBe(true);
   });
@@ -102,6 +165,7 @@ describe("ObjectForm", () => {
     expect(sent).toMatchObject([{ cmd: "object_set", name: "AID", kind: "item", comment: "Moved" }]);
     view.cancel();
     await wrapper.vm.$nextTick();
+    view.place(60.17, 24.94);
     await input("Name")?.setValue("NEWONE");
     await wrapper.find("form").trigger("submit");
     expect(sent[1]).toMatchObject({ cmd: "object_set", name: "NEWONE", kind: "object" });
@@ -179,7 +243,7 @@ describe("ObjectForm", () => {
   });
 
   it("keeps the entry closed while there is no place (Not set is the thing to click), and opens by itself when a coordinate is wrong", async () => {
-    const { wrapper, view, coordinate } = form();
+    const { wrapper, view, coordinate } = form([], false);
     expect(wrapper.find(".location-entry").exists()).toBe(false);
     await (await coordinate("Latitude"))?.find("input").setValue("95");
     expect(wrapper.find(".location-place").text()).toBe("Not set");
@@ -391,7 +455,7 @@ describe("ObjectForm", () => {
   });
 
   it("has Cancel off while nothing is selected or typed, and with it leaves the selection, clears the form and sends nothing", async () => {
-    const { wrapper, view, sent, input } = form([ownObject("LEADER", { comment: "Rescue 1" })]);
+    const { wrapper, view, sent, input } = form([ownObject("LEADER", { comment: "Rescue 1" })], false);
     const cancel = () => wrapper.findAll<HTMLButtonElement>("button").find((b) => b.text() === "Cancel");
     expect(cancel()?.element.disabled).toBe(true);
     view.edit("LEADER");

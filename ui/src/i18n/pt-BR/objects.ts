@@ -34,6 +34,7 @@ export const objects: Record<keyof typeof source, Message> = {
   "objects.form.cancel": "Cancelar",
   "objects.form.save": "Salvar",
   "objects.form.add": "Adicionar",
+  "objects.form.need_place": "Escolha primeiro um lugar",
 
   "objects.tip.name": "O que as outras estações veem no mapa: até {max} caracteres, nenhum de ! _ | ~.",
   "objects.tip.comment": "Mostrado ao lado do objeto no mapa. Caracteres imprimíveis, sem | nem ~.",

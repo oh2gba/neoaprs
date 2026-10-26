@@ -11,13 +11,13 @@ Objects of other stations that you hear are stations of their own on the map, na
 
 ## Making one
 
-The form is at the bottom of the tab, under the list of your objects (oldest first, scrolled to the newest, so that it is next to the form), and it is there all the time. It is the box that every tab writes in; its fields scroll on a short screen, and on a phone the list keeps its own share of the screen and scrolls. With no row selected it makes a new object at the place you are. The line under the fields has, at the right, "N left" for the comment, a plain **Cancel** and the main button, **Add**.
+The form is at the bottom of the tab, under the list of your objects (oldest first, scrolled to the newest, so that it is next to the form), and it is there all the time. It is the box that every tab writes in; its fields scroll on a short screen, and on a phone the list keeps its own share of the screen and scrolls. With no row selected it makes a new object, and it starts with no place at all: the map stays where it is until you choose one. The line under the fields has, at the right, "N left" for the comment, a plain **Cancel** and the main button, **Add**.
 
-**Esc** and **Cancel** give up what is in the form: they leave the selected row, if there is one, and clear the form without saving. A field that still has text keeps its first Esc, and while the map waits for a click Esc ends that first. **Cancel** is there for a screen without a keyboard.
+**Esc** and **Cancel** give up what is in the form: they leave the selected row, if there is one, drop what you changed, and empty the form without saving (name, place, symbol back to the repeater, comment, Moving and Advanced), and the pin of the place on the map goes. Esc works from inside a field of the form too, and while the map waits for a click it ends that first. **Cancel** is there for a screen without a keyboard.
 
 - **Name.** Printable ASCII, case-sensitive, none of `!`, `_`, `|` and `~`, no blank at either end. It is never your own call, and never the call of a station that was heard.
 - **Symbol.** The picture and its name, as in the Beacon tab: a click on it opens the picker.
-- **Location.** As in the Beacon tab and the setup guide ([beacon.md](beacon.md#the-location)): a plain **Choose on map** button and a click on the map (Cancel while the map waits), the place as text beside the button, and the latitude, longitude and locator behind a click on the place (closed until you click it, and open by itself when a coordinate is wrong). The map shows a pin where it is while the tab is in front.
+- **Location.** As in the Beacon tab and the setup guide ([beacon.md](beacon.md#the-location)): a plain **Choose on map** button and a click on the map (Cancel while the map waits), the place as text beside the button, and the latitude, longitude and locator behind a click on the place (closed until you click it, and open by itself when a coordinate is wrong). A new object has no place until you give one: the map shows a pin where it is, and moves to it, only when you click the map or type a place or pick the locator, never just because the tab opens.
 - **Comment.** 43 characters, 36 behind a course and speed.
 - **Moving.** A closed heading with the **course** in degrees and the **speed** in km/h: each, both or neither. It is open when the object you change already has a course or a speed; empty, the object does not move.
 - **Advanced.** A closed heading, as in the Beacon tab, with the rarely needed fields under it. It is open by itself when the object you change has a path of its own, a QRU group or the tick, and closed for a new object.
@@ -27,7 +27,7 @@ The form is at the bottom of the tab, under the list of your objects (oldest fir
 
 Each field has a small **i** after it that says in one line what it is for.
 
-A field with something wrong is red and says what. The main button waits until nothing is wrong. Adding a name that is there changes that object. You can have at most 50 objects and items at once, and nothing is made while the call is not set.
+A field with something wrong is red and says what. The main button waits until there is a name and a place and nothing is wrong (without a place its hint says "Choose a place first"). Adding a name that is there changes that object. You can have at most 50 objects and items at once, and nothing is made while the call is not set.
 
 **On the map** an object of yours has a dashed ring and a marker that you can drag. Where you drop it is its new place (the same as a change in the form, with everything else as it was). It never times out. Its card has **Edit** (the Objects tab opens with the object selected) and **Kill**, in place of Message and Forget, and none of a station's fields.
 

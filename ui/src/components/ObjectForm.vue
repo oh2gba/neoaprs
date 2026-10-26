@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // The form of an object or an item of ours, in the Objects tab, in the box at the bottom of the tab, always there (ComposeBar, as everywhere; its fields scroll on a short screen, the line with the counter, Cancel and the main button does not). With an object selected in the list it changes that object
-// and the main button reads Save; with none selected it adds a new one and the button reads Add; Cancel (and Esc) leaves the selection and clears the form. The fields: the name (that of an object that is being changed stays; a new one is always an object, an item of ours that is being changed stays an item), the symbol (the picture and its name, a click opens the picker, as in the Beacon tab), the position (the row Location of the Beacon tab, components/LocationField.vue: **Choose on map**, a click on the map, or the
+// and the main button reads Save; with none selected it adds a new one and the button reads Add; Cancel (and Esc, also with the cursor in a field) leaves the selection and clears the form completely (no place, the default symbol, nothing else); Add stays off, saying so in its title, until there is a place. The fields: the name (that of an object that is being changed stays; a new one is always an object, an item of ours that is being changed stays an item), the symbol (the picture and its name, a click opens the picker, as in the Beacon tab), the position (the row Location of the Beacon tab, components/LocationField.vue: **Choose on map**, a click on the map, or the
 // coordinates or a locator typed behind the place), the comment (the characters it has left are the counter beside the buttons), the course and speed (behind a closed fold, Moving, which is open for an object that has either), and behind a second closed fold, Advanced, as in the Beacon tab: the path the object goes by (the placeholder is the beacon's), its QRU group (a station that asks the addressee QRU for the group is sent the object) and whether it is sent only when asked; Advanced
 // is open for an object being changed that has a path, a group or the tick. Every field of ours has its (i) after it, as the settings have (InfoTip); the symbol and the place are the controls of the Beacon tab, which have none. A field with something wrong is red and says what under it. Save is on when there is a name, a place and a symbol and nothing is wrong; the daemon checks it all again.
 import { useReceiveOnly } from "@/composables/useReceiveOnly";
@@ -155,7 +155,12 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
     </DisclosureBox>
     <template #buttons>
       <button type="button" class="btn" :disabled="!form.dirty && !form.placing" @click="form.cancel()">{{ t("objects.form.cancel") }}</button>
-      <button type="submit" class="btn primary" :disabled="!ready || rxOnly" :title="rxOnly ? rxOnlyReason() : undefined">
+      <button
+        type="submit"
+        class="btn primary"
+        :disabled="!ready || rxOnly"
+        :title="rxOnly ? rxOnlyReason() : place === null ? t('objects.form.need_place') : undefined"
+      >
         {{ form.editing === null ? t("objects.form.add") : t("objects.form.save") }}
       </button>
     </template>

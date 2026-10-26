@@ -361,6 +361,7 @@ export const fr: Catalogue = {
   "objects.form.save": "Enregistrer",
   "objects.form.add": "Ajouter",
 
+  "objects.form.need_place": "Choisissez d’abord un lieu",
   "objects.tip.name": "Ce que les autres stations voient sur la carte : {max} caractères au plus, aucun de ! _ | ~.",
   "objects.tip.comment": "Affiché à côté de l'objet sur la carte. Caractères imprimables, ni | ni ~.",
   "objects.tip.course": "La direction de son déplacement, en degrés depuis le nord : 90 est l'est.",

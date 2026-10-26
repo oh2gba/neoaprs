@@ -51,12 +51,16 @@ describe("App: the Objects tab", () => {
       expect(wrapper.find("#pane-objects .ownobject strong").text()).toBe("LEADER");
     });
 
-    it("makes an object from the form with one command, at the place we are unless a click on the map says another", async () => {
+    it("makes an object from the form with one command, at the place a click on the map says; Add is off until there is one", async () => {
       const { wrapper, socket } = await open();
       await tabButton(wrapper, "Objects")?.trigger("click");
-      expect((await coordinate(wrapper, "Latitude"))?.element.value).toBe("60.17");
-      expect(wrapper.find("#pane-objects button[type='submit']").text()).toBe("Add");
+      expect((await coordinate(wrapper, "Latitude"))?.element.value).toBe("");
+      expect(placeText(wrapper)).toBe("Not set");
+      const add = wrapper.find<HTMLButtonElement>("#pane-objects button[type='submit']");
+      expect(add.text()).toBe("Add");
       await field(wrapper, "Name")?.setValue("MARK");
+      expect(add.element.disabled).toBe(true);
+      expect(add.attributes("title")).toBe("Choose a place first");
       await button(wrapper, "Choose on map")?.trigger("click");
       FakeMap.last().fire("click", { lngLat: { lat: 60.5, lng: 25.5 } });
       await flushPromises();
@@ -101,17 +105,34 @@ describe("App: the Objects tab", () => {
       expect(wrapper.find(".toast").text()).toContain("set your call first");
     });
 
-    it("shows a pin on the map while the Objects tab is in front and the form has a place, and a click on the map is not the first-run guide's", async () => {
-      const { wrapper, socket } = await open();
+    it("opens the Objects tab without moving or zooming the map and without a pin, and moves it only for a place the user picks", async () => {
+      const { wrapper } = await open();
       const pins = () => FakeMarker.live().filter((m) => m.element.classList.contains("setuppin"));
+      const map = FakeMap.last();
+      const moved = () => map.flights.length + map.jumps.length + map.eases.length + map.fits.length;
+      await flushPromises();
+      const before = moved();
       expect(pins()).toHaveLength(0);
       await tabButton(wrapper, "Objects")?.trigger("click");
+      await flushPromises();
+      expect(pins()).toHaveLength(0);
+      expect(moved()).toBe(before);
+      await button(wrapper, "Choose on map")?.trigger("click");
+      map.fire("click", { lngLat: { lat: 60.5, lng: 25.5 } });
+      await flushPromises();
       expect(pins()).toHaveLength(1);
-      expect(pins()[0]?.lngLat).toEqual([24.94, 60.17]);
+      expect(pins()[0]?.lngLat).toEqual([25.5, 60.5]);
+      expect(map.flights).toHaveLength(0); // (the user clicked there: the map is where they look)
+      await wrapper
+        .findAll("#pane-objects button")
+        .find((b) => b.text() === "Cancel")
+        ?.trigger("click");
+      await flushPromises();
+      expect(pins()).toHaveLength(0); // (the temporary marker of the draft is gone with it)
+      expect(moved()).toBe(before);
       await tabButton(wrapper, "Stations")?.trigger("click");
       expect(pins()).toHaveLength(0);
       expect(wrapper.find(".setup").exists()).toBe(false);
-      expect(sent(socket, "set_config")).toEqual([]);
     });
 
     it("kills an object after two presses of its x, with one command", async () => {
@@ -231,7 +252,7 @@ describe("App: the Objects tab", () => {
       FakeMap.last().fire("click", { lngLat: { lat: 59.5, lng: 24.5 } });
       await flushPromises();
       expect(wrapper.find<HTMLInputElement>("#setup-lat").element.value).toBe("59.5");
-      expect(placeText(wrapper)).toMatch(/^60\.17 N, 24\.94 E · /);
+      expect(placeText(wrapper)).toBe("Not set");
     });
   });
 });

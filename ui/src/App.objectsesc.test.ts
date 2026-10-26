@@ -57,16 +57,46 @@ describe("App: Esc in the Objects form", () => {
     expect(wrapper.find("#pane-objects .ownobject .bulletin-text").text()).toBe("Rescue 1");
   });
 
-  it("leaves a field that has text its first Esc, and clears the form with the next one from an empty field", async () => {
+  it("clears the whole form with the Esc of a field of the form too, the text in it or not: nothing of the form's own is left to it", async () => {
     const { wrapper } = await opened();
     await name(wrapper)?.setValue("MARK");
     const comment = field(wrapper, "Comment");
     await comment?.setValue("Rescue 1");
-    await esc(comment?.element);
-    expect(name(wrapper)?.element.value).toBe("MARK");
-    await comment?.setValue("");
+    await field(wrapper, "Speed")?.setValue("40");
     await esc(comment?.element);
     expect(name(wrapper)?.element.value).toBe("");
+    expect(field(wrapper, "Comment")?.element.value).toBe("");
+    expect(field(wrapper, "Speed")?.element.value).toBe("");
+    expect(wrapper.find("#pane-objects .location-place").text()).toBe("Not set");
+  });
+
+  it("moves the map to a place that is typed, and not for the form that Esc clears", async () => {
+    const { wrapper } = await opened();
+    const map = FakeMap.last();
+    await wrapper.find("#pane-objects .location-place").trigger("click");
+    const entry = (label: string) =>
+      wrapper
+        .findAll("#pane-objects .location-entry .field")
+        .find((f) => f.find("label").text() === label)
+        ?.find<HTMLInputElement>("input");
+    await entry("Latitude")?.setValue("61");
+    await entry("Longitude")?.setValue("26");
+    await flushPromises();
+    expect(map.flights).toHaveLength(1);
+    await esc();
+    expect(wrapper.find("#pane-objects .location-place").text()).toBe("Not set");
+    expect(map.flights).toHaveLength(1);
+  });
+
+  it("leaves a field outside the form its first Esc", async () => {
+    const { wrapper } = await opened();
+    await name(wrapper)?.setValue("MARK");
+    const outside = document.createElement("input");
+    outside.value = "text";
+    document.body.append(outside);
+    await esc(outside);
+    expect(name(wrapper)?.element.value).toBe("MARK");
+    outside.remove();
   });
 
   it("ends the choice on the map first, and then clears the form", async () => {
@@ -79,7 +109,7 @@ describe("App: Esc in the Objects form", () => {
     expect(wrapper.find("#pane-objects .location-pick").text()).toBe("Choose on map");
     FakeMap.last().fire("click", { lngLat: { lat: 59.5, lng: 24.5 } }); // (the map no longer waits for a place)
     await flushPromises();
-    expect(wrapper.find("#pane-objects .location-place").text()).toMatch(/^60\.17 N, 24\.94 E · /);
+    expect(wrapper.find("#pane-objects .location-place").text()).toBe("Not set");
     await esc();
     expect(name(wrapper)?.element.value).toBe("");
   });

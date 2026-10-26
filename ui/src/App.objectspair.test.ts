@@ -13,6 +13,17 @@ describe("App: two objects", () => {
       .findAll("#pane-objects .field:not(.location-field)")
       .find((f) => f.find("label").text() === label)
       ?.find<HTMLInputElement>("input");
+  /** The place of the new object, typed in the entry behind the place (a new object has none). */
+  const placed = async (wrapper: VueWrapper) => {
+    const entry = (label: string) =>
+      wrapper
+        .findAll("#pane-objects .location-entry .field")
+        .find((f) => f.find("label").text() === label)
+        ?.find<HTMLInputElement>("input");
+    if (!wrapper.find("#pane-objects .location-entry").exists()) await wrapper.find("#pane-objects .location-place").trigger("click");
+    await entry("Latitude")?.setValue("60.17");
+    await entry("Longitude")?.setValue("24.94");
+  };
   const sentSets = (socket: FakeSocket) => socket.sent.filter((c) => (c as { cmd?: string }).cmd === "object_set") as { name: string }[];
 
   it("makes a second object while the first stays, as the daemon tells it in patches", async () => {
@@ -20,6 +31,7 @@ describe("App: two objects", () => {
     socket.say({ type: "state", topic: "own_objects", rev: 0, value: {} });
     await tabButton(wrapper, "Objects")?.trigger("click");
     await field(wrapper, "Name")?.setValue("ALPHA");
+    await placed(wrapper);
     await wrapper.find("#pane-objects form").trigger("submit");
     socket.say({
       type: "patch",
@@ -30,6 +42,7 @@ describe("App: two objects", () => {
     await flushPromises();
     expect(field(wrapper, "Name")?.element.value).toBe("");
     await field(wrapper, "Name")?.setValue("BRAVO");
+    await placed(wrapper);
     await wrapper.find("#pane-objects form").trigger("submit");
     expect(sentSets(socket).map((c) => c.name)).toEqual(["ALPHA", "BRAVO"]);
     socket.say({

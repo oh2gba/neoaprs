@@ -375,6 +375,7 @@ export const de: Catalogue = {
   "objects.form.save": "Speichern",
   "objects.form.add": "Hinzufügen",
 
+  "objects.form.need_place": "Zuerst einen Ort wählen",
   "objects.tip.name": "Was andere Stationen auf der Karte sehen: bis zu {max} Zeichen, keines von ! _ | ~.",
   "objects.tip.comment": "Wird auf der Karte neben dem Objekt angezeigt. Druckbare Zeichen, kein | und kein ~.",
   "objects.tip.course": "Die Richtung der Bewegung in Grad von Nord: 90 ist Ost.",

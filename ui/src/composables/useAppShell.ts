@@ -109,7 +109,7 @@ export function useAppShell() {
   const newer = computed(() => status.value?.update?.version ?? null);
   watch(newer, (version) => version === null && (updateOpen.value = false));
 
-  const objects = useOwnObjects(daemon.ownObjects, derived.home, send, panel);
+  const objects = useOwnObjects(daemon.ownObjects, send, panel);
   const picks = useMapPicks(guide, objects);
   // the size of the page, what a phone shows (the map or the tab), and the station cards: one, or several with Ctrl+click on a desktop and a tablet
   const layout = useLayout(

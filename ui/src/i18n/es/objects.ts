@@ -33,6 +33,7 @@ export const objects: Readonly<Record<keyof typeof en, Message>> = {
   "objects.form.cancel": "Cancelar",
   "objects.form.save": "Guardar",
   "objects.form.add": "Añadir",
+  "objects.form.need_place": "Elige primero un lugar",
 
   "objects.tip.name": "Lo que otras estaciones ven en el mapa: hasta {max} caracteres, ninguno de ! _ | ~.",
   "objects.tip.comment": "Se muestra junto al objeto en el mapa. Caracteres imprimibles, sin | ni ~.",
