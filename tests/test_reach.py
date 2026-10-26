@@ -151,3 +151,34 @@ def test_the_routes_are_read_again_from_the_packets_kept_at_the_start() -> None:
     assert [(m.kind, m.gate) for m in station.route_marks] == [("igate", "OH2GW-10"), ("rf", "")]
     assert station.route_marks[1].lat == pytest.approx(60.1667, abs=1e-4) and station.route_marks[0].lat == pytest.approx(60.1667, abs=1e-4), "(the position seen in the packets before it)"
     assert station.internet_reach == Reach("igate", "OH2GW-10", ("OH2RCH-2",))
+
+
+OBJECT = ";OH2FTJ   *111111z6020.08N/02503.76E-Vantaa, Asola"
+
+
+@pytest.mark.parametrize("path_text, reach, kind", [("TCPIP*,qAC,T2CZECH", Reach("app"), "app"), ("OH2RCH-2*,qAR,OH2GW-10", Reach("igate", "OH2GW-10", ("OH2RCH-2",)), "igate")])
+def test_an_object_that_came_over_the_internet_has_the_way_it_got_there_as_well_as_the_station_that_sent_it(path_text: str, reach: Reach, kind: str) -> None:
+    book = StationBook()
+    book.take(parse_is_line(f"OH2HCY>APRX29,{path_text}:{OBJECT}", T0))
+    for call in ("OH2HCY", "OH2FTJ"):
+        station = book.get(call)
+        assert station is not None and station.internet_reach == reach and [m.kind for m in station.route_marks] == [kind]
+    named = book.get("OH2FTJ")
+    assert named is not None and named.kind == "object" and named.route_marks[0].lat == pytest.approx(60.3347, abs=1e-4), "(the mark is where the object is)"
+
+
+def test_the_routes_of_an_object_and_an_item_are_read_again_from_the_packets_kept_at_the_start() -> None:
+    book = StationBook()
+    book.take(parse_is_line(f"OH2HCY>APRX29,TCPIP*,qAC,T2CZECH:{OBJECT}", T0))
+    book.take(parse_is_line("OH2HCY>APRX29,OH2RCH-2*,qAR,OH2GW-10:)WELL!6021.00N/02504.00E-spring", T0))
+    fresh = StationBook()
+    fresh.seed([s for call in ("OH2HCY", "OH2FTJ", "WELL") if (s := book.get(call)) is not None])
+    for call in ("OH2FTJ", "WELL"):
+        station = fresh.get(call)
+        assert station is not None
+        station.internet_reach, station.route_marks = None, ()
+    fresh.seed_routes([parse_is_line(f"OH2HCY>APRX29,TCPIP*,qAC,T2CZECH:{OBJECT}", T0), parse_is_line("OH2HCY>APRX29,OH2RCH-2*,qAR,OH2GW-10:)WELL!6021.00N/02504.00E-spring", T0 + MIN)])
+    obj, item = fresh.get("OH2FTJ"), fresh.get("WELL")
+    assert obj is not None and item is not None
+    assert obj.internet_reach == Reach("app") and item.internet_reach == Reach("igate", "OH2GW-10", ("OH2RCH-2",))
+    assert obj.route_marks[0].lat == pytest.approx(60.3347, abs=1e-4)

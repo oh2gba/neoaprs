@@ -124,7 +124,7 @@ A click on a marker opens a card over the map. It is above the markers, clear of
 - its speed and course (only a station that moves has them) and the altitude;
 - the status and the comment;
 - what the station runs, one line ("Kenwood TH-D74", "APRSdroid"), only when it is known;
-- one line of how its packets reach you ("Reached us via OH2RCH-2", or "direct"), and, for a station that was heard over the internet, one line for that, read from the packet's APRS-IS path: "Heard by iGate OH2GW-10 via OH2RCH-2", "Heard by iGate OH2GW-10 directly", or "Sent from an internet app, never on the air". A station heard both ways has both lines.
+- one line of how its packets reach you ("Reached us via OH2RCH-2", or "direct"), and, for a station that was heard over the internet, one line for that, read from the packet's APRS-IS path: "Heard by iGate OH2GW-10 via OH2RCH-2", "Heard by iGate OH2GW-10 directly", or "Sent over the internet, not heard on the air" (for an object, "Sent over the internet by OH2HCY, not heard on the air", the station that reported it). A station heard both ways has both lines.
 
 A row with nothing to say is left out: a station that stands still has no speed whatever course it gave, a station that sent no altitude has none, and so on. An altitude of 0 that the station did send is shown.
 
