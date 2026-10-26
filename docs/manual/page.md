@@ -70,7 +70,7 @@ A beacon, message or answer you sent is in the log as a packet with direction `o
 The tab has no Save button ([start.md](start.md#how-settings-apply)). From the top it has:
 
 - **Language**, and **Run the setup guide again** ([start.md](start.md#the-setup-guide));
-- **TNC**: the radio's status in one line with **Reconnect**, and behind its arrow the **Radio type**, the **Port** and **Speed** (or the **TCP host** and **TCP port**), **Find my radio** and the **Terminal** ([radio.md](radio.md));
+- **TNC**: the radio's status in one line with **Reconnect**, and behind its arrow the **Radio type**, the **Port** and **Speed** (or the **TCP host** and **TCP port**), **Find my radio** and the **Terminal** ([radio.md](radio.md)), and the type **Dummy** for trying NeoAPRS without a radio;
 - **Digipeater**: the tickbox of the fill-in digipeater ([beacon.md](beacon.md#the-fill-in-digipeater));
 - **Web page**: **Allow access from the network**, with the access key and the addresses once it is on, and the secure connection ([network.md](network.md));
 - **Notifications**, in two boxes: **On the NeoAPRS computer** and **In this browser** ([notifications.md](notifications.md));

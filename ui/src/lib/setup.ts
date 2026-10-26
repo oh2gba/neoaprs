@@ -87,16 +87,22 @@ export const KEY_OF: Record<string, FieldName> = {
 export const profileOf = (key: string) => TNC_PROFILES.find((p) => p.key === key);
 
 const isTcp = (f: SetupFields): boolean => profileOf(f.profile)?.transport === "tcp";
+/** The Dummy radio: no radio, so no port, no speed and no host to ask for. */
+export const isDummy = (f: SetupFields): boolean => profileOf(f.profile)?.transport === "dummy";
+/** The step with the radio. */
+export const RADIO_STEP = STEP_OF.profile;
 
 /** The problems of the fields of each step, by field (lib/fieldcheck.ts: an empty field says nothing here). A field that is empty and needed has none: `stepOk` says Next waits for it. */
 const CHECKS: ((f: SetupFields) => Problems)[] = [
   (f) => ({ call: problemOf("station/call", f.call, true) }),
   (f) => ({ lat: problemOf("station/lat", f.lat, true), lon: problemOf("station/lon", f.lon, true) }),
   (f) => ({ symbol: symbolProblem(f.symbol) }),
-  (f) =>
-    isTcp(f)
+  (f) => {
+    if (isDummy(f)) return {};
+    return isTcp(f)
       ? { host: problemOf("tcp/host", f.host, true), tcpPort: problemOf("tcp/port", f.tcpPort, true) }
-      : { baud: problemOf("serial/baud", f.baud, true) },
+      : { baud: problemOf("serial/baud", f.baud, true) };
+  },
   (f) => ({ radius: problemOf("map/radius_km", f.radius, true) }),
 ];
 
@@ -115,7 +121,9 @@ export function stepOk(step: number, f: SetupFields, search: boolean | null): bo
     case 2:
       return f.symbol.length === 2;
     case 3:
-      return profileOf(f.profile) !== undefined && (isTcp(f) ? f.host.trim() !== "" && f.tcpPort.trim() !== "" : f.port !== "" || search !== false);
+      return (
+        profileOf(f.profile) !== undefined && (isDummy(f) || (isTcp(f) ? f.host.trim() !== "" && f.tcpPort.trim() !== "" : f.port !== "" || search !== false))
+      );
     default:
       return f.radius.trim() !== "";
   }
@@ -163,7 +171,7 @@ function isNewStation(values: Readonly<Record<string, string>>): boolean {
   return (values["station/call"] ?? "") === "" && ["", "0"].includes((values["beacon/interval_min"] ?? "").trim());
 }
 
-/** The settings to save: the keys whose answer is not what the daemon has, with the text to write. Only the keys of the chosen kind of TNC (a serial TNC's port and speed, a TCP one's host and port), and a serial device
+/** The settings to save: the keys whose answer is not what the daemon has, with the text to write. Only the keys of the chosen kind of TNC (a serial TNC's port and speed, a TCP one's host and port, the Dummy radio's none), and a serial device
  * the daemon holds is cleared when the TNC is a TCP one, which it would refuse otherwise. A station that has no call yet (the first run) and no beacon interval gets the beacon every NEW_STATION_BEACON_MIN minutes in the same save;
  * the guide run again on a station that has a call leaves the beacon as it is. */
 export function setupChanges(f: SetupFields, values: Readonly<Record<string, string>>): Record<string, string> {
@@ -177,11 +185,12 @@ export function setupChanges(f: SetupFields, values: Readonly<Record<string, str
     "map/radius_km": f.radius.trim(),
   };
   if (isNewStation(values)) wanted["beacon/interval_min"] = NEW_STATION_BEACON_MIN;
-  if (profileOf(f.profile)?.transport === "tcp") {
+  if (isTcp(f)) {
     wanted["tcp/host"] = f.host.trim();
     wanted["tcp/port"] = f.tcpPort.trim();
     wanted["serial/port"] = portForProfile(f.profile, values["serial/port"] ?? "");
-  } else {
+  } else if (!isDummy(f)) {
+    // (the Dummy radio has no port, no speed and no address: what the settings hold stays, for the day a real radio is chosen)
     wanted["serial/port"] = f.port;
     wanted["serial/baud"] = f.baud.trim();
   }
@@ -192,6 +201,12 @@ export function setupChanges(f: SetupFields, values: Readonly<Record<string, str
     if (!same) changes[key] = text;
   }
   return changes;
+}
+
+/** The settings of the radio among the changes: what the Terminal of the Radio step saves, so that the radio it shows is the one the answers name. */
+export function radioChanges(f: SetupFields, values: Readonly<Record<string, string>>): Record<string, string> {
+  const keys = ["tnc/profile", "serial/port", "serial/baud", "tcp/host", "tcp/port"];
+  return Object.fromEntries(Object.entries(setupChanges(f, values)).filter(([key]) => keys.includes(key)));
 }
 
 /** The ports to pick from, as a choice: "Automatic" first where the daemon looks for the radio itself, else a blank to say none is picked; each port with what the system calls it. */

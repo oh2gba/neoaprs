@@ -1,6 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { setLocale } from "@/i18n";
+import { LOCALES } from "@/i18n/locales";
 import { clockText } from "@/lib/format";
-import { lineText, searchedPorts, tncCounts, tncStatus } from "@/lib/tncstatus";
+import { lineText, pillClass, pillText, searchedPorts, tncCounts, tncStatus } from "@/lib/tncstatus";
 import { NOW, ago, tncState } from "@/test/fixtures";
 
 const searching = () =>
@@ -77,5 +79,29 @@ describe("lineText", () => {
   it("takes the day from the line itself: a line of last week is a line of last week", () => {
     const at = new Date(NOW - 7 * 86_400_000).toISOString();
     expect(lineText({ at, text: "text" })).toBe(`${clockText(at)}  text`);
+  });
+});
+
+describe("the Dummy radio", () => {
+  afterEach(() => setLocale("en"));
+
+  it("is a muted pill and a line that says nothing goes on the air, while its line is open", () => {
+    const dummy = tncState({ dummy: true, path: "the dummy radio" });
+    expect([pillText(dummy), pillClass(dummy), tncStatus(dummy, NOW)]).toEqual(["Dummy", "tnc-dummy", "Dummy radio: made-up traffic, nothing goes on the air"]);
+    const waiting = tncState({ dummy: true, state: "waiting", path: "", problem: "x" });
+    expect([pillText(waiting), pillClass(waiting)]).toEqual(["waiting", "tnc-waiting"]);
+    expect([pillText(tncState()), pillClass(tncState())]).toEqual(["connected", "tnc-connected"]);
+  });
+
+  it("says so in every language of the page, in that language", () => {
+    const dummy = tncState({ dummy: true });
+    const english = tncStatus(dummy, NOW);
+    for (const locale of LOCALES) {
+      setLocale(locale.code);
+      const line = tncStatus(dummy, NOW);
+      expect(line, locale.code).not.toBe("");
+      expect(pillText(dummy), locale.code).not.toBe("");
+      if (locale.code !== "en") expect(line, locale.code).not.toBe(english);
+    }
   });
 });

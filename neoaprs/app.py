@@ -67,6 +67,7 @@ class Services:
         self.pattern_override = pattern                                 # the globs the search listens to for this run only, instead of serial/pattern (the tests: a folder of their own)
         self.store = store if store is not None else Store(clock)       # the one database: everything is kept in it
         self.tnc = tnc if tnc is not None else Tnc(clock=clock)         # the radio; its port and speed are set from the config when it is started
+        self.tnc.where = lambda: self.config.station_position          # the Dummy radio's traffic is made round it
         self.tnc.interlock = Interlock(lambda: self.config)            # the transmit interlock: nothing goes out under no call, or one that is not a call (config.can_transmit)
         self.stationbook = StationBook(clock)                           # who was heard, where
         self.gps_feed = GpsFeed(clock)                                  # the GPS receiver: a gpsd to ask or a serial port to read; configured and started by the gps service

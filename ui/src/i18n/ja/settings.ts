@@ -78,7 +78,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.profile.tip2": "KISS TNC: Mobilinkd、NinoTNC、TNC-Pi、および無線機側でKISSをオンにしたケンウッド TH-D74 / TH-D75。通常はこれを選びます。",
   "settings.profile.tip3": "KISS over TCP: このパソコンまたは別のパソコンで動くDirewolfやサウンドカードモデム。DigirigやSignaLinkもこちらです。",
   "settings.profile.tip4": "Kenwood TH-D7、TM-D700、TS-2000: NeoAPRSが無線機をKISSモードにします。TM-D710、TH-D72、Kantronics KPC-3+も同様です。",
-  "settings.profile.tip5": "わからないときは、無線機ガイド docs/RADIOS.md をご覧ください。",
+  "settings.profile.tip5": "無線機がまだない場合は、ダミーが作り物のトラフィックで試せます。わからないときは docs/RADIOS.md をご覧ください。",
 
   "settings.port.name": "TNCポート",
   "settings.port.label": "ポート",
@@ -276,6 +276,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tnc.state.connected": "接続済み",
   "settings.tnc.state.waiting": "待機中",
   "settings.tnc.state.silent": "受信なし",
+  "settings.tnc.dummy_pill": "ダミー",
+  "settings.tnc.dummy": "ダミー無線機：作り物のトラフィック、電波は出ません",
   "settings.tnc.no_packet": "パケットはまだありません",
   "settings.tnc.last_packet": "最終パケットは{span}前",
   "settings.tnc.no_packet_digipeated": "パケットはまだありません、中継 {count}",

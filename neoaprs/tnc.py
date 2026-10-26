@@ -26,16 +26,18 @@ from datetime import datetime
 
 from . import ax25, kiss, serialprobe
 from .clock import Clock, utcnow
+from .dummyline import DUMMY_PATH, DummyPort
 from .interlock import Interlock
 from .packet import Packet
 from .policy import TNC_CHECK_SEC
 from .serialholders import held_by
-from .serialport import SerialError, SerialPort, is_socket
+from .serialport import SerialError, is_socket
 from .signal import Signal
 from .source import CHECKING, Backoff, Source, minutes_between, unusable_because
 from .tncentry import KissEntry
 from .tnclines import TimedSource
 from .tncmode import Mode, ModeDetector, TextAfterKiss, looks_valid, packet_of, read_frame
+from .tncport import TncPort
 from .tncsearch import PortSearch
 from .tncprofile import KENWOOD_TNC2, KISS_EXIT as KISS_EXIT, Profile
 from .tncwatchdog import ANSWER_SEC, CHECK_PAUSE_SEC, PROBE_SEC, PROMPT, REPLY_SEC, EntryAgain, TncStats, Watchdog
@@ -46,34 +48,36 @@ COMMAND_MODE = "the TNC is in command mode (KISS ON is sent again)"
 ENTER_KISS = KENWOOD_TNC2.enter[0][0]       # what the default profile writes (the Kenwood TNC-2's), for the tests
 
 
-class _TncPort(SerialPort):
-    """A serial port that hands its bytes and its death to the Tnc that owns it by plain callbacks, not signals."""
-
-    def __init__(self, path: str, baud: int, on_data: Callable[["_TncPort", bytes], None], on_lost: Callable[["_TncPort", str], None]) -> None:
-        super().__init__(path, baud)
-        self._on_data = on_data
-        self._on_lost = on_lost
-
-    def _deliver(self, chunk: bytes) -> None:
-        self._on_data(self, chunk)
-
-    def _lost(self, reason: str) -> None:
-        super()._lost(reason)
-        self._on_lost(self, reason)
-
-    def fail(self, reason: str) -> None:
-        """A write failed: the line counts as lost, like a read that failed."""
-        if self.is_open:
-            self._lost(reason)
-
-
 def _speed(path: str, baud: int) -> str:
-    """" at 9600" for a serial line; a TCP line has no speed."""
-    return "" if is_socket(path) else f" at {baud}"
+    """" at 9600" for a serial line; a TCP line and the dummy radio have no speed."""
+    return "" if is_socket(path) or path == DUMMY_PATH else f" at {baud}"
 
 
 def _printable(text: str) -> str:
     return "".join(c if c.isprintable() else "?" for c in text)
+
+
+def _describe(tnc: "Tnc") -> str:
+    """The Tnc in a few words, for the radio's status line."""
+    if tnc.is_dummy:
+        return f"dummy radio, made-up traffic, {tnc.stats.packets} packets, nothing goes on the air"
+    if tnc.state is Source.State.SILENT and tnc.last_byte_at is not None:
+        return f"silent since {tnc.last_byte_at:%H:%M} ({minutes_between(tnc.last_byte_at, tnc.now())})"
+    if tnc.searching:
+        return f"listening on {', '.join(tnc.searching)} for the radio"
+    if tnc._port is None:
+        return f"{tnc.path or tnc.port or 'no port'}{_speed(tnc.path or tnc.port, tnc.baud)}, {tnc.state.value}"
+    mode = "KISS" if tnc._kiss_seen else ("entering KISS" if tnc._entered else "listening")
+    return f"{tnc.path}{_speed(tnc.path, tnc.baud)}, {mode}, {tnc.stats.packets} packets"
+
+
+def _why_unusable(tnc: "Tnc") -> str:
+    """Why nothing is sent now, as a clause: a fresh line not yet confirmed, a TNC that types text (it is in command mode, KISS ON is sent again), else what the state says."""
+    if tnc.state is Source.State.CONNECTED and not tnc.confirmed:
+        return CHECKING
+    if tnc.state is Source.State.CONNECTED and tnc.profile.detect_command_mode and tnc._told_text and not tnc._kiss_seen:
+        return COMMAND_MODE
+    return unusable_because(tnc.state)
 
 
 class Tnc(TimedSource):
@@ -87,6 +91,7 @@ class Tnc(TimedSource):
         self.port, self.baud, self.profile, self.pattern = port, baud, profile, pattern or serialprobe.search_pattern()
         self.probe_seconds = probe_seconds                                                                 # the whole wait of the search, 0 = no limit
         self.probe_nudge_sec, self.skip = probe_nudge_sec, skip          # how long the search listens before it sends a carriage return to the ports; the device paths it never opens (the operator's serial/skip)
+        self.where: Callable[[], tuple[float, float] | None] = lambda: None   # the station's position (latitude, longitude), for the Dummy radio's traffic to be made round it (set by app.py)
         self.interlock: Interlock | None = None                          # the transmit interlock (neoaprs/interlock.py, set by app.py): while it refuses, no frame is sent; none when not given
         self.fallback_probe, self._probe_next = fallback_probe, False    # a port that was named and cannot be opened: the next attempt listens to the ports that match the pattern instead
         self.backoff = backoff or Backoff()
@@ -94,7 +99,7 @@ class Tnc(TimedSource):
         self.path = ""                                                   # the port in use
         self._search = PortSearch(self._spawn, self._note, PROMPT)
         self._entry = KissEntry(self._spawn, lambda data: self._port is not None and self._write(self._port, data), settle_sec, pace)    # the wait after the last step (None: the profile's), the factor on the others
-        self._port: _TncPort | None = None
+        self._port: TncPort | None = None
         self._generation = 0                                             # changes at stop(), so that an attempt that was under way knows it is over
         self._watchdog_task: asyncio.Task[None] | None = None
         self.watchdog = Watchdog(self, check_sec, check_pause_sec, reply_sec, answer_sec, probe_sec)    # check_sec 0: no checks
@@ -141,9 +146,9 @@ class Tnc(TimedSource):
             path, heard = (reopen or self.port, b"") if named else await self._search.find(self.pattern, self.baud, self.probe_seconds, lambda heard: looks_valid(heard, self.profile.detect_command_mode), self.profile.can_probe, self.probe_nudge_sec, self.skip, lambda: generation == self._generation, self.port)     # (`heard`: what the search heard from the port it chose; the named port is listened to as well)
             if generation != self._generation:
                 return
-            if named and (held := held_by(path)):
+            if named and not self.is_dummy and (held := held_by(path)):
                 raise SerialError(f"{path}: {held}")
-            port = _TncPort(path, self.baud, self._on_data, self._on_lost)
+            port = DummyPort(self._on_data, self._on_lost, self.where, self.clock) if self.is_dummy else TncPort(path, self.baud, self._on_data, self._on_lost)
             await port.open()
         except SerialError as e:
             self._probe_next = named and self.fallback_probe and self._search.possible
@@ -179,7 +184,7 @@ class Tnc(TimedSource):
         await asyncio.sleep(delay)
         await self._connect()
 
-    def _on_lost(self, port: _TncPort, reason: str) -> None:
+    def _on_lost(self, port: TncPort, reason: str) -> None:
         if port is not self._port:
             return
         self._port = None
@@ -193,7 +198,7 @@ class Tnc(TimedSource):
             watchdog.cancel()
 
     # ---- reading
-    def _on_data(self, port: _TncPort, chunk: bytes) -> None:
+    def _on_data(self, port: TncPort, chunk: bytes) -> None:
         if port is not self._port:
             return
         loop_now = asyncio.get_running_loop().time()
@@ -224,7 +229,7 @@ class Tnc(TimedSource):
             self._note(f"{self._decoder.dropped - self._dropped_seen} damaged KISS frame(s) dropped")
             self._dropped_seen = self._decoder.dropped
 
-    def _heard(self, port: _TncPort, chunk: bytes, loop_now: float) -> Mode | None:
+    def _heard(self, port: TncPort, chunk: bytes, loop_now: float) -> Mode | None:
         """Bytes came: what the detector makes of them, None while an entry settles (they are thrown away). From a silent radio, which may have been switched on (a TH-D7 starts with its TNC in command mode),
         the allowance to enter KISS is given back and the detector starts over; KISS is entered unless the bytes are a KISS frame already, or a piece of one (a FEND among them and no whole frame: a line
         delivers a frame in several reads, and command-mode text never has a FEND), when what follows decides, or an entry of the keep-alive's own is settling."""
@@ -245,7 +250,7 @@ class Tnc(TimedSource):
             self._enter_kiss(port, "the radio answers again", logging.DEBUG, note=False)
         return mode
 
-    def _command_mode(self, port: _TncPort) -> None:
+    def _command_mode(self, port: TncPort) -> None:
         if self._looking:
             return
         if self.profile.detect_command_mode and not self._entered:
@@ -258,7 +263,7 @@ class Tnc(TimedSource):
             self._set_problem("the TNC sends text, not KISS frames: it is in command mode" + (" and the entry did not change that" if self._entered else f" and the profile {self.profile.name!r} does not enter KISS"))
             self._note(self.problem)
 
-    def _enter_kiss(self, port: _TncPort, why: str = "the TNC was in command mode", level: int = logging.INFO, note: bool = True) -> None:
+    def _enter_kiss(self, port: TncPort, why: str = "the TNC was in command mode", level: int = logging.INFO, note: bool = True) -> None:
         """The profile's steps (KISS ON and RESTART for a TNC-2), then the settle time of throwing away what the TNC says. `level` is the log's (DEBUG for a check or a return from SILENT, which have told their
         own news, and for the later repeats of the entry); `note`: whether the terminal gets a line too (not for the check and the return from SILENT)."""
         self._entered = True
@@ -279,6 +284,7 @@ class Tnc(TimedSource):
         self.stats.packets += 1
         self.stats.last_packet = packet.heard_at
         self._saw(_printable(f"{frame.tnc2()}  ->  {packet.summary}"))
+        # at the merge: via="dummy" (feature/heard-via) when self.is_dummy: every packet of the Dummy radio is made here, like any radio's
         self.packet.emit(packet)
 
     # ---- the keep-alive (tncwatchdog.py decides when; these are the actions)
@@ -299,8 +305,8 @@ class Tnc(TimedSource):
     def usable(self) -> bool:
         return self.state is Source.State.CONNECTED and self.confirmed and not self._looking and not (self.profile.detect_command_mode and self._told_text and not self._kiss_seen) and asyncio.get_running_loop().time() >= self._settle_until
 
-    def why_unusable(self) -> str:
-        return _why_unusable(self)
+    describe, why_unusable = _describe, _why_unusable
+    is_dummy = property(lambda self: self.profile.transport == "dummy")
 
     def look_begin(self) -> bool:
         """A check or probe starts: nothing is sent meanwhile and the TNC is asked afresh. False when there is no line."""
@@ -333,7 +339,7 @@ class Tnc(TimedSource):
             await self._connect(reopen=port.path, silent=silent)
 
     # ---- writing
-    def _write(self, port: _TncPort, data: bytes) -> bool:
+    def _write(self, port: TncPort, data: bytes) -> bool:
         try:
             port.write(data)
         except SerialError as e:
@@ -373,27 +379,3 @@ class Tnc(TimedSource):
     def searching(self) -> list[str]:
         """The ports the search for the radio is listening to; none while a port is open or no search is under way."""
         return list(self._search.listening) if self._port is None else []
-
-    def describe(self) -> str:
-        return _describe(self)
-
-
-def _describe(tnc: "Tnc") -> str:
-    """The Tnc in a few words, for the radio's status line."""
-    if tnc.state is Source.State.SILENT and tnc.last_byte_at is not None:
-        return f"silent since {tnc.last_byte_at:%H:%M} ({minutes_between(tnc.last_byte_at, tnc.now())})"
-    if tnc.searching:
-        return f"listening on {', '.join(tnc.searching)} for the radio"
-    if tnc._port is None:
-        return f"{tnc.path or tnc.port or 'no port'}{_speed(tnc.path or tnc.port, tnc.baud)}, {tnc.state.value}"
-    mode = "KISS" if tnc._kiss_seen else ("entering KISS" if tnc._entered else "listening")
-    return f"{tnc.path}{_speed(tnc.path, tnc.baud)}, {mode}, {tnc.stats.packets} packets"
-
-
-def _why_unusable(tnc: "Tnc") -> str:
-    """Why nothing is sent now, as a clause: a fresh line not yet confirmed, a TNC that types text (it is in command mode, KISS ON is sent again), else what the state says."""
-    if tnc.state is Source.State.CONNECTED and not tnc.confirmed:
-        return CHECKING
-    if tnc.state is Source.State.CONNECTED and tnc.profile.detect_command_mode and tnc._told_text and not tnc._kiss_seen:
-        return COMMAND_MODE
-    return unusable_because(tnc.state)

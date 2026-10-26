@@ -18,7 +18,7 @@ from neoaprs.message import MessagingError
 from neoaprs.ownbulletin import PostError
 from neoaprs.ownobject import OwnError
 from neoaprs.radiosearch import Trying
-from neoaprs.serialprobe import available_ports, can_search, paired_bluetooth_ports, with_links
+from neoaprs.serialprobe import available_ports, can_find, can_search, paired_bluetooth_ports, with_links
 
 from .beaconwire import BeaconNow, StatusNow
 from .bulletinwire import BulletinDelete
@@ -104,7 +104,7 @@ async def tnc_reconnect(ctx: Ctx, cmd: TncReconnect) -> None:
 @command(ListPorts)
 async def list_ports(ctx: Ctx, cmd: ListPorts) -> None:
     ports = await asyncio.to_thread(lambda: with_links(available_ports()) + paired_bluetooth_ports())   # (the system's lists are read from files, the registry and BlueZ: not on the loop); the by-id names and the user's own links too, then the paired Bluetooth devices
-    ctx.conn.send({"type": "ports", "search": can_search(), "ports": [{"device": p.device, "description": p.description, "hwid": p.hwid, "vid": p.vid, "pid": p.pid} for p in ports]})
+    ctx.conn.send({"type": "ports", "search": can_search(), "find": can_find(), "ports": [{"device": p.device, "description": p.description, "hwid": p.hwid, "vid": p.vid, "pid": p.pid} for p in ports]})
 
 
 @command(FindRadio)

@@ -728,7 +728,7 @@ export interface PongMessage {
   now: string;
 }
 
-/** A serial port the system lists, or a Bluetooth device paired with it (Linux). Nothing was opened or connected to find it. */
+/** A serial port the system lists, or a Bluetooth device paired with it (Linux; on Windows a paired Bluetooth serial port is a COM port of the system's list). Nothing was opened or connected to find it. */
 export interface PortRow {
   /** the name to give as `serial/port`: `COM3`, `/dev/ttyUSB0`, `bt://AA:BB:CC:DD:EE:FF` for a paired Bluetooth device */
   device: string;
@@ -749,6 +749,8 @@ export interface PortsMessage {
   ports: PortRow[];
   /** whether the daemon looks for the radio among the ports by itself (Linux, the ports that match `serial/pattern`); where it is false (Windows, macOS) the radio is the port in `serial/port`, so the operator picks it from this list */
   search: boolean;
+  /** whether Find my radio (`find_radio`) can be asked for: on Linux, Windows and macOS */
+  find: boolean;
 }
 
 /** A position as the parser made it: decimal degrees, south and west negative, speed in km/h, altitude in metres. */
@@ -1091,6 +1093,8 @@ export interface TncState {
   /** the serial port in use; empty while none is open */
   path: string;
   baud: number;
+  /** the radio is the Dummy radio: the traffic is made up and nothing goes on the air; `path` and `baud` mean nothing then */
+  dummy: boolean;
   /** one line for the log and `neoaprs doctor`: the port, the speed and what the TNC does; while `silent` it says since when, in UTC */
   describe: string;
   /** the ports the daemon is listening to while it looks for the radio; empty when it is not searching */

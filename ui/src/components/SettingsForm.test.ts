@@ -19,6 +19,7 @@ const row = (device: string, description: string) => ({ device, description, hwi
 const portList = (extra: Partial<PortsMessage> = {}): PortsMessage => ({
   type: "ports",
   search: true,
+  find: true,
   ports: [row("/dev/ttyUSB0", "FT232R USB UART"), row("/dev/ttyS0", "n/a")],
   ...extra,
 });
@@ -531,6 +532,7 @@ describe("SettingsForm", () => {
         "Kantronics KPC-3+",
         "KISS TNC (Mobilinkd, NinoTNC, TNC-Pi, TH-D74/D75…)",
         "KISS over TCP (Direwolf, soundmodem)",
+        "Dummy (no radio, made-up traffic)",
       ]);
       expect(select.element.value).toBe("kenwood-tnc2");
     });
@@ -547,6 +549,15 @@ describe("SettingsForm", () => {
       await wrapper.find("#set-tnc-profile").setValue("kiss-tcp");
       expect(fieldIds(wrapper)).toEqual(["set-tnc-profile", "set-tcp-host", "set-tcp-port"]);
       expect(wrapper.find("#set-tcp-port").attributes("placeholder")).toBe("8001");
+    });
+
+    it("is a radio type like the others in the Settings tab, and a user who has the Dummy radio chooses a real one here: no port and no speed for it, and the ones that were set come back with a serial type", async () => {
+      const { wrapper, send } = make({ "serial/port": "COM5", "serial/baud": "57600" });
+      await wrapper.find("#set-tnc-profile").setValue("dummy");
+      expect(fieldIds(wrapper)).toEqual(["set-tnc-profile"]);
+      expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "tnc/profile": "dummy" } }); // (the port stays in the settings)
+      await wrapper.find("#set-tnc-profile").setValue("kiss");
+      expect(fieldIds(wrapper)).toEqual(["set-tnc-profile", "set-serial-port", "set-serial-baud"]);
     });
 
     it("clears a serial device when a TCP profile is chosen, so that the daemon does not refuse the save, and keeps an address", async () => {

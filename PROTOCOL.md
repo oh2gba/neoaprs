@@ -473,6 +473,7 @@ The answer to `list_ports`.
 |---|---|---|---|
 | `ports` | PortRow[] |  | the ports, in natural order (`COM2` before `COM10`), then the paired Bluetooth devices |
 | `search` | boolean |  | whether the daemon looks for the radio among the ports by itself (Linux, the ports that match `serial/pattern`); where it is false (Windows, macOS) the radio is the port in `serial/port`, so the operator picks it from this list |
+| `find` | boolean |  | whether Find my radio (`find_radio`) can be asked for: on Linux, Windows and macOS |
 
 ### `state`
 
@@ -826,6 +827,7 @@ The TNC, the one feed of packets: its state and why it is not connected, the por
 | `last_error` | string |  | the latest reason for waiting |
 | `path` | string |  | the serial port in use; empty while none is open |
 | `baud` | integer |  |  |
+| `dummy` | boolean |  | the radio is the Dummy radio: the traffic is made up and nothing goes on the air; `path` and `baud` mean nothing then |
 | `describe` | string |  | one line for the log and `neoaprs doctor`: the port, the speed and what the TNC does; while `silent` it says since when, in UTC |
 | `searching` | string[] |  | the ports the daemon is listening to while it looks for the radio; empty when it is not searching |
 | `silent_since` | time \| null |  | while `state` is `silent`, when the latest byte came; null otherwise |
@@ -1154,7 +1156,7 @@ A station's power, antenna height above average terrain, antenna gain and direct
 
 ### PortRow
 
-A serial port the system lists, or a Bluetooth device paired with it (Linux). Nothing was opened or connected to find it.
+A serial port the system lists, or a Bluetooth device paired with it (Linux; on Windows a paired Bluetooth serial port is a COM port of the system's list). Nothing was opened or connected to find it.
 
 | field | type | | description |
 |---|---|---|---|

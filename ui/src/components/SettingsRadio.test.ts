@@ -8,9 +8,10 @@ import type { PortsMessage, RadioSearchMessage } from "@/protocol/protocol";
 import { fakeDaemon, tell, withDaemon, type Given } from "@/test/context";
 import { configValues, tncState } from "@/test/fixtures";
 
-const ports = (search = true): PortsMessage => ({
+const ports = (find = true): PortsMessage => ({
   type: "ports",
-  search,
+  search: find,
+  find,
   ports: [{ device: "/dev/ttyUSB0", description: "FT232R USB UART", hwid: "n/a", vid: null, pid: null }],
 });
 

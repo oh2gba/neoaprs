@@ -1,9 +1,10 @@
 // Find my radio: the button of the Settings tab asks the daemon (`find_radio`) to try the ports and the speeds, and the daemon tells each try (`radio_search`, state `trying`) and the end of it: `found`, `cancelled`, or an `error` with a
 // code (nothing answered, no port to try). The page shows it in one toast (FindRadioToast) while it runs, with Cancel. A radio that was found goes into the settings like any other change (the Undo toast follows it), or is said in a
-// notice when the settings have it already. The search ends for the page when the socket closes: the daemon ends it when its page has gone.
+// notice when the settings have it already; while the Radio step of the setup guide is on the screen it goes into the guide's answers instead (the fields of the step fill), and is saved with the rest at Finish. The search ends for the page when the socket closes: the daemon ends it when its page has gone.
 import { computed, ref, shallowRef, watch, type Ref } from "vue";
 import type { Toast } from "@/composables/useDaemon";
 import type { Settings } from "@/composables/useSettings";
+import type { SetupGuide } from "@/composables/useSetupGuide";
 import { t } from "@/i18n";
 import type { Connection } from "@/lib/hub";
 import type { Command, ConfigValues, RadioSearchMessage } from "@/protocol/protocol";
@@ -23,6 +24,7 @@ export function useFindRadio(
   settings: Pick<Settings, "change" | "expected" | "dismissUndo">,
   config: Ref<ConfigValues | null>,
   say: (text: string) => void,
+  guide?: Pick<SetupGuide, "onRadio" | "fillRadio">,
 ) {
   const running = ref(false);
   /** The try that is under way; null until the daemon has told the first. */
@@ -42,6 +44,7 @@ export function useFindRadio(
 
   function found(message: RadioSearchMessage): void {
     const wanted = foundSettings(message);
+    if (guide?.onRadio) return guide.fillRadio(wanted);
     const changes = Object.fromEntries(Object.entries(wanted).filter(([key, value]) => settings.expected(key) !== value));
     if (Object.keys(changes).length > 0) settings.change(changes);
     else say(t("settings.find.already", { port: message.port }));

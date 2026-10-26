@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+The setup finds the radio for you, on Windows too, and NeoAPRS can be tried without a radio.
+
+- **Find my radio** works on Windows and macOS: it tries the COM ports (USB adapters first, a paired Bluetooth serial port last) or the `/dev/cu.*` devices, one at a time.
+- A port that another program has is passed over, with "in use by another program" in the log.
+- The setup's Radio step has **Find my radio** and the **Terminal**, as the Settings tab has them.
+- New radio type **Dummy (no radio, made-up traffic)**: stations, cars, a walker, weather, digipeaters, an object and a bulletin around your position, and answers to your messages. Nothing goes on the air.
+- The Dummy has no port and no speed to set; the radio status says "Dummy radio: made-up traffic, nothing goes on the air".
+
 ## 0.9.1
 
 Logs for support in one file, an About, a shorter project page with one-click downloads.

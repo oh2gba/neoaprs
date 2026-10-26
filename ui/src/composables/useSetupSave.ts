@@ -4,7 +4,7 @@ import { computed, ref, watch, type Ref } from "vue";
 import type { useSetupAnswers } from "@/composables/useSetupAnswers";
 import type { Toast } from "@/composables/useDaemon";
 import { reasonOf } from "@/lib/settings";
-import { KEY_OF, STEP_OF } from "@/lib/setup";
+import { KEY_OF, radioChanges, STEP_OF } from "@/lib/setup";
 import type { Command, ConfigValues } from "@/protocol/protocol";
 
 export function useSetupSave(
@@ -20,11 +20,17 @@ export function useSetupSave(
   let pending: Command | null = null; // the map command that waits for the settings to be saved
   const nothing = computed(() => Object.keys(answers.changes.value).length === 0);
 
-  function save(final: boolean): boolean {
+  function save(final: boolean, values: Record<string, string> = answers.changes.value): boolean {
     answers.clearErrors();
     finishing = final;
-    saving.value = send({ cmd: "set_config", values: { ...answers.changes.value } });
+    saving.value = send({ cmd: "set_config", values: { ...values } });
     return saving.value;
+  }
+
+  /** The Terminal of the Radio step: the radio the answers name is put in force (the settings of the radio only), so that the terminal shows that radio; nothing is sent when it is the one in force. */
+  function applyRadio(): void {
+    const radio = radioChanges(answers.fields, config.value?.values ?? {});
+    if (Object.keys(radio).length > 0 && !saving.value) save(false, radio);
   }
 
   /** Finish: the first step that is not right is shown, else the changed keys are saved, or nothing is when none is changed. */
@@ -76,5 +82,5 @@ export function useSetupSave(
     step.value = STEP_OF[field];
   });
 
-  return { saving, finish, sendMap };
+  return { saving, finish, sendMap, applyRadio };
 }

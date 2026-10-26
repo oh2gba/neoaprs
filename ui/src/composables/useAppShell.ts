@@ -134,7 +134,7 @@ export function useAppShell() {
   // the notices (a toast that is no error) and what the menu of a row of the Stations table sends or copies
   const { notice, say } = useNotice();
   const stationActions = useStationActions(send, say);
-  const findRadio = useFindRadio(daemon.radioSearch, lastError, connection, send, derived.settings, config, say);
+  const findRadio = useFindRadio(daemon.radioSearch, lastError, connection, send, derived.settings, config, say, guide);
 
   provideDaemon({
     ...daemon,

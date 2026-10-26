@@ -113,4 +113,25 @@ describe("RadioStatus", () => {
     expect(box.scrollTop).toBe(100);
     wrapper.unmount();
   });
+
+  it("says in a muted pill and in words that the Dummy radio's traffic is made up and nothing goes on the air", () => {
+    const wrapper = radio(tncState({ dummy: true, path: "the dummy radio", describe: "dummy radio, made-up traffic, 5 packets, nothing goes on the air" }));
+    expect(wrapper.find(".statepill").text()).toBe("Dummy");
+    expect(wrapper.find(".statepill").classes()).toContain("tnc-dummy");
+    expect(wrapper.find(".statepill").classes()).not.toContain("tnc-connected");
+    expect(wrapper.find(".tncstatus").text()).toBe("Dummy radio: made-up traffic, nothing goes on the air");
+  });
+
+  it("is the Dummy's pill and line only while its line is open: before that it is a radio like the others", () => {
+    const wrapper = radio(tncState({ dummy: true, state: "connecting", path: "" }));
+    expect(wrapper.find(".statepill").text()).toBe("connecting");
+    expect(wrapper.find(".tncstatus").text()).toBe("Connecting…");
+  });
+
+  it("has the terminal of the Dummy radio like any radio's", () => {
+    const wrapper = radio(
+      tncState({ dummy: true, lines: lines("NeoAPRS: opened the dummy radio", "Q1ABC>APRS:=6010.95N/02458.58E-Home station  ->  position") }),
+    );
+    expect(wrapper.find("pre.tnclines").text()).toContain("Q1ABC>APRS");
+  });
 });

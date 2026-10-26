@@ -179,11 +179,12 @@ async def test_list_ports_is_answered_with_the_ports_of_the_machine_and_whether_
     from neoaprs.serialprobe import PortInfo
     monkeypatch.setattr(web_handlers, "available_ports", lambda: [PortInfo("COM3", "USB Serial Port (COM3)", "USB VID:PID=0403:6001", 0x0403, 0x6001), PortInfo("COM4", "Bluetooth", "BTHENUM", None, None)])
     monkeypatch.setattr(web_handlers, "can_search", lambda: False)
+    monkeypatch.setattr(web_handlers, "can_find", lambda: True)
     e = Env(tmp_path, web=True)
     await e.start()
     page = await e.ws()
     await page.send({"cmd": "list_ports"})
-    assert await page.expect("ports") == {"type": "ports", "search": False, "ports": [
+    assert await page.expect("ports") == {"type": "ports", "search": False, "find": True, "ports": [
         {"device": "COM3", "description": "USB Serial Port (COM3)", "hwid": "USB VID:PID=0403:6001", "vid": 1027, "pid": 24577},
         {"device": "COM4", "description": "Bluetooth", "hwid": "BTHENUM", "vid": None, "pid": None}]}
     monkeypatch.setattr(web_handlers, "available_ports", lambda: [])
