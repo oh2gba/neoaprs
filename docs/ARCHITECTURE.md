@@ -12,7 +12,7 @@ The tables of this document that are that test's data (this one, the rules after
 <!-- doc-arch:layers -->
 | layer | modules | may import | may not import |
 | --- | --- | --- | --- |
-| foundation | `clock signal coded policy callsign geo symbols kiss ax25 aprsposition aprsmice aprsmiceout aprsmessage aprsparse aprsweather aprsthirdparty aprsisline aprsextension aprsfreq aprsstorm aprslocator aprstelemetry aprsnmea gpsfix smartbeacon packet packetcodec message bulletin decay tncmode tncprofile pref route chain mapstate radiosearch serialboards versions updateasset device devicedata hourcount dummyroutes dummyframes dummyscene dummyqru igaterules` | foundation | domain, adapters, persistence, services, app, delivery, and any I/O library |
+| foundation | `clock signal coded policy callsign geo symbols kiss ax25 aprsposition aprsmice aprsmiceout aprsmessage aprsparse aprsweather aprsthirdparty aprsisline aprsextension aprsfreq aprsstorm aprslocator aprstelemetry aprsnmea gpsfix smartbeacon packet packetcodec message bulletin decay tncmode tncprofile pref route reach chain mapstate radiosearch serialboards versions updateasset device devicedata hourcount dummyroutes dummyframes dummyscene dummyqru igaterules` | foundation | domain, adapters, persistence, services, app, delivery, and any I/O library |
 | domain | `alertcommand config configlegacy configstatus configtypes configvalues interlock station stationnotes stationbook aloha ownobject ownbulletin qrutext` | foundation, domain | adapters, persistence, services, app, delivery, and any I/O library |
 | adapters | `source tasks serialport serialholders serialprobe btsdp btserial btle btpaired tnc tncport callbackport dummyline tncsearch tncwatchdog tncentry tncfollow tnclines tncreader childenv rigctld gpsfeed aprsis pmtilestool worldmap updatefetch updatedownload selfreplace` | foundation, domain, adapters | persistence, services, app, delivery |
 | persistence | `store migrations migrationlog migrationsteps1to11 migrationsteps12to21 backupfolder durable instancelock stopfile walcare dbfile dberror dbstats dbthread db dbopen storesql paths dblog packetsql packetlog messagesql messagelog bulletinsql bulletinlog weathersql weatherlog ownsql ownlog supportsql` | foundation, domain, persistence | adapters, services, app, delivery |
@@ -51,6 +51,7 @@ What each layer is for:
     board's, and a bulletin as the board keeps it.
   * `route`: how a packet reached us (the route out of the starred addresses of a path, its text, the path to send by, the count of a station's routes).
     `chain`: the delivery chain of a message we sent (its attempts, the hops of a path that a copy heard back shows used).
+  * `reach`: how a packet from the internet got there in plain words (the iGate that heard it on the radio and the digipeaters before it, or an app that sent it, read from the q-construct of its path) and the two latest routes of a station that the map draws.
   * `device`: what a station runs, from the destination call of its packets or the type code of a Mic-E packet, by the APRS device identification list
     (`devicedata`, a snapshot made by `scripts/gen-devices.py`: CC BY-SA 2.0, from aprsorg/aprs-deviceid, which the daemon never fetches).
   * `pref`: what the operator set for a station, as a value. `mapstate`: the base map's files, estimate and job as plain values.

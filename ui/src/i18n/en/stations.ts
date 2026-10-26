@@ -171,4 +171,11 @@ export const stations = {
   "station.hover.via": "Heard on",
   "station.marker.internet": "heard over the internet",
   "route.heard.internet": "{n} over the internet",
+  "station.field.internet": "Internet",
+  "route.reach.app": "Sent from an internet app, never on the air",
+  "route.reach.igate_direct": "Heard by iGate {igate} directly",
+  "route.reach.igate_via": "Heard by iGate {igate} via {hops}",
+  "route.reach.igate_direct_unplaced": "Heard by iGate {igate} directly (iGate position unknown)",
+  "route.reach.igate_via_unplaced": "Heard by iGate {igate} via {hops} (iGate position unknown)",
+  "route.igate_label": "{call} → internet",
 } as const;

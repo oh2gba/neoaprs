@@ -3542,6 +3542,38 @@
       "title": "RadioSearchMessage",
       "type": "object"
     },
+    "ReachValues": {
+      "additionalProperties": false,
+      "description": "How a station's latest packet from the internet got there, read from the q-construct of its APRS-IS path.",
+      "properties": {
+        "kind": {
+          "description": "`igate`: an iGate heard it on the radio and put it on the internet (`qAR`, `qAO`); `app`: it was sent from the internet by an app or a program and never was on the air (`TCPIP*`, `qAC`, `qAS`, `qAX`)",
+          "enum": [
+            "igate",
+            "app"
+          ],
+          "type": "string"
+        },
+        "igate": {
+          "description": "the call of the iGate that heard it; empty for `app`",
+          "type": "string"
+        },
+        "hops": {
+          "description": "the digipeaters that repeated it on the radio before the iGate heard it, in order (`?` for one that put no call in); empty for a packet the iGate heard direct, and for `app`",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "igate",
+        "hops"
+      ],
+      "title": "ReachValues",
+      "type": "object"
+    },
     "ReplaceOp": {
       "additionalProperties": false,
       "description": "The whole value of the topic is `value`.",
@@ -3557,6 +3589,69 @@
         "value"
       ],
       "title": "ReplaceOp",
+      "type": "object"
+    },
+    "RouteMarkValues": {
+      "additionalProperties": false,
+      "description": "One route a packet of a station came by, which the map draws (a line, or none for `app` and for a packet heard direct).",
+      "properties": {
+        "kind": {
+          "description": "`rf`: heard on the radio, direct when `hops` is empty; `gated`: heard on the radio as a third-party packet that the iGate `gate` put on the air, `hops` the digipeaters that repeated the iGate's frame; `igate`: heard on the radio by the iGate `gate`, which put it on the internet, `hops` the digipeaters before it; `app`: sent from the internet, never on the air",
+          "enum": [
+            "rf",
+            "gated",
+            "igate",
+            "app"
+          ],
+          "type": "string"
+        },
+        "hops": {
+          "description": "the digipeaters in order, `?` for one that put no call in",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "gate": {
+          "description": "the iGate of `gated` and `igate`; empty for the others",
+          "type": "string"
+        },
+        "at": {
+          "description": "when the packet was heard",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "lat": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "where the station was when the packet was heard (the position it reported, else the one it had before); null when that is not known: the map takes its position now"
+        },
+        "lon": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "hops",
+        "gate",
+        "at",
+        "lat",
+        "lon"
+      ],
+      "title": "RouteMarkValues",
       "type": "object"
     },
     "SendMessage": {
@@ -4037,6 +4132,25 @@
           ],
           "description": "the path that has lately been heard to reach the station, which the first two attempts of a message to it go by when the operator has set no path of its own (the later ones go by `beacon/path`): empty for direct (at least 2 packets heard direct within 60 minutes), else the latest named route that at least 2 packets came by within 60 minutes, turned round, as `suggested_path` writes it (no hop without a call, no iGate, at most 3 digipeaters); null when there is none. Worked out when the row is sent, so a path that goes stale is told with the station's next row"
         },
+        "internet_reach": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReachValues"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "how the latest packet of the station that came from the internet got there; null for a station none came from, and for one whose path does not say"
+        },
+        "route_marks": {
+          "description": "the route of the station's latest packet and the one before it that came another way (any channel, the newest first): what the map draws of its routes, and no others; empty for a station nothing is known of (our own, our objects)",
+          "items": {
+            "$ref": "#/$defs/RouteMarkValues"
+          },
+          "maxItems": 2,
+          "type": "array"
+        },
         "weather": {
           "anyOf": [
             {
@@ -4237,6 +4351,8 @@
         "best_route",
         "suggested_path",
         "heard_path",
+        "internet_reach",
+        "route_marks",
         "weather",
         "weather_at",
         "telemetry",

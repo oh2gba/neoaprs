@@ -79,6 +79,8 @@ export function station(call: string, extra: Partial<StationRow> = {}): StationR
     best_route: "via OH2RCH-2",
     suggested_path: "OH2RCH-2",
     heard_path: null,
+    internet_reach: null,
+    route_marks: [{ kind: "rf", hops: ["OH2RCH-2"], gate: "", at: ago(60), lat: null, lon: null }],
     distance_km: 10,
     bearing_deg: 45,
     is_me: false,

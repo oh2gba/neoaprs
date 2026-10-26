@@ -17,7 +17,7 @@ from .packetcodec import tnc2
 from .policy import LOG_KEEP_DAYS
 from .serialprobe import search_pattern
 from .source import Source
-from .stationbook import DETAILS_SEEN
+from .stationbook import DETAILS_SEEN, ROUTES_SEEN
 from .tnc import Tnc
 from .tncprofile import Profile, names_tcp, tcp_url
 
@@ -143,6 +143,7 @@ async def seed_station_book(parts: Services) -> None:
     book.seed_radio(await packetlog.radio_positions(LOG_KEEP_DAYS))     # (the radio's side of the stations that were heard from the internet too)
     await _seed_weather(parts)
     book.seed_details(await packetlog.recent(DETAILS_SEEN))
+    book.seed_routes(reversed(await packetlog.window(ROUTES_SEEN)))      # (the newest first, as the window gives them: the routes are read oldest first)
     book.seed_messaging(await packetlog.messaging_evidence(LOG_KEEP_DAYS))
     book.seed_recent(await packetlog.since(parts.clock() - timedelta(hours=1)))
 

@@ -173,4 +173,11 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.hover.via": "Ouvida por",
   "station.marker.internet": "ouvida pela internet",
   "route.heard.internet": "{n} pela internet",
+  "station.field.internet": "Internet",
+  "route.reach.app": "Enviado por um app da internet, nunca pelo ar",
+  "route.reach.igate_direct": "Ouvido pelo iGate {igate} diretamente",
+  "route.reach.igate_via": "Ouvido pelo iGate {igate} via {hops}",
+  "route.reach.igate_direct_unplaced": "Ouvido pelo iGate {igate} diretamente (posição do iGate desconhecida)",
+  "route.reach.igate_via_unplaced": "Ouvido pelo iGate {igate} via {hops} (posição do iGate desconhecida)",
+  "route.igate_label": "{call} → internet",
 };

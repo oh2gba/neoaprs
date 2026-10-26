@@ -16,7 +16,8 @@ from .packet import IS, ItemReport, ObjectReport, Other, Packet, Position, Statu
 from .route import route_of
 from .signal import Signal
 from .station import Station, add_track_point
-from .stationnotes import expire_hours, note_gate, note_heard, note_igate, note_messaging, note_position, note_radio_place, note_telemetry, seed_hour, seed_radio, seed_reported
+from .stationnotes import expire_hours, note_gate, note_heard, note_igate, note_messaging, note_position, note_radio_place, note_telemetry, seed_hour, seed_radio, seed_reported, seed_routes
+ROUTES_SEEN = 1000                  # the latest packets, and as many of those not from the internet, that the routes of the stations are read from at the start
 DETAILS_SEEN = 2000                 # the packets that telemetry, its definitions, locators, data extensions and the device are read from at the start
 
 
@@ -98,6 +99,10 @@ class StationBook:
                 note_position(station, decoded)
             elif isinstance(decoded, Status):
                 station.locator, station.frequency = decoded.locator or station.locator, decoded.frequency or station.frequency
+
+    def seed_routes(self, packets: Iterable[Packet]) -> None:
+        """The packets the log kept, oldest first: the way of the latest internet packet of each station, and its two latest different routes for the map. A station that is not in the book is left out. Nothing is signalled."""
+        seed_routes(self._stations, packets)
 
     def seed_radio(self, packets: Iterable[Packet]) -> None:
         """The latest position packets that did not come from the internet, oldest first: where the radio put each station that has been heard from the internet too (Station.radio). Nothing is signalled."""

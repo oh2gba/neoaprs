@@ -1576,6 +1576,7 @@
    "heard_rf_gated": 0,
    "heard_via": [],
    "igate": false,
+   "internet_reach": null,
    "is_me": false,
    "kind": "object",
    "last_comment": "NET Tu9PM",
@@ -1597,6 +1598,16 @@
    "packets_hour": 1,
    "position_via": "rf",
    "reported_by": "N0RPT",
+   "route_marks": [
+    {
+     "at": "2026-10-21T12:00:00Z",
+     "gate": "",
+     "hops": [],
+     "kind": "rf",
+     "lat": 49.05833333333333,
+     "lon": -72.02916666666667
+    }
+   ],
    "sign": null,
    "speed_kmh": null,
    "storm": null,
@@ -1637,6 +1648,7 @@
    "heard_rf_gated": 0,
    "heard_via": [],
    "igate": false,
+   "internet_reach": null,
    "is_me": false,
    "kind": "item",
    "last_comment": "first aid",
@@ -1658,6 +1670,16 @@
    "packets_hour": 1,
    "position_via": "rf",
    "reported_by": "N0FFF",
+   "route_marks": [
+    {
+     "at": "2026-10-21T12:00:00Z",
+     "gate": "",
+     "hops": [],
+     "kind": "rf",
+     "lat": 60.25,
+     "lon": 24.966666666666665
+    }
+   ],
    "sign": null,
    "speed_kmh": null,
    "storm": null,
@@ -1698,6 +1720,7 @@
    "heard_rf_gated": 0,
    "heard_via": [],
    "igate": false,
+   "internet_reach": null,
    "is_me": false,
    "kind": "object",
    "last_comment": "",
@@ -1719,6 +1742,16 @@
    "packets_hour": 1,
    "position_via": "rf",
    "reported_by": "N0STM",
+   "route_marks": [
+    {
+     "at": "2026-10-21T12:00:00Z",
+     "gate": "",
+     "hops": [],
+     "kind": "rf",
+     "lat": 49.05833333333333,
+     "lon": -72.04583333333333
+    }
+   ],
    "sign": null,
    "speed_kmh": 66.672,
    "storm": {
@@ -1767,6 +1800,7 @@
    "heard_rf_gated": 0,
    "heard_via": [],
    "igate": false,
+   "internet_reach": null,
    "is_me": false,
    "kind": "item",
    "last_comment": "",
@@ -1788,6 +1822,16 @@
    "packets_hour": 1,
    "position_via": "rf",
    "reported_by": "N0SGN",
+   "route_marks": [
+    {
+     "at": "2026-10-21T12:00:00Z",
+     "gate": "",
+     "hops": [],
+     "kind": "rf",
+     "lat": 49.05833333333333,
+     "lon": -72.02916666666667
+    }
+   ],
    "sign": "55",
    "speed_kmh": null,
    "storm": null,
@@ -1828,6 +1872,7 @@
    "heard_rf_gated": 0,
    "heard_via": [],
    "igate": false,
+   "internet_reach": null,
    "is_me": false,
    "kind": "object",
    "last_comment": "convoy",
@@ -1851,6 +1896,18 @@
    "packets_hour": 1,
    "position_via": "rf",
    "reported_by": "N0FFF",
+   "route_marks": [
+    {
+     "at": "2026-10-21T12:00:00Z",
+     "gate": "",
+     "hops": [
+      "OH2RCH-2"
+     ],
+     "kind": "rf",
+     "lat": 60.2,
+     "lon": 24.933333333333334
+    }
+   ],
    "sign": null,
    "speed_kmh": 37.04,
    "storm": null,
@@ -1891,6 +1948,7 @@
    "heard_rf_gated": 0,
    "heard_via": [],
    "igate": false,
+   "internet_reach": null,
    "is_me": false,
    "kind": "item",
    "last_comment": "",
@@ -1912,6 +1970,7 @@
    "packets_hour": 0,
    "position_via": null,
    "reported_by": "OH2GBA-7",
+   "route_marks": [],
    "sign": null,
    "speed_kmh": null,
    "storm": null,
@@ -1946,6 +2005,7 @@
    "heard_rf_gated": 0,
    "heard_via": [],
    "igate": false,
+   "internet_reach": null,
    "is_me": false,
    "kind": "object",
    "last_comment": "Mine",
@@ -1969,6 +2029,7 @@
    "packets_hour": 0,
    "position_via": null,
    "reported_by": "OH2GBA-7",
+   "route_marks": [],
    "sign": null,
    "speed_kmh": 20.5,
    "storm": null,
@@ -2008,6 +2069,11 @@
     ]
    ],
    "igate": false,
+   "internet_reach": {
+    "hops": [],
+    "igate": "OH2RDK-1",
+    "kind": "igate"
+   },
    "is_me": false,
    "kind": "station",
    "last_comment": "over the internet too",
@@ -2029,6 +2095,24 @@
    "packets_hour": 4,
    "position_via": "is",
    "reported_by": "",
+   "route_marks": [
+    {
+     "at": "2026-10-21T12:25:00Z",
+     "gate": "OH2RDK-1",
+     "hops": [],
+     "kind": "igate",
+     "lat": 49.093333333333334,
+     "lon": -72.035
+    },
+    {
+     "at": "2026-10-21T12:20:00Z",
+     "gate": "",
+     "hops": [],
+     "kind": "rf",
+     "lat": 49.09166666666667,
+     "lon": -72.03333333333333
+    }
+   ],
    "sign": null,
    "speed_kmh": null,
    "storm": null,
@@ -2084,6 +2168,7 @@
    "heard_rf_gated": 0,
    "heard_via": [],
    "igate": false,
+   "internet_reach": null,
    "is_me": false,
    "kind": "station",
    "last_comment": "",
@@ -2105,6 +2190,16 @@
    "packets_hour": 1,
    "position_via": null,
    "reported_by": "",
+   "route_marks": [
+    {
+     "at": "2026-10-21T12:00:00Z",
+     "gate": "",
+     "hops": [],
+     "kind": "rf",
+     "lat": null,
+     "lon": null
+    }
+   ],
    "sign": null,
    "speed_kmh": null,
    "storm": null,
@@ -2144,6 +2239,7 @@
     ]
    ],
    "igate": false,
+   "internet_reach": null,
    "is_me": false,
    "kind": "station",
    "last_comment": "mobile",
@@ -2168,6 +2264,19 @@
    "packets_hour": 1,
    "position_via": "rf",
    "reported_by": "",
+   "route_marks": [
+    {
+     "at": "2026-10-21T12:00:00Z",
+     "gate": "",
+     "hops": [
+      "?",
+      "OH2RDG-1"
+     ],
+     "kind": "rf",
+     "lat": 49.05833333333333,
+     "lon": -72.02916666666667
+    }
+   ],
    "sign": null,
    "speed_kmh": 66.672,
    "storm": null,
@@ -2220,6 +2329,7 @@
    "heard_rf_gated": 0,
    "heard_via": [],
    "igate": false,
+   "internet_reach": null,
    "is_me": false,
    "kind": "station",
    "last_comment": "",
@@ -2241,6 +2351,16 @@
    "packets_hour": 1,
    "position_via": "rf",
    "reported_by": "",
+   "route_marks": [
+    {
+     "at": "2026-10-21T12:00:00Z",
+     "gate": "",
+     "hops": [],
+     "kind": "rf",
+     "lat": 49.05833333333333,
+     "lon": -72.02916666666667
+    }
+   ],
    "sign": null,
    "speed_kmh": null,
    "storm": null,
@@ -2287,6 +2407,7 @@
    "heard_rf_gated": 0,
    "heard_via": [],
    "igate": false,
+   "internet_reach": null,
    "is_me": false,
    "kind": "station",
    "last_comment": "range",
@@ -2310,6 +2431,16 @@
    "packets_hour": 1,
    "position_via": "rf",
    "reported_by": "",
+   "route_marks": [
+    {
+     "at": "2026-10-21T12:00:00Z",
+     "gate": "",
+     "hops": [],
+     "kind": "rf",
+     "lat": 49.05833333333333,
+     "lon": -72.02916666666667
+    }
+   ],
    "sign": null,
    "speed_kmh": null,
    "storm": null,
@@ -2355,6 +2486,7 @@
     ]
    ],
    "igate": false,
+   "internet_reach": null,
    "is_me": false,
    "kind": "station",
    "last_comment": "",
@@ -2384,6 +2516,18 @@
    "packets_hour": 1,
    "position_via": null,
    "reported_by": "",
+   "route_marks": [
+    {
+     "at": "2026-10-21T12:00:00Z",
+     "gate": "",
+     "hops": [
+      "OH2RCH-3"
+     ],
+     "kind": "rf",
+     "lat": null,
+     "lon": null
+    }
+   ],
    "sign": null,
    "speed_kmh": null,
    "storm": null,
@@ -2423,6 +2567,7 @@
     ]
    ],
    "igate": false,
+   "internet_reach": null,
    "is_me": false,
    "kind": "station",
    "last_comment": "",
@@ -2444,6 +2589,26 @@
    "packets_hour": 2,
    "position_via": null,
    "reported_by": "",
+   "route_marks": [
+    {
+     "at": "2026-10-21T12:00:00Z",
+     "gate": "",
+     "hops": [],
+     "kind": "rf",
+     "lat": 60.25,
+     "lon": 24.966666666666665
+    },
+    {
+     "at": "2026-10-21T12:00:00Z",
+     "gate": "",
+     "hops": [
+      "OH2RCH-2"
+     ],
+     "kind": "rf",
+     "lat": 60.2,
+     "lon": 24.933333333333334
+    }
+   ],
    "sign": null,
    "speed_kmh": null,
    "storm": null,
@@ -2489,6 +2654,7 @@
    "heard_rf_gated": 0,
    "heard_via": [],
    "igate": false,
+   "internet_reach": null,
    "is_me": false,
    "kind": "station",
    "last_comment": "Voice",
@@ -2510,6 +2676,16 @@
    "packets_hour": 1,
    "position_via": "rf",
    "reported_by": "",
+   "route_marks": [
+    {
+     "at": "2026-10-21T12:00:00Z",
+     "gate": "",
+     "hops": [],
+     "kind": "rf",
+     "lat": 49.05833333333333,
+     "lon": -72.02916666666667
+    }
+   ],
    "sign": null,
    "speed_kmh": null,
    "storm": null,
@@ -2550,6 +2726,7 @@
    "heard_rf_gated": 0,
    "heard_via": [],
    "igate": false,
+   "internet_reach": null,
    "is_me": false,
    "kind": "station",
    "last_comment": "",
@@ -2571,6 +2748,16 @@
    "packets_hour": 1,
    "position_via": null,
    "reported_by": "",
+   "route_marks": [
+    {
+     "at": "2026-10-21T12:00:00Z",
+     "gate": "",
+     "hops": [],
+     "kind": "rf",
+     "lat": 49.05833333333333,
+     "lon": -72.02916666666667
+    }
+   ],
    "sign": null,
    "speed_kmh": null,
    "storm": null,
@@ -2605,6 +2792,11 @@
    "heard_rf_gated": 0,
    "heard_via": [],
    "igate": false,
+   "internet_reach": {
+    "hops": [],
+    "igate": "",
+    "kind": "app"
+   },
    "is_me": false,
    "kind": "station",
    "last_comment": "from the internet",
@@ -2626,6 +2818,16 @@
    "packets_hour": 1,
    "position_via": "is",
    "reported_by": "",
+   "route_marks": [
+    {
+     "at": "2026-10-21T12:00:00Z",
+     "gate": "",
+     "hops": [],
+     "kind": "app",
+     "lat": 60.205666666666666,
+     "lon": 24.94633333333333
+    }
+   ],
    "sign": null,
    "speed_kmh": null,
    "storm": null,
@@ -2671,6 +2873,7 @@
     ]
    ],
    "igate": false,
+   "internet_reach": null,
    "is_me": false,
    "kind": "station",
    "last_comment": "",
@@ -2694,6 +2897,18 @@
    "packets_hour": 1,
    "position_via": null,
    "reported_by": "",
+   "route_marks": [
+    {
+     "at": "2026-10-21T12:00:00Z",
+     "gate": "",
+     "hops": [
+      "?"
+     ],
+     "kind": "rf",
+     "lat": null,
+     "lon": null
+    }
+   ],
    "sign": null,
    "speed_kmh": null,
    "storm": null,
@@ -2728,6 +2943,7 @@
    "heard_rf_gated": 0,
    "heard_via": [],
    "igate": false,
+   "internet_reach": null,
    "is_me": false,
    "kind": "station",
    "last_comment": "",
@@ -2749,6 +2965,16 @@
    "packets_hour": 1,
    "position_via": null,
    "reported_by": "",
+   "route_marks": [
+    {
+     "at": "2026-10-21T12:00:00Z",
+     "gate": "",
+     "hops": [],
+     "kind": "rf",
+     "lat": null,
+     "lon": null
+    }
+   ],
    "sign": null,
    "speed_kmh": null,
    "storm": null,
@@ -2783,6 +3009,7 @@
    "heard_rf_gated": 0,
    "heard_via": [],
    "igate": false,
+   "internet_reach": null,
    "is_me": false,
    "kind": "station",
    "last_comment": "",
@@ -2804,6 +3031,16 @@
    "packets_hour": 1,
    "position_via": null,
    "reported_by": "",
+   "route_marks": [
+    {
+     "at": "2026-10-21T12:00:00Z",
+     "gate": "",
+     "hops": [],
+     "kind": "rf",
+     "lat": null,
+     "lon": null
+    }
+   ],
    "sign": null,
    "speed_kmh": null,
    "storm": null,
@@ -2838,6 +3075,7 @@
    "heard_rf_gated": 0,
    "heard_via": [],
    "igate": false,
+   "internet_reach": null,
    "is_me": false,
    "kind": "station",
    "last_comment": "",
@@ -2859,6 +3097,16 @@
    "packets_hour": 1,
    "position_via": null,
    "reported_by": "",
+   "route_marks": [
+    {
+     "at": "2026-10-21T12:00:00Z",
+     "gate": "",
+     "hops": [],
+     "kind": "rf",
+     "lat": null,
+     "lon": null
+    }
+   ],
    "sign": null,
    "speed_kmh": null,
    "storm": null,
@@ -2893,6 +3141,7 @@
    "heard_rf_gated": 0,
    "heard_via": [],
    "igate": false,
+   "internet_reach": null,
    "is_me": false,
    "kind": "station",
    "last_comment": "",
@@ -2914,6 +3163,16 @@
    "packets_hour": 1,
    "position_via": null,
    "reported_by": "",
+   "route_marks": [
+    {
+     "at": "2026-10-21T12:00:00Z",
+     "gate": "",
+     "hops": [],
+     "kind": "rf",
+     "lat": 49.05833333333333,
+     "lon": -72.02916666666667
+    }
+   ],
    "sign": null,
    "speed_kmh": null,
    "storm": null,
@@ -2948,6 +3207,7 @@
    "heard_rf_gated": 0,
    "heard_via": [],
    "igate": false,
+   "internet_reach": null,
    "is_me": false,
    "kind": "station",
    "last_comment": "",
@@ -2969,6 +3229,16 @@
    "packets_hour": 1,
    "position_via": null,
    "reported_by": "",
+   "route_marks": [
+    {
+     "at": "2026-10-21T12:00:00Z",
+     "gate": "",
+     "hops": [],
+     "kind": "rf",
+     "lat": 49.05833333333333,
+     "lon": -72.02916666666667
+    }
+   ],
    "sign": null,
    "speed_kmh": null,
    "storm": null,
@@ -3003,6 +3273,7 @@
    "heard_rf_gated": 0,
    "heard_via": [],
    "igate": false,
+   "internet_reach": null,
    "is_me": false,
    "kind": "station",
    "last_comment": "",
@@ -3024,6 +3295,16 @@
    "packets_hour": 1,
    "position_via": null,
    "reported_by": "",
+   "route_marks": [
+    {
+     "at": "2026-10-21T12:00:00Z",
+     "gate": "",
+     "hops": [],
+     "kind": "rf",
+     "lat": 49.05833333333333,
+     "lon": -72.04583333333333
+    }
+   ],
    "sign": null,
    "speed_kmh": null,
    "storm": null,
@@ -3058,6 +3339,7 @@
    "heard_rf_gated": 0,
    "heard_via": [],
    "igate": false,
+   "internet_reach": null,
    "is_me": false,
    "kind": "station",
    "last_comment": "",
@@ -3079,6 +3361,16 @@
    "packets_hour": 5,
    "position_via": null,
    "reported_by": "",
+   "route_marks": [
+    {
+     "at": "2026-10-21T12:00:00Z",
+     "gate": "",
+     "hops": [],
+     "kind": "rf",
+     "lat": null,
+     "lon": null
+    }
+   ],
    "sign": null,
    "speed_kmh": null,
    "storm": null,
@@ -3183,6 +3475,7 @@
    "heard_rf_gated": 0,
    "heard_via": [],
    "igate": false,
+   "internet_reach": null,
    "is_me": false,
    "kind": "station",
    "last_comment": "",
@@ -3204,6 +3497,16 @@
    "packets_hour": 1,
    "position_via": null,
    "reported_by": "",
+   "route_marks": [
+    {
+     "at": "2026-10-21T12:00:00Z",
+     "gate": "",
+     "hops": [],
+     "kind": "rf",
+     "lat": null,
+     "lon": null
+    }
+   ],
    "sign": null,
    "speed_kmh": null,
    "storm": null,
@@ -3238,6 +3541,7 @@
    "heard_rf_gated": 0,
    "heard_via": [],
    "igate": false,
+   "internet_reach": null,
    "is_me": false,
    "kind": "station",
    "last_comment": "",
@@ -3259,6 +3563,16 @@
    "packets_hour": 1,
    "position_via": null,
    "reported_by": "",
+   "route_marks": [
+    {
+     "at": "2026-10-21T12:00:00Z",
+     "gate": "",
+     "hops": [],
+     "kind": "rf",
+     "lat": null,
+     "lon": null
+    }
+   ],
    "sign": null,
    "speed_kmh": null,
    "storm": null,
@@ -3310,6 +3624,7 @@
     ]
    ],
    "igate": false,
+   "internet_reach": null,
    "is_me": false,
    "kind": "station",
    "last_comment": "",
@@ -3333,6 +3648,18 @@
    "packets_hour": 1,
    "position_via": "rf",
    "reported_by": "",
+   "route_marks": [
+    {
+     "at": "2026-10-21T12:00:00Z",
+     "gate": "",
+     "hops": [
+      "?"
+     ],
+     "kind": "rf",
+     "lat": 49.05833333333333,
+     "lon": -72.02916666666667
+    }
+   ],
    "sign": null,
    "speed_kmh": null,
    "storm": null,
@@ -3385,6 +3712,7 @@
    "heard_rf_gated": 1,
    "heard_via": [],
    "igate": false,
+   "internet_reach": null,
    "is_me": false,
    "kind": "station",
    "last_comment": "",
@@ -3408,6 +3736,18 @@
    "packets_hour": 1,
    "position_via": null,
    "reported_by": "",
+   "route_marks": [
+    {
+     "at": "2026-10-21T12:00:00Z",
+     "gate": "OH7JHF-1",
+     "hops": [
+      "OH2RCH-3"
+     ],
+     "kind": "gated",
+     "lat": null,
+     "lon": null
+    }
+   ],
    "sign": null,
    "speed_kmh": null,
    "storm": null,
@@ -3442,6 +3782,7 @@
    "heard_rf_gated": 0,
    "heard_via": [],
    "igate": false,
+   "internet_reach": null,
    "is_me": true,
    "kind": "station",
    "last_comment": "Home",
@@ -3463,6 +3804,7 @@
    "packets_hour": 0,
    "position_via": null,
    "reported_by": "",
+   "route_marks": [],
    "sign": null,
    "speed_kmh": null,
    "storm": null,
@@ -3502,6 +3844,7 @@
     ]
    ],
    "igate": false,
+   "internet_reach": null,
    "is_me": false,
    "kind": "station",
    "last_comment": "made up",
@@ -3525,6 +3868,18 @@
    "packets_hour": 1,
    "position_via": "dummy",
    "reported_by": "",
+   "route_marks": [
+    {
+     "at": "2026-10-21T12:00:00Z",
+     "gate": "",
+     "hops": [
+      "?"
+     ],
+     "kind": "rf",
+     "lat": 60.25,
+     "lon": 25.0
+    }
+   ],
    "sign": null,
    "speed_kmh": null,
    "storm": null,
@@ -3576,6 +3931,7 @@
    "heard_rf_gated": 0,
    "heard_via": [],
    "igate": false,
+   "internet_reach": null,
    "is_me": false,
    "kind": "object",
    "last_comment": "",
@@ -3597,6 +3953,16 @@
    "packets_hour": 1,
    "position_via": "rf",
    "reported_by": "N0GGG",
+   "route_marks": [
+    {
+     "at": "2026-10-21T12:00:00Z",
+     "gate": "",
+     "hops": [],
+     "kind": "rf",
+     "lat": 49.05833333333333,
+     "lon": -72.02916666666667
+    }
+   ],
    "sign": null,
    "speed_kmh": null,
    "storm": null,

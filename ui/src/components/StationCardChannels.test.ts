@@ -5,7 +5,8 @@ import { NOW, ago, station } from "@/test/fixtures";
 
 const fieldsOf = (wrapper: ReturnType<typeof mount>) =>
   Object.fromEntries(wrapper.findAll("dt").map((dt) => [dt.text(), dt.element.nextElementSibling?.textContent?.trim()]));
-const card = (row: ReturnType<typeof station>) => mount(StationCard, { props: { row, now: NOW } });
+const card = (row: ReturnType<typeof station>, stations: ReadonlyMap<string, ReturnType<typeof station>> = new Map()) =>
+  mount(StationCard, { props: { row, now: NOW, stations } });
 
 const both = station("OH2BOTH", { heard_rf: 3, heard_is: 2, last_rf_at: ago(180), last_is_at: ago(40), last_heard: ago(40), position_via: "is" });
 const net = station("OH2NET", {
@@ -42,6 +43,27 @@ describe("the card of a station, by channel", () => {
   it("has the plain age for our own station and our objects, which are not heard by any channel", () => {
     const me = station("OH2GBA", { is_me: true, heard_rf: 0, last_rf_at: null, last_heard: ago(120) });
     expect(fieldsOf(card(me))["Last heard"]).toBe("2 min ago");
+  });
+
+  it("says in one plain line for each channel how it reached us: the radio's as ever, the internet's by the iGate that heard it", () => {
+    const row = { ...both, internet_reach: { kind: "igate" as const, igate: "OH2GW-10", hops: ["OH2RCH-2"] } };
+    const placed = new Map([["OH2GW-10", station("OH2GW-10", { lat: 60.05, lon: 24.3 })]]);
+    const fields = fieldsOf(card(row, placed));
+    expect(fields["Reached us"]).toBe("via OH2RCH-2");
+    expect(fields["Internet"]).toBe("Heard by iGate OH2GW-10 via OH2RCH-2");
+    expect(fieldsOf(card(row))["Internet"]).toBe("Heard by iGate OH2GW-10 via OH2RCH-2 (iGate position unknown)");
+  });
+
+  it("says of a station that only an app sent from the internet that it never was on the air, and has no radio line for it", () => {
+    const fields = fieldsOf(card({ ...net, internet_reach: { kind: "app", igate: "", hops: [] } }));
+    expect(fields["Internet"]).toBe("Sent from an internet app, never on the air");
+    expect(fields).not.toHaveProperty("Reached us");
+  });
+
+  it("has no internet line for a station nothing came from the internet of, and none for our own station", () => {
+    expect(fieldsOf(card(station("OH2RF")))).not.toHaveProperty("Internet");
+    const me = station("OH2GBA", { is_me: true, internet_reach: { kind: "app", igate: "", hops: [] } });
+    expect(fieldsOf(card(me))).not.toHaveProperty("Internet");
   });
 
   it("counts the packets by channel under Details, the ones from the internet apart from those of an iGate", () => {

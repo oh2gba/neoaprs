@@ -607,6 +607,13 @@ export const fr: Catalogue = {
   "station.hover.via": "Entendue par",
   "station.marker.internet": "entendue par internet",
   "route.heard.internet": "{n} par internet",
+  "station.field.internet": "Internet",
+  "route.reach.app": "Envoyé depuis une appli internet, jamais sur la radio",
+  "route.reach.igate_direct": "Entendu par l'iGate {igate} en direct",
+  "route.reach.igate_via": "Entendu par l'iGate {igate} via {hops}",
+  "route.reach.igate_direct_unplaced": "Entendu par l'iGate {igate} en direct (position de l'iGate inconnue)",
+  "route.reach.igate_via_unplaced": "Entendu par l'iGate {igate} via {hops} (position de l'iGate inconnue)",
+  "route.igate_label": "{call} → internet",
 
   // map
   "map.label": "Carte des stations",

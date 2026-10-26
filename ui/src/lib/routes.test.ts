@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { setLocale } from "@/i18n";
-import { bestText, heardDirect, heardDirectRecently, heardText, pathWords, reachedText, routeWords, viaName } from "@/lib/routes";
+import { bestText, heardDirect, heardDirectRecently, heardText, internetText, pathWords, reachedText, routeWords, viaName } from "@/lib/routes";
 import { NOW, ago, station } from "@/test/fixtures";
 
 describe("heardText", () => {
@@ -102,5 +102,30 @@ describe("reachedText", () => {
 
   it("is null before any packet is counted", () => {
     expect(reachedText(none)).toBeNull();
+  });
+});
+
+describe("internetText", () => {
+  const book = new Map([
+    ["OH2GW-10", station("OH2GW-10", { lat: 60.05, lon: 24.3 })],
+    ["OH2NOPOS", station("OH2NOPOS", { lat: null, lon: null })],
+  ]);
+  const reach = (igate: string, hops: string[]) => ({ internet_reach: { kind: "igate" as const, igate, hops } });
+
+  it("names the iGate that heard it and the digipeaters before it, or says it heard it direct", () => {
+    expect(internetText(reach("OH2GW-10", ["OH2RCH-2"]), book)).toBe("Heard by iGate OH2GW-10 via OH2RCH-2");
+    expect(internetText(reach("OH2GW-10", ["OH2RCH-1", "OH2RCH-3"]), book)).toBe("Heard by iGate OH2GW-10 via OH2RCH-1 → OH2RCH-3");
+    expect(internetText(reach("OH2GW-10", ["?", "OH2RCH-2"]), book)).toBe("Heard by iGate OH2GW-10 via a repeater → OH2RCH-2");
+    expect(internetText(reach("OH2GW-10", []), book)).toBe("Heard by iGate OH2GW-10 directly");
+  });
+
+  it("says that the iGate's position is not known, for an iGate not in the book and one with no position", () => {
+    expect(internetText(reach("OH2NOPOS", ["OH2RCH-2"]), book)).toBe("Heard by iGate OH2NOPOS via OH2RCH-2 (iGate position unknown)");
+    expect(internetText(reach("OH2UNKNOWN", []), book)).toBe("Heard by iGate OH2UNKNOWN directly (iGate position unknown)");
+  });
+
+  it("says that a packet from an app never was on the air, and nothing when the way is not known", () => {
+    expect(internetText({ internet_reach: { kind: "app", igate: "", hops: [] } }, book)).toBe("Sent from an internet app, never on the air");
+    expect(internetText({ internet_reach: null }, book)).toBeNull();
   });
 });
