@@ -19,6 +19,7 @@ from neoaprs.cli.daemonstate import LOG_NAME, page_url
 from tests.conftest import ROOT
 from tests.support.proc import NEW_GROUP, stop
 
+WHEEL_VERSION = VERSION.replace("-rc", "rc")                  # (the wheel's file name and its dist-info folder have the version as PEP 440 writes it: 0.10.0-rc1 is 0.10.0rc1)
 pytestmark = pytest.mark.skipif(shutil.which("uv") is None, reason="uv is not installed: the wheel is not built")
 NEEDS_NETWORK = ("error sending request", "failed to fetch", "dns error", "connection refused", "network", "timed out", "tcp connect error", "unable to connect", "name resolution")
 
@@ -74,20 +75,20 @@ def clean_env(home: Path) -> dict[str, str]:
 
 def test_the_wheel_holds_the_package_the_page_and_the_unit_and_nothing_of_the_repository(built: dict[str, Path]) -> None:
     names = zipfile.ZipFile(built["wheel"]).namelist()
-    assert built["wheel"].name == f"neoaprs-{VERSION}-py3-none-any.whl"
+    assert built["wheel"].name == f"neoaprs-{WHEEL_VERSION}-py3-none-any.whl"
     for needed in ("neoaprs/__init__.py", "neoaprs/__main__.py", "neoaprs/daemon.py", "neoaprs/cli/__init__.py", "neoaprs/cli/neoaprs.service", "neoaprs/desktop/cmd.py", "neoaprs/desktop/icon.png", "neoaprs/desktop/icon.ico", "neoaprs/samples/thd7.kiss", "neoaprs/web/server.py", "neoaprs/web/placeholder/index.html",
                    "neoaprs/page/index.html", "neoaprs/page/symbols/primary.png", "neoaprs/page/symbols/alternate.png", "neoaprs/page/symbols/overlay.png", "neoaprs/page/symbols/SOURCE.txt", "neoaprs/page/symbols/COPYRIGHT.txt",
-                   "neoaprs/maps/basemap-world.pmtiles", "neoaprs/maps/basemap-world.json", "neoaprs/page/fonts/NotoSans-Regular/0-255.pbf", "neoaprs/page/fonts/NotoSans-Medium/0-255.pbf", "neoaprs/page/fonts/OFL.txt", f"neoaprs-{VERSION}.dist-info/licenses/LICENSE"):
+                   "neoaprs/maps/basemap-world.pmtiles", "neoaprs/maps/basemap-world.json", "neoaprs/page/fonts/NotoSans-Regular/0-255.pbf", "neoaprs/page/fonts/NotoSans-Medium/0-255.pbf", "neoaprs/page/fonts/OFL.txt", f"neoaprs-{WHEEL_VERSION}.dist-info/licenses/LICENSE"):
         assert needed in names, f"{needed} is not in the wheel"
     assets = [n for n in names if n.startswith("neoaprs/page/assets/")]
     assert any(n.endswith(".js") for n in assets) and any(n.endswith(".css") for n in assets) and any("maplibre-gl-worker" in n for n in assets)
-    assert not [n for n in names if n.split("/")[0] not in ("neoaprs", f"neoaprs-{VERSION}.dist-info")], "only the package and its metadata"
+    assert not [n for n in names if n.split("/")[0] not in ("neoaprs", f"neoaprs-{WHEEL_VERSION}.dist-info")], "only the package and its metadata"
     assert not [n for n in names if "__pycache__" in n or n.endswith((".pyc", ".sqlite", ".map")) or (n.endswith(".pmtiles") and n != "neoaprs/maps/basemap-world.pmtiles") or "/tests/" in n or "node_modules" in n]
     html = zipfile.ZipFile(built["wheel"]).read("neoaprs/page/index.html").decode()
     assert "./assets/" in html
-    entry = zipfile.ZipFile(built["wheel"]).read(f"neoaprs-{VERSION}.dist-info/entry_points.txt").decode()
+    entry = zipfile.ZipFile(built["wheel"]).read(f"neoaprs-{WHEEL_VERSION}.dist-info/entry_points.txt").decode()
     assert "[console_scripts]\nneoaprs = neoaprs.cli:main" in entry and "[gui_scripts]\nneoaprs-app = neoaprs.desktop.cmd:gui_main\nneoaprsw = neoaprs.cli:gui_main" in entry
-    metadata = zipfile.ZipFile(built["wheel"]).read(f"neoaprs-{VERSION}.dist-info/METADATA").decode()
+    metadata = zipfile.ZipFile(built["wheel"]).read(f"neoaprs-{WHEEL_VERSION}.dist-info/METADATA").decode()
     assert f"Version: {VERSION}\n" in metadata and "Requires-Dist: tornado==" in metadata and "Requires-Python: >=3.13" in metadata and "License-Expression: GPL-3.0-or-later" in metadata
     assert "Provides-Extra: app" in metadata and "pywebview==" in metadata and "pyside6-webengine==" in metadata.lower(), "the desktop app is an extra"
     assert not [line for line in metadata.splitlines() if line.startswith("Requires-Dist:") and "extra ==" not in line and any(n in line.lower() for n in ("pywebview", "pyside6", "pystray", "pillow"))], "the daemon's install stays lean: none of the toolkits is a dependency without the extra"
