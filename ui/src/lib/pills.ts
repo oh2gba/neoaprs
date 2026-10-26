@@ -1,5 +1,5 @@
-// The marks at the top right of the header, before the count of messages: only what is out of the ordinary or running, each with a short hover title and the place where it is set. In this order: RX only (warn, while transmitting is off), Beacon off (neutral, only while transmitting is on),
-// Internet (info, while the Internet switch is connected and receiving), GPS (only when a GPS is the position source: ok with a fix, warn without). On a narrow screen the marks fold as whole marks, Internet first (styles/panel.css). Plain functions of the settings and the states the daemon told; the marks are the TagMark of the page: RX only is warn, Beacon off neutral, Internet info, GPS ok with a fix and warn without.
+// The marks at the top right of the header, before the count of messages: only what is out of the ordinary or running, each with a short hover title and the place where it is set. In this order, which is the order they fold in on a narrow screen (the last first): RX only (warn, while transmitting is off), Beacon off (neutral, only while transmitting is on),
+// GPS (only when a GPS is the position source: ok with a fix, warn without), Internet (info, while Internet stations is connected and receiving). Plain functions of the settings and the states the daemon told; the marks are the TagMark of the page: RX only is warn, Beacon off neutral, Internet info, GPS ok with a fix and warn without.
 import type { MessageId } from "@/i18n/catalogue";
 import { beaconOff } from "@/lib/beaconoff";
 import { isMoving } from "@/lib/gpsstatus";
@@ -23,12 +23,12 @@ export function headerPills(values: Readonly<Record<string, string>>, gps: GpsSt
   const rxOnly = values["station/transmit"] === "false";
   if (rxOnly) pills.push({ id: "rx", text: "pill.rx", title: "pill.rx_title", tone: "warn", target: "settings" });
   else if (beaconOff(values)) pills.push({ id: "beacon_off", text: "pill.beacon_off", title: "pill.beacon_off_title", tone: "neutral", target: "beacon" });
-  if (igate !== null && igate.enabled && (igate.state === "connected" || igate.state === "listening" || igate.state === "unverified")) {
-    pills.push({ id: "internet", text: "pill.internet", title: "pill.internet_title", tone: "info", target: "settings" });
-  }
   if (gps === null ? isMoving(values) : gps.mobile) {
     const fix = gps?.state === "fix";
     pills.push({ id: "gps", text: "pill.gps", title: fix ? "pill.gps_fix_title" : "pill.gps_nofix_title", tone: fix ? "ok" : "warn", target: "beacon" });
+  }
+  if (igate !== null && igate.enabled && (igate.state === "connected" || igate.state === "listening" || igate.state === "unverified")) {
+    pills.push({ id: "internet", text: "pill.internet", title: "pill.internet_title", tone: "info", target: "settings" });
   }
   return pills;
 }

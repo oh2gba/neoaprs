@@ -45,7 +45,7 @@
   margin: 0 0 0 auto;
 }
 /* the marks before the count (lib/pills.ts): they are pushed to the right with the count, and when the row is too narrow they fold as whole marks, never half of one and never the count: the row is one mark high and wraps, so what does not fit goes to a line that is clipped.
-   Internet is the lowest priority (it is last), then GPS; RX only or Beacon off stays longest. A single mark that is wider than the row is shortened with an ellipsis. */
+   The last mark folds first (Internet, then GPS); RX only or Beacon off stays longest. A single mark that is wider than the row is shortened with an ellipsis. */
 .headpills {
   display: flex;
   flex-wrap: wrap;
@@ -61,9 +61,6 @@
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-.headpill.pill-internet {
-  order: 1;
 }
 .headpills + .headmail.badge,
 .headpills + .headupdate.badge {

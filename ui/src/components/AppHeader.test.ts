@@ -72,7 +72,7 @@ describe("AppHeader", () => {
   it("shows the marks before the count of messages, in the one TagMark style, each a button with a hover title", () => {
     const wrapper = header({ unread: 2, pills: pills({ "station/transmit": "false", "gps/source": "gpsd" }, null, igateState()) });
     const marks = wrapper.findAll(".headpills .tag");
-    expect(marks.map((m) => m.text())).toEqual(["RX only", "Internet", "GPS"]);
+    expect(marks.map((m) => m.text())).toEqual(["RX only", "GPS", "Internet"]);
     expect(marks.every((m) => m.element.tagName === "BUTTON" && m.classes().includes("tag"))).toBe(true);
     expect(marks.every((m) => (m.attributes("title") ?? "") !== "")).toBe(true);
     expect(wrapper.find(".headpills").element.nextElementSibling?.classList.contains("headmail")).toBe(true);
@@ -99,7 +99,7 @@ describe("AppHeader", () => {
   it("opens the place where a mark is set when it is clicked: Settings for RX only and Internet, the Beacon tab for Beacon off and GPS", async () => {
     const wrapper = header({ pills: pills({ "station/transmit": "false", "gps/source": "gpsd" }, null, igateState()) });
     for (const mark of wrapper.findAll(".headpills .tag")) await mark.trigger("click");
-    expect(wrapper.emitted("open")).toEqual([["settings"], ["settings"], ["beacon"]]);
+    expect(wrapper.emitted("open")).toEqual([["settings"], ["beacon"], ["settings"]]);
   });
 
   it("says in the hover title what a mark means and where it is set, in a few words", () => {
@@ -109,13 +109,12 @@ describe("AppHeader", () => {
     expect(titles.gps).toContain("Beacon tab");
   });
 
-  it("lets the marks fold as whole marks and never pushes the count off: the row is one mark high and wraps, Internet is the first to fold, the count does not shrink", () => {
+  it("lets the marks fold as whole marks and never pushes the count off: the row is one mark high and wraps, the last mark, Internet, is the first to fold, the count does not shrink", () => {
     expect(cssRule(".headpills")).toMatch(/overflow:\s*hidden/);
     expect(cssRule(".headpills")).toMatch(/min-width:\s*0/);
     expect(cssRule(".headpills")).toMatch(/flex-wrap:\s*wrap/);
     expect(cssRule(".headpills")).toMatch(/height:\s*18px/);
     expect(cssRule(".headpill")).toMatch(/flex:\s*none/);
-    expect(cssRule(".headpill.pill-internet")).toMatch(/order:\s*1/);
     expect(cssRule(".headmail")).toMatch(/flex:\s*none/);
   });
 

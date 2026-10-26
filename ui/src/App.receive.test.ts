@@ -53,15 +53,15 @@ describe("App: RX only", () => {
     expect(wrapper.find("[aria-selected='true']").text()).toContain("Beacon");
   });
 
-  it("has the Internet mark while the Internet group is connected, and the GPS mark blue with a fix and amber without, all before the count", async () => {
+  it("has the Internet mark while the Internet group is connected, and the GPS mark green with a fix and amber without, all before the count", async () => {
     const { wrapper, socket } = await open();
     socket.say({ type: "state", topic: "igate", rev: 1, value: igateState() });
     await say(socket, 1, { "gps/source": "gpsd" });
     socket.say({ type: "state", topic: "gps", rev: 1, value: gpsState({ state: "no_fix" }) });
     await flushPromises();
     const marks = wrapper.findAll(".appheader .headpills .tag");
-    expect(marks.map((m) => m.text())).toEqual(["Internet", "GPS"]);
-    expect(marks[1]?.classes()).toContain("tag-warn");
+    expect(marks.map((m) => m.text())).toEqual(["GPS", "Internet"]);
+    expect(marks[0]?.classes()).toContain("tag-warn");
     socket.say({ type: "state", topic: "gps", rev: 2, value: gpsState({ state: "fix" }) });
     await flushPromises();
     expect(wrapper.find(".appheader .pill-gps").classes()).toContain("tag-ok");
@@ -88,7 +88,7 @@ describe("App: RX only", () => {
     await tabButton(wrapper, "Objects")?.trigger("click");
     expect(wrapper.find("#pane-objects form button[type=submit]").attributes("title")).toBe("RX only: nothing is sent");
     await say(socket, 2, { [KEY]: "true" });
-    expect(wrapper.find("#pane-objects form button[type=submit]").attributes("title") ?? "").toBe("");
+    expect(wrapper.find("#pane-objects form button[type=submit]").attributes("title")).toBe("Choose a place first"); // (a new object has no place until one is picked)
   });
 
   it("says the beacon is off in the toast when the daemon refuses Beacon now for that, and the daemon's RX only refusal in the page's words", async () => {
