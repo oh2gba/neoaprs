@@ -30,7 +30,9 @@ paragraphs, and the paths and names the documents put in backticks.
 The README, the project page, the announcement and `packaging/install.sh.in` name the files of a release: `NeoAPRS-Setup-<version>.exe`,
 `NeoAPRS-<version>-x86_64.AppImage`, `neoaprs_<version>_arm64.deb` and `neoaprs_<version>_amd64.deb` (also in `ui/src/lib/update.ts`, which links them in the
 update panel), `install.sh` (always under `releases/latest/download/`), the wheel and `SHA256SUMS`. A new name is changed in all of them and in
-`.github/workflows/release.yml`; the installer and the AppImage are also attached as `NeoAPRS-Setup.exe` and `NeoAPRS-x86_64.AppImage`, which the project page's buttons link to.
+`.github/workflows/release.yml`. A pre-release (`0.10.0-rc1`) keeps its version as written in all of them but two: the build names the wheel and the sdist in PEP 440, `neoaprs-0.10.0rc1-py3-none-any.whl` and
+`neoaprs-0.10.0rc1.tar.gz`, which `wheel_version` of `neoaprs/updateasset.py` (and `wheelVersion` of `ui/src/lib/update.ts`) gives, and the workflow asks it for the name. The .deb's own version is `0.10.0~rc1`, so that it sorts before
+`0.10.0` for apt, while its file name has the version as written. The installer and the AppImage are also attached as `NeoAPRS-Setup.exe` and `NeoAPRS-x86_64.AppImage`, which the project page's buttons link to.
 
 ## A release
 

@@ -210,3 +210,13 @@ def test_no_workflow_step_name_breaks_the_yaml() -> None:
             if found and not found.group(1).startswith(("'", '"')) and ": " in found.group(1):
                 bad.append(f"{path.name}:{number}: {line.strip()}")
     assert not bad, "quote these names:\n" + "\n".join(bad)
+
+
+def test_the_wheel_and_the_sdist_are_named_by_the_pep_440_form_of_the_version_and_the_other_files_by_the_version_as_written() -> None:
+    assert "from neoaprs.updateasset import wheel_version" in WORKFLOW
+    assert WORKFLOW.count("wheel_version=\"$(python3 -c") == 3, "the wheel job, the install script and the assembling of the release each ask for the name once"
+    assert 'neoaprs-$version-py3-none-any.whl' not in WORKFLOW and 'neoaprs-$version.tar.gz' not in WORKFLOW, "the raw version is not the wheel's"
+    wheel_job = WORKFLOW.split("\n  wheel:\n", 1)[1].split("\n  windows:\n", 1)[0]
+    assert 'dist/neoaprs-$wheel_version-py3-none-any.whl' in wheel_job and 'dist/neoaprs-$wheel_version.tar.gz' in wheel_job
+    assert 'releases/download/v$version/neoaprs-$wheel_version-py3-none-any.whl' in WORKFLOW, "the tag has the version as written, the file the PEP 440 form"
+    assert '"neoaprs-$wheel_version-py3-none-any.whl" "neoaprs-$wheel_version.tar.gz" "NeoAPRS-Setup-$version.exe" "NeoAPRS-$version-x86_64.AppImage" "neoaprs_${version}_amd64.deb"' in WORKFLOW

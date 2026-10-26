@@ -43,6 +43,7 @@ from neoaprs.aprsposition import uncompressed_position  # noqa: E402
 from neoaprs.services.beacon import Beacon, BeaconError, phg_text  # noqa: E402
 from neoaprs.symbols import MOBILE_CODES, SYMBOL_NAMES  # noqa: E402
 from neoaprs.tncprofile import PROFILES  # noqa: E402
+from neoaprs.updateasset import wheel_version  # noqa: E402
 from neoaprs.web.hubwire import PROTOCOL  # noqa: E402
 
 SCHEMA = ROOT / "ui" / "src" / "protocol" / "schema.json"
@@ -490,6 +491,7 @@ PHG_CASES = [(p, h, 3, "NE") for p in (0, 1, 2, 5, 25, 81, 100, 9999) for h in (
 POSITIONS = [(60.17, 24.94), (0.0, 0.0), (-33.8688, 151.2093), (90.0, 180.0), (-90.0, -180.0), (59.999999, 24.999999), (0.03125, 0.09375), (60.169999, -24.940001), (-0.00001, -0.00001), (0.0083333, 100.0)]
 BEACON_BASE = {"station/call": "OH2GBA", "station/lat": "60.17", "station/lon": "24.94", "station/symbol_table": "/", "station/symbol_code": "-", "station/comment": "NeoAPRS",
                "beacon/power_w": "", "beacon/antenna_height_m": "0", "beacon/antenna_gain_db": "0", "beacon/antenna_direction": "omni", "beacon/path": "WIDE1-1,WIDE2-1"}
+WHEEL_VERSIONS = ["0.10.0", "0.10.0-rc1", "1.0.0-rc.2", "1.0.0-alpha", "1.0.0-beta.3", "1.0.0-dev4", "1.0.0-c1", "0.10.1-e2e"]
 BEACONS = [{}, {"beacon/power_w": "5", "beacon/antenna_height_m": "10", "beacon/antenna_gain_db": "3", "beacon/antenna_direction": "NE", "station/comment": "Home"}, {"station/comment": ""}, {"station/call": "oh2gba-7"},
            {"station/call": ""}, {"station/lat": ""}, {"station/lat": "91"}, {"station/lon": "181"},
            {"station/symbol_table": "Z", "station/symbol_code": "~"}, {"station/symbol_table": "a"}, {"station/symbol_code": " "}, {"beacon/path": ""}, {"beacon/path": "", "station/symbol_code": ">"}, {"beacon/path": "", "station/symbol_table": "\\", "station/symbol_code": "s"},
@@ -609,6 +611,7 @@ def vectors() -> dict[str, list[dict[str, Any]]]:
         "phg": [{"power": p, "height": h, "gain": g, "direction": d, "text": phg_text(p, h, g, d)} for p, h, g, d in PHG_CASES],
         "positions": [{"lat": lat, "lon": lon, "table": "/", "code": "-", "text": uncompressed_position(lat, lon, "/", "-").decode("ascii")} for lat, lon in POSITIONS],
         "beacons": [_beacon_vector(changes) for changes in BEACONS],
+        "wheel_versions": [{"input": v, "wheel": wheel_version(v)} for v in WHEEL_VERSIONS],
     }
 
 

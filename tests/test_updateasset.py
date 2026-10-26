@@ -4,7 +4,9 @@ import hashlib
 
 import pytest
 
-from neoaprs.updateasset import RELEASES, asset_name, asset_url, checksum_for, release_version, url_allowed
+from packaging.version import Version
+
+from neoaprs.updateasset import RELEASES, asset_name, asset_url, checksum_for, release_version, url_allowed, wheel_version
 
 
 @pytest.mark.parametrize(("kind", "arch", "name"), [
@@ -20,6 +22,25 @@ from neoaprs.updateasset import RELEASES, asset_name, asset_url, checksum_for, r
 ])
 def test_the_file_of_the_release_for_each_kind_and_architecture(kind: str, arch: str, name: str | None) -> None:
     assert asset_name(kind, "0.7.0", arch) == name        # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(("version", "wheel"), [
+    ("0.7.0", "0.7.0"),
+    ("0.10.0-rc1", "0.10.0rc1"),
+    ("1.0.0-rc.2", "1.0.0rc2"),
+    ("1.0.0-alpha", "1.0.0a0"),
+    ("1.0.0-beta.2", "1.0.0b2"),
+    ("1.0.0-dev3", "1.0.0.dev3"),
+])
+def test_the_wheel_is_named_by_the_pep_440_form_of_the_version_and_the_other_files_by_the_version_as_written(version: str, wheel: str) -> None:
+    assert wheel_version(version) == wheel == str(Version(version)), "the name the build (packaging) gives"
+    assert asset_name("pip", version) == asset_name("uv-tool", version) == f"neoaprs-{wheel}-py3-none-any.whl"
+    assert asset_name("appimage", version) == f"NeoAPRS-{version}-x86_64.AppImage" and asset_name("deb", version, "arm64") == f"neoaprs_{version}_arm64.deb"
+    assert asset_url(version, asset_name("pip", version) or "") == f"{RELEASES}/v{version}/neoaprs-{wheel}-py3-none-any.whl", "the tag keeps the version as written"
+
+
+def test_a_suffix_that_is_not_a_pre_release_of_pep_440_is_left_as_it_is() -> None:
+    assert wheel_version("0.10.1-e2e") == "0.10.1-e2e" and wheel_version("") == ""
 
 
 @pytest.mark.parametrize("version", ["0.7.0", "1.0.0-rc1", "10.20.30", "1.0.0-beta.2"])

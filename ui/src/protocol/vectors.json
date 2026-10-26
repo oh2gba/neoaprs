@@ -509,5 +509,15 @@
   {"values": {"station/call": "OH2GBA", "station/lat": "0.03125", "station/lon": "0.09375", "station/symbol_table": "/", "station/symbol_code": "-", "station/comment": "NeoAPRS", "beacon/power_w": "", "beacon/antenna_height_m": "0", "beacon/antenna_gain_db": "0", "beacon/antenna_direction": "omni", "beacon/path": "WIDE1-1,WIDE2-1"}, "text": "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=0001.88N/00005.62E-NeoAPRS"},
   {"values": {"station/call": "OH2GBA", "station/lat": "-0.00001", "station/lon": "-0.00001", "station/symbol_table": "/", "station/symbol_code": "-", "station/comment": "NeoAPRS", "beacon/power_w": "", "beacon/antenna_height_m": "0", "beacon/antenna_gain_db": "0", "beacon/antenna_direction": "omni", "beacon/path": "WIDE1-1,WIDE2-1"}, "text": "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=0000.00N/00000.00E-NeoAPRS"},
   {"values": {"station/call": "OH2GBA", "station/lat": "60.17", "station/lon": "24.94", "station/symbol_table": "/", "station/symbol_code": "-", "station/comment": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "beacon/power_w": "100", "beacon/antenna_height_m": "9999", "beacon/antenna_gain_db": "9", "beacon/antenna_direction": "N", "beacon/path": "WIDE1-1,WIDE2-1"}, "text": "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=6010.20N/02456.40E-PHG9998xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}
+ ],
+ "wheel_versions": [
+  {"input": "0.10.0", "wheel": "0.10.0"},
+  {"input": "0.10.0-rc1", "wheel": "0.10.0rc1"},
+  {"input": "1.0.0-rc.2", "wheel": "1.0.0rc2"},
+  {"input": "1.0.0-alpha", "wheel": "1.0.0a0"},
+  {"input": "1.0.0-beta.3", "wheel": "1.0.0b3"},
+  {"input": "1.0.0-dev4", "wheel": "1.0.0.dev4"},
+  {"input": "1.0.0-c1", "wheel": "1.0.0rc1"},
+  {"input": "0.10.1-e2e", "wheel": "0.10.1-e2e"}
  ]
 }
