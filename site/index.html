@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>NeoAPRS: an APRS client for Windows, Linux and the Raspberry Pi</title>
-<meta name="description" content="A modern, easy-to-use APRS client: a map of the stations you hear, messages with acks and retries, the beacon (fixed, or from a GPS for a moving station), weather graphs, objects and bulletins of your own, and email. A standalone app, or a service you open from anywhere on your network.">
+<meta name="description" content="An APRS client for a radio with a TNC: a map, messages and your beacon in a browser or a desktop app. Windows, Linux, Raspberry Pi.">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
@@ -15,8 +15,8 @@
 <link rel="canonical" href="https://oh2gba.github.io/neoaprs/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="NeoAPRS">
-<meta property="og:title" content="NeoAPRS: a modern, easy-to-use APRS client">
-<meta property="og:description" content="The stations you hear on a map, messages with acks and retries, weather graphs, the beacon. Windows, Linux and the Raspberry Pi.">
+<meta property="og:title" content="NeoAPRS: an APRS client">
+<meta property="og:description" content="A map, messages and your beacon in a browser or a desktop app. Windows, Linux, Raspberry Pi.">
 <meta property="og:url" content="https://oh2gba.github.io/neoaprs/">
 <meta property="og:image" content="https://oh2gba.github.io/neoaprs/shots/og.png">
 <meta property="og:image:width" content="1200">
@@ -33,10 +33,10 @@
   <div class="wrap">
     <a class="brand" href="#top"><img src="favicon.svg" alt="" width="28" height="28">NeoAPRS</a>
     <nav class="nav" aria-label="Page">
-      <a class="opt" href="#map">Features</a>
+      <a class="opt" href="#features">Features</a>
+      <a href="#install">Install</a>
       <a class="opt" href="#radios">Radios</a>
-      <a href="#get">Get it</a>
-      <a class="opt" href="#gallery">Gallery</a>
+      <a class="opt" href="#gallery">Screenshots</a>
       <a class="gh" href="https://github.com/oh2gba/neoaprs">GitHub</a>
     </nav>
   </div>
@@ -46,7 +46,7 @@
 <div class="hero" id="top">
   <div class="wrap">
     <h1>Neo<span>APRS</span></h1>
-    <p class="lead">A modern, easy-to-use APRS client: the stations you hear on a map, messages that get acked, weather, the beacon, fixed or from a GPS. One app, or a service you open from anywhere at home, on a laptop, a tablet or a phone.</p>
+    <p class="lead">An APRS client for a radio with a TNC: a map, messages and your beacon in a browser or a desktop app. Windows, Linux, Raspberry Pi.</p>
     <div class="actions">
       <a class="btn primary" href="https://github.com/oh2gba/neoaprs/releases/latest">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 20h16"/></svg>
@@ -60,410 +60,123 @@
         <span class="label">GitHub<small>source, issues, releases</small></span>
       </a>
     </div>
-    <div class="install">
-      <span>Linux, macOS and the Raspberry Pi: one line installs it and starts it as a service</span>
-      <div class="cmd">
-        <code id="install-line"><span class="prompt">$ </span>curl -LsSf https://github.com/oh2gba/neoaprs/releases/latest/download/install.sh | sh</code>
-        <button class="copy" type="button" data-target="install-line" data-text="curl -LsSf https://github.com/oh2gba/neoaprs/releases/latest/download/install.sh | sh" hidden>Copy</button>
-      </div>
-    </div>
   </div>
   <figure class="hero-shot shot">
-    <a class="zoom frame" href="shots/map.png">
-      <picture>
-        <source srcset="shots/map-dark.png" media="(prefers-color-scheme: dark)">
-        <picture><source srcset="shots/phone-map-dark.png" media="(max-width: 640px) and (prefers-color-scheme: dark)"><source srcset="shots/phone-map.png" media="(max-width: 640px)"><source srcset="shots/map-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/map.png" width="1440" height="900" fetchpriority="high" alt="NeoAPRS: the stations heard around Helsinki on a street map, with the trails of a car, a hiker and a sailing boat, and the Stations table beside it"></picture>
-      </picture>
-    </a>
+    <a class="zoom frame" href="shots/map.png"><picture><source srcset="shots/phone-map-dark.png" media="(max-width: 640px) and (prefers-color-scheme: dark)"><source srcset="shots/phone-map.png" media="(max-width: 640px)"><source srcset="shots/map-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/map.png" width="1440" height="900" fetchpriority="high" alt="The map with the stations heard around Helsinki, their trails, and the Stations table"></picture></a>
   </figure>
-  <ul class="facts">
-    <li>Windows, Linux and Raspberry Pi</li>
-    <li>RF only: your radio, no iGate</li>
-    <li>Free software, GPL-3.0-or-later</li>
-    <li>Phone, tablet and desktop</li>
-    <li>English, Deutsch, Español, Français, Italiano, 日本語, Português</li>
-    <li>Light and dark, as your system is</li>
-  </ul>
 </div>
 
-
-<section id="map">
-  <div class="wrap feature">
-    <div class="blurb">
-      <p class="eyebrow">The map</p>
-      <h2>Everything you hear, on one map</h2>
-      <ul class="ticks">
-        <li>APRS symbols and calls on a street-level map of your area, made once and kept on your disk.</li>
-        <li>Trails that fade with age. A green ring marks a station heard direct; markers dim as a station ages.</li>
-        <li>A thin dashed ALOHA circle round your station: the distance within which the stations you hear would fill the channel, so a packet for a station beyond it is hard to receive.</li>
-        <li>Point at a station for a quick card: status, comment, distance, how it reaches you. Click it for the full card, and its route is drawn on the map, through each digipeater.</li>
-        <li>The card says what the station runs (a Kenwood TH-D74, APRSdroid, an OpenTracker), and under <b>Details</b> its antenna's direction as an arrow and how many packets came in the last hour. A <b>pin</b> keeps a card on the map, past a reload.</li>
-      </ul>
-    </div>
-    <figure class="shot">
-      <a class="zoom frame crop left" href="shots/station-details.png"><picture><source srcset="shots/station-details-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/station-details.png" width="1440" height="900" loading="lazy" alt="The card of a house station over the map with Details open: it runs a Kenwood TH-D74, its PHG antenna has an arrow for the direction it favours, how its packets reach us, and 23 packets, 7 of them in the last hour"></picture></a>
-    </figure>
-  </div>
-  <div class="wrap feature flip">
-    <div class="blurb">
-      <h2>The Stations table</h2>
-      <ul class="ticks">
-        <li>Sort, filter, hide the timed out, keep the stations heard direct.</li>
-        <li><b>On map for</b> chooses how long a station stays on the map after its last position, from 1 to 24 hours, for every browser and device at once; the table keeps it, dimmed.</li>
-        <li>Distance and bearing from you (a small arrow), when each station was last heard, and a check mark for the ones heard direct.</li>
-        <li>An envelope to message a station and a trash can to forget it on every row, and a menu (right-click, long press or the <b>...</b> button) with the APRS queries: ask a station for its position, its status, what it hears direct, or trace the route to it.</li>
-      </ul>
-    </div>
-    <figure class="shot">
-      <a class="zoom frame crop table" href="shots/stations-menu.png"><picture><source srcset="shots/stations-menu-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/stations-menu.png" width="1440" height="900" loading="lazy" alt="The Stations table with the menu of a row open: Message, Ask for position, Ask for status, Ask what it hears direct, Trace the route, Show on map, Copy call, the QRZ page and Forget"></picture></a>
-    </figure>
-  </div>
-  <div class="wrap feature">
-    <div class="blurb">
-      <h2>Several stations at once</h2>
-      <ul class="ticks">
-        <li>Ctrl+click (Cmd+click on a Mac) on a marker or a row of the table adds a station's card beside the others: each one is the whole card, up to four on a desktop.</li>
-        <li>Drag a card by its head to put it where you want it over the map; the others stay where they are.</li>
-        <li><b>Close all</b>, or <b>Message these 2</b> to send one text to each of them.</li>
-      </ul>
-    </div>
-    <figure class="shot">
-      <a class="zoom frame crop left" href="shots/cards.png"><picture><source srcset="shots/cards-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/cards.png" width="1440" height="900" loading="lazy" alt="The cards of a car and of a house over the map, one of them dragged to another place, each with when it was last heard, its position and how it reaches us, and the Close all and Message these 2 buttons at the map's top left"></picture></a>
-    </figure>
-  </div>
-  <div class="wrap feature flip">
-    <div class="blurb">
-      <h2>The packet log</h2>
-      <ul class="ticks">
-        <li>Every packet as it was heard, and the route it came by.</li>
-        <li>Click one to see what the parser made of it.</li>
-      </ul>
-    </div>
-    <figure class="shot">
-      <a class="zoom frame crop log" href="shots/packets.png"><picture><source srcset="shots/packets-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/packets.png" width="1440" height="900" loading="lazy" alt="The packet log: each packet as heard, the route it came by and what it says"></picture></a>
-    </figure>
-  </div>
-</section>
-
-<section id="nearby">
-  <div class="wrap feature">
-    <div class="blurb">
-      <p class="eyebrow">What is around you</p>
-      <h2>The local APRS, at a glance</h2>
-      <ul class="ticks">
-        <li>The <b>Nearby</b> tab lists the digipeaters, the voice frequencies, the iGates and the stations heard direct, each list nearest first with the distance and bearing; a click flies the map to the station.</li>
-        <li>The digipeater you pick has its range circle on the map, one at a time, and the map is fitted to it.</li>
-        <li>A station that gives its voice frequency (145.775MHz T118 -060) has it on its card as a line: the tone, the offset and the range. Storm data and signposts are decoded too.</li>
-        <li>The APRS queries are answered, ?APRSH included, and objects you keep can wait to be asked for: your own QRU server, as in APRSISCE/32 and YAAC.</li>
-      </ul>
-    </div>
-    <figure class="shot">
-      <a class="zoom frame" href="shots/nearby.png"><picture><source srcset="shots/nearby-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/nearby.png" width="1440" height="900" loading="lazy" alt="The Nearby tab with the digipeater OH2RCH-2 selected: its row is highlighted in the list of digipeaters, the lists of voice frequencies, iGates and stations heard direct are under it, and the map has its range circle fitted in view"></picture></a>
-    </figure>
-  </div>
-</section>
-
-<section id="messages">
-  <div class="wrap feature flip">
-    <div class="blurb">
-      <p class="eyebrow">Messaging</p>
-      <h2>Messages that arrive, and proof that they did</h2>
-      <ul class="ticks">
-        <li>Acks, reply-acks and retries are done for you.</li>
-        <li>The delivery chain of every message: each digipeater you hear repeat it turns green, one you do not hear stays grey with a ?, a copy that came back from the internet is blue.</li>
-        <li>The conversations in a list beside the open one, as in a chat app; one text to several stations at once from their cards.</li>
-        <li>A message chooses its own path: the way a station was lately heard to be reached, then your beacon's path. A path for each station if you want one.</li>
-        <li>Alerts on the desktop and in the browser, bulletins and group messages, and the APRS queries.</li>
-      </ul>
-    </div>
-    <figure class="shot">
-      <a class="zoom frame chain" href="shots/chain.png"><picture><source srcset="shots/chain-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/chain.png" width="1112" height="1184" loading="lazy" alt="The thread of a conversation: each message of ours with its chain, you to OH2RCH-2 with a check, OH2RDG with a question mark or a check, and the station with a check when its ack came; a message sent twice shows the chain of its latest attempt"></picture></a>
-    </figure>
-  </div>
-  <div class="wrap pair">
-    <figure class="shot">
-      <a class="zoom frame crop panel" href="shots/messages.png"><picture><source srcset="shots/messages-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/messages.png" width="1440" height="900" loading="lazy" alt="The Messages tab: the list of conversations at the left, the open conversation at the right with its route button, the thread with its chains, and the box to write in at the bottom"></picture></a>
-    </figure>
-    <figure class="shot">
-      <a class="zoom frame chain" href="shots/chain-failed.png"><picture><source srcset="shots/chain-failed-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/chain-failed.png" width="1112" height="182" loading="lazy" alt="A message that failed after its four attempts: no answer, a Retry button, and the chain it went by"></picture></a>
-    </figure>
-  </div>
-</section>
-
-<section id="weather">
-  <div class="wrap feature">
-    <div class="blurb">
-      <p class="eyebrow">Weather</p>
-      <h2>Weather stations, with graphs</h2>
-      <ul class="ticks">
-        <li>Temperature, wind and gusts, humidity, pressure and rain, as the station reports them.</li>
-        <li>24 hour and 7 day graphs of temperature, pressure, wind and rain, drawn in the page's own colours. Each line is one smooth curve across the hours where the station sent nothing, and never rises above or falls below its readings.</li>
-        <li>Open several weather stations side by side: their graphs share the same scales, so the curves can be read against each other.</li>
-      </ul>
-    </div>
-    <figure class="shot">
-      <a class="zoom frame crop left" href="shots/weather.png"><picture><source srcset="shots/weather-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/weather.png" width="1440" height="900" loading="lazy" alt="The cards of two weather stations side by side: the temperature, wind, humidity and pressure of each, and the 24 hour graphs of temperature, pressure, wind and rain on the same scales"></picture></a>
-    </figure>
-  </div>
-</section>
-
-<section id="beacon">
-  <div class="wrap feature flip">
-    <div class="blurb">
-      <p class="eyebrow">Beacon and status</p>
-      <h2>Your position, on your terms</h2>
-      <ul class="ticks">
-        <li>A beacon status at the top: when the last beacon went out and when the next is due, with Beacon now and Send status now, and the beacon every 30 or 60 minutes or every 3 hours.</li>
-        <li>Your place chosen on the map or typed as coordinates or a locator, your symbol picked from pictures, and a preview of the packet it makes.</li>
-        <li>A recommended path that follows your symbol: WIDE1-1,WIDE2-1 for a station that moves, WIDE2-1 for one that stays.</li>
-        <li>A status report from your radio through Hamlib rigctld, or a text of your own: one choice, and only the fields it needs.</li>
-        <li>A fill-in digipeater for WIDE1-1, one tickbox, off until you switch it on.</li>
-        <li>Settings apply as you change them: no Save button, and an Undo for the last change.</li>
-        <li>Nothing is transmitted until a call is set, and the <b>Beacon</b> choice switches the beacon off whenever you want (below).</li>
-      </ul>
-    </div>
-    <figure class="shot">
-      <a class="zoom frame crop panel" href="shots/beacon.png"><picture><source srcset="shots/beacon-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/beacon.png" width="1440" height="900" loading="lazy" alt="The Beacon tab: the beacon status with Beacon now at the top, the station group with its place and symbol, the beacon group with its choice and the path set to Recommended, and the status with Send status now"></picture></a>
-    </figure>
-  </div>
-  <div class="wrap feature">
-    <div class="blurb">
-      <h2>A moving station</h2>
-      <ul class="ticks">
-        <li>One choice, <b>Position</b>: <b>Fixed</b>, <b>A GPS via gpsd</b> or <b>A GPS on a serial port</b>. A GPS makes the beacon follow the fix of the receiver.</li>
-        <li>SmartBeaconing decides when it goes: often when you move fast or turn a corner, rarely when you stand still, with a preset for <b>By car</b>, <b>By bicycle</b>, <b>On foot</b> and <b>By boat</b>.</li>
-        <li>A compressed position with course, speed and altitude. With no fix nothing is sent, and never your home position.</li>
-        <li>On the map you move with the fix, and <b>Follow my position</b> keeps the map on you. The beacon status shows the GPS and what SmartBeaconing does next.</li>
-      </ul>
-    </div>
-    <figure class="shot">
-      <a class="zoom frame crop panel" href="shots/beacon-gps.png"><picture><source srcset="shots/beacon-gps-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/beacon-gps.png" width="1440" height="900" loading="lazy" alt="The Beacon tab of a moving station: the status block says GPS with a fix pill, the fix with its speed, course and satellites, and under it what SmartBeaconing does next; Position is A GPS via gpsd with its address, the Beacon choice is On (SmartBeaconing) and Travelling is By car"></picture></a>
-    </figure>
-  </div>
-</section>
-
-<section id="listen">
-  <div class="wrap feature">
-    <div class="blurb">
-      <p class="eyebrow">Listening</p>
-      <h2>A day to listen, without announcing yourself</h2>
-      <ul class="ticks">
-        <li>One <b>Beacon</b> choice on the Beacon tab: <b>Off</b> or an interval, and for a moving station <b>Off</b> or <b>On (SmartBeaconing)</b>.</li>
-        <li>While it is off there is no beacon and no status report, and what belongs to them is greyed out; messages, acks, answers to queries, objects, bulletins and the digipeater go on.</li>
-        <li>A station that must never key the transmitter at all, a receiver or a test bench, has <b>Receive only</b> as a setting of the daemon: nothing is transmitted, and an amber badge beside the title says so on every screen.</li>
-        <li>The messages being sent wait and go on when transmitting is switched on again; nothing is lost, nothing comes as a burst.</li>
-      </ul>
-    </div>
-    <figure class="shot">
-      <a class="zoom phone" href="shots/phone-beacon-rx.png"><picture><source srcset="shots/phone-beacon-rx-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/phone-beacon-rx.png" width="390" height="844" loading="lazy" alt="On a phone set to Receive only: the amber Receive only badge beside the title and the Beacon tab with the beacon Off: its status says Beacon off and what belongs to the beacon is grey"></picture></a>
-    </figure>
-  </div>
-</section>
-
-<section id="radio">
-  <div class="wrap feature flip">
-    <div class="blurb">
-      <p class="eyebrow">Your radio</p>
-      <h2>One line while it works, and a button that finds it</h2>
-      <ul class="ticks">
-        <li>The TNC group of the Settings tab is one line: the state of the radio and when a packet last came, with <b>Reconnect</b>. An arrow opens the type of TNC, the port, the speed and the terminal; it is open by itself when the radio is not connected.</li>
-        <li><b>Find my radio</b> (Linux) tries the ports and the paired Bluetooth devices at the usual speeds and finds a TNC that talks KISS or can be put in KISS. It writes nothing to the air, and the port, speed and type go into the settings with an Undo.</li>
-        <li>A radio switched off and on again is put back in KISS at once, and the keep-alive no longer deafens a busy channel: it asks only after 10 quiet minutes.</li>
-      </ul>
-    </div>
-    <figure class="shot">
-      <a class="zoom frame crop pane" href="shots/settings-tnc.png"><picture><source srcset="shots/settings-tnc-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/settings-tnc.png" width="1440" height="900" loading="lazy" alt="Settings, the TNC group opened: the state connected with Reconnect, the radio type, the TCP host and port, the Find my radio button and the Terminal"></picture></a>
-    </figure>
-  </div>
-</section>
-
-<section id="mail">
-  <div class="wrap feature wide">
-    <div class="blurb">
-      <p class="eyebrow">Email and bulletins</p>
-      <h2>Email through the APRS gateway, and the message board</h2>
-      <ul class="ticks">
-        <li>Email in a tab of its own: send a mail from a box at the bottom, with Check email for the mail the gateway kept for you.</li>
-        <li>Announcements, bulletins and group messages on a board: who sent each, to which slot, how often it was heard.</li>
-        <li>Post your own to the board from a box under it: a bulletin, an announcement or a group bulletin. It goes out a few times early and then at long intervals, and sits on the board marked ours.</li>
-      </ul>
-    </div>
-  </div>
-  <div class="wrap pair">
-    <figure class="shot">
-      <a class="zoom frame crop pane short" href="shots/email.png"><picture><source srcset="shots/email-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/email.png" width="1440" height="900" loading="lazy" alt="The Email tab: Check email at the top, the list of mails with their states in words, and the box to write a mail at the bottom with the address, the text and the characters left"></picture></a>
-    </figure>
-    <figure class="shot">
-      <a class="zoom frame crop pane short" href="shots/bulletins.png"><picture><source srcset="shots/bulletins-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/bulletins.png" width="1440" height="900" loading="lazy" alt="The Bulletins tab: the box to post a bulletin with the characters left, and the board with two entries of ours, marked ours, among the ones heard"></picture></a>
-    </figure>
-  </div>
-</section>
-
-<section id="own">
-  <div class="wrap feature">
-    <div class="blurb">
-      <p class="eyebrow">Objects and items</p>
-      <h2>Your own objects, on the map and on the air</h2>
-      <ul class="ticks">
-        <li>A net control point, a meeting place, an event: an object with a name, a symbol and a comment.</li>
-        <li>Click the map to place it, drag its marker to move it. Yours carry a dashed ring.</li>
-        <li>Sent on the specification's schedule: at once, then after 1, 2, 4 minutes and so on, up to the net cycle time of its path.</li>
-        <li>Nothing is transmitted until a call is set.</li>
-      </ul>
-    </div>
-    <figure class="shot">
-      <a class="zoom frame crop left" href="shots/objects.png"><picture><source srcset="shots/objects-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/objects.png" width="1440" height="900" loading="lazy" alt="The map with three objects and items of ours, a net control point, a hamfest and a meeting place, each with a dashed ring"></picture></a>
-    </figure>
-  </div>
-  <div class="wrap feature flip">
-    <div class="blurb">
-      <h2>Make one, change it, kill it</h2>
-      <ul class="ticks">
-        <li>The Objects tab lists them with how often each was sent and when it goes out next.</li>
-        <li>A click on its row selects it on the map and puts it in the form under the list: symbol, position, comment, a path of its own, a QRU group, and course and speed behind a closed <b>Moving</b> heading. Add makes a new one, Save changes the selected one.</li>
-        <li>A kill is sent three times and the object is gone from the map and from the air.</li>
-      </ul>
-    </div>
-    <figure class="shot">
-      <a class="zoom frame crop pane" href="shots/objects-form.png"><picture><source srcset="shots/objects-form-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/objects-form.png" width="1440" height="900" loading="lazy" alt="The Objects tab: the list of our objects with one selected, and under it the form with the name, symbol, position, comment, course, speed and path, and the Cancel and Save buttons"></picture></a>
-    </figure>
-  </div>
-</section>
-
-<section id="languages">
-  <div class="wrap feature">
-    <div class="blurb">
-      <p class="eyebrow">Languages</p>
-      <h2>The page speaks your language</h2>
-      <ul class="ticks">
-        <li>English, Deutsch, Español, Français, Italiano, 日本語 and Português (Brasil).</li>
-        <li>It starts in your browser's language; <b>Language</b> at the top of the Settings tab changes it for that browser.</li>
-        <li>The translations wait for native-speaking hams to read them: corrections are welcome.</li>
-      </ul>
-    </div>
-    <figure class="shot">
-      <a class="zoom frame crop panel" href="shots/beacon-de.png"><picture><source srcset="shots/beacon-de-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/beacon-de.png" width="1440" height="900" loading="lazy" alt="The Beacon tab in German: Rufzeichen, Standort with the Auf Karte wählen button, Bake, Pfad set to Empfohlen, and Status"></picture></a>
-    </figure>
-  </div>
-</section>
-
-<section id="update">
-  <div class="wrap feature flip">
-    <div class="blurb">
-      <p class="eyebrow">Updates</p>
-      <h2>A new version, one click away</h2>
-      <ul class="ticks">
-        <li>When a newer version is out, a window says what is new and what to do for the way you installed NeoAPRS.</li>
-        <li>On Windows and with the AppImage, <b>Update now</b> downloads the release, checks its checksum, installs it and restarts. Nothing happens until you press it.</li>
-        <li>For a .deb, pip or the install line the window has the steps, each file a button and each command with Copy.</li>
-      </ul>
-    </div>
-    <figure class="shot">
-      <a class="zoom frame crop dialog" href="shots/update.png"><picture><source srcset="shots/update-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/update.png" width="1440" height="900" loading="lazy" alt="The update window over the page: NeoAPRS is available, what is new, the Update now button and the steps by hand folded under it"></picture></a>
-    </figure>
-  </div>
-</section>
-
-<section id="where">
+<section id="features">
   <div class="wrap">
-    <p class="eyebrow">Where it runs</p>
-    <h2>On your computer, or in the shack and opened from home</h2>
-    <div class="modes">
-      <div class="mode">
-        <h3>Standalone app</h3>
-        <p>The page in a window, with a tray icon. Windows and Linux.</p>
-        <div class="flow">
-          <div class="node">
-            <svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="14" width="28" height="16" rx="3"/><path d="M10 14 22 5M12 22h8M25 20v4M29 20v4"/></svg>
-            <b>Radio or TNC</b><small>serial, USB, Bluetooth</small>
-          </div>
-          <span class="link" aria-hidden="true"></span>
-          <div class="node us">
-            <svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="6" width="28" height="19" rx="2.5"/><path d="M13 31h10M18 25v6"/></svg>
-            <b>NeoAPRS</b><small>your computer</small>
-          </div>
-        </div>
-      </div>
-      <div class="mode">
-        <h3>A service on a Raspberry Pi</h3>
-        <p>The radio and NeoAPRS in the shack. The page open on a laptop or a phone at home.</p>
-        <div class="flow">
-          <div class="node">
-            <svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="14" width="28" height="16" rx="3"/><path d="M10 14 22 5M12 22h8M25 20v4M29 20v4"/></svg>
-            <b>Radio or TNC</b><small>USB</small>
-          </div>
-          <span class="link" aria-hidden="true"></span>
-          <div class="node us">
-            <svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="8" width="28" height="20" rx="2.5"/><rect x="9" y="13" width="8" height="8" rx="1"/><path d="M21 13h6M21 17h6M21 21h6"/></svg>
-            <b>Raspberry Pi</b><small>NeoAPRS service</small>
-          </div>
-          <span class="link net" aria-hidden="true"></span>
-          <div class="stack">
-            <div class="node">
-              <svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="20" height="14" rx="2"/><path d="M3 28h30"/></svg>
-              <span><b>Laptop</b><br><small>the page</small></span>
-            </div>
-            <div class="node">
-              <svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="11" y="3" width="14" height="30" rx="3"/><path d="M16 28h4"/></svg>
-              <span><b>Phone</b><br><small>the page</small></span>
-            </div>
-          </div>
-        </div>
-        <code class="home">neoaprs service install --linger</code>
-      </div>
+    <h2>Features</h2>
+    <div class="cards">
+      <article class="card" id="map">
+        <a class="zoom" href="shots/map.png"><picture><source srcset="shots/thumbs/map-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/map.png" width="640" height="400" loading="lazy" alt="The map with station symbols and trails"></picture></a>
+        <h3>Map</h3>
+        <p>Symbols, fading trails and the route of each packet on a street map kept on your disk. A station's card shows what it runs and its antenna direction.</p>
+      </article>
+      <article class="card" id="stations">
+        <a class="zoom" href="shots/stations-menu.png"><picture><source srcset="shots/thumbs/stations-menu-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/stations-menu.png" width="640" height="400" loading="lazy" alt="The Stations table with a row menu open"></picture></a>
+        <h3>Stations</h3>
+        <p>A table with distance, bearing and when last heard; several cards open side by side. The row menu sends a message or an APRS query: position, status, heard direct, trace.</p>
+      </article>
+      <article class="card" id="messages">
+        <a class="zoom" href="shots/messages.png"><picture><source srcset="shots/thumbs/messages-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/messages.png" width="640" height="400" loading="lazy" alt="The Messages tab with a conversation and its delivery chains"></picture></a>
+        <h3>Messages</h3>
+        <p>Acks, reply-acks and retries, with the delivery chain of each message, hop by hop. Email through the gateway, bulletins and group messages, alerts on the desktop and in the browser.</p>
+      </article>
+      <article class="card" id="weather">
+        <a class="zoom" href="shots/weather.png"><picture><source srcset="shots/thumbs/weather-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/weather.png" width="640" height="400" loading="lazy" alt="Two weather station cards with 24 hour graphs"></picture></a>
+        <h3>Weather</h3>
+        <p>Readings, and 24 hour and 7 day graphs of temperature, pressure, wind and rain. Stations opened side by side share the same scales.</p>
+      </article>
+      <article class="card" id="nearby">
+        <a class="zoom" href="shots/nearby.png"><picture><source srcset="shots/thumbs/nearby-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/nearby.png" width="640" height="400" loading="lazy" alt="The Nearby tab with a digipeater selected and its range circle on the map"></picture></a>
+        <h3>Nearby</h3>
+        <p>Digipeaters, voice frequencies, iGates and stations heard direct, nearest first; the range of the selected digipeater is drawn on the map. Frequencies, storm data and signposts are decoded, and a QRU server answers for your objects.</p>
+      </article>
+      <article class="card" id="mobile">
+        <a class="zoom" href="shots/beacon-gps.png"><picture><source srcset="shots/thumbs/beacon-gps-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/beacon-gps.png" width="640" height="400" loading="lazy" alt="The Beacon tab of a moving station with a GPS fix"></picture></a>
+        <h3>Mobile</h3>
+        <p>The beacon follows a GPS (gpsd or a serial port) and is sent by SmartBeaconing, with presets for car, bicycle, foot and boat. With no fix nothing is sent.</p>
+      </article>
+      <article class="card" id="objects">
+        <a class="zoom" href="shots/objects.png"><picture><source srcset="shots/thumbs/objects-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/objects.png" width="640" height="400" loading="lazy" alt="The map with three objects of our own"></picture></a>
+        <h3>Objects</h3>
+        <p>Objects and items of your own, placed and moved on the map and sent on the specification's schedule. A kill removes one from the air.</p>
+      </article>
+      <article class="card" id="beacon">
+        <a class="zoom" href="shots/beacon.png"><picture><source srcset="shots/thumbs/beacon-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/beacon.png" width="640" height="400" loading="lazy" alt="The Beacon tab with the beacon status, position, symbol and path"></picture></a>
+        <h3>Beacon</h3>
+        <p>Position, symbol, path and status text; a change applies at once, with Undo. The beacon can be Off, Receive only never transmits, and nothing is sent until a call is set.</p>
+      </article>
+      <article class="card" id="network">
+        <a class="zoom" href="shots/settings-web.png"><picture><source srcset="shots/thumbs/settings-web-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/settings-web.png" width="640" height="400" loading="lazy" alt="Settings, Web page: the access key and the addresses to open"></picture></a>
+        <h3>Network</h3>
+        <p>Run it on a Raspberry Pi and open the page from a laptop, tablet or phone, with an access key and optional https. English, Deutsch, Español, Français, Italiano, 日本語, Português.</p>
+      </article>
     </div>
-  </div>
-  <div class="wrap feature access">
-    <div class="blurb">
-      <h3>Open it from another device</h3>
-      <ul class="ticks">
-        <li>Switch on <b>Allow access from the network</b> in Settings. The page shows an access key and the addresses to open.</li>
-        <li>Type the key once on each laptop or phone. An optional secure connection (https), with a certificate NeoAPRS makes itself, is one tickbox away.</li>
-        <li>The page fits a phone and a tablet as well as a desktop: on a phone one view at a time, the map or the open tab, a station's card as a sheet from the bottom.</li>
-        <li>A message to you alerts in that browser too: a sound, and a pop-up where the browser allows one (Settings, Notifications).</li>
-      </ul>
-    </div>
-    <figure class="shot">
-      <a class="zoom frame crop pane short" href="shots/settings-web.png"><picture><source srcset="shots/settings-web-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/settings-web.png" width="1440" height="900" loading="lazy" alt="Settings, Web page: Allow access from the network ticked, the access key and the addresses to open the page at, and the secure connection switch"></picture></a>
-    </figure>
-  </div>
-  <div class="wrap pair phones">
-    <figure class="shot">
-      <a class="zoom phone" href="shots/phone-key.png"><picture><source srcset="shots/phone-key-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/phone-key.png" width="390" height="844" loading="lazy" alt="On a phone: the key screen, one field for the access key"></picture></a>
-    </figure>
-    <figure class="shot">
-      <a class="zoom phone" href="shots/phone-messages.png"><picture><source srcset="shots/phone-messages-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/phone-messages.png" width="390" height="844" loading="lazy" alt="On a phone: a conversation with its back arrow, the bubbles and the box to write in at the bottom"></picture></a>
-    </figure>
-    <figure class="shot">
-      <a class="zoom phone" href="shots/phone-weather.png"><picture><source srcset="shots/phone-weather-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/phone-weather.png" width="390" height="844" loading="lazy" alt="On a phone: the card of a weather station as a sheet over the map, opened up to its readings and graphs"></picture></a>
-    </figure>
   </div>
 </section>
 
-<section id="setup">
-  <div class="wrap feature flip">
-    <div class="blurb">
-      <p class="eyebrow">First start</p>
-      <h2>Five steps, then you are on the air</h2>
-      <ul class="ticks">
-        <li>Call, position, symbol, radio, map.</li>
-        <li>Until a call is set NeoAPRS only listens.</li>
-        <li>The map of your area is made once, in a few minutes of internet.</li>
-        <li>Once a day it asks whether a newer version is out, sending its version and system and nothing else.</li>
-        <li>A new version shows in the footer with the steps to update your copy, and <strong>Update now</strong> for the Windows installer and the AppImage; open pages load it by themselves.</li>
-        <li>On a computer or an Android phone the page can be installed as an app of its own, from localhost or an https address.</li>
-      </ul>
+<section id="install">
+  <div class="wrap">
+    <h2>Install</h2>
+    <div class="steps">
+      <div class="card step">
+        <h3>Windows</h3>
+        <p>Run the installer; no administrator rights are needed. If SmartScreen warns about an unsigned installer: More info, Run anyway.</p>
+        <div class="run">
+          <a class="btn primary" href="https://github.com/oh2gba/neoaprs/releases/latest">Windows installer</a>
+        </div>
+      </div>
+      <div class="card step">
+        <h3>Linux (AppImage)</h3>
+        <p>Make the AppImage executable and run it.</p>
+        <div class="run">
+          <div class="cmd">
+            <code id="appimage-line"><span class="prompt">$ </span>chmod +x NeoAPRS-*-x86_64.AppImage &amp;&amp; ./NeoAPRS-*-x86_64.AppImage</code>
+            <button class="copy" type="button" data-target="appimage-line" data-text="chmod +x NeoAPRS-*-x86_64.AppImage &amp;&amp; ./NeoAPRS-*-x86_64.AppImage" hidden>Copy</button>
+          </div>
+        </div>
+      </div>
+      <div class="card step">
+        <h3>Debian, Ubuntu, Raspberry Pi</h3>
+        <p>The .deb (arm64 for a Pi, amd64 for a PC) brings its own Python. Or the install script (Linux, macOS), which installs uv and NeoAPRS and starts a service.</p>
+        <div class="run">
+          <div class="cmd">
+            <code id="deb-line"><span class="prompt">$ </span>sudo apt install ./neoaprs_*.deb &amp;&amp; neoaprs service install --linger</code>
+            <button class="copy" type="button" data-target="deb-line" data-text="sudo apt install ./neoaprs_*.deb &amp;&amp; neoaprs service install --linger" hidden>Copy</button>
+          </div>
+          <div class="cmd">
+            <code id="install-line"><span class="prompt">$ </span>curl -LsSf https://github.com/oh2gba/neoaprs/releases/latest/download/install.sh | sh</code>
+            <button class="copy" type="button" data-target="install-line" data-text="curl -LsSf https://github.com/oh2gba/neoaprs/releases/latest/download/install.sh | sh" hidden>Copy</button>
+          </div>
+        </div>
+      </div>
+      <div class="card step">
+        <h3>pip, uv</h3>
+        <p>The wheel from the release, with Python 3.13 or newer.</p>
+        <div class="run">
+          <div class="cmd">
+            <code id="wheel-line"><span class="prompt">$ </span>uv tool install neoaprs-&lt;version&gt;-py3-none-any.whl</code>
+            <button class="copy" type="button" data-target="wheel-line" data-text="uv tool install neoaprs-&lt;version&gt;-py3-none-any.whl" hidden>Copy</button>
+          </div>
+        </div>
+      </div>
     </div>
-    <figure class="shot">
-      <a class="zoom frame crop guide" href="shots/setup.png"><picture><source srcset="shots/setup-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/setup.png" width="1440" height="900" loading="lazy" alt="The setup guide, at its Position step, over the map of Espoo: the Choose on map button, the place as text beside it and the entry for the coordinates and the locator"></picture></a>
-    </figure>
+    <p class="note">Updates: the Windows installer and the AppImage have Update now; elsewhere the update window lists the steps.</p>
+    <p class="note">No radio at hand? This plays the sample capture as a TNC on a TCP port.</p>
+    <div class="cmd replay">
+      <code id="replay-line"><span class="prompt">$ </span>neoaprs replay</code>
+      <button class="copy" type="button" data-target="replay-line" data-text="neoaprs replay" hidden>Copy</button>
+    </div>
   </div>
 </section>
 
 <section id="radios">
   <div class="wrap">
-    <p class="eyebrow">Works with</p>
-    <h2>Radios and TNCs</h2>
+    <h2>Radios</h2>
     <table class="radios">
       <thead><tr><th scope="col">Radio or TNC</th><th scope="col">Connects by</th></tr></thead>
       <tbody>
@@ -473,97 +186,55 @@
         <tr><th scope="row">Mobilinkd TNC3, TNC4</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#mobilinkd-tnc3-and-tnc4">USB, Bluetooth or Bluetooth LE</a></td></tr>
         <tr><th scope="row">BTech UV-PRO, Vero VR-N76, Radioddity GA-5WB (untested)</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#btech-uv-pro-vero-vr-n76-radioddity-ga-5wb">Bluetooth</a></td></tr>
         <tr><th scope="row">PicoAPRS V4 (untested)</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#picoaprs-v4">Bluetooth, USB-C or TCP</a></td></tr>
-        <tr><th scope="row">LoRa APRS iGate and Tracker, CA2RXU firmware (untested)</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#lora-aprs-ca2rxu-firmware">KISS over TCP or Bluetooth LE</a></td></tr>
-        <tr><th scope="row">NinoTNC, TNC-Pi, TNC-X, any TNC already in KISS</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#ninotnc">USB or serial</a></td></tr>
+        <tr><th scope="row">LoRa APRS, CA2RXU firmware (untested)</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#lora-aprs-ca2rxu-firmware">KISS over TCP or Bluetooth LE</a></td></tr>
+        <tr><th scope="row">NinoTNC, TNC-Pi, TNC-X, any TNC in KISS</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#ninotnc">USB or serial</a></td></tr>
         <tr><th scope="row">Kantronics KPC-3+</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#kantronics-kpc-3">RS-232</a></td></tr>
-        <tr><th scope="row">Any radio with a sound-card interface (Digirig, SignaLink, USB dongle), through Direwolf or a soundmodem</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#direwolf-sound-card">KISS over TCP</a></td></tr>
-        <tr><th scope="row">A GPS receiver, for a moving station</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#a-gps-receiver">gpsd or a serial port</a></td></tr>
+        <tr><th scope="row">Any radio with a sound-card interface (Digirig, SignaLink), through Direwolf</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#direwolf-sound-card">KISS over TCP</a></td></tr>
+        <tr><th scope="row">GPS receiver, for a moving station</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#a-gps-receiver">gpsd or serial</a></td></tr>
       </tbody>
     </table>
-    <p class="note">On Linux a Bluetooth radio paired with the computer is picked from the Port list by its name, with no extra steps; a Bluetooth LE KISS TNC is a port of its own (ble://, with an extra, not yet tried on a radio). Yaesu and Icom radios have no KISS TNC for a computer: use a sound-card interface and Direwolf. <a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#which-radio-or-tnc-do-you-have">The radio guide</a> marks which entries are tried on the air and which follow the radios' manuals and users' reports.</p>
-  </div>
-</section>
-
-<section id="get">
-  <div class="wrap">
-    <p class="eyebrow">Get it</p>
-    <h2>Download and run</h2>
-    <div class="cards">
-      <div class="card">
-        <h3>Windows</h3>
-        <p>Run the installer. No administrator rights are needed. SmartScreen may warn about an unsigned installer: More info, Run anyway.</p>
-        <a class="btn primary" href="https://github.com/oh2gba/neoaprs/releases/latest">Windows installer</a>
-      </div>
-      <div class="card">
-        <h3>Linux</h3>
-        <p>Make the AppImage executable and run it.</p>
-        <a class="btn primary" href="https://github.com/oh2gba/neoaprs/releases/latest">Linux AppImage</a>
-      </div>
-      <div class="card">
-        <h3>Raspberry Pi, Debian, Ubuntu</h3>
-        <p>The .deb for your machine (arm64 for a Pi, amd64 for a PC) brings its own Python.</p>
-        <a class="btn primary" href="https://github.com/oh2gba/neoaprs/releases/latest">Raspberry Pi .deb</a>
-        <div class="cmd">
-          <code id="deb-line"><span class="prompt">$ </span>sudo apt install ./neoaprs_*.deb &amp;&amp; neoaprs service install --linger</code>
-          <button class="copy" type="button" data-target="deb-line" data-text="sudo apt install ./neoaprs_*.deb &amp;&amp; neoaprs service install --linger" hidden>Copy</button>
-        </div>
-      </div>
-      <div class="card">
-        <h3>Linux, macOS, Raspberry Pi</h3>
-        <p>Installs uv and NeoAPRS and starts it as a service of your user.</p>
-        <div class="cmd">
-          <code id="install-line-2"><span class="prompt">$ </span>curl -LsSf https://github.com/oh2gba/neoaprs/releases/latest/download/install.sh | sh</code>
-          <button class="copy" type="button" data-target="install-line-2" data-text="curl -LsSf https://github.com/oh2gba/neoaprs/releases/latest/download/install.sh | sh" hidden>Copy</button>
-        </div>
-      </div>
-    </div>
-    <h3 class="code">No radio at hand?</h3>
-    <p class="note">The sample capture that comes with NeoAPRS plays as a TNC on a TCP port, so you can try the page first. <a href="https://github.com/oh2gba/neoaprs#trying-it-without-a-radio">How</a></p>
-    <div class="cmd code">
-      <code id="replay-line"><span class="prompt">$ </span>neoaprs replay</code>
-      <button class="copy" type="button" data-target="replay-line" data-text="neoaprs replay" hidden>Copy</button>
-    </div>
+    <p class="note">Bluetooth LE (<code>ble://</code>) is untested on a radio. Yaesu and Icom have no KISS TNC for a computer: use a sound-card interface and Direwolf. <b>Find my radio</b> in Settings (Linux) looks for the port. <a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#which-radio-or-tnc-do-you-have">Radio guide</a></p>
   </div>
 </section>
 
 <section id="gallery">
   <div class="wrap">
-    <p class="eyebrow">Gallery</p>
-    <h2>All the screens</h2>
+    <h2>Screenshots</h2>
     <ul class="gallery">
-      <li><a class="zoom" href="shots/map.png" data-dark="shots/map-dark.png"><picture><source srcset="shots/thumbs/map-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/map.png" width="640" height="400" loading="lazy" alt=""></picture><span>The map: stations and trails</span></a></li>
-      <li><a class="zoom" href="shots/stations.png" data-dark="shots/stations-dark.png"><picture><source srcset="shots/thumbs/stations-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/stations.png" width="640" height="400" loading="lazy" alt=""></picture><span>The Stations table</span></a></li>
-      <li><a class="zoom" href="shots/stations-menu.png" data-dark="shots/stations-menu-dark.png"><picture><source srcset="shots/thumbs/stations-menu-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/stations-menu.png" width="640" height="400" loading="lazy" alt=""></picture><span>The menu of a station: the APRS queries</span></a></li>
-      <li><a class="zoom" href="shots/station.png" data-dark="shots/station-dark.png"><picture><source srcset="shots/thumbs/station-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/station.png" width="640" height="400" loading="lazy" alt=""></picture><span>A station card</span></a></li>
-      <li><a class="zoom" href="shots/station-details.png" data-dark="shots/station-details-dark.png"><picture><source srcset="shots/thumbs/station-details-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/station-details.png" width="640" height="400" loading="lazy" alt=""></picture><span>A station card with Details open</span></a></li>
-      <li><a class="zoom" href="shots/cards.png" data-dark="shots/cards-dark.png"><picture><source srcset="shots/thumbs/cards-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/cards.png" width="640" height="400" loading="lazy" alt=""></picture><span>Station cards side by side, movable</span></a></li>
-      <li><a class="zoom" href="shots/weather.png" data-dark="shots/weather-dark.png"><picture><source srcset="shots/thumbs/weather-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/weather.png" width="640" height="400" loading="lazy" alt=""></picture><span>Weather stations and their graphs</span></a></li>
-      <li><a class="zoom" href="shots/messages.png" data-dark="shots/messages-dark.png"><picture><source srcset="shots/thumbs/messages-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/messages.png" width="640" height="400" loading="lazy" alt=""></picture><span>Messages: the list, a conversation and its delivery chain</span></a></li>
-      <li class="tall"><a class="zoom" href="shots/chain.png" data-dark="shots/chain-dark.png"><picture><source srcset="shots/thumbs/chain-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/chain.png" width="640" height="681" loading="lazy" alt=""></picture><span>The delivery chain, close up</span></a></li>
-      <li><a class="zoom" href="shots/chain-failed.png" data-dark="shots/chain-failed-dark.png"><picture><source srcset="shots/thumbs/chain-failed-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/chain-failed.png" width="640" height="105" loading="lazy" alt=""></picture><span>A message that failed: four attempts</span></a></li>
-      <li><a class="zoom" href="shots/email.png" data-dark="shots/email-dark.png"><picture><source srcset="shots/thumbs/email-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/email.png" width="640" height="400" loading="lazy" alt=""></picture><span>Email through the gateway</span></a></li>
-      <li><a class="zoom" href="shots/bulletins.png" data-dark="shots/bulletins-dark.png"><picture><source srcset="shots/thumbs/bulletins-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/bulletins.png" width="640" height="400" loading="lazy" alt=""></picture><span>The message board and its post box</span></a></li>
-      <li><a class="zoom" href="shots/objects.png" data-dark="shots/objects-dark.png"><picture><source srcset="shots/thumbs/objects-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/objects.png" width="640" height="400" loading="lazy" alt=""></picture><span>Objects of your own on the map</span></a></li>
-      <li><a class="zoom" href="shots/objects-form.png" data-dark="shots/objects-form-dark.png"><picture><source srcset="shots/thumbs/objects-form-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/objects-form.png" width="640" height="400" loading="lazy" alt=""></picture><span>The object form</span></a></li>
-      <li><a class="zoom" href="shots/beacon.png" data-dark="shots/beacon-dark.png"><picture><source srcset="shots/thumbs/beacon-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/beacon.png" width="640" height="400" loading="lazy" alt=""></picture><span>The beacon and the status</span></a></li>
-      <li><a class="zoom" href="shots/beacon-gps.png" data-dark="shots/beacon-gps-dark.png"><picture><source srcset="shots/thumbs/beacon-gps-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/beacon-gps.png" width="640" height="400" loading="lazy" alt=""></picture><span>The beacon of a moving station: the GPS and SmartBeaconing</span></a></li>
-      <li><a class="zoom" href="shots/settings.png" data-dark="shots/settings-dark.png"><picture><source srcset="shots/thumbs/settings-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/settings.png" width="640" height="400" loading="lazy" alt=""></picture><span>The settings: the radio status</span></a></li>
-      <li><a class="zoom" href="shots/settings-tnc.png" data-dark="shots/settings-tnc-dark.png"><picture><source srcset="shots/thumbs/settings-tnc-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/settings-tnc.png" width="640" height="400" loading="lazy" alt=""></picture><span>Settings, the TNC group</span></a></li>
-      <li><a class="zoom" href="shots/settings-web.png" data-dark="shots/settings-web-dark.png"><picture><source srcset="shots/thumbs/settings-web-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/settings-web.png" width="640" height="400" loading="lazy" alt=""></picture><span>Network access: the key and the addresses</span></a></li>
+      <li><a class="zoom" href="shots/map.png" data-dark="shots/map-dark.png"><picture><source srcset="shots/thumbs/map-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/map.png" width="640" height="400" loading="lazy" alt=""></picture><span>Map</span></a></li>
+      <li><a class="zoom" href="shots/stations.png" data-dark="shots/stations-dark.png"><picture><source srcset="shots/thumbs/stations-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/stations.png" width="640" height="400" loading="lazy" alt=""></picture><span>Stations table</span></a></li>
+      <li><a class="zoom" href="shots/stations-menu.png" data-dark="shots/stations-menu-dark.png"><picture><source srcset="shots/thumbs/stations-menu-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/stations-menu.png" width="640" height="400" loading="lazy" alt=""></picture><span>Station menu: APRS queries</span></a></li>
+      <li><a class="zoom" href="shots/station.png" data-dark="shots/station-dark.png"><picture><source srcset="shots/thumbs/station-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/station.png" width="640" height="400" loading="lazy" alt=""></picture><span>Station card</span></a></li>
+      <li><a class="zoom" href="shots/station-details.png" data-dark="shots/station-details-dark.png"><picture><source srcset="shots/thumbs/station-details-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/station-details.png" width="640" height="400" loading="lazy" alt=""></picture><span>Station card, Details open</span></a></li>
+      <li><a class="zoom" href="shots/cards.png" data-dark="shots/cards-dark.png"><picture><source srcset="shots/thumbs/cards-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/cards.png" width="640" height="400" loading="lazy" alt=""></picture><span>Cards side by side</span></a></li>
+      <li><a class="zoom" href="shots/weather.png" data-dark="shots/weather-dark.png"><picture><source srcset="shots/thumbs/weather-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/weather.png" width="640" height="400" loading="lazy" alt=""></picture><span>Weather graphs</span></a></li>
+      <li><a class="zoom" href="shots/messages.png" data-dark="shots/messages-dark.png"><picture><source srcset="shots/thumbs/messages-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/messages.png" width="640" height="400" loading="lazy" alt=""></picture><span>Messages</span></a></li>
+      <li class="tall"><a class="zoom" href="shots/chain.png" data-dark="shots/chain-dark.png"><picture><source srcset="shots/thumbs/chain-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/chain.png" width="640" height="681" loading="lazy" alt=""></picture><span>Delivery chain</span></a></li>
+      <li><a class="zoom" href="shots/chain-failed.png" data-dark="shots/chain-failed-dark.png"><picture><source srcset="shots/thumbs/chain-failed-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/chain-failed.png" width="640" height="105" loading="lazy" alt=""></picture><span>Failed message</span></a></li>
+      <li><a class="zoom" href="shots/email.png" data-dark="shots/email-dark.png"><picture><source srcset="shots/thumbs/email-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/email.png" width="640" height="400" loading="lazy" alt=""></picture><span>Email</span></a></li>
+      <li><a class="zoom" href="shots/bulletins.png" data-dark="shots/bulletins-dark.png"><picture><source srcset="shots/thumbs/bulletins-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/bulletins.png" width="640" height="400" loading="lazy" alt=""></picture><span>Bulletins</span></a></li>
+      <li><a class="zoom" href="shots/objects.png" data-dark="shots/objects-dark.png"><picture><source srcset="shots/thumbs/objects-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/objects.png" width="640" height="400" loading="lazy" alt=""></picture><span>Objects on the map</span></a></li>
+      <li><a class="zoom" href="shots/objects-form.png" data-dark="shots/objects-form-dark.png"><picture><source srcset="shots/thumbs/objects-form-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/objects-form.png" width="640" height="400" loading="lazy" alt=""></picture><span>Object form</span></a></li>
+      <li><a class="zoom" href="shots/beacon.png" data-dark="shots/beacon-dark.png"><picture><source srcset="shots/thumbs/beacon-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/beacon.png" width="640" height="400" loading="lazy" alt=""></picture><span>Beacon</span></a></li>
+      <li><a class="zoom" href="shots/beacon-gps.png" data-dark="shots/beacon-gps-dark.png"><picture><source srcset="shots/thumbs/beacon-gps-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/beacon-gps.png" width="640" height="400" loading="lazy" alt=""></picture><span>Moving station: GPS, SmartBeaconing</span></a></li>
+      <li><a class="zoom" href="shots/settings.png" data-dark="shots/settings-dark.png"><picture><source srcset="shots/thumbs/settings-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/settings.png" width="640" height="400" loading="lazy" alt=""></picture><span>Settings</span></a></li>
+      <li><a class="zoom" href="shots/settings-tnc.png" data-dark="shots/settings-tnc-dark.png"><picture><source srcset="shots/thumbs/settings-tnc-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/settings-tnc.png" width="640" height="400" loading="lazy" alt=""></picture><span>Settings: TNC</span></a></li>
+      <li><a class="zoom" href="shots/settings-web.png" data-dark="shots/settings-web-dark.png"><picture><source srcset="shots/thumbs/settings-web-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/settings-web.png" width="640" height="400" loading="lazy" alt=""></picture><span>Settings: network access</span></a></li>
       <li><a class="zoom" href="shots/beacon-rx.png" data-dark="shots/beacon-rx-dark.png"><picture><source srcset="shots/thumbs/beacon-rx-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/beacon-rx.png" width="640" height="400" loading="lazy" alt=""></picture><span>Receive only</span></a></li>
-      <li><a class="zoom" href="shots/update.png" data-dark="shots/update-dark.png"><picture><source srcset="shots/thumbs/update-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/update.png" width="640" height="400" loading="lazy" alt=""></picture><span>The update window: Update now</span></a></li>
-      <li><a class="zoom" href="shots/beacon-de.png" data-dark="shots/beacon-de-dark.png"><picture><source srcset="shots/thumbs/beacon-de-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/beacon-de.png" width="640" height="400" loading="lazy" alt=""></picture><span>The page in German</span></a></li>
-      <li><a class="zoom" href="shots/setup.png" data-dark="shots/setup-dark.png"><picture><source srcset="shots/thumbs/setup-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/setup.png" width="640" height="400" loading="lazy" alt=""></picture><span>The setup guide</span></a></li>
-      <li><a class="zoom" href="shots/packets.png" data-dark="shots/packets-dark.png"><picture><source srcset="shots/thumbs/packets-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/packets.png" width="640" height="400" loading="lazy" alt=""></picture><span>The packet log</span></a></li>
-      <li><a class="zoom" href="shots/nearby.png" data-dark="shots/nearby-dark.png"><picture><source srcset="shots/thumbs/nearby-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/nearby.png" width="640" height="400" loading="lazy" alt=""></picture><span>Nearby: a digipeater and its range circle</span></a></li>
-      <li><a class="zoom" href="shots/tablet.png" data-dark="shots/tablet-dark.png"><picture><source srcset="shots/thumbs/tablet-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/tablet.png" width="640" height="480" loading="lazy" alt=""></picture><span>On a tablet: the map and a conversation</span></a></li>
-      <li class="tall"><a class="zoom" href="shots/phone-key.png" data-dark="shots/phone-key-dark.png"><picture><source srcset="shots/thumbs/phone-key-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/phone-key.png" width="270" height="584" loading="lazy" alt=""></picture><span>On a phone: the key screen</span></a></li>
-      <li class="tall"><a class="zoom" href="shots/phone-map.png" data-dark="shots/phone-map-dark.png"><picture><source srcset="shots/thumbs/phone-map-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/phone-map.png" width="270" height="584" loading="lazy" alt=""></picture><span>On a phone: the map</span></a></li>
-      <li class="tall"><a class="zoom" href="shots/phone-messages.png" data-dark="shots/phone-messages-dark.png"><picture><source srcset="shots/thumbs/phone-messages-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/phone-messages.png" width="270" height="584" loading="lazy" alt=""></picture><span>On a phone: a conversation</span></a></li>
-      <li class="tall"><a class="zoom" href="shots/phone-weather.png" data-dark="shots/phone-weather-dark.png"><picture><source srcset="shots/thumbs/phone-weather-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/phone-weather.png" width="270" height="584" loading="lazy" alt=""></picture><span>On a phone: weather</span></a></li>
-      <li class="tall"><a class="zoom" href="shots/phone-beacon-rx.png" data-dark="shots/phone-beacon-rx-dark.png"><picture><source srcset="shots/thumbs/phone-beacon-rx-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/phone-beacon-rx.png" width="270" height="584" loading="lazy" alt=""></picture><span>On a phone: Receive only</span></a></li>
-      <li class="tall"><a class="zoom" href="shots/phone-bulletins.png" data-dark="shots/phone-bulletins-dark.png"><picture><source srcset="shots/thumbs/phone-bulletins-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/phone-bulletins.png" width="270" height="584" loading="lazy" alt=""></picture><span>On a phone: bulletins</span></a></li>
+      <li><a class="zoom" href="shots/update.png" data-dark="shots/update-dark.png"><picture><source srcset="shots/thumbs/update-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/update.png" width="640" height="400" loading="lazy" alt=""></picture><span>Update window</span></a></li>
+      <li><a class="zoom" href="shots/beacon-de.png" data-dark="shots/beacon-de-dark.png"><picture><source srcset="shots/thumbs/beacon-de-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/beacon-de.png" width="640" height="400" loading="lazy" alt=""></picture><span>German</span></a></li>
+      <li><a class="zoom" href="shots/setup.png" data-dark="shots/setup-dark.png"><picture><source srcset="shots/thumbs/setup-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/setup.png" width="640" height="400" loading="lazy" alt=""></picture><span>Setup guide</span></a></li>
+      <li><a class="zoom" href="shots/packets.png" data-dark="shots/packets-dark.png"><picture><source srcset="shots/thumbs/packets-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/packets.png" width="640" height="400" loading="lazy" alt=""></picture><span>Packet log</span></a></li>
+      <li><a class="zoom" href="shots/nearby.png" data-dark="shots/nearby-dark.png"><picture><source srcset="shots/thumbs/nearby-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/nearby.png" width="640" height="400" loading="lazy" alt=""></picture><span>Nearby: digipeater range</span></a></li>
+      <li><a class="zoom" href="shots/tablet.png" data-dark="shots/tablet-dark.png"><picture><source srcset="shots/thumbs/tablet-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/tablet.png" width="640" height="480" loading="lazy" alt=""></picture><span>Tablet</span></a></li>
+      <li class="tall"><a class="zoom" href="shots/phone-key.png" data-dark="shots/phone-key-dark.png"><picture><source srcset="shots/thumbs/phone-key-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/phone-key.png" width="270" height="584" loading="lazy" alt=""></picture><span>Phone: access key</span></a></li>
+      <li class="tall"><a class="zoom" href="shots/phone-map.png" data-dark="shots/phone-map-dark.png"><picture><source srcset="shots/thumbs/phone-map-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/phone-map.png" width="270" height="584" loading="lazy" alt=""></picture><span>Phone: map</span></a></li>
+      <li class="tall"><a class="zoom" href="shots/phone-messages.png" data-dark="shots/phone-messages-dark.png"><picture><source srcset="shots/thumbs/phone-messages-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/phone-messages.png" width="270" height="584" loading="lazy" alt=""></picture><span>Phone: messages</span></a></li>
+      <li class="tall"><a class="zoom" href="shots/phone-weather.png" data-dark="shots/phone-weather-dark.png"><picture><source srcset="shots/thumbs/phone-weather-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/phone-weather.png" width="270" height="584" loading="lazy" alt=""></picture><span>Phone: weather</span></a></li>
+      <li class="tall"><a class="zoom" href="shots/phone-beacon-rx.png" data-dark="shots/phone-beacon-rx-dark.png"><picture><source srcset="shots/thumbs/phone-beacon-rx-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/phone-beacon-rx.png" width="270" height="584" loading="lazy" alt=""></picture><span>Phone: Receive only</span></a></li>
+      <li class="tall"><a class="zoom" href="shots/phone-bulletins.png" data-dark="shots/phone-bulletins-dark.png"><picture><source srcset="shots/thumbs/phone-bulletins-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/phone-bulletins.png" width="270" height="584" loading="lazy" alt=""></picture><span>Phone: bulletins</span></a></li>
     </ul>
+    <p class="note">A made-up day on the air: apart from a few digipeaters of the sample capture, the calls are invented.</p>
   </div>
 </section>
 </main>
@@ -571,16 +242,15 @@
 <footer>
   <div class="wrap">
     <p class="links">
-      <a href="https://github.com/oh2gba/neoaprs">GitHub</a>
-      <a href="https://github.com/oh2gba/neoaprs/releases">Releases</a>
+      <a href="https://github.com/oh2gba/neoaprs">Source on GitHub</a>
       <a href="https://github.com/oh2gba/neoaprs/blob/master/docs/manual/README.md">Manual</a>
-      <a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md">Radios</a>
+      <a href="https://github.com/oh2gba/neoaprs/releases">Releases</a>
       <a href="https://github.com/oh2gba/neoaprs/blob/master/CHANGELOG.md">Changelog</a>
       <a href="https://github.com/oh2gba/neoaprs/issues">Issues</a>
     </p>
-    <p>NeoAPRS is free software under the <a href="https://github.com/oh2gba/neoaprs/blob/master/LICENSE">GPL-3.0-or-later</a>. By <a href="https://oh2gba.eu">OH2GBA</a>.</p>
+    <p>Support: <a href="mailto:neoaprs@oh2gba.eu">neoaprs@oh2gba.eu</a>. In the page, Settings, Help, Download logs makes the file to attach.</p>
+    <p>Free software under the <a href="https://github.com/oh2gba/neoaprs/blob/master/LICENSE">GNU GPL v3 or later</a>. By <a href="https://oh2gba.eu">OH2GBA</a>. Thanks to OH2GAX, OH2DPN and OH7NFC for their feedback.</p>
     <p>Map data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> via <a href="https://protomaps.com">Protomaps</a>. APRS symbols by Heikki Hannikainen OH7LZB (<a href="https://github.com/hessu/aprs-symbols">hessu/aprs-symbols</a>). Device names from the APRS device identification list by Hessu, OH7LZB (<a href="https://github.com/aprsorg/aprs-deviceid">aprsorg/aprs-deviceid</a>, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC BY-SA 2.0</a>).</p>
-    <p>The screenshots show a made-up day on the air: apart from a few digipeaters of the sample capture, the calls are invented.</p>
   </div>
 </footer>
 
