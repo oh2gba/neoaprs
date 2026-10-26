@@ -1,5 +1,9 @@
-// Asking QRU for local info (the Nearby tab): the text of a request, from the word (INFO or a group) and the distance the person typed. The daemon checks it again; the number it is held to is LIMITS.qru.kmMax.
+// Asking QRU for local info (the Nearby tab): the text of a request, from the word (INFO or a group) and the distance the person typed, how long Ask waits after a request, and what the row of the section says of the last one.
+// The daemon checks the text again; the numbers it is held to are LIMITS.qru (the farthest, the seconds between two requests).
+import { t } from "@/i18n";
+import { clockText } from "@/lib/format";
 import { LIMITS } from "@/protocol/lists";
+import type { QruAsked, QruServer } from "@/protocol/protocol";
 
 /** The distance typed, as a whole number of kilometres: null for an empty field (the servers' own range), NaN for anything that is not 1 to the most. */
 export function kmOf(text: string): number | null {
@@ -19,4 +23,36 @@ export function requestText(word: string, km: string): string | null {
   const distance = kmOf(km);
   if (Number.isNaN(distance)) return null;
   return distance === null ? word : `${word} ${distance}`;
+}
+
+/** The seconds Ask is still held for, 0 when it is free: a request is on the air at most once in LIMITS.qru.askEverySec, whatever it says. */
+export function askWait(asked: QruAsked | null, nowMs: number): number {
+  if (asked === null) return 0;
+  return Math.max(0, Math.ceil((Date.parse(asked.at) + LIMITS.qru.askEverySec * 1000 - nowMs) / 1000));
+}
+
+/** How many servers have answered since the request was sent (a server that listed its groups for an earlier one does not count). */
+export function answeredSince(asked: QruAsked, servers: readonly QruServer[]): number {
+  const sent = Date.parse(asked.at);
+  return servers.filter((server) => Date.parse(server.at) >= sent).length;
+}
+
+export interface QruLook {
+  state: string;
+  /** the class that colours the state (the radio's `tnc-*`) */
+  tone: string;
+  line: string;
+}
+
+/** The row of the section: a refusal (the reason, as the daemon's code has it) while there is one; else the last request with the time it was sent, waiting for answers while the minute runs, then how many servers answered or that none did; null before a request. */
+export function qruLook(asked: QruAsked | null, servers: readonly QruServer[], refusal: string, nowMs: number): QruLook | null {
+  if (refusal !== "") return { state: t("nearby.qru_refused"), tone: "tnc-waiting", line: refusal };
+  if (asked === null) return null;
+  const time = clockText(asked.at).slice(0, 5);
+  const state = t("nearby.qru_state");
+  if (askWait(asked, nowMs) > 0) return { state, tone: "tnc-waiting", line: t("nearby.qru_waiting", { time }) };
+  const n = answeredSince(asked, servers);
+  return n > 0
+    ? { state, tone: "tnc-connected", line: t("nearby.qru_answered", { time, n }) }
+    : { state, tone: "tnc-stopped", line: t("nearby.qru_no_answer", { time }) };
 }

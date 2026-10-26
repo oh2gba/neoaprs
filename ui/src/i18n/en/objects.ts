@@ -39,6 +39,7 @@ export const objects = {
   "objects.tip.speed": "How fast it moves, in km/h. Leave both empty for an object that stays.",
   "objects.tip.path": "The digipeaters its packets ask for. Empty uses the path of your beacon.",
   "objects.tip.qru": "A word (1–{max} letters or digits) a station sends to QRU to get the objects of this group.",
+  "objects.tip.qru_ask": "Others ask from Nearby → Local info (QRU).",
   "objects.tip.on_request": "Not beaconed; sent only to a station that asks with ?APRSO or QRU.",
 
   "objects.problem.name_chars": "No blank at either end, none of ! _ | ~",

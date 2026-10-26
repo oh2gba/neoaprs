@@ -27,7 +27,7 @@
  "object.symbol": {"params": ["symbol", "table"], "text": ["the symbol '{table}' '{symbol}' is not a table (/ \\ A-Z 0-9) and one printable character"]},
  "path.direct_alone": {"params": ["word"], "text": ["{word} is no digipeater: written alone it means no digipeaters at all"]},
  "path.too_long": {"params": ["count", "max"], "text": ["{count} digipeaters is more than the {max} a path may have"]},
- "qru.too_soon": {"params": ["seconds"], "text": ["the same request was sent a moment ago: wait {seconds} s"]},
+ "qru.too_soon": {"params": ["seconds"], "text": ["only one request to QRU per minute: wait {seconds} s"]},
  "query.not_capable": {"params": ["call"], "text": ["{call} does not take messages: there is nobody to ask"]},
  "query.too_soon": {"params": ["call", "seconds"], "text": ["{call} was asked the same a moment ago: wait {seconds} s"]},
  "radio.busy": {"params": [], "text": ["a search for the radio is running already"]},

@@ -400,15 +400,18 @@ describe("ObjectForm", () => {
     }
   });
 
-  it("has an (i) after every field that is ours, each of one short line, named About and the field", async () => {
+  it("has an (i) after every field that is ours, each of one short line (the QRU group's has a second, that points to where others ask), named About and the field", async () => {
     const { wrapper, field } = form();
     for (const label of ["Name", "Comment", "Course", "Speed", "Path", "QRU group", "Send only when asked"]) {
       const tip = field(label)?.find(".info-toggle");
       expect(tip?.attributes("aria-label"), label).toBe(`About ${label}`);
       await tip?.trigger("click");
-      expect(wrapper.findAll(".info-text .info-line"), label).toHaveLength(1);
+      expect(wrapper.findAll(".info-text .info-line"), label).toHaveLength(label === "QRU group" ? 2 : 1);
       if (label === "QRU group")
-        expect(wrapper.find(".info-text .info-line").text()).toBe("A word (1–8 letters or digits) a station sends to QRU to get the objects of this group.");
+        expect(wrapper.findAll(".info-text .info-line").map((l) => l.text())).toEqual([
+          "A word (1–8 letters or digits) a station sends to QRU to get the objects of this group.",
+          "Others ask from Nearby → Local info (QRU).",
+        ]);
       if (label === "Send only when asked")
         expect(wrapper.find(".info-text .info-line").text()).toBe("Not beaconed; sent only to a station that asks with ?APRSO or QRU.");
       await tip?.trigger("click");

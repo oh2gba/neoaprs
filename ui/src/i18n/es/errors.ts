@@ -56,7 +56,7 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.query.not_capable": "{call} no recibe mensajes: no hay a quién preguntar",
   "error.transmit.off": "RX only: no se envía nada",
   "error.query.too_soon": "A {call} se le acaba de preguntar lo mismo: espera {seconds} s",
-  "error.qru.too_soon": "la misma petición se acaba de enviar: espera {seconds} s",
+  "error.qru.too_soon": "solo una petición a QRU por minuto: espera {seconds} s",
   "error.path.direct_alone": "{word} no es un digipeater: solo, significa ningún digipeater",
   "error.setting.comment_too_long": "{length} caracteres son más de los {limit} que se permiten con la extensión PHG (vacía beacon/power_w para no enviarla)",
   "error.setting.not_access_key": "no es una clave de acceso (tres grupos de cuatro dígitos y letras, como k7m2-x9pq-4hrt)",

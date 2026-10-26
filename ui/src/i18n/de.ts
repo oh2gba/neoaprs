@@ -133,7 +133,7 @@ export const de: Catalogue = {
   "error.query.not_capable": "{call} nimmt keine Nachrichten an: es gibt niemanden zu fragen",
   "error.transmit.off": "RX only: Es wird nichts gesendet",
   "error.query.too_soon": "{call} wurde eben erst dasselbe gefragt: {seconds} s warten",
-  "error.qru.too_soon": "dieselbe Anfrage wurde eben erst gesendet: {seconds} s warten",
+  "error.qru.too_soon": "nur eine Anfrage an QRU pro Minute: {seconds} s warten",
   "error.path.direct_alone": "{word} ist kein Digipeater: allein geschrieben bedeutet es gar keine Digipeater",
   "error.setting.comment_too_long":
     "{length} Zeichen sind mehr als die {limit}, die mit der PHG-Erweiterung erlaubt sind (beacon/power_w leeren, um keine zu senden)",
@@ -383,6 +383,7 @@ export const de: Catalogue = {
   "objects.tip.speed": "Wie schnell es sich bewegt, in km/h. Beide leer lassen für ein Objekt, das stillsteht.",
   "objects.tip.path": "Die Digipeater, die seine Pakete anfordern. Leer nutzt den Pfad deiner Bake.",
   "objects.tip.qru": "Ein Wort (1–{max} Buchstaben oder Ziffern), das eine Station an QRU sendet, um die Objekte dieser Gruppe zu erhalten.",
+  "objects.tip.qru_ask": "Andere fragen unter In der Nähe → Ortsinfo (QRU).",
   "objects.tip.on_request": "Nicht als Bake gesendet; nur an eine Station, die mit ?APRSO oder QRU fragt.",
 
   "objects.problem.name_chars": "Kein Leerzeichen an den Enden, keines von ! _ | ~",
@@ -905,8 +906,9 @@ export const de: Catalogue = {
 
   "settings.station_status.name": "Statustext",
   "settings.station_status.label": "Text",
-  "settings.station_status.tip1": "Eine Zeile darüber, was du gerade tust, die hin und wieder gesendet wird, nicht mit jeder Bake. Bis zu {max} Zeichen.",
-  "settings.station_status.tip2": "Beispiel: Im Ferienhaus, QRV 145.500 FM",
+  "settings.station_status.tip1": "Beginne mit der Sprechfunk-Frequenz, auf der du mithörst, als 145.500MHz, damit Funkgeräte sie einstellen können.",
+  "settings.station_status.tip2": "Bis zu {max} Zeichen, z. B. 145.500MHz T088 QRV",
+  "settings.station_status.hint": "Funkgeräte stellen sie ein, wenn sie als {freq} am Anfang des Textes steht",
 
   "settings.power.label": "Leistung",
   "settings.power.tip1": "Die Sendeleistung in Watt. Mit den Antennenfeldern ergibt sie einen PHG-Code: wie weit du zu hören bist.",
@@ -1346,7 +1348,7 @@ export const de: Catalogue = {
   "help.picture.status": "Dein kurzer Statustext, QRV 145.500, erscheint auf der Karte der anderen Stationen unter deinem Rufzeichen.",
   "help.picture.range": "Ein Digipeater mit seinem Reichweitenkreis: Die Stationen im Kreis werden über ihn gehört, die außerhalb nicht.",
   "help.picture.request": "Eine Station fragt QRU, und deine Station antwortet mit dem Objekt, das sonst nicht gesendet wird.",
-  "help.picture.ssid": "Ein Rufzeichen, N0CALL, für drei Stationen: das einfache ein Haus, -9 ein Auto, -10 ein iGate.",
+  "help.picture.ssid": "Ein Rufzeichen, YOURCALL, für drei Stationen: das einfache ein Haus, -9 ein Auto, -10 ein iGate.",
   "help.picture.symbol": "Eine Auswahl von Symbolen, das Auto ist gewählt, und das Auto auf der Karte einer anderen Station unter deinem Rufzeichen.",
   "help.picture.network":
     "Der Computer, auf dem NeoAPRS läuft, ist über das Netzwerk mit einem Telefon, einem Tablet und einem Laptop verbunden, die seine Seite öffnen.",
@@ -1491,10 +1493,17 @@ export const de: Catalogue = {
   "nearby.qru": "Ortsinfo (QRU)",
   "nearby.qru_tip_label": "Über Ortsinfo",
   "nearby.qru_tip": "Fragt Stationen in deiner Nähe nach Ortsinfo: Relais, Termine, Orte. Nur per Funk gesendet.",
+  "nearby.qru_tip2": "Um eigene Objekte anzubieten, gib ihnen unter Objekte eine QRU-Gruppe.",
   "nearby.qru_ask": "Fragen",
   "nearby.qru_km": "km",
   "nearby.qru_km_label": "Entfernung in km",
-  "nearby.qru_km_tip": "Wie weit gesucht wird. Leer: der Standard der Server, meist 50 km.",
-  "nearby.qru_none": "Noch keine Antwort",
+  "nearby.qru_km_tip": "Wie weit gesucht wird; Vorgabe ist der Kartenradius. Leer: der Standard der Server, meist 50 km.",
+  "nearby.qru_state": "Gefragt",
+  "nearby.qru_waiting": "{time} · warte auf Antworten…",
+  "nearby.qru_answered": { one: "{time} · {n} Server hat geantwortet", other: "{time} · {n} Server haben geantwortet" },
+  "nearby.qru_no_answer": "{time} · keine Antwort",
+  "nearby.qru_refused": "Nicht gesendet",
+  "nearby.qru_request": "Letzte Anfrage: {text}",
+  "nearby.qru_wait": "Nächste Anfrage in {seconds} s",
   "nearby.qru_group": "{server} nach {group} fragen",
 };

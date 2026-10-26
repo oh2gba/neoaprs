@@ -47,8 +47,9 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
 
   "settings.station_status.name": "Testo di stato",
   "settings.station_status.label": "Testo",
-  "settings.station_status.tip1": "Una riga su cosa stai facendo, inviata ogni tanto, non con ogni beacon. Fino a {max} caratteri.",
-  "settings.station_status.tip2": "Esempio: Alla casa in montagna, QRV 145.500 FM",
+  "settings.station_status.tip1": "Inizia con la frequenza voce su cui ascolti, come 145.500MHz, così le radio possono sintonizzarsi.",
+  "settings.station_status.tip2": "Fino a {max} caratteri, ad es. 145.500MHz T088 QRV",
+  "settings.station_status.hint": "Le radio si sintonizzano quando apre il testo come {freq}",
 
   "settings.power.label": "Potenza",
   "settings.power.tip1": "La potenza del trasmettitore in watt. Con i campi dell’antenna invia un codice PHG: fin dove puoi essere ascoltato.",

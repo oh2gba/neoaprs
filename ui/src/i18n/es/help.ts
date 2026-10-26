@@ -15,7 +15,7 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
   "help.picture.status": "Tu texto de estado corto, QRV 145.500, aparece en el mapa de las demás estaciones bajo tu indicativo.",
   "help.picture.range": "Un digipeater con su círculo de alcance: las estaciones dentro del círculo se escuchan a través de él, las de fuera no.",
   "help.picture.request": "Una estación pregunta QRU y tu estación responde con el objeto, que de otro modo no se envía.",
-  "help.picture.ssid": "Un indicativo, N0CALL, para tres estaciones: el simple es una casa, -9 un coche, -10 un iGate.",
+  "help.picture.ssid": "Un indicativo, YOURCALL, para tres estaciones: el simple es una casa, -9 un coche, -10 un iGate.",
   "help.picture.symbol": "Una selección de símbolos con el coche elegido, y el coche en el mapa de otra estación bajo tu indicativo.",
   "help.picture.network": "El ordenador que ejecuta NeoAPRS, conectado por la red a un teléfono, una tableta y un portátil que abren su página.",
   "help.picture.accesskey": "Una clave escrita una vez en un teléfono, que luego se queda con la sesión iniciada.",

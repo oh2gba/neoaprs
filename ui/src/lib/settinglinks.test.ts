@@ -57,6 +57,7 @@ describe("settinglinks", () => {
 
   it("shows the refusal of a setting under its field and in no toast", () => {
     expect(refusedAtField({ cmd: "set_config" })).toBe(true);
+    expect(refusedAtField({ cmd: "qru_ask" })).toBe(true);
     expect(refusedAtField({ cmd: "send_message" })).toBe(false);
     expect(refusedAtField(null)).toBe(false);
   });

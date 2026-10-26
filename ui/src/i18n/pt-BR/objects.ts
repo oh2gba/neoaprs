@@ -42,6 +42,7 @@ export const objects: Record<keyof typeof source, Message> = {
   "objects.tip.speed": "A velocidade com que ele se move, em km/h. Deixe os dois vazios para um objeto parado.",
   "objects.tip.path": "Os digipeaters que seus pacotes pedem. Vazio usa o caminho da sua baliza.",
   "objects.tip.qru": "Uma palavra (de 1 a {max} letras ou dígitos) que uma estação envia a QRU para receber os objetos deste grupo.",
+  "objects.tip.qru_ask": "Os outros perguntam em Por perto → Info local (QRU).",
   "objects.tip.on_request": "Não é enviado em baliza; só vai para a estação que pede com ?APRSO ou QRU.",
 
   "objects.problem.name_chars": "Sem espaço nas pontas, nem ! _ | ~",

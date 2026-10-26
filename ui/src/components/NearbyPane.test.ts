@@ -38,7 +38,7 @@ function make(stations = rows, props: Record<string, unknown> = {}) {
   const wrapper = mount(NearbyPane, { props: { selected: null, ...props }, global: withDaemon(daemon) });
   return { wrapper, daemon };
 }
-const section = (wrapper: ReturnType<typeof mount>, name: string) => wrapper.findAll("section").find((s) => s.find("h3").text().startsWith(name));
+const section = (wrapper: ReturnType<typeof mount>, name: string) => wrapper.findAll("fieldset").find((s) => s.find("legend").text().startsWith(name));
 const callsIn = (wrapper: ReturnType<typeof mount>, name: string) =>
   section(wrapper, name)
     ?.findAll("td.call")
@@ -49,7 +49,20 @@ beforeEach(() => localStorage.clear());
 describe("NearbyPane", () => {
   it("has the four lists, each with its count, in the order digipeaters, voice frequencies, iGates, heard direct, and Local info (QRU) after them", () => {
     const { wrapper } = make();
-    expect(wrapper.findAll("h3").map((h) => h.text())).toEqual(["Digipeaters 1", "Voice frequencies 2", "iGates 1", "Heard direct 1", "Local info (QRU)"]);
+    expect(wrapper.findAll("fieldset > legend").map((h) => h.text().replace(/ ?i$/, ""))).toEqual([
+      "Digipeaters 1",
+      "Voice frequencies 2",
+      "iGates 1",
+      "Heard direct 1",
+      "Local info (QRU)",
+    ]);
+  });
+
+  it("puts every list in a group box with its title as the legend, like the groups of the Settings tab, and the box of Local info is one of them", () => {
+    const { wrapper } = make();
+    expect(wrapper.findAll(".nearbypane > fieldset.nearby-section")).toHaveLength(5);
+    expect(wrapper.find(".nearbypane > fieldset.nearby-qru").exists()).toBe(true);
+    expect(wrapper.find(".nearbypane > section").exists()).toBe(false);
   });
 
   it("has an (i) beside the Digipeaters heading that says what the range is, with a picture of a digipeater and its circle", async () => {

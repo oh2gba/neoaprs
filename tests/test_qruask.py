@@ -11,8 +11,8 @@ from neoaprs import dummyline
 from neoaprs.aprsmessage import format_message
 from neoaprs.message import MessagingError
 from neoaprs.packet import GATEABLE, Message, Packet, ThirdParty, Via
-from neoaprs.qrutext import ASK_KM_MAX, Closing, Listing, ask_text, closing_of, listing_of
-from neoaprs.services.qruask import ASK_EVERY_SEC, CONTINUE_SEC, KEEP_FOR, QruAsk
+from neoaprs.qrutext import ASK_EVERY_SEC, ASK_KM_MAX, Closing, Listing, ask_text, closing_of, listing_of
+from neoaprs.services.qruask import CONTINUE_SEC, KEEP_FOR, QruAsk
 from neoaprs.source import Source
 from tests.support.air import message_info, on_air
 from tests.support.env import idle_for, quick_start, remember_stop, until
@@ -122,18 +122,22 @@ async def test_a_text_that_is_no_request_is_not_sent() -> None:
     assert rig.tnc.asked == 0
 
 
-async def test_the_same_request_within_half_a_minute_is_refused_with_the_seconds_that_are_left_and_another_is_not() -> None:
+async def test_one_request_goes_on_the_air_per_minute_whatever_it_says_and_a_refused_one_changes_nothing() -> None:
     rig = Rig()
     rig.qru.ask("INFO")
     rig.clock.advance(ASK_EVERY_SEC - 11)
-    with pytest.raises(MessagingError) as refused:
-        rig.qru.ask("info")
-    assert (refused.value.code, refused.value.params) == ("qru.too_soon", {"seconds": 11})
-    rig.qru.ask("INFO 100")
-    rig.qru.ask("RP70")
+    for other in ("info", "INFO 100", "RP70", "NEXT"):
+        with pytest.raises(MessagingError) as refused:
+            rig.qru.ask(other)
+        assert (refused.value.code, refused.value.params) == ("qru.too_soon", {"seconds": 11}), other
+    assert len(rig.tnc.sent) == 1 and rig.qru.asked is not None and rig.qru.asked.text == "INFO" and rig.told == 1
     rig.clock.advance(11)
-    rig.qru.ask("INFO")
-    assert len(rig.tnc.sent) == 4
+    rig.qru.ask("RP70")
+    assert len(rig.tnc.sent) == 2 and rig.qru.asked.text == "RP70"
+    rig.clock.advance(ASK_EVERY_SEC - 1)
+    with pytest.raises(MessagingError) as refused:
+        rig.qru.ask("INFO")
+    assert refused.value.params == {"seconds": 1}
 
 
 async def test_a_server_that_lists_its_groups_is_noted_with_its_limit_and_range() -> None:
@@ -228,7 +232,7 @@ async def test_qru_ask_over_the_socket_sends_one_request_by_radio_only_and_keeps
     assert packet["tnc2"] == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1,RFONLY::QRU      :RP70 150"
     await page.quiet(0.2)
     assert page.topics["messages"] == {} and page.of("error") == []
-    await page.send({"cmd": "qru_ask", "text": "rp70 150"})
+    await page.send({"cmd": "qru_ask", "text": "info"})                                  # (another text: one request per minute, whatever it says)
     error = await page.expect("error")
     assert (error["cmd"], error["code"]) == ("qru_ask", "qru.too_soon") and error["params"]["seconds"] > 0
 
@@ -275,7 +279,7 @@ async def test_the_dummy_radio_has_a_qru_server_and_nothing_of_it_reaches_the_in
             break
     [listed] = e.ctl.qruask.servers()
     assert (listed.call, listed.groups, listed.range, listed.unit) == ("Q1CLB", (("FOOD", 2), ("RP70", 1)), 50, "km")
-    e.now.advance(31)                                                                       # type: ignore[attr-defined]
+    e.now.advance(ASK_EVERY_SEC)                                                            # type: ignore[attr-defined]
     e.ctl.qruask.ask("food")
     for _ in range(300):
         e.now.advance(1)                                                                    # type: ignore[attr-defined]

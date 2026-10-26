@@ -89,7 +89,7 @@ PHG is written `PHGphgd`:
 
 ## Beacon now
 
-The **state of the beacon** is one row under the Beacon choice, the same row as the radio's on the Settings tab: the state in its colour, one quiet line, and an arrow that opens the details. **Beacon now** is the row under it, **Send now**: a button like the others, not the main action of the tab, which asks twice ("Really send?"). It is off while the TNC is not connected, while a change of the settings is being saved (so what is sent is what is in force), and while the beacon is [Off](#beacon-off), with a tip that says so. The next beacon of the timer is then an interval later.
+The **state of the beacon** is one row under the Beacon choice, the same row as the radio's on the Settings tab: the state in its colour, one quiet line, and an arrow that opens the details. **Beacon now** is the row under it, **Send now**: a button that asks twice ("Really send?"). It is off while the TNC is not connected, while a change of the settings is being saved (so what is sent is what is in force), and in [RX only](#rx-only), with a tip that says so; [Off](#beacon-off) does not. The next beacon of the timer is then an interval later.
 
 For a fixed station the state is **on** (green) while the timer runs and **off** while it does not, and the line says when the last beacon went and when the next is due: **Last beacon 4 min ago · next in 56 min (every 60 min)**. The full time of the last beacon is behind the arrow. With the beacon off it reads **No automatic beacon · Beacon now still sends**; in RX only the state is **off** in the warn colour and the line reads **RX only: nothing is sent**. Before the first beacon of a run it reads **No beacon sent yet · next in 5 min (every 30 min)**.
 
@@ -192,6 +192,8 @@ A status report is a text line that tells what you are doing. It goes out as one
 | **a text of my own** | the text of `station/status`: printable ASCII without `\|` and `~`, at most 55 characters (the time takes the rest of the specification's 62) |
 | **the frequency from my radio (rigctld)** | the frequency and mode of a radio that a [Hamlib rigctld](https://hamlib.github.io/) can read, made into text by a template |
 
+**The frequency.** Start a text of your own with the voice frequency you listen on, written as `145.500MHz` and optionally followed by a tone (` T088`) or an offset (` -060`), so that radios which read APRS can tune to it: `145.500MHz T088 QRV`. When the text has a frequency written another way (`QRV 144.800 MHz FM`) or not at the start, the field says in a quiet line how a radio would read it; nothing is blocked.
+
 The tab shows only the fields the choice needs, with **Every** directly under the choice. For a text: **Every** and **Text**. For the radio: **Every**, **Rigctld** and **Text** (the template). While the choice is off only the choice is shown: **Every**, the fields of the sources and the status line with **Send status now** appear as soon as another choice is made. Left empty, the setting follows the others: the radio while `status/rigctld` is set, else the text while there is one, else off. Choosing the radio without a rigctld address is refused with the reason.
 
 **From the radio.** NeoAPRS connects to `host:port` of the rigctld (Hamlib's default is `127.0.0.1:4532`) every 30 seconds, asks the frequency and the mode, and fills in the template. The default template is `QRV {freq} {mode}`. `{freq}` is megahertz with three decimals (`14.074 MHz`), `{mode}` is the mode as rigctld names it (`USB`, `LSB`, `CW`, `FM`). No other field in braces, and at most 55 characters with the widest values (`1296.000 MHz`, `PKTUSB`). With `14074000` Hz and `USB` the frame at 12:00 UTC on the 21st is:
@@ -213,7 +215,9 @@ OH2GBA>APZNEO,WIDE2-1:>211200zQRV 14.074 MHz USB
 
 The status row says when the last status went and when the next may, if what it says has changed (**Last sent 4 min ago · next in 26 min if changed**, or **Not sent yet**); in RX only it is **off: RX only: nothing is sent**.
 
-**Send status now** is a button at the top of the Status group, beside the status line, there only while the status is not off. It asks twice, acts on the saved settings and sends the status at once, inside the interval and although nothing changed. The interval counts from it. It is disabled, with a tip, while the beacon is [Off](#beacon-off), as no status goes out then. It is refused when the call is not set, when the TNC is not connected, when the text is over 55 characters, when the status is off or the text empty, and with the radio as the source when rigctld is away; it says why.
+**Send status now** is a button at the top of the Status group, beside the status line, there only while the status is not off. It asks twice, acts on the saved settings and sends the status at once, inside the interval and although nothing changed. The interval counts from it. It is disabled, with a tip, only in [RX only](#rx-only) and while the TNC is not connected; [Off](#beacon-off) does not stop it.
+
+It is refused when the call is not set, when the TNC is not connected, when the text is over 55 characters, when the status is off or the text empty, and with the radio as the source when rigctld is away; it says why.
 
 The status line at the top of the group shows the status last sent and, with the radio as the source, whether rigctld answers. The last text sent is also the answer to the query `?APRSS`.
 

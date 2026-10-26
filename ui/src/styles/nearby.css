@@ -1,4 +1,4 @@
-/* the Nearby tab: four short lists of stations, each a small table of the Stations table's kind */
+/* the Nearby tab: four short lists of stations, each a small table of the Stations table's kind, in a group box of the Settings groups' look (settings.css) */
 .nearbypane {
   flex: 1;
   min-height: 0;
@@ -7,6 +7,7 @@
 }
 .nearby-section {
   width: 100%;
+  min-width: 0;
 }
 .nearby-head {
   display: flex;
@@ -74,9 +75,6 @@
 .qru-km {
   flex: none;
   width: 6.5em;
-}
-.qru-none {
-  margin-bottom: 8px;
 }
 .qru-servers {
   display: grid;

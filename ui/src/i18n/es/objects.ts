@@ -41,6 +41,7 @@ export const objects: Readonly<Record<keyof typeof en, Message>> = {
   "objects.tip.speed": "A qué velocidad se mueve, en km/h. Deja ambos vacíos para un objeto que no se mueve.",
   "objects.tip.path": "Los digipeaters que piden sus paquetes. Vacío usa la ruta de tu baliza.",
   "objects.tip.qru": "Una palabra (de 1 a {max} letras o dígitos) que una estación envía a QRU para recibir los objetos de este grupo.",
+  "objects.tip.qru_ask": "Los demás preguntan en Cerca → Info local (QRU).",
   "objects.tip.on_request": "No se emite en baliza; se envía solo a una estación que lo pide con ?APRSO o QRU.",
 
   "objects.problem.name_chars": "Sin espacios en los extremos ni ! _ | ~",

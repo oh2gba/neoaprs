@@ -195,4 +195,29 @@ describe("the (i) of a field", () => {
     expect(field?.find(".info-text").text()).toContain("{freq}");
     expect(field?.find(".info-text").text()).toContain("Example: QRV {freq} {mode} gives QRV 14.074 MHz USB");
   });
+
+  it("tells on the Text of our own what a radio tunes to: the frequency first, as 145.500MHz, and how long the text may be, with that for the placeholder", async () => {
+    const { wrapper } = make({ "status/source": "text" });
+    const field = wrapper.findAll(".field:not(.location-field)").find((f) => f.find("label").text() === "Text");
+    expect(field?.find("input").attributes("placeholder")).toBe("145.500MHz QRV");
+    await field?.find(".info-toggle").trigger("click");
+    expect(field?.findAll(".info-text .info-line").map((l) => l.text())).toEqual([
+      "Start with the voice frequency you listen on, as 145.500MHz, so radios can tune to it.",
+      "Up to 55 characters, e.g. 145.500MHz T088 QRV",
+    ]);
+  });
+
+  it("hints under the Text, quietly, when it has a frequency that radios would not tune to, and blocks nothing", async () => {
+    const { wrapper, send } = make({ "status/source": "text", "station/status": "145.500MHz QRV" });
+    const field = () => wrapper.findAll(".field:not(.location-field)").find((f) => f.find("label").text() === "Text");
+    expect(field()?.find(".field-hint").exists()).toBe(false);
+    await field()?.find("input").setValue("QRV 144.800 MHz FM");
+    expect(field()?.find(".field-hint").text()).toBe("Radios tune to it when it starts the text as 144.800MHz");
+    expect(field()?.find(".field-hint").classes()).toContain("muted");
+    expect(field()?.find(".field-error").exists()).toBe(false);
+    await field()?.find("input").trigger("keydown", { key: "Enter" });
+    expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "station/status": "QRV 144.800 MHz FM" } });
+    await field()?.find("input").setValue("At the cottage");
+    expect(field()?.find(".field-hint").exists()).toBe(false);
+  });
 });

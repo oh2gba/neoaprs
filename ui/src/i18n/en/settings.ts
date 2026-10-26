@@ -46,8 +46,9 @@ export const settings = {
 
   "settings.station_status.name": "Status text",
   "settings.station_status.label": "Text",
-  "settings.station_status.tip1": "A line about what you are doing, sent now and then, not with every beacon. Up to {max} characters.",
-  "settings.station_status.tip2": "Example: At the summer cottage, QRV 145.500 FM",
+  "settings.station_status.tip1": "Start with the voice frequency you listen on, as 145.500MHz, so radios can tune to it.",
+  "settings.station_status.tip2": "Up to {max} characters, e.g. 145.500MHz T088 QRV",
+  "settings.station_status.hint": "Radios tune to it when it starts the text as {freq}",
 
   "settings.power.label": "Power",
   "settings.power.tip1": "Transmitter power in watts. With the antenna fields it sends a PHG code: how far you can be heard.",

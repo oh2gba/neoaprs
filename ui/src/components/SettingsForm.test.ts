@@ -494,7 +494,7 @@ describe("SettingsForm", () => {
     expect(wrapper.find("#set-serial-baud").attributes("placeholder")).toBe("9600");
     const beacon = make({ "status/source": "text" }, "beacon").wrapper;
     expect(beacon.find("#set-beacon-power_w").attributes("placeholder")).toBe("none");
-    expect(beacon.find("#set-station-status").attributes("placeholder")).toBe("none");
+    expect(beacon.find("#set-station-status").attributes("placeholder")).toBe("145.500MHz QRV");
   });
 
   it("has the antenna in the Antenna fold with its units, and a choice for the direction, once there is a power", async () => {

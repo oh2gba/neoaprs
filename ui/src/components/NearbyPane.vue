@@ -1,7 +1,8 @@
 <script setup lang="ts">
 // The Nearby tab: what is around us at a glance, in four lists from the stations already heard (lib/nearby.ts has the rules), each nearest first with the distance and bearing as the Stations table shows them, and "none yet" for a list that is empty:
 // the digipeaters (what they repeated for us and the range they gave; the range circle of one is on the map while it is selected), the voice frequencies that stations, objects and items gave and who reported them, the iGates, and the stations
-// heard direct (the ones in simplex range). A click on a row selects the station like a click on the Stations table (NearbyTable.vue). Under them, Local info (QRU.vue): Ask, and the servers that answered (NearbyQru.vue).
+// heard direct (the ones in simplex range). A click on a row selects the station like a click on the Stations table (NearbyTable.vue). Each list is a group box like the groups of the Settings tab, with its (i) in the legend. Under them, Local info
+// (NearbyQru.vue): Ask, and the servers that answered.
 import { computed } from "vue";
 import InfoTip from "@/components/InfoTip.vue";
 import NearbyQru from "@/components/NearbyQru.vue";
@@ -59,13 +60,11 @@ const sections = computed(() => [
 
 <template>
   <div class="nearbypane">
-    <section v-for="section in sections" :key="section.id" class="nearby-section" :aria-labelledby="`nearby-${section.id}`">
-      <div class="nearby-head">
-        <h3 :id="`nearby-${section.id}`" class="board-title">
-          {{ section.title }} <span class="muted">{{ section.items.length }}</span>
-        </h3>
+    <fieldset v-for="section in sections" :key="section.id" class="nearby-section">
+      <legend class="nearby-head">
+        {{ section.title }} <span class="muted">{{ section.items.length }}</span>
         <InfoTip v-if="section.tip" :label="section.tip.label" :picture="section.tip.picture">{{ section.tip.text }}</InfoTip>
-      </div>
+      </legend>
       <p class="muted nearby-help">{{ section.help }}</p>
       <p v-if="section.items.length === 0" class="empty nearby-empty">{{ t("nearby.none_yet") }}</p>
       <NearbyTable
@@ -76,7 +75,7 @@ const sections = computed(() => [
         :label="section.title"
         @select="(call, multi) => emit('select', call, multi)"
       />
-    </section>
+    </fieldset>
     <NearbyQru />
   </div>
 </template>
