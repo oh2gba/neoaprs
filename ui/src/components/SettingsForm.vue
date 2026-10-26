@@ -135,11 +135,9 @@ function typed(key: string, text: string): void {
     <span class="sr-only" role="status" aria-live="polite"
       ><span :key="settings.announcement.value.n">{{ settings.announcement.value.text }}</span></span
     >
-    <slot name="top"></slot>
     <fieldset v-for="group in groups" :key="group.id">
       <legend>{{ group.title }}</legend>
       <SettingsRadio v-if="group.id === 'serial'" :keys="shown(group.keys)" :settings="settings" :form="form" :defaults="defaults" />
-      <slot v-if="group.id === 'status'" name="status" :draft="draft"></slot>
       <p v-if="group.id === 'igate' && call === ''" class="problem" role="status">{{ t("settings.igate.set_call") }}</p>
       <SettingsBox
         v-for="box in boxesOf(group.id === 'serial' || (group.id === 'igate' && call === '') ? [] : shown(group.keys))"
@@ -223,6 +221,7 @@ function typed(key: string, text: string): void {
             <template #notes><MapFetchNotes :map="map" /></template>
           </ActionRow>
           <ConfirmRow v-if="question?.key === key" :message="question.message" @yes="form.answer(true)" @cancel="form.answer(false)" />
+          <slot name="after" :field-key="key" :draft="draft"></slot>
           <SettingsHttps v-if="key === 'web/https'" :https="config.https" />
           <div v-if="key === KEY_KEY && urls.length" class="field">
             <label for="set-web-url-0">{{ t("settings.urls.label") }}</label>

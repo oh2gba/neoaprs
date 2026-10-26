@@ -1,9 +1,10 @@
 <script setup lang="ts">
-// The Beacon tab: the settings the beacon and the status are made from (our station and where its position comes from, the beacon, the status), which apply as they are changed like the Settings tab's. The buttons that send now are where their words are: the beacon status at the top of the tab
-// (BeaconStatus: for a fixed station when the last beacon went and when the next is due, for a moving one the GPS and what SmartBeaconing does, with Beacon now), and, while a status is chosen (in the form, as it is being changed), the status last sent with Send status now at the top of the
-// Status group (SendRow). useSendNow says when they are on and asks twice; both are off, with a tip that says the beacon is off, while the beacon is Off.
+// The Beacon tab: the settings the beacon and the status are made from (our station and where its position comes from, the beacon, the status), which apply as they are changed like the Settings tab's. Under the Beacon choice are the state of the beacon (BeaconStatus: the radio's
+// status row; for a fixed station when the last beacon went and when the next is due, for a moving one the GPS and what SmartBeaconing does) and the row Beacon now (SendRow); under the Status choice, while a status is chosen, the status report as a row (StatusReportRow), and the row Send status now at the end of the Status group.
+// useSendNow says when the buttons are on and asks twice; both are off, with a tip that says why, while the transmitter is off (RX only).
 import BeaconStatus from "@/components/BeaconStatus.vue";
 import SendRow from "@/components/SendRow.vue";
+import StatusReportRow from "@/components/StatusReportRow.vue";
 import TabHelp from "@/components/TabHelp.vue";
 import type { Picked } from "@/composables/usePositionPick";
 import SettingsForm from "@/components/SettingsForm.vue";
@@ -24,11 +25,7 @@ const sending = useSendNow(connected, settings.saving, toRef(props, "picking"), 
 const ready = computed(() => sending.ready.value && !receiveOnly.value);
 const why = computed(() => (receiveOnly.value ? rxOnlyReason() : sending.why.value));
 
-const current = computed(() => {
-  const text = status.value?.station_status ?? "";
-  const rig = status.value?.rig_state ?? "unused";
-  return `${text === "" ? NONE : text}${rig === "unused" ? "" : ` · ${t(rig === "on" ? "beacon.rigctld_on" : "beacon.rigctld_off")}`}`;
-});
+const current = computed(() => status.value?.station_status || NONE);
 </script>
 
 <template>
@@ -38,29 +35,37 @@ const current = computed(() => {
       <span class="info-line">{{ t("beacon.about2") }}</span>
     </TabHelp>
     <SettingsForm scope="beacon" :picking="picking" :picked="picked" @pick-position="emit('pickPosition')">
-      <template #top>
-        <BeaconStatus
-          :status="status"
-          :gps="gps"
-          :values="config?.values ?? {}"
-          :now="now"
-          :armed="sending.armed.value === 'beacon'"
-          :disabled="!ready"
-          :why="why"
-          @press="sending.press('beacon', () => send({ cmd: 'beacon_now' }))"
-        />
-      </template>
-      <template #status="{ draft }">
-        <SendRow
-          v-if="statusSource(draft) !== 'off'"
-          :label="t('beacon.status')"
-          :text="current"
-          :button="t('beacon.send_status_now')"
-          :armed="sending.armed.value === 'status'"
-          :disabled="!ready"
-          :why="why"
-          @press="sending.press('status', () => send({ cmd: 'status_now' }))"
-        />
+      <template #after="{ fieldKey, draft }">
+        <template v-if="fieldKey === 'beacon/interval_min'">
+          <BeaconStatus :status="status" :gps="gps" :values="config?.values ?? {}" :now="now" />
+          <SendRow
+            id="beacon-now"
+            :label="t('beacon.now_label')"
+            :tip-label="t('beacon.now_tip_label')"
+            :tip="t('beacon.now_tip')"
+            :button="t('beacon.beacon_now')"
+            :armed="sending.armed.value === 'beacon'"
+            :disabled="!ready"
+            :why="why"
+            @press="sending.press('beacon', () => send({ cmd: 'beacon_now' }))"
+          />
+        </template>
+        <template v-else-if="fieldKey === 'status/source' && statusSource(draft) !== 'off'">
+          <StatusReportRow :text="current" :minutes="config?.values['status/interval_min'] ?? ''" :rig="status?.rig_state ?? 'unused'" />
+        </template>
+        <template v-else-if="(fieldKey === 'station/status' || fieldKey === 'status/template') && statusSource(draft) !== 'off'">
+          <SendRow
+            id="status-now"
+            :label="t('beacon.now_label')"
+            :tip-label="t('beacon.status_now_tip_label')"
+            :tip="t('beacon.status_now_tip')"
+            :button="t('beacon.send_status_now')"
+            :armed="sending.armed.value === 'status'"
+            :disabled="!ready"
+            :why="why"
+            @press="sending.press('status', () => send({ cmd: 'status_now' }))"
+          />
+        </template>
       </template>
     </SettingsForm>
   </div>

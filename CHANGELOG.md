@@ -24,6 +24,7 @@ Internet stations on the map, a world map and a Dummy radio to try it all, Find 
 - A changed setting shows no toast and no Undo any more; a refusal is shown under its field.
 - A mark at the top (RX only, Beacon off, GPS, Internet) opens its tab, scrolls to the group it belongs to, flashes it once and puts the cursor on its control.
 - **Settings → Update check** is one row: **Check now**, the version of NeoAPRS beside it, and the answer there (checking…, up to date, a newer version with **Update**). The footer under the panel only says what is wrong with the radio, and a newer version is an **Update** mark at the top.
+- **Beacon tab:** the state of the beacon is the radio's status row under the Beacon choice, with **Beacon now** as a row of its own under it; the Status group has the same (the status as a row, **Send status now** at its end).
 - Every group's tickbox that switches a feature on is called **Enable** (Internet stations, Digipeater), and its state is one row under it, the radio's: the state in its colour, a quiet line, and the details behind the arrow.
 - **RX only:** Settings → Radio → RX only, ticked, sends nothing and switches every send button off; an RX only mark shows at the top.
 - Marks at the top right say what is on: RX only, Beacon off, Internet, GPS; each opens where it is set.

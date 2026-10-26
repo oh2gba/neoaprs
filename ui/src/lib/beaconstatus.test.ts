@@ -22,20 +22,20 @@ describe("beaconBlock of a fixed station", () => {
     }
   });
 
-  it("says Beacon off once, with no state word, while the interval of the settings is 0, whatever the daemon last said", () => {
+  it("says Beacon off, with the state off, while the interval of the settings is 0, whatever the daemon last said", () => {
     for (const interval of ["0", ""]) {
       const block = beaconBlock(timed(), gpsOff(), { "beacon/interval_min": interval }, NOW);
       expect(block).toEqual({
         moving: false,
         label: "Beacon",
-        pill: null,
+        pill: { text: "off", tone: "beacon-off" },
         line: "Beacon off",
         hover: undefined,
         smart: null,
         problem: "",
       });
     }
-    expect(beaconBlock(null, null, { "beacon/interval_min": "0" }, NOW)).toMatchObject({ pill: null, line: "Beacon off" });
+    expect(beaconBlock(null, null, { "beacon/interval_min": "0" }, NOW)).toMatchObject({ pill: { text: "off" }, line: "Beacon off" });
     expect(beaconBlock(timed(), gpsOff(), { "beacon/interval_min": "60" }, NOW).pill).toEqual({ text: "on", tone: "beacon-on" });
   });
 
@@ -116,7 +116,7 @@ describe("beaconBlock of a moving station", () => {
     expect(beaconBlock(timed(), gpsOff(), { "beacon/interval_min": "0" }, NOW)).toEqual({
       moving: false,
       label: "Beacon",
-      pill: null,
+      pill: { text: "off", tone: "beacon-off" },
       line: "Beacon off",
       hover: undefined,
       smart: null,

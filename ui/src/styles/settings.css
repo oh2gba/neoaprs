@@ -243,35 +243,8 @@
   color: var(--muted);
   overflow-wrap: anywhere;
 }
-/* the beacon status at the top of the Beacon tab, in the look of the radio's: the label, the state and the words in one line with Beacon now at its end, and the lines of a moving station under it */
-.beaconstatus {
-  margin: 8px 0;
-  padding: 6px 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-}
-.beaconhead {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px 8px;
-}
-.beaconlabel {
-  font-weight: 600;
-}
-.beaconhead .statetext,
-.beaconhead .btn {
-  flex: none;
-}
-.beaconhead .btn {
-  min-width: var(--action-w);
-}
 .beaconstatus .problem {
-  margin: 6px 0 0;
-}
-.mobileline {
-  margin: 6px 0 0;
-  color: var(--muted);
+  margin: 4px 0;
 }
 /* a heading that opens what is under it (DisclosureBox), and the radio status of the Settings tab */
 .disclosure > summary {

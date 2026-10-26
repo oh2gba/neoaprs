@@ -221,23 +221,7 @@
 .tone-rain {
   --tone: var(--wx-rain);
 }
-/* under a card: the box to send a message, and the path, timeout and preferences of the station */
-.sendrow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px 12px;
-  margin: 6px 0;
-}
-.sendrow .card-fields {
-  flex: 1 1 14em;
-  min-width: 0;
-}
-.sendrow .btn {
-  flex: none;
-  min-width: var(--action-w);
-}
+/* under a card: the path, timeout and preferences of the station */
 .prefs {
   display: flex;
   flex-direction: column;

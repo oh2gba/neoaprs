@@ -98,7 +98,7 @@ describe("App: RX only", () => {
       const field = wrapper.find(id);
       if (field.exists()) expect((field.element as HTMLInputElement).disabled, id).toBe(true);
     }
-    const now = wrapper.find("#pane-beacon .beaconstatus button").element as HTMLButtonElement;
+    const now = wrapper.find("#pane-beacon #beacon-now").element as HTMLButtonElement;
     expect(now.disabled).toBe(true);
     expect(now.title).toBe("RX only: nothing is sent");
     await tabButton(wrapper, "Messages")?.trigger("click");
@@ -137,6 +137,6 @@ describe("App: a station that an earlier version left in RX only", () => {
     await say(socket, 2, { [KEY]: "true", "beacon/interval_min": "30" });
     expect(wrapper.find(".appheader .rxonly").exists()).toBe(false);
     await tabButton(wrapper, "Beacon")?.trigger("click");
-    expect((wrapper.find("#pane-beacon .beaconstatus button").element as HTMLButtonElement).disabled).toBe(false);
+    expect((wrapper.find("#pane-beacon #beacon-now").element as HTMLButtonElement).disabled).toBe(false);
   });
 });

@@ -1,17 +1,17 @@
 <script setup lang="ts">
-// A line of the Beacon tab that says what was sent last and has the button that sends it now: the status line with Send status now (SendButton asks twice; the tab's useSendNow decides when it is on). On a phone the button is under the line, as wide as the line.
+// The row of the Beacon tab that sends something now (Beacon now, Send status now): an ActionRow with its own label, the button at the left edge of the fields and the (i). The button asks twice (SendButton); the tab's useSendNow decides when it is on.
+import ActionRow from "@/components/ActionRow.vue";
 import SendButton from "@/components/SendButton.vue";
 
-defineProps<{ label: string; text: string; hover?: string; button: string; armed: boolean; disabled: boolean; why?: string }>();
+defineProps<{ id: string; label: string; tipLabel: string; tip: string; button: string; armed: boolean; disabled: boolean; why?: string }>();
 const emit = defineEmits<{ press: [] }>();
 </script>
 
 <template>
-  <div class="sendrow">
-    <dl class="card-fields">
-      <dt>{{ label }}</dt>
-      <dd :title="hover">{{ text }}</dd>
-    </dl>
-    <SendButton :label="button" :armed="armed" :disabled="disabled" :why="why" @press="emit('press')" />
-  </div>
+  <ActionRow :id="id" :label="label" :tip-label="tipLabel">
+    <SendButton :id="id" :label="button" :armed="armed" :disabled="disabled" :why="why" @press="emit('press')" />
+    <template #tip
+      ><span class="info-line">{{ tip }}</span></template
+    >
+  </ActionRow>
 </template>

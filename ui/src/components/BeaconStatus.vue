@@ -1,10 +1,8 @@
 <script setup lang="ts">
-// The beacon status at the top of the Beacon tab, in the look of the radio status of the Settings tab (components/RadioStatus.vue): a label, one coloured pill and plain lines, with Beacon now at the end of the first line. A fixed station says when
-// the last beacon went and when the timer sends the next; a moving station says the GPS (the pill is its state, the line the fix) and under it what SmartBeaconing does, or "Beacon off" while the beacon is Off (the GPS is shown all the same, so that the fix can be watched), and, when there is no fix, why (the daemon's own line). The words are
-// lib/beaconstatus.ts's; what Beacon now does when it is pressed, and when it is on, is the tab's (useSendNow).
+// The state of the beacon, as a row under the Beacon choice of the Beacon tab: the radio's status row (StatusFold.vue). A fixed station says on or off and when the last beacon went and when the timer sends the next; a moving station says the state of the GPS (fix, no fix) and the fix, and behind the arrow what SmartBeaconing does,
+// why there is no fix, and the time of the last beacon. While the beacon is Off a fixed station says off ("Beacon off"), a moving one keeps showing the GPS so that the fix can be watched. The words are lib/beaconstatus.ts's. Beacon now is not here: it is a row of its own (SendRow.vue).
 import { computed } from "vue";
-import SendButton from "@/components/SendButton.vue";
-import { t } from "@/i18n";
+import StatusFold from "@/components/StatusFold.vue";
 import { beaconBlock } from "@/lib/beaconstatus";
 import type { GpsState, StatusMessage } from "@/protocol/protocol";
 
@@ -14,23 +12,14 @@ const props = defineProps<{
   /** the settings in force, key to text */
   values: Readonly<Record<string, string>>;
   now: number;
-  armed: boolean;
-  disabled: boolean;
-  why?: string;
 }>();
-const emit = defineEmits<{ press: [] }>();
 const block = computed(() => beaconBlock(props.status, props.gps, props.values, props.now));
 </script>
 
 <template>
-  <div class="beaconstatus" :class="{ moving: block.moving }">
-    <div class="beaconhead">
-      <span class="beaconlabel">{{ block.label }}</span>
-      <span v-if="block.pill" class="statetext" :class="block.pill.tone">{{ block.pill.text }}</span>
-      <span class="tncstatus" role="status" :title="block.hover">{{ block.line }}</span>
-      <SendButton :label="t('beacon.beacon_now')" :armed="armed" :disabled="disabled" :why="why" @press="emit('press')" />
-    </div>
-    <p v-if="block.smart" class="mobileline" role="status">{{ block.smart }}</p>
+  <StatusFold v-if="block.pill" class="beaconstatus" :state="block.pill.text" :tone="block.pill.tone" :line="block.line" :hover="block.hover">
+    <p v-if="block.smart" class="igatefold" role="status">{{ block.smart }}</p>
     <p v-if="block.problem" class="problem" role="status">{{ block.problem }}</p>
-  </div>
+    <p v-if="block.hover" class="igatefold">{{ block.hover }}</p>
+  </StatusFold>
 </template>

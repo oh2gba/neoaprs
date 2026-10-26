@@ -3,12 +3,12 @@
 // (`disabled`, with `why` on hover) and what a press does.
 import { t } from "@/i18n";
 
-defineProps<{ label: string; armed: boolean; disabled: boolean; why?: string }>();
+defineProps<{ id?: string; label: string; armed: boolean; disabled: boolean; why?: string }>();
 const emit = defineEmits<{ press: [] }>();
 </script>
 
 <template>
-  <button class="btn primary" :class="{ danger: armed }" type="button" :disabled="disabled" :title="why" @click="emit('press')">
+  <button :id="id" class="btn primary" :class="{ danger: armed }" type="button" :disabled="disabled" :title="why" @click="emit('press')">
     {{ armed ? t("beacon.really_send") : label }}
   </button>
 </template>

@@ -1,6 +1,6 @@
 # Beacon, status and digipeater
 
-The Beacon tab holds what your station says on the air. From top to bottom: the **beacon status** with **Beacon now** ([Beacon now](#beacon-now)); the **Station** group (call, **Position**, location, symbol); the **Beacon** group (the **Beacon** choice, what you travel as for a moving station, the comment, a closed **Antenna** heading for a fixed station and a closed **Advanced** heading with the path choice); and the **Status** group. A setting applies as you change it ([start.md](start.md#how-settings-apply)).
+The Beacon tab holds what your station says on the air. From top to bottom: the **Station** group (call, **Position**, location, symbol); the **Beacon** group (the **Beacon** choice, under it the state of the beacon and the row **Send now** with **Beacon now** ([Beacon now](#beacon-now)), what you travel as for a moving station, the comment, a closed **Antenna** heading for a fixed station and a closed **Advanced** heading with the path choice); and the **Status** group (the choice, under it the status as a row, and **Send now** with **Send status now** at its end). A setting applies as you change it ([start.md](start.md#how-settings-apply)).
 
 **Position** is the one choice that decides what kind of station you are, and the tab shows only what applies to it. **Fixed** is a fixed station: the beacon is the location below, sent at the interval of the Beacon group, with the antenna's PHG. **A GPS via gpsd** and **A GPS on a serial port** make a moving station: the beacon follows the GPS and goes when SmartBeaconing says, with no interval to choose and no PHG ([Mobile operation](#mobile-operation)).
 
@@ -17,7 +17,7 @@ While the beacon is **Off**:
 * **No automatic beacon goes out.** There is no timer and no SmartBeaconing. **Beacon now** still sends, and so does **Send status now**, each with its usual second press: Off is no automatic beacon, not a lock.
 * **No automatic status report goes out** either, because the status is the beacon's companion; a status that came due meanwhile is sent once, if it differs from the last one, at the first poll after you switch the beacon on again.
 * **Everything else goes on as it does.** Messages and emails are sent and acknowledged, queries to your call are answered, your objects and bulletins are sent, and the fill-in digipeater digipeats. Off is not [RX only](#rx-only): your station still takes part, it just does not announce itself by the clock.
-* The **beacon status** at the top of the tab reads **Beacon off**, with its pill off, for a fixed station. For a station that follows a GPS it keeps showing the GPS (its pill and the fix line) and says **Beacon off** on the line under it, so that you can watch the fix while nothing is sent.
+* The **state of the beacon** under the Beacon choice reads **off: Beacon off** for a fixed station. For a station that follows a GPS it keeps showing the GPS (its state and the fix line) and says **Beacon off** behind its arrow, so that you can watch the fix while nothing is sent.
 * Only the **timing** is shown **greyed out, with its value kept**: **Travelling** and the status's **Every**. What is sent (the location, the symbol, the comment, the antenna, the path, the status text) stays editable, for **Beacon now** sends it. A header mark **Beacon off** (grey) says so, and opens this tab.
 
 Choosing an interval, or **On**, turns it all on again. Choosing **On** for a moving station that was off stores the interval of 30 minutes, which a moving station does not use but which keeps the setting valid.
@@ -85,11 +85,11 @@ PHG is written `PHGphgd`:
 
 ## Beacon now
 
-The **beacon status** at the top of the tab is in the look of the radio's status on the Settings tab: a label, one coloured pill and plain lines, with the primary button **Beacon now** at the end of the first line. Beacon now asks twice ("Really send?"). It is off while the TNC is not connected, while a change of the settings is being saved (so what is sent is what is in force), and while the beacon is [Off](#beacon-off), with a tip that says so. The next beacon of the timer is then an interval later.
+The **state of the beacon** is one row under the Beacon choice, the same row as the radio's on the Settings tab: the state in its colour, one quiet line, and an arrow that opens the details. **Beacon now** is the row under it, **Send now**: the primary button, which asks twice ("Really send?"). It is off while the TNC is not connected, while a change of the settings is being saved (so what is sent is what is in force), and while the beacon is [Off](#beacon-off), with a tip that says so. The next beacon of the timer is then an interval later.
 
-For a fixed station the label is **Beacon**, the pill is **on** (green) while the timer runs and **off** while it does not, and the line says when the last beacon went and when the next is due: **Last beacon 4 min ago · next in 56 min (every 60 min)**. The full time of the last beacon is on hover. With the beacon off it reads **Beacon off** and the pill is off. Before the first beacon of a run it reads **No beacon sent yet · next in 5 min (every 30 min)**.
+For a fixed station the state is **on** (green) while the timer runs and **off** while it does not, and the line says when the last beacon went and when the next is due: **Last beacon 4 min ago · next in 56 min (every 60 min)**. The full time of the last beacon is behind the arrow. With the beacon off it reads **Beacon off**. Before the first beacon of a run it reads **No beacon sent yet · next in 5 min (every 30 min)**.
 
-For a moving station the label is **GPS**, the pill is the state of the GPS and there are lines under the first ([Mobile operation](#mobile-operation)); with the beacon off the GPS is still shown, and the line under the first reads **Beacon off** in place of what SmartBeaconing does.
+For a moving station the state is the state of the GPS (fix, no fix) and the line is the fix; what SmartBeaconing does and why there is no fix are behind the arrow ([Mobile operation](#mobile-operation)); with the beacon off the GPS is still shown, and **Beacon off** is there in place of what SmartBeaconing does.
 
 A beacon you send is in the Packets tab as a packet with direction `out`.
 
