@@ -481,21 +481,21 @@ async def shot_settings_tnc(s: Shots, _: str) -> None:
     """Settings, the TNC group opened by its arrow: the type of TNC, the port and the speed, Find my radio and the Terminal (a connected radio keeps it folded to its one line)."""
     page = await s.page(DESKTOP, tab="settings", view=CITY, panel=560)
     await made_up_web(page)
-    await page.locator("#pane-settings .radiohead").click()
+    await page.locator("#pane-settings .radiostatus .statushead").click()
     await settle(page, 600)
     await whole_groups(page, "fieldset:has(.radiostatus)")
     await s.save(page, "settings-tnc")
 
 
 async def shot_beacon_rx(s: Shots, _: str) -> None:
-    """The Beacon tab of a station that is set to RX only (the daemon's setting station/transmit: the amber badge in the header, beside the title) and has the Beacon Off: the status block says Beacon off with its pill off, and what belongs to the beacon is grey."""
+    """The Beacon tab of a station that is set to RX only (the daemon's setting station/transmit: the amber badge in the header, beside the title) and has the Beacon Off: the status block has its pill off in the warn colour and says RX only: nothing is sent, and what belongs to the beacon is grey."""
     page = await s.page(DESKTOP, tab="beacon", view=CITY, panel=WIDE_PANEL, url=s.receive_url)
     await settle(page, 400)
     await s.save(page, "beacon-rx")
 
 
 async def shot_phone_beacon_rx(s: Shots, _: str) -> None:
-    """A phone set to RX only with the Beacon Off: the amber badge beside the title and, under the tab bar, the Beacon tab with its status block saying Beacon off and the fields of the beacon grey."""
+    """A phone set to RX only with the Beacon Off: the amber badge beside the title and, under the tab bar, the Beacon tab with its status block saying RX only: nothing is sent and the fields of the beacon grey."""
     page = await s.page(PHONE, tab="beacon", view=CITY, phone_view="panel", url=s.receive_url)
     await s.save(page, "phone-beacon-rx")
 
