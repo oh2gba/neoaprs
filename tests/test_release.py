@@ -189,3 +189,11 @@ def test_bundled_dir_is_bin_next_to_the_executable_of_a_frozen_program(monkeypat
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(sys, "executable", str(tmp_path / "NeoAPRS" / "neoaprs.exe"))
     assert pmtilestool.bundled_dir() == (tmp_path / "NeoAPRS").resolve() / "bin"
+
+
+def test_the_release_has_the_installer_and_the_appimage_under_fixed_names_too() -> None:
+    """The project page links to releases/latest/download/NeoAPRS-Setup.exe and NeoAPRS-x86_64.AppImage: one click, the newest, nothing between."""
+    assemble = WORKFLOW.split("name: SHA256SUMS and the notes", 1)[1].split("uses: actions/upload-artifact", 1)[0]
+    assert 'cp -- "NeoAPRS-Setup-$version.exe" NeoAPRS-Setup.exe' in assemble and 'cp -- "NeoAPRS-$version-x86_64.AppImage" NeoAPRS-x86_64.AppImage' in assemble
+    assert assemble.index("NeoAPRS-Setup.exe") < assemble.index("sha256sum"), "the copies are in SHA256SUMS"
+    assert '[ "$(ls | wc -l)" = 9 ]' in assemble

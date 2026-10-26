@@ -11,7 +11,8 @@ Logs for support in one file, an About, a shorter project page with one-click do
 - The access key and other secrets are never in the file.
 - Errors in the page are now written to the log.
 - **Settings → About**: version, licence, source, thanks.
-- The project page is short and its download buttons download at once.
+- The project page is short.
+- The release also has `NeoAPRS-Setup.exe` and `NeoAPRS-x86_64.AppImage`, so a link to the latest one downloads at once.
 - Windows: uninstalling or updating no longer finds the app's files in use.
 
 ## 0.9.0
