@@ -55,11 +55,20 @@ describe("the iGate group of the Settings tab", () => {
 
   it("shows only the switch while the iGate is off, and the passcode, its link, the status line and the quiet line the moment it is on", async () => {
     const { group, wrapper } = make({ "igate/enabled": "false", "igate/password": "19628" }, { igate: igateState() });
-    expect(group()?.findAll(".field").map((f) => f.find("label").text())).toEqual(["Gate to APRS-IS"]);
+    expect(
+      group()
+        ?.findAll(".field")
+        .map((f) => f.find("label").text()),
+    ).toEqual(["Gate to APRS-IS"]);
     expect(group()?.find(".info-toggle").exists()).toBe(true);
-    for (const gone of ["#set-igate-password", "a.igate-request", ".statepill", ".tncstatus", ".igate-note"]) expect(group()?.find(gone).exists(), gone).toBe(false);
+    for (const gone of ["#set-igate-password", "a.igate-request", ".statepill", ".tncstatus", ".igate-note"])
+      expect(group()?.find(gone).exists(), gone).toBe(false);
     await group()?.find("#set-igate-enabled").setValue(true);
-    expect(group()?.findAll(".field").map((f) => f.find("label").text())).toEqual(["Gate to APRS-IS", "Passcode"]);
+    expect(
+      group()
+        ?.findAll(".field")
+        .map((f) => f.find("label").text()),
+    ).toEqual(["Gate to APRS-IS", "Passcode"]);
     for (const shown of ["a.igate-request", ".statepill", ".tncstatus", ".igate-note"]) expect(group()?.find(shown).exists(), shown).toBe(true);
     await group()?.find("#set-igate-enabled").setValue(false);
     expect(wrapper.find("#set-igate-password").exists()).toBe(false);

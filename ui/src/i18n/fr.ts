@@ -903,7 +903,8 @@ export const fr: Catalogue = {
   "settings.profile.label": "Type de radio",
   "settings.profile.tip_label": "Quel type de radio choisir",
   "settings.profile.tip1": "La façon dont NeoAPRS parle à votre radio ou modem (son TNC). Choisissez la ligne qui correspond au vôtre.",
-  "settings.profile.tip2": "La plupart des TNC sont des KISS TNC ; Direwolf et les cartes son sont du KISS sur TCP. Pas de radio ? Factice. Voir docs/RADIOS.md.",
+  "settings.profile.tip2":
+    "La plupart des TNC sont des KISS TNC ; Direwolf et les cartes son sont du KISS sur TCP. Pas de radio ? Factice. Voir docs/RADIOS.md.",
 
   "settings.port.name": "Port du TNC",
   "settings.port.label": "Port",

@@ -74,7 +74,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.profile.label": "無線機の種類",
   "settings.profile.tip_label": "無線機の種類の選び方",
   "settings.profile.tip1": "NeoAPRS が無線機やモデム(その TNC)とどう通信するかを決めます。お使いのものに合う行を選んでください。",
-  "settings.profile.tip2": "ほとんどの TNC は「KISS TNC」、Direwolf やサウンドカードは「KISS over TCP」です。無線機がなければ「ダミー」。docs/RADIOS.md を見てください。",
+  "settings.profile.tip2":
+    "ほとんどの TNC は「KISS TNC」、Direwolf やサウンドカードは「KISS over TCP」です。無線機がなければ「ダミー」。docs/RADIOS.md を見てください。",
 
   "settings.port.name": "TNCポート",
   "settings.port.label": "ポート",

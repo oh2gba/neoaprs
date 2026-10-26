@@ -28,7 +28,8 @@ export const beaconChoices = (): readonly Choice[] => [
 ];
 
 /** How long a station stays on the map: 1 h, 3 h, 6 h, 12 h or 24 h (the Stations tab offers them). */
-export const stationHoursChoices = (): readonly Choice[] => STATION_HOURS.map((hours) => ({ value: String(hours), label: t("station.table.hours", { n: hours }) }));
+export const stationHoursChoices = (): readonly Choice[] =>
+  STATION_HOURS.map((hours) => ({ value: String(hours), label: t("station.table.hours", { n: hours }) }));
 
 /** The beacon of a station that moves (a GPS is chosen): Off, or On, which SmartBeaconing times. On stores the interval a fixed station is offered first; a moving station does not use it. */
 export const movingBeaconChoices = (): readonly Choice[] => [
