@@ -6,7 +6,9 @@
 set -euo pipefail
 script="$(realpath "$1")"
 wheel="$(realpath "$2")"
-version="$(basename "$wheel" | cut -d- -f2)"
+version="$(basename "$wheel" | cut -d- -f2)"          # the wheel's (PEP 440) form: 1.0.0rc1 for 1.0.0-rc1
+# what `neoaprs --version` says, in the same form: the program writes 1.0.0-rc1, its wheel is named 1.0.0rc1
+said() { "$HOME/.local/bin/neoaprs" --version | sed -E 's/^NeoAPRS //; s/-(rc|a|b)\.?([0-9]+)$/\1\2/; s/-alpha\.?([0-9]+)$/a\1/; s/-beta\.?([0-9]+)$/b\1/; s/-dev\.?([0-9]+)$/.dev\1/'; }
 
 work="$(mktemp -d)"
 trap 'kill "${server:-0}" 2>/dev/null || true; rm -rf "$work"' EXIT
@@ -37,8 +39,8 @@ command -v uv >/dev/null && { echo "test-install: uv is on the test PATH ($(comm
 echo "=== first run: nothing is installed"
 sh "$script"
 test -x "$HOME/.local/bin/uv" || { echo "test-install: the script did not install uv" >&2; exit 1; }
-out="$("$HOME/.local/bin/neoaprs" --version)"
-test "$out" = "NeoAPRS $version" || { echo "test-install: neoaprs --version says '$out', not 'NeoAPRS $version'" >&2; exit 1; }
+out="$(said)"
+test "$out" = "$version" || { echo "test-install: neoaprs --version says '$out', not '$version'" >&2; exit 1; }
 unit="$HOME/.config/systemd/user/neoaprs.service"
 test -f "$unit" || { echo "test-install: no unit file at $unit" >&2; exit 1; }
 grep -q "enable --now" "$FAKE_LOG" || { echo "test-install: the unit was not enabled; systemctl was called:"; cat "$FAKE_LOG"; exit 1; }
@@ -47,7 +49,7 @@ grep -q "enable --now" "$FAKE_LOG" || { echo "test-install: the unit was not ena
 echo "=== second run: an update"
 : > "$FAKE_LOG"
 sh "$script"
-out="$("$HOME/.local/bin/neoaprs" --version)"
-test "$out" = "NeoAPRS $version" || { echo "test-install: after the update neoaprs --version says '$out'" >&2; exit 1; }
+out="$(said)"
+test "$out" = "$version" || { echo "test-install: after the update neoaprs --version says '$out'" >&2; exit 1; }
 grep -q "try-restart" "$FAKE_LOG" || { echo "test-install: the update did not restart the service; systemctl was called:"; cat "$FAKE_LOG"; exit 1; }
 echo "test-install: ok ($out; unit at $unit)"
