@@ -4,6 +4,7 @@ tested with no tray: the toolkits are fakes of `Frame` there.
     Open NeoAPRS          shows the window (with no web engine to show one: the page in the browser)
     Open in browser      the page in the system's browser (left out when that is what Open does)
     Start at sign-in     a checkbox: the app, in the tray, starts when the user signs in (left out where the system has none)
+    Collect support logs makes the support bundle (neoaprs/cli/supportmake.py) on the Desktop and shows it in the file manager
     Stop and quit        stops the daemon if the app started it, and ends the app; for a daemon that was already running (a service) it is "Quit (NeoAPRS keeps running as a service)" and only ends the app
 """
 import logging
@@ -11,14 +12,17 @@ import threading
 import webbrowser
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Protocol
+
+from neoaprs.cli.supportmake import Made, make_for_the_user
 
 from .autostart import AutoStart, AutoStartError
 from .session import Daemon, Session, stop_owned
 
 log = logging.getLogger("neoaprs.desktop")
 
-OPEN, BROWSER, AUTOSTART, QUIT = "open", "browser", "autostart", "quit"
+OPEN, BROWSER, AUTOSTART, SUPPORT, QUIT = "open", "browser", "autostart", "support", "quit"
 KEEPS_RUNNING = "NeoAPRS keeps running as a service"
 
 
@@ -41,14 +45,17 @@ class Frame(Protocol):
 
 
 class AppActions:
-    def __init__(self, session: Session, frame: Frame, autostart: AutoStart | None, daemon: Daemon | None = None, open_browser: Callable[[str], object] | None = None) -> None:
+    def __init__(self, session: Session, frame: Frame, autostart: AutoStart | None, daemon: Daemon | None = None, open_browser: Callable[[str], object] | None = None,
+                 support: Callable[[Path], Made] = make_for_the_user) -> None:
         self.session = session
         self.frame = frame
         self.autostart = autostart
         self.daemon = daemon or Daemon()
         self.open_browser = open_browser or (lambda url: webbrowser.open(url))          # (looked up when it is used)
+        self.support = support                       # makes the bundle of a data folder and shows it
         self.quitting = False
         self.thread: threading.Thread | None = None
+        self.support_thread: threading.Thread | None = None
 
     def items(self) -> list[Item]:
         owned = self.session.owned
@@ -57,6 +64,7 @@ class AppActions:
             items.append(Item(BROWSER, "Open in browser"))
         if self.autostart is not None:
             items.append(Item(AUTOSTART, "Start at sign-in", checked=self.autostart.enabled()))
+        items.append(Item(SUPPORT, "Collect support logs"))
         items.append(Item("-", "-", separator=True))
         items.append(Item(QUIT, "Stop and quit" if owned else f"Quit ({KEEPS_RUNNING})"))
         return items
@@ -69,6 +77,9 @@ class AppActions:
             self.open_browser(self.session.url)
         elif key == AUTOSTART:
             self.toggle_autostart()
+        elif key == SUPPORT:
+            self.support_thread = threading.Thread(target=self.collect_support, name="neoaprs-app-support", daemon=True)
+            self.support_thread.start()
         elif key == QUIT:
             self.thread = threading.Thread(target=self.quit_now, name="neoaprs-app-quit", daemon=True)
             self.thread.start()
@@ -81,6 +92,16 @@ class AppActions:
             self.frame.show_window()
         else:
             self.open_browser(self.session.url)
+
+    def collect_support(self) -> None:
+        """The support bundle of the session's data folder, to the Desktop and shown in the file manager. In a thread of its own (the logs are read): the toolkit goes on drawing. The person is told where the file is, or that it failed."""
+        try:
+            made = self.support(self.session.data)
+        except Exception:
+            log.exception("the support bundle could not be made")
+            self.frame.tell("The support file could not be made; see neoaprs-app.log")
+            return
+        self.frame.tell(f"Support file saved: {made.path}")
 
     def toggle_autostart(self) -> None:
         if self.autostart is None:

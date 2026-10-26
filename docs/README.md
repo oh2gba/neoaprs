@@ -22,6 +22,7 @@ Every Markdown file of the repository. `tests/test_hygiene.py` fails when a docu
 | `docs/manual/network.md` | opening the page from another device, the access key, https, installing the page as an app |
 | `docs/manual/settings.md` | every setting with its default, made from the code, and the values that are fixed |
 | `docs/manual/commands.md` | the `neoaprs` command line, `neoaprs doctor`, troubleshooting |
+| `docs/manual/support.md` | getting help: the support file that holds the logs and the facts for the developer, how to make it (the page, the Start menu, the tray, the command), what is in it and what is left out |
 | `docs/RADIOS.md` | which radios and TNCs work with NeoAPRS, and how to connect each (serial, USB, Bluetooth, Bluetooth LE, Direwolf and soundmodems), a GPS receiver for a moving station, Linux and Windows |
 | `docs/development.md` | for developers: set up, the stages of `scripts/check`, CI, the wire and its generation, the page's source, the scripts, packaging and releases, the folder map |
 | `docs/daemon.md` | for developers: how the daemon behaves, with the names the code and the wire use |

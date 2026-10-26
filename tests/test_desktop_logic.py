@@ -10,7 +10,7 @@ import pytest
 
 from neoaprs.desktop import appstate, links, shell
 from neoaprs.desktop.autostart import AutoStartError
-from neoaprs.desktop.menu import AUTOSTART, BROWSER, KEEPS_RUNNING, OPEN, QUIT, AppActions, Item
+from neoaprs.desktop.menu import AUTOSTART, BROWSER, KEEPS_RUNNING, OPEN, QUIT, SUPPORT, AppActions, Item
 from neoaprs.desktop.session import Daemon, DaemonWatch, NoPage, Session, open_session, stop_owned
 from tests.support.fakeshell import FakeFrame
 
@@ -98,7 +98,7 @@ def labels(items: list[Item]) -> list[str]:
 
 def test_the_menu_of_an_app_that_started_the_daemon() -> None:
     actions, *_ = actions_for(owned=True, autostart=FakeAutoStart(on=True))
-    assert actions.items() == [Item(OPEN, "Open NeoAPRS"), Item(BROWSER, "Open in browser"), Item(AUTOSTART, "Start at sign-in", checked=True), Item("-", "-", separator=True), Item(QUIT, "Stop and quit")]
+    assert actions.items() == [Item(OPEN, "Open NeoAPRS"), Item(BROWSER, "Open in browser"), Item(AUTOSTART, "Start at sign-in", checked=True), Item(SUPPORT, "Collect support logs"), Item("-", "-", separator=True), Item(QUIT, "Stop and quit")]
 
 
 def test_the_menu_of_an_app_attached_to_a_service_says_the_service_keeps_running() -> None:
@@ -109,7 +109,7 @@ def test_the_menu_of_an_app_attached_to_a_service_says_the_service_keeps_running
 
 def test_without_a_window_open_is_the_browser_and_without_autostart_there_is_no_checkbox() -> None:
     actions, frame, _, opened = actions_for(owned=True, window=False, autostart=None)
-    assert labels(actions.items()) == ["Open NeoAPRS", "Stop and quit"], "Open in browser would only repeat Open"
+    assert labels(actions.items()) == ["Open NeoAPRS", "Collect support logs", "Stop and quit"], "Open in browser would only repeat Open"
     actions.run(OPEN)
     assert opened == [PAGE] and frame.shown == 0
 

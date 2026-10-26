@@ -152,3 +152,19 @@ def access_key(text: str) -> str:
     if len(letters) != KEY_GROUPS * KEY_GROUP_SIZE or any(c not in KEY_ALPHABET for c in letters):
         raise CodedError("it is not an access key (three groups of four digits and letters, such as k7m2-x9pq-4hrt)", "setting.not_access_key")
     return "-".join(letters[i:i + KEY_GROUP_SIZE] for i in range(0, len(letters), KEY_GROUP_SIZE))
+
+
+SECRET_WORDS = ("key", "secret", "password", "token")
+
+
+def is_secret(key: str) -> bool:
+    """Is the setting one whose value is a secret (the access key `web/key`, and any key whose name has key, secret, password or token in it)? The log and the support bundle show such a value as `redacted` does."""
+    name = key.lower()
+    return any(word in name for word in SECRET_WORDS)
+
+
+def redacted(key: str, value: str) -> str:
+    """The value as the log and the support bundle may show it: as it is, or for a secret only whether it is set and how long it is (`(set, 14 characters)`, `(empty)`)."""
+    if not is_secret(key):
+        return value
+    return f"(set, {len(value)} characters)" if value else "(empty)"

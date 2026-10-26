@@ -22,7 +22,7 @@ LAYERS: dict[str, list[str]] = {
     "foundation": ["neoaprs", "clock", "signal", "coded", "policy", "callsign", "geo", "symbols", "kiss", "ax25", "aprsposition", "aprsmice", "aprsmessage", "aprsparse", "aprsweather", "aprsthirdparty", "aprsextension", "aprsfreq", "aprsstorm", "aprslocator", "aprstelemetry", "aprsnmea", "gpsfix", "smartbeacon", "packet", "packetcodec", "message", "bulletin", "decay", "tncmode", "tncprofile", "pref", "route", "chain", "mapstate", "radiosearch", "serialboards", "versions", "updateasset", "device", "devicedata", "hourcount"],
     "domain": ["alertcommand", "config", "configlegacy", "configstatus", "configtypes", "configvalues", "interlock", "station", "stationnotes", "stationbook", "aloha", "ownobject", "ownbulletin"],
     "adapters": ["source", "tasks", "serialport", "serialholders", "serialprobe", "btsdp", "btserial", "btle", "btpaired", "tnc", "tncsearch", "tncwatchdog", "tncentry", "tnclines", "childenv", "rigctld", "gpsfeed", "pmtilestool", "updatefetch", "updatedownload", "selfreplace"],
-    "persistence": ["store", "migrations", "migrations2", "backupfolder", "durable", "instancelock", "stopfile", "walcare", "dbfile", "dberror", "dbstats", "dbthread", "db", "dbopen", "storesql", "paths", "dblog", "packetsql", "packetlog", "messagesql", "messagelog", "bulletinsql", "bulletinlog", "weathersql", "weatherlog", "ownsql", "ownlog"],
+    "persistence": ["store", "migrations", "migrations2", "backupfolder", "durable", "instancelock", "stopfile", "walcare", "dbfile", "dberror", "dbstats", "dbthread", "db", "dbopen", "storesql", "paths", "dblog", "packetsql", "packetlog", "messagesql", "messagelog", "bulletinsql", "bulletinlog", "weathersql", "weatherlog", "ownsql", "ownlog", "supportsql"],
     "services": [],
     "app": ["controller", "app", "wiring"],
     "delivery": ["__main__", "daemon"],
@@ -49,7 +49,7 @@ TOOLKITS = {"PySide6", "shiboken6", "webview", "pystray", "PIL"}
 TOOLKIT_HOMES: set[str] = {"neoaprs.desktop.qtshell", "neoaprs.desktop.qtwindow", "neoaprs.desktop.winshell"}
 BLEAK_HOMES: set[str] = {"neoaprs.btle"}                        # bleak (the extra `ble` of pyproject.toml) only in the BLE port, which imports it when a ble:// port is opened
 TORNADO_HOMES: set[str] = set()                                # Tornado only in neoaprs/web/ (CONVENTIONS.md)
-PYDANTIC_HOMES: set[str] = {"neoaprs.web.wirebase", "neoaprs.web.hostwire", "neoaprs.web.hubwire", "neoaprs.web.stationwire", "neoaprs.web.packetwire", "neoaprs.web.tncwire", "neoaprs.web.configwire", "neoaprs.web.beaconwire", "neoaprs.web.messagewire", "neoaprs.web.bulletinwire", "neoaprs.web.prefwire", "neoaprs.web.weatherwire", "neoaprs.web.portwire", "neoaprs.web.mapwire", "neoaprs.web.ownwire", "neoaprs.web.updatewire", "neoaprs.web.gpswire", "neoaprs.web.protocol", "neoaprs.web.dispatch", "neoaprs.web.outbound"}      # the core knows nothing of the wire format; these check or describe what comes in and what goes out
+PYDANTIC_HOMES: set[str] = {"neoaprs.web.wirebase", "neoaprs.web.hostwire", "neoaprs.web.hubwire", "neoaprs.web.stationwire", "neoaprs.web.packetwire", "neoaprs.web.tncwire", "neoaprs.web.configwire", "neoaprs.web.beaconwire", "neoaprs.web.messagewire", "neoaprs.web.bulletinwire", "neoaprs.web.prefwire", "neoaprs.web.weatherwire", "neoaprs.web.portwire", "neoaprs.web.mapwire", "neoaprs.web.ownwire", "neoaprs.web.updatewire", "neoaprs.web.gpswire", "neoaprs.web.supportwire", "neoaprs.web.protocol", "neoaprs.web.dispatch", "neoaprs.web.outbound"}      # the core knows nothing of the wire format; these check or describe what comes in and what goes out
 
 # Today's violations: (importer, imported) -> why it is there and what removes it. Only ever shrinks.
 ALLOWED: dict[tuple[str, str], str] = {}
@@ -73,6 +73,7 @@ SQL_HOMES: dict[str, str] = {              # the permanent homes of SQL: no coun
     "neoaprs/bulletinsql.py": "the statements of the bulletin table (the message board): functions of a connection that the thread runs",
     "neoaprs/ownsql.py": "the statements of the tables of our own objects and bulletins (what we send of our own accord): functions of a connection that the thread runs",
     "neoaprs/weathersql.py": "the statements of the weather table (every observation of every weather station) and the read of the packets it is made from: functions of a connection that the thread runs",
+    "neoaprs/supportsql.py": "the statements of the support bundle: functions of a read-only connection that the bundle's own thread runs (the file's version and sizes, the rows of each table, the latest packets)",
     "neoaprs/walcare.py": "the limits of the write-ahead log (journal_size_limit and the automatic checkpoint): a function of the connection, run by the thread",
     "neoaprs/migrations2.py": "the migrations from the twelfth on, frozen beside migrations.py: migration code",
     "neoaprs/migrations.py": "the migrations and the opening of the file, before the thread opens it, and in the tools: migration code, exempt from the size limits of the steps it pins",

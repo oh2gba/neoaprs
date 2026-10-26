@@ -165,11 +165,19 @@ def diagnose(data: Path) -> list[Finding]:
     return [f for f in findings if f is not None]
 
 
-def show(findings: list[Finding]) -> None:
+def format_findings(findings: list[Finding]) -> list[str]:
+    """The lines `show` prints: a line for each finding, and under one that is not ok the fix."""
+    lines = []
     for f in findings:
-        print(f"{f.status.upper() if f.status == 'fail' else f.status:<5} {f.text}")
+        lines.append(f"{f.status.upper() if f.status == 'fail' else f.status:<5} {f.text}")
         if f.fix:
-            print(f"      fix: {f.fix}")
+            lines.append(f"      fix: {f.fix}")
+    return lines
+
+
+def show(findings: list[Finding]) -> None:
+    for line in format_findings(findings):
+        print(line)
 
 
 def main(argv: list[str]) -> int:

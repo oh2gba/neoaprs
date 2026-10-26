@@ -15,7 +15,7 @@ The tables of this document that are that test's data (this one, the rules after
 | foundation | `clock signal coded policy callsign geo symbols kiss ax25 aprsposition aprsmice aprsmessage aprsparse aprsweather aprsthirdparty aprsextension aprsfreq aprsstorm aprslocator aprstelemetry aprsnmea gpsfix smartbeacon packet packetcodec message bulletin decay tncmode tncprofile pref route chain mapstate radiosearch serialboards versions updateasset device devicedata hourcount` | foundation | domain, adapters, persistence, services, app, delivery, and any I/O library |
 | domain | `alertcommand config configlegacy configstatus configtypes configvalues interlock station stationnotes stationbook aloha ownobject ownbulletin` | foundation, domain | adapters, persistence, services, app, delivery, and any I/O library |
 | adapters | `source tasks serialport serialholders serialprobe btsdp btserial btle btpaired tnc tncsearch tncwatchdog tncentry tnclines childenv rigctld gpsfeed pmtilestool updatefetch updatedownload selfreplace` | foundation, domain, adapters | persistence, services, app, delivery |
-| persistence | `store migrations migrations2 backupfolder durable instancelock stopfile walcare dbfile dberror dbstats dbthread db dbopen storesql paths dblog packetsql packetlog messagesql messagelog bulletinsql bulletinlog weathersql weatherlog ownsql ownlog` | foundation, domain, persistence | adapters, services, app, delivery |
+| persistence | `store migrations migrations2 backupfolder durable instancelock stopfile walcare dbfile dberror dbstats dbthread db dbopen storesql paths dblog packetsql packetlog messagesql messagelog bulletinsql bulletinlog weathersql weatherlog ownsql ownlog supportsql` | foundation, domain, persistence | adapters, services, app, delivery |
 | services | everything in `neoaprs/services/` | foundation, domain, adapters, persistence, services | app, delivery |
 | app | `controller app wiring` | foundation, domain, adapters, persistence, services, app | delivery |
 | delivery | `neoaprs/web/*`, `neoaprs/cli/*`, `neoaprs/desktop/*`, `neoaprs/daemon`, `neoaprs/__main__` | foundation, domain, adapters, persistence, services, app, delivery | - |
@@ -29,7 +29,7 @@ Besides the direction:
 * Among the adapters only the bases every feed shares may be imported: `neoaprs.source`, `neoaprs.tasks`; and the sibling pairs: `neoaprs.btserial` and `neoaprs.btsdp`, `neoaprs.gpsfeed` and `neoaprs.serialport`, `neoaprs.serialholders` and `neoaprs.serialport`, `neoaprs.serialport` and `neoaprs.btle`, `neoaprs.serialport` and `neoaprs.btserial`, `neoaprs.serialprobe` and `neoaprs.btpaired`, `neoaprs.serialprobe` and `neoaprs.serialholders`, `neoaprs.serialprobe` and `neoaprs.serialport`, `neoaprs.tnc` and `neoaprs.serialholders`, `neoaprs.tnc` and `neoaprs.serialport`, `neoaprs.tnc` and `neoaprs.serialprobe`, `neoaprs.tnc` and `neoaprs.tncentry`, `neoaprs.tnc` and `neoaprs.tnclines`, `neoaprs.tnc` and `neoaprs.tncsearch`, `neoaprs.tnc` and `neoaprs.tncwatchdog`, `neoaprs.tncsearch` and `neoaprs.serialport`, `neoaprs.tncsearch` and `neoaprs.serialprobe`.
 * bleak (the extra `ble`) only in `neoaprs/btle.py`.
 * Tornado only in `neoaprs/web/`.
-* pydantic only in the wire modules of `neoaprs/web/`: `neoaprs/web/beaconwire.py`, `neoaprs/web/bulletinwire.py`, `neoaprs/web/configwire.py`, `neoaprs/web/dispatch.py`, `neoaprs/web/gpswire.py`, `neoaprs/web/hostwire.py`, `neoaprs/web/hubwire.py`, `neoaprs/web/mapwire.py`, `neoaprs/web/messagewire.py`, `neoaprs/web/outbound.py`, `neoaprs/web/ownwire.py`, `neoaprs/web/packetwire.py`, `neoaprs/web/portwire.py`, `neoaprs/web/prefwire.py`, `neoaprs/web/protocol.py`, `neoaprs/web/stationwire.py`, `neoaprs/web/tncwire.py`, `neoaprs/web/updatewire.py`, `neoaprs/web/weatherwire.py`, `neoaprs/web/wirebase.py`.
+* pydantic only in the wire modules of `neoaprs/web/`: `neoaprs/web/beaconwire.py`, `neoaprs/web/bulletinwire.py`, `neoaprs/web/configwire.py`, `neoaprs/web/dispatch.py`, `neoaprs/web/gpswire.py`, `neoaprs/web/hostwire.py`, `neoaprs/web/hubwire.py`, `neoaprs/web/mapwire.py`, `neoaprs/web/messagewire.py`, `neoaprs/web/outbound.py`, `neoaprs/web/ownwire.py`, `neoaprs/web/packetwire.py`, `neoaprs/web/portwire.py`, `neoaprs/web/prefwire.py`, `neoaprs/web/protocol.py`, `neoaprs/web/stationwire.py`, `neoaprs/web/supportwire.py`, `neoaprs/web/tncwire.py`, `neoaprs/web/updatewire.py`, `neoaprs/web/weatherwire.py`, `neoaprs/web/wirebase.py`.
 * The desktop app's toolkits (`PIL PySide6 pystray shiboken6 webview`, the extra `app`) only in the shells: `neoaprs/desktop/qtshell.py`, `neoaprs/desktop/qtwindow.py`, `neoaprs/desktop/winshell.py`.
 <!-- /doc-arch -->
 
@@ -79,7 +79,7 @@ What each layer is for:
     pinned release of go-pmtiles (SHA-256 checked) when it is not there, and run in a thread so that it works on every event loop.
 * **persistence**: the database file on the database thread.
   * The actor, the migrations and the settings: `store`, `storesql`.
-  * `dblog` is what the logs below share: the database they run on and the ways they ask it, each of which says no instead of raising.
+  * `supportsql` is the read-only statements of the support bundle. `dblog` is what the logs below share: the database they run on and the ways they ask it, each of which says no instead of raising.
   * `packetlog` (every packet and the station cache, appended without waiting) with `packetsql`.
   * `messagelog` (every message we sent and every one sent to us: an insert that is awaited, state updates appended, the attempts and the hops heard back of
     each message of ours appended; and the table `station_pref`) with `messagesql`.
@@ -110,9 +110,9 @@ What each layer is for:
 * **delivery**: one package each.
   * `neoaprs/web/`: Tornado, the pydantic wire models (`*wire.py`), the state hub and its topics, the commands. `server.py` is the coordinator (routes, Host
     names, the switch and the key), with `pagesocket.py` (the socket of a tab) and `listen.py` (the choice of the port). `processmeter.py` is what the daemon
-    costs the machine, for the status. `topics.py` is the one place that connects the daemon's signals to the page, so it is a composition root too. The wire
+    costs the machine, for the status. `topics.py` is the one place that connects the daemon's signals to the page, so it is a composition root too. `supporthandler.py` is `POST /support/bundle` and `pageerrors.py` what the pages report of their own errors. The wire
     format is `PROTOCOL.md`.
-  * `neoaprs/cli/`: the `neoaprs` command. `service` sets the daemon up to start at login with the system's own means, `doctor` checks the computer, and `db`,
+  * `neoaprs/cli/`: the `neoaprs` command. `service` sets the daemon up to start at login with the system's own means, `doctor` checks the computer, `support` makes the support bundle (`supportmake` is what the daemon, the command and the tray all call; `supportgather` reads, `supportbundle` writes the zip; `uncaught` logs what escapes), and `db`,
     `map`, `replay` and `capture` are tools of the command. `neoaprs/cli/neoaprs.service` is the unit's template, package data. The one command that builds a
     service is `neoaprs/cli/mapcmd.py` (the base map's command line); `neoaprs/cli/capturecmd.py` is a composition root of its own, for the one serial port it
     wires to a file.
@@ -220,6 +220,7 @@ The homes of SQL (`SQL_HOMES` in the test): every file that imports `sqlite3` or
 | `neoaprs/ownsql.py` | the statements of the tables of our own objects and bulletins (what we send of our own accord): functions of a connection that the thread runs |
 | `neoaprs/packetsql.py` | the statements of the packet log and the station cache: functions of a connection that the thread runs |
 | `neoaprs/storesql.py` | the statements of the settings: functions of a connection that the thread runs |
+| `neoaprs/supportsql.py` | the statements of the support bundle: functions of a read-only connection that the bundle's own thread runs (the file's version and sizes, the rows of each table, the latest packets) |
 | `neoaprs/walcare.py` | the limits of the write-ahead log (journal_size_limit and the automatic checkpoint): a function of the connection, run by the thread |
 | `neoaprs/weathersql.py` | the statements of the weather table (every observation of every weather station) and the read of the packets it is made from: functions of a connection that the thread runs |
 <!-- /doc-arch -->

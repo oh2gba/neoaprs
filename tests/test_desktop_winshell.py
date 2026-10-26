@@ -213,7 +213,7 @@ def test_the_tray_menu_is_made_from_the_data_of_the_actions(rig: Rig) -> None:
     thread = launch(rig)
     icon = rig.toolkits.icons[0]
     items = icon.menu.items()  # type: ignore[attr-defined]
-    assert [i if i == FakeMenu.SEPARATOR else i.text for i in items] == ["Open NeoAPRS", "Open in browser", "Start at sign-in", FakeMenu.SEPARATOR, "Quit (NeoAPRS keeps running as a service)"]
+    assert [i if i == FakeMenu.SEPARATOR else i.text for i in items] == ["Open NeoAPRS", "Open in browser", "Start at sign-in", "Collect support logs", FakeMenu.SEPARATOR, "Quit (NeoAPRS keeps running as a service)"]
     opening, browser, auto = items[0], items[1], items[2]
     assert opening.default and not browser.default and opening.checked is None and auto.checked(auto) is False
     opening.action(icon, opening)
@@ -267,7 +267,7 @@ def test_with_no_web_engine_it_is_the_tray_alone(tmp_path: Path, monkeypatch: py
     rig = Rig(tmp_path, monkeypatch, window=False, autostart=False)
     thread = launch(rig)
     assert rig.toolkits.windows == [] and rig.toolkits.started == [] and rig.browser == [PAGE]
-    assert [i if i == FakeMenu.SEPARATOR else i.text for i in rig.toolkits.icons[0].menu.items()] == ["Open NeoAPRS", FakeMenu.SEPARATOR, "Quit (NeoAPRS keeps running as a service)"]  # type: ignore[attr-defined]
+    assert [i if i == FakeMenu.SEPARATOR else i.text for i in rig.toolkits.icons[0].menu.items()] == ["Open NeoAPRS", "Collect support logs", FakeMenu.SEPARATOR, "Quit (NeoAPRS keeps running as a service)"]  # type: ignore[attr-defined]
     quit_through_the_menu(rig, thread)
 
 

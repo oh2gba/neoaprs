@@ -2742,6 +2742,55 @@
       "title": "PacketRow",
       "type": "object"
     },
+    "PageError": {
+      "additionalProperties": false,
+      "description": "An error that happened in the page itself (the browser's script, not a refusal of the daemon): the daemon writes it to its log as a warning, `page error (vue) on page BUILD: MESSAGE | FIRST LINE OF THE STACK`, and keeps the latest 100 for\nthe support bundle. At most 20 of a connection are logged in a minute; the rest are counted in one line. No answer: a page that cannot report must not fail twice.",
+      "properties": {
+        "cmd": {
+          "const": "page_error",
+          "type": "string"
+        },
+        "message": {
+          "description": "what the error says",
+          "maxLength": 2000,
+          "type": "string"
+        },
+        "stack": {
+          "description": "where it happened, as the browser gives it; empty for none",
+          "maxLength": 8000,
+          "type": "string"
+        },
+        "source": {
+          "description": "who caught it: `vue` (the component framework's error handler), `window` (an uncaught error of the window), `promise` (a promise nobody caught)",
+          "enum": [
+            "vue",
+            "window",
+            "promise"
+          ],
+          "type": "string"
+        },
+        "at": {
+          "description": "when it happened, by the page's clock",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "build": {
+          "description": "the build of the page that reported it (the `page` of `hello`)",
+          "maxLength": 64,
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "message",
+        "stack",
+        "source",
+        "at",
+        "build"
+      ],
+      "title": "PageErrorCommand",
+      "type": "object"
+    },
     "PatchMsg": {
       "additionalProperties": false,
       "description": "What changed in a topic: apply the ops in order; the copy is then at `rev`. An op says what the item is, not what to add, so an op that is applied twice ends where it should. Changes are told\non a tick of 100 ms (the topic `tnc` at most four times a second): what changed between two ticks is one patch for a topic, with at most one op for each key.",
@@ -5067,6 +5116,7 @@
           "object_kill": "#/$defs/ObjectKill",
           "object_set": "#/$defs/ObjectSet",
           "overheard_delete": "#/$defs/OverheardDelete",
+          "page_error": "#/$defs/PageError",
           "ping": "#/$defs/Ping",
           "query": "#/$defs/QueryStation",
           "send_message": "#/$defs/SendMessage",
@@ -5190,6 +5240,9 @@
         },
         {
           "$ref": "#/$defs/UpdateCancel"
+        },
+        {
+          "$ref": "#/$defs/PageError"
         }
       ],
       "title": "Command"

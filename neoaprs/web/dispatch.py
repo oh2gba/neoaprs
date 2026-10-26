@@ -15,6 +15,7 @@ from neoaprs.coded import Param
 from neoaprs.controller import Controller
 
 from .hub import StateHub
+from .pageerrors import PageErrors
 from .problems import describe_errors
 from .protocol import COMMAND_NAMES, COMMANDS, AnyCommand
 from .session import Connection
@@ -39,6 +40,7 @@ class Ctx:
     conn: Connection
     hub: StateHub
     status: Callable[[], Awaitable[dict[str, Any]]]          # the `status` message as it is now
+    page_errors: PageErrors | None = None                    # where the errors the pages report about themselves are noted
 
 
 type Fn[M: BaseModel] = Callable[[Ctx, M], Awaitable[None]]
@@ -74,10 +76,11 @@ def command[M: BaseModel](model: type[M], into: dict[str, Handler] | None = None
 class Dispatcher:
     """Looks the command up, validates it, runs it, and answers a failure."""
 
-    def __init__(self, ctl: Controller, hub: StateHub, status: Callable[[], Awaitable[dict[str, Any]]], registry: dict[str, Handler] | None = None) -> None:
+    def __init__(self, ctl: Controller, hub: StateHub, status: Callable[[], Awaitable[dict[str, Any]]], registry: dict[str, Handler] | None = None, page_errors: PageErrors | None = None) -> None:
         self.ctl = ctl
         self.hub = hub
         self.status = status
+        self.page_errors = page_errors
         self.registry = REGISTRY if registry is None else registry
 
     async def run(self, conn: Connection, raw: dict[str, Any]) -> None:
@@ -100,4 +103,4 @@ class Dispatcher:
             conn.error(f"{name}: {e}", name, "failed")
 
     async def _call(self, conn: Connection, name: str, cmd: AnyCommand) -> None:
-        await self.registry[name].fn(Ctx(self.ctl, conn, self.hub, self.status), cmd)
+        await self.registry[name].fn(Ctx(self.ctl, conn, self.hub, self.status, self.page_errors), cmd)

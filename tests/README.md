@@ -266,6 +266,12 @@
   NeoAPRS (fail, exit 1), an older one (warn), that it changes nothing, no port with the group, brltty and ModemManager; a daemon that holds the lock found with
   its page (a thread that answers), a page that does not answer, a run without a page, the end of a log, the decision about the group of the serial devices and
   the finding of brltty and ModemManager.
+* `test_support_bundle.py`, `test_support_web.py`, `test_support_cli.py`: the support bundle (`neoaprs/cli/support*.py`) on a fake data folder (`support/supportdata.py`): the members and their order, the README and the one-screen summary, the settings with
+  the secret only said to be set and the access key found in no member of the zip whatever put it there, the logs cut to their budget at a line start with the note of what was left out (rotated logs, a missing app log), the database report
+  (migrations and their hashes, rows, the check, skipped over 500 MB), the packets, a database that is no database and a folder that is not there (the `.error.txt` files, the bundle still made), that the data folder is not changed (no `-wal`
+  made beside the database), the Desktop folder and the file manager; `POST /support/bundle` on a daemon (the zip and its headers and the state of the running parts, the login, the Host and Origin, a bad body, the 256 KB, one at a time with 429, a failure
+  as 500), `page_error` (the log line, a message that cannot forge a line, 20 a minute and the line about the rest, the ring of 100, the command's limits, over the socket), the browser named in the log, a saved setting in the log; `neoaprs support`
+  (the path and the instruction, `--out`, the Desktop, `--show`, `--pause` only at a console, a folder that cannot be written), the tray item, the second line of the start, and what escapes (a thread, the program, the loop).
 * `test_replay.py`: `neoaprs replay` over TCP: the real Tnc connects to it and hears the capture's four packets, nothing is sent until a client is there and the
   frames go on from where they were, `--loop`, what the daemon writes is shown, the loopback only and a taken port, and as a process (the first line is the
   address, a plain socket reads the frames, Ctrl-C ends it). The sample capture inside the package (`neoaprs/samples/thd7.kiss`) must equal the fixture, and

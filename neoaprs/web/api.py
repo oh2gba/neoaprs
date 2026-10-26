@@ -20,6 +20,7 @@ from .dispatch import Dispatcher
 from .hub import StateHub
 from .hubwire import PROTOCOL
 from .outbound import Publisher
+from .pageerrors import PageErrors
 from .processmeter import ProcessMeter
 from .session import Client, Connection
 from .topics import Topics
@@ -41,7 +42,8 @@ class Api:
         self.clients = self.out.connections             # the open pages, by their sockets
         self.hub = StateHub()
         self.topics = Topics(controller, self.hub, self._packet_sent, reach, secure)
-        self.dispatcher = Dispatcher(controller, self.hub, self.status)
+        self.page_errors = PageErrors(controller.clock)  # what the pages report about themselves (neoaprs/web/pageerrors.py)
+        self.dispatcher = Dispatcher(controller, self.hub, self.status, page_errors=self.page_errors)
         self.started_at = controller.clock()
         self.meter = ProcessMeter()
         self.tasks = TaskSet(log, "web")
@@ -53,6 +55,7 @@ class Api:
 
     async def stop(self) -> None:
         self.hub.stop()
+        self.page_errors.stop()
         self.topics.disconnect()
         await self.tasks.cancel_all()
 
@@ -96,6 +99,7 @@ class Api:
         conn = self.clients.get(client)
         if conn is not None:
             self.hub.detach(conn)
+            self.page_errors.forget(conn)
         self.out.close(client)
 
     # ---- the commands

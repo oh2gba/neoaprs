@@ -154,7 +154,7 @@ jobs:
           if ($p.ExitCode -ne 0) { Get-Content install.log -Tail 40; throw "setup ended with $($p.ExitCode)" }
           $app = "$env:LOCALAPPDATA\Programs\NeoAPRS"
           foreach ($f in 'neoaprs.exe', 'neoaprsw.exe', 'neoaprs-app.exe', 'bin\pmtiles.exe', 'LICENSE.txt', 'unins000.exe') { if (-not (Test-Path "$app\$f")) { throw "$f is not in $app" } }
-          foreach ($l in 'NeoAPRS', 'Stop NeoAPRS') { if (-not (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\NeoAPRS\$l.lnk")) { throw "no Start menu entry $l" } }
+          foreach ($l in 'NeoAPRS', 'Stop NeoAPRS', 'NeoAPRS support logs') { if (-not (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\NeoAPRS\$l.lnk")) { throw "no Start menu entry $l" } }
           # the task: start at sign-in is the app in the tray (the app starts the daemon), not the daemon
           $run = (Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run').NeoAPRS
           if (-not $run -or $run -notlike '*neoaprs-app.exe*--tray*') { throw "the Run key is not set to the app in the tray: $run" }
@@ -174,6 +174,21 @@ jobs:
           & "$app\neoaprs.exe" stop --data $data
           if ($LASTEXITCODE -ne 0) { throw "stop failed" }
           if ((Get-Content "$data\neoaprs.log" -Tail 1) -notlike '*NeoAPRS ended') { Get-Content "$data\neoaprs.log" -Tail 10; throw "the daemon did not end cleanly" }
+      - name: support, what the Start menu entry "NeoAPRS support logs" runs
+        shell: pwsh
+        run: |
+          $app = "$env:LOCALAPPDATA\Programs\NeoAPRS"
+          $data = "$env:RUNNER_TEMP\opendata"
+          $out = "$env:RUNNER_TEMP\supportout"
+          & "$app\neoaprs.exe" support --data $data --out $out
+          if ($LASTEXITCODE -ne 0) { throw "support failed" }
+          $zips = @(Get-ChildItem $out -Filter 'neoaprs-support-*.zip')
+          if ($zips.Count -ne 1) { throw "no support file in $out" }
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [IO.Compression.ZipFile]::OpenRead($zips[0].FullName)
+          try { $names = @($zip.Entries | ForEach-Object { $_.FullName }) } finally { $zip.Dispose() }
+          foreach ($n in 'README.txt', 'summary.txt', 'settings.json', 'doctor.txt', 'database.txt', 'packets.txt', 'logs/neoaprs.log') { if ($names -notcontains $n) { throw "$n is not in the support file: $names" } }
+          "support file: $($zips[0].Name), $($names.Count) files"
       - name: The app in the tray (neoaprs-app.exe --tray) starts its own daemon, and neoaprs stop ends both
         shell: pwsh
         run: |

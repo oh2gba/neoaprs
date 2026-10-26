@@ -123,6 +123,9 @@ def test_the_installer_script_is_per_user_and_does_what_the_manual_says() -> Non
     assert 'Name: "desktopicon"; Description: "Create a &desktop shortcut"; Flags: unchecked' in INSTALLER, "the desktop shortcut is a task that is off by default"
     assert 'Name: "{group}\\NeoAPRS"; Filename: "{app}\\neoaprs-app.exe"' in INSTALLER and 'Name: "{group}\\Stop NeoAPRS"' in INSTALLER, "the Start menu's NeoAPRS is the app"
     assert 'Name: "{autodesktop}\\NeoAPRS"; Filename: "{app}\\neoaprs-app.exe"; Tasks: desktopicon' in INSTALLER
+    support = [line for line in INSTALLER.split("[Icons]", 1)[1].split("[Registry]", 1)[0].splitlines() if line.startswith('Name: "{group}\\NeoAPRS support logs"')]
+    assert len(support) == 1 and 'Filename: "{app}\\neoaprs.exe"; Parameters: "support --show --pause"' in support[0], "the Start menu's support entry runs the console program, so that its window shows the file, and waits for Enter"
+    assert "'NeoAPRS', 'Stop NeoAPRS', 'NeoAPRS support logs'" in WORKFLOW and 'neoaprs.exe" support --data $data --out $out' in WORKFLOW, "the workflow checks the entry and runs what it runs"
     registry = INSTALLER.split("[Registry]", 1)[1].split("[Run]", 1)[0]
     assert 'ValueName: "NeoAPRS"' in registry and '"{app}\\neoaprs-app.exe"" --tray' in registry and "Tasks: autostart" in registry and "uninsdeletevalue" in registry, "start at sign-in is the app in the tray, not the daemon"
     run, uninstall = INSTALLER.split("[Run]", 1)[1].split("[UninstallRun]", 1)

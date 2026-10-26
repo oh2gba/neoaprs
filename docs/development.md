@@ -408,6 +408,28 @@ uv run --with playwright --with pillow python scripts/screenshots.py --only map 
 uv run --with playwright --with pillow python scripts/screenshots.py --chromium PATH --no-sandbox   # a browser Playwright did not install
 ```
 
+## The support bundle
+
+A user with a problem sends one zip ([the log and the support bundle](daemon.md#the-log-and-the-support-bundle) says what is in it; the manual's [support.md](manual/support.md) is for the user). The parts, all in the delivery layer except the SQL:
+
+| module | what it is |
+|---|---|
+| `neoaprs/cli/supportbundle.py` | the zip as a file: the name, the deflate writing under a temporary name, the secrets taken out of every member, the log files and their budget |
+| `neoaprs/cli/supportgather.py` | the gatherers, each a function that returns the text of a member: settings, logs, the doctor, the database, the packets, the journal |
+| `neoaprs/cli/supportsummary.py` | `summary.txt`: `Facts` (what was found; any part may be missing) and its layout, and the last warnings and errors of a log |
+| `neoaprs/cli/supportreadme.py` | `README.txt`, with the one line for each file (`FILE_HELP`) and what is left out |
+| `neoaprs/cli/supportmake.py` | `make_bundle` runs the gatherers (a failed one is `<name>.error.txt`), finds the Desktop and starts the file manager; the daemon, the command and the tray all call it |
+| `neoaprs/cli/supportcmd.py` | `neoaprs support` |
+| `neoaprs/supportsql.py` | the statements, read-only (a home of SQL in `tests/test_architecture.py`) |
+| `neoaprs/web/supporthandler.py`, `supportstate.py` | `POST /support/bundle`, and `state.json` from the running parts |
+| `neoaprs/web/pageerrors.py`, `supportwire.py`, `browser.py` | `page_error`: the log line, the rate limit and the ring of 100; the command's model; the browser's name from its `User-Agent` |
+| `neoaprs/cli/uncaught.py` | what escapes a thread, the main thread and the event loop is logged |
+
+To make a bundle while developing: `.venv/bin/python -m neoaprs support --data ./data --out /tmp` (no daemon needed, none harmed; add `--show` to open the folder). From a running daemon, with the state of its parts:
+`curl -s -X POST -H 'Content-Type: application/json' -d '{"page": {}}' http://127.0.0.1:7303/support/bundle -o support.zip`. `tests/support/supportdata.py` makes a data folder for a test (a migrated database with settings and packets, logs). A new part of the bundle is a gatherer
+in `supportgather.py`, a step in `collect` of `supportmake.py` and a line in `FILE_HELP`; one that can fail must be a step, so that its failure is a file and not the end of the bundle. The tests are `tests/test_support_bundle.py` (the builder), `tests/test_support_web.py`
+(the endpoint and `page_error`) and `tests/test_support_cli.py` (the command, the tray, the log lines, what escapes); the Start menu entry is held by `tests/test_release.py` and checked on Windows by the release workflow.
+
 ## What is in the folder
 
 - `neoaprs/`: the daemon, in the layers of [`docs/ARCHITECTURE.md`](ARCHITECTURE.md). `neoaprs/web/` is the page's server and the wire models; `neoaprs/cli/`

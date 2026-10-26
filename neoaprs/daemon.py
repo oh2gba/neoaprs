@@ -13,6 +13,7 @@ import io
 import logging
 import logging.handlers
 import os
+import platform
 import signal
 import sys
 import time
@@ -28,7 +29,9 @@ from .dberror import SqlError, StoreError
 from .instancelock import AlreadyRunning, InstanceLock
 from .migrations2 import MIGRATION_LOG
 from .paths import default_data_dir
+from .cli import uncaught
 from .cli.installkind import detect_here
+from .cli.supportgather import system_description
 from .cli.servicecmd import appimage_file
 from .web.server import WebServer
 
@@ -151,11 +154,15 @@ async def _run_locked(args: argparse.Namespace, data_dir: Path, after: list[list
     log = logging.getLogger("neoaprs")
     _private_data_dir(data_dir, log)
     log.info("%s %s starting, data in %s", PROGRAM, VERSION, data_dir)
+    install = detect_here(data_dir)
+    log.info("running on %s, %s, Python %s, installed as %s, pid %d", system_description(), platform.machine(), platform.python_version(), install.kind, os.getpid())
+    restore = uncaught.install(log)
+    asyncio.get_running_loop().set_exception_handler(uncaught.loop_handler(log))
 
     def page(ctl: Controller, config: Config) -> WebServer:
         return WebServer(ctl, config if args.web_port is None else replace(config, web_port=args.web_port))
 
-    controller = Controller(data_dir, busy_ms=3000, port=args.port, web=page, install=detect_here(data_dir))         # the daemon must not stand still behind another writer: a few seconds
+    controller = Controller(data_dir, busy_ms=3000, port=args.port, web=page, install=install)         # the daemon must not stand still behind another writer: a few seconds
     controller.debug = args.debug
     stop = _stop_on_signals(asyncio.get_running_loop())
     stopfile.clear(data_dir)                                 # (a request left by a stop that found nobody running is not for this run)
@@ -167,11 +174,15 @@ async def _run_locked(args: argparse.Namespace, data_dir: Path, after: list[list
         if controller.reexec:
             after.append(controller.reexec)
         return code
+    except Exception:
+        log.critical("the daemon ends with an exception nothing caught", exc_info=True)
+        raise
     finally:
         for helper in helpers:
             helper.cancel()
         await asyncio.gather(*helpers, return_exceptions=True)
         stopfile.clear(data_dir)
+        restore()
 
 
 async def _serve(controller: Controller, stop: asyncio.Event, log: logging.Logger) -> int:

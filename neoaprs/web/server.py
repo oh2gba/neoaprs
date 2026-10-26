@@ -5,7 +5,7 @@ The socket of a tab is neoaprs/web/pagesocket.py, the choice of the port neoaprs
 
 While `web/https` is on too, the page is also served over TLS on the port after the plain one (neoaprs/web/secureside.py), and the plain port sends a device other than this computer there (neoaprs/web/securehandlers.py).
 
-Routes: `/ws` (the socket), `/access` and `/access/new` (the key screen's login and a new key), `/neoaprs-ca.crt` (the certificate authority's certificate, on both ports), `/basemap.pmtiles` and `/basemap-world.pmtiles` (the files of the data folder, with byte ranges), and everything else from the page's
+Routes: `/ws` (the socket), `/access` and `/access/new` (the key screen's login and a new key), `/support/bundle` (the support bundle for the page's Support button, behind the login as the socket is), `/neoaprs-ca.crt` (the certificate authority's certificate, on both ports), `/basemap.pmtiles` and `/basemap-world.pmtiles` (the files of the data folder, with byte ranges), and everything else from the page's
 folder (`neoaprs/page/`, made by scripts/build-page; the folder `neoaprs/web/placeholder/` with a line that says so while there is none). Every answer carries the security headers (neoaprs/web/headers.py) and none is given for a
 Host name that is not ours (neoaprs/web/pagefiles.py); the socket and the map are refused to a device that has not logged in.
 """
@@ -38,6 +38,7 @@ from .pagefiles import Basemap, Page
 from .pagesocket import Socket
 from .securehandlers import CA_PATH, CaCertificate, secure_target
 from .secureside import SecureSide
+from .supporthandler import Bundler, SupportBundle
 from .tls import FOLDER
 
 log = logging.getLogger("neoaprs.web")
@@ -80,6 +81,7 @@ class WebServer:
         self._own_names: set[str] = set()                 # lower case, no port: what the Host header may say besides an IP address
         self._foreign_seen: set[str] = set()              # the names refused so far, so that the log has each once
         self.secure = SecureSide(controller.data_dir / FOLDER, controller.clock, self._allowed_names)          # the https side: the certificates and the second port
+        self.bundles = Bundler(self)                      # the support bundles (neoaprs/web/supporthandler.py), one at a time
         self._app: tornado.web.Application | None = None
 
     def host_allowed(self, header: str) -> bool:
@@ -144,6 +146,7 @@ class WebServer:
             (r"/ws", Socket, {"server": self}),
             (r"/access", Login),
             (r"/access/new", NewKey),
+            (r"/support/bundle", SupportBundle, {"server": self}),
             (re.escape(CA_PATH), CaCertificate, {"server": self}),
             (r"/(basemap\.pmtiles|basemap-world\.pmtiles)", Basemap, {"path": str(self.controller.data_dir)}),
             (r"/()", Page, {"path": str(self.page_dir), "default_filename": "index.html"}),

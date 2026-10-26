@@ -53,7 +53,7 @@ def test_a_command_is_dispatched_with_the_rest_of_the_line(monkeypatch: pytest.M
     for name in cli.COMMANDS:
         assert cli.main([name, "--flag", "x"]) == 0
     assert seen == {name: ["--flag", "x"] for name in cli.COMMANDS}
-    assert set(cli.COMMANDS) == set(cli.HANDLERS) == {"run", "service", "map", "db", "replay", "gps-replay", "capture", "doctor", "open", "stop", "app"}
+    assert set(cli.COMMANDS) == set(cli.HANDLERS) == {"run", "service", "map", "db", "replay", "gps-replay", "capture", "doctor", "support", "open", "stop", "app"}
 
 
 def test_an_unknown_command_is_refused_and_help_lists_the_commands(capsys: pytest.CaptureFixture[str]) -> None:

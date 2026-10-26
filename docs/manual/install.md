@@ -18,7 +18,7 @@ Run `NeoAPRS-Setup-<version>.exe`. It installs for your user only, so it needs n
 
 The installer is not signed. Windows SmartScreen may say "Windows protected your PC" the first times: choose **More info**, then **Run anyway**.
 
-- The Start menu group NeoAPRS has **NeoAPRS** (the [desktop app](desktop.md), which starts the daemon if none is running), **Stop NeoAPRS** and the uninstaller.
+- The Start menu group NeoAPRS has **NeoAPRS** (the [desktop app](desktop.md), which starts the daemon if none is running), **Stop NeoAPRS**, **NeoAPRS support logs** (collects the logs into one file on your Desktop, to send when something does not work: [support.md](support.md)) and the uninstaller.
 - The task **Desktop shortcut** is off by default.
 - The task **Start NeoAPRS when I sign in** is on by default. It starts the app in the tray when you sign in.
 - The last page offers **Open NeoAPRS now**.

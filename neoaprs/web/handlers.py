@@ -3,6 +3,7 @@
 A handler asks the daemon to change and says so with an exception (`UserError`); what the pages are told of the change comes from the signals of the parts (neoaprs/web/topics.py), never from the handler.
 """
 import asyncio
+import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import timedelta
@@ -10,6 +11,7 @@ from datetime import timedelta
 from neoaprs.clock import iso
 from neoaprs.coded import CodedError
 from neoaprs.config import RECEIVE_ONLY, Config, SettingError
+from neoaprs.configtypes import redacted
 from neoaprs.mapstate import Job, MapError
 from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.message import MessagingError
@@ -25,15 +27,27 @@ from .hostwire import AskStatus, CheckUpdate, Ping
 from .hubwire import Subscribe, Unsubscribe
 from .mapwire import MapCancel, MapEstimate, MapFetch
 from .ownwire import BulletinPost, BulletinUnpost, ObjectKill, ObjectSet
+from .pageerrors import one_line
 from .messagewire import AlertTest, ConversationDelete, MessageCancel, MessageDelete, MessageRetry, OverheardDelete, QueryStation, SendMessage
 from .portwire import FindRadio, FindRadioCancel, ListPorts
 from .prefwire import ClearStationPath, SetStationPath, SetStationRfOnly
 from .configwire import SetConfig
 from .stationwire import ForgetStation
+from .supportwire import PageError
 from .tncwire import TncReconnect
 from .updatewire import UpdateCancel, UpdateNow
 from .views import weather_points
 from .weatherwire import WeatherSeries
+
+
+log = logging.getLogger("neoaprs.web")
+SHOWN_VALUE = 200                    # the longest value a line of the log shows
+
+
+def shown(key: str, value: str) -> str:
+    """A setting's value as the log shows it: a secret only as `(set, N characters)`, an empty value as such, a long one cut."""
+    text = one_line(redacted(key, value), SHOWN_VALUE)
+    return text or "(empty)"
 
 
 @contextmanager
@@ -214,8 +228,12 @@ async def set_config(ctx: Ctx, cmd: SetConfig) -> None:
         raise UserError(f"set_config: {e}", e.code, e.key, e.params) from None
     except ValueError as e:
         raise UserError(f"set_config: {e}") from None
+    before = ctx.ctl.config
     if not await ctx.ctl.save_config(config):
         raise UserError("set_config: the settings could not be stored (the database would not take them); nothing changed", "setting.not_stored")
+    old, new = before.to_data(), config.to_data()
+    for key in before.changed(config):
+        log.info("settings: %s = %s (was %s)", key, shown(key, new[key]), shown(key, old[key]))
 
 
 @command(CheckUpdate)
@@ -308,3 +326,10 @@ async def map_fetch(ctx: Ctx, cmd: MapFetch) -> None:
 async def map_cancel(ctx: Ctx, cmd: MapCancel) -> None:
     if not ctx.ctl.mapfetch.cancel():
         raise UserError(f"{cmd.cmd}: no map job is running", "map.no_job")
+
+
+@command(PageError)
+async def page_error(ctx: Ctx, cmd: PageError) -> None:
+    """The page tells of an error of its own: it is logged and kept for the support bundle (neoaprs/web/pageerrors.py). Not answered."""
+    if ctx.page_errors is not None:
+        ctx.page_errors.note(ctx.conn, cmd)

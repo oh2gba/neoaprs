@@ -8,6 +8,7 @@ import tornado.websocket
 from tornado.iostream import IOStream, StreamBufferFullError
 
 from .api import Api
+from .browser import browser_of
 from .headers import origin_is_host
 from .outbound import MAX_WRITE_BUFFER
 from .pagefiles import HostGate, SecurityHeaders, refuse_foreign_host, refuse_plain, refuse_unless_logged_in
@@ -57,7 +58,7 @@ class Socket(SecurityHeaders, tornado.websocket.WebSocketHandler):
             self.server.page_proved(stream)
         ip = self.request.remote_ip or ""
         self.server.api.attach(self, ip)
-        log.info("page connected from %s", ip)
+        log.info("page connected from %s: %s", ip, browser_of(self.request.headers.get("User-Agent", "")))
 
     def on_message(self, message: str | bytes) -> None:
         try:

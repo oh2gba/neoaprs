@@ -19,7 +19,7 @@ from PySide6.QtWebEngineCore import QWebEnginePage  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
 from neoaprs.desktop import appstate, qtshell  # noqa: E402
-from neoaprs.desktop.menu import AUTOSTART, QUIT  # noqa: E402
+from neoaprs.desktop.menu import AUTOSTART, QUIT, SUPPORT  # noqa: E402
 from neoaprs.desktop.session import Session  # noqa: E402
 from neoaprs.desktop.shell import ShellContext  # noqa: E402
 from neoaprs.desktop.single import SingleApp  # noqa: E402
@@ -194,7 +194,7 @@ def test_the_tray_menu_is_made_from_the_actions_and_its_items_run_them(rig: Rig)
     ran: list[str] = []
     rig.built.actions.run = ran.append                                     # type: ignore[method-assign]
     qtshell.fill_menu(rig.built)
-    assert [a.text() for a in rig.built.entries] == ["Open NeoAPRS", "Open in browser", "Start at sign-in", "Quit (NeoAPRS keeps running as a service)"]
+    assert [a.text() for a in rig.built.entries] == ["Open NeoAPRS", "Open in browser", "Start at sign-in", "Collect support logs", "Quit (NeoAPRS keeps running as a service)"]
     box = rig.built.entries[2]
     assert box.isCheckable() and not box.isChecked() and not rig.built.entries[0].isCheckable()
     rig.auto.on = True
@@ -202,7 +202,8 @@ def test_the_tray_menu_is_made_from_the_actions_and_its_items_run_them(rig: Rig)
     assert rig.built.entries[2].isChecked(), "the menu is made again when it is shown: the box is what the system says now"
     rig.built.entries[2].trigger()
     rig.built.entries[3].trigger()
-    assert ran == [AUTOSTART, QUIT]
+    rig.built.entries[4].trigger()
+    assert ran == [AUTOSTART, SUPPORT, QUIT]
 
 
 def test_without_the_web_engine_window_there_is_a_tray_and_no_window(tmp_path: Path, qapp: QApplication) -> None:
@@ -210,7 +211,7 @@ def test_without_the_web_engine_window_there_is_a_tray_and_no_window(tmp_path: P
     built = qtshell.build(ctx, qapp)
     assert built.window is None and not built.frame.has_window and built.tray is not None
     qtshell.fill_menu(built)
-    assert [a.text() for a in built.entries] == ["Open NeoAPRS", "Quit (NeoAPRS keeps running as a service)"]
+    assert [a.text() for a in built.entries] == ["Open NeoAPRS", "Collect support logs", "Quit (NeoAPRS keeps running as a service)"]
 
 
 def test_a_message_for_the_user_goes_to_the_log_where_there_is_no_tray_to_show_it(tmp_path: Path, qapp: QApplication, caplog: pytest.LogCaptureFixture) -> None:

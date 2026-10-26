@@ -11,7 +11,7 @@ import time
 import webbrowser
 from pathlib import Path
 
-from neoaprs.cli import opencmd
+from neoaprs.cli import opencmd, uncaught
 from neoaprs.cli.daemonstate import LOG_NAME
 from neoaprs.cli.output import say
 from neoaprs.paths import default_data_dir
@@ -111,6 +111,7 @@ def main(argv: list[str] | None = None) -> int:
         return quit_the_app(data, QUIT_WAIT_SEC)
     data.mkdir(parents=True, exist_ok=True)
     appstate.setup_logging(data, args.debug)
+    uncaught.install(log, chain=True)
     return run(args)
 
 

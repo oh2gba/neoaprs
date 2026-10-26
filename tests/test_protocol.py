@@ -206,6 +206,7 @@ COMMAND_EXAMPLES: dict[str, dict[str, Any]] = {
     "bulletin_post": {"cmd": "bulletin_post", "slot": "BLN3HAMS", "text": "Net tonight at 20:00"}, "bulletin_unpost": {"cmd": "bulletin_unpost", "slot": "BLN3HAMS"},
     "map_estimate": {"cmd": "map_estimate"}, "map_fetch": {"cmd": "map_fetch"}, "map_cancel": {"cmd": "map_cancel"},
     "update_now": {"cmd": "update_now", "version": "0.7.0"}, "update_cancel": {"cmd": "update_cancel"},
+    "page_error": {"cmd": "page_error", "message": "x is undefined", "stack": "at render (Map.vue:10:5)", "source": "vue", "at": "2026-10-21T12:00:00Z", "build": "index-abc123.js"},
 }
 
 

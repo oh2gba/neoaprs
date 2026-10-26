@@ -1,5 +1,5 @@
 ; Inno Setup script of the Windows installer: NeoAPRS-Setup-VERSION.exe. Per user (no administrator rights, no UAC prompt): the app goes to %LOCALAPPDATA%\Programs\NeoAPRS, the Start menu gets "NeoAPRS" (the desktop
-; app, neoaprs-app.exe: a window and a tray icon; it starts the daemon itself) and "Stop NeoAPRS", a task makes a desktop shortcut, and a task, on by default, makes the app start in the tray when the user signs in
+; app, neoaprs-app.exe: a window and a tray icon; it starts the daemon itself), "Stop NeoAPRS" and "NeoAPRS support logs" (neoaprs.exe support: the logs in one file on the Desktop), a task makes a desktop shortcut, and a task, on by default, makes the app start in the tray when the user signs in
 ; (the value NeoAPRS of the Run key of the user, `neoaprs-app.exe --tray`; the daemon is the app's to start). The data (%LOCALAPPDATA%\NeoAPRS: settings, messages, packets, the map)
 ; is the program's own and is never touched by the installer or the uninstaller. Build, from the repository root, after packaging/windows/neoaprs.spec has made dist\NeoAPRS:
 ;     iscc /DAppVersion=0.1.0 /Qp packaging\windows\neoaprs.iss        (makes dist-installer\NeoAPRS-Setup-0.1.0.exe)
@@ -49,6 +49,8 @@ Source: "..\..\LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignor
 [Icons]
 Name: "{group}\NeoAPRS"; Filename: "{app}\neoaprs-app.exe"; Comment: "NeoAPRS: the window and the tray icon (starts the daemon if it is not running)"
 Name: "{group}\Stop NeoAPRS"; Filename: "{app}\neoaprsw.exe"; Parameters: "stop"; Comment: "End NeoAPRS"
+; the console program, so that its window shows what it made and where; --pause keeps the window until Enter is pressed
+Name: "{group}\NeoAPRS support logs"; Filename: "{app}\neoaprs.exe"; Parameters: "support --show --pause"; Comment: "Collect the logs into one file on the Desktop, to send to the developer"
 Name: "{autodesktop}\NeoAPRS"; Filename: "{app}\neoaprs-app.exe"; Tasks: desktopicon
 
 [Registry]

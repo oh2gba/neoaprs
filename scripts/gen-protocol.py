@@ -311,6 +311,10 @@ carries the security headers: a Content-Security-Policy that allows the page's o
 no-referrer`, `X-Content-Type-Options: nosniff` and `Cross-Origin-Resource-Policy: same-origin`. An error is a line of text. The shell `index.html` is sent `Cache-Control: no-cache`, the hashed
 files of `assets/` `public, max-age=31536000, immutable`.
 
+`POST /support/bundle` with `{"page": {...}}` (at most 256 KB; what the page tells of itself) answers with the support bundle, one zip (`application/zip`, as a download named `neoaprs-support-CALL-YYYYmmdd-HHMMSSZ.zip`): the logs, the
+settings with the access key left out, the state of the running parts, the doctor's checks, the database's, the latest packets and what the page reported (`page_error`). It is behind the same login as the socket (`401` without the
+session, `403` for a Host name that is not ours or an `Origin` that is not the `Host`), one at a time (`429` while another is being made, with `Retry-After`) and `400` for a body that is not a JSON object with a `page` object.
+
 At most 256 connections are open at once (32 from one address that is not the loopback). A message from the page is at most 64 KiB (a bigger one closes the socket with 1009). A page whose socket
 holds more than 4 MiB it has not read is sent no patches and is sent the topic whole when it has read down; one that holds 32 MiB is cut off. The socket is compressed when the browser offers
 `permessage-deflate`.
