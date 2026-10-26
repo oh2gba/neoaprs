@@ -29,50 +29,46 @@ beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 
 describe("BeaconPane", () => {
-  it("opens with the form, which starts with the beacon status, and the packet it would make is in the preview", () => {
+  it("opens with the form, which starts with the beacon status", () => {
     const { wrapper } = pane();
     expect(wrapper.find(".beaconbox").exists()).toBe(false);
     expect(wrapper.find(".beaconpane").element.firstElementChild?.tagName).toBe("FORM");
     expect(block(wrapper).element.parentElement?.tagName).toBe("FORM");
     expect(block(wrapper).element.nextElementSibling?.tagName).toBe("FIELDSET");
     expect(block(wrapper).element.nextElementSibling?.querySelector("legend")?.textContent).toBe("Station");
-    expect(wrapper.find(".beacon-preview code").text()).toBe("OH2GBA>APZNEO,WIDE2-1:=6010.20N/02456.40E-NeoAPRS");
+    expect(wrapper.find(".beacon-preview").exists()).toBe(false);
   });
 
   it("asks nothing about the destination, the compressed form or the DAO: the program decides", () => {
     const { wrapper } = pane({ "status/source": "text" });
-    expect(labels(wrapper)).toEqual(["Call", "Position", "Symbol", "Beacon", "Comment", "Power", "Path", "Status", "Text", "Every"]);
+    expect(labels(wrapper)).toEqual(["Call", "Position", "Symbol", "Beacon", "Comment", "Power", "Path", "Status", "Every", "Text"]);
     for (const id of ["destination", "compressed", "dao", "symbol_table", "symbol_code"])
       expect(wrapper.find(`#set-beacon-${id}, #set-station-${id}`).exists()).toBe(false);
   });
 
-  it("shows the status report of a text of our own, with the time of the moment", async () => {
+  it("has Every directly under the Status choice, then what the source needs, and only the choice while Status is off", async () => {
     const { wrapper } = pane();
-    expect(wrapper.findAll(".beacon-preview code")).toHaveLength(1);
+    const fields = () =>
+      group(wrapper, "Status")
+        ?.findAll(".field > label")
+        .map((l) => l.text());
+    const sendRow = () => wrapper.findAll(".sendrow").length;
+    expect(fields()).toEqual(["Status"]);
+    expect(sendRow()).toBe(0);
     await wrapper.find("#set-status-source").setValue("text");
-    await wrapper.find("#set-station-status").setValue("QRV 145.500");
-    const codes = wrapper.findAll(".beacon-preview code").map((c) => c.text());
-    expect(codes).toEqual(["OH2GBA>APZNEO,WIDE2-1:=6010.20N/02456.40E-NeoAPRS", "OH2GBA>APZNEO,WIDE2-1:>211200zQRV 145.500"]);
-    await wrapper.find("#set-station-status").setValue("");
-    expect(wrapper.findAll(".beacon-preview code")).toHaveLength(1);
-  });
-
-  it("has the radio and the template under the choice of the radio, and no preview of a status a radio makes", async () => {
-    const { wrapper } = pane();
+    expect(fields()).toEqual(["Status", "Every", "Text"]);
+    expect(sendRow()).toBe(1);
     await wrapper.find("#set-status-source").setValue("rig");
+    expect(fields()).toEqual(["Status", "Every", "Rigctld", "Text"]);
     expect(wrapper.find("#set-status-rigctld").attributes("placeholder")).toBe("127.0.0.1:4532");
     expect(wrapper.find<HTMLSelectElement>("#set-status-interval_min").element.value).toBe("30");
     expect(wrapper.find("#set-status-template").attributes("placeholder")).toBe("QRV {freq} {mode}");
     expect(wrapper.find("#set-station-status").exists()).toBe(false);
-    expect(wrapper.findAll(".beacon-preview code")).toHaveLength(1);
-  });
-
-  it("says so when the values make no packet", async () => {
-    const { wrapper } = pane();
-    await wrapper.find(".location-place").trigger("click");
-    await wrapper.find("#set-station-lat").setValue("95");
-    expect(wrapper.find(".beacon-preview code").exists()).toBe(false);
-    expect(wrapper.find(".beacon-preview").text()).toContain("make no packet");
+    expect(sendRow()).toBe(1);
+    await wrapper.find("#set-status-source").setValue("off");
+    expect(fields()).toEqual(["Status"]);
+    expect(sendRow()).toBe(0);
+    expect(wrapper.find("#set-status-interval_min").exists()).toBe(false);
   });
 
   it("has the Location row, with the Choose on map button, under the choice of the position", () => {
@@ -267,9 +263,11 @@ describe("BeaconPane", () => {
       expect(disabled()).toEqual([false, false]);
     });
 
-    it("does not follow what is being chosen, only what is saved", async () => {
+    it("follows what is being chosen: it goes when Status is chosen Off and comes back with another choice", async () => {
       const { wrapper } = pane({ "status/source": "text" });
       await wrapper.find("#set-status-source").setValue("off");
+      expect(buttons(wrapper)).toHaveLength(1);
+      await wrapper.find("#set-status-source").setValue("rig");
       expect(buttons(wrapper)).toHaveLength(2);
     });
   });
@@ -411,11 +409,6 @@ describe("the beacon status of a moving station", () => {
     expect(car.find("#set-beacon-interval_min").exists()).toBe(true);
     expect(car.find("#set-beacon-power_w").exists()).toBe(false);
   });
-
-  it("makes no PHG in the preview of a moving station", () => {
-    expect(pane({ "beacon/power_w": "5" }).wrapper.find(".beacon-preview code").text()).toContain("PHG");
-    expect(pane({ "beacon/power_w": "5", "gps/source": "gpsd" }).wrapper.find(".beacon-preview code").text()).not.toContain("PHG");
-  });
 });
 
 describe("BeaconPane with the beacon Off", () => {
@@ -472,11 +465,10 @@ describe("BeaconPane with the beacon Off", () => {
     expect(block(fixed.wrapper).findAll("p")).toHaveLength(0);
   });
 
-  it("keeps the status row, the greyed Status group and the preview in view", () => {
+  it("keeps the status row and the greyed Status group in view", () => {
     const { wrapper } = off();
     expect(rows(wrapper)).toHaveLength(1);
     expect(group(wrapper, "Status")?.findAll(".field.disabled").length).toBeGreaterThanOrEqual(3);
-    expect(wrapper.find(".beacon-preview").exists()).toBe(true);
   });
 
   it("turns both buttons on again with the first interval, and they work", async () => {

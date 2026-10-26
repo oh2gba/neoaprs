@@ -1196,11 +1196,6 @@ export const de: Catalogue = {
   "beacon.really_send": "Wirklich senden?",
   "beacon.rigctld_on": "rigctld ein",
   "beacon.rigctld_off": "rigctld aus",
-  "beacon.preview": "Vorschau",
-  "beacon.preview_empty": "Vorschau: aus diesen Werten entsteht noch kein Paket",
-  "beacon.packet": "Paket",
-  "beacon.packet_label": "Die Bake, wie sie gesendet würde",
-  "beacon.status_label": "Der Status, wie er gesendet würde",
 
   "gps.label": "GPS",
   "gps.state.off": "aus",

@@ -169,34 +169,6 @@
   margin: 6px 0;
   font-weight: 600;
 }
-/* the preview of the beacon, and the place of the station (the Beacon tab, the setup guide) */
-.beacon-preview {
-  margin: 8px 0;
-  padding: 2px 8px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--muted);
-  font-size: 12px;
-}
-.beacon-preview summary {
-  cursor: pointer;
-  padding: 3px 0;
-}
-.beacon-preview-body {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding-bottom: 6px;
-}
-.beacon-preview code {
-  font-size: 12px;
-  word-break: break-all;
-  user-select: all;
-}
-.beacon-preview .problem {
-  margin: 0;
-  color: var(--warn);
-}
 /* the Location control (LocationField), the same in the Beacon tab, the Objects form and the setup guide: the label in the label column of the rows around it, in the input column the button Choose on map and, beside it on the same line, the place as text (a button that
    opens the entry); on a narrow panel the place wraps under the button and is never cut off. The entry (latitude, longitude, locator) is the row under it, in the input column. */
 .field.location-field {

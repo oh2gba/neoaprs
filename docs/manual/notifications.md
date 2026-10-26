@@ -9,7 +9,7 @@ Both alert for the same messages: a message to you, the first copy only. Not a b
 
 ## On the NeoAPRS computer
 
-When a message to you arrives and **Alert** (`messages/alert`) is on, which it is by default, NeoAPRS runs the shell line in **Command** (`messages/alert_command`, at most 1000 characters; empty runs nothing). The default on Linux is a notification and a sound:
+When a message to you arrives and **Alert** (`messages/alert`) is on, which it is by default, NeoAPRS runs the shell line in **Command** (`messages/alert_command`, at most 1000 characters; empty runs nothing). While **Alert** is off, **Command** and its Test button are hidden. The default on Linux is a notification and a sound:
 
 ```
 (notify-send -- "APRS message from $NEOAPRS_FROM" "$NEOAPRS_TEXT" 2>/dev/null || kdialog --title "APRS message from $NEOAPRS_FROM" --passivepopup "$NEOAPRS_TEXT" 10); paplay /usr/share/sounds/freedesktop/stereo/message-new-instant.oga
@@ -41,7 +41,7 @@ The answer is shown under the field until the next edit: green `ran` when it wor
 
 The command runs on the computer the daemon runs on, which is not where you are when NeoAPRS is a service on a Raspberry Pi and the page is open on a laptop or a phone. So the page alerts by itself, once for each message that arrives while the page is open, in a background tab too. What the page loaded with, and what it is told again after a reconnect, is not new.
 
-**Alert for a new message** is one choice, kept in this browser and not on the daemon, so each device decides:
+**Alert for a new message** is one choice, kept in this browser and not on the daemon, so each device decides. The rows **Sound** and **Pop-up** with their tests show only what the choice uses: both are hidden while it is off, and each of the two is hidden when the choice does not play it:
 
 | choice | what a new message does |
 |---|---|
@@ -57,7 +57,7 @@ The command runs on the computer the daemon runs on, which is not where you are 
 - Choosing one is the click that asks the browser for the permission. The page never asks by itself. When it is refused the choice goes back to **sound** and the words "pop-ups refused: sound only" stand beside it. "pop-ups not allowed yet" or "pop-ups blocked" next to the choice say that a pop-up is chosen but the permission is not there.
 - A browser lets a page make a sound only after you have clicked or pressed a key in it, so the chime is silent until then and the tab alert is all there is.
 
-Each test beside the choice works whatever the choice is and says what happened in the toast at the bottom of the page (not beside the button, so that nothing moves):
+Each test beside the choice says what happened in the toast at the bottom of the page (not beside the button, so that nothing moves):
 
 | button | what it does | what the toast says |
 |---|---|---|

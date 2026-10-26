@@ -290,9 +290,6 @@ export const SYMBOL_NAMES = {
 /** The codes `!` to `~` of the symbols of a station that moves or is carried, in the primary and in the alternate table (MOBILE_CODES of neoaprs/symbols.py): a station with one of them is recommended WIDE1-1,WIDE2-1, any other WIDE2-1. */
 export const MOBILE_SYMBOLS = {"primary": "'()*<=>CFOPRSUVXY[^abefgjkpsuv", "alternate": ">^ksuv"} as const;
 
-/** The destination call of every frame we send; the beacon's preview shows it (TOCALL of neoaprs/__init__.py). */
-export const TOCALL = "APZNEO";
-
 /** Every number the page checks a value against, by area, from the daemon's own constants (the ranges of the settings by key: RANGES of neoaprs/config.py; the comment, status and message lengths, the least interval, the calls, the objects and bulletins, the time a station stays on the map). */
 export const LIMITS = {
   range: {

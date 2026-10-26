@@ -1183,11 +1183,6 @@ export const fr: Catalogue = {
   "beacon.really_send": "Vraiment envoyer ?",
   "beacon.rigctld_on": "rigctld actif",
   "beacon.rigctld_off": "rigctld inactif",
-  "beacon.preview": "Aperçu",
-  "beacon.preview_empty": "Aperçu : ces valeurs ne font pas encore de paquet",
-  "beacon.packet": "Paquet",
-  "beacon.packet_label": "La balise telle qu'elle serait envoyée",
-  "beacon.status_label": "Le statut tel qu'il serait envoyé",
 
   "gps.label": "GPS",
   "gps.state.off": "désactivé",

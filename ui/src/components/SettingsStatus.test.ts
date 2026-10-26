@@ -38,7 +38,7 @@ describe("the Status group", () => {
   it("asks for the text and how often when the choice is a text of my own", async () => {
     const { wrapper, labels } = make();
     await wrapper.find("#set-status-source").setValue("text");
-    expect(labels()).toEqual(["Status", "Text", "Every"]);
+    expect(labels()).toEqual(["Status", "Every", "Text"]);
     expect(wrapper.find("#set-station-status").exists()).toBe(true);
     expect(wrapper.find("#set-status-rigctld").exists()).toBe(false);
     expect(wrapper.find("#set-status-template").exists()).toBe(false);
@@ -47,7 +47,7 @@ describe("the Status group", () => {
   it("asks for the rigctld, the text with {freq} and {mode}, and how often when the choice is the radio", async () => {
     const { wrapper, labels } = make();
     await wrapper.find("#set-status-source").setValue("rig");
-    expect(labels()).toEqual(["Status", "Rigctld", "Text", "Every"]);
+    expect(labels()).toEqual(["Status", "Every", "Rigctld", "Text"]);
     expect(wrapper.find("#set-status-rigctld").attributes("placeholder")).toBe("127.0.0.1:4532");
     expect(wrapper.find("#set-status-template").attributes("placeholder")).toBe("QRV {freq} {mode}");
     expect(wrapper.find("#set-station-status").exists()).toBe(false);
@@ -179,9 +179,9 @@ describe("the (i) of a field", () => {
       "Antenna direction",
       "Path",
       "Status",
+      "Every",
       "Rigctld",
       "Text",
-      "Every",
     ]);
     expect(wrapper.find(".info-text").exists()).toBe(false);
   });

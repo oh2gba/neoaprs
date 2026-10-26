@@ -12,7 +12,7 @@ describe("App: the alert of this browser", () => {
   const patch = (socket: FakeSocket, rev: number, key: string, row: object) =>
     socket.say({ type: "patch", topic: "messages", rev, ops: [{ op: "set", key, value: row }] });
 
-  it("has one Notifications group in the Settings tab: the daemon's own alert, then the choice of this browser with its two tests", async () => {
+  it("has one Notifications group in the Settings tab: the daemon's own alert, then the choice of this browser with its tests once it is not off", async () => {
     stubBrowser();
     const { wrapper } = await open();
     await tabButton(wrapper, "Settings")?.trigger("click");
@@ -21,8 +21,12 @@ describe("App: the alert of this browser", () => {
     const boxes = groups[0]?.findAll("fieldset.subbox") ?? [];
     expect(boxes.map((b) => b.find("legend").text().replace(/ i$/, ""))).toEqual(["On the NeoAPRS computer", "In this browser"]);
     expect(boxes[0]?.findAll("label").map((l) => l.text())).toEqual(["Alert", "Command"]);
-    expect(boxes[1]?.findAll("label").map((l) => l.text())).toEqual(["Alert for a new message", "Sound", "Pop-up"]);
+    expect(boxes[1]?.findAll("label").map((l) => l.text())).toEqual(["Alert for a new message"]); // (the loopback starts at off: no tests)
     expect(boxes[0]?.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(["Test"]);
+    expect(boxes[1]?.findAll("button:not(.info-toggle)")).toHaveLength(0);
+    await boxes[1]?.find("#alert-mode").setValue("both");
+    await flushPromises();
+    expect(boxes[1]?.findAll("label").map((l) => l.text())).toEqual(["Alert for a new message", "Sound", "Pop-up"]);
     expect(boxes[1]?.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(["Test sound", "Test pop-up"]);
     expect(groups[0]?.findAll("h3")).toHaveLength(0);
   });

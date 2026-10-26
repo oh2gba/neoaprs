@@ -18,11 +18,6 @@ export const beacon: Record<keyof typeof source, Message> = {
   "beacon.really_send": "Enviar mesmo?",
   "beacon.rigctld_on": "rigctld ligado",
   "beacon.rigctld_off": "rigctld desligado",
-  "beacon.preview": "Prévia",
-  "beacon.preview_empty": "Prévia: estes valores ainda não formam um pacote",
-  "beacon.packet": "Pacote",
-  "beacon.packet_label": "O beacon como seria enviado",
-  "beacon.status_label": "O status como seria enviado",
 
   "gps.label": "GPS",
   "gps.state.off": "desligado",

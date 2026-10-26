@@ -129,7 +129,7 @@ describe("the settings area in the pseudo-locale", () => {
     expect(untranslated(document.body)).toEqual([]);
   });
 
-  it("draws the Beacon tab with its folds, its status and its preview", async () => {
+  it("draws the Beacon tab with its folds and its status", async () => {
     const context = daemon({ "beacon/power_w": "5", "status/source": "rig", "beacon/interval_min": "30" });
     setLocale("en-XA");
     const wrapper = mount(BeaconPane, { global: withDaemon(context), attachTo: document.body });

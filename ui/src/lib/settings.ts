@@ -302,6 +302,11 @@ export const FIELDS: Record<string, FieldInfo> = Object.fromEntries(Object.entri
 /** The settings of the daemon's own alert, which the Notifications group shows (beside the alert of the browser, which is the page's). */
 const ALERT = ["messages/alert", "messages/alert_command"];
 
+/** Whether a setting of the daemon's own alert is shown for these values: the command (and its Test button) only while the alert is on; an alert the values do not mention is the daemon's default, on. */
+export function shownByAlert(key: string, values: Readonly<Record<string, string>>): boolean {
+  return key !== "messages/alert_command" || values["messages/alert"] !== "false";
+}
+
 /** The legend of the box that starts at a key inside its group (components/SettingsBox.vue): the daemon's own alert, which runs on the computer NeoAPRS runs on, whichever device shows the page. */
 export const SUBGROUPS: Record<string, { readonly text: string; readonly title: string; readonly tipLabel: string; readonly tip: readonly string[] }> = {
   "messages/alert": {
@@ -353,8 +358,8 @@ const SCOPE_GROUPS: Record<Scope, readonly string[]> = {
 /** The order of the TNC group on the page: the type of TNC, the port and its speed, or the host and port of a TCP one. */
 const TNC_ORDER = ["tnc/profile", "serial/port", "serial/baud", "tcp/host", "tcp/port", "serial/last_port"];
 
-/** The Status group: the choice first, then what that choice needs. */
-const STATUS_ORDER = ["status/source", "station/status", "status/rigctld", "status/template", "status/interval_min"];
+/** The Status group: the choice first, then Every (as the Beacon group has the interval with its choice), then what the chosen source needs. */
+const STATUS_ORDER = ["status/source", "status/interval_min", "station/status", "status/rigctld", "status/template"];
 /** The Beacon group: the Beacon choice (the interval of a fixed station, Off or On for a moving one), what it travels as (a moving station), what it says, then the folds (the antenna, the path). */
 const BEACON_ORDER = ["beacon/interval_min", "beacon/travel", "station/comment", ...ANTENNA, "beacon/path"];
 /** The Station group: the call, where the position comes from and what that needs (the gpsd address, or the port and speed of a serial GPS), then the place itself (only for a fixed station: with a GPS chosen the stored place is kept and not shown) and the symbol. */
@@ -466,6 +471,7 @@ export function valueFor(key: string, values: Readonly<Record<string, string>>):
 /** Whether a field of the Beacon tab is shown for the values the form holds: the Status group shows what its source needs; the position's own fields follow its choice (the address of gpsd for gpsd, the port and speed for a serial GPS; the station's place only for a fixed station, with a GPS the place stays stored and the daemon uses it until the first fix); a station that moves
  * (a GPS is chosen) has the Travelling choice, and no antenna, which is a fixed station's (the antenna's height, gain and direction come once there is a power: they only make the PHG code with it); the Beacon choice is shown to both, with other choices (an interval, or Off and On). */
 export function shownByValues(key: string, values: Readonly<Record<string, string>>): boolean {
+  if (!shownByAlert(key, values)) return false;
   if (key.startsWith("status/") || key === "station/status") return statusShown(key, statusSource(values));
   if (ANTENNA.includes(key)) return !isMoving(values) && (key === "beacon/power_w" || (values["beacon/power_w"] ?? "").trim() !== "");
   if (key === "station/lat" || key === "station/lon") return !isMoving(values);

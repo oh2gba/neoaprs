@@ -139,6 +139,7 @@ describe("the browser's part of the Notifications group", () => {
     await flushPromises();
     expect(say).toHaveBeenCalledExactlyOnceWith("pop-up blocked");
     stubBrowser({ secure: false });
+    localStorage.setItem("NeoAPRS.alert.mode", "both");
     const insecure = make();
     await insecure.wrapper.find("#alert-test-popup").trigger("click");
     await flushPromises();
@@ -174,6 +175,7 @@ describe("the browser's part of the Notifications group", () => {
 
   it("says in plain words after Test pop-up that they are off for this address, and offers the same link", async () => {
     stubBrowser({ secure: false });
+    localStorage.setItem("NeoAPRS.alert.mode", "both");
     const { wrapper, say } = make();
     expect(wrapper.find("#alert-test-popup ~ .linkbtn").exists()).toBe(false);
     await wrapper.find("#alert-test-popup").trigger("click");
@@ -185,9 +187,24 @@ describe("the browser's part of the Notifications group", () => {
     expect(wrapper.find(".popuphelp").exists()).toBe(true);
   });
 
-  it("has its tests enabled whatever the choice is", async () => {
+  it("shows no test while the choice is off, the sound's alone for sound, the pop-up's alone for pop-up only, and both otherwise", async () => {
     const { wrapper } = make();
+    const rows = () => wrapper.findAll("label").map((l) => l.text());
+    expect(rows()).toEqual(["Alert for a new message", "Sound", "Pop-up"]);
     await wrapper.find("#alert-mode").setValue("off");
+    expect(rows()).toEqual(["Alert for a new message"]);
+    expect(wrapper.findAll("button")).toHaveLength(0);
+    expect(wrapper.find("fieldset.subbox > legend").text()).toBe("In this browser");
+    await wrapper.find("#alert-mode").setValue("sound");
+    expect(rows()).toEqual(["Alert for a new message", "Sound"]);
+    expect(wrapper.findAll("button").map((b) => b.text())).toEqual(["Test sound"]);
+    await wrapper.find("#alert-mode").setValue("popup");
+    await flushPromises();
+    expect(rows()).toEqual(["Alert for a new message", "Pop-up"]);
+    expect(wrapper.findAll("button").map((b) => b.text())).toEqual(["Test pop-up"]);
+    await wrapper.find("#alert-mode").setValue("both");
+    await flushPromises();
+    expect(rows()).toEqual(["Alert for a new message", "Sound", "Pop-up"]);
     expect(wrapper.findAll("button").map((b) => b.attributes("disabled"))).toEqual([undefined, undefined]);
   });
 });
