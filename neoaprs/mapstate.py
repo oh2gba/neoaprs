@@ -48,4 +48,5 @@ class MapStatus:
     maxzoom: int
     box: Box | None                             # the box the settings make round our position
     detail: MapFile | None
-    world: MapFile | None
+    world: MapFile | None                       # the data folder's own, else the one that ships with the program
+    later: bool = False                         # the detailed map was begun without being asked for and could not be fetched yet: it is tried again at the next start

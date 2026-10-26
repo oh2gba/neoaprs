@@ -1,7 +1,8 @@
 <script setup lang="ts">
 // The map: the base map the daemon serves (no request leaves the machine), a marker with the APRS symbol and the call for every station that has a position, and a line for the track of
 // every station that has more than one; a mouse resting on a marker shows a small card with the station's main facts (lib/hovercard.ts), and the selected station has the route its packets come by drawn
-// to our own station (lib/routeline.ts). A marker dims and a track fades on the way to the station's timeout, and a station heard direct within the hour has a ring round its marker; a station past it is not drawn (unless it is the selected one, whose marker shows). Without the base map files the background is blank and a line says so, with a button that takes the user to where the map is made, and the stations are drawn all the same;
+// to our own station (lib/routeline.ts). A marker dims and a track fades on the way to the station's timeout, and a station heard direct within the hour has a ring round its marker; a station past it is not drawn (unless it is the selected one, whose marker shows). The daemon always has a world map (the one that ships with the program), so the map is drawn from the first second; without any base map file, or when the files cannot be read, the background is blank and a line says so (over the first-run guide too: it is
+// the note's own layer, above the guide), and the stations are drawn all the same. With only the world map a line says there is no detailed map, with a button that takes the user to where it is made (not while the first-run guide is open, which makes it itself, or a download runs);
 // when the daemon makes the files again (`filesKey` changes) the style is set again. One map for the life of the page,
 // opened where we are (zoom 9; on the world while we have no position) or where it was left; the colour scheme follows the system. While the first-run guide asks for the position (`picking`) a click on the map is a place (`pick`), and the place the guide
 // holds (`pin`) has a marker, which the map flies to when it was typed and not clicked. An object or an item of ours (`own`) has a marker that can be dragged: where it is dropped is its new place (`move`).
@@ -10,7 +11,6 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { GeoJSONSource, Map as MapLibreMap, Marker } from "maplibre-gl";
 import { t } from "@/i18n";
-import type { MessageId } from "@/i18n/catalogue";
 import MapAttribution from "@/components/MapAttribution.vue";
 import { archiveUrl, archivesPresent, glyphsUrl, loadMapEngine } from "@/lib/basemap";
 import { BASEMAP_FILE, WORLD_FILE, basemapStyle, MAX_ZOOM, OPEN_ZOOM, type Archives } from "@/lib/basemapstyle";
@@ -20,6 +20,7 @@ import { useMapControlLabels } from "@/composables/useMapControlLabels";
 import { useClearOfCard } from "@/composables/useClearOfCard";
 import { useFollowMe } from "@/composables/useFollowMe";
 import { useMapFollow } from "@/composables/useMapFollow";
+import { useMapNote } from "@/composables/useMapNote";
 import { useResized } from "@/composables/useResized";
 import { buildMarkerDom, paintMarker } from "@/lib/markerdom";
 import { readView, writeView, type Focus, type Home, type Placed } from "@/lib/mapview";
@@ -65,12 +66,13 @@ const circles = useMapCircles(() => map, host, selectedCall);
 const labelControls = useMapControlLabels(host);
 useResized(host, () => map?.resize());
 const { following, canFollow, followAt, release } = useFollowMe(page.gps);
-const note = ref<MessageId | "">(""); // what stands over the map when there is no base map (or no map engine): the id of its message
-const offerDownload = ref(false); // ... and whether it has the button that goes to where the map is made
+const { files, engineFailed, unreadable, note, offerDownload, onMapError } = useMapNote(
+  () => page.guide.open,
+  () => page.map.value,
+);
 const placed = new Map<string, Placed>();
 let map: MapLibreMap | null = null;
 let engine: Awaited<ReturnType<typeof loadMapEngine>> | null = null;
-let hasFiles = { detail: false, world: false }; // which of the two files the daemon has
 let generation = 0; // counts the times the files were made again: the addresses carry it, so that the reader of the archives starts afresh
 let seenKey: string | null = mapFiles.value;
 let shown = ""; // the addresses the style on the map was made with
@@ -86,24 +88,19 @@ const markerPick = ref<Focus | null>(null); // the marker clicked last: the map 
 const minute = computed(() => Math.floor(page.now.value / 60_000));
 
 const archives = (): Archives => ({
-  detail: hasFiles.detail ? archiveUrl(BASEMAP_FILE, generation > 0 ? String(generation) : "") : null,
-  world: hasFiles.world ? archiveUrl(WORLD_FILE, generation > 0 ? String(generation) : "") : null,
+  detail: files.value.detail ? archiveUrl(BASEMAP_FILE, generation > 0 ? String(generation) : "") : null,
+  world: files.value.world ? archiveUrl(WORLD_FILE, generation > 0 ? String(generation) : "") : null,
 });
 const styleFor = (dark: boolean) => basemapStyle(archives(), dark, glyphsUrl());
 
-function noteBasemap(): void {
-  note.value = hasFiles.detail ? "" : hasFiles.world ? "map.note.no_detail" : "map.note.no_basemap";
-  offerDownload.value = !hasFiles.detail;
-}
-
 /** The daemon has other files: ask which it has, and set the style again if the addresses are other ones. */
 async function refreshBasemap(): Promise<void> {
-  hasFiles = await archivesPresent();
+  files.value = await archivesPresent();
   if (gone || !map) return;
-  noteBasemap();
   const now = JSON.stringify(archives());
   if (now === shown) return;
   shown = now;
+  unreadable.value = [];
   map.setStyle(styleFor(page.dark.value));
 }
 
@@ -203,12 +200,10 @@ function showLabels(): void {
 }
 
 async function create(): Promise<void> {
-  hasFiles = await archivesPresent();
-  noteBasemap();
+  files.value = await archivesPresent();
   engine = await loadMapEngine().catch(() => null);
   if (!engine) {
-    note.value = "map.note.no_engine";
-    offerDownload.value = false;
+    engineFailed.value = true;
     return;
   }
   if (gone || !host.value) return;
@@ -229,8 +224,7 @@ async function create(): Promise<void> {
       attributionControl: false, // the page draws its own: a small (i), closed until clicked
     });
   } catch {
-    note.value = "map.note.no_engine"; // a browser without WebGL
-    offerDownload.value = false;
+    engineFailed.value = true; // a browser without WebGL
     return;
   }
   map.touchZoomRotate.disableRotation();
@@ -241,6 +235,7 @@ async function create(): Promise<void> {
   map.on("movestart", () => hover?.hide());
   map.on("dragstart", release); // (a drag by the person; the map's own easing is none)
   map.on("click", onClick);
+  map.on("error", onMapError);
   map.on("zoom", showLabels);
   map.on("moveend", () => {
     if (!map) return;
@@ -322,17 +317,18 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
+  <!-- the note is beside the map and not in it: the map is a layer of its own, under the first-run guide, and the note is above the guide -->
   <div ref="root" class="stationmap">
     <div ref="host" class="mapbox" :class="{ 'map-picking': props.picking }" role="application" :aria-label="t('map.label')"></div>
-    <div v-if="note" class="mapnote" role="status">
-      <div class="mapnote-box">
-        <span>{{ t(note) }}</span>
-        <button v-if="offerDownload" class="btn" type="button" @click="emit('download')">{{ t("map.download") }}</button>
-      </div>
-    </div>
     <button v-if="canFollow" class="btn followme" :class="{ primary: following }" type="button" :aria-pressed="following" @click="following = !following">
       {{ t("map.follow_me") }}
     </button>
     <MapAttribution />
+  </div>
+  <div v-if="note" class="mapnote" role="status">
+    <div class="mapnote-box">
+      <span>{{ t(note) }}</span>
+      <button v-if="offerDownload" class="btn" type="button" @click="emit('download')">{{ t("map.download") }}</button>
+    </div>
   </div>
 </template>

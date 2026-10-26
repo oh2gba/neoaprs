@@ -85,6 +85,17 @@ describe("basemapStyle", () => {
     expect(JSON.stringify(city?.type === "symbol" ? city.layout?.["text-field"] : null)).toContain("name:fi");
   });
 
+  it("is drawn from the world map alone with its borders, coastlines (water) and the names of countries from zoom 1 and of big cities from zoom 3", () => {
+    const style = basemapStyle({ detail: null, world: WORLD }, false, GLYPHS);
+    const world = layers(style);
+    const by = (id: string) => world.find((l) => l.id === `world-${id}`);
+    expect(by("water")).toBeDefined();
+    expect(by("boundary-country")).toBeDefined();
+    expect(by("place-country")).toMatchObject({ minzoom: 1, filter: ["==", ["get", "kind"], "country"] });
+    expect(by("place-city")).toMatchObject({ minzoom: 3 });
+    expect(Object.keys(style.sources)).toEqual(["world"]);
+  });
+
   it("is dark in the dark scheme: a darker sea, land and text of another colour", () => {
     const light = basemapStyle(DETAIL_ONLY, false, GLYPHS);
     const dark = basemapStyle(DETAIL_ONLY, true, GLYPHS);

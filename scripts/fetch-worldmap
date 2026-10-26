@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Makes the world map that ships with NeoAPRS: the whole world to zoom 4 (about 6 MB, countries, coastlines, the big cities' names) cut out of a Protomaps daily build with the pinned pmtiles tool, into neoaprs/maps/
+# as basemap-world.pmtiles with basemap-world.json beside it (the build it came from). A thin wrapper for a clone that calls `neoaprs map --world` of its venv (neoaprs/cli/worldcmd.py). Run it to refresh the map and commit
+# the two files; the package, the Windows installer, the AppImage and the .deb carry them (docs/development.md, "The world map"). Data: © OpenStreetMap contributors (ODbL), Protomaps.
+#   scripts/fetch-worldmap [--build YYYYMMDD | --source SRC] [--zoom Z] [--out DIR] [--data DIR]    --build is a daily build of build.protomaps.com (default: the latest); DIR is where the pmtiles tool is kept in bin/ (default ./data)
+case "${1:-}" in -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;; esac
+set -euo pipefail
+cd "$(dirname "$0")/.."
+PYTHON="${NEOAPRS_PYTHON:-}"
+[ -n "$PYTHON" ] || { PYTHON=.venv/bin/python; [ -x "$PYTHON" ] || PYTHON=python3; }
+case " $* " in *" --data "*) exec "$PYTHON" -m neoaprs map --world "$@" ;; *) exec "$PYTHON" -m neoaprs map --world --data data "$@" ;; esac

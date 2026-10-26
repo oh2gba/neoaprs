@@ -38,7 +38,7 @@ else:
 # Everything the tests are built from is in tests/support. A fixture is found by pytest where this file imports it.
 from tests.support.clock import FixedClock  # noqa: E402, F401
 from tests.support.files import FIXTURES, fixture_bytes, fixture_text  # noqa: E402, F401
-from tests.support.fixtures import clock, protocol_violations, search_pattern_from_settings, tmp_data  # noqa: E402, F401
+from tests.support.fixtures import clock, no_shipped_world, protocol_violations, search_pattern_from_settings, tmp_data  # noqa: E402, F401
 from tests.support import guards, markers  # noqa: E402
 from tests.support.guards import isolated_machine, logging_restored, no_leaked_db_threads, no_leaked_tasks, no_unexpected_errors  # noqa: E402, F401
 from tests.support.ptyline import ptys  # noqa: E402, F401

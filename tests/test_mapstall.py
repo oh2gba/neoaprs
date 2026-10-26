@@ -8,7 +8,7 @@ import pytest
 from neoaprs.services.mapfetch import DETAIL, SLOW, WORLD, MapFetch, Patience
 from tests.support.clock import FixedClock
 from tests.support.env import ON_AIR, remember_stop, until
-from tests.support.maprig import MapRig
+from tests.support.maprig import MapRig, own_world
 from tests.support.fakepmtiles import FakePmtiles, alive, install_fake
 
 FAST = Patience(stall_sec=0.4, tries=3, pause_sec=0.05, poll_sec=0.05)
@@ -85,7 +85,7 @@ async def test_the_size_of_the_part_file_is_told_with_the_percent(rig: Rig) -> N
 
 
 async def test_a_download_that_moves_only_in_the_size_of_its_file_is_not_a_stall(rig: Rig) -> None:
-    rig.service = MapFetch(rig.data, lambda: replace(ON_AIR, map_source="https://build.example/20261020.pmtiles"), FixedClock(), patience=Patience(0.5, 1, 0.05, 0.05))
+    rig.service = MapFetch(rig.data, lambda: replace(ON_AIR, map_source="https://build.example/20261020.pmtiles"), FixedClock(), patience=Patience(0.5, 1, 0.05, 0.05), world=own_world)
     remember_stop(rig.service.stop)
     rig.fake.mode("grow")
     await rig.service.fetch()                       # (1.2 s of a bar that stays at 10% while the file grows, with a patience of 0.5 s and no second try)
@@ -93,7 +93,7 @@ async def test_a_download_that_moves_only_in_the_size_of_its_file_is_not_a_stall
 
 
 async def test_a_cancel_while_the_job_waits_to_try_again_keeps_the_map_and_removes_the_part(rig: Rig) -> None:
-    rig.service = MapFetch(rig.data, lambda: replace(ON_AIR, map_source="https://build.example/20261020.pmtiles"), FixedClock(), patience=Patience(0.3, 3, 30.0, 0.05))
+    rig.service = MapFetch(rig.data, lambda: replace(ON_AIR, map_source="https://build.example/20261020.pmtiles"), FixedClock(), patience=Patience(0.3, 3, 30.0, 0.05), world=own_world)
     remember_stop(rig.service.stop)
     rig.old_map()
     rig.fake.mode("slow")

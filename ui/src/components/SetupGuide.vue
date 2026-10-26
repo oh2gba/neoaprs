@@ -2,7 +2,7 @@
 // The first-run guide: a compact panel over the map with five steps (Call, Position, Symbol, Radio, Map), a step indicator that goes back to any step and forward to the next one that can be reached, Back, and Next (Finish on the last).
 // It opens by itself when the daemon has no call, and again from the Setup button of the Settings tab and from "no call set" in the header; Escape and the cross close it, and what was typed is still there when it is opened again.
 // The state is `useSetupGuide`'s; this is the frame, and a step is a component of its own. On a narrow page "On the map" folds the panel to its head so that the map can be clicked.
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import IconButton from "@/components/IconButton.vue";
 import SetupCall from "@/components/SetupCall.vue";
 import SetupMap from "@/components/SetupMap.vue";
@@ -11,9 +11,12 @@ import SetupRadio from "@/components/SetupRadio.vue";
 import SetupSymbol from "@/components/SetupSymbol.vue";
 import { t } from "@/i18n";
 import { useDaemonContext } from "@/composables/useDaemonContext";
+import { setupMapLine } from "@/lib/mapfetch";
 import { LAST_STEP, STEP_COUNT, stepTitle } from "@/lib/setup";
 
-const { guide } = useDaemonContext();
+const { guide, map } = useDaemonContext();
+/** What the guide says quietly of the map (it is made without a click once the Position step has a place), above the buttons. */
+const mapLine = computed(() => setupMapLine(map.value, guide.step === LAST_STEP));
 const root = ref<HTMLElement | null>(null);
 
 function onKey(event: KeyboardEvent): void {
@@ -66,6 +69,7 @@ watch(
         <SetupRadio v-else-if="guide.step === 3" />
         <SetupMap v-else />
       </div>
+      <p v-if="mapLine" class="setup-mapline muted" role="status">{{ t(mapLine) }}</p>
       <footer class="setup-foot">
         <button v-if="guide.step > 0" type="button" class="btn" @click="guide.back()">{{ t("setup.back") }}</button>
         <button type="submit" class="btn primary" :disabled="!guide.valid[guide.step] || guide.saving">

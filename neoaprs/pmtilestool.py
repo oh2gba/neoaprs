@@ -24,7 +24,10 @@ import urllib.request
 import zipfile
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from pathlib import Path, PurePosixPath
+
+from neoaprs.mapstate import MapError
 
 VERSION = "1.31.2"
 RELEASE_URL = f"https://github.com/protomaps/go-pmtiles/releases/download/v{VERSION}"
@@ -35,6 +38,8 @@ MAX_TOOL = 300_000_000                      # the biggest program taken out of o
 HEADER_LENGTH = 127                         # the header of a PMTiles archive, version 3
 REPLACE_TRIES = 8
 DOWNLOAD_THREADS = 8                        # parallel requests of `extract` (the tool's own default is 4)
+BUILDS = "https://build.protomaps.com"
+BUILD_DAYS = 8                              # today's build and the seven before it: a day's build is not always published yet
 
 
 class ToolError(Exception):
@@ -345,3 +350,13 @@ def url_exists(url: str) -> bool:
             return bool(200 <= response.status < 300)
     except (OSError, ValueError):
         return False
+
+
+async def latest_build(now: datetime, probe: Callable[[str], bool] = url_exists) -> tuple[str, str]:
+    """The newest daily build of build.protomaps.com (its address and its day), looking back a week from today; MapError if there is none."""
+    for back in range(BUILD_DAYS):
+        day = (now - timedelta(days=back)).strftime("%Y%m%d")
+        url = f"{BUILDS}/{day}.pmtiles"
+        if await asyncio.to_thread(probe, url):
+            return url, day
+    raise MapError(f"no daily build was found at {BUILDS} in the last {BUILD_DAYS} days (is there a connection?)")

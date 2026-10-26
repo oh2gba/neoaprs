@@ -68,7 +68,7 @@ async def show_settings(store: Any, only: str | None) -> int:
     for key in defaults:
         print(f"{key:<{width}}  {shown[key]:<18}  {'stored' if key in rows else 'default'}")
     for key in sorted(set(rows) - set(defaults)):
-        print(f"{key:<{width}}  {rows[key]:<18}  {'kept by the daemon (when it last sent), not a setting' if key in STATE_KEYS else 'stored, not a setting of this NeoAPRS'}")
+        print(f"{key:<{width}}  {rows[key]:<18}  {'kept by the daemon (when it last sent, how the map stands), not a setting' if key in STATE_KEYS else 'stored, not a setting of this NeoAPRS'}")
     return 0
 
 

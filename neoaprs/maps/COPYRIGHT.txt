@@ -1,0 +1,5 @@
+basemap-world.pmtiles: the world to zoom 4, a cut of the daily build named in basemap-world.json of the Protomaps basemap (https://protomaps.com/), which is made from OpenStreetMap and Natural Earth data.
+
+Map data (c) OpenStreetMap contributors, available under the Open Database Licence 1.0 (https://www.openstreetmap.org/copyright). Natural Earth data is in the public domain.
+The tiles are cut by the pmtiles program of go-pmtiles (BSD-3-Clause, https://github.com/protomaps/go-pmtiles); the Protomaps basemap tile schema and builds are by Protomaps.
+The page shows "(c) OpenStreetMap contributors, Protomaps" under the (i) on the map.

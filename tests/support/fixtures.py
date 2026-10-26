@@ -35,3 +35,9 @@ def search_pattern_from_settings(monkeypatch: pytest.MonkeyPatch) -> None:
     """The test is about the pattern of the settings (serial/pattern and the default): NEOAPRS_SERIAL_PATTERN, which tests/conftest.py sets for every test, is cleared. The test must not let a search that this
     pattern reaches open a real device: it names a folder of its own, or never starts one."""
     monkeypatch.delenv("NEOAPRS_SERIAL_PATTERN")
+
+
+@pytest.fixture
+def no_shipped_world(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The program has no world map of its own (a clone without the file): for the tests of the job that makes it. Name it in `pytestmark = pytest.mark.usefixtures("no_shipped_world")`."""
+    monkeypatch.setattr("neoaprs.worldmap.search_folders", lambda *args, **kwargs: [])

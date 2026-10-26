@@ -11,6 +11,7 @@ from tests.support.wsclient import WsClient
 
 
 SOURCE = "https://build.example/20261020.pmtiles"
+pytestmark = pytest.mark.usefixtures("no_shipped_world")
 
 
 async def daemon(tmp_path: Path, mode: str = "ok", operator: bool = True) -> tuple[Env, WsClient]:

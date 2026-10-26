@@ -514,6 +514,7 @@ export const de: Catalogue = {
   "map.note.no_basemap": "Keine Basiskarte",
   "map.note.no_detail": "Keine Detailkarte",
   "map.note.no_engine": "Die Karte konnte nicht geladen werden",
+  "map.note.unreadable": "Die Kartendatei kann nicht gelesen werden",
   "map.follow_me": "Meiner Position folgen",
   "map.aloha": "ALOHA-Kreis: {km} km",
 
@@ -1254,6 +1255,9 @@ export const de: Catalogue = {
   "setup.symbol.weather_station": "Wetterstation",
   "setup.symbol.portable": "Portabel",
   "setup.symbol.antenna": "Antenne",
+
+  "setup.map_auto": "Die Karte deines Gebiets wird heruntergeladen…",
+  "setup.map_later": "Die Detailkarte wird heruntergeladen, sobald du online bist.",
 
   "setup.beacon_every": "Bake alle {minutes} min",
   "setup.beacon_tip_label": "Über die Bake",

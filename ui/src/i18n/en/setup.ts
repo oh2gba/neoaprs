@@ -30,6 +30,9 @@ export const setup = {
   "setup.symbol.portable": "Portable",
   "setup.symbol.antenna": "Antenna",
 
+  "setup.map_auto": "Downloading the map of your area…",
+  "setup.map_later": "The detailed map will download when you are online.",
+
   "setup.beacon_every": "Beacon every {minutes} min",
   "setup.beacon_tip_label": "About the beacon",
   "setup.beacon_tip1": "NeoAPRS sends your position at this interval, so that other stations see you on their map.",

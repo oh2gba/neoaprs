@@ -130,7 +130,7 @@ async def quick_start(tmp_path: Path, *, beacon: bool = False, messaging: bool =
 
 
 class Env:
-    def __init__(self, tmp_path: Path, clock: Clock | None = None, radio: bool | str = True, ports: Path | None = None, web: bool = False, operator: bool = True, settings: dict[str, str] | None = None, **tnc_options: Any) -> None:
+    def __init__(self, tmp_path: Path, clock: Clock | None = None, radio: bool | str = True, ports: Path | None = None, web: bool = False, operator: bool = True, settings: dict[str, str] | None = None, auto_map: bool = False, **tnc_options: Any) -> None:
         self.dir = tmp_path
         self.settings = {**OPERATOR, **(settings or {})}          # the rows of the operator's data folder at the first start: a test about the keep-alive turns it on with `check_sec`
         self.operator = operator
@@ -154,7 +154,7 @@ class Env:
             self.link = self.radio.url
         self.server: WebServer | None = None                 # the page's server, once the Controller made it
         self.pages: list[WsClient] = []                       # the tabs `ws()` opened: closed when the test is over
-        self.ctl = Controller(tmp_path, clock=self.now, tnc=self.tnc, port=self.link, pattern=self.tnc.pattern, web=self._page if web else None, check_sec=check_sec)
+        self.ctl = Controller(tmp_path, clock=self.now, tnc=self.tnc, port=self.link, pattern=self.tnc.pattern, web=self._page if web else None, check_sec=check_sec, auto_map=auto_map)
 
     def _page(self, ctl: Controller, config: Config) -> WebServer:
         self.server = WebServer(ctl, replace(config, web_port=0))         # a free port: the tests run side by side

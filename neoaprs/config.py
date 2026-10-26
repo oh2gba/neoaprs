@@ -143,7 +143,8 @@ KEYS = tuple(s.key for s in SETTINGS)
 BEACON_SENT = "beacon/last_sent_at"          # the rows the beacon and the status report keep to survive a restart (services/memory.py): state of the daemon, not settings, so not in SETTINGS
 STATUS_SENT = "status/last_sent_at"
 STATUS_TEXT = "status/last_text"
-STATE_KEYS = (BEACON_SENT, STATUS_SENT, STATUS_TEXT)
+MAP_AUTO = "map/auto"                        # where the detailed map made without a click stands: wanted (begun, not finished), or done (never again; services/mapauto.py)
+STATE_KEYS = (BEACON_SENT, STATUS_SENT, STATUS_TEXT, MAP_AUTO)
 
 
 @dataclass(frozen=True)

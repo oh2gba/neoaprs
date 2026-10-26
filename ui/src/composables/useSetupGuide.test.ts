@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import { nextTick, ref } from "vue";
 import type { Toast } from "@/composables/useDaemon";
 import { useSetupGuide } from "@/composables/useSetupGuide";
-import type { Command, ConfigValues, PortsMessage } from "@/protocol/protocol";
-import { configValues, toastOf } from "@/test/fixtures";
+import type { Command, ConfigValues, MapState, PortsMessage } from "@/protocol/protocol";
+import { configValues, mapFile, mapState, toastOf } from "@/test/fixtures";
 
 const fresh = (extra: Record<string, string> = {}) =>
   configValues({ "beacon/interval_min": "0", "station/call": "", "station/lat": "", "station/lon": "", "serial/baud": "", "serial/port": "", ...extra });
@@ -14,13 +14,13 @@ const ports = (extra: Partial<PortsMessage> = {}): PortsMessage => ({
   ...extra,
 });
 
-function setUp(initial: ConfigValues | null = fresh()) {
+function setUp(initial: ConfigValues | null = fresh(), map: MapState | null = null) {
   const config = ref<ConfigValues | null>(initial);
   const lastError = ref<Toast | null>(null);
   const portList = ref<PortsMessage | null>(null);
   const sent: Command[] = [];
   const send = vi.fn((command: Command) => (sent.push(command), true));
-  const guide = useSetupGuide(config, lastError, portList, send);
+  const guide = useSetupGuide(config, lastError, portList, send, ref(map));
   /** The daemon tells the settings again, as it does after a save. */
   const told = async (extra: Record<string, string> = {}) => {
     const now = config.value ?? fresh();
@@ -444,5 +444,61 @@ describe("useSetupGuide: the daemon's settings", () => {
     guide.edit("call", "oh2abc");
     await told({ "station/lat": "61" });
     expect(guide.fields.call).toBe("oh2abc");
+  });
+});
+
+describe("useSetupGuide: the place goes to the daemon as the Position step is left", () => {
+  it("is sent on its own, with nothing else, so that the daemon makes the map round it; the other answers wait for Finish", async () => {
+    const { guide, sent, fill } = setUp(fresh(), mapState());
+    fill();
+    guide.next();
+    await nextTick();
+    expect(guide.step).toBe(1);
+    expect(setConfigs(sent)).toEqual([]);
+    guide.next();
+    await nextTick();
+    expect(guide.step).toBe(2);
+    expect(setConfigs(sent)).toEqual([{ cmd: "set_config", values: { "station/lat": "60.17", "station/lon": "24.94" } }]);
+    expect(guide.saving).toBe(false); // (it is not a save of the guide: Finish and the Map step's buttons are not held up)
+  });
+
+  it("is not sent again when the daemon has the place already, and not when the daemon has a detailed map", async () => {
+    const { guide, sent, fill, told } = setUp(fresh(), mapState());
+    fill();
+    guide.next();
+    await nextTick();
+    guide.next();
+    await nextTick();
+    await told({ "station/lat": "60.17", "station/lon": "24.94" });
+    guide.back();
+    guide.next();
+    await nextTick();
+    expect(setConfigs(sent)).toHaveLength(1);
+    const later = setUp(fresh(), mapState({ detail: mapFile() }));
+    later.fill();
+    later.guide.next();
+    await nextTick();
+    later.guide.next();
+    await nextTick();
+    expect(setConfigs(later.sent)).toEqual([]);
+  });
+
+  it("is not sent before the daemon has told its map, nor with a place that is not whole", async () => {
+    const quiet = setUp(fresh(), null);
+    quiet.fill();
+    quiet.guide.next();
+    await nextTick();
+    quiet.guide.next();
+    await nextTick();
+    expect(setConfigs(quiet.sent)).toEqual([]);
+    const half = setUp(fresh(), mapState());
+    half.guide.edit("call", "oh2abc");
+    half.guide.edit("lat", "60.17");
+    half.guide.next();
+    await nextTick();
+    half.guide.next();
+    await nextTick();
+    expect(half.guide.step).toBe(1);
+    expect(setConfigs(half.sent)).toEqual([]);
   });
 });

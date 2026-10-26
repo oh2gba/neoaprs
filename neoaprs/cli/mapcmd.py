@@ -1,7 +1,11 @@
 """`neoaprs map [--radius KM] [--maxzoom Z] [--source SRC] [--lat DEG --lon DEG] [--dry-run] [--data DIR]`: the base map's command line (neoaprs/services/mapcli.py) under the main command. It does what
-the page's Estimate and Download buttons do. This module is the one place of the commands that builds the map's service, which is why `neoaprs.cli.mapcmd` is among the builders in tests/test_architecture.py."""
+the page's Estimate and Download buttons do. This module is the one place of the commands that builds the map's service, which is why `neoaprs.cli.mapcmd` is among the builders in tests/test_architecture.py.
+`neoaprs map --world ...` makes the world map that ships with the program instead (neoaprs/cli/worldcmd.py)."""
 from neoaprs.services.mapcli import main as map_main
 
 
 def main(argv: list[str]) -> int:
+    if argv[:1] == ["--world"]:
+        from .worldcmd import main as world_main
+        return world_main(argv[1:])
     return map_main(argv, prog="neoaprs map")

@@ -124,6 +124,8 @@ jobs:
         run: ../../build-venv/Scripts/pyinstaller.exe --noconfirm --distpath ../../dist --workpath ../../build neoaprs.spec
       - name: The pinned pmtiles.exe, checked against its SHA-256, into bin/
         run: build-venv/Scripts/python.exe packaging/windows/bundle_pmtiles.py dist/NeoAPRS
+      - name: The world map is in the frozen app (the page has a map from the first start; scripts/smoke.py then asks the daemon for it)
+        run: test -f dist/NeoAPRS/_internal/neoaprs/maps/basemap-world.pmtiles
       - name: Smoke test of the app folder
         run: |
           dist/NeoAPRS/neoaprs.exe --version
@@ -153,7 +155,7 @@ jobs:
           $p.WaitForExit()
           if ($p.ExitCode -ne 0) { Get-Content install.log -Tail 40; throw "setup ended with $($p.ExitCode)" }
           $app = "$env:LOCALAPPDATA\Programs\NeoAPRS"
-          foreach ($f in 'neoaprs.exe', 'neoaprsw.exe', 'neoaprs-app.exe', 'bin\pmtiles.exe', 'LICENSE.txt', 'unins000.exe') { if (-not (Test-Path "$app\$f")) { throw "$f is not in $app" } }
+          foreach ($f in 'neoaprs.exe', 'neoaprsw.exe', 'neoaprs-app.exe', 'bin\pmtiles.exe', '_internal\neoaprs\maps\basemap-world.pmtiles', 'LICENSE.txt', 'unins000.exe') { if (-not (Test-Path "$app\$f")) { throw "$f is not in $app" } }
           foreach ($l in 'NeoAPRS', 'Stop NeoAPRS', 'NeoAPRS support logs') { if (-not (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\NeoAPRS\$l.lnk")) { throw "no Start menu entry $l" } }
           # the task: start at sign-in is the app in the tray (the app starts the daemon), not the daemon
           $run = (Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run').NeoAPRS

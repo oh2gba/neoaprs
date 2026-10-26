@@ -5,7 +5,7 @@ import type { useSetupAnswers } from "@/composables/useSetupAnswers";
 import type { Toast } from "@/composables/useDaemon";
 import { reasonOf } from "@/lib/settings";
 import { KEY_OF, STEP_OF } from "@/lib/setup";
-import type { Command, ConfigValues } from "@/protocol/protocol";
+import type { Command, ConfigValues, MapState } from "@/protocol/protocol";
 
 export function useSetupSave(
   answers: ReturnType<typeof useSetupAnswers>,
@@ -14,6 +14,7 @@ export function useSetupSave(
   send: (command: Command) => boolean,
   step: Ref<number>,
   done: () => void,
+  map: Ref<MapState | null>,
 ) {
   const saving = ref(false);
   let finishing = false;
@@ -43,6 +44,13 @@ export function useSetupSave(
     pending = command;
     return save(false);
   }
+
+  /** Going on from the Position step: its place is saved on its own when the answers change it, and the daemon has told its map and has no detailed one (the daemon makes the map round the place at once). */
+  watch(step, (now, before) => {
+    if (before !== STEP_OF.lat || now <= before || map.value === null || map.value.detail !== null) return;
+    const values = Object.fromEntries(Object.entries(answers.changes.value).filter(([key]) => key === "station/lat" || key === "station/lon"));
+    if (Object.keys(values).length > 0) send({ cmd: "set_config", values });
+  });
 
   watch(
     config,

@@ -2,11 +2,14 @@
 files handler of Tornado does the byte ranges. A path that does not exist is a 404 with a line of text."""
 import logging
 import os
+from collections.abc import Callable
 from pathlib import Path, PurePath
 from typing import Any, Protocol
 
 import tornado.httputil
 import tornado.web
+
+from neoaprs.worldmap import WORLD_FILE
 
 from .headers import host_name, security_headers
 
@@ -140,9 +143,14 @@ class Page(Secured, tornado.web.StaticFileHandler):
 
 
 class Basemap(Page):
-    """data/basemap.pmtiles (the detailed map) and data/basemap-world.pmtiles (the world under it), OpenStreetMap extracts made by the daemon (neoaprs/services/mapfetch.py): the route names the two files, so
-    nothing else of the data folder is reachable. A file that is not there is a 404 with a line that says what to do. A PMTiles reader asks for pieces of the file, which is what the handler's byte ranges are for; it is an octet stream, which Tornado does not
-    compress, so a range is a range of the file. It is behind the login: the page's files are free, the map is data."""
+    """data/basemap.pmtiles (the detailed map) and the world map under it, OpenStreetMap extracts (neoaprs/services/mapfetch.py makes the first): the route names the two files, so nothing else of the data folder is reachable. The world
+    map is the data folder's own `basemap-world.pmtiles` when it has a good one, else the one that ships with the program (`world`, neoaprs/worldmap.py), so the page has a map before anything is downloaded. A file that is not there is a 404
+    with a line that says what to do. A PMTiles reader asks for pieces of the file, which is what the handler's byte ranges are for; it is an octet stream, which Tornado does not compress, so a range is a range of the file. It is behind the
+    login: the page's files are free, the map is data."""
+
+    def initialize(self, path: str, default_filename: str | None = None, world: Callable[[], Path | None] | None = None) -> None:     # type: ignore[override]
+        super().initialize(path, default_filename)
+        self._world = world
 
     def prepare(self) -> None:
         server = self.application.settings["neoaprs_server"]
@@ -154,6 +162,11 @@ class Basemap(Page):
         self.set_header("X-Content-Type-Options", "nosniff")
 
     async def get(self, path: str, include_body: bool = True) -> None:
+        if path == WORLD_FILE and self._world is not None:
+            found = self._world()
+            if found is None:
+                raise tornado.web.HTTPError(404, reason="Not Found: there is no world map (the one that ships with the program is missing and the data folder's is not a PMTiles file)")
+            self.root = os.path.abspath(found.parent)                        # (the shipped file has the same name, in another folder)
         if not os.path.isfile(os.path.join(self.root, path)):
             raise tornado.web.HTTPError(404, reason="Not Found: the base map is not in the data folder, fetch it in the Settings tab, Map, Download")
         await super().get(path, include_body)

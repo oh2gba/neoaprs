@@ -97,7 +97,7 @@ export function useAppShell() {
     if (state === "open") send({ cmd: "list_ports" });
   });
   const derived = useDerived(daemon);
-  const guide = useSetupGuide(config, lastError, daemon.ports, send);
+  const guide = useSetupGuide(config, lastError, daemon.ports, send, daemon.map);
   openGuideOnce(config, guide);
   const panel = usePanel();
   const tabs = useTabs(daemon, panel);

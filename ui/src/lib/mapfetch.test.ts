@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { currentEstimate, downloadedLine, filesKey, formatBytes, isRunning, progressText } from "@/lib/mapfetch";
+import { currentEstimate, downloadedLine, filesKey, formatBytes, isRunning, progressText, setupMapLine } from "@/lib/mapfetch";
 import { mapFile, mapState } from "@/test/fixtures";
 
 describe("formatBytes", () => {
@@ -74,5 +74,25 @@ describe("filesKey", () => {
     expect(filesKey(null)).toBeNull();
     expect(new Set([none, first, again]).size).toBe(3);
     expect(filesKey(mapState({ detail: mapFile(), state: "ready" }))).toBe(first);
+  });
+});
+
+describe("setupMapLine", () => {
+  it("is the quiet line of the guide while the detailed map is being made, except on the Map step, which shows the progress itself", () => {
+    const downloading = mapState({ state: "downloading", step: "area", percent: 12 });
+    expect(setupMapLine(downloading, false)).toBe("setup.map_auto");
+    expect(setupMapLine(downloading, true)).toBe("");
+  });
+
+  it("says the detailed map will come when online, when the daemon could not fetch it yet (and no job runs)", () => {
+    expect(setupMapLine(mapState({ state: "error", problem: "no daily build was found", later: true }), false)).toBe("setup.map_later");
+    expect(setupMapLine(mapState({ state: "error", problem: "no daily build was found", later: true }), true)).toBe("setup.map_later");
+    expect(setupMapLine(mapState({ state: "downloading", later: true }), true)).toBe("");
+  });
+
+  it("is none without a map state, with a detailed map, or when all is quiet", () => {
+    expect(setupMapLine(null, false)).toBe("");
+    expect(setupMapLine(mapState({ state: "ready", detail: mapFile(), later: true }), false)).toBe("");
+    expect(setupMapLine(mapState(), false)).toBe("");
   });
 });

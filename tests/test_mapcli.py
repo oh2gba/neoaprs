@@ -35,13 +35,13 @@ def test_a_dry_run_says_the_size_for_the_flags_and_makes_no_file(tmp_path: Path,
     assert "--maxzoom=14" in fake.calls()[0] and "--dry-run" in fake.calls()[0]
 
 
-def test_a_download_makes_the_world_and_the_area_and_says_how_far_it_is(tmp_path: Path, fake: FakePmtiles) -> None:
+def test_a_download_makes_the_area_only_because_the_world_ships_with_the_program_and_says_how_far_it_is(tmp_path: Path, fake: FakePmtiles) -> None:
     fake.mode("linger")
     done = mapfetch(tmp_path, fake, "--lat", "60.17", "--lon", "24.94")
     assert done.returncode == 0, done.stderr
-    assert sorted(p.name for p in (tmp_path / "data").glob("*.pmtiles*")) == ["basemap-world.pmtiles", "basemap.pmtiles"]
+    assert sorted(p.name for p in (tmp_path / "data").glob("*.pmtiles*")) == ["basemap.pmtiles"]
     assert done.stdout.strip().splitlines()[-1].startswith("basemap.pmtiles: ")
-    assert "world: 75%" in done.stdout and "area: 75%" in done.stdout
+    assert "area: 75%" in done.stdout and "world" not in done.stdout
 
 
 async def test_the_position_and_the_map_settings_are_read_from_the_database_of_the_data_folder(tmp_path: Path, fake: FakePmtiles) -> None:

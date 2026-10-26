@@ -462,7 +462,7 @@ export interface MapFetchCommand {
 
 /** A map file in the data folder. */
 export interface MapFileInfo {
-  /** `basemap.pmtiles` (the detailed map) or `basemap-world.pmtiles` (the world to zoom 5) */
+  /** `basemap.pmtiles` (the detailed map) or `basemap-world.pmtiles` (the world: zoom 4 when it is the one that ships with the program, zoom 5 when the daemon made it) */
   name: string;
   bytes: number;
   /** when the file was made */
@@ -517,8 +517,10 @@ export interface MapState {
   box: number[] | null;
   /** `basemap.pmtiles`; null if it is not there */
   detail: MapFileInfo | null;
-  /** `basemap-world.pmtiles`; null if it is not there */
+  /** `basemap-world.pmtiles`: the data folder's own when it has one, else the one that ships with the program; null if there is neither (a base map the page cannot draw) */
   world: MapFileInfo | null;
+  /** the detailed map was begun without being asked for (the first time a place was set) and could not be fetched yet, most likely for want of a connection; it is tried again at the next start. False once a job runs or a detailed map is there */
+  later: boolean;
   /** the radius of the ALOHA circle round our position, in km to a tenth: the distance within which the stations heard on RF would fill the 1200 baud channel (WB4APR's method, worked out again every minute); null without a position and while the stations heard do not fill the channel */
   aloha_km: number | null;
 }

@@ -29,6 +29,8 @@ ui/dist.prev-*
 # The base map: scripts/fetch-basemap puts it in data/ (a copy anywhere else is not committed either), several hundred MB of OpenStreetMap data.
 *.pmtiles
 *.pmtiles.part
+# ... except the world map that ships with the program (neoaprs/worldmap.py, scripts/fetch-worldmap).
+!/neoaprs/maps/basemap-world.pmtiles
 
 # Caches and reports of the tools.
 __pycache__/

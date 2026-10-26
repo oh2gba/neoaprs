@@ -125,7 +125,17 @@ describe("App: the first-run guide", () => {
     await next();
     FakeMap.last().fire("click", { lngLat: { lat: 60.17, lng: 24.94 } });
     await flushPromises();
+    expect(configs()).toEqual([]);
     await next();
+    // the place goes on its own as Next leaves the Position step, so that the daemon can make the map round it
+    expect(configs()).toEqual([{ cmd: "set_config", values: { "station/lat": "60.17", "station/lon": "24.94" } }]);
+    socket.say({
+      type: "state",
+      topic: "config",
+      rev: 2,
+      value: configValues({ "beacon/interval_min": "0", "station/call": "", "station/lat": "60.17", "station/lon": "24.94", "serial/baud": "" }),
+    });
+    await flushPromises();
     await wrapper.findAll(".setup-symbol")[1]?.trigger("click"); // the car
     await next();
     expect(wrapper.find(".setup-step-name").text()).toBe("Radio");
@@ -136,27 +146,23 @@ describe("App: the first-run guide", () => {
     await next();
     expect(wrapper.find(".setup-step-name").text()).toBe("Map");
     await wrapper.find("#setup-radius").setValue("200");
-    expect(configs()).toEqual([]);
+    expect(configs()).toHaveLength(1);
     await next();
-    expect(configs()).toEqual([
-      {
-        cmd: "set_config",
-        values: {
-          "station/call": "OH2ABC-9",
-          "station/lat": "60.17",
-          "station/lon": "24.94",
-          "station/symbol_code": ">",
-          "serial/port": "/dev/ttyUSB0",
-          "map/radius_km": "200",
-          "beacon/interval_min": "30",
-        },
+    expect(configs()[1]).toEqual({
+      cmd: "set_config",
+      values: {
+        "station/call": "OH2ABC-9",
+        "station/symbol_code": ">",
+        "serial/port": "/dev/ttyUSB0",
+        "map/radius_km": "200",
+        "beacon/interval_min": "30",
       },
-    ]);
+    });
     expect(wrapper.find(".setup").exists()).toBe(true);
     socket.say({
       type: "state",
       topic: "config",
-      rev: 2,
+      rev: 3,
       value: configValues({
         "station/call": "OH2ABC-9",
         "station/lat": "60.17",
@@ -168,7 +174,7 @@ describe("App: the first-run guide", () => {
     });
     await flushPromises();
     expect(wrapper.find(".setup").exists()).toBe(false);
-    expect(configs()).toHaveLength(1);
+    expect(configs()).toHaveLength(2);
     expect(wrapper.find(".appheader").text()).not.toContain("OH2ABC"); // (our call is in the settings and the status, not in the header)
     expect(wrapper.find(".appheader .nocall").exists()).toBe(false);
   });
@@ -194,8 +200,9 @@ describe("App: the first-run guide", () => {
     await wrapper.find("#setup-lon").setValue("24.94");
     for (let i = 0; i < 3; i++) await wrapper.find("form").trigger("submit");
     const commands = () => socket.sent.map((c) => (c as { cmd: string }).cmd);
+    expect(commands().filter((c) => c === "set_config")).toHaveLength(1); // (the place, sent as the Position step was left)
     await wrapper.find(".setup .mapfetch-button").trigger("click");
-    expect(commands().filter((c) => c === "set_config")).toHaveLength(1);
+    expect(commands().filter((c) => c === "set_config")).toHaveLength(2);
     expect(commands()).not.toContain("map_estimate");
     socket.say({
       type: "state",

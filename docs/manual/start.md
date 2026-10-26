@@ -17,7 +17,9 @@ On a fresh install the page opens a guide in five steps. It opens by itself once
 2. **Position.** Press **Choose on map** and click where you are, or drag the pin. Or click the place beside the button ("Not set" at first, which opens by itself) and type latitude and longitude in decimal degrees: north and east positive, south and west negative (Sydney is -33.87, 151.21). A Maidenhead locator works too. It is the same row as the Location of the Beacon tab ([beacon.md](beacon.md#the-location)).
 3. **Symbol.** The twelve usual ones are on top; a click on the symbol under them opens the picker with every symbol.
 4. **Radio.** The type of TNC, and for a serial one the port and speed, for a TCP one the host and port ([radio.md](radio.md)).
-5. **Map.** The radius of the detailed map and, at the right end of its row, the plain **Download map** button. A few minutes of internet are needed, once ([page.md](page.md#the-base-map)).
+5. **Map.** The radius of the detailed map, which is already being downloaded, with its progress; at the right end of the row the plain **Download map** button makes it again for another radius ([page.md](page.md#the-base-map)).
+
+The map under the guide is the world, from the first second. When you press **Next** on the Position step, NeoAPRS saves the place and starts making the detailed map of your area, so that it is there at the end of the guide; a quiet line says "Downloading the map of your area…" ([page.md](page.md#the-base-map)).
 
 **Finish** saves what you set. On a station that has no call and no beacon yet, it also sets the beacon to every 30 minutes, and the last step says "Beacon every 30 min". Run again on a station that already has a call, the guide leaves the beacon alone.
 
@@ -38,7 +40,7 @@ Everything NeoAPRS keeps is in one folder, one daemon to a folder. A second daem
 - `neoaprs.sqlite` is everything NeoAPRS keeps: the settings, every packet heard or sent, the messages, the message board, your own objects, items and bulletins, the weather of the weather stations, and the stations (a cache the daemon rebuilds from the packets). It is private to your user and is migrated at the start; a copy of it is made into `backup/` before a migration changes it.
 - Packets, weather observations and stations older than 7 days are removed once a day. The weather graphs reach back 7 days. Messages and bulletins stay until you delete them.
 - `neoaprs.log` is the log, rotated (20 MB, five files), with every packet as the TNC2 line and what it is. Warnings and errors, and the lines of a database migration (what an upgrade changed), also go to stderr, which `systemctl status` and the journal show.
-- `basemap.pmtiles` and `basemap-world.pmtiles` are the base map; `bin/` holds the `pmtiles` tool; `tls/` holds the certificates of the secure connection.
+- `basemap.pmtiles` is the detailed base map of your area (the world map ships with NeoAPRS and is not in this folder, unless an earlier version made `basemap-world.pmtiles` here); `bin/` holds the `pmtiles` tool; `tls/` holds the certificates of the secure connection.
 - `neoaprs.lock` shows that a daemon holds the folder. The desktop app keeps `neoaprs-app.log`, `neoaprs-app.json`, `neoaprs-app.lock`, `neoaprs-app.port` and `webview/` there too.
 
 ## How settings apply

@@ -502,6 +502,7 @@ export const fr: Catalogue = {
   "map.note.no_basemap": "Pas de fond de carte",
   "map.note.no_detail": "Pas de carte détaillée",
   "map.note.no_engine": "La carte n'a pas pu être chargée",
+  "map.note.unreadable": "Le fichier de la carte ne peut pas être lu",
   "map.follow_me": "Suivre ma position",
   "map.aloha": "Cercle ALOHA : {km} km",
 
@@ -1242,6 +1243,9 @@ export const fr: Catalogue = {
   "setup.symbol.weather_station": "Station météo",
   "setup.symbol.portable": "Portable",
   "setup.symbol.antenna": "Antenne",
+
+  "setup.map_auto": "Téléchargement de la carte de votre zone…",
+  "setup.map_later": "La carte détaillée sera téléchargée dès que vous serez en ligne.",
 
   "setup.beacon_every": "Balise toutes les {minutes} min",
   "setup.beacon_tip_label": "À propos de la balise",

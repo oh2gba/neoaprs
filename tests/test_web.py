@@ -2,6 +2,7 @@
 the commands, the files, the Host check and the security headers. Every message the daemon sends is checked against neoaprs/web/protocol.py while these run (tests/conftest.py)."""
 import asyncio
 import json
+import struct
 import sys
 from dataclasses import replace
 from pathlib import Path
@@ -468,10 +469,11 @@ async def test_the_base_map_is_a_404_without_the_file_and_serves_byte_ranges_wit
     assert (await e.fetch("/basemap.pmtiles", headers={"Range": f"bytes={len(content) + 5}-"})).code == 416
     for key in SECURITY:
         assert part.headers[key]
-    assert (await e.fetch("/basemap-world.pmtiles")).code == 404, "the world map is its own file"
-    (tmp_path / "basemap-world.pmtiles").write_bytes(content[:500])
+    assert (await e.fetch("/basemap-world.pmtiles")).body[:7] == b"PMTiles", "the world map is its own file: the one that ships with the program, from a data folder that has none"
+    own = b"PMTiles\x03" + bytes(92) + struct.pack("<BB4i", 0, 5, -1800000000, -850000000, 1800000000, 850000000) + bytes(9) + content[:500]       # (the data folder's own world map has a PMTiles header: a file without one is not served)
+    (tmp_path / "basemap-world.pmtiles").write_bytes(own)
     world = await e.fetch("/basemap-world.pmtiles", headers={"Range": "bytes=10-19"})
-    assert world.code == 206 and world.body == content[10:20]
+    assert world.code == 206 and world.body == own[10:20]
     assert (await e.fetch("/basemap-world.pmtiles.part")).code in (403, 404) and (await e.fetch("/neoaprs.sqlite")).code in (403, 404), "no other file of the data folder is reachable"
 
 

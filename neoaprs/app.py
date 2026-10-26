@@ -26,6 +26,7 @@ from .services.beacon import Beacon
 from .services.bulletins import Bulletins
 from .services.digipeater import Digipeater
 from .services.gps import Gps
+from .services.mapauto import MapAuto
 from .services.mapfetch import MapFetch
 from .services.messaging import Messaging
 from .services.ownbulletins import OwnBulletins
@@ -59,7 +60,7 @@ class Frontend(Protocol):
 
 
 class Services:
-    def __init__(self, data_dir: Path, clock: Clock = utcnow, store: Store | None = None, tnc: Tnc | None = None, port: str = "", pattern: str = "", install: InstallInfo = PLAIN_INSTALL) -> None:
+    def __init__(self, data_dir: Path, clock: Clock = utcnow, store: Store | None = None, tnc: Tnc | None = None, port: str = "", pattern: str = "", install: InstallInfo = PLAIN_INSTALL, auto_map: bool = False) -> None:
         self.data_dir = data_dir
         self.clock = clock
         self.config: Config = DEFAULTS                                  # the settings; the controller reads them from the database at its start
@@ -89,6 +90,7 @@ class Services:
         self.queries = Queries(self.tnc, lambda: self.config, self.beacon, self.rigstatus.status_frame, self.stationbook, self.prefbook.path_for, clock, objects=self.ownobjects,
                                messages=self.messaging, heard=self.packetlog)       # the answers to ?APRSP, ?APRSS, ?APRSD, ?APRST, ?PING?, ?APRSO, ?APRSM, ?APRSH and ?APRS?, by the asker's path
         self.mapfetch = MapFetch(data_dir, lambda: self.config, clock)  # the base map: the detailed map round our position and the world map under it, made on request from the page; nothing to start
+        self.mapauto = MapAuto(self.mapfetch, lambda: self.config, self.store, auto_map)    # the detailed map made once without a click, when a place is first set (only where the process asks for it: the daemon); started by the controller
         self.aloha = Aloha(self.stationbook, clock)                      # the ALOHA circle round our station, worked out again every minute and when our position moves; started by the controller
         self.radiofinder = RadioFinder(self._radio_ports, self.hold_tnc, self.release_tnc)       # Find my radio: on the page's request only; nothing to start
         self.install = install                                           # how this copy was installed, for the page (the steps of an update)

@@ -162,7 +162,7 @@ async def _run_locked(args: argparse.Namespace, data_dir: Path, after: list[list
     def page(ctl: Controller, config: Config) -> WebServer:
         return WebServer(ctl, config if args.web_port is None else replace(config, web_port=args.web_port))
 
-    controller = Controller(data_dir, busy_ms=3000, port=args.port, web=page, install=install)         # the daemon must not stand still behind another writer: a few seconds
+    controller = Controller(data_dir, busy_ms=3000, port=args.port, web=page, install=install, auto_map=True)         # the daemon must not stand still behind another writer: a few seconds
     controller.debug = args.debug
     stop = _stop_on_signals(asyncio.get_running_loop())
     stopfile.clear(data_dir)                                 # (a request left by a stop that found nobody running is not for this run)

@@ -1,7 +1,7 @@
-// The base map of the page: the two files the daemon serves (data/basemap.pmtiles, the detailed OpenStreetMap extract of the area round the station, and data/basemap-world.pmtiles, the world to zoom 5 under it,
-// both made by the daemon on request from the Settings tab) and the MapLibre style that draws them, in a light and a dark colour scheme. Layer names and kinds are those of the Protomaps basemap tiles (docs.protomaps.com/basemaps/layers): the earth, the land use
-// (forest, parks, built-up land), the water, the roads by class, the buildings at zoom 14, the boundaries and the names of places and roads. A layer a tile lacks draws nothing.
-// The world's layers are drawn first and the detailed map's on top of them, so the world shows where the detailed map has no tile (outside its area, or past the zoom it ends at). Without a file the style is a blank
+// The base map of the page: the two files the daemon serves (the world map under it, to zoom 4, which ships with the program, or the daemon's own to zoom 5, and data/basemap.pmtiles, the detailed OpenStreetMap extract of the area round the station, made by the daemon
+// without a click once a place is set, or from the Settings tab) and the MapLibre style that draws them, in a light and a dark colour scheme. Layer names and kinds are those of the Protomaps basemap tiles (docs.protomaps.com/basemaps/layers): the earth, the land use
+// (forest, parks, built-up land), the water, the roads by class, the buildings at zoom 14, the boundaries and the names of countries, places and roads. A layer a tile lacks draws nothing.
+// The world's layers are drawn first and the detailed map's on top of them, so the world shows where the detailed map has no tile (outside its area, or past the zoom it ends at). Without a file (the daemon has no world map either) the style is a blank
 // background, and the stations are drawn over it all the same.
 import type { ExpressionSpecification, LayerSpecification, StyleSpecification, VectorSourceSpecification } from "maplibre-gl";
 
@@ -95,8 +95,10 @@ export const DARK: Palette = {
   halo: "#1b1e21",
 };
 
-const SOURCE = "base";
-const WORLD_SOURCE = "world";
+/** The ids of the two sources of the style (the engine names them in its events). */
+export const BASE_SOURCE = "base";
+export const WORLD_SOURCE = "world";
+const SOURCE = BASE_SOURCE;
 const WORLD_PREFIX = "world-";
 
 function kindIn(kinds: string[]): ExpressionSpecification {
@@ -238,6 +240,29 @@ function placeLabel(id: string, details: string[], p: Palette, minzoom: number, 
   };
 }
 
+/** The names of the countries, from the world's zoom 1 where the world map (zoom 4 of the daemon's shipped file) is all there is: small capitals that give way to the towns' names as the map comes closer. */
+function countryLabel(p: Palette): LayerSpecification {
+  return {
+    id: "place-country",
+    type: "symbol",
+    source: SOURCE,
+    "source-layer": "places",
+    minzoom: 1,
+    maxzoom: 7,
+    filter: ["==", ["get", "kind"], "country"],
+    layout: {
+      "text-field": NAME,
+      "text-font": [FONT_MEDIUM],
+      "text-size": byZoom([1, 9, 4, 12, 6, 15], 1.2),
+      "text-max-width": 7,
+      "text-transform": "uppercase",
+      "text-letter-spacing": 0.08,
+      "text-padding": 8,
+    },
+    paint: { "text-color": p.border, "text-halo-color": p.halo, "text-halo-width": 1.4 },
+  };
+}
+
 function roadName(p: Palette): LayerSpecification {
   return {
     id: "road-names",
@@ -261,6 +286,7 @@ function roadName(p: Palette): LayerSpecification {
 function labelLayers(p: Palette): LayerSpecification[] {
   return [
     roadName(p),
+    countryLabel(p),
     placeLabel("place-hamlet", ["hamlet", "suburb", "neighbourhood"], p, 11, 24, [11, 10, 16, 13], FONT_REGULAR),
     placeLabel("place-village", ["village"], p, 8, 24, [8, 10, 14, 14], FONT_REGULAR),
     placeLabel("place-town", ["town"], p, 6, 24, [6, 11, 12, 16], FONT_MEDIUM),

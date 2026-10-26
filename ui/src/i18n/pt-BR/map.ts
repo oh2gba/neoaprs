@@ -10,6 +10,7 @@ export const map: Record<keyof typeof source, Message> = {
   "map.note.no_basemap": "Sem mapa base",
   "map.note.no_detail": "Sem mapa detalhado",
   "map.note.no_engine": "Não foi possível carregar o mapa",
+  "map.note.unreadable": "Não foi possível ler o arquivo do mapa",
   "map.follow_me": "Seguir minha posição",
   "map.aloha": "Círculo ALOHA: {km} km",
 

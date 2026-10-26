@@ -1796,7 +1796,7 @@
       "description": "A map file in the data folder.",
       "properties": {
         "name": {
-          "description": "`basemap.pmtiles` (the detailed map) or `basemap-world.pmtiles` (the world to zoom 5)",
+          "description": "`basemap.pmtiles` (the detailed map) or `basemap-world.pmtiles` (the world: zoom 4 when it is the one that ships with the program, zoom 5 when the daemon made it)",
           "type": "string"
         },
         "bytes": {
@@ -2026,7 +2026,11 @@
               "type": "null"
             }
           ],
-          "description": "`basemap-world.pmtiles`; null if it is not there"
+          "description": "`basemap-world.pmtiles`: the data folder's own when it has one, else the one that ships with the program; null if there is neither (a base map the page cannot draw)"
+        },
+        "later": {
+          "description": "the detailed map was begun without being asked for (the first time a place was set) and could not be fetched yet, most likely for want of a connection; it is tried again at the next start. False once a job runs or a detailed map is there",
+          "type": "boolean"
         },
         "aloha_km": {
           "anyOf": [
@@ -2055,6 +2059,7 @@
         "box",
         "detail",
         "world",
+        "later",
         "aloha_km"
       ],
       "title": "MapState",

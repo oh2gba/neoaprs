@@ -101,7 +101,7 @@ A station whose last position is older than its timeout is left off the map, mar
 
 The timeout is chosen in the Stations tab, in the filter row: **On map for** 1, 3, 6, 12 or 24 hours (3 by default). It applies at once, with an Undo, to the map, the track and the dimming of the table, and it is the same for every station and for every browser and device that shows this daemon (the setting `map/station_hours`; it replaces the fixed 3 hours of earlier versions). Your own station and your own objects never time out.
 
-Without a base map the map area says "No base map" with a Download button over a blank background, and the stations are drawn all the same ([The base map](#the-base-map)).
+The map has the world from the first start. With only the world, a line over the map says "No detailed map" with a Download button (not while the setup guide is open or a download runs). If no map at all can be shown, or a map file cannot be read, the line says "No base map" or "The map file cannot be read" over a blank background, above the setup guide too, and the stations are drawn all the same ([The base map](#the-base-map)).
 
 ## A station's card
 
@@ -200,15 +200,17 @@ On a phone the box stays above the home bar, and the field being typed in is scr
 
 ## The base map
 
-The base map is two files in the data folder that the daemon serves to the page:
+The base map is two maps that the daemon serves to the page:
 
-- `basemap.pmtiles`, the OpenStreetMap map of the area round your station: a square of `map/radius_km` (10 to 1000 km, default 150) in every direction, down to zoom 12.
-- `basemap-world.pmtiles`, the world to zoom 5 (about 15 MB), drawn under it so that there is something to see outside the area and when zoomed out. It ships with NeoAPRS.
+- The world, drawn under everything so that there is a map from the first second, outside your area and when zoomed out: coastlines, borders, forests, the names of countries and big cities, to zoom 4 (6 MB). It ships with NeoAPRS in every package and needs no download. A world map of its own in the data folder (`basemap-world.pmtiles`, to zoom 5, made by an earlier version) is used instead.
+- `basemap.pmtiles` in the data folder, the OpenStreetMap map of the area round your station: a square of `map/radius_km` (10 to 1000 km, default 150) in every direction, down to zoom 12. The page draws the world magnified until it is there.
 
-You make the detailed map in the Settings tab, in the Map group. It is one row: the **Radius** with its field and unit, and at the right end of the same row one plain button, **Download map** ("Download again" when there is a detailed map). Under the row a quiet line such as "Map downloaded 23 Oct" says when the map was made, and the progress and a failure are shown there too. The same is `neoaprs map` on the command line.
+**The detailed map comes by itself.** The first time a place is set and there is no detailed map yet (in the [setup guide](start.md#the-setup-guide), when you leave the Position step, or later on the Beacon tab), NeoAPRS starts making it, and the guide says "Downloading the map of your area…". It needs the internet; without it the world map stays, the guide says "The detailed map will download when you are online.", and NeoAPRS tries again each time it starts. It is done once for an installation: **Cancel** ends it for good, and the button below is for later.
+
+You make the detailed map again in the Settings tab, in the Map group. It is one row: the **Radius** with its field and unit, and at the right end of the same row one plain button, **Download map** ("Download again" when there is a detailed map). Under the row a quiet line such as "Map downloaded 23 Oct" says when the map was made, and the progress and a failure are shown there too. The same is `neoaprs map` on the command line.
 
 1. The first press works out the size ("Checking size…"), and the button then asks "Download 493 MB?" with the real size.
-2. The second press makes the world map, if there is none, and then the detailed map. A bar shows the percent of the step and the size so far ("Map of the area 49% · 340 MB").
+2. The second press makes the detailed map. A bar shows the percent of the step and the size so far ("Map of the area 49% · 340 MB").
 3. **Cancel** ends the job. The half-made file is removed and the map that was there stays.
 
 A change of the radius takes the question back. One job runs at a time. The button waits for a change of the radius that is being saved and for the station to have a position.
@@ -217,7 +219,7 @@ A change of the radius takes the question back. One job runs at a time. The butt
 - A download that stands still, with neither the percent nor the size of the `.part` file moving for 2 minutes, is ended and begun again from the start after 10 seconds, three times in all. The page says so ("no progress: trying again (2 of 3)"). When the last try stands still too, the job ends with "the map server is too slow now; try again later", and the map that was there stays.
 - The program is the one on the PATH, else `bin/pmtiles` (`bin/pmtiles.exe` on Windows) in the data folder. When there is neither, the release for this system (Linux and macOS on x86_64 and arm64, Windows on x86_64) is downloaded from GitHub into `bin/`, and only if its SHA-256 is the one NeoAPRS has pinned.
 - `map/maxzoom` (6 to 15, default 12: 10 shows towns, 12 streets, 14 houses) and `map/source` are not on the page. The estimate and the download use the stored values (`neoaprs db set map/maxzoom 14`). `map/source` is empty for the latest daily build (today's, else back up to a week), a web address (`https://...`) or the path of a PMTiles file, such as a planet file of your own. A deeper zoom of the page draws the last one magnified.
-- By hand: put `pmtiles` on the PATH and run `pmtiles extract https://build.protomaps.com/YYYYMMDD.pmtiles data/basemap.pmtiles --bbox=WEST,SOUTH,EAST,NORTH --maxzoom=12`, and the same with `--maxzoom=5` and no `--bbox` into `data/basemap-world.pmtiles`. A file made that way is shown all the same, its area and zoom read from its header.
+- By hand: put `pmtiles` on the PATH and run `pmtiles extract https://build.protomaps.com/YYYYMMDD.pmtiles data/basemap.pmtiles --bbox=WEST,SOUTH,EAST,NORTH --maxzoom=12`; the same with `--maxzoom=5` and no `--bbox` into `data/basemap-world.pmtiles` makes a finer world map than the one that ships. A file made that way is shown all the same, its area and zoom read from its header.
 
 The names of places and roads are drawn with Noto Sans glyph files (Regular and Medium, made by the Protomaps `basemaps-assets` project, SIL Open Font License 1.1).
 

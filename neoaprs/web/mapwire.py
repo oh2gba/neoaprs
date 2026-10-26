@@ -10,7 +10,7 @@ Box = list[float]
 
 class MapFileInfo(_Model):
     """A map file in the data folder."""
-    name: str = Field(description="`basemap.pmtiles` (the detailed map) or `basemap-world.pmtiles` (the world to zoom 5)")
+    name: str = Field(description="`basemap.pmtiles` (the detailed map) or `basemap-world.pmtiles` (the world: zoom 4 when it is the one that ships with the program, zoom 5 when the daemon made it)")
     bytes: int = Field(ge=0)
     modified: Iso = Field(description="when the file was made")
     bbox: Box | None = Field(min_length=4, max_length=4, description="the area it covers, [west, south, east, north] in degrees, as its header says; null for a file whose header cannot be read")
@@ -45,7 +45,8 @@ class MapState(_Model):
     maxzoom: int = Field(description="`map/maxzoom`")
     box: Box | None = Field(min_length=4, max_length=4, description="the area those settings make round our position, [west, south, east, north]; null without a position")
     detail: MapFileInfo | None = Field(description="`basemap.pmtiles`; null if it is not there")
-    world: MapFileInfo | None = Field(description="`basemap-world.pmtiles`; null if it is not there")
+    world: MapFileInfo | None = Field(description="`basemap-world.pmtiles`: the data folder's own when it has one, else the one that ships with the program; null if there is neither (a base map the page cannot draw)")
+    later: bool = Field(description="the detailed map was begun without being asked for (the first time a place was set) and could not be fetched yet, most likely for want of a connection; it is tried again at the next start. False once a job runs or a detailed map is there")
     aloha_km: float | None = Field(ge=0, description="the radius of the ALOHA circle round our position, in km to a tenth: the distance within which the stations heard on RF would fill the 1200 baud channel (WB4APR's method, worked out again every minute); "
                                                      "null without a position and while the stations heard do not fill the channel")
 

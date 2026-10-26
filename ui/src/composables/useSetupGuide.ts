@@ -1,18 +1,20 @@
 // The first-run guide's state (components/SetupGuide.vue): whether it is open, the step, the answers (useSetupAnswers) and Finish. It lives as long as the page does, so that closing the guide and opening it again finds the answers where they
 // were. Finish sends one `set_config` with the keys the answers change; the Map step's Estimate and Download send it first when there is something to save (the daemon makes the map for the settings it has), and the command follows when the
-// daemon has told the settings again. An error of the daemon that names a key is shown under its field, and the guide goes to the step that has it.
+// daemon has told the settings again. An error of the daemon that names a key is shown under its field, and the guide goes to the step that has it. The place of the Position step is sent when the guide goes on from it, while the daemon has no detailed
+// map: the daemon makes the map round it at once, without a click (neoaprs/services/mapauto.py), so that it is there when the guide ends.
 import { computed, reactive, ref, watch, type Ref } from "vue";
 import { useSetupAnswers } from "@/composables/useSetupAnswers";
 import { useSetupSave } from "@/composables/useSetupSave";
 import type { Toast } from "@/composables/useDaemon";
 import { LAST_STEP } from "@/lib/setup";
-import type { Command, ConfigValues, PortsMessage } from "@/protocol/protocol";
+import type { Command, ConfigValues, MapState, PortsMessage } from "@/protocol/protocol";
 
 export function useSetupGuide(
   config: Ref<ConfigValues | null>,
   lastError: Ref<Toast | null>,
   ports: Ref<PortsMessage | null>,
   send: (command: Command) => boolean,
+  map: Ref<MapState | null> = ref(null),
 ) {
   const open = ref(false);
   const step = ref(0);
@@ -32,7 +34,7 @@ export function useSetupGuide(
     step.value = 0;
     reached.value = 0;
   }
-  const { saving, finish, sendMap } = useSetupSave(answers, config, lastError, send, step, done);
+  const { saving, finish, sendMap } = useSetupSave(answers, config, lastError, send, step, done, map);
 
   watch(step, (now) => (reached.value = Math.max(reached.value, now)));
 
