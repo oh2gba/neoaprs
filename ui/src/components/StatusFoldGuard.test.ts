@@ -7,9 +7,11 @@ import { describe, expect, it } from "vitest";
 import BeaconStatus from "@/components/BeaconStatus.vue";
 import DigipeaterStatus from "@/components/DigipeaterStatus.vue";
 import IgateStatus from "@/components/IgateStatus.vue";
+import NearbyQru from "@/components/NearbyQru.vue";
 import RadioStatus from "@/components/RadioStatus.vue";
 import StatusReportRow from "@/components/StatusReportRow.vue";
-import { ago, igateState, NOW, status, tncState } from "@/test/fixtures";
+import { fakeDaemon, withDaemon } from "@/test/context";
+import { ago, igateState, NOW, qruState, status, tncState } from "@/test/fixtures";
 
 const SRC = resolve(__dirname, "..");
 const later = new Date(NOW + 38 * 60_000).toISOString();
@@ -41,6 +43,10 @@ const ROWS: Record<string, { bare: (() => ReturnType<typeof mount>) | null; full
     bare: null,
     full: () =>
       mount(IgateStatus, { props: { igate: igateState(), values: { "igate/server": "rotate.aprs2.net:14580", "map/radius_km": "50" }, stations: 3 } }),
+  },
+  NearbyQru: {
+    bare: null, // (it shows only once something was asked, and then the request is behind it)
+    full: () => mount(NearbyQru, { global: withDaemon(fakeDaemon({ qru: qruState() })) }),
   },
   RadioStatus: {
     bare: null,
