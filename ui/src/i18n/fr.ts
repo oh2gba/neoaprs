@@ -138,7 +138,7 @@ export const fr: Catalogue = {
   "error.query.not_capable": "{call} ne reçoit pas de messages : il n'y a personne à interroger",
   "error.transmit.off": "RX only : rien n'est envoyé",
   "error.query.too_soon": "La même question vient d'être posée à {call} : attendez {seconds} s",
-  "error.qru.too_soon": "une seule demande d'infos locales par minute : attendez {seconds} s",
+  "error.qru.too_soon": "trop tôt pour une autre demande d'infos locales : attendez {seconds} s",
   "error.path.direct_alone": "{word} n'est pas un digipeater : écrit seul, il veut dire aucun digipeater",
   "error.setting.comment_too_long": "{length} caractères, c'est plus que les {limit} permis avec l'extension PHG (videz beacon/power_w pour ne pas en émettre)",
   "error.setting.not_access_key": "ce n'est pas une clé d'accès (trois groupes de quatre chiffres et lettres, comme k7m2-x9pq-4hrt)",

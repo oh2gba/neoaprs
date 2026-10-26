@@ -54,7 +54,7 @@ export const errors = {
   "error.query.not_capable": "{call} does not take messages: there is nobody to ask",
   "error.transmit.off": "RX only: nothing is sent",
   "error.query.too_soon": "{call} was asked the same a moment ago: wait {seconds} s",
-  "error.qru.too_soon": "only one request for local info per minute: wait {seconds} s",
+  "error.qru.too_soon": "too soon for another request for local info: wait {seconds} s",
   "error.path.direct_alone": "{word} is no digipeater: written alone it means no digipeaters at all",
   "error.setting.comment_too_long": "{length} characters is more than the {limit} allowed with the PHG extension (clear beacon/power_w to send none)",
   "error.setting.not_access_key": "it is not an access key (three groups of four digits and letters, such as k7m2-x9pq-4hrt)",

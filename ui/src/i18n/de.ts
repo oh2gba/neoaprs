@@ -140,7 +140,7 @@ export const de: Catalogue = {
   "error.query.not_capable": "{call} nimmt keine Nachrichten an: es gibt niemanden zu fragen",
   "error.transmit.off": "RX only: Es wird nichts gesendet",
   "error.query.too_soon": "{call} wurde eben erst dasselbe gefragt: {seconds} s warten",
-  "error.qru.too_soon": "nur eine Anfrage nach Ortsinfo pro Minute: {seconds} s warten",
+  "error.qru.too_soon": "zu früh für eine weitere Anfrage nach Ortsinfo: {seconds} s warten",
   "error.path.direct_alone": "{word} ist kein Digipeater: allein geschrieben bedeutet es gar keine Digipeater",
   "error.setting.comment_too_long":
     "{length} Zeichen sind mehr als die {limit}, die mit der PHG-Erweiterung erlaubt sind (beacon/power_w leeren, um keine zu senden)",

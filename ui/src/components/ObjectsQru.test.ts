@@ -108,7 +108,7 @@ describe("Local info in the Objects tab", () => {
     const { wrapper, daemon } = make();
     await tell(daemon, { lastError: toastOf("qru_ask: the same request was sent a moment ago: wait 12 s", "qru.too_soon", { seconds: 12 }) });
     expect(row(wrapper).find(".statetext").text()).toBe("Not sent");
-    expect(line(wrapper)).toBe("only one request for local info per minute: wait 12 s");
+    expect(line(wrapper)).toBe("too soon for another request for local info: wait 12 s");
     await tell(daemon, { lastError: toastOf("qru_ask: RX only", "transmit.off") });
     expect(line(wrapper)).toContain("RX only");
     await tell(daemon, { qru: qruState({ asked: { text: "INFO", at: ago(1) } }) });
