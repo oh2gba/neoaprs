@@ -103,7 +103,8 @@ What each layer is for:
     back everything while the call is not set or the radio is not usable and puts a pause between two frames of ours.
   * The GPS (`services/gps.py`) and the moving station's part of the beacon (`services/mobilebeacon.py`): the fix of the GPS feed (`neoaprs/gpsfeed.py`, with `neoaprs/gpsfix.py` and `neoaprs/smartbeacon.py` as the pure code under it), its age, and the compressed position and the memory of the last beacon that SmartBeaconing needs.
   * The queries (`services/queries.py`): the answers to `?APRSP`, `?APRSS`, `?APRSD`, `?APRST`, `?PING?`, `?APRSO`, `?APRSM`, `?APRSH` and `?APRS?`, through the beacon's frames, our objects, our messages and the packet log, by the asker's path; `?WX?` and `?IGATE?` are recognised and not answered.
-  * The QRU server (`services/qru.py`): our objects of a QRU group, sent to a station that sends the addressee `QRU` the group's name (or `INFO` for the list of groups). The inbox hands it the messages to `QRU`. It and the queries send their answers through `services/answers.py`: the asker's path, the pace between frames and the answer given once.
+  * The QRU server (`services/qru.py`): our objects of a QRU group, sent to a station that sends the addressee `QRU` the group's name (or `INFO` for the list of groups). The inbox hands it the messages to `QRU`. It and the queries send their answers through `services/answers.py`: the asker's path (with RFONLY for the QRU server's), the pace between frames and the answer given once.
+  * Asking QRU (`services/qruask.py`): one request to the addressee `QRU` with no id, by the path of messages with RFONLY, and the servers that answered it (the topic `qru`), noted from the messages to us.
   * The fill-in digipeater (`services/digipeater.py`): a packet whose first unused hop is `WIDE1-1` or our call is sent again with our call as a used hop, when `digi/enabled` is on.
   * The receive-only iGate (`services/igate.py`): every packet heard on the radio goes through the rules of `igaterules` to APRS-IS (`qAO`), duplicates within 30 seconds once, the counts for the page and the log, and our own position to APRS-IS. It is given the connection (`aprsis`), the settings and a function for the position, and has no Tnc, no `Radio` and no sender: nothing from APRS-IS can reach the radio.
   * The preferences of the stations (`services/prefbook.py`): the path and RF only of each station, which messaging is given as its `paths`.
@@ -153,6 +154,7 @@ What each layer is for:
 | `messaging` | messages, a service |
 | `queries` | the answers to queries, a service |
 | `qru` | the QRU server, a service: given `ownobjects`, the station book and the paths; messaging is given its `heard` |
+| `qruask` | asking QRU and the servers that answered, a service: given the paths; it takes the packets of the radio (`ON_AIR_ONLY`) |
 | `digipeater` | the fill-in digipeater, a service: it repeats a packet that asks for WIDE1-1 or for our call, when `digi/enabled` is on |
 | `aprsis`, `igate` | the receive-only iGate: `aprsis` is the connection to an APRS-IS server (an adapter, `neoaprs/aprsis.py`), `igate` the service that gates what the radio hears and sends our position (`services/igate.py`); started by the controller after the beacon, given `beacon.position_info` for the position; the page's topic `igate` follows it |
 | `aloha` | the ALOHA circle, a service: the radius round our position (`radius_km`), told to the page in the topic `map`; started by the controller |
@@ -176,7 +178,7 @@ A part gets what it needs as constructor arguments (objects of a lower layer, Pr
 - What the Tnc hears goes to the packet log, the station book, the weather log, messaging (which answers a message to us with an ack and hands bulletins to the
   board and hands a message to `QRU` to the QRU server), the queries, our objects (which stop when another station reports one) and, last, the digipeater.
   A packet received from APRS-IS enters through `Services.hear_internet` and goes to `internet_packet`, a signal of its own: the packet log, the station book and the weather log (`SEEN_BY_ALL`)
-  are connected to both, and what answers, acknowledges, repeats or sends (`ON_AIR_ONLY`: messaging, the queries, our objects, the iGate, the digipeater) only to the Tnc's, each behind `AirOnly`, which drops an `is` packet
+  are connected to both, and what answers, acknowledges, repeats or sends (`ON_AIR_ONLY`: messaging, the queries, asking QRU, our objects, the iGate, the digipeater) only to the Tnc's, each behind `AirOnly`, which drops an `is` packet
   handed to it by mistake; every entry of those services refuses one as well (`Packet.on_air`). `tests/test_internet_gate.py` walks the signals and holds them to the two lists.
   The Dummy radio's packets (`via` is `dummy`) go through the radio's signal like any other, and `packet.GATEABLE` (`rf`, `rf-gated`) is the set a consumer that sends to the internet may take.
   The iGate takes only what the radio heard: it checks `packet.via in GATEABLE` itself as well. The connection's changes go to `igate.link_changed` and the beacons that went out to `igate.beacon_sent`. Nothing connects the connection to the Tnc, and the iGate has no reference to it.
@@ -195,7 +197,7 @@ A part gets what it needs as constructor arguments (objects of a lower layer, Pr
   preferences of the stations, messaging (it takes the latest messages from the database and starts its retry ticker), the page's server (a port in use is
   logged and the daemon goes on without the page), the update check and the daily prune task.
 - **The prune** removes packets, weather observations and stations older than `LOG_KEEP_DAYS` (`neoaprs/policy.py`). Messages and bulletins are never pruned.
-- **`stop()`** ends the page's server, the update check, a map job, the queries, the QRU server, messaging, the alert, the status, our bulletins and objects, the beacon, the GPS, the
+- **`stop()`** ends the page's server, the update check, a map job, the queries, the QRU server, asking QRU, messaging, the alert, the status, our bulletins and objects, the beacon, the GPS, the
   Tnc and the tasks, then closes the database, doing what was asked of its thread first.
 - **`save_config(Config)`** stores the settings, puts them in force, puts our own row where they say, tells the GPS (a changed source starts its feed afresh) and the beacon (a changed interval counts at once) and restarts the Tnc when its port, speed or KISS entry changed.
 

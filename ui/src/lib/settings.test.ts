@@ -9,7 +9,7 @@ describe("groupKeys", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "settings");
     expect(groups.map((g) => g.id)).toEqual(["serial", "igate", "digi", "web", "notifications", "map"]);
     expect(groups[0]?.keys).toEqual(["station/transmit", "tnc/profile", "serial/port", "serial/baud", "tcp/host", "tcp/port", "serial/last_port"]);
-    expect(groups[1]?.title).toBe("Internet");
+    expect(groups[1]?.title).toBe("Internet stations");
     expect(groups[1]?.keys).toEqual(["igate/enabled"]); // (igate/server and igate/password are left to the shell)
     expect(groups[2]?.title).toBe("Digipeater");
     expect(groups[2]?.keys).toEqual(["digi/enabled"]);

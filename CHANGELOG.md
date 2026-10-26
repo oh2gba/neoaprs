@@ -4,9 +4,9 @@
 
 Internet stations on the map, a world map and a Dummy radio to try it all, Find my radio on Windows and macOS, and a tab bar that fits.
 
-- **Settings → Internet → Receive only** shows stations from APRS-IS within your map's radius; nothing is sent. They show on the map with a dotted outline and cannot be messaged.
+- **Settings → Internet stations → Enable** shows stations from APRS-IS within your map's radius; nothing is sent. They show on the map with a dotted outline and cannot be messaged.
 - Every station and packet says how it was heard: RF, iGate, Internet or Dummy, as a small tag after the call.
-- One look for every small tag of the page (counts, states, channels, Receive only), and the Stations and Nearby tables fill the panel with one line to a row.
+- One look for every small tag of the page (counts, states, channels), and the Stations and Nearby tables fill the panel with one line to a row.
 - **Heard on RF only** in the Stations tab hides the stations known only from the internet.
 - A world map comes with NeoAPRS, so the map is never empty, even offline.
 - A map of about 50 km round your station downloads by itself after the setup's Position step.
@@ -21,12 +21,15 @@ Internet stations on the map, a world map and a Dummy radio to try it all, Find 
 - In Settings every action button (Download map, Check now, Download logs) is on a row of its own with a label and an (i), under the fields' left edge.
 - The Beacon tab no longer has the Preview of the packet. Beacon Off is no automatic beacon: Beacon now and Send status now still send.
 - **Fixed:** a station left in receive only by 0.9 can transmit again: Settings → Radio → RX only, unticked.
+- Every group's tickbox that switches a feature on is called **Enable** (Internet stations, Digipeater), and its state is one row under it, the radio's: the state in its colour, a quiet line, and the details behind the arrow.
 - **RX only:** Settings → Radio → RX only, ticked, sends nothing and switches every send button off; an RX only mark shows at the top.
 - Marks at the top right say what is on: RX only, Beacon off, Internet, GPS; each opens where it is set.
 - One palette, soft and quiet in light and dark; every tag is the same size; the tags of how a station was heard are in a column of their own.
 - Every on/off in Settings is a tickbox (the browser's alert too: Alert, Sound, Pop-up); the notes of the (i) stay inside the window, with pictures for RX only, Beacon off, Internet, the channels, the Dummy radio and the alert.
 - A new object starts as a repeater. Feedback: GitHub issues or e-mail, at the end of Settings → About.
 - Help with pictures, and an (i) on every tab and setting.
+- **Local info (QRU):** Nearby → Ask asks stations near you for repeaters, events and places, by radio only; the servers that answered are listed, and a tag asks for a group.
+- **Fixed:** a QRU server no longer acks a request, answers by radio only (RFONLY), and understands `?INFO` and `?GROUP`.
 
 ## 0.9.1
 

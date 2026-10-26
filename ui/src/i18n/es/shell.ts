@@ -10,7 +10,7 @@ export const shell: Readonly<Record<keyof typeof en, Message>> = {
   "pill.beacon_off": "Baliza apagada",
   "pill.beacon_off_title": "Sin baliza ni estado automáticos. Pestaña Baliza",
   "pill.internet": "Internet",
-  "pill.internet_title": "Internet: estaciones de APRS-IS en el mapa. Ajustes → Internet",
+  "pill.internet_title": "Internet: estaciones de APRS-IS en el mapa. Ajustes → Estaciones de Internet",
   "pill.gps": "GPS",
   "pill.gps_fix_title": "GPS: fix. Pestaña Baliza",
   "pill.gps_nofix_title": "GPS: aún sin fix. Pestaña Baliza",

@@ -237,9 +237,11 @@
 .statetext.gps-stale {
   color: var(--warn);
 }
-/* the Internet group of the Settings tab: one quiet line */
-.igatestatus {
-  margin: 4px 0 8px;
+/* the Internet stations group of the Settings tab: the status row of the radio (StatusFold) and, behind its arrow, two quiet lines */
+.igatefold {
+  margin: 4px 0;
+  color: var(--muted);
+  overflow-wrap: anywhere;
 }
 /* the beacon status at the top of the Beacon tab, in the look of the radio's: the label, the state and the words in one line with Beacon now at its end, and the lines of a moving station under it */
 .beaconstatus {
@@ -280,18 +282,18 @@
 .disclosure-body {
   padding-bottom: 6px;
 }
-/* the one line of the TNC group: the arrow, the state, the words and a small Reconnect at the end */
-.radiohead {
+/* the status row of a group (StatusFold): the arrow, the state, the words and an action at the end (Reconnect) */
+.statushead {
   display: flex;
   align-items: center;
   gap: 8px;
   list-style: none;
   color: var(--text);
 }
-.radiohead::-webkit-details-marker {
+.statushead::-webkit-details-marker {
   display: none;
 }
-.radiohead::before {
+.statushead::before {
   content: "";
   flex: none;
   width: 0;
@@ -300,18 +302,18 @@
   border-style: solid;
   border-color: transparent transparent transparent var(--muted);
 }
-.radiostatus[open] > .radiohead::before {
+.statusfold[open] > .statushead::before {
   border-width: 8px 5px 0;
   border-color: var(--muted) transparent transparent;
 }
-.radiohead .statetext {
+.statushead .statetext {
   flex: none;
 }
-.radiohead .btn {
+.statushead .btn {
   flex: none;
 }
 /* (the button of the line is --control-h high: the summary's padding is less, so that the line is as high as it was) */
-.radiostatus > .radiohead {
+.statusfold > .statushead {
   padding: 2px 0;
 }
 .radiofind {

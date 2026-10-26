@@ -106,9 +106,9 @@ that both the daemon and the page are tested against (`ui/src/protocol/vectors.j
 
 ## On/off and state controls on the page
 
-- Every on/off is a **tickbox**, on the first row of its group, labelled with the feature's name, with its (i) after it; ticked shows the rest of the group and unticked hides it (the Beacon choice greying what it does not time is the one exception). No On/Off dropdown, no switch drawn as a pill, no word "Off" as a control.
+- Every on/off is a **tickbox**, on the first row of its group, with its (i) after it, labelled **Enable** when the group's title already names the feature (Digipeater, Internet stations) and with its own name when it does not (RX only, Alert); ticked shows the rest of the group and unticked hides it (the Beacon choice greying what it does not time is the one exception). No On/Off dropdown, no switch drawn as a pill, no word "Off" as a control.
 - A dropdown is a real choice of three values or more (or a list of what is found, a port or a path).
-- A **state** is quiet text in a group (a line under the tickbox); the marks of state are the tags in the top bar of the page (RX only, Beacon off, Internet, GPS). `ui/src/components/ControlsGuard.test.ts` holds this.
+- A **state** in a group is one row under the tickbox, the same everywhere (`StatusFold`): the state as a word in its palette colour, a quiet line, an arrow that opens the details, and an action of the row at its end if it has one. It is shown only while the feature is on; the marks of state are the tags in the top bar of the page (RX only, Beacon off, Internet, GPS). `ui/src/components/ControlsGuard.test.ts` holds this.
 - An action that is a row of its own is an `ActionRow` (above).
 
 ## Removing a control from the page

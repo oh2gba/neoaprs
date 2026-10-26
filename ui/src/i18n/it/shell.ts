@@ -10,7 +10,7 @@ export const shell: Readonly<Record<keyof typeof en, Message>> = {
   "pill.beacon_off": "Beacon spento",
   "pill.beacon_off_title": "Nessun beacon né stato automatici. Scheda Beacon",
   "pill.internet": "Internet",
-  "pill.internet_title": "Internet: stazioni di APRS-IS sulla mappa. Impostazioni → Internet",
+  "pill.internet_title": "Internet: stazioni di APRS-IS sulla mappa. Impostazioni → Stazioni Internet",
   "pill.gps": "GPS",
   "pill.gps_fix_title": "GPS: fix. Scheda Beacon",
   "pill.gps_nofix_title": "GPS: ancora nessun fix. Scheda Beacon",

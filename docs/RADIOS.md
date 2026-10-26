@@ -27,7 +27,7 @@ How to connect your radio or TNC to NeoAPRS, on Linux or Windows. In the page, *
 
 Tried on the air: the Kenwood TH-D7. The other entries follow the radios' manuals and users' reports; "unverified" marks a detail nobody has confirmed.
 
-NeoAPRS sends and receives over RF, and can show the stations of the internet round you on the map, marked as such, receive only ([Internet stations](manual/igate.md)). Nothing from the internet goes to the radio.
+NeoAPRS sends and receives over RF, and can show the stations of the internet round you on the map, marked as such ([Internet stations](manual/igate.md)). Nothing from the internet goes to the radio.
 
 ## Kenwood TH-D7 and TM-D700
 

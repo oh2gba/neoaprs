@@ -15,7 +15,7 @@ The page has a **map** of the area round your station and, at its right, a **pan
 |---|---|
 | **Messages** | the conversations with other stations ([messages.md](messages.md)) |
 | **Stations** | the table of stations, below |
-| **Nearby** | what is around you: the digipeaters, voice frequencies, iGates and stations heard direct, below |
+| **Nearby** | what is around you: the digipeaters, voice frequencies, iGates and stations heard direct, and Local info (QRU), below |
 | **Email** | mail through the gateway ([email.md](email.md)) |
 | **Bulletins** | the message board and the box to post to it ([bulletins.md](bulletins.md)) |
 | **Objects** | your objects and items ([objects.md](objects.md)) |
@@ -51,7 +51,7 @@ The table has the symbol, the call, the distance from you, the bearing as a smal
 
 ### Nearby
 
-What the local APRS infrastructure is, at a glance. The tab has four lists made from the stations you have heard. Each is in the order of the distance from you, the nearest first and a station with no position last, and each row has the distance and the bearing as the Stations table shows them. A list with nothing in it says "none yet". A click on a row does what a click on a row of the Stations table does: the station's card opens and the map flies to it (with Ctrl it adds a card). A station past its timeout is dim.
+What the local APRS infrastructure is, at a glance. The tab has four lists made from the stations you have heard, and under them Local info (QRU). Each is in the order of the distance from you, the nearest first and a station with no position last, and each row has the distance and the bearing as the Stations table shows them. A list with nothing in it says "none yet". A click on a row does what a click on a row of the Stations table does: the station's card opens and the map flies to it (with Ctrl it adds a card). A station past its timeout is dim.
 
 The tab lists only what was on the air near you: a station known from the internet alone is in none of the four lists, whatever its symbol or its frequency say.
 
@@ -61,6 +61,8 @@ The tab lists only what was on the air near you: a station known from the intern
 - **Voice frequencies** are the stations, objects and items that gave a frequency to call on, with the line the card shows ("145.775 MHz, tone 118 Hz, -600 kHz") and, for an object or an item, "reported by" the station that sent it. Nothing is tuned.
 - **iGates** are the stations that put packets from the internet on the air (the row says how many packets it gated from the internet), the stations that said they are an iGate in a capabilities packet, and the stations that have the iGate symbol. The count is of the packets NeoAPRS heard since it started and in the latest 2000 it kept, for a station that is in the station book. A station that is only ever heard wrapping other stations' packets is not counted.
 - **Heard direct** are the stations heard with no digipeater between you, the ones in simplex range, with when each was last heard direct. Stations at the same distance (and those with none) are listed with the newest first.
+
+- **Local info (QRU)** asks the stations near you for repeaters, events and places, by radio only. **Ask** sends `INFO`; the field after it is a distance in km (empty: the servers' own, usually 50). Each server that answered is a row: its call, its groups as tags with the number of objects in each (a press asks for that group, with the same distance) and, in quiet text, the line it ended its last objects with. "No answer yet" shows after an ask that nobody has answered. The button and the tags are off in RX only. [More](objects.md#asking-for-local-info).
 
 The tab has no count on it: nothing in it is waiting to be seen.
 
@@ -78,8 +80,8 @@ The tab has no Save button ([start.md](start.md#how-settings-apply)). From the t
 
 - **Language**, and **Run the setup guide again** ([start.md](start.md#the-setup-guide));
 - **Radio**: the **RX only** tickbox (ticked sends nothing, [beacon.md](beacon.md#rx-only)), the radio's status in one line with **Reconnect**, and behind its arrow the **Radio type**, the **Port** and **Speed** (or the **TCP host** and **TCP port**), **Find my radio** and the **Terminal** ([radio.md](radio.md)), and the type **Dummy** for trying NeoAPRS without a radio;
-- **Internet**: the one switch **Receive only**, which shows the stations of APRS-IS within the map's radius, and its status in one line ([igate.md](igate.md)); without a call it says **Set your call first**;
-- **Digipeater**: the tickbox of the fill-in digipeater ([beacon.md](beacon.md#the-fill-in-digipeater));
+- **Internet stations**: the one tickbox **Enable**, which shows the stations of APRS-IS within the map's radius, and its status row under it ([igate.md](igate.md)); without a call it says **Set your call first**;
+- **Digipeater**: the tickbox **Enable** of the fill-in digipeater ([beacon.md](beacon.md#the-fill-in-digipeater));
 - **Web page**: **Allow access from the network**, with the access key and the addresses once it is on, and the secure connection ([network.md](network.md));
 - **Notifications**, in two boxes: **On the NeoAPRS computer** and **In this browser** ([notifications.md](notifications.md));
 - **Map**: the **Radius**, and on the row under it **Detailed map** with the **Download map** button ([The base map](#the-base-map));
@@ -177,7 +179,7 @@ At the right, before the count of messages, are small marks that say what is out
 
 - **RX only** (amber) while Settings → Radio → RX only is ticked ([beacon.md](beacon.md#rx-only));
 - **Beacon off** (grey) while the Beacon choice is Off and the station transmits ([beacon.md](beacon.md#beacon-off));
-- **Internet** (blue) while Settings → Internet → Receive only is connected ([igate.md](igate.md));
+- **Internet** (blue) while Settings → Internet stations is enabled and connected ([igate.md](igate.md));
 - **GPS**, only when a GPS is the position source: blue with a fix, amber without.
 
 On a narrow screen the marks give way and the count stays. Your call is not in the header; it is in the Settings tab and in every message you send.

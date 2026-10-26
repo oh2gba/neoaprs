@@ -67,6 +67,7 @@ The type **Dummy (no radio, made-up traffic)**, the last in the list of **Radio 
 
 - A few stations that stay (a house, a club, a cottage), three cars and a walker on routes round the position (some with Mic-E, some with compressed positions), a weather station that reports every 5 minutes, two digipeaters with PHG that repeat the others, two objects, a bulletin now and then and a status. Something is on the air within half a minute, then a few packets a minute.
 - **The stations that take messages answer.** A message to one of them is acked after a moment and answered a few seconds later with "Hello from the dummy radio", so messaging can be tried.
+- **The club station Q1CLB is a QRU server.** Nearby → Ask is answered with its groups, `RP70` and `FOOD`, and a press on a group with its objects ([more](objects.md#asking-for-local-info)).
 - **Nothing goes anywhere.** What you send (beacons, messages) is swallowed. A digipeater is heard repeating a beacon of yours now and then, as if it had been on the air.
 - The radio status says **Dummy radio: made-up traffic, nothing goes on the air**, in a muted pill.
 - Every call is made up on the prefix Q (`Q1ABC`, `Q2DIG-2`, `Q3WX`), which the ITU gives to no country, so none of them is anybody's.

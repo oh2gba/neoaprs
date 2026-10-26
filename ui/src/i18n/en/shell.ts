@@ -8,7 +8,7 @@ export const shell = {
   "pill.beacon_off": "Beacon off",
   "pill.beacon_off_title": "No automatic beacon or status. Beacon tab",
   "pill.internet": "Internet",
-  "pill.internet_title": "Internet: APRS-IS stations on the map. Settings → Internet",
+  "pill.internet_title": "Internet: APRS-IS stations on the map. Settings → Internet stations",
   "pill.gps": "GPS",
   "pill.gps_fix_title": "GPS: fix. Beacon tab",
   "pill.gps_nofix_title": "GPS: no fix yet. Beacon tab",

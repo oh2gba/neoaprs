@@ -93,7 +93,7 @@ Some objects are not worth a place on the air all the time: the pubs, the petrol
 
 An object that has a group but is not ticked is sent on the schedule as well, and is also given to a station that asks. An object that is ticked is never sent on the schedule: nothing goes out when you make or change it, and killing it removes it at once.
 
-A station asks by sending a **message to the addressee `QRU`** (not to your call). Every QRU server in range answers.
+A station asks by sending a **message to the addressee `QRU`** (not to your call). Every QRU server in range answers. The older APRSISCE spelling with a `?` before the word (`?INFO`, `?POST 20000`) and small letters are understood too.
 
 | the message | the answer |
 |---|---|
@@ -104,11 +104,22 @@ A station asks by sending a **message to the addressee `QRU`** (not to your call
 
 "Near" is the distance from the asker's last position that you heard to the object. A station whose position you do not know is offered every object, since it asked you and so can hear you. A server with nothing near the asker does not answer.
 
-- The answers go by the path of the station that asked, are not retried and have no message id. A request that carries an id is acked, as a query to you is. Nothing is sent while the TNC is not connected or the call is not set.
+- The answers go by the path of the station that asked with `RFONLY` added, so that iGates keep them off the internet, are not retried and have no message id. A request is a broadcast and is **never acked**, also when it carries an id: an ack from your call would match nothing at the asker. Nothing is sent while the TNC is not connected or the call is not set.
+- Only a request heard on the radio is answered. One that came over the internet is not (the asker is not in your radio range).
 - The same request from the same station within 30 seconds is answered once.
 - A message to `QRU` is not kept in Messages. While you have no object with a group it is a message to another station like any, and is kept as one you overheard.
 - `?APRSO` also gives these objects.
 - You can have 50 objects and items at once, these among them.
+
+## Asking for local info
+
+The **Nearby** tab can ask the QRU servers round you for repeaters, events and places ([the tab](page.md#nearby)). **Ask** sends `INFO`, with the distance in km if you typed one; each server that answers is listed with its groups, and a press on a group asks for it. The objects arrive as ordinary objects on the map and in the Stations tab, and the servers' messages are in Messages like any message.
+
+- A request is one message to `QRU`, sent once by radio only (`RFONLY` after your message path), with no id. It is not kept as a message of yours and not sent again.
+- Nothing is sent while **RX only** is ticked or your call is not set. The same request again within 30 seconds is refused.
+- A server with nothing within its range (50 km unless you named a distance) stays silent: "No answer yet" means that, or that none is in radio range.
+- The servers are forgotten an hour after they answered.
+- With the **Dummy** radio the made-up club station Q1CLB is a QRU server (groups `RP70` and `FOOD`), so that you can try it without a radio.
 
 ## Heard back, and taken over
 

@@ -11,7 +11,7 @@ export const shell: Record<keyof typeof source, Message> = {
   "pill.beacon_off": "ビーコン停止",
   "pill.beacon_off_title": "自動のビーコンとステータスは送りません。ビーコンタブ",
   "pill.internet": "Internet",
-  "pill.internet_title": "インターネット:APRS-ISの局を地図に表示。設定 → インターネット",
+  "pill.internet_title": "インターネット:APRS-ISの局を地図に表示。設定 → インターネットの局",
   "pill.gps": "GPS",
   "pill.gps_fix_title": "GPS:測位済み。ビーコンタブ",
   "pill.gps_nofix_title": "GPS:まだ測位していません。ビーコンタブ",

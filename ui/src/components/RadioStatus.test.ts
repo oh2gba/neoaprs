@@ -10,7 +10,7 @@ const radio = (tnc: ReturnType<typeof tncState> | null) => mount(RadioStatus, { 
 describe("RadioStatus", () => {
   it("has the state, one plain line and Reconnect in the heading of a fold, and none of the counters", () => {
     const wrapper = radio(tncState());
-    const head = wrapper.find("summary.radiohead");
+    const head = wrapper.find("summary.statushead");
     expect(head.find(".statetext").text()).toBe("connected");
     expect(head.find(".tncstatus").text()).toBe("Last packet 30 s ago");
     expect(head.find(".tncstatus").attributes("title")).toBe("11 packets heard, 2.0 kB in, 0 B out, 0 digipeated");

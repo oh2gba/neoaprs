@@ -197,7 +197,8 @@ const SPECS: Record<string, FieldSpec> = {
   },
   [STATION_HOURS_KEY]: { name: "settings.station_hours.name", label: "station.table.on_map", kind: "choice", choices: stationHoursChoices },
   "digi/enabled": {
-    label: "settings.digipeater.label",
+    name: "settings.digipeater.name",
+    label: "settings.enable.label",
     kind: "bool",
     tipLabel: "settings.digipeater.tip_label",
     tip: ["settings.digipeater.tip1", "settings.digipeater.tip2"],
@@ -205,7 +206,7 @@ const SPECS: Record<string, FieldSpec> = {
   },
   "igate/enabled": {
     name: "settings.igate.name",
-    label: "settings.igate.label",
+    label: "settings.enable.label",
     kind: "bool",
     tipLabel: "settings.igate.tip_label",
     tip: ["settings.igate.tip1"],
@@ -280,7 +281,7 @@ export const FIELDS: Record<string, FieldInfo> = Object.fromEntries(Object.entri
 /** The settings of the daemon's own alert, which the Notifications group shows (beside the alert of the browser, which is the page's). */
 const ALERT = ["messages/alert", "messages/alert_command"];
 
-/** Whether the Internet switch (Receive only: the stations of APRS-IS on the map) is on in these values; it is off unless the values say so. */
+/** Whether the Internet switch (Enable, in the group Internet stations: the stations of APRS-IS on the map) is on in these values; it is off unless the values say so. */
 export const igateOn = (values: Readonly<Record<string, string>>): boolean => values["igate/enabled"] === "true";
 
 /** Whether a setting that depends on a switch is shown: the alert's command (and its Test button) only while the alert is on; an alert the values do not mention is the daemon's default, on. */

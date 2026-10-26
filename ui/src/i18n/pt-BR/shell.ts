@@ -11,7 +11,7 @@ export const shell: Record<keyof typeof source, Message> = {
   "pill.beacon_off": "Beacon desligado",
   "pill.beacon_off_title": "Sem beacon nem status automáticos. Aba Beacon",
   "pill.internet": "Internet",
-  "pill.internet_title": "Internet: estações do APRS-IS no mapa. Ajustes → Internet",
+  "pill.internet_title": "Internet: estações do APRS-IS no mapa. Ajustes → Estações da Internet",
   "pill.gps": "GPS",
   "pill.gps_fix_title": "GPS: fix. Aba Beacon",
   "pill.gps_nofix_title": "GPS: ainda sem fix. Aba Beacon",

@@ -29,7 +29,7 @@ describe("the TNC group of the Settings tab", () => {
   it("shows the state, the status line and Reconnect, and keeps the fields and the Terminal behind a fold that is closed while the radio is connected", () => {
     const { group } = make();
     expect(fold(group).element.open).toBe(false);
-    const head = fold(group).find("summary.radiohead");
+    const head = fold(group).find("summary.statushead");
     expect(head.find(".statetext").text()).toBe("connected");
     expect(head.find(".tncstatus").text()).toBe("Last packet 30 s ago");
     expect(head.find("button").text()).toBe("Reconnect");

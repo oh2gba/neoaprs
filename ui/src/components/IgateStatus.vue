@@ -1,13 +1,17 @@
 <script setup lang="ts">
-// The status of the Internet group of the Settings tab: one quiet line (lib/igatestatus.ts), as the radio status has under the TNC group. The state as a mark is in the top bar of the page, not here.
+// The status of the Internet stations group of the Settings tab, under its tickbox and only while it is ticked: the radio's status row (StatusFold.vue) with the words of lib/igatestatus.ts, and behind its arrow the server and the filter. The state as a mark is in the top bar of the page.
 import { computed } from "vue";
-import { igateStatus } from "@/lib/igatestatus";
+import StatusFold from "@/components/StatusFold.vue";
+import { igateLook } from "@/lib/igatestatus";
 import type { IgateState } from "@/protocol/protocol";
 
-const props = defineProps<{ igate: IgateState; values: Readonly<Record<string, string>> }>();
-const line = computed(() => igateStatus(props.igate, props.values));
+const props = defineProps<{ igate: IgateState; values: Readonly<Record<string, string>>; stations: number }>();
+const look = computed(() => igateLook(props.igate, props.values, props.stations));
 </script>
 
 <template>
-  <p class="tncstatus igatestatus" role="status">{{ line }}</p>
+  <StatusFold class="igatestatus" :state="look.state" :tone="look.tone" :line="look.line">
+    <p class="igatefold">{{ look.server }}</p>
+    <p class="igatefold">{{ look.filter }}</p>
+  </StatusFold>
 </template>

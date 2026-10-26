@@ -181,7 +181,7 @@ class Shots:
         self.browser, self.url, self.out = browser, url, out
         self.written: dict[str, int] = {}
         self.update_url = ""                                       # the page of the daemon that has an update on offer (the "update" shot)
-        self.receive_url = ""                                      # the page of the daemon that is set to Receive only (the "beacon-rx" shot)
+        self.receive_url = ""                                      # the page of the daemon that is set to RX only (the "beacon-rx" shot)
         self.moving_url = ""                                       # the page of the daemon that follows a GPS (the "beacon-gps" shot)
         self.scheme = "light"                                      # the colour scheme of the shots being taken; a dark one is saved as NAME-dark.png
         self.started = asyncio.get_running_loop().time()
@@ -492,14 +492,14 @@ async def shot_settings_tnc(s: Shots, _: str) -> None:
 
 
 async def shot_beacon_rx(s: Shots, _: str) -> None:
-    """The Beacon tab of a station that is set to Receive only (the daemon's setting station/transmit: the amber badge in the header, beside the title) and has the Beacon Off: the status block says Beacon off with its pill off, and what belongs to the beacon is grey."""
+    """The Beacon tab of a station that is set to RX only (the daemon's setting station/transmit: the amber badge in the header, beside the title) and has the Beacon Off: the status block says Beacon off with its pill off, and what belongs to the beacon is grey."""
     page = await s.page(DESKTOP, tab="beacon", view=CITY, panel=WIDE_PANEL, url=s.receive_url)
     await settle(page, 400)
     await s.save(page, "beacon-rx")
 
 
 async def shot_phone_beacon_rx(s: Shots, _: str) -> None:
-    """A phone set to Receive only with the Beacon Off: the amber badge beside the title and, under the tab bar, the Beacon tab with its status block saying Beacon off and the fields of the beacon grey."""
+    """A phone set to RX only with the Beacon Off: the amber badge beside the title and, under the tab bar, the Beacon tab with its status block saying Beacon off and the fields of the beacon grey."""
     page = await s.page(PHONE, tab="beacon", view=CITY, phone_view="panel", url=s.receive_url)
     await s.save(page, "phone-beacon-rx")
 
@@ -711,7 +711,7 @@ async def take(args: argparse.Namespace, chosen: list[str]) -> None:
             copy_data(data, work / "receiving")
             neoaprs_db_set(work / "receiving", "station/transmit", "false")
             neoaprs_db_set(work / "receiving", "beacon/interval_min", "0")
-            receiving = Daemon(work / "receiving")                                                   # (the same day on the air, with station/transmit false: Receive only, and the beacon Off)
+            receiving = Daemon(work / "receiving")                                                   # (the same day on the air, with station/transmit false: RX only, and the beacon Off)
             daemons.append(receiving)
         moving: Daemon | None = None
         if {"beacon-gps", "beacon-gps-dark"} & set(chosen):

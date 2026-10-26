@@ -19,7 +19,7 @@ This is the manual for the person who runs it. How NeoAPRS is built and released
 | [`radio.md`](radio.md) | connecting the radio: ports (serial, TCP, Bluetooth, Bluetooth LE), finding the radio, the TNC types, the keep-alive and a silent radio |
 | [`beacon.md`](beacon.md) | the Beacon tab: the beacon status, where the position comes from (fixed, or a GPS), the Beacon choice and Off, RX only, mobile operation with SmartBeaconing, the location and the symbol, the status, answers to queries (and the QRU server), the fill-in digipeater |
 | [`messages.md`](messages.md) | the Messages tab: sending, acks and retries, the path each message chooses, deleting |
-| [`igate.md`](igate.md) | stations from the internet on the map, receive only: the switch, the radius, the server, and advanced use as an iGate |
+| [`igate.md`](igate.md) | stations from the internet on the map: the tickbox, the radius, the server, and advanced use as an iGate |
 | [`email.md`](email.md) | email through the APRS gateway |
 | [`bulletins.md`](bulletins.md) | the message board and posting to it |
 | [`objects.md`](objects.md) | objects and items of your own, and the QRU server that sends them to a station that asks |
