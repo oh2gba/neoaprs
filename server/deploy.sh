@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Upload the version page (version.php and log/.htaccess) to oh2gba.eu/neoaprs/ on the shared hosting
+# Upload the version page and the download page (version.php, download.php, latest.php and log/.htaccess) to oh2gba.eu/neoaprs/ on the shared hosting
 # account, in one SFTP session. Only these files: nothing else of the site is touched, and message.txt
 # and the logs, which live on the server only, are never uploaded or removed.
 #
@@ -14,7 +14,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"   # server/
 REMOTE="${VERSION_PAGE_REMOTE:-/public_html/oh2gba.eu/neoaprs}"
-FILES=(version.php log/.htaccess)
+FILES=(version.php download.php latest.php log/.htaccess)
 
 if [ "${1:-}" = "--list" ]; then
   printf '  %s -> %s/%s\n' $(for f in "${FILES[@]}"; do echo "$f" "$REMOTE" "$f"; done)
@@ -36,4 +36,4 @@ for f in "${FILES[@]}"; do ARGS+=(-T "$ROOT/$f" "sftp://$FH$REMOTE/$f"); done
 echo "version page: ${#FILES[@]} files in one session -> $REMOTE"
 curl -sS --max-time 120 --ftp-create-dirs -u "$FU:$FP" "${ARGS[@]}" >/dev/null
 printf '  -> %s\n' "${FILES[@]}"
-echo "done. Try: curl 'https://oh2gba.eu/neoaprs/version.php?v=0.1.0&os=linux'"
+echo "done. Try: curl 'https://oh2gba.eu/neoaprs/version.php?v=0.1.0&os=linux' and curl -sI 'https://oh2gba.eu/neoaprs/download.php?f=windows'"

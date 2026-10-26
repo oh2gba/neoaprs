@@ -39,7 +39,8 @@ class Page:
     def start(self) -> None:
         (self.folder / "site" / "log").mkdir(parents=True)
         (self.folder / "lib").mkdir()
-        shutil.copy(ROOT / "server" / "version.php", self.folder / "site" / "version.php")
+        for name in ("version.php", "latest.php"):
+            shutil.copy(ROOT / "server" / name, self.folder / "site" / name)
         (self.folder / "lib" / "starts.php").write_text(LIBRARY, encoding="utf-8")
         env = {"PATH": os.environ["PATH"], "STATUS_LIB": str(self.folder / "lib"), "RELEASES_URL": self.github.url}
         assert PHP is not None

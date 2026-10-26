@@ -23,6 +23,7 @@ Getting help.
 The project page.
 
 - The project page (`site/`) is rewritten to be short: a header with one screenshot, nine feature cards (Map, Stations, Messages, Weather, Nearby, Mobile, Objects, Beacon, Network), the install commands, the radios, the screenshots and a footer with the support address; about 780 words where it had 2,600. The anchors `#map`, `#nearby`, `#messages`, `#weather`, `#beacon`, `#radios` and `#gallery` stay; `#get` is now `#install`.
+- The download buttons start the download in one click. The release files carry the version in their names, so GitHub's `releases/latest/download/NAME` cannot name them; `https://oh2gba.eu/neoaprs/download.php?f=windows` (also `appimage`, `deb-amd64`, `deb-arm64`, `wheel`) answers with a redirect to that file of the latest release (found the way the version page finds it, which now shares `server/latest.php`) and to the release page for anything else, and the Windows installer and Linux AppImage buttons of the project page use it instead of opening the release page. The release and its file names are unchanged. A download is logged on the server as time, the file asked for and the version, nothing else.
 
 ## 0.9.0
 
