@@ -13,7 +13,7 @@ export const help = {
     "Your packet goes from your car to a fill-in digipeater, WIDE1-1, then to a wide-area one, WIDE2-1: two hops before the other stations hear it.",
   "help.picture.status": "Your short status text, QRV 145.500, appears on the map of the other stations under your call.",
   "help.picture.range": "A digipeater with its range circle: the stations inside the circle are heard through it, the stations outside it are not.",
-  "help.picture.request": "A station asks QRU, and your station answers with the object, which is otherwise not sent.",
+  "help.picture.request": "A station asks for local info, and your station answers with the object, which is otherwise not sent.",
   "help.picture.ssid": "One call sign, YOURCALL, for three stations: the plain call is a house, -9 a car, -10 an iGate.",
   "help.picture.symbol": "A choice of symbols with the car picked, and the car on the map of another station under your call.",
   "help.picture.network": "The computer that runs NeoAPRS, connected over the network to a phone, a tablet and a laptop that open its page.",
@@ -29,7 +29,7 @@ export const help = {
   "help.picture.channels": "A station heard on the radio, by waves, is tagged RF; one that came from the cloud, APRS-IS, has a dotted outline and its own tag.",
   "help.picture.dummy": "Made-up stations in a dashed frame answer your station, and what your station sends does not go out: the waves are crossed out.",
   "help.picture.notifications": "A message from a station arrives, and this device plays a sound, the speaker, and shows a pop-up, the card.",
-  "help.picture.qru": "Your station asks QRU, and a server station answers with objects, a repeater and an event, which appear on your map.",
+  "help.picture.qru": "Your station asks for local info, and a server station answers with objects, a repeater and an event, which appear on your map.",
   "help.not_copied": "Not copied",
 
   "help.install.label": "App",

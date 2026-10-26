@@ -47,21 +47,20 @@ const callsIn = (wrapper: ReturnType<typeof mount>, name: string) =>
 beforeEach(() => localStorage.clear());
 
 describe("NearbyPane", () => {
-  it("has the four lists, each with its count, in the order digipeaters, voice frequencies, iGates, heard direct, and Local info (QRU) after them", () => {
+  it("has the four lists, each with its count, in the order digipeaters, voice frequencies, iGates, heard direct, and nothing of QRU", () => {
     const { wrapper } = make();
     expect(wrapper.findAll("fieldset > legend").map((h) => h.text().replace(/ ?i$/, ""))).toEqual([
       "Digipeaters 1",
       "Voice frequencies 2",
       "iGates 1",
       "Heard direct 1",
-      "Local info (QRU)",
     ]);
   });
 
-  it("puts every list in a group box with its title as the legend, like the groups of the Settings tab, and the box of Local info is one of them", () => {
+  it("puts every list in a group box with its title as the legend, like the groups of the Settings tab, and none of them is Local info (QRU), which is in the Objects tab", () => {
     const { wrapper } = make();
-    expect(wrapper.findAll(".nearbypane > fieldset.nearby-section")).toHaveLength(5);
-    expect(wrapper.find(".nearbypane > fieldset.nearby-qru").exists()).toBe(true);
+    expect(wrapper.findAll(".nearbypane > fieldset.nearby-section")).toHaveLength(4);
+    expect(wrapper.find(".nearbypane .qru-ask, .nearbypane .objects-qru").exists()).toBe(false);
     expect(wrapper.find(".nearbypane > section").exists()).toBe(false);
   });
 

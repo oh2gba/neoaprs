@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Local info (QRU): this station asks QRU by radio, and a server station near it answers with objects (a repeater and an event), which appear on the map.
+// Local info (QRU): this station asks for local info by radio, and a server station near it answers with objects (a repeater and an event), which appear on the map.
 import { CALLS } from "@/help/calls";
 import HelpBubble from "@/help/HelpBubble.vue";
 import { t } from "@/i18n";
@@ -12,7 +12,7 @@ import { arrow, waves } from "@/help/draw";
 <template>
   <HelpFrame name="qru">
     <HelpStation table="/" code=">" :x="46" :y="62" :label="t('help.me')" />
-    <HelpBubble :x="113" :y="8" :w="46" text="QRU" />
+    <HelpBubble :x="113" :y="8" :w="46" text="INFO" />
     <path class="hp-flow" :d="waves(74, 40, 0, 2, 8, 5)" />
     <path class="hp-flow" :d="arrow(90, 44, 206, 44)" />
     <path class="hp-flow" :d="arrow(206, 74, 90, 74)" />

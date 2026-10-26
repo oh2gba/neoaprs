@@ -2,10 +2,11 @@
 // The Objects tab: the objects and items of ours, oldest first, each with its symbol, its name, what kind it is, its QRU group if it has one, how often it was sent and when it goes out next (or that it is sent only when asked), and its comment; the delete button
 // at its corner kills it (two presses, the second after "sure?": the killed form goes out three times and it is forgotten). The rows are selectable like the rows of the Nearby tab (a click or Enter highlights the row and says `select`, which selects the object on the map as
 // a click there does), and the form under the list (components/ObjectForm.vue, always there) changes the selected object: Save; with none selected it adds a new object: Add. An object whose kill is going out is not selectable and has no delete. The list fills the tab above
-// the form and is scrolled to the newest object (an (i) at the top, TabHelp, says what an object is); it scrolls on its own and the form keeps its height (its fields scroll), so that on a phone both are within reach.
+// the form and is scrolled to the end (an (i) at the top, TabHelp, says what an object is); the group box under the objects in it is Local info (QRU), where QRU is asked (ObjectsQru.vue), as the form's QRU group is what offers an object to those who ask; it scrolls on its own and the form keeps its height (its fields scroll), so that on a phone both are within reach.
 import { computed, nextTick, ref, watch } from "vue";
 import IconButton from "@/components/IconButton.vue";
 import ObjectForm from "@/components/ObjectForm.vue";
+import ObjectsQru from "@/components/ObjectsQru.vue";
 import SymbolIcon from "@/components/SymbolIcon.vue";
 import TabHelp from "@/components/TabHelp.vue";
 import { t } from "@/i18n";
@@ -14,6 +15,7 @@ import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useSure } from "@/composables/useSure";
 import { useToNewest } from "@/composables/useToNewest";
 import { stateText } from "@/lib/ownobjects";
+import { categoryLabel } from "@/lib/qrucategories";
 import type { OwnObjectRow } from "@/protocol/protocol";
 
 const props = defineProps<{ objects: ReadonlyMap<string, OwnObjectRow>; form: OwnObjectsView }>();
@@ -77,12 +79,13 @@ watch(
             <SymbolIcon :table="row.symbol_table" :code="row.symbol_code" :size="22" />
             <strong class="mono">{{ row.name }}</strong>
             <span class="muted"> {{ t("objects.kind_word", { kind: row.kind }) }}</span>
-            <span v-if="row.qru_group" class="muted mono"> {{ t("objects.in_group", { group: row.qru_group }) }}</span>
+            <span v-if="row.qru_group" class="muted"> {{ t("objects.in_group", { group: categoryLabel(row.qru_group) }) }}</span>
           </p>
           <p v-if="row.comment" class="bulletin-text">{{ row.comment }}</p>
           <p class="bulletin-meta muted">{{ stateText(row, now) }}</p>
         </li>
       </ul>
+      <ObjectsQru />
     </div>
     <ObjectForm :form="form" :fallback-path="fallbackPath" />
   </div>

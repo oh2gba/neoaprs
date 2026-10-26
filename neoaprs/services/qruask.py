@@ -59,7 +59,7 @@ class QruAsk:
         now = self.clock()
         if self.asked is not None and (wait := ASK_EVERY_SEC - (now - self.asked.at).total_seconds()) > 0:
             seconds = max(1, round(wait))
-            raise MessagingError(f"only one request to QRU per minute: wait {seconds} s", "qru.too_soon", seconds=seconds)
+            raise MessagingError(f"only one request for local info per minute: wait {seconds} s", "qru.too_soon", seconds=seconds)
         try:
             path = rf_only_path(self._paths(ADDRESSEE))
             if len(path) > ax25.MAX_PATH:

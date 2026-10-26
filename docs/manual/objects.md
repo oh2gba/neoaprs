@@ -2,7 +2,7 @@
 
 An object is a marker you put on the map for something that is not a station: a repeater, a meeting point, an event. Everyone near you sees it, as long as you send it. The (i) at the top of the tab says so with a picture.
 
-The Objects tab makes an object, shows it on the map as yours, changes it and kills it. NeoAPRS sends it on the air by a schedule of its own. The list of your objects is above and the form is always under it: with no object selected the form adds a new one, with one selected it changes that one.
+The Objects tab makes an object, shows it on the map as yours, changes it and kills it. NeoAPRS sends it on the air by a schedule of its own. The list of your objects is above, then the group box **Local info** ([below](#asking-for-local-info)), and the form is always at the bottom: with no object selected the form adds a new one, with one selected it changes that one.
 
 - An **object** (chapter 11 of the specification) has a name of 1 to 9 characters and a time stamp.
 - An **item** has a name of 3 to 9 characters and no time stamp. The tab no longer makes new ones (objects are recommended on RF; the specification advises against the item format on the air), but an item you made before is still listed, can be changed and killed, and is sent as before.
@@ -20,10 +20,10 @@ The form is at the bottom of the tab, under the list of your objects (oldest fir
 - **Location.** As in the Beacon tab and the setup guide ([beacon.md](beacon.md#the-location)): a plain **Choose on map** button and a click on the map (Cancel while the map waits), the place as text beside the button, and the latitude, longitude and locator behind a click on the place (closed until you click it, and open by itself when a coordinate is wrong). A new object has no place until you give one: the map shows a pin where it is, and moves to it, only when you click the map or type a place or pick the locator, never just because the tab opens.
 - **Comment.** 43 characters, 36 behind a course and speed.
 - **Moving.** A closed heading with the **course** in degrees and the **speed** in km/h: each, both or neither. It is open when the object you change already has a course or a speed; empty, the object does not move.
-- **Advanced.** A closed heading, as in the Beacon tab, with the rarely needed fields under it. It is open by itself when the object you change has a path of its own, a QRU group or the tick, and closed for a new object.
+- **Advanced.** A closed heading, as in the Beacon tab, with the rarely needed fields under it. It is open by itself when the object you change has a path of its own, a category or the tick, and closed for a new object.
   - **Path.** The placeholder is the beacon's path, which an empty field means. Up to 8 digipeaters, or the word `DIRECT` for none at all. `RFONLY` or `NOGATE` in it keeps the iGates from putting it on the internet.
-  - **QRU group.** Empty for none. 1 to 8 letters and digits, written in capitals (`FOOD`, `RP70`), and not `INFO` or `NEXT`. A station that asks for the group is sent the object ([below](#objects-sent-only-when-asked)); others ask from Nearby → Local info (QRU).
-  - **Send only when asked.** Off: the object is sent on the schedule as always. On: it is kept and shown, and sent only to a station that asks for it.
+  - **Category.** What kind of place the object is, to offer it to the stations that ask for local info ([below](#objects-sent-only-when-asked)). The choice has the usual kinds in plain words (2 m repeater, 70 cm repeater, fuel station, food, hospital, ham radio club and more), **None** first, which offers nothing, and **Other…** last, which shows a field **Code** for a word of your own: 1 to 8 letters and digits, written in capitals, and not `INFO` or `NEXT`. What goes on the air is the standard code of the kind (`RP70`, `FOOD`), so that other programs find it too.
+  - **Send only when asked.** Shown once there is a category. Off: the object is sent on the schedule as always. On: it is kept and shown, and sent only to a station that asks for it.
 
 Each field has a small **i** after it that says in one line what it is for.
 
@@ -33,7 +33,7 @@ A field with something wrong is red and says what. The main button waits until t
 
 **Changing one.** Click its row, as you would a row of the Nearby tab: the row is highlighted, the object is selected on the map (its card opens and the map goes to it; on a phone the tab stays, the map has it when you go there), and the form under the list has it. The name stays, as it is the object's identity; the main button now reads **Save**. When the daemon has the changed object the selection is let go of and the form is clear for the next one. **Esc** and **Cancel** leave the selection. An object whose kill is going out cannot be selected.
 
-**In the Objects tab** each object has an x that asks twice (the second press after "sure?") and kills it. A row says how often the object was sent and when it goes out next ("sent 3 times, next in 12 min"), "waiting" when that time has passed because the radio is away, "killing" for an object whose kill is going out, and "sent only when asked" for one that is never sent on the schedule. An object with a QRU group shows the group after its kind.
+**In the Objects tab** each object has an x that asks twice (the second press after "sure?") and kills it. A row says how often the object was sent and when it goes out next ("sent 3 times, next in 12 min"), "waiting" when that time has passed because the radio is away, "killing" for an object whose kill is going out, and "sent only when asked" for one that is never sent on the schedule. An object with a category shows it after its kind.
 
 ## The packet
 
@@ -89,15 +89,15 @@ The first transmission is not tried by NeoAPRS's tests: make an object, then loo
 
 ## Objects sent only when asked
 
-Some objects are not worth a place on the air all the time: the pubs, the petrol stations, the repeaters round the town. Give them a **QRU group** and tick **Send only when asked**, and NeoAPRS keeps them and sends them to a station that asks. This is the QRU server of APRSISCE/32 and YAAC. QRU is the Morse abbreviation for "have you anything for me?".
+Some objects are not worth a place on the air all the time: the pubs, the petrol stations, the repeaters round the town. Give them a **category** and tick **Send only when asked**, and NeoAPRS keeps them and sends them to a station that asks. This is the local info of APRSISCE/32 and YAAC. APRS calls it QRU, the Morse abbreviation for "have you anything for me?": a station asks with a message to the addressee `QRU` (not to your call).
 
-An object that has a group but is not ticked is sent on the schedule as well, and is also given to a station that asks. An object that is ticked is never sent on the schedule: nothing goes out when you make or change it, and killing it removes it at once.
+An object that has a category but is not ticked is sent on the schedule as well, and is also given to a station that asks. An object that is ticked is never sent on the schedule: nothing goes out when you make or change it, and killing it removes it at once.
 
-A station asks by sending a **message to the addressee `QRU`** (not to your call). Every QRU server in range answers. The older APRSISCE spelling with a `?` before the word (`?INFO`, `?POST 20000`) and small letters are understood too.
+Every station that keeps objects in a category answers, if it is in range. The older APRSISCE spelling with a `?` before the word (`?INFO`, `?POST 20000`) and small letters are understood too.
 
 | the message | the answer |
 |---|---|
-| `INFO` (or `?`) | a message to the asker with the groups you have near it and how many objects each has: `de OH2GBA-10:FOOD(3) FUEL(1) Max 5@50km`. The last part is the most objects it will send and the distance. A long list is two messages, the first ending in `+`; what does not fit is left out |
+| `INFO` (or `?`) | a message to the asker with the categories you have near it and how many objects each has: `de OH2GBA-10:FOOD(3) FUEL(1) Max 5@50km`. The last part is the most objects it will send and the distance. A long list is two messages, the first ending in `+`; what does not fit is left out |
 | `FOOD` | the objects of the group, the nearest first, at most 5, as object packets 10 seconds apart, and then a message `Sent 3 FOOD Objects Max 5@50km de OH2GBA-10`. When more are near: `Sent 5 of 12 FOOD Objects, NEXT for more. de OH2GBA-10` |
 | `NEXT` | the following objects of the group that station asked for last (for an hour) |
 | `INFO 250`, `FOOD 250` | the same within 250 km instead of 50 km |
@@ -107,19 +107,19 @@ A station asks by sending a **message to the addressee `QRU`** (not to your call
 - The answers go by the path of the station that asked with `RFONLY` added, so that iGates keep them off the internet, are not retried and have no message id. A request is a broadcast and is **never acked**, also when it carries an id: an ack from your call would match nothing at the asker. Nothing is sent while the TNC is not connected or the call is not set.
 - Only a request heard on the radio is answered. One that came over the internet is not (the asker is not in your radio range).
 - The same request from the same station within 30 seconds is answered once.
-- A message to `QRU` is not kept in Messages. While you have no object with a group it is a message to another station like any, and is kept as one you overheard.
+- A request for local info is not kept in Messages. While you have no object with a category it is a message to another station like any, and is kept as one you overheard.
 - `?APRSO` also gives these objects.
 - You can have 50 objects and items at once, these among them.
 
 ## Asking for local info
 
-The **Nearby** tab can ask the QRU servers round you for repeaters, events and places ([the tab](page.md#nearby)). **Ask** sends `INFO`, with the distance in km of the field (it starts at the map radius); each server that answers is listed with its groups, and a press on a group asks for it. The objects arrive as ordinary objects on the map and in the Stations tab, and the servers' messages are in Messages like any message.
+The group box **Local info** of this tab, under the list of your objects, asks the stations round you for their objects: repeaters, events and places. **Ask** sends `INFO`, with the distance in km of the field (it starts at the map radius); each station that answers is listed with its categories in plain words and the number of objects in each, and a press on one asks for it (the code is in its hover text). The objects arrive as ordinary objects on the map and in the Stations tab, and the answering stations' messages are in Messages like any message.
 
-- A request is one message to `QRU`, sent once by radio only (`RFONLY` after your message path), with no id. It is not kept as a message of yours and not sent again.
+- A request is one message, sent once by radio only (`RFONLY` after your message path), with no id. It is not kept as a message of yours and not sent again.
 - Nothing is sent while **RX only** is ticked or your call is not set. One request goes on the air per minute, whatever it says: Ask waits for the minute, and the daemon refuses another sooner (the status row says why).
-- A server with nothing within its range (50 km unless you named a distance) stays silent: "no answer" in the status row means that, or that none is in radio range.
-- The servers are forgotten an hour after they answered.
-- With the **Dummy** radio the made-up club station Q1CLB is a QRU server (groups `RP70` and `FOOD`), so that you can try it without a radio.
+- A station with nothing within its range (50 km unless you named a distance) stays silent: "no answer" in the status row means that, or that none is in radio range.
+- The stations that answered are forgotten an hour after they answered.
+- With the **Dummy** radio the made-up club station Q1CLB answers with local info (the categories 70 cm repeater and Food), so that you can try it without a radio.
 
 ## Heard back, and taken over
 

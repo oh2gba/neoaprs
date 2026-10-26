@@ -105,7 +105,7 @@ def _qru_group(group: str) -> str:
     """The group name in upper case ("" for none); OwnError for one that is not 1 to QRU_GROUP_MAX letters and digits or is a word QRU takes for something else."""
     found = group.strip().upper()
     if found and (_QRU_GROUP.fullmatch(found) is None or found in QRU_RESERVED):
-        raise OwnError(f"the QRU group {group!r} is 1 to {QRU_GROUP_MAX} letters and digits, and not INFO or NEXT", "object.qru_group", group=group, max=QRU_GROUP_MAX)
+        raise OwnError(f"the category {group!r} is 1 to {QRU_GROUP_MAX} letters and digits, and not INFO or NEXT", "object.qru_group", group=group, max=QRU_GROUP_MAX)
     return found
 
 

@@ -1,13 +1,13 @@
 import { mount } from "@vue/test-utils";
 import { shallowRef } from "vue";
 import { describe, expect, it } from "vitest";
-import NearbyQru from "@/components/NearbyQru.vue";
+import ObjectsQru from "@/components/ObjectsQru.vue";
 import { fakeDaemon, tell, withDaemon } from "@/test/context";
 import { NOW, ago, configValues, qruState, toastOf } from "@/test/fixtures";
 
 function make(given: Parameters<typeof fakeDaemon>[0] = {}) {
   const daemon = fakeDaemon(given);
-  const wrapper = mount(NearbyQru, { global: withDaemon(daemon) });
+  const wrapper = mount(ObjectsQru, { global: withDaemon(daemon) });
   return { wrapper, daemon };
 }
 const ask = (wrapper: ReturnType<typeof mount>) => wrapper.find("button.btn");
@@ -16,16 +16,15 @@ const asked = (text: string) => ({ cmd: "qru_ask", text });
 const row = (wrapper: ReturnType<typeof mount>) => wrapper.find(".qrustatus");
 const line = (wrapper: ReturnType<typeof mount>) => row(wrapper).find(".tncstatus").text();
 
-describe("Local info (QRU) in the Nearby tab", () => {
-  it("is a group box with an (i) in its legend that says what it does and where to offer your own objects, with the picture, and has no status row before something was asked", async () => {
+describe("Local info in the Objects tab", () => {
+  it("is a group box with an (i) in its legend that says what it does, with the picture, and has no status row before something was asked", async () => {
     const { wrapper } = make();
-    expect(wrapper.find("fieldset > legend").text().replace(/ ?i$/, "")).toBe("Local info (QRU)");
-    await wrapper.find(".nearby-head button.info-toggle").trigger("click");
-    expect(wrapper.findAll(".nearby-head .info-text .info-line").map((l) => l.text())).toEqual([
-      "Asks stations near you for local info: repeaters, events, places. Sent by radio only.",
-      "To offer your own objects, give them a QRU group in Objects.",
+    expect(wrapper.find("fieldset > legend").text().replace(/ ?i$/, "")).toBe("Local info");
+    await wrapper.find(".qru-head button.info-toggle").trigger("click");
+    expect(wrapper.findAll(".qru-head .info-text .info-line").map((l) => l.text())).toEqual([
+      "Asks stations near you for their objects (APRS QRU): repeaters, events, places. Sent by radio only.",
     ]);
-    expect(wrapper.find(".nearby-head svg[data-picture='qru']").exists()).toBe(true);
+    expect(wrapper.find(".qru-head svg[data-picture='qru']").exists()).toBe(true);
     expect(ask(wrapper).text()).toBe("Ask");
     expect(row(wrapper).exists()).toBe(false);
     expect(wrapper.find(".qru-servers").exists()).toBe(false);
@@ -110,7 +109,7 @@ describe("Local info (QRU) in the Nearby tab", () => {
     const { wrapper, daemon } = make();
     await tell(daemon, { lastError: toastOf("qru_ask: the same request was sent a moment ago: wait 12 s", "qru.too_soon", { seconds: 12 }) });
     expect(row(wrapper).find(".statetext").text()).toBe("Not sent");
-    expect(line(wrapper)).toBe("only one request to QRU per minute: wait 12 s");
+    expect(line(wrapper)).toBe("only one request for local info per minute: wait 12 s");
     await tell(daemon, { lastError: toastOf("qru_ask: RX only", "transmit.off") });
     expect(line(wrapper)).toContain("RX only");
     await tell(daemon, { qru: qruState({ asked: { text: "INFO", at: ago(1) } }) });
@@ -128,10 +127,10 @@ describe("Local info (QRU) in the Nearby tab", () => {
         ],
       }),
     });
-    expect(wrapper.find("legend").text().replace(/ ?i$/, "")).toBe("Local info (QRU) 2");
+    expect(wrapper.find("legend").text().replace(/ ?i$/, "")).toBe("Local info 2");
     const rows = wrapper.findAll("li.qru-server");
     expect(rows.map((r) => r.find(".qru-call").text())).toEqual(["DF8LS-10", "W1AW"]);
-    expect(rows[0]?.findAll("button.qru-group").map((b) => b.text())).toEqual(["RP70 10", "RP2M 3"]);
+    expect(rows[0]?.findAll("button.qru-group").map((b) => b.text())).toEqual(["70 cm repeater 10", "2 m repeater 3"]);
     expect(rows[0]?.findAll("button.tag.tag-accent").length).toBe(2);
     expect(rows[0]?.find(".qru-sent").text()).toBe("Sent 5 RP70 Objects Max 5@50km de DF8LS-10");
     expect(rows[1]?.find(".qru-sent").exists()).toBe(false);
@@ -142,8 +141,21 @@ describe("Local info (QRU) in the Nearby tab", () => {
     await pills(wrapper)[1]?.trigger("click");
     await wrapper.find("input.qru-km").setValue("200");
     await pills(wrapper)[0]?.trigger("click");
-    expect(pills(wrapper)[0]?.attributes("title")).toBe("Ask DF8LS-10 for RP70");
+    expect(pills(wrapper)[0]?.attributes("title")).toBe("Ask DF8LS-10 for 70 cm repeater (RP70)");
     expect(daemon.send.mock.calls.map(([command]) => command)).toEqual([asked("RP2M 150"), asked("RP70 200")]);
+  });
+
+  it("shows a group that has no plain name as its code, and asks for it by it", async () => {
+    const { wrapper, daemon } = make({
+      qru: qruState({
+        asked: { text: "INFO", at: ago(90) },
+        servers: [{ call: "W1AW", groups: [{ name: "MYNET", count: 4 }], max_objects: 5, range: 50, unit: "km", at: ago(5), sent: "", sent_at: null }],
+      }),
+    });
+    expect(pills(wrapper).map((b) => b.text())).toEqual(["MYNET 4"]);
+    expect(pills(wrapper)[0]?.attributes("title")).toBe("Ask W1AW for MYNET");
+    await pills(wrapper)[0]?.trigger("click");
+    expect(daemon.send.mock.calls.map(([command]) => command)).toEqual([asked("MYNET 150")]);
   });
 
   it("is off in RX only, with the reason on hover, and sends nothing", async () => {

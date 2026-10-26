@@ -1,11 +1,11 @@
 <script setup lang="ts">
 // The form of an object or an item of ours, in the Objects tab, in the box at the bottom of the tab, always there (ComposeBar, as everywhere; its fields scroll on a short screen, the line with the counter, Cancel and the main button does not). With an object selected in the list it changes that object
 // and the main button reads Save; with none selected it adds a new one and the button reads Add; Cancel (and Esc, also with the cursor in a field) leaves the selection and clears the form completely (no place, the default symbol, nothing else); Add stays off, saying so in its title, until there is a place. The fields: the name (that of an object that is being changed stays; a new one is always an object, an item of ours that is being changed stays an item), the symbol (the picture and its name, a click opens the picker, as in the Beacon tab), the position (the row Location of the Beacon tab, components/LocationField.vue: **Choose on map**, a click on the map, or the
-// coordinates or a locator typed behind the place), the comment (the characters it has left are the counter beside the buttons), the course and speed (behind a closed fold, Moving, which is open for an object that has either), and behind a second closed fold, Advanced, as in the Beacon tab: the path the object goes by (the placeholder is the beacon's), its QRU group (a station that asks the addressee QRU for the group is sent the object) and whether it is sent only when asked; Advanced
+// coordinates or a locator typed behind the place), the comment (the characters it has left are the counter beside the buttons), the course and speed (behind a closed fold, Moving, which is open for an object that has either), and behind a second closed fold, Advanced, as in the Beacon tab: the path the object goes by (the placeholder is the beacon's), its category (a choice of the standard groups of local info by their plain names, or Other... with a code of our own; the value is the code that goes on the air, and a station that asks for the group is sent the object) and, once there is a category, whether it is sent only when asked; Advanced
 // is open for an object being changed that has a path, a group or the tick. Every field of ours has its (i) after it, as the settings have (InfoTip); the symbol and the place are the controls of the Beacon tab, which have none. A field with something wrong is red and says what under it. Save is on when there is a name, a place and a symbol and nothing is wrong; the daemon checks it all again.
 import { useReceiveOnly } from "@/composables/useReceiveOnly";
 import { rxOnlyReason } from "@/lib/compose";
-import { computed, useId } from "vue";
+import { computed, ref, useId, watch } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
 import DisclosureBox from "@/components/DisclosureBox.vue";
 import InfoTip from "@/components/InfoTip.vue";
@@ -16,6 +16,7 @@ import type { MessageId } from "@/i18n/catalogue";
 import type { OwnObjectsView } from "@/composables/useOwnObjects";
 import { leftTitle } from "@/lib/compose";
 import { placeOfText } from "@/lib/locator";
+import { CATEGORY_CODES, categoryMessage, isStandardCategory } from "@/lib/qrucategories";
 import { commentLimit, draftProblems, draftReady, NAME_MAX } from "@/lib/ownobjects";
 import { LIMITS } from "@/protocol/lists";
 
@@ -30,8 +31,25 @@ const ready = computed(() => draftReady(draft));
 const place = computed(() => placeOfText(draft.lat, draft.lon));
 /** The fold Moving (course and speed) is open while the draft has either: an object being changed that moves, or a value typed. */
 const moving = computed(() => draft.course.trim() !== "" || draft.speed.trim() !== "");
-/** The fold Advanced (path, QRU group, sent only when asked) is open while the draft has any of them. */
+/** The fold Advanced (path, category, sent only when asked) is open while the draft has any of them. */
 const advanced = computed(() => draft.path.trim() !== "" || draft.qru.trim() !== "" || draft.onRequest);
+/** The choice of the Category that stands for "Other...": a word of our own, which has its field. */
+const OTHER = "other";
+const own = ref(false); // ("Other..." chosen and no word typed yet)
+const choice = computed(() => (isStandardCategory(draft.qru) ? draft.qru.trim().toUpperCase() : draft.qru.trim() !== "" || own.value ? OTHER : ""));
+watch(
+  () => [props.form.editing, props.form.dirty],
+  () => {
+    if (props.form.editing !== null || !props.form.dirty) own.value = false;
+  },
+);
+
+/** A choice of the Category: the standard code, none (which also drops "Send only when asked", as it is out of sight), or a word of our own to type. */
+function choose(value: string): void {
+  own.value = value === OTHER;
+  draft.qru = value === OTHER ? (isStandardCategory(draft.qru) ? "" : draft.qru) : value;
+  if (value === "") draft.onRequest = false;
+}
 /** The name of an (i) for a screen reader: "About Path". */
 const about = (field: MessageId) => t("settings.about", { label: t(field) });
 const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
@@ -125,8 +143,21 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
           >
         </div>
       </div>
-      <div class="field" :class="{ invalid: problems.qru }" :title="problems.qru">
-        <label :for="`${id}-qru`">{{ t("objects.field.qru") }}</label>
+      <div class="field">
+        <label :for="`${id}-category`">{{ t("objects.field.category") }}</label>
+        <div class="field-control">
+          <select :id="`${id}-category`" class="input" :value="choice" @change="choose(($event.target as HTMLSelectElement).value)">
+            <option value="">{{ t("objects.category.none") }}</option>
+            <option v-for="code in CATEGORY_CODES" :key="code" :value="code">{{ t(categoryMessage(code)) }}</option>
+            <option :value="OTHER">{{ t("objects.category.other") }}</option>
+          </select>
+          <InfoTip :label="about('objects.field.category')">
+            <span class="info-line">{{ t("objects.tip.category") }}</span>
+          </InfoTip>
+        </div>
+      </div>
+      <div v-if="choice === OTHER" class="field" :class="{ invalid: problems.qru }" :title="problems.qru">
+        <label :for="`${id}-qru`">{{ t("objects.field.category_code") }}</label>
         <div class="field-control">
           <input
             :id="`${id}-qru`"
@@ -138,13 +169,12 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
             spellcheck="false"
             @input="draft.qru = draft.qru.toUpperCase()"
           />
-          <InfoTip :label="about('objects.field.qru')">
-            <span class="info-line">{{ t("objects.tip.qru", { max: qruMax }) }}</span>
-            <span class="info-line">{{ t("objects.tip.qru_ask") }}</span>
+          <InfoTip :label="about('objects.field.category_code')">
+            <span class="info-line">{{ t("objects.tip.category_code", { max: qruMax }) }}</span>
           </InfoTip>
         </div>
       </div>
-      <div class="field">
+      <div v-if="choice !== '' || draft.onRequest" class="field">
         <label :for="`${id}-asked`">{{ t("objects.field.on_request") }}</label>
         <div class="field-control">
           <input :id="`${id}-asked`" v-model="draft.onRequest" class="check" type="checkbox" />
