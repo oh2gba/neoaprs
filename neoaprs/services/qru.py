@@ -40,7 +40,7 @@ from neoaprs.callsign import CallsignError
 from neoaprs.clock import Clock, utcnow
 from neoaprs.geo import distance_km
 from neoaprs.ownobject import OwnObject, info_of
-from neoaprs.packet import DUMMY, RF, Message, Packet
+from neoaprs.packet import RF_GATED, Message, Packet
 from neoaprs.services.answers import ANSWER_FRAMES_MAX, Answers
 from neoaprs.services.common import ConfigSource, Radio, our_frame
 from neoaprs.services.pace import SPACING_SEC
@@ -53,7 +53,6 @@ RANGE_KM = 50                                                       # how far fr
 MAX_INFO_MESSAGES = 2                                               # the messages the list of groups goes over at most
 NEXT_KEEP = timedelta(hours=1)                                      # how long the place in a group is kept for `NEXT`
 _REQUEST = re.compile(r"(?P<mark>\?)?(?P<word>[A-Z0-9]{1,8})?(?:\s+(?P<km>\d{1,5}))?")
-HEARD_ON_RADIO = (RF, DUMMY)                                        # the channels a request may come by
 
 
 class Objects(Protocol):
@@ -117,7 +116,7 @@ class Qru:
     def heard(self, packet: Packet, message: Message) -> bool:
         """A message to QRU: answered, and True, when we serve some group and the text is a request; False for anything else (the inbox keeps it as a message overheard)."""
         request = request_of(message.text)
-        if packet.via not in HEARD_ON_RADIO or request is None or not any(o.alive and o.qru_group for o in self._objects.records()):
+        if not packet.on_air or packet.via == RF_GATED or request is None or not any(o.alive and o.qru_group for o in self._objects.records()):
             return False
         asker, key = packet.sender, f"QRU {request.word} {request.km or ''}".strip()
         if self._answers.refused():
