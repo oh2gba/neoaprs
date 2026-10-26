@@ -2,26 +2,23 @@
 
 ## Unreleased
 
-An iGate, internet stations on the map, and a tab bar that fits.
+An iGate with internet stations on the map, a world map and a Dummy radio to try it all, Find my radio on Windows and macOS, and a tab bar that fits.
 
-- **Settings → iGate** puts what your radio hears on APRS-IS. It needs your call and a passcode.
-- Nothing from the internet is ever sent on the air.
-- Internet stations on the map, marked as such, when the iGate is on.
-- Every station and packet says how it was heard: RF, iGate or Internet.
-- A station known only from the internet has a dotted outline and cannot be messaged.
+- **Settings → iGate** puts what your radio hears on APRS-IS. It needs your call and a passcode. Nothing from the internet goes on the air.
+- Internet stations show on the map, with a dotted outline, when the iGate is on. They cannot be messaged.
+- Every station and packet says how it was heard: RF, iGate, Internet or Dummy.
 - **Heard on RF only** in the Stations tab hides the stations known only from the internet.
-- Tabs that do not fit sit under a **More** tab instead of one menu button.
+- A world map comes with NeoAPRS, so the map is never empty, even offline.
+- A map of about 50 km round your station downloads by itself after the setup's Position step.
+- A missing or unreadable map file is now said above the setup.
+- New radio type **Dummy**: made-up stations that answer your messages, to try NeoAPRS with no radio. Nothing goes on the air.
+- **Find my radio** works on Windows and macOS, and in the setup's Radio step, which also has the **Terminal**.
+- Tabs that do not fit sit under a **More** tab.
 - A page that does not match NeoAPRS says so and offers **Reload**.
-- The Objects form keeps Path and QRU under Advanced, as the Beacon tab does.
-- There is a world map in every package, so the setup's map is never empty: coastlines, borders and the names of countries and big cities, with no download.
-- A map of about 50 km round your station now downloads by itself when you leave the setup's Position step, with one quiet line saying so; Settings → Map → Download makes a bigger one.
-- Without internet the world map stays, and the setup says the detailed map will download when you are online; it is tried again at each start.
-- A missing or unreadable map file is now said above the setup, where it was hidden before.
-- **Find my radio** works on Windows and macOS: it tries the COM ports (USB adapters first, a paired Bluetooth serial port last) or the `/dev/cu.*` devices, one at a time.
-- A port that another program has is passed over, with "in use by another program" in the log.
-- The setup's Radio step has **Find my radio** and the **Terminal**, as the Settings tab has them.
-- New radio type **Dummy (no radio, made-up traffic)**: stations, cars, a walker, weather, digipeaters, an object and a bulletin around your position, and answers to your messages. Nothing goes on the air.
-- The Dummy has no port and no speed to set; the radio status says "Dummy radio: made-up traffic, nothing goes on the air".
+- Settings hide what a switched-off choice does not need: the alert's command, the browser's sounds, the Status fields.
+- The Objects form keeps Path and QRU under Advanced, and every field has an (i).
+- **Settings → Help** is one line and a **Download logs** button.
+- The Beacon tab no longer has the Preview of the packet.
 
 ## 0.9.1
 
