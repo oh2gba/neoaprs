@@ -27,6 +27,10 @@ from pathlib import Path
 from typing import Any, Callable
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+from neoaprs.updateasset import wheel_version  # noqa: E402
+
 INIT = ROOT / "neoaprs" / "__init__.py"
 CHANGELOG = ROOT / "CHANGELOG.md"
 SEMVER = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.]+))?$")
@@ -45,7 +49,8 @@ class Refusal(Exception):
 
 def assets_of(version: str) -> list[str]:
     """The 10 files of a release: the versioned ones and the installer and the AppImage again under fixed names (.github/workflows/release.yml, "SHA256SUMS and the notes")."""
-    return sorted([f"neoaprs-{version}-py3-none-any.whl", f"neoaprs-{version}.tar.gz", f"NeoAPRS-Setup-{version}.exe", f"NeoAPRS-{version}-x86_64.AppImage",
+    wheel = wheel_version(version)                  # the build names the wheel and the sdist by the PEP 440 form: 1.0.0rc1 for 1.0.0-rc1
+    return sorted([f"neoaprs-{wheel}-py3-none-any.whl", f"neoaprs-{wheel}.tar.gz", f"NeoAPRS-Setup-{version}.exe", f"NeoAPRS-{version}-x86_64.AppImage",
                    f"neoaprs_{version}_amd64.deb", f"neoaprs_{version}_arm64.deb", "install.sh", "NeoAPRS-Setup.exe", "NeoAPRS-x86_64.AppImage", "SHA256SUMS"])
 
 

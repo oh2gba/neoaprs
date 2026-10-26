@@ -16,11 +16,13 @@ import pytest
 
 from neoaprs import VERSION
 from neoaprs.cli.daemonstate import LOG_NAME, page_url
+from neoaprs.updateasset import wheel_version
 from tests.conftest import ROOT
 from tests.support.proc import NEW_GROUP, stop
 
 WHEEL_VERSION = VERSION.replace("-rc", "rc")                  # (the wheel's file name and its dist-info folder have the version as PEP 440 writes it: 0.10.0-rc1 is 0.10.0rc1)
 pytestmark = pytest.mark.skipif(shutil.which("uv") is None, reason="uv is not installed: the wheel is not built")
+WHEEL_VERSION = wheel_version(VERSION)            # the build writes 0.10.0rc1 for 0.10.0-rc1
 NEEDS_NETWORK = ("error sending request", "failed to fetch", "dns error", "connection refused", "network", "timed out", "tcp connect error", "unable to connect", "name resolution")
 
 
@@ -92,6 +94,10 @@ def test_the_wheel_holds_the_package_the_page_and_the_unit_and_nothing_of_the_re
     assert f"Version: {VERSION}\n" in metadata and "Requires-Dist: tornado==" in metadata and "Requires-Python: >=3.13" in metadata and "License-Expression: GPL-3.0-or-later" in metadata
     assert "Provides-Extra: app" in metadata and "pywebview==" in metadata and "pyside6-webengine==" in metadata.lower(), "the desktop app is an extra"
     assert not [line for line in metadata.splitlines() if line.startswith("Requires-Dist:") and "extra ==" not in line and any(n in line.lower() for n in ("pywebview", "pyside6", "pystray", "pillow"))], "the daemon's install stays lean: none of the toolkits is a dependency without the extra"
+
+
+def test_the_sdist_is_named_by_the_version_the_wheel_is_named_by(built: dict[str, Path]) -> None:
+    assert built["sdist"].name == f"neoaprs-{WHEEL_VERSION}.tar.gz"
 
 
 def test_the_sdist_is_the_package_and_the_licence(built: dict[str, Path]) -> None:

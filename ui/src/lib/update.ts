@@ -23,7 +23,16 @@ const appImageName = (version: string): string => `NeoAPRS-${version}-x86_64.App
 export const appImageUrl = (version: string): string => download(version, appImageName(version));
 export const debName = (version: string, arch: string): string => `neoaprs_${version}_${arch}.deb`;
 export const debUrl = (version: string, arch: string): string => download(version, debName(version, arch));
-export const wheelUrl = (version: string): string => download(version, `neoaprs-${version}-py3-none-any.whl`);
+const PRE_RELEASE = /^(\d+\.\d+\.\d+)-(alpha|a|beta|b|rc|c|preview|pre|dev)\.?(\d*)$/;
+const PEP440_TAG: Record<string, string> = { alpha: "a", a: "a", beta: "b", b: "b", rc: "rc", c: "rc", preview: "rc", pre: "rc" };
+/** The version as the wheel is named, PEP 440 as the build makes it: `1.0.0-rc1` is `1.0.0rc1` (neoaprs/updateasset.py, `wheel_version`). */
+export const wheelVersion = (version: string): string => {
+  const found = PRE_RELEASE.exec(version);
+  if (!found) return version;
+  const [, base, tag, number] = found;
+  return tag === "dev" ? `${base}.dev${number || 0}` : `${base}${PEP440_TAG[tag]}${number || 0}`;
+};
+export const wheelUrl = (version: string): string => download(version, `neoaprs-${wheelVersion(version)}-py3-none-any.whl`);
 
 /** The last part of a path of either kind. */
 function fileName(path: string): string {

@@ -88,7 +88,8 @@ jobs:
           uv build --out-dir dist
           ls -l dist
           version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)"
-          [ -f "dist/neoaprs-$version-py3-none-any.whl" ] && [ -f "dist/neoaprs-$version.tar.gz" ] && [ "$(ls dist | wc -l)" = 2 ]
+          wheel_version="$(python3 -c 'import sys; from neoaprs.updateasset import wheel_version; print(wheel_version(sys.argv[1]))' "$version")"          # 0.10.0-rc1 is 0.10.0rc1 in the names the build makes (PEP 440)
+          [ -f "dist/neoaprs-$wheel_version-py3-none-any.whl" ] && [ -f "dist/neoaprs-$wheel_version.tar.gz" ] && [ "$(ls dist | wc -l)" = 2 ]
       - name: Smoke test of the wheel in a fresh environment
         run: |
           uv venv "$RUNNER_TEMP/smoke-venv"
@@ -501,7 +502,8 @@ jobs:
       - name: Render install.sh
         run: |
           version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)"
-          url="https://github.com/oh2gba/neoaprs/releases/download/v$version/neoaprs-$version-py3-none-any.whl"
+          wheel_version="$(python3 -c 'import sys; from neoaprs.updateasset import wheel_version; print(wheel_version(sys.argv[1]))' "$version")"
+          url="https://github.com/oh2gba/neoaprs/releases/download/v$version/neoaprs-$wheel_version-py3-none-any.whl"
           mkdir -p out
           sed -e "s|@VERSION@|$version|g" -e "s|@WHEEL_URL@|$url|g" packaging/install.sh.in > out/install.sh
           chmod +x out/install.sh
@@ -537,8 +539,9 @@ jobs:
       - name: SHA256SUMS and the notes
         run: |
           version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)"
+          wheel_version="$(python3 -c 'import sys; from neoaprs.updateasset import wheel_version; print(wheel_version(sys.argv[1]))' "$version")"
           cd release-files
-          for f in "neoaprs-$version-py3-none-any.whl" "neoaprs-$version.tar.gz" "NeoAPRS-Setup-$version.exe" "NeoAPRS-$version-x86_64.AppImage" "neoaprs_${version}_amd64.deb" "neoaprs_${version}_arm64.deb" install.sh; do [ -f "$f" ] || { echo "::error::$f is missing"; exit 1; }; done
+          for f in "neoaprs-$wheel_version-py3-none-any.whl" "neoaprs-$wheel_version.tar.gz" "NeoAPRS-Setup-$version.exe" "NeoAPRS-$version-x86_64.AppImage" "neoaprs_${version}_amd64.deb" "neoaprs_${version}_arm64.deb" install.sh; do [ -f "$f" ] || { echo "::error::$f is missing"; exit 1; }; done
           # the installer and the AppImage also under names without the version, so that the project page can link to
           # releases/latest/download/NAME and the download starts at once (the self-update asks for the versioned names)
           cp -- "NeoAPRS-Setup-$version.exe" NeoAPRS-Setup.exe

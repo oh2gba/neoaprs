@@ -36,6 +36,7 @@ describe("the addresses", () => {
     expect(debName("0.4.0", "arm64")).toBe("neoaprs_0.4.0_arm64.deb");
     expect(debUrl("0.4.0", "amd64")).toBe("https://github.com/oh2gba/neoaprs/releases/download/v0.4.0/neoaprs_0.4.0_amd64.deb");
     expect(wheelUrl("0.4.0")).toBe("https://github.com/oh2gba/neoaprs/releases/download/v0.4.0/neoaprs-0.4.0-py3-none-any.whl");
+    expect(wheelUrl("0.10.0-rc1")).toBe("https://github.com/oh2gba/neoaprs/releases/download/v0.10.0-rc1/neoaprs-0.10.0rc1-py3-none-any.whl");
   });
 });
 

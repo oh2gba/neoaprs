@@ -87,7 +87,8 @@ if [ -z "$wheel" ]; then
     wheel="$(ls "$ROOT"/dist-wheel/neoaprs-*.whl)"
 fi
 version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' "$ROOT/neoaprs/__init__.py")"
-case "$(basename "$wheel")" in neoaprs-"$version"-*.whl) ;; *) echo "build-appimage: $wheel is not the wheel of $version" >&2; exit 1 ;; esac
+wheel_version="$(PYTHONPATH="$ROOT" python3 -c 'import sys; from neoaprs.updateasset import wheel_version; print(wheel_version(sys.argv[1]))' "$version")"      # 1.0.0-rc1 is 1.0.0rc1 in the wheel's name
+case "$(basename "$wheel")" in neoaprs-"$wheel_version"-*.whl) ;; *) echo "build-appimage: $wheel is not the wheel of $version" >&2; exit 1 ;; esac
 python_tar="$(fetch "$PYTHON_URL" "$PYTHON_SHA256")"
 
 work="$ROOT/build/appimage"

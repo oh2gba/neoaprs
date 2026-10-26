@@ -13,6 +13,8 @@ ALLOWED_HOSTS = frozenset({"github.com", "objects.githubusercontent.com", "relea
 CHECKSUMS = "SHA256SUMS"
 SELF_UPDATING: frozenset[InstallKind] = frozenset({"windows-installer", "appimage"})        # the kinds whose update the daemon can do itself (neoaprs/services/selfinstall.py)
 _RELEASE_VERSION = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+(\.[0-9A-Za-z]+)*)?", re.ASCII)
+_PRE_RELEASE = re.compile(r"([0-9]+\.[0-9]+\.[0-9]+)-(alpha|a|beta|b|rc|c|preview|pre|dev)\.?([0-9]*)", re.ASCII)
+_PEP440_TAG = {"alpha": "a", "a": "a", "beta": "b", "b": "b", "rc": "rc", "c": "rc", "preview": "rc", "pre": "rc"}
 _SUM_LINE = re.compile(r"^([0-9a-fA-F]{64}) [ *](.+)$")
 _ASSET_NAME = re.compile(r"[0-9A-Za-z][0-9A-Za-z._-]*", re.ASCII)
 
@@ -20,6 +22,15 @@ _ASSET_NAME = re.compile(r"[0-9A-Za-z][0-9A-Za-z._-]*", re.ASCII)
 def release_version(version: str) -> bool:
     """Is this a version a release can have, safe to put in an address: `0.6.8`, `1.0.0-rc1`?"""
     return _RELEASE_VERSION.fullmatch(version) is not None
+
+
+def wheel_version(version: str) -> str:
+    """The version as the wheel and the sdist are named, PEP 440 as the build makes it: `1.0.0-rc1` is `1.0.0rc1`, `1.0.0-dev2` is `1.0.0.dev2`; a plain version, and one that is no pre-release of those kinds, as it is."""
+    found = _PRE_RELEASE.fullmatch(version)
+    if found is None:
+        return version
+    base, tag, number = found.groups()
+    return f"{base}.dev{number or 0}" if tag == "dev" else f"{base}{_PEP440_TAG[tag]}{number or 0}"
 
 
 def asset_name(kind: InstallKind, version: str, arch: str = "") -> str | None:
@@ -34,7 +45,7 @@ def asset_name(kind: InstallKind, version: str, arch: str = "") -> str | None:
         case "deb":
             return f"neoaprs_{version}_{arch}.deb" if arch in ("amd64", "arm64") else None
         case "uv-tool" | "pip":
-            return f"neoaprs-{version}-py3-none-any.whl"
+            return f"neoaprs-{wheel_version(version)}-py3-none-any.whl"
         case _:
             return None
 

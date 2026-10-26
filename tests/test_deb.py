@@ -31,8 +31,13 @@ def test_the_package_goes_where_the_install_kind_looks() -> None:
 
 
 def test_the_name_of_the_file_is_the_one_the_update_panel_links() -> None:
-    assert 'target="$out/neoaprs_${deb_version}_$arch.deb"' in SCRIPT
+    assert 'target="$out/neoaprs_${version}_$arch.deb"' in SCRIPT
     assert "`neoaprs_${version}_${arch}.deb`" in (ROOT / "ui" / "src" / "lib" / "update.ts").read_text(encoding="utf-8")
+
+
+def test_a_pre_release_sorts_before_its_release_for_dpkg_and_the_wheel_is_found_by_its_pep_440_name() -> None:
+    assert 'deb_version="${version//-/\\~}"' in SCRIPT and "-e \"s|@DEB_VERSION@|$deb_version|\"" in SCRIPT, "the Version field has 1.0.0~rc1 for 1.0.0-rc1"
+    assert 'neoaprs-"$wheel_version"-*.whl' in SCRIPT and "wheel_version(sys.argv[1])" in SCRIPT, "the wheel the build made is named 1.0.0rc1"
 
 
 def test_the_control_file_has_every_field_the_build_fills_in() -> None:
