@@ -13,7 +13,7 @@ from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import QMainWindow
 
 from . import appstate
-from .links import open_external, route
+from .links import open_external, route, window_url
 
 log = logging.getLogger("neoaprs.desktop")
 
@@ -79,7 +79,7 @@ class AppWindow(QMainWindow):
         self._saver.timeout.connect(self.remember_size)
 
     def load(self) -> None:
-        self.view.setUrl(QUrl(self.url))
+        self.view.setUrl(QUrl(window_url(self.url)))
 
     def dispose(self) -> None:
         """Takes the page down before the profile it is made on, which the engine insists on (the other order is a crash at exit); the window is not used after this. (The stub wants a page for `setPage`; None lets go of it.)"""

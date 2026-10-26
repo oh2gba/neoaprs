@@ -124,7 +124,7 @@ What each layer is for:
     wires to a file.
   * `neoaprs/desktop/`: the desktop app, `neoaprs app` and `neoaprs-app`, the page of the daemon in a window and a tray icon. `cmd.py` runs it; `session.py`
     attaches to the daemon of the data folder or starts one with the code of `neoaprs open`; `menu.py` is the tray menu as data and what it does; `links.py`
-    decides which addresses stay in the window; `autostart.py`, `single.py` and `appstate.py` are start at sign-in, the one-app lock and what the app remembers.
+    decides which addresses stay in the window and gives the window's address the fragment `#app`, by which the page knows it is the app (and shows no Daemon mark: page and daemon are one); `autostart.py`, `single.py` and `appstate.py` are start at sign-in, the one-app lock and what the app remembers.
     The toolkits are imported by `qtshell.py` and `qtwindow.py` (Qt, Linux and macOS) and `winshell.py` (pywebview and pystray, Windows) and by nothing else
     (`TOOLKIT_HOMES` in the test). The Qt shell connects Qt's own signals, so it is a place for `connect` too.
   * `neoaprs/daemon.py`, the process, which names `neoaprs.web.server.WebServer` as the controller's page, and `neoaprs/__main__.py`, which is `python -m neoaprs`.

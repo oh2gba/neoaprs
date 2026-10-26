@@ -187,7 +187,7 @@ def test_the_window_has_the_size_it_had_is_hidden_in_the_tray_and_starts_on_edge
     appstate.save_size(rig.data, 1000, 700)
     thread = launch(rig)
     (window,) = rig.toolkits.windows
-    assert window.args == ("NeoAPRS", PAGE) and (window.kwargs["width"], window.kwargs["height"]) == (1000, 700) and window.kwargs["hidden"] is True and window.kwargs["text_select"] is True
+    assert window.args == ("NeoAPRS", PAGE + "#app") and (window.kwargs["width"], window.kwargs["height"]) == (1000, 700) and window.kwargs["hidden"] is True and window.kwargs["text_select"] is True
     assert isinstance(window.kwargs["js_api"], winshell.LinkApi)
     assert rig.toolkits.started == [{"gui": "edgechromium", "private_mode": False, "storage_path": str(rig.data / "webview")}]
     assert rig.toolkits.settings["OPEN_EXTERNAL_LINKS_IN_BROWSER"] is True and rig.browser == []
