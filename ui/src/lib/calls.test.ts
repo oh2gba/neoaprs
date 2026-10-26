@@ -151,3 +151,13 @@ describe("calls: what is typed into the field of the call", () => {
     expect(callInput("OH2GBA-9x")).toEqual({ base: "OH2GBA9X", ssid: null, text: "OH2GBA9X" });
   });
 });
+
+describe("an installation from before the SSID dropdown", () => {
+  it("keeps its stored call as it is: every form the daemon stores (capitals, SSID 1 to 15, never -0) is split and joined back unchanged, so nothing is rewritten", () => {
+    const stored = ["OH2GBA", "OH2GBA-1", "OH2GBA-9", "OH2GBA-10", "OH2GBA-15", "W1AW-7", "N0CALL", "Q1ABC-9", ""];
+    for (const call of stored) {
+      const { base, ssid } = splitCall(call);
+      expect(joinCall(base, ssid), call).toBe(call);
+    }
+  });
+});

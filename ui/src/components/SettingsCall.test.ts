@@ -26,6 +26,14 @@ describe("the call field of the Beacon tab", () => {
     expect(ssid().attributes("aria-label")).toBe("SSID");
   });
 
+  it("sends nothing when the tab is only opened: a stored call of an earlier version stays as it is (no rewrite on load)", async () => {
+    for (const call of ["OH2GBA", "OH2GBA-9", "OH2GBA-15"]) {
+      const { send, wrapper } = beacon(call);
+      await wrapper.vm.$nextTick();
+      expect(send, call).not.toHaveBeenCalled();
+    }
+  });
+
   it("shows none for a call without an SSID, and for -0", () => {
     expect(beacon("OH2GBA").ssid().element.value).toBe("");
     expect(beacon("OH2GBA-0").ssid().element.value).toBe("");
