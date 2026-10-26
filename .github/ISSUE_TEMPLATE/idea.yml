@@ -1,0 +1,11 @@
+name: Idea
+description: Something you would like NeoAPRS to do
+labels: [idea]
+body:
+  - type: textarea
+    id: want
+    attributes:
+      label: What do you want to do?
+      description: The thing you are trying to do, in your words. How it could work is welcome, but not needed.
+    validations:
+      required: true

@@ -1,0 +1,33 @@
+name: Bug
+description: Something does not work
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: NeoAPRS version
+      description: The footer of the page, or Settings → About.
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: System
+      description: Windows, Linux, Raspberry Pi, macOS, and how NeoAPRS was installed.
+    validations:
+      required: true
+  - type: input
+    id: radio
+    attributes:
+      label: Radio and TNC
+      description: For example Kenwood TH-D74, Mobilinkd TNC3, Direwolf, Dummy.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected and what happened instead, and roughly when.
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: In the page, Settings → Help → Download logs makes the file. Attach it here (the packets heard are public on APRS; the access key is left out).

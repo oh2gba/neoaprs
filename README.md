@@ -36,6 +36,8 @@ Kenwood TH-D7, TM-D700, TM-D710, TH-D72, TH-D74 and TH-D75, Mobilinkd, NinoTNC, 
 
 In the page, *Settings*, *Help*, **Download logs** makes one file to e-mail to neoaprs@oh2gba.eu with a few words on what happened ([Getting help](docs/manual/support.md)). Nothing is sent by itself.
 
+Feedback and ideas: [GitHub issues](https://github.com/oh2gba/neoaprs/issues) (preferred) or [neoaprs@oh2gba.eu](mailto:neoaprs@oh2gba.eu).
+
 ## More
 
 [Manual](docs/manual/README.md) · [Radios](docs/RADIOS.md) · [Changelog](CHANGELOG.md) · [Development](docs/development.md) · [Roadmap](ROADMAP.md) · [Issues](https://github.com/oh2gba/neoaprs/issues)

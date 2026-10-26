@@ -1220,6 +1220,8 @@ export const de: Catalogue = {
   "settings.about.license_link": "GNU General Public License",
   "settings.about.source": "Quellcode",
   "settings.about.thanks": "Danke an {first}, {second} und {third} für ihre Rückmeldungen.",
+  "settings.about.feedback": "Rückmeldungen und Ideen: {issues} (bevorzugt) oder {mail}.",
+  "settings.about.issues": "GitHub Issues",
 
   // beacon
   "beacon.label": "Bake",

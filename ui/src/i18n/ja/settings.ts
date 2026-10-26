@@ -367,4 +367,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.about.license_link": "GNU一般公衆利用許諾書",
   "settings.about.source": "ソースコード",
   "settings.about.thanks": "{first}、{second}、{third} の各局のご意見に感謝します。",
+  "settings.about.feedback": "ご意見・ご提案:{issues}(推奨)またはメール {mail}。",
+  "settings.about.issues": "GitHubのIssue",
 };

@@ -59,6 +59,10 @@ The zip holds plain text files. `README.txt` inside it says the same as here. Op
 
 Know what is in it before you send it. The log and `packets.txt` have the packets heard and sent, which on APRS are public, with the texts of messages to and from other stations and their calls. The log also has the addresses of the devices that opened the page, and `settings.json` the position your beacon sends.
 
+## Feedback
+
+Feedback and ideas: [GitHub issues](https://github.com/oh2gba/neoaprs/issues) (preferred) or <neoaprs@oh2gba.eu>. The page says it too, at the end of Settings → About.
+
 ## Other ways
 
-Bugs and ideas can also go to <https://github.com/oh2gba/neoaprs/issues>. The checklist of `neoaprs doctor` and the usual causes of a silent radio are in [commands.md](commands.md#when-something-does-not-work).
+Bugs and ideas can also go to the issues above. The checklist of `neoaprs doctor` and the usual causes of a silent radio are in [commands.md](commands.md#when-something-does-not-work).

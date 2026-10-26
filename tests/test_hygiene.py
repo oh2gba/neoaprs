@@ -193,3 +193,16 @@ def test_gitignore_does_not_hide_what_belongs_in_the_repository(path: str) -> No
 def test_nothing_that_is_tracked_is_also_ignored() -> None:
     done = subprocess.run(["git", "ls-files", "-ci", "--exclude-standard"], cwd=ROOT, capture_output=True, text=True, check=True)
     assert not done.stdout.split(), f"tracked and ignored at once: {done.stdout.split()}"
+
+
+def test_the_issue_forms_are_two_short_ones_and_a_contact_link_to_the_address_the_page_names() -> None:
+    """How people give feedback is said the same everywhere: GitHub issues (preferred) or the address of the page's Help group (README, the project page, the manual, Settings → About); the forms ask a few things only."""
+    folder = ROOT / "docs" / ".." / ".github" / "ISSUE_TEMPLATE"
+    assert sorted(p.name for p in folder.iterdir()) == ["bug.yml", "config.yml", "idea.yml"]
+    for name in ("bug.yml", "idea.yml"):
+        text = (folder / name).read_text(encoding="utf-8")
+        assert text.count("  - type:") <= 5, f"{name} is a few fields"
+        assert re.search(r"^name: \S", text, re.M) and "required: true" in text
+    assert "mailto:neoaprs@oh2gba.eu" in (folder / "config.yml").read_text(encoding="utf-8")
+    for place in ("README.md", "site/index.html", "docs/manual/support.md", "ui/src/lib/about.ts"):
+        assert "oh2gba/neoaprs/issues" in (ROOT / place).read_text(encoding="utf-8"), place

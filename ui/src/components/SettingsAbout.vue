@@ -3,7 +3,8 @@
 import { t } from "@/i18n";
 import RichMessage from "@/components/RichMessage.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
-import { ABOUT_AUTHOR, ABOUT_LICENSE_URL, ABOUT_SOURCE_URL, ABOUT_THANKS } from "@/lib/about";
+import { ABOUT_AUTHOR, ABOUT_ISSUES_URL, ABOUT_LICENSE_URL, ABOUT_SOURCE_URL, ABOUT_THANKS } from "@/lib/about";
+import { SUPPORT_ADDRESS } from "@/lib/support";
 
 const { version } = useDaemonContext();
 const [first, second, third] = ABOUT_THANKS;
@@ -32,6 +33,15 @@ const [first, second, third] = ABOUT_THANKS;
         ><template #first>{{ first }}</template
         ><template #second>{{ second }}</template
         ><template #third>{{ third }}</template></RichMessage
+      >
+    </p>
+    <p>
+      <RichMessage id="settings.about.feedback"
+        ><template #issues
+          ><a :href="ABOUT_ISSUES_URL" target="_blank" rel="noopener noreferrer">{{ t("settings.about.issues") }}</a></template
+        ><template #mail
+          ><a :href="`mailto:${SUPPORT_ADDRESS}`">{{ SUPPORT_ADDRESS }}</a></template
+        ></RichMessage
       >
     </p>
   </fieldset>

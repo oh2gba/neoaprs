@@ -366,4 +366,6 @@ export const settings = {
   "settings.about.license_link": "GNU General Public License",
   "settings.about.source": "Source code",
   "settings.about.thanks": "Thanks to {first}, {second} and {third} for their feedback.",
+  "settings.about.feedback": "Feedback and ideas: {issues} (preferred) or {mail}.",
+  "settings.about.issues": "GitHub issues",
 } as const;

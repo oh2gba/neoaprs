@@ -370,4 +370,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.about.license_link": "Licença Pública Geral GNU",
   "settings.about.source": "Código-fonte",
   "settings.about.thanks": "Obrigado a {first}, {second} e {third} pelos comentários.",
+  "settings.about.feedback": "Comentários e ideias: {issues} (preferido) ou {mail}.",
+  "settings.about.issues": "issues do GitHub",
 };

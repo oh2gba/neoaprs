@@ -369,4 +369,6 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.about.license_link": "Licencia Pública General de GNU",
   "settings.about.source": "Código fuente",
   "settings.about.thanks": "Gracias a {first}, {second} y {third} por sus comentarios.",
+  "settings.about.feedback": "Comentarios e ideas: {issues} (preferido) o {mail}.",
+  "settings.about.issues": "incidencias en GitHub",
 };

@@ -2,4 +2,5 @@
 export const ABOUT_AUTHOR = "OH2GBA";
 export const ABOUT_LICENSE_URL = "https://www.gnu.org/licenses/gpl-3.0.html";
 export const ABOUT_SOURCE_URL = "https://github.com/oh2gba/neoaprs";
+export const ABOUT_ISSUES_URL = "https://github.com/oh2gba/neoaprs/issues";
 export const ABOUT_THANKS = ["OH2GAX", "OH2DPN", "OH7NFC"] as const;

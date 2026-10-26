@@ -1207,6 +1207,8 @@ export const fr: Catalogue = {
   "settings.about.license_link": "licence publique générale GNU",
   "settings.about.source": "Code source",
   "settings.about.thanks": "Merci à {first}, {second} et {third} pour leurs retours.",
+  "settings.about.feedback": "Retours et idées : {issues} (de préférence) ou {mail}.",
+  "settings.about.issues": "tickets GitHub",
 
   // beacon
   "beacon.label": "Balise",

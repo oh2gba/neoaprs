@@ -30,7 +30,7 @@ describe("the About group", () => {
     expect(license?.attributes("href")).toBe("https://www.gnu.org/licenses/gpl-3.0.html");
     expect(source?.text()).toBe("Source code");
     expect(source?.attributes("href")).toBe("https://github.com/oh2gba/neoaprs");
-    expect(wrapper.findAll("a")).toHaveLength(2);
+    expect(wrapper.findAll("a")).toHaveLength(4); // (the licence, the source, and the two of the feedback line)
     for (const link of [license, source]) {
       expect(link?.attributes("target")).toBe("_blank");
       expect(link?.attributes("rel")).toContain("noopener");
@@ -42,6 +42,19 @@ describe("the About group", () => {
     const thanks = wrapper.get("p.muted");
     expect(thanks.text()).toBe("Thanks to OH2GAX, OH2DPN and OH7NFC for their feedback.");
     expect(wrapper.findAll(".mono")).toHaveLength(0);
+  });
+});
+
+describe("the feedback line", () => {
+  it("says GitHub issues (preferred) or the address, both links, under the thanks line, in one line", () => {
+    const wrapper = make();
+    const paragraphs = wrapper.findAll("p");
+    const line = paragraphs[paragraphs.length - 1];
+    expect(line?.text()).toBe("Feedback and ideas: GitHub issues (preferred) or neoaprs@oh2gba.eu.");
+    const links = line?.findAll("a");
+    expect(links?.map((a) => a.attributes("href"))).toEqual(["https://github.com/oh2gba/neoaprs/issues", "mailto:neoaprs@oh2gba.eu"]);
+    expect(links?.[0]?.attributes("target")).toBe("_blank");
+    expect(wrapper.get("p.muted").element.nextElementSibling).toBe(line?.element);
   });
 });
 
@@ -59,8 +72,8 @@ describe("the words of the group in every language", () => {
   const english = en as Record<string, unknown>;
   const ids = Object.keys(english).filter((id) => id.startsWith("settings.about."));
 
-  it("has the six ids of the group in English", () => {
-    expect(ids).toHaveLength(6);
+  it("has the eight ids of the group in English", () => {
+    expect(ids).toHaveLength(8);
   });
 
   for (const locale of LOCALES.filter((l) => l.code !== "en")) {
