@@ -298,7 +298,7 @@ describe("shownFor in the TNC group", () => {
 
 describe("portOptions", () => {
   const row = (device: string, description: string) => ({ device, description, hwid: "n/a", vid: null, pid: null });
-  const ports = (search = true) => ({ type: "ports" as const, search, ports: [row("/dev/ttyUSB0", "FT232R"), row("/dev/ttyACM0", "n/a")] });
+  const ports = (search = true) => ({ type: "ports" as const, search, find: true, ports: [row("/dev/ttyUSB0", "FT232R"), row("/dev/ttyACM0", "n/a")] });
   it("offers automatic first, the listed ports, the port in force and the port found when unlisted, and Other last", () => {
     expect(portOptions(ports(), "/dev/brainbox_3", "/dev/by-id/x").map((c) => c.value)).toEqual([
       "",
@@ -317,6 +317,7 @@ describe("portOptions", () => {
     const listed = {
       type: "ports" as const,
       search: true,
+      find: true,
       ports: [row("/dev/ttyUSB0", "FT232R"), { ...row("bt://AA:BB:CC:DD:EE:01", "Bluetooth: TH-D74"), hwid: "" }],
     };
     const options = portOptions(listed, "bt://AA:BB:CC:DD:EE:01/2", "");

@@ -227,6 +227,9 @@
 .statepill.tnc-connected {
   background: var(--ok);
 }
+.statepill.tnc-dummy {
+  background: var(--muted);
+}
 .statepill.tnc-connecting,
 .statepill.tnc-waiting,
 .statepill.tnc-silent {

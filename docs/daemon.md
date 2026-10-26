@@ -65,12 +65,22 @@ out in pieces of what the link takes. A lost link is the exception of the next r
 that vanished is closed. With a profile that can be asked a carriage return is sent to a port after 10 s of silence; a port another program holds (`neoaprs/serialholders.py`) is skipped, and so is a development board
 known by its USB ids (`neoaprs/serialboards.py`).
 
-**Find my radio** (`neoaprs/services/radiofinder.py`, `neoaprs/services/radioprobe.py`), on the page's `find_radio` only. It tries the ports of the search (the pattern in force, the
+**Find my radio** (`neoaprs/services/radiofinder.py`, `neoaprs/services/radioprobe.py`), on the page's `find_radio` only. On Linux it tries the ports of the search (the pattern in force, the
 skip list, the held ports and the boards left out; with the default pattern also the paired Bluetooth devices; a pattern that was narrowed, such as the tests' `NEOAPRS_SERIAL_PATTERN`,
-means no Bluetooth device and no port that does not match it) one at a time, each at 9600, 57600, 19200, 38400, 115200, 4800 and 1200 baud (a socket or Bluetooth port once). A try listens
+means no Bluetooth device and no port that does not match it); on Windows and macOS (`serialprobe.can_find`, where the search that runs by itself is not made) the ports of the system's list
+(`serialprobe.system_ports`: `serial.tools.list_ports`, so the COM ports with their description and hardware id, USB adapters first, boards and the skip list left out, Bluetooth serial ports last; on macOS also
+the `/dev/cu.*` devices) when the pattern is the default one. A COM port of a paired Bluetooth device (`BTHENUM` hardware id) has no speed. One at a time, each at 9600, 57600, 19200, 38400, 115200, 4800 and 1200 baud (a socket or Bluetooth port once). A try listens
 1 s, writes one carriage return, listens 1.5 s: a KISS UI frame is the profile `kiss`, command-mode text (`ModeDetector`) is put into KISS by the profiles that can be asked (TNC-2, D710,
 Kantronics, in that order), and the first after which a carriage return gets no text is the answer. The Tnc is stopped while it runs (`hold_tnc`) and started again after it (`release_tnc`), found or not;
 `radio_search` messages tell the page that asked each try and the end, and `find_radio_cancel` ends it (a closed page ends it too).
+
+**The Dummy radio** (`neoaprs/dummyline.py`, `neoaprs/dummyscene.py`, `neoaprs/dummyframes.py`, `neoaprs/dummyroutes.py`, `neoaprs/aprsmiceout.py`) is the TNC profile `dummy` (transport `dummy`, no port, no speed). The Tnc opens a `DummyPort` in the place
+of a serial line: a task that asks a `Scene` every half second what has come due and hands the frames to the Tnc as KISS bytes, so that the KISS decoder, the AX.25 decoder and the parser work as for a radio. The scene is pure
+(a clock is given to it) and seeded: fixed stations (`Q1ABC`, `Q1CLB`, `Q8QTH`), cars (`Q4CAR-9` and `Q6CAR-1` in Mic-E, `Q5VAN-7` compressed), a walker (`Q7WLK-7`), a weather station (`Q3WX`, every 5 min), two digipeaters with PHG
+(`Q2DIG-2`, `Q7DIG-1`, which repeat the first frame of the others with themselves starred in the path), two objects and a bulletin and a status from the club and the house, all round `station/lat` and `station/lon` (Helsinki when none is set)
+and at most 8 km from it. The stations that send `=` positions answer a message: an ack after 1.5 s, "Hello from the dummy radio" 3.5 to 6 s later, once for each message. What the Tnc writes is decoded by the port and shown to the scene and then dropped:
+a position of ours is played back as repeated by `Q2DIG-2` (the first always, then 6 in 10). Every call is on the ITU prefix Q, which no country has. `Source.is_dummy` is true for the Dummy (the Tnc says it by its profile's transport, there is no flag of its own): every packet the Tnc hears or sends is made in `Tnc._handle` and `Tnc._transmit`, like a radio's, with the channel `dummy`, and
+whatever sends packets to the internet (an iGate) takes the packets of the channels in `packet.GATEABLE` only. The iGate also puts nothing of ours (its timed position, a moving station's beacon) on APRS-IS while `Igate.made_up()` (set by `app.py` to `Tnc.is_dummy`) says the radio is the Dummy.
 
 ## Stopping
 
@@ -298,7 +308,7 @@ Every `Packet` (`neoaprs/packet.py`) says how it reached us in `via`, set once w
 | `rf` | heard on the radio, direct or by digipeaters; every packet of ours that went out | `tncmode.packet_of` |
 | `rf-gated` | heard on the radio as a third-party packet (`}`) that an iGate took from the internet and put on the air: the sender inside is the station, the iGate is `Packet.gate` | `tncmode.packet_of`, when the frame holds a third-party header |
 | `is` | received from APRS-IS over the internet; it was never on the air | `aprsisline.parse_is_line` |
-| `dummy` | made up by the Dummy radio (`Tnc.dummy`), which lets a person try the program with no radio; it works everywhere a packet of the radio does | `tncmode.packet_of` with `dummy=True` |
+| `dummy` | made up by the Dummy radio (`Tnc.is_dummy`), which lets a person try the program with no radio; it works everywhere a packet of the radio does | `tncmode.packet_of` with `dummy=True` |
 
 A packet is `rf-gated` exactly when it came on the radio as a third-party packet (the constructor refuses the other combinations); the codec reads the header again from the frame, so a row whose column differs is made right on the way out. A packet from the internet has no AX.25 frame: its `raw` is the line as the server sent it, its `path` everything between the destination and the colon (digipeaters, the q-construct `qAC`/`qAS`/`qAR`/`qAO`..., the server or iGate after it), its `info` what follows the first colon.
 

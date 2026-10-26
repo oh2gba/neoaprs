@@ -121,7 +121,7 @@ def pref_row(pref: Pref) -> dict[str, Any]:
 
 def tnc_state(tnc: Tnc) -> dict[str, Any]:
     lines = [{"at": iso(at), "text": text} for at, text in tnc.recent_lines(LINES_MAX)]
-    return TncState.row(tnc, state=tnc.state.value, describe=tnc.describe(), stats=TncStats.row(tnc.stats), lines=lines)
+    return TncState.row(tnc, state=tnc.state.value, describe=tnc.describe(), dummy=tnc.is_dummy, stats=TncStats.row(tnc.stats), lines=lines)
 
 
 def config_values(config: Config, urls: list[str], https: dict[str, Any] | None = None) -> dict[str, Any]:

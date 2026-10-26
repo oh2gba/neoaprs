@@ -1,17 +1,21 @@
 <script setup lang="ts">
 // Step 4 of the first-run guide: the TNC profile, then for a serial TNC the port, picked from the list the daemon gives (`list_ports`, asked again by Refresh; "Automatic", the empty port, where the daemon looks for the radio itself) and the speed
-// (the profile's own is the placeholder), or for KISS over TCP the host and the port.
+// (the profile's own is the placeholder), or for KISS over TCP the host and the port, or for the Dummy radio nothing: no port, no speed. Under the fields are Find my radio (a serial TNC; it fills the type, the port and the speed) and
+// the Terminal, the same two as in the Settings tab: opening the terminal puts the radio the answers name in force, so that it shows that radio.
 import { computed } from "vue";
+import FindRadioRow from "@/components/FindRadioRow.vue";
 import SettingsField from "@/components/SettingsField.vue";
+import TncTerminal from "@/components/TncTerminal.vue";
 import { t } from "@/i18n";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { FIELDS, type FieldInfo } from "@/lib/settings";
 import { speedFallback } from "@/lib/tncprofile";
-import { portChoices } from "@/lib/setup";
+import { isDummy, portChoices } from "@/lib/setup";
 
-const { guide, config } = useDaemonContext();
+const { guide, config, tnc } = useDaemonContext();
 const defaults = computed<Record<string, string>>(() => config.value?.defaults ?? {});
 const fields = computed(() => guide.fields);
+const dummy = computed(() => isDummy(guide.fields));
 const portInfo = computed(() => ({ label: t("settings.port.label"), kind: "choice" as const, choices: portChoices(guide.ports) }));
 const fallback = (key: string): string => defaults.value[key] ?? "";
 const info = (key: string): FieldInfo => FIELDS[key] ?? { label: key };
@@ -48,7 +52,7 @@ const err = (field: keyof typeof fields.value): string => guide.problems[field] 
       @update:model-value="guide.edit('tcpPort', $event)"
     />
   </template>
-  <template v-else>
+  <template v-else-if="!dummy">
     <SettingsField
       id="setup-port"
       :info="portInfo"
@@ -71,5 +75,7 @@ const err = (field: keyof typeof fields.value): string => guide.problems[field] 
       :changed="false"
       @update:model-value="guide.edit('baud', $event)"
     />
+    <FindRadioRow id="setup-find-radio" />
   </template>
+  <TncTerminal :tnc="tnc" @toggle="(open) => open && guide.applyRadio()" />
 </template>

@@ -908,7 +908,7 @@ export const de: Catalogue = {
     "KISS über TCP: Direwolf oder ein Soundkarten-Modem, das auf diesem oder einem anderen Computer läuft. Auch ein Digirig oder SignaLink gehört hierher.",
   "settings.profile.tip4":
     "Kenwood TH-D7, TM-D700, TS-2000: NeoAPRS schaltet das Funkgerät selbst in KISS. Das gilt auch für TM-D710 und TH-D72 und für das Kantronics KPC-3+.",
-  "settings.profile.tip5": "Nicht sicher? Siehe die Funkgeräte-Anleitung, docs/RADIOS.md.",
+  "settings.profile.tip5": "Noch kein Funkgerät? Dummy erfindet Verkehr zum Ausprobieren. Nicht sicher? Siehe docs/RADIOS.md.",
 
   "settings.port.name": "TNC-Port",
   "settings.port.label": "Port",
@@ -1151,6 +1151,8 @@ export const de: Catalogue = {
   "settings.tnc.state.connected": "verbunden",
   "settings.tnc.state.waiting": "wartet",
   "settings.tnc.state.silent": "still",
+  "settings.tnc.dummy_pill": "Dummy",
+  "settings.tnc.dummy": "Dummy-Funkgerät: erfundener Verkehr, nichts geht auf Sendung",
   "settings.tnc.no_packet": "Noch kein Paket",
   "settings.tnc.last_packet": "Letztes Paket vor {span}",
   "settings.tnc.no_packet_digipeated": "Noch kein Paket, {count} weitergeleitet",

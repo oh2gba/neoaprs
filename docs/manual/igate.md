@@ -47,7 +47,7 @@ A packet heard is not put on APRS-IS when:
 - it has a line break inside (APRS-IS has one packet to a line), or would make a line of more than 512 bytes;
 - the same source, destination and text were put on APRS-IS in the last 30 seconds: a packet repeated by digipeaters is heard more than once and goes once;
 - the iGate was not logged in when it was heard;
-- it did not come from the air: a packet from the internet, or one made up by the Dummy radio, is never put on APRS-IS.
+- it did not come from the air: a packet from the internet, or one made up by the Dummy radio, is never put on APRS-IS. While the radio is the Dummy, your own position is not put there either.
 
 ## The counts
 

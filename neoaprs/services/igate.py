@@ -74,6 +74,7 @@ class Igate:
         self._hour_dropped: Counter[str] = Counter()
         self._summary_due: datetime | None = None
         self._seen: dict[Key, datetime] = {}
+        self.made_up: Callable[[], bool] = lambda: False             # whether the radio only makes up its traffic (the Dummy radio): then nothing of ours goes to APRS-IS, for the position would say a station is on the air that is not (set by app.py)
         self._position_due: datetime | None = None
         self._position_sent: datetime | None = None
         self._was_verified = False
@@ -260,7 +261,7 @@ class Igate:
     def beacon_sent(self, frame: ax25.Frame) -> None:
         """A beacon of ours went out on the radio: a moving station's position goes to APRS-IS too, at most every MOBILE_EVERY_SEC."""
         now = self.clock()
-        if not self._config().mobile or not self._link.verified:
+        if not self._config().mobile or not self._link.verified or self.made_up():
             return
         if self._position_sent is not None and (now - self._position_sent).total_seconds() < self.mobile_every_sec:
             return
@@ -270,6 +271,9 @@ class Igate:
         """The position of a station that stays, from the settings; tried again in a minute when there is none yet."""
         if self._config().mobile or not self._link.verified:
             self._position_due = None
+            return
+        if self.made_up():
+            self._position_due = now + timedelta(seconds=MOBILE_EVERY_SEC)       # (looked at again in a minute: the radio may be a real one by then)
             return
         try:
             info = self._position()

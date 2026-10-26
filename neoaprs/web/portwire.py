@@ -8,7 +8,7 @@ from .wirebase import _Command, _Message, _Model
 
 
 class PortRow(_Model):
-    """A serial port the system lists, or a Bluetooth device paired with it (Linux). Nothing was opened or connected to find it."""
+    """A serial port the system lists, or a Bluetooth device paired with it (Linux; on Windows a paired Bluetooth serial port is a COM port of the system's list). Nothing was opened or connected to find it."""
     device: str = Field(description="the name to give as `serial/port`: `COM3`, `/dev/ttyUSB0`, `bt://AA:BB:CC:DD:EE:FF` for a paired Bluetooth device")
     description: str = Field(description="what the system calls it, such as `USB Serial Port (COM3)`; `n/a` where it does not say")
     hwid: str = Field(description="the hardware id the system gives, such as `USB VID:PID=0403:6001 SER=A1`; `n/a` where it does not say")
@@ -26,6 +26,7 @@ class PortsMsg(_Message):
     type: Literal["ports"]
     ports: list[PortRow] = Field(description="the ports, in natural order (`COM2` before `COM10`), then the paired Bluetooth devices")
     search: bool = Field(description="whether the daemon looks for the radio among the ports by itself (Linux, the ports that match `serial/pattern`); where it is false (Windows, macOS) the radio is the port in `serial/port`, so the operator picks it from this list")
+    find: bool = Field(description="whether Find my radio (`find_radio`) can be asked for: on Linux, Windows and macOS")
 
 
 class FindRadio(_Command):

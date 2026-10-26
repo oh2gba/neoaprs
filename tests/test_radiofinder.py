@@ -164,6 +164,7 @@ async def test_the_stop_of_the_daemon_ends_a_search_that_runs() -> None:
 def fake_system(monkeypatch: pytest.MonkeyPatch, ports: list[str], held: set[str] = frozenset()) -> None:  # type: ignore[assignment]
     """The system's list of ports is a fixed one; the Bluetooth list too. Nothing of the machine is read."""
     monkeypatch.setattr(serialprobe, "can_search", lambda: True)
+    monkeypatch.setattr(serialprobe, "can_find", lambda: True)
     monkeypatch.setattr(serialprobe, "searchable_ports", lambda pattern: (ports, {}))
     monkeypatch.setattr(radiofinder, "held_by", lambda path: "held by rotctld (pid 1)" if path in held else "")
     monkeypatch.setattr(serialprobe, "paired_bluetooth_ports", lambda: [PortInfo("bt://AA:BB:CC:DD:EE:FF", "Bluetooth: TNC", "", None, None)])
@@ -180,7 +181,7 @@ def test_the_paired_bluetooth_devices_are_tried_when_the_pattern_is_the_default_
     assert radiofinder.candidates("/dev/neoaprs-test-*", ()) == ["/dev/a"]
 
 
-def test_where_the_search_is_not_made_there_is_no_port_to_try(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_where_find_my_radio_is_not_made_there_is_no_port_to_try(monkeypatch: pytest.MonkeyPatch) -> None:
     fake_system(monkeypatch, ["COM3"])
-    monkeypatch.setattr(serialprobe, "can_search", lambda: False)
+    monkeypatch.setattr(serialprobe, "can_find", lambda: False)
     assert radiofinder.candidates(serialprobe.DEFAULT_PATTERN, ()) == []

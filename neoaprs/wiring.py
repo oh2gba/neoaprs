@@ -11,6 +11,7 @@ from typing import NamedTuple
 
 from .app import Services
 from .config import Config
+from .dummyline import DUMMY_PATH
 from .packet import IS, Packet
 from .packetcodec import tnc2
 from .policy import LOG_KEEP_DAYS
@@ -43,8 +44,10 @@ def tnc_settings(config: Config, port_override: str = "", pattern_override: str 
     tcp/port (or to the `tcp://` address in serial/port) and never searches."""
     pattern = pattern_override or search_pattern(config.serial_pattern)
     profile, baud = config.profile, config.tnc_baud
-    if port_override:
+    if port_override and profile.transport != "dummy":
         return TncSettings(port_override, baud, profile, False, config.serial_skip_paths, pattern)
+    if profile.transport == "dummy":
+        return TncSettings(DUMMY_PATH, baud, profile, False, config.serial_skip_paths, pattern)       # (the Dummy radio opens nothing, and no port is chosen for it)
     if profile.transport == "tcp":
         return TncSettings(config.serial_port if names_tcp(config.serial_port) else tcp_url(config.tcp_host, config.tcp_port), baud, profile, False, config.serial_skip_paths, pattern)
     return TncSettings(config.serial_port or config.serial_last_port, baud, profile, True, config.serial_skip_paths, pattern)
@@ -104,7 +107,7 @@ def _log_packet(packet: Packet) -> None:
 
 def _remember_port(parts: Services, state: Source.State) -> None:
     """A port the search found is stored as serial/last_port and tried first next time. Not a port that was named (the settings or --port) and opened."""
-    if state is not Source.State.CONNECTED or parts.port_override or parts.config.profile.transport == "tcp":
+    if state is not Source.State.CONNECTED or parts.port_override or parts.config.profile.transport != "serial":
         return
     path, config = parts.tnc.path, parts.config
     if path and path not in (config.serial_port, config.serial_last_port):

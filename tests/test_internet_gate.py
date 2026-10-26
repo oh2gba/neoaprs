@@ -10,11 +10,11 @@ from typing import Any
 
 import pytest
 
-from neoaprs import wiring
+from neoaprs import dummyline, wiring
 from neoaprs.packet import GATEABLE, IS, VIAS, Packet
 from neoaprs.wiring import ON_AIR_ONLY, SEEN_BY_ALL, AirOnly
 from tests.support.air import from_internet, message_info, on_air, said
-from tests.support.env import Env, idle_for, until
+from tests.support.env import Env, idle_for, quick_start, until
 from tests.support.fakeaprsis import fake_aprsis
 
 POSITION = b"=6012.34N/02456.78E-from the internet"
@@ -265,31 +265,38 @@ async def test_a_restart_finds_the_stations_by_channel_and_the_routes_only_of_th
     await second.stop()
 
 
-async def test_the_dummy_radios_packets_go_everywhere_the_radios_do_and_are_not_gateable(tmp_path: Path) -> None:
-    e = Env(tmp_path)
-    e.tnc.dummy = True
-    await e.start()
-    await e.until_usable()
+async def test_the_dummy_radio_with_the_igate_on_marks_everything_dummy_works_for_messaging_and_puts_nothing_on_the_internet(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(dummyline, "TICK_SEC", 0.01)
+    server = await fake_aprsis()
+    settings = {"tnc/profile": "dummy", "station/lat": "60.2231", "station/lon": "24.7152", "igate/enabled": "true", "igate/server": server.address, "igate/password": "19628"}
+    e = await quick_start(tmp_path, messaging=True, unpaced=True, radio=False, settings=settings)
+    await until(lambda: e.ctl.igate.state == "connected")
+    assert e.tnc.is_dummy and not hasattr(e.tnc, "dummy"), "the profile is the one source of truth: the Tnc has no flag of its own"
     ours = e.ctl.config.station_call
-    e.feed(on_air("QDUMMY-1", message_info(ours, "Moi!", "12"), path=""))
-    e.feed(on_air("QDUMMY-2", b"=6012.34N/02456.78E-made up", path="WIDE1*"))
-    [ack] = await said(e, 1)
-    assert ack.info.startswith(b":QDUMMY-1 :ack12"), "messaging works with the Dummy radio"
-    await until(lambda: e.ctl.stationbook.get("QDUMMY-2") is not None)
-    first, second = e.ctl.stationbook.get("QDUMMY-1"), e.ctl.stationbook.get("QDUMMY-2")
-    assert first is not None and second is not None
-    assert (first.heard_dummy, first.heard_rf, first.internet_only, first.last_dummy_at is not None, first.can_message) == (1, 0, False, True, True)
-    assert (second.position_via, second.last_path, second.heard_dummy) == ("dummy", ("WIDE1*",), 1) and second.last_on_air_at is not None and second.deliveries.by_route == {("?",): 1}
-    assert [r.text for r in e.ctl.messaging.records()] == ["Moi!"]
+    record = await e.ctl.messaging.send("Q1ABC", "Hello")
+    for _ in range(300):
+        e.now.advance(2)                                                                    # type: ignore[attr-defined]
+        await idle_for(0.02)
+        answered = [r for r in e.ctl.messaging.records() if r.direction == "in" and r.from_call == "Q1ABC"]
+        if len([x for x in e.ctl.stationbook.stations() if x.call != ours]) >= 8 and answered:
+            break
+    sent = e.ctl.messaging.get(record.id)
+    assert sent is not None and sent.acked_at is not None, "the dummy station acknowledged the message"
+    assert [r.text for r in answered] == ["Hello from the dummy radio"], "and answered it"
+    stations = [s for s in e.ctl.stationbook.stations() if s.call != ours]
+    assert len(stations) >= 8 and all(s.call.startswith("Q") and s.heard_dummy > 0 and (s.heard_rf, s.heard_rf_gated, s.heard_is) == (0, 0, 0) and not s.internet_only for s in stations)
+    assert all(s.position_via in (None, "dummy") for s in stations)
     packets = await e.packets()
-    assert {p.via for p in packets if p.direction == "in"} == {"dummy"}
-    assert {p.via for p in packets if p.direction == "out"} == {"dummy"}, "what a Dummy radio sends is its own: it never reaches a real one"
+    assert {p.via for p in packets} == {"dummy"} and {p.direction for p in packets} == {"in", "out"}, "what the Dummy radio hears and what is sent to it are all its own"
     assert all(p.via not in GATEABLE for p in packets)
+    assert e.ctl.igate.gated == 0 and e.ctl.igate.dropped["not_air"] > 0, "every packet was counted as not from the air"
+    await idle_for(0.2)
+    assert server.packets == [], f"nothing of the Dummy radio, not even our position, reached APRS-IS: {server.packets}"
     await e.stop()
-    again = Env(tmp_path)
-    await again.start()
-    back = again.ctl.stationbook.get("QDUMMY-1")
-    assert back is not None and (back.heard_dummy, back.packets, back.last_dummy_at is not None) == (1, 1, True)
+    again = Env(tmp_path, radio=False)
+    await again.start(connected=False)
+    back = again.ctl.stationbook.get("Q1ABC")
+    assert back is not None and back.heard_dummy > 0 and back.heard_rf == 0
     await again.stop()
 
 

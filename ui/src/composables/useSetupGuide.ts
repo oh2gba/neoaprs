@@ -6,7 +6,7 @@ import { computed, reactive, ref, watch, type Ref } from "vue";
 import { useSetupAnswers } from "@/composables/useSetupAnswers";
 import { useSetupSave } from "@/composables/useSetupSave";
 import type { Toast } from "@/composables/useDaemon";
-import { LAST_STEP } from "@/lib/setup";
+import { LAST_STEP, RADIO_STEP } from "@/lib/setup";
 import type { Command, ConfigValues, MapState, PortsMessage } from "@/protocol/protocol";
 
 export function useSetupGuide(
@@ -20,12 +20,12 @@ export function useSetupGuide(
   const step = ref(0);
   const peeking = ref(false); // only the head shows, so that the map can be clicked on a narrow page
   const reached = ref(0); // the furthest step the user has been on: the steps up to it that are right show as done
-
   const values = computed(() => config.value?.values ?? {});
   const search = computed(() => ports.value?.search ?? null);
   const answers = useSetupAnswers(values, search);
   const { fields, changes, valid } = answers;
   const picking = computed(() => open.value && step.value === 1);
+  const onRadio = computed(() => open.value && step.value === RADIO_STEP); // the Radio step is on the screen
 
   /** The guide is finished: closed, and the answers are the settings again. */
   function done(): void {
@@ -34,7 +34,7 @@ export function useSetupGuide(
     step.value = 0;
     reached.value = 0;
   }
-  const { saving, finish, sendMap } = useSetupSave(answers, config, lastError, send, step, done, map);
+  const { saving, finish, sendMap, applyRadio } = useSetupSave(answers, config, lastError, send, step, done, map);
 
   watch(step, (now) => (reached.value = Math.max(reached.value, now)));
 
@@ -47,9 +47,7 @@ export function useSetupGuide(
     peeking.value = false;
   }
 
-  function refreshPorts(): void {
-    send({ cmd: "list_ports" });
-  }
+  const refreshPorts = (): void => void send({ cmd: "list_ports" });
 
   function place(lat: number, lon: number): void {
     answers.place(lat, lon);
@@ -68,10 +66,8 @@ export function useSetupGuide(
   }
 
   watch(
-    () => open.value && step.value === 3 && !answers.tcp.value,
-    (wanted) => {
-      if (wanted) refreshPorts();
-    },
+    () => onRadio.value && !answers.tcp.value && !answers.dummy.value, // (only a serial TNC has a port to pick)
+    (wanted) => wanted && refreshPorts(),
   );
 
   return reactive({
@@ -81,6 +77,7 @@ export function useSetupGuide(
     reached,
     saving,
     picking,
+    onRadio,
     search,
     ports: computed(() => ports.value),
     fields,
@@ -89,6 +86,8 @@ export function useSetupGuide(
     changes,
     pin: answers.pin,
     tcp: answers.tcp,
+    fillRadio: answers.fillRadio,
+    applyRadio,
     edit: answers.edit,
     show,
     close,

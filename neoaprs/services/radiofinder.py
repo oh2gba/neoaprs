@@ -1,13 +1,15 @@
 """Find my radio: on a click of the page (the command `find_radio`), and never by itself, the ports that the daemon lists are tried one after the other, each at the usual speeds, until one has a TNC behind it that talks
 KISS or can be put into KISS the way a profile does (radioprobe.py). The answer is the port, the speed and the profile; the page puts them in the settings like any other change.
 
-The ports are those of the search for the radio (serialprobe.py): the globs of the search pattern, without the boards the search leaves alone, the ports on the skip list and those another program holds; and, when the pattern is
-the default one, the Bluetooth devices that are paired. Where the search is not made at all (not Linux) there is nothing to try. A KISS TCP address is not a port of the machine and is never tried. The TNC's own line is closed
+The ports are those of the search for the radio (serialprobe.py): on Linux the globs of the search pattern, without the boards the search leaves alone, the ports on the skip list and those another program holds; and,
+when the pattern is the default one, the Bluetooth devices that are paired. On Windows and macOS (the pattern's globs are paths of Linux) they are the ports the system lists (`serialprobe.system_ports`: the COM ports,
+the paired Bluetooth serial ports among them, or the `/dev/cu.*` devices), USB adapters first, without the boards and the ports on the skip list; one that another program has open cannot be opened, which the open says
+("in use by another program"), and it is passed over. A KISS TCP address is not a port of the machine and is never tried. The TNC's own line is closed
 for the time (`hold`) and opened again after it (`release`), found or not. The search is one asyncio task, so a cancel (from the page, or the daemon's stop) ends it between two awaits and the port that was open is closed.
-A speed is not tried on a port that has none (a Bluetooth port). Each try takes `listen_sec` + `answer_sec` (2.5 s) when nothing answers, so a port costs 7 tries, about 18 s; a command-mode TNC is found at 9600 in a few seconds."""
+A speed is not tried on a port that has none (a Bluetooth port, of Linux or a COM port of Windows). Each try takes `listen_sec` + `answer_sec` (2.5 s) when nothing answers, so a port costs 7 tries, about 18 s; a command-mode TNC is found at 9600 in a few seconds."""
 import asyncio
 import logging
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Collection
 
 from neoaprs import serialprobe
 from neoaprs.coded import CodedError
@@ -28,16 +30,20 @@ class RadioSearchError(CodedError):
     """`find_radio` or `find_radio_cancel` cannot be done, or nothing answered."""
 
 
-def speeds_for(path: str) -> tuple[int, ...]:
-    return (NO_SPEED,) if is_socket(path) else SPEEDS
+def speeds_for(path: str, speedless: Collection[str] = ()) -> tuple[int, ...]:
+    """The speeds a port is tried at: none to choose for a port that is not a serial line (a socket, a Bluetooth port, a COM port of a Bluetooth device: `speedless` holds their `port_key`)."""
+    return (NO_SPEED,) if is_socket(path) or port_key(path) in speedless else SPEEDS
 
 
 def candidates(pattern: str, skip: tuple[str, ...]) -> list[str]:
-    """The ports to try (reads the system's lists: not on the loop). Where the search is not made, none."""
-    if not serialprobe.can_search():
+    """The ports to try (reads the system's lists: not on the loop). Where Find my radio is not made, none."""
+    if not serialprobe.can_find():
         return []
-    paths, _ = serialprobe.searchable_ports(pattern)
     never = {port_key(p) for p in skip}
+    if not serialprobe.can_search():                                  # Windows, macOS: the system's list (the globs of the pattern are paths of Linux, so only the default one stands for "the ports")
+        ports = serialprobe.system_ports() if pattern == serialprobe.DEFAULT_PATTERN else []
+        return [p.device for p in ports if port_key(p.device) not in never]
+    paths, _ = serialprobe.searchable_ports(pattern)
     found = [p for p in paths if port_key(p) not in never and not held_by(p)]
     if pattern == serialprobe.DEFAULT_PATTERN:
         found += [p.device for p in serialprobe.paired_bluetooth_ports()]
@@ -54,6 +60,7 @@ class RadioFinder:
         self._tasks = TaskSet(log, "radio search")
         self._task: asyncio.Task[None] | None = None
         self._busy = False
+        self._speedless: set[str] = set()                   # the Bluetooth COM ports of the search that runs
 
     @property
     def running(self) -> bool:
@@ -100,13 +107,14 @@ class RadioFinder:
         await self._tasks.cancel_all()
 
     async def _run(self, paths: list[str], trying: Callable[[Trying], None], outcome: list[Found | None]) -> None:
-        total = sum(len(speeds_for(p)) for p in paths)
+        self._speedless = await asyncio.to_thread(serialprobe.bluetooth_com_keys)
+        total = sum(len(speeds_for(p, self._speedless)) for p in paths)
         number = 0
         await self._hold()
         try:
             for path in paths:
                 found = await self._try_port(path, number, total, trying)
-                number += len(speeds_for(path))
+                number += len(speeds_for(path, self._speedless))
                 if found is not None:
                     outcome.append(found)
                     return
@@ -116,8 +124,9 @@ class RadioFinder:
 
     async def _try_port(self, path: str, number: int, total: int, trying: Callable[[Trying], None]) -> Found | None:
         """The port at each of its speeds, until a TNC answers; a port that cannot be opened or whose line dies is passed over."""
-        for at, baud in enumerate(speeds_for(path)):
-            shown = None if is_socket(path) else baud
+        speeds = speeds_for(path, self._speedless)
+        for at, baud in enumerate(speeds):
+            shown = None if len(speeds) == 1 else baud
             trying(Trying(path, shown, number + at + 1, total))
             try:
                 profile = await self._attempt(path, baud)

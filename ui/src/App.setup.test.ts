@@ -140,7 +140,12 @@ describe("App: the first-run guide", () => {
     await next();
     expect(wrapper.find(".setup-step-name").text()).toBe("Radio");
     expect(socket.sent.filter((c) => (c as { cmd: string }).cmd === "list_ports")).toHaveLength(2); // when the socket opened, and when the guide came to its radio
-    socket.say({ type: "ports", search: true, ports: [{ device: "/dev/ttyUSB0", description: "FT232R USB UART", hwid: "n/a", vid: null, pid: null }] });
+    socket.say({
+      type: "ports",
+      search: true,
+      find: true,
+      ports: [{ device: "/dev/ttyUSB0", description: "FT232R USB UART", hwid: "n/a", vid: null, pid: null }],
+    });
     await flushPromises();
     await wrapper.find("#setup-port").setValue("/dev/ttyUSB0");
     await next();

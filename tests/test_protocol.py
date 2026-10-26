@@ -122,7 +122,7 @@ MESSAGE_ROW: dict[str, Any] = {"id": 3, "at": NOW, "direction": "out", "from_cal
                                                     "internet": None, "acked": False}]}
 PACKET: dict[str, Any] = {"id": 7, "heard_at": NOW, "direction": "in", "source": "OH2RDK-7", "destination": "APRX29", "path": ["OH2RCH-2*"], "route": "via OH2RCH-2", "via": "rf", "gate": "", "kind": "position", "summary": "position 60.1650 24.9467 T&",
                           "tnc2": "OH2RDK-7>APRX29,OH2RCH-2*:!6009.90NT02456.80E&432.500 MHz", "decoded": {"type": "position", **POSITION}}
-TNC: dict[str, Any] = {"state": "connected", "problem": "", "last_error": "", "path": "/dev/brainbox_3", "baud": 9600, "describe": "/dev/brainbox_3 at 9600, KISS, 4 packets", "searching": [], "silent_since": None,
+TNC: dict[str, Any] = {"state": "connected", "problem": "", "last_error": "", "path": "/dev/brainbox_3", "baud": 9600, "dummy": False, "describe": "/dev/brainbox_3 at 9600, KISS, 4 packets", "searching": [], "silent_since": None,
                        "stats": {"opens": 1, "bytes_in": 400, "bytes_out": 18, "frames_in": 4, "packets": 4, "rejected": 0, "last_packet": NOW, "keepalive_checks": 2, "watchdog_probes": 0, "port_reopens": 1, "digipeated": 0},
                        "last_watchdog_action": "check", "last_watchdog_at": NOW, "lines": [{"at": NOW, "text": "NeoAPRS: opened /dev/brainbox_3"}]}
 CONFIG: dict[str, Any] = {"values": {"station/call": "OH2GBA"}, "defaults": {"station/call": "OH2GBA"}, "urls": [], "https": {"on": False, "port": 0, "fingerprint": "", "problem": ""}}
@@ -141,9 +141,9 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
                 "station_status": "", "rig_state": "unused",
                 "cpu_percent": 0.0, "rss_mb": 31.0, "uptime_sec": 0, "update": None}],
     "pong": [{"type": "pong", "now": NOW}],
-    "ports": [{"type": "ports", "search": False, "ports": [{"device": "COM3", "description": "USB Serial Port (COM3)", "hwid": "USB VID:PID=0403:6001 SER=A1", "vid": 1027, "pid": 24577},
+    "ports": [{"type": "ports", "search": False, "find": True, "ports": [{"device": "COM3", "description": "USB Serial Port (COM3)", "hwid": "USB VID:PID=0403:6001 SER=A1", "vid": 1027, "pid": 24577},
                                                            {"device": "COM4", "description": "Standard Serial over Bluetooth link (COM4)", "hwid": "BTHENUM\\{00001101}", "vid": None, "pid": None}]},
-              {"type": "ports", "search": True, "ports": []}],
+              {"type": "ports", "search": True, "find": True, "ports": []}],
     "weather_series": [{"type": "weather_series", "call": "OH2MUI", "hours": 24, "points": [[NOW, 10.0, 1028.4, 1.6, 1.6, 0.3, 85], ["2026-10-21T12:10:00Z", 10.5, None, None, None, None, None]]},
                        {"type": "weather_series", "call": "OH2NONE", "hours": 168, "points": []}],
     "update_result": [{"type": "update_result", "outcome": "newer", "version": "0.4.0", "text": ""}, {"type": "update_result", "outcome": "current", "version": "0.3.0", "text": ""},

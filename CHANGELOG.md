@@ -17,6 +17,11 @@ An iGate, internet stations on the map, and a tab bar that fits.
 - A map of about 50 km round your station now downloads by itself when you leave the setup's Position step, with one quiet line saying so; Settings → Map → Download makes a bigger one.
 - Without internet the world map stays, and the setup says the detailed map will download when you are online; it is tried again at each start.
 - A missing or unreadable map file is now said above the setup, where it was hidden before.
+- **Find my radio** works on Windows and macOS: it tries the COM ports (USB adapters first, a paired Bluetooth serial port last) or the `/dev/cu.*` devices, one at a time.
+- A port that another program has is passed over, with "in use by another program" in the log.
+- The setup's Radio step has **Find my radio** and the **Terminal**, as the Settings tab has them.
+- New radio type **Dummy (no radio, made-up traffic)**: stations, cars, a walker, weather, digipeaters, an object and a bulletin around your position, and answers to your messages. Nothing goes on the air.
+- The Dummy has no port and no speed to set; the radio status says "Dummy radio: made-up traffic, nothing goes on the air".
 
 ## 0.9.1
 

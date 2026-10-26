@@ -21,6 +21,12 @@ On a fresh install the page opens a guide in five steps. It opens by itself once
 
 The map under the guide is the world, from the first second. When you press **Next** on the Position step, NeoAPRS saves the place and starts downloading a map of about 50 km round your station, so that it is there at the end of the guide; a quiet line says "Downloading the map of your area…" ([page.md](page.md#the-base-map)).
 
+The Radio step has two helpers under its fields, the same as the Settings tab:
+
+- **Find my radio** tries the ports and, when it finds the radio, fills in the type, the port and the speed (Linux, Windows, macOS).
+- **Terminal**, closed until you open it, shows what the TNC saw and did. Opening it puts the radio you chose in force, so that it shows that radio.
+- The type **Dummy (no radio, made-up traffic)** needs no port and no speed: pick it to try NeoAPRS without a radio ([radio.md](radio.md#the-dummy-radio)).
+
 **Finish** saves what you set. On a station that has no call and no beacon yet, it also sets the beacon to every 30 minutes, and the last step says "Beacon every 30 min". Run again on a station that already has a call, the guide leaves the beacon alone.
 
 **Nothing is transmitted until a call is set.** While the call is empty, `N0CALL`, `NOCALL`, `MYCALL` or not an amateur call (3 to 6 letters and digits, with at least one of each), NeoAPRS only listens: no beacon, status, message, ack, object, bulletin or answer to a query. A message is refused with "set your call first", and the header says "no call set". The commands that put the TNC in KISS are not transmissions and go on.
@@ -75,6 +81,8 @@ neoaprs db --data data packets
 ```
 
 With no file it plays the sample capture inside the package, three minutes of a TH-D7. `neoaprs capture` records a capture from your radio. Nothing is sent while nobody is connected, and the frames go on from where they were when the daemon connects again. `--port` is for this run only; the setting `serial/port` is not changed.
+
+The type **Dummy** needs no capture and no second program: the daemon makes the traffic itself, around your position, and nothing goes on the air ([radio.md](radio.md#the-dummy-radio)).
 
 A moving station can be tried without a car in the same way: `neoaprs gps-replay` plays a drive as a gpsd, and the Beacon tab's **A GPS via gpsd** reads it ([beacon.md](beacon.md#mobile-operation)).
 

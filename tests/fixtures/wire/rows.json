@@ -3571,6 +3571,7 @@
   {
    "baud": 9600,
    "describe": "no port at 9600, stopped",
+   "dummy": false,
    "last_error": "",
    "last_watchdog_action": "",
    "last_watchdog_at": null,
@@ -3597,6 +3598,7 @@
   {
    "baud": 9600,
    "describe": "no port at 9600, stopped",
+   "dummy": false,
    "last_error": "",
    "last_watchdog_action": "probe",
    "last_watchdog_at": "2026-10-21T12:00:02Z",
@@ -3632,6 +3634,7 @@
   {
    "baud": 9600,
    "describe": "listening on /dev/ttyUSB0, /dev/ttyUSB1 for the radio",
+   "dummy": false,
    "last_error": "no answer",
    "last_watchdog_action": "probe",
    "last_watchdog_at": "2026-10-21T12:00:02Z",
@@ -3665,6 +3668,33 @@
     "port_reopens": 3,
     "rejected": 0,
     "watchdog_probes": 2
+   }
+  },
+  {
+   "baud": 9600,
+   "describe": "dummy radio, made-up traffic, 0 packets, nothing goes on the air",
+   "dummy": true,
+   "last_error": "",
+   "last_watchdog_action": "",
+   "last_watchdog_at": null,
+   "lines": [],
+   "path": "the dummy radio",
+   "problem": "",
+   "searching": [],
+   "silent_since": null,
+   "state": "stopped",
+   "stats": {
+    "bytes_in": 0,
+    "bytes_out": 0,
+    "digipeated": 0,
+    "frames_in": 0,
+    "keepalive_checks": 0,
+    "last_packet": null,
+    "opens": 0,
+    "packets": 0,
+    "port_reopens": 0,
+    "rejected": 0,
+    "watchdog_probes": 0
    }
   }
  ]

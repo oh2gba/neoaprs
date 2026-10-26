@@ -79,7 +79,12 @@ function untranslated(root: Element): string[] {
 }
 
 const https: HttpsState = { on: true, port: 7304, fingerprint: "AB:CD:EF", problem: "" };
-const ports: PortsMessage = { type: "ports", search: true, ports: [{ device: "/dev/ttyUSB0", description: "FT232R", hwid: "n/a", vid: null, pid: null }] };
+const ports: PortsMessage = {
+  type: "ports",
+  search: true,
+  find: true,
+  ports: [{ device: "/dev/ttyUSB0", description: "FT232R", hwid: "n/a", vid: null, pid: null }],
+};
 
 function daemon(extra: Record<string, string> = {}, more: Parameters<typeof fakeDaemon>[0] = {}): FakeDaemon {
   const config = ref({

@@ -14,7 +14,8 @@
   border-radius: 8px;
   box-shadow: var(--shadow);
 }
-.setup .field {
+.setup .field,
+.setup .radiofind {
   grid-template-columns: 6em 1fr;
 }
 /* the map's note (no map at all, or one that cannot be read) is a layer above the guide, on the top line of the map; the guide makes room under it */

@@ -1,6 +1,6 @@
 # Radios and TNCs
 
-How to connect your radio or TNC to NeoAPRS, on Linux or Windows. In the page, **Settings** tab, **TNC** group, choose the **Radio type** and, for a serial one, the **Port** and **Speed**; for KISS over TCP, the **TCP host** and **TCP port**. On Linux an empty serial port means NeoAPRS searches the USB serial ports; on Windows pick the COM port from the list.
+How to connect your radio or TNC to NeoAPRS, on Linux or Windows. In the page, **Settings** tab, **TNC** group, choose the **Radio type** and, for a serial one, the **Port** and **Speed**; for KISS over TCP, the **TCP host** and **TCP port**. On Linux an empty serial port means NeoAPRS searches the USB serial ports; on Windows pick the COM port from the list. **Find my radio**, in the Settings tab and in the setup guide, tries the ports for you (Linux, Windows, macOS). With no radio at all, the type *Dummy* makes up traffic to try NeoAPRS with.
 
 ## Which radio or TNC do you have?
 

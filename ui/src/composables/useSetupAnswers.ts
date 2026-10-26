@@ -2,8 +2,11 @@
 // daemon's settings and follow them until the user answers; the position is the latitude and the longitude (the locator of the Location control is only another way to type them).
 import { computed, reactive, ref, type Ref } from "vue";
 import {
+  baudShown,
   degreesText,
   fieldsFrom,
+  isDummy,
+  KEY_OF,
   profileOf,
   setupChanges,
   stepOk,
@@ -21,6 +24,7 @@ export function useSetupAnswers(values: Ref<Record<string, string>>, search: Ref
   const touched = ref(false); // an answer was typed or picked: the settings no longer fill the answers
 
   const tcp = computed(() => profileOf(fields.profile)?.transport === "tcp");
+  const dummy = computed(() => isDummy(fields));
   const changes = computed(() => setupChanges(fields, values.value));
   const valid = computed(() => Array.from({ length: STEP_COUNT }, (_, i) => stepOk(i, fields, search.value)));
   const problems = computed<Problems>(() => {
@@ -57,6 +61,15 @@ export function useSetupAnswers(values: Ref<Record<string, string>>, search: Ref
     delete errors[field];
   }
 
+  /** The radio Find my radio found, as the settings it makes (the type, the port and the speed): the answers of the Radio step. */
+  function fillRadio(found: Record<string, string>): void {
+    for (const key of ["tnc/profile", "serial/port", "serial/baud"]) {
+      const field = KEY_OF[key];
+      const value = found[key];
+      if (field !== undefined && value !== undefined) edit(field, field === "baud" ? baudShown(fields.profile, value) : value);
+    }
+  }
+
   /** A place from the map or the browser: five decimals (a metre), the longitude brought into -180 to 180. */
   function place(lat: number, lon: number): void {
     const wrapped = ((((lon + 180) % 360) + 360) % 360) - 180;
@@ -64,5 +77,5 @@ export function useSetupAnswers(values: Ref<Record<string, string>>, search: Ref
     edit("lon", degreesText(Math.round(wrapped * 1e5) / 1e5));
   }
 
-  return { fields, errors, touched, tcp, changes, valid, problems, pin, fill, reset, clearErrors, edit, place };
+  return { fields, errors, touched, tcp, dummy, fillRadio, changes, valid, problems, pin, fill, reset, clearErrors, edit, place };
 }

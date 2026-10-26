@@ -1,7 +1,9 @@
-"""Which ports there are and which of them is the radio: the list of the ports the system knows (every OS), and, on Linux, the search that listens to the ports that match a pattern all at once.
+"""Which ports there are and which of them is the radio: the list of the ports the system knows (every OS), the search that listens to the ports that match a pattern all at once (Linux), and the ports that Find my
+radio tries one after the other (Linux, Windows, macOS).
 
-The search writes to the ports it listens to (a carriage return, to wake a TNC in command mode), and a port that is not a TNC may be a GPS, a rotator or an interface that keys a transmitter on a control line. It is
-therefore made only where the ports are USB serial adapters under `/dev` (Linux); on Windows and macOS the radio is the port that was named or remembered, and the operator picks it from the list."""
+The search writes to the ports it listens to (a carriage return, to wake a TNC in command mode), and a port that is not a TNC may be a GPS, a rotator or an interface that keys a transmitter on a control line. The search
+that runs by itself is therefore made only where the ports are USB serial adapters under `/dev` (Linux); on Windows and macOS the radio is the port that was named or remembered, and the operator picks it from the list, or
+asks for Find my radio, which is made on a click and tries the ports of the system's list: on Windows the COM ports (a paired Bluetooth serial port is one of them), on macOS the `/dev/cu.*` devices."""
 import asyncio
 import glob
 import logging
@@ -77,8 +79,43 @@ def with_links(ports: list[PortInfo], dirs: Collection[str] = LINK_DIRS) -> list
 
 
 def can_search() -> bool:
-    """Whether the radio may be looked for among the ports (see the top of this module)."""
+    """Whether the radio may be looked for among the ports by itself (see the top of this module)."""
     return sys.platform.startswith("linux")
+
+
+def can_find() -> bool:
+    """Whether Find my radio may try the ports, on the operator's click: where the search is made, and Windows and macOS."""
+    return sys.platform.startswith("linux") or sys.platform in ("win32", "darwin")
+
+
+MAC_LEFT_OUT = ("Bluetooth-Incoming-Port", "debug-console")          # devices under /dev/cu.* that are no serial adapter
+MAC_DEVICES = "/dev/cu.*"
+
+
+def is_bluetooth_com(port: PortInfo) -> bool:
+    """A Bluetooth serial port that the system makes a COM port of (Windows: "Standard Serial over Bluetooth link (COM5)", hardware id BTHENUM\\...). It has no line speed, and opening one can take seconds."""
+    return port.hwid.upper().startswith("BTHENUM") or "bluetooth" in port.description.lower()
+
+
+def _usb_first(port: PortInfo) -> int:
+    """The order Find my radio tries ports in: USB adapters, then other serial ports, then Bluetooth ones (which can take seconds to answer)."""
+    return 2 if is_bluetooth_com(port) else 0 if port.vid is not None or port.hwid.upper().startswith("USB") else 1
+
+
+def system_ports() -> list[PortInfo]:
+    """The ports Find my radio tries where the system lists them (Windows and macOS): the system's list in natural order (COM2 before COM10), without the development boards that the search leaves alone (serialboards.py)
+    and, on macOS, the `/dev/cu.*` devices pyserial did not list, without the ones that are no adapter. USB adapters come first, then the others, and the Bluetooth serial ports last. Nothing is opened."""
+    ports = available_ports()
+    if sys.platform == "darwin":
+        listed = {p.device for p in ports}
+        ports += [PortInfo(path, "", "", None, None) for path in sorted(glob.glob(MAC_DEVICES)) if path not in listed and not path.endswith(MAC_LEFT_OUT)]
+    ports = [p for p in ports if not (p.vid is not None and p.pid is not None and board_kind(p.vid, p.pid))]
+    return sorted(ports, key=_usb_first)                          # (a stable sort: the natural order stays inside each group)
+
+
+def bluetooth_com_keys() -> set[str]:
+    """The ports of the system's list that are Bluetooth serial ports, by `port_key` (Windows and macOS; none on Linux, where the paired devices are `bt://` ports)."""
+    return set() if can_search() else {port_key(p.device) for p in available_ports() if is_bluetooth_com(p)}
 
 
 def search_pattern(stored: str = DEFAULT_PATTERN) -> str:

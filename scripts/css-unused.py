@@ -21,7 +21,7 @@ PREFIXES = {
     "size-": "composables/useLayout.ts",
     "state-": "components/ConversationThread.vue",
     "stn--fade-": "lib/markerdom.ts",
-    "tnc-": "components/RadioStatus.vue",
+    "tnc-": "lib/tncstatus.ts",
     "tone-": "components/TrendChart.vue",
     "view-": "composables/useLayout.ts",
 }

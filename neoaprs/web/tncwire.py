@@ -35,6 +35,7 @@ class TncState(_Model):
     last_error: str = Field(description="the latest reason for waiting")
     path: str = Field(description="the serial port in use; empty while none is open")
     baud: int
+    dummy: bool = Field(description="the radio is the Dummy radio: the traffic is made up and nothing goes on the air; `path` and `baud` mean nothing then")
     describe: str = Field(description="one line for the log and `neoaprs doctor`: the port, the speed and what the TNC does; while `silent` it says since when, in UTC")
     searching: list[str] = Field(description="the ports the daemon is listening to while it looks for the radio; empty when it is not searching")
     silent_since: Iso | None = Field(description="while `state` is `silent`, when the latest byte came; null otherwise")

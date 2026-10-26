@@ -301,6 +301,29 @@ async def test_a_beacon_is_not_sent_to_the_server_while_the_igate_is_not_logged_
     assert server.packets == []
 
 
+async def test_nothing_of_ours_is_sent_to_the_server_while_the_radio_is_a_dummy_and_the_position_goes_when_it_is_a_real_one() -> None:
+    server = await fake_aprsis()
+    w = await iworld(server, wait=False)
+    made_up = [True]
+    w.igate.made_up = lambda: made_up[0]
+    await until(lambda: w.igate.state == "connected")
+    await idle_for(0.1)
+    assert server.packets == [], "(the station that stays: its position waits)"
+    w.clock.advance(61)
+    w.igate.tick()
+    await idle_for(0.1)
+    assert server.packets == []
+    made_up[0] = False
+    w.clock.advance(61)
+    w.igate.tick()
+    await until(lambda: server.packets == [OWN_LINE])
+    moving = await iworld(await fake_aprsis(), gps_source="gpsd")
+    moving.igate.made_up = lambda: True
+    moving.igate.beacon_sent(frame_of(source="OH2GBA-10", destination=TOCALL, info=b"=/5L!!<*e7>7P["))
+    await idle_for(0.1)
+    assert moving.server.packets == [], "(the beacon sent over a Dummy radio is a packet of it)"
+
+
 # ---- the log
 
 async def test_the_log_has_the_login_and_each_gated_packet_and_never_the_password(caplog: pytest.LogCaptureFixture) -> None:

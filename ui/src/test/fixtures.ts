@@ -267,6 +267,7 @@ export function tncState(extra: Partial<TncState> = {}): TncState {
     last_error: "",
     path: "/dev/brainbox_3",
     baud: 9600,
+    dummy: false,
     describe: "/dev/brainbox_3 at 9600, KISS",
     searching: [],
     silent_since: null,

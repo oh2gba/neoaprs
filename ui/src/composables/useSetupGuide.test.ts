@@ -10,6 +10,7 @@ const fresh = (extra: Record<string, string> = {}) =>
 const ports = (extra: Partial<PortsMessage> = {}): PortsMessage => ({
   type: "ports",
   search: true,
+  find: true,
   ports: [{ device: "/dev/ttyUSB0", description: "FT232R USB UART", hwid: "n/a", vid: null, pid: null }],
   ...extra,
 });

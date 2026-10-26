@@ -15,7 +15,9 @@ from neoaprs.packet import Message, Packet, ThirdParty, Undecoded
 from neoaprs.pref import Pref
 from neoaprs.smartbeacon import Reason, Sent
 from neoaprs.stationbook import StationBook
+from neoaprs.dummyline import DUMMY_PATH
 from neoaprs.tnc import Tnc
+from neoaprs.tncprofile import DUMMY
 from tests.support.clock import FixedClock
 
 T0 = datetime(2026, 10, 21, 12, 0, tzinfo=UTC)
@@ -132,6 +134,12 @@ def tnc() -> Tnc:
     return tnc
 
 
+def tnc_dummy() -> Tnc:
+    found = Tnc(profile=DUMMY, clock=FixedClock(T0))
+    found.path = DUMMY_PATH
+    return found
+
+
 def tnc_searching() -> Tnc:
     found = tnc()
     found._search.listening = ["/dev/ttyUSB0", "/dev/ttyUSB1"]
@@ -205,7 +213,7 @@ def rows(views: Any) -> dict[str, Any]:
         "own_objects": {o.name: views.own_object_row(o, at) for o, at in own_objects()},
         "own_bulletins": {b.slot: views.own_bulletin_row(b, at) for b, at in own_bulletins()},
         "station_prefs": [views.pref_row(p) for p in prefs()],
-        "tnc": [views.tnc_state(Tnc(clock=FixedClock(T0))), views.tnc_state(tnc()), views.tnc_state(tnc_searching())],
+        "tnc": [views.tnc_state(Tnc(clock=FixedClock(T0))), views.tnc_state(tnc()), views.tnc_state(tnc_searching()), views.tnc_state(tnc_dummy())],
         "gps": gps_rows(views),
         "igate": igate_rows(views),
         "config": [views.config_values(DEFAULTS, []), views.config_values(DEFAULTS, ["http://192.168.1.2:8730"], {"on": True, "port": 8731, "fingerprint": "AB:CD", "problem": ""})],

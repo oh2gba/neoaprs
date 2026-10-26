@@ -146,8 +146,13 @@ describe("useDaemon", () => {
   it("keeps the latest answer to list_ports", () => {
     const { daemon, socket } = setUp();
     expect(daemon.ports.value).toBeNull();
-    socket.say({ type: "ports", ports: [], search: false });
-    socket.say({ type: "ports", ports: [{ device: "COM3", description: "USB Serial Port (COM3)", hwid: "n/a", vid: null, pid: null }], search: false });
+    socket.say({ type: "ports", ports: [], search: false, find: true });
+    socket.say({
+      type: "ports",
+      ports: [{ device: "COM3", description: "USB Serial Port (COM3)", hwid: "n/a", vid: null, pid: null }],
+      search: false,
+      find: true,
+    });
     expect(daemon.ports.value?.ports.map((p) => p.device)).toEqual(["COM3"]);
   });
 

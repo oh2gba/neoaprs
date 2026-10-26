@@ -1,12 +1,13 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { nextTick, ref } from "vue";
+import { nextTick, ref, shallowRef } from "vue";
 import SetupGuide from "@/components/SetupGuide.vue";
 import type { Toast } from "@/composables/useDaemon";
+import { useFindRadio } from "@/composables/useFindRadio";
 import { useSetupGuide } from "@/composables/useSetupGuide";
 import { SYMBOL_CHOICES } from "@/lib/setup";
 import { TNC_PROFILES } from "@/protocol/lists";
-import type { Command, ConfigValues, MapState, PortsMessage } from "@/protocol/protocol";
+import type { Command, ConfigValues, MapState, PortsMessage, RadioSearchMessage } from "@/protocol/protocol";
 import { fakeDaemon, tell, withDaemon } from "@/test/context";
 import { configValues, mapFile, mapState, toastOf } from "@/test/fixtures";
 
@@ -16,6 +17,7 @@ const row = (device: string, description: string) => ({ device, description, hwi
 const ports = (extra: Partial<PortsMessage> = {}): PortsMessage => ({
   type: "ports",
   search: true,
+  find: true,
   ports: [row("/dev/ttyUSB0", "FT232R USB UART"), row("/dev/ttyACM0", "n/a")],
   ...extra,
 });
@@ -29,7 +31,11 @@ function make(opts: { config?: ConfigValues; map?: MapState | null } = {}) {
   const guide = useSetupGuide(config, lastError, portList, send);
   guide.show();
   const map = opts.map === undefined ? mapState() : opts.map;
-  const daemon = fakeDaemon({ config, lastError, ports: portList, guide, map, send });
+  // Find my radio as the page makes it: while the Radio step is on the screen what it finds goes into the guide's answers
+  const radioSearch = shallowRef<RadioSearchMessage | null>(null);
+  const settings = { change: () => undefined, expected: () => "", dismissUndo: () => undefined };
+  const findRadio = useFindRadio(radioSearch, lastError, shallowRef("open" as const), send, settings, config, () => undefined, guide);
+  const daemon = fakeDaemon({ config, lastError, ports: portList, guide, map, send, findRadio });
   const wrapper = mount(SetupGuide, { global: withDaemon(daemon), attachTo: document.body });
   const type = (id: string, text: string) => wrapper.find<HTMLInputElement>(`#${id}`).setValue(text);
   const next = () => wrapper.find("form").trigger("submit");
@@ -42,7 +48,7 @@ function make(opts: { config?: ConfigValues; map?: MapState | null } = {}) {
     await type("setup-lon", "24.94");
     for (let i = 1; i < step; i++) await next();
   };
-  return { wrapper, guide, config, lastError, portList, sent, type, next, button, stand, daemon };
+  return { wrapper, guide, config, lastError, portList, radioSearch, sent, type, next, button, stand, daemon };
 }
 
 afterEach(() => {
@@ -383,6 +389,120 @@ describe("SetupGuide: the radio", () => {
     expect(wrapper.find(".field-error").text()).toBe("300 to 921600");
     await type("setup-baud", "57600");
     expect(wrapper.find(".field-error").exists()).toBe(false);
+  });
+});
+
+describe("SetupGuide: the radio, Find my radio and the Terminal", () => {
+  const found = (extra: Partial<RadioSearchMessage> = {}): RadioSearchMessage => ({
+    type: "radio_search",
+    state: "found",
+    port: "COM5",
+    baud: 57600,
+    profile: "kiss",
+    number: 0,
+    total: 0,
+    ...extra,
+  });
+
+  it("has Find my radio and the Terminal under the fields, the same two as the Settings tab has", async () => {
+    const { wrapper, stand } = make();
+    await stand(3);
+    const button = wrapper.find<HTMLButtonElement>("#setup-find-radio");
+    expect(button.text()).toBe("Find my radio");
+    expect(button.element.closest(".radiofind")).not.toBeNull();
+    expect(wrapper.find(".setup-body").element.innerHTML.indexOf("setup-baud")).toBeLessThan(
+      wrapper.find(".setup-body").element.innerHTML.indexOf("setup-find-radio"),
+    );
+    expect(wrapper.findAll("summary").map((s) => s.text())).toEqual(["Terminal"]);
+    expect(wrapper.find("pre.tnclines").exists()).toBe(true);
+  });
+
+  it("asks the daemon to find the radio, and what it finds fills the radio type, the port and the speed, to be saved with the rest", async () => {
+    const { wrapper, guide, sent, radioSearch, stand } = make();
+    await stand(3);
+    await wrapper.find("#setup-find-radio").trigger("click");
+    expect(sent.filter((c) => c.cmd === "find_radio")).toHaveLength(1);
+    radioSearch.value = found({ state: "trying", profile: "", number: 3, total: 21 });
+    await nextTick();
+    expect(guide.fields.port).toBe("");
+    radioSearch.value = found();
+    await nextTick();
+    expect(guide.fields).toMatchObject({ profile: "kiss", port: "COM5", baud: "57600" });
+    expect(wrapper.find<HTMLSelectElement>("#setup-profile").element.value).toBe("kiss");
+    expect(wrapper.find<HTMLInputElement>("#setup-baud").element.value).toBe("57600");
+    expect(guide.changes).toMatchObject({ "tnc/profile": "kiss", "serial/port": "COM5", "serial/baud": "57600" });
+    expect(sent.some((c) => c.cmd === "set_config")).toBe(false); // (it is saved at Finish, not by the search)
+  });
+
+  it("leaves the speed of the profile alone for a port that has none", async () => {
+    const { guide, radioSearch, stand, wrapper } = make();
+    await stand(3);
+    await wrapper.find("#setup-find-radio").trigger("click");
+    radioSearch.value = found({ port: "bt://AA:BB:CC:DD:EE:FF", baud: null });
+    await nextTick();
+    expect(guide.fields).toMatchObject({ port: "bt://AA:BB:CC:DD:EE:FF", baud: "" });
+  });
+
+  it("is not there where the daemon cannot look for the radio among the ports", async () => {
+    const { wrapper, portList, stand } = make();
+    await stand(3);
+    portList.value = ports({ find: false });
+    await nextTick();
+    expect(wrapper.find("#setup-find-radio").exists()).toBe(false);
+    expect(wrapper.find("#setup-port").exists()).toBe(true);
+  });
+
+  it("opens the terminal on the radio the answers name: the radio's settings are put in force when it is opened, and nothing when they already are", async () => {
+    const { wrapper, sent, portList, stand } = make();
+    await stand(3);
+    portList.value = ports();
+    await nextTick();
+    await wrapper.find("#setup-port").setValue("/dev/ttyUSB0");
+    const details = wrapper.find<HTMLDetailsElement>("details");
+    details.element.open = true;
+    await details.trigger("toggle");
+    expect(sent.filter((c) => c.cmd === "set_config")).toEqual([{ cmd: "set_config", values: { "serial/port": "/dev/ttyUSB0" } }]); // (not the call, not the position)
+    details.element.open = false;
+    await details.trigger("toggle");
+    expect(sent.filter((c) => c.cmd === "set_config")).toHaveLength(1);
+    const quiet = make({ config: configValues() });
+    quiet.guide.go(3);
+    await nextTick();
+    const other = quiet.wrapper.find<HTMLDetailsElement>("details");
+    other.element.open = true;
+    await other.trigger("toggle");
+    expect(quiet.sent.some((c) => c.cmd === "set_config")).toBe(false);
+  });
+
+  it("has no port, no speed and no host for the Dummy radio, and Next does not wait for a port", async () => {
+    const { wrapper, guide, sent, portList, stand } = make();
+    await stand(3);
+    portList.value = ports({ search: false });
+    await nextTick();
+    expect(wrapper.find("button[type=submit]").attributes("disabled")).toBeDefined();
+    await wrapper.find("#setup-profile").setValue("dummy");
+    for (const id of ["setup-port", "setup-baud", "setup-host", "setup-tcpport", "setup-find-radio"]) expect(wrapper.find(`#${id}`).exists(), id).toBe(false);
+    expect(wrapper.findAll("button").some((b) => b.text() === "Refresh")).toBe(false);
+    expect(wrapper.find("button[type=submit]").attributes("disabled")).toBeUndefined();
+    expect(wrapper.findAll("summary").map((s) => s.text())).toEqual(["Terminal"]); // (the terminal shows the made-up traffic)
+    expect(wrapper.find<HTMLSelectElement>("#setup-profile").text()).toContain("Dummy (no radio, made-up traffic)");
+    expect(guide.changes).toMatchObject({ "tnc/profile": "dummy" });
+    expect(Object.keys(guide.changes).filter((k) => k.startsWith("serial/") || k.startsWith("tcp/"))).toEqual([]);
+    const details = wrapper.find<HTMLDetailsElement>("details");
+    details.element.open = true;
+    await details.trigger("toggle");
+    expect(sent.filter((c) => c.cmd === "set_config")).toEqual([{ cmd: "set_config", values: { "tnc/profile": "dummy" } }]);
+  });
+
+  it("is on the screen only while the Radio step is, for what Find my radio fills", async () => {
+    const { guide, radioSearch, config, sent } = make();
+    guide.go(0);
+    expect(guide.onRadio).toBe(false);
+    config.value = configValues();
+    radioSearch.value = found();
+    await nextTick();
+    expect(guide.fields.port).toBe(configValues().values["serial/port"] ?? "");
+    expect(sent).toEqual([]);
   });
 });
 

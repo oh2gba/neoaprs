@@ -80,7 +80,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
     "KISS por TCP: Direwolf o un módem de tarjeta de sonido que funciona en este u otro ordenador. Un Digirig o un SignaLink también van por aquí.",
   "settings.profile.tip4":
     "Kenwood TH-D7, TM-D700, TS-2000: NeoAPRS pone la radio en KISS por sí mismo. Lo mismo vale para el TM-D710 y el TH-D72, y para el Kantronics KPC-3+.",
-  "settings.profile.tip5": "¿No estás seguro? Consulta la guía de radios, docs/RADIOS.md.",
+  "settings.profile.tip5": "¿Aún sin radio? Simulada inventa tráfico para probar NeoAPRS. ¿No estás seguro? Consulta docs/RADIOS.md.",
 
   "settings.port.name": "Puerto del TNC",
   "settings.port.label": "Puerto",
@@ -319,6 +319,8 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.tnc.state.connected": "conectado",
   "settings.tnc.state.waiting": "esperando",
   "settings.tnc.state.silent": "en silencio",
+  "settings.tnc.dummy_pill": "Simulada",
+  "settings.tnc.dummy": "Radio simulada: tráfico inventado, nada sale al aire",
   "settings.tnc.no_packet": "Aún no hay paquetes",
   "settings.tnc.last_packet": "Último paquete hace {span}",
   "settings.tnc.no_packet_digipeated": "Aún no hay paquetes, repetidos {count}",

@@ -111,6 +111,11 @@ class Source:
         return ""
 
     @property
+    def is_dummy(self) -> bool:
+        """Whether what this feed delivers is made up (the Dummy radio, dummyline.py): nothing of it is on the air. Whatever hands packets on to the internet (an iGate) must look at this and gate nothing of such a feed."""
+        return False
+
+    @property
     def usable(self) -> bool:
         """Whether a frame can be sent now: the line is open and the radio answers. CONNECTED, and a feed that settles after switching the radio to KISS says no meanwhile."""
         return self.state is Source.State.CONNECTED

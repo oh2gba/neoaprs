@@ -32,14 +32,17 @@ With no port given, on Linux NeoAPRS listens to all the ports that match the set
 - The port it found is remembered as `serial/last_port` and tried first next time. A port that cannot be opened is followed by the search, and a line that drops is opened again after 5, 10, 20, 30 seconds.
 - `serial/skip` lists ports the search never opens (a rotator's adapter, say, or the GPS receiver of a moving station: the search does not know which port is the GPS's, so name the radio's port or list the GPS's), separated by commas. A pattern of your own, such as `/dev/brainbox_*` for Brainboxes adapters, is set with `neoaprs db set serial/pattern "..."`; a change restarts the search. Neither is on the page.
 
-On Windows and macOS NeoAPRS listens to no port it was not told of, because it could write into a GPS or into a rig interface that keys a transmitter. The radio is the port in `serial/port` or the one remembered. A COM port that another program has open is reported as in use by another program.
+On Windows and macOS NeoAPRS listens to no port it was not told of, because it could write into a GPS or into a rig interface that keys a transmitter. The radio is the port in `serial/port` or the one remembered, or the one **Find my radio** finds when you press it. A COM port that another program has open is reported as in use by another program.
 
 ## Find my radio
 
-The button **Find my radio**, behind the arrow of the TNC group (Linux only, like the search above), finds the port, the speed and the type of TNC by itself, and puts them in the settings like any other change (the toast offers **Undo**). Nothing happens unless you press it.
+The button **Find my radio**, behind the arrow of the TNC group and under the fields of the Radio step of the setup guide, finds the port, the speed and the type of TNC by itself. In the Settings tab it puts them in the settings like any other change (the toast offers **Undo**); in the setup guide it fills in the fields, and Finish saves them. It works on Linux, Windows and macOS. Nothing happens unless you press it.
 
-- It tries the ports of the search above, one after the other (the by-id name first), and with the default pattern the paired Bluetooth devices after them. The ports a development board is behind, the ones that `serial/skip` names and the ones another program holds are left out, as they are in the search. A TCP address is never tried.
-- Each serial port is opened at 9600, 57600, 19200, 38400, 115200, 4800 and 1200 baud in turn; a Bluetooth port has no speed and is tried once. Each try listens for 1 second, writes one carriage return and listens for 1.5 seconds more, so a port nobody answers on costs about 18 seconds.
+- **Linux:** it tries the ports of the search above, one after the other (the by-id name first), and with the default pattern the paired Bluetooth devices after them. The ports a development board is behind, the ones that `serial/skip` names and the ones another program holds are left out, as they are in the search. A TCP address is never tried.
+- **Windows:** it tries the COM ports the system lists (`COM3`, `COM10`; the list shows what Windows calls each, such as *USB Serial Port*, *Prolific*, *Silicon Labs CP210x* or *Mobilinkd*). USB adapters come first, then the other serial ports, and a paired Bluetooth serial port last, because opening one can take seconds. Windows lists two ports for a paired radio; the one that answers is the *Outgoing* one.
+- A COM port that another program has open cannot be opened and is passed over, with "in use by another program" in the log: close the other program first. Development boards and the ports `serial/skip` names are left out.
+- **macOS:** it tries the `/dev/cu.*` devices in the same way.
+- Each serial port is opened at 9600, 57600, 19200, 38400, 115200, 4800 and 1200 baud in turn; a Bluetooth port (also a COM port of a paired Bluetooth radio on Windows) has no speed and is tried once. Each try listens for 1 second, writes one carriage return and listens for 1.5 seconds more, so a port nobody answers on costs about 18 seconds.
 - It stops at the first that answers. A TNC that sends a KISS frame (it has heard a packet) is the type `kiss`. A TNC that answers the carriage return with text is in command mode: the Kenwood TH-D7 type is tried first, then the TM-D710 and then the Kantronics, each by the steps that put that TNC in KISS (the table below), and the first after which the TNC no longer answers a carriage return with text is the type. Nothing is sent to the air.
 - The radio's own line is closed while it runs and opened again after it, found or not.
 - The toast at the bottom says which port at which speed it is trying and how many tries there are, with **Cancel**. When nothing answered the toast says so. A TNC that is in KISS mode says nothing until it hears a packet, so on a quiet band it may not be found: try again when the channel is busy, or choose the port yourself.
@@ -52,11 +55,22 @@ The TNC group of the Settings tab is one line, the radio status, with an arrow i
 - One plain line follows. "Last packet 2 min ago", "Searching for the radio…" with the ports it listens to behind **Ports**, "Not connected: the reason", or for a silent radio since when it said nothing. The packet and byte counts are its hover text.
 - **Reconnect**, small, at the end of the line, opens the line again.
 
-Behind the arrow are the type of TNC, as **Radio type**, and the fields that follow it: the host and port for a TCP type, and for a serial one the port and the speed; then **Find my radio** and **Terminal**.
+Behind the arrow are the type of TNC, as **Radio type**, and the fields that follow it: the host and port for a TCP type, and for a serial one the port and the speed (the Dummy has none); then **Find my radio** and **Terminal**. The Radio step of the setup guide has the same two under its fields ([start.md](start.md#the-setup-guide)).
 
 - **Terminal**, closed until you open it, shows the latest 100 lines of what the TNC saw and did, in monospace and in your browser's time. It follows the end unless you scroll up.
 
 When the digipeater is on and has repeated something, the status says "digipeated N".
+
+## The Dummy radio
+
+The type **Dummy (no radio, made-up traffic)**, the last in the list of **Radio type**, is for trying NeoAPRS without a radio, on any system. It needs no port and no speed, and nothing is opened: the program makes up the traffic itself, around your station's position (around Helsinki until you have set one). Pick it in the setup guide or in the Settings tab; a person with a real radio picks that type in the Settings tab later.
+
+- A few stations that stay (a house, a club, a cottage), three cars and a walker on routes round the position (some with Mic-E, some with compressed positions), a weather station that reports every 5 minutes, two digipeaters with PHG that repeat the others, two objects, a bulletin now and then and a status. Something is on the air within half a minute, then a few packets a minute.
+- **The stations that take messages answer.** A message to one of them is acked after a moment and answered a few seconds later with "Hello from the dummy radio", so messaging can be tried.
+- **Nothing goes anywhere.** What you send (beacons, messages) is swallowed. A digipeater is heard repeating a beacon of yours now and then, as if it had been on the air.
+- The radio status says **Dummy radio: made-up traffic, nothing goes on the air**, in a muted pill.
+- Every call is made up on the prefix Q (`Q1ABC`, `Q2DIG-2`, `Q3WX`), which the ITU gives to no country, so none of them is anybody's.
+- Nothing of it is meant for the internet.
 
 ## The TNC type
 

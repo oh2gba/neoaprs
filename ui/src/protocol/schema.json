@@ -3001,7 +3001,7 @@
     },
     "PortRow": {
       "additionalProperties": false,
-      "description": "A serial port the system lists, or a Bluetooth device paired with it (Linux). Nothing was opened or connected to find it.",
+      "description": "A serial port the system lists, or a Bluetooth device paired with it (Linux; on Windows a paired Bluetooth serial port is a COM port of the system's list). Nothing was opened or connected to find it.",
       "properties": {
         "device": {
           "description": "the name to give as `serial/port`: `COM3`, `/dev/ttyUSB0`, `bt://AA:BB:CC:DD:EE:FF` for a paired Bluetooth device",
@@ -3066,12 +3066,17 @@
         "search": {
           "description": "whether the daemon looks for the radio among the ports by itself (Linux, the ports that match `serial/pattern`); where it is false (Windows, macOS) the radio is the port in `serial/port`, so the operator picks it from this list",
           "type": "boolean"
+        },
+        "find": {
+          "description": "whether Find my radio (`find_radio`) can be asked for: on Linux, Windows and macOS",
+          "type": "boolean"
         }
       },
       "required": [
         "type",
         "ports",
-        "search"
+        "search",
+        "find"
       ],
       "title": "PortsMessage",
       "type": "object"
@@ -4540,6 +4545,10 @@
         "baud": {
           "type": "integer"
         },
+        "dummy": {
+          "description": "the radio is the Dummy radio: the traffic is made up and nothing goes on the air; `path` and `baud` mean nothing then",
+          "type": "boolean"
+        },
         "describe": {
           "description": "one line for the log and `neoaprs doctor`: the port, the speed and what the TNC does; while `silent` it says since when, in UTC",
           "type": "string"
@@ -4605,6 +4614,7 @@
         "last_error",
         "path",
         "baud",
+        "dummy",
         "describe",
         "searching",
         "silent_since",
