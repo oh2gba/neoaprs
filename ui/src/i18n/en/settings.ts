@@ -28,9 +28,6 @@ export const settings = {
   "settings.fold.antenna": "Antenna",
   "settings.fold.advanced": "Advanced",
 
-  "settings.name.position": "Position",
-  "settings.name.tcp_address": "TCP address",
-  "settings.name.radio": "Radio",
 
   "settings.call.label": "Call",
   "settings.call.tip1": "Your call sign. Nothing is sent without it.",
@@ -233,8 +230,6 @@ export const settings = {
   "settings.confirm.https_on": "This device will lose the page. Turn on?",
   "settings.confirm.https_off": "This device will lose the page. Turn off?",
 
-  "settings.undo.changed": "{name} changed",
-  "settings.undo.undo": "Undo",
 
   "settings.check.range": "{min} to {max}",
   "settings.check.placeholder_call": "{call} is not a call",

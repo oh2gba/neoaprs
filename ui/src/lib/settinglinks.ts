@@ -1,9 +1,8 @@
 // How the settings that belong together are handled when they apply as they are changed: the fields that are sent in one `set_config`, the values that go with a choice so that the choice is valid at once, the field a
-// refusal of the daemon is shown under when it names another setting than the one that was changed, the changes that ask first, and the words for "<label> changed · Undo".
+// refusal of the daemon is shown under when it names another setting than the one that was changed, the changes that ask first.
 import { t } from "@/i18n";
-import type { MessageId } from "@/i18n/catalogue";
 import { isLoopbackHost } from "@/lib/pagealert";
-import { FIELDS, reasonOf } from "@/lib/settings";
+import { reasonOf } from "@/lib/settings";
 import { portForProfile } from "@/lib/tncprofile";
 import type { ErrorMessage } from "@/protocol/protocol";
 
@@ -18,22 +17,8 @@ export const TOGETHER: Record<string, readonly string[]> = {
   "tcp/port": ["tcp/host", "tcp/port"],
 };
 
-/** What a set of keys changed is called when all of it is changed together (the id of the words). */
-const NAMES: { keys: readonly string[]; name: MessageId }[] = [
-  { keys: ["station/lat", "station/lon"], name: "settings.name.position" },
-  { keys: ["tcp/host", "tcp/port"], name: "settings.name.tcp_address" },
-  { keys: ["tnc/profile", "serial/port"], name: "settings.name.radio" },
-  { keys: ["station/symbol_table", "station/symbol_code"], name: "settings.symbol.label" },
-];
-
-/** The words for a change in the toast that offers to undo it: the group's name when all of a group changed, else the name of the first key. */
-export function changeName(keys: readonly string[]): string {
-  const group = NAMES.find((n) => n.keys.every((k) => keys.includes(k)));
-  if (group) return t(group.name);
-  const first = keys[0] ?? "";
-  const info = FIELDS[first];
-  return info?.name ?? info?.label ?? first;
-}
+/** Whether the daemon's error is the refusal of a setting, which is shown under its field (useSettingsAnswers) and in no toast. */
+export const refusedAtField = (error: { cmd: string } | null): boolean => error !== null && error.cmd === "set_config";
 
 /** The values that must be sent with the change of `key` to `text` so that the change is valid at once: a serial device does not go with a TCP radio type (the port is cleared), and the radio as the source of the status needs a
  * rigctld (the usual one is filled in). `draft` is what the fields hold. */

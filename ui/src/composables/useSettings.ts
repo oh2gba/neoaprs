@@ -8,7 +8,7 @@ import { useSettingsAnswers } from "@/composables/useSettingsAnswers";
 import { useSettingsFeedback } from "@/composables/useSettingsFeedback";
 import { useSettingsQueue, type Request } from "@/composables/useSettingsQueue";
 import { pairProblems, problemOf, sameValue } from "@/lib/fieldcheck";
-import { changeName, linkedValues } from "@/lib/settinglinks";
+import { linkedValues } from "@/lib/settinglinks";
 import type { Command, ConfigValues } from "@/protocol/protocol";
 
 export function useSettings(config: Ref<ConfigValues | null>, lastError: Ref<Toast | null>, send: (command: Command) => boolean) {
@@ -37,11 +37,6 @@ export function useSettings(config: Ref<ConfigValues | null>, lastError: Ref<Toa
     delete errors[key];
   }
 
-  function enqueue(request: Request): void {
-    feedback.dismissUndo(); // (earlier changes are just applied: the toast covers the latest)
-    queue.enqueue(request);
-  }
-
   /** Checks the keys as typed and sends those that differ from what they have, together in one request (`revert`: a refused choice shows the old value again). Nothing is sent when the page finds a problem with any of them. */
   function commit(keys: readonly string[], revert = false): void {
     for (const key of keys) delete errors[key];
@@ -59,7 +54,7 @@ export function useSettings(config: Ref<ConfigValues | null>, lastError: Ref<Toa
     for (const [key, text] of Object.entries({ ...sent })) Object.assign(sent, linkedValues(key, text, draft));
     const names = Object.keys(sent);
     for (const key of names) draft[key] = sent[key] ?? "";
-    if (names.length > 0) enqueue({ values: sent, keys: names, label: changeName(names), revert: revert ? names : [], previous: {}, undo: false });
+    if (names.length > 0) queue.enqueue({ values: sent, keys: names, revert: revert ? names : [] });
   }
 
   /** A choice made at once: the keys take these texts and are sent. */
@@ -68,22 +63,12 @@ export function useSettings(config: Ref<ConfigValues | null>, lastError: Ref<Toa
     commit(Object.keys(choices), true);
   }
 
-  /** Puts back what the latest change replaced, in one request. */
-  function undoLast(): void {
-    const last = feedback.undo.value;
-    if (!last) return;
-    const keys = Object.keys(last.values);
-    for (const key of keys) edit(key, last.values[key] ?? "");
-    enqueue({ values: { ...last.values }, keys, label: last.label, revert: [], previous: {}, undo: true });
-  }
-
   useSettingsAnswers(config, lastError, draft, queue, feedback, (request, reason, key) => refuse(request, reason, key));
 
   return {
     draft,
     errors,
     values,
-    undo: feedback.undo,
     announcement: feedback.announcement,
     saving: queue.saving,
     expected: queue.expected,
@@ -91,8 +76,6 @@ export function useSettings(config: Ref<ConfigValues | null>, lastError: Ref<Toa
     cancel,
     commit,
     change,
-    undoLast,
-    dismissUndo: feedback.dismissUndo,
   };
 }
 

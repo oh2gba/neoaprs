@@ -11,13 +11,8 @@ export interface Request {
   /** key to the text to send */
   values: Record<string, string>;
   keys: string[];
-  label: string;
   /** keys that show their old value again when the daemon refuses (a choice; a typed field keeps its text) */
   revert: string[];
-  /** the values in force when the request was sent: what Undo sends */
-  previous: Record<string, string>;
-  /** the request is an Undo: it is not undone in its turn */
-  undo: boolean;
 }
 
 export function useSettingsQueue(
@@ -35,7 +30,6 @@ export function useSettingsQueue(
     const next = queue.value[0];
     if (inflight.value || !next) return;
     queue.value.shift();
-    next.previous = Object.fromEntries(next.keys.map((key) => [key, inForce()[key] ?? ""]));
     inflight.value = next;
     timer = setTimeout(() => give(next, t("settings.no_answer")), ANSWER_MS);
     if (!send({ cmd: "set_config", values: { ...next.values } })) give(next, t("settings.not_sent"));

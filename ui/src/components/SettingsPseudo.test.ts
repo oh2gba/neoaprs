@@ -21,7 +21,6 @@ import SetupRadio from "@/components/SetupRadio.vue";
 import SetupSymbol from "@/components/SetupSymbol.vue";
 import SymbolField from "@/components/SymbolField.vue";
 import SymbolPicker from "@/components/SymbolPicker.vue";
-import UndoToast from "@/components/UndoToast.vue";
 import UpdateDialog from "@/components/UpdateDialog.vue";
 import { useSetupGuide } from "@/composables/useSetupGuide";
 import { en } from "@/i18n/en";
@@ -129,7 +128,7 @@ describe("the settings area in the pseudo-locale", () => {
     expect(wrapper.find("#set-web-key").exists()).toBe(true);
     expect(wrapper.find(".radiostatus").exists()).toBe(true);
     expect(untranslated(document.body)).toEqual([]);
-    // the question under a switch, the Undo toast and the panel of the pop-ups open
+    // the question under a switch, the panel of the pop-ups open
     await wrapper.find("#alert-mode").setValue(true);
     expect(untranslated(document.body)).toEqual([]);
     await wrapper.find("#alert-enable-popups").trigger("click");
@@ -199,7 +198,6 @@ describe("the settings area in the pseudo-locale", () => {
     const guide = useSetupGuide(ref(configValues()), ref(null), ref(null), () => true);
     expect(untranslated(draw(KeyScreen, undefined))).toEqual([]);
     expect(untranslated(draw(ConfirmRow, undefined, { message: "x" }))).toEqual([]);
-    expect(untranslated(draw(UndoToast, undefined, { undo: { label: "Position", values: {}, n: 1 } }))).toEqual([]);
     expect(untranslated(draw(SymbolPicker, undefined, { table: "/", code: "-" }))).toEqual([]);
     expect(untranslated(draw(SymbolField, undefined, { id: "s", symbol: "S#" }))).toEqual([]);
     expect(untranslated(draw(RadioStatus, undefined, { tnc: context.tnc.value, now: Date.now() }))).toEqual([]);

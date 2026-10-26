@@ -866,9 +866,6 @@ export const fr: Catalogue = {
   "settings.fold.antenna": "Antenne",
   "settings.fold.advanced": "Avancé",
 
-  "settings.name.position": "Position",
-  "settings.name.tcp_address": "Adresse TCP",
-  "settings.name.radio": "Radio",
 
   "settings.call.label": "Indicatif",
   "settings.call.tip1": "Votre indicatif. Sans lui, rien n'est envoyé.",
@@ -1076,8 +1073,6 @@ export const fr: Catalogue = {
   "settings.confirm.https_on": "Cet appareil perdra la page. Activer ?",
   "settings.confirm.https_off": "Cet appareil perdra la page. Désactiver ?",
 
-  "settings.undo.changed": "{name} modifié",
-  "settings.undo.undo": "Annuler",
 
   "settings.check.range": "{min} à {max}",
   "settings.check.placeholder_call": "{call} n'est pas un indicatif",

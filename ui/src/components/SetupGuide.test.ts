@@ -33,7 +33,7 @@ function make(opts: { config?: ConfigValues; map?: MapState | null } = {}) {
   const map = opts.map === undefined ? mapState() : opts.map;
   // Find my radio as the page makes it: while the Radio step is on the screen what it finds goes into the guide's answers
   const radioSearch = shallowRef<RadioSearchMessage | null>(null);
-  const settings = { change: () => undefined, expected: () => "", dismissUndo: () => undefined };
+  const settings = { change: () => undefined, expected: () => "" };
   const findRadio = useFindRadio(radioSearch, lastError, shallowRef("open" as const), send, settings, config, () => undefined, guide);
   const daemon = fakeDaemon({ config, lastError, ports: portList, guide, map, send, findRadio });
   const wrapper = mount(SetupGuide, { global: withDaemon(daemon), attachTo: document.body });

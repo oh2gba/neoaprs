@@ -15,20 +15,6 @@
   color: var(--on-strong);
   box-shadow: var(--shadow);
 }
-.toast.undo {
-  background: var(--text);
-  color: var(--panel);
-}
-.toast.undo .linkbutton {
-  color: inherit;
-  font-weight: 600;
-}
-.toast.undo .xbtn,
-.toast.undo .xbtn:hover,
-.toast.undo .xbtn:focus-visible {
-  color: var(--panel);
-  background: none;
-}
 .toast .xbtn {
   color: var(--on-strong);
 }

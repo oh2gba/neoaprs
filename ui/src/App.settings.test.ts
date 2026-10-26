@@ -1,5 +1,5 @@
 import "@/test/mockmap";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { flushPromises, type VueWrapper } from "@vue/test-utils";
 import { type FakeSocket } from "@/test/fakesocket";
 import { openedAt } from "@/test/fakealert";
@@ -55,12 +55,12 @@ describe("App: the Settings tab", () => {
     await flushPromises();
     expect(wrapper.find("#set-messages-alert_command").element.closest(".field")?.textContent).toContain("more than the 1000 allowed");
     expect(wrapper.find<HTMLInputElement>("#set-messages-alert_command").element.value).toBe("x".repeat(1001));
-    expect(wrapper.find(".toast").text()).toContain("messages/alert_command");
+    expect(wrapper.find(".toast").exists()).toBe(false);
   });
 
   describe("settings that apply as they are changed", () => {
     const sets = (socket: FakeSocket) => socket.sent.filter((c) => (c as { cmd: string }).cmd === "set_config");
-    const toast = (wrapper: VueWrapper) => wrapper.find(".toast.undo");
+    const toast = (wrapper: VueWrapper) => wrapper.find(".toast");
     const told = (socket: FakeSocket, changes: Record<string, string>) =>
       socket.say({ type: "state", topic: "config", rev: 1, value: configValues({ ...changes }) });
 
@@ -77,37 +77,19 @@ describe("App: the Settings tab", () => {
       expect(sets(socket)[1]).toEqual({ cmd: "set_config", values: { "beacon/path": "WIDE2-2" } });
     });
 
-    it("offers Undo for the change that was made, and Undo sends the old values in one set_config", async () => {
+    it("shows no toast when a change is saved, and none for the refusal of one: the refusal is under its field", async () => {
       const { wrapper, socket } = await open();
-      await wrapper.find("#pane-settings #set-digi-enabled").setValue(true);
-      expect(toast(wrapper).exists()).toBe(false);
-      told(socket, { "digi/enabled": "true" });
-      await flushPromises();
-      expect(toast(wrapper).text()).toContain("Digipeater changed");
-      await toast(wrapper).find(".undo-button").trigger("click");
-      expect(sets(socket)[1]).toEqual({ cmd: "set_config", values: { "digi/enabled": "false" } });
-      expect(toast(wrapper).exists()).toBe(false);
-      told(socket, {});
-      await flushPromises();
-      expect(toast(wrapper).exists()).toBe(false);
-    });
-
-    it("lets the toast go after ten seconds, and covers the latest of several quick changes", async () => {
-      const { wrapper, socket } = await open();
-      vi.useFakeTimers();
       await wrapper.find("#pane-settings #set-digi-enabled").setValue(true);
       told(socket, { "digi/enabled": "true" });
       await flushPromises();
+      expect(toast(wrapper).exists()).toBe(false);
+      expect(wrapper.find(".undo-button").exists()).toBe(false);
       await wrapper.find("#pane-settings #set-map-radius_km").setValue("200");
       await wrapper.find("#pane-settings #set-map-radius_km").trigger("blur");
-      expect(toast(wrapper).exists()).toBe(false);
-      told(socket, { "digi/enabled": "true", "map/radius_km": "200" });
-      await flushPromises();
-      expect(toast(wrapper).text()).toContain("Map radius changed");
-      vi.advanceTimersByTime(10001);
+      socket.say(errorOf("set_config: map/radius_km: 200 is too big", "setting.too_long", { length: 3, max: 2 }));
       await flushPromises();
       expect(toast(wrapper).exists()).toBe(false);
-      vi.useRealTimers();
+      expect(wrapper.find("#set-map-radius_km").element.closest(".field")?.textContent).toContain("2");
     });
 
     it("asks before the network is turned off on a page opened from another device", async () => {

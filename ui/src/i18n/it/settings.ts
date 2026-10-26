@@ -29,9 +29,6 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.fold.antenna": "Antenna",
   "settings.fold.advanced": "Avanzate",
 
-  "settings.name.position": "Posizione",
-  "settings.name.tcp_address": "Indirizzo TCP",
-  "settings.name.radio": "Radio",
 
   "settings.call.label": "Nominativo",
   "settings.call.tip1": "Il tuo nominativo. Senza, non viene inviato nulla.",
@@ -237,8 +234,6 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.confirm.https_on": "Questo dispositivo perderà la pagina. Attivare?",
   "settings.confirm.https_off": "Questo dispositivo perderà la pagina. Disattivare?",
 
-  "settings.undo.changed": "{name} modificato",
-  "settings.undo.undo": "Annulla",
 
   "settings.check.range": "Da {min} a {max}",
   "settings.check.placeholder_call": "{call} non è un nominativo",

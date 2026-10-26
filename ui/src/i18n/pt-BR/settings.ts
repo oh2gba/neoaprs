@@ -30,9 +30,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.fold.antenna": "Antena",
   "settings.fold.advanced": "Avançado",
 
-  "settings.name.position": "Posição",
-  "settings.name.tcp_address": "Endereço TCP",
-  "settings.name.radio": "Rádio",
 
   "settings.call.label": "Indicativo",
   "settings.call.tip1": "O seu indicativo. Sem ele nada é enviado.",
@@ -238,8 +235,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.confirm.https_on": "Este dispositivo vai perder a página. Ligar?",
   "settings.confirm.https_off": "Este dispositivo vai perder a página. Desligar?",
 
-  "settings.undo.changed": "{name} alterado",
-  "settings.undo.undo": "Desfazer",
 
   "settings.check.range": "{min} a {max}",
   "settings.check.placeholder_call": "{call} não é um indicativo",

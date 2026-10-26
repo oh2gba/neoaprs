@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { nextTick, ref } from "vue";
-import { UNDO_MS } from "@/composables/useSettingsFeedback";
 import { ANSWER_MS } from "@/composables/useSettingsQueue";
 import { useSettings } from "@/composables/useSettings";
 import type { Toast } from "@/composables/useDaemon";
@@ -297,63 +296,14 @@ describe("useSettings: linked rules", () => {
   });
 });
 
-describe("useSettings: Undo", () => {
-  it("offers to undo the change once it is saved, and sends the old values in one set_config", async () => {
-    const { settings, answer, sets } = setUp();
+describe("useSettings: no toast", () => {
+  it("tells a screen reader that it was saved and offers nothing else: no Undo, no toast", async () => {
+    const { settings, answer } = setUp();
     settings.edit("beacon/interval_min", "60");
     settings.commit(["beacon/interval_min"]);
-    expect(settings.undo.value).toBeNull();
+    expect(settings.announcement.value.text).toBe("");
     await answer({ "beacon/interval_min": "60" });
-    expect(settings.undo.value?.label).toBe("Beacon interval");
-    expect(settings.undo.value?.values).toEqual({ "beacon/interval_min": "30" });
-    settings.undoLast();
-    expect(sets()[1]).toEqual({ "beacon/interval_min": "30" });
-    expect(settings.draft["beacon/interval_min"]).toBe("30");
-    expect(settings.undo.value).toBeNull();
-    await answer({ "beacon/interval_min": "30" });
-    expect(settings.undo.value).toBeNull(); // (an Undo is not undone in its turn)
-  });
-
-  it("puts back everything a change replaced, in one request", async () => {
-    const { settings, answer, sets } = setUp();
-    settings.change({ "status/source": "rig" });
-    await answer({ "status/source": "rig", "status/rigctld": "127.0.0.1:4532" });
-    settings.undoLast();
-    expect(sets()[1]).toEqual({ "status/source": "", "status/rigctld": "" });
-  });
-
-  it("names a position changed together as one, and a symbol", async () => {
-    const { settings, answer } = setUp();
-    settings.change({ "station/lat": "61.5", "station/lon": "25.5" });
-    await answer({ "station/lat": "61.5", "station/lon": "25.5" });
-    expect(settings.undo.value?.label).toBe("Position");
-    settings.change({ "station/symbol_table": "\\", "station/symbol_code": "#" });
-    await answer({ "station/symbol_table": "\\", "station/symbol_code": "#" });
-    expect(settings.undo.value?.label).toBe("Symbol");
-  });
-
-  it("covers the latest change only: earlier ones are just applied", async () => {
-    const { settings, answer } = setUp();
-    settings.change({ "digi/enabled": "true" });
-    settings.change({ "map/radius_km": "200" });
-    await answer({ "digi/enabled": "true" });
-    expect(settings.undo.value).toBeNull(); // (another change is waiting behind it)
-    await answer({ "map/radius_km": "200" });
-    expect(settings.undo.value?.label).toBe("Map radius");
-    settings.change({ "map/radius_km": "100" });
-    expect(settings.undo.value).toBeNull();
-  });
-
-  it("goes after a few seconds, and offers nothing for a save that changed nothing", async () => {
-    const { settings, answer } = setUp();
-    settings.change({ "digi/enabled": "true" });
-    await answer({ "digi/enabled": "true" });
-    expect(settings.undo.value).not.toBeNull();
-    vi.advanceTimersByTime(UNDO_MS + 1);
-    expect(settings.undo.value).toBeNull();
-    settings.edit("station/call", "OH2GBA-1");
-    settings.commit(["station/call"]);
-    await answer({ "station/call": "OH2GBA" }); // (the daemon would not have it)
-    expect(settings.undo.value).toBeNull();
+    expect(settings.announcement.value.text).toBe("Saved");
+    expect("undo" in settings || "undoLast" in settings).toBe(false);
   });
 });

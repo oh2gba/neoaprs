@@ -20,7 +20,7 @@ import StationMap from "@/components/StationMap.vue";
 import StationsTable from "@/components/StationsTable.vue";
 import FindRadioToast from "@/components/FindRadioToast.vue";
 import ToastBar from "@/components/ToastBar.vue";
-import UndoToast from "@/components/UndoToast.vue";
+import { refusedAtField } from "@/lib/settinglinks";
 import UpdateDialog from "@/components/UpdateDialog.vue";
 import VersionMismatch from "@/components/VersionMismatch.vue";
 import { useAppShell } from "@/composables/useAppShell";
@@ -42,7 +42,6 @@ const {
   cards,
   guide,
   panel,
-  settings,
   notice,
   findRadio,
   stationActions,
@@ -176,8 +175,7 @@ const deleteMessage = (id: number): boolean => send({ cmd: "message_delete", id 
         </template>
       </SidePanel>
     </main>
-    <UndoToast :undo="settings.undo.value" @undo="settings.undoLast()" @dismiss="settings.dismissUndo()" />
-    <ToastBar :toast="lastError" :notice="notice" />
+    <ToastBar :toast="refusedAtField(lastError) ? null : lastError" :notice="notice" />
     <FindRadioToast :find="findRadio" />
   </div>
 </template>

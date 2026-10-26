@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { TOGETHER, changeName, confirmMessage, linkedValues, refusalFor, remotePage } from "@/lib/settinglinks";
+import { TOGETHER, confirmMessage, linkedValues, refusalFor, refusedAtField, remotePage } from "@/lib/settinglinks";
 import { pairProblems, problemOf, sameValue } from "@/lib/fieldcheck";
 import { reasonOf } from "@/lib/settings";
 import { openedAt, resetSeen } from "@/test/fakealert";
@@ -55,15 +55,10 @@ describe("settinglinks", () => {
     expect(TOGETHER["station/comment"]).toBeUndefined();
   });
 
-  it("names a change by its group when all of it changed, else by the key", () => {
-    expect(changeName(["station/lat", "station/lon"])).toBe("Position");
-    expect(changeName(["station/lat"])).toBe("Latitude");
-    expect(changeName(["tcp/port", "tcp/host"])).toBe("TCP address");
-    expect(changeName(["tnc/profile", "serial/port", "serial/baud"])).toBe("Radio");
-    expect(changeName(["serial/port", "serial/baud"])).toBe("TNC port");
-    expect(changeName(["beacon/interval_min"])).toBe("Beacon interval");
-    expect(changeName(["station/symbol_code"])).toBe("Symbol");
-    expect(changeName(["nothing/known"])).toBe("nothing/known");
+  it("shows the refusal of a setting under its field and in no toast", () => {
+    expect(refusedAtField({ cmd: "set_config" })).toBe(true);
+    expect(refusedAtField({ cmd: "send_message" })).toBe(false);
+    expect(refusedAtField(null)).toBe(false);
   });
 
   it("links the rigctld to the radio as the status, and the port to the radio type", () => {

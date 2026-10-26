@@ -30,9 +30,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.fold.antenna": "アンテナ",
   "settings.fold.advanced": "詳細設定",
 
-  "settings.name.position": "位置",
-  "settings.name.tcp_address": "TCPアドレス",
-  "settings.name.radio": "無線機",
 
   "settings.call.label": "コールサイン",
   "settings.call.tip1": "あなたのコールサインです。これがないと何も送信されません。",
@@ -232,8 +229,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.confirm.https_on": "この機器はページが開けなくなります。オンにしますか?",
   "settings.confirm.https_off": "この機器はページが開けなくなります。オフにしますか?",
 
-  "settings.undo.changed": "{name}を変更しました",
-  "settings.undo.undo": "元に戻す",
 
   "settings.check.range": "{min}〜{max}",
   "settings.check.placeholder_call": "{call}はコールサインではありません",

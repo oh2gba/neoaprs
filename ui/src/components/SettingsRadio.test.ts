@@ -110,7 +110,7 @@ describe("the toast of Find my radio", () => {
       shallowRef(null),
       shallowRef("open" as const),
       send,
-      { change: vi.fn(), dismissUndo: vi.fn(), expected: () => "" },
+      { change: vi.fn(), expected: () => "" },
       shallowRef(configValues()),
       () => undefined,
     );

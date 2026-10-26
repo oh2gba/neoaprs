@@ -25,7 +25,7 @@ export function useSettingsAnswers(
         const own = request !== null && draft[key] === request.values[key];
         if (!(key in draft) || (!queue.waiting(key) && (draft[key] === before?.values[key] || own))) draft[key] = text;
       }
-      if (request) feedback.saved(request, now, !queue.saving.value);
+      if (request) feedback.saved();
       queue.pump();
     },
     { immediate: true },

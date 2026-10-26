@@ -24,25 +24,15 @@ function setUp(saved: Record<string, string> = {}, guide?: { onRadio: boolean; f
   const connection = shallowRef<Connection>("open");
   const send = vi.fn(() => true);
   const change = vi.fn();
-  const dismissUndo = vi.fn();
   const say = vi.fn();
   const values = { "tnc/profile": "kiss", "serial/port": "", "serial/baud": "9600", ...saved };
   const config = shallowRef(configValues());
   const scope = effectScope();
   const find = scope.run(() =>
-    useFindRadio(
-      message,
-      error,
-      connection,
-      send,
-      { change, dismissUndo, expected: (key: string) => values[key as keyof typeof values] ?? "" },
-      config,
-      say,
-      guide,
-    ),
+    useFindRadio(message, error, connection, send, { change, expected: (key: string) => values[key as keyof typeof values] ?? "" }, config, say, guide),
   );
   if (!find) throw new Error("no scope");
-  return { find, message, error, connection, send, change, dismissUndo, say };
+  return { find, message, error, connection, send, change, say };
 }
 
 describe("foundSettings", () => {
@@ -56,11 +46,10 @@ describe("foundSettings", () => {
 });
 
 describe("useFindRadio", () => {
-  it("asks the daemon, puts the Undo toast away for its own, and says what it asked", () => {
-    const { find, send, dismissUndo } = setUp();
+  it("asks the daemon and says what it asked", () => {
+    const { find, send } = setUp();
     find.start();
     expect(send).toHaveBeenCalledWith({ cmd: "find_radio" });
-    expect(dismissUndo).toHaveBeenCalled();
     expect(find.running.value).toBe(true);
     expect(find.text.value).toBe("Looking for the radio…");
     find.start();

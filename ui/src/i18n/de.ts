@@ -880,9 +880,6 @@ export const de: Catalogue = {
   "settings.fold.antenna": "Antenne",
   "settings.fold.advanced": "Erweitert",
 
-  "settings.name.position": "Position",
-  "settings.name.tcp_address": "TCP-Adresse",
-  "settings.name.radio": "Funkgerät",
 
   "settings.call.label": "Rufzeichen",
   "settings.call.tip1": "Dein Rufzeichen. Ohne es wird nichts gesendet.",
@@ -1089,8 +1086,6 @@ export const de: Catalogue = {
   "settings.confirm.https_on": "Dieses Gerät verliert die Seite. Einschalten?",
   "settings.confirm.https_off": "Dieses Gerät verliert die Seite. Ausschalten?",
 
-  "settings.undo.changed": "{name} geändert",
-  "settings.undo.undo": "Rückgängig",
 
   "settings.check.range": "{min} bis {max}",
   "settings.check.placeholder_call": "{call} ist kein Rufzeichen",

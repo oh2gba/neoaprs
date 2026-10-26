@@ -21,7 +21,7 @@ export function useFindRadio(
   lastError: Ref<Toast | null>,
   connection: Ref<Connection>,
   send: (command: Command) => boolean,
-  settings: Pick<Settings, "change" | "expected" | "dismissUndo">,
+  settings: Pick<Settings, "change" | "expected">,
   config: Ref<ConfigValues | null>,
   say: (text: string) => void,
   guide?: Pick<SetupGuide, "onRadio" | "fillRadio">,
@@ -71,7 +71,6 @@ export function useFindRadio(
   function start(): void {
     if (running.value || config.value === null) return;
     step.value = null;
-    settings.dismissUndo(); // (the toast of the search takes its place)
     running.value = send({ cmd: "find_radio" });
   }
 

@@ -29,9 +29,6 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.fold.antenna": "Antena",
   "settings.fold.advanced": "Avanzado",
 
-  "settings.name.position": "Posición",
-  "settings.name.tcp_address": "Dirección TCP",
-  "settings.name.radio": "Radio",
 
   "settings.call.label": "Indicativo",
   "settings.call.tip1": "Tu indicativo. Sin él no se envía nada.",
@@ -237,8 +234,6 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.confirm.https_on": "Este dispositivo perderá la página. ¿Activar?",
   "settings.confirm.https_off": "Este dispositivo perderá la página. ¿Desactivar?",
 
-  "settings.undo.changed": "{name} cambiado",
-  "settings.undo.undo": "Deshacer",
 
   "settings.check.range": "{min} a {max}",
   "settings.check.placeholder_call": "{call} no es un indicativo",

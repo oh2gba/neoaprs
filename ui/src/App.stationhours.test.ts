@@ -35,7 +35,7 @@ describe("App: the time a station stays on the map", () => {
     expect(row()?.classes()).toContain("timedout");
   });
 
-  it("is chosen in the select of the Stations tab: it sends the setting at once, the map follows the daemon's answer, and Undo puts the old hours back", async () => {
+  it("is chosen in the select of the Stations tab: it sends the setting at once, the map follows the daemon's answer, with no toast", async () => {
     const { wrapper, socket } = await open();
     socket.say({
       type: "patch",
@@ -53,10 +53,7 @@ describe("App: the time a station stays on the map", () => {
     await flushPromises();
     expect(shown()).toContain("OH2RDG");
     expect(wrapper.find<HTMLSelectElement>("#pane-stations #stations-on-map").element.value).toBe("6");
-    const toast = wrapper.find(".toast.undo");
-    expect(toast.text()).toContain("Time on the map changed");
-    await toast.find(".undo-button").trigger("click");
-    expect(sets(socket)[1]).toEqual({ cmd: "set_config", values: { "map/station_hours": "3" } });
+    expect(wrapper.find(".toast").exists()).toBe(false);
   });
 
   it("shows what another device chose, and is not on the Settings tab", async () => {

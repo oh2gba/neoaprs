@@ -101,7 +101,7 @@ describe("the style for a finger", () => {
     expect(mediaRule("(pointer: coarse)", ".input")).toMatch(/font-size:\s*16px/);
   });
 
-  it("shows a toast (an error, the Undo of a setting) at the top on a phone, so that it does not cover the sheet of a card", () => {
+  it("shows a toast (an error) at the top on a phone, so that it does not cover the sheet of a card", () => {
     expect(cssRule(".size-phone .toast")).toMatch(/top:\s*calc\(env\(safe-area-inset-top\) \+ 96px\)/);
     expect(cssRule(".size-phone .toast")).toMatch(/bottom:\s*auto/);
   });
