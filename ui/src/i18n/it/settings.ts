@@ -70,10 +70,10 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.antenna_direction.omni": "omni",
   "settings.antenna_direction.tip1": "omni se funziona uguale in ogni direzione, oppure il punto cardinale verso cui punta un’antenna direttiva.",
 
-  "settings.transmit.name": "Trasmetti",
-  "settings.transmit.label": "Trasmetti",
-  "settings.transmit.tip_label": "Informazioni su Trasmetti",
-  "settings.transmit.tip1": "Spento: RX only. Non si invia nulla: né beacon, né messaggi, né ack, né digipeat.",
+  "settings.transmit.name": "RX only",
+  "settings.transmit.label": "RX only",
+  "settings.transmit.tip_label": "Informazioni su RX only",
+  "settings.transmit.tip1": "Non si invia nulla: né beacon, né messaggi, né ack, né digipeat.",
 
   "settings.profile.label": "Tipo di radio",
   "settings.profile.tip_label": "Quale tipo di radio scegliere",

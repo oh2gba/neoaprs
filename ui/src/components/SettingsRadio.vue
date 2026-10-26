@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The Radio group of the Settings tab: the Transmit tickbox first (Off is RX only), then the radio's status line with Reconnect in view, and behind its arrow the fields of the radio (the type of TNC, the port, the speed, or the host and port of a TNC reached over TCP), the Find my radio button
+// The Radio group of the Settings tab: the RX only tickbox first (ticked is `station/transmit` false), then the radio's status line with Reconnect in view, and behind its arrow the fields of the radio (the type of TNC, the port, the speed, or the host and port of a TNC reached over TCP), the Find my radio button
 // and the terminal (RadioStatus). The fold is open when the radio is not connected. The fields are worked as in the form: a typed one is sent when it is left or Enter is pressed, a choice at once (the form's `settings` and `form`). Find my radio
 // (FindRadioRow.vue) asks the daemon to try the ports and puts what it finds in the settings (composables/useFindRadio.ts).
 import { computed } from "vue";
@@ -10,14 +10,14 @@ import SettingsPort from "@/components/SettingsPort.vue";
 import type { Settings } from "@/composables/useSettings";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { fieldId, type SettingsFormState } from "@/composables/useSettingsForm";
-import { FIELDS } from "@/lib/settings";
+import { FIELDS, RX_ONLY_KEY, storedFor, valueFor } from "@/lib/settings";
 import { speedFallback } from "@/lib/tncprofile";
 
 const props = defineProps<{ keys: readonly string[]; settings: Settings; form: SettingsFormState; defaults: Record<string, string> }>();
 const { config, send, ports, tnc, now } = useDaemonContext();
 
 /** The switch that is the first row of the group, above the status line: transmitting at all. */
-const TRANSMIT_KEY = "station/transmit";
+const TRANSMIT_KEY = RX_ONLY_KEY;
 const info = (key: string) => FIELDS[key] ?? { label: key };
 const profile = computed(() => props.settings.draft["tnc/profile"]);
 const digipeater = computed(() => config.value?.values["digi/enabled"] === "true");
@@ -36,13 +36,13 @@ function typed(key: string, text: string): void {
     v-if="keys.includes(TRANSMIT_KEY)"
     :id="fieldId(TRANSMIT_KEY)"
     :info="info(TRANSMIT_KEY)"
-    :model-value="settings.draft[TRANSMIT_KEY] ?? ''"
+    :model-value="valueFor(TRANSMIT_KEY, settings.draft)"
     :fallback="defaults[TRANSMIT_KEY] ?? ''"
     :error="settings.errors[TRANSMIT_KEY] ?? ''"
     :changed="form.changed(TRANSMIT_KEY)"
     :apply="true"
     @update:model-value="typed(TRANSMIT_KEY, $event)"
-    @choose="form.choose({ [TRANSMIT_KEY]: $event })"
+    @choose="form.choose({ [TRANSMIT_KEY]: storedFor(TRANSMIT_KEY, settings.draft, $event) })"
   />
   <RadioStatus :tnc="tnc" :now="now" :digipeater="digipeater" :open="unconnected" @reconnect="send({ cmd: 'tnc_reconnect' })">
     <template v-for="key in keys.filter((k) => k !== TRANSMIT_KEY)" :key="key">

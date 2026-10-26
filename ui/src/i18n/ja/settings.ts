@@ -71,10 +71,10 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.antenna_direction.omni": "全方向",
   "settings.antenna_direction.tip1": "全方向に同じなら omni、指向性アンテナならそれが向いている方位を選びます。",
 
-  "settings.transmit.name": "送信",
-  "settings.transmit.label": "送信",
-  "settings.transmit.tip_label": "送信について",
-  "settings.transmit.tip1": "オフ:RX only。ビーコン、メッセージ、ack、デジピートを含め何も送信しません。",
+  "settings.transmit.name": "RX only",
+  "settings.transmit.label": "RX only",
+  "settings.transmit.tip_label": "RX onlyについて",
+  "settings.transmit.tip1": "何も送信しません。ビーコン、メッセージ、ack、デジピートを含みます。",
 
   "settings.profile.label": "無線機の種類",
   "settings.profile.tip_label": "無線機の種類の選び方",

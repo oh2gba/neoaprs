@@ -39,4 +39,4 @@ The radios and how to connect each (and a GPS receiver for a moving station) are
 - A **path** is the list of digipeaters a packet asks to be repeated by. The **route** is what a received packet actually went by, and the **chain** is the same for a message of yours, hop by hop.
 - The **timeout** of a station is how long it stays on the map after its last position: 1, 3, 6, 12 or 24 hours as you choose in the Stations tab (3 by default), the same for every station.
 - The **email gateway** is the APRS-IS station `EMAIL-2`.
-- A **fixed** station beacons from the location you gave; a **moving** station beacons from a GPS, and a GPS is chosen by the Beacon tab's **Position**. The **Beacon** choice switches the automatic beacon off (**Beacon now** still sends). **Settings → Radio → Transmit**, unticked, is RX only: nothing is transmitted.
+- A **fixed** station beacons from the location you gave; a **moving** station beacons from a GPS, and a GPS is chosen by the Beacon tab's **Position**. The **Beacon** choice switches the automatic beacon off (**Beacon now** still sends). **Settings → Radio → RX only**, ticked, sends nothing at all.

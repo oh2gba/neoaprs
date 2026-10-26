@@ -104,7 +104,7 @@ describe("AppHeader", () => {
 
   it("says in the hover title what a mark means and where it is set, in a few words", () => {
     const titles = Object.fromEntries(headerPills({ "station/transmit": "false", "gps/source": "gpsd" }, null, igateState()).map((p) => [p.id, t(p.title)]));
-    expect(titles.rx).toBe("RX only: nothing is sent. Settings → Radio → Transmit");
+    expect(titles.rx).toBe("Nothing is sent. Settings → Radio → RX only");
     expect(titles.internet).toContain("Settings → Internet");
     expect(titles.gps).toContain("Beacon tab");
   });

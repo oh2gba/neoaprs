@@ -69,10 +69,10 @@ export const settings = {
   "settings.antenna_direction.omni": "omni",
   "settings.antenna_direction.tip1": "omni if it works the same in every direction, or the compass point a beam antenna points to.",
 
-  "settings.transmit.name": "Transmit",
-  "settings.transmit.label": "Transmit",
-  "settings.transmit.tip_label": "About Transmit",
-  "settings.transmit.tip1": "Off: RX only. Nothing is sent: no beacon, message, ack or digipeat.",
+  "settings.transmit.name": "RX only",
+  "settings.transmit.label": "RX only",
+  "settings.transmit.tip_label": "About RX only",
+  "settings.transmit.tip1": "Nothing is sent: no beacon, message, ack or digipeat.",
 
   "settings.profile.label": "Radio type",
   "settings.profile.tip_label": "Which radio type to pick",

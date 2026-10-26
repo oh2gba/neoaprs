@@ -62,7 +62,7 @@ describe("the controls of the Settings tab, the Beacon tab and the Objects form"
     }
   });
 
-  it("have a tickbox first in the group of every feature that can be switched on or off, labelled with its name: Transmit, Receive only, Digipeater, Alert", () => {
+  it("have a tickbox first in the group of every feature that can be switched on or off, labelled with its name: RX only, Receive only, Digipeater, Alert", () => {
     const groups = (root: Element) =>
       [...root.querySelectorAll("fieldset")].map((f) => ({
         legend: f.querySelector("legend")?.textContent?.replace(/\s*i$/, "").trim() ?? "",
@@ -71,7 +71,7 @@ describe("the controls of the Settings tab, the Beacon tab and the Objects form"
       }));
     const all = surfaces().flatMap(groups);
     for (const [legend, label] of [
-      ["Radio", "Transmit"],
+      ["Radio", "RX only"],
       ["Internet", "Receive only"],
       ["Digipeater", "Digipeater"],
       ["On the NeoAPRS computer", "Alert"],

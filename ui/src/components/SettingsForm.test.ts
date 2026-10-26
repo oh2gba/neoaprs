@@ -76,7 +76,7 @@ describe("SettingsForm", () => {
     ];
     expect(wrapper.findAll(".field")).toHaveLength(
       CONFIG_KEYS.filter((k) => !beacons.some((prefix) => k.startsWith(prefix)) && !elsewhere.includes(k)).length +
-        3 + // (the Transmit row of the Radio group, the New version row of the Update check group and the Logs row of the Help group, which are no settings)
+        3 + // (the RX only row of the Radio group, the New version row of the Update check group and the Logs row of the Help group, which are no settings)
         3 + // (the browser's own: Alert for a new message, Sound, Pop-up)
         1, // (Language)
     );
@@ -528,7 +528,7 @@ describe("SettingsForm", () => {
         .find((f) => f.find("legend").text() === "Radio")
         ?.findAll("[id^='set-']")
         .map((e) => e.attributes("id"))
-        .filter((id) => id !== "set-station-transmit"); // (the Transmit tickbox is the first row of the group)
+        .filter((id) => id !== "set-station-transmit"); // (the RX only tickbox is the first row of the group)
 
     it("is a select of the profiles by their names, the daemon's value chosen", () => {
       const { wrapper } = make();
@@ -615,7 +615,7 @@ describe("SettingsForm", () => {
         .find((f) => f.find("legend").text() === "Radio")
         ?.findAll("label")
         .map((l) => l.text())
-        .filter((text) => text !== "Transmit");
+        .filter((text) => text !== "RX only");
 
     it("is one choice: find automatically, the ports the system lists, and Other", () => {
       const { wrapper } = withPorts();
@@ -1455,16 +1455,16 @@ describe("SettingsForm: the beacon Off (Beacon tab)", () => {
   });
 });
 
-describe("SettingsForm: the Transmit tickbox", () => {
-  it("is the first row of the Radio group of the Settings tab, a tickbox with its (i), ticked while the station transmits, and is not on the Beacon tab", () => {
+describe("SettingsForm: the RX only tickbox", () => {
+  it("is the first row of the Radio group of the Settings tab, a tickbox with its (i), ticked while transmitting is off (station/transmit false), and is not on the Beacon tab", () => {
     for (const [value, checked] of [
-      ["true", true],
-      ["false", false],
+      ["true", false],
+      ["false", true],
     ] as const) {
       const { wrapper } = make({ "station/transmit": value }, "settings");
       const group = wrapper.findAll("fieldset").find((f) => f.find("legend").text() === "Radio");
       const row = group?.find(".field");
-      expect(row?.find("label").text()).toBe("Transmit");
+      expect(row?.find("label").text()).toBe("RX only");
       expect((row?.find("#set-station-transmit").element as HTMLInputElement).checked).toBe(checked);
       expect(row?.find("#set-station-transmit").attributes("type")).toBe("checkbox");
       expect(row?.find(".infotip").exists()).toBe(true);
@@ -1473,12 +1473,15 @@ describe("SettingsForm: the Transmit tickbox", () => {
     }
   });
 
-  it("says in its (i) what Off means, and sends the setting as it is ticked", async () => {
+  it("sends the setting the other way round as it is ticked (ticked is station/transmit false), and says in its (i) what it does without saying the name again", async () => {
     const { wrapper, send } = make({ "station/transmit": "true" }, "settings");
-    await wrapper.find("#set-station-transmit").setValue(false);
+    await wrapper.find("#set-station-transmit").setValue(true);
     expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "station/transmit": "false" } });
+    const off = make({ "station/transmit": "false" }, "settings");
+    await off.wrapper.find("#set-station-transmit").setValue(false);
+    expect(off.send).toHaveBeenCalledWith({ cmd: "set_config", values: { "station/transmit": "true" } });
     wrapper.find("#set-station-transmit").element.closest(".field")?.querySelector<HTMLButtonElement>(".info-toggle")?.click();
     await wrapper.vm.$nextTick();
-    expect(wrapper.find(".info-line").text()).toBe("Off: RX only. Nothing is sent: no beacon, message, ack or digipeat.");
+    expect(wrapper.find(".info-line").text()).toBe("Nothing is sent: no beacon, message, ack or digipeat.");
   });
 });

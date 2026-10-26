@@ -6,7 +6,7 @@ export const shell: Readonly<Record<keyof typeof en, Message>> = {
 
   "header.project_title": "La página del proyecto NeoAPRS",
   "pill.rx": "RX only",
-  "pill.rx_title": "RX only: no se envía nada. Ajustes → Radio → Transmitir",
+  "pill.rx_title": "No se envía nada. Ajustes → Radio → RX only",
   "pill.beacon_off": "Baliza apagada",
   "pill.beacon_off_title": "Sin baliza ni estado automáticos. Pestaña Baliza",
   "pill.internet": "Internet",

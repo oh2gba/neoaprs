@@ -8,7 +8,7 @@ export const fr: Catalogue = {
 
   "header.project_title": "La page du projet NeoAPRS",
   "pill.rx": "RX only",
-  "pill.rx_title": "RX only : rien n'est envoyé. Réglages → Radio → Émettre",
+  "pill.rx_title": "Rien n'est envoyé. Réglages → Radio → RX only",
   "pill.beacon_off": "Balise coupée",
   "pill.beacon_off_title": "Ni balise ni statut automatiques. Onglet Balise",
   "pill.internet": "Internet",
@@ -907,10 +907,10 @@ export const fr: Catalogue = {
   "settings.antenna_direction.tip1":
     "omni si elle fonctionne pareil dans toutes les directions, sinon le point cardinal vers lequel pointe une antenne directive.",
 
-  "settings.transmit.name": "Émettre",
-  "settings.transmit.label": "Émettre",
-  "settings.transmit.tip_label": "À propos d'Émettre",
-  "settings.transmit.tip1": "Décoché : RX only. Rien n'est envoyé : ni balise, ni message, ni accusé, ni digipeat.",
+  "settings.transmit.name": "RX only",
+  "settings.transmit.label": "RX only",
+  "settings.transmit.tip_label": "À propos de RX only",
+  "settings.transmit.tip1": "Rien n'est envoyé : ni balise, ni message, ni accusé, ni digipeat.",
 
   "settings.profile.label": "Type de radio",
   "settings.profile.tip_label": "Quel type de radio choisir",

@@ -24,7 +24,7 @@ Choosing an interval, or **On**, turns it all on again. Choosing **On** for a mo
 
 ## RX only
 
-**Settings → Radio → Transmit** is a tickbox, ticked by default. Unticked, the station is **RX only**: nothing at all is transmitted, whoever asks and whatever is due: no beacon, status, message, ack, answer to a query, object, bulletin or digipeated packet. It is the setting `station/transmit`, takes effect at once with no restart, and holds after a restart of the daemon. It is not the same as the beacon being off ([Beacon off](#beacon-off)), which only silences the clock.
+**Settings → Radio → RX only** is a tickbox, unticked by default. Ticked, the station is **RX only**: nothing at all is transmitted, whoever asks and whatever is due: no beacon, status, message, ack, answer to a query, object, bulletin or digipeated packet. It is the setting `station/transmit`, takes effect at once with no restart, and holds after a restart of the daemon. It is not the same as the beacon being off ([Beacon off](#beacon-off)), which only silences the clock.
 
 While you are RX only the header has an amber **RX only** mark (it opens Settings → Radio), the beacon's fields on this tab are greyed, and every button that sends is off with the title "RX only: nothing is sent": **Beacon now**, **Send status now**, a message, an email, an object, a bulletin and the queries of a station's menu. The daemon refuses the same with the code `transmit.off`.
 

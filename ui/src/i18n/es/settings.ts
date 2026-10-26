@@ -70,10 +70,10 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.antenna_direction.omni": "omni",
   "settings.antenna_direction.tip1": "omni si funciona igual en todas direcciones, o el punto cardinal al que apunta una antena directiva.",
 
-  "settings.transmit.name": "Transmitir",
-  "settings.transmit.label": "Transmitir",
-  "settings.transmit.tip_label": "Sobre Transmitir",
-  "settings.transmit.tip1": "Desactivado: RX only. No se envía nada: ni baliza, ni mensaje, ni ack, ni digipeat.",
+  "settings.transmit.name": "RX only",
+  "settings.transmit.label": "RX only",
+  "settings.transmit.tip_label": "Sobre RX only",
+  "settings.transmit.tip1": "No se envía nada: ni baliza, ni mensaje, ni ack, ni digipeat.",
 
   "settings.profile.label": "Tipo de radio",
   "settings.profile.tip_label": "Qué tipo de radio elegir",

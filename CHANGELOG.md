@@ -20,8 +20,8 @@ Internet stations on the map, a world map and a Dummy radio to try it all, Find 
 - **Settings → Help** is one line and a **Download logs** button.
 - In Settings every action button (Download map, Check now, Download logs) is on a row of its own with a label and an (i), under the fields' left edge.
 - The Beacon tab no longer has the Preview of the packet. Beacon Off is no automatic beacon: Beacon now and Send status now still send.
-- **Fixed:** a station left in receive only by 0.9 can transmit again: Settings → Radio → Transmit.
-- **RX only:** Settings → Radio → Transmit unticked sends nothing and switches every send button off; an RX only mark shows at the top.
+- **Fixed:** a station left in receive only by 0.9 can transmit again: Settings → Radio → RX only, unticked.
+- **RX only:** Settings → Radio → RX only, ticked, sends nothing and switches every send button off; an RX only mark shows at the top.
 - Marks at the top right say what is on: RX only, Beacon off, Internet, GPS; each opens where it is set.
 - Help with pictures, and an (i) on every tab and setting.
 

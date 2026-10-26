@@ -4,7 +4,7 @@ export const shell = {
 
   "header.project_title": "The NeoAPRS project page",
   "pill.rx": "RX only",
-  "pill.rx_title": "RX only: nothing is sent. Settings → Radio → Transmit",
+  "pill.rx_title": "Nothing is sent. Settings → Radio → RX only",
   "pill.beacon_off": "Beacon off",
   "pill.beacon_off_title": "No automatic beacon or status. Beacon tab",
   "pill.internet": "Internet",

@@ -8,7 +8,7 @@ export const de: Catalogue = {
 
   "header.project_title": "Die Projektseite von NeoAPRS",
   "pill.rx": "RX only",
-  "pill.rx_title": "RX only: Es wird nichts gesendet. Einstellungen → Funkgerät → Senden",
+  "pill.rx_title": "Es wird nichts gesendet. Einstellungen → Funkgerät → RX only",
   "pill.beacon_off": "Bake aus",
   "pill.beacon_off_title": "Keine automatische Bake und kein Status. Reiter Bake",
   "pill.internet": "Internet",
@@ -920,10 +920,10 @@ export const de: Catalogue = {
   "settings.antenna_direction.omni": "omni",
   "settings.antenna_direction.tip1": "omni, wenn sie in alle Richtungen gleich wirkt, sonst die Himmelsrichtung, in die eine Richtantenne zeigt.",
 
-  "settings.transmit.name": "Senden",
-  "settings.transmit.label": "Senden",
-  "settings.transmit.tip_label": "Zu Senden",
-  "settings.transmit.tip1": "Aus: RX only. Es wird nichts gesendet: keine Bake, Nachricht, Bestätigung, kein Digipeating.",
+  "settings.transmit.name": "RX only",
+  "settings.transmit.label": "RX only",
+  "settings.transmit.tip_label": "Zu RX only",
+  "settings.transmit.tip1": "Es wird nichts gesendet: keine Bake, Nachricht, Bestätigung, kein Digipeating.",
 
   "settings.profile.label": "Funkgerätetyp",
   "settings.profile.tip_label": "Welchen Typ wählen",

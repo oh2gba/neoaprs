@@ -71,10 +71,10 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.antenna_direction.omni": "omni",
   "settings.antenna_direction.tip1": "omni se funciona igual em todas as direções, ou o ponto cardeal para onde uma antena direcional aponta.",
 
-  "settings.transmit.name": "Transmitir",
-  "settings.transmit.label": "Transmitir",
-  "settings.transmit.tip_label": "Sobre Transmitir",
-  "settings.transmit.tip1": "Desligado: RX only. Nada é enviado: nem beacon, mensagem, ack ou digipeat.",
+  "settings.transmit.name": "RX only",
+  "settings.transmit.label": "RX only",
+  "settings.transmit.tip_label": "Sobre RX only",
+  "settings.transmit.tip1": "Nada é enviado: nem beacon, mensagem, ack ou digipeat.",
 
   "settings.profile.label": "Tipo de rádio",
   "settings.profile.tip_label": "Qual tipo de rádio escolher",

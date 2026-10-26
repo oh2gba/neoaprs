@@ -341,7 +341,7 @@ const SCOPE_GROUPS: Record<Scope, readonly string[]> = {
   settings: ["serial", "igate", "digi", "web", "notifications", "map"],
 };
 
-/** The order of the TNC group on the page: the Transmit switch, the type of TNC, the port and its speed, or the host and port of a TCP one. */
+/** The order of the TNC group on the page: the RX only tickbox, the type of TNC, the port and its speed, or the host and port of a TCP one. */
 const TNC_ORDER = ["station/transmit", "tnc/profile", "serial/port", "serial/baud", "tcp/host", "tcp/port", "serial/last_port"];
 
 /** The Status group: the choice first, then Every (as the Beacon group has the interval with its choice), then what the chosen source needs. */
@@ -433,14 +433,19 @@ export function fieldFor(key: string, values: Readonly<Record<string, string>>):
   return key === "beacon/interval_min" && isMoving(values) ? MOVING_BEACON : (FIELDS[key] ?? { label: key });
 }
 
+/** The tickbox RX only is the setting `station/transmit` the other way round: ticked is `false` (nothing is transmitted), unticked `true`. */
+export const RX_ONLY_KEY = "station/transmit";
+
 /** The value a field shows: the beacon of a station that moves is "0" (Off) or the one On, whatever interval is stored. */
 export function valueFor(key: string, values: Readonly<Record<string, string>>): string {
   const text = values[key] ?? "";
+  if (key === RX_ONLY_KEY) return String(text === "false");
   return key === "beacon/interval_min" && isMoving(values) ? String(!beaconOff(values)) : text;
 }
 
-/** What is stored for what the field says: the tickbox of a moving station's beacon says true or false, which is the interval On stores, or 0; any other field is as it says. */
+/** What is stored for what the field says: the tickbox of a moving station's beacon says true or false, which is the interval On stores, or 0; the tickbox RX only says it the other way round; any other field is as it says. */
 export function storedFor(key: string, values: Readonly<Record<string, string>>, said: string): string {
+  if (key === RX_ONLY_KEY) return said === "true" ? "false" : "true";
   return key === "beacon/interval_min" && isMoving(values) ? (said === "true" ? MOVING_BEACON_ON : "0") : said;
 }
 

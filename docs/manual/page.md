@@ -77,7 +77,7 @@ A beacon, message or answer you sent is in the log as a packet with direction `o
 The tab has no Save button ([start.md](start.md#how-settings-apply)). From the top it has:
 
 - **Language**, and **Run the setup guide again** ([start.md](start.md#the-setup-guide));
-- **Radio**: the **Transmit** tickbox (unticked is RX only, [beacon.md](beacon.md#rx-only)), the radio's status in one line with **Reconnect**, and behind its arrow the **Radio type**, the **Port** and **Speed** (or the **TCP host** and **TCP port**), **Find my radio** and the **Terminal** ([radio.md](radio.md)), and the type **Dummy** for trying NeoAPRS without a radio;
+- **Radio**: the **RX only** tickbox (ticked sends nothing, [beacon.md](beacon.md#rx-only)), the radio's status in one line with **Reconnect**, and behind its arrow the **Radio type**, the **Port** and **Speed** (or the **TCP host** and **TCP port**), **Find my radio** and the **Terminal** ([radio.md](radio.md)), and the type **Dummy** for trying NeoAPRS without a radio;
 - **Internet**: the one switch **Receive only**, which shows the stations of APRS-IS within the map's radius, and its status in one line ([igate.md](igate.md)); without a call it says **Set your call first**;
 - **Digipeater**: the tickbox of the fill-in digipeater ([beacon.md](beacon.md#the-fill-in-digipeater));
 - **Web page**: **Allow access from the network**, with the access key and the addresses once it is on, and the secure connection ([network.md](network.md));
@@ -175,7 +175,7 @@ While no call is set an amber **no call set** button is beside the title, which 
 
 At the right, before the count of messages, are small marks that say what is out of the ordinary. Each has a hover text and opens the place where it is set:
 
-- **RX only** (amber) while Settings → Radio → Transmit is unticked ([beacon.md](beacon.md#rx-only));
+- **RX only** (amber) while Settings → Radio → RX only is ticked ([beacon.md](beacon.md#rx-only));
 - **Beacon off** (grey) while the Beacon choice is Off and the station transmits ([beacon.md](beacon.md#beacon-off));
 - **Internet** (blue) while Settings → Internet → Receive only is connected ([igate.md](igate.md));
 - **GPS**, only when a GPS is the position source: blue with a fix, amber without.
