@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The panel at the right of the map (on a phone it is the whole screen under the header, in turns with the map): the tabs Messages, Stations, Nearby, Email, Bulletins, Objects, Beacon, Packets and Settings, in one row (the tab on show is not bold or wider: the others do not move) when they fit in the width of the panel, measured, and when they do not as one button "☰ Messages" with a menu of them all (TabMenu) (a tab can carry a badge with a count; the folded panel shows the messages not seen, those of the Messages and the Email tab, on its handle: the same count as the header), a button that folds it away, under the open tab a footer (the slot `footer`: the version and what is wrong with the radio; not on a phone's map turn, nor on a folded panel), and a handle
+// The panel at the right of the map (on a phone it is the whole screen under the header, in turns with the map): the tabs Messages, Stations, Nearby, Email, Bulletins, Objects, Beacon, Packets and Settings, in one row (the tab on show is not bold or wider: the others do not move) as many as fit in the width of the panel, measured, in that order, and the rest under one "More" button at the end of the row with a menu of them (TabMenu), which carries their badges added up; the tab on show is always in the row, in the place of the last one if it would not be (lib/tabsplit.ts) (a tab can carry a badge with a count; the folded panel shows the messages not seen, those of the Messages and the Email tab, on its handle: the same count as the header), a button that folds it away, under the open tab a footer (the slot `footer`: the version and what is wrong with the radio; not on a phone's map turn, nor on a folded panel), and a handle
 // to drag its width (up to 80 % of the window, the map keeping 360 px). The tab and the width are the page's to remember; a remembered width that is too much for the window is shown clamped, and is whole again when the window is wide again. The contents of every tab stay mounted, so that a filter or a scroll position is there when the tab is back.
 // By the size of the page (lib/layout.ts): a desktop has the handle and the user's width; a tablet has a width of its own (CSS) and the fold button; a phone has neither, and its tab bar starts with a Map button: the map and the open tab take turns (`view`),
 // a tab picked in the bar brings the panel, the Map button the map, and the contents of the tab are the whole area under the bar.
@@ -24,7 +24,7 @@ const emit = defineEmits<{
 }>();
 
 const KEY_STEP = 24;
-/** The left margin of the Map button (ui/src/styles/responsive.css), which the row of tabs does not have. */
+/** The right margin of the Map button (ui/src/styles/responsive.css), which the row of tabs does not have. */
 const MAP_MARGIN = 6;
 const pageWidth = ref(window.innerWidth);
 const shown = computed(() => clampWidth(props.width, pageWidth.value));
@@ -47,29 +47,25 @@ function pick(id: TabId): void {
 const unseen = computed(() => (props.badges.messages ?? 0) + (props.badges.email ?? 0));
 const unseenTitle = computed(() => unreadText(unseen.value));
 
-const bar = ref<HTMLElement | null>(null);
+const probe = ref<HTMLElement | null>(null);
 const box = ref<HTMLElement | null>(null);
 const mapButton = ref<HTMLElement | null>(null);
-/** The tabs in a row when they fit in the width the bar has (the Map button of a phone first), else one button with a menu of them (TabMenu): measured, so a wide phone and a narrow panel on a wide screen both get the right one. */
-const { fits, measure } = useTabsFit(box, bar, () => (mapButton.value === null ? 0 : mapButton.value.offsetWidth + MAP_MARGIN));
+/** The tabs in the row and the tabs under More, measured on the probe (the tabs drawn out of the way): the room is the bar's width without the Map button of a phone. */
+const { split, measure } = useTabsFit(
+  box,
+  probe,
+  () => (mapButton.value === null ? 0 : mapButton.value.offsetWidth + MAP_MARGIN),
+  () => props.tab,
+  () => props.badges,
+);
+/** What the More button counts, to measure it with the right number of digits: the badges of all the tabs added up (the ones under it are some of them). */
+const countDigits = computed(() => "8".repeat(String(TAB_IDS.reduce((sum, id) => sum + (props.badges[id] ?? 0), 0)).length));
 /** The room of the tab names changes with a badge (more digits). */
 watch(
   () => props.badges,
   () => void nextTick(measure),
   { deep: true },
 );
-/** The tab bar is one row that scrolls sideways when the tabs do not fit; the tab that is picked (by a click, or from elsewhere on the page) is scrolled into view. */
-watch(
-  () => props.tab,
-  () => void nextTick(() => bar.value?.querySelector(".tab.active")?.scrollIntoView?.({ block: "nearest", inline: "nearest" })),
-);
-/** The wheel of a mouse turns the tab bar sideways when it has more tabs than room. */
-function wheel(event: WheelEvent): void {
-  const el = bar.value;
-  if (!el || el.scrollWidth <= el.clientWidth || event.deltaX !== 0 || event.deltaY === 0) return;
-  event.preventDefault();
-  el.scrollLeft += event.deltaY;
-}
 
 function drag(event: PointerEvent): void {
   const handle = event.currentTarget;
@@ -137,10 +133,9 @@ function nudge(event: KeyboardEvent): void {
           >
             {{ t("panel.map") }}
           </button>
-          <TabMenu v-if="!fits" :tab="tab" :badges="badges" :on="paneOn" @pick="pick" />
-          <div ref="bar" class="tabs" :class="{ measuring: !fits }" role="tablist" :aria-hidden="fits ? undefined : 'true'" @wheel="wheel">
+          <div class="tabs" role="tablist">
             <button
-              v-for="id in TAB_IDS"
+              v-for="id in split.shown"
               :id="`tab-${id}`"
               :key="id"
               type="button"
@@ -154,6 +149,18 @@ function nudge(event: KeyboardEvent): void {
               {{ tabTitle(id) }}
               <TabBadge :tab="id" :count="badges[id]" />
             </button>
+          </div>
+          <TabMenu v-if="split.hidden.length > 0" :tabs="split.hidden" :badges="badges" @pick="pick" />
+          <!-- the tabs and the More button again, out of the way and for no one: their widths are what the row is split by (the same markup as the real ones) -->
+          <div ref="probe" class="tabs-probe" aria-hidden="true" inert>
+            <span v-for="id in TAB_IDS" :key="id" class="tab" :data-tab="id">
+              {{ tabTitle(id) }}
+              <TabBadge :tab="id" :count="badges[id]" />
+            </span>
+            <span class="tab" data-more>{{ t("tab.more") }} <span aria-hidden="true">&#9662;</span></span>
+            <span class="tab" data-more-count
+              >{{ t("tab.more") }} <span aria-hidden="true">&#9662;</span> <span class="badge">{{ countDigits }}</span></span
+            >
           </div>
         </div>
         <div v-for="id in TAB_IDS" v-show="id === tab && paneOn" :id="`pane-${id}`" :key="id" class="pane" role="tabpanel" :aria-labelledby="`tab-${id}`">

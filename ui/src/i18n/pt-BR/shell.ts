@@ -28,6 +28,7 @@ export const shell: Record<keyof typeof source, Message> = {
   "tab.beacon": "Beacon",
   "tab.packets": "Pacotes",
   "tab.settings": "Ajustes",
+  "tab.more": "Mais",
   "tab.menu_new": ", novidades: {n}",
 
   "panel.label": "Detalhes",

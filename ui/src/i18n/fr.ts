@@ -29,6 +29,7 @@ export const fr: Catalogue = {
   "tab.beacon": "Balise",
   "tab.packets": "Paquets",
   "tab.settings": "Réglages",
+  "tab.more": "Plus",
   "tab.menu_new": { one: ", {n} nouveau", other: ", {n} nouveaux" },
 
   "panel.label": "Détails",

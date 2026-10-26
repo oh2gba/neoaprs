@@ -27,6 +27,7 @@ export const shell: Readonly<Record<keyof typeof en, Message>> = {
   "tab.beacon": "Baliza",
   "tab.packets": "Paquetes",
   "tab.settings": "Ajustes",
+  "tab.more": "Más",
   "tab.menu_new": ", nuevos: {n}",
 
   "panel.label": "Detalles",

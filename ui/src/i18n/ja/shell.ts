@@ -27,6 +27,7 @@ export const shell: Record<keyof typeof source, Message> = {
   "tab.beacon": "ビーコン",
   "tab.packets": "パケット",
   "tab.settings": "設定",
+  "tab.more": "その他",
   "tab.menu_new": "、新着{n}件",
 
   "panel.label": "詳細",

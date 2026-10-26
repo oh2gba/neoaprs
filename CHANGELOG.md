@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+The tab bar.
+
+- When the nine tabs do not fit the panel, the bar no longer folds into one **☰** button with every tab behind a click: the first tabs that fit, in their order of importance (Messages, Stations, Nearby, Email, Bulletins, Objects, Beacon, Packets, Settings), stay in the row and the rest are under a **More** button at the end of it. **More** carries the badges of the tabs under it added up, opens a menu of them (Up, Down, Home, End, Enter and Esc work in it), and a tab picked from it takes the place of the last tab in the row, so the tab on show is always seen. The same on a phone, after the **Map** button.
+- The tabs are 4 px narrower (8 px of padding at each side of a name instead of 10), so that all nine fit the 760 px of the default panel of a wide screen, also with the badges of a busy day.
+
 On Windows.
 
 - `neoaprs-app.exe --quit`, which the uninstaller and an update run to end the app, now waits for the app's process to be gone, not only for the lock it holds: the window's engine unloads after the lock is let go, and the uninstaller of 0.9.0 could find a file of the app still in use and leave it behind.
