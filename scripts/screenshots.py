@@ -243,15 +243,13 @@ async def settle(page: Any, ms: int = 1500) -> None:
 
 
 async def open_stations_tab(page: Any) -> None:
-    """The Stations tab is the one a page opens on; on a tab bar too narrow for the nine tabs (a panel of 760 px is) the tabs are one button, "Messages" with a menu of them, which a phone's page has under its map button."""
+    """The Stations tab is the one a page opens on, and the second of the bar: it is in the row at every width of the panel but the narrowest, where it is under the More button, which a phone's page has under its Map button."""
     tab = page.locator("#tab-stations")
     if await tab.is_visible():
         await tab.click()
         return
-    button = page.locator("#tabmenu-button")
-    if await button.is_visible() and "Stations" not in await button.inner_text():
-        await button.click()
-        await page.get_by_role("menuitem", name="Stations").click()
+    await page.locator("#tabmenu-button").click()
+    await page.get_by_role("menuitem", name="Stations").click()
 
 
 async def pick_station(page: Any, call: str, wait: int = 4500, add: bool = False) -> None:
@@ -435,6 +433,29 @@ async def shot_beacon_de(s: Shots, _: str) -> None:
     await s.save(page, "beacon-de")
 
 
+GROUP_GAP = 8                                                           # (what the page leaves between two groups of the Settings tab: a picture starts and ends in the gap)
+WHOLE_GROUPS = """([first, gap]) => {
+    const pane = document.querySelector('#pane-settings');
+    const form = pane.querySelector('.settings');
+    form.style.paddingBottom = '700px';                                 // (room to scroll the group to the top: the end of the tab is not the end of the picture)
+    const at = (e) => e.getBoundingClientRect().top - pane.getBoundingClientRect().top + pane.scrollTop;
+    const groups = [...form.children].filter((e) => e.tagName === 'FIELDSET');
+    pane.scrollTop = first ? at(form.querySelector(first)) - gap : 0;
+    const edge = pane.getBoundingClientRect().bottom;
+    const cut = groups.find((g) => g.getBoundingClientRect().bottom > edge);
+    if (!cut) return;
+    const before = groups[groups.indexOf(cut) - 1];
+    const end = Math.min(edge, before ? before.getBoundingClientRect().bottom + gap / 2 : cut.getBoundingClientRect().top);
+    pane.style.clipPath = `inset(0 0 ${edge - end}px 0)`;               // (what is below the last whole group is not drawn: the panel's own colour shows)
+}"""
+
+
+async def whole_groups(page: Any, first: str | None = None) -> None:
+    """The Settings tab shown in whole groups: the group `first` (a selector of its fieldset; none is the top of the tab) scrolled to the top of the panel, and the first group that does not end in the view not drawn, so that no row of a picture is cut at its edge."""
+    await page.evaluate(WHOLE_GROUPS, [first, GROUP_GAP])
+    await settle(page, 400)
+
+
 async def made_up_web(page: Any) -> None:
     """Puts the made-up access key and addresses (and the usual KISS port) in place of the daemon's own on a page that shows the Settings tab: the machine's own address and name never appear in a shot."""
     await page.evaluate("""([key, urls]) => {
@@ -455,10 +476,8 @@ async def made_up_web(page: Any) -> None:
 async def shot_settings_web(s: Shots, _: str) -> None:
     """Settings, the Web page group: the switch on, the access key and where to open the page (the daemon's own key and addresses are replaced by made-up ones on the screen)."""
     page = await s.page(DESKTOP, tab="settings", view=CITY, panel=560)                  # (the width the project page crops it to)
-    await page.locator("legend", has_text="Web page").scroll_into_view_if_needed()
     await made_up_web(page)
-    await page.evaluate("document.querySelector('#pane-settings fieldset:has(#set-web-key)')?.scrollIntoView({block: 'start'})")
-    await settle(page, 400)
+    await whole_groups(page, "fieldset:has(#set-web-key)")
     await s.save(page, "settings-web")
 
 
@@ -468,8 +487,7 @@ async def shot_settings_tnc(s: Shots, _: str) -> None:
     await made_up_web(page)
     await page.locator("#pane-settings .radiohead").click()
     await settle(page, 600)
-    await page.evaluate("document.querySelector('#pane-settings .radiostatus')?.scrollIntoView({block: 'start'})")
-    await settle(page, 400)
+    await whole_groups(page, "fieldset:has(.radiostatus)")
     await s.save(page, "settings-tnc")
 
 
@@ -515,7 +533,7 @@ async def shot_phone_key(s: Shots, _: str) -> None:
 async def shot_settings(s: Shots, _: str) -> None:
     page = await s.page(DESKTOP, tab="settings", view=CITY, panel=WIDE_PANEL)
     await made_up_web(page)
-    await settle(page, 400)
+    await whole_groups(page)
     await s.save(page, "settings")
 
 

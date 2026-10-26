@@ -404,6 +404,15 @@ h2 {
   aspect-ratio: 560 / 520;
 }
 
+/* The two Settings shots end on a whole group of the tab (scripts/screenshots.py leaves the rest of the panel empty): settings-web.png from y 37 to 633, the Web page and Notifications groups (the border of the second is at 624, the next group starts at 642), settings-tnc.png to 663 (the Web page group ends at 650). */
+.crop.pane.web {
+  aspect-ratio: 560 / 596;
+}
+
+.crop.pane.tnc {
+  aspect-ratio: 560 / 626;
+}
+
 .crop.pane img {
   width: 257.14%;
   margin: -6.61% 0 0 -157.14%;
