@@ -14,12 +14,12 @@ describe("the About group", () => {
   it("says what NeoAPRS is with the daemon's version, who made it, and has no control", () => {
     const wrapper = make();
     expect(wrapper.find("legend").text()).toBe("About");
-    expect(wrapper.findAll("p")[0]?.text()).toBe("NeoAPRS 0.9.1: an APRS client for a radio with a TNC, with this page as its window. Made by OH2GBA.");
+    expect(wrapper.findAll("p")[0]?.text()).toBe("NeoAPRS 0.9.1, an APRS client for your radio. Made by OH2GBA.");
     expect(wrapper.findAll("button, input, select")).toHaveLength(0);
   });
 
   it("shows the version the daemon reports", () => {
-    expect(make("1.2.3").text()).toContain("NeoAPRS 1.2.3:");
+    expect(make("1.2.3").text()).toContain("NeoAPRS 1.2.3,");
   });
 
   it("has the licence and the source as links that open in a new tab", () => {
@@ -37,12 +37,11 @@ describe("the About group", () => {
     }
   });
 
-  it("thanks the three calls, each in the monospace style", () => {
+  it("thanks the three calls, in the body font like the rest of the sentence: a call in running text is not monospace, whose selection box would look cut", () => {
     const wrapper = make();
     const thanks = wrapper.get("p.muted");
     expect(thanks.text()).toBe("Thanks to OH2GAX, OH2DPN and OH7NFC for their feedback.");
-    expect(thanks.findAll(".mono").map((c) => c.text())).toEqual(["OH2GAX", "OH2DPN", "OH7NFC"]);
-    expect(wrapper.findAll(".mono").map((c) => c.text())).toEqual(["OH2GBA", "OH2GAX", "OH2DPN", "OH7NFC"]);
+    expect(wrapper.findAll(".mono")).toHaveLength(0);
   });
 });
 

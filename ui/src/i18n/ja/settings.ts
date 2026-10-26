@@ -362,7 +362,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.help.problem.unreachable": "デーモンに接続できませんでした。",
   "settings.help.problem.failed": "ファイルを作成できませんでした(エラー {status})。",
   "settings.about.group": "このアプリについて",
-  "settings.about.intro": "NeoAPRS {version}: TNC付きの無線機用のAPRSクライアントで、このページがそのウィンドウです。制作: {call}。",
+  "settings.about.intro": "NeoAPRS {version}、無線機用のAPRSクライアント。作者:{call}。",
   "settings.about.license": "{license} バージョン3以降に基づくフリーソフトウェアです。",
   "settings.about.license_link": "GNU一般公衆利用許諾書",
   "settings.about.source": "ソースコード",

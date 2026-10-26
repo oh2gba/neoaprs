@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The About group, after Help, the last of the Settings tab: what NeoAPRS is and which version this is (the daemon's, as the footer says it), who made it, the licence and the source as plain links, and a thanks. Text and links only; no control.
+// The About group, after Help, the last of the Settings tab: what NeoAPRS is and which version this is (the daemon's, as the footer says it), who made it, the licence and the source as plain links, and a thanks. Text and links only; no control. A call in running text stays in the body font (the monospace font has another height, and a selection of it looks cut).
 import { t } from "@/i18n";
 import RichMessage from "@/components/RichMessage.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
@@ -14,9 +14,7 @@ const [first, second, third] = ABOUT_THANKS;
     <legend>{{ t("settings.about.group") }}</legend>
     <p>
       <RichMessage id="settings.about.intro" :params="{ version: version }"
-        ><template #call
-          ><span class="mono">{{ ABOUT_AUTHOR }}</span></template
-        ></RichMessage
+        ><template #call>{{ ABOUT_AUTHOR }}</template></RichMessage
       >
     </p>
     <p>
@@ -31,13 +29,9 @@ const [first, second, third] = ABOUT_THANKS;
     </p>
     <p class="muted">
       <RichMessage id="settings.about.thanks"
-        ><template #first
-          ><span class="mono">{{ first }}</span></template
-        ><template #second
-          ><span class="mono">{{ second }}</span></template
-        ><template #third
-          ><span class="mono">{{ third }}</span></template
-        ></RichMessage
+        ><template #first>{{ first }}</template
+        ><template #second>{{ second }}</template
+        ><template #third>{{ third }}</template></RichMessage
       >
     </p>
   </fieldset>

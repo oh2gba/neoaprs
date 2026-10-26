@@ -1202,7 +1202,7 @@ export const fr: Catalogue = {
   "settings.help.problem.unreachable": "Le démon est injoignable.",
   "settings.help.problem.failed": "Le fichier n'a pas pu être créé (erreur {status}).",
   "settings.about.group": "À propos",
-  "settings.about.intro": "NeoAPRS {version} : un client APRS pour une radio avec TNC, avec cette page pour fenêtre. Réalisé par {call}.",
+  "settings.about.intro": "NeoAPRS {version}, un client APRS pour votre radio. Réalisé par {call}.",
   "settings.about.license": "Logiciel libre sous la {license}, version 3 ou ultérieure.",
   "settings.about.license_link": "licence publique générale GNU",
   "settings.about.source": "Code source",

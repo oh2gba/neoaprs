@@ -365,7 +365,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.help.problem.unreachable": "Não foi possível alcançar o daemon.",
   "settings.help.problem.failed": "Não foi possível criar o arquivo (erro {status}).",
   "settings.about.group": "Sobre",
-  "settings.about.intro": "NeoAPRS {version}: um cliente APRS para um rádio com TNC, com esta página como janela. Feito por {call}.",
+  "settings.about.intro": "NeoAPRS {version}, um cliente APRS para o seu rádio. Feito por {call}.",
   "settings.about.license": "Software livre sob a {license}, versão 3 ou posterior.",
   "settings.about.license_link": "Licença Pública Geral GNU",
   "settings.about.source": "Código-fonte",

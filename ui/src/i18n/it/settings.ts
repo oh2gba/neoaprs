@@ -364,7 +364,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.help.problem.unreachable": "Il servizio non è raggiungibile.",
   "settings.help.problem.failed": "Non è stato possibile creare il file (errore {status}).",
   "settings.about.group": "Informazioni",
-  "settings.about.intro": "NeoAPRS {version}: un client APRS per una radio con TNC, con questa pagina come finestra. Realizzato da {call}.",
+  "settings.about.intro": "NeoAPRS {version}, un client APRS per la tua radio. Realizzato da {call}.",
   "settings.about.license": "Software libero distribuito con la {license}, versione 3 o successiva.",
   "settings.about.license_link": "Licenza Pubblica Generica GNU",
   "settings.about.source": "Codice sorgente",

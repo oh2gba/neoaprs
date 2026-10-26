@@ -1215,7 +1215,7 @@ export const de: Catalogue = {
   "settings.help.problem.unreachable": "Der Daemon ist nicht erreichbar.",
   "settings.help.problem.failed": "Die Datei konnte nicht erstellt werden (Fehler {status}).",
   "settings.about.group": "Info",
-  "settings.about.intro": "NeoAPRS {version}: ein APRS-Client für ein Funkgerät mit TNC, mit dieser Seite als Fenster. Von {call}.",
+  "settings.about.intro": "NeoAPRS {version}, ein APRS-Programm für dein Funkgerät. Von {call}.",
   "settings.about.license": "Freie Software unter der {license}, Version 3 oder später.",
   "settings.about.license_link": "GNU General Public License",
   "settings.about.source": "Quellcode",
