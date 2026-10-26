@@ -4,7 +4,8 @@
   scripts/release VERSION [--dry-run] [--rerun] [--deploy] [--interval SECONDS]
 
 On master, with a clean tree that is up to date with origin and has notes under `## Unreleased` in CHANGELOG.md, it: writes VERSION and the changelog section, builds the page to compare it with the committed one only when ui/
-changed since the last tag, runs scripts/check, commits, pushes, waits for the CI run of that commit, tags v<VERSION> on that commit and pushes the tag, waits for the release run, checks that the release is published (not a
+changed since the last tag, runs scripts/check, commits, pushes, waits for the CI run of that commit, tags v<VERSION> on that commit and pushes the tag (when a fix came after the release commit and no tag is made yet, HEAD is the release: its CI run, the tag on it, if it
+has the same VERSION and changelog section; a tag is never moved), waits for the release run, checks that the release is published (not a
 draft, its 10 files, every download link answering), and with --deploy uploads the version page (server/deploy.sh, which needs the operator's Bitwarden session; without it the command is printed).
 
   --dry-run   print the steps, what is done already and what would refuse, and change nothing (nothing is asked of GitHub; origin is asked with `git ls-remote`)
@@ -33,6 +34,7 @@ from neoaprs.updateasset import wheel_version  # noqa: E402
 
 INIT = ROOT / "neoaprs" / "__init__.py"
 CHANGELOG = ROOT / "CHANGELOG.md"
+FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 SEMVER = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.]+))?$")
 VERSION_LINE = re.compile(r'^VERSION = "([^"]+)"', re.M)
 RATE_LIMIT = re.compile(r"rate limit|HTTP 403|\b403\b", re.I)
@@ -73,7 +75,9 @@ class Release:
     def __init__(self, version: str, dry_run: bool, rerun: bool, deploy: bool, interval: float) -> None:
         self.version, self.dry_run, self.rerun, self.deploy, self.interval = version, dry_run, rerun, deploy, interval
         self.tag = f"v{version}"
-        self.commit: str | None = None                                 # the commit that sets VERSION, once there is one
+        self.commit: str | None = None                                 # the commit the steps from ci on are about: the release commit, or HEAD after it (see pick_target)
+        self.first: str | None = None                                  # the commit that first set VERSION, once there is one
+        self.after = 0                                                 # how many commits self.commit is after self.first
         self.last_tag = ""                                             # the newest release before this one
         self.refusals: list[str] = []                                  # what a dry run would stop for
 
@@ -142,7 +146,7 @@ class Release:
         branch = self.git("rev-parse", "--abbrev-ref", "HEAD")
         if branch != "master":
             self.refuse(f"not on master (on {branch}): git switch master")
-        self.commit = self.find_commit()
+        self.commit = self.first = self.find_commit()
         tags = sorted((t[1:] for t in self.git("tag", "--list", "v*").split() if t != self.tag and SEMVER.match(t[1:])), key=parse)
         self.last_tag = f"v{tags[-1]}" if tags else ""
         if tags and parse(self.version) <= parse(tags[-1]):
@@ -151,6 +155,7 @@ class Release:
             say("  (no release before this one)")
         self.check_tree()
         self.check_origin()
+        self.pick_target()
         self.check_notes()
         self.check_tag()
         if not self.dry_run:
@@ -188,6 +193,56 @@ class Release:
         elif ahead and ahead != [self.commit]:
             self.refuse(f"master has {len(ahead)} commit(s) that origin/master has not, and they are not just the release commit: push or review them first")
 
+    def tag_shas(self) -> set[str]:
+        """The commits the tag names, here and on origin (a tag that is not made yet names none)."""
+        local = self.git("rev-parse", "--verify", "--quiet", f"{self.tag}^{{commit}}", check=False)
+        remote = self.run("git", "ls-remote", "origin", f"refs/tags/{self.tag}^{{}}", f"refs/tags/{self.tag}", check=False).stdout.split()[:1]
+        return {sha for sha in (local, remote[0] if remote else "") if sha}
+
+    def defect(self, sha: str) -> str:
+        """Why the commit is not the release of this version, or empty: the same VERSION, the same section of the changelog as the release commit's and nothing under Unreleased (the release run stops a tag with notes there)."""
+        found = VERSION_LINE.search(self.git("show", f"{sha}:neoaprs/__init__.py", check=False))
+        if not found or found.group(1) != self.version:
+            return f"VERSION is {found.group(1) if found else 'not there'} in {sha[:9]}, not {self.version}"
+        new = changelog_parts(self.git("show", f"{sha}:CHANGELOG.md", check=False))[1]
+        old = changelog_parts(self.git("show", f"{self.first}:CHANGELOG.md", check=False))[1]
+        if new.get(self.version) != old.get(self.version):
+            return f"the section {self.version} of CHANGELOG.md is not what the release commit has in {sha[:9]}"
+        if new.get("Unreleased", "").strip():
+            return f"CHANGELOG.md has notes under `## Unreleased` in {sha[:9]}, which the release run stops for"
+        return ""
+
+    def pick_target(self) -> None:
+        """The commit that CI is waited for and the tag is made on. The release commit; or, when a fix came after it (CI of the release commit failed, the fix is on master after it), HEAD, if it is pushed, has the same VERSION
+        and the same changelog section. A tag that is made already decides: it is never moved, so the commit it names is the one (the release commit, or a later one that is the same release)."""
+        if self.first is None:
+            return
+        head = self.git("rev-parse", "HEAD")
+        tagged = self.tag_shas()
+        if len(tagged) == 1:
+            (named,) = tagged
+            if named != self.first and self.run("git", "merge-base", "--is-ancestor", self.first, named, check=False).returncode == 0 and self.run("git", "merge-base", "--is-ancestor", named, head, check=False).returncode == 0 and not self.defect(named):
+                self.commit = named
+            else:
+                return                                                 # (the tag is on the release commit, or check_tag refuses it)
+        elif not tagged and head != self.first:
+            if self.run("git", "merge-base", "--is-ancestor", head, "origin/master", check=False).returncode != 0:
+                self.refuse(f"HEAD {head[:9]} is after the release commit {self.first[:9]} but not on origin/master: push it, or take it off")
+                return
+            why = self.defect(head)
+            if why:
+                self.refuse(f"HEAD is {self.git('rev-list', '--count', f'{self.first}..HEAD')} commit(s) after the release commit {self.first[:9]}, and it is not the same release: {why}; a tag is never moved, and the release commit is not the release if a fix came after it")
+                return
+            self.commit = head
+        else:
+            return
+        self.after = int(self.git("rev-list", "--count", f"{self.first}..{self.commit}"))
+        say(f"  the release is {'HEAD' if self.commit == head else str(self.commit)[:9]}: {self.after} commit{'' if self.after == 1 else 's'} after the release commit {str(self.first)[:9]}, same version")
+
+    def target(self) -> str:
+        """What the steps of ci and tag say they are about."""
+        return f"HEAD {str(self.commit)[:9]}" if self.after else "the release commit"
+
     def check_notes(self) -> None:
         _, sections = self.sections()
         if "Unreleased" not in sections:
@@ -195,7 +250,7 @@ class Release:
         elif self.commit:
             if f"\n## {self.version}\n" not in "\n" + self.git("show", f"{self.commit}:CHANGELOG.md"):
                 self.refuse(f"the commit {self.commit[:9]} sets the version but CHANGELOG.md has no section {self.version} in it")
-            say(f"  (the release commit {self.commit[:9]} is made already)")
+            say(f"  (the release commit {str(self.first)[:9]} is made already)")
         elif self.version in sections:
             say(f"  (the section {self.version} is written already)")
         elif not sections["Unreleased"].strip():
@@ -252,7 +307,7 @@ class Release:
 
     def step_commit(self) -> str:
         if self.commit:
-            return f"skipped: {self.commit[:9]} sets the version already"
+            return f"skipped: {str(self.first)[:9]} sets the version already"
         if self.dry_run:
             return f"would commit neoaprs/__init__.py and CHANGELOG.md as \"{self.version}: the changelog section and the version\""
         self.git("add", "neoaprs/__init__.py", "CHANGELOG.md")
@@ -281,7 +336,7 @@ class Release:
         if have_local and remote:
             return f"skipped: {self.tag} is on {str(self.commit)[:9]} here and on origin"
         if self.dry_run:
-            return f"would tag {self.tag} on the release commit and push the tag"
+            return f"would tag {self.tag} on {self.target()} and push the tag"
         if not have_local:
             self.git("tag", self.tag, str(self.commit))
         self.git("push", "origin", self.tag)
@@ -291,6 +346,8 @@ class Release:
     def runs(self, workflow: str, **find: str) -> list[dict[str, Any]]:
         args = ["run", "list", "--workflow", workflow, "--json", "databaseId,status,conclusion,headSha,url,attempt", "--limit", "20"]
         for key, value in find.items():
+            if key == "commit" and not FULL_SHA.match(value):
+                raise Refusal(f"gh run list --commit needs the full sha, not {value!r} (a bug of this script)")
             args += [f"--{key}", value]
         return sorted(self.ghjson(*args) or [], key=lambda r: r["databaseId"])
 
@@ -323,7 +380,7 @@ class Release:
     def settle(self, run_id: int) -> dict[str, Any]:
         """Watches a run until it is completed (gh run watch may end early on a network fault: the state is asked again)."""
         while True:
-            run = self.ghjson("run", "view", str(run_id), "--json", "databaseId,status,conclusion,url,attempt,jobs")
+            run = self.ghjson("run", "view", str(run_id), "--json", "databaseId,status,conclusion,url,attempt,headSha,jobs")
             if run["status"] == "completed":
                 return run  # type: ignore[no-any-return]
             self.run("gh", "run", "watch", str(run_id), "--exit-status", "--interval", str(max(int(self.interval), 1)), check=False, capture=False)
@@ -331,7 +388,7 @@ class Release:
 
     def show_failure(self, run: dict[str, Any]) -> None:
         failed = [j for j in run.get("jobs", []) if j.get("conclusion") not in ("success", "skipped", None)]
-        say(f"  FAILED: run {run['databaseId']} {run['url']}")
+        say(f"  FAILED: run {run['databaseId']} {run['url']}" + (f" (commit {run['headSha']}: for gh run list --commit the full sha is needed)" if run.get("headSha") else ""))
         for job in failed:
             steps = [s["name"] for s in job.get("steps", []) if s.get("conclusion") == "failure"]
             say(f"    job {job['name']}: {job.get('conclusion')}" + (f" (step: {', '.join(steps)})" if steps else ""))
@@ -349,7 +406,7 @@ class Release:
 
     def step_ci(self) -> str:
         if self.dry_run:
-            return "would wait for the ci.yml run of the release commit (gh run watch)"
+            return f"would wait for the ci.yml run of {self.target()} (gh run watch)"
         if any(r["conclusion"] == "success" for r in self.runs("ci.yml", commit=str(self.commit))):
             return "skipped: ci.yml has passed for this commit"
         return self.wait_for("ci.yml", f"{str(self.commit)[:9]}", commit=str(self.commit))

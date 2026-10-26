@@ -48,6 +48,8 @@ def runs_of(workflow):
     return [r for r in s["runs"] if r["workflow"] == workflow]
 if args[:2] == ["run", "list"]:
     workflow, sha, branch = flag("--workflow"), flag("--commit"), flag("--branch")
+    if sha is not None and not (len(sha) == 40 and all(c in "0123456789abcdef" for c in sha)):
+        fail("could not resolve to a commit: " + sha + " (--commit needs the full sha)")
     key = workflow + (sha or branch)
     s["looks"][key] = s["looks"].get(key, 0) + 1
     found = [r for r in runs_of(workflow) if r["headSha"] == sha or (branch and r["headBranch"] == branch)]
@@ -560,3 +562,131 @@ def test_the_script_answers_help_and_names_its_flags() -> None:
     assert done.returncode == 0
     for flag in ("--dry-run", "--rerun", "--deploy", "--interval"):
         assert flag in done.stdout
+
+
+# ---- a fix after the release commit ----
+
+def commit_args(rig: Rig) -> list[str]:
+    """The shas that the calls of `gh run list --commit` named."""
+    return [line.split("--commit ")[1].split()[0] for line in rig.calls() if line.startswith("gh run list") and "--commit " in line]
+
+
+def ci_fails_then_a_fix_is_pushed(rig: Rig, fix_file: str = "fix.txt", fix_text: str = "the fix") -> str:
+    """0.9.1 as it happened: the release commit is pushed, its CI run fails, nothing is tagged; then the fix is committed on master and pushed, and CI would pass for it. Returns the release commit."""
+    rig.state["ci.yml"]["plan"] = ["failure"]
+    rig.save_state()
+    first = rig.release()
+    assert first.returncode == 1 and "FAILED: run 100" in first.stdout and rig.git("tag", "--list", TAG) == ""
+    release_commit = rig.commit_of_release()
+    rig.state = rig.load_state()
+    rig.state["ci.yml"]["plan"] = ["success"]
+    rig.save_state()
+    rig.write(fix_file, fix_text)
+    rig.publish("The fix, for the bug the CI of the release commit found")
+    return release_commit
+
+
+def test_a_fix_after_a_failed_ci_run_makes_head_the_release_and_the_tag_goes_on_head(rig: Rig) -> None:
+    release_commit = ci_fails_then_a_fix_is_pushed(rig)
+    head = rig.git("rev-parse", "HEAD")
+    assert head != release_commit
+    done = rig.release()
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert "the release is HEAD: 1 commit after the release commit" in done.stdout and "same version" in done.stdout
+    assert rig.kinds() == ["list ci.yml", "list ci.yml", "watch ci.yml", f"push tag {TAG}", "release view", "list release.yml", "list release.yml", "watch release.yml", "release view"], "no second check, no second commit, no push of master"
+    assert set(commit_args(rig)) == {head}, "CI is looked for by the full sha of HEAD"
+    assert rig.git("rev-parse", f"{TAG}^{{commit}}") == head == rig.git("rev-parse", f"{TAG}^{{commit}}", cwd=rig.remote), "the tag is on HEAD, not on the release commit"
+    assert rig.git("rev-list", "--count", f"{release_commit}..{TAG}") == "1" and rig.commit_of_release() == release_commit
+    assert rig.git("status", "--porcelain") == "" and rig.git("rev-parse", "master", cwd=rig.remote) == head
+
+
+def test_every_gh_call_names_a_commit_by_its_full_sha(rig: Rig) -> None:
+    assert rig.release().returncode == 0
+    shas = commit_args(rig)
+    assert shas and all(re.fullmatch(r"[0-9a-f]{40}", sha) for sha in shas) and set(shas) == {rig.commit_of_release()}
+    rig.state = rig.load_state()
+    assert not [r for r in rig.state["runs"] if r["headSha"] and len(r["headSha"]) != 40]
+
+
+def test_a_failed_ci_run_names_the_full_sha_of_its_commit(rig: Rig) -> None:
+    rig.state["ci.yml"]["plan"] = ["failure"]
+    rig.save_state()
+    done = rig.release()
+    assert done.returncode == 1 and f"commit {rig.commit_of_release()}" in done.stdout
+
+
+def test_a_tag_push_that_failed_on_head_is_made_again_on_head(rig: Rig) -> None:
+    ci_fails_then_a_fix_is_pushed(rig)
+    head = rig.git("rev-parse", "HEAD")
+    rig.flag("reject-tags")
+    assert rig.release().returncode == 1 and rig.git("rev-parse", f"{TAG}^{{commit}}") == head and rig.git("tag", "--list", TAG, cwd=rig.remote) == ""
+    rig.flag("reject-tags", False)
+    done = rig.release()
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert "the release is HEAD: 1 commit after" in done.stdout and rig.git("rev-parse", f"{TAG}^{{commit}}", cwd=rig.remote) == head
+
+
+def test_a_dry_run_after_a_fix_says_the_release_is_head_and_changes_nothing(rig: Rig) -> None:
+    ci_fails_then_a_fix_is_pushed(rig)
+    before = rig.changed()
+    done = rig.release("--dry-run")
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert "the release is HEAD: 1 commit after the release commit" in done.stdout and "same version" in done.stdout
+    assert "would wait for the ci.yml run of HEAD" in done.stdout and f"would tag {TAG} on HEAD" in done.stdout
+    assert "skipped: the release commit is made already" in done.stdout and "would push master" not in done.stdout
+    assert rig.changed() == before
+
+
+@pytest.mark.parametrize(("what", "why"), [
+    ("version", "VERSION is 0.9.2 in"),
+    ("section", "the section 0.9.1 of CHANGELOG.md is not what the release commit has"),
+    ("notes", "has notes under `## Unreleased`"),
+])
+def test_a_head_that_changed_the_version_or_the_changelog_section_is_not_the_release_and_is_refused(rig: Rig, what: str, why: str) -> None:
+    ci_fails_then_a_fix_is_pushed(rig)
+    init = (rig.work / "neoaprs" / "__init__.py").read_text(encoding="utf-8")
+    log = (rig.work / "CHANGELOG.md").read_text(encoding="utf-8")
+    if what == "version":
+        rig.write("neoaprs/__init__.py", init.replace('"0.9.1"', '"0.9.2"'))
+    elif what == "section":
+        rig.write("CHANGELOG.md", log.replace("A new thing the release brings.", "Another thing."))
+    else:
+        rig.write("CHANGELOG.md", log.replace("## Unreleased\n", "## Unreleased\n\nA note for the next release.\n"))
+    rig.publish("A second commit after the release commit")
+    before = rig.changed()
+    done = rig.release()
+    assert done.returncode == 1 and "stopped:" in done.stdout and why in done.stdout and "not the same release" in done.stdout, done.stdout
+    after = rig.changed()
+    assert after["head"] == before["head"] and after["origin"] == before["origin"] and after["tags"] == before["tags"] == "v0.9.0" and after["calls"] == "", "a refusal makes no commit, no tag, no call"
+    dry = rig.release("--dry-run")
+    assert dry.returncode == 1 and "WOULD REFUSE: HEAD is 2 commit(s) after the release commit" in dry.stdout and why in dry.stdout
+
+
+def test_a_head_that_is_not_pushed_is_not_the_release(rig: Rig) -> None:
+    ci_fails_then_a_fix_is_pushed(rig)
+    rig.write("local.txt", "x")
+    rig.commit("Not pushed")
+    done = rig.release()
+    assert done.returncode == 1 and "commit(s) that origin/master has not" in done.stdout and rig.git("tag", "--list", TAG) == ""
+    dry = rig.release("--dry-run")
+    assert dry.returncode == 1 and "but not on origin/master" in dry.stdout
+
+
+def test_a_tag_on_the_release_commit_is_never_moved_to_head(rig: Rig) -> None:
+    assert rig.release().returncode == 0
+    tagged = rig.git("rev-parse", f"{TAG}^{{commit}}")
+    rig.write("later.txt", "work after the release")
+    rig.publish("Work after the release")
+    marker = len(rig.calls())
+    again = rig.release()
+    assert again.returncode == 0, again.stdout + again.stderr
+    assert "the release is HEAD" not in again.stdout and rig.git("rev-parse", f"{TAG}^{{commit}}") == tagged == rig.git("rev-parse", f"{TAG}^{{commit}}", cwd=rig.remote)
+    assert not [c for c in rig.calls()[marker:] if c.startswith(("push ", "gh run watch"))] and set(commit_args(rig)) == {tagged}
+
+
+def test_a_tag_on_another_commit_than_the_release_is_still_refused_when_head_is_ahead(rig: Rig) -> None:
+    ci_fails_then_a_fix_is_pushed(rig)
+    rig.git("tag", TAG, rig.git("rev-parse", "HEAD~2"))              # (the commit before the release commit: not the release commit, not HEAD)
+    rig.git("push", "-q", "origin", TAG)
+    refusal_text = rig.release()
+    assert refusal_text.returncode == 1 and f"the tag {TAG} exists here at" in refusal_text.stdout
