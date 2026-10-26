@@ -23,7 +23,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # The tag names the version that is in the code, the changelog has the notes for it and nothing left under Unreleased, the committed page is of that version, the commit is on master and CI has passed
+  # The tag names the version that is in the code, the changelog has the notes for it and nothing left under Unreleased, the committed page is what ui/ builds, the commit is on master and CI has passed
   # for it: each a few seconds, before anything is built.
   verify:
     if: github.ref_type == 'tag'
@@ -46,10 +46,17 @@ jobs:
           grep -q '^## Unreleased' CHANGELOG.md || { echo "::error::CHANGELOG.md has no '## Unreleased' heading (add an empty one above the section of this version)"; exit 1; }
           awk '/^## Unreleased/ { inside = 1; next } /^## / { inside = 0 } inside && NF { print; found = 1 } END { exit found }' CHANGELOG.md \
             || { echo "::error::CHANGELOG.md still has notes under '## Unreleased' (above): move them into the section of this version"; exit 1; }
-      - name: The committed page is built with this version
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - name: The committed page is what ui/ builds (it has no version in it: a release that changed nothing in ui/ leaves it as it is)
         run: |
-          version="${GITHUB_REF_NAME#v}"
-          grep -q "^const VERSION = \"$version\";" neoaprs/page/sw.js || { echo "::error::neoaprs/page/sw.js is not built with $version: run scripts/build-page and commit neoaprs/page/"; exit 1; }
+          (cd ui && npm ci --no-audit --no-fund)
+          scripts/build-page
+          git add --intent-to-add neoaprs/page
+          git diff --exit-code -- neoaprs/page || { echo "::error::neoaprs/page/ is not what ui/ builds: run scripts/build-page and commit neoaprs/page/"; exit 1; }
       - name: The commit is on master
         run: |
           git merge-base --is-ancestor "$GITHUB_SHA" origin/master || { echo "::error::$GITHUB_SHA is not on origin/master: push master first, then the tag"; exit 1; }

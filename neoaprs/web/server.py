@@ -6,7 +6,7 @@ The socket of a tab is neoaprs/web/pagesocket.py, the choice of the port neoaprs
 While `web/https` is on too, the page is also served over TLS on the port after the plain one (neoaprs/web/secureside.py), and the plain port sends a device other than this computer there (neoaprs/web/securehandlers.py).
 
 Routes: `/ws` (the socket), `/access` and `/access/new` (the key screen's login and a new key), `/neoaprs-ca.crt` (the certificate authority's certificate, on both ports), `/basemap.pmtiles` and `/basemap-world.pmtiles` (the files of the data folder, with byte ranges), and everything else from the page's
-folder (`neoaprs/page/`, made by scripts/build-page; the folder `neoaprs/web/placeholder/` with a line that says so while there is none). Every answer carries the security headers (neoaprs/web/headers.py) and none is given for a
+folder (`neoaprs/page/`, made by scripts/build-page, as it was when the daemon started: read into memory once; the folder `neoaprs/web/placeholder/` with a line that says so while there is none). Every answer carries the security headers (neoaprs/web/headers.py) and none is given for a
 Host name that is not ours (neoaprs/web/pagefiles.py); the socket and the map are refused to a device that has not logged in.
 """
 import asyncio
@@ -35,6 +35,7 @@ from .connections import LimitedHTTPServer
 from .headers import host_name
 from .listen import listen_near
 from .pagefiles import Basemap, Page
+from .pagesnapshot import PageSnapshot
 from .pagesocket import Socket
 from .securehandlers import CA_PATH, CaCertificate, secure_target
 from .secureside import SecureSide
@@ -50,15 +51,6 @@ HEADER_TIMEOUT_SEC = 60.0                 # a connection that has sent no reques
 BODY_TIMEOUT_SEC = 30.0
 LOOPBACK = "127.0.0.1"
 
-def page_build(page_dir: Path) -> str:
-    """The build of the page in `page_dir`: the name of the main script its index.html loads (Vite puts the hash of the content in it), empty when there is none (the placeholder, a page that cannot be read)."""
-    try:
-        found = re.search(r"assets/(index-[\w-]+\.js)", (page_dir / "index.html").read_text(encoding="utf-8"))
-    except OSError:
-        return ""
-    return found.group(1) if found else ""
-
-
 def default_page_dir() -> Path:
     return PAGE_DIR if (PAGE_DIR / "index.html").is_file() else PLACEHOLDER_DIR
 
@@ -71,7 +63,9 @@ class WebServer:
         self.controller = controller
         self.config = config
         self.page_dir = page_dir or default_page_dir()
-        self.api = Api(controller, reach=self.reach, secure=lambda: self.secure.state.wire(), page=page_build(self.page_dir))
+        self.page = PageSnapshot.take(self.page_dir)                      # the page as it is now: a rebuild on disk changes nothing until the daemon is started again
+        log.info("page %s: %d files, %.1f MB, kept in memory", self.page.build or "(none)", len(self.page.files), self.page.size / 1048576)
+        self.api = Api(controller, reach=self.reach, secure=lambda: self.secure.state.wire(), page=self.page.build)
         self.access = Access(lambda: controller.config, controller.clock)
         self.address = LOOPBACK                           # what it listens on: "" is every interface
         self.port = 0
@@ -146,8 +140,8 @@ class WebServer:
             (r"/access/new", NewKey),
             (re.escape(CA_PATH), CaCertificate, {"server": self}),
             (r"/(basemap\.pmtiles|basemap-world\.pmtiles)", Basemap, {"path": str(self.controller.data_dir)}),
-            (r"/()", Page, {"path": str(self.page_dir), "default_filename": "index.html"}),
-            (r"/(.*)", Page, {"path": str(self.page_dir)}),
+            (r"/()", Page, {"path": str(self.page_dir), "snapshot": self.page, "default_filename": "index.html"}),
+            (r"/(.*)", Page, {"path": str(self.page_dir), "snapshot": self.page}),
         ], websocket_ping_interval=30, websocket_ping_timeout=20, websocket_max_message_size=MAX_COMMAND, compress_response=True, log_function=self._log_request, neoaprs_server=self)
         self._app = app
         await self.api.start()                      # (before the first page can come: the packets the database holds are in the window, the signals are connected)

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 // The page: a calm header (the title, a link to the project's page, and the messages not seen), the map filling the page, and at its right a panel with the stations, what is nearby, the packets, the messages, the email, the bulletins, our objects, the beacon and the settings (which open with the state of the radio link), and under the open tab a footer with the version, a newer version if there is one and what is wrong with the radio link, if anything.
+// A daemon of another protocol or another build of the page makes it a notice (`VersionMismatch`) instead of the page.
 // The layout only: the page put together, and what the panes share (the daemon's state, `send`, the settings, the guide, the panel), is `useAppShell`; a pane takes from the context what is the page's as a whole, and as props what is its own (the rows it lists, the one that is open).
 import AppHeader from "@/components/AppHeader.vue";
 import BeaconPane from "@/components/BeaconPane.vue";
@@ -21,6 +22,7 @@ import FindRadioToast from "@/components/FindRadioToast.vue";
 import ToastBar from "@/components/ToastBar.vue";
 import UndoToast from "@/components/UndoToast.vue";
 import UpdateDialog from "@/components/UpdateDialog.vue";
+import VersionMismatch from "@/components/VersionMismatch.vue";
 import { useAppShell } from "@/composables/useAppShell";
 
 const {
@@ -45,7 +47,7 @@ const {
   findRadio,
   stationActions,
 } = useAppShell();
-const { send, ownObjects, ownBulletins, bulletins, packets, lastError } = daemon;
+const { send, ownObjects, ownBulletins, bulletins, packets, lastError, mismatch } = daemon;
 const { stationPick, pickingTab } = picks;
 const { selected, focus } = cards;
 const retry = (id: number): boolean => send({ cmd: "message_retry", id });
@@ -54,7 +56,8 @@ const deleteMessage = (id: number): boolean => send({ cmd: "message_delete", id 
 </script>
 
 <template>
-  <div class="app" :class="layout.rootClass.value">
+  <VersionMismatch v-if="mismatch" :mismatch="mismatch" />
+  <div v-else class="app" :class="layout.rootClass.value">
     <AppHeader
       :call="call"
       :unread="unread"

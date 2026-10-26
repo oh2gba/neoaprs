@@ -207,3 +207,20 @@
   flex-basis: 100%;
   text-align: center;
 }
+/* the page that does not go with its daemon (lib/reload.ts): a sentence and a button, on the whole page */
+.mismatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  height: 100%;
+  padding: 24px 16px;
+  text-align: center;
+}
+.mismatch p {
+  max-width: 36em;
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.5;
+}

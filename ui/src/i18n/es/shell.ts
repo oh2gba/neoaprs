@@ -49,5 +49,8 @@ export const shell: Readonly<Record<keyof typeof en, Message>> = {
   "footer.radio.not_connected": "Radio: sin conexión",
   "footer.radio.open_settings": "Abrir los ajustes de la radio",
 
+  "mismatch.notice": "Esta página y NeoAPRS no coinciden (página {page}, NeoAPRS {neoaprs}). Recarga la página; si sigue igual, reinicia NeoAPRS.",
+  "mismatch.reload": "Recargar",
+
   "settings.language.label": "Idioma",
 };

@@ -18,7 +18,6 @@ import type {
   WeatherValues,
 } from "@/protocol/protocol";
 import type { Toast } from "@/composables/useDaemon";
-import { PAGE_VERSION } from "@/lib/build";
 import { PROTOCOL } from "@/protocol/lists";
 
 export const NOW = Date.parse("2026-10-21T12:00:00Z");
@@ -408,12 +407,15 @@ export function mapState(extra: Partial<MapState> = {}): MapState {
   };
 }
 
-/** The daemon's `hello` for a page of this build: the same version and protocol, so that the page does not load itself again. */
+/** The version the daemon of the tests says it is: the page has none of its own, so any is as good as another. */
+export const DAEMON_VERSION = "1.2.3";
+
+/** The daemon's `hello` for a page of this build: the same protocol and no build to compare, so that the page does not load itself again. */
 export function hello(extra: Partial<HelloMessage> = {}): HelloMessage {
   return {
     type: "hello",
     protocol: PROTOCOL,
-    version: PAGE_VERSION,
+    version: DAEMON_VERSION,
     page: "",
     install: { kind: "pip", appimage: "", service: false, arch: "" },
     topics: [],

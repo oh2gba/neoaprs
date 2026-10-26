@@ -6,6 +6,12 @@ On Windows.
 
 - `neoaprs-app.exe --quit`, which the uninstaller and an update run to end the app, now waits for the app's process to be gone, not only for the lock it holds: the window's engine unloads after the lock is let go, and the uninstaller of 0.9.0 could find a file of the app still in use and leave it behind.
 
+For the page and the daemon.
+
+- **The page and the daemon are always a pair.** NeoAPRS reads the page into memory when it starts (3.4 MB, 26 files) and serves that; a page rebuilt on disk, a branch switched or a package upgraded while it runs changes nothing until it is started again. Before, the files were read at each request, so the browser could load a new page against an old daemon, which showed a blank Nearby tab and no station card.
+- **A page that does not go with its daemon says so.** The page compares its protocol and its build with the daemon's; when they differ it loads itself again once, and when that does not help it shows "This page and NeoAPRS do not match (page ..., NeoAPRS ...). Reload the page; if this stays, restart NeoAPRS." with a **Reload** button, in the language of the page, and keeps its socket closed. It is meant to be seen only when a browser holds an old copy of the page against an upgraded NeoAPRS.
+- **The page has no version of NeoAPRS in it.** It learns the version from the daemon (the footer, the update check), and the service worker names its caches by the build of the page, so a new version of NeoAPRS that changed nothing of the page leaves `neoaprs/page/` as it is.
+
 ## 0.9.0
 
 NeoAPRS can be a moving station: the beacon follows a GPS and is sent by SmartBeaconing, the Beacon tab is rebuilt around one choice of where the position comes from and one Beacon choice that switches the beacon off, a place and a symbol are chosen the same way everywhere, the map shows one range circle at a time, and the Windows installer closes NeoAPRS itself.

@@ -134,7 +134,7 @@ The window shows the steps for this copy, each file as a button and each command
 | pip | `pip install -U` the release's wheel (the window has the whole command) in the environment NeoAPRS is installed in, then `neoaprs service install` restarts a service, else quit NeoAPRS and start it again |
 | a clone of the repository | `git pull`, `uv sync`, then `systemctl --user restart neoaprs` for a service, else quit and start it again |
 
-**Open pages follow by themselves.** A page is built for one version of NeoAPRS, and the daemon says its version when a page connects. When they differ the page loads itself again once, in a browser tab and in the desktop app's window alike. It does so for the next update too.
+**Open pages follow by themselves.** NeoAPRS serves the page it started with, so a page and the NeoAPRS it talks to always go together, and a page left open when NeoAPRS is updated or restarted loads the new one by itself, once, in a browser tab and in the desktop app's window alike. It does so for the next update too. If a page still does not go with NeoAPRS after that (an old copy that the browser kept), it says "This page and NeoAPRS do not match" with a **Reload** button: reload it, and if the message stays, restart NeoAPRS.
 
 ## The update check
 

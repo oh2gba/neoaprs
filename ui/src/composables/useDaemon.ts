@@ -6,6 +6,7 @@ import type {
   ConfigValues,
   ErrorMessage,
   GpsState,
+  HelloMessage,
   InstallInfo,
   MapState,
   MessageRow,
@@ -20,7 +21,7 @@ import { useAnswers } from "@/composables/useAnswers";
 import { useOwnTables } from "@/composables/useOwnTables";
 import { probe } from "@/lib/access";
 import { Hub, type Connection, type Store } from "@/lib/hub";
-import { reloadForDaemon } from "@/lib/reload";
+import { describeMismatch, reloadForDaemon, type Mismatch } from "@/lib/reload";
 
 /** The page's own socket: beside the page, so that it works from any path. */
 export function socketUrl(): string {
@@ -61,6 +62,13 @@ function useWholeTopics() {
   return { refs, handlers };
 }
 
+/** A hello of a daemon that the page does not go with, after the load that was made for it (lib/reload.ts): the notice is set and the socket closed for good, so that nothing the daemon sends reaches the page and it is not opened again. */
+function refuseMismatch(hello: HelloMessage, mismatch: Ref<Mismatch | null>, close: () => void): void {
+  if (reloadForDaemon(hello) !== "stale") return;
+  mismatch.value = describeMismatch(hello);
+  close();
+}
+
 export function useDaemon(url: () => string = socketUrl) {
   const stations = shallowReactive(new Map<string, StationRow>());
   const stationsLoaded = ref(false); // the daemon has told the stations once: `stations` is then what was there, not a part of it
@@ -76,6 +84,7 @@ export function useDaemon(url: () => string = socketUrl) {
   const connection = ref<Connection>("connecting");
   const lastError = shallowRef<Toast | null>(null);
   const version = ref("");
+  const mismatch = shallowRef<Mismatch | null>(null); // the daemon is another protocol or serves another build of the page, and a load did not help: the page does not run against it (refuseMismatch)
   const install = shallowRef<InstallInfo | null>(null);
   let toasts = 0;
 
@@ -108,7 +117,7 @@ export function useDaemon(url: () => string = socketUrl) {
   };
   // a socket that closes before it has heard anything may have been refused for want of a login: if the daemon says so, the page loads again and shows the key screen
   const refused = (): void => void probe().then((access) => access === "locked" && location.reload());
-  const hub = new Hub(store, { url, onHello: (hello) => void reloadForDaemon(hello), refused });
+  const hub = new Hub(store, { url, onHello: (hello) => refuseMismatch(hello, mismatch, () => hub.close()), refused });
 
   /** Sends a command; the toast says so when the socket is not open. */
   function send(command: Parameters<Hub["send"]>[0]): boolean {
@@ -135,6 +144,7 @@ export function useDaemon(url: () => string = socketUrl) {
     connection,
     lastError,
     version,
+    mismatch,
     install,
     updateResult: answers.updateResult,
     weatherSeriesByCall: answers.weatherSeriesByCall,

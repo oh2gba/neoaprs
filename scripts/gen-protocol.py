@@ -305,7 +305,7 @@ Every request, the socket's too, must carry a `Host` header that is an IP addres
 any other is answered `403` with a line that says what to do (a page of another site whose name was moved to this address cannot talk to the daemon). A socket from a page of another site (an
 `Origin` that is not the `Host`) is refused too.
 
-The files: `/` and what is under it come from `page/` (`scripts/build-page` makes it; while there is none, a line says so), `/basemap.pmtiles` and `/basemap-world.pmtiles` are the files of those names in the data folder
+The files: `/` and what is under it come from `page/` (`scripts/build-page` makes it; while there is none, a line says so), as it was when the daemon started (the daemon reads it into memory once, so a page rebuilt on disk is served after the next start, and the `page` of `hello` is the build it serves), `/basemap.pmtiles` and `/basemap-world.pmtiles` are the files of those names in the data folder
 (the detailed map and the world under it), served with byte ranges (a `404` with a line of text while one is not there: the `map_fetch` command makes them), `/ws` is the socket. Nothing whose name begins with a dot is served, and no source map. Every answer
 carries the security headers: a Content-Security-Policy that allows the page's own scripts, workers, styles and its own socket and nothing else, `X-Frame-Options: DENY`, `Referrer-Policy:
 no-referrer`, `X-Content-Type-Options: nosniff` and `Cross-Origin-Resource-Policy: same-origin`. An error is a line of text. The shell `index.html` is sent `Cache-Control: no-cache`, the hashed

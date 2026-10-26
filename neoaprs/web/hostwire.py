@@ -29,9 +29,9 @@ class InstallInfo(_Model):
 class Hello(_Message):
     """The first message of a connection; `status` and the `state` of every topic follow it at once, so a page need not ask for them."""
     type: Literal["hello"]
-    protocol: int = Field(description="the version of these messages: a page built for another one says so and loads itself again")
-    version: str = Field(description="the version of the daemon: a page built for another one loads itself again, once for each version")
-    page: str = Field(description="the build of the page this daemon serves, the name of its main script (`index-<hash>.js` of assets/): a page of another build loads itself again, once for each build, so that a page left open picks up a new one of the same version; empty when the daemon has no built page")
+    protocol: int = Field(description="the version of these messages: a page built for another one loads itself again, and when that does not help it does not run (it shows a notice and keeps the socket closed)")
+    version: str = Field(description="the version of the daemon, which the page shows (the footer, the update check); the page has no version of its own and does not compare this one")
+    page: str = Field(description="the build of the page this daemon serves, the name of its main script (`index-<hash>.js` of assets/); the daemon serves the page it took when it started, so this is the build a browser gets from it. A page of another build loads itself again, once for each build, and shows a notice when that does not help; empty when the daemon has no built page")
     install: InstallInfo = Field(description="how this daemon was installed, for the steps of an update")
     topics: list[str] = Field(description="the topics the page is following from the start: all of them (a page may `unsubscribe` from one)")
 

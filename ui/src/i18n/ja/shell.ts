@@ -49,5 +49,9 @@ export const shell: Record<keyof typeof source, Message> = {
   "footer.radio.not_connected": "無線機: 未接続",
   "footer.radio.open_settings": "無線機の設定を開く",
 
+  "mismatch.notice":
+    "このページと NeoAPRS が一致しません（ページ {page}、NeoAPRS {neoaprs}）。ページを再読み込みしてください。変わらない場合は NeoAPRS を再起動してください。",
+  "mismatch.reload": "再読み込み",
+
   "settings.language.label": "言語",
 };
