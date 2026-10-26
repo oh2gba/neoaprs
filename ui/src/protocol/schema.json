@@ -1288,6 +1288,21 @@
       "title": "FindRadioCancelCommand",
       "type": "object"
     },
+    "ForgetAllStations": {
+      "additionalProperties": false,
+      "description": "A fresh start for what was heard: removes every station and every packet heard (and the weather of the stations), in the daemon and in its database. The station we are, the objects and bulletins we send, the messages, the\nsettings and the maps stay, and so do the packets we sent. Answered by the stations' topic told whole, or by an `error`.",
+      "properties": {
+        "cmd": {
+          "const": "forget_all_stations",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd"
+      ],
+      "title": "ForgetAllStationsCommand",
+      "type": "object"
+    },
     "ForgetStation": {
       "additionalProperties": false,
       "description": "Removes a station from the station book (and its cache in the database) until it is heard again. Not our own station. Answered by the `del` of the row, or by an `error`.",
@@ -5508,6 +5523,7 @@
           "conversation_delete": "#/$defs/ConversationDelete",
           "find_radio": "#/$defs/FindRadio",
           "find_radio_cancel": "#/$defs/FindRadioCancel",
+          "forget_all_stations": "#/$defs/ForgetAllStations",
           "forget_station": "#/$defs/ForgetStation",
           "list_ports": "#/$defs/ListPorts",
           "map_cancel": "#/$defs/MapCancel",
@@ -5557,6 +5573,9 @@
         },
         {
           "$ref": "#/$defs/ForgetStation"
+        },
+        {
+          "$ref": "#/$defs/ForgetAllStations"
         },
         {
           "$ref": "#/$defs/TncReconnect"
