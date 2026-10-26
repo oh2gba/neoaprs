@@ -6,9 +6,16 @@ export const shell: Record<keyof typeof source, Message> = {
   "common.dismiss": "Dispensar",
 
   "header.project_title": "A página do projeto NeoAPRS",
-  "header.receive_only": "Somente recepção",
-  "header.receive_only_title":
-    "Nada é transmitido: esta estação está ajustada para somente recepção. É o ajuste station/transmit do daemon, que não está nesta página; neoaprs db set station/transmit true o altera na próxima inicialização",
+  "pill.rx": "RX only",
+  "pill.rx_title": "RX only: nada é enviado. Ajustes → Rádio → Transmitir",
+  "pill.beacon_off": "Beacon desligado",
+  "pill.beacon_off_title": "Beacon desligado: sem beacon nem status automáticos. Beacon agora ainda envia. Aba Beacon",
+  "pill.internet": "Internet",
+  "pill.internet_title": "Internet: as estações do APRS-IS estão no mapa, somente recepção. Ajustes → Internet",
+  "pill.gps": "GPS",
+  "pill.gps_fix_title": "GPS: fix. Aba Beacon",
+  "pill.gps_nofix_title": "GPS: ainda sem fix. Aba Beacon",
+  "pill.rx_send": "RX only: nada é enviado",
   "header.no_call": "indicativo não definido",
   "header.no_call_title": "Nada é transmitido enquanto não houver um indicativo: abra a configuração",
   "header.unread_open": {

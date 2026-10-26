@@ -57,6 +57,8 @@ export interface DaemonContext {
   weatherSeries: Read<ReadonlyMap<string, WeatherSeriesMessage>>;
   /** the radio link is up */
   connected: Read<boolean>;
+  /** transmitting is switched off (station/transmit false): RX only */
+  receiveOnly: Read<boolean>;
   /** the clock the ages are held against */
   now: Read<number>;
   dark: Read<boolean>;

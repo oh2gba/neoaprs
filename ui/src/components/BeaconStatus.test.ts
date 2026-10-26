@@ -13,8 +13,8 @@ describe("BeaconStatus", () => {
   it("has the label, the state on a pill, one plain line and the button, as the radio's", () => {
     const wrapper = block();
     expect(
-      [...wrapper.find(".beaconhead").element.children].map((c) => (c.classList.contains("statepill") ? "statepill" : (c.className.split(" ")[0] ?? ""))),
-    ).toEqual(["beaconlabel", "statepill", "tncstatus", "btn"]);
+      [...wrapper.find(".beaconhead").element.children].map((c) => (c.classList.contains("statetext") ? "statetext" : (c.className.split(" ")[0] ?? ""))),
+    ).toEqual(["beaconlabel", "statetext", "tncstatus", "btn"]);
     expect(wrapper.find(".tncstatus").text()).toBe("Last beacon 4 min ago · no timed beacon");
     expect(wrapper.find(".mobileline").exists()).toBe(false);
     expect(wrapper.find(".problem").exists()).toBe(false);
@@ -42,7 +42,7 @@ describe("BeaconStatus", () => {
       values: { "gps/source": "gpsd" },
     });
     expect(wrapper.find(".beaconlabel").text()).toBe("GPS");
-    expect(wrapper.find(".statepill").classes()).toContain("gps-no_fix");
+    expect(wrapper.find(".statetext").classes()).toContain("gps-no_fix");
     expect(wrapper.find(".mobileline").text()).toBe("No beacon: no GPS fix");
     expect(wrapper.find(".problem").text()).toBe("no satellites");
     expect(wrapper.find(".beaconhead + .mobileline + .problem").exists()).toBe(true);
@@ -51,7 +51,7 @@ describe("BeaconStatus", () => {
   it("shows the GPS state and the fix line with Beacon off under them while the beacon is Off, and the button off", () => {
     const wrapper = block({ gps: gpsState(), values: { "gps/source": "gpsd", "beacon/interval_min": "0" }, disabled: true, why: "The beacon is off" });
     expect(wrapper.find(".beaconlabel").text()).toBe("GPS");
-    expect(wrapper.find(".statepill").text()).toBe("fix");
+    expect(wrapper.find(".statetext").text()).toBe("fix");
     expect(wrapper.find(".tncstatus").text()).toContain("Fix: 60.4295 N 24.1452 E");
     expect(wrapper.find(".mobileline").text()).toBe("Beacon off");
     expect(wrapper.find("button").attributes("disabled")).toBeDefined();

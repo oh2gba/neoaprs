@@ -2,6 +2,8 @@
 // The menu of a row of the Stations table: Message and the four directed queries (Ask for position, Ask for status, Ask what it hears direct, Trace the route) where the card has Message, then Show on map (or its card, for a station with no position), Copy call and the QRZ page, then Forget
 // (asking twice, as the trash can of the row does: the first press says "Really forget?", the second forgets). Under the queries a short muted line says that many stations do not answer them. It opens where the pointer is (a right-click or a long press) or under the "..." button, is kept inside the window,
 // takes the focus on its first item, is moved in by Up, Down, Home and End, and closed by Esc (the focus goes back to `trigger`), a press outside it, Tab, or an item that was chosen. The row it is for is `row`; an item is said to the page with one event, the parent does it.
+import { useReceiveOnly } from "@/composables/useReceiveOnly";
+import { rxOnlyReason } from "@/lib/compose";
 import { computed, nextTick, onMounted, ref } from "vue";
 import { usePopup } from "@/composables/usePopup";
 import { t } from "@/i18n";
@@ -25,6 +27,7 @@ const list = ref<HTMLElement | null>(null);
 const buttons = ref<HTMLElement[]>([]);
 const at = ref({ left: props.x, top: props.y });
 
+const rxOnly = useReceiveOnly();
 const items = computed(() => menuItems(props.row));
 const qrz = computed(() => qrzUrl(props.row.call));
 const asks = computed(() => items.value.some((item) => item.startsWith("ask_")));
@@ -153,6 +156,8 @@ onMounted(async () => {
           role="menuitem"
           class="ctxmenu-item"
           :class="{ armed: item === 'forget' && armed, danger: item === 'forget' }"
+          :disabled="rxOnly && item.startsWith('ask_')"
+          :title="rxOnly && item.startsWith('ask_') ? rxOnlyReason() : undefined"
           tabindex="-1"
           :data-item="item"
           @click="choose(item)"

@@ -12,7 +12,6 @@ export const beacon: Record<keyof typeof source, Message> = {
   "beacon.line.untimed_none": "ビーコン未送信 · 定期ビーコンなし",
   "beacon.line.off": "ビーコンはオフ",
   "beacon.beacon_now": "今すぐビーコン",
-  "beacon.off_why": "ビーコンがオフのため、ビーコンもステータスも送りません",
   "beacon.status": "ステータス",
   "beacon.send_status_now": "今すぐステータスを送信",
   "beacon.really_send": "本当に送信しますか?",

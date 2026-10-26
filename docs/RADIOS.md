@@ -1,6 +1,6 @@
 # Radios and TNCs
 
-How to connect your radio or TNC to NeoAPRS, on Linux or Windows. In the page, **Settings** tab, **TNC** group, choose the **Radio type** and, for a serial one, the **Port** and **Speed**; for KISS over TCP, the **TCP host** and **TCP port**. On Linux an empty serial port means NeoAPRS searches the USB serial ports; on Windows pick the COM port from the list. **Find my radio**, in the Settings tab and in the setup guide, tries the ports for you (Linux, Windows, macOS). With no radio at all, the type *Dummy* makes up traffic to try NeoAPRS with.
+How to connect your radio or TNC to NeoAPRS, on Linux or Windows. In the page, **Settings** tab, **Radio** group, choose the **Radio type** and, for a serial one, the **Port** and **Speed**; for KISS over TCP, the **TCP host** and **TCP port**. On Linux an empty serial port means NeoAPRS searches the USB serial ports; on Windows pick the COM port from the list. **Find my radio**, in the Settings tab and in the setup guide, tries the ports for you (Linux, Windows, macOS). With no radio at all, the type *Dummy* makes up traffic to try NeoAPRS with.
 
 ## Which radio or TNC do you have?
 
@@ -27,7 +27,7 @@ How to connect your radio or TNC to NeoAPRS, on Linux or Windows. In the page, *
 
 Tried on the air: the Kenwood TH-D7. The other entries follow the radios' manuals and users' reports; "unverified" marks a detail nobody has confirmed.
 
-NeoAPRS sends and receives over RF, and has an optional receive-only iGate that puts what the radio hears on APRS-IS ([the iGate](manual/igate.md)). With the iGate on, the stations of the internet round you also show on the map, marked as such. Nothing from the internet goes to the radio.
+NeoAPRS sends and receives over RF, and can show the stations of the internet round you on the map, marked as such, receive only ([Internet stations](manual/igate.md)). Nothing from the internet goes to the radio.
 
 ## Kenwood TH-D7 and TM-D700
 
@@ -173,7 +173,7 @@ NeoAPRS uses two kinds of Bluetooth. **Classic Bluetooth serial** (the Serial Po
      quit
    ```
 
-2. In NeoAPRS, **Settings** tab, **TNC** group, **Port**: choose the radio, listed by its name as `bt://AA:BB:CC:DD:EE:FF` (Refresh if it is new). The setup guide's radio step lists it too.
+2. In NeoAPRS, **Settings** tab, **Radio** group, **Port**: choose the radio, listed by its name as `bt://AA:BB:CC:DD:EE:FF` (Refresh if it is new). The setup guide's radio step lists it too.
 
 The list is the system's own (BlueZ, which KDE's Bluedevil and the other desktops use), so a radio paired in any of them appears. NeoAPRS opens the Bluetooth link itself: no `rfcomm bind`, no root, no dialout group. The serial channel is looked up on the radio when the port is opened (the TH-D74/D75 use 2, Mobilinkd 1); if the radio lists none, or refuses the one it lists, channels 1 to 3 are tried in turn and the log says which connected. To name it, write it after the address, `bt://AA:BB:CC:DD:EE:FF/2`, with *Other...* in the list. The link is made when NeoAPRS opens the port and drops when the radio sleeps or goes out of range; NeoAPRS opens it again. The list holds the paired devices that have a serial port (a device the system has not yet looked into is listed too). It is read from BlueZ's records and no device is connected to for it. The search for the radio does not look at Bluetooth devices: a `bt://` port is used only when it is chosen. A radio keeps one connection at a time: close the phone app or the other program first. If the open fails with "Connection refused", the channel is wrong (name it); "Host is down" or "no answer" means the radio is off or out of range or its Bluetooth is off.
 
@@ -195,7 +195,7 @@ A Bluetooth LE device offers a *GATT service*, and a KISS TNC has one with two *
 2. **Linux** needs BlueZ running (`bluetoothd`, `systemctl status bluetooth`) and a Bluetooth adapter that does LE. NeoAPRS talks to BlueZ over the system's D-Bus as any user: BlueZ's own D-Bus policy lets every user do that, so no root and no `bluetooth` group (an old distribution's policy may differ; then add the user to the `bluetooth` group). **Windows 10/11** and **macOS** use the system's own Bluetooth LE, and macOS asks once whether the program may use Bluetooth.
 3. **Switch the device on, put it in LE mode and close the phone app.** A BLE device is connected to one program at a time and stops advertising meanwhile; a device that is connected to a phone cannot be found.
 4. **Find its address.** Linux: `bluetoothctl`, `scan le`, and note the address of the device by its name (the Mobilinkd TNC3 advertises itself as `TNC3`; the LoRa APRS Tracker as `LoRaTracker` unless renamed). **macOS** does not give the address: the system gives the device an identifier like `6E6C9C1A-0E5D-4A3B-9D6C-0123456789AB`, which is the address of the port there. A device that asks for a PIN is paired once with the system first (`pair AA:BB:CC:DD:EE:FF` in `bluetoothctl`; the Mobilinkd's is `123456`).
-5. **In NeoAPRS**, **Settings** tab, **TNC** group: Radio type *KISS TNC…*, **Port**, *Other...*, and type `ble://AA:BB:CC:DD:EE:FF`. Or for one run: `neoaprs --port ble://AA:BB:CC:DD:EE:FF`. A Bluetooth LE device is not listed in the Port choice (finding one takes a scan of several seconds), and the search for the radio does not look for them.
+5. **In NeoAPRS**, **Settings** tab, **Radio** group: Radio type *KISS TNC…*, **Port**, *Other...*, and type `ble://AA:BB:CC:DD:EE:FF`. Or for one run: `neoaprs --port ble://AA:BB:CC:DD:EE:FF`. A Bluetooth LE device is not listed in the Port choice (finding one takes a scan of several seconds), and the search for the radio does not look for them.
 
 The port is opened by finding the device by its address (up to 10 s), connecting, looking at its services and using the first of the Mobilinkd/aprs.fi service and the Nordic UART Service that it has; the log (`neoaprs.log`) says which: `connected, using the BLE KISS service ... (none was named)`. To use one only, or another service, write it after the address: `ble://AA:BB:CC:DD:EE:FF/nus`, `ble://AA:BB:CC:DD:EE:FF/mobilinkd`, or the UUID of a GATT service (`ble://AA:BB:CC:DD:EE:FF/ffe0`, as an HM-10 module has: the characteristic that can be written and the one that notifies are then found by what they can do). Bytes are written without a response where the characteristic allows it, in pieces of what the link takes (20 bytes at least). A device that goes out of range, is switched off or is taken by a phone is a line that dropped, and NeoAPRS opens it again after 5, 10, 20, 30 seconds. Failures say what bleak said, or "the device does not answer (is it switched on, in range and not connected to a phone?)".
 

@@ -5,6 +5,7 @@
 import { computed, ref } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
 import { t } from "@/i18n";
+import { useReceiveOnly } from "@/composables/useReceiveOnly";
 import { leftTitle, sendBlockedReason } from "@/lib/compose";
 import { bytesLeft } from "@/lib/messages";
 import { canSendAll } from "@/lib/recipients";
@@ -18,13 +19,14 @@ const text = defineModel<string>("text", { default: "" });
 const input = ref<HTMLInputElement | null>(null);
 
 const left = computed(() => bytesLeft(text.value));
+const rxOnly = useReceiveOnly();
 const ready = computed(() => canSendAll(props.connected, props.to, "", text.value));
 const sendLabel = computed(() => (props.to.length > 1 ? t("messages.send_to", { n: props.to.length }) : t("messages.send")));
 
 defineExpose({ focusText: (): void => input.value?.focus() });
 
 function submit(): void {
-  if (!ready.value) return;
+  if (!ready.value || rxOnly.value) return;
   const [only] = props.to;
   if (props.to.length === 1 && only !== undefined) emit("send", only, text.value);
   else emit("sendMany", [...props.to], text.value);
@@ -44,7 +46,7 @@ function submit(): void {
     <label class="sr-only" for="msg-text">{{ t("messages.compose") }}</label>
     <input id="msg-text" ref="input" v-model="text" class="input compose-text" type="text" :placeholder="t('messages.compose')" autocomplete="off" />
     <template #buttons>
-      <button type="submit" class="btn primary" :disabled="!ready" :title="sendBlockedReason(connected)">{{ sendLabel }}</button>
+      <button type="submit" class="btn primary" :disabled="!ready || rxOnly" :title="sendBlockedReason(connected, rxOnly)">{{ sendLabel }}</button>
     </template>
   </ComposeBar>
 </template>

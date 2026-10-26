@@ -61,7 +61,7 @@ class OwnBulletins(Repeater[str]):
     def post(self, slot: str, text: str) -> OwnBulletin:
         """Puts the text in the slot and sends it at once. Raises PostError, with the reason, when the call is not set, the slot or the text is wrong, or MAX_POSTED are already posted."""
         if not self._config().station_transmit:
-            raise PostError("Receive only: nothing is sent", "transmit.off")
+            raise PostError("RX only: nothing is sent", "transmit.off")
         if reason := can_transmit(self._config()):
             raise PostError(reason)
         name, _, _ = slot_of(slot)

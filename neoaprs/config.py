@@ -31,7 +31,7 @@ class SettingError(CodedError):
         super().__init__(text, code, **params)
         self.key = key
 
-RECEIVE_ONLY = "receive only: transmitting is switched off"      # why can_transmit refuses while station/transmit is false (a refusal to the page has the code "transmit.off" and says "Receive only: nothing is sent")
+RECEIVE_ONLY = "receive only: transmitting is switched off"      # why can_transmit refuses while station/transmit is false (a refusal to the page has the code "transmit.off" and says "RX only: nothing is sent")
 MAX_COMMENT = 43                     # what the comment of a position packet may be, with no data extension (spec 1517)
 MAX_COMMENT_PHG = 36                 # with the 7-byte PHG data extension (spec 1546)
 BEACON_OFF = "the beacon is off"                          # why no beacon and no status report is sent while beacon/interval_min is 0 (a refusal to the page says it in the reason of beacon.not_sent and status.not_sent)

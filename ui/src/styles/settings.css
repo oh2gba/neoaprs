@@ -222,49 +222,28 @@
   margin: 4px 0;
 }
 /* the state of the radio (Settings, Radio) */
-.statepill {
+/* the state of the radio and of the GPS in a status line, plain words in the colour of the state (the marks of the state are the top bar's) */
+.statetext {
   flex: none;
-}
-.statepill.tnc-connected {
-  background: var(--ok);
-}
-.statepill.tnc-dummy {
-  background: var(--muted);
-}
-.statepill.tnc-connecting,
-.statepill.tnc-waiting,
-.statepill.tnc-silent {
-  background: var(--warn);
-}
-.statepill.igate-connected,
-.statepill.igate-listening,
-.statepill.gps-fix,
-.statepill.beacon-on {
-  background: var(--ok);
-}
-.statepill.igate-connecting,
-.statepill.igate-unverified,
-.statepill.gps-connecting,
-.statepill.gps-no_fix,
-.statepill.gps-stale {
-  background: var(--warn);
-}
-/* the iGate group of the Settings tab: the state and the words in one line, and the quiet line of what it never does */
-.igatestatus {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 4px 0 8px;
-}
-.igatestatus .statepill {
-  flex: none;
-}
-.igate-note {
-  margin: 8px 0 0;
+  font-weight: 600;
   color: var(--muted);
 }
-.igate-request {
-  flex: none;
+.statetext.tnc-connected,
+.statetext.gps-fix,
+.statetext.beacon-on {
+  color: var(--ok);
+}
+.statetext.tnc-connecting,
+.statetext.tnc-waiting,
+.statetext.tnc-silent,
+.statetext.gps-connecting,
+.statetext.gps-no_fix,
+.statetext.gps-stale {
+  color: var(--warn);
+}
+/* the Internet group of the Settings tab: one quiet line */
+.igatestatus {
+  margin: 4px 0 8px;
 }
 /* the beacon status at the top of the Beacon tab, in the look of the radio's: the label, the state and the words in one line with Beacon now at its end, and the lines of a moving station under it */
 .beaconstatus {
@@ -282,7 +261,7 @@
 .beaconlabel {
   font-weight: 600;
 }
-.beaconhead .statepill,
+.beaconhead .statetext,
 .beaconhead .btn {
   flex: none;
 }
@@ -329,7 +308,7 @@
   border-width: 8px 5px 0;
   border-color: var(--muted) transparent transparent;
 }
-.radiohead .statepill {
+.radiohead .statetext {
   flex: none;
 }
 .radiohead .btn {

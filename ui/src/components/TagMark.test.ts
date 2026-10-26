@@ -26,7 +26,7 @@ describe("TagMark", () => {
     ".headmail.badge",
     ".fold-badge",
     ".conv .badge",
-    ".statepill",
+    ".statetext",
     ".grid.stations td.call .via",
     ".rxonly",
     ".chip",

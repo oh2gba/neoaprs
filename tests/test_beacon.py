@@ -8,7 +8,7 @@ import pytest
 from neoaprs import TOCALL, ax25
 from neoaprs.aprsparse import parse
 from neoaprs.aprsposition import parse_position
-from neoaprs.config import BEACON_OFF, RECEIVE_ONLY, Config
+from neoaprs.config import RECEIVE_ONLY, Config
 from neoaprs.packet import Status
 from neoaprs.services.beacon import Beacon, BeaconError, phg_text, uncompressed_position
 from neoaprs.source import Source
@@ -396,13 +396,12 @@ async def test_with_the_interval_at_zero_nothing_is_sent_and_nothing_is_due() ->
         await rig.beacon.stop()
 
 
-async def test_while_the_beacon_is_off_a_request_sends_nothing_and_says_so_and_it_is_not_the_interlock(caplog: pytest.LogCaptureFixture) -> None:
+async def test_while_the_beacon_is_off_a_request_still_sends_and_the_timer_does_not(caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.WARNING, "neoaprs.interlock")
     rig = Rig(beacon_interval_min=0)
-    assert not rig.beacon.send_now() and rig.beacon.problem == BEACON_OFF == "the beacon is off"
-    assert rig.tnc.sent == [] and rig.beacon.last_sent is None and not caplog.records, "the interlock is open, so it says nothing"
-    rig.set(beacon_interval_min=30)
-    assert rig.beacon.send_now() and len(rig.tnc.sent) == 1 and rig.beacon.problem == ""
+    assert rig.beacon.send_now() and len(rig.tnc.sent) == 1 and rig.beacon.problem == "" and rig.beacon.last_sent is not None
+    assert not caplog.records, "the interlock is open, so it says nothing"
+    assert rig.beacon.next_due is None, "no timer while it is off"
 
 
 async def test_transmitting_off_is_told_before_the_beacon_being_off() -> None:

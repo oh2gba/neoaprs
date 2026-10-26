@@ -55,7 +55,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.object.symbol": "o símbolo '{table}' '{symbol}' não é uma tabela (/ \\ A-Z 0-9) e um caractere imprimível",
   "error.path.too_long": "{count} digipeaters são mais que os {max} que um caminho pode ter",
   "error.query.not_capable": "{call} não recebe mensagens: não há ninguém para consultar",
-  "error.transmit.off": "Somente recepção: nada é enviado",
+  "error.transmit.off": "RX only: nada é enviado",
   "error.query.too_soon": "{call} acabou de receber a mesma pergunta: aguarde {seconds} s",
   "error.path.direct_alone": "{word} não é um digipeater: escrito sozinho, significa nenhum digipeater",
   "error.setting.comment_too_long": "{length} caracteres são mais que os {limit} permitidos com a extensão PHG (apague beacon/power_w para não enviar)",

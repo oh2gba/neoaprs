@@ -4,7 +4,7 @@ How to connect each radio and TNC is in [`docs/RADIOS.md`](../RADIOS.md). This p
 
 ## The port
 
-The radio's port is the setting `serial/port`. In the Settings tab, in the TNC group (behind the arrow of its status line), it is one choice, **Port**.
+The radio's port is the setting `serial/port`. In the Settings tab, in the Radio group (behind the arrow of its status line), it is one choice, **Port**.
 
 | port | what it is |
 |---|---|
@@ -36,7 +36,7 @@ On Windows and macOS NeoAPRS listens to no port it was not told of, because it c
 
 ## Find my radio
 
-The button **Find my radio**, behind the arrow of the TNC group and under the fields of the Radio step of the setup guide, finds the port, the speed and the type of TNC by itself. In the Settings tab it puts them in the settings like any other change (the toast offers **Undo**); in the setup guide it fills in the fields, and Finish saves them. It works on Linux, Windows and macOS. Nothing happens unless you press it.
+The button **Find my radio**, behind the arrow of the Radio group and under the fields of the Radio step of the setup guide, finds the port, the speed and the type of TNC by itself. In the Settings tab it puts them in the settings like any other change (the toast offers **Undo**); in the setup guide it fills in the fields, and Finish saves them. It works on Linux, Windows and macOS. Nothing happens unless you press it.
 
 - **Linux:** it tries the ports of the search above, one after the other (the by-id name first), and with the default pattern the paired Bluetooth devices after them. The ports a development board is behind, the ones that `serial/skip` names and the ones another program holds are left out, as they are in the search. A TCP address is never tried.
 - **Windows:** it tries the COM ports the system lists (`COM3`, `COM10`; the list shows what Windows calls each, such as *USB Serial Port*, *Prolific*, *Silicon Labs CP210x* or *Mobilinkd*). USB adapters come first, then the other serial ports, and a paired Bluetooth serial port last, because opening one can take seconds. Windows lists two ports for a paired radio; the one that answers is the *Outgoing* one.
@@ -49,7 +49,7 @@ The button **Find my radio**, behind the arrow of the TNC group and under the fi
 
 ## The radio status
 
-The TNC group of the Settings tab is one line, the radio status, with an arrow in front of it. The arrow opens the rest of the group; it is closed unless the radio is not connected.
+The Radio group of the Settings tab is one line, the radio status, with an arrow in front of it. The arrow opens the rest of the group; it is closed unless the radio is not connected.
 
 - The state is a coloured word: connected, waiting, silent, and so on.
 - One plain line follows. "Last packet 2 min ago", "Searching for the radio…" with the ports it listens to behind **Ports**, "Not connected: the reason", or for a silent radio since when it said nothing. The packet and byte counts are its hover text.

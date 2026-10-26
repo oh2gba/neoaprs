@@ -2,6 +2,8 @@
 // The box to post to the message board, at the bottom of the Bulletins tab (ComposeBar, as everywhere): the kind (a bulletin, an announcement, a bulletin to a group) with an (i) that says what they are, the number it has (a capital letter for an announcement), the group
 // of a group bulletin, and the text, with the characters it has left. Post is on when the text can be sent (printable ASCII without | ~ {) and, for a group, the group is one to five letters and digits. The text is
 // cleared when the daemon has the bulletin (the topic `own_bulletins` tells it); one it refused stays for the user to correct. A slot that already holds a text of ours gets the new one in its place.
+import { useReceiveOnly } from "@/composables/useReceiveOnly";
+import { rxOnlyReason } from "@/lib/compose";
 import { computed, reactive, ref, watch } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
 import InfoTip from "@/components/InfoTip.vue";
@@ -16,6 +18,7 @@ const emit = defineEmits<{ post: [slot: string, text: string] }>();
 const draft = reactive<PostDraft>({ kind: "bulletin", id: "1", group: "", text: "" });
 
 const left = computed(() => charsLeft(draft.text));
+const rxOnly = useReceiveOnly();
 const ready = computed(() => canPost(draft));
 const badGroup = computed(() => draft.group.trim() !== "" && !groupOk(draft.group));
 
@@ -87,7 +90,7 @@ function submit(): void {
     <label class="sr-only" for="post-text">{{ t("bulletins.text") }}</label>
     <input id="post-text" v-model="draft.text" class="input compose-text" type="text" :placeholder="t('bulletins.text')" autocomplete="off" />
     <template #buttons>
-      <button type="submit" class="btn primary" :disabled="!ready">{{ t("bulletins.post") }}</button>
+      <button type="submit" class="btn primary" :disabled="!ready || rxOnly" :title="rxOnly ? rxOnlyReason() : undefined">{{ t("bulletins.post") }}</button>
     </template>
   </ComposeBar>
 </template>

@@ -1,5 +1,5 @@
 /* THE tag (components/TagMark.vue): the one small mark of the page, the same height, font and padding wherever it stands (the count in the header and on a tab, the state of the radio, the channel of a station, Receive only, the hops of a chain); the tone only says what it is.
-   The classes a place adds to it (badge, statepill, via, rxonly...) place it and never change its size. */
+   The classes a place adds to it (badge, via, rxonly...) place it and never change its size. */
 .tag {
   display: inline-block;
   box-sizing: border-box;

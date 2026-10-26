@@ -5,7 +5,7 @@ signal `heard`, which the composition root connects to the one gate for packets 
 What it does, with the sources (https://www.aprs-is.net/Connecting.aspx, https://www.aprs-is.net/javAPRSFilter.aspx, and the servers' own answer, which the specification pages leave out):
 
 * The server speaks first, a comment line (`# javAPRSSrvr 4.3.0b13`, `# aprsc 2.1.19`): a first line that is no comment is not an APRS-IS server and the connection is dropped. Lines that start with `#` are comments and are ignored.
-* The client then sends the login line `user CALL pass PASSCODE vers NeoAPRS VERSION filter r/LAT/LON/150`: the filter (the station's position and `FILTER_KM`) is what the server sends on port 14580, which sends nothing without one. It is
+* The client then sends the login line `user CALL pass PASSCODE vers NeoAPRS VERSION filter r/LAT/LON/RADIUS`: the filter (the station's position and the radius of the map, `map/radius_km`) is what the server sends on port 14580, which sends nothing without one. It is
   sent again as `#filter ...` on a connection that is up when it changes (`set_filter`). Without a passcode the login is `pass -1`, the read-only login: the server answers `unverified`, which is no fault, and the connection listens only.
   TCP_NODELAY is set, as the specification asks of a bidirectional client. The call is unique to this program (APRS-IS wants a unique login).
 * The server answers with `# logresp CALL verified, server NAME` or `unverified` (a wrong passcode, or -1). Only a verified login may put data on APRS-IS: with `unverified` nothing is sent. A passcode that was given and refused
@@ -40,7 +40,6 @@ WRITE_SEC = 30.0                                     # a write the server does n
 QUEUE_MAX = 500                                      # lines waiting to be written; the oldest are dropped beyond it
 MAX_LINE = 512                                       # bytes of a line with its CR LF
 READ_LIMIT = 8192                                    # the longest line read from the server
-FILTER_KM = 150                                      # the radius round the station of the filter: what the server sends of the internet
 FILTER_MOVE_KM = 10                                  # the station moves this far and the filter is sent again
 READ_ONLY = "-1"                                     # the passcode of a login that only listens
 NO_SERVER = "no server set: give igate/server the address of an APRS-IS server (host:port)"
@@ -53,9 +52,9 @@ class AprsIsError(Exception):
     """The server is not what a connection should be (the words are the reason, for the operator)."""
 
 
-def range_filter(lat: float, lon: float) -> str:
-    """The filter for the stations within FILTER_KM of a position (degrees, north and east positive; the position to a kilometre or so)."""
-    return f"r/{lat:.2f}/{lon:.2f}/{FILTER_KM}"
+def range_filter(lat: float, lon: float, km: int) -> str:
+    """The filter for the stations within `km` of a position (degrees, north and east positive; the position to a kilometre or so); `km` is the radius of the map (`map/radius_km`)."""
+    return f"r/{lat:.2f}/{lon:.2f}/{km}"
 
 
 def login_line(call: str, password: str, filter_spec: str = "") -> bytes:

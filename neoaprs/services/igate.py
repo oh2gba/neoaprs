@@ -5,7 +5,7 @@ else; it imports neither the Tnc nor `Radio` nor the sender. The one place a pac
 connection and goes to the one gate for packets from the internet (`Services.hear_internet`, neoaprs/wiring.py), not through this service.
 
 With a passcode the iGate gates what the radio hears. Without one (or with one the server does not accept) it only listens: the connection logs in read-only, nothing is gated and our position is not sent, and the stations
-of the internet round us are read all the same. The connection's filter is the circle of FILTER_KM round our position (`aprsis.range_filter`), sent again when the station has moved more than FILTER_MOVE_KM.
+of the internet round us are read all the same. The connection's filter is the circle of the map's radius (`map/radius_km`) round our position (`aprsis.range_filter`), sent again when the station has moved more than FILTER_MOVE_KM or the radius is changed.
 
 Each packet heard (direction in, `Packet.via` in `packet.GATEABLE`: not one from the internet or made up by the Dummy radio, which are counted as not gated, "not from the air") goes through the rules of neoaprs/igaterules.py (the specification's, with where each comes from): it is gated as `SOURCE>DEST,PATH,qAO,OURCALL:INFO`, or counted as not gated with the reason.
 Besides those a packet is not gated when the connection is not logged in and verified (`offline`), and when the same source, destination (without its SSID) and information field was gated in the last DUPLICATE_SEC seconds
@@ -63,6 +63,7 @@ class Igate:
         self._position = position                                    # the information field of our position packet; raises ValueError when there is none to send
         self._where = where                                          # our latitude and longitude, None while there is none: the filter of the connection is round it
         self._filter_at: tuple[float, float] | None = None
+        self._filter_km = 0                                          # the radius of the filter that was sent
         self._read_mark = (0, 0)
         self.clock = clock
         self.duplicate_sec, self.position_sec, self.mobile_every_sec, self.summary_sec, self.tick_sec = duplicate_sec, position_sec, mobile_every_sec, summary_sec, tick_sec
@@ -184,12 +185,12 @@ class Igate:
         self.changed.emit()
 
     def _refresh_filter(self) -> None:
-        """The filter of the connection is round our position: set when it is first known, and again when the station has moved more than FILTER_MOVE_KM since."""
-        here = self._where()
-        if here is None or (self._filter_at is not None and distance_km(*self._filter_at, *here) <= FILTER_MOVE_KM):
+        """The filter of the connection is round our position, as far as the map's radius: set when it is first known, and again when the station has moved more than FILTER_MOVE_KM since or the radius is changed."""
+        here, km = self._where(), self._config().map_radius_km
+        if here is None or (self._filter_at is not None and km == self._filter_km and distance_km(*self._filter_at, *here) <= FILTER_MOVE_KM):
             return
-        self._filter_at = here
-        self._link.set_filter(range_filter(*here))
+        self._filter_at, self._filter_km = here, km
+        self._link.set_filter(range_filter(*here, km))
 
     def _log_read(self) -> None:
         """The hour of what the server sent, in one line: "igate: 3512 packets read from APRS-IS in the last hour, 2 were no packet"."""

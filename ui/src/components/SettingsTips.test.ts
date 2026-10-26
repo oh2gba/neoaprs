@@ -94,7 +94,6 @@ describe("the pictures in the notes of the Settings fields", () => {
     ["web/key", "accesskey"],
     ["map/radius_km", "radius"],
     ["digi/enabled", "digipeater"],
-    ["igate/enabled", "igate"],
     ["gps/source", "position"],
   ];
 

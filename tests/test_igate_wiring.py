@@ -29,6 +29,17 @@ async def started(tmp_path: Path, server: FakeAprsIs, **options: object) -> Env:
     return e
 
 
+async def test_the_map_radius_of_the_settings_is_the_radius_of_the_filter_and_a_change_of_it_from_the_page_sends_the_filter_again(tmp_path: Path) -> None:
+    server = await fake_aprsis()
+    e = await started(tmp_path, server, web=True)
+    page = await e.ws()
+    await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
+    await page.send({"cmd": "set_config", "values": {"map/radius_km": "80"}})
+    await until(lambda: "#filter r/60.17/24.94/80" in server.comments)
+    assert server.connections == 1
+    await e.stop()
+
+
 async def test_a_capture_played_into_the_daemon_is_on_the_server_and_every_packet_is_accounted_for(tmp_path: Path) -> None:
     server = await fake_aprsis()
     e = await started(tmp_path, server)

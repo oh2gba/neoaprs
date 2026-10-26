@@ -1,18 +1,13 @@
 <script setup lang="ts">
-// The status of the iGate group of the Settings tab, in the look of the radio status: the state as a pill and one line (lib/igatestatus.ts), with what was heard and not gated as the line's hover title. The daemon's own reason for a
-// connection that is down is not repeated here: the line says what is missing, or that it is connecting; the reason is the title.
-import TagMark from "@/components/TagMark.vue";
+// The status of the Internet group of the Settings tab: one quiet line (lib/igatestatus.ts), as the radio status has under the TNC group. The state as a mark is in the top bar of the page, not here.
 import { computed } from "vue";
-import { igateCounts, igateStateText, igateStatus } from "@/lib/igatestatus";
+import { igateStatus } from "@/lib/igatestatus";
 import type { IgateState } from "@/protocol/protocol";
 
-const props = defineProps<{ igate: IgateState; values: Readonly<Record<string, string>>; now: number }>();
-const line = computed(() => igateStatus(props.igate, props.values, props.now));
+const props = defineProps<{ igate: IgateState; values: Readonly<Record<string, string>> }>();
+const line = computed(() => igateStatus(props.igate, props.values));
 </script>
 
 <template>
-  <div class="igatestatus">
-    <TagMark tone="muted" class="statepill" :class="`igate-${igate.state}`">{{ igateStateText(igate.state) }}</TagMark>
-    <span class="tncstatus" role="status" :title="igateCounts(igate)">{{ line }}</span>
-  </div>
+  <p class="tncstatus igatestatus" role="status">{{ line }}</p>
 </template>

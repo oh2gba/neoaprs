@@ -11,7 +11,7 @@ describe("RadioStatus", () => {
   it("has the state, one plain line and Reconnect in the heading of a fold, and none of the counters", () => {
     const wrapper = radio(tncState());
     const head = wrapper.find("summary.radiohead");
-    expect(head.find(".statepill").text()).toBe("connected");
+    expect(head.find(".statetext").text()).toBe("connected");
     expect(head.find(".tncstatus").text()).toBe("Last packet 30 s ago");
     expect(head.find(".tncstatus").attributes("title")).toBe("11 packets heard, 2.0 kB in, 0 B out, 0 digipeated");
     expect(head.find("button").text()).toBe("Reconnect");
@@ -38,7 +38,7 @@ describe("RadioStatus", () => {
 
   it("says why it is not connected in the line, once", () => {
     const wrapper = radio(tncState({ state: "waiting", problem: "no KISS frames on /dev/brainbox_3", last_error: "busy" }));
-    expect(wrapper.find(".statepill").classes()).toContain("tnc-waiting");
+    expect(wrapper.find(".statetext").classes()).toContain("tnc-waiting");
     expect(wrapper.find(".tncstatus").text()).toBe("Not connected: no KISS frames on /dev/brainbox_3");
     expect(wrapper.find(".problem").exists()).toBe(false);
   });
@@ -51,8 +51,8 @@ describe("RadioStatus", () => {
 
   it("says since when a silent radio has said nothing", () => {
     const wrapper = radio(tncState({ state: "silent", describe: "silent since 09:00 (7 min)", silent_since: ago(7 * 60) }));
-    expect(wrapper.find(".statepill").text()).toBe("silent");
-    expect(wrapper.find(".statepill").classes()).toContain("tnc-silent");
+    expect(wrapper.find(".statetext").text()).toBe("silent");
+    expect(wrapper.find(".statetext").classes()).toContain("tnc-silent");
     expect(wrapper.find(".tncstatus").text()).toMatch(/^nothing heard since \d\d:\d\d \(7 min\)$/);
   });
 
@@ -116,15 +116,15 @@ describe("RadioStatus", () => {
 
   it("says in a muted pill and in words that the Dummy radio's traffic is made up and nothing goes on the air", () => {
     const wrapper = radio(tncState({ dummy: true, path: "the dummy radio", describe: "dummy radio, made-up traffic, 5 packets, nothing goes on the air" }));
-    expect(wrapper.find(".statepill").text()).toBe("Dummy");
-    expect(wrapper.find(".statepill").classes()).toContain("tnc-dummy");
-    expect(wrapper.find(".statepill").classes()).not.toContain("tnc-connected");
+    expect(wrapper.find(".statetext").text()).toBe("Dummy");
+    expect(wrapper.find(".statetext").classes()).toContain("tnc-dummy");
+    expect(wrapper.find(".statetext").classes()).not.toContain("tnc-connected");
     expect(wrapper.find(".tncstatus").text()).toBe("Dummy radio: made-up traffic, nothing goes on the air");
   });
 
   it("is the Dummy's pill and line only while its line is open: before that it is a radio like the others", () => {
     const wrapper = radio(tncState({ dummy: true, state: "connecting", path: "" }));
-    expect(wrapper.find(".statepill").text()).toBe("connecting");
+    expect(wrapper.find(".statetext").text()).toBe("connecting");
     expect(wrapper.find(".tncstatus").text()).toBe("Connecting…");
   });
 

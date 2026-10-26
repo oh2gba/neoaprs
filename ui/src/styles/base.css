@@ -89,11 +89,6 @@ a {
   cursor: pointer;
   text-decoration: underline;
 }
-/* the mark of a station that transmits nothing (a tag in the warning colour, outlined); it is a mark with a hover title, not a button */
-.rxonly {
-  flex: none;
-  cursor: help;
-}
 button.status {
   padding: 0;
   border: 0;

@@ -10,20 +10,19 @@ import SettingsForm from "@/components/SettingsForm.vue";
 import { t } from "@/i18n";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useSendNow } from "@/composables/useSendNow";
+import { rxOnlyReason } from "@/lib/compose";
 import { NONE } from "@/lib/format";
-import { beaconOff } from "@/lib/beaconoff";
 import { statusSource } from "@/lib/status";
 import { computed, toRef } from "vue";
 
 const props = withDefaults(defineProps<{ picking?: boolean; picked?: Picked | null }>(), { picking: false, picked: null });
 const emit = defineEmits<{ pickPosition: [] }>();
 
-const { status, connected, now, config, send, settings, gps } = useDaemonContext();
+const { status, connected, now, config, send, settings, gps, receiveOnly } = useDaemonContext();
 const sending = useSendNow(connected, settings.saving, toRef(props, "picking"), () => emit("pickPosition"));
-/** The beacon is Off (what is saved says so): neither button sends anything, and the tip says why. */
-const off = computed(() => config.value !== null && beaconOff(config.value.values));
-const ready = computed(() => sending.ready.value && !off.value);
-const why = computed(() => (off.value ? t("beacon.off_why") : sending.why.value));
+/** Beacon now and Send status now send while the beacon is Off (that is only no automatic beacon); RX only (transmitting switched off) is what turns them off, and the title says so. */
+const ready = computed(() => sending.ready.value && !receiveOnly.value);
+const why = computed(() => (receiveOnly.value ? rxOnlyReason() : sending.why.value));
 
 const current = computed(() => {
   const text = status.value?.station_status ?? "";

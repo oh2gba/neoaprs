@@ -14,21 +14,20 @@ The **Beacon** choice is the one control that switches the beacon on and off. A 
 
 While the beacon is **Off**:
 
-* **No beacon goes out.** There is no timer and no SmartBeaconing, and **Beacon now** is disabled with the tip that the beacon is off.
-* **No status report goes out** either, because the status is the beacon's companion: **Send status now** is disabled in the same way, and a status that came due meanwhile is sent once, if it differs from the last one, at the first poll after you switch the beacon on again.
-* **Everything else goes on as it does.** Messages and emails are sent and acknowledged, queries to your call are answered, your objects and bulletins are sent, and the fill-in digipeater digipeats. Off is not [receive only](#receive-only): your station still takes part, it just does not announce itself.
+* **No automatic beacon goes out.** There is no timer and no SmartBeaconing. **Beacon now** still sends, and so does **Send status now**, each with its usual second press: Off is no automatic beacon, not a lock.
+* **No automatic status report goes out** either, because the status is the beacon's companion; a status that came due meanwhile is sent once, if it differs from the last one, at the first poll after you switch the beacon on again.
+* **Everything else goes on as it does.** Messages and emails are sent and acknowledged, queries to your call are answered, your objects and bulletins are sent, and the fill-in digipeater digipeats. Off is not [RX only](#rx-only): your station still takes part, it just does not announce itself by the clock.
 * The **beacon status** at the top of the tab reads **Beacon off**, with its pill off, for a fixed station. For a station that follows a GPS it keeps showing the GPS (its pill and the fix line) and says **Beacon off** on the line under it, so that you can watch the fix while nothing is sent.
-* The fields that belong to the beacon and the status are shown **greyed out, with their values kept**, not hidden: **Travelling**, the comment, the fields of the **Antenna** heading, the path in **Advanced**, and everything in the **Status** group. The two headings still open. The **Station** group (call, **Position**, the GPS fields, the location and the symbol) is never greyed.
+* Only the **timing** is shown **greyed out, with its value kept**: **Travelling** and the status's **Every**. What is sent (the location, the symbol, the comment, the antenna, the path, the status text) stays editable, for **Beacon now** sends it. A header mark **Beacon off** (grey) says so, and opens this tab.
 
 Choosing an interval, or **On**, turns it all on again. Choosing **On** for a moving station that was off stores the interval of 30 minutes, which a moving station does not use but which keeps the setting valid.
 
-## Receive only
+## RX only
 
-Receive only is a setting of the daemon for a station that must never key the transmitter at all, such as a receiving-only station or a test bench. It is `station/transmit`, `true` by default, and it is not on the page: set it with `neoaprs db set station/transmit false`, which the daemon takes at its next start. It is not the same as the beacon being off ([Beacon off](#beacon-off)), which only silences the beacon and the status.
+**Settings → Radio → Transmit** is a tickbox, ticked by default. Unticked, the station is **RX only**: nothing at all is transmitted, whoever asks and whatever is due: no beacon, status, message, ack, answer to a query, object, bulletin or digipeated packet. It is the setting `station/transmit`, takes effect at once with no restart, and holds after a restart of the daemon. It is not the same as the beacon being off ([Beacon off](#beacon-off)), which only silences the clock.
 
-While `station/transmit` is `false` nothing at all is transmitted, whoever asks and whatever is due: no beacon, status, message, ack, answer to a query, object, bulletin or digipeated packet. The page shows an amber **Receive only** badge beside the title in its header, on every screen size; it is only a mark, not a button, and its hover title says what it means and where it is set. The setting is kept in the database, so it holds after a restart of the daemon.
+While you are RX only the header has an amber **RX only** mark (it opens Settings → Radio), the beacon's fields on this tab are greyed, and every button that sends is off with the title "RX only: nothing is sent": **Beacon now**, **Send status now**, a message, an email, an object, a bulletin and the queries of a station's menu. The daemon refuses the same with the code `transmit.off`.
 
-* **Beacon now**, **Send status now**, a message, an email, an object or a bulletin you send meanwhile is refused at once with the toast "Receive only: nothing is sent" (the wire gives the code `transmit.off`).
 * A message that was already being sent waits: no attempt is used up and it does not fail, and the waits that were running are moved on by the time transmitting was off. It goes on when transmitting is switched on again. A message you receive is kept, but its ack is not sent and not kept for later; the station that sent it will try again.
 * Timers do not catch up. A beacon or a status that came due meanwhile goes out once, at the first moment after transmitting is switched on, and the next one an interval after that; objects and bulletins that are due follow one at a time, with the usual pause between frames, so there is never a burst.
 

@@ -8,7 +8,6 @@ import pytest
 from neoaprs import ax25
 from neoaprs.aprsposition import parse_position
 from neoaprs.clock import utc
-from neoaprs.config import BEACON_OFF
 from neoaprs.services.beacon import Beacon, BeaconError, NoFix
 from neoaprs.services.queries import Queries
 from neoaprs.source import Source
@@ -249,14 +248,14 @@ def test_the_interval_of_the_fixed_beacon_is_only_on_or_off_for_a_moving_station
         assert len(rig.tnc.sent) == 2 and rig.beacon.last_reason == "time", f"{minutes}: SmartBeaconing times it at 54 km/h, not the interval"
 
 
-def test_with_the_interval_at_zero_the_moving_station_sends_nothing_by_the_timer_or_on_request_and_says_the_beacon_is_off() -> None:
+def test_with_the_interval_at_zero_the_moving_station_sends_nothing_by_the_timer_and_beacon_now_still_sends() -> None:
     rig = Rig(beacon_interval_min=0)
     for _ in range(3):
         rig.tick()
         rig.clock.advance(600)
         rig.move(speed=90.0, course=10)                                                 # (a fast station that turns, with a fix: SmartBeaconing would say send)
     assert rig.tnc.sent == [] and rig.beacon.last_sent is None and rig.beacon.next_due is None and rig.beacon.mobile.last is None
-    assert not rig.beacon.send_now() and rig.beacon.problem == BEACON_OFF and rig.tnc.sent == []
+    assert rig.beacon.send_now() and len(rig.tnc.sent) == 1, "Beacon now is asked for, so it sends, with a fix"
 
 
 async def test_switching_a_moving_station_off_and_on_stops_and_resumes_smartbeaconing() -> None:

@@ -6,9 +6,16 @@ export const shell: Record<keyof typeof source, Message> = {
   "common.dismiss": "閉じる",
 
   "header.project_title": "NeoAPRSプロジェクトのページ",
-  "header.receive_only": "受信専用",
-  "header.receive_only_title":
-    "何も送信されません。この局は受信専用に設定されています。これはデーモンの設定 station/transmit で、このページにはありません。neoaprs db set station/transmit true で変更し、次回の起動から有効になります",
+  "pill.rx": "RX only",
+  "pill.rx_title": "RX only:何も送信しません。設定 → 無線機 → 送信",
+  "pill.beacon_off": "ビーコン停止",
+  "pill.beacon_off_title": "ビーコン停止:自動のビーコンとステータスは送りません。「今すぐビーコン」は送ります。ビーコンタブ",
+  "pill.internet": "Internet",
+  "pill.internet_title": "インターネット:APRS-ISの局を地図に表示(受信のみ)。設定 → インターネット",
+  "pill.gps": "GPS",
+  "pill.gps_fix_title": "GPS:測位済み。ビーコンタブ",
+  "pill.gps_nofix_title": "GPS:まだ測位していません。ビーコンタブ",
+  "pill.rx_send": "RX only:何も送信しません",
   "header.no_call": "コールサイン未設定",
   "header.no_call_title": "コールサインを設定するまで何も送信されません。設定を開きます",
   "header.unread_open": {

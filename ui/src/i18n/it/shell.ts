@@ -5,9 +5,16 @@ export const shell: Readonly<Record<keyof typeof en, Message>> = {
   "common.dismiss": "Chiudi",
 
   "header.project_title": "La pagina del progetto NeoAPRS",
-  "header.receive_only": "Solo ricezione",
-  "header.receive_only_title":
-    "Non si trasmette nulla: questa stazione è impostata in sola ricezione. È l’impostazione station/transmit del servizio, che non è in questa pagina; neoaprs db set station/transmit true la cambia al prossimo avvio",
+  "pill.rx": "RX only",
+  "pill.rx_title": "RX only: non si invia nulla. Impostazioni → Radio → Trasmetti",
+  "pill.beacon_off": "Beacon spento",
+  "pill.beacon_off_title": "Beacon spento: nessun beacon né stato automatici. Invia beacon ora invia comunque. Scheda Beacon",
+  "pill.internet": "Internet",
+  "pill.internet_title": "Internet: le stazioni di APRS-IS sono sulla mappa, solo ricezione. Impostazioni → Internet",
+  "pill.gps": "GPS",
+  "pill.gps_fix_title": "GPS: fix. Scheda Beacon",
+  "pill.gps_nofix_title": "GPS: ancora nessun fix. Scheda Beacon",
+  "pill.rx_send": "RX only: non si invia nulla",
   "header.no_call": "nessun nominativo",
   "header.no_call_title": "Non si trasmette nulla finché non è impostato un nominativo: apri la configurazione guidata",
   "header.unread_open": {

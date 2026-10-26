@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from neoaprs import ax25
-from neoaprs.config import BEACON_OFF, RECEIVE_ONLY
+from neoaprs.config import RECEIVE_ONLY
 from neoaprs.rigctld import RigError, read_rig
 from neoaprs.services.beacon import Beacon
 from neoaprs.services.rigstatus import RigStatus, clipped, freq_text
@@ -217,20 +217,19 @@ async def test_no_status_goes_out_while_the_beacon_is_off_and_the_held_back_one_
         await rig.status.poll()
         rig.clock.advance(3 * 3600)
     assert rig.tnc.sent == [] and rig.status.last_text == "" and rig.status.last_sent_at is None and rig.status.rig_state == "on"
-    assert await rig.status.send_now() == BEACON_OFF == "the beacon is off"
     assert rig.tnc.sent == [] and not [r for r in caplog.records if "no status sent" in r.getMessage()], "it is not a fault, so the log does not say it"
     rig.set(beacon_interval_min=30)
     await rig.status.poll()
     assert rig.tnc.lines() == [FIRST.replace("211200z", rig.clock().strftime("%d%H%M") + "z")] and rig.status.last_text == "QRV 14.074 MHz USB"
 
 
-async def test_send_now_is_refused_while_the_beacon_is_off_for_a_text_too_and_goes_when_it_is_on() -> None:
+async def test_send_now_still_sends_while_the_beacon_is_off_for_a_text_and_the_poll_does_not() -> None:
     rig = Rig(None, station_status="QRV 145.500", status_source="text", beacon_interval_min=0)
-    assert await rig.status.send_now() == BEACON_OFF and rig.tnc.sent == []
     await rig.status.poll()
     assert rig.tnc.sent == []
-    rig.set(beacon_interval_min=60)
     assert await rig.status.send_now() == "" and len(rig.tnc.sent) == 1
+    rig.set(beacon_interval_min=60)
+    assert await rig.status.send_now() == "" and len(rig.tnc.sent) == 2
 
 
 async def test_a_status_that_is_off_or_transmitting_off_is_told_before_the_beacon_being_off() -> None:

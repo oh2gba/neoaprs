@@ -9,7 +9,6 @@ export const beacon = {
   "beacon.line.untimed_none": "No beacon sent yet · no timed beacon",
   "beacon.line.off": "Beacon off",
   "beacon.beacon_now": "Beacon now",
-  "beacon.off_why": "The beacon is off: no beacon and no status are sent",
   "beacon.status": "Status",
   "beacon.send_status_now": "Send status now",
   "beacon.really_send": "Really send?",

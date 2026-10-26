@@ -28,6 +28,7 @@ import { useStationPrefs } from "@/composables/useStationPrefs";
 import { useTitle } from "@/composables/useTitle";
 import { agingOf, type Aging } from "@/lib/aging";
 import { pathCalls } from "@/lib/calls";
+import { headerPills } from "@/lib/pills";
 import { recommendedPath } from "@/lib/symbols";
 import type { ConfigValues } from "@/protocol/protocol";
 
@@ -60,6 +61,7 @@ function useDerived(daemon: ReturnType<typeof useDaemon>) {
     dark: useDark(),
     aging: computed<Aging>(() => agingOf(config.value?.values)),
     receiveOnly: computed(() => config.value?.values["station/transmit"] === "false"),
+    pills: computed(() => headerPills(config.value?.values ?? {}, daemon.gps.value, daemon.igate.value)),
     call: computed<string | null>(() => config.value?.values["station/call"] ?? status.value?.call ?? null),
     home: useHome(config, status),
     fallbackPath: computed(() => {

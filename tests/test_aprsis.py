@@ -6,7 +6,7 @@ import logging
 import pytest
 
 from neoaprs import PROGRAM, VERSION
-from neoaprs.aprsis import FILTER_KM, MAX_LINE, NO_SERVER, UNVERIFIED, AprsIs, login_line, logresp_of, range_filter
+from neoaprs.aprsis import MAX_LINE, NO_SERVER, UNVERIFIED, AprsIs, login_line, logresp_of, range_filter
 from neoaprs.packet import IS, Packet
 from neoaprs.source import Backoff, Source
 from tests.support.clock import FixedClock
@@ -36,8 +36,8 @@ def test_no_passcode_is_the_read_only_login() -> None:
     assert login_line(CALL, "") == f"user {CALL} pass -1 vers {PROGRAM} {VERSION}\r\n".encode()
 
 
-def test_the_filter_is_the_circle_of_150_km_round_the_position_to_a_hundredth_of_a_degree() -> None:
-    assert FILTER_KM == 150 and range_filter(60.1699, 24.9384) == "r/60.17/24.94/150" and range_filter(-33.8688, 151.2093) == "r/-33.87/151.21/150"
+def test_the_filter_is_the_circle_of_the_given_radius_round_the_position_to_a_hundredth_of_a_degree() -> None:
+    assert range_filter(60.1699, 24.9384, 150) == "r/60.17/24.94/150" and range_filter(-33.8688, 151.2093, 50) == "r/-33.87/151.21/50"
 
 
 @pytest.mark.parametrize(("line", "want"), [

@@ -18,8 +18,8 @@ const ports = (find = true): PortsMessage => ({
 function make(more: Given = {}, extra: Record<string, string> = {}) {
   const daemon = fakeDaemon({ config: configValues(extra), tnc: tncState(), ports: ports(), ...more });
   const wrapper = mount(SettingsForm, { props: { scope: "settings" }, global: withDaemon(daemon) });
-  const group = wrapper.findAll("fieldset").find((f) => f.find("legend").text() === "TNC");
-  if (!group) throw new Error("no TNC group");
+  const group = wrapper.findAll("fieldset").find((f) => f.find("legend").text() === "Radio");
+  if (!group) throw new Error("no Radio group");
   return { wrapper, group, daemon, send: daemon.send };
 }
 
@@ -30,13 +30,16 @@ describe("the TNC group of the Settings tab", () => {
     const { group } = make();
     expect(fold(group).element.open).toBe(false);
     const head = fold(group).find("summary.radiohead");
-    expect(head.find(".statepill").text()).toBe("connected");
+    expect(head.find(".statetext").text()).toBe("connected");
     expect(head.find(".tncstatus").text()).toBe("Last packet 30 s ago");
     expect(head.find("button").text()).toBe("Reconnect");
     // everything else of the group is inside the fold
     for (const id of ["#set-tnc-profile", "#set-serial-port", "#set-serial-baud", "#find-radio"]) expect(fold(group).find(id).exists(), id).toBe(true);
-    expect(group.findAll("select, input, .tnclines").every((e) => fold(group).element.contains(e.element))).toBe(true);
-    expect(group.find("legend").element.nextElementSibling).toBe(fold(group).element);
+    expect(
+      group.findAll("select, input, .tnclines").every((e) => fold(group).element.contains(e.element) || e.attributes("id") === "set-station-transmit"),
+    ).toBe(true);
+    expect(group.find("legend").element.nextElementSibling).toBe(group.find(".field").element); // (the Transmit tickbox is the first row)
+    expect(group.find(".field").element.nextElementSibling).toBe(fold(group).element);
   });
 
   it("is open when the radio is not connected, and opens when it stops being connected", async () => {

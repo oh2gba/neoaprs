@@ -1,7 +1,10 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import AppHeader from "@/components/AppHeader.vue";
+import { t } from "@/i18n";
+import { headerPills } from "@/lib/pills";
 import { cssRule, mediaRule } from "@/test/css";
+import { gpsState, igateState } from "@/test/fixtures";
 
 const header = (props: Partial<InstanceType<typeof AppHeader>["$props"]> = {}) => mount(AppHeader, { props: { call: "OH2GBA", unread: 0, ...props } });
 
@@ -63,35 +66,57 @@ describe("AppHeader", () => {
     expect(header({ call: null }).find(".nocall").exists()).toBe(false);
   });
 
-  it("shows the amber Receive only badge beside the title while transmitting is off, a plain badge and not a button", async () => {
-    const wrapper = header({ receiveOnly: true });
-    const badge = wrapper.find(".rxonly");
-    expect(badge.text()).toBe("Receive only");
-    expect(badge.element.tagName).toBe("SPAN");
-    expect(badge.element.previousElementSibling?.tagName).toBe("H1");
-    expect(badge.classes()).toEqual(expect.arrayContaining(["tag", "tag-warn-outline"]));
-    expect(cssRule(".tag-warn-outline")).toMatch(/color:\s*var\(--warn\)/);
-    expect(cssRule(".rxonly")).not.toMatch(/cursor:\s*pointer/);
-    expect(wrapper.findAll("button").some((b) => b.text() === "Receive only")).toBe(false);
-    expect(badge.attributes("tabindex")).toBeUndefined();
-    await badge.trigger("click");
-    expect(wrapper.emitted()).not.toHaveProperty("receive");
-    expect(wrapper.emitted("setup")).toBeUndefined();
-    expect(header().find(".rxonly").exists()).toBe(false);
-    expect(header({ receiveOnly: false }).find(".rxonly").exists()).toBe(false);
+  const pills = (values: Record<string, string>, gps: Parameters<typeof headerPills>[1] = null, igate: Parameters<typeof headerPills>[2] = null) =>
+    headerPills(values, gps, igate);
+
+  it("shows the marks before the count of messages, in the one TagMark style, each a button with a hover title", () => {
+    const wrapper = header({ unread: 2, pills: pills({ "station/transmit": "false", "gps/source": "gpsd" }, null, igateState()) });
+    const marks = wrapper.findAll(".headpills .tag");
+    expect(marks.map((m) => m.text())).toEqual(["RX only", "Internet", "GPS"]);
+    expect(marks.every((m) => m.element.tagName === "BUTTON" && m.classes().includes("tag"))).toBe(true);
+    expect(marks.every((m) => (m.attributes("title") ?? "") !== "")).toBe(true);
+    expect(wrapper.find(".headpills").element.nextElementSibling?.classList.contains("headmail")).toBe(true);
+    expect(wrapper.find(".headpills").element.previousElementSibling?.tagName).toBe("H1");
   });
 
-  it("says in the hover title of the badge what it means and where it is set: the daemon's setting station/transmit, not on the page", () => {
-    const title = header({ receiveOnly: true }).find(".rxonly").attributes("title");
-    expect(title).toContain("Nothing is transmitted: this station is set to receive only");
-    expect(title).toContain("station/transmit");
-    expect(title).toContain("not on this page");
-    expect(title).toContain("neoaprs db set station/transmit true");
-    expect(title).toContain("next start");
+  it("has RX only in amber while transmitting is off, and the others as they are: Beacon off grey only while transmitting is on, Internet blue, GPS blue with a fix and amber without", () => {
+    const rx = header({ pills: pills({ "station/transmit": "false", "beacon/interval_min": "0" }) }).findAll(".headpills .tag");
+    expect(rx.map((m) => m.text())).toEqual(["RX only"]);
+    expect(rx[0]?.classes()).toContain("tag-warn");
+    expect(rx[0]?.classes()).toContain("rxonly");
+    const off = header({ pills: pills({ "station/transmit": "true", "beacon/interval_min": "0" }) }).findAll(".headpills .tag");
+    expect(off.map((m) => m.text())).toEqual(["Beacon off"]);
+    expect(off[0]?.classes()).toContain("tag-muted");
+    const net = header({ pills: pills({}, null, igateState()) }).findAll(".headpills .tag");
+    expect(net.map((m) => [m.text(), m.classes().includes("tag-count")])).toEqual([["Internet", true]]);
+    const fix = header({ pills: pills({ "gps/source": "gpsd" }, gpsState({ state: "fix" })) }).find(".headpills .pill-gps");
+    expect(fix.classes()).toContain("tag-count");
+    const none = header({ pills: pills({ "gps/source": "gpsd" }, gpsState({ state: "no_fix" })) }).find(".headpills .pill-gps");
+    expect(none.classes()).toContain("tag-warn");
+    expect(header({ pills: [] }).find(".headpills").exists()).toBe(false);
   });
 
-  it("has no hit area of a finger around the badge, which does nothing", () => {
-    expect(mediaRule("(pointer: coarse)", ".rxonly::after")).toBe("");
+  it("opens the place where a mark is set when it is clicked: Settings for RX only and Internet, the Beacon tab for Beacon off and GPS", async () => {
+    const wrapper = header({ pills: pills({ "station/transmit": "false", "gps/source": "gpsd" }, null, igateState()) });
+    for (const mark of wrapper.findAll(".headpills .tag")) await mark.trigger("click");
+    expect(wrapper.emitted("open")).toEqual([["settings"], ["settings"], ["beacon"]]);
+  });
+
+  it("says in the hover title what a mark means and where it is set, in a few words", () => {
+    const titles = Object.fromEntries(headerPills({ "station/transmit": "false", "gps/source": "gpsd" }, null, igateState()).map((p) => [p.id, t(p.title)]));
+    expect(titles.rx).toBe("RX only: nothing is sent. Settings → Radio → Transmit");
+    expect(titles.internet).toContain("Settings → Internet");
+    expect(titles.gps).toContain("Beacon tab");
+  });
+
+  it("lets the marks give way and never pushes the count off: they clip from the end, the count does not shrink", () => {
+    expect(cssRule(".headpills")).toMatch(/overflow:\s*hidden/);
+    expect(cssRule(".headpills")).toMatch(/min-width:\s*0/);
+    expect(cssRule(".headpill")).toMatch(/flex:\s*none/);
+    expect(cssRule(".headmail")).toMatch(/flex:\s*none/);
+  });
+
+  it("has no hit area of a finger around the badge of the count only where a mark is", () => {
     expect(mediaRule("(pointer: coarse)", ".nocall::after")).toContain("inset");
   });
 

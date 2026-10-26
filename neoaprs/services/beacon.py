@@ -6,7 +6,7 @@ set; the comment may then be 36 characters, 43 otherwise (`Config.comment_limit`
 A mobile beacon (services/mobilebeacon.py, neoaprs/smartbeacon.py) is the position, course, speed and altitude of the GPS fix (the services/gps.py `current()`, a fix that is not older than GPS_STALE_SEC), a compressed position without PHG; the
 timer asks SmartBeaconing at every tick instead of waiting for an interval (`beacon/interval_min` is only On or Off there: any value but 0 is On, and it is not used), `next_due` is the time the speed of the fix says the next beacon by time is due, and `mobile` remembers the last beacon (when, the course, why:
 `start` for the first fix of the run, `time`, `turn`, `request`). With no fix, none yet or none fresh, no beacon is built or sent at all (`NoFix`), and `problem` says why; the home position of the settings is never put in its place.
-The beacon is off while `beacon/interval_min` is 0 (`Config.beacon_on`), for a moving station too: no timer, no SmartBeaconing, and `send_now` (Beacon now) sends nothing and says `BEACON_OFF`. Off is not receive only: nothing else changes.
+The beacon is off while `beacon/interval_min` is 0 (`Config.beacon_on`), for a moving station too: no timer, no SmartBeaconing, and `send_now` (Beacon now) still sends, for it is asked for. Off is not RX only: transmitting is switched off by `station/transmit`, which is the interlock's.
 The status report (`status_frame(text)`: `>` and the time as `DDHHMMz`, then the text, at most 55 printable ASCII characters without `|` and `~`) is made here, by the same tocall and path, but sent by services/rigstatus.py, not after each beacon.
 
 The timer is a task that looks at the clock once a `tick_sec`, so a test moves the clock and the beacon follows. The first beacon is `first_delay_sec` after the start (the radio and the TNC
@@ -24,7 +24,7 @@ from neoaprs import ax25
 from neoaprs.aprsposition import uncompressed_position
 from neoaprs.callsign import call_problem
 from neoaprs.clock import Clock, utcnow
-from neoaprs.config import ANTENNA_DIRECTIONS, BEACON_OFF, BEACON_SENT, SYMBOL_TABLES, Config, can_transmit
+from neoaprs.config import ANTENNA_DIRECTIONS, BEACON_SENT, SYMBOL_TABLES, Config, can_transmit
 from neoaprs.configstatus import MAX_STATUS
 from neoaprs.configtypes import over_the_air_problem, over_the_air_refusal
 from neoaprs.gpsfix import Fix
@@ -187,11 +187,9 @@ class Beacon:
     # ---- sending
     def send_now(self, reason: str = "request") -> bool:
         """Sends the beacon through the Tnc and notes when and why; the interval counts from now (a mobile station's SmartBeaconing from this beacon). False (and `problem` says why) when the Tnc is not connected or
-        the radio is silent, would not take it, the settings make no frame, or a mobile station has no fresh fix. Nothing is sent while the call is not set or transmitting is off (the interlock), nor while the beacon is off."""
+        the radio is silent, would not take it, the settings make no frame, or a mobile station has no fresh fix. Nothing is sent while the call is not set or transmitting is off (the interlock); the beacon being Off does not stop it: Off is no automatic beacon, and Beacon now still sends."""
         if refusal := self._interlock.refused("beacon"):
             return self._failed(refusal)
-        if not self._config().beacon_on:
-            return self._failed(BEACON_OFF)
         try:
             frame, fix = self._build()
         except NoFix as e:

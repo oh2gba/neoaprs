@@ -99,6 +99,13 @@ function field(spec: FieldSpec): FieldInfo {
 const GAIN = LIMITS.range["beacon/antenna_gain_db"];
 
 const SPECS: Record<string, FieldSpec> = {
+  "station/transmit": {
+    name: "settings.transmit.name",
+    label: "settings.transmit.label",
+    kind: "bool",
+    tipLabel: "settings.transmit.tip_label",
+    tip: ["settings.transmit.tip1"],
+  },
   "station/call": { label: "settings.call.label", tip: ["settings.call.tip1", "settings.call.tip2"], picture: "ssid" },
   "station/lat": { label: "settings.lat.label", unit: "°" },
   "station/lon": { label: "settings.lon.label", unit: "°" },
@@ -200,10 +207,8 @@ const SPECS: Record<string, FieldSpec> = {
     label: "settings.igate.label",
     kind: "bool",
     tipLabel: "settings.igate.tip_label",
-    tip: ["settings.igate.tip1", "settings.igate.tip2"],
-    picture: "igate",
+    tip: ["settings.igate.tip1"],
   },
-  "igate/password": { label: "settings.igate_password.label", kind: "password", empty: "settings.none", tip: ["settings.igate_password.tip1"] },
   "messages/alert": { name: "settings.alert.label", label: "settings.alert.label", kind: "bool", tip: ["settings.alert.tip1"] },
   "messages/alert_command": { name: "settings.alert_command.name", label: "settings.alert_command.label", tip: ["settings.alert_command.tip1"] },
   "status/source": {
@@ -274,13 +279,12 @@ export const FIELDS: Record<string, FieldInfo> = Object.fromEntries(Object.entri
 /** The settings of the daemon's own alert, which the Notifications group shows (beside the alert of the browser, which is the page's). */
 const ALERT = ["messages/alert", "messages/alert_command"];
 
-/** Whether the iGate is switched on in these values (it is off unless the values say so). */
+/** Whether the Internet switch (Receive only: the stations of APRS-IS on the map) is on in these values; it is off unless the values say so. */
 export const igateOn = (values: Readonly<Record<string, string>>): boolean => values["igate/enabled"] === "true";
 
-/** Whether a setting that depends on a switch is shown: the alert's command (and its Test button) only while the alert is on (an alert the values do not mention is the daemon's default, on), the iGate's passcode only while the iGate is on. */
+/** Whether a setting that depends on a switch is shown: the alert's command (and its Test button) only while the alert is on; an alert the values do not mention is the daemon's default, on. */
 function shownBySwitch(key: string, values: Readonly<Record<string, string>>): boolean {
-  if (key === "messages/alert_command") return values["messages/alert"] !== "false";
-  return key !== "igate/password" || igateOn(values);
+  return key !== "messages/alert_command" || values["messages/alert"] !== "false";
 }
 
 /** The legend of the box that starts at a key inside its group (components/SettingsBox.vue): the daemon's own alert, which runs on the computer NeoAPRS runs on, whichever device shows the page. */
@@ -314,8 +318,8 @@ interface Group {
 }
 
 const GROUPS: { id: string; title: MessageId; prefixes: string[]; also?: string[]; except?: string[] }[] = [
-  { id: "station", title: "settings.group.station", prefixes: ["station/", "gps/"], except: ["station/status", "station/comment"] },
-  { id: "serial", title: "settings.group.tnc", prefixes: ["tnc/", "serial/", "tcp/"] },
+  { id: "station", title: "settings.group.station", prefixes: ["station/", "gps/"], except: ["station/status", "station/comment", "station/transmit"] },
+  { id: "serial", title: "settings.group.tnc", prefixes: ["tnc/", "serial/", "tcp/"], also: ["station/transmit"] },
   { id: "igate", title: "settings.group.igate", prefixes: ["igate/"] },
   { id: "web", title: "settings.group.web", prefixes: ["web/"] },
   { id: "notifications", title: "settings.group.notifications", prefixes: [], also: ALERT },
@@ -332,8 +336,8 @@ const SCOPE_GROUPS: Record<Scope, readonly string[]> = {
   settings: ["serial", "igate", "digi", "web", "notifications", "map"],
 };
 
-/** The order of the TNC group on the page: the type of TNC, the port and its speed, or the host and port of a TCP one. */
-const TNC_ORDER = ["tnc/profile", "serial/port", "serial/baud", "tcp/host", "tcp/port", "serial/last_port"];
+/** The order of the TNC group on the page: the Transmit switch, the type of TNC, the port and its speed, or the host and port of a TCP one. */
+const TNC_ORDER = ["station/transmit", "tnc/profile", "serial/port", "serial/baud", "tcp/host", "tcp/port", "serial/last_port"];
 
 /** The Status group: the choice first, then Every (as the Beacon group has the interval with its choice), then what the chosen source needs. */
 const STATUS_ORDER = ["status/source", "status/interval_min", "station/status", "status/rigctld", "status/template"];
@@ -363,16 +367,16 @@ function rank(order: readonly string[], key: string): number {
   return at < 0 ? order.length : at;
 }
 
-/** Settings that stay in the daemon (`neoaprs db set`) and are not on the page: whether the station may transmit at all (`station/transmit`, for an SWL or a test bench; the header still marks a station that is set to receive only), the address the update check asks, the APRS-IS server of the iGate (igate/server; its default is the round-robin name of the volunteer servers), which ports the search for the radio looks at and leaves alone, and the port and the host names of the page itself
+/** Settings that stay in the daemon (`neoaprs db set`) and are not on the page: the address the update check asks, the APRS-IS server and the passcode of the Internet switch (igate/server, whose default is the round-robin name of the volunteer servers, and igate/password, which only a person who gates for the radio sets), which ports the search for the radio looks at and leaves alone, and the port and the host names of the page itself
  * (the defaults suit nearly everyone, and the daemon moves to a free port and says which in the log), and the map's detail (12, streets), source (the latest daily build). The map download uses the stored values, so a custom source or detail still works. */
 const NOT_ON_THE_PAGE: readonly string[] = [
-  "station/transmit",
   "update/url",
   "serial/pattern",
   "serial/skip",
   "web/port",
   "web/allowed_hosts",
   "igate/server",
+  "igate/password",
   "map/maxzoom",
   "map/source",
 ];

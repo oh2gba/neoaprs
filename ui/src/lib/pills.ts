@@ -1,0 +1,34 @@
+// The marks at the top right of the header, before the count of messages: only what is out of the ordinary or running, each with a short hover title and the place where it is set. In this order: RX only (amber, while transmitting is off), Beacon off (grey, only while transmitting is on),
+// Internet (blue, while the Internet switch is connected and receiving), GPS (only when a GPS is the position source: blue with a fix, amber without). Plain functions of the settings and the states the daemon told; the marks are the TagMark of the page.
+import type { MessageId } from "@/i18n/catalogue";
+import { beaconOff } from "@/lib/beaconoff";
+import { isMoving } from "@/lib/gpsstatus";
+import type { GpsState, IgateState } from "@/protocol/protocol";
+import type { TagTone } from "@/components/TagMark.vue";
+
+/** Where a mark leads: the Settings tab (the Radio and Internet groups) or the Beacon tab (the beacon and the GPS). */
+export type PillTarget = "settings" | "beacon";
+
+export interface HeaderPill {
+  id: "rx" | "beacon_off" | "internet" | "gps";
+  text: MessageId;
+  title: MessageId;
+  tone: TagTone;
+  target: PillTarget;
+}
+
+/** The marks for these settings (key to text) and states; the states are null until the daemon has told. */
+export function headerPills(values: Readonly<Record<string, string>>, gps: GpsState | null, igate: IgateState | null): HeaderPill[] {
+  const pills: HeaderPill[] = [];
+  const rxOnly = values["station/transmit"] === "false";
+  if (rxOnly) pills.push({ id: "rx", text: "pill.rx", title: "pill.rx_title", tone: "warn", target: "settings" });
+  else if (beaconOff(values)) pills.push({ id: "beacon_off", text: "pill.beacon_off", title: "pill.beacon_off_title", tone: "muted", target: "beacon" });
+  if (igate !== null && igate.enabled && (igate.state === "connected" || igate.state === "listening" || igate.state === "unverified")) {
+    pills.push({ id: "internet", text: "pill.internet", title: "pill.internet_title", tone: "count", target: "settings" });
+  }
+  if (gps === null ? isMoving(values) : gps.mobile) {
+    const fix = gps?.state === "fix";
+    pills.push({ id: "gps", text: "pill.gps", title: fix ? "pill.gps_fix_title" : "pill.gps_nofix_title", tone: fix ? "count" : "warn", target: "beacon" });
+  }
+  return pills;
+}

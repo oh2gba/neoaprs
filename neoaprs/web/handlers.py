@@ -137,7 +137,7 @@ async def beacon_now(ctx: Ctx, cmd: BeaconNow) -> None:
     beacon = ctx.ctl.beacon
     if not beacon.send_now("request"):
         if beacon.problem == RECEIVE_ONLY:
-            raise UserError("beacon_now: Receive only: nothing is sent", "transmit.off")
+            raise UserError("beacon_now: RX only: nothing is sent", "transmit.off")
         raise UserError(f"beacon_now: nothing was sent: {beacon.problem}", "beacon.not_sent", params={"reason": beacon.problem})
 
 
@@ -145,7 +145,7 @@ async def beacon_now(ctx: Ctx, cmd: BeaconNow) -> None:
 async def status_now(ctx: Ctx, cmd: StatusNow) -> None:
     if problem := await ctx.ctl.rigstatus.send_now():
         if problem == RECEIVE_ONLY:
-            raise UserError("status_now: Receive only: nothing is sent", "transmit.off")
+            raise UserError("status_now: RX only: nothing is sent", "transmit.off")
         raise UserError(f"status_now: nothing was sent: {problem}", "status.not_sent", params={"reason": problem})
 
 

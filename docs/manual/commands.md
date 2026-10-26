@@ -52,13 +52,13 @@ It checks:
 
 ## When something does not work
 
-Start with `neoaprs doctor`, then look at the radio status at the top of the TNC group in the Settings tab, and at the log.
+Start with `neoaprs doctor`, then look at the radio status at the top of the Radio group in the Settings tab, and at the log.
 
 - **The log** is `neoaprs.log` in the data folder (`neoaprs service logs` prints its end; `--debug` logs more). It names the port, what was sent to the TNC and what came back. The footer under the panel says "Radio: ..." whenever the radio is not ok ([page.md](page.md#the-header-and-the-footer)).
 - **"Permission denied" on the port** (Linux): join the group that owns serial devices, `sudo usermod -aG dialout $USER`, then log out and in.
 - **The port vanishes a moment after plugging in:** brltty. **The port is held:** ModemManager. `doctor` says how to remove or stop them; so does [`docs/RADIOS.md`](../RADIOS.md#permissions-on-linux).
 - **The radio is silent:** the line is open and the radio does not answer. Check the cable, the speed and that the radio is on. A radio switched on again is found within a minute ([radio.md](radio.md#is-the-radio-there)).
-- **Nothing is transmitted:** the call must be set, and not `N0CALL`, `NOCALL` or `MYCALL` ([start.md](start.md#the-setup-guide)). The radio must be usable. A beacon that is due waits for it. The Beacon choice must not be Off for a beacon ([beacon.md](beacon.md#beacon-off)), and `station/transmit` must not be `false` ([beacon.md](beacon.md#receive-only)).
+- **Nothing is transmitted:** the call must be set, and not `N0CALL`, `NOCALL` or `MYCALL` ([start.md](start.md#the-setup-guide)). The radio must be usable. A beacon that is due waits for it. The Beacon choice must not be Off for an automatic beacon ([beacon.md](beacon.md#beacon-off)), and `station/transmit` must not be `false` ([beacon.md](beacon.md#rx-only)).
 - **Garbage or nothing on a serial port:** the wrong speed or port. The radio guide lists the speed of each radio ([`docs/RADIOS.md`](../RADIOS.md#not-working)).
 - **The search finds the wrong device, or skips yours:** [radio.md](radio.md#finding-the-radio).
 - **A moving station sends nothing:** it has no fresh fix, or the Beacon choice is Off. The beacon status at the top of the Beacon tab says which, and why there is no fix ([beacon.md](beacon.md#mobile-operation)).

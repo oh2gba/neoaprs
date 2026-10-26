@@ -14,7 +14,7 @@ Every Markdown file of the repository. `tests/test_hygiene.py` fails when a docu
 | `docs/manual/radio.md` | the radio's port (serial, TCP, Bluetooth, Bluetooth LE), finding the radio, the TNC type, the keep-alive and the silent radio |
 | `docs/manual/beacon.md` | the Beacon tab: the beacon status, Position (fixed or a GPS), the Beacon choice and Off, receive only, mobile operation with SmartBeaconing, PHG, the location and the symbol, the status, answers to queries, the fill-in digipeater |
 | `docs/manual/messages.md` | sending and receiving messages, acks, retries, routes, paths, deleting |
-| `docs/manual/igate.md` | the receive-only iGate: what it puts on APRS-IS, the passcode, the server, which packets it leaves out, the counts |
+| `docs/manual/igate.md` | the Internet group: stations of APRS-IS on the map, receive only, the radius and the server, and advanced use as an iGate |
 | `docs/manual/email.md` | email through the APRS gateway |
 | `docs/manual/bulletins.md` | the message board and posting to it |
 | `docs/manual/objects.md` | objects and items of your own, the QRU server |

@@ -6,9 +6,14 @@ export function tncNotConnected(): string {
   return t("compose.tnc_not_connected");
 }
 
-/** Why a button that sends is off: the TNC is not connected; undefined when it is. */
-export function sendBlockedReason(connected: boolean): string | undefined {
-  return connected ? undefined : tncNotConnected();
+/** Why a button that sends is off: transmitting is switched off (RX only), or the TNC is not connected; undefined when neither. */
+export function sendBlockedReason(connected: boolean, rxOnly = false): string | undefined {
+  return rxOnly ? rxOnlyReason() : connected ? undefined : tncNotConnected();
+}
+
+/** The title of every button that sends while transmitting is switched off. */
+export function rxOnlyReason(): string {
+  return t("pill.rx_send");
 }
 
 /** What is left of a limit, for the counter of a box: "12 left", or "3 over" when the text is too long. */

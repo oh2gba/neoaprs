@@ -2,7 +2,7 @@
 
 NeoAPRS is an APRS client for a radio or a TNC. It reads your radio, keeps every packet and station in a database on your computer, and shows them in a page: a map, a table of stations, the packets as they arrive, your messages as conversations, the state of the radio link and the settings.
 
-It sends your position (the beacon: of a fixed station at its place, or of a moving one that follows a GPS) and your messages, email through the APRS gateway, objects and bulletins of your own, and a status text. It answers messages and queries sent to you, and can repeat packets as a fill-in digipeater. A receive-only iGate, if you switch it on, puts what your radio hears on APRS-IS. A Nearby tab lists the digipeaters, voice frequencies, iGates and stations in simplex range that you have heard.
+It sends your position (the beacon: of a fixed station at its place, or of a moving one that follows a GPS) and your messages, email through the APRS gateway, objects and bulletins of your own, and a status text. It answers messages and queries sent to you, and can repeat packets as a fill-in digipeater. Switched on, it also shows the stations of APRS-IS round you, receive only. A Nearby tab lists the digipeaters, voice frequencies, iGates and stations in simplex range that you have heard.
 
 The program is a daemon with a web page. You can use it as a desktop app (a window and a tray icon) or as a service on a Raspberry Pi that you reach from a laptop or a phone.
 
@@ -17,9 +17,9 @@ This is the manual for the person who runs it. How NeoAPRS is built and released
 | [`page.md`](page.md) | the page: the tabs, the Stations table and its menu, [the Nearby tab](page.md#nearby), the Packets tab, the Settings tab, the map (the range circle, Follow my position), the station cards you can move, the header and the footer, the language, a phone, a tablet and a desktop, the base map |
 | [`desktop.md`](desktop.md) | the desktop app: a window and a tray icon |
 | [`radio.md`](radio.md) | connecting the radio: ports (serial, TCP, Bluetooth, Bluetooth LE), finding the radio, the TNC types, the keep-alive and a silent radio |
-| [`beacon.md`](beacon.md) | the Beacon tab: the beacon status, where the position comes from (fixed, or a GPS), the Beacon choice and Off, receive only, mobile operation with SmartBeaconing, the location and the symbol, the status, answers to queries (and the QRU server), the fill-in digipeater |
+| [`beacon.md`](beacon.md) | the Beacon tab: the beacon status, where the position comes from (fixed, or a GPS), the Beacon choice and Off, RX only, mobile operation with SmartBeaconing, the location and the symbol, the status, answers to queries (and the QRU server), the fill-in digipeater |
 | [`messages.md`](messages.md) | the Messages tab: sending, acks and retries, the path each message chooses, deleting |
-| [`igate.md`](igate.md) | the receive-only iGate: what it puts on APRS-IS, the passcode, the server, which packets it leaves out, the counts |
+| [`igate.md`](igate.md) | stations from the internet on the map, receive only: the switch, the radius, the server, and advanced use as an iGate |
 | [`email.md`](email.md) | email through the APRS gateway |
 | [`bulletins.md`](bulletins.md) | the message board and posting to it |
 | [`objects.md`](objects.md) | objects and items of your own, and the QRU server that sends them to a station that asks |
@@ -39,4 +39,4 @@ The radios and how to connect each (and a GPS receiver for a moving station) are
 - A **path** is the list of digipeaters a packet asks to be repeated by. The **route** is what a received packet actually went by, and the **chain** is the same for a message of yours, hop by hop.
 - The **timeout** of a station is how long it stays on the map after its last position: 1, 3, 6, 12 or 24 hours as you choose in the Stations tab (3 by default), the same for every station.
 - The **email gateway** is the APRS-IS station `EMAIL-2`.
-- A **fixed** station beacons from the location you gave; a **moving** station beacons from a GPS, and a GPS is chosen by the Beacon tab's **Position**. The **Beacon** choice switches the beacon off. **Receive only** is the daemon's setting `station/transmit`, which stops all transmitting.
+- A **fixed** station beacons from the location you gave; a **moving** station beacons from a GPS, and a GPS is chosen by the Beacon tab's **Position**. The **Beacon** choice switches the automatic beacon off (**Beacon now** still sends). **Settings → Radio → Transmit**, unticked, is RX only: nothing is transmitted.

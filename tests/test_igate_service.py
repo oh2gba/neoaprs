@@ -207,6 +207,18 @@ async def test_the_filter_round_our_position_is_in_the_login_and_is_sent_again_w
     assert [c for c in server.comments if c.startswith("#filter")] == ["#filter r/60.17/25.14/150"] and server.connections == 1
 
 
+async def test_the_radius_of_the_filter_is_the_radius_of_the_map_in_the_login_and_a_change_of_it_sends_the_filter_again() -> None:
+    server = await fake_aprsis()
+    w = await iworld(server, map_radius_km=60)
+    assert server.logins[0].endswith(" filter r/60.17/24.94/60")
+    w.save(map_radius_km=60)                                              # (the same radius: nothing is sent)
+    await idle_for(0.1)
+    assert [c for c in server.comments if c.startswith("#filter")] == []
+    w.save(map_radius_km=250)
+    await until(lambda: "#filter r/60.17/24.94/250" in server.comments)
+    assert server.connections == 1, "(the connection is kept: only the filter is sent)"
+
+
 async def test_a_station_without_a_position_logs_in_without_a_filter_and_sends_it_when_it_has_one() -> None:
     server = await fake_aprsis()
     w = await iworld(server, place=None)

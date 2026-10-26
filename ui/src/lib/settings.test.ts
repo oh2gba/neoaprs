@@ -5,12 +5,12 @@ import { beaconOff, disabledByValues } from "@/lib/beaconoff";
 import { PORT_OTHER, portOptions } from "@/lib/portchoice";
 
 describe("groupKeys", () => {
-  it("gives the Settings tab the serial and TNC, iGate, digipeater, web, notifications and map keys, in the daemon's order", () => {
+  it("gives the Settings tab the serial and TNC, Internet, digipeater, web, notifications and map keys, in the daemon's order", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "settings");
     expect(groups.map((g) => g.id)).toEqual(["serial", "igate", "digi", "web", "notifications", "map"]);
-    expect(groups[0]?.keys).toEqual(["tnc/profile", "serial/port", "serial/baud", "tcp/host", "tcp/port", "serial/last_port"]);
-    expect(groups[1]?.title).toBe("iGate");
-    expect(groups[1]?.keys).toEqual(["igate/enabled", "igate/password"]); // (igate/server is left to the shell)
+    expect(groups[0]?.keys).toEqual(["station/transmit", "tnc/profile", "serial/port", "serial/baud", "tcp/host", "tcp/port", "serial/last_port"]);
+    expect(groups[1]?.title).toBe("Internet");
+    expect(groups[1]?.keys).toEqual(["igate/enabled"]); // (igate/server and igate/password are left to the shell)
     expect(groups[2]?.title).toBe("Digipeater");
     expect(groups[2]?.keys).toEqual(["digi/enabled"]);
     expect(groups[4]?.title).toBe("Notifications");
@@ -66,13 +66,13 @@ describe("groupKeys", () => {
       CONFIG_KEYS.filter(
         (key) =>
           ![
-            "station/transmit",
             "update/url",
             "serial/pattern",
             "serial/skip",
             "web/port",
             "web/allowed_hosts",
             "igate/server",
+            "igate/password",
             "map/maxzoom",
             "map/source",
             "map/station_hours",
@@ -80,10 +80,10 @@ describe("groupKeys", () => {
       ).sort(),
     );
   });
-  it("leaves the Transmit switch off the page: station/transmit is a setting of the daemon only", () => {
-    expect(groupKeys(CONFIG_KEYS, "settings").flatMap((g) => g.keys)).not.toContain("station/transmit");
+  it("has the Transmit tickbox first in the Radio group of the Settings tab and not on the Beacon tab", () => {
+    expect(groupKeys(CONFIG_KEYS, "settings")[0]?.keys[0]).toBe("station/transmit");
     expect(groupKeys(CONFIG_KEYS, "beacon").flatMap((g) => g.keys)).not.toContain("station/transmit");
-    expect(FIELDS["station/transmit"]).toBeUndefined();
+    expect(FIELDS["station/transmit"]?.kind).toBe("bool");
   });
   it("leaves the address of the update check off the page: it is set with neoaprs db set", () => {
     expect(groupKeys(CONFIG_KEYS, "settings").flatMap((g) => g.keys)).not.toContain("update/url");
@@ -351,17 +351,32 @@ describe("the beacon being Off", () => {
     expect([beaconOff(off), beaconOff({ "beacon/interval_min": " 0 " }), beaconOff({ "beacon/interval_min": "" })]).toEqual([true, true, true]);
     expect([beaconOff({ "beacon/interval_min": "30" }), beaconOff({ "beacon/interval_min": "20" }), beaconOff({})]).toEqual([false, false, false]);
   });
-  it("greys what belongs to the beacon and the whole Status group, and nothing of the Station group or the Beacon choice", () => {
+  it("greys only the timing, Travelling and the status's Every, and nothing of what is sent, of the Station group or of the Beacon choice", () => {
     for (const values of [off, { ...off, "gps/source": "gpsd" }]) {
-      expect([...beaconKeys, ...statusKeys].filter((key) => !disabledByValues(key, values))).toEqual([]);
-      const never = CONFIG_KEYS.filter((key) => key.startsWith("station/") && !["station/comment", "station/status"].includes(key)).concat(
+      expect(["beacon/travel", "status/interval_min"].filter((key) => !disabledByValues(key, values))).toEqual([]);
+      const never = [...CONFIG_KEYS.filter((key) => key.startsWith("station/")).map(String)].concat(
         "gps/source",
         "gps/host",
         "gps/device",
         "gps/baud",
         "beacon/interval_min",
+        "status/source",
+        "status/rigctld",
+        "status/template",
+        ...beaconKeys.filter((k) => k !== "beacon/travel"),
       );
       expect(never.filter((key) => disabledByValues(key, values))).toEqual([]);
+    }
+  });
+  it("greys all that the beacon says while transmitting is off (RX only), whatever the beacon choice, and not the Station group or the choice", () => {
+    for (const values of [
+      { "station/transmit": "false", "beacon/interval_min": "30" },
+      { "station/transmit": "false", ...off },
+    ]) {
+      expect([...beaconKeys, ...statusKeys].filter((key) => !disabledByValues(key, values))).toEqual([]);
+      expect(
+        ["station/call", "station/lat", "gps/source", "beacon/interval_min", "station/symbol_code"].filter((key) => disabledByValues(key, values)),
+      ).toEqual([]);
     }
   });
   it("greys nothing while the beacon is On", () => {

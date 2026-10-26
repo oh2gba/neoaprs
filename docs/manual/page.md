@@ -77,8 +77,8 @@ A beacon, message or answer you sent is in the log as a packet with direction `o
 The tab has no Save button ([start.md](start.md#how-settings-apply)). From the top it has:
 
 - **Language**, and **Run the setup guide again** ([start.md](start.md#the-setup-guide));
-- **TNC**: the radio's status in one line with **Reconnect**, and behind its arrow the **Radio type**, the **Port** and **Speed** (or the **TCP host** and **TCP port**), **Find my radio** and the **Terminal** ([radio.md](radio.md)), and the type **Dummy** for trying NeoAPRS without a radio;
-- **iGate**: the tickbox of the receive-only iGate, the **Passcode** with **Request a passcode** beside it, and the iGate's status in one line ([igate.md](igate.md)); without a call it says **Set your call first**;
+- **Radio**: the **Transmit** tickbox (unticked is RX only, [beacon.md](beacon.md#rx-only)), the radio's status in one line with **Reconnect**, and behind its arrow the **Radio type**, the **Port** and **Speed** (or the **TCP host** and **TCP port**), **Find my radio** and the **Terminal** ([radio.md](radio.md)), and the type **Dummy** for trying NeoAPRS without a radio;
+- **Internet**: the one switch **Receive only**, which shows the stations of APRS-IS within the map's radius, and its status in one line ([igate.md](igate.md)); without a call it says **Set your call first**;
 - **Digipeater**: the tickbox of the fill-in digipeater ([beacon.md](beacon.md#the-fill-in-digipeater));
 - **Web page**: **Allow access from the network**, with the access key and the addresses once it is on, and the secure connection ([network.md](network.md));
 - **Notifications**, in two boxes: **On the NeoAPRS computer** and **In this browser** ([notifications.md](notifications.md));
@@ -171,14 +171,23 @@ A click on a marker or on a row of the Stations table opens that station's card 
 
 The **header** is one calm line. It holds the title **NeoAPRS**, a link to the project page (https://oh2gba.github.io/neoaprs/, in a new tab; it looks like the title, with an underline on hover), and at its right the number of messages not seen as a small badge with an envelope. That is the messages and the gateway's mail not seen, one count that the handle of the folded panel and the title of the browser tab have too. A click opens the Messages tab, or the Email tab when all of them are the gateway's.
 
-While no call is set an amber **no call set** button is beside the title, which opens the setup guide. While the daemon is set to receive only (`station/transmit` is `false`, a setting that is not on the page) an amber **Receive only** badge is beside it, on every screen size. It is only a mark, not a button; its hover text says what it means and where it is set ([beacon.md](beacon.md#receive-only)). A beacon that is off ([beacon.md](beacon.md#beacon-off)) is not receive only and shows no badge. Your call is not in the header; it is in the Settings tab and in every message you send.
+While no call is set an amber **no call set** button is beside the title, which opens the setup guide.
+
+At the right, before the count of messages, are small marks that say what is out of the ordinary. Each has a hover text and opens the place where it is set:
+
+- **RX only** (amber) while Settings → Radio → Transmit is unticked ([beacon.md](beacon.md#rx-only));
+- **Beacon off** (grey) while the Beacon choice is Off and the station transmits ([beacon.md](beacon.md#beacon-off));
+- **Internet** (blue) while Settings → Internet → Receive only is connected ([igate.md](igate.md));
+- **GPS**, only when a GPS is the position source: blue with a fix, amber without.
+
+On a narrow screen the marks give way and the count stays. Your call is not in the header; it is in the Settings tab and in every message you send.
 
 The **footer** is one small muted line under the open tab of the panel (under the panel, not under the map; on a phone under the tab; not while the panel is folded). It is always the same height, so nothing moves when a message comes or goes.
 
 - At the left is the name and version of the program. Its hover text says what the daemon costs the machine, every 10 seconds: its share of one CPU core in percent, its memory and the uptime (a sentence in the page's language: "NeoAPRS uses 0.3 % of one processor core and 42 MB of memory, running for 3 h").
 - When the update check has found a newer version, an **Update to** button follows it, which opens the window of the update: what is new, **Update now** where NeoAPRS can update itself, and the steps by hand ([install.md](install.md#updating)). On a phone the map has no footer, and the header has a small badge with the new number instead.
 - At the right is the state of the radio, only when it is not ok, in the warning colour, as a button that opens the Settings tab where the radio is. "Radio: searching…" (looking for the port), "Radio: entering KISS…", "Radio: not connected" (it waits between two tries, or is stopped; the TNC's problem is the tooltip), "Radio: waiting…" (no word from the TNC yet), "Radio: silent" (the line is open and the radio does not answer; the tooltip says "nothing heard since 18:43 (5 h)" in the browser's time), "Connecting…" (the page's connection is being opened) and, in red, "Daemon offline".
-- When the radio is connected the footer says nothing of it. The port and when a packet was last heard are in the radio status at the top of the TNC group of the Settings tab.
+- When the radio is connected the footer says nothing of it. The port and when a packet was last heard are in the radio status at the top of the Radio group of the Settings tab.
 
 ## The page's language
 

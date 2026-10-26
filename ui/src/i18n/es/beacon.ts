@@ -11,7 +11,6 @@ export const beacon: Readonly<Record<keyof typeof en, Message>> = {
   "beacon.line.untimed_none": "Ninguna baliza enviada todavía · sin baliza periódica",
   "beacon.line.off": "Baliza desactivada",
   "beacon.beacon_now": "Enviar baliza ahora",
-  "beacon.off_why": "La baliza está desactivada: no se envía baliza ni estado",
   "beacon.status": "Estado",
   "beacon.send_status_now": "Enviar estado ahora",
   "beacon.really_send": "¿Enviar de verdad?",

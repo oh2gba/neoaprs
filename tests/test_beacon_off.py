@@ -1,5 +1,5 @@
-"""The beacon Off (`beacon/interval_min` 0, for a fixed and a moving station alike) on the whole daemon with a fake radio: no beacon and no status report go out whatever is due or asked, and everything else does, because Off is not
-receive only (tests/test_receive_only.py): a message and its retries, the ack of a message heard, the answer to a query, our own objects and the fill-in digipeater. The beacon and the status that were held back go out when it is on."""
+"""The beacon Off (`beacon/interval_min` 0, for a fixed and a moving station alike) on the whole daemon with a fake radio: no automatic beacon and no automatic status report go out whatever is due, and everything else does, because Off is not
+RX only (tests/test_receive_only.py): a message and its retries, the ack of a message heard, the answer to a query, our own objects and the fill-in digipeater. The beacon and the status that were held back go out when it is on."""
 import asyncio
 from dataclasses import replace
 from pathlib import Path
@@ -40,20 +40,22 @@ async def test_with_the_beacon_off_no_beacon_and_no_status_go_but_a_message_an_a
     await e.stop()
 
 
-async def test_the_requests_are_refused_with_the_reason_and_nothing_goes_out(tmp_path: Path) -> None:
+async def test_the_requests_still_send_while_the_beacon_is_off_for_it_is_the_timer_that_is_off(tmp_path: Path) -> None:
     e = Env(tmp_path, web=True)
     e.ctl.rigstatus.poll_sec = 3600
     await e.start()
+    await e.until_usable()
     assert await e.ctl.save_config(replace(e.ctl.config, beacon_interval_min=0, station_status="QRV", status_source="text"))
     page = await e.ws()
     await page.until(lambda: len(page.of("status")) >= 1)
     for command in ("beacon_now", "status_now"):
         await page.send({"cmd": command})
-        error = await page.expect("error")
-        code = "beacon.not_sent" if command == "beacon_now" else "status.not_sent"
-        assert (error["text"], error["code"], error["params"]) == (f"{command}: nothing was sent: the beacon is off", code, {"reason": "the beacon is off"})
-    await idle_for(0.2)
-    assert not any(p.direction == "out" for p in await e.packets())
+    frames: list[str] = []
+    deadline = asyncio.get_running_loop().time() + 10.0
+    while not (any(f.startswith(BEACON) for f in frames) and any(":>" in f and "QRV" in f for f in frames)) and asyncio.get_running_loop().time() < deadline:
+        frames += [f.tnc2() for f in await said(e, 1, 0.5)]
+    assert any(f.startswith(BEACON) for f in frames) and any(":>" in f and "QRV" in f for f in frames), frames
+    assert not [m for m in page.messages if m.get("type") == "error"], "no refusal"
     await e.stop()
 
 
@@ -76,5 +78,5 @@ async def test_a_moving_station_with_the_interval_at_zero_sends_nothing_by_itsel
     e.now.advance(3 * 3600)                                                 # type: ignore[attr-defined]
     await idle_for(0.3)
     assert e.ctl.beacon.last_sent is None and e.ctl.beacon.next_due is None
-    assert not e.ctl.beacon.send_now("request") and e.ctl.beacon.problem == "the beacon is off"
+    assert not e.ctl.beacon.send_now("request") and e.ctl.beacon.problem != "the beacon is off", "Beacon now is asked for: it fails for the missing fix, not for the beacon being off"
     await e.stop()

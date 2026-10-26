@@ -3,9 +3,16 @@ export const shell = {
   "common.dismiss": "Dismiss",
 
   "header.project_title": "The NeoAPRS project page",
-  "header.receive_only": "Receive only",
-  "header.receive_only_title":
-    "Nothing is transmitted: this station is set to receive only. It is the daemon's setting station/transmit, which is not on this page; neoaprs db set station/transmit true changes it at the next start",
+  "pill.rx": "RX only",
+  "pill.rx_title": "RX only: nothing is sent. Settings → Radio → Transmit",
+  "pill.beacon_off": "Beacon off",
+  "pill.beacon_off_title": "Beacon off: no automatic beacon or status. Beacon now still sends. Beacon tab",
+  "pill.internet": "Internet",
+  "pill.internet_title": "Internet: stations from APRS-IS are on the map, receive only. Settings → Internet",
+  "pill.gps": "GPS",
+  "pill.gps_fix_title": "GPS: fix. Beacon tab",
+  "pill.gps_nofix_title": "GPS: no fix yet. Beacon tab",
+  "pill.rx_send": "RX only: nothing is sent",
   "header.no_call": "no call set",
   "header.no_call_title": "Nothing is transmitted until a call is set: open the setup",
   "header.unread_open": {

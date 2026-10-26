@@ -67,7 +67,7 @@ def _info(to: str, text: str, ident: str | None, reply: str | None) -> bytes:
 def _our_call(config: Config) -> str:
     """The call we send under; raises MessagingError when nothing may be transmitted: receive only (the code `transmit.off`), or the interlock's reason (no call)."""
     if not config.station_transmit:
-        raise MessagingError("Receive only: nothing is sent", "transmit.off")
+        raise MessagingError("RX only: nothing is sent", "transmit.off")
     if reason := can_transmit(config):
         raise MessagingError(reason)
     return config.station_call

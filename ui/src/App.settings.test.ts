@@ -14,7 +14,7 @@ describe("App: the Settings tab", () => {
     expect(tabButton(wrapper, "TNC")).toBeUndefined();
     await tabButton(wrapper, "Settings")?.trigger("click");
     const group = wrapper.find("#pane-settings fieldset");
-    expect(group.find("legend").text()).toBe("TNC");
+    expect(group.find("legend").text()).toBe("Radio");
     expect(group.find(".radiostatus .tncstatus").text()).toMatch(/^Last packet /);
     await group.find(".radiostatus button").trigger("click");
     expect(socket.sent).toContainEqual({ cmd: "tnc_reconnect" });

@@ -44,6 +44,21 @@
 .headupdate.badge {
   margin: 0 0 0 auto;
 }
+/* the marks before the count (lib/pills.ts): they are pushed to the right with the count, and on a narrow screen they give way (the row clips them from the end) and never push the count off */
+.headpills {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+  margin-left: auto;
+  overflow: hidden;
+}
+.headpill {
+  flex: none;
+}
+.headpills + .headmail.badge,
+.headpills + .headupdate.badge {
+  margin-left: 6px;
+}
 /* (a phone's newer version, at the right before the mail) */
 .headupdate + .headmail.badge {
   margin-left: 0;

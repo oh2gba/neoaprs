@@ -8,6 +8,7 @@ import pytest
 
 from neoaprs.config import DEFAULTS, Config
 from neoaprs.source import Source
+from tests.support.air import said
 from tests.support.env import Env
 from tests.support.fakes import rigctld
 from tests.test_rigstatus import FIRST, Rig
@@ -133,7 +134,7 @@ async def test_the_command_sends_the_status_and_the_page_is_told_the_text(tmp_pa
     await e.stop()
 
 
-async def test_the_command_is_refused_with_the_reason_while_the_beacon_is_off_and_nothing_is_sent(tmp_path: Path) -> None:
+async def test_the_command_still_sends_while_the_beacon_is_off(tmp_path: Path) -> None:
     e = Env(tmp_path, web=True)
     e.ctl.rigstatus.poll_sec = 3600
     await e.start()
@@ -141,9 +142,9 @@ async def test_the_command_is_refused_with_the_reason_while_the_beacon_is_off_an
     page = await e.ws()
     await page.until(lambda: len(page.of("status")) >= 1)
     await page.send({"cmd": "status_now"})
-    error = await page.expect("error")
-    assert (error["text"], error["code"], error["params"]) == ("status_now: nothing was sent: the beacon is off", "status.not_sent", {"reason": "the beacon is off"})
-    assert e.tnc.stats.packets == 0 and not any(p.direction == "out" for p in await e.packets())
+    frames = [f.tnc2() for f in await said(e, 1, 5.0)]
+    assert frames and frames[0].endswith("zQRV 145.500"), frames
+    assert not [m for m in page.messages if m.get("type") == "error"]
     await e.stop()
 
 

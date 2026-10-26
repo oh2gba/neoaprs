@@ -6,6 +6,7 @@ import { computed, ref } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
 import IconButton from "@/components/IconButton.vue";
 import { t } from "@/i18n";
+import { useReceiveOnly } from "@/composables/useReceiveOnly";
 import { leftTitle, sendBlockedReason } from "@/lib/compose";
 import { canSendEmail, emailBytesLeft } from "@/lib/email";
 import { LIMITS } from "@/protocol/lists";
@@ -19,6 +20,7 @@ const textBox = ref<HTMLInputElement | null>(null);
 const listed = ref(false);
 
 const left = computed(() => emailBytesLeft(to.value, text.value));
+const rxOnly = useReceiveOnly();
 const ready = computed(() => canSendEmail(props.connected, to.value, text.value));
 /** The addresses used before that match what is typed, other than the one that is typed whole. */
 const suggestions = computed(() => {
@@ -49,7 +51,7 @@ function escape(): void {
 }
 
 function submit(): void {
-  if (!ready.value) return;
+  if (!ready.value || rxOnly.value) return;
   emit("send", to.value.trim(), text.value);
   text.value = "";
   textBox.value?.focus();
@@ -90,7 +92,7 @@ function submit(): void {
       <input id="mail-text" ref="textBox" v-model="text" class="input" type="text" :placeholder="t('email.field.text')" autocomplete="off" />
     </div>
     <template #buttons>
-      <button type="submit" class="btn primary" :disabled="!ready" :title="sendBlockedReason(connected)">{{ t("email.send") }}</button>
+      <button type="submit" class="btn primary" :disabled="!ready || rxOnly" :title="sendBlockedReason(connected, rxOnly)">{{ t("email.send") }}</button>
     </template>
   </ComposeBar>
 </template>

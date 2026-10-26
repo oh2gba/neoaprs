@@ -33,8 +33,8 @@ describe("SettingsForm", () => {
     alertWithBoth();
     const { wrapper } = make();
     expect(wrapper.findAll("fieldset legend").map((l) => l.text())).toEqual([
-      "TNC",
-      "iGate",
+      "Radio",
+      "Internet",
       "Digipeater",
       "Web page",
       "Notifications",
@@ -46,8 +46,8 @@ describe("SettingsForm", () => {
       "About",
     ]);
     expect(wrapper.findAll("form > fieldset").map((f) => f.find("legend").text())).toEqual([
-      "TNC",
-      "iGate",
+      "Radio",
+      "Internet",
       "Digipeater",
       "Web page",
       "Notifications",
@@ -69,14 +69,14 @@ describe("SettingsForm", () => {
       "web/port",
       "web/allowed_hosts",
       "igate/server", // (left to the shell: the default suits everyone)
-      "igate/password", // (only while the iGate is on)
+      "igate/password", // (left to the shell: only a person who gates for the radio sets it)
       "map/maxzoom",
       "map/source",
       "map/station_hours", // (the Stations tab has it)
     ];
     expect(wrapper.findAll(".field")).toHaveLength(
       CONFIG_KEYS.filter((k) => !beacons.some((prefix) => k.startsWith(prefix)) && !elsewhere.includes(k)).length +
-        2 + // (the New version row of the Update check group and the Logs row of the Help group, which are no settings)
+        3 + // (the Transmit row of the Radio group, the New version row of the Update check group and the Logs row of the Help group, which are no settings)
         3 + // (the browser's own: Alert for a new message, Sound, Pop-up)
         1, // (Language)
     );
@@ -526,9 +526,10 @@ describe("SettingsForm", () => {
     const fieldIds = (wrapper: ReturnType<typeof make>["wrapper"]) =>
       wrapper
         .findAll("fieldset")
-        .find((f) => f.find("legend").text() === "TNC")
+        .find((f) => f.find("legend").text() === "Radio")
         ?.findAll("[id^='set-']")
-        .map((e) => e.attributes("id"));
+        .map((e) => e.attributes("id"))
+        .filter((id) => id !== "set-station-transmit"); // (the Transmit tickbox is the first row of the group)
 
     it("is a select of the profiles by their names, the daemon's value chosen", () => {
       const { wrapper } = make();
@@ -606,15 +607,16 @@ describe("SettingsForm", () => {
     const headings = (wrapper: Wrapper) =>
       wrapper
         .findAll("fieldset")
-        .find((f) => f.find("legend").text() === "TNC")
+        .find((f) => f.find("legend").text() === "Radio")
         ?.findAll(".subgroup");
     const found = (wrapper: Wrapper) => wrapper.find(".port-found");
     const labels = (wrapper: Wrapper) =>
       wrapper
         .findAll("fieldset")
-        .find((f) => f.find("legend").text() === "TNC")
+        .find((f) => f.find("legend").text() === "Radio")
         ?.findAll("label")
-        .map((l) => l.text());
+        .map((l) => l.text())
+        .filter((text) => text !== "Transmit");
 
     it("is one choice: find automatically, the ports the system lists, and Other", () => {
       const { wrapper } = withPorts();
@@ -1340,20 +1342,6 @@ describe("SettingsForm: the Location of our station (Beacon tab)", () => {
 });
 
 describe("SettingsForm: the beacon Off (Beacon tab)", () => {
-  const GREYED = [
-    "set-beacon-travel",
-    "set-station-comment",
-    "set-beacon-power_w",
-    "set-beacon-antenna_height_m",
-    "set-beacon-antenna_gain_db",
-    "set-beacon-antenna_direction",
-    "set-beacon-path",
-    "set-status-source",
-    "set-status-rigctld",
-    "set-status-template",
-    "set-status-interval_min",
-    "set-station-status",
-  ];
   const STATION = [
     "set-station-call",
     "set-gps-source",
@@ -1371,32 +1359,48 @@ describe("SettingsForm: the beacon Off (Beacon tab)", () => {
     );
   const control = (wrapper: ReturnType<typeof make>["wrapper"], id: string) => wrapper.find<HTMLInputElement | HTMLSelectElement>(`#${id}`);
 
-  it("greys the comment, the antenna, the path and every field of the Status group for a fixed station, and keeps their values", () => {
+  it("greys only the timing while the beacon is Off, the status's Every, and keeps what is sent editable with its value (Beacon now still sends)", () => {
     const { wrapper } = off({ "status/source": "text", "station/status": "QRV" });
-    const ids = GREYED.filter((id) => !["set-beacon-travel", "set-status-rigctld", "set-status-template"].includes(id));
-    for (const id of ids) {
+    expect(control(wrapper, "set-status-interval_min").element.disabled).toBe(true);
+    expect(control(wrapper, "set-status-interval_min").element.closest(".field")?.classList.contains("disabled")).toBe(true);
+    expect(control(wrapper, "set-status-interval_min").element.value).toBe("30");
+    for (const id of ["set-station-comment", "set-beacon-power_w", "set-beacon-path", "set-station-status", "set-status-source"]) {
       expect(control(wrapper, id).exists(), id).toBe(true);
-      expect(control(wrapper, id).element.disabled, id).toBe(true);
-      expect(control(wrapper, id).element.closest(".field")?.classList.contains("disabled"), id).toBe(true);
+      expect(control(wrapper, id).element.disabled, id).toBe(false);
     }
     expect(control(wrapper, "set-station-comment").element.value).toBe("NeoAPRS");
     expect(control(wrapper, "set-beacon-power_w").element.value).toBe("5");
-    expect(control(wrapper, "set-station-status").element.value).toBe("QRV");
-    expect(control(wrapper, "set-status-interval_min").element.value).toBe("30");
   });
 
-  it("greys the rigctld fields too when the status comes from the radio", () => {
+  it("leaves the rigctld fields editable too when the status comes from the radio", () => {
     const { wrapper } = off();
-    for (const id of ["set-status-rigctld", "set-status-template"]) expect(control(wrapper, id).element.disabled, id).toBe(true);
+    for (const id of ["set-status-rigctld", "set-status-template"]) expect(control(wrapper, id).element.disabled, id).toBe(false);
     expect(control(wrapper, "set-status-rigctld").element.value).toBe("127.0.0.1:4532");
   });
 
-  it("greys Travelling, the comment and the path for a moving station, and shows no antenna", () => {
+  it("greys Travelling for a moving station and leaves the comment and the path, and shows no antenna", () => {
     const { wrapper } = off({ "gps/source": "gpsd" });
-    for (const id of ["set-beacon-travel", "set-station-comment", "set-beacon-path", "set-status-source"])
-      expect(control(wrapper, id).element.disabled, id).toBe(true);
+    expect(control(wrapper, "set-beacon-travel").element.disabled).toBe(true);
+    for (const id of ["set-station-comment", "set-beacon-path", "set-status-source"]) expect(control(wrapper, id).element.disabled, id).toBe(false);
     expect(control(wrapper, "set-beacon-power_w").exists()).toBe(false);
     expect(control(wrapper, "set-beacon-travel").element.value).toBe("car");
+  });
+
+  it("greys all that the beacon says while transmitting is off (RX only), and nothing of the Station group", () => {
+    const { wrapper } = make(
+      {
+        "station/transmit": "false",
+        "beacon/interval_min": "30",
+        "beacon/power_w": "5",
+        "status/source": "text",
+        "station/status": "QRV",
+        "beacon/path": "WIDE2-2",
+      },
+      "beacon",
+    );
+    for (const id of ["set-station-comment", "set-beacon-power_w", "set-beacon-path", "set-station-status", "set-status-source", "set-status-interval_min"])
+      expect(control(wrapper, id).element.disabled, id).toBe(true);
+    for (const id of ["set-station-call", "set-beacon-interval_min"]) expect(control(wrapper, id).element.disabled, id).toBe(false);
   });
 
   it("never greys the Station group or the Beacon choice", () => {
@@ -1413,13 +1417,13 @@ describe("SettingsForm: the beacon Off (Beacon tab)", () => {
     }
   });
 
-  it("leaves the folds openable, with their fields greyed inside", async () => {
+  it("leaves the folds openable, with their fields editable inside", async () => {
     const { wrapper } = off();
     const antenna = wrapper.findAll("details.disclosure").find((d) => d.find("summary").text() === "Antenna");
     expect(antenna).toBeDefined();
     await antenna?.find("summary").trigger("click");
     (antenna?.element as HTMLDetailsElement).open = true;
-    expect(antenna?.find<HTMLInputElement>("#set-beacon-power_w").element.disabled).toBe(true);
+    expect(antenna?.find<HTMLInputElement>("#set-beacon-power_w").element.disabled).toBe(false);
   });
 
   it("greys nothing while the beacon is on, for any interval and for a moving station", () => {
@@ -1433,14 +1437,15 @@ describe("SettingsForm: the beacon Off (Beacon tab)", () => {
     }
   });
 
-  it("greys at once when Off is chosen and ungreys when an interval is chosen, and applies the choice", async () => {
-    const { wrapper, send } = make({}, "beacon");
+  it("greys the timing at once when Off is chosen and ungreys it when an interval is chosen, and applies the choice", async () => {
+    const { wrapper, send } = make({ "status/source": "text" }, "beacon");
     expect(wrapper.findAll(".field.disabled")).toHaveLength(0);
     await wrapper.find("#set-beacon-interval_min").setValue("0");
     expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "beacon/interval_min": "0" } });
-    expect(wrapper.find<HTMLInputElement>("#set-station-comment").element.disabled).toBe(true);
-    await wrapper.find("#set-beacon-interval_min").setValue("60");
+    expect(wrapper.find<HTMLInputElement>("#set-status-interval_min").element.disabled).toBe(true);
     expect(wrapper.find<HTMLInputElement>("#set-station-comment").element.disabled).toBe(false);
+    await wrapper.find("#set-beacon-interval_min").setValue("60");
+    expect(wrapper.find<HTMLInputElement>("#set-status-interval_min").element.disabled).toBe(false);
   });
 
   it("keeps the (i) of a greyed field working", () => {
@@ -1451,15 +1456,30 @@ describe("SettingsForm: the beacon Off (Beacon tab)", () => {
   });
 });
 
-describe("SettingsForm: the Transmit switch is gone", () => {
-  it("is on neither tab, and station/transmit is no field whatever its value", () => {
-    for (const scope of ["beacon", "settings"] as const) {
-      for (const value of ["true", "false"]) {
-        const { wrapper } = make({ "station/transmit": value }, scope);
-        expect(wrapper.find("#set-station-transmit").exists(), `${scope} ${value}`).toBe(false);
-        expect(wrapper.text()).not.toMatch(/Receive only(?!:)/); // (the iGate group says "Receive only:" in its quiet line; the badge is not on the page)
-        expect(wrapper.findAll(".field label").map((l) => l.text())).not.toContain("Transmit");
-      }
+describe("SettingsForm: the Transmit tickbox", () => {
+  it("is the first row of the Radio group of the Settings tab, a tickbox with its (i), ticked while the station transmits, and is not on the Beacon tab", () => {
+    for (const [value, checked] of [
+      ["true", true],
+      ["false", false],
+    ] as const) {
+      const { wrapper } = make({ "station/transmit": value }, "settings");
+      const group = wrapper.findAll("fieldset").find((f) => f.find("legend").text() === "Radio");
+      const row = group?.find(".field");
+      expect(row?.find("label").text()).toBe("Transmit");
+      expect((row?.find("#set-station-transmit").element as HTMLInputElement).checked).toBe(checked);
+      expect(row?.find("#set-station-transmit").attributes("type")).toBe("checkbox");
+      expect(row?.find(".infotip").exists()).toBe(true);
+      expect(wrapper.find(".rxonly").exists()).toBe(false);
+      expect(make({ "station/transmit": value }, "beacon").wrapper.find("#set-station-transmit").exists()).toBe(false);
     }
+  });
+
+  it("says in its (i) what Off means, and sends the setting as it is ticked", async () => {
+    const { wrapper, send } = make({ "station/transmit": "true" }, "settings");
+    await wrapper.find("#set-station-transmit").setValue(false);
+    expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "station/transmit": "false" } });
+    wrapper.find("#set-station-transmit").element.closest(".field")?.querySelector<HTMLButtonElement>(".info-toggle")?.click();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find(".info-text").text()).toBe("Off: RX only. Nothing is sent: no beacon, message, ack or digipeat.");
   });
 });

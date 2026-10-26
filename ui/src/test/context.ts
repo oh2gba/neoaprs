@@ -1,6 +1,6 @@
 // The page's context (composables/useDaemonContext.ts) for a test that mounts a pane on its own: every part a pane may inject is there, quiet (a connected radio, the settings of the fixtures, no stations), and a test gives the parts it cares about
 // (a plain value, or a ref that it changes later) and reads `send`, which records the commands, and `say`, which records what the page would say in its toast. `withDaemon(context)` is the `global` option of a mount.
-import { isRef, nextTick, shallowReactive, shallowRef, type Ref } from "vue";
+import { computed, isRef, nextTick, shallowReactive, shallowRef, type Ref } from "vue";
 import { vi, type Mock } from "vitest";
 import { DAEMON_KEY, type DaemonContext } from "@/composables/useDaemonContext";
 import { useBrowserAlerts } from "@/composables/useBrowserAlerts";
@@ -54,6 +54,7 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     install: part(over.install, null),
     weatherSeries: part(over.weatherSeries, new Map()),
     connected: part(over.connected, true),
+    receiveOnly: over.receiveOnly === undefined ? computed(() => config.value?.values["station/transmit"] === "false") : part(over.receiveOnly, false),
     now: part(over.now, NOW),
     dark: part(over.dark, false),
     call: part(over.call, "OH2GBA"),

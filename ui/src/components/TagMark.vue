@@ -4,9 +4,20 @@
 // `warn-outline`. A mark that is pressed is `as="button"`.
 export type TagTone = "count" | "quiet" | "muted" | "ok" | "warn" | "outline" | "warn-outline";
 
+/** The class of each tone, written out so that the style sheet's rules are found by name. */
+const TONE_CLASS: Record<TagTone, string> = {
+  count: "tag-count",
+  quiet: "tag-quiet",
+  muted: "tag-muted",
+  ok: "tag-ok",
+  warn: "tag-warn",
+  outline: "tag-outline",
+  "warn-outline": "tag-warn-outline",
+};
+
 withDefaults(defineProps<{ tone?: TagTone; as?: "span" | "button" }>(), { tone: "count", as: "span" });
 </script>
 
 <template>
-  <component :is="as" class="tag" :class="`tag-${tone}`" :type="as === 'button' ? 'button' : undefined"><slot></slot></component>
+  <component :is="as" class="tag" :class="TONE_CLASS[tone]" :type="as === 'button' ? 'button' : undefined"><slot></slot></component>
 </template>

@@ -15,7 +15,7 @@ from tests.support.air import message_info, on_air, said
 from tests.support.env import Env, idle_for, quick_start, until
 
 OFF = "receive only: transmitting is switched off"
-NOTHING_SENT = "Receive only: nothing is sent"
+NOTHING_SENT = "RX only: nothing is sent"
 BUSY = b"!6010.20N/02456.40E-test"
 
 
@@ -175,4 +175,28 @@ async def test_over_the_socket_the_switch_is_a_setting_and_beacon_now_and_a_mess
     assert (await page.expect("error"))["text"].startswith("set_config: station/transmit: ")
     await page.send({"cmd": "set_config", "values": {"station/transmit": "true"}})
     await page.until(lambda: page.topics["config"]["values"]["station/transmit"] == "true")
+    await e.stop()
+
+
+async def test_the_tickbox_of_the_page_takes_effect_at_once_with_no_restart_and_what_is_asked_goes_again_when_it_is_back(tmp_path: Path) -> None:
+    e = await quick_start(tmp_path, beacon=True, messaging=True, unpaced=True, web=True)
+    await e.until_connected()
+    page = await e.ws()
+    await page.until(lambda: len(page.of("state")) >= 7)
+    await page.send({"cmd": "set_config", "values": {"station/transmit": "false"}})
+    await page.until(lambda: page.topics["config"]["values"]["station/transmit"] == "false")
+    for command in ({"cmd": "beacon_now"}, {"cmd": "send_message", "to": "OH2RDG", "text": "Hello"}):
+        await page.send(command)
+        assert (await page.expect("error"))["code"] == "transmit.off"
+    await quiet(e)
+    await page.send({"cmd": "set_config", "values": {"station/transmit": "true"}})
+    await page.until(lambda: page.topics["config"]["values"]["station/transmit"] == "true")
+    await page.send({"cmd": "send_message", "to": "OH2RDG", "text": "Hello again"})
+    await page.send({"cmd": "beacon_now"})
+    frames: list[str] = []
+    deadline = asyncio.get_running_loop().time() + 10.0
+    while not (any(":Hello again{" in f for f in frames) and any(f.startswith("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=") for f in frames)) and asyncio.get_running_loop().time() < deadline:
+        frames += [f.tnc2() for f in await said(e, 1, 0.5)]
+    assert any(":Hello again{" in f for f in frames) and any(f.startswith("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=") for f in frames), frames
+    assert not any(":Hello{" in f for f in frames), "the refused message was not kept and sent later"
     await e.stop()

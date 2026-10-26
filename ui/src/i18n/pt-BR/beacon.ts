@@ -12,7 +12,6 @@ export const beacon: Record<keyof typeof source, Message> = {
   "beacon.line.untimed_none": "Nenhum beacon enviado ainda · sem beacon periódico",
   "beacon.line.off": "Beacon desligado",
   "beacon.beacon_now": "Beacon agora",
-  "beacon.off_why": "O beacon está desligado: nem beacon nem status são enviados",
   "beacon.status": "Status",
   "beacon.send_status_now": "Enviar status agora",
   "beacon.really_send": "Enviar mesmo?",

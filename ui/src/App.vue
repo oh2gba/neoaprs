@@ -28,7 +28,7 @@ import { useAppShell } from "@/composables/useAppShell";
 const {
   daemon,
   call,
-  receiveOnly,
+  pills,
   unread,
   openUnread,
   updateOpen,
@@ -61,11 +61,12 @@ const deleteMessage = (id: number): boolean => send({ cmd: "message_delete", id 
     <AppHeader
       :call="call"
       :unread="unread"
-      :receive-only="receiveOnly"
+      :pills="pills"
       :update="layout.phone.value ? newer : null"
       @messages="openUnread"
       @setup="guide.show()"
       @update="updateOpen = true"
+      @open="(target) => panel.show(target)"
     />
     <UpdateDialog v-if="updateOpen && newer" :version="newer" @close="updateOpen = false" />
     <main class="main">
