@@ -35,7 +35,7 @@ describe("the browser's part of the Notifications group", () => {
     expect(wrapper.find("h3").exists()).toBe(false);
     expect(wrapper.findAll("fieldset")).toHaveLength(1);
     expect(wrapper.findAll("label").map((l) => l.text())).toEqual(["Alert for a new message", "Sound", "Pop-up"]);
-    expect(wrapper.findAll("button").map((b) => b.text())).toEqual(["Test sound", "Test pop-up"]);
+    expect(wrapper.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(["Test sound", "Test pop-up"]);
     expect(wrapper.findAll("select")).toHaveLength(1);
     expect(wrapper.find("p").exists()).toBe(false); // (no hint sentences)
   });
@@ -188,6 +188,6 @@ describe("the browser's part of the Notifications group", () => {
   it("has its tests enabled whatever the choice is", async () => {
     const { wrapper } = make();
     await wrapper.find("#alert-mode").setValue("off");
-    expect(wrapper.findAll("button").map((b) => b.attributes("disabled"))).toEqual([undefined, undefined]);
+    expect(wrapper.findAll("button:not(.info-toggle)").map((b) => b.attributes("disabled"))).toEqual([undefined, undefined]);
   });
 });

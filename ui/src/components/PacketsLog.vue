@@ -8,6 +8,7 @@ import { useElementWidth } from "@/composables/useElementWidth";
 import { PACKETS_TABLE } from "@/lib/layout";
 import { t } from "@/i18n";
 import PacketDetail from "@/components/PacketDetail.vue";
+import TabHelp from "@/components/TabHelp.vue";
 import RouteText from "@/components/RouteText.vue";
 import { clockText } from "@/lib/format";
 import { filterPackets, newestFirst } from "@/lib/packets";
@@ -32,6 +33,10 @@ function toggle(id: number): void {
 
 <template>
   <div ref="root" class="tablepane">
+    <TabHelp :label="t('packets.about_label')">
+      <span class="info-line">{{ t("packets.about1") }}</span>
+      <span class="info-line">{{ t("packets.about2") }}</span>
+    </TabHelp>
     <div class="toolbar">
       <input
         v-model="filter"

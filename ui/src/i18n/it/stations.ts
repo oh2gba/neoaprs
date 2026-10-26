@@ -99,6 +99,9 @@ export const stations: Readonly<Record<keyof typeof en, Message>> = {
 
   "station.table.filter": "Filtro",
   "station.table.filter_title": "Nominativo, simbolo, commento, percorso",
+  "station.table.about_label": "Sulle stazioni",
+  "station.table.about1": "Ogni stazione ascoltata, con distanza e direzione da te. Fai clic su una per vederla sulla mappa.",
+  "station.table.about2": "Un segno di spunta verde dopo un nominativo significa che la stazione è stata sentita diretta, senza digipeater.",
   "station.table.filter_label": "Filtra le stazioni",
   "station.table.hide_timed_out": "nascondi scadute",
   "station.table.direct_only": "solo dirette",

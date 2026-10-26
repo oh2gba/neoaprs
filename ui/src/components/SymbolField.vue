@@ -3,6 +3,7 @@
 // the settings write (the table and the code); the user never sees them. Used by the Beacon tab, the first-run guide and the Objects form. `update:symbol` follows the field as it is changed (the letter is typed);
 // `commit` says a symbol is final: one picked from the picker, or the letter when its field is left or Enter is pressed (the Beacon tab applies it then).
 import { computed, nextTick, ref, useId } from "vue";
+import InfoTip from "@/components/InfoTip.vue";
 import SymbolIcon from "@/components/SymbolIcon.vue";
 import { t } from "@/i18n";
 import SymbolPicker from "@/components/SymbolPicker.vue";
@@ -57,6 +58,9 @@ function typed(event: Event): void {
         <SymbolIcon :table="table" :code="code" :size="32" />
         <span :id="nameId" class="symbolfield-name">{{ name }}</span>
       </button>
+      <InfoTip :label="t('settings.about', { label: label ?? t('settings.symbol.label') })" picture="symbol">
+        <span class="info-line">{{ t("settings.symbol.tip1") }}</span>
+      </InfoTip>
       <label v-if="overlay" class="symbolfield-over muted">
         {{ t("settings.symbol.overlay") }}
         <input

@@ -14,6 +14,16 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
   "help.picture.status": "Il tuo breve testo di stato, QRV 145.500, compare sulla mappa delle altre stazioni sotto il tuo nominativo.",
   "help.picture.range": "Un digipeater con il suo cerchio di copertura: le stazioni dentro il cerchio si sentono tramite esso, quelle fuori no.",
   "help.picture.request": "Una stazione chiede QRU e la tua stazione risponde con l’oggetto, che altrimenti non viene inviato.",
+  "help.picture.ssid": "Un nominativo, OH2GBA, per tre stazioni: quello semplice è una casa, -9 un’auto, -10 un iGate.",
+  "help.picture.symbol": "Una scelta di simboli con l’auto selezionata, e l’auto sulla mappa di un’altra stazione sotto il tuo nominativo.",
+  "help.picture.network": "Il computer su cui gira NeoAPRS, collegato in rete a un telefono, un tablet e un portatile che aprono la sua pagina.",
+  "help.picture.accesskey": "Una chiave digitata una volta su un telefono, che poi resta collegato.",
+  "help.picture.igate": "Il pacchetto di un’auto va via radio a un iGate, che lo passa a internet, APRS-IS, e viceversa.",
+  "help.picture.radius": "Una mappa con la stazione al centro: la mappa dettagliata arriva fino al cerchio intorno, la mappa del mondo per il resto.",
+  "help.picture.position": "Una stazione fissa che resta al suo posto, e una stazione con GPS che si muove, con i suoi beacon lungo il percorso.",
+  "help.picture.digipeater":
+    "Un’auto che non raggiunge direttamente il digipeater ad ampia copertura viene ripetuta dalla tua stazione, che inoltra il suo pacchetto.",
+  "help.picture.logs": "Un file di log che parte allegato a una mail.",
   "help.not_copied": "Non copiato",
 
   "help.install.label": "App",

@@ -26,6 +26,10 @@
   fill: var(--panel);
   stroke: var(--border);
 }
+.hp-solid {
+  fill: var(--panel);
+  stroke: var(--muted);
+}
 .hp-lit {
   stroke: var(--accent);
 }

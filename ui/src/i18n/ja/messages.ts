@@ -4,6 +4,9 @@ import type { Message } from "@/i18n/message";
 
 export const messages: Record<keyof typeof source, Message> = {
   "messages.conversations": "会話",
+  "messages.about_label": "メッセージについて",
+  "messages.about1": "メッセージは1つの局に送る短い文で、相手局が受信を確認します。",
+  "messages.about2": "局のカードまたは「局」タブの「メッセージ」から始めます。",
   "messages.show_overheard": "傍受を表示",
   "messages.overheard_help_label": "傍受とは",
   "messages.overheard_help": "ほかの局どうしが送ったメッセージを、無線で受信したものです。",

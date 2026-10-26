@@ -27,8 +27,7 @@ export const bulletins: Record<keyof typeof source, Message> = {
   "bulletins.kind.announcement": "Aviso",
   "bulletins.kind.group": "Boletim para um grupo",
   "bulletins.kinds_help_label": "O que são os tipos",
-  "bulletins.kinds_help":
-    "Um boletim é para todos e ninguém o confirma. Um boletim para um grupo é para as estações que acompanham aquele nome de grupo. Para falar com estações específicas, com confirmação de cada uma, envie-lhes uma mensagem: aba Mensagens, Estações.",
+  "bulletins.kinds_help": "Todos veem um boletim e ninguém o confirma. Um boletim de grupo é para as estações que seguem aquele nome.",
   "bulletins.letter": "Letra",
   "bulletins.number": "Número",
   "bulletins.group": "Grupo",

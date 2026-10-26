@@ -15,9 +15,8 @@ export const email: Record<keyof typeof source, Message> = {
   "email.check": "Verificar e-mail",
   "email.checking": "Já está verificando",
   "email.about": "Sobre o e-mail",
-  "email.about_gateway":
-    'O e-mail passa pelo gateway de internet EMAIL-2 por meio de um iGate, então um e-mail pode aparecer como "{unconfirmed}" mesmo tendo chegado.',
-  "email.about_check": '"{check}" pede ao gateway os e-mails que ele guardou para você (ele os guarda por 24 horas).',
+  "email.about_gateway": "O e-mail passa pelo gateway de internet EMAIL-2, então um e-mail pode mostrar {unconfirmed} mesmo tendo chegado.",
+  "email.about_check": "{check} pede ao gateway o e-mail que ele guardou para você (24 horas).",
 
   "email.field.to": "Para",
   "email.field.address": "Endereço de e-mail",

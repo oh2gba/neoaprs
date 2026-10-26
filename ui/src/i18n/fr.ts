@@ -52,6 +52,7 @@ export const fr: Catalogue = {
   "footer.radio.open_settings": "Ouvrir les réglages de la radio",
 
   "settings.language.label": "Langue",
+  "settings.language.tip1": "La langue de cette page. Chaque navigateur et chaque appareil retient son propre choix.",
 
   // time
   "time.span.s": "{n} s",
@@ -156,6 +157,9 @@ export const fr: Catalogue = {
 
   // messages
   "messages.conversations": "Conversations",
+  "messages.about_label": "À propos des messages",
+  "messages.about1": "Un message est un court texte pour une station, qui en accuse réception.",
+  "messages.about2": "Démarrez-en un avec Message sur la fiche d'une station ou dans l'onglet Stations.",
   "messages.show_overheard": "Afficher les messages captés",
   "messages.overheard_help_label": "Ce que « captés » veut dire",
   "messages.overheard_help": "Des messages que d'autres stations se sont envoyés entre elles et que nous avons entendus en radio.",
@@ -256,9 +260,8 @@ export const fr: Catalogue = {
   "email.check": "Relever les e-mails",
   "email.checking": "Relève déjà en cours",
   "email.about": "À propos de l'e-mail",
-  "email.about_gateway":
-    "Les e-mails passent par la passerelle internet EMAIL-2 via un iGate ; un e-mail peut donc afficher « {unconfirmed} » bien qu'il soit arrivé.",
-  "email.about_check": "« {check} » demande à la passerelle les e-mails qu'elle a gardés pour vous (elle les garde 24 heures).",
+  "email.about_gateway": "Le courrier passe par la passerelle internet EMAIL-2, donc un message peut afficher {unconfirmed} alors qu'il est arrivé.",
+  "email.about_check": "{check} demande à la passerelle le courrier qu'elle a gardé pour vous (24 heures).",
 
   "email.field.to": "À",
   "email.field.address": "Adresse e-mail",
@@ -302,8 +305,7 @@ export const fr: Catalogue = {
   "bulletins.kind.announcement": "Annonce",
   "bulletins.kind.group": "Bulletin à un groupe",
   "bulletins.kinds_help_label": "Ce que sont les types",
-  "bulletins.kinds_help":
-    "Un bulletin s'adresse à tout le monde et personne n'en accuse réception. Un bulletin à un groupe s'adresse aux stations qui suivent ce nom de groupe. Pour joindre des stations précises, avec un accusé de réception de chacune, envoyez-leur un message : onglet Messages, Stations.",
+  "bulletins.kinds_help": "Tout le monde voit un bulletin et personne ne l'acquitte. Un bulletin de groupe s'adresse aux stations qui suivent ce nom.",
   "bulletins.letter": "Lettre",
   "bulletins.number": "Numéro",
   "bulletins.group": "Groupe",
@@ -460,6 +462,9 @@ export const fr: Catalogue = {
 
   "station.table.filter": "Filtre",
   "station.table.filter_title": "Indicatif, symbole, commentaire, chemin",
+  "station.table.about_label": "À propos des stations",
+  "station.table.about1": "Chaque station entendue, avec sa distance et sa direction depuis vous. Cliquez sur l'une pour la voir sur la carte.",
+  "station.table.about2": "Une coche verte après un indicatif signifie que la station a été entendue en direct, sans digipeater.",
   "station.table.filter_label": "Filtrer les stations",
   "station.table.hide_timed_out": "masquer les expirées",
   "station.table.direct_only": "en direct seulement",
@@ -530,6 +535,9 @@ export const fr: Catalogue = {
   // packets
   "packets.filter": "Filtre",
   "packets.filter_title": "Indicatif, texte, type",
+  "packets.about_label": "À propos des paquets",
+  "packets.about1": "Chaque paquet entendu (in) ou envoyé par vous (out), le plus récent d'abord, tel qu'il est passé sur l'air.",
+  "packets.about2": "Cliquez sur un paquet pour voir ce que NeoAPRS en a fait.",
   "packets.filter_label": "Filtrer les paquets",
   "packets.col.time": "Heure",
   "packets.col.dir": "Sens",
@@ -825,63 +833,53 @@ export const fr: Catalogue = {
   "settings.name.radio": "Radio",
 
   "settings.call.label": "Indicatif",
+  "settings.call.tip1": "Votre indicatif. Sans lui, rien n'est envoyé.",
+  "settings.call.tip2": "-9 derrière est pour une voiture, -10 pour un iGate : un indicatif, plusieurs stations.",
   "settings.lat.label": "Latitude",
   "settings.lon.label": "Longitude",
   "settings.symbol.label": "Symbole",
+  "settings.symbol.tip1": "L'icône que les autres stations voient sur la carte. Choisissez-en une qui convient : maison, voiture, vélo, bateau.",
   "settings.symbol_code.label": "Code du symbole",
   "settings.symbol.none": "Aucun symbole",
   "settings.symbol.change": "Changer de symbole",
   "settings.symbol.overlay": "Lettre ou chiffre dessus",
 
   "settings.comment.label": "Commentaire",
-  "settings.comment.tip1":
-    "Un court texte envoyé avec votre position dans chaque balise. Les autres stations le voient à côté de votre nom sur leur carte. Lettres, chiffres et ponctuation ordinaire, sans | ni ~. Il peut faire {max} caractères, {with_phg} lorsque la puissance est renseignée.",
+  "settings.comment.tip1": "Un court texte envoyé avec chaque balise et affiché près de votre nom sur la carte. Jusqu'à {max} caractères.",
   "settings.comment.tip2": "Exemple : Station fixe, 2 m FM",
 
   "settings.station_status.name": "Texte de statut",
   "settings.station_status.label": "Texte",
-  "settings.station_status.tip1":
-    "Une ligne sur ce que vous faites, envoyée seule et non avec chaque balise. Les autres stations la voient comme votre statut. Elle part quand elle est nouvelle et que le délai « Toutes les » s'est écoulé depuis le dernier statut. Jusqu'à {max} caractères, sans | ni ~.",
+  "settings.station_status.tip1": "Une ligne sur ce que vous faites, envoyée de temps en temps, pas avec chaque balise. Jusqu'à {max} caractères.",
   "settings.station_status.tip2": "Exemple : À la maison de campagne, QRV 145.500 FM",
 
   "settings.power.label": "Puissance",
-  "settings.power.tip1":
-    "La puissance de sortie de l'émetteur. Avec la hauteur, le gain et la direction de l'antenne, elle ajoute à la balise un court code (PHG) qui dit aux autres jusqu'où vous pouvez être entendu. Laissez vide pour n'envoyer aucune des quatre valeurs.",
+  "settings.power.tip1": "La puissance de l'émetteur en watts. Avec les champs de l'antenne, elle envoie un code PHG : jusqu'où on vous entend.",
   "settings.power.tip2": "Exemple : 5",
 
   "settings.antenna_height.label": "Hauteur de l'antenne",
-  "settings.antenna_height.tip1": "La hauteur de l'antenne au-dessus du terrain moyen alentour, et non au-dessus de la mer. Sert uniquement au code PHG.",
+  "settings.antenna_height.tip1": "Hauteur de l'antenne au-dessus du sol alentour, pas au-dessus de la mer. Sert seulement au PHG.",
   "settings.antenna_height.tip2": "Exemple : 10 pour un mât sur une maison en terrain plat",
 
   "settings.antenna_gain.label": "Gain de l'antenne",
-  "settings.antenna_gain.tip1":
-    "À quel point l'antenne concentre le signal, de {min} à {max} dBi. Mettez 0 si vous ne le savez pas. Sert uniquement au code PHG.",
+  "settings.antenna_gain.tip1": "À quel point l'antenne concentre le signal, de {min} à {max} dBi ; 0 si vous ne savez pas. Sert seulement au PHG.",
   "settings.antenna_gain.tip2": "Exemple : 3",
 
   "settings.antenna_direction.label": "Direction de l'antenne",
   "settings.antenna_direction.omni": "omni",
   "settings.antenna_direction.tip1":
-    "La direction que l'antenne favorise : omni si elle fonctionne pareil dans toutes les directions, comme la plupart des fouets et des verticales, ou le point cardinal vers lequel pointe une antenne directive. Sert uniquement au code PHG.",
+    "omni si elle fonctionne pareil dans toutes les directions, sinon le point cardinal vers lequel pointe une antenne directive.",
 
   "settings.profile.label": "Type de radio",
   "settings.profile.tip_label": "Quel type de radio choisir",
-  "settings.profile.tip1":
-    "Cela indique à NeoAPRS comment parler à votre radio ou à votre modem (son TNC, la partie qui transforme le son en paquets). Choisissez la ligne qui correspond au vôtre.",
-  "settings.profile.tip2": "TNC KISS : Mobilinkd, NinoTNC, TNC-Pi, et les Kenwood TH-D74 et TH-D75 avec KISS activé sur la radio. Le choix habituel.",
-  "settings.profile.tip3":
-    "KISS sur TCP : Direwolf ou un modem à carte son tournant sur cet ordinateur ou un autre. Un Digirig ou un SignaLink passe aussi par là.",
-  "settings.profile.tip4":
-    "Kenwood TH-D7, TM-D700, TS-2000 : NeoAPRS met lui-même la radio en KISS. C'est aussi le cas du TM-D710 et du TH-D72, et du Kantronics KPC-3+.",
-  "settings.profile.tip5": "Pas sûr ? Voir le guide des radios, docs/RADIOS.md.",
+  "settings.profile.tip1": "La façon dont NeoAPRS parle à votre radio ou modem (son TNC). Choisissez la ligne qui correspond au vôtre.",
+  "settings.profile.tip2": "La plupart des TNC sont des KISS TNC ; Direwolf et les cartes son sont du KISS sur TCP. Pas sûr ? Voir docs/RADIOS.md.",
 
   "settings.port.name": "Port du TNC",
   "settings.port.label": "Port",
   "settings.port.tip_label": "À propos du port",
-  "settings.port.tip1":
-    "La connexion à la radio. Sous Linux, automatique signifie que NeoAPRS écoute les ports USB jusqu'à trouver la radio, et s'en souvient. Choisissez le port vous-même si vous avez plusieurs appareils ou si la recherche prend le mauvais.",
-  "settings.port.tip2":
-    "Une radio USB est /dev/ttyUSB0 sous Linux et COM3 sous Windows. Une radio Bluetooth apparaît dans cette liste une fois appairée avec l'ordinateur.",
-  "settings.port.tip3": "Actualiser relit la liste, par exemple après avoir branché le câble.",
+  "settings.port.tip1": "La connexion à la radio. Automatique la cherche sur les ports USB et s'en souvient.",
+  "settings.port.tip2": "Une radio USB est /dev/ttyUSB0 sous Linux, COM3 sous Windows. Actualiser relit la liste.",
   "settings.port.auto": "chercher automatiquement",
   "settings.port.none": "non défini",
   "settings.port.unset": "non défini",
@@ -893,35 +891,32 @@ export const fr: Catalogue = {
   "settings.baud.name": "Vitesse du TNC",
   "settings.baud.label": "Vitesse",
   "settings.baud.tip_label": "À propos de la vitesse",
-  "settings.baud.tip1": "La vitesse du câble entre l'ordinateur et le TNC. Laissez vide : NeoAPRS prend alors la vitesse du TNC choisi, 9600 pour la plupart.",
-  "settings.baud.tip2":
-    "À régler seulement si le manuel de votre TNC l'indique, par exemple 57600 pour un NinoTNC. Les connexions Bluetooth et TCP n'ont pas de vitesse.",
+  "settings.baud.tip1": "Laissez vide : NeoAPRS prend alors la vitesse du TNC choisi, 9600 pour la plupart.",
+  "settings.baud.tip2": "Ne la réglez que si le manuel du TNC le dit, par exemple 57600 pour un NinoTNC.",
 
   "settings.tcp_host.label": "Hôte TCP",
+  "settings.tcp_host.tip1": "L'ordinateur où tourne Direwolf ou le modem : 127.0.0.1 est cet ordinateur.",
   "settings.tcp_port.label": "Port TCP",
+  "settings.tcp_port.tip1": "Direwolf écoute sur 8001 et soundmodem sur 8100, sauf si vous l'avez changé.",
   "settings.tcp_port.title": "Direwolf 8001, soundmodem 8100",
   "settings.last_port.label": "Dernier port trouvé",
 
   "settings.network.name": "Accès réseau",
   "settings.network.label": "Autoriser l'accès depuis le réseau",
   "settings.network.tip_label": "À propos de l'accès réseau",
-  "settings.network.tip1":
-    "Permet aux autres appareils de votre réseau d'ouvrir cette page : un portable, un téléphone ou une tablette. Sans cela, seul l'ordinateur sur lequel tourne NeoAPRS peut ouvrir la page.",
-  "settings.network.tip2":
-    "Mettez sur oui et enregistrez : une clé d'accès apparaît avec les adresses à ouvrir. Saisissez la clé une fois sur chaque appareil.",
+  "settings.network.tip1": "Permet à un téléphone, une tablette ou un portable de votre réseau d'ouvrir cette page. Sans cela, seul cet ordinateur le peut.",
+  "settings.network.tip2": "Activez et enregistrez : une clé d'accès et les adresses à ouvrir apparaissent.",
 
   "settings.access_key.label": "Clé d'accès",
   "settings.access_key.tip_label": "À propos de la clé d'accès",
-  "settings.access_key.tip1":
-    "Le mot de passe des autres appareils. Ouvrez l'une des adresses ci-dessous sur le portable ou le téléphone et saisissez cette clé une fois ; l'appareil reste connecté.",
-  "settings.access_key.tip2": "Nouvelle clé en crée une autre et déconnecte tous les autres appareils. Saisissez la nouvelle clé de nouveau sur chacun.",
+  "settings.access_key.tip1": "Le mot de passe des autres appareils : saisissez-le une fois sur chacun, il reste connecté.",
+  "settings.access_key.tip2": "Nouvelle clé déconnecte tous les autres appareils.",
   "settings.new_key": "Nouvelle clé",
   "settings.new_key_sure": "sûr ?",
   "settings.urls.label": "Ouvrir à",
   "settings.urls.tip_label": "À propos des adresses",
-  "settings.urls.tip1": "Saisissez l'une d'elles dans le navigateur du portable ou du téléphone, qui doit être sur le même réseau que NeoAPRS.",
-  "settings.urls.tip2":
-    "Celle avec des chiffres fonctionne partout sur le réseau. Celle qui finit par .local est plus facile à retenir et fonctionne sur la plupart des téléphones et portables.",
+  "settings.urls.tip1": "Saisissez l'une d'elles dans le navigateur d'un appareil du même réseau.",
+  "settings.urls.tip2": "Celle avec des chiffres marche partout ; celle en .local est plus facile à retenir.",
   "settings.key_screen.label": "Clé d'accès",
   "settings.key_screen.placeholder": "xxxx-xxxx-xxxx",
   "settings.key_screen.open": "Ouvrir",
@@ -931,40 +926,36 @@ export const fr: Catalogue = {
   "settings.https.name": "Connexion sécurisée",
   "settings.https.label": "Connexion sécurisée (https)",
   "settings.https.tip_label": "À propos de la connexion sécurisée",
-  "settings.https.tip1":
-    "Nécessaire pour les fenêtres de notification sur téléphone et pour installer NeoAPRS comme application. Les navigateurs affichent un avertissement la première fois ; vous pouvez le passer, ou installer le certificat de NeoAPRS sur chaque appareil pour le faire disparaître.",
+  "settings.https.tip1": "Nécessaire pour les fenêtres contextuelles sur téléphone et pour installer NeoAPRS comme application.",
+  "settings.https.tip2": "Le navigateur avertit du certificat la première fois : vous pouvez continuer malgré tout.",
 
   "settings.radius.name": "Rayon de la carte",
   "settings.station_hours.name": "Durée sur la carte",
   "settings.radius.label": "Rayon",
   "settings.radius.tip_label": "À propos du rayon",
-  "settings.radius.tip1":
-    "Jusqu'où, autour de votre station et dans toutes les directions, s'étend la carte détaillée. La carte du monde est toujours là ; ceci est la zone avec les rues et les noms.",
-  "settings.radius.tip2":
-    "Un rayon plus grand donne un téléchargement plus gros : 150 km, c'est une région, 500 km une grande partie d'un pays. La taille s'affiche avant le début.",
+  "settings.radius.tip1": "Jusqu'où, depuis votre station, va la carte détaillée avec rues et noms. La carte du monde est toujours là.",
+  "settings.radius.tip2": "Un rayon plus grand, c'est un téléchargement plus gros : 150 km, une région ; 500 km, une grande partie d'un pays.",
 
   "settings.digipeater.label": "Digipeater",
   "settings.digipeater.tip_label": "Ce que fait le digipeater",
-  "settings.digipeater.tip1":
-    "Aide les stations proches qui n'atteignent aucun digipeater : les paquets qui demandent WIDE1-1, ou envoyés via votre indicatif, sont répétés une fois par votre radio.",
+  "settings.digipeater.tip1": "Répète les paquets des stations proches qui n'atteignent pas de digipeater : WIDE1-1, ou envoyés par votre indicatif.",
   "settings.digipeater.tip2": "Laissez-le désactivé sauf si vous êtes dans un endroit mal couvert.",
 
   "settings.alert.label": "Alerte",
+  "settings.alert.tip1": "Avec l'alerte activée, cet ordinateur lance la commande quand un message arrive.",
   "settings.alert_command.name": "Commande d'alerte",
   "settings.alert_command.label": "Commande",
+  "settings.alert_command.tip1": "Le programme lancé pour chaque nouveau message ; NEOAPRS_FROM et NEOAPRS_TEXT contiennent l'expéditeur et le texte.",
   "settings.alert_test": "Test",
   "settings.alerts.text": "Sur l'ordinateur de NeoAPRS",
   "settings.alerts.title": "L'alerte propre à NeoAPRS : la commande que le démon exécute sur l'ordinateur où il tourne",
   "settings.alerts.tip_label": "À propos des alertes",
-  "settings.alerts.tip1":
-    "Un nouveau message peut vous alerter à deux endroits. Ce groupe est l'ordinateur de NeoAPRS lui-même : avec l'alerte activée, il exécute la commande à l'arrivée d'un message, par défaut une notification et un son. Si NeoAPRS tourne sur un autre ordinateur, c'est là qu'il sonne.",
-  "settings.alerts.tip2":
-    "Le groupe suivant est ce navigateur, sur n'importe quel appareil qui a la page ouverte : pas d'alerte, un son, un son et une fenêtre, ou une fenêtre seule. Chaque appareil choisit pour lui-même, et Tester le son et Tester la fenêtre l'essaient.",
-  "settings.alerts.tip3":
-    "Si vous lisez NeoAPRS sur l'ordinateur où il tourne, l'un des deux suffit ; n'utilisez les deux que si vous voulez être prévenu deux fois.",
+  "settings.alerts.tip1": "L'alerte de cet ordinateur : il lance la commande à chaque nouveau message, par défaut un son et une notification.",
+  "settings.alerts.tip2": "Le groupe suivant est ce navigateur. Utilisez l'un des deux, ou les deux pour être prévenu deux fois.",
 
   "settings.browser.heading": "Dans ce navigateur",
   "settings.browser.mode": "Alerte pour un nouveau message",
+  "settings.browser.mode_tip": "Pas d'alerte, un son, un son avec fenêtre contextuelle, ou la fenêtre seule. Chaque appareil choisit pour lui.",
   "settings.browser.enable_popups": "Activer les fenêtres…",
   "settings.browser.sound": "Son",
   "settings.browser.test_sound": "Tester le son",
@@ -992,19 +983,16 @@ export const fr: Catalogue = {
   "settings.status_source.text": "un texte de mon choix",
   "settings.status_source.rig": "la fréquence de ma radio (rigctld)",
   "settings.status_source.tip1":
-    "Un statut est une ligne que les autres stations voient avec votre nom. « aucun » n'envoie rien. « un texte de mon choix » envoie la ligne que vous saisissez. « la fréquence de ma radio » demande à votre radio, via rigctld, sur quoi elle est réglée et l'envoie.",
+    "Une ligne que les autres stations voient après votre indicatif : aucune, un texte à vous, ou la fréquence de votre radio (rigctld).",
   "settings.status_rigctld.label": "Rigctld",
-  "settings.status_rigctld.tip1":
-    "rigctld est un petit programme Hamlib qui permet à un ordinateur de demander à une radio sur quoi elle est réglée ; lancez-le d'abord pour votre radio. Indiquez où il écoute, sous la forme adresse:port. 4532 est le port habituel.",
+  "settings.status_rigctld.tip1": "rigctld, un programme Hamlib, dit à NeoAPRS sur quoi la radio est réglée. Lancez-le d'abord, puis saisissez adresse:port.",
   "settings.status_rigctld.tip2": "Exemple : 127.0.0.1:4532",
   "settings.status_interval.name": "Intervalle du statut",
   "settings.status_interval.label": "Toutes les",
-  "settings.status_interval.tip1":
-    "Le délai minimal entre deux statuts. Un statut n'est pas renvoyé tant qu'il dit la même chose que le précédent, quel que soit le temps écoulé ; de 30 minutes à 2 heures conviennent pour un statut qui dit ce que vous faites ou sur quoi la radio est réglée.",
+  "settings.status_interval.tip1": "Le délai minimal entre deux statuts. Un statut identique n'est pas renvoyé.",
   "settings.status_template.name": "Modèle de statut",
   "settings.status_template.label": "Texte",
-  "settings.status_template.tip1":
-    "Le statut est fait à partir de ce texte avec le réglage actuel de votre radio : {{freq}} devient la fréquence et {{mode}} le mode. Jusqu'à {max} caractères une fois remplis.",
+  "settings.status_template.tip1": "{{freq}} devient la fréquence de la radio et {{mode}} son mode. Jusqu'à {max} caractères une fois rempli.",
   "settings.status_template.tip2": "Exemple : QRV {{freq}} {{mode}} donne QRV 14.074 MHz USB",
 
   "settings.beacon_interval.name": "Intervalle de la balise",
@@ -1012,19 +1000,18 @@ export const fr: Catalogue = {
   "settings.beacon_interval.off": "Désactivée",
   "settings.beacon_interval.on_smart": "Activée (SmartBeaconing)",
   "settings.beacon_interval.tip1":
-    "À quelle fréquence votre position est envoyée. Désactivée n'envoie ni balise ni statut ; les messages, accusés de réception, réponses, objets, bulletins et le digipeater continuent. Chaque balise occupe le canal pour tous les environs, donc 30 minutes est un bon choix pour une station qui reste en place ; {min} est le minimum.",
+    "À quelle fréquence votre position part : pas plus souvent que toutes les {min} min. Désactivé n'envoie ni balise ni statut.",
+  "settings.beacon_interval.tip2": "30 minutes conviennent à une station qui reste en place.",
   "settings.beacon_interval.tip_moving":
-    "Activée : SmartBeaconing envoie la position du GPS, plus souvent plus vous allez vite et à chaque virage. Désactivée : ni balise ni statut.",
+    "Activé : SmartBeaconing envoie la position GPS, plus souvent quand vous allez vite et à chaque virage. Désactivé : pas de balise.",
   "settings.path.name": "Chemin de la balise",
   "settings.path.label": "Chemin",
   "settings.path.recommended": "Recommandé ({path})",
   "settings.path.direct": "Direct seulement (sans digipeater)",
   "settings.path.custom": "Personnalisé…",
   "settings.path.custom_label": "Digipeaters",
-  "settings.path.tip1":
-    "Le choix recommandé suit le symbole de votre station : une station mobile (voiture, vélo, bateau, avion) utilise WIDE1-1,WIDE2-1, pour qu'un petit digipeater proche prenne le paquet en premier et qu'un digipeater à grande portée le transmette. Tout autre symbole est une station fixe, qui atteint directement un digipeater à grande portée et n'a besoin que de WIDE2-1.",
-  "settings.path.tip2":
-    "Choisissez Direct seulement si tous ceux à qui vous parlez vous entendent directement. Les messages choisissent leur propre chemin, sauf si vous en fixez un pour la station.",
+  "settings.path.tip1": "Recommandé : WIDE1-1,WIDE2-1 pour une station mobile et WIDE2-1 pour une station fixe, selon votre symbole.",
+  "settings.path.tip2": "Direct seulement si tous vos interlocuteurs vous entendent directement.",
 
   "settings.confirm.label": "Confirmer",
   "settings.confirm.yes": "Oui",
@@ -1119,20 +1106,15 @@ export const fr: Catalogue = {
   "settings.position.fixed": "Fixe",
   "settings.position.gpsd": "Un GPS via gpsd",
   "settings.position.serial": "Un GPS sur un port série",
-  "settings.position.tip1":
-    "« Fixe » : la station reste à l'emplacement ci-dessous et envoie la balise à l'intervalle. Un GPS : la position, le cap et la vitesse viennent du récepteur et SmartBeaconing décide quand envoyer la balise.",
-  "settings.position.tip2":
-    "gpsd est le service GPS de Linux : utilisez-le quand gpsd tourne sur cet ordinateur ou sur un autre. Un récepteur sur un port série est lu directement. Sans position GPS récente, rien n'est envoyé, pas même la position de base.",
+  "settings.position.tip1": "Fixe : la station reste à l'emplacement ci-dessous. Un GPS : position, cap et vitesse viennent du récepteur.",
+  "settings.position.tip2": "gpsd est le service GPS de Linux. Sans position récente, rien n'est envoyé, jamais la position de chez vous.",
   "settings.gps_host.label": "Adresse de gpsd",
-  "settings.gps_host.tip1":
-    "L'adresse de gpsd sous la forme hôte:port. gpsd écoute sur le port 2947 ; laissez-la telle quelle quand gpsd tourne sur cet ordinateur. Exemple : 192.168.1.20:2947",
+  "settings.gps_host.tip1": "Où gpsd écoute, sous la forme hôte:port ; laissez tel quel si gpsd tourne sur cet ordinateur.",
   "settings.gps_device.label": "Port du GPS",
-  "settings.gps_device.tip1":
-    "Le port du récepteur GPS, comme /dev/ttyUSB1 sous Linux ou COM4 sous Windows. socket://hôte:port atteint un récepteur derrière un serveur série du réseau.",
+  "settings.gps_device.tip1": "Le port du récepteur GPS : /dev/ttyUSB1 sous Linux, COM4 sous Windows.",
   "settings.gps_device.tip2": "Gardez-le distinct du port de la radio : un même appareil ne peut pas être les deux.",
   "settings.gps_baud.label": "Vitesse du GPS",
-  "settings.gps_baud.tip1":
-    "La vitesse de la liaison série du récepteur. 4800 est la vitesse propre de NMEA, et beaucoup de récepteurs USB parlent à 9600. Une mauvaise vitesse se traduit par l'absence de position.",
+  "settings.gps_baud.tip1": "La vitesse du récepteur : 4800 ou 9600 pour la plupart. Une mauvaise vitesse se voit comme une absence de position.",
   "settings.travel.label": "Déplacement",
   "settings.travel.car": "En voiture",
   "settings.travel.bicycle": "À vélo",
@@ -1144,8 +1126,7 @@ export const fr: Catalogue = {
   "settings.update.label": "Nouvelle version",
   "settings.update.check": "Vérifier maintenant",
   "settings.update.tip_label": "À propos de la recherche de mise à jour",
-  "settings.update.tip":
-    "Une fois par jour, NeoAPRS interroge la page des versions du projet pour savoir si une version plus récente est sortie, et vous le dit dans le pied de page s'il y en a une.",
+  "settings.update.tip": "Une fois par jour, NeoAPRS demande si une version plus récente est sortie et le dit en bas de page.",
   "settings.update.available": "{version} disponible",
   "settings.update.current": "à jour ({version})",
   "settings.update.no_answer": "pas de réponse",
@@ -1190,6 +1171,9 @@ export const fr: Catalogue = {
   "beacon.rigctld_on": "rigctld actif",
   "beacon.rigctld_off": "rigctld inactif",
   "beacon.preview": "Aperçu",
+  "beacon.about_label": "À propos de l'onglet Balise",
+  "beacon.about1": "La balise est votre position, envoyée de temps en temps pour que les autres stations vous voient sur la carte.",
+  "beacon.about2": "Ici, vous réglez qui vous êtes, où, et ce que dit la balise.",
   "beacon.preview_empty": "Aperçu : ces valeurs ne font pas encore de paquet",
   "beacon.packet": "Paquet",
   "beacon.packet_label": "La balise telle qu'elle serait envoyée",
@@ -1270,6 +1254,16 @@ export const fr: Catalogue = {
   "help.picture.status": "Votre court texte de statut, QRV 145.500, apparaît sur la carte des autres stations sous votre indicatif.",
   "help.picture.range": "Un digipeater avec son cercle de portée : les stations dans le cercle sont entendues par lui, celles à l'extérieur ne le sont pas.",
   "help.picture.request": "Une station demande QRU et votre station répond avec l'objet, qui n'est sinon pas émis.",
+  "help.picture.ssid": "Un indicatif, OH2GBA, pour trois stations : l'indicatif seul est une maison, -9 une voiture, -10 un iGate.",
+  "help.picture.symbol": "Un choix de symboles avec la voiture retenue, et la voiture sur la carte d'une autre station sous votre indicatif.",
+  "help.picture.network": "L'ordinateur qui exécute NeoAPRS, relié par le réseau à un téléphone, une tablette et un portable qui ouvrent sa page.",
+  "help.picture.accesskey": "Une clé saisie une fois sur un téléphone, qui reste ensuite connecté.",
+  "help.picture.igate": "Le paquet d'une voiture va par radio à un iGate, qui le passe à internet, APRS-IS, et inversement.",
+  "help.picture.radius": "Une carte avec la station au centre : la carte détaillée va jusqu'au cercle autour d'elle, la carte du monde pour le reste.",
+  "help.picture.position": "Une station fixe qui reste en place, et une station avec GPS qui se déplace, avec ses balises le long du trajet.",
+  "help.picture.digipeater":
+    "Une voiture qui n'atteint pas directement le digipeater à grande couverture est répétée par votre station, qui fait suivre son paquet.",
+  "help.picture.logs": "Un fichier de journal qui part en pièce jointe d'un e-mail.",
   "help.not_copied": "Non copié",
 
   "help.install.label": "Application",
@@ -1376,6 +1370,8 @@ export const fr: Catalogue = {
   "nearby.voice_help": "Stations, objets et items qui ont donné une fréquence d'appel.",
   "nearby.igates": "iGates",
   "nearby.igates_help": "Stations qui ont mis des paquets d'internet sur l'air, se sont annoncées comme iGate ou ont le symbole d'iGate.",
+  "nearby.igates_tip_label": "À propos des iGates",
+  "nearby.igates_tip": "Un iGate fait passer des paquets entre la radio et internet, pour que des stations lointaines vous voient.",
   "nearby.direct": "Entendues en direct",
   "nearby.direct_help": "Stations entendues sans aucun digipeater entre nous : celles à portée en simplex.",
   "nearby.none_yet": "aucune pour l'instant",

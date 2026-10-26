@@ -51,4 +51,5 @@ export const shell: Record<keyof typeof source, Message> = {
   "footer.radio.open_settings": "Abrir os ajustes do rádio",
 
   "settings.language.label": "Idioma",
+  "settings.language.tip1": "O idioma desta página. Cada navegador e dispositivo lembra o seu.",
 };

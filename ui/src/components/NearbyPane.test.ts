@@ -58,7 +58,11 @@ describe("NearbyPane", () => {
     await head?.find("button.info-toggle").trigger("click");
     expect(head?.find(".info-text").text()).toContain("Stations inside its circle reach it; stations outside do not.");
     expect(head?.find("svg[data-picture='range']").exists()).toBe(true);
-    expect(section(wrapper, "iGates")?.find(".info-toggle").exists()).toBe(false);
+    const gates = section(wrapper, "iGates")?.find(".nearby-head");
+    await gates?.find("button.info-toggle").trigger("click");
+    expect(gates?.find(".info-text").text()).toContain("An iGate passes packets between the radio and the internet");
+    expect(gates?.find("svg[data-picture='igate']").exists()).toBe(true);
+    expect(section(wrapper, "Voice frequencies")?.find(".info-toggle").exists()).toBe(false);
   });
 
   it("lists the digipeater with what it repeated and the range it gave, and its distance and bearing", () => {

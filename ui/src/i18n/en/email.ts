@@ -12,8 +12,8 @@ export const email = {
   "email.check": "Check email",
   "email.checking": "Already checking",
   "email.about": "About email",
-  "email.about_gateway": "Mail goes through the internet gateway EMAIL-2 via an iGate, so a mail can show {unconfirmed} although it arrived.",
-  "email.about_check": "{check} asks the gateway for mail it kept for you (it keeps mail for 24 hours).",
+  "email.about_gateway": "Mail goes through the internet gateway EMAIL-2, so a mail can show {unconfirmed} although it arrived.",
+  "email.about_check": "{check} asks the gateway for the mail it kept for you (24 hours).",
 
   "email.field.to": "To",
   "email.field.address": "Email address",

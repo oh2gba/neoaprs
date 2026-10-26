@@ -14,8 +14,8 @@ export const email: Readonly<Record<keyof typeof en, Message>> = {
   "email.check": "Controlla email",
   "email.checking": "Controllo già in corso",
   "email.about": "Sulle email",
-  "email.about_gateway": "La posta passa dal gateway internet EMAIL-2 tramite un iGate, quindi una email può risultare {unconfirmed} anche se è arrivata.",
-  "email.about_check": "{check} chiede al gateway la posta che ha conservato per te (la conserva per 24 ore).",
+  "email.about_gateway": "La posta passa per il gateway internet EMAIL-2, quindi una mail può mostrare {unconfirmed} anche se è arrivata.",
+  "email.about_check": "{check} chiede al gateway la posta che ha tenuto per te (24 ore).",
 
   "email.field.to": "A",
   "email.field.address": "Indirizzo email",

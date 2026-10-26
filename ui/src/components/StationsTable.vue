@@ -8,6 +8,7 @@ import DirectMark from "@/components/DirectMark.vue";
 import IconButton from "@/components/IconButton.vue";
 import MessageGlyph from "@/components/MessageGlyph.vue";
 import StationMenu from "@/components/StationMenu.vue";
+import TabHelp from "@/components/TabHelp.vue";
 import SymbolIcon from "@/components/SymbolIcon.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useLongPress } from "@/composables/useLongPress";
@@ -154,6 +155,10 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
 
 <template>
   <div class="tablepane capped">
+    <TabHelp :label="t('station.table.about_label')">
+      <span class="info-line">{{ t("station.table.about1") }}</span>
+      <span class="info-line">{{ t("station.table.about2") }}</span>
+    </TabHelp>
     <div class="toolbar">
       <input
         v-model="filter"

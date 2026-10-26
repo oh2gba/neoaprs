@@ -5,6 +5,7 @@
 import BeaconStatus from "@/components/BeaconStatus.vue";
 import DisclosureBox from "@/components/DisclosureBox.vue";
 import SendRow from "@/components/SendRow.vue";
+import TabHelp from "@/components/TabHelp.vue";
 import type { Picked } from "@/composables/usePositionPick";
 import SettingsForm from "@/components/SettingsForm.vue";
 import { t } from "@/i18n";
@@ -37,6 +38,10 @@ const current = computed(() => {
 
 <template>
   <div class="beaconpane">
+    <TabHelp :label="t('beacon.about_label')" picture="beacon">
+      <span class="info-line">{{ t("beacon.about1") }}</span>
+      <span class="info-line">{{ t("beacon.about2") }}</span>
+    </TabHelp>
     <SettingsForm scope="beacon" :picking="picking" :picked="picked" @pick-position="emit('pickPosition')">
       <template #top>
         <BeaconStatus

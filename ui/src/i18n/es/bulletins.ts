@@ -26,8 +26,7 @@ export const bulletins: Readonly<Record<keyof typeof en, Message>> = {
   "bulletins.kind.announcement": "Anuncio",
   "bulletins.kind.group": "Boletín a un grupo",
   "bulletins.kinds_help_label": "Qué son los tipos",
-  "bulletins.kinds_help":
-    "Un boletín es para todos y nadie acusa recibo. Un boletín a un grupo es para las estaciones que siguen ese nombre de grupo. Para llegar a estaciones concretas, con acuse de cada una, envíales un mensaje: pestaña Mensajes, Estaciones.",
+  "bulletins.kinds_help": "Todos ven un boletín y nadie acusa recibo. Un boletín de grupo es para las estaciones que siguen ese nombre.",
   "bulletins.letter": "Letra",
   "bulletins.number": "Número",
   "bulletins.group": "Grupo",

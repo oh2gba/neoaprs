@@ -36,16 +36,15 @@ describe("BulletinCompose", () => {
     expect(wrapper.find("label[for='post-group']").text()).toBe("Group");
   });
 
-  it("has an (i) that says in a few sentences what a bulletin, a bulletin to a group and a message are, closed until it is pressed", async () => {
+  it("has an (i) that says in a few sentences what a bulletin and a bulletin to a group are, closed until it is pressed", async () => {
     const { wrapper } = compose();
     const info = wrapper.find<HTMLButtonElement>(".info-toggle");
     expect(info.attributes("aria-expanded")).toBe("false");
     expect(wrapper.find(".info-text").exists()).toBe(false);
     await info.trigger("click");
     const note = wrapper.find(".info-text").text();
-    expect(note).toContain("for everyone");
-    expect(note).toContain("group name");
-    expect(note).toContain("Messages tab");
+    expect(note).toContain("Everyone sees a bulletin and nobody acknowledges it.");
+    expect(note).toContain("A group bulletin is for the stations that follow that name.");
     await info.trigger("click");
     expect(wrapper.find(".info-text").exists()).toBe(false);
   });

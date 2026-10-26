@@ -141,15 +141,12 @@ const travelChoices = (): readonly Choice[] => [
 ];
 
 const SPECS: Record<string, FieldSpec> = {
-  "station/call": { label: "settings.call.label" },
+  "station/call": { label: "settings.call.label", tip: ["settings.call.tip1", "settings.call.tip2"], picture: "ssid" },
   "station/lat": { label: "settings.lat.label", unit: "°" },
   "station/lon": { label: "settings.lon.label", unit: "°" },
   "station/symbol_table": { name: "settings.symbol.label", label: "settings.symbol.label" },
   "station/symbol_code": { name: "settings.symbol.label", label: "settings.symbol_code.label" },
-  "station/comment": {
-    label: "settings.comment.label",
-    tip: [["settings.comment.tip1", { max: LIMITS.comment.max, with_phg: LIMITS.comment.maxWithPhg }], "settings.comment.tip2"],
-  },
+  "station/comment": { label: "settings.comment.label", tip: [["settings.comment.tip1", { max: LIMITS.comment.max }], "settings.comment.tip2"] },
   "station/status": {
     name: "settings.station_status.name",
     label: "settings.station_status.label",
@@ -183,14 +180,14 @@ const SPECS: Record<string, FieldSpec> = {
     kind: "choice",
     choices: () => TNC_PROFILES.map((p) => ({ value: p.key, label: p.name })),
     tipLabel: "settings.profile.tip_label",
-    tip: ["settings.profile.tip1", "settings.profile.tip2", "settings.profile.tip3", "settings.profile.tip4", "settings.profile.tip5"],
+    tip: ["settings.profile.tip1", "settings.profile.tip2"],
   },
   "serial/port": {
     name: "settings.port.name",
     label: "settings.port.label",
     empty: plain("/dev/ttyUSB0"),
     tipLabel: "settings.port.tip_label",
-    tip: ["settings.port.tip1", "settings.port.tip2", "settings.port.tip3"],
+    tip: ["settings.port.tip1", "settings.port.tip2"],
   },
   "serial/baud": {
     name: "settings.baud.name",
@@ -199,8 +196,8 @@ const SPECS: Record<string, FieldSpec> = {
     tipLabel: "settings.baud.tip_label",
     tip: ["settings.baud.tip1", "settings.baud.tip2"],
   },
-  "tcp/host": { label: "settings.tcp_host.label" },
-  "tcp/port": { label: "settings.tcp_port.label", title: "settings.tcp_port.title" },
+  "tcp/host": { label: "settings.tcp_host.label", tip: ["settings.tcp_host.tip1"] },
+  "tcp/port": { label: "settings.tcp_port.label", title: "settings.tcp_port.title", tip: ["settings.tcp_port.tip1"] },
   "serial/last_port": { label: "settings.last_port.label", kind: "readonly", empty: plain("-") },
   "web/network": {
     name: "settings.network.name",
@@ -208,19 +205,21 @@ const SPECS: Record<string, FieldSpec> = {
     kind: "bool",
     tipLabel: "settings.network.tip_label",
     tip: ["settings.network.tip1", "settings.network.tip2"],
+    picture: "network",
   },
   "web/key": {
     label: "settings.access_key.label",
     kind: "readonly",
     tipLabel: "settings.access_key.tip_label",
     tip: ["settings.access_key.tip1", "settings.access_key.tip2"],
+    picture: "accesskey",
   },
   "web/https": {
     name: "settings.https.name",
     label: "settings.https.label",
     kind: "bool",
     tipLabel: "settings.https.tip_label",
-    tip: ["settings.https.tip1"],
+    tip: ["settings.https.tip1", "settings.https.tip2"],
   },
   "map/radius_km": {
     name: "settings.radius.name",
@@ -228,6 +227,7 @@ const SPECS: Record<string, FieldSpec> = {
     unit: "km",
     tipLabel: "settings.radius.tip_label",
     tip: ["settings.radius.tip1", "settings.radius.tip2"],
+    picture: "radius",
   },
   [STATION_HOURS_KEY]: { name: "settings.station_hours.name", label: "station.table.on_map", kind: "choice", choices: stationHoursChoices },
   "digi/enabled": {
@@ -235,9 +235,10 @@ const SPECS: Record<string, FieldSpec> = {
     kind: "bool",
     tipLabel: "settings.digipeater.tip_label",
     tip: ["settings.digipeater.tip1", "settings.digipeater.tip2"],
+    picture: "digipeater",
   },
-  "messages/alert": { name: "settings.alert.label", label: "settings.alert.label", kind: "bool" },
-  "messages/alert_command": { name: "settings.alert_command.name", label: "settings.alert_command.label" },
+  "messages/alert": { name: "settings.alert.label", label: "settings.alert.label", kind: "bool", tip: ["settings.alert.tip1"] },
+  "messages/alert_command": { name: "settings.alert_command.name", label: "settings.alert_command.label", tip: ["settings.alert_command.tip1"] },
   "status/source": {
     label: "settings.status_source.label",
     kind: "choice",
@@ -269,21 +270,17 @@ const SPECS: Record<string, FieldSpec> = {
     kind: "choice",
     choices: beaconChoices,
     other: every,
-    tip: [["settings.beacon_interval.tip1", { min: LIMITS.interval.beaconMinMin }]],
+    tip: [["settings.beacon_interval.tip1", { min: LIMITS.interval.beaconMinMin }], "settings.beacon_interval.tip2"],
     picture: "beacon",
   },
-  "beacon/path": {
-    name: "settings.path.name",
-    label: "settings.path.label",
-    tip: ["settings.path.tip1", "settings.path.tip2"],
-    picture: "path",
-  },
+  "beacon/path": { name: "settings.path.name", label: "settings.path.label", tip: ["settings.path.tip1", "settings.path.tip2"], picture: "path" },
   "gps/source": {
     name: "settings.position.name",
     label: "settings.position.label",
     kind: "choice",
     choices: positionChoices,
     tip: ["settings.position.tip1", "settings.position.tip2"],
+    picture: "position",
   },
   "gps/host": { label: "settings.gps_host.label", tip: ["settings.gps_host.tip1"] },
   "gps/device": {
@@ -323,7 +320,7 @@ export const SUBGROUPS: Record<string, { readonly text: string; readonly title: 
       return t("settings.alerts.tip_label");
     },
     get tip() {
-      return [t("settings.alerts.tip1"), t("settings.alerts.tip2"), t("settings.alerts.tip3")];
+      return [t("settings.alerts.tip1"), t("settings.alerts.tip2")];
     },
   },
 };

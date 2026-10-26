@@ -50,4 +50,5 @@ export const shell: Readonly<Record<keyof typeof en, Message>> = {
   "footer.radio.open_settings": "Apri le impostazioni della radio",
 
   "settings.language.label": "Lingua",
+  "settings.language.tip1": "La lingua di questa pagina. Ogni browser e dispositivo ricorda la propria scelta.",
 };

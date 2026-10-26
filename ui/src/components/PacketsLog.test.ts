@@ -13,6 +13,13 @@ const packets = new Map([
 ]);
 
 describe("PacketsLog", () => {
+  it("has the (i) of the tab at the top, which says what the list is", async () => {
+    const wrapper = mount(PacketsLog, { props: { packets } });
+    expect(wrapper.find(".tablepane").element.firstElementChild?.className).toBe("tab-help");
+    await wrapper.find(".tab-help .info-toggle").trigger("click");
+    expect(wrapper.find(".tab-help .info-text").text()).toContain("Every packet heard (in) or sent by you (out), newest first");
+  });
+
   it("lists the newest packet first, with the direction, the line and the summary", () => {
     const rows = mount(PacketsLog, { props: { packets } }).findAll("tbody tr");
     expect(rows).toHaveLength(3);

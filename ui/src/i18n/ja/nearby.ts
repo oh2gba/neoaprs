@@ -8,6 +8,8 @@ export const nearby = {
   "nearby.voice_help": "呼び出し用の周波数を知らせた局、オブジェクト、アイテム。",
   "nearby.igates": "iGate",
   "nearby.igates_help": "インターネットからのパケットを電波に乗せた局、iGateだと名乗った局、iGateのシンボルを持つ局。",
+  "nearby.igates_tip_label": "iGate について",
+  "nearby.igates_tip": "iGate は無線とインターネットの間でパケットを受け渡し、遠くの局にもあなたが見えるようにします。",
   "nearby.direct": "直接受信",
   "nearby.direct_help": "デジピーターを介さずに受信した局。シンプレックスで届く局です。",
   "nearby.none_yet": "まだありません",

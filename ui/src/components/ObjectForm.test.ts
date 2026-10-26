@@ -141,8 +141,8 @@ describe("ObjectForm", () => {
     const { wrapper, field, view } = form();
     expect(field("Symbol")?.find("input").exists()).toBe(false);
     expect(field("Symbol")?.find(".symicon .stn-layer").exists()).toBe(true);
-    expect(field("Symbol")?.findAll("button")).toHaveLength(1); // (the picture and its name are the button: there is no Change)
-    await field("Symbol")?.find("button").trigger("click");
+    expect(field("Symbol")?.findAll("button:not(.info-toggle)")).toHaveLength(1); // (the picture and its name are the button: there is no Change)
+    await field("Symbol")?.find("button.symbolbtn").trigger("click");
     const house = wrapper.findAll(".sympick-symbol").find((b) => b.text() === "House");
     await house?.trigger("click");
     expect(view.draft.symbol).toBe("/-");

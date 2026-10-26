@@ -39,7 +39,13 @@ const sections = computed(() => [
     items: digis.value.map((d: Digipeater): NearbyItem => ({ call: d.call, row: d.row, lines: digipeaterLines(d) })),
   },
   { id: "voice", title: t("nearby.voice"), help: t("nearby.voice_help"), tip: null, items: itemsOf(voiceRows(rows.value), voiceLines) },
-  { id: "igates", title: t("nearby.igates"), help: t("nearby.igates_help"), tip: null, items: itemsOf(gateRows(rows.value), gateLines) },
+  {
+    id: "igates",
+    title: t("nearby.igates"),
+    help: t("nearby.igates_help"),
+    tip: { label: t("nearby.igates_tip_label"), text: t("nearby.igates_tip"), picture: "igate" as const },
+    items: itemsOf(gateRows(rows.value), gateLines),
+  },
   {
     id: "direct",
     title: t("nearby.direct"),

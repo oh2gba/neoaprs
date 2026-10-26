@@ -8,6 +8,8 @@ export const nearby = {
   "nearby.voice_help": "Stazioni, oggetti e item che hanno indicato una frequenza su cui chiamare.",
   "nearby.igates": "iGate",
   "nearby.igates_help": "Stazioni che hanno messo in onda pacchetti da internet, hanno detto di essere un iGate o hanno il simbolo di iGate.",
+  "nearby.igates_tip_label": "Sugli iGate",
+  "nearby.igates_tip": "Un iGate passa i pacchetti tra la radio e internet, così ti vedono anche stazioni lontane.",
   "nearby.direct": "Ricevute in diretta",
   "nearby.direct_help": "Stazioni ricevute senza alcun digipeater in mezzo: quelle a portata in simplex.",
   "nearby.none_yet": "ancora nessuna",

@@ -32,61 +32,52 @@ export const settings = {
   "settings.name.radio": "Radio",
 
   "settings.call.label": "Call",
+  "settings.call.tip1": "Your call sign. Nothing is sent without it.",
+  "settings.call.tip2": "-9 after it is for a car, -10 for an iGate: one call, several stations.",
   "settings.lat.label": "Latitude",
   "settings.lon.label": "Longitude",
   "settings.symbol.label": "Symbol",
+  "settings.symbol.tip1": "The icon other stations see on the map. Pick one that fits: house, car, bike, boat.",
   "settings.symbol_code.label": "Symbol code",
   "settings.symbol.none": "No symbol",
   "settings.symbol.change": "Change symbol",
   "settings.symbol.overlay": "Letter or digit on it",
 
   "settings.comment.label": "Comment",
-  "settings.comment.tip1":
-    "A short text sent with your position in every beacon. Other stations see it beside your name on their map. Letters, digits and ordinary punctuation, no | or ~. It can be {max} characters long, {with_phg} when Power is set.",
+  "settings.comment.tip1": "A short text sent with every beacon, shown beside your name on the map. Up to {max} characters.",
   "settings.comment.tip2": "Example: Home station, 2 m FM",
 
   "settings.station_status.name": "Status text",
   "settings.station_status.label": "Text",
-  "settings.station_status.tip1":
-    "A line about what you are doing, sent on its own, not with every beacon. Other stations see it as your status. It goes out when it is new and the Every time has passed since the last status. Up to {max} characters, no | or ~.",
+  "settings.station_status.tip1": "A line about what you are doing, sent now and then, not with every beacon. Up to {max} characters.",
   "settings.station_status.tip2": "Example: At the summer cottage, QRV 145.500 FM",
 
   "settings.power.label": "Power",
-  "settings.power.tip1":
-    "The transmitter's output power. Together with the antenna height, gain and direction it adds a short code (PHG) to the beacon that tells others how far you can be heard. Leave it empty to send none of the four.",
+  "settings.power.tip1": "Transmitter power in watts. With the antenna fields it sends a PHG code: how far you can be heard.",
   "settings.power.tip2": "Example: 5",
 
   "settings.antenna_height.label": "Antenna height",
-  "settings.antenna_height.tip1": "How high the antenna is above the average ground around it, not above the sea. Used only for the PHG code.",
+  "settings.antenna_height.tip1": "Height of the antenna above the ground around it, not above the sea. Used only for PHG.",
   "settings.antenna_height.tip2": "Example: 10 for a mast on a house on level ground",
 
   "settings.antenna_gain.label": "Antenna gain",
-  "settings.antenna_gain.tip1": "How much the antenna concentrates the signal, {min} to {max} dBi. Use 0 if you do not know. Used only for the PHG code.",
+  "settings.antenna_gain.tip1": "How much the antenna concentrates the signal, {min} to {max} dBi; 0 if unsure. Used only for PHG.",
   "settings.antenna_gain.tip2": "Example: 3",
 
   "settings.antenna_direction.label": "Antenna direction",
   "settings.antenna_direction.omni": "omni",
-  "settings.antenna_direction.tip1":
-    "The way the antenna favours: omni when it works the same in every direction, as most whips and verticals do, or the point of the compass a beam antenna points to. Used only for the PHG code.",
+  "settings.antenna_direction.tip1": "omni if it works the same in every direction, or the compass point a beam antenna points to.",
 
   "settings.profile.label": "Radio type",
   "settings.profile.tip_label": "Which radio type to pick",
-  "settings.profile.tip1":
-    "This tells NeoAPRS how to talk to your radio or modem (its TNC, the part that turns sound into packets). Pick the line that matches yours.",
-  "settings.profile.tip2": "KISS TNC: Mobilinkd, NinoTNC, TNC-Pi, and the Kenwood TH-D74 and TH-D75 with KISS switched on at the radio. The usual choice.",
-  "settings.profile.tip3": "KISS over TCP: Direwolf or a sound-card modem running on this or another computer. A Digirig or SignaLink goes this way too.",
-  "settings.profile.tip4":
-    "Kenwood TH-D7, TM-D700, TS-2000: NeoAPRS puts the radio into KISS itself. So it does for the TM-D710 and TH-D72, and for the Kantronics KPC-3+.",
-  "settings.profile.tip5": "Not sure? See the radio guide, docs/RADIOS.md.",
+  "settings.profile.tip1": "How NeoAPRS talks to your radio or modem (its TNC). Pick the line that matches yours.",
+  "settings.profile.tip2": "Most TNCs are KISS TNC; Direwolf and sound cards are KISS over TCP. Not sure? See docs/RADIOS.md.",
 
   "settings.port.name": "TNC port",
   "settings.port.label": "Port",
   "settings.port.tip_label": "About the port",
-  "settings.port.tip1":
-    "The connection to the radio. On Linux, automatic means NeoAPRS listens to the USB ports until it finds the radio, and remembers it. Choose a port yourself if you have several devices, or if the search picks the wrong one.",
-  "settings.port.tip2":
-    "A USB radio is /dev/ttyUSB0 on Linux and COM3 on Windows. A Bluetooth radio appears in this list after you have paired it with the computer.",
-  "settings.port.tip3": "Refresh reads the list again, for example after you plug the cable in.",
+  "settings.port.tip1": "The connection to the radio. Automatic looks for it on the USB ports and remembers it.",
+  "settings.port.tip2": "A USB radio is /dev/ttyUSB0 on Linux, COM3 on Windows. Refresh reads the list again.",
   "settings.port.auto": "find automatically",
   "settings.port.none": "not set",
   "settings.port.unset": "not set",
@@ -98,34 +89,32 @@ export const settings = {
   "settings.baud.name": "TNC speed",
   "settings.baud.label": "Speed",
   "settings.baud.tip_label": "About the speed",
-  "settings.baud.tip1":
-    "The speed of the cable between the computer and the TNC. Leave it empty: NeoAPRS then uses the speed of the TNC you chose, 9600 for most.",
-  "settings.baud.tip2": "Set it only if the manual of your TNC says so, for example 57600 for a NinoTNC. Bluetooth and TCP connections have no speed.",
+  "settings.baud.tip1": "Leave it empty: NeoAPRS then uses the speed of the TNC you chose, 9600 for most.",
+  "settings.baud.tip2": "Set it only if the TNC's manual says so, for example 57600 for a NinoTNC.",
 
   "settings.tcp_host.label": "TCP host",
+  "settings.tcp_host.tip1": "The computer where Direwolf or the modem runs: 127.0.0.1 is this computer.",
   "settings.tcp_port.label": "TCP port",
+  "settings.tcp_port.tip1": "Direwolf listens on 8001 and soundmodem on 8100, unless you changed it.",
   "settings.tcp_port.title": "Direwolf 8001, soundmodem 8100",
   "settings.last_port.label": "Last port found",
 
   "settings.network.name": "Network access",
   "settings.network.label": "Allow access from the network",
   "settings.network.tip_label": "About network access",
-  "settings.network.tip1":
-    "Lets other devices on your network open this page: a laptop, a phone or a tablet. Without it, only the computer NeoAPRS runs on can open the page.",
-  "settings.network.tip2": "Set it to yes and Save: an access key appears with the addresses to open. Type the key once on each device.",
+  "settings.network.tip1": "Lets a phone, a tablet or a laptop on your network open this page. Without it, only this computer can.",
+  "settings.network.tip2": "Switch it on and Save: an access key and the addresses to open appear.",
 
   "settings.access_key.label": "Access key",
   "settings.access_key.tip_label": "About the access key",
-  "settings.access_key.tip1":
-    "The password for the other devices. Open one of the addresses below on the laptop or phone and type this key once; the device stays logged in.",
-  "settings.access_key.tip2": "New key makes another one and logs every other device out. Type the new key again on each.",
+  "settings.access_key.tip1": "The password for the other devices: type it once on each, and it stays logged in.",
+  "settings.access_key.tip2": "New key logs every other device out.",
   "settings.new_key": "New key",
   "settings.new_key_sure": "sure?",
   "settings.urls.label": "Open at",
   "settings.urls.tip_label": "About the addresses",
-  "settings.urls.tip1": "Type one of these in the browser of the laptop or phone, which must be on the same network as NeoAPRS.",
-  "settings.urls.tip2":
-    "The one with numbers works everywhere on the network. The one ending in .local is easier to remember and works on most phones and laptops.",
+  "settings.urls.tip1": "Type one of these in the browser of a device on the same network.",
+  "settings.urls.tip2": "The numbers work everywhere; the one ending in .local is easier to remember.",
   "settings.key_screen.label": "Access key",
   "settings.key_screen.placeholder": "xxxx-xxxx-xxxx",
   "settings.key_screen.open": "Open",
@@ -135,38 +124,36 @@ export const settings = {
   "settings.https.name": "Secure connection",
   "settings.https.label": "Secure connection (https)",
   "settings.https.tip_label": "About the secure connection",
-  "settings.https.tip1":
-    "Needed for pop-ups on phones and for installing NeoAPRS as an app. Browsers show a warning the first time; you can continue past it, or install NeoAPRS's certificate on each device to make the warning go away.",
+  "settings.https.tip1": "Needed for pop-ups on phones and to install NeoAPRS as an app.",
+  "settings.https.tip2": "The browser warns about the certificate the first time: you can continue past it.",
 
   "settings.radius.name": "Map radius",
   "settings.station_hours.name": "Time on the map",
   "settings.radius.label": "Radius",
   "settings.radius.tip_label": "About the radius",
-  "settings.radius.tip1":
-    "How far from your station, in every direction, the detailed map reaches. The world map is always there; this is the area with streets and names.",
-  "settings.radius.tip2": "A bigger radius means a bigger download: 150 km is a region, 500 km a large part of a country. The size is shown before you start.",
+  "settings.radius.tip1": "How far from your station the detailed map, with streets and names, reaches. The world map is always there.",
+  "settings.radius.tip2": "A bigger radius is a bigger download: 150 km is a region, 500 km a large part of a country.",
 
   "settings.digipeater.label": "Digipeater",
   "settings.digipeater.tip_label": "What the digipeater does",
-  "settings.digipeater.tip1":
-    "Helps nearby stations that cannot reach a digipeater: packets asking for WIDE1-1, or sent through your call, are repeated once by your radio.",
+  "settings.digipeater.tip1": "Repeats packets of nearby stations that cannot reach a digipeater: WIDE1-1, or sent through your call.",
   "settings.digipeater.tip2": "Leave it off unless you are in a spot with poor coverage.",
 
   "settings.alert.label": "Alert",
+  "settings.alert.tip1": "With Alert on, this computer runs the Command when a message arrives.",
   "settings.alert_command.name": "Alert command",
   "settings.alert_command.label": "Command",
+  "settings.alert_command.tip1": "The program run for each new message; NEOAPRS_FROM and NEOAPRS_TEXT hold the sender and the text.",
   "settings.alert_test": "Test",
   "settings.alerts.text": "On the NeoAPRS computer",
   "settings.alerts.title": "NeoAPRS's own alert: the command the daemon runs on the computer it runs on",
   "settings.alerts.tip_label": "About the alerts",
-  "settings.alerts.tip1":
-    "A new message can alert you in two places. This group is the NeoAPRS computer itself: with Alert on, it runs the Command when a message arrives, by default a notification and a sound. When NeoAPRS runs on another computer, that is where it sounds.",
-  "settings.alerts.tip2":
-    "The next group is this browser, on whatever device has the page open: no alert, a sound, a sound and a pop-up, or a pop-up only. Each device chooses for itself, and Test sound and Test pop-up try it.",
-  "settings.alerts.tip3": "If you read NeoAPRS on the computer it runs on, one of the two is enough; use both only if you want to be told twice.",
+  "settings.alerts.tip1": "The alert of this computer: it runs the Command for each new message, by default a sound and a notification.",
+  "settings.alerts.tip2": "The next group is this browser. Use one of the two, or both to be told twice.",
 
   "settings.browser.heading": "In this browser",
   "settings.browser.mode": "Alert for a new message",
+  "settings.browser.mode_tip": "No alert, a sound, a sound with a pop-up, or a pop-up only. Each device chooses for itself.",
   "settings.browser.enable_popups": "Enable pop-ups…",
   "settings.browser.sound": "Sound",
   "settings.browser.test_sound": "Test sound",
@@ -193,39 +180,33 @@ export const settings = {
   "settings.status_source.off": "off",
   "settings.status_source.text": "a text of my own",
   "settings.status_source.rig": "the frequency from my radio (rigctld)",
-  "settings.status_source.tip1":
-    "A status is a line other stations see with your name. Off sends none. A text of my own sends the line you type. The frequency from my radio asks your radio, through rigctld, what it is tuned to and sends that.",
+  "settings.status_source.tip1": "A line other stations see after your call: none, a text of your own, or your radio's frequency (rigctld).",
   "settings.status_rigctld.label": "Rigctld",
-  "settings.status_rigctld.tip1":
-    "rigctld is a small Hamlib program that lets a computer ask a radio what it is tuned to; start it for your radio first. Type where it listens, as address:port. 4532 is the usual port.",
+  "settings.status_rigctld.tip1": "rigctld, a Hamlib program, tells NeoAPRS what the radio is tuned to. Start it first, then type address:port.",
   "settings.status_rigctld.tip2": "Example: 127.0.0.1:4532",
   "settings.status_interval.name": "Status interval",
   "settings.status_interval.label": "Every",
-  "settings.status_interval.tip1":
-    "The least time between two status reports. A status is not sent again while it says the same as the last one, however long it has been; 30 minutes to 2 hours suit a status that tells what you are doing or what the radio is tuned to.",
+  "settings.status_interval.tip1": "The least time between two statuses. The same status is not sent again.",
   "settings.status_template.name": "Status template",
   "settings.status_template.label": "Text",
-  "settings.status_template.tip1":
-    "The status is made from this text with what your radio is tuned to now: {{freq}} becomes the frequency and {{mode}} the mode. Up to {max} characters once they are filled in.",
+  "settings.status_template.tip1": "{{freq}} becomes the radio's frequency and {{mode}} its mode. Up to {max} characters once filled in.",
   "settings.status_template.tip2": "Example: QRV {{freq}} {{mode}} gives QRV 14.074 MHz USB",
 
   "settings.beacon_interval.name": "Beacon interval",
   "settings.beacon_interval.label": "Beacon",
   "settings.beacon_interval.off": "Off",
   "settings.beacon_interval.on_smart": "On (SmartBeaconing)",
-  "settings.beacon_interval.tip1":
-    "How often your position is sent. Off sends no beacon and no status report; messages, acknowledgements, answers, objects, bulletins and the digipeater go on. Every beacon uses the channel for everyone around, so 30 minutes is a good choice for a station that stays where it is; {min} is the least.",
-  "settings.beacon_interval.tip_moving":
-    "On: SmartBeaconing sends the GPS position, more often the faster you go and at every turn. Off: no beacon and no status report.",
+  "settings.beacon_interval.tip1": "How often your position goes out: not more often than every {min} min. Off sends no beacon and no status.",
+  "settings.beacon_interval.tip2": "30 minutes suits a station that stays where it is.",
+  "settings.beacon_interval.tip_moving": "On: SmartBeaconing sends the GPS position, more often the faster you go and at every turn. Off: no beacon.",
   "settings.path.name": "Beacon path",
   "settings.path.label": "Path",
   "settings.path.recommended": "Recommended ({path})",
   "settings.path.direct": "Direct only (no digipeaters)",
   "settings.path.custom": "Custom…",
   "settings.path.custom_label": "Digipeaters",
-  "settings.path.tip1":
-    "Recommended follows your station's symbol: a moving station (a car, a bike, a boat, an aircraft) uses WIDE1-1,WIDE2-1, so that a small digipeater nearby picks the packet up first and a wide-area one carries it on. Any other symbol is a fixed station, which reaches a wide-area digipeater directly and needs only WIDE2-1.",
-  "settings.path.tip2": "Choose Direct only if everyone you talk to hears you directly. Messages choose their own path unless you set one for the station.",
+  "settings.path.tip1": "Recommended is WIDE1-1,WIDE2-1 for a moving station and WIDE2-1 for a fixed one, by your symbol.",
+  "settings.path.tip2": "Direct only if everyone you talk to hears you directly.",
 
   "settings.confirm.label": "Confirm",
   "settings.confirm.yes": "Yes",
@@ -320,20 +301,15 @@ export const settings = {
   "settings.position.fixed": "Fixed",
   "settings.position.gpsd": "A GPS via gpsd",
   "settings.position.serial": "A GPS on a serial port",
-  "settings.position.tip1":
-    "Fixed: the station stays at the location below and beacons at the interval. A GPS: the position, course and speed come from the receiver and SmartBeaconing decides when to beacon.",
-  "settings.position.tip2":
-    "gpsd is the GPS service of Linux: use it when gpsd runs on this computer or another one. A receiver on a serial port is read directly. With no fresh fix nothing is sent, never the home position.",
+  "settings.position.tip1": "Fixed: the station stays at the location below. A GPS: position, course and speed come from the receiver.",
+  "settings.position.tip2": "gpsd is the GPS service of Linux. With no fresh fix nothing is sent, never the home position.",
   "settings.gps_host.label": "gpsd address",
-  "settings.gps_host.tip1":
-    "The address of gpsd as host:port. gpsd listens on port 2947, so leave it as it is when gpsd runs on this computer. Example: 192.168.1.20:2947",
+  "settings.gps_host.tip1": "Where gpsd listens, as host:port; leave it as it is when gpsd runs on this computer.",
   "settings.gps_device.label": "GPS port",
-  "settings.gps_device.tip1":
-    "The port of the GPS receiver, such as /dev/ttyUSB1 on Linux or COM4 on Windows. socket://host:port reaches a receiver behind a serial server on the network.",
+  "settings.gps_device.tip1": "The port of the GPS receiver: /dev/ttyUSB1 on Linux, COM4 on Windows.",
   "settings.gps_device.tip2": "Keep it apart from the radio's port: one device cannot be both.",
   "settings.gps_baud.label": "GPS speed",
-  "settings.gps_baud.tip1":
-    "The speed of the receiver's serial line. 4800 is the speed of NMEA itself, and many USB receivers speak 9600. A wrong speed shows as no fix.",
+  "settings.gps_baud.tip1": "The speed of the receiver: 4800 or 9600 for most. A wrong speed shows as no fix.",
 
   "settings.travel.label": "Travelling",
   "settings.travel.car": "By car",
@@ -346,7 +322,7 @@ export const settings = {
   "settings.update.label": "New version",
   "settings.update.check": "Check now",
   "settings.update.tip_label": "About the update check",
-  "settings.update.tip": "Once a day NeoAPRS asks the project's version page whether a newer version is out, and tells you in the footer when there is one.",
+  "settings.update.tip": "Once a day NeoAPRS asks if a newer version is out, and says so in the footer.",
   "settings.update.available": "{version} available",
   "settings.update.current": "up to date ({version})",
   "settings.update.no_answer": "no answer",

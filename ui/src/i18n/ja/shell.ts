@@ -50,4 +50,5 @@ export const shell: Record<keyof typeof source, Message> = {
   "footer.radio.open_settings": "無線機の設定を開く",
 
   "settings.language.label": "言語",
+  "settings.language.tip1": "このページの言語です。ブラウザーやデバイスごとに選択が記憶されます。",
 };

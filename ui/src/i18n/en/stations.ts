@@ -98,6 +98,9 @@ export const stations = {
 
   "station.table.filter": "Filter",
   "station.table.filter_title": "Call, symbol, comment, path",
+  "station.table.about_label": "About the stations",
+  "station.table.about1": "Every station heard, with its distance and direction from you. Click one to find it on the map.",
+  "station.table.about2": "A green tick after a call means the station was heard direct, with no digipeater.",
   "station.table.filter_label": "Filter the stations",
   "station.table.hide_timed_out": "hide timed out",
   "station.table.direct_only": "direct only",

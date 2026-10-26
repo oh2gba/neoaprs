@@ -100,6 +100,9 @@ export const stations: Record<keyof typeof source, Message> = {
 
   "station.table.filter": "Filtrar",
   "station.table.filter_title": "Indicativo, símbolo, comentário, caminho",
+  "station.table.about_label": "Sobre as estações",
+  "station.table.about1": "Cada estação ouvida, com distância e direção a partir de você. Clique em uma para vê-la no mapa.",
+  "station.table.about2": "Um visto verde depois do indicativo significa que a estação foi ouvida direto, sem digipeater.",
   "station.table.filter_label": "Filtrar as estações",
   "station.table.hide_timed_out": "ocultar expiradas",
   "station.table.direct_only": "só diretas",

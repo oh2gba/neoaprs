@@ -26,8 +26,7 @@ export const bulletins: Readonly<Record<keyof typeof en, Message>> = {
   "bulletins.kind.announcement": "Annuncio",
   "bulletins.kind.group": "Bollettino a un gruppo",
   "bulletins.kinds_help_label": "Cosa sono i tipi",
-  "bulletins.kinds_help":
-    "Un bollettino è per tutti e nessuno lo conferma. Un bollettino a un gruppo è per le stazioni che seguono quel nome di gruppo. Per raggiungere stazioni precise, con la conferma di ciascuna, scrivi loro un messaggio: scheda Messaggi, Stazioni.",
+  "bulletins.kinds_help": "Tutti vedono un bollettino e nessuno lo conferma. Un bollettino di gruppo è per le stazioni che seguono quel nome.",
   "bulletins.letter": "Lettera",
   "bulletins.number": "Numero",
   "bulletins.group": "Gruppo",

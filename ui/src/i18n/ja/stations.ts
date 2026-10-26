@@ -100,6 +100,9 @@ export const stations: Record<keyof typeof source, Message> = {
 
   "station.table.filter": "絞り込み",
   "station.table.filter_title": "コールサイン、シンボル、コメント、パス",
+  "station.table.about_label": "局について",
+  "station.table.about1": "受信したすべての局を、自局からの距離と方向つきで表示します。クリックすると地図で見つけられます。",
+  "station.table.about2": "コールサインの後ろの緑のチェックは、デジピーターを介さず直接受信した局です。",
   "station.table.filter_label": "局を絞り込む",
   "station.table.hide_timed_out": "時間切れを隠す",
   "station.table.direct_only": "直接受信のみ",

@@ -117,7 +117,7 @@ describe("the Symbol field", () => {
     expect(field?.find(".symicon .stn-layer").exists()).toBe(true);
     expect(field?.find(".symbolfield-name").text()).toBe("House");
     expect(field?.find("input").exists()).toBe(false);
-    expect(field?.findAll("button")).toHaveLength(1); // (the symbol is the control: no Change button)
+    expect(field?.findAll("button:not(.info-toggle)")).toHaveLength(1); // (the symbol is the control: no Change button)
     expect(field?.find("button").classes()).toContain("symbolbtn");
     expect(field?.find("button").attributes("aria-label")).toBe("Change symbol");
     expect(field?.find("button").element.contains(field?.find(".symicon").element ?? null)).toBe(true);
@@ -170,7 +170,9 @@ describe("the (i) of a field", () => {
       .filter((f) => f.find(".info-toggle").exists())
       .map((f) => f.find("label").text());
     expect(withTip).toEqual([
+      "Call",
       "Position",
+      "Symbol",
       "Beacon",
       "Comment",
       "Power",

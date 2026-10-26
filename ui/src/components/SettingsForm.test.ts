@@ -126,7 +126,7 @@ describe("SettingsForm", () => {
       (field?.querySelector(".info-toggle") as HTMLElement).click();
       await wrapper.vm.$nextTick();
       expect(field?.querySelector(".info-text")?.textContent).toContain("Fixed: the station stays at the location below");
-      expect(field?.querySelector(".info-text")?.textContent).toContain("A GPS: the position, course and speed come from the receiver");
+      expect(field?.querySelector(".info-text")?.textContent).toContain("A GPS: position, course and speed come from the receiver");
     });
 
     it("asks for the address of gpsd for gpsd, with the default as the placeholder, and no place to give while a GPS is chosen", () => {

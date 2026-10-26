@@ -48,4 +48,5 @@ export const shell = {
   "footer.radio.open_settings": "Open the radio settings",
 
   "settings.language.label": "Language",
+  "settings.language.tip1": "The language of this page. Each browser and device remembers its own choice.",
 } as const;

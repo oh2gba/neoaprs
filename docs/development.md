@@ -142,6 +142,9 @@ to a daemon on port 7303.
   footer. `useDaemonContext` is the one typed context that `App.vue` provides and the panes inject, so the panes take no chain of props. `usePanel`,
   `useSelection`, `useMessagesView`, `useEmail`, `useBulletins`, `useOwnObjects` and `useAppShell` run the panel, the station picked, and the tabs.
 - `ui/src/components` has the single-file components, none over 300 lines. They take props and emit events.
+- `ui/src/help/` has the small pictures that an (i) note can show under its text (`InfoTip` takes one by name, `help/names.ts`): each is inline SVG 280 by 150 in the colours of the page
+  (`styles/helppictures.css`, so that it follows light and dark), its symbols are cut from the map's own sheets, and it has no words in it but calls and codes; its
+  description for a screen reader is `help.picture.<name>` in the catalogues. A tab says what it is for in an (i) bar at its top (`TabHelp`).
 - `ui/src/styles/` has the CSS by area, imported in order from `main.ts`; `scripts/css-unused.py` (in the stage `ui-lint`) fails for a rule of a class that no
   source file writes. The classes the page builds at run time (`hop-${kind}`, ...) are in its `PREFIXES`, with the file that builds each.
 - The tests of `App.vue` are split by tab and area (`ui/src/App.<area>.test.ts`), with a shared harness in `ui/src/test/app.ts`.

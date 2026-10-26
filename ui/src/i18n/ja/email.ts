@@ -15,8 +15,8 @@ export const email: Record<keyof typeof source, Message> = {
   "email.check": "メールを確認",
   "email.checking": "確認中です",
   "email.about": "メールについて",
-  "email.about_gateway": "メールはインターネットゲートウェイ EMAIL-2 にiGate経由で届くため、着信していても「{unconfirmed}」と表示されることがあります。",
-  "email.about_check": "「{check}」は、ゲートウェイがあなた宛てに預かっているメールを問い合わせます(預かるのは24時間です)。",
+  "email.about_gateway": "メールはインターネットのゲートウェイ EMAIL-2 を通るため、届いていても「{unconfirmed}」と表示されることがあります。",
+  "email.about_check": "「{check}」は、ゲートウェイが預かっているメール(24時間分)を問い合わせます。",
 
   "email.field.to": "宛先",
   "email.field.address": "メールアドレス",

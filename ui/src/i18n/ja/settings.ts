@@ -34,60 +34,52 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.name.radio": "無線機",
 
   "settings.call.label": "コールサイン",
+  "settings.call.tip1": "あなたのコールサインです。これがないと何も送信されません。",
+  "settings.call.tip2": "後ろに -9 を付けると車、-10 なら iGate です。1つのコールサインで複数の局を区別できます。",
   "settings.lat.label": "緯度",
   "settings.lon.label": "経度",
   "settings.symbol.label": "シンボル",
+  "settings.symbol.tip1": "他の局に地図上で見えるアイコンです。家、車、自転車、船など、合うものを選びます。",
   "settings.symbol_code.label": "シンボルコード",
   "settings.symbol.none": "シンボルなし",
   "settings.symbol.change": "シンボルを変更",
   "settings.symbol.overlay": "重ねる文字または数字",
 
   "settings.comment.label": "コメント",
-  "settings.comment.tip1":
-    "ビーコンのたびに位置と一緒に送られる短いテキストです。ほかの局の地図で、あなたの名前の横に表示されます。使えるのは半角の英数字と一般的な記号で、| と ~ は使えません。最大{max}文字で、出力を設定した場合は{with_phg}文字までです。",
+  "settings.comment.tip1": "ビーコンごとに送られ、地図上で名前の横に表示される短い文です。最大{max}文字。",
   "settings.comment.tip2": "例: Home station, 2 m FM",
 
   "settings.station_status.name": "ステータステキスト",
   "settings.station_status.label": "テキスト",
-  "settings.station_status.tip1":
-    "いま何をしているかを伝える1行で、ビーコンとは別に単独で送られます。ほかの局には、あなたのステータスとして表示されます。内容が新しくなり、前回のステータスから「間隔」の時間が過ぎると送信されます。最大{max}文字で、| と ~ は使えません。",
+  "settings.station_status.tip1": "今していることを伝える1行で、ビーコンごとではなく時々送られます。最大{max}文字。",
   "settings.station_status.tip2": "例: At the summer cottage, QRV 145.500 FM",
 
   "settings.power.label": "出力",
-  "settings.power.tip1":
-    "送信機の出力電力です。アンテナ高、利得、指向性と合わせて、ビーコンに短いコード(PHG)が付き、どこまで届くかをほかの局に伝えます。4つとも送らない場合は空にしてください。",
+  "settings.power.tip1": "送信出力(W)です。アンテナの項目と合わせて PHG コード(どこまで聞こえるか)を送ります。",
   "settings.power.tip2": "例: 5",
 
   "settings.antenna_height.label": "アンテナ高",
-  "settings.antenna_height.tip1": "アンテナの、海抜ではなく周辺の平均的な地面からの高さです。PHGコードにのみ使われます。",
+  "settings.antenna_height.tip1": "アンテナの周囲の地面からの高さです(海抜ではありません)。PHG にだけ使います。",
   "settings.antenna_height.tip2": "例: 平地の家の屋根にあるマストなら 10",
 
   "settings.antenna_gain.label": "アンテナ利得",
-  "settings.antenna_gain.tip1": "アンテナがどれだけ信号を絞り込むかを、{min}〜{max} dBiで指定します。わからなければ 0 にします。PHGコードにのみ使われます。",
+  "settings.antenna_gain.tip1": "アンテナが信号をどれだけ絞るか({min}~{max} dBi)。不明なら0。PHG にだけ使います。",
   "settings.antenna_gain.tip2": "例: 3",
 
   "settings.antenna_direction.label": "アンテナの指向性",
   "settings.antenna_direction.omni": "全方向",
-  "settings.antenna_direction.tip1":
-    "アンテナが強く働く方向です。ホイップやバーティカルのようにどの方向にも同じように働くなら全方向、ビームアンテナなら向けている方位を選びます。PHGコードにのみ使われます。",
+  "settings.antenna_direction.tip1": "全方向に同じなら omni、指向性アンテナならそれが向いている方位を選びます。",
 
   "settings.profile.label": "無線機の種類",
   "settings.profile.tip_label": "無線機の種類の選び方",
-  "settings.profile.tip1":
-    "NeoAPRSが、お使いの無線機やモデム(TNC、音声をパケットに変換する部分)とどう通信するかを指定します。お使いの機器に合うものを選んでください。",
-  "settings.profile.tip2": "KISS TNC: Mobilinkd、NinoTNC、TNC-Pi、および無線機側でKISSをオンにしたケンウッド TH-D74 / TH-D75。通常はこれを選びます。",
-  "settings.profile.tip3": "KISS over TCP: このパソコンまたは別のパソコンで動くDirewolfやサウンドカードモデム。DigirigやSignaLinkもこちらです。",
-  "settings.profile.tip4": "Kenwood TH-D7、TM-D700、TS-2000: NeoAPRSが無線機をKISSモードにします。TM-D710、TH-D72、Kantronics KPC-3+も同様です。",
-  "settings.profile.tip5": "わからないときは、無線機ガイド docs/RADIOS.md をご覧ください。",
+  "settings.profile.tip1": "NeoAPRS が無線機やモデム(その TNC)とどう通信するかを決めます。お使いのものに合う行を選んでください。",
+  "settings.profile.tip2": "ほとんどの TNC は「KISS TNC」、Direwolf やサウンドカードは「KISS over TCP」です。迷ったら docs/RADIOS.md を見てください。",
 
   "settings.port.name": "TNCポート",
   "settings.port.label": "ポート",
   "settings.port.tip_label": "ポートについて",
-  "settings.port.tip1":
-    "無線機との接続です。Linuxで「自動」にすると、NeoAPRSが無線機を見つけるまでUSBポートを調べ、見つけたものを覚えます。機器が複数ある場合や、検索が違うポートを選んでしまう場合は、自分で選んでください。",
-  "settings.port.tip2":
-    "USB接続の無線機は、Linuxでは /dev/ttyUSB0、Windowsでは COM3 のようになります。Bluetooth接続の無線機は、パソコンとペアリングするとこの一覧に表示されます。",
-  "settings.port.tip3": "「更新」は一覧を読み込み直します。たとえばケーブルを挿した後に使います。",
+  "settings.port.tip1": "無線機との接続です。「自動」は USB ポートから探して覚えます。",
+  "settings.port.tip2": "USB 接続の無線機は Linux では /dev/ttyUSB0、Windows では COM3 です。「更新」で一覧を読み直します。",
   "settings.port.auto": "自動で検出",
   "settings.port.none": "未設定",
   "settings.port.unset": "未設定",
@@ -99,32 +91,32 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.baud.name": "TNCの通信速度",
   "settings.baud.label": "通信速度",
   "settings.baud.tip_label": "通信速度について",
-  "settings.baud.tip1": "パソコンとTNCを結ぶケーブルの通信速度です。空欄にすると、選んだTNCの速度が使われます(多くは9600です)。",
-  "settings.baud.tip2": "TNCの説明書に指定があるときだけ設定してください(たとえばNinoTNCは57600)。BluetoothやTCPの接続には通信速度はありません。",
+  "settings.baud.tip1": "空欄のままにすると、選んだ TNC の速度(多くは 9600)を使います。",
+  "settings.baud.tip2": "TNC の説明書に書かれている場合だけ設定します(NinoTNC なら 57600 など)。",
 
   "settings.tcp_host.label": "TCPホスト",
+  "settings.tcp_host.tip1": "Direwolf やモデムが動いているコンピューターです。127.0.0.1 はこのコンピューター自身です。",
   "settings.tcp_port.label": "TCPポート",
+  "settings.tcp_port.tip1": "Direwolf は 8001、soundmodem は 8100 で待ち受けます(変更していなければ)。",
   "settings.tcp_port.title": "Direwolf 8001、soundmodem 8100",
   "settings.last_port.label": "最後に検出したポート",
 
   "settings.network.name": "ネットワークアクセス",
   "settings.network.label": "ネットワークからのアクセスを許可",
   "settings.network.tip_label": "ネットワークアクセスについて",
-  "settings.network.tip1":
-    "同じネットワーク上のほかの機器(ノートPC、スマートフォン、タブレット)からこのページを開けるようにします。オフの間は、NeoAPRSが動いているパソコンだけがページを開けます。",
-  "settings.network.tip2": "「はい」にして保存すると、アクセスキーと開くためのアドレスが表示されます。機器ごとにキーを1回入力してください。",
+  "settings.network.tip1": "ネットワーク上のスマートフォン、タブレット、ノートパソコンからこのページを開けるようにします。オフならこのコンピューターだけです。",
+  "settings.network.tip2": "オンにして保存すると、アクセスキーと開くアドレスが表示されます。",
 
   "settings.access_key.label": "アクセスキー",
   "settings.access_key.tip_label": "アクセスキーについて",
-  "settings.access_key.tip1":
-    "ほかの機器用のパスワードです。ノートPCやスマートフォンで下のアドレスのどれかを開き、このキーを1回入力すると、その機器はログインしたままになります。",
-  "settings.access_key.tip2": "「新しいキー」で別のキーを作り、ほかのすべての機器をログアウトします。各機器で新しいキーをもう一度入力してください。",
+  "settings.access_key.tip1": "他のデバイス用のパスワードです。各デバイスで一度入力すればログインしたままになります。",
+  "settings.access_key.tip2": "「新しいキー」を押すと、他のすべてのデバイスはログアウトされます。",
   "settings.new_key": "新しいキー",
   "settings.new_key_sure": "本当に?",
   "settings.urls.label": "開くアドレス",
   "settings.urls.tip_label": "アドレスについて",
-  "settings.urls.tip1": "ノートPCやスマートフォンのブラウザでこのうちのどれかを入力します。NeoAPRSと同じネットワークにつながっている必要があります。",
-  "settings.urls.tip2": "数字のアドレスはネットワーク内のどこからでも使えます。.local で終わるものは覚えやすく、ほとんどのスマートフォンとノートPCで使えます。",
+  "settings.urls.tip1": "同じネットワーク上のデバイスのブラウザーに、どれか1つを入力します。",
+  "settings.urls.tip2": "数字のものはどこでも使えます。.local で終わるものは覚えやすいです。",
   "settings.key_screen.label": "アクセスキー",
   "settings.key_screen.placeholder": "xxxx-xxxx-xxxx",
   "settings.key_screen.open": "開く",
@@ -134,38 +126,36 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.https.name": "セキュア接続",
   "settings.https.label": "セキュア接続(https)",
   "settings.https.tip_label": "セキュア接続について",
-  "settings.https.tip1":
-    "スマートフォンでのポップアップ通知と、NeoAPRSをアプリとしてインストールするために必要です。最初にブラウザが警告を出しますが、そのまま続行できます。警告を出さないようにするには、各機器にNeoAPRSの証明書をインストールします。",
+  "settings.https.tip1": "スマートフォンでポップアップを出すため、また NeoAPRS をアプリとしてインストールするために必要です。",
+  "settings.https.tip2": "初回はブラウザーが証明書について警告します。そのまま続行できます。",
 
   "settings.radius.name": "地図の半径",
   "settings.station_hours.name": "地図の表示時間",
   "settings.radius.label": "半径",
   "settings.radius.tip_label": "半径について",
-  "settings.radius.tip1":
-    "自局を中心に、全方向へどこまで詳細地図を用意するかです。世界地図は常に使えます。ここで指定するのは、道路や地名まで表示されるエリアです。",
-  "settings.radius.tip2": "半径が大きいほどダウンロードも大きくなります。150 kmで一つの地方、500 kmで国の大部分です。サイズは開始前に表示されます。",
+  "settings.radius.tip1": "自局からどこまで、道路や地名のある詳細な地図を使うかです。世界地図は常にあります。",
+  "settings.radius.tip2": "半径が大きいほどダウンロードも大きくなります。150 km は1つの地方、500 km は国の大部分です。",
 
   "settings.digipeater.label": "デジピーター",
   "settings.digipeater.tip_label": "デジピーターの働き",
-  "settings.digipeater.tip1":
-    "近くにデジピーターがなく届かない局を助けます。WIDE1-1 を指定したパケットや、あなたのコールサインを経由するパケットを、無線機が1回だけ中継します。",
+  "settings.digipeater.tip1": "デジピーターに届かない近くの局のパケット(WIDE1-1、またはあなたのコールサイン経由)を中継します。",
   "settings.digipeater.tip2": "電波の届きにくい場所でない限り、オフのままにしてください。",
 
   "settings.alert.label": "アラート",
+  "settings.alert.tip1": "アラートをオンにすると、メッセージが届いたときにこのコンピューターがコマンドを実行します。",
   "settings.alert_command.name": "アラートのコマンド",
   "settings.alert_command.label": "コマンド",
+  "settings.alert_command.tip1": "新着メッセージごとに実行されるプログラムです。NEOAPRS_FROM と NEOAPRS_TEXT に送信者と本文が入ります。",
   "settings.alert_test": "テスト",
   "settings.alerts.text": "NeoAPRSのパソコン",
   "settings.alerts.title": "NeoAPRS自身のアラート: デーモンが動いているパソコンで実行するコマンド",
   "settings.alerts.tip_label": "アラートについて",
-  "settings.alerts.tip1":
-    "新しいメッセージは2か所で知らせることができます。このグループはNeoAPRSのパソコン自身です。アラートをオンにすると、メッセージが届いたときにコマンドを実行します(既定では通知と音)。NeoAPRSが別のパソコンで動いている場合は、そちらで鳴ります。",
-  "settings.alerts.tip2":
-    "次のグループは、ページを開いているこのブラウザ(どの機器でも)です。通知なし、音、音とポップアップ、ポップアップのみから選べます。機器ごとに別々に選べ、「音のテスト」と「ポップアップのテスト」で試せます。",
-  "settings.alerts.tip3": "NeoAPRSが動いているパソコンで見ている場合は、どちらか一方で十分です。二重に知らせたいときだけ両方使ってください。",
+  "settings.alerts.tip1": "このコンピューター自身のアラートです。新着メッセージごとにコマンドを実行します(既定は音と通知)。",
+  "settings.alerts.tip2": "次のグループはこのブラウザーです。どちらか一方で十分で、両方なら2回知らせます。",
 
   "settings.browser.heading": "このブラウザ",
   "settings.browser.mode": "新着メッセージのアラート",
+  "settings.browser.mode_tip": "アラートなし、音、音とポップアップ、ポップアップのみから選びます。デバイスごとに選べます。",
   "settings.browser.enable_popups": "ポップアップを有効にする…",
   "settings.browser.sound": "音",
   "settings.browser.test_sound": "音のテスト",
@@ -192,40 +182,33 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.status_source.off": "なし",
   "settings.status_source.text": "自分のテキスト",
   "settings.status_source.rig": "無線機の周波数(rigctld)",
-  "settings.status_source.tip1":
-    "ステータスは、あなたの名前と一緒にほかの局に表示される1行です。「なし」は送りません。「自分のテキスト」は入力した行を送ります。「無線機の周波数」は、rigctld経由で無線機に今の受信周波数を問い合わせて送ります。",
+  "settings.status_source.tip1": "他の局にコールサインの後ろに見える1行です。なし、自分の文、または無線機の周波数(rigctld)から選びます。",
   "settings.status_rigctld.label": "Rigctld",
-  "settings.status_rigctld.tip1":
-    "rigctldは、パソコンから無線機の周波数を問い合わせるための小さなHamlibプログラムです。先に無線機用に起動しておいてください。待ち受けている場所を アドレス:ポート で入力します。通常のポートは4532です。",
+  "settings.status_rigctld.tip1": "rigctld(Hamlib のプログラム)が、無線機の受信周波数などを NeoAPRS に伝えます。先に起動し、アドレス:ポートを入力します。",
   "settings.status_rigctld.tip2": "例: 127.0.0.1:4532",
   "settings.status_interval.name": "ステータスの間隔",
   "settings.status_interval.label": "間隔",
-  "settings.status_interval.tip1":
-    "ステータスを送る最短の間隔です。前回と同じ内容のステータスは、どれだけ時間がたっても再送されません。いま何をしているか、または無線機の周波数を伝えるステータスには、30分〜2時間が適当です。",
+  "settings.status_interval.tip1": "2回のステータスの最短間隔です。同じ内容のステータスは再送されません。",
   "settings.status_template.name": "ステータスのテンプレート",
   "settings.status_template.label": "テキスト",
-  "settings.status_template.tip1":
-    "ステータスは、このテキストに無線機の現在の設定を埋め込んで作られます。{{freq}} は周波数に、{{mode}} は電波型式に置き換わります。置き換えた後で最大{max}文字です。",
+  "settings.status_template.tip1": "{{freq}} は無線機の周波数、{{mode}} は電波型式に置き換わります。置き換え後で最大{max}文字。",
   "settings.status_template.tip2": "例: QRV {{freq}} {{mode}} は QRV 14.074 MHz USB になります",
 
   "settings.beacon_interval.name": "ビーコンの間隔",
   "settings.beacon_interval.label": "ビーコン",
   "settings.beacon_interval.off": "オフ",
   "settings.beacon_interval.on_smart": "オン(SmartBeaconing)",
-  "settings.beacon_interval.tip1":
-    "位置を送る頻度です。「オフ」にするとビーコンもステータスも送りません。メッセージ、確認応答、問い合わせへの返答、オブジェクト、掲示、デジピーターは動き続けます。ビーコンはそのたびに周囲の全員の周波数を使うので、動かない局なら30分が適当です。最短は{min}です。",
-  "settings.beacon_interval.tip_moving":
-    "「オン」: SmartBeaconingがGPSの位置を送ります。速いほど、また曲がるたびに頻度が上がります。「オフ」: ビーコンもステータスも送りません。",
+  "settings.beacon_interval.tip1": "位置を送る間隔です({min}分より短くはできません)。オフにするとビーコンもステータスも送りません。",
+  "settings.beacon_interval.tip2": "動かない局なら30分が適当です。",
+  "settings.beacon_interval.tip_moving": "オン: SmartBeaconing が GPS の位置を、速いほど頻繁に、曲がるたびに送ります。オフ: ビーコンなし。",
   "settings.path.name": "ビーコンのパス",
   "settings.path.label": "パス",
   "settings.path.recommended": "推奨({path})",
   "settings.path.direct": "直接のみ(デジピーターなし)",
   "settings.path.custom": "カスタム…",
   "settings.path.custom_label": "デジピーター",
-  "settings.path.tip1":
-    "推奨はあなたの局のシンボルに合わせて決まります。移動局(車、自転車、船、航空機)は WIDE1-1,WIDE2-1 を使い、近くの小さなデジピーターがまずパケットを拾い、広域のデジピーターがさらに中継します。それ以外のシンボルは固定局とみなされ、広域のデジピーターに直接届くため WIDE2-1 だけで足ります。",
-  "settings.path.tip2":
-    "話す相手の全員があなたの電波を直接受信できるなら「直接のみ」を選びます。メッセージは、局ごとにパスを設定しない限り、自動でパスを選びます。",
+  "settings.path.tip1": "推奨は、移動局なら WIDE1-1,WIDE2-1、固定局なら WIDE2-1 です(シンボルで決まります)。",
+  "settings.path.tip2": "話す相手の全員に直接届くときだけ「直接のみ」にします。",
 
   "settings.confirm.label": "確認",
   "settings.confirm.yes": "はい",
@@ -319,19 +302,15 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.position.fixed": "固定",
   "settings.position.gpsd": "gpsd経由のGPS",
   "settings.position.serial": "シリアルポートのGPS",
-  "settings.position.tip1":
-    "「固定」: 局は下の場所にとどまり、ビーコンの間隔で送ります。GPS: 位置、進路、速度は受信機から取得し、送るタイミングはSmartBeaconingが決めます。",
-  "settings.position.tip2":
-    "gpsdはLinuxのGPSサービスです。このコンピューターか別のコンピューターでgpsdが動いているときに選びます。シリアルポートの受信機は直接読みます。新しい測位がないと何も送らず、ホーム位置も送りません。",
+  "settings.position.tip1": "固定: 局は下の場所にとどまります。GPS: 位置・針路・速度は受信機から得ます。",
+  "settings.position.tip2": "gpsd は Linux の GPS サービスです。最新の測位がないときは何も送らず、自宅の位置を送ることもありません。",
   "settings.gps_host.label": "gpsdのアドレス",
-  "settings.gps_host.tip1":
-    "gpsdのアドレスをホスト:ポートで指定します。gpsdは2947番ポートで待ち受けるので、このコンピューターで動いているならそのままにしてください。例: 192.168.1.20:2947",
+  "settings.gps_host.tip1": "gpsd が待ち受ける場所(ホスト:ポート)です。gpsd がこのコンピューターで動いているなら、そのままにします。",
   "settings.gps_device.label": "GPSのポート",
-  "settings.gps_device.tip1":
-    "GPS受信機のポートです。Linuxなら/dev/ttyUSB1、WindowsならCOM4など。socket://ホスト:ポート で、ネットワーク上のシリアルサーバーにつないだ受信機を指定できます。",
+  "settings.gps_device.tip1": "GPS 受信機のポートです。Linux なら /dev/ttyUSB1、Windows なら COM4 など。",
   "settings.gps_device.tip2": "無線機のポートとは別にしてください。1つのデバイスを両方には使えません。",
   "settings.gps_baud.label": "GPSの通信速度",
-  "settings.gps_baud.tip1": "受信機のシリアル回線の速度です。NMEA本来の速度は4800で、多くのUSB受信機は9600です。速度が違うと測位できないように見えます。",
+  "settings.gps_baud.tip1": "受信機の速度です。多くは 4800 か 9600 です。違うと測位できません。",
   "settings.travel.label": "移動手段",
   "settings.travel.car": "車で",
   "settings.travel.bicycle": "自転車で",
@@ -343,7 +322,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.update.label": "新しいバージョン",
   "settings.update.check": "今すぐ確認",
   "settings.update.tip_label": "更新の確認について",
-  "settings.update.tip": "NeoAPRSは1日1回、プロジェクトのバージョンページで新しいバージョンが出ていないか確認し、あればフッターでお知らせします。",
+  "settings.update.tip": "1日に1回、新しいバージョンが出ているか確認し、あれば下部に表示します。",
   "settings.update.available": "{version}が利用可能",
   "settings.update.current": "最新です({version})",
   "settings.update.no_answer": "応答なし",

@@ -8,4 +8,7 @@ export const CALLS = {
   fillIn: "WIDE1-1",
   wide: "WIDE2-1",
   repeater: "145.600",
+  iGateCall: "OH2GBA-10",
+  igate: "OH7JHF-1",
+  aprsIs: "APRS-IS",
 } as const;

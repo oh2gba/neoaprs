@@ -24,8 +24,7 @@ export const bulletins = {
   "bulletins.kind.announcement": "Announcement",
   "bulletins.kind.group": "Bulletin to a group",
   "bulletins.kinds_help_label": "What the kinds are",
-  "bulletins.kinds_help":
-    "A bulletin is for everyone and nobody acknowledges it. A bulletin to a group is for the stations that follow that group name. To reach particular stations, with an acknowledgement from each, send them a message: Messages tab, Stations.",
+  "bulletins.kinds_help": "Everyone sees a bulletin and nobody acknowledges it. A group bulletin is for the stations that follow that name.",
   "bulletins.letter": "Letter",
   "bulletins.number": "Number",
   "bulletins.group": "Group",

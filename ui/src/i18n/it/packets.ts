@@ -4,6 +4,9 @@ import type { Message } from "@/i18n/message";
 export const packets: Readonly<Record<keyof typeof en, Message>> = {
   "packets.filter": "Filtro",
   "packets.filter_title": "Nominativo, testo, tipo",
+  "packets.about_label": "Sui pacchetti",
+  "packets.about1": "Ogni pacchetto ascoltato (in) o inviato da te (out), il più recente per primo, come è passato via radio.",
+  "packets.about2": "Fai clic su un pacchetto per vedere cosa ne ha ricavato NeoAPRS.",
   "packets.filter_label": "Filtra i pacchetti",
   "packets.col.time": "Ora",
   "packets.col.dir": "Dir",
