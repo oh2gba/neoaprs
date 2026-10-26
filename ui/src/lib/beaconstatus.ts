@@ -55,7 +55,7 @@ export function beaconBlock(status: StatusMessage | null, gps: GpsState | null, 
     return {
       moving,
       label: t("beacon.label"),
-      pill: { text: t("beacon.state.off"), tone: "beacon-off" },
+      pill: null,
       line: t("beacon.line.off"),
       hover: undefined,
       smart: null,

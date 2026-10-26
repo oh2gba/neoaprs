@@ -135,11 +135,10 @@ describe("BeaconPane", () => {
       expect(group(wrapper, "Beacon")?.find(".sendrow").exists()).toBe(false);
     });
 
-    it("says Beacon off, with the pill off, while the interval is 0", () => {
+    it("says Beacon off once, in the line and not again as a state word, while the interval is 0", () => {
       const { wrapper } = pane({ "beacon/interval_min": "0" }, { status: status({ beacon_last_sent: ago(125) }) });
       expect(block(wrapper).find(".beaconlabel").text()).toBe("Beacon");
-      expect(block(wrapper).find(".statetext").text()).toBe("off");
-      expect(block(wrapper).find(".statetext").classes()).toContain("beacon-off");
+      expect(block(wrapper).find(".statetext").exists()).toBe(false);
       expect(block(wrapper).find(".tncstatus").text()).toBe("Beacon off");
     });
 
@@ -472,7 +471,7 @@ describe("BeaconPane with the beacon Off", () => {
     ).toEqual(["Beacon off", "the receiver has no position fix yet"]);
     const fixed = off();
     expect(block(fixed.wrapper).find(".beaconlabel").text()).toBe("Beacon");
-    expect(block(fixed.wrapper).find(".statetext").text()).toBe("off");
+    expect(block(fixed.wrapper).find(".statetext").exists()).toBe(false);
     expect(block(fixed.wrapper).find(".tncstatus").text()).toBe("Beacon off");
     expect(block(fixed.wrapper).findAll("p")).toHaveLength(0);
   });
