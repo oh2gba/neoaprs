@@ -33,10 +33,10 @@ const remove = (b: BoardEntry): void =>
     </TabHelp>
     <div class="boardpane">
       <p v-if="shown.length === 0" class="empty">{{ t("bulletins.empty") }}</p>
-      <section v-for="section in shown" :key="section.kind" class="board-section" :aria-label="section.title">
-        <h3 class="board-title">
+      <fieldset v-for="section in shown" :key="section.kind" class="board-section" :aria-label="section.title">
+        <legend class="board-title">
           {{ section.title }} <span class="muted">{{ section.rows.length }}</span>
-        </h3>
+        </legend>
         <ul class="board">
           <li v-for="b in section.rows" :key="keyOf(b)" class="bulletin" :class="{ mine: b.own !== undefined }">
             <div class="bulletin-actions">
@@ -62,7 +62,7 @@ const remove = (b: BoardEntry): void =>
             </p>
           </li>
         </ul>
-      </section>
+      </fieldset>
     </div>
     <BulletinCompose :own-bulletins="ownBulletins" @post="(slot, text) => send({ cmd: 'bulletin_post', slot, text })" />
   </div>

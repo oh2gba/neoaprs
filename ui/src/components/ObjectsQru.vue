@@ -84,7 +84,7 @@ function inStations(names: readonly string[]): void {
       </InfoTip>
     </legend>
     <div class="qru-ask">
-      <button type="button" class="btn primary" :disabled="off || wrong" :title="why" @click="ask('INFO')">{{ t("objects.qru_ask") }}</button>
+      <button type="button" class="btn" :disabled="off || wrong" :title="why" @click="ask('INFO')">{{ t("objects.qru_ask") }}</button>
       <input
         v-model="km"
         class="input mono qru-km"
