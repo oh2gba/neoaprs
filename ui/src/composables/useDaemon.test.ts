@@ -6,7 +6,7 @@ import { FakeFetch } from "@/test/fakefetch";
 import { FakeSocket } from "@/test/fakesocket";
 import { pageErrors } from "@/lib/pageerrors";
 import { PROTOCOL } from "@/protocol/lists";
-import { DAEMON_VERSION, bulletin, configValues, errorOf, gpsState, hello, message, ownBulletin, ownObject, packet, station, tncState } from "@/test/fixtures";
+import { DAEMON_VERSION, bulletin, configValues, errorOf, gpsState, hello, igateState, message, ownBulletin, ownObject, packet, station, tncState } from "@/test/fixtures";
 
 function setUp() {
   let daemon: ReturnType<typeof useDaemon> | undefined;
@@ -61,6 +61,7 @@ describe("useDaemon", () => {
     socket.say({ type: "state", topic: "tnc", rev: 0, value: tncState() });
     socket.say({ type: "state", topic: "config", rev: 0, value: configValues() });
     socket.say({ type: "state", topic: "gps", rev: 0, value: gpsState({ mobile: true }) });
+    socket.say({ type: "state", topic: "igate", rev: 0, value: igateState() });
     socket.say({ type: "state", topic: "messages", rev: 0, value: { "1": message(1) } });
     socket.say({ type: "state", topic: "station_prefs", rev: 0, value: { OH2RDG: { path: "WIDE2-1" } } });
     socket.say({ type: "state", topic: "bulletins", rev: 0, value: { "OH2XYZ/BLN1": bulletin("BLN1") } });
@@ -75,6 +76,7 @@ describe("useDaemon", () => {
     expect(daemon.tnc.value?.state).toBe("connected");
     expect(daemon.config.value?.values["station/call"]).toBe("OH2GBA");
     expect(daemon.gps.value).toEqual(gpsState({ mobile: true }));
+    expect(daemon.igate.value).toEqual(igateState());
     socket.say({
       type: "patch",
       topic: "stations",

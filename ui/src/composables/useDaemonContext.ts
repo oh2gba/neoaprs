@@ -17,6 +17,7 @@ import type {
   ConfigValues,
   GpsState,
   InstallInfo,
+  IgateState,
   MapState,
   PortsMessage,
   StationRow,
@@ -37,6 +38,8 @@ export interface DaemonContext {
   tnc: Read<TncState | null>;
   /** the GPS receiver and the moving station's beacon; null until the daemon has told */
   gps: Read<GpsState | null>;
+  /** the receive-only iGate: connected or not, what it gated; null until the daemon has told */
+  igate: Read<IgateState | null>;
   map: Read<MapState | null>;
   /** Update now: whether this copy can update itself, and how the update it is doing goes */
   selfUpdate: Read<UpdateState | null>;

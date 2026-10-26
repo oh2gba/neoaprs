@@ -5,12 +5,13 @@
 // left empty shows the default as a placeholder. The Radius row of the Map group has the button that makes the map at its right end (MapFetchButton, plain, as the Test button of the Command row is) and under it the progress, a failure and "Map downloaded 21 Oct" (MapFetchNotes); they work on the saved settings. On the Settings tab a link at the top opens the first-run guide again; the default slot is
 // for more groups (the page's own, which are not settings of the daemon), the slot `top` for the beacon status above the first group, and `status` for the line with the button that sends the status now, which opens the Status group. The Beacon tab's Station group
 // starts with the choice of where the position comes from (gps/source: Fixed, or a GPS) and what that needs; the place (Location) is shown for Fixed only (with a GPS it stays stored and out of sight), and the Beacon group has the Beacon choice (an interval, or Off and On for a moving station) and, for a moving station, the Travelling choice instead of the antenna. While the beacon is Off the Beacon group's other fields (Travelling, the comment, the antenna, the path) and the whole Status group are shown greyed out (`disabled` of SettingsField), the Station group never. The TNC group is SettingsRadio: the state of the radio link with Reconnect in view and the fields of the radio behind a fold, and the fields of the page's own alert end the
-// Notifications group (BrowserAlerts). What it works on is the page's (useDaemonContext): the settings, the daemon's answers, `send`. The Update check group (the daily check itself is always on) has a Check now button, which asks the version page at once and says the answer in the toast (a newer version opens the update window). While the network is let in, the Web group shows
+// Notifications group (BrowserAlerts). What it works on is the page's (useDaemonContext): the settings, the daemon's answers, `send`. The iGate group (the switch, the passcode with a link to the page where one is requested, the status line, and what it never does; igate/server is not on the page) says Set your call first and shows nothing else while the call is not set. The Update check group (the daily check itself is always on) has a Check now button, which asks the version page at once and says the answer in the toast (a newer version opens the update window). While the network is let in, the Web group shows
 // the access key with a New key button and the addresses to open the page at. The Help group (SettingsHelp) follows the Update check group, and the About group (SettingsAbout) is the last.
 import BrowserAlerts from "@/components/BrowserAlerts.vue";
 import ConfirmRow from "@/components/ConfirmRow.vue";
 import MapFetchButton from "@/components/MapFetchButton.vue";
 import MapFetchNotes from "@/components/MapFetchNotes.vue";
+import IgateStatus from "@/components/IgateStatus.vue";
 import InfoTip from "@/components/InfoTip.vue";
 import LanguageField from "@/components/LanguageField.vue";
 import SettingsField from "@/components/SettingsField.vue";
@@ -33,13 +34,14 @@ import type { Picked } from "@/composables/usePositionPick";
 import { disabledByValues } from "@/lib/beaconoff";
 import { degreesText } from "@/lib/setup";
 import { BEACON_FOLDS, SUBGROUPS, fieldFor, shownByValues, shownFor, valueFor, type Scope } from "@/lib/settings";
+import { passcodeLink } from "@/lib/igatestatus";
 import { statusSource } from "@/lib/status";
 import { computed, watch } from "vue";
 
 const props = withDefaults(defineProps<{ scope?: Scope; picking?: boolean; picked?: Picked | null }>(), { scope: "settings", picking: false, picked: null });
 const emit = defineEmits<{ setup: []; update: []; pickPosition: [] }>();
 
-const { config, lastError, send, settings, alertResult, updateResult, map, alerts, ports, say } = useDaemonContext();
+const { config, lastError, send, settings, alertResult, updateResult, map, alerts, ports, say, igate, now } = useDaemonContext();
 const { draft, errors } = settings;
 const form = useSettingsForm(config, settings, props.scope);
 const { groups, question, defaults } = form;
@@ -62,6 +64,8 @@ const greyed = (key: string): boolean => props.scope === "beacon" && disabledByV
 /** The network is let in and the daemon has made a key (what is in force, not the switch as it is being changed). */
 const network = computed(() => config.value?.values["web/network"] === "true" && (config.value.values[KEY_KEY] ?? "") !== "");
 const urls = computed(() => config.value?.urls ?? []);
+/** Our call in force (the iGate logs in as it, and the page where a passcode is requested is told it); the iGate group asks for it first. */
+const call = computed(() => (config.value?.values["station/call"] ?? "").trim());
 // the answers of the buttons (Test, New key, Check now) are said in the toast, so that nothing moves; a newer version opens the update window
 watch(
   () => alertTest.result.value,
@@ -137,7 +141,14 @@ function typed(key: string, text: string): void {
       <legend>{{ group.title }}</legend>
       <SettingsRadio v-if="group.id === 'serial'" :keys="shown(group.keys)" :settings="settings" :form="form" :defaults="defaults" />
       <slot v-if="group.id === 'status'" name="status"></slot>
-      <SettingsBox v-for="box in boxesOf(group.id === 'serial' ? [] : shown(group.keys))" :key="box.id" :title="box.sub?.text" :hover="box.sub?.title">
+      <p v-if="group.id === 'igate' && call === ''" class="problem" role="status">{{ t("settings.igate.set_call") }}</p>
+      <IgateStatus v-else-if="group.id === 'igate' && igate" :igate="igate" :values="config.values" :now="now" />
+      <SettingsBox
+        v-for="box in boxesOf(group.id === 'serial' || (group.id === 'igate' && call === '') ? [] : shown(group.keys))"
+        :key="box.id"
+        :title="box.sub?.text"
+        :hover="box.sub?.title"
+      >
         <template v-if="box.sub" #legend>
           <InfoTip :label="box.sub.tipLabel">
             <span v-for="line in box.sub.tip" :key="line" class="info-line">{{ line }}</span>
@@ -203,6 +214,9 @@ function typed(key: string, text: string): void {
             <template v-else-if="key === RADIUS_KEY && map" #after>
               <MapFetchButton v-if="map" :map="map" :stale="settings.saving.value" :send="send" />
             </template>
+            <template v-else-if="key === 'igate/password'" #after>
+              <a class="btn igate-request" :href="passcodeLink(call)" target="_blank" rel="noopener">{{ t("settings.igate.request") }}</a>
+            </template>
             <template v-else-if="key === KEY_KEY" #after>
               <button class="btn" :class="{ danger: newKey.armed.value }" type="button" :disabled="newKey.running.value" @click="newKey.press">
                 {{ newKey.armed.value ? t("settings.new_key_sure") : t("settings.new_key") }}
@@ -238,6 +252,7 @@ function typed(key: string, text: string): void {
           :disabled="greyed"
         />
       </template>
+      <p v-if="group.id === 'igate'" class="igate-note">{{ t("settings.igate.note") }}</p>
       <BrowserAlerts v-if="group.id === 'notifications'" :alerts="alerts" :https="config.https" :say="say" />
     </fieldset>
     <fieldset v-if="scope === 'settings'" class="update-check">

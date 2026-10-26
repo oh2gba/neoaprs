@@ -3,6 +3,7 @@ the station preferences, the TNC and the settings. The models of the wire module
 from the attribute of the object that has its name: what is written here is only what the object does not have as it is, the values that are worked out (a distance, the next time a thing
 is sent, the route as text)."""
 import json
+from collections.abc import Mapping
 from datetime import datetime
 from typing import Any, Protocol
 
@@ -29,6 +30,7 @@ from neoaprs.weatherlog import Observation
 
 from .bulletinwire import BulletinRow
 from .gpswire import GpsState
+from .igatewire import IgateState
 from .messagewire import AttemptRow, MessageRow
 from .ownwire import OwnBulletinRow, OwnObjectRow
 from .packetwire import PacketRow
@@ -124,6 +126,28 @@ def tnc_state(tnc: Tnc) -> dict[str, Any]:
 
 def config_values(config: Config, urls: list[str], https: dict[str, Any] | None = None) -> dict[str, Any]:
     return {"values": config.to_data(), "defaults": DEFAULTS.to_data(), "urls": urls, "https": https or {"on": False, "port": 0, "fingerprint": "", "problem": ""}}
+
+
+class IgateSource(Protocol):
+    """What the `igate` topic needs of the iGate service."""
+    @property
+    def state(self) -> str: ...
+    @property
+    def problem(self) -> str: ...
+    @property
+    def server_name(self) -> str: ...
+    @property
+    def gated(self) -> int: ...
+    @property
+    def dropped(self) -> Mapping[str, int]: ...
+    @property
+    def last_gated_at(self) -> datetime | None: ...
+
+
+def igate_state(config: Config, igate: IgateSource) -> dict[str, Any]:
+    """The `igate` topic: whether the iGate is connected and what it has gated and not gated."""
+    return IgateState.row(None, enabled=config.igate_enabled, state=igate.state, server=igate.server_name, problem=igate.problem, gated=igate.gated, dropped=dict(igate.dropped),
+                          last_gated_at=iso(igate.last_gated_at))
 
 
 class GpsSource(Protocol):

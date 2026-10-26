@@ -65,6 +65,9 @@ def empty_home(root: Path, set_env: Callable[[str, str], None]) -> Path:
 
 # The rigctld, rotctld and gpsd of whoever runs the tests: on this machine, but not a fake. A test that wants a rig or a GPS starts a fake one on a free port.
 OPERATOR_SERVICE_PORTS = frozenset({4532, 4533, 2947})
+# APRS-IS: the servers an iGate logs in to (rotate.aprs2.net, port 14580) and the ports they listen on. A test that wants an iGate starts a fake APRS-IS (tests/support/fakeaprsis.py) on a free port; the real one gets nothing a test made up.
+APRS_IS_PORTS = frozenset({14580, 10152, 10151})
+APRS_IS_HOSTS = ("aprs2.net", "aprs.net", "aprs-is.net", "aprs.fi")
 
 
 class NonLoopbackConnection(ConnectionRefusedError):
@@ -95,8 +98,11 @@ class NetworkGuard:
             return                                     # a unix socket is on this machine
         port = address[1] if len(address) > 1 else ""
         if not is_local_host(address[0]):
-            self.refused.append(f"{address[0]}:{port}")
-            raise NonLoopbackConnection(errno.ECONNREFUSED, f"the tests may only talk to this machine, not to {address[0]}")
+            self.refused.append(f"{address[0]}:{port}" + (" (APRS-IS)" if port in APRS_IS_PORTS else ""))
+            raise NonLoopbackConnection(errno.ECONNREFUSED, f"the tests may only talk to this machine, not to {address[0]}" + (" (the real APRS-IS)" if port in APRS_IS_PORTS else ""))
+        if port in APRS_IS_PORTS:
+            self.refused.append(f"{address[0]}:{port} (APRS-IS)")
+            raise NonLoopbackConnection(errno.ECONNREFUSED, f"the tests may only talk to a fake APRS-IS on a free port, not to port {port} ({address[0]}:{port})")
         if port in OPERATOR_SERVICE_PORTS:
             self.refused.append(f"{address[0]}:{port} (the operator's rigctld or rotctld)")
             raise NonLoopbackConnection(errno.ECONNREFUSED, f"the tests may only talk to fakes, not to the rigctld or rotctld of this machine ({address[0]}:{port})")
@@ -121,7 +127,8 @@ class NetworkGuard:
                 try:
                     ipaddress.ip_address(host)         # an address needs no lookup: the connect says no
                 except ValueError:
-                    self.refused.append(f"{host} (name lookup)")
+                    aprs_is = str(host).lower().rstrip(".").endswith(APRS_IS_HOSTS)
+                    self.refused.append(f"{host} (name lookup{' of an APRS-IS server' if aprs_is else ''})")
                     raise socket.gaierror(socket.EAI_NONAME, f"the tests do not look up {host}") from None
             return original_lookup(host, *args, **kwargs)
 

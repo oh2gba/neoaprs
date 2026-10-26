@@ -264,14 +264,34 @@
 .statepill.tnc-silent {
   background: var(--warn);
 }
+.statepill.igate-connected,
 .statepill.gps-fix,
 .statepill.beacon-on {
   background: var(--ok);
 }
+.statepill.igate-connecting,
+.statepill.igate-unverified,
 .statepill.gps-connecting,
 .statepill.gps-no_fix,
 .statepill.gps-stale {
   background: var(--warn);
+}
+/* the iGate group of the Settings tab: the state and the words in one line, and the quiet line of what it never does */
+.igatestatus {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 8px;
+}
+.igatestatus .statepill {
+  flex: none;
+}
+.igate-note {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+.igate-request {
+  flex: none;
 }
 /* the beacon status at the top of the Beacon tab, in the look of the radio's: the label, the state and the words in one line with Beacon now at its end, and the lines of a moving station under it */
 .beaconstatus {

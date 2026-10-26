@@ -3,6 +3,7 @@ the value, raising CodedError with the reason (config.py has the table of the se
 from urllib.parse import urlsplit
 
 from .coded import CodedError
+from .configstatus import hostport
 from .configtypes import text_of
 from .message import path_choice
 from .route import DIRECT_ONLY
@@ -10,6 +11,7 @@ from .tncprofile import profile_of
 
 MAX_SERIAL_PATTERN = 500
 MAX_MAP_SOURCE = 500                 # the longest map/source
+MAX_PASSCODE = 32767                 # an APRS-IS passcode is 15 bits
 SYMBOL_TABLES = "/\\" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 ANTENNA_DIRECTIONS = ("omni", "NE", "E", "SE", "S", "SW", "W", "NW", "N")      # in the order of the specification's directivity digit: 0 omni, 1 NE ... 7 NW, 8 N
 
@@ -73,3 +75,21 @@ def map_source(text: str) -> str:
 def tnc_profile(text: str) -> str:
     """The key of a TNC profile (tncprofile.py), written the way the setting keeps it."""
     return profile_of(text).key
+
+
+def aprsis_server(text: str) -> str:
+    """"host:port" of an APRS-IS server (14580 is the port of the filtered feed that iGates use), or empty for none."""
+    try:
+        return hostport(text)
+    except CodedError:
+        raise CodedError(f"{text!r} is not host:port (14580 is the usual port of an APRS-IS server)", "setting.not_server", value=text) from None
+
+
+def passcode(text: str) -> str:
+    """The APRS-IS passcode of the call, as digits (0 to 32767), or empty for none yet (NeoAPRS does not work it out: the operator requests it). -1 is the login that only reads and puts nothing on APRS-IS, so an iGate does not take it."""
+    value = text.strip()
+    if value == "-1":
+        raise CodedError("-1 is the passcode for reading only; an iGate needs the passcode of its call", "setting.passcode_read_only", value=text)
+    if value and not (value.isascii() and value.isdigit() and int(value) <= MAX_PASSCODE):
+        raise CodedError(f"the passcode of your call is a number from 0 to {MAX_PASSCODE}", "setting.not_passcode", max=MAX_PASSCODE)
+    return str(int(value)) if value else ""

@@ -1,5 +1,5 @@
 """The signals of the program connected, in the one place that does it (`Signal.connect` is for the composition root only): what the radio hears goes to the packet log, the station book, the weather log, messaging (which hands bulletins to the board and messages to
-QRU to the QRU server), the queries and our objects (one that another station reports is theirs and is dropped) and, last, the digipeater. A packet received from APRS-IS (`Packet.via` is `is`) is handed through a signal of its own, `Services.internet_packet`, and
+QRU to the QRU server), the queries and our objects (one that another station reports is theirs and is dropped), the receive-only iGate and, last, the digipeater. A packet received from APRS-IS (`Packet.via` is `is`) is handed through a signal of its own, `Services.internet_packet`, and
 goes only to the packet log, the station book and the weather log (and, from `neoaprs/web/topics.py`, to the page): the one gate for packets from the internet is the pair of lists `SEEN_BY_ALL` and `ON_AIR_ONLY` below. Our objects go to the station book, what the book changes goes to the database, the port the search found is remembered, and the GPS fix moves our own row on the map and the ALOHA circle.
 
 Also how the settings become the Tnc's: `tnc_settings`, and how the station book is filled from the database at the start: `seed_station_book`."""
@@ -24,7 +24,7 @@ log = logging.getLogger("neoaprs.wiring")
 packets_log = logging.getLogger("neoaprs.packets")
 # Who sees a packet, by its channel (Packet.via), as names of the parts in `Services`; no other part is handed a packet (tests/test_internet_gate.py walks the signals and holds them to these two lists).
 SEEN_BY_ALL = ("packetlog", "stationbook", "weatherlog")                              # the log, the book of stations and the weather trends take a packet whatever the channel
-ON_AIR_ONLY = ("messaging", "queries", "ownobjects", "digipeater")                    # what answers, acknowledges, repeats or sends: only what was on the radio
+ON_AIR_ONLY = ("messaging", "queries", "ownobjects", "igate", "digipeater")                  # what answers, acknowledges, repeats or sends: only what was on the radio
 start_log = logging.getLogger("neoaprs.controller")          # what the start of the daemon says is the controller's, whoever does it
 
 
@@ -79,8 +79,10 @@ def wire(parts: Services) -> None:
     for handler in (packetlog.append, book.take, parts.weatherlog.take):                       # SEEN_BY_ALL
         tnc.packet.connect(handler)
         parts.internet_packet.connect(handler)
-    for on_air in (parts.messaging.on_packet, parts.queries.on_packet, parts.ownobjects.on_packet, parts.digipeater.on_packet):          # ON_AIR_ONLY
-        tnc.packet.connect(AirOnly(on_air))                       # (the digipeater last: what was heard is logged and handled before the copy that is sent)
+    for on_air in (parts.messaging.on_packet, parts.queries.on_packet, parts.ownobjects.on_packet, parts.igate.on_packet, parts.digipeater.on_packet):          # ON_AIR_ONLY
+        tnc.packet.connect(AirOnly(on_air))                       # (the digipeater last: what was heard is logged and handled before the copy that is sent; the iGate puts what the radio hears on APRS-IS, nothing comes the other way)
+    parts.aprsis.changed.connect(parts.igate.link_changed)
+    parts.beacon.sent.connect(parts.igate.beacon_sent)           # (a moving station's beacon is also put on APRS-IS)
     parts.ownobjects.changed.connect(book.own_object)
     parts.ownobjects.removed.connect(book.forget_own)
     book.changed.connect(packetlog.save_station)

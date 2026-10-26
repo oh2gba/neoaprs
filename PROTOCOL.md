@@ -555,6 +555,7 @@ The value of each topic (`state` carries it, a `replace` op brings a new one).
 | `map` | MapState | the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps, and the ALOHA circle; told whole as it changes, at most four times a second |
 | `update` | UpdateState | Update now: whether this copy can update itself, and the steps of the update it is doing; told whole as it changes, at most four times a second |
 | `gps` | GpsState | the GPS receiver and the moving station's beacon: the latest fix, its state, and when the next beacon by time is due; told whole as it changes, at most once a second |
+| `igate` | IgateState | the receive-only iGate: whether it is connected to APRS-IS, the server's name, the packets gated and not gated; told whole as it changes, at most once a second |
 
 ## Objects
 
@@ -1034,6 +1035,21 @@ The secure connection (`web/https`) as the daemon has it.
 | `port` | integer |  | the https port; 0 while it is not served |
 | `fingerprint` | string |  | SHA-256 fingerprint of NeoAPRS's certificate authority, `AB:CD:...`, for a person to compare with what the device shows when the certificate is installed; empty while it is not served |
 | `problem` | string |  | why the secure connection could not start or go on, when it was asked for; empty otherwise |
+
+### IgateState
+
+The receive-only iGate (neoaprs/services/igate.py): what the radio hears is put on APRS-IS, and nothing from APRS-IS is ever sent on the air. Whether it is connected, to which server, and what it has done since the daemon
+started. Told whole as it changes, at most once a second.
+
+| field | type | | description |
+|---|---|---|---|
+| `enabled` | boolean |  | `igate/enabled` as in force |
+| `state` | "off" \| "connecting" \| "connected" \| "unverified" |  | `off`: the switch is off; `connecting`: not logged in (yet, or again after a loss, or waiting for what `problem` says is missing); `connected`: logged in and verified, packets are gated; `unverified`: the server did not accept the password, nothing is sent and the login is not tried again until the settings change |
+| `server` | string |  | the name the server gave at the login (`T2FINLAND`); empty until it has answered |
+| `problem` | string |  | why it is not connected: what is missing (the call, the password, the server) or the connection's own words (`Connection refused`, `the server did not accept the password`); empty while `connected` and `off` |
+| `gated` | integer |  | packets put on APRS-IS since the daemon started (>= 0) |
+| `dropped` | { [key: string]: integer } |  | packets heard and not put on APRS-IS since the daemon started, by the reason: `tcpip` (TCPIP or TCPXX in the path), `nogate` (NOGATE or RFONLY), `query` (a generic query), `source` (the source is not a station), `own` (our own call), `duplicate` (gated in the last 30 seconds), `newline` (a CR or LF inside), `long` (more than 512 bytes), `frame` (not a UI frame, or a third-party header that is none), `offline` (heard while not connected). A reason that has not happened is not a key |
+| `last_gated_at` | time \| null |  | when the latest packet was gated; null before the first |
 
 ### InstallInfo
 

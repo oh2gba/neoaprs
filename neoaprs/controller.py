@@ -65,6 +65,7 @@ class Controller(Services):
         self.start_tnc()
         await self.gps.start()
         await self.beacon.start()
+        await self.igate.start()
         await self.ownobjects.start()
         await self.ownbulletins.start()
         await self.rigstatus.start()
@@ -92,6 +93,7 @@ class Controller(Services):
             await self.rigstatus.stop()
             await self.ownbulletins.stop()
             await self.ownobjects.stop()
+            await self.igate.stop()
             await self.beacon.stop()
             await self.gps.stop()
             await self._stop_tnc()
@@ -152,6 +154,7 @@ class Controller(Services):
         wiring.place_me(self)
         self.gps.settings_changed()
         self.beacon.settings_changed()
+        self.igate.settings_changed()
         if wiring.tnc_settings(config, self.port_override, self.pattern_override) != before:
             self.start_tnc()
         self.config_changed.emit(config)

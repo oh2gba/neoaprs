@@ -29,7 +29,7 @@ export const MAX_DELAY_MS = 30000;
 type TopicName = keyof TopicValues;
 export type Connection = "connecting" | "open" | "closed";
 
-/** Where what the daemon says goes. A keyed topic (stations, packets, messages, bulletins, own_objects, own_bulletins, station_prefs) is told item by item, the others (tnc, config, map, update, gps) as a whole. */
+/** Where what the daemon says goes. A keyed topic (stations, packets, messages, bulletins, own_objects, own_bulletins, station_prefs) is told item by item, the others (tnc, config, map, update, gps, igate) as a whole. */
 export interface Store {
   connection(state: Connection): void;
   hello(message: HelloMessage): void;
@@ -52,6 +52,7 @@ export interface Store {
   replaceMap(value: TopicValues["map"]): void;
   replaceUpdate(value: TopicValues["update"]): void;
   replaceGps(value: TopicValues["gps"]): void;
+  replaceIgate(value: TopicValues["igate"]): void;
   setStation(key: string, row: StationRow): void;
   setPacket(key: string, row: PacketRow): void;
   setMessage(key: string, row: MessageRow): void;
@@ -272,6 +273,7 @@ export class Hub {
     else if (topic === "map") this.store.replaceMap(value as TopicValues["map"]);
     else if (topic === "update") this.store.replaceUpdate(value as TopicValues["update"]);
     else if (topic === "gps") this.store.replaceGps(value as TopicValues["gps"]);
+    else if (topic === "igate") this.store.replaceIgate(value as TopicValues["igate"]);
     else this.store.replaceConfig(value as TopicValues["config"]);
   }
 

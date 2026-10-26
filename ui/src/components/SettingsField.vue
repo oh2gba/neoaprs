@@ -91,8 +91,8 @@ function onEscape(event: KeyboardEvent): void {
         v-else
         :id="id"
         class="input"
-        type="text"
-        autocomplete="off"
+        :type="info.kind === 'password' ? 'password' : 'text'"
+        :autocomplete="info.kind === 'password' ? 'new-password' : 'off'"
         spellcheck="false"
         :value="modelValue"
         :placeholder="placeholder"

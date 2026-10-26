@@ -5,15 +5,17 @@ import { beaconOff, disabledByValues } from "@/lib/beaconoff";
 import { PORT_OTHER, portOptions } from "@/lib/portchoice";
 
 describe("groupKeys", () => {
-  it("gives the Settings tab the serial and TNC, web, notifications and map keys, in the daemon's order", () => {
+  it("gives the Settings tab the serial and TNC, iGate, digipeater, web, notifications and map keys, in the daemon's order", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "settings");
-    expect(groups.map((g) => g.id)).toEqual(["serial", "digi", "web", "notifications", "map"]);
+    expect(groups.map((g) => g.id)).toEqual(["serial", "igate", "digi", "web", "notifications", "map"]);
     expect(groups[0]?.keys).toEqual(["tnc/profile", "serial/port", "serial/baud", "tcp/host", "tcp/port", "serial/last_port"]);
-    expect(groups[1]?.title).toBe("Digipeater");
-    expect(groups[1]?.keys).toEqual(["digi/enabled"]);
-    expect(groups[3]?.title).toBe("Notifications");
-    expect(groups[3]?.keys).toEqual(["messages/alert", "messages/alert_command"]);
-    expect(groups[4]?.keys).toEqual(["map/radius_km"]);
+    expect(groups[1]?.title).toBe("iGate");
+    expect(groups[1]?.keys).toEqual(["igate/enabled", "igate/password"]); // (igate/server is left to the shell)
+    expect(groups[2]?.title).toBe("Digipeater");
+    expect(groups[2]?.keys).toEqual(["digi/enabled"]);
+    expect(groups[4]?.title).toBe("Notifications");
+    expect(groups[4]?.keys).toEqual(["messages/alert", "messages/alert_command"]);
+    expect(groups[5]?.keys).toEqual(["map/radius_km"]);
   });
   it("gives the Beacon tab the station keys first (the call, the place, the symbol), then how often and what the beacon says, the antenna and the path, and the status keys", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "beacon");
@@ -70,6 +72,7 @@ describe("groupKeys", () => {
             "serial/skip",
             "web/port",
             "web/allowed_hosts",
+            "igate/server",
             "map/maxzoom",
             "map/source",
             "map/station_hours",

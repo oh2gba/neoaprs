@@ -36,6 +36,9 @@
     "gps/device": "",
     "gps/host": "127.0.0.1:2947",
     "gps/source": "off",
+    "igate/enabled": "false",
+    "igate/password": "",
+    "igate/server": "rotate.aprs2.net:14580",
     "map/maxzoom": "12",
     "map/radius_km": "150",
     "map/source": "",
@@ -88,6 +91,9 @@
     "gps/device": "",
     "gps/host": "127.0.0.1:2947",
     "gps/source": "off",
+    "igate/enabled": "false",
+    "igate/password": "",
+    "igate/server": "rotate.aprs2.net:14580",
     "map/maxzoom": "12",
     "map/radius_km": "150",
     "map/source": "",
@@ -135,6 +141,9 @@
     "gps/device": "",
     "gps/host": "127.0.0.1:2947",
     "gps/source": "off",
+    "igate/enabled": "false",
+    "igate/password": "",
+    "igate/server": "rotate.aprs2.net:14580",
     "map/maxzoom": "12",
     "map/radius_km": "150",
     "map/source": "",
@@ -189,6 +198,9 @@
     "gps/device": "",
     "gps/host": "127.0.0.1:2947",
     "gps/source": "off",
+    "igate/enabled": "false",
+    "igate/password": "",
+    "igate/server": "rotate.aprs2.net:14580",
     "map/maxzoom": "12",
     "map/radius_km": "150",
     "map/source": "",
@@ -271,6 +283,48 @@
    "source": "serial",
    "speed_kmh": null,
    "state": "connecting"
+  }
+ ],
+ "igate": [
+  {
+   "dropped": {},
+   "enabled": false,
+   "gated": 0,
+   "last_gated_at": null,
+   "problem": "",
+   "server": "",
+   "state": "off"
+  },
+  {
+   "dropped": {
+    "duplicate": 6,
+    "query": 3,
+    "tcpip": 31
+   },
+   "enabled": true,
+   "gated": 1234,
+   "last_gated_at": "2026-10-21T11:59:48Z",
+   "problem": "",
+   "server": "T2FINLAND",
+   "state": "connected"
+  },
+  {
+   "dropped": {},
+   "enabled": true,
+   "gated": 0,
+   "last_gated_at": null,
+   "problem": "no password set: give igate/password the APRS-IS passcode of your call",
+   "server": "",
+   "state": "connecting"
+  },
+  {
+   "dropped": {},
+   "enabled": true,
+   "gated": 0,
+   "last_gated_at": null,
+   "problem": "the server did not accept the password",
+   "server": "T2FINLAND",
+   "state": "unverified"
   }
  ],
  "messages": {

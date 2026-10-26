@@ -4,6 +4,7 @@ import type {
   ConfigValues,
   ErrorMessage,
   GpsState,
+  IgateState,
   MapFileInfo,
   MapState,
   MessageRow,
@@ -313,6 +314,20 @@ export function gpsState(extra: Partial<GpsState> = {}): GpsState {
   };
 }
 
+/** The topic `igate`: connected to T2FINLAND with 1234 packets gated, the latest 12 s ago and some left out; a test gives what it cares about. */
+export function igateState(extra: Partial<IgateState> = {}): IgateState {
+  return {
+    enabled: true,
+    state: "connected",
+    server: "T2FINLAND",
+    problem: "",
+    gated: 1234,
+    dropped: { tcpip: 31, duplicate: 6, query: 3 },
+    last_gated_at: ago(12),
+    ...extra,
+  };
+}
+
 /** The GPS topic of a daemon with no GPS source set: a fixed station, whose beacon does not follow the GPS. */
 export function gpsOff(): GpsState {
   return gpsState({
@@ -371,6 +386,9 @@ export function configValues(extra: Record<string, string> = {}): ConfigValues {
     "map/source": "",
     "update/url": "https://oh2gba.eu/neoaprs/version.php",
     "digi/enabled": "false",
+    "igate/enabled": "false",
+    "igate/server": "rotate.aprs2.net:14580",
+    "igate/password": "",
     "gps/source": "off",
     "gps/host": "127.0.0.1:2947",
     "gps/device": "",

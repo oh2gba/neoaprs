@@ -28,6 +28,7 @@ describe("SettingsForm", () => {
     const { wrapper } = make();
     expect(wrapper.findAll("fieldset legend").map((l) => l.text())).toEqual([
       "TNC",
+      "iGate",
       "Digipeater",
       "Web page",
       "Notifications",
@@ -40,6 +41,7 @@ describe("SettingsForm", () => {
     ]);
     expect(wrapper.findAll("form > fieldset").map((f) => f.find("legend").text())).toEqual([
       "TNC",
+      "iGate",
       "Digipeater",
       "Web page",
       "Notifications",
@@ -60,6 +62,7 @@ describe("SettingsForm", () => {
       "serial/skip",
       "web/port",
       "web/allowed_hosts",
+      "igate/server", // (left to the shell: the default suits everyone)
       "map/maxzoom",
       "map/source",
       "map/station_hours", // (the Stations tab has it)
@@ -1384,7 +1387,7 @@ describe("SettingsForm: the Transmit switch is gone", () => {
       for (const value of ["true", "false"]) {
         const { wrapper } = make({ "station/transmit": value }, scope);
         expect(wrapper.find("#set-station-transmit").exists(), `${scope} ${value}`).toBe(false);
-        expect(wrapper.text()).not.toContain("Receive only");
+        expect(wrapper.text()).not.toMatch(/Receive only(?!:)/); // (the iGate group says "Receive only:" in its quiet line; the badge is not on the page)
         expect(wrapper.findAll(".field label").map((l) => l.text())).not.toContain("Transmit");
       }
     }

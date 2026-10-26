@@ -157,6 +157,30 @@ problem that changed), after every packet of ours and every save of the settings
 
 `neoaprs gps-replay` plays a drive as a gpsd ([development.md](development.md#trying-mobile-operation-without-a-vehicle)).
 
+## The receive-only iGate
+
+`igate/enabled` (off by default), `igate/server` (`rotate.aprs2.net:14580`, not on the page) and `igate/password` (the APRS-IS passcode of `station/call`, digits, a secret; `-1` is refused because it only reads) set it up. NeoAPRS never works a
+passcode out: the page links to the request page of the author, `PASSCODE_URL` in `ui/src/lib/igatestatus.ts`, which is told the base call.
+
+**The rules** are `neoaprs/igaterules.py` (pure code; the module's head says where each rule comes from: https://www.aprs-is.net/IGateDetails.aspx, https://www.aprs-is.net/q.aspx, WB2OSZ's "Successful APRS IGate Operation"). A UI frame
+heard on the radio is gated unless its path has `TCPIP`, `TCPXX`, `NOGATE` or `RFONLY`, its information field starts with `?`, it carries a q construct or `,I` (never on the air), its source is no station (a placeholder, `WIDEn`,
+`TRACEn`, ...) or is our own call, its field has a CR or LF inside, or the line would be more than 512 bytes. A third-party packet (`}`) is opened (at most three deep) and the packet inside is judged again from the first rule; with
+`TCPIP` or `TCPXX` in the inner path it is not gated at all, else the RF header and the `}` are dropped. The line is `SOURCE>DEST,PATH,qAO,OURCALL:INFO`: the path as heard (`Frame.path_text`, the star after the last digipeater the frame has been
+through, hops not yet used kept), `qAO` because the iGate is receive only (the specification: "Use qAO instead if the IGate is receive-only"), the information field as the bytes it is, a CR LF at its very end cut off. Not in the
+specification, and ours: a copy of the same source, destination (without its SSID) and information field is not gated again within `DUPLICATE_SEC` (30 s; Dire Wolf stopped doing this at the request of a server author, so the number can be 0),
+and our own call as the source is not gated, because our own position goes by a path of its own.
+
+**The connection** is `neoaprs/aprsis.py` (`AprsIs`, a `Source`): connect (10 s), the server's comment line as greeting (anything else is "not an APRS-IS server"), `user CALL pass PASSCODE vers NeoAPRS VERSION` with no filter and TCP_NODELAY,
+`# logresp CALL verified|unverified, server NAME`. Unverified: the connection is closed and not opened again until the settings change (state `unverified` on the page). A silence of 3 minutes from the server is a lost connection; a comment
+line goes to the server when nothing was written for 2 minutes; a write the server does not take in 30 s is a lost connection too. Lines are written by a task from a queue of at most 500 lines (`slow_dropped` counts the oldest ones
+dropped when the server is slow). The reconnection is `Backoff`. What the server sends is read and thrown away: nothing of it is handed on. The passcode is in the login line and in no log line, line of the Source, error or problem.
+
+**The service** is `neoaprs/services/igate.py` (`Igate`): `on_packet` (connected to the Tnc's packets by `wiring.py`) gates packets that were heard (`direction in`), counts `gated`, `dropped` by reason (`tcpip nogate query source own
+newline long frame duplicate offline`) and `last_gated_at`, and `changed` tells the topic `igate`. It has no Tnc, no `Radio`, no sender and no way to send a frame; the connection has none either, and nothing connects it to the radio
+(`tests/test_igate_service.py` and `tests/test_igate_wiring.py` hold this). Our position goes as `OURCALL>APZNEO,TCPIP*:` and the information field of the beacon (`Beacon.position_info`, which asks no transmit interlock and works with the beacon off): at the
+login and every 30 minutes for a fixed station that has a position, and for a moving station (`gps/source` is not `off`) with every beacon that goes on the radio (`Beacon.sent`), at most one a minute. The log: the login and its result at INFO, each packet
+gated at DEBUG, and one line an hour at INFO, "igate: 812 packets gated in the last hour, 40 not gated: 31 TCPIP, 6 duplicate, 3 query".
+
 ## Messaging
 
 The commands are `send_message`, `query` (a directed query, once, with no id: `neoaprs/services/asking.py`), `message_retry`, `message_cancel`, `message_delete`, `conversation_delete` and `overheard_delete`. Messages to bulletins and

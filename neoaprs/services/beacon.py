@@ -22,6 +22,7 @@ from datetime import datetime, timedelta
 
 from neoaprs import ax25
 from neoaprs.aprsposition import uncompressed_position
+from neoaprs.callsign import call_problem
 from neoaprs.clock import Clock, utcnow
 from neoaprs.config import ANTENNA_DIRECTIONS, BEACON_OFF, BEACON_SENT, SYMBOL_TABLES, Config, can_transmit
 from neoaprs.configstatus import MAX_STATUS
@@ -31,6 +32,7 @@ from neoaprs.interlock import Interlock
 from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, our_frame
 from neoaprs.services.memory import Memory, Remembered, stamp
 from neoaprs.services.mobilebeacon import MobilePlan, Positions, mobile_info
+from neoaprs.signal import Signal
 from neoaprs.smartbeacon import Reason
 from neoaprs.source import Source
 from neoaprs.tasks import TaskSet
@@ -87,6 +89,7 @@ class Beacon:
         self._planned_min = 0                                   # the interval next_due was planned for
         self._planned_mobile = False                            # whether it was planned for a mobile station
         self.mobile = MobilePlan()                              # the last mobile beacon, for SmartBeaconing and the page
+        self.sent: Signal[[ax25.Frame]] = Signal("beacon.sent")  # the frame of every beacon that went out on the radio (the iGate puts a moving station's position on APRS-IS with it)
         self._no_fix_told = False
         self._skip_told = False
         self._refused = 0                                       # how many times in a row the Tnc refused the due beacon
@@ -104,8 +107,24 @@ class Beacon:
         c = self._config()
         if reason := can_transmit(c):
             raise BeaconError(reason)
+        info, fix = self._position(c)
+        return self._frame_of(info), fix
+
+    def position_info(self) -> bytes:
+        """The information field of the position packet for the settings as they are now, for a receive-only iGate that puts our position on APRS-IS (services/igate.py): the same bytes the radio would carry, but nothing is transmitted, so the
+        transmit interlock is not asked, only that the call is one. Raises BeaconError (NoFix for a moving station with no fresh fix) as `frame()` does."""
+        c = self._config()
+        if problem := call_problem(c.station_call):
+            raise BeaconError(problem)
+        info = self._position(c)[0]
+        if len(info) > ax25.MAX_INFO:
+            raise BeaconError(f"the information field is {len(info)} bytes, more than the {ax25.MAX_INFO} AX.25 allows")
+        return info
+
+    def _position(self, c: Config) -> tuple[bytes, Fix | None]:
+        """The information field of the position packet and the fix it was made from (None for a station that stays where it is)."""
         if c.mobile:
-            return self._mobile_frame(c)
+            return self._mobile_info(c)
         if problem := c.comment_problem():
             raise BeaconError(problem)
         if c.station_lat is None or c.station_lon is None:
@@ -117,14 +136,14 @@ class Beacon:
             position = uncompressed_position(c.station_lat, c.station_lon, c.station_symbol_table, c.station_symbol_code)
         except ValueError as e:
             raise BeaconError(str(e)) from None
-        return self._frame_of(b"=" + position + self._phg(c) + c.station_comment.encode("ascii")), None
+        return b"=" + position + self._phg(c) + c.station_comment.encode("ascii"), None
 
     @staticmethod
     def _check_symbol(c: Config) -> None:
         if c.station_symbol_table not in SYMBOL_TABLES or len(c.station_symbol_table) != 1 or not "!" <= c.station_symbol_code <= "~" or len(c.station_symbol_code) != 1:
             raise BeaconError(f"the symbol {c.station_symbol_table!r} {c.station_symbol_code!r} is not a table (/ \\ A-Z 0-9) and one printable character")
 
-    def _mobile_frame(self, c: Config) -> tuple[ax25.Frame, Fix]:
+    def _mobile_info(self, c: Config) -> tuple[bytes, Fix]:
         fix = self._gps.current() if self._gps is not None else None
         if fix is None:
             raise NoFix(self._gps.why_none() if self._gps is not None else "no GPS is set up")
@@ -132,10 +151,9 @@ class Beacon:
             raise BeaconError(f"station/comment: {refusal}")
         self._check_symbol(c)
         try:
-            info = mobile_info(c, fix)
+            return mobile_info(c, fix), fix
         except ValueError as e:
             raise BeaconError(str(e)) from None
-        return self._frame_of(info), fix
 
     @staticmethod
     def _phg(c: Config) -> bytes:
@@ -187,6 +205,7 @@ class Beacon:
         self.last_sent, self.last_reason, self.problem, self._skip_told = self.clock(), reason, "", False
         self._refused, self._retry_at = 0, None
         log.info("beacon sent (%s): %s", reason, frame.tnc2())
+        self.sent.emit(frame)
         self._remembered.put({BEACON_SENT: stamp(self.last_sent)})
         if fix is not None:
             self.mobile.sent(fix, self.last_sent, reason)

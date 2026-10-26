@@ -15,7 +15,7 @@ import { CONFIG_KEYS, LIMITS, TNC_PROFILES } from "@/protocol/lists";
 /** What On stores for a moving station that was Off: the interval a fixed station is offered first (the daemon does not use it there). */
 const MOVING_BEACON_ON = "30";
 
-type FieldKind = "text" | "bool" | "readonly" | "choice";
+type FieldKind = "text" | "bool" | "readonly" | "choice" | "password";
 
 export interface FieldInfo {
   label: string;
@@ -231,6 +231,14 @@ const SPECS: Record<string, FieldSpec> = {
     tipLabel: "settings.digipeater.tip_label",
     tip: ["settings.digipeater.tip1", "settings.digipeater.tip2"],
   },
+  "igate/enabled": {
+    name: "settings.igate.name",
+    label: "settings.igate.label",
+    kind: "bool",
+    tipLabel: "settings.igate.tip_label",
+    tip: ["settings.igate.tip1", "settings.igate.tip2"],
+  },
+  "igate/password": { label: "settings.igate_password.label", kind: "password", empty: "settings.none", tip: ["settings.igate_password.tip1"] },
   "messages/alert": { name: "settings.alert.label", label: "settings.alert.label", kind: "bool" },
   "messages/alert_command": { name: "settings.alert_command.name", label: "settings.alert_command.label" },
   "status/source": {
@@ -335,6 +343,7 @@ interface Group {
 const GROUPS: { id: string; title: MessageId; prefixes: string[]; also?: string[]; except?: string[] }[] = [
   { id: "station", title: "settings.group.station", prefixes: ["station/", "gps/"], except: ["station/status", "station/comment"] },
   { id: "serial", title: "settings.group.tnc", prefixes: ["tnc/", "serial/", "tcp/"] },
+  { id: "igate", title: "settings.group.igate", prefixes: ["igate/"] },
   { id: "web", title: "settings.group.web", prefixes: ["web/"] },
   { id: "notifications", title: "settings.group.notifications", prefixes: [], also: ALERT },
   { id: "map", title: "settings.group.map", prefixes: ["map/"] },
@@ -347,7 +356,7 @@ const GROUPS: { id: string; title: MessageId; prefixes: string[]; also?: string[
 export type Scope = "settings" | "beacon";
 const SCOPE_GROUPS: Record<Scope, readonly string[]> = {
   beacon: ["station", "beacon", "status"],
-  settings: ["serial", "digi", "web", "notifications", "map"],
+  settings: ["serial", "igate", "digi", "web", "notifications", "map"],
 };
 
 /** The order of the TNC group on the page: the type of TNC, the port and its speed, or the host and port of a TCP one. */
@@ -381,7 +390,7 @@ function rank(order: readonly string[], key: string): number {
   return at < 0 ? order.length : at;
 }
 
-/** Settings that stay in the daemon (`neoaprs db set`) and are not on the page: whether the station may transmit at all (`station/transmit`, for an SWL or a test bench; the header still marks a station that is set to receive only), the address the update check asks, which ports the search for the radio looks at and leaves alone, and the port and the host names of the page itself
+/** Settings that stay in the daemon (`neoaprs db set`) and are not on the page: whether the station may transmit at all (`station/transmit`, for an SWL or a test bench; the header still marks a station that is set to receive only), the address the update check asks, the APRS-IS server of the iGate (igate/server; its default is the round-robin name of the volunteer servers), which ports the search for the radio looks at and leaves alone, and the port and the host names of the page itself
  * (the defaults suit nearly everyone, and the daemon moves to a free port and says which in the log), and the map's detail (12, streets), source (the latest daily build). The map download uses the stored values, so a custom source or detail still works. */
 const NOT_ON_THE_PAGE: readonly string[] = [
   "station/transmit",
@@ -390,6 +399,7 @@ const NOT_ON_THE_PAGE: readonly string[] = [
   "serial/skip",
   "web/port",
   "web/allowed_hosts",
+  "igate/server",
   "map/maxzoom",
   "map/source",
 ];
