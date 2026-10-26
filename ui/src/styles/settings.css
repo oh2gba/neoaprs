@@ -255,7 +255,7 @@
 .disclosure-body {
   padding-bottom: 6px;
 }
-/* the status row of a group (StatusFold): the arrow, the state, the words and an action at the end (Reconnect) */
+/* the status row of a group (StatusFold): the arrow, the state and the words */
 .statushead {
   display: flex;
   align-items: center;
@@ -282,12 +282,13 @@
 .statushead .statetext {
   flex: none;
 }
-.statushead .btn {
-  flex: none;
-}
-/* (the button of the line is --control-h high: the summary's padding is less, so that the line is as high as it was) */
-.statusfold > .statushead {
+.statusfold > .statushead,
+.statusflat {
   padding: 2px 0;
+}
+/* a row with nothing behind it has no arrow, and the room of one: the state is where it is in the rows that have one */
+.statusflat::before {
+  border-color: transparent;
 }
 .radiofind {
   display: grid;
