@@ -181,13 +181,14 @@ class FakeIgate:
 
 
 def igate_rows(views: Any) -> list[dict[str, Any]]:
-    """The `igate` topic: off, connected with packets gated and not gated, waiting for the password, and a password the server did not accept."""
+    """The `igate` topic: off, connected with packets gated and not gated, not connected, listening only, and a passcode the server did not accept."""
     from neoaprs.config import DEFAULTS
     on = replace(DEFAULTS, igate_enabled=True, station_call="OH2GBA")
     return [
         views.igate_state(DEFAULTS, FakeIgate()),
         views.igate_state(on, FakeIgate("connected", "", "T2FINLAND", 1234, {"tcpip": 31, "duplicate": 6, "query": 3}, T0 - timedelta(seconds=12))),
-        views.igate_state(on, FakeIgate("connecting", "no password set: give igate/password the APRS-IS passcode of your call")),
+        views.igate_state(on, FakeIgate("connecting", "127.0.0.1:14580: Connection refused")),
+        views.igate_state(on, FakeIgate("listening", "", "T2FINLAND")),
         views.igate_state(on, FakeIgate("unverified", "the server did not accept the password", "T2FINLAND")),
     ]
 

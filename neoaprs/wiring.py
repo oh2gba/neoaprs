@@ -1,5 +1,5 @@
 """The signals of the program connected, in the one place that does it (`Signal.connect` is for the composition root only): what the radio hears goes to the packet log, the station book, the weather log, messaging (which hands bulletins to the board and messages to
-QRU to the QRU server), the queries and our objects (one that another station reports is theirs and is dropped), the receive-only iGate and, last, the digipeater. A packet received from APRS-IS (`Packet.via` is `is`) is handed through a signal of its own, `Services.internet_packet`, and
+QRU to the QRU server), the queries and our objects (one that another station reports is theirs and is dropped), the receive-only iGate and, last, the digipeater. A packet received from APRS-IS (`Packet.via` is `is`; the connection `Services.aprsis` reads the lines and hands each packet to `Services.hear_internet`) is handed through a signal of its own, `Services.internet_packet`, and
 goes only to the packet log, the station book and the weather log (and, from `neoaprs/web/topics.py`, to the page): the one gate for packets from the internet is the pair of lists `SEEN_BY_ALL` and `ON_AIR_ONLY` below. Our objects go to the station book, what the book changes goes to the database, the port the search found is remembered, and the GPS fix moves our own row on the map and the ALOHA circle.
 
 Also how the settings become the Tnc's: `tnc_settings`, and how the station book is filled from the database at the start: `seed_station_book`."""
@@ -81,6 +81,7 @@ def wire(parts: Services) -> None:
         parts.internet_packet.connect(handler)
     for on_air in (parts.messaging.on_packet, parts.queries.on_packet, parts.ownobjects.on_packet, parts.igate.on_packet, parts.digipeater.on_packet):          # ON_AIR_ONLY
         tnc.packet.connect(AirOnly(on_air))                       # (the digipeater last: what was heard is logged and handled before the copy that is sent; the iGate puts what the radio hears on APRS-IS, nothing comes the other way)
+    parts.aprsis.heard.connect(parts.hear_internet)               # what APRS-IS sends goes in by the one gate for packets from the internet
     parts.aprsis.changed.connect(parts.igate.link_changed)
     parts.beacon.sent.connect(parts.igate.beacon_sent)           # (a moving station's beacon is also put on APRS-IS)
     parts.ownobjects.changed.connect(book.own_object)

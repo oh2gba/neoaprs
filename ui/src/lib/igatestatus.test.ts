@@ -24,15 +24,11 @@ describe("igateStatus", () => {
     expect(igateStatus(igateState({ enabled: false, state: "off", server: "", gated: 0, dropped: {}, last_gated_at: null }), values, NOW)).toBe("Off");
   });
 
-  it("says the passcode is missing from the settings, not from the daemon's English", () => {
-    const waiting = igateState({
-      state: "connecting",
-      server: "",
-      problem: "no password set: give igate/password the APRS-IS passcode of your call",
-      gated: 0,
-      last_gated_at: null,
-    });
-    expect(igateStatus(waiting, { ...values, "igate/password": "" }, NOW)).toBe("Waiting: the passcode is not set");
+  it("says it is connected and listening only without a passcode, and nothing of the passcode while it connects", () => {
+    const listening = igateState({ state: "listening", server: "T2FINLAND", problem: "", gated: 0, dropped: {}, last_gated_at: null });
+    expect(igateStatus(listening, { ...values, "igate/password": "" }, NOW)).toBe("Connected, listening only");
+    const connecting = igateState({ state: "connecting", server: "", problem: "", gated: 0, last_gated_at: null });
+    expect(igateStatus(connecting, { ...values, "igate/password": "" }, NOW)).toBe("Connecting to rotate.aprs2.net:14580…");
   });
 
   it("says it is connecting, and why a connection is down", () => {
@@ -45,7 +41,7 @@ describe("igateStatus", () => {
 
   it("says the server did not accept the passcode, and for which call", () => {
     expect(igateStatus(igateState({ state: "unverified", problem: "the server did not accept the passcode" }), values, NOW)).toBe(
-      "The server did not accept the passcode. Check that it is the one for OH2GBA-10",
+      "The server did not accept the passcode, so NeoAPRS only listens. Check that it is the one for OH2GBA-10",
     );
   });
 
@@ -73,7 +69,13 @@ describe("igateCounts", () => {
 
 describe("the state on the pill", () => {
   it("has a word for each state", () => {
-    expect((["off", "connecting", "connected", "unverified"] as const).map(igateStateText)).toEqual(["off", "connecting", "connected", "not verified"]);
+    expect((["off", "connecting", "connected", "listening", "unverified"] as const).map(igateStateText)).toEqual([
+      "off",
+      "connecting",
+      "connected",
+      "listening",
+      "not verified",
+    ]);
   });
 });
 

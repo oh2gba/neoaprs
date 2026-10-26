@@ -21,6 +21,7 @@ const STATES: Record<IgateState["state"], MessageId> = {
   off: "settings.igate.state.off",
   connecting: "settings.igate.state.connecting",
   connected: "settings.igate.state.connected",
+  listening: "settings.igate.state.listening",
   unverified: "settings.igate.state.unverified",
 };
 
@@ -28,7 +29,7 @@ const STATES: Record<IgateState["state"], MessageId> = {
 export const igateStateText = (state: IgateState["state"]): string => t(STATES[state]);
 
 /**
- * The one line: "Off", "Waiting: the passcode is not set", "Connecting to rotate.aprs2.net:14580…", "Not connected: Connection refused", "The server did not accept the passcode…", "Connected to T2FINLAND, no packet gated yet",
+ * The one line: "Off", "Connecting to rotate.aprs2.net:14580…", "Not connected: Connection refused", "The server did not accept the passcode…", "Connected, listening only" (no passcode), "Connected to T2FINLAND, no packet gated yet",
  * "Connected to T2FINLAND, 1234 packets gated, last 12 s ago". `values` are the settings in force, key to text: what is missing is told from them, and the daemon's own reason (English) only when it is a connection's.
  */
 export function igateStatus(igate: IgateState, values: Readonly<Record<string, string>>, nowMs: number): string {
@@ -38,12 +39,13 @@ export function igateStatus(igate: IgateState, values: Readonly<Record<string, s
       return t("settings.igate.line.off");
     case "unverified":
       return t("settings.igate.line.unverified", { call: values["station/call"] ?? "" });
+    case "listening":
+      return t("settings.igate.line.listening");
     case "connected":
       return igate.last_gated_at === null
         ? t("settings.igate.line.connected_none", { server })
         : t("settings.igate.line.connected", { server, n: igate.gated, span: ageText(igate.last_gated_at, nowMs) });
     default:
-      if ((values["igate/password"] ?? "") === "") return t("settings.igate.line.need_password");
       return igate.problem === "" ? t("settings.igate.line.connecting", { server }) : t("settings.igate.line.not_connected_why", { why: igate.problem });
   }
 }

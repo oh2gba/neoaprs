@@ -1,7 +1,11 @@
-"""The receive-only iGate, switched on by `igate/enabled` (off unless the operator turns it on): what the radio hears is put on APRS-IS, and nothing that APRS-IS says is ever put on the air.
+"""The iGate, switched on by `igate/enabled` (off unless the operator turns it on): what the radio hears is put on APRS-IS, and nothing that APRS-IS says is ever put on the air.
 
-That is built in, not promised. This service has no radio: its constructor takes the connection (neoaprs/aprsis.py, which writes lines to a server and throws away what the server sends back), the settings and a function that
-gives the bytes of our position, and nothing else; it imports neither the Tnc nor `Radio` nor the sender. The one place a packet comes from is `on_packet`, which the composition root connects to the packets heard on the radio.
+That is built in, not promised. This service has no radio: its constructor takes the connection (neoaprs/aprsis.py), the settings, a function that gives the bytes of our position and one that gives where we are, and nothing
+else; it imports neither the Tnc nor `Radio` nor the sender. The one place a packet comes from is `on_packet`, which the composition root connects to the packets heard on the radio. What the server sends is read by the
+connection and goes to the one gate for packets from the internet (`Services.hear_internet`, neoaprs/wiring.py), not through this service.
+
+With a passcode the iGate gates what the radio hears. Without one (or with one the server does not accept) it only listens: the connection logs in read-only, nothing is gated and our position is not sent, and the stations
+of the internet round us are read all the same. The connection's filter is the circle of FILTER_KM round our position (`aprsis.range_filter`), sent again when the station has moved more than FILTER_MOVE_KM.
 
 Each packet heard (direction in, `Packet.via` in `packet.GATEABLE`: not one from the internet or made up by the Dummy radio, which are counted as not gated, "not from the air") goes through the rules of neoaprs/igaterules.py (the specification's, with where each comes from): it is gated as `SOURCE>DEST,PATH,qAO,OURCALL:INFO`, or counted as not gated with the reason.
 Besides those a packet is not gated when the connection is not logged in and verified (`offline`), and when the same source, destination (without its SSID) and information field was gated in the last DUPLICATE_SEC seconds
@@ -13,7 +17,7 @@ for a station that stays, when the login is verified and every POSITION_SEC (30 
 at most every MOBILE_EVERY_SEC (a minute). The packet is built from the settings by `position` (the beacon's `position_info`), which asks no transmit interlock: nothing is transmitted.
 
 Counts: `gated`, `dropped` by reason, `last_gated_at`; every hour the log says them in one line at INFO, and each gated packet is a DEBUG line. The password is never in the log. `state` is `off`, `connecting` (not logged in yet, or
-waiting for what is missing: `problem` says what), `connected` or `unverified` (the server did not accept the password)."""
+waiting for what is missing: `problem` says what), `connected`, `listening` (logged in with no passcode: read only) or `unverified` (the server did not accept the password: read only too)."""
 import asyncio
 import logging
 from collections import Counter
@@ -22,8 +26,9 @@ from datetime import datetime, timedelta
 from typing import Literal, NamedTuple
 
 from neoaprs import TOCALL, ax25
-from neoaprs.aprsis import AprsIs
+from neoaprs.aprsis import FILTER_MOVE_KM, UNVERIFIED, AprsIs, range_filter
 from neoaprs.clock import Clock, utcnow
+from neoaprs.geo import distance_km
 from neoaprs.igaterules import DUPLICATE, FRAME, NOT_AIR, OFFLINE, REASON_WORDS, Dropped, gate_of
 from neoaprs.packet import GATEABLE, Packet
 from neoaprs.services.common import ConfigSource
@@ -38,7 +43,7 @@ MOBILE_EVERY_SEC = 60.0
 SUMMARY_SEC = 3600.0
 TICK_SEC = 1.0
 _SEEN_MAX = 2000                                    # the most (source, destination, information field) kept for the duplicate check
-IgateStateName = Literal["off", "connecting", "connected", "unverified"]
+IgateStateName = Literal["off", "connecting", "connected", "listening", "unverified"]
 Key = tuple[str, str, bytes]
 
 
@@ -51,11 +56,14 @@ class Wanted(NamedTuple):
 
 
 class Igate:
-    def __init__(self, link: AprsIs, config: ConfigSource, position: Callable[[], bytes], clock: Clock = utcnow, duplicate_sec: float = DUPLICATE_SEC, position_sec: float = POSITION_SEC,
-                 mobile_every_sec: float = MOBILE_EVERY_SEC, summary_sec: float = SUMMARY_SEC, tick_sec: float = TICK_SEC) -> None:
+    def __init__(self, link: AprsIs, config: ConfigSource, position: Callable[[], bytes], where: Callable[[], tuple[float, float] | None], clock: Clock = utcnow, duplicate_sec: float = DUPLICATE_SEC,
+                 position_sec: float = POSITION_SEC, mobile_every_sec: float = MOBILE_EVERY_SEC, summary_sec: float = SUMMARY_SEC, tick_sec: float = TICK_SEC) -> None:
         self._link = link
         self._config = config
         self._position = position                                    # the information field of our position packet; raises ValueError when there is none to send
+        self._where = where                                          # our latitude and longitude, None while there is none: the filter of the connection is round it
+        self._filter_at: tuple[float, float] | None = None
+        self._read_mark = (0, 0)
         self.clock = clock
         self.duplicate_sec, self.position_sec, self.mobile_every_sec, self.summary_sec, self.tick_sec = duplicate_sec, position_sec, mobile_every_sec, summary_sec, tick_sec
         self.changed: Signal[[]] = Signal("igate.changed")
@@ -94,11 +102,13 @@ class Igate:
             self.apply()
         elif self._link.verified and self._position_due is None and not self._config().mobile:
             self._position_due = self.clock()                    # (a station that began to stay where it is: its position goes at the next tick)
+        self._refresh_filter()
         self.changed.emit()
 
     def apply(self) -> None:
         """(Re)connects with the settings as they are now, in a task; one that is still under way is ended first."""
         self._applied = self._wanted()
+        self._refresh_filter()
         self._apply_task = self._tasks.spawn(self._apply(self._apply_task, self._applied), "igate-apply")
 
     def _wanted(self) -> Wanted:
@@ -111,8 +121,9 @@ class Igate:
             await cancel_all([previous])
         await self._link.stop()
         self._was_verified = False
+        self._read_mark = (0, 0)
         if wanted.enabled:
-            log.info("igate: on, a receive-only iGate; logging in to %s:%d as %s", wanted.host, wanted.port, wanted.call or "(no call set)")
+            log.info("igate: on, %s; logging in to %s:%d as %s", "a receive-only iGate" if wanted.password else "listening only, no passcode", wanted.host, wanted.port, wanted.call or "(no call set)")
             self._running = True
             self._link.configure(wanted.host, wanted.port, wanted.call, wanted.password)
             await self._link.start()
@@ -127,14 +138,17 @@ class Igate:
             self.tick()
 
     def tick(self) -> None:
-        """What is due by the clock: our position, and the summary of the hour."""
+        """What is due by the clock: the filter (our position may have moved), our position, and the summary of the hour."""
         now = self.clock()
+        if self._config().igate_enabled:
+            self._refresh_filter()
         if self._position_due is not None and now >= self._position_due and not self._config().mobile:
             self._send_position(now)
         if self._summary_due is not None and now >= self._summary_due:
             self._summary_due = now + timedelta(seconds=self.summary_sec)
             if self._config().igate_enabled:
                 log.info("%s", self.summary())
+                self._log_read()
             self._hour_gated, self._hour_dropped = 0, Counter()
 
     # ---- the state
@@ -144,12 +158,17 @@ class Igate:
             return "off"
         if self._link.unverified:
             return "unverified"
-        return "connected" if self._link.verified else "connecting"
+        if self._link.verified:
+            return "connected"
+        return "listening" if self._link.listening else "connecting"
 
     @property
     def problem(self) -> str:
-        """Why it is not logged in: what is missing, or why the connection is down; empty while it is connected and while it is off."""
-        return "" if self.state in ("off", "connected") else self._link.problem or self._link.last_error
+        """Why it is not logged in: what is missing, or why the connection is down, or that the passcode was not accepted; empty while it is connected (listening only too) and while it is off."""
+        state = self.state
+        if state in ("off", "connected", "listening"):
+            return ""
+        return UNVERIFIED if state == "unverified" else self._link.problem or self._link.last_error
 
     @property
     def server_name(self) -> str:
@@ -163,6 +182,22 @@ class Igate:
         self._was_verified = verified
         self.changed.emit()
 
+    def _refresh_filter(self) -> None:
+        """The filter of the connection is round our position: set when it is first known, and again when the station has moved more than FILTER_MOVE_KM since."""
+        here = self._where()
+        if here is None or (self._filter_at is not None and distance_km(*self._filter_at, *here) <= FILTER_MOVE_KM):
+            return
+        self._filter_at = here
+        self._link.set_filter(range_filter(*here))
+
+    def _log_read(self) -> None:
+        """The hour of what the server sent, in one line: "igate: 3512 packets read from APRS-IS in the last hour, 2 were no packet"."""
+        read, unreadable = self._link.read, self._link.unreadable
+        packets, none = read - self._read_mark[0], unreadable - self._read_mark[1]
+        self._read_mark = (read, unreadable)
+        if packets or none:
+            log.info("igate: %d packets read from APRS-IS in the last hour, %d were no packet", packets, none)
+
     def summary(self) -> str:
         """The hour in one line: "igate: 812 packets gated in the last hour, 40 not gated: 31 TCPIP, 6 duplicate, 3 query"."""
         n = self._hour_gated
@@ -175,8 +210,8 @@ class Igate:
     # ---- what the radio hears
     def on_packet(self, packet: Packet) -> None:
         """A packet was heard on the radio, or sent by it (only a heard one is gated, and only one whose channel is in `packet.GATEABLE`)."""
-        if packet.direction != "in" or not self._config().igate_enabled:
-            return
+        if packet.direction != "in" or not self._wanted_to_gate():
+            return                                               # (without a passcode, or with one the server refused, nothing is gated and nothing is counted)
         if packet.via not in GATEABLE:
             return self._drop(NOT_AIR)                           # (a packet from the internet would go round in a circle, a made-up one of the Dummy radio must never reach the network)
         if not self._link.verified:
@@ -199,6 +234,11 @@ class Igate:
         self.last_gated_at = now
         log.debug("igate: gated %s", line.decode("latin-1"))
         self.changed.emit()
+
+    def _wanted_to_gate(self) -> bool:
+        """Whether this iGate gates at all: it is on, has a passcode, and the server has not refused it. Otherwise it only listens."""
+        c = self._config()
+        return c.igate_enabled and c.igate_password != "" and not self._link.unverified
 
     def _drop(self, reason: str) -> None:
         self.dropped[reason] += 1

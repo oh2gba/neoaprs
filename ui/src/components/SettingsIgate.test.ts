@@ -25,6 +25,17 @@ describe("the iGate group of the Settings tab", () => {
     expect(box?.find(".igate-note").text()).toBe("Receive only: what the radio hears goes to APRS-IS; nothing from the internet is sent on the air.");
   });
 
+  it("says Connected, listening only, and nothing more, when there is no passcode", () => {
+    const { group } = make(
+      { "igate/enabled": "true", "igate/password": "" },
+      { igate: igateState({ state: "listening", problem: "", gated: 0, dropped: {}, last_gated_at: null }) },
+    );
+    expect(group()?.find(".statepill").text()).toBe("listening");
+    expect(group()?.find(".tncstatus").text()).toBe("Connected, listening only");
+    expect(group()?.findAll(".field")).toHaveLength(2);
+    expect(group()?.text()).not.toMatch(/without a passcode|read.only login|see stations/i);
+  });
+
   it("has a password field, which shows dots and is not offered to a password manager", () => {
     const { group } = make({ "igate/password": "19628" });
     const input = group()?.find("#set-igate-password");

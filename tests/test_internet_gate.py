@@ -1,6 +1,7 @@
 """The one gate for packets from the internet (neoaprs/wiring.py, `Services.hear_internet`): a packet that came from APRS-IS (`Packet.via` is `is`) goes only to the packet log, the station book and the weather log and
 is told to the page; what answers, acknowledges, repeats, sends or gates never gets it. The test walks the signals of a built app and every part that takes a packet, so that a part added later and connected
-to the radio's signal, or given a packet by any other way, fails here until it is classified; then a whole daemon is handed such packets that would each make it transmit, and says nothing."""
+to the radio's signal, or given a packet by any other way, fails here until it is classified; then a whole daemon is handed such packets that would each make it transmit, and says nothing: by `hear_internet`, and
+again by the connection to APRS-IS that reads them from a server (neoaprs/aprsis.py), whose one outlet, the signal `heard`, is held to `hear_internet` alone."""
 import inspect
 import logging
 from dataclasses import replace
@@ -14,6 +15,7 @@ from neoaprs.packet import GATEABLE, IS, VIAS, Packet
 from neoaprs.wiring import ON_AIR_ONLY, SEEN_BY_ALL, AirOnly
 from tests.support.air import from_internet, message_info, on_air, said
 from tests.support.env import Env, idle_for, until
+from tests.support.fakeaprsis import fake_aprsis
 
 POSITION = b"=6012.34N/02456.78E-from the internet"
 
@@ -107,6 +109,16 @@ def _resolve(e: Env, label: str) -> Any:
     return part
 
 
+def test_the_connection_to_aprs_is_has_one_outlet_for_what_it_reads_and_it_is_the_gate(tmp_path: Path) -> None:
+    e = Env(tmp_path, radio=False)
+    assert e.ctl.aprsis.heard._handlers == [e.ctl.hear_internet], "what the connection reads goes to the one gate and to nothing else"
+    assert all(owner(e, h) != "aprsis" for h in e.ctl.tnc.packet._handlers), "(and nothing of the connection is connected to the radio's signal)"
+    readers = [(name, value) for name, value in vars(e.ctl.aprsis).items() if hasattr(value, "emit") and name != "heard"]
+    assert [name for name, _ in readers] == ["state_changed", "changed"], "the connection's other signals carry no packet"
+    taken = packet_takers(e)
+    assert "aprsis" not in taken, "(no method of the connection takes a packet: it only makes them, from the lines of the server)"
+
+
 def test_hear_internet_takes_a_packet_from_the_internet_only(tmp_path: Path) -> None:
     e = Env(tmp_path, radio=False)
     taken: list[Packet] = []
@@ -170,6 +182,42 @@ async def test_a_whole_daemon_handed_packets_from_the_internet_that_ask_for_ever
     e.feed(on_air("OH2RDG-7", message_info(ours, "Moi!", "12"), path=""))
     [ack] = await said(e, 1)
     assert ack.info.startswith(b":OH2RDG-7 :ack12")
+    await e.stop()
+
+
+@pytest.mark.parametrize("passcode", ["19628", ""])
+async def test_a_whole_daemon_whose_connection_reads_packets_that_ask_for_everything_transmits_nothing_and_keeps_what_it_may(tmp_path: Path, passcode: str) -> None:
+    server = await fake_aprsis(verified=bool(passcode))
+    e = Env(tmp_path, settings={"digi/enabled": "true", "igate/enabled": "true", "igate/server": server.address, "igate/password": passcode})
+    await e.start()
+    await e.until_usable()
+    await until(lambda: e.ctl.igate.state == ("connected" if passcode else "listening"))
+    ours = e.ctl.config.station_call
+    path = "TCPIP*,qAC,T2TEST"
+    asks = [
+        (message_info(ours, "Moi!", "12"), path),                                                    # a message to us: kept and acked if it were heard
+        (message_info(ours, "?APRSP"), path),                                                        # a query to us: answered if it were heard
+        (message_info(ours, "?APRSD"), path),
+        (b"?APRS?", path),                                                                           # the general query
+        (message_info("BLN1", "Road closed"), path),                                                 # a bulletin: the message board is for the radio
+        (message_info("QRU", "INFO"), path),
+        (b"!6010.00N/02456.00E-repeat me", "WIDE1-1,qAR,OH2RDK-1"),                                  # a packet to be repeated by the fill-in digipeater
+    ]
+    for info, via in asks:
+        server.send(f"OH2RDG-7>APRS,{via}:".encode() + info)
+    server.send(b"N0WX>APRS,TCPIP*,qAC,T2TEST:_10090556c220s004g005t077r000p000P000h50b09720")
+    await until(lambda: e.ctl.aprsis.read == len(asks) + 1)
+    await e.settled()
+    await idle_for(0.3)
+    assert await e.heard(1, timeout_sec=0.3) == b"", "nothing was transmitted: no ack, no answer, no repeat"
+    assert e.ctl.messaging.records() == [] and e.ctl.bulletins.records() == []
+    assert e.ctl.digipeater._seen == {} and e.ctl.queries._general_until is None
+    book = e.ctl.stationbook.get("OH2RDG-7")
+    assert book is not None and (book.heard_is, book.heard_rf, book.internet_only, book.can_message) == (len(asks), 0, True, False)
+    assert {p.via for p in await e.packets()} == {IS}, "the packet log kept them all, as from the internet"
+    assert await e.ctl.weatherlog.latest("N0WX") is not None
+    assert e.ctl.igate.gated == 0 and not e.ctl.igate.dropped, "none of it reached the iGate"
+    assert [line for line in server.packets if not line.startswith(f"{ours}>")] == [], "and nothing of it went back to the server"
     await e.stop()
 
 

@@ -1,12 +1,13 @@
-"""The connection to APRS-IS (neoaprs/aprsis.py) against a fake server on the loopback: the greeting, the login line, `# logresp` verified and unverified, a server that is not APRS-IS or says nothing, the keep-alive both ways,
-the write queue, the reconnection with the back-off, and the password that is in the login line and nowhere else."""
+"""The connection to APRS-IS (neoaprs/aprsis.py) against a fake server on the loopback: the greeting, the login line with its filter and the read-only login, `# logresp` verified and unverified, a server that is not APRS-IS or says
+nothing, the keep-alive both ways, the lines of the server read as packets of the internet (and the ones that are none counted), the write queue, the reconnection with the back-off, and the password that is in the login line and nowhere else."""
 import asyncio
 import logging
 
 import pytest
 
 from neoaprs import PROGRAM, VERSION
-from neoaprs.aprsis import MAX_LINE, NO_PASSWORD, NO_SERVER, UNVERIFIED, AprsIs, login_line, logresp_of
+from neoaprs.aprsis import FILTER_KM, MAX_LINE, NO_SERVER, UNVERIFIED, AprsIs, login_line, logresp_of, range_filter
+from neoaprs.packet import IS, Packet
 from neoaprs.source import Backoff, Source
 from tests.support.clock import FixedClock
 from tests.support.env import idle_for, remember_stop, until
@@ -26,9 +27,17 @@ def link_to(server: FakeAprsIs, call: str = CALL, password: str = PASSWORD, **op
 
 # ---- the lines
 
-def test_the_login_line_has_the_call_the_passcode_and_the_program_and_no_filter() -> None:
+def test_the_login_line_has_the_call_the_passcode_and_the_program_and_the_filter_when_there_is_one() -> None:
     assert login_line(CALL, PASSWORD) == f"user {CALL} pass {PASSWORD} vers {PROGRAM} {VERSION}\r\n".encode()
-    assert b"filter" not in login_line(CALL, PASSWORD)
+    assert login_line(CALL, PASSWORD, "r/60.17/24.94/150") == f"user {CALL} pass {PASSWORD} vers {PROGRAM} {VERSION} filter r/60.17/24.94/150\r\n".encode()
+
+
+def test_no_passcode_is_the_read_only_login() -> None:
+    assert login_line(CALL, "") == f"user {CALL} pass -1 vers {PROGRAM} {VERSION}\r\n".encode()
+
+
+def test_the_filter_is_the_circle_of_150_km_round_the_position_to_a_hundredth_of_a_degree() -> None:
+    assert FILTER_KM == 150 and range_filter(60.1699, 24.9384) == "r/60.17/24.94/150" and range_filter(-33.8688, 151.2093) == "r/-33.87/151.21/150"
 
 
 @pytest.mark.parametrize(("line", "want"), [
@@ -59,14 +68,29 @@ async def test_a_verified_login_connects_and_the_login_line_is_the_only_thing_th
     assert link.state is Source.State.STOPPED and not link.verified
 
 
-async def test_an_unverified_login_closes_the_connection_sends_nothing_and_is_not_tried_again() -> None:
+async def test_a_passcode_the_server_does_not_accept_is_told_sends_nothing_is_not_tried_again_and_the_connection_listens() -> None:
     server = await fake_aprsis(verified=False)
     link = link_to(server)
     await link.start()
     await until(lambda: link.unverified)
-    assert link.state is Source.State.WAITING and link.problem == UNVERIFIED and not link.verified
+    assert link.state is Source.State.CONNECTED and link.listening and not link.verified and any(UNVERIFIED in line for line in link.lines)
     assert link.send_line(b"OH2XYZ>APRS:>x") is False
+    heard: list[Packet] = []
+    link.heard.connect(heard.append)
+    server.send(b"OH2ABC>APRS,TCPIP*,qAC,T2TEST:>still read")
+    await until(lambda: heard)
     await idle_for(0.4)                                          # (the back-off is 50 ms: a retry would have come)
+    assert server.connections == 1 and server.packets == []
+
+
+async def test_no_passcode_is_the_read_only_login_and_the_unverified_answer_to_it_is_no_fault() -> None:
+    server = await fake_aprsis(verified=False)
+    link = link_to(server, password="")
+    await link.start()
+    await until(lambda: link.listening)
+    assert not link.unverified and link.read_only and not link.verified and link.state is Source.State.CONNECTED
+    assert server.logins == [f"user {CALL} pass -1 vers {PROGRAM} {VERSION}"] and link.send_line(b"OH2XYZ>APRS:>x") is False
+    await idle_for(0.2)
     assert server.connections == 1 and server.packets == []
 
 
@@ -130,7 +154,7 @@ async def test_a_refused_connection_is_a_problem_and_a_retry() -> None:
 
 
 @pytest.mark.parametrize(("call", "password", "host", "problem"), [
-    ("", PASSWORD, "127.0.0.1", "set your call first"), ("N0CALL", PASSWORD, "127.0.0.1", "placeholder"), (CALL, "", "127.0.0.1", NO_PASSWORD), (CALL, PASSWORD, "", NO_SERVER)])
+    ("", PASSWORD, "127.0.0.1", "set your call first"), ("N0CALL", PASSWORD, "127.0.0.1", "placeholder"), (CALL, PASSWORD, "", NO_SERVER)])
 async def test_what_is_missing_is_said_and_nothing_is_opened(call: str, password: str, host: str, problem: str) -> None:
     server = await fake_aprsis()
     link = link_to(server, call, password)
@@ -160,16 +184,51 @@ async def test_a_connection_the_server_has_said_nothing_on_for_three_minutes_is_
     assert "nothing from the server" in link.last_error
 
 
-async def test_what_the_server_sends_keeps_the_connection_and_is_thrown_away() -> None:
+async def test_what_the_server_sends_keeps_the_connection_comments_are_ignored_and_a_line_is_a_packet_of_the_internet() -> None:
     server = await fake_aprsis()
     link = link_to(server, lost_sec=0.3)
+    heard: list[Packet] = []
+    link.heard.connect(heard.append)
     await link.start()
     await until(lambda: link.verified)
     for _ in range(8):
         server.send(b"# aprsc keepalive")
-        server.send(b"OH2XYZ>APRS::OH2GBA-10 :hello{1}")
+        server.send(b"OH2XYZ>APRS,TCPIP*,qAC,T2TEST::OH2GBA-10 :hello{1}")
         await idle_for(0.1)
     assert server.connections == 1 and link.verified
+    assert len(heard) == 8 and link.read == 8 and link.unreadable == 0
+    assert {(p.via, p.direction, p.source, p.path) for p in heard} == {(IS, "in", "OH2XYZ", ("TCPIP*", "qAC", "T2TEST"))}
+
+
+async def test_a_line_that_is_no_packet_is_counted_and_never_raised_and_the_connection_goes_on() -> None:
+    server = await fake_aprsis()
+    link = link_to(server)
+    heard: list[Packet] = []
+    link.heard.connect(heard.append)
+    await link.start()
+    await until(lambda: link.verified)
+    for junk in (b"no header at all", b"OH2XYZ>:no destination", b"\xff\xfe>APRS:binary", b"OH2XYZ>APRS:", b"X" * 3000):
+        server.send(junk)
+    server.send(b"OH2XYZ>APRS,qAC,T2TEST:>fine")
+    await until(lambda: heard)
+    assert link.unreadable == 5 and link.read == 1 and link.verified and server.connections == 1
+
+
+async def test_a_line_whose_handler_fails_does_not_end_the_connection(caplog: pytest.LogCaptureFixture) -> None:
+    server = await fake_aprsis()
+    link = link_to(server)
+
+    def fails(packet: Packet) -> None:
+        raise RuntimeError("the handler is broken")
+
+    link.heard.connect(fails)
+    await link.start()
+    await until(lambda: link.verified)
+    with caplog.at_level(logging.ERROR):
+        server.send(b"OH2XYZ>APRS,qAC,T2TEST:>one")
+        server.send(b"OH2XYZ>APRS,qAC,T2TEST:>two")
+        await until(lambda: link.read == 2)
+    assert link.verified and server.connections == 1 and "handler is broken" in caplog.text
 
 
 async def test_a_write_the_server_does_not_take_is_a_lost_connection(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -185,6 +244,34 @@ async def test_a_write_the_server_does_not_take_is_a_lost_connection(monkeypatch
     assert link.send_line(b"OH2XYZ>APRS:>x")
     await until(lambda: not link.verified)
     assert "does not take" in link.last_error
+
+
+# ---- the filter
+
+async def test_the_filter_is_in_the_login_and_a_changed_one_is_sent_as_a_comment_line() -> None:
+    server = await fake_aprsis()
+    link = link_to(server)
+    link.set_filter("r/60.17/24.94/150")
+    await link.start()
+    await until(lambda: link.verified)
+    assert server.logins == [f"user {CALL} pass {PASSWORD} vers {PROGRAM} {VERSION} filter r/60.17/24.94/150"]
+    link.set_filter("r/60.17/24.94/150")                           # (the same: nothing is sent)
+    link.set_filter("r/61.50/23.76/150")
+    await until(lambda: "#filter r/61.50/23.76/150" in server.comments)
+    assert server.comments.count("#filter r/61.50/23.76/150") == 1 and "#filter r/60.17/24.94/150" not in server.comments and server.packets == []
+
+
+async def test_a_filter_set_between_the_login_line_and_the_answer_to_it_is_sent_when_the_answer_comes() -> None:
+    server = await fake_aprsis(answer=False)
+    link = link_to(server, password="", login_sec=2.0)
+    await link.start()
+    await until(lambda: server.logins)
+    assert "filter" not in server.logins[0]
+    link.set_filter("r/60.17/24.94/150")                           # (the login line is written, the state is not connected yet: the filter is kept, not queued)
+    assert not link._queue
+    server.send(f"# logresp {CALL} unverified, server {server.name}".encode())
+    await until(lambda: "#filter r/60.17/24.94/150" in server.comments)
+    assert link.listening and server.packets == []
 
 
 # ---- writing

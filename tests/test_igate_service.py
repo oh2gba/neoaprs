@@ -1,12 +1,13 @@
-"""The receive-only iGate service (neoaprs/services/igate.py) on a fake APRS-IS: what the radio hears becomes lines on the server, each not gated is counted by its reason, a copy within 30 seconds is gated once, nothing is
-gated while it is not logged in, our own position goes to the server, the log has the packets and the hour and never the password, and nothing the server says goes anywhere."""
+"""The iGate service (neoaprs/services/igate.py) on a fake APRS-IS: what the radio hears becomes lines on the server, each not gated is counted by its reason, a copy within 30 seconds is gated once, nothing is
+gated while it is not logged in, our own position goes to the server, the filter of the connection follows our position, without a passcode (or with one the server refuses) it only listens, the log has the packets and the hour
+and never the password, and what the server says is read by the connection and goes nowhere through the service."""
 import logging
 from dataclasses import replace
 
 import pytest
 
 from neoaprs import TOCALL
-from neoaprs.aprsis import NO_PASSWORD, UNVERIFIED
+from neoaprs.aprsis import UNVERIFIED
 from neoaprs.igaterules import DUPLICATE, NOGATE, NOT_AIR, OFFLINE, OWN, QUERY, SOURCE, TCPIP
 from tests.support.env import idle_for, until
 from tests.support.fakeaprsis import fake_aprsis
@@ -107,27 +108,32 @@ async def test_the_igate_that_is_off_connects_to_nothing_and_counts_nothing() ->
     assert w.igate.state == "off" and w.igate.problem == "" and server.connections == 0 and w.igate.gated == 0 and not w.igate.dropped
 
 
-async def test_what_the_server_sends_goes_nowhere() -> None:
+async def test_what_the_server_sends_is_read_by_the_connection_and_is_nothing_to_the_service() -> None:
     server = await fake_aprsis()
     w = await iworld(server)
     server.send(b"OH2XYZ>APRS::OH2GBA-10 :hello{1}")
     server.send(b"OH7ABC>APRS,TCPIP*,qAC,T2TEST:=6010.00N/02456.00E-")
-    await idle_for(0.2)
+    await until(lambda: w.link.read == 2)
     assert w.igate.gated == 0 and not w.igate.dropped and w.link.verified
 
 
 # ---- the state
 
-async def test_an_igate_without_a_password_waits_and_says_what_it_needs() -> None:
-    server = await fake_aprsis()
-    w = await iworld(server, wait=False, igate_password="")
-    await until(lambda: w.igate.problem == NO_PASSWORD)
-    assert w.igate.state == "connecting"
+async def test_an_igate_without_a_passcode_listens_only_gates_nothing_sends_no_position_and_a_passcode_makes_it_gate() -> None:
+    server = await fake_aprsis(verified=False)
+    w = await iworld(server, igate_password="")
+    assert w.igate.state == "listening" and w.igate.problem == "" and server.logins[0].startswith("user OH2GBA-10 pass -1 vers ")
     w.hear()
-    assert w.igate.dropped[OFFLINE] == 1 and server.connections == 0
+    w.hear(path="TCPIP*")
+    await idle_for(0.2)
+    assert server.packets == [] and w.igate.gated == 0 and not w.igate.dropped, "(nothing gated, nothing counted, our position not sent)"
+    server.verified = True
     w.save(igate_password="19628")
     await until(lambda: w.igate.state == "connected")
-    assert w.igate.problem == "" and server.connections == 1
+    assert w.igate.problem == "" and server.connections == 2 and "pass 19628" in server.logins[1]
+    await until(lambda: server.packets == [OWN_LINE])
+    w.hear()
+    await until(lambda: LINE in server.packets)
 
 
 async def test_an_igate_without_a_call_waits_and_says_so() -> None:
@@ -137,14 +143,16 @@ async def test_an_igate_without_a_call_waits_and_says_so() -> None:
     assert w.igate.state == "connecting" and server.connections == 0
 
 
-async def test_a_password_the_server_does_not_accept_is_unverified_and_gates_nothing() -> None:
+async def test_a_password_the_server_does_not_accept_is_unverified_gates_nothing_and_the_connection_listens() -> None:
     server = await fake_aprsis(verified=False)
     w = await iworld(server, wait=False)
     await until(lambda: w.igate.state == "unverified")
-    assert w.igate.problem == UNVERIFIED
+    assert w.igate.problem == UNVERIFIED and w.link.listening
     w.hear()
+    server.send(b"OH7ABC>APRS,TCPIP*,qAC,T2TEST:=6010.00N/02456.00E-")
+    await until(lambda: w.link.read == 1)
     await idle_for(0.2)
-    assert server.packets == [] and w.igate.gated == 0 and server.connections == 1
+    assert server.packets == [] and w.igate.gated == 0 and not w.igate.dropped and server.connections == 1
 
 
 async def test_a_new_password_logs_in_again_and_the_switch_disconnects() -> None:
@@ -173,6 +181,63 @@ async def test_the_connection_lost_and_made_again_gates_again() -> None:
     w.clock.advance(60)
     w.hear(info=b"!6010.00N/02456.00E>After")
     await until(lambda: any(line.endswith(">After") for line in server.packets))
+
+
+# ---- the filter
+
+FILTER = "r/60.17/24.94/150"
+
+
+async def test_the_filter_round_our_position_is_in_the_login_and_is_sent_again_when_we_have_moved_more_than_10_km() -> None:
+    server = await fake_aprsis()
+    w = await iworld(server)
+    assert server.logins[0].endswith(f" filter {FILTER}")
+    w.place = (60.20, 24.99)                                              # (about 4 km)
+    w.igate.tick()
+    w.place = (60.17, 25.10)                                              # (about 9 km from where the filter was set, and the filter is still the first)
+    w.igate.tick()
+    await idle_for(0.1)
+    assert [c for c in server.comments if c.startswith("#filter")] == []
+    w.place = (60.17, 25.14)                                              # (about 11 km)
+    w.igate.tick()
+    await until(lambda: "#filter r/60.17/25.14/150" in server.comments)
+    w.place = (60.17, 25.20)                                              # (6 km from the new one)
+    w.igate.tick()
+    await idle_for(0.1)
+    assert [c for c in server.comments if c.startswith("#filter")] == ["#filter r/60.17/25.14/150"] and server.connections == 1
+
+
+async def test_a_station_without_a_position_logs_in_without_a_filter_and_sends_it_when_it_has_one() -> None:
+    server = await fake_aprsis()
+    w = await iworld(server, place=None)
+    assert "filter" not in server.logins[-1]
+    w.place = (60.17, 24.94)
+    w.igate.tick()
+    await until(lambda: f"#filter {FILTER}" in server.comments)
+
+
+async def test_a_new_login_after_a_loss_carries_the_filter_we_have_now() -> None:
+    server = await fake_aprsis()
+    w = await iworld(server)
+    w.place = (61.50, 23.76)
+    w.igate.tick()
+    await until(lambda: "#filter r/61.50/23.76/150" in server.comments)
+    server.hang_up()
+    await until(lambda: len(server.logins) == 2)
+    assert server.logins[1].endswith(" filter r/61.50/23.76/150")
+
+
+async def test_the_listening_igate_has_the_filter_too_and_the_hour_says_how_many_packets_were_read(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO)
+    server = await fake_aprsis(verified=False)
+    w = await iworld(server, igate_password="")
+    assert server.logins[0].endswith(f" filter {FILTER}")
+    for line in (b"OH7ABC>APRS,TCPIP*,qAC,T2TEST:>a", b"OH7ABD>APRS,TCPIP*,qAC,T2TEST:>b", b"junk"):
+        server.send(line)
+    await until(lambda: w.link.read == 2 and w.link.unreadable == 1)
+    w.clock.advance(3601)
+    w.igate.tick()
+    assert "igate: 2 packets read from APRS-IS in the last hour, 1 were no packet" in caplog.text
 
 
 # ---- our own position

@@ -1,16 +1,17 @@
 # The iGate
 
-An iGate puts what a radio hears on APRS-IS, the internet side of APRS, so that stations far away and sites such as aprs.fi can see it. NeoAPRS has a **receive-only** iGate. It is off until you switch it on.
+An iGate puts what a radio hears on APRS-IS, the internet side of APRS, so that stations far away and sites such as aprs.fi can see it. NeoAPRS has a **receive-only** iGate, and with it on the stations of the internet round you show on the map too. It is off until you switch it on.
 
 ## What it does
 
 - It takes every packet your radio hears and, with a few exceptions (below), puts it on APRS-IS. The packet goes as it was heard, with the path as heard, the information field byte for byte, and `qAO,` and your call added at the end of the path. `qAO` is how a receive-only iGate says "I cannot put messages for this station back on the air".
 - It puts your own position on APRS-IS, so that your iGate shows on maps: when it has logged in and every 30 minutes after, for a station that stays where it is (the same position as the beacon, sent as `TCPIP*`, the only path a packet of your own has on the internet). A moving station sends the beacons that go out on the radio, at most one a minute. The Beacon choice does not matter: with the beacon off the position still goes to APRS-IS.
+- It shows the stations that APRS-IS has within 150 km of your position: on the map, in the Stations tab and in the Packets tab, marked as heard over the internet ([the page](page.md#stations)). The server is asked for that circle when the iGate logs in, and again when your position has moved more than 10 km.
 - It shows in the Settings tab, in the **iGate** group, in one line: "Connected to T2FINLAND, 1234 packets gated, last 12 s ago".
 
 ## What it never does
 
-**Nothing from the internet is ever sent on the air.** The iGate reads what the server sends only to see that the connection is alive, and throws it away. A message for you that was sent from the internet does not reach your radio through it, and no packet of APRS-IS is repeated by your radio. This is how the iGate is built, not a setting.
+**Nothing from the internet is ever sent on the air.** What the server sends goes to the map and the logs and nowhere else: a message for you that was sent from the internet is not kept or answered, no query from it is answered, no packet of APRS-IS is repeated by your radio, and a station known only from the internet cannot be messaged. This is how the iGate is built, not a setting.
 
 ## Switching it on
 
@@ -18,7 +19,7 @@ An iGate puts what a radio hears on APRS-IS, the internet side of APRS, so that 
 2. **Request a passcode** (below), and type it into **Passcode**.
 3. Tick **Gate to APRS-IS**.
 
-The status line says what it is waiting for, or that it is connected. A switch with no passcode is a valid setting: the iGate waits and says so. If the server does not accept the passcode, the pill says **not verified**, nothing is sent, and the iGate does not try again until you change a setting.
+The status line says what it is waiting for, or that it is connected. Without a passcode nothing is gated, and the internet stations still show. If the server does not accept the passcode, the pill says **not verified**, nothing is gated, the stations of the internet still show, and the iGate does not log in again with it until you change a setting.
 
 ## The passcode
 
@@ -30,7 +31,7 @@ The passcode is kept as a setting (`igate/password`) in the database on your com
 
 ## The server
 
-The setting `igate/server` is `rotate.aprs2.net:14580` unless you change it. That name picks a server of the volunteer network for each login, and 14580 is the port that iGates use. It is not on the page, because the default suits nearly everyone; to use another server, `neoaprs db set igate/server host:port`. The iGate logs in with your call, the passcode and no filter.
+The setting `igate/server` is `rotate.aprs2.net:14580` unless you change it. That name picks a server of the volunteer network for each login, and 14580 is the port that iGates use. It is not on the page, because the default suits nearly everyone; to use another server, `neoaprs db set igate/server host:port`. The iGate logs in with your call, the passcode and the circle of 150 km round your position as the filter.
 
 If the connection is lost it is opened again after 5, 10, 20 and then 30 seconds. A server that says nothing for three minutes counts as lost; the iGate itself sends a comment line when it has written nothing for two minutes.
 
@@ -45,13 +46,14 @@ A packet heard is not put on APRS-IS when:
 - its source is not a station (`N0CALL`, `WIDE2`, `TCPIP` and the like) or is your own call;
 - it has a line break inside (APRS-IS has one packet to a line), or would make a line of more than 512 bytes;
 - the same source, destination and text were put on APRS-IS in the last 30 seconds: a packet repeated by digipeaters is heard more than once and goes once;
-- the iGate was not logged in when it was heard.
+- the iGate was not logged in when it was heard;
+- it did not come from the air: a packet from the internet, or one made up by the Dummy radio, is never put on APRS-IS.
 
 ## The counts
 
-Since the program started, the page and the log tell how many packets were **gated**, and the pointer on the status line tells how many were not and why: *already via the internet*, *NOGATE or RFONLY*, *query*, *not a station*, *our own*, *line break*, *too long*, *duplicate*, *heard while offline*.
+Since the program started, the page and the log tell how many packets were **gated**, and the pointer on the status line tells how many were not and why: *already via the internet*, *NOGATE or RFONLY*, *query*, *not a station*, *our own*, *line break*, *too long*, *duplicate*, *heard while offline*, *not from the air*.
 
-The log has the login at the info level ("logged in as OH2GBA, verified, server T2FINLAND"), each packet gated at the debug level (`neoaprs --debug`), and every hour one line: "igate: 812 packets gated in the last hour, 40 not gated: 31 TCPIP, 6 duplicate, 3 query". The passcode is in no line of the log.
+The log has the login at the info level ("logged in as OH2GBA, verified, server T2FINLAND"), each packet gated at the debug level (`neoaprs --debug`), and every hour two lines: "igate: 812 packets gated in the last hour, 40 not gated: 31 TCPIP, 6 duplicate, 3 query" and "igate: 3512 packets read from APRS-IS in the last hour, 2 were no packet". The passcode is in no line of the log.
 
 ## Receive only
 

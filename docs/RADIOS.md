@@ -27,7 +27,7 @@ How to connect your radio or TNC to NeoAPRS, on Linux or Windows. In the page, *
 
 Tried on the air: the Kenwood TH-D7. The other entries follow the radios' manuals and users' reports; "unverified" marks a detail nobody has confirmed.
 
-NeoAPRS sends and receives over RF, and has an optional receive-only iGate that puts what the radio hears on APRS-IS ([the iGate](manual/igate.md)). Nothing from the internet goes to the radio, and receiving from the internet needs no TNC: use any APRS-IS client.
+NeoAPRS sends and receives over RF, and has an optional receive-only iGate that puts what the radio hears on APRS-IS ([the iGate](manual/igate.md)). With the iGate on, the stations of the internet round you also show on the map, marked as such. Nothing from the internet goes to the radio.
 
 ## Kenwood TH-D7 and TM-D700
 

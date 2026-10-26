@@ -313,9 +313,18 @@
    "enabled": true,
    "gated": 0,
    "last_gated_at": null,
-   "problem": "no password set: give igate/password the APRS-IS passcode of your call",
+   "problem": "127.0.0.1:14580: Connection refused",
    "server": "",
    "state": "connecting"
+  },
+  {
+   "dropped": {},
+   "enabled": true,
+   "gated": 0,
+   "last_gated_at": null,
+   "problem": "",
+   "server": "T2FINLAND",
+   "state": "listening"
   },
   {
    "dropped": {},

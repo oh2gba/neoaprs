@@ -265,6 +265,7 @@
   background: var(--warn);
 }
 .statepill.igate-connected,
+.statepill.igate-listening,
 .statepill.gps-fix,
 .statepill.beacon-on {
   background: var(--ok);

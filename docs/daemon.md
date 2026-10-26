@@ -157,9 +157,11 @@ problem that changed), after every packet of ours and every save of the settings
 
 `neoaprs gps-replay` plays a drive as a gpsd ([development.md](development.md#trying-mobile-operation-without-a-vehicle)).
 
-## The receive-only iGate
+## The iGate and the APRS-IS view
 
-`igate/enabled` (off by default), `igate/server` (`rotate.aprs2.net:14580`, not on the page) and `igate/password` (the APRS-IS passcode of `station/call`, digits, a secret; `-1` is refused because it only reads) set it up. NeoAPRS never works a
+One connection to APRS-IS does both: with a passcode the iGate gates what the radio hears, and with or without one it reads the stations of the internet round us and shows them. The group of the Settings tab has the switch and the passcode only.
+
+`igate/enabled` (off by default), `igate/server` (`rotate.aprs2.net:14580`, not on the page) and `igate/password` (the APRS-IS passcode of `station/call`, digits, a secret; `-1` is refused because it only reads; empty is the read-only login, which the page does not mention) set it up. NeoAPRS never works a
 passcode out: the page links to the request page of the author, `PASSCODE_URL` in `ui/src/lib/igatestatus.ts`, which is told the base call.
 
 **The rules** are `neoaprs/igaterules.py` (pure code; the module's head says where each rule comes from: https://www.aprs-is.net/IGateDetails.aspx, https://www.aprs-is.net/q.aspx, WB2OSZ's "Successful APRS IGate Operation"). A UI frame
@@ -170,16 +172,30 @@ through, hops not yet used kept), `qAO` because the iGate is receive only (the s
 specification, and ours: a copy of the same source, destination (without its SSID) and information field is not gated again within `DUPLICATE_SEC` (30 s; Dire Wolf stopped doing this at the request of a server author, so the number can be 0),
 and our own call as the source is not gated, because our own position goes by a path of its own.
 
-**The connection** is `neoaprs/aprsis.py` (`AprsIs`, a `Source`): connect (10 s), the server's comment line as greeting (anything else is "not an APRS-IS server"), `user CALL pass PASSCODE vers NeoAPRS VERSION` with no filter and TCP_NODELAY,
-`# logresp CALL verified|unverified, server NAME`. Unverified: the connection is closed and not opened again until the settings change (state `unverified` on the page). A silence of 3 minutes from the server is a lost connection; a comment
-line goes to the server when nothing was written for 2 minutes; a write the server does not take in 30 s is a lost connection too. Lines are written by a task from a queue of at most 500 lines (`slow_dropped` counts the oldest ones
-dropped when the server is slow). The reconnection is `Backoff`. What the server sends is read and thrown away: nothing of it is handed on. The passcode is in the login line and in no log line, line of the Source, error or problem.
+**The connection** is `neoaprs/aprsis.py` (`AprsIs`, a `Source`): connect (10 s), the server's comment line as greeting (anything else is "not an APRS-IS server"), `user CALL pass PASSCODE vers NeoAPRS VERSION filter r/LAT/LON/150` with TCP_NODELAY,
+`# logresp CALL verified|unverified, server NAME`. The filter is the circle of `FILTER_KM` (150) round our position (`range_filter`, the position to a hundredth of a degree), the constant that the port 14580 needs to send anything; it is
+sent again as a comment line `#filter r/...` on a connection that is up when it changes (`set_filter`; one set between the login line and the answer to it goes out when the answer comes). Without a passcode the login is `pass -1`, the
+read-only login, and the server's `unverified` is no fault. A passcode that was given and refused sets `unverified` (the state `unverified` on the page, the problem "the server did not accept the password"): nothing is gated and the login is
+not repeated with it, but the connection stays up and reads exactly as the read-only one does. A silence of 3 minutes from the server is a lost connection; a comment line goes to the server when nothing was written for 2 minutes; a write the
+server does not take in 30 s is a lost connection too. Lines are written by a task from a queue of at most 500 lines (`slow_dropped` counts the oldest ones dropped when the server is slow). The reconnection is `Backoff`. The passcode is in the login
+line and in no log line, line of the Source, error or problem.
+
+**What the server sends** is read by the same connection: a comment line (`#`) is the keep-alive and ignored, every other line goes through `aprsisline.parse_is_line(line, now)` and the packet (`Packet.via` is `is`) to the connection's signal
+`heard`, which `neoaprs/wiring.py` connects to `Services.hear_internet` and to nothing else (the one gate for packets from the internet, below). A line that does not parse is counted (`unreadable`) and forgotten, never raised, and a handler
+that fails does not end the connection; `read` counts the packets handed on. The connection holds no reference to anything that can transmit, and the service's `on_packet` is not on this path at all, so a packet of the internet cannot be gated back.
+The hour line of the log says how many were read and how many were no packet.
 
 **The service** is `neoaprs/services/igate.py` (`Igate`): `on_packet` (connected to the Tnc's packets by `wiring.py`, in `ON_AIR_ONLY`) gates packets that were heard (`direction in`) and whose channel is in `packet.GATEABLE` (a packet of the Dummy radio or from the internet is counted as `not_air` and never sent), counts `gated`, `dropped` by reason (`tcpip nogate query source own
-newline long frame duplicate offline not_air`) and `last_gated_at`, and `changed` tells the topic `igate`. It has no Tnc, no `Radio`, no sender and no way to send a frame; the connection has none either, and nothing connects it to the radio
+newline long frame duplicate offline not_air`) and `last_gated_at`, and `changed` tells the topic `igate`. Without a passcode, or with one the server refused, `on_packet` does nothing and counts nothing (it only listens). It has no Tnc, no `Radio`, no sender and no way to send a frame; the connection has none either, and nothing connects it to the radio
 (`tests/test_igate_service.py` and `tests/test_igate_wiring.py` hold this). Our position goes as `OURCALL>APZNEO,TCPIP*:` and the information field of the beacon (`Beacon.position_info`, which asks no transmit interlock and works with the beacon off): at the
 login and every 30 minutes for a fixed station that has a position, and for a moving station (`gps/source` is not `off`) with every beacon that goes on the radio (`Beacon.sent`), at most one a minute. The log: the login and its result at INFO, each packet
 gated at DEBUG, and one line an hour at INFO, "igate: 812 packets gated in the last hour, 40 not gated: 31 TCPIP, 6 duplicate, 3 query".
+
+**The filter follows the station.** The service gives the connection `range_filter(lat, lon)` of `stationbook.me_position` (the position of the settings, or the GPS fix of a moving station) when the connection is configured and at every tick; it is
+sent again when the position is more than `FILTER_MOVE_KM` (10) from where the last one was set, and the first time a position is known if there was none at the login. The state of the topic `igate` is `off`, `connecting`, `connected` (verified),
+`listening` (logged in without a passcode: the page says "Connected, listening only") or `unverified` (the passcode was refused: the page says so, and that NeoAPRS only listens). Our own position is sent to APRS-IS only on a verified login.
+Tests: `tests/test_aprsis.py` (the login with its filter, the read-only login, the lines read, the lines that are none), `tests/test_igate_service.py` (the filter that moves, the states, nothing gated while listening) and `tests/test_igate_wiring.py`
+(a whole daemon on a fake server: stations of the internet in the book and the log, nothing written to the radio, nothing sent back to the server).
 
 ## Messaging
 
@@ -292,9 +308,9 @@ A packet is `rf-gated` exactly when it came on the radio as a third-party packet
 
 - `SEEN_BY_ALL` (the packet log, the station book, the weather log) to both signals, and the page's topics (`packets`) follow both;
 - `ON_AIR_ONLY` (messaging with the inbox, the QRU server, the board and the delivery chain behind it, the queries, our objects, the digipeater) to the Tnc's only, each behind `AirOnly`, which drops an `is` packet handed to it by mistake, counts it and says so once in the log;
-- and every entry of those services refuses one again (`Packet.on_air`), so that no message from the internet is kept, acknowledged or answered, nothing from it is repeated, taken as a take-over of our objects, or sent. Nothing connects the alert, the status or the beacon to a packet at all.
+- and every entry of those services refuses one again (`Packet.on_air`), so that no message from the internet is kept, acknowledged or answered, nothing from it is repeated, taken as a take-over of our objects, or sent. Nothing connects the alert, the status or the beacon to a packet at all. The iGate is among `ON_AIR_ONLY` (it takes the radio's packets to put them on APRS-IS) and checks `packet.via in GATEABLE` itself as well; a packet that fails it is counted as `not_air`.
 
-`tests/test_internet_gate.py` builds the daemon and walks the handlers of both signals and every part that has a method taking a `Packet` (two levels down), so that a part added later fails there until it is classified; `tests/test_internet_services.py` hands each acting service the same packet with only the channel changed.
+`tests/test_internet_gate.py` builds the daemon and walks the handlers of both signals and every part that has a method taking a `Packet` (two levels down), so that a part added later fails there until it is classified; it holds the connection to APRS-IS, whose `heard` signal reaches `hear_internet` alone, and hands a whole daemon the packets that would each make it transmit, by `hear_internet` and through a fake server; `tests/test_internet_services.py` hands each acting service the same packet with only the channel changed.
 
 **What each channel does to the station book.** A station keeps, for each channel, the count of its packets and the time of the latest (`heard_rf`, `heard_rf_gated`, `heard_is`, `heard_dummy`, `last_rf_at`, `last_rf_gated_at`, `last_is_at`, `last_dummy_at`; `packets` is the sum) and the channel of its position (`position_via`, the latest packet that carried a position wins). Everything that means "on the air near us" counts the radio only: the routes (`heard_direct`, `heard_via`, `last_route`, `last_path`, `best_route`, `suggested_path`, `last_direct_at`), the station's `gated` count and `igate`, the ALOHA circle (`last_on_air_at`: the radio's packets and the Dummy radio's, not an iGate's, not the internet's), `?APRSD` and `?APRSH` (the SQL leaves `is` packets out), the routes read from the log at the start, and `can_message`: a station known only from the internet (`internet_only`: `heard_is` and none of the others) cannot be messaged, as nothing is sent but by radio. A station heard both ways has both. The packets of the last hour, the time last heard and the sort order count every channel. An object or item reported over the internet is known from the internet alone, if no packet of the radio reported it. Our own call over the internet is not proof that the radio was heard, and changes nothing.
 

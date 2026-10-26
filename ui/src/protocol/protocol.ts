@@ -418,15 +418,15 @@ export interface HttpsState {
   problem: string;
 }
 
-/** The receive-only iGate (neoaprs/services/igate.py): what the radio hears is put on APRS-IS, and nothing from APRS-IS is ever sent on the air. Whether it is connected, to which server, and what it has done since the daemon started. Told whole as it changes, at most once a second. */
+/** The iGate (neoaprs/services/igate.py): what the radio hears is put on APRS-IS, and nothing from APRS-IS is ever sent on the air. Whether it is connected, to which server, and what it has done since the daemon started. Told whole as it changes, at most once a second. */
 export interface IgateState {
   /** `igate/enabled` as in force */
   enabled: boolean;
-  /** `off`: the switch is off; `connecting`: not logged in (yet, or again after a loss, or waiting for what `problem` says is missing); `connected`: logged in and verified, packets are gated; `unverified`: the server did not accept the password, nothing is sent and the login is not tried again until the settings change */
-  state: "off" | "connecting" | "connected" | "unverified";
+  /** `off`: the switch is off; `connecting`: not logged in (yet, or again after a loss, or waiting for what `problem` says is missing); `connected`: logged in and verified, packets are gated; `listening`: logged in without a passcode, so that nothing is gated and the stations of the internet are read only; `unverified`: the server did not accept the passcode, nothing is gated (the connection reads, as `listening` does) and the login is not tried again with another until the settings change */
+  state: "off" | "connecting" | "connected" | "listening" | "unverified";
   /** the name the server gave at the login (`T2FINLAND`); empty until it has answered */
   server: string;
-  /** why it is not connected: what is missing (the call, the password, the server) or the connection's own words (`Connection refused`, `the server did not accept the password`); empty while `connected` and `off` */
+  /** why it is not connected: what is missing (the call, the password, the server) or the connection's own words (`Connection refused`, `the server did not accept the password`); empty while `connected`, `listening` and `off` */
   problem: string;
   /** packets put on APRS-IS since the daemon started */
   gated: number;
