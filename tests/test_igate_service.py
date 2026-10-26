@@ -8,7 +8,7 @@ import pytest
 
 from neoaprs import TOCALL
 from neoaprs.aprsis import UNVERIFIED
-from neoaprs.igaterules import DUPLICATE, NOGATE, NOT_AIR, OFFLINE, OWN, QUERY, SOURCE, TCPIP
+from neoaprs.igaterules import DUPLICATE, FRAME, NOGATE, NOT_AIR, OFFLINE, OWN, QUERY, SOURCE, TCPIP
 from tests.support.env import idle_for, until
 from tests.support.fakeaprsis import fake_aprsis
 from tests.support.igateworld import POSITION, frame_of, iworld
@@ -400,3 +400,59 @@ async def test_the_igate_and_its_connection_hold_nothing_that_can_send_a_frame()
     for part in (w.igate, w.link):
         for name, value in vars(part).items():
             assert not hasattr(value, "send_frame"), f"{type(part).__name__}.{name} can send a frame"
+
+
+# ---- the edges: a packet that is no frame, a link that went down, a table that grows, a start twice
+
+async def test_a_packet_whose_bytes_are_no_frame_is_counted_as_such_and_gated_nowhere() -> None:
+    server = await fake_aprsis()
+    w = await iworld(server)
+    w.igate.on_packet(replace(w.hear(source="OH2ABC-1"), raw=b"\x00\x01"))
+    assert dict(w.igate.dropped)[FRAME] == 1 and w.igate.gated == 1, "(the packet heard first was gated; the one with broken bytes was not)"
+
+
+async def test_a_line_the_connection_will_not_take_is_counted_as_not_gated_when_it_went_down_between_the_check_and_the_write(monkeypatch: pytest.MonkeyPatch) -> None:
+    server = await fake_aprsis()
+    w = await iworld(server)
+    monkeypatch.setattr(w.link, "send_line", lambda line: False)
+    w.hear()
+    assert w.igate.gated == 0 and dict(w.igate.dropped) == {OFFLINE: 1} and w.igate.last_gated_at is None
+
+
+async def test_the_table_of_what_was_gated_is_cleared_of_the_old_when_it_grows_too_large(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("neoaprs.services.igate._SEEN_MAX", 3)
+    server = await fake_aprsis()
+    w = await iworld(server)
+    for n in range(5):
+        w.hear(info=b">%d" % n)
+    w.clock.advance(31)
+    w.hear(info=b">0")                                                     # (the table is over its size, so what is over 30 s old goes first; this one is gated again)
+    assert w.igate.gated == 6 and len(w.igate._seen) == 1 and not w.igate.dropped
+
+
+async def test_starting_the_service_again_while_it_runs_changes_nothing() -> None:
+    server = await fake_aprsis()
+    w = await iworld(server)
+    await w.igate.start()
+    await idle_for(0.2)
+    assert len(server.logins) == 1
+
+
+async def test_a_station_that_began_to_stay_where_it_is_sends_its_position_at_the_next_tick() -> None:
+    server = await fake_aprsis()
+    w = await iworld(server, gps_source="gpsd")
+    await idle_for(0.1)
+    assert server.packets == [], "(a moving station sends nothing at the login)"
+    w.save(gps_source="off")
+    w.igate.tick()
+    await until(lambda: server.packets == [OWN_LINE])
+
+
+async def test_a_position_too_long_for_a_line_of_aprs_is_is_not_sent_and_not_counted_as_sent() -> None:
+    server = await fake_aprsis()
+    w = await iworld(server, gps_source="gpsd")
+    w.igate.beacon_sent(frame_of(source="OH2GBA-10", destination=TOCALL, info=b"=" + b"x" * 600))
+    await idle_for(0.1)
+    assert server.packets == [] and w.igate._position_sent is None
+    w.igate.beacon_sent(frame_of(source="OH2GBA-10", destination=TOCALL, info=b"=/5L!!<*e7>7P["))
+    await until(lambda: len(server.packets) == 1)

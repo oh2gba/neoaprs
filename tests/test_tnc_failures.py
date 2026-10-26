@@ -3,8 +3,9 @@ An open that fails or raises something nobody listed, a write that is refused, a
 and the repeats of the KISS entry that wait longer each time (their waits are the program's own 10 s to 60 s, passed in no time)."""
 import asyncio
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Coroutine
 from contextlib import asynccontextmanager
+from typing import Any
 
 import pytest
 
@@ -12,7 +13,12 @@ from neoaprs import ax25
 from neoaprs.serialport import SerialError
 from neoaprs.source import Backoff, Source
 from neoaprs.tnc import ENTER_KISS, Tnc
+from neoaprs.tncentry import KissEntry
+from neoaprs.tncport import TncPort
+from neoaprs.tncprofile import KENWOOD_D710, KISS
+from tests.support.env import until
 from tests.support.fakeport import FakePorts
+from tests.support.fakeradio import FakeRadio
 from tests.support.virtualtime import virtual_time
 
 MONITOR_LINE = b"OH2FZV-2>VP1R61,WIDE1,OH2RCH-2*:!6010.00N/02456.00E>test\r\n"
@@ -152,3 +158,84 @@ async def test_the_repeats_of_the_entry_wait_longer_each_time_and_only_the_first
         assert told == [logging.INFO, logging.DEBUG, logging.DEBUG, logging.DEBUG, logging.DEBUG]
         assert sum("still in command mode" in line for line in tnc.lines) == 5, "every repeat is a line in the terminal"
         assert not tnc.usable and "command mode" in tnc.why_unusable()
+
+
+# ---- the entry (neoaprs/tncentry.py) and the port (neoaprs/tncport.py) on their own
+
+class EntryRig:
+    """A KissEntry whose line is a list of what was written, with its steps spawned as tasks."""
+
+    def __init__(self, settle_sec: float | None = None, pace: float = 1.0) -> None:
+        self.written: list[tuple[bytes, float]] = []
+        self.alive = True
+        self.accepts = True
+        self.tasks: list["asyncio.Task[None]"] = []
+        self.clock = asyncio.get_running_loop().time
+        self.began = self.clock()
+        self.entry = KissEntry(self.spawn, self.write, settle_sec, pace)
+
+    def spawn(self, coro: Coroutine[Any, Any, None]) -> "asyncio.Task[None]":
+        self.tasks.append(task := asyncio.create_task(coro))
+        return task
+
+    def write(self, data: bytes) -> bool:
+        self.written.append((data, round(self.clock() - self.began, 1)))
+        return self.accepts and self.alive
+
+
+async def test_the_steps_of_an_entry_go_out_one_after_the_other_each_after_the_pause_of_the_one_before_it() -> None:
+    async with virtual_time():
+        rig = EntryRig(settle_sec=0.5, pace=0.1)
+        took = rig.entry.begin(KENWOOD_D710, lambda: rig.alive)
+        await asyncio.gather(*rig.tasks)
+    assert took == pytest.approx(0.1 + 0.3 + 0.1 + 0.1 + 0.5)                # (the pauses at a tenth of their time, the last one the settle time)
+    assert [data for data, _ in rig.written] == [step for step, _ in KENWOOD_D710.enter]
+    assert [at for _, at in rig.written] == [0.0, 0.1, 0.4, 0.5, 0.6]
+
+
+async def test_an_entry_that_is_over_when_its_next_step_is_due_or_whose_step_is_refused_writes_no_more() -> None:
+    async with virtual_time():
+        rig = EntryRig()
+        rig.entry.begin(KENWOOD_D710, lambda: rig.alive)
+        await asyncio.sleep(2.0)                                              # (TC 1 and TN 2,0 are out; the line is replaced)
+        rig.alive = False
+        await asyncio.gather(*rig.tasks)
+    assert len(rig.written) == 2
+    async with virtual_time():
+        rig = EntryRig()
+        rig.entry.begin(KENWOOD_D710, lambda: rig.alive)
+        rig.accepts = False                                                   # (the line refuses the second step)
+        await asyncio.gather(*rig.tasks)
+    assert len(rig.written) == 2
+
+
+async def test_a_profile_that_enters_nothing_is_written_nothing_whatever_the_settle_time() -> None:
+    rig = EntryRig(settle_sec=0.5)
+    assert rig.entry.pauses(KISS) == [] and rig.entry.begin(KISS, lambda: True) is None
+    assert rig.written == [] and rig.tasks == []
+
+
+async def test_a_first_step_that_is_refused_ends_the_entry_with_no_time_to_wait() -> None:
+    rig = EntryRig()
+    rig.accepts = False
+    assert rig.entry.begin(KENWOOD_D710, lambda: True) is None and rig.tasks == []
+
+
+async def test_a_write_to_a_port_that_failed_is_a_lost_line_told_to_the_owner_once() -> None:
+    radio = FakeRadio()
+    await radio.start()
+    lost: list[str] = []
+    port = TncPort(radio.url, 9600, lambda p, data: None, lambda p, reason: lost.append(reason))
+    port.fail("nothing open yet")
+    assert lost == [], "(a port that is not open has nothing to lose)"
+    await port.open()
+    await radio.connected()
+    try:
+        port.fail("the write timed out")
+        assert lost == ["the write timed out"] and not port.is_open
+        port.fail("again")
+        assert lost == ["the write timed out"]
+    finally:
+        port.close()
+        await until(lambda: radio.clients == 0)                           # (a socket is closed in a thread of its own)
+        await radio.aclose()

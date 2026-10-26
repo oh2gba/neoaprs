@@ -248,3 +248,39 @@ async def test_the_daemon_digipeats_nothing_with_the_default_settings(tmp_path: 
     await until(lambda: e.tnc.stats.packets == 1)
     assert await said(e, 1, 0.3) == [] and e.tnc.stats.digipeated == 0
     await e.stop()
+
+
+# ---- the edges: bytes that are no frame, a table that grows, no counters
+
+def test_bytes_that_do_not_decode_as_a_frame_are_not_repeated_and_not_an_error() -> None:
+    rig = Rig()
+    good = rig.hear(frame())
+    rig.tnc.sent.clear()
+    rig.clock.advance(DUPLICATE_SEC + 1)
+    rig.digi.on_packet(replace(good, raw=b"\x01\x02\x03"))                  # (heard on the radio, but the parser of the Tnc and ours do not agree: nothing is sent)
+    assert rig.tnc.sent == []
+
+
+def test_the_table_of_what_was_heard_is_cleared_of_the_old_when_it_grows_too_large(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("neoaprs.services.digipeater._SEEN_MAX", 5)
+    rig = Rig()
+    for n in range(6):                                                       # (six packets that are not ours to repeat, heard at the same minute)
+        rig.hear(frame("WIDE2-1", info=b">%d" % n))
+    rig.clock.advance(DUPLICATE_SEC + 1)
+    rig.hear(frame("WIDE2-1", info=b">late"))                                # (the seventh: the six old ones are over the window and are dropped)
+    assert len(rig.digi._seen) == 1
+    rig.hear(frame("WIDE1-1", info=b">0"))                                   # (a packet heard long ago is a new one again)
+    assert len(rig.tnc.sent) == 1
+
+
+def test_without_counters_a_frame_is_repeated_and_a_burst_is_held_all_the_same() -> None:
+    rig = Rig()
+    digi = Digipeater(rig.tnc, lambda: rig.config, rig.clock)
+    for n in range(BURST_MAX + 2):
+        f = frame("WIDE1-1", info=b">%d" % n)
+        digi.on_packet(packet_of("in", ax25.encode(f), f, rig.clock()))
+    assert len(rig.tnc.sent) == BURST_MAX, "the burst limit holds with no stats to count what it held"
+    rig.clock.advance(BURST_WINDOW_SEC)
+    f = frame("WIDE1-1", info=b">after")
+    digi.on_packet(packet_of("in", ax25.encode(f), f, rig.clock()))
+    assert len(rig.tnc.sent) == BURST_MAX + 1

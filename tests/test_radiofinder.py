@@ -10,11 +10,11 @@ from neoaprs.coded import CodedError
 from neoaprs.radiosearch import Found
 from neoaprs.serialprobe import PortInfo
 from neoaprs.services import radiofinder
-from neoaprs.services.radiofinder import SPEEDS
+from neoaprs.services.radiofinder import SPEEDS, RadioFinder
 from neoaprs.services.radioprobe import Timing
 from tests.support.env import until
 from tests.support.faketnc import FakeTncServer, TncBrain, ears
-from tests.support.finderrig import Rig
+from tests.support.finderrig import QUICK, Rig
 from tests.support.virtualtime import virtual_time
 
 
@@ -172,3 +172,32 @@ def test_where_find_my_radio_is_not_made_there_is_no_port_to_try(monkeypatch: py
     fake_system(monkeypatch, ["COM3"])
     monkeypatch.setattr(serialprobe, "can_find", lambda: False)
     assert radiofinder.candidates(serialprobe.DEFAULT_PATTERN, ()) == []
+
+
+# ---- the edges: a caller that is cancelled, a search that fails
+
+async def test_a_search_whose_caller_is_cancelled_closes_the_port_and_gives_the_line_back() -> None:
+    [silent] = await serve("silent")
+    rig = Rig([silent.url], timing=Timing(listen_sec=30, answer_sec=30))
+    caller = asyncio.create_task(rig.finder.find(rig.tried.append))
+    await until(lambda: silent.connections == 1)
+    caller.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await caller
+    await until(lambda: silent.closed == 1)
+    assert rig.events == ["hold", "release"] and not rig.finder.running
+    await silent.aclose()
+
+
+@pytest.mark.expects_errors
+async def test_a_search_that_fails_for_a_reason_of_its_own_is_said_to_have_failed() -> None:
+    async def hold() -> None:
+        raise RuntimeError("the line cannot be let go")
+
+    async def ports() -> list[str]:
+        return ["/dev/a"]
+
+    finder = RadioFinder(ports, hold, lambda: None, QUICK, line=ears({}))
+    with pytest.raises(CodedError) as caught:
+        await finder.find(lambda trying: None)
+    assert caught.value.code == "radio.failed" and not finder.running
