@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.11.0
+
 - **What's new in the update window.** The window that says a newer version is out now shows the release notes themselves: every version between yours and the new one, fetched from the project's changelog on GitHub. The release page is offered only when they cannot be fetched.
 - **The map comes by itself, at the full radius.** The setup guide no longer asks you to download the map: when you go on from the Position step, NeoAPRS starts downloading the streets and names 150 km round your station (the radius of Settings → Map, which it used to make at 50 km), the guide's last step shows the progress, and a **Map** mark at the top of the page shows the percent until it is done. The Radius and Download map stay in Settings → Map.
 - **Copy from a right-click.** A right-click (a long press on a touch screen) on a conversation in the list, on the call in a conversation's header, on a message bubble, on a station in Nearby, on a station card's head, on a bulletin, on a mail, on a packet or on one of your objects offers to copy the call, the message, the address, the packet or the name; the page says what it copied. The Stations table keeps its own menu, which has Copy call.
