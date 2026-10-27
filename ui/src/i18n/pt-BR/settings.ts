@@ -57,6 +57,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.symbol_code.label": "Código do símbolo",
   "settings.symbol.none": "Sem símbolo",
   "settings.symbol.change": "Mudar símbolo",
+  "settings.symbol.more": "Mais símbolos…",
   "settings.symbol.overlay": "Letra ou dígito sobre ele",
 
   "settings.comment.label": "Comentário",

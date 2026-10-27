@@ -70,8 +70,6 @@ button,
 .cardstack:not(.sheet) .card-head {
   cursor: grab;
   touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
 }
 .cardstack:not(.sheet) .card-head :is(button, a) {
   cursor: pointer;
@@ -352,8 +350,9 @@ button,
   .appheader {
     min-height: 44px;
   }
-  /* a long press on a row of the Stations table opens its menu: the page does not select text or show the system's callout instead */
-  .grid.stations tbody tr {
+  /* a long press on a row of the Stations table opens its menu, and one on a row, a bubble or a head that has a copy menu (CopyMenu) opens that: the page does not select text or show the system's callout instead */
+  .grid.stations tbody tr,
+  .copysource {
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     user-select: none;

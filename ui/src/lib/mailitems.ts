@@ -17,6 +17,8 @@ export interface MailItem {
   text: string;
   /** the line as it was sent or came in, for the title of the text */
   line: string;
+  /** the email address the mail is to or from; empty for the gateway's own reply and the check */
+  address: string;
 }
 
 export interface MailState {
@@ -29,12 +31,12 @@ export interface MailState {
 /** A message of ours, read: the `get` of Check email in words, anything else a mail to the first word (an old shortcut command, `me jane@example.com`, is one too: the page no longer has shortcuts). */
 function outgoing(row: MessageRow): MailItem {
   const line = row.text.trim();
-  if (isCheck(line)) return { row, kind: "get", title: t("email.checked"), text: "", line };
+  if (isCheck(line)) return { row, kind: "get", title: t("email.checked"), text: "", line, address: "" };
   const split = /^(\S+)\s+(.+)$/.exec(line);
   const to = split?.[1];
   const text = split?.[2]?.trim();
-  if (to === undefined || text === undefined) return { row, kind: "mail", title: t("email.to", { address: line }), text: "", line };
-  return { row, kind: "mail", title: t("email.to", { address: to }), text, line };
+  if (to === undefined || text === undefined) return { row, kind: "mail", title: t("email.to", { address: line }), text: "", line, address: line };
+  return { row, kind: "mail", title: t("email.to", { address: to }), text, line, address: to };
 }
 
 /** What came in from the gateway: its text starting with an email address and a blank (`<jane@example.com>` or `jane@example.com:` too) is mail it forwards, from that address; else it is the gateway's own reply. */
@@ -43,8 +45,8 @@ function incoming(row: MessageRow): MailItem {
   const forwarded = /^<?([^\s@<>]+@[^\s@<>:]+?)>?:?\s+(.+)$/.exec(line);
   const from = forwarded?.[1];
   const text = forwarded?.[2];
-  if (from !== undefined && text !== undefined) return { row, kind: "forwarded", title: t("email.from", { address: from }), text, line };
-  return { row, kind: "reply", title: t("email.from", { address: row.from_call }), text: line, line };
+  if (from !== undefined && text !== undefined) return { row, kind: "forwarded", title: t("email.from", { address: from }), text, line, address: from };
+  return { row, kind: "reply", title: t("email.from", { address: row.from_call }), text: line, line, address: "" };
 }
 
 /** The row of the list for a message to or from the gateway. */

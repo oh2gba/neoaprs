@@ -106,6 +106,15 @@ fieldset.composebox > legend {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+/* the guide: the symbol in force as plain text, and the button More symbols… beside it */
+.symbolshown {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 2px 4px;
+}
 .symbolfield-name {
   flex: 1;
   min-width: 0;
@@ -203,7 +212,7 @@ fieldset.composebox > legend {
   font-weight: 600;
 }
 /* the Location control (LocationField), the same in the Beacon tab, the Objects form and the setup guide: the label in the label column of the rows around it, in the input column the button Choose on map and, beside it on the same line, the place as text (a button that
-   opens the entry); on a narrow panel the place wraps under the button and is never cut off. The entry (latitude, longitude, locator) is the row under it, in the input column. */
+   opens the entry; in the guide plain text, the entry is open the whole time); on a narrow panel the place wraps under the button and is never cut off. The entry (latitude, longitude, locator) is the row under it, in the input column. */
 .field.location-field {
   align-items: start;
 }
@@ -216,6 +225,12 @@ fieldset.composebox > legend {
 }
 .location-control .location-pick {
   flex: none;
+}
+.location-shown {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 3px 4px;
+  overflow-wrap: anywhere;
 }
 .location-place {
   flex: 1 1 auto;
@@ -369,8 +384,9 @@ fieldset.composebox > legend {
 .statetext.update-current {
   color: var(--ok);
 }
+/* (the accent itself: --accent-text is the white that is read on a filled button, invisible on the panel) */
 .statetext.update-available {
-  color: var(--accent-text);
+  color: var(--accent);
 }
 .statetext.update-failed {
   color: var(--warn);

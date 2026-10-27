@@ -1,11 +1,13 @@
 <script setup lang="ts">
 // The list of conversations of the Messages tab, the one with the newest message first: the call (or the pair of an overheard one), the age, the last text on one line ("You: " before one of ours) and the number of messages not seen. "Show overheard" (with an (i)) is at its top; the open conversation is the filled row, one with something not seen that is not the open one has its call in bold and a bar at its left. A row is a button that opens the conversation; the trash at the right end of it deletes the whole conversation
-// (or the overheard pair) after "sure?": the one way to delete, a single message has no button.
+// (or the overheard pair) after "sure?": the one way to delete, a single message has no button. A right-click on a row (a long press on a touch screen) offers to copy its call, both of a pair (CopyMenu).
 import TagMark from "@/components/TagMark.vue";
+import CopyMenu from "@/components/CopyMenu.vue";
 import IconButton from "@/components/IconButton.vue";
 import InfoTip from "@/components/InfoTip.vue";
 import TabHelp from "@/components/TabHelp.vue";
 import { t } from "@/i18n";
+import { useCopyMenu } from "@/composables/useCopyMenu";
 import { useSure } from "@/composables/useSure";
 import { ageText } from "@/lib/format";
 import { askedText, conversationName, isHighlighted, overheardPair, queryKind, type Conversation } from "@/lib/messages";
@@ -21,6 +23,12 @@ const emit = defineEmits<{
 }>();
 
 const sure = useSure<string>(); // (the call of a conversation, the pair of an overheard one)
+/** The copy menu of a row: its call, or the two calls of an overheard pair. */
+const copy = useCopyMenu((row) => {
+  const call = row.dataset["call"];
+  if (call === undefined) return [];
+  return (overheardPair(call) ?? [call]).map((text) => ({ kind: "call" as const, text }));
+});
 
 /** The last text on a row: ours has "You: " before it, a query we sent is the note of it ("You asked for its status"). */
 function preview(row: Conversation["last"]): string {
@@ -56,11 +64,12 @@ function remove(call: string): void {
       <li v-for="c in conversations" :key="c.call" class="conv-item" :class="{ open: c.call === selected }">
         <button
           type="button"
-          class="conv"
+          class="conv copysource"
           :class="{ active: c.call === selected, unread: c.unread > 0, fresh: isHighlighted(c.unread, c.call, selected), heard: c.overheard }"
           :data-call="c.call"
           :aria-current="c.call === selected"
-          @click="emit('select', c.call)"
+          v-on="copy.on.value"
+          @click="copy.unlessHeld(() => emit('select', c.call))"
         >
           <span class="conv-call">{{ conversationName(c.call) }}</span>
           <span class="conv-age muted">{{ ageText(c.last.at, now) }}</span>
@@ -77,5 +86,6 @@ function remove(call: string): void {
       </li>
       <li v-if="conversations.length === 0" class="empty">{{ t("messages.none_yet") }}</li>
     </ul>
+    <CopyMenu v-if="copy.menu.value" :key="copy.key.value" v-bind="copy.menu.value" @close="copy.close()" />
   </section>
 </template>

@@ -70,6 +70,14 @@ export const fr: Catalogue = {
   "mismatch.notice": "Cette page et NeoAPRS ne correspondent pas (page {page}, NeoAPRS {neoaprs}). Rechargez la page ; si cela persiste, redémarrez NeoAPRS.",
   "mismatch.reload": "Recharger",
 
+  "copy.menu_label": "Copier",
+  "copy.call": "Copier {call}",
+  "copy.message": "Copier le message",
+  "copy.packet": "Copier le paquet",
+  "copy.address": "Copier l'adresse",
+  "copy.name": "Copier le nom",
+  "copy.copied": "{text} copié",
+
   "settings.language.label": "Langue",
   "settings.language.tip1": "La langue de cette page. Chaque navigateur et chaque appareil retient son propre choix.",
 
@@ -976,6 +984,7 @@ export const fr: Catalogue = {
   "settings.symbol_code.label": "Code du symbole",
   "settings.symbol.none": "Aucun symbole",
   "settings.symbol.change": "Changer de symbole",
+  "settings.symbol.more": "Plus de symboles…",
   "settings.symbol.overlay": "Lettre ou chiffre dessus",
 
   "settings.comment.label": "Commentaire",

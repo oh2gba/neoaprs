@@ -246,9 +246,9 @@ describe("SetupGuide: the position, with the Location control of the Beacon tab"
     await made.next();
     return made;
   }
-  const place = (wrapper: ReturnType<typeof make>["wrapper"]) => wrapper.find(".location-place");
+  const place = (wrapper: ReturnType<typeof make>["wrapper"]) => wrapper.find(".location-shown");
 
-  it("has the row Location first: a plain Choose on map and the place as text ('Not set' while there is none), and Next waiting for a place", async () => {
+  it("has the row Location first: a plain Choose on map and the place as plain text ('Not set' while there is none; nothing to click), and Next waiting for a place", async () => {
     const { wrapper } = await onPosition();
     const first = wrapper.find(".setup-body").element.firstElementChild;
     expect(first?.classList.contains("location-field")).toBe(true);
@@ -258,11 +258,13 @@ describe("SetupGuide: the position, with the Location control of the Beacon tab"
     expect(pick.classes()).not.toContain("primary");
     expect(wrapper.findAll(".setup .primary").map((b) => b.text())).toEqual(["Next"]); // (the one main action)
     expect([place(wrapper).text(), place(wrapper).classes()]).toEqual(["Not set", expect.arrayContaining(["muted"])]);
+    expect(place(wrapper).element.tagName).toBe("SPAN");
+    expect(wrapper.find(".location-place").exists()).toBe(false);
     expect(place(wrapper).element.previousElementSibling).toBe(pick.element);
     expect(wrapper.find("button[type=submit]").attributes("disabled")).toBeDefined();
   });
 
-  it("has the entry (latitude, longitude, locator) open while there is no place, with the cursor in the latitude, and no 'Enter coordinates or locator' heading", async () => {
+  it("has the entry (latitude, longitude, locator) open, with the cursor in the latitude, and no 'Enter coordinates or locator' heading", async () => {
     const { wrapper } = await onPosition();
     await flushPromises();
     expect(wrapper.find(".location-entry").exists()).toBe(true);
@@ -272,24 +274,21 @@ describe("SetupGuide: the position, with the Location control of the Beacon tab"
     expect(wrapper.find(".setup-body details").exists()).toBe(false);
   });
 
-  it("says the place in words when it is set, keeps the entry behind a click on the place when the guide starts with one, and closes it with another", async () => {
+  it("says the place in words when it is set, with the entry open the whole time (a click on the place does nothing: it is no button), the locator filled from the place", async () => {
     const { wrapper, type } = await onPosition({ "station/lat": "60.17", "station/lon": "-24.94" });
-    expect(wrapper.find(".location-entry").exists()).toBe(false);
+    expect(wrapper.find(".location-entry").exists()).toBe(true);
     expect(place(wrapper).text()).toMatch(/^60\.17 N, 24\.94 W · [A-R]{2}\d\d[a-x]{2}$/);
     expect(place(wrapper).classes()).not.toContain("muted");
-    await place(wrapper).trigger("click");
     expect(wrapper.find<HTMLInputElement>("#setup-locator").element.value).toBe(place(wrapper).text().slice(-6));
     await type("setup-lat", "61");
     expect(place(wrapper).text()).toMatch(/^61 N, 24\.94 W · /);
     await place(wrapper).trigger("click");
-    expect(wrapper.find(".location-entry").exists()).toBe(false);
+    expect(wrapper.find(".location-entry").exists()).toBe(true);
     expect(wrapper.find("button[type=submit]").attributes("disabled")).toBeUndefined();
   });
 
-  it("opens the entry by itself when a field is wrong, and not otherwise", async () => {
+  it("says what is wrong with a field under it", async () => {
     const { wrapper, type } = await onPosition({ "station/lat": "60.17", "station/lon": "24.94" });
-    expect(wrapper.find(".location-entry").exists()).toBe(false);
-    await place(wrapper).trigger("click");
     await type("setup-lat", "95");
     expect(wrapper.find(".location-entry").exists()).toBe(true);
     expect(wrapper.find(".field-error").text()).toBe("Between -90 and 90");
@@ -324,8 +323,10 @@ describe("SetupGuide: the symbol", () => {
     expect(buttons.every((b) => b.find(".symicon .stn-layer").exists())).toBe(true);
     expect(buttons[0]?.find(".stn-layer").attributes("style")).toContain("symbols/primary.png");
     expect(buttons[0]?.attributes("aria-pressed")).toBe("true");
-    expect(wrapper.find("#setup-symbol-change").exists()).toBe(true);
-    expect(wrapper.find("#setup-symbol-change").attributes("aria-label")).toBe("Change symbol");
+    expect(wrapper.find("#setup-symbol-change").text()).toBe("More symbols…");
+    expect(wrapper.find("#setup-symbol-change").classes()).toContain("btn");
+    expect(wrapper.find(".symbolshown").element.tagName).toBe("SPAN"); // (the symbol in force is nothing to click: the button beside it opens the picker)
+    expect(wrapper.find(".symbolbtn").exists()).toBe(false);
     expect(wrapper.find(".symbolfield-name").text()).toBe("House");
   });
 

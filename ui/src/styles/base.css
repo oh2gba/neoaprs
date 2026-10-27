@@ -33,6 +33,32 @@ a {
   flex: 1;
   min-width: 0;
 }
+/* The chrome of the page is not text to select: a drag across a header, a tab, a button, a label, a legend or the head of a table paints nothing blue. What is content (a message, a packet, a call in a cell, the facts of a card, a note) is selected as text is;
+   a call, a message or a packet is also put on the clipboard from its right-click menu (CopyMenu). */
+button,
+label,
+legend,
+summary,
+th,
+dt,
+h1,
+h2,
+h3,
+h4,
+[role="menu"],
+.appheader,
+.tabbar,
+.convo-head,
+.convlist-head,
+.card-head,
+.foot,
+.tab-help,
+.bubble-meta,
+.mail-meta,
+.bulletin-meta {
+  -webkit-user-select: none;
+  user-select: none;
+}
 .sr-only {
   position: absolute;
   width: 1px;

@@ -69,6 +69,14 @@ export const shell: Record<keyof typeof source, Message> = {
     "このページと NeoAPRS が一致しません（ページ {page}、NeoAPRS {neoaprs}）。ページを再読み込みしてください。変わらない場合は NeoAPRS を再起動してください。",
   "mismatch.reload": "再読み込み",
 
+  "copy.menu_label": "コピー",
+  "copy.call": "{call}をコピー",
+  "copy.message": "メッセージをコピー",
+  "copy.packet": "パケットをコピー",
+  "copy.address": "アドレスをコピー",
+  "copy.name": "名前をコピー",
+  "copy.copied": "{text}をコピーしました",
+
   "settings.language.label": "言語",
   "settings.language.tip1": "このページの言語です。ブラウザーやデバイスごとに選択が記憶されます。",
 };

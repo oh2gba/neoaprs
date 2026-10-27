@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // A symbol as a field: the symbol's picture and its name are the control, a click opens the symbol picker (the accessible name is "Change symbol"), and, only for a symbol that can carry one, a small "Letter or digit on it". The symbol is the two characters
-// the settings write (the table and the code); the user never sees them. Used by the Beacon tab, the first-run guide and the Objects form. `update:symbol` follows the field as it is changed (the letter is typed);
+// the settings write (the table and the code); the user never sees them. Used by the Beacon tab, the first-run guide and the Objects form. The guide gives `more`: it has its grid of the common symbols above, so here the symbol in force is plain text and the button
+// beside it, "More symbols…", opens the picker. `update:symbol` follows the field as it is changed (the letter is typed);
 // `commit` says a symbol is final: one picked from the picker, or the letter when its field is left or Enter is pressed (the Beacon tab applies it then).
 import { computed, nextTick, ref, useId } from "vue";
 import InfoTip from "@/components/InfoTip.vue";
@@ -9,9 +10,10 @@ import { t } from "@/i18n";
 import SymbolPicker from "@/components/SymbolPicker.vue";
 import { overlayOf, symbolName, tableWithOverlay, takesOverlay } from "@/lib/symbolpicker";
 
-const props = withDefaults(defineProps<{ id: string; symbol: string; label?: string; changed?: boolean }>(), {
+const props = withDefaults(defineProps<{ id: string; symbol: string; label?: string; changed?: boolean; more?: boolean }>(), {
   label: undefined,
   changed: false,
+  more: false,
 });
 const emit = defineEmits<{ "update:symbol": [value: string]; commit: [] }>();
 
@@ -45,7 +47,17 @@ function typed(event: Event): void {
   <div class="field" :class="{ changed }">
     <label :for="`${id}-change`">{{ label ?? t("settings.symbol.label") }}</label>
     <div class="field-control symbolfield">
+      <template v-if="more">
+        <span class="symbolshown">
+          <SymbolIcon :table="table" :code="code" :size="32" />
+          <span :id="nameId" class="symbolfield-name">{{ name }}</span>
+        </span>
+        <button :id="`${id}-change`" ref="change" class="btn symbolmore" type="button" :aria-describedby="nameId" @click="open = true">
+          {{ t("settings.symbol.more") }}
+        </button>
+      </template>
       <button
+        v-else
         :id="`${id}-change`"
         ref="change"
         class="symbolbtn"

@@ -68,6 +68,14 @@ export const shell: Readonly<Record<keyof typeof en, Message>> = {
   "mismatch.notice": "Questa pagina e NeoAPRS non corrispondono (pagina {page}, NeoAPRS {neoaprs}). Ricarica la pagina; se resta così, riavvia NeoAPRS.",
   "mismatch.reload": "Ricarica",
 
+  "copy.menu_label": "Copia",
+  "copy.call": "Copia {call}",
+  "copy.message": "Copia messaggio",
+  "copy.packet": "Copia pacchetto",
+  "copy.address": "Copia indirizzo",
+  "copy.name": "Copia nome",
+  "copy.copied": "{text} copiato",
+
   "settings.language.label": "Lingua",
   "settings.language.tip1": "La lingua di questa pagina. Ogni browser e dispositivo ricorda la propria scelta.",
 };

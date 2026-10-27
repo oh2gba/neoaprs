@@ -83,7 +83,7 @@ describe("StationCards: moving a card by its head", () => {
     expect(wrapper.find(".card-head").attributes("title")).toContain("Drag to move");
     expect(cssRule(".cardstack:not(.sheet) .card-head")).toContain("cursor: grab");
     expect(cssRule(".cardstack:not(.sheet) .card-head")).toContain("touch-action: none");
-    expect(cssRule(".cardstack:not(.sheet) .card-head")).toContain("user-select: none");
+    expect(cssRule(".card-head")).toContain("user-select: none;"); // (the head of every card, the sheet's too: the page's chrome is not text to select)
     expect(cssRule(".card-dragging *")).toContain("cursor: grabbing");
     expect(cssRule(".cardstack .card.moved")).toContain("position: absolute");
     expect(cssRule(".cardstack .card.moved")).toContain("bottom: auto");

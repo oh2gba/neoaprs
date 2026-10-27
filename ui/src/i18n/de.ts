@@ -71,6 +71,14 @@ export const de: Catalogue = {
     "Diese Seite und NeoAPRS passen nicht zusammen (Seite {page}, NeoAPRS {neoaprs}). Lade die Seite neu; bleibt es dabei, starte NeoAPRS neu.",
   "mismatch.reload": "Neu laden",
 
+  "copy.menu_label": "Kopieren",
+  "copy.call": "{call} kopieren",
+  "copy.message": "Nachricht kopieren",
+  "copy.packet": "Paket kopieren",
+  "copy.address": "Adresse kopieren",
+  "copy.name": "Namen kopieren",
+  "copy.copied": "{text} kopiert",
+
   "settings.language.label": "Sprache",
   "settings.language.tip1": "Die Sprache dieser Seite. Jeder Browser und jedes Gerät merkt sich seine eigene Wahl.",
 
@@ -991,6 +999,7 @@ export const de: Catalogue = {
   "settings.symbol_code.label": "Symbolcode",
   "settings.symbol.none": "Kein Symbol",
   "settings.symbol.change": "Symbol ändern",
+  "settings.symbol.more": "Weitere Symbole…",
   "settings.symbol.overlay": "Buchstabe oder Ziffer darauf",
 
   "settings.comment.label": "Kommentar",

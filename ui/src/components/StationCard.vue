@@ -2,9 +2,10 @@
 // What the daemon knows of one station, as a card over the map, in the few facts a person asks for: the symbol with its name and a green check mark beside the call for a station that was heard direct (no repeater), when it was last heard, for each way it was heard ("RF 3 min ago · Internet 40 s ago"; lib/channels.ts; the full time of the latest when the mouse rests on it), the position and how far and in which direction it is from us, how fast it moves (only a station that does),
 // the altitude, the voice frequency with its tone, offset and range (when it gave one), the status and the comment, what it runs ("Kenwood TH-D74", "APRSdroid"; only when the device list knows it), one line of how its packets reach us ("Reached us via OH2RCH-2", or "direct"; none for a station known from the internet alone) and one for the internet ("Heard by iGate OH2GW-10 via OH2RCH-2", "Sent over the internet, not heard on the air"; for a station that came over it) and, for such a station, that a message to it is not possible. A row with nothing to say is left out. The rest is under "Details", closed (components/StationDetails.vue: the path as it was sent, the counts of the routes, the best route, when it was first heard, the packets, the decoded extras).
 // A weather station (the weather symbol, or one that has sent weather) has its weather panel at the top (components/WeatherPanel.vue). "Message" opens the Messages tab with the station as the addressee, where the path its messages go by and RF only are set.
-// The pin beside the cross (a tablet and a desktop) keeps the card on the map past Esc and Close all and past a reload, until its cross is clicked (the cross unpins and closes it).
+// The pin beside the cross (a tablet and a desktop) keeps the card on the map past Esc and Close all and past a reload, until its cross is clicked (the cross unpins and closes it). The head is not text to select (it is the handle); a right-click on it offers to copy the call (CopyMenu).
 // Several cards can be open (Ctrl+click, components/StationCards.vue), side by side: each is this whole card, as when it is alone. Forget (the trash can, "Forget OH2XYZ") takes it out of the station book (it is back when it is heard again); it asks twice ("sure?"), and forgets the first click after 5 s like the other buttons that ask twice (`useSure`). An object or an item of ours has "Edit" (the Objects tab opens with it) and "Kill" (it asks twice, too) in place of "Message" and "Forget", and none of the fields of a station that is heard.
 import { computed, watch } from "vue";
+import CopyMenu from "@/components/CopyMenu.vue";
 import IconButton from "@/components/IconButton.vue";
 import MessageGlyph from "@/components/MessageGlyph.vue";
 import DirectMark from "@/components/DirectMark.vue";
@@ -12,6 +13,7 @@ import RouteText from "@/components/RouteText.vue";
 import StationDetails from "@/components/StationDetails.vue";
 import SymbolIcon from "@/components/SymbolIcon.vue";
 import WeatherPanel from "@/components/WeatherPanel.vue";
+import { useCopyMenu } from "@/composables/useCopyMenu";
 import { useSure } from "@/composables/useSure";
 import { t } from "@/i18n";
 import { timedOut, type Aging } from "@/lib/aging";
@@ -83,13 +85,15 @@ const heardOn = computed(() => heardByChannel(props.row, props.now) || agoWords(
 const weather = computed(() => isWeatherStation(props.row));
 const heardStation = computed(() => props.row.kind === "station" && !props.row.is_me && !props.row.own);
 const reached = computed(() => (heardStation.value ? reachedText(props.row) : null));
+/** The copy menu of the head: the call. */
+const copy = useCopyMenu(() => [{ kind: "call", text: props.row.call }]);
 /** How its latest packet over the internet got there, its own line (a station heard both ways has this and the radio's). */
 const internet = computed(() => (!props.row.is_me && !props.row.own ? internetText(props.row, props.stations) : null));
 </script>
 
 <template>
   <section class="card" :aria-label="t('station.card.label')">
-    <header class="card-head" :title="movable ? t('station.card.drag_title') : undefined">
+    <header class="card-head" :title="movable ? t('station.card.drag_title') : undefined" @contextmenu="copy.on.value.contextmenu">
       <SymbolIcon :table="row.symbol_table" :code="row.symbol_code" :size="32" />
       <div class="card-title">
         <span class="card-call">
@@ -179,5 +183,6 @@ const internet = computed(() => (!props.row.is_me && !props.row.own ? internetTe
         @click="forget"
       />
     </footer>
+    <CopyMenu v-if="copy.menu.value" :key="copy.key.value" v-bind="copy.menu.value" @close="copy.close()" />
   </section>
 </template>

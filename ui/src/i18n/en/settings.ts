@@ -55,6 +55,7 @@ export const settings = {
   "settings.symbol_code.label": "Symbol code",
   "settings.symbol.none": "No symbol",
   "settings.symbol.change": "Change symbol",
+  "settings.symbol.more": "More symbols…",
   "settings.symbol.overlay": "Letter or digit on it",
 
   "settings.comment.label": "Comment",

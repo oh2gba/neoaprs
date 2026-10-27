@@ -57,6 +57,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.symbol_code.label": "シンボルコード",
   "settings.symbol.none": "シンボルなし",
   "settings.symbol.change": "シンボルを変更",
+  "settings.symbol.more": "その他のシンボル…",
   "settings.symbol.overlay": "重ねる文字または数字",
 
   "settings.comment.label": "コメント",

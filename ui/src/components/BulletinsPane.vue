@@ -1,15 +1,17 @@
 <script setup lang="ts">
 // The Bulletins tab: the message board filling the tab, newest first in four sections (announcements, bulletins, group messages, weather service), each row with
 // who sent it, what it is addressed to (the group of a group bulletin, else the slot: BLN1, BLNA, QST), the text, how often it was heard and how long ago it was last heard. None of these is a conversation and none is answered;
-// nothing ages out: a row stays until the delete button at its corner is pressed twice ("sure?"), which deletes it on the daemon. A bulletin of ours is on the board too, marked "ours" (the call is ours), with how often it was sent
+// nothing ages out: a row stays until the delete button at its corner is pressed twice ("sure?"), which deletes it on the daemon. A right-click on a row (a long press on a touch screen) offers to copy its text and its sender's call (CopyMenu). A bulletin of ours is on the board too, marked "ours" (the call is ours), with how often it was sent
 // and when it goes out next; its delete stops it and takes it off the board. An (i) at the top (TabHelp) says what a bulletin is. The box to post to the board is fixed at the bottom of the tab (components/BulletinCompose.vue), as the box of every tab. The board stays newest first
 // in each section, as a board is read from the top: the sections and their headings keep their places (a stream oldest first, scrolled to the end, would open on the weather service).
 import TagMark from "@/components/TagMark.vue";
+import CopyMenu from "@/components/CopyMenu.vue";
 import { computed } from "vue";
 import BulletinCompose from "@/components/BulletinCompose.vue";
 import IconButton from "@/components/IconButton.vue";
 import TabHelp from "@/components/TabHelp.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
+import { useCopyMenu } from "@/composables/useCopyMenu";
 import { useSure } from "@/composables/useSure";
 import { t } from "@/i18n";
 import { dateTimeText } from "@/lib/format";
@@ -21,6 +23,16 @@ const { call, now, send } = useDaemonContext();
 const sure = useSure<string>(); // (the key of a row)
 const keyOf = (b: BoardEntry) => (b.own ? `own/${b.slot}` : `${b.sender}/${b.slot}`);
 const shown = computed(() => sections<BoardEntry>([...props.bulletins.values(), ...ownEntries(props.ownBulletins.values(), call.value ?? "us")]));
+/** The copy menu of a bulletin: its text, and its sender's call. */
+const copy = useCopyMenu((item) => {
+  const b = shown.value.flatMap((section) => section.rows).find((row) => keyOf(row) === item.dataset["key"]);
+  return b === undefined
+    ? []
+    : [
+        { kind: "message", text: b.text },
+        { kind: "call", text: b.sender },
+      ];
+});
 const remove = (b: BoardEntry): void =>
   void (b.own ? send({ cmd: "bulletin_unpost", slot: b.slot }) : send({ cmd: "bulletin_delete", sender: b.sender, slot: b.slot }));
 </script>
@@ -38,7 +50,14 @@ const remove = (b: BoardEntry): void =>
           {{ section.title }} <span class="muted">{{ section.rows.length }}</span>
         </legend>
         <ul class="board">
-          <li v-for="b in section.rows" :key="keyOf(b)" class="bulletin" :class="{ mine: b.own !== undefined }">
+          <li
+            v-for="b in section.rows"
+            :key="keyOf(b)"
+            class="bulletin copysource"
+            :class="{ mine: b.own !== undefined }"
+            :data-key="keyOf(b)"
+            v-on="copy.on.value"
+          >
             <div class="bulletin-actions">
               <IconButton
                 kind="delete"
@@ -65,5 +84,6 @@ const remove = (b: BoardEntry): void =>
       </fieldset>
     </div>
     <BulletinCompose :own-bulletins="ownBulletins" @post="(slot, text) => send({ cmd: 'bulletin_post', slot, text })" />
+    <CopyMenu v-if="copy.menu.value" :key="copy.key.value" v-bind="copy.menu.value" @close="copy.close()" />
   </div>
 </template>

@@ -42,7 +42,7 @@ describe("SymbolField", () => {
     expect(wrapper.find(".sympick").exists()).toBe(true);
   });
 
-  it("is the same control, opened by a click on the symbol, in the Beacon tab, the Objects form and the first-run guide", async () => {
+  it("is the same control, opened by a click on the symbol, in the Beacon tab and the Objects form; the first-run guide shows the symbol as plain text and opens the picker with More symbols…", async () => {
     const beacon = mount(SettingsForm, { props: { scope: "beacon" }, global: withDaemon(fakeDaemon({ config: configValues() })) });
     const objects = mount(ObjectForm, {
       props: {
@@ -55,7 +55,7 @@ describe("SymbolField", () => {
     guide.show();
     guide.step = 2;
     const setup = mount(SetupGuide, { global: withDaemon(fakeDaemon({ config, guide })) });
-    for (const wrapper of [beacon, objects, setup]) {
+    for (const wrapper of [beacon, objects]) {
       const button = wrapper.find(".symbolfield button.symbolbtn");
       expect(button.attributes("aria-label")).toBe("Change symbol");
       expect(wrapper.findAll(".symbolfield button:not(.symbolbtn):not(.info-toggle)")).toHaveLength(0);
@@ -64,5 +64,13 @@ describe("SymbolField", () => {
       await wrapper.find(".sympick-symbol").trigger("click");
       expect(wrapper.find(".sympick").exists()).toBe(false);
     }
+    expect(setup.find(".symbolfield .symbolbtn").exists()).toBe(false);
+    expect(setup.find(".symbolfield .symbolshown .symbolfield-name").text()).toBe("House");
+    const more = setup.find(".symbolfield button.symbolmore");
+    expect([more.text(), more.classes()]).toEqual(["More symbols…", expect.arrayContaining(["btn"])]);
+    await more.trigger("click");
+    expect(setup.find(".sympick").exists()).toBe(true);
+    await setup.find(".sympick-symbol").trigger("click");
+    expect(setup.find(".sympick").exists()).toBe(false);
   });
 });

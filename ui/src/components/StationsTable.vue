@@ -20,6 +20,7 @@ import { t } from "@/i18n";
 import { STATION_HOURS_KEY, stationHours, timedOut } from "@/lib/aging";
 import { normalizeCall, validCall } from "@/lib/calls";
 import { anyInternet, channelTags, internetOnly } from "@/lib/channels";
+import { menuPoint } from "@/lib/copy";
 import { ageText, bearingTitle, dateTimeText, distanceText } from "@/lib/format";
 import { isGateway } from "@/lib/messages";
 import { receivedFrom } from "@/lib/qru";
@@ -82,10 +83,8 @@ function openMenu(call: string, x: number, y: number, trigger: HTMLElement): voi
 function onContextMenu(event: MouseEvent, call: string): void {
   event.preventDefault();
   const row = event.currentTarget as HTMLElement;
-  if (event.clientX === 0 && event.clientY === 0) {
-    const box = row.getBoundingClientRect();
-    openMenu(call, box.left + 24, box.bottom, row);
-  } else openMenu(call, event.clientX, event.clientY, row);
+  const { x, y } = menuPoint(event, row);
+  openMenu(call, x, y, row);
 }
 const press = useLongPress((x, y, target) => {
   const call = target.dataset.call;

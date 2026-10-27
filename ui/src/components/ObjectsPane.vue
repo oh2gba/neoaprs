@@ -6,6 +6,7 @@
 // form changes the selected object: Save; with none selected it adds a new object: Add; selecting a row scrolls the tab up to the form. An object whose kill is going out is not selectable and has no delete.
 import { computed, nextTick, ref, watch } from "vue";
 import TagMark from "@/components/TagMark.vue";
+import CopyMenu from "@/components/CopyMenu.vue";
 import IconButton from "@/components/IconButton.vue";
 import ObjectForm from "@/components/ObjectForm.vue";
 import ObjectsQru from "@/components/ObjectsQru.vue";
@@ -14,6 +15,7 @@ import TabHelp from "@/components/TabHelp.vue";
 import { t } from "@/i18n";
 import type { OwnObjectsView } from "@/composables/useOwnObjects";
 import { useDaemonContext } from "@/composables/useDaemonContext";
+import { useCopyMenu } from "@/composables/useCopyMenu";
 import { useSure } from "@/composables/useSure";
 import { stateText } from "@/lib/ownobjects";
 import { categoryLabel, groupName } from "@/lib/qrucategories";
@@ -23,6 +25,8 @@ const props = defineProps<{ objects: ReadonlyMap<string, OwnObjectRow>; form: Ow
 const emit = defineEmits<{ select: [name: string, multi?: boolean] }>();
 const { fallbackPath, now } = useDaemonContext();
 const sure = useSure<string>(); // (the name of a row)
+/** The copy menu of a row: the name of the object. */
+const copy = useCopyMenu((item) => (item.dataset["name"] === undefined ? [] : [{ kind: "name", text: item.dataset["name"] }]));
 const rows = computed(() =>
   [...props.objects.values()].sort((a, b) => (a.created_at === b.created_at ? a.name.localeCompare(b.name) : a.created_at < b.created_at ? -1 : 1)),
 );
@@ -61,12 +65,13 @@ watch(
           <li
             v-for="row in rows"
             :key="row.name"
-            class="bulletin ownobject"
+            class="bulletin ownobject copysource"
             :class="{ killing: row.state === 'killing', selectable: row.state === 'live', selected: form.editing === row.name }"
             :tabindex="row.state === 'live' ? 0 : undefined"
             :aria-current="form.editing === row.name ? 'true' : undefined"
             :data-name="row.name"
-            @click="select($event, row)"
+            v-on="copy.on.value"
+            @click="copy.unlessHeld(() => select($event, row))"
             @keydown.enter="select($event, row)"
             @keydown.space.prevent="select($event, row)"
           >
@@ -99,5 +104,6 @@ watch(
       </fieldset>
       <ObjectsQru />
     </div>
+    <CopyMenu v-if="copy.menu.value" :key="copy.key.value" v-bind="copy.menu.value" @close="copy.close()" />
   </div>
 </template>

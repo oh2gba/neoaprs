@@ -51,14 +51,17 @@ describe("LocationField", () => {
     wrapper.unmount();
   });
 
-  it("has the entry closed from the start, with or without a place, open when a coordinate is wrong, and open with no place only when asked (the guide)", async () => {
+  it("has the entry closed from the start, with or without a place, open when a coordinate is wrong, and open the whole time with the place as plain text when asked (the guide)", async () => {
     expect(make().find(".location-entry").exists()).toBe(false);
     expect(make({ place: null, lat: "", lon: "" }).find(".location-entry").exists()).toBe(false);
     const empty = make({ place: null, lat: "", lon: "" });
     await empty.find(".location-place").trigger("click");
     expect(empty.find(".location-entry").exists()).toBe(true);
-    expect(make({ place: null, lat: "", lon: "", openWhenEmpty: true }).find(".location-entry").exists()).toBe(true);
-    expect(make({ openWhenEmpty: true }).find(".location-entry").exists()).toBe(false);
+    expect(make({ place: null, lat: "", lon: "", alwaysOpen: true }).find(".location-entry").exists()).toBe(true);
+    const always = make({ alwaysOpen: true });
+    expect(always.find(".location-entry").exists()).toBe(true);
+    expect(always.find(".location-place").exists()).toBe(false);
+    expect([always.find(".location-shown").element.tagName, always.find(".location-shown").text()]).toEqual(["SPAN", "60.17 N, 24.94 E · KP20le"]);
     expect(
       make({ errors: { lon: "Between -180 and 180" } })
         .find(".location-entry")
@@ -68,7 +71,7 @@ describe("LocationField", () => {
   });
 
   it("follows the coordinates with the locator and the locator with the coordinates, 6 characters, the centre of the square", async () => {
-    const wrapper = make({ place: null, lat: "", lon: "", openWhenEmpty: true });
+    const wrapper = make({ place: null, lat: "", lon: "", alwaysOpen: true });
     expect(wrapper.find<HTMLInputElement>("#loc-locator").element.value).toBe("");
     await wrapper.find("#loc-locator").setValue("kp20ie");
     expect(wrapper.emitted("update:lat")).toEqual([["60.1875"]]);
@@ -82,7 +85,7 @@ describe("LocationField", () => {
   });
 
   it("says a locator of 6 characters or more that is none, and nothing while it is still being typed", async () => {
-    const wrapper = make({ place: null, lat: "", lon: "", openWhenEmpty: true });
+    const wrapper = make({ place: null, lat: "", lon: "", alwaysOpen: true });
     await wrapper.find("#loc-locator").setValue("KP20i");
     expect(wrapper.find(".field-error").exists()).toBe(false);
     await wrapper.find("#loc-locator").setValue("SS00aa");
@@ -136,7 +139,7 @@ describe("LocationField", () => {
 });
 
 describe("the one Location control", () => {
-  it("is the same component in the Beacon tab, the Objects form and the first-run guide", async () => {
+  it("is the same component in the Beacon tab, the Objects form and the first-run guide, where the place is plain text and the entry is open from the start", async () => {
     const beacon = mount(SettingsForm, { props: { scope: "beacon" }, global: withDaemon(fakeDaemon({ config: configValues() })) });
     const form = useOwnObjects(new Map(), () => true, { show: vi.fn(), tab: ref("objects") } as unknown as Panel);
     form.place(60.17, 24.94);
@@ -153,14 +156,18 @@ describe("the one Location control", () => {
         control: [...row.find(".field-control").element.children].map((c) => c.tagName + "." + c.className.split(" ")[0]),
         label: row.find(".field-label").text(),
         button: [row.find(".location-pick").text(), row.find(".location-pick").classes().includes("primary")],
-        place: row.find(".location-place").text(),
+        place: row.find(".location-place, .location-shown").text(),
       };
     };
     expect(shape(beacon)).toEqual(shape(objects));
-    expect(shape(setup)).toEqual(shape(objects));
+    expect(shape(setup)).toEqual({
+      ...shape(objects),
+      control: ["BUTTON.btn", "SPAN.location-shown"],
+      children: [...shape(objects).children, "location-entry"],
+    });
     for (const wrapper of [beacon, objects, setup]) {
       expect(wrapper.find(".location-pick").classes()).not.toContain("primary");
-      await wrapper.find(".location-place").trigger("click");
+      if (wrapper !== setup) await wrapper.find(".location-place").trigger("click");
       expect(wrapper.findAll(".location-entry label").map((l) => l.text())).toEqual(["Latitude", "Longitude", "Locator"]);
     }
   });

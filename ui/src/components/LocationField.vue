@@ -2,7 +2,7 @@
 // The one control for a place, the same in the Beacon tab (components/SettingsLocation.vue), the Objects form (components/ObjectForm.vue) and the first-run guide's position step (components/SetupPosition.vue): the row Location with, in the input column, the plain button
 // **Choose on map** (Cancel while the map waits for the click) and, beside it on the same line, the place in force as text ("60.42944 N, 24.14524 E · KP20bk", "Not set"). On a narrow panel the text wraps under the button, never cut off. The text is a button too:
 // a click opens the entry under the row, which has two ways to give the place, the latitude and longitude, and a Maidenhead locator (6 characters: the centre of its square; lib/locator.ts), each following the other. The entry is closed until the person clicks the place ("Not set" is still the thing to click) and opens by itself when a coordinate is
-// wrong; the first-run guide's position step gives `openWhenEmpty`, as a new station has no place and the entry is what it asks for. A form that applies as it is changed (the Beacon tab) gives `apply`: Enter and leaving a field say `commit` (with where focus went and which field), Esc says `cancel`, as the fields of that form do.
+// wrong. The first-run guide's position step gives `alwaysOpen`: the entry is what the step asks for, so it is open the whole time and the place is plain text, nothing to click. A form that applies as it is changed (the Beacon tab) gives `apply`: Enter and leaving a field say `commit` (with where focus went and which field), Esc says `cancel`, as the fields of that form do.
 // The locator is kept here, as typed, while it names the place the coordinates hold; any other change of the coordinates writes it again.
 import { computed, nextTick, ref, useId, watch } from "vue";
 import SettingsField from "@/components/SettingsField.vue";
@@ -30,10 +30,10 @@ const props = withDefaults(
     changed?: Partial<Record<"lat" | "lon", boolean>>;
     /** the fields apply as they are changed: Enter and leaving them say `commit`, Esc says `cancel` */
     apply?: boolean;
-    /** the entry is open while there is no place (the first-run guide's position step), else it opens on a click or a wrong coordinate */
-    openWhenEmpty?: boolean;
+    /** the entry is open the whole time and the place is plain text (the first-run guide's position step), else it opens on a click or a wrong coordinate */
+    alwaysOpen?: boolean;
   }>(),
-  { errors: () => ({}), changed: () => ({}), apply: false, openWhenEmpty: false },
+  { errors: () => ({}), changed: () => ({}), apply: false, alwaysOpen: false },
 );
 const emit = defineEmits<{
   pick: [];
@@ -46,8 +46,8 @@ const emit = defineEmits<{
 const label = useId();
 const entry = `${props.id}-entry`;
 const wrong = computed(() => !!props.errors.lat || !!props.errors.lon);
-const needed = () => wrong.value || (props.openWhenEmpty && props.place === null);
-/** The entry is open: closed from the start, open when a coordinate is wrong (or, for the guide, while there is no place), then as the person leaves it. */
+const needed = () => wrong.value || props.alwaysOpen;
+/** The entry is open: closed from the start, open when a coordinate is wrong (the guide's the whole time), then as the person leaves it. */
 const entering = ref(needed());
 watch(needed, (now) => {
   if (now) entering.value = true;
@@ -115,7 +115,9 @@ async function toggle(): Promise<void> {
       <button class="btn location-pick" type="button" :class="{ active: picking }" :aria-pressed="picking" @click="emit('pick')">
         {{ picking ? t("settings.location.cancel") : t("settings.location.pick") }}
       </button>
+      <span v-if="alwaysOpen" :id="`${id}-place`" class="location-shown" :class="{ muted: place === null }">{{ place ?? t("settings.location.not_set") }}</span>
       <button
+        v-else
         :id="`${id}-place`"
         class="location-place"
         type="button"

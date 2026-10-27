@@ -56,6 +56,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.symbol_code.label": "Codice del simbolo",
   "settings.symbol.none": "Nessun simbolo",
   "settings.symbol.change": "Cambia simbolo",
+  "settings.symbol.more": "Altri simboli…",
   "settings.symbol.overlay": "Lettera o cifra sopra",
 
   "settings.comment.label": "Commento",

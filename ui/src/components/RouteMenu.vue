@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// "Route" in the header of a conversation: a small button that opens the path the messages to the station go by and the tickbox RF only (StationPrefs) in a box under the header. It is closed until it is pressed, and closed again by Esc, a click or
+// "Route" in the header of a conversation: a button (of the one height of the page's buttons: the header is a toolbar) that opens the path the messages to the station go by and the tickbox RF only (StationPrefs) in a box under the header. It is closed until it is pressed, and closed again by Esc, a click or
 // tap outside it, or the focus moving away. A dot on the button says the route is not the default one (a path of its own, or RF only), which the old closed heading said by being open.
 import { computed, ref, watch } from "vue";
 import StationPrefs from "@/components/StationPrefs.vue";
@@ -31,7 +31,7 @@ watch(
     <button
       ref="button"
       type="button"
-      class="btn small route-button"
+      class="btn route-button"
       :class="{ changed }"
       :aria-expanded="open"
       :title="changed ? t('route.changed') : t('route.button')"

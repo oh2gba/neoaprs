@@ -245,8 +245,7 @@ describe("App: the Objects tab", () => {
       await flushPromises();
       await wrapper.find("#setup-call").setValue("oh2abc");
       await wrapper.find(".setup form").trigger("submit");
-      await wrapper.find(".setup .location-place").trigger("click");
-      expect(wrapper.find("#setup-lat").exists()).toBe(true);
+      expect(wrapper.find("#setup-lat").exists()).toBe(true); // (the guide's entry is open the whole time)
       await tabButton(wrapper, "Objects")?.trigger("click");
       await button(wrapper, "Choose on map")?.trigger("click");
       FakeMap.last().fire("click", { lngLat: { lat: 59.5, lng: 24.5 } });

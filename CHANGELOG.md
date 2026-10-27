@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **Copy from a right-click.** A right-click (a long press on a touch screen) on a conversation in the list, on the call in a conversation's header, on a message bubble, on a station in Nearby, on a station card's head, on a bulletin, on a mail, on a packet or on one of your objects offers to copy the call, the message, the address, the packet or the name; the page says what it copied. The Stations table keeps its own menu, which has Copy call.
+- The headers, tabs, buttons, labels, legends, table heads and menus of the page are no longer selected as text when the mouse drags across them; messages, packets, calls in cells and the facts of a card still are.
+- The **Route** button of a conversation has the height of the page's other buttons.
+- **Fixed:** "0.10.2 available" beside Check now was written in white on white; it is blue.
+- The setup guide: the latitude, longitude and locator of the Position step are open the whole time and the place is plain text, not a button that folds them; the Symbol step shows the symbol in force as plain text and opens the full picker with **More symbols…**.
+
 ## 0.10.2
 
 Bug fixes on the air and in the station book, and a tidier code base; nothing new to set up.

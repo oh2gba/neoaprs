@@ -3,13 +3,16 @@
 // the list; a click on a packet opens it in plain facts (components/PacketDetail.vue), with what the parser decoded of it, as JSON, under "Raw". A route breaks between its words, never inside a callsign.
 // Laid out by the width of the tab itself (not of the window: the panel beside the map can be narrow on a wide screen; PACKETS_TABLE, lib/layout.ts): the table of columns when it is wide enough, else one block for each packet (the time, the direction and the channel,
 // the packet line, then the route and the summary in small text) with the header row for a screen reader only; the click, the detail row and the filter are the same in both.
+// A right-click on a packet (a long press on a touch screen) offers to copy its line and the call that sent it (CopyMenu).
 import TagMark from "@/components/TagMark.vue";
 import { computed, ref } from "vue";
 import { useElementWidth } from "@/composables/useElementWidth";
 import { PACKETS_TABLE } from "@/lib/layout";
+import { useCopyMenu } from "@/composables/useCopyMenu";
 import { t } from "@/i18n";
 import PacketDetail from "@/components/PacketDetail.vue";
 import TabHelp from "@/components/TabHelp.vue";
+import CopyMenu from "@/components/CopyMenu.vue";
 import RouteText from "@/components/RouteText.vue";
 import { packetLabel, packetTitle, packetTone } from "@/lib/channels";
 import { clockText } from "@/lib/format";
@@ -27,6 +30,16 @@ const filter = ref("");
 const open = ref<number | null>(null);
 
 const rows = computed(() => filterPackets(newestFirst(props.packets.values()), filter.value));
+/** The copy menu of a row: the packet as its line of monitor text, and the call that sent it. */
+const copy = useCopyMenu((row) => {
+  const packet = rows.value.find((p) => String(p.id) === row.dataset["id"]);
+  return packet === undefined
+    ? []
+    : [
+        { kind: "packet", text: packet.tnc2 },
+        { kind: "call", text: packet.source },
+      ];
+});
 
 function toggle(id: number): void {
   open.value = open.value === id ? null : id;
@@ -67,10 +80,12 @@ function toggle(id: number): void {
         <tbody>
           <template v-for="row in rows" :key="row.id">
             <tr
-              class="packet-row"
+              class="packet-row copysource"
               :class="{ selected: open === row.id, out: row.direction === 'out' }"
               tabindex="0"
-              @click="toggle(row.id)"
+              :data-id="row.id"
+              v-on="copy.on.value"
+              @click="copy.unlessHeld(() => toggle(row.id))"
               @keydown.enter="toggle(row.id)"
             >
               <td class="mono nowrap time">{{ clockText(row.heard_at) }}</td>
@@ -95,5 +110,6 @@ function toggle(id: number): void {
       </table>
     </div>
     <div class="foot muted">{{ t("packets.count", { shown: rows.length, n: packets.size }) }}</div>
+    <CopyMenu v-if="copy.menu.value" :key="copy.key.value" v-bind="copy.menu.value" @close="copy.close()" />
   </div>
 </template>

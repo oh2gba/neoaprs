@@ -66,6 +66,14 @@ export const shell = {
   "mismatch.notice": "This page and NeoAPRS do not match (page {page}, NeoAPRS {neoaprs}). Reload the page; if this stays, restart NeoAPRS.",
   "mismatch.reload": "Reload",
 
+  "copy.menu_label": "Copy",
+  "copy.call": "Copy {call}",
+  "copy.message": "Copy message",
+  "copy.packet": "Copy packet",
+  "copy.address": "Copy address",
+  "copy.name": "Copy name",
+  "copy.copied": "Copied {text}",
+
   "settings.language.label": "Language",
   "settings.language.tip1": "The language of this page. Each browser and device remembers its own choice.",
 } as const;
