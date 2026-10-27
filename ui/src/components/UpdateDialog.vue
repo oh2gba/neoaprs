@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // "NeoAPRS 0.7.0 is available": the dialog in the middle of the page, over a dimmed page (the whole screen on a phone), opened by the header's Update mark, the header's badge of a phone and the Settings tab's answer
-// to Check now. The version this copy is, what is new (the project's note of the version page, and the release's notes on GitHub as a button), then the update itself: **Update now** where the daemon can
+// to Check now. The version this copy is, what is new (the project's note of the version page, and the release notes themselves: the dialog asks the daemon for them, `release_notes`, and shows the sections of the versions between this one and the new one in a box
+// that scrolls; while they are fetched it says so, and when they cannot be it offers the release page on GitHub instead), then the update itself: **Update now** where the daemon can
 // do it (the topic `update` says so: the Windows installer, an AppImage), with its progress, a Cancel while it downloads and the problem in words when it fails; and the steps by hand for the way this copy
 // was installed (lib/update.ts, UpdateSteps), folded under Update now and open when it failed. The focus goes into the dialog and stays in it; Escape, the cross and a click beside it close it, which
 // does not stop an update. The longer explanation is in the manual (Updating).
@@ -9,14 +10,19 @@ import IconButton from "@/components/IconButton.vue";
 import UpdateSteps from "@/components/UpdateSteps.vue";
 import { t } from "@/i18n";
 import { useDaemonContext } from "@/composables/useDaemonContext";
+import { noteBlocks } from "@/lib/releasenotes";
 import { problemText, progressText, releaseNotes, updateHelp, updateRunning } from "@/lib/update";
 
 const props = defineProps<{ version: string }>();
-const { install, version: installed, status, selfUpdate, connection, send } = useDaemonContext();
+const { install, version: installed, status, selfUpdate, connection, send, releaseNotes: notesAnswer } = useDaemonContext();
 const emit = defineEmits<{ close: [] }>();
 
 const steps = computed(() => updateHelp(install.value, props.version));
 const note = computed(() => status.value?.update?.message ?? "");
+/** The daemon's answer for this version: null while it has not come. */
+const notes = computed(() => (notesAnswer.value?.version === props.version ? notesAnswer.value : null));
+/** The sections to show, each as blocks; the version of a section heads it when there are several. */
+const sections = computed(() => (notes.value?.sections ?? []).map((section) => ({ version: section.version, blocks: noteBlocks(section.text) })));
 /** The daemon can update itself: Update now is offered (and stays while one runs, whatever the topic says after). */
 const running = computed(() => updateRunning(selfUpdate.value));
 const offered = computed(() => selfUpdate.value?.supported === true || running.value);
@@ -56,6 +62,7 @@ function onKey(event: KeyboardEvent): void {
 
 onMounted(async () => {
   before = document.activeElement;
+  if (notes.value === null) send({ cmd: "release_notes", version: props.version });
   document.addEventListener("keydown", onKey);
   await nextTick();
   (dialog.value?.querySelector<HTMLElement>(".updatedialog-go") ?? dialog.value)?.focus();
@@ -82,7 +89,37 @@ const cancel = (): boolean => send({ cmd: "update_cancel" });
       <section class="updatedialog-news">
         <h3>{{ t("help.update.news") }}</h3>
         <p v-if="note">{{ note }}</p>
-        <a class="btn" :href="releaseNotes(version)" target="_blank" rel="noopener noreferrer">{{ t("help.update.news_link", { version }) }}</a>
+        <div v-if="sections.length > 0" class="updatedialog-notes">
+          <template v-for="section in sections" :key="section.version">
+            <h4 v-if="sections.length > 1">{{ section.version }}</h4>
+            <template v-for="(block, index) in section.blocks" :key="index">
+              <h5 v-if="block.kind === 'heading'">
+                <template v-for="(part, i) in block.parts" :key="i">{{ part.text }}</template>
+              </h5>
+              <ul v-else-if="block.kind === 'bullet'">
+                <li>
+                  <template v-for="(part, i) in block.parts" :key="i"
+                    ><strong v-if="part.bold">{{ part.text }}</strong
+                    ><code v-else-if="part.code">{{ part.text }}</code
+                    ><template v-else>{{ part.text }}</template></template
+                  >
+                </li>
+              </ul>
+              <p v-else>
+                <template v-for="(part, i) in block.parts" :key="i"
+                  ><strong v-if="part.bold">{{ part.text }}</strong
+                  ><code v-else-if="part.code">{{ part.text }}</code
+                  ><template v-else>{{ part.text }}</template></template
+                >
+              </p>
+            </template>
+          </template>
+        </div>
+        <template v-else-if="notes !== null">
+          <p class="muted">{{ t("help.update.news_failed") }}</p>
+          <a class="btn" :href="releaseNotes(version)" target="_blank" rel="noopener noreferrer">{{ t("help.update.news_link", { version }) }}</a>
+        </template>
+        <p v-else class="muted" role="status">{{ t("help.update.news_loading") }}</p>
       </section>
       <section v-if="offered" class="updatedialog-now">
         <template v-if="progress">

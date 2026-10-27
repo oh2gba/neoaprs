@@ -107,7 +107,7 @@ The page is on port 7303, on this computer only unless you allow access from the
 
 NeoAPRS asks once a day whether a newer version is out ([the update check](#the-update-check)). When one is, an **Update** mark appears at the top of the page, which opens Settings → Update check; the **Update** button there opens the steps.
 
-A click opens a window in the middle of the page: **NeoAPRS <version> is available**, the version you have, what is new (the project's note and a button to the release notes), and what to do for the way this copy was installed. Your settings, messages, packets and map stay in every case, and open pages load the new version by themselves.
+A click opens a window in the middle of the page: **NeoAPRS <version> is available**, the version you have, what is new (the project's note, and the release notes of every version between yours and the new one, fetched from the project's changelog on GitHub; when they cannot be fetched, a button to the release page), and what to do for the way this copy was installed. Your settings, messages, packets and map stay in every case, and open pages load the new version by themselves.
 
 ### Update now (Windows installer, AppImage)
 

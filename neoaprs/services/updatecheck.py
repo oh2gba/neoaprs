@@ -2,7 +2,7 @@
 a setting; it comes from nowhere on the machine, so that the project can count installations) and nothing else. When the answer is a
 newer version, `latest` has it; the page is told in its next status and shows it beside the version. It is always on; `NEOAPRS_UPDATE_CHECK=0` in the environment switches it off for one run (the tests set it), and is looked at again an hour later while it is off.
 A page that cannot be reached or understood is only a line in the debug log: the next try is the next day. Nothing but that number is kept between runs. `check_now` is the same question asked on request (the Settings tab's Check now): it works whatever the switches
-say, tells what came of it, and leaves the schedule alone.
+say, tells what came of it, and leaves the schedule alone. `release_notes` is what is new between our version and the latest: the changelog at the tag of the latest release, fetched once and kept (neoaprs/releasenotes.py), for the page's What's new.
 """
 import asyncio
 import logging
@@ -14,9 +14,11 @@ from dataclasses import dataclass
 from typing import Literal
 
 from neoaprs.config import INSTALL_ID
+from neoaprs.releasenotes import MAX_BYTES, Section, changelog_url, sections_after
 from neoaprs.services.common import ConfigSource
 from neoaprs.services.memory import Memory
 from neoaprs.tasks import TaskSet
+from neoaprs.updatefetch import fetch_url
 from neoaprs.versions import Update, compare_versions, parse_update
 
 log = logging.getLogger("neoaprs.update")
@@ -26,7 +28,10 @@ EVERY_SEC = 24 * 3600.0
 WHILE_OFF_SEC = 3600.0
 ENV_SWITCH = "NEOAPRS_UPDATE_CHECK"             # "0" is off for this run, whatever the setting says
 Fetch = Callable[[str, str, str, str], Awaitable[bytes | None]]     # (address, version, platform, installation number) to the body of the answer
+FetchUrl = Callable[[str, str, str, int], Awaitable[bytes | None]]  # (address, version, platform, the most bytes wanted) to the body of the answer
 INSTALL_ID_FORM = re.compile(r"[0-9a-f]{32}")
+NOTES_UNREACHABLE = "the release notes could not be fetched"
+NOTES_UNKNOWN_VERSION = "no newer version of that number is known"
 
 
 @dataclass(frozen=True)
@@ -39,11 +44,13 @@ class CheckResult:
 
 class UpdateCheck:
     def __init__(self, config: ConfigSource, version: str, platform: str, fetch: Fetch, first_sec: float = FIRST_SEC, every_sec: float = EVERY_SEC,
-                 environ: Mapping[str, str] = os.environ, memory: Memory | None = None) -> None:
+                 environ: Mapping[str, str] = os.environ, memory: Memory | None = None, fetch_url: FetchUrl = fetch_url) -> None:
         self._config = config
         self.version = version
         self.platform = platform
         self._fetch = fetch
+        self._fetch_url = fetch_url
+        self._notes: dict[str, list[Section]] = {}               # the release notes fetched, by the latest version they were fetched for
         self.first_sec = first_sec
         self.every_sec = every_sec
         self._environ = environ
@@ -112,6 +119,20 @@ class UpdateCheck:
                 log.debug("the update check got no usable answer from %s: %s", self._config().update_url, reason)
                 return None
             return self._take(answer)
+
+    async def release_notes(self, version: str) -> tuple[list[Section], str]:
+        """What is new from our version to `version`, which must be the newer one the check found (a page asks for no other address): the sections of the changelog at its tag, the newest first, fetched once and kept; ([], why) when there are none to give."""
+        if self.latest is None or version != self.latest.version:
+            return [], NOTES_UNKNOWN_VERSION
+        kept = self._notes.get(version)
+        if kept is not None:
+            return kept, ""
+        body = await self._fetch_url(changelog_url(version), self.version, self.platform, MAX_BYTES)
+        if body is None:
+            return [], NOTES_UNREACHABLE
+        found = sections_after(body.decode("utf-8", errors="replace"), self.version, version)
+        self._notes = {version: found}
+        return found, ""
 
     async def check_now(self) -> CheckResult:
         """The same question on request, whether the daily check is on or not; `latest` follows the answer, and the timer of the daily check is not touched."""

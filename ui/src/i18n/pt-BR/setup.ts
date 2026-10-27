@@ -34,6 +34,8 @@ export const setup: Record<keyof typeof source, Message> = {
   "setup.symbol.antenna": "Antena",
 
   "setup.map_auto": "Baixando o mapa da sua região…",
+  "setup.map_text":
+    "O NeoAPRS baixa sozinho as ruas e os nomes em {radius} km ao redor da sua estação; continua em segundo plano. O raio está em Ajustes → Mapa.",
   "setup.map_later": "O mapa detalhado será baixado quando você estiver online.",
 
   "setup.beacon_every": "Beacon a cada {minutes} min",

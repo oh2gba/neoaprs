@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { FakeMap, FakeMarker } from "@/test/fakemap";
 import { FakeSocket } from "@/test/fakesocket";
-import { configValues, errorOf, hello, mapState, status } from "@/test/fixtures";
+import { configValues, errorOf, hello, mapFile, mapState, status } from "@/test/fixtures";
 import { mountApp, open, tabButton, useAppHarness } from "@/test/app";
 
 useAppHarness();
@@ -150,7 +150,6 @@ describe("App: the first-run guide", () => {
     await wrapper.find("#setup-port").setValue("/dev/ttyUSB0");
     await next();
     expect(wrapper.find(".setup-step-name").text()).toBe("Map");
-    await wrapper.find("#setup-radius").setValue("200");
     expect(configs()).toHaveLength(1);
     await next();
     expect(configs()[1]).toEqual({
@@ -159,7 +158,6 @@ describe("App: the first-run guide", () => {
         "station/call": "OH2ABC-9",
         "station/symbol_code": ">",
         "serial/port": "/dev/ttyUSB0",
-        "map/radius_km": "200",
         "beacon/interval_min": "30",
       },
     });
@@ -174,7 +172,6 @@ describe("App: the first-run guide", () => {
         "station/lon": "24.94",
         "station/symbol_code": ">",
         "serial/port": "/dev/ttyUSB0",
-        "map/radius_km": "200",
       }),
     });
     await flushPromises();
@@ -197,7 +194,7 @@ describe("App: the first-run guide", () => {
     expect(wrapper.find(".setup .field-error").text()).toBe("'OH2ABC' is already in use");
   });
 
-  it("makes the map from the guide: the settings go first, the command when the daemon has told them", async () => {
+  it("sends the place as the Position step is left, so that the daemon begins the map, and the Map step shows the download with its percent in the header", async () => {
     const { wrapper, socket } = await fresh();
     await wrapper.find("#setup-call").setValue("oh2abc");
     await wrapper.find("form").trigger("submit");
@@ -206,25 +203,22 @@ describe("App: the first-run guide", () => {
     for (let i = 0; i < 3; i++) await wrapper.find("form").trigger("submit");
     const commands = () => socket.sent.map((c) => (c as { cmd: string }).cmd);
     expect(commands().filter((c) => c === "set_config")).toHaveLength(1); // (the place, sent as the Position step was left)
-    await wrapper.find(".setup .mapfetch-button").trigger("click");
-    expect(commands().filter((c) => c === "set_config")).toHaveLength(2);
     expect(commands()).not.toContain("map_estimate");
-    socket.say({
-      type: "state",
-      topic: "config",
-      rev: 2,
-      value: configValues({ "station/call": "OH2ABC", "station/lat": "60.17", "station/lon": "24.94" }),
-    });
-    await flushPromises();
-    expect(commands().at(-1)).toBe("map_estimate");
+    expect(wrapper.find(".setup .mapfetch-button").exists()).toBe(false);
+    expect(wrapper.find(".setup #setup-radius").exists()).toBe(false);
     socket.say({
       type: "state",
       topic: "map",
       rev: 0,
-      value: mapState({ estimate: { bytes: 493_000_000, tiles: 41233, radius_km: 150, maxzoom: 12, box: [22.1, 58.8, 27.8, 61.5], build: "20261022" } }),
+      value: mapState({ state: "downloading", step: "area", percent: 42, downloaded: 1_000_000, radius_km: 150 }),
     });
     await flushPromises();
-    await wrapper.find(".setup .mapfetch-button").trigger("click");
-    expect(commands().at(-1)).toBe("map_fetch");
+    expect(wrapper.find(".setup .setup-map").text()).toContain("150 km round your station");
+    expect(wrapper.find(".setup .mapfetch-progress").text()).toContain("42%");
+    expect(wrapper.find(".appheader .pill-map").text()).toBe("Map 42 %");
+    socket.say({ type: "state", topic: "map", rev: 1, value: mapState({ state: "ready", detail: mapFile() }) });
+    await flushPromises();
+    expect(wrapper.find(".appheader .pill-map").exists()).toBe(false);
+    expect(wrapper.find(".setup .mapfetch-file").text()).toContain("Map downloaded");
   });
 });

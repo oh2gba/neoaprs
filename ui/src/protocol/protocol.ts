@@ -1,9 +1,9 @@
 // The types of the wire protocol between the daemon and the page, written from the models of neoaprs/web/protocol.py by scripts/gen-protocol.py: never edited by hand.
 // `Command` is what the page sends (tagged by `cmd`), `Message` what the daemon sends (tagged by `type`), `TopicValues` the value of each topic the page follows.
 
-export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | ForgetAllStationsCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | QueryStationCommand | AskQruCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | WeatherSeriesCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | PageErrorCommand;
+export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | ReleaseNotesCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | ForgetAllStationsCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | QueryStationCommand | AskQruCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | WeatherSeriesCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | PageErrorCommand;
 
-export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | AlertResultMessage | UpdateResultMessage | RadioSearchMessage;
+export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | AlertResultMessage | UpdateResultMessage | ReleaseNotesMessage | RadioSearchMessage;
 
 /** The answer to `alert_test`, when the command has ended or run out of its 20 s. */
 export interface AlertResultMessage {
@@ -603,6 +603,14 @@ export interface MessageRow {
   route: string;
 }
 
+/** One version's section of the changelog. */
+export interface NoteSection {
+  /** the version the section is of */
+  version: string;
+  /** the section as it is written, markdown: paragraphs, `- ` bullets, `**bold**` and `code` */
+  text: string;
+}
+
 /** Kills an object or an item of ours: the killed form is sent three times (at once, after a minute and after three) and then it is forgotten, and it leaves the map now. One that was never sent is removed at once. Answered by the `del` of its row in `stations` (and in `own_objects` once the kill is sent, or at once), or by an `error` (no such object of ours). */
 export interface ObjectKillCommand {
   cmd: "object_kill";
@@ -905,6 +913,24 @@ export interface ReachValues {
   igate: string;
   /** the digipeaters that repeated it on the radio before the iGate heard it, in order (`?` for one that put no call in); empty for a packet the iGate heard direct, and for `app` */
   hops: string[];
+}
+
+/** Asks what is new from this version to `version`, the newer one the update check found: the changelog of the project at the tag of that release (neoaprs/releasenotes.py), fetched once. Answered with `release_notes`. */
+export interface ReleaseNotesCommand {
+  cmd: "release_notes";
+  /** the newer version, as `status.update.version` names it; another is answered with no sections */
+  version: string;
+}
+
+/** The answer to `release_notes`: the sections of the versions newer than this one up to the one asked for, the newest first; none with `problem` saying why (the notes could not be fetched, or the version is not the newer one known). */
+export interface ReleaseNotesMessage {
+  type: "release_notes";
+  /** the version asked for */
+  version: string;
+  /** the newest first; empty with `problem` */
+  sections: NoteSection[];
+  /** why there are no sections, in a sentence; empty when there are */
+  problem: string;
 }
 
 /** The whole value of the topic is `value`. */

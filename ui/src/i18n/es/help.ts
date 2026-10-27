@@ -91,6 +91,8 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
   "help.update.installed": "Tienes NeoAPRS {version}",
   "help.update.news": "Novedades",
   "help.update.news_link": "Novedades de la {version}",
+  "help.update.news_loading": "Obteniendo las novedades…",
+  "help.update.news_failed": "No se pudieron obtener las novedades; la página de la versión las tiene:",
   "help.update.now": "Actualizar ahora",
   "help.update.retry": "Reintentar",
   "help.update.cancel": "Cancelar",

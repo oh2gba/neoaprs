@@ -6,6 +6,7 @@ import asyncio
 import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import asdict
 from datetime import timedelta
 
 from neoaprs.clock import iso
@@ -23,7 +24,7 @@ from neoaprs.serialprobe import available_ports, can_find, can_search, paired_bl
 from .beaconwire import BeaconNow, StatusNow
 from .bulletinwire import BulletinDelete
 from .dispatch import Ctx, UserError, command
-from .hostwire import AskStatus, CheckUpdate, Ping
+from .hostwire import AskStatus, CheckUpdate, Ping, ReleaseNotes
 from .hubwire import Subscribe, Unsubscribe
 from .mapwire import MapCancel, MapEstimate, MapFetch
 from .ownwire import BulletinPost, BulletinUnpost, ObjectKill, ObjectSet
@@ -255,6 +256,12 @@ async def update_check(ctx: Ctx, cmd: CheckUpdate) -> None:
     result = await ctx.ctl.updatecheck.check_now()
     ctx.conn.send({"type": "update_result", "outcome": result.outcome, "version": result.version, "text": result.reason})
     ctx.conn.send(await ctx.status())                                   # (the other pages have it at the next status, within 10 s)
+
+
+@command(ReleaseNotes)
+async def release_notes(ctx: Ctx, cmd: ReleaseNotes) -> None:
+    found, problem = await ctx.ctl.updatecheck.release_notes(cmd.version)
+    ctx.conn.send({"type": "release_notes", "version": cmd.version, "sections": [asdict(section) for section in found], "problem": problem})
 
 
 @command(UpdateNow)

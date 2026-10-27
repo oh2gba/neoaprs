@@ -21,6 +21,7 @@ import type {
   MapState,
   PortsMessage,
   QruState,
+  ReleaseNotesMessage,
   StationRow,
   StatusMessage,
   TncState,
@@ -51,6 +52,8 @@ export interface DaemonContext {
   findRadio: FindRadio;
   alertResult: Read<AlertResultMessage | null>;
   updateResult: Read<UpdateResultMessage | null>;
+  /** what is new up to the version the update dialog asked for; null until it has */
+  releaseNotes: Read<ReleaseNotesMessage | null>;
   lastError: Read<Toast | null>;
   connection: Read<Connection>;
   /** the version of the daemon */

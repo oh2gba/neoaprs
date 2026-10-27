@@ -78,6 +78,26 @@ class UpdateResultMsg(_Message):
     text: str = Field(description="for `no_answer` why, in a sentence; empty otherwise")
 
 
+class ReleaseNotes(_Command):
+    """Asks what is new from this version to `version`, the newer one the update check found: the changelog of the project at the tag of that release (neoaprs/releasenotes.py), fetched once. Answered with `release_notes`."""
+    cmd: Literal["release_notes"]
+    version: str = Field(description="the newer version, as `status.update.version` names it; another is answered with no sections")
+
+
+class NoteSection(_Model):
+    """One version's section of the changelog."""
+    version: str = Field(description="the version the section is of")
+    text: str = Field(description="the section as it is written, markdown: paragraphs, `- ` bullets, `**bold**` and `code`")
+
+
+class ReleaseNotesMsg(_Message):
+    """The answer to `release_notes`: the sections of the versions newer than this one up to the one asked for, the newest first; none with `problem` saying why (the notes could not be fetched, or the version is not the newer one known)."""
+    type: Literal["release_notes"]
+    version: str = Field(description="the version asked for")
+    sections: list[NoteSection] = Field(description="the newest first; empty with `problem`")
+    problem: str = Field(description="why there are no sections, in a sentence; empty when there are")
+
+
 class Pong(_Message):
     """The answer to `ping`."""
     type: Literal["pong"]

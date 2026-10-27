@@ -1,10 +1,11 @@
-"""The detailed map without a click: the first time a place is set and there is no detailed map yet, the job of Settings, Map, Download (neoaprs/services/mapfetch.py) is begun, so that the map round the station is there by the end of the setup.
+"""The detailed map without a click: the first time a place is set and there is no detailed map yet, the job of Settings, Map, Download (neoaprs/services/mapfetch.py) is begun, so that the map round the station is there by the end of the setup
+(the guide sends the place when it goes on from its Position step, and its last step and the header of the page show the download's progress; nobody is asked).
 
 It is once for an installation. The row `map/auto` (`MAP_AUTO`, state of the daemon, not a setting) says where it stands: empty (never begun), `wanted` (begun, and not yet made) and `done` (a detailed map exists, or the
 operator cancelled the job: never again). A job that fails, most likely for want of a connection, leaves the row `wanted` and tells the page (`MapFetch.later`: "the detailed map will come when you are online"); the next
 start of the daemon tries it again, and so does each start until it works. The world map, which ships with the program, is under the page meanwhile.
 
-The area is `AUTO_RADIUS_KM` round the station, not the setting's `map/radius_km`, which it never changes: the map nobody asked for is small, and Settings, Map, Download makes the one the setting says.
+The area is the setting's `map/radius_km` round the station (150 km unless the operator changed it), the same map that Settings, Map, Download makes; the setting is not touched.
 
 A place set when none was before (or another place) starts it, and nothing else does: a station that has a place and no detailed map is not given a download of its own accord at an upgrade. While the job it began is running, a new place
 outside the area being made ends it and begins it again for that place. The settings button stays for later; a job the operator started is the operator's, but a detailed map that comes of it counts as done."""
@@ -21,7 +22,6 @@ from neoaprs.tasks import TaskSet
 
 log = logging.getLogger("neoaprs.mapauto")
 
-AUTO_RADIUS_KM = 50                             # the area of the map made without being asked for: small (the setting `map/radius_km`, 150 km, is for the operator who asks); the zoom is `map/maxzoom`
 WANTED = "wanted"
 DONE = "done"
 
@@ -76,14 +76,15 @@ class MapAuto:
 
     def _begin(self) -> None:
         try:
-            self._fetch.begin("fetch", AUTO_RADIUS_KM)
+            self._fetch.begin("fetch")
         except MapError as e:
             log.info("the detailed map is not begun: %s", e)
             return
         self._mine = True
-        place = self._config().station_position
-        self._box = box_around(*place, AUTO_RADIUS_KM) if place is not None else None
-        log.info("the detailed map is being made round the station, once, without being asked for")
+        config = self._config()
+        place = config.station_position
+        self._box = box_around(*place, config.map_radius_km) if place is not None else None
+        log.info("the detailed map is being made %d km round the station, once, without being asked for", config.map_radius_km)
 
     async def _again(self) -> None:
         try:

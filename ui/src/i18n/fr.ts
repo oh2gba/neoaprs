@@ -13,6 +13,9 @@ export const fr: Catalogue = {
   "pill.beacon_off_title": "Ni balise ni statut automatiques. Onglet Balise",
   "pill.internet": "Internet",
   "pill.internet_title": "Internet : stations d'APRS-IS sur la carte. Réglages → Stations Internet",
+  "pill.map": "Carte {percent} %",
+  "pill.map_working": "Carte…",
+  "pill.map_title": "Téléchargement de la carte de votre région. Réglages → Carte",
   "pill.update": "Mise à jour",
   "pill.update_title": "Mise à jour vers {version}",
   "pill.gps": "GPS",
@@ -1414,6 +1417,8 @@ export const fr: Catalogue = {
   "setup.symbol.antenna": "Antenne",
 
   "setup.map_auto": "Téléchargement de la carte de votre zone…",
+  "setup.map_text":
+    "NeoAPRS télécharge de lui-même les rues et les noms à {radius} km autour de votre station ; cela continue en arrière-plan. Le rayon est dans Réglages → Carte.",
   "setup.map_later": "La carte détaillée sera téléchargée dès que vous serez en ligne.",
 
   "setup.beacon_every": "Balise toutes les {minutes} min",
@@ -1516,6 +1521,8 @@ export const fr: Catalogue = {
   "help.update.installed": "Vous avez NeoAPRS {version}",
   "help.update.news": "Nouveautés",
   "help.update.news_link": "Nouveautés de la {version}",
+  "help.update.news_loading": "Récupération des nouveautés…",
+  "help.update.news_failed": "Les nouveautés n'ont pas pu être récupérées ; la page de la version les a :",
   "help.update.now": "Mettre à jour",
   "help.update.retry": "Réessayer",
   "help.update.cancel": "Annuler",

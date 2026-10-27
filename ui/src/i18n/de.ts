@@ -13,6 +13,9 @@ export const de: Catalogue = {
   "pill.beacon_off_title": "Keine automatische Bake und kein Status. Reiter Bake",
   "pill.internet": "Internet",
   "pill.internet_title": "Internet: APRS-IS-Stationen auf der Karte. Einstellungen → Internet-Stationen",
+  "pill.map": "Karte {percent} %",
+  "pill.map_working": "Karte…",
+  "pill.map_title": "Die Karte deiner Umgebung wird heruntergeladen. Einstellungen → Karte",
   "pill.update": "Update",
   "pill.update_title": "Update auf {version}",
   "pill.gps": "GPS",
@@ -1428,6 +1431,8 @@ export const de: Catalogue = {
   "setup.symbol.antenna": "Antenne",
 
   "setup.map_auto": "Die Karte deines Gebiets wird heruntergeladen…",
+  "setup.map_text":
+    "NeoAPRS lädt Straßen und Namen im Umkreis von {radius} km um deine Station von selbst herunter; das läuft im Hintergrund weiter. Der Radius steht in Einstellungen → Karte.",
   "setup.map_later": "Die Detailkarte wird heruntergeladen, sobald du online bist.",
 
   "setup.beacon_every": "Bake alle {minutes} min",
@@ -1528,6 +1533,8 @@ export const de: Catalogue = {
   "help.update.installed": "Du hast NeoAPRS {version}",
   "help.update.news": "Was neu ist",
   "help.update.news_link": "Neu in {version}",
+  "help.update.news_loading": "Neuigkeiten werden geholt…",
+  "help.update.news_failed": "Die Neuigkeiten konnten nicht geholt werden; die Release-Seite hat sie:",
   "help.update.now": "Jetzt aktualisieren",
   "help.update.retry": "Noch einmal versuchen",
   "help.update.cancel": "Abbrechen",

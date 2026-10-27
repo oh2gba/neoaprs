@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { t } from "@/i18n";
 import { headerPills, type HeaderPill, type Link } from "@/lib/pills";
 import { inApp } from "@/lib/shell";
-import { ago, gpsState, igateState, NOW, tncState } from "@/test/fixtures";
+import type { MapState } from "@/protocol/protocol";
+import { ago, gpsState, igateState, mapState, NOW, tncState } from "@/test/fixtures";
 
 const link = (extra: Partial<Link> = {}): Link => ({ connection: "open", tnc: tncState(), now: NOW, inApp: false, ...extra });
 const marks = (extra: Partial<Link> = {}, values: Record<string, string> = {}): HeaderPill[] => headerPills(values, null, null, null, link(extra));
@@ -110,5 +111,24 @@ describe("the order of the marks", () => {
 
   it("has no Daemon or Radio mark where no link is given", () => {
     expect(headerPills({}, null, null).map((p) => p.id)).toEqual([]);
+  });
+});
+
+describe("the Map mark", () => {
+  it("is there while the detailed map is being downloaded, with the percent of the step (none while the step cannot say), and opens Settings → Map; not for an estimate, nor when nothing runs", () => {
+    const mark = (map: MapState | null) => headerPills({}, null, null, null, null, map).find((p) => p.id === "map");
+    const running = mark(mapState({ state: "downloading", step: "area", percent: 42 }));
+    expect([running && t(running.text, running.textValues), running?.tone, running?.target, running?.focus]).toEqual([
+      "Map 42 %",
+      "info",
+      "settings",
+      "set-map-fetch",
+    ]);
+    expect(running && t(running.title)).toBe("Downloading the map of your area. Settings → Map");
+    const working = mark(mapState({ state: "downloading", step: "tool", percent: null }));
+    expect(working && t(working.text, working.textValues)).toBe("Map…");
+    expect(mark(mapState({ state: "estimating" }))).toBeUndefined();
+    expect(mark(mapState({ state: "ready" }))).toBeUndefined();
+    expect(mark(null)).toBeUndefined();
   });
 });

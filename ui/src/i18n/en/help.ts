@@ -87,6 +87,8 @@ export const help = {
   "help.update.installed": "You have NeoAPRS {version}",
   "help.update.news": "What's new",
   "help.update.news_link": "What's new in {version}",
+  "help.update.news_loading": "Fetching what is new…",
+  "help.update.news_failed": "What is new could not be fetched; the release page has it:",
   "help.update.now": "Update now",
   "help.update.retry": "Try again",
   "help.update.cancel": "Cancel",

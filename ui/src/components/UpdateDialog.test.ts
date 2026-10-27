@@ -31,8 +31,8 @@ const copyButtons = (wrapper: ReturnType<typeof dialog>["wrapper"]) =>
   wrapper.findAll("button").filter((b) => b.text().startsWith("Copy") || b.text() === "Copied");
 
 describe("UpdateDialog", () => {
-  it("is a modal dialog headed with the new version, the installed one small, and what is new", () => {
-    const { wrapper } = dialog({ status: status({ update: { version: "0.4.0", url: "", message: "Fixes the map download" } }) });
+  it("is a modal dialog headed with the new version, the installed one small, and what is new: the note, and the release notes it asks the daemon for as it opens", () => {
+    const { wrapper, daemon } = dialog({ status: status({ update: { version: "0.4.0", url: "", message: "Fixes the map download" } }) });
     const box = wrapper.find("[role=dialog]");
     expect(box.attributes("aria-modal")).toBe("true");
     expect(box.attributes("aria-labelledby")).toBe("updatedialog-title");
@@ -40,16 +40,52 @@ describe("UpdateDialog", () => {
     expect(wrapper.find(".updatedialog-installed").text()).toBe("You have NeoAPRS 0.3.0");
     expect(wrapper.find(".updatedialog-news h3").text()).toBe("What's new");
     expect(wrapper.find(".updatedialog-news p").text()).toBe("Fixes the map download");
-    const news = wrapper.find(".updatedialog-news a.btn");
-    expect(news.text()).toBe("What's new in 0.4.0");
-    expect(news.attributes("href")).toBe("https://github.com/oh2gba/neoaprs/releases/tag/v0.4.0");
-    expect(news.attributes("rel")).toContain("noopener");
+    expect(daemon.send).toHaveBeenCalledWith({ cmd: "release_notes", version: "0.4.0" });
+    expect(wrapper.find(".updatedialog-news [role=status]").text()).toBe("Fetching what is new…");
+    expect(wrapper.find(".updatedialog-news a.btn").exists()).toBe(false);
     expect(wrapper.text()).toContain("Your settings, messages and map stay. Open pages reload by themselves.");
     expect(wrapper.find(".updatedialog-backdrop").exists()).toBe(true);
   });
 
   it("has no note when the version page sent none", () => {
-    expect(dialog().wrapper.find(".updatedialog-news p").exists()).toBe(false);
+    expect(dialog().wrapper.find(".updatedialog-news p:not(.muted)").exists()).toBe(false);
+  });
+
+  it("shows the release notes the daemon answers with, in a box: each version a heading when there are several, the bullets, bold and code of the markdown drawn, and asks again only for another version", () => {
+    const notes = {
+      type: "release_notes" as const,
+      version: "0.4.0",
+      sections: [
+        { version: "0.4.0", text: "Bug fixes.\n\n- **Fixed:** the map download.\n- The `neoaprs map` command." },
+        { version: "0.3.1", text: "A small release." },
+      ],
+      problem: "",
+    };
+    const { wrapper, daemon } = dialog({ releaseNotes: notes });
+    expect(daemon.send).not.toHaveBeenCalledWith({ cmd: "release_notes", version: "0.4.0" });
+    const box = wrapper.find(".updatedialog-notes");
+    expect(box.findAll("h4").map((h) => h.text())).toEqual(["0.4.0", "0.3.1"]);
+    expect(box.findAll("li").map((li) => li.text())).toEqual(["Fixed: the map download.", "The neoaprs map command."]);
+    expect(box.find("li strong").text()).toBe("Fixed:");
+    expect(box.find("li code").text()).toBe("neoaprs map");
+    expect(box.findAll("p").map((p) => p.text())).toEqual(["Bug fixes.", "A small release."]);
+    expect(wrapper.find(".updatedialog-news a.btn").exists()).toBe(false);
+    wrapper.unmount();
+    const one = dialog({ releaseNotes: { ...notes, sections: notes.sections.slice(0, 1) } });
+    expect(one.wrapper.find(".updatedialog-notes h4").exists()).toBe(false);
+    one.wrapper.unmount();
+    const other = dialog({ releaseNotes: { ...notes, version: "0.3.9" } });
+    expect(other.daemon.send).toHaveBeenCalledWith({ cmd: "release_notes", version: "0.4.0" });
+    expect(other.wrapper.find(".updatedialog-notes").exists()).toBe(false);
+  });
+
+  it("offers the release page when the notes could not be fetched", () => {
+    const { wrapper } = dialog({ releaseNotes: { type: "release_notes", version: "0.4.0", sections: [], problem: "the release notes could not be fetched" } });
+    expect(wrapper.find(".updatedialog-news .muted").text()).toBe("What is new could not be fetched; the release page has it:");
+    const news = wrapper.find(".updatedialog-news a.btn");
+    expect(news.text()).toBe("What's new in 0.4.0");
+    expect(news.attributes("href")).toBe("https://github.com/oh2gba/neoaprs/releases/tag/v0.4.0");
+    expect(news.attributes("rel")).toContain("noopener");
   });
 
   it("moves the focus into itself: onto Update now where there is one, else onto the dialog", async () => {
@@ -106,7 +142,8 @@ describe("UpdateDialog", () => {
     expect(hand.attributes("open")).toBeUndefined();
     expect(hand.find("a.updatesteps-file").attributes("href")).toBe("https://github.com/oh2gba/neoaprs/releases/download/v0.4.0/NeoAPRS-Setup-0.4.0.exe");
     await go.trigger("click");
-    expect(daemon.send).toHaveBeenCalledExactlyOnceWith({ cmd: "update_now", version: "0.4.0" });
+    expect(daemon.send).toHaveBeenLastCalledWith({ cmd: "update_now", version: "0.4.0" });
+    expect(daemon.send.mock.calls.filter(([command]) => command.cmd === "update_now")).toHaveLength(1);
   });
 
   it("has no Update now where the daemon cannot update itself, and the steps are the dialog's", () => {

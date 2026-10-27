@@ -1,6 +1,6 @@
 // The marks at the top right of the header, before the count of messages, each with a short hover title and the place where it is set. In this order (Update first, when a newer version is known), which is the order they fold in on a narrow screen (the last first): Daemon (in a browser only: ok while the page is connected, warn while it connects, bad when it is offline; in the app page and daemon are one),
 // Radio (always: ok while connected, the Dummy radio dummy, else warn with the state in words; it opens Settings → Radio), RX only (warn, while transmitting is off), Beacon off (neutral, only while transmitting is on),
-// GPS (only when a GPS is the position source: ok with a fix, warn without), Internet (info, while Internet stations is connected and receiving). Plain functions of the settings and the states the daemon told; the marks are the TagMark of the page: RX only is warn, Beacon off neutral, Internet info, GPS ok with a fix and warn without.
+// GPS (only when a GPS is the position source: ok with a fix, warn without), Internet (info, while Internet stations is connected and receiving), Map (info, while the detailed map is being downloaded: the percent of the step; it opens Settings → Map). Plain functions of the settings and the states the daemon told; the marks are the TagMark of the page: RX only is warn, Beacon off neutral, Internet info, GPS ok with a fix and warn without.
 import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
 import type { Params } from "@/i18n/message";
@@ -8,15 +8,16 @@ import { beaconOff } from "@/lib/beaconoff";
 import { isMoving } from "@/lib/gpsstatus";
 import { silentText } from "@/lib/format";
 import type { Connection } from "@/lib/hub";
-import type { GpsState, IgateState, TncState, UpdateInfo } from "@/protocol/protocol";
+import type { GpsState, IgateState, MapState, TncState, UpdateInfo } from "@/protocol/protocol";
 import type { TagTone } from "@/components/TagMark.vue";
 
 /** Where a mark leads: the Settings tab (the Radio and Internet groups) or the Beacon tab (the beacon and the GPS). */
 export type PillTarget = "settings" | "beacon";
 
 export interface HeaderPill {
-  id: "update" | "daemon" | "radio" | "rx" | "beacon_off" | "internet" | "gps";
+  id: "update" | "daemon" | "radio" | "rx" | "beacon_off" | "internet" | "gps" | "map";
   text: MessageId;
+  textValues?: Params;
   title: MessageId;
   /** the values of the title (the newer version) */
   titleValues?: Params;
@@ -104,6 +105,13 @@ function internetPill(igate: IgateState | null): HeaderPill | null {
   return up ? { id: "internet", text: "pill.internet", title: "pill.internet_title", tone: "info", target: "settings", focus: "set-igate-enabled" } : null;
 }
 
+/** The Map mark while the detailed map is being downloaded (the job of Settings → Map, or the one begun by itself after the setup): the percent of its step when it is known. */
+function mapPill(map: MapState | null): HeaderPill | null {
+  if (map === null || map.state !== "downloading") return null;
+  const base = { id: "map", title: "pill.map_title", tone: "info", target: "settings", focus: "set-map-fetch" } as const;
+  return map.percent === null ? { ...base, text: "pill.map_working" } : { ...base, text: "pill.map", textValues: { percent: map.percent } };
+}
+
 /** The marks for these settings (key to text) and states; the states are null until the daemon has told. `link` is how the page stands to the daemon and the radio (null: no Daemon or Radio mark). */
 export function headerPills(
   values: Readonly<Record<string, string>>,
@@ -111,8 +119,9 @@ export function headerPills(
   igate: IgateState | null,
   update: UpdateInfo | null = null,
   link: Link | null = null,
+  map: MapState | null = null,
 ): HeaderPill[] {
   const linked = link === null ? [] : [...(link.inApp ? [] : [daemonPill(link.connection)]), radioPill(link)];
-  const marks = [update === null ? null : updatePill(update), ...linked, sendingPill(values), gpsPill(values, gps), internetPill(igate)];
+  const marks = [update === null ? null : updatePill(update), ...linked, sendingPill(values), gpsPill(values, gps), internetPill(igate), mapPill(map)];
   return marks.filter((mark): mark is HeaderPill => mark !== null);
 }

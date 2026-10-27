@@ -534,45 +534,35 @@ describe("SetupGuide: the radio, Find my radio and the Terminal", () => {
 });
 
 describe("SetupGuide: the map and Finish", () => {
-  it("has the radius with the one plain Download map button on its own row under it, and Finish, the one primary, in place of Next", async () => {
-    const { wrapper, stand } = make();
+  it("asks nothing: it says the map of the setting's radius round the station is being downloaded, shows the progress, and has Finish, the one primary, in place of Next", async () => {
+    const { wrapper, stand } = make({ map: mapState({ state: "downloading", step: "area", percent: 42, downloaded: 1_000_000, radius_km: 150 }) });
     await stand(4);
     expect(wrapper.find(".setup-step-name").text()).toBe("Map");
-    expect(wrapper.findAll(".field label").map((l) => l.text())).toEqual(["Radius", "Detailed map"]);
-    expect(wrapper.find<HTMLInputElement>("#setup-radius").attributes("placeholder")).toBe("150");
-    expect(wrapper.find("#setup-maxzoom").exists()).toBe(false);
-    expect(wrapper.findAll(".mapfetch-button").map((b) => b.text())).toEqual(["Download map"]);
-    expect(wrapper.find(".mapfetch-button").classes()).not.toContain("primary");
-    expect(wrapper.find(".mapfetch-button").element.closest(".field")?.classList.contains("action-row")).toBe(true);
-    expect(wrapper.find(".mapfetch-button").element.parentElement?.firstElementChild).toBe(wrapper.find(".mapfetch-button").element);
+    expect(wrapper.findAll(".field label")).toHaveLength(0);
+    expect(wrapper.find("#setup-radius").exists()).toBe(false);
+    expect(wrapper.find(".mapfetch-button").exists()).toBe(false);
+    expect(wrapper.find(".setup-map").text()).toBe(
+      "NeoAPRS downloads the streets and names 150 km round your station by itself; it goes on in the background. The radius is in Settings → Map.",
+    );
+    expect(wrapper.find(".mapfetch-progress").text()).toContain("42%");
     expect(wrapper.findAll(".setup .primary").map((b) => b.text())).toEqual(["Finish"]);
     expect(wrapper.find("button[type=submit]").text()).toBe("Finish");
+    expect(wrapper.find("button[type=submit]").attributes("disabled")).toBeUndefined();
   });
 
-  it("has Download map on while the daemon has no position yet (the guide saves it first), and off for a wrong radius", async () => {
-    const { wrapper, stand, type } = make({ map: mapState({ blocked: "no position", box: null }) });
+  it("says the radius the settings have when the daemon has not told its map, and 'Map downloaded' once it is there", async () => {
+    const { wrapper, stand, config } = make({ map: null });
     await stand(4);
-    const mapButtons = () => wrapper.findAll(".mapfetch-button");
-    expect(mapButtons().every((b) => b.attributes("disabled") === undefined)).toBe(true);
-    await type("setup-radius", "5");
-    expect(mapButtons().every((b) => b.attributes("disabled") !== undefined)).toBe(true);
-    expect(wrapper.find("button[type=submit]").attributes("disabled")).toBeDefined();
-  });
-
-  it("saves first and then estimates, with one set_config in all, and Finish after it sends nothing more", async () => {
-    const { wrapper, guide, config, sent, stand, next } = make({ map: mapState({ blocked: "no position", box: null }) });
-    await stand(4);
-    await wrapper.findAll(".mapfetch-button")[0]?.trigger("click");
-    expect(sent.filter((c) => c.cmd === "set_config")).toHaveLength(1);
-    expect(sent.some((c) => c.cmd === "map_estimate")).toBe(false);
-    expect(wrapper.findAll(".mapfetch-button").every((b) => b.attributes("disabled") !== undefined)).toBe(true);
+    expect(wrapper.find(".setup-map").text()).toContain("150 km");
+    expect(wrapper.find(".mapfetch-notes").exists()).toBe(false);
     const now = config.value;
-    config.value = now && { ...now, values: { ...now.values, "station/call": "OH2ABC", "station/lat": "60.17", "station/lon": "24.94" } };
+    config.value = now && { ...now, values: { ...now.values, "map/radius_km": "300" } };
     await flushPromises();
-    expect(sent.at(-1)).toEqual({ cmd: "map_estimate" });
-    await next();
-    expect(sent.filter((c) => c.cmd === "set_config")).toHaveLength(1);
-    expect(guide.open).toBe(false);
+    expect(wrapper.find(".setup-map").text()).toContain("300 km");
+    wrapper.unmount();
+    const done = make({ map: mapState({ state: "ready", detail: mapFile() }) });
+    await done.stand(4);
+    expect(done.wrapper.find(".mapfetch-file").text()).toContain("Map downloaded");
   });
 
   it("sends the one set_config with the changed keys on Finish and shows 'Saving...' until the daemon answers", async () => {
@@ -611,14 +601,7 @@ describe("SetupGuide: the map and Finish", () => {
     expect(wrapper.find("#setup-baud").attributes("placeholder")).toBe("9600"); // (the speed of the profile)
     guide.step = 4;
     await nextTick();
-    expect(wrapper.find("#setup-radius").attributes("placeholder")).toBe("(default)");
-  });
-
-  it("has no map panel while the daemon has not told its map", async () => {
-    const { wrapper, stand } = make({ map: null });
-    await stand(4);
-    expect(wrapper.find(".mapfetch-button").exists()).toBe(false);
-    expect(wrapper.find(".mapfetch-notes").exists()).toBe(false);
+    expect(wrapper.find(".setup-map").exists()).toBe(true);
     expect(wrapper.find("button[type=submit]").text()).toBe("Finish");
   });
 });

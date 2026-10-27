@@ -102,6 +102,38 @@
 .updatedialog-news p {
   margin: 0 0 8px;
 }
+/* the release notes themselves: a box that scrolls, the sections of the versions in it, each version a small heading when there are several */
+.updatedialog-notes {
+  max-height: 40vh;
+  margin-bottom: 8px;
+  padding: 6px 12px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  font-size: 13px;
+}
+.updatedialog-notes h4,
+.updatedialog-notes h5 {
+  margin: 8px 0 4px;
+  font-size: 13px;
+}
+.updatedialog-notes h4 {
+  color: var(--accent);
+}
+.updatedialog-notes p {
+  margin: 4px 0;
+}
+.updatedialog-notes ul {
+  margin: 2px 0;
+  padding-left: 18px;
+}
+.updatedialog-notes li + li {
+  margin-top: 2px;
+}
+.updatedialog-notes code {
+  font: 12px var(--mono);
+}
 .updatedialog-now {
   display: flex;
   flex-wrap: wrap;

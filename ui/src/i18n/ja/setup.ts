@@ -34,6 +34,7 @@ export const setup: Record<keyof typeof source, Message> = {
   "setup.symbol.antenna": "アンテナ",
 
   "setup.map_auto": "周辺地図をダウンロードしています…",
+  "setup.map_text": "NeoAPRS は局の周囲 {radius} km の道路と地名を自動でダウンロードします。バックグラウンドで続きます。半径は 設定 → 地図 にあります。",
   "setup.map_later": "詳細地図はオンラインになったときにダウンロードされます。",
 
   "setup.beacon_every": "ビーコンは{minutes}分ごと",

@@ -87,6 +87,8 @@ export const help: Record<keyof typeof source, Message> = {
   "help.update.installed": "現在のバージョン: NeoAPRS {version}",
   "help.update.news": "新機能",
   "help.update.news_link": "{version} の新機能",
+  "help.update.news_loading": "新機能を取得しています…",
+  "help.update.news_failed": "新機能を取得できませんでした。リリースページにあります:",
   "help.update.now": "今すぐ更新",
   "help.update.retry": "もう一度試す",
   "help.update.cancel": "キャンセル",

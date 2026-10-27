@@ -170,12 +170,10 @@ describe("the radio step", () => {
 });
 
 describe("the map step", () => {
-  it("takes a radius of 10 to 1000 km", () => {
-    expect(stepOk(4, answered({ radius: "150" }), null)).toBe(true);
-    expect(stepOk(4, answered({ radius: "10" }), null)).toBe(true);
-    expect(stepOk(4, answered({ radius: "1000" }), null)).toBe(true);
-    for (const bad of ["9", "1001", "far", "1e2"]) expect(stepProblems(4, answered({ radius: bad })).radius, bad).toBe("10 to 1000");
-    expect(stepOk(4, answered({ radius: "" }), null)).toBe(false);
+  it("asks nothing: the map is downloaded by itself, and the radius is a setting", () => {
+    expect(stepOk(4, answered(), null)).toBe(true);
+    expect(stepProblems(4, answered())).toEqual({});
+    expect(Object.keys(fieldsFrom(fresh()))).not.toContain("radius");
   });
 });
 
@@ -191,7 +189,6 @@ describe("what the guide starts with", () => {
       baud: "",
       host: "127.0.0.1",
       tcpPort: "8001",
-      radius: "150",
     });
     expect(baudShown("kenwood-tnc2", "57600")).toBe("57600");
     expect(baudShown("kenwood-tnc2", " 9600 ")).toBe("");
@@ -221,7 +218,7 @@ describe("setupChanges", () => {
       "station/lon": "24.94",
       "beacon/interval_min": "30",
     });
-    expect(setupChanges(answered({ symbol: "/>", radius: "200", profile: "kantronics", port: "/dev/ttyUSB0", baud: "4800" }), fresh())).toEqual({
+    expect(setupChanges(answered({ symbol: "/>", profile: "kantronics", port: "/dev/ttyUSB0", baud: "4800" }), fresh())).toEqual({
       "station/call": "OH2ABC",
       "station/lat": "60.17",
       "station/lon": "24.94",
@@ -229,7 +226,6 @@ describe("setupChanges", () => {
       "tnc/profile": "kantronics",
       "serial/port": "/dev/ttyUSB0",
       "serial/baud": "4800",
-      "map/radius_km": "200",
       "beacon/interval_min": "30",
     });
   });
@@ -295,7 +291,7 @@ describe("the Dummy radio in the radio step", () => {
 
 describe("radioChanges", () => {
   it("is the keys of the radio among the changes, not the call, the position or the map", () => {
-    const f = answered({ port: "COM5", baud: "57600", radius: "99" });
+    const f = answered({ port: "COM5", baud: "57600" });
     expect(radioChanges(f, fresh())).toEqual({ "serial/port": "COM5", "serial/baud": "57600" });
     expect(radioChanges(answered({ profile: "kiss-tcp", host: "10.0.0.5" }), fresh())).toEqual({ "tnc/profile": "kiss-tcp", "tcp/host": "10.0.0.5" });
     expect(radioChanges(fieldsFrom(fresh()), fresh())).toEqual({});

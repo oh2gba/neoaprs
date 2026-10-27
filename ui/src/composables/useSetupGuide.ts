@@ -34,7 +34,7 @@ export function useSetupGuide(
     step.value = 0;
     reached.value = 0;
   }
-  const { saving, finish, sendMap, applyRadio } = useSetupSave(answers, config, lastError, send, step, done, map);
+  const { saving, finish, applyRadio } = useSetupSave(answers, config, lastError, send, step, done, map);
 
   watch(step, (now) => (reached.value = Math.max(reached.value, now)));
 
@@ -98,7 +98,6 @@ export function useSetupGuide(
     back: () => go(step.value - 1),
     next,
     finish,
-    sendMap,
     refreshPorts,
   });
 }

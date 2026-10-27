@@ -14,12 +14,12 @@ If the port says *permission denied* on Linux, add yourself to the group that ow
 On a fresh install the page opens a guide in five steps. It opens by itself once, when NeoAPRS has no call. The amber **no call set** button in the header and **Run the setup guide again** in the Settings tab open it again, and what you typed is still there.
 
 1. **Call.** Your call sign in the field, and beside it the **SSID** to choose: none for your main station, -9 for a car and so on ([beacon.md](beacon.md#the-call-and-its-ssid)). Pasting `OH2GBA-9` into the field works too.
-2. **Position.** Press **Choose on map** and click where you are, or drag the pin. Or click the place beside the button ("Not set" at first, which opens by itself) and type latitude and longitude in decimal degrees: north and east positive, south and west negative (Sydney is -33.87, 151.21). A Maidenhead locator works too. It is the same row as the Location of the Beacon tab ([beacon.md](beacon.md#the-location)).
-3. **Symbol.** The twelve usual ones are on top; a click on the symbol under them opens the picker with every symbol.
+2. **Position.** Press **Choose on map** and click where you are, or drag the pin. Or type latitude and longitude in decimal degrees in the fields under it: north and east positive, south and west negative (Sydney is -33.87, 151.21). A Maidenhead locator works too. It is the same row as the Location of the Beacon tab ([beacon.md](beacon.md#the-location)), with the fields open the whole time.
+3. **Symbol.** The twelve usual ones are on top; the symbol in force is shown under them, and **More symbols…** beside it opens the picker with every symbol.
 4. **Radio.** The type of TNC, and for a serial one the port and speed, for a TCP one the host and port ([radio.md](radio.md)).
-5. **Map.** A map of about 50 km is already being downloaded, with its progress; the **Radius** and the **Download map** button on the row under it make a bigger one ([page.md](page.md#the-base-map)).
+5. **Map.** Nothing to answer: the map of your area is already being downloaded, and the step shows how far it is. The radius (150 km unless you change it) and the **Download map** button are in Settings → Map ([page.md](page.md#the-base-map)).
 
-The map under the guide is the world, from the first second. When you press **Next** on the Position step, NeoAPRS saves the place and starts downloading a map of about 50 km round your station, so that it is there at the end of the guide; a quiet line says "Downloading the map of your area…" ([page.md](page.md#the-base-map)).
+The map under the guide is the world, from the first second. When you press **Next** on the Position step, NeoAPRS saves the place and starts downloading the streets and names 150 km round your station (the radius of Settings → Map), so that it is there soon after the guide; a quiet line says "Downloading the map of your area…", and a **Map** mark at the top of the page shows the percent until it is done ([page.md](page.md#the-base-map)).
 
 The Radio step has two helpers under its fields, the same as the Settings tab:
 

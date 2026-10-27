@@ -8,7 +8,7 @@ import pytest
 
 from neoaprs.config import MAP_AUTO
 from neoaprs.geo import box_around
-from neoaprs.services.mapauto import AUTO_RADIUS_KM, MapAuto, inside
+from neoaprs.services.mapauto import MapAuto, inside
 from neoaprs.services.mapfetch import DETAIL, WORLD, MapFetch
 from tests.support.clock import FixedClock
 from neoaprs.config import DEFAULTS
@@ -87,16 +87,24 @@ def bbox_of(call: list[str]) -> tuple[float, ...]:
     return tuple(float(v) for v in next(a for a in call if a.startswith("--bbox=")).split("=")[1].split(","))
 
 
-async def test_the_map_nobody_asked_for_is_50_km_round_the_station_and_the_radius_setting_is_not_touched(make) -> None:
+async def test_the_map_nobody_asked_for_is_the_settings_radius_round_the_station_150_km_unless_changed_and_the_setting_is_not_touched(make) -> None:
     rig = make()
     await rig.auto.start()
     await rig.move(HELSINKI)
     await until(lambda: rig.fetch.status().state == "ready", 5)
     assert rig.config.map_radius_km == 150 and rig.fetch.status().radius_km == 150
-    assert bbox_of(rig.fake.calls()[0]) == pytest.approx(box_around(*HELSINKI, AUTO_RADIUS_KM), abs=1e-5) and AUTO_RADIUS_KM == 50
+    assert bbox_of(rig.fake.calls()[0]) == pytest.approx(box_around(*HELSINKI, 150), abs=1e-5)
     assert "--maxzoom=12" in rig.fake.calls()[0]
-    await rig.fetch.fetch()                                                 # Settings, Map, Download: the setting's radius, as before
-    assert bbox_of(rig.fake.calls()[1]) == pytest.approx(box_around(*HELSINKI, 150), abs=1e-5)
+
+
+async def test_a_radius_the_operator_set_is_the_one_the_map_is_made_for(make) -> None:
+    rig = make()
+    rig.config = replace(rig.config, map_radius_km=40)
+    await rig.auto.start()
+    await rig.move(TURKU)
+    await until(lambda: rig.fetch.status().state == "ready", 5)
+    assert bbox_of(rig.fake.calls()[0]) == pytest.approx(box_around(*TURKU, 40), abs=1e-5)
+    assert rig.config.map_radius_km == 40
 
 
 async def test_it_is_once_for_an_installation_whatever_becomes_of_the_files_or_the_place(make) -> None:

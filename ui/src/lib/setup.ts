@@ -50,7 +50,6 @@ export interface SetupFields {
   baud: string;
   host: string;
   tcpPort: string;
-  radius: string;
 }
 
 export type FieldName = keyof SetupFields;
@@ -67,7 +66,6 @@ export const STEP_OF: Record<FieldName, number> = {
   baud: 3,
   host: 3,
   tcpPort: 3,
-  radius: 4,
 };
 
 /** The setting each field is the answer to (the locator and the symbol's two characters are the exceptions: they make other keys). */
@@ -82,7 +80,6 @@ export const KEY_OF: Record<string, FieldName> = {
   "serial/baud": "baud",
   "tcp/host": "host",
   "tcp/port": "tcpPort",
-  "map/radius_km": "radius",
 };
 
 export const profileOf = (key: string) => TNC_PROFILES.find((p) => p.key === key);
@@ -104,7 +101,7 @@ const CHECKS: ((f: SetupFields) => Problems)[] = [
       ? { host: problemOf("tcp/host", f.host, true), tcpPort: problemOf("tcp/port", f.tcpPort, true) }
       : { baud: problemOf("serial/baud", f.baud, true) };
   },
-  (f) => ({ radius: problemOf("map/radius_km", f.radius, true) }),
+  () => ({}), // (the Map step asks nothing: the map is downloaded by itself)
 ];
 
 export function stepProblems(step: number, f: SetupFields): Problems {
@@ -126,7 +123,7 @@ export function stepOk(step: number, f: SetupFields, search: boolean | null): bo
         profileOf(f.profile) !== undefined && (isDummy(f) || (isTcp(f) ? f.host.trim() !== "" && f.tcpPort.trim() !== "" : f.port !== "" || search !== false))
       );
     default:
-      return f.radius.trim() !== "";
+      return true;
   }
 }
 
@@ -160,7 +157,6 @@ export function fieldsFrom(values: Readonly<Record<string, string>>): SetupField
     baud: baudShown(profile, values["serial/baud"] ?? ""),
     host: values["tcp/host"] ?? "",
     tcpPort: values["tcp/port"] ?? "",
-    radius: values["map/radius_km"] ?? "",
   };
 }
 
@@ -183,7 +179,6 @@ export function setupChanges(f: SetupFields, values: Readonly<Record<string, str
     "station/symbol_table": f.symbol.slice(0, 1),
     "station/symbol_code": f.symbol.slice(1),
     "tnc/profile": f.profile,
-    "map/radius_km": f.radius.trim(),
   };
   if (isNewStation(values)) wanted["beacon/interval_min"] = NEW_STATION_BEACON_MIN;
   if (isTcp(f)) {

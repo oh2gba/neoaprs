@@ -90,6 +90,8 @@ export const help: Record<keyof typeof source, Message> = {
   "help.update.installed": "Você tem o NeoAPRS {version}",
   "help.update.news": "Novidades",
   "help.update.news_link": "Novidades da {version}",
+  "help.update.news_loading": "Buscando as novidades…",
+  "help.update.news_failed": "Não foi possível buscar as novidades; a página da versão as tem:",
   "help.update.now": "Atualizar agora",
   "help.update.retry": "Tentar de novo",
   "help.update.cancel": "Cancelar",

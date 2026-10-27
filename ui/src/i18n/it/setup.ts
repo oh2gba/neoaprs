@@ -33,6 +33,8 @@ export const setup: Readonly<Record<keyof typeof en, Message>> = {
   "setup.symbol.antenna": "Antenna",
 
   "setup.map_auto": "Download della mappa della tua zona…",
+  "setup.map_text":
+    "NeoAPRS scarica da sé le strade e i nomi entro {radius} km dalla tua stazione; continua in sottofondo. Il raggio è in Impostazioni → Mappa.",
   "setup.map_later": "La mappa dettagliata verrà scaricata quando sarai online.",
 
   "setup.beacon_every": "Beacon ogni {minutes} min",

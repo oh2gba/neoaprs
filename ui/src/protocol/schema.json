@@ -2353,6 +2353,26 @@
       "title": "MessageRow",
       "type": "object"
     },
+    "NoteSection": {
+      "additionalProperties": false,
+      "description": "One version's section of the changelog.",
+      "properties": {
+        "version": {
+          "description": "the version the section is of",
+          "type": "string"
+        },
+        "text": {
+          "description": "the section as it is written, markdown: paragraphs, `- ` bullets, `**bold**` and `code`",
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "text"
+      ],
+      "title": "NoteSection",
+      "type": "object"
+    },
     "ObjectKill": {
       "additionalProperties": false,
       "description": "Kills an object or an item of ours: the killed form is sent three times (at once, after a minute and after three) and then it is forgotten, and it leaves the map now. One that was never sent is removed at\nonce. Answered by the `del` of its row in `stations` (and in `own_objects` once the kill is sent, or at once), or by an `error` (no such object of ours).",
@@ -3611,6 +3631,59 @@
         "hops"
       ],
       "title": "ReachValues",
+      "type": "object"
+    },
+    "ReleaseNotes": {
+      "additionalProperties": false,
+      "description": "Asks what is new from this version to `version`, the newer one the update check found: the changelog of the project at the tag of that release (neoaprs/releasenotes.py), fetched once. Answered with `release_notes`.",
+      "properties": {
+        "cmd": {
+          "const": "release_notes",
+          "type": "string"
+        },
+        "version": {
+          "description": "the newer version, as `status.update.version` names it; another is answered with no sections",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "version"
+      ],
+      "title": "ReleaseNotesCommand",
+      "type": "object"
+    },
+    "ReleaseNotesMsg": {
+      "additionalProperties": false,
+      "description": "The answer to `release_notes`: the sections of the versions newer than this one up to the one asked for, the newest first; none with `problem` saying why (the notes could not be fetched, or the version is not the newer one known).",
+      "properties": {
+        "type": {
+          "const": "release_notes",
+          "type": "string"
+        },
+        "version": {
+          "description": "the version asked for",
+          "type": "string"
+        },
+        "sections": {
+          "description": "the newest first; empty with `problem`",
+          "items": {
+            "$ref": "#/$defs/NoteSection"
+          },
+          "type": "array"
+        },
+        "problem": {
+          "description": "why there are no sections, in a sentence; empty when there are",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "version",
+        "sections",
+        "problem"
+      ],
+      "title": "ReleaseNotesMessage",
       "type": "object"
     },
     "ReplaceOp": {
@@ -5679,6 +5752,7 @@
           "ping": "#/$defs/Ping",
           "qru_ask": "#/$defs/AskQru",
           "query": "#/$defs/QueryStation",
+          "release_notes": "#/$defs/ReleaseNotes",
           "send_message": "#/$defs/SendMessage",
           "set_config": "#/$defs/SetConfig",
           "set_station_path": "#/$defs/SetStationPath",
@@ -5703,6 +5777,9 @@
         },
         {
           "$ref": "#/$defs/CheckUpdate"
+        },
+        {
+          "$ref": "#/$defs/ReleaseNotes"
         },
         {
           "$ref": "#/$defs/Subscribe"
@@ -5819,6 +5896,7 @@
           "pong": "#/$defs/Pong",
           "ports": "#/$defs/PortsMsg",
           "radio_search": "#/$defs/RadioSearchMsg",
+          "release_notes": "#/$defs/ReleaseNotesMsg",
           "state": "#/$defs/StateMsg",
           "status": "#/$defs/Status",
           "update_result": "#/$defs/UpdateResultMsg",
@@ -5856,6 +5934,9 @@
         },
         {
           "$ref": "#/$defs/UpdateResultMsg"
+        },
+        {
+          "$ref": "#/$defs/ReleaseNotesMsg"
         },
         {
           "$ref": "#/$defs/RadioSearchMsg"

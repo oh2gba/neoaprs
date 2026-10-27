@@ -154,11 +154,7 @@ export function useDaemon(url: () => string = socketUrl) {
     version,
     mismatch,
     install,
-    updateResult: answers.updateResult,
-    weatherSeriesByCall: answers.weatherSeriesByCall,
-    alertResult: answers.alertResult,
-    ports: answers.ports,
-    radioSearch: answers.radioSearch,
+    ...answers.refs,
     send,
   };
 }

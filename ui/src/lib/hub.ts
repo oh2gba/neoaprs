@@ -18,6 +18,7 @@ import type {
   StationRow,
   StatusMessage,
   TopicValues,
+  ReleaseNotesMessage,
   UpdateResultMessage,
   WeatherSeriesMessage,
 } from "@/protocol/protocol";
@@ -38,6 +39,7 @@ export interface Store {
   weatherSeries(message: WeatherSeriesMessage): void;
   alertResult(message: AlertResultMessage): void;
   updateResult(message: UpdateResultMessage): void;
+  releaseNotes(message: ReleaseNotesMessage): void;
   ports(message: PortsMessage): void;
   radioSearch(message: RadioSearchMessage): void;
   replaceStations(rows: Record<string, StationRow>): void;
@@ -223,6 +225,9 @@ export class Hub {
         break;
       case "update_result":
         this.store.updateResult(message);
+        break;
+      case "release_notes":
+        this.store.releaseNotes(message);
         break;
       case "ports":
         this.store.ports(message);

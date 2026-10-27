@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // The one calm line at the top: the title, which is a link to the project's page (it looks like the title, not like a link: only a hover or the keyboard shows it), the amber button "no call set" while the call is empty (it opens the first-run guide: nothing is transmitted
 // until a call is set), the marks that say how things stand at the right (Daemon in a browser, Radio, RX only, Beacon off, Internet, GPS: lib/pills.ts, each a button that opens the place where it is set, with a hover title that says what it means; the Daemon mark has nothing to open), and the number of messages not seen, a button that opens them (the Email tab when all of them are the gateway's).
-// Our call is not here, nor the version: the call is in the Settings tab, the version in Settings → Update check. A newer version is the first mark, Update, which opens Settings → New version.
+// The Map mark says how far the download of the detailed map is. Our call is not here, nor the version: the call is in the Settings tab, the version in Settings → Update check. A newer version is the first mark, Update, which opens Settings → New version.
 import TagMark from "@/components/TagMark.vue";
 import MessageGlyph from "@/components/MessageGlyph.vue";
 import { t } from "@/i18n";
@@ -39,7 +39,7 @@ const PROJECT_URL = "https://oh2gba.github.io/neoaprs/";
         :title="t(pill.title, pill.titleValues)"
         :role="pill.target === null ? 'status' : undefined"
         @click="pill.target !== null && emit('open', pill.target, pill.focus)"
-        >{{ t(pill.text) }}</TagMark
+        >{{ t(pill.text, pill.textValues) }}</TagMark
       >
     </span>
     <TagMark v-if="unread > 0" as="button" class="badge headmail" :title="t('header.unread_open', { n: unread })" @click="emit('messages')">

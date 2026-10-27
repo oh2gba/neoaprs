@@ -47,7 +47,7 @@ describe("useSetupGuide: the steps", () => {
     const { guide } = setUp();
     expect(guide.open).toBe(false);
     expect(guide.step).toBe(0);
-    expect(guide.fields).toMatchObject({ call: "", lat: "", lon: "", symbol: "/-", profile: "kenwood-tnc2", radius: "150" });
+    expect(guide.fields).toMatchObject({ call: "", lat: "", lon: "", symbol: "/-", profile: "kenwood-tnc2" });
     expect(guide.valid).toEqual([false, false, true, true, true]);
   });
 
@@ -125,9 +125,7 @@ describe("useSetupGuide: the steps", () => {
     expect(guide.problems.tcpPort).toBe("1 to 65535");
     guide.edit("tcpPort", "8001");
     guide.go(4);
-    guide.edit("radius", "5");
-    expect(guide.problems.radius).toBe("10 to 1000");
-    expect(guide.valid[4]).toBe(false);
+    expect(guide.valid[4]).toBe(true); // (the Map step asks nothing)
   });
 
   it("goes back freely, goes forward only over steps that have what they need, and remembers the answers", () => {
@@ -230,7 +228,6 @@ describe("useSetupGuide: Finish", () => {
     guide.edit("port", "/dev/ttyUSB0");
     guide.edit("baud", "4800");
     guide.go(4);
-    guide.edit("radius", "200");
     expect(guide.changes).toEqual({
       "station/call": "OH2ABC",
       "station/lat": "60.17",
@@ -239,7 +236,6 @@ describe("useSetupGuide: Finish", () => {
       "tnc/profile": "kantronics",
       "serial/port": "/dev/ttyUSB0",
       "serial/baud": "4800",
-      "map/radius_km": "200",
       "beacon/interval_min": "30",
     });
     guide.next();
@@ -378,51 +374,6 @@ describe("useSetupGuide: Finish", () => {
     guide.go(4);
     guide.next();
     expect(guide.saving).toBe(false);
-  });
-});
-
-describe("useSetupGuide: the map step", () => {
-  it("sends the map command at once when there is nothing to save", () => {
-    const { guide, sent } = setUp(configValues());
-    expect(guide.sendMap({ cmd: "map_estimate" })).toBe(true);
-    expect(sent).toEqual([{ cmd: "map_estimate" }]);
-  });
-
-  it("saves what changed first, then sends the command when the daemon has told the settings: one set_config", async () => {
-    const { guide, sent, told, fill } = setUp();
-    guide.show();
-    fill();
-    guide.go(4);
-    guide.sendMap({ cmd: "map_fetch" });
-    expect(sent.filter((c) => c.cmd === "map_fetch")).toEqual([]);
-    expect(setConfigs(sent)).toHaveLength(1);
-    await told({ "station/call": "OH2ABC", "station/lat": "60.17", "station/lon": "24.94" });
-    expect(sent.at(-1)).toEqual({ cmd: "map_fetch" });
-    expect(guide.open).toBe(true); // not finished
-    guide.next(); // Finish: nothing is left to save
-    expect(setConfigs(sent)).toHaveLength(1);
-    expect(guide.open).toBe(false);
-  });
-
-  it("drops the command and shows the complaint when the daemon refuses the save", async () => {
-    const { guide, sent, fail, fill } = setUp();
-    guide.show();
-    fill();
-    guide.go(4);
-    guide.sendMap({ cmd: "map_estimate" });
-    await fail("set_config: station/call: 'OH2ABC' is taken");
-    expect(guide.problems.call).toBe("'OH2ABC' is taken");
-    expect(sent.filter((c) => c.cmd === "map_estimate")).toEqual([]);
-  });
-
-  it("passes other commands on, and does not save again while a save is out", () => {
-    const { guide, sent, fill } = setUp();
-    fill();
-    guide.go(4);
-    expect(guide.sendMap({ cmd: "map_cancel" })).toBe(true);
-    guide.sendMap({ cmd: "map_estimate" });
-    expect(guide.sendMap({ cmd: "map_estimate" })).toBe(false);
-    expect(setConfigs(sent)).toHaveLength(1);
   });
 });
 

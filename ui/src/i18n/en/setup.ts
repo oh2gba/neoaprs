@@ -31,6 +31,8 @@ export const setup = {
   "setup.symbol.antenna": "Antenna",
 
   "setup.map_auto": "Downloading the map of your area…",
+  "setup.map_text":
+    "NeoAPRS downloads the streets and names {radius} km round your station by itself; it goes on in the background. The radius is in Settings → Map.",
   "setup.map_later": "The detailed map will download when you are online.",
 
   "setup.beacon_every": "Beacon every {minutes} min",

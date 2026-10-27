@@ -18,6 +18,7 @@ import type {
   StationPref,
   StationRow,
   TncState,
+  ReleaseNotesMessage,
   UpdateResultMessage,
   WeatherSeriesMessage,
 } from "@/protocol/protocol";
@@ -49,6 +50,7 @@ function memory() {
     ports: [] as PortsMessage[],
     searches: [] as RadioSearchMessage[],
     updates: [] as UpdateResultMessage[],
+    notes: [] as ReleaseNotesMessage[],
     stations: new Map<string, StationRow>(),
     packets: new Map<string, PacketRow>(),
     messages: new Map<string, MessageRow>(),
@@ -77,6 +79,7 @@ function memory() {
     ports: (m) => seen.ports.push(m),
     radioSearch: (m) => seen.searches.push(m),
     updateResult: (m) => seen.updates.push(m),
+    releaseNotes: (m) => seen.notes.push(m),
     replaceStations: (rows) => (seen.stations = new Map(Object.entries(rows))),
     replacePackets: (rows) => (seen.packets = new Map(Object.entries(rows))),
     replaceMessages: (rows) => (seen.messages = new Map(Object.entries(rows))),

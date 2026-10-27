@@ -104,7 +104,7 @@ TypeScript types for both unions are in `ui/src/protocol/protocol.ts`, the JSON 
 
 ## Client to server
 
-37 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
+38 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
 
 ### `ping`
 
@@ -117,6 +117,14 @@ Answered with `status` at once (the daemon also sends one every 10 s).
 ### `update_check`
 
 Asks the version page now, the question of the daily update check; the daily schedule is left as it was. Answered with `update_result` and then a `status` (with the newer version, if there is one) to the page that asked.
+
+### `release_notes`
+
+Asks what is new from this version to `version`, the newer one the update check found: the changelog of the project at the tag of that release (neoaprs/releasenotes.py), fetched once. Answered with `release_notes`.
+
+| field | type | | description |
+|---|---|---|---|
+| `version` | string |  | the newer version, as `status.update.version` names it; another is answered with no sections |
 
 ### `subscribe`
 
@@ -420,7 +428,7 @@ the support bundle. At most 20 of a connection are logged in a minute; the rest 
 
 ## Server to client
 
-11 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
+12 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
 
 ### `hello`
 
@@ -538,6 +546,16 @@ The answer to `update_check`: what the version page said, or why it said nothing
 | `outcome` | "newer" \| "current" \| "no_answer" |  | `newer`: a newer version is out; `current`: this is the latest; `no_answer`: the page could not be reached or did not name a version |
 | `version` | string |  | the latest version for `newer`, this version for `current`; empty for `no_answer` |
 | `text` | string |  | for `no_answer` why, in a sentence; empty otherwise |
+
+### `release_notes`
+
+The answer to `release_notes`: the sections of the versions newer than this one up to the one asked for, the newest first; none with `problem` saying why (the notes could not be fetched, or the version is not the newer one known).
+
+| field | type | | description |
+|---|---|---|---|
+| `version` | string |  | the version asked for |
+| `sections` | NoteSection[] |  | the newest first; empty with `problem` |
+| `problem` | string |  | why there are no sections, in a sentence; empty when there are |
 
 ### `radio_search`
 
@@ -1143,6 +1161,15 @@ The base map: the files, the area and detail the settings ask for, the size esti
 | `world` | MapFileInfo \| null |  | `basemap-world.pmtiles`: the data folder's own when it has one, else the one that ships with the program; null if there is neither (a base map the page cannot draw) |
 | `later` | boolean |  | the detailed map was begun without being asked for (the first time a place was set) and could not be fetched yet, most likely for want of a connection; it is tried again at the next start. False once a job runs or a detailed map is there |
 | `aloha_km` | number \| null |  | the radius of the ALOHA circle round our position, in km to a tenth: the distance within which the stations heard on RF would fill the 1200 baud channel (WB4APR's method, worked out again every minute); null without a position and while the stations heard do not fill the channel (>= 0) |
+
+### NoteSection
+
+One version's section of the changelog.
+
+| field | type | | description |
+|---|---|---|---|
+| `version` | string |  | the version the section is of |
+| `text` | string |  | the section as it is written, markdown: paragraphs, `- ` bullets, `**bold**` and `code` |
 
 ### OwnBulletinRow
 

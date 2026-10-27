@@ -223,14 +223,22 @@ describe("the other places of the page", () => {
 
   it("Email: a mail offers its text and the address; the gateway's own reply only its text", async () => {
     const mail = mailItem(message(1, { to_call: "EMAIL-2", text: "jane@example.com Hello Jane" }));
-    wrapper = mount(EmailRow, { props: { item: mail, fresh: false, now: NOW, heardDirect: new Set<string>() }, attachTo: document.body, global: withDaemon(daemon) });
+    wrapper = mount(EmailRow, {
+      props: { item: mail, fresh: false, now: NOW, heardDirect: new Set<string>() },
+      attachTo: document.body,
+      global: withDaemon(daemon),
+    });
     await rightClick(wrapper.find("li.mail"));
     expect(labels()).toEqual(["Copy message", "Copy address"]);
     await choose("address");
     expect(written).toEqual(["jane@example.com"]);
     wrapper.unmount();
     const reply = mailItem(incoming(2, "EMAIL-2", { text: "Message sent" }));
-    wrapper = mount(EmailRow, { props: { item: reply, fresh: false, now: NOW, heardDirect: new Set<string>() }, attachTo: document.body, global: withDaemon(daemon) });
+    wrapper = mount(EmailRow, {
+      props: { item: reply, fresh: false, now: NOW, heardDirect: new Set<string>() },
+      attachTo: document.body,
+      global: withDaemon(daemon),
+    });
     await rightClick(wrapper.find("li.mail"));
     expect(labels()).toEqual(["Copy message"]);
   });
