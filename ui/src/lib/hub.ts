@@ -45,7 +45,7 @@ const ANSWERS: Partial<Record<Message["type"], keyof Store>> = {
 type TopicName = keyof TopicValues;
 export type Connection = "connecting" | "open" | "closed";
 
-/** Where what the daemon says goes. A keyed topic (stations, packets, messages, bulletins, own_objects, own_bulletins, station_prefs) is told item by item, the others (tnc, config, map, update, gps, igate, qru) as a whole. */
+/** Where what the daemon says goes. A keyed topic (stations, packets, messages, bulletins, own_objects, own_bulletins, station_prefs) is told item by item, the others (tnc, config, map, update, gps, igate, qru, general) as a whole. */
 export interface Store {
   connection(state: Connection): void;
   hello(message: HelloMessage): void;
@@ -74,6 +74,7 @@ export interface Store {
   replaceGps(value: TopicValues["gps"]): void;
   replaceIgate(value: TopicValues["igate"]): void;
   replaceQru(value: TopicValues["qru"]): void;
+  replaceGeneral(value: TopicValues["general"]): void;
   setStation(key: string, row: StationRow): void;
   setPacket(key: string, row: PacketRow): void;
   setMessage(key: string, row: MessageRow): void;
@@ -287,6 +288,7 @@ export class Hub {
     else if (topic === "gps") this.store.replaceGps(value as TopicValues["gps"]);
     else if (topic === "igate") this.store.replaceIgate(value as TopicValues["igate"]);
     else if (topic === "qru") this.store.replaceQru(value as TopicValues["qru"]);
+    else if (topic === "general") this.store.replaceGeneral(value as TopicValues["general"]);
     else this.store.replaceConfig(value as TopicValues["config"]);
   }
 

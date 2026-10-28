@@ -85,6 +85,8 @@ export const messages: Readonly<Record<keyof typeof en, Message>> = {
   "route.own": "Tu ruta: {path}",
   "route.rf_only": "Solo RF",
   "route.rf_only_title": "Los iGates no pasan estos mensajes a internet",
+  "route.request_path_tip": "Indicativos o alias separados por comas (OH2RDK-7,OH2RCH-2 o WIDE1-1,WIDE2-1), DIRECT para ninguno. Vacío es la ruta habitual.",
+  "route.request_rf_only_tip": "Añade RFONLY a la ruta: los iGates no pasan la petición a internet, y solo responden las estaciones al alcance de radio.",
 
   "compose.tnc_not_connected": "El TNC no está conectado",
   "compose.left": "{n} libres",

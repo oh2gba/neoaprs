@@ -19,6 +19,7 @@ export const TOPIC_NAMES = [
   "gps",
   "igate",
   "qru",
+  "general",
 ] as const;
 
 /** Every message the daemon sends (the `type` of the Message union). */
@@ -325,6 +326,12 @@ export const LIMITS = {
   object: { nameMax: 9, itemNameMin: 3, nameForbidden: "!_|~", commentMax: 43, commentMaxMotion: 36, courseMax: 359, speedMaxKmh: 1850, qruGroupMax: 8, qruReserved: ["INFO", "NEXT"] },
   bulletin: { groupMax: 5 },
   qru: { kmMax: 20000, askEverySec: 60, askGapSec: 10 },
+  general: {
+    askEverySec: 60,
+    countSec: 120,
+    quietMin: 10,
+    queries: { aprs: "?APRS?", igate: "?IGATE?", wx: "?WX?" },
+  },
   station: { hours: [1, 3, 6, 12, 24], defaultHours: 3 },
 } as const;
 

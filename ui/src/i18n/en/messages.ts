@@ -84,6 +84,8 @@ export const messages = {
   "route.own": "Your path: {path}",
   "route.rf_only": "RF only",
   "route.rf_only_title": "iGates do not put these messages on the internet",
+  "route.request_path_tip": "Calls or aliases separated by commas (OH2RDK-7,OH2RCH-2 or WIDE1-1,WIDE2-1), DIRECT for none. Empty is the usual path.",
+  "route.request_rf_only_tip": "Adds RFONLY to the path: iGates keep the request off the internet, and only stations in radio range answer.",
 
   "compose.tnc_not_connected": "The TNC is not connected",
   "compose.left": "{n} left",

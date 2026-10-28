@@ -22,3 +22,10 @@ export function usePersistedNumber(key: string, fallback: number, min: number, m
   watch(value, (v) => writeStored(key, String(v)));
   return value;
 }
+
+/** A text as it was typed, at most `max` characters (a longer one that was stored is cut). */
+export function usePersistedText(key: string, fallback: string, max: number): Ref<string> {
+  const value = ref((readStored(key) ?? fallback).slice(0, max));
+  watch(value, (v) => writeStored(key, v));
+  return value;
+}

@@ -89,6 +89,29 @@ async def test_a_request_goes_by_the_path_set_for_qru_with_rfonly_after_it() -> 
     assert rig.lines() == ["OH2GBA>APZNEO,OH2RCH-2,RFONLY::QRU      :RP70 150"]
 
 
+@pytest.mark.parametrize("path, rf_only, line", [
+    ("OH2RDK-7,OH2RCH-2", True, "OH2GBA>APZNEO,OH2RDK-7,OH2RCH-2,RFONLY::QRU      :INFO"),
+    ("oh2rdk-7, oh2rch-2", False, "OH2GBA>APZNEO,OH2RDK-7,OH2RCH-2::QRU      :INFO"),
+    ("WIDE1-1,WIDE2-1", True, "OH2GBA>APZNEO,WIDE1-1,WIDE2-1,RFONLY::QRU      :INFO"),
+    ("DIRECT", False, "OH2GBA>APZNEO::QRU      :INFO"),
+    ("", True, "OH2GBA>APZNEO,OH2RCH-2,RFONLY::QRU      :INFO"),
+    (None, False, "OH2GBA>APZNEO,OH2RCH-2::QRU      :INFO"),
+])
+async def test_a_request_goes_by_the_path_given_else_the_path_of_messages_to_qru_and_rfonly_only_when_asked(path: str | None, rf_only: bool, line: str) -> None:
+    rig = Rig()
+    rig.paths["QRU"] = ("OH2RCH-2",)
+    rig.qru.ask("INFO", path, rf_only)
+    assert rig.lines() == [line]
+
+
+@pytest.mark.parametrize("path, code", [("OH2RDK-7,WIDE1-1,DIRECT", "path.direct_alone"), ("A1,A2,A3,A4,A5,A6,A7,A8", "path.too_long_rf_only"), ("not a call", "call.shape")])
+async def test_a_request_by_a_path_that_is_none_sends_nothing(path: str, code: str) -> None:
+    rig = Rig()
+    with pytest.raises(MessagingError) as refused:
+        rig.qru.ask("INFO", path)
+    assert refused.value.code == code and rig.tnc.sent == [] and rig.qru.asked is None
+
+
 async def test_a_path_that_rfonly_makes_too_long_sends_nothing() -> None:
     rig = Rig()
     rig.paths["QRU"] = tuple(f"A{n}" for n in range(8))
@@ -326,6 +349,17 @@ async def test_qru_ask_over_the_socket_sends_one_request_by_radio_only_and_keeps
     await page.send({"cmd": "qru_ask", "text": "info"})                                  # (another text: one request per minute, whatever it says)
     error = await page.expect("error")
     assert (error["cmd"], error["code"]) == ("qru_ask", "qru.too_soon") and error["params"]["seconds"] > 0
+
+
+async def test_qru_ask_over_the_socket_goes_by_the_path_given_and_without_rfonly_when_told(tmp_path: Path) -> None:
+    e, page = await with_page(tmp_path)
+    await page.send({"cmd": "qru_ask", "text": "INFO", "path": "OH2RDK-7,OH2RCH-2", "rf_only": False})
+    await page.until(lambda: page.topics["qru"]["asked"] is not None)
+    await until(lambda: [p["tnc2"] for p in page.topics["packets"].values() if p["direction"] == "out"] == ["OH2GBA>APZNEO,OH2RDK-7,OH2RCH-2::QRU      :INFO"])
+    e.now.advance(ASK_EVERY_SEC)                                                            # type: ignore[attr-defined]
+    await page.send({"cmd": "qru_ask", "text": "INFO", "path": "OH2RDK-7,???", "rf_only": True})
+    error = await page.expect("error")
+    assert (error["cmd"], error["code"]) == ("qru_ask", "call.shape")
 
 
 async def test_qru_ask_is_refused_in_rx_only_and_with_a_text_that_is_none(tmp_path: Path) -> None:

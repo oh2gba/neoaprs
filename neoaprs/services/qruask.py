@@ -1,7 +1,8 @@
 """Asking QRU: the client side of local info (the server's is services/qru.py; the words are neoaprs/qrutext.py).
 
 `ask` sends one message to the addressee `QRU`, as APRSISCE and YAAC do: a broadcast, so with no message id, once, not kept as a message of ours and never sent again, by the path of messages (`beacon/path`, or the one set
-for the station QRU) with RFONLY after it, so that the iGates keep it off APRS-IS and only the servers in radio range answer. It is refused under the transmit interlock (RX only, no call) and while the radio is away;
+for the station QRU) with RFONLY after it, so that the iGates keep it off APRS-IS and only the servers in radio range answer. The operator may give the request a path of its own (a station that reaches the network only
+through a fill-in digipeater that relays it when it is named, `OH2RDK-7,OH2RCH-2`) and leave RFONLY off; neither given is the path of messages with RFONLY, as before. It is refused under the transmit interlock (RX only, no call) and while the radio is away;
 the same request goes on the air once per ASK_EVERY_SEC (the servers answer one station once in that time anyway) and any two are ASK_GAP_SEC apart (the channel is shared); a request
 within either is refused with the seconds that are left. So a group can be asked for right after a server listed it.
 
@@ -18,13 +19,12 @@ from collections.abc import Callable
 from dataclasses import replace
 from datetime import datetime, timedelta
 
-from neoaprs import ax25
 from neoaprs.aprsmessage import MessageError, format_message
 from neoaprs.clock import Clock, utcnow
-from neoaprs.message import MessagingError, addressed_to, same_call
+from neoaprs.coded import CodedError
+from neoaprs.message import MessagingError, addressed_to, request_path, same_call
 from neoaprs.packet import ItemReport, Message, ObjectReport, Packet
 from neoaprs.qrutext import ANSWER_WINDOW_SEC, ARRIVAL_GRACE_SEC, ASK_EVERY_SEC, ASK_GAP_SEC, Asked, Closing, Listing, Server, ask_text, closing_of, listing_of
-from neoaprs.route import rf_only_path
 from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, our_call, our_frame
 from neoaprs.signal import Signal
 from neoaprs.tasks import TaskSet
@@ -58,9 +58,10 @@ class QruAsk:
         await self.tasks.cancel_all()
 
     # ---- asking
-    def ask(self, text: str) -> None:
-        """Sends the request (INFO, NEXT or a group, and a distance: neoaprs/qrutext.py). Raises MessagingError when it is none, nothing may be transmitted (RX only, no call), the radio is away, a request went less than
-        ASK_EVERY_SEC ago with the same text or any less than ASK_GAP_SEC ago (`qru.too_soon`, with the seconds that are left) or the frame is not taken."""
+    def ask(self, text: str, path: str | None = None, rf_only: bool = True) -> None:
+        """Sends the request (INFO, NEXT or a group, and a distance: neoaprs/qrutext.py) by `path` (calls separated by commas, DIRECT for none; None or empty is the path of messages to QRU) with RFONLY after it
+        when `rf_only`. Raises MessagingError when it is none, nothing may be transmitted (RX only, no call), the radio is away, a request went less than ASK_EVERY_SEC ago with the same text or any less than
+        ASK_GAP_SEC ago (`qru.too_soon`, with the seconds that are left), the path is no path or too long with RFONLY, or the frame is not taken."""
         config = self._config()
         our_call(config)
         request = ask_text(text)
@@ -71,10 +72,11 @@ class QruAsk:
             seconds = max(1, round(wait))
             raise MessagingError(f"too soon for another request for local info: wait {seconds} s", "qru.too_soon", seconds=seconds)
         try:
-            path = rf_only_path(self._paths(ADDRESSEE))
-            if len(path) > ax25.MAX_PATH:
-                raise MessagingError(f"path too long for RF only: {len(path)} digipeaters")
-            frame = our_frame(config, path, b":" + format_message(ADDRESSEE, request, None, None))
+            calls = request_path(path, () if path and path.strip() else self._paths(ADDRESSEE), rf_only)
+        except CodedError as e:
+            raise MessagingError(str(e), e.code, **e.params) from None
+        try:
+            frame = our_frame(config, calls, b":" + format_message(ADDRESSEE, request, None, None))
         except MessageError as e:
             raise MessagingError(str(e)) from None
         except FRAME_ERRORS as e:

@@ -9,11 +9,14 @@ from .wirebase import Iso, _Command, _Model
 class AskQru(_Command):
     """Asks the stations near us for local info (repeaters, events, places): one message to the addressee `QRU` (the services/qruask.py of the daemon), whose `text` is `INFO` (which groups are served near
     us?), `NEXT` (the next objects of the group asked for last) or a group of 1 to 8 upper-case letters and digits (`RP70`), with a distance in kilometres, 1 to 20000, after it (`INFO 250`). A request to QRU is a
-    broadcast: it is sent once, with no message id, is not kept as a message and is not sent again; it goes by the path of messages with RFONLY after it, by radio only. The answers come as messages to us (they are
+    broadcast: it is sent once, with no message id, is not kept as a message and is not sent again; it goes by `path` when one is given (digipeater calls or aliases separated by commas, checked as the setting
+    `beacon/path` is, or `DIRECT` for none), else by the path of messages to the station QRU (its own path, else `beacon/path`), with RFONLY after it unless `rf_only` is false: by radio only. The answers come as messages to us (they are
     rows of the topic `messages` like any message) and as the topic `qru`; the objects arrive as objects. Answered with an `error` when the text is none, RX only is ticked or no call is set (`transmit.off`, or the
-    interlock's reason), the radio is away, or a request to QRU was sent less than 60 seconds ago, whatever it said (`qru.too_soon`, with the `seconds` that are left)."""
+    interlock's reason), the radio is away, a request to QRU was sent less than 60 seconds ago, whatever it said (`qru.too_soon`, with the `seconds` that are left), or the path is no path or too long with RFONLY (`path.*`, `call.*`)."""
     cmd: Literal["qru_ask"]
     text: str = Field(min_length=1, max_length=32, pattern=r"^[A-Za-z0-9]{1,8}( \d{1,5})?$")
+    path: str | None = Field(default=None, max_length=256, description="the path the request goes by; left out (or null, or empty) the path of messages to QRU")
+    rf_only: bool = Field(default=True, description="RFONLY after the path; left out it is true")
 
 
 class QruGroup(_Model):

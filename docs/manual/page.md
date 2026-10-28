@@ -15,7 +15,7 @@ The page has a **map** of the area round your station and, at its right, a **pan
 |---|---|
 | **Messages** | the conversations with other stations ([messages.md](messages.md)) |
 | **Stations** | the table of stations, below |
-| **Nearby** | what is around you: the digipeaters, voice frequencies, iGates and stations heard direct |
+| **Nearby** | what is around you: Ask around, then the digipeaters, voice frequencies, iGates and stations heard direct |
 | **Email** | mail through the gateway ([email.md](email.md)) |
 | **Bulletins** | the message board and the box to post to it ([bulletins.md](bulletins.md)) |
 | **Objects** | your objects and items, and Local info, where you ask the stations near you for theirs ([objects.md](objects.md)) |
@@ -67,6 +67,15 @@ The tab lists only what was on the air near you: a station known from the intern
 - **Heard direct** are the stations heard with no digipeater between you, the ones in simplex range, with when each was last heard direct. Stations at the same distance (and those with none) are listed with the newest first.
 
 The tab has no count on it: nothing in it is waiting to be seen.
+
+#### Ask around
+
+The first box of the tab asks the stations in radio range to make themselves known, with one of the general queries of APRS: **Who is around** (`?APRS?`: the stations answer with their position, and their status if they have one), **iGates** (`?IGATE?`: the iGates answer with what they do) or **Weather stations** (`?WX?`: they answer with their weather). The query is in the hover text of each choice. **Ask** sends it once, by radio. The answers are ordinary packets: they arrive on the map, in the Stations tab and in the lists of this tab.
+
+- Under Ask, closed, is **Advanced**: the **Path** the query goes by and **RF only**. An empty path is your beacon's path, shown in the field. A path is calls or aliases separated by commas, as a station's own path is in Messages: `WIDE1-1,WIDE2-1`, or an explicit `OH2RDK-7,OH2RCH-2` for a station that reaches the network only through a fill-in digipeater that relays it when it is named, or `DIRECT` for none. A wrong path is red, with the reason in its hover text.
+- **RF only**, ticked unless you untick it, puts `RFONLY` after the path, so that the iGates keep the query off the internet. The browser remembers the query, the path and RF only.
+- Nothing is sent while **RX only** is ticked or your call is not set, or while the path is wrong; one query of each kind goes on the air per minute. Ask is off then, and its hover text says why; a query the daemon refuses says why under it.
+- Under it, two quiet lines say what was asked, when and by what path ("Asked who is around at 18:05 by OH2RDK-7,OH2RCH-2; answers arrive on the map and in Stations"), and how many stations were heard on the radio in the two minutes after the query that had not been heard in the ten minutes before it. Their calls are in its hover text. Most of them are answers, but a station cannot be told to answer: one whose own beacon fell in those two minutes counts too, and the answer of a station heard a minute before the query does not. NeoAPRS forgets the queries when it stops.
 
 ### Packets
 

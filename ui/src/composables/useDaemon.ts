@@ -1,10 +1,11 @@
-// The daemon as the page sees it: the fourteen topics as reactive state (the stations' own paths and timeouts are `stationPrefs`), the status, the latest answer to `weather_series`, to `alert_test` and to `list_ports`, the state of the connection, and `send`. Opens the socket when the component that calls it is mounted and
+// The daemon as the page sees it: the fifteen topics as reactive state (the stations' own paths and timeouts are `stationPrefs`), the status, the latest answer to `weather_series`, to `alert_test` and to `list_ports`, the state of the connection, and `send`. Opens the socket when the component that calls it is mounted and
 // closes it when it is unmounted. The conversation itself is lib/hub.ts.
 import { onBeforeUnmount, onMounted, ref, shallowReactive, shallowRef, type Ref } from "vue";
 import type {
   BulletinRow,
   ConfigValues,
   ErrorMessage,
+  GeneralState,
   GpsState,
   HelloMessage,
   IgateState,
@@ -46,7 +47,7 @@ function fill<T>(into: Map<string, T>, rows: Record<string, T>, done?: Ref<boole
   if (done) done.value = true;
 }
 
-/** The topics that are told whole: the radio, the settings, the base map, Update now, the GPS, the iGate and local info (QRU). */
+/** The topics that are told whole: the radio, the settings, the base map, Update now, the GPS, the iGate, local info (QRU) and the general queries asked (Ask around). */
 function useWholeTopics() {
   const refs = {
     tnc: shallowRef<TncState | null>(null),
@@ -56,8 +57,12 @@ function useWholeTopics() {
     gps: shallowRef<GpsState | null>(null),
     igate: shallowRef<IgateState | null>(null),
     qru: shallowRef<QruState | null>(null),
+    general: shallowRef<GeneralState | null>(null),
   };
-  const handlers: Pick<Store, "replaceTnc" | "replaceConfig" | "replaceMap" | "replaceUpdate" | "replaceGps" | "replaceIgate" | "replaceQru"> = {
+  const handlers: Pick<
+    Store,
+    "replaceTnc" | "replaceConfig" | "replaceMap" | "replaceUpdate" | "replaceGps" | "replaceIgate" | "replaceQru" | "replaceGeneral"
+  > = {
     replaceTnc: (value) => (refs.tnc.value = value),
     replaceConfig: (value) => (refs.config.value = value),
     replaceMap: (value) => (refs.map.value = value),
@@ -65,6 +70,7 @@ function useWholeTopics() {
     replaceGps: (value) => (refs.gps.value = value),
     replaceIgate: (value) => (refs.igate.value = value),
     replaceQru: (value) => (refs.qru.value = value),
+    replaceGeneral: (value) => (refs.general.value = value),
   };
   return { refs, handlers };
 }

@@ -1,21 +1,30 @@
 <script setup lang="ts">
 // Local info (QRU), the last group box of the Objects tab (the stations that ask are answered with the objects that have a QRU group, the form's field; here we ask): **Ask** sends INFO to the stations near us (one request by radio only: the daemon sends it once, with RFONLY, at most one in a minute, and refuses it in RX only) with a distance in km that starts at the
-// map's radius (empty: the servers' own); under it the one status row of the groups (StatusFold): when the last request was sent and waiting for answers, then how many servers answered or that none did, or why it was refused. Ask is held for the minute,
-// with the time left in its title. The servers that answered are a row each: its call, its groups as tags, by their plain names (the number of objects in each; a press asks that group, with the same distance) and under them, quiet, how many objects its closing line says it sent and how many arrived ("sent 1 · 1 arrived"; its closing line is the hover). Fewer than it sent, once the daemon has waited for late ones, is the warn colour with Ask again
+// map's radius (empty: the servers' own), and under it the closed fold of the request's Path and RF only (RequestPath.vue, shared with Ask around; remembered by this browser for this box apart; left as they are, an empty path and RF only
+// ticked, the command carries neither and the request goes by the path of messages to QRU with RFONLY, as it always did); then the one status row of the groups (StatusFold): when the last request was sent and waiting for answers, then how many servers answered or that none did, or why it was refused. Ask is held for the minute,
+// with the time left in its title, and while the path is wrong, with the reason. The servers that answered are a row each: its call, its groups as tags, by their plain names (the number of objects in each; a press asks that group, with the same distance) and under them, quiet, how many objects its closing line says it sent and how many arrived ("sent 1 · 1 arrived"; its closing line is the hover). Fewer than it sent, once the daemon has waited for late ones, is the warn colour with Ask again
 // (the same request; it obeys the same waits as Ask). The objects themselves arrive as ordinary objects (the map, the Stations tab, where they carry the Local info tag); "in Stations" opens that tab and flashes the first of them.
 import { computed, ref, watch } from "vue";
 import InfoTip from "@/components/InfoTip.vue";
+import RequestPath from "@/components/RequestPath.vue";
 import StatusFold from "@/components/StatusFold.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
+import { useRequestPath } from "@/composables/useRequestPath";
 import { t } from "@/i18n";
 import { errorReason } from "@/i18n/errortext";
 import { attend } from "@/lib/attention";
+import { effectivePath } from "@/lib/messages";
 import { askWait, kmWrong, qruLook, requestText, sentLine } from "@/lib/qru";
 import { categoryLabel, groupName } from "@/lib/qrucategories";
 import { stationRowId } from "@/lib/stations";
 import { LIMITS } from "@/protocol/lists";
+import type { Command } from "@/protocol/protocol";
 
-const { qru, receiveOnly, send, config, lastError, now, panel } = useDaemonContext();
+const { qru, receiveOnly, send, config, lastError, now, panel, prefs, fallbackPath } = useDaemonContext();
+const request = useRequestPath("qru");
+const { path, rfOnly, problem } = request;
+/** The path a request goes by when none is typed: the one set for the station QRU, else the beacon's. */
+const usual = computed(() => effectivePath(prefs.paths.value, fallbackPath.value, "QRU").text || t("route.direct"));
 const typed = ref<string | null>(null); // (what the person typed; null until then, and the field is the map's radius)
 const km = computed({
   get: () => typed.value ?? config.value?.values["map/radius_km"] ?? "",
@@ -30,13 +39,12 @@ const waitFor = (word: string): number => askWait(asked.value, now.value, reques
 const wait = computed(() => waitFor("INFO"));
 const refusal = ref(""); // (why the daemon refused the last request, until the next one)
 const look = computed(() => qruLook(asked.value, servers.value, refusal.value, now.value));
-const off = computed(() => receiveOnly.value || wait.value > 0);
-const why = computed(() => (receiveOnly.value ? t("pill.rx_send") : wait.value > 0 ? t("objects.qru_wait", { seconds: wait.value }) : undefined));
-/** Why a group's button is off, or undefined when it may be pressed (RX only, or its own wait). */
-const groupWhy = (word: string): string | undefined => {
-  const seconds = waitFor(word);
-  return receiveOnly.value ? t("pill.rx_send") : seconds > 0 ? t("objects.qru_wait", { seconds }) : undefined;
-};
+/** Why a request that waits `seconds` may not go, or undefined when it may (RX only, the path, its wait). */
+const heldBy = (seconds: number): string | undefined =>
+  receiveOnly.value ? t("pill.rx_send") : problem.value !== "" ? problem.value : seconds > 0 ? t("objects.qru_wait", { seconds }) : undefined;
+const why = computed(() => heldBy(wait.value));
+/** Why a group's button is off, or undefined when it may be pressed (RX only, the path, or its own wait). */
+const groupWhy = (word: string): string | undefined => heldBy(waitFor(word));
 
 watch(lastError, (toast) => {
   if (toast?.cmd === "qru_ask") refusal.value = errorReason(toast);
@@ -46,25 +54,27 @@ watch(
   () => (refusal.value = ""),
 );
 
-/** Sends the request for the word (INFO or a group) with the distance of the field, unless that request is held (RX only, or its own wait: a group may go ten seconds after INFO, whose minute is not its own). */
+/** The request as the command carries it: the text, and the path and RF only only when the fold says other than the usual (an empty path and RF only ticked: the path of messages to QRU with RFONLY). */
+function command(text: string): Command {
+  return request.sent.value === null && rfOnly.value ? { cmd: "qru_ask", text } : { cmd: "qru_ask", text, path: request.sent.value, rf_only: rfOnly.value };
+}
+
+/** Sends the request for the word (INFO or a group) with the distance of the field, unless that request is held (RX only, the path, or its own wait: a group may go ten seconds after INFO, whose minute is not its own). */
 function ask(word: string): void {
   const text = requestText(word, km.value);
-  if (text === null || receiveOnly.value || waitFor(word) > 0) return;
+  if (text === null || groupWhy(word) !== undefined) return;
   refusal.value = "";
-  send({ cmd: "qru_ask", text });
+  send(command(text));
 }
 
-/** Why Ask again is off (RX only, or the wait for that request), or undefined when it may be pressed. */
-function againWhy(request: string): string | undefined {
-  const seconds = askWait(asked.value, now.value, request);
-  return receiveOnly.value ? t("pill.rx_send") : seconds > 0 ? t("objects.qru_wait", { seconds }) : undefined;
-}
+/** Why Ask again is off (RX only, the path, or the wait for that request), or undefined when it may be pressed. */
+const againWhy = (text: string): string | undefined => heldBy(askWait(asked.value, now.value, text));
 
-/** The same request once more, as it went (its own distance, not the field's). */
-function again(request: string): void {
-  if (againWhy(request) !== undefined) return;
+/** The same request once more, as it went (its own distance, not the field's), by the path of the fold. */
+function again(text: string): void {
+  if (againWhy(text) !== undefined) return;
   refusal.value = "";
-  send({ cmd: "qru_ask", text: request });
+  send(command(text));
 }
 
 /** The Stations tab, with the row of the first of the objects that arrived flashed. */
@@ -84,7 +94,7 @@ function inStations(names: readonly string[]): void {
       </InfoTip>
     </legend>
     <div class="qru-ask">
-      <button type="button" class="btn" :disabled="off || wrong" :title="why" @click="ask('INFO')">{{ t("objects.qru_ask") }}</button>
+      <button type="button" class="btn" :disabled="why !== undefined || wrong" :title="why" @click="ask('INFO')">{{ t("objects.qru_ask") }}</button>
       <input
         v-model="km"
         class="input mono qru-km"
@@ -99,6 +109,7 @@ function inStations(names: readonly string[]): void {
       />
       <InfoTip :label="t('settings.about', { label: t('objects.qru_km_label') })">{{ t("objects.qru_km_tip") }}</InfoTip>
     </div>
+    <RequestPath v-model:path="path" v-model:rf-only="rfOnly" :placeholder="usual" :problem="problem" />
     <StatusFold v-if="look" class="qrustatus" :state="look.state" :tone="look.tone" :line="look.line">
       <template v-if="asked" #default>
         <p class="igatefold">{{ t("objects.qru_request", { text: asked.text }) }}</p>

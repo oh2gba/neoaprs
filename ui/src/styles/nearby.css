@@ -18,6 +18,31 @@
   margin: 0 0 4px;
   font-size: 12px;
 }
+/* Ask around, the first box: the choice of query and Ask in one row, the fold of the path, and two quiet lines of one line each whose height is kept whatever they say (empty, or cut with an ellipsis and whole in the hover), so that
+   nothing under them moves when a query is sent or a station is counted */
+.ask-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0 2px;
+}
+.ask-kind {
+  flex: 0 1 14em;
+  min-width: 0;
+}
+.ask-line {
+  height: 1.5em;
+  margin: 0;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.5em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.ask-line.warn {
+  color: var(--warn);
+}
 .nearby-empty {
   padding: 6px 0 8px;
   text-align: left;

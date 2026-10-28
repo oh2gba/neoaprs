@@ -32,6 +32,7 @@ from .ownwire import BulletinPost, BulletinUnpost, ObjectKill, ObjectSet
 from .pageerrors import one_line
 from .messagewire import AlertTest, ConversationDelete, MessageCancel, MessageDelete, MessageRetry, OverheardDelete, QueryStation, SendMessage
 from .qruwire import AskQru
+from .generalwire import GeneralQuery
 from .portwire import FindRadio, FindRadioCancel, ListPorts
 from .replaywire import PositionHistory
 from .prefwire import ClearStationPath, SetStationPath, SetStationRfOnly
@@ -178,7 +179,14 @@ async def query_station(ctx: Ctx, cmd: QueryStation) -> None:
 async def qru_ask(ctx: Ctx, cmd: AskQru) -> None:
     """Local info is asked of the stations near us: one request to QRU, once, by radio only."""
     with refused(cmd.cmd):
-        ctx.ctl.qruask.ask(cmd.text)
+        ctx.ctl.qruask.ask(cmd.text, cmd.path, cmd.rf_only)
+
+
+@command(GeneralQuery)
+async def general_query(ctx: Ctx, cmd: GeneralQuery) -> None:
+    """The stations in radio range are asked a general query (?APRS?, ?IGATE?, ?WX?): one frame, once, by the path given (else beacon/path), RF only unless told otherwise."""
+    with refused(cmd.cmd):
+        ctx.ctl.generalask.ask(cmd.kind, cmd.path, cmd.rf_only)
 
 
 @command(MessageRetry)

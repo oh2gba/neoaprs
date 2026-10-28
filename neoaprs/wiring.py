@@ -25,7 +25,7 @@ log = logging.getLogger("neoaprs.wiring")
 packets_log = logging.getLogger("neoaprs.packets")
 # Who sees a packet, by its channel (Packet.via), as names of the parts in `Services`; no other part is handed a packet (tests/test_internet_gate.py walks the signals and holds them to these two lists).
 SEEN_BY_ALL = ("packetlog", "stationbook", "weatherlog")                              # the log, the book of stations and the weather trends take a packet whatever the channel
-ON_AIR_ONLY = ("messaging", "queries", "qruask", "ownobjects", "igate", "digipeater")                  # what answers, acknowledges, repeats or sends: only what was on the radio
+ON_AIR_ONLY = ("messaging", "queries", "qruask", "generalask", "ownobjects", "igate", "digipeater")                  # what answers, acknowledges, repeats or sends: only what was on the radio
 start_log = logging.getLogger("neoaprs.controller")          # what the start of the daemon says is the controller's, whoever does it
 
 
@@ -82,7 +82,7 @@ def wire(parts: Services) -> None:
     for handler in (packetlog.append, book.take, parts.weatherlog.take):                       # SEEN_BY_ALL
         tnc.packet.connect(handler)
         parts.internet_packet.connect(handler)
-    for on_air in (parts.messaging.on_packet, parts.queries.on_packet, parts.qruask.on_packet, parts.ownobjects.on_packet, parts.igate.on_packet, parts.digipeater.on_packet):          # ON_AIR_ONLY
+    for on_air in (parts.messaging.on_packet, parts.queries.on_packet, parts.qruask.on_packet, parts.generalask.on_packet, parts.ownobjects.on_packet, parts.igate.on_packet, parts.digipeater.on_packet):          # ON_AIR_ONLY
         tnc.packet.connect(AirOnly(on_air))                       # (the digipeater last: what was heard is logged and handled before the copy that is sent; the iGate puts what the radio hears on APRS-IS, nothing comes the other way)
     parts.aprsis.heard.connect(parts.hear_internet)               # what APRS-IS sends goes in by the one gate for packets from the internet
     parts.aprsis.changed.connect(parts.igate.link_changed)

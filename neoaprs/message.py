@@ -12,7 +12,7 @@ from neoaprs.aprsmessage import FORBIDDEN, MAX_TEXT, MessageError
 from neoaprs.ax25 import MAX_PATH
 from neoaprs.coded import CodedError
 from neoaprs.callsign import format_call, normal_name, parse_call
-from neoaprs.route import DIRECT_ONLY
+from neoaprs.route import DIRECT_ONLY, rf_only_path
 
 State = Literal["sending", "acked", "rejected", "failed", "unconfirmed", "cancelled", "received", "overheard"]
 STATES: tuple[str, ...] = get_args(State)
@@ -88,6 +88,20 @@ def path_choice(text: str) -> tuple[str, ...] | None:
     if not text.strip():
         return None
     return () if text.strip().upper() == DIRECT_ONLY else normal_path(text)
+
+
+def request_path(text: str | None, fallback: tuple[str, ...], rf_only: bool) -> tuple[str, ...]:
+    """The path a request of ours goes by (a general query, a request to QRU): the one the operator typed, checked as `path_choice` checks a path (explicit digipeaters such as OH2RDK-7,OH2RCH-2, aliases such
+    as WIDE1-1,WIDE2-1, DIRECT for none at all), else `fallback` when nothing is typed, with RFONLY after it when `rf_only`, so that the iGates keep it off the internet. Raises CodedError: what is typed is
+    no path, or RFONLY makes it longer than the MAX_PATH addresses a frame carries."""
+    calls = path_choice(text or "")
+    path = fallback if calls is None else calls
+    if not rf_only:
+        return path
+    added = rf_only_path(path)
+    if len(added) > MAX_PATH:
+        raise CodedError(f"path too long for RF only: {len(path)} digipeaters and RFONLY make more than the {MAX_PATH} a path may have", "path.too_long_rf_only", count=len(path), max=MAX_PATH)
+    return added
 
 
 def same_call(a: str, b: str) -> bool:

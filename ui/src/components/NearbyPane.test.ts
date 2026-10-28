@@ -47,9 +47,10 @@ const callsIn = (wrapper: ReturnType<typeof mount>, name: string) =>
 beforeEach(() => localStorage.clear());
 
 describe("NearbyPane", () => {
-  it("has the four lists, each with its count, in the order digipeaters, voice frequencies, iGates, heard direct, and nothing of QRU", () => {
+  it("has Ask around first, then the four lists, each with its count, in the order digipeaters, voice frequencies, iGates, heard direct, and nothing of QRU", () => {
     const { wrapper } = make();
     expect(wrapper.findAll("fieldset > legend").map((h) => h.text().replace(/ ?i$/, ""))).toEqual([
+      "Ask around",
       "Digipeaters 1",
       "Voice frequencies 2",
       "iGates 1",
@@ -59,7 +60,8 @@ describe("NearbyPane", () => {
 
   it("puts every list in a group box with its title as the legend, like the groups of the Settings tab, and none of them is Local info (QRU), which is in the Objects tab", () => {
     const { wrapper } = make();
-    expect(wrapper.findAll(".nearbypane > fieldset.nearby-section")).toHaveLength(4);
+    expect(wrapper.findAll(".nearbypane > fieldset.nearby-section")).toHaveLength(5);
+    expect(wrapper.find(".nearbypane > fieldset.nearby-section").classes()).toContain("nearby-ask");
     expect(wrapper.find(".nearbypane .qru-ask, .nearbypane .objects-qru").exists()).toBe(false);
     expect(wrapper.find(".nearbypane > section").exists()).toBe(false);
   });
@@ -154,9 +156,9 @@ describe("NearbyPane", () => {
     expect(wrapper.find("tr.timedout").exists()).toBe(true);
   });
 
-  it("has no tickbox for the range: the circle is the selected digipeater's, on the map", () => {
+  it("has no tickbox for the range: the circle is the selected digipeater's, on the map (the one tickbox is Ask around's RF only)", () => {
     const { wrapper } = make(rows);
-    expect(wrapper.findAll("input[type='checkbox']")).toHaveLength(0);
+    expect(wrapper.findAll(".nearby-section:not(.nearby-ask) input[type='checkbox']")).toHaveLength(0);
     expect(wrapper.text()).not.toContain("Show range");
     expect(wrapper.find(".nearby-ranges").exists()).toBe(false);
   });

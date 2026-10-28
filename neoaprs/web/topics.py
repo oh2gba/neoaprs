@@ -16,6 +16,7 @@
     gps        the GPS fix, its state, and the moving station's beacon    changed by Gps.changed (a fix, a state or a problem) and by every packet of ours (the beacon went out) and every save of the settings; at most once a second
     igate      the receive-only iGate: connected or not, the packets gated and not gated    changed by Igate.changed (a connection state, a packet gated or not) and every save of the settings; at most once a second
     qru        the last request for local info and the QRU servers that answered    changed by QruAsk.changed (a request sent, a server heard, a note forgotten)
+    general    the last general query of each kind sent from here, and who spoke after it    changed by GeneralAsk.changed (a query sent, a station that had been quiet heard after it)
 
 Each row's values are built in neoaprs/web/views.py and typed in `TopicValues` of neoaprs/web/protocol.py. Nothing is built for a topic nobody follows, and a patch holds the items that changed, as they are when it is made.
 """
@@ -40,7 +41,7 @@ from .hub import StateHub, Topic
 from .mapview import map_state
 from .packetwindow import PACKETS_KEPT, PacketWindow
 from .updatewire import UpdateState
-from .views import bulletin_row, config_values, gps_state, igate_state, message_row, own_bulletin_row, own_object_row, pref_row, qru_state, station_row, tnc_state
+from .views import bulletin_row, config_values, general_state, gps_state, igate_state, message_row, own_bulletin_row, own_object_row, pref_row, qru_state, station_row, tnc_state
 
 log = logging.getLogger("neoaprs.web")
 
@@ -74,6 +75,7 @@ class Topics:
         hub.add(Topic("gps", lambda: gps_state(ctl.config, ctl.gps, ctl.beacon.mobile, ctl.beacon.next_due), interval=GPS_EVERY_SEC))
         hub.add(Topic("igate", lambda: igate_state(ctl.config, ctl.igate), interval=IGATE_EVERY_SEC))
         hub.add(Topic("qru", lambda: qru_state(ctl.qruask)))
+        hub.add(Topic("general", lambda: general_state(ctl.generalask.asked())))
         self.connected = False
 
     def _stations(self) -> dict[str, Any]:
@@ -137,7 +139,7 @@ class Topics:
             (ctl.bulletins.changed, self._bulletin_changed), (ctl.bulletins.removed, self._bulletin_changed),
             (ctl.ownobjects.changed, self._own_object_changed), (ctl.ownobjects.removed, self._own_object_changed),
             (ctl.ownbulletins.changed, self._own_bulletin_changed), (ctl.ownbulletins.removed, self._own_bulletin_changed),
-            (ctl.prefbook.changed, self._pref_changed), (ctl.qruask.changed, self._qru_changed), (ctl.mapfetch.changed, self._map_changed), (ctl.aloha.changed, self._map_changed), (ctl.selfupdate.changed, self._update_changed),
+            (ctl.prefbook.changed, self._pref_changed), (ctl.qruask.changed, self._qru_changed), (ctl.generalask.changed, self._general_changed), (ctl.mapfetch.changed, self._map_changed), (ctl.aloha.changed, self._map_changed), (ctl.selfupdate.changed, self._update_changed),
         ]
 
     def connect(self) -> None:
@@ -206,6 +208,9 @@ class Topics:
 
     def _qru_changed(self) -> None:
         self.hub.changed("qru")
+
+    def _general_changed(self) -> None:
+        self.hub.changed("general")
 
     def _gps_moved(self) -> None:
         """Our row follows the GPS at once (the book tells it); the distance and bearing of every other station are told whole now and then."""

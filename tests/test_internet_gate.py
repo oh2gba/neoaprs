@@ -83,7 +83,7 @@ def packet_takers(e: Env) -> dict[str, set[str]]:
 TAKERS = {
     "packetlog": {"append"}, "stationbook": {"take"}, "weatherlog": {"take"},                                   # SEEN_BY_ALL
     "messaging": {"on_packet", "echoed"}, "messaging.inbox": {"on_packet"}, "messaging.delivery": {"heard"},     # ON_AIR_ONLY: messaging and what it hands the packet to
-    "queries": {"on_packet"}, "qruask": {"on_packet", "answers"}, "ownobjects": {"on_packet"}, "igate": {"on_packet"}, "digipeater": {"on_packet"},
+    "queries": {"on_packet"}, "qruask": {"on_packet", "answers"}, "generalask": {"on_packet"}, "ownobjects": {"on_packet"}, "igate": {"on_packet"}, "digipeater": {"on_packet"},
     "qru": {"heard"}, "bulletins": {"heard"},                                                                    # (handed a message by the inbox)
 }
 
