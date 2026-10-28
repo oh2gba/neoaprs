@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Ask around.** The Nearby tab has a new first box that asks the stations in radio range to make themselves known: **Who is around** (`?APRS?`), **iGates** (`?IGATE?`) or **Weather stations** (`?WX?`), once, by radio. The answers arrive as ordinary packets on the map and in Stations; two quiet lines under Ask say what was asked, when and by what path, and how many stations that had been quiet for ten minutes spoke in the two minutes after. A new command, `general_query`, and a topic, `general`.
+- **A path for a request.** Ask around and Local info's Ask have a closed **Advanced** fold with the **Path** the request goes by and **RF only**: a station that reaches the network only through a fill-in digipeater that relays it when it is named can ask by `OH2RDK-7,OH2RCH-2`, as its messages go. Left as they are, a request to QRU goes as before. The browser remembers them.
+
 ## 0.12.0
 
 - **A menu on the map, and a statistics card.** A right-click on the map (a long press on a touch screen) opens a menu where the pointer is: Copy position (decimal degrees), Copy locator, and **Statistics**, which opens a card at the bottom right of the map with what the page has heard, counted up: the stations by how they were heard and what they run, the digipeaters and iGates, the ALOHA circle, the farthest stations direct and on the radio, the digipeaters most used, the packets in the database and in the last hour, the busiest station, the latest packets by kind and channel, and the radio's counters since the daemon started. At its top is a graph of the packets heard in each of the last 24 hours, counted by the daemon from its database (a new command, `packet_history`). It moves as packets come, Esc closes it with the station cards, and the browser remembers that it is open.

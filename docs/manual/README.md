@@ -2,7 +2,7 @@
 
 NeoAPRS is an APRS client for a radio or a TNC. It reads your radio, keeps every packet and station in a database on your computer, and shows them in a page: a map, a table of stations, the packets as they arrive, your messages as conversations, the state of the radio link and the settings.
 
-It sends your position (the beacon: of a fixed station at its place, or of a moving one that follows a GPS) and your messages, email through the APRS gateway, objects and bulletins of your own, and a status text. It answers messages and queries sent to you, and can repeat packets as a fill-in digipeater. Switched on, it also shows the stations of APRS-IS round you, receive only. A Nearby tab lists the digipeaters, voice frequencies, iGates and stations in simplex range that you have heard.
+It sends your position (the beacon: of a fixed station at its place, or of a moving one that follows a GPS) and your messages, email through the APRS gateway, objects and bulletins of your own, and a status text. It answers messages and queries sent to you, and can repeat packets as a fill-in digipeater. Switched on, it also shows the stations of APRS-IS round you, receive only. A Nearby tab lists the digipeaters, voice frequencies, iGates and stations in simplex range that you have heard, and asks the stations round you who is there.
 
 The program is a daemon with a web page. You can use it as a desktop app (a window and a tray icon) or as a service on a Raspberry Pi that you reach from a laptop or a phone.
 

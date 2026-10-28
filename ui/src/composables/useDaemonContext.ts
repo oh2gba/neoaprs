@@ -15,6 +15,7 @@ import type {
   AlertResultMessage,
   Command,
   ConfigValues,
+  GeneralState,
   GpsState,
   InstallInfo,
   IgateState,
@@ -45,6 +46,8 @@ export interface DaemonContext {
   igate: Read<IgateState | null>;
   /** local info (QRU): the last request sent from here and the servers that answered it; null until the daemon has told */
   qru: Read<QruState | null>;
+  /** asking around: the last general query of each kind sent from here and who spoke after it; null until the daemon has told */
+  general: Read<GeneralState | null>;
   map: Read<MapState | null>;
   /** Update now: whether this copy can update itself, and how the update it is doing goes */
   selfUpdate: Read<UpdateState | null>;

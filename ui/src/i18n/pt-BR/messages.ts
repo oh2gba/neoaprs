@@ -85,6 +85,9 @@ export const messages: Record<keyof typeof source, Message> = {
   "route.own": "Seu caminho: {path}",
   "route.rf_only": "Só RF",
   "route.rf_only_title": "Os iGates não colocam estas mensagens na internet",
+  "route.request_path_tip":
+    "Indicativos ou aliases separados por vírgulas (OH2RDK-7,OH2RCH-2 ou WIDE1-1,WIDE2-1), DIRECT para nenhum. Vazio é o caminho usual.",
+  "route.request_rf_only_tip": "Acrescenta RFONLY ao caminho: os iGates não passam o pedido à internet, e só respondem as estações ao alcance do rádio.",
 
   "compose.tnc_not_connected": "O TNC não está conectado",
   "compose.left": "restam {n}",

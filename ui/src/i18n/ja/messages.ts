@@ -85,6 +85,8 @@ export const messages: Record<keyof typeof source, Message> = {
   "route.own": "指定したパス: {path}",
   "route.rf_only": "RFのみ",
   "route.rf_only_title": "iGateはこれらのメッセージをインターネットに流しません",
+  "route.request_path_tip": "コールサインまたはエイリアスをカンマ区切りで (OH2RDK-7,OH2RCH-2 や WIDE1-1,WIDE2-1)。なしはDIRECT。空欄は通常のパス。",
+  "route.request_rf_only_tip": "パスの最後にRFONLYを付けます。iGateは問い合わせをインターネットに流さず、無線の届く局だけが応答します。",
 
   "compose.tnc_not_connected": "TNCが接続されていません",
   "compose.left": "残り{n}",

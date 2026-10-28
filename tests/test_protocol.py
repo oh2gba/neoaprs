@@ -197,7 +197,7 @@ DECODED = [
 COMMAND_EXAMPLES: dict[str, dict[str, Any]] = {
     "ping": {"cmd": "ping"}, "status": {"cmd": "status"}, "subscribe": {"cmd": "subscribe", "topics": ["packets", "tnc"]}, "unsubscribe": {"cmd": "unsubscribe", "topics": ["packets"]},
     "forget_station": {"cmd": "forget_station", "call": "OH2RDG"}, "forget_all_stations": {"cmd": "forget_all_stations"}, "list_ports": {"cmd": "list_ports"}, "find_radio": {"cmd": "find_radio"}, "find_radio_cancel": {"cmd": "find_radio_cancel"}, "set_config": {"cmd": "set_config", "values": {"station/lat": "61.5"}},
-    "beacon_now": {"cmd": "beacon_now"}, "status_now": {"cmd": "status_now"}, "send_message": {"cmd": "send_message", "to": "OH2RDG", "text": "hello"}, "query": {"cmd": "query", "call": "OH2RDG", "kind": "status"}, "qru_ask": {"cmd": "qru_ask", "text": "RP70 150"}, "message_retry": {"cmd": "message_retry", "id": 3},
+    "beacon_now": {"cmd": "beacon_now"}, "status_now": {"cmd": "status_now"}, "send_message": {"cmd": "send_message", "to": "OH2RDG", "text": "hello"}, "query": {"cmd": "query", "call": "OH2RDG", "kind": "status"}, "qru_ask": {"cmd": "qru_ask", "text": "RP70 150", "path": "OH2RDK-7,OH2RCH-2", "rf_only": False}, "general_query": {"cmd": "general_query", "kind": "aprs", "path": "WIDE1-1,WIDE2-1", "rf_only": True}, "message_retry": {"cmd": "message_retry", "id": 3},
     "message_cancel": {"cmd": "message_cancel", "id": 3}, "message_delete": {"cmd": "message_delete", "id": 3}, "conversation_delete": {"cmd": "conversation_delete", "call": "OH2RDG"},
     "overheard_delete": {"cmd": "overheard_delete", "from_call": "OH2AAA", "to_call": "OH2BBB"},
     "set_station_path": {"cmd": "set_station_path", "call": "OH2RDG", "path": "OH2RCH-2,WIDE2-1"},
@@ -300,10 +300,13 @@ def test_every_command_has_an_example_that_round_trips() -> None:
 @pytest.mark.parametrize("name", sorted(COMMAND_EXAMPLES))
 def test_a_command_with_an_extra_field_or_a_missing_one_or_a_wrong_type_is_refused(name: str) -> None:
     example = COMMAND_EXAMPLES[name]
+    model = next(t for t in COMMAND_TYPES if t.model_fields["cmd"].annotation.__args__[0] == name)      # type: ignore[union-attr]
     broken = [{**example, "surprise": 1}, {k: v for k, v in example.items() if k != "cmd"}, {**example, "cmd": "nonsense"}]
     for field in example:
         if field != "cmd":
-            broken += [{k: v for k, v in example.items() if k != field}, {**example, field: "7" if isinstance(example[field], int) else 7}]       # (a wrong type: text for a number, a number for the rest)
+            broken += [{**example, field: "7" if isinstance(example[field], int) else 7}]       # (a wrong type: text for a number, a number for the rest)
+            if model.model_fields[field].is_required():
+                broken += [{k: v for k, v in example.items() if k != field}]                     # (a field the command may leave out, as qru_ask's path, is no missing one)
     for command in broken:
         with pytest.raises(ValidationError):
             COMMANDS.validate_python(command)

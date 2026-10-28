@@ -38,6 +38,7 @@ from neoaprs.config import ANTENNA_DIRECTIONS, DEFAULT_STATION_HOURS, DEFAULTS, 
 from neoaprs.configstatus import MAX_STATUS  # noqa: E402
 from neoaprs.message import EMAIL_GATEWAY, check_text, normal_path  # noqa: E402
 from neoaprs.qrutext import ASK_EVERY_SEC, ASK_GAP_SEC, ASK_KM_MAX  # noqa: E402
+from neoaprs.services import generalask  # noqa: E402
 from neoaprs.ownbulletin import GROUP_MAX, PostError, make_bulletin, slot_of  # noqa: E402
 from neoaprs.ownobject import COMMENT_MAX, COMMENT_MAX_MOTION, COURSE_MAX, ITEM_NAME, NAME_FORBIDDEN, OBJECT_NAME, QRU_GROUP_MAX, QRU_RESERVED, SPEED_MAX_KMH, OwnError, make_object  # noqa: E402
 from neoaprs.aprsposition import uncompressed_position  # noqa: E402
@@ -228,6 +229,7 @@ def limits() -> dict[str, Any]:
                    "courseMax": COURSE_MAX, "speedMaxKmh": round(SPEED_MAX_KMH), "qruGroupMax": QRU_GROUP_MAX, "qruReserved": list(QRU_RESERVED)},
         "bulletin": {"groupMax": GROUP_MAX},
         "qru": {"kmMax": ASK_KM_MAX, "askEverySec": ASK_EVERY_SEC, "askGapSec": ASK_GAP_SEC},
+        "general": {"askEverySec": generalask.ASK_EVERY_SEC, "countSec": round(generalask.COUNT_FOR.total_seconds()), "quietMin": round(generalask.QUIET_BEFORE.total_seconds() / 60), "queries": dict(generalask.QUERIES)},
         "station": {"hours": list(STATION_HOURS), "defaultHours": DEFAULT_STATION_HOURS},
     }
 

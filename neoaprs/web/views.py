@@ -3,7 +3,7 @@ the station preferences, the TNC and the settings. The models of the wire module
 from the attribute of the object that has its name: what is written here is only what the object does not have as it is, the values that are worked out (a distance, the next time a thing
 is sent, the route as text)."""
 import json
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from datetime import datetime
 from typing import Any, Protocol
 
@@ -37,6 +37,7 @@ from .ownwire import OwnBulletinRow, OwnObjectRow
 from .packetwire import PacketRow
 from .prefwire import StationPref
 from .qruwire import QruAsked, QruGroup, QruServer, QruState
+from .generalwire import GeneralAsked, GeneralState
 from .stationwire import StationRow, TelemetryValues, WeatherValues
 from .tncwire import TncState, TncStats
 
@@ -187,6 +188,27 @@ class QruSource(Protocol):
     @property
     def asked(self) -> Asked | None: ...
     def servers(self) -> list[Server]: ...
+
+
+class AskedAround(Protocol):
+    """What the `general` topic needs of a general query sent (GeneralAsked of neoaprs/services/generalask.py)."""
+    @property
+    def kind(self) -> str: ...
+    @property
+    def query(self) -> str: ...
+    @property
+    def at(self) -> datetime: ...
+    @property
+    def path(self) -> tuple[str, ...]: ...
+    @property
+    def until(self) -> datetime: ...
+    @property
+    def new(self) -> tuple[str, ...]: ...
+
+
+def general_state(asked: Sequence[AskedAround]) -> dict[str, Any]:
+    """The `general` topic: the last general query of each kind and the stations heard after it."""
+    return GeneralState.row(None, asked=[GeneralAsked.row(a) for a in asked])
 
 
 def qru_state(qru: QruSource) -> dict[str, Any]:

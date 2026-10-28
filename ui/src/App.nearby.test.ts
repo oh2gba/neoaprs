@@ -25,7 +25,7 @@ describe("App: the Nearby tab", () => {
     const names = wrapper.findAll("[role='tab']").map((t) => t.text());
     expect(names.indexOf("Nearby")).toBe(names.indexOf("Stations") + 1);
     await tabButton(wrapper, "Nearby")?.trigger("click");
-    const section = wrapper.findAll("#pane-nearby fieldset")[0];
+    const section = wrapper.findAll("#pane-nearby fieldset.nearby-section:not(.nearby-ask)")[0];
     expect(section?.findAll("td.call").map((c) => c.text())).toEqual(["OH2RDG", "OH2RCH-2"]);
   });
 
@@ -43,7 +43,7 @@ describe("App: the Nearby tab", () => {
   it("has no Show range tickbox, and keeps nothing of it in the browser", async () => {
     const { wrapper } = await open();
     await tabButton(wrapper, "Nearby")?.trigger("click");
-    expect(wrapper.find("#pane-nearby input[type='checkbox']").exists()).toBe(false);
+    expect(wrapper.find("#pane-nearby .nearby-section:not(.nearby-ask) input[type='checkbox']").exists()).toBe(false); // (the one tickbox is Ask around's RF only)
     expect(wrapper.find("#pane-nearby").text()).not.toContain("Show range");
     expect(localStorage.getItem("NeoAPRS.ranges")).toBeNull();
   });
@@ -92,7 +92,7 @@ describe("App: the Nearby tab", () => {
     socket.say({ type: "patch", topic: "stations", rev: 1, ops: [{ op: "set", key: "OH7JHF-1", value: station("OH7JHF-1", { gated: 5, heard_via: [] }) }] });
     await flushPromises();
     await tabButton(wrapper, "Nearby")?.trigger("click");
-    const gates = wrapper.findAll("#pane-nearby fieldset")[2];
+    const gates = wrapper.findAll("#pane-nearby fieldset.nearby-section:not(.nearby-ask)")[2];
     expect(gates?.text()).toContain("OH7JHF-1");
     expect(gates?.text()).toContain("5 packets gated from the internet");
   });

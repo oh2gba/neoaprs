@@ -11,7 +11,7 @@ The docstrings and field descriptions are the documentation: `scripts/gen-protoc
 Nothing else in the repository describes the format.
 
 This module holds the two unions, the value of each topic (`TopicValues`) and the validators made from them. The models themselves are in the `neoaprs/web/*wire.py` modules, one for each area
-(the daemon, the hub, the stations, the packets, the TNC, the settings, the beacon, the messages, the message board, the objects and bulletins of ours, the station preferences, the weather, the base map, the GPS, the iGate, local info (QRU), Update now, what the page reports about itself), which import `neoaprs/web/wirebase.py` and nothing else of neoaprs/web/, never this module.
+(the daemon, the hub, the stations, the packets, the TNC, the settings, the beacon, the messages, the message board, the objects and bulletins of ours, the station preferences, the weather, the base map, the GPS, the iGate, local info (QRU), asking around (the general queries), Update now, what the page reports about itself), which import `neoaprs/web/wirebase.py` and nothing else of neoaprs/web/, never this module.
 
 Conventions: every time is UTC ISO 8601 ending in `Z` (`2026-10-21T12:00:00Z`); a station is referred to by its call and a packet by its id, never by a position in a list; the models are strict
 (no `"5"` for 5, no `1` for true) and reject fields they do not know. pydantic lives in `neoaprs/web/` only: the rest of `neoaprs/` stays free of it.
@@ -23,6 +23,7 @@ from pydantic import Field, TypeAdapter
 from .beaconwire import BeaconNow, StatusNow
 from .bulletinwire import BulletinDelete, BulletinRow
 from .configwire import ConfigValues, SetConfig
+from .generalwire import GeneralQuery, GeneralState
 from .gpswire import GpsState
 from .igatewire import IgateState
 from .historywire import PacketHistory, PacketHistoryMsg
@@ -44,7 +45,7 @@ from .wirebase import _Command, _Message, _Model
 
 
 # ---- Client to server
-AnyCommand = Union[Ping, AskStatus, CheckUpdate, ReleaseNotes, Subscribe, Unsubscribe, ForgetStation, ForgetAllStations, ListPorts, FindRadio, FindRadioCancel, SetConfig, BeaconNow, StatusNow, SendMessage, QueryStation, AskQru, MessageRetry, MessageCancel, MessageDelete, ConversationDelete, OverheardDelete, SetStationPath, ClearStationPath, SetStationRfOnly, WeatherSeries, PacketHistory, AlertTest, BulletinDelete, ObjectSet, ObjectKill, BulletinPost, BulletinUnpost, MapEstimate, MapFetch, MapWanted, MapCancel, UpdateNow, UpdateCancel, PageError]
+AnyCommand = Union[Ping, AskStatus, CheckUpdate, ReleaseNotes, Subscribe, Unsubscribe, ForgetStation, ForgetAllStations, ListPorts, FindRadio, FindRadioCancel, SetConfig, BeaconNow, StatusNow, SendMessage, QueryStation, AskQru, GeneralQuery, MessageRetry, MessageCancel, MessageDelete, ConversationDelete, OverheardDelete, SetStationPath, ClearStationPath, SetStationRfOnly, WeatherSeries, PacketHistory, AlertTest, BulletinDelete, ObjectSet, ObjectKill, BulletinPost, BulletinUnpost, MapEstimate, MapFetch, MapWanted, MapCancel, UpdateNow, UpdateCancel, PageError]
 Command = Annotated[AnyCommand, Field(discriminator="cmd")]
 """Every command the page may send."""
 
@@ -71,6 +72,7 @@ class TopicValues(_Model):
     gps: GpsState = Field(description="the GPS receiver and the moving station's beacon: the latest fix, its state, and when the next beacon by time is due; told whole as it changes, at most once a second")
     igate: IgateState = Field(description="the receive-only iGate: whether it is connected to APRS-IS, the server's name, the packets gated and not gated; told whole as it changes, at most once a second")
     qru: QruState = Field(description="local info (QRU): the last request sent from here and the servers that answered it, forgotten an hour after; told whole as it changes")
+    general: GeneralState = Field(description="asking around: the last general query of each kind sent from here (?APRS?, ?IGATE?, ?WX?) and the stations heard after it that had been quiet before it; told whole as it changes")
 
 
 TOPIC_NAMES: tuple[str, ...] = tuple(get_type_hints(TopicValues))

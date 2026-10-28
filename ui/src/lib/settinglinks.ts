@@ -17,8 +17,8 @@ export const TOGETHER: Record<string, readonly string[]> = {
   "tcp/port": ["tcp/host", "tcp/port"],
 };
 
-/** Whether the daemon's error is told in the place it is about and in no toast: the refusal of a setting is under its field (useSettingsAnswers), that of a request for local info in the row of its section (NearbyQru.vue). */
-export const refusedAtField = (error: { cmd: string } | null): boolean => error !== null && (error.cmd === "set_config" || error.cmd === "qru_ask");
+/** Whether the daemon's error is told in the place it is about and in no toast: the refusal of a setting is under its field (useSettingsAnswers), that of a request for local info in the row of its section (ObjectsQru.vue), that of a general query in the line of Ask around (NearbyAsk.vue). */
+export const refusedAtField = (error: { cmd: string } | null): boolean => error !== null && ["set_config", "qru_ask", "general_query"].includes(error.cmd);
 
 /** The values that must be sent with the change of `key` to `text` so that the change is valid at once: a serial device does not go with a TCP radio type (the port is cleared), and the radio as the source of the status needs a
  * rigctld (the usual one is filled in). `draft` is what the fields hold. */

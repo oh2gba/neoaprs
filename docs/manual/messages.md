@@ -134,7 +134,7 @@ The numbers (60 minutes, 2 packets, 3 digipeaters, 2 attempts) are fixed in the 
 
 ## A path for each station
 
-A station can have a path of its own, which overrides the automatic choice: the digipeaters that everything you send to it goes by, which means its messages (every attempt), their repeats and the acks of the messages it sends you. It is up to 8 digipeater calls separated by commas, checked as the beacon's path is, or the word `DIRECT` for no digipeaters at all. An empty field is not a path: it is the automatic choice.
+A station can have a path of its own, which overrides the automatic choice: the digipeaters that everything you send to it goes by, which means its messages (every attempt), their repeats and the acks of the messages it sends you. It is up to 8 digipeater calls separated by commas, checked as the beacon's path is, or the word `DIRECT` for no digipeaters at all. An empty field is not a path: it is the automatic choice. The requests to all stations round you (the Nearby tab's Ask around and the Objects tab's Local info) have a path of their own under their Advanced, checked the same way.
 
 The path belongs to the call as written, so OH2RDG and OH2RDG-7 have one each. A change counts from the next frame, and a message that is being sent goes on by the new path. The paths are yours, kept in the database apart from the station cache, so they survive a rebuilt cache and a restart.
 

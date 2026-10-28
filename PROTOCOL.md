@@ -104,7 +104,7 @@ TypeScript types for both unions are in `ui/src/protocol/protocol.ts`, the JSON 
 
 ## Client to server
 
-40 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
+41 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
 
 ### `ping`
 
@@ -222,13 +222,31 @@ station sends: a packet (the station's card changes) or a message (a row `in`). 
 
 Asks the stations near us for local info (repeaters, events, places): one message to the addressee `QRU` (the services/qruask.py of the daemon), whose `text` is `INFO` (which groups are served near
 us?), `NEXT` (the next objects of the group asked for last) or a group of 1 to 8 upper-case letters and digits (`RP70`), with a distance in kilometres, 1 to 20000, after it (`INFO 250`). A request to QRU is a
-broadcast: it is sent once, with no message id, is not kept as a message and is not sent again; it goes by the path of messages with RFONLY after it, by radio only. The answers come as messages to us (they are
+broadcast: it is sent once, with no message id, is not kept as a message and is not sent again; it goes by `path` when one is given (digipeater calls or aliases separated by commas, checked as the setting
+`beacon/path` is, or `DIRECT` for none), else by the path of messages to the station QRU (its own path, else `beacon/path`), with RFONLY after it unless `rf_only` is false: by radio only. The answers come as messages to us (they are
 rows of the topic `messages` like any message) and as the topic `qru`; the objects arrive as objects. Answered with an `error` when the text is none, RX only is ticked or no call is set (`transmit.off`, or the
-interlock's reason), the radio is away, or a request to QRU was sent less than 60 seconds ago, whatever it said (`qru.too_soon`, with the `seconds` that are left).
+interlock's reason), the radio is away, a request to QRU was sent less than 60 seconds ago, whatever it said (`qru.too_soon`, with the `seconds` that are left), or the path is no path or too long with RFONLY (`path.*`, `call.*`).
 
 | field | type | | description |
 |---|---|---|---|
 | `text` | string |  | (max 32 chars, min 1 chars) |
+| `path` | string \| null | optional | the path the request goes by; left out (or null, or empty) the path of messages to QRU (default `null`; max 256 chars) |
+| `rf_only` | boolean | optional | RFONLY after the path; left out it is true (default `true`) |
+
+### `general_query`
+
+Asks the stations in radio range a general query of APRS 1.0.1 (the services/generalask.py of the daemon): one frame from our call to our tocall whose information field is exactly `?APRS?` (`kind`
+`aprs`: who is around? the stations answer with their positions), `?IGATE?` (`igate`: the iGates answer with their capabilities) or `?WX?` (`wx`: the weather stations answer with their weather). It goes
+once, by `path` (digipeater calls or aliases separated by commas, `OH2RDK-7,OH2RCH-2` or `WIDE1-1,WIDE2-1`, checked as the setting `beacon/path` is, or `DIRECT` for none; null or empty is `beacon/path`)
+with `RFONLY` after it when `rf_only`. The answers are ordinary packets (rows of `stations` and `packets`); the topic `general` tells the query and the stations heard after it. Answered with an `error`
+when RX only is ticked or no call is set (`transmit.off`, or the interlock's reason), the radio is away, the path is no path (`path.*`, `call.*`) or is too long with RFONLY (`path.too_long_rf_only`),
+or the query of that kind was sent less than 60 seconds ago (`general.too_soon`, with the `seconds` that are left).
+
+| field | type | | description |
+|---|---|---|---|
+| `kind` | "aprs" \| "igate" \| "wx" |  |  |
+| `path` | string \| null |  | (max 256 chars) |
+| `rf_only` | boolean |  |  |
 
 ### `message_retry`
 
@@ -615,6 +633,7 @@ The value of each topic (`state` carries it, a `replace` op brings a new one).
 | `gps` | GpsState | the GPS receiver and the moving station's beacon: the latest fix, its state, and when the next beacon by time is due; told whole as it changes, at most once a second |
 | `igate` | IgateState | the receive-only iGate: whether it is connected to APRS-IS, the server's name, the packets gated and not gated; told whole as it changes, at most once a second |
 | `qru` | QruState | local info (QRU): the last request sent from here and the servers that answered it, forgotten an hour after; told whole as it changes |
+| `general` | GeneralState | asking around: the last general query of each kind sent from here (?APRS?, ?IGATE?, ?WX?) and the stations heard after it that had been quiet before it; told whole as it changes |
 
 ## Objects
 
@@ -1056,6 +1075,27 @@ A frequency to call on, from the local information at the start of a comment, a 
 | `offset_khz` | integer \| null |  | the offset from the transmit frequency in kHz (`-060` is -600); 0 is simplex; null when the standard offset is meant |
 | `range_km` | number \| null |  | the nominal range (`R25m` is 40.2 km) |
 | `rx_mhz` | number \| null |  | a separate receive frequency (`FFF.FFFrx`), MHz |
+
+### GeneralAsked
+
+A general query sent from here.
+
+| field | type | | description |
+|---|---|---|---|
+| `kind` | "aprs" \| "igate" \| "wx" |  | which query: `aprs` (?APRS?), `igate` (?IGATE?) or `wx` (?WX?) |
+| `query` | string |  | the information field it went with, `?APRS?`, `?IGATE?` or `?WX?` |
+| `at` | time |  | when it was sent |
+| `path` | string[] |  | the path it went by, `RFONLY` last when it was RF only; empty for no digipeaters |
+| `until` | time |  | when the counting of `new` ends, two minutes after it was sent |
+| `new` | string[] |  | the calls of the stations heard on the radio (not as a third-party packet, not from the internet) between the query and `until` that had not been heard on the radio in the ten minutes before it, in the order they were heard: most are answers, but a station cannot be told to answer, so this is no more than who spoke after a quiet spell |
+
+### GeneralState
+
+The general queries sent from here: the last one of each kind. Forgotten when the daemon stops. Told whole as it changes.
+
+| field | type | | description |
+|---|---|---|---|
+| `asked` | GeneralAsked[] |  | the last query of each kind, the oldest first; empty before one |
 
 ### GpsState
 
