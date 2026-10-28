@@ -146,7 +146,7 @@ describe("App: the Settings tab", () => {
     await flushPromises();
     await tabButton(wrapper, "Settings")?.trigger("click");
     expect(wrapper.find("#pane-settings .updateline").text()).toContain("0.4.0 available");
-    await wrapper.find("#pane-settings .updateline button").trigger("click");
+    await wrapper.find("#pane-settings .updateline button.btn").trigger("click");
     const panel = wrapper.find(".updatedialog");
     expect(panel.find("h2").text()).toBe("NeoAPRS 0.4.0 is available");
     expect(panel.find("code").text()).toContain("install.sh | sh");
@@ -166,7 +166,7 @@ describe("App: the Settings tab", () => {
     socket.say(status({ update: { version: "0.4.0", url: "", message: "" } }));
     await flushPromises();
     expect(wrapper.find("#pane-settings .updateline").text()).toContain("0.4.0 available");
-    expect(wrapper.find("#pane-settings .updateline button").text()).toBe("Update");
+    expect(wrapper.find("#pane-settings .updateline button.btn").text()).toBe("Update");
     expect(wrapper.find(".updatedialog").exists()).toBe(false);
     expect(wrapper.find(".toast").exists()).toBe(false);
   });

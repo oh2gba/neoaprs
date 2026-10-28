@@ -1,5 +1,7 @@
 <script setup lang="ts">
 // The last error the daemon (or the page) told, for a few seconds; a new one replaces it. The one that says RX only is a link to the tickbox (lib/settinglink.ts). A notice (composables/useNotice.ts: "Asked OH2XYZ for its status") takes the same place, in the colours of the Undo toast, and is replaced by whatever comes next.
+// What is in its slot is a line that stays until it is dismissed (components/WhatsNewLine.vue, after an update): it is drawn in the same place, in the colours of a notice, while there is nothing else to say, and comes back when what
+// was said has gone, so that the two are never one over the other.
 import { onBeforeUnmount, ref, watch } from "vue";
 import IconButton from "@/components/IconButton.vue";
 import type { Toast } from "@/composables/useDaemon";
@@ -48,5 +50,8 @@ onBeforeUnmount(() => clearTimeout(timer));
   <div v-else-if="shown" :key="shown.n" class="toast notice" role="status">
     <span>{{ shown.text }}</span>
     <IconButton kind="close" :label="t('common.dismiss')" :title="t('common.dismiss')" @click="shown = null" />
+  </div>
+  <div v-else-if="$slots.default" class="toast notice" role="status">
+    <slot />
   </div>
 </template>

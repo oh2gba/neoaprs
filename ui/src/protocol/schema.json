@@ -3980,14 +3980,19 @@
     },
     "ReleaseNotes": {
       "additionalProperties": false,
-      "description": "Asks what is new from this version to `version`, the newer one the update check found: the changelog of the project at the tag of that release (neoaprs/releasenotes.py), fetched once. Answered with `release_notes`.",
+      "description": "Asks what is new up to `version`: the newer one the update check found (what an update brings, from this version on), or this version itself (what the update the page's browser has seen brought: the notes of this\nversion, or with `since` of every version after that one). The changelog of the project at the tag of `version` (neoaprs/releasenotes.py), fetched once. Answered with `release_notes`.",
       "properties": {
         "cmd": {
           "const": "release_notes",
           "type": "string"
         },
         "version": {
-          "description": "the newer version, as `status.update.version` names it; another is answered with no sections",
+          "description": "the newer version, as `status.update.version` names it, or this one, as `hello.version` names it; another is answered with no sections",
+          "type": "string"
+        },
+        "since": {
+          "default": "",
+          "description": "the sections of the versions newer than this one; empty: this version for the newer one, and for this one its own section alone",
           "type": "string"
         }
       },
@@ -4000,7 +4005,7 @@
     },
     "ReleaseNotesMsg": {
       "additionalProperties": false,
-      "description": "The answer to `release_notes`: the sections of the versions newer than this one up to the one asked for, the newest first; none with `problem` saying why (the notes could not be fetched, or the version is not the newer one known).",
+      "description": "The answer to `release_notes`: the sections of the versions asked for, the newest first; none with `problem` saying why (the notes could not be fetched, or the version is neither the newer one known nor this one).",
       "properties": {
         "type": {
           "const": "release_notes",
@@ -4008,6 +4013,10 @@
         },
         "version": {
           "description": "the version asked for",
+          "type": "string"
+        },
+        "since": {
+          "description": "the `since` asked for, empty when there was none",
           "type": "string"
         },
         "sections": {
@@ -4025,6 +4034,7 @@
       "required": [
         "type",
         "version",
+        "since",
         "sections",
         "problem"
       ],

@@ -482,7 +482,8 @@ new default, which shows `NEOAPRS_TITLE`, counts, with one INFO line in the log;
 
 `neoaprs/services/updatecheck.py` asks `update/url` through `neoaprs/updatefetch.py`, `FIRST_SEC` (60) after the start and every `EVERY_SEC` (24 hours);
 `neoaprs/versions.py` compares the versions and reads the answer. It keeps the answer only if it is newer than ours, and the `status` message carries it.
-`check_now` is the same question on request (`update_check`, answered by `update_result`). `NEOAPRS_UPDATE_CHECK=0` switches it off for the run. The question carries
+`check_now` is the same question on request (`update_check`, answered by `update_result`). `NEOAPRS_UPDATE_CHECK=0` switches it off for the run.
+`release_notes` (the command of the same name) is the changelog read at a tag (`neoaprs/releasenotes.py`): at the newer version's, the sections from ours up to it; at our own, our section, or with `since` every section after that version up to ours (what the page shows once after an update, from the version its browser last saw). Each tag's changelog is fetched once and kept; no other version is fetched. The question carries
 the number of the installation as `id`: 16 random bytes as 32 lowercase hex characters, made the first time a question is asked and kept in the row `update/install_id` (state of the daemon, not a setting),
 so that the project can count installations; nothing derived from the machine goes into it. The kind of
 system sent is worked out by the process in `neoaprs/cli/installkind.py` and given to the controller; the `hello` message carries it so the page can say how to

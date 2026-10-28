@@ -1,5 +1,5 @@
 """What is new between two versions, read from the changelog (neoaprs/releasenotes.py): the sections by version, Unreleased and the preamble left out, the ones newer than ours up to the latest, the newest first."""
-from neoaprs.releasenotes import MAX_BYTES, Section, changelog_url, sections, sections_after
+from neoaprs.releasenotes import MAX_BYTES, Section, between, changelog_url, section_of, sections, sections_after
 
 CHANGELOG = """# Changelog
 
@@ -46,6 +46,14 @@ def test_what_is_new_is_the_sections_after_ours_up_to_the_latest_the_newest_firs
     assert [s.version for s in sections_after(CHANGELOG, "0.9.0", "0.10.1")] == ["0.10.1", "0.10.0"]
     assert sections_after(CHANGELOG, "0.10.2", "0.10.2") == []
     assert [s.version for s in sections_after(CHANGELOG, "0.10.2", "1.0.0-rc1")] == ["1.0.0-rc1"]
+
+
+def test_the_sections_between_two_versions_and_the_section_of_one() -> None:
+    found = sections(CHANGELOG)
+    assert [s.version for s in between(found, "0.10.0", "0.10.2")] == ["0.10.2", "0.10.1"]
+    assert [s.version for s in section_of(found, "0.10.1")] == ["0.10.1"]
+    assert [s.version for s in section_of(found, "0.10")] == ["0.10.0"], "a missing part counts as 0"
+    assert section_of(found, "0.11.0") == []
 
 
 def test_the_changelog_is_read_at_the_tag_of_the_release() -> None:

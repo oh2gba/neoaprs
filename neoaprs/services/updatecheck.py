@@ -2,7 +2,8 @@
 a setting; it comes from nowhere on the machine, so that the project can count installations) and nothing else. When the answer is a
 newer version, `latest` has it; the page is told in its next status and shows it beside the version. It is always on; `NEOAPRS_UPDATE_CHECK=0` in the environment switches it off for one run (the tests set it), and is looked at again an hour later while it is off.
 A page that cannot be reached or understood is only a line in the debug log: the next try is the next day. Nothing but that number is kept between runs. `check_now` is the same question asked on request (the Settings tab's Check now): it works whatever the switches
-say, tells what came of it, and leaves the schedule alone. `release_notes` is what is new between our version and the latest: the changelog at the tag of the latest release, fetched once and kept (neoaprs/releasenotes.py), for the page's What's new.
+say, tells what came of it, and leaves the schedule alone. `release_notes` is what is new between our version and the latest: the changelog at the tag of the latest release, fetched once and kept (neoaprs/releasenotes.py), for the page's What's new; or, asked for our own version, what the
+update we have had brought: the changelog at our tag, for the same window opened after the update.
 """
 import asyncio
 import logging
@@ -14,7 +15,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from neoaprs.config import INSTALL_ID
-from neoaprs.releasenotes import MAX_BYTES, Section, changelog_url, sections_after
+from neoaprs.releasenotes import MAX_BYTES, Section, between, changelog_url, section_of, sections
 from neoaprs.services.common import ConfigSource
 from neoaprs.services.memory import Memory
 from neoaprs.tasks import TaskSet
@@ -31,7 +32,7 @@ Fetch = Callable[[str, str, str, str], Awaitable[bytes | None]]     # (address, 
 FetchUrl = Callable[[str, str, str, int], Awaitable[bytes | None]]  # (address, version, platform, the most bytes wanted) to the body of the answer
 INSTALL_ID_FORM = re.compile(r"[0-9a-f]{32}")
 NOTES_UNREACHABLE = "the release notes could not be fetched"
-NOTES_UNKNOWN_VERSION = "no newer version of that number is known"
+NOTES_UNKNOWN_VERSION = "that version is neither the newer one known nor this one"
 
 
 @dataclass(frozen=True)
@@ -50,7 +51,7 @@ class UpdateCheck:
         self.platform = platform
         self._fetch = fetch
         self._fetch_url = fetch_url
-        self._notes: dict[str, list[Section]] = {}               # the release notes fetched, by the latest version they were fetched for
+        self._notes: dict[str, list[Section]] = {}               # every section of the changelog fetched, by the version at whose tag it was fetched: ours and the latest, no other
         self.first_sec = first_sec
         self.every_sec = every_sec
         self._environ = environ
@@ -120,19 +121,24 @@ class UpdateCheck:
                 return None
             return self._take(answer)
 
-    async def release_notes(self, version: str) -> tuple[list[Section], str]:
-        """What is new from our version to `version`, which must be the newer one the check found (a page asks for no other address): the sections of the changelog at its tag, the newest first, fetched once and kept; ([], why) when there are none to give."""
-        if self.latest is None or version != self.latest.version:
+    async def release_notes(self, version: str, since: str = "") -> tuple[list[Section], str]:
+        """What is new up to `version`, which must be the newer one the check found or our own (a page asks for no other address): the sections of the changelog at its tag of the versions newer than `since` and not newer
+        than `version`, the newest first. Without `since` it is ours for the newer version (what an update to it brings) and, for our own, only the section of our version (what the update we have had brought); a page that
+        remembers the version it last saw gives that one, so that an update over several versions shows all of them. The changelog of a tag is fetched once and kept; ([], why) when there are none to give."""
+        newer = self.latest is not None and version == self.latest.version
+        if not newer and version != self.version:
             return [], NOTES_UNKNOWN_VERSION
-        kept = self._notes.get(version)
-        if kept is not None:
-            return kept, ""
-        body = await self._fetch_url(changelog_url(version), self.version, self.platform, MAX_BYTES)
-        if body is None:
-            return [], NOTES_UNREACHABLE
-        found = sections_after(body.decode("utf-8", errors="replace"), self.version, version)
-        self._notes = {version: found}
-        return found, ""
+        found = self._notes.get(version)
+        if found is None:
+            body = await self._fetch_url(changelog_url(version), self.version, self.platform, MAX_BYTES)
+            if body is None:
+                return [], NOTES_UNREACHABLE
+            found = sections(body.decode("utf-8", errors="replace"))
+            kept = {self.version, self.latest.version if self.latest is not None else self.version}
+            self._notes = {tag: text for tag, text in self._notes.items() if tag in kept} | {version: found}
+        if since:
+            return between(found, since, version), ""
+        return (between(found, self.version, version) if newer else section_of(found, version)), ""
 
     async def check_now(self) -> CheckResult:
         """The same question on request, whether the daily check is on or not; `latest` follows the answer, and the timer of the daily check is not touched."""

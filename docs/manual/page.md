@@ -254,7 +254,7 @@ NeoAPRS finds the radio again by itself: there is nothing to press. The port and
 
 Where a status row or a message says "RX only: nothing is sent", the words are a link to the RX only tickbox: it opens Settings → Radio and flashes the group.
 
-The name and version of the program are in Settings → Update check, next to **Check now**. Its hover text says what the daemon costs the machine, every 10 seconds: its share of one CPU core in percent, its memory and the uptime (a sentence in the page's language: "NeoAPRS uses 0.3 % of one processor core and 42 MB of memory, running for 3 h").
+The name and version of the program are in Settings → Update check, next to **Check now**, with **What's new** after them: the release notes of the version you run ([install.md](install.md#updating)). Its hover text says what the daemon costs the machine, every 10 seconds: its share of one CPU core in percent, its memory and the uptime (a sentence in the page's language: "NeoAPRS uses 0.3 % of one processor core and 42 MB of memory, running for 3 h").
 
 When the update check has found a newer version, an **Update** mark is the first of the marks; it opens Settings → Update check, where **Update** beside the version opens the window of the update: what is new, **Update now** where NeoAPRS can update itself, and the steps by hand ([install.md](install.md#updating)).
 

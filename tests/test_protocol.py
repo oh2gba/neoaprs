@@ -156,8 +156,8 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
                          {"type": "position_history", "hours": 168, "start": "2026-10-20T12:00:00Z", "end": "2026-10-21T12:00:00Z", "stations": {}}],
     "update_result": [{"type": "update_result", "outcome": "newer", "version": "0.4.0", "text": ""}, {"type": "update_result", "outcome": "current", "version": "0.3.0", "text": ""},
                       {"type": "update_result", "outcome": "no_answer", "version": "", "text": "the version page could not be reached"}],
-    "release_notes": [{"type": "release_notes", "version": "0.4.0", "sections": [{"version": "0.4.0", "text": "- **Fixed:** the map download."}, {"version": "0.3.1", "text": "A small release."}], "problem": ""},
-                      {"type": "release_notes", "version": "0.4.0", "sections": [], "problem": "the release notes could not be fetched"}],
+    "release_notes": [{"type": "release_notes", "version": "0.4.0", "since": "", "sections": [{"version": "0.4.0", "text": "- **Fixed:** the map download."}, {"version": "0.3.1", "text": "A small release."}], "problem": ""},
+                      {"type": "release_notes", "version": "0.4.0", "since": "0.3.0", "sections": [], "problem": "the release notes could not be fetched"}],
     "radio_search": [{"type": "radio_search", "state": "trying", "port": "/dev/ttyUSB0", "baud": 9600, "profile": "", "number": 1, "total": 14},
                      {"type": "radio_search", "state": "found", "port": "bt://AA:BB:CC:DD:EE:FF", "baud": None, "profile": "kiss", "number": 0, "total": 0},
                      {"type": "radio_search", "state": "cancelled", "port": "", "baud": None, "profile": "", "number": 0, "total": 0}],
@@ -212,7 +212,7 @@ COMMAND_EXAMPLES: dict[str, dict[str, Any]] = {
     "clear_station_path": {"cmd": "clear_station_path", "call": "OH2RDG"},
     "set_station_rf_only": {"cmd": "set_station_rf_only", "call": "OH2RDG", "on": True},
     "set_station_alert": {"cmd": "set_station_alert", "call": "OH2RDG", "on_air": True, "within_km": 10, "direct": False},
-    "weather_series": {"cmd": "weather_series", "call": "OH2MUI", "hours": 24}, "speed_series": {"cmd": "speed_series", "call": "OH2ZMA-9", "hours": 24}, "packet_history": {"cmd": "packet_history", "hours": 24}, "position_history": {"cmd": "position_history", "hours": 3}, "alert_test": {"cmd": "alert_test"}, "update_check": {"cmd": "update_check"}, "release_notes": {"cmd": "release_notes", "version": "0.4.0"},
+    "weather_series": {"cmd": "weather_series", "call": "OH2MUI", "hours": 24}, "speed_series": {"cmd": "speed_series", "call": "OH2ZMA-9", "hours": 24}, "packet_history": {"cmd": "packet_history", "hours": 24}, "position_history": {"cmd": "position_history", "hours": 3}, "alert_test": {"cmd": "alert_test"}, "update_check": {"cmd": "update_check"}, "release_notes": {"cmd": "release_notes", "version": "0.4.0", "since": "0.3.0"},
     "bulletin_delete": {"cmd": "bulletin_delete", "sender": "OH2XYZ", "slot": "BLN3HAMS"},
     "object_set": {"cmd": "object_set", "name": "LEADER", "kind": "object", "lat": 60, "lon": 25, "symbol_table": "/", "symbol_code": ">", "comment": "Rescue 1", "course_deg": 88, "speed_kmh": 67, "path": "WIDE1-1", "qru_group": "RP70", "on_request": True},
     "object_kill": {"cmd": "object_kill", "name": "LEADER"},
@@ -315,10 +315,14 @@ def test_a_command_with_an_extra_field_or_a_missing_one_or_a_wrong_type_is_refus
     model = next(t for t in COMMAND_TYPES if t.model_fields["cmd"].annotation.__args__[0] == name)      # type: ignore[union-attr]
     broken = [{**example, "surprise": 1}, {k: v for k, v in example.items() if k != "cmd"}, {**example, "cmd": "nonsense"}]
     for field in example:
-        if field != "cmd":
-            broken += [{**example, field: "7" if isinstance(example[field], int) else 7}]       # (a wrong type: text for a number, a number for the rest)
-            if model.model_fields[field].is_required():
-                broken += [{k: v for k, v in example.items() if k != field}]                     # (a field the command may leave out, as qru_ask's path, is no missing one)
+        if field == "cmd":
+            continue
+        broken += [{**example, field: "7" if isinstance(example[field], int) else 7}]       # (a wrong type: text for a number, a number for the rest)
+        without = {k: v for k, v in example.items() if k != field}
+        if model.model_fields[field].is_required():
+            broken += [without]
+        else:                           # (a field the command may leave out, added after the command was out: packet_history's call, qru_ask's path and rf_only, release_notes' since; a page of before means its default)
+            assert getattr(COMMANDS.validate_python(without), field) == model.model_fields[field].get_default(call_default_factory=True)
     for command in broken:
         with pytest.raises(ValidationError):
             COMMANDS.validate_python(command)

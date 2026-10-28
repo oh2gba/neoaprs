@@ -1,6 +1,8 @@
 <script setup lang="ts">
 // The row of Settings → Update check: the button Check now and, next to it, one line: the version of NeoAPRS (its hover title is what the daemon costs the machine: the CPU share, the memory, the uptime), and after it the outcome of the check in the colour of its meaning
 // ("checking…", "up to date" in the ok colour, "0.10.1 available" with the button Update that opens the steps, "no answer" in the warn colour). The outcome goes after a few seconds; a newer version that is known stays.
+// Right after the version, always there with it, the link What's new: the window of the update with the notes of the version that runs (composables/useWhatsNew.ts), so that they can be read again after the update; it comes with the
+// version and before the words that change, so that nothing moves when they do.
 import { computed } from "vue";
 import ActionRow from "@/components/ActionRow.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
@@ -9,7 +11,7 @@ import { t } from "@/i18n";
 import { processText } from "@/lib/format";
 
 const props = defineProps<{ running: boolean; outcome: Outcome | null }>();
-const emit = defineEmits<{ check: []; update: [] }>();
+const emit = defineEmits<{ check: []; update: []; notes: [] }>();
 const { version, status } = useDaemonContext();
 
 /** What the daemon costs the machine, as a sentence: "NeoAPRS uses 0.3 % of one processor core and 42 MB of memory, running for 3 h". */
@@ -29,7 +31,10 @@ const offered = computed(() => known.value !== null && !props.running && (props.
   <ActionRow id="set-update-now" :label="t('settings.update.label')" :tip-label="t('settings.update.tip_label')">
     <button id="set-update-now" class="btn" type="button" :disabled="running" @click="emit('check')">{{ t("settings.update.check") }}</button>
     <span class="updateline" role="status">
-      <span v-if="version" class="updateversion" :title="cost">{{ t("settings.update.version", { version }) }}</span>
+      <template v-if="version">
+        <span class="updateversion" :title="cost">{{ t("settings.update.version", { version }) }}</span>
+        <button type="button" class="linkbutton updatenotes" @click="emit('notes')">{{ t("help.update.news") }}</button>
+      </template>
       <template v-if="word">
         <span aria-hidden="true">·</span> <span class="statetext" :class="word.tone">{{ word.text }}</span>
       </template>
