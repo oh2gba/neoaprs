@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // The map: the base map the daemon serves (no request leaves the machine), a marker with the APRS symbol and the call for every station that has a position, and a line for the track of
-// every station that has more than one; a mouse resting on a marker shows a small card with the station's main facts (lib/hovercard.ts), and the selected station has the route its packets come by drawn
+// every station that has more than one (the selected station's heavier, solid, on a pale casing and with a dot at each position: lib/tracklayers.ts); a mouse resting on a marker shows a small card with the station's main facts (lib/hovercard.ts), and the selected station has the route its packets come by drawn
 // to our own station (lib/routeline.ts). A marker dims and a track fades on the way to the station's timeout, and a station heard direct within the hour has a ring round its marker; a station past it is not drawn (unless it is the selected one, whose marker shows). The daemon always has a world map (the one that ships with the program), so the map is drawn from the first second; without any base map file, or when the files cannot be read, the background is blank and a line says so (over the first-run guide too: it is
 // the note's own layer, above the guide), and the stations are drawn all the same. With only the world map a line says there is no detailed map, with a button that takes the user to where it is made (not while the first-run guide is open, which makes it itself, or a download runs);
 // when the daemon makes the files again (`filesKey` changes) the style is set again. One map for the life of the page,
@@ -31,12 +31,11 @@ import { rangeCircleOf } from "@/lib/nearby";
 import { heardDirectRecently } from "@/lib/routes";
 import { routeFeatures } from "@/lib/routeline";
 import { addRouteLayers, ROUTE_SOURCE } from "@/lib/routelayers";
-import { addTrackLayers } from "@/lib/tracklayers";
+import { addTrackLayers, setTrackData } from "@/lib/tracklayers";
 import { placePin } from "@/lib/pinmarker";
 import MapMenu from "@/components/MapMenu.vue";
 import { useMapMenu } from "@/composables/useMapMenu";
 import { hasPosition } from "@/lib/stations";
-import { trackLines } from "@/lib/tracks";
 import type { StationRow } from "@/protocol/protocol";
 
 const WORLD_VIEW = { lat: 20, lon: 0, zoom: 1.5 }; // where the map opens while we have no position
@@ -114,7 +113,7 @@ function drawRoute(): void {
 function addLayers(): void {
   if (!map) return;
   circles.add(map); // (first: under the tracks and the route)
-  addTrackLayers(map, trackLines([], null, page.now.value, page.aging.value));
+  addTrackLayers(map);
   drawTracks();
   addRouteLayers(map, routeFeatures(undefined, page.stations.value, null));
   drawRoute();
@@ -126,7 +125,7 @@ function drawn(): StationRow[] {
 }
 
 function drawTracks(): void {
-  void map?.getSource<GeoJSONSource>("tracks")?.setData(trackLines(drawn(), openCalls(), page.now.value, page.aging.value));
+  if (map) setTrackData(map, drawn(), openCalls(), page.now.value, page.aging.value);
 }
 
 function makePlaced(call: string): Placed | null {

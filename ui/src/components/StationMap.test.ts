@@ -191,6 +191,31 @@ describe("StationMap", () => {
     expect(lastData().features[0]?.properties.opacity).toBeLessThan(1);
   });
 
+  it("draws the selected station's trail above the others, with a dot at each of its positions, and no dots for no selection", async () => {
+    const wrapper = await mounted({ aging: aging(10) });
+    const map = FakeMap.last();
+    map.fire("style.load");
+    expect(map.layers.slice(map.layers.indexOf("tracks-line"))).toEqual(
+      expect.arrayContaining(["tracks-line", "tracks-selected-casing", "tracks-selected", "tracks-points"]),
+    );
+    expect(map.layers.indexOf("tracks-selected")).toBeGreaterThan(map.layers.indexOf("tracks-line"));
+    expect(map.layers.indexOf("tracks-points")).toBeGreaterThan(map.layers.indexOf("tracks-selected"));
+    const points = () =>
+      (
+        map.getSource("track-points")?.setData.mock.calls.at(-1)?.[0] as {
+          features: { properties: { call: string; opacity: number }; geometry: { coordinates: [number, number] } }[];
+        }
+      ).features;
+    expect(points()).toEqual([]);
+    await wrapper.setProps({ selected: "OH2PU-9" });
+    expect(points().map((f) => f.geometry.coordinates)).toEqual([
+      [24.6, 60.19],
+      [24.65, 60.2],
+    ]);
+    expect(points().map((f) => f.properties.call)).toEqual(["OH2PU-9", "OH2PU-9"]);
+    expect(lastData().features.find((f) => f.properties.call === "OH2PU-9")).toMatchObject({ properties: { selected: 1 } });
+  });
+
   it("draws the tracks again once a minute and when a station changes, not at every tick of the clock", async () => {
     const wrapper = await mounted({ aging: aging(10) });
     FakeMap.last().fire("style.load");
