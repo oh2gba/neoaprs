@@ -1,6 +1,6 @@
 // The page put together (App.vue is its layout): the daemon, the clock, the settings that apply as they are changed, the first-run guide, the panel, the tabs' models, the station cards, the statistics card and the places picked on the map, with what the shell itself decides:
-// the ports are asked for each time the daemon is connected, the guide opens once by itself when the daemon has no call, the steps of an update are open on purpose and go with the newer version, and the mail of the header opens the tab that has the messages
-// not seen. What the panes share is provided to them (`useDaemonContext`); what only the layout needs is returned.
+// the ports are asked for each time the daemon is connected, the guide opens once by itself when the daemon has no call, the steps of an update are open on purpose and go with the newer version, the notes of the version that runs open from Settings and from the
+// line shown once after an update (useWhatsNew), and the mail of the header opens the tab that has the messages not seen. What the panes share is provided to them (`useDaemonContext`); what only the layout needs is returned.
 import { computed, ref, watch, type Ref } from "vue";
 import { provideDaemon } from "@/composables/useDaemonContext";
 import { useBrowserAlerts } from "@/composables/useBrowserAlerts";
@@ -27,6 +27,7 @@ import { useStationActions } from "@/composables/useStationActions";
 import { useStationCards } from "@/composables/useStationCards";
 import { useStationPrefs } from "@/composables/useStationPrefs";
 import { useTitle } from "@/composables/useTitle";
+import { useWhatsNew } from "@/composables/useWhatsNew";
 import { agingOf, type Aging } from "@/lib/aging";
 import { pathCalls } from "@/lib/calls";
 import { headerPills } from "@/lib/pills";
@@ -121,6 +122,7 @@ export function useAppShell() {
   const updateOpen = ref(false);
   const newer = computed(() => status.value?.update?.version ?? null);
   watch(newer, (version) => version === null && (updateOpen.value = false));
+  const whatsNew = useWhatsNew(daemon.version);
 
   const objects = useOwnObjects(daemon.ownObjects, send, panel);
   const picks = useMapPicks(guide, objects);
@@ -131,7 +133,7 @@ export function useAppShell() {
     picks.pickingTab,
   );
   // Esc ends a place the map waits for and then leaves the object selected in the Objects tab and clears its form (before the cards, which take the Esc that is left)
-  const escBlocked = () => guide.open || updateOpen.value;
+  const escBlocked = () => guide.open || updateOpen.value || whatsNew.open.value !== null;
   useFormEsc({
     cancelPick: () => {
       const waiting = picks.pickingTab.value;
@@ -169,5 +171,22 @@ export function useAppShell() {
     say,
   });
 
-  return { daemon, updateOpen, newer, objects, picks, layout, cards, statsOpen, guide, panel, notice, findRadio, stationActions, ...tabs, ...derived };
+  return {
+    daemon,
+    updateOpen,
+    newer,
+    whatsNew,
+    objects,
+    picks,
+    layout,
+    cards,
+    statsOpen,
+    guide,
+    panel,
+    notice,
+    findRadio,
+    stationActions,
+    ...tabs,
+    ...derived,
+  };
 }

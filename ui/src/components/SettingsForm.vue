@@ -43,7 +43,7 @@ import { statusFrequencyHint } from "@/lib/statusfrequency";
 import { computed, watch } from "vue";
 
 const props = withDefaults(defineProps<{ scope?: Scope; picking?: boolean; picked?: Picked | null }>(), { scope: "settings", picking: false, picked: null });
-const emit = defineEmits<{ setup: []; update: []; pickPosition: [] }>();
+const emit = defineEmits<{ setup: []; update: []; notes: []; pickPosition: [] }>();
 
 const { config, lastError, send, settings, alertResult, updateResult, map, alerts, ports, say, igate, stations, tnc, status, now } = useDaemonContext();
 const { draft, errors } = settings;
@@ -274,7 +274,13 @@ function typed(key: string, text: string): void {
     </fieldset>
     <fieldset v-if="scope === 'settings'" class="update-check">
       <legend>{{ t("settings.update.group") }}</legend>
-      <UpdateRow :running="updateCheck.running.value" :outcome="updateCheck.outcome.value" @check="updateCheck.check" @update="emit('update')" />
+      <UpdateRow
+        :running="updateCheck.running.value"
+        :outcome="updateCheck.outcome.value"
+        @check="updateCheck.check"
+        @update="emit('update')"
+        @notes="emit('notes')"
+      />
     </fieldset>
     <SettingsHelp v-if="scope === 'settings'" />
     <SettingsAbout v-if="scope === 'settings'" />

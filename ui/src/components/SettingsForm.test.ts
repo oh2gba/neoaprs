@@ -1057,7 +1057,7 @@ describe("SettingsForm", () => {
       const control = wrapper.find(".action-row .field-control");
       expect(control.element.firstElementChild).toBe(check(wrapper)?.element);
       expect(line(wrapper).element.previousElementSibling).toBe(check(wrapper)?.element);
-      expect(line(wrapper).text()).toBe("NeoAPRS 0.10.0-rc1");
+      expect(line(wrapper).find(".updateversion").text()).toBe("NeoAPRS 0.10.0-rc1");
       expect(line(wrapper).find(".updateversion").attributes("title")).toBe("NeoAPRS uses 0.3 % of one processor core and 42 MB of memory, running for 3 h");
     });
 
@@ -1067,9 +1067,25 @@ describe("SettingsForm", () => {
       await tell(daemon, { updateResult: answer({ outcome: "newer", version: "0.4.0" }) });
       expect(wrapper.emitted("update")).toBeUndefined();
       expect(line(wrapper).text()).toContain("0.4.0 available");
-      await line(wrapper).find("button").trigger("click");
+      await line(wrapper).find("button.btn").trigger("click");
       expect(wrapper.emitted("update")).toHaveLength(1);
       expect(daemon.say).not.toHaveBeenCalled();
+    });
+
+    it("has What's new right after the version, whatever the check says, asking for the notes of the version that runs", async () => {
+      const { wrapper, daemon } = make({}, "settings", { version: "0.12.0" });
+      const link = (): ReturnType<typeof line> => line(wrapper).find("button.updatenotes");
+      expect(link().text()).toBe("What's new");
+      expect(link().element.previousElementSibling).toBe(line(wrapper).find(".updateversion").element);
+      await check(wrapper)?.trigger("click");
+      await tell(daemon, {
+        updateResult: answer({ outcome: "newer", version: "0.13.0" }),
+        status: status({ update: { version: "0.13.0", url: "", message: "" } }),
+      });
+      expect(link().element.previousElementSibling).toBe(line(wrapper).find(".updateversion").element);
+      await link().trigger("click");
+      expect(wrapper.emitted("notes")).toHaveLength(1);
+      expect(wrapper.emitted("update")).toBeUndefined();
     });
 
     it("says no answer, with the reason when the daemon gave one, in the warn colour", async () => {

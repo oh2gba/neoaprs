@@ -261,8 +261,8 @@ async def update_check(ctx: Ctx, cmd: CheckUpdate) -> None:
 
 @command(ReleaseNotes)
 async def release_notes(ctx: Ctx, cmd: ReleaseNotes) -> None:
-    found, problem = await ctx.ctl.updatecheck.release_notes(cmd.version)
-    ctx.conn.send({"type": "release_notes", "version": cmd.version, "sections": [asdict(section) for section in found], "problem": problem})
+    found, problem = await ctx.ctl.updatecheck.release_notes(cmd.version, cmd.since)
+    ctx.conn.send({"type": "release_notes", "version": cmd.version, "since": cmd.since, "sections": [asdict(section) for section in found], "problem": problem})
 
 
 @command(UpdateNow)

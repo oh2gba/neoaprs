@@ -150,8 +150,8 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
     "packet_history": [{"type": "packet_history", "hours": 3, "start": "2026-10-21T10:00:00Z", "counts": [41, 37, 12]}],
     "update_result": [{"type": "update_result", "outcome": "newer", "version": "0.4.0", "text": ""}, {"type": "update_result", "outcome": "current", "version": "0.3.0", "text": ""},
                       {"type": "update_result", "outcome": "no_answer", "version": "", "text": "the version page could not be reached"}],
-    "release_notes": [{"type": "release_notes", "version": "0.4.0", "sections": [{"version": "0.4.0", "text": "- **Fixed:** the map download."}, {"version": "0.3.1", "text": "A small release."}], "problem": ""},
-                      {"type": "release_notes", "version": "0.4.0", "sections": [], "problem": "the release notes could not be fetched"}],
+    "release_notes": [{"type": "release_notes", "version": "0.4.0", "since": "", "sections": [{"version": "0.4.0", "text": "- **Fixed:** the map download."}, {"version": "0.3.1", "text": "A small release."}], "problem": ""},
+                      {"type": "release_notes", "version": "0.4.0", "since": "0.3.0", "sections": [], "problem": "the release notes could not be fetched"}],
     "radio_search": [{"type": "radio_search", "state": "trying", "port": "/dev/ttyUSB0", "baud": 9600, "profile": "", "number": 1, "total": 14},
                      {"type": "radio_search", "state": "found", "port": "bt://AA:BB:CC:DD:EE:FF", "baud": None, "profile": "kiss", "number": 0, "total": 0},
                      {"type": "radio_search", "state": "cancelled", "port": "", "baud": None, "profile": "", "number": 0, "total": 0}],
@@ -203,7 +203,7 @@ COMMAND_EXAMPLES: dict[str, dict[str, Any]] = {
     "set_station_path": {"cmd": "set_station_path", "call": "OH2RDG", "path": "OH2RCH-2,WIDE2-1"},
     "clear_station_path": {"cmd": "clear_station_path", "call": "OH2RDG"},
     "set_station_rf_only": {"cmd": "set_station_rf_only", "call": "OH2RDG", "on": True},
-    "weather_series": {"cmd": "weather_series", "call": "OH2MUI", "hours": 24}, "packet_history": {"cmd": "packet_history", "hours": 24}, "alert_test": {"cmd": "alert_test"}, "update_check": {"cmd": "update_check"}, "release_notes": {"cmd": "release_notes", "version": "0.4.0"},
+    "weather_series": {"cmd": "weather_series", "call": "OH2MUI", "hours": 24}, "packet_history": {"cmd": "packet_history", "hours": 24}, "alert_test": {"cmd": "alert_test"}, "update_check": {"cmd": "update_check"}, "release_notes": {"cmd": "release_notes", "version": "0.4.0", "since": "0.3.0"},
     "bulletin_delete": {"cmd": "bulletin_delete", "sender": "OH2XYZ", "slot": "BLN3HAMS"},
     "object_set": {"cmd": "object_set", "name": "LEADER", "kind": "object", "lat": 60, "lon": 25, "symbol_table": "/", "symbol_code": ">", "comment": "Rescue 1", "course_deg": 88, "speed_kmh": 67, "path": "WIDE1-1", "qru_group": "RP70", "on_request": True},
     "object_kill": {"cmd": "object_kill", "name": "LEADER"},
@@ -297,12 +297,19 @@ def test_every_command_has_an_example_that_round_trips() -> None:
         assert again == command
 
 
+# the fields a command may leave out, each added after the command was out, so that a page of before still asks the same: the value it then has
+OPTIONAL_FIELDS = {("release_notes", "since"): ""}
+
+
 @pytest.mark.parametrize("name", sorted(COMMAND_EXAMPLES))
 def test_a_command_with_an_extra_field_or_a_missing_one_or_a_wrong_type_is_refused(name: str) -> None:
     example = COMMAND_EXAMPLES[name]
     broken = [{**example, "surprise": 1}, {k: v for k, v in example.items() if k != "cmd"}, {**example, "cmd": "nonsense"}]
     for field in example:
-        if field != "cmd":
+        if (name, field) in OPTIONAL_FIELDS:
+            assert getattr(COMMANDS.validate_python({k: v for k, v in example.items() if k != field}), field) == OPTIONAL_FIELDS[name, field]
+            broken.append({**example, field: 7})
+        elif field != "cmd":
             broken += [{k: v for k, v in example.items() if k != field}, {**example, field: "7" if isinstance(example[field], int) else 7}]       # (a wrong type: text for a number, a number for the rest)
     for command in broken:
         with pytest.raises(ValidationError):

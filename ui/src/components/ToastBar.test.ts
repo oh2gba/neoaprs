@@ -82,4 +82,14 @@ describe("ToastBar", () => {
     wrapper.unmount();
     expect(vi.getTimerCount()).toBe(0);
   });
+
+  it("draws the line of its slot as a notice while it has nothing else to say, and again when what it said has gone", async () => {
+    const wrapper = mount(ToastBar, { props: { toast: null, notice: null }, slots: { default: "<span class='standing'>Updated</span>" } });
+    expect(wrapper.find(".toast.notice .standing").exists()).toBe(true);
+    await wrapper.setProps({ toast: failure(1, "the radio is silent") });
+    expect(wrapper.findAll(".toast")).toHaveLength(1);
+    expect(wrapper.find(".standing").exists()).toBe(false);
+    await vi.advanceTimersByTimeAsync(8000);
+    expect(wrapper.find(".toast.notice .standing").exists()).toBe(true);
+  });
 });

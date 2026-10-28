@@ -109,6 +109,8 @@ NeoAPRS asks once a day whether a newer version is out ([the update check](#the-
 
 A click opens a window in the middle of the page: **NeoAPRS <version> is available**, the version you have, what is new (the project's note, and the release notes of every version between yours and the new one, fetched from the project's changelog on GitHub; when they cannot be fetched, a button to the release page), and what to do for the way this copy was installed. Your settings, messages, packets and map stay in every case, and open pages load the new version by themselves.
 
+**What's new, after the update.** The first time a browser opens the page after an update, a quiet line at the bottom says **Updated to NeoAPRS <version> · What's new**: the link opens the same window with the release notes of every version since the one that browser saw last, and the line does not come back once you open them or dismiss it. **What's new** beside the version in Settings → Update check opens the notes of the version you run at any time.
+
 ### Update now (Windows installer, AppImage)
 
 Where NeoAPRS can update itself, the window has an **Update now** button. NeoAPRS then:

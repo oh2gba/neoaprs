@@ -55,6 +55,7 @@ describe("UpdateDialog", () => {
     const notes = {
       type: "release_notes" as const,
       version: "0.4.0",
+      since: "",
       sections: [
         { version: "0.4.0", text: "Bug fixes.\n\n- **Fixed:** the map download.\n- The `neoaprs map` command." },
         { version: "0.3.1", text: "A small release." },
@@ -80,7 +81,8 @@ describe("UpdateDialog", () => {
   });
 
   it("offers the release page when the notes could not be fetched", () => {
-    const { wrapper } = dialog({ releaseNotes: { type: "release_notes", version: "0.4.0", sections: [], problem: "the release notes could not be fetched" } });
+    const failed = { type: "release_notes" as const, version: "0.4.0", since: "", sections: [], problem: "the release notes could not be fetched" };
+    const { wrapper } = dialog({ releaseNotes: failed });
     expect(wrapper.find(".updatedialog-news .muted").text()).toBe("What is new could not be fetched; the release page has it:");
     const news = wrapper.find(".updatedialog-news a.btn");
     expect(news.text()).toBe("What's new in 0.4.0");

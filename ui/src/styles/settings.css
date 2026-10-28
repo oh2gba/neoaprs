@@ -374,7 +374,8 @@ fieldset.composebox > legend {
   margin-left: 8px;
   color: var(--muted);
 }
-.updateversion {
+.updateversion,
+.updatenotes {
   white-space: nowrap;
 }
 /* the row is one block that wraps (the version and the answer under the button when the column is narrow), and the (i) stays at its end */

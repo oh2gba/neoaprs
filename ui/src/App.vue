@@ -25,6 +25,7 @@ import type { PillTarget } from "@/lib/pills";
 import { refusedAtField } from "@/lib/settinglinks";
 import UpdateDialog from "@/components/UpdateDialog.vue";
 import VersionMismatch from "@/components/VersionMismatch.vue";
+import WhatsNewLine from "@/components/WhatsNewLine.vue";
 import { useAppShell } from "@/composables/useAppShell";
 
 const {
@@ -35,6 +36,7 @@ const {
   openUnread,
   updateOpen,
   newer,
+  whatsNew,
   talk,
   mail,
   board,
@@ -65,6 +67,13 @@ const deleteMessage = (id: number): boolean => send({ cmd: "message_delete", id 
   <div v-else class="app" :class="layout.rootClass.value">
     <AppHeader :call="call" :unread="unread" :pills="pills" @messages="openUnread" @setup="guide.show()" @open="goTo" />
     <UpdateDialog v-if="updateOpen && newer" :version="newer" @close="updateOpen = false" />
+    <UpdateDialog
+      v-else-if="whatsNew.open.value"
+      notes-only
+      :version="whatsNew.open.value.version"
+      :since="whatsNew.open.value.since"
+      @close="whatsNew.close"
+    />
     <main class="main">
       <div class="mapwrap">
         <StationMap
@@ -167,11 +176,15 @@ const deleteMessage = (id: number): boolean => send({ cmd: "message_delete", id 
           <BeaconPane :picking="stationPick.picking.value" :picked="stationPick.picked.value" @pick-position="stationPick.toggle()" />
         </template>
         <template #settings>
-          <SettingsForm @setup="guide.show()" @update="updateOpen = true" />
+          <SettingsForm @setup="guide.show()" @update="updateOpen = true" @notes="whatsNew.show" />
         </template>
       </SidePanel>
     </main>
-    <ToastBar :toast="refusedAtField(lastError) ? null : lastError" :notice="notice" />
+    <ToastBar :toast="refusedAtField(lastError) ? null : lastError" :notice="notice">
+      <template v-if="whatsNew.updatedFrom.value" #default>
+        <WhatsNewLine :version="daemon.version.value" @open="whatsNew.showUpdate" @dismiss="whatsNew.dismiss" />
+      </template>
+    </ToastBar>
     <FindRadioToast :find="findRadio" />
   </div>
 </template>

@@ -938,18 +938,22 @@ export interface ReachValues {
   hops: string[];
 }
 
-/** Asks what is new from this version to `version`, the newer one the update check found: the changelog of the project at the tag of that release (neoaprs/releasenotes.py), fetched once. Answered with `release_notes`. */
+/** Asks what is new up to `version`: the newer one the update check found (what an update brings, from this version on), or this version itself (what the update the page's browser has seen brought: the notes of this version, or with `since` of every version after that one). The changelog of the project at the tag of `version` (neoaprs/releasenotes.py), fetched once. Answered with `release_notes`. */
 export interface ReleaseNotesCommand {
   cmd: "release_notes";
-  /** the newer version, as `status.update.version` names it; another is answered with no sections */
+  /** the newer version, as `status.update.version` names it, or this one, as `hello.version` names it; another is answered with no sections */
   version: string;
+  /** the sections of the versions newer than this one; empty: this version for the newer one, and for this one its own section alone */
+  since?: string;
 }
 
-/** The answer to `release_notes`: the sections of the versions newer than this one up to the one asked for, the newest first; none with `problem` saying why (the notes could not be fetched, or the version is not the newer one known). */
+/** The answer to `release_notes`: the sections of the versions asked for, the newest first; none with `problem` saying why (the notes could not be fetched, or the version is neither the newer one known nor this one). */
 export interface ReleaseNotesMessage {
   type: "release_notes";
   /** the version asked for */
   version: string;
+  /** the `since` asked for, empty when there was none */
+  since: string;
   /** the newest first; empty with `problem` */
   sections: NoteSection[];
   /** why there are no sections, in a sentence; empty when there are */
