@@ -352,7 +352,7 @@ Asks where the stations were in the last `hours` hours, for the replay of the ma
 
 | field | type | | description |
 |---|---|---|---|
-| `hours` | integer |  | how far back to go: the replay offers 1, 3, 6, 12 and 24, the choices of the Stations tab's On map for (>= 1, <= 24) |
+| `hours` | integer |  | how far back to go: the replay offers 1, 3, 6, 12, 24 (the choices of the Stations tab's On map for) and 48, 72, 168 (2, 3, 7 days; the packet log keeps 7) (>= 1, <= 168) |
 
 ### `speed_series`
 
@@ -595,13 +595,16 @@ it counts what has come since the top of the hour.
 ### `position_history`
 
 The positions of the stations over the span asked for, the answer to `position_history`, from the packet log: every position heard in it (a station's own, or the one inside a third-party packet), the
-live objects and items heard by their names, and what we sent under our call (our beacons, and our objects by their names). A station's points are thinned: one less than 10 m from the point before it, or
-less than 30 s after it, is left out, and the last is always there. The latest 50 000 position packets at most are read: on a very busy feed the oldest part of a long span may be missing.
+live objects and items heard by their names, and what we sent under our call (our beacons, and our objects by their names). A station's points are thinned, the more the longer the span (REPLAY_THINNING
+of neoaprs/web/views.py): up to a day, a point less than 10 m from the point kept before it or less than 30 s after it is left out; up to three days, 200 m and 2 minutes; a week, 300 m and 5 minutes.
+The last point is always there, and so is the one where a station still was just before it moved off. The latest 1 000 000 position packets at most are read: on a feed busier than that, the span
+begins at the first of them.
 
 | field | type | | description |
 |---|---|---|---|
-| `hours` | integer |  | the hours asked for (>= 1, <= 24) |
-| `start` | time |  | where the span begins, UTC: `hours` hours before the daemon answered |
+| `hours` | integer |  | the hours asked for (>= 1, <= 168) |
+| `start` | time |  | where the replay begins, UTC: `hours` hours before `end`, or the oldest packet the log keeps when that is later (a daemon that has run for less than the span, or a log busier than the packets read) |
+| `end` | time |  | where the replay ends, UTC: when the daemon answered |
 | `stations` | { [key: string]: [time, number, number][] } |  | [time, lat, lon] for each position kept, the oldest first, by the station's call (an object's or item's name); a station with no position in the span is not in it |
 
 ### `speed_series`

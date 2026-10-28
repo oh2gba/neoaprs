@@ -13,7 +13,7 @@ from neoaprs.bulletin import BulletinRecord
 from neoaprs.chain import INTERNET, Attempt
 from neoaprs.clock import iso
 from neoaprs.config import DEFAULTS, Config
-from neoaprs.geo import thinned
+from neoaprs.geo import Point
 from neoaprs.gpsfix import Fix
 from neoaprs.message import MessageRecord
 from neoaprs.ownbulletin import OwnBulletin
@@ -37,6 +37,7 @@ from .messagewire import AttemptRow, MessageRow
 from .ownwire import OwnBulletinRow, OwnObjectRow
 from .packetwire import PacketRow
 from .prefwire import StationPref
+from .replaywire import MAX_HOURS
 from .qruwire import QruAsked, QruGroup, QruServer, QruState
 from .generalwire import GeneralAsked, GeneralState
 from .stationwire import StationRow, TelemetryValues, WeatherValues
@@ -71,16 +72,24 @@ def weather_points(observations: list[Observation]) -> list[list[Any]]:
     return [[iso(at), w.temp_c, w.pressure_hpa, w.wind_kmh, w.gust_kmh, w.rain_1h_mm, w.humidity] for at, w in observations]
 
 
-REPLAY_METRES = 10                  # a point of a replay this near the one before it adds nothing that shows
-REPLAY_SECONDS = 30                 # nor one this soon after it (a station heard by two digipeaters, or one that beacons fast)
+# How the points of a station are thinned for a replay (neoaprs/geo.py), by the span asked for: (up to so many hours, metres, seconds). A point nearer than the metres to the one kept before it, or sooner than the
+# seconds after it, is left out. Up to a day the replay keeps what shows at the scale of a street (a station heard by two digipeaters, or one that beacons fast, is one point); up to three days a point every
+# two minutes and a move of 200 m; a week a point every five minutes and a move of 300 m, so that a week of a busy APRS-IS feed is a few hundred KB and not several MB. Each step is well inside the gap the page still
+# drives a station across (GLIDE_MAX_MIN of neoaprs/web/replaywire.py; a test holds them to it), so that a thinned trip of a week glides as a day's does.
+REPLAY_THINNING = ((24, 10, 30), (3 * 24, 200, 120), (MAX_HOURS, 300, 300))
 
 
-def replay_tracks(found: list[tuple[str, datetime, float, float]]) -> dict[str, list[list[Any]]]:
-    """The positions of the replay by station, [time, lat, lon] the oldest first, each station's thinned (neoaprs/geo.py) and to 5 decimals (about a metre)."""
-    tracks: dict[str, list[tuple[datetime, float, float]]] = {}
-    for station, at, lat, lon in found:
-        tracks.setdefault(station, []).append((at, lat, lon))
-    return {station: [[iso(at), round(lat, 5), round(lon, 5)] for at, lat, lon in thinned(points, REPLAY_METRES, REPLAY_SECONDS)] for station, points in tracks.items()}
+def replay_thinning(hours: int) -> tuple[int, int]:
+    """The metres and the seconds a replay of the last `hours` hours is thinned by (REPLAY_THINNING)."""
+    for upto, metres, seconds in REPLAY_THINNING:
+        if hours <= upto:
+            return metres, seconds
+    return REPLAY_THINNING[-1][1:]
+
+
+def replay_tracks(tracks: Mapping[str, Sequence[Point]]) -> dict[str, list[list[Any]]]:
+    """The positions of the replay by station, [time, lat, lon] the oldest first (already thinned: neoaprs/packetlog.py), to 5 decimals (about a metre)."""
+    return {station: [[iso(at), round(lat, 5), round(lon, 5)] for at, lat, lon in points] for station, points in tracks.items()}
 
 
 def station_row(book: StationBook, station: Station) -> dict[str, Any]:

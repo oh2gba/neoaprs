@@ -42,16 +42,41 @@ def box_around(lat: float, lon: float, radius_km: float) -> tuple[float, float, 
     return max(-180.0, lon - dlon), south, min(180.0, lon + dlon), north
 
 
-def thinned(track: Sequence[tuple[datetime, float, float]], metres: float, seconds: float) -> list[tuple[datetime, float, float]]:
-    """The points of a track (when, lat, lon; the oldest first) that a replay needs: a point less than `metres` from the last one kept, or less than `seconds` after it, adds nothing that shows and is left out.
-    The last point is always kept, so that the station stays where it was last heard: a station that never moved is its first point and its last."""
-    kept: list[tuple[datetime, float, float]] = []
+Point = tuple[datetime, float, float]
+
+
+class Thinning:
+    """A track thinned as its points come, the oldest first, so that a week of positions is never held whole: a point less than `metres` from the last one kept, or less than `seconds` after it, adds
+    nothing that shows and is left out. Two kinds of point are kept all the same. The last of the track, so that the station stays where it was last heard (a station that never moved is its first point and
+    its last). And the point where the station still was just before a move, when it was left out for being near and not for being soon: a car that was parked for hours and then drove off is a point when it
+    stopped, a point when it was last heard there and then the first one away, so that a replay waits at the parking place and then drives from it, and does not creep across the hours of the stop."""
+
+    def __init__(self, metres: float, seconds: float) -> None:
+        self.metres = metres
+        self.seconds = seconds
+        self._kept: list[Point] = []
+        self._left: Point | None = None                 # the latest point left out since the last one kept
+
+    def add(self, point: Point) -> None:
+        if self._kept:
+            at, lat, lon = self._kept[-1]
+            gone = (point[0] - at).total_seconds()
+            if gone < self.seconds or distance_km(lat, lon, point[1], point[2]) * 1000 < self.metres:
+                self._left = point
+                return
+            still = self._left
+            if still is not None and (still[0] - at).total_seconds() >= self.seconds:
+                self._kept.append(still)
+        self._kept.append(point)
+        self._left = None
+
+    def points(self) -> list[Point]:
+        return self._kept if self._left is None else [*self._kept, self._left]
+
+
+def thinned(track: Sequence[Point], metres: float, seconds: float) -> list[Point]:
+    """The points of a track (when, lat, lon; the oldest first) that a replay needs (Thinning)."""
+    thinning = Thinning(metres, seconds)
     for point in track:
-        if kept:
-            at, lat, lon = kept[-1]
-            if (point[0] - at).total_seconds() < seconds or distance_km(lat, lon, point[1], point[2]) * 1000 < metres:
-                continue
-        kept.append(point)
-    if track and kept[-1] is not track[-1]:
-        kept.append(track[-1])
-    return kept
+        thinning.add(point)
+    return thinning.points()

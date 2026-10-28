@@ -319,9 +319,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <!-- the note is beside the map and not in it: the map is a layer of its own, under the first-run guide, and the note is above the guide -->
-  <div ref="root" class="stationmap" v-on="mapMenu.on">
-    <div ref="host" class="mapbox" :class="{ 'map-picking': props.picking, replaying: props.replay }" role="application" :aria-label="t('map.label')"></div>
+  <!-- the note is beside the map and not in it: the map is a layer of its own, under the first-run guide, and the note is above the guide. The page's own classes are on the root and never on the
+       map's box, whose classes MapLibre sets (`maplibregl-map`, which clips the markers to the box): a class bound by Vue there is written as the whole class list and took MapLibre's away. -->
+  <div ref="root" class="stationmap" :class="{ 'map-picking': props.picking, replaying: props.replay }" v-on="mapMenu.on">
+    <div ref="host" class="mapbox" role="application" :aria-label="t('map.label')"></div>
     <MapMenu v-if="mapMenu.menu.value" :key="mapMenu.key.value" v-bind="mapMenu.menu.value" :trigger="host" v-on="menuEvents" />
     <ReplayBar v-if="props.replay" :replay="replay.clock" @close="emit('replay', false)" />
     <button v-if="canFollow" class="btn followme" :class="{ primary: following }" type="button" :aria-pressed="following" @click="following = !following">

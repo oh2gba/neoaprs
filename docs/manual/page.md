@@ -129,11 +129,17 @@ The map has the world from the first start. With only the world, a line over the
 
 ## Replay
 
-**Replay** in the map's menu plays back how the stations moved over the last hours, from the packets the daemon keeps (the command `position_history`). A bar at the bottom of the map (at the top on a phone) has play and pause, a slider over the span to go to any time in it, the time of the replay as a clock (with the date when the span crosses midnight), the speed (60× to 3600×: at 300× a second is five minutes) and the span (1, 3, 6, 12 or 24 hours, 3 at first). It plays from the start of the span as soon as the positions have come and stops at the end; play again starts over.
+**Replay** in the map's menu plays back how the stations moved over the last hours or days, from the packets the daemon keeps (the command `position_history`). A bar at the bottom of the map (at the top on a phone) has play and pause, a slider over the span to go to any time in it, the time of the replay as a clock (with the date when the span crosses midnight), the speed (60× to 3600×: at 300× a second is five minutes, at 3600× a day takes 24 seconds and a week under three minutes) and the span (1, 3, 6, 12 or 24 hours, or 2, 3 or 7 days, 3 hours at first).
 
-While it is open the live markers, tracks and route give way: each station heard with a position in the span is drawn where it was at the time of the replay, with its symbol and call, from its first position on, and stays at its last. A station moves along the line between two positions a few minutes apart; across a longer silence it waits, then jumps. Behind it its trail fades over a quarter of the span. Objects and items are there by their names, your own station by your call (the positions you sent, and those of your objects).
+It plays from the start of the span as soon as the positions have come and stops at the end; play again starts over. The speed and the span are chosen while it is paused or at its end: while it plays they are greyed out, and their tooltip says so.
 
-The cross or Esc closes it, and the map is live again as it was. The station cards and the statistics card stand above the bar while it is open. Positions closer than 10 m or 30 s to the one before are left out, and at most the latest 50 000 position packets are read, so on a very busy APRS-IS feed the oldest part of a 24-hour span may be missing.
+While it is open the live markers, tracks and route give way: each station heard with a position in the span is drawn where it was at the time of the replay, with its symbol and call, from its first position on, and stays at its last. A station moves along the line between two positions up to 15 minutes apart; across a longer silence it waits, then jumps. Behind it its trail fades over a quarter of the span. Objects and items are there by their names, your own station by your call (the positions you sent, and those of your objects).
+
+The cross or Esc closes it, and the map is live again as it was. The station cards and the statistics card stand above the bar while it is open.
+
+The daemon keeps packets for 7 days, so a span that reaches back further than the oldest packet it has (a daemon that started two days ago, asked for a week) simply begins at that packet: the slider starts there.
+
+The longer the span, the fewer positions are sent: up to a day a position closer than 10 m or 30 s to the one before is left out; up to three days, 200 m or 2 minutes; a week, 300 m or 5 minutes, which is a few hundred KB for a busy APRS-IS feed. Where a station still was just before it moved off is always kept, and so is its last position. At most the latest million position packets are read: on a feed busier than that (a week of more than about twice a busy one) the replay begins at the first of them.
 
 ## The statistics card
 

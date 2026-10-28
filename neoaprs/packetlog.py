@@ -3,16 +3,20 @@
 Like the message log it runs on the database thread (db.py) and says no instead of raising when the database is not open (dblog.py). `append` and the station writes are appends that nobody waits
 for (the hot path: a packet must never wait for the disk); the reads are awaited. The statements are packetsql.py's, the rows of a packet packetcodec.py's."""
 import logging
+from collections.abc import Callable
 from datetime import datetime
+from typing import NamedTuple
 
 from . import ax25
 from .aprsthirdparty import header_of
 from .clock import Clock, days, utcnow
 from .db import Db
+from .dberror import Connection
 from .dblog import DbLog
+from .geo import Point, Thinning
 from .packet import ItemReport, ObjectReport, Packet, Position, via_of
 from .packetcodec import PacketRow, info_of, packet_of, packet_row, parse_stamp, stamp
-from .packetsql import (Row, all_stations, count_packets, delete_heard, delete_station, heard_by_hour, heard_routes, heard_times, insert_packet, located_since, message_packets, packets_since, position_packets, prune_packets_before,
+from .packetsql import (Row, all_stations, count_packets, delete_heard, delete_station, heard_by_hour, heard_routes, heard_times, insert_packet, located_from, located_since, message_packets, oldest_packet, packets_since, position_packets, prune_packets_before,
                         radio_position_packets, recent_packets, station_positions, upsert_station, window_packets)
 from .station import Station
 
@@ -20,7 +24,13 @@ log = logging.getLogger("neoaprs.packetlog")
 
 DELIVERIES_SEEN = 2000                   # the packets the station book counts the routes of at its start
 TRACKS_SEEN = 5000                       # the position packets the station book makes the tracks from at its start
-HISTORY_READ = 50_000                    # the most position packets the replay of the map is made from: a day of a busy APRS-IS feed, the latest of them
+HISTORY_READ = 1_000_000                # the most position packets the replay of the map is made from, the latest of them: a week of a busy APRS-IS feed is about half of it (they are thinned as they are read)
+
+
+class History(NamedTuple):
+    """The tracks of the replay of the map, thinned, by station, and from when they are whole (PacketLog.position_history)."""
+    tracks: dict[str, list[Point]]
+    begins: datetime | None
 
 
 def station_row(station: Station) -> Row:
@@ -155,18 +165,32 @@ class PacketLog(DbLog):
                 found.append((d.name, packet.heard_at, d.position.lat, d.position.lon))
         return found
 
-    async def position_history(self, since: datetime, own_call: str, count: int = HISTORY_READ) -> list[tuple[str, datetime, float, float]]:
-        """(station, when, lat, lon) of the latest `count` positions at or after `since`, the oldest first: those heard and those we sent under `own_call` (our beacons, our objects). The station is the sender (the one
-        inside a third-party packet) or the name of a live object or item, as for the tracks. What the replay of the map plays back (`position_history`)."""
+    async def position_history(self, since: datetime, own_call: str, thinning: Callable[[], Thinning], count: int = HISTORY_READ) -> History:
+        """Where the stations were from `since` on, for the replay of the map (`position_history`): the positions heard and those we sent under `own_call` (our beacons, our objects), by station (the sender,
+        the one inside a third-party packet, or the name of a live object or item, as for the tracks), each track thinned as it is read (`thinning` makes the Thinning of one, neoaprs/geo.py), so that a week of a
+        busy feed is never held whole. At most the latest `count` packets are read; `begins` says from when the tracks are whole: the time of the first packet read when there were more, or else the oldest
+        packet the log keeps (null for an empty log)."""
         text = stamp(since)
-        rows: list[Row] = await self._read(lambda conn: located_since(conn, text, own_call, count), [])
-        found: list[tuple[str, datetime, float, float]] = []
-        for heard_at, source, name, lat, lon, raw, via in rows:
-            try:
-                found.append((str(name) if name else _sender(str(source), raw, str(via)), datetime.fromisoformat(str(heard_at)), float(lat), float(lon)))   # (fromisoformat: strptime is slow for a day of rows)
-            except (TypeError, ValueError):
-                continue                    # (a row this program did not write: no place, or a time of another form)
-        return found
+
+        def read(conn: Connection) -> History:
+            cut = located_from(conn, text, own_call, count)
+            tracks: dict[str, Thinning] = {}
+            first: str | None = None
+            for heard_at, source, name, lat, lon, raw, via in located_since(conn, text, own_call, cut):
+                first = first or str(heard_at)
+                try:
+                    station = str(name) if name else _sender(str(source), raw, str(via))
+                    point = (datetime.fromisoformat(str(heard_at)), float(lat), float(lon))       # (fromisoformat: strptime is slow for a week of rows)
+                except (TypeError, ValueError):
+                    continue                # (a row this program did not write: no place, or a time of another form)
+                track = tracks.get(station)
+                if track is None:
+                    track = tracks[station] = thinning()
+                track.add(point)
+            begins = first if cut is not None else oldest_packet(conn)
+            return History({station: track.points() for station, track in tracks.items()}, None if begins is None else parse_stamp(begins))
+
+        return await self._read(read, History({}, None))
 
     async def radio_positions(self, keep_days: int, count: int = TRACKS_SEEN) -> list[Packet]:
         """The latest `count` packets heard within `keep_days` days that carry a position and were not from the internet, the oldest first: the station book makes the radio's side of the stations that were heard from the internet from them."""

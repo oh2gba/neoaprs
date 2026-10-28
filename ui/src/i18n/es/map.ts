@@ -30,8 +30,9 @@ export const map: Readonly<Record<keyof typeof en, Message>> = {
   "map.replay.speed": "Velocidad",
   "map.replay.speed_n": "{n}×",
   "map.replay.span": "Periodo",
+  "map.replay.when_paused": "{what}: se puede cambiar en pausa",
   "map.replay.close": "Cerrar la reproducción",
-  "map.replay.none": "No se oyeron posiciones en las últimas {hours} h",
+  "map.replay.none": "No se oyeron posiciones en el periodo elegido ({span})",
   "map.pick.tap": "Toca el lugar en el mapa",
   "map.pick.cancel": "Cancelar",
 };

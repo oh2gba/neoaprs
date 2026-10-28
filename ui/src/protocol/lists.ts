@@ -301,7 +301,7 @@ export const SYMBOL_NAMES = {
 /** The codes `!` to `~` of the symbols of a station that moves or is carried, in the primary and in the alternate table (MOBILE_CODES of neoaprs/symbols.py): a station with one of them is recommended WIDE1-1,WIDE2-1, any other WIDE2-1. */
 export const MOBILE_SYMBOLS = {"primary": "'()*<=>CFOPRSUVXY[^abefgjkpsuv", "alternate": ">^ksuv"} as const;
 
-/** Every number the page checks a value against, by area, from the daemon's own constants (the ranges of the settings by key: RANGES of neoaprs/config.py; the comment, status and message lengths, the least interval, the calls, the objects and bulletins, the time a station stays on the map). */
+/** Every number the page checks a value against, by area, from the daemon's own constants (the ranges of the settings by key: RANGES of neoaprs/config.py; the comment, status and message lengths, the least interval, the calls, the objects and bulletins, the time a station stays on the map, the longer spans of the map's replay). */
 export const LIMITS = {
   range: {
     "serial/baud": { min: 300, max: 921600 },
@@ -333,6 +333,7 @@ export const LIMITS = {
     queries: { aprs: "?APRS?", igate: "?IGATE?", wx: "?WX?" },
   },
   station: { hours: [1, 3, 6, 12, 24], defaultHours: 3 },
+  replay: { days: [2, 3, 7], glideMaxMin: 15 },
 } as const;
 
 /** The characters a symbol table can be: the primary, the alternate and the overlays (SYMBOL_TABLES of neoaprs/config.py). */

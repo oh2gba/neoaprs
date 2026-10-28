@@ -9,6 +9,7 @@ import { OPEN_ZOOM } from "@/lib/basemapstyle";
 import { FakeMap, FakeMarker, fakeState, resetFakes } from "@/test/fakemap";
 import { fakeDaemon, withDaemon } from "@/test/context";
 import { mountStationMap } from "@/test/stationmap";
+import { cssRule } from "@/test/css";
 import { NOW, ago, station, table } from "@/test/fixtures";
 
 const stations = () =>
@@ -335,9 +336,19 @@ describe("StationMap", () => {
 
   it("shows a crosshair while it waits for the click of a place", async () => {
     const wrapper = await mounted();
-    expect(wrapper.find(".mapbox").classes()).not.toContain("map-picking");
+    expect(wrapper.find(".stationmap").classes()).not.toContain("map-picking");
     await wrapper.setProps({ picking: true });
-    expect(wrapper.find(".mapbox").classes()).toContain("map-picking");
+    expect(wrapper.find(".stationmap").classes()).toContain("map-picking");
+  });
+
+  it("never shows anything of the map outside its box: it is clipped, and the classes MapLibre gives the box stay when the page's change", async () => {
+    expect(cssRule(".stationmap")).toMatch(/overflow:\s*hidden/);
+    const wrapper = await mounted();
+    const box = wrapper.find(".mapbox").element;
+    box.classList.add("maplibregl-map"); // (as MapLibre does: its style sheet clips the markers to the box by this class)
+    await wrapper.setProps({ picking: true, replay: true });
+    await wrapper.setProps({ picking: false, replay: false });
+    expect([...box.classList]).toEqual(["mapbox", "maplibregl-map"]);
   });
 
   it("lets the pin of the guide be dragged, and gives where it was dropped as the place", async () => {

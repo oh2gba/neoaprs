@@ -27,6 +27,7 @@ const answer: PositionHistoryMessage = {
   type: "position_history",
   hours: 3,
   start: START,
+  end: at(180),
   stations: {
     "OH2RDG-9": [
       [at(0), 60.0, 25.0],
@@ -76,7 +77,7 @@ describe("the replay of the map", () => {
     expect(liveLayers.every((id) => map.layers.includes(id))).toBe(true);
     await wrapper.setProps({ replay: true });
     expect(daemon.send).toHaveBeenCalledWith({ cmd: "position_history", hours: 3 });
-    expect(wrapper.find(".mapbox").classes()).toContain("replaying");
+    expect(wrapper.find(".stationmap").classes()).toContain("replaying");
     expect(wrapper.find(".replaybar").exists()).toBe(true);
     expect(liveLayers.map((id) => map.visibility.get(id))).toEqual(liveLayers.map(() => "none"));
     daemon.positionHistory.value = answer;
@@ -107,7 +108,7 @@ describe("the replay of the map", () => {
     expect(wrapper.emitted("replay")).toEqual([[false]]);
     await wrapper.setProps({ replay: false });
     expect(replayMarkers()).toEqual([]);
-    expect(wrapper.find(".mapbox").classes()).not.toContain("replaying");
+    expect(wrapper.find(".stationmap").classes()).not.toContain("replaying");
     expect(wrapper.find(".replaybar").exists()).toBe(false);
     expect(liveLayers.map((id) => map.visibility.get(id))).toEqual(liveLayers.map(() => "visible"));
     expect(FakeMarker.live().map((m) => m.element.textContent)).toEqual(["OH2GBA", "OH2RDG-9"]);

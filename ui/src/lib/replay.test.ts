@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { placesAt, replayClock, replayData, trailAt, trailLines, trailMinutes } from "@/lib/replay";
+import { placesAt, REPLAY_SPANS, replayClock, replayData, spanLabel, trailAt, trailLines, trailMinutes } from "@/lib/replay";
+import { setLocale } from "@/i18n";
 import type { PositionHistoryMessage } from "@/protocol/protocol";
 
 const START = "2026-10-21T09:00:00Z";
@@ -13,6 +14,7 @@ function message(): PositionHistoryMessage {
     type: "position_history",
     hours: 3,
     start: START,
+    end: at(180),
     stations: {
       "OH2RDG-9": [
         [at(10), 60.0, 25.0],
@@ -33,6 +35,21 @@ describe("the replay's data", () => {
     expect([data.start, data.end, data.hours]).toEqual([T0, T0 + 3 * 60 * MIN, 3]);
     expect(data.tracks.map((track) => track.call)).toEqual(["OH2RDG-9", "OH2RCH-2"]);
     expect(data.tracks[0]?.points[1]).toEqual([T0 + 12 * MIN, 60.02, 25.0]);
+  });
+
+  it("begins where the daemon says, later than the span when its log does not reach back that far", () => {
+    const data = replayData({ ...message(), hours: 168, start: at(0), end: at(180) });
+    expect([data.start, data.end, data.hours]).toEqual([T0, T0 + 180 * MIN, 168]);
+  });
+});
+
+describe("the spans of the bar", () => {
+  it("are the hours of On map for, then 2, 3 and 7 days, said in days", () => {
+    expect(REPLAY_SPANS).toEqual([1, 3, 6, 12, 24, 48, 72, 168]);
+    expect(REPLAY_SPANS.map(spanLabel)).toEqual(["1 h", "3 h", "6 h", "12 h", "24 h", "2 days", "3 days", "7 days"]);
+    setLocale("de");
+    expect([spanLabel(3), spanLabel(168)]).toEqual(["3 Std.", "7 Tage"]);
+    setLocale("en");
   });
 });
 

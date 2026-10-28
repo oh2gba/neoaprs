@@ -31,8 +31,9 @@ export const map: Record<keyof typeof source, Message> = {
   "map.replay.speed": "速度",
   "map.replay.speed_n": "{n}倍",
   "map.replay.span": "期間",
+  "map.replay.when_paused": "{what}：一時停止中に変更できます",
   "map.replay.close": "リプレイを閉じる",
-  "map.replay.none": "過去 {hours} 時間に受信した位置はありません",
+  "map.replay.none": "過去 {span} に受信した位置はありません",
   "map.pick.tap": "地図上の場所をタップ",
   "map.pick.cancel": "キャンセル",
 };

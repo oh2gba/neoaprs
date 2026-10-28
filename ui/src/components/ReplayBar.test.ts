@@ -4,6 +4,7 @@ import { effectScope, nextTick, shallowRef, type EffectScope } from "vue";
 import ReplayBar from "@/components/ReplayBar.vue";
 import { useReplay } from "@/composables/useReplay";
 import { setLocale } from "@/i18n";
+import { cssRule } from "@/test/css";
 import type { Command, PositionHistoryMessage } from "@/protocol/protocol";
 
 const START = "2026-10-21T09:00:00Z";
@@ -22,7 +23,13 @@ function setUp() {
 }
 
 async function answered(positionHistory: { value: PositionHistoryMessage | null }, hours = 3): Promise<void> {
-  positionHistory.value = { type: "position_history", hours, start: START, stations: { OH2RDG: [[START, 60, 25]] } };
+  positionHistory.value = {
+    type: "position_history",
+    hours,
+    start: START,
+    end: new Date(T0 + hours * 3_600_000).toISOString(),
+    stations: { OH2RDG: [[START, 60, 25]] },
+  };
   await nextTick();
   await nextTick();
 }
@@ -71,9 +78,52 @@ describe("the replay's bar", () => {
   it("asks again for another span, the hours of On map for", async () => {
     const { send, wrapper } = setUp();
     const span = wrapper.find<HTMLSelectElement>(".replay-span");
-    expect([...span.element.options].map((o) => o.text)).toEqual(["1 h", "3 h", "6 h", "12 h", "24 h"]);
-    await span.setValue("24");
-    expect(send).toHaveBeenLastCalledWith({ cmd: "position_history", hours: 24 });
+    expect([...span.element.options].map((o) => o.text)).toEqual(["1 h", "3 h", "6 h", "12 h", "24 h", "2 days", "3 days", "7 days"]);
+    await span.setValue("168");
+    expect(send).toHaveBeenLastCalledWith({ cmd: "position_history", hours: 168 });
+  });
+
+  it("has the speed and the span off while it plays, saying they are chosen when paused, and on again when paused or at the end", async () => {
+    const { replay, positionHistory, wrapper } = setUp();
+    const speed = () => wrapper.find<HTMLSelectElement>(".replay-speed").element;
+    const span = () => wrapper.find<HTMLSelectElement>(".replay-span").element;
+    replay.ask();
+    await nextTick();
+    expect([speed().disabled, span().disabled]).toEqual([false, false]); // (another span may be chosen while one is on its way)
+    await answered(positionHistory);
+    expect(replay.playing.value).toBe(true);
+    expect([speed().disabled, span().disabled]).toEqual([true, true]);
+    expect(cssRule(".input:disabled")).not.toMatch(/width|height|padding|margin|border|font/); // (off, a select keeps its size: only its look changes)
+    expect([speed().title, span().title]).toEqual(["Speed: can be changed while paused", "Span: can be changed while paused"]);
+    await wrapper.find(".replay-play").trigger("click");
+    expect([speed().disabled, span().disabled]).toEqual([false, false]);
+    expect([speed().title, span().title]).toEqual(["Speed", "Span"]);
+    await wrapper.find(".replay-play").trigger("click");
+    vi.advanceTimersByTime(3 * 3_600_000); // (to the end of the span, at whatever speed)
+    await nextTick();
+    expect(replay.playing.value).toBe(false);
+    expect([speed().disabled, span().disabled]).toEqual([false, false]);
+  });
+
+  it("does not touch the selects as the clock runs: only the slider and the clock are drawn at each step", async () => {
+    const { replay, positionHistory, wrapper } = setUp();
+    replay.ask();
+    await answered(positionHistory);
+    const selects = wrapper.findAll("select").map((s) => s.element);
+    const options = selects.flatMap((s) => [...s.options]);
+    const changes: MutationRecord[] = [];
+    const watcher = new MutationObserver((records) => changes.push(...records));
+    for (const select of selects) watcher.observe(select, { subtree: true, attributes: true, childList: true, characterData: true });
+    const clock = wrapper.find(".replay-clock").text();
+    for (let step = 0; step < 5; step++) {
+      vi.advanceTimersByTime(100);
+      await nextTick();
+    }
+    await Promise.resolve(); // (the observer's records come in a microtask)
+    watcher.disconnect();
+    expect(wrapper.find(".replay-clock").text()).not.toBe(clock);
+    expect(changes).toEqual([]);
+    expect(wrapper.findAll("select").flatMap((s) => [...s.element.options])).toEqual(options);
   });
 
   it("closes with its cross and with Esc, the slider's too, but leaves a select its Esc", async () => {

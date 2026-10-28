@@ -29,8 +29,9 @@ export const map = {
   "map.replay.speed": "Speed",
   "map.replay.speed_n": "{n}×",
   "map.replay.span": "Span",
+  "map.replay.when_paused": "{what}: can be changed while paused",
   "map.replay.close": "Close the replay",
-  "map.replay.none": "No positions were heard in the last {hours} h",
+  "map.replay.none": "No positions were heard in the last {span}",
 
   "map.pick.tap": "Tap the place on the map",
   "map.pick.cancel": "Cancel",

@@ -10,6 +10,8 @@
   inset: 0;
   /* its own stacking context: a marker (the selected one is raised) and the map's buttons stay under the card, which is above the map */
   z-index: 0;
+  /* nothing of the map shows outside its box, whatever MapLibre's own style does: a marker by the top edge would paint over the page's header (its menu is fixed to the window and is not clipped) */
+  overflow: hidden;
 }
 .mapbox {
   width: 100%;
@@ -288,7 +290,7 @@
    middle, clear of the credits' (i) at the right; the station cards and the statistics card (where it was not dragged) rise above it. Its parts keep their size whatever they show: the clock is a box of 14
    characters of tabular figures (MM-DD HH:MM:SS), the play button one square. Where the bar is narrow (a tablet's map, a phone) the slider has the first line with play and the cross, and the clock and the
    choices the second. On a phone it is at the top of the map instead (styles/responsive.css), where the station's sheet does not cover it. */
-.mapbox.replaying .stn:not(.stn--replay) {
+.stationmap.replaying .stn:not(.stn--replay) {
   display: none;
 }
 .stn--replay {

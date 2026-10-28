@@ -31,8 +31,9 @@ export const map: Record<keyof typeof source, Message> = {
   "map.replay.speed": "Velocidade",
   "map.replay.speed_n": "{n}×",
   "map.replay.span": "Período",
+  "map.replay.when_paused": "{what}: pode ser alterado com a reprodução pausada",
   "map.replay.close": "Fechar a reprodução",
-  "map.replay.none": "Nenhuma posição ouvida nas últimas {hours} h",
+  "map.replay.none": "Nenhuma posição ouvida no período escolhido ({span})",
   "map.pick.tap": "Toque no lugar do mapa",
   "map.pick.cancel": "Cancelar",
 };

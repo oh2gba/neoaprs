@@ -691,8 +691,9 @@ export const de: Catalogue = {
   "map.replay.speed": "Geschwindigkeit",
   "map.replay.speed_n": "{n}×",
   "map.replay.span": "Zeitraum",
+  "map.replay.when_paused": "{what}: lässt sich in der Pause ändern",
   "map.replay.close": "Wiedergabe schließen",
-  "map.replay.none": "In den letzten {hours} Std. wurden keine Positionen gehört",
+  "map.replay.none": "Im gewählten Zeitraum ({span}) wurden keine Positionen gehört",
   "map.pick.tap": "Den Ort auf der Karte antippen",
   "map.pick.cancel": "Abbrechen",
 

@@ -47,6 +47,7 @@ from neoaprs.symbols import MOBILE_CODES, SYMBOL_NAMES  # noqa: E402
 from neoaprs.tncprofile import PROFILES  # noqa: E402
 from neoaprs.updateasset import wheel_version  # noqa: E402
 from neoaprs.web.hubwire import PROTOCOL  # noqa: E402
+from neoaprs.web.replaywire import GLIDE_MAX_MIN, SPAN_DAYS  # noqa: E402
 
 SCHEMA = ROOT / "ui" / "src" / "protocol" / "schema.json"
 TYPES = ROOT / "ui" / "src" / "protocol" / "protocol.ts"
@@ -231,6 +232,7 @@ def limits() -> dict[str, Any]:
         "qru": {"kmMax": ASK_KM_MAX, "askEverySec": ASK_EVERY_SEC, "askGapSec": ASK_GAP_SEC},
         "general": {"askEverySec": generalask.ASK_EVERY_SEC, "countSec": round(generalask.COUNT_FOR.total_seconds()), "quietMin": round(generalask.QUIET_BEFORE.total_seconds() / 60), "queries": dict(generalask.QUERIES)},
         "station": {"hours": list(STATION_HOURS), "defaultHours": DEFAULT_STATION_HOURS},
+        "replay": {"days": list(SPAN_DAYS), "glideMaxMin": GLIDE_MAX_MIN},
     }
 
 
@@ -250,7 +252,7 @@ def _object(value: Any, indent: int = 0) -> str:
 
 def _limits_block() -> str:
     return ("/** Every number the page checks a value against, by area, from the daemon's own constants (the ranges of the settings by key: RANGES of neoaprs/config.py; the comment, status and message "
-            "lengths, the least interval, the calls, the objects and bulletins, the time a station stays on the map). */\n"
+            "lengths, the least interval, the calls, the objects and bulletins, the time a station stays on the map, the longer spans of the map's replay). */\n"
             f"export const LIMITS = {_object(limits())} as const;\n")
 
 

@@ -676,8 +676,9 @@ export const fr: Catalogue = {
   "map.replay.speed": "Vitesse",
   "map.replay.speed_n": "{n}×",
   "map.replay.span": "Durée",
+  "map.replay.when_paused": "{what} : modifiable pendant la pause",
   "map.replay.close": "Fermer le rejeu",
-  "map.replay.none": "Aucune position entendue dans les dernières {hours} h",
+  "map.replay.none": "Aucune position entendue sur la période choisie ({span})",
   "map.pick.tap": "Touchez l'endroit sur la carte",
   "map.pick.cancel": "Annuler",
 

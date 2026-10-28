@@ -1,6 +1,6 @@
 // The map's replay as the map runs it (components/StationMap.vue; opened from the map's menu, Replay, and closed by the bar's cross or Esc, which the page decides: `on`): its clock (composables/useReplay.ts), and
 // what it draws, a marker with the APRS symbol and the call where each station was at the time of the replay and its trail up to there (lib/replay.ts, lib/replaylayers.ts). While it is on, the live markers give
-// way (the class `replaying` of the map's box hides them, styles/map.css) and so do the live tracks and the route; they go on being kept up to date underneath, so that closing the replay brings the live map back
+// way (the class `replaying` of the map's root hides them, styles/map.css) and so do the live tracks and the route; they go on being kept up to date underneath, so that closing the replay brings the live map back
 // as it is. A span with no positions in it is said in the toast. `add` is the map's, with its other layers, each time the style is set.
 import { onBeforeUnmount, watch } from "vue";
 import type { Map as MapLibreMap, Marker } from "maplibre-gl";
@@ -8,7 +8,7 @@ import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useReplay } from "@/composables/useReplay";
 import { t } from "@/i18n";
 import { buildMarkerDom, paintReplayMarker } from "@/lib/markerdom";
-import { placesAt, trailLines } from "@/lib/replay";
+import { placesAt, spanLabel, trailLines } from "@/lib/replay";
 import { addReplayLayers, setReplayTrails, showLive } from "@/lib/replaylayers";
 
 interface Engine {
@@ -82,7 +82,7 @@ export function useMapReplay(parts: () => ReplayParts) {
   });
   watch([clock.at, clock.data], draw);
   watch(clock.data, (data) => {
-    if (data && data.tracks.length === 0) page.say(t("map.replay.none", { hours: data.hours }));
+    if (data && data.tracks.length === 0) page.say(t("map.replay.none", { span: spanLabel(data.hours) }));
   });
   if (on()) clock.ask(); // (the page was opened with the replay on)
   onBeforeUnmount(clear);

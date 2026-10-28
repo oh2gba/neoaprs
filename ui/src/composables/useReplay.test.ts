@@ -8,7 +8,7 @@ const T0 = Date.parse(START);
 const HOUR = 3_600_000;
 
 function answer(hours = 3): PositionHistoryMessage {
-  return { type: "position_history", hours, start: START, stations: { OH2RDG: [[START, 60, 25]] } };
+  return { type: "position_history", hours, start: START, end: new Date(T0 + hours * HOUR).toISOString(), stations: { OH2RDG: [[START, 60, 25]] } };
 }
 
 function setUp(connected = true) {

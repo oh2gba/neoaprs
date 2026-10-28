@@ -11,6 +11,7 @@ from datetime import timedelta
 
 from neoaprs.clock import iso
 from neoaprs.coded import CodedError
+from neoaprs.geo import Thinning
 from neoaprs.config import RECEIVE_ONLY, Config, SettingError
 from neoaprs.configtypes import redacted
 from neoaprs.mapstate import Job, MapError
@@ -40,7 +41,7 @@ from .configwire import SetConfig
 from .stationwire import ForgetAllStations, ForgetStation
 from .supportwire import PageError
 from .updatewire import UpdateCancel, UpdateNow
-from .views import replay_tracks, weather_points
+from .views import replay_thinning, replay_tracks, weather_points
 from .weatherwire import WeatherSeries
 
 
@@ -315,10 +316,14 @@ async def speed_series(ctx: Ctx, cmd: SpeedSeries) -> None:
 
 @command(PositionHistory)
 async def position_history(ctx: Ctx, cmd: PositionHistory) -> None:
-    """Where the stations were over the last hours, for the replay of the map: the positions of the packet log, thinned (neoaprs/web/views.py), to the page that asked."""
-    start = ctx.ctl.clock() - timedelta(hours=cmd.hours)
-    found = await ctx.ctl.packetlog.position_history(start, ctx.ctl.config.station_call)
-    ctx.conn.send({"type": "position_history", "hours": cmd.hours, "start": iso(start), "stations": replay_tracks(found)})
+    """Where the stations were over the last hours, for the replay of the map: the positions of the packet log, thinned by the span (neoaprs/web/views.py), to the page that asked. The replay begins at the
+    oldest packet the log keeps when the span reaches back further, so that its slider does not run over days of nothing."""
+    end = ctx.ctl.clock()
+    start = end - timedelta(hours=cmd.hours)
+    metres, seconds = replay_thinning(cmd.hours)
+    found = await ctx.ctl.packetlog.position_history(start, ctx.ctl.config.station_call, lambda: Thinning(metres, seconds))
+    begins = start if found.begins is None else max(start, found.begins)
+    ctx.conn.send({"type": "position_history", "hours": cmd.hours, "start": iso(begins), "end": iso(end), "stations": replay_tracks(found.tracks)})
 
 
 @command(AlertTest)
