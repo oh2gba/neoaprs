@@ -13,7 +13,7 @@ from .dblog import DbLog
 from .packet import ItemReport, ObjectReport, Packet, Position, via_of
 from .packetcodec import PacketRow, packet_of, packet_row, parse_stamp, stamp
 from .packetsql import (Row, all_stations, count_packets, delete_heard, delete_station, heard_by_hour, heard_routes, heard_times, insert_packet, message_packets, packets_since, position_packets, prune_packets_before, radio_position_packets,
-                        recent_packets, upsert_station, window_packets)
+                        recent_packets, station_positions, upsert_station, window_packets)
 from .station import Station
 
 log = logging.getLogger("neoaprs.packetlog")
@@ -101,6 +101,17 @@ class PacketLog(DbLog):
         text = stamp(since)
         rows: list[tuple[str, int]] = await self._read(lambda conn: heard_by_hour(conn, text, source), [])
         return {parse_stamp(hour + ":00:00.000000Z"): count for hour, count in rows}
+
+    async def speeds(self, source: str, since: datetime) -> list[tuple[datetime, float]]:
+        """(when, km/h) of each position heard from `source` at or after `since` that carried a speed, the oldest first: the speed graph of a moving station's card."""
+        text = stamp(since)
+        rows: list[Row] = await self._read(lambda conn: station_positions(conn, source, text), [])
+        found: list[tuple[datetime, float]] = []
+        for packet in self._packets(rows):
+            d = packet.decoded
+            if isinstance(d, Position) and d.speed_kmh is not None:
+                found.append((packet.heard_at, d.speed_kmh))
+        return found
 
     async def deliveries(self, count: int = DELIVERIES_SEEN) -> list[tuple[str, tuple[str, ...], str, int, datetime, datetime | None]]:
         """(sender, path, iGate or "", how many, when the latest was heard, when the one before it was) over the latest `count` packets heard, the group whose latest packet is the oldest first: how the

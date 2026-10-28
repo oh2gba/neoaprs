@@ -24,7 +24,7 @@ from neoaprs.serialprobe import available_ports, can_find, can_search, paired_bl
 from .beaconwire import BeaconNow, StatusNow
 from .bulletinwire import BulletinDelete
 from .dispatch import Ctx, UserError, command
-from .historywire import PacketHistory
+from .historywire import PacketHistory, SpeedSeries
 from .hostwire import AskStatus, CheckUpdate, Ping, ReleaseNotes
 from .hubwire import Subscribe, Unsubscribe
 from .mapwire import MapCancel, MapEstimate, MapFetch, MapWanted
@@ -295,6 +295,13 @@ async def packet_history(ctx: Ctx, cmd: PacketHistory) -> None:
     counted = await ctx.ctl.packetlog.heard_by_hour(start, cmd.call)
     counts = [counted.get(start + timedelta(hours=i), 0) for i in range(cmd.hours)]
     ctx.conn.send({"type": "packet_history", "hours": cmd.hours, "call": cmd.call, "start": iso(start), "counts": counts})
+
+
+@command(SpeedSeries)
+async def speed_series(ctx: Ctx, cmd: SpeedSeries) -> None:
+    """The speeds the station reported in the last hours, the oldest first, for the speed graph of a moving station's card."""
+    speeds = await ctx.ctl.packetlog.speeds(cmd.call, ctx.ctl.clock() - timedelta(hours=cmd.hours))
+    ctx.conn.send({"type": "speed_series", "call": cmd.call, "hours": cmd.hours, "points": [[iso(at), round(kmh, 1)] for at, kmh in speeds]})
 
 
 @command(AlertTest)

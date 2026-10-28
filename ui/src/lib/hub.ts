@@ -20,6 +20,7 @@ import type {
   TopicValues,
   ReleaseNotesMessage,
   UpdateResultMessage,
+  SpeedSeriesMessage,
   WeatherSeriesMessage,
   PacketHistoryMessage,
 } from "@/protocol/protocol";
@@ -31,6 +32,7 @@ export const MAX_DELAY_MS = 30000;
 const ANSWERS: Partial<Record<Message["type"], keyof Store>> = {
   weather_series: "weatherSeries",
   packet_history: "packetHistory",
+  speed_series: "speedSeries",
   alert_result: "alertResult",
   update_result: "updateResult",
   release_notes: "releaseNotes",
@@ -49,6 +51,7 @@ export interface Store {
   error(message: ErrorMessage): void;
   weatherSeries(message: WeatherSeriesMessage): void;
   packetHistory(message: PacketHistoryMessage): void;
+  speedSeries(message: SpeedSeriesMessage): void;
   alertResult(message: AlertResultMessage): void;
   updateResult(message: UpdateResultMessage): void;
   releaseNotes(message: ReleaseNotesMessage): void;

@@ -75,6 +75,7 @@ function memory() {
     status: () => seen.statuses++,
     error: (e) => seen.errors.push(e),
     packetHistory: () => undefined,
+    speedSeries: () => undefined,
     weatherSeries: (m) => seen.series.push(m),
     alertResult: (m) => seen.alerts.push(m),
     ports: (m) => seen.ports.push(m),

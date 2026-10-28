@@ -32,6 +32,7 @@ export const MESSAGE_TYPES = [
   "ports",
   "radio_search",
   "release_notes",
+  "speed_series",
   "state",
   "status",
   "update_result",

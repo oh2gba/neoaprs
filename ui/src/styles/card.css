@@ -227,6 +227,9 @@
 .tone-packets {
   --tone: var(--accent);
 }
+.tone-speed {
+  --tone: var(--speed);
+}
 /* under a card: the path, timeout and preferences of the station */
 .prefs {
   display: flex;
@@ -275,7 +278,8 @@
 .stats-chart {
   padding: 0 10px 4px;
 }
-/* the packets of the station by the hour on its card (components/StationPackets.vue), between the facts and Details */
-.station-packets {
+/* the packets of the station by the hour on its card (components/StationPackets.vue), and the speed of a moving one (components/StationSpeed.vue), between the facts and Details */
+.station-packets,
+.station-speed {
   margin: 6px 0 2px;
 }

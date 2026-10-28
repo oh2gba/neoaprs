@@ -3990,6 +3990,82 @@
       "title": "SetStationRfOnlyCommand",
       "type": "object"
     },
+    "SpeedSeries": {
+      "additionalProperties": false,
+      "description": "Asks for the speeds a station reported in its positions in the last `hours` hours. Answered with a `speed_series` message to the page that asked, or an `error` for a call that is empty or hours out of\nrange; a station that reported no speed is answered with no points.",
+      "properties": {
+        "cmd": {
+          "const": "speed_series",
+          "type": "string"
+        },
+        "call": {
+          "description": "the station, as the `stations` topic has it: its position packets are those whose sender (the source of the frame heard) it is",
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "hours": {
+          "description": "how far back to go: 24 for a day",
+          "maximum": 168,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "cmd",
+        "call",
+        "hours"
+      ],
+      "title": "SpeedSeriesCommand",
+      "type": "object"
+    },
+    "SpeedSeriesMsg": {
+      "additionalProperties": false,
+      "description": "The speeds of one station, the answer to `speed_series`: one point for each position packet of it heard in the span that carried a speed (a course and speed after the position, a compressed position's,\na Mic-E's), the oldest first (a packet that came by two digipeaters is two points).",
+      "properties": {
+        "type": {
+          "const": "speed_series",
+          "type": "string"
+        },
+        "call": {
+          "description": "the station asked about: a page with several cards open tells the answers apart by it",
+          "type": "string"
+        },
+        "hours": {
+          "description": "the hours asked for",
+          "maximum": 168,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "points": {
+          "description": "[time, speed_kmh] for each position that had a speed, the oldest first; a station standing still that says so has 0",
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "description": "UTC, ISO 8601 with a Z",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "call",
+        "hours",
+        "points"
+      ],
+      "title": "SpeedSeriesMessage",
+      "type": "object"
+    },
     "StateMsg": {
       "additionalProperties": false,
       "description": "A topic as it is now: its revision and its whole `value`, which replaces what the page had. Patches for the changes made meanwhile follow.",
@@ -5859,6 +5935,7 @@
           "set_config": "#/$defs/SetConfig",
           "set_station_path": "#/$defs/SetStationPath",
           "set_station_rf_only": "#/$defs/SetStationRfOnly",
+          "speed_series": "#/$defs/SpeedSeries",
           "status": "#/$defs/AskStatus",
           "status_now": "#/$defs/StatusNow",
           "subscribe": "#/$defs/Subscribe",
@@ -5953,6 +6030,9 @@
           "$ref": "#/$defs/PacketHistory"
         },
         {
+          "$ref": "#/$defs/SpeedSeries"
+        },
+        {
           "$ref": "#/$defs/AlertTest"
         },
         {
@@ -6006,6 +6086,7 @@
           "ports": "#/$defs/PortsMsg",
           "radio_search": "#/$defs/RadioSearchMsg",
           "release_notes": "#/$defs/ReleaseNotesMsg",
+          "speed_series": "#/$defs/SpeedSeriesMsg",
           "state": "#/$defs/StateMsg",
           "status": "#/$defs/Status",
           "update_result": "#/$defs/UpdateResultMsg",
@@ -6040,6 +6121,9 @@
         },
         {
           "$ref": "#/$defs/PacketHistoryMsg"
+        },
+        {
+          "$ref": "#/$defs/SpeedSeriesMsg"
         },
         {
           "$ref": "#/$defs/AlertResultMsg"

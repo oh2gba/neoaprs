@@ -23,6 +23,7 @@ import type {
   PortsMessage,
   QruState,
   ReleaseNotesMessage,
+  SpeedSeriesMessage,
   StationRow,
   StatusMessage,
   TncState,
@@ -66,6 +67,8 @@ export interface DaemonContext {
   packetHistory: Read<PacketHistoryMessage | null>;
   /** the packets of each station by the hour, the answers to the station cards' `packet_history` with a call */
   packetHistoryByCall: Read<ReadonlyMap<string, PacketHistoryMessage>>;
+  /** the speeds of each moving station, the answers to the station cards' `speed_series` */
+  speedSeriesByCall: Read<ReadonlyMap<string, SpeedSeriesMessage>>;
   /** the radio link is up */
   connected: Read<boolean>;
   /** transmitting is switched off (station/transmit false): RX only */

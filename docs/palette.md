@@ -50,3 +50,4 @@ Tags (`TagMark`) use only the soft pairs, by meaning: a count is **accent**, a l
 | `--wx-pressure` | `#7b1fa2` | `#ce93d8` | the weather graphs: pressure |
 | `--wx-wind` | `#00838f` | `#4dd0e1` | the weather graphs: wind |
 | `--wx-rain` | `#1565c0` | `#64b5f6` | the weather graphs: rain |
+| `--speed` | `#2e7d32` | `#81c784` | the speed graph of a moving station's card |

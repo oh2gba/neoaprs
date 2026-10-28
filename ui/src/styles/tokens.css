@@ -53,6 +53,7 @@
   --wx-pressure: #7b1fa2;
   --wx-wind: #00838f;
   --wx-rain: #1565c0;
+  --speed: #2e7d32; /* the speed graph of a moving station's card */
   --control-h: 32px; /* every text button, input and select of a form or a toolbar */
   --control-h-small: 24px; /* .btn.small: the compact button inside a list row, a bubble or a line of text */
   --action-w: 11em; /* the least width of the button that is the action of a row: Beacon now, Test sound, Check now, Find my radio, Choose on map; the button at the end of a row after a field (Test, Download map) is as wide as its words */
@@ -96,5 +97,6 @@
     --wx-pressure: #ce93d8;
     --wx-wind: #4dd0e1;
     --wx-rain: #64b5f6;
+    --speed: #81c784;
   }
 }

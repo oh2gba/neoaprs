@@ -50,6 +50,11 @@ def heard_by_hour(db: sqlite3.Connection, stamp: str, source: str | None = None)
                                                         (source, stamp))]
 
 
+def station_positions(db: sqlite3.Connection, source: str, stamp: str) -> list[Row]:
+    """The position packets heard from `source` at or after `stamp`, the oldest first: the speeds of a moving station are read from them (by the index of the source: a few days of one station's packets at most)."""
+    return [tuple(r) for r in db.execute(f"SELECT {_PACKET_LIST} FROM packet WHERE source = ? AND direction = 'in' AND kind = 'position' AND heard_at >= ? ORDER BY id", (source, stamp))]
+
+
 def heard_routes(db: sqlite3.Connection, count: int) -> list[Row]:
     """(source, path, raw, heard_at) of the latest `count` packets that were heard on the radio (not those from the internet: they came by no route), the oldest first."""
     return [tuple(r) for r in db.execute("SELECT source, path, raw, heard_at FROM (SELECT id, source, path, raw, heard_at FROM packet WHERE direction = 'in' AND via != 'is' ORDER BY id DESC LIMIT ?) ORDER BY id", (max(0, count),))]

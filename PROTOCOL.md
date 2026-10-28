@@ -104,7 +104,7 @@ TypeScript types for both unions are in `ui/src/protocol/protocol.ts`, the JSON 
 
 ## Client to server
 
-40 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
+41 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
 
 ### `ping`
 
@@ -328,6 +328,16 @@ Asks how many packets were heard (not sent by us) in each of the last `hours` ho
 | `hours` | integer |  | how far back to go: 24 for a day, 168 for a week (>= 1, <= 168) |
 | `call` | string \| null | optional | only the packets whose sender (the source of the frame heard) is this station, as the `stations` topic has it; absent or null for every packet heard (default `null`; max 64 chars, min 1 chars) |
 
+### `speed_series`
+
+Asks for the speeds a station reported in its positions in the last `hours` hours. Answered with a `speed_series` message to the page that asked, or an `error` for a call that is empty or hours out of
+range; a station that reported no speed is answered with no points.
+
+| field | type | | description |
+|---|---|---|---|
+| `call` | string |  | the station, as the `stations` topic has it: its position packets are those whose sender (the source of the frame heard) it is (max 64 chars, min 1 chars) |
+| `hours` | integer |  | how far back to go: 24 for a day (>= 1, <= 168) |
+
 ### `alert_test`
 
 Runs the alert command as it is saved in the settings (`messages/alert_command`), exactly as for a message to us (the same shell, the same environment, the 20 s limit) with a made-up message: `NEOAPRS_FROM`
@@ -444,7 +454,7 @@ the support bundle. At most 20 of a connection are logged in a minute; the rest 
 
 ## Server to client
 
-13 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
+14 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
 
 ### `hello`
 
@@ -555,6 +565,17 @@ it counts what has come since the top of the hour.
 | `call` | string \| null |  | the station asked about, null for every packet heard: a page that asked for several stations and for all of them tells the answers apart by it |
 | `start` | time |  | the top of the first hour counted, UTC |
 | `counts` | integer[] |  | the packets heard in each hour from `start`, the oldest first (an hour with none is 0) |
+
+### `speed_series`
+
+The speeds of one station, the answer to `speed_series`: one point for each position packet of it heard in the span that carried a speed (a course and speed after the position, a compressed position's,
+a Mic-E's), the oldest first (a packet that came by two digipeaters is two points).
+
+| field | type | | description |
+|---|---|---|---|
+| `call` | string |  | the station asked about: a page with several cards open tells the answers apart by it |
+| `hours` | integer |  | the hours asked for (>= 1, <= 168) |
+| `points` | [time, number][] |  | [time, speed_kmh] for each position that had a speed, the oldest first; a station standing still that says so has 0 |
 
 ### `alert_result`
 

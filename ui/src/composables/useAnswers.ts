@@ -1,4 +1,4 @@
-// The latest answer to each command that is answered with a message of its own, kept for the component that asked: `weather_series`, `packet_history`, `alert_test`, `list_ports`, `find_radio`, `update_check` and `release_notes`; and what the hub (lib/hub.ts) does with them: keep the message.
+// The latest answer to each command that is answered with a message of its own, kept for the component that asked: `weather_series`, `packet_history`, `speed_series`, `alert_test`, `list_ports`, `find_radio`, `update_check` and `release_notes`; and what the hub (lib/hub.ts) does with them: keep the message.
 import { shallowRef } from "vue";
 import type { Store } from "@/lib/hub";
 import type {
@@ -7,11 +7,15 @@ import type {
   PortsMessage,
   RadioSearchMessage,
   ReleaseNotesMessage,
+  SpeedSeriesMessage,
   UpdateResultMessage,
   WeatherSeriesMessage,
 } from "@/protocol/protocol";
 
-type AnswerHandlers = Pick<Store, "weatherSeries" | "packetHistory" | "alertResult" | "ports" | "radioSearch" | "updateResult" | "releaseNotes">;
+type AnswerHandlers = Pick<
+  Store,
+  "weatherSeries" | "packetHistory" | "speedSeries" | "alertResult" | "ports" | "radioSearch" | "updateResult" | "releaseNotes"
+>;
 
 export function useAnswers() {
   const weatherSeries = shallowRef<WeatherSeriesMessage | null>(null);
@@ -21,6 +25,8 @@ export function useAnswers() {
   const packetHistory = shallowRef<PacketHistoryMessage | null>(null);
   /** The packets of one station by the hour, the latest answer for each: several station cards are open at once, each with its own graph. */
   const packetHistoryByCall = shallowRef<ReadonlyMap<string, PacketHistoryMessage>>(new Map());
+  /** The speeds of each moving station whose card is open, the latest answer for each. */
+  const speedSeriesByCall = shallowRef<ReadonlyMap<string, SpeedSeriesMessage>>(new Map());
   const alertResult = shallowRef<AlertResultMessage | null>(null);
   const ports = shallowRef<PortsMessage | null>(null);
   const updateResult = shallowRef<UpdateResultMessage | null>(null);
@@ -37,6 +43,7 @@ export function useAnswers() {
       if (message.call === null) packetHistory.value = message;
       else packetHistoryByCall.value = new Map(packetHistoryByCall.value).set(message.call, message);
     },
+    speedSeries: (message) => (speedSeriesByCall.value = new Map(speedSeriesByCall.value).set(message.call, message)),
     alertResult: (message) => (alertResult.value = message),
     ports: (message) => (ports.value = message),
     updateResult: (message) => (updateResult.value = message),
@@ -44,6 +51,17 @@ export function useAnswers() {
     radioSearch: (message) => (radioSearch.value = message),
   };
   /** The answers as the page reads them (useDaemon spreads them into what it returns). */
-  const refs = { weatherSeries, weatherSeriesByCall, packetHistory, packetHistoryByCall, alertResult, ports, updateResult, releaseNotes, radioSearch };
+  const refs = {
+    weatherSeries,
+    weatherSeriesByCall,
+    packetHistory,
+    packetHistoryByCall,
+    speedSeriesByCall,
+    alertResult,
+    ports,
+    updateResult,
+    releaseNotes,
+    radioSearch,
+  };
   return { ...refs, refs, handlers };
 }

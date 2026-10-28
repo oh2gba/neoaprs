@@ -497,6 +497,7 @@ export const fr: Catalogue = {
   "station.kind_reported": "{kind}, signalé par {by}",
   "station.from_us_value": "{distance} km, {bearing}",
   "station.speed_course": "{speed}, cap {course}",
+  "station.speed_chart": "Vitesse, les dernières 24 heures",
 
   "station.field.kind": "Type",
   "station.field.last_heard": "Dernière écoute",

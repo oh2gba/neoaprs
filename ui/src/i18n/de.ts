@@ -512,6 +512,7 @@ export const de: Catalogue = {
   "station.kind_reported": "{kind}, gemeldet von {by}",
   "station.from_us_value": "{distance} km, {bearing}",
   "station.speed_course": "{speed}, Kurs {course}",
+  "station.speed_chart": "Geschwindigkeit, die letzten 24 Stunden",
 
   "station.field.kind": "Art",
   "station.field.last_heard": "Zuletzt gehört",
