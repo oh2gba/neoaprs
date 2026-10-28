@@ -161,6 +161,9 @@
 }
 .trend-read {
   color: var(--text);
+  /* the value and the time under the pointer, in the room they always have: the heading never moves */
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 .trend-svg {
   display: block;

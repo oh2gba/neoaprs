@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Fixed:** the heading of a trend graph (the weather card's, the statistics card's) grew when the pointer was on the graph and the card moved; it now shows the time of the latest reading when the pointer is away, and the one under the pointer when it is there, in the same room.
 - **The statistics card can be moved**: dragged by its head anywhere over the map, or with Alt and the arrow keys, and the browser remembers where it was left.
 - **Your reach on the map.** Your own station, when picked, has the pale circle a digipeater's range has, at the distance of the farthest station you heard direct, and the map is fitted to it.
 - In the object form Up and Down step the course and the speed by one, with Shift by ten.

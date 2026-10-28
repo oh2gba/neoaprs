@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // One trend graph as inline SVG in the page's colours (the weather card's, and the packets by the hour of the statistics card): a smooth line through the readings that carries on across the gaps between them (the sustained wind with a lighter band up to its gusts, or bars for the rain), labelled ticks on both axes, and a line under the pointer with the value and the
-// time of the nearest observation in the heading. The scaling and the paths are lib/chart.ts. A series with no value draws nothing but the frame. `range` is the value axis that several weather cards share (components/StationCards.vue), so that the curves of several
+// time of the nearest observation in the heading (the latest observation's while no pointer is on the graph: the heading has the same shape either way, so nothing moves). The scaling and the paths are lib/chart.ts. A series with no value draws nothing but the frame. `range` is the value axis that several weather cards share (components/StationCards.vue), so that the curves of several
 // stations can be compared: it is rounded to round numbers as the graph's own range would be.
 import { computed, ref } from "vue";
 import { formatNumber, t } from "@/i18n";
@@ -66,9 +66,7 @@ const shown = computed(() => {
   return p === undefined || p.v === null ? null : { p, at: x.value(p.t), top: y.value(p.v), hovered: hover.value !== null };
 });
 const readout = computed(() =>
-  shown.value === null
-    ? ""
-    : `${formatNumber(shown.value.p.v ?? 0, props.valueDecimals)} ${props.unit}${shown.value.hovered ? `  ${clockText(new Date(shown.value.p.t).toISOString())}` : ""}`,
+  shown.value === null ? "" : `${formatNumber(shown.value.p.v ?? 0, props.valueDecimals)} ${props.unit}  ${clockText(new Date(shown.value.p.t).toISOString())}`,
 );
 
 function move(event: PointerEvent): void {

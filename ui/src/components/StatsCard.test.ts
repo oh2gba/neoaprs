@@ -57,7 +57,7 @@ describe("StatsCard", () => {
     await wrapper.vm.$nextTick();
     expect(wrapper.find(".stats-chart .trend-head").text()).toContain("Packets an hour, the last 24 hours");
     expect(wrapper.findAll(".stats-chart .trend-bar")).toHaveLength(24);
-    expect(wrapper.find(".stats-chart .trend-read").text()).toBe("24 packets");
+    expect(wrapper.find(".stats-chart .trend-read").text()).toMatch(/^24 packets\s+\d\d:\d\d:\d\d$/);
     now.value = NOW + 30_000;
     await wrapper.vm.$nextTick();
     expect(daemon.send).toHaveBeenCalledTimes(1);

@@ -24,9 +24,9 @@ describe("TrendChart", () => {
     expect(wrapper.find("svg").attributes("role")).toBe("img");
   });
 
-  it("says the newest value in the heading until the pointer is over the graph", () => {
+  it("says the newest value and its time in the heading until the pointer is over the graph", () => {
     const wrapper = make();
-    expect(wrapper.find(".trend-read").text()).toBe("7.0 °C");
+    expect(wrapper.find(".trend-read").text()).toMatch(/^7\.0 °C {2}\d\d:\d\d:\d\d$/);
     expect(wrapper.find(".trend-cursor").exists()).toBe(false);
   });
 
@@ -40,7 +40,7 @@ describe("TrendChart", () => {
     expect(wrapper.find(".trend-read").text()).toMatch(/^9\.0 °C {2}\d\d:\d\d:\d\d$/);
     await svg.trigger("pointerleave");
     expect(wrapper.find(".trend-cursor").exists()).toBe(false);
-    expect(wrapper.find(".trend-read").text()).toBe("7.0 °C");
+    expect(wrapper.find(".trend-read").text()).toMatch(/^7\.0 °C {2}\d\d:\d\d:\d\d$/);
   });
 
   it("draws the gusts as a lighter band and line over the sustained wind, from zero", () => {
