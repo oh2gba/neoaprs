@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Replay on the map.** **Replay** in the map's menu (a right-click, or a long press on a touch screen) plays back how the stations moved over the last 1, 3, 6, 12 or 24 hours: each station is drawn where it was, with its symbol, its call and its trail fading behind it, while the live markers and tracks give way. A bar at the bottom of the map has play and pause, a slider to go to any time of the span, the clock of the replay, the speed (60× to 3600×) and the span; its cross or Esc closes it and the live map is back as it was. The positions come from the daemon's database (a new command, `position_history`), objects by their names and your own station by your call.
+
 ## 0.12.0
 
 - **A menu on the map, and a statistics card.** A right-click on the map (a long press on a touch screen) opens a menu where the pointer is: Copy position (decimal degrees), Copy locator, and **Statistics**, which opens a card at the bottom right of the map with what the page has heard, counted up: the stations by how they were heard and what they run, the digipeaters and iGates, the ALOHA circle, the farthest stations direct and on the radio, the digipeaters most used, the packets in the database and in the last hour, the busiest station, the latest packets by kind and channel, and the radio's counters since the daemon started. At its top is a graph of the packets heard in each of the last 24 hours, counted by the daemon from its database (a new command, `packet_history`). It moves as packets come, Esc closes it with the station cards, and the browser remembers that it is open.

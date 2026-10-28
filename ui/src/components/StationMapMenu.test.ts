@@ -40,15 +40,15 @@ beforeEach(() => {
 afterEach(() => document.body.replaceChildren());
 
 describe("the menu of the map", () => {
-  it("opens on a right-click where the pointer is, with the place to copy, the locator, and Statistics last", async () => {
+  it("opens on a right-click where the pointer is, with the place to copy, the locator, then Statistics and Replay", async () => {
     await mounted();
     const { originalEvent, preventDefault } = rightClick(60.17345, 24.94123);
     await flushPromises();
     expect(preventDefault).toHaveBeenCalled();
     expect(originalEvent.defaultPrevented).toBe(true);
     expect(menu()).not.toBeNull();
-    expect(items().map((b) => b.dataset.item)).toEqual(["position", "locator", "stats"]);
-    expect(items().map((b) => b.textContent?.trim())).toEqual(["Copy position 60.17345, 24.94123", "Copy locator KP20le", "Statistics"]);
+    expect(items().map((b) => b.dataset.item)).toEqual(["position", "locator", "stats", "replay"]);
+    expect(items().map((b) => b.textContent?.trim())).toEqual(["Copy position 60.17345, 24.94123", "Copy locator KP20le", "Statistics", "Replay"]);
     expect(menu()?.style.left).toBe("300px");
     expect(menu()?.style.top).toBe("200px");
     expect(document.activeElement).toBe(item("position"));

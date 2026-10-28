@@ -6,7 +6,7 @@
 // when the daemon makes the files again (`filesKey` changes) the style is set again. One map for the life of the page,
 // opened where we are (zoom 9; on the world while we have no position) or where it was left; the colour scheme follows the system. While the first-run guide asks for the position (`picking`) a click on the map is a place (`pick`), and the place the guide
 // holds (`pin`) has a marker, which the map flies to when it was typed and not clicked. An object or an item of ours (`own`) has a marker that can be dragged: where it is dropped is its new place (`move`).
-// A right-click on the map (a long press on a touch screen) opens a menu where the pointer is (composables/useMapMenu.ts, components/MapMenu.vue): the place under it to copy, and Statistics, which opens the statistics card over the map (`stats`, the page's). Round our own station runs the ALOHA circle, a thin dashed line under the markers at the radius the daemon worked out (lib/alohacircle.ts); a pointer resting on it gets its radius as the title of the map. The selected station, when it is a digipeater of the Nearby tab that gave
+// A right-click on the map (a long press on a touch screen) opens a menu where the pointer is (composables/useMapMenu.ts, components/MapMenu.vue): the place under it to copy, and Statistics, which opens the statistics card over the map (`stats`, the page's), and Replay, which plays back how the stations moved over the last hours, the live markers, tracks and route giving way to it while it is open (`replay`, the page's: composables/useMapReplay.ts, components/ReplayBar.vue). Round our own station runs the ALOHA circle, a thin dashed line under the markers at the radius the daemon worked out (lib/alohacircle.ts); a pointer resting on it gets its radius as the title of the map. The selected station, when it is a digipeater of the Nearby tab that gave
 // a range (PHG or RNG), has a pale circle of that range under the markers too (lib/rangecircles.ts), one at a time; when such a station is picked the map fits itself to the whole circle instead of flying to the point (composables/useMapFollow.ts). While the beacon is mobile and the GPS has a fix, a button Follow me keeps the map centred on the fix (composables/useFollowMe.ts).
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { GeoJSONSource, Map as MapLibreMap, Marker } from "maplibre-gl";
@@ -35,6 +35,8 @@ import { addTrackLayers, setTrackData } from "@/lib/tracklayers";
 import { placePin } from "@/lib/pinmarker";
 import MapMenu from "@/components/MapMenu.vue";
 import { useMapMenu } from "@/composables/useMapMenu";
+import ReplayBar from "@/components/ReplayBar.vue";
+import { useMapReplay } from "@/composables/useMapReplay";
 import { hasPosition } from "@/lib/stations";
 import type { StationRow } from "@/protocol/protocol";
 
@@ -51,10 +53,19 @@ const props = withDefaults(
     picking?: boolean;
     /** The place the first-run guide holds, shown with a marker. */
     pin?: Home | null;
+    /** The replay is open (the page's: Esc closes it with the cards). */
+    replay?: boolean;
   }>(),
-  { others: () => [], picking: false, pin: null },
+  { others: () => [], picking: false, pin: null, replay: false },
 );
-const emit = defineEmits<{ select: [call: string | null, multi?: boolean]; download: []; pick: [at: Home]; move: [string, number, number]; stats: [] }>(); // move: the call, lat, lon
+const emit = defineEmits<{
+  select: [call: string | null, multi?: boolean];
+  download: [];
+  pick: [at: Home];
+  move: [call: string, lat: number, lon: number];
+  stats: [];
+  replay: [open: boolean];
+}>();
 const page = useDaemonContext();
 /** Changes when the map files on the daemon are other ones (their dates); null until the daemon has told. */
 const mapFiles = computed(() => filesKey(page.map.value));
@@ -63,14 +74,12 @@ const root = ref<HTMLElement | null>(null);
 const host = ref<HTMLElement | null>(null);
 const card = useClearOfCard(root, host);
 const selectedCall = (): string | null => props.selected;
+const stationOf = (call: string): StationRow | undefined => page.stations.value.get(call);
 const circles = useMapCircles(() => map, host, selectedCall);
 const labelControls = useMapControlLabels(host);
 useResized(host, () => map?.resize());
 const { following, canFollow, followAt, release } = useFollowMe(page.gps);
-const { files, engineFailed, unreadable, note, offerDownload, onMapError } = useMapNote(
-  () => page.guide.open,
-  () => page.map.value,
-);
+const { files, engineFailed, unreadable, note, offerDownload, onMapError } = useMapNote(page);
 const placed = new Map<string, Placed>();
 let map: MapLibreMap | null = null;
 let engine: Awaited<ReturnType<typeof loadMapEngine>> | null = null;
@@ -117,6 +126,7 @@ function addLayers(): void {
   drawTracks();
   addRouteLayers(map, routeFeatures(undefined, page.stations.value, null));
   drawRoute();
+  replay.add(); // (last: over the live layers, which it hides while it plays)
 }
 
 /** The stations that are drawn: with a position and not past their timeout (a station whose card is open is drawn, with its track, whatever its timeout). */
@@ -197,6 +207,8 @@ function pickAt(lat: number, lon: number): void {
 }
 
 const mapMenu = useMapMenu(host, () => ({ map, hover }));
+const menuEvents = { close: () => mapMenu.close(), stats: () => emit("stats"), replay: () => emit("replay", true) };
+const replay = useMapReplay(() => ({ map, engine, open: props.replay }));
 
 function showLabels(): void {
   host.value?.classList.toggle("labels-off", (map?.getZoom() ?? OPEN_ZOOM) < LABELS_FROM_ZOOM);
@@ -261,21 +273,18 @@ watch(minute, drawTracks);
 useMapFollow(() => map, card, {
   focus: () => props.focus,
   selected: () => props.selected,
-  station: (call) => page.stations.value.get(call),
+  station: stationOf,
   marker: (call) => placed.get(call),
   follow: followAt,
   pick: () => markerPick.value,
   circle: (call) => rangeCircleOf(page.stations.value.values(), call),
 });
-watch(
-  () => page.home.value,
-  (home) => {
-    drawRoute();
-    if (!map || !home || centred) return;
-    centred = true;
-    map.jumpTo({ center: [home.lon, home.lat], zoom: OPEN_ZOOM });
-  },
-);
+watch(page.home, (home) => {
+  drawRoute();
+  if (!map || !home || centred) return;
+  centred = true;
+  map.jumpTo({ center: [home.lon, home.lat], zoom: OPEN_ZOOM });
+});
 watch(
   () => [props.pin?.lat, props.pin?.lon],
   () => {
@@ -284,27 +293,16 @@ watch(
     if (map && at && !clicked) map.flyTo({ center: [at.lon, at.lat], zoom: Math.max(map.getZoom(), OPEN_ZOOM) });
   },
 );
-watch(
-  () => mapFiles.value,
-  (key) => {
-    if (key === null || key === seenKey) return;
-    if (seenKey !== null) generation += 1; // (the first word from the daemon is not a change)
-    seenKey = key;
-    void refreshBasemap();
-  },
-);
-watch(
-  () => page.dark.value,
-  (dark) => map?.setStyle(styleFor(dark)),
-);
+watch(mapFiles, (key) => {
+  if (key === null || key === seenKey) return;
+  if (seenKey !== null) generation += 1; // (the first word from the daemon is not a change)
+  seenKey = key;
+  void refreshBasemap();
+});
+watch(page.dark, (dark) => map?.setStyle(styleFor(dark)));
 
 onMounted(() => {
-  if (root.value)
-    hover = new HoverCard(
-      root.value,
-      (call) => page.stations.value.get(call),
-      () => page.now.value,
-    );
+  if (root.value) hover = new HoverCard(root.value, stationOf, () => page.now.value);
   void create();
 });
 onBeforeUnmount(() => {
@@ -323,8 +321,9 @@ onBeforeUnmount(() => {
 <template>
   <!-- the note is beside the map and not in it: the map is a layer of its own, under the first-run guide, and the note is above the guide -->
   <div ref="root" class="stationmap" v-on="mapMenu.on">
-    <div ref="host" class="mapbox" :class="{ 'map-picking': props.picking }" role="application" :aria-label="t('map.label')"></div>
-    <MapMenu v-if="mapMenu.menu.value" :key="mapMenu.key.value" v-bind="mapMenu.menu.value" :trigger="host" @close="mapMenu.close()" @stats="emit('stats')" />
+    <div ref="host" class="mapbox" :class="{ 'map-picking': props.picking, replaying: props.replay }" role="application" :aria-label="t('map.label')"></div>
+    <MapMenu v-if="mapMenu.menu.value" :key="mapMenu.key.value" v-bind="mapMenu.menu.value" :trigger="host" v-on="menuEvents" />
+    <ReplayBar v-if="props.replay" :replay="replay.clock" @close="emit('replay', false)" />
     <button v-if="canFollow" class="btn followme" :class="{ primary: following }" type="button" :aria-pressed="following" @click="following = !following">
       {{ t("map.follow_me") }}
     </button>

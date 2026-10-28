@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // The menu a right-click (a long press on a touch screen) opens on the map itself, where the pointer is: the place under it to copy as decimal degrees ("Copy position 60.17000, 24.94000") or as a Maidenhead locator
-// ("Copy locator KP20le"), and last, under a line, Statistics, which opens the statistics card over the map (components/StatsCard.vue). A copy puts the text on the clipboard and the page says so in its toast. The menu
-// is kept inside the window, takes the focus, is moved in with the arrow keys and closed by Esc, a press outside it or an item that was chosen (useContextMenu). The map opens it (components/StationMap.vue) and hears `close` and `stats`.
+// ("Copy locator KP20le"), and last, under a line, Statistics, which opens the statistics card over the map (components/StatsCard.vue), and Replay, which plays back how the stations moved (components/ReplayBar.vue). A copy puts the text on the clipboard and the page says so in its toast. The menu
+// is kept inside the window, takes the focus, is moved in with the arrow keys and closed by Esc, a press outside it or an item that was chosen (useContextMenu). The map opens it (components/StationMap.vue) and hears `close`, `stats` and `replay`.
 import { computed, ref } from "vue";
 import { useContextMenu } from "@/composables/useContextMenu";
 import { useDaemonContext } from "@/composables/useDaemonContext";
@@ -11,7 +11,7 @@ import { saidText } from "@/lib/copy";
 import { positionToLocator } from "@/lib/locator";
 
 const props = defineProps<{ lat: number; lon: number; x: number; y: number; trigger: HTMLElement | null }>();
-const emit = defineEmits<{ close: []; stats: [] }>();
+const emit = defineEmits<{ close: []; stats: []; replay: [] }>();
 const { say } = useDaemonContext();
 
 const list = ref<HTMLElement | null>(null);
@@ -27,9 +27,10 @@ async function copy(text: string): Promise<void> {
   if (await copyText(text)) say(t("copy.copied", { text: saidText(text) }));
 }
 
-function stats(): void {
+function choose(item: "stats" | "replay"): void {
   menu.done();
-  emit("stats");
+  if (item === "stats") emit("stats");
+  else emit("replay");
 }
 </script>
 
@@ -78,9 +79,22 @@ function stats(): void {
         class="ctxmenu-item"
         tabindex="-1"
         data-item="stats"
-        @click="stats"
+        @click="choose('stats')"
       >
         {{ t("map.menu.stats") }}
+      </button>
+    </li>
+    <li role="none">
+      <button
+        :ref="(el) => (buttons[locator === '' ? 2 : 3] = el as HTMLElement)"
+        type="button"
+        role="menuitem"
+        class="ctxmenu-item"
+        tabindex="-1"
+        data-item="replay"
+        @click="choose('replay')"
+      >
+        {{ t("map.menu.replay") }}
       </button>
     </li>
   </ul>

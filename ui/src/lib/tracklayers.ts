@@ -12,6 +12,8 @@ const TRACK_POINTS_SOURCE = "track-points";
 const OTHERS: ExpressionSpecification = ["==", ["get", "selected"], 0];
 const SELECTED: ExpressionSpecification = ["==", ["get", "selected"], 1];
 const EMPTY = { type: "FeatureCollection", features: [] } as const;
+/** The layers made here, which give way while the map's replay plays (lib/replaylayers.ts). */
+export const TRACK_LAYERS: readonly string[] = ["tracks-line", "tracks-selected-casing", "tracks-selected", "tracks-points"];
 
 export function addTrackLayers(map: MapLibreMap): void {
   if (map.getSource(TRACKS_SOURCE)) return;

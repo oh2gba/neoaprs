@@ -21,6 +21,7 @@ import type {
   MapState,
   PacketHistoryMessage,
   PortsMessage,
+  PositionHistoryMessage,
   QruState,
   ReleaseNotesMessage,
   StationRow,
@@ -64,6 +65,8 @@ export interface DaemonContext {
   weatherSeries: Read<ReadonlyMap<string, WeatherSeriesMessage>>;
   /** the packets heard by the hour, the answer to the statistics card's `packet_history`; null until one came */
   packetHistory: Read<PacketHistoryMessage | null>;
+  /** where the stations were over the span the map's replay asked for (`position_history`); null until one came */
+  positionHistory: Read<PositionHistoryMessage | null>;
   /** the radio link is up */
   connected: Read<boolean>;
   /** transmitting is switched off (station/transmit false): RX only */

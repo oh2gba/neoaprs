@@ -136,6 +136,13 @@ describe("useDaemon", () => {
     expect(daemon.packetHistory.value?.counts).toEqual([1, 2]);
   });
 
+  it("keeps the latest position_history", () => {
+    const { daemon, socket } = setUp();
+    expect(daemon.positionHistory.value).toBeNull();
+    socket.say({ type: "position_history", hours: 3, start: "2026-10-20T13:00:00Z", stations: { OH2RDG: [["2026-10-20T13:05:00Z", 60.1, 24.9]] } });
+    expect(daemon.positionHistory.value?.stations.OH2RDG).toEqual([["2026-10-20T13:05:00Z", 60.1, 24.9]]);
+  });
+
   it("keeps the latest answer to weather_series of each station", () => {
     const { daemon, socket } = setUp();
     expect(daemon.weatherSeriesByCall.value.size).toBe(0);

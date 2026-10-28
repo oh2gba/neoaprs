@@ -33,12 +33,13 @@ from .pageerrors import one_line
 from .messagewire import AlertTest, ConversationDelete, MessageCancel, MessageDelete, MessageRetry, OverheardDelete, QueryStation, SendMessage
 from .qruwire import AskQru
 from .portwire import FindRadio, FindRadioCancel, ListPorts
+from .replaywire import PositionHistory
 from .prefwire import ClearStationPath, SetStationPath, SetStationRfOnly
 from .configwire import SetConfig
 from .stationwire import ForgetAllStations, ForgetStation
 from .supportwire import PageError
 from .updatewire import UpdateCancel, UpdateNow
-from .views import weather_points
+from .views import replay_tracks, weather_points
 from .weatherwire import WeatherSeries
 
 
@@ -295,6 +296,14 @@ async def packet_history(ctx: Ctx, cmd: PacketHistory) -> None:
     counted = await ctx.ctl.packetlog.heard_by_hour(start)
     counts = [counted.get(start + timedelta(hours=i), 0) for i in range(cmd.hours)]
     ctx.conn.send({"type": "packet_history", "hours": cmd.hours, "start": iso(start), "counts": counts})
+
+
+@command(PositionHistory)
+async def position_history(ctx: Ctx, cmd: PositionHistory) -> None:
+    """Where the stations were over the last hours, for the replay of the map: the positions of the packet log, thinned (neoaprs/web/views.py), to the page that asked."""
+    start = ctx.ctl.clock() - timedelta(hours=cmd.hours)
+    found = await ctx.ctl.packetlog.position_history(start, ctx.ctl.config.station_call)
+    ctx.conn.send({"type": "position_history", "hours": cmd.hours, "start": iso(start), "stations": replay_tracks(found)})
 
 
 @command(AlertTest)

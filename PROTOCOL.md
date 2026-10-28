@@ -104,7 +104,7 @@ TypeScript types for both unions are in `ui/src/protocol/protocol.ts`, the JSON 
 
 ## Client to server
 
-40 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
+41 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
 
 ### `ping`
 
@@ -326,6 +326,14 @@ Asks how many packets were heard (not sent by us) in each of the last `hours` ho
 |---|---|---|---|
 | `hours` | integer |  | how far back to go: 24 for a day, 168 for a week (>= 1, <= 168) |
 
+### `position_history`
+
+Asks where the stations were in the last `hours` hours, for the replay of the map. Answered with a `position_history` message to the page that asked, or an `error` for hours out of range.
+
+| field | type | | description |
+|---|---|---|---|
+| `hours` | integer |  | how far back to go: the replay offers 1, 3, 6, 12 and 24, the choices of the Stations tab's On map for (>= 1, <= 24) |
+
 ### `alert_test`
 
 Runs the alert command as it is saved in the settings (`messages/alert_command`), exactly as for a message to us (the same shell, the same environment, the 20 s limit) with a made-up message: `NEOAPRS_FROM`
@@ -442,7 +450,7 @@ the support bundle. At most 20 of a connection are logged in a minute; the rest 
 
 ## Server to client
 
-13 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
+14 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
 
 ### `hello`
 
@@ -552,6 +560,18 @@ it counts what has come since the top of the hour.
 | `hours` | integer |  | the hours asked for (>= 1, <= 168) |
 | `start` | time |  | the top of the first hour counted, UTC |
 | `counts` | integer[] |  | the packets heard in each hour from `start`, the oldest first (an hour with none is 0) |
+
+### `position_history`
+
+The positions of the stations over the span asked for, the answer to `position_history`, from the packet log: every position heard in it (a station's own, or the one inside a third-party packet), the
+live objects and items heard by their names, and what we sent under our call (our beacons, and our objects by their names). A station's points are thinned: one less than 10 m from the point before it, or
+less than 30 s after it, is left out, and the last is always there. The latest 50 000 position packets at most are read: on a very busy feed the oldest part of a long span may be missing.
+
+| field | type | | description |
+|---|---|---|---|
+| `hours` | integer |  | the hours asked for (>= 1, <= 24) |
+| `start` | time |  | where the span begins, UTC: `hours` hours before the daemon answered |
+| `stations` | { [key: string]: [time, number, number][] } |  | [time, lat, lon] for each position kept, the oldest first, by the station's call (an object's or item's name); a station with no position in the span is not in it |
 
 ### `alert_result`
 
