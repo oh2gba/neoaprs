@@ -10,6 +10,7 @@
     shell.py      which shell this computer can run, and the fallback when none can show a window
     qtshell.py    the shell of Linux and macOS: Qt (QWebEngineView and QSystemTrayIcon), one event loop
     winshell.py   the shell of Windows: pywebview (WebView2) for the window, pystray for the tray icon
+    winplace.py   the window's placement on Windows (GetWindowPlacement, SetWindowPlacement): saved and given back
 
 Only qtshell.py and winshell.py import a toolkit (PySide6, pywebview, pystray, Pillow); they are the app's optional dependencies (`pip install neoaprs[app]`) and nothing else imports them.
 """

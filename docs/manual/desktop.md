@@ -14,7 +14,10 @@ It needs the extra `app`: `uv tool install "neoaprs[app]"` or `pip install "neoa
 
 ## The window
 
-- It is titled NeoAPRS, 1280x800 in the middle of the screen the first time, then the size and place it was closed with, maximized if it was. A place that is on no monitor any more (one was unplugged) is not used.
+- It is titled NeoAPRS, 1280x800 in the middle of the screen the first time, then the size and place it was closed with, maximized if it was. A window closed while minimised comes back as it was before.
+- On Windows the size, the place and the maximize are Windows' own window placement: it is read from Windows when the window is closed to the tray, at Quit and when it has stopped moving, and given back to Windows as it was when the window is opened again or the app starts. A window whose monitor is gone is moved onto one that is there by Windows. A file from an earlier version has no placement: the first start after the update opens the window at 1280x800 in the middle (maximized if it was), and from then on it is kept.
+- On Linux and macOS a place that is on no monitor any more (one was unplugged) is not used.
+- On Windows the app's log, `neoaprs-app.log`, has a line beginning `window:` for each save and restore of the window: the placement read, the one applied with the monitor's area, the work area without the taskbar and the display scaling (DPI), and what Windows says right after. If the window comes back wrong, **Collect support logs** in the tray menu puts that log in the support file ([support.md](support.md)).
 - What the page keeps in the browser (the panel's width and tab, the map's view, the messages and bulletins seen) is kept in the folder `webview/` of the data folder, so it survives a restart. It belongs to the page's address, `127.0.0.1` and the port. A page that moves to another port (7303 was taken) starts with a clean slate there.
 - Closing the window **hides** it. NeoAPRS goes on listening in the tray.
 - A link to another site (the QRZ page of a call, the credits of the map) and a link that asks for a new tab open in the system's browser and never in the window. `file:` and `javascript:` addresses are dropped.
@@ -58,6 +61,6 @@ The app chooses what the computer can run and says what it chose, and why, in `n
 
 ## Files in the data folder
 
-`neoaprs-app.log` (the app's log, rotating, 1 MB), `neoaprs-app.json` (the window's size, place and whether it is maximized), `neoaprs-app.lock` and `neoaprs-app.port` (the one-app rule), and `webview/` (the web engine's storage). The daemon's own lock, `neoaprs.lock`, is separate.
+`neoaprs-app.log` (the app's log, rotating, 1 MB), `neoaprs-app.json` (the window's size, place and whether it is maximized; on Windows also `normal`, the rectangle of Windows' window placement in Windows' own pixels), `neoaprs-app.lock` and `neoaprs-app.port` (the one-app rule), and `webview/` (the web engine's storage). The daemon's own lock, `neoaprs.lock`, is separate.
 
 On Windows, the app is `neoaprs-app.exe`, not `NeoAPRS.exe`, because Windows file names ignore case and that would be the console program `neoaprs.exe`.
