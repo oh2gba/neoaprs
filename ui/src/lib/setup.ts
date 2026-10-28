@@ -10,7 +10,7 @@ import { portForProfile, speedFallback } from "@/lib/tncprofile";
 import { TNC_PROFILES } from "@/protocol/lists";
 import type { PortsMessage } from "@/protocol/protocol";
 
-const STEP_IDS: readonly MessageId[] = ["setup.step.call", "setup.step.position", "setup.step.symbol", "setup.step.radio", "setup.step.map"];
+const STEP_IDS: readonly MessageId[] = ["setup.step.call", "setup.step.position", "setup.step.symbol", "setup.step.radio"];
 export const STEP_COUNT = STEP_IDS.length;
 export const LAST_STEP = STEP_COUNT - 1;
 
@@ -101,7 +101,6 @@ const CHECKS: ((f: SetupFields) => Problems)[] = [
       ? { host: problemOf("tcp/host", f.host, true), tcpPort: problemOf("tcp/port", f.tcpPort, true) }
       : { baud: problemOf("serial/baud", f.baud, true) };
   },
-  () => ({}), // (the Map step asks nothing: the map is downloaded by itself)
 ];
 
 export function stepProblems(step: number, f: SetupFields): Problems {

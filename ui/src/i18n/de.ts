@@ -1405,7 +1405,6 @@ export const de: Catalogue = {
   "setup.step.position": "Position",
   "setup.step.symbol": "Symbol",
   "setup.step.radio": "Funkgerät",
-  "setup.step.map": "Karte",
   "setup.step_label": "{n} {title}",
   "setup.done": "Fertig",
   "setup.close": "Schließen",
@@ -1431,14 +1430,7 @@ export const de: Catalogue = {
   "setup.symbol.antenna": "Antenne",
 
   "setup.map_auto": "Die Karte deines Gebiets wird heruntergeladen…",
-  "setup.map_text":
-    "NeoAPRS lädt Straßen und Namen im Umkreis von {radius} km um deine Station von selbst herunter; das läuft im Hintergrund weiter. Der Radius steht in Einstellungen → Karte.",
   "setup.map_later": "Die Detailkarte wird heruntergeladen, sobald du online bist.",
-
-  "setup.beacon_every": "Bake alle {minutes} min",
-  "setup.beacon_tip_label": "Über die Bake",
-  "setup.beacon_tip1": "NeoAPRS sendet deine Position in diesem Abstand, damit andere Stationen dich auf ihrer Karte sehen.",
-  "setup.beacon_tip2": "Ändern oder ausschalten kannst du sie im Reiter Bake.",
 
   // help
   "help.close": "Schließen",

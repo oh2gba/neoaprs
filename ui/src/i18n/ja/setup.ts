@@ -8,7 +8,6 @@ export const setup: Record<keyof typeof source, Message> = {
   "setup.step.position": "位置",
   "setup.step.symbol": "シンボル",
   "setup.step.radio": "無線機",
-  "setup.step.map": "地図",
   "setup.step_label": "{n} {title}",
   "setup.done": "完了",
   "setup.close": "閉じる",
@@ -34,11 +33,5 @@ export const setup: Record<keyof typeof source, Message> = {
   "setup.symbol.antenna": "アンテナ",
 
   "setup.map_auto": "周辺地図をダウンロードしています…",
-  "setup.map_text": "NeoAPRS は局の周囲 {radius} km の道路と地名を自動でダウンロードします。バックグラウンドで続きます。半径は 設定 → 地図 にあります。",
   "setup.map_later": "詳細地図はオンラインになったときにダウンロードされます。",
-
-  "setup.beacon_every": "ビーコンは{minutes}分ごと",
-  "setup.beacon_tip_label": "ビーコンについて",
-  "setup.beacon_tip1": "NeoAPRSはこの間隔で位置を送信し、ほかの局の地図にあなたが表示されます。",
-  "setup.beacon_tip2": "間隔の変更やオフは「ビーコン」タブで行えます。",
 };

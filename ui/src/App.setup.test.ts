@@ -117,7 +117,7 @@ describe("App: the first-run guide", () => {
     expect(FakeMarker.live().filter((m) => m.element.classList.contains("setuppin"))).toHaveLength(1);
   });
 
-  it("goes through the five steps and sends one set_config with the keys that changed, then closes when the daemon tells the settings", async () => {
+  it("goes through the four steps and sends one set_config with the keys that changed, then closes when the daemon tells the settings", async () => {
     const { wrapper, socket } = await fresh();
     const configs = () => socket.sent.filter((c) => (c as { cmd: string }).cmd === "set_config");
     const next = () => wrapper.find("form").trigger("submit");
@@ -148,8 +148,6 @@ describe("App: the first-run guide", () => {
     });
     await flushPromises();
     await wrapper.find("#setup-port").setValue("/dev/ttyUSB0");
-    await next();
-    expect(wrapper.find(".setup-step-name").text()).toBe("Map");
     expect(configs()).toHaveLength(1);
     await next();
     expect(configs()[1]).toEqual({
@@ -194,13 +192,13 @@ describe("App: the first-run guide", () => {
     expect(wrapper.find(".setup .field-error").text()).toBe("'OH2ABC' is already in use");
   });
 
-  it("sends the place as the Position step is left, so that the daemon begins the map, and the Map step shows the download with its percent in the header", async () => {
+  it("sends the place as the Position step is left, so that the daemon begins the map, and the header shows the download's percent", async () => {
     const { wrapper, socket } = await fresh();
     await wrapper.find("#setup-call").setValue("oh2abc");
     await wrapper.find("form").trigger("submit");
     await wrapper.find("#setup-lat").setValue("60.17");
     await wrapper.find("#setup-lon").setValue("24.94");
-    for (let i = 0; i < 3; i++) await wrapper.find("form").trigger("submit");
+    for (let i = 0; i < 2; i++) await wrapper.find("form").trigger("submit");
     const commands = () => socket.sent.map((c) => (c as { cmd: string }).cmd);
     expect(commands().filter((c) => c === "set_config")).toHaveLength(1); // (the place, sent as the Position step was left)
     expect(commands()).not.toContain("map_estimate");
@@ -213,12 +211,12 @@ describe("App: the first-run guide", () => {
       value: mapState({ state: "downloading", step: "area", percent: 42, downloaded: 1_000_000, radius_km: 150 }),
     });
     await flushPromises();
-    expect(wrapper.find(".setup .setup-map").text()).toContain("150 km round your station");
-    expect(wrapper.find(".setup .mapfetch-progress").text()).toContain("42%");
+    expect(wrapper.find(".setup .setup-mapline").text()).toBe("Downloading the map of your area…");
+    expect(wrapper.find(".setup .mapfetch-progress").exists()).toBe(false);
     expect(wrapper.find(".appheader .pill-map").text()).toBe("Map 42 %");
     socket.say({ type: "state", topic: "map", rev: 1, value: mapState({ state: "ready", detail: mapFile() }) });
     await flushPromises();
     expect(wrapper.find(".appheader .pill-map").exists()).toBe(false);
-    expect(wrapper.find(".setup .mapfetch-file").text()).toContain("Map downloaded");
+    expect(wrapper.find(".setup .setup-mapline").exists()).toBe(false);
   });
 });

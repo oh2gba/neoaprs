@@ -48,7 +48,7 @@ describe("useSetupGuide: the steps", () => {
     expect(guide.open).toBe(false);
     expect(guide.step).toBe(0);
     expect(guide.fields).toMatchObject({ call: "", lat: "", lon: "", symbol: "/-", profile: "kenwood-tnc2" });
-    expect(guide.valid).toEqual([false, false, true, true, true]);
+    expect(guide.valid).toEqual([false, false, true, true]);
   });
 
   it("checks the call as it is typed and does not go on from a wrong one", () => {
@@ -107,7 +107,7 @@ describe("useSetupGuide: the steps", () => {
     expect(guide.picking).toBe(false);
   });
 
-  it("checks the symbol, the radio and the map", () => {
+  it("checks the symbol and the radio", () => {
     const { guide, fill } = setUp();
     fill();
     guide.go(2);
@@ -124,8 +124,7 @@ describe("useSetupGuide: the steps", () => {
     guide.edit("tcpPort", "99999");
     expect(guide.problems.tcpPort).toBe("1 to 65535");
     guide.edit("tcpPort", "8001");
-    guide.go(4);
-    expect(guide.valid[4]).toBe(true); // (the Map step asks nothing)
+    expect(guide.valid[3]).toBe(true);
   });
 
   it("goes back freely, goes forward only over steps that have what they need, and remembers the answers", () => {
@@ -227,7 +226,7 @@ describe("useSetupGuide: Finish", () => {
     guide.edit("profile", "kantronics");
     guide.edit("port", "/dev/ttyUSB0");
     guide.edit("baud", "4800");
-    guide.go(4);
+    guide.go(3);
     expect(guide.changes).toEqual({
       "station/call": "OH2ABC",
       "station/lat": "60.17",
@@ -254,7 +253,7 @@ describe("useSetupGuide: Finish", () => {
     const { guide, sent, fill } = setUp();
     guide.show();
     fill();
-    guide.go(4);
+    guide.go(3);
     guide.next();
     expect(setConfigs(sent)).toEqual([
       { cmd: "set_config", values: { "station/call": "OH2ABC", "station/lat": "60.17", "station/lon": "24.94", "beacon/interval_min": "30" } },
@@ -264,8 +263,8 @@ describe("useSetupGuide: Finish", () => {
   it("sends nothing when nothing changed, and closes", () => {
     const { guide, sent } = setUp(configValues());
     guide.show();
-    guide.go(4);
-    expect(guide.step).toBe(4);
+    guide.go(3);
+    expect(guide.step).toBe(3);
     guide.next();
     expect(sent).toEqual([]);
     expect(guide.open).toBe(false);
@@ -279,7 +278,7 @@ describe("useSetupGuide: Finish", () => {
     guide.edit("profile", "kiss-tcp");
     guide.edit("host", "192.168.1.5");
     guide.edit("tcpPort", "8002");
-    guide.go(4);
+    guide.go(3);
     guide.next();
     expect(setConfigs(sent)[0]).toEqual({
       cmd: "set_config",
@@ -300,7 +299,7 @@ describe("useSetupGuide: Finish", () => {
     const { guide, sent, fill } = setUp();
     guide.show();
     fill();
-    guide.go(4);
+    guide.go(3);
     guide.next();
     guide.finish();
     guide.next();
@@ -310,7 +309,7 @@ describe("useSetupGuide: Finish", () => {
   it("will not finish with a step that is not right: it goes to the first such step", () => {
     const { guide, sent, fill } = setUp();
     fill();
-    guide.go(4);
+    guide.go(3);
     guide.edit("call", "n0call");
     guide.finish();
     expect(sent).toEqual([]);
@@ -321,7 +320,7 @@ describe("useSetupGuide: Finish", () => {
     const { guide, sent, fail, fill } = setUp();
     guide.show();
     fill();
-    guide.go(4);
+    guide.go(3);
     guide.next();
     expect(guide.saving).toBe(true);
     await fail("set_config: station/lat: 95 is not between -90 and 90");
@@ -331,7 +330,7 @@ describe("useSetupGuide: Finish", () => {
     expect(guide.problems.lat).toBe("95 is not between -90 and 90");
     guide.edit("lat", "60.17");
     expect(guide.problems.lat).toBeUndefined();
-    guide.go(4);
+    guide.go(3);
     guide.next();
     expect(setConfigs(sent)).toHaveLength(2);
   });
@@ -340,13 +339,13 @@ describe("useSetupGuide: Finish", () => {
     const { guide, fail, fill } = setUp();
     guide.show();
     fill();
-    guide.go(4);
+    guide.go(3);
     guide.next();
     await fail("set_config: station/symbol_table: '!' is not / or \\ or an overlay character A-Z, 0-9");
     expect(guide.step).toBe(2);
     expect(guide.problems.symbol).toContain("is not / or");
     guide.edit("symbol", "/-");
-    guide.go(4);
+    guide.go(3);
     guide.next();
     await fail("set_config: serial/port: no such port");
     expect(guide.step).toBe(3);
@@ -359,7 +358,7 @@ describe("useSetupGuide: Finish", () => {
     fill();
     await fail("set_config: station/lat: 95 is not between -90 and 90");
     expect(guide.problems.lat).toBeUndefined();
-    guide.go(4);
+    guide.go(3);
     guide.next();
     await fail("Not connected to the daemon.");
     expect(guide.saving).toBe(false);
@@ -371,7 +370,7 @@ describe("useSetupGuide: Finish", () => {
     send.mockReturnValue(false);
     guide.show();
     fill();
-    guide.go(4);
+    guide.go(3);
     guide.next();
     expect(guide.saving).toBe(false);
   });
@@ -411,7 +410,7 @@ describe("useSetupGuide: the place goes to the daemon as the Position step is le
     await nextTick();
     expect(guide.step).toBe(2);
     expect(setConfigs(sent)).toEqual([{ cmd: "set_config", values: { "station/lat": "60.17", "station/lon": "24.94" } }]);
-    expect(guide.saving).toBe(false); // (it is not a save of the guide: Finish and the Map step's buttons are not held up)
+    expect(guide.saving).toBe(false); // (it is not a save of the guide: Finish is not held up)
   });
 
   it("is not sent again when the daemon has the place already, and not when the daemon has a detailed map", async () => {

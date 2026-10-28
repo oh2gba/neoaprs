@@ -169,14 +169,6 @@ describe("the radio step", () => {
   });
 });
 
-describe("the map step", () => {
-  it("asks nothing: the map is downloaded by itself, and the radius is a setting", () => {
-    expect(stepOk(4, answered(), null)).toBe(true);
-    expect(stepProblems(4, answered())).toEqual({});
-    expect(Object.keys(fieldsFrom(fresh()))).not.toContain("radius");
-  });
-});
-
 describe("what the guide starts with", () => {
   it("is the daemon's settings, with the profile's own speed left empty for the placeholder", () => {
     const f = fieldsFrom(configValues({ "serial/baud": "9600", "station/symbol_table": "\\", "station/symbol_code": "k" }).values);

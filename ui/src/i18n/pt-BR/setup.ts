@@ -8,7 +8,6 @@ export const setup: Record<keyof typeof source, Message> = {
   "setup.step.position": "Posição",
   "setup.step.symbol": "Símbolo",
   "setup.step.radio": "Rádio",
-  "setup.step.map": "Mapa",
   "setup.step_label": "{n} {title}",
   "setup.done": "Concluído",
   "setup.close": "Fechar",
@@ -34,12 +33,5 @@ export const setup: Record<keyof typeof source, Message> = {
   "setup.symbol.antenna": "Antena",
 
   "setup.map_auto": "Baixando o mapa da sua região…",
-  "setup.map_text":
-    "O NeoAPRS baixa sozinho as ruas e os nomes em {radius} km ao redor da sua estação; continua em segundo plano. O raio está em Ajustes → Mapa.",
   "setup.map_later": "O mapa detalhado será baixado quando você estiver online.",
-
-  "setup.beacon_every": "Beacon a cada {minutes} min",
-  "setup.beacon_tip_label": "Sobre o beacon",
-  "setup.beacon_tip1": "O NeoAPRS envia a sua posição neste intervalo, para que as outras estações vejam você no mapa delas.",
-  "setup.beacon_tip2": "Mude, ou desligue, na aba Beacon.",
 };

@@ -7,7 +7,6 @@ export const setup: Readonly<Record<keyof typeof en, Message>> = {
   "setup.step.position": "Posición",
   "setup.step.symbol": "Símbolo",
   "setup.step.radio": "Radio",
-  "setup.step.map": "Mapa",
   "setup.step_label": "{n} {title}",
   "setup.done": "Hecho",
   "setup.close": "Cerrar",
@@ -33,12 +32,5 @@ export const setup: Readonly<Record<keyof typeof en, Message>> = {
   "setup.symbol.antenna": "Antena",
 
   "setup.map_auto": "Descargando el mapa de tu zona…",
-  "setup.map_text":
-    "NeoAPRS descarga por sí solo las calles y los nombres en {radius} km alrededor de tu estación; sigue en segundo plano. El radio está en Ajustes → Mapa.",
   "setup.map_later": "El mapa detallado se descargará cuando tengas conexión.",
-
-  "setup.beacon_every": "Baliza cada {minutes} min",
-  "setup.beacon_tip_label": "Acerca de la baliza",
-  "setup.beacon_tip1": "NeoAPRS envía tu posición con este intervalo, para que las demás estaciones te vean en su mapa.",
-  "setup.beacon_tip2": "Cámbialo, o desactívalo, en la pestaña Baliza.",
 };

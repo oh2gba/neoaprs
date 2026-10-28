@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The setup guide ends with the Radio step: the Map step, which asked nothing and only said that the map was downloading, is gone, and so is the "Beacon every 30 min" line (the Beacon tab shows the beacon). The quiet line about the map's download and the **Map** mark at the top of the page stay.
+
 ## 0.11.0
 
 - **What's new in the update window.** The window that says a newer version is out now shows the release notes themselves: every version between yours and the new one, fetched from the project's changelog on GitHub. The release page is offered only when they cannot be fetched.

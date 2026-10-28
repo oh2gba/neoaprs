@@ -1391,7 +1391,6 @@ export const fr: Catalogue = {
   "setup.step.position": "Position",
   "setup.step.symbol": "Symbole",
   "setup.step.radio": "Radio",
-  "setup.step.map": "Carte",
   "setup.step_label": "{n} {title}",
   "setup.done": "Terminé",
   "setup.close": "Fermer",
@@ -1417,14 +1416,7 @@ export const fr: Catalogue = {
   "setup.symbol.antenna": "Antenne",
 
   "setup.map_auto": "Téléchargement de la carte de votre zone…",
-  "setup.map_text":
-    "NeoAPRS télécharge de lui-même les rues et les noms à {radius} km autour de votre station ; cela continue en arrière-plan. Le rayon est dans Réglages → Carte.",
   "setup.map_later": "La carte détaillée sera téléchargée dès que vous serez en ligne.",
-
-  "setup.beacon_every": "Balise toutes les {minutes} min",
-  "setup.beacon_tip_label": "À propos de la balise",
-  "setup.beacon_tip1": "NeoAPRS envoie votre position à cet intervalle, pour que les autres stations vous voient sur leur carte.",
-  "setup.beacon_tip2": "Modifiez-la, ou désactivez-la, dans l'onglet Balise.",
 
   // help
   "help.close": "Fermer",

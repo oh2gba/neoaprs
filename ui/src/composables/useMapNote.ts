@@ -18,7 +18,7 @@ export function useMapNote(guideOpen: () => boolean, map: () => MapState | null)
     if ((!detail || unreadable.value.includes(BASE_SOURCE)) && (!world || unreadable.value.includes(WORLD_SOURCE))) return "map.note.unreadable";
     return !detail && !guideOpen() && map()?.state !== "downloading" ? "map.note.no_detail" : "";
   });
-  /** ... and whether it has the button that goes to where the map is made (not over the guide, which has its own Map step). */
+  /** ... and whether it has the button that goes to where the map is made (not over the guide, which has its own quiet line about the map). */
   const offerDownload = computed(
     () =>
       !guideOpen() &&

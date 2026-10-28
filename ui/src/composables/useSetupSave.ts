@@ -1,5 +1,5 @@
 // How the first-run guide saves (composables/useSetupGuide.ts): Finish sends one `set_config` with the keys the answers change (the topic `config` told after a save is the answer). The daemon's error that names a key is shown under its field, and the guide
-// goes to the step that has it. The place of the Position step is sent on its own when the guide goes on from it, so that the daemon begins the map round it at once (the Map step shows the download).
+// goes to the step that has it. The place of the Position step is sent on its own when the guide goes on from it, so that the daemon begins the map round it at once (the guide says so in a quiet line, and the header shows the percent).
 import { computed, ref, watch, type Ref } from "vue";
 import type { useSetupAnswers } from "@/composables/useSetupAnswers";
 import type { Toast } from "@/composables/useDaemon";

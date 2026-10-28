@@ -5,7 +5,6 @@ export const setup = {
   "setup.step.position": "Position",
   "setup.step.symbol": "Symbol",
   "setup.step.radio": "Radio",
-  "setup.step.map": "Map",
   "setup.step_label": "{n} {title}",
   "setup.done": "Done",
   "setup.close": "Close",
@@ -31,12 +30,5 @@ export const setup = {
   "setup.symbol.antenna": "Antenna",
 
   "setup.map_auto": "Downloading the map of your area…",
-  "setup.map_text":
-    "NeoAPRS downloads the streets and names {radius} km round your station by itself; it goes on in the background. The radius is in Settings → Map.",
   "setup.map_later": "The detailed map will download when you are online.",
-
-  "setup.beacon_every": "Beacon every {minutes} min",
-  "setup.beacon_tip_label": "About the beacon",
-  "setup.beacon_tip1": "NeoAPRS sends your position at this interval, so that other stations see you on their map.",
-  "setup.beacon_tip2": "Change it, or switch it off, on the Beacon tab.",
 } as const;

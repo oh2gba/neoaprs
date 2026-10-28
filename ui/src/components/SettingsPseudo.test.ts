@@ -15,7 +15,6 @@ import RadioStatus from "@/components/RadioStatus.vue";
 import SettingsForm from "@/components/SettingsForm.vue";
 import SetupCall from "@/components/SetupCall.vue";
 import SetupGuide from "@/components/SetupGuide.vue";
-import SetupMap from "@/components/SetupMap.vue";
 import SetupPosition from "@/components/SetupPosition.vue";
 import SetupRadio from "@/components/SetupRadio.vue";
 import SetupSymbol from "@/components/SetupSymbol.vue";
@@ -150,7 +149,7 @@ describe("the settings area in the pseudo-locale", () => {
     const context = daemon({ "station/call": "", "station/lat": "", "station/lon": "" });
     context.guide.show();
     expect(untranslated(draw(SetupGuide, context))).toEqual([]);
-    for (const step of [SetupCall, SetupPosition, SetupSymbol, SetupRadio, SetupMap]) expect(untranslated(draw(step, context)), step.__name).toEqual([]);
+    for (const step of [SetupCall, SetupPosition, SetupSymbol, SetupRadio]) expect(untranslated(draw(step, context)), step.__name).toEqual([]);
     context.guide.edit("profile", "kiss-tcp");
     expect(untranslated(draw(SetupRadio, context))).toEqual([]);
     context.guide.edit("lat", "x");

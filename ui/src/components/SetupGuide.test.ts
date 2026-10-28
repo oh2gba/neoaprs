@@ -40,7 +40,7 @@ function make(opts: { config?: ConfigValues; map?: MapState | null } = {}) {
   const type = (id: string, text: string) => wrapper.find<HTMLInputElement>(`#${id}`).setValue(text);
   const next = () => wrapper.find("form").trigger("submit");
   const button = (label: string) => wrapper.findAll("button").find((b) => b.text() === label);
-  /** Fills the call and the position and stands on the step with this index (1 is the position, 4 the map). */
+  /** Fills the call and the position and stands on the step with this index (1 is the position, 3 the radio). */
   const stand = async (step: number) => {
     await type("setup-call", "oh2abc");
     await next();
@@ -57,10 +57,10 @@ afterEach(() => {
 });
 
 describe("SetupGuide: the frame", () => {
-  it("is a panel with a heading per step and no explanation: five steps in the indicator, the step's title, Next", () => {
+  it("is a panel with a heading per step and no explanation: four steps in the indicator, the step's title, Next", () => {
     const { wrapper } = make();
     expect(wrapper.find("[role='dialog']").attributes("aria-label")).toBe("Setup");
-    expect(wrapper.findAll(".setup-dot").map((b) => b.attributes("title"))).toEqual(["Call", "Position", "Symbol", "Radio", "Map"]);
+    expect(wrapper.findAll(".setup-dot").map((b) => b.attributes("title"))).toEqual(["Call", "Position", "Symbol", "Radio"]);
     expect(wrapper.find(".setup-dot.active").text()).toBe("1");
     expect(wrapper.findAll(".setup-dot.done")).toHaveLength(0); // the steps ahead have answers already, but are not done
     expect(wrapper.find(".setup-step-name").text()).toBe("Call");
@@ -70,40 +70,21 @@ describe("SetupGuide: the frame", () => {
     expect(wrapper.find(".setup-foot button").text()).toBe("Next"); // no Back on the first step
   });
 
-  it("is nothing while closed, and says nothing about the beacon before the last step", async () => {
+  it("is nothing while closed", async () => {
     const { wrapper, guide, stand } = make();
-    const texts: string[] = [];
     await stand(1);
-    texts.push(wrapper.text());
-    for (let i = 2; i <= 4; i++) {
-      guide.go(i - 1);
-      await nextTick();
-      texts.push(wrapper.text());
-    }
-    expect(texts.join(" ").toLowerCase()).not.toContain("beacon");
     guide.close();
     await nextTick();
     expect(wrapper.find(".setup").exists()).toBe(false);
   });
 
-  it("tells a new station on the last step that it will beacon every 30 min, with an (i) that says where to change it", async () => {
+  it("sets the beacon of a new station to every 30 min with Finish, without a word about it, and leaves the beacon of a station that has a call alone", async () => {
     const { wrapper, guide, stand } = make();
-    await stand(4);
-    expect(wrapper.find(".setup-beacon").text()).toContain("Beacon every 30 min");
-    expect(wrapper.find(".setup-beacon .info-toggle").exists()).toBe(true);
+    await stand(3);
+    expect(wrapper.text().toLowerCase()).not.toContain("beacon");
     expect(guide.changes["beacon/interval_min"]).toBe("30");
-  });
-
-  it("says nothing of the beacon, and leaves it as it is, when the guide is run again on a station that has a call", async () => {
-    const { wrapper, guide } = make({ config: configValues({ "beacon/interval_min": "0" }) });
-    guide.go(4);
-    await nextTick();
-    expect(wrapper.find(".setup-beacon").exists()).toBe(false);
-    expect(guide.changes["beacon/interval_min"]).toBeUndefined();
-    const sixty = make({ config: configValues({ "beacon/interval_min": "60" }) });
-    sixty.guide.go(4);
-    await nextTick();
-    expect(sixty.wrapper.find(".setup-beacon").text()).toContain("Beacon every 60 min");
+    const again = make({ config: configValues({ "beacon/interval_min": "0" }) });
+    expect(again.guide.changes["beacon/interval_min"]).toBeUndefined();
   });
 
   it("closes with the cross and with Escape, and its answers are there when it is opened again", async () => {
@@ -533,41 +514,23 @@ describe("SetupGuide: the radio, Find my radio and the Terminal", () => {
   });
 });
 
-describe("SetupGuide: the map and Finish", () => {
-  it("asks nothing: it says the map of the setting's radius round the station is being downloaded, shows the progress, and has Finish, the one primary, in place of Next", async () => {
+describe("SetupGuide: Finish", () => {
+  it("is on the Radio step, the last: Finish, the one primary, in place of Next, and nothing of the map but its quiet line", async () => {
     const { wrapper, stand } = make({ map: mapState({ state: "downloading", step: "area", percent: 42, downloaded: 1_000_000, radius_km: 150 }) });
-    await stand(4);
-    expect(wrapper.find(".setup-step-name").text()).toBe("Map");
-    expect(wrapper.findAll(".field label")).toHaveLength(0);
+    await stand(3);
+    expect(wrapper.find(".setup-step-name").text()).toBe("Radio");
     expect(wrapper.find("#setup-radius").exists()).toBe(false);
     expect(wrapper.find(".mapfetch-button").exists()).toBe(false);
-    expect(wrapper.find(".setup-map").text()).toBe(
-      "NeoAPRS downloads the streets and names 150 km round your station by itself; it goes on in the background. The radius is in Settings → Map.",
-    );
-    expect(wrapper.find(".mapfetch-progress").text()).toContain("42%");
+    expect(wrapper.find(".mapfetch-progress").exists()).toBe(false);
+    expect(wrapper.find(".setup-mapline").text()).toBe("Downloading the map of your area…");
     expect(wrapper.findAll(".setup .primary").map((b) => b.text())).toEqual(["Finish"]);
     expect(wrapper.find("button[type=submit]").text()).toBe("Finish");
     expect(wrapper.find("button[type=submit]").attributes("disabled")).toBeUndefined();
   });
 
-  it("says the radius the settings have when the daemon has not told its map, and 'Map downloaded' once it is there", async () => {
-    const { wrapper, stand, config } = make({ map: null });
-    await stand(4);
-    expect(wrapper.find(".setup-map").text()).toContain("150 km");
-    expect(wrapper.find(".mapfetch-notes").exists()).toBe(false);
-    const now = config.value;
-    config.value = now && { ...now, values: { ...now.values, "map/radius_km": "300" } };
-    await flushPromises();
-    expect(wrapper.find(".setup-map").text()).toContain("300 km");
-    wrapper.unmount();
-    const done = make({ map: mapState({ state: "ready", detail: mapFile() }) });
-    await done.stand(4);
-    expect(done.wrapper.find(".mapfetch-file").text()).toContain("Map downloaded");
-  });
-
   it("sends the one set_config with the changed keys on Finish and shows 'Saving...' until the daemon answers", async () => {
     const { wrapper, guide, config, sent, stand, next } = make();
-    await stand(4);
+    await stand(3);
     await next();
     expect(sent.filter((c) => c.cmd !== "list_ports")).toEqual([
       { cmd: "set_config", values: { "station/call": "OH2ABC", "station/lat": "60.17", "station/lon": "24.94", "beacon/interval_min": "30" } },
@@ -583,7 +546,7 @@ describe("SetupGuide: the map and Finish", () => {
 
   it("shows the daemon's refusal under the field it names, on the step that has it", async () => {
     const { wrapper, lastError, stand, next } = make();
-    await stand(4);
+    await stand(3);
     await next();
     lastError.value = toastOf("set_config: station/call: 'OH2ABC-99' is not a call");
     await flushPromises();
@@ -592,32 +555,29 @@ describe("SetupGuide: the map and Finish", () => {
     expect(wrapper.find(".setup").exists()).toBe(true);
   });
 
-  it("has the radio and the map steps, with no default of the daemon to show, before it has told its settings", async () => {
+  it("has the radio step, the last, with no default of the daemon to show, before it has told its settings", async () => {
     const { wrapper, guide, config } = make();
     config.value = null;
     guide.step = 3;
     await nextTick();
     expect(wrapper.find<HTMLSelectElement>("#setup-profile").exists()).toBe(true);
     expect(wrapper.find("#setup-baud").attributes("placeholder")).toBe("9600"); // (the speed of the profile)
-    guide.step = 4;
-    await nextTick();
-    expect(wrapper.find(".setup-map").exists()).toBe(true);
     expect(wrapper.find("button[type=submit]").text()).toBe("Finish");
   });
 });
 
 describe("SetupGuide: the map is made without a click", () => {
-  it("says so in one quiet line on the steps while the daemon downloads the map of the area, and says nothing on the Map step, which shows the bar", async () => {
+  it("says so in one quiet line on the steps while the daemon downloads the map of the area, the last step too", async () => {
     const { wrapper, daemon, guide, stand } = make();
     await stand(2);
     expect(wrapper.find(".setup-mapline").exists()).toBe(false);
     await tell(daemon, { map: mapState({ state: "downloading", step: "area", percent: 20 }) });
     expect(wrapper.find(".setup-mapline").text()).toBe("Downloading the map of your area…");
     expect(wrapper.find(".setup-mapline").attributes("role")).toBe("status");
-    guide.go(4);
+    guide.go(3);
     await nextTick();
-    expect(wrapper.find(".setup-mapline").exists()).toBe(false);
-    expect(wrapper.find(".mapfetch-progress").exists()).toBe(true);
+    expect(wrapper.find(".setup-mapline").text()).toBe("Downloading the map of your area…");
+    expect(wrapper.find(".mapfetch-progress").exists()).toBe(false);
   });
 
   it("says the detailed map will download when the computer is online, when the daemon could not fetch it yet", async () => {

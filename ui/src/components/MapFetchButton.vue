@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The button of the Detailed map row of the Map group (the Settings tab, and the first-run guide's map step; components/ActionRow.vue), a plain one: **Download map**. The first press runs the estimate (a dry run) and says "Checking size…"; when the size is known
+// The button of the Detailed map row of the Map group of the Settings tab (components/ActionRow.vue), a plain one: **Download map**. The first press runs the estimate (a dry run) and says "Checking size…"; when the size is known
 // the button asks "Download 493 MB?", and the second press downloads (the world map if it is not there, then the detailed map). Cancel beside it while a job runs; the progress, what a job failed with and the line "Map downloaded 23 Oct" are under the row (components/MapFetchNotes.vue).
 // With a detailed map (basemap.pmtiles; the world map that ships with the program does not count) the button says "Download again". The daemon does the work for the radius and the detail it has in force; a setting that is still being saved (`stale`) disables the button for the moment, unless the form saves it before it sends the command (`early`,
 // the first-run guide), in which case the daemon having no position yet does not disable it either. A change of the radius takes the question back.

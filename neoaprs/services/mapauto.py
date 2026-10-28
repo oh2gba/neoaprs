@@ -1,5 +1,5 @@
 """The detailed map without a click: the first time a place is set and there is no detailed map yet, the job of Settings, Map, Download (neoaprs/services/mapfetch.py) is begun, so that the map round the station is there by the end of the setup
-(the guide sends the place when it goes on from its Position step, and its last step and the header of the page show the download's progress; nobody is asked).
+(the guide sends the place when it goes on from its Position step, and the header of the page shows the download's progress; nobody is asked).
 
 It is once for an installation. The row `map/auto` (`MAP_AUTO`, state of the daemon, not a setting) says where it stands: empty (never begun), `wanted` (begun, and not yet made) and `done` (a detailed map exists, or the
 operator cancelled the job: never again). A job that fails, most likely for want of a connection, leaves the row `wanted` and tells the page (`MapFetch.later`: "the detailed map will come when you are online"); the next
