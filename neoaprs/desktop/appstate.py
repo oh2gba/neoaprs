@@ -1,8 +1,9 @@
-"""What the app keeps in the data folder, beside the database and not in it: the size of the window (`neoaprs-app.json`), the log of the app (`neoaprs-app.log`) and the folder where the web engine keeps
-what the page stores (`webview/`: localStorage, so the page's panel width, map view and read messages survive a restart). A file that cannot be read is the default, never an error: the window must open."""
+"""What the app keeps in the data folder, beside the database and not in it: the window's geometry (`neoaprs-app.json`: its size, its place and whether it is maximized), the log of the app (`neoaprs-app.log`) and the folder
+where the web engine keeps what the page stores (`webview/`: localStorage, so the page's panel width, map view and read messages survive a restart). A file that cannot be read is the default, never an error: the window must open."""
 import json
 import logging
 import logging.handlers
+from dataclasses import dataclass
 from pathlib import Path
 
 STATE_NAME = "neoaprs-app.json"
@@ -11,6 +12,21 @@ PROFILE_NAME = "webview"
 DEFAULT_SIZE = (1280, 800)
 MIN_SIZE = (480, 320)
 MAX_SIZE = (16000, 16000)
+MAX_PLACE = 30_000                              # a place further out than this is nonsense (Windows puts a minimised window at -32000; three 4K monitors side by side end short of this)
+
+
+@dataclass(frozen=True)
+class WindowState:
+    """The window as it was left: the size and place it has when it is not maximized (the place is the top left corner of its frame, in the toolkit's logical pixels; None when it has never been told), and whether it
+    is maximized, in which case the size and place are the ones it goes back to."""
+    width: int
+    height: int
+    x: int | None = None
+    y: int | None = None
+    maximized: bool = False
+
+
+DEFAULT_WINDOW = WindowState(*DEFAULT_SIZE)
 
 
 def profile_dir(data: Path) -> Path:
@@ -28,22 +44,35 @@ def clamp(width: object, height: object) -> tuple[int, int]:
     return DEFAULT_SIZE
 
 
-def load_size(data: Path) -> tuple[int, int]:
+def place(x: object, y: object) -> tuple[int | None, int | None]:
+    """A remembered place that is two numbers within sane limits (a second monitor to the left is negative), else none."""
+    if isinstance(x, int) and isinstance(y, int) and not isinstance(x, bool) and not isinstance(y, bool) and abs(x) <= MAX_PLACE and abs(y) <= MAX_PLACE:
+        return x, y
+    return None, None
+
+
+def load_window(data: Path) -> WindowState:
     try:
         saved = json.loads((data / STATE_NAME).read_text(encoding="utf-8"))
-        return clamp(saved["width"], saved["height"])
-    except (OSError, ValueError, KeyError, TypeError):
-        return DEFAULT_SIZE
+        width, height = clamp(saved["width"], saved["height"])
+        x, y = place(saved.get("x"), saved.get("y"))
+        return WindowState(width, height, x, y, saved.get("maximized") is True)
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return DEFAULT_WINDOW
 
 
-def save_size(data: Path, width: int, height: int) -> None:
-    """Remembers the size (when it is a real one: a hidden or minimised window reports nonsense); a folder that cannot be written is not worth a crash."""
-    if clamp(width, height) != (width, height):
+def save_window(data: Path, state: WindowState) -> None:
+    """Remembers the window (when its size is a real one: a hidden or minimised window reports nonsense; a place that is nonsense is left out); a folder that cannot be written is not worth a crash."""
+    if clamp(state.width, state.height) != (state.width, state.height):
         return
+    x, y = place(state.x, state.y)
+    kept: dict[str, object] = {"width": state.width, "height": state.height, "maximized": state.maximized}
+    if x is not None and y is not None:
+        kept["x"], kept["y"] = x, y
     try:
-        (data / STATE_NAME).write_text(json.dumps({"width": width, "height": height}) + "\n", encoding="utf-8")
+        (data / STATE_NAME).write_text(json.dumps(kept) + "\n", encoding="utf-8")
     except OSError:
-        logging.getLogger("neoaprs.desktop").debug("the window size could not be saved", exc_info=True)
+        logging.getLogger("neoaprs.desktop").debug("the window's size and place could not be saved", exc_info=True)
 
 
 def setup_logging(data: Path, debug: bool = False) -> None:

@@ -1,6 +1,7 @@
 """The Windows shell against stand-ins for pywebview, pystray and Pillow (`sys.modules` gets them, so this runs on any system and CI): what the shell asks of each toolkit, the closing of the window that
 hides it, the tray menu made from the data of the actions, the page's script that sends other sites to the browser, and the way on without a window when WebView2 cannot start. What the real toolkits do with
 those calls is what only a Windows desktop can say."""
+import logging
 import sys
 import threading
 import types
@@ -31,7 +32,7 @@ class Hook:
 class FakeWindow:
     def __init__(self, args: tuple[Any, ...], kwargs: dict[str, Any]) -> None:
         self.args, self.kwargs = args, kwargs
-        self.events = types.SimpleNamespace(closing=Hook(), resized=Hook(), loaded=Hook())
+        self.events = types.SimpleNamespace(closing=Hook(), resized=Hook(), moved=Hook(), maximized=Hook(), minimized=Hook(), restored=Hook(), loaded=Hook())
         self.calls: list[str] = []
         self.scripts: list[str] = []
         self.destroyed = threading.Event()
@@ -44,6 +45,9 @@ class FakeWindow:
 
     def restore(self) -> None:
         self.calls.append("restore")
+
+    def maximize(self) -> None:
+        self.calls.append("maximize")
 
     def destroy(self) -> None:
         self.calls.append("destroy")
@@ -136,7 +140,7 @@ class Rig:
         self.browser: list[str] = []
         monkeypatch.setattr(winshell.webbrowser, "open", lambda url: self.browser.append(url) or True)
         self.data = tmp_path / "data"
-        self.data.mkdir()
+        self.data.mkdir(parents=True)
         self.single = SingleApp(self.data)
         self.daemon = FakeDaemon(up=True)
         self.auto = FakeAutoStart() if autostart else None
@@ -184,10 +188,11 @@ def rig(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Rig:
 
 def test_the_window_has_the_size_it_had_is_hidden_in_the_tray_and_starts_on_edge_with_its_storage_in_the_data_folder(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     rig = Rig(tmp_path, monkeypatch, hidden=True)
-    appstate.save_size(rig.data, 1000, 700)
+    appstate.save_window(rig.data, appstate.WindowState(1000, 700))
     thread = launch(rig)
     (window,) = rig.toolkits.windows
     assert window.args == ("NeoAPRS", PAGE + "#app") and (window.kwargs["width"], window.kwargs["height"]) == (1000, 700) and window.kwargs["hidden"] is True and window.kwargs["text_select"] is True
+    assert "x" not in window.kwargs and "y" not in window.kwargs and window.kwargs["maximized"] is False, "never moved: the toolkit puts it in the middle of the screen"
     assert isinstance(window.kwargs["js_api"], winshell.LinkApi)
     assert rig.toolkits.started == [{"gui": "edgechromium", "private_mode": False, "storage_path": str(rig.data / "webview")}]
     assert rig.toolkits.settings["OPEN_EXTERNAL_LINKS_IN_BROWSER"] is True and rig.browser == []
@@ -226,14 +231,71 @@ def test_the_tray_menu_is_made_from_the_data_of_the_actions(rig: Rig) -> None:
     quit_through_the_menu(rig, thread)
 
 
-def test_a_resize_is_remembered_when_it_has_stopped(rig: Rig, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_resize_or_a_move_is_remembered_when_it_has_stopped(rig: Rig, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(winshell, "SAVE_SIZE_SEC", 0.05)
     thread = launch(rig)
-    (resized,) = rig.toolkits.windows[0].events.resized.handlers
+    events = rig.toolkits.windows[0].events
+    (resized,), (moved,) = events.resized.handlers, events.moved.handlers
     for width in (1010, 1020, 1030, 1100):
         resized(width, 750)
-    until(lambda: appstate.load_size(rig.data) == (1100, 750))
+    until(lambda: appstate.load_window(rig.data) == appstate.WindowState(1100, 750))
+    for x in (100, 120, 140):
+        moved(x, 60)
+    until(lambda: appstate.load_window(rig.data) == appstate.WindowState(1100, 750, 140, 60))
     quit_through_the_menu(rig, thread)
+
+
+def test_a_window_left_maximized_comes_back_maximized_and_goes_back_to_the_size_and_place_it_had_before(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(winshell, "SAVE_SIZE_SEC", 0.05)
+    rig = Rig(tmp_path, monkeypatch)
+    appstate.save_window(rig.data, appstate.WindowState(1000, 700, 100, 60))
+    thread = launch(rig)
+    window = rig.toolkits.windows[0]
+    assert (window.kwargs["x"], window.kwargs["y"], window.kwargs["maximized"]) == (100, 60, False)
+    e = window.events
+    (resized,), (moved,), (maximized,), (minimized,), (restored,) = e.resized.handlers, e.moved.handlers, e.maximized.handlers, e.minimized.handlers, e.restored.handlers
+    moved(-8, -8)                                                           # the maximize, as pywebview tells it: the corner off the screen, then the state, then the whole screen
+    maximized()
+    resized(1936, 1056)
+    until(lambda: appstate.load_window(rig.data) == appstate.WindowState(1000, 700, 100, 60, True))
+    moved(-32000, -32000)                                                   # minimised: nothing changes
+    minimized()
+    resized(160, 28)
+    threading.Event().wait(0.15)
+    assert appstate.load_window(rig.data) == appstate.WindowState(1000, 700, 100, 60, True)
+    maximized()                                                             # back from the taskbar, maximized still
+    resized(1936, 1056)
+    menu_item(rig, "Open").action(rig.toolkits.icons[0], menu_item(rig, "Open"))
+    assert window.calls[-2:] == ["show", "maximize"], "Open from the tray keeps it maximized"
+    restored()                                                              # the user restores it: pywebview tells the place and the size it went back to
+    moved(102, 62)
+    resized(1000, 700)
+    until(lambda: appstate.load_window(rig.data) == appstate.WindowState(1000, 700, 102, 62, False))
+    menu_item(rig, "Open").action(rig.toolkits.icons[0], menu_item(rig, "Open"))
+    assert window.calls[-2:] == ["show", "restore"]
+    quit_through_the_menu(rig, thread)
+    again = Rig(tmp_path / "again", monkeypatch)
+    appstate.save_window(again.data, appstate.WindowState(1000, 700, 102, 62, True))
+    thread = launch(again)
+    assert (again.toolkits.windows[0].kwargs["x"], again.toolkits.windows[0].kwargs["maximized"]) == (102, True)
+    quit_through_the_menu(again, thread)
+
+
+def test_a_place_on_no_monitor_is_not_used_and_the_window_opens_in_the_middle_of_the_screen(rig: Rig, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO, "neoaprs.desktop")
+    monkeypatch.setattr(winshell, "on_a_monitor", lambda x, y: False)
+    appstate.save_window(rig.data, appstate.WindowState(1000, 700, 5000, 60))
+    thread = launch(rig)
+    window = rig.toolkits.windows[0]
+    assert "x" not in window.kwargs and (window.kwargs["width"], window.kwargs["height"]) == (1000, 700)
+    assert any("on no monitor" in r.getMessage() for r in caplog.records)
+    quit_through_the_menu(rig, thread)
+
+
+def test_where_the_system_cannot_be_asked_for_its_monitors_the_place_is_trusted() -> None:
+    assert winshell.on_a_monitor(100, 60) is True                          # (no windll here)
+    assert winshell.placed(appstate.WindowState(1000, 700, 100, 60), lambda x, y: True) == appstate.WindowState(1000, 700, 100, 60)
+    assert winshell.placed(appstate.WindowState(1000, 700), lambda x, y: False) == appstate.WindowState(1000, 700)
 
 
 def test_the_page_is_given_a_script_that_hands_other_sites_to_the_browser(rig: Rig, monkeypatch: pytest.MonkeyPatch) -> None:

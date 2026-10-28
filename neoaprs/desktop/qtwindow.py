@@ -6,8 +6,8 @@ from collections.abc import Callable
 from pathlib import Path
 
 from shiboken6 import delete
-from PySide6.QtCore import QObject, QTimer, QUrl
-from PySide6.QtGui import QCloseEvent, QIcon, QResizeEvent
+from PySide6.QtCore import QObject, QPoint, Qt, QTimer, QUrl
+from PySide6.QtGui import QCloseEvent, QGuiApplication, QIcon, QMoveEvent, QResizeEvent
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile, QWebEngineProfileBuilder
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import QMainWindow
@@ -17,7 +17,8 @@ from .links import open_external, route, window_url
 
 log = logging.getLogger("neoaprs.desktop")
 
-SAVE_SIZE_MS = 500                       # a resize is remembered when it has stopped for this long
+SAVE_SIZE_MS = 500                       # a resize or a move is remembered when it has stopped for this long
+TITLE_POINT = (64, 16)                   # a point of the title bar, from the top left corner of the frame: where it is on a screen, the window can be taken hold of
 
 
 def make_profile(data: Path, parent: QObject | None = None) -> QWebEngineProfile:
@@ -58,7 +59,8 @@ class AppPage(QWebEnginePage):
 
 
 class AppWindow(QMainWindow):
-    """Title "NeoAPRS", the page, the size it had last time. `on_close` is asked when the close button is used: it says whether the window should be hidden (True: NeoAPRS goes on in the tray) or the app ends."""
+    """Title "NeoAPRS", the page, the size and place it had last time (the place only when a screen has it still), maximized if it was left so. `on_close` is asked when the close button is used: it says whether the window
+    should be hidden (True: NeoAPRS goes on in the tray) or the app ends."""
 
     def __init__(self, data: Path, url: str, icon: QIcon, on_close: Callable[[], bool]) -> None:
         super().__init__()
@@ -67,7 +69,12 @@ class AppWindow(QMainWindow):
         self.on_close = on_close
         self.setWindowTitle("NeoAPRS")
         self.setWindowIcon(icon)
-        self.resize(*appstate.load_size(data))
+        state = appstate.load_window(data)
+        self.resize(state.width, state.height)
+        if state.x is not None and state.y is not None and QGuiApplication.screenAt(QPoint(state.x + TITLE_POINT[0], state.y + TITLE_POINT[1])) is not None:
+            self.move(state.x, state.y)
+        if state.maximized:
+            self.setWindowState(Qt.WindowState.WindowMaximized)
         self.profile = make_profile(data, self)
         self.page = AppPage(self.profile, url, self)
         self.view = QWebEngineView(self)
@@ -76,7 +83,7 @@ class AppWindow(QMainWindow):
         self._saver = QTimer(self)
         self._saver.setSingleShot(True)
         self._saver.setInterval(SAVE_SIZE_MS)
-        self._saver.timeout.connect(self.remember_size)
+        self._saver.timeout.connect(self.remember_geometry)
 
     def load(self) -> None:
         self.view.setUrl(QUrl(window_url(self.url)))
@@ -94,16 +101,28 @@ class AppWindow(QMainWindow):
         self.raise_()
         self.activateWindow()
 
-    def remember_size(self) -> None:
-        if not self.isMaximized() and not self.isFullScreen() and self.isVisible():
-            appstate.save_size(self.data, self.width(), self.height())
+    def remember_geometry(self) -> None:
+        """The size and place the window has when it is not maximized (Qt keeps them while it is), and whether it is; a window that is not shown reports nonsense."""
+        if self.isFullScreen() or not self.isVisible():
+            return
+        if self.isMaximized():
+            normal = self.normalGeometry()                                            # (the widget's: the frame's corner is the decorations higher and to the left, as it is now)
+            frame = self.geometry().topLeft() - self.frameGeometry().topLeft()
+            state = appstate.WindowState(normal.width(), normal.height(), normal.x() - frame.x(), normal.y() - frame.y(), True)
+        else:
+            state = appstate.WindowState(self.width(), self.height(), self.pos().x(), self.pos().y(), False)
+        appstate.save_window(self.data, state)
 
     def resizeEvent(self, event: QResizeEvent) -> None:
         super().resizeEvent(event)
         self._saver.start()
 
+    def moveEvent(self, event: QMoveEvent) -> None:
+        super().moveEvent(event)
+        self._saver.start()
+
     def closeEvent(self, event: QCloseEvent) -> None:
-        self.remember_size()
+        self.remember_geometry()
         if self.on_close():
             event.ignore()
             self.hide()

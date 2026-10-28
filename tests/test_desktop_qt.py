@@ -163,12 +163,39 @@ def test_a_click_on_the_links_of_the_page_reaches_the_browser_and_the_window_sta
     assert opened == ["https://www.openstreetmap.org/copyright"] and rig.window.page.url().toString() == before
 
 
-def test_closing_hides_the_window_and_remembers_its_size(rig: Rig) -> None:
+def test_closing_hides_the_window_and_remembers_its_size_and_place(rig: Rig) -> None:
     rig.window.resize(1000, 700)
+    rig.window.move(30, 40)
     rig.window.show()
     rig.window.on_close = lambda: True
     assert rig.window.close() is False and not rig.window.isVisible(), "the close was refused and the window is hidden"
-    assert appstate.load_size(rig.data) == (1000, 700)
+    assert appstate.load_window(rig.data) == appstate.WindowState(1000, 700, 30, 40, False)
+
+
+def test_a_window_left_maximized_is_remembered_so_with_the_size_and_place_it_goes_back_to_and_opens_maximized(rig: Rig, page_url: str, qapp: QApplication, tmp_path: Path) -> None:
+    rig.window.resize(1000, 700)
+    rig.window.move(30, 40)
+    rig.window.show()
+    rig.window.showMaximized()
+    spin(lambda: rig.window.isMaximized())
+    rig.window.remember_geometry()
+    assert appstate.load_window(rig.data) == appstate.WindowState(1000, 700, 30, 40, True)
+    rig.window.showNormal()
+    spin(lambda: not rig.window.isMaximized())
+    for name, state, check in (                                              # (a window of its own folder each: the engine lets one profile use a folder)
+        ("again", appstate.WindowState(1000, 700, 30, 40, True), lambda w: w.isMaximized() and (w.normalGeometry().width(), w.normalGeometry().height()) == (1000, 700)),
+        ("elsewhere", appstate.WindowState(1000, 700, 29000, 29000), lambda w: not w.isMaximized() and (w.pos().x(), w.pos().y()) != (29000, 29000)),      # a place on no screen is not used
+    ):
+        folder = tmp_path / name
+        folder.mkdir()
+        appstate.save_window(folder, state)
+        window = AppWindow(folder, page_url, rig.window.windowIcon(), lambda: True)
+        try:
+            assert check(window), name
+        finally:
+            window.dispose()
+            window.deleteLater()
+            qapp.processEvents()
 
 
 def test_closing_with_no_tray_to_bring_it_back_from_quits_the_app(rig: Rig) -> None:
@@ -235,7 +262,7 @@ def test_quitting_remembers_the_size_of_the_window_and_ends_the_app(rig: Rig, mo
     rig.window.resize(1111, 666)
     rig.built.frame.quit()
     rig.window.hide()
-    assert ended == [True] and appstate.load_size(rig.data) == (1111, 666)
+    assert ended == [True] and (appstate.load_window(rig.data).width, appstate.load_window(rig.data).height) == (1111, 666)
 
 
 def test_where_no_tray_comes_the_window_is_shown_when_the_wait_is_over(tmp_path: Path, qapp: QApplication, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:

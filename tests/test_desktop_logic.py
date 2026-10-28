@@ -247,20 +247,28 @@ def test_a_daemon_that_restarts_as_a_new_version_is_waited_for_while_its_note_is
 
 # ---- what the app remembers
 
-def test_the_window_size_is_remembered_and_a_bad_file_gives_the_default(tmp_path: Path) -> None:
-    assert appstate.load_size(tmp_path) == (1280, 800)
-    appstate.save_size(tmp_path, 1000, 700)
-    assert appstate.load_size(tmp_path) == (1000, 700)
+def test_the_window_is_remembered_with_its_place_and_whether_it_is_maximized_and_a_bad_file_gives_the_default(tmp_path: Path) -> None:
+    assert appstate.load_window(tmp_path) == appstate.WindowState(1280, 800, None, None, False)
+    appstate.save_window(tmp_path, appstate.WindowState(1000, 700, -1920, 24, True))
+    assert appstate.load_window(tmp_path) == appstate.WindowState(1000, 700, -1920, 24, True)
+    appstate.save_window(tmp_path, appstate.WindowState(1000, 700))
+    assert appstate.load_window(tmp_path) == appstate.WindowState(1000, 700), "a window that was never moved has no place"
+    (tmp_path / appstate.STATE_NAME).write_text('{"width": 1000, "height": 700}', encoding="utf-8")
+    assert appstate.load_window(tmp_path) == appstate.WindowState(1000, 700), "the file of an earlier version, with the size alone"
     for text in ("", "not json", "[]", '{"width": "wide", "height": 5}', '{"width": 10, "height": 10}', '{"width": 1000}', '{"width": true, "height": true}', '{"width": 99999, "height": 700}'):
         (tmp_path / appstate.STATE_NAME).write_text(text, encoding="utf-8")
-        assert appstate.load_size(tmp_path) == (1280, 800), text
+        assert appstate.load_window(tmp_path) == appstate.DEFAULT_WINDOW, text
+    (tmp_path / appstate.STATE_NAME).write_text('{"width": 1000, "height": 700, "x": "left", "y": 5, "maximized": "yes"}', encoding="utf-8")
+    assert appstate.load_window(tmp_path) == appstate.WindowState(1000, 700), "a place that is not two numbers is none, and maximized is only true"
 
 
-def test_the_size_of_a_window_that_is_hidden_or_minimised_is_not_saved(tmp_path: Path) -> None:
-    appstate.save_size(tmp_path, 1000, 700)
-    appstate.save_size(tmp_path, 0, 0)
-    appstate.save_size(tmp_path, 160, 28)
-    assert appstate.load_size(tmp_path) == (1000, 700)
+def test_the_size_of_a_window_that_is_hidden_or_minimised_is_not_saved_and_a_place_that_is_nonsense_is_left_out(tmp_path: Path) -> None:
+    appstate.save_window(tmp_path, appstate.WindowState(1000, 700, 10, 20))
+    appstate.save_window(tmp_path, appstate.WindowState(0, 0, 10, 20))
+    appstate.save_window(tmp_path, appstate.WindowState(160, 28, 10, 20))
+    assert appstate.load_window(tmp_path) == appstate.WindowState(1000, 700, 10, 20)
+    appstate.save_window(tmp_path, appstate.WindowState(1000, 700, -32000, -32000))                 # (where Windows puts a minimised window)
+    assert appstate.load_window(tmp_path) == appstate.WindowState(1000, 700)
 
 
 def test_the_web_engine_gets_its_storage_in_the_data_folder(tmp_path: Path) -> None:

@@ -10,7 +10,7 @@ from neoaprs.desktop import appstate
 
 def test_a_folder_that_cannot_be_written_does_not_stop_the_app_from_closing(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.DEBUG, "neoaprs.desktop")
-    appstate.save_size(tmp_path / "gone" / "deeper", 1000, 700)       # (the folder is not there: the write is refused)
+    appstate.save_window(tmp_path / "gone" / "deeper", appstate.WindowState(1000, 700))       # (the folder is not there: the write is refused)
     assert not (tmp_path / "gone").exists()
     assert any("could not be saved" in r.getMessage() for r in caplog.records)
 

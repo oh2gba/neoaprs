@@ -64,7 +64,7 @@ class QtFrame(QObject):
     @Slot()
     def _quit(self) -> None:
         if self.window is not None:
-            self.window.remember_size()
+            self.window.remember_geometry()
         QApplication.quit()
 
     @Slot(str)

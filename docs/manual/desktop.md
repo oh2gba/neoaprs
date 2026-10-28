@@ -14,7 +14,7 @@ It needs the extra `app`: `uv tool install "neoaprs[app]"` or `pip install "neoa
 
 ## The window
 
-- It is titled NeoAPRS, 1280x800 the first time, then the size it was closed with.
+- It is titled NeoAPRS, 1280x800 in the middle of the screen the first time, then the size and place it was closed with, maximized if it was. A place that is on no monitor any more (one was unplugged) is not used.
 - What the page keeps in the browser (the panel's width and tab, the map's view, the messages and bulletins seen) is kept in the folder `webview/` of the data folder, so it survives a restart. It belongs to the page's address, `127.0.0.1` and the port. A page that moves to another port (7303 was taken) starts with a clean slate there.
 - Closing the window **hides** it. NeoAPRS goes on listening in the tray.
 - A link to another site (the QRZ page of a call, the credits of the map) and a link that asks for a new tab open in the system's browser and never in the window. `file:` and `javascript:` addresses are dropped.
@@ -58,6 +58,6 @@ The app chooses what the computer can run and says what it chose, and why, in `n
 
 ## Files in the data folder
 
-`neoaprs-app.log` (the app's log, rotating, 1 MB), `neoaprs-app.json` (the window's size), `neoaprs-app.lock` and `neoaprs-app.port` (the one-app rule), and `webview/` (the web engine's storage). The daemon's own lock, `neoaprs.lock`, is separate.
+`neoaprs-app.log` (the app's log, rotating, 1 MB), `neoaprs-app.json` (the window's size, place and whether it is maximized), `neoaprs-app.lock` and `neoaprs-app.port` (the one-app rule), and `webview/` (the web engine's storage). The daemon's own lock, `neoaprs.lock`, is separate.
 
 On Windows, the app is `neoaprs-app.exe`, not `NeoAPRS.exe`, because Windows file names ignore case and that would be the console program `neoaprs.exe`.
