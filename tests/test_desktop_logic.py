@@ -1,5 +1,6 @@
 """The desktop app's logic, with no window and no tray: which addresses stay in the window, the tray menu as data and what its items do, the decision to attach to a daemon or start one, what the app remembers, which shell
 this computer can run and the fallbacks when none can show a window. The shells themselves are tests/test_desktop_qt.py and tests/test_desktop_winshell.py."""
+import json
 import subprocess
 import threading
 import types
@@ -260,6 +261,18 @@ def test_the_window_is_remembered_with_its_place_and_whether_it_is_maximized_and
         assert appstate.load_window(tmp_path) == appstate.DEFAULT_WINDOW, text
     (tmp_path / appstate.STATE_NAME).write_text('{"width": 1000, "height": 700, "x": "left", "y": 5, "maximized": "yes"}', encoding="utf-8")
     assert appstate.load_window(tmp_path) == appstate.WindowState(1000, 700), "a place that is not two numbers is none, and maximized is only true"
+
+
+def test_the_windows_placement_is_kept_beside_the_size_and_a_placement_that_is_nonsense_is_none(tmp_path: Path) -> None:
+    placed = appstate.WindowState(1000, 700, None, None, True, (-1700, 60, -700, 760))
+    appstate.save_window(tmp_path, placed)
+    assert appstate.load_window(tmp_path) == placed
+    assert json.loads((tmp_path / appstate.STATE_NAME).read_text(encoding="utf-8")) == {"width": 1000, "height": 700, "maximized": True, "normal": [-1700, 60, -700, 760]}
+    for normal in ("[0, 0, 1000]", "[0, 0, 1000, \"700\"]", "[0, 0, true, 700]", "[0, 0, 100, 100]", "[0, 0, 99999, 700]", "[-40000, 0, -39000, 700]", "{\"left\": 0}", "null"):
+        (tmp_path / appstate.STATE_NAME).write_text('{"width": 1000, "height": 700, "maximized": true, "normal": %s}' % normal, encoding="utf-8")
+        assert appstate.load_window(tmp_path) == appstate.WindowState(1000, 700, None, None, True), normal
+    appstate.save_window(tmp_path, appstate.WindowState(1000, 700, None, None, False, (0, 0, 10, 10)))
+    assert "normal" not in json.loads((tmp_path / appstate.STATE_NAME).read_text(encoding="utf-8")), "a rectangle that is nonsense is not written"
 
 
 def test_the_size_of_a_window_that_is_hidden_or_minimised_is_not_saved_and_a_place_that_is_nonsense_is_left_out(tmp_path: Path) -> None:
